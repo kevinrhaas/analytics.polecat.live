@@ -53,7 +53,7 @@ function serve() {
     const libCount = await page.$eval("#libCount", (e) => e.textContent);
     ok("query library populated", /\d+ queries/.test(libCount) && parseInt(libCount) > 100, libCount);
     ok("examples menu has entries", (await page.$$("#menuExamples button")).length >= 16);
-    ok("brand reads “Demonstration Dashboard Studio”", /Demonstration Dashboard/.test(await page.$eval("#topbar .brand-title", (e) => e.textContent)));
+    ok("brand reads “Analytics Dashboard Studio”", /Analytics Dashboard/.test(await page.$eval("#topbar .brand-title", (e) => e.textContent)));
 
     // ---- a11y: keyboard focus ring (Tab triggers :focus-visible) ----
     await page.keyboard.press("Tab");
@@ -2495,7 +2495,7 @@ function serve() {
       };
     });
     ok("phone viewport: topbar fits the viewport (no horizontal overflow)", !phoneTopbar.tbScrollOverflow && phoneTopbar.tbWidth <= phoneTopbar.vpWidth + 1, JSON.stringify(phoneTopbar));
-    ok("phone viewport: brand title remains visible", phoneTopbar.brandVisible && /Demonstration/.test(phoneTopbar.brandText), JSON.stringify(phoneTopbar));
+    ok("phone viewport: brand title remains visible", phoneTopbar.brandVisible && /Analytics/.test(phoneTopbar.brandText), JSON.stringify(phoneTopbar));
     ok("phone viewport: ⋯ More button is visible", phoneTopbar.btnMoreVisible, JSON.stringify(phoneTopbar));
     ok("phone viewport: secondary buttons are hidden (collapse into More)", phoneTopbar.btnAboutHidden && phoneTopbar.btnConnHidden, JSON.stringify(phoneTopbar));
 

@@ -1,6 +1,6 @@
-/* welcome.js — first-run welcome / tour. Explains this is a Pentaho Solution
-   Engineering demonstration of building CDF/CDE/CDA dashboard components on the
-   Pentaho platform. Shows once (localStorage), reopenable via the topbar ⓘ.
+/* welcome.js — first-run welcome / tour. Introduces Analytics Dashboard Studio
+   (an analytics.polecat.live project) for building interactive dashboards over
+   your data. Shows once (localStorage), reopenable via the topbar ⓘ.
    Self-contained styles. window.StudioWelcome.open() / .maybeShow(). */
 (function () {
   "use strict";
@@ -8,9 +8,9 @@
   var SEEN = "studio-welcome-seen";
 
   var STEPS = [
-    { t: "Welcome to Demonstration Dashboard Studio", ic: "P",
-      h: "A <b>Pentaho Solution Engineering</b> demonstration — a modern, visual way to build Pentaho dashboard components (<b>CDF</b>, <b>CDE</b>, <b>CDA</b>) and show off the power of the Pentaho platform.",
-      s: "Design dashboards from your existing CDA queries, preview them live, and export deployable Pentaho artifacts." },
+    { t: "Welcome to Analytics Dashboard Studio", ic: "P",
+      h: "An <b>analytics.polecat.live</b> project — a modern, visual way to build interactive dashboards over your existing data.",
+      s: "Design dashboards from your existing queries, preview them live, and export deployable artifacts." },
     { t: "Three panes", ic: "▥",
       h: "<b>Query Library</b> (left) lists CDA data accesses · <b>Live preview</b> (center) is the real dashboard · <b>Inspector</b> (right) edits whatever you select.",
       s: "Drag a query onto the canvas, pick a chart from the gallery, and tune it in the inspector." },

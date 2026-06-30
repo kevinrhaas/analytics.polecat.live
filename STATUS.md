@@ -1,15 +1,11 @@
-# PDC Dashboard Studio — STATUS (hourly-loop resume anchor)
+# Analytics Dashboard Studio — STATUS (hourly-loop resume anchor)
 
-> **RESUME PROTOCOL:** An hourly cron (`37 * * * *`, session job) runs the improvement loop.
+> **RESUME PROTOCOL:** An hourly cron (`17 * * * *`, fresh-session job) runs the improvement loop.
 > On each fire: read THIS file first, continue from the top **NEXT** item, implement ~1–3 high-value
 > improvements, keep the Playwright suite green, update DONE/NEXT here, and **commit + push** to
-> `claude/dashboard-studio` (this loop's own branch — separated from the iteration/v2 loop to avoid
-> shared-branch churn). One commit per coherent improvement so progress survives.
->
-> **PROMPT LOG:** `PROMPTS.md` records the user prompts driving this project (the human-intent
-> history). When working an interactive session, **append each new substantive user prompt** to it
-> (verbatim + UTC timestamp + a one-line intent/outcome note). The autonomous loop won't receive new
-> user prompts, but keep the file accurate if you touch it.
+> `main` of `kevinrhaas/analytics.polecat.live` — main is the GitHub Pages deploy branch, so pushing
+> publishes the live site at https://analytics.polecat.live. One commit per coherent improvement so
+> progress survives.
 >
 > **REFINEMENT CADENCE:** roughly every ~5th run (or whenever the feature backlog is thin), do a
 > **track H refinement pass** instead of a new feature — step back and make the app cleaner, more
@@ -20,12 +16,14 @@
 > Pentaho **CDE & CDF** dashboards over existing **CDA** queries. CDF is the prettier/primary track.
 
 ## Environment / how to work
-- Project root: `dashboard-studio/`. Plain HTML/JS, no framework, no build step.
+- Project root: the **repository root** of `kevinrhaas/analytics.polecat.live` (the app is the repo —
+  no `dashboard-studio/` subfolder). Plain HTML/JS, no framework, no build step.
 - Serve: `./serve.sh` (→ http://localhost:8000). Must be served (fetch); `file://` won't work.
-- **Test:** `cd dashboard-studio && NODE_PATH=$(npm root -g) node tests/run.js` (Playwright, global at
+- **Test:** from the repo root: `NODE_PATH=$(npm root -g) node tests/run.js` (Playwright, global at
   `/opt/node22/lib/node_modules`, Chromium at `/opt/pw-browsers/chromium-1194/chrome-linux/chrome`).
   Keep it **green**; add a check for each new feature.
-- Regenerate catalog/examples from v2: `python3 tools/import-v2.py`.
+- Regenerate catalog/examples from the reference suite: `python3 tools/import-v2.py` (reads
+  `reference/dashboards/`).
 - One spec drives all: `app/model.js` (registry+helpers) → `app/studio-render.js` (in-iframe render +
   in-canvas editing) ↔ `app/studio.js` (builder) → `app/exporters.js` (CDA/CDE/CDF). `SPEC.md` = schema.
 - Preview iframe == exported CDF html (same toolkit inlined). Builder ↔ iframe talk via postMessage
@@ -42,10 +40,9 @@
 - **Documented for the Pentaho engineering team.** Add helpful, friendly, supportive comments where a
   human needs orientation — explain the *why* and any non-obvious technique. Concise, not verbose. If
   existing code is thin on comments and a reader would struggle, add brief contextual notes.
-- **License.** The Studio is proprietary — see `dashboard-studio/LICENSE` (© Pentaho, created by
-  Pentaho Solution Engineering; all rights reserved). Keep the notice intact; don't add OSS license
-  headers that contradict it. New first-party source files may carry a one-line header
-  (`/* Demonstration Dashboard Studio — © Pentaho (Pentaho Solution Engineering). See LICENSE. */`).
+- **License.** The Studio is proprietary — see `LICENSE` (© 2026 Polecat.live; all rights reserved).
+  Keep the notice intact; don't add OSS license headers that contradict it. New first-party source
+  files may carry a one-line header (`/* Analytics Dashboard Studio — © 2026 Polecat.live. See LICENSE. */`).
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
@@ -129,26 +126,24 @@
 
 - v21: **publish + gate + welcome** — passcode gate (`app/gate.js`+`gate-config.js`, default code
   `pentaho-studio`, SHA-256 in config), first-run **welcome tour** (`app/welcome.js`, 5 steps, reopen
-  via ⓘ Tour) framing it as a Pentaho SE demo, `CNAME`, `tools/publish-pages.sh` (mirror→own Pages
-  repo), `PUBLISH.md` runbook (own-repo Pages + DNS + Cloudflare Access). 82/82.
+  via ⓘ Tour), `CNAME`, and the `PUBLISH.md` runbook (Pages + DNS + Cloudflare Access). 82/82.
 
-- v22: **hosting model (user decision)** — source/dev stays in solution-engineering/dashboard-studio;
-  the public gated site publishes to its **own repo** (so it doesn't take over solution-engineering's
-  Pages). Removed the in-repo Pages workflow; `tools/publish-pages.sh` (mirror→own repo, auto-creates
-  via gh) is the path; PUBLISH.md/README lead with it.
+- v22: **hosting model** (historical; superseded by the v60 standalone migration). The site originally
+  published from a separate Pages repo via a mirror script; that indirection is gone now that this repo
+  *is* the published site (GitHub Pages serves the repo root).
 
-- v23: renamed user-facing brand → **Demonstration Dashboard Studio** (gate, welcome, topbar, title,
-  export footer). Gate now accepts a **list of access codes** (issue/revoke several); `tools/gen-code.js`
-  hashes a code for `app/gate-config.js`. 84/84. (Published live to dashboardstudio-pentaho-space repo.)
+- v23: branding + access pass (gate, welcome, topbar, title, export footer). Gate now accepts a
+  **list of access codes** (issue/revoke several); `tools/gen-code.js` hashes a code for
+  `app/gate-config.js`. 84/84.
 
 - v24: **resizable + collapsible side panels** (drag the handles; collapse to a labeled rail; widths/state persisted), **dark-mode fixes** (library cards & inputs no longer white; brighter accents), and the inspector list-row overlap fix.
 
-- v25: **published live** to `dashboardstudio-pentaho-space` (main @ b0ef1aa) with the v23–v24 changes. `publish-pages.sh` now prefers **rsync** (clean verified `--delete` mirror) and keeps the tar copy only as a fallback (fixes the `tar: Write error` broken-pipe case). Publishing must run from a machine whose network scope reaches the target repo — this sandbox's git proxy is scoped to solution-engineering only.
+- v25: **published live** (historical) with the v23–v24 changes via the old mirror-to-Pages-repo
+  script. Superseded by the v60 migration — this repo now deploys directly through GitHub Pages with
+  no mirror step.
 
-- v26: **auto-publish CI** — `.github/workflows/publish-dashboard-studio.yml` in solution-engineering
-  mirrors `dashboard-studio/` → the Pages repo (main) on every push to main or `claude/**` that
-  touches `dashboard-studio/**`, so loop improvements deploy to https://dashboardstudio.pentaho.space
-  automatically (needs a one-time `PAGES_DEPLOY_TOKEN` secret with write access to the target repo).
+- v26: **auto-publish CI** (historical — a separate-repo mirror workflow, superseded by the v60
+  migration; this repo now auto-deploys from `main` via GitHub Pages).
   Plus **a11y keyboard focus rings** (`:focus-visible` outline themed via --pentaho; covered by a Tab
   test). 88/88.
 
@@ -501,19 +496,19 @@ Next H-track suggestions (pick the highest-value):
   - ✓ **'/' gallery search shortcut** — shipped v124: pressing '/' focuses .cg-search (chart-type gallery search) when a panel is selected and no text field is active; guards against input/textarea/select + modifier keys; listed in shortcuts modal (?); 2 new H-track checks.
   - ✓ **Slideshow mode** — shipped v125: '⋯ More → Slideshow ▶' cycles through all canvas panels one at a time in a full-screen overlay; each slide re-rendered via buildHtml + single-panel iframe (identical quality to CDF export); ◀/▶ nav buttons + keyboard arrows; Escape/× to exit; panel title + 1/N counter in header; test hooks: __slideshowOpen/__slideshowActive/__slideshowPanel; CSS: .ss-overlay/.ss-hdr/.ss-frame in studio.css; 4 new H-track checks. Test suite 683/683.
 
-### I. Learn from the iteration/ lab — match & surpass those visuals (user-requested; RECURRING)
-The `iteration/` tree (especially `iteration/v2/content/dashboards/` on `main`) is a living lab of
-advanced hand-built CDF/CDE dashboards the sibling loop keeps pushing — e.g. network node-click
-drill-to-detail (`PDC.openDetail`), info dots, rich CDF layouts and interactions. Periodically (≈ when
-doing track-F/visual work) **study the newest examples there and port / improve upon the best
-techniques** into Dashboard Studio, so the builder can generate dashboards at least as good as the
-hand-built ones — then push past them. Keep everything CDF/CDE compatible and keep the exporters
-emitting light, self-contained HTML/JS (see Conventions above — no new runtime deps). Each pass: pick
-one technique, generalize it into the Studio model/render/exporters, add a Playwright check, document it
-kindly for the Pentaho team, and note it in the changelog.
-> **READ-ONLY boundary:** `iteration/**` is the sibling loop's domain — **read it for inspiration, never
-> edit it.** This loop writes ONLY under `dashboard-studio/**` (the deploy/workflow files on its own
-> branch aside). Never modify files outside `dashboard-studio/**`.
+### I. Learn from the reference/ lab — match & surpass those visuals (user-requested; RECURRING)
+The `reference/dashboards/` tree is a library of advanced hand-built CDF/CDE dashboards (the original
+iteration-v2 suite) — e.g. network node-click drill-to-detail (`PDC.openDetail`), info dots, rich CDF
+layouts and interactions. Periodically (≈ when doing track-F/visual work) **study the newest examples
+there and port / improve upon the best techniques** into the Studio, so the builder can generate
+dashboards at least as good as the hand-built ones — then push past them. Keep everything compatible with
+the existing exporters and keep them emitting light, self-contained HTML/JS (see Conventions above — no
+new runtime deps). Each pass: pick one technique, generalize it into the Studio model/render/exporters,
+add a Playwright check, document it kindly, and note it in the changelog.
+> **READ-MOSTLY boundary:** `reference/**` (the dashboard lab) and `provisioning/**` (DDL/ETL/deploy)
+> are **read for inspiration, not churned** — only touch them when an improvement specifically calls
+> for it (e.g. regenerating the catalog from `reference/dashboards/`). The loop's normal output is the
+> app itself at the repo root (`app/`, `index.html`, `data/`, `tests/`, docs).
 
 ### J. Documentation — user help in the Pentaho docs style (user-requested)
 Goal: real product documentation for Dashboard Studio, written in the **style and structure of the

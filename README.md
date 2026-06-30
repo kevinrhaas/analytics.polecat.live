@@ -1,4 +1,4 @@
-# Dashboard Studio · analytics.polecat.live
+# Analytics Dashboard Studio · analytics.polecat.live
 
 A modern, interactive **visual builder for Pentaho CDE & CDF dashboards** over your existing
 **CDA** queries. Pick a query from the library, drop it on the canvas, choose a chart, tune it in

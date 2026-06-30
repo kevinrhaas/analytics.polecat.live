@@ -1,4 +1,4 @@
-/* tutorial.js — Demonstration Dashboard Studio interactive tutorial.
+/* tutorial.js — Analytics Dashboard Studio interactive tutorial.
    J6: step-by-step guided walkthrough of the core builder workflow.
    Distinct from the welcome tour (welcome.js), which is informational.
    This tutorial spotlights real UI elements and guides the user through
@@ -6,7 +6,7 @@
 
    window.StudioTutorial.open() — start (or restart) the tutorial.
    window.StudioTutorial.isDone() — true if the user has completed it.
-   © Pentaho (Pentaho Solution Engineering). See LICENSE. */
+   © 2026 Polecat.live. See LICENSE. */
 (function () {
   "use strict";
   var T = window.StudioTutorial = {};
