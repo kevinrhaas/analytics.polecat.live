@@ -6,7 +6,7 @@ A rich, interactive console: concept cards with Simple HTML ⇄ Framework toggle
 live search, group + role/tech/topic facet chips, persona "Start Here" guided paths,
 terminology glossary, counts, hover, and light/dark.
 Version-aware (reads ../VERSION; links/thumbs at /public/pdc-iteration/<version>).
-Regenerate thumbnails with analytics-pentaho-space/build/thumbs.js (deployed by deploy.sh).
+Regenerate thumbnails with the showcase build/thumbs.js (deployed by deploy.sh).
 """
 import os, datetime, subprocess
 from zoneinfo import ZoneInfo
@@ -623,7 +623,7 @@ footer{text-align:center;color:var(--muted);font-size:12.5px;padding:30px 0 50px
     <div><div class="bt">Pentaho Data Catalog Analytics Demo Console</div><div class="bs">demo &middot; iteration %(ver)s &middot; sample dashboards over real catalog metadata</div></div>
     <div class="spacer"></div>
     <div class="pubstamp" title="When this server&#39;s launcher was last published">published<br><b>%(published)s</b></div>
-    <a class="extlink" href="https://analytics.pentaho.space" target="_blank" rel="noopener" title="Open the public Pentaho Solution Engineering analytics showcase">Public showcase &#8599;</a>
+    <a class="extlink" href="https://analytics.polecat.live" target="_blank" rel="noopener" title="Open the public analytics showcase">Public showcase &#8599;</a>
     <button class="darkbtn" id="darkBtn" onclick="toggleTheme()">&#9790; Dark</button>
   </div>
   <div class="stats">
@@ -657,7 +657,7 @@ footer{text-align:center;color:var(--muted);font-size:12.5px;padding:30px 0 50px
   %(changelog)s
   %(glossary)s
 </div></main>
-<footer><div class="wrap">Pentaho Data Catalog Analytics &middot; iteration %(ver)s &middot; published <b>%(published)s</b> &middot; click any card thumbnail to open the live dashboard &middot; each card shows Simple HTML and Framework (CDF) builds via the toggle &middot; data via CDA over <code>PDC-BIDB-EXT</code><br>Public showcase: <a class="extfoot" href="https://analytics.pentaho.space" target="_blank" rel="noopener">analytics.pentaho.space &#8599;</a></div></footer>
+<footer><div class="wrap">Pentaho Data Catalog Analytics &middot; iteration %(ver)s &middot; published <b>%(published)s</b> &middot; click any card thumbnail to open the live dashboard &middot; each card shows Simple HTML and Framework (CDF) builds via the toggle &middot; data via CDA over <code>PDC-BIDB-EXT</code><br>Public showcase: <a class="extfoot" href="https://analytics.polecat.live" target="_blank" rel="noopener">analytics.polecat.live &#8599;</a></div></footer>
 <script>
 var fG="",fR="",fTp="",fTc="",q="";
 function toggleTheme(){var d=document.documentElement,c=d.getAttribute('data-theme')==='dark'?'light':'dark';d.setAttribute('data-theme',c);localStorage.setItem('pdc-theme',c);document.getElementById('darkBtn').innerHTML=c==='dark'?'&#9728; Light':'&#9790; Dark';applyThumbTheme();}

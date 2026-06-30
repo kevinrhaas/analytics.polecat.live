@@ -12,7 +12,6 @@ example specs (`data/cda-catalog.json`, `data/examples/`) are generated from `da
 | `analyzer/` | Pentaho **Analyzer** reports (`.xanalyzer`) + the Mondrian schema they sit on. |
 | `dash-build/` | The **legacy** hand-coded generators (`build.py`, `gen-cde.py`, `gen-home.py`) and the `pdc-ui` toolkit (`pdc-ui.css/js`). Dashboard Studio replaces this build flow with a single visual model; the toolkit itself is vendored into the Studio at `/vendor/pdc-ui.*`. |
 | `ITERATION-V2-README.md` | The original iteration-v2 README. |
-| `ITERATION-STATUS.md` | The original iteration-v2 working log / status (historical). |
 
 To regenerate the Studio catalog + examples from these dashboards:
 
