@@ -263,7 +263,7 @@
       "  " + launcher + "\n</header>\n" +
       "<div class=\"pdc-wrap\">\n  <div class=\"pdc-kpis\" id=\"kpis\"></div>\n" +
       "  <div id=\"content\"><div class=\"loading\">Loading…</div></div>\n" +
-      "  <div class=\"pdc-foot\">Pentaho Data Catalog Analytics · built with Demonstration Dashboard Studio · data via CDA over <code>" +
+      "  <div class=\"pdc-foot\">Pentaho Data Catalog Analytics · built with Dashboard Studio (analytics.polecat.live) · data via CDA over <code>" +
       xml(spec.cda.connection.jndi) + "</code> · no external dependencies</div>\n</div>\n";
     var charts = assets.charts ? ("<script>\n" + assets.charts + "\n</script>\n") : "";
     var boot = "<script>\n" + assets.js + "\n</script>\n" + charts + "<script>\n" + assets.render + "\n</script>\n<script>\n" +

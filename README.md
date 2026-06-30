@@ -1,4 +1,4 @@
-# PDC Dashboard Studio
+# Dashboard Studio · analytics.polecat.live
 
 A modern, interactive **visual builder for Pentaho CDE & CDF dashboards** over your existing
 **CDA** queries. Pick a query from the library, drop it on the canvas, choose a chart, tune it in
@@ -144,7 +144,7 @@ Full runbook: **[PUBLISH.md](PUBLISH.md)**.
 A **passcode gate** (default
 `pentaho-studio`, configurable in `app/gate-config.js`) is on by default; put **Cloudflare Access**
 in front for real SSO/email gating. First-run users get a **welcome tour** (reopen via **ⓘ Tour**)
-framing it as a Pentaho Solution Engineering demo.
+framing it as an analytics.polecat.live project.
 
 ## Tests
 

@@ -1,4 +1,4 @@
-/* changelog.js — Demonstration Dashboard Studio revision history.
+/* changelog.js — Dashboard Studio revision history.
    Newest entry FIRST. The status-bar footer shows the latest "Last updated"
    stamp and renders this list in the collapsible Changelog panel.
 
@@ -8,6 +8,11 @@
 window.STUDIO_BUILD = "__BUILD_TS__";
 
 window.STUDIO_CHANGELOG = [
+  { v: "v60", date: "2026-06-30", time: "00:00 UTC", title: "Standalone repo & analytics.polecat.live rebrand", items: [
+      "Dashboard Studio is now its own standalone repository (analytics.polecat.live), served directly by GitHub Pages at that domain.",
+      "Rebranded from the Pentaho Solution Engineering demo to an analytics.polecat.live project — titles, welcome tour, gate screen, and exported-dashboard footer updated. Pentaho server connectivity (CDA/CDE/CDF, live preview, import, push) is unchanged.",
+      "Source reorganized: the Studio app at the repo root, the iteration-v2 suite split into provisioning/ (warehouse DDL, ETL, deploy) and reference/ (generated dashboards, Analyzer reports, legacy dash-build).",
+    ] },
   { v: "v59", date: "2026-06-26", time: "12:00 UTC", title: "Legend toggles — F8 interactivity polish for multi-series charts", items: [
       "F8 — Clickable legend toggles for areaStacked, combo, and radar charts. Click any legend chip to hide/show its series: the chip dims to 35% opacity, the corresponding SVG bands/bars/line/polygon+dots fade to transparent with a smooth 220ms transition; click again to restore. All three charts now render a `.lgi-toggle` legend row that replaces the static read-only legend.",
       "areaStacked: each stacked band path is individually togglable. Band base opacity 0.82 is restored on re-show. Enter animation now uses `style.opacity` consistently (previously mixed SVG attribute + CSS style).",
@@ -224,7 +229,7 @@ window.STUDIO_CHANGELOG = [
   { v: "v26", date: "2026-06-25", title: "Auto-publish & accessibility", items: [
       "New: status-bar footer with a “Last updated” build stamp and this collapsible changelog.",
       "Accessibility: a keyboard focus ring (:focus-visible) on every interactive control.",
-      "CI now auto-publishes every change to dashboardstudio.pentaho.space — no manual deploy."
+      "CI now auto-publishes every change — no manual deploy."
   ] },
   { v: "v25", date: "2026-06-25", title: "Published live", items: [
       "Studio published to its public, access-gated site.",
@@ -235,8 +240,8 @@ window.STUDIO_CHANGELOG = [
       "Dark-mode polish; fixed inspector list-row text overlap."
   ] },
   { v: "v23", date: "2026-06-24", title: "Branding & access", items: [
-      "Renamed to “Demonstration Dashboard Studio”.",
-      "First-run welcome tour explaining the Pentaho Solution Engineering demo; access-code gate."
+      "Welcome tour and branding pass.",
+      "First-run welcome tour; access-code gate."
   ] },
   { v: "v22", date: "2026-06-23", title: "Server connections", items: [
       "Kettle-standard Pentaho server connections — live data or one-time import.",
