@@ -1,10 +1,10 @@
 /* Access gate config. Empty = open (no gate).
    Accepts ONE SHA-256 hash, or an ARRAY of them so you can issue/revoke several
-   access codes (remove a hash + commit/push to revoke that code).
+   access codes (remove a hash + re-publish to revoke that code).
    Default passcode: "pentaho-studio".
 
    Generate a code's hash:   node tools/gen-code.js "MY ACCESS CODE"
-   then set it below and commit/push (GitHub Pages redeploys this repo).
+   then set it below and re-publish (tools/publish-pages.sh).
 
    This is a soft gate (static assets stay downloadable). For real, managed
    access — email/SSO, one-time codes, expiry — front the site with Cloudflare

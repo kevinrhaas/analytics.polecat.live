@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<!-- Demonstration Dashboard Studio — © Pentaho (Pentaho Solution Engineering). See LICENSE. -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Help — Demonstration Dashboard Studio</title>
+  <style>
+    :root{--brand:#0a1c3d;--accent:#7d3c98;--accent2:#005bb5;--bg:#f7f9fc;--card:#fff;
+      --fg:#1a2a42;--faint:#5d6b82;--line:#dde3ee;--code-bg:#f0f4f9;font-size:15px}
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+      background:var(--bg);color:var(--fg);line-height:1.6}
+    a{color:var(--accent2);text-decoration:none}a:hover{text-decoration:underline}
+
+    /* ── header ── */
+    header{background:var(--brand);color:#fff;padding:0 32px}
+    .hd-inner{max-width:1000px;margin:0 auto;display:flex;align-items:center;
+      gap:18px;padding:16px 0}
+    .hd-logo{width:38px;height:38px;border-radius:10px;background:rgba(255,255,255,.15);
+      display:flex;align-items:center;justify-content:center;font-weight:900;font-size:20px;
+      color:#fff;flex-shrink:0}
+    .hd-title{font-size:17px;font-weight:800;letter-spacing:-.01em}
+    .hd-sub{font-size:11.5px;color:rgba(255,255,255,.6);margin-top:1px}
+    .hd-back{margin-left:auto;font-size:12.5px;color:rgba(255,255,255,.7);
+      border:1px solid rgba(255,255,255,.25);border-radius:8px;padding:5px 14px;
+      text-decoration:none}
+    .hd-back:hover{background:rgba(255,255,255,.1);color:#fff;text-decoration:none}
+
+    /* ── nav ── */
+    nav{background:var(--card);border-bottom:1px solid var(--line);position:sticky;
+      top:0;z-index:10}
+    .nav-inner{max-width:1000px;margin:0 auto;display:flex;gap:0;overflow-x:auto}
+    nav a{font-size:12.5px;font-weight:600;color:var(--faint);padding:12px 16px;
+      white-space:nowrap;border-bottom:2px solid transparent;display:block}
+    nav a:hover{color:var(--accent);text-decoration:none;border-bottom-color:rgba(125,60,152,.3)}
+    nav a.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+    /* ── main layout ── */
+    main{max-width:1000px;margin:0 auto;padding:40px 24px 80px}
+    section{margin-bottom:48px;scroll-margin-top:56px}
+    h2{font-size:20px;font-weight:800;color:var(--brand);margin-bottom:6px;
+      padding-bottom:10px;border-bottom:2px solid var(--line)}
+    h3{font-size:14.5px;font-weight:700;color:var(--fg);margin:20px 0 6px}
+    p{font-size:14px;color:var(--faint);margin-bottom:12px;line-height:1.65}
+    ul{margin:6px 0 12px 18px}
+    li{font-size:14px;color:var(--faint);margin-bottom:5px;line-height:1.6}
+    li strong{color:var(--fg)}
+    code{font-family:'SFMono-Regular',Consolas,'Liberation Mono',monospace;
+      font-size:12.5px;background:var(--code-bg);padding:1px 5px;border-radius:4px;
+      color:var(--accent)}
+
+    /* ── tip card ── */
+    .tip{background:linear-gradient(135deg,#f0f4ff,#f7f0ff);border:1px solid #e0d0f8;
+      border-radius:10px;padding:14px 18px;margin-bottom:16px;display:flex;gap:12px}
+    .tip-ic{font-size:22px;flex-shrink:0;line-height:1.1}
+    .tip-body p{margin-bottom:4px}
+
+    /* ── step cards ── */
+    .steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;
+      margin-bottom:16px}
+    .step{background:var(--card);border:1px solid var(--line);border-radius:10px;
+      padding:16px 18px}
+    .step-num{font-size:11px;font-weight:800;color:var(--accent);letter-spacing:.08em;
+      text-transform:uppercase;margin-bottom:6px}
+    .step-title{font-size:14px;font-weight:700;color:var(--fg);margin-bottom:4px}
+    .step-desc{font-size:12.5px;color:var(--faint);line-height:1.55}
+
+    /* ── chart type grid ── */
+    .chart-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));
+      gap:10px;margin-bottom:16px}
+    .chart-card{background:var(--card);border:1px solid var(--line);border-radius:8px;
+      padding:12px 14px}
+    .chart-name{font-size:13px;font-weight:700;color:var(--fg);margin-bottom:3px}
+    .chart-group{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;
+      color:var(--accent);margin-bottom:5px}
+    .chart-desc{font-size:11.5px;color:var(--faint);line-height:1.5}
+
+    /* ── shortcut table ── */
+    .kbd-table{width:100%;border-collapse:collapse;font-size:13.5px;margin-bottom:16px}
+    .kbd-table th{text-align:left;font-size:11px;font-weight:700;color:var(--faint);
+      letter-spacing:.06em;text-transform:uppercase;padding:8px 12px;
+      border-bottom:1px solid var(--line);background:var(--bg)}
+    .kbd-table td{padding:8px 12px;border-bottom:1px solid var(--line);color:var(--faint)}
+    .kbd-table tr:last-child td{border-bottom:none}
+    .kbd-table tr:hover td{background:var(--bg)}
+    kbd{font-family:inherit;font-size:12px;background:var(--bg);border:1px solid var(--line);
+      border-radius:5px;padding:2px 7px;color:var(--fg);font-weight:700;white-space:nowrap}
+
+    /* ── export table ── */
+    .export-table{width:100%;border-collapse:collapse;font-size:13.5px;margin-bottom:16px}
+    .export-table th{text-align:left;font-size:11px;font-weight:700;color:var(--faint);
+      letter-spacing:.06em;text-transform:uppercase;padding:8px 12px;
+      border-bottom:1px solid var(--line);background:var(--bg)}
+    .export-table td{padding:10px 12px;border-bottom:1px solid var(--line);color:var(--faint);vertical-align:top}
+    .export-table tr:last-child td{border-bottom:none}
+    .badge{display:inline-block;font-size:10.5px;font-weight:700;padding:1px 8px;
+      border-radius:4px;letter-spacing:.03em}
+    .badge-cdf{background:#e8f0fe;color:#1a5ccc}
+    .badge-cde{background:#fff3cd;color:#856404}
+    .badge-cda{background:#e8f8e8;color:#236e23}
+
+    @media(max-width:640px){
+      header{padding:0 16px}main{padding:24px 14px 60px}
+      .steps{grid-template-columns:1fr}.chart-grid{grid-template-columns:repeat(2,1fr)}
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="hd-inner">
+    <div class="hd-logo">P</div>
+    <div>
+      <div class="hd-title">Demonstration Dashboard Studio</div>
+      <div class="hd-sub">Pentaho Solution Engineering · Help Reference</div>
+    </div>
+    <a class="hd-back" href="../index.html">← Back to Studio</a>
+  </div>
+</header>
+
+<nav>
+  <div class="nav-inner">
+    <a href="#getting-started" class="active">Getting started</a>
+    <a href="#builder">The builder</a>
+    <a href="#chart-types">Chart types</a>
+    <a href="#data-sources">Data sources</a>
+    <a href="#exporting">Exporting</a>
+    <a href="#shortcuts">Shortcuts</a>
+    <a href="#simple-mode">Simple mode</a>
+  </div>
+</nav>
+
+<main>
+
+<!-- ── Getting started ─────────────────────────────────────────── -->
+<section id="getting-started">
+  <h2>Getting started</h2>
+  <p>Demonstration Dashboard Studio lets you design Pentaho CDF, CDE, and CDA dashboard
+  components visually — no hand-coding required. Open a browser, choose a data source,
+  drop it onto the canvas, and export a production-ready file in minutes.</p>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">Step 1</div>
+      <div class="step-title">Pick your data</div>
+      <div class="step-desc">Browse the <strong>Query Library</strong> on the left. Search by name, table, or column. Drag a query onto the canvas to create a new chart panel.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">Step 2</div>
+      <div class="step-title">Configure the chart</div>
+      <div class="step-desc">Click a panel on the canvas to select it. The <strong>Inspector</strong> (right side) lets you choose a chart type, bind columns, and tune visual options.</div>
+    </div>
+    <div class="step">
+      <div class="step-num">Step 3</div>
+      <div class="step-title">Export and deploy</div>
+      <div class="step-desc">Use <strong>Export ▾</strong> to download a self-contained CDF <code>.html</code>, an editable CDE <code>.cdfde</code>, the raw <code>.cda</code>, or a full bundle — ready to drop onto any Pentaho server.</div>
+    </div>
+  </div>
+
+  <div class="tip">
+    <div class="tip-ic">⚡</div>
+    <div class="tip-body">
+      <p><strong>Auto-build:</strong> click <strong>New ▾ → Auto-build</strong> to instantly scaffold a complete dashboard from any set of queries — KPIs from KPI data accesses + a chart per chartable DA, all in one click. Edit from there.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ── The builder ────────────────────────────────────────────── -->
+<section id="builder">
+  <h2>The builder</h2>
+  <p>The workspace is divided into three resizable panes. Each pane can be collapsed to a labeled rail by clicking the <code>‹</code> / <code>›</code> collapse button.</p>
+
+  <h3>Three panes</h3>
+  <ul>
+    <li><strong>Query Library (left)</strong> — All CDA data accesses organized by group. Search by name, table, or column keyword. Drag any card onto the canvas to create a panel. In Advanced mode, use <strong>＋ New source</strong> to author your own CDA query.</li>
+    <li><strong>Live preview (center)</strong> — The real dashboard rendered in an iframe. This is byte-identical to what the CDF export produces — no approximation. Click a panel to select it; drag the title bar to reorder; drag the right edge to resize.</li>
+    <li><strong>Inspector (right)</strong> — Contextual editor for whatever is selected. When nothing is selected, shows the dashboard-level controls. Click a panel → panel inspector. Click a KPI tile → KPI inspector. Click a filter → filter inspector.</li>
+  </ul>
+
+  <h3>Drag and drop</h3>
+  <ul>
+    <li>Drag a DA card from the library → drop on the canvas to add a chart panel.</li>
+    <li>Drag a panel's header grip → drop between any other panels to reorder (across rows).</li>
+    <li>Drag the right edge of a panel → resize its column span (1–4 columns).</li>
+    <li>Double-click a panel title on the canvas to rename it inline.</li>
+  </ul>
+
+  <h3>Undo / Redo</h3>
+  <p>Every structural edit (add, remove, reorder, resize, rename) is snapshotted. Use <kbd>Ctrl Z</kbd> / <kbd>⌘ Z</kbd> to undo and <kbd>Shift Z</kbd> to redo. The topbar ↶/↷ buttons work too. Text-field edits are not tracked individually (to avoid flooding the history).</p>
+
+  <h3>Examples</h3>
+  <p>Use <strong>Examples ▾</strong> in the topbar to open one of the 16 bundled example dashboards — CDF showcases and CDE-editable samples across observability, governance, storage, and more. A great way to explore what's possible before building your own.</p>
+</section>
+
+<!-- ── Chart types ────────────────────────────────────────────── -->
+<section id="chart-types">
+  <h2>Chart types</h2>
+  <p>47 chart types are available, grouped by purpose. Select the chart type in the panel inspector after clicking a panel on the canvas. Types marked <span class="badge badge-cdf">CDF</span> are CDF-only; types marked with both badges also round-trip to CDE.</p>
+
+  <h3>Comparison</h3>
+  <div class="chart-grid">
+    <div class="chart-card" id="ct-bars"><div class="chart-group"><span class="badge badge-cdf">CDF</span> <span class="badge badge-cde">CDE</span></div><div class="chart-name">Bar chart</div><div class="chart-desc">Side-by-side bars for comparing categories; horizontal or vertical.</div></div>
+    <div class="chart-card" id="ct-lollipop"><div class="chart-group"><span class="badge badge-cdf">CDF</span></div><div class="chart-name">Lollipop</div><div class="chart-desc">Dot on a stem — a cleaner ranked-list alternative to bars.</div></div>
+    <div class="chart-card" id="ct-radar"><div class="chart-group"><span class="badge badge-cdf">CDF</span></div><div class="chart-name">Radar / spider</div><div class="chart-desc">Polygon overlaid on concentric rings; great for multi-metric profiles.</div></div>
+    <div class="chart-card" id="ct-waterfall"><div class="chart-group"><span class="badge badge-cdf">CDF</span></div><div class="chart-name">Waterfall</div><div class="chart-desc">Running total with cumulative deltas; rises green, falls red.</div></div>
+    <div class="chart-card" id="ct-funnel"><div class="chart-group"><span class="badge badge-cdf">CDF</span></div><div class="chart-name">Funnel</div><div class="chart-desc">Stage-to-stage conversion; bars shrink proportionally to conversion rate.</div></div>
+    <div class="chart-card" id="ct-gantt"><div class="chart-group"><span class="badge badge-cdf">CDF</span></div><div class="chart-name">Gantt / Timeline</div><div class="chart-desc">Horizontal floating bars spanning a start-to-end range — tasks, phases, and project schedules.</div></div>
+    <div class="chart-card" id="ct-dumbbell"><div class="chart-group"><span class="badge badge-cdf">CDF</span></div><div class="chart-name">Dumbbell</div><div class="chart-desc">Gray start dot + colored end dot per row; connector green = improvement, red = decline.</div></div>
+    <div class="chart-card" id="ct-marimekko"><div class="chart-group"><span class="badge badge-cdf">CDF</span></div><div class="chart-name">Marimekko / Mekko</div><div class="chart-desc">Variable-width stacked bars: column width = category share, height segments = composition.</div></div>
+    <div class="chart-card" id="ct-divergingBar"><div class="chart-group"><span class="badge badge-cdf">CDF</span></div><div class="chart-name">Diverging bars</div><div class="chart-desc">Positive bars extend right, negative bars extend left from a shared zero baseline.</div></div>
+    <div class="chart-card" id="ct-parallelCoords"><div class="chart-group"><span class="badge badge-cdf">CDF</span></div><div class="chart-name">Parallel coordinates</div><div class="chart-desc">Multi-dimensional entity profiles across N vertical axes — each row is a polyline.</div></div>
+    <div class="chart-card" id="ct-radialBar"><div class="chart-group"><span class="badge badge-cdf">CDF</span></div><div class="chart-name">Radial bar</div><div class="chart-desc">Concentric arc tracks where arc length encodes value — striking for ranking a handful of key metrics in a circular layout.</div></div>
+    <div class="chart-card" id="ct-pyramidBar"><div class="chart-group"><span class="badge badge-cdf">CDF</span></div><div class="chart-name">Population pyramid</div><div class="chart-desc">Mirrored horizontal bars from a shared centre axis — compare two groups (e.g. Female / Male) across shared categories.</div></div>
+    <div class="chart-card" id="ct-pareto"><div class="chart-group"><span class="badge badge-cdf">CDF</span></div><div class="chart-name">Pareto chart</div><div class="chart-desc">Descending bars + cumulative % line (80/20 rule) — instantly shows which vital few categories account for most of the total.</div></div>
+    <div class="chart-card" id="ct-groupedBars"><div class="chart-group"><span class="badge badge-cdf">CDF</span></div><div class="chart-name">Grouped bars</div><div class="chart-desc">Multiple series side-by-side per category — ideal for Q1/Q2/Q3 by Region or Budget vs Actual vs Forecast by Department.</div></div>
+  </div>
+
+  <h3>Composition</h3>
+  <div class="chart-grid">
+    <div class="chart-card" id="ct-donut"><div class="chart-group"><span class="badge badge-cdf">CDF</span> <span class="badge badge-cde">CDE</span></div><div class="chart-name">Donut / pie</div><div class="chart-desc">Part-of-whole with a center total or caption label.</div></div>
+    <div class="chart-card" id="ct-stacked"><div class="chart-group"><span class="badge badge-cdf">CDF</span> <span class="badge badge-cde">CDE</span></div><div class="chart-name">Stacked bars</div><div class="chart-desc">Multi-series stacked on one axis; composition across categories.</div></div>
+    <div class="chart-card" id="ct-treemap"><div class="chart-group"><span class="badge badge-cdf">CDF</span> <span class="badge badge-cde">CDE</span></div><div class="chart-name">Treemap</div><div class="chart-desc">Nested rectangles sized by value; drill into categories at a glance.</div></div>
+    <div class="chart-card" id="ct-sunburst"><div class="chart-group"><span class="badge badge-cdf">CDF</span></div><div class="chart-name">Sunburst</div><div class="chart-desc">Hierarchical arcs; single-ring or two-ring (group + item) mode.</div></div>
+    <div class="chart-card" id="ct-polarArea"><div class="chart-group"><span class="badge badge-cdf">CDF</span></div><div class="chart-name">Polar area</div><div class="chart-desc">Equal-angle wedges where area (not radius) encodes value.</div></div>
+    <div class="chart-card" id="ct-packedBubble"><div class="chart-group"><span class="badge badge-cdf">CDF</span></div><div class="chart-name">Packed bubbles</div><div class="chart-desc">Force-directed bubble cluster; circle area ∝ value — which items are biggest?</div></div>
+    <div class="chart-card" id="ct-wordCloud"><div class="chart-group"><span class="badge badge-cdf">CDF</span></div><div class="chart-name">Word cloud</div><div class="chart-desc">Text items sized by numeric value (log scale) and placed on a spiral layout.</div></div>
+    <div class="chart-card" id="ct-waffle"><div class="chart-group"><span class="badge badge-cdf">CDF</span></div><div class="chart-name">Waffle chart</div><div class="chart-desc">10×10 grid where each cell = 1% of total — ideal for 'X in every 100' proportional storytelling.</div></div>
+    <div class="chart-card" id="ct-icicle"><div class="chart-group"><span class="badge badge-cdf">CDF</span></div><div class="chart-name">Icicle / partition</div><div class="chart-desc">Two-level rectangular partition: parent categories across the top, child items within each column — encodes both parent share and within-parent composition.</div></div>
+    <div class="chart-card" id="ct-barNorm"><div class="chart-group"><span class="badge badge-cdf">CDF</span></div><div class="chart-name">100% stacked bars</div><div class="chart-desc">Every bar totals 100% and is divided into proportional segments — ideal for comparing compositional mix across categories (market share, budget allocation, survey breakdown).</div></div>
+  </div>
+
+  <h3>Trend</h3>
+  <div class="chart-grid">
+    <div class="chart-card" id="ct-line"><div class="chart-group"><span class="badge badge-cdf">CDF</span> <span class="badge badge-cde">CDE</span></div><div class="chart-name">Line / area</div><div class="chart-desc">Series over time or ordered categories; optional area fill.</div></div>
+    <div class="chart-card" id="ct-areaStacked"><div class="chart-group"><span class="badge badge-cdf">CDF</span> <span class="badge badge-cde">CDE</span></div><div class="chart-name">Stacked area</div><div class="chart-desc">Cumulative bands stacked on one baseline; great for volume trends.</div></div>
+    <div class="chart-card" id="ct-combo"><div class="chart-group"><span class="badge badge-cdf">CDF</span></div><div class="chart-name">Bar + line (combo)</div><div class="chart-desc">Dual-axis: bars on the left scale, line on the right.</div></div>
+    <div class="chart-card" id="ct-slope"><div class="chart-group"><span class="badge badge-cdf">CDF</span></div><div class="chart-name">Slope chart</div><div class="chart-desc">Before/after per category: green line = rise, red = fall.</div></div>
+    <div class="chart-card" id="ct-step"><div class="chart-group"><span class="badge badge-cdf">CDF</span></div><div class="chart-name">Step chart</div><div class="chart-desc">Right-angle horizontal-then-vertical transitions — ideal for step-function or tier data.</div></div>
+    <div class="chart-card" id="ct-bump"><div class="chart-group"><span class="badge badge-cdf">CDF</span></div><div class="chart-name">Bump / ranking</div><div class="chart-desc">Rank positions across periods; crossing lines show competitive overtaking.</div></div>
+    <div class="chart-card" id="ct-streamgraph"><div class="chart-group"><span class="badge badge-cdf">CDF</span></div><div class="chart-name">Stream graph</div><div class="chart-desc">Centered stacked ribbons with a flowing organic shape — evolving volume or share.</div></div>
+    <div class="chart-card" id="ct-candlestick"><div class="chart-group"><span class="badge badge-cdf">CDF</span></div><div class="chart-name">Candlestick / OHLC</div><div class="chart-desc">Open-High-Low-Close bars for time-period ranges, price data, or performance spread.</div></div>
+    <div class="chart-card" id="ct-timeline"><div class="chart-group"><span class="badge badge-cdf">CDF</span></div><div class="chart-name">Timeline / milestones</div><div class="chart-desc">Events alternating above/below a horizontal baseline — product roadmaps, releases, project milestones.</div></div>
+    <div class="chart-card" id="ct-areaRange"><div class="chart-group"><span class="badge badge-cdf">CDF</span></div><div class="chart-name">Area range / band</div><div class="chart-desc">Shaded band between upper and lower bounds with an optional centre line — confidence intervals, forecast corridors, min/max ranges.</div></div>
+  </div>
+
+  <h3>Flow</h3>
+  <div class="chart-grid">
+    <div class="chart-card" id="ct-sankey"><div class="chart-group"><span class="badge badge-cdf">CDF</span></div><div class="chart-name">Sankey (flow)</div><div class="chart-desc">Flow ribbons from source nodes to destination nodes; width ∝ value.</div></div>
+    <div class="chart-card" id="ct-chord"><div class="chart-group"><span class="badge badge-cdf">CDF</span></div><div class="chart-name">Chord / wheel</div><div class="chart-desc">Circular dependency diagram; arcs connect related nodes.</div></div>
+    <div class="chart-card" id="ct-network"><div class="chart-group"><span class="badge badge-cdf">CDF</span></div><div class="chart-name">Network / topology</div><div class="chart-desc">Radial node-link diagram; node size ∝ total flow volume.</div></div>
+  </div>
+
+  <h3>Single value</h3>
+  <div class="chart-grid">
+    <div class="chart-card" id="ct-kpi"><div class="chart-group"><span class="badge badge-cdf">CDF</span></div><div class="chart-name">KPI tile</div><div class="chart-desc">Big-number callout with optional sparkline (line/bar/area) and delta.</div></div>
+    <div class="chart-card" id="ct-gauge"><div class="chart-group"><span class="badge badge-cdf">CDF</span></div><div class="chart-name">Gauge</div><div class="chart-desc">Needle-style arc for a single value vs a configurable max.</div></div>
+    <div class="chart-card" id="ct-bullet"><div class="chart-group"><span class="badge badge-cdf">CDF</span></div><div class="chart-name">Bullet chart</div><div class="chart-desc">KPI vs target with red/amber/green quality-zone bands.</div></div>
+  </div>
+
+  <h3>Distribution</h3>
+  <div class="chart-grid">
+    <div class="chart-card" id="ct-scatter"><div class="chart-group"><span class="badge badge-cdf">CDF</span> <span class="badge badge-cde">CDE</span></div><div class="chart-name">Scatter / bubble</div><div class="chart-desc">X/Y dots; bind a third column to set bubble radius.</div></div>
+    <div class="chart-card" id="ct-heatmap"><div class="chart-group"><span class="badge badge-cdf">CDF</span> <span class="badge badge-cde">CDE</span></div><div class="chart-name">Heatmap (pivot)</div><div class="chart-desc">Color-encoded matrix; row × column cross-tabulation.</div></div>
+    <div class="chart-card" id="ct-calHeatmap"><div class="chart-group"><span class="badge badge-cdf">CDF</span></div><div class="chart-name">Calendar heatmap</div><div class="chart-desc">GitHub-style day grid; cells colored by daily value. Requires a YYYY-MM-DD date column.</div></div>
+    <div class="chart-card" id="ct-boxplot"><div class="chart-group"><span class="badge badge-cdf">CDF</span></div><div class="chart-name">Box plot</div><div class="chart-desc">Five-number summary (min/Q1/median/Q3/max) per category.</div></div>
+    <div class="chart-card" id="ct-dotplot"><div class="chart-group"><span class="badge badge-cdf">CDF</span></div><div class="chart-name">Dot plot</div><div class="chart-desc">Sorted dots on a horizontal axis; optional second column for two-group comparison.</div></div>
+    <div class="chart-card" id="ct-beeswarm"><div class="chart-group"><span class="badge badge-cdf">CDF</span></div><div class="chart-name">Beeswarm plot</div><div class="chart-desc">Individual points jittered along one axis; optional category groups.</div></div>
+    <div class="chart-card" id="ct-histogram"><div class="chart-group"><span class="badge badge-cdf">CDF</span></div><div class="chart-name">Histogram</div><div class="chart-desc">Auto-bins a numeric column into equal-width buckets to show frequency distribution.</div></div>
+    <div class="chart-card" id="ct-violin"><div class="chart-group"><span class="badge badge-cdf">CDF</span></div><div class="chart-name">Violin plot</div><div class="chart-desc">KDE-based symmetric silhouette per category showing the full value distribution shape.</div></div>
+    <div class="chart-card" id="ct-ridgeline"><div class="chart-group"><span class="badge badge-cdf">CDF</span></div><div class="chart-name">Ridgeline / joy plot</div><div class="chart-desc">Horizontally stacked KDE density curves per category with configurable overlap — compare distribution shapes across many groups in a single compact view.</div></div>
+  </div>
+
+  <h3>Comparison</h3>
+  <div class="chart-grid">
+    <div class="chart-card" id="ct-quadrant"><div class="chart-group"><span class="badge badge-cdf">CDF</span></div><div class="chart-name">Quadrant chart</div><div class="chart-desc">2×2 matrix: position items on an x/y scatter plane divided into four labelled zones by configurable threshold lines. Perfect for BCG growth-share, effort/impact prioritisation, and risk/probability grids.</div></div>
+  </div>
+
+  <h3>Detail</h3>
+  <div class="chart-grid">
+    <div class="chart-card" id="ct-table"><div class="chart-group"><span class="badge badge-cdf">CDF</span> <span class="badge badge-cde">CDE</span></div><div class="chart-name">Table</div><div class="chart-desc">Sortable grid showing all columns from the bound data access.</div></div>
+    <div class="chart-card" id="ct-richtext"><div class="chart-group"><span class="badge badge-cdf">CDF</span></div><div class="chart-name">Text / annotation</div><div class="chart-desc">Markdown panel: headings, bold, italic, code, lists — no data binding needed.</div></div>
+  </div>
+
+  <div class="tip">
+    <div class="tip-ic">💡</div>
+    <div class="tip-body">
+      <p><strong>Simple mode</strong> shows only the 13 most universally understood chart types. Switch to <strong>Advanced mode</strong> (⋯ More → Simple mode off) to unlock all 51 types plus specialist annotation tools.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ── Data sources ───────────────────────────────────────────── -->
+<section id="data-sources">
+  <h2>Data sources &amp; CDA</h2>
+  <p>Every chart panel is bound to a <strong>data access (DA)</strong> — a named CDA query. The Query Library (left pane) contains the full catalog of available DAs grouped by domain. In Advanced mode you can also author your own queries.</p>
+
+  <h3>Using catalog queries</h3>
+  <ul>
+    <li>Drag any DA card onto the canvas to create a chart panel pre-bound to that query.</li>
+    <li>Or select an existing panel and use the <strong>Query</strong> picker in the inspector to switch its DA.</li>
+    <li>The <strong>Query preview</strong> section in the panel inspector shows the SQL snippet, column headers, and 3 sample rows so you can verify the binding without leaving the builder.</li>
+  </ul>
+
+  <h3>Authoring new data sources (Advanced)</h3>
+  <p>Click <strong>＋ New source</strong> in the library header to open the data-source builder. Supported types:</p>
+  <ul>
+    <li><strong>SQL</strong> — Write a SELECT query (or use the visual SQL Builder: FROM / JOIN / WHERE / GROUP BY / ORDER BY / LIMIT). Use "Detect from query" to pull column names automatically.</li>
+    <li><strong>MDX</strong> — Multidimensional query against a Mondrian cube.</li>
+    <li><strong>Kettle</strong> — Reference an existing <code>.ktr</code> PDI transform (path + output step). Or use the KTR Builder to generate a simple pipeline and download the <code>.ktr</code>.</li>
+    <li><strong>Metadata</strong> — Pentaho Metadata domain + query.</li>
+    <li><strong>Scripting</strong> — JavaScript/Groovy/Python DA for custom logic.</li>
+  </ul>
+
+  <h3>Joins and compound DAs</h3>
+  <p>Click <strong>⧈ Join</strong> in the library to create a <strong>Compound data access</strong> — either a join (left/right DA + key columns) or a union (stack rows from N DAs). These map directly to CDA <code>&lt;CompoundDataAccess&gt;</code> XML.</p>
+</section>
+
+<!-- ── Exporting ──────────────────────────────────────────────── -->
+<section id="exporting">
+  <h2>Exporting dashboards</h2>
+  <p>Click <strong>Export ▾</strong> in the topbar to open the export menu. Every option opens an export modal with file size, a copy-to-clipboard button, and a download button.</p>
+
+  <table class="export-table">
+    <thead><tr><th>Format</th><th>Badge</th><th>What you get</th><th>Use when</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>CDF HTML</strong></td>
+        <td><span class="badge badge-cdf">CDF</span></td>
+        <td>A fully self-contained <code>.html</code> file with all toolkit JS/CSS inlined. No server required — open in any browser.</td>
+        <td>Sharing demos, embedding in portals, or deploying as a standalone CDF dashboard on Pentaho.</td>
+      </tr>
+      <tr>
+        <td><strong>CDE dashboard</strong></td>
+        <td><span class="badge badge-cde">CDE</span></td>
+        <td><code>.cdfde</code> (layout + component XML) + <code>.wcdf</code> (metadata JSON) pair — opens and edits in Pentaho CDE.</td>
+        <td>When the team needs to continue editing in CDE, or to round-trip Studio ↔ CDE.</td>
+      </tr>
+      <tr>
+        <td><strong>CDA file</strong></td>
+        <td><span class="badge badge-cda">CDA</span></td>
+        <td><code>.cda</code> XML file defining all data accesses, connections, and output options.</td>
+        <td>Updating the data layer independently, or importing into an existing CDE project.</td>
+      </tr>
+      <tr>
+        <td><strong>Bundle (ZIP)</strong></td>
+        <td><span class="badge badge-cdf">CDF</span> <span class="badge badge-cde">CDE</span> <span class="badge badge-cda">CDA</span></td>
+        <td>All three artifacts zipped — <code>.html</code>, <code>.cdfde</code>, <code>.wcdf</code>, <code>.cda</code>.</td>
+        <td>Full delivery to a Pentaho SE or server admin.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Saving and loading your work</h3>
+  <ul>
+    <li><strong>Save spec</strong> (<kbd>Ctrl S</kbd> / <kbd>⌘ S</kbd>) — downloads a <code>.studio.json</code> spec file. This is the editable source of truth; re-open it with <strong>Open file…</strong>.</li>
+    <li><strong>Open file…</strong> — accepts <code>.studio.json</code>, <code>.cdfde</code>, <code>.cda</code>, or a previously exported <code>.html</code> (Studio embeds the spec in exported files).</li>
+    <li><strong>Auto-save</strong> — the Studio quietly saves your work to browser localStorage after each edit. If you accidentally close the tab, a restore banner appears on next open.</li>
+  </ul>
+
+  <h3>Push to server (Advanced)</h3>
+  <p>With an active Pentaho server connection (⚙ Servers), use <strong>Export ▾ → Push to server</strong> to publish all artifacts directly. You can also use the CLI tool <code>tools/push.js</code> for automated or scheduled deploys.</p>
+</section>
+
+<!-- ── Keyboard shortcuts ─────────────────────────────────────── -->
+<section id="shortcuts">
+  <h2>Keyboard shortcuts</h2>
+  <p>All shortcuts work when the builder pane has keyboard focus (click anywhere on the canvas or inspector first). Open the in-app reference with <kbd>?</kbd>.</p>
+
+  <table class="kbd-table">
+    <thead><tr><th>Keys</th><th>Action</th></tr></thead>
+    <tbody>
+      <tr><td><kbd>Ctrl Z</kbd> / <kbd>⌘ Z</kbd></td><td>Undo the last structural edit</td></tr>
+      <tr><td><kbd>Shift Z</kbd> / <kbd>Shift ⌘ Z</kbd></td><td>Redo</td></tr>
+      <tr><td><kbd>Ctrl S</kbd> / <kbd>⌘ S</kbd></td><td>Save spec (<code>.studio.json</code> download)</td></tr>
+      <tr><td><kbd>Ctrl D</kbd> / <kbd>⌘ D</kbd></td><td>Duplicate the selected panel or KPI</td></tr>
+      <tr><td><kbd>↑</kbd> / <kbd>↓</kbd></td><td>Reorder the selected panel up / down</td></tr>
+      <tr><td><kbd>Shift ←</kbd> / <kbd>Shift →</kbd></td><td>Resize selected panel span narrower / wider</td></tr>
+      <tr><td><kbd>Delete</kbd> / <kbd>Backspace</kbd></td><td>Delete the selected panel or KPI</td></tr>
+      <tr><td><kbd>Escape</kbd></td><td>Deselect panel; close any open modal or menu</td></tr>
+      <tr><td><kbd>?</kbd></td><td>Open / close the keyboard shortcuts reference modal</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ── Simple mode ────────────────────────────────────────────── -->
+<section id="simple-mode">
+  <h2>Simple mode vs Advanced mode</h2>
+  <p>Toggle <strong>Simple mode</strong> in the ⋯ More menu to switch between two experience levels. The setting persists across sessions.</p>
+
+  <h3>Simple mode</h3>
+  <ul>
+    <li>13 chart types shown in the gallery (the most universally understood).</li>
+    <li>Advanced inspector sections hidden (Drill-through, Cross-filter, Conditional formatting, Callout arrow, Color scale, Period highlight, Event markers, etc.).</li>
+    <li>Query Library is read-only browse + drag — no CDA authoring controls.</li>
+    <li>Guided <strong>Getting started</strong> checklist and <strong>What's next?</strong> tips appear in the dashboard inspector to help newcomers.</li>
+    <li>KPI and panel data sections show an <strong>Auto-pick</strong> button to assign columns automatically.</li>
+  </ul>
+
+  <h3>Advanced mode (default)</h3>
+  <ul>
+    <li>All 50 chart types + specialist annotation and interaction tools.</li>
+    <li>Full CDA authoring: author SQL / MDX / Kettle / Metadata / Scripting data accesses; create compound joins and unions; manage connections; configure output options.</li>
+    <li>Drill-through, Detail drawer, Cross-filter, Conditional formatting, Color scales, Target lines, Reference bands, and more.</li>
+  </ul>
+
+  <div class="tip">
+    <div class="tip-ic">🎯</div>
+    <div class="tip-body">
+      <p><strong>SE demo tip:</strong> start a customer demo in <strong>Simple mode</strong>, toggle <strong>Focus mode</strong> (⋯ More) to hide all builder chrome and show only the live dashboard, then switch back to Advanced mode to demonstrate the power features in context.</p>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<script>
+// Highlight the active nav link based on scroll position.
+(function () {
+  var secs = Array.from(document.querySelectorAll("section[id]"));
+  var links = Array.from(document.querySelectorAll("nav a"));
+  function update() {
+    var y = window.scrollY + 80;
+    var active = secs[0];
+    secs.forEach(function (s) { if (s.offsetTop <= y) active = s; });
+    links.forEach(function (l) {
+      l.classList.toggle("active", l.getAttribute("href") === "#" + active.id);
+    });
+  }
+  window.addEventListener("scroll", update, { passive: true });
+  update();
+})();
+</script>
+</body>
+</html>

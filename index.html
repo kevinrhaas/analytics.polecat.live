@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Dashboard Studio — build CDE &amp; CDF dashboards · analytics.polecat.live</title>
+<title>Demonstration Dashboard Studio — build CDE &amp; CDF dashboards</title>
 <link rel="stylesheet" href="app/studio.css"/>
 <script src="app/gate-config.js"></script>
 <script src="app/gate.js"></script>
@@ -12,13 +12,15 @@
 <div id="app">
   <header id="topbar">
     <div class="brand"><span class="logo">P</span>
-      <div class="brand-txt"><div class="brand-title">Dashboard&nbsp;Studio</div>
+      <div class="brand-txt"><div class="brand-title">Demonstration Dashboard&nbsp;Studio</div>
         <div class="brand-sub">build CDE &amp; CDF dashboards from CDA queries</div></div>
     </div>
     <div class="dash-id">
       <input id="dashTitle" class="dash-title-input" placeholder="Dashboard title" title="Dashboard title"/>
       <span class="dash-meta"><code id="dashName">untitled</code> · <span id="dashGroup">Observability</span></span>
     </div>
+    <!-- H-track: auto-save state indicator — flashes "Saved ✓" for 2s after each auto-save -->
+    <span id="saveState" class="save-state" aria-live="polite" aria-atomic="true"></span>
     <div class="spacer"></div>
     <div class="top-actions">
       <button class="btn icon" id="btnUndo" title="Undo (Ctrl/Cmd+Z)" disabled>↶</button>
@@ -38,10 +40,13 @@
           <div class="sep"></div>
           <button data-exp="push">Push to active server…</button>
         </div></div>
-      <button class="btn icon btn-secondary" id="btnAbout" title="About / take the tour">Tour</button>
+      <button class="btn icon btn-secondary" id="btnAbout" title="About this demo / take the tour">Tour</button>
       <button class="btn icon btn-secondary" id="btnConn" title="Manage Pentaho server connections">Servers</button>
       <button class="btn icon btn-secondary" id="btnLive" title="Toggle live Pentaho data vs offline sample data">Sample</button>
       <button class="btn icon btn-secondary" id="btnTheme" title="Toggle preview light/dark">Theme</button>
+      <span id="simpleBadge" class="simple-badge" aria-live="polite" aria-label="Simple mode active">Simple mode</span>
+      <!-- H-track v117: Demo mode — pulsing LIVE badge shown while demo simulation is running -->
+      <span id="demoBadge" class="demo-badge" aria-live="polite" aria-label="Demo mode: data refreshes every 4 seconds">● LIVE</span>
       <div class="menu-wrap" id="moreWrap">
         <button class="btn icon" id="btnMore" title="More actions" aria-label="More actions">⋯</button>
         <div class="menu" id="menuMore">
@@ -50,7 +55,18 @@
           <button id="moreLive">Sample / Live</button>
           <button id="moreTheme">Theme</button>
           <div class="sep"></div>
+          <button id="moreDemoMode">Demo mode  ▶</button>
+          <button id="morePresent">Focus mode</button>
+          <button id="moreSlideshow">Slideshow  ▶</button>
+          <button id="moreSimple">Simple mode  ✦</button>
           <button id="moreShortcuts">Keyboard shortcuts  ?</button>
+          <button id="moreHelp">Help docs  ⓘ</button>
+          <button id="moreTutorial">Interactive tutorial  ▶</button>
+          <!-- M7: phone-only items — revealed via CSS at ≤400px when topbar hides these buttons -->
+          <div class="sep more-phone-only"></div>
+          <button id="moreExamples" class="more-phone-only">Examples…</button>
+          <button id="moreImport" class="more-phone-only">Open file…</button>
+          <button id="moreSaveSpec" class="more-phone-only">Save spec…</button>
           <div class="sep"></div>
           <button id="moreClearData">Clear local data…</button>
           <button id="moreSignOut">Sign out</button>
@@ -75,12 +91,20 @@
       <div id="canvas-bar">
         <span class="cb-title">Live preview</span>
         <span class="cb-hint">click to edit · drag the header to reorder · drag the right edge to resize · drop a query to add</span>
+        <button class="btn-cb-text" id="btnAddText" title="Add a text / annotation panel">¶ Text</button>
         <span class="spacer"></span>
         <span class="cb-status" id="previewStatus"></span>
       </div>
       <div id="canvas-stage">
         <iframe id="preview" title="Dashboard preview"></iframe>
         <div id="dropHint" class="drop-hint">Drop a query here to add a panel</div>
+        <!-- H-track: canvas empty state overlay; shown when the spec has 0 panels and 0 KPIs -->
+        <div id="canvasEmpty" aria-hidden="true">
+          <div class="ces-ic" id="cesIc"></div>
+          <div class="ces-title">Canvas is empty</div>
+          <div class="ces-desc">Drag a query from the library onto the canvas, or drop one below.</div>
+          <button type="button" class="ces-btn" id="cesLib">Open library</button>
+        </div>
       </div>
     </section>
 
@@ -90,6 +114,7 @@
     <aside id="inspector" class="pane">
       <div class="pane-rail" data-pane="inspector" title="Expand Inspector"><button class="rail-btn">‹</button><span class="rail-label">Inspector</span></div>
       <div class="pane-h"><span id="inspTitle">Dashboard</span>
+        <a id="inspHelpLink" class="insp-help-link" href="docs/index.html#builder" target="_blank" rel="noopener noreferrer" title="Open help docs" aria-label="Open help documentation">?</a>
         <button class="link" id="inspBack" hidden>‹ Dashboard</button>
         <button class="pane-collapse" data-pane="inspector" title="Collapse panel">›</button></div>
       <div class="insp-scroll" id="inspBody"></div>
@@ -98,7 +123,7 @@
 
   <nav id="mobile-tabs" aria-label="Section navigation"></nav>
   <footer id="statusbar">
-    <span class="sb-brand"><span class="sb-dot"></span>Dashboard Studio · analytics.polecat.live</span>
+    <span class="sb-brand"><span class="sb-dot"></span>Demonstration Dashboard Studio</span>
     <span class="spacer"></span>
     <div class="sb-cl">
       <button class="sb-btn" id="btnChangelog" aria-expanded="false" aria-controls="changelogPop"
@@ -118,6 +143,7 @@
 <script src="app/exporters.js"></script>
 <script src="app/icons.js"></script>
 <script src="app/welcome.js"></script>
+<script src="app/tutorial.js"></script>
 <script src="app/changelog.js"></script>
 <script src="app/studio.js"></script>
 </body>

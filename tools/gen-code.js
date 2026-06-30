@@ -4,7 +4,7 @@
 
    Usage:  node tools/gen-code.js "MY ACCESS CODE"
    Then add the printed hash to window.STUDIO_GATE_SHA256 (string or array)
-   in app/gate-config.js and commit/push (GitHub Pages redeploys this repo).  */
+   in app/gate-config.js and re-publish (tools/publish-pages.sh).            */
 "use strict";
 var crypto = require("crypto");
 var code = process.argv.slice(2).join(" ");

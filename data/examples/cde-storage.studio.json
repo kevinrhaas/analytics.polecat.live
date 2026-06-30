@@ -17,7 +17,7 @@
         "params": [],
         "cache": true,
         "cacheDuration": 300,
-        "sql": "SELECT d.datasource_type AS src, ROUND(SUM(s.bytes)/1e12::numeric,2) AS tb FROM fact_entity_snapshot s JOIN dim_entity e ON s.entity_key=e.entity_key JOIN dim_datasource d ON s.datasource_key=d.datasource_key WHERE e.entity_type IN ('FILE','TABLE') GROUP BY 1 ORDER BY 2 DESC",
+        "sql": "SELECT datasource_type AS src, ROUND(SUM(size_bytes)/1e12::numeric,2) AS tb FROM entity_storage_demo GROUP BY 1 ORDER BY 2 DESC",
         "columns": [
           "src",
           "tb"
@@ -29,7 +29,7 @@
         "params": [],
         "cache": true,
         "cacheDuration": 300,
-        "sql": "SELECT COALESCE(NULLIF(e.resource_type,''),'(unknown)') AS rt, ROUND(SUM(s.bytes)/1e12::numeric,2) AS tb FROM fact_entity_snapshot s JOIN dim_entity e ON s.entity_key=e.entity_key WHERE e.entity_type IN ('FILE','TABLE') GROUP BY 1 ORDER BY 2 DESC",
+        "sql": "SELECT resource_type AS rt, ROUND(SUM(size_bytes)/1e12::numeric,2) AS tb FROM entity_storage_demo GROUP BY 1 ORDER BY 2 DESC",
         "columns": [
           "rt",
           "tb"
@@ -41,7 +41,7 @@
         "params": [],
         "cache": true,
         "cacheDuration": 300,
-        "sql": "SELECT band, count(*) AS assets FROM ( SELECT CASE WHEN s.bytes<1e9 THEN '1. <1 GB' WHEN s.bytes<1e10 THEN '2. 1-10 GB' WHEN s.bytes<1e11 THEN '3. 10-100 GB' WHEN s.bytes<1e12 THEN '4. 100GB-1TB' ELSE '5. 1 TB+' END AS band FROM fact_entity_snapshot s JOIN dim_entity e ON s.entity_key=e.entity_key WHERE e.entity_type IN ('FILE','TABLE')) t GROUP BY 1 ORDER BY 1",
+        "sql": "SELECT band, count(*) AS assets FROM ( SELECT CASE WHEN size_bytes<1e9 THEN '1. <1 GB' WHEN size_bytes<1e10 THEN '2. 1-10 GB' WHEN size_bytes<1e11 THEN '3. 10-100 GB' WHEN size_bytes<1e12 THEN '4. 100GB-1TB' ELSE '5. 1 TB+' END AS band FROM entity_storage_demo) t GROUP BY 1 ORDER BY 1",
         "columns": [
           "assets",
           "band"

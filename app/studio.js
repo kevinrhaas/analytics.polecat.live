@@ -17,9 +17,42 @@
     selection: null,                       // null=dashboard | {kind,id} | {kind:'kpi',index}
     settings: { deployPath: "/public/pdc-iteration/v2", live: false },
     connections: [], activeConn: null,
-    theme: "light"
+    theme: "light",
+    simpleMode: false,
+    demoMode: false
   };
   window.__STUDIO_STATE = S;               // exposed for tests
+  window.__demoMode = false;               // test hook — mirrors S.demoMode
+
+  // H-track v117: Demo mode — interval handle + tick counter for data variation
+  var _demoInterval = null;
+  var _demoTick = 0;
+
+  // inspector section collapse state — keyed by normalized title.
+  // Persists across renderInspector() re-renders AND across page reloads (localStorage).
+  // This means the user's preferred section layout is remembered between sessions.
+  var _LS_COLLAPSED = "studio-insp-collapsed";
+  var _collapsedSects = (function () {
+    try { return JSON.parse(localStorage.getItem(_LS_COLLAPSED) || "{}"); }
+    catch (e) { return {}; }
+  }());
+  function _saveCollapsedSects() {
+    try { localStorage.setItem(_LS_COLLAPSED, JSON.stringify(_collapsedSects)); } catch (e) { /* quota or private-mode */ }
+  }
+
+  // inspector search — persists the current query across renderInspector() re-renders
+  var _inspSearch = "";
+
+  // tag filter — the currently active tag chip in the dashboard inspector panel list (null = show all)
+  var _tagFilter = null;
+
+  // K-track: chart types shown in Simple mode — the most universally understood, everyday types.
+  // Everything else (specialist / advanced visuals) is tagged .adv-chart and hidden.
+  var SIMPLE_CHART_TYPES = {
+    bars: 1, donut: 1, line: 1, stacked: 1, areaStacked: 1,
+    combo: 1, scatter: 1, gauge: 1, heatmap: 1, table: 1,
+    kpi: 1, treemap: 1, richtext: 1
+  };
 
   // little gallery thumbnails per chart type (static representative SVGs)
   var CHART_SVG = {
@@ -37,14 +70,215 @@
     sankey: '<svg viewBox="0 0 44 30"><rect x="1" y="3" width="4" height="9" rx="1" fill="#005bb5"/><rect x="1" y="15" width="4" height="13" rx="1" fill="#7d3c98"/><path d="M5 4.5 C18 4.5 18 9 39 9 L39 14 C18 14 18 10 5 12 Z" fill="#005bb5" opacity=".45"/><path d="M5 17 C18 17 18 20 39 20 L39 27 C18 27 18 24 5 28 Z" fill="#7d3c98" opacity=".45"/><rect x="39" y="7" width="4" height="9" rx="1" fill="#2e8bd0"/><rect x="39" y="18" width="4" height="11" rx="1" fill="#9b59b6"/></svg>',
     funnel: '<svg viewBox="0 0 44 30"><rect x="4" y="2" width="36" height="6" rx="2" fill="#005bb5" opacity=".9"/><rect x="8" y="10" width="28" height="5" rx="2" fill="#7d3c98" opacity=".85"/><rect x="13" y="17" width="18" height="5" rx="2" fill="#2e8bd0" opacity=".85"/><rect x="18" y="24" width="8" height="4" rx="2" fill="#00a39a" opacity=".85"/></svg>',
     chord: '<svg viewBox="0 0 44 30"><path d="M22 3 A14 14 0 0 1 36 22" fill="none" stroke="#005bb5" stroke-width="4" stroke-linecap="round"/><path d="M36 22 A14 14 0 0 1 8 22" fill="none" stroke="#7d3c98" stroke-width="4" stroke-linecap="round"/><path d="M8 22 A14 14 0 0 1 22 3" fill="none" stroke="#2e8bd0" stroke-width="4" stroke-linecap="round"/><path d="M22 3 Q22 15 36 22" fill="none" stroke="#005bb5" opacity=".35" stroke-width="2.5"/><path d="M36 22 Q22 15 8 22" fill="none" stroke="#7d3c98" opacity=".35" stroke-width="2.5"/><path d="M8 22 Q22 15 22 3" fill="none" stroke="#2e8bd0" opacity=".35" stroke-width="2.5"/></svg>',
+    network: '<svg viewBox="0 0 44 30"><line x1="22" y1="15" x2="9" y2="6" stroke="#005bb5" stroke-width="1.8" opacity=".55"/><line x1="22" y1="15" x2="36" y2="6" stroke="#005bb5" stroke-width="2.5" opacity=".55"/><line x1="22" y1="15" x2="38" y2="22" stroke="#005bb5" stroke-width="1.5" opacity=".55"/><line x1="22" y1="15" x2="7" y2="22" stroke="#005bb5" stroke-width="1.2" opacity=".55"/><line x1="36" y1="6" x2="38" y2="22" stroke="#2e8bd0" stroke-width="1" opacity=".35"/><line x1="9" y1="6" x2="7" y2="22" stroke="#7d3c98" stroke-width="1" opacity=".35"/><circle cx="9" cy="6" r="3" fill="#7d3c98"/><circle cx="36" cy="6" r="3.5" fill="#2e8bd0"/><circle cx="38" cy="22" r="2.5" fill="#00a39a"/><circle cx="7" cy="22" r="2" fill="#e67e22"/><circle cx="22" cy="15" r="5" fill="#005bb5"/></svg>',
     sunburst: '<svg viewBox="0 0 44 30"><path d="M22,3 A12,12 0 0,1 29.05,24.71 L24.94,19.04 A5,5 0 0,0 22,10 Z" fill="#005bb5" opacity=".9"/><path d="M29.05,24.71 A12,12 0 0,1 12.29,22.05 L17.96,17.94 A5,5 0 0,0 24.94,19.04 Z" fill="#7d3c98" opacity=".9"/><path d="M12.29,22.05 A12,12 0 0,1 12.29,7.95 L17.96,12.06 A5,5 0 0,0 17.96,17.94 Z" fill="#2e8bd0" opacity=".9"/><path d="M12.29,7.95 A12,12 0 0,1 22,3 L22,10 A5,5 0 0,0 17.96,12.06 Z" fill="#00a39a" opacity=".9"/></svg>',
     bullet: '<svg viewBox="0 0 44 30"><rect x="8" y="3" width="34" height="9" fill="#9aa7b8" opacity=".15"/><rect x="8" y="4.5" width="19" height="6" rx="1" fill="#005bb5"/><line x1="27" y1="1.5" x2="27" y2="13" stroke="#333" stroke-width="2.5" stroke-linecap="round"/><rect x="8" y="18" width="34" height="9" fill="#9aa7b8" opacity=".15"/><rect x="8" y="19.5" width="12" height="6" rx="1" fill="#7d3c98"/><line x1="21" y1="16.5" x2="21" y2="28" stroke="#333" stroke-width="2.5" stroke-linecap="round"/></svg>',
     calHeatmap: '<svg viewBox="0 0 44 30"><rect x="3" y="5" width="4" height="4" rx="1" fill="#005bb5" opacity=".1"/><rect x="9" y="5" width="4" height="4" rx="1" fill="#005bb5" opacity=".15"/><rect x="15" y="5" width="4" height="4" rx="1" fill="#005bb5" opacity=".3"/><rect x="21" y="5" width="4" height="4" rx="1" fill="#005bb5" opacity=".6"/><rect x="27" y="5" width="4" height="4" rx="1" fill="#005bb5" opacity=".4"/><rect x="33" y="5" width="4" height="4" rx="1" fill="#005bb5" opacity=".2"/><rect x="39" y="5" width="4" height="4" rx="1" fill="#005bb5" opacity=".1"/><rect x="3" y="11" width="4" height="4" rx="1" fill="#005bb5" opacity=".15"/><rect x="9" y="11" width="4" height="4" rx="1" fill="#005bb5" opacity=".3"/><rect x="15" y="11" width="4" height="4" rx="1" fill="#005bb5" opacity=".7"/><rect x="21" y="11" width="4" height="4" rx="1" fill="#005bb5" opacity=".9"/><rect x="27" y="11" width="4" height="4" rx="1" fill="#005bb5" opacity=".6"/><rect x="33" y="11" width="4" height="4" rx="1" fill="#005bb5" opacity=".35"/><rect x="39" y="11" width="4" height="4" rx="1" fill="#005bb5" opacity=".2"/><rect x="3" y="17" width="4" height="4" rx="1" fill="#005bb5" opacity=".1"/><rect x="9" y="17" width="4" height="4" rx="1" fill="#005bb5" opacity=".2"/><rect x="15" y="17" width="4" height="4" rx="1" fill="#005bb5" opacity=".5"/><rect x="21" y="17" width="4" height="4" rx="1" fill="#005bb5" opacity=".7"/><rect x="27" y="17" width="4" height="4" rx="1" fill="#005bb5" opacity=".9"/><rect x="33" y="17" width="4" height="4" rx="1" fill="#005bb5" opacity=".4"/><rect x="39" y="17" width="4" height="4" rx="1" fill="#005bb5" opacity=".15"/><rect x="3" y="23" width="4" height="4" rx="1" fill="#005bb5" opacity=".05"/><rect x="9" y="23" width="4" height="4" rx="1" fill="#005bb5" opacity=".1"/><rect x="15" y="23" width="4" height="4" rx="1" fill="#005bb5" opacity=".25"/><rect x="21" y="23" width="4" height="4" rx="1" fill="#005bb5" opacity=".5"/><rect x="27" y="23" width="4" height="4" rx="1" fill="#005bb5" opacity=".3"/><rect x="33" y="23" width="4" height="4" rx="1" fill="#005bb5" opacity=".15"/><rect x="39" y="23" width="4" height="4" rx="1" fill="#005bb5" opacity=".05"/></svg>',
     heatmap: '<svg viewBox="0 0 44 30"><rect x="4" y="4" width="8" height="7" fill="#005bb5" opacity=".9"/><rect x="14" y="4" width="8" height="7" fill="#005bb5" opacity=".4"/><rect x="24" y="4" width="8" height="7" fill="#005bb5" opacity=".7"/><rect x="34" y="4" width="6" height="7" fill="#005bb5" opacity=".25"/><rect x="4" y="13" width="8" height="7" fill="#005bb5" opacity=".5"/><rect x="14" y="13" width="8" height="7" fill="#005bb5" opacity=".85"/><rect x="24" y="13" width="8" height="7" fill="#005bb5" opacity=".3"/><rect x="34" y="13" width="6" height="7" fill="#005bb5" opacity=".6"/><rect x="4" y="22" width="8" height="6" fill="#005bb5" opacity=".35"/><rect x="14" y="22" width="8" height="6" fill="#005bb5" opacity=".55"/><rect x="24" y="22" width="8" height="6" fill="#005bb5" opacity=".9"/><rect x="34" y="22" width="6" height="6" fill="#005bb5" opacity=".45"/></svg>',
     table: '<svg viewBox="0 0 44 30"><rect x="3" y="4" width="38" height="6" rx="1" fill="#005bb5" opacity=".22"/><rect x="3" y="13" width="38" height="3" rx="1" fill="#9aa7b8" opacity=".5"/><rect x="3" y="18" width="38" height="3" rx="1" fill="#9aa7b8" opacity=".5"/><rect x="3" y="23" width="38" height="3" rx="1" fill="#9aa7b8" opacity=".5"/></svg>',
-    kpi: '<svg viewBox="0 0 44 30"><rect x="3" y="5" width="38" height="20" rx="3" fill="#005bb5" opacity=".09"/><rect x="3" y="5" width="3" height="20" rx="1.5" fill="#7d3c98"/><text x="11" y="17" font-size="10" font-weight="800" fill="#005bb5" font-family="sans-serif">42K</text><rect x="11" y="20" width="18" height="2.5" rx="1" fill="#9aa7b8"/></svg>'
+    kpi: '<svg viewBox="0 0 44 30"><rect x="3" y="5" width="38" height="20" rx="3" fill="#005bb5" opacity=".09"/><rect x="3" y="5" width="3" height="20" rx="1.5" fill="#7d3c98"/><text x="11" y="17" font-size="10" font-weight="800" fill="#005bb5" font-family="sans-serif">42K</text><rect x="11" y="20" width="18" height="2.5" rx="1" fill="#9aa7b8"/></svg>',
+    richtext: '<svg viewBox="0 0 44 30"><rect x="2" y="5" width="26" height="2.5" rx="1.2" fill="#005bb5" opacity=".8"/><rect x="2" y="10" width="40" height="2" rx="1" fill="#9aa7b8" opacity=".7"/><rect x="2" y="14.5" width="36" height="2" rx="1" fill="#9aa7b8" opacity=".7"/><rect x="2" y="19" width="40" height="2" rx="1" fill="#9aa7b8" opacity=".7"/><rect x="2" y="23.5" width="28" height="2" rx="1" fill="#9aa7b8" opacity=".7"/></svg>',
+    boxplot: '<svg viewBox="0 0 44 30"><line x1="6" y1="8" x2="6" y2="14" stroke="#9aa7b8" stroke-width="1.5"/><rect x="6" y="6" width="18" height="6" fill="#005bb5" fill-opacity=".18" stroke="#005bb5" stroke-width="1.5" rx="1"/><line x1="15" y1="6" x2="15" y2="12" stroke="#005bb5" stroke-width="2"/><line x1="24" y1="8" x2="24" y2="14" stroke="#9aa7b8" stroke-width="1.5"/><line x1="6" y1="9" x2="24" y2="9" stroke="#9aa7b8" stroke-width="1" stroke-dasharray="2 1.5"/><line x1="8" y1="17" x2="8" y2="23" stroke="#9aa7b8" stroke-width="1.5"/><rect x="8" y="15" width="22" height="6" fill="#7d3c98" fill-opacity=".18" stroke="#7d3c98" stroke-width="1.5" rx="1"/><line x1="19" y1="15" x2="19" y2="21" stroke="#7d3c98" stroke-width="2"/><line x1="30" y1="17" x2="30" y2="23" stroke="#9aa7b8" stroke-width="1.5"/><line x1="8" y1="18" x2="30" y2="18" stroke="#9aa7b8" stroke-width="1" stroke-dasharray="2 1.5"/></svg>',
+    lollipop: '<svg viewBox="0 0 44 30"><line x1="8" y1="6" x2="30" y2="6" stroke="#005bb5" stroke-width="1.5" opacity=".4"/><circle cx="30" cy="6" r="3.5" fill="#005bb5"/><line x1="8" y1="13" x2="22" y2="13" stroke="#7d3c98" stroke-width="1.5" opacity=".4"/><circle cx="22" cy="13" r="3.5" fill="#7d3c98"/><line x1="8" y1="20" x2="36" y2="20" stroke="#2e8bd0" stroke-width="1.5" opacity=".4"/><circle cx="36" cy="20" r="3.5" fill="#2e8bd0"/><line x1="8" y1="27" x2="16" y2="27" stroke="#00a39a" stroke-width="1.5" opacity=".4"/><circle cx="16" cy="27" r="3.5" fill="#00a39a"/></svg>',
+    slope: '<svg viewBox="0 0 44 30"><line x1="10" y1="3" x2="10" y2="27" stroke="#d0d4da" stroke-width="1.5"/><line x1="34" y1="3" x2="34" y2="27" stroke="#d0d4da" stroke-width="1.5"/><line x1="10" y1="22" x2="34" y2="8" stroke="#27ae60" stroke-width="2" opacity=".85"/><circle cx="10" cy="22" r="3" fill="#27ae60"/><circle cx="34" cy="8" r="3" fill="#27ae60"/><line x1="10" y1="12" x2="34" y2="19" stroke="#c0392b" stroke-width="2" opacity=".85"/><circle cx="10" cy="12" r="3" fill="#c0392b"/><circle cx="34" cy="19" r="3" fill="#c0392b"/><line x1="10" y1="18" x2="34" y2="14" stroke="#2e8bd0" stroke-width="2" opacity=".85"/><circle cx="10" cy="18" r="3" fill="#2e8bd0"/><circle cx="34" cy="14" r="3" fill="#2e8bd0"/></svg>',
+    dotplot: '<svg viewBox="0 0 44 30"><line x1="8" y1="6" x2="40" y2="6" stroke="#e3e8f0" stroke-width="1"/><circle cx="28" cy="6" r="3.5" fill="#005bb5"/><line x1="8" y1="13" x2="40" y2="13" stroke="#e3e8f0" stroke-width="1"/><circle cx="36" cy="13" r="3.5" fill="#005bb5"/><line x1="8" y1="20" x2="40" y2="20" stroke="#e3e8f0" stroke-width="1"/><circle cx="20" cy="20" r="3.5" fill="#005bb5"/><line x1="8" y1="27" x2="40" y2="27" stroke="#e3e8f0" stroke-width="1"/><circle cx="14" cy="27" r="3.5" fill="#005bb5"/></svg>',
+    beeswarm: '<svg viewBox="0 0 44 30"><line x1="5" y1="14.5" x2="42" y2="14.5" stroke="#d0d4da" stroke-width="0.8"/><circle cx="10" cy="8" r="2.8" fill="#005bb5" opacity="0.85"/><circle cx="17" cy="6" r="2.8" fill="#005bb5" opacity="0.85"/><circle cx="17" cy="10.5" r="2.8" fill="#005bb5" opacity="0.85"/><circle cx="23" cy="8" r="2.8" fill="#005bb5" opacity="0.85"/><circle cx="29" cy="7" r="2.8" fill="#005bb5" opacity="0.85"/><circle cx="29" cy="11" r="2.8" fill="#005bb5" opacity="0.85"/><circle cx="36" cy="8" r="2.8" fill="#005bb5" opacity="0.85"/><circle cx="40" cy="9" r="2.8" fill="#005bb5" opacity="0.85"/><circle cx="12" cy="21" r="2.8" fill="#7d3c98" opacity="0.85"/><circle cx="18" cy="19" r="2.8" fill="#7d3c98" opacity="0.85"/><circle cx="18" cy="23.5" r="2.8" fill="#7d3c98" opacity="0.85"/><circle cx="25" cy="21" r="2.8" fill="#7d3c98" opacity="0.85"/><circle cx="31" cy="20" r="2.8" fill="#7d3c98" opacity="0.85"/><circle cx="37" cy="22" r="2.8" fill="#7d3c98" opacity="0.85"/></svg>',
+    histogram: '<svg viewBox="0 0 44 30"><line x1="5" y1="28" x2="42" y2="28" stroke="#c8cdd6" stroke-width="0.8"/><rect x="5" y="20" width="5" height="8" fill="#005bb5" opacity="0.8"/><rect x="10" y="14" width="5" height="14" fill="#005bb5" opacity="0.8"/><rect x="15" y="7" width="5" height="21" fill="#005bb5" opacity="0.8"/><rect x="20" y="4" width="5" height="24" fill="#005bb5" opacity="0.8"/><rect x="25" y="10" width="5" height="18" fill="#005bb5" opacity="0.8"/><rect x="30" y="16" width="5" height="12" fill="#005bb5" opacity="0.8"/><rect x="35" y="22" width="5" height="6" fill="#005bb5" opacity="0.8"/></svg>',
+    // Polar area: 6 equal-angle wedges with varying radii (sqrt-proportional to value);
+    // one subtle outer guide ring; small white centre circle.
+    polarArea: '<svg viewBox="0 0 44 30"><circle cx="22" cy="15" r="12" fill="none" stroke="#e0e4ef" stroke-width=".7"/><path d="M22,15 L22,3 A12,12 0 0,1 32.4,9 Z" fill="#005bb5" opacity=".85"/><path d="M22,15 L28.1,11.5 A7.1,7.1 0 0,1 28.1,18.6 Z" fill="#7d3c98" opacity=".85"/><path d="M22,15 L30.7,20 A10,10 0 0,1 22,25 Z" fill="#2e8bd0" opacity=".85"/><path d="M22,15 L22,20.1 A5.1,5.1 0 0,1 17.6,17.6 Z" fill="#00a39a" opacity=".85"/><path d="M22,15 L14.2,19.5 A9,9 0 0,1 14.2,10.5 Z" fill="#e67e22" opacity=".85"/><path d="M22,15 L12.3,9.4 A11.2,11.2 0 0,1 22,3.8 Z" fill="#27ae60" opacity=".85"/><circle cx="22" cy="15" r="3.2" fill="white" opacity=".92"/></svg>',
+    // Step chart: staircase profile showing right-angle (horizontal-then-vertical) transitions
+    step: '<svg viewBox="0 0 44 30"><path d="M3,25 L3,20 L11,20 L11,14 L19,14 L19,9 L27,9 L27,16 L35,16 L35,10 L43,10 L43,25 Z" fill="#005bb5" opacity=".12"/><polyline points="3,20 11,20 11,14 19,14 19,9 27,9 27,16 35,16 35,10 43,10" fill="none" stroke="#005bb5" stroke-width="2.3" stroke-linejoin="round" stroke-linecap="round"/></svg>',
+    // Violin plot: three symmetric KDE silhouettes — widest in the middle, narrow at tails;
+    // coloured IQR box + white median line inside each violin.
+    violin: '<svg viewBox="0 0 44 30"><path d="M10,2 Q15,7 14,15 Q15,23 10,28 Q5,23 6,15 Q5,7 10,2 Z" fill="#005bb5" opacity=".22" stroke="#005bb5" stroke-width="1.1"/><rect x="8.5" y="11" width="3" height="8" fill="#005bb5" opacity=".65" rx="1"/><line x1="6.5" y1="15" x2="13.5" y2="15" stroke="#fff" stroke-width="1.8"/><path d="M22,2 Q28.5,7 27,15 Q28.5,23 22,28 Q15.5,23 17,15 Q15.5,7 22,2 Z" fill="#7d3c98" opacity=".22" stroke="#7d3c98" stroke-width="1.1"/><rect x="20.5" y="11" width="3" height="9" fill="#7d3c98" opacity=".65" rx="1"/><line x1="18.5" y1="15.5" x2="25.5" y2="15.5" stroke="#fff" stroke-width="1.8"/><path d="M34,2 Q38,7 37.5,15 Q38,23 34,28 Q30,23 30.5,15 Q30,7 34,2 Z" fill="#2e8bd0" opacity=".22" stroke="#2e8bd0" stroke-width="1.1"/><rect x="32.5" y="12" width="3" height="7" fill="#2e8bd0" opacity=".65" rx="1"/><line x1="30.5" y1="15.5" x2="37.5" y2="15.5" stroke="#fff" stroke-width="1.8"/></svg>',
+    // Bump chart: 3 colored lines connecting rank positions across 4 periods;
+    // dots mark each position; lines crossing shows competitive overtaking.
+    bump: '<svg viewBox="0 0 44 30"><line x1="7" y1="4" x2="7" y2="28" stroke="#e0e4ef" stroke-width=".8"/><line x1="19" y1="4" x2="19" y2="28" stroke="#e0e4ef" stroke-width=".8"/><line x1="31" y1="4" x2="31" y2="28" stroke="#e0e4ef" stroke-width=".8"/><line x1="41" y1="4" x2="41" y2="28" stroke="#e0e4ef" stroke-width=".8"/><polyline points="7,7 19,14 31,21 41,14" fill="none" stroke="#005bb5" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><polyline points="7,14 19,7 31,7 41,21" fill="none" stroke="#7d3c98" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><polyline points="7,21 19,21 31,14 41,7" fill="none" stroke="#2e8bd0" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="7" cy="7" r="2.8" fill="#005bb5"/><circle cx="19" cy="14" r="2.8" fill="#005bb5"/><circle cx="31" cy="21" r="2.8" fill="#005bb5"/><circle cx="41" cy="14" r="2.8" fill="#005bb5"/><circle cx="7" cy="14" r="2.8" fill="#7d3c98"/><circle cx="19" cy="7" r="2.8" fill="#7d3c98"/><circle cx="31" cy="7" r="2.8" fill="#7d3c98"/><circle cx="41" cy="21" r="2.8" fill="#7d3c98"/><circle cx="7" cy="21" r="2.8" fill="#2e8bd0"/><circle cx="19" cy="21" r="2.8" fill="#2e8bd0"/><circle cx="31" cy="14" r="2.8" fill="#2e8bd0"/><circle cx="41" cy="7" r="2.8" fill="#2e8bd0"/></svg>',
+    // Marimekko: 3 variable-width stacked columns; leftmost/widest = largest category.
+    // Width encodes category total; segment height encodes within-category composition.
+    marimekko: '<svg viewBox="0 0 44 30"><rect x="1" y="0" width="21" height="17" rx="1" fill="#005bb5" opacity=".88"/><rect x="1" y="17" width="21" height="9" rx="1" fill="#7d3c98" opacity=".85"/><rect x="1" y="26" width="21" height="4" rx="1" fill="#2e8bd0" opacity=".82"/><rect x="24" y="0" width="13" height="12" rx="1" fill="#005bb5" opacity=".88"/><rect x="24" y="12" width="13" height="12" rx="1" fill="#7d3c98" opacity=".85"/><rect x="24" y="24" width="13" height="6" rx="1" fill="#2e8bd0" opacity=".82"/><rect x="39" y="0" width="5" height="21" rx="1" fill="#005bb5" opacity=".88"/><rect x="39" y="21" width="5" height="6" rx="1" fill="#7d3c98" opacity=".85"/><rect x="39" y="27" width="5" height="3" rx="1" fill="#2e8bd0" opacity=".82"/></svg>',
+    // Dumbbell: 3 horizontal rows; gray start dot ── colored line ── blue end dot.
+    // Green connectors = improvement, red = decline — gap is immediately visible.
+    dumbbell: '<svg viewBox="0 0 44 30"><line x1="12" y1="3" x2="12" y2="27" stroke="#d0d4da" stroke-width="0.6"/><line x1="17" y1="7" x2="33" y2="7" stroke="#27ae60" stroke-width="2" opacity=".75"/><circle cx="17" cy="7" r="2.6" fill="#b0bec5"/><circle cx="33" cy="7" r="2.6" fill="#005bb5"/><line x1="30" y1="15" x2="21" y2="15" stroke="#e0395e" stroke-width="2" opacity=".75"/><circle cx="30" cy="15" r="2.6" fill="#b0bec5"/><circle cx="21" cy="15" r="2.6" fill="#005bb5"/><line x1="15" y1="23" x2="40" y2="23" stroke="#27ae60" stroke-width="2" opacity=".75"/><circle cx="15" cy="23" r="2.6" fill="#b0bec5"/><circle cx="40" cy="23" r="2.6" fill="#005bb5"/></svg>',
+    // Packed bubbles: 5 circles of varying sizes clustered together.
+    packedBubble: '<svg viewBox="0 0 44 30"><circle cx="17" cy="15" r="10" fill="#005bb5" opacity=".82"/><circle cx="33" cy="11" r="7" fill="#7d3c98" opacity=".82"/><circle cx="35" cy="23" r="5.5" fill="#2e8bd0" opacity=".82"/><circle cx="24" cy="24" r="4.5" fill="#00a39a" opacity=".82"/><circle cx="7" cy="22" r="5" fill="#e67e22" opacity=".82"/></svg>',
+    // Word cloud: words of varying font sizes arranged in a cloud layout.
+    // Largest word centred; smaller words spiral outward — size = value.
+    wordCloud: '<svg viewBox="0 0 44 30" font-family="sans-serif"><text x="22" y="17" text-anchor="middle" font-size="11" font-weight="700" fill="#005bb5">Revenue</text><text x="9" y="10" text-anchor="middle" font-size="7" font-weight="600" fill="#7d3c98">Growth</text><text x="37" y="10" text-anchor="middle" font-size="6" fill="#2e8bd0">Costs</text><text x="36" y="22" text-anchor="middle" font-size="6" fill="#00a39a">Sales</text><text x="10" y="24" text-anchor="middle" font-size="5" fill="#e67e22">Q4</text><text x="22" y="28" text-anchor="middle" font-size="5" fill="#27ae60">Region</text></svg>',
+    // Gantt / Timeline: 4 staggered horizontal floating bars showing start-to-end spans.
+    // Thin vertical dashed line at the left edge represents the shared axis origin.
+    gantt: '<svg viewBox="0 0 44 30"><line x1="5" y1="0" x2="5" y2="30" stroke="#d0d4da" stroke-width="0.8" stroke-dasharray="2 2"/><rect x="5" y="3" width="20" height="5" rx="1.5" fill="#005bb5" opacity=".88"/><rect x="12" y="11" width="28" height="5" rx="1.5" fill="#7d3c98" opacity=".85"/><rect x="7" y="19" width="23" height="5" rx="1.5" fill="#2e8bd0" opacity=".82"/><rect x="20" y="27" width="20" height="2.8" rx="1.2" fill="#00a39a" opacity=".80"/></svg>',
+    // Diverging bars: 2 positive (right, blue) + 2 negative (left, red) from centre zero line.
+    divergingBar: '<svg viewBox="0 0 44 30"><line x1="22" y1="0" x2="22" y2="30" stroke="#c8d0dc" stroke-width="0.9" stroke-dasharray="2 2"/><rect x="22" y="3" width="16" height="4" rx="1.5" fill="#005bb5" opacity=".85"/><rect x="22" y="10" width="10" height="4" rx="1.5" fill="#2e8bd0" opacity=".85"/><rect x="9" y="17" width="13" height="4" rx="1.5" fill="#c0392b" opacity=".85"/><rect x="4" y="24" width="18" height="4" rx="1.5" fill="#e74c3c" opacity=".85"/></svg>',
+    // Stream graph: three flowing organic ribbon shapes centered on a midline.
+    streamgraph: '<svg viewBox="0 0 44 30"><line x1="2" y1="15" x2="42" y2="15" stroke="#e0e4ef" stroke-width="0.6" stroke-dasharray="2 2"/><path d="M2 11 Q11 8 22 12 Q33 16 42 10 Q42 18 33 20 Q22 22 11 19 Q2 18 2 11Z" fill="#005bb5" opacity=".72"/><path d="M2 17 Q11 19 22 22 Q33 25 42 20 Q42 24 33 26 Q22 28 11 24 Q2 22 2 17Z" fill="#7d3c98" opacity=".68"/><path d="M2 7 Q11 4 22 8 Q33 12 42 7 Q42 10 33 14 Q22 16 11 13 Q2 11 2 7Z" fill="#2e8bd0" opacity=".65"/></svg>',
+    // Parallel coordinates: 4 vertical axes with 3 polylines crossing them.
+    parallelCoords: '<svg viewBox="0 0 44 30"><line x1="8" y1="4" x2="8" y2="26" stroke="#dde3ef" stroke-width="1"/><line x1="18" y1="4" x2="18" y2="26" stroke="#dde3ef" stroke-width="1"/><line x1="28" y1="4" x2="28" y2="26" stroke="#dde3ef" stroke-width="1"/><line x1="38" y1="4" x2="38" y2="26" stroke="#dde3ef" stroke-width="1"/><polyline points="8,8 18,7 28,16 38,10" fill="none" stroke="#005bb5" stroke-width="1.5" stroke-linejoin="round" opacity=".78"/><polyline points="8,16 18,21 28,10 38,20" fill="none" stroke="#7d3c98" stroke-width="1.5" stroke-linejoin="round" opacity=".78"/><polyline points="8,22 18,13 28,22 38,14" fill="none" stroke="#2e8bd0" stroke-width="1.5" stroke-linejoin="round" opacity=".78"/></svg>',
+    // Candlestick / OHLC: 4 candles (2 green bullish, 2 red bearish) with wicks
+    candlestick: '<svg viewBox="0 0 44 30"><line x1="5" y1="27" x2="42" y2="27" stroke="#d0d4da" stroke-width="0.6"/><line x1="9" y1="4" x2="9" y2="27" stroke="#27ae60" stroke-width="1.2" stroke-linecap="round"/><rect x="6" y="9" width="6" height="8" rx="1.2" fill="#27ae60" opacity=".84"/><line x1="20" y1="7" x2="20" y2="27" stroke="#e74c3c" stroke-width="1.2" stroke-linecap="round"/><rect x="17" y="14" width="6" height="10" rx="1.2" fill="#e74c3c" opacity=".84"/><line x1="31" y1="3" x2="31" y2="25" stroke="#27ae60" stroke-width="1.2" stroke-linecap="round"/><rect x="28" y="7" width="6" height="11" rx="1.2" fill="#27ae60" opacity=".84"/><line x1="40" y1="8" x2="40" y2="27" stroke="#e74c3c" stroke-width="1.2" stroke-linecap="round"/><rect x="37" y="16" width="6" height="9" rx="1.2" fill="#e74c3c" opacity=".84"/></svg>',
+    waffle: (function () {
+      // Gallery thumbnail: a 8×4 mini waffle grid with 3 brand colors (56/28/16 split)
+      var cols = 8, rows = 4, sz = 4.5, pad = 0.8;
+      var colors = ["#005bb5","#7d3c98","#2e8bd0"];
+      var counts = [Math.round(cols*rows*0.56), Math.round(cols*rows*0.28)];
+      counts.push(cols*rows - counts[0] - counts[1]);
+      var flat = []; counts.forEach(function(n,ci){ for(var i=0;i<n;i++) flat.push(ci); });
+      var cells = flat.slice(0, cols*rows).map(function(ci, idx) {
+        var r=Math.floor(idx/cols), c=idx%cols, x=c*(sz+pad)+1, y=r*(sz+pad)+1;
+        return '<rect x="'+x.toFixed(1)+'" y="'+y.toFixed(1)+'" width="'+sz+'" height="'+sz+'" rx="0.8" fill="'+colors[ci]+'" opacity=".88"/>';
+      });
+      return '<svg viewBox="0 0 44 30">' + cells.join("") + '</svg>';
+    }()),
+    // Timeline / milestones: 5 diamond markers on a horizontal baseline,
+    // alternating above/below with short colored stalks and stub label lines.
+    timeline: (function () {
+      var colors = ["#005bb5","#7d3c98","#2e8bd0","#00a39a","#e67e22"];
+      var pts = [{x:6},{x:16},{x:27},{x:37},{x:48}];
+      var mid = 15;
+      var out = '<line x1="3" y1="'+mid+'" x2="51" y2="'+mid+'" stroke="#d0d4da" stroke-width="1.5"/>';
+      pts.forEach(function(p,i){
+        var c=colors[i], above=(i%2===0), dir=above?-1:1, ds=3, sh=7;
+        out+='<line x1="'+p.x+'" y1="'+(mid+dir*3.2)+'" x2="'+p.x+'" y2="'+(mid+dir*(sh+1))+'" stroke="'+c+'" stroke-width="1" opacity=".65"/>';
+        out+='<polygon points="'+p.x+','+(mid-ds)+' '+(p.x+ds)+','+mid+' '+p.x+','+(mid+ds)+' '+(p.x-ds)+','+mid+'" fill="'+c+'" stroke="white" stroke-width="0.7"/>';
+        var ly=mid+dir*(sh+4.5);
+        out+='<line x1="'+(p.x-6)+'" y1="'+ly+'" x2="'+(p.x+6)+'" y2="'+ly+'" stroke="'+c+'" stroke-width="1.3" stroke-linecap="round" opacity=".8"/>';
+      });
+      return '<svg viewBox="0 0 54 30">' + out + '</svg>';
+    }()),
+    // Radial bar: 5 concentric arc tracks at different lengths, palette colors, viewBox 44x30.
+    radialBar: (function () {
+      var cx = 22, cy = 15;
+      var radii  = [11, 8.8, 6.6, 4.4, 2.2];
+      var sweeps = [0.85, 0.65, 0.75, 0.45, 0.55];
+      var colors = ["#005bb5","#7d3c98","#2e8bd0","#00a39a","#e67e22"];
+      var SW = 1.5 * Math.PI, A0 = -Math.PI / 2, tH = 1.7;
+      function ap(r, frac) {
+        var a1 = A0 + SW * frac;
+        var x0 = cx + r * Math.cos(A0), y0 = cy + r * Math.sin(A0);
+        var x1 = cx + r * Math.cos(a1), y1 = cy + r * Math.sin(a1);
+        var lg = SW * frac > Math.PI ? 1 : 0;
+        return 'M' + x0.toFixed(1) + ',' + y0.toFixed(1) +
+               ' A' + r + ',' + r + ' 0 ' + lg + ' 1 ' + x1.toFixed(1) + ',' + y1.toFixed(1);
+      }
+      var out = "";
+      radii.forEach(function (r, i) {
+        out += '<path d="' + ap(r, 1) + '" fill="none" stroke="' + colors[i] + '" stroke-opacity=".12" stroke-width="' + tH + '" stroke-linecap="round"/>';
+        out += '<path d="' + ap(r, sweeps[i]) + '" fill="none" stroke="' + colors[i] + '" stroke-width="' + tH + '" stroke-linecap="round"/>';
+      });
+      return '<svg viewBox="0 0 44 30">' + out + '</svg>';
+    }()),
+    // Population pyramid: 4 rows of mirrored bars with dashed centre dividers.
+    pyramidBar: (function () {
+      var cx = 22, lc = "#7d3c98", rc = "#005bb5";
+      var bars = [{lw:10,rw:12,y:2},{lw:16,rw:14,y:9},{lw:13,rw:17,y:16},{lw:8,rw:9,y:23}];
+      var L = 8;  // label column width
+      var out = '<line x1="' + (cx-L/2) + '" y1="0" x2="' + (cx-L/2) + '" y2="30" stroke="#c8d0da" stroke-width="0.5"/>' +
+                '<line x1="' + (cx+L/2) + '" y1="0" x2="' + (cx+L/2) + '" y2="30" stroke="#c8d0da" stroke-width="0.5"/>';
+      bars.forEach(function (b) {
+        out += '<rect x="' + (cx-L/2-b.lw) + '" y="' + b.y + '" width="' + b.lw + '" height="5" rx="1" fill="' + lc + '" opacity=".85"/>';
+        out += '<rect x="' + (cx+L/2) + '" y="' + b.y + '" width="' + b.rw + '" height="5" rx="1" fill="' + rc + '" opacity=".85"/>';
+      });
+      return '<svg viewBox="0 0 44 30">' + out + '</svg>';
+    }()),
+    // Icicle / partition: 3 parent bars across top 36%, children fill bottom 64% of each column.
+    icicle: (function () {
+      var W = 44, H = 30, PAD = 1;
+      var topH = H * 0.36 - 0.5, botY = H * 0.36 + 1, botH = H * 0.64 - 2;
+      var groups = [
+        { frac: 0.42, color: "#005bb5", items: [0.55, 0.28, 0.17] },
+        { frac: 0.35, color: "#7d3c98", items: [0.60, 0.40] },
+        { frac: 0.23, color: "#0e9aa7", items: [0.65, 0.35] }
+      ];
+      var out = "", gx = 0;
+      groups.forEach(function (g) {
+        var gw = W * g.frac;
+        out += '<rect x="' + gx.toFixed(1) + '" y="0" width="' + Math.max(1, gw - PAD).toFixed(1) + '" height="' + topH.toFixed(1) + '" rx="1" fill="' + g.color + '"/>';
+        var cx = gx;
+        g.items.forEach(function (frac, ii) {
+          var iw = gw * frac;
+          var op = (0.62 + 0.3 * (1 - ii / Math.max(1, g.items.length - 1))).toFixed(2);
+          out += '<rect x="' + cx.toFixed(1) + '" y="' + botY.toFixed(1) + '" width="' + Math.max(1, iw - PAD).toFixed(1) + '" height="' + (botH - 1).toFixed(1) + '" rx="1" fill="' + g.color + '" opacity="' + op + '"/>';
+          cx += iw;
+        });
+        gx += gw;
+      });
+      return '<svg viewBox="0 0 44 30">' + out + '</svg>';
+    }()),
+    // Pareto chart: 5 descending bars + rising cumulative % line (orange dots), 80% dashed ref.
+    pareto: (function () {
+      var bars = [0.68, 0.48, 0.30, 0.16, 0.09];
+      var cumPct = [0.27, 0.46, 0.58, 0.65, 1.0];
+      var barColors = ["#005bb5","#2e8bd0","#5ea8e6","#90c4f4","#b8d9fb"];
+      var W = 44, H = 30, mL = 5, mR = 9, mT = 2, mB = 8;
+      var iw = W - mL - mR, ih = H - mT - mB;
+      var slotW = iw / bars.length, barW = slotW * 0.68;
+      var out = '';
+      bars.forEach(function (h, i) {
+        var bh = ih * h, by = mT + ih - bh;
+        var bx = mL + i * slotW + (slotW - barW) / 2;
+        out += '<rect x="' + bx.toFixed(1) + '" y="' + by.toFixed(1) + '" width="' + barW.toFixed(1) + '" height="' + bh.toFixed(1) + '" fill="' + barColors[i] + '" opacity=".9" rx="0.8"/>';
+      });
+      var y80 = (mT + ih * 0.20).toFixed(1);
+      out += '<line x1="' + mL + '" y1="' + y80 + '" x2="' + (W - mR) + '" y2="' + y80 + '" stroke="#e74c3c" stroke-width="0.7" stroke-dasharray="1.8 1.2" opacity=".7"/>';
+      var pts = cumPct.map(function (cp, i) {
+        return (mL + i * slotW + slotW / 2).toFixed(1) + ',' + (mT + ih * (1 - cp)).toFixed(1);
+      });
+      out += '<polyline points="' + pts.join(' ') + '" fill="none" stroke="#e67e22" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>';
+      cumPct.forEach(function (cp, i) {
+        out += '<circle cx="' + (mL + i * slotW + slotW / 2).toFixed(1) + '" cy="' + (mT + ih * (1 - cp)).toFixed(1) + '" r="1.6" fill="#e67e22"/>';
+      });
+      return '<svg viewBox="0 0 44 30">' + out + '</svg>';
+    }()),
+    // Grouped bars: 3 category groups × 3 series bars (blue / purple / cyan), varying heights.
+    groupedBars: (function () {
+      var groups = [[0.72, 0.46, 0.56], [0.56, 0.86, 0.66], [0.40, 0.62, 0.32]];
+      var colors = ["#005bb5", "#7d3c98", "#2e8bd0"];
+      var W = 44, H = 30, mL = 2, mR = 2, mT = 3, mB = 7;
+      var iw = W - mL - mR, ih = H - mT - mB;
+      var nCats = 3, nSer = 3;
+      var groupW = iw / nCats, barW = (groupW * 0.78) / nSer, barGap = 0.7;
+      var out = '';
+      groups.forEach(function (vals, li) {
+        var blockW = barW * nSer + barGap * (nSer - 1);
+        var gx = mL + li * groupW + (groupW - blockW) / 2;
+        vals.forEach(function (rel, si) {
+          var bh = ih * rel, by = mT + ih - bh;
+          var bx = (gx + si * (barW + barGap)).toFixed(1);
+          out += '<rect x="' + bx + '" y="' + by.toFixed(1) + '" width="' + barW.toFixed(1) + '" height="' + bh.toFixed(1) + '" fill="' + colors[si] + '" rx="1" opacity=".88"/>';
+        });
+      });
+      return '<svg viewBox="0 0 44 30">' + out + '</svg>';
+    }()),
+    // Ridgeline / joy plot: 4 horizontal density ridge curves in different colors,
+    // stacked vertically with slight overlap — the signature "joy plot" appearance.
+    ridgeline: '<svg viewBox="0 0 44 30"><path d="M2,28 C8,28 12,22 18,20 C24,18 28,19 34,23 C38,26 41,28 44,28 Z" fill="#2e8bd0" opacity=".20"/><path d="M2,28 C8,28 12,22 18,20 C24,18 28,19 34,23 C38,26 41,28 44,28 Z" fill="none" stroke="#2e8bd0" stroke-width="1.2" opacity=".82"/><path d="M2,22 C8,22 13,14 19,11 C25,8 29,10 35,16 C39,20 41,22 44,22 Z" fill="#00a39a" opacity=".20"/><path d="M2,22 C8,22 13,14 19,11 C25,8 29,10 35,16 C39,20 41,22 44,22 Z" fill="none" stroke="#00a39a" stroke-width="1.2" opacity=".82"/><path d="M2,16 C6,16 11,8 17,6 C23,4 27,5 33,10 C37,14 40,15 44,16 Z" fill="#7d3c98" opacity=".20"/><path d="M2,16 C6,16 11,8 17,6 C23,4 27,5 33,10 C37,14 40,15 44,16 Z" fill="none" stroke="#7d3c98" stroke-width="1.2" opacity=".82"/><path d="M2,10 C7,10 12,4 18,2 C24,0 28,2 34,7 C38,10 41,10 44,10 Z" fill="#005bb5" opacity=".20"/><path d="M2,10 C7,10 12,4 18,2 C24,0 28,2 34,7 C38,10 41,10 44,10 Z" fill="none" stroke="#005bb5" stroke-width="1.2" opacity=".82"/></svg>',
+    // Area range / confidence band: upper (solid) + lower (dashed) lines + shaded band + centre line.
+    areaRange: '<svg viewBox="0 0 44 30"><polygon points="2,6 12,4 22,7 32,8 42,6 42,16 32,18 22,17 12,15 2,17" fill="#005bb5" opacity=".18"/><polyline points="2,6 12,4 22,7 32,8 42,6" fill="none" stroke="#005bb5" stroke-width="1.5" stroke-linejoin="round"/><polyline points="2,17 12,15 22,17 32,18 42,16" fill="none" stroke="#005bb5" stroke-width="1.5" stroke-dasharray="2.5,2" stroke-linejoin="round"/><polyline points="2,11 12,9 22,12 32,13 42,11" fill="none" stroke="#005bb5" stroke-width="2" stroke-linejoin="round" opacity=".9"/></svg>',
+    // Quadrant chart: 4 lightly tinted zones + dashed dividers + coloured dots per quadrant.
+    quadrant: '<svg viewBox="0 0 44 30"><rect x="22" y="2" width="20" height="12" fill="#005bb5" opacity=".09"/><rect x="2" y="2" width="20" height="12" fill="#9b59b6" opacity=".09"/><rect x="2" y="14" width="20" height="14" fill="#c0392b" opacity=".09"/><rect x="22" y="14" width="20" height="14" fill="#27ae60" opacity=".09"/><line x1="22" y1="2" x2="22" y2="28" stroke="#888" stroke-width="0.8" stroke-dasharray="2,1.5" opacity=".5"/><line x1="2" y1="14" x2="42" y2="14" stroke="#888" stroke-width="0.8" stroke-dasharray="2,1.5" opacity=".5"/><circle cx="31" cy="6" r="2.4" fill="#005bb5" opacity=".85"/><circle cx="38" cy="9" r="2.4" fill="#005bb5" opacity=".85"/><circle cx="26" cy="8" r="2.4" fill="#005bb5" opacity=".85"/><circle cx="9" cy="6" r="2.4" fill="#9b59b6" opacity=".85"/><circle cx="15" cy="10" r="2.4" fill="#9b59b6" opacity=".85"/><circle cx="7" cy="21" r="2.4" fill="#c0392b" opacity=".85"/><circle cx="28" cy="20" r="2.4" fill="#27ae60" opacity=".85"/><circle cx="37" cy="24" r="2.4" fill="#27ae60" opacity=".85"/></svg>',
+    // 100% stacked bars: 4 categories × 3 series, every bar reaches full height.
+    barNorm: (function () {
+      var bars = [[0.50, 0.30, 0.20], [0.35, 0.45, 0.20], [0.55, 0.20, 0.25], [0.25, 0.50, 0.25]];
+      var colors = ["#005bb5", "#7d3c98", "#2e8bd0"];
+      var W = 44, H = 30, mL = 2, mR = 2, mT = 3, mB = 7;
+      var iw = W - mL - mR, ih = H - mT - mB;
+      var nCats = 4, slotW = iw / nCats, barW = slotW * 0.78, barPad = (slotW - barW) / 2;
+      var out = '';
+      bars.forEach(function (segs, li) {
+        var bx = (mL + li * slotW + barPad).toFixed(1);
+        var cumH = 0;
+        segs.forEach(function (pct, si) {
+          var sh = ih * pct;
+          var sy = mT + ih - cumH - sh;
+          cumH += sh;
+          out += '<rect x="' + bx + '" y="' + sy.toFixed(1) + '" width="' + barW.toFixed(1) + '" height="' + sh.toFixed(1) + '" fill="' + colors[si] + '" rx="1" opacity=".88"/>';
+        });
+      });
+      return '<svg viewBox="0 0 44 30">' + out + '</svg>';
+    }())
   };
-  window.__studioLoad = function (spec) { S.spec = normalize(spec); S.selection = null; syncHeader(); renderInspector(); refreshPreview(); buildLibrary(); };
+  window.__studioLoad = function (spec) { S.spec = normalize(spec); S.selection = null; _tagFilter = null; syncHeader(); renderInspector(); refreshPreview(); buildLibrary(); };
 
   /* ---------- boot ---------- */
   function boot() {
@@ -62,6 +296,7 @@
       setupPanes();
       setupMobileTabs();
       try { setTheme(localStorage.getItem("studio-theme") || "light"); } catch (e) { setTheme("light"); }
+      try { if (localStorage.getItem("studio-simple-mode") === "1") { S.simpleMode = true; document.body.classList.add("simple-mode"); } } catch (e) {}
       loadConnections();
       if (window.StudioWelcome) { var ab = $("#btnAbout"); if (ab) ab.onclick = function () { StudioWelcome.open(); }; setTimeout(function () { StudioWelcome.maybeShow(); }, 300); }
       buildLibrary();
@@ -74,7 +309,7 @@
     }).catch(function (e) {
       document.body.innerHTML = '<div style="padding:40px;font-family:sans-serif;max-width:640px;margin:auto">' +
         '<h2>Could not load Studio data.</h2><p>The Studio reads JSON + toolkit files over HTTP, so it must be served ' +
-        '(not opened via <code>file://</code>). From the repository root run:</p>' +
+        '(not opened via <code>file://</code>). From <code>dashboard-studio/</code> run:</p>' +
         '<pre style="background:#f4f6fb;padding:12px;border-radius:8px">python3 -m http.server 8000</pre>' +
         '<p>then open <a href="http://localhost:8000/">http://localhost:8000/</a></p>' +
         '<p style="color:#a31d3e">' + (e && e.message || e) + '</p></div>';
@@ -232,7 +467,23 @@
     del.onclick = function (e) { e.stopPropagation(); deleteDA(da.id); };
     acts.appendChild(dup); acts.appendChild(del); c.appendChild(acts);
     if (S.selection && S.selection.kind === "da" && S.selection.id === da.id) c.classList.add("da-mine-sel");
+    // usage badge: panels + KPIs that reference this DA
+    var usage = daUsageCount(da.id);
+    if (usage.total > 0) {
+      var ub = el("div", "da-usage");
+      var parts = [];
+      if (usage.panels) parts.push(usage.panels + " panel" + (usage.panels !== 1 ? "s" : ""));
+      if (usage.kpis) parts.push(usage.kpis + " KPI" + (usage.kpis !== 1 ? "s" : ""));
+      ub.textContent = "↪ " + parts.join(" \xB7 ");
+      c.appendChild(ub);
+    }
     return c;
+  }
+
+  function daUsageCount(daId) {
+    var panels = (S.spec.panels || []).filter(function (p) { return p.chart && p.chart.da === daId; }).length;
+    var kpis = (S.spec.kpis || []).filter(function (k) { return k.da === daId; }).length;
+    return { panels: panels, kpis: kpis, total: panels + kpis };
   }
 
   function addNewDA() {
@@ -397,6 +648,16 @@
     refreshPreview(); buildLibrary();
   }
 
+  // Add a text/annotation panel directly (no DA needed) and open it in the inspector.
+  function addTextPanel() {
+    var p = Studio.newPanel("richtext", null);
+    p.title = "Note"; p.span = "full"; p.chart.opts.content = "";
+    S.spec.panels.push(p);
+    select({ kind: "panel", id: p.id });
+    refreshPreview();
+    toast("Text panel added — type content in the inspector");
+  }
+
   /* ---------- data-source builder (author CDA queries) ---------- */
   var DS_TYPES = [
     { kind: "sql", iconName: "db", name: "SQL", desc: "Relational query over a JDBC / JNDI connection", ph: "SELECT region AS region,\n       SUM(amount) AS total\nFROM   sales\nGROUP  BY region\nORDER  BY total DESC" },
@@ -534,6 +795,465 @@
       save.onclick = function () { if (saveDraft(draft, editing ? existing : null)) wrap.closest(".modal-ov").remove(); };
       foot.appendChild(cancel); foot.appendChild(save); wrap.appendChild(foot);
 
+      // G1 — Visual SQL Builder: builds a SELECT statement interactively and writes it to the query textarea.
+      // G1b adds JOIN clauses (table + type + ON condition).
+      // G1c adds aggregate expressions (SUM/COUNT/AVG/MAX/MIN) and GROUP BY columns.
+      // Only shown for SQL kind DAs. Self-contained: sbState persists for the lifetime of this modal.
+      function renderSQLBuilder(qTa) {
+        var sbState = {
+          table: "", allCols: true, selCols: [],
+          joins: [],      // G1b: [{type, table, on}]
+          aggCols: [],    // G1c: [{fn, col, alias}] aggregate expressions
+          conditions: [],
+          groupBy: [],    // G1c: GROUP BY column chips
+          orderBy: "", orderDir: "ASC", limit: ""
+        };
+        var sqb = el("div", "dsb-sqb");
+        var tog = el("button", "dsb-sqb-tog"); tog.type = "button";
+        var togL = el("span", "dsb-sqb-tog-l");
+        togL.appendChild(Studio.icon("db", 13));
+        var togTx = el("span"); togTx.textContent = " SQL Builder "; togTx.style.cssText = "font-size:12px;font-weight:700;color:inherit";
+        var togHint = el("span"); togHint.style.cssText = "font-size:10.5px;color:var(--faint);font-weight:400";
+        togHint.textContent = "generate a SELECT statement interactively";
+        togL.appendChild(togTx); togL.appendChild(togHint);
+        var caret = el("span", "sqb-caret");
+        caret.innerHTML = '<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="3 5 8 10 13 5"/></svg>';
+        tog.appendChild(togL); tog.appendChild(caret);
+        var body = el("div", "dsb-sqb-body"); body.hidden = true;
+
+        function mkOpts(sel, pairs, val) {
+          pairs.forEach(function (p) { var o = el("option"); o.value = p[0]; o.textContent = p[1]; if (p[0] === val) o.selected = true; sel.appendChild(o); });
+          return sel;
+        }
+
+        function renderBody() {
+          body.innerHTML = "";
+
+          // FROM table
+          var rFrom = el("div", "dsb-sqb-row");
+          var lFrom = el("span", "dsb-sqb-lbl"); lFrom.textContent = "FROM";
+          var iTable = el("input"); iTable.className = "dsb-sqb-inp"; iTable.value = sbState.table;
+          iTable.placeholder = "schema.table_name"; iTable.style.fontFamily = "var(--mono)";
+          iTable.addEventListener("input", function () { sbState.table = this.value.trim(); });
+          rFrom.appendChild(lFrom); rFrom.appendChild(iTable);
+          body.appendChild(rFrom);
+
+          // G1b — JOIN clauses: add multiple JOIN tables with type + ON condition
+          var rJoin = el("div", "dsb-sqb-row");
+          var lJoin = el("span", "dsb-sqb-lbl"); lJoin.textContent = "JOIN";
+          var addJoin = el("button", "dsb-mini"); addJoin.type = "button";
+          setIconBtn(addJoin, "plus", "Add JOIN", 11);
+          addJoin.onclick = function () { sbState.joins.push({ type: "LEFT", table: "", on: "" }); renderBody(); };
+          rJoin.appendChild(lJoin); rJoin.appendChild(addJoin); body.appendChild(rJoin);
+          sbState.joins.forEach(function (join, i) {
+            var row = el("div", "dsb-sqb-row dsb-sqb-indent");
+            var typeSel = el("select"); typeSel.className = "dsb-sqb-inp"; typeSel.style.cssText = "flex:0 0 auto;width:110px";
+            mkOpts(typeSel, [["LEFT","LEFT JOIN"],["INNER","INNER JOIN"],["RIGHT","RIGHT JOIN"],["FULL","FULL OUTER JOIN"]], join.type);
+            typeSel.addEventListener("change", function () { join.type = this.value; });
+            var tInp = el("input"); tInp.className = "dsb-sqb-inp"; tInp.value = join.table; tInp.placeholder = "schema.table"; tInp.style.fontFamily = "var(--mono)";
+            tInp.addEventListener("input", function () { join.table = this.value; });
+            var lOn = el("span"); lOn.textContent = "ON"; lOn.style.cssText = "font-size:10.5px;font-weight:800;color:var(--pentaho);font-family:var(--mono);flex:0 0 auto";
+            var onInp = el("input"); onInp.className = "dsb-sqb-inp"; onInp.value = join.on; onInp.placeholder = "t1.id = t2.id"; onInp.style.fontFamily = "var(--mono)";
+            onInp.addEventListener("input", function () { join.on = this.value; });
+            var rm = el("button", "rm"); rm.type = "button"; rm.style.color = "var(--bad)";
+            rm.appendChild(Studio.icon("close", 10)); rm.onclick = function () { sbState.joins.splice(i, 1); renderBody(); };
+            row.appendChild(typeSel); row.appendChild(tInp); row.appendChild(lOn); row.appendChild(onInp); row.appendChild(rm);
+            body.appendChild(row);
+          });
+
+          // SELECT: all (*) or specific columns
+          var rSel = el("div", "dsb-sqb-row");
+          var lSel = el("span", "dsb-sqb-lbl"); lSel.textContent = "SELECT";
+          var uid = draft.id || "q";
+          var allRad = el("input"); allRad.type = "radio"; allRad.name = "sqb_c_" + uid; allRad.id = "sqb_all_" + uid; allRad.value = "all"; if (sbState.allCols) allRad.checked = true;
+          var allL = el("label"); allL.htmlFor = allRad.id; allL.textContent = "All (*)"; allL.style.cssText = "font-size:12px;margin-right:10px";
+          var specRad = el("input"); specRad.type = "radio"; specRad.name = "sqb_c_" + uid; specRad.id = "sqb_sp_" + uid; specRad.value = "spec"; if (!sbState.allCols) specRad.checked = true;
+          var specL = el("label"); specL.htmlFor = specRad.id; specL.textContent = "Specific columns:"; specL.style.fontSize = "12px";
+          allRad.addEventListener("change", function () { sbState.allCols = true; renderBody(); });
+          specRad.addEventListener("change", function () { sbState.allCols = false; renderBody(); });
+          rSel.appendChild(lSel); rSel.appendChild(allRad); rSel.appendChild(allL); rSel.appendChild(specRad); rSel.appendChild(specL);
+          body.appendChild(rSel);
+          if (!sbState.allCols) {
+            var colBox = el("div", "dsb-sqb-colbox");
+            sbState.selCols.forEach(function (c, i) {
+              var chip = el("span", "dsb-chip"); chip.textContent = c;
+              var rm = el("button", "rm"); rm.type = "button"; rm.appendChild(Studio.icon("close", 10));
+              rm.onclick = function () { sbState.selCols.splice(i, 1); renderBody(); };
+              chip.appendChild(rm); colBox.appendChild(chip);
+            });
+            var addIn = el("input"); addIn.placeholder = "column + Enter"; addIn.className = "dsb-sqb-inp";
+            addIn.style.cssText = "font-family:var(--mono);flex:none;width:140px";
+            addIn.addEventListener("keydown", function (e) {
+              if (e.key === "Enter") { var v = this.value.trim().replace(/[^a-zA-Z0-9_.]+/g, ""); if (v && sbState.selCols.indexOf(v) < 0) { sbState.selCols.push(v); this.value = ""; renderBody(); } }
+            });
+            colBox.appendChild(addIn); body.appendChild(colBox);
+          }
+
+          // G1c — Aggregate expressions: SUM/COUNT/AVG/MAX/MIN per column, written into SELECT
+          var rAgg = el("div", "dsb-sqb-row");
+          var lAgg = el("span", "dsb-sqb-lbl"); lAgg.textContent = "AGG";
+          var addAgg = el("button", "dsb-mini"); addAgg.type = "button";
+          setIconBtn(addAgg, "plus", "Add aggregate", 11);
+          addAgg.onclick = function () { sbState.aggCols.push({ fn: "SUM", col: "", alias: "" }); renderBody(); };
+          var aggHint = el("span"); aggHint.style.cssText = "font-size:10.5px;color:var(--faint)"; aggHint.textContent = "aggregate expressions";
+          rAgg.appendChild(lAgg); rAgg.appendChild(addAgg); rAgg.appendChild(aggHint); body.appendChild(rAgg);
+          sbState.aggCols.forEach(function (agg, i) {
+            var row = el("div", "dsb-sqb-row dsb-sqb-indent");
+            var fnSel = el("select"); fnSel.className = "dsb-sqb-inp"; fnSel.style.cssText = "flex:0 0 auto;width:100px";
+            mkOpts(fnSel, [["SUM","SUM"],["COUNT","COUNT"],["AVG","AVG"],["MAX","MAX"],["MIN","MIN"],["COUNT_DISTINCT","COUNT DISTINCT"]], agg.fn);
+            fnSel.addEventListener("change", function () { agg.fn = this.value; });
+            var cInp = el("input"); cInp.className = "dsb-sqb-inp"; cInp.value = agg.col; cInp.placeholder = "column"; cInp.style.fontFamily = "var(--mono)";
+            cInp.addEventListener("input", function () { agg.col = this.value; });
+            var lAs = el("span"); lAs.textContent = "AS"; lAs.style.cssText = "font-size:10.5px;font-weight:800;color:var(--pentaho);font-family:var(--mono);flex:0 0 auto";
+            var aInp = el("input"); aInp.className = "dsb-sqb-inp"; aInp.value = agg.alias; aInp.placeholder = "total_revenue"; aInp.style.fontFamily = "var(--mono)";
+            aInp.addEventListener("input", function () { agg.alias = this.value; });
+            var rm = el("button", "rm"); rm.type = "button"; rm.style.color = "var(--bad)";
+            rm.appendChild(Studio.icon("close", 10)); rm.onclick = function () { sbState.aggCols.splice(i, 1); renderBody(); };
+            row.appendChild(fnSel); row.appendChild(cInp); row.appendChild(lAs); row.appendChild(aInp); row.appendChild(rm);
+            body.appendChild(row);
+          });
+
+          // WHERE conditions
+          var rWhere = el("div", "dsb-sqb-row");
+          var lWhere = el("span", "dsb-sqb-lbl"); lWhere.textContent = "WHERE";
+          var addCond = el("button", "dsb-mini"); addCond.type = "button";
+          setIconBtn(addCond, "plus", "Add condition", 11);
+          addCond.onclick = function () { sbState.conditions.push({ col: "", op: "=", val: "" }); renderBody(); };
+          rWhere.appendChild(lWhere); rWhere.appendChild(addCond); body.appendChild(rWhere);
+          sbState.conditions.forEach(function (cond, i) {
+            var row = el("div", "dsb-sqb-row dsb-sqb-indent");
+            var cInp = el("input"); cInp.className = "dsb-sqb-inp"; cInp.value = cond.col; cInp.placeholder = "column"; cInp.style.fontFamily = "var(--mono)";
+            cInp.addEventListener("input", function () { cond.col = this.value; });
+            var opSel = el("select"); opSel.className = "dsb-sqb-inp"; opSel.style.cssText = "flex:0 0 auto;width:96px";
+            mkOpts(opSel, [["=","="],["<>","≠"],["<","<"],["<=","≤"],[">=","≥"],[">",">"],["LIKE","LIKE"],["IS NULL","IS NULL"],["IS NOT NULL","IS NOT NULL"]], cond.op);
+            opSel.addEventListener("change", function () { cond.op = this.value; renderBody(); });
+            row.appendChild(cInp); row.appendChild(opSel);
+            if (cond.op !== "IS NULL" && cond.op !== "IS NOT NULL") {
+              var vInp = el("input"); vInp.className = "dsb-sqb-inp"; vInp.value = cond.val; vInp.placeholder = "value"; vInp.style.fontFamily = "var(--mono)";
+              vInp.addEventListener("input", function () { cond.val = this.value; });
+              row.appendChild(vInp);
+            }
+            var rm = el("button", "rm"); rm.type = "button"; rm.style.color = "var(--bad)";
+            rm.appendChild(Studio.icon("close", 10)); rm.onclick = function () { sbState.conditions.splice(i, 1); renderBody(); };
+            row.appendChild(rm); body.appendChild(row);
+          });
+
+          // G1c — GROUP BY column chips (chip-based, same pattern as SELECT columns)
+          var rGroup = el("div", "dsb-sqb-row");
+          var lGroup = el("span", "dsb-sqb-lbl"); lGroup.textContent = "GROUP BY";
+          body.appendChild(rGroup); rGroup.appendChild(lGroup);
+          var gBox = el("div", "dsb-sqb-colbox");
+          sbState.groupBy.forEach(function (c, i) {
+            var chip = el("span", "dsb-chip"); chip.textContent = c;
+            var rm = el("button", "rm"); rm.type = "button"; rm.appendChild(Studio.icon("close", 10));
+            rm.onclick = function () { sbState.groupBy.splice(i, 1); renderBody(); };
+            chip.appendChild(rm); gBox.appendChild(chip);
+          });
+          var gAddIn = el("input"); gAddIn.placeholder = "column + Enter"; gAddIn.className = "dsb-sqb-inp";
+          gAddIn.style.cssText = "font-family:var(--mono);flex:none;width:140px";
+          gAddIn.addEventListener("keydown", function (e) {
+            if (e.key === "Enter") { var v = this.value.trim().replace(/[^a-zA-Z0-9_.]+/g, ""); if (v && sbState.groupBy.indexOf(v) < 0) { sbState.groupBy.push(v); this.value = ""; renderBody(); } }
+          });
+          gBox.appendChild(gAddIn); body.appendChild(gBox);
+
+          // ORDER BY + LIMIT
+          var rOrd = el("div", "dsb-sqb-row");
+          var lOrd = el("span", "dsb-sqb-lbl"); lOrd.textContent = "ORDER BY";
+          var oInp = el("input"); oInp.className = "dsb-sqb-inp"; oInp.value = sbState.orderBy; oInp.placeholder = "column"; oInp.style.fontFamily = "var(--mono)";
+          oInp.addEventListener("input", function () { sbState.orderBy = this.value; });
+          var dirSel = el("select"); dirSel.className = "dsb-sqb-inp"; dirSel.style.cssText = "flex:0 0 auto;width:72px";
+          mkOpts(dirSel, [["ASC", "ASC"], ["DESC", "DESC"]], sbState.orderDir);
+          dirSel.addEventListener("change", function () { sbState.orderDir = this.value; });
+          var lLim = el("span", "dsb-sqb-lbl"); lLim.textContent = "LIMIT"; lLim.style.marginLeft = "12px";
+          var limInp = el("input"); limInp.type = "number"; limInp.min = "1"; limInp.className = "dsb-sqb-inp";
+          limInp.value = sbState.limit; limInp.placeholder = "100"; limInp.style.cssText = "flex:0 0 auto;width:68px";
+          limInp.addEventListener("input", function () { sbState.limit = this.value; });
+          rOrd.appendChild(lOrd); rOrd.appendChild(oInp); rOrd.appendChild(dirSel); rOrd.appendChild(lLim); rOrd.appendChild(limInp);
+          body.appendChild(rOrd);
+
+          // Generate SQL button
+          var rGen = el("div", "dsb-sqb-row dsb-sqb-gen-row");
+          var genBtn = el("button", "btn"); genBtn.type = "button";
+          genBtn.className = "btn sqb-gen-btn";
+          setIconBtn(genBtn, "play", "Generate SQL");
+          genBtn.style.cssText = "color:var(--pentaho);border-color:color-mix(in srgb,var(--pentaho) 45%,transparent);font-size:12px;padding:5px 14px";
+          genBtn.onclick = buildSQL;
+          rGen.appendChild(genBtn); body.appendChild(rGen);
+        }
+
+        function buildSQL() {
+          var t = sbState.table;
+          if (!t) { toast("Enter a FROM table first.", true); return; }
+          var lines = [];
+
+          // Build SELECT: regular columns + G1c aggregate expressions
+          var validAggs = sbState.aggCols.filter(function (a) { return a.col.trim(); });
+          if (sbState.allCols && !validAggs.length) {
+            lines.push("SELECT *");
+          } else {
+            var parts = [];
+            if (!sbState.allCols) {
+              if (!sbState.selCols.length && !validAggs.length) { toast("Add columns or choose All (*).", true); return; }
+              sbState.selCols.forEach(function (c) { parts.push(c + " AS " + c); });
+            }
+            // Aggregate expressions: COUNT DISTINCT wraps in COUNT(DISTINCT col); others are fn(col)
+            validAggs.forEach(function (a) {
+              var expr = a.fn === "COUNT_DISTINCT"
+                ? "COUNT(DISTINCT " + a.col.trim() + ")"
+                : a.fn + "(" + a.col.trim() + ")";
+              var alias = a.alias.trim() || (a.fn.toLowerCase().replace("_distinct", "") + "_" + a.col.trim().replace(/[^a-z0-9_]/gi, "_"));
+              parts.push(expr + " AS " + alias);
+            });
+            if (!parts.length) { lines.push("SELECT *"); }
+            else {
+              lines.push("SELECT " + parts[0]);
+              parts.slice(1).forEach(function (p) { lines.push("     , " + p); });
+            }
+          }
+
+          lines.push("FROM   " + t);
+
+          // G1b — JOIN clauses (skip joins with no table)
+          sbState.joins.filter(function (j) { return j.table.trim(); }).forEach(function (j) {
+            var jl = j.type + " JOIN " + j.table.trim();
+            if (j.on.trim()) jl += "\n  ON   " + j.on.trim();
+            lines.push(jl);
+          });
+
+          // WHERE conditions
+          var wheres = sbState.conditions.filter(function (c) { return c.col.trim(); });
+          if (wheres.length) {
+            lines.push("WHERE  " + fmtCond(wheres[0]));
+            wheres.slice(1).forEach(function (c) { lines.push("  AND  " + fmtCond(c)); });
+          }
+
+          // G1c — GROUP BY
+          if (sbState.groupBy.length) {
+            lines.push("GROUP BY " + sbState.groupBy.join(", "));
+          }
+
+          if (sbState.orderBy.trim()) lines.push("ORDER BY " + sbState.orderBy.trim() + " " + sbState.orderDir);
+          if (sbState.limit && parseInt(sbState.limit, 10) > 0) lines.push("LIMIT  " + parseInt(sbState.limit, 10));
+          var sql = lines.join("\n");
+          draft.query = sql;
+          qTa.value = sql; qTa.dispatchEvent(new Event("input", { bubbles: true }));
+          toast("SQL generated — review and edit above.");
+        }
+
+        function fmtCond(c) {
+          var op = c.op.trim();
+          if (op === "IS NULL" || op === "IS NOT NULL") return c.col.trim() + " " + op;
+          var isNum = c.val.trim() && /^-?\d+(\.\d+)?$/.test(c.val.trim());
+          return c.col.trim() + " " + op + " " + (isNum ? c.val.trim() : "'" + c.val.replace(/'/g, "''") + "'");
+        }
+
+        var isOpen = false;
+        tog.onclick = function () {
+          isOpen = !isOpen; body.hidden = !isOpen; tog.classList.toggle("open", isOpen);
+          if (isOpen) renderBody();
+        };
+        sqb.appendChild(tog); sqb.appendChild(body);
+        return sqb;
+      }
+
+      // G2 — Visual KTR Builder: constructs a minimal Kettle .ktr transform step graph and exports XML.
+      // Pipeline: Table Input → [Select Values (if cols specified)] → Output (Dummy step).
+      function renderKTRBuilder(draft) {
+        var kbState = { table: "", selCols: [], conditions: [], stepName: draft.ktrStep || "Output", jndi: draft.jndi || "", generatedXml: "" };
+        var ktrb = el("div", "dsb-ktrb");
+        var tog = el("button", "dsb-sqb-tog"); tog.type = "button";
+        var togL = el("span", "dsb-sqb-tog-l");
+        togL.appendChild(Studio.icon("gear", 13));
+        var togTx = el("span"); togTx.textContent = " KTR Builder "; togTx.style.cssText = "font-size:12px;font-weight:700;color:inherit";
+        var togHint = el("span"); togHint.style.cssText = "font-size:10.5px;color:var(--faint);font-weight:400";
+        togHint.textContent = "generate a minimal .ktr transform visually";
+        togL.appendChild(togTx); togL.appendChild(togHint);
+        var caret = el("span", "sqb-caret");
+        caret.innerHTML = '<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="3 5 8 10 13 5"/></svg>';
+        tog.appendChild(togL); tog.appendChild(caret);
+        var kbBody = el("div", "dsb-sqb-body"); kbBody.hidden = true;
+
+        function mkOpts(sel, pairs, val) {
+          pairs.forEach(function (p) { var o = el("option"); o.value = p[0]; o.textContent = p[1]; if (p[0] === val) o.selected = true; sel.appendChild(o); });
+          return sel;
+        }
+
+        function renderBody() {
+          kbBody.innerHTML = "";
+
+          // Pipeline diagram
+          var pipeRow = el("div"); pipeRow.style.cssText = "display:flex;align-items:center;gap:5px;margin-bottom:10px;flex-wrap:wrap";
+          function stepPill(label, active) {
+            var s = el("span"); s.textContent = label;
+            s.style.cssText = "font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:4px;" + (active ? "background:var(--pentaho);color:#fff" : "background:var(--hover-bg,#eee);border:1px solid var(--border);color:var(--fg)");
+            return s;
+          }
+          function arw() { var a = el("span"); a.textContent = "→"; a.style.cssText = "color:var(--faint);font-size:11px"; return a; }
+          pipeRow.appendChild(stepPill("Table Input", true));
+          pipeRow.appendChild(arw());
+          pipeRow.appendChild(stepPill("Select Values", kbState.selCols.length > 0));
+          pipeRow.appendChild(arw());
+          pipeRow.appendChild(stepPill("Output (Dummy)", false));
+          kbBody.appendChild(pipeRow);
+
+          // FROM table
+          var rFrom = el("div", "dsb-sqb-row");
+          var lFrom = el("span", "dsb-sqb-lbl"); lFrom.textContent = "FROM";
+          var iTable = el("input"); iTable.className = "dsb-sqb-inp"; iTable.value = kbState.table;
+          iTable.placeholder = "schema.table_name"; iTable.style.fontFamily = "var(--mono)";
+          iTable.addEventListener("input", function () { kbState.table = this.value.trim(); });
+          rFrom.appendChild(lFrom); rFrom.appendChild(iTable); kbBody.appendChild(rFrom);
+
+          // JNDI connection
+          var rJndi = el("div", "dsb-sqb-row");
+          var lJndi = el("span", "dsb-sqb-lbl"); lJndi.textContent = "JNDI";
+          var iJndi = el("input"); iJndi.className = "dsb-sqb-inp"; iJndi.value = kbState.jndi;
+          iJndi.placeholder = "PDC-BIDB-EXT"; iJndi.style.fontFamily = "var(--mono)";
+          iJndi.addEventListener("input", function () { kbState.jndi = this.value.trim(); });
+          rJndi.appendChild(lJndi); rJndi.appendChild(iJndi); kbBody.appendChild(rJndi);
+
+          // SELECT columns (chip-based; blank = SELECT *)
+          var rSel = el("div", "dsb-sqb-row");
+          var lSel = el("span", "dsb-sqb-lbl"); lSel.textContent = "SELECT";
+          var selHint = el("span"); selHint.style.cssText = "font-size:10.5px;color:var(--faint)"; selHint.textContent = "leave blank for all (*)";
+          rSel.appendChild(lSel); rSel.appendChild(selHint); kbBody.appendChild(rSel);
+          var colBox = el("div", "dsb-sqb-colbox");
+          kbState.selCols.forEach(function (c, i) {
+            var chip = el("span", "dsb-chip"); chip.textContent = c;
+            var rm = el("button", "rm"); rm.type = "button"; rm.appendChild(Studio.icon("close", 10));
+            rm.onclick = function () { kbState.selCols.splice(i, 1); renderBody(); };
+            chip.appendChild(rm); colBox.appendChild(chip);
+          });
+          var addIn = el("input"); addIn.placeholder = "column + Enter"; addIn.className = "dsb-sqb-inp";
+          addIn.style.cssText = "font-family:var(--mono);flex:none;width:140px";
+          addIn.addEventListener("keydown", function (e) {
+            if (e.key === "Enter") { var v = this.value.trim().replace(/[^a-zA-Z0-9_.]+/g, ""); if (v && kbState.selCols.indexOf(v) < 0) { kbState.selCols.push(v); this.value = ""; renderBody(); } }
+          });
+          colBox.appendChild(addIn); kbBody.appendChild(colBox);
+
+          // WHERE conditions
+          var rWhere = el("div", "dsb-sqb-row");
+          var lWhere = el("span", "dsb-sqb-lbl"); lWhere.textContent = "WHERE";
+          var addCond = el("button", "dsb-mini"); addCond.type = "button";
+          setIconBtn(addCond, "plus", "Add condition", 11);
+          addCond.onclick = function () { kbState.conditions.push({ col: "", op: "=", val: "" }); renderBody(); };
+          rWhere.appendChild(lWhere); rWhere.appendChild(addCond); kbBody.appendChild(rWhere);
+          kbState.conditions.forEach(function (cond, i) {
+            var row = el("div", "dsb-sqb-row dsb-sqb-indent");
+            var cInp = el("input"); cInp.className = "dsb-sqb-inp"; cInp.value = cond.col; cInp.placeholder = "column"; cInp.style.fontFamily = "var(--mono)";
+            cInp.addEventListener("input", function () { cond.col = this.value; });
+            var opSel = el("select"); opSel.className = "dsb-sqb-inp"; opSel.style.cssText = "flex:0 0 auto;width:96px";
+            mkOpts(opSel, [["=","="],["<>","≠"],["<","<"],["<=","≤"],[">=","≥"],[">",">"],["LIKE","LIKE"],["IS NULL","IS NULL"],["IS NOT NULL","IS NOT NULL"]], cond.op);
+            opSel.addEventListener("change", function () { cond.op = this.value; renderBody(); });
+            row.appendChild(cInp); row.appendChild(opSel);
+            if (cond.op !== "IS NULL" && cond.op !== "IS NOT NULL") {
+              var vInp = el("input"); vInp.className = "dsb-sqb-inp"; vInp.value = cond.val; vInp.placeholder = "value"; vInp.style.fontFamily = "var(--mono)";
+              vInp.addEventListener("input", function () { cond.val = this.value; });
+              row.appendChild(vInp);
+            }
+            var rm = el("button", "rm"); rm.type = "button"; rm.style.color = "var(--bad)";
+            rm.appendChild(Studio.icon("close", 10)); rm.onclick = function () { kbState.conditions.splice(i, 1); renderBody(); };
+            row.appendChild(rm); kbBody.appendChild(row);
+          });
+
+          // Output step name
+          var rOut = el("div", "dsb-sqb-row");
+          var lOut = el("span", "dsb-sqb-lbl"); lOut.textContent = "OUTPUT";
+          var outInp = el("input"); outInp.className = "dsb-sqb-inp"; outInp.value = kbState.stepName;
+          outInp.placeholder = "Output"; outInp.style.cssText = "flex:0 0 auto;width:130px";
+          outInp.addEventListener("input", function () { kbState.stepName = this.value.trim() || "Output"; draft.ktrStep = kbState.stepName; });
+          var outHint = el("span"); outHint.style.cssText = "font-size:10.5px;color:var(--faint)"; outHint.textContent = "referenced by the 'Output step name' field above";
+          rOut.appendChild(lOut); rOut.appendChild(outInp); rOut.appendChild(outHint); kbBody.appendChild(rOut);
+
+          // Generate .ktr button
+          var rGen = el("div", "dsb-sqb-row dsb-sqb-gen-row");
+          var genBtn = el("button", "btn sqb-gen-btn ktrb-gen-btn"); genBtn.type = "button";
+          setIconBtn(genBtn, "play", "Generate .ktr");
+          genBtn.style.cssText = "color:var(--pentaho);border-color:color-mix(in srgb,var(--pentaho) 45%,transparent);font-size:12px;padding:5px 14px";
+          genBtn.onclick = function () { var xml = buildKTR(); if (!xml) return; kbState.generatedXml = xml; renderBody(); toast(".ktr generated — download and deploy to Pentaho."); };
+          rGen.appendChild(genBtn); kbBody.appendChild(rGen);
+
+          // Show generated XML + download button if available
+          if (kbState.generatedXml) {
+            var outTa = el("textarea"); outTa.className = "dsb-ktrb-out"; outTa.readOnly = true;
+            outTa.spellcheck = false; outTa.rows = 7;
+            outTa.style.cssText = "width:100%;font-family:var(--mono);font-size:11px;resize:vertical;margin-top:6px;border:1px solid var(--border);border-radius:4px;padding:6px;box-sizing:border-box;background:var(--code-bg,#f4f4f4);color:var(--fg)";
+            outTa.value = kbState.generatedXml;
+            var dlRow = el("div"); dlRow.style.cssText = "display:flex;gap:8px;margin-top:4px";
+            var dlBtn = el("button", "btn"); dlBtn.type = "button"; dlBtn.style.cssText = "font-size:11px;padding:4px 10px";
+            setIconBtn(dlBtn, "download", "Download .ktr");
+            dlBtn.onclick = function () { download((kbState.stepName || "transform") + ".ktr", kbState.generatedXml, "application/xml"); };
+            dlRow.appendChild(dlBtn); kbBody.appendChild(outTa); kbBody.appendChild(dlRow);
+          }
+        }
+
+        function escXml(s) { return (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+        function fmtKtrCond(c) {
+          var op = c.op.trim();
+          if (op === "IS NULL" || op === "IS NOT NULL") return c.col.trim() + " " + op;
+          var isNum = c.val.trim() && /^-?\d+(\.\d+)?$/.test(c.val.trim());
+          return c.col.trim() + " " + op + " " + (isNum ? c.val.trim() : "'" + c.val.replace(/'/g, "''") + "'");
+        }
+
+        function buildKTR() {
+          var table = kbState.table.trim();
+          if (!table) { toast("Enter a FROM table first.", true); return null; }
+          var stepName = kbState.stepName || "Output";
+          var jndi = kbState.jndi || (draft.jndi || "");
+          var hasSelect = kbState.selCols.length > 0;
+          var cols = hasSelect ? kbState.selCols.join(", ") : "*";
+          var sqlLines = ["SELECT " + cols, "FROM   " + table];
+          var wheres = kbState.conditions.filter(function (c) { return c.col.trim(); });
+          if (wheres.length) {
+            sqlLines.push("WHERE  " + fmtKtrCond(wheres[0]));
+            wheres.slice(1).forEach(function (c) { sqlLines.push("  AND  " + fmtKtrCond(c)); });
+          }
+          var sql = sqlLines.join("\n");
+          var xLocs = hasSelect ? ["100", "300", "500"] : ["100", "300"];
+          var lines = ['<?xml version="1.0" encoding="UTF-8"?>'];
+          lines.push("<transformation>");
+          lines.push("  <info><name>" + escXml(stepName) + "</name><description/></info>");
+          lines.push("  <step>");
+          lines.push("    <name>Table input</name><type>TableInput</type><copies>1</copies>");
+          if (jndi) lines.push("    <connection>" + escXml(jndi) + "</connection>");
+          lines.push("    <sql>" + escXml(sql) + "</sql>");
+          lines.push("    <limit>0</limit><execute_each_row>N</execute_each_row>");
+          lines.push("    <GUI><xloc>" + xLocs[0] + "</xloc><yloc>100</yloc><draw>Y</draw></GUI>");
+          lines.push("  </step>");
+          if (hasSelect) {
+            lines.push("  <step>");
+            lines.push("    <name>Select values</name><type>SelectValues</type><copies>1</copies>");
+            lines.push("    <fields>");
+            kbState.selCols.forEach(function (c) { lines.push("      <field><name>" + escXml(c) + "</name><rename/><length>-2</length><precision>-2</precision></field>"); });
+            lines.push("    </fields><select_unspecified>N</select_unspecified>");
+            lines.push("    <GUI><xloc>" + xLocs[1] + "</xloc><yloc>100</yloc><draw>Y</draw></GUI>");
+            lines.push("  </step>");
+          }
+          lines.push("  <step>");
+          lines.push("    <name>" + escXml(stepName) + "</name><type>Dummy</type><copies>1</copies>");
+          lines.push("    <GUI><xloc>" + xLocs[hasSelect ? 2 : 1] + "</xloc><yloc>100</yloc><draw>Y</draw></GUI>");
+          lines.push("  </step>");
+          lines.push("  <order>");
+          if (hasSelect) {
+            lines.push("    <hop><from>Table input</from><to>Select values</to><enabled>Y</enabled></hop>");
+            lines.push("    <hop><from>Select values</from><to>" + escXml(stepName) + "</to><enabled>Y</enabled></hop>");
+          } else {
+            lines.push("    <hop><from>Table input</from><to>" + escXml(stepName) + "</to><enabled>Y</enabled></hop>");
+          }
+          lines.push("  </order>");
+          lines.push("</transformation>");
+          return lines.join("\n");
+        }
+
+        var isKtrOpen = false;
+        tog.onclick = function () {
+          isKtrOpen = !isKtrOpen; kbBody.hidden = !isKtrOpen; tog.classList.toggle("open", isKtrOpen);
+          if (isKtrOpen) renderBody();
+        };
+        ktrb.appendChild(tog); ktrb.appendChild(kbBody);
+        return ktrb;
+      }
+
       function renderQSection() {
         qSection.innerHTML = "";
         var k = draft.kind;
@@ -541,6 +1261,41 @@
           qSection.appendChild(field("Transformation file (.ktr)", input(draft.ktrPath, function (v) { draft.ktrPath = v; }, "/public/etl/my-transform.ktr")));
           qSection.appendChild(field("Output step name", input(draft.ktrStep, function (v) { draft.ktrStep = v; }, "Output")));
           var kh = el("div", "hint"); kh.textContent = "Columns come from the step's output fields — declare them in the Columns section below."; qSection.appendChild(kh);
+          // G2: visual KTR Builder accordion — generates a minimal .ktr and shows it for download
+          qSection.appendChild(renderKTRBuilder(draft));
+          /* G3 — Import an existing .ktr: pick the file, inspect its steps, click a step name to
+             set it as the output step. Stores parsed data in draft._ktrImported so it survives
+             re-renders (renderQSection() is called after parsing to refresh the step chips). */
+          var kImpInput = el("input"); kImpInput.type = "file"; kImpInput.accept = ".ktr,.xml"; kImpInput.style.display = "none";
+          var kImpBtn = el("button", "dsb-mini"); kImpBtn.style.marginTop = "8px";
+          setIconBtn(kImpBtn, "upload", "Import .ktr…", 12);
+          kImpBtn.onclick = function () { kImpInput.click(); };
+          kImpInput.onchange = function () {
+            var file = kImpInput.files[0]; if (!file) return;
+            var reader = new FileReader();
+            reader.onload = function (e) {
+              draft._ktrImported = Studio.parseKtr(e.target.result);
+              if (!draft.ktrPath) draft.ktrPath = "/public/etl/" + file.name;
+              renderQSection();
+            };
+            reader.readAsText(file);
+          };
+          qSection.appendChild(kImpBtn);
+          qSection.appendChild(kImpInput);
+          if (draft._ktrImported && draft._ktrImported.steps.length) {
+            var imp = el("div", "ktr-imp-box");
+            var impHd = el("div", "hint"); impHd.textContent = "✓ Loaded “" + (draft._ktrImported.name || "transform") + "” — click a step to use as output:"; imp.appendChild(impHd);
+            var impChips = el("div", "ktr-imp-chips");
+            draft._ktrImported.steps.forEach(function (s) {
+              var chip = el("button", "ktr-imp-chip" + (draft.ktrStep === s.name ? " sel" : ""));
+              chip.textContent = s.name;
+              chip.title = s.type;
+              chip.onclick = function () { draft.ktrStep = s.name; renderQSection(); };
+              impChips.appendChild(chip);
+            });
+            imp.appendChild(impChips);
+            qSection.appendChild(imp);
+          }
           detectBtn.style.display = "none";
         } else {
           var t = dsType(k);
@@ -563,6 +1318,8 @@
           var lbl = k === "sql" ? "SQL Query" : k === "mdx" ? "MDX Query" : k === "mql" ? "MQL Query" : "Script";
           var qF = el("div", "field"); qF.appendChild(labelEl(lbl)); qF.appendChild(qTa); qF.appendChild(qH);
           qSection.appendChild(qF);
+          // SQL Builder accordion: available for SQL kind to assist with SELECT generation (G1)
+          if (k === "sql") { qSection.appendChild(renderSQLBuilder(qTa)); }
           detectBtn.style.display = k === "sql" ? "" : "none";
         }
       }
@@ -610,34 +1367,267 @@
 
   function renderInspector() {
     var body = $("#inspBody"); body.innerHTML = "";
+    // Persistent search input + Expand/Collapse-all row at the top of every inspector
+    var sw = el("div", "insp-search-wrap");
+    var si = el("input", "insp-search");
+    si.type = "text"; si.placeholder = "Search fields…"; si.value = _inspSearch;
+    si.setAttribute("aria-label", "Search inspector fields");
+    si.setAttribute("autocomplete", "off");
+    si.addEventListener("input", function () { _inspSearch = si.value; applyInspSearch(body); });
+    si.addEventListener("keydown", function (e) { e.stopPropagation(); }); // prevent global kbd shortcuts
+    sw.appendChild(si);
+
+    // H-track: Expand all / Collapse all — one click to open or shut every section
+    var xRow = el("div", "insp-xpand-row");
+    function allSections() { return body.querySelectorAll(".insp-sec"); }
+    var expAll = el("button", "insp-xpand-btn");
+    expAll.textContent = "Expand all"; expAll.title = "Expand every inspector section";
+    expAll.onclick = function () {
+      allSections().forEach(function (sec) {
+        var h = sec.querySelector("h4"), bdy = sec.querySelector(".insp-sec-body");
+        if (!sec.classList.contains("sec-collapsed")) return;
+        // find the key from _collapsedSects and clear it
+        var titleEl = h ? h.firstChild : null;
+        while (titleEl && titleEl.nodeType !== 3) titleEl = titleEl.nextSibling;
+        var key = titleEl ? titleEl.textContent.replace(/\s*\(\d+\)\s*$/, "") : "";
+        if (key) _collapsedSects[key] = false;
+        sec.classList.remove("sec-collapsed"); if (bdy) bdy.style.display = "";
+        var chev = sec.querySelector(".sec-chev"); if (chev) { chev.innerHTML = ""; chev.appendChild(Studio.icon("chevron-down", 9)); }
+        var hint = sec.querySelector(".sec-hint"); if (hint) hint.textContent = "";
+      });
+      _saveCollapsedSects();
+    };
+    var colAll = el("button", "insp-xpand-btn");
+    colAll.textContent = "Collapse all"; colAll.title = "Collapse every inspector section";
+    colAll.onclick = function () {
+      allSections().forEach(function (sec) {
+        var h = sec.querySelector("h4"), bdy = sec.querySelector(".insp-sec-body");
+        if (sec.classList.contains("sec-collapsed")) return;
+        var titleEl = h ? h.firstChild : null;
+        while (titleEl && titleEl.nodeType !== 3) titleEl = titleEl.nextSibling;
+        var key = titleEl ? titleEl.textContent.replace(/\s*\(\d+\)\s*$/, "") : "";
+        if (key) _collapsedSects[key] = true;
+        sec.classList.add("sec-collapsed"); if (bdy) bdy.style.display = "none";
+        var chev = sec.querySelector(".sec-chev"); if (chev) { chev.innerHTML = ""; chev.appendChild(Studio.icon("chevron-right", 9)); }
+        var summaryFn = sec._summaryFn;
+        var hint = sec.querySelector(".sec-hint"); if (hint && summaryFn) hint.textContent = summaryFn() || "";
+      });
+      _saveCollapsedSects();
+    };
+    xRow.appendChild(expAll); xRow.appendChild(colAll); sw.appendChild(xRow);
+    body.appendChild(sw);
+
     $("#inspBack").hidden = !S.selection;
-    if (!S.selection) { $("#inspTitle").textContent = "Dashboard"; renderDashboardInspector(body); return; }
-    if (S.selection.kind === "panel") { $("#inspTitle").textContent = "Panel"; renderPanelInspector(body); }
+    if (!S.selection) { $("#inspTitle").textContent = "Dashboard"; renderDashboardInspector(body); }
+    else if (S.selection.kind === "panel") { $("#inspTitle").textContent = "Panel"; renderPanelInspector(body); }
     else if (S.selection.kind === "filter") { $("#inspTitle").textContent = "Filter"; renderFilterInspector(body); }
     else if (S.selection.kind === "da") { $("#inspTitle").textContent = "Data Source"; renderDAInspector(body); }
     else { $("#inspTitle").textContent = "KPI tile"; renderKpiInspector(body); }
+
+    // J2: update the top-level contextual help link to point at the most relevant docs section
+    var _hlAnchors = { "panel": "chart-types", "filter": "builder", "da": "data-sources", "kpi": "chart-types" };
+    var _hlEl = document.getElementById("inspHelpLink");
+    if (_hlEl) _hlEl.href = "docs/index.html#" + (_hlAnchors[(S.selection || {}).kind] || "builder");
+
+    if (_inspSearch) applyInspSearch(body);
+  }
+
+  // Hide sections whose visible text doesn't contain the search query.
+  function applyInspSearch(body) {
+    var q = (_inspSearch || "").trim().toLowerCase();
+    var secs = body.querySelectorAll(".insp-sec");
+    secs.forEach(function (sec) {
+      sec.style.display = (!q || sec.textContent.toLowerCase().indexOf(q) >= 0) ? "" : "none";
+    });
   }
 
   function renderDashboardInspector(body) {
     var sp = S.spec;
+    quickHelp(body, "dashboard");
+    // K2 v92 — Simple mode welcome note: shown at the top of the dashboard inspector
+    // when Simple mode is active so newcomers always know which mode they're in and
+    // how to access the full toolset. Includes a one-click "Switch to Advanced" link.
+    if (S.simpleMode) {
+      var sw = el("div", "simple-welcome");
+      var swIc = el("span", "simple-welcome-ic"); swIc.appendChild(Studio.icon("info", 15)); sw.appendChild(swIc);
+      var swB = el("div", "simple-welcome-body");
+      var swT = el("div", "simple-welcome-title"); swT.textContent = "Simple mode is active";
+      var swD = el("div", "simple-welcome-desc");
+      swD.textContent = "Advanced options — annotations, drill-through, cross-filtering, and specialist chart types — are hidden. Drag a query from the library to add your first chart.";
+      var swBtn = el("button", "simple-welcome-btn"); swBtn.type = "button"; swBtn.textContent = "Switch to Advanced mode →";
+      swBtn.onclick = function () { toggleSimpleMode(); };
+      swB.appendChild(swT); swB.appendChild(swD); swB.appendChild(swBtn);
+      sw.appendChild(swB); body.appendChild(sw);
+    }
+    // K7: Getting started checklist — shown in Simple mode when the dashboard is empty
+    // (0 panels and 0 KPIs). Gives newcomers a clear 3-step path:
+    //   1. Library ready (auto-checked — catalog is always available)
+    //   2. Add a panel (the key CTA — drag or drop from the library)
+    //   3. Export your dashboard (the end goal)
+    // Disappears the moment the first panel or KPI is added.
+    if (S.simpleMode && !sp.panels.length && !(sp.kpis && sp.kpis.length)) {
+      var cl = el("div", "gs-checklist");
+      var clT = el("div", "gs-checklist-title"); clT.textContent = "Getting started"; cl.appendChild(clT);
+
+      function clStep(done, label, detail, actionLabel, actionFn) {
+        var row = el("div", "gs-step" + (done ? " gs-done" : ""));
+        var chk = el("span", "gs-check"); chk.textContent = done ? "✓" : ""; row.appendChild(chk);
+        var bd = el("div", "gs-step-body");
+        var lbl = el("div", "gs-step-label"); lbl.textContent = label; bd.appendChild(lbl);
+        if (detail) { var det = el("div", "gs-step-detail"); det.textContent = detail; bd.appendChild(det); }
+        if (actionLabel && actionFn) {
+          var ab = el("button", "gs-step-action"); ab.type = "button"; ab.textContent = actionLabel;
+          ab.onclick = actionFn; bd.appendChild(ab);
+        }
+        row.appendChild(bd); return row;
+      }
+      // Step 1 is always done — the catalog library is ready the moment the app loads.
+      cl.appendChild(clStep(true, "Library ready", "Your catalog queries are in the left panel — browse or search for your data."));
+      // Step 2 is the primary CTA; the action button focuses the library on desktop
+      // or opens the library drawer on phone so the user knows exactly where to go.
+      cl.appendChild(clStep(false, "Add a panel to the canvas", "Drag any query from the library onto the canvas to create your first chart.", "Open library", function () {
+        if (window.innerWidth <= 640) {
+          var t = document.getElementById("tabLib"); if (t) t.click();
+        } else {
+          var ls = document.getElementById("libSearch"); if (ls) { ls.focus(); ls.select(); }
+        }
+      }));
+      // Step 3 is the end goal — shown as upcoming to frame the overall journey.
+      cl.appendChild(clStep(false, "Export your dashboard", "Use Export ▾ to download a self-contained CDF HTML file ready for your Pentaho server."));
+      body.appendChild(cl);
+    }
+
+    // K8 — "What's next?" card: shown in Simple mode once ≥1 panel or KPI is on the canvas.
+    // Bridges the gap after the getting-started checklist (step 2 done) by giving newcomers
+    // three actionable next steps. Dismissible — persisted to localStorage so it doesn't
+    // reappear once the user clicks "Got it".
+    var k8Key = "studio-k8-dismissed";
+    var k8Hidden = false;
+    try { k8Hidden = localStorage.getItem(k8Key) === "1"; } catch (e) {}
+    if (S.simpleMode && !k8Hidden && (sp.panels.length || (sp.kpis && sp.kpis.length))) {
+      var k8 = el("div", "k8-next");
+      var k8T = el("div", "k8-next-title"); k8T.textContent = "What’s next?"; k8.appendChild(k8T);
+
+      // Dismiss button — hides the card and persists the decision so it never re-appears.
+      var k8Dis = el("button", "k8-dismiss"); k8Dis.id = "k8DismissBtn"; k8Dis.type = "button";
+      k8Dis.title = "Dismiss this card"; k8Dis.textContent = "Got it ×";
+      k8Dis.onclick = function () {
+        try { localStorage.setItem(k8Key, "1"); } catch (e) {}
+        k8.remove();
+      };
+      k8.appendChild(k8Dis);
+
+      // Helper — one row: small icon circle + label + detail + optional action button.
+      function k8Tip(iconName, label, detail, actionLabel, actionFn) {
+        var row = el("div", "k8-tip");
+        var ic = el("span", "k8-tip-ic"); ic.appendChild(Studio.icon(iconName, 14)); row.appendChild(ic);
+        var bd = el("div", "k8-tip-body");
+        var lbl = el("div", "k8-tip-label"); lbl.textContent = label; bd.appendChild(lbl);
+        var det = el("div", "k8-tip-detail"); det.textContent = detail; bd.appendChild(det);
+        if (actionLabel && actionFn) {
+          var ab = el("button", "k8-tip-act"); ab.type = "button"; ab.textContent = actionLabel;
+          ab.onclick = actionFn; bd.appendChild(ab);
+        }
+        row.appendChild(bd); return row;
+      }
+
+      k8.appendChild(k8Tip("gear", "Configure your chart",
+        "Click a panel on the canvas to select it, then choose a chart type and bind your data columns in the inspector."));
+      k8.appendChild(k8Tip("plus", "Add more panels or KPIs",
+        "Drag more queries from the library onto the canvas to expand your dashboard."));
+      k8.appendChild(k8Tip("download", "Export when ready",
+        "Use Export ▾ in the toolbar to download a CDF HTML file ready for your Pentaho server.",
+        "Open Export ▾", function () {
+          var btnExp = document.getElementById("btnExport"); if (btnExp) btnExp.click();
+        }));
+
+      // Docs link — opens the help reference in a new tab (J-track v98).
+      var k8Hr = el("div", "k8-help-row");
+      var k8Hl = el("a", "k8-help-link"); k8Hl.href = "docs/index.html"; k8Hl.target = "_blank"; k8Hl.rel = "noopener";
+      k8Hl.appendChild(Studio.icon("info", 12));
+      k8Hl.appendChild(document.createTextNode(" View help docs"));
+      k8Hr.appendChild(k8Hl); k8.appendChild(k8Hr);
+      body.appendChild(k8);
+    }
+
+    // E3: Layout thumbnail — a quick visual cue of the spec structure so the user can
+    // identify the dashboard at a glance without scrolling through the inspector.
+    var thumbSvg = Studio.makeThumbnail(sp, S.theme);
+    if (thumbSvg) {
+      var tc = el("div", "insp-thumb"); tc.setAttribute("aria-label", "Dashboard layout preview");
+      tc.innerHTML = thumbSvg; body.appendChild(tc);
+    }
     // ── checks (live validation) ──
     var issues = Studio.validate(sp);
     var vs = section(body, "Checks");
     if (!issues.length) vs.appendChild(iconNote("ok", "check", "Looks good — ready to export."));
     else issues.forEach(function (x) { vs.appendChild(iconNote(x.level === "error" ? "err" : x.level === "warn" ? "warn" : "info", x.level === "error" ? "close" : x.level === "warn" ? "warn" : "info", x.msg)); });
 
-    var sec = section(body, "Dashboard");
+    var sec = section(body, "Dashboard", null, null, "builder");
     sec.appendChild(field("Title", input(sp.title, function (v) { sp.title = v; syncHeader(); refreshPreview(); })));
     sec.appendChild(field("File name (stem)", input(sp.name, function (v) { sp.name = v.trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-"); syncHeader(); }, "lowercase-with-dashes → " + sp.name + ".html / .cdfde / .cda")));
     sec.appendChild(field("Subtitle", input(sp.subtitle, function (v) { sp.subtitle = v; refreshPreview(); })));
     var grpSel = select2(["Observability", "Governance & Privacy", "Storage & Cost", "Usage & People", "Data Integration", "Executive"], sp.group, function (v) { sp.group = v; syncHeader(); });
     sec.appendChild(field("Group", grpSel));
-    sec.appendChild(field("Description", textarea(sp.description, function (v) { sp.description = v; })));
+    sec.appendChild(field("Description", textarea(sp.description, function (v) { sp.description = v; refreshPreview(); })));
     var gc = select2(["1", "2", "3", "4"], String(sp.gridCols), function (v) { sp.gridCols = +v; refreshPreview(); });
     sec.appendChild(field("Grid columns", gc));
 
+    // H-track: Dashboard accent color — per-dashboard --pentaho override.
+    // 6 quick preset swatches + a custom hex picker let the SE team match client branding.
+    // Empty string = keep the default Pentaho blue (#005bb5) from pdc-ui.css.
+    var THEME_PRESETS = [
+      { label: "Pentaho blue (default)", color: "" },
+      { label: "Ocean teal",  color: "#0d7a8a" },
+      { label: "Forest",      color: "#1a7a4a" },
+      { label: "Sunset",      color: "#d95f2b" },
+      { label: "Royal",       color: "#6b35a8" },
+      { label: "Coral rose",  color: "#c82b5e" }
+    ];
+    var accentRow = el("div"); accentRow.className = "accent-presets";
+    var accentCustom = el("input"); accentCustom.type = "color"; accentCustom.id = "dashAccentCustom";
+    accentCustom.title = "Custom accent color";
+    accentCustom.value = sp.themeColor || "#005bb5";
+    accentCustom.oninput = function () {
+      sp.themeColor = this.value; refreshPreview(); renderDashboardInspector(body);
+    };
+    THEME_PRESETS.forEach(function (preset) {
+      var sw = el("button"); sw.type = "button"; sw.className = "accent-swatch";
+      sw.title = preset.label;
+      sw.style.background = preset.color || "#005bb5";
+      if (sp.themeColor === preset.color) sw.classList.add("active");
+      sw.onclick = function () {
+        sp.themeColor = preset.color;
+        accentCustom.value = preset.color || "#005bb5";
+        refreshPreview(); renderDashboardInspector(body);
+      };
+      accentRow.appendChild(sw);
+    });
+    accentRow.appendChild(accentCustom);
+    sec.appendChild(field("Accent color", accentRow, "Overrides the brand color in preview and exported CDF"));
+
+    // H-track: Series color palette preset — swaps the --c1..--c10 chart series palette.
+    // Lets SE teams quickly show the dashboard in a different color family for demos.
+    // paletteKey "" / "default" keeps the built-in Pentaho palette from pdc-ui.css.
+    var palRow = el("div"); palRow.className = "accent-presets";
+    palRow.setAttribute("id", "dashPaletteRow");
+    Studio.PALETTE_PRESETS.forEach(function (preset) {
+      var sw = el("button"); sw.type = "button"; sw.className = "accent-swatch";
+      sw.title = preset.label;
+      sw.style.background = preset.light ? preset.swatch : "#005bb5";
+      sw.setAttribute("data-palette-key", preset.key);
+      var active = (sp.paletteKey || "default") === preset.key || (!sp.paletteKey && preset.key === "default");
+      if (active) sw.classList.add("active");
+      sw.onclick = function () {
+        sp.paletteKey = preset.key === "default" ? "" : preset.key;
+        refreshPreview(); renderDashboardInspector(body);
+      };
+      palRow.appendChild(sw);
+    });
+    sec.appendChild(field("Series palette", palRow, "Swap the chart series color palette (all panels)"));
+
     // KPIs
-    var ks = section(body, "KPI tiles", function () { addFromCurrentOrPrompt("kpi"); });
+    var ks = section(body, "KPI tiles", function () { addFromCurrentOrPrompt("kpi"); }, null, "builder");
     if (!sp.kpis.length) ks.appendChild(hint("No KPI tiles. Add one from a query in the library, or click ＋."));
     sp.kpis.forEach(function (k, i) {
       ks.appendChild(rowItem("◧", k.label || "(metric)", k.da + " · " + k.valueCol,
@@ -648,7 +1638,7 @@
     });
 
     // Filters
-    var fs = section(body, "Filters", function () { addFilter(); });
+    var fs = section(body, "Filters", function () { addFilter(); }, null, "builder");
     if (!sp.filters.length) fs.appendChild(hint("Optional cascading header selects (e.g. Data Source)."));
     sp.filters.forEach(function (f, i) {
       fs.appendChild(rowItem("⛃", f.label, f.da + " · " + f.valueCol, function () { select({ kind: "filter", index: i }); },
@@ -658,7 +1648,7 @@
 
     // E4: Shareable deeplink (only when the dashboard has filters)
     if (sp.filters.length) {
-      var dlSec = section(body, "Shareable link");
+      var dlSec = section(body, "Shareable link", null, null, "exporting");
       var hashStr = sp.filters.map(function (f) { return encodeURIComponent(f.id) + "=" + encodeURIComponent(f.def != null ? f.def : "%"); }).join("&");
       var dlHint = el("div", "hint");
       dlHint.innerHTML = 'Append <code class="fhash">#' + esc(hashStr) + '</code> to the exported CDF URL to pre-select these filters on load.';
@@ -687,16 +1677,47 @@
         false));
     });
 
-    // Panels (reorderable)
+    // Panels (reorderable) with tag-based filter bar
+    // _tagFilter holds the currently-active tag (string) or null (show all panels).
+    var allTags = Studio.allTags(sp);
     var ps = section(body, "Panels (" + sp.panels.length + ")");
+    // Tag filter bar — only shown when at least one panel has tags
+    if (allTags.length) {
+      var tfBar = el("div"); tfBar.className = "tag-filter-bar";
+      var allChip = el("button"); allChip.className = "tag-chip" + (!_tagFilter ? " tc-active" : ""); allChip.textContent = "All";
+      allChip.onclick = function () { _tagFilter = null; renderInspector(); };
+      tfBar.appendChild(allChip);
+      allTags.forEach(function (t) {
+        var chip = el("button"); chip.className = "tag-chip" + (_tagFilter === t ? " tc-active" : ""); chip.textContent = t;
+        chip.onclick = function () { _tagFilter = (_tagFilter === t ? null : t); renderInspector(); };
+        tfBar.appendChild(chip);
+      });
+      ps.appendChild(tfBar);
+    }
     if (!sp.panels.length) ps.appendChild(hint("Drag a query onto the canvas, or use a ＋ chip in the library."));
     sp.panels.forEach(function (p, i) {
       var ic = (Studio.CHARTS[p.chart.type] || {}).icon || "▭";
-      ps.appendChild(rowItem(ic, p.title || "(panel)", p.chart.type + " · " + p.chart.da + " · span " + p.span,
+      var pTags = p.tags || [];
+      var matchesFilter = !_tagFilter || pTags.indexOf(_tagFilter) >= 0;
+      var row = rowItem(ic, p.title || "(panel)", p.chart.type + " · " + p.chart.da + " · span " + p.span,
         function () { select({ kind: "panel", id: p.id }); },
         [moveBtn("↑", function () { swap(sp.panels, i, i - 1); }), moveBtn("↓", function () { swap(sp.panels, i, i + 1); }),
          delBtn(function () { sp.panels.splice(i, 1); selectDashboard(); refreshPreview(); })],
-        S.selection && S.selection.kind === "panel" && S.selection.id === p.id));
+        S.selection && S.selection.kind === "panel" && S.selection.id === p.id);
+      // Dim panels that don't match the active tag filter
+      if (_tagFilter && !matchesFilter) row.style.opacity = "0.35";
+      // Tag chips on the panel row — appended inside .ri-txt so they flow below the subtitle
+      if (pTags.length) {
+        var tagRow = el("div"); tagRow.className = "panel-tag-row";
+        pTags.forEach(function (t) {
+          var tc = el("span"); tc.className = "panel-tag-chip" + (_tagFilter === t ? " tc-active" : ""); tc.textContent = t;
+          tc.onclick = function (e) { e.stopPropagation(); _tagFilter = (_tagFilter === t ? null : t); renderInspector(); };
+          tagRow.appendChild(tc);
+        });
+        var riTxt = row.querySelector(".ri-txt");
+        if (riTxt) riTxt.appendChild(tagRow);
+      }
+      ps.appendChild(row);
     });
   }
 
@@ -756,6 +1777,7 @@
 
   function renderPanelInspector(body) {
     var p = panelById(S.selection.id); if (!p) { selectDashboard(); return; }
+    quickHelp(body, "panel");
     var sec = section(body, "Panel");
     sec.appendChild(field("Title", input(p.title, function (v) { p.title = v; refreshPreview(); renderListsOnly(); })));
     var spanSel = select2pairs([["1", "1 column"], ["2", "2 columns"], ["3", "3 columns"], ["full", "Full width"]], String(p.span), function (v) { p.span = v === "full" ? "full" : +v; refreshPreview(); });
@@ -763,27 +1785,180 @@
     sec.appendChild(field("Pill (badge)", input(p.pill, function (v) { p.pill = v; refreshPreview(); })));
     sec.appendChild(field("Sub-label", input(p.sub, function (v) { p.sub = v; refreshPreview(); })));
     sec.appendChild(field("Info tooltip", textarea(p.info, function (v) { p.info = v; refreshPreview(); })));
+    sec.appendChild(field("Note (visible)", input(p.note || "", function (v) { p.note = v.trim(); refreshPreview(); }),
+      "Short annotation shown below the panel title in the preview and exported CDF — stakeholder context at a glance"));
+    // Tags: comma-separated labels that enable tag-based filtering/highlighting in the panel list.
+    // Stored as p.tags (array of lowercase trimmed strings) so Studio.allTags() can aggregate them.
+    (function () {
+      var tagInp = el("input"); tagInp.type = "text";
+      tagInp.value = (p.tags || []).join(", ");
+      tagInp.placeholder = "revenue, q1, finance  (comma-separated)";
+      tagInp.addEventListener("change", function () {
+        var raw = tagInp.value.split(",").map(function (t) { return t.trim().toLowerCase(); }).filter(Boolean);
+        p.tags = raw.length ? raw : undefined;
+        renderListsOnly(); // refresh panel list so tag chips update
+      });
+      sec.appendChild(field("Tags", tagInp, "Group panels by topic (comma-separated). Filter by tag in the dashboard inspector panel list."));
+    })();
+    // Per-panel accent color: a colored left border that visually differentiates panels
+    // by topic or domain. Native <input type="color"> with a "Clear" button to reset.
+    (function () {
+      var acW = el("div"); acW.style.cssText = "display:flex;gap:6px;align-items:center";
+      var acInp = el("input"); acInp.type = "color";
+      acInp.className = "panel-accent-inp";
+      acInp.value = p.accentColor || "#005bb5";
+      if (!p.accentColor) acInp.style.opacity = "0.38";
+      acInp.addEventListener("input", function () { acInp.style.opacity = "1"; p.accentColor = acInp.value; refreshPreview(); });
+      var acClr = el("button"); acClr.type = "button"; acClr.textContent = "Clear";
+      acClr.className = "rm"; acClr.style.cssText += ";font-size:11px;padding:2px 9px;min-width:0;height:auto;line-height:1.5";
+      acClr.onclick = function () { p.accentColor = ""; acInp.value = "#005bb5"; acInp.style.opacity = "0.38"; refreshPreview(); };
+      acW.appendChild(acInp); acW.appendChild(acClr);
+      sec.appendChild(field("Panel accent", acW, "Adds a colored left border — great for differentiating panels by topic or business domain"));
+    })();
+    sec.appendChild(field("Section header", input(p.section || "", function (v) { p.section = v.trim(); refreshPreview(); }),
+      "Group consecutive panels under a labeled row divider (leave blank to place in the previous section)"));
     sec.appendChild(field("Provenance caption", input(p.src, function (v) { p.src = v; refreshPreview(); })));
     var acts = el("div"); acts.style.cssText = "display:flex;gap:8px;margin-top:2px";
     var dup = el("button", "btn-wide"); setIconBtn(dup, "duplicate", "Duplicate"); dup.onclick = function () { duplicatePanel(p.id); };
     var del = el("button", "btn-wide"); del.style.color = "var(--bad)"; setIconBtn(del, "trash", "Delete"); del.onclick = function () { deletePanel(p.id); };
     acts.appendChild(dup); acts.appendChild(del); sec.appendChild(acts);
 
-    // chart type
-    var cs = section(body, "Chart type");
+    // chart type picker — grouped by c.group for scannability (Content group = richtext/annotation)
+    var cs = section(body, "Chart type", null, null, "chart-types");
     var grid = el("div", "chart-grid");
+    var groups = {}, groupOrder = [];
     Object.keys(Studio.CHARTS).forEach(function (t) {
-      var c = Studio.CHARTS[t], o = el("div", "chart-opt" + (p.chart.type === t ? " sel" : ""));
-      o.innerHTML = '<div class="ic">' + (CHART_SVG[t] || c.icon) + '</div><div class="lb">' + c.label + "</div>";
-      o.title = c.label;
-      o.onclick = function () { changeChartType(p, t); };
-      grid.appendChild(o);
+      var g = (Studio.CHARTS[t].group || "Other");
+      if (!groups[g]) { groups[g] = []; groupOrder.push(g); }
+      groups[g].push(t);
+    });
+
+    // H-track: gallery text search — filter cards by chart name or description as you type.
+    // Lives above the group tabs so the two filters compose: search narrows first,
+    // then the active group tab applies on top (clearing search resets to the tab view).
+    var searchWrap = el("div", "cg-search-wrap");
+    var searchInp = el("input", "cg-search");
+    searchInp.type = "text";
+    searchInp.placeholder = "Search chart types…";
+    searchInp.setAttribute("aria-label", "Search chart types");
+    var clearBtn = el("button", "cg-search-clr");
+    clearBtn.type = "button";
+    clearBtn.title = "Clear search";
+    clearBtn.setAttribute("aria-label", "Clear chart type search");
+    var clrIco = Studio.icon("close", 12);
+    clrIco.style.pointerEvents = "none";
+    clearBtn.appendChild(clrIco);
+    clearBtn.style.display = "none";
+    searchWrap.appendChild(searchInp);
+    searchWrap.appendChild(clearBtn);
+    cs.appendChild(searchWrap);
+
+    // H-track: group filter pills — narrow the 32-type gallery to one category.
+    // Active filter is local to this render so switching panels doesn't reset it.
+    var filterBar = el("div", "cg-filter");
+    var _activeGroup = "All";
+    function applyFilter(g) {
+      _activeGroup = g;
+      filterBar.querySelectorAll(".cg-tab").forEach(function (b) { b.classList.toggle("active", b.textContent === g); });
+      applyGalleryState();
+    }
+    // Apply both search query and active group tab together.
+    function applyGalleryState() {
+      var q = searchInp.value.trim().toLowerCase();
+      var isSearch = q.length > 0;
+      clearBtn.style.display = isSearch ? "" : "none";
+      grid.querySelectorAll(".cg-label").forEach(function (lbl) {
+        if (isSearch) { lbl.style.display = "none"; return; }
+        lbl.style.display = (_activeGroup === "All" || lbl.dataset.grp === _activeGroup) ? "" : "none";
+      });
+      grid.querySelectorAll(".chart-opt").forEach(function (card) {
+        if (isSearch) {
+          // Search mode: match label or description text inside the card
+          var text = (card.querySelector(".lb") ? card.querySelector(".lb").textContent : "") +
+                     " " + (card.querySelector(".lb-desc") ? card.querySelector(".lb-desc").textContent : "");
+          card.style.display = text.toLowerCase().indexOf(q) >= 0 ? "" : "none";
+        } else {
+          card.style.display = (_activeGroup === "All" || card.dataset.grp === _activeGroup) ? "" : "none";
+        }
+      });
+    }
+    searchInp.addEventListener("input", applyGalleryState);
+    searchInp.addEventListener("keydown", function (e) { e.stopPropagation(); }); // don't steal global shortcuts
+    clearBtn.addEventListener("click", function () { searchInp.value = ""; applyGalleryState(); searchInp.focus(); });
+    ["All"].concat(groupOrder).forEach(function (g) {
+      var btn = el("button", "cg-tab" + (g === "All" ? " active" : ""));
+      btn.textContent = g; btn.type = "button";
+      btn.onclick = function () { applyFilter(g); };
+      filterBar.appendChild(btn);
+    });
+    cs.appendChild(filterBar);
+
+    groupOrder.forEach(function (g) {
+      var lbl = el("div", "cg-label"); lbl.textContent = g; lbl.dataset.grp = g; grid.appendChild(lbl);
+      // Track whether every chart in this group is advanced — if so, the group label should hide too
+      var groupHasSimple = false;
+      groups[g].forEach(function (t) {
+        var c = Studio.CHARTS[t];
+        var isAdv = !SIMPLE_CHART_TYPES[t];
+        var cls = "chart-opt" + (p.chart.type === t ? " sel" : "") + (isAdv ? " adv-chart" : "");
+        var o = el("div", cls);
+        o.dataset.grp = g; // used by applyFilter() to show/hide by group
+        o.innerHTML = '<div class="ic">' + (CHART_SVG[t] || c.icon) + '</div><div class="lb">' + c.label + '</div>' + (c.desc ? '<div class="lb-desc">' + c.desc + '</div>' : '');
+        o.title = c.label + " (" + g + ")";
+        o.onclick = function () { changeChartType(p, t); };
+        // J4: small docs link — appears on hover in the top-right corner of each card.
+        // Opens docs/index.html at the per-chart anchor; stopPropagation so the click
+        // doesn't also change the chart type.
+        var ctHelp = document.createElement("a");
+        ctHelp.href = "docs/index.html#ct-" + t;
+        ctHelp.target = "_blank"; ctHelp.rel = "noopener noreferrer";
+        ctHelp.className = "ct-help"; ctHelp.title = "Docs: " + c.label;
+        ctHelp.setAttribute("aria-label", "Help docs for " + c.label);
+        ctHelp.appendChild(Studio.icon("info", 8));
+        ctHelp.onclick = function (e) { e.stopPropagation(); };
+        o.appendChild(ctHelp);
+        grid.appendChild(o);
+        if (!isAdv) groupHasSimple = true;
+      });
+      // If the entire group is advanced, hide the group label in simple mode too
+      if (!groupHasSimple) lbl.classList.add("adv-grp");
     });
     cs.appendChild(grid);
 
+    // Richtext content editor — replaces Data / mapping / options / interaction sections.
+    // The panel renders this markdown-like text directly; no data source needed.
+    if (p.chart.type === "richtext") {
+      var rtSec = section(body, "Content");
+      var rtHint = el("div"); rtHint.style.cssText = "font-size:11px;color:var(--faint);margin-bottom:4px";
+      rtHint.textContent = "Markdown: ## Heading  **bold**  *italic*  `code`  - list";
+      rtSec.appendChild(rtHint);
+      var rtTa = el("textarea"); rtTa.className = "rt-ta";
+      rtTa.rows = 8; rtTa.value = (p.chart.opts || {}).content || "";
+      rtTa.placeholder = "## Title\n\nAdd explanatory text, callouts, or section headers...\n\n**Bold text** and *italics* work.\n- List item one\n- List item two";
+      rtTa.addEventListener("input", function () {
+        if (!p.chart.opts) p.chart.opts = {};
+        p.chart.opts.content = rtTa.value;
+        refreshPreview();
+      });
+      rtSec.appendChild(rtTa);
+      body.appendChild(noteEl("info", "Text panels are CDF-only — the CDE export will skip them. Use full-width span for best results."));
+      return; // skip DA / options / interaction sections for text panels
+    }
+
     // data binding
-    var ds = section(body, "Data");
+    var ds = section(body, "Data", null, null, "data-sources");
     ds.appendChild(field("Query (data access)", daPicker(p.chart.da, function (v) { rebindDA(p, v); })));
+    // H-track: "Edit source →" jump link in Advanced mode — one click from a panel to its DA inspector.
+    // Hidden in Simple mode (authoring controls are restricted there).
+    if (p.chart.da && !S.simpleMode) {
+      var esl = el("div", "edit-src-link");
+      var esb = el("button", "edit-src-btn"); esb.type = "button";
+      esb.appendChild(Studio.icon("edit", 12));
+      esb.appendChild(document.createTextNode(" Edit data source"));
+      esb.onclick = function () { select({ kind: "da", id: p.chart.da }); };
+      esl.appendChild(esb);
+      ds.appendChild(esl);
+    }
     renderMapping(ds, p);
     renderQueryPeek(body, p.chart.da);
 
@@ -793,6 +1968,605 @@
       var os = section(body, "Options");
       optDefs.forEach(function (od) { os.appendChild(optField(p.chart.opts, od)); });
     }
+    // Drill-through: click a chart element to navigate to another dashboard
+    var drillSec = advSection(body, "Drill-through", null, function () {
+      return p.drill && p.drill.url ? p.drill.url.slice(0, 24) : "";
+    });
+    var drillCfg = p.drill || {};
+    drillSec.appendChild(field("Target URL",
+      input(drillCfg.url || "", function (v) {
+        if (!p.drill) p.drill = {};
+        p.drill.url = v.trim();
+        refreshPreview();
+      })
+    ));
+    drillSec.appendChild(field("URL parameter",
+      input(drillCfg.param || "", function (v) {
+        if (!p.drill) p.drill = {};
+        p.drill.param = v.trim();
+      })
+    ));
+    drillSec.appendChild(noteEl("info", "Click a bar or donut slice to navigate to the target URL with ?{param}={label}. Uses PDC.drill — carries all active filter values. Leave URL empty to disable."));
+
+    // Detail drawer: click a chart element → open a record-level side-drawer showing underlying rows.
+    // Powered by PDC.openDetail (vendored toolkit). Works offline (genMock data) and live (real CDA).
+    var detailSec = advSection(body, "Detail drawer", null, function () {
+      return p.detail && p.detail.da ? p.detail.da : "";
+    });
+    var detailData = p.detail || {};
+    detailSec.appendChild(field("Detail DA",
+      daPicker(detailData.da || "", function (v) {
+        if (!p.detail) p.detail = {};
+        p.detail.da = v;
+        refreshPreview();
+      }, true)
+    ));
+    detailSec.appendChild(field("Filter parameter",
+      input(detailData.param || "", function (v) {
+        if (!p.detail) p.detail = {};
+        p.detail.param = v.trim();
+      }, "param name (receives clicked label)")
+    ));
+    detailSec.appendChild(field("Title prefix",
+      input(detailData.titlePrefix || "", function (v) {
+        if (!p.detail) p.detail = {};
+        p.detail.titlePrefix = v.trim();
+      }, 'e.g. "Records for"')
+    ));
+    detailSec.appendChild(field("Noun (plural)",
+      input(detailData.noun || "", function (v) {
+        if (!p.detail) p.detail = {};
+        p.detail.noun = v.trim();
+      }, "e.g. records, jobs, pipelines")
+    ));
+    detailSec.appendChild(noteEl("info", "Click a bar, donut slice, or treemap tile to open a record-level drawer with rows from the selected DA. The filter parameter receives the clicked label. Select a DA to enable."));
+
+    // Cross-filter: clicking a chart element broadcasts a named parameter to panels that share it.
+    // Enables coordinated views — e.g. clicking a bar in Panel A filters Panel B if they share a DA param.
+    var xfSec = advSection(body, "Cross-filter", null, function () {
+      return p.crossFilter && p.crossFilter.emit ? p.crossFilter.emit : "";
+    });
+    var xfCfg = p.crossFilter || {};
+    xfSec.appendChild(field("Emit as parameter",
+      input(xfCfg.emit || "", function (v) {
+        if (!p.crossFilter) p.crossFilter = {};
+        p.crossFilter.emit = v.trim();
+        refreshPreview();
+      }, "param name broadcast on click")
+    ));
+    xfSec.appendChild(noteEl("info", "Click a bar, donut slice, or treemap tile to set this parameter across all panels whose data source declares a matching parameter name. Click the same element again to clear. Only bars, donut, and treemap emit. Leave blank to disable."));
+
+    // Animation: per-panel entrance animation toggle + speed control.
+    // PDC._anim / PDC._animD are set by studio-render.js before each chart call and read by
+    // canAnim() / animD() in studio-charts.js — so these settings travel through without changing
+    // every individual PDC.* call signature.
+    var animSec = section(body, "Animation");
+    var animRow = el("div"); animRow.style.cssText = "display:flex;align-items:center;gap:6px";
+    var animCb = el("input"); animCb.type = "checkbox"; animCb.id = "animCb_" + p.id;
+    animCb.checked = p.animate !== false;
+    var animLbl = el("label"); animLbl.htmlFor = animCb.id;
+    animLbl.className = "check"; animLbl.style.cssText = "gap:6px;font-size:12px";
+    animLbl.appendChild(animCb); animLbl.appendChild(document.createTextNode("Animate entrance"));
+    animRow.appendChild(animLbl);
+    animSec.appendChild(animRow);
+    var durRow = el("div"); durRow.className = "field anim-dur-row"; durRow.style.cssText = "margin-top:4px;" + (p.animate === false ? "display:none" : "");
+    var durLbl = el("span", "label"); durLbl.textContent = "Duration (ms)";
+    var durWrap = el("div"); durWrap.style.cssText = "display:flex;align-items:center;gap:8px;flex:1";
+    var durSlider = el("input"); durSlider.type = "range"; durSlider.min = "100"; durSlider.max = "2000"; durSlider.step = "50";
+    durSlider.value = p.animDuration || 600; durSlider.style.flex = "1";
+    var durDisplay = el("span"); durDisplay.textContent = (p.animDuration || 600) + " ms";
+    durDisplay.style.cssText = "font-size:11px;color:var(--faint);min-width:48px;text-align:right";
+    durWrap.appendChild(durSlider); durWrap.appendChild(durDisplay);
+    durRow.appendChild(durLbl); durRow.appendChild(durWrap);
+    animSec.appendChild(durRow);
+    animSec.appendChild(noteEl("info", "Controls whether charts fade / sweep in when first rendered. Disable for dense data or when presenting on slow hardware. The OS prefers-reduced-motion setting always wins."));
+    animCb.addEventListener("change", function () {
+      p.animate = animCb.checked;
+      durRow.style.display = p.animate ? "" : "none";
+      refreshPreview();
+    });
+    durSlider.addEventListener("input", function () {
+      p.animDuration = +durSlider.value;
+      durDisplay.textContent = durSlider.value + " ms";
+    });
+    durSlider.addEventListener("change", function () { refreshPreview(); });
+
+    // Target line: horizontal dashed reference marker overlaid on any chart.
+    // Positioned as a % from the top of the chart body (0=top, 100=bottom).
+    // Useful for Budget, Target, Threshold, Limit — works regardless of chart type.
+    (function () {
+      var tlSec = advSection(body, "Target line", null, function () {
+        return p.targetLine && p.targetLine.label ? '"' + p.targetLine.label.slice(0, 18) + '"' : (p.targetLine ? "defined" : "");
+      });
+      var tlData = p.targetLine || {};
+      tlSec.appendChild(field("Label", input(tlData.label || "", function (v) {
+        if (!p.targetLine) p.targetLine = {};
+        p.targetLine.label = v.trim();
+        refreshPreview();
+      }), "e.g. Target, Budget, Limit (leave blank to hide)"));
+      // Position slider (0 = top, 100 = bottom of chart body)
+      var tlPosW = el("div"); tlPosW.style.cssText = "display:flex;align-items:center;gap:8px;flex:1";
+      var tlSlider = el("input"); tlSlider.type = "range"; tlSlider.min = "0"; tlSlider.max = "100"; tlSlider.step = "1";
+      tlSlider.value = tlData.pct != null ? tlData.pct : 30; tlSlider.style.flex = "1";
+      var tlPct = el("span"); tlPct.textContent = (tlData.pct != null ? tlData.pct : 30) + "%";
+      tlPct.style.cssText = "font-size:11px;color:var(--faint);min-width:30px;text-align:right";
+      tlPosW.appendChild(tlSlider); tlPosW.appendChild(tlPct);
+      tlSec.appendChild(field("Position (% from top)", tlPosW, "0% = chart top · 100% = chart bottom"));
+      tlSlider.addEventListener("input", function () { tlPct.textContent = tlSlider.value + "%"; });
+      tlSlider.addEventListener("change", function () {
+        if (!p.targetLine) p.targetLine = {};
+        p.targetLine.pct = +tlSlider.value;
+        refreshPreview();
+      });
+      // Color picker + clear
+      var tlColW = el("div"); tlColW.style.cssText = "display:flex;gap:6px;align-items:center";
+      var tlColInp = el("input"); tlColInp.type = "color"; tlColInp.className = "panel-accent-inp";
+      tlColInp.value = tlData.color || "#e74c3c";
+      if (!tlData.color) tlColInp.style.opacity = "0.38";
+      tlColInp.addEventListener("input", function () {
+        if (!p.targetLine) p.targetLine = {};
+        tlColInp.style.opacity = "1"; p.targetLine.color = tlColInp.value; refreshPreview();
+      });
+      var tlClr = el("button"); tlClr.type = "button"; tlClr.textContent = "Clear";
+      tlClr.className = "rm"; tlClr.style.cssText += ";font-size:11px;padding:2px 9px;min-width:0;height:auto;line-height:1.5";
+      tlClr.onclick = function () { p.targetLine = undefined; tlColInp.value = "#e74c3c"; tlColInp.style.opacity = "0.38"; refreshPreview(); };
+      tlColW.appendChild(tlColInp); tlColW.appendChild(tlClr);
+      tlSec.appendChild(field("Line color", tlColW));
+    })();
+
+    // Reference band: shaded semi-transparent range overlay between two vertical %
+    // positions. Useful for "normal range", "acceptable zone", "target band", etc.
+    (function () {
+      var rbSec = advSection(body, "Reference band", null, function () {
+        return p.refBand && p.refBand.label ? '"' + p.refBand.label.slice(0, 18) + '"' : (p.refBand ? "defined" : "");
+      });
+      var rbData = p.refBand || {};
+      rbSec.appendChild(field("Label", input(rbData.label || "", function (v) {
+        if (!p.refBand) p.refBand = {};
+        p.refBand.label = v.trim();
+        refreshPreview();
+      }), "e.g. Normal Range, Acceptable Zone (leave blank to hide)"));
+      // Top edge slider
+      var rbTopW = el("div"); rbTopW.style.cssText = "display:flex;align-items:center;gap:8px;flex:1";
+      var rbTopSlider = el("input"); rbTopSlider.type = "range"; rbTopSlider.min = "0"; rbTopSlider.max = "100"; rbTopSlider.step = "1";
+      rbTopSlider.value = rbData.topPct != null ? rbData.topPct : 20; rbTopSlider.style.flex = "1";
+      var rbTopPct = el("span"); rbTopPct.textContent = (rbData.topPct != null ? rbData.topPct : 20) + "%";
+      rbTopPct.style.cssText = "font-size:11px;color:var(--faint);min-width:30px;text-align:right";
+      rbTopW.appendChild(rbTopSlider); rbTopW.appendChild(rbTopPct);
+      rbSec.appendChild(field("Top edge (% from top)", rbTopW, "0% = chart top · 100% = bottom"));
+      rbTopSlider.addEventListener("input", function () { rbTopPct.textContent = rbTopSlider.value + "%"; });
+      rbTopSlider.addEventListener("change", function () {
+        if (!p.refBand) p.refBand = {};
+        p.refBand.topPct = +rbTopSlider.value;
+        refreshPreview();
+      });
+      // Bottom edge slider
+      var rbBotW = el("div"); rbBotW.style.cssText = "display:flex;align-items:center;gap:8px;flex:1";
+      var rbBotSlider = el("input"); rbBotSlider.type = "range"; rbBotSlider.min = "0"; rbBotSlider.max = "100"; rbBotSlider.step = "1";
+      rbBotSlider.value = rbData.bottomPct != null ? rbData.bottomPct : 50; rbBotSlider.style.flex = "1";
+      var rbBotPct = el("span"); rbBotPct.textContent = (rbData.bottomPct != null ? rbData.bottomPct : 50) + "%";
+      rbBotPct.style.cssText = "font-size:11px;color:var(--faint);min-width:30px;text-align:right";
+      rbBotW.appendChild(rbBotSlider); rbBotW.appendChild(rbBotPct);
+      rbSec.appendChild(field("Bottom edge (% from top)", rbBotW, "drag both sliders to set band height"));
+      rbBotSlider.addEventListener("input", function () { rbBotPct.textContent = rbBotSlider.value + "%"; });
+      rbBotSlider.addEventListener("change", function () {
+        if (!p.refBand) p.refBand = {};
+        p.refBand.bottomPct = +rbBotSlider.value;
+        refreshPreview();
+      });
+      // Fill color + Clear
+      var rbColW = el("div"); rbColW.style.cssText = "display:flex;gap:6px;align-items:center";
+      var rbColInp = el("input"); rbColInp.type = "color"; rbColInp.className = "panel-accent-inp";
+      rbColInp.value = rbData.color || "#2ecc71";
+      if (!rbData.color) rbColInp.style.opacity = "0.38";
+      rbColInp.addEventListener("input", function () {
+        if (!p.refBand) p.refBand = {};
+        rbColInp.style.opacity = "1"; p.refBand.color = rbColInp.value; refreshPreview();
+      });
+      var rbClr = el("button"); rbClr.type = "button"; rbClr.textContent = "Clear";
+      rbClr.className = "rm"; rbClr.style.cssText += ";font-size:11px;padding:2px 9px;min-width:0;height:auto;line-height:1.5";
+      rbClr.onclick = function () { p.refBand = undefined; rbColInp.value = "#2ecc71"; rbColInp.style.opacity = "0.38"; refreshPreview(); };
+      rbColW.appendChild(rbColInp); rbColW.appendChild(rbClr);
+      rbSec.appendChild(field("Fill color", rbColW));
+    })();
+
+    // Callout arrow: SVG text bubble + dashed leader line pointing to an (x%, y%) position.
+    // Useful for "Peak here", "Outlier", "Watch this" narrative annotations on any chart.
+    (function () {
+      var caSec = advSection(body, "Callout arrow", null, function () {
+        return p.callout && p.callout.text ? '"' + p.callout.text.slice(0, 18) + '"' : "";
+      });
+      var caData = p.callout || {};
+      caSec.appendChild(field("Text", input(caData.text || "", function (v) {
+        if (!p.callout) p.callout = {};
+        p.callout.text = v.trim();
+        refreshPreview();
+      }, 'e.g. "Peak", "Drop point", "Alert"')));
+      // X position slider
+      var caXW = el("div"); caXW.style.cssText = "display:flex;align-items:center;gap:8px;flex:1";
+      var caXSlider = el("input"); caXSlider.type = "range"; caXSlider.min = "0"; caXSlider.max = "100"; caXSlider.step = "1";
+      caXSlider.value = caData.x != null ? caData.x : 50; caXSlider.style.flex = "1";
+      var caXPct = el("span"); caXPct.textContent = (caData.x != null ? caData.x : 50) + "%";
+      caXPct.style.cssText = "font-size:11px;color:var(--faint);min-width:30px;text-align:right";
+      caXW.appendChild(caXSlider); caXW.appendChild(caXPct);
+      caSec.appendChild(field("Tip X (% from left)", caXW, "0% = far left · 100% = far right"));
+      caXSlider.addEventListener("input", function () { caXPct.textContent = caXSlider.value + "%"; });
+      caXSlider.addEventListener("change", function () {
+        if (!p.callout) p.callout = {};
+        p.callout.x = +caXSlider.value; refreshPreview();
+      });
+      // Y position slider
+      var caYW = el("div"); caYW.style.cssText = "display:flex;align-items:center;gap:8px;flex:1";
+      var caYSlider = el("input"); caYSlider.type = "range"; caYSlider.min = "0"; caYSlider.max = "100"; caYSlider.step = "1";
+      caYSlider.value = caData.y != null ? caData.y : 30; caYSlider.style.flex = "1";
+      var caYPct = el("span"); caYPct.textContent = (caData.y != null ? caData.y : 30) + "%";
+      caYPct.style.cssText = "font-size:11px;color:var(--faint);min-width:30px;text-align:right";
+      caYW.appendChild(caYSlider); caYW.appendChild(caYPct);
+      caSec.appendChild(field("Tip Y (% from top)", caYW, "0% = chart top · 100% = chart bottom"));
+      caYSlider.addEventListener("input", function () { caYPct.textContent = caYSlider.value + "%"; });
+      caYSlider.addEventListener("change", function () {
+        if (!p.callout) p.callout = {};
+        p.callout.y = +caYSlider.value; refreshPreview();
+      });
+      // Color picker + clear
+      var caColW = el("div"); caColW.style.cssText = "display:flex;gap:6px;align-items:center";
+      var caColInp = el("input"); caColInp.type = "color"; caColInp.className = "panel-accent-inp";
+      caColInp.value = caData.color || "#e74c3c";
+      if (!caData.color) caColInp.style.opacity = "0.38";
+      caColInp.addEventListener("input", function () {
+        if (!p.callout) p.callout = {};
+        caColInp.style.opacity = "1"; p.callout.color = caColInp.value; refreshPreview();
+      });
+      var caClr = el("button"); caClr.type = "button"; caClr.textContent = "Clear";
+      caClr.className = "rm"; caClr.style.cssText += ";font-size:11px;padding:2px 9px;min-width:0;height:auto;line-height:1.5";
+      caClr.onclick = function () { p.callout = undefined; caColInp.value = "#e74c3c"; caColInp.style.opacity = "0.38"; refreshPreview(); };
+      caColW.appendChild(caColInp); caColW.appendChild(caClr);
+      caSec.appendChild(field("Color", caColW));
+      caSec.appendChild(noteEl("info", "Overlay a text bubble with a dashed arrow pointing at (x%, y%) of the chart area — position is visual, not data-scaled. Works for any chart type. Leave text blank to hide."));
+    })();
+
+    // Period highlight: semi-transparent vertical band across an x% range of the chart body.
+    // Most useful for line, stacked-area, combo, bar, and stacked charts where you want to
+    // draw attention to a specific time-period, data-range, or group of columns — e.g.
+    // "Q3 surge", "Baseline period", "Before/after event". Position is visual (% of width),
+    // not data-scaled, so it works independently of what columns are bound. Type-aware: only
+    // shown for chart types that have a meaningful horizontal x-axis to highlight.
+    (function () {
+      var _phTypes = ["line", "areaStacked", "streamgraph", "combo", "stacked", "bars"];
+      if (_phTypes.indexOf(p.chart.type) === -1) return; // skip for polar/donut/etc.
+      var phSec = advSection(body, "Period highlight", null, function () {
+        return p.periodHighlight && p.periodHighlight.label ? '"' + p.periodHighlight.label.slice(0, 18) + '"' : (p.periodHighlight ? "defined" : "");
+      });
+      var phData = p.periodHighlight || {};
+
+      phSec.appendChild(field("Label", input(phData.label || "", function (v) {
+        if (!p.periodHighlight) p.periodHighlight = {};
+        p.periodHighlight.label = v.trim();
+        refreshPreview();
+      }), 'e.g. "Q3 surge", "Baseline", "Event window" (leave blank to hide)'));
+
+      // Left edge % slider
+      var phLW = el("div"); phLW.style.cssText = "display:flex;align-items:center;gap:8px;flex:1";
+      var phLSlider = el("input"); phLSlider.type = "range"; phLSlider.min = "0"; phLSlider.max = "100"; phLSlider.step = "1";
+      phLSlider.value = phData.xStart != null ? phData.xStart : 25; phLSlider.style.flex = "1";
+      var phLPct = el("span"); phLPct.textContent = (phData.xStart != null ? phData.xStart : 25) + "%";
+      phLPct.style.cssText = "font-size:11px;color:var(--faint);min-width:30px;text-align:right";
+      phLW.appendChild(phLSlider); phLW.appendChild(phLPct);
+      phSec.appendChild(field("Left edge (% from left)", phLW, "0% = chart left edge"));
+      phLSlider.addEventListener("input", function () { phLPct.textContent = phLSlider.value + "%"; });
+      phLSlider.addEventListener("change", function () {
+        if (!p.periodHighlight) p.periodHighlight = {};
+        p.periodHighlight.xStart = +phLSlider.value;
+        refreshPreview();
+      });
+
+      // Right edge % slider
+      var phRW = el("div"); phRW.style.cssText = "display:flex;align-items:center;gap:8px;flex:1";
+      var phRSlider = el("input"); phRSlider.type = "range"; phRSlider.min = "0"; phRSlider.max = "100"; phRSlider.step = "1";
+      phRSlider.value = phData.xEnd != null ? phData.xEnd : 60; phRSlider.style.flex = "1";
+      var phRPct = el("span"); phRPct.textContent = (phData.xEnd != null ? phData.xEnd : 60) + "%";
+      phRPct.style.cssText = "font-size:11px;color:var(--faint);min-width:30px;text-align:right";
+      phRW.appendChild(phRSlider); phRW.appendChild(phRPct);
+      phSec.appendChild(field("Right edge (% from left)", phRW, "set both sliders to define band width"));
+      phRSlider.addEventListener("input", function () { phRPct.textContent = phRSlider.value + "%"; });
+      phRSlider.addEventListener("change", function () {
+        if (!p.periodHighlight) p.periodHighlight = {};
+        p.periodHighlight.xEnd = +phRSlider.value;
+        refreshPreview();
+      });
+
+      // Fill color + clear
+      var phColW = el("div"); phColW.style.cssText = "display:flex;gap:6px;align-items:center";
+      var phColInp = el("input"); phColInp.type = "color"; phColInp.className = "panel-accent-inp";
+      phColInp.value = phData.color || "#3498db";
+      if (!phData.color) phColInp.style.opacity = "0.38";
+      phColInp.addEventListener("input", function () {
+        if (!p.periodHighlight) p.periodHighlight = {};
+        phColInp.style.opacity = "1"; p.periodHighlight.color = phColInp.value; refreshPreview();
+      });
+      var phClr = el("button"); phClr.type = "button"; phClr.textContent = "Clear";
+      phClr.className = "rm"; phClr.style.cssText += ";font-size:11px;padding:2px 9px;min-width:0;height:auto;line-height:1.5";
+      phClr.onclick = function () { p.periodHighlight = undefined; phColInp.value = "#3498db"; phColInp.style.opacity = "0.38"; refreshPreview(); };
+      phColW.appendChild(phColInp); phColW.appendChild(phClr);
+      phSec.appendChild(field("Fill color", phColW));
+      phSec.appendChild(noteEl("info", "Semi-transparent vertical band across an x-range of the chart body — ideal for highlighting a time period, a baseline window, or a before/after event boundary on line and bar charts. Position is visual (% of width), not data-scaled."));
+    })();
+
+    // Event markers: named vertical dashed tick lines at specific x% positions.
+    // Perfect for annotating precise events like "Product launch", "Incident", "Campaign start"
+    // on line and bar charts. Each marker is a {label, xPct, color} object. Multiple markers
+    // are supported. Type-aware: only shown for chart types with a horizontal x-axis.
+    (function () {
+      var _emTypes = ["line", "areaStacked", "streamgraph", "combo", "stacked", "bars"];
+      if (_emTypes.indexOf(p.chart.type) === -1) return;
+      var emSec = advSection(body, "Event markers", null, function () {
+        var n = p.eventMarkers && p.eventMarkers.length;
+        return n ? n + (n === 1 ? " marker" : " markers") : "";
+      });
+      var emList = el("div"); emList.style.cssText = "display:flex;flex-direction:column;gap:4px;margin-bottom:6px";
+      emSec.appendChild(emList);
+
+      function renderEmItems() {
+        emList.innerHTML = "";
+        (p.eventMarkers || []).forEach(function (m, idx) {
+          var row = el("div"); row.style.cssText = "display:flex;gap:3px;align-items:center;flex-wrap:wrap";
+
+          // Label text input
+          var lblInp = el("input"); lblInp.type = "text"; lblInp.className = "dsb-sqb-inp";
+          lblInp.style.cssText = "flex:1;min-width:80px;font-size:12px;height:26px;padding:0 6px";
+          lblInp.value = m.label || ""; lblInp.placeholder = "Marker label";
+          lblInp.addEventListener("change", function () { m.label = lblInp.value.trim(); refreshPreview(); });
+
+          // X% slider
+          var xWrap = el("div"); xWrap.style.cssText = "display:flex;align-items:center;gap:4px;flex:1;min-width:80px";
+          var xSl = el("input"); xSl.type = "range"; xSl.min = "0"; xSl.max = "100"; xSl.step = "1";
+          xSl.value = m.xPct != null ? m.xPct : 50; xSl.style.flex = "1";
+          var xPctLbl = el("span"); xPctLbl.textContent = xSl.value + "%";
+          xPctLbl.style.cssText = "font-size:11px;color:var(--faint);min-width:28px;text-align:right";
+          xSl.addEventListener("input", function () { xPctLbl.textContent = xSl.value + "%"; });
+          xSl.addEventListener("change", function () { m.xPct = +xSl.value; refreshPreview(); });
+          xWrap.appendChild(xSl); xWrap.appendChild(xPctLbl);
+
+          // Color picker
+          var colInp = el("input"); colInp.type = "color"; colInp.className = "panel-accent-inp";
+          colInp.style.cssText = "width:26px;height:26px;padding:1px 2px;flex-shrink:0;cursor:pointer;border-radius:4px";
+          colInp.value = (m.color && /^#/.test(m.color)) ? m.color : "#e74c3c";
+          colInp.addEventListener("input", function () { m.color = colInp.value; refreshPreview(); });
+          colInp.title = "Marker color";
+
+          // Delete button
+          var delBtn = el("button"); delBtn.type = "button"; delBtn.title = "Remove marker";
+          delBtn.innerHTML = Studio.icon("trash", 12);
+          delBtn.className = "rm icobtn";
+          delBtn.style.cssText = "flex-shrink:0;width:24px;height:26px;padding:0;min-width:0";
+          (function (i) {
+            delBtn.addEventListener("click", function () {
+              p.eventMarkers.splice(i, 1);
+              if (!p.eventMarkers.length) p.eventMarkers = undefined;
+              renderEmItems(); refreshPreview();
+            });
+          })(idx);
+
+          row.appendChild(lblInp); row.appendChild(xWrap); row.appendChild(colInp); row.appendChild(delBtn);
+          emList.appendChild(row);
+        });
+      }
+      renderEmItems();
+
+      var addEmBtn = el("button"); addEmBtn.type = "button"; addEmBtn.className = "rm cf-add-rule";
+      addEmBtn.style.cssText = "font-size:11.5px;padding:3px 10px;margin-top:2px";
+      addEmBtn.textContent = "+ Add marker";
+      addEmBtn.addEventListener("click", function () {
+        if (!p.eventMarkers) p.eventMarkers = [];
+        p.eventMarkers.push({ label: "Event", xPct: 50, color: "#e74c3c" });
+        renderEmItems(); refreshPreview();
+      });
+      emSec.appendChild(addEmBtn);
+      emSec.appendChild(noteEl("info", "Named vertical dashed lines at precise x-positions — annotate 'Product launch', 'Incident', 'Campaign start' on line and bar charts. Position is visual (% from chart left), not data-scaled. Pairs well with period highlight for broad bands."));
+    })();
+
+    // Scatter point annotations: text labels pinned at visual (x%, y%) positions on scatter charts.
+    // Each annotation highlights a feature of the data (an outlier, a cluster, a critical point).
+    // Each item is {text, xPct, yPct, color}. Type-aware: only shown for scatter chart type.
+    (function () {
+      if (p.chart.type !== "scatter") return;
+      var saSec = advSection(body, "Point annotations", null, function () {
+        var n = p.scatterAnnotations && p.scatterAnnotations.length;
+        return n ? n + (n === 1 ? " annotation" : " annotations") : "";
+      });
+      var saList = el("div"); saList.style.cssText = "display:flex;flex-direction:column;gap:6px;margin-bottom:6px";
+      saSec.appendChild(saList);
+
+      function renderSaItems() {
+        saList.innerHTML = "";
+        (p.scatterAnnotations || []).forEach(function (a, idx) {
+          // Row 1: label text + color + delete
+          var row1 = el("div"); row1.style.cssText = "display:flex;gap:3px;align-items:center";
+          var txtInp = el("input"); txtInp.type = "text"; txtInp.className = "dsb-sqb-inp";
+          txtInp.style.cssText = "flex:1;min-width:0;font-size:12px;height:26px;padding:0 6px";
+          txtInp.value = a.text || ""; txtInp.placeholder = "Annotation text";
+          txtInp.addEventListener("change", function () { a.text = txtInp.value.trim(); refreshPreview(); });
+          var colInp = el("input"); colInp.type = "color"; colInp.className = "panel-accent-inp";
+          colInp.style.cssText = "width:26px;height:26px;padding:1px 2px;flex-shrink:0;cursor:pointer;border-radius:4px";
+          colInp.value = (a.color && /^#/.test(a.color)) ? a.color : "#005bb5";
+          colInp.addEventListener("input", function () { a.color = colInp.value; refreshPreview(); });
+          colInp.title = "Annotation color";
+          var delBtn = el("button"); delBtn.type = "button"; delBtn.title = "Remove annotation";
+          delBtn.innerHTML = Studio.icon("trash", 12);
+          delBtn.className = "rm icobtn";
+          delBtn.style.cssText = "flex-shrink:0;width:24px;height:26px;padding:0;min-width:0";
+          (function (i) {
+            delBtn.addEventListener("click", function () {
+              p.scatterAnnotations.splice(i, 1);
+              if (!p.scatterAnnotations.length) p.scatterAnnotations = undefined;
+              renderSaItems(); refreshPreview();
+            });
+          })(idx);
+          row1.appendChild(txtInp); row1.appendChild(colInp); row1.appendChild(delBtn);
+          saList.appendChild(row1);
+
+          // Row 2: x%/y% position sliders
+          var row2 = el("div"); row2.style.cssText = "display:flex;gap:6px;align-items:center;flex-wrap:wrap;padding-left:2px";
+          function mkPosSl(label, val, onCh) {
+            var w = el("div"); w.style.cssText = "display:flex;align-items:center;gap:3px;flex:1;min-width:80px";
+            var capLbl = el("span"); capLbl.style.cssText = "font-size:10.5px;color:var(--faint);white-space:nowrap";
+            capLbl.textContent = label + ":";
+            var sl = el("input"); sl.type = "range"; sl.min = "0"; sl.max = "100"; sl.step = "1";
+            sl.value = val != null ? val : 50; sl.style.flex = "1";
+            var pLbl = el("span"); pLbl.style.cssText = "font-size:10.5px;color:var(--faint);min-width:26px;text-align:right";
+            pLbl.textContent = sl.value + "%";
+            sl.addEventListener("input", function () { pLbl.textContent = sl.value + "%"; });
+            sl.addEventListener("change", function () { onCh(+sl.value); });
+            w.appendChild(capLbl); w.appendChild(sl); w.appendChild(pLbl);
+            return w;
+          }
+          (function (ann) {
+            row2.appendChild(mkPosSl("X", ann.xPct, function (v) { ann.xPct = v; refreshPreview(); }));
+            row2.appendChild(mkPosSl("Y", ann.yPct, function (v) { ann.yPct = v; refreshPreview(); }));
+          })(a);
+          saList.appendChild(row2);
+        });
+      }
+      renderSaItems();
+
+      var addSaBtn = el("button"); addSaBtn.type = "button"; addSaBtn.className = "rm cf-add-rule";
+      addSaBtn.style.cssText = "font-size:11.5px;padding:3px 10px;margin-top:2px";
+      addSaBtn.textContent = "+ Add annotation";
+      addSaBtn.addEventListener("click", function () {
+        if (!p.scatterAnnotations) p.scatterAnnotations = [];
+        p.scatterAnnotations.push({ text: "Outlier", xPct: 50, yPct: 30, color: "#005bb5" });
+        renderSaItems(); refreshPreview();
+      });
+      saSec.appendChild(addSaBtn);
+      saSec.appendChild(noteEl("info", "Text labels pinned at visual (x%, y%) positions on the scatter plot — great for highlighting outliers, clusters, or significant data regions. x%=0 is the left edge, y%=0 is the top. Position is visual, not data-scaled."));
+    })();
+
+    // Conditional formatting: threshold rules that color chart elements (bars, donut slices,
+    // treemap tiles, lollipop dots) by their value. Rules apply top-to-bottom; first match wins.
+    // Works by injecting a per-item .color property into the data array that PDC.bars/donut/treemap
+    // already supports — so pdc-ui.js stays pristine and all chart rendering is unchanged.
+    (function () {
+      var cfSec = advSection(body, "Conditional formatting", null, function () {
+        var n = p.condFmt && p.condFmt.length;
+        return n ? n + (n === 1 ? " rule" : " rules") : "";
+      });
+      var cfList = el("div"); cfList.style.cssText = "display:flex;flex-direction:column;gap:4px;margin-bottom:6px";
+      cfSec.appendChild(cfList);
+
+      function renderCfRules() {
+        cfList.innerHTML = "";
+        (p.condFmt || []).forEach(function (r, idx) {
+          var row = el("div"); row.style.cssText = "display:flex;gap:3px;align-items:center";
+
+          // Operator select
+          var opSel = el("select"); opSel.className = "dsb-sqb-inp";
+          opSel.style.cssText = "flex:0 0 auto;width:48px;font-size:12px;height:26px;padding:0 2px";
+          [">=", ">", "<=", "<", "=", "!="].forEach(function (op) {
+            var opt = document.createElement("option"); opt.value = op; opt.textContent = op;
+            if (r.op === op) opt.selected = true;
+            opSel.appendChild(opt);
+          });
+          opSel.addEventListener("change", function () { r.op = opSel.value; refreshPreview(); });
+
+          // Threshold value input
+          var valInp = el("input"); valInp.type = "number"; valInp.className = "dsb-sqb-inp";
+          valInp.style.cssText = "flex:1;min-width:0;font-size:12px;height:26px;padding:0 6px";
+          valInp.value = r.value != null ? r.value : "";
+          valInp.placeholder = "threshold";
+          valInp.addEventListener("change", function () { r.value = +valInp.value; refreshPreview(); });
+
+          // Color picker
+          var colInp = el("input"); colInp.type = "color"; colInp.className = "panel-accent-inp";
+          colInp.style.cssText = "width:26px;height:26px;padding:1px 2px;flex-shrink:0;cursor:pointer;border-radius:4px";
+          colInp.value = (r.color && /^#/.test(r.color)) ? r.color : "#2ecc71";
+          colInp.addEventListener("input", function () { r.color = colInp.value; refreshPreview(); });
+          colInp.title = "Rule color";
+
+          // Delete rule button
+          var delBtn = el("button"); delBtn.type = "button"; delBtn.title = "Remove rule";
+          delBtn.innerHTML = Studio.icon("trash", 12);
+          delBtn.className = "rm icobtn";
+          delBtn.style.cssText = "flex-shrink:0;width:24px;height:26px;padding:0;min-width:0";
+          delBtn.addEventListener("click", function () {
+            p.condFmt.splice(idx, 1);
+            if (!p.condFmt.length) p.condFmt = undefined;
+            renderCfRules(); refreshPreview();
+          });
+
+          row.appendChild(opSel); row.appendChild(valInp); row.appendChild(colInp); row.appendChild(delBtn);
+          cfList.appendChild(row);
+        });
+      }
+      renderCfRules();
+
+      var addCfBtn = el("button"); addCfBtn.type = "button"; addCfBtn.className = "rm cf-add-rule";
+      addCfBtn.style.cssText = "font-size:11.5px;padding:3px 10px;margin-top:2px";
+      addCfBtn.textContent = "+ Add rule";
+      addCfBtn.addEventListener("click", function () {
+        if (!p.condFmt) p.condFmt = [];
+        // Default new rules cycle through green → amber → red for instant traffic-light setup
+        var defaults = ["#27ae60", "#e67e22", "#e74c3c"];
+        p.condFmt.push({ op: ">=", value: 0, color: defaults[p.condFmt.length % defaults.length] });
+        renderCfRules(); refreshPreview();
+      });
+      cfSec.appendChild(addCfBtn);
+      cfSec.appendChild(noteEl("info", "Color bars, donut slices, treemap tiles, and lollipop dots based on value. Rules apply top-to-bottom; first match wins. Works in preview and exported CDF."));
+    })();
+
+    // Color scale: map a continuous numeric range to a smooth gradient across all bars / slices.
+    // Complementary to conditional formatting — condFmt threshold rules override the gradient
+    // for specific items, giving precise control without removing the overall visual encoding.
+    (function () {
+      var csSec = advSection(body, "Color scale", null, function () {
+        return p.colorScale && p.colorScale.enabled ? "gradient enabled" : "";
+      });
+      var csData = p.colorScale || {};
+
+      // Enable toggle
+      var csRow = el("div"); csRow.style.cssText = "display:flex;align-items:center;gap:6px;margin-bottom:6px";
+      var csLbl = el("label", "check"); csLbl.style.fontSize = "12.5px";
+      var csCb = el("input"); csCb.type = "checkbox"; csCb.checked = !!(csData.enabled);
+      csCb.addEventListener("change", function () {
+        if (!p.colorScale) p.colorScale = {};
+        p.colorScale.enabled = csCb.checked;
+        csData = p.colorScale;
+        refreshPreview();
+      });
+      csLbl.appendChild(csCb); csLbl.appendChild(document.createTextNode(" Enable color scale"));
+      csRow.appendChild(csLbl);
+      csSec.appendChild(csRow);
+
+      // Low color (min value) and high color (max value) with a gradient swatch between them
+      var csLowW = el("div"); csLowW.style.display = "flex"; csLowW.style.alignItems = "center"; csLowW.style.gap = "5px";
+      var csLowInp = el("input"); csLowInp.type = "color";
+      csLowInp.style.cssText = "width:30px;height:26px;padding:1px 2px;cursor:pointer;border-radius:4px;flex-shrink:0";
+      csLowInp.value = (csData.low && /^#[0-9a-fA-F]{6}$/.test(csData.low)) ? csData.low : "#005bb5";
+      csLowInp.title = "Color for the minimum value";
+      csLowInp.addEventListener("input", function () {
+        if (!p.colorScale) p.colorScale = {};
+        p.colorScale.enabled = true; csCb.checked = true;
+        p.colorScale.low = csLowInp.value; csData = p.colorScale;
+        updateSwatch(); refreshPreview();
+      });
+      var csHighInp = el("input"); csHighInp.type = "color";
+      csHighInp.style.cssText = "width:30px;height:26px;padding:1px 2px;cursor:pointer;border-radius:4px;flex-shrink:0";
+      csHighInp.value = (csData.high && /^#[0-9a-fA-F]{6}$/.test(csData.high)) ? csData.high : "#c0392b";
+      csHighInp.title = "Color for the maximum value";
+      csHighInp.addEventListener("input", function () {
+        if (!p.colorScale) p.colorScale = {};
+        p.colorScale.enabled = true; csCb.checked = true;
+        p.colorScale.high = csHighInp.value; csData = p.colorScale;
+        updateSwatch(); refreshPreview();
+      });
+      // Gradient swatch strip shows the current low→high blend at a glance
+      var csSwatch = el("div");
+      csSwatch.style.cssText = "flex:1;height:18px;border-radius:4px;background:linear-gradient(to right," + csLowInp.value + "," + csHighInp.value + ");border:1px solid var(--border)";
+      function updateSwatch() { csSwatch.style.background = "linear-gradient(to right," + csLowInp.value + "," + csHighInp.value + ")"; }
+      csLowW.appendChild(csLowInp); csLowW.appendChild(csSwatch); csLowW.appendChild(csHighInp);
+      csSec.appendChild(field("Low → High color", csLowW));
+      csSec.appendChild(noteEl("info", "Colors all bars, slices, treemap tiles, and lollipop dots on a smooth gradient from low (min value) to high (max value). Conditional formatting rules above override the gradient for specific items."));
+    })();
+
     // CDE compatibility note
     if (Studio.cdeUnsupported(p.chart.type)) body.appendChild(noteEl("info", "This chart is CDF-only — the CDE (.cdfde) export will omit it. The CDF (.html) export renders it fully."));
     else if (Studio.cdeFallback(p.chart.type)) body.appendChild(noteEl("info", "CDE export renders this as a bar chart (no native CCC equivalent). CDF (.html) export is exact."));
@@ -800,7 +2574,7 @@
 
   function renderQueryPeek(body, daId) {
     var da = Studio.daById(S.spec, daId); if (!da) return;
-    var peek = section(body, "Query preview");
+    var peek = section(body, "Query preview", null, null, "data-sources");
     // SQL snippet
     var sql = (da.sql || "").trim();
     if (sql) {
@@ -840,8 +2614,137 @@
     }
   }
 
+  // K6: detect whether any required (non-optional) mapping fields are still empty strings.
+  // Optional fields (rCol, groupCol, categoryCol) are allowed to be blank.
+  function missingRequiredCols(p) {
+    var m = p.chart.map, t = p.chart.type;
+    // Fields allowed to be blank — rCol is always optional; groupCol is optional for sunburst/dotplot/beeswarm
+    // but REQUIRED for marimekko (where it is the segment/stack dimension, not a colour group).
+    var OPT = { rCol: 1, categoryCol: 1, centerCol: 1 };
+    if (t !== "marimekko") OPT.groupCol = 1;
+    var fields = (Studio.CHARTS[t] || {}).fields || [];
+    for (var i = 0; i < fields.length; i++) {
+      var fn = fields[i];
+      if (fn === "series") { if (!m.series || !m.series.length || !m.series[0].col) return true; }
+      else if (fn === "cols") { if (!m.cols || !m.cols.length) return true; }
+      else if (!OPT[fn] && !m[fn]) return true;
+    }
+    return false;
+  }
+
+  // K6: auto-assign columns using name-based heuristics — called by the Auto-pick button.
+  // Prefers non-numeric-sounding names for label slots and numeric-sounding names for value slots.
+  function autoPickCols(p, cols) {
+    if (!cols.length) return;
+    var t = p.chart.type, m = p.chart.map;
+    var NUM = /value|total|count|sum|avg|amount|revenue|cost|rate|pct|score|qty|num|metric/;
+    var numCols = cols.filter(function (c) { return NUM.test(c.toLowerCase()); });
+    var strCols = cols.filter(function (c) { return !NUM.test(c.toLowerCase()); });
+    var labelPick = strCols[0] || cols[0];
+    var valuePick = numCols[0] || cols[1] || cols[0];
+    if (t === "line" || t === "stacked" || t === "areaStacked" || t === "streamgraph") {
+      if (!m.labelCol) m.labelCol = labelPick;
+      if (!m.series || !m.series.length) m.series = [{ col: valuePick }];
+    } else if (t === "scatter") {
+      if (!m.labelCol) m.labelCol = labelPick;
+      if (!m.xCol) m.xCol = numCols[0] || cols[0];
+      if (!m.yCol) m.yCol = numCols[1] || numCols[0] || cols[1] || cols[0];
+    } else if (t === "heatmap") {
+      if (!m.rowCol) m.rowCol = cols[0];
+      if (!m.colCol) m.colCol = cols[1] || cols[0];
+      if (!m.valueCol) m.valueCol = numCols[0] || cols[2] || cols[1] || cols[0];
+    } else if (t === "table") {
+      if (!m.cols || !m.cols.length) m.cols = cols.map(function (c, i) { return { col: c, label: Studio.titleize(c), num: i > 0 }; });
+    } else if (t === "gauge") {
+      if (!m.valueCol) m.valueCol = valuePick;
+    } else if (t === "combo") {
+      if (!m.labelCol) m.labelCol = labelPick;
+      if (!m.barCol) m.barCol = numCols[0] || cols[0];
+      if (!m.lineCol) m.lineCol = numCols[1] || numCols[0] || cols[1] || cols[0];
+    } else if (t === "marimekko") {
+      if (!m.labelCol) m.labelCol = strCols[0] || cols[0];
+      if (!m.groupCol) m.groupCol = strCols[1] || strCols[0] || cols[1] || cols[0];
+      if (!m.valueCol) m.valueCol = valuePick;
+    } else if (t === "gantt") {
+      if (!m.labelCol) m.labelCol = labelPick;
+      if (!m.startCol) m.startCol = numCols[0] || cols[1] || cols[0];
+      if (!m.endCol)   m.endCol   = numCols[1] || numCols[0] || cols[2] || cols[1] || cols[0];
+    } else if (t === "candlestick") {
+      // Prefer columns whose names hint at OHLC semantics; fall back to position order
+      var ohlcNum = function (hint) {
+        return cols.filter(function (c) { return new RegExp(hint, "i").test(c); })[0] || null;
+      };
+      if (!m.labelCol)  m.labelCol  = labelPick;
+      if (!m.openCol)   m.openCol   = ohlcNum("open|start") || numCols[0] || cols[1] || cols[0];
+      if (!m.highCol)   m.highCol   = ohlcNum("high|max")   || numCols[1] || numCols[0] || cols[2] || cols[0];
+      if (!m.lowCol)    m.lowCol    = ohlcNum("low|min")    || numCols[2] || numCols[0] || cols[3] || cols[0];
+      if (!m.closeCol)  m.closeCol  = ohlcNum("close|end")  || numCols[3] || numCols[0] || cols[4] || cols[0];
+    } else if (t === "timeline") {
+      // labelCol = event name (first string); dateCol = period/date (second string, optional)
+      if (!m.labelCol) m.labelCol = strCols[0] || labelPick;
+      if (!m.dateCol && strCols[1]) m.dateCol = strCols[1];
+    } else if (t === "pyramidBar") {
+      // labelCol = category (e.g. age group); leftCol / rightCol = the two numeric measures
+      if (!m.labelCol) m.labelCol = strCols[0] || labelPick;
+      if (!m.leftCol)  m.leftCol  = numCols[0] || cols[1] || cols[0];
+      if (!m.rightCol) m.rightCol = numCols[1] || numCols[0] || cols[2] || cols[1] || cols[0];
+    } else if (t === "areaRange") {
+      // Prefer column names hinting at bounds (low/high, min/max, floor/ceiling); fall back positional
+      var arHint = function (re) {
+        return cols.filter(function (c) { return re.test(c.toLowerCase()); })[0] || null;
+      };
+      if (!m.labelCol)  m.labelCol  = labelPick;
+      if (!m.lowerCol)  m.lowerCol  = arHint(/low|min|floor|lower/)  || numCols[0] || cols[1] || cols[0];
+      if (!m.upperCol)  m.upperCol  = arHint(/high|max|ceil|upper/)  || numCols[1] || numCols[0] || cols[2] || cols[0];
+      if (!m.centerCol) m.centerCol = arHint(/mid|cent|median|actual|forecast/) || numCols[2] || "";
+    } else if (t === "quadrant") {
+      // quadrant: xCol + yCol for scatter position; labelCol for point identity labels
+      if (!m.labelCol) m.labelCol = labelPick;
+      if (!m.xCol)     m.xCol     = numCols[0] || cols[1] || cols[0];
+      if (!m.yCol)     m.yCol     = numCols[1] || numCols[0] || cols[2] || cols[0];
+    } else {
+      // bars, donut, treemap, funnel, waterfall, lollipop, and any unrecognised type
+      if (!m.labelCol) m.labelCol = labelPick;
+      if (!m.valueCol) m.valueCol = valuePick;
+    }
+    renderInspector(); refreshPreview();
+    toast("Columns auto-assigned — adjust below if needed");
+  }
+
   function renderMapping(sec, p) {
     var cols = Studio.columnsOf(S.spec, p.chart.da), m = p.chart.map, t = p.chart.type;
+
+    // K6: Guided panel setup in Simple mode — show a friendly helper when required column
+    // slots are empty so newcomers know what to do next. In Advanced mode, the field labels
+    // are enough; beginners need an explicit nudge.
+    if (S.simpleMode && t !== "richtext") {
+      if (!p.chart.da) {
+        // No query bound yet — direct the user to the picker above
+        var gNone = el("div", "guided-setup");
+        var gNoneIc = el("span", "gs-ic"); gNoneIc.appendChild(Studio.icon("info", 14)); gNone.appendChild(gNoneIc);
+        var gNoneTxt = el("span"); gNoneTxt.textContent = "Drag a query from the library, or pick one in 'Query (data access)' above, to see your chart."; gNone.appendChild(gNoneTxt);
+        sec.appendChild(gNone);
+      } else if (missingRequiredCols(p)) {
+        if (!cols.length) {
+          // DA bound but no columns declared — edit the data source
+          var gWarn = el("div", "guided-setup gs-warn");
+          var gWarnIc = el("span", "gs-ic"); gWarnIc.appendChild(Studio.icon("warn", 14)); gWarn.appendChild(gWarnIc);
+          var gWarnTxt = el("span"); gWarnTxt.textContent = "This query has no columns yet. Open the data source and click 'Detect from query' (or add columns manually) — the chart will appear once columns are known."; gWarn.appendChild(gWarnTxt);
+          sec.appendChild(gWarn);
+        } else {
+          // Columns available but slots still empty (e.g. chart type changed) — offer Auto-pick
+          var gPick = el("div", "guided-setup");
+          var gPickIc = el("span", "gs-ic"); gPickIc.appendChild(Studio.icon("info", 14)); gPick.appendChild(gPickIc);
+          var gPickTxt = el("span"); gPickTxt.textContent = "Assign a column to each slot below, or let Studio auto-assign:"; gPick.appendChild(gPickTxt);
+          var gPickBtn = el("button", "guided-pick-btn"); gPickBtn.type = "button";
+          gPickBtn.textContent = "Auto-pick columns ▶";
+          gPickBtn.onclick = function () { autoPickCols(p, cols); };
+          gPick.appendChild(gPickBtn);
+          sec.appendChild(gPick);
+        }
+      }
+    }
+
     var fields = (Studio.CHARTS[t] || {}).fields || [];
     fields.forEach(function (fn) {
       if (fn === "series") {
@@ -887,15 +2790,34 @@
         tbl.appendChild(add);
         sec.appendChild(tbl);
       } else {
-        var label = { labelCol: "Label / category column", valueCol: "Value column", xCol: "X column", yCol: "Y column", rCol: "Bubble-size column (optional)", rowCol: "Row column", colCol: "Column column", barCol: "Bar value column", lineCol: "Line value column", sourceCol: "Source column", targetCol: "Target / destination column", groupCol: "Group column (optional)" }[fn] || fn;
-        sec.appendChild(field(label, colPicker(cols, m[fn], function (v) { m[fn] = v; refreshPreview(); }, fn === "rCol" || fn === "groupCol")));
+        var _lmap = { labelCol: t === "marimekko" ? "Category column (drives column width)" : "Label / category column",
+          valueCol: "Value column", valueCol1: "Value — period 1 (before)", valueCol2: "Value — period 2 (after)",
+          startCol: t === "gantt" ? "Start value column" : "Start value column (before / baseline)",
+          endCol:   t === "gantt" ? "End value column"   : "End value column (after / target)",
+          openCol:  "Open column (period start value)",
+          highCol:  "High column (period maximum)",
+          lowCol:   "Low column (period minimum)",
+          closeCol: "Close column (period end value)",
+          leftCol:  "Left side value column",
+          rightCol: "Right side value column",
+          lowerCol:  "Lower bound column",
+          upperCol:  "Upper bound column",
+          centerCol: "Centre / actual line column (optional)",
+          xCol: "X column", yCol: "Y column", rCol: "Bubble-size column (optional)", rowCol: "Row column",
+          colCol: "Column column", barCol: "Bar value column", lineCol: "Line value column",
+          sourceCol: "Source column", targetCol: "Target / destination column",
+          groupCol: t === "marimekko" ? "Segment column (stacks within each category)" : "Group column (optional)",
+          dateCol: "Date / period column (optional)" };
+        var label = _lmap[fn] || fn;
+        sec.appendChild(field(label, colPicker(cols, m[fn], function (v) { m[fn] = v; refreshPreview(); }, fn === "rCol" || (fn === "groupCol" && t !== "marimekko") || fn === "dateCol")));
       }
     });
   }
 
   function renderKpiInspector(body) {
     var k = S.spec.kpis[S.selection.index]; if (!k) { selectDashboard(); return; }
-    var sec = section(body, "KPI tile");
+    quickHelp(body, "kpi");
+    var sec = section(body, "KPI tile", null, null, "builder");
     sec.appendChild(field("Label", input(k.label, function (v) { k.label = v; refreshPreview(); renderListsOnly(); })));
     sec.appendChild(field("Query (data access)", daPicker(k.da, function (v) {
       var dd = Studio.daById(S.spec, v); k.da = v; if (dd && dd.columns) k.valueCol = dd.columns[0]; renderInspector(); refreshPreview();
@@ -904,17 +2826,36 @@
     sec.appendChild(field("Format", fmtPicker(k.fmt, function (v) { k.fmt = v; refreshPreview(); })));
     sec.appendChild(field("Color state", select2pairs(Studio.KPI_STATES.map(function (s) { return [s.id, s.label]; }), k.state || "", function (v) { k.state = v; refreshPreview(); })));
     sec.appendChild(field("Info tooltip", textarea(k.info, function (v) { k.info = v; refreshPreview(); })));
+    sec.appendChild(field("Subtitle text", input(k.subtitle || "", function (v) { k.subtitle = v; refreshPreview(); }, "e.g. vs. target, as of Q4")));
     var kacts = el("div"); kacts.style.cssText = "display:flex;gap:8px;margin-top:2px"; var ki = S.selection.index;
     var kdup = el("button", "btn-wide"); setIconBtn(kdup, "duplicate", "Duplicate"); kdup.onclick = function () { duplicateKpi(ki); };
     var kdel = el("button", "btn-wide"); kdel.style.color = "var(--bad)"; setIconBtn(kdel, "trash", "Delete"); kdel.onclick = function () { S.spec.kpis.splice(ki, 1); selectDashboard(); refreshPreview(); };
     kacts.appendChild(kdup); kacts.appendChild(kdel); sec.appendChild(kacts);
 
-    var ts = section(body, "Trend & delta");
+    var ts = section(body, "Trend & delta", null, null, "chart-types");
     var cols = Studio.columnsOf(S.spec, k.da);
     ts.appendChild(field("Delta text", input(k.deltaText || "", function (v) { k.deltaText = v; refreshPreview(); }, "e.g. 12% vs last quarter")));
     ts.appendChild(field("Delta direction", select2pairs([["up", "▲ Up (good)"], ["down", "▼ Down (bad)"], ["flat", "■ Flat"]], k.deltaDir || "up", function (v) { k.deltaDir = v; refreshPreview(); })));
-    ts.appendChild(field("Sparkline column", colPicker(cols, k.sparkCol || "", function (v) { if (v) k.sparkCol = v; else delete k.sparkCol; refreshPreview(); }, true), "a numeric column → a mini trend line on the tile"));
+    ts.appendChild(field("Sparkline column", colPicker(cols, k.sparkCol || "", function (v) { if (v) k.sparkCol = v; else delete k.sparkCol; refreshPreview(); }, true), "a numeric column → a mini trend on the tile"));
+    ts.appendChild(field("Sparkline type", select2pairs([["line", "Line"], ["bar", "Bar"], ["area", "Area"]], k.sparkType || "line", function (v) { if (v === "line") delete k.sparkType; else k.sparkType = v; refreshPreview(); })));
     ts.appendChild(field("Sparkline color", select2pairs([["", "Auto"]].concat(Studio.COLOR_TOKENS.map(function (t) { return [t, t]; })), k.sparkColor || "", function (v) { if (v) k.sparkColor = v; else delete k.sparkColor; refreshPreview(); })));
+
+    // Compare to — auto-computes a delta from a second numeric column in the same DA. Advanced.
+    // Ideal for period-over-period comparisons: "Revenue this quarter vs last quarter" in one tile.
+    // Takes priority over manual Delta text when a Compare column is selected.
+    var cs = advSection(body, "Compare to", null, function () { return k.compareCol ? ("'" + (k.compareLabel || k.compareCol) + "'") : null; });
+    cs.appendChild(field("Compare column", colPicker(cols, k.compareCol || "", function (v) {
+      if (v) k.compareCol = v; else { delete k.compareCol; delete k.compareMode; delete k.compareLabel; }
+      renderInspector(); refreshPreview();
+    }, true), "second numeric column from the same DA; auto-computes delta vs main value"));
+    if (k.compareCol) {
+      cs.appendChild(field("Display as", select2pairs([["pct", "% change"], ["abs", "Absolute delta"], ["value", "Compare value"]], k.compareMode || "pct", function (v) {
+        if (v !== "pct") k.compareMode = v; else delete k.compareMode; refreshPreview();
+      })));
+      cs.appendChild(field("Compare label", input(k.compareLabel || "", function (v) {
+        if (v) k.compareLabel = v; else delete k.compareLabel; refreshPreview();
+      }, "e.g. Prior quarter, Target")));
+    }
   }
 
   /* ---------- chart-type change / rebind ---------- */
@@ -950,7 +2891,8 @@
   function renderDAInspector(body) {
     var da = Studio.daById(S.spec, S.selection.id); if (!da) { selectDashboard(); return; }
     if (Studio.isCompoundDA(da)) { renderCompoundDAInspector(body, da); return; }
-    var sec = section(body, "Data Source");
+    quickHelp(body, "da");
+    var sec = section(body, "Data Source", null, null, "data-sources");
     sec.appendChild(field("ID", input(da.id, function (v) {
       var oldId = da.id;
       var nid = (v || "").trim().replace(/[^a-zA-Z0-9_-]+/g, "_") || oldId;
@@ -980,7 +2922,7 @@
     // Per-kind query editor
     var kind = da.kind || "sql.jndi";
     if (/^sql/.test(kind)) {
-      var qs = section(body, "SQL Query");
+      var qs = section(body, "SQL Query", null, null, "data-sources");
       var ta = el("textarea"); ta.style.cssText = "width:100%;min-height:130px;font-family:var(--mono);font-size:11.5px;resize:vertical;box-sizing:border-box";
       ta.value = da.sql || ""; ta.placeholder = "SELECT region AS region, SUM(amt) AS revenue\nFROM sales\nGROUP BY region";
       ta.addEventListener("change", function () {
@@ -998,7 +2940,7 @@
       };
       qs.appendChild(det);
     } else if (/^(mondrian|olap4j)/.test(kind)) {
-      var qm = section(body, "MDX Query");
+      var qm = section(body, "MDX Query", null, null, "data-sources");
       qm.appendChild(field("Schema catalog path", input(da.mdxCatalog || "", function (v) { da.mdxCatalog = v; }, "/pentaho/etc/mondrian/schema.xml")));
       var ta = el("textarea"); ta.style.cssText = "width:100%;min-height:130px;font-family:var(--mono);font-size:11.5px;resize:vertical;box-sizing:border-box";
       ta.value = da.sql || da.query || ""; ta.placeholder = "SELECT NON EMPTY {[Measures].[Sales]} ON COLUMNS,\n  NON EMPTY {[Markets].Children} ON ROWS\nFROM [SteelWheelsSales]";
@@ -1006,19 +2948,19 @@
       qm.appendChild(ta);
       qm.appendChild(hint("Cube name must match the Mondrian schema; use NON EMPTY to suppress empty cells."));
     } else if (/^kettle/.test(kind)) {
-      var qk = section(body, "Kettle / PDI Source");
+      var qk = section(body, "Kettle / PDI Source", null, null, "data-sources");
       qk.appendChild(field(".ktr file path", input(da.ktrPath || "", function (v) { da.ktrPath = v; }, "/public/etl/my-transform.ktr")));
       qk.appendChild(field("Output step name", input(da.ktrStep || "Output", function (v) { da.ktrStep = v; }, "Output")));
       qk.appendChild(hint("Output columns come from the step's output fields — declare them in Columns below."));
     } else if (/^metadata/.test(kind)) {
-      var qq = section(body, "Metadata / MQL Query");
+      var qq = section(body, "Metadata / MQL Query", null, null, "data-sources");
       qq.appendChild(field("Domain ID", input(da.mqlDomain || "", function (v) { da.mqlDomain = v; }, "SteelWheels")));
       var ta = el("textarea"); ta.style.cssText = "width:100%;min-height:90px;font-family:var(--mono);font-size:11.5px;resize:vertical;box-sizing:border-box";
       ta.value = da.sql || da.query || ""; ta.placeholder = "<mql>…</mql>";
       ta.addEventListener("change", function () { da.sql = ta.value; da.query = ta.value; });
       qq.appendChild(field("MQL Query (optional)", ta));
     } else if (/^scripting/.test(kind)) {
-      var qsc = section(body, "Script");
+      var qsc = section(body, "Script", null, null, "data-sources");
       var langs = [["javascript","JavaScript"],["beanshell","BeanShell"],["groovy","Groovy"],["python","Python"]];
       qsc.appendChild(field("Language", select2pairs(langs, da.scriptLang || "javascript", function (v) { da.scriptLang = v; })));
       var ta = el("textarea"); ta.style.cssText = "width:100%;min-height:130px;font-family:var(--mono);font-size:11.5px;resize:vertical;box-sizing:border-box";
@@ -1031,7 +2973,7 @@
     // Output columns
     var cs = section(body, "Output columns", function () {
       da.columns = da.columns || []; da.columns.push("col" + (da.columns.length + 1)); renderInspector();
-    });
+    }, null, "data-sources");
     if (!da.columns || !da.columns.length) cs.appendChild(hint("Write SQL and click 'Detect columns', or add manually with ＋."));
     (da.columns || []).forEach(function (col, i) {
       var r = el("div", "field row");
@@ -1059,9 +3001,9 @@
       r.appendChild(d1); r.appendChild(d2); r.appendChild(d3); r.appendChild(rm); ps.appendChild(r);
     });
 
-    // Calculated columns
+    // Calculated columns — hidden in Simple mode (K5) via .adv-sect
     da.calcColumns = da.calcColumns || [];
-    var ccs = section(body, "Calculated columns", function () {
+    var ccs = advSection(body, "Calculated columns", function () {
       da.calcColumns.push(Studio.newCalcCol()); renderInspector();
     });
     if (!da.calcColumns.length) ccs.appendChild(hint("Add formula-based columns derived from output. Formula syntax: =[col1] + [col2]"));
@@ -1078,10 +3020,10 @@
       r.appendChild(d1); r.appendChild(d2); r.appendChild(d3); r.appendChild(rm); ccs.appendChild(r);
     });
 
-    // Output options — post-query filter / sort / limit
+    // Output options — post-query filter / sort / limit; hidden in Simple mode (K5)
     da.outputOptions = da.outputOptions || { filters: [], sortBy: [], limit: 0 };
     var oo = da.outputOptions;
-    var ooSec = section(body, "Output options");
+    var ooSec = advSection(body, "Output options");
     ooSec.appendChild(hint("Applied after the query: filter rows, sort, or cap the result size. Active rules show in the query preview and are emitted as <OutputOptions> in the CDA export."));
 
     // Filter rules
@@ -1343,7 +3285,8 @@
 
   function renderFilterInspector(body) {
     var f = S.spec.filters[S.selection.index]; if (!f) { selectDashboard(); return; }
-    var sec = section(body, "Filter");
+    quickHelp(body, "filter");
+    var sec = section(body, "Filter", null, null, "builder");
     sec.appendChild(field("Label", input(f.label, function (v) { f.label = v; refreshPreview(); renderListsOnly(); })));
     sec.appendChild(field("Parameter id", input(f.id, function (v) { f.id = v.trim(); refreshPreview(); }), "must match the ${param} in the queries it filters"));
     sec.appendChild(field("Options query", daPicker(f.da, function (v) { f.da = v; var cs = filterCols(v); f.valueCol = cs[0] || ""; f.textCol = f.valueCol; renderInspector(); refreshPreview(); })));
@@ -1382,18 +3325,24 @@
   }
   function doRefresh() {
     var ifr = $("#preview");
-    var opts = { deployPath: S.settings.deployPath, preview: true, mock: Studio.genMock(S.spec), launcher: false };
+    // H-track v117: in Demo mode substitute varied sample data so values pulse realistically.
+    var mockData = S.demoMode ? genMockLive(S.spec, _demoTick) : Studio.genMock(S.spec);
+    var opts = { deployPath: S.settings.deployPath, preview: true, mock: mockData, launcher: false };
     if (S.settings.live) { var ac = activeConnection(); if (ac) { opts.liveBase = Studio.PentahoClient(ac).base(); opts.mock = {}; } }
     var html = Studio.buildHtml(S.spec, S.assets, opts);
     ifr.onload = function () {
       postToPreview({ type: "theme", value: S.theme });
       highlightPreview();
       var n = (S.spec.panels || []).length, k = (S.spec.kpis || []).length;
-      $("#previewStatus").textContent = n + " panel" + (n === 1 ? "" : "s") + (k ? " · " + k + " KPI" + (k === 1 ? "" : "s") : "") +
-        (S.settings.live ? " · LIVE" : " · sample data");
+      var dataLabel = S.demoMode ? " · demo LIVE" : (S.settings.live ? " · LIVE" : " · sample data");
+      $("#previewStatus").textContent = n + " panel" + (n === 1 ? "" : "s") + (k ? " · " + k + " KPI" + (k === 1 ? "" : "s") : "") + dataLabel;
     };
     ifr.srcdoc = html;
     snapshot();
+    // H-track: toggle canvas empty state overlay based on whether the dashboard has content
+    var isEmpty = !((S.spec.panels || []).length + (S.spec.kpis || []).length);
+    var stage = $("#canvas-stage");
+    if (stage) { isEmpty ? stage.classList.add("canvas-empty") : stage.classList.remove("canvas-empty"); }
   }
 
   /* ---------- undo / redo (snapshots settled spec states) ---------- */
@@ -1407,11 +3356,22 @@
   }
 
   /* ---------- auto-save (saves to localStorage after user edits) ---------- */
-  var _asTimer = null;
+  var _asTimer = null, _siTimer = null;
   function scheduleAutosave() {
     clearTimeout(_asTimer);
     _asTimer = setTimeout(function () {
       try { localStorage.setItem("studio-autosave", JSON.stringify(S.spec)); } catch (e) {}
+      // Flash "Saved ✓" in the topbar save-state indicator for 2 s.
+      var si = document.getElementById("saveState");
+      if (si) {
+        clearTimeout(_siTimer);
+        si.textContent = "Saved ✓";
+        si.className = "save-state saved";
+        _siTimer = setTimeout(function () {
+          si.textContent = "";
+          si.className = "save-state";
+        }, 2000);
+      }
     }, 1500);
   }
   function clearAutosave() { try { localStorage.removeItem("studio-autosave"); } catch (e) {} }
@@ -1460,9 +3420,12 @@
     if (rFilters) rParts.push(rFilters + " filter" + (rFilters === 1 ? "" : "s"));
     var rSumHtml = rParts.length ? ' <span class="rb-sum">(' + esc(rParts.join(" · ")) + ')</span>' : "";
     var banner = el("div", "restore-banner");
-    banner.innerHTML = '<span class="rb-msg">Restore unsaved work on <strong>' + esc(saved.title || saved.name) + '</strong>?' + rSumHtml + '</span>';
-    var yes = el("button", "btn btn-primary"); yes.textContent = "Restore"; banner.appendChild(yes);
-    var no = el("button", "btn"); no.textContent = "Dismiss"; banner.appendChild(no);
+    var msg = el("span", "rb-msg"); msg.innerHTML = 'Restore unsaved work on <strong>' + esc(saved.title || saved.name) + '</strong>?' + rSumHtml;
+    var acts = el("div", "rb-acts");
+    var yes = el("button", "btn btn-primary"); yes.textContent = "Restore"; acts.appendChild(yes);
+    // M11: "No thanks" is clearer than "Dismiss" on mobile where the intent needs to be unambiguous.
+    var no = el("button", "btn"); no.textContent = "No thanks"; acts.appendChild(no);
+    banner.appendChild(msg); banner.appendChild(acts);
     document.body.appendChild(banner);
     yes.onclick = function () { S.spec = normalize(saved); S.selection = null; syncHeader(); renderInspector(); refreshPreview(); buildLibrary(); clearAutosave(); banner.remove(); toast("Restored: " + (saved.title || saved.name)); };
     no.onclick = function () { clearAutosave(); banner.remove(); };
@@ -1508,6 +3471,8 @@
       duplicatePanel(d.id);
     } else if (d.type === "panel-delete") {
       deletePanel(d.id);
+    } else if (d.type === "zoom") {
+      openPanelZoom(d.panelId);
     }
   });
   function panelIndex(id) { var i = -1; S.spec.panels.forEach(function (p, ix) { if (p.id === id) i = ix; }); return i; }
@@ -1532,15 +3497,161 @@
     S.spec.panels = np; renderInspector(); refreshPreview();
   }
 
+  /* ---------- panel zoom — full-screen single-panel viewer (H-track) ----------
+   * Click the ↗ button on any canvas panel to open it maximized in a full-screen
+   * overlay. Ideal for SE demos: zoom into a specific insight without leaving the
+   * builder. The panel is re-rendered standalone at full resolution via buildHtml
+   * with a filtered one-panel spec. Escape or the × pill closes the overlay.
+   * ----------------------------------------------------------------------- */
+  var _pzOverlay = null;
+  function openPanelZoom(panelId) {
+    var p = panelById(panelId); if (!p) return;
+    // Build a single-panel spec (no KPIs, no filters, panel at full width)
+    var zp = Studio.clone(p); zp.span = 12;
+    var zSpec = Studio.clone(S.spec);
+    zSpec.panels = [zp]; zSpec.kpis = []; zSpec.filters = [];
+    var mockData = Studio.genMock(zSpec);
+    var html = Studio.buildHtml(zSpec, S.assets, { deployPath: S.settings.deployPath, preview: true, mock: mockData, launcher: false });
+
+    // Overlay
+    var ov = document.createElement("div"); ov.className = "pz-overlay"; ov.id = "pzOverlay";
+    var ifr = document.createElement("iframe"); ifr.className = "pz-frame"; ifr.title = "Panel zoom: " + (p.title || "Panel");
+    var closeBtn = document.createElement("button"); closeBtn.className = "pz-close"; closeBtn.setAttribute("aria-label", "Exit zoom (Esc)");
+    closeBtn.appendChild(Studio.icon("close", 14)); closeBtn.appendChild(document.createTextNode(" Exit zoom"));
+    ov.appendChild(ifr); ov.appendChild(closeBtn); document.body.appendChild(ov);
+    _pzOverlay = ov;
+    window.__panelZoomActive = true;
+
+    ifr.onload = function () {
+      try { ifr.contentWindow.postMessage({ studio: 1, type: "theme", value: S.theme }, "*"); } catch (e) {}
+    };
+    ifr.srcdoc = html;
+
+    function close() {
+      if (!_pzOverlay) return;
+      _pzOverlay.remove(); _pzOverlay = null; window.__panelZoomActive = false;
+      document.removeEventListener("keydown", onKey);
+    }
+    function onKey(e) { if (e.key === "Escape") { e.stopPropagation(); close(); } }
+    closeBtn.onclick = close;
+    ov.addEventListener("click", function (e) { if (e.target === ov) close(); });
+    document.addEventListener("keydown", onKey);
+  }
+  // Test hooks — exercised by Playwright suite
+  window.__panelZoomOpen = openPanelZoom;
+  window.__panelZoomActive = false;
+
+  /* ---------- Slideshow mode (H-track) ----------------------------------------
+   * Presents each panel in the current dashboard as a full-screen slide,
+   * navigated with ← / → arrow keys or Prev / Next buttons. Ideal for SE demos:
+   * walk stakeholders through each chart one at a time without leaving the builder.
+   * Reuses buildHtml (same pipeline as Panel zoom) so charts render pixel-perfectly.
+   * ----------------------------------------------------------------------- */
+  var _ssOverlay = null, _ssIdx = 0, _ssPanels = [];
+
+  function openSlideshow() {
+    _ssPanels = (S.spec && S.spec.panels) || [];
+    if (!_ssPanels.length) { toast("No panels to show"); return; }
+    _ssIdx = 0;
+
+    // Outer overlay (fullscreen dark background)
+    var ov = document.createElement("div");
+    ov.className = "ss-overlay"; ov.id = "ssOverlay";
+
+    // Header bar: Prev · panel title + counter · Next · Close
+    var hdr = document.createElement("div"); hdr.className = "ss-hdr";
+    var prevBtn = document.createElement("button"); prevBtn.className = "ss-nav ss-prev"; prevBtn.setAttribute("aria-label", "Previous panel (← key)"); prevBtn.textContent = "◀";
+    var titleEl = document.createElement("span"); titleEl.className = "ss-title";
+    var counter = document.createElement("span"); counter.className = "ss-counter";
+    var nextBtn = document.createElement("button"); nextBtn.className = "ss-nav ss-next"; nextBtn.setAttribute("aria-label", "Next panel (→ key)"); nextBtn.textContent = "▶";
+    var closeBtn = document.createElement("button"); closeBtn.className = "ss-close"; closeBtn.setAttribute("aria-label", "Exit slideshow (Esc)");
+    closeBtn.appendChild(Studio.icon("close", 13)); closeBtn.appendChild(document.createTextNode(" Exit slideshow"));
+    hdr.appendChild(prevBtn); hdr.appendChild(titleEl); hdr.appendChild(counter); hdr.appendChild(nextBtn); hdr.appendChild(closeBtn);
+
+    var ifr = document.createElement("iframe"); ifr.className = "ss-frame"; ifr.title = "Slideshow";
+    ov.appendChild(hdr); ov.appendChild(ifr); document.body.appendChild(ov);
+    _ssOverlay = ov;
+    window.__slideshowActive = true;
+
+    function close() {
+      if (!_ssOverlay) return;
+      _ssOverlay.remove(); _ssOverlay = null;
+      window.__slideshowActive = false;
+      document.removeEventListener("keydown", onKey);
+    }
+
+    function showSlide(idx) {
+      var p = _ssPanels[idx]; if (!p) return;
+      _ssIdx = idx;
+      titleEl.textContent = p.title || ("Panel " + (idx + 1));
+      counter.textContent = (idx + 1) + " / " + _ssPanels.length;
+      prevBtn.disabled = (idx === 0);
+      nextBtn.disabled = (idx === _ssPanels.length - 1);
+      // Build a single-panel spec (full-width, no KPIs/filters) via the same
+      // pipeline as Panel zoom and the CDF exporter — charts render identically.
+      var zp = Studio.clone(p); zp.span = 12;
+      var zSpec = Studio.clone(S.spec);
+      zSpec.panels = [zp]; zSpec.kpis = []; zSpec.filters = [];
+      var mockData = Studio.genMock(zSpec);
+      var html = Studio.buildHtml(zSpec, S.assets,
+        { deployPath: S.settings.deployPath, preview: true, mock: mockData, launcher: false });
+      ifr.onload = function () {
+        try { ifr.contentWindow.postMessage({ studio: 1, type: "theme", value: S.theme }, "*"); } catch (e) {}
+      };
+      ifr.srcdoc = html;
+    }
+
+    function onKey(e) {
+      if (e.key === "Escape")    { e.stopPropagation(); close(); }
+      if (e.key === "ArrowRight" || e.key === "ArrowDown")  { if (_ssIdx < _ssPanels.length - 1) showSlide(_ssIdx + 1); }
+      if (e.key === "ArrowLeft"  || e.key === "ArrowUp")    { if (_ssIdx > 0)                    showSlide(_ssIdx - 1); }
+    }
+    prevBtn.onclick  = function () { if (_ssIdx > 0) showSlide(_ssIdx - 1); };
+    nextBtn.onclick  = function () { if (_ssIdx < _ssPanels.length - 1) showSlide(_ssIdx + 1); };
+    closeBtn.onclick = close;
+    ov.addEventListener("click", function (e) { if (e.target === ov) close(); });
+    document.addEventListener("keydown", onKey);
+    showSlide(0);
+    // Focus the close button so keyboard events land in the parent document, not the iframe
+    closeBtn.focus();
+  }
+
+  // Test hooks
+  window.__slideshowOpen   = openSlideshow;
+  window.__slideshowActive = false;
+  window.__slideshowPanel  = function () { return _ssIdx; };
+
   /* ---------- examples / open / save ---------- */
   // build a starter dashboard from a catalog query set (instant, editable)
   function chartForDA(da) {
-    var cols = da.columns || []; if (cols.length < 2) return null;
+    var cols = da.columns || [];
     var id = (da.id || "").toLowerCase();
+
+    // K4: in Simple mode, use richer column-type heuristics so beginners get sensible defaults
+    if (S.simpleMode) {
+      if (!cols.length) return null;
+      // Single column with a numeric-looking name → gauge (ideal for headline KPI tiles)
+      if (cols.length === 1) {
+        return /value|total|count|sum|avg|amount|revenue|cost|rate|pct|score|qty|num|metric|kpi/.test(cols[0].toLowerCase()) ? "gauge" : null;
+      }
+      // Time-series column present → line (existing logic, preserved in simple mode too)
+      if (cols.some(function (c) { return /month|^ym$|ymn|date|day|period/.test(c.toLowerCase()); })) return "line";
+      // Multiple numeric-looking columns (e.g. revenue + cost + margin) → line for comparison
+      var numCols = cols.filter(function (c) { return /value|total|count|sum|avg|amount|revenue|cost|rate|pct|score|qty|num|metric/.test(c.toLowerCase()); });
+      if (numCols.length >= 2) return "line";
+      // DA id hints composition → donut; default → bars
+      if (/mix|share|donut|split|sens|status|coverage|ratio/.test(id)) return "donut";
+      return "bars";
+    }
+
+    // Advanced mode: preserve the original behaviour exactly
+    if (cols.length < 2) return null;
     if (cols.some(function (c) { return /month|^ym$|ymn|date|day|period/.test(c.toLowerCase()); })) return "line";
     if (/mix|share|donut|split|sens|status|coverage|ratio/.test(id)) return "donut";
     return "bars";
   }
+  // Test hook — lets the Playwright suite call chartForDA() directly via the page context
+  window.__chartForDA = chartForDA;
   function guessGroup(t) {
     t = (t || "").toLowerCase();
     if (/cost|storage|capacity|redundan/.test(t)) return "Storage & Cost";
@@ -1597,8 +3708,14 @@
         ["Ctrl / ⌘  +  Shift+Z", "Redo"],
         ["Ctrl / ⌘  +  D", "Duplicate selected panel or KPI"],
         ["Ctrl / ⌘  +  S", "Save spec as .studio.json"],
+        ["Ctrl / ⌘  +  F", "Focus library search (filter queries)"],
+        ["/", "Focus chart-type gallery search (panel selected)"],
         ["↑ / ↓   (panel selected)", "Reorder panel up / down"],
         ["Shift + ← / →   (panel selected)", "Decrease / increase panel span"],
+        ["Delete / Backspace   (panel selected)", "Delete selected panel or KPI"],
+        ["Escape   (panel selected)", "Deselect — return to dashboard inspector"],
+        ["Escape   (Focus mode)", "Exit Focus mode — return to builder"],
+        ["↗ button on panel", "Zoom panel to full screen (Escape to close)"],
         ["?", "Show this keyboard shortcuts panel"],
         ["Escape", "Close modal or dropdown menu"],
         ["Tab", "Navigate interactive controls"],
@@ -1615,6 +3732,73 @@
       var wrap = el("div"); wrap.style.cssText = "padding:8px 4px"; wrap.appendChild(tbl);
       b.appendChild(wrap);
     });
+  }
+
+  // H-track v71 — Focus / Presentation mode: expand preview to fill window for demos
+  var _focusExitPill = null;
+  function enterFocusMode() {
+    document.body.classList.add("focus-mode");
+    if (!_focusExitPill) {
+      _focusExitPill = el("button", "focus-exit");
+      _focusExitPill.title = "Exit Focus mode (Escape)";
+      _focusExitPill.appendChild(Studio.icon("close", 13));
+      _focusExitPill.appendChild(document.createTextNode(" Exit Focus"));
+      _focusExitPill.onclick = exitFocusMode;
+      document.body.appendChild(_focusExitPill);
+    } else {
+      _focusExitPill.style.display = "";
+    }
+  }
+  /* genMockLive — like Studio.genMock but varies numeric values by ±8% each tick
+     so the preview looks like live, refreshing data during SE demos. Deterministic
+     per tick (no Math.random) — uses position arithmetic to produce distinct deltas. */
+  function genMockLive(spec, tick) {
+    var out = {};
+    (spec.cda.dataAccesses || []).forEach(function (da) {
+      var base = Studio.sampleRows(da);
+      var rows = base.rows.map(function (row, ri) {
+        return row.map(function (val, ci) {
+          if (typeof val !== "number") return val;
+          // Seed variation from tick + row + col position; range ±8%
+          var seed = ((tick * 7 + ri * 3 + ci * 11) % 97) / 97; // 0..0.99
+          var factor = 1 + (seed - 0.5) * 0.16;
+          return Math.max(0, Math.round(val * factor));
+        });
+      });
+      var result = { cols: base.cols, rows: rows };
+      out[da.id] = Studio.applyOutputOptions ? Studio.applyOutputOptions(da, result) : result;
+    });
+    return out;
+  }
+
+  /* toggleDemoMode — start/stop the 4-second live-data simulation for SE demos.
+     When active, a pulsing "● LIVE" badge appears and the preview re-renders with
+     slightly varied numeric values each tick so it looks like a live data feed. */
+  function toggleDemoMode() {
+    S.demoMode = !S.demoMode;
+    window.__demoMode = S.demoMode;
+    document.body.classList.toggle("demo-mode", S.demoMode);
+    if (S.demoMode) {
+      _demoTick = 0;
+      refreshPreview();
+      _demoInterval = setInterval(function () {
+        _demoTick++;
+        refreshPreview();
+      }, 4000);
+      toast("Demo mode on — data refreshes every 4 s");
+    } else {
+      clearInterval(_demoInterval);
+      _demoInterval = null;
+      refreshPreview();
+      toast("Demo mode off");
+    }
+    var btn = $("#moreDemoMode");
+    if (btn) btn.textContent = S.demoMode ? "Demo mode  ■" : "Demo mode  ▶";
+  }
+
+  function exitFocusMode() {
+    document.body.classList.remove("focus-mode");
+    if (_focusExitPill) _focusExitPill.style.display = "none";
   }
 
   function wireTopbar() {
@@ -1657,18 +3841,34 @@
     var ndsBtn = $("#btnNewDS"); setIconBtn(ndsBtn, "plus", "New source", 12); ndsBtn.onclick = function () { dataSourceBuilder(null); };
     $("#inspBack").onclick = selectDashboard;
 
-    // New menu: blank, or auto-build a starter dashboard from a catalog query set
+    // New menu: blank, duplicate current, or auto-build a starter dashboard from a catalog query set
     var nm = $("#menuNew");
     var stems = Object.keys(S.catalog).filter(function (s) {
       return (S.catalog[s].dataAccesses || []).some(function (d) { return (d.columns || []).length >= 2; });
     }).sort();
-    nm.innerHTML = '<button data-new="blank">＋ Blank dashboard</button><div class="sep"></div>' +
+    nm.innerHTML = '<button data-new="blank">＋ Blank dashboard</button>' +
+      '<button data-new="dup" id="btnDupDash">⧉ Duplicate current</button><div class="sep"></div>' +
       '<div class="grp">Auto-build from a query set</div>' +
       stems.map(function (s) { return '<button data-stem="' + esc(s) + '">' + esc(s) + "</button>"; }).join("");
     $$("button", nm).forEach(function (b) {
       b.onclick = function () {
-        if (b.getAttribute("data-new") === "blank") { S.spec = Studio.emptySpec(); S.selection = null; syncHeader(); renderInspector(); refreshPreview(); }
-        else scaffoldFromStem(b.getAttribute("data-stem"));
+        var action = b.getAttribute("data-new");
+        if (action === "blank") {
+          S.spec = Studio.emptySpec(); S.selection = null; syncHeader(); renderInspector(); refreshPreview();
+        } else if (action === "dup") {
+          // Duplicate the current dashboard: clone the spec, assign a new unique ID,
+          // append " (copy)" to the title, and append "-copy" to the file name stem.
+          var dup = Studio.clone(S.spec);
+          dup.id    = Studio.uid("dash");
+          dup.title = (dup.title || "Untitled Dashboard") + " (copy)";
+          dup.name  = (dup.name  || "untitled").replace(/(-copy)+$/, "") + "-copy";
+          S.spec    = dup;
+          S.selection = null;
+          syncHeader(); renderInspector(); refreshPreview();
+          flashBtn(document.getElementById("btnNew"), "Duplicated!");
+        } else {
+          scaffoldFromStem(b.getAttribute("data-stem"));
+        }
         closeMenus();
       };
     });
@@ -1679,6 +3879,44 @@
     em.classList.add("ex-grid");
     var featured = S.examples.filter(function (e) { return e.track === "CDF"; });
     var rest = S.examples.filter(function (e) { return e.track !== "CDF"; });
+    // E3: mini layout thumbnail for each example card — synthesised from index.json metadata
+    // (types[], panels count, kpis count) without needing to load the full spec file.
+    function exLayoutSvg(e) {
+      var types = e.types || [], pCount = Math.min(e.panels || types.length || 3, 6);
+      var kpis = e.kpis || 0, cols = pCount <= 2 ? 2 : 3;
+      var W = 80, H = 46;
+      var pal = ["#005bb5","#7d3c98","#2e8bd0","#00a39a","#e67e22"];
+      var cpals = { bars:"#005bb5",donut:"#7d3c98",line:"#2e8bd0",stacked:"#005bb5",
+        areaStacked:"#7d3c98",combo:"#005bb5",treemap:"#00a39a",scatter:"#e67e22",
+        gauge:"#c0392b",radar:"#8e44ad",heatmap:"#16a085",table:"#2c3e50",
+        waterfall:"#27ae60",funnel:"#e67e22",sankey:"#005bb5",chord:"#7d3c98" };
+      var p = ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + W + ' ' + H + '">'];
+      p.push('<rect width="' + W + '" height="' + H + '" fill="var(--field,#f4f6fb)"/>');
+      p.push('<rect width="' + W + '" height="7" fill="var(--bg,#fff)"/>');
+      p.push('<rect width="2" height="7" fill="#005bb5"/>');
+      var y = 9;
+      if (kpis) {
+        var kCount = Math.min(kpis, 4), kw = (W - 4 - (kCount - 1) * 3) / kCount;
+        for (var ki = 0; ki < kCount; ki++) {
+          var kx = 2 + ki * (kw + 3);
+          p.push('<rect x="' + kx + '" y="' + y + '" width="' + kw + '" height="6" rx="1" fill="var(--bg,#fff)"/>');
+          p.push('<rect x="' + kx + '" y="' + y + '" width="2" height="6" fill="' + pal[ki % 5] + '"/>');
+        }
+        y += 8;
+      }
+      var pw = (W - 4 - (cols - 1) * 2) / cols, rows = Math.ceil(pCount / cols);
+      var ph = Math.min((H - y - 2 - (rows - 1) * 2) / rows, 13);
+      for (var pi = 0; pi < pCount; pi++) {
+        var pcol = pi % cols, prow = Math.floor(pi / cols);
+        var px = 2 + pcol * (pw + 2), py = y + prow * (ph + 2);
+        var tc = cpals[types[pi % Math.max(types.length, 1)]] || pal[pi % 5];
+        p.push('<rect x="' + px + '" y="' + py + '" width="' + pw + '" height="' + ph + '" rx="1" fill="var(--bg,#fff)"/>');
+        p.push('<rect x="' + px + '" y="' + py + '" width="' + pw + '" height="' + ph + '" rx="1" fill="' + tc + '" opacity="0.18"/>');
+        p.push('<rect x="' + px + '" y="' + py + '" width="' + pw + '" height="2" fill="' + tc + '"/>');
+      }
+      p.push('</svg>');
+      return p.join("");
+    }
     function exCard(e) {
       var track = e.track || "CDE";
       var types = (e.types || []).slice(0, 3).map(function (t) {
@@ -1688,6 +3926,7 @@
       if (e.panels) meta.push(e.panels + "P");
       if (e.kpis) meta.push(e.kpis + "K");
       return '<button class="ex-card" data-f="' + esc(e.file) + '">' +
+        '<div class="ex-thumb" aria-hidden="true">' + exLayoutSvg(e) + '</div>' +
         '<div class="ex-card-top">' +
           '<span class="ex-badge ex-badge-' + track.toLowerCase() + '">' + esc(track) + '</span>' +
           '<span class="ex-card-types">' + types + '</span>' +
@@ -1723,13 +3962,79 @@
       showShortcuts();
     });
 
+    // / key — focus the chart-type gallery search when a panel is selected and the gallery
+    // is visible. Natural "search" shortcut familiar from GitHub, Jira, and Linear.
+    document.addEventListener("keydown", function (e) {
+      if (e.key !== "/") return;
+      var inEdit = /^(input|textarea|select)$/i.test(e.target.tagName || "") || e.target.isContentEditable;
+      if (inEdit || e.metaKey || e.ctrlKey || e.altKey) return;
+      var cgSearch = document.querySelector(".cg-search");
+      if (cgSearch) { e.preventDefault(); cgSearch.focus(); cgSearch.select(); }
+    });
+
+    // Ctrl/Cmd+F — focus the library search field (natural "find/filter" shortcut).
+    // On phone (≤640px) also opens the library drawer so the search is reachable.
+    document.addEventListener("keydown", function (e) {
+      if (e.key !== "f" && e.key !== "F") return;
+      if (!e.ctrlKey && !e.metaKey) return;
+      var inEdit = /^(input|textarea|select)$/i.test(e.target.tagName || "") || e.target.isContentEditable;
+      if (inEdit) return;
+      e.preventDefault();
+      // On phone, open the library drawer first
+      if (window.innerWidth <= 640) {
+        var libTab = document.querySelector('.mob-tab[data-pane="lib"]');
+        if (libTab) libTab.click();
+      }
+      var libSearch = document.getElementById("libSearch");
+      if (libSearch) { libSearch.focus(); libSearch.select(); }
+    });
+
+    // Delete / Backspace → delete selected panel or KPI; Escape → deselect
+    document.addEventListener("keydown", function (e) {
+      var inEdit = /^(input|textarea|select)$/i.test(e.target.tagName || "") || e.target.isContentEditable;
+      if (inEdit || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key === "Escape") {
+        if (document.body.classList.contains("focus-mode")) { e.preventDefault(); exitFocusMode(); }
+        else if (S.selection) { e.preventDefault(); selectDashboard(); }
+      } else if (e.key === "Delete" || e.key === "Backspace") {
+        if (S.selection && S.selection.kind === "panel") { e.preventDefault(); deletePanel(S.selection.id); }
+        else if (S.selection && S.selection.kind === "kpi") { e.preventDefault(); var ki = S.selection.index; S.spec.kpis.splice(ki, 1); selectDashboard(); refreshPreview(); toast("KPI removed"); }
+      }
+    });
+
     // responsive "⋯ More" menu — mirrors the .btn-secondary actions hidden at ≤900px
     menuToggle($("#btnMore"), $("#menuMore"));
     [["moreAbout","btnAbout"],["moreConn","btnConn"],["moreLive","btnLive"],["moreTheme","btnTheme"]].forEach(function(pair) {
       var tgt = $("#" + pair[0]), src = $("#" + pair[1]);
       if (tgt && src) tgt.onclick = function () { closeMenus(); src.click(); };
     });
+    // H-track v117: Demo mode — simulate live refreshing data for SE demos
+    var moreDemoMode = $("#moreDemoMode"); if (moreDemoMode) moreDemoMode.onclick = function () { closeMenus(); toggleDemoMode(); };
+    var morePresent = $("#morePresent"); if (morePresent) morePresent.onclick = function () { closeMenus(); enterFocusMode(); };
+    var moreSlideshow = $("#moreSlideshow"); if (moreSlideshow) moreSlideshow.onclick = function () { closeMenus(); openSlideshow(); };
+    var moreSimple = $("#moreSimple"); if (moreSimple) moreSimple.onclick = function () { closeMenus(); toggleSimpleMode(); };
     var moreShortcuts = $("#moreShortcuts"); if (moreShortcuts) moreShortcuts.onclick = function () { closeMenus(); showShortcuts(); };
+    // J-track v98 — help docs: opens the self-contained reference guide in a new tab.
+    var moreHelp = $("#moreHelp"); if (moreHelp) moreHelp.onclick = function () { closeMenus(); window.open("docs/index.html", "_blank", "noopener"); };
+    // J6 — interactive tutorial
+    var moreTutorial = $("#moreTutorial"); if (moreTutorial) moreTutorial.onclick = function () { closeMenus(); if (window.StudioTutorial) StudioTutorial.open(); };
+
+    // M7: phone-only More menu items — exposed at ≤400px when topbar hides these buttons
+    var moreExamples = $("#moreExamples");
+    if (moreExamples) moreExamples.onclick = function () {
+      closeMenus();
+      // On narrow phones, open the examples menu pinned below the topbar (fixed layout)
+      var em = $("#menuExamples");
+      em.classList.add("phone-pos", "open");
+    };
+    var moreImport = $("#moreImport");
+    if (moreImport) moreImport.onclick = function () { closeMenus(); openSpecFile(); };
+    var moreSaveSpec = $("#moreSaveSpec");
+    if (moreSaveSpec) moreSaveSpec.onclick = function () {
+      closeMenus();
+      clearAutosave();
+      download(S.spec.name + ".studio.json", JSON.stringify(S.spec, null, 2), "application/json");
+    };
 
     // E8 — Sign out: clear gate session flag and reload so the passcode is required again
     var moreSignOut = $("#moreSignOut"); if (moreSignOut) moreSignOut.onclick = function () {
@@ -1744,7 +4049,8 @@
       var keys = [
         "studio-autosave", "studio-export-history", "studio-theme",
         "studio-lw", "studio-rw", "studio-collapse-library", "studio-collapse-inspector",
-        "studio-connections", "studio-active-conn", "studio-mob-tab"
+        "studio-connections", "studio-active-conn", "studio-mob-tab", "studio-simple-mode",
+        "studio-insp-collapsed"
       ];
       var msg = "Clear all locally-stored Studio data?\n\nThis will remove:\n" +
         "  • Unsaved spec draft (autosave)\n" +
@@ -1757,6 +4063,9 @@
       toast("Local data cleared — reloading…");
       setTimeout(function () { location.reload(); }, 1000);
     };
+
+    // "¶ Text" canvas-bar button — add a rich-text annotation panel to the current dashboard
+    var addTextBtn = $("#btnAddText"); if (addTextBtn) addTextBtn.onclick = addTextPanel;
 
     document.addEventListener("click", function (e) { if (!e.target.closest(".menu-wrap")) closeMenus(); });
   }
@@ -1857,7 +4166,7 @@
   }
 
   function menuToggle(btn, menu) { btn.onclick = function (e) { e.stopPropagation(); var open = menu.classList.contains("open"); closeMenus(); if (!open) menu.classList.add("open"); }; }
-  function closeMenus() { $$(".menu").forEach(function (m) { m.classList.remove("open"); }); }
+  function closeMenus() { $$(".menu").forEach(function (m) { m.classList.remove("open", "phone-pos"); }); }
 
   function syncHeader() {
     $("#dashTitle").value = S.spec.title; $("#dashName").textContent = S.spec.name; $("#dashGroup").textContent = S.spec.group;
@@ -1879,6 +4188,8 @@
   window.__studioConns = function () { return { connections: S.connections, active: S.activeConn }; };
   window.__fireToast = function (msg, isErr) { toast(msg, isErr); }; // exposed for tests
   window.__studioSelectDashboard = selectDashboard; // exposed for tests
+  window.__studioSelect = select;                   // exposed for tests (K6, etc.)
+  window.__studioRenderInspector = renderInspector; // exposed for tests
 
   function connModal() { modal("Pentaho server connections", function (b) { renderConnBody(b); }, function () { refreshPreview(); }); }
   function renderConnBody(b) {
@@ -2085,13 +4396,129 @@
   }
 
   /* ---------- tiny DOM + util helpers ---------- */
+
+  /* J3: Quick help — contextual tips at the top of each inspector type.
+     Collapsed by default (low-clutter); user can expand at any time.
+     tips: array of short strings, rendered as bullet points.
+     The section key is always "Quick help" so collapse-state persists
+     across selection changes within the same session. */
+  var QUICK_HELP = {
+    dashboard: [
+      "Drag a query from the library onto the canvas to add a chart panel.",
+      "Use New ▾ → Auto-build to scaffold a full starter dashboard instantly.",
+      "Export ▾ → CDF .html gives a standalone file you can open in any browser."
+    ],
+    panel: [
+      "Pick a chart type from the gallery, then bind the data columns below.",
+      "Press Shift+←/→ to resize the panel span; ↑/↓ to reorder it on the canvas.",
+      "Advanced inspector sections (annotations, drill-through, etc.) are just below the options."
+    ],
+    kpi: [
+      "KPI tiles show the first value from the first numeric column of the bound query.",
+      "Add a Trend column to display a sparkline beneath the main value.",
+      "Use Compare to to show a ▲/▼ delta against a second column."
+    ],
+    filter: [
+      "Filters let viewers narrow the dashboard by selecting values from a query.",
+      "Set an Options query that returns a value column for a dropdown list.",
+      "Reference an upstream filter's value in your Options query to enable cascading."
+    ],
+    da: [
+      "Use the SQL Builder accordion to compose SELECT queries visually.",
+      "Click 'Detect from query' to extract column aliases automatically.",
+      "Output options let you add filter rules, sort order, and row limits."
+    ]
+  };
+  function quickHelp(parent, type) {
+    var tips = QUICK_HELP[type]; if (!tips) return;
+    // Default to collapsed so the section never clutters the default view;
+    // user can expand at any time and the state persists for the session.
+    if (!("Quick help" in _collapsedSects)) _collapsedSects["Quick help"] = true;
+    var body = section(parent, "Quick help");
+    var ul = el("ul", "qh-tips");
+    tips.forEach(function (tip) {
+      var li = el("li", "qh-tip"); li.textContent = tip; ul.appendChild(li);
+    });
+    body.appendChild(ul);
+  }
+
   function el(t, c) { var e = document.createElement(t); if (c) e.className = c; return e; }
   function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (m) { return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[m]; }); }
   function labelEl(t) { var l = el("label"); l.textContent = t; return l; }
-  function section(parent, title, onAdd) {
-    var s = el("div", "insp-sec"); var h = el("h4"); h.textContent = title;
-    if (onAdd) { var a = el("button", "add"); a.appendChild(Studio.icon("plus", 12)); a.onclick = onAdd; h.appendChild(a); }
-    s.appendChild(h); parent.appendChild(s); return s;
+  function section(parent, title, onAdd, summaryFn, helpAnchor) {
+    /* Collapsible inspector section. Returns the body div so callers do
+       body.appendChild(field(…)) and content hides/shows with the header.
+       State is stored in _collapsedSects keyed by normalized title so it
+       survives re-renders within the same session.
+       summaryFn (optional): zero-arg function returning a short string shown
+       inline in the collapsed header — e.g. "3 markers", "'Peak'", "enabled".
+       helpAnchor (optional): docs/index.html anchor to link from a ? badge on the header.
+       NOTE: The chevron uses an SVG icon (not a text character) so that
+       h4.textContent keeps returning the plain section title — backward
+       compatible with any code or test that reads it. */
+    var key = title.replace(/\s*\(\d+\)\s*$/, ""); // strip "(N)" from dynamic titles
+    var isCollapsed = !!_collapsedSects[key];
+    var s = el("div", "insp-sec"); if (isCollapsed) s.classList.add("sec-collapsed");
+    var h = el("h4"); h.style.cursor = "pointer"; h.title = "Click to collapse / expand";
+    // SVG chevron — has empty textContent so h4.textContent stays == title
+    var chev = el("span", "sec-chev");
+    chev.appendChild(Studio.icon(isCollapsed ? "chevron-right" : "chevron-down", 9));
+    h.appendChild(chev);
+    h.appendChild(document.createTextNode(title));
+    // J2: contextual help badge — SVG icon link deep-linking into docs/index.html.
+    // Uses Studio.icon() (SVG, empty textContent) so h4.textContent stays == title.
+    if (helpAnchor) {
+      var hl = document.createElement("a");
+      hl.href = "docs/index.html#" + helpAnchor;
+      hl.target = "_blank"; hl.rel = "noopener noreferrer";
+      hl.className = "sec-help"; hl.title = "Help docs";
+      hl.setAttribute("aria-label", "Open help docs for " + title);
+      hl.appendChild(Studio.icon("info", 10));
+      hl.onclick = function (e) { e.stopPropagation(); }; // prevent section toggle
+      h.appendChild(hl);
+    }
+    // Inline collapsed hint — visible only when the section is collapsed and summaryFn is set
+    var hintEl = null;
+    if (summaryFn) {
+      hintEl = el("span", "sec-hint");
+      hintEl.textContent = isCollapsed ? (summaryFn() || "") : "";
+      h.appendChild(hintEl);
+    }
+    if (onAdd) {
+      var a = el("button", "add"); a.appendChild(Studio.icon("plus", 12));
+      a.onclick = function (e) { e.stopPropagation(); onAdd(e); };
+      h.appendChild(a);
+    }
+    var body = el("div", "insp-sec-body");
+    if (isCollapsed) body.style.display = "none";
+    h.onclick = function () {
+      _collapsedSects[key] = !_collapsedSects[key];
+      _saveCollapsedSects(); // persist preference across sessions
+      var now = !!_collapsedSects[key];
+      body.style.display = now ? "none" : "";
+      chev.innerHTML = "";
+      chev.appendChild(Studio.icon(now ? "chevron-right" : "chevron-down", 9));
+      s.classList.toggle("sec-collapsed", now);
+      if (hintEl) hintEl.textContent = now ? (summaryFn() || "") : "";
+    };
+    s.appendChild(h); s.appendChild(body); parent.appendChild(s);
+    return body; // callers append content here (not to the outer .insp-sec)
+  }
+  /* advSection — like section() but marks the outer .insp-sec with .adv-sect so
+     CSS can hide the whole block in Simple mode (body.simple-mode .adv-sect). */
+  function advSection(parent, title, onAdd, summaryFn, helpAnchor) {
+    var body = section(parent, title, onAdd, summaryFn, helpAnchor);
+    body.parentElement.classList.add("adv-sect");
+    return body;
+  }
+  /* toggleSimpleMode — flip Simple mode on/off, persist to localStorage, and
+     re-render the inspector so advanced sections appear/disappear immediately. */
+  function toggleSimpleMode() {
+    S.simpleMode = !S.simpleMode;
+    document.body.classList.toggle("simple-mode", S.simpleMode);
+    try { localStorage.setItem("studio-simple-mode", S.simpleMode ? "1" : ""); } catch (e) {}
+    renderInspector();
+    toast(S.simpleMode ? "Simple mode on — advanced options hidden" : "Advanced mode — all options visible");
   }
   function field(label, control, hintTxt) {
     var f = el("div", "field"); f.appendChild(labelEl(label)); f.appendChild(control);
@@ -2181,7 +4608,20 @@
     ["dragleave", "drop"].forEach(function (ev) { stage.addEventListener(ev, function (e) { if (ev === "dragleave" && e.target !== stage && stage.contains(e.relatedTarget)) return; stage.classList.remove("dragover"); }); });
     stage.addEventListener("drop", function (e) {
       e.preventDefault(); stage.classList.remove("dragover");
-      try { var d = JSON.parse(e.dataTransfer.getData("text/plain")); if (d && d.da) addFromDA(d.stem, d.da, "bars"); } catch (x) {}
+      try { var d = JSON.parse(e.dataTransfer.getData("text/plain")); if (d && d.da) { var _da = catalogDA(d.stem, d.da); addFromDA(d.stem, d.da, (_da && chartForDA(_da)) || "bars"); } } catch (x) {}
+    });
+
+    // H-track: canvas empty-state overlay — set the icon and wire the Open library button
+    var cesIc = $("#cesIc");
+    if (cesIc) cesIc.appendChild(Studio.icon("plus", 30));
+    var cesBtn = $("#cesLib");
+    if (cesBtn) cesBtn.addEventListener("click", function () {
+      // On phone, open the library drawer; on desktop, focus the library search field
+      if (window.innerWidth <= 640) {
+        var t = document.getElementById("tabLib"); if (t) t.click();
+      } else {
+        var ls = document.getElementById("libSearch"); if (ls) { ls.focus(); ls.select(); }
+      }
     });
   }
 
