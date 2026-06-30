@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CDADescriptor>
+  <DataSources><Connection id="pdc" type="sql.jndi"><Jndi>PDC-BIDB-EXT</Jndi></Connection></DataSources>
+
+  <!-- Storage from the dimensional model (fact_entity_snapshot.bytes over bidb MVs); FILE+TABLE own-bytes. -->
+  <DataAccess id="tbBySource" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>TbBySource</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT d.datasource_type AS src, ROUND(SUM(s.bytes)/1e12::numeric,2) AS tb
+      FROM fact_entity_snapshot s JOIN dim_entity e ON s.entity_key=e.entity_key
+      JOIN dim_datasource d ON s.datasource_key=d.datasource_key
+      WHERE e.entity_type IN ('FILE','TABLE') GROUP BY 1 ORDER BY 2 DESC
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="tbByRestype" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>TbByRestype</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT COALESCE(NULLIF(e.resource_type,''),'(unknown)') AS rt, ROUND(SUM(s.bytes)/1e12::numeric,2) AS tb
+      FROM fact_entity_snapshot s JOIN dim_entity e ON s.entity_key=e.entity_key
+      WHERE e.entity_type IN ('FILE','TABLE') GROUP BY 1 ORDER BY 2 DESC
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="sizeDist" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>SizeDist</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT band, count(*) AS assets FROM (
+        SELECT CASE WHEN s.bytes<1e9 THEN '1. <1 GB' WHEN s.bytes<1e10 THEN '2. 1-10 GB'
+                    WHEN s.bytes<1e11 THEN '3. 10-100 GB' WHEN s.bytes<1e12 THEN '4. 100GB-1TB'
+                    ELSE '5. 1 TB+' END AS band
+        FROM fact_entity_snapshot s JOIN dim_entity e ON s.entity_key=e.entity_key
+        WHERE e.entity_type IN ('FILE','TABLE')) t GROUP BY 1 ORDER BY 1
+    ]]></Query>
+  </DataAccess>
+</CDADescriptor>

@@ -1,0 +1,108 @@
+{
+  "schema": 1,
+  "id": "cde-ownership",
+  "name": "cde-ownership",
+  "title": "Ownership & Stewardship",
+  "description": "CDE-authored — missing-owner assets by source, owned-vs-unowned mix & owned % by source over PDC-BIDB-EXT.",
+  "group": "Usage & People",
+  "cda": {
+    "connection": {
+      "id": "pdc",
+      "jndi": "PDC-BIDB-EXT"
+    },
+    "dataAccesses": [
+      {
+        "id": "missingBySource",
+        "name": "MissingBySource",
+        "params": [],
+        "cache": true,
+        "cacheDuration": 300,
+        "sql": "SELECT d.datasource_type AS src, SUM(s.missing_owner_count) AS missing FROM fact_entity_snapshot s JOIN dim_datasource d ON s.datasource_key=d.datasource_key GROUP BY 1 ORDER BY 2 DESC",
+        "columns": [
+          "src",
+          "missing"
+        ]
+      },
+      {
+        "id": "ownedMix",
+        "name": "OwnedMix",
+        "params": [],
+        "cache": true,
+        "cacheDuration": 300,
+        "sql": "SELECT 'Owned' AS label, GREATEST(SUM(entity_count)-SUM(missing_owner_count),0) AS assets FROM fact_entity_snapshot UNION ALL SELECT 'Unowned', SUM(missing_owner_count) FROM fact_entity_snapshot",
+        "columns": [
+          "label",
+          "assets"
+        ]
+      },
+      {
+        "id": "ownedPctBySource",
+        "name": "OwnedPctBySource",
+        "params": [],
+        "cache": true,
+        "cacheDuration": 300,
+        "sql": "SELECT d.datasource_type AS src, ROUND(100.0*(SUM(s.entity_count)-SUM(s.missing_owner_count))/NULLIF(SUM(s.entity_count),0),1) AS owned_pct FROM fact_entity_snapshot s JOIN dim_datasource d ON s.datasource_key=d.datasource_key GROUP BY 1 ORDER BY 2 DESC",
+        "columns": [
+          "src",
+          "owned_pct"
+        ]
+      }
+    ]
+  },
+  "gridCols": 2,
+  "panels": [
+    {
+      "id": "p1",
+      "title": "Missing By Source",
+      "span": 1,
+      "chart": {
+        "type": "bars",
+        "da": "missingBySource",
+        "map": {
+          "labelCol": "src",
+          "valueCol": "missing"
+        },
+        "opts": {
+          "fmt": "gb",
+          "valuesVisible": true,
+          "horizontal": true
+        }
+      }
+    },
+    {
+      "id": "p2",
+      "title": "Owned Mix",
+      "span": 1,
+      "chart": {
+        "type": "donut",
+        "da": "ownedMix",
+        "map": {
+          "labelCol": "label",
+          "valueCol": "assets"
+        },
+        "opts": {
+          "fmt": "abbr",
+          "valuesVisible": true
+        }
+      }
+    },
+    {
+      "id": "p3",
+      "title": "Owned Pct By Source",
+      "span": "full",
+      "chart": {
+        "type": "bars",
+        "da": "ownedPctBySource",
+        "map": {
+          "labelCol": "src",
+          "valueCol": "owned_pct"
+        },
+        "opts": {
+          "fmt": "gb",
+          "valuesVisible": true,
+          "horizontal": false
+        }
+      }
+    }
+  ]
+}

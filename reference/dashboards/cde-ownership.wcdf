@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cdf>
+  <title>Ownership &amp; Stewardship (CDE)</title>
+  <author>PDC Analytics</author>
+  <description>CDE-authored — missing-owner assets by source, owned-vs-unowned mix &amp; owned % by source over PDC-BIDB-EXT.</description>
+  <icon/>
+  <style>clean</style>
+  <rendererType>blueprint</rendererType>
+  <widget>false</widget>
+  <widgetParameters/>
+</cdf>

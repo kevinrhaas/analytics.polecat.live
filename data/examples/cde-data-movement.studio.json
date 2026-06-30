@@ -1,0 +1,109 @@
+{
+  "schema": 1,
+  "id": "cde-data-movement",
+  "name": "cde-data-movement",
+  "title": "Catalog Data Movement",
+  "description": "CDE-authored dashboard, editable in Pentaho CDE — cross-platform data movement (GB) by source, destination & integration over PDC-BIDB-EXT.",
+  "group": "Data Integration",
+  "cda": {
+    "connection": {
+      "id": "pdc",
+      "jndi": "PDC-BIDB-EXT"
+    },
+    "dataAccesses": [
+      {
+        "id": "gbBySource",
+        "name": "GbBySource",
+        "params": [],
+        "cache": true,
+        "cacheDuration": 300,
+        "sql": "SELECT split_part(c.orig_namespace,'://',1) AS src, ROUND(SUM(c.bytes_moved)/1e9::numeric,1) AS gb FROM fact_lineage_connection c WHERE c.orig_namespace<>c.dest_namespace AND c.bytes_moved>0 GROUP BY 1 HAVING SUM(c.bytes_moved)>0 ORDER BY 2 DESC",
+        "columns": [
+          "src",
+          "gb"
+        ]
+      },
+      {
+        "id": "gbByDest",
+        "name": "GbByDest",
+        "params": [],
+        "cache": true,
+        "cacheDuration": 300,
+        "sql": "SELECT split_part(c.dest_namespace,'://',1) AS dst, ROUND(SUM(c.bytes_moved)/1e9::numeric,1) AS gb FROM fact_lineage_connection c WHERE c.orig_namespace<>c.dest_namespace AND c.bytes_moved>0 GROUP BY 1 HAVING SUM(c.bytes_moved)>0 ORDER BY 2 DESC",
+        "columns": [
+          "dst",
+          "gb"
+        ]
+      },
+      {
+        "id": "gbByIntegration",
+        "name": "GbByIntegration",
+        "params": [],
+        "cache": true,
+        "cacheDuration": 300,
+        "sql": "SELECT j.integration AS integ, ROUND(SUM(c.bytes_moved)/1e9::numeric,1) AS gb FROM fact_lineage_connection c JOIN dim_lineage_job j ON c.lineage_job_key=j.lineage_job_key WHERE c.bytes_moved>0 AND j.integration<>'Unknown' GROUP BY 1 ORDER BY 2 DESC",
+        "columns": [
+          "integ",
+          "gb"
+        ]
+      }
+    ]
+  },
+  "gridCols": 2,
+  "panels": [
+    {
+      "id": "p1",
+      "title": "Gb By Source",
+      "span": 1,
+      "chart": {
+        "type": "bars",
+        "da": "gbBySource",
+        "map": {
+          "labelCol": "src",
+          "valueCol": "gb"
+        },
+        "opts": {
+          "fmt": "gb",
+          "valuesVisible": true,
+          "horizontal": true
+        }
+      }
+    },
+    {
+      "id": "p2",
+      "title": "Gb By Dest",
+      "span": 1,
+      "chart": {
+        "type": "bars",
+        "da": "gbByDest",
+        "map": {
+          "labelCol": "dst",
+          "valueCol": "gb"
+        },
+        "opts": {
+          "fmt": "gb",
+          "valuesVisible": true,
+          "horizontal": true
+        }
+      }
+    },
+    {
+      "id": "p3",
+      "title": "Gb By Integration",
+      "span": "full",
+      "chart": {
+        "type": "bars",
+        "da": "gbByIntegration",
+        "map": {
+          "labelCol": "integ",
+          "valueCol": "gb"
+        },
+        "opts": {
+          "fmt": "gb",
+          "valuesVisible": true,
+          "horizontal": false
+        }
+      }
+    }
+  ]
+}

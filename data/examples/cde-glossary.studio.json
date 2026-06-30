@@ -1,0 +1,108 @@
+{
+  "schema": 1,
+  "id": "cde-glossary",
+  "name": "cde-glossary",
+  "title": "Business Glossary & Term Reach",
+  "description": "CDE-authored — term reach by glossary, classified-vs-unclassified coverage & top terms over PDC-BIDB-EXT.",
+  "group": "Usage & People",
+  "cda": {
+    "connection": {
+      "id": "pdc",
+      "jndi": "PDC-BIDB-EXT"
+    },
+    "dataAccesses": [
+      {
+        "id": "termsByGlossary",
+        "name": "TermsByGlossary",
+        "params": [],
+        "cache": true,
+        "cacheDuration": 300,
+        "sql": "SELECT g.level_1_glossary AS glossary, count(DISTINCT f.entity_key) AS entities FROM fact_entity_term f JOIN dim_glossary_term g ON f.glossary_term_key=g.glossary_term_key WHERE NULLIF(g.level_1_glossary,'') IS NOT NULL GROUP BY 1 ORDER BY 2 DESC",
+        "columns": [
+          "glossary",
+          "entities"
+        ]
+      },
+      {
+        "id": "topTerms",
+        "name": "TopTerms",
+        "params": [],
+        "cache": true,
+        "cacheDuration": 300,
+        "sql": "SELECT COALESCE(NULLIF(g.leaf_name,''),g.term_name) AS term, count(DISTINCT f.entity_key) AS entities FROM fact_entity_term f JOIN dim_glossary_term g ON f.glossary_term_key=g.glossary_term_key GROUP BY 1 ORDER BY 2 DESC LIMIT 12",
+        "columns": [
+          "term",
+          "entities"
+        ]
+      },
+      {
+        "id": "classified",
+        "name": "Classified",
+        "params": [],
+        "cache": true,
+        "cacheDuration": 300,
+        "sql": "SELECT 'Classified' AS label, count(DISTINCT entity_key) AS assets FROM fact_entity_term UNION ALL SELECT 'Unclassified', GREATEST((SELECT SUM(entity_count) FROM fact_entity_snapshot) - (SELECT count(DISTINCT entity_key) FROM fact_entity_term),0)",
+        "columns": [
+          "label",
+          "assets"
+        ]
+      }
+    ]
+  },
+  "gridCols": 2,
+  "panels": [
+    {
+      "id": "p1",
+      "title": "Terms By Glossary",
+      "span": 1,
+      "chart": {
+        "type": "bars",
+        "da": "termsByGlossary",
+        "map": {
+          "labelCol": "glossary",
+          "valueCol": "entities"
+        },
+        "opts": {
+          "fmt": "abbr",
+          "valuesVisible": true,
+          "horizontal": true
+        }
+      }
+    },
+    {
+      "id": "p2",
+      "title": "Classified",
+      "span": 1,
+      "chart": {
+        "type": "donut",
+        "da": "classified",
+        "map": {
+          "labelCol": "label",
+          "valueCol": "assets"
+        },
+        "opts": {
+          "fmt": "abbr",
+          "valuesVisible": true
+        }
+      }
+    },
+    {
+      "id": "p3",
+      "title": "Top Terms",
+      "span": "full",
+      "chart": {
+        "type": "bars",
+        "da": "topTerms",
+        "map": {
+          "labelCol": "term",
+          "valueCol": "entities"
+        },
+        "opts": {
+          "fmt": "abbr",
+          "valuesVisible": true,
+          "horizontal": false
+        }
+      }
+    }
+  ]
+}

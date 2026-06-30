@@ -1,0 +1,6 @@
+tests/node_modules/
+tests/package-lock.json
+*.log
+.DS_Store
+
+dist/

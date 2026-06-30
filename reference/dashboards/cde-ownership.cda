@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CDADescriptor>
+  <DataSources><Connection id="pdc" type="sql.jndi"><Jndi>PDC-BIDB-EXT</Jndi></Connection></DataSources>
+
+  <DataAccess id="missingBySource" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>MissingBySource</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT d.datasource_type AS src, SUM(s.missing_owner_count) AS missing
+      FROM fact_entity_snapshot s JOIN dim_datasource d ON s.datasource_key=d.datasource_key
+      GROUP BY 1 ORDER BY 2 DESC
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="ownedMix" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>OwnedMix</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT 'Owned' AS label, GREATEST(SUM(entity_count)-SUM(missing_owner_count),0) AS assets FROM fact_entity_snapshot
+      UNION ALL SELECT 'Unowned', SUM(missing_owner_count) FROM fact_entity_snapshot
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="ownedPctBySource" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>OwnedPctBySource</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT d.datasource_type AS src,
+             ROUND(100.0*(SUM(s.entity_count)-SUM(s.missing_owner_count))/NULLIF(SUM(s.entity_count),0),1) AS owned_pct
+      FROM fact_entity_snapshot s JOIN dim_datasource d ON s.datasource_key=d.datasource_key
+      GROUP BY 1 ORDER BY 2 DESC
+    ]]></Query>
+  </DataAccess>
+</CDADescriptor>

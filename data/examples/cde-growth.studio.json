@@ -1,0 +1,109 @@
+{
+  "schema": 1,
+  "id": "cde-growth",
+  "name": "cde-growth",
+  "title": "Catalog Growth & Discovery",
+  "description": "CDE-authored — assets by source, assets by sensitivity & cumulative catalog growth over PDC-BIDB-EXT.",
+  "group": "Observability",
+  "cda": {
+    "connection": {
+      "id": "pdc",
+      "jndi": "PDC-BIDB-EXT"
+    },
+    "dataAccesses": [
+      {
+        "id": "assetsBySource",
+        "name": "AssetsBySource",
+        "params": [],
+        "cache": true,
+        "cacheDuration": 300,
+        "sql": "SELECT COALESCE(NULLIF(dd.datasource_type,''),'Unknown') AS src, SUM(s.entity_count) AS assets FROM fact_entity_snapshot s JOIN dim_datasource dd ON s.datasource_key=dd.datasource_key GROUP BY 1 ORDER BY 2 DESC",
+        "columns": [
+          "src",
+          "assets"
+        ]
+      },
+      {
+        "id": "assetsBySensitivity",
+        "name": "AssetsBySensitivity",
+        "params": [],
+        "cache": true,
+        "cacheDuration": 300,
+        "sql": "SELECT COALESCE(NULLIF(sensitivity,''),'Unclassified') AS s, count(*) AS assets FROM dim_entity GROUP BY 1 ORDER BY 2 DESC",
+        "columns": [
+          "s",
+          "assets"
+        ]
+      },
+      {
+        "id": "cumulativeGrowth",
+        "name": "CumulativeGrowth",
+        "params": [],
+        "cache": true,
+        "cacheDuration": 300,
+        "sql": "SELECT month, cumulative FROM ( SELECT d.year_month_name AS month, d.year_month_number AS ym, SUM(SUM(s.entity_count)) OVER (ORDER BY d.year_month_number) AS cumulative FROM fact_entity_snapshot s JOIN dim_date d ON s.scanned_date_key=d.date_key WHERE s.scanned_date_key<>19000101 GROUP BY 1,2 ) t ORDER BY ym",
+        "columns": [
+          "month",
+          "ym",
+          "cumulative"
+        ]
+      }
+    ]
+  },
+  "gridCols": 2,
+  "panels": [
+    {
+      "id": "p1",
+      "title": "Assets By Source",
+      "span": 1,
+      "chart": {
+        "type": "bars",
+        "da": "assetsBySource",
+        "map": {
+          "labelCol": "src",
+          "valueCol": "assets"
+        },
+        "opts": {
+          "fmt": "abbr",
+          "valuesVisible": true,
+          "horizontal": true
+        }
+      }
+    },
+    {
+      "id": "p2",
+      "title": "Assets By Sensitivity",
+      "span": 1,
+      "chart": {
+        "type": "donut",
+        "da": "assetsBySensitivity",
+        "map": {
+          "labelCol": "s",
+          "valueCol": "assets"
+        },
+        "opts": {
+          "fmt": "abbr",
+          "valuesVisible": true
+        }
+      }
+    },
+    {
+      "id": "p3",
+      "title": "Cumulative Growth",
+      "span": "full",
+      "chart": {
+        "type": "bars",
+        "da": "cumulativeGrowth",
+        "map": {
+          "labelCol": "month",
+          "valueCol": "ym"
+        },
+        "opts": {
+          "fmt": "abbr",
+          "valuesVisible": true,
+          "horizontal": false
+        }
+      }
+    }
+  ]
+}

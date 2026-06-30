@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CDADescriptor>
+  <DataSources><Connection id="pdc" type="sql.jndi"><Jndi>PDC-BIDB-EXT</Jndi></Connection></DataSources>
+
+  <!-- Cost + carbon from the dimensional model (no entity_storage_demo). FILE+TABLE own-bytes.
+       $/mo = (bytes/1e12)*dim_entity.cost_per_tb_usd; CO2e t/yr = (bytes/1e12)*10/1000. -->
+  <DataAccess id="costBySource" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>CostBySource</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT d.datasource_type AS src, ROUND(SUM((s.bytes/1e12::numeric)*COALESCE(e.cost_per_tb_usd,0))::numeric,0) AS cost
+      FROM fact_entity_snapshot s JOIN dim_entity e ON s.entity_key=e.entity_key
+      JOIN dim_datasource d ON s.datasource_key=d.datasource_key
+      WHERE e.entity_type IN ('FILE','TABLE') GROUP BY 1 ORDER BY 2 DESC
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="costBySensitivity" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>CostBySensitivity</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT COALESCE(NULLIF(e.sensitivity,''),'Unclassified') AS sens, ROUND(SUM((s.bytes/1e12::numeric)*COALESCE(e.cost_per_tb_usd,0))::numeric,0) AS cost
+      FROM fact_entity_snapshot s JOIN dim_entity e ON s.entity_key=e.entity_key
+      WHERE e.entity_type IN ('FILE','TABLE') GROUP BY 1 ORDER BY 2 DESC
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="co2eBySource" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>Co2eBySource</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT d.datasource_type AS src, ROUND((SUM(s.bytes)/1e12::numeric)*10/1000::numeric,2) AS tonnes
+      FROM fact_entity_snapshot s JOIN dim_entity e ON s.entity_key=e.entity_key
+      JOIN dim_datasource d ON s.datasource_key=d.datasource_key
+      WHERE e.entity_type IN ('FILE','TABLE') GROUP BY 1 ORDER BY 2 DESC
+    ]]></Query>
+  </DataAccess>
+</CDADescriptor>

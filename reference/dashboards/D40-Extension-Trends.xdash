@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dashboard>
+<title>D40 Extension Trends</title>
+<heading/>
+<enableWidgetPrinting>false</enableWidgetPrinting>
+<documentation>
+<author>admin</author>
+<description>File extension distribution — single-metric charts.</description>
+<icon/>
+</documentation>
+<template-ref>xul/04-1-then-2.xul</template-ref>
+<theme-ref>0-Ruby</theme-ref>
+<layout>
+<overlay xmlns:pho="http://www.pentaho.com" pho:fixie="withme">
+<box id="Panel_1" pho:title="Files by Category" flex="1" collapsed="false" type="titled-panel"/>
+<box id="Panel_2" pho:title="Top Extensions" flex="1" collapsed="false" type="titled-panel"/>
+<box id="Panel_3" pho:title="Extensions by Source Pivot" flex="1" collapsed="false" type="titled-panel"/>
+<box id="Panel_4" pho:title="Extension Files Trend" flex="1" collapsed="false" type="titled-panel"/>
+</overlay>
+</layout>
+<parameters>
+</parameters>
+<widgetJavascript><![CDATA[]]></widgetJavascript>
+<widgets>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/17-extension-files-by-category.xanalyzer</xactionPath><localizedName jsonType="string">17-extension-files-by-category</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">18001</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/17-extension-files-by-category.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_1</htmlObject><solution jsonType="string"/><name jsonType="string">widget1</name><action jsonType="string">17-extension-files-by-category.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/17-extension-top-extensions.xanalyzer</xactionPath><localizedName jsonType="string">17-extension-top-extensions</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">18002</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/17-extension-top-extensions.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_2</htmlObject><solution jsonType="string"/><name jsonType="string">widget2</name><action jsonType="string">17-extension-top-extensions.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/17-extension-by-source.xanalyzer</xactionPath><localizedName jsonType="string">17-extension-by-source</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">18003</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/17-extension-by-source.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_3</htmlObject><solution jsonType="string"/><name jsonType="string">widget3</name><action jsonType="string">17-extension-by-source.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/17-extension-trend.xanalyzer</xactionPath><localizedName jsonType="string">17-extension-trend</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">18004</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/17-extension-trend.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_4</htmlObject><solution jsonType="string"/><name jsonType="string">widget4</name><action jsonType="string">17-extension-trend.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+</widgets>
+</dashboard>

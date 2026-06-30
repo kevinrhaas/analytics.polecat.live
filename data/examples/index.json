@@ -1,0 +1,138 @@
+[
+  {
+    "file": "studio-cost.studio.json",
+    "title": "Cost & Sustainability",
+    "track": "CDF",
+    "panels": 6,
+    "kpis": 4,
+    "types": ["bars", "donut", "treemap", "line"]
+  },
+  {
+    "file": "cde-applications.studio.json",
+    "title": "Application & Access Reach",
+    "track": "CDE",
+    "panels": 3,
+    "kpis": 0,
+    "types": ["bars", "donut"]
+  },
+  {
+    "file": "cde-compliance.studio.json",
+    "title": "Sensitive Data & Compliance Radar",
+    "track": "CDE",
+    "panels": 3,
+    "kpis": 0,
+    "types": ["bars", "donut"]
+  },
+  {
+    "file": "cde-cost.studio.json",
+    "title": "Cost Optimization & Sustainability",
+    "track": "CDE",
+    "panels": 3,
+    "kpis": 0,
+    "types": ["bars", "donut"]
+  },
+  {
+    "file": "cde-data-integration.studio.json",
+    "title": "Data Integration Health",
+    "track": "CDE",
+    "panels": 3,
+    "kpis": 0,
+    "types": ["bars", "donut"]
+  },
+  {
+    "file": "cde-data-movement.studio.json",
+    "title": "Catalog Data Movement",
+    "track": "CDE",
+    "panels": 3,
+    "kpis": 0,
+    "types": ["bars"]
+  },
+  {
+    "file": "cde-freshness.studio.json",
+    "title": "Data Freshness & Staleness",
+    "track": "CDE",
+    "panels": 3,
+    "kpis": 0,
+    "types": ["bars", "donut"]
+  },
+  {
+    "file": "cde-glossary.studio.json",
+    "title": "Business Glossary & Term Reach",
+    "track": "CDE",
+    "panels": 3,
+    "kpis": 0,
+    "types": ["bars", "donut"]
+  },
+  {
+    "file": "cde-governance.studio.json",
+    "title": "Policy & Governance Coverage",
+    "track": "CDE",
+    "panels": 3,
+    "kpis": 0,
+    "types": ["bars", "donut"]
+  },
+  {
+    "file": "cde-growth.studio.json",
+    "title": "Catalog Growth & Discovery",
+    "track": "CDE",
+    "panels": 3,
+    "kpis": 0,
+    "types": ["bars", "donut"]
+  },
+  {
+    "file": "cde-observability.studio.json",
+    "title": "Catalog Observability",
+    "track": "CDE",
+    "panels": 3,
+    "kpis": 0,
+    "types": ["bars", "donut"]
+  },
+  {
+    "file": "cde-ownership.studio.json",
+    "title": "Ownership & Stewardship",
+    "track": "CDE",
+    "panels": 3,
+    "kpis": 0,
+    "types": ["bars", "donut"]
+  },
+  {
+    "file": "cde-pipeline-obs.studio.json",
+    "title": "Pipeline & Job Observability",
+    "track": "CDE",
+    "panels": 3,
+    "kpis": 0,
+    "types": ["bars", "donut"]
+  },
+  {
+    "file": "cde-privacy.studio.json",
+    "title": "Sensitive Data & Privacy",
+    "track": "CDE",
+    "panels": 3,
+    "kpis": 0,
+    "types": ["bars", "donut"]
+  },
+  {
+    "file": "cde-quality.studio.json",
+    "title": "Data Quality & Metadata Completeness",
+    "track": "CDE",
+    "panels": 3,
+    "kpis": 0,
+    "types": ["bars", "donut"]
+  },
+  {
+    "file": "cde-redundancy.studio.json",
+    "title": "Redundancy & Duplicate Data",
+    "track": "CDE",
+    "panels": 3,
+    "kpis": 0,
+    "types": ["bars", "donut"]
+  },
+  {
+    "file": "cde-storage.studio.json",
+    "title": "Storage Footprint & Capacity",
+    "track": "CDE",
+    "panels": 3,
+    "kpis": 0,
+    "types": ["bars", "donut"]
+  }
+]

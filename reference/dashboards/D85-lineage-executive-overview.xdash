@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dashboard>
+<title>D85 Lineage Executive Overview</title>
+<heading/>
+<enableWidgetPrinting>false</enableWidgetPrinting>
+<documentation>
+<author>admin</author>
+<description>The headline view for leadership: how much data the platform moves, how reliably, and where. Throughput and operational reliability at a glance.</description>
+<icon/>
+</documentation>
+<template-ref>xul/04-1-then-2.xul</template-ref>
+<theme-ref>0-Ruby</theme-ref>
+<layout>
+<overlay xmlns:pho="http://www.pentaho.com" pho:fixie="withme">
+<box id="Panel_1" pho:title="Reliability &amp; Throughput KPIs by Integration" flex="1" collapsed="false" type="titled-panel"/>
+<box id="Panel_2" pho:title="GB Moved by Integration" flex="1" collapsed="false" type="titled-panel"/>
+<box id="Panel_3" pho:title="Job Success Rate % by Integration" flex="1" collapsed="false" type="titled-panel"/>
+<box id="Panel_4" pho:title="GB Moved by Month" flex="1" collapsed="false" type="titled-panel"/>
+<box id="Panel_5" pho:title="Run Volume by Month" flex="1" collapsed="false" type="titled-panel"/>
+<box id="Panel_6" pho:title="Bytes Moved: Source to Destination Namespace" flex="1" collapsed="false" type="titled-panel"/>
+</overlay>
+</layout>
+<parameters>
+</parameters>
+<widgetJavascript><![CDATA[]]></widgetJavascript>
+<widgets>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/19-rel-kpi-pivot.xanalyzer</xactionPath><localizedName jsonType="string">19-rel-kpi-pivot</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">19501</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/19-rel-kpi-pivot.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_1</htmlObject><solution jsonType="string"/><name jsonType="string">widget1</name><action jsonType="string">19-rel-kpi-pivot.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/19-thr-gb-by-integration.xanalyzer</xactionPath><localizedName jsonType="string">19-thr-gb-by-integration</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">19502</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/19-thr-gb-by-integration.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_2</htmlObject><solution jsonType="string"/><name jsonType="string">widget2</name><action jsonType="string">19-thr-gb-by-integration.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/19-rel-success-by-integration.xanalyzer</xactionPath><localizedName jsonType="string">19-rel-success-by-integration</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">19503</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/19-rel-success-by-integration.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_3</htmlObject><solution jsonType="string"/><name jsonType="string">widget3</name><action jsonType="string">19-rel-success-by-integration.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/19-thr-gb-trend.xanalyzer</xactionPath><localizedName jsonType="string">19-thr-gb-trend</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">19504</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/19-thr-gb-trend.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_4</htmlObject><solution jsonType="string"/><name jsonType="string">widget4</name><action jsonType="string">19-thr-gb-trend.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/19-rel-run-volume-trend.xanalyzer</xactionPath><localizedName jsonType="string">19-rel-run-volume-trend</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">19505</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/19-rel-run-volume-trend.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_5</htmlObject><solution jsonType="string"/><name jsonType="string">widget5</name><action jsonType="string">19-rel-run-volume-trend.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/19-thr-bytes-flow-matrix.xanalyzer</xactionPath><localizedName jsonType="string">19-thr-bytes-flow-matrix</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">19506</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/19-thr-bytes-flow-matrix.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_6</htmlObject><solution jsonType="string"/><name jsonType="string">widget6</name><action jsonType="string">19-thr-bytes-flow-matrix.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+</widgets>
+</dashboard>

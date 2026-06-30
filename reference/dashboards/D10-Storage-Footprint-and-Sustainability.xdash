@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dashboard>
+<title>D10 Storage Footprint and Sustainability</title>
+<heading/>
+<enableWidgetPrinting>false</enableWidgetPrinting>
+<documentation>
+<author>admin</author>
+<description>Storage footprint and sustainability view: storage TB by source, asset mix, lifecycle storage by accessed age, CO2e by source, temperature distribution. Single-grain panels keep visual comparisons honest.</description>
+<icon/>
+</documentation>
+<template-ref>xul/04-1-then-2.xul</template-ref>
+<theme-ref>0-Ruby</theme-ref>
+<layout>
+<overlay xmlns:pho="http://www.pentaho.com" pho:fixie="withme">
+<box id="Panel_1" pho:title="Executive KPI Snapshot" flex="1" collapsed="false" type="titled-panel"/>
+<box id="Panel_2" pho:title="Storage TB by Data Source" flex="1" collapsed="false" type="titled-panel"/>
+<box id="Panel_3" pho:title="Asset Mix by Resource Type (Storage Bytes)" flex="1" collapsed="false" type="titled-panel"/>
+<box id="Panel_4" pho:title="Lifecycle Storage TB by Accessed Age" flex="1" collapsed="false" type="titled-panel"/>
+<box id="Panel_5" pho:title="Estimated CO2e (Metric Tons/Year) by Source" flex="1" collapsed="false" type="titled-panel"/>
+<box id="Panel_6" pho:title="Data Temperature Distribution" flex="1" collapsed="false" type="titled-panel"/>
+</overlay>
+</layout>
+<parameters>
+</parameters>
+<widgetJavascript><![CDATA[]]></widgetJavascript>
+<widgets>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/10-exec-kpis.xanalyzer</xactionPath><localizedName jsonType="string">10-exec-kpis</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">12001</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/10-exec-kpis.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_1</htmlObject><solution jsonType="string"/><name jsonType="string">widget1</name><action jsonType="string">10-exec-kpis.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/10-storage-by-data-source.xanalyzer</xactionPath><localizedName jsonType="string">10-storage-by-data-source</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">12002</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/10-storage-by-data-source.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_2</htmlObject><solution jsonType="string"/><name jsonType="string">widget2</name><action jsonType="string">10-storage-by-data-source.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/00-resource-type.xanalyzer</xactionPath><localizedName jsonType="string">00-resource-type</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">12003</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/00-resource-type.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_3</htmlObject><solution jsonType="string"/><name jsonType="string">widget3</name><action jsonType="string">00-resource-type.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/10-lifecycle-by-accessed-age.xanalyzer</xactionPath><localizedName jsonType="string">10-lifecycle-by-accessed-age</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">12004</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/10-lifecycle-by-accessed-age.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_4</htmlObject><solution jsonType="string"/><name jsonType="string">widget4</name><action jsonType="string">10-lifecycle-by-accessed-age.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/11-co2e-by-data-source.xanalyzer</xactionPath><localizedName jsonType="string">11-co2e-by-data-source</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">12005</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/11-co2e-by-data-source.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_5</htmlObject><solution jsonType="string"/><name jsonType="string">widget5</name><action jsonType="string">11-co2e-by-data-source.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/00-temperature.xanalyzer</xactionPath><localizedName jsonType="string">00-temperature</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">12006</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/00-temperature.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_6</htmlObject><solution jsonType="string"/><name jsonType="string">widget6</name><action jsonType="string">00-temperature.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+</widgets>
+</dashboard>

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CDADescriptor>
+  <DataSources><Connection id="pdc" type="sql.jndi"><Jndi>PDC-BIDB-EXT</Jndi></Connection></DataSources>
+
+  <DataAccess id="assetsBySource" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>AssetsBySource</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT COALESCE(NULLIF(dd.datasource_type,''),'Unknown') AS src, SUM(s.entity_count) AS assets
+      FROM fact_entity_snapshot s JOIN dim_datasource dd ON s.datasource_key=dd.datasource_key GROUP BY 1 ORDER BY 2 DESC
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="assetsBySensitivity" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>AssetsBySensitivity</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT COALESCE(NULLIF(sensitivity,''),'Unclassified') AS s, count(*) AS assets FROM dim_entity GROUP BY 1 ORDER BY 2 DESC
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="cumulativeGrowth" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>CumulativeGrowth</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT month, cumulative FROM (
+        SELECT d.year_month_name AS month, d.year_month_number AS ym,
+               SUM(SUM(s.entity_count)) OVER (ORDER BY d.year_month_number) AS cumulative
+        FROM fact_entity_snapshot s JOIN dim_date d ON s.scanned_date_key=d.date_key
+        WHERE s.scanned_date_key<>19000101 GROUP BY 1,2
+      ) t ORDER BY ym
+    ]]></Query>
+  </DataAccess>
+</CDADescriptor>

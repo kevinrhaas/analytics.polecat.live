@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dashboard>
+<title>D81 Lineage Activity Overview</title>
+<heading/>
+<enableWidgetPrinting>false</enableWidgetPrinting>
+<documentation>
+<author>admin</author>
+<description>What is moving and how often. Event composition, run volume over time, the busiest jobs, and records moved across integrations and job types.</description>
+<icon/>
+</documentation>
+<template-ref>xul/04-1-then-2.xul</template-ref>
+<theme-ref>0-Ruby</theme-ref>
+<layout>
+<overlay xmlns:pho="http://www.pentaho.com" pho:fixie="withme">
+<box id="Panel_1" pho:title="Event Count by Lifecycle Type" flex="1" collapsed="false" type="titled-panel"/>
+<box id="Panel_2" pho:title="Run Volume by Month" flex="1" collapsed="false" type="titled-panel"/>
+<box id="Panel_3" pho:title="Top Jobs by Event Count" flex="1" collapsed="false" type="titled-panel"/>
+<box id="Panel_4" pho:title="Records Moved by Integration and Job Type" flex="1" collapsed="false" type="titled-panel"/>
+<box id="Panel_5" pho:title="Event &amp; Record Count Trend" flex="1" collapsed="false" type="titled-panel"/>
+<box id="Panel_6" pho:title="Input vs Output Count Trend" flex="1" collapsed="false" type="titled-panel"/>
+</overlay>
+</layout>
+<parameters>
+</parameters>
+<widgetJavascript><![CDATA[]]></widgetJavascript>
+<widgets>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/19-rel-lifecycle-mix.xanalyzer</xactionPath><localizedName jsonType="string">19-rel-lifecycle-mix</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">19101</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/19-rel-lifecycle-mix.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_1</htmlObject><solution jsonType="string"/><name jsonType="string">widget1</name><action jsonType="string">19-rel-lifecycle-mix.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/19-rel-run-volume-trend.xanalyzer</xactionPath><localizedName jsonType="string">19-rel-run-volume-trend</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">19102</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/19-rel-run-volume-trend.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_2</htmlObject><solution jsonType="string"/><name jsonType="string">widget2</name><action jsonType="string">19-rel-run-volume-trend.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/19-lineage-top-jobs.xanalyzer</xactionPath><localizedName jsonType="string">19-lineage-top-jobs</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">19103</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/19-lineage-top-jobs.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_3</htmlObject><solution jsonType="string"/><name jsonType="string">widget3</name><action jsonType="string">19-lineage-top-jobs.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/19-thr-records-integration-jobtype.xanalyzer</xactionPath><localizedName jsonType="string">19-thr-records-integration-jobtype</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">19104</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/19-thr-records-integration-jobtype.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_4</htmlObject><solution jsonType="string"/><name jsonType="string">widget4</name><action jsonType="string">19-thr-records-integration-jobtype.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/19-lineage-event-trend.xanalyzer</xactionPath><localizedName jsonType="string">19-lineage-event-trend</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">19105</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/19-lineage-event-trend.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_5</htmlObject><solution jsonType="string"/><name jsonType="string">widget5</name><action jsonType="string">19-lineage-event-trend.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/19-lineage-io-trend.xanalyzer</xactionPath><localizedName jsonType="string">19-lineage-io-trend</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">19106</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/19-lineage-io-trend.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_6</htmlObject><solution jsonType="string"/><name jsonType="string">widget6</name><action jsonType="string">19-lineage-io-trend.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+</widgets>
+</dashboard>

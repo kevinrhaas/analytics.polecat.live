@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CDADescriptor>
+  <DataSources>
+    <Connection id="pdc" type="sql.jndi"><Jndi>PDC-BIDB-EXT</Jndi></Connection>
+  </DataSources>
+
+  <DataAccess id="kpi" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>KPI</Name><Parameters><Parameter name="integration" type="String" default="%"/><Parameter name="fromkey" type="Integer" default="0"/></Parameters>
+    <Query><![CDATA[
+      SELECT SUM(e.started_count) AS runs,
+             ROUND(100.0*SUM(e.completed_count)/NULLIF(SUM(e.terminal_count),0),1) AS success_pct,
+             SUM(e.failed_count)+SUM(e.aborted_count) AS failures,
+             ROUND(SUM(e.output_bytes)/1e9::numeric,1) AS gb,
+             COUNT(DISTINCT j.job_name) AS jobs
+      FROM fact_lineage_event e
+      JOIN dim_lineage_job j ON e.lineage_job_key=j.lineage_job_key
+      WHERE j.integration LIKE ${integration} AND e.event_date_key >= ${fromkey}
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="success_trend" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>SuccessTrend</Name><Parameters><Parameter name="integration" type="String" default="%"/><Parameter name="fromkey" type="Integer" default="0"/></Parameters>
+    <Query><![CDATA[
+      SELECT to_char(d.full_date,'YYYY-MM') AS month,
+             ROUND(100.0*SUM(e.completed_count)/NULLIF(SUM(e.terminal_count),0),1) AS success_pct,
+             SUM(e.started_count) AS runs
+      FROM fact_lineage_event e
+      JOIN dim_date d ON e.event_date_key = d.date_key
+      JOIN dim_lineage_job j ON e.lineage_job_key=j.lineage_job_key
+      WHERE j.integration LIKE ${integration} AND e.event_date_key >= ${fromkey} AND e.event_date_key <> 19000101
+      GROUP BY 1 ORDER BY 1
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="by_integration" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>ByIntegration</Name><Parameters><Parameter name="fromkey" type="Integer" default="0"/></Parameters>
+    <Query><![CDATA[
+      SELECT j.integration AS integ,
+             ROUND(100.0*SUM(e.completed_count)/NULLIF(SUM(e.terminal_count),0),1) AS success_pct,
+             SUM(e.failed_count)+SUM(e.aborted_count) AS failures,
+             SUM(e.started_count) AS runs
+      FROM fact_lineage_event e
+      JOIN dim_lineage_job j ON e.lineage_job_key=j.lineage_job_key
+      WHERE e.event_date_key >= ${fromkey} AND j.integration<>'Unknown'
+      GROUP BY 1 ORDER BY 4 DESC
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="failures_by_job" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>FailuresByJob</Name><Parameters><Parameter name="integration" type="String" default="%"/><Parameter name="fromkey" type="Integer" default="0"/></Parameters>
+    <Query><![CDATA[
+      SELECT j.job_name AS job, SUM(e.failed_count)+SUM(e.aborted_count) AS failures
+      FROM fact_lineage_event e
+      JOIN dim_lineage_job j ON e.lineage_job_key=j.lineage_job_key
+      WHERE j.integration LIKE ${integration} AND e.event_date_key >= ${fromkey}
+      GROUP BY 1 HAVING SUM(e.failed_count)+SUM(e.aborted_count) > 0 ORDER BY 2 DESC LIMIT 15
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="job_topology" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>JobTopology</Name><Parameters><Parameter name="integration" type="String" default="%"/><Parameter name="fromkey" type="Integer" default="0"/></Parameters>
+    <Query><![CDATA[
+      WITH jf AS (
+        SELECT lineage_job_key, SUM(failed_count)+SUM(aborted_count) AS fails
+        FROM fact_lineage_event GROUP BY 1
+      ),
+      top AS (
+        SELECT c.lineage_job_key, SUM(c.bytes_moved) AS tb
+        FROM fact_lineage_connection c
+        JOIN dim_lineage_job j ON j.lineage_job_key=c.lineage_job_key
+        WHERE j.integration LIKE ${integration} AND c.event_date_key >= ${fromkey} AND c.event_date_key<>19000101
+        GROUP BY 1 ORDER BY tb DESC NULLS LAST LIMIT 14
+      )
+      SELECT j.job_name AS job,
+             regexp_replace(c.dest_namespace,'^([a-z0-9]+)://.*','\1') AS dest,
+             SUM(c.bytes_moved) AS bytes, COUNT(*) AS conns,
+             COALESCE(jf.fails,0) AS fails
+      FROM fact_lineage_connection c
+      JOIN top ON top.lineage_job_key=c.lineage_job_key
+      JOIN dim_lineage_job j ON j.lineage_job_key=c.lineage_job_key
+      LEFT JOIN jf ON jf.lineage_job_key=c.lineage_job_key
+      WHERE c.event_date_key >= ${fromkey} AND c.event_date_key<>19000101
+      GROUP BY j.job_name, dest, jf.fails
+      ORDER BY bytes DESC
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="lifecycle" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>Lifecycle</Name><Parameters><Parameter name="integration" type="String" default="%"/><Parameter name="fromkey" type="Integer" default="0"/></Parameters>
+    <Query><![CDATA[
+      SELECT et.event_type_label AS type, SUM(e.event_count) AS events
+      FROM fact_lineage_event e
+      JOIN dim_lineage_event_type et ON e.event_type_key=et.event_type_key
+      JOIN dim_lineage_job j ON e.lineage_job_key=j.lineage_job_key
+      WHERE j.integration LIKE ${integration} AND e.event_date_key >= ${fromkey}
+      GROUP BY 1 ORDER BY 1
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="run_volume" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>RunVolume</Name><Parameters><Parameter name="integration" type="String" default="%"/><Parameter name="fromkey" type="Integer" default="0"/></Parameters>
+    <Query><![CDATA[
+      SELECT to_char(d.full_date,'YYYY-MM') AS month, SUM(e.started_count) AS runs
+      FROM fact_lineage_event e
+      JOIN dim_date d ON e.event_date_key = d.date_key
+      JOIN dim_lineage_job j ON e.lineage_job_key=j.lineage_job_key
+      WHERE j.integration LIKE ${integration} AND e.event_date_key >= ${fromkey} AND e.event_date_key <> 19000101
+      GROUP BY 1 ORDER BY 1
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="run_calendar" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>RunCalendar</Name><Parameters><Parameter name="integration" type="String" default="%"/><Parameter name="fromkey" type="Integer" default="0"/></Parameters>
+    <Query><![CDATA[
+      SELECT to_char(d.full_date,'YYYY-MM-DD') AS day,
+             SUM(e.event_count) AS events,
+             SUM(e.started_count) AS runs,
+             SUM(e.failed_count)+SUM(e.aborted_count) AS fails
+      FROM fact_lineage_event e
+      JOIN dim_lineage_job j ON e.lineage_job_key=j.lineage_job_key
+      JOIN dim_date d ON e.event_date_key=d.date_key
+      WHERE j.integration LIKE ${integration} AND e.event_date_key >= ${fromkey} AND e.event_date_key<>19000101
+      GROUP BY 1 ORDER BY 1
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="failure_rate_trend" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>FailureRateTrend</Name><Parameters><Parameter name="fromkey" type="Integer" default="0"/></Parameters>
+    <Query><![CDATA[
+      SELECT to_char(d.full_date,'YYYY-MM') AS month,
+             j.integration,
+             ROUND(100.0*(SUM(e.failed_count)+SUM(e.aborted_count))/NULLIF(SUM(e.started_count),0),1) AS failure_rate
+      FROM fact_lineage_event e
+      JOIN dim_date d ON e.event_date_key = d.date_key
+      JOIN dim_lineage_job j ON e.lineage_job_key = j.lineage_job_key
+      WHERE e.event_date_key <> 19000101
+        AND e.event_date_key >= ${fromkey}
+        AND j.integration <> 'Unknown'
+      GROUP BY 1, 2 ORDER BY 1, 2
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="slowest" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>Slowest</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT view_name AS job, ROUND(AVG(runtime_seconds)::numeric,1) AS avg_secs, SUM(run_count) AS runs,
+             ROUND(100.0*SUM(success_count)/NULLIF(SUM(run_count),0),1) AS success_pct
+      FROM fact_pipeline_run GROUP BY 1 ORDER BY 2 DESC NULLS LAST LIMIT 12
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="detail_failed_runs" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>DetailFailedRuns</Name><Parameters><Parameter name="job" type="String" default="%"/><Parameter name="integration" type="String" default="%"/><Parameter name="fromkey" type="Integer" default="0"/></Parameters>
+    <Query><![CDATA[ SELECT e.run_id,
+      COALESCE(NULLIF(et.event_type_label,''),'(event)') AS event,
+      e.event_date_key AS day,
+      j.integration AS integration,
+      COALESCE(NULLIF(e.out_namespace,''),NULLIF(e.in_namespace,''),'—') AS namespace,
+      e.record_count AS records
+      FROM fact_lineage_event e
+      JOIN dim_lineage_job j ON e.lineage_job_key=j.lineage_job_key
+      LEFT JOIN dim_lineage_event_type et ON e.event_type_key=et.event_type_key
+      WHERE j.job_name LIKE ${job} AND (e.failed_count>0 OR e.aborted_count>0)
+        AND j.integration LIKE ${integration} AND e.event_date_key >= ${fromkey}
+      ORDER BY e.event_date_key DESC, e.run_id ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="integrations" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>Integrations</Name><Parameters/>
+    <Query><![CDATA[ SELECT DISTINCT integration FROM dim_lineage_job WHERE integration NOT IN ('Unknown') ORDER BY 1 ]]></Query>
+  </DataAccess>
+</CDADescriptor>

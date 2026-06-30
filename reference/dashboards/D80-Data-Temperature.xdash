@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dashboard>
+<title>D80 Data Temperature</title>
+<heading>Data Temperature</heading>
+<enableWidgetPrinting>false</enableWidgetPrinting>
+<documentation>
+<author>admin</author>
+<description/>
+<icon/>
+</documentation>
+<template-ref>xul/02-2-then-1.xul</template-ref>
+<theme-ref>0-Ruby</theme-ref>
+<layout>
+<overlay xmlns:pho="http://www.pentaho.com" pho:fixie="withme">
+<box id="Panel_1" pho:title="Bytes by Data Temperature" flex="1" collapsed="false" type="titled-panel"/>
+<box id="Panel_2" pho:title="Data Source Type By Data Temperature" flex="1" collapsed="false" type="titled-panel"/>
+<box id="Panel_3" pho:title="File Type By Data Temperature" flex="1" collapsed="false" type="titled-panel"/>
+<box id="Panel_4" pho:title="Untitled 4"/>
+<box id="Panel_5" pho:title="Untitled 5"/>
+<box id="Panel_6" pho:title="Untitled 6"/>
+<box id="Panel_7" pho:title="Untitled 7"/>
+<box id="Panel_8" pho:title="Untitled 8"/>
+<box id="Panel_9" pho:title="Untitled 9"/>
+<box id="Panel_10" pho:title="Untitled 10"/>
+<box id="Label_1" pho:value="!DashboardRenderer.DEFAULT_LABEL_TEXT!"/>
+<box id="Label_2" pho:value="!DashboardRenderer.DEFAULT_LABEL_TEXT!"/>
+<box id="Label_3" pho:value="!DashboardRenderer.DEFAULT_LABEL_TEXT!"/>
+<box id="Label_4" pho:value="!DashboardRenderer.DEFAULT_LABEL_TEXT!"/>
+<box id="Label_5" pho:value="!DashboardRenderer.DEFAULT_LABEL_TEXT!"/>
+<box id="Label_6" pho:value="!DashboardRenderer.DEFAULT_LABEL_TEXT!"/>
+<box id="Label_7" pho:value="!DashboardRenderer.DEFAULT_LABEL_TEXT!"/>
+<box id="Label_8" pho:value="!DashboardRenderer.DEFAULT_LABEL_TEXT!"/>
+<box id="Label_9" pho:value="!DashboardRenderer.DEFAULT_LABEL_TEXT!"/>
+<box id="Label_10" pho:value="!DashboardRenderer.DEFAULT_LABEL_TEXT!"/>
+<box id="titlebar" hidden="false" collapsed="false" width="0" type="pagetitle" title="" height="23"/><box id="widget-area" flex="1"/><box id="widget-area" type="scrollarea"/><box id="FilterPanel" hidden="true" collapsed="false" width="0" type="povpanel" title="" height="100"/><box id="bottomWrapper" flex="1"/><box id="bottomWrapper" type="layout"/><box id="vbox1" flex="1"/><box id="vbox1" type="layout"/><box id="vbox2" flex="1"/><box id="vbox2" type="layout"/></overlay>
+</layout>
+<parameters>
+</parameters>
+
+
+
+<widgetJavascript><![CDATA[%5B%7B%22localizedName%22%3A%2200-temperature%22%2C%22GUID%22%3A%2216924%22%2C%22type%22%3A%22AnalyzerComponent%22%2C%22iframe%22%3Atrue%2C%22parameters%22%3A%5B%5D%2C%22outputParameters%22%3A%5B%5B%22Level%202%22%2Cfalse%2C%2216924%24%5BBusiness%20Glossary%5D.%5BLevel%202%5D%22%5D%5D%2C%22name%22%3A%22widget1%22%2C%22htmlObject%22%3A%22content-area-Panel_1%22%2C%22xactionPath%22%3A%22%2Fpublic%2Fpdc-analysis%2Fanalyzer%2F00-temperature.xanalyzer%22%2C%22solution%22%3A%22%22%2C%22path%22%3A%22%2Fpublic%2Fpdc-analysis%2Fanalyzer%2F00-temperature.xanalyzer%22%2C%22action%22%3A%2200-temperature.xanalyzer%22%2C%22staticParameters%22%3Atrue%2C%22isDirty%22%3Afalse%2C%22listeners%22%3A%5B%5D%2C%22refreshPeriod%22%3A0%2C%22cl%22%3A%22%22%7D%2C%7B%22localizedName%22%3A%2200-temperature-data-source%22%2C%22GUID%22%3A%2228517%22%2C%22type%22%3A%22AnalyzerComponent%22%2C%22iframe%22%3Atrue%2C%22parameters%22%3A%5B%5D%2C%22outputParameters%22%3A%5B%5B%22Data%20Source%20Type%22%2Cfalse%2C%2228517%24%5BData%20Source%5D.%5BData%20Source%20Type%5D%22%5D%2C%5B%22Level%202%22%2Cfalse%2C%2228517%24%5BBusiness%20Glossary%5D.%5BLevel%202%5D%22%5D%5D%2C%22name%22%3A%22widget2%22%2C%22htmlObject%22%3A%22content-area-Panel_2%22%2C%22xactionPath%22%3A%22%2Fpublic%2Fpdc-analysis%2Fanalyzer%2F00-temperature-data-source.xanalyzer%22%2C%22solution%22%3A%22%22%2C%22path%22%3A%22%2Fpublic%2Fpdc-analysis%2Fanalyzer%2F00-temperature-data-source.xanalyzer%22%2C%22action%22%3A%2200-temperature-data-source.xanalyzer%22%2C%22staticParameters%22%3Atrue%2C%22isDirty%22%3Afalse%2C%22listeners%22%3A%5B%5D%2C%22refreshPeriod%22%3A0%2C%22cl%22%3A%22%22%7D%2C%7B%22localizedName%22%3A%2200-temperature-file-type%22%2C%22GUID%22%3A%2299336%22%2C%22type%22%3A%22AnalyzerComponent%22%2C%22iframe%22%3Atrue%2C%22parameters%22%3A%5B%5D%2C%22outputParameters%22%3A%5B%5B%22Level%202%22%2Cfalse%2C%2299336%24%5BBusiness%20Glossary%5D.%5BLevel%202%5D%22%5D%2C%5B%22File%20Type%22%2Cfalse%2C%2299336%24%5BFile%20Type%5D.%5BFile%20Type%5D%22%5D%5D%2C%22name%22%3A%22widget3%22%2C%22htmlObject%22%3A%22content-area-Panel_3%22%2C%22xactionPath%22%3A%22%2Fpublic%2Fpdc-analysis%2Fanalyzer%2F00-temperature-file-type.xanalyzer%22%2C%22solution%22%3A%22%22%2C%22path%22%3A%22%2Fpublic%2Fpdc-analysis%2Fanalyzer%2F00-temperature-file-type.xanalyzer%22%2C%22action%22%3A%2200-temperature-file-type.xanalyzer%22%2C%22staticParameters%22%3Atrue%2C%22isDirty%22%3Afalse%2C%22listeners%22%3A%5B%5D%2C%22refreshPeriod%22%3A0%2C%22cl%22%3A%22%22%7D%5D]]></widgetJavascript>
+<widgets><widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/00-temperature.xanalyzer</xactionPath><localizedName jsonType="string">00-temperature</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">16924</GUID><cl jsonType="string"/><staticParameters jsonType="string">true</staticParameters><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/00-temperature.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_1</htmlObject><solution jsonType="string"/><name jsonType="string">widget1</name><action jsonType="string">00-temperature.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"><parameter0 jsonType="object"><name jsonType="string">Level 2</name><id jsonType="string">16924__dollar_[Business Glossary].[Level 2]</id><enabled jsonType="string">false</enabled></parameter0></outputParameters></widget><widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/00-temperature-data-source.xanalyzer</xactionPath><localizedName jsonType="string">00-temperature-data-source</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">28517</GUID><cl jsonType="string"/><staticParameters jsonType="string">true</staticParameters><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/00-temperature-data-source.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_2</htmlObject><solution jsonType="string"/><name jsonType="string">widget2</name><action jsonType="string">00-temperature-data-source.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"><parameter0 jsonType="object"><name jsonType="string">Data Source Type</name><id jsonType="string">28517__dollar_[Data Source].[Data Source Type]</id><enabled jsonType="string">false</enabled></parameter0><parameter1 jsonType="object"><name jsonType="string">Level 2</name><id jsonType="string">28517__dollar_[Business Glossary].[Level 2]</id><enabled jsonType="string">false</enabled></parameter1></outputParameters></widget><widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/00-temperature-file-type.xanalyzer</xactionPath><localizedName jsonType="string">00-temperature-file-type</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">99336</GUID><cl jsonType="string"/><staticParameters jsonType="string">true</staticParameters><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/00-temperature-file-type.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_3</htmlObject><solution jsonType="string"/><name jsonType="string">widget3</name><action jsonType="string">00-temperature-file-type.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"><parameter0 jsonType="object"><name jsonType="string">Level 2</name><id jsonType="string">99336__dollar_[Business Glossary].[Level 2]</id><enabled jsonType="string">false</enabled></parameter0><parameter1 jsonType="object"><name jsonType="string">File Type</name><id jsonType="string">99336__dollar_[File Type].[File Type]</id><enabled jsonType="string">false</enabled></parameter1></outputParameters></widget></widgets></dashboard>

@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CDADescriptor>
+  <DataSources><Connection id="pdc" type="sql.jndi"><Jndi>PDC-BIDB-EXT</Jndi></Connection></DataSources>
+
+  <DataAccess id="kpi" connection="pdc" type="sql" access="public" cache="true" cacheDuration="180">
+    <Name>KPI</Name><Parameters><Parameter name="dtype" type="String" default="%"/><Parameter name="schema" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT count(*) AS cols,
+             count(*) FILTER (WHERE row_count>10 AND cardinality>=row_count*0.99) AS key_candidates,
+             count(*) FILTER (WHERE cardinality=1) AS dead_cols,
+             count(*) FILTER (WHERE row_count>0 AND null_count>0) AS has_nulls
+      FROM dim_entity
+      WHERE NULLIF(column_data_type,'') IS NOT NULL AND column_data_type LIKE ${dtype}
+        AND split_part(regexp_replace(structured_column,'^.*/([^/]+/[^/]+)/[^/]*$','\1'),'/',1) LIKE ${schema}
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="health_mix" connection="pdc" type="sql" access="public" cache="true" cacheDuration="180">
+    <Name>HealthMix</Name><Parameters><Parameter name="dtype" type="String" default="%"/><Parameter name="schema" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT CASE WHEN cardinality=1 THEN '4. Constant (dead)'
+                  WHEN row_count>10 AND cardinality>=row_count*0.99 THEN '1. Unique (key candidate)'
+                  WHEN cardinality::numeric/NULLIF(row_count,0)>=0.5 THEN '2. High cardinality'
+                  ELSE '3. Low / normal' END AS bucket, count(*) AS cols
+      FROM dim_entity
+      WHERE NULLIF(column_data_type,'') IS NOT NULL AND column_data_type LIKE ${dtype}
+        AND split_part(regexp_replace(structured_column,'^.*/([^/]+/[^/]+)/[^/]*$','\1'),'/',1) LIKE ${schema}
+      GROUP BY 1 ORDER BY 1
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="by_type" connection="pdc" type="sql" access="public" cache="true" cacheDuration="180">
+    <Name>ByType</Name><Parameters><Parameter name="schema" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT column_data_type AS dtype, count(*) AS cols
+      FROM dim_entity WHERE NULLIF(column_data_type,'') IS NOT NULL
+        AND split_part(regexp_replace(structured_column,'^.*/([^/]+/[^/]+)/[^/]*$','\1'),'/',1) LIKE ${schema}
+      GROUP BY 1 ORDER BY 2 DESC LIMIT 12
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="dead_by_table" connection="pdc" type="sql" access="public" cache="true" cacheDuration="180">
+    <Name>DeadByTable</Name><Parameters><Parameter name="dtype" type="String" default="%"/><Parameter name="schema" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT regexp_replace(structured_column,'^.*/([^/]+/[^/]+)/[^/]*$','\1') AS tbl, count(*) AS dead
+      FROM dim_entity
+      WHERE NULLIF(column_data_type,'') IS NOT NULL AND cardinality=1 AND column_data_type LIKE ${dtype}
+        AND split_part(regexp_replace(structured_column,'^.*/([^/]+/[^/]+)/[^/]*$','\1'),'/',1) LIKE ${schema}
+      GROUP BY 1 ORDER BY 2 DESC LIMIT 12
+    ]]></Query>
+  </DataAccess>
+  <DataAccess id="detail_dead_by_table" connection="pdc" type="sql" access="public" cache="true" cacheDuration="180">
+    <Name>DetailDeadByTable</Name><Parameters><Parameter name="tbl" type="String" default="%"/><Parameter name="dtype" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT regexp_replace(structured_column,'^.*/','') AS col,
+             column_data_type AS dtype,
+             row_count
+      FROM dim_entity
+      WHERE NULLIF(column_data_type,'') IS NOT NULL AND cardinality=1 AND column_data_type LIKE ${dtype}
+        AND regexp_replace(structured_column,'^.*/([^/]+/[^/]+)/[^/]*$','\1') LIKE ${tbl}
+      ORDER BY row_count DESC
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="key_candidates" connection="pdc" type="sql" access="public" cache="true" cacheDuration="180">
+    <Name>KeyCandidates</Name><Parameters><Parameter name="dtype" type="String" default="%"/><Parameter name="schema" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT regexp_replace(structured_column,'^.*/','') AS col,
+             regexp_replace(structured_column,'/[^/]*$','') AS path,
+             column_data_type AS dtype, cardinality, row_count
+      FROM dim_entity
+      WHERE NULLIF(column_data_type,'') IS NOT NULL AND row_count>10 AND cardinality>=row_count*0.99
+            AND column_data_type LIKE ${dtype}
+            AND split_part(regexp_replace(structured_column,'^.*/([^/]+/[^/]+)/[^/]*$','\1'),'/',1) LIKE ${schema}
+      ORDER BY row_count DESC LIMIT 14
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="dead_cols" connection="pdc" type="sql" access="public" cache="true" cacheDuration="180">
+    <Name>DeadCols</Name><Parameters><Parameter name="dtype" type="String" default="%"/><Parameter name="schema" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT regexp_replace(structured_column,'^.*/','') AS col,
+             regexp_replace(structured_column,'/[^/]*$','') AS path,
+             column_data_type AS dtype, row_count
+      FROM dim_entity
+      WHERE NULLIF(column_data_type,'') IS NOT NULL AND cardinality=1 AND column_data_type LIKE ${dtype}
+        AND split_part(regexp_replace(structured_column,'^.*/([^/]+/[^/]+)/[^/]*$','\1'),'/',1) LIKE ${schema}
+      ORDER BY row_count DESC LIMIT 14
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="health_by_type" connection="pdc" type="sql" access="public" cache="true" cacheDuration="180">
+    <Name>HealthByType</Name><Parameters><Parameter name="dtype" type="String" default="%"/><Parameter name="schema" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT upper(column_data_type) AS dtype,
+             CASE WHEN cardinality=1 THEN '4-Dead'
+                  WHEN row_count>10 AND cardinality>=row_count*0.99 THEN '1-Key'
+                  WHEN cardinality::numeric/NULLIF(row_count,0)>=0.5 THEN '2-High'
+                  ELSE '3-Low' END AS bucket,
+             count(*) AS cols
+      FROM dim_entity
+      WHERE NULLIF(column_data_type,'') IS NOT NULL
+        AND column_data_type LIKE ${dtype}
+        AND split_part(regexp_replace(structured_column,'^.*/([^/]+/[^/]+)/[^/]*$','\1'),'/',1) LIKE ${schema}
+      GROUP BY 1, 2
+      ORDER BY 1, 2
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="datatypes" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>DataTypes</Name><Parameters/>
+    <Query><![CDATA[ SELECT DISTINCT column_data_type FROM dim_entity WHERE NULLIF(column_data_type,'') IS NOT NULL ORDER BY 1 ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="schemas" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>Schemas</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT DISTINCT split_part(regexp_replace(structured_column,'^.*/([^/]+/[^/]+)/[^/]*$','\1'),'/',1) AS schema
+      FROM dim_entity
+      WHERE NULLIF(column_data_type,'') IS NOT NULL AND NULLIF(structured_column,'') IS NOT NULL
+        AND split_part(regexp_replace(structured_column,'^.*/([^/]+/[^/]+)/[^/]*$','\1'),'/',1) <> ''
+      ORDER BY 1
+    ]]></Query>
+  </DataAccess>
+</CDADescriptor>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cdf>
+  <title>Business Glossary &amp; Term Reach (CDE)</title>
+  <author>PDC Analytics</author>
+  <description>CDE-authored — term reach by glossary, classified-vs-unclassified coverage &amp; top terms over PDC-BIDB-EXT.</description>
+  <icon/>
+  <style>clean</style>
+  <rendererType>blueprint</rendererType>
+  <widget>false</widget>
+  <widgetParameters/>
+</cdf>

@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CDADescriptor>
+  <DataSources>
+    <Connection id="pdc" type="sql.jndi">
+      <Jndi>PDC-BIDB-EXT</Jndi>
+    </Connection>
+  </DataSources>
+
+  <!-- KPI headline tiles. integration parameter is a LIKE pattern; default '%' = all. -->
+  <DataAccess id="kpis" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>KPIs</Name>
+    <Parameters>
+      <Parameter name="integration" type="String" default="%"/>
+      <Parameter name="sens" type="String" default="%"/>
+    </Parameters>
+    <Query><![CDATA[
+      SELECT k.gb_moved, k.total_runs, k.success_pct, k.failed_runs,
+             c.restricted_ungov, c.cross_boundary, c.sensitive_conns
+      FROM (
+        SELECT ROUND(SUM(e.output_bytes)/1e9::numeric,1) AS gb_moved,
+               SUM(e.started_count)                       AS total_runs,
+               SUM(e.failed_count)+SUM(e.aborted_count)   AS failed_runs,
+               ROUND(100.0*SUM(e.completed_count)/NULLIF(SUM(e.terminal_count),0),1) AS success_pct
+        FROM fact_lineage_event e
+        JOIN dim_lineage_job j ON e.lineage_job_key=j.lineage_job_key
+        WHERE j.integration LIKE ${integration}
+      ) k
+      CROSS JOIN (
+        SELECT SUM(c.restricted_to_ungoverned_count) AS restricted_ungov,
+               SUM(c.cross_boundary_count)            AS cross_boundary,
+               SUM(c.sensitive_connection_count)      AS sensitive_conns
+        FROM fact_lineage_connection c
+        JOIN dim_lineage_job j ON c.lineage_job_key=j.lineage_job_key
+        WHERE j.integration LIKE ${integration} AND c.source_sensitivity LIKE ${sens}
+      ) c
+    ]]></Query>
+  </DataAccess>
+
+  <!-- Graph edges: source namespace -> destination namespace with volume + sensitivity -->
+  <DataAccess id="edges" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>Edges</Name>
+    <Parameters>
+      <Parameter name="integration" type="String" default="%"/>
+      <Parameter name="sens" type="String" default="%"/>
+    </Parameters>
+    <Query><![CDATA[
+      SELECT c.orig_namespace AS source,
+             c.dest_namespace AS target,
+             ROUND(SUM(c.bytes_moved)/1e9::numeric,2) AS gb,
+             SUM(c.connection_count)                  AS connections,
+             MAX(CASE c.source_sensitivity WHEN '1. Restricted' THEN 3 WHEN '2. Confidential' THEN 2 ELSE 1 END) AS src_sens,
+             MAX(CASE WHEN c.dest_governed_label='Ungoverned' THEN 1 ELSE 0 END) AS dest_ungoverned
+      FROM fact_lineage_connection c
+      JOIN dim_lineage_job j ON c.lineage_job_key=j.lineage_job_key
+      WHERE j.integration LIKE ${integration} AND c.source_sensitivity LIKE ${sens}
+        AND c.orig_namespace <> c.dest_namespace
+      GROUP BY 1,2
+      HAVING SUM(c.bytes_moved) > 0
+      ORDER BY gb DESC
+    ]]></Query>
+  </DataAccess>
+
+  <!-- Distinct integrations for the filter control -->
+  <DataAccess id="integrations" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>Integrations</Name>
+    <Parameters/>
+    <Query><![CDATA[
+      SELECT DISTINCT integration
+      FROM dim_lineage_job
+      WHERE integration NOT IN ('Unknown')
+      ORDER BY 1
+    ]]></Query>
+  </DataAccess>
+
+  <!-- Top flows table -->
+  <DataAccess id="topflows" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>TopFlows</Name>
+    <Parameters>
+      <Parameter name="integration" type="String" default="%"/>
+      <Parameter name="sens" type="String" default="%"/>
+    </Parameters>
+    <Query><![CDATA[
+      SELECT j.integration,
+             c.orig_namespace || ' -> ' || c.dest_namespace AS flow,
+             ROUND(SUM(c.bytes_moved)/1e9::numeric,2) AS gb,
+             SUM(c.connection_count) AS connections,
+             MAX(c.source_sensitivity) AS sensitivity,
+             MAX(c.dest_governed_label) AS dest_governance
+      FROM fact_lineage_connection c
+      JOIN dim_lineage_job j ON c.lineage_job_key=j.lineage_job_key
+      WHERE j.integration LIKE ${integration} AND c.source_sensitivity LIKE ${sens}
+      GROUP BY 1,2
+      ORDER BY gb DESC
+      LIMIT 25
+    ]]></Query>
+  </DataAccess>
+
+  <!-- GB moved + run volume trend by month -->
+  <DataAccess id="trend" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>Trend</Name>
+    <Parameters>
+      <Parameter name="integration" type="String" default="%"/>
+    </Parameters>
+    <Query><![CDATA[
+      SELECT to_char(d.full_date,'YYYY-MM') AS month,
+             ROUND(SUM(e.output_bytes)/1e9::numeric,1) AS gb,
+             SUM(e.started_count) AS runs
+      FROM fact_lineage_event e
+      JOIN dim_date d ON e.event_date_key = d.date_key
+      JOIN dim_lineage_job j ON e.lineage_job_key=j.lineage_job_key
+      WHERE j.integration LIKE ${integration}
+        AND e.event_date_key <> 19000101
+      GROUP BY 1 ORDER BY 1
+    ]]></Query>
+  </DataAccess>
+
+  <!-- Node drill-to-detail: every flow touching a clicked namespace (orig OR dest), row per flow -->
+  <DataAccess id="detail_node_flows" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>DetailNodeFlows</Name>
+    <Parameters>
+      <Parameter name="node" type="String" default="%"/>
+      <Parameter name="integration" type="String" default="%"/>
+      <Parameter name="sens" type="String" default="%"/>
+    </Parameters>
+    <Query><![CDATA[
+      SELECT c.orig_namespace AS source,
+             c.dest_namespace AS dest,
+             j.integration     AS integration,
+             c.source_sensitivity AS sensitivity,
+             ROUND(SUM(c.bytes_moved)/1e9::numeric,2) AS gb,
+             SUM(c.connection_count) AS conns
+      FROM fact_lineage_connection c
+      JOIN dim_lineage_job j ON c.lineage_job_key=j.lineage_job_key
+      WHERE c.orig_namespace<>c.dest_namespace AND c.bytes_moved>0
+        AND j.integration LIKE ${integration} AND c.source_sensitivity LIKE ${sens}
+        AND (c.orig_namespace LIKE ${node} OR c.dest_namespace LIKE ${node})
+      GROUP BY 1,2,3,4 ORDER BY gb DESC
+    ]]></Query>
+  </DataAccess>
+
+</CDADescriptor>

@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CDADescriptor>
+  <DataSources><Connection id="pdc" type="sql.jndi"><Jndi>PDC-BIDB-EXT</Jndi></Connection></DataSources>
+
+  <DataAccess id="scan_calendar" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>ScanCalendar</Name><Parameters><Parameter name="ds" type="String" default="%"/><Parameter name="sens" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT to_char(dt.full_date,'YYYY-MM-DD') AS day,
+             SUM(s.entity_count) AS assets,
+             SUM(s.governed_entity_count) AS governed
+      FROM fact_entity_snapshot s
+      JOIN dim_datasource d ON s.datasource_key=d.datasource_key
+      JOIN dim_date dt ON s.scanned_date_key=dt.date_key
+      LEFT JOIN dim_entity e ON s.entity_key=e.entity_key
+      WHERE d.datasource_type LIKE ${ds} AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens} AND s.scanned_date_key<>19000101
+      GROUP BY 1 ORDER BY 1
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="kpi" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>KPI</Name><Parameters><Parameter name="ds" type="String" default="%"/><Parameter name="sens" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT SUM(s.entity_count) AS assets,
+             ROUND(100.0*SUM(s.entity_count) FILTER (WHERE s.scan_freshness_band ILIKE '%stale%')/NULLIF(SUM(s.entity_count),0),1) AS stale_pct,
+             ROUND(AVG(s.accessed_age_months)::numeric,1) AS avg_access_age,
+             SUM(s.entity_count) FILTER (WHERE s.accessed_age_months >= 24) AS cold_assets
+      FROM fact_entity_snapshot s
+      JOIN dim_datasource d ON s.datasource_key=d.datasource_key
+      LEFT JOIN dim_entity e ON s.entity_key=e.entity_key
+      WHERE d.datasource_type LIKE ${ds} AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens}
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="scan_fresh" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>ScanFresh</Name><Parameters><Parameter name="ds" type="String" default="%"/><Parameter name="sens" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT COALESCE(NULLIF(s.scan_freshness_band,''),'Unknown') AS band, SUM(s.entity_count) AS assets
+      FROM fact_entity_snapshot s JOIN dim_datasource d ON s.datasource_key=d.datasource_key
+      LEFT JOIN dim_entity e ON s.entity_key=e.entity_key
+      WHERE d.datasource_type LIKE ${ds} AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens} GROUP BY 1 ORDER BY 1
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="accessed_age" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>AccessedAge</Name><Parameters><Parameter name="ds" type="String" default="%"/><Parameter name="sens" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT COALESCE(NULLIF(s.accessed_age_band,''),'Unknown') AS band, SUM(s.entity_count) AS assets
+      FROM fact_entity_snapshot s JOIN dim_datasource d ON s.datasource_key=d.datasource_key
+      LEFT JOIN dim_entity e ON s.entity_key=e.entity_key
+      WHERE d.datasource_type LIKE ${ds} AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens} GROUP BY 1 ORDER BY 1
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="modified_age" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>ModifiedAge</Name><Parameters><Parameter name="ds" type="String" default="%"/><Parameter name="sens" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT COALESCE(NULLIF(s.modified_age_band,''),'Unknown') AS band, SUM(s.entity_count) AS assets
+      FROM fact_entity_snapshot s JOIN dim_datasource d ON s.datasource_key=d.datasource_key
+      LEFT JOIN dim_entity e ON s.entity_key=e.entity_key
+      WHERE d.datasource_type LIKE ${ds} AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens} GROUP BY 1 ORDER BY 1
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="temperature" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>Temperature</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT t.temperature_name AS temp, SUM(f.file_count) AS files
+      FROM fact_temperature_daily f JOIN dim_temperature t ON f.temperature_key=t.temperature_key
+      WHERE f.snapshot_date_key=(SELECT MAX(snapshot_date_key) FROM fact_temperature_daily)
+      GROUP BY t.temperature_name, t.temperature_sort ORDER BY t.temperature_sort
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="stale_by_source" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>StaleBySource</Name><Parameters><Parameter name="sens" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT d.datasource_type AS src,
+             ROUND(100.0*SUM(s.entity_count) FILTER (WHERE s.scan_freshness_band ILIKE '%stale%' OR s.scan_freshness_band ILIKE '%aging%')/NULLIF(SUM(s.entity_count),0),1) AS stale_pct,
+             SUM(s.entity_count) AS assets
+      FROM fact_entity_snapshot s JOIN dim_datasource d ON s.datasource_key=d.datasource_key
+      LEFT JOIN dim_entity e ON s.entity_key=e.entity_key
+      WHERE COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens}
+      GROUP BY 1 ORDER BY 2 DESC NULLS LAST
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="temp_trend" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>TempTrend</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT to_char(to_date(f.snapshot_date_key::text,'YYYYMMDD'),'YYYY-MM') AS month,
+             SUM(f.file_count) FILTER (WHERE t.temperature_name ILIKE '%cold%' OR t.temperature_name ILIKE '%frozen%') AS cold,
+             SUM(f.file_count) FILTER (WHERE t.temperature_name ILIKE '%hot%' OR t.temperature_name ILIKE '%warm%') AS hotwarm
+      FROM fact_temperature_daily f JOIN dim_temperature t ON f.temperature_key=t.temperature_key
+      WHERE f.snapshot_date_key<>19000101 GROUP BY 1 ORDER BY 1
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="detail_by_freshband" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>DetailByFreshBand</Name><Parameters><Parameter name="band" type="String" default="%"/><Parameter name="ds" type="String" default="%"/><Parameter name="sens" type="String" default="%"/></Parameters>
+    <Query><![CDATA[ SELECT COALESCE(NULLIF(e.entity_name,''),'(unnamed)') AS name,
+      d.datasource_type AS src,
+      COALESCE(NULLIF(s.scan_freshness_band,''),'Unknown') AS scan_band,
+      COALESCE(NULLIF(s.accessed_age_band,''),'—') AS access_age,
+      COALESCE(NULLIF(e.sensitivity,''),'Unclassified') AS sensitivity,
+      COALESCE(NULLIF(e.owner_name,''),'—') AS owner
+      FROM fact_entity_snapshot s
+      JOIN dim_datasource d ON s.datasource_key=d.datasource_key
+      LEFT JOIN dim_entity e ON s.entity_key=e.entity_key
+      WHERE COALESCE(NULLIF(s.scan_freshness_band,''),'Unknown') LIKE ${band}
+        AND d.datasource_type LIKE ${ds}
+        AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens}
+      ORDER BY e.entity_name ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="fresh_source_matrix" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>FreshSourceMatrix</Name><Parameters><Parameter name="sens" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT d.datasource_type AS src,
+             COALESCE(NULLIF(regexp_replace(s.scan_freshness_band,'^[0-9]+\.\s*',''),''),'Unknown') AS band,
+             SUM(s.entity_count) AS n
+      FROM fact_entity_snapshot s
+      JOIN dim_datasource d ON s.datasource_key=d.datasource_key
+      LEFT JOIN dim_entity e ON s.entity_key=e.entity_key
+      WHERE COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens}
+      GROUP BY 1, 2 ORDER BY 1, 2
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="datasources" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>DataSources</Name><Parameters/>
+    <Query><![CDATA[ SELECT DISTINCT datasource_type FROM dim_datasource WHERE datasource_type IS NOT NULL AND datasource_type<>'' ORDER BY 1 ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="sensitivities" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>Sensitivities</Name><Parameters/>
+    <Query><![CDATA[ SELECT DISTINCT COALESCE(NULLIF(sensitivity,''),'Unclassified') AS s FROM dim_entity ORDER BY 1 ]]></Query>
+  </DataAccess>
+</CDADescriptor>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cdf>
+  <title>Application &amp; Access Reach (CDE)</title>
+  <author>PDC Analytics</author>
+  <description>CDE-authored — access by application, application type &amp; data source over PDC-BIDB-EXT.</description>
+  <icon/>
+  <style>clean</style>
+  <rendererType>blueprint</rendererType>
+  <widget>false</widget>
+  <widgetParameters/>
+</cdf>

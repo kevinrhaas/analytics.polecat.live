@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CDADescriptor>
+  <DataSources>
+    <Connection id="pdc" type="sql.jndi"><Jndi>PDC-BIDB-EXT</Jndi></Connection>
+  </DataSources>
+
+  <DataAccess id="kpi" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>KPI</Name><Parameters><Parameter name="ds" type="String" default="%"/><Parameter name="sensitivity" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT SUM(s.entity_count) AS total_assets,
+             ROUND(100.0*SUM(s.governed_entity_count)/NULLIF(SUM(s.entity_count),0),1) AS governed_pct,
+             ROUND(100.0*SUM(s.metadata_completed_field_count)/NULLIF(SUM(s.metadata_expected_field_count),0),1) AS completeness_pct,
+             ROUND(SUM(CASE WHEN e.entity_type IN ('FILE','TABLE') THEN s.bytes ELSE 0 END)/1e12::numeric,1) AS total_tb,
+             ROUND(SUM(CASE WHEN e.entity_type IN ('FILE','TABLE') THEN (s.bytes/1e12::numeric)*COALESCE(e.cost_per_tb_usd,0) ELSE 0 END)::numeric,0) AS monthly_cost
+      FROM fact_entity_snapshot s
+      JOIN dim_datasource d ON s.datasource_key=d.datasource_key
+      LEFT JOIN dim_entity e ON s.entity_key=e.entity_key
+      WHERE d.datasource_type LIKE ${ds}
+        AND COALESCE(e.sensitivity,'Unclassified') LIKE ${sensitivity}
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="pipeline" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>Pipeline</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT ROUND(100.0*SUM(completed_count)/NULLIF(SUM(terminal_count),0),1) AS success_pct,
+             SUM(started_count) AS runs
+      FROM fact_lineage_event
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="lineage" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>Lineage</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT SUM(restricted_to_ungoverned_count) AS restricted_ungov FROM fact_lineage_connection
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="storage_by_source" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>StorageBySource</Name><Parameters><Parameter name="ds" type="String" default="%"/><Parameter name="sensitivity" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT d.datasource_type AS src, ROUND(SUM(s.bytes)/1e12::numeric,2) AS tb, count(*) AS assets
+      FROM fact_entity_snapshot s JOIN dim_entity e ON s.entity_key=e.entity_key
+      JOIN dim_datasource d ON s.datasource_key=d.datasource_key
+      WHERE e.entity_type IN ('FILE','TABLE') AND d.datasource_type LIKE ${ds}
+        AND COALESCE(e.sensitivity,'Unclassified') LIKE ${sensitivity}
+      GROUP BY 1 ORDER BY 2 DESC
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="governance" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>Governance</Name><Parameters><Parameter name="ds" type="String" default="%"/><Parameter name="sensitivity" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT COALESCE(NULLIF(regexp_replace(s.governance_coverage_status,'^[0-9]+\.\s*',''),''),'Unknown') AS status, SUM(s.entity_count) AS assets
+      FROM fact_entity_snapshot s JOIN dim_datasource d ON s.datasource_key=d.datasource_key
+      LEFT JOIN dim_entity e ON s.entity_key=e.entity_key
+      WHERE d.datasource_type LIKE ${ds}
+        AND COALESCE(e.sensitivity,'Unclassified') LIKE ${sensitivity}
+      GROUP BY 1 ORDER BY 2 DESC
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="sensitivity" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>Sensitivity</Name><Parameters><Parameter name="ds" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT COALESCE(NULLIF(e.sensitivity,''),'Unclassified') AS sens, SUM(s.entity_count) AS assets
+      FROM fact_entity_snapshot s
+      JOIN dim_entity e ON s.entity_key=e.entity_key
+      JOIN dim_datasource d ON s.datasource_key=d.datasource_key
+      WHERE d.datasource_type LIKE ${ds} GROUP BY 1 ORDER BY 2 DESC
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="freshness" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>Freshness</Name><Parameters><Parameter name="ds" type="String" default="%"/><Parameter name="sensitivity" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT COALESCE(NULLIF(regexp_replace(s.scan_freshness_band,'^[0-9]+\.\s*',''),''),'Unknown') AS band, SUM(s.entity_count) AS assets
+      FROM fact_entity_snapshot s JOIN dim_datasource d ON s.datasource_key=d.datasource_key
+      LEFT JOIN dim_entity e ON s.entity_key=e.entity_key
+      WHERE d.datasource_type LIKE ${ds}
+        AND COALESCE(e.sensitivity,'Unclassified') LIKE ${sensitivity}
+      GROUP BY 1 ORDER BY 1
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="completeness_by_source" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>CompletenessBySource</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT d.datasource_type AS src,
+             ROUND(100.0*SUM(s.metadata_completed_field_count)/NULLIF(SUM(s.metadata_expected_field_count),0),1) AS pct
+      FROM fact_entity_snapshot s JOIN dim_datasource d ON s.datasource_key=d.datasource_key
+      GROUP BY 1 ORDER BY 2 DESC
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="datasources" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>DataSources</Name><Parameters/>
+    <Query><![CDATA[ SELECT DISTINCT datasource_type FROM dim_datasource WHERE datasource_type IS NOT NULL AND datasource_type<>'' ORDER BY 1 ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="scorecard" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>SourceScorecard</Name><Parameters><Parameter name="ds" type="String" default="%"/><Parameter name="sensitivity" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT d.datasource_type AS src,
+             count(*) AS assets,
+             ROUND(100.0*SUM(s.governed_entity_count)/NULLIF(SUM(s.entity_count),0),1) AS gov_pct,
+             ROUND(100.0*SUM(s.metadata_completed_field_count)/NULLIF(SUM(s.metadata_expected_field_count),0),1) AS comp_pct,
+             ROUND(SUM(CASE WHEN e.entity_type IN ('FILE','TABLE') THEN s.bytes ELSE 0 END)/1e12::numeric,2) AS tb
+      FROM fact_entity_snapshot s
+      JOIN dim_datasource d ON s.datasource_key=d.datasource_key
+      LEFT JOIN dim_entity e ON s.entity_key=e.entity_key
+      WHERE d.datasource_type LIKE ${ds}
+        AND COALESCE(e.sensitivity,'Unclassified') LIKE ${sensitivity}
+      GROUP BY 1 ORDER BY 2 DESC NULLS LAST
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="sensitivities" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>Sensitivities</Name><Parameters/>
+    <Query><![CDATA[ SELECT DISTINCT COALESCE(NULLIF(sensitivity,''),'Unclassified') AS s FROM dim_entity WHERE sensitivity IS NOT NULL ORDER BY 1 ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="health_trend" connection="pdc" type="sql" access="public" cache="true" cacheDuration="180">
+    <Name>HealthTrend</Name>
+    <Parameters><Parameter name="ds" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT dt.year_month_name AS month, dt.year_month_number AS ym,
+             ROUND(100.0*SUM(s.governed_entity_count)/NULLIF(SUM(s.entity_count),0),1) AS gov_pct,
+             ROUND(100.0*SUM(s.metadata_completed_field_count)/NULLIF(SUM(s.metadata_expected_field_count),0),1) AS comp_pct
+      FROM fact_entity_snapshot s
+      JOIN dim_date dt ON s.scanned_date_key=dt.date_key
+      JOIN dim_datasource d ON s.datasource_key=d.datasource_key
+      WHERE dt.date_key<>19000101
+        AND d.datasource_type LIKE ${ds}
+      GROUP BY 1,2 ORDER BY 2
+    ]]></Query>
+  </DataAccess>
+</CDADescriptor>

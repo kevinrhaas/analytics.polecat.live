@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CDADescriptor>
+  <DataSources><Connection id="pdc" type="sql.jndi"><Jndi>PDC-BIDB-EXT</Jndi></Connection></DataSources>
+
+  <DataAccess id="successByIntegration" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>SuccessByIntegration</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT j.integration AS integ,
+             ROUND(100.0*SUM(e.completed_count)/NULLIF(SUM(e.terminal_count),0),1) AS success_pct
+      FROM fact_lineage_event e
+      JOIN dim_lineage_job j ON e.lineage_job_key=j.lineage_job_key
+      WHERE j.integration<>'Unknown'
+      GROUP BY 1 ORDER BY 2 DESC
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="lifecycleMix" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>LifecycleMix</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT et.event_type_label AS type, SUM(e.event_count) AS events
+      FROM fact_lineage_event e
+      JOIN dim_lineage_event_type et ON e.event_type_key=et.event_type_key
+      GROUP BY 1 ORDER BY 2 DESC
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="failuresByJob" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>FailuresByJob</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT j.job_name AS job, SUM(e.failed_count)+SUM(e.aborted_count) AS failures
+      FROM fact_lineage_event e
+      JOIN dim_lineage_job j ON e.lineage_job_key=j.lineage_job_key
+      GROUP BY 1 HAVING SUM(e.failed_count)+SUM(e.aborted_count) > 0 ORDER BY 2 DESC LIMIT 15
+    ]]></Query>
+  </DataAccess>
+</CDADescriptor>

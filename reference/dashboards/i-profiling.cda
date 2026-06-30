@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CDADescriptor>
+  <DataSources><Connection id="pdc" type="sql.jndi"><Jndi>PDC-BIDB-EXT</Jndi></Connection></DataSources>
+  <DataAccess id="kpi" connection="pdc" type="sql" access="public" cache="true" cacheDuration="180"><Name>K</Name><Parameters/>
+    <Query><![CDATA[ SELECT count(*) FILTER (WHERE cardinality>0) AS profiled_cols,
+      round(avg(uniqueness) FILTER (WHERE uniqueness>0)::numeric,1) AS avg_uniq,
+      round(avg(selectivity) FILTER (WHERE selectivity>0)::numeric,1) AS avg_sel,
+      max(cardinality) AS max_card FROM dim_entity ]]></Query></DataAccess>
+  <DataAccess id="null_dist" connection="pdc" type="sql" access="public" cache="true" cacheDuration="180"><Name>ND</Name><Parameters/>
+    <Query><![CDATA[ SELECT CASE WHEN null_count=0 THEN '1. Complete (0%)'
+        WHEN 100.0*null_count/row_count < 5 THEN '2. <5% null'
+        WHEN 100.0*null_count/row_count < 20 THEN '3. 5-20% null'
+        WHEN 100.0*null_count/row_count < 50 THEN '4. 20-50% null'
+        ELSE '5. 50%+ null' END AS band, count(*) AS cols
+      FROM dim_entity WHERE row_count>0 GROUP BY 1 ORDER BY 1 ]]></Query></DataAccess>
+  <DataAccess id="by_source" connection="pdc" type="sql" access="public" cache="true" cacheDuration="180"><Name>BS</Name><Parameters/>
+    <Query><![CDATA[ SELECT d.datasource_type AS src, count(*) AS profiled_cols, round(avg(e.uniqueness) FILTER (WHERE e.uniqueness>0)::numeric,1) AS avg_uniq
+      FROM dim_entity e JOIN dim_datasource d ON md5(e.datasource_nk)=d.datasource_key
+      WHERE e.cardinality>0 GROUP BY 1 ORDER BY 2 DESC ]]></Query></DataAccess>
+  <DataAccess id="scatter" connection="pdc" type="sql" access="public" cache="true" cacheDuration="180"><Name>SC</Name><Parameters/>
+    <Query><![CDATA[ SELECT entity_name AS col, row_count AS rows, cardinality AS card, round(uniqueness::numeric,1) AS uniq
+      FROM dim_entity WHERE cardinality>0 AND row_count>0 ORDER BY cardinality DESC LIMIT 60 ]]></Query></DataAccess>
+  <DataAccess id="top_cols" connection="pdc" type="sql" access="public" cache="true" cacheDuration="180"><Name>TC</Name><Parameters/>
+    <Query><![CDATA[ SELECT entity_name AS col, row_count AS rows, cardinality AS card,
+      round(100.0*null_count/NULLIF(row_count,0),1) AS null_pct, round(uniqueness::numeric,1) AS uniq
+      FROM dim_entity WHERE cardinality>0 ORDER BY cardinality DESC LIMIT 18 ]]></Query></DataAccess>
+  <DataAccess id="profiling_trend" connection="pdc" type="sql" access="public" cache="true" cacheDuration="180"><Name>ProfilingTrend</Name><Parameters><Parameter name="ds" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      WITH first_scan AS (
+        SELECT s.entity_key, MIN(dt.year_month_number) AS ym, MIN(dt.year_month_name) AS ymn
+        FROM fact_entity_snapshot s JOIN dim_date dt ON s.scanned_date_key=dt.date_key
+        WHERE s.scanned_date_key<>19000101
+        GROUP BY s.entity_key
+      ),
+      monthly AS (
+        SELECT fs.ym, fs.ymn,
+          COUNT(DISTINCT fs.entity_key) AS new_entities,
+          COUNT(DISTINCT CASE WHEN e.cardinality > 0 THEN fs.entity_key END) AS new_profiled
+        FROM first_scan fs
+        JOIN dim_entity e ON fs.entity_key=e.entity_key
+        JOIN dim_datasource d ON md5(e.datasource_nk)=d.datasource_key
+        WHERE d.datasource_type LIKE ${ds}
+        GROUP BY fs.ym, fs.ymn
+      )
+      SELECT ymn AS month,
+        new_entities, SUM(new_entities) OVER (ORDER BY ym) AS cum_entities,
+        new_profiled, SUM(new_profiled) OVER (ORDER BY ym) AS cum_profiled
+      FROM monthly ORDER BY ym
+    ]]></Query>
+  </DataAccess>
+</CDADescriptor>

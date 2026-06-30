@@ -1,0 +1,108 @@
+{
+  "schema": 1,
+  "id": "cde-redundancy",
+  "name": "cde-redundancy",
+  "title": "Redundancy & Duplicate Data",
+  "description": "CDE-authored — duplicate assets by source, reclaimable TB by sensitivity & reclaimable TB by source over PDC-BIDB-EXT.",
+  "group": "Observability",
+  "cda": {
+    "connection": {
+      "id": "pdc",
+      "jndi": "PDC-BIDB-EXT"
+    },
+    "dataAccesses": [
+      {
+        "id": "dupsBySource",
+        "name": "DupsBySource",
+        "params": [],
+        "cache": true,
+        "cacheDuration": 300,
+        "sql": "SELECT datasource_type AS src, count(*) FILTER (WHERE is_duplicate) AS dups FROM entity_storage_demo GROUP BY 1 ORDER BY 2 DESC",
+        "columns": [
+          "src",
+          "dups"
+        ]
+      },
+      {
+        "id": "reclaimBySens",
+        "name": "ReclaimBySens",
+        "params": [],
+        "cache": true,
+        "cacheDuration": 300,
+        "sql": "SELECT sensitivity AS sens, ROUND(SUM(dup_savings_bytes)/1e12::numeric,2) AS tb FROM entity_storage_demo WHERE is_duplicate GROUP BY 1 HAVING SUM(dup_savings_bytes)>0 ORDER BY 2 DESC",
+        "columns": [
+          "sens",
+          "tb"
+        ]
+      },
+      {
+        "id": "savingsBySource",
+        "name": "SavingsBySource",
+        "params": [],
+        "cache": true,
+        "cacheDuration": 300,
+        "sql": "SELECT datasource_type AS src, ROUND(SUM(dup_savings_bytes)/1e12::numeric,2) AS tb FROM entity_storage_demo GROUP BY 1 HAVING SUM(dup_savings_bytes)>0 ORDER BY 2 DESC",
+        "columns": [
+          "src",
+          "tb"
+        ]
+      }
+    ]
+  },
+  "gridCols": 2,
+  "panels": [
+    {
+      "id": "p1",
+      "title": "Dups By Source",
+      "span": 1,
+      "chart": {
+        "type": "bars",
+        "da": "dupsBySource",
+        "map": {
+          "labelCol": "src",
+          "valueCol": "dups"
+        },
+        "opts": {
+          "fmt": "abbr",
+          "valuesVisible": true,
+          "horizontal": true
+        }
+      }
+    },
+    {
+      "id": "p2",
+      "title": "Reclaim By Sens",
+      "span": 1,
+      "chart": {
+        "type": "donut",
+        "da": "reclaimBySens",
+        "map": {
+          "labelCol": "sens",
+          "valueCol": "tb"
+        },
+        "opts": {
+          "fmt": "gb",
+          "valuesVisible": true
+        }
+      }
+    },
+    {
+      "id": "p3",
+      "title": "Savings By Source",
+      "span": "full",
+      "chart": {
+        "type": "bars",
+        "da": "savingsBySource",
+        "map": {
+          "labelCol": "src",
+          "valueCol": "tb"
+        },
+        "opts": {
+          "fmt": "gb",
+          "valuesVisible": true,
+          "horizontal": false
+        }
+      }
+    }
+  ]
+}

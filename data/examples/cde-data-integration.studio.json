@@ -1,0 +1,108 @@
+{
+  "schema": 1,
+  "id": "cde-data-integration",
+  "name": "cde-data-integration",
+  "title": "Data Integration Health",
+  "description": "CDE-authored — GB moved by integration, run share by integration & job success rate by integration over PDC-BIDB-EXT.",
+  "group": "Data Integration",
+  "cda": {
+    "connection": {
+      "id": "pdc",
+      "jndi": "PDC-BIDB-EXT"
+    },
+    "dataAccesses": [
+      {
+        "id": "gbByIntegration",
+        "name": "GbByIntegration",
+        "params": [],
+        "cache": true,
+        "cacheDuration": 300,
+        "sql": "SELECT j.integration AS integ, ROUND(SUM(e.output_bytes)/1e9::numeric,1) AS gb FROM fact_lineage_event e JOIN dim_lineage_job j ON e.lineage_job_key=j.lineage_job_key WHERE j.integration<>'Unknown' GROUP BY 1 ORDER BY 2 DESC",
+        "columns": [
+          "integ",
+          "gb"
+        ]
+      },
+      {
+        "id": "runsByIntegration",
+        "name": "RunsByIntegration",
+        "params": [],
+        "cache": true,
+        "cacheDuration": 300,
+        "sql": "SELECT j.integration AS integ, SUM(e.started_count) AS runs FROM fact_lineage_event e JOIN dim_lineage_job j ON e.lineage_job_key=j.lineage_job_key WHERE j.integration<>'Unknown' GROUP BY 1 ORDER BY 2 DESC",
+        "columns": [
+          "integ",
+          "runs"
+        ]
+      },
+      {
+        "id": "successByIntegration",
+        "name": "SuccessByIntegration",
+        "params": [],
+        "cache": true,
+        "cacheDuration": 300,
+        "sql": "SELECT j.integration AS integ, ROUND(100.0*SUM(e.completed_count)/NULLIF(SUM(e.terminal_count),0),1) AS success_pct FROM fact_lineage_event e JOIN dim_lineage_job j ON e.lineage_job_key=j.lineage_job_key WHERE j.integration<>'Unknown' GROUP BY 1 ORDER BY 2 DESC",
+        "columns": [
+          "integ",
+          "success_pct"
+        ]
+      }
+    ]
+  },
+  "gridCols": 2,
+  "panels": [
+    {
+      "id": "p1",
+      "title": "Gb By Integration",
+      "span": 1,
+      "chart": {
+        "type": "bars",
+        "da": "gbByIntegration",
+        "map": {
+          "labelCol": "integ",
+          "valueCol": "gb"
+        },
+        "opts": {
+          "fmt": "gb",
+          "valuesVisible": true,
+          "horizontal": true
+        }
+      }
+    },
+    {
+      "id": "p2",
+      "title": "Runs By Integration",
+      "span": 1,
+      "chart": {
+        "type": "donut",
+        "da": "runsByIntegration",
+        "map": {
+          "labelCol": "integ",
+          "valueCol": "runs"
+        },
+        "opts": {
+          "fmt": "abbr",
+          "valuesVisible": true
+        }
+      }
+    },
+    {
+      "id": "p3",
+      "title": "Success By Integration",
+      "span": "full",
+      "chart": {
+        "type": "bars",
+        "da": "successByIntegration",
+        "map": {
+          "labelCol": "integ",
+          "valueCol": "success_pct"
+        },
+        "opts": {
+          "fmt": "pct",
+          "valuesVisible": true,
+          "horizontal": false
+        }
+      }
+    }
+  ]
+}

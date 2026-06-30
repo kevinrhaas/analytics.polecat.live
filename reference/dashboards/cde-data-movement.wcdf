@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cdf>
+  <title>Catalog Data Movement (CDE)</title>
+  <author>PDC Analytics</author>
+  <description>CDE-authored dashboard, editable in Pentaho CDE — cross-platform data movement (GB) by source, destination &amp; integration over PDC-BIDB-EXT.</description>
+  <icon/>
+  <style>clean</style>
+  <rendererType>blueprint</rendererType>
+  <widget>false</widget>
+  <widgetParameters/>
+</cdf>

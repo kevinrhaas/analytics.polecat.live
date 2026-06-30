@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CDADescriptor>
+  <DataSources><Connection id="pdc" type="sql.jndi"><Jndi>PDC-BIDB-EXT</Jndi></Connection></DataSources>
+
+  <DataAccess id="headline" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>Headline</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT
+        (SELECT SUM(entity_count) FROM fact_entity_snapshot) AS assets,
+        (SELECT count(DISTINCT datasource_key) FROM fact_entity_snapshot) AS sources,
+        (SELECT ROUND(100.0*SUM(governed_entity_count)/NULLIF(SUM(entity_count),0),1) FROM fact_entity_snapshot) AS governed_pct,
+        (SELECT ROUND(100.0*SUM(metadata_completed_field_count)/NULLIF(SUM(metadata_expected_field_count),0),1) FROM fact_entity_snapshot) AS complete_pct,
+        (SELECT ROUND(100.0*SUM(entity_count) FILTER (WHERE scan_freshness_band ILIKE '%stale%')/NULLIF(SUM(entity_count),0),1) FROM fact_entity_snapshot) AS stale_pct,
+        (SELECT count(DISTINCT entity_key) FROM dim_entity WHERE sensitivity='HIGH') AS high_sens,
+        (SELECT ROUND(100.0*SUM(completed_count)/NULLIF(SUM(terminal_count),0),1) FROM fact_lineage_event) AS pipe_success,
+        (SELECT SUM(started_count) FROM fact_lineage_event) AS runs,
+        (SELECT ROUND(SUM(output_bytes)/1e9::numeric,0) FROM fact_lineage_event) AS gb_moved,
+        (SELECT count(DISTINCT integration) FROM dim_lineage_job WHERE integration<>'Unknown') AS integrations,
+        (SELECT count(*) FROM dim_glossary_term) AS terms,
+        (SELECT ROUND(100.0*count(DISTINCT f.glossary_term_key)/NULLIF((SELECT count(*) FROM dim_glossary_term),0),1) FROM fact_entity_term f) AS adoption_pct,
+        (SELECT count(*) FROM dim_policy) AS policies,
+        (SELECT ROUND(SUM(s.bytes)/1e12::numeric,1) FROM fact_entity_snapshot s JOIN dim_entity e ON s.entity_key=e.entity_key WHERE e.entity_type IN ('FILE','TABLE')) AS storage_tb,
+        (SELECT ROUND(SUM((s.bytes/1e12::numeric)*COALESCE(e.cost_per_tb_usd,0))::numeric,0) FROM fact_entity_snapshot s JOIN dim_entity e ON s.entity_key=e.entity_key WHERE e.entity_type IN ('FILE','TABLE')) AS monthly_cost,
+        (SELECT count(*) FROM dim_entity WHERE NULLIF(column_data_type,'') IS NOT NULL AND cardinality=1) AS dead_cols
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="growth" connection="pdc" type="sql" access="public" cache="true" cacheDuration="180">
+    <Name>Growth</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT d.year_month_name AS month, SUM(s.entity_count) AS assets
+      FROM fact_entity_snapshot s JOIN dim_date d ON s.scanned_date_key=d.date_key
+      WHERE s.scanned_date_key<>19000101 GROUP BY d.year_month_name, d.year_month_number ORDER BY d.year_month_number
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="throughput" connection="pdc" type="sql" access="public" cache="true" cacheDuration="180">
+    <Name>Throughput</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT to_char(d.full_date,'YYYY-MM') AS month, ROUND(SUM(e.output_bytes)/1e9::numeric,1) AS gb
+      FROM fact_lineage_event e
+      JOIN dim_date d ON e.event_date_key = d.date_key
+      WHERE e.event_date_key <> 19000101 GROUP BY 1 ORDER BY 1
+    ]]></Query>
+  </DataAccess>
+</CDADescriptor>

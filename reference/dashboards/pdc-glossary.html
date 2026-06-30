@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Business Glossary &amp; Term Reach — Pentaho Data Catalog Analytics</title>
+<style>
+/* ============================================================================
+   pdc-ui.css — Pentaho Data Catalog Analytics shared dashboard theme
+   Palette + tokens mirror pentaho-ops-console (blue #005bb5 / purple #7d3c98).
+   Light + dark via [data-theme]. No external dependencies.
+   ============================================================================ */
+:root{
+  --pentaho:#005bb5; --pdc:#7d3c98;
+  --app-bg:#eef3fa; --panel-bg:#ffffff; --panel-border:#dbe3ee;
+  --panel-subtle-bg:#f7fafc; --panel-header-bg:#f4f7fa; --panel-header-border:#e3e9ef;
+  --panel-shadow:0 1px 3px rgba(0,0,0,.08); --panel-shadow-lg:0 6px 24px rgba(16,38,76,.10);
+  --field-bg:#ffffff; --field-border:#c8d2df;
+  --text-primary:#1f2838; --text-muted:#677489; --text-faint:#97a3b4;
+  --sidebar-bg:#122445; --header-bg:#102445; --header-fg:#ffffff;
+  --grid-line:#e9eef5; --axis:#9aa7b8;
+  --good:#27ae60; --good-bg:#e8f8f0; --warn:#e67e22; --warn-bg:#fef3e2;
+  --bad:#e0395e; --bad-bg:#fdecf1; --amber:#c26a06; --info:#0e73d8;
+  --c1:#005bb5; --c2:#7d3c98; --c3:#0e9aa7; --c4:#e67e22; --c5:#27ae60;
+  --c6:#5b6fb5; --c7:#c0399b; --c8:#f2a900; --c9:#3aa0ff; --c10:#9b59b6;
+  --sev1:#3aa0ff; --sev2:#f2a900; --sev3:#e0395e;   /* internal / confidential / restricted */
+  --radius:12px; --radius-sm:8px;
+  --font:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;
+}
+[data-theme='dark']{
+  --app-bg:#0f1828; --panel-bg:#162234; --panel-border:#223246;
+  --panel-subtle-bg:#101a29; --panel-header-bg:#0d1624; --panel-header-border:#223246;
+  --panel-shadow:0 8px 22px rgba(0,0,0,.28); --panel-shadow-lg:0 10px 30px rgba(0,0,0,.4);
+  --field-bg:#101a29; --field-border:#2a3a50;
+  --text-primary:#e8edf5; --text-muted:#93a1b7; --text-faint:#62718a;
+  --header-bg:#0a1323; --grid-line:#1e2c40; --axis:#56657d;
+  --good:#4cde8c; --good-bg:rgba(39,174,96,.16); --warn:#f0a750; --warn-bg:rgba(230,126,34,.16);
+  --bad:#ff5c7a; --bad-bg:rgba(224,57,94,.16); --info:#5ab0ff;
+  --c1:#3aa0ff; --c2:#cc88ff; --c3:#2dd4bf; --c4:#f0a750; --c5:#4cde8c;
+  --c6:#8fa0e8; --c7:#ec74c8; --c8:#ffd24d; --c9:#7cc4ff; --c10:#c08af0;
+  --sev1:#5ab0ff; --sev2:#ffd24d; --sev3:#ff5c7a;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{font-family:var(--font);background:var(--app-bg);color:var(--text-primary);
+  -webkit-font-smoothing:antialiased;transition:background .25s,color .25s;}
+
+/* ── Header ── */
+.pdc-header{background:linear-gradient(100deg,var(--header-bg),#163a6e);color:var(--header-fg);
+  padding:13px 22px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+  border-bottom:3px solid var(--pentaho);box-shadow:0 2px 10px rgba(0,0,0,.15);}
+.pdc-brand{display:flex;align-items:center;gap:11px;font-weight:800;font-size:17px;letter-spacing:.2px}
+.pdc-logo{width:30px;height:30px;border-radius:8px;flex:0 0 auto;
+  background:linear-gradient(135deg,var(--pentaho),var(--pdc));display:inline-flex;align-items:center;justify-content:center;
+  color:#fff;font-weight:800;font-size:15px;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+.pdc-title{font-weight:800}
+.pdc-sub{color:#b9c6dd;font-size:12.5px;font-weight:500}
+.pdc-header .spacer{flex:1}
+.pdc-ctrls{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.pdc-ctrls label{font-size:11px;color:#a9b8d2;font-weight:700;text-transform:uppercase;letter-spacing:.6px}
+select.pdc-sel{font-family:inherit;font-size:13px;padding:7px 11px;border-radius:8px;border:1px solid rgba(255,255,255,.18);
+  background:rgba(255,255,255,.10);color:#fff;font-weight:600;cursor:pointer;outline:none}
+select.pdc-sel option{color:#1f2838}
+.pdc-iconbtn{background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.18);color:#fff;
+  border-radius:8px;padding:7px 11px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+.pdc-iconbtn:hover{background:rgba(255,255,255,.2)}
+.pdc-toggle{display:inline-flex;border:1px solid rgba(255,255,255,.18);border-radius:8px;overflow:hidden}
+.pdc-toggle button{background:rgba(255,255,255,.06);color:#cdd8ec;border:0;padding:7px 15px;font-family:inherit;font-weight:600;font-size:13px;cursor:pointer}
+.pdc-toggle button.active{background:var(--pentaho);color:#fff}
+
+/* ── Layout ── */
+.pdc-wrap{padding:18px 22px 48px;max-width:1860px;margin:0 auto}
+.pdc-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:16px}
+.pdc-grid{display:grid;gap:16px}
+.pdc-grid.cols-2{grid-template-columns:repeat(2,1fr)}
+.pdc-grid.cols-3{grid-template-columns:repeat(3,1fr)}
+.pdc-grid.cols-4{grid-template-columns:repeat(4,1fr)}
+.span-2{grid-column:span 2}.span-3{grid-column:span 3}.span-full{grid-column:1/-1}
+@media(max-width:1100px){.pdc-grid.cols-3,.pdc-grid.cols-4{grid-template-columns:repeat(2,1fr)}.span-3{grid-column:span 2}}
+@media(max-width:720px){.pdc-grid.cols-2,.pdc-grid.cols-3,.pdc-grid.cols-4{grid-template-columns:1fr}.span-2,.span-3{grid-column:span 1}}
+
+/* ── KPI tiles ── */
+.kpi{background:var(--panel-bg);border:1px solid var(--panel-border);border-radius:var(--radius);
+  padding:15px 17px;box-shadow:var(--panel-shadow);position:relative;overflow:hidden;transition:transform .15s,box-shadow .15s}
+.kpi:hover{transform:translateY(-2px);box-shadow:var(--panel-shadow-lg)}
+.kpi::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--accent,var(--pentaho))}
+.kpi .v{font-size:27px;font-weight:800;line-height:1.05;letter-spacing:-.5px}
+.kpi .l{font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-top:7px}
+.kpi .d{font-size:11.5px;margin-top:6px;font-weight:600;display:flex;align-items:center;gap:5px}
+.kpi .d.up{color:var(--good)} .kpi .d.down{color:var(--bad)} .kpi .d.flat{color:var(--text-faint)}
+.kpi.good{--accent:var(--good)} .kpi.warn{--accent:var(--warn)} .kpi.bad{--accent:var(--bad)} .kpi.purple{--accent:var(--pdc)}
+.kpi .spark{position:absolute;right:10px;bottom:8px;opacity:.5}
+
+/* ── filter bar ── */
+.pdc-ctrls .fl{display:flex;align-items:center;gap:6px}
+/* ── provenance micro-caption (intentionally faint) ── */
+.card .src{position:absolute;right:10px;bottom:5px;font-size:8px;line-height:1;color:var(--text-faint);
+  opacity:.42;letter-spacing:.3px;font-style:italic;pointer-events:auto;max-width:60%;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:opacity .15s}
+.card:hover .src{opacity:.85}
+.card .src:hover{opacity:1;color:var(--pdc);text-decoration:underline}
+
+/* ── CDA query inspector modal (discrete ⓘ) ── */
+.pdc-qm-ov{position:fixed;inset:0;background:rgba(15,23,42,.55);backdrop-filter:blur(2px);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:5vh 16px;animation:pdcqmfade .16s ease}
+@keyframes pdcqmfade{from{opacity:0}to{opacity:1}}
+.pdc-qm{background:var(--panel-bg);color:var(--text-primary);border:1px solid var(--panel-border);border-radius:var(--radius);box-shadow:var(--panel-shadow-lg);width:min(880px,94vw);max-height:88vh;display:flex;flex-direction:column;overflow:hidden}
+.pdc-qm-h{display:flex;align-items:center;gap:12px;padding:13px 16px;background:var(--panel-header-bg);border-bottom:1px solid var(--panel-header-border)}
+.pdc-qm-t{font-weight:800;font-size:14px;letter-spacing:.2px}
+.pdc-qm-t code{font-weight:700;font-size:12px;color:var(--pdc);background:var(--panel-subtle-bg);padding:1px 7px;border-radius:6px;margin-left:4px}
+.pdc-qm-note{color:var(--text-faint);font-size:11px;font-style:italic;margin-left:auto}
+.pdc-qm-x{border:0;background:transparent;color:var(--text-muted);font-size:22px;line-height:1;cursor:pointer;padding:0 4px;border-radius:6px}
+.pdc-qm-x:hover{color:var(--text-primary);background:var(--panel-subtle-bg)}
+.pdc-qm-b{overflow:auto;padding:8px 16px 16px}
+.pdc-qm-load{color:var(--text-muted);padding:24px 4px;font-size:13px}
+.pdc-q{border-top:1px solid var(--panel-border);padding:13px 0 4px}
+.pdc-q:first-child{border-top:0}
+.pdc-q.hot .pdc-q-sql{outline:2px solid var(--pdc);outline-offset:2px}
+.pdc-q-id{display:flex;align-items:center;gap:9px;margin-bottom:7px}
+.pdc-q-name{font-weight:800;font-size:12.5px;color:var(--pdc);font-family:ui-monospace,Menlo,Consolas,monospace}
+.pdc-q-params{font-size:10px;color:var(--text-faint);background:var(--panel-subtle-bg);padding:2px 8px;border-radius:20px;letter-spacing:.3px}
+.pdc-q-copy{margin-left:auto;border:1px solid var(--field-border);background:var(--field-bg);color:var(--text-muted);font-size:10.5px;font-weight:700;padding:3px 10px;border-radius:6px;cursor:pointer}
+.pdc-q-copy:hover{color:var(--pdc);border-color:var(--pdc)}
+.pdc-q-sql{margin:0;background:var(--panel-subtle-bg);border:1px solid var(--panel-border);border-radius:8px;padding:11px 13px;
+  font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px;line-height:1.5;color:var(--text-primary);white-space:pre-wrap;word-break:break-word;overflow-x:auto}
+
+/* ── Drill-to-detail drawer (the row-grain "show me the actual records" panel) ── */
+.pdc-dt-ov{position:fixed;inset:0;background:rgba(15,23,42,.45);backdrop-filter:blur(2px);z-index:10000;display:flex;justify-content:flex-end;opacity:0;transition:opacity .18s ease}
+.pdc-dt-ov.in{opacity:1}
+.pdc-dt{background:var(--panel-bg);color:var(--text-primary);border-left:1px solid var(--panel-border);box-shadow:var(--panel-shadow-lg);
+  width:min(680px,96vw);max-width:96vw;height:100%;display:flex;flex-direction:column;transform:translateX(28px);transition:transform .2s ease}
+.pdc-dt-ov.in .pdc-dt{transform:translateX(0)}
+.pdc-dt-h{display:flex;align-items:flex-start;gap:12px;padding:15px 18px 13px;background:var(--panel-header-bg);border-bottom:1px solid var(--panel-header-border)}
+.pdc-dt-tt{display:flex;flex-direction:column;gap:3px;min-width:0}
+.pdc-dt-t{font-weight:800;font-size:15px;letter-spacing:.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pdc-dt-sub{font-size:11.5px;color:var(--text-muted);font-weight:600}
+.pdc-dt-x{margin-left:auto;border:0;background:transparent;color:var(--text-muted);font-size:24px;line-height:1;cursor:pointer;padding:0 4px;border-radius:6px;flex:none}
+.pdc-dt-x:hover{color:var(--text-primary);background:var(--panel-subtle-bg)}
+.pdc-dt-bar{display:flex;align-items:center;gap:12px;padding:9px 18px;border-bottom:1px solid var(--panel-border);flex-wrap:wrap}
+.pdc-dt-count{font-size:12px;color:var(--text-muted)} .pdc-dt-count b{color:var(--pdc);font-size:14px;font-weight:800}
+.pdc-dt-q{flex:1;min-width:120px;border:1px solid var(--field-border);background:var(--field-bg);color:var(--text-primary);
+  font-size:12.5px;padding:6px 11px;border-radius:7px;outline:none}
+.pdc-dt-q:focus{border-color:var(--pdc)}
+.pdc-dt-drilllink{font-size:11.5px;font-weight:700;color:var(--pdc);text-decoration:none;white-space:nowrap;padding:5px 10px;border:1px solid var(--pdc);border-radius:7px;opacity:.9}
+.pdc-dt-drilllink:hover{opacity:1;background:var(--pdc);color:#fff}
+.pdc-dt-b{overflow:auto;flex:1;padding:0}
+.pdc-dt-load{color:var(--text-muted);padding:26px 18px;font-size:13px}
+.pdc-dt-more{color:var(--text-faint);font-size:11.5px;padding:10px 18px;font-style:italic}
+.pdc-dt-tbl{width:100%;border-collapse:collapse;font-size:12.5px}
+.pdc-dt-tbl thead th{position:sticky;top:0;background:var(--panel-header-bg);color:var(--text-muted);text-align:left;font-weight:700;
+  font-size:10.5px;letter-spacing:.4px;text-transform:uppercase;padding:9px 18px;border-bottom:1px solid var(--panel-border);z-index:1}
+.pdc-dt-tbl th.num,.pdc-dt-tbl td.num{text-align:right}
+.pdc-dt-tbl tbody td{padding:8px 18px;border-bottom:1px solid var(--panel-border);color:var(--text-primary);white-space:nowrap}
+.pdc-dt-tbl td.ti{font-weight:600;max-width:280px;overflow:hidden;text-overflow:ellipsis}
+.pdc-dt-tbl tbody tr:hover td{background:var(--panel-subtle-bg)}
+.pdc-dt-rec{margin:0;padding:6px 0}
+.pdc-dt-rec dt{padding:11px 18px 2px;font-size:10.5px;letter-spacing:.4px;text-transform:uppercase;color:var(--text-muted);font-weight:700}
+.pdc-dt-rec dd{margin:0;padding:0 18px 11px;font-size:13.5px;color:var(--text-primary);border-bottom:1px solid var(--panel-border);word-break:break-word}
+.tbl tbody tr.rowclick{cursor:pointer} .tbl tbody tr.rowclick:hover td{background:var(--panel-subtle-bg)}
+/* info dot (metric/chart definitions) */
+.pdc-i{display:inline-flex;align-items:center;justify-content:center;margin-left:5px;font-size:11.5px;font-style:normal;
+  color:var(--text-faint);cursor:help;line-height:1;vertical-align:middle;opacity:.55;transition:opacity .12s,color .12s;user-select:none}
+.pdc-i:hover,.pdc-i:focus{opacity:1;color:var(--pdc);outline:none}
+.kpi .l{display:inline-flex;align-items:center}.kpi .l .pdc-i{font-size:10.5px;margin-left:4px}
+.pdc-info-pop{position:fixed;display:none;z-index:10001;background:#0d1624;color:#fff;padding:9px 12px;border-radius:8px;
+  font-size:11.5px;line-height:1.5;box-shadow:0 8px 26px rgba(0,0,0,.4);max-width:300px;font-weight:500;pointer-events:none;letter-spacing:.1px}
+
+/* ── Cards ── */
+.card{background:var(--panel-bg);border:1px solid var(--panel-border);border-radius:var(--radius);position:relative;
+  box-shadow:var(--panel-shadow);display:flex;flex-direction:column;overflow:hidden}
+.card>h3{margin:0;padding:13px 17px;border-bottom:1px solid var(--panel-header-border);background:var(--panel-header-bg);
+  font-size:13.5px;font-weight:700;display:flex;align-items:center;gap:9px}
+.card>h3 .pill{font-size:10px;font-weight:700;color:#fff;background:var(--pdc);padding:2px 9px;border-radius:20px;text-transform:uppercase;letter-spacing:.4px}
+.card>h3 .sub{margin-left:auto;font-size:11px;color:var(--text-muted);font-weight:600}
+.card .body{padding:12px 14px;flex:1;min-height:0}
+.chart{width:100%}
+.chart svg{display:block;width:100%;overflow:visible}
+
+/* ── chart primitives ── */
+.axis-label,.tick{fill:var(--axis);font-size:10.5px}
+.tick-strong{fill:var(--text-muted);font-size:11px;font-weight:600}
+.gridline{stroke:var(--grid-line);stroke-width:1}
+.bar{transition:opacity .15s}.bar:hover{opacity:.82;cursor:pointer}
+.dot{cursor:pointer}
+.series-label{fill:var(--text-muted);font-size:11px}
+.val-label{fill:var(--text-primary);font-size:10.5px;font-weight:600}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;padding:4px 6px 2px;font-size:11.5px;color:var(--text-muted)}
+.legend .it{display:inline-flex;align-items:center;gap:6px;cursor:default}
+.legend .sw{width:11px;height:11px;border-radius:3px;display:inline-block}
+
+/* ── table ── */
+.tbl{width:100%;border-collapse:collapse;font-size:12.5px}
+.tbl th{text-align:left;color:var(--text-muted);font-weight:700;font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;
+  padding:8px 12px;border-bottom:1px solid var(--panel-border);position:sticky;top:0;background:var(--panel-bg)}
+.tbl td{padding:7px 12px;border-bottom:1px solid var(--grid-line);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:280px}
+.tbl tr:hover td{background:var(--panel-subtle-bg)}
+.tbl .num{text-align:right;font-variant-numeric:tabular-nums}
+.tbl .barcell{position:relative}
+.tbl .barcell .fill{position:absolute;left:0;top:0;bottom:0;background:color-mix(in srgb,var(--pentaho) 18%,transparent);z-index:0}
+.tbl .barcell span{position:relative;z-index:1}
+
+/* ── badges ── */
+.badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:11px;display:inline-block}
+.badge.green{background:var(--good-bg);color:var(--good)} .badge.warn{background:var(--warn-bg);color:var(--warn)}
+.badge.bad{background:var(--bad-bg);color:var(--bad)} .badge.blue{background:color-mix(in srgb,var(--pentaho) 14%,transparent);color:var(--pentaho)}
+.badge.purple{background:color-mix(in srgb,var(--pdc) 14%,transparent);color:var(--pdc)} .badge.gray{background:var(--panel-subtle-bg);color:var(--text-muted)}
+
+/* ── misc ── */
+.loading{padding:42px;text-align:center;color:var(--text-muted);font-weight:600}
+.empty{padding:30px;text-align:center;color:var(--text-faint);font-size:12.5px}
+.pdc-foot{color:var(--text-faint);font-size:11.5px;margin-top:18px;text-align:center}
+.pdc-foot code{background:var(--panel-subtle-bg);padding:1px 6px;border-radius:5px}
+.tip{position:fixed;pointer-events:none;background:#0d1624;color:#fff;padding:8px 11px;border-radius:8px;font-size:12px;
+  opacity:0;transition:opacity .1s;max-width:300px;z-index:90;box-shadow:0 6px 20px rgba(0,0,0,.35);line-height:1.45}
+.tip b{color:#fff} .tip .muted{color:#9fb0c8}
+a.crosslink{color:var(--pentaho);text-decoration:none;font-weight:600} a.crosslink:hover{text-decoration:underline}
+.gauge-val{font-weight:800;fill:var(--text-primary)} .gauge-cap{fill:var(--text-muted);font-size:11px}
+
+</style>
+</head>
+<body>
+<header class="pdc-header">
+  <div class="pdc-brand"><span class="pdc-logo">P</span><span class="pdc-title">Business Glossary &amp; Term Reach</span></div>
+  <div class="pdc-sub">glossary coverage, term-to-entity reach</div>
+  <div class="spacer"></div>
+  <div class="pdc-ctrls" id="ctrls"></div>
+  <span title="Toggle Simple HTML (toolkit/CDA) vs Framework (CDF) build" style="display:inline-flex;align-items:stretch;border:1px solid rgba(255,255,255,.45);border-radius:8px;overflow:hidden;font-size:12px"><span style="padding:6px 12px;background:rgba(255,255,255,.30);color:#fff;font-weight:800">Simple HTML</span><a href="/pentaho/api/repos/:public:pdc-iteration:v2:i-cdf-glossary.html/content" style="padding:6px 12px;color:#fff;text-decoration:none;opacity:.78;font-weight:600">Framework</a></span>
+  <button class="pdc-iconbtn" id="qInfoBtn" title="View the CDA queries behind this dashboard" onclick="PDC.queryModal()">&#9432;</button>
+  <button class="pdc-iconbtn" id="themeBtn" onclick="PDC.toggleTheme()">&#9790; Dark</button>
+  <a class="pdc-iconbtn" href="/pentaho/api/repos/:public:pdc-iteration:v2:i-home.html/content" style="text-decoration:none">&#9632; All dashboards</a>
+</header>
+<div class="pdc-wrap">
+  <div class="pdc-kpis" id="kpis"></div>
+  <div id="content"><div class="loading">Loading…</div></div>
+  <div class="pdc-foot">Pentaho Data Catalog Analytics · iteration v2 · data via CDA over <code>PDC-BIDB-EXT</code> · no external dependencies</div>
+</div>
+<script>
+/* ============================================================================
+   pdc-ui.js — Pentaho Data Catalog Analytics dashboard toolkit
+   Dependency-free (vanilla JS + SVG). CDA client, theme toggle, chart library.
+   ============================================================================ */
+(function(){
+"use strict";
+var NS="http://www.w3.org/2000/svg";
+var PDC = window.PDC = {};
+var CDA_URL="/pentaho/plugin/cda/api/doQuery";
+
+/* ---------- CDA client ---------- */
+PDC.cdaPath=""; // set per dashboard
+PDC.cda=function(dataAccessId, params){
+  if(window.PDC_MOCK && window.PDC_MOCK[dataAccessId]){var mk=window.PDC_MOCK[dataAccessId];
+    return Promise.resolve({cols:mk.cols,rows:mk.rows,col:function(n){return mk.cols.indexOf(n);}});}
+  var u=new URL(CDA_URL, location.origin);
+  u.searchParams.set("path", PDC.cdaPath);
+  u.searchParams.set("dataAccessId", dataAccessId);
+  u.searchParams.set("outputType","json");
+  if(params) for(var k in params) u.searchParams.set("param"+k, params[k]);
+  return fetch(u.toString(),{credentials:"include"}).then(function(r){
+    if(!r.ok) throw new Error("CDA "+dataAccessId+" HTTP "+r.status);
+    return r.json();
+  }).then(function(j){
+    var cols=(j.metadata||[]).map(function(m){return m.colName;});
+    return {cols:cols, rows:(j.resultset||[]), col:function(n){return cols.indexOf(n);}};
+  });
+};
+/* run several queries: PDC.load({a:[id,params], b:[id]}).then(res=>res.a ...) */
+PDC.load=function(spec){
+  var keys=Object.keys(spec), ps=keys.map(function(k){var s=spec[k];return PDC.cda(s[0],s[1]);});
+  return Promise.all(ps).then(function(arr){var o={};keys.forEach(function(k,i){o[k]=arr[i];});return o;});
+};
+
+/* ---------- formatting ---------- */
+function abbr(n){ n=+n||0; var a=Math.abs(n);
+  if(a>=1e12)return (n/1e12).toFixed(1)+"T"; if(a>=1e9)return (n/1e9).toFixed(1)+"B";
+  if(a>=1e6)return (n/1e6).toFixed(1)+"M"; if(a>=1e3)return (n/1e3).toFixed(1)+"K";
+  return (Math.round(n*10)/10).toLocaleString(); }
+PDC.fmt={
+  n:function(v){return (+v||0).toLocaleString();},
+  abbr:abbr,
+  pct:function(v,d){return (v==null?"–":(+v).toFixed(d==null?1:d)+"%");},
+  gb:function(g){g=+g||0;return g>=1000?(g/1000).toFixed(1)+" TB":abbr(g)+" GB";},
+  bytes:function(b){b=+b||0; if(b>=1e12)return(b/1e12).toFixed(1)+" TB"; if(b>=1e9)return(b/1e9).toFixed(1)+" GB"; if(b>=1e6)return(b/1e6).toFixed(1)+" MB"; if(b>=1e3)return(b/1e3).toFixed(1)+" KB"; return b+" B";},
+  money:function(v){v=+v||0; return "$"+abbr(v);},
+  trunc:function(s,n){s=String(s==null?"":s);return s.length>n?s.slice(0,n-1)+"…":s;}
+};
+
+/* ---------- theme ---------- */
+PDC.cssvar=function(name){return getComputedStyle(document.documentElement).getPropertyValue(name).trim()||"#888";};
+PDC.palette=function(){var p=[];for(var i=1;i<=10;i++)p.push(PDC.cssvar("--c"+i));return p;};
+PDC.color=function(i){return PDC.palette()[i%10];};
+PDC.sevColor=function(rank){return PDC.cssvar(rank>=3?"--sev3":rank>=2?"--sev2":"--sev1");};
+PDC.initTheme=function(){var t=localStorage.getItem("pdc-theme")||"light";document.documentElement.setAttribute("data-theme",t);return t;};
+PDC.toggleTheme=function(){var cur=document.documentElement.getAttribute("data-theme")==="dark"?"light":"dark";
+  document.documentElement.setAttribute("data-theme",cur);localStorage.setItem("pdc-theme",cur);PDC.redrawAll();
+  var b=document.getElementById("themeBtn"); if(b) b.textContent=cur==="dark"?"☀ Light":"☾ Dark"; };
+
+/* ---------- redraw registry (resize + theme) ---------- */
+PDC._reg=[];
+PDC.resetCharts=function(){PDC._reg=[];};
+PDC.redrawAll=function(){PDC._reg.forEach(function(r){try{r();}catch(e){}});};
+var _rt; window.addEventListener("resize",function(){clearTimeout(_rt);_rt=setTimeout(PDC.redrawAll,180);});
+
+/* ---------- svg + tooltip helpers ---------- */
+function S(tag,attrs,kids){var e=document.createElementNS(NS,tag);if(attrs)for(var k in attrs)e.setAttribute(k,attrs[k]);
+  if(kids!=null){if(!Array.isArray(kids))kids=[kids];kids.forEach(function(c){e.appendChild(typeof c==="string"?document.createTextNode(c):c);});}return e;}
+PDC.S=S;
+var tipEl;
+function tip(){ if(!tipEl){tipEl=document.createElement("div");tipEl.className="tip";document.body.appendChild(tipEl);} return tipEl; }
+PDC.showTip=function(e,html){var t=tip();t.innerHTML=html;var x=e.clientX+14,y=e.clientY-8;
+  t.style.left=Math.min(x,window.innerWidth-t.offsetWidth-12)+"px";t.style.top=y+"px";t.style.opacity=1;};
+PDC.hideTip=function(){if(tipEl)tipEl.style.opacity=0;};
+function on(node,html){node.addEventListener("mousemove",function(e){PDC.showTip(e,html);});node.addEventListener("mouseout",PDC.hideTip);return node;}
+function W(el){return el.clientWidth||el.parentNode&&el.parentNode.clientWidth||640;}
+function mkSVG(el,h){el.innerHTML="";var w=W(el);var s=S("svg",{viewBox:"0 0 "+w+" "+h,width:"100%",height:h});el.appendChild(s);return {s:s,w:w,h:h};}
+function reg(el,fn){PDC._reg.push(fn);fn();}
+function niceMax(m){if(m<=0)return 1;var p=Math.pow(10,Math.floor(Math.log10(m)));var n=m/p;var step=n<=1?1:n<=2?2:n<=5?5:10;return step*p;}
+
+/* ---------- KPI tiles ---------- */
+var _reduceMotion=(window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+// Tasteful geometry tween: animate an SVG node's numeric attrs from a0→a1 (easeOut), after an optional stagger delay.
+// Snaps to a1 if reduced-motion. Used for bar grow-in / line draw-in / donut sweep.
+function animateGeom(node, a0, a1, delay, dur){
+  if(_reduceMotion){ for(var k1 in a1)node.setAttribute(k1,a1[k1]); return; }
+  for(var k0 in a0)node.setAttribute(k0,a0[k0]);
+  dur=dur||520;
+  setTimeout(function(){ var t0=null;
+    function step(ts){ if(t0==null)t0=ts; var p=Math.min(1,(ts-t0)/dur), e=1-Math.pow(1-p,3);
+      for(var k in a1){ var a=+a0[k], b=+a1[k]; node.setAttribute(k, a+(b-a)*e); }
+      if(p<1)requestAnimationFrame(step); else for(var kk in a1)node.setAttribute(kk,a1[kk]); }
+    requestAnimationFrame(step);
+  }, delay||0);
+}
+// Tasteful count-up: animates the numeric part of a formatted value (e.g. "$318.7K", "92.2%", "16.7 TB") from 0→target,
+// preserving prefix/suffix + decimals; snaps to the exact string at the end. No-op for non-numeric values.
+function animateCount(node, str){
+  str=String(str);
+  var m=str.match(/^([^0-9\-]*)(-?[0-9][0-9,]*\.?[0-9]*)(.*)$/);
+  if(_reduceMotion||!m){ node.textContent=str; return; }
+  var pre=m[1], numStr=m[2].replace(/,/g,""), suf=m[3], target=parseFloat(numStr);
+  if(isNaN(target)){ node.textContent=str; return; }
+  var dec=(numStr.split(".")[1]||"").length, dur=750, t0=null;
+  function step(ts){ if(t0==null)t0=ts; var p=Math.min(1,(ts-t0)/dur), e=1-Math.pow(1-p,3);
+    node.textContent=pre+(target*e).toFixed(dec)+suf; if(p<1)requestAnimationFrame(step); else node.textContent=str; }
+  requestAnimationFrame(step);
+}
+PDC.kpis=function(el, tiles){
+  el.innerHTML="";
+  tiles.forEach(function(t){
+    var d=document.createElement("div"); d.className="kpi "+(t.state||"");
+    var delta=t.delta!=null?'<div class="d '+(t.delta>0?"up":t.delta<0?"down":"flat")+'">'+(t.delta>0?"▲":t.delta<0?"▼":"■")+" "+t.deltaText+'</div>':"";
+    d.innerHTML='<div class="v"></div><div class="l">'+t.label+'</div>'+delta;
+    if(t.info)d.querySelector(".l").appendChild(PDC.infoDot(t.info));
+    animateCount(d.querySelector(".v"), t.value);
+    if(t.spark){var sp=document.createElement("div");sp.className="spark";sp.innerHTML=PDC.sparkSVG(t.spark,90,26,t.sparkColor);d.appendChild(sp);}
+    el.appendChild(d);
+  });
+};
+PDC.sparkSVG=function(vals,w,h,color){if(!vals||!vals.length)return"";var mx=Math.max.apply(null,vals),mn=Math.min.apply(null,vals);var rng=(mx-mn)||1;
+  var pts=vals.map(function(v,i){return (i/(vals.length-1)*w).toFixed(1)+","+(h-2-((v-mn)/rng)*(h-4)).toFixed(1);}).join(" ");
+  var c=color||PDC.cssvar("--pentaho");
+  return '<svg width="'+w+'" height="'+h+'" viewBox="0 0 '+w+' '+h+'"><polyline points="'+pts+'" fill="none" stroke="'+c+'" stroke-width="1.6" stroke-linejoin="round"/></svg>';};
+
+/* ---------- bar chart (vertical or horizontal) ---------- */
+PDC.bars=function(el, cfg){ reg(el,function(){_bars(el,cfg);}); };
+function _bars(el,cfg){
+  var data=cfg.data||[], hor=cfg.horizontal, h=cfg.height||270;
+  if(!data.length){el.innerHTML='<div class="empty">No data</div>';return;}
+  var o=mkSVG(el,h), s=o.s, w=o.w;
+  var fmt=cfg.fmt||PDC.fmt.abbr, base=cfg.color||PDC.cssvar("--pentaho");
+  var max=niceMax(Math.max.apply(null,data.map(function(d){return +d.value||0;})));
+  if(hor){
+    var mL=cfg.labelW||140, mR=46, mT=6, mB=8, ih=h-mT-mB, n=data.length, bh=ih/n;
+    for(var g=0;g<=4;g++){var gx=mL+(w-mL-mR)*g/4;s.appendChild(S("line",{class:"gridline",x1:gx,y1:mT,x2:gx,y2:mT+ih}));}
+    data.forEach(function(d,i){
+      var y=mT+i*bh, bw=(w-mL-mR)*((+d.value||0)/max), col=d.color||base;
+      var r=on(S("rect",{class:"bar",x:mL,y:y+bh*0.16,width:Math.max(1,bw),height:bh*0.68,rx:4,fill:col}),(cfg.tip?cfg.tip(d):("<b>"+d.label+"</b><br>"+fmt(d.value))));
+      if(cfg.drill)PDC.bindDrill(r,cfg.drill,d.label);
+      if(cfg.detail)PDC.bindDetail(r,cfg.detail,d.label);
+      s.appendChild(r);
+      animateGeom(r,{width:1},{width:Math.max(1,bw)},i*28);
+      s.appendChild(S("text",{class:"tick",x:mL-8,y:y+bh/2+3,"text-anchor":"end"},PDC.fmt.trunc(d.label,cfg.labelChars||20)));
+      s.appendChild(S("text",{class:"val-label",x:mL+bw+6,y:y+bh/2+3},fmt(d.value)));
+    });
+  } else {
+    var mL2=46, mR2=10, mT2=10, mB2=cfg.rotate?64:26, iw=w-mL2-mR2, ih2=h-mT2-mB2, n2=data.length, bw2=iw/n2;
+    for(var g2=0;g2<=4;g2++){var gy=mT2+ih2*(1-g2/4);s.appendChild(S("line",{class:"gridline",x1:mL2,y1:gy,x2:w-mR2,y2:gy}));
+      s.appendChild(S("text",{class:"tick",x:mL2-7,y:gy+3,"text-anchor":"end"},fmt(max*g2/4)));}
+    data.forEach(function(d,i){
+      var x=mL2+i*bw2, bhh=ih2*((+d.value||0)/max), col=d.color||base;
+      var r=on(S("rect",{class:"bar",x:x+bw2*0.14,y:mT2+ih2-bhh,width:bw2*0.72,height:Math.max(1,bhh),rx:4,fill:col}),(cfg.tip?cfg.tip(d):("<b>"+d.label+"</b><br>"+fmt(d.value))));
+      if(cfg.drill)PDC.bindDrill(r,cfg.drill,d.label);
+      if(cfg.detail)PDC.bindDetail(r,cfg.detail,d.label);
+      s.appendChild(r);
+      animateGeom(r,{y:mT2+ih2,height:1},{y:mT2+ih2-bhh,height:Math.max(1,bhh)},i*28);
+      var lx=x+bw2/2, ty=mT2+ih2+13;
+      var tx=S("text",{class:"tick",x:lx,y:ty,"text-anchor":cfg.rotate?"end":"middle"},PDC.fmt.trunc(d.label,cfg.rotate?16:10));
+      if(cfg.rotate)tx.setAttribute("transform","rotate(-38 "+lx+" "+ty+")");
+      s.appendChild(tx);
+    });
+  }
+}
+
+/* ---------- stacked bars ---------- */
+PDC.stacked=function(el,cfg){reg(el,function(){_stacked(el,cfg);});};
+function _stacked(el,cfg){
+  var cats=cfg.categories||[], series=cfg.series||[], h=cfg.height||270;
+  if(!cats.length){el.innerHTML='<div class="empty">No data</div>';return;}
+  var o=mkSVG(el,h),s=o.s,w=o.w, fmt=cfg.fmt||PDC.fmt.abbr;
+  var totals=cats.map(function(_,i){return series.reduce(function(a,se){return a+(+se.values[i]||0);},0);});
+  var max=niceMax(Math.max.apply(null,totals)), pal=PDC.palette();
+  var mL=46,mR=10,mT=10,mB=cfg.rotate?64:26, iw=w-mL-mR, ih=h-mT-mB, bw=iw/cats.length;
+  for(var g=0;g<=4;g++){var gy=mT+ih*(1-g/4);s.appendChild(S("line",{class:"gridline",x1:mL,y1:gy,x2:w-mR,y2:gy}));
+    s.appendChild(S("text",{class:"tick",x:mL-7,y:gy+3,"text-anchor":"end"},fmt(max*g/4)));}
+  cats.forEach(function(c,i){
+    var x=mL+i*bw, acc=0;
+    series.forEach(function(se,si){var v=+se.values[i]||0;if(v<=0)return;var hh=ih*(v/max);acc+=hh;
+      var r=on(S("rect",{class:"bar",x:x+bw*0.14,y:mT+ih-acc,width:bw*0.72,height:hh,fill:se.color||pal[si%10]}),"<b>"+c+"</b><br>"+se.name+": "+fmt(v));
+      s.appendChild(r);});
+    var lx=x+bw/2,ty=mT+ih+13;var tx=S("text",{class:"tick",x:lx,y:ty,"text-anchor":cfg.rotate?"end":"middle"},PDC.fmt.trunc(c,cfg.rotate?16:10));
+    if(cfg.rotate)tx.setAttribute("transform","rotate(-38 "+lx+" "+ty+")");s.appendChild(tx);
+  });
+  if(cfg.legend!==false) _legend(el,series.map(function(se,i){return{name:se.name,color:se.color||pal[i%10]};}));
+}
+
+/* ---------- line / area (multi-series) ---------- */
+PDC.line=function(el,cfg){reg(el,function(){_line(el,cfg);});};
+function _line(el,cfg){
+  var labels=cfg.labels||[], series=cfg.series||[], h=cfg.height||270;
+  if(!labels.length){el.innerHTML='<div class="empty">No data</div>';return;}
+  var o=mkSVG(el,h),s=o.s,w=o.w, fmt=cfg.fmt||PDC.fmt.abbr, pal=PDC.palette();
+  var allv=[];series.forEach(function(se){se.values.forEach(function(v){allv.push(+v||0);});});
+  var max=niceMax(Math.max.apply(null,allv.concat([0]))), min=cfg.min0===false?Math.min.apply(null,allv):0;
+  var mL=46,mR=12,mT=12,mB=30, iw=w-mL-mR, ih=h-mT-mB, n=labels.length;
+  var xs=function(i){return mL+(n<=1?iw/2:iw*i/(n-1));}, ys=function(v){return mT+ih*(1-((v-min)/((max-min)||1)));};
+  for(var g=0;g<=4;g++){var gy=mT+ih*(1-g/4);s.appendChild(S("line",{class:"gridline",x1:mL,y1:gy,x2:w-mR,y2:gy}));
+    s.appendChild(S("text",{class:"tick",x:mL-7,y:gy+3,"text-anchor":"end"},fmt(min+(max-min)*g/4)));}
+  var step=Math.ceil(n/Math.max(2,Math.floor(iw/64)));
+  labels.forEach(function(lb,i){if(i%step===0||i===n-1)s.appendChild(S("text",{class:"tick",x:xs(i),y:mT+ih+14,"text-anchor":"middle"},PDC.fmt.trunc(lb,9)));});
+  series.forEach(function(se,si){
+    var col=se.color||pal[si%10];
+    var path=se.values.map(function(v,i){return (i?"L":"M")+xs(i)+","+ys(+v||0);}).join(" ");
+    if(cfg.area){var gid="ar"+si+Math.random().toString(36).slice(2,6);
+      var defs=S("defs");var lg=S("linearGradient",{id:gid,x1:0,y1:0,x2:0,y2:1});
+      lg.appendChild(S("stop",{offset:"0%","stop-color":col,"stop-opacity":.34}));lg.appendChild(S("stop",{offset:"100%","stop-color":col,"stop-opacity":.02}));
+      defs.appendChild(lg);s.appendChild(defs);
+      var ar=S("path",{d:path+" L"+xs(n-1)+","+(mT+ih)+" L"+xs(0)+","+(mT+ih)+" Z",fill:"url(#"+gid+")"});s.appendChild(ar);animateGeom(ar,{opacity:0},{opacity:1},260,420);}
+    var lp=S("path",{d:path,fill:"none",stroke:col,"stroke-width":2.4,"stroke-linejoin":"round","stroke-linecap":"round"});s.appendChild(lp);
+    if(!_reduceMotion){var len=0;try{len=lp.getTotalLength();}catch(e){} if(len){lp.setAttribute("stroke-dasharray",len);animateGeom(lp,{"stroke-dashoffset":len},{"stroke-dashoffset":0},si*120,760);}}
+    se.values.forEach(function(v,i){var c=on(S("circle",{class:"dot",cx:xs(i),cy:ys(+v||0),r:3.2,fill:col,stroke:PDC.cssvar("--panel-bg"),"stroke-width":1.5}),"<b>"+labels[i]+"</b><br>"+se.name+": "+fmt(v));s.appendChild(c);animateGeom(c,{opacity:0},{opacity:1},520+i*16,300);});
+  });
+  if(series.length>1&&cfg.legend!==false)_legend(el,series.map(function(se,i){return{name:se.name,color:se.color||pal[i%10]};}));
+}
+
+/* ---------- donut ---------- */
+PDC.donut=function(el,cfg){reg(el,function(){_donut(el,cfg);});};
+function _donut(el,cfg){
+  var data=(cfg.data||[]).filter(function(d){return (+d.value||0)>0;}), h=cfg.height||260;
+  if(!data.length){el.innerHTML='<div class="empty">No data</div>';return;}
+  var o=mkSVG(el,h),s=o.s,w=o.w, pal=PDC.palette(), fmt=cfg.fmt||PDC.fmt.abbr;
+  var total=data.reduce(function(a,d){return a+(+d.value||0);},0);
+  // snap the summed total to kill floating-point epsilon (e.g. 233.3900000000001 -> 233.39) before it reaches the centerLabel fmt
+  if(isFinite(total)&&total!==0)total=parseFloat(total.toPrecision(12));
+  var cx=Math.min(w*0.32,150), cy=h/2, R=Math.min(cx-10,h/2-12), r=R*0.6, a0=-Math.PI/2;
+  data.forEach(function(d,i){var ang=(+d.value/total)*Math.PI*2, a1=a0+ang, col=d.color||pal[i%10];
+    var x0=cx+R*Math.cos(a0),y0=cy+R*Math.sin(a0),x1=cx+R*Math.cos(a1),y1=cy+R*Math.sin(a1);
+    var xi0=cx+r*Math.cos(a1),yi0=cy+r*Math.sin(a1),xi1=cx+r*Math.cos(a0),yi1=cy+r*Math.sin(a0);
+    var big=ang>Math.PI?1:0;
+    var p=on(S("path",{d:"M"+x0+","+y0+" A"+R+","+R+" 0 "+big+" 1 "+x1+","+y1+" L"+xi0+","+yi0+" A"+r+","+r+" 0 "+big+" 0 "+xi1+","+yi1+" Z",fill:col,stroke:PDC.cssvar("--panel-bg"),"stroke-width":2}),
+      "<b>"+d.label+"</b><br>"+fmt(d.value)+" ("+(100*d.value/total).toFixed(1)+"%)");
+    if(cfg.drill)PDC.bindDrill(p,cfg.drill,d.label);
+    if(cfg.detail)PDC.bindDetail(p,cfg.detail,d.label);
+    s.appendChild(p); animateGeom(p,{opacity:0},{opacity:1},i*45,420); a0=a1;});
+  s.appendChild(S("text",{x:cx,y:cy-3,"text-anchor":"middle",class:"gauge-val","font-size":"20"},cfg.centerLabel||fmt(total)));
+  s.appendChild(S("text",{x:cx,y:cy+15,"text-anchor":"middle",class:"gauge-cap"},cfg.centerCap||"Total"));
+  // legend on the right
+  var lx=cx*2+8, ly=cy-data.length*9;
+  data.forEach(function(d,i){var yy=ly+i*19;if(yy>h-6)return;
+    s.appendChild(S("rect",{x:lx,y:yy-9,width:11,height:11,rx:3,fill:d.color||pal[i%10]}));
+    s.appendChild(S("text",{class:"series-label",x:lx+17,y:yy},PDC.fmt.trunc(d.label,22)+"  "+(100*d.value/total).toFixed(0)+"%"));});
+}
+
+/* ---------- gauge (semicircle) ---------- */
+PDC.gauge=function(el,cfg){reg(el,function(){_gauge(el,cfg);});};
+function _gauge(el,cfg){
+  var h=cfg.height||190, o=mkSVG(el,h),s=o.s,w=o.w;
+  var val=+cfg.value||0, max=cfg.max||100, pct=Math.max(0,Math.min(1,val/max));
+  var cx=w/2, cy=h-22, R=Math.min(w/2-16,h-44);
+  function arc(p0,p1,rr,col,wd){var a0=Math.PI+Math.PI*p0,a1=Math.PI+Math.PI*p1;
+    var x0=cx+rr*Math.cos(a0),y0=cy+rr*Math.sin(a0),x1=cx+rr*Math.cos(a1),y1=cy+rr*Math.sin(a1);
+    return S("path",{d:"M"+x0+","+y0+" A"+rr+","+rr+" 0 "+0+" 1 "+x1+","+y1,fill:"none",stroke:col,"stroke-width":wd,"stroke-linecap":"round"});}
+  s.appendChild(arc(0,1,R,PDC.cssvar("--grid-line"),16));
+  var col=cfg.color|| (pct>=(cfg.goodAt||0.9)?PDC.cssvar("--good"):pct>=(cfg.warnAt||0.7)?PDC.cssvar("--warn"):PDC.cssvar("--bad"));
+  s.appendChild(arc(0,pct,R,col,16));
+  s.appendChild(S("text",{x:cx,y:cy-6,"text-anchor":"middle",class:"gauge-val","font-size":"30"},cfg.text||(Math.round(val*10)/10+(cfg.unit||""))));
+  s.appendChild(S("text",{x:cx,y:cy+14,"text-anchor":"middle",class:"gauge-cap"},cfg.label||""));
+}
+
+/* ---------- heatmap / matrix ---------- */
+PDC.heatmap=function(el,cfg){reg(el,function(){_heatmap(el,cfg);});};
+function _heatmap(el,cfg){
+  var rows=cfg.rows||[], cols=cfg.cols||[], m=cfg.matrix||[], h=cfg.height||(rows.length*30+60);
+  if(!rows.length||!cols.length){el.innerHTML='<div class="empty">No data</div>';return;}
+  var o=mkSVG(el,h),s=o.s,w=o.w, fmt=cfg.fmt||PDC.fmt.abbr;
+  var mL=cfg.labelW||130, mT=44, mR=10, mB=8, cw=(w-mL-mR)/cols.length, rh=(h-mT-mB)/rows.length;
+  var max=0;m.forEach(function(r){r.forEach(function(v){if((+v||0)>max)max=+v;});});max=max||1;
+  var base=cfg.color||PDC.cssvar("--pentaho");
+  cols.forEach(function(c,j){var cx=mL+j*cw+cw/2;var t=S("text",{class:"tick",x:cx,y:mT-8,"text-anchor":"end"},PDC.fmt.trunc(c,14));t.setAttribute("transform","rotate(-32 "+cx+" "+(mT-8)+")");s.appendChild(t);});
+  rows.forEach(function(rn,i){
+    s.appendChild(S("text",{class:"tick",x:mL-7,y:mT+i*rh+rh/2+3,"text-anchor":"end"},PDC.fmt.trunc(rn,Math.floor(mL/7))));
+    cols.forEach(function(cn,j){var v=+((m[i]||[])[j])||0, t=v/max;
+      var fill=cfg.cellFill ? cfg.cellFill(v,max) : (v<=0?PDC.cssvar("--panel-subtle-bg"):"color-mix(in srgb,"+base+" "+(12+t*78).toFixed(0)+"%, transparent)");
+      var tipHtml=cfg.cellTip ? cfg.cellTip(rn,cn,v) : ("<b>"+rn+"</b> → <b>"+cn+"</b><br>"+fmt(v));
+      var rc=on(S("rect",{x:mL+j*cw+1,y:mT+i*rh+1,width:cw-2,height:rh-2,rx:3,fill:fill}),tipHtml);
+      s.appendChild(rc);
+      var vtFill=cfg.cellFill ? (v>0?'#fff':'var(--text-primary)') : (t>.6?"#fff":"var(--text-primary)");
+      if(cfg.showVals&&v>0&&cw>40)s.appendChild(S("text",{x:mL+j*cw+cw/2,y:mT+i*rh+rh/2+3,"text-anchor":"middle",class:"val-label","font-size":"9.5",fill:vtFill},fmt(v)));
+    });
+  });
+}
+
+/* ---------- treemap (squarified-ish) ---------- */
+PDC.treemap=function(el,cfg){reg(el,function(){_treemap(el,cfg);});};
+function _treemap(el,cfg){
+  var data=(cfg.data||[]).filter(function(d){return (+d.value||0)>0;}).sort(function(a,b){return b.value-a.value;}),h=cfg.height||280;
+  if(!data.length){el.innerHTML='<div class="empty">No data</div>';return;}
+  var o=mkSVG(el,h),s=o.s,w=o.w,pal=PDC.palette(),fmt=cfg.fmt||PDC.fmt.abbr;
+  var total=data.reduce(function(a,d){return a+ +d.value;},0);
+  var x=0,y=0,cw=w,ch=h,i=0;
+  function worst(row,len){var s2=row.reduce(function(a,r){return a+r.area;},0);var mx=Math.max.apply(null,row.map(function(r){return r.area;})),mn=Math.min.apply(null,row.map(function(r){return r.area;}));return Math.max(len*len*mx/(s2*s2),s2*s2/(len*len*mn));}
+  var items=data.map(function(d){return{d:d,area:d.value/total*w*h};});
+  while(i<items.length){
+    var horiz=cw>=ch, len=horiz?ch:cw, row=[], rest=items.slice(i);
+    var k=0;
+    while(k<rest.length){var test=row.concat([rest[k]]);if(row.length&&worst(test,len)>worst(row,len))break;row.push(rest[k]);k++;}
+    var rsum=row.reduce(function(a,r){return a+r.area;},0), thick=rsum/len, off=0;
+    row.forEach(function(r,ri){var seg=r.area/thick;var rx,ry,rw,rh2;
+      if(horiz){rx=x;ry=y+off;rw=thick;rh2=seg;}else{rx=x+off;ry=y;rw=seg;rh2=thick;}off+=seg;
+      var idx=data.indexOf(r.d),col=r.d.color||pal[idx%10];
+      var rc=on(S("rect",{x:rx+1,y:ry+1,width:Math.max(0,rw-2),height:Math.max(0,rh2-2),rx:3,fill:col,opacity:.92,class:"bar"}),"<b>"+r.d.label+"</b><br>"+fmt(r.d.value)+" ("+(100*r.d.value/total).toFixed(1)+"%)");
+      if(cfg.detail)PDC.bindDetail(rc,cfg.detail,r.d.label);
+      s.appendChild(rc);
+      if(rw>54&&rh2>22){s.appendChild(S("text",{x:rx+6,y:ry+15,fill:"#fff","font-size":"11","font-weight":"700"},PDC.fmt.trunc(r.d.label,Math.floor(rw/7))));
+        s.appendChild(S("text",{x:rx+6,y:ry+29,fill:"rgba(255,255,255,.85)","font-size":"10"},fmt(r.d.value)));}
+    });
+    if(horiz){x+=thick;cw-=thick;}else{y+=thick;ch-=thick;} i+=row.length;
+  }
+}
+
+/* ---------- sankey (source -> destination flow ribbons) ---------- */
+PDC.sankey=function(el,cfg){reg(el,function(){_sankey(el,cfg);});};
+function _sankey(el,cfg){
+  var links=(cfg.links||[]).filter(function(l){return (+l.value||0)>0;});
+  var h=cfg.height||360;
+  if(!links.length){el.innerHTML='<div class="empty">No flows</div>';return;}
+  var o=mkSVG(el,h),s=o.s,w=o.w,fmt=cfg.fmt||PDC.fmt.abbr;
+  var mT=16,mB=16,nodeW=13,gap=11,labelL=cfg.labelL||96,labelR=cfg.labelR||96;
+  var L={},R={},Lo=[],Ro=[],total=0;
+  links.forEach(function(l){
+    if(!L[l.source]){L[l.source]={name:l.source,val:0};Lo.push(l.source);}
+    if(!R[l.target]){R[l.target]={name:l.target,val:0};Ro.push(l.target);}
+    L[l.source].val+=+l.value; R[l.target].val+=+l.value; total+=+l.value;
+  });
+  function lay(order,map){
+    order.sort(function(a,b){return map[b].val-map[a].val;});
+    var n=order.length, avail=h-mT-mB-gap*(n-1), sc=avail/total, y=mT;
+    order.forEach(function(k){var d=map[k];d.h=Math.max(3,d.val*sc);d.y=y;d.cy=y+d.h/2;d.off=y;y+=d.h+gap;});
+    return sc;
+  }
+  var scL=lay(Lo,L), scR=lay(Ro,R);
+  var x0=labelL, x1=w-labelR-nodeW, xr=x0+nodeW, xm=(xr+x1)/2;
+  var pidx={}; Lo.forEach(function(k,i){pidx[k]=i;});
+  function colFor(k){return cfg.color?cfg.color(k):PDC.color(pidx[k]!=null?pidx[k]:0);}
+  // assign per-end vertical bands (sorted so ribbons cross minimally)
+  Lo.forEach(function(sk){links.filter(function(l){return l.source===sk;}).sort(function(a,b){return R[a.target].cy-R[b.target].cy;})
+    .forEach(function(l){l._sy=L[sk].off; L[sk].off+=l.value*scL;});});
+  Ro.forEach(function(tk){links.filter(function(l){return l.target===tk;}).sort(function(a,b){return L[a.source].cy-L[b.source].cy;})
+    .forEach(function(l){l._ty=R[tk].off; R[tk].off+=l.value*scR;});});
+  // ribbons (animated fade-in, hover highlight)
+  links.slice().sort(function(a,b){return b.value-a.value;}).forEach(function(l,i){
+    var wL=l.value*scL, wR=l.value*scR, a0=l._sy, b0=l._sy+wL, a1=l._ty, b1=l._ty+wR;
+    var d="M"+xr+","+a0+" C"+xm+","+a0+" "+xm+","+a1+" "+x1+","+a1+" L"+x1+","+b1+" C"+xm+","+b1+" "+xm+","+b0+" "+xr+","+b0+" Z";
+    var col=colFor(l.source);
+    var p=on(S("path",{d:d,fill:col,opacity:0,stroke:col,"stroke-width":.4}),
+      "<b>"+l.source+" &rarr; "+l.target+"</b><br>"+fmt(l.value)+(l.conns!=null?" &middot; "+PDC.fmt.n(l.conns)+" connections":"")+"<br>"+(100*l.value/total).toFixed(1)+"% of moved volume");
+    p.style.cursor=(l.drill&&cfg.onDrill)?"pointer":"default";
+    p.addEventListener("mouseover",function(){p.setAttribute("opacity",.74);});
+    p.addEventListener("mouseout",function(){p.setAttribute("opacity",.42);});
+    if(l.drill&&cfg.onDrill){p.addEventListener("click",function(){cfg.onDrill(l);});}
+    s.appendChild(p);
+    (function(pp){setTimeout(function(){pp.style.transition="opacity .55s ease";pp.setAttribute("opacity",.42);},80+i*32);})(p);
+  });
+  // nodes + labels
+  function nodes(order,map,xx,side){order.forEach(function(k){var d=map[k];
+    s.appendChild(on(S("rect",{x:xx,y:d.y,width:nodeW,height:d.h,rx:2.5,fill:colFor(k),opacity:.95}),
+      "<b>"+k+"</b><br>"+fmt(d.val)+" "+(side==="L"?"out":"in")));
+    var tx=side==="L"?xx-7:xx+nodeW+7, anc=side==="L"?"end":"start";
+    s.appendChild(S("text",{x:tx,y:d.cy-1,"text-anchor":anc,fill:"var(--text)","font-size":"11.5","font-weight":"700"},PDC.fmt.trunc(k,13)));
+    s.appendChild(S("text",{x:tx,y:d.cy+12,"text-anchor":anc,fill:"var(--muted)","font-size":"10"},fmt(d.val)));
+  });}
+  nodes(Lo,L,x0,"L"); nodes(Ro,R,x1,"R");
+  // column captions (anchored to the SVG edges so they never clip)
+  s.appendChild(S("text",{x:1,y:11,"text-anchor":"start",fill:"var(--muted)","font-size":"9.5","font-weight":"800","letter-spacing":".6"},(cfg.srcCap||"SOURCE").toUpperCase()));
+  s.appendChild(S("text",{x:w-1,y:11,"text-anchor":"end",fill:"var(--muted)","font-size":"9.5","font-weight":"800","letter-spacing":".6"},(cfg.dstCap||"DESTINATION").toUpperCase()));
+}
+
+/* ---------- network / topology (radial node-link, blast-radius highlight on click) ---------- */
+PDC.network=function(el,cfg){reg(el,function(){_network(el,cfg);});};
+function _network(el,cfg){
+  var links=(cfg.links||[]).filter(function(l){return (+l.value||0)>0;});
+  var h=cfg.height||360;
+  if(!links.length){el.innerHTML='<div class="empty">No connections</div>';return;}
+  var o=mkSVG(el,h),s=o.s,w=o.w,fmt=cfg.fmt||PDC.fmt.abbr;
+  // nodes = union of endpoints; weight = total touched value; degree for sizing
+  var N={},order=[];
+  links.forEach(function(l){
+    [l.source,l.target].forEach(function(k){ if(!N[k]){N[k]={name:k,val:0,adj:{}};order.push(k);} });
+    N[l.source].val+=+l.value; N[l.target].val+=+l.value;
+    N[l.source].adj[l.target]=1; N[l.target].adj[l.source]=1;
+  });
+  order.sort(function(a,b){return N[b].val-N[a].val;});
+  var n=order.length, cx=w/2, cy=h/2+4, r=Math.min(w,h)/2-58, maxV=Math.max.apply(null,order.map(function(k){return N[k].val;}))||1, maxL=Math.max.apply(null,links.map(function(l){return l.value;}))||1;
+  order.forEach(function(k,i){var a=-Math.PI/2 + i/n*2*Math.PI; var nd=N[k]; nd.a=a; nd.x=cx+r*Math.cos(a); nd.y=cy+r*Math.sin(a); nd.rad=5+Math.sqrt(nd.val/maxV)*16; nd.i=i;});
+  // edges: quadratic curve toward centre; store for highlight
+  var edgeEls=[];
+  links.slice().sort(function(a,b){return b.value-a.value;}).forEach(function(l,i){
+    var u=N[l.source],vv=N[l.target], col=cfg.color?cfg.color(l.source):PDC.color(u.i);
+    var cpx=cx+(((u.x+vv.x)/2)-cx)*0.35, cpy=cy+(((u.y+vv.y)/2)-cy)*0.35;
+    var p=on(S("path",{d:"M"+u.x.toFixed(1)+","+u.y.toFixed(1)+" Q"+cpx.toFixed(1)+","+cpy.toFixed(1)+" "+vv.x.toFixed(1)+","+vv.y.toFixed(1),
+      fill:"none",stroke:col,"stroke-width":Math.max(1,Math.sqrt(l.value/maxL)*7),opacity:0,"stroke-linecap":"round"}),
+      "<b>"+l.source+" &harr; "+l.target+"</b><br>"+fmt(l.value)+(l.conns!=null?" &middot; "+PDC.fmt.n(l.conns)+" connections":""));
+    p._u=l.source; p._v=l.target; p._base=Math.min(.5,.18+l.value/maxL*.4); edgeEls.push(p); s.appendChild(p);
+    (function(pp){setTimeout(function(){pp.style.transition="opacity .5s ease";pp.setAttribute("opacity",pp._base);},60+i*26);})(p);
+  });
+  // nodes + labels
+  var nodeEls={};
+  function focus(k){ // blast-radius: emphasise k + neighbours, dim the rest
+    edgeEls.forEach(function(p){var on2=(p._u===k||p._v===k); p.setAttribute("opacity", k?(on2?.92:.05):p._base); p.setAttribute("stroke-width", p.getAttribute("stroke-width")); });
+    order.forEach(function(nk){var g2=nodeEls[nk]; var lit=!k||nk===k||N[k].adj[nk]; g2.setAttribute("opacity", lit?1:.22);});
+  }
+  order.forEach(function(k){var nd=N[k];
+    var grp=S("g",{opacity:1,style:"cursor:pointer"});
+    var c=on(S("circle",{cx:nd.x,cy:nd.y,r:nd.rad,fill:cfg.color?cfg.color(k):PDC.color(nd.i),stroke:"#fff","stroke-width":1.5}),
+      "<b>"+k+"</b><br>"+fmt(nd.val)+" total &middot; "+Object.keys(nd.adj).length+" links");
+    grp.appendChild(c);
+    var anc=Math.cos(nd.a)<-0.3?"end":Math.cos(nd.a)>0.3?"start":"middle";
+    var lx=nd.x+Math.cos(nd.a)*(nd.rad+6), ly=nd.y+Math.sin(nd.a)*(nd.rad+6)+(Math.sin(nd.a)>0.3?9:Math.sin(nd.a)<-0.3?-2:3);
+    grp.appendChild(S("text",{x:lx,y:ly,"text-anchor":anc,fill:"var(--text)","font-size":"11","font-weight":"700"},PDC.fmt.trunc(k,14)));
+    grp.addEventListener("mouseover",function(){focus(k);});
+    grp.addEventListener("mouseout",function(){focus(null);});
+    // optional node-click drill-to-detail: cfg.detail is an object (same for every node)
+    // or a function(nodeKey)->detailConfig|null (lets a bipartite graph scope per node type).
+    if(cfg.detail){
+      var dcfg=(typeof cfg.detail==="function")?cfg.detail(k):cfg.detail;
+      if(dcfg){ grp.style.cursor="pointer";
+        grp.addEventListener("click",function(e){e.stopPropagation();PDC.openDetail(dcfg,k);}); }
+    }
+    nodeEls[k]=grp; s.appendChild(grp);
+  });
+  if(cfg.caption)s.appendChild(S("text",{x:cx,y:cy,"text-anchor":"middle",fill:"var(--muted)","font-size":"10","font-weight":"700"},cfg.caption));
+}
+
+/* ---------- chord (circular interconnect matrix) ----------
+   cfg.links:[{source,target,value}] (directional); ribbons combine A→B + B→A.
+   Each member appears ONCE on the ring (arc sized by total in+out flow); hover an
+   arc to highlight its ribbons. Complements the Sankey (directional/layered) with a
+   symmetric among-set interconnect view. */
+PDC.chord=function(el,cfg){reg(el,function(){_chord(el,cfg);});};
+function _chord(el,cfg){
+  var links=(cfg.links||[]).filter(function(l){return (+l.value||0)>0 && l.source!==l.target;});
+  var h=cfg.height||360;
+  if(!links.length){el.innerHTML='<div class="empty">No connections</div>';return;}
+  var o=mkSVG(el,h),s=o.s,w=o.w,fmt=cfg.fmt||PDC.fmt.abbr,pal=PDC.palette();
+  // nodes = union of endpoints; total = all flow touching the node (in+out)
+  var N={},order=[];
+  links.forEach(function(l){
+    [l.source,l.target].forEach(function(k){ if(!N[k]){N[k]={name:k,val:0};order.push(k);} });
+    N[l.source].val+=+l.value; N[l.target].val+=+l.value;
+  });
+  order.sort(function(a,b){return N[b].val-N[a].val;});
+  var n=order.length, idx={}; order.forEach(function(k,i){idx[k]=i;});
+  // undirected pair matrix
+  var pair={}; // "i|j" (i<j) -> combined value
+  links.forEach(function(l){var a=idx[l.source],b=idx[l.target];var lo=Math.min(a,b),hi=Math.max(a,b),key=lo+"|"+hi;pair[key]=(pair[key]||0)+(+l.value||0);});
+  var sumTot=order.reduce(function(a,k){return a+N[k].val;},0)||1;
+  var cx=w/2, cy=h/2+2, band=13, R=Math.min(w,h)/2-46;       // R = inner ribbon radius; band = arc thickness
+  var gap=0.05, avail=2*Math.PI-n*gap;
+  // assign each node an arc [a0,a1]; sub-allocate within it to partners (consistent order) for ribbon endpoints
+  var run=-Math.PI/2;
+  order.forEach(function(k,i){var nd=N[k]; nd.a0=run; var span=nd.val/sumTot*avail; nd.a1=run+span; nd.span=span; nd.sub={}; nd.cursor=run; run=nd.a1+gap;});
+  // reserve sub-arcs on both endpoints for each pair (iterate partners in node-index order so both sides line up)
+  order.forEach(function(k,i){var nd=N[k];
+    order.forEach(function(k2,j){ if(i===j)return; var lo=Math.min(i,j),hi=Math.max(i,j),v=pair[lo+"|"+hi]; if(!v)return;
+      var wdt=v/nd.val*nd.span; nd.sub[j]={a0:nd.cursor,a1:nd.cursor+wdt}; nd.cursor+=wdt; });
+  });
+  function P(rad,a){return (cx+rad*Math.cos(a)).toFixed(1)+","+(cy+rad*Math.sin(a)).toFixed(1);}
+  function arcPath(a0,a1,ri,ro){var big=(a1-a0)>Math.PI?1:0;
+    return "M"+P(ro,a0)+" A"+ro+","+ro+" 0 "+big+" 1 "+P(ro,a1)+" L"+P(ri,a1)+" A"+ri+","+ri+" 0 "+big+" 0 "+P(ri,a0)+" Z";}
+  function ribbon(si,sj){ // si/sj = {a0,a1} sub-arcs on the ring (radius R), curve through centre
+    return "M"+P(R,si.a0)+" A"+R+","+R+" 0 0 1 "+P(R,si.a1)+
+           " Q"+cx.toFixed(1)+","+cy.toFixed(1)+" "+P(R,sj.a1)+
+           " A"+R+","+R+" 0 0 1 "+P(R,sj.a0)+
+           " Q"+cx.toFixed(1)+","+cy.toFixed(1)+" "+P(R,si.a0)+" Z";}
+  // ribbons first (under arcs)
+  var ribEls=[];
+  Object.keys(pair).forEach(function(key){var parts=key.split("|"),i=+parts[0],j=+parts[1],v=pair[key];
+    var ni=N[order[i]],nj=N[order[j]]; if(!ni.sub[j]||!nj.sub[i])return;
+    var col=pal[i%10];
+    var p=on(S("path",{d:ribbon(ni.sub[j],nj.sub[i]),fill:col,opacity:0,stroke:col,"stroke-width":0.5}),
+      "<b>"+order[i]+" &harr; "+order[j]+"</b><br>"+fmt(v));
+    p._i=i; p._j=j; p._base=0.42; ribEls.push(p); s.appendChild(p);
+    animateGeom(p,{opacity:0},{opacity:0.42},120+ribEls.length*30,520);
+  });
+  // arcs + labels on top
+  function focus(i){
+    ribEls.forEach(function(p){var lit=(i==null)||(p._i===i||p._j===i); p.setAttribute("opacity", i==null?p._base:(lit?0.85:0.06));});
+    order.forEach(function(k,j){var g2=arcEls[j]; if(g2)g2.setAttribute("opacity",(i==null||j===i)?1:0.3);});
+  }
+  var arcEls={};
+  order.forEach(function(k,i){var nd=N[k]; if(nd.span<0.001)return; var col=pal[i%10];
+    var grp=S("g",{opacity:1,style:"cursor:pointer"});
+    grp.appendChild(on(S("path",{d:arcPath(nd.a0,nd.a1,R,R+band),fill:col,stroke:"#fff","stroke-width":1}),
+      "<b>"+k+"</b><br>"+fmt(nd.val)+" total flow"));
+    var am=(nd.a0+nd.a1)/2, anc=Math.cos(am)<-0.3?"end":Math.cos(am)>0.3?"start":"middle", lr=R+band+7;
+    // skip the static label for very thin arcs (would overlap with neighbours); their value stays available on hover
+    if(nd.span>=0.06)grp.appendChild(S("text",{x:(cx+lr*Math.cos(am)).toFixed(1),y:(cy+lr*Math.sin(am)+(Math.sin(am)>0.3?7:Math.sin(am)<-0.3?-1:3)).toFixed(1),
+      "text-anchor":anc,fill:"var(--text)","font-size":"11","font-weight":"700"},PDC.fmt.trunc(k,14)));
+    grp.addEventListener("mouseover",function(){focus(i);});
+    grp.addEventListener("mouseout",function(){focus(null);});
+    arcEls[i]=grp; s.appendChild(grp);
+  });
+  if(cfg.caption)s.appendChild(S("text",{x:cx,y:cy,"text-anchor":"middle",fill:"var(--muted)","font-size":"10","font-weight":"700"},cfg.caption));
+}
+
+/* ---------- calendar heat-strip (GitHub-style: weeks across, weekdays down; cell intensity = value; failure ring overlay) ---------- */
+PDC.calendar=function(el,cfg){reg(el,function(){_calendar(el,cfg);});};
+function _calendar(el,cfg){
+  var days=(cfg.days||[]).filter(function(d){return d&&d.date;}), fmt=cfg.fmt||PDC.fmt.n;
+  if(!days.length){el.innerHTML='<div class="empty">No activity</div>';return;}
+  function D(s){return new Date(s+"T00:00:00");}
+  function key(dt){return dt.getFullYear()+"-"+("0"+(dt.getMonth()+1)).slice(-2)+"-"+("0"+dt.getDate()).slice(-2);}
+  var map={},max=0; days.forEach(function(d){map[d.date]=d; if(+d.value>max)max=+d.value;});
+  var sorted=days.map(function(d){return d.date;}).sort();
+  var first=D(sorted[0]), last=D(sorted[sorted.length-1]);
+  var s0=D(sorted[0]); s0.setDate(s0.getDate()-s0.getDay());                 // back up to the Sunday on/before the first day
+  var weeks=Math.ceil((Math.round((last-s0)/864e5)+1)/7);
+  var leftPad=26, topPad=16, botPad=4, gap=2.5;
+  var o=mkSVG(el,1), s=o.s, w=o.w;
+  var cell=Math.max(6,Math.min(20,Math.floor((w-leftPad-2)/weeks)-gap));
+  var H=topPad+7*(cell+gap)+botPad; el.querySelector("svg").setAttribute("viewBox","0 0 "+w+" "+H); el.querySelector("svg").setAttribute("height",H);
+  var base=PDC.cssvar("--pentaho"), empty=PDC.cssvar("--field-bg"), bad=PDC.cssvar("--bad");
+  function rgb(hex){hex=hex.replace("#","");if(hex.length===3)hex=hex.replace(/./g,"$&$&");return[parseInt(hex.substr(0,2),16),parseInt(hex.substr(2,2),16),parseInt(hex.substr(4,2),16)];}
+  var bc=/^#/.test(base)?rgb(base):[0,91,181];
+  function shade(t){ // t in [0,1] → blend empty→base with a lift on low values
+    var op=t<=0?0:0.20+0.80*Math.sqrt(t);
+    return "rgba("+bc[0]+","+bc[1]+","+bc[2]+","+op.toFixed(3)+")";
+  }
+  var WD=["","Mon","","Wed","","Fri",""];
+  for(var r=0;r<7;r++){ if(WD[r]) s.appendChild(S("text",{x:leftPad-5,y:topPad+r*(cell+gap)+cell-1,"text-anchor":"end",fill:"var(--text-faint)","font-size":"9"},WD[r])); }
+  var lastMonth=-1;
+  for(var wk=0;wk<weeks;wk++){
+    for(var dow=0;dow<7;dow++){
+      var dt=new Date(s0); dt.setDate(s0.getDate()+wk*7+dow);
+      if(dt<first||dt>last) continue;
+      var k=key(dt), rec=map[k], val=rec?+rec.value||0:0, fails=rec?+rec.fails||0:0, runs=rec?+rec.runs||0:0;
+      var x=leftPad+wk*(cell+gap), y=topPad+dow*(cell+gap);
+      var t=max>0?val/max:0;
+      var x2=runs?"<br>"+PDC.fmt.n(runs)+" runs":"";
+      var x3=fails>0?'<br><span style="color:'+bad+'">'+PDC.fmt.n(fails)+" failed/aborted</span>":"";
+      var x4=(cfg.tip2&&rec)?("<br>"+cfg.tip2(rec)):"";   // optional extra tooltip line for non-pipeline calendars
+      var rc=on(S("rect",{x:x,y:y,width:cell,height:cell,rx:2,fill:rec?shade(t):empty,
+        stroke:fails>0?bad:"rgba(0,0,0,.04)","stroke-width":fails>0?1.4:0.5}),
+        "<b>"+k+"</b><br>"+fmt(val)+" "+(cfg.unit||"events")+x2+x3+x4);
+      s.appendChild(rc);
+    }
+    // month label at the top of the first week that starts a new month
+    var mdt=new Date(s0); mdt.setDate(s0.getDate()+wk*7);
+    if(mdt.getMonth()!==lastMonth && mdt<=last){ lastMonth=mdt.getMonth();
+      s.appendChild(S("text",{x:leftPad+wk*(cell+gap),y:10,fill:"var(--text-faint)","font-size":"9"},["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][mdt.getMonth()]));
+    }
+  }
+}
+
+/* ---------- scatter / bubble ---------- */
+PDC.scatter=function(el,cfg){reg(el,function(){_scatter(el,cfg);});};
+function _scatter(el,cfg){
+  var pts=cfg.points||[],h=cfg.height||280;
+  if(!pts.length){el.innerHTML='<div class="empty">No data</div>';return;}
+  var o=mkSVG(el,h),s=o.s,w=o.w,fx=cfg.fmtX||PDC.fmt.abbr,fy=cfg.fmtY||PDC.fmt.abbr;
+  var mL=48,mR=14,mT=12,mB=34,iw=w-mL-mR,ih=h-mT-mB;
+  var xmax=niceMax(Math.max.apply(null,pts.map(function(p){return +p.x||0;}))),ymax=niceMax(Math.max.apply(null,pts.map(function(p){return +p.y||0;})));
+  var rmax=Math.max.apply(null,pts.map(function(p){return +p.r||1;}))||1;
+  var xs=function(v){return mL+iw*(v/xmax);},ys=function(v){return mT+ih*(1-v/ymax);};
+  for(var g=0;g<=4;g++){var gy=mT+ih*(1-g/4),gx=mL+iw*g/4;
+    s.appendChild(S("line",{class:"gridline",x1:mL,y1:gy,x2:w-mR,y2:gy}));
+    s.appendChild(S("text",{class:"tick",x:mL-7,y:gy+3,"text-anchor":"end"},fy(ymax*g/4)));
+    s.appendChild(S("text",{class:"tick",x:gx,y:mT+ih+14,"text-anchor":"middle"},fx(xmax*g/4)));}
+  if(cfg.xLabel)s.appendChild(S("text",{class:"axis-label",x:mL+iw/2,y:h-2,"text-anchor":"middle"},cfg.xLabel));
+  if(cfg.yLabel){var yl=S("text",{class:"axis-label",x:12,y:mT+ih/2,"text-anchor":"middle"},cfg.yLabel);yl.setAttribute("transform","rotate(-90 12 "+(mT+ih/2)+")");s.appendChild(yl);}
+  pts.forEach(function(p,i){var rr=6+18*Math.sqrt((+p.r||1)/rmax);
+    var c=on(S("circle",{cx:xs(+p.x||0),cy:ys(+p.y||0),r:rr,fill:p.color||PDC.color(i),opacity:.62,stroke:p.color||PDC.color(i),"stroke-width":1.2,class:"dot"}),
+      "<b>"+(p.label||"")+"</b><br>"+(cfg.xLabel||"x")+": "+fx(p.x)+"<br>"+(cfg.yLabel||"y")+": "+fy(p.y)+(p.r!=null?"<br>"+(cfg.rLabel||"size")+": "+PDC.fmt.abbr(p.r):""));
+    s.appendChild(c);});
+}
+
+/* ---------- table ---------- */
+PDC.table=function(el,cfg){
+  var cols=cfg.cols||[], rows=cfg.rows||[];
+  var maxes=cols.map(function(c,ci){return c.bar?Math.max.apply(null,rows.map(function(r){return +r[ci]||0;}))||1:0;});
+  var html='<table class="tbl"><thead><tr>'+cols.map(function(c){return '<th class="'+(c.num?"num":"")+'">'+c.label+'</th>';}).join("")+'</tr></thead><tbody>';
+  rows.forEach(function(r){html+='<tr>'+cols.map(function(c,ci){
+    var v=r[ci], disp=c.fmt?c.fmt(v):(v==null?"":v);
+    if(c.bar){var pc=(100*(+v||0)/maxes[ci]).toFixed(1);return '<td class="num barcell"><span class="fill" style="width:'+pc+'%"></span><span>'+disp+'</span></td>';}
+    if(c.badge){var b=c.badge(v);return '<td><span class="badge '+b.cls+'">'+b.text+'</span></td>';}
+    return '<td class="'+(c.num?"num":"")+'" '+(c.title?'title="'+String(r[ci]).replace(/"/g,"&quot;")+'"':"")+'>'+disp+'</td>';
+  }).join("")+'</tr>';});
+  html+='</tbody></table>'; el.innerHTML=html;
+  // row-click detail: cfg.detail = aggregate row → its constituent records (drawer, like bars);
+  // cfg.recordDetail = this row IS a record → a single-record card (built from the row, no query).
+  if(cfg.detail||cfg.recordDetail){
+    var trs=el.querySelectorAll("tbody tr");
+    [].forEach.call(trs,function(tr,ri){
+      tr.style.cursor="pointer"; tr.classList.add("rowclick");
+      tr.addEventListener("click",function(){
+        var r=rows[ri];
+        if(cfg.recordDetail){
+          var pairs=cols.map(function(c,ci){return{label:c.label,value:(c.fmt?c.fmt(r[ci]):(r[ci]==null?"":r[ci]))};});
+          var ttl=cfg.recordDetail.title?cfg.recordDetail.title(r):String(r[cfg.recordDetail.keyIdx||0]);
+          PDC.detail({title:ttl,subtitle:cfg.recordDetail.subtitle,record:pairs,
+            drill:cfg.recordDetail.drill?{to:cfg.recordDetail.drill.to,param:cfg.recordDetail.drill.param,value:r[cfg.recordDetail.drill.keyIdx||0],label:cfg.recordDetail.drill.label}:null});
+        } else {
+          PDC.openDetail(cfg.detail, r[cfg.detail.keyIdx||0]);
+        }
+      });
+    });
+  }
+};
+
+/* ---------- legend (DOM) ---------- */
+function _legend(el,items){var d=document.createElement("div");d.className="legend";
+  d.innerHTML=items.map(function(it){return '<span class="it"><span class="sw" style="background:'+it.color+'"></span>'+it.name+'</span>';}).join("");
+  el.appendChild(d);}
+PDC.legend=function(el,items){_legend(el,items);};
+
+/* ---------- layout helpers ---------- */
+PDC.grid=function(cols){var d=document.createElement("div");d.className="pdc-grid cols-"+(cols||2);return d;};
+/* ---------- info dot: a discrete ⓘ that reveals a business/technical blurb on hover/focus ----------
+   Reusable on card titles (PDC.card opts.info) and KPI tiles (PDC.kpis tile.info). One shared popover. */
+PDC.infoDot=function(text){
+  if(!text)return document.createDocumentFragment();
+  var s=document.createElement("span"); s.className="pdc-i"; s.tabIndex=0; s.setAttribute("role","button");
+  s.setAttribute("aria-label","Definition: "+text); s.textContent="ⓘ";
+  function pop(){ if(!PDC._infoPop){var d=document.createElement("div");d.className="pdc-info-pop";document.body.appendChild(d);PDC._infoPop=d;} return PDC._infoPop; }
+  function show(){ var p=pop(); p.textContent=text; p.style.display="block";
+    var r=s.getBoundingClientRect(), pw=Math.min(300, window.innerWidth-24); p.style.maxWidth=pw+"px";
+    var left=Math.min(r.left, window.innerWidth-pw-12); p.style.left=Math.max(8,left)+"px"; p.style.top=(r.bottom+7)+"px"; }
+  function hide(){ if(PDC._infoPop)PDC._infoPop.style.display="none"; }
+  s.addEventListener("mouseenter",show); s.addEventListener("mouseleave",hide);
+  s.addEventListener("focus",show); s.addEventListener("blur",hide);
+  s.addEventListener("click",function(e){e.stopPropagation();show();});
+  return s;
+};
+
+PDC.card=function(title,opts){opts=opts||{};var c=document.createElement("div");
+  c.className="card "+(opts.cls||"")+(opts.span?" span-"+opts.span:"");
+  var pill=opts.pill?'<span class="pill">'+opts.pill+'</span>':"";
+  var sub=opts.sub?'<span class="sub">'+opts.sub+'</span>':"";
+  c.innerHTML='<h3><span class="pdc-h-t">'+title+'</span>'+pill+sub+'</h3>';
+  if(opts.info)c.querySelector(".pdc-h-t").appendChild(PDC.infoDot(opts.info));
+  var b=document.createElement("div");b.className="body";if(opts.h)b.style.minHeight=opts.h+"px";
+  c.appendChild(b);
+  if(opts.src){var sp=document.createElement("div");sp.className="src";sp.title="View the CDA queries behind this dashboard";sp.textContent="◴ "+opts.src;
+    sp.style.cursor="pointer";sp.addEventListener("click",function(){PDC.queryModal(opts.query);});c.appendChild(sp);}
+  if(opts.linkTo){var a=document.createElement("a");a.href=PDC.dashUrl(opts.linkTo);a.innerHTML=(opts.linkLabel||"open")+" &rarr;";
+    a.title="Open the "+opts.linkTo+" dashboard";
+    a.style.cssText="position:absolute;top:13px;right:15px;font-size:11px;font-weight:700;color:var(--pdc);text-decoration:none;opacity:.8;letter-spacing:.2px";
+    a.onmouseover=function(){a.style.opacity="1";};a.onmouseout=function(){a.style.opacity=".8";};
+    c.style.position="relative";c.appendChild(a);}
+  return{el:c,body:b};};
+PDC.el=function(id){return document.getElementById(id);};
+
+/* ---------- CDA query inspector (discrete ⓘ; shows the SQL behind the dashboard) ---------- */
+// Derive the repo content URL of this dashboard's .cda from PDC.cdaPath (e.g.
+// "/public/pdc-iteration/v2/pdc-x.cda" -> "/pentaho/api/repos/:public:pdc-iteration:v2:pdc-x.cda/content").
+PDC.cdaContentUrl=function(){var p=PDC.cdaPath||"";if(!p)return null;return "/pentaho/api/repos/"+p.replace(/^\/+/,"").replace(/\//g,":")+"/content";};
+PDC._cdaCache=null;
+// Open a clean modal listing the dashboard's CDA data accesses + their SQL. Optional `focusId`
+// scrolls to / highlights one data access (used by the per-panel provenance caption).
+PDC.queryModal=function(focusId){
+  var url=PDC.cdaContentUrl(); if(!url)return;
+  var existing=document.getElementById("pdc-qm"); if(existing){ if(focusId)_qmFocus(existing,focusId); return; }
+  var ov=document.createElement("div"); ov.id="pdc-qm"; ov.className="pdc-qm-ov";
+  var fname=PDC.cdaPath.split("/").pop();
+  ov.innerHTML='<div class="pdc-qm" role="dialog" aria-modal="true" aria-label="CDA queries">'+
+    '<div class="pdc-qm-h"><span class="pdc-qm-t">◴ CDA Queries <code>'+fname+'</code></span>'+
+    '<span class="pdc-qm-note">the live SQL behind every panel · read-only</span>'+
+    '<button class="pdc-qm-x" aria-label="Close">&times;</button></div>'+
+    '<div class="pdc-qm-b"><div class="pdc-qm-load">Loading queries…</div></div></div>';
+  document.body.appendChild(ov);
+  function close(){ov.remove();document.removeEventListener("keydown",esc);}
+  function esc(e){if(e.key==="Escape")close();}
+  ov.addEventListener("click",function(e){if(e.target===ov)close();});
+  ov.querySelector(".pdc-qm-x").addEventListener("click",close);
+  document.addEventListener("keydown",esc);
+  var done=function(xml){
+    var doc=new DOMParser().parseFromString(xml,"text/xml");
+    var das=[].slice.call(doc.getElementsByTagName("DataAccess"));
+    var b=ov.querySelector(".pdc-qm-b"); b.innerHTML="";
+    if(!das.length){b.innerHTML='<div class="pdc-qm-load">No queries found in this CDA.</div>';return;}
+    das.forEach(function(da){
+      var id=da.getAttribute("id")||"", type=da.getAttribute("type")||"";
+      var qn=da.getElementsByTagName("Query")[0], sql=qn?qn.textContent.trim():"(no SQL — "+type+")";
+      var params=[].slice.call(da.getElementsByTagName("Parameter")).map(function(p){return p.getAttribute("name");}).filter(Boolean);
+      var sec=document.createElement("section"); sec.className="pdc-q"; sec.setAttribute("data-id",id);
+      var pill=params.length?'<span class="pdc-q-params">'+params.join(" · ")+'</span>':'';
+      sec.innerHTML='<div class="pdc-q-id"><span class="pdc-q-name">'+id+'</span>'+pill+'<button class="pdc-q-copy" title="Copy SQL">copy</button></div><pre class="pdc-q-sql"></pre>';
+      sec.querySelector(".pdc-q-sql").textContent=sql;
+      sec.querySelector(".pdc-q-copy").addEventListener("click",function(){var t=this;try{navigator.clipboard.writeText(sql);t.textContent="copied ✓";setTimeout(function(){t.textContent="copy";},1200);}catch(e){}});
+      b.appendChild(sec);
+    });
+    if(focusId)_qmFocus(ov,focusId);
+  };
+  if(PDC._cdaCache){done(PDC._cdaCache);}
+  else fetch(url,{credentials:"include"}).then(function(r){return r.text();}).then(function(t){PDC._cdaCache=t;done(t);})
+    .catch(function(e){ov.querySelector(".pdc-qm-b").innerHTML='<div class="pdc-qm-load">Could not load queries ('+e+').</div>';});
+};
+function _qmFocus(ov,id){var s=ov.querySelector('.pdc-q[data-id="'+id+'"]');if(!s)return;
+  ov.querySelectorAll(".pdc-q.hot").forEach&&ov.querySelectorAll(".pdc-q.hot").forEach(function(x){x.classList.remove("hot");});
+  s.classList.add("hot");s.scrollIntoView({behavior:"smooth",block:"start"});}
+// version-portable sibling-dashboard URL (derived from this page's repo path, so it
+// targets whatever iteration vN is serving the page — drill-through without hard-coding).
+PDC.dashUrl=function(name){try{return location.pathname.replace(/:[^:]*\.html\/content.*$/,":"+name+".html/content");}catch(e){return "#";}};
+// ── cross-dashboard drill: read URL params (incoming drill state), and build/navigate
+// drill URLs that carry the current filters + the clicked value to a sibling dashboard.
+PDC.urlParams=function(){var o={};try{(location.search||"").replace(/^\?/,"").split("&").forEach(function(kv){if(!kv)return;var i=kv.indexOf("=");var k=decodeURIComponent(i<0?kv:kv.slice(0,i));o[k]=decodeURIComponent(i<0?"":kv.slice(i+1).replace(/\+/g," "));});}catch(e){}return o;};
+PDC.drillUrl=function(to,extra){var qs=[],seen={},st=PDC.filterState||{},k;
+  for(k in (extra||{})){if(extra[k]==null)continue;qs.push(encodeURIComponent(k)+"="+encodeURIComponent(extra[k]));seen[k]=1;}
+  for(k in st){if(seen[k])continue;var v=st[k];if(v!=null&&v!==""&&v!=="%")qs.push(encodeURIComponent(k)+"="+encodeURIComponent(v));}
+  var u=PDC.dashUrl(to);return u+(qs.length?("?"+qs.join("&")):"");};
+PDC.drill=function(to,extra){var u=PDC.drillUrl(to,extra);if(u&&u!=="#")window.location.href=u;};
+// bind a click-to-drill on an SVG chart element (cfg.drill = {to, param}); clicking sends
+// param=<clicked label> + all current filters to the target dashboard.
+PDC.bindDrill=function(elem,drill,label){if(!drill||!drill.to)return;elem.style.cursor="pointer";
+  elem.addEventListener("click",function(){var ex={};if(drill.param)ex[drill.param]=label;if(drill.extra)for(var k in drill.extra)ex[k]=drill.extra[k];PDC.drill(drill.to,ex);});};
+
+/* ---------- drill-to-DETAIL: click a slice/bar/tile → see the ACTUAL underlying rows ----------
+   The number IS the row count: click a bar that reads 250 and the drawer lists all 250 records
+   (one row per entity/job/flow), NOT another rollup. Backed by a row-grain CDA query scoped to the
+   clicked datum. A "↗ open dashboard" link inside the drawer keeps the cross-drill affordance too. */
+PDC.detail=function(cfg){
+  cfg=cfg||{};
+  var old=document.getElementById("pdc-dt"); if(old)old.remove();
+  var ov=document.createElement("div"); ov.id="pdc-dt"; ov.className="pdc-dt-ov";
+  ov.innerHTML='<div class="pdc-dt" role="dialog" aria-modal="true" aria-label="Record detail">'+
+    '<div class="pdc-dt-h"><div class="pdc-dt-tt"><span class="pdc-dt-t"></span><span class="pdc-dt-sub"></span></div>'+
+    '<button class="pdc-dt-x" aria-label="Close">&times;</button></div>'+
+    '<div class="pdc-dt-bar"><span class="pdc-dt-count">…</span>'+
+    '<input class="pdc-dt-q" type="search" placeholder="Filter rows…" aria-label="Filter rows"/>'+
+    '<span class="pdc-dt-drill"></span></div>'+
+    '<div class="pdc-dt-b"><div class="pdc-dt-load">Loading records…</div></div></div>';
+  document.body.appendChild(ov);
+  ov.querySelector(".pdc-dt-t").textContent=cfg.title||"Detail";
+  if(cfg.subtitle)ov.querySelector(".pdc-dt-sub").textContent=cfg.subtitle;
+  if(cfg.drill&&cfg.drill.to){var dl=document.createElement("a");dl.className="pdc-dt-drilllink";
+    dl.innerHTML=(cfg.drill.label||("Open "+cfg.drill.to))+" &#8599;";dl.href="#";
+    dl.title="Open the "+cfg.drill.to+" dashboard for this selection";
+    dl.addEventListener("click",function(e){e.preventDefault();var ex={};
+      if(cfg.drill.param&&cfg.drill.value!=null)ex[cfg.drill.param]=cfg.drill.value;
+      if(cfg.drill.extra)for(var k in cfg.drill.extra)ex[k]=cfg.drill.extra[k];PDC.drill(cfg.drill.to,ex);});
+    ov.querySelector(".pdc-dt-drill").appendChild(dl);}
+  function close(){ov.remove();document.removeEventListener("keydown",esc);}
+  function esc(e){if(e.key==="Escape")close();}
+  ov.addEventListener("click",function(e){if(e.target===ov)close();});
+  ov.querySelector(".pdc-dt-x").addEventListener("click",close);
+  document.addEventListener("keydown",esc);
+  requestAnimationFrame(function(){ov.classList.add("in");});
+  function paint(res){
+    var cols=cfg.cols;
+    if(!cols)cols=(res.cols||[]).map(function(c){return{key:c,label:c};});
+    cols.forEach(function(c){c._i=(c.key!=null)?res.col(c.key):(c.idx!=null?c.idx:-1);});
+    var all=res.rows||[], noun=cfg.noun||"rows";
+    var body=ov.querySelector(".pdc-dt-b"), cnt=ov.querySelector(".pdc-dt-count");
+    function cell(c,v){return c.fmt?c.fmt(v):(v==null?"":String(v));}
+    function build(list){
+      if(!list.length){body.innerHTML='<div class="pdc-dt-load">No records.</div>';return;}
+      var CAP=2000, lim=Math.min(list.length,CAP);
+      var h='<table class="pdc-dt-tbl"><thead><tr>'+cols.map(function(c){return '<th class="'+(c.num?"num":"")+'">'+c.label+'</th>';}).join("")+'</tr></thead><tbody>';
+      for(var i=0;i<lim;i++){var r=list[i];h+='<tr>'+cols.map(function(c){var v=c._i>=0?r[c._i]:"";
+        return '<td class="'+(c.num?"num":"")+(c.title?" ti":"")+'">'+cell(c,v)+'</td>';}).join("")+'</tr>';}
+      h+='</tbody></table>';
+      if(list.length>CAP)h+='<div class="pdc-dt-more">Showing first '+CAP.toLocaleString()+' of '+list.length.toLocaleString()+' — type in Filter to narrow.</div>';
+      body.innerHTML=h;
+    }
+    function setCount(n,tot){cnt.innerHTML=(n===tot)?('<b>'+tot.toLocaleString()+'</b> '+noun):('<b>'+n.toLocaleString()+'</b> of '+tot.toLocaleString()+' '+noun);}
+    setCount(all.length,all.length); build(all);
+    var q=ov.querySelector(".pdc-dt-q");
+    q.addEventListener("input",function(){var t=this.value.trim().toLowerCase();
+      if(!t){setCount(all.length,all.length);build(all);return;}
+      var f=all.filter(function(r){return cols.some(function(c){return c._i>=0&&String(r[c._i]).toLowerCase().indexOf(t)>=0;});});
+      setCount(f.length,all.length);build(f);});
+    setTimeout(function(){try{q.focus();}catch(e){}},80);
+  }
+  function fail(e){ov.querySelector(".pdc-dt-b").innerHTML='<div class="pdc-dt-load">Could not load records ('+e+').</div>';}
+  if(cfg.record){ // single-record card: render the clicked row's own fields as label/value pairs
+    var bar=ov.querySelector(".pdc-dt-bar"); if(bar)bar.style.display="none";
+    var body2=ov.querySelector(".pdc-dt-b");
+    body2.innerHTML='<dl class="pdc-dt-rec">'+cfg.record.map(function(p){
+      return '<dt>'+p.label+'</dt><dd>'+(p.value==null?"":String(p.value))+'</dd>';}).join("")+'</dl>';
+  }
+  else if(cfg.rows&&cfg.rows.rows)paint(cfg.rows);
+  else if(cfg.da)PDC.cda(cfg.da,cfg.params||{}).then(paint).catch(fail);
+  else fail("no data source");
+};
+// open the detail drawer for a clicked datum `label` using a chart's `detail` config
+PDC.openDetail=function(detail,label){if(!detail||!(detail.da||detail.rows))return;
+  var params={};if(detail.params)for(var k in detail.params)params[k]=detail.params[k];
+  if(detail.param)params[detail.param]=label;
+  PDC.detail({title:(detail.title?detail.title(label):label),subtitle:(detail.subtitle?(typeof detail.subtitle==="function"?detail.subtitle(label):detail.subtitle):""),
+    da:detail.da,rows:detail.rows,params:params,cols:detail.cols,noun:detail.noun,
+    drill:detail.drill?{to:detail.drill.to,param:detail.drill.param,value:(detail.drill.value!=null?detail.drill.value:label),label:detail.drill.label,extra:detail.drill.extra}:null});};
+PDC.bindDetail=function(elem,detail,label){if(!detail||!(detail.da||detail.rows))return;elem.style.cursor="pointer";
+  elem.addEventListener("click",function(){PDC.openDetail(detail,label);});};
+PDC.opt=function(sel,val,txt){var o=document.createElement("option");o.value=val;o.textContent=txt;sel.appendChild(o);};
+/* ---------- filter bar ---------- */
+PDC.filterState={};
+PDC.filters=function(defs,onChange){
+  var box=PDC.el("ctrls"); if(!box)return PDC.filterState; box.innerHTML="";
+  var url=PDC.urlParams();   // incoming drill state: a filter id present in the URL pre-selects it
+  defs.forEach(function(f){
+    var wrap=document.createElement("div");wrap.className="fl";
+    var lab=document.createElement("label");lab.textContent=f.label;wrap.appendChild(lab);
+    var sel=document.createElement("select");sel.className="pdc-sel";sel.id="f_"+f.id;
+    (f.options||[]).forEach(function(o){PDC.opt(sel,o.v,o.t);});
+    var init=(url[f.id]!=null&&url[f.id]!=="")?url[f.id]:f.def;
+    if(init!=null){sel.value=init;if(sel.value!==String(init)&&f.def!=null)sel.value=f.def;}  // URL value must be a real option
+    PDC.filterState[f.id]=sel.value;
+    sel.addEventListener("change",function(){PDC.filterState[f.id]=sel.value;if(onChange)onChange(PDC.filterState);});
+    wrap.appendChild(sel);box.appendChild(wrap);
+  });
+  return PDC.filterState;
+};
+PDC.TIME_RANGE=[{v:"0",t:"All time"},{v:"365",t:"Last 12 months"},{v:"180",t:"Last 6 months"},{v:"90",t:"Last 90 days"},{v:"30",t:"Last 30 days"}];
+PDC.fromkey=function(days){days=+days||0;if(days<=0)return 0;var d=new Date(Date.now()-days*864e5);return d.getFullYear()*10000+(d.getMonth()+1)*100+d.getDate();};
+/* error helper for dashboards */
+PDC.fail=function(msg){var c=PDC.el("content");if(c)c.innerHTML='<div class="loading">'+(msg||"Could not load data. Ensure you are logged into Pentaho.")+'</div>';};
+})();
+
+</script>
+<script>
+PDC.cdaPath = '/public/pdc-iteration/v2/pdc-glossary.cda';
+PDC.initTheme();
+(function(){var b=document.getElementById('themeBtn');b.innerHTML=(document.documentElement.getAttribute('data-theme')==='dark')?'&#9728; Light':'&#9790; Dark';})();
+// Business Glossary & Term Reach.
+(function(){
+  function v(res,n){return (res.rows[0]||[])[res.col(n)];}
+  function rows(res,a,b){var ia=res.col(a),ib=res.col(b);return res.rows.map(function(r){return{label:String(r[ia]),value:+r[ib]||0};});}
+  function render(d){
+    var total=+v(d.kpi,"total_assets")||0, classified=+v(d.kpi,"classified")||0;
+    PDC.kpis(PDC.el("kpis"),[
+      {value:PDC.fmt.abbr(v(d.kpi,"terms")),label:"Glossary Terms",state:"purple",info:"Distinct business glossary terms defined (e.g. 'Customer', 'PII - Email Address'). The shared vocabulary used to classify catalog assets."},
+      {value:PDC.fmt.abbr(classified),label:"Classified Assets",info:"Catalog assets that have at least one glossary term assigned — i.e. data that has been business-tagged and given meaning."},
+      {value:PDC.fmt.pct(total?100*classified/total:0),label:"Classification Coverage",state:(total&&classified/total>=0.3)?"good":"warn",info:"Classified assets ÷ total assets — how much of the estate is mapped to business terms vs still untagged. Higher coverage = a more usable, governed catalog."},
+      {value:PDC.fmt.n(v(d.kpi,"glossaries")),label:"Glossaries",info:"Number of distinct glossaries (top-level business domains, e.g. Finance, HR, PII) that the terms are organized under."}
+    ]);
+    var content=PDC.el("content");content.innerHTML="";var g=PDC.grid(3);content.appendChild(g);
+    var sens=PDC.filterState.sens||"%";
+    // click a glossary (bar or treemap tile) → drawer of the ACTUAL entities classified under it
+    var glossaryDetail={da:"detail_glossary_entities",param:"glossary",params:{sens:sens},noun:"classified entities",
+      title:function(gl){return gl+" — classified entities";},
+      subtitle:"every entity tagged under this glossary"+(sens!=="%"?(" · "+sens):""),
+      cols:[
+        {key:"name",label:"Entity",title:true,fmt:function(x){return PDC.fmt.trunc(x,40);}},
+        {key:"term",label:"Term",fmt:function(x){return PDC.fmt.trunc(x,28);}},
+        {key:"sensitivity",label:"Sensitivity"},
+        {key:"owner",label:"Owner",fmt:function(x){return PDC.fmt.trunc(x,18);}}],
+      drill:{to:"i-sensitive-domains",param:"glossary",label:"Open Sensitive Domains"}};
+    var c1=PDC.card("Term Reach by Glossary",{pill:"entities · click → assets",src:"fact_entity_term · cube 72",info:"How many catalog entities each glossary (business domain) reaches through its assigned terms. The widest bars are your most-applied domains. Click a bar to see the actual classified entities."});g.appendChild(c1.el);
+    PDC.bars(c1.body,{horizontal:true,labelW:150,fmt:PDC.fmt.abbr,detail:glossaryDetail,data:rows(d.bg,"glossary","entities")});
+    var c2=PDC.card("Classification Coverage",{pill:"assets",src:"fact_entity_term · cube 72",info:"Classified vs unclassified assets — the share of the estate mapped to business terms vs still untagged. A large unclassified slice is your classification backlog."});g.appendChild(c2.el);
+    PDC.donut(c2.body,{centerCap:"Assets",fmt:PDC.fmt.abbr,data:rows(d.cl,"label","assets").map(function(x){x.color=/^classified/i.test(x.label)?PDC.cssvar("--good"):PDC.cssvar("--text-faint");return x;})});
+    var c3=PDC.card("Glossary Reach Treemap",{pill:"entities · click → assets",src:"fact_entity_term · cube 72",info:"The same per-glossary entity reach shown as proportional tiles — larger tiles are domains that classify more of the catalog. Click a tile for its entities."});g.appendChild(c3.el);
+    PDC.treemap(c3.body,{height:260,fmt:PDC.fmt.abbr,detail:glossaryDetail,data:rows(d.bg,"glossary","entities")});
+    var c4=PDC.card("Top Terms by Entity Reach",{pill:"entities",src:"dim_glossary_term · cube 72",span:3,info:"The individual glossary terms attached to the most entities — your most-used business definitions, and the ones worth keeping precise and well-governed."});g.appendChild(c4.el);
+    var ti=d.tt.col("term"),gi=d.tt.col("glossary"),ei=d.tt.col("entities");
+    PDC.table(c4.body,{cols:[{label:"Term",title:true,fmt:function(x){return PDC.fmt.trunc(x,40);}},
+      {label:"Glossary",fmt:function(x){return PDC.fmt.trunc(x,20);}},
+      {label:"Entity Reach",num:true,bar:true,fmt:PDC.fmt.n}],
+      rows:d.tt.rows.map(function(r){return[r[ti],r[gi],+r[ei]||0];})});
+  }
+  function load(){var glossary=PDC.filterState.glossary||"%",sens=PDC.filterState.sens||"%";PDC.resetCharts();PDC.el("content").innerHTML='<div class="loading">Loading…</div>';
+    // glossary filter narrows kpi + top-terms; by_glossary (the cross-glossary breakdown) and the coverage donut stay glossary-agnostic
+    PDC.load({kpi:["kpi",{glossary:glossary,sens:sens}],bg:["by_glossary",{sens:sens}],tt:["top_terms",{glossary:glossary,sens:sens}],cl:["classified",{sens:sens}]}).then(render).catch(function(e){PDC.fail();console.error(e);});}
+  Promise.all([PDC.cda("glossaries"),PDC.cda("sensitivities")]).then(function(res){
+    var glOpts=[{v:"%",t:"All glossaries"}].concat(res[0].rows.map(function(x){return{v:x[0],t:x[0]};}));
+    var snOpts=[{v:"%",t:"All sensitivities"}].concat(res[1].rows.map(function(x){return{v:x[0],t:x[0]};}));
+    PDC.filters([{id:"glossary",label:"Glossary",options:glOpts,def:"%"},{id:"sens",label:"Sensitivity",options:snOpts,def:"%"}],load);load();
+  }).catch(function(){PDC.filters([{id:"glossary",label:"Glossary",options:[{v:"%",t:"All glossaries"}]},{id:"sens",label:"Sensitivity",options:[{v:"%",t:"All sensitivities"}]}],load);load();});
+})();
+
+</script>
+</body>
+</html>

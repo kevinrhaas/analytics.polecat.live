@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dashboard>
+<title>D99 PDC Operations Overview</title>
+<heading/>
+<enableWidgetPrinting>false</enableWidgetPrinting>
+<documentation>
+<author>admin</author>
+<description>End-to-end health overview — single-metric charts.</description>
+<icon/>
+</documentation>
+<template-ref>xul/04-1-then-2.xul</template-ref>
+<theme-ref>0-Ruby</theme-ref>
+<layout>
+<overlay xmlns:pho="http://www.pentaho.com" pho:fixie="withme">
+<box id="Panel_1" pho:title="Pipeline Status Mix" flex="1" collapsed="false" type="titled-panel"/>
+<box id="Panel_2" pho:title="Pipeline Run Count Trend" flex="1" collapsed="false" type="titled-panel"/>
+<box id="Panel_3" pho:title="Policy Mix" flex="1" collapsed="false" type="titled-panel"/>
+<box id="Panel_4" pho:title="Application Type Mix" flex="1" collapsed="false" type="titled-panel"/>
+<box id="Panel_5" pho:title="Duplicate File Count by Resource" flex="1" collapsed="false" type="titled-panel"/>
+<box id="Panel_6" pho:title="Temperature Mix" flex="1" collapsed="false" type="titled-panel"/>
+</overlay>
+</layout>
+<parameters>
+</parameters>
+<widgetJavascript><![CDATA[]]></widgetJavascript>
+<widgets>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/16-pipeline-status-mix.xanalyzer</xactionPath><localizedName jsonType="string">16-pipeline-status-mix</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">21001</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/16-pipeline-status-mix.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_1</htmlObject><solution jsonType="string"/><name jsonType="string">widget1</name><action jsonType="string">16-pipeline-status-mix.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/16-pipeline-trend.xanalyzer</xactionPath><localizedName jsonType="string">16-pipeline-trend</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">21002</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/16-pipeline-trend.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_2</htmlObject><solution jsonType="string"/><name jsonType="string">widget2</name><action jsonType="string">16-pipeline-trend.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/12-policy-mix-donut.xanalyzer</xactionPath><localizedName jsonType="string">12-policy-mix-donut</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">21003</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/12-policy-mix-donut.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_3</htmlObject><solution jsonType="string"/><name jsonType="string">widget3</name><action jsonType="string">12-policy-mix-donut.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/14-app-mix-donut.xanalyzer</xactionPath><localizedName jsonType="string">14-app-mix-donut</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">21004</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/14-app-mix-donut.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_4</htmlObject><solution jsonType="string"/><name jsonType="string">widget4</name><action jsonType="string">14-app-mix-donut.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/15-duplicate-by-resource-type.xanalyzer</xactionPath><localizedName jsonType="string">15-duplicate-by-resource-type</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">21005</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/15-duplicate-by-resource-type.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_5</htmlObject><solution jsonType="string"/><name jsonType="string">widget5</name><action jsonType="string">15-duplicate-by-resource-type.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/18-temperature-mix.xanalyzer</xactionPath><localizedName jsonType="string">18-temperature-mix</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">21006</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/18-temperature-mix.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_6</htmlObject><solution jsonType="string"/><name jsonType="string">widget6</name><action jsonType="string">18-temperature-mix.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+</widgets>
+</dashboard>

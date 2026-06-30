@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sample Variable Manager</title>
+  <link rel="stylesheet" href="/pentaho/content/common-ui/resources/themes/ruby/globalRuby.css" />
+  <style>
+    body {
+      margin: 0;
+      padding: 24px;
+      box-sizing: border-box;
+    }
+
+    .console-shell {
+      max-width: 980px;
+      margin: 0 auto;
+    }
+
+    .console-header {
+      margin-bottom: 20px;
+    }
+
+    .console-card {
+      padding: 20px;
+    }
+
+    .console-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    .console-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .console-status {
+      min-height: 22px;
+      margin-top: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .console-status-detail {
+      margin-top: 4px;
+      min-height: 18px;
+      opacity: 0.8;
+      font-size: 12px;
+    }
+
+    .status-icon {
+      width: 14px;
+      height: 14px;
+      display: inline-block;
+      border-radius: 999px;
+      flex: 0 0 14px;
+    }
+
+    .status-icon.is-running {
+      border: 2px solid #cfcfcf;
+      border-top-color: #6b6b6b;
+      animation: spin 0.7s linear infinite;
+    }
+
+    .status-icon.is-success {
+      background: #2e8b57;
+      position: relative;
+    }
+
+    .status-icon.is-success::after {
+      content: "";
+      position: absolute;
+      left: 4px;
+      top: 1px;
+      width: 4px;
+      height: 8px;
+      border: solid #fff;
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
+    }
+
+    .status-icon.is-error {
+      background: #b00020;
+      position: relative;
+    }
+
+    .status-icon.is-error::before,
+    .status-icon.is-error::after {
+      content: "";
+      position: absolute;
+      left: 6px;
+      top: 2px;
+      width: 2px;
+      height: 10px;
+      background: #fff;
+    }
+
+    .status-icon.is-error::before {
+      transform: rotate(45deg);
+    }
+
+    .status-icon.is-error::after {
+      transform: rotate(-45deg);
+    }
+
+    .status-icon.is-warning {
+      background: #e6a700;
+      position: relative;
+    }
+
+    .status-icon.is-warning::after {
+      content: "!";
+      position: absolute;
+      left: 4px;
+      top: -1px;
+      font-size: 12px;
+      font-weight: bold;
+      color: #fff;
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .field-full {
+      grid-column: 1 / -1;
+    }
+
+    input[type="text"],
+    select {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 8px;
+    }
+
+    button {
+      padding: 8px 14px;
+      cursor: pointer;
+    }
+
+    .hint {
+      font-size: 12px;
+      opacity: 0.85;
+      margin-top: -2px;
+    }
+
+    .custom-name-row {
+      display: none;
+    }
+
+    .custom-name-row.is-visible {
+      display: block;
+    }
+
+    .advanced-toggle {
+      display: inline-block;
+      font-size: 12px;
+      opacity: 0.6;
+      cursor: pointer;
+      margin-top: 16px;
+      border: none;
+      background: none;
+      padding: 0;
+      text-decoration: underline;
+    }
+
+    .advanced-toggle:hover {
+      opacity: 0.9;
+    }
+
+    .advanced-panel {
+      display: none;
+      margin-top: 8px;
+      padding: 12px;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      background: #fafafa;
+    }
+
+    .advanced-panel.is-visible {
+      display: block;
+    }
+
+    .advanced-panel label {
+      font-size: 12px;
+      opacity: 0.7;
+    }
+
+    .advanced-panel input[type="text"] {
+      font-size: 12px;
+    }
+
+    @media (max-width: 700px) {
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="console-shell">
+    <header class="console-header">
+      <h1>Sample Variable Manager</h1>
+      <div class="hint">Manages system-level (JVM) Kettle variables on the Pentaho Server.</div>
+    </header>
+
+    <section class="console-card">
+      <div class="console-grid">
+        <div class="form-grid">
+          <div>
+            <label for="variableSelect">Variable</label>
+            <select id="variableSelect" aria-label="Select a variable">
+              <option value="PENTAHO_SERVER_URL">PENTAHO_SERVER_URL</option>
+              <option value="PENTAHO_SERVER_USERNAME">PENTAHO_SERVER_USERNAME</option>
+              <option value="PENTAHO_SERVER_PASSWORD">PENTAHO_SERVER_PASSWORD</option>
+              <option value="__custom__">Custom...</option>
+            </select>
+          </div>
+
+          <div id="customNameRow" class="field-full custom-name-row">
+            <label for="customNameInput">Custom Variable Name</label>
+            <input id="customNameInput" type="text" value="" placeholder="MY_VARIABLE_NAME" aria-label="Custom variable name" />
+          </div>
+
+          <div class="field-full">
+            <label for="variableValueInput">Variable Value</label>
+            <input id="variableValueInput" type="text" value="" placeholder="Click Get Variable to retrieve current value" aria-label="Variable value" />
+            <div class="hint">Use Get Variable to retrieve the current value, then edit and Set Variable to update it.</div>
+          </div>
+        </div>
+
+        <div class="console-actions">
+          <button id="getVarButton" type="button">Get Variable</button>
+          <button id="setVarButton" type="button">Set Variable</button>
+        </div>
+
+        <div id="jobStatus" class="console-status" role="status" aria-live="polite">
+          <span id="jobStatusIcon" class="status-icon" aria-hidden="true"></span>
+          <span id="jobStatusText"></span>
+        </div>
+        <div id="jobStatusDetail" class="console-status-detail" aria-live="polite"></div>
+
+        <button id="advancedToggle" class="advanced-toggle" type="button">Advanced Settings</button>
+        <div id="advancedPanel" class="advanced-panel">
+          <div class="form-grid">
+            <div class="field-full">
+              <label for="jobPathInput">Set Job Path</label>
+              <input
+                id="jobPathInput"
+                type="text"
+                value="/public/pdc-iteration/v2/utility/main/j-sample-variable-manager-set.kjb"
+                aria-label="Pentaho set job path"
+              />
+            </div>
+            <div class="field-full">
+              <label for="getJobPathInput">Get Job Path</label>
+              <input
+                id="getJobPathInput"
+                type="text"
+                value="/public/pdc-iteration/v2/utility/main/j-sample-variable-manager-confirm.kjb"
+                aria-label="Pentaho get job path"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (function () {
+      var TEMPLATES = {
+        PENTAHO_SERVER_URL: function () {
+          return window.location.hostname;
+        },
+        PENTAHO_SERVER_USERNAME: function () { return "admin"; },
+        PENTAHO_SERVER_PASSWORD: function () { return "password"; }
+      };
+
+      var variableSelect = document.getElementById("variableSelect");
+      var customNameRow = document.getElementById("customNameRow");
+      var customNameInput = document.getElementById("customNameInput");
+      var variableValueInput = document.getElementById("variableValueInput");
+      var jobPathInput = document.getElementById("jobPathInput");
+      var getJobPathInput = document.getElementById("getJobPathInput");
+      var getVarButton = document.getElementById("getVarButton");
+      var setVarButton = document.getElementById("setVarButton");
+      var jobStatusIcon = document.getElementById("jobStatusIcon");
+      var jobStatusText = document.getElementById("jobStatusText");
+      var jobStatusDetail = document.getElementById("jobStatusDetail");
+      var advancedToggle = document.getElementById("advancedToggle");
+      var advancedPanel = document.getElementById("advancedPanel");
+
+      advancedToggle.addEventListener("click", function () {
+        advancedPanel.classList.toggle("is-visible");
+        advancedToggle.textContent = advancedPanel.classList.contains("is-visible")
+          ? "Hide Advanced Settings" : "Advanced Settings";
+      });
+
+      function getVariableName() {
+        if (variableSelect.value === "__custom__") {
+          return (customNameInput.value || "").trim();
+        }
+        return variableSelect.value;
+      }
+
+      function applyTemplate() {
+        var selected = variableSelect.value;
+        if (selected === "__custom__") {
+          customNameRow.classList.add("is-visible");
+          customNameInput.focus();
+          variableValueInput.value = "";
+          variableValueInput.placeholder = "Click Get Variable to retrieve current value";
+        } else {
+          customNameRow.classList.remove("is-visible");
+          var tmpl = TEMPLATES[selected];
+          variableValueInput.value = tmpl ? tmpl() : "";
+          variableValueInput.placeholder = "";
+        }
+      }
+
+      variableSelect.addEventListener("change", applyTemplate);
+      applyTemplate();
+
+      function setStatus(message, state, detail) {
+        jobStatusText.textContent = message;
+        jobStatusDetail.textContent = detail || "";
+        jobStatusIcon.className = "status-icon";
+        if (state === "running") {
+          jobStatusIcon.classList.add("is-running");
+        } else if (state === "success") {
+          jobStatusIcon.classList.add("is-success");
+        } else if (state === "error") {
+          jobStatusIcon.classList.add("is-error");
+        } else if (state === "warning") {
+          jobStatusIcon.classList.add("is-warning");
+        }
+      }
+
+      function setButtons(disabled) {
+        getVarButton.disabled = disabled;
+        setVarButton.disabled = disabled;
+        getVarButton.textContent = disabled ? "Running..." : "Get Variable";
+        setVarButton.textContent = disabled ? "Running..." : "Set Variable";
+      }
+
+      function buildRunJobUrl(jobPath, params) {
+        var parts = ["xml=Y", "job=" + encodeURIComponent(jobPath)];
+        for (var key in params) {
+          if (params.hasOwnProperty(key)) {
+            parts.push(encodeURIComponent(key) + "=" + encodeURIComponent(params[key]));
+          }
+        }
+        return "/pentaho/kettle/runJob/?" + parts.join("&");
+      }
+
+      function buildJobStatusUrl(executionId) {
+        return "/pentaho/kettle/jobStatus/?xml=Y&id=" + encodeURIComponent(executionId);
+      }
+
+      function parseXml(xmlText) {
+        return new DOMParser().parseFromString(xmlText || "", "text/xml");
+      }
+
+      function getNodeText(xml, selector) {
+        var node = xml.querySelector(selector);
+        return node && node.textContent ? node.textContent.trim() : "";
+      }
+
+      function parseRunJobResponse(xmlText) {
+        var xml = parseXml(xmlText);
+        return {
+          result: getNodeText(xml, "webresult > result"),
+          message: getNodeText(xml, "webresult > message"),
+          id: getNodeText(xml, "webresult > id")
+        };
+      }
+
+      function decodeEntities(value) {
+        var textarea = document.createElement("textarea");
+        textarea.innerHTML = value || "";
+        return textarea.value;
+      }
+
+      function parseJobStatus(xmlText) {
+        var xml = parseXml(xmlText);
+        return {
+          statusDesc: getNodeText(xml, "jobstatus > status_desc"),
+          result: getNodeText(xml, "jobstatus > result > result"),
+          logText: decodeEntities(getNodeText(xml, "jobstatus > result > log_text"))
+        };
+      }
+
+      function isTerminalStatus(statusDesc) {
+        var s = (statusDesc || "").toLowerCase();
+        return s.indexOf("stopped") !== -1 || s.indexOf("finished") !== -1;
+      }
+
+      async function waitForJobCompletion(executionId, timeoutMs) {
+        var started = Date.now();
+        while (true) {
+          var response = await fetch(buildJobStatusUrl(executionId), {
+            method: "GET",
+            credentials: "same-origin",
+            headers: { "Accept": "application/xml, text/xml, */*" }
+          });
+          if (!response.ok) throw new Error("Job status request failed: " + response.status);
+          var xmlText = await response.text();
+          var status = parseJobStatus(xmlText);
+          if (isTerminalStatus(status.statusDesc)) return status;
+          if ((Date.now() - started) > timeoutMs) throw new Error("Timed out waiting for job completion.");
+          await new Promise(function (r) { window.setTimeout(r, 1200); });
+        }
+      }
+
+      function extractActualValue(logText, variableName) {
+        if (!logText) return { found: false, value: "" };
+
+        var lines = logText.split(/\r?\n/);
+        for (var i = 0; i < lines.length; i++) {
+          var match = lines[i].match(/actual_value\s*=\s*(.*)/);
+          if (match) {
+            var raw = match[1].trim();
+            // Strip trailing Pentaho log noise (timestamp + step name pattern)
+            raw = raw.replace(/\s*\d{4}[\/\-]\d{2}[\/\-]\d{2}\s+\d{2}:\d{2}:\d{2}\.\d{3}\s*-\s*.*$/, "").trim();
+            // Detect unresolved variable reference
+            if (raw === "${" + variableName + "}" || raw === "") {
+              return { found: false, value: "" };
+            }
+            return { found: true, value: raw };
+          }
+        }
+        return { found: false, value: "" };
+      }
+
+      function validateVariableName() {
+        var name = getVariableName();
+        if (!name) { setStatus("Variable name is required.", "error", ""); return null; }
+        if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) {
+          setStatus("Variable name must start with a letter/underscore and use only letters, numbers, underscore.", "error", "");
+          return null;
+        }
+        return name;
+      }
+
+      async function runJob(jobPath, params) {
+        var response = await fetch(buildRunJobUrl(jobPath, params), {
+          method: "GET",
+          credentials: "same-origin",
+          headers: { "Accept": "application/xml, text/xml, */*" }
+        });
+        var text = await response.text();
+        if (!response.ok) throw new Error(text || "Request failed: " + response.status);
+        var info = parseRunJobResponse(text);
+        if ((info.result || "").toUpperCase() !== "OK" || !info.id) throw new Error(info.message || "Unable to start job.");
+        return info;
+      }
+
+      getVarButton.addEventListener("click", async function () {
+        var variableName = validateVariableName();
+        if (!variableName) return;
+        var jobPath = (getJobPathInput.value || "").trim();
+        if (!jobPath) { setStatus("Enter a get job path in Advanced Settings.", "error", ""); return; }
+        var startedAt = Date.now();
+
+        setStatus("Getting variable...", "running", "Name=" + variableName);
+        setButtons(true);
+
+        try {
+          var info = await runJob(jobPath, { VM_VAR_NAME: variableName });
+          setStatus("Getting variable...", "running", "Execution id=" + info.id + " | Name=" + variableName);
+          var finalStatus = await waitForJobCompletion(info.id, 120000);
+          var elapsed = Math.max(0, Math.round((Date.now() - startedAt) / 1000));
+
+          if ((finalStatus.result || "").toUpperCase() !== "Y") {
+            throw new Error("Get variable job reported errors.");
+          }
+
+          var result = extractActualValue(finalStatus.logText, variableName);
+          if (result.found) {
+            variableValueInput.value = result.value;
+            setStatus("Variable retrieved: " + variableName + " = " + result.value, "success",
+              "Completed in " + elapsed + "s");
+          } else {
+            variableValueInput.value = "";
+            variableValueInput.placeholder = "Variable not set on server";
+            setStatus("Variable " + variableName + " is not set on the server.", "warning",
+              "Completed in " + elapsed + "s — you can enter a value and click Set Variable to create it.");
+          }
+        } catch (error) {
+          setStatus("Get failed: " + (error && error.message ? error.message : "Unknown error"), "error", "");
+        } finally {
+          setButtons(false);
+        }
+      });
+
+      setVarButton.addEventListener("click", async function () {
+        var variableName = validateVariableName();
+        if (!variableName) return;
+        var jobPath = (jobPathInput.value || "").trim();
+        if (!jobPath) { setStatus("Enter a set job path in Advanced Settings.", "error", ""); return; }
+        var variableValue = variableValueInput.value || "";
+        var scope = "JVM";
+        var startedAt = Date.now();
+
+        setStatus("Setting variable...", "running", "Name=" + variableName + " | Value=" + variableValue + " | Scope=" + scope);
+        setButtons(true);
+
+        try {
+          var info = await runJob(jobPath, { VM_VAR_NAME: variableName, VM_VAR_VALUE: variableValue, VM_SCOPE: scope });
+          setStatus("Setting variable...", "running", "Execution id=" + info.id + " | Name=" + variableName);
+          var finalStatus = await waitForJobCompletion(info.id, 120000);
+          var elapsed = Math.max(0, Math.round((Date.now() - startedAt) / 1000));
+
+          if ((finalStatus.result || "").toUpperCase() !== "Y") {
+            throw new Error((finalStatus.logText || "Set job reported errors.").replace(/\s+/g, " ").trim());
+          }
+
+          setStatus("Variable set: " + variableName + " = " + variableValue, "success",
+            "Scope=" + scope + " | Completed in " + elapsed + "s");
+        } catch (error) {
+          setStatus("Set failed: " + (error && error.message ? error.message : "Unknown error"), "error", "");
+        } finally {
+          setButtons(false);
+        }
+      });
+    })();
+  </script>
+</body>
+</html>

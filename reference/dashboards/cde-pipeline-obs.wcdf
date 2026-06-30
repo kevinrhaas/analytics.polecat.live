@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cdf>
+  <title>Pipeline &amp; Job Observability (CDE)</title>
+  <author>PDC Analytics</author>
+  <description>CDE-authored — job success rate by integration, run-lifecycle event mix &amp; failures by job over PDC-BIDB-EXT.</description>
+  <icon/>
+  <style>clean</style>
+  <rendererType>blueprint</rendererType>
+  <widget>false</widget>
+  <widgetParameters/>
+</cdf>

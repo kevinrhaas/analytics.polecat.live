@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Demonstration Dashboard Studio — build CDE &amp; CDF dashboards</title>
+<link rel="stylesheet" href="app/studio.css"/>
+<script src="app/gate-config.js"></script>
+<script src="app/gate.js"></script>
+</head>
+<body>
+<div id="app">
+  <header id="topbar">
+    <div class="brand"><span class="logo">P</span>
+      <div class="brand-txt"><div class="brand-title">Demonstration Dashboard&nbsp;Studio</div>
+        <div class="brand-sub">build CDE &amp; CDF dashboards from CDA queries</div></div>
+    </div>
+    <div class="dash-id">
+      <input id="dashTitle" class="dash-title-input" placeholder="Dashboard title" title="Dashboard title"/>
+      <span class="dash-meta"><code id="dashName">untitled</code> · <span id="dashGroup">Observability</span></span>
+    </div>
+    <div class="spacer"></div>
+    <div class="top-actions">
+      <button class="btn icon" id="btnUndo" title="Undo (Ctrl/Cmd+Z)" disabled>↶</button>
+      <button class="btn icon" id="btnRedo" title="Redo (Ctrl/Cmd+Shift+Z)" disabled>↷</button>
+      <div class="menu-wrap"><button class="btn" id="btnNew" title="New dashboard">＋ New ▾</button>
+        <div class="menu" id="menuNew"></div></div>
+      <div class="menu-wrap"><button class="btn" id="btnExamples">Examples ▾</button>
+        <div class="menu" id="menuExamples"></div></div>
+      <button class="btn" id="btnImport" title="Open a .studio.json">Open</button>
+      <button class="btn" id="btnSaveSpec" title="Save the editable .studio.json">Save</button>
+      <div class="menu-wrap"><button class="btn btn-primary" id="btnExport">Export ▾</button>
+        <div class="menu" id="menuExport">
+          <button data-exp="cdf">CDF dashboard (.html)</button>
+          <button data-exp="cde">CDE editor files (.cdfde + .wcdf)</button>
+          <button data-exp="cda">CDA queries (.cda)</button>
+          <button data-exp="all">All artifacts (bundle)</button>
+          <div class="sep"></div>
+          <button data-exp="push">Push to active server…</button>
+        </div></div>
+      <button class="btn icon btn-secondary" id="btnAbout" title="About this demo / take the tour">Tour</button>
+      <button class="btn icon btn-secondary" id="btnConn" title="Manage Pentaho server connections">Servers</button>
+      <button class="btn icon btn-secondary" id="btnLive" title="Toggle live Pentaho data vs offline sample data">Sample</button>
+      <button class="btn icon btn-secondary" id="btnTheme" title="Toggle preview light/dark">Theme</button>
+      <div class="menu-wrap" id="moreWrap">
+        <button class="btn icon" id="btnMore" title="More actions" aria-label="More actions">⋯</button>
+        <div class="menu" id="menuMore">
+          <button id="moreAbout">Tour</button>
+          <button id="moreConn">Servers</button>
+          <button id="moreLive">Sample / Live</button>
+          <button id="moreTheme">Theme</button>
+          <div class="sep"></div>
+          <button id="moreShortcuts">Keyboard shortcuts  ?</button>
+          <div class="sep"></div>
+          <button id="moreClearData">Clear local data…</button>
+          <button id="moreSignOut">Sign out</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main id="workspace">
+    <!-- LEFT: query library -->
+    <aside id="library" class="pane">
+      <div class="pane-rail" data-pane="library" title="Expand Query Library"><button class="rail-btn">›</button><span class="rail-label">Query Library</span></div>
+      <div class="pane-h"><button class="pane-collapse" data-pane="library" title="Collapse panel">‹</button><span>Query Library</span><button class="pane-add" id="btnNewDS" title="Author a new CDA data source">＋ New source</button><span class="count" id="libCount"></span></div>
+      <input id="libSearch" class="search" placeholder="Search queries, columns, tables…"/>
+      <div class="lib-scroll" id="libList"></div>
+    </aside>
+
+    <div class="resizer" id="resizeL" title="Drag to resize"></div>
+
+    <!-- CENTER: live preview -->
+    <section id="canvas">
+      <div id="canvas-bar">
+        <span class="cb-title">Live preview</span>
+        <span class="cb-hint">click to edit · drag the header to reorder · drag the right edge to resize · drop a query to add</span>
+        <span class="spacer"></span>
+        <span class="cb-status" id="previewStatus"></span>
+      </div>
+      <div id="canvas-stage">
+        <iframe id="preview" title="Dashboard preview"></iframe>
+        <div id="dropHint" class="drop-hint">Drop a query here to add a panel</div>
+      </div>
+    </section>
+
+    <div class="resizer" id="resizeR" title="Drag to resize"></div>
+
+    <!-- RIGHT: inspector -->
+    <aside id="inspector" class="pane">
+      <div class="pane-rail" data-pane="inspector" title="Expand Inspector"><button class="rail-btn">‹</button><span class="rail-label">Inspector</span></div>
+      <div class="pane-h"><span id="inspTitle">Dashboard</span>
+        <button class="link" id="inspBack" hidden>‹ Dashboard</button>
+        <button class="pane-collapse" data-pane="inspector" title="Collapse panel">›</button></div>
+      <div class="insp-scroll" id="inspBody"></div>
+    </aside>
+  </main>
+
+  <nav id="mobile-tabs" aria-label="Section navigation"></nav>
+  <footer id="statusbar">
+    <span class="sb-brand"><span class="sb-dot"></span>Demonstration Dashboard Studio</span>
+    <span class="spacer"></span>
+    <div class="sb-cl">
+      <button class="sb-btn" id="btnChangelog" aria-expanded="false" aria-controls="changelogPop"
+        title="What changed recently">📋 Changelog <span class="sb-caret">▴</span></button>
+      <div class="changelog-pop" id="changelogPop" role="dialog" aria-label="Changelog" hidden></div>
+    </div>
+    <span class="sb-stamp" id="fbStamp" title="When this build was last published"></span>
+  </footer>
+</div>
+<div id="mobile-scrim" aria-hidden="true"></div>
+
+<div id="toast" class="toast"></div>
+
+<script src="app/model.js"></script>
+<script src="app/sampledata.js"></script>
+<script src="app/pentaho.js"></script>
+<script src="app/exporters.js"></script>
+<script src="app/icons.js"></script>
+<script src="app/welcome.js"></script>
+<script src="app/changelog.js"></script>
+<script src="app/studio.js"></script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<cdf>
+  <title>Cost Optimization &amp; Sustainability (CDE)</title>
+  <author>PDC Analytics</author>
+  <description>CDE-authored dashboard, editable in Pentaho CDE — monthly cloud cost by source &amp; sensitivity and carbon (CO2e) by source over PDC-BIDB-EXT.</description>
+  <icon/>
+  <style>clean</style>
+  <rendererType>blueprint</rendererType>
+  <widget>false</widget>
+  <widgetParameters/>
+</cdf>

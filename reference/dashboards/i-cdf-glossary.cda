@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CDADescriptor>
+  <DataSources><Connection id="pdc" type="sql.jndi"><Jndi>PDC-BIDB-EXT</Jndi></Connection></DataSources>
+
+  <DataAccess id="kpi" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>KPI</Name><Parameters><Parameter name="glossary" type="String" default="%"/><Parameter name="sens" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT count(DISTINCT f.glossary_term_key) AS terms,
+             count(DISTINCT f.entity_key) AS classified,
+             count(DISTINCT g.level_1_glossary) AS glossaries,
+             (SELECT SUM(s.entity_count) FROM fact_entity_snapshot s JOIN dim_entity e2 ON s.entity_key=e2.entity_key
+                WHERE COALESCE(NULLIF(e2.sensitivity,''),'Unclassified') LIKE ${sens}) AS total_assets
+      FROM fact_entity_term f
+      JOIN dim_glossary_term g ON f.glossary_term_key=g.glossary_term_key
+      LEFT JOIN dim_entity e ON f.entity_key=e.entity_key
+      WHERE COALESCE(g.level_1_glossary,'') LIKE ${glossary} AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens}
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="by_glossary" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>ByGlossary</Name><Parameters><Parameter name="sens" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT g.level_1_glossary AS glossary, count(DISTINCT f.entity_key) AS entities
+      FROM fact_entity_term f JOIN dim_glossary_term g ON f.glossary_term_key=g.glossary_term_key
+      LEFT JOIN dim_entity e ON f.entity_key=e.entity_key
+      WHERE NULLIF(g.level_1_glossary,'') IS NOT NULL AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens} GROUP BY 1 ORDER BY 2 DESC
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="detail_glossary_entities" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>DetailGlossaryEntities</Name><Parameters><Parameter name="glossary" type="String" default="%"/><Parameter name="sens" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT DISTINCT COALESCE(NULLIF(e.entity_name,''),'(unnamed)') AS name,
+             COALESCE(NULLIF(g.term_name,''),'—') AS term,
+             COALESCE(NULLIF(e.sensitivity,''),'Unclassified') AS sensitivity,
+             COALESCE(NULLIF(e.owner_name,''),'—') AS owner
+      FROM fact_entity_term f JOIN dim_glossary_term g ON f.glossary_term_key=g.glossary_term_key
+      LEFT JOIN dim_entity e ON f.entity_key=e.entity_key
+      WHERE COALESCE(g.level_1_glossary,'') LIKE ${glossary}
+        AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens}
+      ORDER BY 3, 1
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="terms_per_glossary" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>TermsPerGlossary</Name><Parameters><Parameter name="sens" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT g.level_1_glossary AS glossary, count(DISTINCT f.glossary_term_key) AS terms
+      FROM fact_entity_term f JOIN dim_glossary_term g ON f.glossary_term_key=g.glossary_term_key
+      LEFT JOIN dim_entity e ON f.entity_key=e.entity_key
+      WHERE NULLIF(g.level_1_glossary,'') IS NOT NULL AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens} GROUP BY 1 ORDER BY 2 DESC
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="classified" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>Classified</Name><Parameters><Parameter name="sens" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT 'Classified' AS label,
+        count(DISTINCT f.entity_key) AS assets
+        FROM fact_entity_term f JOIN dim_entity e ON f.entity_key=e.entity_key
+        WHERE COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens}
+      UNION ALL SELECT 'Unclassified',
+        GREATEST(
+          (SELECT SUM(s.entity_count) FROM fact_entity_snapshot s JOIN dim_entity e2 ON s.entity_key=e2.entity_key
+             WHERE COALESCE(NULLIF(e2.sensitivity,''),'Unclassified') LIKE ${sens})
+          - (SELECT count(DISTINCT f2.entity_key) FROM fact_entity_term f2 JOIN dim_entity e3 ON f2.entity_key=e3.entity_key
+             WHERE COALESCE(NULLIF(e3.sensitivity,''),'Unclassified') LIKE ${sens}), 0)
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="top_terms" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>TopTerms</Name><Parameters><Parameter name="glossary" type="String" default="%"/><Parameter name="sens" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT COALESCE(NULLIF(g.leaf_name,''),g.term_name) AS term, g.level_1_glossary AS glossary,
+             count(DISTINCT f.entity_key) AS entities
+      FROM fact_entity_term f JOIN dim_glossary_term g ON f.glossary_term_key=g.glossary_term_key
+      LEFT JOIN dim_entity e ON f.entity_key=e.entity_key
+      WHERE COALESCE(g.level_1_glossary,'') LIKE ${glossary} AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens}
+      GROUP BY 1,2 ORDER BY 3 DESC LIMIT 15
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="glossaries" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>Glossaries</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT '%' AS v, 'All glossaries' AS l, 0 AS ord
+      UNION ALL
+      SELECT DISTINCT level_1_glossary AS v, level_1_glossary AS l, 1 AS ord
+        FROM dim_glossary_term WHERE NULLIF(level_1_glossary,'') IS NOT NULL
+      ORDER BY ord, l
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="sensitivities" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>Sensitivities</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT '%' AS v, 'All sensitivities' AS l, 0 AS ord
+      UNION ALL
+      SELECT DISTINCT COALESCE(NULLIF(sensitivity,''),'Unclassified') AS v,
+                      COALESCE(NULLIF(sensitivity,''),'Unclassified') AS l, 1 AS ord
+        FROM dim_entity
+      ORDER BY ord, l
+    ]]></Query>
+  </DataAccess>
+  <DataAccess id="detail_term_entities" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>DetailTermEntities</Name><Parameters><Parameter name="term" type="String" default="%"/><Parameter name="glossary" type="String" default="%"/><Parameter name="sens" type="String" default="%"/></Parameters>
+    <Query><![CDATA[ SELECT DISTINCT ON (f.entity_key)
+        COALESCE(NULLIF(e.entity_name,''),'(unnamed)') AS name,
+        d.datasource_type AS src,
+        g.level_1_glossary AS glossary,
+        COALESCE(NULLIF(e.sensitivity,''),'Unclassified') AS sensitivity,
+        COALESCE(NULLIF(e.owner_name,''),'—') AS owner
+      FROM fact_entity_term f
+      JOIN dim_glossary_term g ON f.glossary_term_key=g.glossary_term_key
+      JOIN dim_datasource d ON f.datasource_key=d.datasource_key
+      LEFT JOIN dim_entity e ON f.entity_key=e.entity_key
+      WHERE COALESCE(NULLIF(g.leaf_name,''),g.term_name) LIKE ${term}
+        AND COALESCE(g.level_1_glossary,'') LIKE ${glossary}
+        AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens}
+      ORDER BY f.entity_key, name ]]></Query></DataAccess>
+</CDADescriptor>

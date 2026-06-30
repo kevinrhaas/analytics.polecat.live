@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Redundancy &amp; Duplicate Data (CDF) — Pentaho Data Catalog Analytics</title>
+<!-- TRUE CDF dashboard: CDF Dashboard runtime + CCC chart components + CDF Select/Table, all over CDA. -->
+<script type="text/javascript" src="/pentaho/plugin/pentaho-cdf/api/cdf-embed.js"></script>
+<style>
+:root{--pdc:#005bb5;--pdc2:#7d3c98;--bg:#f4f6fa;--panel:#fff;--border:#e3e8f0;--text:#1b2733;--muted:#6b7a90;}
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text)}
+.pdc-header{display:flex;align-items:center;gap:14px;padding:13px 22px;background:linear-gradient(100deg,var(--pdc),var(--pdc2));color:#fff;box-shadow:0 2px 12px rgba(0,40,90,.18)}
+.pdc-logo{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;background:rgba(255,255,255,.18);font-weight:800;font-size:17px}
+.pdc-title{font-weight:800;font-size:18px;letter-spacing:.2px}
+.pdc-sub{font-size:12.5px;opacity:.9;border-left:1px solid rgba(255,255,255,.4);padding-left:14px}
+.spacer{flex:1}
+.cdfpill{font-size:10px;font-weight:700;background:rgba(255,255,255,.2);padding:3px 9px;border-radius:11px;letter-spacing:.5px;text-transform:uppercase}
+.pdc-iconbtn{background:rgba(255,255,255,.16);color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:8px;padding:6px 11px;font-size:12.5px;text-decoration:none;font-weight:600}
+.pdc-iconbtn:hover{background:rgba(255,255,255,.28)}
+.wrap{max-width:1500px;margin:0 auto;padding:18px 22px 40px}
+.filterbar{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:11px 16px;margin-bottom:16px;box-shadow:0 1px 3px rgba(20,40,80,.06)}
+.filterbar label{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.filterbar select{font-size:13px;padding:6px 10px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--text);min-width:200px}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px}
+.kpi{background:var(--panel);border:1px solid var(--border);border-left:4px solid var(--pdc);border-radius:12px;padding:14px 16px;box-shadow:0 1px 3px rgba(20,40,80,.06)}
+.kpi.good{border-left-color:#16a085}.kpi.warn{border-left-color:#e67e22}
+.kpi .v{font-size:24px;font-weight:800;color:var(--pdc)}
+.kpi.good .v{color:#16a085}.kpi.warn .v{color:#e67e22}
+.kpi .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-top:3px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px 16px 8px;box-shadow:0 1px 3px rgba(20,40,80,.06);min-height:60px}
+.card.span2{grid-column:span 2}.card.span3{grid-column:span 3}
+.card h3{margin:0 0 6px;font-size:13.5px;font-weight:800;color:var(--text)}
+.card .src{font-size:10.5px;color:var(--muted);opacity:.8;margin-top:2px}
+.chart{width:100%;height:250px}
+.foot{margin-top:18px;font-size:11.5px;color:var(--muted);text-align:center}
+.foot code{background:#eef2f8;padding:1px 6px;border-radius:5px}
+@media(max-width:1100px){.kpis{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}.card.span2,.card.span3{grid-column:span 1}}
+</style>
+</head>
+<body>
+<header class="pdc-header">
+  <span class="pdc-logo">P</span>
+  <span class="pdc-title">Redundancy &amp; Duplicate Data</span>
+  <span class="cdfpill">CDF · CCC</span>
+  <span class="pdc-sub">live Pentaho CDF dashboard — reclaimable storage, duplicate assets, cost savings</span>
+  <div class="spacer"></div>
+  <span title="Toggle Simple HTML (toolkit/CDA) vs Framework (CDF) build" style="display:inline-flex;align-items:stretch;border:1px solid rgba(255,255,255,.45);border-radius:8px;overflow:hidden;font-size:12px"><a href="/pentaho/api/repos/:public:pdc-iteration:v2:pdc-redundancy.html/content" style="padding:6px 12px;color:#fff;text-decoration:none;opacity:.78;font-weight:600">Simple HTML</a><span style="padding:6px 12px;background:rgba(255,255,255,.30);color:#fff;font-weight:800">Framework</span></span>
+  <button class="pdc-iconbtn" id="qInfoBtn" title="View the CDA queries behind this dashboard" onclick="pdcQueryModal()" style="cursor:pointer">&#9432;</button>
+  <a class="pdc-iconbtn" href="/pentaho/api/repos/:public:pdc-iteration:v2:i-home.html/content">&#9632; All dashboards</a>
+</header>
+<div class="wrap">
+  <div class="filterbar">
+    <label for="dsSelect">Data source</label>
+    <span id="dsSelect"></span>
+    <label for="sensSelect">Sensitivity</label>
+    <span id="sensSelect"></span>
+    <span style="font-size:11px;color:var(--muted);opacity:.85">tip: click a bar in <b>Reclaimable Storage by Source</b> to drill into Storage for that source</span>
+  </div>
+  <div id="kpiAnchor" style="display:none"></div>
+  <div class="kpis">
+    <div class="kpi warn"><div class="v" id="kDup">—</div><div class="l" data-info="Objects that are byte-for-byte (or near) copies of another. Every duplicate is storage you pay for twice — the raw size of the redundancy problem.">Duplicate Assets</div></div>
+    <div class="kpi warn"><div class="v" id="kPct">—</div><div class="l" data-info="Share of the estate that is duplicated. A high rate means significant waste and a strong, low-risk reclamation opportunity.">Duplicate Rate</div></div>
+    <div class="kpi good"><div class="v" id="kTb">—</div><div class="l" data-info="Storage (TB) you could free by removing duplicate copies — capacity back without deleting any unique data.">Reclaimable Storage</div></div>
+    <div class="kpi good"><div class="v" id="kCost">—</div><div class="l" data-info="Monthly spend tied up in duplicate copies — the dollar value of deduplicating. The fastest, lowest-risk cost win.">Reclaimable Cost / mo</div></div>
+  </div>
+  <div class="grid">
+    <div class="card span2"><h3 data-info="Reclaimable TB per source. Ranks where deduplication frees the most capacity — start at the top.">Reclaimable Storage by Source</h3><div id="savChart" class="chart"></div><div class="src">CccBarChart · dup_savings_bytes · cube 75</div></div>
+    <div class="card"><h3 data-info="Reclaimable storage split by sensitivity. Duplicates of sensitive data are double trouble — wasted spend AND extra copies to secure and govern.">Reclaimable by Sensitivity</h3><div id="sensChart" class="chart"></div><div class="src">CccPieChart · dup_savings_bytes by sensitivity</div></div>
+    <div class="card"><h3 data-info="Count of duplicate objects per source. Shows where redundancy concentrates and which platform to clean up first.">Duplicate Assets by Source</h3><div id="dupChart" class="chart" style="height:300px"></div><div class="src">CccBarChart · is_duplicate · cube 75</div></div>
+    <div class="card span2" style="padding-bottom:14px"><h3 data-info="The individual objects with the most reclaimable space — your concrete dedup worklist, biggest savings first.">Top Duplicate Objects</h3><div id="topTable"></div><div class="src">TableComponent · entity_storage_demo + dim_entity</div></div>
+  </div>
+  <div class="foot">Pentaho Data Catalog Analytics · iteration v2 · <b>true CDF dashboard</b> (CDF runtime + CCC + CDA) · CDF twin of the toolkit Redundancy &amp; Duplicate Data · data via <code>PDC-BIDB-EXT</code></div>
+</div>
+
+<script type="text/javascript">
+var CDAPATH="/public/pdc-iteration/v2/i-cdf-redundancy.cda";
+var BRAND=["#005bb5","#7d3c98","#2e8bd0","#9b59b6","#00a39a","#e67e22","#c0392b","#16a085"];
+function fmtN(x){x=+x||0;return x>=1e6?(x/1e6).toFixed(1)+"M":x>=1e3?(x/1e3).toFixed(1)+"K":(""+Math.round(x));}
+function merge(){var o={};for(var i=0;i<arguments.length;i++){var s=arguments[i];if(s)for(var k in s)o[k]=s[k];}return o;}
+
+require([
+  'cdf/Dashboard.Blueprint',
+  'cdf/components/SelectComponent',
+  'cdf/components/CccBarChartComponent',
+  'cdf/components/CccPieChartComponent',
+  'cdf/components/TableComponent',
+  'cdf/components/BaseComponent'
+], function(Dashboard, SelectComponent, CccBarChartComponent, CccPieChartComponent, TableComponent, BaseComponent){
+  var dashboard = new Dashboard();
+  dashboard.addParameter("dsParam", "%");
+  dashboard.addParameter("sensParam", "%");
+  var DP = [["ds","dsParam"],["sens","sensParam"]];       // savings/dups/table respond to both filters
+  var DP_DS = [["ds","dsParam"]];                          // Reclaimable-by-Sensitivity breakdown responds to source only
+  // version-portable sibling URL: swap this dashboard's stem for the drill target in the repo path
+  function drillTo(stem, qs){
+    var here = location.pathname; var __s=(dashboard.getParameterValue?dashboard.getParameterValue("sensParam"):"%")||"%"; if(__s&&__s!=="%") qs=(qs?qs+"&":"")+"sens="+encodeURIComponent(__s);  // carry active Sensitivity filter through the drill // …:v2:i-cdf-redundancy.html/content
+    var url = here.replace("i-cdf-redundancy.html", stem + ".html") + (qs ? ("?" + qs) : "");
+    try { window.top.location.href = url; } catch(e){ window.location.href = url; }
+  }
+  function cdaDef(id){ return { queryType:"cda", path:CDAPATH, dataAccessId:id }; }
+  // click a source → shared drawer listing the ACTUAL duplicate objects (is_duplicate rows) behind that count
+  function openDupDetail(src){
+    var sens=dashboard.getParameterValue("sensParam")||"%";
+    pdcDetailDrawer({
+      title:src+" — duplicate objects", subtitle:"every is_duplicate object in this source"+(sens!=="%"?(" · "+sens):""),
+      da:"detail_dups", params:{src:src,sens:sens}, noun:"duplicate objects",
+      cols:[{label:"Object",idx:0,title:true,trunc:40},
+            {label:"GB",idx:2,num:true,fmt:function(x){return (+x||0).toLocaleString();}},
+            {label:"Reclaimable GB",idx:3,num:true,fmt:function(x){return (+x||0).toLocaleString();}},
+            {label:"Sensitivity",idx:4},{label:"Owner",idx:5,trunc:20}],
+      drill:{label:"Open Storage for this source", onClick:function(){drillTo("pdc-storage","ds="+encodeURIComponent(src));}}
+    });
+  }
+  function chartBase(extra){
+    var base = { height:240, crosstabMode:false, seriesInRows:false, animate:false,
+      colors:BRAND, valuesVisible:true, valuesFont:"11px sans-serif", legend:false,
+      plotFrameVisible:false, axisGrid:true, axisGrid_strokeStyle:"#eef2f8",
+      contentMargins:"6 10 6 6", clickable:false, tooltipEnabled:true };
+    for(var k in (extra||{})){ base[k]=extra[k]; }
+    return base;
+  }
+
+  dashboard.addComponent(new SelectComponent({
+    name:"dsSelect", type:"select", htmlObject:"dsSelect",
+    parameter:"dsParam", valueAsId:false, executeAtStart:true,
+    queryDefinition: cdaDef("datasources")
+  }));
+
+  dashboard.addComponent(new SelectComponent({
+    name:"sensSelect", type:"select", htmlObject:"sensSelect",
+    parameter:"sensParam", valueAsId:false, executeAtStart:true,
+    queryDefinition: cdaDef("sensitivities")
+  }));
+
+  // KPI tiles
+  dashboard.addComponent(new BaseComponent({
+    name:"kpiPanel", type:"base", htmlObject:"kpiAnchor", executeAtStart:true, listeners:["dsParam","sensParam"],
+    update:function(){
+      var ds=dashboard.getParameterValue("dsParam")||"%";
+      var sens=dashboard.getParameterValue("sensParam")||"%";
+      dashboard.getQuery(cdaDef("kpi")).fetchData({ds:ds,sens:sens}, function(r){
+        var x=(r.resultset&&r.resultset[0])||[0,0,0,0];
+        document.getElementById("kDup").textContent=fmtN(x[0]);
+        document.getElementById("kPct").textContent=(x[3]==null?"—":x[3]+"%");
+        document.getElementById("kTb").textContent=(x[1]==null?"—":x[1]+" TB");
+        document.getElementById("kCost").textContent="$"+fmtN(x[2])+"/mo";
+      });
+    }
+  }));
+
+  // Reclaimable storage by source (CCC horizontal bar) — CLICK-TO-DRILL into Storage for that source
+  dashboard.addComponent(new CccBarChartComponent({
+    name:"savChart", type:"cccBarChart", htmlObject:"savChart",
+    executeAtStart:true, listeners:["dsParam","sensParam"], parameters:DP,
+    chartDefinition: merge(chartBase({orientation:"horizontal", valuesAnchor:"right", colors:["#16a085"], height:240, clickable:true,
+      clickAction:function(scene){
+        var src = (scene && scene.vars && scene.vars.category && scene.vars.category.value);
+        if(src){ openDupDetail(src); }
+      }}), cdaDef("savings_by_source"))
+  }));
+
+  // Reclaimable by sensitivity (CCC pie)
+  dashboard.addComponent(new CccPieChartComponent({
+    name:"sensChart", type:"cccPieChart", htmlObject:"sensChart",
+    executeAtStart:true, listeners:["dsParam"], parameters:DP_DS,
+    chartDefinition: merge(chartBase({legend:true, legendPosition:"bottom", legendFont:"11px sans-serif", colors:["#c7cdd6","#2e8bd0","#e67e22","#c0392b"]}), cdaDef("savings_by_sens"))
+  }));
+
+  // Duplicate assets by source (CCC horizontal bar)
+  dashboard.addComponent(new CccBarChartComponent({
+    name:"dupChart", type:"cccBarChart", htmlObject:"dupChart",
+    executeAtStart:true, listeners:["dsParam","sensParam"], parameters:DP,
+    chartDefinition: merge(chartBase({orientation:"horizontal", valuesAnchor:"right", colors:["#e67e22"], height:290, clickable:true,
+      clickAction:function(scene){
+        var src = (scene && scene.vars && scene.vars.category && scene.vars.category.value);
+        if(src){ openDupDetail(src); }
+      }}), cdaDef("dups_by_source"))
+  }));
+
+  // Top duplicate objects (CDF table)
+  dashboard.addComponent(new TableComponent({
+    name:"topTable", type:"table", htmlObject:"topTable",
+    executeAtStart:true, listeners:["dsParam","sensParam"], parameters:DP,
+    chartDefinition: merge({
+      tableStyle:"classic", paginate:false, sortable:false, info:false, filter:false, searching:false,
+      colHeaders:["Object","Source","Sensitivity","Reclaim GB"]
+    }, cdaDef("top_dups"))
+  }));
+
+  dashboard.init();
+});
+</script>
+
+<style id="pdc-qm-css">
+.pdc-qm-ov{position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:99999;display:flex;align-items:flex-start;justify-content:center;padding:5vh 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+.pdc-qm{background:#fff;color:#1f2937;border-radius:12px;box-shadow:0 24px 60px rgba(8,20,45,.35);width:min(880px,94vw);max-height:88vh;display:flex;flex-direction:column;overflow:hidden}
+.pdc-qm-h{display:flex;align-items:center;gap:12px;padding:13px 16px;background:#0b2e63;color:#fff}
+.pdc-qm-t{font-weight:800;font-size:14px}
+.pdc-qm-t code{font-weight:700;font-size:12px;color:#cfe2ff;background:rgba(255,255,255,.12);padding:1px 7px;border-radius:6px;margin-left:4px}
+.pdc-qm-note{color:rgba(255,255,255,.7);font-size:11px;font-style:italic;margin-left:auto}
+.pdc-qm-x{border:0;background:transparent;color:rgba(255,255,255,.8);font-size:22px;line-height:1;cursor:pointer;padding:0 4px}
+.pdc-qm-x:hover{color:#fff}
+.pdc-qm-b{overflow:auto;padding:8px 16px 16px}
+.pdc-qm-load{color:#64748b;padding:24px 4px;font-size:13px}
+.pdc-q{border-top:1px solid #e6eaf2;padding:13px 0 4px}
+.pdc-q:first-child{border-top:0}
+.pdc-q-id{display:flex;align-items:center;gap:9px;margin-bottom:7px}
+.pdc-q-name{font-weight:800;font-size:12.5px;color:#005bb5;font-family:ui-monospace,Menlo,Consolas,monospace}
+.pdc-q-params{font-size:10px;color:#64748b;background:#f1f5f9;padding:2px 8px;border-radius:20px}
+.pdc-q-copy{margin-left:auto;border:1px solid #cbd5e1;background:#f8fafc;color:#64748b;font-size:10.5px;font-weight:700;padding:3px 10px;border-radius:6px;cursor:pointer}
+.pdc-q-copy:hover{color:#005bb5;border-color:#005bb5}
+.pdc-q-sql{margin:0;background:#f6f8fc;border:1px solid #e6eaf2;border-radius:8px;padding:11px 13px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px;line-height:1.5;color:#1f2937;white-space:pre-wrap;word-break:break-word}
+</style>
+<script>
+function pdcQueryModal(){
+  if(document.getElementById('pdc-qm'))return;
+  var url="/pentaho/api/repos/"+CDAPATH.replace(/^\/+/,'').replace(/\//g,':')+"/content";
+  var fname=CDAPATH.split('/').pop();
+  var ov=document.createElement('div');ov.id='pdc-qm';ov.className='pdc-qm-ov';
+  ov.innerHTML='<div class="pdc-qm" role="dialog" aria-modal="true"><div class="pdc-qm-h"><span class="pdc-qm-t">\u25f4 CDA Queries <code>'+fname+'</code></span><span class="pdc-qm-note">the live SQL behind every panel \u00b7 read-only</span><button class="pdc-qm-x" aria-label="Close">\u00d7</button></div><div class="pdc-qm-b"><div class="pdc-qm-load">Loading queries\u2026</div></div></div>';
+  document.body.appendChild(ov);
+  function close(){ov.remove();document.removeEventListener('keydown',esc);}
+  function esc(e){if(e.key==='Escape')close();}
+  ov.addEventListener('click',function(e){if(e.target===ov)close();});
+  ov.querySelector('.pdc-qm-x').addEventListener('click',close);
+  document.addEventListener('keydown',esc);
+  fetch(url,{credentials:'include'}).then(function(r){return r.text();}).then(function(xml){
+    var doc=new DOMParser().parseFromString(xml,'text/xml');
+    var das=[].slice.call(doc.getElementsByTagName('DataAccess'));
+    var b=ov.querySelector('.pdc-qm-b');b.innerHTML='';
+    if(!das.length){b.innerHTML='<div class="pdc-qm-load">No queries found.</div>';return;}
+    das.forEach(function(da){
+      var id=da.getAttribute('id')||'';var qn=da.getElementsByTagName('Query')[0];var sql=qn?qn.textContent.trim():'(no SQL)';
+      var params=[].slice.call(da.getElementsByTagName('Parameter')).map(function(p){return p.getAttribute('name');}).filter(Boolean);
+      var sec=document.createElement('section');sec.className='pdc-q';
+      var pill=params.length?'<span class="pdc-q-params">'+params.join(' \u00b7 ')+'</span>':'';
+      sec.innerHTML='<div class="pdc-q-id"><span class="pdc-q-name">'+id+'</span>'+pill+'<button class="pdc-q-copy">copy</button></div><pre class="pdc-q-sql"></pre>';
+      sec.querySelector('.pdc-q-sql').textContent=sql;
+      sec.querySelector('.pdc-q-copy').addEventListener('click',function(){var t=this;try{navigator.clipboard.writeText(sql);t.textContent='copied \u2713';setTimeout(function(){t.textContent='copy';},1200);}catch(e){}});
+      b.appendChild(sec);
+    });
+  }).catch(function(e){ov.querySelector('.pdc-qm-b').innerHTML='<div class="pdc-qm-load">Could not load queries ('+e+').</div>';});
+}
+</script>
+
+<style id="pdc-dt-css">
+.pdc-dt-ov{position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:10000;display:flex;justify-content:flex-end;opacity:0;transition:opacity .18s ease}
+.pdc-dt-ov.in{opacity:1}
+.pdc-dt{background:var(--panel,#fff);color:var(--text,#1b2733);border-left:1px solid var(--border,#e3e8f0);box-shadow:-12px 0 40px rgba(8,20,45,.25);width:min(680px,96vw);height:100%;display:flex;flex-direction:column;transform:translateX(28px);transition:transform .2s ease}
+.pdc-dt-ov.in .pdc-dt{transform:translateX(0)}
+.pdc-dt-h{display:flex;align-items:flex-start;gap:12px;padding:15px 18px 13px;border-bottom:1px solid var(--border,#e3e8f0)}
+.pdc-dt-t{font-weight:800;font-size:15px}.pdc-dt-sub{display:block;font-size:11.5px;color:var(--muted,#6b7a90);font-weight:600;margin-top:3px}
+.pdc-dt-x{margin-left:auto;border:0;background:transparent;color:var(--muted,#6b7a90);font-size:24px;line-height:1;cursor:pointer;padding:0 4px}
+.pdc-dt-bar{display:flex;align-items:center;gap:12px;padding:9px 18px;border-bottom:1px solid var(--border,#e3e8f0);flex-wrap:wrap}
+.pdc-dt-count{font-size:12px;color:var(--muted,#6b7a90)}.pdc-dt-count b{color:var(--pdc,#005bb5);font-size:14px}
+.pdc-dt-q{flex:1;min-width:120px;border:1px solid var(--border,#e3e8f0);background:#fff;color:var(--text,#1b2733);font-size:12.5px;padding:6px 11px;border-radius:7px;outline:none}
+.pdc-dt-q:focus{border-color:var(--pdc,#005bb5)}
+.pdc-dt-drilllink{font-size:11.5px;font-weight:700;color:var(--pdc,#005bb5);text-decoration:none;white-space:nowrap;padding:5px 10px;border:1px solid var(--pdc,#005bb5);border-radius:7px;cursor:pointer}
+.pdc-dt-drilllink:hover{background:var(--pdc,#005bb5);color:#fff}
+.pdc-dt-b{overflow:auto;flex:1}
+.pdc-dt-load{color:var(--muted,#6b7a90);padding:26px 18px;font-size:13px}
+.pdc-dt-more{color:var(--muted,#6b7a90);opacity:.8;font-size:11.5px;padding:10px 18px;font-style:italic}
+.pdc-dt-tbl{width:100%;border-collapse:collapse;font-size:12.5px}
+.pdc-dt-tbl thead th{position:sticky;top:0;background:#f4f6fa;color:var(--muted,#6b7a90);text-align:left;font-weight:700;font-size:10.5px;letter-spacing:.4px;text-transform:uppercase;padding:9px 18px;border-bottom:1px solid var(--border,#e3e8f0)}
+.pdc-dt-tbl th.num,.pdc-dt-tbl td.num{text-align:right}
+.pdc-dt-tbl tbody td{padding:8px 18px;border-bottom:1px solid var(--border,#e3e8f0);white-space:nowrap}
+.pdc-dt-tbl td.ti{font-weight:600;max-width:280px;overflow:hidden;text-overflow:ellipsis}
+.pdc-dt-tbl tbody tr:hover td{background:#f7f9fc}
+</style>
+<script>
+function pdcDetailDrawer(cfg){
+  cfg=cfg||{};
+  var old=document.getElementById('pdc-dt'); if(old)old.remove();
+  var ov=document.createElement('div'); ov.id='pdc-dt'; ov.className='pdc-dt-ov';
+  ov.innerHTML='<div class="pdc-dt" role="dialog" aria-modal="true"><div class="pdc-dt-h"><div>'+
+    '<span class="pdc-dt-t"></span><span class="pdc-dt-sub"></span></div>'+
+    '<button class="pdc-dt-x" aria-label="Close">&times;</button></div>'+
+    '<div class="pdc-dt-bar"><span class="pdc-dt-count">\u2026</span>'+
+    '<input class="pdc-dt-q" type="search" placeholder="Filter rows\u2026"/>'+
+    '<span class="pdc-dt-drill"></span></div>'+
+    '<div class="pdc-dt-b"><div class="pdc-dt-load">Loading records\u2026</div></div></div>';
+  document.body.appendChild(ov);
+  ov.querySelector('.pdc-dt-t').textContent=cfg.title||'Detail';
+  if(cfg.subtitle)ov.querySelector('.pdc-dt-sub').textContent=cfg.subtitle;
+  if(cfg.drill&&cfg.drill.onClick){var a=document.createElement('a');a.className='pdc-dt-drilllink';
+    a.innerHTML=(cfg.drill.label||'Open dashboard')+' &#8599;';a.addEventListener('click',function(e){e.preventDefault();cfg.drill.onClick();});
+    ov.querySelector('.pdc-dt-drill').appendChild(a);}
+  function close(){ov.remove();document.removeEventListener('keydown',esc);}
+  function esc(e){if(e.key==='Escape')close();}
+  ov.addEventListener('click',function(e){if(e.target===ov)close();});
+  ov.querySelector('.pdc-dt-x').addEventListener('click',close);
+  document.addEventListener('keydown',esc);
+  requestAnimationFrame(function(){ov.classList.add('in');});
+  var body=ov.querySelector('.pdc-dt-b'), cnt=ov.querySelector('.pdc-dt-count');
+  var cols=cfg.cols||[], noun=cfg.noun||'rows';
+  function trunc(s,n){s=String(s==null?'':s);return s.length>n?s.slice(0,n-1)+'\u2026':s;}
+  function cell(c,v){return c.fmt?c.fmt(v):(c.trunc?trunc(v,c.trunc):(v==null?'':String(v)));}
+  function setCount(n,t){cnt.innerHTML=(n===t)?('<b>'+t.toLocaleString()+'</b> '+noun):('<b>'+n.toLocaleString()+'</b> of '+t.toLocaleString()+' '+noun);}
+  function build(list){
+    if(!list.length){body.innerHTML='<div class="pdc-dt-load">No records.</div>';return;}
+    var CAP=2000, lim=Math.min(list.length,CAP);
+    var h='<table class="pdc-dt-tbl"><thead><tr>'+cols.map(function(c){return '<th class="'+(c.num?'num':'')+'">'+c.label+'</th>';}).join('')+'</tr></thead><tbody>';
+    for(var i=0;i<lim;i++){var r=list[i];h+='<tr>'+cols.map(function(c){return '<td class="'+(c.num?'num':'')+(c.title?' ti':'')+'">'+cell(c,r[c.idx])+'</td>';}).join('')+'</tr>';}
+    h+='</tbody></table>';
+    if(list.length>CAP)h+='<div class="pdc-dt-more">Showing first '+CAP.toLocaleString()+' of '+list.length.toLocaleString()+' \u2014 type in Filter to narrow.</div>';
+    body.innerHTML=h;
+  }
+  var url='/pentaho/plugin/cda/api/doQuery?path='+encodeURIComponent(CDAPATH)+'&dataAccessId='+encodeURIComponent(cfg.da)+'&outputType=json';
+  var pr=cfg.params||{}; for(var k in pr) url+='&param'+encodeURIComponent(k)+'='+encodeURIComponent(pr[k]);
+  fetch(url,{credentials:'include'}).then(function(r){return r.json();}).then(function(j){
+    var rs=j.resultset||[];
+    setCount(rs.length,rs.length); build(rs);
+    var q=ov.querySelector('.pdc-dt-q');
+    q.addEventListener('input',function(){var t=this.value.trim().toLowerCase();
+      if(!t){setCount(rs.length,rs.length);build(rs);return;}
+      var f=rs.filter(function(r){return cols.some(function(c){return String(r[c.idx]).toLowerCase().indexOf(t)>=0;});});
+      setCount(f.length,rs.length);build(f);});
+    setTimeout(function(){try{q.focus();}catch(e){}},80);
+  }).catch(function(e){body.innerHTML='<div class="pdc-dt-load">Could not load records ('+e+').</div>';});
+}
+</script>
+
+<style id="pdc-i-css">
+.pdc-i{display:inline-flex;align-items:center;justify-content:center;margin-left:5px;font-size:11px;font-style:normal;
+  color:#8a94a6;cursor:help;line-height:1;vertical-align:middle;opacity:.6;transition:opacity .12s,color .12s;user-select:none;font-weight:400}
+.pdc-i:hover,.pdc-i:focus{opacity:1;color:#7d3c98;outline:none}
+.kpi .l .pdc-i{font-size:10px;margin-left:4px}
+.pdc-info-pop{position:fixed;display:none;z-index:10001;background:#0d1624;color:#fff;padding:9px 12px;border-radius:8px;
+  font-size:11.5px;line-height:1.5;box-shadow:0 8px 26px rgba(0,0,0,.4);max-width:300px;font-weight:500;pointer-events:none;letter-spacing:.1px}
+</style>
+<script>
+/* Twin parity with the Custom PDC.infoDot: a discrete circled-i after any element carrying
+   data-info, revealing a business+technical blurb on hover/focus. Build-once, attribute-driven. */
+(function(){
+  var POP=null;
+  function pop(){ if(!POP){POP=document.createElement('div');POP.className='pdc-info-pop';document.body.appendChild(POP);} return POP; }
+  function attach(host){
+    var text=host.getAttribute('data-info'); if(!text||host.querySelector(':scope > .pdc-i'))return;
+    var s=document.createElement('span'); s.className='pdc-i'; s.tabIndex=0; s.setAttribute('role','button');
+    s.setAttribute('aria-label','Definition: '+text); s.textContent='\u24D8';
+    function show(){ var p=pop(); p.textContent=text; p.style.display='block';
+      var r=s.getBoundingClientRect(), pw=Math.min(300, window.innerWidth-24); p.style.maxWidth=pw+'px';
+      var left=Math.min(r.left, window.innerWidth-pw-12); p.style.left=Math.max(8,left)+'px'; p.style.top=(r.bottom+7)+'px'; }
+    function hide(){ if(POP)POP.style.display='none'; }
+    s.addEventListener('mouseenter',show); s.addEventListener('mouseleave',hide);
+    s.addEventListener('focus',show); s.addEventListener('blur',hide);
+    s.addEventListener('click',function(e){e.stopPropagation();show();});
+    host.appendChild(s);
+  }
+  function run(){ var els=document.querySelectorAll('[data-info]'); for(var i=0;i<els.length;i++)attach(els[i]); }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',run); else run();
+})();
+</script>
+</body>
+</html>

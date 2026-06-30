@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CDADescriptor>
+  <DataSources><Connection id="pdc" type="sql.jndi"><Jndi>PDC-BIDB-EXT</Jndi></Connection></DataSources>
+
+  <DataAccess id="kpi" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>KPI</Name><Parameters><Parameter name="ds" type="String" default="%"/><Parameter name="sens" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT count(DISTINCT f.application_key) AS apps, SUM(f.access_count) AS accesses,
+             count(DISTINCT f.entity_key) AS assets, ROUND(SUM(CASE WHEN e.entity_type IN ('FILE','TABLE') THEN s2.bytes ELSE 0 END)/1e12::numeric,1) AS tb
+      FROM fact_entity_application f
+      JOIN dim_datasource d ON f.datasource_key=d.datasource_key
+      LEFT JOIN fact_entity_snapshot s2 ON f.entity_key=s2.entity_key
+      LEFT JOIN dim_entity e ON f.entity_key=e.entity_key
+      WHERE d.datasource_type LIKE ${ds} AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens}
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="by_app" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>ByApp</Name><Parameters><Parameter name="ds" type="String" default="%"/><Parameter name="sens" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT a.application_name AS app, SUM(f.access_count) AS acc
+      FROM fact_entity_application f
+      JOIN dim_application a ON f.application_key=a.application_key
+      JOIN dim_datasource d ON f.datasource_key=d.datasource_key
+      LEFT JOIN dim_entity e ON f.entity_key=e.entity_key
+      WHERE d.datasource_type LIKE ${ds} AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens}
+      GROUP BY 1 ORDER BY 2 DESC LIMIT 14
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="by_type" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>ByType</Name><Parameters><Parameter name="ds" type="String" default="%"/><Parameter name="sens" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT COALESCE(NULLIF(a.application_type,''),'unknown') AS atype, SUM(f.access_count) AS acc
+      FROM fact_entity_application f
+      JOIN dim_application a ON f.application_key=a.application_key
+      JOIN dim_datasource d ON f.datasource_key=d.datasource_key
+      LEFT JOIN dim_entity e ON f.entity_key=e.entity_key
+      WHERE d.datasource_type LIKE ${ds} AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens}
+      GROUP BY 1 ORDER BY 2 DESC
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="by_source" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>BySource</Name><Parameters><Parameter name="sens" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT d.datasource_type AS src, SUM(f.access_count) AS acc
+      FROM fact_entity_application f
+      JOIN dim_datasource d ON f.datasource_key=d.datasource_key
+      LEFT JOIN dim_entity e ON f.entity_key=e.entity_key
+      WHERE COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens}
+      GROUP BY 1 ORDER BY 2 DESC
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="reach" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>Reach</Name><Parameters><Parameter name="ds" type="String" default="%"/><Parameter name="sens" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT a.application_name AS app, SUM(f.access_count) AS acc, count(DISTINCT f.entity_key) AS assets,
+             ROUND(SUM(CASE WHEN e.entity_type IN ('FILE','TABLE') THEN s2.bytes ELSE 0 END)/1e12::numeric,2) AS tb
+      FROM fact_entity_application f
+      JOIN dim_application a ON f.application_key=a.application_key
+      JOIN dim_datasource d ON f.datasource_key=d.datasource_key
+      LEFT JOIN fact_entity_snapshot s2 ON f.entity_key=s2.entity_key
+      LEFT JOIN dim_entity e ON f.entity_key=e.entity_key
+      WHERE d.datasource_type LIKE ${ds} AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens}
+      GROUP BY 1 ORDER BY 2 DESC LIMIT 14
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="detail_app_entities" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>DetailAppEntities</Name><Parameters><Parameter name="app" type="String" default="%"/><Parameter name="ds" type="String" default="%"/><Parameter name="sens" type="String" default="%"/></Parameters>
+    <Query><![CDATA[ SELECT COALESCE(NULLIF(e.entity_name,''),'(unnamed)') AS name,
+      d.datasource_type AS src,
+      f.access_count AS accesses,
+      ROUND(f.accessed_size_tb*1000::numeric,2) AS accessed_gb,
+      COALESCE(NULLIF(e.sensitivity,''),'Unclassified') AS sensitivity,
+      COALESCE(NULLIF(e.owner_name,''),'—') AS owner
+      FROM fact_entity_application f
+      JOIN dim_application a ON f.application_key=a.application_key
+      JOIN dim_datasource d ON f.datasource_key=d.datasource_key
+      LEFT JOIN dim_entity e ON f.entity_key=e.entity_key
+      WHERE a.application_name LIKE ${app} AND d.datasource_type LIKE ${ds}
+        AND COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens}
+      ORDER BY f.access_count DESC ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="datasources" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>DataSources</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT '%' AS v, 'All sources' AS l, 0 AS ord
+      UNION ALL
+      SELECT DISTINCT datasource_type AS v, datasource_type AS l, 1 AS ord
+        FROM dim_datasource WHERE datasource_type IS NOT NULL AND datasource_type<>''
+      ORDER BY ord, l
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="sensitivities" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>Sensitivities</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT '%' AS v, 'All sensitivities' AS l, 0 AS ord
+      UNION ALL
+      SELECT DISTINCT COALESCE(NULLIF(sensitivity,''),'Unclassified') AS v,
+                      COALESCE(NULLIF(sensitivity,''),'Unclassified') AS l, 1 AS ord
+        FROM dim_entity
+      ORDER BY ord, l
+    ]]></Query>
+  </DataAccess>
+</CDADescriptor>

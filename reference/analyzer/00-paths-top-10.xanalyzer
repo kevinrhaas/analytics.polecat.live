@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<reportRecord xmlns="http://www.pentaho.com">
+    <commonStorageAttributes createdBy="admin" updatedBy="admin" created="2026-02-05T23:25:18.950Z" update="2026-02-06T22:28:46.545Z">
+        <path name="00-paths-top-10" folder="/public/pdc-analysis/analyzer/00-paths-top-10.xanalyzer"/>
+    </commonStorageAttributes>
+    <report catalog="PDC" cube="01. Data Asset Analysis" reportTypeEnum="JSON" showRowGrandTotal="false" showColumnGrandTotal="false" showSubTotals="true" totalsOnTopLeft="false" useNonVisualTotals="false" showEmptyCells="false" showEmptyEnum="SHOW_MEASURE" emptyCellDisplay="-" showDrillLinks="true" version="15" autoRefresh="true" freezeColumns="true" freezeRows="true">
+        <measures>
+            <measure formula="[Measures].[Storage - Size Bytes]" showSum="true" showAggregate="false" showAverage="false" showCount="false" showMax="false" showMin="false" measureTypeEnum="VALUE" sortOrderEnum="DESC" id="[MEASURE:1]" gembarId="measures" gembarOrdinal="0"/>
+        </measures>
+        <columnAttributes/>
+        <rowAttributes>
+            <attribute formula="[Path].[Path]" showSubtotal="false" sortOrderEnum="ASC" wordWrap="false" gembarId="rows" gembarOrdinal="0"/>
+            <attribute formula="[Data Source].[Data Source Type]" showSubtotal="false" sortOrderEnum="ASC" wordWrap="false" gembarId="columns" gembarOrdinal="0"/>
+        </rowAttributes>
+        <filters defaultFiltersAvailable="false">
+            <filter formula="[Path].[Path]" viewFilterEnum="MULTIPLE" isDefaultFilter="false" isDefaultMetricFilter="false">
+                <topBottom formula="[Measures].[Storage - Size Bytes]" type="TOP" count="10"/>
+            </filter>
+        </filters>
+        <chartOptions vizApiVersion="3.0" chartType="CUSTOM" customChartType="pentaho/visual/models/BarStacked" showMultiChart="false" legendPosition="RIGHT" showLegend="true" autoRange="true" displayUnits="UNITS_0" autoRangeSecondary="true" displayUnitsSecondary="UNITS_0" lineWidth="2" lineShape="CIRCLE" maxValues="100" backgroundColor="#ffffff" labelColor="#000000" labelSize="12" backgroundFill="NONE" maxChartsPerRow="3" multiChartMax="50" multiChartRangeScope="GLOBAL" emptyCellMode="GAP" sizeByNegativesMode="NEG_LOWEST" backgroundColorEnd="#ffffff" labelStyle="PLAIN" legendBackgroundColor="#ffffff" legendSize="12" legendColor="#000000" legendStyle="PLAIN" labelFontFamily="Default" legendFontFamily="Default" scatterReverseColors="false"/>
+        <selectionFilters/>
+        <selectionItems/>
+        <pageSetup excelPageSize="LETTER" pdfPageSize="LETTER" excelOrientation="LANDSCAPE" pdfOrientation="LANDSCAPE" excelScalingType="PERCENT" excelScalingPercent="100" excelScalingPageWide="1" excelScalingPageTall="1" excelMergePivotCells="true" csvIncludeSubtotals="true" csvFormatNumbers="true"/>
+        <drillColumns>
+            <drillColumn>[Name].[Name]</drillColumn>
+            <drillColumn>[Resource Type].[Resource Type]</drillColumn>
+            <drillColumn>[Type].[Type]</drillColumn>
+            <drillColumn>[Data Source].[Data Source Type]</drillColumn>
+            <drillColumn>[Data Source].[Data Source]</drillColumn>
+            <drillColumn>[FQDN].[FQDN]</drillColumn>
+            <drillColumn>[Physical Location].[Physical Location]</drillColumn>
+            <drillColumn>[URL].[URL]</drillColumn>
+            <drillColumn>[File Extension].[File Extension]</drillColumn>
+            <drillColumn>[File Type].[File Type]</drillColumn>
+            <drillColumn>[Path Type].[Path Type]</drillColumn>
+            <drillColumn>[Group].[Group]</drillColumn>
+            <drillColumn>[Owner].[Owner]</drillColumn>
+            <drillColumn>[Accessed Date].[Accessed Year]</drillColumn>
+            <drillColumn>[Accessed Date].[Accessed Month]</drillColumn>
+            <drillColumn>[Accessed Date].[Accessed Date]</drillColumn>
+            <drillColumn>[Created Date].[Created Year]</drillColumn>
+            <drillColumn>[Created Date].[Created Month]</drillColumn>
+            <drillColumn>[Created Date].[Created Date]</drillColumn>
+            <drillColumn>[Last Update Date].[Last Update Year]</drillColumn>
+            <drillColumn>[Last Update Date].[Last Update Month]</drillColumn>
+            <drillColumn>[Last Update Date].[Last Update Date]</drillColumn>
+            <drillColumn>[Last Update Statistics Date].[Last Update Statistics Year]</drillColumn>
+            <drillColumn>[Last Update Statistics Date].[Last Update Statistics Month]</drillColumn>
+            <drillColumn>[Last Update Statistics Date].[Last Update Statistics Date]</drillColumn>
+            <drillColumn>[Modified Date].[Modified Year]</drillColumn>
+            <drillColumn>[Modified Date].[Modified Month]</drillColumn>
+            <drillColumn>[Modified Date].[Modified Date]</drillColumn>
+            <drillColumn>[Scanned Date].[Scanned Year]</drillColumn>
+            <drillColumn>[Scanned Date].[Scanned Month]</drillColumn>
+            <drillColumn>[Scanned Date].[Scanned Date]</drillColumn>
+            <drillColumn>[Accessed Age Months].[Accessed Age Months]</drillColumn>
+            <drillColumn>[Accessed Age Years].[Accessed Age Years]</drillColumn>
+            <drillColumn>[Created Age Months].[Created Age Months]</drillColumn>
+            <drillColumn>[Created Age Years].[Created Age Years]</drillColumn>
+            <drillColumn>[Modified Age Months].[Modified Age Months]</drillColumn>
+            <drillColumn>[Modified Age Years].[Modified Age Years]</drillColumn>
+            <drillColumn>[Parent Path].[Parent Path]</drillColumn>
+            <drillColumn>[Path].[Path]</drillColumn>
+            <drillColumn>[Business Glossary].[Glossary]</drillColumn>
+            <drillColumn>[Business Glossary].[Level 2]</drillColumn>
+            <drillColumn>[Business Glossary].[Level 3]</drillColumn>
+            <drillColumn>[Business Glossary].[Level 4]</drillColumn>
+            <drillColumn>[Business Glossary].[Level 5]</drillColumn>
+            <drillColumn>[Business Glossary].[Level 6]</drillColumn>
+            <drillColumn>[Business Glossary].[Leaf Name]</drillColumn>
+            <drillColumn>[Business Glossary].[Is Leaf Term]</drillColumn>
+            <drillColumn>[Business Glossary].[Hierarchy Depth]</drillColumn>
+            <drillColumn>[Term].[Term]</drillColumn>
+            <drillColumn>[Measures].[Entity Count]</drillColumn>
+            <drillColumn>[Measures].[Storage - Size Bytes]</drillColumn>
+            <drillColumn>[Measures].[Storage - Child Directory Size Bytes]</drillColumn>
+            <drillColumn>[Measures].[Storage - Child File Size Bytes]</drillColumn>
+            <drillColumn>[Measures].[Storage - Number of Child Directories]</drillColumn>
+            <drillColumn>[Measures].[Storage - Number of Child Files]</drillColumn>
+            <drillColumn>[Measures].[Storage - Total Child Directory Size Bytes]</drillColumn>
+            <drillColumn>[Measures].[Storage - Total Child File Size Bytes]</drillColumn>
+            <drillColumn>[Measures].[Storage - Total Number of Child Directories]</drillColumn>
+            <drillColumn>[Measures].[Storage - Total Number of Child Files]</drillColumn>
+            <drillColumn>[Measures].[Distinct Entities]</drillColumn>
+            <drillColumn>[Measures].[Distinct Terms]</drillColumn>
+            <drillColumn>[Measures].[Entity–Term Associations]</drillColumn>
+            <drillColumn>[Measures].[Term - Child Directory Size Bytes]</drillColumn>
+            <drillColumn>[Measures].[Term - Child File Size Bytes]</drillColumn>
+            <drillColumn>[Measures].[Term - Number of Child Directories]</drillColumn>
+            <drillColumn>[Measures].[Term - Number of Child Files]</drillColumn>
+            <drillColumn>[Measures].[Term - Size Bytes]</drillColumn>
+            <drillColumn>[Measures].[Term - Total Child Directory Size Bytes]</drillColumn>
+            <drillColumn>[Measures].[Term - Total Child File Size Bytes]</drillColumn>
+            <drillColumn>[Measures].[Term - Total Number of Child Directories]</drillColumn>
+            <drillColumn>[Measures].[Term - Total Number of Child Files]</drillColumn>
+        </drillColumns>
+    </report>
+    <uiAttributes showFieldList="true" showFieldLayout="true" showFilterPanel="false" fieldListView="CMDVIEWCATEGORY">
+        <rowFieldWidths actualWidths="547">
+            <labelWidth index="0">
+                <width>-337</width>
+            </labelWidth>
+        </rowFieldWidths>
+        <columnDataFieldWidths actualWidths="120">
+            <labelWidth index="0">
+                <width>0</width>
+            </labelWidth>
+            <labelWidth index="1">
+                <width>0</width>
+            </labelWidth>
+            <labelWidth index="2">
+                <width>0</width>
+            </labelWidth>
+            <labelWidth index="3">
+                <width>0</width>
+            </labelWidth>
+            <labelWidth index="4">
+                <width>0</width>
+            </labelWidth>
+            <labelWidth index="5">
+                <width>0</width>
+            </labelWidth>
+            <labelWidth index="6">
+                <width>0</width>
+            </labelWidth>
+            <labelWidth index="7">
+                <width>0</width>
+            </labelWidth>
+            <labelWidth index="8">
+                <width>0</width>
+            </labelWidth>
+        </columnDataFieldWidths>
+        <pluginData>[{}]</pluginData>
+    </uiAttributes>
+</reportRecord>

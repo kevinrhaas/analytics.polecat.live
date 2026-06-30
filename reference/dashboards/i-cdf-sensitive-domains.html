@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Sensitive Data Domains (CDF) — Pentaho Data Catalog Analytics</title>
+<!-- TRUE CDF dashboard: CDF Dashboard runtime + CCC chart components + CDF Select/Table, all over CDA. -->
+<script type="text/javascript" src="/pentaho/plugin/pentaho-cdf/api/cdf-embed.js"></script>
+<style>
+:root{--pdc:#005bb5;--pdc2:#7d3c98;--bg:#f4f6fa;--panel:#fff;--border:#e3e8f0;--text:#1b2733;--muted:#6b7a90;}
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text)}
+.pdc-header{display:flex;align-items:center;gap:14px;padding:13px 22px;background:linear-gradient(100deg,var(--pdc),var(--pdc2));color:#fff;box-shadow:0 2px 12px rgba(0,40,90,.18)}
+.pdc-logo{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;background:rgba(255,255,255,.18);font-weight:800;font-size:17px}
+.pdc-title{font-weight:800;font-size:18px;letter-spacing:.2px}
+.pdc-sub{font-size:12.5px;opacity:.9;border-left:1px solid rgba(255,255,255,.4);padding-left:14px}
+.spacer{flex:1}
+.cdfpill{font-size:10px;font-weight:700;background:rgba(255,255,255,.2);padding:3px 9px;border-radius:11px;letter-spacing:.5px;text-transform:uppercase}
+.pdc-iconbtn{background:rgba(255,255,255,.16);color:#fff;border:1px solid rgba(255,255,255,.35);border-radius:8px;padding:6px 11px;font-size:12.5px;text-decoration:none;font-weight:600}
+.pdc-iconbtn:hover{background:rgba(255,255,255,.28)}
+.wrap{max-width:1500px;margin:0 auto;padding:18px 22px 40px}
+.filterbar{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:11px 16px;margin-bottom:16px;box-shadow:0 1px 3px rgba(20,40,80,.06)}
+.filterbar label{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.filterbar select{font-size:13px;padding:6px 10px;border:1px solid var(--border);border-radius:8px;background:#fff;color:var(--text);min-width:200px}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px}
+.kpi{background:var(--panel);border:1px solid var(--border);border-left:4px solid var(--pdc);border-radius:12px;padding:14px 16px;box-shadow:0 1px 3px rgba(20,40,80,.06)}
+.kpi.good{border-left-color:#16a085}.kpi.warn{border-left-color:#e67e22}.kpi.bad{border-left-color:#c0392b}
+.kpi .v{font-size:24px;font-weight:800;color:var(--pdc)}
+.kpi.good .v{color:#16a085}.kpi.warn .v{color:#e67e22}.kpi.bad .v{color:#c0392b}
+.kpi .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-top:3px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:14px 16px 8px;box-shadow:0 1px 3px rgba(20,40,80,.06);min-height:60px}
+.card.span2{grid-column:span 2}.card.span3{grid-column:span 3}
+.card h3{margin:0 0 6px;font-size:13.5px;font-weight:800;color:var(--text)}
+.card .src{font-size:10.5px;color:var(--muted);opacity:.8;margin-top:2px}
+.chart{width:100%;height:300px}
+.foot{margin-top:18px;font-size:11.5px;color:var(--muted);text-align:center}
+.foot code{background:#eef2f8;padding:1px 6px;border-radius:5px}
+@media(max-width:1100px){.kpis{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}.card.span2,.card.span3{grid-column:span 1}}
+/* ── shared metric-definition info dot (reusable CDF-twin block; pairs with the [data-info] scanner script) ── */
+.pdc-i{display:inline-flex;align-items:center;justify-content:center;margin-left:5px;font-size:11px;font-style:normal;color:var(--muted);cursor:help;line-height:1;vertical-align:middle;opacity:.5;transition:opacity .12s,color .12s;user-select:none}
+.pdc-i:hover,.pdc-i:focus{opacity:1;color:var(--pdc);outline:none}
+.pdc-info-pop{position:fixed;display:none;z-index:10001;background:#0d1624;color:#fff;padding:9px 12px;border-radius:8px;font-size:11.5px;line-height:1.5;box-shadow:0 8px 26px rgba(0,0,0,.4);max-width:300px;font-weight:500;pointer-events:none;letter-spacing:.1px}
+</style>
+</head>
+<body>
+<header class="pdc-header">
+  <span class="pdc-logo">P</span>
+  <span class="pdc-title">Sensitive Data Domains</span>
+  <span class="cdfpill">CDF · CCC</span>
+  <span class="pdc-sub">live Pentaho CDF dashboard — which business domains carry sensitive data</span>
+  <div class="spacer"></div>
+  <span title="Toggle Simple HTML (toolkit/CDA) vs Framework (CDF) build" style="display:inline-flex;align-items:stretch;border:1px solid rgba(255,255,255,.45);border-radius:8px;overflow:hidden;font-size:12px"><a href="/pentaho/api/repos/:public:pdc-iteration:v2:i-sensitive-domains.html/content" style="padding:6px 12px;color:#fff;text-decoration:none;opacity:.78;font-weight:600">Simple HTML</a><span style="padding:6px 12px;background:rgba(255,255,255,.30);color:#fff;font-weight:800">Framework</span></span>
+  <button class="pdc-iconbtn" id="qInfoBtn" title="View the CDA queries behind this dashboard" onclick="pdcQueryModal()" style="cursor:pointer">&#9432;</button>
+  <a class="pdc-iconbtn" href="/pentaho/api/repos/:public:pdc-iteration:v2:i-home.html/content">&#9632; All dashboards</a>
+</header>
+<div class="wrap">
+  <div class="filterbar">
+    <label for="domainSelect">Domain</label>
+    <span id="domainSelect"></span>
+    <label for="ownerSelect">Data owner</label>
+    <span id="ownerSelect"></span>
+  </div>
+  <div id="kpiAnchor" style="display:none"></div>
+  <div class="kpis">
+    <div class="kpi"><div class="v" id="kDom">—</div><div class="l">Domains w/ Sensitive Data</div></div>
+    <div class="kpi" id="tHigh"><div class="v" id="kHigh">—</div><div class="l">HIGH-Sensitivity Entities</div></div>
+    <div class="kpi warn"><div class="v" id="kHm">—</div><div class="l">HIGH + MEDIUM Entities</div></div>
+    <div class="kpi good"><div class="v" id="kPct">—</div><div class="l">Classified Reach</div></div>
+  </div>
+  <div class="grid">
+    <div class="card span2"><h3 data-info="Business domains broken down by sensitivity tier (stacked) — taller HIGH/MEDIUM segments show domains where regulated data concentrates.">Domain × Sensitivity (stacked)</h3><div id="heatChart" class="chart"></div><div class="src">CccBarChart stacked · fact_entity_term × dim_entity.sensitivity</div></div>
+    <div class="card"><h3 data-info="Domain-tagged entities split across sensitivity tiers (HIGH / MEDIUM / LOW / Unclassified). A larger HIGH+MEDIUM share means more regulated data in your domains.">Sensitivity Mix</h3><div id="sensChart" class="chart"></div><div class="src">CccPieChart · dim_entity.sensitivity</div></div>
+    <div class="card span3"><h3 data-info="Domains ranked by their count of HIGH+MEDIUM entities — where sensitive data concentrates and governance attention should go first.">Top Risk Domains (HIGH + MEDIUM)</h3><div id="riskChart" class="chart" style="height:230px"></div><div class="src">CccBarChart · sensitivity in (HIGH,MEDIUM)</div></div>
+    <div class="card span3" style="padding-bottom:14px"><h3 data-info="The individual glossary terms rated HIGH/MEDIUM attached to the most entities — the specific sensitive concepts most widespread across the estate.">Top Sensitive Terms (HIGH / MEDIUM)</h3><div id="termsTable"></div><div class="src">TableComponent · fact_entity_term</div></div>
+  </div>
+  <div class="foot">Pentaho Data Catalog Analytics · iteration v2 · <b>true CDF dashboard</b> (CDF runtime + CCC + CDA) · CDF twin of the toolkit Sensitive Data Domains · data via <code>PDC-BIDB-EXT</code></div>
+</div>
+
+<script type="text/javascript">
+var CDAPATH="/public/pdc-iteration/v2/i-cdf-sensitive-domains.cda";
+var BRAND=["#005bb5","#7d3c98","#2e8bd0","#9b59b6","#00a39a","#e67e22","#c0392b","#16a085"];
+// sensitivity colors (series order in heat_stacked is alpha: HIGH, LOW, MEDIUM, Unclassified)
+var SENS=["#c0392b","#2e8bd0","#e67e22","#c7cdd6"];
+function fmtN(x){x=+x||0;return x>=1e6?(x/1e6).toFixed(1)+"M":x>=1e3?(x/1e3).toFixed(1)+"K":(""+Math.round(x));}
+function merge(){var o={};for(var i=0;i<arguments.length;i++){var s=arguments[i];if(s)for(var k in s)o[k]=s[k];}return o;}
+function tile(id,cls){var t=document.getElementById(id);if(t)t.className="kpi"+(cls?" "+cls:"");}
+
+require([
+  'cdf/Dashboard.Blueprint',
+  'cdf/components/SelectComponent',
+  'cdf/components/CccBarChartComponent',
+  'cdf/components/CccPieChartComponent',
+  'cdf/components/TableComponent',
+  'cdf/components/BaseComponent'
+], function(Dashboard, SelectComponent, CccBarChartComponent, CccPieChartComponent, TableComponent, BaseComponent){
+  var dashboard = new Dashboard();
+  dashboard.addParameter("glossaryParam", "%");
+  dashboard.addParameter("ownerParam", "%");
+  var GP = [["glossary","glossaryParam"]];
+  var GO = [["glossary","glossaryParam"],["owner","ownerParam"]];   // panels respect both Domain + Data owner
+  function cdaDef(id){ return { queryType:"cda", path:CDAPATH, dataAccessId:id }; }
+  function chartBase(extra){
+    var base = { height:290, crosstabMode:false, seriesInRows:false, animate:false,
+      colors:BRAND, valuesVisible:true, valuesFont:"11px sans-serif", legend:false,
+      plotFrameVisible:false, axisGrid:true, axisGrid_strokeStyle:"#eef2f8",
+      contentMargins:"6 10 6 6", clickable:false, tooltipEnabled:true };
+    for(var k in (extra||{})){ base[k]=extra[k]; }
+    return base;
+  }
+
+  // Domain filter (CDF SelectComponent)
+  dashboard.addComponent(new SelectComponent({
+    name:"domainSelect", type:"select", htmlObject:"domainSelect",
+    parameter:"glossaryParam", valueAsId:false, executeAtStart:true,
+    queryDefinition: cdaDef("glossaries")
+  }));
+
+  // Data owner filter (CDF SelectComponent)
+  dashboard.addComponent(new SelectComponent({
+    name:"ownerSelect", type:"select", htmlObject:"ownerSelect",
+    parameter:"ownerParam", valueAsId:false, executeAtStart:true,
+    queryDefinition: cdaDef("owners")
+  }));
+
+  // KPI tiles — custom component, re-runs on glossary change
+  dashboard.addComponent(new BaseComponent({
+    name:"kpiPanel", type:"base", htmlObject:"kpiAnchor", executeAtStart:true, listeners:["glossaryParam","ownerParam"],
+    update:function(){
+      var gl=dashboard.getParameterValue("glossaryParam")||"%";
+      var ow=dashboard.getParameterValue("ownerParam")||"%";
+      dashboard.getQuery(cdaDef("kpi")).fetchData({glossary:gl,owner:ow}, function(r){
+        var x=(r.resultset&&r.resultset[0])||[0,0,0,0];
+        document.getElementById("kDom").textContent=fmtN(x[0]);
+        var hi=+x[1]||0; document.getElementById("kHigh").textContent=fmtN(hi); tile("tHigh",hi>0?"bad":"good");
+        document.getElementById("kHm").textContent=fmtN(x[2]);
+        document.getElementById("kPct").textContent=(x[3]==null?"—":x[3]+"%");
+      });
+    }
+  }));
+
+  // Domain × Sensitivity — CCC stacked bar (series = sensitivity, category = glossary)
+  dashboard.addComponent(new CccBarChartComponent({
+    name:"heatChart", type:"cccBarChart", htmlObject:"heatChart",
+    executeAtStart:true, listeners:["glossaryParam","ownerParam"], parameters:GO,
+    chartDefinition: merge(chartBase({orientation:"horizontal", stacked:true, valuesVisible:false,
+      legend:true, legendPosition:"top", legendFont:"11px sans-serif", colors:SENS, height:290}), cdaDef("heat_stacked"))
+  }));
+
+  // Sensitivity mix (CCC pie)
+  dashboard.addComponent(new CccPieChartComponent({
+    name:"sensChart", type:"cccPieChart", htmlObject:"sensChart",
+    executeAtStart:true, listeners:["glossaryParam","ownerParam"], parameters:GO,
+    chartDefinition: merge(chartBase({legend:true, legendPosition:"bottom", legendFont:"11px sans-serif",
+      colors:["#c7cdd6","#2e8bd0","#e67e22","#c0392b"], height:290}), cdaDef("sens_mix"))
+  }));
+
+  // Top risk domains (CCC horizontal bar) — click a domain → its actual HIGH/MEDIUM entities
+  dashboard.addComponent(new CccBarChartComponent({
+    name:"riskChart", type:"cccBarChart", htmlObject:"riskChart",
+    executeAtStart:true, listeners:["glossaryParam","ownerParam"], parameters:GO,
+    chartDefinition: merge(chartBase({orientation:"horizontal", valuesAnchor:"right", colors:["#c0392b"], height:220, clickable:true,
+      clickAction:function(scene){
+        var gl = (scene && scene.vars && scene.vars.category && scene.vars.category.value);
+        if(gl){ pdcDetailDrawer({
+          title:gl+" — sensitive entities", subtitle:"every HIGH / MEDIUM entity tagged in this domain",
+          da:"detail_risk_domain", params:{glossary:gl}, noun:"sensitive entities",
+          cols:[{label:"Entity",idx:0,title:true,trunc:40},{label:"Sensitive Term",idx:1,trunc:28},
+                {label:"Sensitivity",idx:2},{label:"Owner",idx:3,trunc:18}]
+        }); }
+      }}), cdaDef("risk_rank"))
+  }));
+
+  // Top sensitive terms (CDF table)
+  dashboard.addComponent(new TableComponent({
+    name:"termsTable", type:"table", htmlObject:"termsTable",
+    executeAtStart:true, listeners:["glossaryParam","ownerParam"], parameters:GO,
+    chartDefinition: merge({
+      tableStyle:"classic", paginate:false, sortable:false, info:false, filter:false, searching:false,
+      colHeaders:["Term","Domain / Glossary","Sensitivity","Entities"]
+    }, cdaDef("top_terms"))
+  }));
+
+  dashboard.init();
+});
+</script>
+
+<style id="pdc-qm-css">
+.pdc-qm-ov{position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:99999;display:flex;align-items:flex-start;justify-content:center;padding:5vh 16px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+.pdc-qm{background:#fff;color:#1f2937;border-radius:12px;box-shadow:0 24px 60px rgba(8,20,45,.35);width:min(880px,94vw);max-height:88vh;display:flex;flex-direction:column;overflow:hidden}
+.pdc-qm-h{display:flex;align-items:center;gap:12px;padding:13px 16px;background:#0b2e63;color:#fff}
+.pdc-qm-t{font-weight:800;font-size:14px}
+.pdc-qm-t code{font-weight:700;font-size:12px;color:#cfe2ff;background:rgba(255,255,255,.12);padding:1px 7px;border-radius:6px;margin-left:4px}
+.pdc-qm-note{color:rgba(255,255,255,.7);font-size:11px;font-style:italic;margin-left:auto}
+.pdc-qm-x{border:0;background:transparent;color:rgba(255,255,255,.8);font-size:22px;line-height:1;cursor:pointer;padding:0 4px}
+.pdc-qm-x:hover{color:#fff}
+.pdc-qm-b{overflow:auto;padding:8px 16px 16px}
+.pdc-qm-load{color:#64748b;padding:24px 4px;font-size:13px}
+.pdc-q{border-top:1px solid #e6eaf2;padding:13px 0 4px}
+.pdc-q:first-child{border-top:0}
+.pdc-q-id{display:flex;align-items:center;gap:9px;margin-bottom:7px}
+.pdc-q-name{font-weight:800;font-size:12.5px;color:#005bb5;font-family:ui-monospace,Menlo,Consolas,monospace}
+.pdc-q-params{font-size:10px;color:#64748b;background:#f1f5f9;padding:2px 8px;border-radius:20px}
+.pdc-q-copy{margin-left:auto;border:1px solid #cbd5e1;background:#f8fafc;color:#64748b;font-size:10.5px;font-weight:700;padding:3px 10px;border-radius:6px;cursor:pointer}
+.pdc-q-copy:hover{color:#005bb5;border-color:#005bb5}
+.pdc-q-sql{margin:0;background:#f6f8fc;border:1px solid #e6eaf2;border-radius:8px;padding:11px 13px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px;line-height:1.5;color:#1f2937;white-space:pre-wrap;word-break:break-word}
+</style>
+<script>
+function pdcQueryModal(){
+  if(document.getElementById('pdc-qm'))return;
+  var url="/pentaho/api/repos/"+CDAPATH.replace(/^\/+/,'').replace(/\//g,':')+"/content";
+  var fname=CDAPATH.split('/').pop();
+  var ov=document.createElement('div');ov.id='pdc-qm';ov.className='pdc-qm-ov';
+  ov.innerHTML='<div class="pdc-qm" role="dialog" aria-modal="true"><div class="pdc-qm-h"><span class="pdc-qm-t">\u25f4 CDA Queries <code>'+fname+'</code></span><span class="pdc-qm-note">the live SQL behind every panel \u00b7 read-only</span><button class="pdc-qm-x" aria-label="Close">\u00d7</button></div><div class="pdc-qm-b"><div class="pdc-qm-load">Loading queries\u2026</div></div></div>';
+  document.body.appendChild(ov);
+  function close(){ov.remove();document.removeEventListener('keydown',esc);}
+  function esc(e){if(e.key==='Escape')close();}
+  ov.addEventListener('click',function(e){if(e.target===ov)close();});
+  ov.querySelector('.pdc-qm-x').addEventListener('click',close);
+  document.addEventListener('keydown',esc);
+  fetch(url,{credentials:'include'}).then(function(r){return r.text();}).then(function(xml){
+    var doc=new DOMParser().parseFromString(xml,'text/xml');
+    var das=[].slice.call(doc.getElementsByTagName('DataAccess'));
+    var b=ov.querySelector('.pdc-qm-b');b.innerHTML='';
+    if(!das.length){b.innerHTML='<div class="pdc-qm-load">No queries found.</div>';return;}
+    das.forEach(function(da){
+      var id=da.getAttribute('id')||'';var qn=da.getElementsByTagName('Query')[0];var sql=qn?qn.textContent.trim():'(no SQL)';
+      var params=[].slice.call(da.getElementsByTagName('Parameter')).map(function(p){return p.getAttribute('name');}).filter(Boolean);
+      var sec=document.createElement('section');sec.className='pdc-q';
+      var pill=params.length?'<span class="pdc-q-params">'+params.join(' \u00b7 ')+'</span>':'';
+      sec.innerHTML='<div class="pdc-q-id"><span class="pdc-q-name">'+id+'</span>'+pill+'<button class="pdc-q-copy">copy</button></div><pre class="pdc-q-sql"></pre>';
+      sec.querySelector('.pdc-q-sql').textContent=sql;
+      sec.querySelector('.pdc-q-copy').addEventListener('click',function(){var t=this;try{navigator.clipboard.writeText(sql);t.textContent='copied \u2713';setTimeout(function(){t.textContent='copy';},1200);}catch(e){}});
+      b.appendChild(sec);
+    });
+  }).catch(function(e){ov.querySelector('.pdc-qm-b').innerHTML='<div class="pdc-qm-load">Could not load queries ('+e+').</div>';});
+}
+</script>
+
+<style id="pdc-dt-css">
+.pdc-dt-ov{position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:10000;display:flex;justify-content:flex-end;opacity:0;transition:opacity .18s ease}
+.pdc-dt-ov.in{opacity:1}
+.pdc-dt{background:var(--panel,#fff);color:var(--text,#1b2733);border-left:1px solid var(--border,#e3e8f0);box-shadow:-12px 0 40px rgba(8,20,45,.25);width:min(680px,96vw);height:100%;display:flex;flex-direction:column;transform:translateX(28px);transition:transform .2s ease}
+.pdc-dt-ov.in .pdc-dt{transform:translateX(0)}
+.pdc-dt-h{display:flex;align-items:flex-start;gap:12px;padding:15px 18px 13px;border-bottom:1px solid var(--border,#e3e8f0)}
+.pdc-dt-t{font-weight:800;font-size:15px}.pdc-dt-sub{display:block;font-size:11.5px;color:var(--muted,#6b7a90);font-weight:600;margin-top:3px}
+.pdc-dt-x{margin-left:auto;border:0;background:transparent;color:var(--muted,#6b7a90);font-size:24px;line-height:1;cursor:pointer;padding:0 4px}
+.pdc-dt-bar{display:flex;align-items:center;gap:12px;padding:9px 18px;border-bottom:1px solid var(--border,#e3e8f0);flex-wrap:wrap}
+.pdc-dt-count{font-size:12px;color:var(--muted,#6b7a90)}.pdc-dt-count b{color:var(--pdc,#005bb5);font-size:14px}
+.pdc-dt-q{flex:1;min-width:120px;border:1px solid var(--border,#e3e8f0);background:#fff;color:var(--text,#1b2733);font-size:12.5px;padding:6px 11px;border-radius:7px;outline:none}
+.pdc-dt-q:focus{border-color:var(--pdc,#005bb5)}
+.pdc-dt-drilllink{font-size:11.5px;font-weight:700;color:var(--pdc,#005bb5);text-decoration:none;white-space:nowrap;padding:5px 10px;border:1px solid var(--pdc,#005bb5);border-radius:7px;cursor:pointer}
+.pdc-dt-drilllink:hover{background:var(--pdc,#005bb5);color:#fff}
+.pdc-dt-b{overflow:auto;flex:1}
+.pdc-dt-load{color:var(--muted,#6b7a90);padding:26px 18px;font-size:13px}
+.pdc-dt-more{color:var(--muted,#6b7a90);opacity:.8;font-size:11.5px;padding:10px 18px;font-style:italic}
+.pdc-dt-tbl{width:100%;border-collapse:collapse;font-size:12.5px}
+.pdc-dt-tbl thead th{position:sticky;top:0;background:#f4f6fa;color:var(--muted,#6b7a90);text-align:left;font-weight:700;font-size:10.5px;letter-spacing:.4px;text-transform:uppercase;padding:9px 18px;border-bottom:1px solid var(--border,#e3e8f0)}
+.pdc-dt-tbl th.num,.pdc-dt-tbl td.num{text-align:right}
+.pdc-dt-tbl tbody td{padding:8px 18px;border-bottom:1px solid var(--border,#e3e8f0);white-space:nowrap}
+.pdc-dt-tbl td.ti{font-weight:600;max-width:280px;overflow:hidden;text-overflow:ellipsis}
+.pdc-dt-tbl tbody tr:hover td{background:#f7f9fc}
+</style>
+<script>
+function pdcDetailDrawer(cfg){
+  cfg=cfg||{};
+  var old=document.getElementById('pdc-dt'); if(old)old.remove();
+  var ov=document.createElement('div'); ov.id='pdc-dt'; ov.className='pdc-dt-ov';
+  ov.innerHTML='<div class="pdc-dt" role="dialog" aria-modal="true"><div class="pdc-dt-h"><div>'+
+    '<span class="pdc-dt-t"></span><span class="pdc-dt-sub"></span></div>'+
+    '<button class="pdc-dt-x" aria-label="Close">&times;</button></div>'+
+    '<div class="pdc-dt-bar"><span class="pdc-dt-count">\u2026</span>'+
+    '<input class="pdc-dt-q" type="search" placeholder="Filter rows\u2026"/>'+
+    '<span class="pdc-dt-drill"></span></div>'+
+    '<div class="pdc-dt-b"><div class="pdc-dt-load">Loading records\u2026</div></div></div>';
+  document.body.appendChild(ov);
+  ov.querySelector('.pdc-dt-t').textContent=cfg.title||'Detail';
+  if(cfg.subtitle)ov.querySelector('.pdc-dt-sub').textContent=cfg.subtitle;
+  if(cfg.drill&&cfg.drill.onClick){var a=document.createElement('a');a.className='pdc-dt-drilllink';
+    a.innerHTML=(cfg.drill.label||'Open dashboard')+' &#8599;';a.addEventListener('click',function(e){e.preventDefault();cfg.drill.onClick();});
+    ov.querySelector('.pdc-dt-drill').appendChild(a);}
+  function close(){ov.remove();document.removeEventListener('keydown',esc);}
+  function esc(e){if(e.key==='Escape')close();}
+  ov.addEventListener('click',function(e){if(e.target===ov)close();});
+  ov.querySelector('.pdc-dt-x').addEventListener('click',close);
+  document.addEventListener('keydown',esc);
+  requestAnimationFrame(function(){ov.classList.add('in');});
+  var body=ov.querySelector('.pdc-dt-b'), cnt=ov.querySelector('.pdc-dt-count');
+  var cols=cfg.cols||[], noun=cfg.noun||'rows';
+  function trunc(s,n){s=String(s==null?'':s);return s.length>n?s.slice(0,n-1)+'\u2026':s;}
+  function cell(c,v){return c.fmt?c.fmt(v):(c.trunc?trunc(v,c.trunc):(v==null?'':String(v)));}
+  function setCount(n,t){cnt.innerHTML=(n===t)?('<b>'+t.toLocaleString()+'</b> '+noun):('<b>'+n.toLocaleString()+'</b> of '+t.toLocaleString()+' '+noun);}
+  function build(list){
+    if(!list.length){body.innerHTML='<div class="pdc-dt-load">No records.</div>';return;}
+    var CAP=2000, lim=Math.min(list.length,CAP);
+    var h='<table class="pdc-dt-tbl"><thead><tr>'+cols.map(function(c){return '<th class="'+(c.num?'num':'')+'">'+c.label+'</th>';}).join('')+'</tr></thead><tbody>';
+    for(var i=0;i<lim;i++){var r=list[i];h+='<tr>'+cols.map(function(c){return '<td class="'+(c.num?'num':'')+(c.title?' ti':'')+'">'+cell(c,r[c.idx])+'</td>';}).join('')+'</tr>';}
+    h+='</tbody></table>';
+    if(list.length>CAP)h+='<div class="pdc-dt-more">Showing first '+CAP.toLocaleString()+' of '+list.length.toLocaleString()+' \u2014 type in Filter to narrow.</div>';
+    body.innerHTML=h;
+  }
+  var url='/pentaho/plugin/cda/api/doQuery?path='+encodeURIComponent(CDAPATH)+'&dataAccessId='+encodeURIComponent(cfg.da)+'&outputType=json';
+  var pr=cfg.params||{}; for(var k in pr) url+='&param'+encodeURIComponent(k)+'='+encodeURIComponent(pr[k]);
+  fetch(url,{credentials:'include'}).then(function(r){return r.json();}).then(function(j){
+    var rs=j.resultset||[];
+    setCount(rs.length,rs.length); build(rs);
+    var q=ov.querySelector('.pdc-dt-q');
+    q.addEventListener('input',function(){var t=this.value.trim().toLowerCase();
+      if(!t){setCount(rs.length,rs.length);build(rs);return;}
+      var f=rs.filter(function(r){return cols.some(function(c){return String(r[c.idx]).toLowerCase().indexOf(t)>=0;});});
+      setCount(f.length,rs.length);build(f);});
+    setTimeout(function(){try{q.focus();}catch(e){}},80);
+  }).catch(function(e){body.innerHTML='<div class="pdc-dt-load">Could not load records ('+e+').</div>';});
+}
+</script>
+<script>
+/* Reusable metric-definition info dots for CDF twins: scans [data-info] and attaches a discrete ⓘ
+   that reveals the blurb on hover/focus (mirrors PDC.infoDot). Idempotent; runs on DOMContentLoaded. */
+(function(){
+  function pop(){ if(!window.__pdcInfoPop){var d=document.createElement("div");d.className="pdc-info-pop";document.body.appendChild(d);window.__pdcInfoPop=d;} return window.__pdcInfoPop; }
+  function attach(el,text){
+    var s=document.createElement("span"); s.className="pdc-i"; s.tabIndex=0; s.setAttribute("role","button");
+    s.setAttribute("aria-label","Definition: "+text); s.textContent="ⓘ";
+    function show(){ var p=pop(); p.textContent=text; p.style.display="block";
+      var r=s.getBoundingClientRect(), pw=Math.min(300,window.innerWidth-24); p.style.maxWidth=pw+"px";
+      var left=Math.min(r.left, window.innerWidth-pw-12); p.style.left=Math.max(8,left)+"px"; p.style.top=(r.bottom+7)+"px"; }
+    function hide(){ if(window.__pdcInfoPop)window.__pdcInfoPop.style.display="none"; }
+    s.addEventListener("mouseenter",show); s.addEventListener("mouseleave",hide);
+    s.addEventListener("focus",show); s.addEventListener("blur",hide);
+    s.addEventListener("click",function(e){e.stopPropagation();show();});
+    el.appendChild(s);
+  }
+  function run(){ var n=document.querySelectorAll("[data-info]"); for(var i=0;i<n.length;i++){ if(!n[i].querySelector(".pdc-i")) attach(n[i], n[i].getAttribute("data-info")); } }
+  if(document.readyState!=="loading") run(); else document.addEventListener("DOMContentLoaded", run);
+})();
+</script>
+
+<style id="pdc-i-css">
+.pdc-i{display:inline-flex;align-items:center;justify-content:center;margin-left:5px;font-size:11px;font-style:normal;
+  color:#8a94a6;cursor:help;line-height:1;vertical-align:middle;opacity:.6;transition:opacity .12s,color .12s;user-select:none;font-weight:400}
+.pdc-i:hover,.pdc-i:focus{opacity:1;color:#7d3c98;outline:none}
+.kpi .l .pdc-i{font-size:10px;margin-left:4px}
+.pdc-info-pop{position:fixed;display:none;z-index:10001;background:#0d1624;color:#fff;padding:9px 12px;border-radius:8px;
+  font-size:11.5px;line-height:1.5;box-shadow:0 8px 26px rgba(0,0,0,.4);max-width:300px;font-weight:500;pointer-events:none;letter-spacing:.1px}
+</style>
+<script>
+/* Twin parity with the Custom PDC.infoDot: a discrete circled-i after any element carrying
+   data-info, revealing a business+technical blurb on hover/focus. Build-once, attribute-driven. */
+(function(){
+  var POP=null;
+  function pop(){ if(!POP){POP=document.createElement('div');POP.className='pdc-info-pop';document.body.appendChild(POP);} return POP; }
+  function attach(host){
+    var text=host.getAttribute('data-info'); if(!text||host.querySelector(':scope > .pdc-i'))return;
+    var s=document.createElement('span'); s.className='pdc-i'; s.tabIndex=0; s.setAttribute('role','button');
+    s.setAttribute('aria-label','Definition: '+text); s.textContent='\u24D8';
+    function show(){ var p=pop(); p.textContent=text; p.style.display='block';
+      var r=s.getBoundingClientRect(), pw=Math.min(300, window.innerWidth-24); p.style.maxWidth=pw+'px';
+      var left=Math.min(r.left, window.innerWidth-pw-12); p.style.left=Math.max(8,left)+'px'; p.style.top=(r.bottom+7)+'px'; }
+    function hide(){ if(POP)POP.style.display='none'; }
+    s.addEventListener('mouseenter',show); s.addEventListener('mouseleave',hide);
+    s.addEventListener('focus',show); s.addEventListener('blur',hide);
+    s.addEventListener('click',function(e){e.stopPropagation();show();});
+    host.appendChild(s);
+  }
+  function run(){ var els=document.querySelectorAll('[data-info]'); for(var i=0;i<els.length;i++)attach(els[i]); }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',run); else run();
+})();
+</script>
+</body>
+</html>

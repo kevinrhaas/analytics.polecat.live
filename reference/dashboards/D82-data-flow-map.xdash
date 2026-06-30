@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dashboard>
+<title>D82 Data Flow Map</title>
+<heading/>
+<enableWidgetPrinting>false</enableWidgetPrinting>
+<documentation>
+<author>admin</author>
+<description>Where data moves. Source-to-destination byte volumes, the biggest producers and consumers, flow composition, and connection trends.</description>
+<icon/>
+</documentation>
+<template-ref>xul/04-1-then-2.xul</template-ref>
+<theme-ref>0-Ruby</theme-ref>
+<layout>
+<overlay xmlns:pho="http://www.pentaho.com" pho:fixie="withme">
+<box id="Panel_1" pho:title="Bytes Moved: Source to Destination Namespace" flex="1" collapsed="false" type="titled-panel"/>
+<box id="Panel_2" pho:title="Bytes Moved by Source Namespace (Top 15)" flex="1" collapsed="false" type="titled-panel"/>
+<box id="Panel_3" pho:title="Bytes Moved by Destination Namespace (Top 15)" flex="1" collapsed="false" type="titled-panel"/>
+<box id="Panel_4" pho:title="Flow Volume Treemap by Source Namespace" flex="1" collapsed="false" type="titled-panel"/>
+<box id="Panel_5" pho:title="Connection &amp; Record Count Trend" flex="1" collapsed="false" type="titled-panel"/>
+<box id="Panel_6" pho:title="Connection Mix by Event Type" flex="1" collapsed="false" type="titled-panel"/>
+</overlay>
+</layout>
+<parameters>
+</parameters>
+<widgetJavascript><![CDATA[]]></widgetJavascript>
+<widgets>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/19-thr-bytes-flow-matrix.xanalyzer</xactionPath><localizedName jsonType="string">19-thr-bytes-flow-matrix</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">19201</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/19-thr-bytes-flow-matrix.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_1</htmlObject><solution jsonType="string"/><name jsonType="string">widget1</name><action jsonType="string">19-thr-bytes-flow-matrix.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/19-thr-top-producers.xanalyzer</xactionPath><localizedName jsonType="string">19-thr-top-producers</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">19202</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/19-thr-top-producers.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_2</htmlObject><solution jsonType="string"/><name jsonType="string">widget2</name><action jsonType="string">19-thr-top-producers.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/19-thr-top-consumers.xanalyzer</xactionPath><localizedName jsonType="string">19-thr-top-consumers</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">19203</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/19-thr-top-consumers.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_3</htmlObject><solution jsonType="string"/><name jsonType="string">widget3</name><action jsonType="string">19-thr-top-consumers.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/19-thr-flow-treemap.xanalyzer</xactionPath><localizedName jsonType="string">19-thr-flow-treemap</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">19204</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/19-thr-flow-treemap.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_4</htmlObject><solution jsonType="string"/><name jsonType="string">widget4</name><action jsonType="string">19-thr-flow-treemap.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/19-lineage-connection-trend.xanalyzer</xactionPath><localizedName jsonType="string">19-lineage-connection-trend</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">19205</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/19-lineage-connection-trend.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_5</htmlObject><solution jsonType="string"/><name jsonType="string">widget5</name><action jsonType="string">19-lineage-connection-trend.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+<widget jsonType="object"><xactionPath jsonType="string">/public/pdc-analysis/analyzer/19-lineage-connection-by-type.xanalyzer</xactionPath><localizedName jsonType="string">19-lineage-connection-by-type</localizedName><refreshPeriod jsonType="string">0</refreshPeriod><GUID jsonType="string">19206</GUID><type jsonType="string">AnalyzerComponent</type><path jsonType="string">/public/pdc-analysis/analyzer/19-lineage-connection-by-type.xanalyzer</path><isDirty jsonType="string">false</isDirty><htmlObject jsonType="string">content-area-Panel_6</htmlObject><solution jsonType="string"/><name jsonType="string">widget6</name><action jsonType="string">19-lineage-connection-by-type.xanalyzer</action><iframe jsonType="string">true</iframe><parameters jsonType="object"/><outputParameters jsonType="object"/></widget>
+</widgets>
+</dashboard>

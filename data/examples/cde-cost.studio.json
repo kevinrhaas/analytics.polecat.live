@@ -1,0 +1,108 @@
+{
+  "schema": 1,
+  "id": "cde-cost",
+  "name": "cde-cost",
+  "title": "Cost Optimization & Sustainability",
+  "description": "CDE-authored dashboard, editable in Pentaho CDE — monthly cloud cost by source & sensitivity and carbon (CO2e) by source over PDC-BIDB-EXT.",
+  "group": "Storage & Cost",
+  "cda": {
+    "connection": {
+      "id": "pdc",
+      "jndi": "PDC-BIDB-EXT"
+    },
+    "dataAccesses": [
+      {
+        "id": "costBySource",
+        "name": "CostBySource",
+        "params": [],
+        "cache": true,
+        "cacheDuration": 300,
+        "sql": "SELECT d.datasource_type AS src, ROUND(SUM((s.bytes/1e12::numeric)*COALESCE(e.cost_per_tb_usd,0))::numeric,0) AS cost FROM fact_entity_snapshot s JOIN dim_entity e ON s.entity_key=e.entity_key JOIN dim_datasource d ON s.datasource_key=d.datasource_key WHERE e.entity_type IN ('FILE','TABLE') GROUP BY 1 ORDER BY 2 DESC",
+        "columns": [
+          "src",
+          "cost"
+        ]
+      },
+      {
+        "id": "costBySensitivity",
+        "name": "CostBySensitivity",
+        "params": [],
+        "cache": true,
+        "cacheDuration": 300,
+        "sql": "SELECT COALESCE(NULLIF(e.sensitivity,''),'Unclassified') AS sens, ROUND(SUM((s.bytes/1e12::numeric)*COALESCE(e.cost_per_tb_usd,0))::numeric,0) AS cost FROM fact_entity_snapshot s JOIN dim_entity e ON s.entity_key=e.entity_key WHERE e.entity_type IN ('FILE','TABLE') GROUP BY 1 ORDER BY 2 DESC",
+        "columns": [
+          "sens",
+          "cost"
+        ]
+      },
+      {
+        "id": "co2eBySource",
+        "name": "Co2eBySource",
+        "params": [],
+        "cache": true,
+        "cacheDuration": 300,
+        "sql": "SELECT d.datasource_type AS src, ROUND((SUM(s.bytes)/1e12::numeric)*10/1000::numeric,2) AS tonnes FROM fact_entity_snapshot s JOIN dim_entity e ON s.entity_key=e.entity_key JOIN dim_datasource d ON s.datasource_key=d.datasource_key WHERE e.entity_type IN ('FILE','TABLE') GROUP BY 1 ORDER BY 2 DESC",
+        "columns": [
+          "src",
+          "tonnes"
+        ]
+      }
+    ]
+  },
+  "gridCols": 2,
+  "panels": [
+    {
+      "id": "p1",
+      "title": "Cost By Source",
+      "span": 1,
+      "chart": {
+        "type": "bars",
+        "da": "costBySource",
+        "map": {
+          "labelCol": "src",
+          "valueCol": "cost"
+        },
+        "opts": {
+          "fmt": "money",
+          "valuesVisible": true,
+          "horizontal": true
+        }
+      }
+    },
+    {
+      "id": "p2",
+      "title": "Cost By Sensitivity",
+      "span": 1,
+      "chart": {
+        "type": "donut",
+        "da": "costBySensitivity",
+        "map": {
+          "labelCol": "sens",
+          "valueCol": "cost"
+        },
+        "opts": {
+          "fmt": "money",
+          "valuesVisible": true
+        }
+      }
+    },
+    {
+      "id": "p3",
+      "title": "Co2e By Source",
+      "span": "full",
+      "chart": {
+        "type": "bars",
+        "da": "co2eBySource",
+        "map": {
+          "labelCol": "src",
+          "valueCol": "tonnes"
+        },
+        "opts": {
+          "fmt": "abbr",
+          "valuesVisible": true,
+          "horizontal": false
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,10623 @@
+{
+  "accessByApp": {
+    "cols": [
+      "app",
+      "acc"
+    ],
+    "rows": [
+      [
+        "Tableau",
+        1000
+      ],
+      [
+        "PowerBI",
+        910
+      ],
+      [
+        "Looker",
+        820
+      ],
+      [
+        "Excel",
+        730
+      ],
+      [
+        "Custom API",
+        640
+      ],
+      [
+        "Tableau",
+        550
+      ],
+      [
+        "PowerBI",
+        460
+      ],
+      [
+        "Looker",
+        370
+      ]
+    ]
+  },
+  "accessByType": {
+    "cols": [
+      "atype",
+      "acc"
+    ],
+    "rows": [
+      [
+        "Type A",
+        1000
+      ],
+      [
+        "Type B",
+        910
+      ],
+      [
+        "Type C",
+        820
+      ],
+      [
+        "Type D",
+        730
+      ],
+      [
+        "Type E",
+        640
+      ],
+      [
+        "Type F",
+        550
+      ],
+      [
+        "Type G",
+        460
+      ],
+      [
+        "Type H",
+        370
+      ]
+    ]
+  },
+  "accessBySource": {
+    "cols": [
+      "src",
+      "acc"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000
+      ],
+      [
+        "Amazon S3",
+        910
+      ],
+      [
+        "Oracle",
+        820
+      ],
+      [
+        "PostgreSQL",
+        730
+      ],
+      [
+        "SharePoint",
+        640
+      ],
+      [
+        "Databricks",
+        550
+      ],
+      [
+        "BigQuery",
+        460
+      ],
+      [
+        "Salesforce",
+        370
+      ]
+    ]
+  },
+  "restrictedBySource": {
+    "cols": [
+      "src",
+      "flows"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000
+      ],
+      [
+        "Amazon S3",
+        910
+      ],
+      [
+        "Oracle",
+        820
+      ],
+      [
+        "PostgreSQL",
+        730
+      ],
+      [
+        "SharePoint",
+        640
+      ],
+      [
+        "Databricks",
+        550
+      ],
+      [
+        "BigQuery",
+        460
+      ],
+      [
+        "Salesforce",
+        370
+      ]
+    ]
+  },
+  "sensMix": {
+    "cols": [
+      "sens",
+      "assets"
+    ],
+    "rows": [
+      [
+        "HIGH",
+        5000
+      ],
+      [
+        "MEDIUM",
+        4400
+      ],
+      [
+        "LOW",
+        3800
+      ],
+      [
+        "Unclassified",
+        3200
+      ],
+      [
+        "HIGH",
+        2600
+      ],
+      [
+        "MEDIUM",
+        2000
+      ],
+      [
+        "LOW",
+        1400
+      ],
+      [
+        "Unclassified",
+        800
+      ]
+    ]
+  },
+  "bytesByDestSens": {
+    "cols": [
+      "sens",
+      "gb"
+    ],
+    "rows": [
+      [
+        "HIGH",
+        900.0
+      ],
+      [
+        "MEDIUM",
+        778.6
+      ],
+      [
+        "LOW",
+        657.1
+      ],
+      [
+        "Unclassified",
+        535.7
+      ],
+      [
+        "HIGH",
+        414.3
+      ],
+      [
+        "MEDIUM",
+        292.9
+      ],
+      [
+        "LOW",
+        171.4
+      ],
+      [
+        "Unclassified",
+        50.0
+      ]
+    ]
+  },
+  "costBySource": {
+    "cols": [
+      "src",
+      "cost"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        50000
+      ],
+      [
+        "Amazon S3",
+        25000
+      ],
+      [
+        "Oracle",
+        16667
+      ],
+      [
+        "PostgreSQL",
+        12500
+      ],
+      [
+        "SharePoint",
+        10000
+      ],
+      [
+        "Databricks",
+        8333
+      ],
+      [
+        "BigQuery",
+        7143
+      ],
+      [
+        "Salesforce",
+        6250
+      ]
+    ]
+  },
+  "costBySensitivity": {
+    "cols": [
+      "sens",
+      "cost"
+    ],
+    "rows": [
+      [
+        "HIGH",
+        50000
+      ],
+      [
+        "MEDIUM",
+        25000
+      ],
+      [
+        "LOW",
+        16667
+      ],
+      [
+        "Unclassified",
+        12500
+      ],
+      [
+        "HIGH",
+        10000
+      ],
+      [
+        "MEDIUM",
+        8333
+      ],
+      [
+        "LOW",
+        7143
+      ],
+      [
+        "Unclassified",
+        6250
+      ]
+    ]
+  },
+  "co2eBySource": {
+    "cols": [
+      "src",
+      "tonnes"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        42.0
+      ],
+      [
+        "Amazon S3",
+        21.0
+      ],
+      [
+        "Oracle",
+        14.0
+      ],
+      [
+        "PostgreSQL",
+        10.5
+      ],
+      [
+        "SharePoint",
+        8.4
+      ],
+      [
+        "Databricks",
+        7.0
+      ],
+      [
+        "BigQuery",
+        6.0
+      ],
+      [
+        "Salesforce",
+        5.25
+      ]
+    ]
+  },
+  "gbByIntegration": {
+    "cols": [
+      "integ",
+      "gb"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        900.0
+      ],
+      [
+        "Amazon S3",
+        778.6
+      ],
+      [
+        "Oracle",
+        657.1
+      ],
+      [
+        "PostgreSQL",
+        535.7
+      ],
+      [
+        "SharePoint",
+        414.3
+      ],
+      [
+        "Databricks",
+        292.9
+      ],
+      [
+        "BigQuery",
+        171.4
+      ],
+      [
+        "Salesforce",
+        50.0
+      ]
+    ]
+  },
+  "runsByIntegration": {
+    "cols": [
+      "integ",
+      "runs"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        5000
+      ],
+      [
+        "Amazon S3",
+        4400
+      ],
+      [
+        "Oracle",
+        3800
+      ],
+      [
+        "PostgreSQL",
+        3200
+      ],
+      [
+        "SharePoint",
+        2600
+      ],
+      [
+        "Databricks",
+        2000
+      ],
+      [
+        "BigQuery",
+        1400
+      ],
+      [
+        "Salesforce",
+        800
+      ]
+    ]
+  },
+  "successByIntegration": {
+    "cols": [
+      "integ",
+      "success_pct"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        100.0
+      ],
+      [
+        "Amazon S3",
+        86.4
+      ],
+      [
+        "Oracle",
+        72.9
+      ],
+      [
+        "PostgreSQL",
+        59.3
+      ],
+      [
+        "SharePoint",
+        45.7
+      ],
+      [
+        "Databricks",
+        32.1
+      ],
+      [
+        "BigQuery",
+        18.6
+      ],
+      [
+        "Salesforce",
+        5.0
+      ]
+    ]
+  },
+  "gbBySource": {
+    "cols": [
+      "src",
+      "gb"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        900.0
+      ],
+      [
+        "Amazon S3",
+        778.6
+      ],
+      [
+        "Oracle",
+        657.1
+      ],
+      [
+        "PostgreSQL",
+        535.7
+      ],
+      [
+        "SharePoint",
+        414.3
+      ],
+      [
+        "Databricks",
+        292.9
+      ],
+      [
+        "BigQuery",
+        171.4
+      ],
+      [
+        "Salesforce",
+        50.0
+      ]
+    ]
+  },
+  "gbByDest": {
+    "cols": [
+      "dst",
+      "gb"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        900.0
+      ],
+      [
+        "Amazon S3",
+        778.6
+      ],
+      [
+        "Oracle",
+        657.1
+      ],
+      [
+        "PostgreSQL",
+        535.7
+      ],
+      [
+        "SharePoint",
+        414.3
+      ],
+      [
+        "Databricks",
+        292.9
+      ],
+      [
+        "BigQuery",
+        171.4
+      ],
+      [
+        "Salesforce",
+        50.0
+      ]
+    ]
+  },
+  "scanFreshness": {
+    "cols": [
+      "band",
+      "assets"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        5000
+      ],
+      [
+        "Amazon S3",
+        4400
+      ],
+      [
+        "Oracle",
+        3800
+      ],
+      [
+        "PostgreSQL",
+        3200
+      ],
+      [
+        "SharePoint",
+        2600
+      ],
+      [
+        "Databricks",
+        2000
+      ],
+      [
+        "BigQuery",
+        1400
+      ],
+      [
+        "Salesforce",
+        800
+      ]
+    ]
+  },
+  "accessAge": {
+    "cols": [
+      "band",
+      "assets"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        5000
+      ],
+      [
+        "Amazon S3",
+        4400
+      ],
+      [
+        "Oracle",
+        3800
+      ],
+      [
+        "PostgreSQL",
+        3200
+      ],
+      [
+        "SharePoint",
+        2600
+      ],
+      [
+        "Databricks",
+        2000
+      ],
+      [
+        "BigQuery",
+        1400
+      ],
+      [
+        "Salesforce",
+        800
+      ]
+    ]
+  },
+  "staleBySource": {
+    "cols": [
+      "src",
+      "stale_pct"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        100.0
+      ],
+      [
+        "Amazon S3",
+        86.4
+      ],
+      [
+        "Oracle",
+        72.9
+      ],
+      [
+        "PostgreSQL",
+        59.3
+      ],
+      [
+        "SharePoint",
+        45.7
+      ],
+      [
+        "Databricks",
+        32.1
+      ],
+      [
+        "BigQuery",
+        18.6
+      ],
+      [
+        "Salesforce",
+        5.0
+      ]
+    ]
+  },
+  "termsByGlossary": {
+    "cols": [
+      "glossary",
+      "entities"
+    ],
+    "rows": [
+      [
+        "Type A",
+        1000
+      ],
+      [
+        "Type B",
+        910
+      ],
+      [
+        "Type C",
+        820
+      ],
+      [
+        "Type D",
+        730
+      ],
+      [
+        "Type E",
+        640
+      ],
+      [
+        "Type F",
+        550
+      ],
+      [
+        "Type G",
+        460
+      ],
+      [
+        "Type H",
+        370
+      ]
+    ]
+  },
+  "topTerms": {
+    "cols": [
+      "term",
+      "entities"
+    ],
+    "rows": [
+      [
+        "Type A",
+        1000
+      ],
+      [
+        "Type B",
+        910
+      ],
+      [
+        "Type C",
+        820
+      ],
+      [
+        "Type D",
+        730
+      ],
+      [
+        "Type E",
+        640
+      ],
+      [
+        "Type F",
+        550
+      ],
+      [
+        "Type G",
+        460
+      ],
+      [
+        "Type H",
+        370
+      ]
+    ]
+  },
+  "classified": {
+    "cols": [
+      "label",
+      "assets"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        5000
+      ],
+      [
+        "Amazon S3",
+        4400
+      ],
+      [
+        "Oracle",
+        3800
+      ],
+      [
+        "PostgreSQL",
+        3200
+      ],
+      [
+        "SharePoint",
+        2600
+      ],
+      [
+        "Databricks",
+        2000
+      ],
+      [
+        "BigQuery",
+        1400
+      ],
+      [
+        "Salesforce",
+        800
+      ]
+    ]
+  },
+  "govPctBySource": {
+    "cols": [
+      "src",
+      "governed_pct"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        100.0
+      ],
+      [
+        "Amazon S3",
+        86.4
+      ],
+      [
+        "Oracle",
+        72.9
+      ],
+      [
+        "PostgreSQL",
+        59.3
+      ],
+      [
+        "SharePoint",
+        45.7
+      ],
+      [
+        "Databricks",
+        32.1
+      ],
+      [
+        "BigQuery",
+        18.6
+      ],
+      [
+        "Salesforce",
+        5.0
+      ]
+    ]
+  },
+  "govStatusMix": {
+    "cols": [
+      "status",
+      "assets"
+    ],
+    "rows": [
+      [
+        "Success",
+        5000
+      ],
+      [
+        "Failed",
+        4400
+      ],
+      [
+        "Aborted",
+        3800
+      ],
+      [
+        "Running",
+        3200
+      ],
+      [
+        "Success",
+        2600
+      ],
+      [
+        "Failed",
+        2000
+      ],
+      [
+        "Aborted",
+        1400
+      ],
+      [
+        "Running",
+        800
+      ]
+    ]
+  },
+  "ungovBySource": {
+    "cols": [
+      "src",
+      "ungoverned"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000
+      ],
+      [
+        "Amazon S3",
+        910
+      ],
+      [
+        "Oracle",
+        820
+      ],
+      [
+        "PostgreSQL",
+        730
+      ],
+      [
+        "SharePoint",
+        640
+      ],
+      [
+        "Databricks",
+        550
+      ],
+      [
+        "BigQuery",
+        460
+      ],
+      [
+        "Salesforce",
+        370
+      ]
+    ]
+  },
+  "assetsBySource": {
+    "cols": [
+      "src",
+      "assets"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        5000
+      ],
+      [
+        "Amazon S3",
+        4400
+      ],
+      [
+        "Oracle",
+        3800
+      ],
+      [
+        "PostgreSQL",
+        3200
+      ],
+      [
+        "SharePoint",
+        2600
+      ],
+      [
+        "Databricks",
+        2000
+      ],
+      [
+        "BigQuery",
+        1400
+      ],
+      [
+        "Salesforce",
+        800
+      ]
+    ]
+  },
+  "assetsBySensitivity": {
+    "cols": [
+      "s",
+      "assets"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        5000
+      ],
+      [
+        "Amazon S3",
+        4400
+      ],
+      [
+        "Oracle",
+        3800
+      ],
+      [
+        "PostgreSQL",
+        3200
+      ],
+      [
+        "SharePoint",
+        2600
+      ],
+      [
+        "Databricks",
+        2000
+      ],
+      [
+        "BigQuery",
+        1400
+      ],
+      [
+        "Salesforce",
+        800
+      ]
+    ]
+  },
+  "cumulativeGrowth": {
+    "cols": [
+      "month",
+      "ym",
+      "cumulative"
+    ],
+    "rows": [
+      [
+        "Jan",
+        "Jan",
+        1200
+      ],
+      [
+        "Feb",
+        "Feb",
+        2400
+      ],
+      [
+        "Mar",
+        "Mar",
+        3600
+      ],
+      [
+        "Apr",
+        "Apr",
+        4800
+      ],
+      [
+        "May",
+        "May",
+        6000
+      ],
+      [
+        "Jun",
+        "Jun",
+        7200
+      ],
+      [
+        "Jul",
+        "Jul",
+        8400
+      ],
+      [
+        "Aug",
+        "Aug",
+        9600
+      ]
+    ]
+  },
+  "sensitivityMix": {
+    "cols": [
+      "sens",
+      "assets"
+    ],
+    "rows": [
+      [
+        "HIGH",
+        5000
+      ],
+      [
+        "MEDIUM",
+        4400
+      ],
+      [
+        "LOW",
+        3800
+      ],
+      [
+        "Unclassified",
+        3200
+      ],
+      [
+        "HIGH",
+        2600
+      ],
+      [
+        "MEDIUM",
+        2000
+      ],
+      [
+        "LOW",
+        1400
+      ],
+      [
+        "Unclassified",
+        800
+      ]
+    ]
+  },
+  "govBySource": {
+    "cols": [
+      "src",
+      "gov_pct"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        100.0
+      ],
+      [
+        "Amazon S3",
+        86.4
+      ],
+      [
+        "Oracle",
+        72.9
+      ],
+      [
+        "PostgreSQL",
+        59.3
+      ],
+      [
+        "SharePoint",
+        45.7
+      ],
+      [
+        "Databricks",
+        32.1
+      ],
+      [
+        "BigQuery",
+        18.6
+      ],
+      [
+        "Salesforce",
+        5.0
+      ]
+    ]
+  },
+  "missingBySource": {
+    "cols": [
+      "src",
+      "missing"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000
+      ],
+      [
+        "Amazon S3",
+        910
+      ],
+      [
+        "Oracle",
+        820
+      ],
+      [
+        "PostgreSQL",
+        730
+      ],
+      [
+        "SharePoint",
+        640
+      ],
+      [
+        "Databricks",
+        550
+      ],
+      [
+        "BigQuery",
+        460
+      ],
+      [
+        "Salesforce",
+        370
+      ]
+    ]
+  },
+  "ownedMix": {
+    "cols": [
+      "label",
+      "assets"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        5000
+      ],
+      [
+        "Amazon S3",
+        4400
+      ],
+      [
+        "Oracle",
+        3800
+      ],
+      [
+        "PostgreSQL",
+        3200
+      ],
+      [
+        "SharePoint",
+        2600
+      ],
+      [
+        "Databricks",
+        2000
+      ],
+      [
+        "BigQuery",
+        1400
+      ],
+      [
+        "Salesforce",
+        800
+      ]
+    ]
+  },
+  "ownedPctBySource": {
+    "cols": [
+      "src",
+      "owned_pct"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        100.0
+      ],
+      [
+        "Amazon S3",
+        86.4
+      ],
+      [
+        "Oracle",
+        72.9
+      ],
+      [
+        "PostgreSQL",
+        59.3
+      ],
+      [
+        "SharePoint",
+        45.7
+      ],
+      [
+        "Databricks",
+        32.1
+      ],
+      [
+        "BigQuery",
+        18.6
+      ],
+      [
+        "Salesforce",
+        5.0
+      ]
+    ]
+  },
+  "lifecycleMix": {
+    "cols": [
+      "type",
+      "events"
+    ],
+    "rows": [
+      [
+        "Type A",
+        1000
+      ],
+      [
+        "Type B",
+        910
+      ],
+      [
+        "Type C",
+        820
+      ],
+      [
+        "Type D",
+        730
+      ],
+      [
+        "Type E",
+        640
+      ],
+      [
+        "Type F",
+        550
+      ],
+      [
+        "Type G",
+        460
+      ],
+      [
+        "Type H",
+        370
+      ]
+    ]
+  },
+  "failuresByJob": {
+    "cols": [
+      "job",
+      "failures"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000
+      ],
+      [
+        "Amazon S3",
+        910
+      ],
+      [
+        "Oracle",
+        820
+      ],
+      [
+        "PostgreSQL",
+        730
+      ],
+      [
+        "SharePoint",
+        640
+      ],
+      [
+        "Databricks",
+        550
+      ],
+      [
+        "BigQuery",
+        460
+      ],
+      [
+        "Salesforce",
+        370
+      ]
+    ]
+  },
+  "privByTerm": {
+    "cols": [
+      "term",
+      "entities"
+    ],
+    "rows": [
+      [
+        "Type A",
+        1000
+      ],
+      [
+        "Type B",
+        910
+      ],
+      [
+        "Type C",
+        820
+      ],
+      [
+        "Type D",
+        730
+      ],
+      [
+        "Type E",
+        640
+      ],
+      [
+        "Type F",
+        550
+      ],
+      [
+        "Type G",
+        460
+      ],
+      [
+        "Type H",
+        370
+      ]
+    ]
+  },
+  "privBySource": {
+    "cols": [
+      "src",
+      "entities"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000
+      ],
+      [
+        "Amazon S3",
+        910
+      ],
+      [
+        "Oracle",
+        820
+      ],
+      [
+        "PostgreSQL",
+        730
+      ],
+      [
+        "SharePoint",
+        640
+      ],
+      [
+        "Databricks",
+        550
+      ],
+      [
+        "BigQuery",
+        460
+      ],
+      [
+        "Salesforce",
+        370
+      ]
+    ]
+  },
+  "completenessBySource": {
+    "cols": [
+      "src",
+      "pct"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        100.0
+      ],
+      [
+        "Amazon S3",
+        86.4
+      ],
+      [
+        "Oracle",
+        72.9
+      ],
+      [
+        "PostgreSQL",
+        59.3
+      ],
+      [
+        "SharePoint",
+        45.7
+      ],
+      [
+        "Databricks",
+        32.1
+      ],
+      [
+        "BigQuery",
+        18.6
+      ],
+      [
+        "Salesforce",
+        5.0
+      ]
+    ]
+  },
+  "profilingStatus": {
+    "cols": [
+      "status",
+      "assets"
+    ],
+    "rows": [
+      [
+        "Success",
+        5000
+      ],
+      [
+        "Failed",
+        4400
+      ],
+      [
+        "Aborted",
+        3800
+      ],
+      [
+        "Running",
+        3200
+      ],
+      [
+        "Success",
+        2600
+      ],
+      [
+        "Failed",
+        2000
+      ],
+      [
+        "Aborted",
+        1400
+      ],
+      [
+        "Running",
+        800
+      ]
+    ]
+  },
+  "missingAttrs": {
+    "cols": [
+      "attr",
+      "cnt"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000
+      ],
+      [
+        "Amazon S3",
+        910
+      ],
+      [
+        "Oracle",
+        820
+      ],
+      [
+        "PostgreSQL",
+        730
+      ],
+      [
+        "SharePoint",
+        640
+      ],
+      [
+        "Databricks",
+        550
+      ],
+      [
+        "BigQuery",
+        460
+      ],
+      [
+        "Salesforce",
+        370
+      ]
+    ]
+  },
+  "dupsBySource": {
+    "cols": [
+      "src",
+      "dups"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000
+      ],
+      [
+        "Amazon S3",
+        910
+      ],
+      [
+        "Oracle",
+        820
+      ],
+      [
+        "PostgreSQL",
+        730
+      ],
+      [
+        "SharePoint",
+        640
+      ],
+      [
+        "Databricks",
+        550
+      ],
+      [
+        "BigQuery",
+        460
+      ],
+      [
+        "Salesforce",
+        370
+      ]
+    ]
+  },
+  "reclaimBySens": {
+    "cols": [
+      "sens",
+      "tb"
+    ],
+    "rows": [
+      [
+        "HIGH",
+        40.0
+      ],
+      [
+        "MEDIUM",
+        34.6
+      ],
+      [
+        "LOW",
+        29.1
+      ],
+      [
+        "Unclassified",
+        23.7
+      ],
+      [
+        "HIGH",
+        18.3
+      ],
+      [
+        "MEDIUM",
+        12.9
+      ],
+      [
+        "LOW",
+        7.4
+      ],
+      [
+        "Unclassified",
+        2.0
+      ]
+    ]
+  },
+  "savingsBySource": {
+    "cols": [
+      "src",
+      "tb"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        40.0
+      ],
+      [
+        "Amazon S3",
+        34.6
+      ],
+      [
+        "Oracle",
+        29.1
+      ],
+      [
+        "PostgreSQL",
+        23.7
+      ],
+      [
+        "SharePoint",
+        18.3
+      ],
+      [
+        "Databricks",
+        12.9
+      ],
+      [
+        "BigQuery",
+        7.4
+      ],
+      [
+        "Salesforce",
+        2.0
+      ]
+    ]
+  },
+  "tbBySource": {
+    "cols": [
+      "src",
+      "tb"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        40.0
+      ],
+      [
+        "Amazon S3",
+        34.6
+      ],
+      [
+        "Oracle",
+        29.1
+      ],
+      [
+        "PostgreSQL",
+        23.7
+      ],
+      [
+        "SharePoint",
+        18.3
+      ],
+      [
+        "Databricks",
+        12.9
+      ],
+      [
+        "BigQuery",
+        7.4
+      ],
+      [
+        "Salesforce",
+        2.0
+      ]
+    ]
+  },
+  "tbByRestype": {
+    "cols": [
+      "rt",
+      "tb"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        40.0
+      ],
+      [
+        "Amazon S3",
+        34.6
+      ],
+      [
+        "Oracle",
+        29.1
+      ],
+      [
+        "PostgreSQL",
+        23.7
+      ],
+      [
+        "SharePoint",
+        18.3
+      ],
+      [
+        "Databricks",
+        12.9
+      ],
+      [
+        "BigQuery",
+        7.4
+      ],
+      [
+        "Salesforce",
+        2.0
+      ]
+    ]
+  },
+  "sizeDist": {
+    "cols": [
+      "assets",
+      "band"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000
+      ],
+      [
+        "Amazon S3",
+        910
+      ],
+      [
+        "Oracle",
+        820
+      ],
+      [
+        "PostgreSQL",
+        730
+      ],
+      [
+        "SharePoint",
+        640
+      ],
+      [
+        "Databricks",
+        550
+      ],
+      [
+        "BigQuery",
+        460
+      ],
+      [
+        "Salesforce",
+        370
+      ]
+    ]
+  },
+  "kpi": {
+    "cols": [
+      "total_assets",
+      "governed_pct",
+      "completeness_pct",
+      "total_tb",
+      "monthly_cost"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        100.0,
+        100.0,
+        40.0,
+        "Jan"
+      ],
+      [
+        "Amazon S3",
+        86.4,
+        86.4,
+        34.6,
+        "Feb"
+      ],
+      [
+        "Oracle",
+        72.9,
+        72.9,
+        29.1,
+        "Mar"
+      ],
+      [
+        "PostgreSQL",
+        59.3,
+        59.3,
+        23.7,
+        "Apr"
+      ],
+      [
+        "SharePoint",
+        45.7,
+        45.7,
+        18.3,
+        "May"
+      ],
+      [
+        "Databricks",
+        32.1,
+        32.1,
+        12.9,
+        "Jun"
+      ],
+      [
+        "BigQuery",
+        18.6,
+        18.6,
+        7.4,
+        "Jul"
+      ],
+      [
+        "Salesforce",
+        5.0,
+        5.0,
+        2.0,
+        "Aug"
+      ]
+    ]
+  },
+  "coverage": {
+    "cols": [
+      "dim",
+      "assets"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        5000
+      ],
+      [
+        "Amazon S3",
+        4400
+      ],
+      [
+        "Oracle",
+        3800
+      ],
+      [
+        "PostgreSQL",
+        3200
+      ],
+      [
+        "SharePoint",
+        2600
+      ],
+      [
+        "Databricks",
+        2000
+      ],
+      [
+        "BigQuery",
+        1400
+      ],
+      [
+        "Salesforce",
+        800
+      ]
+    ]
+  },
+  "top_apps": {
+    "cols": [
+      "app",
+      "acc"
+    ],
+    "rows": [
+      [
+        "Tableau",
+        1000
+      ],
+      [
+        "PowerBI",
+        910
+      ],
+      [
+        "Looker",
+        820
+      ],
+      [
+        "Excel",
+        730
+      ],
+      [
+        "Custom API",
+        640
+      ],
+      [
+        "Tableau",
+        550
+      ],
+      [
+        "PowerBI",
+        460
+      ],
+      [
+        "Looker",
+        370
+      ]
+    ]
+  },
+  "top_policies": {
+    "cols": [
+      "pol",
+      "assigns"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000
+      ],
+      [
+        "Amazon S3",
+        910
+      ],
+      [
+        "Oracle",
+        820
+      ],
+      [
+        "PostgreSQL",
+        730
+      ],
+      [
+        "SharePoint",
+        640
+      ],
+      [
+        "Databricks",
+        550
+      ],
+      [
+        "BigQuery",
+        460
+      ],
+      [
+        "Salesforce",
+        370
+      ]
+    ]
+  },
+  "by_source": {
+    "cols": [
+      "src",
+      "profiled_cols",
+      "avg_uniq"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000,
+        1000
+      ],
+      [
+        "Amazon S3",
+        910,
+        910
+      ],
+      [
+        "Oracle",
+        820,
+        820
+      ],
+      [
+        "PostgreSQL",
+        730,
+        730
+      ],
+      [
+        "SharePoint",
+        640,
+        640
+      ],
+      [
+        "Databricks",
+        550,
+        550
+      ],
+      [
+        "BigQuery",
+        460,
+        460
+      ],
+      [
+        "Salesforce",
+        370,
+        370
+      ]
+    ]
+  },
+  "app_src_chord": {
+    "cols": [
+      "app",
+      "src",
+      "accesses"
+    ],
+    "rows": [
+      [
+        "Tableau",
+        "Snowflake",
+        1000
+      ],
+      [
+        "PowerBI",
+        "Amazon S3",
+        910
+      ],
+      [
+        "Looker",
+        "Oracle",
+        820
+      ],
+      [
+        "Excel",
+        "PostgreSQL",
+        730
+      ],
+      [
+        "Custom API",
+        "SharePoint",
+        640
+      ],
+      [
+        "Tableau",
+        "Databricks",
+        550
+      ],
+      [
+        "PowerBI",
+        "BigQuery",
+        460
+      ],
+      [
+        "Looker",
+        "Salesforce",
+        370
+      ]
+    ]
+  },
+  "datasources": {
+    "cols": [
+      "v",
+      "l",
+      "ord"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000,
+        1000
+      ],
+      [
+        "Amazon S3",
+        910,
+        910
+      ],
+      [
+        "Oracle",
+        820,
+        820
+      ],
+      [
+        "PostgreSQL",
+        730,
+        730
+      ],
+      [
+        "SharePoint",
+        640,
+        640
+      ],
+      [
+        "Databricks",
+        550,
+        550
+      ],
+      [
+        "BigQuery",
+        460,
+        460
+      ],
+      [
+        "Salesforce",
+        370,
+        370
+      ]
+    ]
+  },
+  "by_app": {
+    "cols": [
+      "app",
+      "acc"
+    ],
+    "rows": [
+      [
+        "Tableau",
+        1000
+      ],
+      [
+        "PowerBI",
+        910
+      ],
+      [
+        "Looker",
+        820
+      ],
+      [
+        "Excel",
+        730
+      ],
+      [
+        "Custom API",
+        640
+      ],
+      [
+        "Tableau",
+        550
+      ],
+      [
+        "PowerBI",
+        460
+      ],
+      [
+        "Looker",
+        370
+      ]
+    ]
+  },
+  "by_type": {
+    "cols": [
+      "atype",
+      "acc"
+    ],
+    "rows": [
+      [
+        "Type A",
+        1000
+      ],
+      [
+        "Type B",
+        910
+      ],
+      [
+        "Type C",
+        820
+      ],
+      [
+        "Type D",
+        730
+      ],
+      [
+        "Type E",
+        640
+      ],
+      [
+        "Type F",
+        550
+      ],
+      [
+        "Type G",
+        460
+      ],
+      [
+        "Type H",
+        370
+      ]
+    ]
+  },
+  "reach": {
+    "cols": [
+      "app",
+      "acc",
+      "assets",
+      "tb"
+    ],
+    "rows": [
+      [
+        "Tableau",
+        1000,
+        5000,
+        40.0
+      ],
+      [
+        "PowerBI",
+        910,
+        4400,
+        34.6
+      ],
+      [
+        "Looker",
+        820,
+        3800,
+        29.1
+      ],
+      [
+        "Excel",
+        730,
+        3200,
+        23.7
+      ],
+      [
+        "Custom API",
+        640,
+        2600,
+        18.3
+      ],
+      [
+        "Tableau",
+        550,
+        2000,
+        12.9
+      ],
+      [
+        "PowerBI",
+        460,
+        1400,
+        7.4
+      ],
+      [
+        "Looker",
+        370,
+        800,
+        2.0
+      ]
+    ]
+  },
+  "detail_app_entities": {
+    "cols": [
+      "name",
+      "src",
+      "accesses",
+      "accessed_gb",
+      "sensitivity",
+      "owner"
+    ],
+    "rows": [
+      [
+        "Snowflake asset 1",
+        "Snowflake",
+        1000,
+        900.0,
+        "HIGH",
+        "A. Chen"
+      ],
+      [
+        "Amazon S3 asset 2",
+        "Amazon S3",
+        910,
+        778.6,
+        "MEDIUM",
+        "R. Patel"
+      ],
+      [
+        "Oracle asset 3",
+        "Oracle",
+        820,
+        657.1,
+        "LOW",
+        "M. Garcia"
+      ],
+      [
+        "PostgreSQL asset 4",
+        "PostgreSQL",
+        730,
+        535.7,
+        "Unclassified",
+        "—"
+      ],
+      [
+        "SharePoint asset 5",
+        "SharePoint",
+        640,
+        414.3,
+        "HIGH",
+        "J. Kim"
+      ],
+      [
+        "Databricks asset 6",
+        "Databricks",
+        550,
+        292.9,
+        "MEDIUM",
+        "A. Chen"
+      ],
+      [
+        "BigQuery asset 7",
+        "BigQuery",
+        460,
+        171.4,
+        "LOW",
+        "R. Patel"
+      ],
+      [
+        "Salesforce asset 8",
+        "Salesforce",
+        370,
+        50.0,
+        "Unclassified",
+        "M. Garcia"
+      ]
+    ]
+  },
+  "sensitivities": {
+    "cols": [
+      "v",
+      "l",
+      "ord"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000,
+        1000
+      ],
+      [
+        "Amazon S3",
+        910,
+        910
+      ],
+      [
+        "Oracle",
+        820,
+        820
+      ],
+      [
+        "PostgreSQL",
+        730,
+        730
+      ],
+      [
+        "SharePoint",
+        640,
+        640
+      ],
+      [
+        "Databricks",
+        550,
+        550
+      ],
+      [
+        "BigQuery",
+        460,
+        460
+      ],
+      [
+        "Salesforce",
+        370,
+        370
+      ]
+    ]
+  },
+  "health_mix": {
+    "cols": [
+      "bucket",
+      "cols"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000
+      ],
+      [
+        "Amazon S3",
+        910
+      ],
+      [
+        "Oracle",
+        820
+      ],
+      [
+        "PostgreSQL",
+        730
+      ],
+      [
+        "SharePoint",
+        640
+      ],
+      [
+        "Databricks",
+        550
+      ],
+      [
+        "BigQuery",
+        460
+      ],
+      [
+        "Salesforce",
+        370
+      ]
+    ]
+  },
+  "dead_by_table": {
+    "cols": [
+      "tbl",
+      "dead"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000
+      ],
+      [
+        "Amazon S3",
+        910
+      ],
+      [
+        "Oracle",
+        820
+      ],
+      [
+        "PostgreSQL",
+        730
+      ],
+      [
+        "SharePoint",
+        640
+      ],
+      [
+        "Databricks",
+        550
+      ],
+      [
+        "BigQuery",
+        460
+      ],
+      [
+        "Salesforce",
+        370
+      ]
+    ]
+  },
+  "detail_dead_by_table": {
+    "cols": [
+      "col",
+      "dtype"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        "Type A"
+      ],
+      [
+        "Amazon S3",
+        "Type B"
+      ],
+      [
+        "Oracle",
+        "Type C"
+      ],
+      [
+        "PostgreSQL",
+        "Type D"
+      ],
+      [
+        "SharePoint",
+        "Type E"
+      ],
+      [
+        "Databricks",
+        "Type F"
+      ],
+      [
+        "BigQuery",
+        "Type G"
+      ],
+      [
+        "Salesforce",
+        "Type H"
+      ]
+    ]
+  },
+  "key_candidates": {
+    "cols": [
+      "col",
+      "path",
+      "dtype"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000,
+        "Type A"
+      ],
+      [
+        "Amazon S3",
+        910,
+        "Type B"
+      ],
+      [
+        "Oracle",
+        820,
+        "Type C"
+      ],
+      [
+        "PostgreSQL",
+        730,
+        "Type D"
+      ],
+      [
+        "SharePoint",
+        640,
+        "Type E"
+      ],
+      [
+        "Databricks",
+        550,
+        "Type F"
+      ],
+      [
+        "BigQuery",
+        460,
+        "Type G"
+      ],
+      [
+        "Salesforce",
+        370,
+        "Type H"
+      ]
+    ]
+  },
+  "dead_cols": {
+    "cols": [
+      "col",
+      "path",
+      "dtype"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000,
+        "Type A"
+      ],
+      [
+        "Amazon S3",
+        910,
+        "Type B"
+      ],
+      [
+        "Oracle",
+        820,
+        "Type C"
+      ],
+      [
+        "PostgreSQL",
+        730,
+        "Type D"
+      ],
+      [
+        "SharePoint",
+        640,
+        "Type E"
+      ],
+      [
+        "Databricks",
+        550,
+        "Type F"
+      ],
+      [
+        "BigQuery",
+        460,
+        "Type G"
+      ],
+      [
+        "Salesforce",
+        370,
+        "Type H"
+      ]
+    ]
+  },
+  "health_by_type": {
+    "cols": [
+      "dtype",
+      "bucket",
+      "cols"
+    ],
+    "rows": [
+      [
+        "Type A",
+        1000,
+        1000
+      ],
+      [
+        "Type B",
+        910,
+        910
+      ],
+      [
+        "Type C",
+        820,
+        820
+      ],
+      [
+        "Type D",
+        730,
+        730
+      ],
+      [
+        "Type E",
+        640,
+        640
+      ],
+      [
+        "Type F",
+        550,
+        550
+      ],
+      [
+        "Type G",
+        460,
+        460
+      ],
+      [
+        "Type H",
+        370,
+        370
+      ]
+    ]
+  },
+  "datatypes": {
+    "cols": [
+      "v",
+      "l",
+      "ord"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000,
+        1000
+      ],
+      [
+        "Amazon S3",
+        910,
+        910
+      ],
+      [
+        "Oracle",
+        820,
+        820
+      ],
+      [
+        "PostgreSQL",
+        730,
+        730
+      ],
+      [
+        "SharePoint",
+        640,
+        640
+      ],
+      [
+        "Databricks",
+        550,
+        550
+      ],
+      [
+        "BigQuery",
+        460,
+        460
+      ],
+      [
+        "Salesforce",
+        370,
+        370
+      ]
+    ]
+  },
+  "schemas": {
+    "cols": [
+      "v",
+      "l",
+      "ord",
+      "cols"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000,
+        1000,
+        1000
+      ],
+      [
+        "Amazon S3",
+        910,
+        910,
+        910
+      ],
+      [
+        "Oracle",
+        820,
+        820,
+        820
+      ],
+      [
+        "PostgreSQL",
+        730,
+        730,
+        730
+      ],
+      [
+        "SharePoint",
+        640,
+        640,
+        640
+      ],
+      [
+        "Databricks",
+        550,
+        550,
+        550
+      ],
+      [
+        "BigQuery",
+        460,
+        460,
+        460
+      ],
+      [
+        "Salesforce",
+        370,
+        370,
+        370
+      ]
+    ]
+  },
+  "pipeline": {
+    "cols": [
+      "success_pct",
+      "runs"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        5000
+      ],
+      [
+        "Amazon S3",
+        4400
+      ],
+      [
+        "Oracle",
+        3800
+      ],
+      [
+        "PostgreSQL",
+        3200
+      ],
+      [
+        "SharePoint",
+        2600
+      ],
+      [
+        "Databricks",
+        2000
+      ],
+      [
+        "BigQuery",
+        1400
+      ],
+      [
+        "Salesforce",
+        800
+      ]
+    ]
+  },
+  "lineage": {
+    "cols": [
+      "restricted_ungov"
+    ],
+    "rows": [
+      [
+        "Snowflake"
+      ],
+      [
+        "Amazon S3"
+      ],
+      [
+        "Oracle"
+      ],
+      [
+        "PostgreSQL"
+      ],
+      [
+        "SharePoint"
+      ],
+      [
+        "Databricks"
+      ],
+      [
+        "BigQuery"
+      ],
+      [
+        "Salesforce"
+      ]
+    ]
+  },
+  "storage_by_source": {
+    "cols": [
+      "src",
+      "tb",
+      "assets"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        40.0,
+        5000
+      ],
+      [
+        "Amazon S3",
+        34.6,
+        4400
+      ],
+      [
+        "Oracle",
+        29.1,
+        3800
+      ],
+      [
+        "PostgreSQL",
+        23.7,
+        3200
+      ],
+      [
+        "SharePoint",
+        18.3,
+        2600
+      ],
+      [
+        "Databricks",
+        12.9,
+        2000
+      ],
+      [
+        "BigQuery",
+        7.4,
+        1400
+      ],
+      [
+        "Salesforce",
+        2.0,
+        800
+      ]
+    ]
+  },
+  "governance": {
+    "cols": [
+      "status",
+      "assets"
+    ],
+    "rows": [
+      [
+        "Success",
+        5000
+      ],
+      [
+        "Failed",
+        4400
+      ],
+      [
+        "Aborted",
+        3800
+      ],
+      [
+        "Running",
+        3200
+      ],
+      [
+        "Success",
+        2600
+      ],
+      [
+        "Failed",
+        2000
+      ],
+      [
+        "Aborted",
+        1400
+      ],
+      [
+        "Running",
+        800
+      ]
+    ]
+  },
+  "sensitivity": {
+    "cols": [
+      "sens",
+      "assets"
+    ],
+    "rows": [
+      [
+        "HIGH",
+        5000
+      ],
+      [
+        "MEDIUM",
+        4400
+      ],
+      [
+        "LOW",
+        3800
+      ],
+      [
+        "Unclassified",
+        3200
+      ],
+      [
+        "HIGH",
+        2600
+      ],
+      [
+        "MEDIUM",
+        2000
+      ],
+      [
+        "LOW",
+        1400
+      ],
+      [
+        "Unclassified",
+        800
+      ]
+    ]
+  },
+  "freshness": {
+    "cols": [
+      "band",
+      "assets"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        5000
+      ],
+      [
+        "Amazon S3",
+        4400
+      ],
+      [
+        "Oracle",
+        3800
+      ],
+      [
+        "PostgreSQL",
+        3200
+      ],
+      [
+        "SharePoint",
+        2600
+      ],
+      [
+        "Databricks",
+        2000
+      ],
+      [
+        "BigQuery",
+        1400
+      ],
+      [
+        "Salesforce",
+        800
+      ]
+    ]
+  },
+  "completeness_by_source": {
+    "cols": [
+      "src",
+      "pct"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        100.0
+      ],
+      [
+        "Amazon S3",
+        86.4
+      ],
+      [
+        "Oracle",
+        72.9
+      ],
+      [
+        "PostgreSQL",
+        59.3
+      ],
+      [
+        "SharePoint",
+        45.7
+      ],
+      [
+        "Databricks",
+        32.1
+      ],
+      [
+        "BigQuery",
+        18.6
+      ],
+      [
+        "Salesforce",
+        5.0
+      ]
+    ]
+  },
+  "scorecard": {
+    "cols": [
+      "src",
+      "assets",
+      "gov_pct",
+      "comp_pct",
+      "tb"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        5000,
+        100.0,
+        100.0,
+        40.0
+      ],
+      [
+        "Amazon S3",
+        4400,
+        86.4,
+        86.4,
+        34.6
+      ],
+      [
+        "Oracle",
+        3800,
+        72.9,
+        72.9,
+        29.1
+      ],
+      [
+        "PostgreSQL",
+        3200,
+        59.3,
+        59.3,
+        23.7
+      ],
+      [
+        "SharePoint",
+        2600,
+        45.7,
+        45.7,
+        18.3
+      ],
+      [
+        "Databricks",
+        2000,
+        32.1,
+        32.1,
+        12.9
+      ],
+      [
+        "BigQuery",
+        1400,
+        18.6,
+        18.6,
+        7.4
+      ],
+      [
+        "Salesforce",
+        800,
+        5.0,
+        5.0,
+        2.0
+      ]
+    ]
+  },
+  "health_trend": {
+    "cols": [
+      "month",
+      "ym",
+      "gov_pct",
+      "comp_pct"
+    ],
+    "rows": [
+      [
+        "Jan",
+        "Jan",
+        100.0,
+        100.0
+      ],
+      [
+        "Feb",
+        "Feb",
+        86.4,
+        86.4
+      ],
+      [
+        "Mar",
+        "Mar",
+        72.9,
+        72.9
+      ],
+      [
+        "Apr",
+        "Apr",
+        59.3,
+        59.3
+      ],
+      [
+        "May",
+        "May",
+        45.7,
+        45.7
+      ],
+      [
+        "Jun",
+        "Jun",
+        32.1,
+        32.1
+      ],
+      [
+        "Jul",
+        "Jul",
+        18.6,
+        18.6
+      ],
+      [
+        "Aug",
+        "Aug",
+        5.0,
+        5.0
+      ]
+    ]
+  },
+  "flow_stacked": {
+    "cols": [
+      "dest_gov",
+      "src_sens",
+      "conns"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        "Snowflake",
+        1000
+      ],
+      [
+        "Amazon S3",
+        "Amazon S3",
+        910
+      ],
+      [
+        "Oracle",
+        "Oracle",
+        820
+      ],
+      [
+        "PostgreSQL",
+        "PostgreSQL",
+        730
+      ],
+      [
+        "SharePoint",
+        "SharePoint",
+        640
+      ],
+      [
+        "Databricks",
+        "Databricks",
+        550
+      ],
+      [
+        "BigQuery",
+        "BigQuery",
+        460
+      ],
+      [
+        "Salesforce",
+        "Salesforce",
+        370
+      ]
+    ]
+  },
+  "sens_mix": {
+    "cols": [
+      "sens",
+      "assets"
+    ],
+    "rows": [
+      [
+        "HIGH",
+        5000
+      ],
+      [
+        "MEDIUM",
+        4400
+      ],
+      [
+        "LOW",
+        3800
+      ],
+      [
+        "Unclassified",
+        3200
+      ],
+      [
+        "HIGH",
+        2600
+      ],
+      [
+        "MEDIUM",
+        2000
+      ],
+      [
+        "LOW",
+        1400
+      ],
+      [
+        "Unclassified",
+        800
+      ]
+    ]
+  },
+  "detail_by_sensitivity": {
+    "cols": [
+      "name",
+      "src",
+      "sensitivity",
+      "governance",
+      "owner"
+    ],
+    "rows": [
+      [
+        "Snowflake asset 1",
+        "Snowflake",
+        "HIGH",
+        1000,
+        "A. Chen"
+      ],
+      [
+        "Amazon S3 asset 2",
+        "Amazon S3",
+        "MEDIUM",
+        910,
+        "R. Patel"
+      ],
+      [
+        "Oracle asset 3",
+        "Oracle",
+        "LOW",
+        820,
+        "M. Garcia"
+      ],
+      [
+        "PostgreSQL asset 4",
+        "PostgreSQL",
+        "Unclassified",
+        730,
+        "—"
+      ],
+      [
+        "SharePoint asset 5",
+        "SharePoint",
+        "HIGH",
+        640,
+        "J. Kim"
+      ],
+      [
+        "Databricks asset 6",
+        "Databricks",
+        "MEDIUM",
+        550,
+        "A. Chen"
+      ],
+      [
+        "BigQuery asset 7",
+        "BigQuery",
+        "LOW",
+        460,
+        "R. Patel"
+      ],
+      [
+        "Salesforce asset 8",
+        "Salesforce",
+        "Unclassified",
+        370,
+        "M. Garcia"
+      ]
+    ]
+  },
+  "bytes_by_dest_sens": {
+    "cols": [
+      "sens",
+      "gb"
+    ],
+    "rows": [
+      [
+        "HIGH",
+        900.0
+      ],
+      [
+        "MEDIUM",
+        778.6
+      ],
+      [
+        "LOW",
+        657.1
+      ],
+      [
+        "Unclassified",
+        535.7
+      ],
+      [
+        "HIGH",
+        414.3
+      ],
+      [
+        "MEDIUM",
+        292.9
+      ],
+      [
+        "LOW",
+        171.4
+      ],
+      [
+        "Unclassified",
+        50.0
+      ]
+    ]
+  },
+  "restricted_by_source": {
+    "cols": [
+      "src",
+      "flows"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000
+      ],
+      [
+        "Amazon S3",
+        910
+      ],
+      [
+        "Oracle",
+        820
+      ],
+      [
+        "PostgreSQL",
+        730
+      ],
+      [
+        "SharePoint",
+        640
+      ],
+      [
+        "Databricks",
+        550
+      ],
+      [
+        "BigQuery",
+        460
+      ],
+      [
+        "Salesforce",
+        370
+      ]
+    ]
+  },
+  "detail_restricted_flows": {
+    "cols": [
+      "flow",
+      "dest_sens",
+      "governance",
+      "records",
+      "gb"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        "HIGH",
+        1000,
+        1000,
+        900.0
+      ],
+      [
+        "Amazon S3",
+        "MEDIUM",
+        910,
+        910,
+        778.6
+      ],
+      [
+        "Oracle",
+        "LOW",
+        820,
+        820,
+        657.1
+      ],
+      [
+        "PostgreSQL",
+        "Unclassified",
+        730,
+        730,
+        535.7
+      ],
+      [
+        "SharePoint",
+        "HIGH",
+        640,
+        640,
+        414.3
+      ],
+      [
+        "Databricks",
+        "MEDIUM",
+        550,
+        550,
+        292.9
+      ],
+      [
+        "BigQuery",
+        "LOW",
+        460,
+        460,
+        171.4
+      ],
+      [
+        "Salesforce",
+        "Unclassified",
+        370,
+        370,
+        50.0
+      ]
+    ]
+  },
+  "cross_trend_long": {
+    "cols": [
+      "mon",
+      "cb",
+      "s",
+      "metric",
+      "val"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000,
+        1000,
+        1000,
+        1000
+      ],
+      [
+        "Amazon S3",
+        910,
+        910,
+        910,
+        910
+      ],
+      [
+        "Oracle",
+        820,
+        820,
+        820,
+        820
+      ],
+      [
+        "PostgreSQL",
+        730,
+        730,
+        730,
+        730
+      ],
+      [
+        "SharePoint",
+        640,
+        640,
+        640,
+        640
+      ],
+      [
+        "Databricks",
+        550,
+        550,
+        550,
+        550
+      ],
+      [
+        "BigQuery",
+        460,
+        460,
+        460,
+        460
+      ],
+      [
+        "Salesforce",
+        370,
+        370,
+        370,
+        370
+      ]
+    ]
+  },
+  "ranges": {
+    "cols": [
+      "v",
+      "l",
+      "ord"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000,
+        1000
+      ],
+      [
+        "Amazon S3",
+        910,
+        910
+      ],
+      [
+        "Oracle",
+        820,
+        820
+      ],
+      [
+        "PostgreSQL",
+        730,
+        730
+      ],
+      [
+        "SharePoint",
+        640,
+        640
+      ],
+      [
+        "Databricks",
+        550,
+        550
+      ],
+      [
+        "BigQuery",
+        460,
+        460
+      ],
+      [
+        "Salesforce",
+        370,
+        370
+      ]
+    ]
+  },
+  "src_sensitivities": {
+    "cols": [
+      "v",
+      "l",
+      "ord"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000,
+        1000
+      ],
+      [
+        "Amazon S3",
+        910,
+        910
+      ],
+      [
+        "Oracle",
+        820,
+        820
+      ],
+      [
+        "PostgreSQL",
+        730,
+        730
+      ],
+      [
+        "SharePoint",
+        640,
+        640
+      ],
+      [
+        "Databricks",
+        550,
+        550
+      ],
+      [
+        "BigQuery",
+        460,
+        460
+      ],
+      [
+        "Salesforce",
+        370,
+        370
+      ]
+    ]
+  },
+  "sens_to_sens_flow": {
+    "cols": [
+      "src_sens",
+      "dst_sens",
+      "conns",
+      "gb"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        "HIGH",
+        1000,
+        900.0
+      ],
+      [
+        "Amazon S3",
+        "MEDIUM",
+        910,
+        778.6
+      ],
+      [
+        "Oracle",
+        "LOW",
+        820,
+        657.1
+      ],
+      [
+        "PostgreSQL",
+        "Unclassified",
+        730,
+        535.7
+      ],
+      [
+        "SharePoint",
+        "HIGH",
+        640,
+        414.3
+      ],
+      [
+        "Databricks",
+        "MEDIUM",
+        550,
+        292.9
+      ],
+      [
+        "BigQuery",
+        "LOW",
+        460,
+        171.4
+      ],
+      [
+        "Salesforce",
+        "Unclassified",
+        370,
+        50.0
+      ]
+    ]
+  },
+  "cost_by_source": {
+    "cols": [
+      "src",
+      "cost"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        50000
+      ],
+      [
+        "Amazon S3",
+        25000
+      ],
+      [
+        "Oracle",
+        16667
+      ],
+      [
+        "PostgreSQL",
+        12500
+      ],
+      [
+        "SharePoint",
+        10000
+      ],
+      [
+        "Databricks",
+        8333
+      ],
+      [
+        "BigQuery",
+        7143
+      ],
+      [
+        "Salesforce",
+        6250
+      ]
+    ]
+  },
+  "cost_by_sens": {
+    "cols": [
+      "sens",
+      "cost"
+    ],
+    "rows": [
+      [
+        "HIGH",
+        50000
+      ],
+      [
+        "MEDIUM",
+        25000
+      ],
+      [
+        "LOW",
+        16667
+      ],
+      [
+        "Unclassified",
+        12500
+      ],
+      [
+        "HIGH",
+        10000
+      ],
+      [
+        "MEDIUM",
+        8333
+      ],
+      [
+        "LOW",
+        7143
+      ],
+      [
+        "Unclassified",
+        6250
+      ]
+    ]
+  },
+  "co2e_by_source": {
+    "cols": [
+      "src",
+      "tonnes"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        42.0
+      ],
+      [
+        "Amazon S3",
+        21.0
+      ],
+      [
+        "Oracle",
+        14.0
+      ],
+      [
+        "PostgreSQL",
+        10.5
+      ],
+      [
+        "SharePoint",
+        8.4
+      ],
+      [
+        "Databricks",
+        7.0
+      ],
+      [
+        "BigQuery",
+        6.0
+      ],
+      [
+        "Salesforce",
+        5.25
+      ]
+    ]
+  },
+  "cost_trend": {
+    "cols": [
+      "ym",
+      "ymn",
+      "month",
+      "cost",
+      "cum_cost"
+    ],
+    "rows": [
+      [
+        "Jan",
+        "Jan",
+        "Jan",
+        50000,
+        1200
+      ],
+      [
+        "Feb",
+        "Feb",
+        "Feb",
+        25000,
+        2400
+      ],
+      [
+        "Mar",
+        "Mar",
+        "Mar",
+        16667,
+        3600
+      ],
+      [
+        "Apr",
+        "Apr",
+        "Apr",
+        12500,
+        4800
+      ],
+      [
+        "May",
+        "May",
+        "May",
+        10000,
+        6000
+      ],
+      [
+        "Jun",
+        "Jun",
+        "Jun",
+        8333,
+        7200
+      ],
+      [
+        "Jul",
+        "Jul",
+        "Jul",
+        7143,
+        8400
+      ],
+      [
+        "Aug",
+        "Aug",
+        "Aug",
+        6250,
+        9600
+      ]
+    ]
+  },
+  "detail_costed": {
+    "cols": [
+      "name",
+      "src",
+      "monthly_usd",
+      "gb",
+      "co2e_kg",
+      "sensitivity",
+      "owner"
+    ],
+    "rows": [
+      [
+        "Snowflake asset 1",
+        "Snowflake",
+        "Jan",
+        900.0,
+        42.0,
+        "HIGH",
+        "A. Chen"
+      ],
+      [
+        "Amazon S3 asset 2",
+        "Amazon S3",
+        "Feb",
+        778.6,
+        21.0,
+        "MEDIUM",
+        "R. Patel"
+      ],
+      [
+        "Oracle asset 3",
+        "Oracle",
+        "Mar",
+        657.1,
+        14.0,
+        "LOW",
+        "M. Garcia"
+      ],
+      [
+        "PostgreSQL asset 4",
+        "PostgreSQL",
+        "Apr",
+        535.7,
+        10.5,
+        "Unclassified",
+        "—"
+      ],
+      [
+        "SharePoint asset 5",
+        "SharePoint",
+        "May",
+        414.3,
+        8.4,
+        "HIGH",
+        "J. Kim"
+      ],
+      [
+        "Databricks asset 6",
+        "Databricks",
+        "Jun",
+        292.9,
+        7.0,
+        "MEDIUM",
+        "A. Chen"
+      ],
+      [
+        "BigQuery asset 7",
+        "BigQuery",
+        "Jul",
+        171.4,
+        6.0,
+        "LOW",
+        "R. Patel"
+      ],
+      [
+        "Salesforce asset 8",
+        "Salesforce",
+        "Aug",
+        50.0,
+        5.25,
+        "Unclassified",
+        "M. Garcia"
+      ]
+    ]
+  },
+  "cost_gov_scatter": {
+    "cols": [
+      "src",
+      "monthly_cost",
+      "gov_pct",
+      "entity_count"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        "Jan",
+        100.0,
+        5000
+      ],
+      [
+        "Amazon S3",
+        "Feb",
+        86.4,
+        4400
+      ],
+      [
+        "Oracle",
+        "Mar",
+        72.9,
+        3800
+      ],
+      [
+        "PostgreSQL",
+        "Apr",
+        59.3,
+        3200
+      ],
+      [
+        "SharePoint",
+        "May",
+        45.7,
+        2600
+      ],
+      [
+        "Databricks",
+        "Jun",
+        32.1,
+        2000
+      ],
+      [
+        "BigQuery",
+        "Jul",
+        18.6,
+        1400
+      ],
+      [
+        "Salesforce",
+        "Aug",
+        5.0,
+        800
+      ]
+    ]
+  },
+  "cost_by_src_trend": {
+    "cols": [
+      "src",
+      "ym",
+      "ymn",
+      "month",
+      "cum_cost"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        "Jan",
+        "Jan",
+        "Jan",
+        1200
+      ],
+      [
+        "Amazon S3",
+        "Feb",
+        "Feb",
+        "Feb",
+        2400
+      ],
+      [
+        "Oracle",
+        "Mar",
+        "Mar",
+        "Mar",
+        3600
+      ],
+      [
+        "PostgreSQL",
+        "Apr",
+        "Apr",
+        "Apr",
+        4800
+      ],
+      [
+        "SharePoint",
+        "May",
+        "May",
+        "May",
+        6000
+      ],
+      [
+        "Databricks",
+        "Jun",
+        "Jun",
+        "Jun",
+        7200
+      ],
+      [
+        "BigQuery",
+        "Jul",
+        "Jul",
+        "Jul",
+        8400
+      ],
+      [
+        "Salesforce",
+        "Aug",
+        "Aug",
+        "Aug",
+        9600
+      ]
+    ]
+  },
+  "by_src": {
+    "cols": [
+      "src",
+      "gb"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        900.0
+      ],
+      [
+        "Amazon S3",
+        778.6
+      ],
+      [
+        "Oracle",
+        657.1
+      ],
+      [
+        "PostgreSQL",
+        535.7
+      ],
+      [
+        "SharePoint",
+        414.3
+      ],
+      [
+        "Databricks",
+        292.9
+      ],
+      [
+        "BigQuery",
+        171.4
+      ],
+      [
+        "Salesforce",
+        50.0
+      ]
+    ]
+  },
+  "by_integration": {
+    "cols": [
+      "integ",
+      "success_pct",
+      "failures",
+      "runs"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        100.0,
+        1000,
+        5000
+      ],
+      [
+        "Amazon S3",
+        86.4,
+        910,
+        4400
+      ],
+      [
+        "Oracle",
+        72.9,
+        820,
+        3800
+      ],
+      [
+        "PostgreSQL",
+        59.3,
+        730,
+        3200
+      ],
+      [
+        "SharePoint",
+        45.7,
+        640,
+        2600
+      ],
+      [
+        "Databricks",
+        32.1,
+        550,
+        2000
+      ],
+      [
+        "BigQuery",
+        18.6,
+        460,
+        1400
+      ],
+      [
+        "Salesforce",
+        5.0,
+        370,
+        800
+      ]
+    ]
+  },
+  "top_flows": {
+    "cols": [
+      "flow",
+      "integ",
+      "gb",
+      "conns"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000,
+        900.0,
+        1000
+      ],
+      [
+        "Amazon S3",
+        910,
+        778.6,
+        910
+      ],
+      [
+        "Oracle",
+        820,
+        657.1,
+        820
+      ],
+      [
+        "PostgreSQL",
+        730,
+        535.7,
+        730
+      ],
+      [
+        "SharePoint",
+        640,
+        414.3,
+        640
+      ],
+      [
+        "Databricks",
+        550,
+        292.9,
+        550
+      ],
+      [
+        "BigQuery",
+        460,
+        171.4,
+        460
+      ],
+      [
+        "Salesforce",
+        370,
+        50.0,
+        370
+      ]
+    ]
+  },
+  "integrations": {
+    "cols": [
+      "v",
+      "l",
+      "ord"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000,
+        1000
+      ],
+      [
+        "Amazon S3",
+        910,
+        910
+      ],
+      [
+        "Oracle",
+        820,
+        820
+      ],
+      [
+        "PostgreSQL",
+        730,
+        730
+      ],
+      [
+        "SharePoint",
+        640,
+        640
+      ],
+      [
+        "Databricks",
+        550,
+        550
+      ],
+      [
+        "BigQuery",
+        460,
+        460
+      ],
+      [
+        "Salesforce",
+        370,
+        370
+      ]
+    ]
+  },
+  "platforms": {
+    "cols": [
+      "v",
+      "l",
+      "ord",
+      "p"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000,
+        1000,
+        1000
+      ],
+      [
+        "Amazon S3",
+        910,
+        910,
+        910
+      ],
+      [
+        "Oracle",
+        820,
+        820,
+        820
+      ],
+      [
+        "PostgreSQL",
+        730,
+        730,
+        730
+      ],
+      [
+        "SharePoint",
+        640,
+        640,
+        640
+      ],
+      [
+        "Databricks",
+        550,
+        550,
+        550
+      ],
+      [
+        "BigQuery",
+        460,
+        460,
+        460
+      ],
+      [
+        "Salesforce",
+        370,
+        370,
+        370
+      ]
+    ]
+  },
+  "movement_trend": {
+    "cols": [
+      "ym",
+      "gb",
+      "runs",
+      "success_pct"
+    ],
+    "rows": [
+      [
+        "Jan",
+        900.0,
+        5000,
+        100.0
+      ],
+      [
+        "Feb",
+        778.6,
+        4400,
+        86.4
+      ],
+      [
+        "Mar",
+        657.1,
+        3800,
+        72.9
+      ],
+      [
+        "Apr",
+        535.7,
+        3200,
+        59.3
+      ],
+      [
+        "May",
+        414.3,
+        2600,
+        45.7
+      ],
+      [
+        "Jun",
+        292.9,
+        2000,
+        32.1
+      ],
+      [
+        "Jul",
+        171.4,
+        1400,
+        18.6
+      ],
+      [
+        "Aug",
+        50.0,
+        800,
+        5.0
+      ]
+    ]
+  },
+  "platform_stacked": {
+    "cols": [
+      "dest_platform",
+      "src_platform",
+      "gb"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        "Snowflake",
+        900.0
+      ],
+      [
+        "Amazon S3",
+        "Amazon S3",
+        778.6
+      ],
+      [
+        "Oracle",
+        "Oracle",
+        657.1
+      ],
+      [
+        "PostgreSQL",
+        "PostgreSQL",
+        535.7
+      ],
+      [
+        "SharePoint",
+        "SharePoint",
+        414.3
+      ],
+      [
+        "Databricks",
+        "Databricks",
+        292.9
+      ],
+      [
+        "BigQuery",
+        "BigQuery",
+        171.4
+      ],
+      [
+        "Salesforce",
+        "Salesforce",
+        50.0
+      ]
+    ]
+  },
+  "int_platform_stacked": {
+    "cols": [
+      "dest_platform",
+      "integ",
+      "gb"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000,
+        900.0
+      ],
+      [
+        "Amazon S3",
+        910,
+        778.6
+      ],
+      [
+        "Oracle",
+        820,
+        657.1
+      ],
+      [
+        "PostgreSQL",
+        730,
+        535.7
+      ],
+      [
+        "SharePoint",
+        640,
+        414.3
+      ],
+      [
+        "Databricks",
+        550,
+        292.9
+      ],
+      [
+        "BigQuery",
+        460,
+        171.4
+      ],
+      [
+        "Salesforce",
+        370,
+        50.0
+      ]
+    ]
+  },
+  "detail_integration_flows": {
+    "cols": [
+      "flow",
+      "route",
+      "records",
+      "gb"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000,
+        1000,
+        900.0
+      ],
+      [
+        "Amazon S3",
+        910,
+        910,
+        778.6
+      ],
+      [
+        "Oracle",
+        820,
+        820,
+        657.1
+      ],
+      [
+        "PostgreSQL",
+        730,
+        730,
+        535.7
+      ],
+      [
+        "SharePoint",
+        640,
+        640,
+        414.3
+      ],
+      [
+        "Databricks",
+        550,
+        550,
+        292.9
+      ],
+      [
+        "BigQuery",
+        460,
+        460,
+        171.4
+      ],
+      [
+        "Salesforce",
+        370,
+        370,
+        50.0
+      ]
+    ]
+  },
+  "trend": {
+    "cols": [
+      "month",
+      "ym",
+      "assets",
+      "cumulative"
+    ],
+    "rows": [
+      [
+        "Jan",
+        "Jan",
+        5000,
+        1200
+      ],
+      [
+        "Feb",
+        "Feb",
+        4400,
+        2400
+      ],
+      [
+        "Mar",
+        "Mar",
+        3800,
+        3600
+      ],
+      [
+        "Apr",
+        "Apr",
+        3200,
+        4800
+      ],
+      [
+        "May",
+        "May",
+        2600,
+        6000
+      ],
+      [
+        "Jun",
+        "Jun",
+        2000,
+        7200
+      ],
+      [
+        "Jul",
+        "Jul",
+        1400,
+        8400
+      ],
+      [
+        "Aug",
+        "Aug",
+        800,
+        9600
+      ]
+    ]
+  },
+  "success": {
+    "cols": [
+      "integ",
+      "success_pct"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        100.0
+      ],
+      [
+        "Amazon S3",
+        86.4
+      ],
+      [
+        "Oracle",
+        72.9
+      ],
+      [
+        "PostgreSQL",
+        59.3
+      ],
+      [
+        "SharePoint",
+        45.7
+      ],
+      [
+        "Databricks",
+        32.1
+      ],
+      [
+        "BigQuery",
+        18.6
+      ],
+      [
+        "Salesforce",
+        5.0
+      ]
+    ]
+  },
+  "int_calendar": {
+    "cols": [
+      "day",
+      "runs",
+      "gb",
+      "fails"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        5000,
+        900.0,
+        1000
+      ],
+      [
+        "Amazon S3",
+        4400,
+        778.6,
+        910
+      ],
+      [
+        "Oracle",
+        3800,
+        657.1,
+        820
+      ],
+      [
+        "PostgreSQL",
+        3200,
+        535.7,
+        730
+      ],
+      [
+        "SharePoint",
+        2600,
+        414.3,
+        640
+      ],
+      [
+        "Databricks",
+        2000,
+        292.9,
+        550
+      ],
+      [
+        "BigQuery",
+        1400,
+        171.4,
+        460
+      ],
+      [
+        "Salesforce",
+        800,
+        50.0,
+        370
+      ]
+    ]
+  },
+  "dest_platforms": {
+    "cols": [
+      "v",
+      "l",
+      "ord"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000,
+        1000
+      ],
+      [
+        "Amazon S3",
+        910,
+        910
+      ],
+      [
+        "Oracle",
+        820,
+        820
+      ],
+      [
+        "PostgreSQL",
+        730,
+        730
+      ],
+      [
+        "SharePoint",
+        640,
+        640
+      ],
+      [
+        "Databricks",
+        550,
+        550
+      ],
+      [
+        "BigQuery",
+        460,
+        460
+      ],
+      [
+        "Salesforce",
+        370,
+        370
+      ]
+    ]
+  },
+  "completeness_band": {
+    "cols": [
+      "band",
+      "assets"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        5000
+      ],
+      [
+        "Amazon S3",
+        4400
+      ],
+      [
+        "Oracle",
+        3800
+      ],
+      [
+        "PostgreSQL",
+        3200
+      ],
+      [
+        "SharePoint",
+        2600
+      ],
+      [
+        "Databricks",
+        2000
+      ],
+      [
+        "BigQuery",
+        1400
+      ],
+      [
+        "Salesforce",
+        800
+      ]
+    ]
+  },
+  "profiled": {
+    "cols": [
+      "status",
+      "assets"
+    ],
+    "rows": [
+      [
+        "Success",
+        5000
+      ],
+      [
+        "Failed",
+        4400
+      ],
+      [
+        "Aborted",
+        3800
+      ],
+      [
+        "Running",
+        3200
+      ],
+      [
+        "Success",
+        2600
+      ],
+      [
+        "Failed",
+        2000
+      ],
+      [
+        "Aborted",
+        1400
+      ],
+      [
+        "Running",
+        800
+      ]
+    ]
+  },
+  "missing_attrs": {
+    "cols": [
+      "attr",
+      "cnt"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000
+      ],
+      [
+        "Amazon S3",
+        910
+      ],
+      [
+        "Oracle",
+        820
+      ],
+      [
+        "PostgreSQL",
+        730
+      ],
+      [
+        "SharePoint",
+        640
+      ],
+      [
+        "Databricks",
+        550
+      ],
+      [
+        "BigQuery",
+        460
+      ],
+      [
+        "Salesforce",
+        370
+      ]
+    ]
+  },
+  "worst_entities": {
+    "cols": [
+      "entity",
+      "src",
+      "expected",
+      "complete_pct"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        "Snowflake",
+        1000,
+        100.0
+      ],
+      [
+        "Amazon S3",
+        "Amazon S3",
+        910,
+        86.4
+      ],
+      [
+        "Oracle",
+        "Oracle",
+        820,
+        72.9
+      ],
+      [
+        "PostgreSQL",
+        "PostgreSQL",
+        730,
+        59.3
+      ],
+      [
+        "SharePoint",
+        "SharePoint",
+        640,
+        45.7
+      ],
+      [
+        "Databricks",
+        "Databricks",
+        550,
+        32.1
+      ],
+      [
+        "BigQuery",
+        "BigQuery",
+        460,
+        18.6
+      ],
+      [
+        "Salesforce",
+        "Salesforce",
+        370,
+        5.0
+      ]
+    ]
+  },
+  "detail_by_band": {
+    "cols": [
+      "name",
+      "src",
+      "band",
+      "completed",
+      "expected",
+      "sensitivity",
+      "owner"
+    ],
+    "rows": [
+      [
+        "Snowflake asset 1",
+        "Snowflake",
+        1000,
+        1000,
+        1000,
+        "HIGH",
+        "A. Chen"
+      ],
+      [
+        "Amazon S3 asset 2",
+        "Amazon S3",
+        910,
+        910,
+        910,
+        "MEDIUM",
+        "R. Patel"
+      ],
+      [
+        "Oracle asset 3",
+        "Oracle",
+        820,
+        820,
+        820,
+        "LOW",
+        "M. Garcia"
+      ],
+      [
+        "PostgreSQL asset 4",
+        "PostgreSQL",
+        730,
+        730,
+        730,
+        "Unclassified",
+        "—"
+      ],
+      [
+        "SharePoint asset 5",
+        "SharePoint",
+        640,
+        640,
+        640,
+        "HIGH",
+        "J. Kim"
+      ],
+      [
+        "Databricks asset 6",
+        "Databricks",
+        550,
+        550,
+        550,
+        "MEDIUM",
+        "A. Chen"
+      ],
+      [
+        "BigQuery asset 7",
+        "BigQuery",
+        460,
+        460,
+        460,
+        "LOW",
+        "R. Patel"
+      ],
+      [
+        "Salesforce asset 8",
+        "Salesforce",
+        370,
+        370,
+        370,
+        "Unclassified",
+        "M. Garcia"
+      ]
+    ]
+  },
+  "quality_race": {
+    "cols": [
+      "src",
+      "tot",
+      "ym",
+      "month",
+      "completeness_pct"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000,
+        "Jan",
+        "Jan",
+        100.0
+      ],
+      [
+        "Amazon S3",
+        910,
+        "Feb",
+        "Feb",
+        86.4
+      ],
+      [
+        "Oracle",
+        820,
+        "Mar",
+        "Mar",
+        72.9
+      ],
+      [
+        "PostgreSQL",
+        730,
+        "Apr",
+        "Apr",
+        59.3
+      ],
+      [
+        "SharePoint",
+        640,
+        "May",
+        "May",
+        45.7
+      ],
+      [
+        "Databricks",
+        550,
+        "Jun",
+        "Jun",
+        32.1
+      ],
+      [
+        "BigQuery",
+        460,
+        "Jul",
+        "Jul",
+        18.6
+      ],
+      [
+        "Salesforce",
+        370,
+        "Aug",
+        "Aug",
+        5.0
+      ]
+    ]
+  },
+  "scan_fresh": {
+    "cols": [
+      "band",
+      "assets"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        5000
+      ],
+      [
+        "Amazon S3",
+        4400
+      ],
+      [
+        "Oracle",
+        3800
+      ],
+      [
+        "PostgreSQL",
+        3200
+      ],
+      [
+        "SharePoint",
+        2600
+      ],
+      [
+        "Databricks",
+        2000
+      ],
+      [
+        "BigQuery",
+        1400
+      ],
+      [
+        "Salesforce",
+        800
+      ]
+    ]
+  },
+  "temperature": {
+    "cols": [
+      "temp",
+      "files"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        5000
+      ],
+      [
+        "Amazon S3",
+        4400
+      ],
+      [
+        "Oracle",
+        3800
+      ],
+      [
+        "PostgreSQL",
+        3200
+      ],
+      [
+        "SharePoint",
+        2600
+      ],
+      [
+        "Databricks",
+        2000
+      ],
+      [
+        "BigQuery",
+        1400
+      ],
+      [
+        "Salesforce",
+        800
+      ]
+    ]
+  },
+  "modified_age": {
+    "cols": [
+      "band",
+      "assets"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        5000
+      ],
+      [
+        "Amazon S3",
+        4400
+      ],
+      [
+        "Oracle",
+        3800
+      ],
+      [
+        "PostgreSQL",
+        3200
+      ],
+      [
+        "SharePoint",
+        2600
+      ],
+      [
+        "Databricks",
+        2000
+      ],
+      [
+        "BigQuery",
+        1400
+      ],
+      [
+        "Salesforce",
+        800
+      ]
+    ]
+  },
+  "stale_by_source": {
+    "cols": [
+      "src",
+      "stale_pct",
+      "assets"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        100.0,
+        5000
+      ],
+      [
+        "Amazon S3",
+        86.4,
+        4400
+      ],
+      [
+        "Oracle",
+        72.9,
+        3800
+      ],
+      [
+        "PostgreSQL",
+        59.3,
+        3200
+      ],
+      [
+        "SharePoint",
+        45.7,
+        2600
+      ],
+      [
+        "Databricks",
+        32.1,
+        2000
+      ],
+      [
+        "BigQuery",
+        18.6,
+        1400
+      ],
+      [
+        "Salesforce",
+        5.0,
+        800
+      ]
+    ]
+  },
+  "scan_calendar": {
+    "cols": [
+      "day",
+      "assets",
+      "governed"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        5000,
+        1000
+      ],
+      [
+        "Amazon S3",
+        4400,
+        910
+      ],
+      [
+        "Oracle",
+        3800,
+        820
+      ],
+      [
+        "PostgreSQL",
+        3200,
+        730
+      ],
+      [
+        "SharePoint",
+        2600,
+        640
+      ],
+      [
+        "Databricks",
+        2000,
+        550
+      ],
+      [
+        "BigQuery",
+        1400,
+        460
+      ],
+      [
+        "Salesforce",
+        800,
+        370
+      ]
+    ]
+  },
+  "temp_trend_long": {
+    "cols": [
+      "month",
+      "ord",
+      "cold",
+      "hotwarm",
+      "series",
+      "files"
+    ],
+    "rows": [
+      [
+        "Jan",
+        1000,
+        1000,
+        1000,
+        1000,
+        5000
+      ],
+      [
+        "Feb",
+        910,
+        910,
+        910,
+        910,
+        4400
+      ],
+      [
+        "Mar",
+        820,
+        820,
+        820,
+        820,
+        3800
+      ],
+      [
+        "Apr",
+        730,
+        730,
+        730,
+        730,
+        3200
+      ],
+      [
+        "May",
+        640,
+        640,
+        640,
+        640,
+        2600
+      ],
+      [
+        "Jun",
+        550,
+        550,
+        550,
+        550,
+        2000
+      ],
+      [
+        "Jul",
+        460,
+        460,
+        460,
+        460,
+        1400
+      ],
+      [
+        "Aug",
+        370,
+        370,
+        370,
+        370,
+        800
+      ]
+    ]
+  },
+  "detail_by_freshband": {
+    "cols": [
+      "name",
+      "src",
+      "scan_band",
+      "access_age",
+      "sensitivity",
+      "owner"
+    ],
+    "rows": [
+      [
+        "Snowflake asset 1",
+        "Snowflake",
+        1000,
+        1000,
+        "HIGH",
+        "A. Chen"
+      ],
+      [
+        "Amazon S3 asset 2",
+        "Amazon S3",
+        910,
+        910,
+        "MEDIUM",
+        "R. Patel"
+      ],
+      [
+        "Oracle asset 3",
+        "Oracle",
+        820,
+        820,
+        "LOW",
+        "M. Garcia"
+      ],
+      [
+        "PostgreSQL asset 4",
+        "PostgreSQL",
+        730,
+        730,
+        "Unclassified",
+        "—"
+      ],
+      [
+        "SharePoint asset 5",
+        "SharePoint",
+        640,
+        640,
+        "HIGH",
+        "J. Kim"
+      ],
+      [
+        "Databricks asset 6",
+        "Databricks",
+        550,
+        550,
+        "MEDIUM",
+        "A. Chen"
+      ],
+      [
+        "BigQuery asset 7",
+        "BigQuery",
+        460,
+        460,
+        "LOW",
+        "R. Patel"
+      ],
+      [
+        "Salesforce asset 8",
+        "Salesforce",
+        370,
+        370,
+        "Unclassified",
+        "M. Garcia"
+      ]
+    ]
+  },
+  "fresh_source_matrix": {
+    "cols": [
+      "src",
+      "band",
+      "n"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000,
+        5000
+      ],
+      [
+        "Amazon S3",
+        910,
+        4400
+      ],
+      [
+        "Oracle",
+        820,
+        3800
+      ],
+      [
+        "PostgreSQL",
+        730,
+        3200
+      ],
+      [
+        "SharePoint",
+        640,
+        2600
+      ],
+      [
+        "Databricks",
+        550,
+        2000
+      ],
+      [
+        "BigQuery",
+        460,
+        1400
+      ],
+      [
+        "Salesforce",
+        370,
+        800
+      ]
+    ]
+  },
+  "by_glossary": {
+    "cols": [
+      "glossary",
+      "entities"
+    ],
+    "rows": [
+      [
+        "Type A",
+        1000
+      ],
+      [
+        "Type B",
+        910
+      ],
+      [
+        "Type C",
+        820
+      ],
+      [
+        "Type D",
+        730
+      ],
+      [
+        "Type E",
+        640
+      ],
+      [
+        "Type F",
+        550
+      ],
+      [
+        "Type G",
+        460
+      ],
+      [
+        "Type H",
+        370
+      ]
+    ]
+  },
+  "detail_glossary_entities": {
+    "cols": [
+      "name",
+      "term",
+      "sensitivity",
+      "owner"
+    ],
+    "rows": [
+      [
+        "Snowflake asset 1",
+        "Type A",
+        "HIGH",
+        "A. Chen"
+      ],
+      [
+        "Amazon S3 asset 2",
+        "Type B",
+        "MEDIUM",
+        "R. Patel"
+      ],
+      [
+        "Oracle asset 3",
+        "Type C",
+        "LOW",
+        "M. Garcia"
+      ],
+      [
+        "PostgreSQL asset 4",
+        "Type D",
+        "Unclassified",
+        "—"
+      ],
+      [
+        "SharePoint asset 5",
+        "Type E",
+        "HIGH",
+        "J. Kim"
+      ],
+      [
+        "Databricks asset 6",
+        "Type F",
+        "MEDIUM",
+        "A. Chen"
+      ],
+      [
+        "BigQuery asset 7",
+        "Type G",
+        "LOW",
+        "R. Patel"
+      ],
+      [
+        "Salesforce asset 8",
+        "Type H",
+        "Unclassified",
+        "M. Garcia"
+      ]
+    ]
+  },
+  "terms_per_glossary": {
+    "cols": [
+      "glossary",
+      "terms"
+    ],
+    "rows": [
+      [
+        "Type A",
+        "Type A"
+      ],
+      [
+        "Type B",
+        "Type B"
+      ],
+      [
+        "Type C",
+        "Type C"
+      ],
+      [
+        "Type D",
+        "Type D"
+      ],
+      [
+        "Type E",
+        "Type E"
+      ],
+      [
+        "Type F",
+        "Type F"
+      ],
+      [
+        "Type G",
+        "Type G"
+      ],
+      [
+        "Type H",
+        "Type H"
+      ]
+    ]
+  },
+  "top_terms": {
+    "cols": [
+      "term",
+      "glossary",
+      "sens",
+      "entities"
+    ],
+    "rows": [
+      [
+        "Type A",
+        "Type A",
+        "HIGH",
+        1000
+      ],
+      [
+        "Type B",
+        "Type B",
+        "MEDIUM",
+        910
+      ],
+      [
+        "Type C",
+        "Type C",
+        "LOW",
+        820
+      ],
+      [
+        "Type D",
+        "Type D",
+        "Unclassified",
+        730
+      ],
+      [
+        "Type E",
+        "Type E",
+        "HIGH",
+        640
+      ],
+      [
+        "Type F",
+        "Type F",
+        "MEDIUM",
+        550
+      ],
+      [
+        "Type G",
+        "Type G",
+        "LOW",
+        460
+      ],
+      [
+        "Type H",
+        "Type H",
+        "Unclassified",
+        370
+      ]
+    ]
+  },
+  "glossaries": {
+    "cols": [
+      "v",
+      "l",
+      "ord"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000,
+        1000
+      ],
+      [
+        "Amazon S3",
+        910,
+        910
+      ],
+      [
+        "Oracle",
+        820,
+        820
+      ],
+      [
+        "PostgreSQL",
+        730,
+        730
+      ],
+      [
+        "SharePoint",
+        640,
+        640
+      ],
+      [
+        "Databricks",
+        550,
+        550
+      ],
+      [
+        "BigQuery",
+        460,
+        460
+      ],
+      [
+        "Salesforce",
+        370,
+        370
+      ]
+    ]
+  },
+  "detail_term_entities": {
+    "cols": [
+      "name",
+      "src",
+      "glossary",
+      "sensitivity",
+      "owner"
+    ],
+    "rows": [
+      [
+        "Snowflake asset 1",
+        "Snowflake",
+        "Type A",
+        "HIGH",
+        "A. Chen"
+      ],
+      [
+        "Amazon S3 asset 2",
+        "Amazon S3",
+        "Type B",
+        "MEDIUM",
+        "R. Patel"
+      ],
+      [
+        "Oracle asset 3",
+        "Oracle",
+        "Type C",
+        "LOW",
+        "M. Garcia"
+      ],
+      [
+        "PostgreSQL asset 4",
+        "PostgreSQL",
+        "Type D",
+        "Unclassified",
+        "—"
+      ],
+      [
+        "SharePoint asset 5",
+        "SharePoint",
+        "Type E",
+        "HIGH",
+        "J. Kim"
+      ],
+      [
+        "Databricks asset 6",
+        "Databricks",
+        "Type F",
+        "MEDIUM",
+        "A. Chen"
+      ],
+      [
+        "BigQuery asset 7",
+        "BigQuery",
+        "Type G",
+        "LOW",
+        "R. Patel"
+      ],
+      [
+        "Salesforce asset 8",
+        "Salesforce",
+        "Type H",
+        "Unclassified",
+        "M. Garcia"
+      ]
+    ]
+  },
+  "gov_status": {
+    "cols": [
+      "status",
+      "assets"
+    ],
+    "rows": [
+      [
+        "Success",
+        5000
+      ],
+      [
+        "Failed",
+        4400
+      ],
+      [
+        "Aborted",
+        3800
+      ],
+      [
+        "Running",
+        3200
+      ],
+      [
+        "Success",
+        2600
+      ],
+      [
+        "Failed",
+        2000
+      ],
+      [
+        "Aborted",
+        1400
+      ],
+      [
+        "Running",
+        800
+      ]
+    ]
+  },
+  "gov_by_source": {
+    "cols": [
+      "src",
+      "gov_pct"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        100.0
+      ],
+      [
+        "Amazon S3",
+        86.4
+      ],
+      [
+        "Oracle",
+        72.9
+      ],
+      [
+        "PostgreSQL",
+        59.3
+      ],
+      [
+        "SharePoint",
+        45.7
+      ],
+      [
+        "Databricks",
+        32.1
+      ],
+      [
+        "BigQuery",
+        18.6
+      ],
+      [
+        "Salesforce",
+        5.0
+      ]
+    ]
+  },
+  "policy_type": {
+    "cols": [
+      "ptype",
+      "assigns"
+    ],
+    "rows": [
+      [
+        "Type A",
+        1000
+      ],
+      [
+        "Type B",
+        910
+      ],
+      [
+        "Type C",
+        820
+      ],
+      [
+        "Type D",
+        730
+      ],
+      [
+        "Type E",
+        640
+      ],
+      [
+        "Type F",
+        550
+      ],
+      [
+        "Type G",
+        460
+      ],
+      [
+        "Type H",
+        370
+      ]
+    ]
+  },
+  "trend_long": {
+    "cols": [
+      "month",
+      "ym",
+      "governed_pct",
+      "complete_pct",
+      "metric",
+      "pct"
+    ],
+    "rows": [
+      [
+        "Jan",
+        "Jan",
+        100.0,
+        100.0,
+        1000,
+        100.0
+      ],
+      [
+        "Feb",
+        "Feb",
+        86.4,
+        86.4,
+        910,
+        86.4
+      ],
+      [
+        "Mar",
+        "Mar",
+        72.9,
+        72.9,
+        820,
+        72.9
+      ],
+      [
+        "Apr",
+        "Apr",
+        59.3,
+        59.3,
+        730,
+        59.3
+      ],
+      [
+        "May",
+        "May",
+        45.7,
+        45.7,
+        640,
+        45.7
+      ],
+      [
+        "Jun",
+        "Jun",
+        32.1,
+        32.1,
+        550,
+        32.1
+      ],
+      [
+        "Jul",
+        "Jul",
+        18.6,
+        18.6,
+        460,
+        18.6
+      ],
+      [
+        "Aug",
+        "Aug",
+        5.0,
+        5.0,
+        370,
+        5.0
+      ]
+    ]
+  },
+  "detail_ungov": {
+    "cols": [
+      "name",
+      "src",
+      "status",
+      "sensitivity",
+      "owner"
+    ],
+    "rows": [
+      [
+        "Snowflake asset 1",
+        "Snowflake",
+        "Success",
+        "HIGH",
+        "A. Chen"
+      ],
+      [
+        "Amazon S3 asset 2",
+        "Amazon S3",
+        "Failed",
+        "MEDIUM",
+        "R. Patel"
+      ],
+      [
+        "Oracle asset 3",
+        "Oracle",
+        "Aborted",
+        "LOW",
+        "M. Garcia"
+      ],
+      [
+        "PostgreSQL asset 4",
+        "PostgreSQL",
+        "Running",
+        "Unclassified",
+        "—"
+      ],
+      [
+        "SharePoint asset 5",
+        "SharePoint",
+        "Success",
+        "HIGH",
+        "J. Kim"
+      ],
+      [
+        "Databricks asset 6",
+        "Databricks",
+        "Failed",
+        "MEDIUM",
+        "A. Chen"
+      ],
+      [
+        "BigQuery asset 7",
+        "BigQuery",
+        "Aborted",
+        "LOW",
+        "R. Patel"
+      ],
+      [
+        "Salesforce asset 8",
+        "Salesforce",
+        "Running",
+        "Unclassified",
+        "M. Garcia"
+      ]
+    ]
+  },
+  "gov_sens_heatmap": {
+    "cols": [
+      "src",
+      "sens",
+      "gov_pct",
+      "total"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        "HIGH",
+        100.0,
+        5000
+      ],
+      [
+        "Amazon S3",
+        "MEDIUM",
+        86.4,
+        4400
+      ],
+      [
+        "Oracle",
+        "LOW",
+        72.9,
+        3800
+      ],
+      [
+        "PostgreSQL",
+        "Unclassified",
+        59.3,
+        3200
+      ],
+      [
+        "SharePoint",
+        "HIGH",
+        45.7,
+        2600
+      ],
+      [
+        "Databricks",
+        "MEDIUM",
+        32.1,
+        2000
+      ],
+      [
+        "BigQuery",
+        "LOW",
+        18.6,
+        1400
+      ],
+      [
+        "Salesforce",
+        "Unclassified",
+        5.0,
+        800
+      ]
+    ]
+  },
+  "gov_sens_flow": {
+    "cols": [
+      "sens_tier",
+      "gov_state",
+      "cnt"
+    ],
+    "rows": [
+      [
+        "HIGH",
+        "Success",
+        1000
+      ],
+      [
+        "MEDIUM",
+        "Failed",
+        910
+      ],
+      [
+        "LOW",
+        "Aborted",
+        820
+      ],
+      [
+        "Unclassified",
+        "Running",
+        730
+      ],
+      [
+        "HIGH",
+        "Success",
+        640
+      ],
+      [
+        "MEDIUM",
+        "Failed",
+        550
+      ],
+      [
+        "LOW",
+        "Aborted",
+        460
+      ],
+      [
+        "Unclassified",
+        "Running",
+        370
+      ]
+    ]
+  },
+  "trend_cum": {
+    "cols": [
+      "month",
+      "cumulative"
+    ],
+    "rows": [
+      [
+        "Jan",
+        1200
+      ],
+      [
+        "Feb",
+        2400
+      ],
+      [
+        "Mar",
+        3600
+      ],
+      [
+        "Apr",
+        4800
+      ],
+      [
+        "May",
+        6000
+      ],
+      [
+        "Jun",
+        7200
+      ],
+      [
+        "Jul",
+        8400
+      ],
+      [
+        "Aug",
+        9600
+      ]
+    ]
+  },
+  "by_month": {
+    "cols": [
+      "month",
+      "assets"
+    ],
+    "rows": [
+      [
+        "Jan",
+        5000
+      ],
+      [
+        "Feb",
+        4400
+      ],
+      [
+        "Mar",
+        3800
+      ],
+      [
+        "Apr",
+        3200
+      ],
+      [
+        "May",
+        2600
+      ],
+      [
+        "Jun",
+        2000
+      ],
+      [
+        "Jul",
+        1400
+      ],
+      [
+        "Aug",
+        800
+      ]
+    ]
+  },
+  "recent": {
+    "cols": [
+      "name",
+      "src",
+      "scan_date"
+    ],
+    "rows": [
+      [
+        "Snowflake asset 1",
+        "Snowflake",
+        "Jan"
+      ],
+      [
+        "Amazon S3 asset 2",
+        "Amazon S3",
+        "Feb"
+      ],
+      [
+        "Oracle asset 3",
+        "Oracle",
+        "Mar"
+      ],
+      [
+        "PostgreSQL asset 4",
+        "PostgreSQL",
+        "Apr"
+      ],
+      [
+        "SharePoint asset 5",
+        "SharePoint",
+        "May"
+      ],
+      [
+        "Databricks asset 6",
+        "Databricks",
+        "Jun"
+      ],
+      [
+        "BigQuery asset 7",
+        "BigQuery",
+        "Jul"
+      ],
+      [
+        "Salesforce asset 8",
+        "Salesforce",
+        "Aug"
+      ]
+    ]
+  },
+  "growth_src_stacked": {
+    "cols": [
+      "month",
+      "src",
+      "assets"
+    ],
+    "rows": [
+      [
+        "Jan",
+        "Snowflake",
+        5000
+      ],
+      [
+        "Feb",
+        "Amazon S3",
+        4400
+      ],
+      [
+        "Mar",
+        "Oracle",
+        3800
+      ],
+      [
+        "Apr",
+        "PostgreSQL",
+        3200
+      ],
+      [
+        "May",
+        "SharePoint",
+        2600
+      ],
+      [
+        "Jun",
+        "Databricks",
+        2000
+      ],
+      [
+        "Jul",
+        "BigQuery",
+        1400
+      ],
+      [
+        "Aug",
+        "Salesforce",
+        800
+      ]
+    ]
+  },
+  "gb_by_integration": {
+    "cols": [
+      "integ",
+      "gb"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        900.0
+      ],
+      [
+        "Amazon S3",
+        778.6
+      ],
+      [
+        "Oracle",
+        657.1
+      ],
+      [
+        "PostgreSQL",
+        535.7
+      ],
+      [
+        "SharePoint",
+        414.3
+      ],
+      [
+        "Databricks",
+        292.9
+      ],
+      [
+        "BigQuery",
+        171.4
+      ],
+      [
+        "Salesforce",
+        50.0
+      ]
+    ]
+  },
+  "success_by_integration": {
+    "cols": [
+      "integ",
+      "success_pct"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        100.0
+      ],
+      [
+        "Amazon S3",
+        86.4
+      ],
+      [
+        "Oracle",
+        72.9
+      ],
+      [
+        "PostgreSQL",
+        59.3
+      ],
+      [
+        "SharePoint",
+        45.7
+      ],
+      [
+        "Databricks",
+        32.1
+      ],
+      [
+        "BigQuery",
+        18.6
+      ],
+      [
+        "Salesforce",
+        5.0
+      ]
+    ]
+  },
+  "status_mix": {
+    "cols": [
+      "status",
+      "runs"
+    ],
+    "rows": [
+      [
+        "Success",
+        5000
+      ],
+      [
+        "Failed",
+        4400
+      ],
+      [
+        "Aborted",
+        3800
+      ],
+      [
+        "Running",
+        3200
+      ],
+      [
+        "Success",
+        2600
+      ],
+      [
+        "Failed",
+        2000
+      ],
+      [
+        "Aborted",
+        1400
+      ],
+      [
+        "Running",
+        800
+      ]
+    ]
+  },
+  "completeness": {
+    "cols": [
+      "src",
+      "complete_pct"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        100.0
+      ],
+      [
+        "Amazon S3",
+        86.4
+      ],
+      [
+        "Oracle",
+        72.9
+      ],
+      [
+        "PostgreSQL",
+        59.3
+      ],
+      [
+        "SharePoint",
+        45.7
+      ],
+      [
+        "Databricks",
+        32.1
+      ],
+      [
+        "BigQuery",
+        18.6
+      ],
+      [
+        "Salesforce",
+        5.0
+      ]
+    ]
+  },
+  "owned": {
+    "cols": [
+      "label",
+      "assets"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        5000
+      ],
+      [
+        "Amazon S3",
+        4400
+      ],
+      [
+        "Oracle",
+        3800
+      ],
+      [
+        "PostgreSQL",
+        3200
+      ],
+      [
+        "SharePoint",
+        2600
+      ],
+      [
+        "Databricks",
+        2000
+      ],
+      [
+        "BigQuery",
+        1400
+      ],
+      [
+        "Salesforce",
+        800
+      ]
+    ]
+  },
+  "missing_by_source": {
+    "cols": [
+      "src",
+      "missing"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000
+      ],
+      [
+        "Amazon S3",
+        910
+      ],
+      [
+        "Oracle",
+        820
+      ],
+      [
+        "PostgreSQL",
+        730
+      ],
+      [
+        "SharePoint",
+        640
+      ],
+      [
+        "Databricks",
+        550
+      ],
+      [
+        "BigQuery",
+        460
+      ],
+      [
+        "Salesforce",
+        370
+      ]
+    ]
+  },
+  "detail_unowned": {
+    "cols": [
+      "name",
+      "src",
+      "group_name",
+      "governance",
+      "sensitivity"
+    ],
+    "rows": [
+      [
+        "Snowflake asset 1",
+        "Snowflake",
+        "Snowflake asset 1",
+        1000,
+        "HIGH"
+      ],
+      [
+        "Amazon S3 asset 2",
+        "Amazon S3",
+        "Amazon S3 asset 2",
+        910,
+        "MEDIUM"
+      ],
+      [
+        "Oracle asset 3",
+        "Oracle",
+        "Oracle asset 3",
+        820,
+        "LOW"
+      ],
+      [
+        "PostgreSQL asset 4",
+        "PostgreSQL",
+        "PostgreSQL asset 4",
+        730,
+        "Unclassified"
+      ],
+      [
+        "SharePoint asset 5",
+        "SharePoint",
+        "SharePoint asset 5",
+        640,
+        "HIGH"
+      ],
+      [
+        "Databricks asset 6",
+        "Databricks",
+        "Databricks asset 6",
+        550,
+        "MEDIUM"
+      ],
+      [
+        "BigQuery asset 7",
+        "BigQuery",
+        "BigQuery asset 7",
+        460,
+        "LOW"
+      ],
+      [
+        "Salesforce asset 8",
+        "Salesforce",
+        "Salesforce asset 8",
+        370,
+        "Unclassified"
+      ]
+    ]
+  },
+  "ownership_sens_matrix": {
+    "cols": [
+      "src",
+      "sensitivity",
+      "owned_pct",
+      "total"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        "HIGH",
+        100.0,
+        5000
+      ],
+      [
+        "Amazon S3",
+        "MEDIUM",
+        86.4,
+        4400
+      ],
+      [
+        "Oracle",
+        "LOW",
+        72.9,
+        3800
+      ],
+      [
+        "PostgreSQL",
+        "Unclassified",
+        59.3,
+        3200
+      ],
+      [
+        "SharePoint",
+        "HIGH",
+        45.7,
+        2600
+      ],
+      [
+        "Databricks",
+        "MEDIUM",
+        32.1,
+        2000
+      ],
+      [
+        "BigQuery",
+        "LOW",
+        18.6,
+        1400
+      ],
+      [
+        "Salesforce",
+        "Unclassified",
+        5.0,
+        800
+      ]
+    ]
+  },
+  "ownership_trend": {
+    "cols": [
+      "month",
+      "ym",
+      "owned_pct",
+      "gov_pct"
+    ],
+    "rows": [
+      [
+        "Jan",
+        "Jan",
+        100.0,
+        100.0
+      ],
+      [
+        "Feb",
+        "Feb",
+        86.4,
+        86.4
+      ],
+      [
+        "Mar",
+        "Mar",
+        72.9,
+        72.9
+      ],
+      [
+        "Apr",
+        "Apr",
+        59.3,
+        59.3
+      ],
+      [
+        "May",
+        "May",
+        45.7,
+        45.7
+      ],
+      [
+        "Jun",
+        "Jun",
+        32.1,
+        32.1
+      ],
+      [
+        "Jul",
+        "Jul",
+        18.6,
+        18.6
+      ],
+      [
+        "Aug",
+        "Aug",
+        5.0,
+        5.0
+      ]
+    ]
+  },
+  "success_trend": {
+    "cols": [
+      "month",
+      "success_pct",
+      "runs"
+    ],
+    "rows": [
+      [
+        "Jan",
+        100.0,
+        5000
+      ],
+      [
+        "Feb",
+        86.4,
+        4400
+      ],
+      [
+        "Mar",
+        72.9,
+        3800
+      ],
+      [
+        "Apr",
+        59.3,
+        3200
+      ],
+      [
+        "May",
+        45.7,
+        2600
+      ],
+      [
+        "Jun",
+        32.1,
+        2000
+      ],
+      [
+        "Jul",
+        18.6,
+        1400
+      ],
+      [
+        "Aug",
+        5.0,
+        800
+      ]
+    ]
+  },
+  "run_volume": {
+    "cols": [
+      "month",
+      "runs"
+    ],
+    "rows": [
+      [
+        "Jan",
+        5000
+      ],
+      [
+        "Feb",
+        4400
+      ],
+      [
+        "Mar",
+        3800
+      ],
+      [
+        "Apr",
+        3200
+      ],
+      [
+        "May",
+        2600
+      ],
+      [
+        "Jun",
+        2000
+      ],
+      [
+        "Jul",
+        1400
+      ],
+      [
+        "Aug",
+        800
+      ]
+    ]
+  },
+  "lifecycle": {
+    "cols": [
+      "type",
+      "events"
+    ],
+    "rows": [
+      [
+        "Type A",
+        1000
+      ],
+      [
+        "Type B",
+        910
+      ],
+      [
+        "Type C",
+        820
+      ],
+      [
+        "Type D",
+        730
+      ],
+      [
+        "Type E",
+        640
+      ],
+      [
+        "Type F",
+        550
+      ],
+      [
+        "Type G",
+        460
+      ],
+      [
+        "Type H",
+        370
+      ]
+    ]
+  },
+  "succ_by_integration": {
+    "cols": [
+      "integ",
+      "success_pct"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        100.0
+      ],
+      [
+        "Amazon S3",
+        86.4
+      ],
+      [
+        "Oracle",
+        72.9
+      ],
+      [
+        "PostgreSQL",
+        59.3
+      ],
+      [
+        "SharePoint",
+        45.7
+      ],
+      [
+        "Databricks",
+        32.1
+      ],
+      [
+        "BigQuery",
+        18.6
+      ],
+      [
+        "Salesforce",
+        5.0
+      ]
+    ]
+  },
+  "fail_by_integration": {
+    "cols": [
+      "integ",
+      "failures"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000
+      ],
+      [
+        "Amazon S3",
+        910
+      ],
+      [
+        "Oracle",
+        820
+      ],
+      [
+        "PostgreSQL",
+        730
+      ],
+      [
+        "SharePoint",
+        640
+      ],
+      [
+        "Databricks",
+        550
+      ],
+      [
+        "BigQuery",
+        460
+      ],
+      [
+        "Salesforce",
+        370
+      ]
+    ]
+  },
+  "failures_by_job": {
+    "cols": [
+      "job",
+      "integ",
+      "failures"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000,
+        1000
+      ],
+      [
+        "Amazon S3",
+        910,
+        910
+      ],
+      [
+        "Oracle",
+        820,
+        820
+      ],
+      [
+        "PostgreSQL",
+        730,
+        730
+      ],
+      [
+        "SharePoint",
+        640,
+        640
+      ],
+      [
+        "Databricks",
+        550,
+        550
+      ],
+      [
+        "BigQuery",
+        460,
+        460
+      ],
+      [
+        "Salesforce",
+        370,
+        370
+      ]
+    ]
+  },
+  "detail_failed_runs": {
+    "cols": [
+      "event",
+      "day",
+      "integration",
+      "namespace",
+      "records"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000,
+        1000,
+        "Snowflake asset 1",
+        1000
+      ],
+      [
+        "Amazon S3",
+        910,
+        910,
+        "Amazon S3 asset 2",
+        910
+      ],
+      [
+        "Oracle",
+        820,
+        820,
+        "Oracle asset 3",
+        820
+      ],
+      [
+        "PostgreSQL",
+        730,
+        730,
+        "PostgreSQL asset 4",
+        730
+      ],
+      [
+        "SharePoint",
+        640,
+        640,
+        "SharePoint asset 5",
+        640
+      ],
+      [
+        "Databricks",
+        550,
+        550,
+        "Databricks asset 6",
+        550
+      ],
+      [
+        "BigQuery",
+        460,
+        460,
+        "BigQuery asset 7",
+        460
+      ],
+      [
+        "Salesforce",
+        370,
+        370,
+        "Salesforce asset 8",
+        370
+      ]
+    ]
+  },
+  "run_calendar": {
+    "cols": [
+      "day",
+      "events",
+      "runs",
+      "fails"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000,
+        5000,
+        1000
+      ],
+      [
+        "Amazon S3",
+        910,
+        4400,
+        910
+      ],
+      [
+        "Oracle",
+        820,
+        3800,
+        820
+      ],
+      [
+        "PostgreSQL",
+        730,
+        3200,
+        730
+      ],
+      [
+        "SharePoint",
+        640,
+        2600,
+        640
+      ],
+      [
+        "Databricks",
+        550,
+        2000,
+        550
+      ],
+      [
+        "BigQuery",
+        460,
+        1400,
+        460
+      ],
+      [
+        "Salesforce",
+        370,
+        800,
+        370
+      ]
+    ]
+  },
+  "failure_rate_trend": {
+    "cols": [
+      "month",
+      "failure_rate"
+    ],
+    "rows": [
+      [
+        "Jan",
+        100.0
+      ],
+      [
+        "Feb",
+        86.4
+      ],
+      [
+        "Mar",
+        72.9
+      ],
+      [
+        "Apr",
+        59.3
+      ],
+      [
+        "May",
+        45.7
+      ],
+      [
+        "Jun",
+        32.1
+      ],
+      [
+        "Jul",
+        18.6
+      ],
+      [
+        "Aug",
+        5.0
+      ]
+    ]
+  },
+  "slowest": {
+    "cols": [
+      "job",
+      "avg_secs",
+      "runs",
+      "success_pct"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000,
+        5000,
+        100.0
+      ],
+      [
+        "Amazon S3",
+        910,
+        4400,
+        86.4
+      ],
+      [
+        "Oracle",
+        820,
+        3800,
+        72.9
+      ],
+      [
+        "PostgreSQL",
+        730,
+        3200,
+        59.3
+      ],
+      [
+        "SharePoint",
+        640,
+        2600,
+        45.7
+      ],
+      [
+        "Databricks",
+        550,
+        2000,
+        32.1
+      ],
+      [
+        "BigQuery",
+        460,
+        1400,
+        18.6
+      ],
+      [
+        "Salesforce",
+        370,
+        800,
+        5.0
+      ]
+    ]
+  },
+  "by_term": {
+    "cols": [
+      "term",
+      "entities"
+    ],
+    "rows": [
+      [
+        "Type A",
+        1000
+      ],
+      [
+        "Type B",
+        910
+      ],
+      [
+        "Type C",
+        820
+      ],
+      [
+        "Type D",
+        730
+      ],
+      [
+        "Type E",
+        640
+      ],
+      [
+        "Type F",
+        550
+      ],
+      [
+        "Type G",
+        460
+      ],
+      [
+        "Type H",
+        370
+      ]
+    ]
+  },
+  "scale": {
+    "cols": [
+      "s",
+      "n"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        5000
+      ],
+      [
+        "Amazon S3",
+        4400
+      ],
+      [
+        "Oracle",
+        3800
+      ],
+      [
+        "PostgreSQL",
+        3200
+      ],
+      [
+        "SharePoint",
+        2600
+      ],
+      [
+        "Databricks",
+        2000
+      ],
+      [
+        "BigQuery",
+        1400
+      ],
+      [
+        "Salesforce",
+        800
+      ]
+    ]
+  },
+  "heat_stacked": {
+    "cols": [
+      "term",
+      "n",
+      "src",
+      "entities"
+    ],
+    "rows": [
+      [
+        "Type A",
+        5000,
+        "Snowflake",
+        1000
+      ],
+      [
+        "Type B",
+        4400,
+        "Amazon S3",
+        910
+      ],
+      [
+        "Type C",
+        3800,
+        "Oracle",
+        820
+      ],
+      [
+        "Type D",
+        3200,
+        "PostgreSQL",
+        730
+      ],
+      [
+        "Type E",
+        2600,
+        "SharePoint",
+        640
+      ],
+      [
+        "Type F",
+        2000,
+        "Databricks",
+        550
+      ],
+      [
+        "Type G",
+        1400,
+        "BigQuery",
+        460
+      ],
+      [
+        "Type H",
+        800,
+        "Salesforce",
+        370
+      ]
+    ]
+  },
+  "privacy_trend": {
+    "cols": [
+      "first_key",
+      "month",
+      "ym",
+      "new_entities",
+      "cum_entities"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        "Jan",
+        "Jan",
+        1000,
+        1200
+      ],
+      [
+        "Amazon S3",
+        "Feb",
+        "Feb",
+        910,
+        2400
+      ],
+      [
+        "Oracle",
+        "Mar",
+        "Mar",
+        820,
+        3600
+      ],
+      [
+        "PostgreSQL",
+        "Apr",
+        "Apr",
+        730,
+        4800
+      ],
+      [
+        "SharePoint",
+        "May",
+        "May",
+        640,
+        6000
+      ],
+      [
+        "Databricks",
+        "Jun",
+        "Jun",
+        550,
+        7200
+      ],
+      [
+        "BigQuery",
+        "Jul",
+        "Jul",
+        460,
+        8400
+      ],
+      [
+        "Salesforce",
+        "Aug",
+        "Aug",
+        370,
+        9600
+      ]
+    ]
+  },
+  "null_dist": {
+    "cols": [
+      "band",
+      "cols"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000
+      ],
+      [
+        "Amazon S3",
+        910
+      ],
+      [
+        "Oracle",
+        820
+      ],
+      [
+        "PostgreSQL",
+        730
+      ],
+      [
+        "SharePoint",
+        640
+      ],
+      [
+        "Databricks",
+        550
+      ],
+      [
+        "BigQuery",
+        460
+      ],
+      [
+        "Salesforce",
+        370
+      ]
+    ]
+  },
+  "uniq_dist": {
+    "cols": [
+      "band",
+      "cols"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000
+      ],
+      [
+        "Amazon S3",
+        910
+      ],
+      [
+        "Oracle",
+        820
+      ],
+      [
+        "PostgreSQL",
+        730
+      ],
+      [
+        "SharePoint",
+        640
+      ],
+      [
+        "Databricks",
+        550
+      ],
+      [
+        "BigQuery",
+        460
+      ],
+      [
+        "Salesforce",
+        370
+      ]
+    ]
+  },
+  "uniq_by_source": {
+    "cols": [
+      "src",
+      "avg_uniq"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000
+      ],
+      [
+        "Amazon S3",
+        910
+      ],
+      [
+        "Oracle",
+        820
+      ],
+      [
+        "PostgreSQL",
+        730
+      ],
+      [
+        "SharePoint",
+        640
+      ],
+      [
+        "Databricks",
+        550
+      ],
+      [
+        "BigQuery",
+        460
+      ],
+      [
+        "Salesforce",
+        370
+      ]
+    ]
+  },
+  "top_cols": {
+    "cols": [
+      "col",
+      "src",
+      "card",
+      "null_pct",
+      "uniq"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        "Snowflake",
+        1000,
+        100.0,
+        1000
+      ],
+      [
+        "Amazon S3",
+        "Amazon S3",
+        910,
+        86.4,
+        910
+      ],
+      [
+        "Oracle",
+        "Oracle",
+        820,
+        72.9,
+        820
+      ],
+      [
+        "PostgreSQL",
+        "PostgreSQL",
+        730,
+        59.3,
+        730
+      ],
+      [
+        "SharePoint",
+        "SharePoint",
+        640,
+        45.7,
+        640
+      ],
+      [
+        "Databricks",
+        "Databricks",
+        550,
+        32.1,
+        550
+      ],
+      [
+        "BigQuery",
+        "BigQuery",
+        460,
+        18.6,
+        460
+      ],
+      [
+        "Salesforce",
+        "Salesforce",
+        370,
+        5.0,
+        370
+      ]
+    ]
+  },
+  "profiling_trend": {
+    "cols": [
+      "ym",
+      "ymn",
+      "new_entities",
+      "new_profiled",
+      "month",
+      "cum_entities",
+      "cum_profiled"
+    ],
+    "rows": [
+      [
+        "Jan",
+        "Jan",
+        1000,
+        1000,
+        "Jan",
+        1200,
+        1200
+      ],
+      [
+        "Feb",
+        "Feb",
+        910,
+        910,
+        "Feb",
+        2400,
+        2400
+      ],
+      [
+        "Mar",
+        "Mar",
+        820,
+        820,
+        "Mar",
+        3600,
+        3600
+      ],
+      [
+        "Apr",
+        "Apr",
+        730,
+        730,
+        "Apr",
+        4800,
+        4800
+      ],
+      [
+        "May",
+        "May",
+        640,
+        640,
+        "May",
+        6000,
+        6000
+      ],
+      [
+        "Jun",
+        "Jun",
+        550,
+        550,
+        "Jun",
+        7200,
+        7200
+      ],
+      [
+        "Jul",
+        "Jul",
+        460,
+        460,
+        "Jul",
+        8400,
+        8400
+      ],
+      [
+        "Aug",
+        "Aug",
+        370,
+        370,
+        "Aug",
+        9600,
+        9600
+      ]
+    ]
+  },
+  "savings_by_source": {
+    "cols": [
+      "src",
+      "tb"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        40.0
+      ],
+      [
+        "Amazon S3",
+        34.6
+      ],
+      [
+        "Oracle",
+        29.1
+      ],
+      [
+        "PostgreSQL",
+        23.7
+      ],
+      [
+        "SharePoint",
+        18.3
+      ],
+      [
+        "Databricks",
+        12.9
+      ],
+      [
+        "BigQuery",
+        7.4
+      ],
+      [
+        "Salesforce",
+        2.0
+      ]
+    ]
+  },
+  "dups_by_source": {
+    "cols": [
+      "src",
+      "dups"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000
+      ],
+      [
+        "Amazon S3",
+        910
+      ],
+      [
+        "Oracle",
+        820
+      ],
+      [
+        "PostgreSQL",
+        730
+      ],
+      [
+        "SharePoint",
+        640
+      ],
+      [
+        "Databricks",
+        550
+      ],
+      [
+        "BigQuery",
+        460
+      ],
+      [
+        "Salesforce",
+        370
+      ]
+    ]
+  },
+  "savings_by_sens": {
+    "cols": [
+      "sens",
+      "tb"
+    ],
+    "rows": [
+      [
+        "HIGH",
+        40.0
+      ],
+      [
+        "MEDIUM",
+        34.6
+      ],
+      [
+        "LOW",
+        29.1
+      ],
+      [
+        "Unclassified",
+        23.7
+      ],
+      [
+        "HIGH",
+        18.3
+      ],
+      [
+        "MEDIUM",
+        12.9
+      ],
+      [
+        "LOW",
+        7.4
+      ],
+      [
+        "Unclassified",
+        2.0
+      ]
+    ]
+  },
+  "top_dups": {
+    "cols": [
+      "name",
+      "src",
+      "sens",
+      "gb"
+    ],
+    "rows": [
+      [
+        "Snowflake asset 1",
+        "Snowflake",
+        "HIGH",
+        900.0
+      ],
+      [
+        "Amazon S3 asset 2",
+        "Amazon S3",
+        "MEDIUM",
+        778.6
+      ],
+      [
+        "Oracle asset 3",
+        "Oracle",
+        "LOW",
+        657.1
+      ],
+      [
+        "PostgreSQL asset 4",
+        "PostgreSQL",
+        "Unclassified",
+        535.7
+      ],
+      [
+        "SharePoint asset 5",
+        "SharePoint",
+        "HIGH",
+        414.3
+      ],
+      [
+        "Databricks asset 6",
+        "Databricks",
+        "MEDIUM",
+        292.9
+      ],
+      [
+        "BigQuery asset 7",
+        "BigQuery",
+        "LOW",
+        171.4
+      ],
+      [
+        "Salesforce asset 8",
+        "Salesforce",
+        "Unclassified",
+        50.0
+      ]
+    ]
+  },
+  "detail_dups": {
+    "cols": [
+      "name",
+      "src",
+      "gb",
+      "savings_gb",
+      "sensitivity",
+      "owner"
+    ],
+    "rows": [
+      [
+        "Snowflake asset 1",
+        "Snowflake",
+        900.0,
+        50000,
+        "HIGH",
+        "A. Chen"
+      ],
+      [
+        "Amazon S3 asset 2",
+        "Amazon S3",
+        778.6,
+        25000,
+        "MEDIUM",
+        "R. Patel"
+      ],
+      [
+        "Oracle asset 3",
+        "Oracle",
+        657.1,
+        16667,
+        "LOW",
+        "M. Garcia"
+      ],
+      [
+        "PostgreSQL asset 4",
+        "PostgreSQL",
+        535.7,
+        12500,
+        "Unclassified",
+        "—"
+      ],
+      [
+        "SharePoint asset 5",
+        "SharePoint",
+        414.3,
+        10000,
+        "HIGH",
+        "J. Kim"
+      ],
+      [
+        "Databricks asset 6",
+        "Databricks",
+        292.9,
+        8333,
+        "MEDIUM",
+        "A. Chen"
+      ],
+      [
+        "BigQuery asset 7",
+        "BigQuery",
+        171.4,
+        7143,
+        "LOW",
+        "R. Patel"
+      ],
+      [
+        "Salesforce asset 8",
+        "Salesforce",
+        50.0,
+        6250,
+        "Unclassified",
+        "M. Garcia"
+      ]
+    ]
+  },
+  "data_types": {
+    "cols": [
+      "dt",
+      "n"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        5000
+      ],
+      [
+        "Amazon S3",
+        4400
+      ],
+      [
+        "Oracle",
+        3800
+      ],
+      [
+        "PostgreSQL",
+        3200
+      ],
+      [
+        "SharePoint",
+        2600
+      ],
+      [
+        "Databricks",
+        2000
+      ],
+      [
+        "BigQuery",
+        1400
+      ],
+      [
+        "Salesforce",
+        800
+      ]
+    ]
+  },
+  "keys": {
+    "cols": [
+      "k",
+      "n"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        5000
+      ],
+      [
+        "Amazon S3",
+        4400
+      ],
+      [
+        "Oracle",
+        3800
+      ],
+      [
+        "PostgreSQL",
+        3200
+      ],
+      [
+        "SharePoint",
+        2600
+      ],
+      [
+        "Databricks",
+        2000
+      ],
+      [
+        "BigQuery",
+        1400
+      ],
+      [
+        "Salesforce",
+        800
+      ]
+    ]
+  },
+  "schemas_by_cols": {
+    "cols": [
+      "schema",
+      "cols"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000
+      ],
+      [
+        "Amazon S3",
+        910
+      ],
+      [
+        "Oracle",
+        820
+      ],
+      [
+        "PostgreSQL",
+        730
+      ],
+      [
+        "SharePoint",
+        640
+      ],
+      [
+        "Databricks",
+        550
+      ],
+      [
+        "BigQuery",
+        460
+      ],
+      [
+        "Salesforce",
+        370
+      ]
+    ]
+  },
+  "detail_schema_columns": {
+    "cols": [
+      "tbl",
+      "col",
+      "dtype"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000,
+        "Type A"
+      ],
+      [
+        "Amazon S3",
+        910,
+        "Type B"
+      ],
+      [
+        "Oracle",
+        820,
+        "Type C"
+      ],
+      [
+        "PostgreSQL",
+        730,
+        "Type D"
+      ],
+      [
+        "SharePoint",
+        640,
+        "Type E"
+      ],
+      [
+        "Databricks",
+        550,
+        "Type F"
+      ],
+      [
+        "BigQuery",
+        460,
+        "Type G"
+      ],
+      [
+        "Salesforce",
+        370,
+        "Type H"
+      ]
+    ]
+  },
+  "top_schemas": {
+    "cols": [
+      "schema",
+      "cols",
+      "tables"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000,
+        1000
+      ],
+      [
+        "Amazon S3",
+        910,
+        910
+      ],
+      [
+        "Oracle",
+        820,
+        820
+      ],
+      [
+        "PostgreSQL",
+        730,
+        730
+      ],
+      [
+        "SharePoint",
+        640,
+        640
+      ],
+      [
+        "Databricks",
+        550,
+        550
+      ],
+      [
+        "BigQuery",
+        460,
+        460
+      ],
+      [
+        "Salesforce",
+        370,
+        370
+      ]
+    ]
+  },
+  "schema_growth": {
+    "cols": [
+      "ym",
+      "new_tables",
+      "new_cols",
+      "total_tables",
+      "total_cols"
+    ],
+    "rows": [
+      [
+        "Jan",
+        1000,
+        1000,
+        5000,
+        5000
+      ],
+      [
+        "Feb",
+        910,
+        910,
+        4400,
+        4400
+      ],
+      [
+        "Mar",
+        820,
+        820,
+        3800,
+        3800
+      ],
+      [
+        "Apr",
+        730,
+        730,
+        3200,
+        3200
+      ],
+      [
+        "May",
+        640,
+        640,
+        2600,
+        2600
+      ],
+      [
+        "Jun",
+        550,
+        550,
+        2000,
+        2000
+      ],
+      [
+        "Jul",
+        460,
+        460,
+        1400,
+        1400
+      ],
+      [
+        "Aug",
+        370,
+        370,
+        800,
+        800
+      ]
+    ]
+  },
+  "headline": {
+    "cols": [
+      "assets",
+      "sources",
+      "governed_pct",
+      "complete_pct",
+      "stale_pct",
+      "high_sens",
+      "pipe_success",
+      "runs",
+      "gb_moved",
+      "integrations",
+      "terms",
+      "adoption_pct",
+      "policies",
+      "storage_tb",
+      "monthly_cost",
+      "dead_cols"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        "Snowflake",
+        100.0,
+        100.0,
+        100.0,
+        "HIGH",
+        1000,
+        5000,
+        900.0,
+        1000,
+        "Type A",
+        100.0,
+        1000,
+        40.0,
+        "Jan",
+        1000
+      ],
+      [
+        "Amazon S3",
+        "Amazon S3",
+        86.4,
+        86.4,
+        86.4,
+        "MEDIUM",
+        910,
+        4400,
+        778.6,
+        910,
+        "Type B",
+        86.4,
+        910,
+        34.6,
+        "Feb",
+        910
+      ],
+      [
+        "Oracle",
+        "Oracle",
+        72.9,
+        72.9,
+        72.9,
+        "LOW",
+        820,
+        3800,
+        657.1,
+        820,
+        "Type C",
+        72.9,
+        820,
+        29.1,
+        "Mar",
+        820
+      ],
+      [
+        "PostgreSQL",
+        "PostgreSQL",
+        59.3,
+        59.3,
+        59.3,
+        "Unclassified",
+        730,
+        3200,
+        535.7,
+        730,
+        "Type D",
+        59.3,
+        730,
+        23.7,
+        "Apr",
+        730
+      ],
+      [
+        "SharePoint",
+        "SharePoint",
+        45.7,
+        45.7,
+        45.7,
+        "HIGH",
+        640,
+        2600,
+        414.3,
+        640,
+        "Type E",
+        45.7,
+        640,
+        18.3,
+        "May",
+        640
+      ],
+      [
+        "Databricks",
+        "Databricks",
+        32.1,
+        32.1,
+        32.1,
+        "MEDIUM",
+        550,
+        2000,
+        292.9,
+        550,
+        "Type F",
+        32.1,
+        550,
+        12.9,
+        "Jun",
+        550
+      ],
+      [
+        "BigQuery",
+        "BigQuery",
+        18.6,
+        18.6,
+        18.6,
+        "LOW",
+        460,
+        1400,
+        171.4,
+        460,
+        "Type G",
+        18.6,
+        460,
+        7.4,
+        "Jul",
+        460
+      ],
+      [
+        "Salesforce",
+        "Salesforce",
+        5.0,
+        5.0,
+        5.0,
+        "Unclassified",
+        370,
+        800,
+        50.0,
+        370,
+        "Type H",
+        5.0,
+        370,
+        2.0,
+        "Aug",
+        370
+      ]
+    ]
+  },
+  "domain_health": {
+    "cols": [
+      "metric",
+      "pct"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        100.0
+      ],
+      [
+        "Amazon S3",
+        86.4
+      ],
+      [
+        "Oracle",
+        72.9
+      ],
+      [
+        "PostgreSQL",
+        59.3
+      ],
+      [
+        "SharePoint",
+        45.7
+      ],
+      [
+        "Databricks",
+        32.1
+      ],
+      [
+        "BigQuery",
+        18.6
+      ],
+      [
+        "Salesforce",
+        5.0
+      ]
+    ]
+  },
+  "growth": {
+    "cols": [
+      "ym",
+      "ymn",
+      "month",
+      "tb",
+      "cum_tb"
+    ],
+    "rows": [
+      [
+        "Jan",
+        "Jan",
+        "Jan",
+        40.0,
+        1200
+      ],
+      [
+        "Feb",
+        "Feb",
+        "Feb",
+        34.6,
+        2400
+      ],
+      [
+        "Mar",
+        "Mar",
+        "Mar",
+        29.1,
+        3600
+      ],
+      [
+        "Apr",
+        "Apr",
+        "Apr",
+        23.7,
+        4800
+      ],
+      [
+        "May",
+        "May",
+        "May",
+        18.3,
+        6000
+      ],
+      [
+        "Jun",
+        "Jun",
+        "Jun",
+        12.9,
+        7200
+      ],
+      [
+        "Jul",
+        "Jul",
+        "Jul",
+        7.4,
+        8400
+      ],
+      [
+        "Aug",
+        "Aug",
+        "Aug",
+        2.0,
+        9600
+      ]
+    ]
+  },
+  "throughput": {
+    "cols": [
+      "month",
+      "gb"
+    ],
+    "rows": [
+      [
+        "Jan",
+        900.0
+      ],
+      [
+        "Feb",
+        778.6
+      ],
+      [
+        "Mar",
+        657.1
+      ],
+      [
+        "Apr",
+        535.7
+      ],
+      [
+        "May",
+        414.3
+      ],
+      [
+        "Jun",
+        292.9
+      ],
+      [
+        "Jul",
+        171.4
+      ],
+      [
+        "Aug",
+        50.0
+      ]
+    ]
+  },
+  "risk_rank": {
+    "cols": [
+      "glossary",
+      "hm_entities"
+    ],
+    "rows": [
+      [
+        "Type A",
+        1000
+      ],
+      [
+        "Type B",
+        910
+      ],
+      [
+        "Type C",
+        820
+      ],
+      [
+        "Type D",
+        730
+      ],
+      [
+        "Type E",
+        640
+      ],
+      [
+        "Type F",
+        550
+      ],
+      [
+        "Type G",
+        460
+      ],
+      [
+        "Type H",
+        370
+      ]
+    ]
+  },
+  "detail_risk_domain": {
+    "cols": [
+      "name",
+      "term",
+      "sensitivity",
+      "owner"
+    ],
+    "rows": [
+      [
+        "Snowflake asset 1",
+        "Type A",
+        "HIGH",
+        "A. Chen"
+      ],
+      [
+        "Amazon S3 asset 2",
+        "Type B",
+        "MEDIUM",
+        "R. Patel"
+      ],
+      [
+        "Oracle asset 3",
+        "Type C",
+        "LOW",
+        "M. Garcia"
+      ],
+      [
+        "PostgreSQL asset 4",
+        "Type D",
+        "Unclassified",
+        "—"
+      ],
+      [
+        "SharePoint asset 5",
+        "Type E",
+        "HIGH",
+        "J. Kim"
+      ],
+      [
+        "Databricks asset 6",
+        "Type F",
+        "MEDIUM",
+        "A. Chen"
+      ],
+      [
+        "BigQuery asset 7",
+        "Type G",
+        "LOW",
+        "R. Patel"
+      ],
+      [
+        "Salesforce asset 8",
+        "Type H",
+        "Unclassified",
+        "M. Garcia"
+      ]
+    ]
+  },
+  "owners": {
+    "cols": [
+      "v",
+      "l",
+      "ord"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000,
+        1000
+      ],
+      [
+        "Amazon S3",
+        910,
+        910
+      ],
+      [
+        "Oracle",
+        820,
+        820
+      ],
+      [
+        "PostgreSQL",
+        730,
+        730
+      ],
+      [
+        "SharePoint",
+        640,
+        640
+      ],
+      [
+        "Databricks",
+        550,
+        550
+      ],
+      [
+        "BigQuery",
+        460,
+        460
+      ],
+      [
+        "Salesforce",
+        370,
+        370
+      ]
+    ]
+  },
+  "by_restype": {
+    "cols": [
+      "rt",
+      "tb"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        40.0
+      ],
+      [
+        "Amazon S3",
+        34.6
+      ],
+      [
+        "Oracle",
+        29.1
+      ],
+      [
+        "PostgreSQL",
+        23.7
+      ],
+      [
+        "SharePoint",
+        18.3
+      ],
+      [
+        "Databricks",
+        12.9
+      ],
+      [
+        "BigQuery",
+        7.4
+      ],
+      [
+        "Salesforce",
+        2.0
+      ]
+    ]
+  },
+  "size_dist": {
+    "cols": [
+      "assets",
+      "band"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000
+      ],
+      [
+        "Amazon S3",
+        910
+      ],
+      [
+        "Oracle",
+        820
+      ],
+      [
+        "PostgreSQL",
+        730
+      ],
+      [
+        "SharePoint",
+        640
+      ],
+      [
+        "Databricks",
+        550
+      ],
+      [
+        "BigQuery",
+        460
+      ],
+      [
+        "Salesforce",
+        370
+      ]
+    ]
+  },
+  "growth_cum": {
+    "cols": [
+      "ym",
+      "ymn",
+      "month",
+      "cum_tb"
+    ],
+    "rows": [
+      [
+        "Jan",
+        "Jan",
+        "Jan",
+        1200
+      ],
+      [
+        "Feb",
+        "Feb",
+        "Feb",
+        2400
+      ],
+      [
+        "Mar",
+        "Mar",
+        "Mar",
+        3600
+      ],
+      [
+        "Apr",
+        "Apr",
+        "Apr",
+        4800
+      ],
+      [
+        "May",
+        "May",
+        "May",
+        6000
+      ],
+      [
+        "Jun",
+        "Jun",
+        "Jun",
+        7200
+      ],
+      [
+        "Jul",
+        "Jul",
+        "Jul",
+        8400
+      ],
+      [
+        "Aug",
+        "Aug",
+        "Aug",
+        9600
+      ]
+    ]
+  },
+  "top_assets": {
+    "cols": [
+      "name",
+      "src",
+      "rt",
+      "gb"
+    ],
+    "rows": [
+      [
+        "Snowflake asset 1",
+        "Snowflake",
+        1000,
+        900.0
+      ],
+      [
+        "Amazon S3 asset 2",
+        "Amazon S3",
+        910,
+        778.6
+      ],
+      [
+        "Oracle asset 3",
+        "Oracle",
+        820,
+        657.1
+      ],
+      [
+        "PostgreSQL asset 4",
+        "PostgreSQL",
+        730,
+        535.7
+      ],
+      [
+        "SharePoint asset 5",
+        "SharePoint",
+        640,
+        414.3
+      ],
+      [
+        "Databricks asset 6",
+        "Databricks",
+        550,
+        292.9
+      ],
+      [
+        "BigQuery asset 7",
+        "BigQuery",
+        460,
+        171.4
+      ],
+      [
+        "Salesforce asset 8",
+        "Salesforce",
+        370,
+        50.0
+      ]
+    ]
+  },
+  "growth_by_source": {
+    "cols": [
+      "src",
+      "ym",
+      "ymn",
+      "month",
+      "cum_tb"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        "Jan",
+        "Jan",
+        "Jan",
+        1200
+      ],
+      [
+        "Amazon S3",
+        "Feb",
+        "Feb",
+        "Feb",
+        2400
+      ],
+      [
+        "Oracle",
+        "Mar",
+        "Mar",
+        "Mar",
+        3600
+      ],
+      [
+        "PostgreSQL",
+        "Apr",
+        "Apr",
+        "Apr",
+        4800
+      ],
+      [
+        "SharePoint",
+        "May",
+        "May",
+        "May",
+        6000
+      ],
+      [
+        "Databricks",
+        "Jun",
+        "Jun",
+        "Jun",
+        7200
+      ],
+      [
+        "BigQuery",
+        "Jul",
+        "Jul",
+        "Jul",
+        8400
+      ],
+      [
+        "Salesforce",
+        "Aug",
+        "Aug",
+        "Aug",
+        9600
+      ]
+    ]
+  },
+  "detail_assets": {
+    "cols": [
+      "name",
+      "src",
+      "restype",
+      "gb",
+      "sensitivity",
+      "owner"
+    ],
+    "rows": [
+      [
+        "Snowflake asset 1",
+        "Snowflake",
+        "Type A",
+        900.0,
+        "HIGH",
+        "A. Chen"
+      ],
+      [
+        "Amazon S3 asset 2",
+        "Amazon S3",
+        "Type B",
+        778.6,
+        "MEDIUM",
+        "R. Patel"
+      ],
+      [
+        "Oracle asset 3",
+        "Oracle",
+        "Type C",
+        657.1,
+        "LOW",
+        "M. Garcia"
+      ],
+      [
+        "PostgreSQL asset 4",
+        "PostgreSQL",
+        "Type D",
+        535.7,
+        "Unclassified",
+        "—"
+      ],
+      [
+        "SharePoint asset 5",
+        "SharePoint",
+        "Type E",
+        414.3,
+        "HIGH",
+        "J. Kim"
+      ],
+      [
+        "Databricks asset 6",
+        "Databricks",
+        "Type F",
+        292.9,
+        "MEDIUM",
+        "A. Chen"
+      ],
+      [
+        "BigQuery asset 7",
+        "BigQuery",
+        "Type G",
+        171.4,
+        "LOW",
+        "R. Patel"
+      ],
+      [
+        "Salesforce asset 8",
+        "Salesforce",
+        "Type H",
+        50.0,
+        "Unclassified",
+        "M. Garcia"
+      ]
+    ]
+  },
+  "adoption": {
+    "cols": [
+      "defined",
+      "in_use",
+      "status",
+      "n"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000,
+        "Success",
+        5000
+      ],
+      [
+        "Amazon S3",
+        910,
+        "Failed",
+        4400
+      ],
+      [
+        "Oracle",
+        820,
+        "Aborted",
+        3800
+      ],
+      [
+        "PostgreSQL",
+        730,
+        "Running",
+        3200
+      ],
+      [
+        "SharePoint",
+        640,
+        "Success",
+        2600
+      ],
+      [
+        "Databricks",
+        550,
+        "Failed",
+        2000
+      ],
+      [
+        "BigQuery",
+        460,
+        "Aborted",
+        1400
+      ],
+      [
+        "Salesforce",
+        370,
+        "Running",
+        800
+      ]
+    ]
+  },
+  "term_types": {
+    "cols": [
+      "term_type",
+      "n"
+    ],
+    "rows": [
+      [
+        "Type A",
+        5000
+      ],
+      [
+        "Type B",
+        4400
+      ],
+      [
+        "Type C",
+        3800
+      ],
+      [
+        "Type D",
+        3200
+      ],
+      [
+        "Type E",
+        2600
+      ],
+      [
+        "Type F",
+        2000
+      ],
+      [
+        "Type G",
+        1400
+      ],
+      [
+        "Type H",
+        800
+      ]
+    ]
+  },
+  "depth": {
+    "cols": [
+      "depth",
+      "n"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        5000
+      ],
+      [
+        "Amazon S3",
+        4400
+      ],
+      [
+        "Oracle",
+        3800
+      ],
+      [
+        "PostgreSQL",
+        3200
+      ],
+      [
+        "SharePoint",
+        2600
+      ],
+      [
+        "Databricks",
+        2000
+      ],
+      [
+        "BigQuery",
+        1400
+      ],
+      [
+        "Salesforce",
+        800
+      ]
+    ]
+  },
+  "ttypes": {
+    "cols": [
+      "v",
+      "l",
+      "ord"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000,
+        1000
+      ],
+      [
+        "Amazon S3",
+        910,
+        910
+      ],
+      [
+        "Oracle",
+        820,
+        820
+      ],
+      [
+        "PostgreSQL",
+        730,
+        730
+      ],
+      [
+        "SharePoint",
+        640,
+        640
+      ],
+      [
+        "Databricks",
+        550,
+        550
+      ],
+      [
+        "BigQuery",
+        460,
+        460
+      ],
+      [
+        "Salesforce",
+        370,
+        370
+      ]
+    ]
+  },
+  "term_adoption_trend": {
+    "cols": [
+      "first_key",
+      "month",
+      "ym",
+      "cum_entities",
+      "cum_classified"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        "Jan",
+        "Jan",
+        1200,
+        1200
+      ],
+      [
+        "Amazon S3",
+        "Feb",
+        "Feb",
+        2400,
+        2400
+      ],
+      [
+        "Oracle",
+        "Mar",
+        "Mar",
+        3600,
+        3600
+      ],
+      [
+        "PostgreSQL",
+        "Apr",
+        "Apr",
+        4800,
+        4800
+      ],
+      [
+        "SharePoint",
+        "May",
+        "May",
+        6000,
+        6000
+      ],
+      [
+        "Databricks",
+        "Jun",
+        "Jun",
+        7200,
+        7200
+      ],
+      [
+        "BigQuery",
+        "Jul",
+        "Jul",
+        8400,
+        8400
+      ],
+      [
+        "Salesforce",
+        "Aug",
+        "Aug",
+        9600,
+        9600
+      ]
+    ]
+  },
+  "by_extension": {
+    "cols": [
+      "ext",
+      "files"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        5000
+      ],
+      [
+        "Amazon S3",
+        4400
+      ],
+      [
+        "Oracle",
+        3800
+      ],
+      [
+        "PostgreSQL",
+        3200
+      ],
+      [
+        "SharePoint",
+        2600
+      ],
+      [
+        "Databricks",
+        2000
+      ],
+      [
+        "BigQuery",
+        1400
+      ],
+      [
+        "Salesforce",
+        800
+      ]
+    ]
+  },
+  "detail_files_by_ext": {
+    "cols": [
+      "name",
+      "src",
+      "owner",
+      "sensitivity"
+    ],
+    "rows": [
+      [
+        "Snowflake asset 1",
+        "Snowflake",
+        "A. Chen",
+        "HIGH"
+      ],
+      [
+        "Amazon S3 asset 2",
+        "Amazon S3",
+        "R. Patel",
+        "MEDIUM"
+      ],
+      [
+        "Oracle asset 3",
+        "Oracle",
+        "M. Garcia",
+        "LOW"
+      ],
+      [
+        "PostgreSQL asset 4",
+        "PostgreSQL",
+        "—",
+        "Unclassified"
+      ],
+      [
+        "SharePoint asset 5",
+        "SharePoint",
+        "J. Kim",
+        "HIGH"
+      ],
+      [
+        "Databricks asset 6",
+        "Databricks",
+        "A. Chen",
+        "MEDIUM"
+      ],
+      [
+        "BigQuery asset 7",
+        "BigQuery",
+        "R. Patel",
+        "LOW"
+      ],
+      [
+        "Salesforce asset 8",
+        "Salesforce",
+        "M. Garcia",
+        "Unclassified"
+      ]
+    ]
+  },
+  "flows": {
+    "cols": [
+      "src",
+      "dst",
+      "gb",
+      "conns"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000,
+        900.0,
+        1000
+      ],
+      [
+        "Amazon S3",
+        910,
+        778.6,
+        910
+      ],
+      [
+        "Oracle",
+        820,
+        657.1,
+        820
+      ],
+      [
+        "PostgreSQL",
+        730,
+        535.7,
+        730
+      ],
+      [
+        "SharePoint",
+        640,
+        414.3,
+        640
+      ],
+      [
+        "Databricks",
+        550,
+        292.9,
+        550
+      ],
+      [
+        "BigQuery",
+        460,
+        171.4,
+        460
+      ],
+      [
+        "Salesforce",
+        370,
+        50.0,
+        370
+      ]
+    ]
+  },
+  "detail_platform_flows": {
+    "cols": [
+      "flow",
+      "route",
+      "integ",
+      "records",
+      "gb"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000,
+        1000,
+        1000,
+        900.0
+      ],
+      [
+        "Amazon S3",
+        910,
+        910,
+        910,
+        778.6
+      ],
+      [
+        "Oracle",
+        820,
+        820,
+        820,
+        657.1
+      ],
+      [
+        "PostgreSQL",
+        730,
+        730,
+        730,
+        535.7
+      ],
+      [
+        "SharePoint",
+        640,
+        640,
+        640,
+        414.3
+      ],
+      [
+        "Databricks",
+        550,
+        550,
+        550,
+        292.9
+      ],
+      [
+        "BigQuery",
+        460,
+        460,
+        460,
+        171.4
+      ],
+      [
+        "Salesforce",
+        370,
+        370,
+        370,
+        50.0
+      ]
+    ]
+  },
+  "platform_matrix": {
+    "cols": [
+      "src_platform",
+      "dest_platform",
+      "gb"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        "Snowflake",
+        900.0
+      ],
+      [
+        "Amazon S3",
+        "Amazon S3",
+        778.6
+      ],
+      [
+        "Oracle",
+        "Oracle",
+        657.1
+      ],
+      [
+        "PostgreSQL",
+        "PostgreSQL",
+        535.7
+      ],
+      [
+        "SharePoint",
+        "SharePoint",
+        414.3
+      ],
+      [
+        "Databricks",
+        "Databricks",
+        292.9
+      ],
+      [
+        "BigQuery",
+        "BigQuery",
+        171.4
+      ],
+      [
+        "Salesforce",
+        "Salesforce",
+        50.0
+      ]
+    ]
+  },
+  "int_platform_flow": {
+    "cols": [
+      "integ",
+      "dest_platform",
+      "gb",
+      "conns"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        "Snowflake",
+        900.0,
+        1000
+      ],
+      [
+        "Amazon S3",
+        "Amazon S3",
+        778.6,
+        910
+      ],
+      [
+        "Oracle",
+        "Oracle",
+        657.1,
+        820
+      ],
+      [
+        "PostgreSQL",
+        "PostgreSQL",
+        535.7,
+        730
+      ],
+      [
+        "SharePoint",
+        "SharePoint",
+        414.3,
+        640
+      ],
+      [
+        "Databricks",
+        "Databricks",
+        292.9,
+        550
+      ],
+      [
+        "BigQuery",
+        "BigQuery",
+        171.4,
+        460
+      ],
+      [
+        "Salesforce",
+        "Salesforce",
+        50.0,
+        370
+      ]
+    ]
+  },
+  "matrix": {
+    "cols": [
+      "term",
+      "src",
+      "entities"
+    ],
+    "rows": [
+      [
+        "Type A",
+        "Snowflake",
+        1000
+      ],
+      [
+        "Type B",
+        "Amazon S3",
+        910
+      ],
+      [
+        "Type C",
+        "Oracle",
+        820
+      ],
+      [
+        "Type D",
+        "PostgreSQL",
+        730
+      ],
+      [
+        "Type E",
+        "SharePoint",
+        640
+      ],
+      [
+        "Type F",
+        "Databricks",
+        550
+      ],
+      [
+        "Type G",
+        "BigQuery",
+        460
+      ],
+      [
+        "Type H",
+        "Salesforce",
+        370
+      ]
+    ]
+  },
+  "scatter": {
+    "cols": [
+      "col",
+      "rows",
+      "card",
+      "uniq"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000,
+        1000,
+        1000
+      ],
+      [
+        "Amazon S3",
+        910,
+        910,
+        910
+      ],
+      [
+        "Oracle",
+        820,
+        820,
+        820
+      ],
+      [
+        "PostgreSQL",
+        730,
+        730,
+        730
+      ],
+      [
+        "SharePoint",
+        640,
+        640,
+        640
+      ],
+      [
+        "Databricks",
+        550,
+        550,
+        550
+      ],
+      [
+        "BigQuery",
+        460,
+        460,
+        460
+      ],
+      [
+        "Salesforce",
+        370,
+        370,
+        370
+      ]
+    ]
+  },
+  "heat": {
+    "cols": [
+      "glossary",
+      "sens",
+      "entities"
+    ],
+    "rows": [
+      [
+        "Type A",
+        "HIGH",
+        1000
+      ],
+      [
+        "Type B",
+        "MEDIUM",
+        910
+      ],
+      [
+        "Type C",
+        "LOW",
+        820
+      ],
+      [
+        "Type D",
+        "Unclassified",
+        730
+      ],
+      [
+        "Type E",
+        "HIGH",
+        640
+      ],
+      [
+        "Type F",
+        "MEDIUM",
+        550
+      ],
+      [
+        "Type G",
+        "LOW",
+        460
+      ],
+      [
+        "Type H",
+        "Unclassified",
+        370
+      ]
+    ]
+  },
+  "kpis": {
+    "cols": [
+      "gb_moved",
+      "total_runs",
+      "failed_runs",
+      "success_pct",
+      "restricted_ungov",
+      "cross_boundary",
+      "sensitive_conns"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        5000,
+        5000,
+        100.0,
+        1000,
+        1000,
+        "HIGH"
+      ],
+      [
+        "Amazon S3",
+        4400,
+        4400,
+        86.4,
+        910,
+        910,
+        "MEDIUM"
+      ],
+      [
+        "Oracle",
+        3800,
+        3800,
+        72.9,
+        820,
+        820,
+        "LOW"
+      ],
+      [
+        "PostgreSQL",
+        3200,
+        3200,
+        59.3,
+        730,
+        730,
+        "Unclassified"
+      ],
+      [
+        "SharePoint",
+        2600,
+        2600,
+        45.7,
+        640,
+        640,
+        "HIGH"
+      ],
+      [
+        "Databricks",
+        2000,
+        2000,
+        32.1,
+        550,
+        550,
+        "MEDIUM"
+      ],
+      [
+        "BigQuery",
+        1400,
+        1400,
+        18.6,
+        460,
+        460,
+        "LOW"
+      ],
+      [
+        "Salesforce",
+        800,
+        800,
+        5.0,
+        370,
+        370,
+        "Unclassified"
+      ]
+    ]
+  },
+  "edges": {
+    "cols": [
+      "source",
+      "target",
+      "gb",
+      "connections",
+      "src_sens",
+      "dest_ungoverned"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000,
+        900.0,
+        1000,
+        "Snowflake",
+        1000
+      ],
+      [
+        "Amazon S3",
+        910,
+        778.6,
+        910,
+        "Amazon S3",
+        910
+      ],
+      [
+        "Oracle",
+        820,
+        657.1,
+        820,
+        "Oracle",
+        820
+      ],
+      [
+        "PostgreSQL",
+        730,
+        535.7,
+        730,
+        "PostgreSQL",
+        730
+      ],
+      [
+        "SharePoint",
+        640,
+        414.3,
+        640,
+        "SharePoint",
+        640
+      ],
+      [
+        "Databricks",
+        550,
+        292.9,
+        550,
+        "Databricks",
+        550
+      ],
+      [
+        "BigQuery",
+        460,
+        171.4,
+        460,
+        "BigQuery",
+        460
+      ],
+      [
+        "Salesforce",
+        370,
+        50.0,
+        370,
+        "Salesforce",
+        370
+      ]
+    ]
+  },
+  "topflows": {
+    "cols": [
+      "flow",
+      "gb",
+      "connections",
+      "sensitivity",
+      "dest_governance"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        900.0,
+        1000,
+        "HIGH",
+        1000
+      ],
+      [
+        "Amazon S3",
+        778.6,
+        910,
+        "MEDIUM",
+        910
+      ],
+      [
+        "Oracle",
+        657.1,
+        820,
+        "LOW",
+        820
+      ],
+      [
+        "PostgreSQL",
+        535.7,
+        730,
+        "Unclassified",
+        730
+      ],
+      [
+        "SharePoint",
+        414.3,
+        640,
+        "HIGH",
+        640
+      ],
+      [
+        "Databricks",
+        292.9,
+        550,
+        "MEDIUM",
+        550
+      ],
+      [
+        "BigQuery",
+        171.4,
+        460,
+        "LOW",
+        460
+      ],
+      [
+        "Salesforce",
+        50.0,
+        370,
+        "Unclassified",
+        370
+      ]
+    ]
+  },
+  "detail_node_flows": {
+    "cols": [
+      "source",
+      "dest",
+      "integration",
+      "sensitivity",
+      "gb",
+      "conns"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000,
+        1000,
+        "HIGH",
+        900.0,
+        1000
+      ],
+      [
+        "Amazon S3",
+        910,
+        910,
+        "MEDIUM",
+        778.6,
+        910
+      ],
+      [
+        "Oracle",
+        820,
+        820,
+        "LOW",
+        657.1,
+        820
+      ],
+      [
+        "PostgreSQL",
+        730,
+        730,
+        "Unclassified",
+        535.7,
+        730
+      ],
+      [
+        "SharePoint",
+        640,
+        640,
+        "HIGH",
+        414.3,
+        640
+      ],
+      [
+        "Databricks",
+        550,
+        550,
+        "MEDIUM",
+        292.9,
+        550
+      ],
+      [
+        "BigQuery",
+        460,
+        460,
+        "LOW",
+        171.4,
+        460
+      ],
+      [
+        "Salesforce",
+        370,
+        370,
+        "Unclassified",
+        50.0,
+        370
+      ]
+    ]
+  },
+  "app_source_flow": {
+    "cols": [
+      "app",
+      "src",
+      "acc"
+    ],
+    "rows": [
+      [
+        "Tableau",
+        "Snowflake",
+        1000
+      ],
+      [
+        "PowerBI",
+        "Amazon S3",
+        910
+      ],
+      [
+        "Looker",
+        "Oracle",
+        820
+      ],
+      [
+        "Excel",
+        "PostgreSQL",
+        730
+      ],
+      [
+        "Custom API",
+        "SharePoint",
+        640
+      ],
+      [
+        "Tableau",
+        "Databricks",
+        550
+      ],
+      [
+        "PowerBI",
+        "BigQuery",
+        460
+      ],
+      [
+        "Looker",
+        "Salesforce",
+        370
+      ]
+    ]
+  },
+  "flow_matrix": {
+    "cols": [
+      "src_sens",
+      "dest_gov",
+      "conns"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000,
+        1000
+      ],
+      [
+        "Amazon S3",
+        910,
+        910
+      ],
+      [
+        "Oracle",
+        820,
+        820
+      ],
+      [
+        "PostgreSQL",
+        730,
+        730
+      ],
+      [
+        "SharePoint",
+        640,
+        640
+      ],
+      [
+        "Databricks",
+        550,
+        550
+      ],
+      [
+        "BigQuery",
+        460,
+        460
+      ],
+      [
+        "Salesforce",
+        370,
+        370
+      ]
+    ]
+  },
+  "cross_trend": {
+    "cols": [
+      "month",
+      "cross_boundary",
+      "sensitive"
+    ],
+    "rows": [
+      [
+        "Jan",
+        1000,
+        "HIGH"
+      ],
+      [
+        "Feb",
+        910,
+        "MEDIUM"
+      ],
+      [
+        "Mar",
+        820,
+        "LOW"
+      ],
+      [
+        "Apr",
+        730,
+        "Unclassified"
+      ],
+      [
+        "May",
+        640,
+        "HIGH"
+      ],
+      [
+        "Jun",
+        550,
+        "MEDIUM"
+      ],
+      [
+        "Jul",
+        460,
+        "LOW"
+      ],
+      [
+        "Aug",
+        370,
+        "Unclassified"
+      ]
+    ]
+  },
+  "quality_scatter": {
+    "cols": [
+      "src",
+      "comp_pct",
+      "gov_pct",
+      "assets"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        100.0,
+        100.0,
+        5000
+      ],
+      [
+        "Amazon S3",
+        86.4,
+        86.4,
+        4400
+      ],
+      [
+        "Oracle",
+        72.9,
+        72.9,
+        3800
+      ],
+      [
+        "PostgreSQL",
+        59.3,
+        59.3,
+        3200
+      ],
+      [
+        "SharePoint",
+        45.7,
+        45.7,
+        2600
+      ],
+      [
+        "Databricks",
+        32.1,
+        32.1,
+        2000
+      ],
+      [
+        "BigQuery",
+        18.6,
+        18.6,
+        1400
+      ],
+      [
+        "Salesforce",
+        5.0,
+        5.0,
+        800
+      ]
+    ]
+  },
+  "accessed_age": {
+    "cols": [
+      "band",
+      "assets"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        5000
+      ],
+      [
+        "Amazon S3",
+        4400
+      ],
+      [
+        "Oracle",
+        3800
+      ],
+      [
+        "PostgreSQL",
+        3200
+      ],
+      [
+        "SharePoint",
+        2600
+      ],
+      [
+        "Databricks",
+        2000
+      ],
+      [
+        "BigQuery",
+        1400
+      ],
+      [
+        "Salesforce",
+        800
+      ]
+    ]
+  },
+  "temp_trend": {
+    "cols": [
+      "month",
+      "cold",
+      "hotwarm"
+    ],
+    "rows": [
+      [
+        "Jan",
+        1000,
+        1000
+      ],
+      [
+        "Feb",
+        910,
+        910
+      ],
+      [
+        "Mar",
+        820,
+        820
+      ],
+      [
+        "Apr",
+        730,
+        730
+      ],
+      [
+        "May",
+        640,
+        640
+      ],
+      [
+        "Jun",
+        550,
+        550
+      ],
+      [
+        "Jul",
+        460,
+        460
+      ],
+      [
+        "Aug",
+        370,
+        370
+      ]
+    ]
+  },
+  "ungov_by_source": {
+    "cols": [
+      "src",
+      "ungoverned"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        1000
+      ],
+      [
+        "Amazon S3",
+        910
+      ],
+      [
+        "Oracle",
+        820
+      ],
+      [
+        "PostgreSQL",
+        730
+      ],
+      [
+        "SharePoint",
+        640
+      ],
+      [
+        "Databricks",
+        550
+      ],
+      [
+        "BigQuery",
+        460
+      ],
+      [
+        "Salesforce",
+        370
+      ]
+    ]
+  },
+  "policy_network": {
+    "cols": [
+      "policy",
+      "src",
+      "assigns"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        "Snowflake",
+        1000
+      ],
+      [
+        "Amazon S3",
+        "Amazon S3",
+        910
+      ],
+      [
+        "Oracle",
+        "Oracle",
+        820
+      ],
+      [
+        "PostgreSQL",
+        "PostgreSQL",
+        730
+      ],
+      [
+        "SharePoint",
+        "SharePoint",
+        640
+      ],
+      [
+        "Databricks",
+        "Databricks",
+        550
+      ],
+      [
+        "BigQuery",
+        "BigQuery",
+        460
+      ],
+      [
+        "Salesforce",
+        "Salesforce",
+        370
+      ]
+    ]
+  },
+  "top_owners": {
+    "cols": [
+      "owner",
+      "assets"
+    ],
+    "rows": [
+      [
+        "A. Chen",
+        5000
+      ],
+      [
+        "R. Patel",
+        4400
+      ],
+      [
+        "M. Garcia",
+        3800
+      ],
+      [
+        "—",
+        3200
+      ],
+      [
+        "J. Kim",
+        2600
+      ],
+      [
+        "A. Chen",
+        2000
+      ],
+      [
+        "R. Patel",
+        1400
+      ],
+      [
+        "M. Garcia",
+        800
+      ]
+    ]
+  },
+  "job_topology": {
+    "cols": [
+      "fails",
+      "tb",
+      "job",
+      "dest",
+      "bytes",
+      "conns"
+    ],
+    "rows": [
+      [
+        "Snowflake",
+        40.0,
+        1000,
+        1000,
+        130000000000,
+        1000
+      ],
+      [
+        "Amazon S3",
+        34.6,
+        910,
+        910,
+        260000000000,
+        910
+      ],
+      [
+        "Oracle",
+        29.1,
+        820,
+        820,
+        390000000000,
+        820
+      ],
+      [
+        "PostgreSQL",
+        23.7,
+        730,
+        730,
+        520000000000,
+        730
+      ],
+      [
+        "SharePoint",
+        18.3,
+        640,
+        640,
+        650000000000,
+        640
+      ],
+      [
+        "Databricks",
+        12.9,
+        550,
+        550,
+        780000000000,
+        550
+      ],
+      [
+        "BigQuery",
+        7.4,
+        460,
+        460,
+        910000000000,
+        460
+      ],
+      [
+        "Salesforce",
+        2.0,
+        370,
+        370,
+        1040000000000,
+        370
+      ]
+    ]
+  }
+}

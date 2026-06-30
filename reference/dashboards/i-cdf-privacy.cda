@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CDADescriptor>
+  <DataSources><Connection id="pdc" type="sql.jndi"><Jndi>PDC-BIDB-EXT</Jndi></Connection></DataSources>
+
+  <DataAccess id="kpi" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>KPI</Name><Parameters><Parameter name="ds" type="String" default="%"/><Parameter name="sens" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      WITH priv AS (
+        SELECT DISTINCT f.entity_key, COALESCE(NULLIF(g.leaf_name,''),g.term_name) AS term, e.sensitivity
+        FROM fact_entity_term f
+        JOIN dim_glossary_term g ON f.glossary_term_key=g.glossary_term_key
+        JOIN dim_entity e ON f.entity_key=e.entity_key
+        LEFT JOIN dim_datasource dd ON md5(e.datasource_nk)=dd.datasource_key
+        WHERE lower(g.term_name||' '||COALESCE(g.leaf_name,'')) ~ '(pii|restrict|classif|sensitive|confidential|gdpr|hipaa|pci|phi|secret|personal)'
+          AND COALESCE(dd.datasource_type,'') LIKE ${ds}
+          AND COALESCE(e.sensitivity,'') LIKE ${sens})
+      SELECT count(DISTINCT entity_key) AS priv_assets, count(DISTINCT term) AS terms,
+             count(DISTINCT entity_key) FILTER (WHERE sensitivity IN ('HIGH','MEDIUM')) AS elevated,
+             count(DISTINCT entity_key) FILTER (WHERE sensitivity='HIGH') AS high
+      FROM priv
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="by_term" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>ByTerm</Name><Parameters><Parameter name="ds" type="String" default="%"/><Parameter name="sens" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT COALESCE(NULLIF(g.leaf_name,''),g.term_name) AS term, count(DISTINCT f.entity_key) AS entities
+      FROM fact_entity_term f
+      JOIN dim_glossary_term g ON f.glossary_term_key=g.glossary_term_key
+      JOIN dim_entity e ON f.entity_key=e.entity_key
+      LEFT JOIN dim_datasource dd ON md5(e.datasource_nk)=dd.datasource_key
+      WHERE lower(g.term_name||' '||COALESCE(g.leaf_name,'')) ~ '(pii|restrict|classif|sensitive|confidential|gdpr|hipaa|pci|phi|secret|personal)'
+        AND COALESCE(dd.datasource_type,'') LIKE ${ds}
+        AND COALESCE(e.sensitivity,'') LIKE ${sens}
+      GROUP BY 1 ORDER BY 2 DESC LIMIT 12
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="scale" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>Scale</Name><Parameters><Parameter name="ds" type="String" default="%"/><Parameter name="sens" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT e.sensitivity AS s, count(*) AS n
+      FROM dim_entity e
+      LEFT JOIN dim_datasource dd ON md5(e.datasource_nk)=dd.datasource_key
+      WHERE e.sensitivity IN ('LOW','MEDIUM','HIGH')
+        AND COALESCE(dd.datasource_type,'') LIKE ${ds}
+        AND e.sensitivity LIKE ${sens}
+      GROUP BY 1
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="by_source" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>BySource</Name><Parameters><Parameter name="ds" type="String" default="%"/><Parameter name="sens" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT COALESCE(NULLIF(dd.datasource_type,''),'Unknown') AS src, count(DISTINCT f.entity_key) AS entities
+      FROM fact_entity_term f
+      JOIN dim_glossary_term g ON f.glossary_term_key=g.glossary_term_key
+      JOIN dim_entity e ON f.entity_key=e.entity_key
+      LEFT JOIN dim_datasource dd ON md5(e.datasource_nk)=dd.datasource_key
+      WHERE lower(g.term_name||' '||COALESCE(g.leaf_name,'')) ~ '(pii|restrict|classif|sensitive|confidential|gdpr|hipaa|pci|phi|secret|personal)'
+        AND COALESCE(dd.datasource_type,'') LIKE ${ds}
+        AND COALESCE(e.sensitivity,'') LIKE ${sens}
+      GROUP BY 1 ORDER BY 2 DESC
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="heat_stacked" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>HeatStacked</Name><Parameters><Parameter name="ds" type="String" default="%"/><Parameter name="sens" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      WITH tt AS (
+        SELECT COALESCE(NULLIF(g.leaf_name,''),g.term_name) AS term, count(DISTINCT f.entity_key) AS n
+        FROM fact_entity_term f JOIN dim_glossary_term g ON f.glossary_term_key=g.glossary_term_key
+        WHERE lower(g.term_name||' '||COALESCE(g.leaf_name,'')) ~ '(pii|restrict|classif|sensitive|confidential|gdpr|hipaa|pci|phi|secret|personal)'
+        GROUP BY 1 ORDER BY 2 DESC LIMIT 8)
+      SELECT COALESCE(NULLIF(dd.datasource_type,''),'Unknown') AS src,
+             COALESCE(NULLIF(g.leaf_name,''),g.term_name) AS term, count(DISTINCT f.entity_key) AS entities
+      FROM fact_entity_term f
+      JOIN dim_glossary_term g ON f.glossary_term_key=g.glossary_term_key
+      JOIN dim_entity e ON f.entity_key=e.entity_key
+      LEFT JOIN dim_datasource dd ON md5(e.datasource_nk)=dd.datasource_key
+      WHERE lower(g.term_name||' '||COALESCE(g.leaf_name,'')) ~ '(pii|restrict|classif|sensitive|confidential|gdpr|hipaa|pci|phi|secret|personal)'
+        AND COALESCE(NULLIF(g.leaf_name,''),g.term_name) IN (SELECT term FROM tt)
+        AND COALESCE(dd.datasource_type,'') LIKE ${ds}
+        AND COALESCE(e.sensitivity,'') LIKE ${sens}
+      GROUP BY 1,2 ORDER BY 1,2
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="privacy_trend" connection="pdc" type="sql" access="public" cache="true" cacheDuration="180">
+    <Name>PrivTrend</Name><Parameters><Parameter name="ds" type="String" default="%"/><Parameter name="sens" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      WITH first_priv AS (
+        SELECT fp.entity_key, MIN(s.scanned_date_key) AS first_key
+        FROM (SELECT DISTINCT f.entity_key
+              FROM fact_entity_term f JOIN dim_glossary_term g ON f.glossary_term_key=g.glossary_term_key
+              JOIN dim_entity e ON f.entity_key=e.entity_key
+              LEFT JOIN dim_datasource dd ON md5(e.datasource_nk)=dd.datasource_key
+              WHERE lower(g.term_name||' '||COALESCE(g.leaf_name,'')) ~ '(pii|restrict|classif|sensitive|confidential|gdpr|hipaa|pci|phi|secret|personal)'
+                AND COALESCE(dd.datasource_type,'') LIKE ${ds}
+                AND COALESCE(e.sensitivity,'') LIKE ${sens}) fp
+        JOIN fact_entity_snapshot s ON fp.entity_key=s.entity_key
+        WHERE s.scanned_date_key<>19000101
+        GROUP BY fp.entity_key)
+      SELECT d.year_month_name AS month, d.year_month_number AS ym,
+             COUNT(*) AS new_entities,
+             SUM(COUNT(*)) OVER (ORDER BY d.year_month_number) AS cum_entities
+      FROM first_priv fp JOIN dim_date d ON fp.first_key=d.date_key
+      GROUP BY d.year_month_name, d.year_month_number
+      ORDER BY d.year_month_number
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="datasources" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>DataSources</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT '%' AS v, 'All sources' AS l, 0 AS ord
+      UNION ALL
+      SELECT DISTINCT datasource_type AS v, datasource_type AS l, 1 AS ord
+        FROM dim_datasource WHERE datasource_type IS NOT NULL AND datasource_type<>''
+      ORDER BY ord, l
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="sensitivities" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>Sensitivities</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT '%' AS v, 'All sensitivities' AS l, 0 AS ord
+      UNION ALL
+      SELECT DISTINCT sensitivity AS v, sensitivity AS l, 1 AS ord
+        FROM dim_entity WHERE sensitivity IS NOT NULL AND sensitivity<>''
+      ORDER BY ord, l
+    ]]></Query>
+  </DataAccess>
+</CDADescriptor>

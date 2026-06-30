@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CDADescriptor>
+  <DataSources><Connection id="pdc" type="sql.jndi"><Jndi>PDC-BIDB-EXT</Jndi></Connection></DataSources>
+
+  <DataAccess id="kpi" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>KPI</Name><Parameters><Parameter name="fromkey" type="Integer" default="0"/><Parameter name="srcsens" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT (SELECT SUM(restricted_to_ungoverned_count) FROM fact_lineage_connection
+               WHERE event_date_key >= ${fromkey}
+                 AND COALESCE(regexp_replace(source_sensitivity,'^[0-9]+\.\s*',''),'Unknown') LIKE ${srcsens}) AS restricted_ungov,
+             (SELECT SUM(sensitive_connection_count) FROM fact_lineage_connection
+               WHERE event_date_key >= ${fromkey}
+                 AND COALESCE(regexp_replace(source_sensitivity,'^[0-9]+\.\s*',''),'Unknown') LIKE ${srcsens}) AS sensitive_conns,
+             (SELECT SUM(cross_boundary_count) FROM fact_lineage_connection
+               WHERE event_date_key >= ${fromkey}
+                 AND COALESCE(regexp_replace(source_sensitivity,'^[0-9]+\.\s*',''),'Unknown') LIKE ${srcsens}) AS cross_boundary,
+             (SELECT SUM(s.entity_count) FROM fact_entity_snapshot s JOIN dim_entity e ON s.entity_key=e.entity_key
+                WHERE e.sensitivity ILIKE 'high' OR e.sensitivity ILIKE 'medium') AS sensitive_assets
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="flow_stacked" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>FlowStacked</Name><Parameters><Parameter name="fromkey" type="Integer" default="0"/><Parameter name="srcsens" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT COALESCE(dest_governed_label,'Unknown') AS dest_gov,
+             COALESCE(regexp_replace(source_sensitivity,'^[0-9]+\.\s*',''),'Unknown') AS src_sens,
+             SUM(connection_count) AS conns
+      FROM fact_lineage_connection
+      WHERE source_sensitivity IS NOT NULL AND event_date_key >= ${fromkey}
+        AND COALESCE(regexp_replace(source_sensitivity,'^[0-9]+\.\s*',''),'Unknown') LIKE ${srcsens}
+      GROUP BY 1,2 ORDER BY 1,2
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="sens_mix" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>SensMix</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT COALESCE(NULLIF(e.sensitivity,''),'Unclassified') AS sens, SUM(s.entity_count) AS assets
+      FROM fact_entity_snapshot s JOIN dim_entity e ON s.entity_key=e.entity_key
+      GROUP BY 1 ORDER BY 2 DESC
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="detail_by_sensitivity" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>DetailBySensitivity</Name><Parameters><Parameter name="sens" type="String" default="%"/></Parameters>
+    <Query><![CDATA[ SELECT COALESCE(NULLIF(e.entity_name,''),'(unnamed)') AS name,
+      d.datasource_type AS src,
+      COALESCE(NULLIF(e.sensitivity,''),'Unclassified') AS sensitivity,
+      COALESCE(NULLIF(s.governance_coverage_status,''),'—') AS governance,
+      COALESCE(NULLIF(e.owner_name,''),'—') AS owner
+      FROM fact_entity_snapshot s
+      JOIN dim_entity e ON s.entity_key=e.entity_key
+      JOIN dim_datasource d ON s.datasource_key=d.datasource_key
+      WHERE COALESCE(NULLIF(e.sensitivity,''),'Unclassified') LIKE ${sens}
+      ORDER BY d.datasource_type, e.entity_name ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="bytes_by_dest_sens" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>BytesByDestSens</Name><Parameters><Parameter name="fromkey" type="Integer" default="0"/><Parameter name="srcsens" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT COALESCE(regexp_replace(dest_sensitivity,'^[0-9]+\.\s*',''),'Unknown') AS sens,
+             ROUND(SUM(bytes_moved)/1e9::numeric,1) AS gb
+      FROM fact_lineage_connection
+      WHERE dest_sensitivity IS NOT NULL AND event_date_key >= ${fromkey}
+        AND COALESCE(regexp_replace(source_sensitivity,'^[0-9]+\.\s*',''),'Unknown') LIKE ${srcsens}
+      GROUP BY 1 ORDER BY 2 DESC
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="restricted_by_source" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>RestrictedBySource</Name><Parameters><Parameter name="fromkey" type="Integer" default="0"/><Parameter name="srcsens" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT orig_namespace AS src, SUM(restricted_to_ungoverned_count) AS flows
+      FROM fact_lineage_connection
+      WHERE event_date_key >= ${fromkey}
+        AND COALESCE(regexp_replace(source_sensitivity,'^[0-9]+\.\s*',''),'Unknown') LIKE ${srcsens}
+      GROUP BY 1 HAVING SUM(restricted_to_ungoverned_count) > 0 ORDER BY 2 DESC LIMIT 15
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="detail_restricted_flows" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>DetailRestrictedFlows</Name><Parameters><Parameter name="src" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT (COALESCE(NULLIF(orig_name,''),'(unnamed)') || '  →  ' || COALESCE(NULLIF(dest_name,''),'(unnamed)')) AS flow,
+             regexp_replace(COALESCE(dest_sensitivity,'—'),'^[0-9]+\.\s*','') AS dest_sens,
+             COALESCE(dest_governed_label,'—') AS governance,
+             SUM(record_count) AS records,
+             ROUND(SUM(bytes_moved)/1e9::numeric,2) AS gb
+      FROM fact_lineage_connection
+      WHERE restricted_to_ungoverned_count > 0 AND orig_namespace LIKE ${src}
+      GROUP BY 1,2,3 ORDER BY records DESC
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="cross_trend_long" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>CrossTrendLong</Name><Parameters><Parameter name="fromkey" type="Integer" default="0"/><Parameter name="srcsens" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      WITH t AS (
+        SELECT to_char(to_date(event_date_key::text,'YYYYMMDD'),'YYYY-MM') AS mon,
+               SUM(cross_boundary_count) AS cb, SUM(sensitive_connection_count) AS s
+        FROM fact_lineage_connection
+        WHERE event_date_key <> 19000101 AND event_date_key >= ${fromkey}
+          AND COALESCE(regexp_replace(source_sensitivity,'^[0-9]+\.\s*',''),'Unknown') LIKE ${srcsens}
+        GROUP BY 1)
+      SELECT 'Cross-Boundary' AS metric, mon, cb AS val FROM t
+      UNION ALL SELECT 'Sensitive', mon, s FROM t ORDER BY mon, metric
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="ranges" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>Ranges</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT 0 AS v, 'All time' AS l, 0 AS ord
+      UNION ALL SELECT to_char(current_date-365,'YYYYMMDD')::int, 'Last 12 months', 1
+      UNION ALL SELECT to_char(current_date-180,'YYYYMMDD')::int, 'Last 6 months', 2
+      UNION ALL SELECT to_char(current_date-90,'YYYYMMDD')::int, 'Last 90 days', 3
+      ORDER BY ord
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="src_sensitivities" connection="pdc" type="sql" access="public" cache="true" cacheDuration="300">
+    <Name>SrcSensitivities</Name><Parameters/>
+    <Query><![CDATA[
+      SELECT '%' AS v, 'All Sensitivities' AS l, 0 AS ord
+      UNION ALL
+      SELECT DISTINCT COALESCE(regexp_replace(source_sensitivity,'^[0-9]+\.\s*',''),'Unknown'),
+             COALESCE(regexp_replace(source_sensitivity,'^[0-9]+\.\s*',''),'Unknown'), 1
+      FROM fact_lineage_connection WHERE source_sensitivity IS NOT NULL
+      ORDER BY ord, v
+    ]]></Query>
+  </DataAccess>
+
+  <DataAccess id="sens_to_sens_flow" connection="pdc" type="sql" access="public" cache="true" cacheDuration="120">
+    <Name>SensToSensFlow</Name><Parameters><Parameter name="fromkey" type="Integer" default="0"/><Parameter name="srcsens" type="String" default="%"/></Parameters>
+    <Query><![CDATA[
+      SELECT COALESCE(regexp_replace(source_sensitivity,'^[0-9]+\.\s*',''),'Unknown') AS src_sens,
+             COALESCE(regexp_replace(dest_sensitivity,'^[0-9]+\.\s*',''),'Unknown') AS dst_sens,
+             SUM(connection_count) AS conns,
+             ROUND(SUM(bytes_moved)/1e9::numeric,1) AS gb
+      FROM fact_lineage_connection
+      WHERE source_sensitivity IS NOT NULL AND dest_sensitivity IS NOT NULL
+        AND event_date_key >= ${fromkey}
+        AND COALESCE(regexp_replace(source_sensitivity,'^[0-9]+\.\s*',''),'Unknown') LIKE ${srcsens}
+      GROUP BY 1,2 ORDER BY 3 DESC
+    ]]></Query>
+  </DataAccess>
+</CDADescriptor>

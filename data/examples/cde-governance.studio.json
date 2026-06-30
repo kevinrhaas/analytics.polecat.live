@@ -1,0 +1,108 @@
+{
+  "schema": 1,
+  "id": "cde-governance",
+  "name": "cde-governance",
+  "title": "Policy & Governance Coverage",
+  "description": "CDE-authored — governed % by source, governance-status mix & ungoverned assets by source over PDC-BIDB-EXT.",
+  "group": "Governance & Privacy",
+  "cda": {
+    "connection": {
+      "id": "pdc",
+      "jndi": "PDC-BIDB-EXT"
+    },
+    "dataAccesses": [
+      {
+        "id": "govPctBySource",
+        "name": "GovPctBySource",
+        "params": [],
+        "cache": true,
+        "cacheDuration": 300,
+        "sql": "SELECT d.datasource_type AS src, ROUND(100.0*SUM(s.governed_entity_count)/NULLIF(SUM(s.entity_count),0),1) AS governed_pct FROM fact_entity_snapshot s JOIN dim_datasource d ON s.datasource_key=d.datasource_key GROUP BY 1 ORDER BY 2 DESC",
+        "columns": [
+          "src",
+          "governed_pct"
+        ]
+      },
+      {
+        "id": "govStatusMix",
+        "name": "GovStatusMix",
+        "params": [],
+        "cache": true,
+        "cacheDuration": 300,
+        "sql": "SELECT COALESCE(NULLIF(regexp_replace(s.governance_coverage_status,'^[0-9]+\\.\\s*',''),''),'Unknown') AS status, SUM(s.entity_count) AS assets FROM fact_entity_snapshot s GROUP BY 1 ORDER BY 2 DESC",
+        "columns": [
+          "status",
+          "assets"
+        ]
+      },
+      {
+        "id": "ungovBySource",
+        "name": "UngovBySource",
+        "params": [],
+        "cache": true,
+        "cacheDuration": 300,
+        "sql": "SELECT d.datasource_type AS src, SUM(s.ungoverned_entity_count) AS ungoverned FROM fact_entity_snapshot s JOIN dim_datasource d ON s.datasource_key=d.datasource_key GROUP BY 1 ORDER BY 2 DESC",
+        "columns": [
+          "src",
+          "ungoverned"
+        ]
+      }
+    ]
+  },
+  "gridCols": 2,
+  "panels": [
+    {
+      "id": "p1",
+      "title": "Gov Pct By Source",
+      "span": 1,
+      "chart": {
+        "type": "bars",
+        "da": "govPctBySource",
+        "map": {
+          "labelCol": "src",
+          "valueCol": "governed_pct"
+        },
+        "opts": {
+          "fmt": "gb",
+          "valuesVisible": true,
+          "horizontal": true
+        }
+      }
+    },
+    {
+      "id": "p2",
+      "title": "Gov Status Mix",
+      "span": 1,
+      "chart": {
+        "type": "donut",
+        "da": "govStatusMix",
+        "map": {
+          "labelCol": "status",
+          "valueCol": "assets"
+        },
+        "opts": {
+          "fmt": "abbr",
+          "valuesVisible": true
+        }
+      }
+    },
+    {
+      "id": "p3",
+      "title": "Ungov By Source",
+      "span": "full",
+      "chart": {
+        "type": "bars",
+        "da": "ungovBySource",
+        "map": {
+          "labelCol": "src",
+          "valueCol": "ungoverned"
+        },
+        "opts": {
+          "fmt": "abbr",
+          "valuesVisible": true,
+          "horizontal": false
+        }
+      }
+    }
+  ]
+}
