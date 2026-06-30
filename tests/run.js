@@ -763,7 +763,7 @@ function serve() {
       var copy = rows.length && [].slice.call(rows[0].querySelectorAll("button")).some(function (b) { return /copy/i.test(b.textContent); });
       return { rows: rows.length, copy: copy };
     });
-    ok("export modal lists all 5 artifacts with copy buttons", modalInfo.rows === 5 && modalInfo.copy, JSON.stringify(modalInfo));
+    ok("export modal lists all 3 artifacts with copy buttons", modalInfo.rows === 3 && modalInfo.copy, JSON.stringify(modalInfo));
     await page.evaluate(() => { var x = document.querySelector(".modal-h .x"); if (x) x.click(); });
 
     // ---- per-series color picker (line/stacked) ----
@@ -1191,16 +1191,15 @@ function serve() {
     const outDir = fs.mkdtempSync(path.join(os.tmpdir(), "studio-cli-"));
     cp.execFileSync("node", [path.join(ROOT, "tools", "export.js"), path.join(ROOT, "data", "examples", "studio-cost.studio.json"), outDir, "/public/pdc-iteration/v2"]);
     const cliFiles = fs.readdirSync(outDir).sort();
-    ok("CLI exporter writes .cda/.cdfde/.html/.wcdf", ["studio-cost.cda", "studio-cost.cdfde", "studio-cost.html", "studio-cost.wcdf"].every((f) => cliFiles.includes(f)), cliFiles.join(","));
-    let cliJson = false; try { JSON.parse(fs.readFileSync(path.join(outDir, "studio-cost.cdfde"), "utf8")); cliJson = true; } catch (e) {}
+    ok("CLI exporter writes .cda/.html", ["studio-cost.cda", "studio-cost.html"].every((f) => cliFiles.includes(f)), cliFiles.join(","));
     const cliHtml = fs.readFileSync(path.join(outDir, "studio-cost.html"), "utf8");
-    ok("CLI artifacts are well-formed (cdfde JSON + html self-contained)", cliJson && cliHtml.includes("window.STUDIO_SPEC") && cliHtml.includes("PDC.bars"));
+    ok("CLI artifacts are well-formed (html self-contained)", cliHtml.includes("window.STUDIO_SPEC") && cliHtml.includes("PDC.bars"));
 
     // ---- CLI publish (push.js) + scheduler-job request shaping (--dry-run) ----
     console.log("\n• CLI publish / schedule (dry-run)");
     const pushOut = cp.execFileSync("node", [path.join(ROOT, "tools", "push.js"), "--spec", path.join(ROOT, "data", "examples", "studio-cost.studio.json"), "--dry-run", "--server", "http://localhost:8080/pentaho", "--deploy", "/public/pdc-iteration/v2"]).toString();
     const pubLines = (pushOut.match(/publish\/publishfile/g) || []).length;
-    ok("push --dry-run shapes 4 publishfile requests at the deploy path", pubLines === 4 && /importPath=\/public\/pdc-iteration\/v2/.test(pushOut), "lines=" + pubLines);
+    ok("push --dry-run shapes 2 publishfile requests at the deploy path", pubLines === 2 && /importPath=\/public\/pdc-iteration\/v2/.test(pushOut), "lines=" + pubLines);
     const kettleXml = path.join(outDir, "ss.xml");
     fs.writeFileSync(kettleXml, "<slaveservers><slaveserver><name>Local</name><hostname>localhost</hostname><port>8080</port><webAppName>pentaho</webAppName><username>admin</username><password>pw</password></slaveserver></slaveservers>");
     const pushK = cp.execFileSync("node", [path.join(ROOT, "tools", "push.js"), "--spec", path.join(ROOT, "data", "examples", "studio-cost.studio.json"), "--dry-run", "--kettle", kettleXml]).toString();

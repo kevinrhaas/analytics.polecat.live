@@ -312,6 +312,64 @@
 
 ## NEXT (top = do first)
 
+### ★ Z. Analytics App platform — the new north star (user-requested 2026-06-30; build across many iterations)
+> The studio is becoming a multi-section **analytics application**, not just a dashboard builder.
+> Build this incrementally — one small, shippable, tested slice per loop. Keep it pure HTML/JS with all
+> config saved **locally** (localStorage / file import-export); **NO backend/database/app-server for now**
+> (revisit only if truly forced). Aesthetic: **fun, clean, elegant, a little game-like** (not corny) —
+> "almost game-like in its fun-ness."
+
+**Design language (pulled from polecat.live / app.polecat.live):**
+- Warm-dark base: plum-black `#2E2A33` / `#3A2F3A` / `#0a0a0f` backgrounds, cream `#F5E9D6` text.
+- Primary accent terracotta `#d4773b` / `#f55036`; playful multi-accent set for section icons:
+  violet `#8b5cf6`, blue `#4285f4`, teal `#10a37f`, amber `#ffb000`, salmon `#F4A6A6`, bronze `#9C6B3F`.
+- System font stack. Each left-rail section gets ONE accent color (single-color icon). Tasteful motion
+  (respect `prefers-reduced-motion`); keep the existing light/dark toggle.
+
+**Z1 — App shell with a collapsible left rail.** A vertical left nav of single-color icons; collapses to
+icons-only, expands to icon+label. Each icon opens its section as the right-hand panel. Sections
+(Repository model): **Home · Repository · Studio · Settings** (Studio = the existing builder, now one
+section among several). Persist collapsed/expanded + active section in localStorage. Keyboard nav + a11y.
+Do this first as the frame; move the current builder under the Studio icon with zero feature loss.
+
+**Z2 — Home.** Landing section: recents, favorites, folders, quick-create, branding, the welcome-tour
+launcher, instructions / how-tos / tips. Lively and inviting (game-like cards, subtle motion, hover life).
+
+**Z3 — Repository (Data Sources + Workbooks).** One "repository" holding **data-source definitions** and
+**workbook definitions** (a workbook = a named collection of HTML dashboards). Browse/search/organize into
+folders; CRUD; stored locally; import/export the whole repository as JSON. Consolidates the old "data
+source library" and "dashboard inventory" ideas into one place.
+
+**Z4 — Data Source library + connectors.** Expand beyond CDA to direct querying of leading providers,
+browser-only via each provider's REST/SQL API with locally-saved credentials. Priority connectors:
+**Snowflake** (SQL REST API), **Databricks** (SQL Statement Execution API), **BigQuery + cloud
+warehouses** (Redshift/Synapse as APIs allow), **generic SQL/HTTP**, and **keep Pentaho CDA** as one
+connector among many. Per provider: a config form (account/host/warehouse/token/etc.), a **Test
+connection** button, and **brand logos** — make the connector gallery sexy. Note CORS/security realities
+(some providers need a token or a thin proxy); surface clear errors. A query authored against any
+connector feeds the same dashboard model.
+
+**Z5 — Settings.** App configuration: theme, default deploy target, gate/access, data-source defaults,
+and **dashboard style defaults** (standard look/style applied to new dashboards). Support **collections
+of named style presets** the user can pick from. Export/import settings as JSON.
+
+**Z6 — Banner editor.** Edit/manage the dashboard header/banner (logo, title, colors, links) both in-app
+(per dashboard) and as a **Settings** default/preset, so a standard banner style applies to new
+dashboards. Tie into the style-preset collections from Z5.
+
+**Z7 — Analytics: forecasting + statistical functions.** Move toward standalone analytic apps: add
+forecasting (moving average, exponential smoothing / Holt-Winters, linear & seasonal trend) and
+statistical functions/variations (regression, percentiles, z-scores, correlation, distributions) as
+chart options / derived series / KPI computations. Keep it light (vanilla-JS math, no heavy deps).
+
+**Z0 — Finish the terminology migration (Phase 2, started 2026-06-30).** Done so far: user-facing
+CDA→"Data Access", CDF→"Dashboard Framework"; CDE export removed from the menu/inspector/bundle/push/CLI;
+tour/docs/brand updated. Remaining cleanup (one safe slice per loop, keep tests green): delete the now-
+unused CDE exporter code (`exportCDE` / `CDE_OK` / `cdeEmittable` / `brandHeaderRows` in exporters.js)
+plus its 4 direct unit tests; relabel the Examples gallery "CDE" track badge; finish renaming remaining
+user-visible CDF/CDE/CDA strings in `docs/index.html` and inspector/library labels. Keep internal
+identifiers, file extensions (`.cda`/`.html`), the `.cdfde` import path, and Pentaho server connectivity intact.
+
 ### A. CDA authoring — the big track (user-requested; build across iterations, CDF stays primary)
 > Slices 1–7 shipped in v31–v37. Continue with 8 below, one shippable slice/loop.
 Goal: a sophisticated, assisted, user-friendly **CDA data-source builder** — define/manage the

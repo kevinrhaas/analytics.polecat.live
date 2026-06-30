@@ -1804,10 +1804,6 @@
     if (!spec.panels.length && !spec.kpis.length) out.push({ level: "warn", msg: "Dashboard has no panels or KPIs." });
     spec.panels.forEach(function (p) {
       if (!p.chart.da) out.push({ level: "error", msg: "Panel “" + (p.title || p.id) + "” has no data query bound." });
-      if (Studio.cdeUnsupported(p.chart.type))
-        out.push({ level: "info", msg: "Panel “" + (p.title || p.id) + "” (" + p.chart.type + ") renders in CDF only — CDE export omits it." });
-      else if (Studio.cdeFallback(p.chart.type))
-        out.push({ level: "info", msg: "Panel “" + (p.title || p.id) + "” (" + p.chart.type + ") falls back to a bar chart in CDE export." });
     });
     return out;
   };

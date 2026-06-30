@@ -1565,7 +1565,7 @@
 
     var sec = section(body, "Dashboard", null, null, "builder");
     sec.appendChild(field("Title", input(sp.title, function (v) { sp.title = v; syncHeader(); refreshPreview(); })));
-    sec.appendChild(field("File name (stem)", input(sp.name, function (v) { sp.name = v.trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-"); syncHeader(); }, "lowercase-with-dashes → " + sp.name + ".html / .cdfde / .cda")));
+    sec.appendChild(field("File name (stem)", input(sp.name, function (v) { sp.name = v.trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-"); syncHeader(); }, "lowercase-with-dashes → " + sp.name + ".html / .cda")));
     sec.appendChild(field("Subtitle", input(sp.subtitle, function (v) { sp.subtitle = v; refreshPreview(); })));
     var grpSel = select2(["Observability", "Governance & Privacy", "Storage & Cost", "Usage & People", "Data Integration", "Executive"], sp.group, function (v) { sp.group = v; syncHeader(); });
     sec.appendChild(field("Group", grpSel));
@@ -2566,10 +2566,6 @@
       csSec.appendChild(field("Low → High color", csLowW));
       csSec.appendChild(noteEl("info", "Colors all bars, slices, treemap tiles, and lollipop dots on a smooth gradient from low (min value) to high (max value). Conditional formatting rules above override the gradient for specific items."));
     })();
-
-    // CDE compatibility note
-    if (Studio.cdeUnsupported(p.chart.type)) body.appendChild(noteEl("info", "This chart is CDF-only — the CDE (.cdfde) export will omit it. The CDF (.html) export renders it fully."));
-    else if (Studio.cdeFallback(p.chart.type)) body.appendChild(noteEl("info", "CDE export renders this as a bar chart (no native CCC equivalent). CDF (.html) export is exact."));
   }
 
   function renderQueryPeek(body, daId) {
@@ -3399,7 +3395,7 @@
     if (!_exportHistory.length) return;
     var sep = el("div", "sep"); wrap.appendChild(sep);
     var hdr = el("div", "grp"); hdr.textContent = "Recent exports"; wrap.appendChild(hdr);
-    var LABELS = { cdf: "CDF .html", cde: "CDE files", cda: "CDA .cda", all: "All artifacts" };
+    var LABELS = { cdf: "Dashboard Framework", cda: "Data Access", all: "All artifacts" };
     _exportHistory.forEach(function (h) {
       var btn = el("button", "eh-row");
       btn.innerHTML = '<span class="eh-kind">' + esc(LABELS[h.kind] || h.kind) + '</span><span class="eh-name">' + esc(h.name) + '</span><span class="eh-ts">' + timeAgo(h.ts) + '</span>';
@@ -4285,11 +4281,9 @@
   }
   function pushToServer() {
     var cl = client(); if (!cl) { toast("No active connection — add one in ⚙ Servers", true); return; }
-    var sp = S.spec, dp = S.settings.deployPath, cde = Studio.exportCDE(sp, dp);
+    var sp = S.spec, dp = S.settings.deployPath;
     var files = [[dp + "/" + sp.name + ".cda", Studio.exportCDA(sp), "application/xml"],
-      [dp + "/" + sp.name + ".html", Studio.exportCDF(sp, S.assets, dp), "text/html"],
-      [dp + "/" + sp.name + ".cdfde", cde.cdfde, "application/json"],
-      [dp + "/" + sp.name + ".wcdf", cde.wcdf, "application/xml"]];
+      [dp + "/" + sp.name + ".html", Studio.exportCDF(sp, S.assets, dp), "text/html"]];
     modal("Push to " + activeConnection().name, function (b) {
       b.appendChild(noteEl("info", "Publishing " + files.length + " artifacts to " + dp + " via the Pentaho import API. Needs Publish permission + a reachable server."));
       var log = el("div", "hint"); log.textContent = "Ready."; b.appendChild(log);
@@ -4314,25 +4308,14 @@
     var problems = Studio.validate(sp).filter(function (x) { return x.level === "error"; });
     if (problems.length) { toast(problems[0].msg, true); }
     recordExport(kind, sp.title || sp.name);
-    if (kind === "cda") return bundleModal("CDA queries", [{ name: sp.name + ".cda", body: Studio.exportCDA(sp), mime: "application/xml" }]);
-    if (kind === "cdf") return bundleModal("CDF dashboard", [{ name: sp.name + ".html", body: Studio.exportCDF(sp, S.assets, dp), mime: "text/html" }]);
-    if (kind === "cde") {
-      var cde = Studio.exportCDE(sp, dp);
-      bundleModal("CDE editor files", [
-        { name: sp.name + ".cdfde", body: cde.cdfde, mime: "application/json" },
-        { name: sp.name + ".wcdf", body: cde.wcdf, mime: "application/xml" },
-        { name: sp.name + ".cda", body: Studio.exportCDA(sp), mime: "application/xml" }
-      ], cde.omitted);
-    }
+    if (kind === "cda") return bundleModal("Data Access", [{ name: sp.name + ".cda", body: Studio.exportCDA(sp), mime: "application/xml" }]);
+    if (kind === "cdf") return bundleModal("Dashboard Framework", [{ name: sp.name + ".html", body: Studio.exportCDF(sp, S.assets, dp), mime: "text/html" }]);
     if (kind === "all") {
-      var cde2 = Studio.exportCDE(sp, dp);
       bundleModal("All artifacts", [
         { name: sp.name + ".html", body: Studio.exportCDF(sp, S.assets, dp), mime: "text/html" },
-        { name: sp.name + ".cdfde", body: cde2.cdfde, mime: "application/json" },
-        { name: sp.name + ".wcdf", body: cde2.wcdf, mime: "application/xml" },
         { name: sp.name + ".cda", body: Studio.exportCDA(sp), mime: "application/xml" },
         { name: sp.name + ".studio.json", body: JSON.stringify(sp, null, 2), mime: "application/json" }
-      ], cde2.omitted);
+      ]);
     }
   }
 

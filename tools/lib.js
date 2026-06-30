@@ -26,12 +26,10 @@ function assets() {
 
 // spec → [{name, body, mime, path}] for the deploy path
 function buildArtifacts(Studio, spec, deployPath) {
-  const a = assets(), cde = Studio.exportCDE(spec, deployPath), stem = spec.name;
+  const a = assets(), stem = spec.name;
   return [
     { name: stem + ".cda", mime: "application/xml", body: Studio.exportCDA(spec) },
-    { name: stem + ".html", mime: "text/html", body: Studio.exportCDF(spec, a, deployPath) },
-    { name: stem + ".cdfde", mime: "application/json", body: cde.cdfde },
-    { name: stem + ".wcdf", mime: "application/xml", body: cde.wcdf }
+    { name: stem + ".html", mime: "text/html", body: Studio.exportCDF(spec, a, deployPath) }
   ].map(function (f) { f.path = deployPath + "/" + f.name; return f; });
 }
 

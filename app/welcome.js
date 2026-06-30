@@ -12,16 +12,16 @@
       h: "An <b>analytics.polecat.live</b> project — a modern, visual way to build interactive dashboards over your existing data.",
       s: "Design dashboards from your existing queries, preview them live, and export deployable artifacts." },
     { t: "Three panes", ic: "▥",
-      h: "<b>Query Library</b> (left) lists CDA data accesses · <b>Live preview</b> (center) is the real dashboard · <b>Inspector</b> (right) edits whatever you select.",
+      h: "<b>Data Source Library</b> (left) lists your queries · <b>Live preview</b> (center) is the real dashboard · <b>Inspector</b> (right) edits whatever you select.",
       s: "Drag a query onto the canvas, pick a chart from the gallery, and tune it in the inspector." },
     { t: "Build by direct manipulation", ic: "✥",
       h: "Drag panels to reorder (across rows), drag the right edge to resize, double-click a title to rename, ⧉ duplicate, Ctrl/Cmd-Z to undo. KPIs, filters and 13 chart types included.",
       s: "Or hit <b>New ▸ Auto-build</b> to scaffold a whole dashboard from a query set in one click." },
-    { t: "Export to Pentaho", ic: "⤓",
-      h: "One model exports three ways: a self-contained <b>CDF</b> .html, an editable <b>CDE</b> .cdfde/.wcdf, and the <b>CDA</b> .cda — in the browser or via the CLI.",
-      s: "CDF is the rich track; CDE opens and edits in Pentaho CDE." },
-    { t: "Connect to a live Pentaho", ic: "⚙",
-      h: "Add servers in <b>⚙ Servers</b> (Kettle slaveserver format), then <b>import</b> existing CDAs/dashboards, <b>preview live</b>, and <b>push</b> changes back — or schedule deploys with the CLI.",
+    { t: "Export your dashboard", ic: "⤓",
+      h: "Export a self-contained, interactive <b>Dashboard Framework</b> (.html) you can open anywhere, or its <b>Data Access</b> queries (.cda) — in the browser or via the CLI. The editable source is the <b>.studio.json</b> (Save / Open).",
+      s: "The live preview is byte-identical to the exported dashboard." },
+    { t: "Connect to a live server", ic: "⚙",
+      h: "Add servers in <b>⚙ Servers</b> (Kettle slaveserver format), then <b>import</b> existing data sources/dashboards, <b>preview live</b>, and <b>push</b> changes back — or schedule deploys with the CLI.",
       s: "No server? Everything works standalone with sample data + file export." }
   ];
 
