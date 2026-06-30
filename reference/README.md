@@ -2,7 +2,7 @@
 
 These are the original **iteration-v2** PDC dashboard assets that **Dashboard Studio (at the repo
 root) was derived from**. They were migrated here from
-`solution-engineering/iteration/v2/` and are kept as reference — the Studio's query catalog and
+the previous monorepo's `iteration/v2/` and are kept as reference — the Studio's query catalog and
 example specs (`data/cda-catalog.json`, `data/examples/`) are generated from `dashboards/` below via
 `tools/import-v2.py`.
 

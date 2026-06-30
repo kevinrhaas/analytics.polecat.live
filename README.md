@@ -8,10 +8,9 @@ into the Pentaho Data Catalog analytics suite.
 It replaces the hand-coded `reference/dash-build` generators (`build.py` / `gen-cde.py`) with a
 **single visual model** and a live, byte-faithful preview.
 
-> This repository is the standalone home of Dashboard Studio (migrated out of
-> `solution-engineering`). The **Studio app lives at the repo root**; the original
-> Pentaho iteration-v2 suite that seeded it is preserved under
-> [`reference/`](reference/) (dashboards, analyzer reports, the legacy `dash-build`
+> This repository is the standalone home of Dashboard Studio. The **Studio app lives at
+> the repo root**; the original Pentaho iteration-v2 suite that seeded it is preserved
+> under [`reference/`](reference/) (dashboards, analyzer reports, the legacy `dash-build`
 > generators) and [`provisioning/`](provisioning/) (warehouse DDL, ETL jobs, deploy
 > scripts).
 

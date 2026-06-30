@@ -1,7 +1,7 @@
 # Provisioning — the data layer the dashboards read from
 
 These artifacts stand up and load the warehouse that the PDC dashboards query. They were migrated
-here from `solution-engineering/iteration/v2/` (`content/ddl`, `content/utility`, and the
+here from the previous monorepo's `iteration/v2/` (`content/ddl`, `content/utility`, and the
 iteration deploy scripts).
 
 | Folder | What it is |

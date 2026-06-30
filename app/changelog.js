@@ -10,7 +10,7 @@ window.STUDIO_BUILD = "__BUILD_TS__";
 window.STUDIO_CHANGELOG = [
   { v: "v60", date: "2026-06-30", time: "00:00 UTC", title: "Standalone repo & analytics.polecat.live rebrand", items: [
       "Dashboard Studio is now its own standalone repository (analytics.polecat.live), served directly by GitHub Pages at that domain.",
-      "Rebranded from the Pentaho Solution Engineering demo to an analytics.polecat.live project — titles, welcome tour, gate screen, and exported-dashboard footer updated. Pentaho server connectivity (CDA/CDE/CDF, live preview, import, push) is unchanged.",
+      "Rebranded to an analytics.polecat.live project — titles, welcome tour, gate screen, and exported-dashboard footer updated. Pentaho server connectivity (CDA/CDE/CDF, live preview, import, push) is unchanged.",
       "Source reorganized: the Studio app at the repo root, the iteration-v2 suite split into provisioning/ (warehouse DDL, ETL, deploy) and reference/ (generated dashboards, Analyzer reports, legacy dash-build).",
     ] },
   { v: "v59", date: "2026-06-26", time: "12:00 UTC", title: "Legend toggles — F8 interactivity polish for multi-series charts", items: [
