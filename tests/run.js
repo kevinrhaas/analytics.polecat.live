@@ -547,6 +547,13 @@ function serve() {
     await page.click('#menuNew button[data-new="blank"]'); await page.waitForTimeout(350);
     const emptyShown = await page.evaluate(() => { const d = document.querySelector("#preview").contentDocument; return !!d.querySelector(".sr-empty"); });
     ok("New → Blank shows the onboarding empty-state", emptyShown);
+    // the builder's #canvasEmpty overlay is the single empty-state — the preview is
+    // fully hidden so its own empty message + footer don't bleed through and double up
+    const emptyPreviewHidden = await page.evaluate(() => {
+      const stage = document.getElementById("canvas-stage"), pv = document.getElementById("preview");
+      return stage.classList.contains("canvas-empty") && getComputedStyle(pv).opacity === "0";
+    });
+    ok("empty state hides the preview (no duplicate empty message)", emptyPreviewHidden);
 
     // ---- keyboard reorder/resize (builder-focused) ----
     console.log("\n• keyboard reorder/resize");
@@ -3083,7 +3090,7 @@ function serve() {
     });
     ok("E7: changelog entries with 'time' field show date · time", e7.hasTime, JSON.stringify(e7));
     ok("E7: changelog entries without 'time' field show date only", e7.hasDateOnly, JSON.stringify(e7));
-    ok("E7: top entry date includes UTC time suffix", e7.topDate.indexOf("UTC") >= 0, JSON.stringify(e7));
+    ok("E7: top entry date includes CT time suffix", e7.topDate.indexOf("CT") >= 0, JSON.stringify(e7));
     await page.keyboard.press("Escape"); await page.waitForTimeout(100);
 
     // ---- bullet chart (F7a) ----

@@ -8,6 +8,11 @@
 window.STUDIO_BUILD = "__BUILD_TS__";
 
 window.STUDIO_CHANGELOG = [
+  { v: "v131", date: "2026-06-30", time: "19:00 UTC", title: "Generic terminology, a single empty-state, and Central-Time stamps", items: [
+      "Generic vocabulary: “CDA” → “Data Access” and “CDF” → “Dashboard Framework” across the export menu, export history, file-name hints, and the welcome tour. The CDE export was removed — the editable “.studio.json” is the source of truth. Internal file formats and Pentaho server connectivity are unchanged.",
+      "Empty canvas now shows a single, clean empty-state: the builder’s “Canvas is empty” overlay, with the live preview fully hidden so its own “Your dashboard is empty” message no longer doubles up behind it.",
+      "Changelog timestamps now display in US Central (CT) instead of UTC — entries authored in UTC convert automatically, and the conversion is CST/CDT aware.",
+    ] },
   { v: "v130", date: "2026-06-30", time: "00:00 UTC", title: "Standalone repo + Analytics Dashboard Studio rebrand", items: [
       "The Studio is now its own standalone repository (analytics.polecat.live), served directly by GitHub Pages at that domain — the app lives at the repo root, with the original iteration-v2 suite preserved under reference/ (dashboards, analyzer reports, dash-build) and provisioning/ (warehouse DDL, ETL, deploy).",
       "Rebranded to Analytics Dashboard Studio (an analytics.polecat.live project): titles, header/footer brand, welcome tour, gate screen, help docs, and the exported-dashboard footer updated; license is © 2026 Polecat.live. Pentaho server connectivity (CDA/CDE/CDF, live preview, import, push) is unchanged.",

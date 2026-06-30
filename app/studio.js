@@ -326,10 +326,26 @@
     return s.replace(new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi"),
       function (m) { return '<mark class="hl">' + m + "</mark>"; });
   }
+  // Changelog entry times are authored in UTC ("HH:MM UTC"); display them in US Central (CT)
+  // so future UTC-authored entries convert automatically (handles CST/CDT via the IANA zone).
+  function fmtEntryWhen(e) {
+    if (!e.date) return "";
+    var m = e.time && /(\d{1,2}):(\d{2})/.exec(e.time);
+    if (m) {
+      var d = new Date(e.date + "T" + ("0" + m[1]).slice(-2) + ":" + m[2] + ":00Z");
+      if (!isNaN(d)) {
+        try {
+          return d.toLocaleDateString("en-CA", { timeZone: "America/Chicago" }) + " · " +
+            d.toLocaleTimeString("en-GB", { timeZone: "America/Chicago", hour: "2-digit", minute: "2-digit" }) + " CT";
+        } catch (x) {}
+      }
+    }
+    return e.date + (e.time ? " · " + e.time.replace(/UTC/i, "CT") : "");
+  }
   function fmtStamp(d) {
     try {
-      return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) +
-        " · " + d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+      return d.toLocaleDateString("en-US", { timeZone: "America/Chicago", year: "numeric", month: "short", day: "numeric" }) +
+        " · " + d.toLocaleTimeString("en-US", { timeZone: "America/Chicago", hour: "2-digit", minute: "2-digit" }) + " CT";
     } catch (e) { return d.toISOString().slice(0, 16).replace("T", " "); }
   }
   function renderFooter() {
@@ -365,7 +381,7 @@
           return '<div class="cl-entry' + (e === log[0] ? " cl-latest" : "") + '">' +
             '<div class="cl-top"><span class="cl-v">' + hlq(e.v || "", needle) + '</span>' +
             '<span class="cl-title">' + hlq(e.title || "", needle) + '</span>' +
-            (e.date ? '<span class="cl-date">' + esc(e.date) + (e.time ? ' · ' + esc(e.time) : '') + '</span>' : "") + '</div>' +
+            (e.date ? '<span class="cl-date">' + esc(fmtEntryWhen(e)) + '</span>' : "") + '</div>' +
             (items ? "<ul>" + items + "</ul>" : "") + '</div>';
         }).join("") : '<div class="cl-empty">No entries match “' + esc(q) + '”</div>';
       }

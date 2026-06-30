@@ -362,6 +362,21 @@ forecasting (moving average, exponential smoothing / Holt-Winters, linear & seas
 statistical functions/variations (regression, percentiles, z-scores, correlation, distributions) as
 chart options / derived series / KPI computations. Keep it light (vanilla-JS math, no heavy deps).
 
+**Z8 — Context-aware inspector (per chart type) + visual setting hints (user-requested 2026-06-30).**
+The panel inspector currently shows ALL setting sections regardless of chart type — e.g. a **Table**
+panel shows chart-only sections (Callout Arrow, Color Scale, the area-band Top/Bottom-edge + Fill, etc.)
+that don't apply. Make the inspector **adapt to the selected chart type**: show only relevant sections,
+hide the rest, and add type-specific options where they're missing. Build a per-type capability map so
+each chart type declares which inspector sections apply + its own extras. Examples: a **Table** should
+have row limit, paging / page size, sort, column **subtotals / grand total**, freeze header, and row
+density — but none of the callout/colour-scale/band controls. **Do this comprehensively for EVERY chart
+type, not just tables** — go through all ~51 types and give each its own relevant section set plus any
+missing type-specific options (e.g. KPIs, treemaps, line/area, scatter, gauge, sankey, calendar-heatmap
+each surface only what applies to them). The goal is a much easier-to-consume, self-explanatory inspector.
+Also, with so many settings now, add a small **inline visual hint** for each setting — a
+tiny graphic / icon / before↔after thumbnail showing what it does — to make the dense inspector
+self-explanatory. Keep it light (inline SVG / CSS, no image assets or deps). One slice per loop; tests green.
+
 **Z0 — Finish the terminology migration (Phase 2, started 2026-06-30).** Done so far: user-facing
 CDA→"Data Access", CDF→"Dashboard Framework"; CDE export removed from the menu/inspector/bundle/push/CLI;
 tour/docs/brand updated. Remaining cleanup (one safe slice per loop, keep tests green): delete the now-

@@ -206,7 +206,10 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
   align-items:center;justify-content:center;gap:8px;text-align:center;
   padding:40px 32px;pointer-events:none}
 #canvas-stage.canvas-empty #canvasEmpty{display:flex}
-#canvas-stage.canvas-empty #preview{opacity:.2}
+/* When the canvas is empty, hide the preview entirely so the builder's
+   #canvasEmpty overlay is the single empty-state — otherwise the preview's own
+   "Your dashboard is empty" message + footer bleed through and double up. */
+#canvas-stage.canvas-empty #preview{opacity:0}
 .ces-ic{width:60px;height:60px;border-radius:50%;border:2px dashed var(--pentaho);opacity:.6;
   display:flex;align-items:center;justify-content:center;color:var(--pentaho);margin-bottom:4px}
 .ces-title{font-size:17px;font-weight:700;color:var(--fg);font-family:var(--sans);opacity:.9}
