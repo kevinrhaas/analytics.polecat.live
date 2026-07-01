@@ -3225,6 +3225,66 @@
     }
   }
 
+  /* ── Enhanced stacked bar chart (override PDC.stacked, Z8 slice 10) ──────────
+     Base PDC.stacked (pdc-ui.js) always draws categories in row order with no
+     per-segment value text and a fixed static legend. This override keeps the
+     identical band-stacking/gridline/tooltip logic and adds cfg.sortStack
+     (order categories by their total, largest first — mirrors Bars' "Sort by
+     value") and cfg.showValues (per-segment value label centered in its band,
+     shown only when the band is tall enough to hold it legibly). Base kept as
+     PDC._stackedBase for reference. */
+  PDC._stackedBase = PDC.stacked;
+
+  PDC.stacked = function (el, cfg) { reg(el, function () { _stackedOpts(el, cfg); }); };
+
+  function _stackedOpts(el, cfg) {
+    var cats = cfg.categories || [], series = cfg.series || [], h = cfg.height || 270;
+    if (!cats.length) { el.innerHTML = '<div class="empty">No data</div>'; return; }
+    var totals0 = cats.map(function (_, i) { return series.reduce(function (a, se) { return a + (+se.values[i] || 0); }, 0); });
+    var order = cats.map(function (_, i) { return i; });
+    if (cfg.sortStack) order.sort(function (a, b) { return totals0[b] - totals0[a]; });
+    var cats2 = order.map(function (i) { return cats[i]; });
+    var series2 = series.map(function (se) { return { name: se.name, color: se.color, values: order.map(function (i) { return se.values[i]; }) }; });
+    var totals = order.map(function (i) { return totals0[i]; });
+    var o = mkSVG(el, h), s = o.s, w = o.w, fmt = cfg.fmt || PDC.fmt.abbr;
+    var max = niceMax(Math.max.apply(null, totals.concat([0]))), pal = PDC.palette();
+    var mL = 46, mR = 10, mT = 10, mB = cfg.rotate ? 64 : 26, iw = w - mL - mR, ih = h - mT - mB, bw = iw / cats2.length;
+    for (var g = 0; g <= 4; g++) {
+      var gy = mT + ih * (1 - g / 4);
+      s.appendChild(S("line", { class: "gridline", x1: mL, y1: gy, x2: w - mR, y2: gy }));
+      s.appendChild(S("text", { class: "tick", x: mL - 7, y: gy + 3, "text-anchor": "end" }, fmt(max * g / 4)));
+    }
+    cats2.forEach(function (c, i) {
+      var x = mL + i * bw, acc = 0;
+      series2.forEach(function (se, si) {
+        var v = +se.values[i] || 0; if (v <= 0) return;
+        var hh = ih * (v / max), y0 = mT + ih - acc - hh, col = se.color || pal[si % 10];
+        acc += hh;
+        var r = S("rect", { class: "bar", x: x + bw * 0.14, y: y0, width: bw * 0.72, height: hh, fill: col });
+        r.addEventListener("mousemove", function (e) { PDC.showTip(e, "<b>" + c + "</b><br>" + se.name + ": " + fmt(v)); });
+        r.addEventListener("mouseout", PDC.hideTip);
+        s.appendChild(r);
+        if (cfg.showValues && hh >= 14) s.appendChild(S("text", { class: "val-label", x: x + bw / 2, y: y0 + hh / 2 + 4, "text-anchor": "middle" }, fmt(v)));
+      });
+      var lx = x + bw / 2, ty = mT + ih + 13;
+      var tx = S("text", { class: "tick", x: lx, y: ty, "text-anchor": cfg.rotate ? "end" : "middle" }, PDC.fmt.trunc(c, cfg.rotate ? 16 : 10));
+      if (cfg.rotate) tx.setAttribute("transform", "rotate(-38 " + lx + " " + ty + ")");
+      s.appendChild(tx);
+    });
+    if (cfg.legend !== false) {
+      var d = document.createElement("div"); d.className = "legend";
+      series2.forEach(function (se, i) {
+        var chip = document.createElement("span"); chip.className = "legend-item";
+        chip.style.cssText = "display:inline-flex;align-items:center;gap:4px;";
+        var dot = document.createElement("span");
+        dot.style.cssText = "display:inline-block;width:9px;height:9px;border-radius:2px;background:" + (se.color || pal[i % 10]) + ";";
+        chip.appendChild(dot); chip.appendChild(document.createTextNode(se.name || ("Series " + (i + 1))));
+        d.appendChild(chip);
+      });
+      el.appendChild(d);
+    }
+  }
+
   /* ---------- parallel coordinates chart (multi-dimensional entity comparison) ----------
      Each entity (row) is drawn as a polyline connecting its values across N parallel
      vertical axes. Each axis represents one numeric dimension and has its own min/max

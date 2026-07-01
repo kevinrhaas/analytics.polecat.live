@@ -245,7 +245,8 @@
           else if (ch.type === "step")
             PDC.step(body, { area: !!o.area, fmt: f, height: o.height || 300, labels: labels, series: series });
           else
-            PDC.stacked(body, { rotate: !!o.rotate, fmt: f, height: o.height || 300,
+            PDC.stacked(body, { rotate: !!o.rotate, sortStack: !!o.sortStack, showValues: !!o.showValues,
+              fmt: f, height: o.height || 300,
               categories: labels, series: series.map(function (s) { return { name: s.name, color: s.color, values: s.values }; }) });
           break;
         case "combo":

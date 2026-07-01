@@ -8363,6 +8363,69 @@ function serve() {
     });
     ok("Z8BR: bars panel inspector shows Sort by value / Show value labels fields", z8brInsp.ok, JSON.stringify(z8brInsp));
 
+    // Z8ST-1: stacked registry declares sortStack + showValues (Z8 slice 10)
+    var z8stOpts = await page.evaluate(function () {
+      var o = (window.Studio.CHARTS.stacked || {}).opts || [];
+      var keys = o.map(function (od) { return od.key; });
+      return { ok: keys.indexOf("sortStack") >= 0 && keys.indexOf("showValues") >= 0 && keys.indexOf("rotate") >= 0, keys: keys };
+    });
+    ok("Z8ST: Studio.CHARTS.stacked.opts declares sortStack + showValues", z8stOpts.ok, JSON.stringify(z8stOpts));
+
+    // Z8ST-2: sortStack orders categories by total (largest first); showValues:true adds .val-label text
+    // to tall-enough segments, showValues:false (default) renders none.
+    var z8stRender = await page.evaluate(function () {
+      var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
+      for (var i = 0; i < iframes.length; i++) {
+        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.stacked === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+      }
+      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      try {
+        var cats = ["Small", "Big", "Mid"];
+        var series = [{ name: "S1", values: [3, 30, 8] }, { name: "S2", values: [2, 20, 7] }];
+
+        var el1 = iframeDoc.createElement("div");
+        el1.style.cssText = "position:absolute;top:-9999px;width:400px";
+        iframeDoc.body.appendChild(el1);
+        w.PDC.stacked(el1, { categories: cats, series: series, height: 260, sortStack: true });
+        var ticks = [].slice.call(el1.querySelectorAll(".tick")).filter(function (t) { return isNaN(parseFloat(t.textContent)); }).map(function (t) { return t.textContent; });
+        iframeDoc.body.removeChild(el1);
+
+        var el2 = iframeDoc.createElement("div");
+        el2.style.cssText = "position:absolute;top:-9999px;width:400px";
+        iframeDoc.body.appendChild(el2);
+        w.PDC.stacked(el2, { categories: cats, series: series, height: 260, showValues: true });
+        var withLabels = el2.querySelectorAll(".val-label").length;
+        iframeDoc.body.removeChild(el2);
+
+        var el3 = iframeDoc.createElement("div");
+        el3.style.cssText = "position:absolute;top:-9999px;width:400px";
+        iframeDoc.body.appendChild(el3);
+        w.PDC.stacked(el3, { categories: cats, series: series, height: 260 });
+        var withoutLabels = el3.querySelectorAll(".val-label").length;
+        iframeDoc.body.removeChild(el3);
+
+        return { ok: ticks[0] === "Big" && ticks[1] === "Mid" && ticks[2] === "Small" && withLabels > 0 && withoutLabels === 0, ticks: ticks, withLabels: withLabels, withoutLabels: withoutLabels };
+      } catch (e) { return { ok: false, err: e.message }; }
+    });
+    ok("Z8ST: sortStack orders categories by total; showValues toggles per-segment labels", z8stRender.ok, JSON.stringify(z8stRender));
+
+    // Z8ST-3: the panel inspector shows the new stacked-specific fields when a Stacked-bars panel is selected
+    var z8stInsp = await page.evaluate(function () {
+      var spec = window.__STUDIO_STATE.spec;
+      var p = spec.panels[0];
+      var prevChart = JSON.parse(JSON.stringify(p.chart));
+      p.chart.type = "stacked"; p.chart.opts = {};
+      window.__studioSelect({ kind: "panel", id: p.id });
+      var body = document.getElementById("inspBody");
+      var text = body ? body.textContent : "";
+      var ok2 = text.indexOf("Sort by total") >= 0 && text.indexOf("Show value labels") >= 0;
+      p.chart = prevChart; // restore so later tests aren't affected
+      window.__studioSelect(null);
+      window.__studioRenderInspector();
+      return { ok: ok2 };
+    });
+    ok("Z8ST: stacked panel inspector shows Sort by total / Show value labels fields", z8stInsp.ok, JSON.stringify(z8stInsp));
+
     // ── F26: Parallel coordinates chart ────────────────────────────────────────
     console.log("\n• F26: parallel coordinates chart");
 

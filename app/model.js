@@ -94,13 +94,18 @@
       label: "Stacked bars", icon: "▤", group: "Composition",
       desc: "Segment totals stacked per category",
       fields: ["labelCol", "series"],
+      // Z8 slice 10: stacked bars get their own type-specific options — the base
+      // toolkit always drew categories in row order with no per-segment value text.
       opts: [
-        { key: "rotate", type: "bool", label: "Rotate labels", def: false },
-        { key: "fmt",    type: "fmt",  label: "Value format", def: "abbr" },
-        { key: "height", type: "int",  label: "Height (px)", def: 300 }
+        { key: "rotate",     type: "bool", label: "Rotate labels", def: false },
+        { key: "sortStack",  type: "bool", label: "Sort by total", def: false },
+        { key: "showValues", type: "bool", label: "Show value labels", def: false },
+        { key: "fmt",        type: "fmt",  label: "Value format", def: "abbr" },
+        { key: "height",     type: "int",  label: "Height (px)", def: 300 }
       ],
-      cde: { type: "cccBarChart", extra: function () {
-        return [["orientation", "Orientation", "vertical"], ["stacked", "Boolean", "true"], ["valuesVisible", "Boolean", "false"]]; } }
+      cde: { type: "cccBarChart", extra: function (c) {
+        return [["orientation", "Orientation", "vertical"], ["stacked", "Boolean", "true"],
+                ["valuesVisible", "Boolean", c.opts && c.opts.showValues ? "true" : "false"]]; } }
     },
     areaStacked: {
       label: "Stacked area", icon: "◣", group: "Trend",

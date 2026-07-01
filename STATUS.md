@@ -324,6 +324,13 @@
 - v142: **Z8 slice 5: Treemap gets its own options** — `Studio.CHARTS.treemap.opts` gains **Show tile labels** (toggle off the bold title+value text the base toolkit always drew on big-enough tiles) and **Show % of total, not value** (swap the value line for the tile's share of the whole). `PDC.treemap` overridden in `studio-charts.js` (`PDC._treemapBase` kept for reference, same pattern as Table/Gauge); tooltip unaffected (still shows both value and %). `docs/index.html` updated. 5 new Z8M tests. Test suite 758/758.
 - v143: **Z8 slice 6: Scatter gets its own options** — `Studio.CHARTS.scatter.opts` gains **Value format** (axis ticks + tooltip were always `PDC.fmt.abbr`, no way to change) and **Show trend line (regression)** — an OLS regression line drawn through the plotted points. `PDC.scatter` overridden in `studio-charts.js` (`PDC._scatterBase` kept for reference, same pattern as Table/Gauge/Treemap); `studio-render.js` falls back to the chart's true `abbr` default (not the ambient plain fallback) so scatter panels saved before this option existed don't regress. `docs/index.html` updated. 4 new Z8SC tests. Test suite 762/762.
 - v144: **Z8 slice 7: Line / area gets its own options** — `Studio.CHARTS.line.opts` gains **Smooth curve** (cubic-bezier interpolation between points, same midpoint-control-point technique as the Bump chart) and **Show data points** (hide the per-point dot markers; a transparent hover target keeps tooltips working even with dots hidden). `PDC.line` overridden in `studio-charts.js` (`PDC._lineBase` kept for reference, same pattern as Table/Gauge/Treemap/Scatter); `studio-render.js` passes smooth/showDots through. `docs/index.html` updated. 3 new Z8LN tests. Test suite 765/765.
+- v147: **Z8 slice 10: Stacked bars gets its own options** — `Studio.CHARTS.stacked.opts` gains **Sort by
+  total** (order categories by their stacked total, largest first, same convention as Bars/Donut) and
+  **Show value labels** (per-segment value text centered in its band, shown only when the band is tall
+  enough to hold it legibly). `PDC.stacked` overridden in `studio-charts.js` (`PDC._stackedBase` kept for
+  reference, same pattern as Table/Gauge/Treemap/Scatter/Line/Donut/Bars); `studio-render.js` passes
+  `sortStack`/`showValues` through; CDE export's `valuesVisible` now reflects the option. `docs/index.html`
+  updated. 3 new Z8ST tests. Test suite 774/774.
 - v146: **Z8 slice 9: Bar chart gets its own options** — `Studio.CHARTS.bars.opts` gains **Sort by value**
   (largest-first, same convention as Donut's "Sort slices") and **Show value labels** (hide the always-on
   value text for a cleaner look on dense charts). `PDC.bars` overridden in `studio-charts.js`
@@ -479,10 +486,14 @@ self-explanatory. Keep it light (inline SVG / CSS, no image assets or deps). One
 > mirrors Donut's "Sort slices") and **Show value labels** (hide the always-on value text for a cleaner
 > look on dense charts). Same override pattern (`PDC._barsBase` kept for reference); `wireXFilter`'s bars
 > branch now mirrors the sort too, and CDE export's `valuesVisible` reflects the option.
+> ✓ **Slice 10 shipped v147**: **Stacked bars** gets its own options — **Sort by total** (largest-first,
+> mirrors Bars/Donut) and **Show value labels** (per-segment value text, shown only when the band is tall
+> enough). Same override pattern (`PDC._stackedBase` kept for reference); CDE export's `valuesVisible`
+> reflects the option.
 > **Z8 follow-ups (not yet done, the bulk of the track):** a real per-type capability map covering the
-> REST of the ~51 types' *own* option sets (Table, Gauge, Treemap, Scatter, Line, Donut, Bars done; still
-> needed: KPI, stacked/areaStacked, sankey/chord/network, calendar-heatmap, and the rest), plus the inline
-> visual setting hints (tiny before/after thumbnails). Continue one slice per loop.
+> REST of the ~51 types' *own* option sets (Table, Gauge, Treemap, Scatter, Line, Donut, Bars, Stacked
+> bars done; still needed: KPI, areaStacked/streamgraph, sankey/chord/network, calendar-heatmap, and the
+> rest), plus the inline visual setting hints (tiny before/after thumbnails). Continue one slice per loop.
 
 **Z9 — Mobile: fix the broken flows + a proper bottom nav (user-requested 2026-06-30).** Reported
 regressions on small screens: the top button-bar scrolls/slides but **its dropdown menus don't open /
