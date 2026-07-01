@@ -568,6 +568,14 @@
       s.appendChild(poly); seEls.push(poly);
       if (canAnim()) { poly.style.opacity = "0"; setTimeout(function () { poly.style.transition = "opacity .5s ease"; poly.style.opacity = "1"; }, animD(60 + si * 80)); }
       pts.forEach(function (p, i) {
+        if (cfg.showDots === false) {
+          // Dots hidden — keep an invisible hover target so tooltips still work.
+          var hit = S("circle", { cx: p[0], cy: p[1], r: 8, fill: "transparent" });
+          hit.addEventListener("mousemove", function (e) { PDC.showTip(e, "<b>" + labels[i] + "</b><br>" + (se.name || ("Series " + (si + 1))) + ": " + fmt(+se.values[i] || 0)); });
+          hit.addEventListener("mouseout", PDC.hideTip);
+          s.appendChild(hit); seEls.push(hit);
+          return;
+        }
         var dot = S("circle", { cx: p[0], cy: p[1], r: 3, fill: col, stroke: PDC.cssvar("--panel-bg"), "stroke-width": 1.2 });
         dot.addEventListener("mousemove", function (e) { PDC.showTip(e, "<b>" + labels[i] + "</b><br>" + (se.name || ("Series " + (si + 1))) + ": " + fmt(+se.values[i] || 0)); });
         dot.addEventListener("mouseout", PDC.hideTip);

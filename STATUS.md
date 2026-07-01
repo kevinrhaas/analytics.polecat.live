@@ -371,6 +371,12 @@
   mirror the sort for cross-filter click mapping. CDE `valuesVisible` now reflects the option. `docs/index.html`
   updated. 3 new Z8BR tests. Test suite 771/771.
 - v145: **Z8 slice 8: Donut gets its own options** — `Studio.CHARTS.donut.opts` gains **Sort slices by value** (largest-first), **Show legend** (hide the side legend so the ring fills the panel), and **Inner radius %** (adjustable ring thickness, 0 = full pie). `PDC.donut` overridden in `studio-charts.js` (`PDC._donutBase` kept for reference, same pattern as Table/Gauge/Treemap/Scatter/Line); `studio-render.js` passes sortSlices/legend/innerPct through and mirrors the sort in the cross-filter click-to-label wiring (`wireXFilter`) so slice clicks still map correctly when sorted. `docs/index.html` updated. 3 new Z8DN tests. Test suite 768/768.
+- v152: **Z8 slice 15: Radar / spider gets its own options** — `Studio.CHARTS.radar.opts` gains **Show legend**
+  (the renderer already supported hiding the legend via `cfg.legend`, but the inspector never exposed a
+  toggle) and **Show vertex dots** (hide the per-vertex dot markers for a cleaner polygon-only look;
+  invisible hover targets keep tooltips working with dots hidden, same convention as Line's "Show data
+  points"). `PDC.radar` in `studio-charts.js` reads `cfg.showDots`; `studio-render.js` passes
+  `legend`/`showDots` through. `docs/index.html` updated. 3 new Z8RD tests. Test suite 789/789.
 
 ## NEXT (top = do first)
 
@@ -534,9 +540,13 @@ self-explanatory. Keep it light (inline SVG / CSS, no image assets or deps). One
 > ✓ **Slice 14 shipped v151**: **Stream graph** gets its own options — **Show legend** (same story as
 > Stacked area — the renderer already supported `cfg.legend` but nothing exposed it) and **Band opacity**
 > (ribbon fill-opacity was hardcoded to 78%, now a 0–100% slider).
+> ✓ **Slice 15 shipped v152**: **Radar / spider** gets its own options — **Show legend** (same story as
+> Stacked area/Stream graph — `cfg.legend` was already supported internally but never exposed) and
+> **Show vertex dots** (hide the per-vertex dot markers; invisible hover targets keep tooltips working,
+> same convention as Line's "Show data points").
 > **Z8 follow-ups (not yet done, the bulk of the track):** a real per-type capability map covering the
 > REST of the ~51 types' *own* option sets (Table, Gauge, Treemap, Scatter, Line, Donut, Bars, Stacked
-> bars, Calendar heatmap, KPI, areaStacked, streamgraph done; still needed: sankey/chord/network, radar,
+> bars, Calendar heatmap, KPI, areaStacked, streamgraph, radar done; still needed: sankey/chord/network,
 > waterfall, funnel, sunburst, combo, and the rest), plus the inline visual setting hints (tiny
 > before/after thumbnails). Continue one slice per loop.
 

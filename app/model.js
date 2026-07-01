@@ -235,9 +235,11 @@
       desc: "Multi-metric polygon comparison",
       fields: ["labelCol", "series"],
       opts: [
-        { key: "fill",   type: "bool", label: "Fill polygons", def: true },
-        { key: "fmt",    type: "fmt",  label: "Value format", def: "abbr" },
-        { key: "height", type: "int",  label: "Height (px)", def: 300 }
+        { key: "fill",       type: "bool", label: "Fill polygons",     def: true },
+        { key: "showLegend", type: "bool", label: "Show legend",       def: true },
+        { key: "showDots",   type: "bool", label: "Show vertex dots",  def: true },
+        { key: "fmt",        type: "fmt",  label: "Value format",      def: "abbr" },
+        { key: "height",     type: "int",  label: "Height (px)",       def: 300 }
       ],
       cde: null // CDF-only (no clean single CCC equivalent)
     },

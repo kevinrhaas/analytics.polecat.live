@@ -8,6 +8,10 @@
 window.STUDIO_BUILD = "__BUILD_TS__";
 
 window.STUDIO_CHANGELOG = [
+  { v: "v152", date: "2026-07-01", time: "22:15 UTC", title: "Z8 slice 15: Radar / spider gets its own options — legend toggle + vertex dots", items: [
+      "Continues the Z8 track's per-type option sets (Table/Gauge/Treemap/Scatter/Line/Donut/Bars/Stacked/Calendar heatmap/KPI/Stacked area/Stream graph in v139–v151) with **Radar / spider**: `Studio.CHARTS.radar.opts` now includes **Show legend** (the renderer already supported hiding the legend internally via `cfg.legend`, but the inspector never exposed a toggle) and **Show vertex dots** (hide the per-vertex dot markers for a cleaner polygon-only look; invisible hover targets keep tooltips working with dots hidden, same convention as Line's 'Show data points').",
+      "`PDC.radar` in `app/studio-charts.js` reads `cfg.showDots` (pdc-ui.js untouched — radar has always lived entirely in the extension file); `studio-render.js` passes `legend`/`showDots` through. `docs/index.html` Radar card updated. 3 new Z8RD tests. Test suite 789/789.",
+    ] },
   { v: "v151", date: "2026-07-01", time: "21:25 UTC", title: "Z8 slice 14: Stream graph gets its own options — legend toggle + band opacity", items: [
       "Continues the Z8 track's per-type option sets (Table/Gauge/Treemap/Scatter/Line/Donut/Bars/Stacked/Calendar heatmap/KPI/Stacked area in v139–v150) with **Stream graph**: `Studio.CHARTS.streamgraph.opts` now includes **Show legend** (the renderer already supported hiding the legend internally via `cfg.legend`, but the inspector never exposed a toggle) and **Band opacity** (was hardcoded to 78%, now adjustable 0–100%).",
       "`PDC.streamgraph` reads `cfg.opacity` for the ribbon fill-opacity (`app/studio-charts.js`, pdc-ui.js untouched — stream graph has always lived entirely in the extension file); `studio-render.js` passes `showLegend`/`bandOpacity` through. `docs/index.html` Stream graph card updated. 3 new Z8SG tests. Test suite 786/786.",

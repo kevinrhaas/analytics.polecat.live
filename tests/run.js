@@ -10083,6 +10083,70 @@ function serve() {
     });
     ok("Z8SG: streamgraph panel inspector shows Show legend / Band opacity fields", z8sgInsp.ok, JSON.stringify(z8sgInsp));
 
+    // ── Z8 slice 15: Radar / spider gets its own type-specific options (legend + vertex dots) ──
+    console.log("\n• Z8 radar: legend toggle + vertex dots toggle");
+
+    // Z8RD-1: radar registry declares showLegend + showDots (in addition to existing fill/fmt/height)
+    var z8rdOpts = await page.evaluate(function () {
+      var o = (window.Studio.CHARTS.radar || {}).opts || [];
+      var keys = o.map(function (od) { return od.key; });
+      return { ok: keys.indexOf("showLegend") >= 0 && keys.indexOf("showDots") >= 0 && keys.indexOf("fill") >= 0, keys: keys };
+    });
+    ok("Z8RD: Studio.CHARTS.radar.opts declares showLegend + showDots", z8rdOpts.ok, JSON.stringify(z8rdOpts));
+
+    // Z8RD-2: legend:false removes the toggle-legend chips; showDots:false swaps visible vertex dots
+    // for invisible (transparent) hover targets so tooltips keep working.
+    var z8rdRender = await page.evaluate(function () {
+      var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
+      for (var i = 0; i < iframes.length; i++) {
+        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.radar === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+      }
+      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      try {
+        var labels = ["A", "B", "C", "D"], series = [{ name: "S1", values: [1, 4, 2, 6] }, { name: "S2", values: [2, 1, 3, 2] }];
+        var el1 = iframeDoc.createElement("div");
+        el1.style.cssText = "position:absolute;top:-9999px;width:300px";
+        iframeDoc.body.appendChild(el1);
+        w.PDC.radar(el1, { labels: labels, series: series, height: 200 });
+        var legendOn = el1.querySelectorAll(".legend-item").length;
+        var visibleDotsOn = el1.querySelectorAll('svg circle[fill]:not([fill="transparent"])').length;
+        iframeDoc.body.removeChild(el1);
+
+        var el2 = iframeDoc.createElement("div");
+        el2.style.cssText = "position:absolute;top:-9999px;width:300px";
+        iframeDoc.body.appendChild(el2);
+        w.PDC.radar(el2, { labels: labels, series: series, height: 200, legend: false, showDots: false });
+        var legendOff = el2.querySelectorAll(".legend-item").length;
+        var visibleDotsOff = el2.querySelectorAll('svg circle[fill]:not([fill="transparent"])').length;
+        var hitTargets = el2.querySelectorAll('svg circle[fill="transparent"]').length;
+        iframeDoc.body.removeChild(el2);
+
+        return {
+          ok: legendOn === series.length && legendOff === 0 && visibleDotsOn === labels.length * series.length &&
+              visibleDotsOff === 0 && hitTargets === labels.length * series.length,
+          legendOn: legendOn, legendOff: legendOff, visibleDotsOn: visibleDotsOn, visibleDotsOff: visibleDotsOff, hitTargets: hitTargets
+        };
+      } catch (e) { return { ok: false, err: e.message }; }
+    });
+    ok("Z8RD: legend:false hides the toggle-legend chips; showDots:false swaps visible dots for hover-only hit targets", z8rdRender.ok, JSON.stringify(z8rdRender));
+
+    // Z8RD-3: the panel inspector shows the new radar-specific fields when such a panel is selected
+    var z8rdInsp = await page.evaluate(function () {
+      var spec = window.__STUDIO_STATE.spec;
+      var p = spec.panels[0];
+      var prevChart = JSON.parse(JSON.stringify(p.chart));
+      p.chart.type = "radar"; p.chart.opts = {};
+      window.__studioSelect({ kind: "panel", id: p.id });
+      var body = document.getElementById("inspBody");
+      var text = body ? body.textContent : "";
+      var ok = text.indexOf("Show legend") >= 0 && text.indexOf("Show vertex dots") >= 0;
+      p.chart = prevChart; // restore so later tests aren't affected
+      window.__studioSelect(null);
+      window.__studioRenderInspector();
+      return { ok: ok };
+    });
+    ok("Z8RD: radar panel inspector shows Show legend / Show vertex dots fields", z8rdInsp.ok, JSON.stringify(z8rdInsp));
+
     // restore Studio + a clean flagship spec for any tests appended after this block
     await page.evaluate(async function () {
       const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json());
