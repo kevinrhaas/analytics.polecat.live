@@ -133,9 +133,10 @@
   }
 
   // After a chart renders, tag each data element with its label and wire click-to-filter.
-  // Supports bars (rect.bar in data order), donut (svg path in data order), and
-  // treemap (rect.bar sorted by value descending, mirroring PDC._treemap's sort).
-  function wireXFilter(body, param, lvData, spec, chartType) {
+  // Supports bars (rect.bar in data order), donut (svg path in data order, or value-desc
+  // order when "Sort slices" is on), and treemap (rect.bar sorted by value descending,
+  // mirroring PDC._treemap's sort).
+  function wireXFilter(body, param, lvData, spec, chartType, sortSlices) {
     if (!param || !lvData || !lvData.length) return;
     var els, sorted = lvData;
     if (chartType === "bars" || chartType === "treemap") {
@@ -145,6 +146,9 @@
         sorted = lvData.slice().sort(function (a, b) { return b.value - a.value; });
     } else if (chartType === "donut") {
       els = [].slice.call(body.querySelectorAll("svg path"));
+      // Donut's own "Sort slices by value" option reorders its rendered paths; mirror
+      // that here too so a click on a slice maps back to the right label.
+      if (sortSlices) sorted = lvData.slice().sort(function (a, b) { return (+b.value || 0) - (+a.value || 0); });
     } else {
       return;
     }
@@ -208,6 +212,7 @@
           break;
         case "donut":
           PDC.donut(body, { centerCap: o.centerCap || "Total", fmt: f, height: o.height || 300,
+            sortSlices: !!o.sortSlices, legend: o.showLegend !== false, innerPct: o.innerPct,
             data: cfData(csData(lv(res, m.labelCol, m.valueCol), p.colorScale), p.condFmt), drill: drillCfg, detail: detailCfg });
           break;
         case "treemap":
@@ -1049,10 +1054,10 @@
     // PDC._reg to re-apply data-xf-label after every redraw as well.
     var xfParam = p.crossFilter && p.crossFilter.emit;
     if (xfParam && res && m.labelCol && m.valueCol) {
-      var _xfLv = lv(res, m.labelCol, m.valueCol), _xfType = ch.type;
-      try { wireXFilter(body, xfParam, _xfLv, spec, _xfType); } catch (e2) {}
+      var _xfLv = lv(res, m.labelCol, m.valueCol), _xfType = ch.type, _xfSort = !!o.sortSlices;
+      try { wireXFilter(body, xfParam, _xfLv, spec, _xfType, _xfSort); } catch (e2) {}
       PDC._reg.push(function () {
-        try { wireXFilter(body, xfParam, _xfLv, spec, _xfType); } catch (e3) {}
+        try { wireXFilter(body, xfParam, _xfLv, spec, _xfType, _xfSort); } catch (e3) {}
       });
     }
   }

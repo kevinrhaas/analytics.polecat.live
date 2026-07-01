@@ -8245,6 +8245,70 @@ function serve() {
     });
     ok("Z8LN: line panel inspector shows Smooth curve / Show data points fields", z8lnInsp.ok, JSON.stringify(z8lnInsp));
 
+    console.log("\n• Z8 donut: sort slices + legend toggle + inner radius");
+
+    // Z8DN-1: donut registry declares sortSlices + showLegend + innerPct (in addition to existing centerCap/fmt/height)
+    var z8dnOpts = await page.evaluate(function () {
+      var o = (window.Studio.CHARTS.donut || {}).opts || [];
+      var keys = o.map(function (od) { return od.key; });
+      return { ok: keys.indexOf("sortSlices") >= 0 && keys.indexOf("showLegend") >= 0 && keys.indexOf("innerPct") >= 0 && keys.indexOf("centerCap") >= 0, keys: keys };
+    });
+    ok("Z8DN: Studio.CHARTS.donut.opts declares sortSlices + showLegend + innerPct", z8dnOpts.ok, JSON.stringify(z8dnOpts));
+
+    // Z8DN-2: sortSlices reorders paths largest-first; legend:false removes the legend text;
+    // innerPct:0 renders a full pie wedge (no inner-radius arc command) instead of a ring.
+    var z8dnRender = await page.evaluate(function () {
+      var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
+      for (var i = 0; i < iframes.length; i++) {
+        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.donut === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+      }
+      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      try {
+        var data = [{ label: "Small", value: 5 }, { label: "Big", value: 40 }, { label: "Mid", value: 15 }];
+
+        var el1 = iframeDoc.createElement("div");
+        el1.style.cssText = "position:absolute;top:-9999px;width:400px";
+        iframeDoc.body.appendChild(el1);
+        w.PDC.donut(el1, { data: data, height: 260, sortSlices: true });
+        var tips1 = [].slice.call(el1.querySelectorAll("svg path")).length;
+        iframeDoc.body.removeChild(el1);
+
+        var el2 = iframeDoc.createElement("div");
+        el2.style.cssText = "position:absolute;top:-9999px;width:400px";
+        iframeDoc.body.appendChild(el2);
+        w.PDC.donut(el2, { data: data, height: 260, legend: false });
+        var legendTexts = el2.querySelectorAll(".series-label").length;
+        iframeDoc.body.removeChild(el2);
+
+        var el3 = iframeDoc.createElement("div");
+        el3.style.cssText = "position:absolute;top:-9999px;width:400px";
+        iframeDoc.body.appendChild(el3);
+        w.PDC.donut(el3, { data: data, height: 260, innerPct: 0 });
+        var centerLabelGone = el3.querySelectorAll(".gauge-val").length;
+        iframeDoc.body.removeChild(el3);
+
+        return { ok: tips1 === 3 && legendTexts === 0 && centerLabelGone === 0, tips1: tips1, legendTexts: legendTexts, centerLabelGone: centerLabelGone };
+      } catch (e) { return { ok: false, err: e.message }; }
+    });
+    ok("Z8DN: sortSlices renders all slices; legend:false hides legend labels; innerPct:0 drops the center label (full pie)", z8dnRender.ok, JSON.stringify(z8dnRender));
+
+    // Z8DN-3: the panel inspector shows the new donut-specific fields when a Donut panel is selected
+    var z8dnInsp = await page.evaluate(function () {
+      var spec = window.__STUDIO_STATE.spec;
+      var p = spec.panels[0];
+      var prevChart = JSON.parse(JSON.stringify(p.chart));
+      p.chart.type = "donut"; p.chart.opts = {};
+      window.__studioSelect({ kind: "panel", id: p.id });
+      var body = document.getElementById("inspBody");
+      var text = body ? body.textContent : "";
+      var ok = text.indexOf("Sort slices by value") >= 0 && text.indexOf("Show legend") >= 0 && text.indexOf("Inner radius") >= 0;
+      p.chart = prevChart; // restore so later tests aren't affected
+      window.__studioSelect(null);
+      window.__studioRenderInspector();
+      return { ok: ok, hasText: text.indexOf("Inner radius") >= 0 };
+    });
+    ok("Z8DN: donut panel inspector shows Sort slices / Show legend / Inner radius fields", z8dnInsp.ok, JSON.stringify(z8dnInsp));
+
     // ── F26: Parallel coordinates chart ────────────────────────────────────────
     console.log("\n• F26: parallel coordinates chart");
 

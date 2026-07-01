@@ -8,6 +8,10 @@
 window.STUDIO_BUILD = "__BUILD_TS__";
 
 window.STUDIO_CHANGELOG = [
+  { v: "v145", date: "2026-07-01", time: "19:05 UTC", title: "Z8 slice 8: Donut gets its own options — sort slices, legend toggle, inner radius", items: [
+      "Continues the Z8 track's per-type option sets (Table/Gauge/Treemap/Scatter/Line in v139–v144) with the Donut / pie chart: `Studio.CHARTS.donut.opts` now includes **Sort slices by value** (largest-first instead of always row order), **Show legend** (hide the side legend so the ring can use the panel's full width), and **Inner radius %** (adjustable ring thickness, 0 = a full pie with no center hole/label).",
+      "`PDC.donut` overridden in `app/studio-charts.js` (`PDC._donutBase` keeps the original for reference, same override pattern as Table/Gauge/Treemap/Scatter/Line) — identical arc math, tooltip, and center-total label logic. `studio-render.js` passes `sortSlices`/`legend`/`innerPct` through and mirrors the sort in cross-filter's click-to-label wiring (`wireXFilter`) so a slice click still maps to the right label when sorting is on. `docs/index.html` Donut card updated. 3 new Z8DN tests. Test suite 768/768.",
+    ] },
   { v: "v144", date: "2026-07-01", time: "17:55 UTC", title: "Z8 slice 7: Line / area gets its own options — smooth curve + show data points", items: [
       "Continues the Z8 track's per-type option sets (Table/Gauge/Treemap/Scatter in v139–v143) with the Line / area chart: `Studio.CHARTS.line.opts` now includes **Smooth curve** (cubic-bezier interpolation between points instead of straight segments, using the same midpoint-control-point technique as the Bump chart) and **Show data points** (hide the per-point dot markers for a cleaner look on dense series — a transparent hover target keeps tooltips working even with dots hidden).",
       "`PDC.line` overridden in `app/studio-charts.js` (`PDC._lineBase` keeps the original for reference, same override pattern as Table/Gauge/Treemap/Scatter) — identical axis/grid/area-gradient-fill logic; `studio-render.js` passes `smooth`/`showDots` through. `docs/index.html` Line/area card updated. 3 new Z8LN tests. Test suite 765/765.",

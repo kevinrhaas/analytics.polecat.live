@@ -3101,6 +3101,59 @@
     }));
   }
 
+  /* ── Enhanced donut / pie chart (override PDC.donut, Z8 slice 8) ────────────
+     Base PDC.donut (pdc-ui.js) always draws slices in row order, a fixed
+     60%-inner-radius ring, and an always-on legend, with no way to adjust any
+     of that. This override keeps the identical arc-drawing/tooltip/center-label
+     logic and adds cfg.sortSlices (largest slice first), cfg.legend (hide the
+     side legend, letting the ring use the full width), and cfg.innerPct (ring
+     thickness as an inner-radius percentage, 0 = full pie). Base kept as
+     PDC._donutBase for reference. */
+  PDC._donutBase = PDC.donut;
+
+  PDC.donut = function (el, cfg) { reg(el, function () { _donutOpts(el, cfg); }); };
+
+  function _donutOpts(el, cfg) {
+    var data = (cfg.data || []).filter(function (d) { return (+d.value || 0) > 0; }), h = cfg.height || 260;
+    if (!data.length) { el.innerHTML = '<div class="empty">No data</div>'; return; }
+    if (cfg.sortSlices) data = data.slice().sort(function (a, b) { return (+b.value || 0) - (+a.value || 0); });
+    var showLegend = cfg.legend !== false;
+    var o = mkSVG(el, h), s = o.s, w = o.w, pal = PDC.palette(), fmt = cfg.fmt || PDC.fmt.abbr;
+    var total = data.reduce(function (a, d) { return a + (+d.value || 0); }, 0);
+    if (isFinite(total) && total !== 0) total = parseFloat(total.toPrecision(12));
+    var innerRatio = Math.max(0, Math.min(90, cfg.innerPct != null ? +cfg.innerPct : 60)) / 100;
+    var cx = showLegend ? Math.min(w * 0.32, 150) : w / 2, cy = h / 2, R = Math.min(cx - 10, h / 2 - 12), r = R * innerRatio, a0 = -Math.PI / 2;
+    data.forEach(function (d, i) {
+      var ang = (+d.value / total) * Math.PI * 2, a1 = a0 + ang, col = d.color || pal[i % 10];
+      var x0 = cx + R * Math.cos(a0), y0 = cy + R * Math.sin(a0), x1 = cx + R * Math.cos(a1), y1 = cy + R * Math.sin(a1);
+      var xi0 = cx + r * Math.cos(a1), yi0 = cy + r * Math.sin(a1), xi1 = cx + r * Math.cos(a0), yi1 = cy + r * Math.sin(a0);
+      var big = ang > Math.PI ? 1 : 0;
+      var d1 = r > 0
+        ? "M" + x0 + "," + y0 + " A" + R + "," + R + " 0 " + big + " 1 " + x1 + "," + y1 + " L" + xi0 + "," + yi0 + " A" + r + "," + r + " 0 " + big + " 0 " + xi1 + "," + yi1 + " Z"
+        : "M" + cx + "," + cy + " L" + x0 + "," + y0 + " A" + R + "," + R + " 0 " + big + " 1 " + x1 + "," + y1 + " Z";
+      var p = S("path", { d: d1, fill: col, stroke: PDC.cssvar("--panel-bg"), "stroke-width": 2 });
+      p.addEventListener("mousemove", function (e) { PDC.showTip(e, "<b>" + d.label + "</b><br>" + fmt(d.value) + " (" + (100 * d.value / total).toFixed(1) + "%)"); });
+      p.addEventListener("mouseout", PDC.hideTip);
+      if (cfg.drill) PDC.bindDrill(p, cfg.drill, d.label);
+      if (cfg.detail) PDC.bindDetail(p, cfg.detail, d.label);
+      s.appendChild(p);
+      if (canAnim()) { p.style.opacity = "0"; setTimeout(function () { p.style.transition = "opacity .42s ease"; p.style.opacity = "1"; }, animD(i * 45)); }
+      a0 = a1;
+    });
+    if (r > 0) {
+      s.appendChild(S("text", { x: cx, y: cy - 3, "text-anchor": "middle", class: "gauge-val", "font-size": "20" }, cfg.centerLabel || fmt(total)));
+      s.appendChild(S("text", { x: cx, y: cy + 15, "text-anchor": "middle", class: "gauge-cap" }, cfg.centerCap || "Total"));
+    }
+    if (showLegend) {
+      var lx = cx * 2 + 8, ly = cy - data.length * 9;
+      data.forEach(function (d, i) {
+        var yy = ly + i * 19; if (yy > h - 6) return;
+        s.appendChild(S("rect", { x: lx, y: yy - 9, width: 11, height: 11, rx: 3, fill: d.color || pal[i % 10] }));
+        s.appendChild(S("text", { class: "series-label", x: lx + 17, y: yy }, PDC.fmt.trunc(d.label, 22) + "  " + (100 * d.value / total).toFixed(0) + "%"));
+      });
+    }
+  }
+
   /* ---------- parallel coordinates chart (multi-dimensional entity comparison) ----------
      Each entity (row) is drawn as a polyline connecting its values across N parallel
      vertical axes. Each axis represents one numeric dimension and has its own min/max

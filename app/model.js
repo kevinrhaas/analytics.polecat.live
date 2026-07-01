@@ -62,10 +62,16 @@
       label: "Donut / pie", icon: "◍", group: "Composition",
       desc: "Part-to-whole proportions with center label",
       fields: ["labelCol", "valueCol"],
+      // Z8 slice 8: donut gets its own type-specific options — the base toolkit always
+      // drew slices in row order with a fixed 60%-inner-radius ring and an always-on
+      // legend, none of which were adjustable from the inspector.
       opts: [
-        { key: "centerCap", type: "text",  label: "Center caption", def: "Total" },
-        { key: "fmt",       type: "fmt",   label: "Value format", def: "abbr" },
-        { key: "height",    type: "int",   label: "Height (px)", def: 300 }
+        { key: "centerCap",  type: "text",  label: "Center caption", def: "Total" },
+        { key: "fmt",        type: "fmt",   label: "Value format", def: "abbr" },
+        { key: "sortSlices", type: "bool",  label: "Sort slices by value", def: false },
+        { key: "showLegend", type: "bool",  label: "Show legend", def: true },
+        { key: "innerPct",   type: "int",   label: "Inner radius %", def: 60 },
+        { key: "height",     type: "int",   label: "Height (px)", def: 300 }
       ],
       cde: { type: "cccPieChart", extra: function () { return [["valuesVisible", "Boolean", "true"]]; } }
     },
