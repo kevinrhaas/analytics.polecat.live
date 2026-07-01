@@ -584,6 +584,19 @@ Design direction (best practice — the user wants it clean, not a redundant sin
   Z5/Z6 style presets. Blocked on Z5 (Settings) having real content to host it in. Light-weight, no build
   step; taste over cleverness.
 
+**Z13 — Expand the curated showcase examples (user-requested 2026-06-30).** Done so far: replaced the 17
+legacy v2 boards with 6 curated, stunning examples (studio-cost flagship + governance / pipeline /
+quality / storage / compliance) plus a gallery glow-up (real per-chart thumbnails, no CDF/CDE badges).
+NEXT: author MORE showcase dashboards (target a dozen+) that exercise the chart types not yet used in an
+example — **sankey (data-flow), network/topology, calendar-heatmap, bump/ranking, sunburst, quadrant,
+marimekko, radial-bar, timeline, waffle, etc.** Each: self-contained `.studio.json` on the existing
+catalog data, KPIs + 4–6 panels, added to `data/examples/index.json`, and it MUST pass the "all examples
+render every panel" test (tests/run.js) — validate with `node tools/export.js <spec> /tmp/x /public` for a
+fast structural check, then the suite for render. Mark 1–2 as `"featured": true` for the hero slot.
+Loose end: `tools/import-v2.py` still regenerates the retired `cde-*` boards + overwrites `index.json` —
+update it so a regen doesn't recreate the old boards (repoint it at, or make it additive to, the curated
+set), otherwise anyone running the importer clobbers the curated gallery.
+
 **Z0 — Finish the terminology migration (Phase 2, started 2026-06-30).** Done so far: user-facing
 CDA→"Data Access", CDF→"Dashboard Framework"; CDE export removed from the menu/inspector/bundle/push/CLI;
 tour/docs/brand updated. Remaining cleanup (one safe slice per loop, keep tests green): delete the now-
