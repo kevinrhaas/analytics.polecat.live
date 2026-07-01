@@ -1,0 +1,79 @@
+{
+  "schema": 1,
+  "id": "showcase-pipeline",
+  "name": "pipeline-observability",
+  "title": "Pipeline Observability",
+  "subtitle": "runs, runtime, throughput & stage health",
+  "group": "Observability",
+  "description": "A data-pipeline observability showcase — a success gauge, a runtime trend, a stage-throughput waterfall, a conversion funnel, and runs by pipeline.",
+  "cda": {
+    "connection": { "id": "pdc", "jndi": "PDC-BIDB-EXT" },
+    "dataAccesses": [
+      {
+        "id": "kpi", "name": "PipeKPI", "params": [], "cache": true, "cacheDuration": 120,
+        "sql": "SELECT COUNT(*) AS runs, ROUND(100.0*SUM(CASE WHEN status='SUCCESS' THEN 1 ELSE 0 END)/NULLIF(COUNT(*),0),1) AS success_pct, ROUND(AVG(runtime_sec)/60.0,1) AS avg_min, SUM(CASE WHEN status='FAILED' THEN 1 ELSE 0 END) AS failures FROM fact_pipeline_run",
+        "columns": ["runs", "success_pct", "avg_min", "failures"]
+      },
+      {
+        "id": "success", "name": "SuccessRate", "params": [], "cache": true, "cacheDuration": 120,
+        "sql": "SELECT ROUND(100.0*SUM(CASE WHEN status='SUCCESS' THEN 1 ELSE 0 END)/NULLIF(COUNT(*),0),1) AS success_pct FROM fact_pipeline_run",
+        "columns": ["success_pct"]
+      },
+      {
+        "id": "runtime_trend", "name": "RuntimeTrend", "params": [], "cache": true, "cacheDuration": 180,
+        "sql": "SELECT d.year_month_name AS month, ROUND(AVG(r.runtime_sec)/60.0,1) AS avg_min, ROUND(MAX(r.runtime_sec)/60.0,1) AS peak_min FROM fact_pipeline_run r JOIN dim_date d ON r.run_date_key=d.date_key GROUP BY d.year_month_number, d.year_month_name ORDER BY d.year_month_number",
+        "columns": ["month", "avg_min", "peak_min"]
+      },
+      {
+        "id": "stage_delta", "name": "StageThroughput", "params": [], "cache": true, "cacheDuration": 180,
+        "sql": "SELECT stage, SUM(rows_in - rows_out) AS dropped FROM v_pipeline_stage GROUP BY 1 ORDER BY MIN(stage_order)",
+        "columns": ["stage", "dropped"]
+      },
+      {
+        "id": "funnel", "name": "StageFunnel", "params": [], "cache": true, "cacheDuration": 180,
+        "sql": "SELECT stage, SUM(rows_out) AS rows FROM v_pipeline_stage GROUP BY 1 ORDER BY MIN(stage_order)",
+        "columns": ["stage", "rows"]
+      },
+      {
+        "id": "by_pipeline", "name": "RunsByPipeline", "params": [], "cache": true, "cacheDuration": 120,
+        "sql": "SELECT pipeline_name AS pipeline, COUNT(*) AS runs FROM fact_pipeline_run GROUP BY 1 ORDER BY 2 DESC LIMIT 8",
+        "columns": ["pipeline", "runs"]
+      }
+    ]
+  },
+  "filters": [],
+  "kpis": [
+    { "da": "kpi", "valueCol": "runs", "label": "Total Runs", "fmt": "n", "state": "purple", "info": "Pipeline executions in the observed window." },
+    { "da": "kpi", "valueCol": "success_pct", "label": "Success Rate", "fmt": "pct", "state": "good", "info": "Share of runs that completed successfully." },
+    { "da": "kpi", "valueCol": "avg_min", "label": "Avg Runtime (min)", "fmt": "n", "state": "", "info": "Average end-to-end runtime per run." },
+    { "da": "kpi", "valueCol": "failures", "label": "Failures", "fmt": "n", "state": "warn", "info": "Runs that ended in a failed state." }
+  ],
+  "gridCols": 3,
+  "panels": [
+    {
+      "id": "p_gauge", "title": "Success Rate", "span": 1, "pill": "%", "sub": "",
+      "info": "Overall run success across all pipelines.", "src": "fact_pipeline_run",
+      "chart": { "type": "gauge", "da": "success", "map": { "valueCol": "success_pct" }, "opts": { "max": 100, "fmt": "pct", "height": 300 } }
+    },
+    {
+      "id": "p_funnel", "title": "Stage Conversion", "span": 1, "pill": "rows", "sub": "",
+      "info": "Row throughput surviving each pipeline stage.", "src": "v_pipeline_stage",
+      "chart": { "type": "funnel", "da": "funnel", "map": { "labelCol": "stage", "valueCol": "rows" }, "opts": { "fmt": "n", "height": 300 } }
+    },
+    {
+      "id": "p_runs", "title": "Runs by Pipeline", "span": 1, "pill": "count", "sub": "",
+      "info": "Which pipelines run most often.", "src": "fact_pipeline_run",
+      "chart": { "type": "bars", "da": "by_pipeline", "map": { "labelCol": "pipeline", "valueCol": "runs" }, "opts": { "horizontal": true, "fmt": "n", "color": "--pentaho", "height": 300 } }
+    },
+    {
+      "id": "p_wf", "title": "Rows Dropped by Stage", "span": 1, "pill": "rows", "sub": "in − out",
+      "info": "Where rows are filtered or lost across stages.", "src": "v_pipeline_stage",
+      "chart": { "type": "waterfall", "da": "stage_delta", "map": { "labelCol": "stage", "valueCol": "dropped" }, "opts": { "fmt": "n", "height": 320 } }
+    },
+    {
+      "id": "p_trend", "title": "Runtime Trend", "span": 2, "pill": "min", "sub": "avg vs peak",
+      "info": "Average and peak runtime over time — watch the gap widen.", "src": "fact_pipeline_run + dim_date",
+      "chart": { "type": "line", "da": "runtime_trend", "map": { "labelCol": "month", "series": [ { "col": "avg_min", "name": "Avg" }, { "col": "peak_min", "name": "Peak" } ] }, "opts": { "area": false, "fmt": "n", "height": 320 } }
+    }
+  ]
+}

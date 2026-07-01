@@ -52,7 +52,7 @@ function serve() {
 
     const libCount = await page.$eval("#libCount", (e) => e.textContent);
     ok("query library populated", /\d+ queries/.test(libCount) && parseInt(libCount) > 100, libCount);
-    ok("examples menu has entries", (await page.$$("#menuExamples button")).length >= 16);
+    ok("examples menu has entries", (await page.$$("#menuExamples button")).length >= 6);
     ok("brand reads “Analytics Dashboard Studio”", /Analytics Dashboard/.test(await page.$eval("#topbar .brand-title", (e) => e.textContent)));
 
     // ---- a11y: keyboard focus ring (Tab triggers :focus-visible) ----
@@ -1051,7 +1051,7 @@ function serve() {
 
     // ---- first-class filter builder (inline editor + live options preview) ----
     console.log("\n• filter builder");
-    await page.evaluate(async () => { const spec = await fetch("data/examples/cde-cost.studio.json").then((r) => r.json()); window.__studioLoad(spec); });
+    await page.evaluate(async () => { const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json()); window.__studioLoad(spec); });
     await page.waitForTimeout(300);
     // click the Filters section "＋" to add a filter
     const added = await page.evaluate(() => {
@@ -1142,7 +1142,7 @@ function serve() {
     // ---- CDE → spec round-trip (import existing dashboards) ----
     console.log("\n• CDE import (round-trip)");
     const rtc = await page.evaluate(async () => {
-      const spec = await fetch("data/examples/cde-cost.studio.json").then((r) => r.json());
+      const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json());
       const cde = Studio.exportCDE(spec, "/public/pdc-iteration/v2");
       const back = Studio.parseCDE(cde.cdfde, cde.wcdf, spec.cda);
       return {

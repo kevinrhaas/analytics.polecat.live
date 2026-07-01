@@ -1,0 +1,79 @@
+{
+  "schema": 1,
+  "id": "showcase-quality",
+  "name": "quality-scorecard",
+  "title": "Data Quality Scorecard",
+  "subtitle": "overall score, dimensions vs target & issue mix",
+  "group": "Quality",
+  "description": "A data-quality showcase — an overall quality gauge, dimension-vs-target bullets, a domain×check quality heatmap, an outcome donut, and issues by type.",
+  "cda": {
+    "connection": { "id": "pdc", "jndi": "PDC-BIDB-EXT" },
+    "dataAccesses": [
+      {
+        "id": "kpi", "name": "DqKPI", "params": [], "cache": true, "cacheDuration": 120,
+        "sql": "SELECT ROUND(AVG(score),1) AS overall, ROUND(100.0*SUM(CASE WHEN result='PASS' THEN 1 ELSE 0 END)/NULLIF(COUNT(*),0),1) AS pass_pct, SUM(CASE WHEN result='FAIL' THEN 1 ELSE 0 END) AS failing, COUNT(DISTINCT check_name) AS checks FROM v_quality_check",
+        "columns": ["overall", "pass_pct", "failing", "checks"]
+      },
+      {
+        "id": "overall", "name": "OverallScore", "params": [], "cache": true, "cacheDuration": 120,
+        "sql": "SELECT ROUND(AVG(score),1) AS overall FROM v_quality_check",
+        "columns": ["overall"]
+      },
+      {
+        "id": "dims", "name": "DimensionVsTarget", "params": [], "cache": true, "cacheDuration": 180,
+        "sql": "SELECT dimension, ROUND(AVG(score),0) AS score, ROUND(AVG(target),0) AS target FROM v_quality_dimension GROUP BY 1 ORDER BY 1",
+        "columns": ["dimension", "score", "target"]
+      },
+      {
+        "id": "grid", "name": "QualityGrid", "params": [], "cache": true, "cacheDuration": 180,
+        "sql": "SELECT domain, check_name AS check, ROUND(AVG(score),0) AS score FROM v_quality_check GROUP BY 1,2",
+        "columns": ["domain", "check", "score"]
+      },
+      {
+        "id": "outcome", "name": "Outcome", "params": [], "cache": true, "cacheDuration": 120,
+        "sql": "SELECT result, COUNT(*) AS n FROM v_quality_check GROUP BY 1 ORDER BY 2 DESC",
+        "columns": ["result", "n"]
+      },
+      {
+        "id": "issues", "name": "IssuesByType", "params": [], "cache": true, "cacheDuration": 120,
+        "sql": "SELECT issue_type AS type, COUNT(*) AS n FROM v_quality_issue GROUP BY 1 ORDER BY 2 DESC LIMIT 8",
+        "columns": ["type", "n"]
+      }
+    ]
+  },
+  "filters": [],
+  "kpis": [
+    { "da": "kpi", "valueCol": "overall", "label": "Overall Score", "fmt": "n", "state": "good", "info": "Weighted average quality score (0–100)." },
+    { "da": "kpi", "valueCol": "pass_pct", "label": "Checks Passing", "fmt": "pct", "state": "purple", "info": "Share of quality checks currently passing." },
+    { "da": "kpi", "valueCol": "failing", "label": "Failing Checks", "fmt": "n", "state": "warn", "info": "Checks in a failing state right now." },
+    { "da": "kpi", "valueCol": "checks", "label": "Checks Defined", "fmt": "n", "state": "", "info": "Distinct quality checks configured." }
+  ],
+  "gridCols": 3,
+  "panels": [
+    {
+      "id": "p_gauge", "title": "Overall Quality", "span": 1, "pill": "score", "sub": "0–100",
+      "info": "Composite quality score across all checks.", "src": "v_quality_check",
+      "chart": { "type": "gauge", "da": "overall", "map": { "valueCol": "overall" }, "opts": { "max": 100, "fmt": "n", "height": 300 } }
+    },
+    {
+      "id": "p_outcome", "title": "Check Outcomes", "span": 1, "pill": "count", "sub": "",
+      "info": "Pass / warn / fail split across checks.", "src": "v_quality_check",
+      "chart": { "type": "donut", "da": "outcome", "map": { "labelCol": "result", "valueCol": "n" }, "opts": { "centerCap": "checks", "fmt": "n", "height": 300 } }
+    },
+    {
+      "id": "p_issues", "title": "Issues by Type", "span": 1, "pill": "count", "sub": "",
+      "info": "Most common data-quality issue categories.", "src": "v_quality_issue",
+      "chart": { "type": "bars", "da": "issues", "map": { "labelCol": "type", "valueCol": "n" }, "opts": { "horizontal": true, "fmt": "n", "color": "--c3", "height": 300 } }
+    },
+    {
+      "id": "p_grid", "title": "Quality by Domain × Check", "span": 2, "pill": "score", "sub": "domain × check",
+      "info": "Where quality is strong — and where it needs attention.", "src": "v_quality_check",
+      "chart": { "type": "heatmap", "da": "grid", "map": { "rowCol": "domain", "colCol": "check", "valueCol": "score" }, "opts": { "fmt": "n", "height": 320 } }
+    },
+    {
+      "id": "p_dims", "title": "Dimensions vs Target", "span": 1, "pill": "score", "sub": "actual vs target",
+      "info": "Each quality dimension against its target.", "src": "v_quality_dimension",
+      "chart": { "type": "bullet", "da": "dims", "map": { "labelCol": "dimension", "valueCol": "score", "targetCol": "target" }, "opts": { "fmt": "n", "height": 320 } }
+    }
+  ]
+}

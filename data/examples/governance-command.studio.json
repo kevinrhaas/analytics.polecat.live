@@ -1,0 +1,113 @@
+{
+  "schema": 1,
+  "id": "showcase-governance",
+  "name": "governance-command",
+  "title": "Data Governance Command Center",
+  "subtitle": "coverage, ownership & policy health at a glance",
+  "group": "Governance",
+  "description": "A governance showcase — a coverage gauge, a multi-dimension health radar, a domain×policy coverage heatmap, and ownership/classification breakdowns.",
+  "cda": {
+    "connection": { "id": "pdc", "jndi": "PDC-BIDB-EXT" },
+    "dataAccesses": [
+      {
+        "id": "kpi",
+        "name": "GovKPI",
+        "params": [],
+        "cache": true,
+        "cacheDuration": 120,
+        "sql": "SELECT ROUND(100.0*SUM(CASE WHEN governed THEN 1 ELSE 0 END)/NULLIF(COUNT(*),0),1) AS governed_pct, COUNT(DISTINCT policy_key) AS policies, COUNT(DISTINCT term_key) AS terms, COUNT(DISTINCT owner) AS owners FROM v_entities_master",
+        "columns": ["governed_pct", "policies", "terms", "owners"]
+      },
+      {
+        "id": "coverage",
+        "name": "Coverage",
+        "params": [],
+        "cache": true,
+        "cacheDuration": 120,
+        "sql": "SELECT ROUND(100.0*SUM(CASE WHEN governed THEN 1 ELSE 0 END)/NULLIF(COUNT(*),0),1) AS governed_pct FROM v_entities_master",
+        "columns": ["governed_pct"]
+      },
+      {
+        "id": "health",
+        "name": "HealthByDimension",
+        "params": [],
+        "cache": true,
+        "cacheDuration": 180,
+        "sql": "SELECT dimension, ROUND(AVG(score),0) AS score FROM v_governance_scorecard GROUP BY 1 ORDER BY 1",
+        "columns": ["dimension", "score"]
+      },
+      {
+        "id": "coverage_grid",
+        "name": "DomainPolicyGrid",
+        "params": [],
+        "cache": true,
+        "cacheDuration": 180,
+        "sql": "SELECT domain, policy_type AS policy, ROUND(100.0*SUM(CASE WHEN covered THEN 1 ELSE 0 END)/NULLIF(COUNT(*),0),0) AS coverage FROM v_domain_policy GROUP BY 1,2",
+        "columns": ["domain", "policy", "coverage"]
+      },
+      {
+        "id": "by_owner",
+        "name": "AssetsByOwner",
+        "params": [],
+        "cache": true,
+        "cacheDuration": 120,
+        "sql": "SELECT owner, COUNT(*) AS assets FROM v_entities_master GROUP BY 1 ORDER BY 2 DESC LIMIT 8",
+        "columns": ["owner", "assets"]
+      },
+      {
+        "id": "by_sensitivity",
+        "name": "BySensitivity",
+        "params": [],
+        "cache": true,
+        "cacheDuration": 120,
+        "sql": "SELECT COALESCE(NULLIF(sensitivity,''),'Unclassified') AS sensitivity, COUNT(*) AS assets FROM v_entities_master GROUP BY 1 ORDER BY 2 DESC",
+        "columns": ["sensitivity", "assets"]
+      }
+    ]
+  },
+  "filters": [],
+  "kpis": [
+    { "da": "kpi", "valueCol": "governed_pct", "label": "Governed", "fmt": "pct", "state": "good", "info": "Share of catalog entities under active governance." },
+    { "da": "kpi", "valueCol": "policies", "label": "Active Policies", "fmt": "n", "state": "purple", "info": "Distinct policies applied across the catalog." },
+    { "da": "kpi", "valueCol": "terms", "label": "Glossary Terms", "fmt": "n", "state": "", "info": "Business glossary terms linked to data." },
+    { "da": "kpi", "valueCol": "owners", "label": "Data Owners", "fmt": "n", "state": "warn", "info": "Accountable owners assigned across domains." }
+  ],
+  "gridCols": 3,
+  "panels": [
+    {
+      "id": "p_gauge", "title": "Governance Coverage", "span": 1, "pill": "%", "sub": "",
+      "info": "Overall share of the catalog under governance.",
+      "src": "v_entities_master",
+      "chart": { "type": "gauge", "da": "coverage", "map": { "valueCol": "governed_pct" },
+        "opts": { "max": 100, "fmt": "pct", "height": 300 } }
+    },
+    {
+      "id": "p_radar", "title": "Governance Health by Dimension", "span": 1, "pill": "score", "sub": "0–100",
+      "info": "Maturity score across the core governance dimensions.",
+      "src": "v_governance_scorecard",
+      "chart": { "type": "radar", "da": "health", "map": { "labelCol": "dimension", "series": [ { "col": "score", "name": "Score" } ] },
+        "opts": { "height": 300 } }
+    },
+    {
+      "id": "p_class", "title": "Assets by Sensitivity", "span": 1, "pill": "count", "sub": "",
+      "info": "Classification mix across the catalog.",
+      "src": "v_entities_master",
+      "chart": { "type": "donut", "da": "by_sensitivity", "map": { "labelCol": "sensitivity", "valueCol": "assets" },
+        "opts": { "centerCap": "assets", "fmt": "n", "height": 300 } }
+    },
+    {
+      "id": "p_grid", "title": "Policy Coverage by Domain", "span": 2, "pill": "%", "sub": "domain × policy",
+      "info": "Where policy coverage is strong — and where the gaps are.",
+      "src": "v_domain_policy",
+      "chart": { "type": "heatmap", "da": "coverage_grid", "map": { "rowCol": "domain", "colCol": "policy", "valueCol": "coverage" },
+        "opts": { "fmt": "pct", "height": 320 } }
+    },
+    {
+      "id": "p_owner", "title": "Assets by Owner", "span": 1, "pill": "count", "sub": "",
+      "info": "Ownership concentration across the top data owners.",
+      "src": "v_entities_master",
+      "chart": { "type": "bars", "da": "by_owner", "map": { "labelCol": "owner", "valueCol": "assets" },
+        "opts": { "horizontal": true, "fmt": "n", "color": "--pentaho", "height": 320 } }
+    }
+  ]
+}
