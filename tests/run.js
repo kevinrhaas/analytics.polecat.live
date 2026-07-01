@@ -8309,6 +8309,60 @@ function serve() {
     });
     ok("Z8DN: donut panel inspector shows Sort slices / Show legend / Inner radius fields", z8dnInsp.ok, JSON.stringify(z8dnInsp));
 
+    // Z8BR-1: bars registry declares sortBars + showValues (in addition to existing horizontal/rotate/fmt/color/height)
+    var z8brOpts = await page.evaluate(function () {
+      var o = (window.Studio.CHARTS.bars || {}).opts || [];
+      var keys = o.map(function (od) { return od.key; });
+      return { ok: keys.indexOf("sortBars") >= 0 && keys.indexOf("showValues") >= 0 && keys.indexOf("horizontal") >= 0, keys: keys };
+    });
+    ok("Z8BR: Studio.CHARTS.bars.opts declares sortBars + showValues", z8brOpts.ok, JSON.stringify(z8brOpts));
+
+    // Z8BR-2: sortBars renders bars largest-first (row labels reorder); showValues:false removes the .val-label text
+    var z8brRender = await page.evaluate(function () {
+      var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
+      for (var i = 0; i < iframes.length; i++) {
+        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.bars === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+      }
+      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      try {
+        var data = [{ label: "Small", value: 5 }, { label: "Big", value: 40 }, { label: "Mid", value: 15 }];
+
+        var el1 = iframeDoc.createElement("div");
+        el1.style.cssText = "position:absolute;top:-9999px;width:400px";
+        iframeDoc.body.appendChild(el1);
+        w.PDC.bars(el1, { data: data, height: 260, horizontal: true, sortBars: true });
+        var ticks = [].slice.call(el1.querySelectorAll(".tick")).map(function (t) { return t.textContent; });
+        iframeDoc.body.removeChild(el1);
+
+        var el2 = iframeDoc.createElement("div");
+        el2.style.cssText = "position:absolute;top:-9999px;width:400px";
+        iframeDoc.body.appendChild(el2);
+        w.PDC.bars(el2, { data: data, height: 260, horizontal: true, showValues: false });
+        var valLabels = el2.querySelectorAll(".val-label").length;
+        iframeDoc.body.removeChild(el2);
+
+        return { ok: ticks[0] === "Big" && ticks[1] === "Mid" && ticks[2] === "Small" && valLabels === 0, ticks: ticks, valLabels: valLabels };
+      } catch (e) { return { ok: false, err: e.message }; }
+    });
+    ok("Z8BR: sortBars renders bars largest-first; showValues:false hides value labels", z8brRender.ok, JSON.stringify(z8brRender));
+
+    // Z8BR-3: the panel inspector shows the new bars-specific fields when a Bar-chart panel is selected
+    var z8brInsp = await page.evaluate(function () {
+      var spec = window.__STUDIO_STATE.spec;
+      var p = spec.panels[0];
+      var prevChart = JSON.parse(JSON.stringify(p.chart));
+      p.chart.type = "bars"; p.chart.opts = {};
+      window.__studioSelect({ kind: "panel", id: p.id });
+      var body = document.getElementById("inspBody");
+      var text = body ? body.textContent : "";
+      var ok2 = text.indexOf("Sort by value") >= 0 && text.indexOf("Show value labels") >= 0;
+      p.chart = prevChart; // restore so later tests aren't affected
+      window.__studioSelect(null);
+      window.__studioRenderInspector();
+      return { ok: ok2 };
+    });
+    ok("Z8BR: bars panel inspector shows Sort by value / Show value labels fields", z8brInsp.ok, JSON.stringify(z8brInsp));
+
     // ── F26: Parallel coordinates chart ────────────────────────────────────────
     console.log("\n• F26: parallel coordinates chart");
 

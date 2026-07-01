@@ -3154,6 +3154,77 @@
     }
   }
 
+  /* ── Enhanced bar chart (override PDC.bars, Z8 slice 9) ──────────────────────
+     Base PDC.bars (pdc-ui.js) always draws bars in row order with the value
+     label permanently on, no way to change either. This override keeps the
+     identical horizontal/vertical layout, gridline, and tooltip logic and adds
+     cfg.sortBars (largest value first, like Donut's "Sort slices") and
+     cfg.showValues (hide the value labels for a cleaner look on dense/crowded
+     charts). Base kept as PDC._barsBase for reference. */
+  PDC._barsBase = PDC.bars;
+
+  PDC.bars = function (el, cfg) { reg(el, function () { _barsOpts(el, cfg); }); };
+
+  function _barsOpts(el, cfg) {
+    var data = cfg.data || [], hor = cfg.horizontal, h = cfg.height || 270;
+    if (!data.length) { el.innerHTML = '<div class="empty">No data</div>'; return; }
+    if (cfg.sortBars) data = data.slice().sort(function (a, b) { return (+b.value || 0) - (+a.value || 0); });
+    var showValues = cfg.showValues !== false;
+    var o = mkSVG(el, h), s = o.s, w = o.w;
+    var fmt = cfg.fmt || PDC.fmt.abbr, base = cfg.color || PDC.cssvar("--pentaho");
+    var max = niceMax(Math.max.apply(null, data.map(function (d) { return +d.value || 0; })));
+    var anims = [];
+    if (hor) {
+      var mL = cfg.labelW || 140, mR = 46, mT = 6, mB = 8, ih = h - mT - mB, n = data.length, bh = ih / n;
+      for (var g = 0; g <= 4; g++) { var gx = mL + (w - mL - mR) * g / 4; s.appendChild(S("line", { class: "gridline", x1: gx, y1: mT, x2: gx, y2: mT + ih })); }
+      data.forEach(function (d, i) {
+        var y = mT + i * bh, bw = (w - mL - mR) * ((+d.value || 0) / max), col = d.color || base;
+        var r = S("rect", { class: "bar", x: mL, y: y + bh * 0.16, width: 0, height: bh * 0.68, rx: 4, fill: col });
+        r.addEventListener("mousemove", function (e) { PDC.showTip(e, cfg.tip ? cfg.tip(d) : ("<b>" + d.label + "</b><br>" + fmt(d.value))); });
+        r.addEventListener("mouseout", PDC.hideTip);
+        if (cfg.drill) PDC.bindDrill(r, cfg.drill, d.label);
+        if (cfg.detail) PDC.bindDetail(r, cfg.detail, d.label);
+        s.appendChild(r);
+        anims.push({ el: r, kind: "width", to: Math.max(1, bw), delay: animD(i * 28) });
+        s.appendChild(S("text", { class: "tick", x: mL - 8, y: y + bh / 2 + 3, "text-anchor": "end" }, PDC.fmt.trunc(d.label, cfg.labelChars || 20)));
+        if (showValues) s.appendChild(S("text", { class: "val-label", x: mL + bw + 6, y: y + bh / 2 + 3 }, fmt(d.value)));
+      });
+    } else {
+      var mL2 = 46, mR2 = 10, mT2 = 10, mB2 = cfg.rotate ? 64 : 26, iw = w - mL2 - mR2, ih2 = h - mT2 - mB2, n2 = data.length, bw2 = iw / n2;
+      for (var g2 = 0; g2 <= 4; g2++) { var gy = mT2 + ih2 * (1 - g2 / 4); s.appendChild(S("line", { class: "gridline", x1: mL2, y1: gy, x2: w - mR2, y2: gy }));
+        s.appendChild(S("text", { class: "tick", x: mL2 - 7, y: gy + 3, "text-anchor": "end" }, fmt(max * g2 / 4))); }
+      data.forEach(function (d, i) {
+        var x = mL2 + i * bw2, bhh = ih2 * ((+d.value || 0) / max), col = d.color || base;
+        var r = S("rect", { class: "bar", x: x + bw2 * 0.14, y: mT2 + ih2, width: bw2 * 0.72, height: 0, rx: 4, fill: col });
+        r.addEventListener("mousemove", function (e) { PDC.showTip(e, cfg.tip ? cfg.tip(d) : ("<b>" + d.label + "</b><br>" + fmt(d.value))); });
+        r.addEventListener("mouseout", PDC.hideTip);
+        if (cfg.drill) PDC.bindDrill(r, cfg.drill, d.label);
+        if (cfg.detail) PDC.bindDetail(r, cfg.detail, d.label);
+        s.appendChild(r);
+        anims.push({ el: r, kind: "height", y0: mT2 + ih2, yTo: mT2 + ih2 - bhh, to: Math.max(1, bhh), delay: animD(i * 28) });
+        var lx = x + bw2 / 2, ty = mT2 + ih2 + 13;
+        var tx = S("text", { class: "tick", x: lx, y: ty, "text-anchor": cfg.rotate ? "end" : "middle" }, PDC.fmt.trunc(d.label, cfg.rotate ? 16 : 10));
+        if (cfg.rotate) tx.setAttribute("transform", "rotate(-38 " + lx + " " + ty + ")");
+        s.appendChild(tx);
+      });
+    }
+    function apply(a) {
+      if (a.kind === "width") a.el.setAttribute("width", a.to);
+      else { a.el.setAttribute("y", a.yTo); a.el.setAttribute("height", a.to); }
+    }
+    if (canAnim()) {
+      var dur = animD(280) + "ms ease-out";
+      anims.forEach(function (a) {
+        setTimeout(function () {
+          a.el.style.transition = a.kind === "width" ? ("width " + dur) : ("y " + dur + ", height " + dur);
+          apply(a);
+        }, a.delay);
+      });
+    } else {
+      anims.forEach(apply);
+    }
+  }
+
   /* ---------- parallel coordinates chart (multi-dimensional entity comparison) ----------
      Each entity (row) is drawn as a polyline connecting its values across N parallel
      vertical axes. Each axis represents one numeric dimension and has its own min/max

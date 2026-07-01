@@ -50,13 +50,15 @@
       opts: [
         { key: "horizontal", type: "bool",   label: "Horizontal", def: true },
         { key: "rotate",     type: "bool",   label: "Rotate labels", def: false },
+        { key: "sortBars",   type: "bool",   label: "Sort by value", def: false },
+        { key: "showValues", type: "bool",   label: "Show value labels", def: true },
         { key: "fmt",        type: "fmt",    label: "Value format", def: "abbr" },
         { key: "color",      type: "color",  label: "Bar color", def: "--pentaho" },
         { key: "height",     type: "int",    label: "Height (px)", def: 300 }
       ],
       cde: { type: "cccBarChart", extra: function (c) {
         return [["orientation", "Orientation", c.opts && c.opts.horizontal === false ? "vertical" : "horizontal"],
-                ["valuesVisible", "Boolean", "true"]]; } }
+                ["valuesVisible", "Boolean", c.opts && c.opts.showValues === false ? "false" : "true"]]; } }
     },
     donut: {
       label: "Donut / pie", icon: "◍", group: "Composition",
