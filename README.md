@@ -1,6 +1,6 @@
 # Analytics Dashboard Studio · analytics.polecat.live
 
-A modern, interactive **visual builder for Pentaho CDE & CDF dashboards** over your existing
+A modern, interactive **visual builder for analytical dashboard applications** over your existing
 **CDA** queries. Pick a query from the library, drop it on the canvas, choose a chart, tune it in
 the inspector, watch the live preview — then **export** deployable artifacts that drop straight
 into the Pentaho Data Catalog analytics suite.
@@ -38,7 +38,7 @@ One **dashboard spec** (`.studio.json`, see `SPEC.md`) drives every output:
 
 | Export | Files | Notes |
 |--------|-------|-------|
-| **CDF dashboard** | `<name>.html` | Self-contained — inlines the `PDC` toolkit (`vendor/pdc-ui.*`) + your spec; reads live data via CDA `doQuery` on the server. This is what the live preview shows. |
+| **CDF dashboard** | `<name>.html` | Self-contained — inlines the `PDC` (Polecat Data Charts) toolkit (`vendor/pdc-ui.*`) + your spec; reads live data via CDA `doQuery` on the server. This is what the live preview shows. |
 | **CDE editor files** | `<name>.cdfde` + `<name>.wcdf` | Opens & is editable in Pentaho **CDE**; CCC components over the external `.cda`. |
 | **CDA queries** | `<name>.cda` | The data layer (connection + SQL data accesses). |
 | **Bundle** | all of the above + `.studio.json` | One click. |
