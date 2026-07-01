@@ -593,18 +593,32 @@ Design direction (best practice — the user wants it clean, not a redundant sin
   Z5/Z6 style presets. Blocked on Z5 (Settings) having real content to host it in. Light-weight, no build
   step; taste over cleverness.
 
-**Z13 — Expand the curated showcase examples (user-requested 2026-06-30).** Done so far: replaced the 17
-legacy v2 boards with 6 curated, stunning examples (studio-cost flagship + governance / pipeline /
-quality / storage / compliance) plus a gallery glow-up (real per-chart thumbnails, no CDF/CDE badges).
-NEXT: author MORE showcase dashboards (target a dozen+) that exercise the chart types not yet used in an
-example — **sankey (data-flow), network/topology, calendar-heatmap, bump/ranking, sunburst, quadrant,
-marimekko, radial-bar, timeline, waffle, etc.** Each: self-contained `.studio.json` on the existing
-catalog data, KPIs + 4–6 panels, added to `data/examples/index.json`, and it MUST pass the "all examples
-render every panel" test (tests/run.js) — validate with `node tools/export.js <spec> /tmp/x /public` for a
-fast structural check, then the suite for render. Mark 1–2 as `"featured": true` for the hero slot.
+**Z13 — Curated showcase examples: make them a COMPLETE, dazzling survey (user-requested 2026-06-30,
+expanded).** Done so far: replaced the 17 legacy v2 boards with 6 curated examples; gallery glow-up (real
+per-chart thumbnails, no CDF/CDE badges); one grid ordered **most-spectacular-first, no single hero**;
+fixed KPI/gauge NaN/`0`/double-`%` (sample-data generator + example gauges). NEXT — turn the examples into
+a **broad, complete survey of everything the app can do**, built **progressively simple → dazzling**:
+- **Cover EVERY chart type at least once** across the set — each example featuring several types the
+  others don't, so the collection is a full tour. Still-missing types to work in: **sankey, network,
+  calendar-heatmap, bump, sunburst, quadrant, marimekko, radial-bar, timeline, waffle, boxplot, violin,
+  histogram, beeswarm, dotplot, slope, dumbbell, step, polar-area, pareto, population-pyramid, area-range,
+  100%-stacked, ridgeline, packed-bubbles, word-cloud**, etc. (compare against `Studio.CHARTS`).
+- **Show EVERY interaction/feature at least once**: **filters** (dashboard filters + the `#hash` deep-link),
+  **cross-filter**, **drill-through / detail drawer** (internal drill AND cross-dashboard drill), and all
+  the **marks/annotations** — target lines, reference bands, callout arrows, period highlights, event
+  markers, conditional formatting, color scales, KPI compare/sparkline. Each capability demonstrated in a
+  showcase, ideally called out in the panel subtitle so it reads as a guided tour.
+- **Progressive complexity**: keep a couple of simple “start here” boards, then ramp to the most complex,
+  fully-annotated, cross-drilling, drawer-rich dashboards — really dazzle at the top of the list.
+- Ordering: keep the gallery **most-spectacular-first** (index.json order); no single hero card.
+- Each example: self-contained `.studio.json` on the existing catalog data, KPIs + panels, added to
+  `data/examples/index.json`, and MUST pass the "all examples render every panel" test. Validate fast with
+  `node tools/export.js <spec> /tmp/x /public`, then the suite. NOTE on sample data: KPI/gauge queries are
+  value-only (first column kept numeric); chart queries put a categorical **label column first**; name
+  numeric columns to hit the right synthetic kind (`*_pct/rate/coverage/score`→0–100, `count/runs/rows`→counts).
 Loose end: `tools/import-v2.py` still regenerates the retired `cde-*` boards + overwrites `index.json` —
-update it so a regen doesn't recreate the old boards (repoint it at, or make it additive to, the curated
-set), otherwise anyone running the importer clobbers the curated gallery.
+update it so a regen doesn't clobber the curated gallery (repoint it at / make it additive to the set).
+Consider a small defensive fix so a gauge never double-prints its unit when `fmt:"pct"` is also set.
 
 **Z0 — Finish the terminology migration (Phase 2, started 2026-06-30).** Done so far: user-facing
 CDA→"Data Access", CDF→"Dashboard Framework"; CDE export removed from the menu/inspector/bundle/push/CLI;
