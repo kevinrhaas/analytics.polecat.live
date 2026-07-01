@@ -364,9 +364,20 @@ connector feeds the same dashboard model.
 and **dashboard style defaults** (standard look/style applied to new dashboards). Support **collections
 of named style presets** the user can pick from. Export/import settings as JSON.
 
-**Z6 — Banner editor.** Edit/manage the dashboard header/banner (logo, title, colors, links) both in-app
-(per dashboard) and as a **Settings** default/preset, so a standard banner style applies to new
-dashboards. Tie into the style-preset collections from Z5.
+**Z6 — Banner / header editor + naming model (user-requested; refined 2026-06-30).** Make the dashboard
+header/banner (the "Cost Optimization & Sustainability · subtitle" bar in the preview) fully **editable
+in-app** — title, subtitle, logo, colors, links, and full text formatting. Add **default headers** as
+named presets defined in **Settings** (default colors/logo/formatting); when building a dashboard, offer
+an **"include default header"** option that drops the preset in, then let the user **edit it per-dashboard**
+with all formatting. Consider **integrating the header with the ¶ Text/annotation element** — the header
+could be a special rich-text block (or the text element gains header-style options) so one editor covers
+both. Tie into the Z5 style-preset collections.
+> **Naming model (relocate title editing).** Editing the dashboard name up in the **top bar** (`#dashTitle`)
+> now feels out of place with the app shell — move name editing into the **panel/inspector and/or Settings**,
+> not the topbar chip. Also separate the two names that are currently conflated: the **object/file name**
+> (the stem, e.g. `studio-cost`, used for exports/repository) vs the **dashboard display title** (e.g.
+> "Cost Optimization & Sustainability", shown in the header/banner) — they should be independently editable
+> fields. Coordinate with the Z1 top-bar cleanup and the Z3 Repository (where objects are named/organized).
 
 **Z7 — Analytics: forecasting + statistical functions.** Move toward standalone analytic apps: add
 forecasting (moving average, exponential smoothing / Holt-Winters, linear & seasonal trend) and
