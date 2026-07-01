@@ -444,14 +444,21 @@ deep-links to its docs anchor). And **keep the docs continuously current** — t
 living in-app reference: whenever a run adds or changes a user-facing feature, update the docs in the SAME
 slice (standing responsibility — see Conventions). Style the docs to match the active app theme.
 
-**Z12 — App icon / favicon from the brand mark (user-requested 2026-06-30).** The purple gradient **"P"
-brand logo** (top-left) should also be the **application icon you see when you open it** — the browser
-**favicon** (tab, bookmarks, history) and ideally an **apple-touch-icon** + a minimal **PWA manifest**
-icon so it looks right when pinned/installed. Today the logo is only a CSS-gradient `<span class="logo">`
-with **no favicon at all** (browsers show a blank default). Produce a small **SVG favicon** matching the
-gradient "P" (inline data-URI or a `favicon.svg`), wire `<link rel="icon">` (+ `apple-touch-icon`, a tiny
-`site.webmanifest`), and set a matching `theme-color`. Light-weight, no build step; keep it consistent
-with the brand/active theme where practical.
+**Z12 — Branding & app identity: de-dup the logo, favicon, Settings option (user-requested; revised 2026-06-30).**
+Design direction (best practice — the user wants it clean, not a redundant single letter):
+- **Remove the redundant "P" square from the app title / content header.** A bare single-letter box next
+  to the full "Analytics Dashboard Studio" wordmark (and next to the rail's own icons) reads as unfinished,
+  not branded. Let the styled **wordmark be the identity** in the content header.
+- **Anchor app identity at the TOP of the left rail** instead — a small, tasteful brand mark (a considered
+  logomark or a compact wordmark lockup, NOT a giant letter), consistent with the Polecat design language.
+  That's where persistent identity belongs (cf. Linear / VS Code / Notion); the content area then leads
+  with the *dashboard* title.
+- **Favicon (still needed — the tab is blank today).** Add a proper **SVG favicon** of the chosen mark
+  (inline data-URI or `favicon.svg`), `<link rel="icon">` + `apple-touch-icon` + a tiny `site.webmanifest`
+  + matching `theme-color`. Make it a considered themed mark, not a plain letter.
+- **Make branding a Settings option (Z5).** A small **Branding** area: choose the default mark, upload a
+  custom logo, or "none" — so identity isn't hardcoded and can flex in the future. Ties to the Z5/Z6 style
+  presets. Light-weight, no build step; taste over cleverness.
 
 **Z0 — Finish the terminology migration (Phase 2, started 2026-06-30).** Done so far: user-facing
 CDA→"Data Access", CDF→"Dashboard Framework"; CDE export removed from the menu/inspector/bundle/push/CLI;
