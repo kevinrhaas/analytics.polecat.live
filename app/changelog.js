@@ -8,6 +8,10 @@
 window.STUDIO_BUILD = "__BUILD_TS__";
 
 window.STUDIO_CHANGELOG = [
+  { v: "v148", date: "2026-07-01", time: "18:25 UTC", title: "Z8 slice 11: Calendar heatmap gets its own options — cell color + week start", items: [
+      "Continues the Z8 track's per-type option sets (Table/Gauge/Treemap/Scatter/Line/Donut/Bars/Stacked in v139–v147) with Calendar heatmap: `Studio.CHARTS.calHeatmap.opts` now includes **Cell color** (was hardcoded to the brand color) and **Week starts on** (Monday/Sunday — weeks always rolled over from Monday before, with no way to change it).",
+      "`PDC.calHeatmap` in `app/studio-charts.js` reads `cfg.color` for the filled-cell color and `cfg.weekStart` to decide which weekday starts each row (weekday labels reorder to match); `studio-render.js` passes both through via the existing `color()` token-resolving helper. `docs/index.html` Calendar heatmap card updated. 3 new Z8-11 tests. Test suite 777/777.",
+    ] },
   { v: "v147", date: "2026-07-01", time: "21:05 UTC", title: "Z8 slice 10: Stacked bars gets its own options — sort by total + value-label toggle", items: [
       "Continues the Z8 track's per-type option sets (Table/Gauge/Treemap/Scatter/Line/Donut/Bars in v139–v146) with Stacked bars: `Studio.CHARTS.stacked.opts` now includes **Sort by total** (order categories by their stacked total, largest first — the same convention as Bars' 'Sort by value' and Donut's 'Sort slices') and **Show value labels** (per-segment value text centered in its band, shown only when the band is tall enough to hold it legibly).",
       "`PDC.stacked` overridden in `app/studio-charts.js` (`PDC._stackedBase` keeps the original for reference, same override pattern as Table/Gauge/Treemap/Scatter/Line/Donut/Bars) — identical band-stacking/gridline/tooltip logic; `studio-render.js` passes `sortStack`/`showValues` through. CDE export's `valuesVisible` now reflects the option instead of always being `false`. `docs/index.html` Stacked bars card updated. 3 new Z8ST tests. Test suite 774/774.",

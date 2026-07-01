@@ -331,6 +331,11 @@
   reference, same pattern as Table/Gauge/Treemap/Scatter/Line/Donut/Bars); `studio-render.js` passes
   `sortStack`/`showValues` through; CDE export's `valuesVisible` now reflects the option. `docs/index.html`
   updated. 3 new Z8ST tests. Test suite 774/774.
+- v148: **Z8 slice 11: Calendar heatmap gets its own options** — `Studio.CHARTS.calHeatmap.opts` gains
+  **Cell color** (was hardcoded to the brand color) and **Week starts on** (Monday/Sunday — weeks always
+  rolled over from Monday before with no way to change it). `PDC.calHeatmap` in `studio-charts.js` reads
+  `cfg.color`/`cfg.weekStart` (weekday labels reorder to match); `studio-render.js` passes both through
+  via the existing `color()` token helper. `docs/index.html` updated. 3 new Z8-11 tests. Test suite 777/777.
 - v146: **Z8 slice 9: Bar chart gets its own options** — `Studio.CHARTS.bars.opts` gains **Sort by value**
   (largest-first, same convention as Donut's "Sort slices") and **Show value labels** (hide the always-on
   value text for a cleaner look on dense charts). `PDC.bars` overridden in `studio-charts.js`
@@ -490,9 +495,12 @@ self-explanatory. Keep it light (inline SVG / CSS, no image assets or deps). One
 > mirrors Bars/Donut) and **Show value labels** (per-segment value text, shown only when the band is tall
 > enough). Same override pattern (`PDC._stackedBase` kept for reference); CDE export's `valuesVisible`
 > reflects the option.
+> ✓ **Slice 11 shipped v148**: **Calendar heatmap** gets its own options — **Cell color** (was hardcoded
+> to the brand color) and **Week starts on** (Monday/Sunday — weeks always rolled over from Monday
+> before). Same per-type override pattern; weekday labels reorder to match the chosen start day.
 > **Z8 follow-ups (not yet done, the bulk of the track):** a real per-type capability map covering the
 > REST of the ~51 types' *own* option sets (Table, Gauge, Treemap, Scatter, Line, Donut, Bars, Stacked
-> bars done; still needed: KPI, areaStacked/streamgraph, sankey/chord/network, calendar-heatmap, and the
+> bars, Calendar heatmap done; still needed: KPI, areaStacked/streamgraph, sankey/chord/network, and the
 > rest), plus the inline visual setting hints (tiny before/after thumbnails). Continue one slice per loop.
 
 **Z9 — Mobile: fix the broken flows + a proper bottom nav (user-requested 2026-06-30).** Reported

@@ -3190,6 +3190,49 @@ function serve() {
     ok("F7b: calHeatmap is registered as a CDF-only chart type", calHm.reg && calHm.cdfOnly, JSON.stringify(calHm));
     ok("F7b: calHeatmap renders day-grid cells in the preview", calHm.cellCount >= 5 && !calHm.err && !calHm.noDate, JSON.stringify(calHm));
 
+    // ---- Z8 slice 11: calendar heatmap gets its own options (cell color + week start) ----
+    console.log("\n• Z8 slice 11: calendar heatmap options (cell color + week start)");
+    const calHmOpts = await page.evaluate(async () => {
+      const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json());
+      spec.cda.dataAccesses = [{
+        id: "daily_events", kind: "sql.jndi", connectionId: "pdc",
+        sql: "SELECT event_date, count FROM events", columns: ["event_date", "count"],
+        params: [], calcColumns: [], cache: true, cacheDuration: 300
+      }];
+      spec.kpis = []; spec.filters = [];
+      function render(opts) {
+        spec.panels = [{ id: "ch", title: "Activity", span: "full", chart: {
+          type: "calHeatmap", da: "daily_events",
+          map: { dateCol: "event_date", valueCol: "count" }, opts
+        } }];
+        window.__studioLoad(spec);
+      }
+      render({ fmt: "n", height: 190, color: "#ff0000" });
+      await new Promise((r) => setTimeout(r, 500));
+      var doc = document.querySelector("#preview").contentDocument;
+      var svg = doc.querySelector("#content svg");
+      var coloredRect = [...svg.querySelectorAll("rect")].find((r) => r.getAttribute("fill") === "#ff0000");
+      render({ fmt: "n", height: 190, weekStart: "mon" });
+      await new Promise((r) => setTimeout(r, 500));
+      doc = document.querySelector("#preview").contentDocument;
+      svg = doc.querySelector("#content svg");
+      var monLabels = [...svg.querySelectorAll("text")].filter((t) => t.getAttribute("x") === "17").map((t) => t.textContent);
+      render({ fmt: "n", height: 190, weekStart: "sun" });
+      await new Promise((r) => setTimeout(r, 500));
+      doc = document.querySelector("#preview").contentDocument;
+      svg = doc.querySelector("#content svg");
+      var sunLabels = [...svg.querySelectorAll("text")].filter((t) => t.getAttribute("x") === "17").map((t) => t.textContent);
+      return {
+        hasColorOpt: (Studio.CHARTS.calHeatmap.opts || []).some((o) => o.key === "color"),
+        hasWeekStartOpt: (Studio.CHARTS.calHeatmap.opts || []).some((o) => o.key === "weekStart"),
+        coloredRect: !!coloredRect,
+        monLabels: monLabels.join(","), sunLabels: sunLabels.join(",")
+      };
+    });
+    ok("Z8-11: calHeatmap registers color + weekStart options", calHmOpts.hasColorOpt && calHmOpts.hasWeekStartOpt, JSON.stringify(calHmOpts));
+    ok("Z8-11: calHeatmap cell color option paints day cells", calHmOpts.coloredRect, JSON.stringify(calHmOpts));
+    ok("Z8-11: calHeatmap week-start option changes weekday label order", calHmOpts.monLabels !== calHmOpts.sunLabels, JSON.stringify(calHmOpts));
+
     // ---- F8: legend toggles (areaStacked, combo, radar) ----
     console.log("\n• legend toggles (F8: interactivity polish)");
     const f8Area = await page.evaluate(async () => {

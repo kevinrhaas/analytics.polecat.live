@@ -476,13 +476,16 @@
     if (!dates.length) { el.innerHTML = '<div class="empty">No parseable dates (need YYYY-MM-DD)</div>'; return; }
     var firstDate = new Date(dates[0].replace(/-/g, "/"));   // local-time parse
     var lastDate  = new Date(dates[dates.length - 1].replace(/-/g, "/"));
-    // roll back to the Monday of the first week
+    // roll back to the start of the first week (weekStart: 0=Sun, 1=Mon — default Monday)
+    var weekStartDow = cfg.weekStart === "sun" ? 0 : 1;
     var dow = firstDate.getDay(); // 0=Sun
-    var startDay = new Date(firstDate.getFullYear(), firstDate.getMonth(), firstDate.getDate() - ((dow + 6) % 7));
+    var startDay = new Date(firstDate.getFullYear(), firstDate.getMonth(), firstDate.getDate() - ((dow - weekStartDow + 7) % 7));
     var weeksTotal = Math.max(1, Math.ceil(((lastDate - startDay) / 86400000 + 7) / 7));
     weeksTotal = Math.min(weeksTotal, 54);
     var MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-    var DOW_LABELS   = ["M", "", "W", "", "F", "", "S"];
+    // weekStart: "sun" rolls weeks over from Sunday, otherwise (default) Monday.
+    var sunStart = cfg.weekStart === "sun";
+    var DOW_LABELS = sunStart ? ["S", "", "T", "", "T", "", "S"] : ["M", "", "W", "", "F", "", "S"];
     var elW = W(el);
     var cellSz = Math.max(8, Math.min(13, Math.floor((elW - 26) / (weeksTotal + 1))));
     var gap = 2, mL = 20, mT = 24, mB = 6;
@@ -494,7 +497,7 @@
     DOW_LABELS.forEach(function (lb, i) {
       if (lb) s.appendChild(S("text", { class: "tick", x: mL - 3, y: mT + i * (cellSz + gap) + cellSz * 0.77, "text-anchor": "end", "font-size": 9 }, lb));
     });
-    var curColor = PDC.cssvar("--pentaho") || "#005bb5", prevMonth = -1;
+    var curColor = cfg.color || PDC.cssvar("--pentaho") || "#005bb5", prevMonth = -1;
     function toDateStr(d) { var mm = d.getMonth() + 1, dd = d.getDate(); return d.getFullYear() + "-" + (mm < 10 ? "0" : "") + mm + "-" + (dd < 10 ? "0" : "") + dd; }
     for (var wi = 0; wi < weeksTotal; wi++) {
       for (var di = 0; di < 7; di++) {

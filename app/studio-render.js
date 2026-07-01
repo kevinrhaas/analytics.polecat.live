@@ -297,7 +297,8 @@
         case "calHeatmap": {
           var dI = res.col(m.dateCol), vI2 = res.col(m.valueCol);
           var itms = res.rows.map(function (r) { return { date: String(r[dI] || ""), value: +r[vI2] || 0 }; });
-          PDC.calHeatmap(body, { items: itms, fmt: f, height: o.height || 190 });
+          PDC.calHeatmap(body, { items: itms, fmt: f, height: o.height || 190,
+            color: color(o.color, "--pentaho"), weekStart: o.weekStart || "mon" });
           break;
         }
         case "sankey":

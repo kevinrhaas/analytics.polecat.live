@@ -313,9 +313,15 @@
       label: "Calendar heatmap", icon: "⬦", group: "Distribution",
       desc: "Daily density over weeks and months",
       fields: ["dateCol", "valueCol"],
+      // Z8 slice 11: calendar heatmap gets its own type-specific options — the base
+      // toolkit always used the brand color and always rolled weeks over from Monday,
+      // neither of which was adjustable from the inspector.
       opts: [
-        { key: "fmt",    type: "fmt", label: "Value format", def: "n" },
-        { key: "height", type: "int", label: "Height (px)",  def: 190 }
+        { key: "color",     type: "color",  label: "Cell color",     def: "--pentaho" },
+        { key: "weekStart", type: "select",  label: "Week starts on", def: "mon",
+          choices: [["mon", "Monday"], ["sun", "Sunday"]] },
+        { key: "fmt",       type: "fmt",    label: "Value format", def: "n" },
+        { key: "height",    type: "int",    label: "Height (px)",  def: 190 }
       ],
       cde: null // CDF-only; requires daily YYYY-MM-DD date column
     },
