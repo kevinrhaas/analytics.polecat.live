@@ -326,10 +326,19 @@
   (respect `prefers-reduced-motion`); keep the existing light/dark toggle.
 
 **Z1 — App shell with a collapsible left rail.** A vertical left nav of single-color icons; collapses to
-icons-only, expands to icon+label. Each icon opens its section as the right-hand panel. Sections
+icons-only, expands to icon+label. Each icon opens its section in the main area to the right. Sections
 (Repository model): **Home · Repository · Studio · Settings** (Studio = the existing builder, now one
 section among several). Persist collapsed/expanded + active section in localStorage. Keyboard nav + a11y.
 Do this first as the frame; move the current builder under the Studio icon with zero feature loss.
+> **The rail WRAPS the Studio — it does not replace the Studio's panes.** The user explicitly likes the
+> current Studio 3-pane layout (Data Source Library · canvas · Inspector) — **keep it intact** inside the
+> Studio section; just add tasteful animation (smooth collapse/expand, panel slide-in, selection
+> transitions). So there are TWO nested "lefts": the outer app-shell nav rail (section switcher) and,
+> within Studio, the existing library pane.
+> **Also simplify the TOP menu bar** as the rail takes over primary navigation: reorganize it to
+> consistent, best-practice IA (logical grouping, no redundancy, clear labels/icons) — the rail handles
+> "where am I", the top bar handles "what can I do here". Smooth, modern, elegant motion throughout
+> (respect prefers-reduced-motion); pull the Polecat warm-dark palette through the whole shell.
 
 **Z2 — Home.** Landing section: recents, favorites, folders, quick-create, branding, the welcome-tour
 launcher, instructions / how-tos / tips. Lively and inviting (game-like cards, subtle motion, hover life).
@@ -375,6 +384,17 @@ each surface only what applies to them). The goal is a much easier-to-consume, s
 Also, with so many settings now, add a small **inline visual hint** for each setting — a
 tiny graphic / icon / before↔after thumbnail showing what it does — to make the dense inspector
 self-explanatory. Keep it light (inline SVG / CSS, no image assets or deps). One slice per loop; tests green.
+
+**Z9 — Mobile: fix the broken flows + a proper bottom nav (user-requested 2026-06-30).** Reported
+regressions on small screens: the top button-bar scrolls/slides but **its dropdown menus don't open /
+work** — fix that first (touch handlers, menu positioning, tap-outside-to-close). Add a **bottom
+navigation** to switch between the Studio's **data-source / canvas / chart-object (inspector)** views on
+phones (the three panes become swipeable/tabbed sections). Coordinate with the Z1 shell so the left rail
+collapses into a sensible mobile pattern (bottom bar or hamburger sheet). Use **modern flows and
+animations** — drawer/sheet motion, tab transitions, momentum — smooth, elegant, and modern (respect
+prefers-reduced-motion). Verify with the mobile Playwright checks and ADD a regression test for
+"dropdown opens on touch". (There is an older mobile track (B) too — this supersedes/extends it with the
+specific bugs + the new-shell mobile behavior.)
 
 **Z0 — Finish the terminology migration (Phase 2, started 2026-06-30).** Done so far: user-facing
 CDA→"Data Access", CDF→"Dashboard Framework"; CDE export removed from the menu/inspector/bundle/push/CLI;
