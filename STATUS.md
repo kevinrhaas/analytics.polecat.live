@@ -410,6 +410,21 @@ prefers-reduced-motion). Verify with the mobile Playwright checks and ADD a regr
 "dropdown opens on touch". (There is an older mobile track (B) too — this supersedes/extends it with the
 specific bugs + the new-shell mobile behavior.)
 
+**Z10 — App theme system: theme × light/dark (user-requested 2026-06-30).** The new Polecat warm-dark
+rail (Z1) currently **clashes** with the Studio's original "classic blue" chrome + dark mode — two
+palettes on screen at once. Introduce a real **theme system in Settings**, not a one-off recolor: a small
+set of named color themes (e.g. **Classic Blue**, **Polecat** (warm plum/terracotta/cream), room for
+more), each defined as a **coherent set of CSS custom properties** with BOTH a **light** and a **dark**
+variant. The current dark mode becomes "Classic Blue · Dark"; **Polecat gets its own warm-dark** (plum/
+charcoal bg, cream text, terracotta accents) — more visually pleasing and on-brand than the cool-blue
+dark. Apply via `data-theme` + `data-mode` on the root so the **rail, top bar, panels, and all chrome
+derive from the active theme together** (keep the per-section rail icon accents vivid). Persist theme+mode
+in localStorage; the existing **Dark/Light** button becomes the **mode** toggle *within* the active theme.
+Design decision to surface: whether the **exported dashboard** theme follows the app theme or stays
+independent — recommend keeping export theming **separate/optional** so deployed artifacts aren't coupled
+to app chrome. Build incrementally (theme tokens first, then the Polecat dark variant, then the Settings
+picker); tests green. Coordinate with Z1 (rail) and Z5 (Settings).
+
 **Z0 — Finish the terminology migration (Phase 2, started 2026-06-30).** Done so far: user-facing
 CDA→"Data Access", CDF→"Dashboard Framework"; CDE export removed from the menu/inspector/bundle/push/CLI;
 tour/docs/brand updated. Remaining cleanup (one safe slice per loop, keep tests green): delete the now-
