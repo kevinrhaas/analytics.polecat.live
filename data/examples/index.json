@@ -4,41 +4,53 @@
     "title": "Data Governance Command Center",
     "panels": 5,
     "kpis": 4,
-    "types": ["gauge", "radar", "heatmap", "donut", "bars"]
+    "gridCols": 3,
+    "types": ["gauge", "radar", "heatmap", "donut", "bars"],
+    "layout": [["gauge", 1], ["radar", 1], ["donut", 1], ["heatmap", 2], ["bars", 1]]
   },
   {
     "file": "compliance-radar.studio.json",
     "title": "Sensitivity & Compliance Radar",
     "panels": 5,
     "kpis": 4,
-    "types": ["radar", "heatmap", "scatter", "donut", "bars"]
+    "gridCols": 3,
+    "types": ["radar", "heatmap", "scatter", "donut", "bars"],
+    "layout": [["radar", 1], ["donut", 1], ["bars", 1], ["heatmap", 2], ["scatter", 1]]
   },
   {
     "file": "quality-scorecard.studio.json",
     "title": "Data Quality Scorecard",
     "panels": 5,
     "kpis": 4,
-    "types": ["gauge", "bullet", "heatmap", "donut", "bars"]
+    "gridCols": 3,
+    "types": ["gauge", "bullet", "heatmap", "donut", "bars"],
+    "layout": [["gauge", 1], ["donut", 1], ["bars", 1], ["heatmap", 2], ["bullet", 1]]
   },
   {
     "file": "pipeline-observability.studio.json",
     "title": "Pipeline Observability",
     "panels": 5,
     "kpis": 4,
-    "types": ["gauge", "funnel", "waterfall", "line", "bars"]
+    "gridCols": 3,
+    "types": ["gauge", "funnel", "waterfall", "line", "bars"],
+    "layout": [["gauge", 1], ["funnel", 1], ["bars", 1], ["waterfall", 1], ["line", 2]]
   },
   {
     "file": "storage-growth.studio.json",
     "title": "Storage Footprint & Growth",
     "panels": 4,
     "kpis": 4,
-    "types": ["treemap", "areaStacked", "bullet", "lollipop"]
+    "gridCols": 3,
+    "types": ["treemap", "areaStacked", "bullet", "lollipop"],
+    "layout": [["treemap", 2], ["lollipop", 1], ["areaStacked", 2], ["bullet", 1]]
   },
   {
     "file": "studio-cost.studio.json",
     "title": "Cost & Sustainability",
     "panels": 6,
     "kpis": 4,
-    "types": ["bars", "donut", "treemap", "line"]
+    "gridCols": 3,
+    "types": ["bars", "donut", "treemap", "line"],
+    "layout": [["bars", 1], ["donut", 1], ["bars", 1], ["treemap", 2], ["bars", 1], ["line", "full"]]
   }
 ]

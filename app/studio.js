@@ -4106,8 +4106,12 @@
     // E3: mini layout thumbnail for each example card — synthesised from index.json metadata
     // (types[], panels count, kpis count) without needing to load the full spec file.
     function exLayoutSvg(e) {
-      var types = e.types || [], pCount = Math.min(e.panels || types.length || 3, 6);
-      var kpis = e.kpis || 0, cols = pCount <= 2 ? 2 : 3;
+      var cols = e.gridCols || 3, kpis = e.kpis || 0;
+      // per-panel [type, span] — prefer the exact dashboard layout so each thumbnail is a
+      // faithful mini-map of the real panels & grid; fall back to the deduped types[].
+      var layout = (e.layout && e.layout.length) ? e.layout
+        : (e.types || []).slice(0, 6).map(function (t) { return [t, 1]; });
+      layout = layout.slice(0, 8);
       var W = 80, H = 46;
       var pal = ["#005bb5","#7d3c98","#2e8bd0","#00a39a","#e67e22"];
       var p = ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + W + ' ' + H + '">'];
@@ -4124,23 +4128,34 @@
         }
         y += 8;
       }
-      var pw = (W - 4 - (cols - 1) * 2) / cols, rows = Math.ceil(pCount / cols);
+      // pack panels into grid rows honouring each panel's column span ("full" → full width)
+      var cells = [], colUsed = 0, row = 0;
+      layout.forEach(function (it) {
+        var raw = (it[1] === "full") ? cols : (it[1] || 1);
+        var s = Math.max(1, Math.min(cols, raw));
+        if (colUsed + s > cols) { row++; colUsed = 0; }
+        cells.push({ type: it[0], span: s, row: row, col: colUsed });
+        colUsed += s;
+        if (colUsed >= cols) { row++; colUsed = 0; }
+      });
+      var rows = Math.max(1, row + (colUsed > 0 ? 1 : 0));
+      var unit = (W - 4 - (cols - 1) * 2) / cols;
       var ph = Math.min((H - y - 2 - (rows - 1) * 2) / rows, 15);
-      for (var pi = 0; pi < pCount; pi++) {
-        var pcol = pi % cols, prow = Math.floor(pi / cols);
-        var px = 2 + pcol * (pw + 2), py = y + prow * (ph + 2);
-        var t = types[pi % Math.max(types.length, 1)] || "bars";
+      cells.forEach(function (cel, pi) {
+        var px = 2 + cel.col * (unit + 2);
+        var pw = cel.span * unit + (cel.span - 1) * 2;
+        var py = y + cel.row * (ph + 2);
         // white panel card, then the REAL chart-type mini SVG scaled into it — so each card
-        // previews the actual charts in the dashboard, not a generic mockup.
+        // previews the actual charts (and their spans) in the dashboard, not a generic mockup.
         p.push('<rect x="' + px + '" y="' + py + '" width="' + pw + '" height="' + ph + '" rx="1.5" fill="var(--bg,#fff)"/>');
-        var mini = CHART_SVG[t];
+        var mini = CHART_SVG[cel.type];
         if (mini) {
           var pad = 1.3;
           p.push(mini.replace('<svg ', '<svg x="' + (px + pad).toFixed(2) + '" y="' + (py + pad).toFixed(2) + '" width="' + (pw - 2 * pad).toFixed(2) + '" height="' + (ph - 2 * pad).toFixed(2) + '" preserveAspectRatio="xMidYMid meet" '));
         } else {
           p.push('<rect x="' + px + '" y="' + py + '" width="' + pw + '" height="2" fill="' + pal[pi % 5] + '"/>');
         }
-      }
+      });
       p.push('</svg>');
       return p.join("");
     }
