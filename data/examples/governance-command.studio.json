@@ -79,7 +79,7 @@
       "info": "Overall share of the catalog under governance.",
       "src": "v_entities_master",
       "chart": { "type": "gauge", "da": "coverage", "map": { "valueCol": "governed_pct" },
-        "opts": { "max": 100, "fmt": "pct", "height": 300 } }
+        "opts": { "max": 100, "height": 300 } }
     },
     {
       "id": "p_radar", "title": "Governance Health by Dimension", "span": 1, "pill": "score", "sub": "0–100",

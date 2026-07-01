@@ -71,15 +71,18 @@
     }
   }
 
-  // produce {cols, rows} for one data-access definition
-  Studio.sampleRows = function (da) {
+  // produce {cols, rows} for one data-access definition.
+  // valueOnly=true → this DA feeds only KPIs/gauges (its first column IS a value, not an
+  // x-axis label), so don't clobber it into a category.
+  Studio.sampleRows = function (da, valueOnly) {
     var cols = (da && da.columns) || [];
     if (!cols.length) cols = ["value"];                 // helper queries with no parsed alias
     var n = 8;
     var kinds = cols.map(function (c) { return classify(c); });
-    // force the first column to a categorical label so charts never get a numeric x-axis
-    // (exempt isodate so calHeatmap date columns keep their YYYY-MM-DD values)
-    if (!/^(cat|sens|owner|status|app|ext|term|type|month|name|isodate)$/.test(kinds[0])) kinds[0] = "cat";
+    // Force the first column to a categorical label so CHARTS never get a numeric x-axis
+    // (exempt isodate so calHeatmap date columns keep their YYYY-MM-DD values). Skip this
+    // for value-only (KPI/gauge) queries — there the first column is the metric itself.
+    if (!valueOnly && !/^(cat|sens|owner|status|app|ext|term|type|month|name|isodate)$/.test(kinds[0])) kinds[0] = "cat";
     // if the row is a per-record detail (has a name col) keep names; otherwise distinct categories
     var rows = [];
     for (var i = 0; i < n; i++) {
@@ -91,8 +94,15 @@
   // mock map for an entire dashboard, built from its bound data accesses
   Studio.genMock = function (spec) {
     var out = {};
+    // A DA is "value-only" if nothing that needs an x-axis label binds it — i.e. it feeds only
+    // KPIs and/or gauges. Every other chart type consumes the first column as its label/x-axis.
+    var labelDA = {};
+    (spec.panels || []).forEach(function (p) {
+      var c = p && p.chart; if (!c || !c.da) return;
+      if (c.type !== "gauge") labelDA[c.da] = 1;
+    });
     (spec.cda.dataAccesses || []).forEach(function (da) {
-      var result = Studio.sampleRows(da);
+      var result = Studio.sampleRows(da, !labelDA[da.id]);
       out[da.id] = Studio.applyOutputOptions ? Studio.applyOutputOptions(da, result) : result;
     });
     return out;

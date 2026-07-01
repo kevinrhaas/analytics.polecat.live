@@ -1,45 +1,44 @@
 [
   {
-    "file": "studio-cost.studio.json",
-    "title": "Cost & Sustainability",
-    "featured": true,
-    "panels": 6,
-    "kpis": 4,
-    "types": ["bars", "donut", "treemap", "line"]
-  },
-  {
     "file": "governance-command.studio.json",
     "title": "Data Governance Command Center",
     "panels": 5,
     "kpis": 4,
-    "types": ["gauge", "radar", "donut", "heatmap", "bars"]
-  },
-  {
-    "file": "pipeline-observability.studio.json",
-    "title": "Pipeline Observability",
-    "panels": 5,
-    "kpis": 4,
-    "types": ["gauge", "funnel", "bars", "waterfall", "line"]
-  },
-  {
-    "file": "quality-scorecard.studio.json",
-    "title": "Data Quality Scorecard",
-    "panels": 5,
-    "kpis": 4,
-    "types": ["gauge", "donut", "bars", "heatmap", "bullet"]
-  },
-  {
-    "file": "storage-growth.studio.json",
-    "title": "Storage Footprint & Growth",
-    "panels": 4,
-    "kpis": 4,
-    "types": ["treemap", "lollipop", "areaStacked", "bullet"]
+    "types": ["gauge", "radar", "heatmap", "donut", "bars"]
   },
   {
     "file": "compliance-radar.studio.json",
     "title": "Sensitivity & Compliance Radar",
     "panels": 5,
     "kpis": 4,
-    "types": ["radar", "donut", "bars", "heatmap", "scatter"]
+    "types": ["radar", "heatmap", "scatter", "donut", "bars"]
+  },
+  {
+    "file": "quality-scorecard.studio.json",
+    "title": "Data Quality Scorecard",
+    "panels": 5,
+    "kpis": 4,
+    "types": ["gauge", "bullet", "heatmap", "donut", "bars"]
+  },
+  {
+    "file": "pipeline-observability.studio.json",
+    "title": "Pipeline Observability",
+    "panels": 5,
+    "kpis": 4,
+    "types": ["gauge", "funnel", "waterfall", "line", "bars"]
+  },
+  {
+    "file": "storage-growth.studio.json",
+    "title": "Storage Footprint & Growth",
+    "panels": 4,
+    "kpis": 4,
+    "types": ["treemap", "areaStacked", "bullet", "lollipop"]
+  },
+  {
+    "file": "studio-cost.studio.json",
+    "title": "Cost & Sustainability",
+    "panels": 6,
+    "kpis": 4,
+    "types": ["bars", "donut", "treemap", "line"]
   }
 ]

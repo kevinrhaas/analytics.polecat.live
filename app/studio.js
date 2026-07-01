@@ -4102,8 +4102,7 @@
     // examples menu — E5: visual card gallery
     var em = $("#menuExamples");
     em.classList.add("ex-grid");
-    var featured = S.examples.filter(function (e) { return e.featured; });
-    var rest = S.examples.filter(function (e) { return !e.featured; });
+    // one grid, ordered by index.json — most spectacular first (no single "hero" card)
     // E3: mini layout thumbnail for each example card — synthesised from index.json metadata
     // (types[], panels count, kpis count) without needing to load the full spec file.
     function exLayoutSvg(e) {
@@ -4161,9 +4160,7 @@
         (meta.length ? '<div class="ex-card-meta">' + meta.join(" · ") + '</div>' : "") +
         '</button>';
     }
-    em.innerHTML =
-      (featured.length ? '<div class="grp">Featured</div><div class="ex-cards ex-cards-1">' + featured.map(exCard).join("") + '</div>' : "") +
-      (rest.length ? '<div class="grp">' + (featured.length ? 'More examples' : 'Examples') + '</div><div class="ex-cards">' + rest.map(exCard).join("") + '</div>' : "");
+    em.innerHTML = '<div class="grp">Examples</div><div class="ex-cards">' + S.examples.map(exCard).join("") + '</div>';
     $$("button.ex-card", em).forEach(function (b) { b.onclick = function () { loadExample(b.getAttribute("data-f")); closeMenus(); }; });
     menuToggle($("#btnExamples"), em);
 

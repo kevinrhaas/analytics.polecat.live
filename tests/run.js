@@ -3077,29 +3077,27 @@ function serve() {
       if (!em) return { ok: false };
       var cards = em.querySelectorAll("button.ex-card");
       var grids = em.querySelectorAll(".ex-cards");
-      var featured = em.querySelector(".ex-cards-1");
       var cdfBadge = em.querySelector(".ex-badge-cdf");
       var cdeBadge = em.querySelector(".ex-badge-cde");
       var chips = em.querySelectorAll(".ex-chip");
-      var featCard = featured ? featured.querySelector("button.ex-card") : null;
+      var thumbCharts = em.querySelector(".ex-thumb svg svg");   // real per-chart mini SVG nested in a card thumb
       return {
         cardCount: cards.length,
         gridCount: grids.length,
-        hasFeatured: !!featured,
         hasCdfBadge: !!cdfBadge,
-        cdfBadgeText: cdfBadge ? cdfBadge.textContent.trim() : "",
-        hasCdeBadge: !!cdeBadge,
         cdeBadgeText: cdeBadge ? cdeBadge.textContent.trim() : "",
+        hasCdeBadge: !!cdeBadge,
         chipCount: chips.length,
-        featCardFile: featCard ? featCard.getAttribute("data-f") : ""
+        firstCardFile: cards[0] ? cards[0].getAttribute("data-f") : "",
+        hasRealThumb: !!thumbCharts
       };
     });
     ok("E5: examples menu shows card elements (button.ex-card)", e5.cardCount >= 6, JSON.stringify(e5));
     ok("E5: examples menu has .ex-cards grid containers", e5.gridCount >= 1, JSON.stringify(e5));
-    ok("E5: Featured section exists", e5.hasFeatured, JSON.stringify(e5));
+    ok("E5: card thumbnails render real per-chart mini SVGs", e5.hasRealThumb, JSON.stringify(e5));
     ok("E5: no CDF/CDE track badges (retired terminology)", !e5.hasCdfBadge && !e5.hasCdeBadge, JSON.stringify(e5));
     ok("E5: chart-type chips rendered", e5.chipCount >= 2, JSON.stringify(e5));
-    ok("E5: featured card links to the studio-cost flagship", e5.featCardFile === "studio-cost.studio.json", JSON.stringify(e5));
+    ok("E5: most-spectacular example leads the gallery (no single hero)", e5.firstCardFile === "governance-command.studio.json", JSON.stringify(e5));
     // Click a card and verify the example loads
     await page.click("#menuExamples button.ex-card");
     await page.waitForTimeout(400);

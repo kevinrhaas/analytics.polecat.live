@@ -11,13 +11,13 @@
     "dataAccesses": [
       {
         "id": "kpi", "name": "DqKPI", "params": [], "cache": true, "cacheDuration": 120,
-        "sql": "SELECT ROUND(AVG(score),1) AS overall, ROUND(100.0*SUM(CASE WHEN result='PASS' THEN 1 ELSE 0 END)/NULLIF(COUNT(*),0),1) AS pass_pct, SUM(CASE WHEN result='FAIL' THEN 1 ELSE 0 END) AS failing, COUNT(DISTINCT check_name) AS checks FROM v_quality_check",
-        "columns": ["overall", "pass_pct", "failing", "checks"]
+        "sql": "SELECT ROUND(AVG(score),1) AS quality_score, ROUND(100.0*SUM(CASE WHEN result='PASS' THEN 1 ELSE 0 END)/NULLIF(COUNT(*),0),1) AS pass_pct, SUM(CASE WHEN result='FAIL' THEN 1 ELSE 0 END) AS failing, COUNT(DISTINCT check_name) AS checks FROM v_quality_check",
+        "columns": ["quality_score", "pass_pct", "failing", "checks"]
       },
       {
         "id": "overall", "name": "OverallScore", "params": [], "cache": true, "cacheDuration": 120,
-        "sql": "SELECT ROUND(AVG(score),1) AS overall FROM v_quality_check",
-        "columns": ["overall"]
+        "sql": "SELECT ROUND(AVG(score),1) AS quality_score FROM v_quality_check",
+        "columns": ["quality_score"]
       },
       {
         "id": "dims", "name": "DimensionVsTarget", "params": [], "cache": true, "cacheDuration": 180,
@@ -43,7 +43,7 @@
   },
   "filters": [],
   "kpis": [
-    { "da": "kpi", "valueCol": "overall", "label": "Overall Score", "fmt": "n", "state": "good", "info": "Weighted average quality score (0–100)." },
+    { "da": "kpi", "valueCol": "quality_score", "label": "Overall Score", "fmt": "n", "state": "good", "info": "Weighted average quality score (0–100)." },
     { "da": "kpi", "valueCol": "pass_pct", "label": "Checks Passing", "fmt": "pct", "state": "purple", "info": "Share of quality checks currently passing." },
     { "da": "kpi", "valueCol": "failing", "label": "Failing Checks", "fmt": "n", "state": "warn", "info": "Checks in a failing state right now." },
     { "da": "kpi", "valueCol": "checks", "label": "Checks Defined", "fmt": "n", "state": "", "info": "Distinct quality checks configured." }
@@ -53,7 +53,7 @@
     {
       "id": "p_gauge", "title": "Overall Quality", "span": 1, "pill": "score", "sub": "0–100",
       "info": "Composite quality score across all checks.", "src": "v_quality_check",
-      "chart": { "type": "gauge", "da": "overall", "map": { "valueCol": "overall" }, "opts": { "max": 100, "fmt": "n", "height": 300 } }
+      "chart": { "type": "gauge", "da": "overall", "map": { "valueCol": "quality_score" }, "opts": { "max": 100, "unit": "", "height": 300 } }
     },
     {
       "id": "p_outcome", "title": "Check Outcomes", "span": 1, "pill": "count", "sub": "",
