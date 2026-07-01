@@ -1986,73 +1986,80 @@
       var os = section(body, "Options");
       optDefs.forEach(function (od) { os.appendChild(optField(p.chart.opts, od)); });
     }
-    // Drill-through: click a chart element to navigate to another dashboard
-    var drillSec = advSection(body, "Drill-through", null, function () {
-      return p.drill && p.drill.url ? p.drill.url.slice(0, 24) : "";
-    });
-    var drillCfg = p.drill || {};
-    drillSec.appendChild(field("Target URL",
-      input(drillCfg.url || "", function (v) {
-        if (!p.drill) p.drill = {};
-        p.drill.url = v.trim();
-        refreshPreview();
-      })
-    ));
-    drillSec.appendChild(field("URL parameter",
-      input(drillCfg.param || "", function (v) {
-        if (!p.drill) p.drill = {};
-        p.drill.param = v.trim();
-      })
-    ));
-    drillSec.appendChild(noteEl("info", "Click a bar or donut slice to navigate to the target URL with ?{param}={label}. Uses PDC.drill — carries all active filter values. Leave URL empty to disable."));
+    // Drill-through: click a chart element to navigate to another dashboard.
+    // Z8: only shown for chart types the renderer actually wires cfg.drill into (see ANNOT_CAPS).
+    if (Studio.chartSupports("drill", p.chart.type)) {
+      var drillSec = advSection(body, "Drill-through", null, function () {
+        return p.drill && p.drill.url ? p.drill.url.slice(0, 24) : "";
+      });
+      var drillCfg = p.drill || {};
+      drillSec.appendChild(field("Target URL",
+        input(drillCfg.url || "", function (v) {
+          if (!p.drill) p.drill = {};
+          p.drill.url = v.trim();
+          refreshPreview();
+        })
+      ));
+      drillSec.appendChild(field("URL parameter",
+        input(drillCfg.param || "", function (v) {
+          if (!p.drill) p.drill = {};
+          p.drill.param = v.trim();
+        })
+      ));
+      drillSec.appendChild(noteEl("info", "Click a bar or donut slice to navigate to the target URL with ?{param}={label}. Uses PDC.drill — carries all active filter values. Leave URL empty to disable."));
+    }
 
     // Detail drawer: click a chart element → open a record-level side-drawer showing underlying rows.
     // Powered by PDC.openDetail (vendored toolkit). Works offline (genMock data) and live (real CDA).
-    var detailSec = advSection(body, "Detail drawer", null, function () {
-      return p.detail && p.detail.da ? p.detail.da : "";
-    });
-    var detailData = p.detail || {};
-    detailSec.appendChild(field("Detail DA",
-      daPicker(detailData.da || "", function (v) {
-        if (!p.detail) p.detail = {};
-        p.detail.da = v;
-        refreshPreview();
-      }, true)
-    ));
-    detailSec.appendChild(field("Filter parameter",
-      input(detailData.param || "", function (v) {
-        if (!p.detail) p.detail = {};
-        p.detail.param = v.trim();
-      }, "param name (receives clicked label)")
-    ));
-    detailSec.appendChild(field("Title prefix",
-      input(detailData.titlePrefix || "", function (v) {
-        if (!p.detail) p.detail = {};
-        p.detail.titlePrefix = v.trim();
-      }, 'e.g. "Records for"')
-    ));
-    detailSec.appendChild(field("Noun (plural)",
-      input(detailData.noun || "", function (v) {
-        if (!p.detail) p.detail = {};
-        p.detail.noun = v.trim();
-      }, "e.g. records, jobs, pipelines")
-    ));
-    detailSec.appendChild(noteEl("info", "Click a bar, donut slice, or treemap tile to open a record-level drawer with rows from the selected DA. The filter parameter receives the clicked label. Select a DA to enable."));
+    if (Studio.chartSupports("detail", p.chart.type)) {
+      var detailSec = advSection(body, "Detail drawer", null, function () {
+        return p.detail && p.detail.da ? p.detail.da : "";
+      });
+      var detailData = p.detail || {};
+      detailSec.appendChild(field("Detail DA",
+        daPicker(detailData.da || "", function (v) {
+          if (!p.detail) p.detail = {};
+          p.detail.da = v;
+          refreshPreview();
+        }, true)
+      ));
+      detailSec.appendChild(field("Filter parameter",
+        input(detailData.param || "", function (v) {
+          if (!p.detail) p.detail = {};
+          p.detail.param = v.trim();
+        }, "param name (receives clicked label)")
+      ));
+      detailSec.appendChild(field("Title prefix",
+        input(detailData.titlePrefix || "", function (v) {
+          if (!p.detail) p.detail = {};
+          p.detail.titlePrefix = v.trim();
+        }, 'e.g. "Records for"')
+      ));
+      detailSec.appendChild(field("Noun (plural)",
+        input(detailData.noun || "", function (v) {
+          if (!p.detail) p.detail = {};
+          p.detail.noun = v.trim();
+        }, "e.g. records, jobs, pipelines")
+      ));
+      detailSec.appendChild(noteEl("info", "Click a bar, donut slice, or treemap tile to open a record-level drawer with rows from the selected DA. The filter parameter receives the clicked label. Select a DA to enable."));
+    }
 
     // Cross-filter: clicking a chart element broadcasts a named parameter to panels that share it.
     // Enables coordinated views — e.g. clicking a bar in Panel A filters Panel B if they share a DA param.
-    var xfSec = advSection(body, "Cross-filter", null, function () {
-      return p.crossFilter && p.crossFilter.emit ? p.crossFilter.emit : "";
-    });
-    var xfCfg = p.crossFilter || {};
-    xfSec.appendChild(field("Emit as parameter",
-      input(xfCfg.emit || "", function (v) {
-        if (!p.crossFilter) p.crossFilter = {};
-        p.crossFilter.emit = v.trim();
-        refreshPreview();
-      }, "param name broadcast on click")
-    ));
-    xfSec.appendChild(noteEl("info", "Click a bar, donut slice, or treemap tile to set this parameter across all panels whose data source declares a matching parameter name. Click the same element again to clear. Only bars, donut, and treemap emit. Leave blank to disable."));
+    if (Studio.chartSupports("crossFilter", p.chart.type)) {
+      var xfSec = advSection(body, "Cross-filter", null, function () {
+        return p.crossFilter && p.crossFilter.emit ? p.crossFilter.emit : "";
+      });
+      var xfCfg = p.crossFilter || {};
+      xfSec.appendChild(field("Emit as parameter",
+        input(xfCfg.emit || "", function (v) {
+          if (!p.crossFilter) p.crossFilter = {};
+          p.crossFilter.emit = v.trim();
+          refreshPreview();
+        }, "param name broadcast on click")
+      ));
+      xfSec.appendChild(noteEl("info", "Click a bar, donut slice, or treemap tile to set this parameter across all panels whose data source declares a matching parameter name. Click the same element again to clear. Only bars, donut, and treemap emit. Leave blank to disable."));
+    }
 
     // Animation: per-panel entrance animation toggle + speed control.
     // PDC._anim / PDC._animD are set by studio-render.js before each chart call and read by
@@ -2464,6 +2471,7 @@
     // Works by injecting a per-item .color property into the data array that PDC.bars/donut/treemap
     // already supports — so pdc-ui.js stays pristine and all chart rendering is unchanged.
     (function () {
+      if (!Studio.chartSupports("condFmt", p.chart.type)) return; // Z8: bars/donut/treemap/lollipop only
       var cfSec = advSection(body, "Conditional formatting", null, function () {
         var n = p.condFmt && p.condFmt.length;
         return n ? n + (n === 1 ? " rule" : " rules") : "";
@@ -2535,6 +2543,7 @@
     // Complementary to conditional formatting — condFmt threshold rules override the gradient
     // for specific items, giving precise control without removing the overall visual encoding.
     (function () {
+      if (!Studio.chartSupports("colorScale", p.chart.type)) return; // Z8: bars/donut/treemap/lollipop only
       var csSec = advSection(body, "Color scale", null, function () {
         return p.colorScale && p.colorScale.enabled ? "gradient enabled" : "";
       });

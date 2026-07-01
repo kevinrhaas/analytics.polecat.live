@@ -3425,8 +3425,9 @@ function serve() {
     await page.evaluate(async function () {
       var freshSpec = await fetch("data/examples/studio-cost.studio.json").then(function (r) { return r.json(); });
       if (freshSpec.panels && freshSpec.panels.length) {
-        // Ensure chart type is "line" so Event markers section appears (type-aware)
-        freshSpec.panels[0].chart = Object.assign({}, freshSpec.panels[0].chart, { type: "line" });
+        // "bars" is type-aware-compatible with Event markers AND supports condFmt/colorScale/
+        // drill/detail (see Studio.ANNOT_CAPS) so this one panel exercises every section below.
+        freshSpec.panels[0].chart = Object.assign({}, freshSpec.panels[0].chart, { type: "bars" });
         freshSpec.panels[0].condFmt = [
           { op: ">=", value: 100, color: "#27ae60" },
           { op: "<", value: 50, color: "#e74c3c" }
@@ -3486,6 +3487,48 @@ function serve() {
     ok("H: collapsed 'Event markers' section shows marker count hint", hintResult.emHint === "1 marker", JSON.stringify(hintResult));
     ok("H: collapsed 'Color scale' section shows 'gradient enabled' hint", hintResult.csHint === "gradient enabled", JSON.stringify(hintResult));
     ok("H: section hint is hidden (display:none) when the section is expanded", hintResult.cfHintExpandedDisplay === "none", JSON.stringify(hintResult));
+
+    // ---- Z8: context-aware inspector — hide sections a chart type can't actually use ----
+    // A "table" panel doesn't emit drill/cross-filter and its cells aren't colored by condFmt/
+    // colorScale (see Studio.ANNOT_CAPS + studio-render.js) — those sections should be absent,
+    // while Detail drawer (which table DOES support) still appears.
+    console.log("\n• Z8: context-aware inspector (annotation section gating)");
+    const z8Table = await page.evaluate(async function () {
+      var spec = JSON.parse(JSON.stringify(window.__STUDIO_STATE.spec));
+      spec.panels[0].chart = Object.assign({}, spec.panels[0].chart, { type: "table", map: { cols: [{ col: spec.cda.dataAccesses[0].columns[0] }] } });
+      window.__studioLoad(spec);
+      await new Promise(function (r) { setTimeout(r, 250); });
+      var rows = [].slice.call(document.querySelectorAll("#inspBody .row-item"));
+      var pr = rows.filter(function (r) { var ic = r.querySelector(".ri-icon"); return ic && ic.textContent !== "◧" && ic.textContent !== "⛃"; });
+      if (pr[0]) pr[0].click();
+      await new Promise(function (r) { setTimeout(r, 150); });
+      var titles = [].slice.call(document.querySelectorAll("#inspBody .insp-sec h4")).map(function (h) { return h.textContent.trim(); });
+      return { titles: titles };
+    });
+    ok("Z8: table panel hides Drill-through / Cross-filter / Conditional formatting / Color scale",
+      ["Drill-through", "Cross-filter", "Conditional formatting", "Color scale"].every(function (t) { return !z8Table.titles.some(function (x) { return x.indexOf(t) === 0; }); }),
+      z8Table.titles.join(", "));
+    ok("Z8: table panel still shows Detail drawer (table rows support it)", z8Table.titles.some(function (x) { return x.indexOf("Detail drawer") === 0; }), z8Table.titles.join(", "));
+
+    const z8Bars = await page.evaluate(async function () {
+      var spec = window.__STUDIO_STATE.spec;
+      spec.panels[0].chart = Object.assign({}, spec.panels[0].chart, { type: "bars" });
+      window.__studioLoad(spec);
+      await new Promise(function (r) { setTimeout(r, 250); });
+      var rows = [].slice.call(document.querySelectorAll("#inspBody .row-item"));
+      var pr = rows.filter(function (r) { var ic = r.querySelector(".ri-icon"); return ic && ic.textContent !== "◧" && ic.textContent !== "⛃"; });
+      if (pr[0]) pr[0].click();
+      await new Promise(function (r) { setTimeout(r, 150); });
+      var titles = [].slice.call(document.querySelectorAll("#inspBody .insp-sec h4")).map(function (h) { return h.textContent.trim(); });
+      return { titles: titles };
+    });
+    ok("Z8: bars panel shows Drill-through / Cross-filter / Conditional formatting / Color scale",
+      ["Drill-through", "Cross-filter", "Conditional formatting", "Color scale"].every(function (t) { return z8Bars.titles.some(function (x) { return x.indexOf(t) === 0; }); }),
+      z8Bars.titles.join(", "));
+    ok("Z8: Studio.chartSupports reflects the capability map", await page.evaluate(function () {
+      return Studio.chartSupports("drill", "bars") === true && Studio.chartSupports("drill", "table") === false &&
+             Studio.chartSupports("detail", "table") === true && Studio.chartSupports("condFmt", "line") === false;
+    }));
 
     // DA usage badge: add a DA, add a panel using it, verify badge appears
     const hUsageResult = await page.evaluate(() => {
@@ -3571,9 +3614,13 @@ function serve() {
     // ---- I-track: Panel drill-through ----
     console.log("\n• Panel drill-through navigation (I-track)");
 
-    // Reload and select a panel using the dashboard inspector's panel row-item list
+    // Reload and select a panel using the dashboard inspector's panel row-item list.
+    // Force the first panel to "bars" — Drill-through only shows for types the renderer
+    // actually wires cfg.drill into (see Studio.ANNOT_CAPS); the prior test may have left
+    // a "network" panel selected, which correctly has no Drill-through section.
     await page.evaluate(() => {
       var spec = window.__STUDIO_STATE.spec;
+      if (spec.panels && spec.panels.length) spec.panels[0].chart = Object.assign({}, spec.panels[0].chart, { type: "bars" });
       window.__studioLoad(spec);
     });
     await page.waitForTimeout(300);

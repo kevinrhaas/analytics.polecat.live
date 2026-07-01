@@ -8,6 +8,11 @@
 window.STUDIO_BUILD = "__BUILD_TS__";
 
 window.STUDIO_CHANGELOG = [
+  { v: "v138", date: "2026-07-01", time: "10:00 UTC", title: "Z8 slice 1: context-aware inspector — hide interaction sections a chart type can't use", items: [
+      "New `Studio.ANNOT_CAPS` capability map in `app/model.js` (+ `Studio.chartSupports(kind, type)` helper) records which chart types the renderer actually wires each interaction/formatting feature into — mirrors the real logic in `studio-render.js` (drill only for bars/donut, detail drawer for bars/donut/treemap/table, cross-filter + conditional formatting + color scale for bars/donut/treemap/lollipop).",
+      "The panel inspector's Drill-through, Detail drawer, Cross-filter, Conditional formatting, and Color scale sections now only render for chart types that support them — e.g. a Table panel no longer shows Cross-filter or Color scale (settings that had no visible effect), while still showing Detail drawer (table rows do open one). A Line chart no longer shows Conditional formatting.",
+      "First slice of the Z8 track (\"context-aware inspector\"); the type-agnostic overlay annotations (Target line, Reference band, Callout arrow) and the already-type-gated Period highlight / Event markers / Point annotations are unchanged. 4 new Z8 tests. Test suite 741/741."
+    ] },
   { v: "v137", date: "2026-07-01", time: "09:00 UTC", title: "Z9: fix invisible topbar dropdowns at tablet width", items: [
       "Found and fixed the root cause of a user-reported mobile regression: 'the top button-bar scrolls/slides but its dropdown menus don't open/work'. At **tablet widths (641–900px)**, `#topbar`/`.top-actions` need `overflow:hidden` to stop the button row from forcing page-level horizontal scroll — but that same clip box was also hiding every dropdown (New ▾ / Examples ▾ / Export ▾ / ⋯ More), since each `.menu` is `position:absolute` and extends below the topbar's own box.",
       "The bug was invisible to a naive check: the menu still gained its `.open` class and reported normal computed styles, so both a DOM inspection and Playwright's default click/tap actionability check reported success — while the menu was genuinely unrendered on screen. Confirmed with a screenshot before fixing, then again after.",

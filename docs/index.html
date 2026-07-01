@@ -177,6 +177,7 @@
     <li><strong>Live preview (center)</strong> — The real dashboard rendered in an iframe. This is byte-identical to what the CDF export produces — no approximation. Click a panel to select it; drag the title bar to reorder; drag the right edge to resize.</li>
     <li><strong>Inspector (right)</strong> — Contextual editor for whatever is selected. When nothing is selected, shows the dashboard-level controls. Click a panel → panel inspector. Click a KPI tile → KPI inspector. Click a filter → filter inspector.</li>
   </ul>
+  <p>The panel inspector is <strong>context-aware</strong>: interaction sections like Drill-through, Detail drawer, Cross-filter, Conditional formatting, and Color scale only appear when the selected chart type actually supports them (e.g. Conditional formatting shows for Bar/Donut/Treemap/Lollipop but not for Table or Line — clicking a table row instead opens the Detail drawer). This keeps the inspector focused on settings that do something for the current chart.</p>
 
   <h3>Drag and drop</h3>
   <ul>

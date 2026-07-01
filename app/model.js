@@ -1589,6 +1589,21 @@
     { id: "scripting",     label: "Scripting (JS / Groovy)" }
   ];
   Studio.COLUMN_TYPES = ["String", "Integer", "Numeric", "Date", "Boolean"];
+
+  // Z8 context-aware inspector: which panel inspector "interaction" sections actually do
+  // something for a given chart type. Mirrors the real wiring in studio-render.js (buildDetailCfg,
+  // drillCfg, cfData/csData, _crossFilters) — a section is only worth showing when the renderer
+  // for that type actually consumes it. Keep in sync with studio-render.js if a chart type gains
+  // (or drops) support for one of these.
+  Studio.ANNOT_CAPS = {
+    drill:      { bars: 1, donut: 1 },                            // PDC.bars/donut accept cfg.drill
+    detail:     { bars: 1, donut: 1, treemap: 1, table: 1 },      // PDC.*/table accept cfg.detail
+    crossFilter:{ bars: 1, donut: 1, treemap: 1 },                // only these emit on click
+    condFmt:    { bars: 1, donut: 1, treemap: 1, lollipop: 1 },   // cfData() consumers
+    colorScale: { bars: 1, donut: 1, treemap: 1, lollipop: 1 }    // csData() consumers
+  };
+  // true when chart type `t` supports interaction/annotation kind `k` (one of ANNOT_CAPS' keys).
+  Studio.chartSupports = function (k, t) { return !!(Studio.ANNOT_CAPS[k] && Studio.ANNOT_CAPS[k][t]); };
   Studio.newDA = function () {
     return { id: Studio.uid("da"), name: "", kind: "sql.jndi", connectionId: "", sql: "", columns: [], params: [], calcColumns: [], cache: true, cacheDuration: 300 };
   };
