@@ -319,6 +319,7 @@
 - v123: **F32: Icicle/partition chart (45th type) + H-track: series color palette presets** — Icicle: Composition group, CDF-only; two-level rectangular partition where parent groups appear as proportional column-strips across the top 36% and children fill the bottom 64% within each parent column; encodes both the parent-to-whole ratio (column width) and within-parent composition (sub-column width); labelCol+valueCol+groupCol binding; single-level mode when groupCol omitted; hover tooltips; staggered animated entrance (L→R); PDC.icicle extension in studio-charts.js (pdc-ui.js pristine); gallery SVG thumbnails in both CHART_SVG (studio.js) and model.js thumb; autoPickCols; 3 new F32 checks. Palette presets (H-track): 5 built-in series palettes (default/ocean/forest/sunset/dusk), each with separate light-mode and dark-mode ramps; 'Series palette' swatch row in dashboard inspector; selected palette injects --c1…--c10 CSS variable overrides into preview and CDF export; spec.paletteKey; Studio.PALETTE_PRESETS in model.js; paletteCss in exporters.js; 3 new H-palette checks. Test suite 669/669. 45 chart types total.
 - v138: **Z8 slice 1: context-aware inspector** — `Studio.ANNOT_CAPS` capability map + `Studio.chartSupports(kind, type)` in `app/model.js` records which chart types the renderer actually wires each interaction feature into (mirrors the real per-type dispatch in `studio-render.js`: drill only for bars/donut, detail drawer for bars/donut/treemap/table, cross-filter + conditional formatting + color scale for bars/donut/treemap/lollipop). The panel inspector's Drill-through, Detail drawer, Cross-filter, Conditional formatting, and Color scale sections now only render when the selected chart type actually supports them — e.g. a Table panel no longer shows Cross-filter/Color scale/Conditional formatting/Drill-through (previously shown for every type with zero effect), but keeps Detail drawer (table rows do support it); a Line chart no longer shows Conditional formatting or Color scale. `docs/index.html` updated with a note on the context-aware behavior. 4 new tests. Test suite 741/741.
 - v139: **Z8 slice 2: table-specific options — row limit + grand total row** — `Studio.CHARTS.table.opts` gains **Row limit** (0 = all) and **Show grand total row** (sums numeric columns over the currently visible/filtered rows, appended as a bold `<tfoot>` row). `PDC.table` override in `studio-charts.js` renders the total row; `studio-render.js` applies the row limit client-side before rendering. Same code path for preview + exported CDF (studio-charts.js is inlined into exports). `docs/index.html` Table card updated. 4 new tests. Test suite 745/745.
+- v140: **Z8 slice 3: Table extras — paging, freeze header, row density** — three more Table-specific options: **Rows per page** (0 = all on one page; otherwise a Prev/Next `.tbl-page-bar`), **Freeze header row** (scrollable `.tbl-wrap.frz` with `position:sticky` thead — tall tables no longer just clip at the panel edge with no way to see all rows), and **Row density** (Comfortable/Compact). Paging resets on filter/sort change; bar-cell scaling + grand total still compute over the full filtered/sorted set, not just the current page. New `optField()` "select" opt type in `studio.js` (reuses `select2pairs`) — first inspector option backed by an arbitrary choice list. `docs/index.html` updated. 4 new Z8T tests. Test suite 749/749.
 
 ## NEXT (top = do first)
 
@@ -433,12 +434,13 @@ self-explanatory. Keep it light (inline SVG / CSS, no image assets or deps). One
 > band/Callout arrow remain type-agnostic overlays (genuinely apply to any chart body) and are unchanged.
 > ✓ **Slice 2 shipped v139**: Table gained its own `opts` — **Row limit** (cap rows shown, 0 = all) and
 > **Show grand total row** (bold `<tfoot>` summing numeric columns over the currently visible/filtered
-> rows). Table already had search/sort/stripes (v113); still missing from the "Table extras" wishlist:
-> paging (page size / prev-next), freeze header, and row density (compact/comfortable).
-> **Z8 follow-ups (not yet done, the bulk of the track):** the remaining Table extras (paging, freeze
-> header, row density), a real per-type capability map covering ALL ~51 types' *own* option sets (not
-> just the 5 interaction sections + table), and the inline visual setting hints (tiny before/after
-> thumbnails). Continue one slice per loop.
+> rows). Table already had search/sort/stripes (v113).
+> ✓ **Slice 3 shipped v140**: the rest of the "Table extras" wishlist — **paging** (rows-per-page +
+> Prev/Next bar), **freeze header** (sticky thead in a scrollable wrap), and **row density**
+> (comfortable/compact). Table's own option set is now feature-complete per the original wishlist.
+> **Z8 follow-ups (not yet done, the bulk of the track):** a real per-type capability map covering ALL
+> ~51 types' *own* option sets (not just Table + the 5 interaction sections), and the inline visual
+> setting hints (tiny before/after thumbnails). Continue one slice per loop.
 
 **Z9 — Mobile: fix the broken flows + a proper bottom nav (user-requested 2026-06-30).** Reported
 regressions on small screens: the top button-bar scrolls/slides but **its dropdown menus don't open /

@@ -351,8 +351,12 @@
       desc: "Scrollable row-by-row data view",
       fields: ["cols"],
       opts: [
-        { key: "maxRows",    type: "int",  label: "Row limit (0 = all)", def: 0 },
-        { key: "grandTotal", type: "bool", label: "Show grand total row", def: false }
+        { key: "maxRows",      type: "int",    label: "Row limit (0 = all)", def: 0 },
+        { key: "grandTotal",   type: "bool",   label: "Show grand total row", def: false },
+        { key: "pageSize",     type: "int",    label: "Rows per page (0 = all on one page)", def: 0 },
+        { key: "freezeHeader", type: "bool",   label: "Freeze header row (scroll body)", def: false },
+        { key: "density",      type: "select", label: "Row density", def: "comfortable",
+          choices: [["comfortable", "Comfortable"], ["compact", "Compact"]] }
       ],
       cde: { type: "Table", extra: function () { return []; } }
     },

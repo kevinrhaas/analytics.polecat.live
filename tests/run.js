@@ -7852,6 +7852,100 @@ function serve() {
     });
     ok("Z8T: panel opts.maxRows truncates rendered rows in the live preview", z8tLiveLimit.ok, JSON.stringify(z8tLiveLimit));
 
+    // ── Z8 table extras (slice 3): paging + freeze header + row density ────────
+    console.log("\n• Z8 table extras: paging, freeze header, row density");
+
+    // Z8T-5: table registry declares the 3 new opts
+    var z8tOpts2 = await page.evaluate(function () {
+      var o = (window.Studio.CHARTS.table || {}).opts || [];
+      var keys = o.map(function (od) { return od.key; });
+      return { ok: keys.indexOf("pageSize") >= 0 && keys.indexOf("freezeHeader") >= 0 && keys.indexOf("density") >= 0, keys: keys };
+    });
+    ok("Z8T: Studio.CHARTS.table.opts declares pageSize + freezeHeader + density", z8tOpts2.ok, JSON.stringify(z8tOpts2));
+
+    // Z8T-6: cfg.pageSize splits rows into pages with working Prev/Next navigation
+    var z8tPaging = await page.evaluate(function () {
+      var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
+      for (var i = 0; i < iframes.length; i++) {
+        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.table === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+      }
+      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      try {
+        var el = iframeDoc.createElement("div");
+        el.style.cssText = "position:absolute;top:-9999px;width:400px";
+        iframeDoc.body.appendChild(el);
+        w.PDC.table(el, {
+          cols: [{ label: "Item" }],
+          rows: [["A"], ["B"], ["C"], ["D"], ["E"]],
+          pageSize: 2
+        });
+        var rowsP1 = el.querySelectorAll("tbody tr").length;
+        var barTxt1 = (el.querySelector(".tbl-page-bar") || {}).textContent || "";
+        var prevBtn = el.querySelectorAll(".tbl-page-bar button")[0];
+        var nextBtn = el.querySelectorAll(".tbl-page-bar button")[1];
+        var prevDisabled1 = prevBtn.disabled;
+        nextBtn.click();
+        var rowsP2 = el.querySelectorAll("tbody tr").length;
+        var barTxt2 = (el.querySelector(".tbl-page-bar") || {}).textContent || "";
+        var firstCellP2 = (el.querySelector("tbody tr td") || {}).textContent || "";
+        iframeDoc.body.removeChild(el);
+        return {
+          ok: rowsP1 === 2 && prevDisabled1 === true && barTxt1.indexOf("Page 1 of 3") >= 0 &&
+            rowsP2 === 2 && barTxt2.indexOf("Page 2 of 3") >= 0 && firstCellP2 === "C",
+          rowsP1: rowsP1, rowsP2: rowsP2, barTxt1: barTxt1, barTxt2: barTxt2, firstCellP2: firstCellP2, prevDisabled1: prevDisabled1
+        };
+      } catch (e) { return { ok: false, err: e.message }; }
+    });
+    ok("Z8T: pageSize paginates rows with a working Page X of Y / Prev-Next bar", z8tPaging.ok, JSON.stringify(z8tPaging));
+
+    // Z8T-7: cfg.pageSize <= rows.length (or 0) never shows a page bar
+    var z8tNoPageBar = await page.evaluate(function () {
+      var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
+      for (var i = 0; i < iframes.length; i++) {
+        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.table === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+      }
+      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      try {
+        var el = iframeDoc.createElement("div");
+        el.style.cssText = "position:absolute;top:-9999px;width:400px";
+        iframeDoc.body.appendChild(el);
+        w.PDC.table(el, { cols: [{ label: "Item" }], rows: [["A"], ["B"]] }); // no pageSize
+        var noBar = !el.querySelector(".tbl-page-bar");
+        w.PDC.table(el, { cols: [{ label: "Item" }], rows: [["A"], ["B"]], pageSize: 10 }); // pageSize > rows
+        var noBar2 = !el.querySelector(".tbl-page-bar");
+        iframeDoc.body.removeChild(el);
+        return { ok: noBar && noBar2, noBar: noBar, noBar2: noBar2 };
+      } catch (e) { return { ok: false, err: e.message }; }
+    });
+    ok("Z8T: no pagination bar when there's only one page", z8tNoPageBar.ok, JSON.stringify(z8tNoPageBar));
+
+    // Z8T-8: cfg.freezeHeader / cfg.density toggle wrapper classes for sticky-header scroll + row density
+    var z8tFreezeDensity = await page.evaluate(function () {
+      var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
+      for (var i = 0; i < iframes.length; i++) {
+        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.table === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+      }
+      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      try {
+        var el = iframeDoc.createElement("div");
+        el.style.cssText = "position:absolute;top:-9999px;width:400px";
+        iframeDoc.body.appendChild(el);
+        w.PDC.table(el, { cols: [{ label: "Item" }], rows: [["A"]] }); // defaults
+        var plainWrap = el.querySelector(".tbl-wrap");
+        var noFrz = plainWrap && !plainWrap.classList.contains("frz");
+        var noCompact = plainWrap && !plainWrap.classList.contains("compact");
+        w.PDC.table(el, { cols: [{ label: "Item" }], rows: [["A"]], freezeHeader: true, density: "compact" });
+        var enhWrap = el.querySelector(".tbl-wrap");
+        var hasFrz = enhWrap && enhWrap.classList.contains("frz");
+        var hasCompact = enhWrap && enhWrap.classList.contains("compact");
+        var stickyTh = enhWrap.querySelector("thead th");
+        var sticky = w.getComputedStyle(stickyTh).position === "sticky";
+        iframeDoc.body.removeChild(el);
+        return { ok: noFrz && noCompact && hasFrz && hasCompact && sticky, noFrz: noFrz, noCompact: noCompact, hasFrz: hasFrz, hasCompact: hasCompact, sticky: sticky };
+      } catch (e) { return { ok: false, err: e.message }; }
+    });
+    ok("Z8T: freezeHeader adds sticky thead (.tbl-wrap.frz); density='compact' adds .tbl-wrap.compact", z8tFreezeDensity.ok, JSON.stringify(z8tFreezeDensity));
+
     // ── F26: Parallel coordinates chart ────────────────────────────────────────
     console.log("\n• F26: parallel coordinates chart");
 

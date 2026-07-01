@@ -8,6 +8,11 @@
 window.STUDIO_BUILD = "__BUILD_TS__";
 
 window.STUDIO_CHANGELOG = [
+  { v: "v140", date: "2026-07-01", time: "13:00 UTC", title: "Z8 slice 3: Table extras — paging, freeze header, row density", items: [
+      "Continues the Z8 track's Table-specific option set (v139 shipped row limit + grand total): three more type-specific options land in `Studio.CHARTS.table.opts` — **Rows per page** (0 = all on one page, otherwise a Prev/Next `.tbl-page-bar` with a 'Page X of Y' label appears), **Freeze header row** (wraps the table in a scrollable `.tbl-wrap.frz` container with a `position:sticky` `<thead>`, so tall tables keep their column headers visible while scrolling instead of just clipping at the panel edge), and **Row density** (Comfortable / Compact, a new `select` inspector option type).",
+      "Paging composes cleanly with the existing search filter and click-to-sort: filtering or re-sorting resets to page 1; bar-cell scaling and the grand-total row still compute over the full filtered/sorted result set (not just the current page), so numbers stay consistent as you page through.",
+      "New `optField()` case for `type:\"select\"` in `app/studio.js` (reuses the existing `select2pairs` helper) — the first inspector option backed by an arbitrary choice list rather than a fixed bool/int/color/fmt. `PDC.table` (the `app/studio-charts.js` override) owns pagination state and the freeze/density wrapper classes; `studio-render.js` passes the three new `o.*` opts through. `docs/index.html` Table card updated. 4 new Z8T tests. Test suite 749/749.",
+    ] },
   { v: "v139", date: "2026-07-01", time: "11:30 UTC", title: "Z8: table-specific inspector options — row limit + grand total row", items: [
       "Continues the Z8 track (context-aware inspector) with the first type-specific *option* set called out in the backlog: the Table chart now has its own `Studio.CHARTS.table.opts` — **Row limit** (cap rows rendered, 0 = show all) and **Show grand total row** (sums every numeric column and appends a bold, top-bordered total row).",
       "The grand total is computed over the currently *visible* rows — it recomputes live as you type in the table's search/filter bar, so the total always matches what's on screen, and it composes with the existing click-to-sort headers.",

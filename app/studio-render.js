@@ -322,7 +322,8 @@
           var idxs = (m.cols || []).map(function (c) { return res.col(c.col); });
           var tblRows = res.rows.map(function (r) { return idxs.map(function (i) { return r[i]; }); });
           if (o.maxRows > 0) tblRows = tblRows.slice(0, o.maxRows);
-          PDC.table(body, { cols: cols, rows: tblRows, detail: detailCfg, grandTotal: !!o.grandTotal });
+          PDC.table(body, { cols: cols, rows: tblRows, detail: detailCfg, grandTotal: !!o.grandTotal,
+            pageSize: o.pageSize || 0, freezeHeader: !!o.freezeHeader, density: o.density || "comfortable" });
           break;
         case "richtext":
           // Text/annotation panel — no DA; content in chart.opts.content (light markdown)

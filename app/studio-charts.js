@@ -2673,7 +2673,15 @@
       ".sort-arr.active{color:var(--pentaho,#005bb5)}" +
       ".tbl tbody tr.tbl-stripe td{background:color-mix(in srgb,var(--panel-border,#e0e4ef) 30%,transparent)}" +
       ".tbl tbody tr.tbl-stripe:hover td{background:var(--panel-subtle-bg)}" +
-      ".tbl tfoot .tbl-total td{font-weight:700;border-top:2px solid var(--panel-border,#e0e4ef);background:var(--panel-subtle-bg)}";
+      ".tbl tfoot .tbl-total td{font-weight:700;border-top:2px solid var(--panel-border,#e0e4ef);background:var(--panel-subtle-bg)}" +
+      ".tbl-wrap.frz{max-height:340px;overflow-y:auto}" +
+      ".tbl-wrap.frz thead th{position:sticky;top:0;z-index:2;background:var(--panel-bg,#fff)}" +
+      ".tbl-wrap.compact .tbl th{padding:4px 10px}" +
+      ".tbl-wrap.compact .tbl td{padding:3px 10px;font-size:11.5px}" +
+      ".tbl-page-bar{display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:6px 10px 2px;font-size:11px;color:var(--text-muted)}" +
+      ".tbl-page-bar button{font:inherit;font-size:11px;border:1px solid var(--panel-border);border-radius:5px;background:var(--field,#f5f7fc);color:var(--text-primary,#1a1a2e);padding:2px 9px;cursor:pointer}" +
+      ".tbl-page-bar button:disabled{opacity:.4;cursor:default}" +
+      ".tbl-page-bar button:hover:not(:disabled){border-color:var(--pentaho,#005bb5);color:var(--pentaho,#005bb5)}";
     (document.head || document.body || document.documentElement).appendChild(_tblStyle);
   }
 
@@ -2684,6 +2692,8 @@
     var rows = cfg.rows || [];
     var sortCol = -1, sortDir = 1; // sortDir: 1=asc, -1=desc; sortCol=-1 means unsorted
     var filterText = "";
+    var pageSize = cfg.pageSize > 0 ? cfg.pageSize : 0; // 0 = show every visible row on one page
+    var page = 0;
 
     function visibleRows() {
       // 1. Filter rows by search text (case-insensitive substring across all cells)
@@ -2705,9 +2715,15 @@
 
     function render() {
       var vr = visibleRows();
+      var totalPages = pageSize > 0 ? Math.max(1, Math.ceil(vr.length / pageSize)) : 1;
+      if (page > totalPages - 1) page = totalPages - 1;
+      if (page < 0) page = 0;
+      var pageStart = pageSize > 0 ? page * pageSize : 0;
+      var pageRows = pageSize > 0 ? vr.slice(pageStart, pageStart + pageSize) : vr;
+
       el.innerHTML = "";
 
-      // Search / filter bar above the table
+      // Search / filter bar above the table (outside the scrollable/frozen area)
       var bar = document.createElement("div");
       bar.className = "tbl-bar";
       var inp = document.createElement("input");
@@ -2716,18 +2732,27 @@
       inp.className = "tbl-filter";
       inp.value = filterText;
       inp.setAttribute("aria-label", "Filter table rows");
-      inp.addEventListener("input", function () { filterText = inp.value; render(); });
+      inp.addEventListener("input", function () { filterText = inp.value; page = 0; render(); });
       // Prevent filter keystrokes from triggering global shortcuts (? / Delete / ↑↓ etc.)
       inp.addEventListener("keydown", function (e) { e.stopPropagation(); });
       var cnt = document.createElement("span");
       cnt.className = "tbl-cnt";
       cnt.setAttribute("aria-live", "polite");
-      cnt.textContent = filterText ? (vr.length + " / " + rows.length) : (rows.length + " row" + (rows.length === 1 ? "" : "s"));
+      cnt.textContent = filterText ? (vr.length + " / " + rows.length)
+        : (pageSize > 0 && totalPages > 1) ? ("Showing " + (pageStart + 1) + "–" + Math.min(pageStart + pageSize, vr.length) + " of " + rows.length)
+        : (rows.length + " row" + (rows.length === 1 ? "" : "s"));
       bar.appendChild(inp);
       bar.appendChild(cnt);
       el.appendChild(bar);
 
-      // Table with sortable headers
+      // Table body — freeze header (sticky thead in a scrollable wrap) and row density
+      // (comfortable/compact) are purely presentational, applied via wrapper classes.
+      var wrap = document.createElement("div");
+      wrap.className = "tbl-wrap" + (cfg.freezeHeader ? " frz" : "") + (cfg.density === "compact" ? " compact" : "");
+      el.appendChild(wrap);
+
+      // Column max values (for bar cells) are computed over ALL visible (filtered/sorted)
+      // rows, not just the current page, so bar-fill scale stays stable while paging.
       var maxes = cols.map(function (c, ci) {
         return c.bar ? Math.max.apply(null, vr.map(function (r) { return +r[ci] || 0; })) || 1 : 0;
       });
@@ -2754,6 +2779,7 @@
               if (sortDir > 0) { sortDir = -1; }
               else { sortCol = -1; sortDir = 1; } // third click = no sort
             } else { sortCol = colIdx; sortDir = 1; }
+            page = 0;
             render();
             var fi = el.querySelector(".tbl-filter"); if (fi) fi.focus();
           });
@@ -2764,7 +2790,7 @@
       tbl.appendChild(thead);
 
       var tbody = document.createElement("tbody");
-      vr.forEach(function (r, ri) {
+      pageRows.forEach(function (r, ri) {
         var tr = document.createElement("tr");
         if (ri % 2 === 1) tr.className = "tbl-stripe"; // alternating stripe for readability
         cols.forEach(function (c, ci) {
@@ -2809,15 +2835,15 @@
         tfoot.appendChild(totalTr);
         tbl.appendChild(tfoot);
       }
-      el.appendChild(tbl);
+      wrap.appendChild(tbl);
 
-      // Row-click detail (mirrors base PDC.table; uses vr index so sort+filter are respected)
+      // Row-click detail (mirrors base PDC.table; uses pageRows index so sort+filter+paging are respected)
       if (cfg.detail || cfg.recordDetail) {
         var trs = el.querySelectorAll("tbody tr");
         [].forEach.call(trs, function (tr, ri) {
           tr.style.cursor = "pointer"; tr.classList.add("rowclick");
           tr.addEventListener("click", function () {
-            var row = vr[ri];
+            var row = pageRows[ri];
             if (cfg.recordDetail) {
               var pairs = cols.map(function (c, ci) {
                 return { label: c.label, value: c.fmt ? c.fmt(row[ci]) : (row[ci] == null ? "" : row[ci]) };
@@ -2831,6 +2857,22 @@
             }
           });
         });
+      }
+
+      // Pagination bar — only shown when pageSize actually splits the data into >1 page.
+      if (pageSize > 0 && totalPages > 1) {
+        var pbar = document.createElement("div");
+        pbar.className = "tbl-page-bar";
+        var prev = document.createElement("button");
+        prev.type = "button"; prev.textContent = "‹ Prev"; prev.disabled = page === 0;
+        prev.addEventListener("click", function () { page--; render(); });
+        var lbl = document.createElement("span");
+        lbl.textContent = "Page " + (page + 1) + " of " + totalPages;
+        var next = document.createElement("button");
+        next.type = "button"; next.textContent = "Next ›"; next.disabled = page >= totalPages - 1;
+        next.addEventListener("click", function () { page++; render(); });
+        pbar.appendChild(prev); pbar.appendChild(lbl); pbar.appendChild(next);
+        el.appendChild(pbar);
       }
     }
 
