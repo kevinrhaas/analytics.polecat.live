@@ -320,7 +320,9 @@
             return { label: c.label || c.col, num: !!c.num, fmt: c.fmt ? fmt(c.fmt) : null };
           });
           var idxs = (m.cols || []).map(function (c) { return res.col(c.col); });
-          PDC.table(body, { cols: cols, rows: res.rows.map(function (r) { return idxs.map(function (i) { return r[i]; }); }), detail: detailCfg });
+          var tblRows = res.rows.map(function (r) { return idxs.map(function (i) { return r[i]; }); });
+          if (o.maxRows > 0) tblRows = tblRows.slice(0, o.maxRows);
+          PDC.table(body, { cols: cols, rows: tblRows, detail: detailCfg, grandTotal: !!o.grandTotal });
           break;
         case "richtext":
           // Text/annotation panel — no DA; content in chart.opts.content (light markdown)

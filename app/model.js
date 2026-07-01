@@ -350,7 +350,10 @@
       label: "Table", icon: "▥", group: "Detail",
       desc: "Scrollable row-by-row data view",
       fields: ["cols"],
-      opts: [],
+      opts: [
+        { key: "maxRows",    type: "int",  label: "Row limit (0 = all)", def: 0 },
+        { key: "grandTotal", type: "bool", label: "Show grand total row", def: false }
+      ],
       cde: { type: "Table", extra: function () { return []; } }
     },
     // Text/annotation panel — no DA needed; content stored in chart.opts.content (light markdown).

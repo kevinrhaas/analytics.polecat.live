@@ -8,6 +8,11 @@
 window.STUDIO_BUILD = "__BUILD_TS__";
 
 window.STUDIO_CHANGELOG = [
+  { v: "v139", date: "2026-07-01", time: "11:30 UTC", title: "Z8: table-specific inspector options — row limit + grand total row", items: [
+      "Continues the Z8 track (context-aware inspector) with the first type-specific *option* set called out in the backlog: the Table chart now has its own `Studio.CHARTS.table.opts` — **Row limit** (cap rows rendered, 0 = show all) and **Show grand total row** (sums every numeric column and appends a bold, top-bordered total row).",
+      "The grand total is computed over the currently *visible* rows — it recomputes live as you type in the table's search/filter bar, so the total always matches what's on screen, and it composes with the existing click-to-sort headers.",
+      "`PDC.table` (the `app/studio-charts.js` override) grew a `cfg.grandTotal` flag; `studio-render.js` applies `o.maxRows` client-side before handing rows to the renderer and passes `o.grandTotal` through — both preview and exported CDF share this one code path since `studio-charts.js` is inlined into every export. `docs/index.html` Table card updated. 4 new Z8T tests. Test suite 745/745.",
+    ] },
   { v: "v138", date: "2026-07-01", time: "10:00 UTC", title: "Z8 slice 1: context-aware inspector — hide interaction sections a chart type can't use", items: [
       "New `Studio.ANNOT_CAPS` capability map in `app/model.js` (+ `Studio.chartSupports(kind, type)` helper) records which chart types the renderer actually wires each interaction/formatting feature into — mirrors the real logic in `studio-render.js` (drill only for bars/donut, detail drawer for bars/donut/treemap/table, cross-filter + conditional formatting + color scale for bars/donut/treemap/lollipop).",
       "The panel inspector's Drill-through, Detail drawer, Cross-filter, Conditional formatting, and Color scale sections now only render for chart types that support them — e.g. a Table panel no longer shows Cross-filter or Color scale (settings that had no visible effect), while still showing Detail drawer (table rows do open one). A Line chart no longer shows Conditional formatting.",

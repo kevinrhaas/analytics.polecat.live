@@ -2672,7 +2672,8 @@
       ".sort-arr{position:absolute;right:4px;top:50%;transform:translateY(-50%);font-size:9px;color:var(--text-muted);line-height:1;pointer-events:none}" +
       ".sort-arr.active{color:var(--pentaho,#005bb5)}" +
       ".tbl tbody tr.tbl-stripe td{background:color-mix(in srgb,var(--panel-border,#e0e4ef) 30%,transparent)}" +
-      ".tbl tbody tr.tbl-stripe:hover td{background:var(--panel-subtle-bg)}";
+      ".tbl tbody tr.tbl-stripe:hover td{background:var(--panel-subtle-bg)}" +
+      ".tbl tfoot .tbl-total td{font-weight:700;border-top:2px solid var(--panel-border,#e0e4ef);background:var(--panel-subtle-bg)}";
     (document.head || document.body || document.documentElement).appendChild(_tblStyle);
   }
 
@@ -2786,6 +2787,28 @@
         tbody.appendChild(tr);
       });
       tbl.appendChild(tbody);
+
+      // Optional grand-total row: sums each numeric column over the currently visible
+      // (filtered/sorted) rows, so the total always matches what's on screen.
+      if (cfg.grandTotal && cols.length) {
+        var tfoot = document.createElement("tfoot");
+        var totalTr = document.createElement("tr");
+        totalTr.className = "tbl-total";
+        var labeled = false;
+        cols.forEach(function (c, ci) {
+          var td = document.createElement("td");
+          if (c.num) {
+            var sum = vr.reduce(function (acc, r) { return acc + (+r[ci] || 0); }, 0);
+            td.className = "num";
+            td.textContent = String(c.fmt ? c.fmt(sum) : sum);
+          } else if (!labeled) {
+            td.textContent = "Total"; labeled = true;
+          }
+          totalTr.appendChild(td);
+        });
+        tfoot.appendChild(totalTr);
+        tbl.appendChild(tfoot);
+      }
       el.appendChild(tbl);
 
       // Row-click detail (mirrors base PDC.table; uses vr index so sort+filter are respected)

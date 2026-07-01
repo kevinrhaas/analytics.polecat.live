@@ -7770,6 +7770,88 @@ function serve() {
     });
     ok("H113: alternating row stripes (.tbl-stripe) on even-indexed rows", h113Stripe.ok, JSON.stringify(h113Stripe));
 
+    // ── Z8 table extras: row limit + grand total row ───────────────────────────
+    console.log("\n• Z8 table extras: row limit + grand total");
+
+    // Z8T-1: table registry declares maxRows + grandTotal opts
+    var z8tOpts = await page.evaluate(function () {
+      var o = (window.Studio.CHARTS.table || {}).opts || [];
+      var keys = o.map(function (od) { return od.key; });
+      return { ok: keys.indexOf("maxRows") >= 0 && keys.indexOf("grandTotal") >= 0, keys: keys };
+    });
+    ok("Z8T: Studio.CHARTS.table.opts declares maxRows + grandTotal", z8tOpts.ok, JSON.stringify(z8tOpts));
+
+    // Z8T-2: cfg.grandTotal renders a <tfoot> summing numeric columns over visible rows
+    var z8tTotal = await page.evaluate(function () {
+      var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
+      for (var i = 0; i < iframes.length; i++) {
+        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.table === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+      }
+      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      try {
+        var el = iframeDoc.createElement("div");
+        el.style.cssText = "position:absolute;top:-9999px;width:400px";
+        iframeDoc.body.appendChild(el);
+        w.PDC.table(el, {
+          cols: [{ label: "Region" }, { label: "Sales", num: true }],
+          rows: [["North", 100], ["South", 200], ["East", 150]],
+          grandTotal: true
+        });
+        var footRow = el.querySelector("tfoot tr.tbl-total");
+        var cells = footRow ? footRow.querySelectorAll("td") : [];
+        var label = cells[0] ? cells[0].textContent : "";
+        var sum = cells[1] ? cells[1].textContent : "";
+        // no grandTotal → no tfoot
+        w.PDC.table(el, {
+          cols: [{ label: "Region" }, { label: "Sales", num: true }],
+          rows: [["North", 100]]
+        });
+        var noFoot = !el.querySelector("tfoot");
+        iframeDoc.body.removeChild(el);
+        return { ok: !!footRow && label === "Total" && sum === "450" && noFoot, label: label, sum: sum, noFoot: noFoot };
+      } catch (e) { return { ok: false, err: e.message }; }
+    });
+    ok("Z8T: grandTotal sums numeric columns in a labeled tfoot row; omitted by default", z8tTotal.ok, JSON.stringify(z8tTotal));
+
+    // Z8T-3: grand total respects the live filter (recomputes over visible rows only)
+    var z8tTotalFiltered = await page.evaluate(function () {
+      var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
+      for (var i = 0; i < iframes.length; i++) {
+        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.table === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+      }
+      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      try {
+        var el = iframeDoc.createElement("div");
+        el.style.cssText = "position:absolute;top:-9999px;width:400px";
+        iframeDoc.body.appendChild(el);
+        w.PDC.table(el, {
+          cols: [{ label: "Region" }, { label: "Sales", num: true }],
+          rows: [["North", 100], ["South", 200], ["East", 150]],
+          grandTotal: true
+        });
+        var inp = el.querySelector(".tbl-filter");
+        inp.value = "north"; inp.dispatchEvent(new Event("input", { bubbles: true }));
+        var sum = (el.querySelector("tfoot tr.tbl-total td:last-child") || {}).textContent || "";
+        iframeDoc.body.removeChild(el);
+        return { ok: sum === "100", sum: sum };
+      } catch (e) { return { ok: false, err: e.message }; }
+    });
+    ok("Z8T: grand total recomputes over filtered rows only", z8tTotalFiltered.ok, JSON.stringify(z8tTotalFiltered));
+
+    // Z8T-4: end-to-end — a table panel's maxRows option truncates rows in the live preview
+    const z8tLiveLimit = await page.evaluate(async function () {
+      var spec = JSON.parse(JSON.stringify(window.__STUDIO_STATE.spec));
+      var col = spec.cda.dataAccesses[0].columns[0];
+      spec.panels[0].chart = Object.assign({}, spec.panels[0].chart,
+        { type: "table", map: { cols: [{ col: col }] }, opts: { maxRows: 3 } });
+      window.__studioLoad(spec);
+      await new Promise(function (r) { setTimeout(r, 300); });
+      var doc = document.querySelector("#preview").contentDocument;
+      var rows = doc.querySelectorAll(".tbl tbody tr").length;
+      return { ok: rows === 3, rows: rows };
+    });
+    ok("Z8T: panel opts.maxRows truncates rendered rows in the live preview", z8tLiveLimit.ok, JSON.stringify(z8tLiveLimit));
+
     // ── F26: Parallel coordinates chart ────────────────────────────────────────
     console.log("\n• F26: parallel coordinates chart");
 
