@@ -4102,8 +4102,8 @@
     // examples menu — E5: visual card gallery
     var em = $("#menuExamples");
     em.classList.add("ex-grid");
-    var featured = S.examples.filter(function (e) { return e.track === "CDF"; });
-    var rest = S.examples.filter(function (e) { return e.track !== "CDF"; });
+    var featured = S.examples.filter(function (e) { return e.featured; });
+    var rest = S.examples.filter(function (e) { return !e.featured; });
     // E3: mini layout thumbnail for each example card — synthesised from index.json metadata
     // (types[], panels count, kpis count) without needing to load the full spec file.
     function exLayoutSvg(e) {
@@ -4111,10 +4111,6 @@
       var kpis = e.kpis || 0, cols = pCount <= 2 ? 2 : 3;
       var W = 80, H = 46;
       var pal = ["#005bb5","#7d3c98","#2e8bd0","#00a39a","#e67e22"];
-      var cpals = { bars:"#005bb5",donut:"#7d3c98",line:"#2e8bd0",stacked:"#005bb5",
-        areaStacked:"#7d3c98",combo:"#005bb5",treemap:"#00a39a",scatter:"#e67e22",
-        gauge:"#c0392b",radar:"#8e44ad",heatmap:"#16a085",table:"#2c3e50",
-        waterfall:"#27ae60",funnel:"#e67e22",sankey:"#005bb5",chord:"#7d3c98" };
       var p = ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + W + ' ' + H + '">'];
       p.push('<rect width="' + W + '" height="' + H + '" fill="var(--field,#f4f6fb)"/>');
       p.push('<rect width="' + W + '" height="7" fill="var(--bg,#fff)"/>');
@@ -4130,21 +4126,27 @@
         y += 8;
       }
       var pw = (W - 4 - (cols - 1) * 2) / cols, rows = Math.ceil(pCount / cols);
-      var ph = Math.min((H - y - 2 - (rows - 1) * 2) / rows, 13);
+      var ph = Math.min((H - y - 2 - (rows - 1) * 2) / rows, 15);
       for (var pi = 0; pi < pCount; pi++) {
         var pcol = pi % cols, prow = Math.floor(pi / cols);
         var px = 2 + pcol * (pw + 2), py = y + prow * (ph + 2);
-        var tc = cpals[types[pi % Math.max(types.length, 1)]] || pal[pi % 5];
-        p.push('<rect x="' + px + '" y="' + py + '" width="' + pw + '" height="' + ph + '" rx="1" fill="var(--bg,#fff)"/>');
-        p.push('<rect x="' + px + '" y="' + py + '" width="' + pw + '" height="' + ph + '" rx="1" fill="' + tc + '" opacity="0.18"/>');
-        p.push('<rect x="' + px + '" y="' + py + '" width="' + pw + '" height="2" fill="' + tc + '"/>');
+        var t = types[pi % Math.max(types.length, 1)] || "bars";
+        // white panel card, then the REAL chart-type mini SVG scaled into it — so each card
+        // previews the actual charts in the dashboard, not a generic mockup.
+        p.push('<rect x="' + px + '" y="' + py + '" width="' + pw + '" height="' + ph + '" rx="1.5" fill="var(--bg,#fff)"/>');
+        var mini = CHART_SVG[t];
+        if (mini) {
+          var pad = 1.3;
+          p.push(mini.replace('<svg ', '<svg x="' + (px + pad).toFixed(2) + '" y="' + (py + pad).toFixed(2) + '" width="' + (pw - 2 * pad).toFixed(2) + '" height="' + (ph - 2 * pad).toFixed(2) + '" preserveAspectRatio="xMidYMid meet" '));
+        } else {
+          p.push('<rect x="' + px + '" y="' + py + '" width="' + pw + '" height="2" fill="' + pal[pi % 5] + '"/>');
+        }
       }
       p.push('</svg>');
       return p.join("");
     }
     function exCard(e) {
-      var track = e.track || "CDE";
-      var types = (e.types || []).slice(0, 3).map(function (t) {
+      var types = (e.types || []).slice(0, 4).map(function (t) {
         return '<span class="ex-chip">' + esc(t) + '</span>';
       }).join("");
       var meta = [];
@@ -4153,7 +4155,6 @@
       return '<button class="ex-card" data-f="' + esc(e.file) + '">' +
         '<div class="ex-thumb" aria-hidden="true">' + exLayoutSvg(e) + '</div>' +
         '<div class="ex-card-top">' +
-          '<span class="ex-badge ex-badge-' + track.toLowerCase() + '">' + esc(track) + '</span>' +
           '<span class="ex-card-types">' + types + '</span>' +
         '</div>' +
         '<div class="ex-card-title">' + esc(e.title || e.file) + '</div>' +
@@ -4162,7 +4163,7 @@
     }
     em.innerHTML =
       (featured.length ? '<div class="grp">Featured</div><div class="ex-cards ex-cards-1">' + featured.map(exCard).join("") + '</div>' : "") +
-      (rest.length ? '<div class="grp">v2 examples</div><div class="ex-cards">' + rest.map(exCard).join("") + '</div>' : "");
+      (rest.length ? '<div class="grp">' + (featured.length ? 'More examples' : 'Examples') + '</div><div class="ex-cards">' + rest.map(exCard).join("") + '</div>' : "");
     $$("button.ex-card", em).forEach(function (b) { b.onclick = function () { loadExample(b.getAttribute("data-f")); closeMenus(); }; });
     menuToggle($("#btnExamples"), em);
 

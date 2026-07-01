@@ -2,7 +2,7 @@
   {
     "file": "studio-cost.studio.json",
     "title": "Cost & Sustainability",
-    "track": "CDF",
+    "featured": true,
     "panels": 6,
     "kpis": 4,
     "types": ["bars", "donut", "treemap", "line"]

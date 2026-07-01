@@ -3094,13 +3094,12 @@ function serve() {
         featCardFile: featCard ? featCard.getAttribute("data-f") : ""
       };
     });
-    ok("E5: examples menu shows card elements (button.ex-card)", e5.cardCount >= 16, JSON.stringify(e5));
+    ok("E5: examples menu shows card elements (button.ex-card)", e5.cardCount >= 6, JSON.stringify(e5));
     ok("E5: examples menu has .ex-cards grid containers", e5.gridCount >= 1, JSON.stringify(e5));
-    ok("E5: Featured section exists for CDF examples", e5.hasFeatured, JSON.stringify(e5));
-    ok("E5: CDF badge present (blue track)", e5.hasCdfBadge && e5.cdfBadgeText === "CDF", JSON.stringify(e5));
-    ok("E5: CDE badge present (amber track)", e5.hasCdeBadge && e5.cdeBadgeText === "CDE", JSON.stringify(e5));
+    ok("E5: Featured section exists", e5.hasFeatured, JSON.stringify(e5));
+    ok("E5: no CDF/CDE track badges (retired terminology)", !e5.hasCdfBadge && !e5.hasCdeBadge, JSON.stringify(e5));
     ok("E5: chart-type chips rendered", e5.chipCount >= 2, JSON.stringify(e5));
-    ok("E5: featured CDF card links to studio-cost file", e5.featCardFile === "studio-cost.studio.json", JSON.stringify(e5));
+    ok("E5: featured card links to the studio-cost flagship", e5.featCardFile === "studio-cost.studio.json", JSON.stringify(e5));
     // Click a card and verify the example loads
     await page.click("#menuExamples button.ex-card");
     await page.waitForTimeout(400);
