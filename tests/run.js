@@ -9963,6 +9963,68 @@ function serve() {
     });
     ok("Z8 KPI: exported CDF HTML embeds KPI drill config in STUDIO_SPEC", kpiDrillExport.hasDrill, JSON.stringify(kpiDrillExport));
 
+    // ── Z8 slice 13: Stacked area gets its own type-specific options (smooth + legend) ──
+    console.log("\n• Z8 areaStacked: smooth curve + legend toggle");
+
+    // Z8AS-1: areaStacked registry declares smooth + showLegend (in addition to existing fmt/height)
+    var z8asOpts = await page.evaluate(function () {
+      var o = (window.Studio.CHARTS.areaStacked || {}).opts || [];
+      var keys = o.map(function (od) { return od.key; });
+      return { ok: keys.indexOf("smooth") >= 0 && keys.indexOf("showLegend") >= 0 && keys.indexOf("fmt") >= 0, keys: keys };
+    });
+    ok("Z8AS: Studio.CHARTS.areaStacked.opts declares smooth + showLegend", z8asOpts.ok, JSON.stringify(z8asOpts));
+
+    // Z8AS-2: smooth:true renders curved (C-command) band paths instead of straight (L-command) ones;
+    // legend:false removes the toggle-legend chips (legend:true / default still shows them).
+    var z8asRender = await page.evaluate(function () {
+      var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
+      for (var i = 0; i < iframes.length; i++) {
+        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.areaStacked === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+      }
+      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      try {
+        var labels = ["A", "B", "C", "D"], series = [{ name: "S1", values: [1, 4, 2, 6] }, { name: "S2", values: [2, 1, 3, 2] }];
+        var el1 = iframeDoc.createElement("div");
+        el1.style.cssText = "position:absolute;top:-9999px;width:300px";
+        iframeDoc.body.appendChild(el1);
+        w.PDC.areaStacked(el1, { labels: labels, series: series, height: 200 });
+        var pathStraight = el1.querySelector("svg path[fill]").getAttribute("d");
+        var legendOn = el1.querySelectorAll(".legend-item").length;
+        iframeDoc.body.removeChild(el1);
+
+        var el2 = iframeDoc.createElement("div");
+        el2.style.cssText = "position:absolute;top:-9999px;width:300px";
+        iframeDoc.body.appendChild(el2);
+        w.PDC.areaStacked(el2, { labels: labels, series: series, height: 200, smooth: true, legend: false });
+        var pathSmooth = el2.querySelector("svg path[fill]").getAttribute("d");
+        var legendOff = el2.querySelectorAll(".legend-item").length;
+        iframeDoc.body.removeChild(el2);
+
+        return {
+          ok: pathStraight.indexOf("C") === -1 && pathSmooth.indexOf("C") >= 0 && legendOn === series.length && legendOff === 0,
+          pathStraight: pathStraight, pathSmooth: pathSmooth, legendOn: legendOn, legendOff: legendOff
+        };
+      } catch (e) { return { ok: false, err: e.message }; }
+    });
+    ok("Z8AS: smooth:true curves the band path; legend:false hides the toggle-legend chips", z8asRender.ok, JSON.stringify(z8asRender));
+
+    // Z8AS-3: the panel inspector shows the new areaStacked-specific fields when such a panel is selected
+    var z8asInsp = await page.evaluate(function () {
+      var spec = window.__STUDIO_STATE.spec;
+      var p = spec.panels[0];
+      var prevChart = JSON.parse(JSON.stringify(p.chart));
+      p.chart.type = "areaStacked"; p.chart.opts = {};
+      window.__studioSelect({ kind: "panel", id: p.id });
+      var body = document.getElementById("inspBody");
+      var text = body ? body.textContent : "";
+      var ok = text.indexOf("Smooth curve") >= 0 && text.indexOf("Show legend") >= 0;
+      p.chart = prevChart; // restore so later tests aren't affected
+      window.__studioSelect(null);
+      window.__studioRenderInspector();
+      return { ok: ok, hasText: text.indexOf("Show legend") >= 0 };
+    });
+    ok("Z8AS: areaStacked panel inspector shows Smooth curve / Show legend fields", z8asInsp.ok, JSON.stringify(z8asInsp));
+
     // restore Studio + a clean flagship spec for any tests appended after this block
     await page.evaluate(async function () {
       const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json());

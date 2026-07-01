@@ -8,6 +8,10 @@
 window.STUDIO_BUILD = "__BUILD_TS__";
 
 window.STUDIO_CHANGELOG = [
+  { v: "v150", date: "2026-07-01", time: "20:10 UTC", title: "Z8 slice 13: Stacked area gets its own options — smooth curve + legend toggle", items: [
+      "Continues the Z8 track's per-type option sets (Table/Gauge/Treemap/Scatter/Line/Donut/Bars/Stacked/Calendar heatmap/KPI in v139–v149) with **Stacked area**: `Studio.CHARTS.areaStacked.opts` now includes **Smooth curve** (cubic-bezier band edges, same midpoint-control-point technique as Line/Bump) and **Show legend** (the renderer already supported hiding the legend internally via `cfg.legend`, but the inspector never exposed a toggle for it).",
+      "`PDC.areaStacked`'s band path builder now curves both the top and bottom edge of every band when `smooth` is on (`_bandSeg` helper in `app/studio-charts.js`, pdc-ui.js untouched — areaStacked has always lived entirely in the extension file); `studio-render.js` passes `smooth`/`legend` through. `docs/index.html` Stacked area card updated. 3 new Z8AS tests. Test suite 784/784.",
+    ] },
   { v: "v149", date: "2026-07-01", time: "19:30 UTC", title: "Z8 slice 12: KPI tiles get click-through", items: [
       "Continues the Z8 track's per-type option sets (Table/Gauge/Treemap/Scatter/Line/Donut/Bars/Stacked/Calendar heatmap in v139–v148) with **KPI tiles**: a new 'Click-through' section in the KPI inspector (Target URL + URL parameter) lets a tile navigate to another dashboard when clicked — mirroring the panel Drill-through feature bars/donut already have.",
       "Uses the same shared `PDC.bindDrill` helper as bars/donut/lollipop, bound directly to the `.kpi` tile element with the KPI's raw value as the carried label; works in the live preview and in exported CDF (studio-render.js is inlined into every export). `docs/index.html` KPI card updated. 4 new Z8 KPI tests. Test suite 781/781.",

@@ -237,7 +237,8 @@
             PDC.line(body, { area: o.area !== false, smooth: !!o.smooth, showDots: o.showDots !== false,
               fmt: f, height: o.height || 300, labels: labels, series: series });
           else if (ch.type === "areaStacked")
-            PDC.areaStacked(body, { fmt: f, height: o.height || 300, labels: labels, series: series });
+            PDC.areaStacked(body, { smooth: !!o.smooth, legend: o.showLegend !== false,
+              fmt: f, height: o.height || 300, labels: labels, series: series });
           else if (ch.type === "streamgraph")
             PDC.streamgraph(body, { fmt: f, height: o.height || 300, labels: labels, series: series });
           else if (ch.type === "radar")

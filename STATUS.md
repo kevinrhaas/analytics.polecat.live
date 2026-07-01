@@ -343,6 +343,12 @@
   drill label); works in the live preview and every exported CDF (studio-render.js is inlined into
   exports, so no exporter changes needed). `docs/index.html` KPI card updated. 4 new tests. Test suite
   781/781.
+- v150: **Z8 slice 13: Stacked area gets its own options** — `Studio.CHARTS.areaStacked.opts` gains
+  **Smooth curve** (cubic-bezier band edges via a new `_bandSeg` helper, same midpoint-control-point
+  technique as Line/Bump) and **Show legend** (the renderer already supported hiding the legend
+  internally via `cfg.legend`, but no inspector control ever exposed it). `studio-render.js` passes
+  `smooth`/`legend` through to `PDC.areaStacked`. `docs/index.html` updated. 3 new Z8AS tests. Test suite
+  784/784.
 - v146: **Z8 slice 9: Bar chart gets its own options** — `Studio.CHARTS.bars.opts` gains **Sort by value**
   (largest-first, same convention as Donut's "Sort slices") and **Show value labels** (hide the always-on
   value text for a cleaner look on dense charts). `PDC.bars` overridden in `studio-charts.js`
@@ -508,9 +514,12 @@ self-explanatory. Keep it light (inline SVG / CSS, no image assets or deps). One
 > ✓ **Slice 12 shipped v149**: **KPI tiles** get a "Click-through" section (Target URL + URL parameter) —
 > click a tile to navigate to another dashboard, using the same shared `PDC.bindDrill` helper bars/donut
 > already use for Drill-through. First KPI-specific inspector addition under Z8.
+> ✓ **Slice 13 shipped v150**: **Stacked area** gets its own options — **Smooth curve** (cubic-bezier
+> band edges, same technique as Line/Bump) and **Show legend** (the renderer already supported hiding the
+> legend via `cfg.legend`; the inspector never exposed a toggle until now).
 > **Z8 follow-ups (not yet done, the bulk of the track):** a real per-type capability map covering the
 > REST of the ~51 types' *own* option sets (Table, Gauge, Treemap, Scatter, Line, Donut, Bars, Stacked
-> bars, Calendar heatmap, KPI done; still needed: areaStacked/streamgraph, sankey/chord/network, and the
+> bars, Calendar heatmap, KPI, areaStacked done; still needed: streamgraph, sankey/chord/network, and the
 > rest), plus the inline visual setting hints (tiny before/after thumbnails). Continue one slice per loop.
 
 **Z9 — Mobile: fix the broken flows + a proper bottom nav (user-requested 2026-06-30).** Reported

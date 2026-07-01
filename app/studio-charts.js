@@ -83,6 +83,16 @@
   }
 
   /* ---------- stacked area (multi-series, cumulative bands) ---------- */
+  // cfg.smooth curves the top and bottom edge of every band with the same
+  // "control point at the horizontal midpoint" cubic-bezier trick used by the
+  // Line and Bump charts, instead of the default straight segment-to-segment edges.
+  function _bandSeg(prev, pt, smooth) {
+    if (smooth) {
+      var cx = (prev[0] + pt[0]) / 2;
+      return " C" + cx + "," + prev[1] + " " + cx + "," + pt[1] + " " + pt[0] + "," + pt[1];
+    }
+    return " L" + pt[0] + "," + pt[1];
+  }
   PDC.areaStacked = function (el, cfg) { reg(el, function () { _area(el, cfg); }); };
   function _area(el, cfg) {
     var labels = cfg.labels || [], series = cfg.series || [], h = cfg.height || 270;
@@ -103,9 +113,12 @@
     var bandEls = [];
     bands.forEach(function (b, bi) {
       var col = b.se.color || P[b.si % 10];
-      var d = "M" + xs(0) + "," + ys(b.hi[0]);
-      for (var i = 1; i < n; i++) d += "L" + xs(i) + "," + ys(b.hi[i]);
-      for (var j = n - 1; j >= 0; j--) d += "L" + xs(j) + "," + ys(b.lo[j]);
+      var hiPts = [], loPts = [];
+      for (var i = 0; i < n; i++) hiPts.push([xs(i), ys(b.hi[i])]);
+      for (var j = n - 1; j >= 0; j--) loPts.push([xs(j), ys(b.lo[j])]);
+      var d = "M" + hiPts[0][0] + "," + hiPts[0][1];
+      for (var ei = 1; ei < hiPts.length; ei++) d += _bandSeg(hiPts[ei - 1], hiPts[ei], cfg.smooth);
+      for (var ej = 0; ej < loPts.length; ej++) d += _bandSeg(ej === 0 ? hiPts[hiPts.length - 1] : loPts[ej - 1], loPts[ej], cfg.smooth);
       d += "Z";
       var p = S("path", { d: d, fill: col, opacity: 0.82, stroke: col, "stroke-width": 1 }); s.appendChild(p); bandEls.push(p);
       if (canAnim()) { p.style.opacity = "0"; setTimeout(function () { p.style.transition = "opacity .5s ease"; p.style.opacity = "0.82"; }, animD(60 + bi * 70)); }

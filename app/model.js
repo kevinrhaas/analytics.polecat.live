@@ -111,9 +111,14 @@
       label: "Stacked area", icon: "◣", group: "Trend",
       desc: "Cumulative filled bands over a sequence",
       fields: ["labelCol", "series"],
+      // Z8 slice 13: stacked area gets its own type-specific options — the renderer
+      // already supported a legend toggle internally (cfg.legend) but the inspector
+      // never exposed it, and bands were always straight-edged with no smoothing.
       opts: [
-        { key: "fmt",    type: "fmt", label: "Value format", def: "abbr" },
-        { key: "height", type: "int", label: "Height (px)", def: 300 }
+        { key: "smooth",     type: "bool", label: "Smooth curve", def: false },
+        { key: "showLegend", type: "bool", label: "Show legend", def: true },
+        { key: "fmt",        type: "fmt",  label: "Value format", def: "abbr" },
+        { key: "height",     type: "int",  label: "Height (px)", def: 300 }
       ],
       cde: { type: "cccStackedAreaChart", extra: function () { return [["stacked", "Boolean", "true"], ["valuesVisible", "Boolean", "false"]]; } }
     },
