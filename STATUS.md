@@ -34,10 +34,9 @@
   package installs baked into exported artifacts. The vendored toolkit stays self-contained; new chart
   types/features go in `app/studio-charts.js`. Exported files (CDF .html / CDE / .cda / bundle) must
   stay small and dependency-light so the Pentaho team can drop them in anywhere.
-- **CDF/CDE compatible.** Anything authored must export and round-trip through the existing exporters.
 - **Clean code.** Cohesive modules (model/render/studio/exporters boundaries), consistent style, no dead
   code, no mess.
-- **Documented for the Pentaho engineering team.** Add helpful, friendly, supportive comments where a
+- **Documented for the humans.** Add helpful, friendly, supportive comments where a
   human needs orientation — explain the *why* and any non-obvious technique. Concise, not verbose. If
   existing code is thin on comments and a reader would struggle, add brief contextual notes.
 - **License.** The Studio is proprietary — see `LICENSE` (© 2026 Polecat.live; all rights reserved).
