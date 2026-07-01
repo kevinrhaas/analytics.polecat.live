@@ -2879,6 +2879,41 @@
     render();
   };
 
+  /* ── Enhanced gauge chart (override PDC.gauge, Z8 slice 4) ──────────────────
+     Base PDC.gauge (pdc-ui.js) already picks the value-arc color from goodAt/warnAt
+     thresholds, but they were hardcoded (0.9/0.7) and invisible until the needle
+     crossed them. This override draws the thresholds as a permanent red/amber/green
+     zone track behind the value arc — so the "why is it red" is visible at a glance —
+     and applies the chart's chosen value format (cfg.fmt) to the center readout instead
+     of always showing a raw rounded number. Base kept as PDC._gaugeBase for reference. */
+  PDC._gaugeBase = PDC.gauge;
+
+  PDC.gauge = function (el, cfg) { reg(el, function () { _gaugeZoned(el, cfg); }); };
+
+  function _gaugeZoned(el, cfg) {
+    var h = cfg.height || 190, o = mkSVG(el, h), s = o.s, w = o.w;
+    var val = +cfg.value || 0, max = cfg.max || 100, pct = Math.max(0, Math.min(1, val / max));
+    var warnAt = cfg.warnAt != null ? cfg.warnAt : 0.7;
+    var goodAt = cfg.goodAt != null ? cfg.goodAt : 0.9;
+    var cx = w / 2, cy = h - 22, R = Math.min(w / 2 - 16, h - 44);
+    function arc(p0, p1, rr, col, wd) {
+      var a0 = Math.PI + Math.PI * p0, a1 = Math.PI + Math.PI * p1;
+      var x0 = cx + rr * Math.cos(a0), y0 = cy + rr * Math.sin(a0), x1 = cx + rr * Math.cos(a1), y1 = cy + rr * Math.sin(a1);
+      return S("path", { d: "M" + x0 + "," + y0 + " A" + rr + "," + rr + " 0 " + ((p1 - p0) > 0.5 ? 1 : 0) + " 1 " + x1 + "," + y1, fill: "none", stroke: col, "stroke-width": wd, "stroke-linecap": "round" });
+    }
+    // Zone track: bad (0→warnAt), warn (warnAt→goodAt), good (goodAt→1) — always visible,
+    // regardless of the current value, so thresholds are self-explanatory.
+    s.appendChild(arc(0, warnAt, R, PDC.cssvar("--bad"), 16));
+    s.appendChild(arc(warnAt, goodAt, R, PDC.cssvar("--warn"), 16));
+    s.appendChild(arc(goodAt, 1, R, PDC.cssvar("--good"), 16));
+    var needleCol = cfg.color || (pct >= goodAt ? PDC.cssvar("--good") : pct >= warnAt ? PDC.cssvar("--warn") : PDC.cssvar("--bad"));
+    var tickW = 0.02, tickStart = Math.max(0, Math.min(1 - tickW, pct - tickW / 2));
+    s.appendChild(arc(tickStart, tickStart + tickW, R, needleCol, 22)); // bright needle tick marks the value on the zone track
+    var text = cfg.text || ((cfg.fmt ? cfg.fmt(val) : (Math.round(val * 10) / 10).toLocaleString()) + (cfg.unit || ""));
+    s.appendChild(S("text", { x: cx, y: cy - 6, "text-anchor": "middle", class: "gauge-val", "font-size": "30" }, text));
+    s.appendChild(S("text", { x: cx, y: cy + 14, "text-anchor": "middle", class: "gauge-cap" }, cfg.label || ""));
+  }
+
   /* ---------- parallel coordinates chart (multi-dimensional entity comparison) ----------
      Each entity (row) is drawn as a polyline connecting its values across N parallel
      vertical axes. Each axis represents one numeric dimension and has its own min/max

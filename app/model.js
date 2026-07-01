@@ -329,9 +329,16 @@
       label: "Gauge", icon: "◑", group: "Single value",
       desc: "Single value vs. a configurable max",
       fields: ["valueCol"],
+      // Z8 slice 4: gauge gets its own type-specific options — value format (was raw
+      // number + unit only) and quality-zone thresholds (was hardcoded 70%/90% in the
+      // toolkit); the arc now shows visible red/amber/green bands, not just a color-
+      // changing needle, so the thresholds are self-explanatory at a glance.
       opts: [
-        { key: "max",  type: "int",  label: "Max", def: 100 },
-        { key: "unit", type: "text", label: "Unit", def: "%" }
+        { key: "fmt",    type: "fmt", label: "Value format", def: "n" },
+        { key: "unit",   type: "text", label: "Unit", def: "%" },
+        { key: "max",    type: "int", label: "Max", def: 100 },
+        { key: "warnAt", type: "int", label: "Warning zone starts at %", def: 70 },
+        { key: "goodAt", type: "int", label: "Good zone starts at %", def: 90 }
       ],
       cde: null // CDF-only
     },

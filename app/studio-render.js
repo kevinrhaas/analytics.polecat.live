@@ -301,7 +301,11 @@
         }
         case "gauge":
           var gv = +(res.rows[0] || [])[res.col(m.valueCol)] || 0;
-          PDC.gauge(body, { value: gv, max: o.max || 100, unit: o.unit || "%", label: p.title });
+          PDC.gauge(body, {
+            value: gv, max: o.max || 100, unit: o.unit || "%", label: p.title, fmt: f,
+            warnAt: (o.warnAt != null ? o.warnAt : 70) / 100,
+            goodAt: (o.goodAt != null ? o.goodAt : 90) / 100
+          });
           break;
         case "heatmap":
           var ri2 = res.col(m.rowCol), ci2 = res.col(m.colCol), vi2 = res.col(m.valueCol);

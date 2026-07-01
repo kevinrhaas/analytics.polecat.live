@@ -7946,6 +7946,77 @@ function serve() {
     });
     ok("Z8T: freezeHeader adds sticky thead (.tbl-wrap.frz); density='compact' adds .tbl-wrap.compact", z8tFreezeDensity.ok, JSON.stringify(z8tFreezeDensity));
 
+    // ── Z8 slice 4: Gauge gets its own type-specific options (value format + quality-zone thresholds) ──
+    console.log("\n• Z8 gauge: value format + quality-zone thresholds");
+
+    // Z8G-1: gauge registry declares fmt + warnAt + goodAt (in addition to existing max/unit)
+    var z8gOpts = await page.evaluate(function () {
+      var o = (window.Studio.CHARTS.gauge || {}).opts || [];
+      var keys = o.map(function (od) { return od.key; });
+      return { ok: keys.indexOf("fmt") >= 0 && keys.indexOf("warnAt") >= 0 && keys.indexOf("goodAt") >= 0 && keys.indexOf("max") >= 0 && keys.indexOf("unit") >= 0, keys: keys };
+    });
+    ok("Z8G: Studio.CHARTS.gauge.opts declares fmt + warnAt + goodAt", z8gOpts.ok, JSON.stringify(z8gOpts));
+
+    // Z8G-2: PDC.gauge renders a permanent 3-band red/amber/green zone track (behind a value tick),
+    // not just a color-changing fill — thresholds are visible even when the value is 0.
+    var z8gZones = await page.evaluate(function () {
+      var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
+      for (var i = 0; i < iframes.length; i++) {
+        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.gauge === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+      }
+      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      try {
+        var el = iframeDoc.createElement("div");
+        el.style.cssText = "position:absolute;top:-9999px;width:300px";
+        iframeDoc.body.appendChild(el);
+        w.PDC.gauge(el, { value: 0, max: 100, warnAt: 0.7, goodAt: 0.9 });
+        var paths = el.querySelectorAll("svg path");
+        // 3 zone bands (bad/warn/good) + 1 value tick = 4 arcs, present even at value 0
+        var ok4 = paths.length === 4;
+        var strokes = [].map.call(paths, function (p) { return p.getAttribute("stroke"); });
+        var hasVal = !!el.querySelector(".gauge-val");
+        iframeDoc.body.removeChild(el);
+        return { ok: ok4 && hasVal, count: paths.length, strokes: strokes };
+      } catch (e) { return { ok: false, err: e.message }; }
+    });
+    ok("Z8G: gauge always renders red/amber/green zone bands + a value tick (4 arcs)", z8gZones.ok, JSON.stringify(z8gZones));
+
+    // Z8G-3: cfg.fmt formats the center readout instead of always showing a raw number
+    var z8gFmt = await page.evaluate(function () {
+      var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
+      for (var i = 0; i < iframes.length; i++) {
+        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.gauge === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+      }
+      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      try {
+        var el = iframeDoc.createElement("div");
+        el.style.cssText = "position:absolute;top:-9999px;width:300px";
+        iframeDoc.body.appendChild(el);
+        w.PDC.gauge(el, { value: 1234, max: 5000, fmt: function (v) { return "~" + v + "~"; } });
+        var txt = (el.querySelector(".gauge-val") || {}).textContent || "";
+        iframeDoc.body.removeChild(el);
+        return { ok: txt === "~1234~", txt: txt };
+      } catch (e) { return { ok: false, err: e.message }; }
+    });
+    ok("Z8G: gauge cfg.fmt formats the center value readout", z8gFmt.ok, JSON.stringify(z8gFmt));
+
+    // Z8G-4: the panel inspector shows the new gauge-specific fields when a Gauge panel is selected
+    var z8gInsp = await page.evaluate(function () {
+      var spec = window.__STUDIO_STATE.spec;
+      var p = spec.panels[0];
+      var prevChart = JSON.parse(JSON.stringify(p.chart));
+      p.chart.type = "gauge"; p.chart.opts = {};
+      window.__studioSelect({ kind: "panel", id: p.id });
+      var body = document.getElementById("inspBody");
+      var text = body ? body.textContent : "";
+      var ok = text.indexOf("Warning zone starts at %") >= 0 && text.indexOf("Good zone starts at %") >= 0 && text.indexOf("Value format") >= 0;
+      p.chart = prevChart; // restore so later tests aren't affected
+      window.__studioSelect(null);
+      window.__studioRenderInspector();
+      return { ok: ok, hasText: text.indexOf("Warning zone starts at %") >= 0 };
+    });
+    ok("Z8G: gauge panel inspector shows Value format / Warning zone / Good zone fields", z8gInsp.ok, JSON.stringify(z8gInsp));
+
     // ── F26: Parallel coordinates chart ────────────────────────────────────────
     console.log("\n• F26: parallel coordinates chart");
 
