@@ -41,7 +41,12 @@
     return "num";
   }
 
-  function valueFor(kind, i, n, firstIsLabel) {
+  // tiny deterministic hash of a column name → stable per-column variation, so different
+  // metrics show believably different values (not every gauge at 100% / every KPI at 1,000).
+  function seed(str) { var h = 5381, s = String(str || "x"); for (var k = 0; k < s.length; k++) h = ((h << 5) + h + s.charCodeAt(k)) >>> 0; return h; }
+
+  function valueFor(kind, i, n, firstIsLabel, col) {
+    var hv = seed(col);
     switch (kind) {
       case "cat": return CATS[i % CATS.length];
       case "sens": return SENS[i % SENS.length];
@@ -59,15 +64,17 @@
       }
       case "month": return MONTHS[i % 12];
       case "name": return CATS[i % CATS.length].split(" ")[0].toLowerCase() + "_obj_" + (i + 1);
-      case "money": return Math.round(50000 / (i + 1));
+      case "money": return Math.round((28000 + (hv % 60000)) / (i + 1));
       case "co2": return Math.round((40 / (i + 1)) * 100) / 100;
       case "tb": return Math.round((40 / (i + 1)) * 10) / 10;
       case "gb": return Math.round(900 / (i + 1));
       case "bytes": return Math.round((i + 1 === 0 ? 1 : (9 - (i % 9))) * 1.3e11);
-      case "pct": return Math.round((100 - i * 9) * 10) / 10;
-      case "count": return Math.max(1, Math.round(5000 / (i + 1)));
+      // percentages / scores: a realistic per-column base (58–95), gently descending across rows,
+      // so a single-row KPI/gauge reads e.g. 78% / 91% / 84% rather than always 100%.
+      case "pct": { var b = 58 + (hv % 38); return Math.max(3, Math.round((b - i * 7) * 10) / 10); }
+      case "count": { var c1 = 600 + (hv % 8200); return Math.max(1, Math.round(c1 / (i + 1))); }
       case "cum": return (i + 1) * 1200;            // monotonic
-      default: return Math.max(1, Math.round(1000 / (i + 1)));
+      default: { var d1 = 240 + (hv % 1500); return Math.max(1, Math.round(d1 / (i + 1))); }
     }
   }
 
@@ -86,7 +93,7 @@
     // if the row is a per-record detail (has a name col) keep names; otherwise distinct categories
     var rows = [];
     for (var i = 0; i < n; i++) {
-      rows.push(cols.map(function (c, j) { return valueFor(kinds[j], i, n, j === 0); }));
+      rows.push(cols.map(function (c, j) { return valueFor(kinds[j], i, n, j === 0, c); }));
     }
     return { cols: cols, rows: rows };
   };

@@ -12,8 +12,17 @@
 > logical, more elegant, and more delightful (IA/menus, onboarding, visual polish, code health).
 > Small, safe, well-tested slices; never a wild rewrite. This is ongoing, not one-and-done.
 
-> **GOAL:** the best-in-class, sexy, first-class, comprehensive, joy-to-use visual builder for
-> Pentaho **CDE & CDF** dashboards over existing **CDA** queries. CDF is the prettier/primary track.
+> **GOAL / NORTH STAR:** build **Analytics Dashboard Studio** into a best-in-class, gorgeous, fun,
+> industry-leading **analytics application** (analytics.polecat.live) — not just a dashboard builder.
+> The direction: a multi-section app (Home · Repository · Studio · Settings) where you connect to
+> **many data providers directly** (Snowflake, Databricks, BigQuery, generic SQL — plus Pentaho CDA),
+> author stunning interactive dashboards, and manage data sources + workbooks — heading toward
+> standalone analytic apps with forecasting/statistics. Everything stays **pure HTML/JS, config saved
+> locally, no backend** (for now). Aesthetic: fun, clean, elegant, a little **game-like**, on the
+> Polecat warm-dark design language. The visual **dashboard builder** (the "Studio" section, exporting
+> byte-faithful self-contained HTML) is the mature core; the ★ Z backlog below drives the platform
+> expansion. Terminology is generic (Data Access, Dashboard Framework); Pentaho remains one supported
+> backend, not the framing.
 
 ## Environment / how to work
 - Project root: the **repository root** of `kevinrhaas/analytics.polecat.live` (the app is the repo —

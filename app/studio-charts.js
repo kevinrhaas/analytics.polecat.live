@@ -2917,7 +2917,9 @@
     function arc(p0, p1, rr, col, wd) {
       var a0 = Math.PI + Math.PI * p0, a1 = Math.PI + Math.PI * p1;
       var x0 = cx + rr * Math.cos(a0), y0 = cy + rr * Math.sin(a0), x1 = cx + rr * Math.cos(a1), y1 = cy + rr * Math.sin(a1);
-      return S("path", { d: "M" + x0 + "," + y0 + " A" + rr + "," + rr + " 0 " + ((p1 - p0) > 0.5 ? 1 : 0) + " 1 " + x1 + "," + y1, fill: "none", stroke: col, "stroke-width": wd, "stroke-linecap": "round" });
+      // large-arc-flag is always 0: the gauge spans a 180° arc, so no single zone segment
+      // can exceed 180° — using (p1-p0)>0.5 made the "bad" zone (0→0.7) sweep the long way round.
+      return S("path", { d: "M" + x0 + "," + y0 + " A" + rr + "," + rr + " 0 0 1 " + x1 + "," + y1, fill: "none", stroke: col, "stroke-width": wd, "stroke-linecap": "round" });
     }
     // Zone track: bad (0→warnAt), warn (warnAt→goodAt), good (goodAt→1) — always visible,
     // regardless of the current value, so thresholds are self-explanatory.
