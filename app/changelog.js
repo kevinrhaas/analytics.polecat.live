@@ -8,6 +8,13 @@
 window.STUDIO_BUILD = "__BUILD_TS__";
 
 window.STUDIO_CHANGELOG = [
+  { v: "v133", date: "2026-07-01", time: "01:30 UTC", title: "Z2: Home — a real landing page (quick-create + recents)", items: [
+      "The Home section (left rail) is no longer a placeholder: it now opens with a warm-dark, game-like landing page — a greeting, three quick-create cards (Blank dashboard, Browse examples, Take the tour), and a live 'Recent dashboards' grid.",
+      "Recents are captured automatically as you work: whenever the working spec settles (same debounce path as auto-save), a snapshot of the full dashboard is saved into a capped, newest-first localStorage list (`studio-recents`, 8 max) — so a recent card genuinely reopens that exact dashboard, not just a label.",
+      "Each recent card renders a live SVG layout thumbnail via the existing `Studio.makeThumbnail()` (same helper used for the dashboard inspector and Examples gallery), plus title, relative 'time ago', and panel/KPI counts. Thumbnails always match the current light/dark theme.",
+      "Quick-create cards jump straight into Studio: Blank starts a fresh spec, Browse examples opens the existing Examples ▾ menu, and Take the tour launches the J6 interactive walkthrough — all reusing existing, well-tested code paths (additive wiring only).",
+      "Fixed a Z1 CSS specificity bug uncovered while building this: `.app-sec.has-content` had the same specificity as `.app-sec[hidden]` and, being later in the stylesheet, silently won — meaning a populated Home section could stay visually 'display:block' even while `hidden`. Scoped the rule to `:not([hidden])` so the hidden state always wins. 5 new Z2 Playwright checks. Test suite 718/718.",
+    ] },
   { v: "v132", date: "2026-07-01", time: "00:00 UTC", title: "Z1: App shell — a collapsible left rail (Home · Repository · Studio · Settings)", items: [
       "The Studio is becoming a multi-section analytics app, not just a dashboard builder. A new left rail (`app/shell.js`) frames the whole app into four sections — Home, Repository, Studio, Settings — with single-color icons per section (amber Home, teal Repository, blue Studio, violet Settings) on a warm dark plum background, matching the polecat.live design language.",
       "The existing 3-pane builder moves under the Studio section with zero feature loss — every panel, chart, export, and keyboard shortcut works exactly as before; only its container changed (wrapped in a new `#appMain`, nothing inside it touched).",

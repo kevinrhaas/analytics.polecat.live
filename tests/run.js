@@ -8871,6 +8871,81 @@ function serve() {
     ok("Z1: rail is hidden at phone width and Studio still shows even with a non-Studio section saved",
       z1PhoneState.railHidden && z1PhoneState.appMainVisible && z1PhoneState.noOverflow, JSON.stringify(z1PhoneState));
 
+    // ── Z2: Home landing section — quick-create + recents ──
+    console.log("\n• Z2: Home landing section");
+    await page.click('#railNav .rail-item[data-sec="home"]');
+    await page.waitForTimeout(150);
+
+    // Z2-1: quick-create cards render with SVG icons (blank / examples / tour)
+    const z2Quick = await page.evaluate(function () {
+      var cards = [].slice.call(document.querySelectorAll("#secHome .home-card"));
+      return {
+        count: cards.length,
+        acts: cards.map(function (c) { return c.getAttribute("data-home"); }).join(","),
+        icons: cards.filter(function (c) { return c.querySelector(".home-card-ic svg"); }).length
+      };
+    });
+    ok("Z2: Home shows 3 quick-create cards with SVG icons", z2Quick.count === 3 && z2Quick.icons === 3 && z2Quick.acts === "blank,examples,tour", JSON.stringify(z2Quick));
+
+    // Z2-2: Home surfaces recents captured from the many dashboard loads/edits earlier in this run,
+    // each with a live-rendered SVG thumbnail (Studio.makeThumbnail) and matching localStorage.
+    const z2Recents = await page.evaluate(function () {
+      var cards = [].slice.call(document.querySelectorAll("#secHome .recent-card"));
+      return {
+        count: cards.length,
+        hasSvg: cards.length > 0 && !!cards[0].querySelector(".recent-thumb svg"),
+        storeLen: (window.__studioRecents() || []).length
+      };
+    });
+    ok("Z2: Home shows recent dashboards with thumbnails, backed by localStorage",
+      z2Recents.count > 0 && z2Recents.hasSvg && z2Recents.storeLen === z2Recents.count, JSON.stringify(z2Recents));
+
+    // Z2-3: clicking a recent card reopens that exact dashboard (by id) and returns to the Studio section
+    const z2RecId = await page.evaluate(function () { return document.querySelector("#secHome .recent-card").getAttribute("data-recent"); });
+    await page.click("#secHome .recent-card");
+    await page.waitForTimeout(150);
+    const z2OpenState = await page.evaluate(function () {
+      return {
+        specId: window.__STUDIO_STATE.spec.id,
+        homeHidden: document.getElementById("secHome").hidden,
+        appMainHidden: document.getElementById("appMain").hidden
+      };
+    });
+    ok("Z2: clicking a recent dashboard reopens it and returns to Studio",
+      z2OpenState.specId === z2RecId && z2OpenState.homeHidden === true && z2OpenState.appMainHidden === false, JSON.stringify(z2OpenState));
+
+    // Z2-4: 'Blank dashboard' quick-create starts a fresh empty spec and returns to Studio
+    await page.click('#railNav .rail-item[data-sec="home"]');
+    await page.waitForTimeout(120);
+    await page.click('#secHome .home-card[data-home="blank"]');
+    await page.waitForTimeout(150);
+    const z2Blank = await page.evaluate(function () {
+      var s = window.__STUDIO_STATE.spec;
+      return { panels: s.panels.length, title: s.title, homeHidden: document.getElementById("secHome").hidden };
+    });
+    ok("Z2: 'Blank dashboard' quick-create starts a fresh spec and returns to Studio",
+      z2Blank.panels === 0 && z2Blank.title === "Untitled Dashboard" && z2Blank.homeHidden === true, JSON.stringify(z2Blank));
+
+    // Z2-5: recents list stays capped at 8 entries (newest-first)
+    const z2Cap = await page.evaluate(async function () {
+      var many = [];
+      for (var i = 0; i < 12; i++) many.push({ id: "synthetic-" + i, ts: new Date().toISOString(), spec: { id: "synthetic-" + i, title: "Synthetic " + i, panels: [], kpis: [] } });
+      localStorage.setItem("studio-recents", JSON.stringify(many));
+      var spec = JSON.parse(JSON.stringify(window.__STUDIO_STATE.spec));
+      spec.title = "Cap test";
+      window.__studioLoad(spec);
+      await new Promise(function (r) { setTimeout(r, 1300); }); // past the 130ms preview + 800ms recent debounce
+      return JSON.parse(localStorage.getItem("studio-recents") || "[]").length;
+    });
+    ok("Z2: recents list is capped at 8 entries", z2Cap === 8, "len=" + z2Cap);
+
+    // restore Studio + a clean flagship spec for any tests appended after this block
+    await page.evaluate(async function () {
+      const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json());
+      window.__studioLoad(spec);
+    });
+    await page.waitForTimeout(200);
+
   } catch (e) {
     failed++; console.error("FATAL", e);
   } finally {

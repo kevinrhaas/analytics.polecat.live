@@ -298,6 +298,7 @@
       try { setTheme(localStorage.getItem("studio-theme") || "light"); } catch (e) { setTheme("light"); }
       try { if (localStorage.getItem("studio-simple-mode") === "1") { S.simpleMode = true; document.body.classList.add("simple-mode"); } } catch (e) {}
       loadConnections();
+      renderHome();
       if (window.StudioWelcome) { var ab = $("#btnAbout"); if (ab) ab.onclick = function () { StudioWelcome.open(); }; setTimeout(function () { StudioWelcome.maybeShow(); }, 300); }
       buildLibrary();
       // open the cost flagship example by default if present, else blank
@@ -3351,6 +3352,7 @@
     };
     ifr.srcdoc = html;
     snapshot();
+    scheduleNoteRecent();
     // H-track: toggle canvas empty state overlay based on whether the dashboard has content
     var isEmpty = !((S.spec.panels || []).length + (S.spec.kpis || []).length);
     var stage = $("#canvas-stage");
@@ -3420,6 +3422,70 @@
     });
   }
 
+  /* ---------- Z2: Home landing section (recents + quick-create) ----------
+     Recents are captured whenever the working spec settles (see scheduleNoteRecent(),
+     called from doRefresh()): the full spec is cloned into a capped, newest-first
+     localStorage list so a recent card can genuinely reopen that exact dashboard —
+     not just show a label. Thumbnails are rendered fresh from the stored spec at
+     paint time (via Studio.makeThumbnail) so they always match the current theme. */
+  var _LS_RECENTS = "studio-recents";
+  var _recentTimer = null;
+  function scheduleNoteRecent() { clearTimeout(_recentTimer); _recentTimer = setTimeout(noteRecent, 800); }
+  function loadRecents() { try { return JSON.parse(localStorage.getItem(_LS_RECENTS) || "[]"); } catch (e) { return []; } }
+  function noteRecent() {
+    if (!S.spec || !S.spec.id) return;
+    var list = loadRecents().filter(function (r) { return r.id !== S.spec.id; });
+    list.unshift({ id: S.spec.id, ts: new Date().toISOString(), spec: Studio.clone(S.spec) });
+    list = list.slice(0, 8);
+    try { localStorage.setItem(_LS_RECENTS, JSON.stringify(list)); } catch (e) { /* quota or private-mode */ }
+    renderHome();
+  }
+  function openRecent(id) {
+    var r = loadRecents().filter(function (x) { return x.id === id; })[0];
+    if (!r) return;
+    S.spec = normalize(r.spec); S.selection = null; syncHeader(); renderInspector(); refreshPreview(); buildLibrary();
+    if (window.__studioShellSetSection) window.__studioShellSetSection("studio");
+  }
+  function renderHome() {
+    var sec = $("#secHome"); if (!sec) return;
+    var list = loadRecents();
+    var cards = [
+      { act: "blank", ic: "plus", t: "Blank dashboard", d: "Start from scratch" },
+      { act: "examples", ic: "grid", t: "Browse examples", d: "Auto-build from a query set" },
+      { act: "tour", ic: "play", t: "Take the tour", d: "Guided walkthrough of the builder" }
+    ];
+    var html = '<div class="home-wrap">' +
+      '<div class="home-hero"><h1>Welcome back</h1><p>Pick up a recent dashboard, or start something new.</p></div>' +
+      '<div class="home-quick">' + cards.map(function (c) {
+        return '<button class="home-card" data-home="' + c.act + '"><span class="home-card-ic" data-ic="' + c.ic + '"></span>' +
+          '<div><b>' + esc(c.t) + '</b><small>' + esc(c.d) + '</small></div></button>';
+      }).join("") + '</div>' +
+      (list.length ? '<h2 class="home-sub">Recent dashboards</h2><div class="home-recents">' +
+        list.map(function (r) {
+          var sp = r.spec || {}, panels = (sp.panels || []).length, kpis = (sp.kpis || []).length;
+          var meta = panels + " panel" + (panels === 1 ? "" : "s") + (kpis ? " · " + kpis + " KPI" + (kpis === 1 ? "" : "s") : "");
+          var thumb = Studio.makeThumbnail(sp, S.theme);
+          return '<button class="recent-card" data-recent="' + esc(r.id) + '"><div class="recent-thumb">' + thumb + '</div>' +
+            '<div class="recent-meta"><b>' + esc(sp.title || sp.name || "Untitled") + '</b><small>' + timeAgo(r.ts) + ' · ' + meta + '</small></div></button>';
+        }).join("") + '</div>'
+        : '<div class="home-empty-hint">No recent dashboards yet — start one above and it will show up here.</div>');
+    sec.classList.add("has-content");
+    sec.innerHTML = html;
+    $$(".home-card-ic[data-ic]", sec).forEach(function (span) { span.appendChild(Studio.icon(span.getAttribute("data-ic"), 18)); });
+    $$(".home-card", sec).forEach(function (btn) {
+      btn.onclick = function () {
+        var act = btn.getAttribute("data-home");
+        if (window.__studioShellSetSection) window.__studioShellSetSection("studio");
+        if (act === "blank") { S.spec = Studio.emptySpec(); S.selection = null; syncHeader(); renderInspector(); refreshPreview(); buildLibrary(); }
+        else if (act === "examples") { setTimeout(function () { var b = $("#btnExamples"); if (b) b.click(); }, 60); }
+        else if (act === "tour") { setTimeout(function () { if (window.StudioTutorial) StudioTutorial.open(); }, 60); }
+      };
+    });
+    $$(".recent-card", sec).forEach(function (btn) { btn.onclick = function () { openRecent(btn.getAttribute("data-recent")); }; });
+  }
+  window.__studioRecents = loadRecents; // test hook
+  window.__studioOpenRecent = openRecent; // test hook
+
   function maybeShowRestoreBanner() {
     var raw; try { raw = localStorage.getItem("studio-autosave"); } catch (e) { return; }
     if (!raw) return;
@@ -3460,6 +3526,7 @@
     var b = $("#btnTheme"); if (b) setIconBtn(b, t === "dark" ? "sun" : "moon", t === "dark" ? "Light" : "Dark");
     try { localStorage.setItem("studio-theme", t); } catch (e) {}
     postToPreview({ type: "theme", value: t });
+    renderHome();
   }
   function highlightPreview() {
     if (!S.selection) { postToPreview({ type: "highlight" }); return; }
