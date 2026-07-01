@@ -3022,6 +3022,85 @@
     });
   }
 
+  /* ── Enhanced line / area chart (override PDC.line, Z8 slice 7) ─────────────
+     Base PDC.line (pdc-ui.js) always draws straight segment-to-segment lines
+     with a dot on every point, no way to turn either off. This override keeps
+     the identical axis/grid/gradient-fill logic and adds cfg.smooth (curved
+     segments via the same midpoint cubic-bezier technique used by the Bump
+     chart) and cfg.showDots (hide the per-point markers for a cleaner look on
+     dense series). Base kept as PDC._lineBase for reference. */
+  PDC._lineBase = PDC.line;
+
+  PDC.line = function (el, cfg) { reg(el, function () { _lineOpts(el, cfg); }); };
+
+  function _lineOpts(el, cfg) {
+    var labels = cfg.labels || [], series = cfg.series || [], h = cfg.height || 270;
+    if (!labels.length) { el.innerHTML = '<div class="empty">No data</div>'; return; }
+    var o = mkSVG(el, h), s = o.s, w = o.w, fmt = cfg.fmt || PDC.fmt.abbr, pal = PDC.palette();
+    var showDots = cfg.showDots !== false;
+    var allv = []; series.forEach(function (se) { se.values.forEach(function (v) { allv.push(+v || 0); }); });
+    var max = niceMax(Math.max.apply(null, allv.concat([0]))), min = cfg.min0 === false ? Math.min.apply(null, allv) : 0;
+    var mL = 46, mR = 12, mT = 12, mB = 30, iw = w - mL - mR, ih = h - mT - mB, n = labels.length;
+    var xs = function (i) { return mL + (n <= 1 ? iw / 2 : iw * i / (n - 1)); }, ys = function (v) { return mT + ih * (1 - ((v - min) / ((max - min) || 1))); };
+    for (var g = 0; g <= 4; g++) {
+      var gy = mT + ih * (1 - g / 4); s.appendChild(S("line", { class: "gridline", x1: mL, y1: gy, x2: w - mR, y2: gy }));
+      s.appendChild(S("text", { class: "tick", x: mL - 7, y: gy + 3, "text-anchor": "end" }, fmt(min + (max - min) * g / 4)));
+    }
+    var step = Math.ceil(n / Math.max(2, Math.floor(iw / 64)));
+    labels.forEach(function (lb, i) { if (i % step === 0 || i === n - 1) s.appendChild(S("text", { class: "tick", x: xs(i), y: mT + ih + 14, "text-anchor": "middle" }, PDC.fmt.trunc(lb, 9))); });
+    // Straight or smoothed path through a series' points. Smoothing reuses the same
+    // "control point at the horizontal midpoint" cubic-bezier trick as the Bump chart —
+    // simple, deterministic, and reads as a gentle curve without overshoot.
+    function pathFor(pts) {
+      var d = "M" + pts[0][0] + "," + pts[0][1];
+      for (var i = 1; i < pts.length; i++) {
+        if (cfg.smooth) {
+          var cx = (pts[i - 1][0] + pts[i][0]) / 2;
+          d += " C" + cx + "," + pts[i - 1][1] + " " + cx + "," + pts[i][1] + " " + pts[i][0] + "," + pts[i][1];
+        } else {
+          d += " L" + pts[i][0] + "," + pts[i][1];
+        }
+      }
+      return d;
+    }
+    var seriesEls = [];
+    series.forEach(function (se, si) {
+      var col = se.color || pal[si % 10], els = [];
+      var pts = se.values.map(function (v, i) { return [xs(i), ys(+v || 0)]; });
+      var path = pathFor(pts);
+      if (cfg.area) {
+        var gid = "ar" + si + Math.random().toString(36).slice(2, 6);
+        var defs = S("defs"); var lg = S("linearGradient", { id: gid, x1: 0, y1: 0, x2: 0, y2: 1 });
+        lg.appendChild(S("stop", { offset: "0%", "stop-color": col, "stop-opacity": .34 })); lg.appendChild(S("stop", { offset: "100%", "stop-color": col, "stop-opacity": .02 }));
+        defs.appendChild(lg); s.appendChild(defs);
+        var ar = S("path", { d: path + " L" + xs(n - 1) + "," + (mT + ih) + " L" + xs(0) + "," + (mT + ih) + " Z", fill: "url(#" + gid + ")" });
+        if (canAnim()) { ar.style.opacity = "0"; setTimeout(function () { ar.style.transition = "opacity .42s ease"; ar.style.opacity = "1"; }, animD(260)); }
+        s.appendChild(ar); els.push(ar);
+      }
+      var lp = S("path", { d: path, fill: "none", stroke: col, "stroke-width": 2.4, "stroke-linejoin": "round", "stroke-linecap": "round" });
+      s.appendChild(lp); els.push(lp);
+      if (canAnim()) {
+        var len = 0; try { len = lp.getTotalLength(); } catch (e) {}
+        if (len) {
+          lp.style.strokeDasharray = len; lp.style.strokeDashoffset = len;
+          setTimeout(function () { lp.style.transition = "stroke-dashoffset .76s ease"; lp.style.strokeDashoffset = 0; }, animD(si * 120));
+        }
+      }
+      se.values.forEach(function (v, i) {
+        var c = S("circle", { class: showDots ? "dot" : "dot-ghost", cx: xs(i), cy: ys(+v || 0), r: showDots ? 3.2 : 6, fill: showDots ? col : "transparent",
+          stroke: showDots ? PDC.cssvar("--panel-bg") : "none", "stroke-width": showDots ? 1.5 : 0 });
+        c.addEventListener("mousemove", function (e) { PDC.showTip(e, "<b>" + labels[i] + "</b><br>" + se.name + ": " + fmt(v)); });
+        c.addEventListener("mouseout", PDC.hideTip);
+        s.appendChild(c); els.push(c);
+        if (showDots && canAnim()) { c.style.opacity = "0"; setTimeout(function () { c.style.transition = "opacity .3s ease"; c.style.opacity = "1"; }, animD(520 + i * 16)); }
+      });
+      seriesEls.push(els);
+    });
+    if (series.length > 1 && cfg.legend !== false) _toggleLegend(el, series.map(function (se, i) {
+      return { name: se.name, color: se.color || pal[i % 10], els: seriesEls[i], base: "1" };
+    }));
+  }
+
   /* ---------- parallel coordinates chart (multi-dimensional entity comparison) ----------
      Each entity (row) is drawn as a polyline connecting its values across N parallel
      vertical axes. Each axis represents one numeric dimension and has its own min/max

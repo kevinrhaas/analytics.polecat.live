@@ -74,9 +74,11 @@
       desc: "Track changes over time or sequence",
       fields: ["labelCol", "series"],
       opts: [
-        { key: "area",   type: "bool",  label: "Area fill", def: true },
-        { key: "fmt",    type: "fmt",   label: "Value format", def: "abbr" },
-        { key: "height", type: "int",   label: "Height (px)", def: 300 }
+        { key: "area",     type: "bool",  label: "Area fill", def: true },
+        { key: "smooth",   type: "bool",  label: "Smooth curve", def: false },
+        { key: "showDots", type: "bool",  label: "Show data points", def: true },
+        { key: "fmt",      type: "fmt",   label: "Value format", def: "abbr" },
+        { key: "height",   type: "int",   label: "Height (px)", def: 300 }
       ],
       cde: { type: "cccLineChart", extra: function () { return [["valuesVisible", "Boolean", "false"]]; } }
     },

@@ -323,6 +323,7 @@
 - v141: **Z8 slice 4: Gauge gets its own options** — `Studio.CHARTS.gauge.opts` gains a **Value format** picker (was always a raw rounded number) and **Warning/Good zone %** thresholds (were hardcoded 70/90 in the vendored toolkit, invisible to the builder). The gauge arc now shows a permanent red/amber/green zone track behind a bright value tick (mirrors the Bullet chart convention) instead of only recoloring once the value crosses an invisible line. `PDC.gauge` overridden in `studio-charts.js` (`PDC._gaugeBase` kept for reference); `studio-render.js` passes fmt/warnAt/goodAt through. `docs/index.html` updated. 4 new Z8G tests. Test suite 753/753.
 - v142: **Z8 slice 5: Treemap gets its own options** — `Studio.CHARTS.treemap.opts` gains **Show tile labels** (toggle off the bold title+value text the base toolkit always drew on big-enough tiles) and **Show % of total, not value** (swap the value line for the tile's share of the whole). `PDC.treemap` overridden in `studio-charts.js` (`PDC._treemapBase` kept for reference, same pattern as Table/Gauge); tooltip unaffected (still shows both value and %). `docs/index.html` updated. 5 new Z8M tests. Test suite 758/758.
 - v143: **Z8 slice 6: Scatter gets its own options** — `Studio.CHARTS.scatter.opts` gains **Value format** (axis ticks + tooltip were always `PDC.fmt.abbr`, no way to change) and **Show trend line (regression)** — an OLS regression line drawn through the plotted points. `PDC.scatter` overridden in `studio-charts.js` (`PDC._scatterBase` kept for reference, same pattern as Table/Gauge/Treemap); `studio-render.js` falls back to the chart's true `abbr` default (not the ambient plain fallback) so scatter panels saved before this option existed don't regress. `docs/index.html` updated. 4 new Z8SC tests. Test suite 762/762.
+- v144: **Z8 slice 7: Line / area gets its own options** — `Studio.CHARTS.line.opts` gains **Smooth curve** (cubic-bezier interpolation between points, same midpoint-control-point technique as the Bump chart) and **Show data points** (hide the per-point dot markers; a transparent hover target keeps tooltips working even with dots hidden). `PDC.line` overridden in `studio-charts.js` (`PDC._lineBase` kept for reference, same pattern as Table/Gauge/Treemap/Scatter); `studio-render.js` passes smooth/showDots through. `docs/index.html` updated. 3 new Z8LN tests. Test suite 765/765.
 
 ## NEXT (top = do first)
 
@@ -456,9 +457,14 @@ self-explanatory. Keep it light (inline SVG / CSS, no image assets or deps). One
 > line through the plotted points, clamped to the visible axis range). Same override pattern
 > (`PDC._scatterBase` kept for reference); fmtX/fmtY fall back to true `abbr` default for panels saved
 > before this option existed, so no existing dashboard regresses.
+> ✓ **Slice 7 shipped v144**: **Line / area** gets its own options — **Smooth curve** (cubic-bezier
+> interpolation between points instead of straight segments, same midpoint-control-point technique as
+> the Bump chart) and **Show data points** (hide the per-point dot markers for a cleaner look on dense
+> series; a transparent hover target keeps tooltips working even with dots hidden). Same override
+> pattern (`PDC._lineBase` kept for reference).
 > **Z8 follow-ups (not yet done, the bulk of the track):** a real per-type capability map covering the
-> REST of the ~51 types' *own* option sets (Table, Gauge, Treemap, Scatter done; still needed: KPI,
-> line/area, sankey/chord/network, calendar-heatmap, and the rest), plus the inline visual setting hints
+> REST of the ~51 types' *own* option sets (Table, Gauge, Treemap, Scatter, Line done; still needed: KPI,
+> sankey/chord/network, calendar-heatmap, and the rest), plus the inline visual setting hints
 > (tiny before/after thumbnails). Continue one slice per loop.
 
 **Z9 — Mobile: fix the broken flows + a proper bottom nav (user-requested 2026-06-30).** Reported

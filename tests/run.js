@@ -8181,6 +8181,70 @@ function serve() {
     });
     ok("Z8SC: scatter panel inspector shows Value format / Show trend line fields", z8scInsp.ok, JSON.stringify(z8scInsp));
 
+    // ── Z8 slice 7: Line / area gets its own type-specific options (smooth + show dots) ──
+    console.log("\n• Z8 line: smooth curve + show data points");
+
+    // Z8LN-1: line registry declares smooth + showDots (in addition to existing area/fmt/height)
+    var z8lnOpts = await page.evaluate(function () {
+      var o = (window.Studio.CHARTS.line || {}).opts || [];
+      var keys = o.map(function (od) { return od.key; });
+      return { ok: keys.indexOf("smooth") >= 0 && keys.indexOf("showDots") >= 0 && keys.indexOf("area") >= 0, keys: keys };
+    });
+    ok("Z8LN: Studio.CHARTS.line.opts declares smooth + showDots", z8lnOpts.ok, JSON.stringify(z8lnOpts));
+
+    // Z8LN-2: showDots:false hides the visible .dot markers (still no crash, hover targets remain);
+    // smooth:true renders a curved (C-command) path instead of a straight (L-command) one.
+    var z8lnRender = await page.evaluate(function () {
+      var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
+      for (var i = 0; i < iframes.length; i++) {
+        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.line === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+      }
+      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      try {
+        var labels = ["A", "B", "C", "D"], series = [{ name: "S1", values: [1, 4, 2, 6] }];
+        var el1 = iframeDoc.createElement("div");
+        el1.style.cssText = "position:absolute;top:-9999px;width:300px";
+        iframeDoc.body.appendChild(el1);
+        w.PDC.line(el1, { labels: labels, series: series, height: 200 });
+        var dotsOn = el1.querySelectorAll(".dot").length;
+        var pathStraight = el1.querySelector("svg path[stroke]").getAttribute("d");
+        iframeDoc.body.removeChild(el1);
+
+        var el2 = iframeDoc.createElement("div");
+        el2.style.cssText = "position:absolute;top:-9999px;width:300px";
+        iframeDoc.body.appendChild(el2);
+        w.PDC.line(el2, { labels: labels, series: series, height: 200, showDots: false, smooth: true });
+        var dotsOff = el2.querySelectorAll(".dot").length;
+        var ghostDots = el2.querySelectorAll(".dot-ghost").length;
+        var pathSmooth = el2.querySelector("svg path[stroke]").getAttribute("d");
+        iframeDoc.body.removeChild(el2);
+
+        return {
+          ok: dotsOn === labels.length && dotsOff === 0 && ghostDots === labels.length &&
+              pathStraight.indexOf("C") === -1 && pathSmooth.indexOf("C") >= 0,
+          dotsOn: dotsOn, dotsOff: dotsOff, ghostDots: ghostDots, pathStraight: pathStraight, pathSmooth: pathSmooth
+        };
+      } catch (e) { return { ok: false, err: e.message }; }
+    });
+    ok("Z8LN: showDots:false hides dot markers (ghost hover targets remain); smooth:true curves the path", z8lnRender.ok, JSON.stringify(z8lnRender));
+
+    // Z8LN-3: the panel inspector shows the new line-specific fields when a Line panel is selected
+    var z8lnInsp = await page.evaluate(function () {
+      var spec = window.__STUDIO_STATE.spec;
+      var p = spec.panels[0];
+      var prevChart = JSON.parse(JSON.stringify(p.chart));
+      p.chart.type = "line"; p.chart.opts = {};
+      window.__studioSelect({ kind: "panel", id: p.id });
+      var body = document.getElementById("inspBody");
+      var text = body ? body.textContent : "";
+      var ok = text.indexOf("Smooth curve") >= 0 && text.indexOf("Show data points") >= 0;
+      p.chart = prevChart; // restore so later tests aren't affected
+      window.__studioSelect(null);
+      window.__studioRenderInspector();
+      return { ok: ok, hasText: text.indexOf("Show data points") >= 0 };
+    });
+    ok("Z8LN: line panel inspector shows Smooth curve / Show data points fields", z8lnInsp.ok, JSON.stringify(z8lnInsp));
+
     // ── F26: Parallel coordinates chart ────────────────────────────────────────
     console.log("\n• F26: parallel coordinates chart");
 

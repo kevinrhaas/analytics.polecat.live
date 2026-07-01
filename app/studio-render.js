@@ -227,7 +227,8 @@
                      values: colVals(res, s.col).map(function (v) { return +v || 0; }) };
           });
           if (ch.type === "line")
-            PDC.line(body, { area: o.area !== false, fmt: f, height: o.height || 300, labels: labels, series: series });
+            PDC.line(body, { area: o.area !== false, smooth: !!o.smooth, showDots: o.showDots !== false,
+              fmt: f, height: o.height || 300, labels: labels, series: series });
           else if (ch.type === "areaStacked")
             PDC.areaStacked(body, { fmt: f, height: o.height || 300, labels: labels, series: series });
           else if (ch.type === "streamgraph")
