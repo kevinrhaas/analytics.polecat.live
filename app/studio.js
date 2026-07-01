@@ -299,6 +299,7 @@
       try { if (localStorage.getItem("studio-simple-mode") === "1") { S.simpleMode = true; document.body.classList.add("simple-mode"); } } catch (e) {}
       loadConnections();
       renderHome();
+      renderSettings();
       if (window.StudioWelcome) { var ab = $("#btnAbout"); if (ab) ab.onclick = function () { StudioWelcome.open(); }; setTimeout(function () { StudioWelcome.maybeShow(); }, 300); }
       buildLibrary();
       // open the cost flagship example by default if present, else blank
@@ -3486,6 +3487,58 @@
   window.__studioRecents = loadRecents; // test hook
   window.__studioOpenRecent = openRecent; // test hook
 
+  /* ---------- Z5 slice 1: Settings — first-class mode toggles ----------
+     The app's mode switches (Theme, Simple mode, Demo mode, Focus mode) used to
+     live only in the ⋯ More menu, hard to discover. This gives them a proper,
+     labelled home with real on/off switches. Each toggle reuses the existing
+     mode function as its single source of truth (no parallel state) — flipping
+     a switch here, in ⋯ More, or via a shortcut all stay in sync because every
+     path re-renders this section. */
+  var SETTINGS_TOGGLES = [
+    { grp: "Appearance", id: "dark", t: "Dark mode", d: "Switch the builder and live preview to a dark theme.",
+      ic: function () { return S.theme === "dark" ? "moon" : "sun"; },
+      on: function () { return S.theme === "dark"; },
+      set: function () { setTheme(S.theme === "dark" ? "light" : "dark"); } },
+    { grp: "Mode", id: "simple", t: "Simple mode", d: "Hide advanced inspector sections and narrow the chart gallery to the most common types.",
+      ic: function () { return "layers"; },
+      on: function () { return !!S.simpleMode; },
+      set: function () { toggleSimpleMode(); } },
+    { grp: "Presentation", id: "demo", t: "Demo mode", d: "Simulate a live-refreshing data feed — great for stakeholder demos.",
+      ic: function () { return "refresh"; },
+      on: function () { return !!S.demoMode; },
+      set: function () { toggleDemoMode(); } },
+    { grp: "Presentation", id: "focus", t: "Focus mode", d: "Collapse the builder panes so the live preview fills the screen. Press Escape to exit.",
+      ic: function () { return "eye"; },
+      on: function () { return document.body.classList.contains("focus-mode"); },
+      set: function () {
+        if (document.body.classList.contains("focus-mode")) { exitFocusMode(); }
+        else { if (window.__studioShellSetSection) window.__studioShellSetSection("studio"); enterFocusMode(); }
+      } }
+  ];
+  function renderSettings() {
+    var sec = $("#secSettings"); if (!sec) return;
+    var groups = [];
+    SETTINGS_TOGGLES.forEach(function (t) { if (groups.indexOf(t.grp) < 0) groups.push(t.grp); });
+    var html = '<div class="settings-wrap"><div class="settings-hero"><h1>Settings</h1>' +
+      '<p>App-wide preferences, saved locally on this device.</p></div>' +
+      groups.map(function (g) {
+        return '<div class="settings-card"><h2>' + esc(g) + '</h2>' +
+          SETTINGS_TOGGLES.filter(function (t) { return t.grp === g; }).map(function (t) {
+            return '<div class="set-row"><span class="set-row-ic" data-ic="' + t.ic() + '"></span>' +
+              '<div class="set-row-txt"><b>' + esc(t.t) + '</b><small>' + esc(t.d) + '</small></div>' +
+              '<label class="set-sw"><input type="checkbox" data-set="' + t.id + '"' + (t.on() ? " checked" : "") + '/><span class="set-sw-track"></span></label></div>';
+          }).join("") + '</div>';
+      }).join("") + '</div>';
+    sec.classList.add("has-content");
+    sec.innerHTML = html;
+    $$(".set-row-ic[data-ic]", sec).forEach(function (span) { span.appendChild(Studio.icon(span.getAttribute("data-ic"), 18)); });
+    $$("input[data-set]", sec).forEach(function (cb) {
+      var t = SETTINGS_TOGGLES.filter(function (x) { return x.id === cb.getAttribute("data-set"); })[0];
+      if (t) cb.addEventListener("change", t.set);
+    });
+  }
+  window.__studioRenderSettings = renderSettings; // test hook
+
   function maybeShowRestoreBanner() {
     var raw; try { raw = localStorage.getItem("studio-autosave"); } catch (e) { return; }
     if (!raw) return;
@@ -3527,6 +3580,7 @@
     try { localStorage.setItem("studio-theme", t); } catch (e) {}
     postToPreview({ type: "theme", value: t });
     renderHome();
+    renderSettings();
   }
   function highlightPreview() {
     if (!S.selection) { postToPreview({ type: "highlight" }); return; }
@@ -3827,6 +3881,7 @@
     } else {
       _focusExitPill.style.display = "";
     }
+    renderSettings();
   }
   /* genMockLive — like Studio.genMock but varies numeric values by ±8% each tick
      so the preview looks like live, refreshing data during SE demos. Deterministic
@@ -3873,11 +3928,13 @@
     }
     var btn = $("#moreDemoMode");
     if (btn) btn.textContent = S.demoMode ? "Demo mode  ■" : "Demo mode  ▶";
+    renderSettings();
   }
 
   function exitFocusMode() {
     document.body.classList.remove("focus-mode");
     if (_focusExitPill) _focusExitPill.style.display = "none";
+    renderSettings();
   }
 
   function wireTopbar() {
@@ -4584,6 +4641,7 @@
     document.body.classList.toggle("simple-mode", S.simpleMode);
     try { localStorage.setItem("studio-simple-mode", S.simpleMode ? "1" : ""); } catch (e) {}
     renderInspector();
+    renderSettings();
     toast(S.simpleMode ? "Simple mode on — advanced options hidden" : "Advanced mode — all options visible");
   }
   function field(label, control, hintTxt) {

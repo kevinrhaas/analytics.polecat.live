@@ -8,6 +8,12 @@
 window.STUDIO_BUILD = "__BUILD_TS__";
 
 window.STUDIO_CHANGELOG = [
+  { v: "v135", date: "2026-07-01", time: "06:00 UTC", title: "Z5 slice 1: Settings — first-class mode toggle switches", items: [
+      "The Settings section (left rail) is no longer a placeholder: it now shows the app's mode toggles — Dark mode, Simple mode, Demo mode, Focus mode — as clear, labelled on/off switches, grouped into Appearance / Mode / Presentation cards. Previously these were buried and hard to find inside the ⋯ More menu (a user specifically couldn't locate Simple mode there).",
+      "Each switch is a thin wrapper over the existing mode function (setTheme/toggleSimpleMode/toggleDemoMode/enter·exitFocusMode) — no parallel state was introduced, so the switch, the ⋯ More menu item, and any keyboard shortcut always agree. Flipping Focus mode from Settings jumps you into Studio so you immediately see the effect; exiting via Escape is reflected back in the switch next time Settings is shown.",
+      "⋯ More menu keeps all four items too (nothing removed) — Settings is an additional, more discoverable home for them, not a replacement. `docs/index.html` updated to mention the new Settings location alongside the existing ⋯ More instructions.",
+      "New warm-dark toggle-switch component (`.set-sw`) styled to match the Home section's plum/terracotta look. 6 new Z5 Playwright checks. Test suite 729/729.",
+    ] },
   { v: "v134", date: "2026-07-01", time: "04:30 UTC", title: "Z12: branding & app identity — de-dup the logo, add a favicon", items: [
       "The tab was blank — added a real favicon: a small terracotta-gradient bar-chart mark (`favicon.svg`), wired via `<link rel=\"icon\">` + `apple-touch-icon` + `site.webmanifest` + a matching `theme-color`, so the app finally shows up right in tabs, bookmarks, and 'Add to Home Screen'.",
       "Removed the redundant single-letter 'P' square from the topbar next to the full 'Analytics Dashboard Studio' wordmark — a bare letter-box read as unfinished next to a full wordmark and the rail's own icons. The styled wordmark is now the sole identity in the content header.",

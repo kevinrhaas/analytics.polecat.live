@@ -8984,6 +8984,83 @@ function serve() {
     await page.evaluate(function () { window.__studioShellSetSection("studio"); });
     await page.waitForTimeout(80);
 
+    // ── Z5 slice 1: Settings — first-class mode toggle switches ──
+    console.log("\n• Z5: Settings section toggles");
+    await page.click('#railNav .rail-item[data-sec="settings"]');
+    await page.waitForTimeout(100);
+    const z5Boot = await page.evaluate(function () {
+      var sec = document.getElementById("secSettings");
+      var switches = Array.prototype.map.call(sec.querySelectorAll("input[data-set]"), function (cb) { return cb.getAttribute("data-set"); });
+      return {
+        visible: sec.hidden === false,
+        hasCards: sec.querySelectorAll(".settings-card").length === 3,
+        switchIds: switches.join(","),
+        darkChecked: sec.querySelector('input[data-set="dark"]').checked,
+        simpleChecked: sec.querySelector('input[data-set="simple"]').checked,
+        demoChecked: sec.querySelector('input[data-set="demo"]').checked,
+        focusChecked: sec.querySelector('input[data-set="focus"]').checked
+      };
+    });
+    ok("Z5: Settings section renders 3 cards with 4 mode switches, all off by default",
+      z5Boot.visible && z5Boot.hasCards && z5Boot.switchIds === "dark,simple,demo,focus"
+        && !z5Boot.darkChecked && !z5Boot.simpleChecked && !z5Boot.demoChecked && !z5Boot.focusChecked,
+      JSON.stringify(z5Boot));
+
+    // Z5-2: Dark mode switch drives the same S.theme + data-theme as the topbar toggle
+    await page.click('#secSettings input[data-set="dark"]');
+    await page.waitForTimeout(80);
+    const z5Dark = await page.evaluate(function () {
+      return {
+        theme: window.__STUDIO_STATE.theme,
+        attr: document.documentElement.getAttribute("data-theme"),
+        checked: document.querySelector('#secSettings input[data-set="dark"]').checked
+      };
+    });
+    ok("Z5: Dark mode switch sets S.theme + data-theme + stays checked",
+      z5Dark.theme === "dark" && z5Dark.attr === "dark" && z5Dark.checked, JSON.stringify(z5Dark));
+    await page.click('#secSettings input[data-set="dark"]'); // restore light for subsequent tests
+    await page.waitForTimeout(80);
+
+    // Z5-3: Simple mode switch is the same single source of truth as the ⋯ More menu item
+    await page.click('#secSettings input[data-set="simple"]');
+    await page.waitForTimeout(80);
+    const z5Simple = await page.evaluate(function () {
+      return { simpleMode: window.__STUDIO_STATE.simpleMode, bodyClass: document.body.classList.contains("simple-mode") };
+    });
+    ok("Z5: Simple mode switch sets S.simpleMode + body.simple-mode", z5Simple.simpleMode === true && z5Simple.bodyClass, JSON.stringify(z5Simple));
+    await page.click('#secSettings input[data-set="simple"]'); // restore Advanced mode
+    await page.waitForTimeout(80);
+
+    // Z5-4: Demo mode switch starts/stops the live-data simulation
+    await page.click('#secSettings input[data-set="demo"]');
+    await page.waitForTimeout(80);
+    const z5Demo = await page.evaluate(function () {
+      return { demoMode: window.__demoMode, bodyClass: document.body.classList.contains("demo-mode") };
+    });
+    ok("Z5: Demo mode switch starts the live-data simulation", z5Demo.demoMode === true && z5Demo.bodyClass, JSON.stringify(z5Demo));
+    await page.click('#secSettings input[data-set="demo"]'); // stop the simulation
+    await page.waitForTimeout(80);
+
+    // Z5-5: Focus mode switch collapses the builder panes and jumps to Studio; exiting via
+    // Escape (the existing shortcut) is reflected back in the switch next time it's shown.
+    await page.click('#secSettings input[data-set="focus"]');
+    await page.waitForTimeout(120);
+    const z5Focus = await page.evaluate(function () {
+      return { focusOn: document.body.classList.contains("focus-mode"), studioVisible: document.getElementById("appMain").hidden === false };
+    });
+    ok("Z5: Focus mode switch enters Focus mode and switches to Studio", z5Focus.focusOn && z5Focus.studioVisible, JSON.stringify(z5Focus));
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(80);
+    await page.click('#railNav .rail-item[data-sec="settings"]');
+    await page.waitForTimeout(80);
+    const z5FocusOff = await page.evaluate(function () {
+      return { focusOn: document.body.classList.contains("focus-mode"), checked: document.querySelector('#secSettings input[data-set="focus"]').checked };
+    });
+    ok("Z5: exiting Focus mode (Escape) is reflected back in the Settings switch", !z5FocusOff.focusOn && !z5FocusOff.checked, JSON.stringify(z5FocusOff));
+
+    await page.evaluate(function () { window.__studioShellSetSection("studio"); });
+    await page.waitForTimeout(80);
+
     // restore Studio + a clean flagship spec for any tests appended after this block
     await page.evaluate(async function () {
       const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json());
