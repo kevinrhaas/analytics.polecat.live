@@ -444,6 +444,15 @@ deep-links to its docs anchor). And **keep the docs continuously current** — t
 living in-app reference: whenever a run adds or changes a user-facing feature, update the docs in the SAME
 slice (standing responsibility — see Conventions). Style the docs to match the active app theme.
 
+**Z12 — App icon / favicon from the brand mark (user-requested 2026-06-30).** The purple gradient **"P"
+brand logo** (top-left) should also be the **application icon you see when you open it** — the browser
+**favicon** (tab, bookmarks, history) and ideally an **apple-touch-icon** + a minimal **PWA manifest**
+icon so it looks right when pinned/installed. Today the logo is only a CSS-gradient `<span class="logo">`
+with **no favicon at all** (browsers show a blank default). Produce a small **SVG favicon** matching the
+gradient "P" (inline data-URI or a `favicon.svg`), wire `<link rel="icon">` (+ `apple-touch-icon`, a tiny
+`site.webmanifest`), and set a matching `theme-color`. Light-weight, no build step; keep it consistent
+with the brand/active theme where practical.
+
 **Z0 — Finish the terminology migration (Phase 2, started 2026-06-30).** Done so far: user-facing
 CDA→"Data Access", CDF→"Dashboard Framework"; CDE export removed from the menu/inspector/bundle/push/CLI;
 tour/docs/brand updated. Remaining cleanup (one safe slice per loop, keep tests green): delete the now-
