@@ -28,7 +28,47 @@ html,body{margin:0;height:100%}
    element remains scrollable if a child exceeds the viewport — this seals that gap. */
 html{overflow-x:hidden}
 body{font-family:var(--font);background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;overflow:hidden}
-#app{height:100vh;display:flex;flex-direction:column}
+#app{height:100vh;display:flex}
+#appMain{flex:1;min-width:0;height:100%;display:flex;flex-direction:column}
+#appMain[hidden]{display:none}
+
+/* ── Z1: app shell left rail (Home · Repository · Studio · Settings) ── */
+#railNav{--rail-bg:#2E2A33;--rail-bg2:#3A2F3A;--rail-ink:#F5E9D6;--rail-line:rgba(245,233,214,.1);
+  flex:0 0 auto;width:56px;display:flex;flex-direction:column;align-items:stretch;
+  background:var(--rail-bg);border-right:1px solid var(--rail-line);z-index:35;overflow:hidden;
+  transition:width .16s ease}
+#railNav.expanded{width:184px}
+#railNav .rail-item{display:flex;align-items:center;gap:12px;padding:12px 18px;background:none;border:0;
+  color:var(--rail-ink);opacity:.72;cursor:pointer;white-space:nowrap;font-size:12.5px;font-weight:600;
+  font-family:var(--font);text-align:left}
+#railNav .rail-item:hover{opacity:1;background:var(--rail-bg2)}
+#railNav .rail-item.active{opacity:1;background:var(--rail-bg2);box-shadow:inset 3px 0 0 var(--rail-accent,#d4773b)}
+#railNav .rail-item[data-sec="home"]{--rail-accent:#ffb000}
+#railNav .rail-item[data-sec="repository"]{--rail-accent:#10a37f}
+#railNav .rail-item[data-sec="studio"]{--rail-accent:#4285f4}
+#railNav .rail-item[data-sec="settings"]{--rail-accent:#8b5cf6}
+#railNav .rail-item.active .rail-ic{color:var(--rail-accent,#d4773b)}
+#railNav .rail-ic{display:flex;flex:0 0 auto}
+#railNav .rail-lbl{overflow:hidden;text-overflow:ellipsis}
+#railNav:not(.expanded) .rail-lbl{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
+#railNav .rail-spacer{flex:1}
+#railNav .rail-toggle{opacity:.5;border-top:1px solid var(--rail-line)}
+#railNav .rail-toggle:hover{opacity:.9}
+@media(prefers-reduced-motion:reduce){#railNav{transition:none}}
+/* Z1 scope: rail is desktop-only for this slice — tablet/phone keep the existing
+   Studio-only experience untouched (shell.js also forces the Studio section at
+   ≤900px so no mobile behavior changes). */
+@media(max-width:900px){#railNav{display:none}}
+
+.app-sec{flex:1;min-width:0;height:100%;display:flex;align-items:center;justify-content:center;
+  background:#0a0a0f;color:#F5E9D6;font-family:var(--font)}
+.app-sec[hidden]{display:none}
+.sec-empty{max-width:420px;text-align:center;padding:32px}
+.sec-empty-ic{width:52px;height:52px;margin:0 auto 16px;border-radius:14px;display:flex;align-items:center;
+  justify-content:center;background:#3A2F3A;color:#d4773b}
+.sec-empty-ic svg{width:26px;height:26px}
+.sec-empty h2{margin:0 0 8px;font-size:20px;font-weight:800}
+.sec-empty p{margin:0;font-size:13.5px;line-height:1.55;color:#c9b9a3}
 .spacer{flex:1}
 button{font-family:inherit}
 code{font-family:var(--mono)}

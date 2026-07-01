@@ -10,6 +10,38 @@
 </head>
 <body>
 <div id="app">
+  <nav id="railNav" aria-label="App sections">
+    <button class="rail-item" data-sec="home" title="Home" aria-label="Home"><span class="rail-ic" data-ic="home"></span><span class="rail-lbl">Home</span></button>
+    <button class="rail-item" data-sec="repository" title="Repository" aria-label="Repository"><span class="rail-ic" data-ic="layers"></span><span class="rail-lbl">Repository</span></button>
+    <button class="rail-item active" data-sec="studio" title="Studio" aria-label="Studio" aria-current="page"><span class="rail-ic" data-ic="grid"></span><span class="rail-lbl">Studio</span></button>
+    <div class="rail-spacer"></div>
+    <button class="rail-item" data-sec="settings" title="Settings" aria-label="Settings"><span class="rail-ic" data-ic="gear"></span><span class="rail-lbl">Settings</span></button>
+    <button id="railCollapse" class="rail-item rail-toggle" title="Collapse navigation" aria-label="Collapse navigation" aria-expanded="true"><span class="rail-ic" data-ic="chevron-left"></span><span class="rail-lbl">Collapse</span></button>
+  </nav>
+
+  <section id="secHome" class="app-sec" hidden>
+    <div class="sec-empty">
+      <div class="sec-empty-ic" data-ic="home"></div>
+      <h2>Home</h2>
+      <p>Your recents, favorites, and quick-create will land here — the landing page for the whole analytics app.</p>
+    </div>
+  </section>
+  <section id="secRepository" class="app-sec" hidden>
+    <div class="sec-empty">
+      <div class="sec-empty-ic" data-ic="layers"></div>
+      <h2>Repository</h2>
+      <p>Data sources and workbooks will be organized here, browsable and searchable across folders.</p>
+    </div>
+  </section>
+  <section id="secSettings" class="app-sec" hidden>
+    <div class="sec-empty">
+      <div class="sec-empty-ic" data-ic="gear"></div>
+      <h2>Settings</h2>
+      <p>Theme, deploy targets, access, and dashboard style presets will be configured here.</p>
+    </div>
+  </section>
+
+  <div id="appMain">
   <header id="topbar">
     <div class="brand"><span class="logo">P</span>
       <div class="brand-txt"><div class="brand-title">Analytics Dashboard&nbsp;Studio</div>
@@ -131,6 +163,7 @@
     </div>
     <span class="sb-stamp" id="fbStamp" title="When this build was last published"></span>
   </footer>
+  </div>
 </div>
 <div id="mobile-scrim" aria-hidden="true"></div>
 
@@ -144,6 +177,7 @@
 <script src="app/welcome.js"></script>
 <script src="app/tutorial.js"></script>
 <script src="app/changelog.js"></script>
+<script src="app/shell.js"></script>
 <script src="app/studio.js"></script>
 </body>
 </html>

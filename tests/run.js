@@ -8767,6 +8767,110 @@ function serve() {
     });
     ok("F38/J: docs/index.html includes ct-quadrant anchor and '51 types' count", f38Docs.ok, JSON.stringify(f38Docs));
 
+    // ── Z1: App shell — collapsible left rail (Home · Repository · Studio · Settings) ──
+    console.log("\n• Z1: App shell left rail");
+
+    // Z1-1: rail renders with 4 section buttons + collapse toggle; Studio active by default
+    const z1Boot = await page.evaluate(function () {
+      var nav = document.getElementById("railNav");
+      var items = nav ? Array.prototype.slice.call(nav.querySelectorAll(".rail-item[data-sec]")) : [];
+      var studioBtn = nav && nav.querySelector('.rail-item[data-sec="studio"]');
+      return {
+        ok: !!nav && items.length === 4 && !!studioBtn && studioBtn.classList.contains("active")
+          && studioBtn.getAttribute("aria-current") === "page",
+        secs: items.map(function (b) { return b.getAttribute("data-sec"); }),
+        appMainHidden: document.getElementById("appMain").hidden,
+        collapseBtn: !!document.getElementById("railCollapse")
+      };
+    });
+    ok("Z1: rail has Home/Repository/Studio/Settings + Studio active by default", z1Boot.ok, JSON.stringify(z1Boot));
+    ok("Z1: #appMain (the builder) is visible by default", z1Boot.appMainHidden === false, JSON.stringify(z1Boot));
+
+    // Z1-2: rail icons are real inline SVGs (Studio.icon(), theme-aware — no emoji/unicode glyphs)
+    const z1Icons = await page.evaluate(function () {
+      var svgs = document.querySelectorAll("#railNav .rail-ic svg");
+      return { ok: svgs.length === 5, count: svgs.length }; // 4 sections + collapse toggle
+    });
+    ok("Z1: rail buttons render inline SVG icons (Studio.icon helper)", z1Icons.ok, JSON.stringify(z1Icons));
+
+    // Z1-3: clicking Home swaps in the placeholder section and hides the builder; Studio restores it
+    await page.click('#railNav .rail-item[data-sec="home"]');
+    await page.waitForTimeout(80);
+    const z1Home = await page.evaluate(function () {
+      return {
+        homeVisible: document.getElementById("secHome").hidden === false,
+        appMainHidden: document.getElementById("appMain").hidden === true,
+        homeActive: document.querySelector('#railNav .rail-item[data-sec="home"]').classList.contains("active"),
+        studioAriaCurrent: document.querySelector('#railNav .rail-item[data-sec="studio"]').hasAttribute("aria-current")
+      };
+    });
+    ok("Z1: selecting Home shows its section and hides the builder (zero overlap)",
+      z1Home.homeVisible && z1Home.appMainHidden && z1Home.homeActive && !z1Home.studioAriaCurrent, JSON.stringify(z1Home));
+
+    await page.click('#railNav .rail-item[data-sec="studio"]');
+    await page.waitForTimeout(80);
+    const z1BackToStudio = await page.evaluate(function () {
+      return {
+        appMainHidden: document.getElementById("appMain").hidden,
+        homeHidden: document.getElementById("secHome").hidden,
+        libraryWorks: !!document.getElementById("libList") && document.getElementById("libList").children.length > 0
+      };
+    });
+    ok("Z1: switching back to Studio restores the builder with zero feature loss (library intact)",
+      z1BackToStudio.appMainHidden === false && z1BackToStudio.homeHidden === true && z1BackToStudio.libraryWorks,
+      JSON.stringify(z1BackToStudio));
+
+    // Z1-4: collapse toggle shrinks the rail (icons-only) and persists the choice
+    const z1BeforeCollapse = await page.evaluate(function () { return document.getElementById("railNav").classList.contains("expanded"); });
+    await page.click("#railCollapse");
+    await page.waitForTimeout(80);
+    const z1AfterCollapse = await page.evaluate(function () {
+      return {
+        expanded: document.getElementById("railNav").classList.contains("expanded"),
+        persisted: localStorage.getItem("studio-shell-expanded")
+      };
+    });
+    ok("Z1: collapse toggle flips rail expanded state and persists it to localStorage",
+      z1AfterCollapse.expanded !== z1BeforeCollapse && z1AfterCollapse.persisted === (z1AfterCollapse.expanded ? "1" : "0"),
+      JSON.stringify({ before: z1BeforeCollapse, after: z1AfterCollapse }));
+    await page.click("#railCollapse"); // restore
+    await page.waitForTimeout(80);
+
+    // Z1-5: active section persists across reloads
+    await page.click('#railNav .rail-item[data-sec="repository"]');
+    await page.waitForTimeout(80);
+    await page.reload({ waitUntil: "networkidle" });
+    await page.waitForFunction(() => window.__STUDIO_STATE && window.__STUDIO_STATE.assets.js.length > 0, { timeout: 10000 });
+    await page.waitForTimeout(300);
+    const z1Persisted = await page.evaluate(function () {
+      return {
+        repoVisible: document.getElementById("secRepository").hidden === false,
+        repoActive: document.querySelector('#railNav .rail-item[data-sec="repository"]').classList.contains("active")
+      };
+    });
+    ok("Z1: active section (Repository) persists across a full page reload", z1Persisted.repoVisible && z1Persisted.repoActive, JSON.stringify(z1Persisted));
+    // restore Studio for any tests appended after this block
+    await page.evaluate(function () { window.__studioShellSetSection("studio"); });
+    await page.waitForTimeout(80);
+
+    // Z1-6: at tablet/phone widths the rail stays out of the way — Studio always wins,
+    // so every existing mobile/tablet check keeps passing untouched.
+    const z1Phone = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    await z1Phone.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); localStorage.setItem("studio-shell-section", "settings"); } catch (e) {} });
+    await z1Phone.goto(`http://localhost:${PORT}/`, { waitUntil: "networkidle" });
+    await z1Phone.waitForTimeout(500);
+    const z1PhoneState = await z1Phone.evaluate(function () {
+      var nav = document.getElementById("railNav");
+      return {
+        railHidden: !nav || getComputedStyle(nav).display === "none",
+        appMainVisible: document.getElementById("appMain").hidden === false,
+        noOverflow: document.documentElement.scrollWidth - window.innerWidth <= 1
+      };
+    });
+    await z1Phone.close();
+    ok("Z1: rail is hidden at phone width and Studio still shows even with a non-Studio section saved",
+      z1PhoneState.railHidden && z1PhoneState.appMainVisible && z1PhoneState.noOverflow, JSON.stringify(z1PhoneState));
+
   } catch (e) {
     failed++; console.error("FATAL", e);
   } finally {

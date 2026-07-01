@@ -8,6 +8,13 @@
 window.STUDIO_BUILD = "__BUILD_TS__";
 
 window.STUDIO_CHANGELOG = [
+  { v: "v132", date: "2026-07-01", time: "00:00 UTC", title: "Z1: App shell — a collapsible left rail (Home · Repository · Studio · Settings)", items: [
+      "The Studio is becoming a multi-section analytics app, not just a dashboard builder. A new left rail (`app/shell.js`) frames the whole app into four sections — Home, Repository, Studio, Settings — with single-color icons per section (amber Home, teal Repository, blue Studio, violet Settings) on a warm dark plum background, matching the polecat.live design language.",
+      "The existing 3-pane builder moves under the Studio section with zero feature loss — every panel, chart, export, and keyboard shortcut works exactly as before; only its container changed (wrapped in a new `#appMain`, nothing inside it touched).",
+      "The rail collapses to icons-only or expands to icon+label; both the collapsed state and the active section persist in localStorage across reloads. Keyboard roving nav (↑/↓) moves focus between rail buttons; the active section gets `aria-current=\"page\"`.",
+      "Home, Repository, and Settings currently show a friendly placeholder card describing what's coming (recents/favorites, data sources & workbooks, and app defaults respectively) — the real content for each lands in upcoming Z-track slices.",
+      "Scoped to desktop for this slice: the rail is hidden below the existing 900px tablet breakpoint and the Studio section always wins on narrow viewports, so every mobile/tablet behavior (drawers, tab bar, MNAV checks) is completely unaffected. 8 new Z1 Playwright checks. Test suite 713/713.",
+    ] },
   { v: "v131", date: "2026-06-30", time: "19:00 UTC", title: "Generic terminology, a single empty-state, and Central-Time stamps", items: [
       "Generic vocabulary: “CDA” → “Data Access” and “CDF” → “Dashboard Framework” across the export menu, export history, file-name hints, and the welcome tour. The CDE export was removed — the editable “.studio.json” is the source of truth. Internal file formats and Pentaho server connectivity are unchanged.",
       "Empty canvas now shows a single, clean empty-state: the builder’s “Canvas is empty” overlay, with the live preview fully hidden so its own “Your dashboard is empty” message no longer doubles up behind it.",
