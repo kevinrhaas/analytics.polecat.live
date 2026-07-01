@@ -10024,6 +10024,67 @@ function serve() {
     });
     ok("Z8AS: areaStacked panel inspector shows Smooth curve / Show legend fields", z8asInsp.ok, JSON.stringify(z8asInsp));
 
+    // ── Z8 slice 14: Stream graph gets its own type-specific options (legend + band opacity) ──
+    console.log("\n• Z8 streamgraph: legend toggle + band opacity");
+
+    // Z8SG-1: streamgraph registry declares showLegend + bandOpacity (in addition to existing fmt/height)
+    var z8sgOpts = await page.evaluate(function () {
+      var o = (window.Studio.CHARTS.streamgraph || {}).opts || [];
+      var keys = o.map(function (od) { return od.key; });
+      return { ok: keys.indexOf("showLegend") >= 0 && keys.indexOf("bandOpacity") >= 0 && keys.indexOf("fmt") >= 0, keys: keys };
+    });
+    ok("Z8SG: Studio.CHARTS.streamgraph.opts declares showLegend + bandOpacity", z8sgOpts.ok, JSON.stringify(z8sgOpts));
+
+    // Z8SG-2: legend:false removes the toggle-legend chips; opacity controls the rendered fill-opacity
+    var z8sgRender = await page.evaluate(function () {
+      var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
+      for (var i = 0; i < iframes.length; i++) {
+        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.streamgraph === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+      }
+      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      try {
+        var labels = ["A", "B", "C", "D"], series = [{ name: "S1", values: [1, 4, 2, 6] }, { name: "S2", values: [2, 1, 3, 2] }];
+        var el1 = iframeDoc.createElement("div");
+        el1.style.cssText = "position:absolute;top:-9999px;width:300px";
+        iframeDoc.body.appendChild(el1);
+        w.PDC.streamgraph(el1, { labels: labels, series: series, height: 200 });
+        var opDefault = el1.querySelector("svg path[fill]").getAttribute("fill-opacity");
+        var legendOn = el1.querySelectorAll(".legend-item").length;
+        iframeDoc.body.removeChild(el1);
+
+        var el2 = iframeDoc.createElement("div");
+        el2.style.cssText = "position:absolute;top:-9999px;width:300px";
+        iframeDoc.body.appendChild(el2);
+        w.PDC.streamgraph(el2, { labels: labels, series: series, height: 200, legend: false, opacity: 40 });
+        var opCustom = el2.querySelector("svg path[fill]").getAttribute("fill-opacity");
+        var legendOff = el2.querySelectorAll(".legend-item").length;
+        iframeDoc.body.removeChild(el2);
+
+        return {
+          ok: parseFloat(opDefault) === 0.78 && parseFloat(opCustom) === 0.4 && legendOn === series.length && legendOff === 0,
+          opDefault: opDefault, opCustom: opCustom, legendOn: legendOn, legendOff: legendOff
+        };
+      } catch (e) { return { ok: false, err: e.message }; }
+    });
+    ok("Z8SG: opacity option controls band fill-opacity; legend:false hides the toggle-legend chips", z8sgRender.ok, JSON.stringify(z8sgRender));
+
+    // Z8SG-3: the panel inspector shows the new streamgraph-specific fields when such a panel is selected
+    var z8sgInsp = await page.evaluate(function () {
+      var spec = window.__STUDIO_STATE.spec;
+      var p = spec.panels[0];
+      var prevChart = JSON.parse(JSON.stringify(p.chart));
+      p.chart.type = "streamgraph"; p.chart.opts = {};
+      window.__studioSelect({ kind: "panel", id: p.id });
+      var body = document.getElementById("inspBody");
+      var text = body ? body.textContent : "";
+      var ok = text.indexOf("Show legend") >= 0 && text.indexOf("Band opacity") >= 0;
+      p.chart = prevChart; // restore so later tests aren't affected
+      window.__studioSelect(null);
+      window.__studioRenderInspector();
+      return { ok: ok };
+    });
+    ok("Z8SG: streamgraph panel inspector shows Show legend / Band opacity fields", z8sgInsp.ok, JSON.stringify(z8sgInsp));
+
     // restore Studio + a clean flagship spec for any tests appended after this block
     await page.evaluate(async function () {
       const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json());

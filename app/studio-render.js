@@ -240,7 +240,8 @@
             PDC.areaStacked(body, { smooth: !!o.smooth, legend: o.showLegend !== false,
               fmt: f, height: o.height || 300, labels: labels, series: series });
           else if (ch.type === "streamgraph")
-            PDC.streamgraph(body, { fmt: f, height: o.height || 300, labels: labels, series: series });
+            PDC.streamgraph(body, { fmt: f, height: o.height || 300, legend: o.showLegend !== false,
+              opacity: o.bandOpacity, labels: labels, series: series });
           else if (ch.type === "radar")
             PDC.radar(body, { fill: o.fill !== false, fmt: f, height: o.height || 300, labels: labels, series: series });
           else if (ch.type === "step")

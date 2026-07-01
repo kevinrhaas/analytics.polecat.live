@@ -349,6 +349,11 @@
   internally via `cfg.legend`, but no inspector control ever exposed it). `studio-render.js` passes
   `smooth`/`legend` through to `PDC.areaStacked`. `docs/index.html` updated. 3 new Z8AS tests. Test suite
   784/784.
+- v151: **Z8 slice 14: Stream graph gets its own options** — `Studio.CHARTS.streamgraph.opts` gains
+  **Show legend** (the renderer already supported hiding the legend via `cfg.legend`, but the inspector
+  never exposed a toggle) and **Band opacity** (was hardcoded to 78%, now adjustable 0–100%). `PDC.streamgraph`
+  reads `cfg.opacity` for the ribbon fill-opacity; `studio-render.js` passes `showLegend`/`bandOpacity`
+  through. `docs/index.html` updated. 3 new Z8SG tests. Test suite 786/786.
 - v146: **Z8 slice 9: Bar chart gets its own options** — `Studio.CHARTS.bars.opts` gains **Sort by value**
   (largest-first, same convention as Donut's "Sort slices") and **Show value labels** (hide the always-on
   value text for a cleaner look on dense charts). `PDC.bars` overridden in `studio-charts.js`
@@ -517,10 +522,14 @@ self-explanatory. Keep it light (inline SVG / CSS, no image assets or deps). One
 > ✓ **Slice 13 shipped v150**: **Stacked area** gets its own options — **Smooth curve** (cubic-bezier
 > band edges, same technique as Line/Bump) and **Show legend** (the renderer already supported hiding the
 > legend via `cfg.legend`; the inspector never exposed a toggle until now).
+> ✓ **Slice 14 shipped v151**: **Stream graph** gets its own options — **Show legend** (same story as
+> Stacked area — the renderer already supported `cfg.legend` but nothing exposed it) and **Band opacity**
+> (ribbon fill-opacity was hardcoded to 78%, now a 0–100% slider).
 > **Z8 follow-ups (not yet done, the bulk of the track):** a real per-type capability map covering the
 > REST of the ~51 types' *own* option sets (Table, Gauge, Treemap, Scatter, Line, Donut, Bars, Stacked
-> bars, Calendar heatmap, KPI, areaStacked done; still needed: streamgraph, sankey/chord/network, and the
-> rest), plus the inline visual setting hints (tiny before/after thumbnails). Continue one slice per loop.
+> bars, Calendar heatmap, KPI, areaStacked, streamgraph done; still needed: sankey/chord/network, radar,
+> waterfall, funnel, sunburst, combo, and the rest), plus the inline visual setting hints (tiny
+> before/after thumbnails). Continue one slice per loop.
 
 **Z9 — Mobile: fix the broken flows + a proper bottom nav (user-requested 2026-06-30).** Reported
 regressions on small screens: the top button-bar scrolls/slides but **its dropdown menus don't open /

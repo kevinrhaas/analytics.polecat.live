@@ -132,7 +132,11 @@
       label: "Stream graph", icon: "〰", group: "Trend",
       desc: "Flowing centered ribbons for evolving multi-stream volumes",
       fields: ["labelCol", "series"],
+      // Z8 slice 14: the renderer already supported a legend toggle (cfg.legend) and a
+      // hardcoded 0.78 band fill-opacity, but neither was ever exposed in the inspector.
       opts: [
+        { key: "showLegend",  type: "bool", label: "Show legend", def: true },
+        { key: "bandOpacity", type: "int",  label: "Band opacity (%)", def: 78 },
         { key: "fmt",    type: "fmt", label: "Value format", def: "abbr" },
         { key: "height", type: "int", label: "Height (px)", def: 300 }
       ],

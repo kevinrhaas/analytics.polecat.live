@@ -2545,7 +2545,8 @@
        series   : [{name, values, color}],
        fmt      : function,           // value formatter
        height   : number,
-       legend   : bool                // default true
+       legend   : bool,               // default true
+       opacity  : number              // band fill-opacity, 0-100, default 78
      });
   */
   PDC.streamgraph = function (el, cfg) { reg(el, function () { _stream(el, cfg); }); };
@@ -2554,6 +2555,7 @@
     if (!labels.length || !series.length) { el.innerHTML = '<div class="empty">No data</div>'; return; }
     var o = mkSVG(el, h), s = o.s, w = o.w, P = PDC.palette(), n = labels.length;
     var fmt = cfg.fmt || PDC.fmt.abbr;
+    var bandOp = ((cfg.opacity == null ? 78 : cfg.opacity) / 100).toFixed(2);
     var mL = 44, mR = 16, mT = 16, mB = 28, iw = w - mL - mR, ih = h - mT - mB;
     var xs = function (i) { return mL + (n <= 1 ? iw / 2 : iw * i / (n - 1)); };
 
@@ -2632,7 +2634,7 @@
     bands.forEach(function (b, bi) {
       var col = b.se.color || P[b.si % 10];
       var d = bandPath(b.lo, b.hi);
-      var pathEl = S("path", { d: d, fill: col, "fill-opacity": "0.78", stroke: PDC.cssvar("--panel-bg"), "stroke-width": "0.5" });
+      var pathEl = S("path", { d: d, fill: col, "fill-opacity": bandOp, stroke: PDC.cssvar("--panel-bg"), "stroke-width": "0.5" });
       s.appendChild(pathEl);
       bandEls.push(pathEl);
 

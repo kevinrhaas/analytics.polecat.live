@@ -8,6 +8,10 @@
 window.STUDIO_BUILD = "__BUILD_TS__";
 
 window.STUDIO_CHANGELOG = [
+  { v: "v151", date: "2026-07-01", time: "21:25 UTC", title: "Z8 slice 14: Stream graph gets its own options — legend toggle + band opacity", items: [
+      "Continues the Z8 track's per-type option sets (Table/Gauge/Treemap/Scatter/Line/Donut/Bars/Stacked/Calendar heatmap/KPI/Stacked area in v139–v150) with **Stream graph**: `Studio.CHARTS.streamgraph.opts` now includes **Show legend** (the renderer already supported hiding the legend internally via `cfg.legend`, but the inspector never exposed a toggle) and **Band opacity** (was hardcoded to 78%, now adjustable 0–100%).",
+      "`PDC.streamgraph` reads `cfg.opacity` for the ribbon fill-opacity (`app/studio-charts.js`, pdc-ui.js untouched — stream graph has always lived entirely in the extension file); `studio-render.js` passes `showLegend`/`bandOpacity` through. `docs/index.html` Stream graph card updated. 3 new Z8SG tests. Test suite 786/786.",
+    ] },
   { v: "v150", date: "2026-07-01", time: "20:10 UTC", title: "Z8 slice 13: Stacked area gets its own options — smooth curve + legend toggle", items: [
       "Continues the Z8 track's per-type option sets (Table/Gauge/Treemap/Scatter/Line/Donut/Bars/Stacked/Calendar heatmap/KPI in v139–v149) with **Stacked area**: `Studio.CHARTS.areaStacked.opts` now includes **Smooth curve** (cubic-bezier band edges, same midpoint-control-point technique as Line/Bump) and **Show legend** (the renderer already supported hiding the legend internally via `cfg.legend`, but the inspector never exposed a toggle for it).",
       "`PDC.areaStacked`'s band path builder now curves both the top and bottom edge of every band when `smooth` is on (`_bandSeg` helper in `app/studio-charts.js`, pdc-ui.js untouched — areaStacked has always lived entirely in the extension file); `studio-render.js` passes `smooth`/`legend` through. `docs/index.html` Stacked area card updated. 3 new Z8AS tests. Test suite 784/784.",
