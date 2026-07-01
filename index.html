@@ -4,6 +4,10 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>Analytics Dashboard Studio — build interactive dashboards from your data · analytics.polecat.live</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg"/>
+<link rel="apple-touch-icon" href="favicon.svg"/>
+<link rel="manifest" href="site.webmanifest"/>
+<meta name="theme-color" content="#d4773b"/>
 <link rel="stylesheet" href="app/studio.css"/>
 <script src="app/gate-config.js"></script>
 <script src="app/gate.js"></script>
@@ -11,6 +15,10 @@
 <body>
 <div id="app">
   <nav id="railNav" aria-label="App sections">
+    <button id="railBrand" class="rail-brand" title="Analytics Dashboard Studio — Home" aria-label="Analytics Dashboard Studio — go to Home">
+      <img class="rail-brand-mark" src="favicon.svg" width="26" height="26" alt=""/>
+      <span class="rail-brand-txt rail-lbl">Dashboard Studio</span>
+    </button>
     <button class="rail-item" data-sec="home" title="Home" aria-label="Home"><span class="rail-ic" data-ic="home"></span><span class="rail-lbl">Home</span></button>
     <button class="rail-item" data-sec="repository" title="Repository" aria-label="Repository"><span class="rail-ic" data-ic="layers"></span><span class="rail-lbl">Repository</span></button>
     <button class="rail-item active" data-sec="studio" title="Studio" aria-label="Studio" aria-current="page"><span class="rail-ic" data-ic="grid"></span><span class="rail-lbl">Studio</span></button>
@@ -43,7 +51,7 @@
 
   <div id="appMain">
   <header id="topbar">
-    <div class="brand"><span class="logo">P</span>
+    <div class="brand">
       <div class="brand-txt"><div class="brand-title">Analytics Dashboard&nbsp;Studio</div>
         <div class="brand-sub">build interactive dashboards from your data</div></div>
     </div>

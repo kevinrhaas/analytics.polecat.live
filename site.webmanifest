@@ -1,0 +1,10 @@
+{
+  "name": "Analytics Dashboard Studio",
+  "short_name": "Dashboard Studio",
+  "icons": [
+    { "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ],
+  "theme_color": "#d4773b",
+  "background_color": "#0a0a0f",
+  "display": "standalone"
+}

@@ -8939,6 +8939,51 @@ function serve() {
     });
     ok("Z2: recents list is capped at 8 entries", z2Cap === 8, "len=" + z2Cap);
 
+    // ── Z12: branding & app identity — de-dup the logo, add a favicon ──
+    console.log("\n• Z12: branding & app identity");
+    const z12Head = await page.evaluate(function () {
+      return {
+        favicon: !!document.querySelector('link[rel="icon"][href="favicon.svg"]'),
+        appleTouch: !!document.querySelector('link[rel="apple-touch-icon"]'),
+        manifest: !!document.querySelector('link[rel="manifest"][href="site.webmanifest"]'),
+        themeColor: (document.querySelector('meta[name="theme-color"]') || {}).content
+      };
+    });
+    ok("Z12: favicon + apple-touch-icon + manifest + theme-color are wired up",
+      z12Head.favicon && z12Head.appleTouch && z12Head.manifest && z12Head.themeColor === "#d4773b", JSON.stringify(z12Head));
+
+    const z12Favicon = await page.evaluate(async function () {
+      const r = await fetch("favicon.svg");
+      return { ok: r.ok, type: r.headers.get("content-type") || "" };
+    });
+    ok("Z12: favicon.svg is served and is an SVG", z12Favicon.ok && z12Favicon.type.indexOf("svg") >= 0, JSON.stringify(z12Favicon));
+
+    const z12Brand = await page.evaluate(function () {
+      var topbarLogo = document.querySelector("#topbar .brand .logo");
+      var railBrand = document.getElementById("railBrand");
+      return {
+        noTopbarLogoSquare: !topbarLogo,
+        railBrandExists: !!railBrand,
+        railBrandHasMark: !!(railBrand && railBrand.querySelector(".rail-brand-mark")),
+        wordmarkIntact: !!document.querySelector("#topbar .brand-title")
+      };
+    });
+    ok("Z12: redundant topbar 'P' logo square removed; wordmark is the content-header identity",
+      z12Brand.noTopbarLogoSquare && z12Brand.wordmarkIntact, JSON.stringify(z12Brand));
+    ok("Z12: rail carries a persistent brand mark at the top", z12Brand.railBrandExists && z12Brand.railBrandHasMark, JSON.stringify(z12Brand));
+
+    // Z12: clicking the rail brand mark navigates Home (identity anchor doubles as a Home link)
+    await page.click('#railNav .rail-item[data-sec="studio"]');
+    await page.waitForTimeout(80);
+    await page.click("#railBrand");
+    await page.waitForTimeout(120);
+    const z12BrandNav = await page.evaluate(function () {
+      return { homeVisible: document.getElementById("secHome").hidden === false, homeActive: document.querySelector('#railNav .rail-item[data-sec="home"]').classList.contains("active") };
+    });
+    ok("Z12: clicking the rail brand mark navigates to Home", z12BrandNav.homeVisible && z12BrandNav.homeActive, JSON.stringify(z12BrandNav));
+    await page.evaluate(function () { window.__studioShellSetSection("studio"); });
+    await page.waitForTimeout(80);
+
     // restore Studio + a clean flagship spec for any tests appended after this block
     await page.evaluate(async function () {
       const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json());

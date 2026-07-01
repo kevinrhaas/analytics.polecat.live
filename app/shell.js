@@ -65,6 +65,10 @@
   });
   if (collapseBtn) collapseBtn.addEventListener("click", function () { setExpanded(!nav.classList.contains("expanded")); });
 
+  // Z12: the rail's brand mark is the app's persistent identity — clicking it goes Home.
+  var brandBtn = document.getElementById("railBrand");
+  if (brandBtn) brandBtn.addEventListener("click", function () { setActive("home"); });
+
   // roving keyboard nav within the rail (arrow keys move focus between section buttons)
   nav.addEventListener("keydown", function (e) {
     if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;

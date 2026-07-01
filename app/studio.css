@@ -38,6 +38,14 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);-webkit-font-
   background:var(--rail-bg);border-right:1px solid var(--rail-line);z-index:35;overflow:hidden;
   transition:width .16s ease}
 #railNav.expanded{width:184px}
+/* Z12: persistent brand mark anchored at the top of the rail — the app's identity
+   lives here (not a redundant letter-box in the content header); click returns Home. */
+#railNav .rail-brand{display:flex;align-items:center;gap:11px;padding:16px 18px 14px;background:none;
+  border:0;border-bottom:1px solid var(--rail-line);color:var(--rail-ink);cursor:pointer;
+  white-space:nowrap;text-align:left;font-family:var(--font)}
+#railNav .rail-brand:hover{opacity:.85}
+#railNav .rail-brand-mark{flex:0 0 auto;border-radius:7px;display:block}
+#railNav .rail-brand-txt{font-weight:800;font-size:13px;letter-spacing:.2px;overflow:hidden;text-overflow:ellipsis}
 #railNav .rail-item{display:flex;align-items:center;gap:12px;padding:12px 18px;background:none;border:0;
   color:var(--rail-ink);opacity:.72;cursor:pointer;white-space:nowrap;font-size:12.5px;font-weight:600;
   font-family:var(--font);text-align:left}
@@ -114,8 +122,6 @@ textarea:focus-visible,[tabindex]:focus-visible,.row-item:focus-visible{
   background:linear-gradient(100deg,#0a1c3d,#163a6e 60%,#1c4a86);color:#fff;
   border-bottom:3px solid var(--pentaho);box-shadow:0 2px 14px rgba(0,0,0,.18);z-index:30}
 .brand{display:flex;align-items:center;gap:11px}
-.logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--pentaho),var(--pdc));
-  display:flex;align-items:center;justify-content:center;font-weight:800;font-size:17px;box-shadow:0 2px 9px rgba(0,0,0,.3)}
 .brand-title{font-weight:800;font-size:15.5px;letter-spacing:.2px;line-height:1.1}
 .brand-sub{font-size:11px;color:#aebfdb;font-weight:500}
 .dash-id{display:flex;flex-direction:column;gap:2px;min-width:200px}
@@ -495,7 +501,6 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
 /* Phone ≤640px: further collapse — hide the dash-id entirely; set mob-tabs-h for banner offset */
 @media(max-width:640px){
   :root{--mob-tabs-h:52px}
-  .logo{width:28px;height:28px;font-size:14px}
   .brand-title{font-size:13.5px;letter-spacing:0}
   .dash-id{display:none}
   .btn{font-size:12px;padding:7px 10px}

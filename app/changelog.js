@@ -8,6 +8,12 @@
 window.STUDIO_BUILD = "__BUILD_TS__";
 
 window.STUDIO_CHANGELOG = [
+  { v: "v134", date: "2026-07-01", time: "04:30 UTC", title: "Z12: branding & app identity — de-dup the logo, add a favicon", items: [
+      "The tab was blank — added a real favicon: a small terracotta-gradient bar-chart mark (`favicon.svg`), wired via `<link rel=\"icon\">` + `apple-touch-icon` + `site.webmanifest` + a matching `theme-color`, so the app finally shows up right in tabs, bookmarks, and 'Add to Home Screen'.",
+      "Removed the redundant single-letter 'P' square from the topbar next to the full 'Analytics Dashboard Studio' wordmark — a bare letter-box read as unfinished next to a full wordmark and the rail's own icons. The styled wordmark is now the sole identity in the content header.",
+      "Anchored the app's persistent identity at the TOP of the left rail instead (cf. Linear / VS Code / Notion): a compact brand mark (the same favicon glyph) + 'Dashboard Studio' label, above Home/Repository/Studio/Settings; clicking it jumps to Home. Collapses to just the mark when the rail is collapsed, matching the existing section-icon behavior.",
+      "Exported dashboards (Dashboard Framework .html) and the passcode gate screen are untouched — this was scoped to the app's own chrome only, per the plan to keep exported-artifact branding independent. 5 new Z12 Playwright checks. Test suite 723/723.",
+    ] },
   { v: "v133", date: "2026-07-01", time: "01:30 UTC", title: "Z2: Home — a real landing page (quick-create + recents)", items: [
       "The Home section (left rail) is no longer a placeholder: it now opens with a warm-dark, game-like landing page — a greeting, three quick-create cards (Blank dashboard, Browse examples, Take the tour), and a live 'Recent dashboards' grid.",
       "Recents are captured automatically as you work: whenever the working spec settles (same debounce path as auto-save), a snapshot of the full dashboard is saved into a capped, newest-first localStorage list (`studio-recents`, 8 max) — so a recent card genuinely reopens that exact dashboard, not just a label.",
