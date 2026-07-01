@@ -8017,6 +8017,93 @@ function serve() {
     });
     ok("Z8G: gauge panel inspector shows Value format / Warning zone / Good zone fields", z8gInsp.ok, JSON.stringify(z8gInsp));
 
+    // ── Z8 slice 5: Treemap gets its own type-specific options (tile labels + % of total) ──
+    console.log("\n• Z8 treemap: show/hide tile labels + % of total");
+
+    // Z8M-1: treemap registry declares showLabels + showPct (in addition to existing fmt/height)
+    var z8mOpts = await page.evaluate(function () {
+      var o = (window.Studio.CHARTS.treemap || {}).opts || [];
+      var keys = o.map(function (od) { return od.key; });
+      return { ok: keys.indexOf("showLabels") >= 0 && keys.indexOf("showPct") >= 0 && keys.indexOf("fmt") >= 0 && keys.indexOf("height") >= 0, keys: keys };
+    });
+    ok("Z8M: Studio.CHARTS.treemap.opts declares showLabels + showPct", z8mOpts.ok, JSON.stringify(z8mOpts));
+
+    // Z8M-2: by default, big-enough tiles show a title + value text label (2 texts per tile)
+    var z8mLabelsOn = await page.evaluate(function () {
+      var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
+      for (var i = 0; i < iframes.length; i++) {
+        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.treemap === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+      }
+      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      try {
+        var el = iframeDoc.createElement("div");
+        el.style.cssText = "position:absolute;top:-9999px;width:300px";
+        iframeDoc.body.appendChild(el);
+        w.PDC.treemap(el, { data: [{ label: "Alpha", value: 70 }, { label: "Beta", value: 30 }], height: 280 });
+        var texts = el.querySelectorAll("svg text");
+        iframeDoc.body.removeChild(el);
+        return { ok: texts.length === 4, count: texts.length };
+      } catch (e) { return { ok: false, err: e.message }; }
+    });
+    ok("Z8M: treemap shows title+value labels on big tiles by default (4 text nodes for 2 tiles)", z8mLabelsOn.ok, JSON.stringify(z8mLabelsOn));
+
+    // Z8M-3: cfg.showLabels:false suppresses tile text labels entirely (tiles still render)
+    var z8mLabelsOff = await page.evaluate(function () {
+      var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
+      for (var i = 0; i < iframes.length; i++) {
+        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.treemap === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+      }
+      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      try {
+        var el = iframeDoc.createElement("div");
+        el.style.cssText = "position:absolute;top:-9999px;width:300px";
+        iframeDoc.body.appendChild(el);
+        w.PDC.treemap(el, { data: [{ label: "Alpha", value: 70 }, { label: "Beta", value: 30 }], height: 280, showLabels: false });
+        var texts = el.querySelectorAll("svg text"), rects = el.querySelectorAll("svg rect.bar");
+        iframeDoc.body.removeChild(el);
+        return { ok: texts.length === 0 && rects.length === 2, texts: texts.length, rects: rects.length };
+      } catch (e) { return { ok: false, err: e.message }; }
+    });
+    ok("Z8M: showLabels:false hides tile text labels but keeps the tiles", z8mLabelsOff.ok, JSON.stringify(z8mLabelsOff));
+
+    // Z8M-4: cfg.showPct:true swaps the second label line to "% of total" instead of the raw value
+    var z8mPct = await page.evaluate(function () {
+      var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
+      for (var i = 0; i < iframes.length; i++) {
+        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.treemap === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+      }
+      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      try {
+        var el = iframeDoc.createElement("div");
+        el.style.cssText = "position:absolute;top:-9999px;width:300px";
+        iframeDoc.body.appendChild(el);
+        w.PDC.treemap(el, { data: [{ label: "Alpha", value: 70 }, { label: "Beta", value: 30 }], height: 280, showPct: true });
+        var texts = [].map.call(el.querySelectorAll("svg text"), function (t) { return t.textContent; });
+        var hasPct = texts.some(function (t) { return /%$/.test(t); });
+        var hasRaw70 = texts.indexOf("70") >= 0;
+        iframeDoc.body.removeChild(el);
+        return { ok: hasPct && !hasRaw70, texts: texts };
+      } catch (e) { return { ok: false, err: e.message }; }
+    });
+    ok("Z8M: showPct:true shows each tile's % of total instead of its raw value", z8mPct.ok, JSON.stringify(z8mPct));
+
+    // Z8M-5: the panel inspector shows the new treemap-specific fields when a Treemap panel is selected
+    var z8mInsp = await page.evaluate(function () {
+      var spec = window.__STUDIO_STATE.spec;
+      var p = spec.panels[0];
+      var prevChart = JSON.parse(JSON.stringify(p.chart));
+      p.chart.type = "treemap"; p.chart.opts = {};
+      window.__studioSelect({ kind: "panel", id: p.id });
+      var body = document.getElementById("inspBody");
+      var text = body ? body.textContent : "";
+      var ok = text.indexOf("Show tile labels") >= 0 && text.indexOf("Show % of total, not value") >= 0;
+      p.chart = prevChart; // restore so later tests aren't affected
+      window.__studioSelect(null);
+      window.__studioRenderInspector();
+      return { ok: ok, hasText: text.indexOf("Show tile labels") >= 0 };
+    });
+    ok("Z8M: treemap panel inspector shows Show tile labels / Show % of total fields", z8mInsp.ok, JSON.stringify(z8mInsp));
+
     // ── F26: Parallel coordinates chart ────────────────────────────────────────
     console.log("\n• F26: parallel coordinates chart");
 

@@ -308,9 +308,14 @@
       label: "Treemap", icon: "▦", group: "Composition",
       desc: "Rectangles nested and sized by value",
       fields: ["labelCol", "valueCol"],
+      // Z8 slice 5: treemap gets its own type-specific options — the base toolkit always
+      // drew a title+value label on any tile big enough, with no way to hide it or swap
+      // in "% of total" (the question a treemap usually exists to answer).
       opts: [
-        { key: "fmt",    type: "fmt", label: "Value format", def: "abbr" },
-        { key: "height", type: "int", label: "Height (px)", def: 300 }
+        { key: "fmt",        type: "fmt",  label: "Value format",              def: "abbr" },
+        { key: "showLabels", type: "bool", label: "Show tile labels",          def: true },
+        { key: "showPct",    type: "bool", label: "Show % of total, not value", def: false },
+        { key: "height",     type: "int",  label: "Height (px)",               def: 300 }
       ],
       cde: { type: "cccTreemapChart", extra: function () { return [["valuesVisible", "Boolean", "true"]]; } }
     },

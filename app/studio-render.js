@@ -212,6 +212,7 @@
           break;
         case "treemap":
           PDC.treemap(body, { fmt: f, height: o.height || 300,
+            showLabels: o.showLabels !== false, showPct: !!o.showPct,
             data: cfData(csData(lv(res, m.labelCol, m.valueCol), p.colorScale), p.condFmt), detail: detailCfg });
           break;
         case "line":

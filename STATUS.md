@@ -321,6 +321,7 @@
 - v139: **Z8 slice 2: table-specific options — row limit + grand total row** — `Studio.CHARTS.table.opts` gains **Row limit** (0 = all) and **Show grand total row** (sums numeric columns over the currently visible/filtered rows, appended as a bold `<tfoot>` row). `PDC.table` override in `studio-charts.js` renders the total row; `studio-render.js` applies the row limit client-side before rendering. Same code path for preview + exported CDF (studio-charts.js is inlined into exports). `docs/index.html` Table card updated. 4 new tests. Test suite 745/745.
 - v140: **Z8 slice 3: Table extras — paging, freeze header, row density** — three more Table-specific options: **Rows per page** (0 = all on one page; otherwise a Prev/Next `.tbl-page-bar`), **Freeze header row** (scrollable `.tbl-wrap.frz` with `position:sticky` thead — tall tables no longer just clip at the panel edge with no way to see all rows), and **Row density** (Comfortable/Compact). Paging resets on filter/sort change; bar-cell scaling + grand total still compute over the full filtered/sorted set, not just the current page. New `optField()` "select" opt type in `studio.js` (reuses `select2pairs`) — first inspector option backed by an arbitrary choice list. `docs/index.html` updated. 4 new Z8T tests. Test suite 749/749.
 - v141: **Z8 slice 4: Gauge gets its own options** — `Studio.CHARTS.gauge.opts` gains a **Value format** picker (was always a raw rounded number) and **Warning/Good zone %** thresholds (were hardcoded 70/90 in the vendored toolkit, invisible to the builder). The gauge arc now shows a permanent red/amber/green zone track behind a bright value tick (mirrors the Bullet chart convention) instead of only recoloring once the value crosses an invisible line. `PDC.gauge` overridden in `studio-charts.js` (`PDC._gaugeBase` kept for reference); `studio-render.js` passes fmt/warnAt/goodAt through. `docs/index.html` updated. 4 new Z8G tests. Test suite 753/753.
+- v142: **Z8 slice 5: Treemap gets its own options** — `Studio.CHARTS.treemap.opts` gains **Show tile labels** (toggle off the bold title+value text the base toolkit always drew on big-enough tiles) and **Show % of total, not value** (swap the value line for the tile's share of the whole). `PDC.treemap` overridden in `studio-charts.js` (`PDC._treemapBase` kept for reference, same pattern as Table/Gauge); tooltip unaffected (still shows both value and %). `docs/index.html` updated. 5 new Z8M tests. Test suite 758/758.
 
 ## NEXT (top = do first)
 
@@ -444,8 +445,13 @@ self-explanatory. Keep it light (inline SVG / CSS, no image assets or deps). One
 > toolkit, invisible to the builder). The arc now shows a permanent red/amber/green zone track behind
 > the value tick (same convention as Bullet), so thresholds are self-explanatory instead of only implied
 > by the needle recoloring once it crosses an invisible line.
+> ✓ **Slice 5 shipped v142**: **Treemap** gets its own options — **Show tile labels** (toggle off the
+> bold title+value text the toolkit always drew on any big-enough tile) and **Show % of total, not
+> value** (swap the value line for the tile's share of the whole — usually the actual question a
+> treemap answers). Tooltip unaffected (still shows both). Same override pattern as Table/Gauge
+> (`PDC._treemapBase` kept for reference).
 > **Z8 follow-ups (not yet done, the bulk of the track):** a real per-type capability map covering the
-> REST of the ~51 types' *own* option sets (Table + Gauge done; still needed: KPI, treemap, line/area,
+> REST of the ~51 types' *own* option sets (Table, Gauge, Treemap done; still needed: KPI, line/area,
 > scatter, sankey/chord/network, calendar-heatmap, and the rest), plus the inline visual setting hints
 > (tiny before/after thumbnails). Continue one slice per loop.
 

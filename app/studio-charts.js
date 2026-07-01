@@ -2914,6 +2914,55 @@
     s.appendChild(S("text", { x: cx, y: cy + 14, "text-anchor": "middle", class: "gauge-cap" }, cfg.label || ""));
   }
 
+  /* ── Enhanced treemap chart (override PDC.treemap, Z8 slice 5) ──────────────
+     Base PDC.treemap (pdc-ui.js) always draws a bold title + raw value label on
+     any tile big enough to fit one, with no way to hide it or swap in "% of
+     total" — the question a treemap is usually built to answer. This override
+     keeps the identical squarified layout algorithm (same sort/worst/row logic)
+     and adds cfg.showLabels / cfg.showPct. Base kept as PDC._treemapBase. */
+  PDC._treemapBase = PDC.treemap;
+
+  PDC.treemap = function (el, cfg) { reg(el, function () { _treemapOpts(el, cfg); }); };
+
+  function _treemapOpts(el, cfg) {
+    var data = (cfg.data || []).filter(function (d) { return (+d.value || 0) > 0; }).sort(function (a, b) { return b.value - a.value; });
+    var h = cfg.height || 280;
+    if (!data.length) { el.innerHTML = '<div class="empty">No data</div>'; return; }
+    var o = mkSVG(el, h), s = o.s, w = o.w, pal = PDC.palette(), fmt = cfg.fmt || PDC.fmt.abbr;
+    var showLabels = cfg.showLabels !== false, showPct = !!cfg.showPct;
+    var total = data.reduce(function (a, d) { return a + +d.value; }, 0);
+    var x = 0, y = 0, cw = w, ch = h, i = 0;
+    function worst(row, len) {
+      var s2 = row.reduce(function (a, r) { return a + r.area; }, 0);
+      var mx = Math.max.apply(null, row.map(function (r) { return r.area; })), mn = Math.min.apply(null, row.map(function (r) { return r.area; }));
+      return Math.max(len * len * mx / (s2 * s2), s2 * s2 / (len * len * mn));
+    }
+    var items = data.map(function (d) { return { d: d, area: d.value / total * w * h }; });
+    while (i < items.length) {
+      var horiz = cw >= ch, len = horiz ? ch : cw, row = [], rest = items.slice(i), k = 0;
+      while (k < rest.length) { var test = row.concat([rest[k]]); if (row.length && worst(test, len) > worst(row, len)) break; row.push(rest[k]); k++; }
+      var rsum = row.reduce(function (a, r) { return a + r.area; }, 0), thick = rsum / len, off = 0;
+      row.forEach(function (r) {
+        var seg = r.area / thick, rx, ry, rw, rh2;
+        if (horiz) { rx = x; ry = y + off; rw = thick; rh2 = seg; } else { rx = x + off; ry = y; rw = seg; rh2 = thick; }
+        off += seg;
+        var idx = data.indexOf(r.d), col = r.d.color || pal[idx % 10];
+        var pctTxt = (100 * r.d.value / total).toFixed(1) + "%";
+        var rc = S("rect", { x: rx + 1, y: ry + 1, width: Math.max(0, rw - 2), height: Math.max(0, rh2 - 2), rx: 3, fill: col, opacity: .92, class: "bar" });
+        rc.addEventListener("mousemove", function (e) { PDC.showTip(e, "<b>" + r.d.label + "</b><br>" + fmt(r.d.value) + " (" + pctTxt + ")"); });
+        rc.addEventListener("mouseout", PDC.hideTip);
+        if (cfg.detail) PDC.bindDetail(rc, cfg.detail, r.d.label);
+        s.appendChild(rc);
+        if (showLabels && rw > 54 && rh2 > 22) {
+          s.appendChild(S("text", { x: rx + 6, y: ry + 15, fill: "#fff", "font-size": "11", "font-weight": "700" }, PDC.fmt.trunc(r.d.label, Math.floor(rw / 7))));
+          s.appendChild(S("text", { x: rx + 6, y: ry + 29, fill: "rgba(255,255,255,.85)", "font-size": "10" }, showPct ? pctTxt : fmt(r.d.value)));
+        }
+      });
+      if (horiz) { x += thick; cw -= thick; } else { y += thick; ch -= thick; }
+      i += row.length;
+    }
+  }
+
   /* ---------- parallel coordinates chart (multi-dimensional entity comparison) ----------
      Each entity (row) is drawn as a polyline connecting its values across N parallel
      vertical axes. Each axis represents one numeric dimension and has its own min/max
