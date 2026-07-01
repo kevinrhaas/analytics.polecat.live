@@ -39,6 +39,9 @@
 - **Documented for the humans.** Add helpful, friendly, supportive comments where a
   human needs orientation — explain the *why* and any non-obvious technique. Concise, not verbose. If
   existing code is thin on comments and a reader would struggle, add brief contextual notes.
+- **Keep the in-app docs current.** `docs/index.html` is the user-facing Help reference (linked from the
+  app). Whenever you add or change a user-facing feature, **update the docs in the SAME slice** so they
+  never drift, and make sure the app links to them discoverably (see Z11).
 - **License.** The Studio is proprietary — see `LICENSE` (© 2026 Polecat.live; all rights reserved).
   Keep the notice intact; don't add OSS license headers that contradict it. New first-party source
   files may carry a one-line header (`/* Analytics Dashboard Studio — © 2026 Polecat.live. See LICENSE. */`).
@@ -363,6 +366,11 @@ connector feeds the same dashboard model.
 **Z5 — Settings.** App configuration: theme, default deploy target, gate/access, data-source defaults,
 and **dashboard style defaults** (standard look/style applied to new dashboards). Support **collections
 of named style presets** the user can pick from. Export/import settings as JSON.
+> **Surface the app's mode toggles here as first-class, discoverable controls** — **Simple/Advanced mode**,
+> **light/dark** (theme mode), **Focus mode**, **Demo mode**, etc. They're currently buried in the ⋯ More
+> menu and hard to find (the user couldn't locate Simple mode at all). Use clear, nice toggle switches;
+> optionally mirror the key toggles in a **left-menu drawer styled after polecat.live's left drawer** (pull
+> that look/feel). Persist all in localStorage.
 
 **Z6 — Banner / header editor + naming model (user-requested; refined 2026-06-30).** Make the dashboard
 header/banner (the "Cost Optimization & Sustainability · subtitle" bar in the preview) fully **editable
@@ -371,7 +379,10 @@ named presets defined in **Settings** (default colors/logo/formatting); when bui
 an **"include default header"** option that drops the preset in, then let the user **edit it per-dashboard**
 with all formatting. Consider **integrating the header with the ¶ Text/annotation element** — the header
 could be a special rich-text block (or the text element gains header-style options) so one editor covers
-both. Tie into the Z5 style-preset collections.
+both. Tie into the Z5 style-preset collections. **Also reconsider the ¶ Text button's placement** — it sits
+on the Live-preview/canvas bar and reads as cluttered/odd there; fold "add text/annotation" into a cleaner
+add-element affordance (e.g. the **New / ＋** flow or an on-canvas insert), consistent with how panels are
+added, and unified with this header/text-object work.
 > **Naming model (relocate title editing).** Editing the dashboard name up in the **top bar** (`#dashTitle`)
 > now feels out of place with the app shell — move name editing into the **panel/inspector and/or Settings**,
 > not the topbar chip. Also separate the two names that are currently conflated: the **object/file name**
@@ -424,6 +435,14 @@ Design decision to surface: whether the **exported dashboard** theme follows the
 independent — recommend keeping export theming **separate/optional** so deployed artifacts aren't coupled
 to app chrome. Build incrementally (theme tokens first, then the Polecat dark variant, then the Settings
 picker); tests green. Coordinate with Z1 (rail) and Z5 (Settings).
+
+**Z11 — In-app docs: discoverability + continuous upkeep (user-requested 2026-06-30).** The help docs
+(`docs/index.html`) exist but are **hard to find** — buried as "Help docs ⓘ" in the ⋯ More menu (the user
+couldn't find them). Make them **discoverable**: a **Help/Docs entry in the app shell** (left rail and/or
+Home) and **contextual links from features into the relevant doc section** (e.g. a small ⓘ by a feature
+deep-links to its docs anchor). And **keep the docs continuously current** — treat `docs/index.html` as a
+living in-app reference: whenever a run adds or changes a user-facing feature, update the docs in the SAME
+slice (standing responsibility — see Conventions). Style the docs to match the active app theme.
 
 **Z0 — Finish the terminology migration (Phase 2, started 2026-06-30).** Done so far: user-facing
 CDA→"Data Access", CDF→"Dashboard Framework"; CDE export removed from the menu/inspector/bundle/push/CLI;
