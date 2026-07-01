@@ -3515,6 +3515,58 @@
         else { if (window.__studioShellSetSection) window.__studioShellSetSection("studio"); enterFocusMode(); }
       } }
   ];
+  // Z5 follow-up: export/import Settings as JSON — the keys below are app-wide
+  // *preferences* (theme, mode, layout, connections), never dashboard content —
+  // that's already covered by Save/Open. Lets a user carry their setup to another
+  // browser/device or back it up before "Clear local data".
+  var SETTINGS_DATA_KEYS = [
+    "studio-theme", "studio-simple-mode", "studio-connections", "studio-active-conn",
+    "studio-lw", "studio-rw", "studio-collapse-library", "studio-collapse-inspector",
+    "studio-insp-collapsed", "studio-shell-section", "studio-shell-expanded"
+  ];
+  function exportSettingsFile() {
+    var out = { _type: "studio-settings", _v: 1 };
+    SETTINGS_DATA_KEYS.forEach(function (k) {
+      var v = null; try { v = localStorage.getItem(k); } catch (e) {}
+      if (v !== null) out[k] = v;
+    });
+    download("dashboard-studio-settings.json", JSON.stringify(out, null, 2), "application/json");
+  }
+  // applies a parsed settings-export object to localStorage; returns false if the
+  // file isn't recognized. Split out from importSettingsFile so it can be unit-tested
+  // without driving a real file-picker dialog.
+  function applySettingsData(data) {
+    if (!data || data._type !== "studio-settings") return false;
+    SETTINGS_DATA_KEYS.forEach(function (k) {
+      if (typeof data[k] === "string") { try { localStorage.setItem(k, data[k]); } catch (e) {} }
+    });
+    return true;
+  }
+  function importSettingsFile() {
+    var inp = el("input"); inp.type = "file"; inp.accept = ".json,application/json";
+    inp.onchange = function () {
+      var f = inp.files[0]; if (!f) return;
+      var rd = new FileReader();
+      rd.onload = function () {
+        var data;
+        try { data = JSON.parse(rd.result); } catch (e) { toast("Invalid settings file", true); return; }
+        if (!confirmAndApplySettings(data)) return;
+        toast("Settings imported — reloading…");
+        setTimeout(function () { location.reload(); }, 900);
+      };
+      rd.readAsText(f);
+    };
+    inp.click();
+  }
+  function confirmAndApplySettings(data) {
+    if (!data || data._type !== "studio-settings") { toast("Not a Dashboard Studio settings file", true); return false; }
+    if (!confirm("Import these settings? This replaces your current theme, mode, connections, and layout preferences, then reloads.")) return false;
+    return applySettingsData(data);
+  }
+  window.__studioExportSettings = exportSettingsFile; // test hook
+  window.__studioApplySettingsData = applySettingsData; // test hook (bypasses file-picker + confirm)
+  window.__studioImportSettingsKeys = SETTINGS_DATA_KEYS; // test hook
+
   function renderSettings() {
     var sec = $("#secSettings"); if (!sec) return;
     var groups = [];
@@ -3528,7 +3580,16 @@
               '<div class="set-row-txt"><b>' + esc(t.t) + '</b><small>' + esc(t.d) + '</small></div>' +
               '<label class="set-sw"><input type="checkbox" data-set="' + t.id + '"' + (t.on() ? " checked" : "") + '/><span class="set-sw-track"></span></label></div>';
           }).join("") + '</div>';
-      }).join("") + '</div>';
+      }).join("") +
+      '<div class="settings-card"><h2>Data</h2>' +
+        '<div class="set-row"><span class="set-row-ic" data-ic="download"></span>' +
+          '<div class="set-row-txt"><b>Export settings</b><small>Save theme, mode, connections &amp; layout preferences as a .json file.</small></div>' +
+          '<button type="button" class="btn" id="setExportBtn">Export</button></div>' +
+        '<div class="set-row"><span class="set-row-ic" data-ic="upload"></span>' +
+          '<div class="set-row-txt"><b>Import settings</b><small>Restore preferences from a previously exported settings file.</small></div>' +
+          '<button type="button" class="btn" id="setImportBtn">Import…</button></div>' +
+      '</div>' +
+      '</div>';
     sec.classList.add("has-content");
     sec.innerHTML = html;
     $$(".set-row-ic[data-ic]", sec).forEach(function (span) { span.appendChild(Studio.icon(span.getAttribute("data-ic"), 18)); });
@@ -3536,6 +3597,8 @@
       var t = SETTINGS_TOGGLES.filter(function (x) { return x.id === cb.getAttribute("data-set"); })[0];
       if (t) cb.addEventListener("change", t.set);
     });
+    var expBtn = $("#setExportBtn", sec); if (expBtn) expBtn.onclick = exportSettingsFile;
+    var impBtn = $("#setImportBtn", sec); if (impBtn) impBtn.onclick = importSettingsFile;
   }
   window.__studioRenderSettings = renderSettings; // test hook
 

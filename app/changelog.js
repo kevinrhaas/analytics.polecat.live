@@ -8,6 +8,11 @@
 window.STUDIO_BUILD = "__BUILD_TS__";
 
 window.STUDIO_CHANGELOG = [
+  { v: "v136", date: "2026-07-01", time: "07:30 UTC", title: "Z11: discoverable Help entry + Z5: Settings export/import as JSON", items: [
+      "Z11: the help docs were hard to find — buried as 'Help docs ⓘ' inside the ⋯ More menu. Added a persistent **Help** link at the bottom of the left rail (below Settings, above the collapse toggle) that opens `docs/index.html` in a new tab. It's a plain link, not a shell section, so it doesn't disturb the Home/Repository/Studio/Settings switcher — just a clearly visible, always-there way in.",
+      "Z5 follow-up: Settings gained a **Data** card with **Export settings** / **Import settings** — saves your theme, mode, server connections, and pane-layout preferences (not dashboard content — that's still Save/Open) as a `dashboard-studio-settings.json` file, and restores them from one. Handy before 'Clear local data', or to carry your setup to another browser/device.",
+      "`applySettingsData()` is factored out from the file-picker flow so it validates and rejects non-settings files independent of the browser's native file dialog. `docs/index.html` updated with a 'Backing up your settings' note. 4 new checks. Test suite 733/733.",
+    ] },
   { v: "v135", date: "2026-07-01", time: "06:00 UTC", title: "Z5 slice 1: Settings — first-class mode toggle switches", items: [
       "The Settings section (left rail) is no longer a placeholder: it now shows the app's mode toggles — Dark mode, Simple mode, Demo mode, Focus mode — as clear, labelled on/off switches, grouped into Appearance / Mode / Presentation cards. Previously these were buried and hard to find inside the ⋯ More menu (a user specifically couldn't locate Simple mode there).",
       "Each switch is a thin wrapper over the existing mode function (setTheme/toggleSimpleMode/toggleDemoMode/enter·exitFocusMode) — no parallel state was introduced, so the switch, the ⋯ More menu item, and any keyboard shortcut always agree. Flipping Focus mode from Settings jumps you into Studio so you immediately see the effect; exiting via Escape is reflected back in the switch next time Settings is shown.",

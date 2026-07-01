@@ -8789,7 +8789,7 @@ function serve() {
     // Z1-2: rail icons are real inline SVGs (Studio.icon(), theme-aware — no emoji/unicode glyphs)
     const z1Icons = await page.evaluate(function () {
       var svgs = document.querySelectorAll("#railNav .rail-ic svg");
-      return { ok: svgs.length === 5, count: svgs.length }; // 4 sections + collapse toggle
+      return { ok: svgs.length === 6, count: svgs.length }; // 4 sections + Help (Z11) + collapse toggle
     });
     ok("Z1: rail buttons render inline SVG icons (Studio.icon helper)", z1Icons.ok, JSON.stringify(z1Icons));
 
@@ -8993,7 +8993,7 @@ function serve() {
       var switches = Array.prototype.map.call(sec.querySelectorAll("input[data-set]"), function (cb) { return cb.getAttribute("data-set"); });
       return {
         visible: sec.hidden === false,
-        hasCards: sec.querySelectorAll(".settings-card").length === 3,
+        hasCards: sec.querySelectorAll(".settings-card").length === 4, // 3 toggle groups + Data (Z5 follow-up)
         switchIds: switches.join(","),
         darkChecked: sec.querySelector('input[data-set="dark"]').checked,
         simpleChecked: sec.querySelector('input[data-set="simple"]').checked,
@@ -9001,7 +9001,7 @@ function serve() {
         focusChecked: sec.querySelector('input[data-set="focus"]').checked
       };
     });
-    ok("Z5: Settings section renders 3 cards with 4 mode switches, all off by default",
+    ok("Z5: Settings section renders 4 cards (3 mode-switch groups + Data) with 4 mode switches, all off by default",
       z5Boot.visible && z5Boot.hasCards && z5Boot.switchIds === "dark,simple,demo,focus"
         && !z5Boot.darkChecked && !z5Boot.simpleChecked && !z5Boot.demoChecked && !z5Boot.focusChecked,
       JSON.stringify(z5Boot));
@@ -9057,6 +9057,60 @@ function serve() {
       return { focusOn: document.body.classList.contains("focus-mode"), checked: document.querySelector('#secSettings input[data-set="focus"]').checked };
     });
     ok("Z5: exiting Focus mode (Escape) is reflected back in the Settings switch", !z5FocusOff.focusOn && !z5FocusOff.checked, JSON.stringify(z5FocusOff));
+
+    // ── Z11: Help/docs — a persistent, discoverable rail entry (not buried in ⋯ More) ──
+    console.log("\n• Z11: rail Help entry");
+    const z11Help = await page.evaluate(function () {
+      var a = document.getElementById("railHelp");
+      return {
+        exists: !!a, tag: a && a.tagName,
+        href: a && a.getAttribute("href"),
+        target: a && a.getAttribute("target"),
+        hasIcon: !!(a && a.querySelector(".rail-ic svg")),
+        hasDataSec: !!(a && a.hasAttribute("data-sec"))
+      };
+    });
+    ok("Z11: rail carries a persistent Help entry linking to the docs (new tab, not a shell section)",
+      z11Help.exists && z11Help.tag === "A" && /docs\/index\.html$/.test(z11Help.href || "") && z11Help.target === "_blank" && z11Help.hasIcon && !z11Help.hasDataSec,
+      JSON.stringify(z11Help));
+
+    // ── Z5 follow-up: Settings — export/import preferences as JSON ──
+    console.log("\n• Z5 follow-up: Settings export/import JSON");
+    await page.click('#railNav .rail-item[data-sec="settings"]');
+    await page.waitForTimeout(100);
+    const z5Data = await page.evaluate(function () {
+      var sec = document.getElementById("secSettings");
+      return {
+        cardCount: sec.querySelectorAll(".settings-card").length,
+        hasExportBtn: !!sec.querySelector("#setExportBtn"),
+        hasImportBtn: !!sec.querySelector("#setImportBtn")
+      };
+    });
+    ok("Z5: Settings page has a Data card with Export/Import buttons",
+      z5Data.cardCount === 4 && z5Data.hasExportBtn && z5Data.hasImportBtn, JSON.stringify(z5Data));
+
+    const [z5Dl] = await Promise.all([page.waitForEvent("download"), page.click("#setExportBtn")]);
+    const z5DlName = z5Dl.suggestedFilename();
+    const z5DlStream = await z5Dl.createReadStream();
+    let z5DlText = "";
+    for await (const chunk of z5DlStream) z5DlText += chunk.toString();
+    let z5DlJson = {}; try { z5DlJson = JSON.parse(z5DlText); } catch (e) {}
+    ok("Z5: Export settings downloads a well-formed studio-settings JSON (includes theme key)",
+      z5DlName === "dashboard-studio-settings.json" && z5DlJson._type === "studio-settings" && typeof z5DlJson["studio-theme"] === "string",
+      z5DlName + " :: " + z5DlText.slice(0, 140));
+
+    const z5Import = await page.evaluate(function () {
+      localStorage.setItem("studio-theme", "light");
+      var ok1 = window.__studioApplySettingsData({ _type: "not-settings", "studio-theme": "dark" });
+      var afterRejected = localStorage.getItem("studio-theme");
+      var ok2 = window.__studioApplySettingsData({ _type: "studio-settings", _v: 1, "studio-theme": "dark" });
+      var afterApplied = localStorage.getItem("studio-theme");
+      localStorage.setItem("studio-theme", "light"); // restore for subsequent tests
+      return { ok1: ok1, ok2: ok2, afterRejected: afterRejected, afterApplied: afterApplied };
+    });
+    ok("Z5: applySettingsData rejects unrecognized files and applies recognized ones",
+      z5Import.ok1 === false && z5Import.afterRejected === "light" && z5Import.ok2 === true && z5Import.afterApplied === "dark",
+      JSON.stringify(z5Import));
 
     await page.evaluate(function () { window.__studioShellSetSection("studio"); });
     await page.waitForTimeout(80);

@@ -48,7 +48,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);-webkit-font-
 #railNav .rail-brand-txt{font-weight:800;font-size:13px;letter-spacing:.2px;overflow:hidden;text-overflow:ellipsis}
 #railNav .rail-item{display:flex;align-items:center;gap:12px;padding:12px 18px;background:none;border:0;
   color:var(--rail-ink);opacity:.72;cursor:pointer;white-space:nowrap;font-size:12.5px;font-weight:600;
-  font-family:var(--font);text-align:left}
+  font-family:var(--font);text-align:left;text-decoration:none}
 #railNav .rail-item:hover{opacity:1;background:var(--rail-bg2)}
 #railNav .rail-item.active{opacity:1;background:var(--rail-bg2);box-shadow:inset 3px 0 0 var(--rail-accent,#d4773b)}
 #railNav .rail-item[data-sec="home"]{--rail-accent:#ffb000}
@@ -60,6 +60,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);-webkit-font-
 #railNav .rail-lbl{overflow:hidden;text-overflow:ellipsis}
 #railNav:not(.expanded) .rail-lbl{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
 #railNav .rail-spacer{flex:1}
+/* Z11: Help/docs entry — a persistent, always-visible rail link (not buried in ⋯ More) */
+#railNav #railHelp{border-top:1px solid var(--rail-line)}
 #railNav .rail-toggle{opacity:.5;border-top:1px solid var(--rail-line)}
 #railNav .rail-toggle:hover{opacity:.9}
 @media(prefers-reduced-motion:reduce){#railNav{transition:none}}
