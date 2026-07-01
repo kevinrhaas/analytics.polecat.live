@@ -323,7 +323,13 @@
       label: "Scatter / bubble", icon: "✦", group: "Distribution",
       desc: "Correlation between two numeric variables",
       fields: ["xCol", "yCol", "rCol", "labelCol"],
+      // Z8 slice 6: scatter gets its own type-specific options — a Value format
+      // (axis ticks + tooltip were always PDC.fmt.abbr with no way to change it)
+      // and a Show trend line toggle (least-squares regression line, computed in
+      // studio-charts.js so the vendored toolkit stays untouched).
       opts: [
+        { key: "fmt",    type: "fmt",  label: "Value format", def: "abbr" },
+        { key: "trend",  type: "bool", label: "Show trend line (regression)", def: false },
         { key: "xLabel", type: "text", label: "X axis label", def: "" },
         { key: "yLabel", type: "text", label: "Y axis label", def: "" },
         { key: "height", type: "int",  label: "Height (px)", def: 300 }

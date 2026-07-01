@@ -8104,6 +8104,83 @@ function serve() {
     });
     ok("Z8M: treemap panel inspector shows Show tile labels / Show % of total fields", z8mInsp.ok, JSON.stringify(z8mInsp));
 
+    // ── Z8 slice 6: Scatter gets its own type-specific options (value format + trend line) ──
+    console.log("\n• Z8 scatter: value format + trend line");
+
+    // Z8SC-1: scatter registry declares fmt + trend (in addition to existing xLabel/yLabel/height)
+    var z8scOpts = await page.evaluate(function () {
+      var o = (window.Studio.CHARTS.scatter || {}).opts || [];
+      var keys = o.map(function (od) { return od.key; });
+      return { ok: keys.indexOf("fmt") >= 0 && keys.indexOf("trend") >= 0 && keys.indexOf("xLabel") >= 0 && keys.indexOf("yLabel") >= 0, keys: keys };
+    });
+    ok("Z8SC: Studio.CHARTS.scatter.opts declares fmt + trend", z8scOpts.ok, JSON.stringify(z8scOpts));
+
+    // Z8SC-2: cfg.trend is off by default (no .trend-line) and draws one dashed regression
+    // line through the points when enabled
+    var z8scTrend = await page.evaluate(function () {
+      var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
+      for (var i = 0; i < iframes.length; i++) {
+        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.scatter === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+      }
+      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      try {
+        var pts = [{ x: 1, y: 2 }, { x: 2, y: 4 }, { x: 3, y: 5.9 }, { x: 4, y: 8.1 }];
+        var el1 = iframeDoc.createElement("div");
+        el1.style.cssText = "position:absolute;top:-9999px;width:300px";
+        iframeDoc.body.appendChild(el1);
+        w.PDC.scatter(el1, { points: pts, height: 280 });
+        var offCount = el1.querySelectorAll(".trend-line").length;
+        iframeDoc.body.removeChild(el1);
+        var el2 = iframeDoc.createElement("div");
+        el2.style.cssText = "position:absolute;top:-9999px;width:300px";
+        iframeDoc.body.appendChild(el2);
+        w.PDC.scatter(el2, { points: pts, height: 280, trend: true });
+        var onCount = el2.querySelectorAll(".trend-line").length;
+        var dots = el2.querySelectorAll(".dot").length;
+        iframeDoc.body.removeChild(el2);
+        return { ok: offCount === 0 && onCount === 1 && dots === pts.length, offCount: offCount, onCount: onCount, dots: dots };
+      } catch (e) { return { ok: false, err: e.message }; }
+    });
+    ok("Z8SC: trend line hidden by default; cfg.trend:true draws exactly one regression line", z8scTrend.ok, JSON.stringify(z8scTrend));
+
+    // Z8SC-3: cfg.fmtX / cfg.fmtY format the axis tick text
+    var z8scFmt = await page.evaluate(function () {
+      var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
+      for (var i = 0; i < iframes.length; i++) {
+        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.scatter === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+      }
+      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      try {
+        var el = iframeDoc.createElement("div");
+        el.style.cssText = "position:absolute;top:-9999px;width:300px";
+        iframeDoc.body.appendChild(el);
+        w.PDC.scatter(el, { points: [{ x: 10, y: 20 }], height: 280, fmtX: function (v) { return "~x" + v + "~"; }, fmtY: function (v) { return "~y" + v + "~"; } });
+        var texts = [].map.call(el.querySelectorAll("svg text.tick"), function (t) { return t.textContent; });
+        var hasX = texts.some(function (t) { return /~x/.test(t); });
+        var hasY = texts.some(function (t) { return /~y/.test(t); });
+        iframeDoc.body.removeChild(el);
+        return { ok: hasX && hasY, texts: texts };
+      } catch (e) { return { ok: false, err: e.message }; }
+    });
+    ok("Z8SC: cfg.fmtX / cfg.fmtY format the axis tick labels", z8scFmt.ok, JSON.stringify(z8scFmt));
+
+    // Z8SC-4: the panel inspector shows the new scatter-specific fields when a Scatter panel is selected
+    var z8scInsp = await page.evaluate(function () {
+      var spec = window.__STUDIO_STATE.spec;
+      var p = spec.panels[0];
+      var prevChart = JSON.parse(JSON.stringify(p.chart));
+      p.chart.type = "scatter"; p.chart.opts = {};
+      window.__studioSelect({ kind: "panel", id: p.id });
+      var body = document.getElementById("inspBody");
+      var text = body ? body.textContent : "";
+      var ok = text.indexOf("Value format") >= 0 && text.indexOf("Show trend line") >= 0;
+      p.chart = prevChart; // restore so later tests aren't affected
+      window.__studioSelect(null);
+      window.__studioRenderInspector();
+      return { ok: ok, hasText: text.indexOf("Show trend line") >= 0 };
+    });
+    ok("Z8SC: scatter panel inspector shows Value format / Show trend line fields", z8scInsp.ok, JSON.stringify(z8scInsp));
+
     // ── F26: Parallel coordinates chart ────────────────────────────────────────
     console.log("\n• F26: parallel coordinates chart");
 

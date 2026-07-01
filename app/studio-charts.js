@@ -2963,6 +2963,65 @@
     }
   }
 
+  /* ── Enhanced scatter / bubble chart (override PDC.scatter, Z8 slice 6) ─────
+     Base PDC.scatter (pdc-ui.js) always formats axis ticks + tooltips with
+     PDC.fmt.abbr and has no way to reveal the linear relationship between the
+     two plotted variables. This override keeps the identical dot-plot layout
+     (same axis scaling + bubble-radius encoding) and adds cfg.fmtX/cfg.fmtY
+     (now wired to the panel's Value format option) plus an optional
+     cfg.trend — a least-squares regression line through the points, so a
+     builder can show correlation direction/strength without leaving the tool.
+     Base kept as PDC._scatterBase for reference. */
+  PDC._scatterBase = PDC.scatter;
+
+  PDC.scatter = function (el, cfg) { reg(el, function () { _scatterTrend(el, cfg); }); };
+
+  function _scatterTrend(el, cfg) {
+    var pts = cfg.points || [], h = cfg.height || 280;
+    if (!pts.length) { el.innerHTML = '<div class="empty">No data</div>'; return; }
+    var o = mkSVG(el, h), s = o.s, w = o.w, fx = cfg.fmtX || PDC.fmt.abbr, fy = cfg.fmtY || PDC.fmt.abbr;
+    var mL = 48, mR = 14, mT = 12, mB = 34, iw = w - mL - mR, ih = h - mT - mB;
+    var xmax = niceMax(Math.max.apply(null, pts.map(function (p) { return +p.x || 0; })));
+    var ymax = niceMax(Math.max.apply(null, pts.map(function (p) { return +p.y || 0; })));
+    var rmax = Math.max.apply(null, pts.map(function (p) { return +p.r || 1; })) || 1;
+    var xs = function (v) { return mL + iw * (v / xmax); }, ys = function (v) { return mT + ih * (1 - v / ymax); };
+    for (var g = 0; g <= 4; g++) {
+      var gy = mT + ih * (1 - g / 4), gx = mL + iw * g / 4;
+      s.appendChild(S("line", { class: "gridline", x1: mL, y1: gy, x2: w - mR, y2: gy }));
+      s.appendChild(S("text", { class: "tick", x: mL - 7, y: gy + 3, "text-anchor": "end" }, fy(ymax * g / 4)));
+      s.appendChild(S("text", { class: "tick", x: gx, y: mT + ih + 14, "text-anchor": "middle" }, fx(xmax * g / 4)));
+    }
+    if (cfg.xLabel) s.appendChild(S("text", { class: "axis-label", x: mL + iw / 2, y: h - 2, "text-anchor": "middle" }, cfg.xLabel));
+    if (cfg.yLabel) {
+      var yl = S("text", { class: "axis-label", x: 12, y: mT + ih / 2, "text-anchor": "middle" }, cfg.yLabel);
+      yl.setAttribute("transform", "rotate(-90 12 " + (mT + ih / 2) + ")");
+      s.appendChild(yl);
+    }
+    // Optional trend line: ordinary least-squares regression (y = slope·x + intercept)
+    // through every plotted point, clamped to the visible axis range.
+    if (cfg.trend && pts.length > 1) {
+      var n = pts.length, sx = 0, sy = 0, sxy = 0, sxx = 0;
+      pts.forEach(function (p) { var px = +p.x || 0, py = +p.y || 0; sx += px; sy += py; sxy += px * py; sxx += px * px; });
+      var denom = n * sxx - sx * sx;
+      if (denom) {
+        var slope = (n * sxy - sx * sy) / denom, intercept = (sy - slope * sx) / n;
+        var ty0 = Math.max(0, Math.min(ymax, intercept)), ty1 = Math.max(0, Math.min(ymax, intercept + slope * xmax));
+        s.appendChild(S("line", { x1: xs(0), y1: ys(ty0), x2: xs(xmax), y2: ys(ty1), class: "trend-line",
+          stroke: PDC.cssvar("--bad"), "stroke-width": 2, "stroke-dasharray": "6,4", opacity: .8 }));
+      }
+    }
+    pts.forEach(function (p, i) {
+      var rr = 6 + 18 * Math.sqrt((+p.r || 1) / rmax);
+      var c = S("circle", { cx: xs(+p.x || 0), cy: ys(+p.y || 0), r: rr, fill: p.color || PDC.color(i), opacity: .62, stroke: p.color || PDC.color(i), "stroke-width": 1.2, class: "dot" });
+      c.addEventListener("mousemove", function (e) {
+        PDC.showTip(e, "<b>" + (p.label || "") + "</b><br>" + (cfg.xLabel || "x") + ": " + fx(p.x) + "<br>" + (cfg.yLabel || "y") + ": " + fy(p.y) +
+          (p.r != null ? "<br>" + (cfg.rLabel || "size") + ": " + PDC.fmt.abbr(p.r) : ""));
+      });
+      c.addEventListener("mouseout", PDC.hideTip);
+      s.appendChild(c);
+    });
+  }
+
   /* ---------- parallel coordinates chart (multi-dimensional entity comparison) ----------
      Each entity (row) is drawn as a polyline connecting its values across N parallel
      vertical axes. Each axis represents one numeric dimension and has its own min/max

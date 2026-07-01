@@ -248,7 +248,11 @@
           break;
         case "scatter":
           var xi = res.col(m.xCol), yi = res.col(m.yCol), ri = m.rCol ? res.col(m.rCol) : -1, lbi = m.labelCol ? res.col(m.labelCol) : -1;
+          // o.fmt didn't exist on scatter panels before this option was added, so fall back
+          // to abbr (the chart's true default) rather than the ambient plain/identity fallback.
+          var sf = o.fmt ? f : PDC.fmt.abbr;
           PDC.scatter(body, { height: o.height || 300, xLabel: o.xLabel || m.xCol, yLabel: o.yLabel || m.yCol,
+            fmtX: sf, fmtY: sf, trend: !!o.trend,
             points: res.rows.map(function (r) {
               return { x: +r[xi] || 0, y: +r[yi] || 0, r: ri >= 0 ? +r[ri] || 1 : 1, label: lbi >= 0 ? String(r[lbi]) : "" };
             }) });
