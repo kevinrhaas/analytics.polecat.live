@@ -8,6 +8,12 @@
 window.STUDIO_BUILD = "__BUILD_TS__";
 
 window.STUDIO_CHANGELOG = [
+  { v: "v137", date: "2026-07-01", time: "09:00 UTC", title: "Z9: fix invisible topbar dropdowns at tablet width", items: [
+      "Found and fixed the root cause of a user-reported mobile regression: 'the top button-bar scrolls/slides but its dropdown menus don't open/work'. At **tablet widths (641–900px)**, `#topbar`/`.top-actions` need `overflow:hidden` to stop the button row from forcing page-level horizontal scroll — but that same clip box was also hiding every dropdown (New ▾ / Examples ▾ / Export ▾ / ⋯ More), since each `.menu` is `position:absolute` and extends below the topbar's own box.",
+      "The bug was invisible to a naive check: the menu still gained its `.open` class and reported normal computed styles, so both a DOM inspection and Playwright's default click/tap actionability check reported success — while the menu was genuinely unrendered on screen. Confirmed with a screenshot before fixing, then again after.",
+      "Fix: extended the same `position:fixed` escape-hatch already used at ≤640px (phone) to the tablet range, anchored under its button instead of stretched full-width. Buttons row keeps its overflow clipping (still needed to prevent horizontal page scroll); only the opened dropdown escapes it.",
+      "Added an `elementFromPoint`-based regression test for New ▾ / Export ▾ / ⋯ More at a tablet viewport (800×1024) — the only check that actually catches ancestor-overflow clipping, since `.classList.contains('open')` alone does not. Verified it fails on the old CSS and passes on the fix. 4 new checks. Test suite 737/737.",
+    ] },
   { v: "v136", date: "2026-07-01", time: "07:30 UTC", title: "Z11: discoverable Help entry + Z5: Settings export/import as JSON", items: [
       "Z11: the help docs were hard to find — buried as 'Help docs ⓘ' inside the ⋯ More menu. Added a persistent **Help** link at the bottom of the left rail (below Settings, above the collapse toggle) that opens `docs/index.html` in a new tab. It's a plain link, not a shell section, so it doesn't disturb the Home/Repository/Studio/Settings switcher — just a clearly visible, always-there way in.",
       "Z5 follow-up: Settings gained a **Data** card with **Export settings** / **Import settings** — saves your theme, mode, server connections, and pane-layout preferences (not dashboard content — that's still Save/Open) as a `dashboard-studio-settings.json` file, and restores them from one. Handy before 'Clear local data', or to carry your setup to another browser/device.",

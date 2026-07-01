@@ -519,6 +519,12 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
   .btn-secondary{display:none}
   #btnMore{display:flex}
   #workspace{overflow-x:auto}
+  /* Z9 fix: #topbar/.top-actions need overflow:hidden here to stop the button row
+     from forcing page-level horizontal scroll — but that same clipping box also hid
+     every dropdown (New/Examples/Export/More), since .menu is position:absolute and
+     extends below the topbar's own box. Escape via position:fixed so tablet-width
+     dropdowns are reachable at all (previously only the ≤640 phone rule below did this). */
+  .top-actions .menu{position:fixed;top:64px;right:12px;left:auto;width:max-content;max-width:min(80vw,320px)}
 }
 /* phone-pos: examples menu opened from the More menu gets fixed position below the topbar */
 #menuExamples.phone-pos{position:fixed;top:64px;left:8px;right:8px;max-width:none}

@@ -2514,6 +2514,44 @@ function serve() {
     });
     ok("phone viewport: clicking ⋯ More opens the More menu", moreMenuOpen);
 
+    // ---- Z9: tablet-width dropdown menus must be genuinely reachable, not just
+    // marked .open in the DOM. #topbar/.top-actions need overflow:hidden at ≤900px
+    // to stop the button row from forcing page-level horizontal scroll, but that
+    // same clip box was ALSO hiding every dropdown (New/Examples/Export/More) since
+    // .menu is position:absolute and extends below the topbar. A plain .classList
+    // check (as M1 does above) doesn't catch this — Playwright's click/tap
+    // actionability check passes even though the menu is invisible. Use
+    // elementFromPoint, which respects real ancestor clipping, to confirm a menu
+    // item is actually the thing under its own pixels (tablet viewport 800×1024).
+    console.log("\n• Tablet dropdown reachability (Z9) 800×1024");
+    const tabletPage = await browser.newPage({ viewport: { width: 800, height: 1024 } });
+    await tabletPage.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); } catch (e) {} });
+    await tabletPage.goto(`http://localhost:${PORT}/`, { waitUntil: "networkidle" });
+    await tabletPage.waitForTimeout(500);
+
+    async function menuItemReachable(page, btnId, menuId) {
+      return page.evaluate(function (ids) {
+        var btn = document.getElementById(ids.btnId);
+        var menu = document.getElementById(ids.menuId);
+        btn.click();
+        var item = menu.querySelector("button");
+        var r = item.getBoundingClientRect();
+        var underPointer = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        var reachable = item === underPointer || item.contains(underPointer);
+        var wasOpen = menu.classList.contains("open");
+        btn.click(); // close again
+        return { wasOpen: wasOpen, reachable: reachable, itemRect: r };
+      }, { btnId: btnId, menuId: menuId });
+    }
+    const moreReach = await menuItemReachable(tabletPage, "btnMore", "menuMore");
+    ok("tablet viewport: ⋯ More menu opens", moreReach.wasOpen, JSON.stringify(moreReach));
+    ok("tablet viewport: ⋯ More menu items are actually reachable (not clipped by #topbar overflow)", moreReach.reachable, JSON.stringify(moreReach));
+    const newReach = await menuItemReachable(tabletPage, "btnNew", "menuNew");
+    ok("tablet viewport: New ▾ menu opens and its items are reachable", newReach.wasOpen && newReach.reachable, JSON.stringify(newReach));
+    const exportReach = await menuItemReachable(tabletPage, "btnExport", "menuExport");
+    ok("tablet viewport: Export ▾ menu opens and its items are reachable", exportReach.wasOpen && exportReach.reachable, JSON.stringify(exportReach));
+    await tabletPage.close();
+
     // ---- M2: panes → drawers (same phone viewport, close the More menu first) ----
     console.log("\n• Mobile drawers (M2) phone 390×844");
     await phonePage.click("#btnMore"); // close the More menu that was opened above
