@@ -313,7 +313,7 @@
     var printCss = !opts.preview ?
       "\n@media print{" +
         ".pdc-header{position:static!important;box-shadow:none!important;border-bottom:1px solid #d0d4da}" +
-        "#qInfoBtn,#themeBtn,#printBtn,#ctrls,.pdc-foot{display:none!important}" +
+        "#qInfoBtn,#themeBtn,#printBtn,#ctrls{display:none!important}" +
         "body{background:#fff!important;color:#000!important}" +
         ".pdc-wrap{padding:12px 16px}" +
         ".pdc-grid{gap:12px}" +
@@ -359,8 +359,7 @@
       "<div class=\"pdc-wrap\">\n  <div class=\"pdc-kpis\" id=\"kpis\"></div>\n" +
       (spec.description ? "  <div class=\"pdc-desc-bar\">" + xml(spec.description) + "</div>\n" : "") +
       "  <div id=\"content\"><div class=\"loading\">Loading…</div></div>\n" +
-      "  <div class=\"pdc-foot\">Pentaho Data Catalog Analytics · built with Analytics Dashboard Studio (analytics.polecat.live) · data via CDA over <code>" +
-      xml(spec.cda.connection.jndi) + "</code> · no external dependencies</div>\n</div>\n";
+      "</div>\n";
     var charts = assets.charts ? ("<script>\n" + assets.charts + "\n</script>\n") : "";
     var boot = "<script>\n" + assets.js + "\n</script>\n" + charts + "<script>\n" + assets.render + "\n</script>\n<script>\n" +
       "window.STUDIO_AUTOBOOT=false;\n" +
