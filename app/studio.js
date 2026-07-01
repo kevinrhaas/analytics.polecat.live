@@ -2879,6 +2879,23 @@
         if (v) k.compareLabel = v; else delete k.compareLabel; refreshPreview();
       }, "e.g. Prior quarter, Target")));
     }
+
+    // Click-through: click the tile to navigate to another dashboard, mirroring panel
+    // Drill-through (Z8 KPI slice) — same shared PDC.bindDrill helper bars/donut use.
+    var kd = advSection(body, "Click-through", null, function () {
+      return k.drill && k.drill.url ? k.drill.url.slice(0, 24) : "";
+    });
+    var kDrillCfg = k.drill || {};
+    kd.appendChild(field("Target URL", input(kDrillCfg.url || "", function (v) {
+      if (!k.drill) k.drill = {};
+      k.drill.url = v.trim();
+      refreshPreview();
+    })));
+    kd.appendChild(field("URL parameter", input(kDrillCfg.param || "", function (v) {
+      if (!k.drill) k.drill = {};
+      k.drill.param = v.trim();
+    })));
+    kd.appendChild(noteEl("info", "Click the tile to navigate to the target URL with ?{param}={value}. Uses PDC.drill — carries all active filter values. Leave URL empty to disable."));
   }
 
   /* ---------- chart-type change / rebind ---------- */

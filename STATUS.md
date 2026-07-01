@@ -336,6 +336,13 @@
   rolled over from Monday before with no way to change it). `PDC.calHeatmap` in `studio-charts.js` reads
   `cfg.color`/`cfg.weekStart` (weekday labels reorder to match); `studio-render.js` passes both through
   via the existing `color()` token helper. `docs/index.html` updated. 3 new Z8-11 tests. Test suite 777/777.
+- v149: **Z8 slice 12: KPI tiles get click-through** — a new "Click-through" section in every KPI
+  inspector (Target URL + URL parameter) lets a tile navigate to another dashboard when clicked, giving
+  KPIs the same drill-out affordance bars/donut already have via panel Drill-through. Bound with the same
+  shared `PDC.bindDrill` helper directly on the `.kpi` tile element (carries the tile's raw value as the
+  drill label); works in the live preview and every exported CDF (studio-render.js is inlined into
+  exports, so no exporter changes needed). `docs/index.html` KPI card updated. 4 new tests. Test suite
+  781/781.
 - v146: **Z8 slice 9: Bar chart gets its own options** — `Studio.CHARTS.bars.opts` gains **Sort by value**
   (largest-first, same convention as Donut's "Sort slices") and **Show value labels** (hide the always-on
   value text for a cleaner look on dense charts). `PDC.bars` overridden in `studio-charts.js`
@@ -498,9 +505,12 @@ self-explanatory. Keep it light (inline SVG / CSS, no image assets or deps). One
 > ✓ **Slice 11 shipped v148**: **Calendar heatmap** gets its own options — **Cell color** (was hardcoded
 > to the brand color) and **Week starts on** (Monday/Sunday — weeks always rolled over from Monday
 > before). Same per-type override pattern; weekday labels reorder to match the chosen start day.
+> ✓ **Slice 12 shipped v149**: **KPI tiles** get a "Click-through" section (Target URL + URL parameter) —
+> click a tile to navigate to another dashboard, using the same shared `PDC.bindDrill` helper bars/donut
+> already use for Drill-through. First KPI-specific inspector addition under Z8.
 > **Z8 follow-ups (not yet done, the bulk of the track):** a real per-type capability map covering the
 > REST of the ~51 types' *own* option sets (Table, Gauge, Treemap, Scatter, Line, Donut, Bars, Stacked
-> bars, Calendar heatmap done; still needed: KPI, areaStacked/streamgraph, sankey/chord/network, and the
+> bars, Calendar heatmap, KPI done; still needed: areaStacked/streamgraph, sankey/chord/network, and the
 > rest), plus the inline visual setting hints (tiny before/after thumbnails). Continue one slice per loop.
 
 **Z9 — Mobile: fix the broken flows + a proper bottom nav (user-requested 2026-06-30).** Reported

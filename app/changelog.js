@@ -8,6 +8,10 @@
 window.STUDIO_BUILD = "__BUILD_TS__";
 
 window.STUDIO_CHANGELOG = [
+  { v: "v149", date: "2026-07-01", time: "19:30 UTC", title: "Z8 slice 12: KPI tiles get click-through", items: [
+      "Continues the Z8 track's per-type option sets (Table/Gauge/Treemap/Scatter/Line/Donut/Bars/Stacked/Calendar heatmap in v139–v148) with **KPI tiles**: a new 'Click-through' section in the KPI inspector (Target URL + URL parameter) lets a tile navigate to another dashboard when clicked — mirroring the panel Drill-through feature bars/donut already have.",
+      "Uses the same shared `PDC.bindDrill` helper as bars/donut/lollipop, bound directly to the `.kpi` tile element with the KPI's raw value as the carried label; works in the live preview and in exported CDF (studio-render.js is inlined into every export). `docs/index.html` KPI card updated. 4 new Z8 KPI tests. Test suite 781/781.",
+    ] },
   { v: "v148", date: "2026-07-01", time: "18:25 UTC", title: "Z8 slice 11: Calendar heatmap gets its own options — cell color + week start", items: [
       "Continues the Z8 track's per-type option sets (Table/Gauge/Treemap/Scatter/Line/Donut/Bars/Stacked in v139–v147) with Calendar heatmap: `Studio.CHARTS.calHeatmap.opts` now includes **Cell color** (was hardcoded to the brand color) and **Week starts on** (Monday/Sunday — weeks always rolled over from Monday before, with no way to change it).",
       "`PDC.calHeatmap` in `app/studio-charts.js` reads `cfg.color` for the filled-cell color and `cfg.weekStart` to decide which weekday starts each row (weekday labels reorder to match); `studio-render.js` passes both through via the existing `color()` token-resolving helper. `docs/index.html` Calendar heatmap card updated. 3 new Z8-11 tests. Test suite 777/777.",

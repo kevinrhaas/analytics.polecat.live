@@ -9899,6 +9899,70 @@ function serve() {
     await page.evaluate(function () { window.__studioShellSetSection("studio"); });
     await page.waitForTimeout(80);
 
+    // ── Z8 KPI slice: KPI click-through (drill) ──────────────────────────────
+    console.log("\n• Z8 KPI: click-through");
+
+    // 1. 'Click-through' section appears in the KPI inspector when a KPI is selected
+    await page.evaluate(async function () {
+      var freshSpec = await fetch("data/examples/studio-cost.studio.json").then(function (r) { return r.json(); });
+      window.__studioLoad(freshSpec);
+    });
+    await page.waitForTimeout(300);
+    await page.evaluate(function () {
+      try {
+        var iw = document.getElementById("preview") && document.getElementById("preview").contentWindow;
+        var kpiEl = iw && iw.document.querySelector(".kpi");
+        if (kpiEl) kpiEl.click();
+      } catch (e) {}
+    });
+    await page.waitForTimeout(400);
+    const kpiDrillInsp = await page.evaluate(function () {
+      try {
+        var insp = document.getElementById("inspBody") || document.getElementById("inspector");
+        if (!insp) return { found: false, reason: "no inspector element" };
+        var headers = Array.from(insp.querySelectorAll(".insp-sec h4")).map(function (h) { return h.textContent.trim(); });
+        return { found: headers.some(function (t) { return /Click-through/i.test(t); }), headers: headers };
+      } catch (e) { return { found: false, err: e.message }; }
+    });
+    ok("Z8 KPI: 'Click-through' section appears in KPI inspector", kpiDrillInsp.found, JSON.stringify(kpiDrillInsp));
+
+    // 2. k.drill.url / k.drill.param persist in spec after being set
+    const kpiDrillPersist = await page.evaluate(async function () {
+      try {
+        var freshSpec = await fetch("data/examples/studio-cost.studio.json").then(function (r) { return r.json(); });
+        if (!freshSpec.kpis || !freshSpec.kpis.length) return { ok: false, reason: "no KPIs" };
+        var k = freshSpec.kpis[0];
+        k.drill = { url: "https://pentaho.example.com/dashboards/kpi-detail.html", param: "kpi" };
+        window.__studioLoad(freshSpec);
+        var loaded = window.__STUDIO_STATE.spec;
+        var kk = (loaded.kpis || [])[0];
+        return { ok: kk && kk.drill && kk.drill.url === "https://pentaho.example.com/dashboards/kpi-detail.html" && kk.drill.param === "kpi" };
+      } catch (e) { return { ok: false, err: e.message }; }
+    });
+    ok("Z8 KPI: k.drill.url and k.drill.param persist in spec", kpiDrillPersist.ok, JSON.stringify(kpiDrillPersist));
+
+    // 3. After rendering, the KPI tile with a drill URL gets cursor:pointer from PDC.bindDrill
+    await page.waitForTimeout(600);
+    const kpiDrillCursor = await page.evaluate(function () {
+      try {
+        var iframe = document.querySelector("#preview");
+        if (!iframe || !iframe.contentDocument) return { ok: false, reason: "no iframe" };
+        var tiles = iframe.contentDocument.querySelectorAll(".kpi");
+        if (!tiles.length) return { ok: false, reason: "no .kpi tiles" };
+        return { ok: tiles[0].style.cursor === "pointer", cursor: tiles[0].style.cursor };
+      } catch (e) { return { ok: false, err: e.message }; }
+    });
+    ok("Z8 KPI: KPI tile with a drill URL gets cursor:pointer (PDC.bindDrill wired)", kpiDrillCursor.ok, JSON.stringify(kpiDrillCursor));
+
+    // 4. Exported CDF HTML embeds the drill config in STUDIO_SPEC
+    const kpiDrillExport = await page.evaluate(function () {
+      try {
+        var html = Studio.buildHtml(window.__STUDIO_STATE.spec, window.__STUDIO_STATE.assets, { preview: false });
+        return { hasDrill: html.indexOf("kpi-detail.html") >= 0 };
+      } catch (e) { return { hasDrill: false, err: e.message }; }
+    });
+    ok("Z8 KPI: exported CDF HTML embeds KPI drill config in STUDIO_SPEC", kpiDrillExport.hasDrill, JSON.stringify(kpiDrillExport));
+
     // restore Studio + a clean flagship spec for any tests appended after this block
     await page.evaluate(async function () {
       const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json());

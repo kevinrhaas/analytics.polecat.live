@@ -1076,7 +1076,7 @@
         // after PDC.kpis renders, using PDC.sparkSvgBar / PDC.sparkSvgArea from studio-charts.js.
         var _kTiles = spec.kpis.map(function (k) {
           var res = data[k.da], val = res ? (res.rows[0] || [])[res.col(k.valueCol)] : "—";
-          var tile = { value: fmt(k.fmt)(val), label: k.label, state: k.state || "", info: k.info || "" };
+          var tile = { value: fmt(k.fmt)(val), label: k.label, state: k.state || "", info: k.info || "", _raw: val };
           // Computed comparison delta: compareCol auto-computes the delta from a second numeric
           // column (same DA first row). Takes priority over manual deltaText when both are set.
           if (k.compareCol && res) {
@@ -1133,6 +1133,13 @@
           sub.className = "kpi-sub";
           sub.textContent = k.subtitle;
           kDiv.appendChild(sub);
+        });
+        // KPI click-through: navigate to a target URL when the tile is clicked, mirroring
+        // panel Drill-through (same shared PDC.bindDrill helper bars/donut use).
+        spec.kpis.forEach(function (k, idx) {
+          if (!k.drill || !k.drill.url) return;
+          var kDiv = kEl.querySelectorAll(".kpi")[idx]; if (!kDiv) return;
+          PDC.bindDrill(kDiv, { to: k.drill.url, param: k.drill.param }, _kTiles[idx]._raw);
         });
         if (isPreview()) tagKpis(kEl, spec);
       } else kEl.innerHTML = "";
