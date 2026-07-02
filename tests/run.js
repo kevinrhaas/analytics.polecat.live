@@ -740,7 +740,7 @@ function serve() {
         await new Promise((r) => setTimeout(r, 350));
         const d = ifr.contentDocument;
         const cards = d.querySelectorAll("#content .card").length;
-        const svgs = d.querySelectorAll("#content svg, #content table").length;
+        const svgs = d.querySelectorAll("#content svg, #content table, #content .sr-richtext").length;
         const err = /Render error|Could not load/.test((d.querySelector("#content") || {}).textContent || "");
         ifr.remove();
         return { cards, svgs, err, panels: spec.panels.length };
@@ -818,6 +818,29 @@ function serve() {
     ok("Z13: finance-command is listed among the bundled examples", finShow.inIndex);
     ok("Z13: finance-command covers all 8 target chart types", wantFinTypes.every((t) => finShow.types.includes(t)), finShow.types.join(","));
     ok("Z13: every finance-command panel renders visual content", Object.values(finShow.perType).every((n) => n > 0), JSON.stringify(finShow.perType));
+
+    // ---- Z13: "marketing-growth" showcase covers 10 more chart types unused by any other example ----
+    console.log("\n• Z13: marketing-growth showcase (richtext/streamgraph/slope/dotplot/polarArea/step/marimekko/packedBubble/pyramidBar/barNorm)");
+    const mktShow = await page.evaluate(async () => {
+      const spec = await fetch("data/examples/marketing-growth.studio.json").then((r) => r.json());
+      const S = window.__STUDIO_STATE;
+      const html = Studio.buildHtml(spec, S.assets, { deployPath: "/x", preview: true, mock: Studio.genMock(spec), launcher: false });
+      const ifr = document.createElement("iframe");
+      ifr.style.cssText = "position:fixed;left:-9999px;width:1200px;height:900px";
+      document.body.appendChild(ifr);
+      await new Promise((res) => { ifr.onload = res; ifr.srcdoc = html; });
+      await new Promise((r) => setTimeout(r, 400));
+      const d = ifr.contentDocument;
+      const cards = Array.from(d.querySelectorAll("#content .card"));
+      const perType = {};
+      spec.panels.forEach((p, i) => { perType[p.chart.type] = (cards[i] && cards[i].querySelectorAll("svg,table,.sr-richtext").length) || 0; });
+      ifr.remove();
+      return { types: spec.panels.map((p) => p.chart.type), perType, inIndex: (window.__STUDIO_STATE.examples || []).some((e) => e.file === "marketing-growth.studio.json") };
+    });
+    const wantMktTypes = ["richtext", "streamgraph", "slope", "dotplot", "polarArea", "step", "marimekko", "packedBubble", "pyramidBar", "barNorm"];
+    ok("Z13: marketing-growth is listed among the bundled examples", mktShow.inIndex);
+    ok("Z13: marketing-growth covers all 10 target chart types", wantMktTypes.every((t) => mktShow.types.includes(t)), mktShow.types.join(","));
+    ok("Z13: every marketing-growth panel renders visual content", Object.values(mktShow.perType).every((n) => n > 0), JSON.stringify(mktShow.perType));
 
     // ---- builder dark mode (themes app + preview) ----
     console.log("\n• dark mode + export modal");

@@ -36,6 +36,15 @@
     "layout": [["candlestick", "full"], ["areaRange", 2], ["divergingBar", 1], ["radialBar", 1], ["icicle", 1], ["chord", 1], ["parallelCoords", 2], ["gantt", "full"]]
   },
   {
+    "file": "marketing-growth.studio.json",
+    "title": "Marketing & Growth Performance Console",
+    "panels": 10,
+    "kpis": 4,
+    "gridCols": 3,
+    "types": ["richtext", "streamgraph", "slope", "dotplot", "polarArea", "step", "marimekko", "packedBubble", "pyramidBar", "barNorm"],
+    "layout": [["richtext", "full"], ["streamgraph", 2], ["slope", 1], ["dotplot", 1], ["polarArea", 1], ["step", 1], ["marimekko", 2], ["packedBubble", 1], ["pyramidBar", 1], ["barNorm", 1]]
+  },
+  {
     "file": "compliance-radar.studio.json",
     "title": "Sensitivity & Compliance Radar",
     "panels": 5,

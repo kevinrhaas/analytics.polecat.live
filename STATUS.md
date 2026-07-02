@@ -422,6 +422,18 @@
   example. Also added a `signed` classify kind to `app/sampledata.js` (variance/delta/diff/change column
   names → alternating +/- values) so diverging-bar-style panels actually diverge in the offline preview.
   `docs/index.html` example count corrected 8→9. 3 new Z13 tests. Test suite 809/809.
+- v159: **Z13: 10th showcase example — "Marketing & Growth Performance Console"** (`data/examples/
+  marketing-growth.studio.json`), a 10-panel dashboard covering **the last 10 non-distribution-limited
+  chart types**: Streamgraph (channel traffic), Slope (campaign CTR before/after), Dot plot (planned vs.
+  actual budget), Polar area (ad spend share), Step (subscriber tier migration), Marimekko (revenue mix),
+  Packed bubbles (audience size), Population pyramid (age/gender split), 100% stacked bars (creative
+  format mix), and Text/annotation (a guided intro panel). Gallery coverage now **47/51 types** — every
+  chart type except boxplot/violin/ridgeline/beeswarm, which need a sample-data-generator change (see NEXT
+  below) before they'll look like real distributions. Fixed the generic "all examples render every panel"
+  Playwright check, which only counted `svg`/`table` elements — a richtext panel renders a `.sr-richtext`
+  div instead, so the very first example using one would have silently failed; widened the selector rather
+  than special-casing the new example. `docs/index.html` example count corrected 9→10. 3 new Z13 tests.
+  Test suite 812/812.
 
 ## NEXT (top = do first)
 
@@ -695,18 +707,35 @@ fixed KPI/gauge NaN/`0`/double-`%` (sample-data generator + example gauges).
 > in the offline preview — it renders without error but looks degenerate (a flat line, not a real spread).
 > That's why boxplot/violin/ridgeline/beeswarm were skipped this round; a real fix would need the sample
 > generator to support multiple rows per label, which is a separate, larger slice.
+> ✓ **9th example shipped v158**: "Finance & FP&A Command Center" (`finance-command.studio.json`, fourth in
+> gallery order) covers **8 more previously-missing types**: candlestick, areaRange, divergingBar,
+> radialBar, icicle, chord, parallelCoords, gantt. Found + fixed a real latent bug: the `icicle` case in
+> `studio-render.js` read a bare undefined `groupCol` instead of `m.groupCol`, so any icicle panel with a
+> group column threw and rendered nothing — nothing had exercised two-level icicle mode until this example.
+> `sampledata.js` gained a `signed` classify kind (variance/delta/diff/change column names) so diverging
+> metrics actually diverge in the offline preview.
+> ✓ **10th example shipped v159 — the "easy" batch is complete**: "Marketing & Growth Performance Console"
+> (`marketing-growth.studio.json`, fifth in gallery order) covers the **last 10 non-distribution-limited
+> types**: streamgraph, richtext (text/annotation), slope, dotplot, polarArea, step, marimekko,
+> packedBubble, pyramidBar, barNorm. Fixed the generic "all examples render every panel" Playwright check,
+> which only counted `svg`/`table` as evidence of render — a richtext panel renders a `.sr-richtext` div
+> instead, now included in that selector. Gallery chart-type coverage is now **47 of 51**.
 NEXT — turn the examples into a **broad, complete survey of everything the app can do**, built
 **progressively simple → dazzling**:
 - **Cover EVERY chart type at least once** across the set — each example featuring several types the
-  others don't, so the collection is a full tour. Currently covered (37 of 51): areaRange, areaStacked,
-  bars, bullet, bump, calHeatmap, candlestick, chord, combo, divergingBar, donut, dumbbell, funnel, gantt,
-  gauge, groupedBars, heatmap, histogram, icicle, line, lollipop, network, parallelCoords, pareto, quadrant,
-  radar, radialBar, sankey, scatter, stacked, sunburst, table, timeline, treemap, waffle, waterfall,
-  wordCloud. **Still missing (14):** streamgraph, richtext, boxplot, slope, dotplot, beeswarm, polarArea,
-  step, violin, marimekko, packedBubble, pyramidBar, ridgeline, barNorm (diff `data/examples/index.json`'s
-  `types` against `Object.keys(Studio.CHARTS)` to get a fresh list before the next slice). Note: boxplot/
-  beeswarm/violin/ridgeline need the sample-generator limitation above addressed (or a hand-tolerant
-  layout) before they'll look genuinely good in a showcase, not just "technically rendering."
+  others don't, so the collection is a full tour. Currently covered (47 of 51): areaRange, areaStacked,
+  bars, barNorm, bullet, bump, calHeatmap, candlestick, chord, combo, divergingBar, donut, dotplot,
+  dumbbell, funnel, gantt, gauge, groupedBars, heatmap, histogram, icicle, line, lollipop, marimekko,
+  network, packedBubble, parallelCoords, pareto, polarArea, pyramidBar, quadrant, radar, radialBar,
+  richtext, sankey, scatter, slope, stacked, step, streamgraph, sunburst, table, timeline, treemap, waffle,
+  waterfall, wordCloud. **Still missing (4, all share the same generator limitation):** boxplot, violin,
+  ridgeline, beeswarm — `sampleRows` always emits exactly 8 rows with 8 distinct categorical labels, so any
+  chart needing multiple raw values per group (quartile box, KDE curve, per-category jitter) only ever sees
+  **one value per group** in the offline preview — it renders without error but looks degenerate (a flat
+  line/point, not a real spread). The fix needs either an opt-in "multiple rows per label" sample-generator
+  mode, or a hand-authored fixed dataset for just those 4 example panels instead of the usual synthetic
+  path. This is the one real slice of work left to finish Z13's "every chart type" goal — worth its own
+  loop rather than squeezing it in.
 - **Show EVERY interaction/feature at least once**: **filters** (dashboard filters + the `#hash` deep-link),
   **cross-filter**, **drill-through / detail drawer** (internal drill AND cross-dashboard drill), and all
   the **marks/annotations** — target lines, reference bands, callout arrows, period highlights, event

@@ -1,0 +1,137 @@
+{
+  "schema": 1,
+  "id": "showcase-marketing",
+  "name": "marketing-growth",
+  "title": "Marketing & Growth Performance Console",
+  "subtitle": "channel flow, campaign lift, spend mix, audience & funnel composition",
+  "group": "Marketing",
+  "description": "A marketing showcase spanning ten distinct visual forms not used elsewhere in the gallery: a guided intro panel, flowing channel-traffic ribbons, a before/after campaign-lift slope, planned-vs-actual budget dots, an equal-angle spend-share wedge chart, a tier-migration step chart, a two-dimensional revenue-mix Marimekko, a packed-bubble audience view, a mirrored age/gender pyramid, and a 100%-stacked creative-format mix.",
+  "cda": {
+    "connection": { "id": "pdc", "jndi": "PDC-BIDB-EXT" },
+    "dataAccesses": [
+      {
+        "id": "kpi", "name": "MarketingKPI", "params": [], "cache": true, "cacheDuration": 120,
+        "sql": "SELECT ROUND(AVG(ctr_pct),1) AS ctr_pct, ROUND(AVG(conversion_rate_pct),1) AS conversion_rate_pct, ROUND(AVG(cac_usd),0) AS cac_usd, ROUND(AVG(brand_awareness_score),1) AS brand_awareness_score FROM v_marketing_master",
+        "columns": ["ctr_pct", "conversion_rate_pct", "cac_usd", "brand_awareness_score"]
+      },
+      {
+        "id": "channelflow", "name": "ChannelTrafficFlow", "params": [], "cache": true, "cacheDuration": 180,
+        "sql": "SELECT d.month_name AS month_name, SUM(CASE WHEN t.channel='organic' THEN t.sessions END) AS organic_sessions, SUM(CASE WHEN t.channel='paid' THEN t.sessions END) AS paid_sessions, SUM(CASE WHEN t.channel='referral' THEN t.sessions END) AS referral_sessions, SUM(CASE WHEN t.channel='social' THEN t.sessions END) AS social_sessions FROM v_channel_traffic t JOIN dim_date d ON t.date_key = d.date_key GROUP BY d.month_number, d.month_name ORDER BY d.month_number",
+        "columns": ["month_name", "organic_sessions", "paid_sessions", "referral_sessions", "social_sessions"]
+      },
+      {
+        "id": "campaignimpact", "name": "CampaignCtrBeforeAfter", "params": [], "cache": true, "cacheDuration": 120,
+        "sql": "SELECT c.campaign_name AS campaign_name, c.ctr_before_pct AS ctr_before_pct, c.ctr_after_pct AS ctr_after_pct FROM v_campaign_ab_test c ORDER BY c.ctr_after_pct DESC",
+        "columns": ["campaign_name", "ctr_before_pct", "ctr_after_pct"]
+      },
+      {
+        "id": "budgetcompare", "name": "ChannelBudgetPlannedActual", "params": [], "cache": true, "cacheDuration": 120,
+        "sql": "SELECT ch.channel_name AS channel_name, b.budget_planned_usd AS budget_planned_usd, b.budget_actual_usd AS budget_actual_usd FROM v_channel_budget b JOIN dim_channel ch ON b.channel_id = ch.id",
+        "columns": ["channel_name", "budget_planned_usd", "budget_actual_usd"]
+      },
+      {
+        "id": "spendshare", "name": "AdSpendShareByChannel", "params": [], "cache": true, "cacheDuration": 180,
+        "sql": "SELECT ch.channel_name AS channel_name, SUM(s.spend_amount) AS ad_spend_usd FROM v_ad_spend s JOIN dim_channel ch ON s.channel_id = ch.id GROUP BY ch.channel_name",
+        "columns": ["channel_name", "ad_spend_usd"]
+      },
+      {
+        "id": "tiersteps", "name": "SubscriberTierMigration", "params": [], "cache": true, "cacheDuration": 180,
+        "sql": "SELECT d.month_name AS month_name, SUM(CASE WHEN s.tier='free' THEN 1 END) AS free_tier_subs, SUM(CASE WHEN s.tier='pro' THEN 1 END) AS pro_tier_subs, SUM(CASE WHEN s.tier='enterprise' THEN 1 END) AS enterprise_tier_subs FROM v_subscriptions s JOIN dim_date d ON s.date_key = d.date_key GROUP BY d.month_number, d.month_name ORDER BY d.month_number",
+        "columns": ["month_name", "free_tier_subs", "pro_tier_subs", "enterprise_tier_subs"]
+      },
+      {
+        "id": "revenuemix", "name": "RevenueMixByRegionProduct", "params": [], "cache": true, "cacheDuration": 180,
+        "sql": "SELECT r.region_name AS region_name, p.product_category AS product_category, SUM(sa.amount) AS revenue_usd FROM v_sales sa JOIN dim_region r ON sa.region_id = r.id JOIN dim_product p ON sa.product_id = p.id GROUP BY r.region_name, p.product_category",
+        "columns": ["region_name", "product_category", "revenue_usd"]
+      },
+      {
+        "id": "audiencesize", "name": "AudienceSegmentSize", "params": [], "cache": true, "cacheDuration": 180,
+        "sql": "SELECT seg.segment_name AS segment_name, COUNT(DISTINCT u.user_id) AS audience_count FROM v_users u JOIN dim_segment seg ON u.segment_id = seg.id GROUP BY seg.segment_name",
+        "columns": ["segment_name", "audience_count"]
+      },
+      {
+        "id": "agegender", "name": "AudienceAgeGenderSplit", "params": [], "cache": true, "cacheDuration": 180,
+        "sql": "SELECT age.age_band AS age_band, ROUND(AVG(CASE WHEN u.gender='F' THEN 1.0 ELSE 0 END)*100,1) AS female_pct, ROUND(AVG(CASE WHEN u.gender='M' THEN 1.0 ELSE 0 END)*100,1) AS male_pct FROM v_users u JOIN dim_age_band age ON u.age_band_id = age.id GROUP BY age.age_band",
+        "columns": ["age_band", "female_pct", "male_pct"]
+      },
+      {
+        "id": "creativemix", "name": "CreativeFormatMixByChannel", "params": [], "cache": true, "cacheDuration": 180,
+        "sql": "SELECT ch.channel_name AS channel_name, ROUND(SUM(CASE WHEN cr.format='video' THEN 1.0 ELSE 0 END)/COUNT(*)*100,1) AS video_pct, ROUND(SUM(CASE WHEN cr.format='image' THEN 1.0 ELSE 0 END)/COUNT(*)*100,1) AS image_pct, ROUND(SUM(CASE WHEN cr.format='carousel' THEN 1.0 ELSE 0 END)/COUNT(*)*100,1) AS carousel_pct, ROUND(SUM(CASE WHEN cr.format='text' THEN 1.0 ELSE 0 END)/COUNT(*)*100,1) AS text_pct FROM v_creatives cr JOIN dim_channel ch ON cr.channel_id = ch.id GROUP BY ch.channel_name",
+        "columns": ["channel_name", "video_pct", "image_pct", "carousel_pct", "text_pct"]
+      }
+    ]
+  },
+  "filters": [],
+  "kpis": [
+    { "da": "kpi", "valueCol": "ctr_pct", "label": "Avg Click-Through Rate", "fmt": "pct", "state": "good", "info": "Average click-through rate across all active campaigns." },
+    { "da": "kpi", "valueCol": "conversion_rate_pct", "label": "Conversion Rate", "fmt": "pct", "state": "", "info": "Visits converting to a qualified lead or sale." },
+    { "da": "kpi", "valueCol": "cac_usd", "label": "Customer Acquisition Cost", "fmt": "n", "state": "", "info": "Blended cost to acquire one new customer, in USD." },
+    { "da": "kpi", "valueCol": "brand_awareness_score", "label": "Brand Awareness Score", "fmt": "pct", "state": "purple", "info": "Aided brand-awareness survey score." }
+  ],
+  "gridCols": 3,
+  "panels": [
+    {
+      "id": "p_intro", "title": "About this dashboard", "span": "full", "pill": "", "sub": "", "info": "",
+      "chart": { "type": "richtext", "da": "", "map": {}, "opts": { "content": "## Marketing & Growth Performance Console\nA full-funnel view of the marketing engine: **where traffic comes from**, **how campaigns lift performance**, **where budget goes**, and **who the audience is** — ten chart forms in one tour.\n\n- Flowing ribbons for channel traffic over time\n- A before/after slope for campaign lift\n- Planned-vs-actual budget dots by channel\n- Spend share, tier migration, revenue mix, audience size, demographic split, and creative format mix" } }
+    },
+    {
+      "id": "p_channelflow", "title": "Channel Traffic Flow", "span": 2, "pill": "sessions", "sub": "organic · paid · referral · social",
+      "info": "Monthly session volume by acquisition channel, shown as flowing stream ribbons.", "src": "v_channel_traffic",
+      "chart": { "type": "streamgraph", "da": "channelflow", "map": { "labelCol": "month_name", "series": [
+        { "col": "organic_sessions", "name": "Organic" },
+        { "col": "paid_sessions", "name": "Paid" },
+        { "col": "referral_sessions", "name": "Referral" },
+        { "col": "social_sessions", "name": "Social" }
+      ] }, "opts": { "showLegend": true, "fmt": "abbr", "height": 300 } }
+    },
+    {
+      "id": "p_campaignimpact", "title": "Campaign CTR: Before vs After", "span": 1, "pill": "A/B lift", "sub": "",
+      "info": "Click-through rate for each campaign before and after creative optimization.", "src": "v_campaign_ab_test",
+      "chart": { "type": "slope", "da": "campaignimpact", "map": { "labelCol": "campaign_name", "valueCol1": "ctr_before_pct", "valueCol2": "ctr_after_pct" }, "opts": { "t1": "Before", "t2": "After", "fmt": "pct", "height": 300 } }
+    },
+    {
+      "id": "p_budgetcompare", "title": "Channel Budget: Planned vs Actual", "span": 1, "pill": "$ USD", "sub": "",
+      "info": "Planned versus actual media spend for each channel.", "src": "v_channel_budget",
+      "chart": { "type": "dotplot", "da": "budgetcompare", "map": { "labelCol": "channel_name", "valueCol": "budget_planned_usd", "groupCol": "budget_actual_usd" }, "opts": { "group1": "Planned", "group2": "Actual", "fmt": "abbr", "height": 280 } }
+    },
+    {
+      "id": "p_spendshare", "title": "Ad Spend Share by Channel", "span": 1, "pill": "% of spend", "sub": "",
+      "info": "Each channel's share of total ad spend, encoded by wedge area.", "src": "v_ad_spend",
+      "chart": { "type": "polarArea", "da": "spendshare", "map": { "labelCol": "channel_name", "valueCol": "ad_spend_usd" }, "opts": { "fmt": "abbr", "showLabels": true, "height": 280 } }
+    },
+    {
+      "id": "p_tiersteps", "title": "Subscriber Tier Migration", "span": 1, "pill": "subscribers", "sub": "free · pro · enterprise",
+      "info": "Subscriber counts by plan tier over time, shown as discrete steps.", "src": "v_subscriptions",
+      "chart": { "type": "step", "da": "tiersteps", "map": { "labelCol": "month_name", "series": [
+        { "col": "free_tier_subs", "name": "Free" },
+        { "col": "pro_tier_subs", "name": "Pro" },
+        { "col": "enterprise_tier_subs", "name": "Enterprise" }
+      ] }, "opts": { "area": false, "fmt": "abbr", "height": 280 } }
+    },
+    {
+      "id": "p_revenuemix", "title": "Revenue Mix by Region & Product", "span": 2, "pill": "$ by segment", "sub": "column width = region size",
+      "info": "Revenue composition by product category within each region — column width shows the region's share of total revenue.", "src": "v_sales",
+      "chart": { "type": "marimekko", "da": "revenuemix", "map": { "labelCol": "region_name", "groupCol": "product_category", "valueCol": "revenue_usd" }, "opts": { "fmt": "abbr", "height": 320 } }
+    },
+    {
+      "id": "p_audiencesize", "title": "Audience Segment Size", "span": 1, "pill": "users", "sub": "",
+      "info": "Relative audience size for each targeting segment, encoded by circle area.", "src": "v_users",
+      "chart": { "type": "packedBubble", "da": "audiencesize", "map": { "labelCol": "segment_name", "valueCol": "audience_count" }, "opts": { "fmt": "abbr", "height": 300 } }
+    },
+    {
+      "id": "p_agegender", "title": "Audience Age & Gender Split", "span": 1, "pill": "% within band", "sub": "female · male",
+      "info": "Gender composition within each age band, mirrored from a shared centre axis.", "src": "v_users",
+      "chart": { "type": "pyramidBar", "da": "agegender", "map": { "labelCol": "age_band", "leftCol": "female_pct", "rightCol": "male_pct" }, "opts": { "leftLabel": "Female", "rightLabel": "Male", "fmt": "pct", "height": 300 } }
+    },
+    {
+      "id": "p_creativemix", "title": "Creative Format Mix by Channel", "span": 1, "pill": "100% stacked", "sub": "video · image · carousel · text",
+      "info": "The proportional mix of creative formats running on each channel.", "src": "v_creatives",
+      "chart": { "type": "barNorm", "da": "creativemix", "map": { "labelCol": "channel_name", "series": [
+        { "col": "video_pct", "name": "Video" },
+        { "col": "image_pct", "name": "Image" },
+        { "col": "carousel_pct", "name": "Carousel" },
+        { "col": "text_pct", "name": "Text" }
+      ] }, "opts": { "fmt": "pct", "height": 300 } }
+    }
+  ]
+}
