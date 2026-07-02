@@ -1,11 +1,15 @@
 # Analytics Dashboard Studio — STATUS (hourly-loop resume anchor)
 
 > **RESUME PROTOCOL:** An hourly cron (`17 * * * *`, fresh-session job) runs the improvement loop.
-> On each fire: read THIS file first, continue from the top **NEXT** item, implement ~1–3 high-value
-> improvements, keep the Playwright suite green, update DONE/NEXT here, and **commit + push** to
-> `main` of `kevinrhaas/analytics.polecat.live` — main is the GitHub Pages deploy branch, so pushing
-> publishes the live site at https://analytics.polecat.live. One commit per coherent improvement so
-> progress survives.
+> On each fire: read THIS file first, continue from the top **NEXT** item, then **keep shipping coherent,
+> well-tested improvements until the run's time/context is genuinely used up** — a run finishes well under
+> the hour, so **do NOT stop after one or two.** Target **~4–6 slices per fire** (more if they're small),
+> pausing only for a sweep per the SWEEP CADENCE. **Commit + push after EACH coherent improvement**
+> (one commit per slice) so progress always survives even if the run ends mid-stream; keep the Playwright
+> suite green before every commit. Push to `main` of `kevinrhaas/analytics.polecat.live` — main is the
+> GitHub Pages deploy branch, so pushing publishes the live site at https://analytics.polecat.live.
+> **Before each push `git pull --rebase origin main`** (a concurrent run may have pushed); pick the top
+> NEXT item that isn't already done so parallel runs don't collide.
 >
 > **SWEEP CADENCE:** roughly every ~5th run (or whenever the feature backlog is thin), spend the run on a
 > **sweep** instead of a new feature. **Rotate through three sweep types** (track which you did last in the
