@@ -1836,6 +1836,19 @@ function serve() {
     const connAfter = await page.evaluate(() => (window.__STUDIO_STATE.spec.cda.connections || []).length);
     ok("saving the connection editor adds it to the spec", connAfter === connBefore + 1, connBefore + "→" + connAfter);
 
+    // Track L regression: the Save handler used to call renderDashboardInspector(body) directly
+    // (which never clears body itself) instead of the top-level renderInspector() — same class of
+    // append-duplicate-section bug the Z6 kickoff fixed at three other self-redraw call sites.
+    // Saving a connection would leave TWO copies of every dashboard-inspector section stacked up.
+    const connNoDup = await page.evaluate(() => {
+      var hs = [].slice.call(document.querySelectorAll("#inspBody .insp-sec h4"));
+      var ccCount = hs.filter(function (h) { return /CDA Connections/i.test(h.textContent); }).length;
+      var dashCount = hs.filter(function (h) { return /^Dashboard$/i.test(h.textContent.trim()); }).length;
+      return { ccCount: ccCount, dashCount: dashCount };
+    });
+    ok("Track L regression: saving a CDA connection does not duplicate inspector sections (exactly one 'CDA Connections'/'Dashboard' section each)",
+      connNoDup.ccCount === 1 && connNoDup.dashCount === 1, JSON.stringify(connNoDup));
+
     // DA inspector shows a connection picker when connections exist
     // Click a My Data Sources DA card (not a row item) to open the DA inspector
     await page.evaluate(() => {

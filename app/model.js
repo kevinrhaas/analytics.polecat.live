@@ -1899,6 +1899,20 @@
     return { name: transformName, steps: steps };
   };
 
+  // Track L (architecture sweep): shared by both browser-native connectors (duckdb.js, sqlitehttp.js) —
+  // each defined a byte-identical private copy of this promise-timeout wrapper. Consolidated here
+  // alongside Studio.friendlyConnectorError (the same pair's other shared helper, extracted in v170)
+  // so the two connectors can't drift on timeout-message wording again.
+  Studio.withTimeout = function (promise, ms, label) {
+    return new Promise(function (resolve, reject) {
+      var timer = setTimeout(function () { reject(new Error((label || "Operation") + " timed out — check the URL and your network connection.")); }, ms);
+      promise.then(
+        function (v) { clearTimeout(timer); resolve(v); },
+        function (e) { clearTimeout(timer); reject(e); }
+      );
+    });
+  };
+
   // basic validation -> array of {level, msg}
   // Z14 slice 4 — shared error-message polish for the browser-native connectors (DuckDB-Wasm,
   // SQLite-WASM-HTTP): both fail in the same handful of recognizable ways (CORS blocked, host

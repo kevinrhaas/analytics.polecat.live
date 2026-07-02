@@ -1809,13 +1809,13 @@
     // CDA Connections
     sp.cda.connections = sp.cda.connections || [];
     var conns = sp.cda.connections;
-    var cs2 = section(body, "CDA Connections", function () { addCDAConnection(body); });
+    var cs2 = section(body, "CDA Connections", function () { addCDAConnection(); });
     if (!conns.length) cs2.appendChild(hint("No custom connections — the default SQL/JNDI pool is used. Add one to use JDBC, MDX, or other types."));
     conns.forEach(function (conn, i) {
       var typeLabel = (Studio.CDA_CONNECTION_TYPES.find(function (t) { return t.id === conn.type; }) || { label: conn.type }).label;
       var detail = conn.jndi || conn.url || conn.connectString || conn.fileName || conn.domainId || "";
       cs2.appendChild(rowItem("⊛", conn.id, typeLabel + (detail ? " · " + detail : ""),
-        function () { openConnEditor(conn, body); },
+        function () { openConnEditor(conn); },
         [delBtn(function () { conns.splice(i, 1); renderInspector(); })],
         false));
     });
@@ -1864,14 +1864,14 @@
     });
   }
 
-  function addCDAConnection(dashBody) {
+  function addCDAConnection() {
     var conn = Studio.newCDAConnection("sql.jndi");
     S.spec.cda.connections = S.spec.cda.connections || [];
     S.spec.cda.connections.push(conn);
-    openConnEditor(conn, dashBody);
+    openConnEditor(conn);
   }
 
-  function openConnEditor(conn, dashBody) {
+  function openConnEditor(conn) {
     modal("CDA Connection · " + conn.id, function (b) {
       var draft = Studio.clone(conn);
       var form = el("div"); form.style.cssText = "display:flex;flex-direction:column;gap:10px";
@@ -1910,7 +1910,7 @@
       var save = el("button", "btn btn-primary"); save.textContent = "Save";
       save.onclick = function () {
         Object.assign(conn, draft);
-        renderDashboardInspector(document.getElementById("inspBody"));
+        renderInspector();
         b.closest(".modal-ov").remove();
         toast("Connection saved");
       };

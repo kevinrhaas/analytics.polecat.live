@@ -21,16 +21,6 @@
 
   var CDN_BASE = "https://cdn.jsdelivr.net/npm/sql.js-httpvfs@0.8.12/dist/";
 
-  function withTimeout(promise, ms, label) {
-    return new Promise(function (resolve, reject) {
-      var timer = setTimeout(function () { reject(new Error((label || "Operation") + " timed out — check the URL and your network connection.")); }, ms);
-      promise.then(
-        function (v) { clearTimeout(timer); resolve(v); },
-        function (e) { clearTimeout(timer); reject(e); }
-      );
-    });
-  }
-
   function quoteIdent(name) { return '"' + String(name).replace(/"/g, '""') + '"'; }
 
   // array-of-plain-objects (sql.js-httpvfs's row shape) -> {cols, rows}, the same shape
@@ -47,7 +37,7 @@
   // function it attaches to window. Cached so repeated Test/Run-live clicks reuse the same load.
   function ensureEngine() {
     if (_scriptPromise) return _scriptPromise;
-    _scriptPromise = withTimeout((function () {
+    _scriptPromise = Studio.withTimeout((function () {
       if (typeof window.createDbWorker === "function") return Promise.resolve(window.createDbWorker);
       return new Promise(function (resolve, reject) {
         var s = document.createElement("script");
@@ -73,7 +63,7 @@
     if (!_dbCache[fileUrl]) {
       _dbCache[fileUrl] = ensureEngine().then(function (createDbWorker) {
         var config = { from: "inline", config: { serverMode: "full", url: fileUrl, requestChunkSize: 4096 } };
-        return withTimeout(createDbWorker([config], CDN_BASE + "sqlite.worker.js", CDN_BASE + "sql-wasm.wasm"), 20000, "Opening the SQLite database");
+        return Studio.withTimeout(createDbWorker([config], CDN_BASE + "sqlite.worker.js", CDN_BASE + "sql-wasm.wasm"), 20000, "Opening the SQLite database");
       }).catch(function (e) { delete _dbCache[fileUrl]; throw e; });
     }
     return _dbCache[fileUrl].then(function (worker) { return fn(worker.db); });

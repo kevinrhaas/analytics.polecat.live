@@ -15,16 +15,6 @@
   var CDN_BASE = "https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.32.0/dist/";
   var VIEW_NAME = "t", FILE_ALIAS = "studio_src";
 
-  function withTimeout(promise, ms, label) {
-    return new Promise(function (resolve, reject) {
-      var timer = setTimeout(function () { reject(new Error((label || "Operation") + " timed out — check the URL and your network connection.")); }, ms);
-      promise.then(
-        function (v) { clearTimeout(timer); resolve(v); },
-        function (e) { clearTimeout(timer); reject(e); }
-      );
-    });
-  }
-
   // extension-sniffed default when fileFormat is "auto" or unset
   function detectFormat(url) {
     var u = String(url || "").split("?")[0].toLowerCase();
@@ -53,7 +43,7 @@
   // caches the result so repeated Test/Run-live clicks reuse the same engine instance.
   function ensureEngine() {
     if (_enginePromise) return _enginePromise;
-    _enginePromise = withTimeout((function () {
+    _enginePromise = Studio.withTimeout((function () {
       return import(/* @vite-ignore */ CDN_BASE + "duckdb-browser.mjs").then(function (duckdb) {
         var bundles = duckdb.getJsDelivrBundles();
         return duckdb.selectBundle(bundles).then(function (bundle) {

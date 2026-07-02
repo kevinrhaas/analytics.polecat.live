@@ -671,6 +671,11 @@
   tracked by Settings export/import (`studio-app-theme`, `studio-shell-section`, `studio-shell-expanded`,
   `studio-default-jndi`) — added those plus the two new default keys. `docs/index.html` updated. 3 new
   tests. Test suite 943/943.
+- v195: **Track L architecture sweep** — consolidated the byte-identical `withTimeout()` helper
+  duplicated in `app/duckdb.js`/`app/sqlitehttp.js` into `Studio.withTimeout()` (model.js); found and
+  fixed a real DOM-duplication bug in the CDA Connection editor's Save handler (called
+  `renderDashboardInspector(body)` directly instead of `renderInspector()` — the same bug class the v193
+  Z6 kickoff fixed at three other call sites, this fourth one was missed). 1 new test. Test suite 944/944.
 
 ## NEXT (top = do first)
 
@@ -1523,6 +1528,17 @@ gets covered over time:
   `Studio.defineChart({type, render, opts, thumb, autoPick})` contract so new types are uniform and testable.
 - **Test health** — coverage per feature, flaky/slow checks, and a fast smoke subset for quick loops.
 > **Findings log (append newest on top; keep short):**
+> - **v195 (dead-code/duplication + a real bug, closes the sweep-cadence gap since v180):** two findings.
+>   (1) `withTimeout()` was a byte-identical private helper duplicated in `app/duckdb.js` and
+>   `app/sqlitehttp.js` — the exact same pair `Studio.friendlyConnectorError()` was already extracted
+>   from in v170, just missed that round. Consolidated into `Studio.withTimeout()` in model.js.
+>   (2) a genuine DOM-duplication bug: the CDA Connection editor's Save handler called
+>   `renderDashboardInspector(body)` directly (never clears `body`) instead of the top-level
+>   `renderInspector()` — the same append-duplicate-section bug class the v193 Z6 kickoff fixed at three
+>   *other* self-redraw call sites, but this fourth one (Save in `openConnEditor`) was missed that round.
+>   Fixed + dropped the now-dead `dashBody` param it was threading through. 1 new regression test. Test
+>   suite 944/944. **Pattern worth remembering**: any inspector self-redraw call site should route through
+>   `renderInspector()`, never call a `render*Inspector(body)` helper directly — it's an easy one-off to miss.
 > - **v180 (test-health sweep, harden flaky fixed-timeout preview reads — closes the v174-queued target):**
 >   added a reusable in-page poll helper (`window.__waitForPreview(test, timeout)`, installed once via
 >   `page.addInitScript`) that re-reads a **fresh** `#preview` contentDocument on every tick (capturing the
