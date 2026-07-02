@@ -3085,11 +3085,36 @@
       var slope = (m * sxy - sx * sy) / denom, intercept = (sy - slope * sx) / m;
       return { slope: slope, intercept: intercept };
     }
-    var trends = cfg.showTrend ? series.map(function (se) { return trendOf(se.values); }) : null;
+    // Z7 forecasting slice 3: Holt's linear (double exponential smoothing) — a level
+    // that tracks the smoothed series plus a smoothed trend, updated one point at a
+    // time. `fitted` is the smoothed line over the real data (reacts to recent moves,
+    // unlike the single straight OLS line); `level`/`trend` at the end are then walked
+    // forward for the forecast tail (level + m*trend), same shape as Holt's classic
+    // no-seasonality forecast.
+    function holtOf(vals, alpha, beta) {
+      var n = vals.length, fitted = new Array(n);
+      var level = +vals[0] || 0, trend = n > 1 ? ((+vals[1] || 0) - level) : 0;
+      fitted[0] = level;
+      for (var i = 1; i < n; i++) {
+        var val = +vals[i] || 0, prevLevel = level;
+        level = alpha * val + (1 - alpha) * (level + trend);
+        trend = beta * (level - prevLevel) + (1 - beta) * trend;
+        fitted[i] = level;
+      }
+      return { fitted: fitted, level: level, trend: trend };
+    }
+    var trendMethod = cfg.trendMethod === "holt" ? "holt" : "linear";
+    var alpha = Math.min(1, Math.max(.01, (+cfg.alpha || 30) / 100)), beta = Math.min(1, Math.max(.01, (+cfg.beta || 10) / 100));
+    var trends = cfg.showTrend ? series.map(function (se) {
+      return trendMethod === "holt" ? holtOf(se.values, alpha, beta) : trendOf(se.values);
+    }) : null;
     var o = mkSVG(el, h), s = o.s, w = o.w, fmt = cfg.fmt || PDC.fmt.abbr, pal = PDC.palette();
     var showDots = cfg.showDots !== false;
     var allv = []; series.forEach(function (se) { se.values.forEach(function (v) { allv.push(+v || 0); }); });
-    if (trends) trends.forEach(function (t) { allv.push(t.intercept + t.slope * totalSpan); });
+    if (trends) trends.forEach(function (t) {
+      if (trendMethod === "holt") { allv.push.apply(allv, t.fitted); allv.push(t.level + t.trend * fcN); }
+      else { allv.push(t.intercept + t.slope * totalSpan); }
+    });
     var max = niceMax(Math.max.apply(null, allv.concat([0]))), min = cfg.min0 === false ? Math.min.apply(null, allv) : 0;
     var mL = 46, mR = 12, mT = 12, mB = 30, iw = w - mL - mR, ih = h - mT - mB;
     var xs = function (i) { return mL + (totalSpan <= 0 ? iw / 2 : iw * i / totalSpan); }, ys = function (v) { return mT + ih * (1 - ((v - min) / ((max - min) || 1))); };
@@ -3173,10 +3198,19 @@
       // Z7 forecasting slice 2: the OLS trend line, extrapolated across the
       // forecast tail when forecastPeriods > 0 (otherwise just spans the real data).
       if (trends) {
-        var tr = trends[si], tp0 = [xs(0), ys(tr.intercept)], tp1 = [xs(totalSpan), ys(tr.intercept + tr.slope * totalSpan)];
-        var trendPath = S("path", { d: "M" + tp0[0] + "," + tp0[1] + " L" + tp1[0] + "," + tp1[1], fill: "none", stroke: col,
+        var tr = trends[si], trendD;
+        if (trendMethod === "holt") {
+          var hPts = tr.fitted.map(function (v, i) { return [xs(i), ys(v)]; });
+          for (var hf = 1; hf <= fcN; hf++) hPts.push([xs(n - 1 + hf), ys(tr.level + tr.trend * hf)]);
+          trendD = pathFor(hPts);
+        } else {
+          trendD = "M" + xs(0) + "," + ys(tr.intercept) + " L" + xs(totalSpan) + "," + ys(tr.intercept + tr.slope * totalSpan);
+        }
+        var trendPath = S("path", { d: trendD, fill: "none", stroke: col,
           "stroke-width": 1.6, "stroke-dasharray": "8,3", opacity: .55, class: "trend-line" });
-        trendPath.addEventListener("mousemove", function (e) { PDC.showTip(e, (series.length > 1 ? "<b>" + se.name + "</b> " : "") + (fcN ? fcN + "-period forecast" : "trend")); });
+        var trendTip = (series.length > 1 ? "<b>" + se.name + "</b> " : "") +
+          (trendMethod === "holt" ? "Holt smoothing" + (fcN ? " · " + fcN + "-period forecast" : "") : (fcN ? fcN + "-period forecast" : "trend"));
+        trendPath.addEventListener("mousemove", function (e) { PDC.showTip(e, trendTip); });
         trendPath.addEventListener("mouseout", PDC.hideTip);
         s.appendChild(trendPath); els.push(trendPath);
       }

@@ -89,6 +89,15 @@
         { key: "maWindow", type: "int",   label: "Moving avg window (points)", def: 3 },
         { key: "showTrend", type: "bool", label: "Show trend / forecast line", def: false },
         { key: "forecastPeriods", type: "int", label: "Forecast periods ahead (0 = trend only)", def: 0 },
+        // Z7 forecasting slice 3: a second forecast method alongside the v187 OLS linear
+        // trend — Holt's double exponential smoothing (level + trend, no seasonality yet).
+        // Unlike the straight OLS line, the drawn line tracks a smoothed version of the
+        // real data (reacts to recent moves, not just the overall slope) before extending
+        // linearly into the forecast tail. Only used when "Show trend / forecast line" is on.
+        { key: "trendMethod", type: "select", label: "Forecast method", def: "linear",
+          choices: [["linear", "Linear trend (OLS)"], ["holt", "Exponential smoothing (Holt)"]] },
+        { key: "alpha", type: "int", label: "Smoothing level α (%, Holt only)", def: 30 },
+        { key: "beta",  type: "int", label: "Smoothing trend β (%, Holt only)", def: 10 },
         { key: "fmt",      type: "fmt",   label: "Value format", def: "abbr" },
         { key: "height",   type: "int",   label: "Height (px)", def: 300 }
       ],

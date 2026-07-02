@@ -694,6 +694,12 @@
   from `localStorage` itself and sets the `data-theme`/`data-app-theme` attributes before its first paint,
   then uses the same shared `var(--pentaho/--pdc/--ink/...)` tokens as welcome/tutorial/palette — closing
   the one surface still Classic-Blue-only regardless of the picker. 1 new test. Test suite 948/948.
+- v199: **Z7 forecasting slice 3: Holt exponential smoothing** — line/area's "Show trend / forecast line"
+  gets a **Forecast method** choice (`Studio.CHARTS.line.opts`: `trendMethod` linear/holt, `alpha`, `beta`)
+  alongside the existing OLS linear trend: Holt's level+trend smoothing tracks recent moves in the data
+  (drawn as a multi-segment path over the fitted history) instead of one straight slope, then extrapolates
+  the same way across `forecastPeriods`. `PDC.line`/`_lineOpts` in `studio-charts.js`; `docs/index.html`
+  updated. 3 new tests. Test suite 951/951.
 
 ## NEXT (top = do first)
 
@@ -1019,7 +1025,12 @@ chart options / derived series / KPI computations. Keep it light (vanilla-JS mat
 > labels and a dashed "Forecast →" separator at the last real data point) and the trend line extrapolates
 > across it. Distinct from the v179 moving average (a trailing smoother of the real data) — this is a true
 > projection beyond the chart's own data. `trendOf()` helper in studio-charts.js (pdc-ui.js pristine).
-> **Still open:** exponential smoothing/Holt-Winters, seasonal trend lines, extending trend/forecast to
+> ✓ **Slice 3 shipped v199**: **Forecast method** select (linear / Holt) added alongside the v187 trend
+> toggle. Holt's double exponential smoothing (`holtOf()` in studio-charts.js, no seasonality yet — that's
+> "Holt-Winters"; this is plain Holt) tracks a smoothed level+trend through the real data (multi-segment
+> line, reacts to recent moves) rather than one straight OLS slope, then extrapolates linearly across
+> `forecastPeriods` the same way. Two new tuning fields, α (level) and β (trend), 0–100%.
+> **Still open:** seasonal trend lines (the "-Winters" part of Holt-Winters), extending trend/forecast to
 > bars/stacked/combo, and the statistical-functions half (regression beyond scatter's existing trend line,
 > percentiles, z-scores, correlation, distributions) as KPI computations.
 

@@ -17,6 +17,11 @@
 window.STUDIO_BUILD = "__BUILD_TS__";
 
 window.STUDIO_CHANGELOG = [
+  { v: "v199", date: "2026-07-02", time: "19:29 UTC", title: "Forecasting: Holt exponential smoothing joins the linear trend line", items: [
+      "Line/area charts' **Show trend / forecast line** now offers a **Forecast method** choice: the existing linear regression, or **Holt's exponential smoothing** — a level + trend that tracks recent moves in the data instead of just fitting one straight slope across everything, then projects forward the same way for the forecast periods.",
+      "Two new tuning fields (Holt only): **Smoothing level α** and **Smoothing trend β**, both 0–100%, controlling how quickly the forecast reacts to new data vs. staying stable.",
+      "Third slice of the Z7 forecasting track (after moving-average and linear trend/forecast). 3 new tests. Test suite 951/951.",
+    ] },
   { v: "v198", date: "2026-07-02", time: "19:22 UTC", title: "Z10 follow-up: the passcode gate now follows your theme too", items: [
       "The access-passcode screen (shown before you're signed in) was the one surface still stuck on fixed Classic-Blue-light colors even after the welcome tour, tutorial, and command palette were themed back in v181 — now it reads your saved Color theme (Classic Blue / Polecat) and light/dark mode before it even draws, so it matches the rest of the app from the very first paint instead of flashing the old look and re-theming after sign-in.",
       "1 new regression test. Test suite 948/948 at the time of this slice.",

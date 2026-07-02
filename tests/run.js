@@ -11829,6 +11829,89 @@ function serve() {
     });
     ok("Z7TR: line panel inspector shows Show trend / forecast line + Forecast periods fields", z7trInsp.ok, JSON.stringify(z7trInsp));
 
+    // ── Z7 slice 3: line/area chart forecast gets a second method — Holt's double
+    // exponential smoothing, alongside the existing OLS linear trend ──
+    console.log("\n• Z7 forecasting: Holt exponential smoothing method");
+
+    // Z7HW-1: line registry declares trendMethod + alpha + beta
+    var z7hwOpts = await page.evaluate(function () {
+      var o = (window.Studio.CHARTS.line || {}).opts || [];
+      var keys = o.map(function (od) { return od.key; });
+      return { ok: keys.indexOf("trendMethod") >= 0 && keys.indexOf("alpha") >= 0 && keys.indexOf("beta") >= 0, keys: keys };
+    });
+    ok("Z7HW: Studio.CHARTS.line.opts declares trendMethod + alpha + beta", z7hwOpts.ok, JSON.stringify(z7hwOpts));
+
+    // Z7HW-2: trendMethod defaults to "linear" (unchanged v187 behavior); trendMethod:"holt"
+    // still draws exactly one .trend-line per series but its path tracks the smoothed data
+    // (multiple segments, not a single straight L) and still extends past the last real
+    // point when forecastPeriods > 0.
+    var z7hwRender = await page.evaluate(function () {
+      var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
+      for (var i = 0; i < iframes.length; i++) {
+        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.line === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+      }
+      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      try {
+        var labels = ["A", "B", "C", "D", "E"], series = [{ name: "S1", values: [2, 5, 4, 8, 7] }];
+        // default method (no trendMethod set) still behaves like linear: a single "M...L..." segment
+        var el1 = iframeDoc.createElement("div");
+        el1.style.cssText = "position:absolute;top:-9999px;width:300px";
+        iframeDoc.body.appendChild(el1);
+        w.PDC.line(el1, { labels: labels, series: series, height: 200, showTrend: true });
+        var linearSegs = (el1.querySelector(".trend-line").getAttribute("d").match(/L/g) || []).length;
+        iframeDoc.body.removeChild(el1);
+
+        // trendMethod:"holt" draws a multi-segment smoothed line (one L per point after the first)
+        var el2 = iframeDoc.createElement("div");
+        el2.style.cssText = "position:absolute;top:-9999px;width:300px";
+        iframeDoc.body.appendChild(el2);
+        w.PDC.line(el2, { labels: labels, series: series, height: 200, showTrend: true, trendMethod: "holt" });
+        var holtLines = el2.querySelectorAll(".trend-line");
+        var holtSegs = holtLines.length === 1 ? (holtLines[0].getAttribute("d").match(/L/g) || []).length : 0;
+        var dots2 = el2.querySelectorAll(".dot");
+        var lastDotX2 = +dots2[dots2.length - 1].getAttribute("cx");
+        var holtD = holtLines[0].getAttribute("d");
+        var holtEndX = +holtD.split("L").pop().split(",")[0];
+        var holtNoForecastMatch = Math.abs(lastDotX2 - holtEndX) < 0.5;
+        iframeDoc.body.removeChild(el2);
+
+        // trendMethod:"holt" + forecastPeriods:2 extends the smoothed line past the last real point
+        var el3 = iframeDoc.createElement("div");
+        el3.style.cssText = "position:absolute;top:-9999px;width:300px";
+        iframeDoc.body.appendChild(el3);
+        w.PDC.line(el3, { labels: labels, series: series, height: 200, showTrend: true, trendMethod: "holt", forecastPeriods: 2 });
+        var holtD3 = el3.querySelector(".trend-line").getAttribute("d");
+        var holtEndX3 = +holtD3.split("L").pop().split(",")[0];
+        var dots3 = el3.querySelectorAll(".dot");
+        var lastDotX3 = +dots3[dots3.length - 1].getAttribute("cx");
+        var holtExtendsPastData = holtEndX3 > lastDotX3 + 1;
+        iframeDoc.body.removeChild(el3);
+
+        return {
+          ok: linearSegs === 1 && holtSegs === (labels.length - 1) && holtNoForecastMatch && holtExtendsPastData,
+          linearSegs: linearSegs, holtSegs: holtSegs, holtNoForecastMatch: holtNoForecastMatch, holtExtendsPastData: holtExtendsPastData
+        };
+      } catch (e) { return { ok: false, err: e.message }; }
+    });
+    ok("Z7HW: default method is a single-segment linear trend; trendMethod:'holt' draws a multi-segment smoothed line that extends with forecastPeriods", z7hwRender.ok, JSON.stringify(z7hwRender));
+
+    // Z7HW-3: the panel inspector shows the new Forecast method / α / β fields
+    var z7hwInsp = await page.evaluate(function () {
+      var spec = window.__STUDIO_STATE.spec;
+      var p = spec.panels[0];
+      var prevChart = JSON.parse(JSON.stringify(p.chart));
+      p.chart.type = "line"; p.chart.opts = {};
+      window.__studioSelect({ kind: "panel", id: p.id });
+      var body = document.getElementById("inspBody");
+      var text = body ? body.textContent : "";
+      var ok = text.indexOf("Forecast method") >= 0 && text.indexOf("Smoothing level") >= 0 && text.indexOf("Smoothing trend") >= 0;
+      p.chart = prevChart; // restore so later tests aren't affected
+      window.__studioSelect(null);
+      window.__studioRenderInspector();
+      return { ok: ok };
+    });
+    ok("Z7HW: line panel inspector shows Forecast method / smoothing α / smoothing β fields", z7hwInsp.ok, JSON.stringify(z7hwInsp));
+
     // ── m-a: mobile nav drawer (rail → slide-in left drawer at ≤900px) ──
     // Runs on a SEPARATE 390×844 page so it never disturbs the main desktop page.
     console.log("\n• m-a: mobile nav drawer");
