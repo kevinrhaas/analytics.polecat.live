@@ -1727,7 +1727,11 @@ gets covered over time:
 - **Pivot / crosstab builder** and **anomaly + correlation explorer** as first-class analysis surfaces.
 
 **N-DIST — Distribution & platform reach (still backend-free).**
-- **Embeddable single-chart widget:** export one panel as a tiny self-contained embed snippet/iframe.
+- ✓ **Embeddable single-chart widget shipped v211.** "Export this panel…" in the panel inspector (below
+  Duplicate/Delete) reuses the full `Studio.exportCDF` on a spec pared down to just that one panel (no
+  KPIs, no filters, no other panels) — same self-contained toolkit, tiny standalone `.html` widget, no
+  separate embed code path to drift out of sync. Also counts toward the N-FUN first-export delight moment.
+  Docs updated. 3 new tests, suite 980/980.
 - **Installable PWA + offline:** we already ship a webmanifest — make Studio installable and fully offline
   (service worker caching the app shell + examples). A dashboard app you can "install."
 - **Client-side PNG/PDF export of a whole dashboard** (canvas/`html-to-image`-style, dependency-light) and

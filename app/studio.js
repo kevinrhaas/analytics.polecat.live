@@ -1999,6 +1999,10 @@
     var dup = el("button", "btn-wide"); setIconBtn(dup, "duplicate", "Duplicate"); dup.onclick = function () { duplicatePanel(p.id); };
     var del = el("button", "btn-wide"); del.style.color = "var(--bad)"; setIconBtn(del, "trash", "Delete"); del.onclick = function () { deletePanel(p.id); };
     acts.appendChild(dup); acts.appendChild(del); sec.appendChild(acts);
+    var embedRow = el("div"); embedRow.style.cssText = "display:flex;gap:8px;margin-top:6px";
+    var embedBtn = el("button", "btn-wide"); setIconBtn(embedBtn, "code", "Export this panel…"); embedBtn.onclick = function () { exportPanelEmbed(p); };
+    embedRow.appendChild(embedBtn); sec.appendChild(embedRow);
+    sec.appendChild(noteEl("info", "Downloads a tiny, self-contained HTML file with just this one panel — an embeddable widget you can drop anywhere, no server or the rest of the dashboard needed."));
 
     // chart type picker — grouped by c.group for scannability (Content group = richtext/annotation)
     var cs = section(body, "Chart type", null, null, "chart-types");
@@ -4293,6 +4297,19 @@
   function deletePanel(id) {
     var i = panelIndex(id); if (i < 0) return;
     S.spec.panels.splice(i, 1); selectDashboard(); refreshPreview(); toast("Panel removed");
+  }
+  // N-DIST: embeddable single-chart widget — reuses the full CDF exporter on a spec pared
+  // down to just this one panel, so it stays byte-for-byte the same self-contained toolkit as
+  // any other export (no separate embed-only code path to drift out of sync).
+  function exportPanelEmbed(p) {
+    var single = Studio.clone(S.spec);
+    single.panels = [Studio.clone(p)];
+    single.kpis = []; single.filters = [];
+    single.title = p.title || S.spec.title; single.description = "";
+    var stem = (p.title || "panel").trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "") || "panel";
+    single.name = stem;
+    celebrateFirstExport();
+    bundleModal("Embed panel", [{ name: stem + "-embed.html", body: Studio.exportCDF(single, S.assets, S.settings.deployPath), mime: "text/html" }]);
   }
   function duplicateKpi(i) {
     var k = S.spec.kpis[i]; if (!k) return;

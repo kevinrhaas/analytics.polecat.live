@@ -15,6 +15,16 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 211,
+    title: 'Export a single panel as a standalone embed',
+    kind: 'feature',
+    ts: '2026-07-02T22:08:18Z',
+    items: [
+      'Every panel inspector now has an "Export this panel…" action that downloads a tiny, self-contained .html widget with just that one chart — no other panels, KPIs, or filters — using the exact same exporter as a full dashboard.',
+      'Handy for embedding a single chart somewhere a full dashboard would be overkill.',
+    ],
+  },
+  {
     v: 210,
     title: 'A small celebration for your first export',
     kind: 'polish',

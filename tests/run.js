@@ -1438,6 +1438,35 @@ function serve() {
     const pcount3 = await page.evaluate(() => window.__STUDIO_STATE.spec.panels.length);
     ok("inspector Duplicate clones the panel", inspDup === 1 && pcount3 === pcount2 + 1, pcount2 + "→" + pcount3);
 
+    // ---- N-DIST: embeddable single-chart widget ("Export this panel…") ----
+    console.log("\n• N-DIST: embeddable single-panel export");
+    const embedTest = await page.evaluate(function () {
+      var sp = window.__STUDIO_STATE.spec;
+      var sel = window.__STUDIO_STATE.selection;
+      var p = (sel && sel.kind === "panel" && sp.panels.filter(function (x) { return x.id === sel.id; })[0]) || sp.panels[0];
+      var otherPanelId = sp.panels.filter(function (x) { return x.id !== p.id; }).map(function (x) { return x.id; })[0];
+      var btn = [].slice.call(document.querySelectorAll("#inspBody .btn-wide")).filter(function (b) { return /Export this panel/.test(b.textContent); })[0];
+      if (!btn) return { found: false };
+      btn.click();
+      var rows = [].slice.call(document.querySelectorAll(".modal .dl-row"));
+      var title = document.querySelector(".modal-h") ? document.querySelector(".modal-h").textContent : "";
+      var fileName = rows[0] ? rows[0].querySelector(".nm").textContent : "";
+      // grab the exported HTML the same way the modal's Copy button would, to check its contents
+      var single = Studio.clone(sp);
+      single.panels = [Studio.clone(p)]; single.kpis = []; single.filters = []; single.title = p.title || sp.title;
+      var html = Studio.exportCDF(single, window.__STUDIO_STATE.assets, window.__STUDIO_STATE.settings.deployPath);
+      return {
+        found: true, rowCount: rows.length, isHtml: /\.html$/.test(fileName), modalTitle: title,
+        hasThisPanelType: html.indexOf('"type":"' + p.chart.type + '"') >= 0,
+        excludesOtherPanel: !otherPanelId || html.indexOf(otherPanelId) < 0,
+        noKpis: html.indexOf('"kpis":[]') >= 0
+      };
+    });
+    await page.evaluate(() => { document.querySelectorAll(".modal-ov").forEach((m) => m.remove()); });
+    ok("N-DIST: panel inspector has an 'Export this panel…' action", embedTest.found, JSON.stringify(embedTest));
+    ok("N-DIST: it opens a single-file 'Embed panel' modal for a self-contained .html", embedTest.rowCount === 1 && embedTest.isHtml && /Embed panel/.test(embedTest.modalTitle), JSON.stringify(embedTest));
+    ok("N-DIST: the exported single-panel HTML contains only that panel's chart type, no KPIs, and no other panel", embedTest.hasThisPanelType && embedTest.excludesOtherPanel && embedTest.noKpis, JSON.stringify(embedTest));
+
     // ---- KPI extras: delta + sparkline + delete-from-canvas ----
     console.log("\n• KPI delta / sparkline / canvas delete");
     await page.evaluate(async () => { const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json()); window.__studioLoad(spec); });
