@@ -8943,7 +8943,7 @@ function serve() {
             { group: "C", label: "C1", value: 50 }
           ],
           labelCol: "label", groupCol: "group", valueCol: "value",
-          fmt: "plain", height: 200
+          fmt: function (v) { return String(v); }, height: 200
         });
         var svg   = el.querySelector("svg");
         var rects = svg ? svg.querySelectorAll("rect") : [];
@@ -10215,6 +10215,103 @@ function serve() {
       return { ok: okv };
     });
     ok("Z8CN: chord/network panel inspector shows Show arc labels / Show node labels fields", z8cnInsp.ok, JSON.stringify(z8cnInsp));
+
+    // ── Z8 slice 17: Bump gets "Show rank numbers", Icicle gets label/pct toggles ──
+    console.log("\n• Z8 bump + icicle: rank numbers / cell labels / % of total");
+
+    // Z8BI-1: registry declares the new keys
+    var z8biOpts = await page.evaluate(function () {
+      var bo = (window.Studio.CHARTS.bump || {}).opts || [];
+      var io = (window.Studio.CHARTS.icicle || {}).opts || [];
+      var bk = bo.map(function (od) { return od.key; }), ik = io.map(function (od) { return od.key; });
+      return {
+        ok: bk.indexOf("showRankNumbers") >= 0 && ik.indexOf("showLabels") >= 0 && ik.indexOf("showPct") >= 0,
+        bk: bk, ik: ik
+      };
+    });
+    ok("Z8BI: Studio.CHARTS.bump.opts declares showRankNumbers; icicle.opts declares showLabels+showPct", z8biOpts.ok, JSON.stringify(z8biOpts));
+
+    // Z8BI-2: showRankNumbers:false removes the small rank-number text from bump dots
+    var z8biBump = await page.evaluate(function () {
+      var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
+      for (var i = 0; i < iframes.length; i++) {
+        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.bump === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+      }
+      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      try {
+        var cfg = {
+          labels: ["Q1", "Q2", "Q3"],
+          series: [{ name: "A", values: [10, 30, 20] }, { name: "B", values: [30, 10, 40] }, { name: "C", values: [20, 20, 10] }],
+          height: 200
+        };
+        var d1 = iframeDoc.createElement("div"); d1.style.cssText = "position:absolute;top:-9999px;width:300px"; iframeDoc.body.appendChild(d1);
+        w.PDC.bump(d1, cfg);
+        var textsOn = d1.querySelectorAll("svg circle").length; // one dot per series per period = 9
+        var rankTextsOn = Array.prototype.filter.call(d1.querySelectorAll("svg text"), function (t) { return /^\d+$/.test(t.textContent) && t.textContent.length === 1; }).length;
+        iframeDoc.body.removeChild(d1);
+
+        var d2 = iframeDoc.createElement("div"); d2.style.cssText = "position:absolute;top:-9999px;width:300px"; iframeDoc.body.appendChild(d2);
+        w.PDC.bump(d2, Object.assign({}, cfg, { showRankNumbers: false }));
+        var dotsOff = d2.querySelectorAll("svg circle").length;
+        var rankTextsOff = Array.prototype.filter.call(d2.querySelectorAll("svg text"), function (t) { return /^\d+$/.test(t.textContent) && t.textContent.length === 1; }).length;
+        iframeDoc.body.removeChild(d2);
+
+        return { ok: textsOn === 9 && rankTextsOn === 9 && dotsOff === 9 && rankTextsOff === 0, textsOn: textsOn, rankTextsOn: rankTextsOn, dotsOff: dotsOff, rankTextsOff: rankTextsOff };
+      } catch (e) { return { ok: false, err: e.message }; }
+    });
+    ok("Z8BI: bump showRankNumbers:false removes the rank-number text (dots stay)", z8biBump.ok, JSON.stringify(z8biBump));
+
+    // Z8BI-3: icicle showLabels:false removes all cell text; showPct swaps the value line to a %
+    var z8biIcicle = await page.evaluate(function () {
+      var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
+      for (var i = 0; i < iframes.length; i++) {
+        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.icicle === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+      }
+      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      try {
+        var rows = [{ label: "X1", value: 60 }, { label: "X2", value: 40 }];
+        var base = { rows: rows, labelCol: "label", valueCol: "value", fmt: function (v) { return String(v); }, height: 100 };
+
+        var d1 = iframeDoc.createElement("div"); d1.style.cssText = "position:absolute;top:-9999px;width:400px"; iframeDoc.body.appendChild(d1);
+        w.PDC.icicle(d1, base);
+        var textsOn = d1.querySelectorAll("svg text").length;
+        iframeDoc.body.removeChild(d1);
+
+        var d2 = iframeDoc.createElement("div"); d2.style.cssText = "position:absolute;top:-9999px;width:400px"; iframeDoc.body.appendChild(d2);
+        w.PDC.icicle(d2, Object.assign({}, base, { showLabels: false }));
+        var textsOff = d2.querySelectorAll("svg text").length;
+        iframeDoc.body.removeChild(d2);
+
+        var d3 = iframeDoc.createElement("div"); d3.style.cssText = "position:absolute;top:-9999px;width:400px"; iframeDoc.body.appendChild(d3);
+        w.PDC.icicle(d3, Object.assign({}, base, { height: 60, showPct: true }));
+        var pctTexts = Array.prototype.filter.call(d3.querySelectorAll("svg text"), function (t) { return t.textContent.indexOf("%") >= 0; }).length;
+        iframeDoc.body.removeChild(d3);
+
+        return { ok: textsOn > 0 && textsOff === 0 && pctTexts > 0, textsOn: textsOn, textsOff: textsOff, pctTexts: pctTexts };
+      } catch (e) { return { ok: false, err: e.message }; }
+    });
+    ok("Z8BI: icicle showLabels:false removes cell text; showPct:true shows % of total", z8biIcicle.ok, JSON.stringify(z8biIcicle));
+
+    // Z8BI-4: panel inspector shows the new fields when a bump / icicle panel is selected
+    var z8biInsp = await page.evaluate(function () {
+      var spec = window.__STUDIO_STATE.spec;
+      var p = spec.panels[0];
+      var prevChart = JSON.parse(JSON.stringify(p.chart));
+      p.chart.type = "bump"; p.chart.opts = {};
+      window.__studioSelect({ kind: "panel", id: p.id });
+      var bumpText = (document.getElementById("inspBody") || {}).textContent || "";
+      p.chart.type = "icicle"; p.chart.opts = {};
+      window.__studioSelect({ kind: "panel", id: p.id });
+      var icicleText = (document.getElementById("inspBody") || {}).textContent || "";
+      var okv = bumpText.indexOf("Show rank numbers") >= 0 &&
+                icicleText.indexOf("Show cell labels") >= 0 &&
+                icicleText.indexOf("Show % of total") >= 0;
+      p.chart = prevChart; // restore so later tests aren't affected
+      window.__studioSelect(null);
+      window.__studioRenderInspector();
+      return { ok: okv };
+    });
+    ok("Z8BI: bump/icicle panel inspector shows the new option fields", z8biInsp.ok, JSON.stringify(z8biInsp));
 
     // restore Studio + a clean flagship spec for any tests appended after this block
     await page.evaluate(async function () {

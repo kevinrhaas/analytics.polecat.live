@@ -377,6 +377,13 @@
   invisible hover targets keep tooltips working with dots hidden, same convention as Line's "Show data
   points"). `PDC.radar` in `studio-charts.js` reads `cfg.showDots`; `studio-render.js` passes
   `legend`/`showDots` through. `docs/index.html` updated. 3 new Z8RD tests. Test suite 789/789.
+- v154: **Z8 slice 17: Bump + Icicle get their own options** — `Studio.CHARTS.bump.opts` gains **Show rank
+  numbers in dots** (declutters a chart with many entities/periods); `Studio.CHARTS.icicle.opts` gains
+  **Show cell labels** + **Show % of total, not value**, mirroring Treemap's pattern (both are
+  proportional-area partitions). These were the last two chart types with zero distinguishing options
+  beyond fmt+height — every chart type now has at least one type-specific option. `PDC.bump`/`PDC.icicle`
+  updated directly in `studio-charts.js` (both are pure extensions, no vendored base); `studio-render.js`
+  passes the new keys through. 4 new Z8BI tests. Test suite 796/796.
 
 ## NEXT (top = do first)
 
@@ -549,12 +556,17 @@ self-explanatory. Keep it light (inline SVG / CSS, no image assets or deps). One
 > diagram. These were the last two Flow-group types still on generic fmt+height only; sankey already had
 > its own source/destination captions (v55), waterfall/funnel/sunburst/combo already had type-specific
 > options too (showTotal/showPct/showLabels/dual-axis fmt) so the actual gap was just these two.
-> **Z8 follow-ups (not yet done, the bulk of the track):** a real per-type capability map covering the
-> REST of the ~51 types' *own* option sets (Table, Gauge, Treemap, Scatter, Line, Donut, Bars, Stacked
-> bars, Calendar heatmap, KPI, areaStacked, streamgraph, radar, chord, network done; still needed: the
-> remaining ~35 CDF-only F-track types — waterfall/funnel/sunburst/combo/bullet already have some
-> type-specific options but could go deeper, then sankey/lollipop/slope/dotplot/beeswarm/histogram/etc.),
-> plus the inline visual setting hints (tiny before/after thumbnails). Continue one slice per loop.
+> ✓ **Slice 17 shipped v154**: **Bump / ranking** gets **Show rank numbers in dots** and **Icicle /
+> partition** gets **Show cell labels** + **Show % of total, not value** (mirrors Treemap's pattern) —
+> the last two chart types still on bare fmt+height with zero distinguishing options. Audited every
+> type's `opts` array to confirm: bars/donut/stacked/lollipop/dumbbell/slope/dotplot/beeswarm/histogram/
+> polarArea/step/violin/marimekko/packedBubble/wordCloud/gantt/divergingBar/candlestick/waffle/timeline/
+> pyramidBar/radialBar/pareto/groupedBars/ridgeline/barNorm/areaRange/quadrant/waterfall/funnel/sunburst/
+> combo/bullet/sankey all already carry at least one genuine type-specific option alongside fmt+height.
+> **Z8 follow-ups (not yet done):** the inline visual setting hints (tiny before/after thumbnails) —
+> the "every type gets its own option set" sweep is now essentially complete (every chart type has ≥1
+> type-specific option); a deeper pass could still give a *second* option to the thinnest types
+> (groupedBars/barNorm currently have only `rotate`). Continue as capacity allows.
 
 **Z9 — Mobile: fix the broken flows + a proper bottom nav (user-requested 2026-06-30).** Reported
 regressions on small screens: the top button-bar scrolls/slides but **its dropdown menus don't open /

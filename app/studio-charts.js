@@ -1579,12 +1579,15 @@
         dot.addEventListener("mouseout", PDC.hideTip);
         svg.appendChild(dot);
 
-        // Rank number inside the dot for clarity (small, white)
-        svg.appendChild(S("text", {
-          x: pt[0].toFixed(1), y: (pt[1] + 3.8).toFixed(1),
-          "text-anchor": "middle", "font-size": "8",
-          "font-weight": "700", fill: "#fff", "pointer-events": "none"
-        }, String(ranks[xi])));
+        // Rank number inside the dot for clarity (small, white) — Z8 slice 17:
+        // optional, since it gets crowded with many entities/periods.
+        if (cfg.showRankNumbers !== false) {
+          svg.appendChild(S("text", {
+            x: pt[0].toFixed(1), y: (pt[1] + 3.8).toFixed(1),
+            "text-anchor": "middle", "font-size": "8",
+            "font-weight": "700", fill: "#fff", "pointer-events": "none"
+          }, String(ranks[xi])));
+        }
       });
 
       // Series label + current rank at the right end
@@ -4157,6 +4160,8 @@
     var valueCol = cfg.valueCol || "";
     var h        = cfg.height  || 280;
     var fmtFn    = cfg.fmt     || PDC.fmt.abbr;
+    var showLabels = cfg.showLabels !== false;
+    var showPct    = !!cfg.showPct;
     var pal      = PDC.palette();
     var cW       = el.clientWidth || (el.parentNode && el.parentNode.clientWidth) || 640;
     var PAD      = 1.5; // gap between adjacent cells (px)
@@ -4204,8 +4209,8 @@
         svg.appendChild(headerRect);
         allRects.push({ el: headerRect, baseOp: 1 });
 
-        // Group label (truncated to fit cell width)
-        if (gw > 36) {
+        // Group label (truncated to fit cell width) — Z8 slice 17: gated by showLabels.
+        if (showLabels && gw > 36) {
           var maxCh = Math.max(2, Math.floor((gw - 8) / 5.5));
           var gLbl = mk("text", {
             x: (gx + gw / 2).toFixed(1), y: (topY + topH / 2 + 1).toFixed(1),
@@ -4238,16 +4243,27 @@
           svg.appendChild(iRect);
           allRects.push({ el: iRect, baseOp: parseFloat(op) });
 
-          // Item label (truncated to fit cell width)
-          if (iw > 24) {
+          // Item label (truncated to fit cell width) — Z8 slice 17: gated by showLabels,
+          // with an optional second line ("% of total" or the raw value) when tall enough.
+          if (showLabels && iw > 24) {
             var maxCi = Math.max(1, Math.floor((iw - 6) / 5));
+            var twoLine = botH > 34;
             var iLbl = mk("text", {
-              x: (cx + iw / 2).toFixed(1), y: (botY + botH / 2 + 1).toFixed(1),
+              x: (cx + iw / 2).toFixed(1), y: (twoLine ? botY + botH / 2 - 5 : botY + botH / 2 + 1).toFixed(1),
               "text-anchor": "middle", "dominant-baseline": "middle",
               fill: "#fff", "font-size": 9, "pointer-events": "none"
             });
             iLbl.textContent = PDC.fmt.trunc(item.label, maxCi);
             svg.appendChild(iLbl);
+            if (twoLine) {
+              var iVal = mk("text", {
+                x: (cx + iw / 2).toFixed(1), y: (botY + botH / 2 + 8).toFixed(1),
+                "text-anchor": "middle", "dominant-baseline": "middle",
+                fill: "rgba(255,255,255,.8)", "font-size": 8, "pointer-events": "none"
+              });
+              iVal.textContent = showPct ? (100 * item.value / grandTotal).toFixed(1) + "%" : fmtFn(item.value);
+              svg.appendChild(iVal);
+            }
           }
           cx += iw;
         });
@@ -4279,16 +4295,27 @@
         svg.appendChild(rect);
         allRects.push({ el: rect, baseOp: 1 });
 
-        // Label (truncated to fit)
-        if (rw > 24) {
+        // Label (truncated to fit) — Z8 slice 17: gated by showLabels, with an optional
+        // second line ("% of total" or the raw value) when the band is tall enough.
+        if (showLabels && rw > 24) {
           var maxCh2 = Math.max(1, Math.floor((rw - 8) / 5.5));
+          var twoLine2 = h > 44;
           var lbl = mk("text", {
-            x: (x + rw / 2).toFixed(1), y: (h / 2 + 1).toFixed(1),
+            x: (x + rw / 2).toFixed(1), y: (twoLine2 ? h / 2 - 5 : h / 2 + 1).toFixed(1),
             "text-anchor": "middle", "dominant-baseline": "middle",
             fill: "#fff", "font-size": 10, "font-weight": 600, "pointer-events": "none"
           });
           lbl.textContent = PDC.fmt.trunc(r[labelCol] || "", maxCh2);
           svg.appendChild(lbl);
+          if (twoLine2) {
+            var val2 = mk("text", {
+              x: (x + rw / 2).toFixed(1), y: (h / 2 + 9).toFixed(1),
+              "text-anchor": "middle", "dominant-baseline": "middle",
+              fill: "rgba(255,255,255,.85)", "font-size": 9, "pointer-events": "none"
+            });
+            val2.textContent = showPct ? (v / total * 100).toFixed(1) + "%" : fmtFn(v);
+            svg.appendChild(val2);
+          }
         }
         x += rw;
       });

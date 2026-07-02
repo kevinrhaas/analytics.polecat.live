@@ -620,9 +620,13 @@
       group: "Trend",
       desc: "Ranking changes across periods — who rose and who fell",
       fields: ["labelCol", "series"],
+      // Z8 slice 17: bump gets its own type-specific option — the tiny rank number
+      // inside every dot was always drawn with no way to turn it off; on a busy chart
+      // (many entities/periods) the numbers get crowded, so a clean dots-only mode helps.
       opts: [
-        { key: "fmt",    label: "Value format", type: "fmt", def: "abbr" },
-        { key: "height", label: "Height (px)",  type: "int", def: 300 }
+        { key: "showRankNumbers", label: "Show rank numbers in dots", type: "bool", def: true },
+        { key: "fmt",             label: "Value format",              type: "fmt",  def: "abbr" },
+        { key: "height",          label: "Height (px)",                type: "int",  def: 300 }
       ],
       cde: null // CDF-only; no CCC ranking-line equivalent
     },
@@ -1115,9 +1119,14 @@
         });
         return svg + '</svg>';
       }()),
+      // Z8 slice 17: icicle gets its own type-specific options, mirroring Treemap's
+      // pattern (both are proportional-area partitions) — a cell-label toggle for
+      // dense charts, and a "% of total" mode since that's usually the real question.
       opts: [
-        { key: "fmt",    type: "fmt", label: "Value format", def: "abbr" },
-        { key: "height", type: "int", label: "Height (px)",  def: 280 }
+        { key: "fmt",        type: "fmt",  label: "Value format",              def: "abbr" },
+        { key: "showLabels", type: "bool", label: "Show cell labels",          def: true },
+        { key: "showPct",    type: "bool", label: "Show % of total, not value", def: false },
+        { key: "height",     type: "int",  label: "Height (px)",               def: 280 }
       ],
       cde: null // CDF-only; no CCC equivalent
     },

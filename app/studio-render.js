@@ -484,7 +484,7 @@
                      color: color(s.color, "--c" + ((i % 10) + 1)),
                      values: colVals(res, s.col).map(function (v) { return +v || 0; }) };
           });
-          PDC.bump(body, { labels: bumpLabels, series: bumpSeries, fmt: f, height: o.height || 300 });
+          PDC.bump(body, { labels: bumpLabels, series: bumpSeries, fmt: f, height: o.height || 300, showRankNumbers: o.showRankNumbers !== false });
           break;
         }
         case "marimekko": {
@@ -705,8 +705,10 @@
             labelCol: "label",
             groupCol: icGi >= 0 ? "group" : "",
             valueCol: "value",
-            fmt:      f,
-            height:   o.height || 280
+            fmt:        f,
+            height:     o.height || 280,
+            showLabels: o.showLabels !== false,
+            showPct:    !!o.showPct
           });
           break;
         }
