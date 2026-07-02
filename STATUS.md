@@ -1272,9 +1272,13 @@ gets covered over time:
 - ✓ **Command palette (⌘K / Ctrl-K) — slice 1 shipped v175** (`app/palette.js`): fuzzy-searchable list of
   ~28 commands (section nav + new/open/save/export + add text/source + theme/live/focus/slideshow/demo/
   simple toggles + servers/tour/tutorial/shortcuts/docs). Keyboard-first (↑↓/↵/esc); ⋯ More entry;
-  self-contained (drives existing controls, own CSS, no studio.css/studio.js edits); 5 tests. **Follow-ups:**
-  include chart types (add-panel-of-type) + examples + recent dashboards as commands; recent/frequent
-  command ranking; per-command icons for the rest; a visible "⌘K" hint affordance in the top bar.
+  self-contained (drives existing controls, own CSS, no studio.css/studio.js edits); 5 tests.
+> ✓ **Slice 2 shipped v176**: palette now includes **dynamic commands** — "Open example: <title>" for every
+> curated gallery example and "Open dashboard: <title>" for every Home recent, rebuilt fresh each open by
+> reading the existing DOM (no new storage). Added a **visible "Search ⌘K" rail item** (global chrome, all
+> sections) as a discoverable affordance beyond ⋯ More/shortcuts-modal; new `search` icon. Docs updated.
+> 5 new tests, suite 883/883. **Still open:** include chart types (add-panel-of-type) as commands;
+> recent/frequent command ranking; per-command icons for the rest of the static list.
 - **Story / scrollytelling mode:** author an ordered, annotated narrative through a dashboard (extends
   Slideshow) — each step pans/zooms/highlights and shows a caption. Present findings, not just charts.
 - **Live "what-if" parameter sliders:** on-canvas sliders that drive derived series / forecasts and animate

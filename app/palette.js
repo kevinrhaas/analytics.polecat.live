@@ -53,8 +53,32 @@
     { label: "Sign out", hint: "Manage", kw: "sign out logout leave lock", run: function () { studio(); click("moreSignOut"); } }
   ];
 
+  // ---- dynamic commands ---------------------------------------------------
+  // Examples and recent dashboards change as the user works, so unlike the
+  // static COMMANDS above these are rebuilt fresh every time the palette
+  // opens by reading the DOM the app already maintains (the Examples ▾ menu
+  // and Home's recent-dashboard cards are both rendered at boot regardless of
+  // which section is currently visible) — no new state, no drift possible.
+  function exampleCommands() {
+    return Array.prototype.map.call(document.querySelectorAll("#menuExamples .ex-card"), function (b) {
+      var t = b.querySelector(".ex-card-title");
+      var label = (t && t.textContent) || b.getAttribute("data-f") || "Example";
+      return { label: "Open example: " + label, hint: "Example", kw: "example gallery template showcase " + label, ic: "grid", run: function () { studio(); b.click(); } };
+    });
+  }
+  function recentCommands() {
+    return Array.prototype.slice.call(document.querySelectorAll("#secHome .recent-card")).map(function (card) {
+      var openBtn = card.querySelector(".recent-open");
+      var titleEl = card.querySelector(".recent-meta b");
+      if (!openBtn || !titleEl) return null;
+      var label = titleEl.textContent || "Untitled";
+      return { label: "Open dashboard: " + label, hint: "Recent", kw: "recent dashboard open " + label, ic: "clock", run: function () { openBtn.click(); } };
+    }).filter(Boolean);
+  }
+
   // ---- state + DOM ------------------------------------------------------
   var overlay = null, input = null, listEl = null;
+  var allCommands = COMMANDS;
   var filtered = [], sel = 0, built = false;
 
   function injectStyle() {
@@ -123,7 +147,7 @@
 
   function refresh() {
     var q = (input.value || "").trim().toLowerCase();
-    filtered = COMMANDS.map(function (c) { return { c: c, s: score(c, q) }; })
+    filtered = allCommands.map(function (c) { return { c: c, s: score(c, q) }; })
       .filter(function (x) { return x.s >= 0; })
       .sort(function (a, b) { return b.s - a.s; })
       .map(function (x) { return x.c; });
@@ -173,6 +197,7 @@
 
   function open() {
     build();
+    allCommands = COMMANDS.concat(exampleCommands(), recentCommands());
     input.value = "";
     refresh();
     overlay.classList.add("open");
@@ -208,6 +233,13 @@
     });
     moreMenu.insertBefore(mi, moreMenu.firstChild);
   }
+
+  // Visible discoverability affordance: a rail item (global chrome, visible from
+  // every section) that opens the palette and carries a "⌘K" hint chip so the
+  // shortcut isn't only discoverable via the ⋯ More menu or the shortcuts modal.
+  // Its icon is painted automatically by shell.js's generic `.rail-ic[data-ic]` pass.
+  var railCmdk = document.getElementById("railCmdk");
+  if (railCmdk) railCmdk.addEventListener("click", open);
 
   window.StudioPalette = { open: open, close: close, toggle: toggle, isOpen: isOpen, commands: COMMANDS };
 })();

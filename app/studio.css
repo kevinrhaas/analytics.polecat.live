@@ -61,7 +61,11 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);-webkit-font-
 #railNav:not(.expanded) .rail-lbl{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
 #railNav .rail-spacer{flex:1}
 /* Z11: Help/docs entry — a persistent, always-visible rail link (not buried in ⋯ More) */
-#railNav #railHelp{border-top:1px solid var(--rail-line)}
+#railNav #railCmdk{border-top:1px solid var(--rail-line)}
+/* Track N follow-up: visible ⌘K hint so the command palette isn't only discoverable
+   via ⋯ More or the shortcuts modal. Chip hides when the rail is collapsed (icon-only). */
+#railNav .rail-kbd{margin-left:6px;padding:1px 5px;border-radius:5px;font-size:10px;font-weight:700;
+  font-family:inherit;border:1px solid var(--rail-line);opacity:.75}
 #railNav .rail-toggle{opacity:.5;border-top:1px solid var(--rail-line)}
 #railNav .rail-toggle:hover{opacity:.9}
 @media(prefers-reduced-motion:reduce){#railNav{transition:none}}

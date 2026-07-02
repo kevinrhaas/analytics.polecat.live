@@ -9997,7 +9997,7 @@ function serve() {
     // Z1-2: rail icons are real inline SVGs (Studio.icon(), theme-aware — no emoji/unicode glyphs)
     const z1Icons = await page.evaluate(function () {
       var svgs = document.querySelectorAll("#railNav .rail-ic svg");
-      return { ok: svgs.length === 6, count: svgs.length }; // 4 sections + Help (Z11) + collapse toggle
+      return { ok: svgs.length === 7, count: svgs.length }; // 4 sections + Search/⌘K (Track N) + Help (Z11) + collapse toggle
     });
     ok("Z1: rail buttons render inline SVG icons (Studio.icon helper)", z1Icons.ok, JSON.stringify(z1Icons));
 
@@ -11177,6 +11177,60 @@ function serve() {
     ok("Track N: palette filters commands by query text", cmdk.filters, JSON.stringify(cmdk));
     ok("Track N: running a command closes the palette + navigates (Settings)", cmdk.closedAfterRun && cmdk.navigated, JSON.stringify(cmdk));
     ok("Track N: Escape closes the palette", cmdk.reopened && cmdk.escCloses, JSON.stringify(cmdk));
+
+    // ---- Track N follow-up: rail ⌘K hint + dynamic commands (examples + recent dashboards) ----
+    console.log("\n• Track N follow-up: palette dynamic commands + rail ⌘K hint");
+    var cmdkFollow = await page.evaluate(async function () {
+      var r = {};
+      if (window.__studioShellSetSection) window.__studioShellSetSection("studio");
+      var railBtn = document.getElementById("railCmdk");
+      r.hasRailBtn = !!railBtn;
+      r.railHasIcon = !!(railBtn && railBtn.querySelector(".rail-ic svg"));
+      var kbd = railBtn && railBtn.querySelector(".rail-kbd");
+      r.railHasHint = !!(kbd && kbd.textContent.toUpperCase().indexOf("K") >= 0);
+      railBtn.click(); // discoverable affordance should itself open the palette
+      var ov = document.getElementById("cmdkOverlay");
+      r.railOpens = !!(ov && ov.classList.contains("open"));
+
+      var rows = function () { return Array.prototype.slice.call(document.querySelectorAll("#cmdkList .cmdk-row")); };
+      var labels = rows().map(function (li) { return li.querySelector(".cmdk-lbl").textContent; });
+      r.hasExampleCmd = labels.some(function (l) { return l.indexOf("Open example:") === 0; });
+      r.hasRecentCmd = labels.some(function (l) { return l.indexOf("Open dashboard:") === 0; });
+
+      // running a dynamic "Open dashboard: <title>" command loads that exact spec + returns to Studio
+      var input = document.getElementById("cmdkInput");
+      input.value = "open dashboard:";
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      var recentRow = rows().filter(function (li) { return li.querySelector(".cmdk-lbl").textContent.indexOf("Open dashboard:") === 0; })[0];
+      var wantTitle = recentRow ? recentRow.querySelector(".cmdk-lbl").textContent.slice("Open dashboard: ".length) : null;
+      if (recentRow) recentRow.click();
+      r.recentRan = !!wantTitle && (window.__STUDIO_STATE.spec.title === wantTitle || window.__STUDIO_STATE.spec.name === wantTitle);
+      r.recentClosedAndNavigated = !ov.classList.contains("open") && document.getElementById("appMain").hidden === false;
+
+      // running a dynamic "Open example: <title>" command loads an example (panels present) + closes
+      window.__studioShellSetSection("studio");
+      railBtn.click();
+      input = document.getElementById("cmdkInput");
+      input.value = "open example:";
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      var exRow = rows().filter(function (li) { return li.querySelector(".cmdk-lbl").textContent.indexOf("Open example:") === 0; })[0];
+      var wantExTitle = exRow ? exRow.querySelector(".cmdk-lbl").textContent.slice("Open example: ".length) : null;
+      if (exRow) exRow.click();
+      await new Promise(function (res) { setTimeout(res, 300); }); // loadExample() fetches the spec asynchronously
+      r.exampleRan = !ov.classList.contains("open") && window.__STUDIO_STATE.spec.panels.length > 0 &&
+        (window.__STUDIO_STATE.spec.title === wantExTitle || window.__STUDIO_STATE.spec.name === wantExTitle);
+
+      window.__studioShellSetSection("studio");
+      return r;
+    });
+    ok("Track N follow-up: rail shows a Search item with an SVG icon + visible ⌘K hint",
+      cmdkFollow.hasRailBtn && cmdkFollow.railHasIcon && cmdkFollow.railHasHint, JSON.stringify(cmdkFollow));
+    ok("Track N follow-up: clicking the rail item opens the palette", cmdkFollow.railOpens, JSON.stringify(cmdkFollow));
+    ok("Track N follow-up: palette lists dynamic 'Open example:' and 'Open dashboard:' commands",
+      cmdkFollow.hasExampleCmd && cmdkFollow.hasRecentCmd, JSON.stringify(cmdkFollow));
+    ok("Track N follow-up: running a recent-dashboard command loads that exact spec and returns to Studio",
+      cmdkFollow.recentRan && cmdkFollow.recentClosedAndNavigated, JSON.stringify(cmdkFollow));
+    ok("Track N follow-up: running an example command loads a real dashboard", cmdkFollow.exampleRan, JSON.stringify(cmdkFollow));
 
     // restore Studio + a clean flagship spec for any tests appended after this block
     await page.evaluate(async function () {
