@@ -151,6 +151,31 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);-webkit-font-
 .brand-preview{margin-top:6px}
 .brand-preview img{width:26px;height:26px;border-radius:6px;background:#3A2F3A;object-fit:contain;padding:2px}
 @media(max-width:640px){.settings-wrap{padding:28px 16px 40px}}
+
+/* ── Z3 slice 1: Repository — data sources + dashboards, browsable/searchable in one place ── */
+.repo-wrap{max-width:960px;margin:0 auto;padding:44px 32px 60px}
+.repo-hero h1{margin:0 0 6px;font-size:25px;font-weight:800;color:#F5E9D6}
+.repo-hero p{margin:0 0 16px;font-size:13.5px;color:#c9b9a3}
+.repo-search{width:100%;max-width:420px;display:block;margin-bottom:30px;padding:9px 13px;font-size:13px;
+  border:1px solid rgba(245,233,214,.16);border-radius:9px;background:#1c1720;color:#F5E9D6;font-family:var(--font)}
+.repo-search::placeholder{color:#8a7d6d}
+.repo-search:focus{outline:none;border-color:#d4773b}
+.repo-count{font-weight:400;text-transform:none;letter-spacing:0;color:#8a7d6d;font-size:11px}
+.repo-sub2{margin-top:30px}
+.repo-ds-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+.repo-ds-card{background:#1c1720;border:1px solid rgba(245,233,214,.12);border-radius:12px;padding:12px 14px;
+  cursor:pointer;text-align:left;color:#F5E9D6;font-family:var(--font);width:100%;
+  transition:transform .12s ease,border-color .12s ease}
+.repo-ds-card:hover{border-color:#10a37f;transform:translateY(-2px)}
+.repo-ds-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.repo-ds-id{font-size:12.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.repo-ds-kind{flex:0 0 auto;font-size:9.5px;font-weight:700;letter-spacing:.04em;color:#10a37f;
+  background:rgba(16,163,127,.14);border-radius:5px;padding:2px 6px}
+.repo-ds-stem{display:block;font-size:10.5px;color:#8a7d6d;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.repo-ds-cols{margin-top:6px;font-size:10px;color:#c9b9a3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media(prefers-reduced-motion:reduce){.repo-ds-card{transition:none}}
+@media(max-width:640px){.repo-wrap{padding:28px 16px 40px}.repo-ds-grid{grid-template-columns:1fr}}
+
 .spacer{flex:1}
 button{font-family:inherit}
 code{font-family:var(--mono)}

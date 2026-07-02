@@ -300,6 +300,7 @@
       applyBranding();
       loadConnections();
       renderHome();
+      renderRepository();
       renderSettings();
       if (window.StudioWelcome) { var ab = $("#btnAbout"); if (ab) ab.onclick = function () { StudioWelcome.open(); }; setTimeout(function () { StudioWelcome.maybeShow(); }, 300); }
       buildLibrary();
@@ -3645,6 +3646,7 @@
     if (i >= 0) pins.splice(i, 1); else pins.unshift(id);
     savePins(pins);
     renderHome();
+    renderRepository();
   }
   function noteRecent() {
     if (!S.spec || !S.spec.id) return;
@@ -3660,6 +3662,7 @@
     list = capped;
     try { localStorage.setItem(_LS_RECENTS, JSON.stringify(list)); } catch (e) { /* quota or private-mode */ }
     renderHome();
+    renderRepository();
   }
   function openRecent(id) {
     var r = loadRecents().filter(function (x) { return x.id === id; })[0];
@@ -3725,6 +3728,71 @@
   window.__studioOpenRecent = openRecent; // test hook
   window.__studioPins = loadPins; // test hook
   window.__studioTogglePin = togglePin; // test hook
+
+  /* ---------- Z3 slice 1: Repository — data sources + dashboards, one searchable home ---
+     Consolidates the two things that used to live in separate corners of the app: the
+     catalog of query-library data accesses (S.catalog, same data the Studio library pane
+     browses) and the local inventory of dashboards (studio-recents/-pins, same data Home's
+     "recent dashboards" grid already tracks). No new storage — this is a browsing surface
+     over data that already exists, filtered by one shared search box. Folders/CRUD/JSON
+     export of the whole repository are deliberately deferred to a later Z3 slice; this one
+     is "can I find and jump to any data source or dashboard I have from a single page?" */
+  function repoDaCardHtml(stem, d) {
+    var kind = ((d.kind || "sql").split(".")[0]).toUpperCase();
+    var cols = (d.columns || []).slice(0, 6).join(", ") + ((d.columns || []).length > 6 ? "…" : "");
+    return '<button type="button" class="repo-ds-card" data-repo-ds="' + esc(stem) + '|' + esc(d.id) + '">' +
+      '<div class="repo-ds-top"><span class="repo-ds-id">' + esc(d.id) + '</span><span class="repo-ds-kind">' + esc(kind) + '</span></div>' +
+      '<span class="repo-ds-stem">' + esc(stem) + '</span>' +
+      (cols ? '<div class="repo-ds-cols">' + esc(cols) + '</div>' : '') + '</button>';
+  }
+  function openDsInLibrary(stem, id) {
+    if (window.__studioShellSetSection) window.__studioShellSetSection("studio");
+    var ls = $("#libSearch");
+    if (ls) { ls.value = id; buildLibrary(); }
+    setTimeout(function () {
+      var card = document.querySelector('[data-stem="' + CSS.escape(stem) + '"]');
+      if (card) card.scrollIntoView({ block: "center", behavior: "smooth" });
+    }, 60);
+  }
+  function renderRepository() {
+    var results = $("#repoResults"); if (!results) return;
+    var q = (($("#repoSearch") || {}).value || "").toLowerCase();
+    var dsCards = [], totalDs = 0;
+    Object.keys(S.catalog || {}).sort().forEach(function (stem) {
+      var entry = S.catalog[stem];
+      (entry.dataAccesses || []).forEach(function (d) {
+        totalDs++;
+        var hay = (stem + " " + d.id + " " + (d.columns || []).join(" ")).toLowerCase();
+        if (q && hay.indexOf(q) < 0) return;
+        dsCards.push(repoDaCardHtml(stem, d));
+      });
+    });
+    var list = loadRecents(), pins = loadPins();
+    var dashCards = list.filter(function (r) {
+      if (!q) return true;
+      var sp = r.spec || {};
+      return ((sp.title || sp.name || "") + " " + (sp.desc || "")).toLowerCase().indexOf(q) >= 0;
+    }).map(function (r) { return recentCardHtml(r, pins.indexOf(r.id) >= 0); });
+    results.innerHTML =
+      '<h2 class="home-sub">Data sources <span class="repo-count">' + dsCards.length + ' of ' + totalDs + '</span></h2>' +
+      (dsCards.length ? '<div class="repo-ds-grid">' + dsCards.join("") + '</div>'
+        : '<div class="home-empty-hint">' + (q ? "No data sources match “" + esc(q) + "”." : "No data sources yet.") + '</div>') +
+      '<h2 class="home-sub repo-sub2">Dashboards <span class="repo-count">' + dashCards.length + ' of ' + list.length + '</span></h2>' +
+      (dashCards.length ? '<div class="home-recents">' + dashCards.join("") + '</div>'
+        : '<div class="home-empty-hint">' + (q ? "No dashboards match “" + esc(q) + "”." : "No dashboards yet — build one in Studio and it will show up here.") + '</div>');
+    $$(".repo-ds-card", results).forEach(function (btn) {
+      btn.onclick = function () {
+        var parts = btn.getAttribute("data-repo-ds").split("|");
+        openDsInLibrary(parts[0], parts[1]);
+      };
+    });
+    $$(".recent-open", results).forEach(function (btn) { btn.onclick = function () { openRecent(btn.getAttribute("data-recent")); }; });
+    $$(".recent-pin", results).forEach(function (btn) {
+      btn.appendChild(Studio.icon("star", 14));
+      btn.onclick = function (e) { e.stopPropagation(); togglePin(btn.getAttribute("data-pin")); };
+    });
+  }
+  window.__studioRenderRepository = renderRepository; // test hook
 
   /* ---------- Z5 slice 1: Settings — first-class mode toggles ----------
      The app's mode switches (Theme, Simple mode, Demo mode, Focus mode) used to
@@ -4337,6 +4405,7 @@
     });
     $("#btnTheme").onclick = function () { setTheme(S.theme === "dark" ? "light" : "dark"); };
     $("#libSearch").addEventListener("input", buildLibrary);
+    var repoSearchInp = $("#repoSearch"); if (repoSearchInp) repoSearchInp.addEventListener("input", renderRepository);
     var ndsBtn = $("#btnNewDS"); setIconBtn(ndsBtn, "plus", "New source", 12); ndsBtn.onclick = function () { dataSourceBuilder(null); };
     $("#inspBack").onclick = selectDashboard;
 

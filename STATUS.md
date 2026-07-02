@@ -557,6 +557,18 @@ the cards (currently a simple lift + border-glow), instructions/how-tos/tips bey
 **workbook definitions** (a workbook = a named collection of HTML dashboards). Browse/search/organize into
 folders; CRUD; stored locally; import/export the whole repository as JSON. Consolidates the old "data
 source library" and "dashboard inventory" ideas into one place.
+> ✓ **Slice 1 shipped v168**: the Repository section is no longer a placeholder — it's a single searchable
+> page listing **every catalog data source** (same data the Studio library pane browses) and **every local
+> dashboard** (the same `studio-recents`/`studio-pins` Home already tracks), with one shared search box
+> filtering both lists live. Clicking a data-source card jumps to Studio with the library search pre-filled
+> to locate it; clicking a dashboard card reopens it (same behavior as Home's recent cards, reused via the
+> existing `recentCardHtml`); pin/unpin works from Repository too (shared storage with Home). No new
+> storage — this is a browsing surface over data that already existed in two separate corners of the app.
+> 7 new Z3 tests. Test suite 856/856.
+> **Z3 follow-ups (not yet done):** folders/organization, full CRUD from the Repository page itself (today
+> editing still happens via Studio's own library/inspector), the "workbook" concept (a named collection of
+> dashboards) doesn't exist yet — today "dashboards" just means the flat recents list, and import/export of
+> the whole repository as one JSON file.
 
 **Z14 — Browser-native, file-hosted SQL engines: DuckDB-Wasm + SQLite-WASM-HTTP (user-requested 2026-07-02).**
 > ★ **PRIORITY: build this connector track BEFORE the Z4 warehouse providers** (user-requested 2026-07-02).

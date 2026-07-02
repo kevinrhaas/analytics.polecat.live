@@ -10122,6 +10122,101 @@ function serve() {
     // clean up synthetic pin/recents state so it doesn't leak into later tests
     await page.evaluate(function () { localStorage.removeItem("studio-pins"); });
 
+    // ── Z3 slice 1: Repository — data sources + dashboards, one searchable page ──
+    console.log("\n• Z3: Repository section");
+    await page.click('#railNav .rail-item[data-sec="repository"]');
+    await page.waitForTimeout(150);
+    const z3Nav = await page.evaluate(function () {
+      return {
+        repoVisible: document.getElementById("secRepository").hidden === false,
+        appMainHidden: document.getElementById("appMain").hidden === true
+      };
+    });
+    ok("Z3: selecting Repository shows its section and hides the builder", z3Nav.repoVisible && z3Nav.appMainHidden, JSON.stringify(z3Nav));
+
+    // Z3-1: every catalog data access appears as a card, with the total matching the real catalog size
+    const z3Ds = await page.evaluate(function () {
+      var expected = 0;
+      var catalog = window.__STUDIO_STATE.catalog || {};
+      Object.keys(catalog).forEach(function (stem) { expected += (catalog[stem].dataAccesses || []).length; });
+      var cards = [].slice.call(document.querySelectorAll("#repoResults .repo-ds-card"));
+      var countLabel = document.querySelector("#repoResults .home-sub .repo-count").textContent;
+      return { expected: expected, cardCount: cards.length, countLabel: countLabel, hasKindBadge: cards.every(function (c) { return !!c.querySelector(".repo-ds-kind"); }) };
+    });
+    ok("Z3: Repository lists every catalog data source as a card",
+      z3Ds.expected > 0 && z3Ds.cardCount === z3Ds.expected && z3Ds.countLabel.indexOf(String(z3Ds.expected)) >= 0 && z3Ds.hasKindBadge,
+      JSON.stringify(z3Ds));
+
+    // Z3-2: dashboards section mirrors the same recents/pins Home already tracks
+    const z3Dash = await page.evaluate(function () {
+      var recents = window.__studioRecents() || [];
+      var cards = document.querySelectorAll("#repoResults .recent-card").length;
+      return { recentsLen: recents.length, cards: cards };
+    });
+    ok("Z3: Repository lists the same dashboards Home's recents track", z3Dash.recentsLen > 0 && z3Dash.cards === z3Dash.recentsLen, JSON.stringify(z3Dash));
+
+    // Z3-3: the shared search box filters BOTH data sources and dashboards, without losing focus
+    const z3FirstDaId = await page.evaluate(function () { return document.querySelector("#repoResults .repo-ds-card").getAttribute("data-repo-ds").split("|")[1]; });
+    await page.fill("#repoSearch", z3FirstDaId);
+    await page.waitForTimeout(80);
+    const z3Search = await page.evaluate(function (needle) {
+      var cards = [].slice.call(document.querySelectorAll("#repoResults .repo-ds-card"));
+      return {
+        allMatch: cards.length > 0 && cards.every(function (c) { return c.getAttribute("data-repo-ds").toLowerCase().indexOf(needle.toLowerCase()) >= 0; }),
+        focusStillOnSearch: document.activeElement && document.activeElement.id === "repoSearch"
+      };
+    }, z3FirstDaId);
+    ok("Z3: searching filters data-source cards to the query, keeping focus in the search box",
+      z3Search.allMatch && z3Search.focusStillOnSearch, JSON.stringify(z3Search));
+    await page.fill("#repoSearch", "");
+    await page.waitForTimeout(80);
+
+    // Z3-4: clicking a data-source card jumps to Studio and locates it in the library search
+    const z3Jump = await page.evaluate(function (daId) {
+      document.querySelector('#repoResults [data-repo-ds$="|' + daId + '"]').click();
+    }, z3FirstDaId);
+    await page.waitForTimeout(150);
+    const z3JumpState = await page.evaluate(function (daId) {
+      return {
+        studioVisible: document.getElementById("appMain").hidden === false,
+        libSearchValue: document.getElementById("libSearch").value
+      };
+    }, z3FirstDaId);
+    ok("Z3: clicking a data source card switches to Studio and searches the library for it",
+      z3JumpState.studioVisible && z3JumpState.libSearchValue === z3FirstDaId, JSON.stringify(z3JumpState));
+    await page.fill("#libSearch", "");
+    await page.waitForTimeout(80);
+
+    // Z3-5: clicking a dashboard card in Repository reopens it (same behavior as Home)
+    await page.click('#railNav .rail-item[data-sec="repository"]');
+    await page.waitForTimeout(120);
+    const z3RecId = await page.evaluate(function () { return document.querySelector("#repoResults .recent-open").getAttribute("data-recent"); });
+    await page.click("#repoResults .recent-card");
+    await page.waitForTimeout(150);
+    const z3OpenState = await page.evaluate(function (id) {
+      var s = window.__STUDIO_STATE.spec;
+      return { specId: s.id, studioVisible: document.getElementById("appMain").hidden === false };
+    }, z3RecId);
+    ok("Z3: clicking a dashboard card in Repository reopens it and returns to Studio",
+      z3OpenState.specId === z3RecId && z3OpenState.studioVisible, JSON.stringify(z3OpenState));
+
+    // Z3-6: pinning from Repository updates both Repository's own list and Home's (shared storage)
+    const z3PinFirstId = await page.evaluate(function () { return document.querySelector("#repoResults .recent-open").getAttribute("data-recent"); });
+    await page.evaluate(function (id) { window.__studioTogglePin(id); }, z3PinFirstId);
+    await page.waitForTimeout(80);
+    const z3PinState = await page.evaluate(function (id) {
+      return {
+        pinnedInRepo: !!document.querySelector('#repoResults .recent-pin.pinned[data-pin="' + id + '"]'),
+        storedPins: window.__studioPins()
+      };
+    }, z3PinFirstId);
+    ok("Z3: pinning from Repository shows as pinned there and persists to the shared pins store",
+      z3PinState.pinnedInRepo && z3PinState.storedPins.indexOf(z3PinFirstId) >= 0, JSON.stringify(z3PinState));
+    await page.evaluate(function (id) { window.__studioTogglePin(id); }, z3PinFirstId); // unpin — restore state
+
+    await page.evaluate(function () { window.__studioShellSetSection("studio"); });
+    await page.waitForTimeout(80);
+
     // ── Z12: branding & app identity — de-dup the logo, add a favicon ──
     console.log("\n• Z12: branding & app identity");
     const z12Head = await page.evaluate(function () {

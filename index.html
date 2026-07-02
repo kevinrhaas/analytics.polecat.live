@@ -35,11 +35,13 @@
       <p>Loading…</p>
     </div>
   </section>
-  <section id="secRepository" class="app-sec" hidden>
-    <div class="sec-empty">
-      <div class="sec-empty-ic" data-ic="layers"></div>
-      <h2>Repository</h2>
-      <p>Data sources and workbooks will be organized here, browsable and searchable across folders.</p>
+  <section id="secRepository" class="app-sec has-content" hidden>
+    <div class="repo-wrap">
+      <div class="repo-hero"><h1>Repository</h1>
+        <p>Every data source and dashboard you have, browsable and searchable in one place.</p>
+        <input id="repoSearch" class="repo-search" type="search" placeholder="Search data sources and dashboards…" aria-label="Search repository"/>
+      </div>
+      <div id="repoResults"></div>
     </div>
   </section>
   <section id="secSettings" class="app-sec" hidden>
