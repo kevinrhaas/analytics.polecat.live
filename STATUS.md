@@ -488,6 +488,9 @@ connector among many. Per provider: a config form (account/host/warehouse/token/
 connection** button, and **brand logos** — make the connector gallery sexy. Note CORS/security realities
 (some providers need a token or a thin proxy); surface clear errors. A query authored against any
 connector feeds the same dashboard model.
+> **START HERE → see Z14** for **DuckDB-Wasm** and **SQLite-WASM-HTTP** — these query a static file over
+> HTTP Range Requests with **no backend/proxy/credentials**, so they're the best-fit first connectors to
+> build under this track (the token-gated warehouse providers above come after).
 
 **Z5 — Settings.** App configuration: theme, default deploy target, gate/access, data-source defaults,
 and **dashboard style defaults** (standard look/style applied to new dashboards). Support **collections
@@ -752,6 +755,35 @@ NEXT — turn the examples into a **broad, complete survey of everything the app
 Loose end: `tools/import-v2.py` still regenerates the retired `cde-*` boards + overwrites `index.json` —
 update it so a regen doesn't clobber the curated gallery (repoint it at / make it additive to the set).
 Consider a small defensive fix so a gauge never double-prints its unit when `fmt:"pct"` is also set.
+
+**Z14 — Browser-native, file-hosted SQL engines: DuckDB-Wasm + SQLite-WASM-HTTP (user-requested 2026-07-02).**
+Two connectors that query a **static file hosted on S3 / any HTTP host directly from the browser** — no
+backend, no proxy, no credentials, no CORS token dance. This is the **ideal first non-CDA connector track**
+because it fits our "pure HTML/JS, config saved locally, NO backend" constraint perfectly (unlike Snowflake/
+Databricks/BigQuery, which need tokens and usually a thin proxy — those stay in Z4). Both work by turning the
+engine's file reads into **HTTP Range Requests**, pulling only the bytes a query needs. Build as two
+connector types in the Z3/Z4 Data-Source model; one shippable slice per loop; add Playwright checks.
+- **Option 1 — DuckDB-Wasm (analytics / dashboards, our sweet spot).** Load the DuckDB-Wasm library, point it
+  at a remote `.parquet` (columnar, compressed) or `.csv` URL, and run standard SQL against it. DuckDB does
+  HTTP Range Requests under the hood — reads file metadata + only the columns a query touches, so it scans
+  millions of rows / runs aggregations over a large remote file while transferring little. **Best fit for our
+  chart/aggregation workload.** Connector config: file URL(s) (parquet/csv), optional table alias, a **Test
+  connection** (HEAD/first-range probe + `DESCRIBE`), column detection from the file schema. A query authored
+  here feeds the same dashboard model as any other data access.
+- **Option 2 — SQLite-WASM + HTTP VFS (relational, indexed lookups).** For a traditional relational DB with
+  indexes / PKs / complex joins: ship a prebuilt `.sqlite` file to S3 and query it with `sql.js-httpvfs` /
+  `sqlite-wasm-http`, which intercept SQLite's disk reads and turn them into HTTP Range Requests. Because
+  SQLite is a B-Tree, an indexed query downloads only the specific ~4 KB pages it needs — a lookup on a 1 GB
+  DB can transfer a few KB. **Best fit for read-heavy relational apps / instant row lookups** without an RDS.
+  Connector config: `.sqlite` URL, optional `serverMode`/page config, **Test connection** + schema
+  introspection (`sqlite_master`), column detection.
+- Cross-cutting: both are **light, self-contained** (lazy-load the wasm engine only when such a connector is
+  used, so the base app stays tiny and dependency-free); surface clear errors when the host doesn't support
+  Range Requests (`Accept-Ranges`) or CORS; note file-size/first-load cost; keep credentials out entirely
+  (public/pre-signed URLs). Show them in the connector gallery with logos alongside the Z4 providers.
+- Sequence (one slice each): (1) DuckDB-Wasm connector: config form + lazy loader + Test + column detect +
+  query→model; (2) parquet & csv coverage + aggregation smoke test; (3) SQLite-WASM-HTTP connector: config +
+  loader + Test + schema introspect; (4) polish — error surfacing, connector-gallery cards/logos, docs.
 
 **Z0 — Finish the terminology migration (Phase 2, started 2026-06-30).** Done so far: user-facing
 CDA→"Data Access", CDF→"Dashboard Framework"; CDE export removed from the menu/inspector/bundle/push/CLI;
