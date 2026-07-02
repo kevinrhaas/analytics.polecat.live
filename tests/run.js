@@ -11198,6 +11198,7 @@ function serve() {
       dashDefSaved.subtitle === "Prepared by the SE team" && dashDefSaved.accent === "#1a7a4a" && dashDefSaved.subInKeys && dashDefSaved.accInKeys && dashDefSaved.swatchActive,
       JSON.stringify(dashDefSaved));
 
+    await page.evaluate(function () { localStorage.setItem("studio-default-logo", "data:image/png;base64,iVBORw0KGgo="); });
     await page.evaluate(function () { window.__studioShellSetSection("studio"); });
     await page.waitForTimeout(80);
     await page.click("#btnNew"); await page.waitForTimeout(80);
@@ -11207,13 +11208,15 @@ function serve() {
       var subField = fields.filter(function (f) { var lb = f.querySelector("label"); return lb && lb.textContent.indexOf("Subtitle") >= 0; })[0];
       var subInp = subField ? subField.querySelector("input") : null;
       var accentCustom = document.getElementById("dashAccentCustom");
-      return { subtitle: subInp ? subInp.value : null, accent: accentCustom ? accentCustom.value : null };
+      return { subtitle: subInp ? subInp.value : null, accent: accentCustom ? accentCustom.value : null, logo: window.__STUDIO_STATE.spec.headerLogo };
     });
-    ok("Z6/Z5: a brand-new blank dashboard picks up the Settings default subtitle + accent color",
-      dashDefApplied.subtitle === "Prepared by the SE team" && dashDefApplied.accent === "#1a7a4a", JSON.stringify(dashDefApplied));
+    ok("Z6/Z5: a brand-new blank dashboard picks up the Settings default subtitle + accent color + header logo",
+      dashDefApplied.subtitle === "Prepared by the SE team" && dashDefApplied.accent === "#1a7a4a" &&
+      dashDefApplied.logo === "data:image/png;base64,iVBORw0KGgo=", JSON.stringify(dashDefApplied));
 
     await page.evaluate(function () {
       localStorage.removeItem("studio-default-subtitle"); localStorage.removeItem("studio-default-accent");
+      localStorage.removeItem("studio-default-logo");
       window.__studioRenderSettings();
     }); // restore defaults for later tests
 
@@ -11258,8 +11261,47 @@ function serve() {
     const spDeleted = await page.evaluate(function () { return { count: window.__studioStylePresets().length, empty: !!document.querySelector("#spList .sp-empty") }; });
     ok("Z6: deleting a preset removes it from storage and the list goes back to empty", spDeleted.count === 0 && spDeleted.empty, JSON.stringify(spDeleted));
 
+    // ── Z6 follow-up: default header logo, the last item under the style-preset ask ──
+    console.log("\n• Z6 follow-up: default header logo");
+    const tinyPngLogo = Buffer.from("89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000a4944415478da6360000002000155a2d4370000000049454e44ae426082", "hex");
+    await page.setInputFiles("#setDefaultLogoInp", { name: "logo.png", mimeType: "image/png", buffer: tinyPngLogo });
+    await page.waitForTimeout(80);
+    const defLogoSaved = await page.evaluate(function () {
+      return { logo: window.__studioDefaultLogo(), hasPreview: !!document.querySelector('.settings-card img[alt="Default header logo preview"]') };
+    });
+    ok("Z6: uploading a default header logo saves it as a data: URL and shows a preview",
+      /^data:image\/png/.test(defLogoSaved.logo) && defLogoSaved.hasPreview, JSON.stringify(defLogoSaved));
+
+    await page.fill("#spNameInp", "Acme");
+    await page.click("#spSaveBtn");
+    await page.waitForTimeout(80);
+    const spLogoSaved = await page.evaluate(function () {
+      var list = window.__studioStylePresets();
+      var item = document.querySelector('.sp-item[data-id="' + (list[0] && list[0].id) + '"] .sp-logo');
+      return { logo: list[0] && list[0].logo, hasThumb: !!item };
+    });
+    ok("Z6: saving a preset captures the default header logo and renders a thumbnail instead of a plain swatch",
+      /^data:image\/png/.test(spLogoSaved.logo || "") && spLogoSaved.hasThumb, JSON.stringify(spLogoSaved));
+
+    await page.click("#setDefaultLogoClearBtn");
+    await page.waitForTimeout(80);
+    const defLogoCleared = await page.evaluate(function () { return window.__studioDefaultLogo(); });
+    ok("Z6: Clear removes the default header logo", defLogoCleared === "", String(defLogoCleared));
+
+    await page.click(".sp-apply");
+    await page.waitForTimeout(80);
+    const defLogoApplied = await page.evaluate(function () { return window.__studioDefaultLogo(); });
+    ok("Z6: Apply on a saved preset restores its logo as the active default", /^data:image\/png/.test(defLogoApplied), String(defLogoApplied));
+
+    await page.click(".sp-del");
+    await page.waitForTimeout(80);
+
+    const defLogoInKeys = await page.evaluate(function () { return window.__studioImportSettingsKeys.indexOf("studio-default-logo") >= 0; });
+    ok("Z6: default header logo is included in Settings export/import keys", defLogoInKeys, String(defLogoInKeys));
+
     await page.evaluate(function () {
-      localStorage.removeItem("studio-default-subtitle"); localStorage.removeItem("studio-default-accent"); localStorage.removeItem("studio-style-presets");
+      localStorage.removeItem("studio-default-subtitle"); localStorage.removeItem("studio-default-accent");
+      localStorage.removeItem("studio-default-logo"); localStorage.removeItem("studio-style-presets");
       window.__studioRenderSettings();
     }); // restore defaults for later tests
 

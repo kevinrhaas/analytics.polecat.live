@@ -15,6 +15,16 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 218,
+    title: 'Style presets now carry a default header logo too',
+    kind: 'feature',
+    ts: '2026-07-02T23:43:40Z',
+    items: [
+      'The Settings "Dashboard defaults" card gains a Default header logo upload — seeds every new blank dashboard\'s Header logo field, same as the existing default subtitle + accent color.',
+      'Style presets now snapshot the logo alongside subtitle + accent, and show a small thumbnail instead of a plain color swatch when one is saved. Closes the last "still open" item under the Z6 style-preset collection.',
+    ],
+  },
+  {
     v: 217,
     title: 'Scatter charts now explain their own correlation',
     kind: 'feature',

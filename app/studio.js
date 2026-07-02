@@ -4053,7 +4053,7 @@
     "studio-theme", "studio-app-theme", "studio-simple-mode", "studio-connections", "studio-active-conn",
     "studio-lw", "studio-rw", "studio-collapse-library", "studio-collapse-inspector",
     "studio-insp-collapsed", "studio-shell-section", "studio-shell-expanded", "studio-branding",
-    "studio-default-jndi", "studio-default-subtitle", "studio-default-accent", "studio-style-presets"
+    "studio-default-jndi", "studio-default-subtitle", "studio-default-accent", "studio-default-logo", "studio-style-presets"
   ];
   // Z5 follow-up: data-source defaults. Every new data source (dataSourceBuilder with no
   // `existing`) used to fall back to a hardcoded "PDC-BIDB-EXT" JNDI pool name; most teams
@@ -4079,7 +4079,15 @@
     return v || "";
   }
   function setDefaultAccentColor(v) { try { localStorage.setItem("studio-default-accent", v || ""); } catch (e) {} }
-  // Z6 follow-up: named style-preset collection. Each preset snapshots the two default
+  // Z6 follow-up: default header logo — the last "still open" item under the style-preset
+  // collection ask. Same data-URL-in-localStorage approach as per-dashboard headerLogo/app
+  // Branding, just seeded onto brand-new blank dashboards like subtitle/accent already are.
+  function defaultLogo() {
+    var v; try { v = localStorage.getItem("studio-default-logo"); } catch (e) {}
+    return v || "";
+  }
+  function setDefaultLogo(v) { try { localStorage.setItem("studio-default-logo", v || ""); } catch (e) {} }
+  // Z6 follow-up: named style-preset collection. Each preset snapshots the default
   // fields above under a name, so a team can save several house styles (e.g. per client
   // or per event) and switch the active default with one click instead of re-typing it.
   function stylePresets() {
@@ -4089,7 +4097,7 @@
   function saveStylePresetList(list) { try { localStorage.setItem("studio-style-presets", JSON.stringify(list)); } catch (e) {} }
   function addStylePreset(name) {
     var list = stylePresets();
-    list.push({ id: "sp" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name: name, subtitle: defaultSubtitle(), accentColor: defaultAccentColor() });
+    list.push({ id: "sp" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name: name, subtitle: defaultSubtitle(), accentColor: defaultAccentColor(), logo: defaultLogo() });
     saveStylePresetList(list);
     return list;
   }
@@ -4097,17 +4105,19 @@
   function applyStylePreset(id) {
     var p = stylePresets().filter(function (x) { return x.id === id; })[0];
     if (!p) return false;
-    setDefaultSubtitle(p.subtitle || ""); setDefaultAccentColor(p.accentColor || "");
+    setDefaultSubtitle(p.subtitle || ""); setDefaultAccentColor(p.accentColor || ""); setDefaultLogo(p.logo || "");
     return true;
   }
   window.__studioStylePresets = stylePresets; // test hook
   function applyDashboardDefaults(spec) {
     var sub = defaultSubtitle(); if (sub && !spec.subtitle) spec.subtitle = sub;
     var acc = defaultAccentColor(); if (acc) spec.themeColor = acc;
+    var logo = defaultLogo(); if (logo && !spec.headerLogo) spec.headerLogo = logo;
     return spec;
   }
   window.__studioDefaultSubtitle = defaultSubtitle; // test hooks
   window.__studioDefaultAccentColor = defaultAccentColor;
+  window.__studioDefaultLogo = defaultLogo;
   function exportSettingsFile() {
     var out = { _type: "studio-settings", _v: 1 };
     SETTINGS_DATA_KEYS.forEach(function (k) {
@@ -4210,12 +4220,20 @@
             }).join("") +
             '<input type="color" id="setDefaultAccentCustom" title="Custom accent color" value="' + esc(defaultAccentColor() || "#005bb5") + '"/>' +
           '</div></div>' +
+        '<div class="set-row"><span class="set-row-ic" data-ic="upload"></span>' +
+          '<div class="set-row-txt"><b>Default header logo</b><small>Seeds every new blank dashboard\'s Header logo field (per-dashboard, still editable there). PNG/JPG/SVG, up to 200KB.</small>' +
+            (defaultLogo() ? '<div class="brand-preview"><img src="' + esc(defaultLogo()) + '" alt="Default header logo preview" width="26" height="26"/></div>' : '') +
+          '</div>' +
+          '<input type="file" id="setDefaultLogoInp" accept="image/png,image/jpeg,image/svg+xml" style="display:none"/>' +
+          '<button type="button" class="btn" id="setDefaultLogoBtn">' + (defaultLogo() ? "Change…" : "Upload…") + '</button>' +
+          (defaultLogo() ? '<button type="button" class="btn" id="setDefaultLogoClearBtn">Clear</button>' : '') +
+        '</div>' +
         '<div class="set-row set-row-col"><span class="set-row-ic" data-ic="star"></span>' +
-          '<div class="set-row-txt"><b>Style presets</b><small>Save the two fields above as a named preset, then switch your team\'s active default with one click — handy for more than one house style (e.g. per client).</small></div>' +
+          '<div class="set-row-txt"><b>Style presets</b><small>Save the fields above as a named preset, then switch your team\'s active default with one click — handy for more than one house style (e.g. per client).</small></div>' +
           '<div class="sp-list" id="spList">' +
             stylePresets().map(function (p) {
               return '<div class="sp-item" data-id="' + esc(p.id) + '">' +
-                '<span class="sp-swatch" style="background:' + esc(p.accentColor || "#005bb5") + '"></span>' +
+                (p.logo ? '<img class="sp-logo" src="' + esc(p.logo) + '" alt=""/>' : '<span class="sp-swatch" style="background:' + esc(p.accentColor || "#005bb5") + '"></span>') +
                 '<span class="sp-name">' + esc(p.name) + '</span>' +
                 '<button type="button" class="btn sp-apply" data-id="' + esc(p.id) + '">Apply</button>' +
                 '<button type="button" class="icobtn danger sp-del" data-id="' + esc(p.id) + '" aria-label="Delete preset ' + esc(p.name) + '"></button>' +
@@ -4254,6 +4272,16 @@
     $$("#setDefaultAccentRow .set-accent-swatch", sec).forEach(function (sw) {
       sw.onclick = function () { setDefaultAccentColor(sw.getAttribute("data-accent")); renderSettings(); toast("Default accent color saved"); };
     });
+    var defLogoBtn = $("#setDefaultLogoBtn", sec), defLogoInp = $("#setDefaultLogoInp", sec), defLogoClear = $("#setDefaultLogoClearBtn", sec);
+    if (defLogoBtn && defLogoInp) defLogoBtn.onclick = function () { defLogoInp.click(); };
+    if (defLogoInp) defLogoInp.onchange = function () {
+      var f = defLogoInp.files[0]; if (!f) return;
+      if (f.size > BRAND_MAX_BYTES) { toast("Logo too large — please use an image under 200KB.", true); return; }
+      var reader = new FileReader();
+      reader.onload = function (e) { setDefaultLogo(e.target.result); renderSettings(); toast("Default header logo saved"); };
+      reader.readAsDataURL(f);
+    };
+    if (defLogoClear) defLogoClear.onclick = function () { setDefaultLogo(""); renderSettings(); };
     var spNameInp = $("#spNameInp", sec), spSaveBtn = $("#spSaveBtn", sec);
     if (spSaveBtn) spSaveBtn.onclick = function () {
       var name = (spNameInp.value || "").trim(); if (!name) { spNameInp.focus(); return; }
@@ -4992,7 +5020,7 @@
         "studio-connections", "studio-active-conn", "studio-mob-tab", "studio-simple-mode",
         "studio-insp-collapsed", "studio-recents", "studio-pins", "studio-branding",
         "studio-shell-section", "studio-shell-expanded",
-        "studio-default-jndi", "studio-default-subtitle", "studio-default-accent", "studio-style-presets",
+        "studio-default-jndi", "studio-default-subtitle", "studio-default-accent", "studio-default-logo", "studio-style-presets",
         "studio-cmdk-usage", "studio-first-export-done"
       ];
       var msg = "Clear all locally-stored Studio data?\n\nThis will remove:\n" +

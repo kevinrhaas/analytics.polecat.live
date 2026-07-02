@@ -1055,6 +1055,13 @@ added, and unified with this header/text-object work.
 > `studio-style-presets` (JSON array) added to Settings export/import keys and Clear local data. 5 new
 > tests, suite 988/988. **Still open under Z6**: colors beyond the existing accent-color picker, full text
 > formatting for the banner, and logo defaults per preset.
+> ✓ **Logo defaults per preset shipped v215** (closes that "still open" item): a **Default header logo**
+> upload joins the Dashboard defaults card (same 200KB PNG/JPG/SVG rule as the per-dashboard Header logo
+> field), seeding `spec.headerLogo` on every brand-new blank dashboard alongside subtitle + accent.
+> `stylePresets()` now snapshots `logo` too, and a preset with one saved shows a small thumbnail
+> (`.sp-logo`) instead of a plain color swatch. `studio-default-logo` added to Settings export/import and
+> Clear local data. 6 new tests, suite 996/996. **Still open under Z6**: colors beyond the existing
+> accent-color picker and full text formatting for the banner.
 
 **Z7 — Analytics: forecasting + statistical functions.** Move toward standalone analytic apps: add
 forecasting (moving average, exponential smoothing / Holt-Winters, linear & seasonal trend) and
