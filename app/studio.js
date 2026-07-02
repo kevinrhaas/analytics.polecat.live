@@ -371,7 +371,8 @@
       pop.innerHTML = '<div class="cl-head">' +
         '<h4>Changelog</h4>' +
         '<input id="clSearch" type="search" class="cl-search" placeholder="Search…" aria-label="Search changelog">' +
-        '<span class="cl-sub">latest first</span></div>' +
+        '<span class="cl-sub">latest first</span>' +
+        '<button type="button" id="clClose" class="cl-close" aria-label="Close changelog">✕</button></div>' +
         '<div id="clEntries"></div>';
       var clEntries = pop.querySelector("#clEntries");
       function renderClEntries(q) {
@@ -402,6 +403,11 @@
         if (pop.hidden) { pop.hidden = false; btn.setAttribute("aria-expanded", "true"); setTimeout(function () { document.addEventListener("mousedown", onDoc); document.addEventListener("keydown", onKey); }, 0); }
         else close();
       };
+      // m-e: explicit Close button — tap-outside/Escape both already worked, but the
+      // reference "What's new" sheet design (and touch UX generally) expects a visible,
+      // unambiguous way to dismiss a full-width phone sheet without guessing.
+      var clClose = pop.querySelector("#clClose");
+      if (clClose) clClose.onclick = close;
     }
   }
 

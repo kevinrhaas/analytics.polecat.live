@@ -582,6 +582,11 @@
   open) intercepted every tap on the tab bar, forcing two taps to switch Library→Inspector instead
   of one. Fixed with `position:relative;z-index:37`. Confirmed panel touch ergonomics were already
   correct from prior M3 work. 3 new tests, suite 909/909.
+- v185: **MOBILE (m-e)** — audited changelog/Help reachability on mobile; both were already mostly
+  working after m-b's `100dvh` fix. Added the one real gap: an explicit ✕ Close button on the
+  changelog/"What's new" popup (previously only tap-outside/Escape, awkward on a full-width phone
+  sheet). 5 new tests, suite 914/914. **All of m-a through m-e shipped — mobile track now needs a
+  real-device confirmation from the user.**
 
 ## NEXT (top = do first)
 
@@ -670,8 +675,21 @@
 > touch ergonomics (always-visible ⧉/×/zoom actions, 36-40px targets under `@media(pointer:coarse)`)
 > were already handled by prior M3 work and shared by the live preview — verified still correct,
 > no changes needed there. 3 new regression checks. Test suite 909/909.
-> **(m-e) ← DO THIS NEXT:** "What's new"/changelog + help reachable on mobile; then a real-device
-> pass with the user to confirm m-a through m-e together on an actual iPhone.
+> **(m-e) ✓ DONE (v185):** audited "What's new"/changelog + Help reachability on mobile — both were
+> already largely working once m-b's `100dvh` fix landed (the footer/Changelog button is on-screen
+> at 390px; Help is present and reachable in the m-a drawer). The one real gap against the reference
+> "What's new" sheet design: the changelog popup had no explicit dismiss control (only tap-outside /
+> Escape, awkward on a full-width phone sheet with no obvious "outside"). Added a visible ✕ Close
+> button (36px tap target at ≤640px) wired to the same close path as tap-outside/Escape. 5 new
+> regression checks (✕ present + closes it on desktop, footer button on-screen, ✕ on-screen + phone
+> tap-target size, Help on-screen in the drawer — all at 390px). Test suite 914/914.
+> **All of m-a through m-e are now shipped and code-level verified.** Per the process note above,
+> headless Chromium cannot reproduce the original iOS-toolbar bug, so **the mobile track needs a
+> real-device check from the user next** — ask them to reload analytics.polecat.live on an actual
+> iPhone and confirm: the hamburger drawer, all bottom bars/footer visible without scrolling, every
+> topbar action reachable, and the changelog/Help sheets. Only pick up further mobile polish (or a
+> new m-f) once that confirms the fix actually lands on-device, or if the user reports something
+> still broken.
 > Keep the desktop experience untouched (scope changes to `≤900px` / touch). Update `docs` + STATUS each slice.
 
 ### ★ Z. Analytics App platform — the new north star (user-requested 2026-06-30; build across many iterations)

@@ -3444,6 +3444,15 @@ function serve() {
       return { entryCount: entries.length, hasEmpty: !!empty };
     });
     ok("E6: search with no matches shows empty state", e6NoMatch.entryCount === 0 && e6NoMatch.hasEmpty, JSON.stringify(e6NoMatch));
+    await page.fill("#clSearch", "");
+    // m-e: explicit ✕ Close button on the changelog/"What's new" sheet (tap-outside and
+    // Escape already worked; a visible dismiss control matters most on a full-width phone
+    // sheet where there's no obvious "outside" to tap).
+    const clCloseBtn = await page.evaluate(() => !!document.querySelector("#clClose"));
+    ok("m-e: changelog popup has an explicit ✕ Close button", clCloseBtn);
+    await page.click("#clClose"); await page.waitForTimeout(120);
+    const clClosedByBtn = await page.evaluate(() => document.getElementById("changelogPop").hidden);
+    ok("m-e: clicking ✕ closes the changelog popup", clClosedByBtn === true);
     // Close changelog
     await page.keyboard.press("Escape"); await page.waitForTimeout(100);
 
@@ -11508,6 +11517,35 @@ function serve() {
     await mp2.waitForTimeout(300);
     const mdScrimStillCloses = await mp2.evaluate(() => !document.getElementById("inspector").classList.contains("drawer-open"));
     ok("m-d: tapping the scrim still closes an open drawer (m-a behavior preserved)", mdScrimStillCloses === true);
+
+    // ── m-e: "What's new"/changelog + Help reachable on mobile ──
+    console.log("\n• m-e: changelog + Help reachable at 390px");
+    const meChangelog = await mp2.evaluate(() => {
+      var btn = document.getElementById("btnChangelog");
+      var r = btn.getBoundingClientRect();
+      return { onScreen: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.width > 10 };
+    });
+    ok("m-e: the footer Changelog button is on-screen at 390px (root-caused by the m-b 100dvh fix)", meChangelog.onScreen, JSON.stringify(meChangelog));
+    await mp2.click("#btnChangelog");
+    await mp2.waitForTimeout(300);
+    const meCloseBtn = await mp2.evaluate(() => {
+      var b = document.getElementById("clClose");
+      if (!b) return { present: false };
+      var r = b.getBoundingClientRect();
+      return { present: true, onScreen: r.left >= 0 && r.right <= innerWidth, tapSize: Math.min(r.width, r.height) };
+    });
+    ok("m-e: changelog ✕ Close is on-screen and phone-sized (≥36px tap target) at 390px", meCloseBtn.present && meCloseBtn.onScreen && meCloseBtn.tapSize >= 36, JSON.stringify(meCloseBtn));
+    await mp2.click("#clClose");
+    await mp2.waitForTimeout(200);
+    await mp2.click("#mobileNavBtn");
+    await mp2.waitForTimeout(300);
+    const meHelp = await mp2.evaluate(() => {
+      var h = document.getElementById("railHelp");
+      if (!h) return { present: false };
+      var r = h.getBoundingClientRect();
+      return { present: true, onScreen: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.bottom <= innerHeight };
+    });
+    ok("m-e: Help is present and on-screen in the mobile nav drawer at 390px", meHelp.present && meHelp.onScreen, JSON.stringify(meHelp));
     await mp2.close();
 
     // restore Studio + a clean flagship spec for any tests appended after this block
