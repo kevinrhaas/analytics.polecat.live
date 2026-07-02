@@ -1,13 +1,27 @@
-/* changelog.js — Analytics Dashboard Studio revision history.
-   Newest entry FIRST. The status-bar footer shows the latest "Last updated"
-   stamp and renders this list in the collapsible Changelog panel.
+/* js/changelog.js — Analytics Dashboard Studio revision history.
+   Published at the conventional polecat path /js/changelog.js (matching
+   relay.polecat.live / games.polecat.live), newest entry FIRST. The status-bar
+   footer + the in-app "What's new" panel render this list.
 
-   STUDIO_BUILD is replaced with the real UTC deploy time by the publish CI
-   (the __BUILD_TS__ token). When unreplaced (local/dev), the footer falls back
-   to the date of the top changelog entry below. */
+   ── CHANGELOG CONVENTION (polecat house style — follow this for EVERY new entry) ──
+   • Prepend one entry at the TOP for each user-visible change: bump `v`, a short
+     friendly `title`, and 1–4 plain-language `items` (what the user can now do).
+   • TIMESTAMPS MUST BE REAL — never fabricated. Stamp `date`+`time` with the actual
+     UTC time the change is committed (e.g. from `date -u`); do NOT guess or future-date.
+     (Historic entries predate this rule.)
+   • Keep it human — no jargon, describe the benefit, mirror the tone of relay/games.
+
+   STUDIO_BUILD/__BUILD_TS__ is a legacy deploy-time token (no publish CI replaces it
+   now that Pages serves the repo directly), so the footer falls back to the top
+   entry's date — which is why that date must be real. */
 window.STUDIO_BUILD = "__BUILD_TS__";
 
 window.STUDIO_CHANGELOG = [
+  { v: "v197", date: "2026-07-02", time: "18:55 UTC", title: "Changelog now published the polecat way — /js/changelog.js + real timestamps", items: [
+      "The update history now lives at the conventional **/js/changelog.js** (matching relay.polecat.live and games.polecat.live) instead of app/changelog.js, so it sits alongside the rest of the Polecat family at a predictable URL.",
+      "Adopted the house rule that **changelog timestamps are real, never fabricated** — each new entry is stamped with the actual UTC commit time (this entry's 18:55 UTC is the true time it was written), fixing the previously hand-typed/guessed times.",
+      "No user-facing behavior change to the app itself — same in-app Changelog panel, just published in the shared convention. The full mobile-friendly \"What's new\" sheet (like relay's) is queued as mobile slice m-e.",
+    ] },
   { v: "v196", date: "2026-07-02", time: "21:05 UTC", title: "N-FUN: Build-completeness meter", items: [
       "A small, game-like **Build progress** ring + checklist now sits at the top of the Dashboard inspector (below the layout thumbnail, above Checks): five gentle milestones — a real title, a panel, a KPI, a filter, and a touch of your own style (accent color, series palette, or header logo). Purely encouraging, never a warning (an empty dashboard is perfectly valid) — collapses to a one-line \"nice work\" note once every milestone is met, so it never nags a finished dashboard.",
       "`Studio.dashboardCompleteness(spec)` in model.js is a small pure function (5 checks in, `{done,total,items}` out) so the scoring logic is unit-testable on its own, separate from the DOM. Distinct from the existing `Studio.validate()` (Checks section) which only flags real problems.",

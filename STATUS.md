@@ -72,6 +72,12 @@
 - **Keep the in-app docs current.** `docs/index.html` is the user-facing Help reference (linked from the
   app). Whenever you add or change a user-facing feature, **update the docs in the SAME slice** so they
   never drift, and make sure the app links to them discoverably (see Z11).
+- **Changelog — polecat house style (user-requested 2026-07-02).** The changelog lives at **`js/changelog.js`**
+  (the conventional Polecat path, matching relay.polecat.live / games.polecat.live — NOT `app/changelog.js`
+  anymore). Prepend ONE entry at the TOP per user-visible change: bump `v`, a short friendly `title`, 1–4
+  plain-language `items` describing the benefit (mirror relay/games tone). **Timestamps MUST be real, never
+  fabricated** — stamp `date`+`time` with the ACTUAL UTC commit time (use `date -u`); do not guess or
+  future-date (past entries predate this rule). The in-app footer + "What's new" sheet render this list.
 - **License.** The Studio is proprietary — see `LICENSE` (© 2026 Polecat.live; all rights reserved).
   Keep the notice intact; don't add OSS license headers that contradict it. New first-party source
   files may carry a one-line header (`/* Analytics Dashboard Studio — © 2026 Polecat.live. See LICENSE. */`).
@@ -181,8 +187,9 @@
 
 - v27: **status-bar footer** pinned to the bottom with a “Last updated” build stamp + version, and a
   **collapsible Changelog** (newest revision first) opened from the footer. History lives in
-  `app/changelog.js` (add new entries at the TOP); the publish CI stamps the real UTC deploy time into
-  the footer via the `__BUILD_TS__` token (falls back to the latest entry's date locally). 91/91.
+  `js/changelog.js` (relocated from `app/changelog.js` in v195 — see the Changelog convention above; add new
+  entries at the TOP with a REAL timestamp); the `__BUILD_TS__` token is legacy (no CI replaces it now), so
+  the footer falls back to the latest entry's date. 91/91.
   NOTE: Playwright isn't installable on the author's Mac — the suite runs in the loop/CI, not locally;
   local validation here was node --check + a data/stamp sanity run.
 
