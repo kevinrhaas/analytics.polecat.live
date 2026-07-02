@@ -77,12 +77,17 @@
   as manager/relay). The file is an **ES module** — `export const CHANGELOG = [ … ]` + `export const
   LATEST_VERSION` exactly like relay (the manager imports the CHANGELOG export) — loaded via
   `<script type="module" src="js/changelog.js">`; KEEP the `export` keywords. It also sets
-  `window.STUDIO_CHANGELOG = CHANGELOG` for the classic-script app shell. Each entry is a **plain JSON object**:
-  `{"v": <INTEGER, +1 over the current top>, "title": "…", "kind"?: "feature"|"fix"|"chore", "ts": "<ISO-8601 UTC>",
-  "items": ["…", 1–4 plain-language benefits]}`. Prepend ONE entry at the TOP per user-visible change.
-  **`ts` MUST be real, never fabricated** — stamp the ACTUAL UTC commit time (`new Date().toISOString()` or
-  `date -u`); do not guess/future-date (pre-v197 entries predate this rule). Keep entries pure JSON so any
-  consumer parses them as data. The in-app footer + "What's new" sheet render `window.STUDIO_CHANGELOG`.
+  `window.STUDIO_CHANGELOG = CHANGELOG` for the classic-script app shell. **CRITICAL — use relay's LITERAL
+  style, NOT strict JSON:** the manager does NOT run the file; its `ingest.js` extracts the array as text and
+  normalizes it with a single-quote-aware requoter, so **double-quoted JSON with raw apostrophes breaks it**
+  (an apostrophe in "manager's"/"doesn't" gets read as a string delimiter). Each entry must be a JS object
+  literal with **UNQUOTED keys and SINGLE-QUOTED strings, apostrophes escaped as `\'`** (double quotes inside
+  stay raw), e.g.:
+  `{ v: <INTEGER, +1 over top>, title: '…', kind: 'feature'|'polish'|'fix', ts: '<ISO-8601 UTC>', items: [ '…' ] }`.
+  Prepend ONE entry at the TOP per user-visible change. **`ts` MUST be real** — stamp the ACTUAL UTC commit
+  time (`date -u`); never fabricate/future-date. **Do NOT put the literal `//` in item text** (the manager
+  strips line comments). The in-app footer + "What's new" sheet render `window.STUDIO_CHANGELOG`. Regenerate/
+  normalize the whole file with `scratchpad/to-relay-style.js` if it ever drifts back to JSON.
 - **License.** The Studio is proprietary — see `LICENSE` (© 2026 Polecat.live; all rights reserved).
   Keep the notice intact; don't add OSS license headers that contradict it. New first-party source
   files may carry a one-line header (`/* Analytics Dashboard Studio — © 2026 Polecat.live. See LICENSE. */`).
