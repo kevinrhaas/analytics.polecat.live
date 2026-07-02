@@ -1237,6 +1237,17 @@ gets covered over time:
 - **Chart-extension API** — 51 types now register through ad-hoc patterns; consider formalizing a tiny
   `Studio.defineChart({type, render, opts, thumb, autoPick})` contract so new types are uniform and testable.
 - **Test health** — coverage per feature, flaky/slow checks, and a fast smoke subset for quick loops.
+> **▶ NEXT ARCHITECTURE SWEEP TARGET — harden flaky fixed-timeout tests (Test-health lens; user-requested 2026-07-02).**
+> Empirically confirmed on a slower machine than CI: several checks that read from the **preview iframe**
+> (`document.querySelector("#preview").contentDocument …`) after a **fixed** `await new Promise(r => setTimeout(r, N))`
+> race the async postMessage re-render and intermittently see an empty document — so they fail non-deterministically
+> (observed: "Z8G: gauge with fmt:'pct' … percent sign" reading `.gauge-val` after 150 ms → `texts:[]`, and
+> "canvas × deletes a panel"). CI is faster so it passes there, but the tests are genuinely fragile. **Fix (test-only,
+> no product change):** add a reusable in-page poll helper (e.g. `waitForPreview(page, selector, timeout=2000)` that
+> polls `#preview` contentDocument for `selector` until present or times out) and convert the fixed-`setTimeout`
+> **preview-iframe reads** to await it; keep a small settle delay only where a value must *change* rather than *appear*.
+> Do it in one sweep across `tests/run.js` (grep `setTimeout` near `#preview`/`contentDocument`), so the suite is
+> deterministic on any machine. v174 already fixed one such flake — finish the pattern. Then remove this ▶ note.
 > **Findings log (append newest on top; keep short):**
 > - **v169 (dead code sweep, first architecture sweep):** wrote a script diffing every CSS class selector
 >   in `app/studio.css` against a full-text search across all of `app/*.js` + `index.html` + `docs/index.html`
