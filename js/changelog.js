@@ -12,9 +12,13 @@
      with the ACTUAL commit time (e.g. `new Date().toISOString()` / `date -u`);
      do not guess or future-date. The app formats it to Central Time (CT).
    • Entries are plain JSON objects so any consumer can parse them as data.
-   CHANGELOG is exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's
-   new" panel; LATEST_VERSION is the max v. __BUILD_TS__ is a legacy no-op token. */
-const CHANGELOG = [
+   This is an ES MODULE: `export const CHANGELOG` / `export const LATEST_VERSION`
+   exactly like relay.polecat.live (the manager imports the CHANGELOG export), and
+   index.html loads it via <script type="module">. KEEP the `export` keywords. It
+   also aliases window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel.
+   __BUILD_TS__ is a legacy no-op token. */
+export const CHANGELOG = [
+  {"v":202,"title":"Changelog is now an ES module (export const CHANGELOG) so the manager can import it","kind":"fix","ts":"2026-07-02T20:42:40Z","items":["The fleet \"Sync changelog\" manager imports the CHANGELOG **export** (like relay.polecat.live), but our file only defined a bare `const` — so it still reported \"couldn't parse its contents\" even though the site was public, on main, and served with open CORS. js/changelog.js is now a proper ES module: `export const CHANGELOG` + `export const LATEST_VERSION`, loaded via `<script type=\"module\">`.","Verified it imports cleanly as an ES module (Node `import { CHANGELOG }` returns all entries), so the manager's importer can now read it. The in-app footer + \"What's new\" panel are unaffected — the module still sets window.STUDIO_CHANGELOG for the classic-script app shell, and it runs before the footer's async render."]},
   {"v":201,"title":"Changelog now matches the fleet format — syncable by the Polecat manager","kind":"chore","ts":"2026-07-02T20:27:33Z","items":["Reshaped js/changelog.js into the shared fleet format used by manager.polecat.live and relay.polecat.live so the manager's \"Sync changelog\" tool can fetch and parse it (it previously reported \"found a CHANGELOG array but couldn't parse its contents\").","Each release is now a plain-JSON object with an integer `v`, a `title`, an optional `kind`, an ISO-8601 UTC `ts`, and `items[]` — exposed as a `CHANGELOG` array (aliased to window.STUDIO_CHANGELOG for the in-app panel). The in-app footer and \"What's new\" sheet render identically; only the data shape changed.","Backfilled all prior entries into the new shape (integer versions, ISO timestamps) in one pass, and recorded the format as a standing convention so the hourly loop keeps every future entry syncable."]},
   {"v":200,"title":"A tidier toolbar: the ¶ Text button moved home","ts":"2026-07-02T19:39:00Z","items":["The **¶ Text** button (adds a text/annotation panel) used to sit alone on the live-preview toolbar, next to hints like \"drag to reorder\" — it now lives in the **Query Library** header beside **＋ New source**, since both are really the same kind of action: adding something new to your dashboard.","Same button, same shortcut, same behavior — just a cleaner home. The live-preview toolbar is simpler too.","No new tests needed beyond a placement check (1 added). Test suite 952/952."]},
   {"v":199,"title":"Forecasting: Holt exponential smoothing joins the linear trend line","ts":"2026-07-02T19:29:00Z","items":["Line/area charts' **Show trend / forecast line** now offers a **Forecast method** choice: the existing linear regression, or **Holt's exponential smoothing** — a level + trend that tracks recent moves in the data instead of just fitting one straight slope across everything, then projects forward the same way for the forecast periods.","Two new tuning fields (Holt only): **Smoothing level α** and **Smoothing trend β**, both 0–100%, controlling how quickly the forecast reacts to new data vs. staying stable.","Third slice of the Z7 forecasting track (after moving-average and linear trend/forecast). 3 new tests. Test suite 951/951."]},
@@ -195,5 +199,6 @@ const CHANGELOG = [
   {"v":22,"title":"Server connections","ts":"2026-06-23T00:00:00Z","items":["Kettle-standard Pentaho server connections — live data or one-time import.","Push generated artifacts to a live server; scheduler integration."]},
   {"v":21,"title":"Chart & filter builders","ts":"2026-06-22T00:00:00Z","items":["Chart gallery picker and filter builder; cross-panel interactions.","Author both CDE and CDF dashboards from existing CDA queries."]}
 ];
-const LATEST_VERSION = CHANGELOG.reduce(function (m, e) { return Math.max(m, e.v); }, 0);
+export const LATEST_VERSION = CHANGELOG.reduce(function (m, e) { return Math.max(m, e.v); }, 0);
+// Expose to the classic-script app shell (studio.js reads window.STUDIO_CHANGELOG).
 if (typeof window !== "undefined") { window.STUDIO_CHANGELOG = CHANGELOG; window.STUDIO_LATEST_VERSION = LATEST_VERSION; window.STUDIO_BUILD = "__BUILD_TS__"; }

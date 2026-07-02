@@ -74,8 +74,10 @@
   never drift, and make sure the app links to them discoverably (see Z11).
 - **Changelog — fleet house style (user-requested 2026-07-02).** Lives at **`js/changelog.js`** in the shared
   Polecat fleet format so the **manager.polecat.live "Sync changelog" tool can fetch + parse it** (same shape
-  as manager/relay). The file is a classic script (NO `export` — it must load before studio.js) defining
-  `const CHANGELOG = [ … ]` then `window.STUDIO_CHANGELOG = CHANGELOG`. Each entry is a **plain JSON object**:
+  as manager/relay). The file is an **ES module** — `export const CHANGELOG = [ … ]` + `export const
+  LATEST_VERSION` exactly like relay (the manager imports the CHANGELOG export) — loaded via
+  `<script type="module" src="js/changelog.js">`; KEEP the `export` keywords. It also sets
+  `window.STUDIO_CHANGELOG = CHANGELOG` for the classic-script app shell. Each entry is a **plain JSON object**:
   `{"v": <INTEGER, +1 over the current top>, "title": "…", "kind"?: "feature"|"fix"|"chore", "ts": "<ISO-8601 UTC>",
   "items": ["…", 1–4 plain-language benefits]}`. Prepend ONE entry at the TOP per user-visible change.
   **`ts` MUST be real, never fabricated** — stamp the ACTUAL UTC commit time (`new Date().toISOString()` or
