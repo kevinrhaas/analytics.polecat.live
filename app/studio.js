@@ -3544,14 +3544,30 @@
      not just show a label. Thumbnails are rendered fresh from the stored spec at
      paint time (via Studio.makeThumbnail) so they always match the current theme. */
   var _LS_RECENTS = "studio-recents";
+  var _LS_PINS = "studio-pins"; // array of pinned dashboard ids — pinned entries never fall off the recents cap
   var _recentTimer = null;
   function scheduleNoteRecent() { clearTimeout(_recentTimer); _recentTimer = setTimeout(noteRecent, 800); }
   function loadRecents() { try { return JSON.parse(localStorage.getItem(_LS_RECENTS) || "[]"); } catch (e) { return []; } }
+  function loadPins() { try { return JSON.parse(localStorage.getItem(_LS_PINS) || "[]"); } catch (e) { return []; } }
+  function savePins(pins) { try { localStorage.setItem(_LS_PINS, JSON.stringify(pins)); } catch (e) { /* quota or private-mode */ } }
+  function togglePin(id) {
+    var pins = loadPins(), i = pins.indexOf(id);
+    if (i >= 0) pins.splice(i, 1); else pins.unshift(id);
+    savePins(pins);
+    renderHome();
+  }
   function noteRecent() {
     if (!S.spec || !S.spec.id) return;
     var list = loadRecents().filter(function (r) { return r.id !== S.spec.id; });
     list.unshift({ id: S.spec.id, ts: new Date().toISOString(), spec: Studio.clone(S.spec) });
-    list = list.slice(0, 8);
+    // cap only the UNPINNED entries at 8 (newest-first order preserved) — pinning a
+    // dashboard protects it from ever being evicted by newer activity.
+    var pins = loadPins(), capped = [], unpinnedSeen = 0;
+    list.forEach(function (r) {
+      if (pins.indexOf(r.id) >= 0) { capped.push(r); }
+      else if (unpinnedSeen < 8) { capped.push(r); unpinnedSeen++; }
+    });
+    list = capped;
     try { localStorage.setItem(_LS_RECENTS, JSON.stringify(list)); } catch (e) { /* quota or private-mode */ }
     renderHome();
   }
@@ -3561,9 +3577,26 @@
     S.spec = normalize(r.spec); S.selection = null; syncHeader(); renderInspector(); refreshPreview(); buildLibrary();
     if (window.__studioShellSetSection) window.__studioShellSetSection("studio");
   }
+  // Shared markup for one recents/pinned card. Uses a big invisible "open" button
+  // covering the whole card (not the card element itself) so the small pin toggle can
+  // sit on top of it without an invalid <button> inside a <button>.
+  function recentCardHtml(r, pinned) {
+    var sp = r.spec || {}, panels = (sp.panels || []).length, kpis = (sp.kpis || []).length;
+    var meta = panels + " panel" + (panels === 1 ? "" : "s") + (kpis ? " · " + kpis + " KPI" + (kpis === 1 ? "" : "s") : "");
+    var thumb = Studio.makeThumbnail(sp, S.theme);
+    var title = sp.title || sp.name || "Untitled";
+    return '<div class="recent-card">' +
+      '<button class="recent-open" data-recent="' + esc(r.id) + '" aria-label="Open ' + esc(title) + '"></button>' +
+      '<button class="recent-pin' + (pinned ? " pinned" : "") + '" data-pin="' + esc(r.id) + '" ' +
+        'title="' + (pinned ? "Unpin" : "Pin") + '" aria-label="' + (pinned ? "Unpin " : "Pin ") + esc(title) + '" aria-pressed="' + (pinned ? "true" : "false") + '"></button>' +
+      '<div class="recent-thumb">' + thumb + '</div>' +
+      '<div class="recent-meta"><b>' + esc(title) + '</b><small>' + timeAgo(r.ts) + ' · ' + meta + '</small></div></div>';
+  }
   function renderHome() {
     var sec = $("#secHome"); if (!sec) return;
-    var list = loadRecents();
+    var list = loadRecents(), pins = loadPins();
+    var pinnedList = list.filter(function (r) { return pins.indexOf(r.id) >= 0; });
+    var unpinnedList = list.filter(function (r) { return pins.indexOf(r.id) < 0; });
     var cards = [
       { act: "blank", ic: "plus", t: "Blank dashboard", d: "Start from scratch" },
       { act: "examples", ic: "grid", t: "Browse examples", d: "Auto-build from a query set" },
@@ -3575,15 +3608,11 @@
         return '<button class="home-card" data-home="' + c.act + '"><span class="home-card-ic" data-ic="' + c.ic + '"></span>' +
           '<div><b>' + esc(c.t) + '</b><small>' + esc(c.d) + '</small></div></button>';
       }).join("") + '</div>' +
-      (list.length ? '<h2 class="home-sub">Recent dashboards</h2><div class="home-recents">' +
-        list.map(function (r) {
-          var sp = r.spec || {}, panels = (sp.panels || []).length, kpis = (sp.kpis || []).length;
-          var meta = panels + " panel" + (panels === 1 ? "" : "s") + (kpis ? " · " + kpis + " KPI" + (kpis === 1 ? "" : "s") : "");
-          var thumb = Studio.makeThumbnail(sp, S.theme);
-          return '<button class="recent-card" data-recent="' + esc(r.id) + '"><div class="recent-thumb">' + thumb + '</div>' +
-            '<div class="recent-meta"><b>' + esc(sp.title || sp.name || "Untitled") + '</b><small>' + timeAgo(r.ts) + ' · ' + meta + '</small></div></button>';
-        }).join("") + '</div>'
-        : '<div class="home-empty-hint">No recent dashboards yet — start one above and it will show up here.</div>');
+      (pinnedList.length ? '<h2 class="home-sub">Pinned</h2><div class="home-recents">' +
+        pinnedList.map(function (r) { return recentCardHtml(r, true); }).join("") + '</div>' : "") +
+      (unpinnedList.length ? '<h2 class="home-sub">Recent dashboards</h2><div class="home-recents">' +
+        unpinnedList.map(function (r) { return recentCardHtml(r, false); }).join("") + '</div>'
+        : (pinnedList.length ? "" : '<div class="home-empty-hint">No recent dashboards yet — start one above and it will show up here.</div>'));
     sec.classList.add("has-content");
     sec.innerHTML = html;
     $$(".home-card-ic[data-ic]", sec).forEach(function (span) { span.appendChild(Studio.icon(span.getAttribute("data-ic"), 18)); });
@@ -3596,10 +3625,16 @@
         else if (act === "tour") { setTimeout(function () { if (window.StudioTutorial) StudioTutorial.open(); }, 60); }
       };
     });
-    $$(".recent-card", sec).forEach(function (btn) { btn.onclick = function () { openRecent(btn.getAttribute("data-recent")); }; });
+    $$(".recent-open", sec).forEach(function (btn) { btn.onclick = function () { openRecent(btn.getAttribute("data-recent")); }; });
+    $$(".recent-pin", sec).forEach(function (btn) {
+      btn.appendChild(Studio.icon("star", 14));
+      btn.onclick = function (e) { e.stopPropagation(); togglePin(btn.getAttribute("data-pin")); };
+    });
   }
   window.__studioRecents = loadRecents; // test hook
   window.__studioOpenRecent = openRecent; // test hook
+  window.__studioPins = loadPins; // test hook
+  window.__studioTogglePin = togglePin; // test hook
 
   /* ---------- Z5 slice 1: Settings — first-class mode toggles ----------
      The app's mode switches (Theme, Simple mode, Demo mode, Focus mode) used to
@@ -4376,7 +4411,7 @@
         "studio-autosave", "studio-export-history", "studio-theme",
         "studio-lw", "studio-rw", "studio-collapse-library", "studio-collapse-inspector",
         "studio-connections", "studio-active-conn", "studio-mob-tab", "studio-simple-mode",
-        "studio-insp-collapsed"
+        "studio-insp-collapsed", "studio-recents", "studio-pins"
       ];
       var msg = "Clear all locally-stored Studio data?\n\nThis will remove:\n" +
         "  • Unsaved spec draft (autosave)\n" +

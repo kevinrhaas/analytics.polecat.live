@@ -483,6 +483,13 @@
   slice — needs its own careful pass) that `data/cda-catalog.json`/`data/sample-data.json` are
   substantially stale vs. the current `reference/dashboards/*.cda` schema; see the Z13 NEXT note. No JS
   changed; Python-only, verified by running the script. Test suite unaffected (829/829, unchanged).
+- v163: **Z2 follow-up: favorites/pinning on Home** — every recent-dashboard card gets a star toggle
+  (`localStorage["studio-pins"]`); pinned cards render under a "Pinned" heading above "Recent dashboards"
+  and are exempt from the 8-entry recents cap, so pinning protects a dashboard from being evicted by newer
+  activity. `.recent-card` changed from a `<button>` to a `<div>` with a full-cover `.recent-open` button
+  (opens the dashboard) plus a small overlaid `.recent-pin` toggle, avoiding an invalid button-in-button;
+  updated the one existing test that read `data-recent` off the old element. New `star` icon in
+  `app/icons.js`; both pin/unpin and the recents-cap-with-a-pin path get new tests. Test suite 833/833.
 
 ## NEXT (top = do first)
 
@@ -520,9 +527,13 @@ so mobile/tablet is completely unaffected (see Z9 for the dedicated mobile track
 **Z2 — Home.** ✓ slice 1 shipped v133: quick-create cards (Blank / Browse examples / Take the tour) +
 a "Recent dashboards" grid, each card a live SVG thumbnail (`Studio.makeThumbnail`) that genuinely
 reopens the exact dashboard (full spec captured on the auto-save debounce path, capped at 8,
-`localStorage["studio-recents"]`). **Z2 follow-ups (not yet done):** favorites/pinning, folders/
-organization, branding area, more lively motion + hover life on the cards (currently a simple lift +
-border-glow), instructions/how-tos/tips beyond the existing tour link.
+`localStorage["studio-recents"]`).
+> ✓ **Favorites/pinning shipped v163**: a star toggle on every recent card (`localStorage["studio-pins"]`,
+> array of dashboard ids). Pinned cards render under their own "Pinned" heading above "Recent dashboards"
+> and are exempt from the 8-entry cap — pinning protects a dashboard from ever being evicted by newer
+> activity (`noteRecent()` now caps only the unpinned tail). New `star` icon in `app/icons.js`.
+**Z2 follow-ups (not yet done):** folders/organization, branding area, more lively motion + hover life on
+the cards (currently a simple lift + border-glow), instructions/how-tos/tips beyond the existing tour link.
 
 **Z3 — Repository (Data Sources + Workbooks).** One "repository" holding **data-source definitions** and
 **workbook definitions** (a workbook = a named collection of HTML dashboards). Browse/search/organize into

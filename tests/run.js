@@ -9922,7 +9922,7 @@ function serve() {
       z2Recents.count > 0 && z2Recents.hasSvg && z2Recents.storeLen === z2Recents.count, JSON.stringify(z2Recents));
 
     // Z2-3: clicking a recent card reopens that exact dashboard (by id) and returns to the Studio section
-    const z2RecId = await page.evaluate(function () { return document.querySelector("#secHome .recent-card").getAttribute("data-recent"); });
+    const z2RecId = await page.evaluate(function () { return document.querySelector("#secHome .recent-open").getAttribute("data-recent"); });
     await page.click("#secHome .recent-card");
     await page.waitForTimeout(150);
     const z2OpenState = await page.evaluate(function () {
@@ -9959,6 +9959,80 @@ function serve() {
       return JSON.parse(localStorage.getItem("studio-recents") || "[]").length;
     });
     ok("Z2: recents list is capped at 8 entries", z2Cap === 8, "len=" + z2Cap);
+
+    // ── Z2 follow-up: pin / favorite a recent dashboard ──
+    console.log("\n• Z2 follow-up: pin favorite dashboards");
+
+    // Z2P-1: a fresh recents list (no pins yet) shows only a "Recent dashboards" section,
+    // and every card carries a pin toggle in the unpinned (aria-pressed=false) state.
+    const z2pInit = await page.evaluate(function () {
+      localStorage.removeItem("studio-pins");
+      var spec = JSON.parse(JSON.stringify(window.__STUDIO_STATE.spec));
+      spec.title = "Pin test base";
+      window.__studioLoad(spec);
+      if (window.__studioShellSetSection) window.__studioShellSetSection("home");
+      var pins = [].slice.call(document.querySelectorAll("#secHome .recent-pin"));
+      var subs = [].slice.call(document.querySelectorAll("#secHome .home-sub")).map(function (h) { return h.textContent; });
+      return { hasPinnedHeading: subs.indexOf("Pinned") >= 0, hasRecentHeading: subs.indexOf("Recent dashboards") >= 0,
+        pinCount: pins.length, allUnpinned: pins.every(function (b) { return b.getAttribute("aria-pressed") === "false" && !b.classList.contains("pinned"); }),
+        hasStarSvg: pins.length > 0 && !!pins[0].querySelector("svg") };
+    });
+    ok("Z2P: no 'Pinned' section when nothing is pinned; every recent card has an unpinned star toggle",
+      !z2pInit.hasPinnedHeading && z2pInit.hasRecentHeading && z2pInit.pinCount > 0 && z2pInit.allUnpinned && z2pInit.hasStarSvg, JSON.stringify(z2pInit));
+
+    // Z2P-2: clicking a card's pin toggle pins it — moves it under a new "Pinned" heading,
+    // flips aria-pressed/the .pinned class, and persists the id to localStorage["studio-pins"].
+    const z2pPin = await page.evaluate(async function () {
+      var firstId = document.querySelector("#secHome .recent-open").getAttribute("data-recent");
+      document.querySelector("#secHome .recent-pin").click();
+      await new Promise(function (r) { setTimeout(r, 60); });
+      var subs = [].slice.call(document.querySelectorAll("#secHome .home-sub")).map(function (h) { return h.textContent; });
+      var pinnedGrid = subs.indexOf("Pinned") >= 0 ? document.querySelectorAll("#secHome .home-sub")[subs.indexOf("Pinned")].nextElementSibling : null;
+      var pinnedCardId = pinnedGrid ? (pinnedGrid.querySelector(".recent-open") || {}).getAttribute && pinnedGrid.querySelector(".recent-open").getAttribute("data-recent") : null;
+      var btn = pinnedGrid ? pinnedGrid.querySelector(".recent-pin") : null;
+      return {
+        firstId: firstId, pinnedCardId: pinnedCardId,
+        hasPinnedHeading: subs.indexOf("Pinned") >= 0,
+        ariaPressed: btn ? btn.getAttribute("aria-pressed") : null,
+        hasPinnedClass: btn ? btn.classList.contains("pinned") : false,
+        storedPins: window.__studioPins()
+      };
+    });
+    ok("Z2P: pinning a card moves it under a 'Pinned' heading with aria-pressed=true",
+      z2pPin.hasPinnedHeading && z2pPin.pinnedCardId === z2pPin.firstId && z2pPin.ariaPressed === "true" && z2pPin.hasPinnedClass && z2pPin.storedPins.indexOf(z2pPin.firstId) >= 0,
+      JSON.stringify(z2pPin));
+
+    // Z2P-3: unpinning moves it back — no more "Pinned" heading once the only pin is cleared.
+    const z2pUnpinReal = await page.evaluate(async function (id) {
+      window.__studioTogglePin(id);
+      await new Promise(function (r) { setTimeout(r, 60); });
+      var subs = [].slice.call(document.querySelectorAll("#secHome .home-sub")).map(function (h) { return h.textContent; });
+      return { hasPinnedHeading: subs.indexOf("Pinned") >= 0, storedPins: window.__studioPins() };
+    }, z2pPin.firstId);
+    ok("Z2P: unpinning removes the 'Pinned' heading and clears the stored pin",
+      !z2pUnpinReal.hasPinnedHeading && z2pUnpinReal.storedPins.indexOf(z2pPin.firstId) < 0, JSON.stringify(z2pUnpinReal));
+
+    // Z2P-4: a pinned dashboard survives the 8-unpinned cap — pin one synthetic entry among
+    // 12, add a fresh dashboard (which would normally push the oldest out), and confirm the
+    // pinned one is still present while the unpinned tail is still capped at 8.
+    const z2pCapProtect = await page.evaluate(async function () {
+      var many = [];
+      for (var i = 0; i < 12; i++) many.push({ id: "pincap-" + i, ts: new Date().toISOString(), spec: { id: "pincap-" + i, title: "PinCap " + i, panels: [], kpis: [] } });
+      localStorage.setItem("studio-recents", JSON.stringify(many));
+      localStorage.setItem("studio-pins", JSON.stringify(["pincap-5"])); // pin one from the middle
+      var spec = JSON.parse(JSON.stringify(window.__STUDIO_STATE.spec));
+      spec.title = "Cap protect test";
+      window.__studioLoad(spec);
+      await new Promise(function (r) { setTimeout(r, 1300); }); // past the 130ms preview + 800ms recent debounce
+      var list = JSON.parse(localStorage.getItem("studio-recents") || "[]");
+      var ids = list.map(function (r) { return r.id; });
+      return { total: list.length, hasProtected: ids.indexOf("pincap-5") >= 0, unpinnedCount: ids.filter(function (id) { return id !== "pincap-5"; }).length };
+    });
+    ok("Z2P: a pinned entry survives the recents cap while unpinned entries stay capped at 8",
+      z2pCapProtect.hasProtected && z2pCapProtect.unpinnedCount === 8 && z2pCapProtect.total === 9, JSON.stringify(z2pCapProtect));
+
+    // clean up synthetic pin/recents state so it doesn't leak into later tests
+    await page.evaluate(function () { localStorage.removeItem("studio-pins"); });
 
     // ── Z12: branding & app identity — de-dup the logo, add a favicon ──
     console.log("\n• Z12: branding & app identity");
