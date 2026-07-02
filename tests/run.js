@@ -10240,6 +10240,43 @@ function serve() {
       z3PinState.pinnedInRepo && z3PinState.storedPins.indexOf(z3PinFirstId) >= 0, JSON.stringify(z3PinState));
     await page.evaluate(function (id) { window.__studioTogglePin(id); }, z3PinFirstId); // unpin — restore state
 
+    // Z3 follow-up: whole-repository JSON export/import (data sources you authored + dashboard inventory)
+    // Z3-5 above navigated away to Studio (opening a dashboard) — the Export/Import buttons only
+    // exist in the (now-hidden) Repository section, so switch back before driving a real click on them.
+    await page.click('#railNav .rail-item[data-sec="repository"]');
+    await page.waitForTimeout(120);
+    await page.evaluate(function () {
+      window.__STUDIO_STATE.catalog.repoExportTest = { file: "repoExportTest.cda", connection: { id: "pdc", jndi: "PDC-BIDB-EXT" },
+        dataAccesses: [{ id: "repoTestDs", name: "repoTestDs", kind: "sql", jndi: "PDC-BIDB-EXT", columns: ["a", "b"], authored: true, sql: "SELECT 1", query: "SELECT 1", params: [], calcColumns: [], cache: true, cacheDuration: 300 }] };
+    });
+    const [repoDl] = await Promise.all([page.waitForEvent("download", { timeout: 45000 }), page.click("#repoExportBtn")]);
+    const repoDlName = repoDl.suggestedFilename();
+    const repoDlStream = await repoDl.createReadStream();
+    let repoDlText = ""; for await (const chunk of repoDlStream) repoDlText += chunk.toString();
+    let repoDlJson = {}; try { repoDlJson = JSON.parse(repoDlText); } catch (e) {}
+    const repoExportedDs = (repoDlJson.dataSources || []).find((d) => d.da && d.da.id === "repoTestDs");
+    ok("Z3 follow-up: Export repository downloads a well-formed file with authored data sources + dashboards",
+      repoDlName === "dashboard-studio-repository.json" && repoDlJson._type === "studio-repository" &&
+      !!repoExportedDs && repoExportedDs.stem === "repoExportTest" && Array.isArray(repoDlJson.dashboards),
+      repoDlName + " :: " + repoDlText.slice(0, 160));
+
+    const repoImport = await page.evaluate(function () {
+      delete window.__STUDIO_STATE.catalog.repoExportTest;
+      var before = !!window.__STUDIO_STATE.catalog.repoImportTest;
+      var bad = window.__studioApplyRepositoryData({ _type: "not-repository" });
+      var res = window.__studioApplyRepositoryData({
+        _type: "studio-repository", _v: 1,
+        dataSources: [{ stem: "repoImportTest", da: { id: "importedDs", name: "importedDs", kind: "sql", jndi: "PDC-BIDB-EXT", columns: ["x"], authored: true, sql: "SELECT 1", query: "SELECT 1", params: [], calcColumns: [], cache: true, cacheDuration: 300 } }],
+        dashboards: [], pins: []
+      });
+      var after = window.__STUDIO_STATE.catalog.repoImportTest;
+      delete window.__STUDIO_STATE.catalog.repoImportTest; // cleanup
+      return { before: before, bad: bad, ok: res.ok, dsCount: res.dsCount, hasDa: !!(after && after.dataAccesses[0].id === "importedDs") };
+    });
+    ok("Z3 follow-up: Import repository rejects unrecognized files and merges recognized ones into the catalog",
+      repoImport.before === false && repoImport.bad.ok === false && repoImport.ok === true && repoImport.dsCount === 1 && repoImport.hasDa,
+      JSON.stringify(repoImport));
+
     await page.evaluate(function () { window.__studioShellSetSection("studio"); });
     await page.waitForTimeout(80);
 

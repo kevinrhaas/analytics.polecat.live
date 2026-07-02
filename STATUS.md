@@ -502,6 +502,13 @@
   has no ESM build), New Source builder + DA inspector wiring (File URL + optional Table name + Query +
   Test connection & detect columns), Run-live in the Data preview, `exportCDA` now excludes both
   `duckdb`/`httpvfs` kinds from `.cda`. 13 new tests. Test suite 840/840.
+- v171: **Z3 follow-up: whole-repository JSON export/import** — Repository page gains "Export repository…"/
+  "Import repository…" buttons: export bundles authored data sources (not the bundled catalog) + the local
+  dashboard inventory (recents/pins) into one JSON file; import merges additively (never deletes existing
+  entries). `applyRepositoryData()` exposed as a test hook, mirroring the Z5 Settings export/import pattern.
+  `docs/index.html` updated. 2 new tests — also fixed a test-authoring bug found along the way: an earlier
+  Z3 test left the app on the Studio section for every subsequent test, silently testing hidden DOM instead
+  of the real, visible Repository page. Test suite 866/866.
 - v170: **Z14 slice 4: connector-gallery polish** — DuckDB (remote file) and SQLite (remote .sqlite)
   source-type cards in the New Source builder gain a small "Browser-only" badge; `Studio.friendlyConnectorError()`
   (shared, `app/model.js`) appends a plain-English, actionable hint to common raw connector failures
@@ -571,10 +578,14 @@ source library" and "dashboard inventory" ideas into one place.
 > existing `recentCardHtml`); pin/unpin works from Repository too (shared storage with Home). No new
 > storage — this is a browsing surface over data that already existed in two separate corners of the app.
 > 7 new Z3 tests. Test suite 856/856.
+> ✓ **Whole-repository JSON export/import shipped v171**: "Export repository…"/"Import repository…" buttons
+> on the Repository page. Export bundles every data source you personally authored (not the bundled catalog
+> — that already ships with the app) plus the local dashboard inventory (recents+pins) into one JSON file;
+> import merges it back in additively (never deletes existing entries; same-id entries are overwritten by
+> the imported version). Mirrors the Z5 Settings export/import pattern.
 > **Z3 follow-ups (not yet done):** folders/organization, full CRUD from the Repository page itself (today
 > editing still happens via Studio's own library/inspector), the "workbook" concept (a named collection of
-> dashboards) doesn't exist yet — today "dashboards" just means the flat recents list, and import/export of
-> the whole repository as one JSON file.
+> dashboards) doesn't exist yet — today "dashboards" just means the flat recents list.
 
 **Z14 — Browser-native, file-hosted SQL engines: DuckDB-Wasm + SQLite-WASM-HTTP (user-requested 2026-07-02).**
 > ★ **PRIORITY: build this connector track BEFORE the Z4 warehouse providers** (user-requested 2026-07-02).

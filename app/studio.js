@@ -3794,6 +3794,68 @@
   }
   window.__studioRenderRepository = renderRepository; // test hook
 
+  /* ---------- Z3 follow-up: whole-repository JSON export/import ----------
+     Bundled examples/catalog entries already live in the repo as files, so exporting
+     those back out would just be redundant noise. What's actually "yours" and worth
+     carrying to another browser/device is: data sources you authored (da.authored),
+     plus the local dashboard inventory (recents + pins). Import is additive/merge —
+     it never deletes anything already here, so it's safe to import onto a machine
+     that already has its own repository. */
+  function exportRepositoryFile() {
+    var dataSources = [];
+    Object.keys(S.catalog || {}).forEach(function (stem) {
+      (S.catalog[stem].dataAccesses || []).forEach(function (d) {
+        if (d.authored) dataSources.push({ stem: stem, da: d });
+      });
+    });
+    var out = { _type: "studio-repository", _v: 1, dataSources: dataSources, dashboards: loadRecents(), pins: loadPins() };
+    download("dashboard-studio-repository.json", JSON.stringify(out, null, 2), "application/json");
+  }
+  // Merges a parsed repository-export object into the current catalog + recents/pins.
+  // Returns {ok, dsCount, dashCount} on success, {ok:false} if the file isn't recognized.
+  // Split out from importRepositoryFile so it can be unit-tested without a file-picker.
+  function applyRepositoryData(data) {
+    if (!data || data._type !== "studio-repository") return { ok: false };
+    var dsCount = 0;
+    (data.dataSources || []).forEach(function (item) {
+      var stem = item.stem || "custom", d = item.da; if (!d || !d.id) return;
+      if (!S.catalog[stem]) S.catalog[stem] = { file: stem + ".cda", connection: { id: "pdc", jndi: d.jndi || "PDC-BIDB-EXT" }, dataAccesses: [] };
+      var entry = S.catalog[stem];
+      entry.dataAccesses = entry.dataAccesses.filter(function (x) { return x.id !== d.id; }).concat([d]);
+      dsCount++;
+    });
+    var existing = loadRecents(), byId = {};
+    existing.forEach(function (r) { byId[r.id] = r; });
+    (data.dashboards || []).forEach(function (r) { if (r && r.id) byId[r.id] = r; });
+    var merged = Object.keys(byId).map(function (id) { return byId[id]; })
+      .sort(function (a, b) { return (b.ts || "").localeCompare(a.ts || ""); });
+    try { localStorage.setItem(_LS_RECENTS, JSON.stringify(merged)); } catch (e) { /* quota or private-mode */ }
+    var pins = loadPins(), pinSet = {};
+    pins.concat(data.pins || []).forEach(function (id) { pinSet[id] = true; });
+    savePins(Object.keys(pinSet));
+    buildLibrary(); renderHome(); renderRepository();
+    return { ok: true, dsCount: dsCount, dashCount: (data.dashboards || []).length };
+  }
+  function importRepositoryFile() {
+    var inp = el("input"); inp.type = "file"; inp.accept = ".json,application/json";
+    inp.onchange = function () {
+      var f = inp.files[0]; if (!f) return;
+      var rd = new FileReader();
+      rd.onload = function () {
+        var data;
+        try { data = JSON.parse(rd.result); } catch (e) { toast("Invalid repository file", true); return; }
+        if (!data || data._type !== "studio-repository") { toast("Not a Dashboard Studio repository file", true); return; }
+        if (!confirm("Import " + (data.dataSources || []).length + " data source(s) and " + (data.dashboards || []).length + " dashboard(s)? This merges into your current repository — nothing existing is deleted.")) return;
+        var res = applyRepositoryData(data);
+        toast("Imported " + res.dsCount + " data source(s), " + res.dashCount + " dashboard(s)");
+      };
+      rd.readAsText(f);
+    };
+    inp.click();
+  }
+  window.__studioExportRepository = exportRepositoryFile; // test hook
+  window.__studioApplyRepositoryData = applyRepositoryData; // test hook (bypasses file-picker + confirm)
+
   /* ---------- Z5 slice 1: Settings — first-class mode toggles ----------
      The app's mode switches (Theme, Simple mode, Demo mode, Focus mode) used to
      live only in the ⋯ More menu, hard to discover. This gives them a proper,
@@ -4406,6 +4468,8 @@
     $("#btnTheme").onclick = function () { setTheme(S.theme === "dark" ? "light" : "dark"); };
     $("#libSearch").addEventListener("input", buildLibrary);
     var repoSearchInp = $("#repoSearch"); if (repoSearchInp) repoSearchInp.addEventListener("input", renderRepository);
+    var repoExpBtn = $("#repoExportBtn"); if (repoExpBtn) repoExpBtn.onclick = exportRepositoryFile;
+    var repoImpBtn = $("#repoImportBtn"); if (repoImpBtn) repoImpBtn.onclick = importRepositoryFile;
     var ndsBtn = $("#btnNewDS"); setIconBtn(ndsBtn, "plus", "New source", 12); ndsBtn.onclick = function () { dataSourceBuilder(null); };
     $("#inspBack").onclick = selectDashboard;
 
