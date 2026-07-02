@@ -40,6 +40,30 @@ function serve() {
   const page = await browser.newPage({ viewport: { width: 1500, height: 1040 } });
   // bypass the passcode gate + first-run welcome for the main run
   await page.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); } catch (e) {} });
+  // Track L (architecture sweep): a reusable in-page poll helper for reading the
+  // builder's #preview iframe after an edit. Several checks used to await a FIXED
+  // setTimeout before reading `#preview`'s contentDocument, racing the async
+  // postMessage-driven re-render and failing non-deterministically on slower
+  // machines. `test(doc)` is re-evaluated against a FRESH `#preview`
+  // contentDocument on every poll tick (the iframe's document object itself is
+  // replaced on reload, so capturing it once before polling would silently poll
+  // a stale/detached document) until it returns truthy or `timeout` elapses.
+  await page.addInitScript(() => {
+    window.__waitForPreview = function (test, timeout) {
+      timeout = timeout || 2500;
+      var t0 = Date.now();
+      return new Promise(function (resolve) {
+        (function poll() {
+          var doc = null;
+          try { var f = document.querySelector("#preview"); doc = f && f.contentDocument; } catch (e) {}
+          var hit = false;
+          try { hit = !!(doc && test(doc)); } catch (e) { hit = false; }
+          if (hit || Date.now() - t0 >= timeout) { resolve(doc); return; }
+          setTimeout(poll, 30);
+        })();
+      });
+    };
+  });
   const errors = [];
   page.on("pageerror", (e) => errors.push("page: " + e.message));
   page.on("console", (m) => { if (m.type() === "error") errors.push("console: " + m.text()); });
@@ -1195,8 +1219,7 @@ function serve() {
       var d = spec.cda.dataAccesses.find((x) => x.id === "cost_trend") || spec.cda.dataAccesses[1];
       spec.panels = [{ id: "sa", title: "Stacked area", span: "full", chart: { type: "areaStacked", da: d.id, map: { labelCol: d.columns[0], series: [{ col: d.columns[1] }, { col: d.columns[d.columns.length - 1] }] }, opts: { fmt: "abbr", height: 260 } } }];
       window.__studioLoad(spec);
-      await new Promise((r) => setTimeout(r, 400));
-      const doc = document.querySelector("#preview").contentDocument;
+      const doc = await window.__waitForPreview((d) => (d.querySelector("#content") || {}).textContent.indexOf("Stacked area") >= 0);
       const paths = doc.querySelectorAll("#content svg path").length;
       return { paths: paths };
     });
@@ -1210,8 +1233,7 @@ function serve() {
       spec.kpis = []; spec.filters = [];
       spec.panels = [{ id: "cb", title: "Combo", span: "full", chart: { type: "combo", da: d.id, map: { labelCol: d.columns[0], barCol: d.columns[1], lineCol: d.columns[d.columns.length - 1] }, opts: { fmt: "abbr", height: 260 } } }];
       window.__studioLoad(spec);
-      await new Promise((r) => setTimeout(r, 400));
-      const doc = document.querySelector("#preview").contentDocument;
+      const doc = await window.__waitForPreview((d) => (d.querySelector("#content") || {}).textContent.indexOf("Combo") >= 0);
       return { rects: doc.querySelectorAll("#content svg rect.bar").length, paths: doc.querySelectorAll("#content svg path").length, err: /Render error/.test(doc.querySelector("#content").textContent) };
     });
     ok("combo renders bars + a line", combo.rects >= 2 && combo.paths >= 1 && !combo.err, JSON.stringify(combo));
@@ -1224,8 +1246,7 @@ function serve() {
       spec.kpis = []; spec.filters = [];
       spec.panels = [{ id: "rd", title: "Radar", span: "full", chart: { type: "radar", da: d.id, map: { labelCol: d.columns[0], series: [{ col: d.columns[1] }, { col: d.columns[d.columns.length - 1] }] }, opts: { fmt: "abbr", height: 280 } } }];
       window.__studioLoad(spec);
-      await new Promise((r) => setTimeout(r, 400));
-      const doc = document.querySelector("#preview").contentDocument;
+      const doc = await window.__waitForPreview((d) => (d.querySelector("#content") || {}).textContent.indexOf("Radar") >= 0);
       return {
         polys: doc.querySelectorAll("#content svg polygon").length,
         dots: doc.querySelectorAll("#content svg circle").length,
@@ -1247,8 +1268,7 @@ function serve() {
           map: { labelCol: d.columns[0], valueCol: d.columns[1] },
           opts: { showTotal: true, totalLabel: "Total", fmt: "abbr", height: 280 } } }];
       window.__studioLoad(spec);
-      await new Promise((r) => setTimeout(r, 400));
-      const doc = document.querySelector("#preview").contentDocument;
+      const doc = await window.__waitForPreview((d) => (d.querySelector("#content") || {}).textContent.indexOf("Waterfall") >= 0);
       var rects = doc.querySelectorAll("#content svg rect");
       return {
         reg: !!Studio.CHARTS.waterfall, cdfOnly: Studio.cdeUnsupported("waterfall"),
@@ -1273,8 +1293,7 @@ function serve() {
         opts: { srcCap: "Source", dstCap: "Destination", fmt: "abbr", height: 300 }
       } }];
       window.__studioLoad(spec);
-      await new Promise((r) => setTimeout(r, 500));
-      const doc = document.querySelector("#preview").contentDocument;
+      const doc = await window.__waitForPreview((d) => (d.querySelector("#content") || {}).textContent.indexOf("Sankey") >= 0);
       var paths = doc.querySelectorAll("#content svg path");
       return {
         reg: !!Studio.CHARTS.sankey, cdfOnly: Studio.cdeUnsupported("sankey"),
@@ -1298,8 +1317,7 @@ function serve() {
         opts: { fmt: "abbr", height: 300 }
       } }];
       window.__studioLoad(spec);
-      await new Promise((r) => setTimeout(r, 500));
-      const doc = document.querySelector("#preview").contentDocument;
+      const doc = await window.__waitForPreview((d) => (d.querySelector("#content") || {}).textContent.indexOf("Chord") >= 0);
       var content = doc.querySelector("#content");
       return {
         reg: !!Studio.CHARTS.chord, cdfOnly: Studio.cdeUnsupported("chord"),
@@ -1323,8 +1341,7 @@ function serve() {
         opts: { showPct: true, fmt: "abbr", height: 300 }
       } }];
       window.__studioLoad(spec);
-      await new Promise((r) => setTimeout(r, 500));
-      const doc = document.querySelector("#preview").contentDocument;
+      const doc = await window.__waitForPreview((d) => (d.querySelector("#content") || {}).textContent.indexOf("Funnel") >= 0);
       var content = doc.querySelector("#content");
       var rects = content.querySelectorAll("svg rect");
       return {
@@ -1349,8 +1366,7 @@ function serve() {
         opts: { showLabels: true, fmt: "abbr", height: 300 }
       } }];
       window.__studioLoad(spec);
-      await new Promise((r) => setTimeout(r, 500));
-      const doc = document.querySelector("#preview").contentDocument;
+      const doc = await window.__waitForPreview((d) => (d.querySelector("#content") || {}).textContent.indexOf("Sunburst") >= 0);
       var content = doc.querySelector("#content");
       var paths = content.querySelectorAll("svg path");
       return {
@@ -1373,31 +1389,37 @@ function serve() {
         { id: "sens", label: "Sensitivity", da: "cost_by_sens", valueCol: "sens", textCol: "sens", allLabel: "All", def: "%" }
       ];
       window.__studioLoad(spec);
-      await new Promise((r) => setTimeout(r, 500));
-      const d = document.querySelector("#preview").contentDocument;
+      const d = await window.__waitForPreview((doc) => doc.querySelectorAll("#ctrls select.pdc-sel").length === 2);
       var sels = d.querySelectorAll("#ctrls select.pdc-sel");
       var before = sels.length;
       // change the first filter → triggers load + cascade without error
       if (sels[0]) { sels[0].value = sels[0].options[1] ? sels[0].options[1].value : sels[0].value; sels[0].dispatchEvent(new Event("change")); }
-      await new Promise((r) => setTimeout(r, 350));
-      var after = d.querySelectorAll("#ctrls select.pdc-sel").length;
-      var opts = d.querySelector("#ctrls select.pdc-sel") ? d.querySelectorAll("#ctrls select.pdc-sel")[1].options.length : 0;
-      return { before: before, after: after, downstreamOpts: opts, err: /Render error|Could not load/.test(d.querySelector("#content").textContent) };
+      const d2 = await window.__waitForPreview((doc) => {
+        var s = doc.querySelectorAll("#ctrls select.pdc-sel");
+        return s.length === 2 && s[1].options.length >= 2;
+      });
+      var after = d2.querySelectorAll("#ctrls select.pdc-sel").length;
+      var opts = d2.querySelector("#ctrls select.pdc-sel") ? d2.querySelectorAll("#ctrls select.pdc-sel")[1].options.length : 0;
+      return { before: before, after: after, downstreamOpts: opts, err: /Render error|Could not load/.test(d2.querySelector("#content").textContent) };
     });
     ok("cascading filters: both selects present, downstream repopulated, no errors", casc.before === 2 && casc.after === 2 && casc.downstreamOpts >= 2 && !casc.err, JSON.stringify(casc));
 
     // ---- panel duplicate / delete (canvas + inspector) ----
     console.log("\n• panel duplicate / delete");
     await page.evaluate(async () => { const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json()); window.__studioLoad(spec); });
-    await page.waitForTimeout(350);
+    // window.__STUDIO_STATE.spec is set synchronously by __studioLoad — no wait needed here.
     const pcount0 = await page.evaluate(() => window.__STUDIO_STATE.spec.panels.length);
     const pvp = page.frames().find((f) => f !== page.mainFrame());
+    // The dup/del click's effect on window.__STUDIO_STATE (parent page) round-trips through
+    // the preview iframe's postMessage, so poll for the expected panel count instead of a
+    // fixed wait — was observed to flake on slower machines (Track L sweep, 2026-07-02).
+    // Locator .click() itself already auto-waits for the button to be attached/actionable.
     await pvp.locator('[data-panel-id] .sr-act[data-act="dup"]').first().click({ force: true });
-    await page.waitForTimeout(250);
+    await page.waitForFunction((n) => window.__STUDIO_STATE.spec.panels.length === n, pcount0 + 1, { timeout: 2000 }).catch(() => {});
     const pcount1 = await page.evaluate(() => window.__STUDIO_STATE.spec.panels.length);
     ok("canvas ⧉ duplicates a panel", pcount1 === pcount0 + 1, pcount0 + "→" + pcount1);
     await pvp.locator('[data-panel-id] .sr-act[data-act="del"]').first().click({ force: true });
-    await page.waitForTimeout(250);
+    await page.waitForFunction((n) => window.__STUDIO_STATE.spec.panels.length === n, pcount1 - 1, { timeout: 2000 }).catch(() => {});
     const pcount2 = await page.evaluate(() => window.__STUDIO_STATE.spec.panels.length);
     ok("canvas × deletes a panel", pcount2 === pcount1 - 1, pcount1 + "→" + pcount2);
     // inspector duplicate
@@ -3539,8 +3561,7 @@ function serve() {
         opts: { max: 0, fmt: "abbr", height: 220 }
       } }];
       window.__studioLoad(spec);
-      await new Promise((r) => setTimeout(r, 500));
-      const doc = document.querySelector("#preview").contentDocument;
+      const doc = await window.__waitForPreview((d) => (d.querySelector("#content") || {}).textContent.indexOf("Bullet") >= 0);
       var content = doc.querySelector("#content");
       var rects = content.querySelectorAll("svg rect");
       return {
@@ -3571,8 +3592,7 @@ function serve() {
         opts: { fmt: "n", height: 190 }
       } }];
       window.__studioLoad(spec);
-      await new Promise((r) => setTimeout(r, 600));
-      const doc = document.querySelector("#preview").contentDocument;
+      const doc = await window.__waitForPreview((d) => (d.querySelector("#content") || {}).textContent.indexOf("Activity") >= 0);
       var content = doc.querySelector("#content");
       var cells = content.querySelectorAll("svg rect");
       return {
@@ -3595,26 +3615,27 @@ function serve() {
         params: [], calcColumns: [], cache: true, cacheDuration: 300
       }];
       spec.kpis = []; spec.filters = [];
-      function render(opts) {
-        spec.panels = [{ id: "ch", title: "Activity", span: "full", chart: {
+      // Each step re-tags the panel title (e.g. "Activity 1") so __waitForPreview can
+      // wait for THIS specific render rather than racing the previous one's leftover
+      // DOM — a plain "svg present" check can't tell step 2's re-render apart from
+      // step 1's still-live content, since both keep the same chart type/selectors.
+      function render(opts, tag) {
+        spec.panels = [{ id: "ch", title: "Activity " + tag, span: "full", chart: {
           type: "calHeatmap", da: "daily_events",
           map: { dateCol: "event_date", valueCol: "count" }, opts
         } }];
         window.__studioLoad(spec);
       }
-      render({ fmt: "n", height: 190, color: "#ff0000" });
-      await new Promise((r) => setTimeout(r, 500));
-      var doc = document.querySelector("#preview").contentDocument;
+      render({ fmt: "n", height: 190, color: "#ff0000" }, "1");
+      var doc = await window.__waitForPreview((d) => (d.querySelector("#content") || {}).textContent.indexOf("Activity 1") >= 0);
       var svg = doc.querySelector("#content svg");
       var coloredRect = [...svg.querySelectorAll("rect")].find((r) => r.getAttribute("fill") === "#ff0000");
-      render({ fmt: "n", height: 190, weekStart: "mon" });
-      await new Promise((r) => setTimeout(r, 500));
-      doc = document.querySelector("#preview").contentDocument;
+      render({ fmt: "n", height: 190, weekStart: "mon" }, "2");
+      doc = await window.__waitForPreview((d) => (d.querySelector("#content") || {}).textContent.indexOf("Activity 2") >= 0);
       svg = doc.querySelector("#content svg");
       var monLabels = [...svg.querySelectorAll("text")].filter((t) => t.getAttribute("x") === "17").map((t) => t.textContent);
-      render({ fmt: "n", height: 190, weekStart: "sun" });
-      await new Promise((r) => setTimeout(r, 500));
-      doc = document.querySelector("#preview").contentDocument;
+      render({ fmt: "n", height: 190, weekStart: "sun" }, "3");
+      doc = await window.__waitForPreview((d) => (d.querySelector("#content") || {}).textContent.indexOf("Activity 3") >= 0);
       svg = doc.querySelector("#content svg");
       var sunLabels = [...svg.querySelectorAll("text")].filter((t) => t.getAttribute("x") === "17").map((t) => t.textContent);
       return {
@@ -3640,8 +3661,7 @@ function serve() {
         opts: { height: 260 }
       } }];
       window.__studioLoad(spec);
-      await new Promise((r) => setTimeout(r, 450));
-      const doc = document.querySelector("#preview").contentDocument;
+      const doc = await window.__waitForPreview((d) => (d.querySelector("#content") || {}).textContent.indexOf("Area") >= 0);
       var leg = doc.querySelector("#content .lgi-toggle");
       var chips = leg ? [].slice.call(leg.querySelectorAll(".legend-item")) : [];
       var chipOpacityBefore = chips[0] ? chips[0].style.opacity : "?";
@@ -3662,8 +3682,7 @@ function serve() {
         opts: { height: 260 }
       } }];
       window.__studioLoad(spec);
-      await new Promise((r) => setTimeout(r, 400));
-      const doc = document.querySelector("#preview").contentDocument;
+      const doc = await window.__waitForPreview((d) => (d.querySelector("#content") || {}).textContent.indexOf("Combo") >= 0);
       var leg = doc.querySelector("#content .lgi-toggle");
       return { hasLegend: !!leg, chips: leg ? leg.querySelectorAll(".legend-item").length : 0 };
     });
@@ -3679,8 +3698,7 @@ function serve() {
         opts: { height: 260 }
       } }];
       window.__studioLoad(spec);
-      await new Promise((r) => setTimeout(r, 400));
-      const doc = document.querySelector("#preview").contentDocument;
+      const doc = await window.__waitForPreview((d) => (d.querySelector("#content") || {}).textContent.indexOf("Radar") >= 0);
       var leg = doc.querySelector("#content .lgi-toggle");
       return { hasLegend: !!leg, chips: leg ? leg.querySelectorAll(".legend-item").length : 0 };
     });
@@ -4038,8 +4056,7 @@ function serve() {
         }];
         testSpec.kpis = [];
         window.__studioLoad(testSpec);
-        await new Promise(function (r) { setTimeout(r, 500); });
-        var doc = document.querySelector("#preview").contentDocument;
+        var doc = await window.__waitForPreview((d) => (d.querySelector("#content") || {}).textContent.indexOf("Test Network") >= 0);
         var circles = doc.querySelectorAll("#content circle");
         var err = doc.querySelector("#content .err");
         return { circleCount: circles.length, hasErr: !!err };
@@ -8283,8 +8300,13 @@ function serve() {
       spec.panels[0].chart = Object.assign({}, spec.panels[0].chart,
         { type: "table", map: { cols: [{ col: col }] }, opts: { maxRows: 3 } });
       window.__studioLoad(spec);
-      await new Promise(function (r) { setTimeout(r, 300); });
-      var doc = document.querySelector("#preview").contentDocument;
+      // Poll for the maxRows:3 cap itself (not just "any" render) — the prior preview
+      // state almost certainly has more rows, so waiting for <=3 rows is both the
+      // condition under test AND a safe way to skip past stale leftover content.
+      var doc = await window.__waitForPreview((d) => {
+        var n = d.querySelectorAll(".tbl tbody tr").length;
+        return n > 0 && n <= 3;
+      });
       var rows = doc.querySelectorAll(".tbl tbody tr").length;
       return { ok: rows === 3, rows: rows };
     });
@@ -8474,8 +8496,13 @@ function serve() {
       if (!sel) { p.chart = prevChart; window.__studioSelect(null); window.__studioRenderInspector(); return { err: "no Value format select" }; }
       sel.value = "pct";
       sel.dispatchEvent(new Event("change", { bubbles: true }));
-      await new Promise(function (r) { setTimeout(r, 400); });
-      var doc = document.querySelector("#preview").contentDocument;
+      // Poll until the gauge actually re-renders in fmt:"pct" (a "%" appears) rather than
+      // a fixed wait — the pre-change render used fmt:"n" (no "%"), so this is both the
+      // condition under test and a safe way to skip past the stale pre-change reading.
+      var doc = await window.__waitForPreview((d) => {
+        var vals = d.querySelectorAll(".gauge-val");
+        return vals.length > 0 && Array.prototype.some.call(vals, function (e) { return /%/.test(e.textContent); });
+      });
       var texts = [].slice.call(doc.querySelectorAll(".gauge-val")).map(function (e) { return e.textContent; });
       p.chart = prevChart; // restore so later tests aren't affected
       window.__studioSelect(null);
@@ -8968,8 +8995,10 @@ function serve() {
         if (!freshSpec.kpis || !freshSpec.kpis.length) return { ok: false, err: "no KPIs in spec" };
         freshSpec.kpis[0].subtitle = "vs. target";
         window.__studioLoad(freshSpec);
-        await new Promise(function (r) { setTimeout(r, 350); });
-        var d = document.querySelector("#preview").contentDocument;
+        var d = await window.__waitForPreview((doc) => {
+          var el = doc.querySelector("#kpis .kpi-sub");
+          return el && el.textContent === "vs. target";
+        });
         var subEl = d && d.querySelector("#kpis .kpi-sub");
         return { ok: !!subEl && subEl.textContent === "vs. target", text: subEl ? subEl.textContent : null };
       } catch (e) { return { ok: false, err: e.message }; }

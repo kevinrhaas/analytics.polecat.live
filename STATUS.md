@@ -556,6 +556,10 @@
   trailing simple-moving-average overlay per series, computed client-side, rendered through the same
   `_lineOpts` override and generic inspector `optField()` machinery (no exporter changes needed — CDF
   export and preview share the renderer). 3 new tests, suite 890/890.
+- v180: **Track L (test health)** — hardened all 21 fixed-`setTimeout`-then-read-`#preview` sites in
+  `tests/run.js` with a reusable poll helper (`window.__waitForPreview`); also hardened the
+  panel-dup/delete count check with `page.waitForFunction`. Test-only, no product change. Suite
+  unchanged at 890/890, closes the sweep target queued by the prior run.
 
 ## NEXT (top = do first)
 
@@ -1303,18 +1307,22 @@ gets covered over time:
 - **Chart-extension API** — 51 types now register through ad-hoc patterns; consider formalizing a tiny
   `Studio.defineChart({type, render, opts, thumb, autoPick})` contract so new types are uniform and testable.
 - **Test health** — coverage per feature, flaky/slow checks, and a fast smoke subset for quick loops.
-> **▶ NEXT ARCHITECTURE SWEEP TARGET — harden flaky fixed-timeout tests (Test-health lens; user-requested 2026-07-02).**
-> Empirically confirmed on a slower machine than CI: several checks that read from the **preview iframe**
-> (`document.querySelector("#preview").contentDocument …`) after a **fixed** `await new Promise(r => setTimeout(r, N))`
-> race the async postMessage re-render and intermittently see an empty document — so they fail non-deterministically
-> (observed: "Z8G: gauge with fmt:'pct' … percent sign" reading `.gauge-val` after 150 ms → `texts:[]`, and
-> "canvas × deletes a panel"). CI is faster so it passes there, but the tests are genuinely fragile. **Fix (test-only,
-> no product change):** add a reusable in-page poll helper (e.g. `waitForPreview(page, selector, timeout=2000)` that
-> polls `#preview` contentDocument for `selector` until present or times out) and convert the fixed-`setTimeout`
-> **preview-iframe reads** to await it; keep a small settle delay only where a value must *change* rather than *appear*.
-> Do it in one sweep across `tests/run.js` (grep `setTimeout` near `#preview`/`contentDocument`), so the suite is
-> deterministic on any machine. v174 already fixed one such flake — finish the pattern. Then remove this ▶ note.
 > **Findings log (append newest on top; keep short):**
+> - **v180 (test-health sweep, harden flaky fixed-timeout preview reads — closes the v174-queued target):**
+>   added a reusable in-page poll helper (`window.__waitForPreview(test, timeout)`, installed once via
+>   `page.addInitScript`) that re-reads a **fresh** `#preview` contentDocument on every tick (capturing the
+>   iframe's document once before polling silently polls a stale/detached object once the iframe reloads)
+>   until `test(doc)` returns truthy or a timeout elapses. Converted **all 21** fixed-`setTimeout`-then-read
+>   `#preview` sites in `tests/run.js` to it, each with a predicate specific enough to skip past the
+>   *previous* test's still-live content instead of matching on it (mostly "the new unique panel title has
+>   appeared" — e.g. wait for `"Sankey"`/`"Bullet"`/`"Chord"` — with a few needing a value-specific predicate
+>   instead: the gauge %-format check waits for a `"%"` in `.gauge-val`, the maxRows check waits for
+>   `rows.length <= 3`, and the 3-step calendar-heatmap options test now tags each render's panel title
+>   `"Activity 1/2/3"` so each step's wait can't accidentally match the *previous* step's still-live DOM). Also
+>   hardened "canvas × deletes a panel" (not a `#preview` read but the same class of bug — a fixed wait racing
+>   the postMessage round-trip from the preview iframe back to `window.__STUDIO_STATE`) with
+>   `page.waitForFunction` polling for the exact expected panel count. Suite is unchanged at 890/890 (test-only,
+>   no product change) but should no longer flake non-deterministically on a slower machine.
 > - **v169 (dead code sweep, first architecture sweep):** wrote a script diffing every CSS class selector
 >   in `app/studio.css` against a full-text search across all of `app/*.js` + `index.html` + `docs/index.html`
 >   + `tests/run.js` — found only **2 genuinely orphaned rules** out of 341 classes (`.ex-cards-1`, a
