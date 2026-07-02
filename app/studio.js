@@ -1687,6 +1687,36 @@
     sec.appendChild(field("Title", titleInput));
     sec.appendChild(field("File name (stem)", input(sp.name, function (v) { sp.name = v.trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-"); syncHeader(); }, "lowercase-with-dashes → " + sp.name + ".html / .cda")));
     sec.appendChild(field("Subtitle", input(sp.subtitle, function (v) { sp.subtitle = v; refreshPreview(); })));
+
+    // Z6: per-dashboard header logo — replaces the default "P" mark in the banner (preview +
+    // exported CDF) with an uploaded image. Lives in the spec itself (not localStorage, unlike
+    // the app-wide Z12 rail branding) so it travels with Save/Open/Export like any other content.
+    var logoRow = el("div"); logoRow.className = "accent-presets"; logoRow.style.flexWrap = "wrap";
+    if (sp.headerLogo) {
+      var logoPrev = el("img"); logoPrev.src = sp.headerLogo; logoPrev.alt = "";
+      logoPrev.style.cssText = "width:28px;height:28px;border-radius:7px;object-fit:cover;border:1px solid var(--line)";
+      logoRow.appendChild(logoPrev);
+    }
+    var logoBtn = el("button"); logoBtn.type = "button"; logoBtn.className = "btn";
+    logoBtn.textContent = sp.headerLogo ? "Change…" : "Upload logo…";
+    var logoInp = el("input"); logoInp.type = "file"; logoInp.accept = "image/png,image/jpeg,image/svg+xml"; logoInp.style.display = "none";
+    logoInp.onchange = function () {
+      var f = logoInp.files[0]; if (!f) return;
+      if (f.size > 200 * 1024) { toast("Logo too large — please use an image under 200KB.", true); return; }
+      var reader = new FileReader();
+      reader.onload = function (e) { sp.headerLogo = e.target.result; refreshPreview(); renderInspector(); toast("Header logo updated."); };
+      reader.readAsDataURL(f);
+    };
+    logoBtn.onclick = function () { logoInp.click(); };
+    logoRow.appendChild(logoBtn); logoRow.appendChild(logoInp);
+    if (sp.headerLogo) {
+      var logoClear = el("button"); logoClear.type = "button"; logoClear.className = "btn";
+      logoClear.textContent = "Remove";
+      logoClear.onclick = function () { delete sp.headerLogo; refreshPreview(); renderInspector(); };
+      logoRow.appendChild(logoClear);
+    }
+    sec.appendChild(field("Header logo", logoRow, "PNG/JPG/SVG, up to 200KB. Replaces the default mark in the banner — blank uses the default."));
+
     var grpSel = select2(["Observability", "Governance & Privacy", "Storage & Cost", "Usage & People", "Data Integration", "Executive"], sp.group, function (v) { sp.group = v; syncHeader(); });
     sec.appendChild(field("Group", grpSel));
     sec.appendChild(field("Description", textarea(sp.description, function (v) { sp.description = v; refreshPreview(); })));
@@ -1709,7 +1739,7 @@
     accentCustom.title = "Custom accent color";
     accentCustom.value = sp.themeColor || "#005bb5";
     accentCustom.oninput = function () {
-      sp.themeColor = this.value; refreshPreview(); renderDashboardInspector(body);
+      sp.themeColor = this.value; refreshPreview(); renderInspector();
     };
     THEME_PRESETS.forEach(function (preset) {
       var sw = el("button"); sw.type = "button"; sw.className = "accent-swatch";
@@ -1719,7 +1749,7 @@
       sw.onclick = function () {
         sp.themeColor = preset.color;
         accentCustom.value = preset.color || "#005bb5";
-        refreshPreview(); renderDashboardInspector(body);
+        refreshPreview(); renderInspector();
       };
       accentRow.appendChild(sw);
     });
@@ -1740,7 +1770,7 @@
       if (active) sw.classList.add("active");
       sw.onclick = function () {
         sp.paletteKey = preset.key === "default" ? "" : preset.key;
-        refreshPreview(); renderDashboardInspector(body);
+        refreshPreview(); renderInspector();
       };
       palRow.appendChild(sw);
     });
@@ -1793,7 +1823,7 @@
       var detail = conn.jndi || conn.url || conn.connectString || conn.fileName || conn.domainId || "";
       cs2.appendChild(rowItem("⊛", conn.id, typeLabel + (detail ? " · " + detail : ""),
         function () { openConnEditor(conn, body); },
-        [delBtn(function () { conns.splice(i, 1); renderDashboardInspector(body); })],
+        [delBtn(function () { conns.splice(i, 1); renderInspector(); })],
         false));
     });
 
@@ -4399,7 +4429,11 @@
   }
   function normalize(spec) {
     var base = Studio.emptySpec();
-    ["schema", "id", "name", "title", "subtitle", "group", "description"].forEach(function (k) { if (spec[k] != null) base[k] = spec[k]; });
+    // NOTE: this whitelist previously omitted themeColor/paletteKey (shipped in v103/v123) — every
+    // Open / restore-banner / example-load / drag-drop-file silently reset a saved dashboard's accent
+    // color and series palette back to the default. Keep this list in sync with Studio.emptySpec()'s
+    // top-level scalar/optional fields whenever a new one is added (see also headerLogo, Z6).
+    ["schema", "id", "name", "title", "subtitle", "group", "description", "themeColor", "paletteKey", "headerLogo"].forEach(function (k) { if (spec[k] != null) base[k] = spec[k]; });
     base.cda = spec.cda || base.cda;
     base.filters = spec.filters || []; base.kpis = spec.kpis || [];
     base.gridCols = spec.gridCols || 3; base.panels = (spec.panels || []).map(function (p) { if (!p.id) p.id = Studio.uid("p"); return p; });

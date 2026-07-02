@@ -210,6 +210,10 @@
     // The override is appended last so it wins over the base palette in pdc-ui.css (same :root
     // specificity; last-declaration-wins within one stylesheet).
     var themeColorCss = spec.themeColor ? "\n:root{--pentaho:" + spec.themeColor + "}" : "";
+    // Z6: per-dashboard header logo. .pdc-logo in pdc-ui.css is styled for the default "P" <span>
+    // (gradient background, centered bold letter) — an <img> needs object-fit so a non-square
+    // upload still fills the 30x30 badge cleanly instead of stretching/tiling.
+    var headerLogoCss = spec.headerLogo ? "\nimg.pdc-logo{object-fit:cover;background:var(--panel-bg)}" : "";
     // Series palette preset: override --c1..--c10 for both light and dark mode.
     // paletteKey "default" or blank → keep pdc-ui.css colors; any other key bakes in
     // the preset's color arrays so the exported CDF always renders with the chosen palette.
@@ -260,10 +264,13 @@
     var head =
       "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\"/>\n" +
       "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/>\n" +
-      "<title>" + xml(spec.title) + " — Pentaho Data Catalog Analytics</title>\n<style>\n" + assets.css + mobileCss + sectionCss + descCss + panelNoteCss + panelAccentCss + targetLineCss + refBandCss + calloutCss + periodHighlightCss + eventMarkerCss + scatterAnnotCss + kpiSubCss + richtextCss + themeColorCss + paletteCss + printCss + previewCss + "\n</style>\n</head>\n";
+      "<title>" + xml(spec.title) + " — Pentaho Data Catalog Analytics</title>\n<style>\n" + assets.css + mobileCss + sectionCss + descCss + panelNoteCss + panelAccentCss + targetLineCss + refBandCss + calloutCss + periodHighlightCss + eventMarkerCss + scatterAnnotCss + kpiSubCss + richtextCss + themeColorCss + headerLogoCss + paletteCss + printCss + previewCss + "\n</style>\n</head>\n";
+    var logoHtml = spec.headerLogo ?
+      "<img class=\"pdc-logo\" src=\"" + xml(spec.headerLogo) + "\" alt=\"\"/>" :
+      "<span class=\"pdc-logo\">P</span>";
     var body =
       "<body>\n<header class=\"pdc-header\">\n" +
-      "  <div class=\"pdc-brand\"><span class=\"pdc-logo\">P</span><span class=\"pdc-title\">" + xml(spec.title) + "</span></div>\n" +
+      "  <div class=\"pdc-brand\">" + logoHtml + "<span class=\"pdc-title\">" + xml(spec.title) + "</span></div>\n" +
       "  <div class=\"pdc-sub\">" + xml(spec.subtitle || "") + "</div>\n  <div class=\"spacer\"></div>\n" +
       "  <div class=\"pdc-ctrls\" id=\"ctrls\"></div>\n" +
       "  <button class=\"pdc-iconbtn\" id=\"qInfoBtn\" title=\"View the CDA queries behind this dashboard\" aria-label=\"View the CDA queries behind this dashboard\" onclick=\"PDC.queryModal()\">&#9432;</button>\n" +

@@ -629,6 +629,25 @@
   `app/welcome.js` (first-run tour modal), and likely `app/tutorial.js`/`app/gate.js`/`app/palette.js` on
   inspection — worth a dedicated follow-up slice to convert those to `var(--pentaho)`/`var(--pdc)`/etc.
   so Polecat is fully coherent everywhere, not just the main 3-pane chrome + Settings/Home.
+- v193: **Z6 kickoff: per-dashboard header logo** — new **Header logo** field in the Dashboard
+  inspector (below Subtitle): upload a PNG/JPG/SVG (≤200KB) that replaces the default "P" mark in the
+  banner, in both the live preview and the exported Dashboard Framework (`buildHtml` renders
+  `<img class="pdc-logo">` instead of the default `<span>` when `spec.headerLogo` is set; lives in the
+  spec itself, not localStorage, so it travels with Save/Open/Export/Import like any other content).
+  Found and fixed **two real pre-existing bugs** while shipping this: (1) `normalize()` — the function
+  every Open / restore-banner / example-load / drag-drop-open routes a loaded spec through — whitelisted
+  only 7 top-level spec keys, silently **stripping `themeColor` (v103) and `paletteKey` (v123) back to
+  defaults on every reopen**; a saved dashboard's custom accent color and series palette were being reset
+  without warning. Fixed by adding `themeColor`/`paletteKey`/`headerLogo` to the whitelist. (2) the
+  Dashboard inspector's own internal re-render calls (accent-color swatches, palette swatches, CDA
+  connection delete, and now header-logo upload/remove) called `renderDashboardInspector(body)` directly,
+  which never clears `body` itself — each of those interactions was **appending a second full copy** of
+  every dashboard-inspector section on top of the first instead of replacing it (only invisible because
+  no prior test asserted post-interaction DOM shape, only the underlying spec value). Fixed by routing
+  those 6 call sites through the top-level `renderInspector()` (the existing, correct full-refresh entry
+  point every other inspector type already uses for the same kind of self-triggered redraw). `docs/
+  index.html` updated. 6 new tests (incl. a regression test driving a real file upload + verifying the
+  normalize() fix). Test suite 940/940.
 - v192: **Z10 follow-up: theme the welcome tour + tutorial + command palette** — converted
   `app/welcome.js`'s fixed-hex style block to the shared `--pentaho`/`--pdc`/`--ink`/`--pane`/etc custom
   properties, so the first-run tour now follows both light/dark mode and Classic Blue/Polecat instead of
@@ -938,8 +957,14 @@ added, and unified with this header/text-object work.
 > were already independently editable fields in the inspector (**Title** = display name in the header/
 > banner; **File name (stem)** = the lowercase-with-dashes name used for exports) — the actual fix here was
 > removing the redundant second editor in the topbar so renaming happens in exactly one place. 3 new tests.
-> Test suite 881/881. **Still open under Z6**: the header/banner editor itself (logo, colors, links, full
-> text formatting, default header presets) — the bigger half of Z6 — and the ¶ Text button placement.
+> Test suite 881/881.
+> ✓ **Header logo shipped v193**: a **Header logo** field in the Dashboard inspector uploads a per-dashboard
+> image (≤200KB) that replaces the default "P" mark in the banner, in preview and exported CDF alike; lives
+> in `spec.headerLogo` so it travels with the dashboard itself (Save/Open/Export), distinct from the Z12
+> app-wide rail branding. Along the way, fixed `normalize()` silently resetting `themeColor`/`paletteKey` on
+> every reopen, and a DOM-duplication bug in the dashboard inspector's own self-redraw calls. **Still open
+> under Z6**: colors beyond the existing accent-color picker, links, full text formatting for the banner,
+> default header presets in Settings, and the ¶ Text button placement.
 
 **Z7 — Analytics: forecasting + statistical functions.** Move toward standalone analytic apps: add
 forecasting (moving average, exponential smoothing / Holt-Winters, linear & seasonal trend) and

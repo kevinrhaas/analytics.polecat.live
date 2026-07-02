@@ -7427,6 +7427,73 @@ function serve() {
     });
     ok("H103: spec.themeColor emitted as :root --pentaho override in exported CDF", h103Export.ok, JSON.stringify(h103Export));
 
+    // ── Z6: per-dashboard header logo ──────────────────────────────────────
+    console.log("\n• Z6: header logo");
+    const z6Field = await page.evaluate(function () {
+      var rows = [].slice.call(document.querySelectorAll(".field"));
+      var row = rows.filter(function (f) { var lb = f.querySelector("label"); return lb && lb.textContent.indexOf("Header logo") >= 0; })[0];
+      return { present: !!row, hasUploadBtn: !!(row && [].slice.call(row.querySelectorAll("button")).filter(function (b) { return /Upload logo/.test(b.textContent); })[0]) };
+    });
+    ok("Z6: Dashboard inspector has a Header logo field with an upload button (no logo set yet)", z6Field.present && z6Field.hasUploadBtn, JSON.stringify(z6Field));
+
+    const z6Before = await page.evaluate(function () {
+      var sp = window.__STUDIO_STATE.spec;
+      var html = Studio.buildHtml(sp, window.__STUDIO_STATE.assets, { preview: false });
+      return { hasImg: html.indexOf('<img class="pdc-logo"') >= 0, hasDefault: html.indexOf('<span class="pdc-logo">P</span>') >= 0 };
+    });
+    ok("Z6: with no header logo set, the exported banner uses the default 'P' mark", !z6Before.hasImg && z6Before.hasDefault, JSON.stringify(z6Before));
+
+    // 1x1 transparent PNG, uploaded through the real (hidden) file input — same pattern as the
+    // Z12 rail-branding upload test.
+    const tinyPngZ6 = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64");
+    const z6Inp = await page.evaluate(function () {
+      var rows = [].slice.call(document.querySelectorAll(".field"));
+      var row = rows.filter(function (f) { var lb = f.querySelector("label"); return lb && lb.textContent.indexOf("Header logo") >= 0; })[0];
+      var inp = row.querySelector('input[type="file"]');
+      inp.setAttribute("data-z6-target", "1");
+      return !!inp;
+    });
+    ok("Z6: header logo field has a file input to drive", z6Inp);
+    await page.setInputFiles('input[data-z6-target="1"]', { name: "logo.png", mimeType: "image/png", buffer: tinyPngZ6 });
+    await page.waitForTimeout(200);
+    const z6After = await page.evaluate(function () {
+      var sp = window.__STUDIO_STATE.spec;
+      var html = Studio.buildHtml(sp, window.__STUDIO_STATE.assets, { preview: false });
+      var rows = [].slice.call(document.querySelectorAll(".field"));
+      var row = rows.filter(function (f) { var lb = f.querySelector("label"); return lb && lb.textContent.indexOf("Header logo") >= 0; })[0];
+      return {
+        specSet: typeof sp.headerLogo === "string" && sp.headerLogo.indexOf("data:image/png") === 0,
+        exportedImg: html.indexOf('<img class="pdc-logo" src="' + sp.headerLogo + '"') >= 0,
+        hasRemoveBtn: !!(row && [].slice.call(row.querySelectorAll("button")).filter(function (b) { return /Remove/.test(b.textContent); })[0])
+      };
+    });
+    ok("Z6: uploading a logo sets spec.headerLogo (data: URL) and it renders as <img class=pdc-logo> in the exported CDF",
+      z6After.specSet && z6After.exportedImg && z6After.hasRemoveBtn, JSON.stringify(z6After));
+
+    const z6Removed = await page.evaluate(function () {
+      var rows = [].slice.call(document.querySelectorAll(".field"));
+      var row = rows.filter(function (f) { var lb = f.querySelector("label"); return lb && lb.textContent.indexOf("Header logo") >= 0; })[0];
+      var rm = [].slice.call(row.querySelectorAll("button")).filter(function (b) { return /Remove/.test(b.textContent); })[0];
+      rm.click();
+      return { headerLogo: window.__STUDIO_STATE.spec.headerLogo };
+    });
+    ok("Z6: Remove clears spec.headerLogo (back to the default mark)", z6Removed.headerLogo == null, JSON.stringify(z6Removed));
+
+    // Z6/H103 regression: normalize() (the function every Open / restore-banner / example-load
+    // routes a loaded spec through) used to whitelist only 7 top-level keys, silently stripping
+    // themeColor (v103) and paletteKey (v123) back to defaults on every reopen — headerLogo would
+    // have shipped with the exact same bug. Verify all three survive a load round-trip.
+    const z6Normalize = await page.evaluate(function () {
+      var sp = JSON.parse(JSON.stringify(window.__STUDIO_STATE.spec));
+      sp.themeColor = "#123456"; sp.paletteKey = "ocean"; sp.headerLogo = "data:image/png;base64,AAAA";
+      window.__studioLoad(sp);
+      var after = window.__STUDIO_STATE.spec;
+      return { themeColor: after.themeColor, paletteKey: after.paletteKey, headerLogo: after.headerLogo };
+    });
+    ok("Z6/H103 regression: normalize() preserves themeColor + paletteKey + headerLogo across Open/reload (previously silently reset)",
+      z6Normalize.themeColor === "#123456" && z6Normalize.paletteKey === "ocean" && z6Normalize.headerLogo === "data:image/png;base64,AAAA",
+      JSON.stringify(z6Normalize));
+
     // ── F18: Bump / ranking chart (v104) ─────────────────────────────────────
     console.log("\n• F18: Bump chart");
 

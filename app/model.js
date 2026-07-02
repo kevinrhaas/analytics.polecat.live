@@ -1483,6 +1483,7 @@
       gridCols: 3,
       themeColor: "", // optional hex color that overrides --pentaho in preview + exported CDF
       paletteKey: "", // optional series palette key (see Studio.PALETTE_PRESETS); "" = default
+      headerLogo: "", // optional data: URL image that replaces the default "P" mark in the banner
       panels: []
     };
   };
