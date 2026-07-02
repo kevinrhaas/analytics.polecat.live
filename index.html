@@ -126,7 +126,7 @@
     <!-- LEFT: query library -->
     <aside id="library" class="pane">
       <div class="pane-rail" data-pane="library" title="Expand Query Library"><button class="rail-btn">›</button><span class="rail-label">Query Library</span></div>
-      <div class="pane-h"><button class="pane-collapse" data-pane="library" title="Collapse panel">‹</button><span>Query Library</span><button class="pane-add" id="btnNewDS" title="Author a new CDA data source">＋ New source</button><span class="count" id="libCount"></span></div>
+      <div class="pane-h"><button class="pane-collapse" data-pane="library" title="Collapse panel">‹</button><span>Query Library</span><button class="pane-add" id="btnNewDS" title="Author a new CDA data source">＋ New source</button><button class="btn-cb-text" id="btnAddText" title="Add a text / annotation panel">¶ Text</button><span class="count" id="libCount"></span></div>
       <input id="libSearch" class="search" placeholder="Search queries, columns, tables…"/>
       <div class="lib-scroll" id="libList"></div>
     </aside>
@@ -138,7 +138,6 @@
       <div id="canvas-bar">
         <span class="cb-title">Live preview</span>
         <span class="cb-hint">click to edit · drag the header to reorder · drag the right edge to resize · drop a query to add</span>
-        <button class="btn-cb-text" id="btnAddText" title="Add a text / annotation panel">¶ Text</button>
         <span class="spacer"></span>
         <span class="cb-status" id="previewStatus"></span>
       </div>

@@ -17,6 +17,11 @@
 window.STUDIO_BUILD = "__BUILD_TS__";
 
 window.STUDIO_CHANGELOG = [
+  { v: "v200", date: "2026-07-02", time: "19:39 UTC", title: "A tidier toolbar: the ¶ Text button moved home", items: [
+      "The **¶ Text** button (adds a text/annotation panel) used to sit alone on the live-preview toolbar, next to hints like \"drag to reorder\" — it now lives in the **Query Library** header beside **＋ New source**, since both are really the same kind of action: adding something new to your dashboard.",
+      "Same button, same shortcut, same behavior — just a cleaner home. The live-preview toolbar is simpler too.",
+      "No new tests needed beyond a placement check (1 added). Test suite 952/952.",
+    ] },
   { v: "v199", date: "2026-07-02", time: "19:29 UTC", title: "Forecasting: Holt exponential smoothing joins the linear trend line", items: [
       "Line/area charts' **Show trend / forecast line** now offers a **Forecast method** choice: the existing linear regression, or **Holt's exponential smoothing** — a level + trend that tracks recent moves in the data instead of just fitting one straight slope across everything, then projects forward the same way for the forecast periods.",
       "Two new tuning fields (Holt only): **Smoothing level α** and **Smoothing trend β**, both 0–100%, controlling how quickly the forecast reacts to new data vs. staying stable.",

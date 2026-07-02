@@ -433,7 +433,7 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
 #canvas-bar .cb-title{font-weight:800;color:var(--ink);font-size:13px}
 #canvas-bar .cb-hint{color:var(--faint)}
 #canvas-bar .cb-status{font-size:11.5px;color:var(--faint)}
-.btn-cb-text{font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:5px;border:1px solid var(--line);background:var(--bg);color:var(--text-secondary);cursor:pointer;white-space:nowrap;line-height:1.4;flex-shrink:0}
+.btn-cb-text{font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:5px;border:1px solid var(--line);background:var(--bg);color:var(--muted);cursor:pointer;white-space:nowrap;line-height:1.4;flex-shrink:0}
 .btn-cb-text:hover{border-color:var(--pentaho);color:var(--pentaho);background:color-mix(in srgb,var(--pentaho) 6%,transparent)}
 #canvas-stage{flex:1;min-height:0;position:relative;padding:16px}
 #preview{width:100%;height:100%;border:1px solid var(--line);border-radius:var(--radius);background:var(--pane);box-shadow:var(--shadow);display:block}
@@ -585,7 +585,12 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
 .pane-h .pane-add{margin-left:auto;background:color-mix(in srgb,var(--pentaho) 12%,transparent);border:1px solid color-mix(in srgb,var(--pentaho) 30%,transparent);
   color:var(--pentaho);font-size:11px;font-weight:800;border-radius:7px;padding:4px 9px;cursor:pointer;white-space:nowrap}
 .pane-h .pane-add:hover{background:var(--pentaho);color:#fff}
-.pane-h .pane-add+.count{margin-left:8px}
+.pane-h .pane-add+.count,.pane-h .btn-cb-text+.count{margin-left:8px}
+/* Z6: "¶ Text" moved here (v200) from the live-preview canvas bar, where it read as an
+   odd one-off among preview hints — it now sits beside "＋ New source" as the library
+   pane's second "add something to the dashboard" affordance (a query-backed data panel
+   vs. a query-less text/annotation panel), consistent placement for both add-panel paths. */
+.pane-h .btn-cb-text{margin-left:6px}
 .da .da-top{display:flex;align-items:flex-start;gap:6px}
 .da .da-top .da-id{flex:1}
 .da .da-acts{display:flex;gap:2px;opacity:0;transition:opacity .12s}

@@ -700,6 +700,10 @@
   (drawn as a multi-segment path over the fitted history) instead of one straight slope, then extrapolates
   the same way across `forecastPeriods`. `PDC.line`/`_lineOpts` in `studio-charts.js`; `docs/index.html`
   updated. 3 new tests. Test suite 951/951.
+- v200: **Z6 follow-up: ¶ Text button relocated** — moved from the live-preview canvas bar into the
+  Query Library pane header beside "＋ New source" (both are "add something to the dashboard"
+  affordances). Same id/behavior, just relocated. Fixed a latent `--text-secondary` CSS var bug found
+  along the way (nonexistent token, corrected to `--muted`). 1 new test. Test suite 952/952.
 
 ## NEXT (top = do first)
 
@@ -1004,6 +1008,14 @@ added, and unified with this header/text-object work.
 > every reopen, and a DOM-duplication bug in the dashboard inspector's own self-redraw calls. **Still open
 > under Z6**: colors beyond the existing accent-color picker, links, full text formatting for the banner,
 > and the ¶ Text button placement.
+> ✓ **¶ Text button relocated, shipped v200**: moved from the live-preview canvas bar (where it read as a
+> cluttered one-off among preview hints, per the original ask) into the Query Library pane header, beside
+> "＋ New source" — both buttons are "add something to the dashboard" affordances (a query-backed data
+> panel vs. a query-less text/annotation panel) and now live together in the library instead of split
+> across two different toolbars. Same button/behavior, just relocated; `#btnAddText` id unchanged so the
+> ⌘K palette entry needed no changes. Also fixed a latent CSS bug found while moving it: `.btn-cb-text`
+> referenced a nonexistent `--text-secondary` custom property (always silently falling back to inherited
+> color) — corrected to the intended `--muted` token. 1 new test. Test suite 952/952.
 > ✓ **Default subtitle + accent color shipped v194** (first slice of "default header presets in Settings"):
 > a **Dashboard defaults** card on the Settings page (Default subtitle text + Default accent color, reusing
 > the per-dashboard picker's swatches via a new shared `Studio.THEME_PRESETS`) is applied to every brand-new

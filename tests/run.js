@@ -4582,6 +4582,19 @@ function serve() {
     });
     ok("v72: clicking #btnAddText adds a richtext panel", rtAfter.count === rtBefore.count + 1 && rtAfter.type === "richtext", JSON.stringify({ before: rtBefore, after: rtAfter }));
 
+    // Z6 follow-up (v200): "¶ Text" moved from the live-preview canvas bar (where it read as a
+    // cluttered one-off among preview hints) into the Query Library pane header, beside
+    // "＋ New source" — both are "add something to the dashboard" affordances and now live
+    // together instead of split across two different toolbars.
+    const textBtnHome = await page.evaluate(() => {
+      var b = document.getElementById("btnAddText");
+      return {
+        inLibraryHeader: !!(b && b.closest("#library .pane-h")),
+        inCanvasBar: !!(b && b.closest("#canvas-bar")),
+      };
+    });
+    ok("Z6: ¶ Text button now lives in the library pane header, not the canvas bar", textBtnHome.inLibraryHeader && !textBtnHome.inCanvasBar, JSON.stringify(textBtnHome));
+
     // 5. Richtext panel inspector shows content textarea (no DA binding shown)
     const rtInsp = await page.evaluate(() => ({
       hasTa: !!document.querySelector(".rt-ta"),
