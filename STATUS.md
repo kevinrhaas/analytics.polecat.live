@@ -1687,6 +1687,12 @@ gets covered over time:
 > most-recently-used commands (classic command-palette pattern), and a non-empty query gives previously-run
 > commands a small tie-breaking boost among equally-relevant matches. Included in Clear local data. 3 new
 > tests, suite 955/955.
+> ✓ **Slice 5 shipped v208 — chart types as commands (the "still open" item above)**: every entry in
+> `Studio.CHARTS` (51 types) now gets its own dynamic **"Add panel: &lt;type&gt;"** command — it drives a
+> catalog data-source card's existing quick-add chip (creates a panel) then, unless the type is the chip's
+> own default (bars), clicks the fresh panel's own chart-type-gallery card (now tagged `data-t`) to switch
+> it — two real clicks through existing wiring, zero duplicated business logic. Docs updated. 2 new tests,
+> suite 968/968.
 - **Story / scrollytelling mode:** author an ordered, annotated narrative through a dashboard (extends
   Slideshow) — each step pans/zooms/highlights and shows a caption. Present findings, not just charts.
 - **Live "what-if" parameter sliders:** on-canvas sliders that drive derived series / forecasts and animate

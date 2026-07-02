@@ -2077,6 +2077,7 @@
         var cls = "chart-opt" + (p.chart.type === t ? " sel" : "") + (isAdv ? " adv-chart" : "");
         var o = el("div", cls);
         o.dataset.grp = g; // used by applyFilter() to show/hide by group
+        o.dataset.t = t; // chart type id — lets the command palette (N-FUN) target a specific card
         o.innerHTML = '<div class="ic">' + (CHART_SVG[t] || c.icon) + '</div><div class="lb">' + c.label + '</div>' + (c.desc ? '<div class="lb-desc">' + c.desc + '</div>' : '');
         o.title = c.label + " (" + g + ")";
         o.onclick = function () { changeChartType(p, t); };

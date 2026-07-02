@@ -15,6 +15,16 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 208,
+    title: 'Command palette can now add a panel of any chart type',
+    kind: 'feature',
+    ts: '2026-07-02T21:36:30Z',
+    items: [
+      'Every entry in the 51-type chart gallery (bars, waterfall, sankey, ridgeline, …) is now its own "Add panel: <type>" command in ⌘K/Ctrl-K — search for the type you want and it drops a new panel bound to a catalog query, already set to that type.',
+      'It drives the exact same UI a click would (a data-source card\'s quick-add chip, then the panel\'s own chart-type gallery card) — no new business logic, so it can never drift out of sync with the builder.',
+    ],
+  },
+  {
     v: 207,
     title: 'KPI tiles gain a Z-score aggregation',
     kind: 'feature',

@@ -76,6 +76,29 @@
     }).filter(Boolean);
   }
 
+  // Drives the exact same wiring a user would click by hand: a catalog DA card's
+  // "+ Bar chart" quick-add chip (present on every entry, see daCard()) creates a
+  // fresh panel, then — unless bars is what was asked for — the new panel's own
+  // chart-type gallery card (renderPanelInspector tags each with data-t) switches
+  // it to the requested type. Two real clicks, zero duplicated business logic.
+  function addPanelOfType(t) {
+    studio();
+    var chip = document.querySelector('#libList .chip[data-t="bars"]');
+    if (!chip) return;
+    chip.click();
+    if (t !== "bars") setTimeout(function () {
+      var card = document.querySelector('.chart-opt[data-t="' + t + '"]');
+      if (card) card.click();
+    }, 30);
+  }
+  function chartTypeCommands() {
+    var CHARTS = (window.Studio && Studio.CHARTS) || {};
+    return Object.keys(CHARTS).map(function (t) {
+      var label = CHARTS[t].label || t;
+      return { label: "Add panel: " + label, hint: "Add panel", kw: "add new panel chart type " + t + " " + label, ic: "plus", run: function () { addPanelOfType(t); } };
+    });
+  }
+
   // ---- usage tracking (recent/frequent ranking) --------------------------
   // A tiny localStorage map of label -> {count,last}. Empty-query opens show
   // your most-recently-run commands first (the classic command-palette
@@ -238,7 +261,7 @@
 
   function open() {
     build();
-    allCommands = COMMANDS.concat(exampleCommands(), recentCommands());
+    allCommands = COMMANDS.concat(exampleCommands(), recentCommands(), chartTypeCommands());
     input.value = "";
     refresh();
     overlay.classList.add("open");

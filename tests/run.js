@@ -11770,6 +11770,54 @@ function serve() {
     ok("Track N follow-up: a just-run command leads the empty-query list next time the palette opens",
       cmdkUsage.rankedFirst === "Keyboard shortcuts", JSON.stringify(cmdkUsage));
 
+    // ---- N-FUN slice 5: "Add panel: <chart type>" commands ----
+    console.log("\n• Track N follow-up: add-panel-of-type palette commands");
+    var cmdkAddPanel = await page.evaluate(async function () {
+      var r = {};
+      if (window.__studioShellSetSection) window.__studioShellSetSection("studio");
+      window.__studioLoad({ id: "cmdk-addpanel", title: "cmdk add-panel test", cda: { connection: "", dataAccesses: [] }, panels: [], kpis: [] });
+      var P = window.StudioPalette;
+      var rows = function () { return Array.prototype.slice.call(document.querySelectorAll("#cmdkList .cmdk-row")); };
+      var labelOf = function (li) { return li.querySelector(".cmdk-lbl").textContent; };
+
+      // every registered chart type (bars/waterfall/etc) has its own "Add panel: <label>" command
+      P.open();
+      var allLabels = rows().map(labelOf);
+      var chartCount = Object.keys(window.Studio.CHARTS).length;
+      r.hasAllTypes = allLabels.filter(function (l) { return l.indexOf("Add panel: ") === 0; }).length === chartCount;
+      document.getElementById("cmdkInput").dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+
+      // running "Add panel: Waterfall" (not one of the default quick-add chip types) creates a
+      // brand-new panel bound to the first catalog DA, then switches it to that exact type.
+      r.panelsBefore = window.__STUDIO_STATE.spec.panels.length;
+      P.open();
+      var input = document.getElementById("cmdkInput");
+      input.value = "add panel: waterfall";
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      var row = rows().filter(function (li) { return labelOf(li) === "Add panel: Waterfall"; })[0];
+      r.found = !!row;
+      if (row) row.click();
+      await new Promise(function (res) { setTimeout(res, 200); });
+      r.panelsAfter = window.__STUDIO_STATE.spec.panels.length;
+      var last = window.__STUDIO_STATE.spec.panels[window.__STUDIO_STATE.spec.panels.length - 1];
+      r.newType = last && last.chart && last.chart.type;
+      r.closedAfter = !document.getElementById("cmdkOverlay").classList.contains("open");
+      return r;
+    });
+    ok("Track N follow-up: every Studio.CHARTS type gets its own 'Add panel: <label>' command",
+      cmdkAddPanel.hasAllTypes, JSON.stringify(cmdkAddPanel));
+    ok("Track N follow-up: running 'Add panel: Waterfall' adds one panel and sets its type to waterfall",
+      cmdkAddPanel.found && cmdkAddPanel.panelsAfter === cmdkAddPanel.panelsBefore + 1 && cmdkAddPanel.newType === "waterfall" && cmdkAddPanel.closedAfter,
+      JSON.stringify(cmdkAddPanel));
+
+    // Restore a real, fully-loaded spec + let the preview iframe settle before later tests
+    // (several below assume a PDC-ready iframe is present) — same pattern used throughout this file.
+    await page.evaluate(async function () {
+      var freshSpec = await fetch("data/examples/studio-cost.studio.json").then(function (r) { return r.json(); });
+      window.__studioLoad(freshSpec);
+    });
+    await page.waitForTimeout(200);
+
     // ── Z7 slice 1: line/area chart gets a moving-average forecast overlay ──
     console.log("\n• Z7 forecasting: line chart moving average");
 
