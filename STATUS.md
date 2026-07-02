@@ -410,6 +410,18 @@
   CSS transform function, not part of the SVG transform-attribute dialect) — switched to `.style.transform`
   (CSS), matching every other animated chart. `docs/index.html` example count corrected 7→8. 3 new Z13
   tests. Test suite 806/806.
+- v158: **Z13: 9th showcase example — "Finance & FP&A Command Center"** (`data/examples/
+  finance-command.studio.json`), an 8-panel dashboard covering **8 more chart types not used in any other
+  bundled example**: Candlestick (monthly revenue range), Area range (forecast confidence band), Diverging
+  bars (budget variance by department), Radial bar (KPI attainment ranking), Icicle (two-level cost
+  breakdown — first bundled use of icicle's `groupCol`), Chord (inter-department fund transfers), Parallel
+  coordinates (regional performance profiles), Gantt (month-end close timeline). Gallery coverage now
+  37/51 types. Found and fixed a real, previously-latent bug: the `icicle` case in `studio-render.js` read
+  a bare `groupCol` identifier (undefined) instead of `m.groupCol`, so any icicle panel with a group column
+  configured threw `ReferenceError` and rendered nothing — nothing had exercised two-level icicle until this
+  example. Also added a `signed` classify kind to `app/sampledata.js` (variance/delta/diff/change column
+  names → alternating +/- values) so diverging-bar-style panels actually diverge in the offline preview.
+  `docs/index.html` example count corrected 8→9. 3 new Z13 tests. Test suite 809/809.
 
 ## NEXT (top = do first)
 
@@ -686,12 +698,12 @@ fixed KPI/gauge NaN/`0`/double-`%` (sample-data generator + example gauges).
 NEXT — turn the examples into a **broad, complete survey of everything the app can do**, built
 **progressively simple → dazzling**:
 - **Cover EVERY chart type at least once** across the set — each example featuring several types the
-  others don't, so the collection is a full tour. Currently covered (29 of 51): areaStacked, bars, bullet,
-  bump, calHeatmap, combo, donut, dumbbell, funnel, gauge, groupedBars, heatmap, histogram, line, lollipop,
-  network, pareto, quadrant, radar, sankey, scatter, stacked, sunburst, table, timeline, treemap, waffle,
-  waterfall, wordCloud. **Still missing (22):** streamgraph, parallelCoords, chord, richtext, boxplot, slope,
-  dotplot, beeswarm, polarArea, step, violin, marimekko, packedBubble, gantt, divergingBar, candlestick,
-  pyramidBar, radialBar, icicle, ridgeline, barNorm, areaRange (diff `data/examples/index.json`'s
+  others don't, so the collection is a full tour. Currently covered (37 of 51): areaRange, areaStacked,
+  bars, bullet, bump, calHeatmap, candlestick, chord, combo, divergingBar, donut, dumbbell, funnel, gantt,
+  gauge, groupedBars, heatmap, histogram, icicle, line, lollipop, network, parallelCoords, pareto, quadrant,
+  radar, radialBar, sankey, scatter, stacked, sunburst, table, timeline, treemap, waffle, waterfall,
+  wordCloud. **Still missing (14):** streamgraph, richtext, boxplot, slope, dotplot, beeswarm, polarArea,
+  step, violin, marimekko, packedBubble, pyramidBar, ridgeline, barNorm (diff `data/examples/index.json`'s
   `types` against `Object.keys(Studio.CHARTS)` to get a fresh list before the next slice). Note: boxplot/
   beeswarm/violin/ridgeline need the sample-generator limitation above addressed (or a hand-tolerant
   layout) before they'll look genuinely good in a showcase, not just "technically rendering."

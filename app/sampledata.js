@@ -26,6 +26,9 @@
     if (/app|application|tool|consumer/.test(c)) return "app";
     if (/ext|extension/.test(c)) return "ext";
     if (/term|glossary/.test(c)) return "term";
+    // variance/delta-style metrics: generate mixed positive+negative values so diverging
+    // bars / slope-style charts actually diverge in the offline preview, not always-positive.
+    if (/variance|delta|diff|change/.test(c)) return "signed";
     if (/category|type|restype|kind|tier|band|group/.test(c)) return "type";
     if (/^date$|^date_|_date$|_at$/.test(c)) return "isodate"; // exact date cols → YYYY-MM-DD
     if (/month|ymn|^ym$|period|date|day/.test(c)) return "month";
@@ -74,6 +77,8 @@
       case "pct": { var b = 58 + (hv % 38); return Math.max(3, Math.round((b - i * 7) * 10) / 10); }
       case "count": { var c1 = 600 + (hv % 8200); return Math.max(1, Math.round(c1 / (i + 1))); }
       case "cum": return (i + 1) * 1200;            // monotonic
+      // alternating sign, gently shrinking magnitude — a believable variance/delta series
+      case "signed": { var sv = 12 + (hv % 45); return (i % 2 === 0 ? 1 : -1) * Math.max(1, Math.round((sv - i * 2) * 10) / 10); }
       default: { var d1 = 240 + (hv % 1500); return Math.max(1, Math.round(d1 / (i + 1))); }
     }
   }

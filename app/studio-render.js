@@ -693,7 +693,7 @@
           // Icicle / rectangular partition: groupCol (optional parent) + labelCol + valueCol.
           // In two-level mode (groupCol set), groups span the top row and children fill the
           // bottom portion of each group's horizontal slice (same binding as sunburst).
-          var icGi = groupCol ? res.col(groupCol) : -1;
+          var icGi = m.groupCol ? res.col(m.groupCol) : -1;
           var icLi = res.col(m.labelCol), icVi = res.col(m.valueCol);
           var icRows = res.rows.map(function (r) {
             var row = { label: String(r[icLi] != null ? r[icLi] : ""), value: +r[icVi] || 0 };

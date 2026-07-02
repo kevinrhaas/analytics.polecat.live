@@ -796,6 +796,29 @@ function serve() {
     ok("Z13: engineering-delivery covers all 8 target chart types", wantDelivTypes.every((t) => delivShow.types.includes(t)), delivShow.types.join(","));
     ok("Z13: every engineering-delivery panel renders visual content", Object.values(delivShow.perType).every((n) => n > 0), JSON.stringify(delivShow.perType));
 
+    // ---- Z13: "finance-command" showcase covers 8 more chart types unused by any other example ----
+    console.log("\n• Z13: finance-command showcase (candlestick/areaRange/divergingBar/radialBar/icicle/chord/parallelCoords/gantt)");
+    const finShow = await page.evaluate(async () => {
+      const spec = await fetch("data/examples/finance-command.studio.json").then((r) => r.json());
+      const S = window.__STUDIO_STATE;
+      const html = Studio.buildHtml(spec, S.assets, { deployPath: "/x", preview: true, mock: Studio.genMock(spec), launcher: false });
+      const ifr = document.createElement("iframe");
+      ifr.style.cssText = "position:fixed;left:-9999px;width:1200px;height:900px";
+      document.body.appendChild(ifr);
+      await new Promise((res) => { ifr.onload = res; ifr.srcdoc = html; });
+      await new Promise((r) => setTimeout(r, 400));
+      const d = ifr.contentDocument;
+      const cards = Array.from(d.querySelectorAll("#content .card"));
+      const perType = {};
+      spec.panels.forEach((p, i) => { perType[p.chart.type] = (cards[i] && cards[i].querySelectorAll("svg,table").length) || 0; });
+      ifr.remove();
+      return { types: spec.panels.map((p) => p.chart.type), perType, inIndex: (window.__STUDIO_STATE.examples || []).some((e) => e.file === "finance-command.studio.json") };
+    });
+    const wantFinTypes = ["candlestick", "areaRange", "divergingBar", "radialBar", "icicle", "chord", "parallelCoords", "gantt"];
+    ok("Z13: finance-command is listed among the bundled examples", finShow.inIndex);
+    ok("Z13: finance-command covers all 8 target chart types", wantFinTypes.every((t) => finShow.types.includes(t)), finShow.types.join(","));
+    ok("Z13: every finance-command panel renders visual content", Object.values(finShow.perType).every((n) => n > 0), JSON.stringify(finShow.perType));
+
     // ---- builder dark mode (themes app + preview) ----
     console.log("\n• dark mode + export modal");
     await page.click("#btnTheme"); await page.waitForTimeout(250);

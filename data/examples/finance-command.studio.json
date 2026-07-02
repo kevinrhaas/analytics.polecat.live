@@ -1,0 +1,114 @@
+{
+  "schema": 1,
+  "id": "showcase-finance",
+  "name": "finance-command",
+  "title": "Finance & FP&A Command Center",
+  "subtitle": "revenue range, forecast confidence, variance, cost structure & the close calendar",
+  "group": "Finance",
+  "description": "A finance showcase spanning eight distinct visual forms not used elsewhere in the gallery: a candlestick view of monthly revenue range, a shaded forecast confidence band, a diverging budget-variance chart, a radial ranking of KPI attainment, a two-level cost-structure icicle, a chord diagram of inter-department fund transfers, multi-metric regional profiles on parallel axes, and a close-process Gantt timeline.",
+  "cda": {
+    "connection": { "id": "pdc", "jndi": "PDC-BIDB-EXT" },
+    "dataAccesses": [
+      {
+        "id": "kpi", "name": "FinanceKPI", "params": [], "cache": true, "cacheDuration": 120,
+        "sql": "SELECT ROUND(AVG(revenue_growth_pct),1) AS revenue_growth_pct, ROUND(AVG(gross_margin_pct),1) AS gross_margin_pct, ROUND(AVG(cash_conversion_index),0) AS cash_conversion_index, ROUND(AVG(forecast_accuracy_pct),1) AS forecast_accuracy_pct FROM v_finance_master",
+        "columns": ["revenue_growth_pct", "gross_margin_pct", "cash_conversion_index", "forecast_accuracy_pct"]
+      },
+      {
+        "id": "revrange", "name": "MonthlyRevenueRange", "params": [], "cache": true, "cacheDuration": 180,
+        "sql": "SELECT d.month_name AS month_name, MIN(r.open_amt) AS open_revenue, MAX(r.high_amt) AS high_revenue, MIN(r.low_amt) AS low_revenue, MAX(r.close_amt) AS close_revenue FROM v_revenue_range r JOIN dim_date d ON r.date_key = d.date_key GROUP BY d.month_number, d.month_name ORDER BY d.month_number",
+        "columns": ["month_name", "open_revenue", "high_revenue", "low_revenue", "close_revenue"]
+      },
+      {
+        "id": "forecastband", "name": "RevenueForecastBand", "params": [], "cache": true, "cacheDuration": 180,
+        "sql": "SELECT d.month_name AS month_name, f.p10_amt AS forecast_low, f.p90_amt AS forecast_high, f.expected_amt AS forecast_actual FROM v_revenue_forecast f JOIN dim_date d ON f.date_key = d.date_key ORDER BY d.month_number",
+        "columns": ["month_name", "forecast_low", "forecast_high", "forecast_actual"]
+      },
+      {
+        "id": "budgetvar", "name": "BudgetVarianceByDept", "params": [], "cache": true, "cacheDuration": 120,
+        "sql": "SELECT dept.dept_name AS dept_name, ROUND(SUM(b.actual_amt - b.budget_amt) / NULLIF(SUM(b.budget_amt),0) * 100, 1) AS budget_variance_pct FROM v_budget_actuals b JOIN dim_dept dept ON b.dept_id = dept.id GROUP BY dept.dept_name",
+        "columns": ["dept_name", "budget_variance_pct"]
+      },
+      {
+        "id": "kpirank", "name": "KpiAttainmentRanking", "params": [], "cache": true, "cacheDuration": 120,
+        "sql": "SELECT kpi_name AS kpi_name, ROUND(attainment_pct, 0) AS attainment_pct FROM v_kpi_attainment ORDER BY attainment_pct DESC LIMIT 6",
+        "columns": ["kpi_name", "attainment_pct"]
+      },
+      {
+        "id": "costbreak", "name": "CostStructureBreakdown", "params": [], "cache": true, "cacheDuration": 120,
+        "sql": "SELECT c.cost_item AS cost_item, SUM(c.amount) AS cost_amount, c.cost_category AS cost_category FROM v_cost_ledger c GROUP BY c.cost_item, c.cost_category",
+        "columns": ["cost_item", "cost_amount", "cost_category"]
+      },
+      {
+        "id": "deptflow", "name": "InterDeptFundTransfers", "params": [], "cache": true, "cacheDuration": 180,
+        "sql": "SELECT src.dept_name AS from_dept, dst.dept_group AS to_dept_group, SUM(t.amount_usd) AS transfer_usd FROM v_fund_transfers t JOIN dim_dept src ON t.from_dept_id = src.id JOIN dim_dept dst ON t.to_dept_id = dst.id GROUP BY src.dept_name, dst.dept_group",
+        "columns": ["from_dept", "to_dept_group", "transfer_usd"]
+      },
+      {
+        "id": "regionalprofile", "name": "RegionalPerformanceProfiles", "params": [], "cache": true, "cacheDuration": 180,
+        "sql": "SELECT r.region_name AS region_name, r.revenue_growth_idx AS revenue_growth_idx, r.margin_pct AS margin_pct, r.cash_conversion_idx AS cash_conversion_idx, r.csat_score AS csat_score FROM v_regional_performance r",
+        "columns": ["region_name", "revenue_growth_idx", "margin_pct", "cash_conversion_idx", "csat_score"]
+      },
+      {
+        "id": "closecal", "name": "CloseProcessTimeline", "params": [], "cache": true, "cacheDuration": 180,
+        "sql": "SELECT task_name AS task_name, start_offset AS start_offset, end_offset AS end_offset FROM v_close_calendar ORDER BY start_offset",
+        "columns": ["task_name", "start_offset", "end_offset"]
+      }
+    ]
+  },
+  "filters": [],
+  "kpis": [
+    { "da": "kpi", "valueCol": "revenue_growth_pct", "label": "Revenue Growth", "fmt": "pct", "state": "good", "info": "Year-over-year revenue growth." },
+    { "da": "kpi", "valueCol": "gross_margin_pct", "label": "Gross Margin", "fmt": "pct", "state": "", "info": "Gross margin across all business lines." },
+    { "da": "kpi", "valueCol": "cash_conversion_index", "label": "Cash Conversion Index", "fmt": "n", "state": "", "info": "Composite index of how quickly revenue converts to cash." },
+    { "da": "kpi", "valueCol": "forecast_accuracy_pct", "label": "Forecast Accuracy", "fmt": "pct", "state": "purple", "info": "How closely actuals tracked the prior forecast." }
+  ],
+  "gridCols": 3,
+  "panels": [
+    {
+      "id": "p_revrange", "title": "Monthly Revenue Range", "span": "full", "pill": "OHLC-style", "sub": "open · high · low · close",
+      "info": "Revenue range for each month: the opening and closing figures plus the intra-month high and low.", "src": "v_revenue_range",
+      "chart": { "type": "candlestick", "da": "revrange", "map": { "labelCol": "month_name", "openCol": "open_revenue", "highCol": "high_revenue", "lowCol": "low_revenue", "closeCol": "close_revenue" }, "opts": { "fmt": "abbr", "height": 320 } }
+    },
+    {
+      "id": "p_forecast", "title": "Revenue Forecast Confidence Band", "span": 2, "pill": "P10–P90", "sub": "shaded forecast range",
+      "info": "The forecast corridor (10th–90th percentile) with the expected actual line running through it.", "src": "v_revenue_forecast",
+      "chart": { "type": "areaRange", "da": "forecastband", "map": { "labelCol": "month_name", "lowerCol": "forecast_low", "upperCol": "forecast_high", "centerCol": "forecast_actual" }, "opts": { "fmt": "abbr", "bandOpacity": 24, "height": 300 } }
+    },
+    {
+      "id": "p_budgetvar", "title": "Budget Variance by Department", "span": 1, "pill": "% of budget", "sub": "over / under",
+      "info": "Departments running over budget extend right; departments under budget extend left.", "src": "v_budget_actuals",
+      "chart": { "type": "divergingBar", "da": "budgetvar", "map": { "labelCol": "dept_name", "valueCol": "budget_variance_pct" }, "opts": { "fmt": "pct", "height": 300 } }
+    },
+    {
+      "id": "p_kpirank", "title": "KPI Attainment Ranking", "span": 1, "pill": "% of target", "sub": "",
+      "info": "How each top-level finance KPI is tracking against its target, ranked outermost-to-innermost.", "src": "v_kpi_attainment",
+      "chart": { "type": "radialBar", "da": "kpirank", "map": { "labelCol": "kpi_name", "valueCol": "attainment_pct" }, "opts": { "fmt": "pct", "height": 300 } }
+    },
+    {
+      "id": "p_costbreak", "title": "Cost Structure Breakdown", "span": 1, "pill": "$ by category", "sub": "line items within category",
+      "info": "Cost line items partitioned by category — category share on top, individual line items below.", "src": "v_cost_ledger",
+      "chart": { "type": "icicle", "da": "costbreak", "map": { "labelCol": "cost_item", "valueCol": "cost_amount", "groupCol": "cost_category" }, "opts": { "fmt": "abbr", "height": 280 } }
+    },
+    {
+      "id": "p_deptflow", "title": "Inter-Department Fund Transfers", "span": 1, "pill": "$ transferred", "sub": "",
+      "info": "Internal fund transfers between departments, shown as a circular flow diagram.", "src": "v_fund_transfers",
+      "chart": { "type": "chord", "da": "deptflow", "map": { "sourceCol": "from_dept", "targetCol": "to_dept_group", "valueCol": "transfer_usd" }, "opts": { "showLabels": true, "fmt": "abbr", "height": 320 } }
+    },
+    {
+      "id": "p_regional", "title": "Regional Performance Profiles", "span": 2, "pill": "4 metrics", "sub": "growth · margin · cash · CSAT",
+      "info": "Every region's profile across four key metrics at once — a crossing line means a trade-off between metrics.", "src": "v_regional_performance",
+      "chart": { "type": "parallelCoords", "da": "regionalprofile", "map": { "labelCol": "region_name", "series": [
+        { "col": "revenue_growth_idx", "name": "Revenue growth" },
+        { "col": "margin_pct", "name": "Margin" },
+        { "col": "cash_conversion_idx", "name": "Cash conversion" },
+        { "col": "csat_score", "name": "CSAT" }
+      ] }, "opts": { "opacity": 75, "height": 320 } }
+    },
+    {
+      "id": "p_closecal", "title": "Month-End Close Timeline", "span": "full", "pill": "days from close start", "sub": "one bar per close task",
+      "info": "Every task in the month-end close process, from kickoff to books-closed.", "src": "v_close_calendar",
+      "chart": { "type": "gantt", "da": "closecal", "map": { "labelCol": "task_name", "startCol": "start_offset", "endCol": "end_offset" }, "opts": { "startLabel": "Day (start)", "endLabel": "Day (end)", "fmt": "n", "height": 280 } }
+    }
+  ]
+}

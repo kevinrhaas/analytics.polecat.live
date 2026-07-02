@@ -27,6 +27,15 @@
     "layout": [["table", "full"], ["combo", 2], ["groupedBars", 1], ["stacked", 1], ["dumbbell", 1], ["histogram", 1], ["timeline", 2], ["wordCloud", 1]]
   },
   {
+    "file": "finance-command.studio.json",
+    "title": "Finance & FP&A Command Center",
+    "panels": 8,
+    "kpis": 4,
+    "gridCols": 3,
+    "types": ["candlestick", "areaRange", "divergingBar", "radialBar", "icicle", "chord", "parallelCoords", "gantt"],
+    "layout": [["candlestick", "full"], ["areaRange", 2], ["divergingBar", 1], ["radialBar", 1], ["icicle", 1], ["chord", 1], ["parallelCoords", 2], ["gantt", "full"]]
+  },
+  {
     "file": "compliance-radar.studio.json",
     "title": "Sensitivity & Compliance Radar",
     "panels": 5,
