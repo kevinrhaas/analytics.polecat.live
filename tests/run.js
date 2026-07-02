@@ -155,7 +155,7 @@ function serve() {
       const modalGone = !document.querySelector(".modal .dsb");
       return { types, chips, prevRows, prevCols, saved: !!da, cols: da ? da.columns.join(",") : "", inLib, modalGone };
     });
-    ok("builder opens with all source-type cards", built.types === 6, JSON.stringify({ types: built.types, err: built.err }));
+    ok("builder opens with all source-type cards", built.types === 7, JSON.stringify({ types: built.types, err: built.err }));
     ok("Detect reads columns from the SQL + previews rows", built.chips.join(",") === "region,total" && built.prevRows === 5 && built.prevCols === 2, JSON.stringify(built));
     ok("Create saves the data source into the library", built.saved && built.cols === "region,total" && built.inLib && built.modalGone, JSON.stringify(built));
 
@@ -546,6 +546,113 @@ function serve() {
     });
     ok("Z14: exportCDA excludes duckdb DAs from the .cda XML (not a real Pentaho source)", !dkExport.hasDA && !dkExport.hasUrl, JSON.stringify(dkExport));
 
+    // ---- Z14 slice 3: SQLite-WASM + HTTP-VFS connector (query a remote .sqlite over HTTP) ----
+    // Studio.SQLiteHttp.{testConnection,query} are stubbed here for the same reason as DuckDB
+    // above — no public-internet route in this sandbox — but the stub still exercises the exact
+    // click handlers / draft-mutation / table-render code a real success or failure would.
+    console.log("\n• Z14: SQLite-WASM + HTTP-VFS connector");
+    const slModel = await page.evaluate(() => ({
+      hasApi: typeof Studio.SQLiteHttp === "object" && typeof Studio.SQLiteHttp.testConnection === "function" && typeof Studio.SQLiteHttp.query === "function" && typeof Studio.SQLiteHttp.ensureEngine === "function"
+    }));
+    ok("Z14: Studio.SQLiteHttp exposes testConnection()/query()/ensureEngine()", slModel.hasApi, JSON.stringify(slModel));
+
+    const slCard = await page.evaluate(async () => {
+      document.getElementById("btnNewDS").click();
+      await new Promise((r) => setTimeout(r, 80));
+      const m = document.querySelector(".modal .dsb"); if (!m) return { err: "modal missing" };
+      const card = [].slice.call(m.querySelectorAll(".dsb-type")).find((c) => c.textContent.includes("SQLite"));
+      if (!card) return { err: "no SQLite card" };
+      card.click();
+      await new Promise((r) => setTimeout(r, 60));
+      const fieldLabels = [].slice.call(m.querySelectorAll(".dsb-qsec .field label")).map((l) => l.textContent);
+      const jndiField = [].slice.call(m.querySelectorAll(".dsb > .field")).find((f) => /Connection \(JNDI\)/.test(f.textContent));
+      const jndiHidden = jndiField ? getComputedStyle(jndiField).display === "none" : false;
+      const detectFromQueryVisible = [].slice.call(m.querySelectorAll(".dsb-mini")).some((b) => /Detect from query/.test(b.textContent) && getComputedStyle(b).display !== "none");
+      return {
+        hasFileUrl: fieldLabels.some((f) => /File URL/.test(f)),
+        hasTableName: fieldLabels.some((f) => /Table name/.test(f)),
+        hasTestBtn: !!m.querySelector(".dsb-sqlite-test"),
+        jndiHidden, detectFromQueryVisible
+      };
+    });
+    ok("Z14: SQLite card shows File URL + Table name fields", slCard.hasFileUrl && slCard.hasTableName, JSON.stringify(slCard));
+    ok("Z14: SQLite card shows a Test connection button", slCard.hasTestBtn, JSON.stringify(slCard));
+    ok("Z14: SQLite card hides the JNDI connection field (doesn't apply)", slCard.jndiHidden, JSON.stringify(slCard));
+    ok("Z14: SQLite card hides the SQL-alias 'Detect from query' button", !slCard.detectFromQueryVisible, JSON.stringify(slCard));
+
+    const slTestOk = await page.evaluate(async () => {
+      const orig = Studio.SQLiteHttp.testConnection;
+      Studio.SQLiteHttp.testConnection = function () {
+        return Promise.resolve({ ok: true, table: "orders", tables: ["orders"], columns: [{ name: "region", type: "TEXT" }, { name: "revenue", type: "REAL" }], cols: ["region", "revenue"], rows: [["East", 120], ["West", 90]] });
+      };
+      const m = document.querySelector(".modal .dsb"); if (!m) return { err: "modal missing" };
+      const urlInp = m.querySelector(".dsb-qsec .field input");
+      urlInp.value = "https://bucket.s3.amazonaws.com/orders.sqlite"; urlInp.dispatchEvent(new Event("input", { bubbles: true }));
+      m.querySelector(".dsb-sqlite-test").click();
+      await new Promise((r) => setTimeout(r, 60));
+      const chips = [].slice.call(m.querySelectorAll(".dsb-chip")).map((c) => c.textContent.replace("×", "").trim());
+      const status = (m.querySelector(".dsb-sqlite-status") || {}).textContent || "";
+      Studio.SQLiteHttp.testConnection = orig;
+      return { chips, status };
+    });
+    ok("Z14: a successful Test connection detects columns into chips", slTestOk.chips.join(",") === "region,revenue", JSON.stringify(slTestOk));
+    ok("Z14: a successful Test connection shows a ✓ status line with the detected table", /^✓ table “orders”/.test(slTestOk.status), JSON.stringify(slTestOk));
+
+    const slSaved = await page.evaluate(async () => {
+      const m = document.querySelector(".modal .dsb"); if (!m) return { err: "modal missing" };
+      const idInp = m.querySelector(".field.row .field input"); idInp.value = "s3Orders"; idInp.dispatchEvent(new Event("input", { bubbles: true }));
+      m.querySelector(".dsb-foot .btn-primary").click();
+      await new Promise((r) => setTimeout(r, 80));
+      const da = window.__STUDIO_STATE.catalog.custom.dataAccesses.find((d) => d.id === "s3Orders");
+      return da ? { kind: da.kind, fileUrl: da.fileUrl, tableName: da.tableName, cols: da.columns.join(",") } : { missing: true };
+    });
+    ok("Z14: saving persists kind/fileUrl/tableName/columns on the DA", slSaved.kind === "httpvfs" && slSaved.fileUrl === "https://bucket.s3.amazonaws.com/orders.sqlite" && slSaved.tableName === "orders" && slSaved.cols === "region,revenue", JSON.stringify(slSaved));
+
+    const slInspector = await page.evaluate(async () => {
+      var daDef = window.__STUDIO_STATE.catalog.custom.dataAccesses.find((d) => d.id === "s3Orders");
+      Studio.ensureDA(window.__STUDIO_STATE.spec, daDef);
+      window.__studioSelect({ kind: "da", id: "s3Orders" });
+      await new Promise((r) => setTimeout(r, 60));
+      const insp = document.getElementById("inspBody");
+      const secs = [].slice.call(insp.querySelectorAll(".insp-sec h4")).map((h) => h.textContent);
+      const hasSection = secs.some((s) => /SQLite-WASM/.test(s));
+      const liveBtn = [].slice.call(insp.querySelectorAll(".daprev-toolbar .btn")).find((b) => /Run live/.test(b.textContent));
+      return { hasSection, liveBtnTitle: liveBtn ? liveBtn.title : "" };
+    });
+    ok("Z14: DA inspector shows the 'SQLite-WASM (remote file)' section for a sqlite DA", slInspector.hasSection, JSON.stringify(slInspector));
+    ok("Z14: Data preview offers 'Run live' for a sqlite DA with no active server", /SQLite-WASM/.test(slInspector.liveBtnTitle), JSON.stringify(slInspector));
+
+    const slRunLive = await page.evaluate(async () => {
+      Studio.SQLiteHttp.query = function () { return Promise.resolve({ cols: ["region", "revenue"], rows: [["East", 120], ["West", 90]] }); };
+      const insp = document.getElementById("inspBody");
+      const liveBtn = [].slice.call(insp.querySelectorAll(".daprev-toolbar .btn")).find((b) => /Run live/.test(b.textContent));
+      if (!liveBtn) return { err: "no Run live button" };
+      liveBtn.click();
+      await new Promise((r) => setTimeout(r, 60));
+      return { status: (insp.querySelector(".daprev-status") || {}).textContent || "" };
+    });
+    ok("Z14: Run live queries via Studio.SQLiteHttp.query() and shows the live result", /2 rows? · 2 cols? · live/.test(slRunLive.status), JSON.stringify(slRunLive));
+
+    const slTestFail = await page.evaluate(async () => {
+      Studio.SQLiteHttp.testConnection = function () { return Promise.resolve({ ok: false, error: "CORS blocked — the host doesn't allow cross-origin range requests." }); };
+      const insp = document.getElementById("inspBody");
+      const testBtn = [].slice.call(insp.querySelectorAll("button")).find((b) => /Test connection & detect columns/.test(b.textContent));
+      if (!testBtn) return { err: "no test button in inspector" };
+      testBtn.click();
+      await new Promise((r) => setTimeout(r, 60));
+      const status = [].slice.call(insp.querySelectorAll(".hint")).map((h) => h.textContent).find((t) => t.indexOf("✗") === 0) || "";
+      return { status };
+    });
+    ok("Z14: a failed Test connection surfaces a clear inline error, not a stuck spinner", /^✗ CORS blocked/.test(slTestFail.status), JSON.stringify(slTestFail));
+
+    const slExport = await page.evaluate(() => {
+      var sp = JSON.parse(JSON.stringify(window.__STUDIO_STATE.spec));
+      sp.cda.dataAccesses.push({ id: "s3Orders", name: "s3Orders", kind: "httpvfs", fileUrl: "https://bucket.s3.amazonaws.com/orders.sqlite", tableName: "orders", columns: ["region", "revenue"], params: [], calcColumns: [], cache: true, cacheDuration: 300 });
+      var cda = Studio.exportCDA(sp);
+      return { hasDA: cda.indexOf('id="s3Orders"') >= 0, hasUrl: cda.indexOf("orders.sqlite") >= 0 };
+    });
+    ok("Z14: exportCDA excludes sqlite DAs from the .cda XML (not a real Pentaho source)", !slExport.hasDA && !slExport.hasUrl, JSON.stringify(slExport));
+
     await page.keyboard.press("Escape");
     await page.waitForTimeout(100);
 
@@ -763,38 +870,17 @@ function serve() {
     const exp = await page.evaluate(() => {
       const S = window.__STUDIO_STATE, sp = S.spec, A = S.assets, dp = S.settings.deployPath;
       const cda = Studio.exportCDA(sp);
-      const cde = Studio.exportCDE(sp, dp);
       const cdf = Studio.exportCDF(sp, A, dp);
-      let cdfdeOk = false, secs = [];
-      try { const j = JSON.parse(cde.cdfde); cdfdeOk = true; secs = Object.keys(j); } catch (e) {}
       return {
         cdaHasDesc: cda.includes("<CDADescriptor>") && cda.includes("PDC-BIDB-EXT"),
         cdaHasDA: (sp.cda.dataAccesses[0] && cda.includes('id="' + sp.cda.dataAccesses[0].id + '"')),
-        cdfdeOk, secs,
         cdfHasSpec: cdf.includes("window.STUDIO_SPEC") && cdf.includes("pdc-header") && cdf.includes("StudioRender"),
         cdfInlinesToolkit: cdf.includes("PDC.bars") && cdf.includes(".pdc-header{"),
-        cdeLen: cde.cdfde.length, cdfLen: cdf.length
+        cdfLen: cdf.length
       };
     });
     ok("CDA export is valid descriptor", exp.cdaHasDesc && exp.cdaHasDA);
-    ok("CDE .cdfde is valid JSON w/ 3 sections", exp.cdfdeOk && exp.secs.join(",") === "datasources,layout,components", exp.secs.join(","));
     ok("CDF .html embeds spec + inlines toolkit", exp.cdfHasSpec && exp.cdfInlinesToolkit, "cdf=" + exp.cdfLen + "B");
-
-    // ---- CDE round-trip: treemap/scatter/heatmap export as real CCC components ----
-    console.log("\n• CDE round-trip (treemap/scatter/heatmap)");
-    const rt = await page.evaluate(() => {
-      var sp = JSON.parse(JSON.stringify(window.__STUDIO_STATE.spec));
-      var d = sp.cda.dataAccesses[1], cols = d.columns;
-      sp.panels.push({ id: "sx", title: "sx", span: 1, chart: { type: "scatter", da: d.id, map: { xCol: cols[1], yCol: cols[1], labelCol: cols[0] }, opts: {} } });
-      sp.panels.push({ id: "hm", title: "hm", span: 1, chart: { type: "heatmap", da: d.id, map: { rowCol: cols[0], colCol: cols[0], valueCol: cols[1] }, opts: {} } });
-      var c = Studio.exportCDE(sp, "/x"), j = JSON.parse(c.cdfde);
-      var types = j.components.rows.filter(function (r) { return r.type && r.type.indexOf("Components") === 0; }).map(function (r) { return r.type; });
-      return { types: types, omitted: c.omitted };
-    });
-    ok("treemap exports as CCC Treemap", rt.types.indexOf("ComponentscccTreemapChart") >= 0, rt.types.join(","));
-    ok("scatter exports as CCC MetricDot", rt.types.indexOf("ComponentscccMetricDotChart") >= 0);
-    ok("heatmap exports as CCC HeatGrid", rt.types.indexOf("ComponentscccHeatGridChart") >= 0);
-    ok("treemap/scatter/heatmap not omitted from CDE", !rt.omitted.some(function (x) { return /treemap|scatter|heatmap|sx|hm/i.test(x); }), "omitted=" + rt.omitted.join(","));
 
     // ---- exported CDF html actually renders (inject a mock, like a deployed server would feed it) ----
     console.log("\n• exported CDF html renders with data");
@@ -1003,7 +1089,7 @@ function serve() {
     const seriesColor = await page.evaluate(() => { var s = window.__STUDIO_STATE.selection; var p = window.__STUDIO_STATE.spec.panels.find((x) => x.id === s.id); return p.chart.map.series && p.chart.map.series[0] && p.chart.map.series[0].color; });
     ok("per-series color picker sets the series color", setColor && seriesColor === "--pdc", "color=" + seriesColor);
 
-    // ---- stacked-area chart type (renders + CDE round-trip) ----
+    // ---- stacked-area chart type (renders) ----
     console.log("\n• stacked-area chart");
     const sa = await page.evaluate(async () => {
       const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json());
@@ -1013,12 +1099,9 @@ function serve() {
       await new Promise((r) => setTimeout(r, 400));
       const doc = document.querySelector("#preview").contentDocument;
       const paths = doc.querySelectorAll("#content svg path").length;
-      const cde = Studio.exportCDE(spec, "/x"); const j = JSON.parse(cde.cdfde);
-      const types = j.components.rows.filter((r) => r.type && r.type.indexOf("Components") === 0).map((r) => r.type);
-      return { paths: paths, types: types };
+      return { paths: paths };
     });
     ok("stacked-area renders filled bands in the preview", sa.paths >= 2, "paths=" + sa.paths);
-    ok("stacked-area exports as CCC StackedArea", sa.types.indexOf("ComponentscccStackedAreaChart") >= 0, sa.types.join(","));
 
     // ---- combo (bar+line) chart ----
     console.log("\n• combo chart + cascading filters");
@@ -1351,10 +1434,15 @@ function serve() {
     await page.evaluate(() => { var x = document.querySelector(".modal-h .x"); if (x) x.click(); });
 
     // ---- CDE → spec round-trip (import existing dashboards) ----
+    // Fixture (tests/fixtures/studio-cost.cde-fixture.json) is a captured .cdfde/.wcdf pair for
+    // studio-cost.studio.json — a real dashboard authored elsewhere (e.g. Pentaho's CDE editor)
+    // would hand us exactly this shape. Studio no longer emits CDE itself (Studio.exportCDE was
+    // removed, Z0), but Studio.parseCDE (import) stays supported, so this test now round-trips
+    // against a static fixture instead of a live exportCDE() call.
     console.log("\n• CDE import (round-trip)");
-    const rtc = await page.evaluate(async () => {
+    const cdeFixture = JSON.parse(fs.readFileSync(path.join(__dirname, "fixtures/studio-cost.cde-fixture.json"), "utf8"));
+    const rtc = await page.evaluate(async (cde) => {
       const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json());
-      const cde = Studio.exportCDE(spec, "/public/pdc-iteration/v2");
       const back = Studio.parseCDE(cde.cdfde, cde.wcdf, spec.cda);
       return {
         title: back.title, srcTitle: spec.title,
@@ -1363,7 +1451,7 @@ function serve() {
         das: back.panels.map((p) => p.chart.da).join(","), srcDas: spec.panels.map((p) => p.chart.da).join(","),
         cols: back.panels.map((p) => p.chart.map.labelCol + ">" + (p.chart.map.valueCol || "")).join(",")
       };
-    });
+    }, cdeFixture);
     ok("CDE import recovers title + panel count", rtc.title === rtc.srcTitle && rtc.panels === rtc.srcPanels, JSON.stringify({ t: rtc.title, p: rtc.panels }));
     ok("CDE import recovers chart types + queries", rtc.types === rtc.srcTypes && rtc.das === rtc.srcDas, rtc.types + " | " + rtc.das);
     ok("CDE import re-binds columns from the CDA", /src>cost/.test(rtc.cols), rtc.cols);

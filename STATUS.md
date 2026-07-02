@@ -490,6 +490,18 @@
   (opens the dashboard) plus a small overlaid `.recent-pin` toggle, avoiding an invalid button-in-button;
   updated the one existing test that read `data-recent` off the old element. New `star` icon in
   `app/icons.js`; both pin/unpin and the recents-cap-with-a-pin path get new tests. Test suite 833/833.
+- v165: **Z0 complete: dead CDE exporter deleted + terminology cleanup** — removed `Studio.exportCDE`/
+  `CDE_OK`/`Studio.cdeEmittable`/`brandHeaderRows` (unreachable since CDE export left the menu in the
+  Phase-1 migration); `Studio.parseCDE` (CDE **import**) is unaffected. The CDE-import round-trip test now
+  uses a captured static `.cdfde`/`.wcdf` fixture (`tests/fixtures/studio-cost.cde-fixture.json`) instead
+  of generating one via the now-deleted exporter. Also cleaned up `bundleModal()`'s dead `omitted` param,
+  a stale "CDE export will skip" inspector note, dead `.ex-badge-cdf`/`.ex-badge-cde` CSS, and several
+  stale CDF/CDE strings + a wrong chart-type count (47→51) in `docs/index.html`. Test suite 827/827.
+- v166: **Z14 slice 3: SQLite-WASM + HTTP-VFS connector** — "SQLite (remote .sqlite)" data-source type,
+  `app/sqlitehttp.js` (new, browser-only, lazy-loads sql.js-httpvfs via a classic `<script>` tag since it
+  has no ESM build), New Source builder + DA inspector wiring (File URL + optional Table name + Query +
+  Test connection & detect columns), Run-live in the Data preview, `exportCDA` now excludes both
+  `duckdb`/`httpvfs` kinds from `.cda`. 13 new tests. Test suite 840/840.
 
 ## NEXT (top = do first)
 
@@ -581,8 +593,18 @@ as two connector types in the Z3/Z4 Data-Source model; one shippable slice per l
 > boundary stubbed — this sandbox has no internet route to actually verify a live fetch; the CDN URL +
 > duckdb-wasm API surface were confirmed reachable via curl first). **Still open for Z14**: (2) parquet/csv
 > aggregation smoke test against a *real* hosted file (needs a live environment with internet — verify by
-> hand once published), (3) SQLite-WASM-HTTP connector, (4) connector-gallery cards/logos once Z3/Z4 have a
-> real gallery UI to add them to (today the New Source builder is plain type-cards, no logo treatment yet).
+> hand once published), (4) connector-gallery cards/logos once Z3/Z4 have a real gallery UI to add them to
+> (today the New Source builder is plain type-cards, no logo treatment yet).
+> ✓ **Slice 3 shipped v164**: SQLite-WASM + HTTP-VFS connector — "SQLite (remote .sqlite)" source type in
+> both the New Source builder and the DA inspector (File URL + optional Table name + Query fields),
+> `app/sqlitehttp.js` lazy-loads sql.js-httpvfs from jsDelivr via a classic `<script>` tag (the package has
+> no ESM build, unlike duckdb-wasm) on first Test/Run-live click; `testConnection` lists tables + runs
+> `PRAGMA table_info` on the chosen/first table + a 5-row sample, `query` runs SQL against the opened
+> database — neither ever rejects/hangs, same `{ok,...}` contract as DuckDB. `exportCDA` now excludes both
+> `duckdb` and `httpvfs` kinds from `.cda`. 13 new tests (stubbed at the `Studio.SQLiteHttp` boundary, same
+> no-internet-in-sandbox rationale as slice 1; the CDN package/asset URLs were confirmed reachable via curl
+> first). **Still open for Z14**: (2) a real hosted-file smoke test for both connectors (needs a live
+> environment with internet), (4) connector-gallery cards/logos.
 
 **Z4 — Data Source library + connectors.** Expand beyond CDA to direct querying of leading providers,
 browser-only via each provider's REST/SQL API with locally-saved credentials. Priority connectors:
@@ -873,13 +895,13 @@ NEXT — turn the examples into a **broad, complete survey of everything the app
 > at fmt:"pct" + the implicit default unit no longer reads "42.3%%". 1 new regression test drives the real
 > "Value format" inspector select (not a standalone PDC.gauge call) so the fix is exercised end-to-end.
 
-**Z0 — Finish the terminology migration (Phase 2, started 2026-06-30).** Done so far: user-facing
+**Z0 — Finish the terminology migration (Phase 2, started 2026-06-30). ✓ DONE, shipped v163.** User-facing
 CDA→"Data Access", CDF→"Dashboard Framework"; CDE export removed from the menu/inspector/bundle/push/CLI;
-tour/docs/brand updated. Remaining cleanup (one safe slice per loop, keep tests green): delete the now-
-unused CDE exporter code (`exportCDE` / `CDE_OK` / `cdeEmittable` / `brandHeaderRows` in exporters.js)
-plus its 4 direct unit tests; relabel the Examples gallery "CDE" track badge; finish renaming remaining
-user-visible CDF/CDE/CDA strings in `docs/index.html` and inspector/library labels. Keep internal
-identifiers, file extensions (`.cda`/`.html`), the `.cdfde` import path, and Pentaho server connectivity intact.
+tour/docs/brand updated; the dead `exportCDE`/`CDE_OK`/`cdeEmittable`/`brandHeaderRows` code deleted from
+exporters.js (parseCDE/CDE **import** kept); Examples gallery never carried a "CDE" badge post-v157
+redesign, its dead CSS removed too; remaining stale CDF/CDE/CDA strings in `docs/index.html` reworded.
+Internal identifiers, file extensions (`.cda`/`.html`), the `.cdfde` import path, and Pentaho server
+connectivity are all intact.
 
 ### A. CDA authoring — the big track (user-requested; build across iterations, CDF stays primary)
 > Slices 1–7 shipped in v31–v37. Continue with 8 below, one shippable slice/loop.

@@ -683,7 +683,8 @@
     { kind: "kettle", iconName: "gear", name: "Kettle / PDI", desc: "A .ktr transformation step as a data source", ph: "/public/etl/my-transform.ktr   (step: Output)" },
     { kind: "mql", iconName: "metadata", name: "Metadata", desc: "Pentaho Metadata (MQL) query", ph: "<mql>…</mql>" },
     { kind: "scripting", iconName: "code", name: "Scripting", desc: "Scripted (Kettle/Beanshell) data access", ph: "// return rows…" },
-    { kind: "duckdb", iconName: "db", name: "DuckDB (remote file)", desc: "Query a Parquet/CSV file straight from S3/HTTP — no backend, no proxy", ph: "SELECT * FROM t\nLIMIT  200   -- t = your file, queried in-browser via DuckDB-Wasm" }
+    { kind: "duckdb", iconName: "db", name: "DuckDB (remote file)", desc: "Query a Parquet/CSV file straight from S3/HTTP — no backend, no proxy", ph: "SELECT * FROM t\nLIMIT  200   -- t = your file, queried in-browser via DuckDB-Wasm" },
+    { kind: "httpvfs", iconName: "db", name: "SQLite (remote .sqlite)", desc: "Query a .sqlite file over HTTP Range Requests — indexed lookups, no backend", ph: "SELECT * FROM my_table\nLIMIT  200" }
   ];
   function dsType(k) { return DS_TYPES.filter(function (t) { return t.kind === k; })[0] || DS_TYPES[0]; }
 
@@ -699,7 +700,7 @@
       mdxCatalog: src.mdxCatalog || "", mqlDomain: src.mqlDomain || "",
       ktrPath: src.ktrPath || "", ktrStep: src.ktrStep || "Output",
       scriptLang: src.scriptLang || "javascript",
-      fileUrl: src.fileUrl || "", fileFormat: src.fileFormat || "auto" };
+      fileUrl: src.fileUrl || "", fileFormat: src.fileFormat || "auto", tableName: src.tableName || "" };
 
     modal(editing ? "Edit data source · " + existing.da.id : "New data source", function (b) {
       var wrap = el("div", "dsb");
@@ -1277,8 +1278,50 @@
       function renderQSection() {
         qSection.innerHTML = "";
         var k = draft.kind;
-        connF.style.display = (k === "duckdb") ? "none" : ""; // JNDI doesn't apply to a browser-side file connector
-        if (k === "duckdb") {
+        connF.style.display = (k === "duckdb" || k === "httpvfs") ? "none" : ""; // JNDI doesn't apply to a browser-side file connector
+        if (k === "httpvfs") {
+          // Z14 slice 3 — SQLite-WASM + HTTP-VFS: query a remote .sqlite file over HTTP Range
+          // Requests, no backend/proxy/credentials. Test connection lazy-loads the engine, lists
+          // tables, and runs PRAGMA table_info on the chosen (or first) table.
+          qSection.appendChild(field("File URL", input(draft.fileUrl, function (v) { draft.fileUrl = v.trim(); }, "https://your-bucket.s3.amazonaws.com/data.sqlite")));
+          qSection.appendChild(field("Table name (optional — auto-detected if blank)", input(draft.tableName, function (v) { draft.tableName = v.trim(); })));
+          var slStatus = el("div", "hint dsb-sqlite-status");
+          slStatus.textContent = "Runs entirely in your browser via SQLite-WASM — HTTP Range Requests pull only the indexed pages a query needs. No credentials, no proxy, no server.";
+          qSection.appendChild(slStatus);
+          var slTestBtn = el("button", "dsb-mini dsb-sqlite-test"); slTestBtn.style.marginTop = "8px";
+          setIconBtn(slTestBtn, "refresh", "Test connection & detect columns", 12);
+          slTestBtn.onclick = function () {
+            if (!draft.fileUrl) { toast("Enter a file URL first.", true); return; }
+            slTestBtn.disabled = true; slTestBtn.textContent = "Testing…"; window.__sqliteTestState = "testing";
+            slStatus.textContent = "Loading the SQLite engine + probing the file…";
+            Studio.SQLiteHttp.testConnection({ fileUrl: draft.fileUrl, tableName: draft.tableName }).then(function (res) {
+              if (!res.ok) {
+                slTestBtn.disabled = false; setIconBtn(slTestBtn, "refresh", "Test connection & detect columns", 12);
+                slStatus.textContent = "✗ " + res.error; window.__sqliteTestState = "done";
+                toast("SQLite test failed — " + res.error, true);
+                return;
+              }
+              draft.tableName = res.table;
+              res.columns.forEach(function (c) { if (draft.columns.indexOf(c.name) < 0) draft.columns.push(c.name); });
+              if (!draft.query.trim()) { draft.query = "SELECT * FROM " + res.table + "\nLIMIT  200"; slTa.value = draft.query; }
+              renderCols(); renderPreview();
+              slTestBtn.disabled = false; setIconBtn(slTestBtn, "refresh", "Test connection & detect columns", 12);
+              slStatus.textContent = "✓ table “" + res.table + "” — " + res.columns.length + " column" + (res.columns.length === 1 ? "" : "s") + " detected: " +
+                res.columns.map(function (c) { return c.name + " (" + c.type + ")"; }).join(", ");
+              window.__sqliteTestState = "done";
+              toast(res.columns.length + " column(s) detected from the live file.");
+            });
+          };
+          qSection.appendChild(slTestBtn);
+          var slT = dsType("httpvfs");
+          var slTa = textarea(draft.query, function (v) { draft.query = v; });
+          slTa.className = "dsb-query"; slTa.spellcheck = false; slTa.placeholder = slT.ph;
+          var slQF = el("div", "field");
+          slQF.appendChild(labelEl("Query (optional — runs against the opened database)"));
+          slQF.appendChild(slTa);
+          qSection.appendChild(slQF);
+          detectBtn.style.display = "none";
+        } else if (k === "duckdb") {
           // Z14 slice 1 — DuckDB-Wasm: query a remote Parquet/CSV file over HTTP Range Requests,
           // no backend/proxy/credentials. Test connection lazy-loads the engine + runs DESCRIBE.
           qSection.appendChild(field("File URL", input(draft.fileUrl, function (v) { draft.fileUrl = v.trim(); }, "https://your-bucket.s3.amazonaws.com/data.parquet")));
@@ -1405,6 +1448,7 @@
     if (draft.ktrStep && draft.ktrStep !== "Output") da.ktrStep = draft.ktrStep;
     if (draft.scriptLang && draft.scriptLang !== "javascript") da.scriptLang = draft.scriptLang;
     if (draft.kind === "duckdb") { da.fileUrl = draft.fileUrl || ""; da.fileFormat = draft.fileFormat || "auto"; }
+    if (draft.kind === "httpvfs") { da.fileUrl = draft.fileUrl || ""; da.tableName = draft.tableName || ""; }
     // remove the previous record (handles id/group rename on edit)
     if (existing) { var oe = S.catalog[existing.stem]; if (oe) oe.dataAccesses = oe.dataAccesses.filter(function (x) { return x.id !== existing.da.id; }); }
     var dup = entry.dataAccesses.filter(function (x) { return x.id === da.id; })[0];
@@ -2003,7 +2047,7 @@
         refreshPreview();
       });
       rtSec.appendChild(rtTa);
-      body.appendChild(noteEl("info", "Text panels are CDF-only — the CDE export will skip them. Use full-width span for best results."));
+      body.appendChild(noteEl("info", "Text panels have no data binding — they render as-is in the live preview and Dashboard Framework export. Use full-width span for best results."));
       return; // skip DA / options / interaction sections for text panels
     }
 
@@ -3081,6 +3125,36 @@
         });
       };
       qdk.appendChild(dkTest2);
+    } else if (kind === "httpvfs") {
+      var qsl = section(body, "SQLite-WASM (remote file)", null, null, "data-sources");
+      qsl.appendChild(field("File URL", input(da.fileUrl || "", function (v) { da.fileUrl = v.trim(); }, "https://your-bucket.s3.amazonaws.com/data.sqlite")));
+      qsl.appendChild(field("Table name (optional — auto-detected if blank)", input(da.tableName || "", function (v) { da.tableName = v.trim(); })));
+      var slTa2 = el("textarea"); slTa2.style.cssText = "width:100%;min-height:90px;font-family:var(--mono);font-size:11.5px;resize:vertical;box-sizing:border-box";
+      slTa2.value = da.sql || da.query || ""; slTa2.placeholder = "SELECT * FROM my_table\nLIMIT  200";
+      slTa2.addEventListener("change", function () { da.sql = slTa2.value; da.query = slTa2.value; });
+      qsl.appendChild(field("Query (optional — runs against the opened database)", slTa2));
+      var slStatus2 = el("div", "hint");
+      slStatus2.textContent = "Runs entirely in the browser via HTTP Range Requests — no credentials, no proxy, no server.";
+      qsl.appendChild(slStatus2);
+      var slTest2 = el("button", "btn-wide"); setIconBtn(slTest2, "refresh", "Test connection & detect columns");
+      slTest2.onclick = function () {
+        if (!da.fileUrl) { toast("Enter a file URL first.", true); return; }
+        slTest2.disabled = true; slTest2.textContent = "Testing…"; window.__sqliteTestState = "testing";
+        slStatus2.textContent = "Loading the SQLite engine + probing the file…";
+        Studio.SQLiteHttp.testConnection({ fileUrl: da.fileUrl, tableName: da.tableName }).then(function (res) {
+          window.__sqliteTestState = "done";
+          if (!res.ok) {
+            slTest2.disabled = false; setIconBtn(slTest2, "refresh", "Test connection & detect columns");
+            slStatus2.textContent = "✗ " + res.error; toast("SQLite test failed — " + res.error, true); return;
+          }
+          da.tableName = res.table;
+          da.columns = da.columns || [];
+          res.columns.forEach(function (c) { if (da.columns.indexOf(c.name) < 0) da.columns.push(c.name); });
+          renderInspector(); buildLibrary(); refreshPreview();
+          toast(res.columns.length + " column(s) detected from the live file.");
+        });
+      };
+      qsl.appendChild(slTest2);
     }
 
     // Output columns
@@ -3228,10 +3302,12 @@
     toolbar.appendChild(runBtn);
     var ac = activeConnection();
     var isDuckdb = da.kind === "duckdb";
+    var isSqlite = da.kind === "httpvfs";
     var liveBtn = null;
-    if (ac || isDuckdb) {
+    if (ac || isDuckdb || isSqlite) {
       liveBtn = el("button", "btn"); setIconBtn(liveBtn, "play", "Run live");
-      liveBtn.title = isDuckdb ? "Query the live file via DuckDB-Wasm (HTTP Range Requests)" : ("Query live from " + ac.name);
+      liveBtn.title = isDuckdb ? "Query the live file via DuckDB-Wasm (HTTP Range Requests)" :
+        isSqlite ? "Query the live file via SQLite-WASM (HTTP Range Requests)" : ("Query live from " + ac.name);
       toolbar.appendChild(liveBtn);
     }
     toolbar.appendChild(copyBtn);
@@ -3325,6 +3401,19 @@
         }).catch(function (e) {
           liveBtn.disabled = false; setIconBtn(liveBtn, "play", "Run live");
           toast("DuckDB query failed — showing sample. (" + ((e && e.message) || e) + ")", true);
+          runSample();
+        });
+        return;
+      }
+      if (isSqlite) {
+        if (!da.fileUrl) { liveBtn.disabled = false; setIconBtn(liveBtn, "play", "Run live"); toast("Set a file URL first.", true); runSample(); return; }
+        Studio.SQLiteHttp.query({ fileUrl: da.fileUrl, tableName: da.tableName }, da.sql || da.query).then(function (result) {
+          state.result = result; state.source = "live"; state.page = 0;
+          liveBtn.disabled = false; setIconBtn(liveBtn, "play", "Run live");
+          renderTable(state.result, "live");
+        }).catch(function (e) {
+          liveBtn.disabled = false; setIconBtn(liveBtn, "play", "Run live");
+          toast("SQLite query failed — showing sample. (" + ((e && e.message) || e) + ")", true);
           runSample();
         });
         return;
@@ -4684,9 +4773,8 @@
     }
   }
 
-  function bundleModal(title, files, omitted) {
+  function bundleModal(title, files) {
     modal(title, function (b) {
-      if (omitted && omitted.length) b.appendChild(noteEl("info", "CDF-only panels omitted from CDE: " + omitted.join(", ") + ". They are present in the .html export."));
       files.forEach(function (f) {
         var row = el("div", "dl-row");
         row.innerHTML = '<span class="nm">' + esc(f.name) + '</span><span class="sz">' + fmtBytes(f.body.length) + "</span>";

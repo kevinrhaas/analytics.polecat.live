@@ -136,7 +136,7 @@
 <!-- ── Getting started ─────────────────────────────────────────── -->
 <section id="getting-started">
   <h2>Getting started</h2>
-  <p>Analytics Dashboard Studio lets you design Pentaho CDF, CDE, and CDA dashboard
+  <p>Analytics Dashboard Studio lets you design Pentaho Dashboard Framework and Data Access
   components visually — no hand-coding required. Open a browser, choose a data source,
   drop it onto the canvas, and export a production-ready file in minutes.</p>
 
@@ -154,7 +154,7 @@
     <div class="step">
       <div class="step-num">Step 3</div>
       <div class="step-title">Export and deploy</div>
-      <div class="step-desc">Use <strong>Export ▾</strong> to download a self-contained CDF <code>.html</code>, an editable CDE <code>.cdfde</code>, the raw <code>.cda</code>, or a full bundle — ready to drop onto any Pentaho server.</div>
+      <div class="step-desc">Use <strong>Export ▾</strong> to download a self-contained Dashboard Framework <code>.html</code>, the raw Data Access <code>.cda</code>, or a full bundle — ready to drop onto any Pentaho server.</div>
     </div>
   </div>
 
@@ -197,7 +197,7 @@
 <!-- ── Chart types ────────────────────────────────────────────── -->
 <section id="chart-types">
   <h2>Chart types</h2>
-  <p>47 chart types are available, grouped by purpose. Select the chart type in the panel inspector after clicking a panel on the canvas. Types marked <span class="badge badge-cdf">CDF</span> are CDF-only; types marked with both badges also round-trip to CDE.</p>
+  <p>51 chart types are available, grouped by purpose. Select the chart type in the panel inspector after clicking a panel on the canvas. Types marked <span class="badge badge-cdf">CDF</span> are Dashboard Framework-only; types marked with both badges also map to a real Pentaho CDE component, so a CDE dashboard using one of them imports cleanly (see <a href="#exporting">Exporting</a>).</p>
 
   <h3>Comparison</h3>
   <div class="chart-grid">
@@ -312,16 +312,28 @@
     <li><strong>Metadata</strong> — Pentaho Metadata domain + query.</li>
     <li><strong>Scripting</strong> — JavaScript/Groovy/Python DA for custom logic.</li>
     <li><strong>DuckDB (remote file)</strong> — query a Parquet/CSV file directly over HTTP, no backend (see below).</li>
+    <li><strong>SQLite (remote .sqlite)</strong> — query a <code>.sqlite</code> file directly over HTTP, no backend (see below).</li>
   </ul>
 
-  <h3>Browser-native connectors: DuckDB-Wasm (no backend)</h3>
-  <p>The <strong>DuckDB (remote file)</strong> source type queries a Parquet or CSV file hosted anywhere over plain HTTP — S3, any static host — entirely inside your browser via <a href="https://duckdb.org/docs/api/wasm/overview" target="_blank" rel="noopener noreferrer">DuckDB-Wasm</a>. There's no proxy, no saved credentials, and no CDA connection: DuckDB uses HTTP Range Requests to pull only the bytes a query needs, so it can aggregate over a large remote file while transferring little.</p>
+  <h3>Browser-native connectors: no backend required</h3>
+  <p>Two source types query a file hosted anywhere over plain HTTP — S3, any static host — entirely inside your browser, with no proxy, no saved credentials, and no CDA connection. Both intercept the query engine's disk reads and turn them into <strong>HTTP Range Requests</strong>, so they only transfer the bytes a query actually touches. Pick whichever fits your workload:</p>
+  <ul>
+    <li><strong>DuckDB (remote file)</strong> is the columnar / analytics engine — best for aggregations and dashboards over a Parquet or CSV file, via <a href="https://duckdb.org/docs/api/wasm/overview" target="_blank" rel="noopener noreferrer">DuckDB-Wasm</a>.</li>
+    <li><strong>SQLite (remote .sqlite)</strong> is the relational / indexed-lookup engine — best for point lookups and small joins over a <code>.sqlite</code> file with real indexes, via <a href="https://github.com/phiresky/sql.js-httpvfs" target="_blank" rel="noopener noreferrer">sql.js-httpvfs</a>. An indexed query only fetches the handful of ~4KB pages it needs, even from a multi-GB file.</li>
+  </ul>
+  <p><strong>DuckDB (remote file):</strong></p>
   <ul>
     <li>Set the <strong>File URL</strong> (and optionally the format — auto-detected from the extension) and click <strong>Test connection &amp; detect columns</strong>. This lazy-loads the ~3–5MB DuckDB engine the first time it's needed, registers the file, and runs a schema probe — the base app stays small until you actually use this connector.</li>
     <li>The optional <strong>Query</strong> field runs SQL against the file, aliased as the view <code>t</code> (e.g. <code>SELECT region, SUM(revenue) FROM t GROUP BY region</code>). Leave it blank for <code>SELECT * FROM t LIMIT 200</code>.</li>
     <li>The Data preview's <strong>Run live</strong> button queries the real file the same way — no Pentaho server connection required.</li>
-    <li>DuckDB DAs aren't a Pentaho data source, so they're excluded from the <code>.cda</code> export; they work like any other query in the live preview and the Dashboard Framework export, which use offline sample data for charting.</li>
   </ul>
+  <p><strong>SQLite (remote .sqlite):</strong></p>
+  <ul>
+    <li>Set the <strong>File URL</strong> and optionally a <strong>Table name</strong>, then click <strong>Test connection &amp; detect columns</strong>. Leave the table blank and Studio auto-picks the first table in the file; the test lists its columns via <code>PRAGMA table_info</code> and a 5-row sample.</li>
+    <li>The optional <strong>Query</strong> field runs SQL against the opened database (any table in the file, not just the detected one). Leave it blank for <code>SELECT * FROM &lt;table&gt; LIMIT 200</code>.</li>
+    <li>The Data preview's <strong>Run live</strong> button queries the real file the same way — no Pentaho server connection required.</li>
+  </ul>
+  <p>Neither connector is a Pentaho data source, so DAs of either kind are excluded from the <code>.cda</code> export; they work like any other query in the live preview and the Dashboard Framework export, which use offline sample data for charting.</p>
 
   <h3>Joins and compound DAs</h3>
   <p>Click <strong>⧈ Join</strong> in the library to create a <strong>Compound data access</strong> — either a join (left/right DA + key columns) or a union (stack rows from N DAs). These map directly to CDA <code>&lt;CompoundDataAccess&gt;</code> XML.</p>
@@ -336,27 +348,21 @@
     <thead><tr><th>Format</th><th>Badge</th><th>What you get</th><th>Use when</th></tr></thead>
     <tbody>
       <tr>
-        <td><strong>CDF HTML</strong></td>
+        <td><strong>Dashboard Framework</strong></td>
         <td><span class="badge badge-cdf">CDF</span></td>
         <td>A fully self-contained <code>.html</code> file with all toolkit JS/CSS inlined. No server required — open in any browser.</td>
         <td>Sharing demos, embedding in portals, or deploying as a standalone CDF dashboard on Pentaho.</td>
       </tr>
       <tr>
-        <td><strong>CDE dashboard</strong></td>
-        <td><span class="badge badge-cde">CDE</span></td>
-        <td><code>.cdfde</code> (layout + component XML) + <code>.wcdf</code> (metadata JSON) pair — opens and edits in Pentaho CDE.</td>
-        <td>When the team needs to continue editing in CDE, or to round-trip Studio ↔ CDE.</td>
-      </tr>
-      <tr>
-        <td><strong>CDA file</strong></td>
+        <td><strong>Data Access</strong></td>
         <td><span class="badge badge-cda">CDA</span></td>
         <td><code>.cda</code> XML file defining all data accesses, connections, and output options.</td>
         <td>Updating the data layer independently, or importing into an existing CDE project.</td>
       </tr>
       <tr>
-        <td><strong>Bundle (ZIP)</strong></td>
-        <td><span class="badge badge-cdf">CDF</span> <span class="badge badge-cde">CDE</span> <span class="badge badge-cda">CDA</span></td>
-        <td>All three artifacts zipped — <code>.html</code>, <code>.cdfde</code>, <code>.wcdf</code>, <code>.cda</code>.</td>
+        <td><strong>Bundle (all artifacts)</strong></td>
+        <td><span class="badge badge-cdf">CDF</span> <span class="badge badge-cda">CDA</span></td>
+        <td>All artifacts together — <code>.html</code>, <code>.cda</code>, and the editable <code>.studio.json</code> spec.</td>
         <td>Full delivery to a Pentaho SE or server admin.</td>
       </tr>
     </tbody>
@@ -365,7 +371,7 @@
   <h3>Saving and loading your work</h3>
   <ul>
     <li><strong>Save spec</strong> (<kbd>Ctrl S</kbd> / <kbd>⌘ S</kbd>) — downloads a <code>.studio.json</code> spec file. This is the editable source of truth; re-open it with <strong>Open file…</strong>.</li>
-    <li><strong>Open file…</strong> — accepts <code>.studio.json</code>, <code>.cdfde</code>, <code>.cda</code>, or a previously exported <code>.html</code> (Studio embeds the spec in exported files).</li>
+    <li><strong>Open file…</strong> — accepts <code>.studio.json</code>, a Pentaho CDE <code>.cdfde</code> (existing CDE dashboards import and become fully editable), <code>.cda</code>, or a previously exported <code>.html</code> (Studio embeds the spec in exported files).</li>
     <li><strong>Auto-save</strong> — the Studio quietly saves your work to browser localStorage after each edit. If you accidentally close the tab, a restore banner appears on next open.</li>
   </ul>
 
@@ -410,7 +416,7 @@
 
   <h3>Advanced mode (default)</h3>
   <ul>
-    <li>All 50 chart types + specialist annotation and interaction tools.</li>
+    <li>All 51 chart types + specialist annotation and interaction tools.</li>
     <li>Full CDA authoring: author SQL / MDX / Kettle / Metadata / Scripting data accesses; create compound joins and unions; manage connections; configure output options.</li>
     <li>Drill-through, Detail drawer, Cross-filter, Conditional formatting, Color scales, Target lines, Reference bands, and more.</li>
   </ul>

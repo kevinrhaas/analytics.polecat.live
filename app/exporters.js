@@ -44,10 +44,10 @@
     var firstConnId = connections[0].id;
 
     var connXml = connections.map(cdaConnectionXml).join("\n    ");
-    // duckdb DAs query a remote file straight from the browser (Z14) — they aren't a real
+    // duckdb/sqlite DAs query a remote file straight from the browser (Z14) — they aren't a real
     // Pentaho data source and have no <Connection>/<DataAccess> XML equivalent, so they're
     // simply not part of the .cda artifact (they still work fine in preview/CDF via sample data).
-    var das = (spec.cda.dataAccesses || []).filter(function (d) { return d.kind !== "duckdb"; }).map(function (d) {
+    var das = (spec.cda.dataAccesses || []).filter(function (d) { return d.kind !== "duckdb" && d.kind !== "httpvfs"; }).map(function (d) {
       // compound (join / union) — no connection ref, own XML element
       if (d.kind === "compound") {
         var cacheAttr = 'cache="' + (d.cache === false ? "false" : "true") + '" cacheDuration="' + (d.cacheDuration || 300) + '"';
@@ -115,95 +115,6 @@
     return '<?xml version="1.0" encoding="UTF-8"?>\n<CDADescriptor>\n' +
       '  <DataSources>' + connXml + "</DataSources>\n\n" +
       das + "\n</CDADescriptor>\n";
-  };
-
-  /* ---------- CDE (.cdfde + .wcdf) ---------- */
-  function prop(n, t, v) { return { name: n, type: t, value: v }; }
-  // chart types that map to a real CCC component (others are CDF-only and omitted from CDE)
-  var CDE_OK = { bars: 1, donut: 1, line: 1, stacked: 1, areaStacked: 1, treemap: 1, scatter: 1, heatmap: 1 };
-  Studio.cdeEmittable = function (type) { return !!CDE_OK[type]; };
-
-  function brandHeaderRows(spec, deployPath) {
-    var disp = spec.title.replace(/ \(CDE\)$/, "");
-    var home = "/pentaho/api/repos/" + deployPath.replace(/^\/+/, "").replace(/\//g, ":") + ":i-home.html/content";
-    var cdaUrl = "/pentaho/api/repos/" + (deployPath.replace(/^\/+/, "") + "/" + spec.name + ".cda").replace(/\//g, ":") + "/content";
-    var css = "body{background:#f4f6fb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif}" +
-      ".pdc-cde-hdr{display:flex;align-items:center;gap:12px;background:linear-gradient(100deg,#0b2e63,#005bb5);color:#fff;padding:13px 18px;border-radius:12px;margin:8px 6px 16px;box-shadow:0 6px 18px rgba(8,33,72,.18)}" +
-      ".pdc-cde-hdr .lg{width:30px;height:30px;border-radius:8px;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;flex:0 0 auto}" +
-      ".pdc-cde-hdr h1{font-size:17px;margin:0;font-weight:800;letter-spacing:.2px}.pdc-cde-hdr .sub{font-size:11.5px;opacity:.82;font-style:italic}" +
-      ".pdc-cde-hdr .right{margin-left:auto;display:flex;align-items:center;gap:12px}.pdc-cde-hdr a{color:#cfe2ff;font-size:11px;text-decoration:none;font-weight:700;white-space:nowrap}.pdc-cde-hdr a:hover{color:#fff}" +
-      ".pdc-cde-hdr .pill{font-size:10px;font-weight:800;letter-spacing:.5px;background:#7d3c98;padding:4px 11px;border-radius:20px;text-transform:uppercase}" +
-      ".pdc-cde-hdr .qinfo{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,.14);color:#fff;font-size:14px;font-weight:700;text-decoration:none}.pdc-cde-hdr .qinfo:hover{background:rgba(255,255,255,.3);color:#fff}" +
-      "[id$=Col]{background:#fff;background-clip:padding-box;border:7px solid transparent;border-radius:14px;padding:12px 12px 6px;box-shadow:0 2px 10px rgba(20,40,80,.07);box-sizing:border-box}" +
-      ".pdc-cde-foot{text-align:center;color:#8a93a6;font-size:11px;margin:18px 6px 10px}";
-    var html = "<style>" + css + "</style>" +
-      "<div class='pdc-cde-hdr'><div class='lg'>P</div><div><h1>" + xml(disp) + "</h1></div>" +
-      "<span class='sub'>Pentaho CDE · editable</span><div class='right'>" +
-      "<a class='qinfo' href='" + cdaUrl + "' target='_blank' title='View the CDA queries behind this dashboard'>&#9432;</a>" +
-      "<a href='" + home + "'>▸ All dashboards</a><span class='pill'>CDE</span></div></div>";
-    return [
-      { id: "hdrRow", parent: "UnIqEiD", type: "LayoutRow", typeDesc: "Row",
-        properties: [prop("name", "Id", ""), prop("height", "Integer", ""), prop("cssClass", "String", "")] },
-      { id: "hdrZone", parent: "hdrRow", type: "LayoutColumn", typeDesc: "Column",
-        properties: [prop("name", "Id", "hdrZone"), prop("columnSpan", "Integer", "24"), prop("height", "Integer", ""), prop("textAlign", "TextAlign", ""), prop("cssClass", "String", "")] },
-      { id: "hdrHtml", parent: "hdrZone", type: "LayoutHtml", typeDesc: "Html",
-        properties: [prop("name", "Id", "hdrHtml"), prop("html", "Html", html), prop("cssClass", "String", "")] }
-    ];
-  }
-
-  Studio.exportCDE = function (spec, deployPath) {
-    deployPath = deployPath || "/public/pdc-iteration/v2";
-    var cdaPath = deployPath + "/" + spec.name + ".cda";
-    var panels = (spec.panels || []).filter(function (p) { return CDE_OK[p.chart.type] && p.chart.da; });
-
-    // datasources: one CDADataSource per distinct da used
-    var seen = {}, dsRows = [{ id: "DSGROUP", parent: "UnIqEiD", type: "Label", typeDesc: "<i>Group</i>", name: "Datasources",
-      properties: [prop("Group", "Label", "Datasources")] }];
-    var dsi = 0;
-    panels.forEach(function (p) {
-      var da = p.chart.da; if (seen[da]) return; seen[da] = 1; dsi += 1;
-      dsRows.push({ id: "ds-" + dsi, parent: "DSGROUP", type: "CDADataSource", typeDesc: "CDA Data Source",
-        properties: [prop("name", "Id", da), prop("access", "Access", "public"), prop("cdaPath", "CdaPath", cdaPath),
-          prop("dataAccessId", "String", da), prop("outputIndexId", "String", "")] });
-    });
-
-    // layout: brand header + rows packing panels across a 24-col grid
-    var layoutRows = brandHeaderRows(spec, deployPath);
-    var colW = Math.max(1, Math.floor(24 / (spec.gridCols || 3)));
-    var rowAcc = 24, rowId = 0, curRow = null;
-    var compRows = [{ id: "CHARTS", parent: "UnIqEiD", type: "Label", typeDesc: "<i>Group</i>", name: "Charts",
-      properties: [prop("Group", "Label", "Charts")] }];
-    panels.forEach(function (p, i) {
-      var w = p.span === "full" ? 24 : Math.min(24, colW * (p.span || 1));
-      if (rowAcc + w > 24) { rowAcc = 0; }
-      if (rowAcc === 0) { rowId += 1; curRow = "row" + rowId;
-        layoutRows.push({ id: curRow, parent: "UnIqEiD", type: "LayoutRow", typeDesc: "Row",
-          properties: [prop("name", "Id", ""), prop("height", "Integer", ""), prop("cssClass", "String", "")] }); }
-      var colName = "c" + i + "Col";
-      layoutRows.push({ id: "lc" + i, parent: curRow, type: "LayoutColumn", typeDesc: "Column",
-        properties: [prop("name", "Id", colName), prop("columnSpan", "Integer", String(w)), prop("height", "Integer", ""),
-          prop("textAlign", "TextAlign", ""), prop("cssClass", "String", "")] });
-      rowAcc += w;
-
-      var reg = (window.Studio.CHARTS[p.chart.type] || {}).cde;
-      var ctype = reg.type, o = p.chart.opts || {};
-      var props = [prop("name", "Id", "cmp" + i), prop("title", "String", ""), prop("dataSource", "Datasource", p.chart.da),
-        prop("htmlObject", "HtmlObject", "${h:" + colName + "}"), prop("executeAtStart", "Boolean", "true"),
-        prop("width", "Integer", ""), prop("height", "Integer", String(o.height || 300)),
-        prop("crosstabMode", "Boolean", "false"), prop("seriesInRows", "Boolean", "false"),
-        prop("colors", "Array", Studio.PALETTE)];
-      (reg.extra ? reg.extra(p.chart) : []).forEach(function (kv) { props.push(prop(kv[0], kv[1], kv[2])); });
-      compRows.push({ id: ctype.replace(/^ccc/, "") + i, parent: "CHARTS", meta_cdwSupport: "true",
-        type: "Components" + ctype, typeDesc: "CCC " + ctype.replace(/^ccc/, ""), properties: props });
-    });
-
-    var cdfde = { datasources: { rows: dsRows }, layout: { rows: layoutRows }, components: { rows: compRows } };
-    var title = /\(CDE\)$/.test(spec.title) ? spec.title : spec.title + " (CDE)";
-    var wcdf = '<?xml version="1.0" encoding="UTF-8"?>\n<cdf>\n  <title>' + xml(title) + "</title>\n" +
-      "  <author>PDC Analytics</author>\n  <description>" + xml(spec.description || spec.subtitle || "") + "</description>\n  <icon/>\n" +
-      "  <style>clean</style>\n  <rendererType>blueprint</rendererType>\n  <widget>false</widget>\n  <widgetParameters/>\n</cdf>\n";
-    return { cdfde: JSON.stringify(cdfde, null, 1), wcdf: wcdf,
-      omitted: (spec.panels || []).filter(function (p) { return !CDE_OK[p.chart.type]; }).map(function (p) { return p.title || p.id; }) };
   };
 
   /* ---------- CDF (.html) + preview ----------
