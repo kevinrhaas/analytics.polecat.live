@@ -1254,8 +1254,12 @@ gets covered over time:
   chart types with a why. Guides newcomers; upgrades the gallery from a menu to an assistant.
 
 **N-FUN — Engagement, delight & "game-like."**
-- **Command palette (⌘K / Ctrl-K):** fuzzy-jump to any action, chart type, data source, example, or setting.
-  The single highest-leverage "feels modern & fast" upgrade.
+- ✓ **Command palette (⌘K / Ctrl-K) — slice 1 shipped v175** (`app/palette.js`): fuzzy-searchable list of
+  ~28 commands (section nav + new/open/save/export + add text/source + theme/live/focus/slideshow/demo/
+  simple toggles + servers/tour/tutorial/shortcuts/docs). Keyboard-first (↑↓/↵/esc); ⋯ More entry;
+  self-contained (drives existing controls, own CSS, no studio.css/studio.js edits); 5 tests. **Follow-ups:**
+  include chart types (add-panel-of-type) + examples + recent dashboards as commands; recent/frequent
+  command ranking; per-command icons for the rest; a visible "⌘K" hint affordance in the top bar.
 - **Story / scrollytelling mode:** author an ordered, annotated narrative through a dashboard (extends
   Slideshow) — each step pans/zooms/highlights and shows a caption. Present findings, not just charts.
 - **Live "what-if" parameter sliders:** on-canvas sliders that drive derived series / forecasts and animate

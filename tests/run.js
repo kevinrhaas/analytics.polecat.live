@@ -11114,6 +11114,46 @@ function serve() {
     });
     ok("Z8GN: grouped bars / 100% stacked panel inspector shows the new option fields", z8gnInsp.ok, JSON.stringify(z8gnInsp));
 
+    // ---- Track N: command palette (⌘K / Ctrl-K) ----
+    console.log("\n• Track N: command palette (⌘K)");
+    var cmdk = await page.evaluate(function () {
+      var r = {};
+      if (window.__studioShellSetSection) window.__studioShellSetSection("studio");
+      var P = window.StudioPalette;
+      r.hasApi = !!(P && P.open && P.close);
+      r.hasMenuEntry = !!document.getElementById("moreCmdk");
+      P.open();
+      var ov = document.getElementById("cmdkOverlay");
+      r.opensOverlay = !!(ov && ov.classList.contains("open"));
+      var input = document.getElementById("cmdkInput");
+      r.focused = document.activeElement === input;
+      var allRows = document.querySelectorAll("#cmdkList .cmdk-row").length;
+      r.rendersCommands = allRows >= 10;
+      // filter to "settings"
+      input.value = "settings";
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      var labels = Array.prototype.map.call(document.querySelectorAll("#cmdkList .cmdk-row .cmdk-lbl"), function (n) { return n.textContent.toLowerCase(); });
+      r.filters = labels.length > 0 && labels.length < allRows && labels[0].indexOf("settings") >= 0;
+      // run the top row → navigates to the Settings section + closes the palette
+      var first = document.querySelector("#cmdkList .cmdk-row");
+      if (first) first.click();
+      r.closedAfterRun = !ov.classList.contains("open");
+      var setBtn = document.querySelector('.rail-item[data-sec="settings"]');
+      r.navigated = !!(setBtn && setBtn.classList.contains("active"));
+      // reopen, then Escape closes
+      P.open();
+      r.reopened = ov.classList.contains("open");
+      document.getElementById("cmdkInput").dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+      r.escCloses = !ov.classList.contains("open");
+      if (window.__studioShellSetSection) window.__studioShellSetSection("studio"); // restore
+      return r;
+    });
+    ok("Track N: StudioPalette API + ⋯ More entry present", cmdk.hasApi && cmdk.hasMenuEntry, JSON.stringify(cmdk));
+    ok("Track N: palette opens, focuses input, lists commands", cmdk.opensOverlay && cmdk.focused && cmdk.rendersCommands, JSON.stringify(cmdk));
+    ok("Track N: palette filters commands by query text", cmdk.filters, JSON.stringify(cmdk));
+    ok("Track N: running a command closes the palette + navigates (Settings)", cmdk.closedAfterRun && cmdk.navigated, JSON.stringify(cmdk));
+    ok("Track N: Escape closes the palette", cmdk.reopened && cmdk.escCloses, JSON.stringify(cmdk));
+
     // restore Studio + a clean flagship spec for any tests appended after this block
     await page.evaluate(async function () {
       const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json());
