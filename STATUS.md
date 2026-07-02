@@ -559,6 +559,54 @@
 
 ## NEXT (top = do first)
 
+### ★★★ TOP PRIORITY — MOBILE IS BROKEN, FIX IT FIRST (user-requested 2026-07-02, with screenshots)
+> **Spend the next several consecutive runs on mobile — ahead of ALL Z-platform work — until the app is
+> genuinely usable on a real iPhone.** The user reports (and a 390×844 probe confirms) that mobile is
+> "wildly inoperable": no navigation, unreachable buttons, hidden panels, hidden footer. This is not a
+> polish item; core flows are dead on a phone. Supersedes/expands **Z9**.
+>
+> **⚠️ WHY THIS STAYED BROKEN (process fix — read this):** the Playwright harness runs **headless Chromium,
+> which has NO browser toolbar**, so bottom-fixed bars render fine in tests while being **hidden behind iOS
+> Safari's bottom toolbar on a real phone**. DOM assertions passed; the app was still dead. So: (1) every
+> mobile slice MUST **save a screenshot at 390×844 and actually VIEW it** (Read the PNG) — do not trust
+> `display`/`classList` checks alone; (2) implement the standard iOS-safe patterns proactively (you can't
+> see the Safari toolbar in-sandbox, so code defensively); (3) **final sign-off needs the USER on a real
+> device** — after a coherent batch, ask them to re-check. Add a `tests/mobile-shot.js` helper that boots
+> at 390×844 (unlock the gate via `sessionStorage["studio-gate-ok"]="1"` in an init script) and dumps a
+> screenshot the loop reviews each run.
+>
+> **CONFIRMED ROOT CAUSES (from the 390×844 probe — start here, don't re-diagnose from scratch):**
+> 1. **Left-rail section nav is `display:none` ≤900px** (Z1 scoped it desktop-only) → Home/Repository/
+>    Studio/Settings are **unreachable on mobile**. FIX: make the rail a **slide-in left drawer** exactly
+>    like the reference **relay.polecat.live** screenshot (brand at top; grouped section list; active item
+>    highlighted; scrim over dimmed content; open via a hamburger button in the top bar AND edge-swipe;
+>    close on scrim tap / Esc / section pick). This is the centerpiece the user explicitly asked for.
+> 2. **Top-action buttons overflow the 390px bar** — `Examples/Open/Save` and even the `⋯ More` escape
+>    hatch (`#btnMore`) render **off-screen to the right** (`onScreen:false`), so New/Examples/etc. "don't
+>    work" because they can't be reached. FIX: on phones, keep the bar to a few essentials and move the
+>    rest into the drawer and/or a **bottom action bar**; guarantee every action is reachable from an
+>    on-screen control. (The M7 phone-More items exist but the button itself is off-canvas — fix that.)
+> 3. **`#mobile-tabs` (Library·Canvas·Inspector bottom nav) AND `#statusbar` (footer/changelog) are
+>    bottom-`fixed` and get hidden behind iOS Safari's toolbar** — they render on-screen in headless
+>    Chromium but the user sees NEITHER on device. This is the killer bug behind "panels don't show" (the
+>    Library/Inspector are off-canvas drawers reachable ONLY via those hidden tabs) and "can't see the
+>    footer." FIX: use `100dvh` (not `100vh`), add `padding-bottom: env(safe-area-inset-bottom)` and
+>    `bottom: env(safe-area-inset-bottom)` to the fixed bars, consider `-webkit-fill-available`, and make
+>    sure the tab bar and status bar don't overlap each other (both currently sit at bottom:0).
+> 4. **Surface the update footer/changelog on mobile** — per the user, if the left drawer is working, put
+>    the "What's new"/changelog access there (see the reference relay/app.polecat.live "What's new" panel:
+>    a clean full-screen sheet with search + Close). Fold the footer's changelog into the drawer or a
+>    reachable sheet rather than the bottom-fixed strip that Safari hides.
+>
+> **TARGET UX (match the polecat family, per the attached screenshots):** a slide-in left drawer for
+> section nav (Relay-style), a persistent reachable bottom bar (or drawer) for Library/Canvas/Inspector,
+> every top action reachable, and a full-screen "What's new"/help sheet. Sequence it one shippable,
+> screenshot-verified slice per run: **(m-a)** rail → mobile drawer + hamburger + scrim; **(m-b)** fix the
+> bottom-fixed bars for the iOS safe-area/toolbar so tabs + footer are visible and tappable; **(m-c)**
+> top-action overflow → reachable (drawer/bottom bar); **(m-d)** Library/Inspector reachability + panel
+> ergonomics; **(m-e)** "What's new"/changelog + help reachable; then a real-device pass with the user.
+> Keep the desktop experience untouched (scope changes to `≤900px` / touch). Update `docs` + STATUS each slice.
+
 ### ★ Z. Analytics App platform — the new north star (user-requested 2026-06-30; build across many iterations)
 > The studio is becoming a multi-section **analytics application**, not just a dashboard builder.
 > Build this incrementally — one small, shippable, tested slice per loop. Keep it pure HTML/JS with all
@@ -844,7 +892,12 @@ self-explanatory. Keep it light (inline SVG / CSS, no image assets or deps). One
 > **Z8 follow-ups (not yet done):** the inline visual setting hints (tiny before/after thumbnails) for
 > the now-dense inspector remain open — the largest remaining piece of the original Z8 ask.
 
-**Z9 — Mobile: fix the broken flows + a proper bottom nav (user-requested 2026-06-30).** Reported
+**Z9 — Mobile: fix the broken flows + a proper bottom nav (user-requested 2026-06-30).**
+> ⚠️ **ESCALATED — see the ★★★ TOP PRIORITY — MOBILE block at the top of NEXT** (user re-reported 2026-07-02
+> with screenshots; still "wildly inoperable"). Do that block's confirmed-root-cause sequence FIRST, ahead
+> of all Z-platform work, with real 390×844 screenshot verification each slice. The notes below are the
+> earlier, partial framing.
+Reported
 regressions on small screens: the top button-bar scrolls/slides but **its dropdown menus don't open /
 work** — fix that first (touch handlers, menu positioning, tap-outside-to-close). Add a **bottom
 navigation** to switch between the Studio's **data-source / canvas / chart-object (inspector)** views on
