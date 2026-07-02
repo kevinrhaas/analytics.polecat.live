@@ -11232,6 +11232,13 @@ function serve() {
       cmdkFollow.recentRan && cmdkFollow.recentClosedAndNavigated, JSON.stringify(cmdkFollow));
     ok("Track N follow-up: running an example command loads a real dashboard", cmdkFollow.exampleRan, JSON.stringify(cmdkFollow));
 
+    // ---- Track N follow-up: every static command now carries an icon ----
+    var cmdkIcons = await page.evaluate(function () {
+      var cmds = (window.StudioPalette && window.StudioPalette.commands) || [];
+      return { count: cmds.length, allHaveIc: cmds.length > 0 && cmds.every(function (c) { return !!c.ic; }) };
+    });
+    ok("Track N follow-up: every static palette command declares an icon", cmdkIcons.allHaveIc, JSON.stringify(cmdkIcons));
+
     // restore Studio + a clean flagship spec for any tests appended after this block
     await page.evaluate(async function () {
       const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json());

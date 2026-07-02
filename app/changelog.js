@@ -8,6 +8,10 @@
 window.STUDIO_BUILD = "__BUILD_TS__";
 
 window.STUDIO_CHANGELOG = [
+  { v: "v178", date: "2026-07-02", time: "16:35 UTC", title: "Track N follow-up: an icon for every static command palette entry", items: [
+      "Every one of the palette's ~28 static commands (previously only the 5 section-navigation rows had one) now carries a themed inline-SVG icon, matching the visual polish the dynamic example/recent commands already had via their own icons — the command list now reads as a coherent, scannable menu instead of a mix of icon rows and bare text rows.",
+      "1 new test asserts every command in `StudioPalette.commands` declares an `ic`. Test suite 884/884.",
+    ] },
   { v: "v177", date: "2026-07-02", time: "16:25 UTC", title: "Track N follow-up: dynamic palette commands (examples + recents) + a visible ⌘K hint", items: [
       "The command palette now includes **dynamic commands rebuilt fresh on every open**: an 'Open example: <title>' entry for every curated showcase in the Examples ▾ gallery, and an 'Open dashboard: <title>' entry for every dashboard on your Home recents list — both read from the DOM the app already maintains (no new storage), so they can never drift and always reflect what's actually in the gallery / your recent history right now.",
       "Added a **visible 'Search ⌘K' item** near the bottom of the left rail (global chrome, visible from every section) with a small keyboard-hint chip, so the shortcut is discoverable without opening ⋯ More or the shortcuts modal first. New `search` icon in `app/icons.js`; painted automatically by the rail's existing generic icon pass, no shell.js changes needed.",

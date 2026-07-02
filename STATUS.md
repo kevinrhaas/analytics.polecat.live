@@ -1273,12 +1273,14 @@ gets covered over time:
   ~28 commands (section nav + new/open/save/export + add text/source + theme/live/focus/slideshow/demo/
   simple toggles + servers/tour/tutorial/shortcuts/docs). Keyboard-first (↑↓/↵/esc); ⋯ More entry;
   self-contained (drives existing controls, own CSS, no studio.css/studio.js edits); 5 tests.
-> ✓ **Slice 2 shipped v176**: palette now includes **dynamic commands** — "Open example: <title>" for every
+> ✓ **Slice 2 shipped v177**: palette now includes **dynamic commands** — "Open example: <title>" for every
 > curated gallery example and "Open dashboard: <title>" for every Home recent, rebuilt fresh each open by
 > reading the existing DOM (no new storage). Added a **visible "Search ⌘K" rail item** (global chrome, all
 > sections) as a discoverable affordance beyond ⋯ More/shortcuts-modal; new `search` icon. Docs updated.
-> 5 new tests, suite 883/883. **Still open:** include chart types (add-panel-of-type) as commands;
-> recent/frequent command ranking; per-command icons for the rest of the static list.
+> 5 new tests, suite 883/883.
+> ✓ **Slice 3 shipped v178**: every static command now has an icon (was only the 5 nav rows) — a coherent,
+> scannable icon-per-row menu. 1 new test, suite 884/884. **Still open:** include chart types
+> (add-panel-of-type) as commands; recent/frequent command ranking.
 - **Story / scrollytelling mode:** author an ordered, annotated narrative through a dashboard (extends
   Slideshow) — each step pans/zooms/highlights and shows a caption. Present findings, not just charts.
 - **Live "what-if" parameter sliders:** on-canvas sliders that drive derived series / forecasts and animate
