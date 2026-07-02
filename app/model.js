@@ -85,6 +85,8 @@
         { key: "area",     type: "bool",  label: "Area fill", def: true },
         { key: "smooth",   type: "bool",  label: "Smooth curve", def: false },
         { key: "showDots", type: "bool",  label: "Show data points", def: true },
+        { key: "showMA",   type: "bool",  label: "Show moving average", def: false },
+        { key: "maWindow", type: "int",   label: "Moving avg window (points)", def: 3 },
         { key: "fmt",      type: "fmt",   label: "Value format", def: "abbr" },
         { key: "height",   type: "int",   label: "Height (px)", def: 300 }
       ],

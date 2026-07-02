@@ -11239,6 +11239,64 @@ function serve() {
     });
     ok("Track N follow-up: every static palette command declares an icon", cmdkIcons.allHaveIc, JSON.stringify(cmdkIcons));
 
+    // ── Z7 slice 1: line/area chart gets a moving-average forecast overlay ──
+    console.log("\n• Z7 forecasting: line chart moving average");
+
+    // Z7MA-1: line registry declares showMA + maWindow
+    var z7maOpts = await page.evaluate(function () {
+      var o = (window.Studio.CHARTS.line || {}).opts || [];
+      var keys = o.map(function (od) { return od.key; });
+      return { ok: keys.indexOf("showMA") >= 0 && keys.indexOf("maWindow") >= 0, keys: keys };
+    });
+    ok("Z7MA: Studio.CHARTS.line.opts declares showMA + maWindow", z7maOpts.ok, JSON.stringify(z7maOpts));
+
+    // Z7MA-2: showMA:true draws one extra dashed .ma-line path per series with the
+    // correct trailing-average values; off by default (no .ma-line at all).
+    var z7maRender = await page.evaluate(function () {
+      var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
+      for (var i = 0; i < iframes.length; i++) {
+        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.line === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+      }
+      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      try {
+        var labels = ["A", "B", "C", "D"], series = [{ name: "S1", values: [2, 4, 6, 8] }];
+        var el1 = iframeDoc.createElement("div");
+        el1.style.cssText = "position:absolute;top:-9999px;width:300px";
+        iframeDoc.body.appendChild(el1);
+        w.PDC.line(el1, { labels: labels, series: series, height: 200 });
+        var maOff = el1.querySelectorAll(".ma-line").length;
+        iframeDoc.body.removeChild(el1);
+
+        var el2 = iframeDoc.createElement("div");
+        el2.style.cssText = "position:absolute;top:-9999px;width:300px";
+        iframeDoc.body.appendChild(el2);
+        w.PDC.line(el2, { labels: labels, series: series, height: 200, showMA: true, maWindow: 2 });
+        var maLines = el2.querySelectorAll(".ma-line");
+        var dashed = maLines.length === 1 && maLines[0].getAttribute("stroke-dasharray") === "5,4";
+        iframeDoc.body.removeChild(el2);
+
+        return { ok: maOff === 0 && dashed, maOff: maOff, maLines: maLines.length, dashed: dashed };
+      } catch (e) { return { ok: false, err: e.message }; }
+    });
+    ok("Z7MA: showMA off by default; showMA:true draws one dashed .ma-line per series", z7maRender.ok, JSON.stringify(z7maRender));
+
+    // Z7MA-3: the panel inspector shows the new fields when a Line panel is selected
+    var z7maInsp = await page.evaluate(function () {
+      var spec = window.__STUDIO_STATE.spec;
+      var p = spec.panels[0];
+      var prevChart = JSON.parse(JSON.stringify(p.chart));
+      p.chart.type = "line"; p.chart.opts = {};
+      window.__studioSelect({ kind: "panel", id: p.id });
+      var body = document.getElementById("inspBody");
+      var text = body ? body.textContent : "";
+      var ok = text.indexOf("Show moving average") >= 0 && text.indexOf("Moving avg window") >= 0;
+      p.chart = prevChart; // restore so later tests aren't affected
+      window.__studioSelect(null);
+      window.__studioRenderInspector();
+      return { ok: ok };
+    });
+    ok("Z7MA: line panel inspector shows Show moving average / window fields", z7maInsp.ok, JSON.stringify(z7maInsp));
+
     // restore Studio + a clean flagship spec for any tests appended after this block
     await page.evaluate(async function () {
       const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json());

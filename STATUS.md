@@ -548,6 +548,14 @@
 - v176: **Z6 naming model** — the topbar dashboard title is now a jump-to-inspector button (focuses
   the Dashboard inspector's Title field, pre-selected) instead of a second, redundant inline editor
   duplicating the inspector's own Title field. 3 new tests. Test suite 881/881.
+- v177: **Track N follow-up** — dynamic palette commands (Open example:/Open dashboard: entries rebuilt
+  fresh on open) + a visible "Search ⌘K" rail item. 5 new tests, suite 883/883.
+- v178: **Track N follow-up** — every static command palette entry now carries an icon. 1 new test,
+  suite 884/884.
+- v179: **Z7 kickoff** — Line/area charts gain a "Show moving average" toggle + window field: a dashed
+  trailing simple-moving-average overlay per series, computed client-side, rendered through the same
+  `_lineOpts` override and generic inspector `optField()` machinery (no exporter changes needed — CDF
+  export and preview share the renderer). 3 new tests, suite 890/890.
 
 ## NEXT (top = do first)
 
@@ -735,6 +743,11 @@ added, and unified with this header/text-object work.
 forecasting (moving average, exponential smoothing / Holt-Winters, linear & seasonal trend) and
 statistical functions/variations (regression, percentiles, z-scores, correlation, distributions) as
 chart options / derived series / KPI computations. Keep it light (vanilla-JS math, no heavy deps).
+> ✓ **Slice 1 shipped v179**: Line/area charts get a **Show moving average** toggle + window field — a
+> dashed trailing simple-moving-average overlay per series, same per-type override pattern as Z8.
+> **Still open:** exponential smoothing/Holt-Winters, linear & seasonal trend lines, extending the
+> moving-average overlay to bars/stacked/combo, and the statistical-functions half (regression beyond
+> scatter's existing trend line, percentiles, z-scores, correlation, distributions) as KPI computations.
 
 **Z8 — Context-aware inspector (per chart type) + visual setting hints (user-requested 2026-06-30).**
 The panel inspector currently shows ALL setting sections regardless of chart type — e.g. a **Table**

@@ -8,6 +8,11 @@
 window.STUDIO_BUILD = "__BUILD_TS__";
 
 window.STUDIO_CHANGELOG = [
+  { v: "v179", date: "2026-07-02", time: "16:45 UTC", title: "Z7 kickoff: moving-average forecast overlay on Line / area charts", items: [
+      "First slice of the **Z7 (Analytics: forecasting + statistics)** track. Line / area charts gain a **'Show moving average'** toggle plus a **'Moving avg window (points)'** field: when on, each series draws a dashed trailing simple-moving-average overlay in its own color, computed client-side (no deps) directly from the same values already bound to the chart. Partial windows at the start average whatever points are available so the overlay always spans the full chart width.",
+      "Same override pattern as the rest of the Z8 per-type option work — `_lineOpts` (the existing Z8-slice-7 override) gained the overlay, `Studio.CHARTS.line.opts` declares the two new fields, and they appear in the panel inspector automatically via the existing generic `optField()` renderer — no inspector-specific code needed. CDF export and the live preview share the same renderer, so the overlay round-trips through export with zero exporter changes.",
+      "3 new tests (registry declares the fields, `showMA` off by default vs. one dashed `.ma-line` per series when on, inspector shows the fields). Test suite 890/890.",
+    ] },
   { v: "v178", date: "2026-07-02", time: "16:35 UTC", title: "Track N follow-up: an icon for every static command palette entry", items: [
       "Every one of the palette's ~28 static commands (previously only the 5 section-navigation rows had one) now carries a themed inline-SVG icon, matching the visual polish the dynamic example/recent commands already had via their own icons — the command list now reads as a coherent, scannable menu instead of a mix of icon rows and bare text rows.",
       "1 new test asserts every command in `StudioPalette.commands` declares an `ic`. Test suite 884/884.",

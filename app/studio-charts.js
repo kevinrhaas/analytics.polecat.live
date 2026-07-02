@@ -3129,6 +3129,23 @@
         s.appendChild(c); els.push(c);
         if (showDots && canAnim()) { c.style.opacity = "0"; setTimeout(function () { c.style.transition = "opacity .3s ease"; c.style.opacity = "1"; }, animD(520 + i * 16)); }
       });
+      // Z7 forecasting slice 1: an optional trailing simple-moving-average overlay
+      // per series — a dashed line in the series' own color, muted, drawn on top
+      // once the raw line/dots settle. Partial windows at the start average
+      // whatever points are available so the overlay always spans the full chart.
+      if (cfg.showMA) {
+        var maW = Math.max(1, +cfg.maWindow || 3);
+        var maVals = se.values.map(function (v, i) {
+          var start = Math.max(0, i - maW + 1), sum = 0, cnt = 0;
+          for (var j = start; j <= i; j++) { sum += +se.values[j] || 0; cnt++; }
+          return sum / cnt;
+        });
+        var maPts = maVals.map(function (v, i) { return [xs(i), ys(v)]; });
+        var maPath = S("path", { d: pathFor(maPts), fill: "none", stroke: col, "stroke-width": 1.8, "stroke-dasharray": "5,4", opacity: .7, class: "ma-line" });
+        maPath.addEventListener("mousemove", function (e) { PDC.showTip(e, (series.length > 1 ? "<b>" + se.name + "</b> " : "") + maW + "-pt moving avg"); });
+        maPath.addEventListener("mouseout", PDC.hideTip);
+        s.appendChild(maPath); els.push(maPath);
+      }
       seriesEls.push(els);
     });
     if (series.length > 1 && cfg.legend !== false) _toggleLegend(el, series.map(function (se, i) {
