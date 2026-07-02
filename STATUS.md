@@ -1,15 +1,21 @@
 # Analytics Dashboard Studio — STATUS (hourly-loop resume anchor)
 
 > **RESUME PROTOCOL:** An hourly cron (`17 * * * *`, fresh-session job) runs the improvement loop.
-> On each fire: read THIS file first, continue from the top **NEXT** item, then **keep shipping coherent,
-> well-tested improvements until the run's time/context is genuinely used up** — a run finishes well under
-> the hour, so **do NOT stop after one or two.** Target **~4–6 slices per fire** (more if they're small),
-> pausing only for a sweep per the SWEEP CADENCE. **Commit + push after EACH coherent improvement**
-> (one commit per slice) so progress always survives even if the run ends mid-stream; keep the Playwright
-> suite green before every commit. Push to `main` of `kevinrhaas/analytics.polecat.live` — main is the
-> GitHub Pages deploy branch, so pushing publishes the live site at https://analytics.polecat.live.
-> **Before each push `git pull --rebase origin main`** (a concurrent run may have pushed); pick the top
-> NEXT item that isn't already done so parallel runs don't collide.
+> **FILL THE RUN — this is the point:** you have the better part of an hour, so **keep working until your
+> time/context budget is nearly spent, NOT until you've done "a task."** One or two slices and stopping is
+> the failure mode to avoid — a normal fire should ship **many** improvements (aim for **~5–8+ slices**,
+> more when they're small).
+> On each fire: read THIS file first, then work in a tight inner loop —
+> 1. Pick the top **NEXT** item that isn't already done.
+> 2. Implement the smallest coherent, valuable slice of it.
+> 3. Keep the Playwright suite **green**, update DONE/NEXT here, then **commit + push** that ONE slice.
+> 4. **Immediately go back to step 1** and continue. Only stop when time/context is genuinely running out
+>    (or at a clean checkpoint) — never because "one thing is done." Do a sweep instead of a feature only
+>    when the SWEEP CADENCE calls for it.
+> One commit per slice so progress always survives a mid-run stop. Push to `main` of
+> `kevinrhaas/analytics.polecat.live` — main is the GitHub Pages deploy branch, so pushing publishes the
+> live site at https://analytics.polecat.live. **Before each push `git pull --rebase origin main`** (a
+> concurrent run may have pushed) so parallel/back-to-back runs coordinate and don't collide.
 >
 > **SWEEP CADENCE:** roughly every ~5th run (or whenever the feature backlog is thin), spend the run on a
 > **sweep** instead of a new feature. **Rotate through three sweep types** (track which you did last in the
