@@ -392,6 +392,14 @@
   `PDC.groupedBars`/`PDC.barNorm` updated in `studio-charts.js`; labels fade in with their bar/segment's
   entrance animation; `studio-render.js` passes the new keys through; `docs/index.html` updated. Every
   chart type now genuinely carries at least one type-specific option. 4 new Z8GN tests. Test suite 800/800.
+- v156: **Z13: new showcase example — "Data Platform Operations Center"** (`data/examples/ops-command.studio.json`),
+  an 8-panel dashboard covering **8 chart types not used in any other bundled example**: Sankey (pipeline
+  flow), Network (system→app dependency graph), Quadrant (risk vs. volume), Calendar heatmap (daily
+  reliability), Bump (stage-runtime ranking over months), Sunburst (assets by source), Waffle (job outcome
+  mix), Pareto (errors by source). Placed second in the gallery order (existing lead example unchanged, so
+  the "most-spectacular-first, no single hero" regression test stays meaningful). `docs/index.html` example
+  count corrected 6→7. 3 new Z13 tests (listed in bundle, all 8 types present, every panel renders real
+  content). Test suite 803/803.
 
 ## NEXT (top = do first)
 
@@ -644,13 +652,25 @@ Design direction (best practice — the user wants it clean, not a redundant sin
 **Z13 — Curated showcase examples: make them a COMPLETE, dazzling survey (user-requested 2026-06-30,
 expanded).** Done so far: replaced the 17 legacy v2 boards with 6 curated examples; gallery glow-up (real
 per-chart thumbnails, no CDF/CDE badges); one grid ordered **most-spectacular-first, no single hero**;
-fixed KPI/gauge NaN/`0`/double-`%` (sample-data generator + example gauges). NEXT — turn the examples into
-a **broad, complete survey of everything the app can do**, built **progressively simple → dazzling**:
+fixed KPI/gauge NaN/`0`/double-`%` (sample-data generator + example gauges).
+> ✓ **7th example shipped v156**: "Data Platform Operations Center" (`ops-command.studio.json`, second in
+> gallery order) covers **8 previously-missing types in one dashboard**: sankey, network, quadrant,
+> calHeatmap, bump, sunburst, waffle, pareto. Gotcha learned along the way (worth remembering for future
+> examples): `app/sampledata.js`'s `classify()` checks the **"name" keyword group before "count"** —
+> a column literally named `job_count` gets misclassified as a **name** (string) column because it
+> contains "job", producing non-numeric values and a silent "No data" empty state; renaming to e.g.
+> `run_count` avoids the collision. Always sanity-check a new example's `Studio.genMock(spec)` output
+> per DA before shipping, not just that panels render *something*.
+NEXT — turn the examples into a **broad, complete survey of everything the app can do**, built
+**progressively simple → dazzling**:
 - **Cover EVERY chart type at least once** across the set — each example featuring several types the
-  others don't, so the collection is a full tour. Still-missing types to work in: **sankey, network,
-  calendar-heatmap, bump, sunburst, quadrant, marimekko, radial-bar, timeline, waffle, boxplot, violin,
-  histogram, beeswarm, dotplot, slope, dumbbell, step, polar-area, pareto, population-pyramid, area-range,
-  100%-stacked, ridgeline, packed-bubbles, word-cloud**, etc. (compare against `Studio.CHARTS`).
+  others don't, so the collection is a full tour. Currently covered (21 of 51): areaStacked, bars, bullet,
+  bump, calHeatmap, donut, funnel, gauge, heatmap, line, lollipop, network, pareto, quadrant, radar,
+  sankey, scatter, sunburst, treemap, waffle, waterfall. **Still missing (30):** stacked, streamgraph,
+  parallelCoords, combo, chord, table, richtext, boxplot, dumbbell, slope, dotplot, beeswarm, histogram,
+  polarArea, step, violin, marimekko, packedBubble, wordCloud, gantt, divergingBar, candlestick, timeline,
+  pyramidBar, radialBar, icicle, groupedBars, ridgeline, barNorm, areaRange (diff `data/examples/index.json`'s
+  `types` against `Object.keys(Studio.CHARTS)` to get a fresh list before the next slice).
 - **Show EVERY interaction/feature at least once**: **filters** (dashboard filters + the `#hash` deep-link),
   **cross-filter**, **drill-through / detail drawer** (internal drill AND cross-dashboard drill), and all
   the **marks/annotations** — target lines, reference bands, callout arrows, period highlights, event

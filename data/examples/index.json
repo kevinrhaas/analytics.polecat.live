@@ -9,6 +9,15 @@
     "layout": [["gauge", 1], ["radar", 1], ["donut", 1], ["heatmap", 2], ["bars", 1]]
   },
   {
+    "file": "ops-command.studio.json",
+    "title": "Data Platform Operations Center",
+    "panels": 8,
+    "kpis": 4,
+    "gridCols": 3,
+    "types": ["sankey", "network", "quadrant", "calHeatmap", "bump", "sunburst", "waffle", "pareto"],
+    "layout": [["sankey", "full"], ["network", 2], ["quadrant", 1], ["calHeatmap", "full"], ["bump", 2], ["sunburst", 1], ["waffle", 1], ["pareto", 2]]
+  },
+  {
     "file": "compliance-radar.studio.json",
     "title": "Sensitivity & Compliance Radar",
     "panels": 5,
