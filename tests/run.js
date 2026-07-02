@@ -773,6 +773,29 @@ function serve() {
     ok("Z13: ops-command covers all 8 target chart types", wantTypes.every((t) => opsShow.types.includes(t)), opsShow.types.join(","));
     ok("Z13: every ops-command panel renders visual content", Object.values(opsShow.perType).every((n) => n > 0), JSON.stringify(opsShow.perType));
 
+    // ---- Z13: "engineering-delivery" showcase covers 8 more chart types unused by any other example ----
+    console.log("\n• Z13: engineering-delivery showcase (table/combo/groupedBars/stacked/dumbbell/histogram/timeline/wordCloud)");
+    const delivShow = await page.evaluate(async () => {
+      const spec = await fetch("data/examples/engineering-delivery.studio.json").then((r) => r.json());
+      const S = window.__STUDIO_STATE;
+      const html = Studio.buildHtml(spec, S.assets, { deployPath: "/x", preview: true, mock: Studio.genMock(spec), launcher: false });
+      const ifr = document.createElement("iframe");
+      ifr.style.cssText = "position:fixed;left:-9999px;width:1200px;height:900px";
+      document.body.appendChild(ifr);
+      await new Promise((res) => { ifr.onload = res; ifr.srcdoc = html; });
+      await new Promise((r) => setTimeout(r, 400));
+      const d = ifr.contentDocument;
+      const cards = Array.from(d.querySelectorAll("#content .card"));
+      const perType = {};
+      spec.panels.forEach((p, i) => { perType[p.chart.type] = (cards[i] && cards[i].querySelectorAll("svg,table").length) || 0; });
+      ifr.remove();
+      return { types: spec.panels.map((p) => p.chart.type), perType, inIndex: (window.__STUDIO_STATE.examples || []).some((e) => e.file === "engineering-delivery.studio.json") };
+    });
+    const wantDelivTypes = ["table", "combo", "groupedBars", "stacked", "dumbbell", "histogram", "timeline", "wordCloud"];
+    ok("Z13: engineering-delivery is listed among the bundled examples", delivShow.inIndex);
+    ok("Z13: engineering-delivery covers all 8 target chart types", wantDelivTypes.every((t) => delivShow.types.includes(t)), delivShow.types.join(","));
+    ok("Z13: every engineering-delivery panel renders visual content", Object.values(delivShow.perType).every((n) => n > 0), JSON.stringify(delivShow.perType));
+
     // ---- builder dark mode (themes app + preview) ----
     console.log("\n• dark mode + export modal");
     await page.click("#btnTheme"); await page.waitForTimeout(250);

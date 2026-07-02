@@ -1,0 +1,123 @@
+{
+  "schema": 1,
+  "id": "showcase-delivery",
+  "name": "engineering-delivery",
+  "title": "Product Delivery & Engineering Console",
+  "subtitle": "backlog, velocity, teams & releases — from queue to launch",
+  "group": "Engineering",
+  "description": "A delivery showcase spanning eight distinct visual forms not used elsewhere in the gallery: a scrollable backlog table, a dual-axis bar+line velocity trend, side-by-side team comparison bars, a stacked ticket-type mix, a planned-vs-actual dumbbell, a cycle-time histogram, an alternating release-milestone timeline, and a most-mentioned-tools word cloud.",
+  "cda": {
+    "connection": { "id": "pdc", "jndi": "PDC-BIDB-EXT" },
+    "dataAccesses": [
+      {
+        "id": "kpi", "name": "DeliveryKPI", "params": [], "cache": true, "cacheDuration": 120,
+        "sql": "SELECT SUM(story_points) AS velocity_points, SUM(CASE WHEN ticket_status='Open' THEN 1 ELSE 0 END) AS open_defect_count, ROUND(AVG(cycle_hours),0) AS cycle_time_hrs, ROUND(AVG(readiness_pct),1) AS readiness_pct FROM v_delivery_master",
+        "columns": ["velocity_points", "open_defect_count", "cycle_time_hrs", "readiness_pct"]
+      },
+      {
+        "id": "backlog", "name": "BacklogQueue", "params": [], "cache": true, "cacheDuration": 120,
+        "sql": "SELECT item_id AS item_title, item_type, assignee AS owner, ticket_status AS status, hours_since_open AS hours_open FROM v_backlog_items ORDER BY hours_since_open DESC LIMIT 25",
+        "columns": ["item_title", "item_type", "owner", "status", "hours_open"]
+      },
+      {
+        "id": "velocity", "name": "SprintVelocity", "params": [], "cache": true, "cacheDuration": 180,
+        "sql": "SELECT d.year_month_name AS sprint_period, SUM(v.story_points) AS story_points_completed, SUM(CASE WHEN v.item_type='Defect' THEN 1 ELSE 0 END) AS defects_opened FROM v_sprint_velocity v JOIN dim_date d ON v.date_key = d.date_key GROUP BY d.year_month_number, d.year_month_name ORDER BY d.year_month_number",
+        "columns": ["sprint_period", "story_points_completed", "defects_opened"]
+      },
+      {
+        "id": "teamvelocity", "name": "TeamVelocityBySprint", "params": [], "cache": true, "cacheDuration": 180,
+        "sql": "SELECT d.year_month_name AS sprint_period, SUM(CASE WHEN t.name='Team Alpha' THEN v.story_points END) AS team_alpha_points, SUM(CASE WHEN t.name='Team Beta' THEN v.story_points END) AS team_beta_points, SUM(CASE WHEN t.name='Team Gamma' THEN v.story_points END) AS team_gamma_points FROM v_sprint_velocity v JOIN dim_team t ON v.team_id = t.id JOIN dim_date d ON v.date_key = d.date_key GROUP BY d.year_month_number, d.year_month_name ORDER BY d.year_month_number",
+        "columns": ["sprint_period", "team_alpha_points", "team_beta_points", "team_gamma_points"]
+      },
+      {
+        "id": "ticketmix", "name": "TicketMixByTeam", "params": [], "cache": true, "cacheDuration": 120,
+        "sql": "SELECT t.name AS team_name, SUM(CASE WHEN i.item_type='Bug' THEN 1 ELSE 0 END) AS bug_count, SUM(CASE WHEN i.item_type='Feature' THEN 1 ELSE 0 END) AS feature_count, SUM(CASE WHEN i.item_type='Chore' THEN 1 ELSE 0 END) AS chore_count FROM v_backlog_items i JOIN dim_team t ON i.team_id = t.id GROUP BY t.name",
+        "columns": ["team_name", "bug_count", "feature_count", "chore_count"]
+      },
+      {
+        "id": "plannedactual", "name": "PlannedVsActualPoints", "params": [], "cache": true, "cacheDuration": 120,
+        "sql": "SELECT t.name AS team_name, SUM(v.planned_points) AS planned_points, SUM(v.story_points) AS actual_points FROM v_sprint_velocity v JOIN dim_team t ON v.team_id = t.id GROUP BY t.name",
+        "columns": ["team_name", "planned_points", "actual_points"]
+      },
+      {
+        "id": "cycletime", "name": "CycleTimeRaw", "params": [], "cache": true, "cacheDuration": 120,
+        "sql": "SELECT item_id AS ticket_ref, cycle_hours AS cycle_time_hrs FROM v_backlog_items WHERE ticket_status = 'Closed'",
+        "columns": ["ticket_ref", "cycle_time_hrs"]
+      },
+      {
+        "id": "milestones", "name": "ReleaseMilestones", "params": [], "cache": true, "cacheDuration": 180,
+        "sql": "SELECT r.release_name AS milestone_name, d.year_month_name AS milestone_period FROM v_release_milestones r JOIN dim_date d ON r.date_key = d.date_key ORDER BY d.year_month_number",
+        "columns": ["milestone_name", "milestone_period"]
+      },
+      {
+        "id": "tools", "name": "TicketToolMentions", "params": [], "cache": true, "cacheDuration": 180,
+        "sql": "SELECT tool_name AS tool_mentioned, COUNT(*) AS mention_count FROM v_ticket_tool_mentions GROUP BY 1 ORDER BY 2 DESC",
+        "columns": ["tool_mentioned", "mention_count"]
+      }
+    ]
+  },
+  "filters": [],
+  "kpis": [
+    { "da": "kpi", "valueCol": "velocity_points", "label": "Sprint Velocity", "fmt": "n", "state": "", "info": "Story points completed in the current sprint." },
+    { "da": "kpi", "valueCol": "open_defect_count", "label": "Open Defects", "fmt": "n", "state": "warn", "info": "Defect tickets still unresolved." },
+    { "da": "kpi", "valueCol": "cycle_time_hrs", "label": "Avg Cycle Time (hrs)", "fmt": "n", "state": "", "info": "Average hours from ticket open to close." },
+    { "da": "kpi", "valueCol": "readiness_pct", "label": "Release Readiness", "fmt": "pct", "state": "good", "info": "Share of release-blocking items complete." }
+  ],
+  "gridCols": 3,
+  "panels": [
+    {
+      "id": "p_backlog", "title": "Open Backlog Queue", "span": "full", "pill": "top 25", "sub": "oldest open items first",
+      "info": "The longest-open backlog items across every team, newest tickets not shown.", "src": "v_backlog_items",
+      "chart": { "type": "table", "da": "backlog", "map": { "cols": [
+        { "col": "item_title", "label": "Item", "num": false },
+        { "col": "item_type", "label": "Type", "num": false },
+        { "col": "owner", "label": "Owner", "num": false },
+        { "col": "status", "label": "Status", "num": false },
+        { "col": "hours_open", "label": "Hours Open", "num": true }
+      ] }, "opts": { "maxRows": 25, "pageSize": 10, "freezeHeader": true, "density": "compact" } }
+    },
+    {
+      "id": "p_velocity", "title": "Sprint Velocity vs. Defects Opened", "span": 2, "pill": "pts / defects", "sub": "dual-axis trend",
+      "info": "Story points completed each sprint against the defects opened in the same window.", "src": "v_sprint_velocity",
+      "chart": { "type": "combo", "da": "velocity", "map": { "labelCol": "sprint_period", "barCol": "story_points_completed", "lineCol": "defects_opened" }, "opts": { "fmt": "n", "fmt2": "n", "height": 300 } }
+    },
+    {
+      "id": "p_teamvel", "title": "Story Points by Team", "span": 1, "pill": "points", "sub": "per sprint",
+      "info": "Side-by-side comparison of each team's completed story points across sprints.", "src": "v_sprint_velocity",
+      "chart": { "type": "groupedBars", "da": "teamvelocity", "map": { "labelCol": "sprint_period", "series": [
+        { "col": "team_alpha_points", "name": "Team Alpha" },
+        { "col": "team_beta_points", "name": "Team Beta" },
+        { "col": "team_gamma_points", "name": "Team Gamma" }
+      ] }, "opts": { "fmt": "n", "height": 300 } }
+    },
+    {
+      "id": "p_ticketmix", "title": "Ticket Mix by Team", "span": 1, "pill": "tickets", "sub": "",
+      "info": "Bug, feature, and chore ticket counts stacked per team.", "src": "v_backlog_items",
+      "chart": { "type": "stacked", "da": "ticketmix", "map": { "labelCol": "team_name", "series": [
+        { "col": "bug_count", "name": "Bug" },
+        { "col": "feature_count", "name": "Feature" },
+        { "col": "chore_count", "name": "Chore" }
+      ] }, "opts": { "fmt": "n", "height": 300 } }
+    },
+    {
+      "id": "p_planact", "title": "Planned vs. Actual Points by Team", "span": 1, "pill": "points", "sub": "",
+      "info": "The gap between planned and delivered story points for each team.", "src": "v_sprint_velocity",
+      "chart": { "type": "dumbbell", "da": "plannedactual", "map": { "labelCol": "team_name", "startCol": "planned_points", "endCol": "actual_points" }, "opts": { "startLabel": "Planned", "endLabel": "Actual", "fmt": "n", "height": 280 } }
+    },
+    {
+      "id": "p_cycletime", "title": "Cycle Time Distribution", "span": 1, "pill": "hrs", "sub": "closed tickets",
+      "info": "How long closed tickets took from open to close, grouped into buckets.", "src": "v_backlog_items",
+      "chart": { "type": "histogram", "da": "cycletime", "map": { "valueCol": "cycle_time_hrs" }, "opts": { "bins": 8, "fmt": "n", "height": 300 } }
+    },
+    {
+      "id": "p_milestones", "title": "Release Milestones", "span": 2, "pill": "roadmap", "sub": "",
+      "info": "Upcoming and past release milestones on a single timeline.", "src": "v_release_milestones",
+      "chart": { "type": "timeline", "da": "milestones", "map": { "labelCol": "milestone_name", "dateCol": "milestone_period" }, "opts": { "height": 220 } }
+    },
+    {
+      "id": "p_tools", "title": "Most-Mentioned Tools in Tickets", "span": 1, "pill": "mentions", "sub": "",
+      "info": "Which tools and platforms come up most often in ticket text.", "src": "v_ticket_tool_mentions",
+      "chart": { "type": "wordCloud", "da": "tools", "map": { "labelCol": "tool_mentioned", "valueCol": "mention_count" }, "opts": { "fmt": "n", "height": 300, "maxWords": 30 } }
+    }
+  ]
+}

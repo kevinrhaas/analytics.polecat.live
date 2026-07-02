@@ -18,6 +18,15 @@
     "layout": [["sankey", "full"], ["network", 2], ["quadrant", 1], ["calHeatmap", "full"], ["bump", 2], ["sunburst", 1], ["waffle", 1], ["pareto", 2]]
   },
   {
+    "file": "engineering-delivery.studio.json",
+    "title": "Product Delivery & Engineering Console",
+    "panels": 8,
+    "kpis": 4,
+    "gridCols": 3,
+    "types": ["table", "combo", "groupedBars", "stacked", "dumbbell", "histogram", "timeline", "wordCloud"],
+    "layout": [["table", "full"], ["combo", 2], ["groupedBars", 1], ["stacked", 1], ["dumbbell", 1], ["histogram", 1], ["timeline", 2], ["wordCloud", 1]]
+  },
+  {
     "file": "compliance-radar.studio.json",
     "title": "Sensitivity & Compliance Radar",
     "panels": 5,

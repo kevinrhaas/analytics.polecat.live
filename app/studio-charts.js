@@ -1096,12 +1096,16 @@
       var tip = fmtFn(mn + bi * binW) + " – " + fmtFn(mn + (bi + 1) * binW) + ": <b>" + ct + "</b> rows";
       var rect = S("rect", { x: x + 0.5, y: y, width: Math.max(0, barW - 0.5), height: bh, fill: color, rx: 1 });
       if (canAnim()) {
-        rect.setAttribute("transform", "scaleY(0)");
-        rect.setAttribute("transform-origin", (x + barW / 2) + " " + (mT + ih));
+        // scaleY is a CSS transform function, not a valid SVG transform-attribute function
+        // (that dialect only has matrix/translate/scale/rotate/skewX/skewY) — so this has to
+        // go through .style.transform (CSS), same convention as the other animated charts,
+        // not setAttribute("transform", ...).
+        rect.style.transform = "scaleY(0)";
+        rect.style.transformOrigin = (x + barW / 2) + "px " + (mT + ih) + "px";
         (function (r_, bi_) {
           setTimeout(function () {
             r_.style.transition = "transform " + (animD(250) / 1000).toFixed(2) + "s ease";
-            r_.setAttribute("transform", "scaleY(1)");
+            r_.style.transform = "scaleY(1)";
           }, animD(bi_ * 20));
         })(rect, bi);
       }
