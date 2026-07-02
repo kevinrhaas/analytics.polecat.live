@@ -502,6 +502,20 @@
   has no ESM build), New Source builder + DA inspector wiring (File URL + optional Table name + Query +
   Test connection & detect columns), Run-live in the Data preview, `exportCDA` now excludes both
   `duckdb`/`httpvfs` kinds from `.cda`. 13 new tests. Test suite 840/840.
+- v174: **Z2 follow-up: hover life on Home cards** — recent-dashboard cards lift further + gain a warm
+  terracotta glow + their thumbnail zooms slightly on hover; quick-create cards get the same glow + an
+  icon bump; all skipped under `prefers-reduced-motion`. Also fixed a flaky pre-existing test (Z8G gauge
+  percent-sign check, v161): its 150ms wait after a live preview re-render wasn't always enough under this
+  sandbox's current load, producing a stale empty read; bumped to 400ms (same assertion, confirmed via
+  `git stash` that the flake pre-dates this session). 2 new hover tests. Test suite 873/873.
+- v173: **Z14 track complete: distinct DuckDB/SQLite icons** — the two browser-native connector
+  cards get their own monoline glyphs (`app/icons.js`: `duckdb`, `sqlite`) instead of sharing the
+  generic `db` cylinder with every server-backed connector. 1 new test. Test suite 871/871.
+- v172: **Z13 complete: multi-row sample-data mode + 11th example** — `Studio.sampleRows` gained an
+  opt-in multi-row-per-label mode (jittered rows per group instead of one point per label) that
+  `Studio.genMock` auto-applies to any DA feeding a boxplot/violin/ridgeline/beeswarm panel; new
+  "Incident Response & Reliability Distributions" example covers those 4 previously-uncovered chart
+  types. Gallery chart-type coverage now **51 of 51**. 4 new tests. Test suite 870/870.
 - v171: **Z3 follow-up: whole-repository JSON export/import** — Repository page gains "Export repository…"/
   "Import repository…" buttons: export bundles authored data sources (not the bundled catalog) + the local
   dashboard inventory (recents/pins) into one JSON file; import merges additively (never deletes existing
@@ -521,14 +535,6 @@
   left rail via `applyBranding()` (called at boot + on every change). Included in Settings export/import
   and "Clear local data" so a custom logo travels with your other preferences. 9 new tests, including a
   real `setInputFiles()` upload through the actual (hidden) file input. Test suite 849/849.
-- v172: **Z13 complete: multi-row sample-data mode + 11th example** — `Studio.sampleRows` gained an
-  opt-in multi-row-per-label mode (jittered rows per group instead of one point per label) that
-  `Studio.genMock` auto-applies to any DA feeding a boxplot/violin/ridgeline/beeswarm panel; new
-  "Incident Response & Reliability Distributions" example covers those 4 previously-uncovered chart
-  types. Gallery chart-type coverage now **51 of 51**. 4 new tests. Test suite 870/870.
-- v173: **Z14 track complete: distinct DuckDB/SQLite icons** — the two browser-native connector
-  cards get their own monoline glyphs (`app/icons.js`: `duckdb`, `sqlite`) instead of sharing the
-  generic `db` cylinder with every server-backed connector. 1 new test. Test suite 871/871.
 
 ## NEXT (top = do first)
 
@@ -571,8 +577,11 @@ reopens the exact dashboard (full spec captured on the auto-save debounce path, 
 > array of dashboard ids). Pinned cards render under their own "Pinned" heading above "Recent dashboards"
 > and are exempt from the 8-entry cap — pinning protects a dashboard from ever being evicted by newer
 > activity (`noteRecent()` now caps only the unpinned tail). New `star` icon in `app/icons.js`.
-**Z2 follow-ups (not yet done):** folders/organization, branding area, more lively motion + hover life on
-the cards (currently a simple lift + border-glow), instructions/how-tos/tips beyond the existing tour link.
+> ✓ **More lively hover shipped v174**: recent-dashboard cards lift further + gain a warm glow + their
+> thumbnail zooms slightly on hover; quick-create cards get the same glow + an icon bump. Reduced-motion
+> respected. Small CSS-only polish — no new state.
+**Z2 follow-ups (not yet done):** folders/organization, branding area, instructions/how-tos/tips beyond
+the existing tour link.
 
 **Z3 — Repository (Data Sources + Workbooks).** One "repository" holding **data-source definitions** and
 **workbook definitions** (a workbook = a named collection of HTML dashboards). Browse/search/organize into

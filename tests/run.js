@@ -8450,7 +8450,7 @@ function serve() {
       if (!sel) { p.chart = prevChart; window.__studioSelect(null); window.__studioRenderInspector(); return { err: "no Value format select" }; }
       sel.value = "pct";
       sel.dispatchEvent(new Event("change", { bubbles: true }));
-      await new Promise(function (r) { setTimeout(r, 150); });
+      await new Promise(function (r) { setTimeout(r, 400); });
       var doc = document.querySelector("#preview").contentDocument;
       var texts = [].slice.call(doc.querySelectorAll(".gauge-val")).map(function (e) { return e.textContent; });
       p.chart = prevChart; // restore so later tests aren't affected
@@ -10083,6 +10083,39 @@ function serve() {
     });
     ok("Z2: Home shows recent dashboards with thumbnails, backed by localStorage",
       z2Recents.count > 0 && z2Recents.hasSvg && z2Recents.storeLen === z2Recents.count, JSON.stringify(z2Recents));
+
+    // Z2 follow-up: hover life on quick-create + recent cards (lift + glow + icon/thumb bump)
+    const z2HoverBefore = await page.evaluate(function () {
+      var card = document.querySelector("#secHome .recent-card");
+      var cs = getComputedStyle(card);
+      return { boxShadow: cs.boxShadow, transform: cs.transform };
+    });
+    await page.hover("#secHome .recent-card");
+    await page.waitForTimeout(220); // let the CSS transition settle
+    const z2HoverAfter = await page.evaluate(function () {
+      var card = document.querySelector("#secHome .recent-card");
+      var thumbSvg = card.querySelector(".recent-thumb svg");
+      var cs = getComputedStyle(card);
+      return { boxShadow: cs.boxShadow, transform: cs.transform, thumbTransform: thumbSvg ? getComputedStyle(thumbSvg).transform : "" };
+    });
+    ok("Z2 follow-up: hovering a recent card lifts it with a glow + zooms its thumbnail",
+      z2HoverAfter.boxShadow !== "none" && z2HoverAfter.boxShadow !== z2HoverBefore.boxShadow &&
+      z2HoverAfter.transform !== "none" && z2HoverAfter.transform !== z2HoverBefore.transform &&
+      z2HoverAfter.thumbTransform !== "none",
+      JSON.stringify({ before: z2HoverBefore, after: z2HoverAfter }));
+    await page.mouse.move(5, 5); // move away so later hover-dependent checks aren't affected
+
+    const z2QuickHoverBefore = await page.evaluate(function () {
+      return getComputedStyle(document.querySelector('#secHome .home-card[data-home="blank"]')).boxShadow;
+    });
+    await page.hover('#secHome .home-card[data-home="blank"]');
+    await page.waitForTimeout(180);
+    const z2QuickHoverAfter = await page.evaluate(function () {
+      return getComputedStyle(document.querySelector('#secHome .home-card[data-home="blank"]')).boxShadow;
+    });
+    ok("Z2 follow-up: hovering a quick-create card adds a glow", z2QuickHoverAfter !== "none" && z2QuickHoverAfter !== z2QuickHoverBefore,
+      z2QuickHoverBefore + " -> " + z2QuickHoverAfter);
+    await page.mouse.move(5, 5);
 
     // Z2-3: clicking a recent card reopens that exact dashboard (by id) and returns to the Studio section
     const z2RecId = await page.evaluate(function () { return document.querySelector("#secHome .recent-open").getAttribute("data-recent"); });
