@@ -37,6 +37,51 @@
     { id: "warn",   label: "Warn (amber)" },
     { id: "bad",    label: "Bad (red)" }
   ];
+
+  /* ---- Z7: statistical KPI computations ----
+     A KPI normally just reads its value column from the DA's first row (an
+     already-aggregated query). `agg` lets a KPI instead compute a statistic
+     across every row the DA returns — handy for binding a KPI straight to a
+     detail/chart-shaped query ("p90 response time", "median deal size")
+     without hand-writing a separate aggregate SQL query for it. */
+  Studio.KPI_AGGS = [
+    ["first",  "First row (default)"],
+    ["sum",    "Sum"],
+    ["avg",    "Average"],
+    ["median", "Median"],
+    ["min",    "Min"],
+    ["max",    "Max"],
+    ["p90",    "90th percentile"],
+    ["p95",    "95th percentile"],
+    ["stddev", "Std deviation"]
+  ];
+  // Pure function: values (numbers) + an id from KPI_AGGS -> a single number. "first" is handled
+  // by the caller (it needs the raw row, not just the column) so it's never passed in here.
+  Studio.aggregate = function (values, agg) {
+    var v = (values || []).map(Number).filter(function (n) { return !isNaN(n); });
+    if (!v.length) return 0;
+    if (agg === "sum") return v.reduce(function (a, b) { return a + b; }, 0);
+    if (agg === "min") return Math.min.apply(null, v);
+    if (agg === "max") return Math.max.apply(null, v);
+    var mean = v.reduce(function (a, b) { return a + b; }, 0) / v.length;
+    if (agg === "avg") return mean;
+    if (agg === "stddev") return Math.sqrt(v.reduce(function (a, b) { return a + (b - mean) * (b - mean); }, 0) / v.length);
+    // median / percentiles all need a sorted copy
+    var sorted = v.slice().sort(function (a, b) { return a - b; });
+    if (agg === "median") return Studio.percentileOf(sorted, 50);
+    if (agg === "p90") return Studio.percentileOf(sorted, 90);
+    if (agg === "p95") return Studio.percentileOf(sorted, 95);
+    return sorted[0];
+  };
+  // Linear-interpolation percentile over an already-sorted numeric array (standard "R-7" method).
+  Studio.percentileOf = function (sorted, p) {
+    if (!sorted.length) return 0;
+    if (sorted.length === 1) return sorted[0];
+    var idx = (p / 100) * (sorted.length - 1);
+    var lo = Math.floor(idx), hi = Math.ceil(idx);
+    if (lo === hi) return sorted[lo];
+    return sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo);
+  };
   Studio.PALETTE = "['#005bb5','#7d3c98','#2e8bd0','#9b59b6','#00a39a','#e67e22','#c0392b','#16a085']";
 
   /* ---- chart registry: the heart of the model ----

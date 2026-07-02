@@ -11948,6 +11948,78 @@ function serve() {
     });
     ok("Z7HW: default method is a single-segment linear trend; trendMethod:'holt' draws a multi-segment smoothed line that extends with forecastPeriods", z7hwRender.ok, JSON.stringify(z7hwRender));
 
+    // ── Z7 slice 4: KPI statistical computations (sum/avg/median/percentile/stddev) ──
+    console.log("\n• Z7: KPI statistical aggregation");
+
+    // Z7AGG-1: Studio.aggregate() is a correct, pure numeric function
+    var z7aggUnit = await page.evaluate(function () {
+      var A = window.Studio.aggregate;
+      var v = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+      return {
+        sum: A(v, "sum"), avg: A(v, "avg"), median: A(v, "median"),
+        p90: Math.round(A(v, "p90") * 100) / 100,
+        stddev: Math.round(A(v, "stddev") * 100) / 100,
+        min: A(v, "min"), max: A(v, "max"),
+        aggsListed: (window.Studio.KPI_AGGS || []).map(function (a) { return a[0]; })
+      };
+    });
+    ok("Z7AGG: Studio.aggregate sum/avg/median/min/max are correct",
+      z7aggUnit.sum === 55 && z7aggUnit.avg === 5.5 && z7aggUnit.median === 5.5 && z7aggUnit.min === 1 && z7aggUnit.max === 10,
+      JSON.stringify(z7aggUnit));
+    ok("Z7AGG: Studio.aggregate p90/stddev use standard formulas (p90=9.1, stddev≈2.87 for 1..10)",
+      z7aggUnit.p90 === 9.1 && Math.abs(z7aggUnit.stddev - 2.87) < 0.01, JSON.stringify(z7aggUnit));
+    ok("Z7AGG: Studio.KPI_AGGS lists first/sum/avg/median/min/max/p90/p95/stddev",
+      ["first", "sum", "avg", "median", "min", "max", "p90", "p95", "stddev"].every(function (a) { return z7aggUnit.aggsListed.indexOf(a) >= 0; }),
+      JSON.stringify(z7aggUnit));
+
+    // Z7AGG-2: the KPI inspector's "Aggregation" field changes k.agg, and a non-"first"
+    // aggregation recomputes the rendered tile value across every sampled row (not just row 0).
+    var z7aggRender = await page.evaluate(async function () {
+      var freshSpec = await fetch("data/examples/studio-cost.studio.json").then(function (r) { return r.json(); });
+      window.__studioLoad(freshSpec);
+      await new Promise(function (res) { setTimeout(res, 300); });
+      var iw0 = document.getElementById("preview") && document.getElementById("preview").contentWindow;
+      var kpiEl0 = iw0 && iw0.document.querySelector(".kpi .v");
+      var baselineText = kpiEl0 ? kpiEl0.textContent.trim() : null;
+
+      // select the first KPI, find the "Aggregation" select, switch it to "sum"
+      window.__studioSelect({ kind: "kpi", index: 0 });
+      var insp = document.getElementById("inspBody") || document.getElementById("inspector");
+      var rows = Array.prototype.slice.call(insp.querySelectorAll(".field"));
+      var aggRow = rows.filter(function (r) { return /Aggregation/i.test(r.textContent); })[0];
+      var sel = aggRow && aggRow.querySelector("select");
+      var hasField = !!sel;
+      if (sel) { sel.value = "sum"; sel.dispatchEvent(new Event("change", { bubbles: true })); }
+      await new Promise(function (res) { setTimeout(res, 300); });
+      var aggSpec = window.__STUDIO_STATE.spec.kpis[0].agg;
+
+      var iw1 = document.getElementById("preview") && document.getElementById("preview").contentWindow;
+      var kpiEl1 = iw1 && iw1.document.querySelector(".kpi .v");
+      var sumText = kpiEl1 ? kpiEl1.textContent.trim() : null;
+
+      // exported CDF HTML embeds the "agg" choice in STUDIO_SPEC
+      var html = Studio.buildHtml(window.__STUDIO_STATE.spec, window.__STUDIO_STATE.assets, { preview: false });
+      var exported = html.indexOf('"agg":"sum"') >= 0;
+
+      // switching back to "First row (default)" clears k.agg entirely (no stray field on old specs)
+      if (sel) { sel.value = "first"; sel.dispatchEvent(new Event("change", { bubbles: true })); }
+      await new Promise(function (res) { setTimeout(res, 200); });
+      var aggCleared = !("agg" in window.__STUDIO_STATE.spec.kpis[0]);
+
+      return { hasField: hasField, aggSpec: aggSpec, baselineText: baselineText, sumText: sumText, changed: baselineText !== sumText, exported: exported, aggCleared: aggCleared };
+    });
+    ok("Z7AGG: 'Aggregation' select is present in the KPI inspector", z7aggRender.hasField, JSON.stringify(z7aggRender));
+    ok("Z7AGG: choosing 'Sum' sets k.agg and recomputes the tile value across all sampled rows",
+      z7aggRender.aggSpec === "sum" && z7aggRender.changed, JSON.stringify(z7aggRender));
+    ok("Z7AGG: exported CDF HTML embeds the chosen aggregation in STUDIO_SPEC", z7aggRender.exported, JSON.stringify(z7aggRender));
+    ok("Z7AGG: switching back to 'First row (default)' clears k.agg (no clutter on unchanged KPIs)", z7aggRender.aggCleared, JSON.stringify(z7aggRender));
+
+    // Restore clean spec
+    await page.evaluate(async function () {
+      var freshSpec = await fetch("data/examples/studio-cost.studio.json").then(function (r) { return r.json(); });
+      window.__studioLoad(freshSpec);
+    });
+
     // Z7HW-3: the panel inspector shows the new Forecast method / α / β fields
     var z7hwInsp = await page.evaluate(function () {
       var spec = window.__STUDIO_STATE.spec;

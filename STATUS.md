@@ -712,6 +712,9 @@
 
 - v201: **N-FUN slice 4: command palette recent/frequent ranking** — see Z-track N entry above. 3 new
   tests, suite 955/955.
+- v202: **Z7 slice 4: statistical KPI computations** — see Z7 entry above. 7 new tests, suite 962/962.
+- v203: **Track L architecture sweep (accessibility): modal() close button aria-label** — see Track L
+  findings log above. 2 new tests, suite 964/964.
 
 ## NEXT (top = do first)
 
@@ -1053,6 +1056,13 @@ chart options / derived series / KPI computations. Keep it light (vanilla-JS mat
 > **Still open:** seasonal trend lines (the "-Winters" part of Holt-Winters), extending trend/forecast to
 > bars/stacked/combo, and the statistical-functions half (regression beyond scatter's existing trend line,
 > percentiles, z-scores, correlation, distributions) as KPI computations.
+> ✓ **Slice 4 shipped v202 — statistical KPI computations, first cut**: KPI inspector gets an
+> **Aggregation** picker (First row / Sum / Average / Median / Min / Max / P90 / P95 / Std deviation);
+> non-default choices recompute the tile's value across every row the bound query returns instead of only
+> reading row 0. `Studio.aggregate(values, agg)` + `Studio.percentileOf(sorted, p)` in model.js are pure,
+> independently-testable functions (standard R-7 linear-interpolation percentile). Stored as `k.agg`,
+> omitted from the spec entirely when left at the default. 7 new tests, suite 962/962. **Still open:**
+> z-score, correlation, and full regression/distribution KPI computations.
 
 **Z8 — Context-aware inspector (per chart type) + visual setting hints (user-requested 2026-06-30).**
 The panel inspector currently shows ALL setting sections regardless of chart type — e.g. a **Table**
@@ -1583,6 +1593,16 @@ gets covered over time:
   `Studio.defineChart({type, render, opts, thumb, autoPick})` contract so new types are uniform and testable.
 - **Test health** — coverage per feature, flaky/slow checks, and a fast smoke subset for quick loops.
 > **Findings log (append newest on top; keep short):**
+> - **v203 (accessibility lens):** the shared `modal()` helper's × close button — the dialog-close pattern
+>   every builder modal is built on (New data source, Connections manager, Join builder, Keyboard
+>   shortcuts, KTR builder, …) — appended only an SVG icon with no `aria-label`, so a screen reader
+>   announced it as a bare "button" with no indication of what it does. Every *other* close affordance in
+>   the app (changelog popup, panel zoom, slideshow) already set a descriptive `aria-label` (found by
+>   grepping for the pattern and noticing `modal()` was the one holdout) — fixed by labeling it
+>   "Close {dialog title}" (plus an explicit `type="button"`, matching the rest of the codebase's
+>   defensive convention). One fix in one function covers every dialog in the app. 2 new regression tests
+>   (two independent `modal()` call sites, to prove the fix is generic and not a one-off patch). Test
+>   suite 964/964.
 > - **v195 (dead-code/duplication + a real bug, closes the sweep-cadence gap since v180):** two findings.
 >   (1) `withTimeout()` was a byte-identical private helper duplicated in `app/duckdb.js` and
 >   `app/sqlitehttp.js` — the exact same pair `Studio.friendlyConnectorError()` was already extracted

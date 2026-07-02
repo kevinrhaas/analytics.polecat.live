@@ -1089,6 +1089,13 @@
         // after PDC.kpis renders, using PDC.sparkSvgBar / PDC.sparkSvgArea from studio-charts.js.
         var _kTiles = spec.kpis.map(function (k) {
           var res = data[k.da], val = res ? (res.rows[0] || [])[res.col(k.valueCol)] : "—";
+          // Z7: statistical KPI computation — "agg" other than the default "first row"
+          // recomputes val as a statistic (sum/avg/median/min/max/p90/p95/stddev) across
+          // every row the DA returns, instead of only reading the first row's value.
+          if (k.agg && k.agg !== "first" && res) {
+            var vi = res.col(k.valueCol);
+            if (vi >= 0) val = Studio.aggregate(res.rows.map(function (r) { return r[vi]; }), k.agg);
+          }
           var tile = { value: fmt(k.fmt)(val), label: k.label, state: k.state || "", info: k.info || "", _raw: val };
           // Computed comparison delta: compareCol auto-computes the delta from a second numeric
           // column (same DA first row). Takes priority over manual deltaText when both are set.
