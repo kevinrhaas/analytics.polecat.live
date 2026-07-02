@@ -26,6 +26,35 @@
     if (!tok) return fallback ? PDC.cssvar(fallback) : undefined;
     return /^--/.test(tok) ? PDC.cssvar(tok) : tok;
   }
+  // Z7: statistical KPI aggregation. Studio.aggregate()/percentileOf() (app/model.js) are NOT
+  // available here — model.js is a builder-only module, never inlined into the exported/preview
+  // bundle (this file only ships with PDC + studio-charts.js, see the file header). Local copy of
+  // the same pure math, same convention as fmt()/color() above going through PDC instead of Studio.
+  function pctOf(sorted, p) {
+    if (!sorted.length) return 0;
+    if (sorted.length === 1) return sorted[0];
+    var idx = (p / 100) * (sorted.length - 1);
+    var lo = Math.floor(idx), hi = Math.ceil(idx);
+    if (lo === hi) return sorted[lo];
+    return sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo);
+  }
+  function aggregateOf(values, agg) {
+    var v = (values || []).map(Number).filter(function (n) { return !isNaN(n); });
+    if (!v.length) return 0;
+    if (agg === "sum") return v.reduce(function (a, b) { return a + b; }, 0);
+    if (agg === "min") return Math.min.apply(null, v);
+    if (agg === "max") return Math.max.apply(null, v);
+    var mean = v.reduce(function (a, b) { return a + b; }, 0) / v.length;
+    if (agg === "avg") return mean;
+    var sd = Math.sqrt(v.reduce(function (a, b) { return a + (b - mean) * (b - mean); }, 0) / v.length);
+    if (agg === "stddev") return sd;
+    if (agg === "zscore") return sd === 0 ? 0 : (v[v.length - 1] - mean) / sd;
+    var sorted = v.slice().sort(function (a, b) { return a - b; });
+    if (agg === "median") return pctOf(sorted, 50);
+    if (agg === "p90") return pctOf(sorted, 90);
+    if (agg === "p95") return pctOf(sorted, 95);
+    return sorted[0];
+  }
   // Build a PDC.openDetail config from p.detail — used by bars, donut, treemap, table.
   // Returns null when no detail DA is configured so charts render without the drawer.
   function buildDetailCfg(p) {
@@ -1094,7 +1123,7 @@
           // every row the DA returns, instead of only reading the first row's value.
           if (k.agg && k.agg !== "first" && res) {
             var vi = res.col(k.valueCol);
-            if (vi >= 0) val = Studio.aggregate(res.rows.map(function (r) { return r[vi]; }), k.agg);
+            if (vi >= 0) val = aggregateOf(res.rows.map(function (r) { return r[vi]; }), k.agg);
           }
           var tile = { value: fmt(k.fmt)(val), label: k.label, state: k.state || "", info: k.info || "", _raw: val };
           // Computed comparison delta: compareCol auto-computes the delta from a second numeric

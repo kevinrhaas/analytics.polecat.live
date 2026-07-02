@@ -15,6 +15,16 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 214,
+    title: 'Fix: KPI Aggregation could crash the whole dashboard preview',
+    kind: 'fix',
+    ts: '2026-07-02T23:23:20Z',
+    items: [
+      'Any KPI using the "Aggregation" picker (Sum / Average / Median / min / max / percentile / std deviation / Z-score, added a few versions back) referenced a builder-only helper that was never included in the actual exported/preview HTML — silently breaking rendering for every KPI on the dashboard, not just the aggregated one, in both the live preview and every real export.',
+      'Fixed by giving the exported bundle its own self-contained copy of the aggregation math, matching how every other runtime helper in that file already works.',
+    ],
+  },
+  {
     v: 213,
     title: 'Named style presets in Settings',
     kind: 'feature',

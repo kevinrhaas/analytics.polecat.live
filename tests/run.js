@@ -12250,6 +12250,10 @@ function serve() {
     // aggregation recomputes the rendered tile value across every sampled row (not just row 0).
     var z7aggRender = await page.evaluate(async function () {
       var freshSpec = await fetch("data/examples/studio-cost.studio.json").then(function (r) { return r.json(); });
+      // Rebind KPI 0 to a multi-row DA/column (its default "kpi" DA is a pre-aggregated
+      // single-row query, where sum-of-one-row trivially equals first-row — not a meaningful
+      // "recomputes across every row" check). "cost_by_source"/"cost" has several sample rows.
+      freshSpec.kpis[0].da = "cost_by_source"; freshSpec.kpis[0].valueCol = "cost";
       window.__studioLoad(freshSpec);
       await new Promise(function (res) { setTimeout(res, 300); });
       var iw0 = document.getElementById("preview") && document.getElementById("preview").contentWindow;
@@ -12287,6 +12291,38 @@ function serve() {
       z7aggRender.aggSpec === "sum" && z7aggRender.changed, JSON.stringify(z7aggRender));
     ok("Z7AGG: exported CDF HTML embeds the chosen aggregation in STUDIO_SPEC", z7aggRender.exported, JSON.stringify(z7aggRender));
     ok("Z7AGG: switching back to 'First row (default)' clears k.agg (no clutter on unchanged KPIs)", z7aggRender.aggCleared, JSON.stringify(z7aggRender));
+
+    // Regression: a real exported/standalone CDF bundle only ships PDC (vendor/pdc-ui.js) +
+    // studio-charts.js + studio-render.js — app/model.js (where Studio.aggregate lives) is a
+    // builder-only module and is NEVER inlined into it (see Studio.buildHtml's asset list). An
+    // earlier cut of the Z7AGG feature called Studio.aggregate() straight from studio-render.js,
+    // which throws "Studio is not defined" in that standalone context — silently breaking ALL KPI
+    // rendering (not just aggregation) on any spec with a non-"first" agg, in every real export.
+    // Verify a fresh, isolated page loading the built bundle renders the KPI with no console errors.
+    const aggBundle = await page.evaluate(async function () {
+      const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json());
+      spec.kpis[0].agg = "sum";
+      // preview:true + mock data (same as the live builder preview / a Studio-generated preview
+      // link) — a bare preview:false export would need a real Pentaho server behind it to answer
+      // the CDA queries, which isn't what this regression is about.
+      return Studio.buildHtml(spec, window.__STUDIO_STATE.assets, { preview: true, mock: Studio.genMock(spec), launcher: false });
+    });
+    const bundlePage = await browser.newPage();
+    const bundleErrors = [];
+    bundlePage.on("console", (m) => { if (m.type() === "error") bundleErrors.push(m.text()); });
+    bundlePage.on("pageerror", (e) => bundleErrors.push(e.message));
+    // Real http:// origin (not setContent's about:blank) — the exported bundle's boot script
+    // touches localStorage, which throws a SecurityError under about:blank's opaque origin.
+    await bundlePage.route("**/__test_bundle__.html", (route) => route.fulfill({ contentType: "text/html", body: aggBundle }));
+    await bundlePage.goto(`http://localhost:${PORT}/__test_bundle__.html`, { waitUntil: "load" });
+    await bundlePage.waitForTimeout(400);
+    const bundleKpi = await bundlePage.evaluate(() => {
+      var v = document.querySelector(".kpi .v");
+      return { present: !!v, text: v ? v.textContent : null };
+    });
+    await bundlePage.close();
+    ok("Z7AGG regression: a standalone exported bundle with agg:'sum' renders the KPI tile with no console/page errors",
+      bundleErrors.length === 0 && bundleKpi.present, JSON.stringify({ errors: bundleErrors, kpi: bundleKpi }));
 
     // Restore clean spec
     await page.evaluate(async function () {
