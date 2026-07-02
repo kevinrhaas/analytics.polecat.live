@@ -483,6 +483,17 @@ function serve() {
     ok("Z14 slice 4: SQLite source-type card carries a 'Browser-only' badge", connectorBadges.sqlite === true, JSON.stringify(connectorBadges));
     ok("Z14 slice 4: Pentaho-backed source cards (SQL/MDX) do NOT carry the badge", connectorBadges.sql === false && connectorBadges.mdx === false, JSON.stringify(connectorBadges));
 
+    // ---- Z14 slice 4 (finish): DuckDB/SQLite get distinct icons instead of the generic "db" cylinder ----
+    const connectorIcons = await page.evaluate(() => ({
+      duckdbPath: Studio._iconPaths.duckdb, sqlitePath: Studio._iconPaths.sqlite,
+      duckdbDistinctFromDb: Studio._iconPaths.duckdb !== Studio._iconPaths.db,
+      sqliteDistinctFromDb: Studio._iconPaths.sqlite !== Studio._iconPaths.db,
+      duckdbDistinctFromSqlite: Studio._iconPaths.duckdb !== Studio._iconPaths.sqlite,
+    }));
+    ok("Z14 slice 4: duckdb/sqlite icons exist and are distinct from the generic 'db' icon and each other",
+      !!connectorIcons.duckdbPath && !!connectorIcons.sqlitePath && connectorIcons.duckdbDistinctFromDb &&
+      connectorIcons.sqliteDistinctFromDb && connectorIcons.duckdbDistinctFromSqlite, JSON.stringify(connectorIcons));
+
     const dkTestOk = await page.evaluate(async () => {
       const orig = Studio.DuckDB.testConnection;
       Studio.DuckDB.testConnection = function () {

@@ -685,8 +685,8 @@
     { kind: "kettle", iconName: "gear", name: "Kettle / PDI", desc: "A .ktr transformation step as a data source", ph: "/public/etl/my-transform.ktr   (step: Output)" },
     { kind: "mql", iconName: "metadata", name: "Metadata", desc: "Pentaho Metadata (MQL) query", ph: "<mql>…</mql>" },
     { kind: "scripting", iconName: "code", name: "Scripting", desc: "Scripted (Kettle/Beanshell) data access", ph: "// return rows…" },
-    { kind: "duckdb", iconName: "db", name: "DuckDB (remote file)", desc: "Query a Parquet/CSV file straight from S3/HTTP — no backend, no proxy", badge: "Browser-only", ph: "SELECT * FROM t\nLIMIT  200   -- t = your file, queried in-browser via DuckDB-Wasm" },
-    { kind: "httpvfs", iconName: "db", name: "SQLite (remote .sqlite)", desc: "Query a .sqlite file over HTTP Range Requests — indexed lookups, no backend", badge: "Browser-only", ph: "SELECT * FROM my_table\nLIMIT  200" }
+    { kind: "duckdb", iconName: "duckdb", name: "DuckDB (remote file)", desc: "Query a Parquet/CSV file straight from S3/HTTP — no backend, no proxy", badge: "Browser-only", ph: "SELECT * FROM t\nLIMIT  200   -- t = your file, queried in-browser via DuckDB-Wasm" },
+    { kind: "httpvfs", iconName: "sqlite", name: "SQLite (remote .sqlite)", desc: "Query a .sqlite file over HTTP Range Requests — indexed lookups, no backend", badge: "Browser-only", ph: "SELECT * FROM my_table\nLIMIT  200" }
   ];
   function dsType(k) { return DS_TYPES.filter(function (t) { return t.kind === k; })[0] || DS_TYPES[0]; }
 

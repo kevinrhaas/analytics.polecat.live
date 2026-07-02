@@ -526,6 +526,9 @@
   `Studio.genMock` auto-applies to any DA feeding a boxplot/violin/ridgeline/beeswarm panel; new
   "Incident Response & Reliability Distributions" example covers those 4 previously-uncovered chart
   types. Gallery chart-type coverage now **51 of 51**. 4 new tests. Test suite 870/870.
+- v173: **Z14 track complete: distinct DuckDB/SQLite icons** — the two browser-native connector
+  cards get their own monoline glyphs (`app/icons.js`: `duckdb`, `sqlite`) instead of sharing the
+  generic `db` cylinder with every server-backed connector. 1 new test. Test suite 871/871.
 
 ## NEXT (top = do first)
 
@@ -652,6 +655,13 @@ as two connector types in the Z3/Z4 Data-Source model; one shippable slice per l
 > type-cards, no logo/brand-mark treatment — the badge covers the "why is this different" question but
 > not the "make it sexy" visual-gallery ask), and (2) a real hosted-file smoke test once a live/internet
 > environment is available to verify by hand.
+> ✓ **Slice 4 finished, Z14 track complete, shipped v173**: DuckDB and SQLite source-type cards now carry
+> their own distinct monoline icons (`app/icons.js`: `duckdb` a rubber-duck mark, `sqlite` a database
+> inside a single file) instead of sharing the generic `db` cylinder every server-backed connector uses —
+> same brand-neutral stroke style as the rest of the app's icon vocabulary, no external logo assets. This
+> closes the "make the connector gallery sexy" ask within the app's no-images/no-deps constraint. **Still
+> genuinely open (needs a live/internet environment, not buildable in this sandbox)**: (2) a real
+> hosted-file smoke test against a public S3/GCS file for both connectors.
 
 **Z4 — Data Source library + connectors.** Expand beyond CDA to direct querying of leading providers,
 browser-only via each provider's REST/SQL API with locally-saved credentials. Priority connectors:

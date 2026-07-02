@@ -40,7 +40,14 @@
     home:      '<path d="M3 11l9-8 9 8" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 10v10a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V10" stroke-linecap="round" stroke-linejoin="round"/>',
     layers:    '<polygon points="12 2 2 7 12 12 22 7 12 2" stroke-linecap="round" stroke-linejoin="round"/><polyline points="2 17 12 22 22 17" stroke-linecap="round" stroke-linejoin="round"/><polyline points="2 12 12 17 22 12" stroke-linecap="round" stroke-linejoin="round"/>',
     grid:      '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
-    star:      '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" stroke-linecap="round" stroke-linejoin="round"/>'
+    star:      '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" stroke-linecap="round" stroke-linejoin="round"/>',
+    // Z14 slice 4 (connector-gallery polish): distinct marks for the two browser-native
+    // connectors so they read as their own thing in the type-card grid, not a generic "db"
+    // cylinder like the server-backed SQL/MDX/etc. cards. Kept in the same monoline style
+    // (no brand logos/colour — just a friendly nod: a rubber duck for DuckDB, a database
+    // tucked inside a single file for SQLite's "it's just a file" model).
+    duckdb:    '<circle cx="9.5" cy="14.5" r="6"/><circle cx="7.5" cy="7" r="4"/><path d="M4 6.3c-1.2-.4-2.4.1-2.8 1.1-.3.9.2 1.4 1 1.4.9 0 1.9-.6 2.4-1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="6.5" cy="6" r="0.5" fill="currentColor" stroke="none"/>',
+    sqlite:    '<path d="M6 2h8l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" stroke-linecap="round" stroke-linejoin="round"/><polyline points="14 2 14 7 19 7" stroke-linecap="round" stroke-linejoin="round"/><ellipse cx="11" cy="13.3" rx="4" ry="1.6"/><path d="M7 13.3v3.6a4 1.6 0 0 0 8 0v-3.6" stroke-linecap="round" stroke-linejoin="round"/>'
   };
 
   Studio.icon = function (name, size) {
