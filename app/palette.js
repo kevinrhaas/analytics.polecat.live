@@ -88,7 +88,7 @@
       'background:rgba(20,18,26,.44);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px)}' +
       '#cmdkOverlay.open{display:flex}' +
       '#cmdkBox{margin-top:11vh;width:min(620px,92vw);max-height:70vh;display:flex;flex-direction:column;' +
-      'background:var(--bg,#fff);color:var(--text,#1c2333);border:1px solid var(--line,rgba(120,120,140,.28));' +
+      'background:var(--pane,#fff);color:var(--ink,#1c2333);border:1px solid var(--line,rgba(120,120,140,.28));' +
       'border-radius:14px;box-shadow:0 24px 70px -12px rgba(10,8,20,.55),0 4px 14px rgba(10,8,20,.3);overflow:hidden;' +
       'animation:cmdkIn .13s ease-out}' +
       '@keyframes cmdkIn{from{opacity:0;transform:translateY(-8px) scale(.985)}to{opacity:1;transform:none}}' +

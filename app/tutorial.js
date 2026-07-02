@@ -64,42 +64,43 @@
   var _cur = 0;
   var _active = false;
 
-  /* --- CSS (injected once) --- */
+  /* --- CSS (injected once) ---
+     Z10 follow-up: was fixed hex + dead `body.dark-mode`/`body.dark` override rules —
+     this app's dark mode is actually driven by `[data-theme='dark']` on <html>, so those
+     selectors never matched anything and the tooltip always rendered light-only regardless
+     of dark mode. Switched to the shared --pentaho/--pdc/--ink/etc custom properties (same
+     ones studio.css defines), which already vary correctly by both light/dark mode AND the
+     Classic Blue / Polecat color theme — one themed style instead of a dead branch. */
   function injectStyle() {
     if (document.getElementById("st-style")) return;
     var s = document.createElement("style"); s.id = "st-style";
     s.textContent =
       /* semi-transparent spotlight overlay panels */
-      ".st-dim{position:fixed;background:rgba(6,16,38,.62);z-index:9900;pointer-events:all}" +
+      ".st-dim{position:fixed;background:rgba(6,10,20,.62);z-index:9900;pointer-events:all}" +
       /* highlight ring around the target element */
-      "#st-ring{position:fixed;border:2.5px solid #7d3c98;border-radius:7px;z-index:9905;pointer-events:none;box-shadow:0 0 0 4px rgba(125,60,152,.2)}" +
+      "#st-ring{position:fixed;border:2.5px solid var(--pdc,#7d3c98);border-radius:7px;z-index:9905;pointer-events:none;box-shadow:0 0 0 4px color-mix(in srgb,var(--pdc,#7d3c98) 20%,transparent)}" +
       /* full-screen scrim for centered (no-target) steps */
-      "#st-scrim{position:fixed;inset:0;z-index:9899;background:rgba(6,16,38,.62);pointer-events:all}" +
+      "#st-scrim{position:fixed;inset:0;z-index:9899;background:rgba(6,10,20,.62);pointer-events:all}" +
       /* tooltip card */
-      "#st-tip{position:fixed;z-index:9920;background:#fff;border-radius:14px;" +
+      "#st-tip{position:fixed;z-index:9920;background:var(--pane,#fff);border-radius:14px;" +
         "box-shadow:0 16px 56px rgba(6,16,38,.42);width:min(380px,90vw);" +
         "padding:20px 22px 14px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;" +
         "pointer-events:all}" +
-      "body.dark-mode #st-tip,body.dark #st-tip{background:#1a2540;color:#c2d4ea}" +
-      "#st-tip h3{margin:0 0 9px;font-size:16px;font-weight:800;color:#0a1c3d}" +
-      "body.dark-mode #st-tip h3,body.dark #st-tip h3{color:#c2d4ea}" +
-      "#st-tip .st-h{font-size:13.5px;line-height:1.62;color:#243149;margin:0 0 7px}" +
-      "body.dark-mode #st-tip .st-h,body.dark #st-tip .st-h{color:#a0b8cc}" +
-      "#st-tip .st-h b{color:#005bb5}" +
-      "body.dark-mode #st-tip .st-h b,body.dark #st-tip .st-h b{color:#5da0e0}" +
-      "#st-tip .st-sub{font-size:11.5px;color:#6e809a;line-height:1.5;margin:0 0 13px;font-style:italic}" +
-      "body.dark-mode #st-tip .st-sub,body.dark #st-tip .st-sub{color:#5d7890}" +
+      "#st-tip h3{margin:0 0 9px;font-size:16px;font-weight:800;color:var(--ink,#0a1c3d)}" +
+      "#st-tip .st-h{font-size:13.5px;line-height:1.62;color:var(--ink,#243149);margin:0 0 7px}" +
+      "#st-tip .st-h b{color:var(--pentaho,#005bb5)}" +
+      "#st-tip .st-sub{font-size:11.5px;color:var(--muted,#6e809a);line-height:1.5;margin:0 0 13px;font-style:italic}" +
       "#st-tip .st-ft{display:flex;align-items:center;gap:8px}" +
       "#st-tip .st-dots{display:flex;gap:5px;margin-right:4px}" +
-      "#st-tip .st-dots i{width:6px;height:6px;border-radius:50%;background:#c8d0dc;display:block}" +
-      "#st-tip .st-dots i.on{background:#7d3c98}" +
-      "#st-tip .st-skip{background:none;border:0;color:#8a9cb0;font-size:12px;cursor:pointer;padding:0}" +
-      "#st-tip .st-skip:hover{color:#243149}" +
+      "#st-tip .st-dots i{width:6px;height:6px;border-radius:50%;background:var(--line,#c8d0dc);display:block}" +
+      "#st-tip .st-dots i.on{background:var(--pdc,#7d3c98)}" +
+      "#st-tip .st-skip{background:none;border:0;color:var(--faint,#8a9cb0);font-size:12px;cursor:pointer;padding:0}" +
+      "#st-tip .st-skip:hover{color:var(--ink,#243149)}" +
       "#st-tip .st-sp{flex:1}" +
-      "#st-tip button.st-btn{border:1px solid #d5dce8;background:#f5f8fc;color:#16233b;border-radius:8px;padding:7px 14px;font-size:13px;font-weight:700;cursor:pointer;margin-left:4px}" +
-      "#st-tip button.st-btn:hover{border-color:#005bb5;color:#005bb5}" +
-      "#st-tip button.st-btn.pri{background:#7d3c98;border-color:transparent;color:#fff}" +
-      "#st-tip button.st-btn.pri:hover{background:#8e49ab}";
+      "#st-tip button.st-btn{border:1px solid var(--line,#d5dce8);background:var(--field,#f5f8fc);color:var(--ink,#16233b);border-radius:8px;padding:7px 14px;font-size:13px;font-weight:700;cursor:pointer;margin-left:4px}" +
+      "#st-tip button.st-btn:hover{border-color:var(--pentaho,#005bb5);color:var(--pentaho,#005bb5)}" +
+      "#st-tip button.st-btn.pri{background:var(--pdc,#7d3c98);border-color:transparent;color:#fff}" +
+      "#st-tip button.st-btn.pri:hover{background:color-mix(in srgb,var(--pdc,#7d3c98) 85%,black)}";
     document.head.appendChild(s);
   }
 

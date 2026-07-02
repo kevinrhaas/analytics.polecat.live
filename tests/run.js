@@ -1665,6 +1665,22 @@ function serve() {
     ok("welcome tour dismisses + persists", await gp.evaluate(() => !document.querySelector("#studio-welcome") && localStorage.getItem("studio-welcome-seen") === "1"));
     await gp.click("#btnAbout"); await gp.waitForTimeout(120);
     ok("ⓘ Tour reopens the welcome", await gp.evaluate(() => !!document.querySelector("#studio-welcome")));
+
+    // Z10 follow-up: the welcome tour was fixed hex (Classic-Blue-only regardless of the
+    // app theme picker) — now themed via the shared --pentaho/--pdc/--pane/etc vars.
+    const wThemeBefore = await gp.evaluate(() => ({
+      hd: getComputedStyle(document.querySelector("#studio-welcome .sw-hd")).backgroundImage,
+      card: getComputedStyle(document.querySelector("#studio-welcome .sw")).backgroundColor
+    }));
+    await gp.evaluate(() => { document.documentElement.setAttribute("data-app-theme", "polecat"); document.documentElement.setAttribute("data-theme", "dark"); });
+    await gp.waitForTimeout(80);
+    const wThemeAfter = await gp.evaluate(() => ({
+      hd: getComputedStyle(document.querySelector("#studio-welcome .sw-hd")).backgroundImage,
+      card: getComputedStyle(document.querySelector("#studio-welcome .sw")).backgroundColor
+    }));
+    ok("Z10: welcome tour header + card follow the app theme (Classic->Polecat, light->dark) instead of fixed hex",
+      wThemeAfter.hd !== wThemeBefore.hd && wThemeAfter.card !== wThemeBefore.card && wThemeBefore.card === "rgb(255, 255, 255)",
+      JSON.stringify({ before: wThemeBefore, after: wThemeAfter }));
     await gp.close();
 
     // ---- CDA data source CRUD (My Data Sources library section) ----
@@ -7223,6 +7239,23 @@ function serve() {
       return { ok: step === 1 && !!ring && dims.length >= 2, step: step, ring: !!ring, dims: dims.length };
     });
     ok("J6: Next advances to step 1 with spotlight ring and dim panels", j6Step1.ok, JSON.stringify(j6Step1));
+
+    // Z10 follow-up: tutorial spotlight ring + tooltip were fixed hex with dead
+    // body.dark-mode/body.dark override rules (this app's dark mode is [data-theme='dark']
+    // on <html>, so those never matched) — now themed via the shared --pdc/--pane vars.
+    const j6ThemeBefore = await page.evaluate(function () {
+      return { ring: getComputedStyle(document.getElementById("st-ring")).borderColor, tip: getComputedStyle(document.getElementById("st-tip")).backgroundColor };
+    });
+    await page.evaluate(function () { window.__studioAppTheme.set("polecat"); document.documentElement.setAttribute("data-theme", "dark"); });
+    await page.waitForTimeout(80);
+    const j6ThemeAfter = await page.evaluate(function () {
+      return { ring: getComputedStyle(document.getElementById("st-ring")).borderColor, tip: getComputedStyle(document.getElementById("st-tip")).backgroundColor };
+    });
+    await page.evaluate(function () { window.__studioAppTheme.set("classic"); document.documentElement.setAttribute("data-theme", "light"); });
+    await page.waitForTimeout(80);
+    ok("Z10: tutorial spotlight ring + tooltip follow the app theme instead of dead fixed hex",
+      j6ThemeAfter.ring !== j6ThemeBefore.ring && j6ThemeAfter.tip !== j6ThemeBefore.tip,
+      JSON.stringify({ before: j6ThemeBefore, after: j6ThemeAfter }));
 
     // J6-4: Escape closes the tutorial
     await page.keyboard.press("Escape");

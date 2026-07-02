@@ -28,22 +28,26 @@
   function injectStyle() {
     if (document.getElementById("sw-style")) return;
     var st = document.createElement("style"); st.id = "sw-style";
+    // Z10 follow-up: themed via the same --pentaho/--pdc/--ink/etc custom properties as
+    // studio.css (this <style> lands in the same document, so it sees them) instead of
+    // fixed hex — so the tour now follows both light/dark mode AND the Classic Blue /
+    // Polecat color theme instead of always rendering Classic-Blue-only.
     st.textContent =
-      "#studio-welcome{position:fixed;inset:0;z-index:95;display:flex;align-items:center;justify-content:center;background:rgba(10,22,46,.55);backdrop-filter:blur(3px);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}" +
-      "#studio-welcome .sw{background:#fff;border-radius:16px;box-shadow:0 28px 80px rgba(8,20,45,.5);width:min(560px,94vw);overflow:hidden}" +
-      "#studio-welcome .sw-hd{background:linear-gradient(120deg,#0a1c3d,#1c4a86);color:#fff;padding:26px 28px;display:flex;gap:16px;align-items:center}" +
+      "#studio-welcome{position:fixed;inset:0;z-index:95;display:flex;align-items:center;justify-content:center;background:rgba(10,10,15,.55);backdrop-filter:blur(3px);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}" +
+      "#studio-welcome .sw{background:var(--pane,#fff);border-radius:16px;box-shadow:0 28px 80px rgba(8,20,45,.5);width:min(560px,94vw);overflow:hidden}" +
+      "#studio-welcome .sw-hd{background:linear-gradient(120deg,var(--pentaho,#005bb5),var(--pdc,#7d3c98));color:#fff;padding:26px 28px;display:flex;gap:16px;align-items:center}" +
       "#studio-welcome .sw-ic{width:52px;height:52px;border-radius:13px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:800;flex:0 0 auto}" +
       "#studio-welcome .sw-hd h1{margin:0;font-size:19px;font-weight:800}" +
-      "#studio-welcome .sw-bd{padding:20px 28px 8px;color:#243149;font-size:14px;line-height:1.6}#studio-welcome .sw-bd b{color:#005bb5}" +
-      "#studio-welcome .sw-sub{color:#5d6b82;font-size:13px;margin-top:10px;line-height:1.55}" +
+      "#studio-welcome .sw-bd{padding:20px 28px 8px;color:var(--ink,#243149);font-size:14px;line-height:1.6}#studio-welcome .sw-bd b{color:var(--pentaho,#005bb5)}" +
+      "#studio-welcome .sw-sub{color:var(--muted,#5d6b82);font-size:13px;margin-top:10px;line-height:1.55}" +
       "#studio-welcome .sw-dots{display:flex;gap:6px;justify-content:center;padding:6px 0 0}" +
-      "#studio-welcome .sw-dots i{width:7px;height:7px;border-radius:50%;background:#cfd8e6;display:block}#studio-welcome .sw-dots i.on{background:#7d3c98}" +
+      "#studio-welcome .sw-dots i{width:7px;height:7px;border-radius:50%;background:var(--line,#cfd8e6);display:block}#studio-welcome .sw-dots i.on{background:var(--pdc,#7d3c98)}" +
       "#studio-welcome .sw-ft{display:flex;align-items:center;gap:10px;padding:16px 28px 22px}" +
-      "#studio-welcome .sw-skip{background:none;border:0;color:#5d6b82;font-size:13px;cursor:pointer}#studio-welcome .sw-skip:hover{color:#16233b}" +
+      "#studio-welcome .sw-skip{background:none;border:0;color:var(--muted,#5d6b82);font-size:13px;cursor:pointer}#studio-welcome .sw-skip:hover{color:var(--ink,#16233b)}" +
       "#studio-welcome .sp{flex:1}" +
-      "#studio-welcome button.b{border:1px solid #d9e0ec;background:#f5f8fc;color:#16233b;border-radius:9px;padding:9px 16px;font-size:13.5px;font-weight:700;cursor:pointer}" +
-      "#studio-welcome button.b:hover{border-color:#005bb5;color:#005bb5}" +
-      "#studio-welcome button.b.pri{background:#7d3c98;border-color:transparent;color:#fff}#studio-welcome button.b.pri:hover{background:#8e49ab}";
+      "#studio-welcome button.b{border:1px solid var(--line,#d9e0ec);background:var(--field,#f5f8fc);color:var(--ink,#16233b);border-radius:9px;padding:9px 16px;font-size:13.5px;font-weight:700;cursor:pointer}" +
+      "#studio-welcome button.b:hover{border-color:var(--pentaho,#005bb5);color:var(--pentaho,#005bb5)}" +
+      "#studio-welcome button.b.pri{background:var(--pdc,#7d3c98);border-color:transparent;color:#fff}#studio-welcome button.b.pri:hover{background:color-mix(in srgb,var(--pdc,#7d3c98) 85%,black)}";
     document.head.appendChild(st);
   }
 

@@ -629,6 +629,19 @@
   `app/welcome.js` (first-run tour modal), and likely `app/tutorial.js`/`app/gate.js`/`app/palette.js` on
   inspection — worth a dedicated follow-up slice to convert those to `var(--pentaho)`/`var(--pdc)`/etc.
   so Polecat is fully coherent everywhere, not just the main 3-pane chrome + Settings/Home.
+- v192: **Z10 follow-up: theme the welcome tour + tutorial + command palette** — converted
+  `app/welcome.js`'s fixed-hex style block to the shared `--pentaho`/`--pdc`/`--ink`/`--pane`/etc custom
+  properties, so the first-run tour now follows both light/dark mode and Classic Blue/Polecat instead of
+  always rendering Classic-Blue-only. Found and fixed a **real latent bug** while doing the same pass on
+  `app/tutorial.js`: its spotlight ring/tooltip had `body.dark-mode`/`body.dark` override rules that never
+  matched anything — this app's dark mode is actually `[data-theme='dark']` on `<html>`, not a body class
+  — so the interactive tutorial has rendered light-only in dark mode since it shipped (v101); replaced
+  with the same shared CSS vars, fixing dark mode AND adding Polecat support in one pass. Also fixed
+  `app/palette.js` (⌘K) referencing a nonexistent `--text` custom property (silently always falling back
+  to its hardcoded default) — corrected to `--ink`/`--pane`. `app/gate.js` (passcode screen) deliberately
+  left as its own fixed brand screen — reasonable given it renders before the app's saved theme
+  preference is even loaded. 2 new tests (welcome header/card + tutorial ring/tooltip recolor across
+  theme+mode). Test suite 934/934.
 
 ## NEXT (top = do first)
 
