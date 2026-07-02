@@ -7,10 +7,21 @@
 > publishes the live site at https://analytics.polecat.live. One commit per coherent improvement so
 > progress survives.
 >
-> **REFINEMENT CADENCE:** roughly every ~5th run (or whenever the feature backlog is thin), do a
-> **track H refinement pass** instead of a new feature — step back and make the app cleaner, more
-> logical, more elegant, and more delightful (IA/menus, onboarding, visual polish, code health).
-> Small, safe, well-tested slices; never a wild rewrite. This is ongoing, not one-and-done.
+> **SWEEP CADENCE:** roughly every ~5th run (or whenever the feature backlog is thin), spend the run on a
+> **sweep** instead of a new feature. **Rotate through three sweep types** (track which you did last in the
+> DONE log so they cycle):
+> 1. **UX / delight sweep (track H):** step back and make the app cleaner, more logical, more elegant, and
+>    more **fun, interactive, engaging, and sexy** — IA/menus, onboarding, motion/micro-delight, visual
+>    polish. Small, safe, well-tested slices; never a wild rewrite.
+> 2. **Architecture & code-review sweep (track L):** review the codebase like a senior engineer — module
+>    boundaries, dead code, duplication, global-state creep, perf (bundle size / render cost), a11y,
+>    error handling, test coverage per feature, and the chart-extension API surface. Fix ONE concrete
+>    health issue per sweep (refactor behind green tests, no behavior change) and log findings.
+> 3. **Innovation / roadmap sweep (track N):** look **back** at everything shipped and **forward** at
+>    what's now possible, and be **exceptionally innovative** — add 2–4 genuinely leading ideas to the
+>    Track N innovation backlog (below), then optionally build the smallest delightful slice of one.
+>    The north star is meant to keep expanding; this sweep is how it grows.
+> This is ongoing, not one-and-done. Keep every sweep shippable and tested.
 
 > **GOAL / NORTH STAR:** build **Analytics Dashboard Studio** into a best-in-class, gorgeous, fun,
 > industry-leading **analytics application** (analytics.polecat.live) — not just a dashboard builder.
@@ -1035,6 +1046,90 @@ gated UI. Keep building awesome features regardless; Simple mode just curates wh
 - v103: **F17: Violin plot + H-track: dashboard accent color** — Violin plot (22nd chart type, Distribution group, CDF-only): Gaussian KDE per category produces a symmetric filled silhouette (wider = denser); Silverman bandwidth selection; optional IQR box + median line; hover tooltip (n, median, Q1/Q3, min/max); PDC.violin extension in studio-charts.js (pdc-ui.js pristine); gallery SVG thumbnail; model registry. Dashboard accent color (H-track): 'Accent color' field in dashboard inspector with 6 preset swatches + custom hex picker; stored as spec.themeColor; propagated to preview + exported CDF as :root{--pentaho:...} CSS override; empty = default Pentaho blue. Test suite 571/571.
 - v102: **F16: Step chart + H-track: gallery group filter tabs** — F16: Step/staircase chart (21st type, Trend group, CDF-only): right-angle horizontal-then-vertical step transitions between discrete values; area fill option; animated stroke-dashoffset entrance; hover tooltips; PDC.step extension in studio-charts.js (pdc-ui.js pristine); gallery thumbnail; model registry + newPanel auto-mapping. H-track: chart gallery group filter pills (`.cg-filter`/`.cg-tab`): narrow the 21-type gallery to one category — clicking a pill shows only that group's cards; active pill in brand blue; cards tagged with `dataset.grp`; "All" pill resets. Test suite 565/565.
 - v100: **J5: chart type descriptions in the gallery + J3: Quick help contextual tips** — J5: every chart gallery card now has a `.lb-desc` one-line subtitle (e.g. "Compare values across categories") from a new `desc` field in all 28 `Studio.CHARTS` entries; 8px faint text, 2-line clamp. J3: every inspector type (Dashboard, Panel, KPI, Filter, DA) gets a collapsed-by-default "Quick help" section with 3 contextual tips; `quickHelp(body, type)` helper in studio.js; `.qh-tips`/`.qh-tip` CSS. H-track collapse tests updated to pick an already-expanded section. Test suite 553/553.
+
+### L. Architecture & code-review sweeps (RECURRING — sweep type 2; see SWEEP CADENCE)
+Every ~5th run's architecture slot: review the codebase like a demanding senior engineer and fix **one**
+concrete health issue behind green tests (no behavior change). Rotate the lens each time so the whole app
+gets covered over time:
+- **Module boundaries** — model/render/studio/exporters/shell should stay cohesive; catch cross-layer leaks
+  and functions that have drifted into the wrong file. `studio.js` is the largest surface — watch for
+  extract-worthy chunks (inspector, gallery, menus) as it grows.
+- **Dead code & duplication** — unused helpers, copy-pasted logic (e.g. repeated SVG-embed / color-token /
+  format code across chart extensions), stale CSS. The Z0 CDE-exporter removal lives here too.
+- **Global-state creep** — the `Studio.*` namespace and `PDC._reg` redraw registry: keep them intentional,
+  documented, and leak-free (listeners cleaned up, no orphaned iframes).
+- **Performance budget** — track total JS/CSS size and preview render cost; lazy-load heavy/rare paths
+  (this is the natural home for lazy-loading the Z14 wasm engines); avoid O(n²) in chart layout code.
+- **Accessibility** — periodic keyboard-only + screen-reader pass; color-contrast in every theme×mode;
+  focus management in modals/drawers/slideshow.
+- **Chart-extension API** — 51 types now register through ad-hoc patterns; consider formalizing a tiny
+  `Studio.defineChart({type, render, opts, thumb, autoPick})` contract so new types are uniform and testable.
+- **Test health** — coverage per feature, flaky/slow checks, and a fast smoke subset for quick loops.
+> **Findings log (append newest on top; keep short):** _(none yet — first architecture sweep will seed this)_
+
+### N. Innovation backlog — leading-edge concepts (RECURRING/GROWING — sweep type 3; see SWEEP CADENCE)
+> This is the "look back + look forward, be exceptionally innovative" list (user-requested 2026-07-02).
+> The north star is **meant to keep expanding.** On an innovation sweep: add 2–4 genuinely novel ideas here,
+> then optionally ship the smallest delightful slice of one. Everything must still honor the constraints:
+> **pure HTML/JS, no backend, config local, self-contained exports, game-like Polecat aesthetic.** Grouped
+> by theme; not ordered — pull whatever is ripe. Promote an idea into a Z/lettered track once it's committed to.
+
+**N-AI — Intelligence layer (bring-your-own-key, browser-side).**
+- **Natural-language → dashboard:** describe what you want ("weekly revenue by region with a target line")
+  and generate a starter spec — NL → chart type + column mapping + query. BYO API key stored locally.
+- **NL query bar over a live source:** text → SQL → chart. Becomes real the moment Z14 DuckDB-Wasm lands
+  (query a Parquet/CSV by asking in English). The killer combo with the connector track.
+- **Auto-insight narration ("Explain this chart"):** client-side stats detect trend, seasonality, outliers,
+  and biggest movers, then write a one-paragraph plain-English summary + auto-place callouts/markers on the
+  notable points. No API needed — pure JS math (ties to Z7).
+- **Smart chart recommender:** given a bound DA's shape (cardinality, types, row count), suggest the 3 best
+  chart types with a why. Guides newcomers; upgrades the gallery from a menu to an assistant.
+
+**N-FUN — Engagement, delight & "game-like."**
+- **Command palette (⌘K / Ctrl-K):** fuzzy-jump to any action, chart type, data source, example, or setting.
+  The single highest-leverage "feels modern & fast" upgrade.
+- **Story / scrollytelling mode:** author an ordered, annotated narrative through a dashboard (extends
+  Slideshow) — each step pans/zooms/highlights and shows a caption. Present findings, not just charts.
+- **Live "what-if" parameter sliders:** on-canvas sliders that drive derived series / forecasts and animate
+  the charts as you drag — analysis as play (pairs with Z7).
+- **Build-completeness meter + gentle achievements:** a tasteful, game-like progress ring that nudges toward
+  a great dashboard (has KPIs? a target? a filter? a title?) — on-brand fun without being corny.
+- **Data-driven motion system:** spring-physics transitions between filter/data states so numbers *move*
+  meaningfully; a coherent motion language across the app (respect reduced-motion).
+- **Delight moments:** confetti/spark on first publish, playful empty-states, easter-eggs — small, rare, tasteful.
+
+**N-DATA — Analytical depth (toward standalone analytic apps).**
+- **Cross-filter / brushing everywhere:** click or brush any chart to filter the whole dashboard, with a
+  visible active-filter bar and one-click clear. The feature that makes a dashboard feel *alive*.
+- **Dashboard-wide formula language:** calculated fields across data sources (not just CDA calc columns) —
+  a small safe expression engine (`[revenue] - [cost]`, `pctChange(...)`, `movingAvg(...)`).
+- **Period-over-period / compare mode:** pick two ranges or two sources and diff them across every panel.
+- **Pivot / crosstab builder** and **anomaly + correlation explorer** as first-class analysis surfaces.
+
+**N-DIST — Distribution & platform reach (still backend-free).**
+- **Embeddable single-chart widget:** export one panel as a tiny self-contained embed snippet/iframe.
+- **Installable PWA + offline:** we already ship a webmanifest — make Studio installable and fully offline
+  (service worker caching the app shell + examples). A dashboard app you can "install."
+- **Client-side PNG/PDF export of a whole dashboard** (canvas/`html-to-image`-style, dependency-light) and
+  print-perfect layouts — for sharing where a link won't do.
+- **Shareable state links / snapshots:** encode the full spec (or a diff) into a URL/file so a dashboard
+  travels without a server (extends the existing `#hash` deep-link).
+- **Local version history & visual diff:** timeline of auto-saved spec snapshots with a side-by-side diff
+  (beyond in-session undo) — "time travel" for a dashboard.
+
+**N-DESIGN — Make it unmistakably sexy.**
+- **Theme studio & gallery:** author/share custom themes (theme × light/dark, extends Z10); a few stunning
+  presets (warm Polecat, neon, editorial, high-contrast); optional per-dashboard theme.
+- **Chart "skins":** alternate render moods — hand-drawn/sketch, glass/depth, editorial-minimal — as a
+  toggle, so the same data can feel playful or boardroom.
+- **Depth & material polish:** tasteful gradients, soft shadows, glassmorphism accents pulled from
+  polecat.live; a coherent elevation/spacing scale.
+
+**N-DEV — Power-user & authoring.**
+- **Live JSON spec editor** with schema validation + inline errors (edit the `.studio.json` directly, see
+  the canvas update) — power users and debugging.
+- **Keyboard-first everything** (builds on the ⌘K palette + existing shortcuts) and a shortcuts cheat-sheet.
+- **Dashboard templates/variables** — parameterized starting points beyond the examples.
 
 ## Quality bar
 Every iteration: builds, `tests/run.js` green, UI cohesive, README/STATUS updated, commit + push.
