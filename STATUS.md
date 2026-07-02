@@ -710,10 +710,10 @@
   affordances). Same id/behavior, just relocated. Fixed a latent `--text-secondary` CSS var bug found
   along the way (nonexistent token, corrected to `--muted`). 1 new test. Test suite 952/952.
 
-- v202: **N-FUN slice 4: command palette recent/frequent ranking** — see Z-track N entry above. 3 new
+- v203: **N-FUN slice 4: command palette recent/frequent ranking** — see Z-track N entry above. 3 new
   tests, suite 955/955.
-- v203: **Z7 slice 4: statistical KPI computations** — see Z7 entry above. 7 new tests, suite 962/962.
-- v204: **Track L architecture sweep (accessibility): modal() close button aria-label** — see Track L
+- v204: **Z7 slice 4: statistical KPI computations** — see Z7 entry above. 7 new tests, suite 962/962.
+- v205: **Track L architecture sweep (accessibility): modal() close button aria-label** — see Track L
   findings log above. 2 new tests, suite 964/964.
 
 ## NEXT (top = do first)
@@ -1056,7 +1056,7 @@ chart options / derived series / KPI computations. Keep it light (vanilla-JS mat
 > **Still open:** seasonal trend lines (the "-Winters" part of Holt-Winters), extending trend/forecast to
 > bars/stacked/combo, and the statistical-functions half (regression beyond scatter's existing trend line,
 > percentiles, z-scores, correlation, distributions) as KPI computations.
-> ✓ **Slice 4 shipped v203 — statistical KPI computations, first cut**: KPI inspector gets an
+> ✓ **Slice 4 shipped v204 — statistical KPI computations, first cut**: KPI inspector gets an
 > **Aggregation** picker (First row / Sum / Average / Median / Min / Max / P90 / P95 / Std deviation);
 > non-default choices recompute the tile's value across every row the bound query returns instead of only
 > reading row 0. `Studio.aggregate(values, agg)` + `Studio.percentileOf(sorted, p)` in model.js are pure,
@@ -1593,7 +1593,7 @@ gets covered over time:
   `Studio.defineChart({type, render, opts, thumb, autoPick})` contract so new types are uniform and testable.
 - **Test health** — coverage per feature, flaky/slow checks, and a fast smoke subset for quick loops.
 > **Findings log (append newest on top; keep short):**
-> - **v204 (accessibility lens):** the shared `modal()` helper's × close button — the dialog-close pattern
+> - **v205 (accessibility lens):** the shared `modal()` helper's × close button — the dialog-close pattern
 >   every builder modal is built on (New data source, Connections manager, Join builder, Keyboard
 >   shortcuts, KTR builder, …) — appended only an SVG icon with no `aria-label`, so a screen reader
 >   announced it as a bare "button" with no indication of what it does. Every *other* close affordance in
@@ -1672,7 +1672,7 @@ gets covered over time:
 > ✓ **Slice 3 shipped v178**: every static command now has an icon (was only the 5 nav rows) — a coherent,
 > scannable icon-per-row menu. 1 new test, suite 884/884. **Still open:** include chart types
 > (add-panel-of-type) as commands.
-> ✓ **Slice 4 shipped v202**: recent/frequent command ranking — a small `studio-cmdk-usage` localStorage
+> ✓ **Slice 4 shipped v203**: recent/frequent command ranking — a small `studio-cmdk-usage` localStorage
 > map (label→{count,last}) records every command actually run; an empty-query open now leads with your
 > most-recently-used commands (classic command-palette pattern), and a non-empty query gives previously-run
 > commands a small tie-breaking boost among equally-relevant matches. Included in Clear local data. 3 new
