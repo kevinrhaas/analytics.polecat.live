@@ -455,6 +455,21 @@
   div instead, so the very first example using one would have silently failed; widened the selector rather
   than special-casing the new example. `docs/index.html` example count corrected 9→10. 3 new Z13 tests.
   Test suite 812/812.
+- v160: **Z14 slice 1: DuckDB-Wasm connector** — new data-source type "DuckDB (remote file)" queries a
+  Parquet/CSV file over plain HTTP (S3/any static host) entirely in the browser, no backend/proxy/
+  credentials. `app/duckdb.js` (new, browser-only file, not loaded by the Node CLI tools): lazy-loads the
+  duckdb-wasm engine from jsDelivr on first use (`ensureEngine`, cached), `testConnection(cfg)` registers
+  the file + runs DESCRIBE + a 5-row sample (always resolves `{ok,...}`, never rejects, so a bad URL/CORS/
+  network failure shows a clear inline error instead of a stuck spinner), `query(cfg, sql)` runs SQL
+  against the file aliased as view `t`. New Source builder + DA inspector both get File URL/Format fields
+  + a "Test connection & detect columns" button (mirrors SQL's "Detect from query" UX); Data preview's
+  "Run live" button (previously Pentaho-only) now also appears for duckdb DAs and queries the real file.
+  `exportCDA` excludes duckdb DAs from `.cda` XML (not a real Pentaho source); preview/CDF export need no
+  changes since they already render any DA from its declared columns via offline sample data. `docs/
+  index.html` updated. 12 new Z14 tests (stub `Studio.DuckDB` at the boundary — this sandbox's browser has
+  no internet route, so a real network call would only prove "unreachable", not exercise the integration;
+  the real jsDelivr URL + duckdb-wasm API surface were verified reachable via curl before shipping). Test
+  suite 828/828.
 
 ## NEXT (top = do first)
 
@@ -532,6 +547,18 @@ as two connector types in the Z3/Z4 Data-Source model; one shippable slice per l
 - Sequence (one slice each): (1) DuckDB-Wasm connector: config form + lazy loader + Test + column detect +
   query→model; (2) parquet & csv coverage + aggregation smoke test; (3) SQLite-WASM-HTTP connector: config +
   loader + Test + schema introspect; (4) polish — error surfacing, connector-gallery cards/logos, docs.
+> ✓ **Slice 1 shipped v160**: DuckDB-Wasm connector — "DuckDB (remote file)" source type in both the New
+> Source builder and the DA inspector (File URL + Format + Query fields), `app/duckdb.js` lazy-loads the
+> engine from jsDelivr on first Test/Run-live click (cached across calls), `testConnection`/`query` never
+> reject (always `{ok,...}`) so a bad URL/CORS/network failure surfaces a clear inline message instead of
+> hanging; Data preview's "Run live" now works for duckdb DAs with no Pentaho connection needed; `exportCDA`
+> excludes duckdb DAs from `.cda` (not a real Pentaho source) — preview/CDF export already handle any DA
+> generically via its declared columns, so no other exporter changes were needed. 12 new tests (network
+> boundary stubbed — this sandbox has no internet route to actually verify a live fetch; the CDN URL +
+> duckdb-wasm API surface were confirmed reachable via curl first). **Still open for Z14**: (2) parquet/csv
+> aggregation smoke test against a *real* hosted file (needs a live environment with internet — verify by
+> hand once published), (3) SQLite-WASM-HTTP connector, (4) connector-gallery cards/logos once Z3/Z4 have a
+> real gallery UI to add them to (today the New Source builder is plain type-cards, no logo treatment yet).
 
 **Z4 — Data Source library + connectors.** Expand beyond CDA to direct querying of leading providers,
 browser-only via each provider's REST/SQL API with locally-saved credentials. Priority connectors:

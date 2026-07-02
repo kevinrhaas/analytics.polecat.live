@@ -155,7 +155,7 @@ function serve() {
       const modalGone = !document.querySelector(".modal .dsb");
       return { types, chips, prevRows, prevCols, saved: !!da, cols: da ? da.columns.join(",") : "", inLib, modalGone };
     });
-    ok("builder opens with all source-type cards", built.types === 5, JSON.stringify({ types: built.types, err: built.err }));
+    ok("builder opens with all source-type cards", built.types === 6, JSON.stringify({ types: built.types, err: built.err }));
     ok("Detect reads columns from the SQL + previews rows", built.chips.join(",") === "region,total" && built.prevRows === 5 && built.prevCols === 2, JSON.stringify(built));
     ok("Create saves the data source into the library", built.saved && built.cols === "region,total" && built.inLib && built.modalGone, JSON.stringify(built));
 
@@ -427,6 +427,125 @@ function serve() {
     ok("G3: 'Import .ktr…' button is visible in the Kettle DA editor", g3BtnCheck.hasImpBtn, JSON.stringify(g3BtnCheck));
 
     // close modal
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(100);
+
+    // ---- Z14 slice 1: DuckDB-Wasm connector (query a remote Parquet/CSV over HTTP, no backend) ----
+    // Studio.DuckDB.{testConnection,query} are stubbed here rather than hitting the real CDN/file —
+    // this sandbox's browser has no route to the public internet, so a real lazy-load would only
+    // prove "network unreachable", not exercise the integration. The stub still runs the exact same
+    // click handlers / draft-mutation / table-render code a real success or failure would.
+    console.log("\n• Z14: DuckDB-Wasm connector");
+    const dkModel = await page.evaluate(() => ({
+      hasApi: typeof Studio.DuckDB === "object" && typeof Studio.DuckDB.testConnection === "function" && typeof Studio.DuckDB.query === "function" && typeof Studio.DuckDB.ensureEngine === "function",
+      parquet: Studio.DuckDB_detectFormat("https://bucket.s3.amazonaws.com/data.parquet"),
+      csv: Studio.DuckDB_detectFormat("https://bucket.s3.amazonaws.com/data.CSV?x=1"),
+      fallback: Studio.DuckDB_detectFormat("https://bucket.s3.amazonaws.com/data")
+    }));
+    ok("Z14: Studio.DuckDB exposes testConnection()/query()/ensureEngine()", dkModel.hasApi, JSON.stringify(dkModel));
+    ok("Z14: detectFormat reads .parquet by extension", dkModel.parquet === "parquet", JSON.stringify(dkModel));
+    ok("Z14: detectFormat reads .csv by extension (case/querystring-insensitive)", dkModel.csv === "csv", JSON.stringify(dkModel));
+    ok("Z14: detectFormat falls back to parquet for unknown extensions", dkModel.fallback === "parquet", JSON.stringify(dkModel));
+
+    const dkCard = await page.evaluate(async () => {
+      document.getElementById("btnNewDS").click();
+      await new Promise((r) => setTimeout(r, 80));
+      const m = document.querySelector(".modal .dsb"); if (!m) return { err: "modal missing" };
+      const card = [].slice.call(m.querySelectorAll(".dsb-type")).find((c) => c.textContent.includes("DuckDB"));
+      if (!card) return { err: "no DuckDB card" };
+      card.click();
+      await new Promise((r) => setTimeout(r, 60));
+      const fieldLabels = [].slice.call(m.querySelectorAll(".dsb-qsec .field label")).map((l) => l.textContent);
+      const jndiField = [].slice.call(m.querySelectorAll(".dsb > .field")).find((f) => /Connection \(JNDI\)/.test(f.textContent));
+      const jndiHidden = jndiField ? getComputedStyle(jndiField).display === "none" : false;
+      const detectFromQueryVisible = [].slice.call(m.querySelectorAll(".dsb-mini")).some((b) => /Detect from query/.test(b.textContent) && getComputedStyle(b).display !== "none");
+      return {
+        hasFileUrl: fieldLabels.some((f) => /File URL/.test(f)),
+        hasFormat: fieldLabels.some((f) => /Format/.test(f)),
+        hasTestBtn: !!m.querySelector(".dsb-duckdb-test"),
+        jndiHidden, detectFromQueryVisible
+      };
+    });
+    ok("Z14: DuckDB card shows File URL + Format fields", dkCard.hasFileUrl && dkCard.hasFormat, JSON.stringify(dkCard));
+    ok("Z14: DuckDB card shows a Test connection button", dkCard.hasTestBtn, JSON.stringify(dkCard));
+    ok("Z14: DuckDB card hides the JNDI connection field (doesn't apply)", dkCard.jndiHidden, JSON.stringify(dkCard));
+    ok("Z14: DuckDB card hides the SQL-alias 'Detect from query' button", !dkCard.detectFromQueryVisible, JSON.stringify(dkCard));
+
+    const dkTestOk = await page.evaluate(async () => {
+      const orig = Studio.DuckDB.testConnection;
+      Studio.DuckDB.testConnection = function () {
+        return Promise.resolve({ ok: true, columns: [{ name: "region", type: "VARCHAR" }, { name: "revenue", type: "DOUBLE" }], cols: ["region", "revenue"], rows: [["East", 120], ["West", 90]] });
+      };
+      const m = document.querySelector(".modal .dsb"); if (!m) return { err: "modal missing" };
+      const urlInp = m.querySelector(".dsb-qsec .field input");
+      urlInp.value = "https://bucket.s3.amazonaws.com/sales.parquet"; urlInp.dispatchEvent(new Event("input", { bubbles: true }));
+      m.querySelector(".dsb-duckdb-test").click();
+      await new Promise((r) => setTimeout(r, 60));
+      const chips = [].slice.call(m.querySelectorAll(".dsb-chip")).map((c) => c.textContent.replace("×", "").trim());
+      const status = (m.querySelector(".dsb-duckdb-status") || {}).textContent || "";
+      Studio.DuckDB.testConnection = orig;
+      return { chips, status };
+    });
+    ok("Z14: a successful Test connection detects columns into chips", dkTestOk.chips.join(",") === "region,revenue", JSON.stringify(dkTestOk));
+    ok("Z14: a successful Test connection shows a ✓ status line", /^✓/.test(dkTestOk.status), JSON.stringify(dkTestOk));
+
+    const dkSaved = await page.evaluate(async () => {
+      const m = document.querySelector(".modal .dsb"); if (!m) return { err: "modal missing" };
+      const idInp = m.querySelector(".field.row .field input"); idInp.value = "s3Sales"; idInp.dispatchEvent(new Event("input", { bubbles: true }));
+      m.querySelector(".dsb-foot .btn-primary").click();
+      await new Promise((r) => setTimeout(r, 80));
+      const da = window.__STUDIO_STATE.catalog.custom.dataAccesses.find((d) => d.id === "s3Sales");
+      return da ? { kind: da.kind, fileUrl: da.fileUrl, fileFormat: da.fileFormat, cols: da.columns.join(",") } : { missing: true };
+    });
+    ok("Z14: saving persists kind/fileUrl/columns on the DA", dkSaved.kind === "duckdb" && dkSaved.fileUrl === "https://bucket.s3.amazonaws.com/sales.parquet" && dkSaved.cols === "region,revenue", JSON.stringify(dkSaved));
+
+    const dkInspector = await page.evaluate(async () => {
+      // authored DAs live in the catalog (library) until used by a panel/KPI — promote it into
+      // the spec first, the same way addFromDA() does, so the DA inspector has something to show.
+      var daDef = window.__STUDIO_STATE.catalog.custom.dataAccesses.find((d) => d.id === "s3Sales");
+      Studio.ensureDA(window.__STUDIO_STATE.spec, daDef);
+      window.__studioSelect({ kind: "da", id: "s3Sales" });
+      await new Promise((r) => setTimeout(r, 60));
+      const insp = document.getElementById("inspBody");
+      const secs = [].slice.call(insp.querySelectorAll(".insp-sec h4")).map((h) => h.textContent);
+      const hasSection = secs.some((s) => /DuckDB-Wasm/.test(s));
+      const liveBtn = [].slice.call(insp.querySelectorAll(".daprev-toolbar .btn")).find((b) => /Run live/.test(b.textContent));
+      return { hasSection, liveBtnTitle: liveBtn ? liveBtn.title : "" };
+    });
+    ok("Z14: DA inspector shows the 'DuckDB-Wasm (remote file)' section for a duckdb DA", dkInspector.hasSection, JSON.stringify(dkInspector));
+    ok("Z14: Data preview offers 'Run live' for a duckdb DA with no active server", /DuckDB-Wasm/.test(dkInspector.liveBtnTitle), JSON.stringify(dkInspector));
+
+    const dkRunLive = await page.evaluate(async () => {
+      Studio.DuckDB.query = function () { return Promise.resolve({ cols: ["region", "revenue"], rows: [["East", 120], ["West", 90]] }); };
+      const insp = document.getElementById("inspBody");
+      const liveBtn = [].slice.call(insp.querySelectorAll(".daprev-toolbar .btn")).find((b) => /Run live/.test(b.textContent));
+      if (!liveBtn) return { err: "no Run live button" };
+      liveBtn.click();
+      await new Promise((r) => setTimeout(r, 60));
+      return { status: (insp.querySelector(".daprev-status") || {}).textContent || "" };
+    });
+    ok("Z14: Run live queries via Studio.DuckDB.query() and shows the live result", /2 rows? · 2 cols? · live/.test(dkRunLive.status), JSON.stringify(dkRunLive));
+
+    const dkTestFail = await page.evaluate(async () => {
+      Studio.DuckDB.testConnection = function () { return Promise.resolve({ ok: false, error: "CORS blocked — the host doesn't allow cross-origin range requests." }); };
+      const insp = document.getElementById("inspBody");
+      const testBtn = [].slice.call(insp.querySelectorAll("button")).find((b) => /Test connection & detect columns/.test(b.textContent));
+      if (!testBtn) return { err: "no test button in inspector" };
+      testBtn.click();
+      await new Promise((r) => setTimeout(r, 60));
+      const status = [].slice.call(insp.querySelectorAll(".hint")).map((h) => h.textContent).find((t) => t.indexOf("✗") === 0) || "";
+      return { status };
+    });
+    ok("Z14: a failed Test connection surfaces a clear inline error, not a stuck spinner", /^✗ CORS blocked/.test(dkTestFail.status), JSON.stringify(dkTestFail));
+
+    const dkExport = await page.evaluate(() => {
+      var sp = JSON.parse(JSON.stringify(window.__STUDIO_STATE.spec));
+      sp.cda.dataAccesses.push({ id: "s3Sales", name: "s3Sales", kind: "duckdb", fileUrl: "https://bucket.s3.amazonaws.com/sales.parquet", fileFormat: "parquet", columns: ["region", "revenue"], params: [], calcColumns: [], cache: true, cacheDuration: 300 });
+      var cda = Studio.exportCDA(sp);
+      return { hasDA: cda.indexOf('id="s3Sales"') >= 0, hasUrl: cda.indexOf("sales.parquet") >= 0 };
+    });
+    ok("Z14: exportCDA excludes duckdb DAs from the .cda XML (not a real Pentaho source)", !dkExport.hasDA && !dkExport.hasUrl, JSON.stringify(dkExport));
+
     await page.keyboard.press("Escape");
     await page.waitForTimeout(100);
 

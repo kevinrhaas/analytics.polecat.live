@@ -682,7 +682,8 @@
     { kind: "mdx", iconName: "cube", name: "MDX / OLAP", desc: "Mondrian cube query (catalog + JNDI)", ph: "SELECT NON EMPTY {[Measures].[Sales]} ON COLUMNS,\n       NON EMPTY {[Markets].Children} ON ROWS\nFROM [SteelWheelsSales]" },
     { kind: "kettle", iconName: "gear", name: "Kettle / PDI", desc: "A .ktr transformation step as a data source", ph: "/public/etl/my-transform.ktr   (step: Output)" },
     { kind: "mql", iconName: "metadata", name: "Metadata", desc: "Pentaho Metadata (MQL) query", ph: "<mql>…</mql>" },
-    { kind: "scripting", iconName: "code", name: "Scripting", desc: "Scripted (Kettle/Beanshell) data access", ph: "// return rows…" }
+    { kind: "scripting", iconName: "code", name: "Scripting", desc: "Scripted (Kettle/Beanshell) data access", ph: "// return rows…" },
+    { kind: "duckdb", iconName: "db", name: "DuckDB (remote file)", desc: "Query a Parquet/CSV file straight from S3/HTTP — no backend, no proxy", ph: "SELECT * FROM t\nLIMIT  200   -- t = your file, queried in-browser via DuckDB-Wasm" }
   ];
   function dsType(k) { return DS_TYPES.filter(function (t) { return t.kind === k; })[0] || DS_TYPES[0]; }
 
@@ -697,7 +698,8 @@
       calcColumns: (src.calcColumns || []).map(function (c) { return { name: c.name || "", formula: c.formula || "", type: c.type || "Numeric" }; }),
       mdxCatalog: src.mdxCatalog || "", mqlDomain: src.mqlDomain || "",
       ktrPath: src.ktrPath || "", ktrStep: src.ktrStep || "Output",
-      scriptLang: src.scriptLang || "javascript" };
+      scriptLang: src.scriptLang || "javascript",
+      fileUrl: src.fileUrl || "", fileFormat: src.fileFormat || "auto" };
 
     modal(editing ? "Edit data source · " + existing.da.id : "New data source", function (b) {
       var wrap = el("div", "dsb");
@@ -1275,7 +1277,48 @@
       function renderQSection() {
         qSection.innerHTML = "";
         var k = draft.kind;
-        if (k === "kettle") {
+        connF.style.display = (k === "duckdb") ? "none" : ""; // JNDI doesn't apply to a browser-side file connector
+        if (k === "duckdb") {
+          // Z14 slice 1 — DuckDB-Wasm: query a remote Parquet/CSV file over HTTP Range Requests,
+          // no backend/proxy/credentials. Test connection lazy-loads the engine + runs DESCRIBE.
+          qSection.appendChild(field("File URL", input(draft.fileUrl, function (v) { draft.fileUrl = v.trim(); }, "https://your-bucket.s3.amazonaws.com/data.parquet")));
+          qSection.appendChild(field("Format", select2pairs([["auto", "Auto-detect (by extension)"], ["parquet", "Parquet"], ["csv", "CSV"]], draft.fileFormat, function (v) { draft.fileFormat = v; })));
+          var dkStatus = el("div", "hint dsb-duckdb-status");
+          dkStatus.textContent = "Runs entirely in your browser via DuckDB-Wasm — HTTP Range Requests pull only the bytes a query needs. No credentials, no proxy, no server.";
+          qSection.appendChild(dkStatus);
+          var dkTestBtn = el("button", "dsb-mini dsb-duckdb-test"); dkTestBtn.style.marginTop = "8px";
+          setIconBtn(dkTestBtn, "refresh", "Test connection & detect columns", 12);
+          dkTestBtn.onclick = function () {
+            if (!draft.fileUrl) { toast("Enter a file URL first.", true); return; }
+            dkTestBtn.disabled = true; dkTestBtn.textContent = "Testing…"; window.__duckdbTestState = "testing";
+            dkStatus.textContent = "Loading the DuckDB engine + probing the file…";
+            Studio.DuckDB.testConnection({ fileUrl: draft.fileUrl, fileFormat: draft.fileFormat }).then(function (res) {
+              if (!res.ok) {
+                dkTestBtn.disabled = false; setIconBtn(dkTestBtn, "refresh", "Test connection & detect columns", 12);
+                dkStatus.textContent = "✗ " + res.error; window.__duckdbTestState = "done";
+                toast("DuckDB test failed — " + res.error, true);
+                return;
+              }
+              res.columns.forEach(function (c) { if (draft.columns.indexOf(c.name) < 0) draft.columns.push(c.name); });
+              if (!draft.query.trim()) { draft.query = "SELECT * FROM t\nLIMIT  200"; dkTa.value = draft.query; }
+              renderCols(); renderPreview();
+              dkTestBtn.disabled = false; setIconBtn(dkTestBtn, "refresh", "Test connection & detect columns", 12);
+              dkStatus.textContent = "✓ " + res.columns.length + " column" + (res.columns.length === 1 ? "" : "s") + " detected: " +
+                res.columns.map(function (c) { return c.name + " (" + c.type + ")"; }).join(", ");
+              window.__duckdbTestState = "done";
+              toast(res.columns.length + " column(s) detected from the live file.");
+            });
+          };
+          qSection.appendChild(dkTestBtn);
+          var dkT = dsType("duckdb");
+          var dkTa = textarea(draft.query, function (v) { draft.query = v; });
+          dkTa.className = "dsb-query"; dkTa.spellcheck = false; dkTa.placeholder = dkT.ph;
+          var dkQF = el("div", "field");
+          dkQF.appendChild(labelEl("Query (optional — runs against the file, aliased as “t”)"));
+          dkQF.appendChild(dkTa);
+          qSection.appendChild(dkQF);
+          detectBtn.style.display = "none";
+        } else if (k === "kettle") {
           qSection.appendChild(field("Transformation file (.ktr)", input(draft.ktrPath, function (v) { draft.ktrPath = v; }, "/public/etl/my-transform.ktr")));
           qSection.appendChild(field("Output step name", input(draft.ktrStep, function (v) { draft.ktrStep = v; }, "Output")));
           var kh = el("div", "hint"); kh.textContent = "Columns come from the step's output fields — declare them in the Columns section below."; qSection.appendChild(kh);
@@ -1361,6 +1404,7 @@
     if (draft.ktrPath) da.ktrPath = draft.ktrPath;
     if (draft.ktrStep && draft.ktrStep !== "Output") da.ktrStep = draft.ktrStep;
     if (draft.scriptLang && draft.scriptLang !== "javascript") da.scriptLang = draft.scriptLang;
+    if (draft.kind === "duckdb") { da.fileUrl = draft.fileUrl || ""; da.fileFormat = draft.fileFormat || "auto"; }
     // remove the previous record (handles id/group rename on edit)
     if (existing) { var oe = S.catalog[existing.stem]; if (oe) oe.dataAccesses = oe.dataAccesses.filter(function (x) { return x.id !== existing.da.id; }); }
     var dup = entry.dataAccesses.filter(function (x) { return x.id === da.id; })[0];
@@ -3008,6 +3052,35 @@
       ta.addEventListener("change", function () { da.sql = ta.value; da.query = ta.value; });
       qsc.appendChild(ta);
       qsc.appendChild(hint("Return rows as a list of arrays; column count must match Output columns."));
+    } else if (kind === "duckdb") {
+      var qdk = section(body, "DuckDB-Wasm (remote file)", null, null, "data-sources");
+      qdk.appendChild(field("File URL", input(da.fileUrl || "", function (v) { da.fileUrl = v.trim(); }, "https://your-bucket.s3.amazonaws.com/data.parquet")));
+      qdk.appendChild(field("Format", select2pairs([["auto", "Auto-detect (by extension)"], ["parquet", "Parquet"], ["csv", "CSV"]], da.fileFormat || "auto", function (v) { da.fileFormat = v; })));
+      var dkTa2 = el("textarea"); dkTa2.style.cssText = "width:100%;min-height:90px;font-family:var(--mono);font-size:11.5px;resize:vertical;box-sizing:border-box";
+      dkTa2.value = da.sql || da.query || ""; dkTa2.placeholder = "SELECT * FROM t\nLIMIT  200";
+      dkTa2.addEventListener("change", function () { da.sql = dkTa2.value; da.query = dkTa2.value; });
+      qdk.appendChild(field("Query (optional — runs against the file, aliased as “t”)", dkTa2));
+      var dkStatus2 = el("div", "hint");
+      dkStatus2.textContent = "Runs entirely in the browser via HTTP Range Requests — no credentials, no proxy, no server.";
+      qdk.appendChild(dkStatus2);
+      var dkTest2 = el("button", "btn-wide"); setIconBtn(dkTest2, "refresh", "Test connection & detect columns");
+      dkTest2.onclick = function () {
+        if (!da.fileUrl) { toast("Enter a file URL first.", true); return; }
+        dkTest2.disabled = true; dkTest2.textContent = "Testing…"; window.__duckdbTestState = "testing";
+        dkStatus2.textContent = "Loading the DuckDB engine + probing the file…";
+        Studio.DuckDB.testConnection({ fileUrl: da.fileUrl, fileFormat: da.fileFormat }).then(function (res) {
+          window.__duckdbTestState = "done";
+          if (!res.ok) {
+            dkTest2.disabled = false; setIconBtn(dkTest2, "refresh", "Test connection & detect columns");
+            dkStatus2.textContent = "✗ " + res.error; toast("DuckDB test failed — " + res.error, true); return;
+          }
+          da.columns = da.columns || [];
+          res.columns.forEach(function (c) { if (da.columns.indexOf(c.name) < 0) da.columns.push(c.name); });
+          renderInspector(); buildLibrary(); refreshPreview();
+          toast(res.columns.length + " column(s) detected from the live file.");
+        });
+      };
+      qdk.appendChild(dkTest2);
     }
 
     // Output columns
@@ -3154,9 +3227,11 @@
     var copyBtn = el("button", "btn"); setIconBtn(copyBtn, "copy", "Copy TSV"); copyBtn.title = "Copy all rows as tab-separated values";
     toolbar.appendChild(runBtn);
     var ac = activeConnection();
+    var isDuckdb = da.kind === "duckdb";
     var liveBtn = null;
-    if (ac) {
-      liveBtn = el("button", "btn"); setIconBtn(liveBtn, "play", "Run live"); liveBtn.title = "Query live from " + ac.name;
+    if (ac || isDuckdb) {
+      liveBtn = el("button", "btn"); setIconBtn(liveBtn, "play", "Run live");
+      liveBtn.title = isDuckdb ? "Query the live file via DuckDB-Wasm (HTTP Range Requests)" : ("Query live from " + ac.name);
       toolbar.appendChild(liveBtn);
     }
     toolbar.appendChild(copyBtn);
@@ -3241,6 +3316,19 @@
       if (!liveBtn) return;
       liveBtn.disabled = true; liveBtn.textContent = "Loading…";
       statusLine.textContent = "Querying…";
+      if (isDuckdb) {
+        if (!da.fileUrl) { liveBtn.disabled = false; setIconBtn(liveBtn, "play", "Run live"); toast("Set a file URL first.", true); runSample(); return; }
+        Studio.DuckDB.query({ fileUrl: da.fileUrl, fileFormat: da.fileFormat }, da.sql || da.query).then(function (result) {
+          state.result = result; state.source = "live"; state.page = 0;
+          liveBtn.disabled = false; setIconBtn(liveBtn, "play", "Run live");
+          renderTable(state.result, "live");
+        }).catch(function (e) {
+          liveBtn.disabled = false; setIconBtn(liveBtn, "play", "Run live");
+          toast("DuckDB query failed — showing sample. (" + ((e && e.message) || e) + ")", true);
+          runSample();
+        });
+        return;
+      }
       var ac2 = activeConnection();
       if (!ac2) { liveBtn.disabled = false; setIconBtn(liveBtn, "play", "Run live"); toast("No active server.", true); runSample(); return; }
       var deployPath = (S.settings && S.settings.deployPath) || "/public/studio";

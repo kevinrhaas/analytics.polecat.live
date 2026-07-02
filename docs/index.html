@@ -311,6 +311,16 @@
     <li><strong>Kettle</strong> — Reference an existing <code>.ktr</code> PDI transform (path + output step). Or use the KTR Builder to generate a simple pipeline and download the <code>.ktr</code>.</li>
     <li><strong>Metadata</strong> — Pentaho Metadata domain + query.</li>
     <li><strong>Scripting</strong> — JavaScript/Groovy/Python DA for custom logic.</li>
+    <li><strong>DuckDB (remote file)</strong> — query a Parquet/CSV file directly over HTTP, no backend (see below).</li>
+  </ul>
+
+  <h3>Browser-native connectors: DuckDB-Wasm (no backend)</h3>
+  <p>The <strong>DuckDB (remote file)</strong> source type queries a Parquet or CSV file hosted anywhere over plain HTTP — S3, any static host — entirely inside your browser via <a href="https://duckdb.org/docs/api/wasm/overview" target="_blank" rel="noopener noreferrer">DuckDB-Wasm</a>. There's no proxy, no saved credentials, and no CDA connection: DuckDB uses HTTP Range Requests to pull only the bytes a query needs, so it can aggregate over a large remote file while transferring little.</p>
+  <ul>
+    <li>Set the <strong>File URL</strong> (and optionally the format — auto-detected from the extension) and click <strong>Test connection &amp; detect columns</strong>. This lazy-loads the ~3–5MB DuckDB engine the first time it's needed, registers the file, and runs a schema probe — the base app stays small until you actually use this connector.</li>
+    <li>The optional <strong>Query</strong> field runs SQL against the file, aliased as the view <code>t</code> (e.g. <code>SELECT region, SUM(revenue) FROM t GROUP BY region</code>). Leave it blank for <code>SELECT * FROM t LIMIT 200</code>.</li>
+    <li>The Data preview's <strong>Run live</strong> button queries the real file the same way — no Pentaho server connection required.</li>
+    <li>DuckDB DAs aren't a Pentaho data source, so they're excluded from the <code>.cda</code> export; they work like any other query in the live preview and the Dashboard Framework export, which use offline sample data for charting.</li>
   </ul>
 
   <h3>Joins and compound DAs</h3>

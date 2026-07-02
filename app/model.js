@@ -1656,7 +1656,8 @@
     { id: "olap4j",        label: "OLAP4J" },
     { id: "metadata",      label: "Metadata (MQL)" },
     { id: "kettle",        label: "Kettle (.ktr transform)" },
-    { id: "scripting",     label: "Scripting (JS / Groovy)" }
+    { id: "scripting",     label: "Scripting (JS / Groovy)" },
+    { id: "duckdb",        label: "DuckDB-Wasm (remote Parquet/CSV, no backend)" }
   ];
   Studio.COLUMN_TYPES = ["String", "Integer", "Numeric", "Date", "Boolean"];
 
