@@ -1179,7 +1179,18 @@ gets covered over time:
 - **Chart-extension API** — 51 types now register through ad-hoc patterns; consider formalizing a tiny
   `Studio.defineChart({type, render, opts, thumb, autoPick})` contract so new types are uniform and testable.
 - **Test health** — coverage per feature, flaky/slow checks, and a fast smoke subset for quick loops.
-> **Findings log (append newest on top; keep short):** _(none yet — first architecture sweep will seed this)_
+> **Findings log (append newest on top; keep short):**
+> - **v169 (dead code sweep, first architecture sweep):** wrote a script diffing every CSS class selector
+>   in `app/studio.css` against a full-text search across all of `app/*.js` + `index.html` + `docs/index.html`
+>   + `tests/run.js` — found only **2 genuinely orphaned rules** out of 341 classes (`.ex-cards-1`, a
+>   never-wired single-column variant of the examples gallery grid; `.empty-insp`, an inspector empty-state
+>   style with no caller) — removed both. The near-total absence of dead CSS/JS (a parallel scan for
+>   zero-reference top-level `function` declarations across `app/studio.js`/`model.js`/`exporters.js`/
+>   `studio-render.js`/`studio-charts.js`/`pentaho.js` found **zero** unused functions) says the codebase is
+>   in genuinely good health for its size — future sweeps will likely find more in the **chart-extension
+>   duplication** (repeated SVG-embed/tooltip/format boilerplate across the 51 `PDC.*` chart renderers in
+>   `studio-charts.js`, ~5.4K lines) or **studio.js size** (5.2K lines, the largest single surface) buckets
+>   instead of simple dead-code deletion.
 
 ### N. Innovation backlog — leading-edge concepts (RECURRING/GROWING — sweep type 3; see SWEEP CADENCE)
 > This is the "look back + look forward, be exceptionally innovative" list (user-requested 2026-07-02).

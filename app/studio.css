@@ -225,7 +225,6 @@ textarea:focus-visible,[tabindex]:focus-visible,.row-item:focus-visible{
 /* ── examples card gallery (E5/E3) ── */
 .menu.ex-grid{min-width:min(96vw,580px)}
 .ex-cards{display:grid;grid-template-columns:repeat(2,1fr);gap:5px;padding:4px 6px 8px}
-.ex-cards-1{grid-template-columns:1fr}
 .ex-card{background:var(--field)!important;border:1px solid var(--line)!important;border-radius:8px;padding:0 0 8px!important;
   display:flex!important;flex-direction:column;gap:0;text-align:left!important;color:var(--ink)!important;width:100%;overflow:hidden}
 .ex-card-top{padding:0 10px;margin-top:8px;display:flex;align-items:center;gap:5px;flex-wrap:wrap}
@@ -450,7 +449,6 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
 .opt-prev{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:5px}
 .opt-chip{font-size:11px;padding:3px 9px;border-radius:14px;background:var(--field);border:1px solid var(--line);color:var(--muted);font-weight:600}
 .opt-chip.all{background:color-mix(in srgb,var(--pentaho) 13%,transparent);border-color:transparent;color:var(--pentaho)}
-.empty-insp{padding:34px 18px;text-align:center;color:var(--faint);font-size:12.5px;line-height:1.6}
 .btn-wide{display:block;width:100%;text-align:center;background:var(--field);border:1px dashed var(--line);color:var(--muted);
   border-radius:8px;padding:9px;font-size:12.5px;font-weight:700;cursor:pointer;margin-top:4px}
 .btn-wide:hover{border-color:var(--pentaho);color:var(--pentaho);background:var(--pane)}
