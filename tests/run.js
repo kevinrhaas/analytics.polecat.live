@@ -2972,6 +2972,32 @@ function serve() {
     ok("tablet viewport: Export ▾ menu opens and its items are reachable", exportReach.wasOpen && exportReach.reachable, JSON.stringify(exportReach));
     await tabletPage.close();
 
+    // Z9 motion polish: dropdown menus fade+rise in instead of a hard display:none/block cut,
+    // and are non-interactive (pointer-events:none) while closed even though the box is still
+    // in the DOM at opacity:0. prefers-reduced-motion disables the animation entirely.
+    const menuMotionClosed = await page.evaluate(function () {
+      var s = getComputedStyle(document.getElementById("menuMore"));
+      return { opacity: s.opacity, pointerEvents: s.pointerEvents, hasTransition: s.transitionDuration !== "0s" };
+    });
+    ok("Z9 motion: closed dropdown menu is invisible + non-interactive but still transitions",
+      menuMotionClosed.opacity === "0" && menuMotionClosed.pointerEvents === "none" && menuMotionClosed.hasTransition,
+      JSON.stringify(menuMotionClosed));
+    await page.evaluate(function () { document.getElementById("btnMore").click(); });
+    await page.waitForTimeout(200); // let the .14s opacity/transform transition finish before reading it
+    const menuMotionOpen = await page.evaluate(function () {
+      var s = getComputedStyle(document.getElementById("menuMore"));
+      return { opacity: s.opacity, pointerEvents: s.pointerEvents };
+    });
+    await page.evaluate(function () { document.getElementById("btnMore").click(); }); // close again
+    ok("Z9 motion: open dropdown menu is fully visible + interactive",
+      menuMotionOpen.opacity === "1" && menuMotionOpen.pointerEvents === "auto", JSON.stringify(menuMotionOpen));
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    const menuMotionRM = await page.evaluate(function () {
+      return getComputedStyle(document.getElementById("menuMore")).transitionDuration;
+    });
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    ok("Z9 motion: prefers-reduced-motion:reduce disables the dropdown menu transition", menuMotionRM === "0s", "transitionDuration=" + menuMotionRM);
+
     // ---- M2: panes → drawers (same phone viewport, close the More menu first) ----
     console.log("\n• Mobile drawers (M2) phone 390×844");
     await phonePage.click("#btnMore"); // close the More menu that was opened above

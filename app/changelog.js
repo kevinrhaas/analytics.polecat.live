@@ -8,6 +8,12 @@
 window.STUDIO_BUILD = "__BUILD_TS__";
 
 window.STUDIO_CHANGELOG = [
+  { v: "v189", date: "2026-07-02", time: "19:20 UTC", title: "Z9 follow-up: dropdown-menu motion polish", items: [
+      "Every topbar dropdown (New ▾, Examples ▾, Export ▾, ⋯ More) used to hard-cut open/closed via `display:none`/`block`, which can't be animated. They now fade in and rise slightly (opacity + transform, .14s ease) instead — a small but real bit of the \"modern flows and animations\" the Z9 mobile/tablet track called for.",
+      "Closed menus stay genuinely non-interactive: `pointer-events:none` while faded out, and `visibility:hidden` kicks in only after the fade-out finishes (via a delayed transition), so there's no invisible click-catcher sitting over whatever's behind it.",
+      "`prefers-reduced-motion: reduce` disables the transition entirely, same convention as every other animation in the app. Desktop/tablet chrome only — the mobile drawers/sheets already have their own dedicated open/close motion.",
+      "3 new regression checks (closed state is invisible + non-interactive but still has a transition, open state is fully visible + interactive after the transition settles, reduced-motion disables it). Test suite 925/925.",
+    ] },
   { v: "v188", date: "2026-07-02", time: "19:05 UTC", title: "Z3 follow-up: full CRUD from the Repository page", items: [
       "Every data-source card in the Repository section now has hover-revealed ✎ edit / 🗑 delete actions (always-visible on touch devices) alongside its existing open-in-library button — previously editing/deleting an authored data source required switching to Studio's own library pane first.",
       "Both actions call the exact same `dataSourceBuilder()` and `deleteDataSource()` functions the Studio library already uses, so Repository and Studio never disagree about a data source's state — one source of truth, no parallel edit path.",

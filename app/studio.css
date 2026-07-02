@@ -283,10 +283,17 @@ textarea:focus-visible,[tabindex]:focus-visible,.row-item:focus-visible{
 .btn.icon{padding:8px 11px}
 .btn.live-on{background:#1f9d57;border-color:transparent}
 .menu-wrap{position:relative}
+/* Z9 tablet/desktop motion polish: dropdown menus used to hard-cut in/out via display:none/block
+   (not animatable). A short fade + slight rise/scale reads as more modern and "alive" — matches
+   the Z9 ask for tasteful drawer/menu motion. pointer-events:none while closed keeps the (still
+   display:block, just invisible) box from intercepting clicks/hover on whatever's behind it. */
 .menu{position:absolute;top:calc(100% + 6px);right:0;background:var(--pane);border:1px solid var(--line);
-  border-radius:10px;box-shadow:var(--shadow-lg);padding:6px;min-width:230px;display:none;z-index:50}
-.menu.open{display:block}
+  border-radius:10px;box-shadow:var(--shadow-lg);padding:6px;min-width:230px;z-index:50;
+  opacity:0;visibility:hidden;transform:translateY(-4px) scale(.98);pointer-events:none;
+  transition:opacity .14s ease,transform .14s ease,visibility 0s linear .14s}
+.menu.open{opacity:1;visibility:visible;transform:translateY(0) scale(1);pointer-events:auto;transition:opacity .14s ease,transform .14s ease}
 .menu{max-height:min(72vh,540px);overflow:auto}
+@media(prefers-reduced-motion:reduce){.menu{transition:none;transform:none}}
 .menu button{display:block;width:100%;text-align:left;background:none;border:0;color:var(--ink);font-size:13px;
   padding:9px 11px;border-radius:7px;cursor:pointer;font-weight:500}
 .menu button:hover{background:var(--field);color:var(--pentaho)}

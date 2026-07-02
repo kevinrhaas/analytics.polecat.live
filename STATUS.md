@@ -601,6 +601,11 @@
   `deleteDataSource()` the Studio library pane already uses (one source of truth). The card became a
   plain wrapping `<div>` with an inner `.repo-ds-open` button (a `<button>` can't nest another
   `<button>`). 3 new tests. Test suite 922/922.
+- v189: **Z9 follow-up: dropdown-menu motion polish** — every topbar dropdown (New ▾/Examples ▾/
+  Export ▾/⋯ More) fades + rises in (`opacity`/`transform`, `.14s ease`) instead of a hard
+  `display:none`/`block` cut; genuinely non-interactive while closed (`pointer-events:none`,
+  `visibility:hidden` after the fade-out) rather than merely invisible; respects
+  `prefers-reduced-motion`. Desktop/tablet chrome only. 3 new tests. Test suite 925/925.
 
 ## NEXT (top = do first)
 
@@ -1033,8 +1038,13 @@ specific bugs + the new-shell mobile behavior.)
 > its button. Added an `elementFromPoint`-based regression test (the only kind that actually catches
 > ancestor-overflow clipping — `.classList.contains("open")` alone does not) for New/Export/More at a
 > tablet viewport; confirmed it fails without the fix and passes with it. **Still open under Z9**: the
-> bottom-nav/drawer pattern already exists at phone width (M2, `#mobile-tabs`); modern
-> motion/transition polish and a live-device pass across the true 641–900px tablet band remain.
+> bottom-nav/drawer pattern already exists at phone width (M2, `#mobile-tabs`); a live-device pass
+> across the true 641–900px tablet band remains.
+> ✓ **Dropdown-menu motion polish shipped v189**: every topbar dropdown (New ▾/Examples ▾/Export ▾/⋯ More)
+> now fades + rises in (opacity/transform, `.14s ease`) instead of a hard `display:none`/`block` cut,
+> and is genuinely non-interactive while closed (`pointer-events:none`, `visibility:hidden` after the
+> fade-out completes) rather than merely invisible. Respects `prefers-reduced-motion`. Desktop/tablet
+> only — mobile drawers/sheets already have their own dedicated open/close motion.
 
 **Z10 — App theme system: theme × light/dark (user-requested 2026-06-30).** The new Polecat warm-dark
 rail (Z1) currently **clashes** with the Studio's original "classic blue" chrome + dark mode — two
