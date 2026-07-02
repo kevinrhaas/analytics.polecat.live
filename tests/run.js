@@ -11374,6 +11374,92 @@ function serve() {
     });
     ok("Z7MA: line panel inspector shows Show moving average / window fields", z7maInsp.ok, JSON.stringify(z7maInsp));
 
+    // ── Z7 slice 2: line/area chart gets a linear trend / forecast line ──
+    console.log("\n• Z7 forecasting: line chart trend / forecast line");
+
+    // Z7TR-1: line registry declares showTrend + forecastPeriods
+    var z7trOpts = await page.evaluate(function () {
+      var o = (window.Studio.CHARTS.line || {}).opts || [];
+      var keys = o.map(function (od) { return od.key; });
+      return { ok: keys.indexOf("showTrend") >= 0 && keys.indexOf("forecastPeriods") >= 0, keys: keys };
+    });
+    ok("Z7TR: Studio.CHARTS.line.opts declares showTrend + forecastPeriods", z7trOpts.ok, JSON.stringify(z7trOpts));
+
+    // Z7TR-2: showTrend:true draws one extra dashed .trend-line path per series with
+    // the correct OLS-regression endpoints; off by default. forecastPeriods extends
+    // the trend line (and the x-scale) past the last real data point.
+    var z7trRender = await page.evaluate(function () {
+      var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
+      for (var i = 0; i < iframes.length; i++) {
+        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.line === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+      }
+      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      try {
+        var labels = ["A", "B", "C", "D"], series = [{ name: "S1", values: [2, 4, 6, 8] }];
+        var el1 = iframeDoc.createElement("div");
+        el1.style.cssText = "position:absolute;top:-9999px;width:300px";
+        iframeDoc.body.appendChild(el1);
+        w.PDC.line(el1, { labels: labels, series: series, height: 200 });
+        var trendOff = el1.querySelectorAll(".trend-line").length;
+        var sepOff = el1.querySelectorAll(".forecast-sep").length;
+        iframeDoc.body.removeChild(el1);
+
+        // perfectly linear data (slope 2, intercept 2) with no forecast: trend line
+        // endpoints should land exactly on the first/last real point.
+        var el2 = iframeDoc.createElement("div");
+        el2.style.cssText = "position:absolute;top:-9999px;width:300px";
+        iframeDoc.body.appendChild(el2);
+        w.PDC.line(el2, { labels: labels, series: series, height: 200, showTrend: true });
+        var trendLines = el2.querySelectorAll(".trend-line");
+        var dashed = trendLines.length === 1 && trendLines[0].getAttribute("stroke-dasharray") === "8,3";
+        var dots = el2.querySelectorAll(".dot");
+        var lastDotX = +dots[dots.length - 1].getAttribute("cx");
+        var trendD = trendLines[0].getAttribute("d");
+        var trendEndX = +trendD.split("L")[1].split(",")[0];
+        var noForecastMatch = Math.abs(lastDotX - trendEndX) < 0.5;
+        iframeDoc.body.removeChild(el2);
+
+        // with forecastPeriods:2, the trend line should extend past the last real point
+        // and two "+1"/"+2" forecast tick labels + the forecast separator should appear.
+        var el3 = iframeDoc.createElement("div");
+        el3.style.cssText = "position:absolute;top:-9999px;width:300px";
+        iframeDoc.body.appendChild(el3);
+        w.PDC.line(el3, { labels: labels, series: series, height: 200, showTrend: true, forecastPeriods: 2 });
+        var trendD3 = el3.querySelector(".trend-line").getAttribute("d");
+        var trendEndX3 = +trendD3.split("L")[1].split(",")[0];
+        var dots3 = el3.querySelectorAll(".dot");
+        var lastDotX3 = +dots3[dots3.length - 1].getAttribute("cx");
+        var extendsPastData = trendEndX3 > lastDotX3 + 1;
+        var fcTicks = el3.querySelectorAll(".forecast-tick").length;
+        var fcSep = el3.querySelectorAll(".forecast-sep").length;
+        iframeDoc.body.removeChild(el3);
+
+        return {
+          ok: trendOff === 0 && sepOff === 0 && dashed && noForecastMatch && extendsPastData && fcTicks === 2 && fcSep === 1,
+          trendOff: trendOff, sepOff: sepOff, dashed: dashed, noForecastMatch: noForecastMatch,
+          extendsPastData: extendsPastData, fcTicks: fcTicks, fcSep: fcSep
+        };
+      } catch (e) { return { ok: false, err: e.message }; }
+    });
+    ok("Z7TR: showTrend off by default; on draws a dashed .trend-line, forecastPeriods extends it + adds forecast ticks", z7trRender.ok, JSON.stringify(z7trRender));
+
+    // Z7TR-3: the panel inspector shows the new fields when a Line panel is selected
+    var z7trInsp = await page.evaluate(function () {
+      var spec = window.__STUDIO_STATE.spec;
+      var p = spec.panels[0];
+      var prevChart = JSON.parse(JSON.stringify(p.chart));
+      p.chart.type = "line"; p.chart.opts = {};
+      window.__studioSelect({ kind: "panel", id: p.id });
+      var body = document.getElementById("inspBody");
+      var text = body ? body.textContent : "";
+      var ok = text.indexOf("Show trend / forecast line") >= 0 && text.indexOf("Forecast periods ahead") >= 0;
+      p.chart = prevChart; // restore so later tests aren't affected
+      window.__studioSelect(null);
+      window.__studioRenderInspector();
+      return { ok: ok };
+    });
+    ok("Z7TR: line panel inspector shows Show trend / forecast line + Forecast periods fields", z7trInsp.ok, JSON.stringify(z7trInsp));
+
     // ── m-a: mobile nav drawer (rail → slide-in left drawer at ≤900px) ──
     // Runs on a SEPARATE 390×844 page so it never disturbs the main desktop page.
     console.log("\n• m-a: mobile nav drawer");

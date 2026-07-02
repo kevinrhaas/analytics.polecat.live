@@ -236,6 +236,7 @@
           if (ch.type === "line")
             PDC.line(body, { area: o.area !== false, smooth: !!o.smooth, showDots: o.showDots !== false,
               showMA: !!o.showMA, maWindow: o.maWindow,
+              showTrend: !!o.showTrend, forecastPeriods: o.forecastPeriods,
               fmt: f, height: o.height || 300, labels: labels, series: series });
           else if (ch.type === "areaStacked")
             PDC.areaStacked(body, { smooth: !!o.smooth, legend: o.showLegend !== false,

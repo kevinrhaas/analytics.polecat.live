@@ -87,6 +87,8 @@
         { key: "showDots", type: "bool",  label: "Show data points", def: true },
         { key: "showMA",   type: "bool",  label: "Show moving average", def: false },
         { key: "maWindow", type: "int",   label: "Moving avg window (points)", def: 3 },
+        { key: "showTrend", type: "bool", label: "Show trend / forecast line", def: false },
+        { key: "forecastPeriods", type: "int", label: "Forecast periods ahead (0 = trend only)", def: 0 },
         { key: "fmt",      type: "fmt",   label: "Value format", def: "abbr" },
         { key: "height",   type: "int",   label: "Height (px)", def: 300 }
       ],

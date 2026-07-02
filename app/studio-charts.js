@@ -3071,18 +3071,42 @@
   function _lineOpts(el, cfg) {
     var labels = cfg.labels || [], series = cfg.series || [], h = cfg.height || 270;
     if (!labels.length) { el.innerHTML = '<div class="empty">No data</div>'; return; }
+    var n = labels.length;
+    // Z7 forecasting slice 2: an optional per-series linear-regression trend line,
+    // extended `forecastPeriods` slots past the last real data point. The x-scale
+    // widens to include the forecast tail (real points compress slightly rather
+    // than the projection overlapping existing data).
+    var fcN = (cfg.showTrend && (+cfg.forecastPeriods || 0) > 0) ? Math.max(0, Math.floor(+cfg.forecastPeriods)) : 0;
+    var totalSpan = n - 1 + fcN;
+    function trendOf(vals) {
+      var sx = 0, sy = 0, sxy = 0, sxx = 0, m = vals.length;
+      vals.forEach(function (v, i) { var x = i, y = +v || 0; sx += x; sy += y; sxy += x * y; sxx += x * x; });
+      var denom = (m * sxx - sx * sx) || 1;
+      var slope = (m * sxy - sx * sy) / denom, intercept = (sy - slope * sx) / m;
+      return { slope: slope, intercept: intercept };
+    }
+    var trends = cfg.showTrend ? series.map(function (se) { return trendOf(se.values); }) : null;
     var o = mkSVG(el, h), s = o.s, w = o.w, fmt = cfg.fmt || PDC.fmt.abbr, pal = PDC.palette();
     var showDots = cfg.showDots !== false;
     var allv = []; series.forEach(function (se) { se.values.forEach(function (v) { allv.push(+v || 0); }); });
+    if (trends) trends.forEach(function (t) { allv.push(t.intercept + t.slope * totalSpan); });
     var max = niceMax(Math.max.apply(null, allv.concat([0]))), min = cfg.min0 === false ? Math.min.apply(null, allv) : 0;
-    var mL = 46, mR = 12, mT = 12, mB = 30, iw = w - mL - mR, ih = h - mT - mB, n = labels.length;
-    var xs = function (i) { return mL + (n <= 1 ? iw / 2 : iw * i / (n - 1)); }, ys = function (v) { return mT + ih * (1 - ((v - min) / ((max - min) || 1))); };
+    var mL = 46, mR = 12, mT = 12, mB = 30, iw = w - mL - mR, ih = h - mT - mB;
+    var xs = function (i) { return mL + (totalSpan <= 0 ? iw / 2 : iw * i / totalSpan); }, ys = function (v) { return mT + ih * (1 - ((v - min) / ((max - min) || 1))); };
     for (var g = 0; g <= 4; g++) {
       var gy = mT + ih * (1 - g / 4); s.appendChild(S("line", { class: "gridline", x1: mL, y1: gy, x2: w - mR, y2: gy }));
       s.appendChild(S("text", { class: "tick", x: mL - 7, y: gy + 3, "text-anchor": "end" }, fmt(min + (max - min) * g / 4)));
     }
     var step = Math.ceil(n / Math.max(2, Math.floor(iw / 64)));
     labels.forEach(function (lb, i) { if (i % step === 0 || i === n - 1) s.appendChild(S("text", { class: "tick", x: xs(i), y: mT + ih + 14, "text-anchor": "middle" }, PDC.fmt.trunc(lb, 9))); });
+    if (fcN > 0) {
+      for (var fi = 1; fi <= fcN; fi++) {
+        s.appendChild(S("text", { class: "tick forecast-tick", x: xs(n - 1 + fi), y: mT + ih + 14, "text-anchor": "middle", opacity: .55, "font-style": "italic" }, "+" + fi));
+      }
+      var sepX = xs(n - 1);
+      s.appendChild(S("line", { class: "forecast-sep", x1: sepX, y1: mT, x2: sepX, y2: mT + ih, stroke: PDC.cssvar("--panel-border"), "stroke-width": 1, "stroke-dasharray": "3,3", opacity: .7 }));
+      s.appendChild(S("text", { class: "tick forecast-label", x: sepX + 4, y: mT + 11, opacity: .6, "font-style": "italic" }, "Forecast →"));
+    }
     // Straight or smoothed path through a series' points. Smoothing reuses the same
     // "control point at the horizontal midpoint" cubic-bezier trick as the Bump chart —
     // simple, deterministic, and reads as a gentle curve without overshoot.
@@ -3145,6 +3169,16 @@
         maPath.addEventListener("mousemove", function (e) { PDC.showTip(e, (series.length > 1 ? "<b>" + se.name + "</b> " : "") + maW + "-pt moving avg"); });
         maPath.addEventListener("mouseout", PDC.hideTip);
         s.appendChild(maPath); els.push(maPath);
+      }
+      // Z7 forecasting slice 2: the OLS trend line, extrapolated across the
+      // forecast tail when forecastPeriods > 0 (otherwise just spans the real data).
+      if (trends) {
+        var tr = trends[si], tp0 = [xs(0), ys(tr.intercept)], tp1 = [xs(totalSpan), ys(tr.intercept + tr.slope * totalSpan)];
+        var trendPath = S("path", { d: "M" + tp0[0] + "," + tp0[1] + " L" + tp1[0] + "," + tp1[1], fill: "none", stroke: col,
+          "stroke-width": 1.6, "stroke-dasharray": "8,3", opacity: .55, class: "trend-line" });
+        trendPath.addEventListener("mousemove", function (e) { PDC.showTip(e, (series.length > 1 ? "<b>" + se.name + "</b> " : "") + (fcN ? fcN + "-period forecast" : "trend")); });
+        trendPath.addEventListener("mouseout", PDC.hideTip);
+        s.appendChild(trendPath); els.push(trendPath);
       }
       seriesEls.push(els);
     });

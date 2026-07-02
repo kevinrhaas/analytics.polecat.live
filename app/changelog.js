@@ -8,6 +8,11 @@
 window.STUDIO_BUILD = "__BUILD_TS__";
 
 window.STUDIO_CHANGELOG = [
+  { v: "v187", date: "2026-07-02", time: "18:50 UTC", title: "Z7 forecasting slice 2: linear trend / forecast line for line & area charts", items: [
+      "Line/area charts gain a **Show trend / forecast line** toggle + **Forecast periods ahead** field, alongside the existing v179 moving-average overlay. Where the moving average smooths the real data, this draws a genuine linear-regression (OLS) projection per series — useful for \"where is this headed\" at a glance.",
+      "When forecast periods > 0, the chart's x-scale widens to make room for a forecast tail: real data points compress slightly, muted \"+1/+2/…\" tick labels appear past the last real point, and a dashed \"Forecast →\" separator marks where real data ends and the projection begins. With 0 forecast periods it's simply a trend line spanning the existing data.",
+      "`trendOf()` helper in `studio-charts.js` computes the regression (pdc-ui.js stays pristine, same override pattern as the rest of the Z8/Z7 per-type option work). 3 new regression checks (off by default; on draws a dashed `.trend-line` with correct OLS endpoints; forecastPeriods extends it and adds the forecast ticks/separator). Test suite 919/919.",
+    ] },
   { v: "v186", date: "2026-07-02", time: "18:10 UTC", title: "MOBILE (m-e follow-up): changelog stretches into a true full-screen sheet + touch reliability fix", items: [
       "Builds on v185's ✕ Close button with the rest of the reference \"What's new\" sheet treatment: on phones (≤640px) the changelog now stretches to a near-full-screen sheet (clearing the topbar above and the tab bar/status bar below) instead of a small floating box anchored above the tab bar, which read as easy-to-miss empty space.",
       "Also found a real reliability gap in the existing tap-outside-to-dismiss: it only bound `mousedown`, which mobile Safari doesn't reliably synthesize from a touch tap (headless Chromium always looked fine, masking it) — now also binds `touchstart`, so outside-tap dismiss works consistently on a real device, not just in the sandbox. Desktop's small anchored popover is unchanged.",

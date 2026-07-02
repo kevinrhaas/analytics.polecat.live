@@ -591,6 +591,11 @@
   dismiss now also binds `touchstart` (mobile Safari doesn't reliably synthesize `mousedown` from a
   tap — headless Chromium always looked fine, masking it). 2 new tests. **All of m-a through m-e
   shipped — mobile track now needs a real-device confirmation from the user.**
+- v187: **Z7 forecasting slice 2: linear trend / forecast line for line & area charts** — a **Show
+  trend / forecast line** toggle + **Forecast periods ahead** field per line panel; per-series OLS
+  regression drawn as a dashed line, extrapolated across a widened x-scale (with "+1/+2/…" forecast
+  tick labels and a dashed "Forecast →" separator) when forecast periods > 0. `trendOf()` in
+  studio-charts.js (pdc-ui.js pristine). 3 new tests. Test suite 919/919.
 
 ## NEXT (top = do first)
 
@@ -888,9 +893,15 @@ statistical functions/variations (regression, percentiles, z-scores, correlation
 chart options / derived series / KPI computations. Keep it light (vanilla-JS math, no heavy deps).
 > ✓ **Slice 1 shipped v179**: Line/area charts get a **Show moving average** toggle + window field — a
 > dashed trailing simple-moving-average overlay per series, same per-type override pattern as Z8.
-> **Still open:** exponential smoothing/Holt-Winters, linear & seasonal trend lines, extending the
-> moving-average overlay to bars/stacked/combo, and the statistical-functions half (regression beyond
-> scatter's existing trend line, percentiles, z-scores, correlation, distributions) as KPI computations.
+> ✓ **Slice 2 shipped v187**: Line/area charts get a **Show trend / forecast line** toggle + **Forecast
+> periods ahead** field — a per-series OLS linear-regression line (dashed, series color) drawn across the
+> real data; when forecast periods > 0 the x-scale widens to include a forecast tail (with "+1/+2/…" tick
+> labels and a dashed "Forecast →" separator at the last real data point) and the trend line extrapolates
+> across it. Distinct from the v179 moving average (a trailing smoother of the real data) — this is a true
+> projection beyond the chart's own data. `trendOf()` helper in studio-charts.js (pdc-ui.js pristine).
+> **Still open:** exponential smoothing/Holt-Winters, seasonal trend lines, extending trend/forecast to
+> bars/stacked/combo, and the statistical-functions half (regression beyond scatter's existing trend line,
+> percentiles, z-scores, correlation, distributions) as KPI computations.
 
 **Z8 — Context-aware inspector (per chart type) + visual setting hints (user-requested 2026-06-30).**
 The panel inspector currently shows ALL setting sections regardless of chart type — e.g. a **Table**
