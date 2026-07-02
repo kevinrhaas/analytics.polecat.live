@@ -10680,7 +10680,7 @@ function serve() {
       var switches = Array.prototype.map.call(sec.querySelectorAll("input[data-set]"), function (cb) { return cb.getAttribute("data-set"); });
       return {
         visible: sec.hidden === false,
-        hasCards: sec.querySelectorAll(".settings-card").length === 6, // 3 toggle groups + Branding (Z12) + Data source defaults (Z5 follow-up) + Data (Z5 follow-up)
+        hasCards: sec.querySelectorAll(".settings-card").length === 7, // 3 toggle groups + Branding (Z12) + Data source defaults (Z5 follow-up) + Dashboard defaults (Z6/Z5 follow-up) + Data (Z5 follow-up)
         switchIds: switches.join(","),
         darkChecked: sec.querySelector('input[data-set="dark"]').checked,
         simpleChecked: sec.querySelector('input[data-set="simple"]').checked,
@@ -10688,7 +10688,7 @@ function serve() {
         focusChecked: sec.querySelector('input[data-set="focus"]').checked
       };
     });
-    ok("Z5: Settings section renders 6 cards (3 mode-switch groups + Branding + Data source defaults + Data) with 4 mode switches, all off by default",
+    ok("Z5: Settings section renders 7 cards (3 mode-switch groups + Branding + Data source defaults + Dashboard defaults + Data) with 4 mode switches, all off by default",
       z5Boot.visible && z5Boot.hasCards && z5Boot.switchIds === "dark,simple,demo,focus"
         && !z5Boot.darkChecked && !z5Boot.simpleChecked && !z5Boot.demoChecked && !z5Boot.focusChecked,
       JSON.stringify(z5Boot));
@@ -10829,7 +10829,7 @@ function serve() {
       };
     });
     ok("Z5: Settings page has a Data card with Export/Import buttons",
-      z5Data.cardCount === 6 && z5Data.hasExportBtn && z5Data.hasImportBtn, JSON.stringify(z5Data));
+      z5Data.cardCount === 7 && z5Data.hasExportBtn && z5Data.hasImportBtn, JSON.stringify(z5Data));
 
     const [z5Dl] = await Promise.all([page.waitForEvent("download"), page.click("#setExportBtn")]);
     const z5DlName = z5Dl.suggestedFilename();
@@ -10889,6 +10889,52 @@ function serve() {
     ok("Z5: a brand-new data source's Connection (JNDI) field pre-fills with the Settings default",
       z5JndiNewDs.found && z5JndiNewDs.val === "ACME-PROD-DS", JSON.stringify(z5JndiNewDs));
     await page.evaluate(function () { localStorage.removeItem("studio-default-jndi"); window.__studioRenderSettings(); }); // restore default for later tests
+
+    // ── Z6/Z5 follow-up: Dashboard defaults (default subtitle + accent color for new blank dashboards) ──
+    console.log("\n• Z6/Z5 follow-up: dashboard defaults");
+    await page.click('#railNav .rail-item[data-sec="settings"]'); await page.waitForTimeout(120);
+    const dashDefCard = await page.evaluate(function () {
+      var sub = document.getElementById("setDefaultSubtitleInp");
+      var row = document.getElementById("setDefaultAccentRow");
+      return { subPresent: !!sub, subEmpty: sub && sub.value === "", swatches: row ? row.querySelectorAll(".set-accent-swatch").length : 0, hasCustom: !!document.getElementById("setDefaultAccentCustom") };
+    });
+    ok("Z6/Z5: Settings shows a Dashboard defaults card with an empty Default subtitle field and accent swatches + custom picker",
+      dashDefCard.subPresent && dashDefCard.subEmpty && dashDefCard.swatches >= 6 && dashDefCard.hasCustom, JSON.stringify(dashDefCard));
+
+    await page.fill("#setDefaultSubtitleInp", "Prepared by the SE team");
+    await page.evaluate(function () { document.getElementById("setDefaultSubtitleInp").dispatchEvent(new Event("change")); });
+    await page.click('#setDefaultAccentRow .set-accent-swatch[data-accent="#1a7a4a"]');
+    await page.waitForTimeout(80);
+    const dashDefSaved = await page.evaluate(function () {
+      return {
+        subtitle: window.__studioDefaultSubtitle(), accent: window.__studioDefaultAccentColor(),
+        subInKeys: window.__studioImportSettingsKeys.indexOf("studio-default-subtitle") >= 0,
+        accInKeys: window.__studioImportSettingsKeys.indexOf("studio-default-accent") >= 0,
+        swatchActive: document.querySelector('#setDefaultAccentRow .set-accent-swatch[data-accent="#1a7a4a"]').classList.contains("active"),
+      };
+    });
+    ok("Z6/Z5: saving default subtitle + accent color persists them and both are in Settings export/import keys",
+      dashDefSaved.subtitle === "Prepared by the SE team" && dashDefSaved.accent === "#1a7a4a" && dashDefSaved.subInKeys && dashDefSaved.accInKeys && dashDefSaved.swatchActive,
+      JSON.stringify(dashDefSaved));
+
+    await page.evaluate(function () { window.__studioShellSetSection("studio"); });
+    await page.waitForTimeout(80);
+    await page.click("#btnNew"); await page.waitForTimeout(80);
+    await page.click('#menuNew button[data-new="blank"]'); await page.waitForTimeout(300);
+    const dashDefApplied = await page.evaluate(function () {
+      var fields = [].slice.call(document.querySelectorAll("#inspector .field"));
+      var subField = fields.filter(function (f) { var lb = f.querySelector("label"); return lb && lb.textContent.indexOf("Subtitle") >= 0; })[0];
+      var subInp = subField ? subField.querySelector("input") : null;
+      var accentCustom = document.getElementById("dashAccentCustom");
+      return { subtitle: subInp ? subInp.value : null, accent: accentCustom ? accentCustom.value : null };
+    });
+    ok("Z6/Z5: a brand-new blank dashboard picks up the Settings default subtitle + accent color",
+      dashDefApplied.subtitle === "Prepared by the SE team" && dashDefApplied.accent === "#1a7a4a", JSON.stringify(dashDefApplied));
+
+    await page.evaluate(function () {
+      localStorage.removeItem("studio-default-subtitle"); localStorage.removeItem("studio-default-accent");
+      window.__studioRenderSettings();
+    }); // restore defaults for later tests
 
     // ── Z12: Branding as a Settings option (default / custom logo / none) ──
     console.log("\n• Z12: Branding Settings card");

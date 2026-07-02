@@ -8,6 +8,27 @@
 window.STUDIO_BUILD = "__BUILD_TS__";
 
 window.STUDIO_CHANGELOG = [
+  { v: "v194", date: "2026-07-02", time: "20:05 UTC", title: "Z6/Z5 follow-up: dashboard defaults (subtitle + accent color)", items: [
+      "New \"Dashboard defaults\" card on the Settings page: a **Default subtitle** field and a **Default accent color** picker (the same swatches used by the per-dashboard Accent color field). Both are applied automatically to every brand-new **Blank dashboard** (Home's quick-create card or New ▾ → Blank dashboard) — a first slice of the Z6/Z5 \"style-preset\" ask so a team's house tagline/brand color doesn't need retyping each time. Existing dashboards, examples, and imports are never touched.",
+      "Factored the dashboard inspector's inline accent-color preset list out into a shared `Studio.THEME_PRESETS` (model.js) so the per-dashboard picker and the new Settings default picker can't drift apart. Settings' own swatches use a distinct `.set-accent-swatch`/`.set-accent-presets` class pair (same look, shared CSS) rather than reusing `.accent-swatch` directly, so document-wide swatch queries elsewhere can't accidentally pick up Settings' copies.",
+      "Found and fixed a real pre-existing gap while wiring this up: \"Clear local data\" was missing several keys already tracked by Settings export/import (`studio-app-theme`, `studio-shell-section`, `studio-shell-expanded`, `studio-default-jndi`) — clearing local data left stale app-theme/rail-section/JNDI-default state behind. Added the missing keys, plus the two new default keys, to the clear list.",
+      "New keys included in Settings export/import. 3 new regression checks (card renders + defaults empty, saving both persists + is exported, a brand-new blank dashboard actually picks them up). Test suite 943/943.",
+    ] },
+  { v: "v193", date: "2026-07-02", time: "18:07 UTC", title: "Z6 kickoff: per-dashboard header logo", items: [
+      "New **Header logo** field in the Dashboard inspector (below Subtitle): upload a PNG/JPG/SVG (≤200KB) that replaces the default \"P\" mark in the banner, in both the live preview and the exported Dashboard Framework — lives in `spec.headerLogo` so it travels with the dashboard itself (Save/Open/Export/Import), distinct from the Z12 app-wide rail branding.",
+      "Found and fixed two real pre-existing bugs while shipping this: `normalize()` (every Open / restore-banner / example-load route) whitelisted only 7 top-level spec keys, silently stripping a saved dashboard's `themeColor` and `paletteKey` back to defaults on every reopen; and several of the dashboard inspector's own self-triggered re-renders were appending a second full copy of every section instead of replacing it.",
+      "6 new tests. Test suite 940/940.",
+    ] },
+  { v: "v192", date: "2026-07-02", time: "17:42 UTC", title: "Z10 follow-up: theme the welcome tour + tutorial + command palette", items: [
+      "Converted `app/welcome.js`'s fixed-hex style block to the shared `--pentaho`/`--pdc`/`--ink`/`--pane` custom properties, so the first-run tour now follows both light/dark mode and the Classic Blue/Polecat app theme instead of always rendering Classic-Blue-only.",
+      "Found and fixed a real latent bug in `app/tutorial.js`: its spotlight ring/tooltip had `body.dark-mode`/`body.dark` override rules that never matched anything (this app's dark mode is `[data-theme='dark']` on `<html>`, not a body class) — the interactive tutorial had rendered light-only in dark mode since it shipped. Also fixed `app/palette.js` (⌘K) referencing a nonexistent `--text` custom property.",
+      "2 new tests. Test suite 934/934.",
+    ] },
+  { v: "v191", date: "2026-07-02", time: "17:33 UTC", title: "Z10 kickoff: app theme system — Classic Blue vs Polecat", items: [
+      "New `[data-app-theme]` attribute on `<html>` (`classic` default | `polecat`), orthogonal to the existing light/dark mode toggle — each color theme carries its own light **and** dark variant, so all four combinations (Classic×Light, Classic×Dark, Polecat×Light, Polecat×Dark) are real, coherent palettes. Polecat reuses the plum-black/cream/terracotta rail palette so the whole builder reads as one identity.",
+      "New **Color theme** picker in Settings → Appearance; persisted, included in Settings export/import + Clear local data. Exported/preview dashboards are deliberately untouched (decoupled from app chrome).",
+      "4 new tests. Test suite 932/932.",
+    ] },
   { v: "v190", date: "2026-07-02", time: "19:35 UTC", title: "Z5 follow-up: data-source defaults", items: [
       "New \"Data source defaults\" card on the Settings page with a **Default JNDI connection** field. Every brand-new data source you create (＋ New source in the library) now pre-fills its Connection field from this setting instead of the built-in \"PDC-BIDB-EXT\" placeholder — handy for teams with their own standard connection pool who'd otherwise retype it every time.",
       "`defaultJndi()`/`setDefaultJndi()` helpers in studio.js persist the value to `localStorage[\"studio-default-jndi\"]`, added to the existing Settings export/import key list so it travels with the rest of your preferences.",

@@ -1726,14 +1726,7 @@
     // H-track: Dashboard accent color — per-dashboard --pentaho override.
     // 6 quick preset swatches + a custom hex picker let the SE team match client branding.
     // Empty string = keep the default Pentaho blue (#005bb5) from pdc-ui.css.
-    var THEME_PRESETS = [
-      { label: "Pentaho blue (default)", color: "" },
-      { label: "Ocean teal",  color: "#0d7a8a" },
-      { label: "Forest",      color: "#1a7a4a" },
-      { label: "Sunset",      color: "#d95f2b" },
-      { label: "Royal",       color: "#6b35a8" },
-      { label: "Coral rose",  color: "#c82b5e" }
-    ];
+    var THEME_PRESETS = Studio.THEME_PRESETS;
     var accentRow = el("div"); accentRow.className = "accent-presets";
     var accentCustom = el("input"); accentCustom.type = "color"; accentCustom.id = "dashAccentCustom";
     accentCustom.title = "Custom accent color";
@@ -3755,7 +3748,7 @@
       btn.onclick = function () {
         var act = btn.getAttribute("data-home");
         if (window.__studioShellSetSection) window.__studioShellSetSection("studio");
-        if (act === "blank") { S.spec = Studio.emptySpec(); S.selection = null; syncHeader(); renderInspector(); refreshPreview(); buildLibrary(); }
+        if (act === "blank") { S.spec = applyDashboardDefaults(Studio.emptySpec()); S.selection = null; syncHeader(); renderInspector(); refreshPreview(); buildLibrary(); }
         else if (act === "examples") { setTimeout(function () { var b = $("#btnExamples"); if (b) b.click(); }, 60); }
         else if (act === "tour") { setTimeout(function () { if (window.StudioTutorial) StudioTutorial.open(); }, 60); }
       };
@@ -3986,7 +3979,7 @@
     "studio-theme", "studio-app-theme", "studio-simple-mode", "studio-connections", "studio-active-conn",
     "studio-lw", "studio-rw", "studio-collapse-library", "studio-collapse-inspector",
     "studio-insp-collapsed", "studio-shell-section", "studio-shell-expanded", "studio-branding",
-    "studio-default-jndi"
+    "studio-default-jndi", "studio-default-subtitle", "studio-default-accent"
   ];
   // Z5 follow-up: data-source defaults. Every new data source (dataSourceBuilder with no
   // `existing`) used to fall back to a hardcoded "PDC-BIDB-EXT" JNDI pool name; most teams
@@ -3997,6 +3990,28 @@
   }
   function setDefaultJndi(v) { try { localStorage.setItem("studio-default-jndi", (v || "").trim()); } catch (e) {} }
   window.__studioDefaultJndi = defaultJndi; // test hook
+
+  // Z6/Z5 follow-up: dashboard defaults. A light first cut of the "style-preset collections"
+  // ask — a single default subtitle + accent color applied to every brand-new blank dashboard,
+  // so a team's house style doesn't need re-entering by hand each time. Existing dashboards
+  // (Open/Import/examples) are never touched — this only seeds Studio.emptySpec() output.
+  function defaultSubtitle() {
+    var v; try { v = localStorage.getItem("studio-default-subtitle"); } catch (e) {}
+    return v || "";
+  }
+  function setDefaultSubtitle(v) { try { localStorage.setItem("studio-default-subtitle", v || ""); } catch (e) {} }
+  function defaultAccentColor() {
+    var v; try { v = localStorage.getItem("studio-default-accent"); } catch (e) {}
+    return v || "";
+  }
+  function setDefaultAccentColor(v) { try { localStorage.setItem("studio-default-accent", v || ""); } catch (e) {} }
+  function applyDashboardDefaults(spec) {
+    var sub = defaultSubtitle(); if (sub && !spec.subtitle) spec.subtitle = sub;
+    var acc = defaultAccentColor(); if (acc) spec.themeColor = acc;
+    return spec;
+  }
+  window.__studioDefaultSubtitle = defaultSubtitle; // test hooks
+  window.__studioDefaultAccentColor = defaultAccentColor;
   function exportSettingsFile() {
     var out = { _type: "studio-settings", _v: 1 };
     SETTINGS_DATA_KEYS.forEach(function (k) {
@@ -4087,6 +4102,19 @@
           '<div class="set-row-txt"><b>Default JNDI connection</b><small>Pre-fills the Connection field whenever you create a new data source (＋ New source), instead of the built-in "PDC-BIDB-EXT" placeholder.</small></div>' +
           '<input type="text" id="setDefaultJndiInp" class="set-txt" value="' + esc(defaultJndi()) + '" placeholder="PDC-BIDB-EXT"/></div>' +
       '</div>' +
+      '<div class="settings-card"><h2>Dashboard defaults</h2>' +
+        '<div class="set-row"><span class="set-row-ic" data-ic="layers"></span>' +
+          '<div class="set-row-txt"><b>Default subtitle</b><small>Pre-fills every new blank dashboard\'s subtitle field with your team\'s house style (e.g. a standard tagline). Blank leaves it empty.</small></div>' +
+          '<input type="text" id="setDefaultSubtitleInp" class="set-txt" value="' + esc(defaultSubtitle()) + '" placeholder="e.g. Prepared by the SE team"/></div>' +
+        '<div class="set-row"><span class="set-row-ic" data-ic="palette"></span>' +
+          '<div class="set-row-txt"><b>Default accent color</b><small>Applied to every new blank dashboard\'s banner (same picker as the per-dashboard Accent color field). Pentaho blue keeps the built-in default.</small></div>' +
+          '<div class="set-accent-presets" id="setDefaultAccentRow">' +
+            Studio.THEME_PRESETS.map(function (preset) {
+              return '<button type="button" class="set-accent-swatch' + (defaultAccentColor() === preset.color ? " active" : "") + '" data-accent="' + esc(preset.color) + '" title="' + esc(preset.label) + '" style="background:' + (preset.color || "#005bb5") + '"></button>';
+            }).join("") +
+            '<input type="color" id="setDefaultAccentCustom" title="Custom accent color" value="' + esc(defaultAccentColor() || "#005bb5") + '"/>' +
+          '</div></div>' +
+      '</div>' +
       '<div class="settings-card"><h2>Data</h2>' +
         '<div class="set-row"><span class="set-row-ic" data-ic="download"></span>' +
           '<div class="set-row-txt"><b>Export settings</b><small>Save theme, mode, connections &amp; layout preferences as a .json file.</small></div>' +
@@ -4107,6 +4135,13 @@
     if (appThemeSel) appThemeSel.onchange = function () { setAppTheme(appThemeSel.value); toast(appThemeSel.value === "polecat" ? "Polecat theme applied" : "Classic Blue theme applied"); };
     var defJndiInp = $("#setDefaultJndiInp", sec);
     if (defJndiInp) defJndiInp.addEventListener("change", function () { setDefaultJndi(defJndiInp.value); toast("Default JNDI connection saved"); });
+    var defSubInp = $("#setDefaultSubtitleInp", sec);
+    if (defSubInp) defSubInp.addEventListener("change", function () { setDefaultSubtitle(defSubInp.value); toast("Default subtitle saved"); });
+    var defAccentCustom = $("#setDefaultAccentCustom", sec);
+    if (defAccentCustom) defAccentCustom.oninput = function () { setDefaultAccentColor(defAccentCustom.value); renderSettings(); };
+    $$("#setDefaultAccentRow .set-accent-swatch", sec).forEach(function (sw) {
+      sw.onclick = function () { setDefaultAccentColor(sw.getAttribute("data-accent")); renderSettings(); toast("Default accent color saved"); };
+    });
     var expBtn = $("#setExportBtn", sec); if (expBtn) expBtn.onclick = exportSettingsFile;
     var impBtn = $("#setImportBtn", sec); if (impBtn) impBtn.onclick = importSettingsFile;
     var brandSel = $("#brandModeSel", sec);
@@ -4608,7 +4643,7 @@
       b.onclick = function () {
         var action = b.getAttribute("data-new");
         if (action === "blank") {
-          S.spec = Studio.emptySpec(); S.selection = null; syncHeader(); renderInspector(); refreshPreview();
+          S.spec = applyDashboardDefaults(Studio.emptySpec()); S.selection = null; syncHeader(); renderInspector(); refreshPreview();
         } else if (action === "dup") {
           // Duplicate the current dashboard: clone the spec, assign a new unique ID,
           // append " (copy)" to the title, and append "-copy" to the file name stem.
@@ -4814,10 +4849,12 @@
     var moreClearData = $("#moreClearData"); if (moreClearData) moreClearData.onclick = function () {
       closeMenus();
       var keys = [
-        "studio-autosave", "studio-export-history", "studio-theme",
+        "studio-autosave", "studio-export-history", "studio-theme", "studio-app-theme",
         "studio-lw", "studio-rw", "studio-collapse-library", "studio-collapse-inspector",
         "studio-connections", "studio-active-conn", "studio-mob-tab", "studio-simple-mode",
-        "studio-insp-collapsed", "studio-recents", "studio-pins", "studio-branding"
+        "studio-insp-collapsed", "studio-recents", "studio-pins", "studio-branding",
+        "studio-shell-section", "studio-shell-expanded",
+        "studio-default-jndi", "studio-default-subtitle", "studio-default-accent"
       ];
       var msg = "Clear all locally-stored Studio data?\n\nThis will remove:\n" +
         "  • Unsaved spec draft (autosave)\n" +

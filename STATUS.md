@@ -661,6 +661,16 @@
   left as its own fixed brand screen — reasonable given it renders before the app's saved theme
   preference is even loaded. 2 new tests (welcome header/card + tutorial ring/tooltip recolor across
   theme+mode). Test suite 934/934.
+- v194: **Z6/Z5 follow-up: dashboard defaults (subtitle + accent color)** — new **Dashboard defaults**
+  Settings card: a Default subtitle field and a Default accent color picker (reusing the per-dashboard
+  Accent color swatches via a new shared `Studio.THEME_PRESETS` in model.js), applied to every brand-new
+  Blank dashboard (Home quick-create or New ▾ → Blank dashboard). Settings' swatches use their own
+  `.set-accent-swatch`/`.set-accent-presets` classes (same CSS look) so they can't collide with the
+  document-wide `.accent-swatch` queries the per-dashboard picker and palette-preset tests already rely
+  on. Found and fixed a real gap while wiring this up: "Clear local data" was missing several keys already
+  tracked by Settings export/import (`studio-app-theme`, `studio-shell-section`, `studio-shell-expanded`,
+  `studio-default-jndi`) — added those plus the two new default keys. `docs/index.html` updated. 3 new
+  tests. Test suite 943/943.
 
 ## NEXT (top = do first)
 
@@ -964,7 +974,15 @@ added, and unified with this header/text-object work.
 > app-wide rail branding. Along the way, fixed `normalize()` silently resetting `themeColor`/`paletteKey` on
 > every reopen, and a DOM-duplication bug in the dashboard inspector's own self-redraw calls. **Still open
 > under Z6**: colors beyond the existing accent-color picker, links, full text formatting for the banner,
-> default header presets in Settings, and the ¶ Text button placement.
+> and the ¶ Text button placement.
+> ✓ **Default subtitle + accent color shipped v194** (first slice of "default header presets in Settings"):
+> a **Dashboard defaults** card on the Settings page (Default subtitle text + Default accent color, reusing
+> the per-dashboard picker's swatches via a new shared `Studio.THEME_PRESETS`) is applied to every brand-new
+> **Blank dashboard**. Found + fixed a real gap along the way: "Clear local data" was missing several keys
+> already tracked by Settings export/import (`studio-app-theme`, `studio-shell-section`,
+> `studio-shell-expanded`, `studio-default-jndi`) — added those plus the two new default keys. **Still open
+> under Z6/Z5**: a full named-preset *collection* (more than one saved default set to choose from), logo
+> defaults, and the rest of the v967 Z6 list above.
 
 **Z7 — Analytics: forecasting + statistical functions.** Move toward standalone analytic apps: add
 forecasting (moving average, exponential smoothing / Holt-Winters, linear & seasonal trend) and

@@ -1117,13 +1117,16 @@ body.simple-mode .da-acts{display:none!important}
 .pdc-ref-label{position:absolute;right:4px;top:3px;font-size:9.5px;font-weight:700;
   white-space:nowrap;letter-spacing:.01em;font-family:var(--sans,sans-serif)}
 
-/* H-track: Dashboard accent color — preset swatches + custom color input */
-.accent-presets{display:flex;flex-wrap:wrap;gap:5px;align-items:center;padding:2px 0}
-.accent-swatch{width:20px;height:20px;border-radius:50%;border:2px solid transparent;
+/* H-track: Dashboard accent color — preset swatches + custom color input.
+   Z6/Z5 follow-up: the Settings "Default accent color" picker reuses this exact look via its
+   own .set-accent-* class names (not .accent-swatch itself) so document-wide swatch queries
+   elsewhere (e.g. the per-dashboard accent picker) can't accidentally pick up Settings' copies. */
+.accent-presets,.set-accent-presets{display:flex;flex-wrap:wrap;gap:5px;align-items:center;padding:2px 0}
+.accent-swatch,.set-accent-swatch{width:20px;height:20px;border-radius:50%;border:2px solid transparent;
   cursor:pointer;padding:0;flex-shrink:0;transition:border-color .12s,transform .1s;outline:none}
-.accent-swatch:hover{transform:scale(1.15)}
-.accent-swatch.active{border-color:var(--text-primary,#1a2236)!important}
-#dashAccentCustom{width:26px;height:26px;border-radius:5px;border:1px solid var(--line);
+.accent-swatch:hover,.set-accent-swatch:hover{transform:scale(1.15)}
+.accent-swatch.active,.set-accent-swatch.active{border-color:var(--text-primary,#1a2236)!important}
+#dashAccentCustom,#setDefaultAccentCustom{width:26px;height:26px;border-radius:5px;border:1px solid var(--line);
   cursor:pointer;padding:1px;background:transparent}
 
 /* H-track v118 — Panel zoom: full-screen panel viewer for SE demos */

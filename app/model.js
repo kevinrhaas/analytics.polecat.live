@@ -1466,6 +1466,18 @@
     }
   ];
 
+  // Built-in dashboard accent-color presets. Used by the per-dashboard "Accent color"
+  // picker (Dashboard inspector) and the Settings "Default accent color" picker (Z6).
+  // color: "" keeps the built-in Pentaho blue (#005bb5) from pdc-ui.css untouched.
+  Studio.THEME_PRESETS = [
+    { label: "Pentaho blue (default)", color: "" },
+    { label: "Ocean teal",  color: "#0d7a8a" },
+    { label: "Forest",      color: "#1a7a4a" },
+    { label: "Sunset",      color: "#d95f2b" },
+    { label: "Royal",       color: "#6b35a8" },
+    { label: "Coral rose",  color: "#c82b5e" }
+  ];
+
   Studio.emptySpec = function () {
     return {
       schema: 1,
