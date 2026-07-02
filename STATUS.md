@@ -687,6 +687,13 @@
   of the Dashboard inspector (title / panel / KPI / filter / a touch of style); purely encouraging,
   collapses to a "nice work" note once every milestone is met. `Studio.dashboardCompleteness(spec)` in
   model.js. `docs/index.html` updated. 3 new tests. Test suite 947/947.
+- v197: **Changelog moved to `js/changelog.js`** (polecat house convention, matches relay/games) +
+  real UTC timestamps going forward (no more hand-typed/guessed times). No app behavior change.
+- v198: **Z10 follow-up: passcode gate now themed** — revisited the v193 call to leave `app/gate.js`
+  fixed-hex ("renders before the saved theme loads"): gate.js now reads `studio-theme`/`studio-app-theme`
+  from `localStorage` itself and sets the `data-theme`/`data-app-theme` attributes before its first paint,
+  then uses the same shared `var(--pentaho/--pdc/--ink/...)` tokens as welcome/tutorial/palette — closing
+  the one surface still Classic-Blue-only regardless of the picker. 1 new test. Test suite 948/948.
 
 ## NEXT (top = do first)
 
@@ -1162,14 +1169,20 @@ picker); tests green. Coordinate with Z1 (rail) and Z5 (Settings).
 > ✓ **Slice 1 shipped v191**: theme tokens (`[data-app-theme='polecat']` light + dark CSS variable
 > blocks in `studio.css`, orthogonal to `[data-theme]` mode) + the Settings → Appearance **Color theme**
 > picker (Classic Blue / Polecat), persisted + exportable. Exported-dashboard theming stays independent,
-> as recommended above. **Z10 follow-ups (not yet done):** a handful of chrome surfaces are still
-> hardcoded hex rather than CSS variables and so don't yet follow the app theme — `app/welcome.js` (the
-> first-run tour modal) confirmed still Classic-Blue-only regardless of the picker; `app/tutorial.js`,
-> `app/gate.js` (passcode screen), and `app/palette.js` (⌘K) likely have the same gap and should be
-> audited/converted next. Also consider extending Polecat-aware coloring to the rail's own vars (today
-> `#railNav` already hardcodes the Polecat palette regardless of `data-app-theme`, so Classic Blue mode
-> still shows a warm rail + blue everything-else — intentional for now since the rail was the Z1
-> foundation, but worth a design call on whether Classic Blue should get a "cool" rail variant too).
+> as recommended above.
+> ✓ **welcome/tutorial/palette themed, shipped v181**: `app/welcome.js` converted to the shared
+> `--pentaho`/`--pdc`/`--pane`/etc vars; found + fixed a real latent bug in `app/tutorial.js` (dark-mode
+> rules keyed off a nonexistent `body.dark-mode` class — this app's dark mode is `[data-theme='dark']` on
+> `<html>`, so the interactive tutorial had rendered light-only in dark mode since it shipped) and a
+> nonexistent `--text` var in `app/palette.js`. `app/gate.js` was deliberately left alone at the time
+> ("renders before the saved theme loads").
+> ✓ **gate.js themed too, shipped v198**: revisited that call — gate.js now reads
+> `studio-theme`/`studio-app-theme` from `localStorage` itself and sets `data-theme`/`data-app-theme` on
+> `<html>` before its own first paint, then uses the same shared vars. **Z10 track's chrome-theming pass is
+> now complete** (welcome/tutorial/palette/gate all follow Classic Blue/Polecat × light/dark). **Still
+> open:** the rail's own vars aren't Polecat-aware yet (`#railNav` always renders the warm Polecat palette
+> regardless of `data-app-theme` — intentional since the rail was the Z1 foundation, but worth a design
+> call on whether Classic Blue should get a "cool" rail variant too).
 
 **Z11 — In-app docs: discoverability + continuous upkeep (user-requested 2026-06-30).** ✓ **Rail Help
 entry shipped v136**: a persistent `#railHelp` link at the bottom of the left rail opens `docs/index.html`

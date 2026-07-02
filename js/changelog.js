@@ -17,6 +17,10 @@
 window.STUDIO_BUILD = "__BUILD_TS__";
 
 window.STUDIO_CHANGELOG = [
+  { v: "v198", date: "2026-07-02", time: "19:22 UTC", title: "Z10 follow-up: the passcode gate now follows your theme too", items: [
+      "The access-passcode screen (shown before you're signed in) was the one surface still stuck on fixed Classic-Blue-light colors even after the welcome tour, tutorial, and command palette were themed back in v181 — now it reads your saved Color theme (Classic Blue / Polecat) and light/dark mode before it even draws, so it matches the rest of the app from the very first paint instead of flashing the old look and re-theming after sign-in.",
+      "1 new regression test. Test suite 948/948 at the time of this slice.",
+    ] },
   { v: "v197", date: "2026-07-02", time: "18:55 UTC", title: "Changelog now published the polecat way — /js/changelog.js + real timestamps", items: [
       "The update history now lives at the conventional **/js/changelog.js** (matching relay.polecat.live and games.polecat.live) instead of app/changelog.js, so it sits alongside the rest of the Polecat family at a predictable URL.",
       "Adopted the house rule that **changelog timestamps are real, never fabricated** — each new entry is stamped with the actual UTC commit time (this entry's 18:55 UTC is the true time it was written), fixing the previously hand-typed/guessed times.",

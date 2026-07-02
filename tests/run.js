@@ -1683,6 +1683,24 @@ function serve() {
       JSON.stringify({ before: wThemeBefore, after: wThemeAfter }));
     await gp.close();
 
+    // Z10 follow-up: the passcode gate itself (gate.js) was still 100% fixed hex — the one
+    // surface the earlier v181 welcome/tutorial/palette theming pass missed, since it renders
+    // before studio.js applies the saved data-theme/data-app-theme attributes. gate.js now
+    // reads the same studio-theme/studio-app-theme localStorage keys itself before first paint.
+    const gp2 = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+    gp2.on("pageerror", (e) => errors.push("gate theme page: " + e.message));
+    await gp2.route("**/app/gate-config.js", (route) => route.fulfill({ contentType: "text/javascript", body: 'window.STUDIO_GATE_SHA256=["' + TEST_HASH + '"];' }));
+    await gp2.addInitScript(() => { try { localStorage.setItem("studio-theme", "dark"); localStorage.setItem("studio-app-theme", "polecat"); } catch (e) {} });
+    await gp2.goto(`http://localhost:${PORT}/`, { waitUntil: "domcontentloaded" });
+    await gp2.waitForTimeout(400);
+    const gateThemed = await gp2.evaluate(() => ({
+      attr: document.documentElement.getAttribute("data-app-theme") + "/" + document.documentElement.getAttribute("data-theme"),
+      card: getComputedStyle(document.querySelector("#studio-gate .g-card")).backgroundColor
+    }));
+    ok("Z10: passcode gate reads the saved theme before first paint (Polecat dark card, not white Classic-Blue)",
+      gateThemed.attr === "polecat/dark" && gateThemed.card === "rgb(33, 27, 38)", JSON.stringify(gateThemed));
+    await gp2.close();
+
     // ---- CDA data source CRUD (My Data Sources library section) ----
     console.log("\n• CDA data-source CRUD");
     await page.evaluate(async () => { const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json()); window.__studioLoad(spec); });
