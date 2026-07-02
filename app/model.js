@@ -1555,6 +1555,7 @@
       themeColor: "", // optional hex color that overrides --pentaho in preview + exported CDF
       paletteKey: "", // optional series palette key (see Studio.PALETTE_PRESETS); "" = default
       headerLogo: "", // optional data: URL image that replaces the default "P" mark in the banner
+      headerLink: "", // optional URL — wraps the header brand mark+title in a link (opens in a new tab)
       panels: []
     };
   };

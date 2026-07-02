@@ -1040,6 +1040,12 @@ added, and unified with this header/text-object work.
 > `studio-shell-expanded`, `studio-default-jndi`) — added those plus the two new default keys. **Still open
 > under Z6/Z5**: a full named-preset *collection* (more than one saved default set to choose from), logo
 > defaults, and the rest of the v967 Z6 list above.
+> ✓ **Header link shipped v209**: a **Header link URL** field (right below Header logo) wraps the banner's
+> logo + title in an `<a target="_blank">` — click-through to a company site or portal — in both the live
+> preview and exported Dashboard Framework; blank keeps the plain, non-clickable `<div>`. `spec.headerLink`
+> added to `Studio.emptySpec()` + the `normalize()` whitelist (same pattern as `headerLogo`). Docs updated.
+> 4 new tests, suite 972/972. **Still open under Z6**: colors beyond the existing accent-color picker, full
+> text formatting for the banner, and the named-preset *collection* noted above.
 
 **Z7 — Analytics: forecasting + statistical functions.** Move toward standalone analytic apps: add
 forecasting (moving average, exponential smoothing / Holt-Winters, linear & seasonal trend) and

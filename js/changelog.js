@@ -15,6 +15,16 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 209,
+    title: 'Dashboard banner can now link out (Header link URL)',
+    kind: 'feature',
+    ts: '2026-07-02T21:55:26Z',
+    items: [
+      'A new "Header link URL" field in the Dashboard inspector (right below Header logo) wraps the banner\'s logo + title in a link that opens in a new tab — handy for pointing back to a company site or portal.',
+      'Leave it blank and the banner stays plain, non-clickable text, exactly as before.',
+    ],
+  },
+  {
     v: 208,
     title: 'Command palette can now add a panel of any chart type',
     kind: 'feature',

@@ -7570,6 +7570,50 @@ function serve() {
       z6Normalize.themeColor === "#123456" && z6Normalize.paletteKey === "ocean" && z6Normalize.headerLogo === "data:image/png;base64,AAAA",
       JSON.stringify(z6Normalize));
 
+    // ── Z6 slice: per-dashboard header link (banner brand becomes clickable) ──
+    console.log("\n• Z6: header link");
+    const z6LinkBefore = await page.evaluate(function () {
+      var sp = window.__STUDIO_STATE.spec;
+      var rows = [].slice.call(document.querySelectorAll(".field"));
+      var row = rows.filter(function (f) { var lb = f.querySelector("label"); return lb && lb.textContent.indexOf("Header link URL") >= 0; })[0];
+      var html = Studio.buildHtml(sp, window.__STUDIO_STATE.assets, { preview: false });
+      return { fieldPresent: !!row, hasInput: !!(row && row.querySelector("input[type=text]")), hasPlainDiv: html.indexOf('<div class="pdc-brand">') >= 0, hasAnchor: html.indexOf('<a class="pdc-brand"') >= 0 };
+    });
+    ok("Z6: Dashboard inspector has a Header link URL field (text input)", z6LinkBefore.fieldPresent && z6LinkBefore.hasInput, JSON.stringify(z6LinkBefore));
+    ok("Z6: with no header link set, the exported banner brand is a plain <div> (no unwanted <a>)",
+      z6LinkBefore.hasPlainDiv && !z6LinkBefore.hasAnchor, JSON.stringify(z6LinkBefore));
+
+    const z6LinkAfter = await page.evaluate(function () {
+      var rows = [].slice.call(document.querySelectorAll(".field"));
+      var row = rows.filter(function (f) { var lb = f.querySelector("label"); return lb && lb.textContent.indexOf("Header link URL") >= 0; })[0];
+      var inp = row.querySelector("input[type=text]");
+      inp.value = "https://example.com/portal";
+      inp.dispatchEvent(new Event("input", { bubbles: true }));
+      var sp = window.__STUDIO_STATE.spec;
+      var html = Studio.buildHtml(sp, window.__STUDIO_STATE.assets, { preview: false });
+      return {
+        specSet: sp.headerLink === "https://example.com/portal",
+        exportedAnchor: html.indexOf('<a class="pdc-brand" href="https://example.com/portal" target="_blank" rel="noopener noreferrer">') >= 0,
+        newTab: html.indexOf('target="_blank" rel="noopener noreferrer"') >= 0,
+        titleInside: /<a class="pdc-brand"[^>]*>[\s\S]*?<span class="pdc-title">/.test(html)
+      };
+    });
+    ok("Z6: setting a Header link URL sets spec.headerLink and wraps the banner brand in an <a target=_blank>",
+      z6LinkAfter.specSet && z6LinkAfter.exportedAnchor && z6LinkAfter.newTab && z6LinkAfter.titleInside, JSON.stringify(z6LinkAfter));
+
+    const z6LinkCleared = await page.evaluate(function () {
+      var rows = [].slice.call(document.querySelectorAll(".field"));
+      var row = rows.filter(function (f) { var lb = f.querySelector("label"); return lb && lb.textContent.indexOf("Header link URL") >= 0; })[0];
+      var inp = row.querySelector("input[type=text]");
+      inp.value = ""; inp.dispatchEvent(new Event("input", { bubbles: true }));
+      var sp = window.__STUDIO_STATE.spec;
+      var html = Studio.buildHtml(sp, window.__STUDIO_STATE.assets, { preview: false });
+      return { headerLink: sp.headerLink, backToDiv: html.indexOf('<div class="pdc-brand">') >= 0 };
+    });
+    ok("Z6: clearing the Header link URL reverts the banner brand to a plain <div>",
+      z6LinkCleared.headerLink === "" && z6LinkCleared.backToDiv, JSON.stringify(z6LinkCleared));
+    await page.waitForTimeout(200); // let the preview iframe's srcdoc reload settle (three refreshPreview() calls just fired)
+
     // ── N-FUN: Build-completeness meter ─────────────────────────────────────
     console.log("\n• N-FUN: Build-completeness meter");
     const bcApi = await page.evaluate(function () {
