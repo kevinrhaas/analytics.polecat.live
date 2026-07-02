@@ -33,12 +33,11 @@
     if (SECTIONS.indexOf(sec) < 0) sec = "studio";
     desiredSection = sec;
     if (persist !== false) { try { localStorage.setItem(LS_SECTION, sec); } catch (e) {} }
-    // the rail is desktop-only for now (Z1 slice); tablet/phone always show Studio
-    // so every existing mobile/tablet behavior stays exactly as before.
-    var effective = window.innerWidth <= 900 ? "studio" : sec;
+    // m-a: sections now switch on mobile too (the rail is a reachable drawer there,
+    // not hidden) — show the chosen section full-screen at any width.
     SECTIONS.forEach(function (s) {
       var el = sectionEl(s);
-      if (el) el.hidden = s !== effective;
+      if (el) el.hidden = s !== sec;
     });
     items.forEach(function (btn) {
       var on = btn.getAttribute("data-sec") === sec;
@@ -47,7 +46,39 @@
     });
   }
 
-  window.addEventListener("resize", function () { setActive(desiredSection); });
+  // ── m-a: mobile nav drawer ─────────────────────────────────────────────
+  // On phones/tablets (≤900px) the rail is an off-canvas drawer (see studio.css). A
+  // fixed hamburger opens it; the shared #mobile-scrim dims content behind it; picking
+  // a section, tapping the scrim, or pressing Esc closes it. Desktop is unaffected.
+  var scrim = document.getElementById("mobile-scrim");
+  var hamb = document.createElement("button");
+  hamb.id = "mobileNavBtn";
+  hamb.type = "button";
+  hamb.setAttribute("aria-label", "Open navigation");
+  hamb.setAttribute("aria-expanded", "false");
+  hamb.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>';
+  document.body.appendChild(hamb);
+
+  function railOpen() { return nav.classList.contains("mobile-open"); }
+  function openRail() {
+    nav.classList.add("mobile-open");
+    if (scrim) scrim.classList.add("active");
+    hamb.setAttribute("aria-expanded", "true");
+  }
+  function closeRail() {
+    nav.classList.remove("mobile-open");
+    hamb.setAttribute("aria-expanded", "false");
+    // only drop the shared scrim if no other drawer (library/inspector) is using it
+    if (scrim && !document.querySelector("#library.drawer-open, #inspector.drawer-open")) scrim.classList.remove("active");
+  }
+  hamb.addEventListener("click", function () { railOpen() ? closeRail() : openRail(); });
+  if (scrim) scrim.addEventListener("click", function () { if (railOpen()) closeRail(); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && railOpen()) closeRail(); });
+
+  window.addEventListener("resize", function () {
+    setActive(desiredSection);
+    if (window.innerWidth > 900) closeRail(); // leaving mobile → ensure the drawer state resets
+  });
 
   function setExpanded(on, persist) {
     nav.classList.toggle("expanded", on);
@@ -61,13 +92,13 @@
   }
 
   items.forEach(function (btn) {
-    btn.addEventListener("click", function () { setActive(btn.getAttribute("data-sec")); });
+    btn.addEventListener("click", function () { setActive(btn.getAttribute("data-sec")); closeRail(); });
   });
   if (collapseBtn) collapseBtn.addEventListener("click", function () { setExpanded(!nav.classList.contains("expanded")); });
 
   // Z12: the rail's brand mark is the app's persistent identity — clicking it goes Home.
   var brandBtn = document.getElementById("railBrand");
-  if (brandBtn) brandBtn.addEventListener("click", function () { setActive("home"); });
+  if (brandBtn) brandBtn.addEventListener("click", function () { setActive("home"); closeRail(); });
 
   // roving keyboard nav within the rail (arrow keys move focus between section buttons)
   nav.addEventListener("keydown", function (e) {

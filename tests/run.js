@@ -10090,23 +10090,27 @@ function serve() {
     await page.evaluate(function () { window.__studioShellSetSection("studio"); });
     await page.waitForTimeout(80);
 
-    // Z1-6: at tablet/phone widths the rail stays out of the way — Studio always wins,
-    // so every existing mobile/tablet check keeps passing untouched.
+    // Z1-6 / m-a: at phone width the rail is now an OFF-CANVAS DRAWER (not display:none),
+    // opened by the hamburger; and a saved non-Studio section actually shows full-screen
+    // (mobile is no longer force-pinned to Studio). Verify the drawer-shell contract here.
     const z1Phone = await browser.newPage({ viewport: { width: 390, height: 844 } });
     await z1Phone.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); localStorage.setItem("studio-shell-section", "settings"); } catch (e) {} });
     await z1Phone.goto(`http://localhost:${PORT}/`, { waitUntil: "networkidle" });
     await z1Phone.waitForTimeout(500);
     const z1PhoneState = await z1Phone.evaluate(function () {
       var nav = document.getElementById("railNav");
+      var disp = nav ? getComputedStyle(nav).display : "none";
+      var r = nav ? nav.getBoundingClientRect() : { right: 999 };
       return {
-        railHidden: !nav || getComputedStyle(nav).display === "none",
-        appMainVisible: document.getElementById("appMain").hidden === false,
+        railIsOffCanvasDrawer: disp !== "none" && r.right <= 1,             // present but slid off-screen
+        hamburgerPresent: !!document.getElementById("mobileNavBtn"),
+        savedSectionShows: document.getElementById("secSettings").hidden === false && document.getElementById("appMain").hidden === true,
         noOverflow: document.documentElement.scrollWidth - window.innerWidth <= 1
       };
     });
     await z1Phone.close();
-    ok("Z1: rail is hidden at phone width and Studio still shows even with a non-Studio section saved",
-      z1PhoneState.railHidden && z1PhoneState.appMainVisible && z1PhoneState.noOverflow, JSON.stringify(z1PhoneState));
+    ok("Z1/m-a: on mobile the rail is an off-canvas drawer (hamburger present) and a saved non-Studio section shows full-screen",
+      z1PhoneState.railIsOffCanvasDrawer && z1PhoneState.hamburgerPresent && z1PhoneState.savedSectionShows && z1PhoneState.noOverflow, JSON.stringify(z1PhoneState));
 
     // ── Z2: Home landing section — quick-create + recents ──
     console.log("\n• Z2: Home landing section");
@@ -11325,6 +11329,49 @@ function serve() {
       return { ok: ok };
     });
     ok("Z7MA: line panel inspector shows Show moving average / window fields", z7maInsp.ok, JSON.stringify(z7maInsp));
+
+    // ── m-a: mobile nav drawer (rail → slide-in left drawer at ≤900px) ──
+    // Runs on a SEPARATE 390×844 page so it never disturbs the main desktop page.
+    console.log("\n• m-a: mobile nav drawer");
+    const mp = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    await mp.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); } catch (e) {} });
+    await mp.goto(`http://localhost:${PORT}/`, { waitUntil: "networkidle" });
+    await mp.waitForTimeout(500);
+    const mHamb = await mp.evaluate(() => {
+      var b = document.getElementById("mobileNavBtn");
+      if (!b) return { present: false };
+      var r = b.getBoundingClientRect();
+      return { present: true, disp: getComputedStyle(b).display, onScreen: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.width > 20 };
+    });
+    ok("m-a: hamburger #mobileNavBtn is visible + on-screen at 390px", mHamb.present && mHamb.disp === "flex" && mHamb.onScreen, JSON.stringify(mHamb));
+    const mClosed = await mp.evaluate(() => {
+      var nav = document.getElementById("railNav"); var r = nav.getBoundingClientRect();
+      return { offCanvas: r.right <= 1, notOpen: !nav.classList.contains("mobile-open") };
+    });
+    ok("m-a: rail starts off-canvas (drawer closed) on mobile", mClosed.offCanvas && mClosed.notOpen, JSON.stringify(mClosed));
+    await mp.click("#mobileNavBtn");
+    await mp.waitForTimeout(350);
+    const mOpen = await mp.evaluate(() => {
+      var nav = document.getElementById("railNav"); var r = nav.getBoundingClientRect();
+      return { open: nav.classList.contains("mobile-open"), scrim: document.getElementById("mobile-scrim").classList.contains("active"), onScreen: r.left >= -2 && r.width > 100 };
+    });
+    ok("m-a: hamburger opens the drawer + scrim (rail slides on-screen)", mOpen.open && mOpen.scrim && mOpen.onScreen, JSON.stringify(mOpen));
+    await mp.click('#railNav .rail-item[data-sec="repository"]');
+    await mp.waitForTimeout(350);
+    const mPick = await mp.evaluate(() => ({
+      repoShown: !document.getElementById("secRepository").hidden,
+      studioHidden: document.getElementById("appMain").hidden,
+      drawerClosed: !document.getElementById("railNav").classList.contains("mobile-open"),
+      scrimGone: !document.getElementById("mobile-scrim").classList.contains("active")
+    }));
+    ok("m-a: picking a section switches it full-screen + closes the drawer on mobile",
+      mPick.repoShown && mPick.studioHidden && mPick.drawerClosed && mPick.scrimGone, JSON.stringify(mPick));
+    // scrim tap closes the drawer
+    await mp.click("#mobileNavBtn"); await mp.waitForTimeout(300);
+    await mp.click("#mobile-scrim", { position: { x: 360, y: 400 } }); await mp.waitForTimeout(300);
+    const mScrim = await mp.evaluate(() => !document.getElementById("railNav").classList.contains("mobile-open"));
+    ok("m-a: tapping the scrim closes the drawer", mScrim === true);
+    await mp.close();
 
     // restore Studio + a clean flagship spec for any tests appended after this block
     await page.evaluate(async function () {
