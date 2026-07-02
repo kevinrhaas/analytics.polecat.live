@@ -28,7 +28,14 @@ html,body{margin:0;height:100%}
    element remains scrollable if a child exceeds the viewport — this seals that gap. */
 html{overflow-x:hidden}
 body{font-family:var(--font);background:var(--bg);color:var(--ink);-webkit-font-smoothing:antialiased;overflow:hidden}
-#app{height:100vh;display:flex}
+/* m-b (mobile TOP PRIORITY): 100vh on iOS Safari is the LAYOUT viewport (as if the
+   toolbar were hidden), which is taller than what's actually visible while the toolbar
+   is showing. Since body/html clip overflow with no scroll to reveal the rest, that gap
+   was pushing #mobile-tabs and #statusbar (the last flex children of #appMain) below the
+   real fold — invisible on a real phone even though headless-Chromium tests (no toolbar)
+   never saw it. 100dvh tracks the actual visible viewport and updates live as the toolbar
+   shows/hides; the 100vh line stays first as a fallback for browsers without dvh support. */
+#app{height:100vh;height:100dvh;display:flex}
 #appMain{flex:1;min-width:0;height:100%;display:flex;flex-direction:column}
 #appMain[hidden]{display:none}
 
@@ -632,8 +639,14 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
   .top-actions::-webkit-scrollbar{display:none}
   .top-actions>*{flex:0 0 auto}
   .top-actions .menu{position:fixed;top:60px;left:8px;right:8px;width:auto;max-width:none}
-  /* M12: tighten status bar at phone — drop the build stamp to save space */
-  #statusbar{font-size:10.5px;gap:6px;padding:0 8px}
+  /* M12: tighten status bar at phone — drop the build stamp to save space.
+     m-b: #statusbar is the true bottom-most flex child of #appMain, so it — not
+     #mobile-tabs above it — is the one that sits against the iOS home-indicator strip;
+     pad it with the safe-area inset (needs viewport-fit=cover on the <meta viewport>
+     tag to resolve to a nonzero value) so its content/tap targets clear the strip
+     instead of running underneath it. flex:0 0 auto lets the box grow to fit that inset
+     (the old fixed flex-basis:28px would have clipped the extra padding). */
+  #statusbar{font-size:10.5px;gap:6px;padding:5px 8px calc(5px + env(safe-area-inset-bottom));flex:0 0 auto}
   .sb-stamp{display:none}
 }
 /* M7: Narrow phones (≤400px) — 44px tap targets and brand shrinkage */

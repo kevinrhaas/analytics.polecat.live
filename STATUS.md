@@ -560,6 +560,15 @@
   `tests/run.js` with a reusable poll helper (`window.__waitForPreview`); also hardened the
   panel-dup/delete count check with `page.waitForFunction`. Test-only, no product change. Suite
   unchanged at 890/890, closes the sweep target queued by the prior run.
+- v181: **MOBILE (m-a)** — the app-shell left rail becomes a slide-in drawer on phones/tablets
+  (hamburger + scrim, Relay-style) instead of `display:none` ≤900px; sections now switch full-screen on
+  mobile. Verified visually at 390×844. 6 new tests, suite 895/895.
+- v182: **MOBILE (m-b)** — fixed the "killer bug": `#app{height:100vh}` on iOS Safari measures the
+  layout viewport (taller than what's visible while the toolbar shows), silently stranding
+  `#mobile-tabs`/`#statusbar` below the fold with no way to scroll to them. Switched to
+  `100dvh`/`100vh`-fallback, added `viewport-fit=cover`, and padded `#statusbar` with
+  `env(safe-area-inset-bottom)`. New `tests/mobile-shot.js` screenshot helper for future mobile slices.
+  3 new tests, suite 898/898. Still needs a real-device confirmation from the user.
 
 ## NEXT (top = do first)
 
@@ -606,21 +615,26 @@
 > section nav (Relay-style), a persistent reachable bottom bar (or drawer) for Library/Canvas/Inspector,
 > every top action reachable, and a full-screen "What's new"/help sheet. Sequence it one shippable,
 > screenshot-verified slice per run:
-> **(m-a) ✓ DONE (this session, v181):** rail → mobile slide-in drawer + hamburger + scrim, and sections
+> **(m-a) ✓ DONE (v181):** rail → mobile slide-in drawer + hamburger + scrim, and sections
 > now switch full-screen on mobile (shell.js no longer force-pins Studio). `app/shell.js` injects
 > `#mobileNavBtn`; `app/studio.css` turns `#railNav` into a fixed off-canvas drawer ≤900px (Relay-style,
 > full labels, safe-area padding); scrim / Esc / section-pick close it. Verified visually at 390×844
 > (drawer open + Repository full-screen) + 6 tests. **NOTE for m-c:** the Repository section's data-source
 > cards overflow horizontally on a phone — fix in the panel-ergonomics slice.
-> **(m-b) ← DO THIS NEXT — the KILLER bug:** fix the bottom-fixed bars for the iOS safe-area/toolbar so the
-> Library·Canvas·Inspector tabs AND the footer/changelog are visible + tappable on a real iPhone. Root cause
-> is `#app{height:100vh}` (100vh includes the area under Safari's toolbar) pushing the in-flow `#mobile-tabs`
-> + `#statusbar` off-screen: switch to `100dvh` (with a `100vh` fallback), add `padding-bottom:
-> env(safe-area-inset-bottom)`, and consider `-webkit-fill-available`. Can't be seen in headless Chromium —
-> code it defensively, then have the USER verify on device.
-> **(m-c)** top-action overflow → reachable (drawer/bottom bar) + Repository card overflow; **(m-d)**
-> Library/Inspector reachability + panel ergonomics; **(m-e)** "What's new"/changelog + help reachable;
-> then a real-device pass with the user.
+> **(m-b) ✓ DONE (v182):** root cause was `#app{height:100vh}` — iOS Safari's 100vh is the LAYOUT viewport
+> (as if the toolbar were hidden), taller than the real visible area while the toolbar shows; with
+> `body`/`html` overflow clipped and nothing to scroll, that gap silently stranded `#mobile-tabs` +
+> `#statusbar` (the last two flex children of `#appMain`) below the fold. Fixed: `#app{height:100vh;
+> height:100dvh}` (100dvh tracks the real visible area live as the toolbar shows/hides; 100vh stays as the
+> no-dvh-support fallback), `viewport-fit=cover` added to `<meta viewport>` (required for
+> `env(safe-area-inset-*)` to resolve), and `#statusbar` (the true bottom-most element) padded with
+> `env(safe-area-inset-bottom)` at phone width. New `tests/mobile-shot.js` screenshot helper (390×844, iPhone
+> UA) for future slices to actually view, not just DOM-assert. 3 new regression checks guard the fix's
+> source (headless Chromium has no toolbar, so it can't reproduce the bug itself). **Still needs a real-device
+> check from the user to fully close out.** Test suite 898/898.
+> **(m-c) ← DO THIS NEXT:** top-action overflow → reachable (drawer/bottom bar) + Repository data-source card
+> horizontal overflow on phone (noted in m-a). **(m-d)** Library/Inspector reachability + panel ergonomics;
+> **(m-e)** "What's new"/changelog + help reachable; then a real-device pass with the user.
 > Keep the desktop experience untouched (scope changes to `≤900px` / touch). Update `docs` + STATUS each slice.
 
 ### ★ Z. Analytics App platform — the new north star (user-requested 2026-06-30; build across many iterations)

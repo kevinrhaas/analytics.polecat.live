@@ -11373,6 +11373,21 @@ function serve() {
     ok("m-a: tapping the scrim closes the drawer", mScrim === true);
     await mp.close();
 
+    // ── m-b: iOS safe-area / 100dvh fix (mobile TOP PRIORITY, the "killer bug") ──
+    // Headless Chromium has no browser toolbar, so #mobile-tabs/#statusbar always sit
+    // fully on-screen here regardless of this fix — that's exactly why the bug shipped
+    // unnoticed. These checks guard the SOURCE of the fix (the CSS/meta that a real
+    // iOS Safari toolbar needs) rather than pixel positions headless can't reproduce.
+    console.log("\n• m-b: iOS safe-area / 100dvh fix");
+    const mbMeta = await page.evaluate(() => document.querySelector('meta[name="viewport"]').getAttribute("content"));
+    ok("m-b: viewport meta declares viewport-fit=cover (required for env(safe-area-inset-*) to resolve on iOS)",
+      /viewport-fit=cover/.test(mbMeta), mbMeta);
+    const mbCss = await page.evaluate(() => fetch("app/studio.css").then((r) => r.text()));
+    ok("m-b: #app sizes with 100dvh (100vh fallback first) so the iOS toolbar can't strand content below the fold",
+      /#app\{height:100vh;height:100dvh;display:flex\}/.test(mbCss));
+    ok("m-b: #statusbar reserves env(safe-area-inset-bottom) at phone width so it clears the home-indicator strip",
+      /#statusbar\{[^}]*env\(safe-area-inset-bottom\)/.test(mbCss));
+
     // restore Studio + a clean flagship spec for any tests appended after this block
     await page.evaluate(async function () {
       const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json());
