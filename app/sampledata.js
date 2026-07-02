@@ -83,19 +83,46 @@
     }
   }
 
+  var CATEGORICAL_KINDS = /^(cat|sens|owner|status|app|ext|term|type|month|name|isodate)$/;
+
   // produce {cols, rows} for one data-access definition.
   // valueOnly=true → this DA feeds only KPIs/gauges (its first column IS a value, not an
   // x-axis label), so don't clobber it into a category.
-  Studio.sampleRows = function (da, valueOnly) {
+  // multiRow=true → distribution-shaped charts (boxplot/violin/ridgeline/beeswarm) group rows
+  // by their label column, so a single point per label is degenerate (no real spread to show).
+  // In this mode we emit a handful of distinct labels with SEVERAL jittered rows each instead
+  // of one row per label, so quartile boxes / KDE curves / swarms have genuine shape.
+  Studio.sampleRows = function (da, valueOnly, multiRow) {
     var cols = (da && da.columns) || [];
     if (!cols.length) cols = ["value"];                 // helper queries with no parsed alias
-    var n = 8;
     var kinds = cols.map(function (c) { return classify(c); });
     // Force the first column to a categorical label so CHARTS never get a numeric x-axis
     // (exempt isodate so calHeatmap date columns keep their YYYY-MM-DD values). Skip this
     // for value-only (KPI/gauge) queries — there the first column is the metric itself.
-    if (!valueOnly && !/^(cat|sens|owner|status|app|ext|term|type|month|name|isodate)$/.test(kinds[0])) kinds[0] = "cat";
+    if (!valueOnly && !CATEGORICAL_KINDS.test(kinds[0])) kinds[0] = "cat";
+
+    if (multiRow) {
+      var numGroups = 5, perGroup = 6;
+      var rows2 = [];
+      for (var gi = 0; gi < numGroups; gi++) {
+        // one representative value per column for this group (categorical cols → the label
+        // that all rows in the group share; numeric cols → the group's base magnitude).
+        var groupVals = cols.map(function (c, j) { return valueFor(kinds[j], gi, numGroups, j === 0, c); });
+        for (var ri = 0; ri < perGroup; ri++) {
+          var rowIdx = gi * perGroup + ri;
+          rows2.push(cols.map(function (c, j) {
+            if (CATEGORICAL_KINDS.test(kinds[j])) return groupVals[j]; // repeat the group's label
+            var base = +groupVals[j] || 0;
+            var jitter = ((seed(c + "_" + rowIdx) % 1000) / 1000 - 0.5) * 0.7; // ±35% spread
+            return Math.round(base * (1 + jitter) * 100) / 100;
+          }));
+        }
+      }
+      return { cols: cols, rows: rows2 };
+    }
+
     // if the row is a per-record detail (has a name col) keep names; otherwise distinct categories
+    var n = 8;
     var rows = [];
     for (var i = 0; i < n; i++) {
       rows.push(cols.map(function (c, j) { return valueFor(kinds[j], i, n, j === 0, c); }));
@@ -108,13 +135,17 @@
     var out = {};
     // A DA is "value-only" if nothing that needs an x-axis label binds it — i.e. it feeds only
     // KPIs and/or gauges. Every other chart type consumes the first column as its label/x-axis.
-    var labelDA = {};
+    // A DA feeding a distribution-shaped chart (boxplot/violin/ridgeline/beeswarm) needs the
+    // multi-row generator so its per-group spread is real, not a single point per label.
+    var labelDA = {}, multiRowDA = {};
+    var DIST_TYPES = { boxplot: 1, violin: 1, ridgeline: 1, beeswarm: 1 };
     (spec.panels || []).forEach(function (p) {
       var c = p && p.chart; if (!c || !c.da) return;
       if (c.type !== "gauge") labelDA[c.da] = 1;
+      if (DIST_TYPES[c.type]) multiRowDA[c.da] = 1;
     });
     (spec.cda.dataAccesses || []).forEach(function (da) {
-      var result = Studio.sampleRows(da, !labelDA[da.id]);
+      var result = Studio.sampleRows(da, !labelDA[da.id], !!multiRowDA[da.id]);
       out[da.id] = Studio.applyOutputOptions ? Studio.applyOutputOptions(da, result) : result;
     });
     return out;

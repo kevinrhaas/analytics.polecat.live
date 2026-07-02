@@ -1,0 +1,222 @@
+{
+  "schema": 1,
+  "id": "showcase-reliability",
+  "name": "reliability-distributions",
+  "title": "Incident Response & Reliability Distributions",
+  "subtitle": "resolution spread, response-time density, latency ridges & incident swarm",
+  "group": "Reliability",
+  "description": "The distribution-chart quartet: a quartile box per team, a kernel-density violin per severity, horizontally-stacked density ridges per service, and an individual-point swarm per severity. These four forms all group many raw rows per category to show real spread rather than a single summary number \u2014 the last chart types needed to cover the full gallery.",
+  "gridCols": 3,
+  "filters": [],
+  "cda": {
+    "connection": {
+      "id": "pdc",
+      "jndi": "PDC-BIDB-EXT"
+    },
+    "dataAccesses": [
+      {
+        "id": "kpi",
+        "name": "ReliabilityKPI",
+        "params": [],
+        "cache": true,
+        "cacheDuration": 120,
+        "sql": "SELECT ROUND(AVG(resolution_hrs),1) AS resolution_hrs, ROUND(AVG(sla_compliance_pct),1) AS sla_compliance_pct, SUM(open_incident_count) AS open_incident_count, ROUND(AVG(mtta_min),1) AS mtta_min FROM v_incident_master",
+        "columns": [
+          "resolution_hrs",
+          "sla_compliance_pct",
+          "open_incident_count",
+          "mtta_min"
+        ]
+      },
+      {
+        "id": "restime",
+        "name": "TeamResolutionSpread",
+        "params": [],
+        "cache": true,
+        "cacheDuration": 120,
+        "sql": "SELECT t.team_tier AS team_tier, i.resolution_hrs AS resolution_hrs FROM v_incident_resolution i JOIN dim_team t ON i.team_id = t.id",
+        "columns": [
+          "team_tier",
+          "resolution_hrs"
+        ]
+      },
+      {
+        "id": "respdist",
+        "name": "SeverityResponseDensity",
+        "params": [],
+        "cache": true,
+        "cacheDuration": 120,
+        "sql": "SELECT s.severity_type AS severity_type, i.response_min AS response_min FROM v_incident_response i JOIN dim_severity s ON i.severity_id = s.id",
+        "columns": [
+          "severity_type",
+          "response_min"
+        ]
+      },
+      {
+        "id": "incidentswarm",
+        "name": "SeverityDurationSwarm",
+        "params": [],
+        "cache": true,
+        "cacheDuration": 120,
+        "sql": "SELECT s.severity_type AS severity_type, i.duration_min AS duration_min FROM v_incident_duration i JOIN dim_severity s ON i.severity_id = s.id",
+        "columns": [
+          "severity_type",
+          "duration_min"
+        ]
+      },
+      {
+        "id": "latencydist",
+        "name": "ServiceLatencyRidges",
+        "params": [],
+        "cache": true,
+        "cacheDuration": 120,
+        "sql": "SELECT sv.service_tier AS service_tier, l.latency_ms AS latency_ms FROM v_service_latency l JOIN dim_service sv ON l.service_id = sv.id",
+        "columns": [
+          "service_tier",
+          "latency_ms"
+        ]
+      }
+    ]
+  },
+  "kpis": [
+    {
+      "da": "kpi",
+      "valueCol": "resolution_hrs",
+      "label": "Avg Resolution Time",
+      "fmt": "n",
+      "state": "",
+      "info": "Mean hours from incident open to resolution across all teams."
+    },
+    {
+      "da": "kpi",
+      "valueCol": "sla_compliance_pct",
+      "label": "SLA Compliance",
+      "fmt": "pct",
+      "state": "good",
+      "info": "Share of incidents resolved within their SLA window."
+    },
+    {
+      "da": "kpi",
+      "valueCol": "open_incident_count",
+      "label": "Open Incidents",
+      "fmt": "n",
+      "state": "",
+      "info": "Incidents currently open across all severities."
+    },
+    {
+      "da": "kpi",
+      "valueCol": "mtta_min",
+      "label": "Mean Time to Acknowledge",
+      "fmt": "n",
+      "state": "",
+      "info": "Average minutes from alert to first acknowledgement."
+    }
+  ],
+  "panels": [
+    {
+      "id": "p_intro",
+      "title": "About this dashboard",
+      "span": "full",
+      "pill": "",
+      "sub": "",
+      "info": "",
+      "chart": {
+        "type": "richtext",
+        "da": "",
+        "map": {},
+        "opts": {
+          "content": "## Incident Response & Reliability Distributions\nFour chart forms built for **spread, not just averages** \u2014 each groups many raw observations per category so you see the *shape* of the data, not one summary number.\n\n- A quartile **box plot** of resolution time per team\n- A **violin** (kernel-density) view of response time per severity\n- A **swarm** of every individual incident's duration, jittered by severity\n- **Ridgeline** density curves comparing latency across services"
+        }
+      }
+    },
+    {
+      "id": "p_restime",
+      "title": "Resolution Time by Team",
+      "span": 1,
+      "pill": "Quartile spread",
+      "sub": "",
+      "info": "Q1/median/Q3 resolution hours per team, from every closed incident this quarter.",
+      "src": "v_incident_resolution",
+      "chart": {
+        "type": "boxplot",
+        "da": "restime",
+        "map": {
+          "labelCol": "team_tier",
+          "valueCol": "resolution_hrs"
+        },
+        "opts": {
+          "horizontal": true,
+          "fmt": "abbr",
+          "height": 300
+        }
+      }
+    },
+    {
+      "id": "p_respdist",
+      "title": "Response-Time Density by Severity",
+      "span": 1,
+      "pill": "KDE shape",
+      "sub": "",
+      "info": "Full response-time distribution per severity tier \u2014 the violin's width shows how common each response time is.",
+      "src": "v_incident_response",
+      "chart": {
+        "type": "violin",
+        "da": "respdist",
+        "map": {
+          "labelCol": "severity_type",
+          "valueCol": "response_min"
+        },
+        "opts": {
+          "showBox": true,
+          "fmt": "abbr",
+          "height": 300
+        }
+      }
+    },
+    {
+      "id": "p_swarm",
+      "title": "Incident Duration Swarm by Severity",
+      "span": 1,
+      "pill": "Every point",
+      "sub": "",
+      "info": "Every incident plotted individually and jittered within its severity strip \u2014 reveals clusters and outliers a summary chart would hide.",
+      "src": "v_incident_duration",
+      "chart": {
+        "type": "beeswarm",
+        "da": "incidentswarm",
+        "map": {
+          "labelCol": "severity_type",
+          "valueCol": "duration_min",
+          "categoryCol": "severity_type"
+        },
+        "opts": {
+          "dotR": 5,
+          "fmt": "abbr",
+          "height": 300
+        }
+      }
+    },
+    {
+      "id": "p_latency",
+      "title": "Latency Distribution Ridges by Service",
+      "span": "full",
+      "pill": "Joy plot",
+      "sub": "",
+      "info": "Horizontally-stacked density ridges compare each service's latency distribution at a glance.",
+      "src": "v_service_latency",
+      "chart": {
+        "type": "ridgeline",
+        "da": "latencydist",
+        "map": {
+          "labelCol": "service_tier",
+          "valueCol": "latency_ms"
+        },
+        "opts": {
+          "overlap": 0.4,
+          "fmt": "abbr",
+          "height": 320
+        }
+      }
+    }
+  ]
+}

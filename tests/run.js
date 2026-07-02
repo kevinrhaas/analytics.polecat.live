@@ -1073,6 +1073,44 @@ function serve() {
     ok("Z13: marketing-growth covers all 10 target chart types", wantMktTypes.every((t) => mktShow.types.includes(t)), mktShow.types.join(","));
     ok("Z13: every marketing-growth panel renders visual content", Object.values(mktShow.perType).every((n) => n > 0), JSON.stringify(mktShow.perType));
 
+    // ---- Z13: "reliability-distributions" showcase covers the last 4 chart types (boxplot/violin/beeswarm/ridgeline) — gallery now 51/51 ----
+    console.log("\n• Z13: reliability-distributions showcase (boxplot/violin/beeswarm/ridgeline) — gallery coverage complete");
+    const relShow = await page.evaluate(async () => {
+      const spec = await fetch("data/examples/reliability-distributions.studio.json").then((r) => r.json());
+      const S = window.__STUDIO_STATE;
+      const mock = Studio.genMock(spec);
+      const html = Studio.buildHtml(spec, S.assets, { deployPath: "/x", preview: true, mock, launcher: false });
+      const ifr = document.createElement("iframe");
+      ifr.style.cssText = "position:fixed;left:-9999px;width:1200px;height:900px";
+      document.body.appendChild(ifr);
+      await new Promise((res) => { ifr.onload = res; ifr.srcdoc = html; });
+      await new Promise((r) => setTimeout(r, 400));
+      const d = ifr.contentDocument;
+      const cards = Array.from(d.querySelectorAll("#content .card"));
+      const perType = {};
+      spec.panels.forEach((p, i) => { perType[p.chart.type] = (cards[i] && cards[i].querySelectorAll("svg,table,.sr-richtext").length) || 0; });
+      // multi-row spread check: each distribution DA should carry MANY more rows than the
+      // 8-row single-row-per-label generator would, with real variation (not one repeated value).
+      const spread = {};
+      ["restime", "respdist", "incidentswarm", "latencydist"].forEach((daId) => {
+        const rows = mock[daId].rows;
+        const valueCol = spec.cda.dataAccesses.find((x) => x.id === daId).columns[1];
+        const vi = spec.cda.dataAccesses.find((x) => x.id === daId).columns.indexOf(valueCol);
+        const vals = rows.map((r) => r[vi]);
+        spread[daId] = { rowCount: rows.length, distinctValues: new Set(vals).size };
+      });
+      ifr.remove();
+      return { types: spec.panels.map((p) => p.chart.type), perType, spread,
+        inIndex: (window.__STUDIO_STATE.examples || []).some((e) => e.file === "reliability-distributions.studio.json") };
+    });
+    const wantRelTypes = ["boxplot", "violin", "beeswarm", "ridgeline"];
+    ok("Z13: reliability-distributions is listed among the bundled examples", relShow.inIndex);
+    ok("Z13: reliability-distributions covers all 4 remaining chart types (51/51 gallery coverage)",
+      wantRelTypes.every((t) => relShow.types.includes(t)), relShow.types.join(","));
+    ok("Z13: every reliability-distributions panel renders visual content", Object.values(relShow.perType).every((n) => n > 0), JSON.stringify(relShow.perType));
+    ok("Z13 multi-row sample data: distribution DAs get >8 rows with real per-row spread (not one point per label)",
+      Object.values(relShow.spread).every((s) => s.rowCount > 8 && s.distinctValues > 4), JSON.stringify(relShow.spread));
+
     // ---- builder dark mode (themes app + preview) ----
     console.log("\n• dark mode + export modal");
     await page.click("#btnTheme"); await page.waitForTimeout(250);

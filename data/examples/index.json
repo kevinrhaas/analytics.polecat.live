@@ -45,6 +45,15 @@
     "layout": [["richtext", "full"], ["streamgraph", 2], ["slope", 1], ["dotplot", 1], ["polarArea", 1], ["step", 1], ["marimekko", 2], ["packedBubble", 1], ["pyramidBar", 1], ["barNorm", 1]]
   },
   {
+    "file": "reliability-distributions.studio.json",
+    "title": "Incident Response & Reliability Distributions",
+    "panels": 5,
+    "kpis": 4,
+    "gridCols": 3,
+    "types": ["richtext", "boxplot", "violin", "beeswarm", "ridgeline"],
+    "layout": [["richtext", "full"], ["boxplot", 1], ["violin", 1], ["beeswarm", 1], ["ridgeline", "full"]]
+  },
+  {
     "file": "compliance-radar.studio.json",
     "title": "Sensitivity & Compliance Radar",
     "panels": 5,

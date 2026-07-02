@@ -521,6 +521,11 @@
   left rail via `applyBranding()` (called at boot + on every change). Included in Settings export/import
   and "Clear local data" so a custom logo travels with your other preferences. 9 new tests, including a
   real `setInputFiles()` upload through the actual (hidden) file input. Test suite 849/849.
+- v172: **Z13 complete: multi-row sample-data mode + 11th example** — `Studio.sampleRows` gained an
+  opt-in multi-row-per-label mode (jittered rows per group instead of one point per label) that
+  `Studio.genMock` auto-applies to any DA feeding a boxplot/violin/ridgeline/beeswarm panel; new
+  "Incident Response & Reliability Distributions" example covers those 4 previously-uncovered chart
+  types. Gallery chart-type coverage now **51 of 51**. 4 new tests. Test suite 870/870.
 
 ## NEXT (top = do first)
 
@@ -891,22 +896,17 @@ fixed KPI/gauge NaN/`0`/double-`%` (sample-data generator + example gauges).
 > packedBubble, pyramidBar, barNorm. Fixed the generic "all examples render every panel" Playwright check,
 > which only counted `svg`/`table` as evidence of render — a richtext panel renders a `.sr-richtext` div
 > instead, now included in that selector. Gallery chart-type coverage is now **47 of 51**.
+> ✓ **11th example + multi-row generator shipped v172 — "every chart type" goal COMPLETE (51 of 51)**:
+> `Studio.sampleRows(da, valueOnly, multiRow)` gained an opt-in multi-row-per-label mode (5 labels × 6
+> jittered rows instead of 8 single-row labels); `Studio.genMock()` auto-detects DAs feeding a
+> boxplot/violin/ridgeline/beeswarm panel and switches them to it. "Incident Response & Reliability
+> Distributions" (`reliability-distributions.studio.json`, 6th in gallery order) covers the last 4 types —
+> boxplot (resolution time by team), violin (response time by severity), beeswarm (incident duration
+> swarm), ridgeline (latency density by service). 4 new tests incl. a spread-regression check. Test suite
+> 870/870. Gallery chart-type coverage: **51 of 51 — every type appears in at least one example.**
 NEXT — turn the examples into a **broad, complete survey of everything the app can do**, built
 **progressively simple → dazzling**:
-- **Cover EVERY chart type at least once** across the set — each example featuring several types the
-  others don't, so the collection is a full tour. Currently covered (47 of 51): areaRange, areaStacked,
-  bars, barNorm, bullet, bump, calHeatmap, candlestick, chord, combo, divergingBar, donut, dotplot,
-  dumbbell, funnel, gantt, gauge, groupedBars, heatmap, histogram, icicle, line, lollipop, marimekko,
-  network, packedBubble, parallelCoords, pareto, polarArea, pyramidBar, quadrant, radar, radialBar,
-  richtext, sankey, scatter, slope, stacked, step, streamgraph, sunburst, table, timeline, treemap, waffle,
-  waterfall, wordCloud. **Still missing (4, all share the same generator limitation):** boxplot, violin,
-  ridgeline, beeswarm — `sampleRows` always emits exactly 8 rows with 8 distinct categorical labels, so any
-  chart needing multiple raw values per group (quartile box, KDE curve, per-category jitter) only ever sees
-  **one value per group** in the offline preview — it renders without error but looks degenerate (a flat
-  line/point, not a real spread). The fix needs either an opt-in "multiple rows per label" sample-generator
-  mode, or a hand-authored fixed dataset for just those 4 example panels instead of the usual synthetic
-  path. This is the one real slice of work left to finish Z13's "every chart type" goal — worth its own
-  loop rather than squeezing it in.
+- ✓ **Cover EVERY chart type at least once** — DONE (v172, see above), 51 of 51.
 - **Show EVERY interaction/feature at least once**: **filters** (dashboard filters + the `#hash` deep-link),
   **cross-filter**, **drill-through / detail drawer** (internal drill AND cross-dashboard drill), and all
   the **marks/annotations** — target lines, reference bands, callout arrows, period highlights, event
