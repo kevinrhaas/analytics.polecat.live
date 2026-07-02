@@ -384,6 +384,14 @@
   beyond fmt+height — every chart type now has at least one type-specific option. `PDC.bump`/`PDC.icicle`
   updated directly in `studio-charts.js` (both are pure extensions, no vendored base); `studio-render.js`
   passes the new keys through. 4 new Z8BI tests. Test suite 796/796.
+- v155: **Z8 slice 18 (Z8 track complete): Grouped bars + 100% stacked get their own options** — the v154
+  audit missed that `groupedBars`/`barNorm` were still on bare rotate+fmt+height (rotate is a generic
+  option shared by many types, not a distinguishing one). `Studio.CHARTS.groupedBars.opts` gains **Show
+  value labels** (formatted value above each bar, drawn only when wide enough); `Studio.CHARTS.barNorm.opts`
+  gains **Show segment % labels** (rounded `NN%` centered in each band, drawn only when tall+wide enough).
+  `PDC.groupedBars`/`PDC.barNorm` updated in `studio-charts.js`; labels fade in with their bar/segment's
+  entrance animation; `studio-render.js` passes the new keys through; `docs/index.html` updated. Every
+  chart type now genuinely carries at least one type-specific option. 4 new Z8GN tests. Test suite 800/800.
 
 ## NEXT (top = do first)
 
@@ -563,10 +571,13 @@ self-explanatory. Keep it light (inline SVG / CSS, no image assets or deps). One
 > polarArea/step/violin/marimekko/packedBubble/wordCloud/gantt/divergingBar/candlestick/waffle/timeline/
 > pyramidBar/radialBar/pareto/groupedBars/ridgeline/barNorm/areaRange/quadrant/waterfall/funnel/sunburst/
 > combo/bullet/sankey all already carry at least one genuine type-specific option alongside fmt+height.
-> **Z8 follow-ups (not yet done):** the inline visual setting hints (tiny before/after thumbnails) —
-> the "every type gets its own option set" sweep is now essentially complete (every chart type has ≥1
-> type-specific option); a deeper pass could still give a *second* option to the thinnest types
-> (groupedBars/barNorm currently have only `rotate`). Continue as capacity allows.
+> ✓ **Slice 18 shipped v155 (per-type option sweep now genuinely complete)**: **Grouped bars** gets
+> **Show value labels** and **100% stacked bars** gets **Show segment % labels** — the v154 audit had
+> miscounted these two as already-done because `rotate` (a generic option shared by many bar-family
+> types) isn't actually type-specific. Every chart type now carries at least one real type-specific
+> option beyond fmt+height.
+> **Z8 follow-ups (not yet done):** the inline visual setting hints (tiny before/after thumbnails) for
+> the now-dense inspector remain open — the largest remaining piece of the original Z8 ask.
 
 **Z9 — Mobile: fix the broken flows + a proper bottom nav (user-requested 2026-06-30).** Reported
 regressions on small screens: the top button-bar scrolls/slides but **its dropdown menus don't open /

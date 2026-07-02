@@ -4534,6 +4534,7 @@
     var h       = cfg.height  || 300;
     var fmtFn   = cfg.fmt     || PDC.fmt.abbr;
     var rotate  = !!cfg.rotate;
+    var showValues = !!cfg.showValues;
 
     if (!labels.length || !series.length) { el.innerHTML = '<div class="empty">No data</div>'; return; }
 
@@ -4601,7 +4602,17 @@
         rect.addEventListener("mouseout", PDC.hideTip);
         s.appendChild(rect);
         seEls.push(rect);
-        barAnims.push({ rect: rect, finalY: finalY, bh: bh,
+
+        // Value label above the bar — only when the bar is wide enough to hold text legibly.
+        var valLbl = null;
+        if (showValues && barW >= 14) {
+          valLbl = S("text", { class: "val-label", x: (bx + barW / 2).toFixed(1),
+            y: (finalY - 4).toFixed(1), "text-anchor": "middle" }, fmtFn(val));
+          if (canAnim()) valLbl.style.opacity = "0";
+          s.appendChild(valLbl);
+        }
+
+        barAnims.push({ rect: rect, finalY: finalY, bh: bh, label: valLbl,
                         delay: animD(40 + li * 40 + si * 15) });
 
         // X-axis label — emit once (first series only) to avoid duplicates
@@ -4633,7 +4644,11 @@
           ba.rect.setAttribute("height", ba.bh.toFixed(1));
           ba.rect.style.transition =
             "y " + animD(280) + "ms ease-out, height " + animD(280) + "ms ease-out";
-        }, ba.delay);
+          if (ba.label) {
+            ba.label.style.transition = "opacity " + animD(220) + "ms ease";
+            ba.label.style.opacity = "1";
+          }
+        }, ba.delay + (ba.label ? animD(200) : 0));
       });
     } else {
       barAnims.forEach(function (ba) {
@@ -4818,6 +4833,7 @@
        labels:  string[],               // x-axis categories
        series:  [{name, color, values}],// one per segment; values[i] = raw numeric for label[i]
        rotate:  bool,                   // rotate x-axis labels (for long category names)
+       showPct: bool,                   // show a "NN%" label centered in each segment (Z8 follow-up)
        fmt:     function,               // value formatter (raw value in tooltips)
        height:  number
      })
@@ -4829,6 +4845,7 @@
     var h       = cfg.height  || 300;
     var fmtFn   = cfg.fmt     || PDC.fmt.abbr;
     var rotate  = !!cfg.rotate;
+    var showPct = !!cfg.showPct;
 
     if (!labels.length || !series.length) { el.innerHTML = '<div class="empty">No data</div>'; return; }
 
@@ -4916,7 +4933,18 @@
 
         s.appendChild(rect);
         seEls.push(rect);
-        colGroups[li].push({ rect: rect, finalY: finalY.toFixed(1), finalH: finalH.toFixed(1) });
+
+        // Segment % label — centered in the band, only when tall+wide enough to read.
+        var pctLbl = null;
+        if (showPct && finalH >= 14 && bWidth >= 20) {
+          pctLbl = S("text", { class: "val-label", x: (bx + bWidth / 2).toFixed(1),
+            y: (finalY + finalH / 2 + 4).toFixed(1), "text-anchor": "middle" },
+            Math.round(pct * 100) + "%");
+          pctLbl.style.opacity = "0";
+          s.appendChild(pctLbl);
+        }
+
+        colGroups[li].push({ rect: rect, finalY: finalY.toFixed(1), finalH: finalH.toFixed(1), label: pctLbl });
       });
 
       legendItems.push({ name: se.name || ("Series " + (si + 1)), color: serColor, els: seEls, base: "1" });
@@ -4933,14 +4961,19 @@
             ba.rect.setAttribute("height", ba.finalH);
             ba.rect.style.transition =
               "y " + animD(330) + "ms ease-out, height " + animD(330) + "ms ease-out";
+            if (ba.label) {
+              ba.label.style.transition = "opacity " + animD(220) + "ms ease";
+              ba.label.style.opacity = "1";
+            }
           });
-        }, delay);
+        }, delay + animD(180));
       });
     } else {
       colGroups.forEach(function (group) {
         group.forEach(function (ba) {
           ba.rect.setAttribute("y", ba.finalY);
           ba.rect.setAttribute("height", ba.finalH);
+          if (ba.label) ba.label.style.opacity = "1";
         });
       });
     }

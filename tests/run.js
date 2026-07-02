@@ -10313,6 +10313,96 @@ function serve() {
     });
     ok("Z8BI: bump/icicle panel inspector shows the new option fields", z8biInsp.ok, JSON.stringify(z8biInsp));
 
+    // ── Z8 slice 18: Grouped bars gets "Show value labels", 100% stacked gets "Show segment % labels" ──
+    console.log("\n• Z8 grouped bars + 100% stacked: value labels / segment % labels");
+
+    // Z8GN-1: registry declares the new keys
+    var z8gnOpts = await page.evaluate(function () {
+      var go = (window.Studio.CHARTS.groupedBars || {}).opts || [];
+      var no = (window.Studio.CHARTS.barNorm || {}).opts || [];
+      var gk = go.map(function (od) { return od.key; }), nk = no.map(function (od) { return od.key; });
+      return { ok: gk.indexOf("showValues") >= 0 && nk.indexOf("showPct") >= 0, gk: gk, nk: nk };
+    });
+    ok("Z8GN: Studio.CHARTS.groupedBars.opts declares showValues; barNorm.opts declares showPct", z8gnOpts.ok, JSON.stringify(z8gnOpts));
+
+    // Z8GN-2: groupedBars showValues:true adds a .val-label text per bar; default (false) shows none
+    var z8gnGrouped = await page.evaluate(function () {
+      var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
+      for (var i = 0; i < iframes.length; i++) {
+        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.groupedBars === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+      }
+      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      try {
+        var cfg = {
+          labels: ["Q1", "Q2", "Q3"],
+          series: [{ name: "A", values: [10, 30, 20] }, { name: "B", values: [30, 10, 40] }],
+          height: 300
+        };
+        var d1 = iframeDoc.createElement("div"); d1.style.cssText = "position:absolute;top:-9999px;width:400px"; iframeDoc.body.appendChild(d1);
+        w.PDC.groupedBars(d1, cfg);
+        var barsOff = d1.querySelectorAll("svg rect").length; // 3 cats x 2 series = 6 bars
+        var labelsOff = d1.querySelectorAll("svg text.val-label").length;
+        iframeDoc.body.removeChild(d1);
+
+        var d2 = iframeDoc.createElement("div"); d2.style.cssText = "position:absolute;top:-9999px;width:400px"; iframeDoc.body.appendChild(d2);
+        w.PDC.groupedBars(d2, Object.assign({}, cfg, { showValues: true }));
+        var barsOn = d2.querySelectorAll("svg rect").length;
+        var labelsOn = d2.querySelectorAll("svg text.val-label").length;
+        iframeDoc.body.removeChild(d2);
+
+        return { ok: barsOff === 6 && labelsOff === 0 && barsOn === 6 && labelsOn === 6, barsOff: barsOff, labelsOff: labelsOff, barsOn: barsOn, labelsOn: labelsOn };
+      } catch (e) { return { ok: false, err: e.message }; }
+    });
+    ok("Z8GN: groupedBars showValues:true adds a val-label per bar (default off)", z8gnGrouped.ok, JSON.stringify(z8gnGrouped));
+
+    // Z8GN-3: barNorm showPct:true adds a "%" text per segment; default (false) shows none
+    var z8gnNorm = await page.evaluate(function () {
+      var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
+      for (var i = 0; i < iframes.length; i++) {
+        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.barNorm === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+      }
+      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      try {
+        var cfg = {
+          labels: ["Cat1", "Cat2"],
+          series: [{ name: "A", values: [70, 30] }, { name: "B", values: [30, 70] }],
+          height: 300
+        };
+        var d1 = iframeDoc.createElement("div"); d1.style.cssText = "position:absolute;top:-9999px;width:400px"; iframeDoc.body.appendChild(d1);
+        w.PDC.barNorm(d1, cfg);
+        var pctOff = Array.prototype.filter.call(d1.querySelectorAll("svg text.val-label"), function (t) { return t.textContent.indexOf("%") >= 0; }).length;
+        iframeDoc.body.removeChild(d1);
+
+        var d2 = iframeDoc.createElement("div"); d2.style.cssText = "position:absolute;top:-9999px;width:400px"; iframeDoc.body.appendChild(d2);
+        w.PDC.barNorm(d2, Object.assign({}, cfg, { showPct: true }));
+        var pctOn = Array.prototype.filter.call(d2.querySelectorAll("svg text.val-label"), function (t) { return t.textContent.indexOf("%") >= 0; }).length;
+        iframeDoc.body.removeChild(d2);
+
+        return { ok: pctOff === 0 && pctOn === 4, pctOff: pctOff, pctOn: pctOn };
+      } catch (e) { return { ok: false, err: e.message }; }
+    });
+    ok("Z8GN: barNorm showPct:true adds a % label per segment (default off)", z8gnNorm.ok, JSON.stringify(z8gnNorm));
+
+    // Z8GN-4: panel inspector shows the new fields when a grouped-bars / 100%-stacked panel is selected
+    var z8gnInsp = await page.evaluate(function () {
+      var spec = window.__STUDIO_STATE.spec;
+      var p = spec.panels[0];
+      var prevChart = JSON.parse(JSON.stringify(p.chart));
+      p.chart.type = "groupedBars"; p.chart.opts = {};
+      window.__studioSelect({ kind: "panel", id: p.id });
+      var gbText = (document.getElementById("inspBody") || {}).textContent || "";
+      p.chart.type = "barNorm"; p.chart.opts = {};
+      window.__studioSelect({ kind: "panel", id: p.id });
+      var bnText = (document.getElementById("inspBody") || {}).textContent || "";
+      var okv = gbText.indexOf("Show value labels") >= 0 &&
+                bnText.indexOf("Show segment % labels") >= 0;
+      p.chart = prevChart; // restore so later tests aren't affected
+      window.__studioSelect(null);
+      window.__studioRenderInspector();
+      return { ok: okv };
+    });
+    ok("Z8GN: grouped bars / 100% stacked panel inspector shows the new option fields", z8gnInsp.ok, JSON.stringify(z8gnInsp));
+
     // restore Studio + a clean flagship spec for any tests appended after this block
     await page.evaluate(async function () {
       const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json());

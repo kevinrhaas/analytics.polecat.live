@@ -1238,9 +1238,10 @@
         return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + W + ' ' + H + '">' + out + '</svg>';
       }()),
       opts: [
-        { key: "rotate", type: "bool", label: "Rotate labels", def: false },
-        { key: "fmt",    type: "fmt",  label: "Value format",  def: "abbr" },
-        { key: "height", type: "int",  label: "Height (px)",   def: 300 }
+        { key: "rotate",     type: "bool", label: "Rotate labels",     def: false },
+        { key: "showValues", type: "bool", label: "Show value labels", def: false },
+        { key: "fmt",        type: "fmt",  label: "Value format",      def: "abbr" },
+        { key: "height",     type: "int",  label: "Height (px)",       def: 300 }
       ],
       cde: null // CDF-only; no CCC grouped-bar equivalent in Studio CDE export
     },
@@ -1334,9 +1335,10 @@
         return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + W + ' ' + H + '">' + out + '</svg>';
       }()),
       opts: [
-        { key: "rotate", type: "bool", label: "Rotate labels", def: false },
-        { key: "fmt",    type: "fmt",  label: "Value format",  def: "abbr" },
-        { key: "height", type: "int",  label: "Height (px)",   def: 300 }
+        { key: "rotate",  type: "bool", label: "Rotate labels",       def: false },
+        { key: "showPct", type: "bool", label: "Show segment % labels", def: false },
+        { key: "fmt",     type: "fmt",  label: "Value format",        def: "abbr" },
+        { key: "height",  type: "int",  label: "Height (px)",         def: 300 }
       ],
       cde: null // CDF-only; no CCC equivalent with automatic % normalization
     },

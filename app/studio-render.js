@@ -740,11 +740,12 @@
             };
           });
           PDC.groupedBars(body, {
-            labels:  gbLabels,
-            series:  gbSeries,
-            rotate:  !!o.rotate,
-            fmt:     f,
-            height:  o.height || 300
+            labels:     gbLabels,
+            series:     gbSeries,
+            rotate:     !!o.rotate,
+            showValues: !!o.showValues,
+            fmt:        f,
+            height:     o.height || 300
           });
           break;
         }
@@ -763,6 +764,7 @@
             labels:  bnLabels,
             series:  bnSeries,
             rotate:  !!o.rotate,
+            showPct: !!o.showPct,
             fmt:     f,
             height:  o.height || 300
           });
