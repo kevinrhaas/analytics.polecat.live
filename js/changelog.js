@@ -15,6 +15,16 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 216,
+    title: 'Fix: a rare live-preview crash when a query was missing sample data',
+    kind: 'fix',
+    ts: '2026-07-02T23:53:29Z',
+    items: [
+      'The in-app live preview could silently fail to render a chart or KPI whenever its query had no matching sample/mock data, because of how browsers report the address of a live preview window internally.',
+      'This never affected real published dashboards, only the in-app preview while building.',
+    ],
+  },
+  {
     v: 215,
     title: 'Correlation KPIs',
     kind: 'feature',

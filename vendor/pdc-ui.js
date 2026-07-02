@@ -13,7 +13,7 @@ PDC.cdaPath=""; // set per dashboard
 PDC.cda=function(dataAccessId, params){
   if(window.PDC_MOCK && window.PDC_MOCK[dataAccessId]){var mk=window.PDC_MOCK[dataAccessId];
     return Promise.resolve({cols:mk.cols,rows:mk.rows,col:function(n){return mk.cols.indexOf(n);}});}
-  var u=new URL(CDA_URL, location.origin);
+  var u=new URL(CDA_URL, document.baseURI);
   u.searchParams.set("path", PDC.cdaPath);
   u.searchParams.set("dataAccessId", dataAccessId);
   u.searchParams.set("outputType","json");

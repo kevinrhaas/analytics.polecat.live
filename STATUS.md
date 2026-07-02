@@ -1644,23 +1644,21 @@ gets covered over time:
   `Studio.defineChart({type, render, opts, thumb, autoPick})` contract so new types are uniform and testable.
 - **Test health** — coverage per feature, flaky/slow checks, and a fast smoke subset for quick loops.
 > **Findings log (append newest on top; keep short):**
-> - **Open finding (found alongside the v214 KPI-agg fix, not yet fixed — needs its own careful slice):**
->   `vendor/pdc-ui.js`'s default `PDC.cda()` (the live/non-mock query path) builds its request URL with
+> - **Fixed shipped v216 (was an open finding from the v214 KPI-agg fix earlier the same run):**
+>   `vendor/pdc-ui.js`'s default `PDC.cda()` (the live/non-mock query path) built its request URL with
 >   `new URL(CDA_URL, location.origin)`. Inside the **builder's own live-preview iframe** (`#preview`,
 >   populated via `srcdoc`), `location.origin` is the literal string `"null"` — `srcdoc` documents have an
 >   opaque origin by spec, even though `location.href` correctly reads `"about:srcdoc"`. `new URL(x,
->   "null")` throws `TypeError: Failed to construct 'URL': Invalid base URL`. This ONLY fires when a DA is
->   missing from `window.PDC_MOCK` (so `PDC.cda` falls through to its real-fetch branch) while previewing
->   — real exported dashboards are unaffected (they're served from a real http(s) origin, not `srcdoc`).
->   Confirmed via a throwaway probe (`location.origin` inside a bare `srcdoc` iframe → `"null"`); not yet
->   root-caused to a specific reproducing UI flow in this session (budget ran out chasing it — found via
->   the new final-session error check, which was reverted rather than shipped red; re-add that check once
->   this is fixed). Fix direction: swap the `location.origin` base for `location.href` (resolves correctly
->   even under an opaque origin) or guard/no-op when `location.origin === "null"`, in `PDC.cda` (this is
->   the one narrow exception where touching vendor/pdc-ui.js — normally pristine — is warranted, since the
->   bug lives in the vendored file itself). Add a Playwright check reproducing a DA absent from mock data
->   in the live preview + assert no console error, then restore the whole-session "no uncaught JS errors"
->   final check this finding forced a revert of.
+>   "null")` threw `TypeError: Failed to construct 'URL': Invalid base URL` whenever a DA was missing from
+>   `window.PDC_MOCK` (so `PDC.cda` fell through to its real-fetch branch) while previewing — real exported
+>   dashboards were unaffected (served from a real http(s) origin, never `srcdoc`). Fixed by swapping the
+>   base for `document.baseURI`, which inherits the *parent* page's real URL inside a `srcdoc` iframe
+>   (confirmed via a throwaway probe) and is identical to the old behavior everywhere else — one-line fix
+>   in `PDC.cda`, the one narrow exception where touching vendor/pdc-ui.js (normally pristine) was
+>   warranted since the bug lived in the vendored file itself. New regression test calls `PDC.cda()` in the
+>   live `#preview` iframe against a DA id deliberately absent from mock data and asserts it doesn't throw
+>   synchronously (verified it actually catches the regression by reverting the fix locally and re-running
+>   — red as expected, green again after restoring it). Test suite 994/994.
 > - **v205 (accessibility lens):** the shared `modal()` helper's × close button — the dialog-close pattern
 >   every builder modal is built on (New data source, Connections manager, Join builder, Keyboard
 >   shortcuts, KTR builder, …) — appended only an SVG icon with no `aria-label`, so a screen reader

@@ -12365,6 +12365,26 @@ function serve() {
     ok("Z7AGG-3: a column correlated against itself renders as 1 (perfect correlation), proving the KPI tile doesn't crash",
       corrUI.agg === "corr" && corrUI.compareCol === "cost" && /^1(\.0+)?$/.test(corrUI.tileText || ""), JSON.stringify(corrUI));
 
+    // Regression: PDC.cda's live-fetch fallback (vendor/pdc-ui.js) used to build its request URL
+    // with `new URL(CDA_URL, location.origin)`. Inside the builder's own live-preview iframe
+    // (#preview, populated via srcdoc), location.origin is the literal string "null" — srcdoc
+    // documents have an opaque origin by spec even though location.href correctly reads
+    // "about:srcdoc" — so `new URL(x, "null")` threw "Invalid base URL" the moment any DA was
+    // missing from the mock data. Fixed to use document.baseURI (inherits the parent page's real
+    // URL inside a srcdoc iframe, unaffected everywhere else). Call it directly against a DA id
+    // that's deliberately absent from PDC_MOCK so it falls through to the real-fetch branch.
+    const cdaUrlFix = await page.evaluate(function () {
+      var iw = document.getElementById("preview").contentWindow;
+      try {
+        iw.PDC.cda("__no_such_da__"); // constructing the URL must not throw synchronously
+        return { threw: false };
+      } catch (e) {
+        return { threw: true, message: e.message };
+      }
+    });
+    ok("PDC.cda's live-fetch URL construction doesn't throw inside the srcdoc live-preview iframe",
+      cdaUrlFix.threw === false, JSON.stringify(cdaUrlFix));
+
     // Restore clean spec
     await page.evaluate(async function () {
       var freshSpec = await fetch("data/examples/studio-cost.studio.json").then(function (r) { return r.json(); });
