@@ -569,6 +569,14 @@
   `100dvh`/`100vh`-fallback, added `viewport-fit=cover`, and padded `#statusbar` with
   `env(safe-area-inset-bottom)`. New `tests/mobile-shot.js` screenshot helper for future mobile slices.
   3 new tests, suite 898/898. Still needs a real-device confirmation from the user.
+- v183: **MOBILE (m-c)** — found the same "later same-selector CSS rule silently wins" bug pattern
+  in three more spots: `#topbar` padding-left (hamburger clearance) clobbered back to 12px by a
+  later rule (brand text rendered under the hamburger); `.home-wrap`/`.repo-wrap`/`.settings-wrap`
+  padding-top clobbered back to 28px the same way (all three section H1s under the hamburger on
+  phones). Pinned `#btnMore` to a fixed top-right position (opaque background) so the escape hatch
+  to every other action is always on-screen instead of scrolling off-canvas. Fixed Repository
+  data-source cards overflowing 17px past the phone viewport (missing `min-width:0` on a flex row
+  blocked ellipsis truncation). 11 new tests, suite 906/906.
 
 ## NEXT (top = do first)
 
@@ -632,8 +640,23 @@
 > UA) for future slices to actually view, not just DOM-assert. 3 new regression checks guard the fix's
 > source (headless Chromium has no toolbar, so it can't reproduce the bug itself). **Still needs a real-device
 > check from the user to fully close out.** Test suite 898/898.
-> **(m-c) ← DO THIS NEXT:** top-action overflow → reachable (drawer/bottom bar) + Repository data-source card
-> horizontal overflow on phone (noted in m-a). **(m-d)** Library/Inspector reachability + panel ergonomics;
+> **(m-c) ✓ DONE (v183):** found and fixed the SAME "later same-selector media rule silently wins"
+> pattern from m-b in three more places: (1) `#topbar{padding-left:52px}` (hamburger clearance) was
+> clobbered back to `12px` by a later, unrelated `#topbar{padding:0 12px}` rule — the brand wordmark
+> rendered UNDER the hamburger; fixed by folding the 52px clearance into that later rule instead of a
+> separate earlier one (single source of truth). (2) Even after hiding secondary buttons, the remaining
+> essentials still overflowed a 390px bar and `#btnMore` (escape hatch to every other action, including
+> the phone-only Examples/Open/Save/Sign out/Clear-data items) scrolled fully off-canvas with zero
+> on-screen cue — pinned it `position:fixed` top-right (mirrors `#mobileNavBtn`'s treatment) so it's
+> ALWAYS reachable regardless of scroll position, with an opaque background so it doesn't go
+> illegible over whatever's scrolled beneath it. (3) The SAME padding-top clobber hit `.home-wrap`,
+> `.repo-wrap`, and `.settings-wrap` too — their `≤640px` rules reset `padding-top` back to `28px`,
+> so **all three** section headings rendered under the hamburger on phones (not just tablets); fixed
+> by keeping `padding-top:60px` in those phone rules. Also fixed **Repository data-source card
+> horizontal overflow** (17px past the viewport edge) — a flex row with no `min-width:0` blocked
+> `text-overflow:ellipsis` from ever kicking in on a long data-source id, forcing the whole
+> 100%-wide card wider than its column. 11 new regression checks. Test suite 906/906.
+> **(m-d) ← DO THIS NEXT:** Library/Inspector reachability + panel ergonomics on phone.
 > **(m-e)** "What's new"/changelog + help reachable; then a real-device pass with the user.
 > Keep the desktop experience untouched (scope changes to `≤900px` / touch). Update `docs` + STATUS each slice.
 

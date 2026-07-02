@@ -100,7 +100,12 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);-webkit-font-
   #railNav .rail-lbl{position:static!important;width:auto!important;height:auto!important;clip:auto!important}
   #railNav .rail-toggle{display:none}
   #mobileNavBtn{display:flex}
-  #topbar{padding-left:52px} /* make room for the fixed hamburger */
+  /* NOTE: the hamburger's left-clearance padding is NOT set here — a second,
+     later @media(max-width:900px) block (the M1 responsive-shell rule, below)
+     also targets #topbar and was overwriting padding-left back to 12px on
+     source-order alone (equal specificity, later wins), silently pulling the
+     hamburger back on top of the brand text (m-c fix). The 52px clearance now
+     lives in that later block instead so there's a single source of truth. */
   /* keep section headings clear of the fixed top-left hamburger */
   .home-wrap,.repo-wrap,.settings-wrap{padding-top:60px}
   .app-sec .sec-empty{margin-top:44px}
@@ -158,7 +163,11 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);-webkit-font-
 .recent-meta small{display:block;font-size:10.5px;color:#c9b9a3;margin-top:3px;font-weight:400}
 .home-empty-hint{font-size:12.5px;color:#c9b9a3}
 @media(prefers-reduced-motion:reduce){.home-card,.recent-card,.recent-pin,.home-card-ic,.recent-thumb svg{transition:none}}
-@media(max-width:640px){.home-quick{grid-template-columns:1fr}.home-wrap{padding:28px 16px 40px}}
+/* m-c: keep the 60px top clearance the hamburger needs (set for ≤900px above) — this rule
+   used to say `padding:28px 16px 40px`, resetting padding-top back down to 28px and letting
+   the fixed hamburger cover the "Home" heading on phones (same equal-specificity/later-wins
+   bug as the topbar one). */
+@media(max-width:640px){.home-quick{grid-template-columns:1fr}.home-wrap{padding:60px 16px 40px}}
 
 /* ── Z5 slice 1: Settings section — first-class mode toggle switches ── */
 .settings-wrap{max-width:640px;margin:0 auto;padding:44px 32px 60px}
@@ -189,7 +198,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);-webkit-font-
 .set-sel:focus-visible{outline:2px solid #d4773b;outline-offset:2px}
 .brand-preview{margin-top:6px}
 .brand-preview img{width:26px;height:26px;border-radius:6px;background:#3A2F3A;object-fit:contain;padding:2px}
-@media(max-width:640px){.settings-wrap{padding:28px 16px 40px}}
+/* m-c: same hamburger-clearance fix as .home-wrap above — keep padding-top:60px. */
+@media(max-width:640px){.settings-wrap{padding:60px 16px 40px}}
 
 /* ── Z3 slice 1: Repository — data sources + dashboards, browsable/searchable in one place ── */
 .repo-wrap{max-width:960px;margin:0 auto;padding:44px 32px 60px}
@@ -204,17 +214,22 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);-webkit-font-
 .repo-sub2{margin-top:30px}
 .repo-ds-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
 .repo-ds-card{background:#1c1720;border:1px solid rgba(245,233,214,.12);border-radius:12px;padding:12px 14px;
-  cursor:pointer;text-align:left;color:#F5E9D6;font-family:var(--font);width:100%;
+  cursor:pointer;text-align:left;color:#F5E9D6;font-family:var(--font);width:100%;box-sizing:border-box;overflow:hidden;
   transition:transform .12s ease,border-color .12s ease}
 .repo-ds-card:hover{border-color:#10a37f;transform:translateY(-2px)}
-.repo-ds-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.repo-ds-id{font-size:12.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.repo-ds-top{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}
+/* m-c: flex items default to min-width:auto, which blocks `text-overflow:ellipsis` from
+   ever kicking in — a long data-source id forced this row (and the whole 100%-wide card)
+   wider than its grid column, bleeding 17px past the phone viewport edge. min-width:0
+   lets it actually shrink to the ellipsis instead of pushing the card's box wider. */
+.repo-ds-id{font-size:12.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .repo-ds-kind{flex:0 0 auto;font-size:9.5px;font-weight:700;letter-spacing:.04em;color:#10a37f;
   background:rgba(16,163,127,.14);border-radius:5px;padding:2px 6px}
 .repo-ds-stem{display:block;font-size:10.5px;color:#8a7d6d;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .repo-ds-cols{margin-top:6px;font-size:10px;color:#c9b9a3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 @media(prefers-reduced-motion:reduce){.repo-ds-card{transition:none}}
-@media(max-width:640px){.repo-wrap{padding:28px 16px 40px}.repo-ds-grid{grid-template-columns:1fr}}
+/* m-c: same hamburger-clearance fix as .home-wrap above — keep padding-top:60px. */
+@media(max-width:640px){.repo-wrap{padding:60px 16px 40px}.repo-ds-grid{grid-template-columns:1fr}}
 
 .spacer{flex:1}
 button{font-family:inherit}
@@ -593,7 +608,11 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
 /* Tablet ≤900px: tighten topbar; collapse secondary actions into ⋯ More */
 #btnMore{display:none}
 @media(max-width:900px){
-  #topbar{gap:10px;padding:0 12px;overflow:hidden}
+  /* m-c: 52px left padding clears the fixed #mobileNavBtn hamburger (see the earlier
+     ≤900px block) — this rule used to say `padding:0 12px`, silently overwriting that
+     clearance back down to 12px since it's the same selector later in the cascade,
+     which let the hamburger overlap the brand wordmark on phones/tablets. */
+  #topbar{gap:10px;padding:0 12px 0 52px;overflow:hidden}
   .brand-sub{display:none}
   .dash-title-btn{width:160px}
   .dash-meta{display:none}
@@ -639,6 +658,22 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
   .top-actions::-webkit-scrollbar{display:none}
   .top-actions>*{flex:0 0 auto}
   .top-actions .menu{position:fixed;top:60px;left:8px;right:8px;width:auto;max-width:none}
+  /* m-c: even after hiding secondary buttons, the remaining essentials (Undo/Redo/New/
+     Export/⋯More) still overflow a 390px bar — measured ⋯More sitting fully off-screen
+     (left:430 on a 390-wide viewport) with no on-screen cue a user could scroll to find
+     it, so the escape hatch to EVERY other action (Sign out, Clear data, Help, etc.) was
+     unreachable. Pin it to a fixed top-right corner, out of the scrolling row entirely —
+     mirrors #mobileNavBtn's fixed top-left placement — so it's always on-screen no
+     matter how far the row is scrolled. Reserve matching space at the row's end so
+     scrolled-in content doesn't render underneath it. */
+  #moreWrap{position:fixed;top:9px;right:8px;z-index:34}
+  /* #btnMore's normal style is a barely-there translucent tint (right at home over the
+     solid topbar gradient) — floating fixed over the scrolling row it let whatever was
+     scrolled underneath (e.g. the purple Export button) show straight through, nearly
+     invisible. Give it the same opaque-chip treatment as #mobileNavBtn so it always
+     reads clearly regardless of what's scrolled beneath it. */
+  #moreWrap #btnMore{background:#0a1c3d;border-color:rgba(255,255,255,.16);box-shadow:0 2px 8px rgba(10,8,20,.35)}
+  .top-actions{padding-right:48px}
   /* M12: tighten status bar at phone — drop the build stamp to save space.
      m-b: #statusbar is the true bottom-most flex child of #appMain, so it — not
      #mobile-tabs above it — is the one that sits against the iOS home-indicator strip;

@@ -3342,8 +3342,11 @@ function serve() {
 
     const mnavTopbar = await phonePage.evaluate(() => {
       var ta = document.querySelector(".top-actions");
+      // #btnMore is excluded here — m-c pinned it to a fixed top-right position (always
+      // on-screen, checked separately below) instead of leaving it in the scrollable row,
+      // since it used to scroll fully off-canvas with no on-screen cue it existed.
       var btns = [].slice.call(ta.querySelectorAll(":scope > .btn, :scope > .menu-wrap > .btn"))
-        .filter((b) => b.offsetWidth > 0); // visible controls only (hidden ones are display:none)
+        .filter((b) => b.offsetWidth > 0 && b.id !== "btnMore"); // visible controls only (hidden ones are display:none)
       if (!btns.length) return { count: 0 };
       function inView(b) { var br = b.getBoundingClientRect(), tr = ta.getBoundingClientRect(); return br.left >= tr.left - 1 && br.right <= tr.right + 1; }
       // The row must be swipeable, and scrolling to each end must bring the end buttons fully into view.
@@ -3354,6 +3357,20 @@ function serve() {
       return { count: btns.length, scrollable: scrollable, firstOk: firstOk, lastOk: lastOk };
     });
     ok("MNAV: every topbar action button is reachable (swipe-scrollable, both ends visible)", mnavTopbar.count > 0 && mnavTopbar.scrollable && mnavTopbar.firstOk && mnavTopbar.lastOk, JSON.stringify(mnavTopbar));
+
+    // m-c: ⋯ More is pinned fixed top-right so it's ALWAYS on-screen — a strictly stronger
+    // guarantee than "reachable by scrolling" (users don't need to discover the swipe gesture
+    // to find the escape hatch to every other action). Verify it stays on-screen at both scroll ends.
+    const mnavMore = await phonePage.evaluate(() => {
+      var ta = document.querySelector(".top-actions");
+      var bm = document.getElementById("btnMore");
+      function onScreen(el) { var r = el.getBoundingClientRect(); return r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.width > 10; }
+      ta.scrollLeft = 0; var atStart = onScreen(bm);
+      ta.scrollLeft = ta.scrollWidth; var atEnd = onScreen(bm);
+      ta.scrollLeft = 0;
+      return { atStart: atStart, atEnd: atEnd };
+    });
+    ok("MNAV: ⋯ More escape hatch stays on-screen regardless of row scroll position (m-c)", mnavMore.atStart && mnavMore.atEnd, JSON.stringify(mnavMore));
 
     await phonePage.click("#btnExport");
     await phonePage.waitForTimeout(120);
@@ -11387,6 +11404,78 @@ function serve() {
       /#app\{height:100vh;height:100dvh;display:flex\}/.test(mbCss));
     ok("m-b: #statusbar reserves env(safe-area-inset-bottom) at phone width so it clears the home-indicator strip",
       /#statusbar\{[^}]*env\(safe-area-inset-bottom\)/.test(mbCss));
+
+    // ── m-c: top-action overflow — hamburger/brand overlap + unreachable ⋯ More ──
+    // Two confirmed bugs from a 390px probe: (1) a second, later `#topbar{padding:0 12px}`
+    // rule silently clobbered the first block's `padding-left:52px` hamburger clearance
+    // (same selector, equal specificity, later wins), so the brand wordmark rendered
+    // UNDER the hamburger button; (2) even after hiding secondary buttons, the remaining
+    // essentials still overflowed the bar and #btnMore (the escape hatch to every other
+    // action) scrolled fully off-canvas with zero on-screen hint it existed.
+    console.log("\n• m-c: topbar hamburger/brand overlap + ⋯ More reachability");
+    const mp2 = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    await mp2.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); } catch (e) {} });
+    await mp2.goto(`http://localhost:${PORT}/`, { waitUntil: "networkidle" });
+    await mp2.waitForTimeout(500);
+    const mcOverlap = await mp2.evaluate(() => {
+      var h = document.getElementById("mobileNavBtn").getBoundingClientRect();
+      var b = document.querySelector(".brand").getBoundingClientRect();
+      var overlaps = !(b.left >= h.right || b.right <= h.left || b.top >= h.bottom || b.bottom <= h.top);
+      return { hambRight: Math.round(h.right), brandLeft: Math.round(b.left), overlaps: overlaps };
+    });
+    ok("m-c: brand wordmark clears the fixed hamburger button (no overlap) at 390px",
+      !mcOverlap.overlaps && mcOverlap.brandLeft >= mcOverlap.hambRight - 1, JSON.stringify(mcOverlap));
+    const mcMore = await mp2.evaluate(() => {
+      var r = document.getElementById("btnMore").getBoundingClientRect();
+      return { onScreen: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.width > 10, rect: { left: Math.round(r.left), right: Math.round(r.right) } };
+    });
+    ok("m-c: ⋯ More button is on-screen at 390px without needing to scroll the topbar first", mcMore.onScreen, JSON.stringify(mcMore));
+    await mp2.click("#btnMore");
+    await mp2.waitForTimeout(250);
+    const mcMenuOpen = await mp2.evaluate(() => document.getElementById("menuMore").classList.contains("open"));
+    ok("m-c: tapping the pinned ⋯ More button opens its menu", mcMenuOpen === true);
+
+    // m-c: Home/Repository/Settings section headings must also clear the fixed hamburger.
+    // Same bug class as the topbar: a LATER ≤640px rule for each `*-wrap` reset padding-top
+    // back to 28px (from the 60px the earlier ≤900px block set), silently pulling the
+    // "Repository"/"Home"/"Settings" H1 back under the hamburger on phones specifically
+    // (tablets 641-900px were unaffected since only one rule applied there).
+    console.log("\n• m-c: section headings clear the hamburger on phone (Home/Repository/Settings)");
+    async function headingClearsHamburger(sec) {
+      await mp2.evaluate(() => { document.getElementById("mobileNavBtn").click(); });
+      await mp2.waitForTimeout(300);
+      await mp2.click(`#railNav .rail-item[data-sec="${sec}"]`);
+      await mp2.waitForTimeout(350);
+      return mp2.evaluate(() => {
+        var h = document.getElementById("mobileNavBtn").getBoundingClientRect();
+        var heading = document.querySelector(".app-sec:not([hidden]) h1");
+        if (!heading) return { ok: false, err: "no visible h1" };
+        var r = heading.getBoundingClientRect();
+        return { ok: r.top >= h.bottom - 1, headingTop: Math.round(r.top), hambBottom: Math.round(h.bottom) };
+      });
+    }
+    const mcRepo = await headingClearsHamburger("repository");
+    ok("m-c: Repository heading clears the hamburger at 390px", mcRepo.ok, JSON.stringify(mcRepo));
+    const mcSettings = await headingClearsHamburger("settings");
+    ok("m-c: Settings heading clears the hamburger at 390px", mcSettings.ok, JSON.stringify(mcSettings));
+    const mcHome = await headingClearsHamburger("home");
+    ok("m-c: Home heading clears the hamburger at 390px", mcHome.ok, JSON.stringify(mcHome));
+
+    // m-c: Repository data-source cards must not overflow the phone viewport (a long
+    // data-source id inside a flex row with no min-width:0 was forcing 100%-wide cards
+    // 17px past the right edge, clipping the SQL/kind badge).
+    await mp2.evaluate(() => { document.getElementById("mobileNavBtn").click(); });
+    await mp2.waitForTimeout(300);
+    await mp2.click('#railNav .rail-item[data-sec="repository"]');
+    await mp2.waitForTimeout(350);
+    const mcCardOverflow = await mp2.evaluate(() => {
+      var cards = [].slice.call(document.querySelectorAll(".repo-ds-card"));
+      var bad = cards.filter((c) => c.getBoundingClientRect().right > window.innerWidth + 1);
+      return { count: cards.length, overflowing: bad.length };
+    });
+    ok("m-c: Repository data-source cards fit within the phone viewport (no horizontal overflow)",
+      mcCardOverflow.count > 0 && mcCardOverflow.overflowing === 0, JSON.stringify(mcCardOverflow));
+    await mp2.close();
 
     // restore Studio + a clean flagship spec for any tests appended after this block
     await page.evaluate(async function () {
