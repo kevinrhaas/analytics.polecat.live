@@ -611,6 +611,24 @@
   (＋ New source) instead of the hardcoded "PDC-BIDB-EXT" placeholder. `defaultJndi()`/
   `setDefaultJndi()` in studio.js, persisted + included in Settings export/import. 3 new tests. Test
   suite 928/928.
+- v191: **Z10 kickoff: app theme system (Classic Blue vs Polecat)** — the Z1 left rail's warm plum/
+  terracotta look clashed with the rest of the builder chrome staying Pentaho blue. New `[data-app-theme]`
+  attribute on `<html>` (`classic` default | `polecat`), orthogonal to the existing `[data-theme]`
+  light/dark mode toggle — each color theme carries its own light **and** dark variant
+  (`html[data-app-theme='polecat']` / `html[data-app-theme='polecat'][data-theme='dark']` in
+  `studio.css`, overriding `--pentaho`/`--pdc`/`--ink`/`--bg`/`--pane`/`--line`/etc.), so all four
+  combinations (Classic×Light, Classic×Dark, Polecat×Light, Polecat×Dark) are real, coherent palettes.
+  Polecat reuses the exact rail palette (plum-black/cream/terracotta) so the whole builder now reads as
+  one identity instead of two clashing ones — verified visually (screenshots) in both modes. New **Color
+  theme** picker in the Settings → Appearance card (`appTheme()`/`setAppTheme()`, new `palette` icon);
+  persisted to `localStorage["studio-app-theme"]`, included in Settings export/import + Clear local data.
+  **Exported/preview dashboards are deliberately untouched** — `pdc-ui.css` never reads the attribute, so
+  published artifacts stay decoupled from app chrome, per the Z10 design note. `docs/index.html` updated.
+  4 new Z10 tests. Test suite 932/932. **Still open under Z10** (found while shipping): a few chrome
+  surfaces are still hardcoded hex, not CSS variables, so they don't yet follow the app theme —
+  `app/welcome.js` (first-run tour modal), and likely `app/tutorial.js`/`app/gate.js`/`app/palette.js` on
+  inspection — worth a dedicated follow-up slice to convert those to `var(--pentaho)`/`var(--pdc)`/etc.
+  so Polecat is fully coherent everywhere, not just the main 3-pane chrome + Settings/Home.
 
 ## NEXT (top = do first)
 
@@ -1069,6 +1087,17 @@ Design decision to surface: whether the **exported dashboard** theme follows the
 independent — recommend keeping export theming **separate/optional** so deployed artifacts aren't coupled
 to app chrome. Build incrementally (theme tokens first, then the Polecat dark variant, then the Settings
 picker); tests green. Coordinate with Z1 (rail) and Z5 (Settings).
+> ✓ **Slice 1 shipped v191**: theme tokens (`[data-app-theme='polecat']` light + dark CSS variable
+> blocks in `studio.css`, orthogonal to `[data-theme]` mode) + the Settings → Appearance **Color theme**
+> picker (Classic Blue / Polecat), persisted + exportable. Exported-dashboard theming stays independent,
+> as recommended above. **Z10 follow-ups (not yet done):** a handful of chrome surfaces are still
+> hardcoded hex rather than CSS variables and so don't yet follow the app theme — `app/welcome.js` (the
+> first-run tour modal) confirmed still Classic-Blue-only regardless of the picker; `app/tutorial.js`,
+> `app/gate.js` (passcode screen), and `app/palette.js` (⌘K) likely have the same gap and should be
+> audited/converted next. Also consider extending Polecat-aware coloring to the rail's own vars (today
+> `#railNav` already hardcodes the Polecat palette regardless of `data-app-theme`, so Classic Blue mode
+> still shows a warm rail + blue everything-else — intentional for now since the rail was the Z1
+> foundation, but worth a design call on whether Classic Blue should get a "cool" rail variant too).
 
 **Z11 — In-app docs: discoverability + continuous upkeep (user-requested 2026-06-30).** ✓ **Rail Help
 entry shipped v136**: a persistent `#railHelp` link at the bottom of the left rail opens `docs/index.html`

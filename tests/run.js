@@ -10645,6 +10645,61 @@ function serve() {
     });
     ok("Z5: exiting Focus mode (Escape) is reflected back in the Settings switch", !z5FocusOff.focusOn && !z5FocusOff.checked, JSON.stringify(z5FocusOff));
 
+    // ── Z10: App theme system — Classic Blue vs Polecat, each with its own light+dark ──
+    console.log("\n• Z10: app color theme (Classic Blue / Polecat)");
+    await page.click('#railNav .rail-item[data-sec="settings"]');
+    await page.waitForTimeout(80);
+    const z10Boot = await page.evaluate(function () {
+      var sel = document.getElementById("appThemeSel");
+      return {
+        present: !!sel,
+        value: sel ? sel.value : "",
+        attr: document.documentElement.getAttribute("data-app-theme"),
+        api: window.__studioAppTheme && window.__studioAppTheme.get()
+      };
+    });
+    ok("Z10: Settings' Appearance card has a Color theme picker, defaulting to Classic Blue",
+      z10Boot.present && z10Boot.value === "classic" && z10Boot.attr === "classic" && z10Boot.api === "classic",
+      JSON.stringify(z10Boot));
+
+    const z10ClassicPentaho = await page.evaluate(function () { return getComputedStyle(document.documentElement).getPropertyValue("--pentaho").trim(); });
+    await page.selectOption("#appThemeSel", "polecat");
+    await page.waitForTimeout(80);
+    const z10Polecat = await page.evaluate(function () {
+      return {
+        attr: document.documentElement.getAttribute("data-app-theme"),
+        stored: localStorage.getItem("studio-app-theme"),
+        pentaho: getComputedStyle(document.documentElement).getPropertyValue("--pentaho").trim(),
+        bg: getComputedStyle(document.documentElement).getPropertyValue("--bg").trim()
+      };
+    });
+    ok("Z10: switching to Polecat sets data-app-theme + persists + recolors --pentaho/--bg",
+      z10Polecat.attr === "polecat" && z10Polecat.stored === "polecat" && z10Polecat.pentaho !== z10ClassicPentaho && z10Polecat.bg,
+      JSON.stringify(z10Polecat) + " vs classic " + z10ClassicPentaho);
+
+    // Combines orthogonally with the light/dark mode toggle — Polecat has its own dark variant.
+    await page.click('#secSettings input[data-set="dark"]');
+    await page.waitForTimeout(80);
+    const z10PolecatDark = await page.evaluate(function () {
+      return {
+        themeAttr: document.documentElement.getAttribute("data-theme"),
+        appAttr: document.documentElement.getAttribute("data-app-theme"),
+        bg: getComputedStyle(document.documentElement).getPropertyValue("--bg").trim(),
+        ink: getComputedStyle(document.documentElement).getPropertyValue("--ink").trim()
+      };
+    });
+    ok("Z10: Polecat + Dark mode combine (own dark variant, distinct from Polecat light's --bg)",
+      z10PolecatDark.themeAttr === "dark" && z10PolecatDark.appAttr === "polecat" && z10PolecatDark.bg !== z10Polecat.bg && z10PolecatDark.ink,
+      JSON.stringify(z10PolecatDark));
+
+    const z10InKeys = await page.evaluate(function () { return window.__studioImportSettingsKeys.indexOf("studio-app-theme") >= 0; });
+    ok("Z10: studio-app-theme travels through Settings export/import", z10InKeys, "checked SETTINGS_DATA_KEYS");
+
+    // restore Classic Blue + Light for subsequent tests
+    await page.click('#secSettings input[data-set="dark"]');
+    await page.selectOption("#appThemeSel", "classic");
+    await page.waitForTimeout(80);
+
     // ── Z11: Help/docs — a persistent, discoverable rail entry (not buried in ⋯ More) ──
     console.log("\n• Z11: rail Help entry");
     const z11Help = await page.evaluate(function () {

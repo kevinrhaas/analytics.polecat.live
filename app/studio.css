@@ -21,6 +21,26 @@ html[data-theme='dark']{
   --good:#4cde8c; --warn:#f0a750; --bad:#ff5c7a;
   --shadow:0 1px 3px rgba(0,0,0,.4); --shadow-lg:0 16px 46px rgba(0,0,0,.55);
 }
+/* Z10: app theme system — a coherent, named alternative to "Classic Blue" (the default
+   above), each with its own light + dark variant, switched via [data-app-theme] on <html>
+   independently of the light/dark [data-theme] mode toggle. "Polecat" reuses the warm
+   plum/terracotta/cream palette the left rail (#railNav) already carries, so the whole
+   app — not just the rail — can share one coherent identity. Exported dashboards keep
+   their own theming (pdc-ui.css) and are deliberately NOT coupled to this. */
+html[data-app-theme='polecat']{
+  --pentaho:#c1602c; --pdc:#7c5cbf;
+  --ink:#2E2A33; --muted:#6f6260; --faint:#9c8f8a;
+  --bg:#F7EEDF; --pane:#FFFBF4; --line:#E7D9C2; --line-2:#F1E6D3; --field:#FBF3E6;
+  --good:#2f8f52; --warn:#b8710f; --bad:#c1405a;
+  --shadow:0 1px 3px rgba(60,40,20,.09); --shadow-lg:0 12px 40px rgba(60,40,20,.18);
+}
+html[data-app-theme='polecat'][data-theme='dark']{
+  --pentaho:#f2965b; --pdc:#a78bfa;
+  --ink:#F5E9D6; --muted:#c9b9ab; --faint:#8f7f74;
+  --bg:#0a0a0f; --pane:#211b26; --line:rgba(245,233,214,.14); --line-2:rgba(245,233,214,.07); --field:#191420;
+  --good:#59d68e; --warn:#f2ab5c; --bad:#ff6b82;
+  --shadow:0 1px 3px rgba(0,0,0,.5); --shadow-lg:0 16px 46px rgba(0,0,0,.6);
+}
 *{box-sizing:border-box}
 html,body{margin:0;height:100%}
 /* M9: clip html as well as body so no element can create a horizontal scroll channel

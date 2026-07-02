@@ -296,6 +296,7 @@
       setupPanes();
       setupMobileTabs();
       try { setTheme(localStorage.getItem("studio-theme") || "light"); } catch (e) { setTheme("light"); }
+      try { setAppTheme(localStorage.getItem("studio-app-theme") || "classic"); } catch (e) {}
       try { if (localStorage.getItem("studio-simple-mode") === "1") { S.simpleMode = true; document.body.classList.add("simple-mode"); } } catch (e) {}
       applyBranding();
       loadConnections();
@@ -3952,7 +3953,7 @@
   // that's already covered by Save/Open. Lets a user carry their setup to another
   // browser/device or back it up before "Clear local data".
   var SETTINGS_DATA_KEYS = [
-    "studio-theme", "studio-simple-mode", "studio-connections", "studio-active-conn",
+    "studio-theme", "studio-app-theme", "studio-simple-mode", "studio-connections", "studio-active-conn",
     "studio-lw", "studio-rw", "studio-collapse-library", "studio-collapse-inspector",
     "studio-insp-collapsed", "studio-shell-section", "studio-shell-expanded", "studio-branding",
     "studio-default-jndi"
@@ -4016,12 +4017,20 @@
     var html = '<div class="settings-wrap"><div class="settings-hero"><h1>Settings</h1>' +
       '<p>App-wide preferences, saved locally on this device.</p></div>' +
       groups.map(function (g) {
+        var themeRow = g === "Appearance" ?
+          '<div class="set-row"><span class="set-row-ic" data-ic="palette"></span>' +
+            '<div class="set-row-txt"><b>Color theme</b><small>Classic Blue is the original Pentaho-style chrome; Polecat recolors the builder in the warm terracotta/plum look the left rail already uses.</small></div>' +
+            '<select id="appThemeSel" class="set-sel">' +
+              ['classic', 'polecat'].map(function (m) {
+                return '<option value="' + m + '"' + (appTheme() === m ? " selected" : "") + '>' + (m === "classic" ? "Classic Blue" : "Polecat") + '</option>';
+              }).join("") +
+            '</select></div>' : "";
         return '<div class="settings-card"><h2>' + esc(g) + '</h2>' +
           SETTINGS_TOGGLES.filter(function (t) { return t.grp === g; }).map(function (t) {
             return '<div class="set-row"><span class="set-row-ic" data-ic="' + t.ic() + '"></span>' +
               '<div class="set-row-txt"><b>' + esc(t.t) + '</b><small>' + esc(t.d) + '</small></div>' +
               '<label class="set-sw"><input type="checkbox" data-set="' + t.id + '"' + (t.on() ? " checked" : "") + '/><span class="set-sw-track"></span></label></div>';
-          }).join("") + '</div>';
+          }).join("") + themeRow + '</div>';
       }).join("") +
       (function () {
         var b = getBranding(), mode = b.mode || "default";
@@ -4064,6 +4073,8 @@
       var t = SETTINGS_TOGGLES.filter(function (x) { return x.id === cb.getAttribute("data-set"); })[0];
       if (t) cb.addEventListener("change", t.set);
     });
+    var appThemeSel = $("#appThemeSel", sec);
+    if (appThemeSel) appThemeSel.onchange = function () { setAppTheme(appThemeSel.value); toast(appThemeSel.value === "polecat" ? "Polecat theme applied" : "Classic Blue theme applied"); };
     var defJndiInp = $("#setDefaultJndiInp", sec);
     if (defJndiInp) defJndiInp.addEventListener("change", function () { setDefaultJndi(defJndiInp.value); toast("Default JNDI connection saved"); });
     var expBtn = $("#setExportBtn", sec); if (expBtn) expBtn.onclick = exportSettingsFile;
@@ -4131,6 +4142,19 @@
     renderHome();
     renderSettings();
   }
+  /* Z10: app COLOR theme — orthogonal to the light/dark MODE toggle above. "classic" is
+     the original Pentaho blue chrome (default, unchanged); "polecat" recolors the builder
+     to the same warm plum/terracotta/cream palette #railNav already uses, so the whole app
+     reads as one coherent identity instead of two clashing palettes. Exported dashboards
+     are deliberately untouched — this only sets a data attribute the studio.css variables
+     key off of; pdc-ui.css (the export/preview toolkit) never reads it. */
+  function appTheme() { return S.appTheme || "classic"; }
+  function setAppTheme(t) {
+    t = (t === "polecat") ? "polecat" : "classic";
+    S.appTheme = t; document.documentElement.setAttribute("data-app-theme", t);
+    try { localStorage.setItem("studio-app-theme", t); } catch (e) {}
+  }
+  window.__studioAppTheme = { get: appTheme, set: setAppTheme }; // test hook
   function highlightPreview() {
     if (!S.selection) { postToPreview({ type: "highlight" }); return; }
     if (S.selection.kind === "kpi") postToPreview({ type: "highlight", kind: "kpi", index: S.selection.index });
