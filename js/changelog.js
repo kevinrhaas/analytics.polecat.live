@@ -15,6 +15,16 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 207,
+    title: 'KPI tiles gain a Z-score aggregation',
+    kind: 'feature',
+    ts: '2026-07-02T21:36:30Z',
+    items: [
+      'The KPI "Aggregation" picker (Z7 statistical computations) adds Z-score: how many standard deviations the most recent row sits from the bound query\'s mean — a quick "is this normal?" read for anomaly-flavored tiles, no separate query needed.',
+      'Docs updated to describe the full Aggregation picker (was undocumented since it shipped).',
+    ],
+  },
+  {
     v: 206,
     title: 'Changelog now parses in the fleet manager — matched relay\'s exact literal style',
     kind: 'fix',

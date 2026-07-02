@@ -53,7 +53,8 @@
     ["max",    "Max"],
     ["p90",    "90th percentile"],
     ["p95",    "95th percentile"],
-    ["stddev", "Std deviation"]
+    ["stddev", "Std deviation"],
+    ["zscore", "Z-score (latest vs. mean)"]
   ];
   // Pure function: values (numbers) + an id from KPI_AGGS -> a single number. "first" is handled
   // by the caller (it needs the raw row, not just the column) so it's never passed in here.
@@ -65,7 +66,11 @@
     if (agg === "max") return Math.max.apply(null, v);
     var mean = v.reduce(function (a, b) { return a + b; }, 0) / v.length;
     if (agg === "avg") return mean;
-    if (agg === "stddev") return Math.sqrt(v.reduce(function (a, b) { return a + (b - mean) * (b - mean); }, 0) / v.length);
+    var sd = Math.sqrt(v.reduce(function (a, b) { return a + (b - mean) * (b - mean); }, 0) / v.length);
+    if (agg === "stddev") return sd;
+    // How many std-deviations the most recent row sits from the distribution's mean —
+    // a quick anomaly/outlier read (e.g. "is today's number normal?") without a separate query.
+    if (agg === "zscore") return sd === 0 ? 0 : (v[v.length - 1] - mean) / sd;
     // median / percentiles all need a sorted copy
     var sorted = v.slice().sort(function (a, b) { return a - b; });
     if (agg === "median") return Studio.percentileOf(sorted, 50);

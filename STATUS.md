@@ -1068,6 +1068,11 @@ chart options / derived series / KPI computations. Keep it light (vanilla-JS mat
 > independently-testable functions (standard R-7 linear-interpolation percentile). Stored as `k.agg`,
 > omitted from the spec entirely when left at the default. 7 new tests, suite 962/962. **Still open:**
 > z-score, correlation, and full regression/distribution KPI computations.
+> ✓ **Slice 5 shipped v207**: **Z-score** added to the KPI Aggregation picker — how many standard
+> deviations the most recent row sits from the bound query's mean (`Studio.aggregate(values,"zscore")`),
+> a quick anomaly/outlier read without a separate query. Docs' KPI tile card now documents the whole
+> Aggregation picker (was undocumented since v204). 2 new tests, suite 966/966. **Still open:**
+> correlation and full regression/distribution KPI computations.
 
 **Z8 — Context-aware inspector (per chart type) + visual setting hints (user-requested 2026-06-30).**
 The panel inspector currently shows ALL setting sections regardless of chart type — e.g. a **Table**

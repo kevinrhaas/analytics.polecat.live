@@ -12004,6 +12004,21 @@ function serve() {
       ["first", "sum", "avg", "median", "min", "max", "p90", "p95", "stddev"].every(function (a) { return z7aggUnit.aggsListed.indexOf(a) >= 0; }),
       JSON.stringify(z7aggUnit));
 
+    // Z7AGG-1b (slice 5): z-score — how many std-deviations the LAST value sits from the mean
+    var z7zUnit = await page.evaluate(function () {
+      var A = window.Studio.aggregate;
+      var flat = [5, 5, 5, 5, 5];
+      var trending = [1, 2, 3, 4, 19]; // mean=5.8, stddev≈6.66, last=19 -> z≈1.98
+      return {
+        flatZero: A(flat, "zscore"),
+        trendingZ: Math.round(A(trending, "zscore") * 100) / 100,
+        listed: (window.Studio.KPI_AGGS || []).some(function (a) { return a[0] === "zscore"; })
+      };
+    });
+    ok("Z7AGG: KPI_AGGS lists zscore", z7zUnit.listed, JSON.stringify(z7zUnit));
+    ok("Z7AGG: Studio.aggregate zscore is 0 for a zero-variance series and matches the standard formula otherwise",
+      z7zUnit.flatZero === 0 && Math.abs(z7zUnit.trendingZ - 1.98) < 0.01, JSON.stringify(z7zUnit));
+
     // Z7AGG-2: the KPI inspector's "Aggregation" field changes k.agg, and a non-"first"
     // aggregation recomputes the rendered tile value across every sampled row (not just row 0).
     var z7aggRender = await page.evaluate(async function () {
