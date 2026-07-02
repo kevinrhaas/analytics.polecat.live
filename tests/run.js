@@ -10580,7 +10580,7 @@ function serve() {
       var switches = Array.prototype.map.call(sec.querySelectorAll("input[data-set]"), function (cb) { return cb.getAttribute("data-set"); });
       return {
         visible: sec.hidden === false,
-        hasCards: sec.querySelectorAll(".settings-card").length === 5, // 3 toggle groups + Branding (Z12) + Data (Z5 follow-up)
+        hasCards: sec.querySelectorAll(".settings-card").length === 6, // 3 toggle groups + Branding (Z12) + Data source defaults (Z5 follow-up) + Data (Z5 follow-up)
         switchIds: switches.join(","),
         darkChecked: sec.querySelector('input[data-set="dark"]').checked,
         simpleChecked: sec.querySelector('input[data-set="simple"]').checked,
@@ -10588,7 +10588,7 @@ function serve() {
         focusChecked: sec.querySelector('input[data-set="focus"]').checked
       };
     });
-    ok("Z5: Settings section renders 5 cards (3 mode-switch groups + Branding + Data) with 4 mode switches, all off by default",
+    ok("Z5: Settings section renders 6 cards (3 mode-switch groups + Branding + Data source defaults + Data) with 4 mode switches, all off by default",
       z5Boot.visible && z5Boot.hasCards && z5Boot.switchIds === "dark,simple,demo,focus"
         && !z5Boot.darkChecked && !z5Boot.simpleChecked && !z5Boot.demoChecked && !z5Boot.focusChecked,
       JSON.stringify(z5Boot));
@@ -10674,7 +10674,7 @@ function serve() {
       };
     });
     ok("Z5: Settings page has a Data card with Export/Import buttons",
-      z5Data.cardCount === 5 && z5Data.hasExportBtn && z5Data.hasImportBtn, JSON.stringify(z5Data));
+      z5Data.cardCount === 6 && z5Data.hasExportBtn && z5Data.hasImportBtn, JSON.stringify(z5Data));
 
     const [z5Dl] = await Promise.all([page.waitForEvent("download"), page.click("#setExportBtn")]);
     const z5DlName = z5Dl.suggestedFilename();
@@ -10698,6 +10698,42 @@ function serve() {
     ok("Z5: applySettingsData rejects unrecognized files and applies recognized ones",
       z5Import.ok1 === false && z5Import.afterRejected === "light" && z5Import.ok2 === true && z5Import.afterApplied === "dark",
       JSON.stringify(z5Import));
+
+    // ── Z5 follow-up: Settings — data-source defaults (default JNDI connection) ──
+    console.log("\n• Z5 follow-up: data-source defaults");
+    const z5JndiDefault = await page.evaluate(function () {
+      try { localStorage.removeItem("studio-default-jndi"); } catch (e) {}
+      window.__studioRenderSettings();
+      var inp = document.getElementById("setDefaultJndiInp");
+      return { present: !!inp, value: inp ? inp.value : "", helperDefault: window.__studioDefaultJndi() };
+    });
+    ok("Z5: Settings shows a Default JNDI connection field, defaulting to PDC-BIDB-EXT",
+      z5JndiDefault.present && z5JndiDefault.value === "PDC-BIDB-EXT" && z5JndiDefault.helperDefault === "PDC-BIDB-EXT",
+      JSON.stringify(z5JndiDefault));
+
+    await page.fill("#setDefaultJndiInp", "ACME-PROD-DS");
+    await page.evaluate(function () { document.getElementById("setDefaultJndiInp").dispatchEvent(new Event("change")); });
+    await page.waitForTimeout(80);
+    const z5JndiSet = await page.evaluate(function () {
+      return { helper: window.__studioDefaultJndi(), stored: localStorage.getItem("studio-default-jndi"), inKeys: window.__studioImportSettingsKeys.indexOf("studio-default-jndi") >= 0 };
+    });
+    ok("Z5: changing the Default JNDI field persists it and is included in Settings export/import keys",
+      z5JndiSet.helper === "ACME-PROD-DS" && z5JndiSet.stored === "ACME-PROD-DS" && z5JndiSet.inKeys, JSON.stringify(z5JndiSet));
+
+    await page.evaluate(function () { window.__studioShellSetSection("studio"); });
+    await page.waitForTimeout(80);
+    const z5JndiNewDs = await page.evaluate(function () {
+      document.getElementById("btnNewDS").click();
+      var fields = [].slice.call(document.querySelectorAll(".dsb .field"));
+      var connField = fields.filter(function (f) { var lb = f.querySelector("label"); return lb && lb.textContent.indexOf("Connection (JNDI)") >= 0; })[0];
+      var jndiInp = connField ? connField.querySelector("input") : null;
+      var val = jndiInp ? jndiInp.value : "";
+      var modal = document.querySelector(".modal-ov"); if (modal) modal.remove(); // cancel out
+      return { val: val, found: !!jndiInp };
+    });
+    ok("Z5: a brand-new data source's Connection (JNDI) field pre-fills with the Settings default",
+      z5JndiNewDs.found && z5JndiNewDs.val === "ACME-PROD-DS", JSON.stringify(z5JndiNewDs));
+    await page.evaluate(function () { localStorage.removeItem("studio-default-jndi"); window.__studioRenderSettings(); }); // restore default for later tests
 
     // ── Z12: Branding as a Settings option (default / custom logo / none) ──
     console.log("\n• Z12: Branding Settings card");

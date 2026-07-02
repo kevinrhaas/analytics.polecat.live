@@ -8,6 +8,11 @@
 window.STUDIO_BUILD = "__BUILD_TS__";
 
 window.STUDIO_CHANGELOG = [
+  { v: "v190", date: "2026-07-02", time: "19:35 UTC", title: "Z5 follow-up: data-source defaults", items: [
+      "New \"Data source defaults\" card on the Settings page with a **Default JNDI connection** field. Every brand-new data source you create (＋ New source in the library) now pre-fills its Connection field from this setting instead of the built-in \"PDC-BIDB-EXT\" placeholder — handy for teams with their own standard connection pool who'd otherwise retype it every time.",
+      "`defaultJndi()`/`setDefaultJndi()` helpers in studio.js persist the value to `localStorage[\"studio-default-jndi\"]`, added to the existing Settings export/import key list so it travels with the rest of your preferences.",
+      "3 new regression checks (field present and defaults correctly, changing it persists + is exported, a new data source actually pre-fills from it). Test suite 928/928.",
+    ] },
   { v: "v189", date: "2026-07-02", time: "19:20 UTC", title: "Z9 follow-up: dropdown-menu motion polish", items: [
       "Every topbar dropdown (New ▾, Examples ▾, Export ▾, ⋯ More) used to hard-cut open/closed via `display:none`/`block`, which can't be animated. They now fade in and rise slightly (opacity + transform, .14s ease) instead — a small but real bit of the \"modern flows and animations\" the Z9 mobile/tablet track called for.",
       "Closed menus stay genuinely non-interactive: `pointer-events:none` while faded out, and `visibility:hidden` kicks in only after the fade-out finishes (via a delayed transition), so there's no invisible click-catcher sitting over whatever's behind it.",

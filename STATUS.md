@@ -606,6 +606,11 @@
   `display:none`/`block` cut; genuinely non-interactive while closed (`pointer-events:none`,
   `visibility:hidden` after the fade-out) rather than merely invisible; respects
   `prefers-reduced-motion`. Desktop/tablet chrome only. 3 new tests. Test suite 925/925.
+- v190: **Z5 follow-up: data-source defaults** — new "Data source defaults" Settings card with a
+  **Default JNDI connection** field; pre-fills the Connection field on every brand-new data source
+  (＋ New source) instead of the hardcoded "PDC-BIDB-EXT" placeholder. `defaultJndi()`/
+  `setDefaultJndi()` in studio.js, persisted + included in Settings export/import. 3 new tests. Test
+  suite 928/928.
 
 ## NEXT (top = do first)
 
@@ -878,8 +883,12 @@ of named style presets** the user can pick from. Export/import settings as JSON.
 > ✓ **Settings export/import as JSON shipped v136**: a "Data" card on the Settings page exports theme/mode/
 > connections/layout preferences to `dashboard-studio-settings.json` and imports them back (confirmed before
 > applying; dashboard content itself is untouched — still Save/Open).
-> **Z5 follow-ups (not yet done):** deploy target config, gate/access management, data-source defaults,
-> dashboard style-preset collections, and the optional polecat.live-style left-drawer mirror of key toggles.
+> ✓ **Data-source defaults shipped v190**: a new "Data source defaults" card with a **Default JNDI
+> connection** field — pre-fills the Connection field on every brand-new data source (＋ New source)
+> instead of the hardcoded "PDC-BIDB-EXT" placeholder. `defaultJndi()`/`setDefaultJndi()` in studio.js,
+> persisted to `localStorage["studio-default-jndi"]` and included in Settings export/import.
+> **Z5 follow-ups (not yet done):** deploy target config, gate/access management, dashboard style-preset
+> collections, and the optional polecat.live-style left-drawer mirror of key toggles.
 
 **Z6 — Banner / header editor + naming model (user-requested; refined 2026-06-30).** Make the dashboard
 header/banner (the "Cost Optimization & Sustainability · subtitle" bar in the preview) fully **editable

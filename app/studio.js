@@ -702,7 +702,7 @@
   // open the guided builder. existing = {stem, da} to edit, or null to create.
   function dataSourceBuilder(existing) {
     var editing = !!existing;
-    var src = editing ? Studio.clone(existing.da) : { id: "", name: "", kind: "sql", jndi: (S.spec.cda.connection && S.spec.cda.connection.jndi) || "PDC-BIDB-EXT", sql: "", query: "", params: [], columns: [], calcColumns: [], cache: true, cacheDuration: 300 };
+    var src = editing ? Studio.clone(existing.da) : { id: "", name: "", kind: "sql", jndi: defaultJndi(), sql: "", query: "", params: [], columns: [], calcColumns: [], cache: true, cacheDuration: 300 };
     src.kind = src.kind || "sql";
     var draft = { stem: editing ? existing.stem : "custom", id: src.id, kind: src.kind, jndi: src.jndi,
       query: src.query || src.sql || "", columns: (src.columns || []).slice(),
@@ -3954,8 +3954,18 @@
   var SETTINGS_DATA_KEYS = [
     "studio-theme", "studio-simple-mode", "studio-connections", "studio-active-conn",
     "studio-lw", "studio-rw", "studio-collapse-library", "studio-collapse-inspector",
-    "studio-insp-collapsed", "studio-shell-section", "studio-shell-expanded", "studio-branding"
+    "studio-insp-collapsed", "studio-shell-section", "studio-shell-expanded", "studio-branding",
+    "studio-default-jndi"
   ];
+  // Z5 follow-up: data-source defaults. Every new data source (dataSourceBuilder with no
+  // `existing`) used to fall back to a hardcoded "PDC-BIDB-EXT" JNDI pool name; most teams
+  // have their own standard pool, so make it a one-time Settings preference instead.
+  function defaultJndi() {
+    var v; try { v = localStorage.getItem("studio-default-jndi"); } catch (e) {}
+    return (v && v.trim()) || "PDC-BIDB-EXT";
+  }
+  function setDefaultJndi(v) { try { localStorage.setItem("studio-default-jndi", (v || "").trim()); } catch (e) {} }
+  window.__studioDefaultJndi = defaultJndi; // test hook
   function exportSettingsFile() {
     var out = { _type: "studio-settings", _v: 1 };
     SETTINGS_DATA_KEYS.forEach(function (k) {
@@ -4033,6 +4043,11 @@
             '<button type="button" class="btn" id="brandUploadBtn">Choose file…</button></div>' +
         '</div>';
       })() +
+      '<div class="settings-card"><h2>Data source defaults</h2>' +
+        '<div class="set-row"><span class="set-row-ic" data-ic="db"></span>' +
+          '<div class="set-row-txt"><b>Default JNDI connection</b><small>Pre-fills the Connection field whenever you create a new data source (＋ New source), instead of the built-in "PDC-BIDB-EXT" placeholder.</small></div>' +
+          '<input type="text" id="setDefaultJndiInp" class="set-txt" value="' + esc(defaultJndi()) + '" placeholder="PDC-BIDB-EXT"/></div>' +
+      '</div>' +
       '<div class="settings-card"><h2>Data</h2>' +
         '<div class="set-row"><span class="set-row-ic" data-ic="download"></span>' +
           '<div class="set-row-txt"><b>Export settings</b><small>Save theme, mode, connections &amp; layout preferences as a .json file.</small></div>' +
@@ -4049,6 +4064,8 @@
       var t = SETTINGS_TOGGLES.filter(function (x) { return x.id === cb.getAttribute("data-set"); })[0];
       if (t) cb.addEventListener("change", t.set);
     });
+    var defJndiInp = $("#setDefaultJndiInp", sec);
+    if (defJndiInp) defJndiInp.addEventListener("change", function () { setDefaultJndi(defJndiInp.value); toast("Default JNDI connection saved"); });
     var expBtn = $("#setExportBtn", sec); if (expBtn) expBtn.onclick = exportSettingsFile;
     var impBtn = $("#setImportBtn", sec); if (impBtn) impBtn.onclick = importSettingsFile;
     var brandSel = $("#brandModeSel", sec);
