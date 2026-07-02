@@ -4885,7 +4885,8 @@
         "studio-connections", "studio-active-conn", "studio-mob-tab", "studio-simple-mode",
         "studio-insp-collapsed", "studio-recents", "studio-pins", "studio-branding",
         "studio-shell-section", "studio-shell-expanded",
-        "studio-default-jndi", "studio-default-subtitle", "studio-default-accent"
+        "studio-default-jndi", "studio-default-subtitle", "studio-default-accent",
+        "studio-cmdk-usage"
       ];
       var msg = "Clear all locally-stored Studio data?\n\nThis will remove:\n" +
         "  • Unsaved spec draft (autosave)\n" +

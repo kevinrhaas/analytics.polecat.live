@@ -76,6 +76,30 @@
     }).filter(Boolean);
   }
 
+  // ---- usage tracking (recent/frequent ranking) --------------------------
+  // A tiny localStorage map of label -> {count,last}. Empty-query opens show
+  // your most-recently-run commands first (the classic command-palette
+  // pattern); a non-empty query still ranks by text-match relevance first,
+  // with usage only breaking ties among equally-relevant rows.
+  var USAGE_KEY = "studio-cmdk-usage";
+  var USAGE_CAP = 40; // keep the map small; dynamic labels (examples/recents) churn over time
+  function loadUsage() {
+    try { return JSON.parse(localStorage.getItem(USAGE_KEY) || "{}") || {}; } catch (e) { return {}; }
+  }
+  function saveUsage(u) { try { localStorage.setItem(USAGE_KEY, JSON.stringify(u)); } catch (e) {} }
+  function recordUsage(label) {
+    var u = loadUsage();
+    var e = u[label] || { count: 0, last: 0 };
+    e.count++; e.last = Date.now();
+    u[label] = e;
+    var keys = Object.keys(u);
+    if (keys.length > USAGE_CAP) {
+      keys.sort(function (a, b) { return u[a].last - u[b].last; });
+      keys.slice(0, keys.length - USAGE_CAP).forEach(function (k) { delete u[k]; });
+    }
+    saveUsage(u);
+  }
+
   // ---- state + DOM ------------------------------------------------------
   var overlay = null, input = null, listEl = null;
   var allCommands = COMMANDS;
@@ -147,10 +171,24 @@
 
   function refresh() {
     var q = (input.value || "").trim().toLowerCase();
-    filtered = allCommands.map(function (c) { return { c: c, s: score(c, q) }; })
-      .filter(function (x) { return x.s >= 0; })
-      .sort(function (a, b) { return b.s - a.s; })
-      .map(function (x) { return x.c; });
+    var usage = loadUsage();
+    if (!q) {
+      // Empty query: lead with whatever you've actually used, most-recent first —
+      // commands never run before keep their original registry order after that.
+      var used = [], rest = [];
+      allCommands.forEach(function (c) { (usage[c.label] ? used : rest).push(c); });
+      used.sort(function (a, b) { return usage[b.label].last - usage[a.label].last; });
+      filtered = used.concat(rest);
+    } else {
+      filtered = allCommands.map(function (c) {
+        var s = score(c, q);
+        if (s >= 0 && usage[c.label]) s += Math.min(usage[c.label].count, 10); // tiebreak, never outranks relevance buckets
+        return { c: c, s: s };
+      })
+        .filter(function (x) { return x.s >= 0; })
+        .sort(function (a, b) { return b.s - a.s; })
+        .map(function (x) { return x.c; });
+    }
     sel = 0;
     render();
   }
@@ -192,7 +230,10 @@
   function run() {
     var cmd = filtered[sel];
     close();
-    if (cmd && cmd.run) { try { cmd.run(); } catch (e) {} }
+    if (cmd) {
+      recordUsage(cmd.label);
+      if (cmd.run) { try { cmd.run(); } catch (e) {} }
+    }
   }
 
   function open() {
@@ -241,5 +282,5 @@
   var railCmdk = document.getElementById("railCmdk");
   if (railCmdk) railCmdk.addEventListener("click", open);
 
-  window.StudioPalette = { open: open, close: close, toggle: toggle, isOpen: isOpen, commands: COMMANDS };
+  window.StudioPalette = { open: open, close: close, toggle: toggle, isOpen: isOpen, commands: COMMANDS, usage: loadUsage };
 })();

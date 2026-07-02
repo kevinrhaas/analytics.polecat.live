@@ -11698,6 +11698,46 @@ function serve() {
     });
     ok("Track N follow-up: every static palette command declares an icon", cmdkIcons.allHaveIc, JSON.stringify(cmdkIcons));
 
+    // ---- Track N follow-up: recent/frequent command ranking ----
+    console.log("\n• Track N follow-up: palette recent/frequent ranking");
+    var cmdkUsage = await page.evaluate(function () {
+      var r = {};
+      localStorage.removeItem("studio-cmdk-usage"); // isolate from any commands run earlier in the suite
+      if (window.__studioShellSetSection) window.__studioShellSetSection("studio");
+      var P = window.StudioPalette;
+      var rows = function () { return Array.prototype.slice.call(document.querySelectorAll("#cmdkList .cmdk-row")); };
+      var labelOf = function (li) { return li.querySelector(".cmdk-lbl").textContent; };
+
+      // baseline: with no usage history, "Keyboard shortcuts" is not the first row on an empty-query open
+      P.open();
+      r.baselineFirst = labelOf(rows()[0]);
+      var input = document.getElementById("cmdkInput");
+      input.value = "keyboard shortcuts";
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      var target = rows().filter(function (li) { return labelOf(li) === "Keyboard shortcuts"; })[0];
+      r.foundTarget = !!target;
+      if (target) target.click(); // runs it (records usage) + closes the palette + opens the shortcuts modal
+      r.usageRecorded = !!(P.usage()["Keyboard shortcuts"] && P.usage()["Keyboard shortcuts"].count === 1);
+      // close whatever the command opened so it doesn't leak into later tests (the modal's own × button
+      // closes synchronously; Escape would too, but only after a 50ms listener-attach setTimeout)
+      var modalClose = document.querySelector(".modal-ov .x");
+      if (modalClose) modalClose.click();
+
+      // reopen with an empty query: the just-run command now leads the list
+      P.open();
+      r.rankedFirst = labelOf(rows()[0]);
+      document.getElementById("cmdkInput").dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+
+      localStorage.removeItem("studio-cmdk-usage"); // leave no residue for tests that run after this one
+      if (window.__studioShellSetSection) window.__studioShellSetSection("studio");
+      return r;
+    });
+    ok("Track N follow-up: with no usage history, the empty-query list is the plain registry order",
+      cmdkUsage.baselineFirst === "Go to Home", JSON.stringify(cmdkUsage));
+    ok("Track N follow-up: running a command records its usage", cmdkUsage.foundTarget && cmdkUsage.usageRecorded, JSON.stringify(cmdkUsage));
+    ok("Track N follow-up: a just-run command leads the empty-query list next time the palette opens",
+      cmdkUsage.rankedFirst === "Keyboard shortcuts", JSON.stringify(cmdkUsage));
+
     // ── Z7 slice 1: line/area chart gets a moving-average forecast overlay ──
     console.log("\n• Z7 forecasting: line chart moving average");
 

@@ -710,6 +710,9 @@
   affordances). Same id/behavior, just relocated. Fixed a latent `--text-secondary` CSS var bug found
   along the way (nonexistent token, corrected to `--muted`). 1 new test. Test suite 952/952.
 
+- v201: **N-FUN slice 4: command palette recent/frequent ranking** — see Z-track N entry above. 3 new
+  tests, suite 955/955.
+
 ## NEXT (top = do first)
 
 ### ★★★ TOP PRIORITY — MOBILE IS BROKEN, FIX IT FIRST (user-requested 2026-07-02, with screenshots)
@@ -1648,7 +1651,12 @@ gets covered over time:
 > 5 new tests, suite 883/883.
 > ✓ **Slice 3 shipped v178**: every static command now has an icon (was only the 5 nav rows) — a coherent,
 > scannable icon-per-row menu. 1 new test, suite 884/884. **Still open:** include chart types
-> (add-panel-of-type) as commands; recent/frequent command ranking.
+> (add-panel-of-type) as commands.
+> ✓ **Slice 4 shipped v201**: recent/frequent command ranking — a small `studio-cmdk-usage` localStorage
+> map (label→{count,last}) records every command actually run; an empty-query open now leads with your
+> most-recently-used commands (classic command-palette pattern), and a non-empty query gives previously-run
+> commands a small tie-breaking boost among equally-relevant matches. Included in Clear local data. 3 new
+> tests, suite 955/955.
 - **Story / scrollytelling mode:** author an ordered, annotated narrative through a dashboard (extends
   Slideshow) — each step pans/zooms/highlights and shows a caption. Present findings, not just charts.
 - **Live "what-if" parameter sliders:** on-canvas sliders that drive derived series / forecasts and animate
