@@ -3396,7 +3396,25 @@ function serve() {
     await phonePage.waitForTimeout(120);
     const mnavCL = await phonePage.evaluate(() => { var c = document.getElementById("changelogPop"); var r = c.getBoundingClientRect(); return { open: !c.hidden, inView: r.left >= -1 && r.right <= window.innerWidth + 1 }; });
     ok("MNAV: changelog popout sits fully within the viewport", mnavCL.open && mnavCL.inView, JSON.stringify(mnavCL));
-    await phonePage.evaluate(() => { var c = document.getElementById("changelogPop"); if (c) c.setAttribute("hidden", ""); });
+
+    // m-e: on phone the changelog reads as a near-full-screen "What's new" sheet (not a small
+    // floating box easy to mistake for empty space) and has an explicit, visible Close button —
+    // the previous tap-outside-to-dismiss had no on-screen cue it was even possible.
+    const mnavCLSheet = await phonePage.evaluate(() => {
+      var c = document.getElementById("changelogPop"), close = document.getElementById("clClose");
+      var r = c.getBoundingClientRect(), cr = close ? close.getBoundingClientRect() : null;
+      return {
+        tallSheet: r.height > window.innerHeight * 0.6,
+        hasClose: !!close,
+        closeOnScreen: !!cr && cr.left >= 0 && cr.right <= window.innerWidth && cr.top >= 0,
+      };
+    });
+    ok("MNAV: changelog reads as a near-full-screen sheet with a visible Close button", mnavCLSheet.tallSheet && mnavCLSheet.hasClose && mnavCLSheet.closeOnScreen, JSON.stringify(mnavCLSheet));
+
+    await phonePage.click("#clClose");
+    await phonePage.waitForTimeout(80);
+    const mnavCLClosed = await phonePage.evaluate(() => document.getElementById("changelogPop").hidden);
+    ok("MNAV: the Close button actually dismisses the changelog sheet", mnavCLClosed === true, String(mnavCLClosed));
 
     await phonePage.close();
 

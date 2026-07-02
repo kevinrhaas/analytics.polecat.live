@@ -369,7 +369,7 @@
     var pop = $("#changelogPop");
     if (pop) {
       pop.innerHTML = '<div class="cl-head">' +
-        '<h4>Changelog</h4>' +
+        '<h4>What&rsquo;s new</h4>' +
         '<input id="clSearch" type="search" class="cl-search" placeholder="Search…" aria-label="Search changelog">' +
         '<span class="cl-sub">latest first</span>' +
         '<button type="button" id="clClose" class="cl-close" aria-label="Close changelog">✕</button></div>' +
@@ -396,11 +396,14 @@
     }
     var btn = $("#btnChangelog");
     if (btn && pop) {
-      var close = function () { pop.hidden = true; btn.setAttribute("aria-expanded", "false"); document.removeEventListener("mousedown", onDoc); document.removeEventListener("keydown", onKey); };
+      // m-e: outside-tap listens for BOTH mousedown and touchstart — mobile Safari doesn't
+      // reliably synthesize a mousedown from a tap, so touch-only closing needs its own listener
+      // (this is the same "on-device behavior the sandbox can't reproduce" class of bug as m-b).
+      var close = function () { pop.hidden = true; btn.setAttribute("aria-expanded", "false"); document.removeEventListener("mousedown", onDoc); document.removeEventListener("touchstart", onDoc); document.removeEventListener("keydown", onKey); };
       var onDoc = function (ev) { if (!pop.contains(ev.target) && ev.target !== btn && !btn.contains(ev.target)) close(); };
       var onKey = function (ev) { if (ev.key === "Escape") close(); };
       btn.onclick = function () {
-        if (pop.hidden) { pop.hidden = false; btn.setAttribute("aria-expanded", "true"); setTimeout(function () { document.addEventListener("mousedown", onDoc); document.addEventListener("keydown", onKey); }, 0); }
+        if (pop.hidden) { pop.hidden = false; btn.setAttribute("aria-expanded", "true"); setTimeout(function () { document.addEventListener("mousedown", onDoc); document.addEventListener("touchstart", onDoc); document.addEventListener("keydown", onKey); }, 0); }
         else close();
       };
       // m-e: explicit Close button — tap-outside/Escape both already worked, but the

@@ -585,8 +585,12 @@
 - v185: **MOBILE (m-e)** — audited changelog/Help reachability on mobile; both were already mostly
   working after m-b's `100dvh` fix. Added the one real gap: an explicit ✕ Close button on the
   changelog/"What's new" popup (previously only tap-outside/Escape, awkward on a full-width phone
-  sheet). 5 new tests, suite 914/914. **All of m-a through m-e shipped — mobile track now needs a
-  real-device confirmation from the user.**
+  sheet). 5 new tests, suite 914/914.
+- v186: **MOBILE (m-e follow-up)** — the changelog now stretches into a true near-full-screen sheet
+  on phones (clears topbar + tab bar/status bar) instead of a small floating box; outside-tap
+  dismiss now also binds `touchstart` (mobile Safari doesn't reliably synthesize `mousedown` from a
+  tap — headless Chromium always looked fine, masking it). 2 new tests. **All of m-a through m-e
+  shipped — mobile track now needs a real-device confirmation from the user.**
 
 ## NEXT (top = do first)
 
@@ -683,6 +687,12 @@
 > button (36px tap target at ≤640px) wired to the same close path as tap-outside/Escape. 5 new
 > regression checks (✕ present + closes it on desktop, footer button on-screen, ✕ on-screen + phone
 > tap-target size, Help on-screen in the drawer — all at 390px). Test suite 914/914.
+> **(m-e follow-up) ✓ DONE (v186):** went further on the same gap — the popup now stretches into a
+> true near-full-screen sheet on phones (clears the topbar above and the tab bar/status bar below,
+> instead of a small floating box that read as empty space) and the outside-tap dismiss now also
+> binds `touchstart` (it previously only bound `mousedown`, which mobile Safari doesn't reliably
+> synthesize from a touch tap — headless Chromium always looked fine, masking the gap). 2 new
+> regression checks (sheet fills most of the viewport; ✕ actually dismisses it).
 > **All of m-a through m-e are now shipped and code-level verified.** Per the process note above,
 > headless Chromium cannot reproduce the original iOS-toolbar bug, so **the mobile track needs a
 > real-device check from the user next** — ask them to reload analytics.polecat.live on an actual

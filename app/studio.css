@@ -648,8 +648,18 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
   /* M11: restore-banner dismiss button gets a full-row tap-friendly layout on phone */
   .restore-banner .rb-acts .btn{min-height:44px;flex:1;display:flex;align-items:center;justify-content:center}
   /* M12: changelog popup is viewport-fixed on phone so it can never overflow off-screen.
-     Uses the #id so it wins over the later base `.changelog-pop` rule regardless of source order. */
-  #changelogPop{position:fixed;left:8px;right:8px;bottom:36px;width:auto;max-width:none}
+     Uses the #id so it wins over the later base `.changelog-pop` rule regardless of source order.
+     m-e: stretched into a near-full-screen "What's new" sheet (top clears the topbar, bottom
+     clears the tab bar + status bar) instead of a small floating box, matching the reference
+     app's full-screen changelog sheet — small popovers are easy to mistake for empty space on
+     a phone. */
+  #changelogPop{position:fixed;left:8px;right:8px;top:60px;bottom:90px;width:auto;max-width:none;max-height:none}
+  .cl-sub{display:none}
+  .cl-head{padding-right:44px}
+  /* Scoped to #changelogPop (not a bare `.cl-close`) for the same reason as the #changelogPop
+     rule above: a bare class selector here would lose to the later unconditional `.cl-close`
+     base rule at equal specificity regardless of this media query being active. */
+  #changelogPop .cl-close{position:absolute;top:6px;right:6px;width:36px;height:36px;font-size:20px}
   /* M10: topbar actions scroll horizontally so EVERY menu/button stays reachable by swipe
      (overflow-hidden previously clipped them off the right edge → untappable). The dropdown
      menus are floated to a fixed full-width sheet below the topbar so the scroll container
@@ -786,13 +796,12 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
 .cl-head h4{margin:0;font-size:13px;color:var(--ink)}
 .cl-head .cl-sub{font-size:11px;color:var(--faint);margin-left:auto}
 .cl-search{flex:0 1 110px;height:22px;padding:0 6px;border:1px solid var(--line);border-radius:5px;background:var(--canvas);color:var(--ink);font-size:11px;outline:none;min-width:60px}
+.cl-search:focus{border-color:var(--pentaho)}
 /* m-e: explicit Close for the changelog/"What's new" sheet — tap-outside and Escape both
    already dismissed it, but a full-width phone sheet needs a visible, unambiguous exit. */
 .cl-close{flex:0 0 auto;width:22px;height:22px;border:none;background:transparent;color:var(--faint);
   font-size:13px;line-height:1;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center}
 .cl-close:hover{background:var(--field);color:var(--ink)}
-@media(max-width:640px){.cl-close{width:36px;height:36px;font-size:15px}}
-.cl-search:focus{border-color:var(--pentaho)}
 .cl-empty{padding:14px;font-size:12px;color:var(--faint);text-align:center}
 .fhash{font-family:var(--mono);font-size:10.5px;background:var(--canvas);color:var(--muted);padding:1px 4px;border-radius:3px;word-break:break-all;border:1px solid var(--line-2)}
 .cl-entry{padding:11px 14px;border-bottom:1px solid var(--line-2)}
