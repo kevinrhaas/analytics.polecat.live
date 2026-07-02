@@ -1465,7 +1465,7 @@
     var dup = entry.dataAccesses.filter(function (x) { return x.id === da.id; })[0];
     if (dup && !(existing && existing.stem === stem && existing.da.id === da.id)) { toast("“" + da.id + "” already exists in " + stem + ".", true); return false; }
     entry.dataAccesses = entry.dataAccesses.filter(function (x) { return x.id !== da.id; }).concat([da]);
-    buildLibrary();
+    buildLibrary(); renderRepository();
     var w = document.querySelector('.lib-cda[data-stem="' + stem + '"]'); if (w) w.classList.add("open");
     toast((existing ? "Updated " : "Created ") + stem + " › " + da.id);
     return true;
@@ -1475,7 +1475,7 @@
     var e = S.catalog[stem]; if (!e) return;
     e.dataAccesses = e.dataAccesses.filter(function (x) { return x.id !== daId; });
     if (!e.dataAccesses.length) delete S.catalog[stem];
-    buildLibrary(); toast("Removed " + daId);
+    buildLibrary(); renderRepository(); toast("Removed " + daId);
   }
 
   /* ---------- selection + inspector ---------- */
@@ -3751,10 +3751,21 @@
   function repoDaCardHtml(stem, d) {
     var kind = ((d.kind || "sql").split(".")[0]).toUpperCase();
     var cols = (d.columns || []).slice(0, 6).join(", ") + ((d.columns || []).length > 6 ? "…" : "");
-    return '<button type="button" class="repo-ds-card" data-repo-ds="' + esc(stem) + '|' + esc(d.id) + '">' +
+    var key = esc(stem) + '|' + esc(d.id);
+    // Z3 follow-up: full CRUD from the Repository page itself — edit/delete reuse the
+    // exact same dataSourceBuilder()/deleteDataSource() the Studio library pane already
+    // uses, so both views always agree (one source of truth, no parallel edit path).
+    // A <button> can't nest another <button>, so the open-in-library affordance and the
+    // edit/delete actions are separate sibling buttons inside a plain wrapping div.
+    return '<div class="repo-ds-card">' +
+      '<button type="button" class="repo-ds-open" data-repo-ds="' + key + '">' +
       '<div class="repo-ds-top"><span class="repo-ds-id">' + esc(d.id) + '</span><span class="repo-ds-kind">' + esc(kind) + '</span></div>' +
       '<span class="repo-ds-stem">' + esc(stem) + '</span>' +
-      (cols ? '<div class="repo-ds-cols">' + esc(cols) + '</div>' : '') + '</button>';
+      (cols ? '<div class="repo-ds-cols">' + esc(cols) + '</div>' : '') + '</button>' +
+      '<div class="repo-ds-acts">' +
+      '<button type="button" class="da-act" data-repo-edit="' + key + '" title="Edit data source"></button>' +
+      '<button type="button" class="da-act" data-repo-del="' + key + '" title="Delete data source"></button>' +
+      '</div></div>';
   }
   function openDsInLibrary(stem, id) {
     if (window.__studioShellSetSection) window.__studioShellSetSection("studio");
@@ -3791,10 +3802,27 @@
       '<h2 class="home-sub repo-sub2">Dashboards <span class="repo-count">' + dashCards.length + ' of ' + list.length + '</span></h2>' +
       (dashCards.length ? '<div class="home-recents">' + dashCards.join("") + '</div>'
         : '<div class="home-empty-hint">' + (q ? "No dashboards match “" + esc(q) + "”." : "No dashboards yet — build one in Studio and it will show up here.") + '</div>');
-    $$(".repo-ds-card", results).forEach(function (btn) {
+    $$(".repo-ds-open", results).forEach(function (btn) {
       btn.onclick = function () {
         var parts = btn.getAttribute("data-repo-ds").split("|");
         openDsInLibrary(parts[0], parts[1]);
+      };
+    });
+    $$("[data-repo-edit]", results).forEach(function (btn) {
+      btn.appendChild(Studio.icon("edit", 12));
+      btn.onclick = function (e) {
+        e.stopPropagation();
+        var parts = btn.getAttribute("data-repo-edit").split("|"), stem = parts[0], id = parts[1];
+        var entry = S.catalog[stem], da = entry && (entry.dataAccesses || []).filter(function (x) { return x.id === id; })[0];
+        if (da) dataSourceBuilder({ stem: stem, da: da });
+      };
+    });
+    $$("[data-repo-del]", results).forEach(function (btn) {
+      btn.appendChild(Studio.icon("trash", 12));
+      btn.onclick = function (e) {
+        e.stopPropagation();
+        var parts = btn.getAttribute("data-repo-del").split("|"), stem = parts[0], id = parts[1];
+        if (confirm("Delete data source “" + id + "” from the library?")) deleteDataSource(stem, id);
       };
     });
     $$(".recent-open", results).forEach(function (btn) { btn.onclick = function () { openRecent(btn.getAttribute("data-recent")); }; });

@@ -213,11 +213,22 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);-webkit-font-
 .repo-count{font-weight:400;text-transform:none;letter-spacing:0;color:#8a7d6d;font-size:11px}
 .repo-sub2{margin-top:30px}
 .repo-ds-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
-.repo-ds-card{background:#1c1720;border:1px solid rgba(245,233,214,.12);border-radius:12px;padding:12px 14px;
-  cursor:pointer;text-align:left;color:#F5E9D6;font-family:var(--font);width:100%;box-sizing:border-box;overflow:hidden;
-  transition:transform .12s ease,border-color .12s ease}
+.repo-ds-card{position:relative;background:#1c1720;border:1px solid rgba(245,233,214,.12);border-radius:12px;
+  box-sizing:border-box;overflow:hidden;transition:transform .12s ease,border-color .12s ease}
 .repo-ds-card:hover{border-color:#10a37f;transform:translateY(-2px)}
+.repo-ds-open{display:block;background:none;border:0;padding:12px 14px;cursor:pointer;text-align:left;
+  color:#F5E9D6;font-family:var(--font);width:100%;box-sizing:border-box;overflow:hidden}
 .repo-ds-top{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}
+/* Z3 follow-up: full CRUD from Repository — edit/delete actions match the Studio
+   library's .da-act treatment but live in their own wrapper (a card here is no
+   longer itself a <button>, so they can't nest inside .repo-ds-open). */
+.repo-ds-acts{position:absolute;top:8px;right:8px;display:flex;gap:2px;opacity:0;transition:opacity .12s}
+.repo-ds-card:hover .repo-ds-acts,.repo-ds-card:focus-within .repo-ds-acts{opacity:1}
+.repo-ds-acts .da-act{background:rgba(28,23,32,.85);border:0;cursor:pointer;font-size:12px;line-height:1;
+  padding:3px 4px;border-radius:5px;color:#c9b9a3;display:inline-flex;align-items:center;justify-content:center}
+.repo-ds-acts .da-act:hover{background:rgba(16,163,127,.22);color:#10a37f}
+@media(pointer:coarse){.repo-ds-acts{opacity:1}.repo-ds-acts .da-act{min-width:32px;min-height:32px}}
+body.simple-mode .repo-ds-acts{display:none!important}
 /* m-c: flex items default to min-width:auto, which blocks `text-overflow:ellipsis` from
    ever kicking in — a long data-source id forced this row (and the whole 100%-wide card)
    wider than its grid column, bleeding 17px past the phone viewport edge. min-width:0

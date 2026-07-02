@@ -10365,11 +10365,11 @@ function serve() {
     ok("Z3: Repository lists the same dashboards Home's recents track", z3Dash.recentsLen > 0 && z3Dash.cards === z3Dash.recentsLen, JSON.stringify(z3Dash));
 
     // Z3-3: the shared search box filters BOTH data sources and dashboards, without losing focus
-    const z3FirstDaId = await page.evaluate(function () { return document.querySelector("#repoResults .repo-ds-card").getAttribute("data-repo-ds").split("|")[1]; });
+    const z3FirstDaId = await page.evaluate(function () { return document.querySelector("#repoResults .repo-ds-open").getAttribute("data-repo-ds").split("|")[1]; });
     await page.fill("#repoSearch", z3FirstDaId);
     await page.waitForTimeout(80);
     const z3Search = await page.evaluate(function (needle) {
-      var cards = [].slice.call(document.querySelectorAll("#repoResults .repo-ds-card"));
+      var cards = [].slice.call(document.querySelectorAll("#repoResults .repo-ds-open"));
       return {
         allMatch: cards.length > 0 && cards.every(function (c) { return c.getAttribute("data-repo-ds").toLowerCase().indexOf(needle.toLowerCase()) >= 0; }),
         focusStillOnSearch: document.activeElement && document.activeElement.id === "repoSearch"
@@ -10422,6 +10422,43 @@ function serve() {
     ok("Z3: pinning from Repository shows as pinned there and persists to the shared pins store",
       z3PinState.pinnedInRepo && z3PinState.storedPins.indexOf(z3PinFirstId) >= 0, JSON.stringify(z3PinState));
     await page.evaluate(function (id) { window.__studioTogglePin(id); }, z3PinFirstId); // unpin — restore state
+
+    // Z3 follow-up: full CRUD from the Repository page itself — edit/delete a data
+    // source without switching to Studio's library first.
+    await page.click('#railNav .rail-item[data-sec="repository"]');
+    await page.waitForTimeout(120);
+    await page.evaluate(function () {
+      window.__STUDIO_STATE.catalog.repoCrudTest = { file: "repoCrudTest.cda", connection: { id: "pdc", jndi: "PDC-BIDB-EXT" },
+        dataAccesses: [{ id: "repoCrudDs", name: "repoCrudDs", kind: "sql", jndi: "PDC-BIDB-EXT", columns: ["a", "b"], authored: true, sql: "SELECT 1", query: "SELECT 1", params: [], calcColumns: [], cache: true, cacheDuration: 300 }] };
+      window.__studioRenderRepository();
+    });
+    await page.waitForTimeout(80);
+    const z3CrudCardBefore = await page.evaluate(function () {
+      var open = document.querySelector('#repoResults [data-repo-ds$="|repoCrudDs"]');
+      var card = open ? open.closest(".repo-ds-card") : null;
+      return { hasOpen: !!open, hasEdit: !!(card && card.querySelector('[data-repo-edit$="|repoCrudDs"]')), hasDel: !!(card && card.querySelector('[data-repo-del$="|repoCrudDs"]')) };
+    });
+    ok("Z3-CRUD: a Repository data-source card has edit + delete actions alongside the open button",
+      z3CrudCardBefore.hasOpen && z3CrudCardBefore.hasEdit && z3CrudCardBefore.hasDel, JSON.stringify(z3CrudCardBefore));
+
+    await page.click('#repoResults [data-repo-edit$="|repoCrudDs"]');
+    await page.waitForTimeout(150);
+    const z3CrudEditModal = await page.evaluate(function () {
+      var h = document.querySelector(".modal-h"); return { title: h ? h.textContent : "", idField: (document.querySelector(".dsb input") || {}).value };
+    });
+    ok("Z3-CRUD: clicking a card's edit action opens the same data-source builder modal, pre-filled",
+      z3CrudEditModal.title.indexOf("Edit data source") >= 0 && z3CrudEditModal.title.indexOf("repoCrudDs") >= 0,
+      JSON.stringify(z3CrudEditModal));
+    await page.evaluate(function () { var m = document.querySelector(".modal-ov"); if (m) m.remove(); }); // cancel out (no native close click needed)
+
+    page.once("dialog", (d) => d.accept()); // confirm() for delete
+    await page.click('#repoResults [data-repo-del$="|repoCrudDs"]');
+    await page.waitForTimeout(120);
+    const z3CrudAfterDel = await page.evaluate(function () {
+      return { stillInCatalog: !!window.__STUDIO_STATE.catalog.repoCrudTest, cardGone: !document.querySelector('[data-repo-ds$="|repoCrudDs"]') };
+    });
+    ok("Z3-CRUD: deleting from Repository removes the data source from the catalog and the card",
+      !z3CrudAfterDel.stillInCatalog && z3CrudAfterDel.cardGone, JSON.stringify(z3CrudAfterDel));
 
     // Z3 follow-up: whole-repository JSON export/import (data sources you authored + dashboard inventory)
     // Z3-5 above navigated away to Studio (opening a dashboard) — the Export/Import buttons only

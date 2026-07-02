@@ -8,6 +8,12 @@
 window.STUDIO_BUILD = "__BUILD_TS__";
 
 window.STUDIO_CHANGELOG = [
+  { v: "v188", date: "2026-07-02", time: "19:05 UTC", title: "Z3 follow-up: full CRUD from the Repository page", items: [
+      "Every data-source card in the Repository section now has hover-revealed ✎ edit / 🗑 delete actions (always-visible on touch devices) alongside its existing open-in-library button — previously editing/deleting an authored data source required switching to Studio's own library pane first.",
+      "Both actions call the exact same `dataSourceBuilder()` and `deleteDataSource()` functions the Studio library already uses, so Repository and Studio never disagree about a data source's state — one source of truth, no parallel edit path.",
+      "The card's outer element changed from a `<button>` to a plain wrapping `<div>` with an inner `.repo-ds-open` button, since a `<button>` can't nest another `<button>` once there are separate edit/delete actions to click independently.",
+      "3 new regression checks (edit + delete actions present, edit opens the pre-filled builder modal, delete removes the source from the catalog and the card). Test suite 922/922.",
+    ] },
   { v: "v187", date: "2026-07-02", time: "18:50 UTC", title: "Z7 forecasting slice 2: linear trend / forecast line for line & area charts", items: [
       "Line/area charts gain a **Show trend / forecast line** toggle + **Forecast periods ahead** field, alongside the existing v179 moving-average overlay. Where the moving average smooths the real data, this draws a genuine linear-regression (OLS) projection per series — useful for \"where is this headed\" at a glance.",
       "When forecast periods > 0, the chart's x-scale widens to make room for a forecast tail: real data points compress slightly, muted \"+1/+2/…\" tick labels appear past the last real point, and a dashed \"Forecast →\" separator marks where real data ends and the projection begins. With 0 forecast periods it's simply a trend line spanning the existing data.",

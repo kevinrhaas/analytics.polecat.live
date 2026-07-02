@@ -596,6 +596,11 @@
   regression drawn as a dashed line, extrapolated across a widened x-scale (with "+1/+2/…" forecast
   tick labels and a dashed "Forecast →" separator) when forecast periods > 0. `trendOf()` in
   studio-charts.js (pdc-ui.js pristine). 3 new tests. Test suite 919/919.
+- v188: **Z3 follow-up: full CRUD from the Repository page** — every data-source card in Repository
+  now has hover-revealed ✎ edit / 🗑 delete actions, wired to the same `dataSourceBuilder()`/
+  `deleteDataSource()` the Studio library pane already uses (one source of truth). The card became a
+  plain wrapping `<div>` with an inner `.repo-ds-open` button (a `<button>` can't nest another
+  `<button>`). 3 new tests. Test suite 922/922.
 
 ## NEXT (top = do first)
 
@@ -769,8 +774,12 @@ source library" and "dashboard inventory" ideas into one place.
 > — that already ships with the app) plus the local dashboard inventory (recents+pins) into one JSON file;
 > import merges it back in additively (never deletes existing entries; same-id entries are overwritten by
 > the imported version). Mirrors the Z5 Settings export/import pattern.
-> **Z3 follow-ups (not yet done):** folders/organization, full CRUD from the Repository page itself (today
-> editing still happens via Studio's own library/inspector), the "workbook" concept (a named collection of
+> ✓ **Full CRUD from the Repository page shipped v188**: every data-source card in Repository now has
+> hover-revealed ✎ edit / 🗑 delete actions (touch-always-visible), wired to the exact same
+> `dataSourceBuilder()`/`deleteDataSource()` the Studio library pane uses — one source of truth, both
+> views always agree. The card's outer element became a plain wrapping `<div>` (a `<button>` can't nest
+> another `<button>`) with a `.repo-ds-open` inner button for the existing open-in-library action.
+> **Z3 follow-ups (not yet done):** folders/organization, the "workbook" concept (a named collection of
 > dashboards) doesn't exist yet — today "dashboards" just means the flat recents list.
 
 **Z14 — Browser-native, file-hosted SQL engines: DuckDB-Wasm + SQLite-WASM-HTTP (user-requested 2026-07-02).**
