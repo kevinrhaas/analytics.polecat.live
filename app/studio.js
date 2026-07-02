@@ -5397,7 +5397,7 @@
 
   function modal(title, build, onClose) {
     var ov = el("div", "modal-ov"); var m = el("div", "modal");
-    var h = el("div", "modal-h"); h.textContent = title; var x = el("button", "x"); x.appendChild(Studio.icon("close", 16)); h.appendChild(x);
+    var h = el("div", "modal-h"); h.textContent = title; var x = el("button", "x"); x.type = "button"; x.setAttribute("aria-label", "Close " + title); x.appendChild(Studio.icon("close", 16)); h.appendChild(x);
     var b = el("div", "modal-b"); m.appendChild(h); m.appendChild(b); ov.appendChild(m); document.body.appendChild(ov);
     build(b);
     function close() { ov.remove(); document.removeEventListener("keydown", onKey); if (onClose) onClose(); }

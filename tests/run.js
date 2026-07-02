@@ -2821,6 +2821,38 @@ function serve() {
     await page.keyboard.press("Escape");
     await page.waitForTimeout(100);
 
+    // ---- Track L architecture sweep: every modal() close button gets an accessible name ----
+    // Found while auditing accessibility: the shared modal() helper's × close button appended only an
+    // SVG icon with no aria-label — every OTHER close affordance in the app (changelog, panel zoom,
+    // slideshow) already set one, so a screen-reader user hit an unlabeled "button" specifically on the
+    // generic modal() close, which every builder dialog (New data source, Connections, Join, Keyboard
+    // shortcuts, ...) is built on.
+    console.log("\n• Track L: modal() close button has an accessible name");
+    await page.keyboard.press("?"); // reopen the shortcuts modal (a modal() consumer)
+    await page.waitForTimeout(200);
+    const modalCloseA11y1 = await page.evaluate(() => {
+      var x = document.querySelector(".modal-ov .modal .x");
+      return { found: !!x, label: x && x.getAttribute("aria-label"), type: x && x.type };
+    });
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(100);
+    ok("Track L: Keyboard shortcuts modal's × close button has a non-empty aria-label + type=button",
+      modalCloseA11y1.found && !!modalCloseA11y1.label && /close/i.test(modalCloseA11y1.label) && modalCloseA11y1.type === "button",
+      JSON.stringify(modalCloseA11y1));
+    // second, independent modal() call site (New data source builder) confirms the fix is generic,
+    // not a one-off patch on the shortcuts modal alone
+    await page.evaluate(() => document.getElementById("btnNewDS").click());
+    await page.waitForTimeout(150);
+    const modalCloseA11y2 = await page.evaluate(() => {
+      var x = document.querySelector(".modal-ov .modal .x");
+      return { found: !!x, label: x && x.getAttribute("aria-label"), title: document.querySelector(".modal-ov .modal-h").textContent };
+    });
+    await page.evaluate(() => { var x = document.querySelector(".modal-ov .modal .x"); if (x) x.click(); });
+    await page.waitForTimeout(100);
+    ok("Track L: New data source modal's × close button also has an aria-label mentioning the dialog title",
+      modalCloseA11y2.found && !!modalCloseA11y2.label && modalCloseA11y2.label.indexOf(modalCloseA11y2.title) >= 0,
+      JSON.stringify(modalCloseA11y2));
+
     // ---- Ctrl+S shortcut (v48) ----
     console.log("\n• Ctrl+S save shortcut (v48)");
     // Check that Ctrl+S is listed in the keyboard shortcuts modal
