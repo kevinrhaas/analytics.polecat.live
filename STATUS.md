@@ -1669,9 +1669,16 @@ gets covered over time:
   and generate a starter spec — NL → chart type + column mapping + query. BYO API key stored locally.
 - **NL query bar over a live source:** text → SQL → chart. Becomes real the moment Z14 DuckDB-Wasm lands
   (query a Parquet/CSV by asking in English). The killer combo with the connector track.
-- **Auto-insight narration ("Explain this chart"):** client-side stats detect trend, seasonality, outliers,
-  and biggest movers, then write a one-paragraph plain-English summary + auto-place callouts/markers on the
-  notable points. No API needed — pure JS math (ties to Z7).
+> ✓ **Auto-insight narration ("Explain this chart") — first cut shipped v212.** Any panel bound to a single
+> value column gets an **Insight** section in its inspector (below Query preview): a plain-English
+> paragraph covering overall trend direction (OLS slope sign/magnitude vs. flat), the single biggest
+> point-to-point move, and any outlier beyond 2 std-deviations from the mean — all computed from the
+> panel's own sample rows. `Studio.computeInsights(cols, rows, labelCol, valueCol)` in model.js (pure,
+> no DOM/PDC dependency) + `Studio.abbrNum()` helper; `renderInsight()` in studio.js reuses the same
+> `Studio.sampleRows(da)` the Query preview section already draws from. Falls back to the first `series[0]`
+> column when a chart type has no direct `valueCol` (e.g. line/area); silently omitted for chart types with
+> neither (tables, richtext, sankey/chord). 3 new tests, suite 983/983. **Still open:** seasonality
+> detection, auto-placed callout markers on the notable points, and a smart chart-type recommender.
 - **Smart chart recommender:** given a bound DA's shape (cardinality, types, row count), suggest the 3 best
   chart types with a why. Guides newcomers; upgrades the gallery from a menu to an assistant.
 

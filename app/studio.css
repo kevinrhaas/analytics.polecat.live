@@ -903,6 +903,11 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
 .qpeek-tbl tr:hover td{background:var(--line-2)}
 .qpeek-hint{font-size:10.5px;color:var(--faint);margin-top:3px}
 
+/* ---- N-AI: auto-insight narration ---- */
+.insight-box{display:flex;align-items:flex-start;gap:7px;font-size:11.5px;line-height:1.55;color:var(--ink);
+  background:var(--field);border:1px solid var(--line-2);border-radius:6px;padding:8px 10px}
+.insight-box svg{flex-shrink:0;margin-top:2px;color:var(--pentaho)}
+
 /* ---- DA data preview ---- */
 .daprev-params{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
 .daprev-param-field{flex:1;min-width:90px}

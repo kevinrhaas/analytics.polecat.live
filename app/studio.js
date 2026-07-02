@@ -2143,6 +2143,7 @@
     }
     renderMapping(ds, p);
     renderQueryPeek(body, p.chart.da);
+    renderInsight(body, p);
 
     // options
     var optDefs = (Studio.CHARTS[p.chart.type] || {}).opts || [];
@@ -2757,6 +2758,28 @@
       csSec.appendChild(field("Low → High color", csLowW));
       csSec.appendChild(noteEl("info", "Colors all bars, slices, treemap tiles, and lollipop dots on a smooth gradient from low (min value) to high (max value). Conditional formatting rules above override the gradient for specific items."));
     })();
+  }
+
+  // N-AI: "Explain this chart" — a short auto-generated plain-English narration
+  // (trend / biggest move / outlier) computed purely client-side over the panel's
+  // own sample rows. No API key, no network call. Silently skipped when the chart
+  // has no single value column to reason about (e.g. tables, richtext, sankey).
+  function renderInsight(body, p) {
+    var da = Studio.daById(S.spec, p.chart.da); if (!da) return;
+    var m = p.chart.map || {};
+    var valueCol = m.valueCol || (m.series && m.series[0] && m.series[0].col);
+    var labelCol = m.labelCol || m.dateCol || m.xCol;
+    if (!valueCol) return;
+    var sd = Studio.sampleRows(da);
+    var text = Studio.computeInsights(sd.cols, sd.rows, labelCol, valueCol);
+    if (!text) return;
+    var sec = section(body, "Insight");
+    var box = el("div", "insight-box");
+    box.appendChild(Studio.icon("info", 12));
+    var span = el("span"); span.textContent = text;
+    box.appendChild(span);
+    sec.appendChild(box);
+    sec.appendChild(noteEl("info", "Auto-generated from this panel's own sample data (offline, no API) — a quick read on trend, the biggest single move, and any outlier."));
   }
 
   function renderQueryPeek(body, daId) {

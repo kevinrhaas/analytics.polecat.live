@@ -1548,6 +1548,24 @@ function serve() {
     ok("query peek shows SQL snippet", qpeek.hasSql, JSON.stringify(qpeek));
     ok("query peek shows 3-row sample table with columns", qpeek.hasTable && qpeek.hasCols, JSON.stringify(qpeek));
 
+    // ---- N-AI: "Explain this chart" auto-insight narration ----
+    console.log("\n• auto-insight narration");
+    const insightUnit = await page.evaluate(() => {
+      const cols = ["month", "revenue"];
+      const rows = [["Jan", 100], ["Feb", 102], ["Mar", 98], ["Apr", 101], ["May", 99], ["Jun", 1000], ["Jul", 103], ["Aug", 97]];
+      return Studio.computeInsights(cols, rows, "month", "revenue");
+    });
+    ok("Studio.computeInsights returns a narration mentioning the value column + an outlier", /revenue/.test(insightUnit) && /outlier/.test(insightUnit), insightUnit);
+    const insightNone = await page.evaluate(() => Studio.computeInsights(["a", "b"], [["x", 1]], "a", "b"));
+    ok("Studio.computeInsights returns null with fewer than 2 valid points", insightNone === null, String(insightNone));
+    const insightUI = await page.evaluate(() => {
+      var sec = [].slice.call(document.querySelectorAll("#inspBody .insp-sec h4")).filter(function (h) { return h.textContent.trim() === "Insight"; })[0];
+      if (!sec) return { found: false };
+      var box = sec.closest(".insp-sec").querySelector(".insight-box");
+      return { found: true, hasText: !!box && box.textContent.length > 15 };
+    });
+    ok("Insight section appears in the panel inspector for a value-bound chart", insightUI.found && insightUI.hasText, JSON.stringify(insightUI));
+
     // ---- Pentaho connections: Kettle XML, CDA parser, client, UI ----
     console.log("\n• Pentaho server connections");
     const ph = await page.evaluate(() => {

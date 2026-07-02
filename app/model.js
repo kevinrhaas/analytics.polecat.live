@@ -89,6 +89,74 @@
   };
   Studio.PALETTE = "['#005bb5','#7d3c98','#2e8bd0','#9b59b6','#00a39a','#e67e22','#c0392b','#16a085']";
 
+  /* ---- N-AI: "Explain this chart" auto-insight narration ----
+     Pure client-side stats over a chart's own sample rows (no API, ties to Z7): trend
+     direction via OLS slope, the single biggest point-to-point move, and any outlier
+     more than 2 std-deviations from the mean. Returns a short plain-English paragraph,
+     or null when there isn't enough numeric data to say anything meaningful. */
+  Studio.abbrNum = function (n) {
+    if (n == null || isNaN(n)) return "0";
+    var sign = n < 0 ? "-" : ""; n = Math.abs(n);
+    if (n >= 1e9) return sign + (n / 1e9).toFixed(n >= 1e10 ? 0 : 1).replace(/\.0$/, "") + "B";
+    if (n >= 1e6) return sign + (n / 1e6).toFixed(n >= 1e7 ? 0 : 1).replace(/\.0$/, "") + "M";
+    if (n >= 1e3) return sign + (n / 1e3).toFixed(n >= 1e4 ? 0 : 1).replace(/\.0$/, "") + "K";
+    return sign + (Math.round(n * 100) / 100).toLocaleString();
+  };
+  Studio.computeInsights = function (cols, rows, labelCol, valueCol) {
+    var vi = (cols || []).indexOf(valueCol);
+    if (vi < 0 || !rows || rows.length < 2) return null;
+    var li = (cols || []).indexOf(labelCol);
+    var pts = rows.map(function (r, i) {
+      return { label: li >= 0 ? r[li] : "row " + (i + 1), value: Number(r[vi]) };
+    }).filter(function (p) { return !isNaN(p.value); });
+    if (pts.length < 2) return null;
+    var n = pts.length;
+    var values = pts.map(function (p) { return p.value; });
+    var mean = values.reduce(function (a, b) { return a + b; }, 0) / n;
+    var sd = Math.sqrt(values.reduce(function (a, b) { return a + (b - mean) * (b - mean); }, 0) / n);
+    var sentences = [];
+
+    // Trend: sign + magnitude of an OLS slope fit to point index -> value.
+    var sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+    for (var i = 0; i < n; i++) { sumX += i; sumY += values[i]; sumXY += i * values[i]; sumXX += i * i; }
+    var denom = n * sumXX - sumX * sumX;
+    var slope = denom === 0 ? 0 : (n * sumXY - sumX * sumY) / denom;
+    var totalChange = slope * (n - 1);
+    var relChange = mean !== 0 ? totalChange / Math.abs(mean) : 0;
+    if (Math.abs(relChange) < 0.03) {
+      sentences.push("Overall, " + valueCol + " has stayed roughly flat across " + n + " points (avg " + Studio.abbrNum(mean) + ").");
+    } else {
+      sentences.push("Overall, " + valueCol + " trends " + (slope > 0 ? "upward" : "downward") +
+        " across " + n + " points, moving about " + Studio.abbrNum(Math.abs(totalChange)) +
+        " (avg " + Studio.abbrNum(mean) + ").");
+    }
+
+    // Biggest single point-to-point move.
+    var biggest = null;
+    for (var j = 1; j < n; j++) {
+      var d = pts[j].value - pts[j - 1].value;
+      if (!biggest || Math.abs(d) > Math.abs(biggest.delta)) biggest = { delta: d, label: pts[j].label };
+    }
+    if (biggest && Math.abs(biggest.delta) > 0) {
+      sentences.push("The biggest single move is at “" + biggest.label + "”, " +
+        (biggest.delta > 0 ? "up " : "down ") + Studio.abbrNum(Math.abs(biggest.delta)) + " from the prior point.");
+    }
+
+    // Outlier: the point furthest from the mean, if beyond 2 std-deviations.
+    if (sd > 0) {
+      var outlier = null, bestZ = 0;
+      pts.forEach(function (p) {
+        var z = (p.value - mean) / sd;
+        if (Math.abs(z) > Math.abs(bestZ)) { bestZ = z; outlier = p; }
+      });
+      if (outlier && Math.abs(bestZ) > 2) {
+        sentences.push("“" + outlier.label + "” stands out as an outlier at " + Studio.abbrNum(outlier.value) +
+          " (" + Math.abs(bestZ).toFixed(1) + "× std-dev from the mean).");
+      }
+    }
+    return sentences.join(" ");
+  };
+
   /* ---- chart registry: the heart of the model ----
      Each entry declares how a chart type binds columns + which knobs it exposes,
      plus how it maps to a CDE/CCC component. `fields` drives the inspector. */

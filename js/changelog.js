@@ -15,6 +15,16 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 212,
+    title: 'Explain this chart: auto-insight narration',
+    kind: 'feature',
+    ts: '2026-07-02T22:32:20Z',
+    items: [
+      'Any chart panel bound to a value column now shows an "Insight" section in its inspector: a short, plain-English read on the trend direction, the single biggest point-to-point move, and any statistical outlier in that panel\'s own sample data.',
+      'Computed entirely client-side with plain JS math — no API key, no network call, nothing to configure.',
+    ],
+  },
+  {
     v: 211,
     title: 'Export a single panel as a standalone embed',
     kind: 'feature',
