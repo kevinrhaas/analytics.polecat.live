@@ -1,0 +1,44 @@
+name: Deploy to GitHub Pages
+
+# Static-site deploy for analytics.polecat.live. Replaces GitHub's default
+# "deploy from a branch" pipeline, which has NO concurrency control — the fast
+# self-improvement loop pushes several commits per run, and those overlapping
+# deploys collided under the managed pipeline ("Deployment failed, try again
+# later"). Here a single `pages` concurrency group with cancel-in-progress
+# means a newer push cancels an in-flight deploy, so only the latest one runs
+# and it never fails on contention.
+#
+# NOTE: requires repo Settings → Pages → Source = "GitHub Actions".
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+      - name: Upload site artifact (repo root — plain static site)
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
