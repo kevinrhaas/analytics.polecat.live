@@ -1568,16 +1568,16 @@ function serve() {
 
     // ---- Z7/N-AI follow-up: correlation insight for scatter (two-variable) charts ----
     console.log("\n• scatter correlation insight");
-    const corrUnit = await page.evaluate(() => {
+    const scatCorrUnit = await page.evaluate(() => {
       const cols = ["x", "y"];
       const rows = [[1, 2], [2, 4], [3, 6], [4, 8], [5, 10], [6, 12]];
       return Studio.computeCorrelation(cols, rows, "x", "y");
     });
     ok("Studio.computeCorrelation reports a strong positive correlation for perfectly linear data",
-      /strong positive/.test(corrUnit) && /r = 1\.00/.test(corrUnit), corrUnit);
-    const corrNone = await page.evaluate(() => Studio.computeCorrelation(["x", "y"], [[1, 2]], "x", "y"));
-    ok("Studio.computeCorrelation returns null with fewer than 3 valid points", corrNone === null, String(corrNone));
-    const corrUI = await page.evaluate(function () {
+      /strong positive/.test(scatCorrUnit) && /r = 1\.00/.test(scatCorrUnit), scatCorrUnit);
+    const scatCorrNone = await page.evaluate(() => Studio.computeCorrelation(["x", "y"], [[1, 2]], "x", "y"));
+    ok("Studio.computeCorrelation returns null with fewer than 3 valid points", scatCorrNone === null, String(scatCorrNone));
+    const scatCorrUI = await page.evaluate(function () {
       var spec = window.__STUDIO_STATE.spec;
       var p = spec.panels[0];
       var prevChart = JSON.parse(JSON.stringify(p.chart));
@@ -1598,7 +1598,7 @@ function serve() {
       window.__studioRenderInspector();
       return { found: found, hasText: hasText };
     });
-    ok("Insight section shows a correlation read for a scatter panel with xCol/yCol bound", corrUI.found && corrUI.hasText, JSON.stringify(corrUI));
+    ok("Insight section shows a correlation read for a scatter panel with xCol/yCol bound", scatCorrUI.found && scatCorrUI.hasText, JSON.stringify(scatCorrUI));
 
     // ---- Pentaho connections: Kettle XML, CDA parser, client, UI ----
     console.log("\n• Pentaho server connections");
