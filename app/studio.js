@@ -4044,7 +4044,7 @@
     "studio-theme", "studio-app-theme", "studio-simple-mode", "studio-connections", "studio-active-conn",
     "studio-lw", "studio-rw", "studio-collapse-library", "studio-collapse-inspector",
     "studio-insp-collapsed", "studio-shell-section", "studio-shell-expanded", "studio-branding",
-    "studio-default-jndi", "studio-default-subtitle", "studio-default-accent"
+    "studio-default-jndi", "studio-default-subtitle", "studio-default-accent", "studio-style-presets"
   ];
   // Z5 follow-up: data-source defaults. Every new data source (dataSourceBuilder with no
   // `existing`) used to fall back to a hardcoded "PDC-BIDB-EXT" JNDI pool name; most teams
@@ -4070,6 +4070,28 @@
     return v || "";
   }
   function setDefaultAccentColor(v) { try { localStorage.setItem("studio-default-accent", v || ""); } catch (e) {} }
+  // Z6 follow-up: named style-preset collection. Each preset snapshots the two default
+  // fields above under a name, so a team can save several house styles (e.g. per client
+  // or per event) and switch the active default with one click instead of re-typing it.
+  function stylePresets() {
+    var v; try { v = localStorage.getItem("studio-style-presets"); } catch (e) {}
+    try { return v ? JSON.parse(v) : []; } catch (e) { return []; }
+  }
+  function saveStylePresetList(list) { try { localStorage.setItem("studio-style-presets", JSON.stringify(list)); } catch (e) {} }
+  function addStylePreset(name) {
+    var list = stylePresets();
+    list.push({ id: "sp" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name: name, subtitle: defaultSubtitle(), accentColor: defaultAccentColor() });
+    saveStylePresetList(list);
+    return list;
+  }
+  function deleteStylePreset(id) { saveStylePresetList(stylePresets().filter(function (p) { return p.id !== id; })); }
+  function applyStylePreset(id) {
+    var p = stylePresets().filter(function (x) { return x.id === id; })[0];
+    if (!p) return false;
+    setDefaultSubtitle(p.subtitle || ""); setDefaultAccentColor(p.accentColor || "");
+    return true;
+  }
+  window.__studioStylePresets = stylePresets; // test hook
   function applyDashboardDefaults(spec) {
     var sub = defaultSubtitle(); if (sub && !spec.subtitle) spec.subtitle = sub;
     var acc = defaultAccentColor(); if (acc) spec.themeColor = acc;
@@ -4179,6 +4201,22 @@
             }).join("") +
             '<input type="color" id="setDefaultAccentCustom" title="Custom accent color" value="' + esc(defaultAccentColor() || "#005bb5") + '"/>' +
           '</div></div>' +
+        '<div class="set-row set-row-col"><span class="set-row-ic" data-ic="star"></span>' +
+          '<div class="set-row-txt"><b>Style presets</b><small>Save the two fields above as a named preset, then switch your team\'s active default with one click — handy for more than one house style (e.g. per client).</small></div>' +
+          '<div class="sp-list" id="spList">' +
+            stylePresets().map(function (p) {
+              return '<div class="sp-item" data-id="' + esc(p.id) + '">' +
+                '<span class="sp-swatch" style="background:' + esc(p.accentColor || "#005bb5") + '"></span>' +
+                '<span class="sp-name">' + esc(p.name) + '</span>' +
+                '<button type="button" class="btn sp-apply" data-id="' + esc(p.id) + '">Apply</button>' +
+                '<button type="button" class="icobtn danger sp-del" data-id="' + esc(p.id) + '" aria-label="Delete preset ' + esc(p.name) + '"></button>' +
+              '</div>';
+            }).join("") +
+            (stylePresets().length ? "" : '<div class="sp-empty">No saved presets yet.</div>') +
+          '</div>' +
+          '<div class="sp-add-row"><input type="text" id="spNameInp" class="set-txt" placeholder="Preset name, e.g. Acme Corp"/>' +
+            '<button type="button" class="btn" id="spSaveBtn">+ Save as preset</button></div>' +
+        '</div>' +
       '</div>' +
       '<div class="settings-card"><h2>Data</h2>' +
         '<div class="set-row"><span class="set-row-ic" data-ic="download"></span>' +
@@ -4206,6 +4244,19 @@
     if (defAccentCustom) defAccentCustom.oninput = function () { setDefaultAccentColor(defAccentCustom.value); renderSettings(); };
     $$("#setDefaultAccentRow .set-accent-swatch", sec).forEach(function (sw) {
       sw.onclick = function () { setDefaultAccentColor(sw.getAttribute("data-accent")); renderSettings(); toast("Default accent color saved"); };
+    });
+    var spNameInp = $("#spNameInp", sec), spSaveBtn = $("#spSaveBtn", sec);
+    if (spSaveBtn) spSaveBtn.onclick = function () {
+      var name = (spNameInp.value || "").trim(); if (!name) { spNameInp.focus(); return; }
+      addStylePreset(name); renderSettings(); toast("Saved preset “" + name + "”");
+    };
+    if (spNameInp) spNameInp.addEventListener("keydown", function (e) { if (e.key === "Enter") spSaveBtn.click(); });
+    $$(".sp-apply", sec).forEach(function (b) {
+      b.onclick = function () { applyStylePreset(b.getAttribute("data-id")); renderSettings(); toast("Preset applied as the active default"); };
+    });
+    $$(".sp-del", sec).forEach(function (b) {
+      b.appendChild(Studio.icon("trash", 13));
+      b.onclick = function () { deleteStylePreset(b.getAttribute("data-id")); renderSettings(); };
     });
     var expBtn = $("#setExportBtn", sec); if (expBtn) expBtn.onclick = exportSettingsFile;
     var impBtn = $("#setImportBtn", sec); if (impBtn) impBtn.onclick = importSettingsFile;
@@ -4932,7 +4983,7 @@
         "studio-connections", "studio-active-conn", "studio-mob-tab", "studio-simple-mode",
         "studio-insp-collapsed", "studio-recents", "studio-pins", "studio-branding",
         "studio-shell-section", "studio-shell-expanded",
-        "studio-default-jndi", "studio-default-subtitle", "studio-default-accent",
+        "studio-default-jndi", "studio-default-subtitle", "studio-default-accent", "studio-style-presets",
         "studio-cmdk-usage", "studio-first-export-done"
       ];
       var msg = "Clear all locally-stored Studio data?\n\nThis will remove:\n" +

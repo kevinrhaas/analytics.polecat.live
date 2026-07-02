@@ -221,6 +221,18 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);-webkit-font-
   background:#3A2F3A;color:#F5E9D6;font-size:12.5px;font-family:var(--mono,monospace)}
 .set-txt:focus-visible{outline:2px solid #d4773b;outline-offset:2px}
 @media(max-width:640px){.set-txt{width:100%}}
+/* Z6 follow-up: named style-preset collection */
+.set-row-col{flex-wrap:wrap}
+.set-row-col .sp-list,.set-row-col .sp-add-row{flex:0 0 100%;margin-left:44px}
+@media(max-width:640px){.set-row-col .sp-list,.set-row-col .sp-add-row{margin-left:0}}
+.sp-list{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.sp-empty{font-size:11.5px;color:#c9b9a3;font-style:italic}
+.sp-item{display:flex;align-items:center;gap:8px;background:#3A2F3A;border-radius:8px;padding:6px 8px}
+.sp-swatch{flex:0 0 auto;width:14px;height:14px;border-radius:50%;border:1px solid rgba(245,233,214,.25)}
+.sp-name{flex:1;min-width:0;font-size:12.5px;color:#F5E9D6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sp-apply{flex:0 0 auto;font-size:11px;padding:3px 10px;min-width:0;height:auto;line-height:1.5}
+.sp-add-row{display:flex;gap:8px;margin-top:10px}
+.sp-add-row .set-txt{flex:1;width:auto}
 .brand-preview{margin-top:6px}
 .brand-preview img{width:26px;height:26px;border-radius:6px;background:#3A2F3A;object-fit:contain;padding:2px}
 /* m-c: same hamburger-clearance fix as .home-wrap above — keep padding-top:60px. */

@@ -15,6 +15,16 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 213,
+    title: 'Named style presets in Settings',
+    kind: 'feature',
+    ts: '2026-07-02T22:39:35Z',
+    items: [
+      'The Dashboard defaults card in Settings now has a "Style presets" list — save the current default subtitle + accent color as a named preset (e.g. one per client), then switch your active default with one click.',
+      'Presets are included in Settings export/import and Clear local data, same as every other preference.',
+    ],
+  },
+  {
     v: 212,
     title: 'Explain this chart: auto-insight narration',
     kind: 'feature',

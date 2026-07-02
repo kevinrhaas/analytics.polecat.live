@@ -11183,6 +11183,52 @@ function serve() {
       window.__studioRenderSettings();
     }); // restore defaults for later tests
 
+    // ── Z6 follow-up: named style-preset collection ──
+    console.log("\n• Z6 follow-up: style presets");
+    await page.click('#railNav .rail-item[data-sec="settings"]'); await page.waitForTimeout(120);
+    const spEmpty = await page.evaluate(function () { return document.querySelector("#spList .sp-empty") ? true : false; });
+    ok("Z6: style presets list starts empty", spEmpty, String(spEmpty));
+
+    await page.fill("#setDefaultSubtitleInp", "Acme house style");
+    await page.evaluate(function () { document.getElementById("setDefaultSubtitleInp").dispatchEvent(new Event("change")); });
+    await page.click('#setDefaultAccentRow .set-accent-swatch[data-accent="#1a7a4a"]');
+    await page.waitForTimeout(80);
+    await page.fill("#spNameInp", "Acme");
+    await page.click("#spSaveBtn");
+    await page.waitForTimeout(80);
+    const spSaved = await page.evaluate(function () {
+      var list = window.__studioStylePresets();
+      var item = document.querySelector('.sp-item[data-id="' + (list[0] && list[0].id) + '"]');
+      return { count: list.length, name: list[0] && list[0].name, subtitle: list[0] && list[0].subtitle, accent: list[0] && list[0].accentColor, rendered: !!item };
+    });
+    ok("Z6: saving a preset captures the current default subtitle + accent under the given name and renders it",
+      spSaved.count === 1 && spSaved.name === "Acme" && spSaved.subtitle === "Acme house style" && spSaved.accent === "#1a7a4a" && spSaved.rendered,
+      JSON.stringify(spSaved));
+
+    // change the active default, then re-apply the saved preset to prove it restores the snapshot
+    await page.fill("#setDefaultSubtitleInp", "Something else");
+    await page.evaluate(function () { document.getElementById("setDefaultSubtitleInp").dispatchEvent(new Event("change")); });
+    await page.click(".sp-apply");
+    await page.waitForTimeout(80);
+    const spApplied = await page.evaluate(function () {
+      return { subtitle: window.__studioDefaultSubtitle(), accent: window.__studioDefaultAccentColor() };
+    });
+    ok("Z6: Apply on a saved preset restores its subtitle + accent as the active default",
+      spApplied.subtitle === "Acme house style" && spApplied.accent === "#1a7a4a", JSON.stringify(spApplied));
+
+    const spInKeys = await page.evaluate(function () { return window.__studioImportSettingsKeys.indexOf("studio-style-presets") >= 0; });
+    ok("Z6: style presets are included in Settings export/import keys", spInKeys, String(spInKeys));
+
+    await page.click(".sp-del");
+    await page.waitForTimeout(80);
+    const spDeleted = await page.evaluate(function () { return { count: window.__studioStylePresets().length, empty: !!document.querySelector("#spList .sp-empty") }; });
+    ok("Z6: deleting a preset removes it from storage and the list goes back to empty", spDeleted.count === 0 && spDeleted.empty, JSON.stringify(spDeleted));
+
+    await page.evaluate(function () {
+      localStorage.removeItem("studio-default-subtitle"); localStorage.removeItem("studio-default-accent"); localStorage.removeItem("studio-style-presets");
+      window.__studioRenderSettings();
+    }); // restore defaults for later tests
+
     // ── Z12: Branding as a Settings option (default / custom logo / none) ──
     console.log("\n• Z12: Branding Settings card");
     const z12Api = await page.evaluate(function () {

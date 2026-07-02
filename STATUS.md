@@ -1046,6 +1046,15 @@ added, and unified with this header/text-object work.
 > added to `Studio.emptySpec()` + the `normalize()` whitelist (same pattern as `headerLogo`). Docs updated.
 > 4 new tests, suite 972/972. **Still open under Z6**: colors beyond the existing accent-color picker, full
 > text formatting for the banner, and the named-preset *collection* noted above.
+> ✓ **Named style-preset collection shipped v213** (closes the "still open" item above): the Dashboard
+> defaults card in Settings gains a **Style presets** list — a name field + "+ Save as preset" snapshots
+> the current default subtitle + accent color under a name; each saved preset shows a swatch + name +
+> **Apply** (restores its snapshot as the active default) + delete. Reuses the existing single
+> default-subtitle/default-accent storage as the "active" slot, so `applyDashboardDefaults()` (which seeds
+> every brand-new blank dashboard) needed no changes — presets are just a named library you switch between.
+> `studio-style-presets` (JSON array) added to Settings export/import keys and Clear local data. 5 new
+> tests, suite 988/988. **Still open under Z6**: colors beyond the existing accent-color picker, full text
+> formatting for the banner, and logo defaults per preset.
 
 **Z7 — Analytics: forecasting + statistical functions.** Move toward standalone analytic apps: add
 forecasting (moving average, exponential smoothing / Holt-Winters, linear & seasonal trend) and
