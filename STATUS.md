@@ -1708,9 +1708,15 @@ gets covered over time:
   encouraging (never a warning), collapses to a "nice work" note once complete.
   `Studio.dashboardCompleteness(spec)` in model.js. 3 new tests, suite 947/947. **Not yet done:** true
   "achievements" beyond the one meter (e.g. a first-export moment, a milestone toast).
+> ✓ **First-export delight moment shipped v210** (first "achievement" + first "Delight moments" item):
+> the very first time this browser ever exports a dashboard (any format, via `doExport()` — CDF/CDA/
+> bundle/Push all funnel through it), a one-time celebratory toast + a brief, tasteful spark/confetti
+> burst plays (`celebrateFirstExport()` in studio.js, CSS in studio.css); a `studio-first-export-done`
+> localStorage flag (included in Clear local data) means it never repeats. Respects
+> `prefers-reduced-motion` (toast still shows, burst is skipped). 4 new tests, suite 977/977.
 - **Data-driven motion system:** spring-physics transitions between filter/data states so numbers *move*
   meaningfully; a coherent motion language across the app (respect reduced-motion).
-- **Delight moments:** confetti/spark on first publish, playful empty-states, easter-eggs — small, rare, tasteful.
+- **Delight moments:** playful empty-states, easter-eggs, more milestone moments — small, rare, tasteful.
 
 **N-DATA — Analytical depth (toward standalone analytic apps).**
 - **Cross-filter / brushing everywhere:** click or brush any chart to filter the whole dashboard, with a

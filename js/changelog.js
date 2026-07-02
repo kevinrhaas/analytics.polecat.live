@@ -15,6 +15,16 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 210,
+    title: 'A small celebration for your first export',
+    kind: 'polish',
+    ts: '2026-07-02T22:02:17Z',
+    items: [
+      'The first time you ever export a dashboard from this browser — Dashboard Framework, Data Access, bundle, or Push — you get a one-time "First export!" toast and a brief, tasteful spark burst. It never repeats after that.',
+      'Respects prefers-reduced-motion (the toast still shows, the burst is skipped) and is included in Settings\' "Clear local data" reset.',
+    ],
+  },
+  {
     v: 209,
     title: 'Dashboard banner can now link out (Header link URL)',
     kind: 'feature',

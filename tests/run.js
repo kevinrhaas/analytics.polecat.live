@@ -2967,6 +2967,48 @@ function serve() {
     // Clean up
     await page.evaluate(() => { try { localStorage.removeItem("studio-export-history"); } catch(e) {} });
 
+    // ---- N-FUN: first-export delight moment ----
+    console.log("\n• N-FUN: first-export delight moment");
+    const firstExp1 = await page.evaluate(() => {
+      try { localStorage.removeItem("studio-first-export-done"); } catch (e) {}
+      const btn = document.querySelector("#menuExport button[data-exp='cdf']");
+      if (btn) btn.click();
+      return {
+        flagSet: localStorage.getItem("studio-first-export-done") === "1",
+        toastText: (document.getElementById("toast") || {}).textContent || "",
+        sparkPresent: document.querySelectorAll(".spark-host .spark-p").length > 0
+      };
+    });
+    await page.evaluate(() => { document.querySelectorAll(".modal-ov").forEach(m => m.remove()); });
+    ok("N-FUN: first-ever export sets the one-time localStorage flag", firstExp1.flagSet, JSON.stringify(firstExp1));
+    ok("N-FUN: first-ever export shows a celebratory toast", /first export/i.test(firstExp1.toastText), JSON.stringify(firstExp1));
+    ok("N-FUN: first-ever export shows a spark burst (motion allowed)", firstExp1.sparkPresent, JSON.stringify(firstExp1));
+
+    const firstExp2 = await page.evaluate(() => {
+      const before = document.querySelectorAll(".spark-host").length;
+      const btn = document.querySelector("#menuExport button[data-exp='cdf']");
+      if (btn) btn.click();
+      return { newSparkHosts: document.querySelectorAll(".spark-host").length - before };
+    });
+    await page.evaluate(() => { document.querySelectorAll(".modal-ov").forEach(m => m.remove()); });
+    ok("N-FUN: a second export does NOT repeat the celebration (one-time only)", firstExp2.newSparkHosts === 0, JSON.stringify(firstExp2));
+
+    // reduced-motion: the toast still fires but no spark burst is created
+    const firstExpRM = await page.evaluate(() => {
+      try { localStorage.removeItem("studio-first-export-done"); } catch (e) {}
+      return true;
+    });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    const firstExpRMResult = await page.evaluate(() => {
+      const before = document.querySelectorAll(".spark-host").length;
+      const btn = document.querySelector("#menuExport button[data-exp='cdf']");
+      if (btn) btn.click();
+      return { newSparkHosts: document.querySelectorAll(".spark-host").length - before, flagSet: localStorage.getItem("studio-first-export-done") === "1" };
+    });
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    await page.evaluate(() => { document.querySelectorAll(".modal-ov").forEach(m => m.remove()); });
+    ok("N-FUN: prefers-reduced-motion skips the spark burst but still marks the flag", firstExpRM && firstExpRMResult.newSparkHosts === 0 && firstExpRMResult.flagSet, JSON.stringify(firstExpRMResult));
+
     // screenshot for the record
     await page.screenshot({ path: path.join(__dirname, "flagship.png"), fullPage: false });
     console.log("\n  (screenshot → tests/flagship.png)");

@@ -572,6 +572,16 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 .toast.err{background:#7a1730}
 
+/* ── N-FUN: first-export delight moment ── a small, rare, tasteful burst — never repeats
+   (see celebrateFirstExport() in studio.js), skipped entirely under prefers-reduced-motion. */
+.spark-host{position:fixed;inset:0;pointer-events:none;z-index:95;overflow:hidden}
+.spark-p{position:absolute;top:38vh;width:7px;height:7px;border-radius:2px;opacity:0;
+  animation:spark-burst .9s cubic-bezier(.2,.8,.3,1) forwards}
+@keyframes spark-burst{
+  0%{opacity:1;transform:translate(0,0) rotate(0deg) scale(1)}
+  100%{opacity:0;transform:translate(var(--dx),120px) rotate(220deg) scale(.6)}
+}
+
 /* ── modal (export bundle / live settings) ── */
 .modal-ov{position:fixed;inset:0;background:rgba(12,24,46,.5);display:flex;align-items:center;justify-content:center;z-index:80;padding:24px}
 .modal{background:var(--pane);border-radius:14px;box-shadow:var(--shadow-lg);width:min(560px,94vw);max-height:88vh;display:flex;flex-direction:column;overflow:hidden}

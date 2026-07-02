@@ -4893,7 +4893,7 @@
         "studio-insp-collapsed", "studio-recents", "studio-pins", "studio-branding",
         "studio-shell-section", "studio-shell-expanded",
         "studio-default-jndi", "studio-default-subtitle", "studio-default-accent",
-        "studio-cmdk-usage"
+        "studio-cmdk-usage", "studio-first-export-done"
       ];
       var msg = "Clear all locally-stored Studio data?\n\nThis will remove:\n" +
         "  • Unsaved spec draft (autosave)\n" +
@@ -5152,7 +5152,32 @@
   function closeAllModals() { $$(".modal-ov").forEach(function (m) { m.remove(); }); }
 
   /* ---------- export ---------- */
+  // N-FUN: first-export delight moment — a small, rare, one-time celebration the first time this
+  // browser ever exports a dashboard (any kind, including Push). Purely tasteful: a toast + a brief
+  // spark burst that respects prefers-reduced-motion, then never fires again (localStorage flag).
+  function celebrateFirstExport() {
+    try {
+      if (localStorage.getItem("studio-first-export-done")) return;
+      localStorage.setItem("studio-first-export-done", "1");
+    } catch (e) { return; }
+    toast("First export! Nice work — your dashboard is ready to share.");
+    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    var colors = ["#d4773b", "#f55036", "#8b5cf6", "#4285f4", "#10a37f", "#ffb000"];
+    var host = el("div", "spark-host");
+    for (var i = 0; i < 18; i++) {
+      var p = el("span", "spark-p");
+      p.style.left = (48 + Math.random() * 6 - 3) + "%";
+      p.style.background = colors[i % colors.length];
+      p.style.animationDelay = (Math.random() * 0.15) + "s";
+      p.style.setProperty("--dx", Math.round(Math.random() * 240 - 120) + "px");
+      host.appendChild(p);
+    }
+    document.body.appendChild(host);
+    setTimeout(function () { host.remove(); }, 1400);
+  }
+
   function doExport(kind) {
+    celebrateFirstExport();
     if (kind === "push") return pushToServer();
     var sp = S.spec, dp = S.settings.deployPath;
     var problems = Studio.validate(sp).filter(function (x) { return x.level === "error"; });
