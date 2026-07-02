@@ -490,6 +490,7 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
 .dsb-type .tx{display:flex;flex-direction:column;min-width:0}
 .dsb-type .tx b{font-size:12.5px;color:var(--ink)}
 .dsb-type .tx span{font-size:10.5px;color:var(--faint);line-height:1.25}
+.dsb-badge{display:inline-block;font-size:8.5px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;color:#10a37f;background:color-mix(in srgb,#10a37f 14%,transparent);border:1px solid color-mix(in srgb,#10a37f 35%,transparent);border-radius:8px;padding:1px 5px;vertical-align:middle;margin-left:2px}
 .dsb-query{font-family:var(--mono)!important;min-height:120px!important;font-size:12px;tab-size:2}
 .dsb-chips-hdr{display:flex;align-items:center;gap:8px;margin-bottom:5px}
 .dsb-chips-hdr label{margin:0}

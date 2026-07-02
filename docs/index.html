@@ -323,7 +323,7 @@
   </ul>
 
   <h3>Browser-native connectors: no backend required</h3>
-  <p>Two source types query a file hosted anywhere over plain HTTP — S3, any static host — entirely inside your browser, with no proxy, no saved credentials, and no CDA connection. Both intercept the query engine's disk reads and turn them into <strong>HTTP Range Requests</strong>, so they only transfer the bytes a query actually touches. Pick whichever fits your workload:</p>
+  <p>Two source types query a file hosted anywhere over plain HTTP — S3, any static host — entirely inside your browser, with no proxy, no saved credentials, and no CDA connection. Both intercept the query engine's disk reads and turn them into <strong>HTTP Range Requests</strong>, so they only transfer the bytes a query actually touches. Both are flagged with a small "Browser-only" badge on their source-type card in the New Source builder, and a failed <strong>Test connection</strong> surfaces a plain-English hint (CORS/Range support, a slow/unreachable host, a 404) instead of a raw browser error. Pick whichever fits your workload:</p>
   <ul>
     <li><strong>DuckDB (remote file)</strong> is the columnar / analytics engine — best for aggregations and dashboards over a Parquet or CSV file, via <a href="https://duckdb.org/docs/api/wasm/overview" target="_blank" rel="noopener noreferrer">DuckDB-Wasm</a>.</li>
     <li><strong>SQLite (remote .sqlite)</strong> is the relational / indexed-lookup engine — best for point lookups and small joins over a <code>.sqlite</code> file with real indexes, via <a href="https://github.com/phiresky/sql.js-httpvfs" target="_blank" rel="noopener noreferrer">sql.js-httpvfs</a>. An indexed query only fetches the handful of ~4KB pages it needs, even from a multi-GB file.</li>

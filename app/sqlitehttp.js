@@ -101,7 +101,7 @@
           });
         });
       }).catch(function (e) {
-        return { ok: false, error: (e && e.message) || String(e) };
+        return { ok: false, error: Studio.friendlyConnectorError((e && e.message) || String(e)) };
       });
     },
 

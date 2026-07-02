@@ -1883,6 +1883,26 @@
   };
 
   // basic validation -> array of {level, msg}
+  // Z14 slice 4 — shared error-message polish for the browser-native connectors (DuckDB-Wasm,
+  // SQLite-WASM-HTTP): both fail in the same handful of recognizable ways (CORS blocked, host
+  // doesn't support HTTP Range Requests, plain network/DNS failure) but the raw browser error
+  // ("Failed to fetch", "NetworkError when attempting to fetch resource") means little to someone
+  // authoring a data source. Appends one plain-English, actionable hint when a known pattern
+  // matches; otherwise returns the original message untouched.
+  Studio.friendlyConnectorError = function (message) {
+    var msg = String(message || "Unknown error");
+    var low = msg.toLowerCase();
+    var hint = null;
+    if (/failed to fetch|networkerror|load failed|cors/.test(low)) {
+      hint = "This usually means the host doesn't allow cross-origin requests (CORS) or blocks HTTP Range Requests. Try a public S3/GCS/R2 bucket with CORS enabled for your origin, or a direct static-file host.";
+    } else if (/timed out/.test(low)) {
+      hint = "The file may be unreachable, very large, or the host may be slow to respond to range requests — double-check the URL in a new browser tab first.";
+    } else if (/404|not found/.test(low)) {
+      hint = "The file URL returned a 404 — double-check the path and that the file is publicly readable.";
+    }
+    return hint ? msg + " — " + hint : msg;
+  };
+
   Studio.validate = function (spec) {
     var out = [];
     if (!spec.name || !/^[a-z0-9][a-z0-9-]*$/.test(spec.name))

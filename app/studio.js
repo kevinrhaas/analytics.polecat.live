@@ -685,8 +685,8 @@
     { kind: "kettle", iconName: "gear", name: "Kettle / PDI", desc: "A .ktr transformation step as a data source", ph: "/public/etl/my-transform.ktr   (step: Output)" },
     { kind: "mql", iconName: "metadata", name: "Metadata", desc: "Pentaho Metadata (MQL) query", ph: "<mql>…</mql>" },
     { kind: "scripting", iconName: "code", name: "Scripting", desc: "Scripted (Kettle/Beanshell) data access", ph: "// return rows…" },
-    { kind: "duckdb", iconName: "db", name: "DuckDB (remote file)", desc: "Query a Parquet/CSV file straight from S3/HTTP — no backend, no proxy", ph: "SELECT * FROM t\nLIMIT  200   -- t = your file, queried in-browser via DuckDB-Wasm" },
-    { kind: "httpvfs", iconName: "db", name: "SQLite (remote .sqlite)", desc: "Query a .sqlite file over HTTP Range Requests — indexed lookups, no backend", ph: "SELECT * FROM my_table\nLIMIT  200" }
+    { kind: "duckdb", iconName: "db", name: "DuckDB (remote file)", desc: "Query a Parquet/CSV file straight from S3/HTTP — no backend, no proxy", badge: "Browser-only", ph: "SELECT * FROM t\nLIMIT  200   -- t = your file, queried in-browser via DuckDB-Wasm" },
+    { kind: "httpvfs", iconName: "db", name: "SQLite (remote .sqlite)", desc: "Query a .sqlite file over HTTP Range Requests — indexed lookups, no backend", badge: "Browser-only", ph: "SELECT * FROM my_table\nLIMIT  200" }
   ];
   function dsType(k) { return DS_TYPES.filter(function (t) { return t.kind === k; })[0] || DS_TYPES[0]; }
 
@@ -712,7 +712,7 @@
       DS_TYPES.forEach(function (t) {
         var card = el("div", "dsb-type" + (t.kind === draft.kind ? " sel" : ""));
         var icDiv = el("div", "ic"); icDiv.appendChild(Studio.icon(t.iconName, 20));
-        var txDiv = el("div", "tx"); txDiv.innerHTML = '<b>' + esc(t.name) + "</b><span>" + esc(t.desc) + "</span>";
+        var txDiv = el("div", "tx"); txDiv.innerHTML = '<b>' + esc(t.name) + (t.badge ? ' <span class="dsb-badge">' + esc(t.badge) + "</span>" : "") + "</b><span>" + esc(t.desc) + "</span>";
         card.appendChild(icDiv); card.appendChild(txDiv);
         card.onclick = function () { draft.kind = t.kind; $$(".dsb-type", types).forEach(function (c) { c.classList.remove("sel"); }); card.classList.add("sel"); syncType(); };
         types.appendChild(card);

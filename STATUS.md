@@ -502,6 +502,12 @@
   has no ESM build), New Source builder + DA inspector wiring (File URL + optional Table name + Query +
   Test connection & detect columns), Run-live in the Data preview, `exportCDA` now excludes both
   `duckdb`/`httpvfs` kinds from `.cda`. 13 new tests. Test suite 840/840.
+- v170: **Z14 slice 4: connector-gallery polish** — DuckDB (remote file) and SQLite (remote .sqlite)
+  source-type cards in the New Source builder gain a small "Browser-only" badge; `Studio.friendlyConnectorError()`
+  (shared, `app/model.js`) appends a plain-English, actionable hint to common raw connector failures
+  (CORS/fetch-blocked, timeout, 404) instead of surfacing the raw browser error verbatim; wired into both
+  `Studio.DuckDB.testConnection()` and `Studio.SQLiteHttp.testConnection()`'s failure path. `docs/index.html`
+  updated. 8 new tests. Test suite 864/864.
 - v167: **Z12 complete: Branding as a Settings option** — new **Branding** card on the Settings page:
   **Default** / **Custom logo** (upload PNG/JPG/SVG ≤200KB, stored as a `data:` URL in
   `localStorage["studio-branding"]`) / **None**, applied live to the `.rail-brand-mark` at the top of the
@@ -623,6 +629,13 @@ as two connector types in the Z3/Z4 Data-Source model; one shippable slice per l
 > no-internet-in-sandbox rationale as slice 1; the CDN package/asset URLs were confirmed reachable via curl
 > first). **Still open for Z14**: (2) a real hosted-file smoke test for both connectors (needs a live
 > environment with internet), (4) connector-gallery cards/logos.
+> ✓ **Slice 4 (partial) shipped v170**: both source-type cards in the New Source builder now carry a
+> "Browser-only" badge, and `Studio.friendlyConnectorError()` (shared by both connectors) appends a
+> plain-English, actionable hint to common raw failures (CORS/fetch-blocked, timeout, 404) instead of
+> surfacing the raw browser error. **Still open**: real connector-gallery logos (today it's still plain
+> type-cards, no logo/brand-mark treatment — the badge covers the "why is this different" question but
+> not the "make it sexy" visual-gallery ask), and (2) a real hosted-file smoke test once a live/internet
+> environment is available to verify by hand.
 
 **Z4 — Data Source library + connectors.** Expand beyond CDA to direct querying of leading providers,
 browser-only via each provider's REST/SQL API with locally-saved credentials. Priority connectors:

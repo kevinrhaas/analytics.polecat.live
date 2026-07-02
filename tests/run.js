@@ -471,6 +471,18 @@ function serve() {
     ok("Z14: DuckDB card hides the JNDI connection field (doesn't apply)", dkCard.jndiHidden, JSON.stringify(dkCard));
     ok("Z14: DuckDB card hides the SQL-alias 'Detect from query' button", !dkCard.detectFromQueryVisible, JSON.stringify(dkCard));
 
+    const connectorBadges = await page.evaluate(() => {
+      const m = document.querySelector(".modal .dsb"); if (!m) return { err: "modal missing" };
+      const badgeFor = (label) => {
+        const card = [].slice.call(m.querySelectorAll(".dsb-type")).find((c) => c.textContent.includes(label));
+        return card ? !!card.querySelector(".dsb-badge") : null;
+      };
+      return { duckdb: badgeFor("DuckDB"), sqlite: badgeFor("SQLite (remote"), sql: badgeFor("SQL"), mdx: badgeFor("MDX") };
+    });
+    ok("Z14 slice 4: DuckDB source-type card carries a 'Browser-only' badge", connectorBadges.duckdb === true, JSON.stringify(connectorBadges));
+    ok("Z14 slice 4: SQLite source-type card carries a 'Browser-only' badge", connectorBadges.sqlite === true, JSON.stringify(connectorBadges));
+    ok("Z14 slice 4: Pentaho-backed source cards (SQL/MDX) do NOT carry the badge", connectorBadges.sql === false && connectorBadges.mdx === false, JSON.stringify(connectorBadges));
+
     const dkTestOk = await page.evaluate(async () => {
       const orig = Studio.DuckDB.testConnection;
       Studio.DuckDB.testConnection = function () {
@@ -652,6 +664,20 @@ function serve() {
       return { hasDA: cda.indexOf('id="s3Orders"') >= 0, hasUrl: cda.indexOf("orders.sqlite") >= 0 };
     });
     ok("Z14: exportCDA excludes sqlite DAs from the .cda XML (not a real Pentaho source)", !slExport.hasDA && !slExport.hasUrl, JSON.stringify(slExport));
+
+    // ---- Z14 slice 4: friendlier connector error messages (shared by DuckDB + SQLite) ----
+    const friendlyErrs = await page.evaluate(() => ({
+      cors: Studio.friendlyConnectorError("TypeError: Failed to fetch"),
+      network: Studio.friendlyConnectorError("NetworkError when attempting to fetch resource."),
+      timeout: Studio.friendlyConnectorError("Loading the DuckDB engine timed out — check the URL and your network connection."),
+      notFound: Studio.friendlyConnectorError("Request failed: 404 Not Found"),
+      passthrough: Studio.friendlyConnectorError("Enter a file URL first.")
+    }));
+    ok("Z14 slice 4: a fetch/CORS failure gets a CORS/Range-request hint appended", /cross-origin/.test(friendlyErrs.cors) && /Failed to fetch/.test(friendlyErrs.cors), JSON.stringify(friendlyErrs));
+    ok("Z14 slice 4: a generic NetworkError also gets the CORS/Range-request hint", /cross-origin/.test(friendlyErrs.network), JSON.stringify(friendlyErrs));
+    ok("Z14 slice 4: a timeout message gets a slow/unreachable-host hint", /slow to respond/.test(friendlyErrs.timeout), JSON.stringify(friendlyErrs));
+    ok("Z14 slice 4: a 404 message gets a 'check the path' hint", /404/.test(friendlyErrs.notFound) && /publicly readable/.test(friendlyErrs.notFound), JSON.stringify(friendlyErrs));
+    ok("Z14 slice 4: an unrecognized message passes through unchanged", friendlyErrs.passthrough === "Enter a file URL first.", JSON.stringify(friendlyErrs));
 
     await page.keyboard.press("Escape");
     await page.waitForTimeout(100);
