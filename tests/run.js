@@ -12324,6 +12324,47 @@ function serve() {
     ok("Z7AGG regression: a standalone exported bundle with agg:'sum' renders the KPI tile with no console/page errors",
       bundleErrors.length === 0 && bundleKpi.present, JSON.stringify({ errors: bundleErrors, kpi: bundleKpi }));
 
+    // Z7AGG-3: Correlation — the one two-column Aggregation option, reusing Compare-to as its 2nd series
+    console.log("\n• Z7AGG-3: correlation aggregation");
+    const corrUnit = await page.evaluate(function () {
+      return {
+        perfect: Studio.pearsonCorr([1, 2, 3, 4], [2, 4, 6, 8]),
+        inverse: Studio.pearsonCorr([1, 2, 3, 4], [8, 6, 4, 2]),
+        listed: Studio.KPI_AGGS.some(function (p) { return p[0] === "corr"; }),
+      };
+    });
+    ok("Studio.pearsonCorr is +1 for a perfectly correlated pair and -1 for a perfectly inverse pair",
+      Math.abs(corrUnit.perfect - 1) < 1e-9 && Math.abs(corrUnit.inverse + 1) < 1e-9, JSON.stringify(corrUnit));
+    ok("Studio.KPI_AGGS lists 'corr'", corrUnit.listed, JSON.stringify(corrUnit));
+
+    const corrUI = await page.evaluate(async function () {
+      var spec = await fetch("data/examples/studio-cost.studio.json").then(function (r) { return r.json(); });
+      spec.kpis[0].da = "cost_by_source"; spec.kpis[0].valueCol = "cost"; spec.kpis[0].fmt = "plain";
+      window.__studioLoad(spec);
+      await new Promise(function (r) { setTimeout(r, 300); });
+      window.__studioSelect({ kind: "kpi", index: 0 });
+      var insp = document.getElementById("inspBody") || document.getElementById("inspector");
+      var aggRow = Array.prototype.slice.call(insp.querySelectorAll(".field")).filter(function (r) { return /Aggregation/i.test(r.textContent); })[0];
+      var sel = aggRow.querySelector("select");
+      sel.value = "corr"; sel.dispatchEvent(new Event("change", { bubbles: true }));
+      await new Promise(function (r) { setTimeout(r, 150); });
+      var noteShown = !!document.getElementById("inspBody").textContent.match(/Correlation needs a second numeric series/);
+      // "cost_by_source" only has one numeric column (cost) — reuse it as its own compare column
+      // purely to exercise the code path without depending on a second numeric column existing.
+      var cmpRow = Array.prototype.slice.call(insp.querySelectorAll(".field")).filter(function (r) { return /Compare column/i.test(r.textContent); })[0];
+      var cmpSel = cmpRow.querySelector("select");
+      cmpSel.value = "cost"; cmpSel.dispatchEvent(new Event("change", { bubbles: true }));
+      // KPI tiles count up over 750ms (animateCount in vendor/pdc-ui.js) — outwait it so the
+      // read value is the settled result, not a mid-animation frame.
+      await new Promise(function (r) { setTimeout(r, 950); });
+      var iw = document.getElementById("preview").contentWindow;
+      var tileText = iw.document.querySelector(".kpi .v") ? iw.document.querySelector(".kpi .v").textContent.trim() : null;
+      return { noteShown: noteShown, agg: window.__STUDIO_STATE.spec.kpis[0].agg, compareCol: window.__STUDIO_STATE.spec.kpis[0].compareCol, tileText: tileText };
+    });
+    ok("Z7AGG-3: picking 'Correlation' shows the Compare-to hint note", corrUI.noteShown, JSON.stringify(corrUI));
+    ok("Z7AGG-3: a column correlated against itself renders as 1 (perfect correlation), proving the KPI tile doesn't crash",
+      corrUI.agg === "corr" && corrUI.compareCol === "cost" && /^1(\.0+)?$/.test(corrUI.tileText || ""), JSON.stringify(corrUI));
+
     // Restore clean spec
     await page.evaluate(async function () {
       var freshSpec = await fetch("data/examples/studio-cost.studio.json").then(function (r) { return r.json(); });

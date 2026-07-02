@@ -55,6 +55,25 @@
     if (agg === "p95") return pctOf(sorted, 95);
     return sorted[0];
   }
+  // Same local-copy convention as aggregateOf/pctOf above — Studio.pearsonCorr (model.js) isn't
+  // available in the exported/preview bundle. Backs the Aggregation picker's "Correlation" option.
+  function pearsonCorrOf(a, b) {
+    var n = Math.min((a || []).length, (b || []).length), xs = [], ys = [];
+    for (var i = 0; i < n; i++) {
+      var x = Number(a[i]), y = Number(b[i]);
+      if (!isNaN(x) && !isNaN(y)) { xs.push(x); ys.push(y); }
+    }
+    if (xs.length < 2) return 0;
+    var mx = xs.reduce(function (s, v) { return s + v; }, 0) / xs.length;
+    var my = ys.reduce(function (s, v) { return s + v; }, 0) / ys.length;
+    var num = 0, dx2 = 0, dy2 = 0;
+    for (var j = 0; j < xs.length; j++) {
+      var dx = xs[j] - mx, dy = ys[j] - my;
+      num += dx * dy; dx2 += dx * dx; dy2 += dy * dy;
+    }
+    var denom = Math.sqrt(dx2 * dy2);
+    return denom === 0 ? 0 : num / denom;
+  }
   // Build a PDC.openDetail config from p.detail — used by bars, donut, treemap, table.
   // Returns null when no detail DA is configured so charts render without the drawer.
   function buildDetailCfg(p) {
@@ -1119,16 +1138,22 @@
         var _kTiles = spec.kpis.map(function (k) {
           var res = data[k.da], val = res ? (res.rows[0] || [])[res.col(k.valueCol)] : "—";
           // Z7: statistical KPI computation — "agg" other than the default "first row"
-          // recomputes val as a statistic (sum/avg/median/min/max/p90/p95/stddev) across
-          // every row the DA returns, instead of only reading the first row's value.
-          if (k.agg && k.agg !== "first" && res) {
+          // recomputes val as a statistic (sum/avg/median/min/max/p90/p95/stddev/corr) across
+          // every row the DA returns, instead of only reading the first row's value. "corr" is
+          // special: it needs a SECOND column, so it reuses the Compare-to field (k.compareCol)
+          // as its column picker rather than the "Compare to" delta feature below.
+          if (k.agg === "corr" && res && k.compareCol) {
+            var cvi = res.col(k.valueCol), cci = res.col(k.compareCol);
+            if (cvi >= 0 && cci >= 0) val = pearsonCorrOf(res.rows.map(function (r) { return r[cvi]; }), res.rows.map(function (r) { return r[cci]; }));
+          } else if (k.agg && k.agg !== "first" && res) {
             var vi = res.col(k.valueCol);
             if (vi >= 0) val = aggregateOf(res.rows.map(function (r) { return r[vi]; }), k.agg);
           }
           var tile = { value: fmt(k.fmt)(val), label: k.label, state: k.state || "", info: k.info || "", _raw: val };
           // Computed comparison delta: compareCol auto-computes the delta from a second numeric
           // column (same DA first row). Takes priority over manual deltaText when both are set.
-          if (k.compareCol && res) {
+          // Skipped for "corr" — that mode already consumed compareCol as its second series above.
+          if (k.compareCol && res && k.agg !== "corr") {
             var ci = res.col(k.compareCol);
             if (ci >= 0) {
               var cmpRaw = (res.rows[0] || [])[ci];

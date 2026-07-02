@@ -54,7 +54,8 @@
     ["p90",    "90th percentile"],
     ["p95",    "95th percentile"],
     ["stddev", "Std deviation"],
-    ["zscore", "Z-score (latest vs. mean)"]
+    ["zscore", "Z-score (latest vs. mean)"],
+    ["corr",   "Correlation (vs. Compare-to column)"]
   ];
   // Pure function: values (numbers) + an id from KPI_AGGS -> a single number. "first" is handled
   // by the caller (it needs the raw row, not just the column) so it's never passed in here.
@@ -86,6 +87,26 @@
     var lo = Math.floor(idx), hi = Math.ceil(idx);
     if (lo === hi) return sorted[lo];
     return sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo);
+  };
+  // Pearson correlation coefficient between two same-length numeric series (-1..1), pairwise —
+  // rows where either side isn't a finite number are dropped together. Used by the KPI Aggregation
+  // picker's "Correlation" option (needs a second column, the KPI's existing Compare-to field).
+  Studio.pearsonCorr = function (a, b) {
+    var n = Math.min((a || []).length, (b || []).length), xs = [], ys = [];
+    for (var i = 0; i < n; i++) {
+      var x = Number(a[i]), y = Number(b[i]);
+      if (!isNaN(x) && !isNaN(y)) { xs.push(x); ys.push(y); }
+    }
+    if (xs.length < 2) return 0;
+    var mx = xs.reduce(function (s, v) { return s + v; }, 0) / xs.length;
+    var my = ys.reduce(function (s, v) { return s + v; }, 0) / ys.length;
+    var num = 0, dx2 = 0, dy2 = 0;
+    for (var j = 0; j < xs.length; j++) {
+      var dx = xs[j] - mx, dy = ys[j] - my;
+      num += dx * dy; dx2 += dx * dx; dy2 += dy * dy;
+    }
+    var denom = Math.sqrt(dx2 * dy2);
+    return denom === 0 ? 0 : num / denom;
   };
   Studio.PALETTE = "['#005bb5','#7d3c98','#2e8bd0','#9b59b6','#00a39a','#e67e22','#c0392b','#16a085']";
 

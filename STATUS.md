@@ -1102,8 +1102,18 @@ chart options / derived series / KPI computations. Keep it light (vanilla-JS mat
 > trivially equalled "first row," and the assertion only ever passed because the crash made the compared
 > value `null` instead. Rebound the test to a real multi-row DA/column so it's a meaningful check, and
 > added a dedicated regression test that loads a *real* built bundle (served over `http://`, not
-> `about:blank`) and asserts zero console/page errors. Test suite 989/989. **Still open under Z7:**
-> correlation and full regression/distribution KPI computations.
+> `about:blank`) and asserts zero console/page errors. Test suite 989/989.
+> ✓ **Correlation KPI shipped v215 (closes the "still open" item above).** The Aggregation picker gains
+> **Correlation (vs. Compare-to column)** — the one two-column option, so it reuses the KPI's existing
+> **Compare to → Compare column** field as its second series instead of adding a new UI section; a hint
+> note appears under Aggregation when "corr" is picked. `Studio.pearsonCorr(a, b)` in model.js (pairwise,
+> drops rows where either side isn't numeric) plus, per the v214 lesson, its own local `pearsonCorrOf()`
+> copy in studio-render.js (model.js is never inlined into the exported/preview bundle — see v214). When
+> `agg==="corr"` the existing delta-comparison block is skipped (compareCol is repurposed, not a delta).
+> 4 new tests (unit math + inspector hint + a self-correlated column rendering 1 with no crash, correctly
+> outwaiting the KPI tile's 750ms count-up animation this time — the two prior attempts at this exact
+> assertion were false failures from reading the tile mid-animation, not real bugs). Test suite 993/993.
+> **Still open under Z7:** full regression/distribution KPI computations (beyond scatter's trend line).
 
 **Z8 — Context-aware inspector (per chart type) + visual setting hints (user-requested 2026-06-30).**
 The panel inspector currently shows ALL setting sections regardless of chart type — e.g. a **Table**

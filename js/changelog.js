@@ -15,6 +15,16 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 215,
+    title: 'Correlation KPIs',
+    kind: 'feature',
+    ts: '2026-07-02T23:40:58Z',
+    items: [
+      'The KPI "Aggregation" picker gains a Correlation option — the Pearson correlation coefficient (-1..1) between the Value column and a second series.',
+      'Reuses the existing Compare to section\'s Compare column field as that second series, so no new UI section was needed.',
+    ],
+  },
+  {
     v: 214,
     title: 'Fix: KPI Aggregation could crash the whole dashboard preview',
     kind: 'fix',

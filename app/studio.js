@@ -3034,8 +3034,11 @@
     })));
     sec.appendChild(field("Value column", colPicker(Studio.columnsOf(S.spec, k.da), k.valueCol, function (v) { k.valueCol = v; refreshPreview(); })));
     sec.appendChild(field("Aggregation", select2pairs(Studio.KPI_AGGS, k.agg || "first", function (v) {
-      if (v && v !== "first") k.agg = v; else delete k.agg; refreshPreview();
-    }), "Compute a statistic (sum/average/median/percentile/std-dev) across every row the query returns, instead of just the first row"));
+      if (v && v !== "first") k.agg = v; else delete k.agg; renderInspector(); refreshPreview();
+    }), "Compute a statistic (sum/average/median/percentile/std-dev/correlation) across every row the query returns, instead of just the first row"));
+    if (k.agg === "corr") {
+      sec.appendChild(noteEl("info", "Correlation needs a second numeric series — set it in the Compare to section below. It reuses that field as the second column rather than as a delta comparison."));
+    }
     sec.appendChild(field("Format", fmtPicker(k.fmt, function (v) { k.fmt = v; refreshPreview(); })));
     sec.appendChild(field("Color state", select2pairs(Studio.KPI_STATES.map(function (s) { return [s.id, s.label]; }), k.state || "", function (v) { k.state = v; refreshPreview(); })));
     sec.appendChild(field("Info tooltip", textarea(k.info, function (v) { k.info = v; refreshPreview(); })));
