@@ -319,8 +319,12 @@
         }
         case "gauge":
           var gv = +(res.rows[0] || [])[res.col(m.valueCol)] || 0;
+          var gUnit = o.unit != null ? o.unit : "%";
+          // PDC.fmt.pct already appends its own "%" — don't also tack on the default unit,
+          // or a gauge left at fmt:"pct" + the default Unit:"%" reads "42.3%%".
+          if (o.fmt === "pct" && gUnit === "%") gUnit = "";
           PDC.gauge(body, {
-            value: gv, max: o.max || 100, unit: o.unit || "%", label: p.title, fmt: f,
+            value: gv, max: o.max || 100, unit: gUnit, label: p.title, fmt: f,
             warnAt: (o.warnAt != null ? o.warnAt : 70) / 100,
             goodAt: (o.goodAt != null ? o.goodAt : 90) / 100
           });

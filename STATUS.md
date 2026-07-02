@@ -470,6 +470,12 @@
   no internet route, so a real network call would only prove "unreachable", not exercise the integration;
   the real jsDelivr URL + duckdb-wasm API surface were verified reachable via curl before shipping). Test
   suite 828/828.
+- v161: **Z13 loose end: gauge double-percent defensive fix** — `studio-render.js`'s gauge case computed
+  `unit: o.unit || "%"` unconditionally, so a gauge with Value format "pct" (which already appends its own
+  `%` via `PDC.fmt.pct`) plus the default Unit field ("%") rendered "42.3%%". Now skips the default unit
+  when `fmt === "pct"` and the unit is still the unmodified default. 1 new regression test drives the real
+  inspector "Value format" select (not a standalone `PDC.gauge` call) so the fix in the panel-dispatch
+  layer is actually exercised, not just the toolkit primitive. Test suite 829/829.
 
 ## NEXT (top = do first)
 
@@ -834,7 +840,10 @@ NEXT — turn the examples into a **broad, complete survey of everything the app
   numeric columns to hit the right synthetic kind (`*_pct/rate/coverage/score`→0–100, `count/runs/rows`→counts).
 Loose end: `tools/import-v2.py` still regenerates the retired `cde-*` boards + overwrites `index.json` —
 update it so a regen doesn't clobber the curated gallery (repoint it at / make it additive to the set).
-Consider a small defensive fix so a gauge never double-prints its unit when `fmt:"pct"` is also set.
+> ✓ **Gauge double-percent defensive fix shipped v161**: `studio-render.js`'s gauge case now skips the
+> default Unit "%" when Value format is "pct" (`PDC.fmt.pct` already appends its own %), so a gauge left
+> at fmt:"pct" + the implicit default unit no longer reads "42.3%%". 1 new regression test drives the real
+> "Value format" inspector select (not a standalone PDC.gauge call) so the fix is exercised end-to-end.
 
 **Z0 — Finish the terminology migration (Phase 2, started 2026-06-30).** Done so far: user-facing
 CDA→"Data Access", CDF→"Dashboard Framework"; CDE export removed from the menu/inspector/bundle/push/CLI;

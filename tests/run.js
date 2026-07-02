@@ -8268,6 +8268,35 @@ function serve() {
     });
     ok("Z8G: gauge panel inspector shows Value format / Warning zone / Good zone fields", z8gInsp.ok, JSON.stringify(z8gInsp));
 
+    // Z8G-5 (defensive fix, Z13 loose end): a gauge left at the default Unit "%" while its Value
+    // format is switched to "pct" must not double-print the percent sign ("42.3%%"). Drives the
+    // real "Value format" <select> in the inspector (not a standalone PDC.gauge call) so the fix
+    // in studio-render.js's gauge case — not just PDC.gauge itself — is actually exercised.
+    var z8gPctUnit = await page.evaluate(async function () {
+      var spec = window.__STUDIO_STATE.spec;
+      var p = spec.panels[0];
+      var prevChart = JSON.parse(JSON.stringify(p.chart));
+      var daDef = Studio.daById(spec, p.chart.da);
+      var fresh = Studio.newPanel("gauge", daDef); // fresh opts: fmt:"n", unit:"%" (registry defaults)
+      p.chart = fresh.chart;
+      window.__studioSelect({ kind: "panel", id: p.id });
+      await new Promise(function (r) { setTimeout(r, 60); });
+      var body = document.getElementById("inspBody");
+      var fmtField = [].slice.call(body.querySelectorAll(".field")).find(function (f) { return /Value format/.test(f.textContent); });
+      var sel = fmtField ? fmtField.querySelector("select") : null;
+      if (!sel) { p.chart = prevChart; window.__studioSelect(null); window.__studioRenderInspector(); return { err: "no Value format select" }; }
+      sel.value = "pct";
+      sel.dispatchEvent(new Event("change", { bubbles: true }));
+      await new Promise(function (r) { setTimeout(r, 150); });
+      var doc = document.querySelector("#preview").contentDocument;
+      var texts = [].slice.call(doc.querySelectorAll(".gauge-val")).map(function (e) { return e.textContent; });
+      p.chart = prevChart; // restore so later tests aren't affected
+      window.__studioSelect(null);
+      window.__studioRenderInspector();
+      return { ok: texts.length > 0 && !texts.some(function (t) { return /%%/.test(t); }), texts: texts };
+    });
+    ok("Z8G: gauge with fmt:'pct' + default Unit '%' doesn't double-print the percent sign", z8gPctUnit.ok, JSON.stringify(z8gPctUnit));
+
     // ── Z8 slice 5: Treemap gets its own type-specific options (tile labels + % of total) ──
     console.log("\n• Z8 treemap: show/hide tile labels + % of total");
 
