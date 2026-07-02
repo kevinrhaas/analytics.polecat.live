@@ -3651,17 +3651,17 @@ function serve() {
     const e7 = await page.evaluate(() => {
       var pop = document.getElementById("changelogPop");
       if (!pop) return { ok: false };
-      var dates = pop.querySelectorAll(".cl-date");
-      // v51 entry has time field — check that its .cl-date contains " · "
-      var topDate = dates[0] ? dates[0].textContent : "";
-      // find any entry that has time (contains " · " separator after the date)
-      var hasTime = Array.from(dates).some(function (d) { return d.textContent.indexOf(" · ") >= 0; });
-      // find any entry that has only a date (no time field), e.g. older entries
-      var hasDateOnly = Array.from(dates).some(function (d) { return d.textContent.indexOf(" · ") < 0; });
-      return { topDate: topDate, hasTime: hasTime, hasDateOnly: hasDateOnly, dateCount: dates.length };
+      var dates = Array.from(pop.querySelectorAll(".cl-date")).map(function (d) { return d.textContent; });
+      var topDate = dates[0] || "";
+      // canonical entries all carry an ISO `ts`, so every row renders "date · HH:MM CT"
+      var allDateTimeCT = dates.length > 0 && dates.every(function (t) { return t.indexOf(" · ") >= 0 && /CT\s*$/.test(t); });
+      // version labels are the canonical integer `v`, displayed as vN
+      var vs = Array.from(pop.querySelectorAll(".cl-v")).map(function (x) { return x.textContent.trim(); });
+      var vCanonical = vs.length > 0 && vs.every(function (v) { return /^v\d+$/.test(v); });
+      return { topDate: topDate, allDateTimeCT: allDateTimeCT, vCanonical: vCanonical, sampleV: vs[0], dateCount: dates.length };
     });
-    ok("E7: changelog entries with 'time' field show date · time", e7.hasTime, JSON.stringify(e7));
-    ok("E7: changelog entries without 'time' field show date only", e7.hasDateOnly, JSON.stringify(e7));
+    ok("E7: changelog entries render date · CT time from the ISO ts", e7.allDateTimeCT, JSON.stringify(e7));
+    ok("E7: version labels are the canonical integer v (shown as vN)", e7.vCanonical, JSON.stringify(e7));
     ok("E7: top entry date includes CT time suffix", e7.topDate.indexOf("CT") >= 0, JSON.stringify(e7));
     await page.keyboard.press("Escape"); await page.waitForTimeout(100);
 

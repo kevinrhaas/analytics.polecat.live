@@ -72,12 +72,15 @@
 - **Keep the in-app docs current.** `docs/index.html` is the user-facing Help reference (linked from the
   app). Whenever you add or change a user-facing feature, **update the docs in the SAME slice** so they
   never drift, and make sure the app links to them discoverably (see Z11).
-- **Changelog — polecat house style (user-requested 2026-07-02).** The changelog lives at **`js/changelog.js`**
-  (the conventional Polecat path, matching relay.polecat.live / games.polecat.live — NOT `app/changelog.js`
-  anymore). Prepend ONE entry at the TOP per user-visible change: bump `v`, a short friendly `title`, 1–4
-  plain-language `items` describing the benefit (mirror relay/games tone). **Timestamps MUST be real, never
-  fabricated** — stamp `date`+`time` with the ACTUAL UTC commit time (use `date -u`); do not guess or
-  future-date (past entries predate this rule). The in-app footer + "What's new" sheet render this list.
+- **Changelog — fleet house style (user-requested 2026-07-02).** Lives at **`js/changelog.js`** in the shared
+  Polecat fleet format so the **manager.polecat.live "Sync changelog" tool can fetch + parse it** (same shape
+  as manager/relay). The file is a classic script (NO `export` — it must load before studio.js) defining
+  `const CHANGELOG = [ … ]` then `window.STUDIO_CHANGELOG = CHANGELOG`. Each entry is a **plain JSON object**:
+  `{"v": <INTEGER, +1 over the current top>, "title": "…", "kind"?: "feature"|"fix"|"chore", "ts": "<ISO-8601 UTC>",
+  "items": ["…", 1–4 plain-language benefits]}`. Prepend ONE entry at the TOP per user-visible change.
+  **`ts` MUST be real, never fabricated** — stamp the ACTUAL UTC commit time (`new Date().toISOString()` or
+  `date -u`); do not guess/future-date (pre-v197 entries predate this rule). Keep entries pure JSON so any
+  consumer parses them as data. The in-app footer + "What's new" sheet render `window.STUDIO_CHANGELOG`.
 - **License.** The Studio is proprietary — see `LICENSE` (© 2026 Polecat.live; all rights reserved).
   Keep the notice intact; don't add OSS license headers that contradict it. New first-party source
   files may carry a one-line header (`/* Analytics Dashboard Studio — © 2026 Polecat.live. See LICENSE. */`).

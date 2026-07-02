@@ -333,19 +333,23 @@
   }
   // Changelog entry times are authored in UTC ("HH:MM UTC"); display them in US Central (CT)
   // so future UTC-authored entries convert automatically (handles CST/CDT via the IANA zone).
+  // Entries use the fleet-canonical shape (v: <int>, ts: <ISO UTC>); tolerate the
+  // legacy {date,time} shape too, in case an in-flight loop run authored one.
+  function vLabel(e) { return typeof e.v === "number" ? "v" + e.v : (e.v || ""); }
   function fmtEntryWhen(e) {
-    if (!e.date) return "";
-    var m = e.time && /(\d{1,2}):(\d{2})/.exec(e.time);
-    if (m) {
-      var d = new Date(e.date + "T" + ("0" + m[1]).slice(-2) + ":" + m[2] + ":00Z");
-      if (!isNaN(d)) {
-        try {
-          return d.toLocaleDateString("en-CA", { timeZone: "America/Chicago" }) + " · " +
-            d.toLocaleTimeString("en-GB", { timeZone: "America/Chicago", hour: "2-digit", minute: "2-digit" }) + " CT";
-        } catch (x) {}
-      }
+    var d = null;
+    if (e.ts) { d = new Date(e.ts); }
+    else if (e.date) {
+      var m = e.time && /(\d{1,2}):(\d{2})/.exec(e.time);
+      d = new Date(e.date + "T" + (m ? ("0" + m[1]).slice(-2) + ":" + m[2] : "00:00") + ":00Z");
     }
-    return e.date + (e.time ? " · " + e.time.replace(/UTC/i, "CT") : "");
+    if (d && !isNaN(d)) {
+      try {
+        return d.toLocaleDateString("en-CA", { timeZone: "America/Chicago" }) + " · " +
+          d.toLocaleTimeString("en-GB", { timeZone: "America/Chicago", hour: "2-digit", minute: "2-digit" }) + " CT";
+      } catch (x) {}
+    }
+    return e.ts ? String(e.ts).slice(0, 10) : (e.date || "");
   }
   function fmtStamp(d) {
     try {
@@ -359,12 +363,12 @@
     // "Last updated": real CI deploy time when present, else the latest entry's date.
     var build = window.STUDIO_BUILD, when = null;
     if (build && build.indexOf("__BUILD") < 0) { var t = new Date(build); if (!isNaN(t)) when = t; }
-    if (!when && log[0] && log[0].date) { var d = new Date(log[0].date + "T00:00:00"); if (!isNaN(d)) when = d; }
+    if (!when && log[0]) { var d = new Date(log[0].ts || (log[0].date ? log[0].date + "T00:00:00Z" : "")); if (!isNaN(d)) when = d; }
     if (stamp) {
       if (when && build && build.indexOf("__BUILD") < 0) stamp.textContent = "Last updated " + fmtStamp(when);
       else if (when) stamp.textContent = "Last updated " + when.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
       else stamp.textContent = "";
-      if (log[0]) stamp.textContent += "  ·  " + log[0].v;
+      if (log[0]) stamp.textContent += "  ·  " + vLabel(log[0]);
     }
     // changelog panel — E6: live search
     var pop = $("#changelogPop");
@@ -380,14 +384,14 @@
         var needle = (q || "").trim().toLowerCase();
         var matched = log.filter(function (e) {
           if (!needle) return true;
-          return ((e.v || "") + " " + (e.title || "") + " " + (e.date || "") + " " + (e.items || []).join(" ")).toLowerCase().indexOf(needle) >= 0;
+          return (vLabel(e) + " " + (e.title || "") + " " + (e.ts || e.date || "") + " " + (e.items || []).join(" ")).toLowerCase().indexOf(needle) >= 0;
         });
         clEntries.innerHTML = matched.length ? matched.map(function (e) {
           var items = (e.items || []).map(function (x) { return "<li>" + hlq(x, needle) + "</li>"; }).join("");
           return '<div class="cl-entry' + (e === log[0] ? " cl-latest" : "") + '">' +
-            '<div class="cl-top"><span class="cl-v">' + hlq(e.v || "", needle) + '</span>' +
+            '<div class="cl-top"><span class="cl-v">' + hlq(vLabel(e), needle) + '</span>' +
             '<span class="cl-title">' + hlq(e.title || "", needle) + '</span>' +
-            (e.date ? '<span class="cl-date">' + esc(fmtEntryWhen(e)) + '</span>' : "") + '</div>' +
+            (fmtEntryWhen(e) ? '<span class="cl-date">' + esc(fmtEntryWhen(e)) + '</span>' : "") + '</div>' +
             (items ? "<ul>" + items + "</ul>" : "") + '</div>';
         }).join("") : '<div class="cl-empty">No entries match “' + esc(q) + '”</div>';
       }
