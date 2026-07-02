@@ -8,6 +8,10 @@
 window.STUDIO_BUILD = "__BUILD_TS__";
 
 window.STUDIO_CHANGELOG = [
+  { v: "v153", date: "2026-07-02", time: "00:30 UTC", title: "Z8 slice 16: Chord + Network get their own options — arc/node label toggle", items: [
+      "Continues the Z8 track's per-type option sets (Table/Gauge/Treemap/Scatter/Line/Donut/Bars/Stacked/Calendar heatmap/KPI/Stacked area/Stream graph/Radar in v139–v152) with the last two Flow-group types still on generic fmt+height only: **Chord / wheel** and **Network / topology** each gain a **Show labels** toggle (`showLabels`, default on) to hide the per-arc / per-node text labels for a cleaner look on a dense diagram — the base toolkit always drew them with no way to turn them off.",
+      "`PDC.chord`/`PDC.network` overridden in `app/studio-charts.js` (`PDC._chordBase`/`PDC._networkBase` keep the originals for reference, same override pattern as the other Z8 slices) — identical ring-allocation/blast-radius-hover geometry; `studio-render.js` passes `showLabels` through. `docs/index.html` Chord + Network cards updated. 3 new Z8CN tests. Test suite 792/792.",
+    ] },
   { v: "v152", date: "2026-07-01", time: "22:15 UTC", title: "Z8 slice 15: Radar / spider gets its own options — legend toggle + vertex dots", items: [
       "Continues the Z8 track's per-type option sets (Table/Gauge/Treemap/Scatter/Line/Donut/Bars/Stacked/Calendar heatmap/KPI/Stacked area/Stream graph in v139–v151) with **Radar / spider**: `Studio.CHARTS.radar.opts` now includes **Show legend** (the renderer already supported hiding the legend internally via `cfg.legend`, but the inspector never exposed a toggle) and **Show vertex dots** (hide the per-vertex dot markers for a cleaner polygon-only look; invisible hover targets keep tooltips working with dots hidden, same convention as Line's 'Show data points').",
       "`PDC.radar` in `app/studio-charts.js` reads `cfg.showDots` (pdc-ui.js untouched — radar has always lived entirely in the extension file); `studio-render.js` passes `legend`/`showDots` through. `docs/index.html` Radar card updated. 3 new Z8RD tests. Test suite 789/789.",

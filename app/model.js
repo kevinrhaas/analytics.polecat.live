@@ -283,6 +283,7 @@
       desc: "Bidirectional relationships in a circle",
       fields: ["sourceCol", "targetCol", "valueCol"],
       opts: [
+        { key: "showLabels", type: "bool", label: "Show arc labels", def: true },
         { key: "fmt",    type: "fmt", label: "Value format", def: "abbr" },
         { key: "height", type: "int", label: "Height (px)",  def: 360 }
       ],
@@ -293,6 +294,7 @@
       desc: "Node-link topology graph",
       fields: ["sourceCol", "targetCol", "valueCol"],
       opts: [
+        { key: "showLabels", type: "bool", label: "Show node labels", def: true },
         { key: "fmt",    type: "fmt", label: "Value format", def: "abbr" },
         { key: "height", type: "int", label: "Height (px)",  def: 380 }
       ],

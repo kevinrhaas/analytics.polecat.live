@@ -312,9 +312,9 @@
           if (ch.type === "sankey")
             PDC.sankey(body, { links: links, height: o.height || 360, fmt: f, srcCap: o.srcCap || "Source", dstCap: o.dstCap || "Destination" });
           else if (ch.type === "chord")
-            PDC.chord(body, { links: links, height: o.height || 360, fmt: f });
+            PDC.chord(body, { links: links, height: o.height || 360, fmt: f, showLabels: o.showLabels !== false });
           else
-            PDC.network(body, { links: links, height: o.height || 380, fmt: f });
+            PDC.network(body, { links: links, height: o.height || 380, fmt: f, showLabels: o.showLabels !== false });
           break;
         }
         case "gauge":

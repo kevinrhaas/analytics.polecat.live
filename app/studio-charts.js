@@ -5237,4 +5237,144 @@
   }
   PDC.quadrant = function (el, cfg) { reg(el, function () { _quadrant(el, cfg); }); };
 
+  /* ── Enhanced chord chart (override PDC.chord, Z8 slice 16) ──────────────────
+     Base PDC.chord (pdc-ui.js) always draws an arc label next to every
+     wide-enough node, with no way to turn them off on a dense diagram. This
+     override keeps the identical ring-allocation + ribbon geometry and adds
+     cfg.showLabels. Base kept as PDC._chordBase for reference. */
+  PDC._chordBase = PDC.chord;
+
+  PDC.chord = function (el, cfg) { reg(el, function () { _chordOpts(el, cfg); }); };
+
+  function _chordOpts(el, cfg) {
+    var links = (cfg.links || []).filter(function (l) { return (+l.value || 0) > 0 && l.source !== l.target; });
+    var h = cfg.height || 360;
+    if (!links.length) { el.innerHTML = '<div class="empty">No connections</div>'; return; }
+    var o = mkSVG(el, h), s = o.s, w = o.w, fmt = cfg.fmt || PDC.fmt.abbr, pal = PDC.palette();
+    var showLabels = cfg.showLabels !== false;
+    var N = {}, order = [];
+    links.forEach(function (l) {
+      [l.source, l.target].forEach(function (k) { if (!N[k]) { N[k] = { name: k, val: 0 }; order.push(k); } });
+      N[l.source].val += +l.value; N[l.target].val += +l.value;
+    });
+    order.sort(function (a, b) { return N[b].val - N[a].val; });
+    var n = order.length, idx = {}; order.forEach(function (k, i) { idx[k] = i; });
+    var pair = {};
+    links.forEach(function (l) { var a = idx[l.source], b = idx[l.target], lo = Math.min(a, b), hi = Math.max(a, b), key = lo + "|" + hi; pair[key] = (pair[key] || 0) + (+l.value || 0); });
+    var sumTot = order.reduce(function (a, k) { return a + N[k].val; }, 0) || 1;
+    var cx = w / 2, cy = h / 2 + 2, band = 13, R = Math.min(w, h) / 2 - 46;
+    var gap = 0.05, avail = 2 * Math.PI - n * gap;
+    var run = -Math.PI / 2;
+    order.forEach(function (k) { var nd = N[k]; nd.a0 = run; var span = nd.val / sumTot * avail; nd.a1 = run + span; nd.span = span; nd.sub = {}; nd.cursor = run; run = nd.a1 + gap; });
+    order.forEach(function (k, i) {
+      var nd = N[k];
+      order.forEach(function (k2, j) { if (i === j) return; var lo = Math.min(i, j), hi = Math.max(i, j), v = pair[lo + "|" + hi]; if (!v) return;
+        var wdt = v / nd.val * nd.span; nd.sub[j] = { a0: nd.cursor, a1: nd.cursor + wdt }; nd.cursor += wdt; });
+    });
+    function P(rad, a) { return (cx + rad * Math.cos(a)).toFixed(1) + "," + (cy + rad * Math.sin(a)).toFixed(1); }
+    function arcPath(a0, a1, ri, ro) {
+      var big = (a1 - a0) > Math.PI ? 1 : 0;
+      return "M" + P(ro, a0) + " A" + ro + "," + ro + " 0 " + big + " 1 " + P(ro, a1) + " L" + P(ri, a1) + " A" + ri + "," + ri + " 0 " + big + " 0 " + P(ri, a0) + " Z";
+    }
+    function ribbon(si, sj) {
+      return "M" + P(R, si.a0) + " A" + R + "," + R + " 0 0 1 " + P(R, si.a1) +
+             " Q" + cx.toFixed(1) + "," + cy.toFixed(1) + " " + P(R, sj.a1) +
+             " A" + R + "," + R + " 0 0 1 " + P(R, sj.a0) +
+             " Q" + cx.toFixed(1) + "," + cy.toFixed(1) + " " + P(R, si.a0) + " Z";
+    }
+    var ribEls = [];
+    Object.keys(pair).forEach(function (key) {
+      var parts = key.split("|"), i = +parts[0], j = +parts[1], v = pair[key];
+      var ni = N[order[i]], nj = N[order[j]]; if (!ni.sub[j] || !nj.sub[i]) return;
+      var col = pal[i % 10];
+      var p = S("path", { d: ribbon(ni.sub[j], nj.sub[i]), fill: col, opacity: 0, stroke: col, "stroke-width": 0.5 });
+      p.addEventListener("mousemove", function (e) { PDC.showTip(e, "<b>" + order[i] + " &harr; " + order[j] + "</b><br>" + fmt(v)); });
+      p.addEventListener("mouseout", PDC.hideTip);
+      p._i = i; p._j = j; p._base = 0.42; ribEls.push(p); s.appendChild(p);
+      if (canAnim()) {
+        (function (pp, delay) { setTimeout(function () { pp.style.transition = "opacity .5s ease"; pp.setAttribute("opacity", pp._base); }, delay); })(p, animD(120 + ribEls.length * 30));
+      } else { p.setAttribute("opacity", p._base); }
+    });
+    function focus(i) {
+      ribEls.forEach(function (p) { var lit = (i == null) || (p._i === i || p._j === i); p.setAttribute("opacity", i == null ? p._base : (lit ? 0.85 : 0.06)); });
+      order.forEach(function (k, j) { var g2 = arcEls[j]; if (g2) g2.setAttribute("opacity", (i == null || j === i) ? 1 : 0.3); });
+    }
+    var arcEls = {};
+    order.forEach(function (k, i) {
+      var nd = N[k]; if (nd.span < 0.001) return; var col = pal[i % 10];
+      var grp = S("g", { opacity: 1, style: "cursor:pointer" });
+      var arcEl = S("path", { d: arcPath(nd.a0, nd.a1, R, R + band), fill: col, stroke: "#fff", "stroke-width": 1 });
+      arcEl.addEventListener("mousemove", function (e) { PDC.showTip(e, "<b>" + k + "</b><br>" + fmt(nd.val) + " total flow"); });
+      arcEl.addEventListener("mouseout", PDC.hideTip);
+      grp.appendChild(arcEl);
+      var am = (nd.a0 + nd.a1) / 2, anc = Math.cos(am) < -0.3 ? "end" : Math.cos(am) > 0.3 ? "start" : "middle", lr = R + band + 7;
+      if (showLabels && nd.span >= 0.06) grp.appendChild(S("text", { x: (cx + lr * Math.cos(am)).toFixed(1), y: (cy + lr * Math.sin(am) + (Math.sin(am) > 0.3 ? 7 : Math.sin(am) < -0.3 ? -1 : 3)).toFixed(1),
+        "text-anchor": anc, fill: "var(--text)", "font-size": "11", "font-weight": "700" }, PDC.fmt.trunc(k, 14)));
+      grp.addEventListener("mouseover", function () { focus(i); });
+      grp.addEventListener("mouseout", function () { focus(null); });
+      arcEls[i] = grp; s.appendChild(grp);
+    });
+    if (cfg.caption) s.appendChild(S("text", { x: cx, y: cy, "text-anchor": "middle", fill: "var(--muted)", "font-size": "10", "font-weight": "700" }, cfg.caption));
+  }
+
+  /* ── Enhanced network / topology chart (override PDC.network, Z8 slice 16) ───
+     Base PDC.network (pdc-ui.js) always labels every node, with no way to hide
+     labels on a busy graph. This override keeps the identical radial layout +
+     blast-radius hover and adds cfg.showLabels. Base kept as PDC._networkBase. */
+  PDC._networkBase = PDC.network;
+
+  PDC.network = function (el, cfg) { reg(el, function () { _networkOpts(el, cfg); }); };
+
+  function _networkOpts(el, cfg) {
+    var links = (cfg.links || []).filter(function (l) { return (+l.value || 0) > 0; });
+    var h = cfg.height || 360;
+    if (!links.length) { el.innerHTML = '<div class="empty">No connections</div>'; return; }
+    var o = mkSVG(el, h), s = o.s, w = o.w, fmt = cfg.fmt || PDC.fmt.abbr;
+    var showLabels = cfg.showLabels !== false;
+    var N = {}, order = [];
+    links.forEach(function (l) {
+      [l.source, l.target].forEach(function (k) { if (!N[k]) { N[k] = { name: k, val: 0, adj: {} }; order.push(k); } });
+      N[l.source].val += +l.value; N[l.target].val += +l.value;
+      N[l.source].adj[l.target] = 1; N[l.target].adj[l.source] = 1;
+    });
+    order.sort(function (a, b) { return N[b].val - N[a].val; });
+    var n = order.length, cx = w / 2, cy = h / 2 + 4, r = Math.min(w, h) / 2 - 58,
+      maxV = Math.max.apply(null, order.map(function (k) { return N[k].val; })) || 1,
+      maxL = Math.max.apply(null, links.map(function (l) { return l.value; })) || 1;
+    order.forEach(function (k, i) { var a = -Math.PI / 2 + i / n * 2 * Math.PI; var nd = N[k]; nd.a = a; nd.x = cx + r * Math.cos(a); nd.y = cy + r * Math.sin(a); nd.rad = 5 + Math.sqrt(nd.val / maxV) * 16; nd.i = i; });
+    var edgeEls = [];
+    links.slice().sort(function (a, b) { return b.value - a.value; }).forEach(function (l, i) {
+      var u = N[l.source], vv = N[l.target], col = cfg.color ? cfg.color(l.source) : PDC.color(u.i);
+      var cpx = cx + (((u.x + vv.x) / 2) - cx) * 0.35, cpy = cy + (((u.y + vv.y) / 2) - cy) * 0.35;
+      var p = S("path", { d: "M" + u.x.toFixed(1) + "," + u.y.toFixed(1) + " Q" + cpx.toFixed(1) + "," + cpy.toFixed(1) + " " + vv.x.toFixed(1) + "," + vv.y.toFixed(1),
+        fill: "none", stroke: col, "stroke-width": Math.max(1, Math.sqrt(l.value / maxL) * 7), opacity: 0, "stroke-linecap": "round" });
+      p.addEventListener("mousemove", function (e) { PDC.showTip(e, "<b>" + l.source + " &harr; " + l.target + "</b><br>" + fmt(l.value) + (l.conns != null ? " &middot; " + PDC.fmt.n(l.conns) + " connections" : "")); });
+      p.addEventListener("mouseout", PDC.hideTip);
+      p._u = l.source; p._v = l.target; p._base = Math.min(.5, .18 + l.value / maxL * .4); edgeEls.push(p); s.appendChild(p);
+      if (canAnim()) {
+        (function (pp, delay) { setTimeout(function () { pp.style.transition = "opacity .5s ease"; pp.setAttribute("opacity", pp._base); }, delay); })(p, animD(60 + i * 26));
+      } else { p.setAttribute("opacity", p._base); }
+    });
+    var nodeEls = {};
+    function focus(k) {
+      edgeEls.forEach(function (p) { var on2 = (p._u === k || p._v === k); p.setAttribute("opacity", k ? (on2 ? .92 : .05) : p._base); });
+      order.forEach(function (nk) { var g2 = nodeEls[nk]; var lit = !k || nk === k || N[k].adj[nk]; g2.setAttribute("opacity", lit ? 1 : .22); });
+    }
+    order.forEach(function (k) {
+      var nd = N[k];
+      var grp = S("g", { opacity: 1, style: "cursor:pointer" });
+      var c = S("circle", { cx: nd.x, cy: nd.y, r: nd.rad, fill: cfg.color ? cfg.color(k) : PDC.color(nd.i), stroke: "#fff", "stroke-width": 1.5 });
+      c.addEventListener("mousemove", function (e) { PDC.showTip(e, "<b>" + k + "</b><br>" + fmt(nd.val) + " total &middot; " + Object.keys(nd.adj).length + " links"); });
+      c.addEventListener("mouseout", PDC.hideTip);
+      grp.appendChild(c);
+      var anc = Math.cos(nd.a) < -0.3 ? "end" : Math.cos(nd.a) > 0.3 ? "start" : "middle";
+      var lx = nd.x + Math.cos(nd.a) * (nd.rad + 6), ly = nd.y + Math.sin(nd.a) * (nd.rad + 6) + (Math.sin(nd.a) > 0.3 ? 9 : Math.sin(nd.a) < -0.3 ? -2 : 3);
+      if (showLabels) grp.appendChild(S("text", { x: lx, y: ly, "text-anchor": anc, fill: "var(--text)", "font-size": "11", "font-weight": "700" }, PDC.fmt.trunc(k, 14)));
+      grp.addEventListener("mouseover", function () { focus(k); });
+      grp.addEventListener("mouseout", function () { focus(null); });
+      nodeEls[k] = grp; s.appendChild(grp);
+    });
+    if (cfg.caption) s.appendChild(S("text", { x: cx, y: cy, "text-anchor": "middle", fill: "var(--muted)", "font-size": "10", "font-weight": "700" }, cfg.caption));
+  }
+
 })();

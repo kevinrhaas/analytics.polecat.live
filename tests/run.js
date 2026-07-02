@@ -10147,6 +10147,75 @@ function serve() {
     });
     ok("Z8RD: radar panel inspector shows Show legend / Show vertex dots fields", z8rdInsp.ok, JSON.stringify(z8rdInsp));
 
+    // ── Z8 slice 16: Chord + Network get their own type-specific options (arc/node label toggle) ──
+    console.log("\n• Z8 chord + network: label toggle");
+
+    // Z8CN-1: registry declares showLabels for both chord and network (in addition to existing fmt/height)
+    var z8cnOpts = await page.evaluate(function () {
+      var co = (window.Studio.CHARTS.chord || {}).opts || [];
+      var no = (window.Studio.CHARTS.network || {}).opts || [];
+      var ck = co.map(function (od) { return od.key; }), nk = no.map(function (od) { return od.key; });
+      return { ok: ck.indexOf("showLabels") >= 0 && nk.indexOf("showLabels") >= 0, ck: ck, nk: nk };
+    });
+    ok("Z8CN: Studio.CHARTS.chord/network.opts declare showLabels", z8cnOpts.ok, JSON.stringify(z8cnOpts));
+
+    // Z8CN-2: showLabels:false removes the arc/node label text elements from both charts (tooltips unaffected)
+    var z8cnRender = await page.evaluate(function () {
+      var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
+      for (var i = 0; i < iframes.length; i++) {
+        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.chord === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+      }
+      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      try {
+        var links = [{ source: "A", target: "B", value: 10 }, { source: "B", target: "C", value: 6 }, { source: "A", target: "C", value: 4 }];
+
+        var c1 = iframeDoc.createElement("div"); c1.style.cssText = "position:absolute;top:-9999px;width:300px"; iframeDoc.body.appendChild(c1);
+        w.PDC.chord(c1, { links: links, height: 200 });
+        var chordLabelsOn = c1.querySelectorAll("svg text").length;
+        iframeDoc.body.removeChild(c1);
+
+        var c2 = iframeDoc.createElement("div"); c2.style.cssText = "position:absolute;top:-9999px;width:300px"; iframeDoc.body.appendChild(c2);
+        w.PDC.chord(c2, { links: links, height: 200, showLabels: false });
+        var chordLabelsOff = c2.querySelectorAll("svg text").length;
+        iframeDoc.body.removeChild(c2);
+
+        var n1 = iframeDoc.createElement("div"); n1.style.cssText = "position:absolute;top:-9999px;width:300px"; iframeDoc.body.appendChild(n1);
+        w.PDC.network(n1, { links: links, height: 200 });
+        var netLabelsOn = n1.querySelectorAll("svg text").length;
+        iframeDoc.body.removeChild(n1);
+
+        var n2 = iframeDoc.createElement("div"); n2.style.cssText = "position:absolute;top:-9999px;width:300px"; iframeDoc.body.appendChild(n2);
+        w.PDC.network(n2, { links: links, height: 200, showLabels: false });
+        var netLabelsOff = n2.querySelectorAll("svg text").length;
+        iframeDoc.body.removeChild(n2);
+
+        return {
+          ok: chordLabelsOn === 3 && chordLabelsOff === 0 && netLabelsOn === 3 && netLabelsOff === 0,
+          chordLabelsOn: chordLabelsOn, chordLabelsOff: chordLabelsOff, netLabelsOn: netLabelsOn, netLabelsOff: netLabelsOff
+        };
+      } catch (e) { return { ok: false, err: e.message }; }
+    });
+    ok("Z8CN: showLabels:false removes arc labels (chord) and node labels (network)", z8cnRender.ok, JSON.stringify(z8cnRender));
+
+    // Z8CN-3: the panel inspector shows the new chord/network-specific field when such a panel is selected
+    var z8cnInsp = await page.evaluate(function () {
+      var spec = window.__STUDIO_STATE.spec;
+      var p = spec.panels[0];
+      var prevChart = JSON.parse(JSON.stringify(p.chart));
+      p.chart.type = "chord"; p.chart.opts = {};
+      window.__studioSelect({ kind: "panel", id: p.id });
+      var chordText = (document.getElementById("inspBody") || {}).textContent || "";
+      p.chart.type = "network";
+      window.__studioSelect({ kind: "panel", id: p.id });
+      var netText = (document.getElementById("inspBody") || {}).textContent || "";
+      var okv = chordText.indexOf("Show arc labels") >= 0 && netText.indexOf("Show node labels") >= 0;
+      p.chart = prevChart; // restore so later tests aren't affected
+      window.__studioSelect(null);
+      window.__studioRenderInspector();
+      return { ok: okv };
+    });
+    ok("Z8CN: chord/network panel inspector shows Show arc labels / Show node labels fields", z8cnInsp.ok, JSON.stringify(z8cnInsp));
+
     // restore Studio + a clean flagship spec for any tests appended after this block
     await page.evaluate(async function () {
       const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json());

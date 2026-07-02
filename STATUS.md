@@ -544,11 +544,17 @@ self-explanatory. Keep it light (inline SVG / CSS, no image assets or deps). One
 > Stacked area/Stream graph — `cfg.legend` was already supported internally but never exposed) and
 > **Show vertex dots** (hide the per-vertex dot markers; invisible hover targets keep tooltips working,
 > same convention as Line's "Show data points").
+> ✓ **Slice 16 shipped v153**: **Chord / wheel** and **Network / topology** get their own options — both
+> gain a **Show labels** toggle (arc labels for Chord, node labels for Network) to declutter a dense
+> diagram. These were the last two Flow-group types still on generic fmt+height only; sankey already had
+> its own source/destination captions (v55), waterfall/funnel/sunburst/combo already had type-specific
+> options too (showTotal/showPct/showLabels/dual-axis fmt) so the actual gap was just these two.
 > **Z8 follow-ups (not yet done, the bulk of the track):** a real per-type capability map covering the
 > REST of the ~51 types' *own* option sets (Table, Gauge, Treemap, Scatter, Line, Donut, Bars, Stacked
-> bars, Calendar heatmap, KPI, areaStacked, streamgraph, radar done; still needed: sankey/chord/network,
-> waterfall, funnel, sunburst, combo, and the rest), plus the inline visual setting hints (tiny
-> before/after thumbnails). Continue one slice per loop.
+> bars, Calendar heatmap, KPI, areaStacked, streamgraph, radar, chord, network done; still needed: the
+> remaining ~35 CDF-only F-track types — waterfall/funnel/sunburst/combo/bullet already have some
+> type-specific options but could go deeper, then sankey/lollipop/slope/dotplot/beeswarm/histogram/etc.),
+> plus the inline visual setting hints (tiny before/after thumbnails). Continue one slice per loop.
 
 **Z9 — Mobile: fix the broken flows + a proper bottom nav (user-requested 2026-06-30).** Reported
 regressions on small screens: the top button-bar scrolls/slides but **its dropdown menus don't open /
