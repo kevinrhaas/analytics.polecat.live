@@ -178,6 +178,31 @@
     return sentences.join(" ");
   };
 
+  /* ---- Z7/N-AI: correlation insight for two-numeric-variable charts (scatter/bubble) ----
+     Pearson's r between the bound X and Y columns, in the same plain-English style as
+     computeInsights above. Kept separate because it needs two series, not one. */
+  Studio.computeCorrelation = function (cols, rows, xCol, yCol) {
+    var xi = (cols || []).indexOf(xCol), yi = (cols || []).indexOf(yCol);
+    if (xi < 0 || yi < 0 || !rows) return null;
+    var pts = rows.map(function (r) { return [Number(r[xi]), Number(r[yi])]; })
+      .filter(function (p) { return !isNaN(p[0]) && !isNaN(p[1]); });
+    var n = pts.length;
+    if (n < 3) return null;
+    var sumX = 0, sumY = 0, sumXY = 0, sumXX = 0, sumYY = 0;
+    pts.forEach(function (p) { sumX += p[0]; sumY += p[1]; sumXY += p[0] * p[1]; sumXX += p[0] * p[0]; sumYY += p[1] * p[1]; });
+    var denom = Math.sqrt((n * sumXX - sumX * sumX) * (n * sumYY - sumY * sumY));
+    if (denom === 0) return null;
+    var r = (n * sumXY - sumX * sumY) / denom;
+    var abs = Math.abs(r);
+    if (abs < 0.2) {
+      return "Across " + n + " points, " + xCol + " and " + yCol + " show little to no linear relationship (r = " + r.toFixed(2) + ").";
+    }
+    var strength = abs >= 0.7 ? "strong" : abs >= 0.4 ? "moderate" : "weak";
+    var direction = r > 0 ? "positive" : "negative";
+    return "Across " + n + " points, " + xCol + " and " + yCol + " show a " + strength + " " + direction +
+      " correlation (r = " + r.toFixed(2) + ") — as " + xCol + " " + (r > 0 ? "increases, " + yCol + " tends to increase too." : "increases, " + yCol + " tends to decrease.");
+  };
+
   /* ---- chart registry: the heart of the model ----
      Each entry declares how a chart type binds columns + which knobs it exposes,
      plus how it maps to a CDE/CCC component. `fields` drives the inspector. */

@@ -1113,6 +1113,13 @@ chart options / derived series / KPI computations. Keep it light (vanilla-JS mat
 > 4 new tests (unit math + inspector hint + a self-correlated column rendering 1 with no crash, correctly
 > outwaiting the KPI tile's 750ms count-up animation this time — the two prior attempts at this exact
 > assertion were false failures from reading the tile mid-animation, not real bugs). Test suite 993/993.
+> ✓ **Scatter correlation insight shipped v216 (independent take on correlation, built the same hour)**:
+> rather than only a correlation *aggregation* on the single-column KPI picker, **Scatter / bubble**
+> panels also get their own Insight narration — `Studio.computeCorrelation(cols, rows, xCol, yCol)`
+> (Pearson's r, same plain-English strength/direction phrasing as `computeInsights`) replaces the
+> single-series trend read for scatter panels specifically, reusing the v212 Insight section/UI. This is
+> a builder-only inspector feature (not part of the exported/preview runtime), so it isn't subject to the
+> v214 bug class. 3 new tests, suite 996/996.
 > **Still open under Z7:** full regression/distribution KPI computations (beyond scatter's trend line).
 
 **Z8 — Context-aware inspector (per chart type) + visual setting hints (user-requested 2026-06-30).**

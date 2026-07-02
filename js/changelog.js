@@ -15,6 +15,16 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 217,
+    title: 'Scatter charts now explain their own correlation',
+    kind: 'feature',
+    ts: '2026-07-02T23:29:55Z',
+    items: [
+      'A Scatter / bubble panel\'s "Insight" section now reports the Pearson correlation between its bound X and Y columns in plain English (e.g. "a strong positive correlation, r = 0.82") instead of the single-series trend narration other chart types get.',
+      'Computed client-side, no API key or network call. (Landed alongside a second, independent take on correlation below — the KPI Aggregation picker\'s new "Correlation" option — since both were built the same hour; keeping both, they serve different panel types.)',
+    ],
+  },
+  {
     v: 216,
     title: 'Fix: a rare live-preview crash when a query was missing sample data',
     kind: 'fix',

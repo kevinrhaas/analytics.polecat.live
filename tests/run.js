@@ -1566,6 +1566,40 @@ function serve() {
     });
     ok("Insight section appears in the panel inspector for a value-bound chart", insightUI.found && insightUI.hasText, JSON.stringify(insightUI));
 
+    // ---- Z7/N-AI follow-up: correlation insight for scatter (two-variable) charts ----
+    console.log("\n• scatter correlation insight");
+    const corrUnit = await page.evaluate(() => {
+      const cols = ["x", "y"];
+      const rows = [[1, 2], [2, 4], [3, 6], [4, 8], [5, 10], [6, 12]];
+      return Studio.computeCorrelation(cols, rows, "x", "y");
+    });
+    ok("Studio.computeCorrelation reports a strong positive correlation for perfectly linear data",
+      /strong positive/.test(corrUnit) && /r = 1\.00/.test(corrUnit), corrUnit);
+    const corrNone = await page.evaluate(() => Studio.computeCorrelation(["x", "y"], [[1, 2]], "x", "y"));
+    ok("Studio.computeCorrelation returns null with fewer than 3 valid points", corrNone === null, String(corrNone));
+    const corrUI = await page.evaluate(function () {
+      var spec = window.__STUDIO_STATE.spec;
+      var p = spec.panels[0];
+      var prevChart = JSON.parse(JSON.stringify(p.chart));
+      var da = Studio.daById(spec, p.chart.da);
+      var sd = Studio.sampleRows(da);
+      var numCols = sd.cols.filter(function (c, i) { return !isNaN(Number(sd.rows[0][i])); });
+      p.chart.type = "scatter";
+      p.chart.map = { xCol: numCols[0], yCol: numCols[1] || numCols[0] };
+      window.__studioSelect({ kind: "panel", id: p.id });
+      var sec = [].slice.call(document.querySelectorAll("#inspBody .insp-sec h4")).filter(function (h) { return h.textContent.trim() === "Insight"; })[0];
+      var found = !!sec, hasText = false;
+      if (sec) {
+        var box = sec.closest(".insp-sec").querySelector(".insight-box");
+        hasText = !!box && box.textContent.length > 15;
+      }
+      p.chart = prevChart;
+      window.__studioSelect(null);
+      window.__studioRenderInspector();
+      return { found: found, hasText: hasText };
+    });
+    ok("Insight section shows a correlation read for a scatter panel with xCol/yCol bound", corrUI.found && corrUI.hasText, JSON.stringify(corrUI));
+
     // ---- Pentaho connections: Kettle XML, CDA parser, client, UI ----
     console.log("\n• Pentaho server connections");
     const ph = await page.evaluate(() => {

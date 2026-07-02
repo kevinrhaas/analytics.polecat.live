@@ -2767,11 +2767,17 @@
   function renderInsight(body, p) {
     var da = Studio.daById(S.spec, p.chart.da); if (!da) return;
     var m = p.chart.map || {};
-    var valueCol = m.valueCol || (m.series && m.series[0] && m.series[0].col);
-    var labelCol = m.labelCol || m.dateCol || m.xCol;
-    if (!valueCol) return;
     var sd = Studio.sampleRows(da);
-    var text = Studio.computeInsights(sd.cols, sd.rows, labelCol, valueCol);
+    var text;
+    if (p.chart.type === "scatter" && m.xCol && m.yCol) {
+      // Two-variable charts get a correlation read instead of a single-series trend.
+      text = Studio.computeCorrelation(sd.cols, sd.rows, m.xCol, m.yCol);
+    } else {
+      var valueCol = m.valueCol || (m.series && m.series[0] && m.series[0].col);
+      var labelCol = m.labelCol || m.dateCol || m.xCol;
+      if (!valueCol) return;
+      text = Studio.computeInsights(sd.cols, sd.rows, labelCol, valueCol);
+    }
     if (!text) return;
     var sec = section(body, "Insight");
     var box = el("div", "insight-box");
