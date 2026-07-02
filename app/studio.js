@@ -1675,6 +1675,33 @@
       var tc = el("div", "insp-thumb"); tc.setAttribute("aria-label", "Dashboard layout preview");
       tc.innerHTML = thumbSvg; body.appendChild(tc);
     }
+    // N-FUN: Build-completeness meter — a tasteful, game-like nudge (not a warning) toward a
+    // well-rounded dashboard: title / panel / KPI / filter / a touch of your own style. Distinct
+    // from the Checks section below (which only flags real problems); this is purely encouraging.
+    var comp = Studio.dashboardCompleteness(sp);
+    var bc = el("div", "build-comp"); bc.setAttribute("aria-label", "Build progress: " + comp.done + " of " + comp.total);
+    var R = 15, C = 2 * Math.PI * R;
+    var ring = '<svg class="bc-ring" width="36" height="36" viewBox="0 0 36 36" aria-hidden="true">' +
+      '<circle cx="18" cy="18" r="' + R + '" class="bc-ring-bg"/>' +
+      '<circle cx="18" cy="18" r="' + R + '" class="bc-ring-fg" stroke-dasharray="' + C.toFixed(1) + '" ' +
+        'stroke-dashoffset="' + (C * (1 - comp.done / comp.total)).toFixed(1) + '"/></svg>';
+    var bcTop = el("div", "bc-top"); bcTop.innerHTML = ring;
+    var bcTxt = el("div", "bc-txt");
+    if (comp.done >= comp.total) {
+      bcTxt.innerHTML = "<b>Build progress: " + comp.done + "/" + comp.total + "</b><br>Nice work — this dashboard covers all the basics.";
+    } else {
+      bcTxt.innerHTML = "<b>Build progress: " + comp.done + "/" + comp.total + "</b><br>A few quick wins left:";
+    }
+    bcTop.appendChild(bcTxt); bc.appendChild(bcTop);
+    if (comp.done < comp.total) {
+      var bcList = el("ul", "bc-list");
+      comp.items.filter(function (i) { return !i.done; }).forEach(function (i) {
+        var li = el("li"); li.textContent = i.label; bcList.appendChild(li);
+      });
+      bc.appendChild(bcList);
+    }
+    body.appendChild(bc);
+
     // ── checks (live validation) ──
     var issues = Studio.validate(sp);
     var vs = section(body, "Checks");

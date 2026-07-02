@@ -477,6 +477,15 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
 /* E3: layout thumbnail shown at the top of the dashboard-level inspector */
 .insp-thumb{margin:0 0 2px;overflow:hidden;border-bottom:1px solid var(--line-2)}
 .insp-thumb svg{display:block;width:100%;height:auto}
+/* N-FUN: Build-completeness meter — a small, game-like progress ring + gentle checklist */
+.build-comp{padding:12px 14px;border-bottom:1px solid var(--line-2)}
+.bc-top{display:flex;align-items:center;gap:10px}
+.bc-ring{flex-shrink:0;transform:rotate(-90deg)}
+.bc-ring-bg{fill:none;stroke:var(--line-2);stroke-width:3}
+.bc-ring-fg{fill:none;stroke:var(--pentaho);stroke-width:3;stroke-linecap:round;transition:stroke-dashoffset .4s ease}
+.bc-txt{font-size:11.5px;line-height:1.5;color:var(--faint)}
+.bc-txt b{color:var(--ink);font-size:12px}
+.bc-list{margin:8px 0 0;padding:0 0 0 18px;font-size:11.5px;color:var(--faint);line-height:1.7}
 .insp-sec{border-bottom:1px solid var(--line-2);padding:13px 14px}
 .insp-sec h4{margin:0 0 10px;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--faint);font-weight:800;
   display:flex;align-items:center;gap:7px;user-select:none}

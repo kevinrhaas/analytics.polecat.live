@@ -1945,4 +1945,20 @@
     });
     return out;
   };
+
+  // N-FUN (Track N innovation backlog): "Build-completeness meter" — a tasteful, game-like nudge
+  // toward a well-rounded dashboard, distinct from Studio.validate() above (which only flags real
+  // problems). This is aspirational/gentle, never an error: a dashboard with zero KPIs is valid, but
+  // celebrating "you added one" is the fun, encouraging framing the north star asks for.
+  Studio.dashboardCompleteness = function (spec) {
+    var items = [
+      { key: "title",  label: "Give it a title",        done: !!(spec.title && spec.title.trim() && spec.title !== "Untitled Dashboard") },
+      { key: "panel",  label: "Add a panel",             done: (spec.panels || []).length > 0 },
+      { key: "kpi",    label: "Add a KPI tile",          done: (spec.kpis || []).length > 0 },
+      { key: "filter", label: "Add a filter",            done: (spec.filters || []).length > 0 },
+      { key: "style",  label: "Add your own accent color or logo", done: !!(spec.themeColor || spec.paletteKey || spec.headerLogo) },
+    ];
+    var done = items.filter(function (i) { return i.done; }).length;
+    return { done: done, total: items.length, items: items };
+  };
 })();

@@ -676,6 +676,10 @@
   fixed a real DOM-duplication bug in the CDA Connection editor's Save handler (called
   `renderDashboardInspector(body)` directly instead of `renderInspector()` — the same bug class the v193
   Z6 kickoff fixed at three other call sites, this fourth one was missed). 1 new test. Test suite 944/944.
+- v196: **N-FUN: Build-completeness meter** — a small, game-like progress ring + checklist at the top
+  of the Dashboard inspector (title / panel / KPI / filter / a touch of style); purely encouraging,
+  collapses to a "nice work" note once every milestone is met. `Studio.dashboardCompleteness(spec)` in
+  model.js. `docs/index.html` updated. 3 new tests. Test suite 947/947.
 
 ## NEXT (top = do first)
 
@@ -1601,8 +1605,11 @@ gets covered over time:
   Slideshow) — each step pans/zooms/highlights and shows a caption. Present findings, not just charts.
 - **Live "what-if" parameter sliders:** on-canvas sliders that drive derived series / forecasts and animate
   the charts as you drag — analysis as play (pairs with Z7).
-- **Build-completeness meter + gentle achievements:** a tasteful, game-like progress ring that nudges toward
-  a great dashboard (has KPIs? a target? a filter? a title?) — on-brand fun without being corny.
+- ✓ **Build-completeness meter + gentle achievements — shipped v196.** A small progress ring + checklist
+  at the top of the Dashboard inspector (title / panel / KPI / filter / a touch of style), purely
+  encouraging (never a warning), collapses to a "nice work" note once complete.
+  `Studio.dashboardCompleteness(spec)` in model.js. 3 new tests, suite 947/947. **Not yet done:** true
+  "achievements" beyond the one meter (e.g. a first-export moment, a milestone toast).
 - **Data-driven motion system:** spring-physics transitions between filter/data states so numbers *move*
   meaningfully; a coherent motion language across the app (respect reduced-motion).
 - **Delight moments:** confetti/spark on first publish, playful empty-states, easter-eggs — small, rare, tasteful.

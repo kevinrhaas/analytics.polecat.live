@@ -7507,6 +7507,44 @@ function serve() {
       z6Normalize.themeColor === "#123456" && z6Normalize.paletteKey === "ocean" && z6Normalize.headerLogo === "data:image/png;base64,AAAA",
       JSON.stringify(z6Normalize));
 
+    // ── N-FUN: Build-completeness meter ─────────────────────────────────────
+    console.log("\n• N-FUN: Build-completeness meter");
+    const bcApi = await page.evaluate(function () {
+      var empty = Studio.dashboardCompleteness(Studio.emptySpec());
+      var full = Studio.dashboardCompleteness({
+        title: "My Real Dashboard", panels: [{}], kpis: [{}], filters: [{}], themeColor: "#1a7a4a",
+      });
+      return {
+        emptyDone: empty.done, emptyTotal: empty.total,
+        fullDone: full.done, fullTotal: full.total,
+      };
+    });
+    ok("N-FUN: Studio.dashboardCompleteness scores 0/5 for a blank spec and 5/5 once title/panel/kpi/filter/style are all present",
+      bcApi.emptyDone === 0 && bcApi.emptyTotal === 5 && bcApi.fullDone === 5 && bcApi.fullTotal === 5, JSON.stringify(bcApi));
+
+    await page.evaluate(function () { window.__STUDIO_STATE.selection = null; window.__studioRenderInspector(); });
+    await page.waitForTimeout(100);
+    const bcDom = await page.evaluate(function () {
+      var bc = document.querySelector(".build-comp");
+      var ring = bc ? bc.querySelector(".bc-ring-fg") : null;
+      var txt = bc ? bc.querySelector(".bc-txt").textContent : "";
+      var list = bc ? bc.querySelectorAll(".bc-list li").length : -1;
+      return { present: !!bc, hasRing: !!ring, txt: txt, remainingCount: list };
+    });
+    ok("N-FUN: dashboard inspector shows a Build progress ring + remaining-items checklist for the loaded (incomplete) flagship dashboard",
+      bcDom.present && bcDom.hasRing && /Build progress: \d\/5/.test(bcDom.txt) && bcDom.remainingCount >= 0, JSON.stringify(bcDom));
+
+    const bcCelebrate = await page.evaluate(function () {
+      var sp = window.__STUDIO_STATE.spec;
+      sp.filters = sp.filters && sp.filters.length ? sp.filters : [{ id: "bcf1", label: "Test", col: "src", da: (sp.cda.dataAccesses[0] || {}).id || "" }];
+      sp.themeColor = "#1a7a4a";
+      window.__STUDIO_STATE.selection = null; window.__studioRenderInspector();
+      var bc = document.querySelector(".build-comp");
+      return { txt: bc.querySelector(".bc-txt").textContent, listCount: bc.querySelectorAll(".bc-list li").length };
+    });
+    ok("N-FUN: once every milestone is met the meter shows 5/5 + a celebratory line, no leftover checklist",
+      /Build progress: 5\/5/.test(bcCelebrate.txt) && bcCelebrate.listCount === 0, JSON.stringify(bcCelebrate));
+
     // ── F18: Bump / ranking chart (v104) ─────────────────────────────────────
     console.log("\n• F18: Bump chart");
 

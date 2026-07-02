@@ -8,6 +8,12 @@
 window.STUDIO_BUILD = "__BUILD_TS__";
 
 window.STUDIO_CHANGELOG = [
+  { v: "v196", date: "2026-07-02", time: "21:05 UTC", title: "N-FUN: Build-completeness meter", items: [
+      "A small, game-like **Build progress** ring + checklist now sits at the top of the Dashboard inspector (below the layout thumbnail, above Checks): five gentle milestones — a real title, a panel, a KPI, a filter, and a touch of your own style (accent color, series palette, or header logo). Purely encouraging, never a warning (an empty dashboard is perfectly valid) — collapses to a one-line \"nice work\" note once every milestone is met, so it never nags a finished dashboard.",
+      "`Studio.dashboardCompleteness(spec)` in model.js is a small pure function (5 checks in, `{done,total,items}` out) so the scoring logic is unit-testable on its own, separate from the DOM. Distinct from the existing `Studio.validate()` (Checks section) which only flags real problems.",
+      "Theme-aware via the existing `--pentaho`/`--line-2`/`--ink`/`--faint` custom properties — the ring and text read correctly in all four Classic/Polecat × Light/Dark combinations for free.",
+      "First slice from the Track N innovation backlog's N-FUN list (\"Build-completeness meter + gentle achievements\"). 3 new tests. Test suite 947/947.",
+    ] },
   { v: "v195", date: "2026-07-02", time: "20:35 UTC", title: "Track L: two real bugs found in an architecture sweep", items: [
       "**Duplicated timeout helper** — `withTimeout()` was defined as a byte-identical private copy in both `app/duckdb.js` and `app/sqlitehttp.js`. Consolidated into `Studio.withTimeout()` in model.js, alongside `Studio.friendlyConnectorError()` (the same connector pair's other shared helper, extracted back in v170) — the two browser-native connectors can no longer drift on timeout-message wording.",
       "**Real DOM-duplication bug** — the CDA Connection editor's Save button called `renderDashboardInspector(body)` directly, which never clears `body` itself; saving a connection appended a second full copy of every dashboard-inspector section on top of the first instead of replacing it. This is the exact bug class the v193 Z6 kickoff already found and fixed at three other self-redraw call sites (accent-color swatches, palette swatches, connection delete) — this fourth call site was missed. Routed through the top-level `renderInspector()` instead, and dropped the now-dead `dashBody` parameter it was threading through `addCDAConnection()`/`openConnEditor()`.",
