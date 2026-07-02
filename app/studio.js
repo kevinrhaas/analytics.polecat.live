@@ -297,6 +297,7 @@
       setupMobileTabs();
       try { setTheme(localStorage.getItem("studio-theme") || "light"); } catch (e) { setTheme("light"); }
       try { if (localStorage.getItem("studio-simple-mode") === "1") { S.simpleMode = true; document.body.classList.add("simple-mode"); } } catch (e) {}
+      applyBranding();
       loadConnections();
       renderHome();
       renderSettings();
@@ -3753,6 +3754,30 @@
         else { if (window.__studioShellSetSection) window.__studioShellSetSection("studio"); enterFocusMode(); }
       } }
   ];
+
+  /* ---------- Z12: Branding — app mark as a Settings option -----------------
+     Default / custom-logo / none, so the rail identity isn't hardcoded. A custom
+     logo is stored as a data: URL in localStorage (capped small — this is an icon,
+     not an asset host) so it survives reload with zero backend. */
+  var BRAND_MAX_BYTES = 200 * 1024; // ~200KB — plenty for an icon-sized logo, keeps localStorage sane
+  function getBranding() {
+    try { return JSON.parse(localStorage.getItem("studio-branding") || "null") || { mode: "default" }; }
+    catch (e) { return { mode: "default" }; }
+  }
+  function setBranding(b) {
+    try { localStorage.setItem("studio-branding", JSON.stringify(b)); } catch (e) {}
+    applyBranding();
+  }
+  function applyBranding() {
+    var b = getBranding();
+    var mark = document.querySelector(".rail-brand-mark");
+    if (!mark) return;
+    if (b.mode === "custom" && b.dataUrl) { mark.src = b.dataUrl; mark.style.display = ""; }
+    else if (b.mode === "none") { mark.style.display = "none"; }
+    else { mark.src = "favicon.svg"; mark.style.display = ""; }
+  }
+  window.__studioBranding = { get: getBranding, set: setBranding, apply: applyBranding }; // test hook
+
   // Z5 follow-up: export/import Settings as JSON — the keys below are app-wide
   // *preferences* (theme, mode, layout, connections), never dashboard content —
   // that's already covered by Save/Open. Lets a user carry their setup to another
@@ -3760,7 +3785,7 @@
   var SETTINGS_DATA_KEYS = [
     "studio-theme", "studio-simple-mode", "studio-connections", "studio-active-conn",
     "studio-lw", "studio-rw", "studio-collapse-library", "studio-collapse-inspector",
-    "studio-insp-collapsed", "studio-shell-section", "studio-shell-expanded"
+    "studio-insp-collapsed", "studio-shell-section", "studio-shell-expanded", "studio-branding"
   ];
   function exportSettingsFile() {
     var out = { _type: "studio-settings", _v: 1 };
@@ -3819,6 +3844,26 @@
               '<label class="set-sw"><input type="checkbox" data-set="' + t.id + '"' + (t.on() ? " checked" : "") + '/><span class="set-sw-track"></span></label></div>';
           }).join("") + '</div>';
       }).join("") +
+      (function () {
+        var b = getBranding(), mode = b.mode || "default";
+        return '<div class="settings-card"><h2>Branding</h2>' +
+          '<div class="set-row"><span class="set-row-ic" data-ic="upload"></span>' +
+            '<div class="set-row-txt"><b>App mark</b><small>Shown at the top of the left rail. Choose the default mark, a custom logo, or none.</small></div>' +
+            '<select id="brandModeSel" class="set-sel">' +
+              ['default', 'custom', 'none'].map(function (m) {
+                var lbl = m === "default" ? "Default" : m === "custom" ? "Custom logo" : "None";
+                return '<option value="' + m + '"' + (mode === m ? " selected" : "") + '>' + lbl + '</option>';
+              }).join("") +
+            '</select></div>' +
+          '<div class="set-row" id="brandUploadRow"' + (mode === "custom" ? "" : ' style="display:none"') + '>' +
+            '<span class="set-row-ic" data-ic="upload"></span>' +
+            '<div class="set-row-txt"><b>Custom logo</b><small>PNG/JPG/SVG, up to 200KB. Stored locally on this device.</small>' +
+              (mode === "custom" && b.dataUrl ? '<div class="brand-preview"><img src="' + esc(b.dataUrl) + '" alt="Custom logo preview" width="26" height="26"/></div>' : '') +
+            '</div>' +
+            '<input type="file" id="brandFileInp" accept="image/png,image/jpeg,image/svg+xml" style="display:none"/>' +
+            '<button type="button" class="btn" id="brandUploadBtn">Choose file…</button></div>' +
+        '</div>';
+      })() +
       '<div class="settings-card"><h2>Data</h2>' +
         '<div class="set-row"><span class="set-row-ic" data-ic="download"></span>' +
           '<div class="set-row-txt"><b>Export settings</b><small>Save theme, mode, connections &amp; layout preferences as a .json file.</small></div>' +
@@ -3837,6 +3882,23 @@
     });
     var expBtn = $("#setExportBtn", sec); if (expBtn) expBtn.onclick = exportSettingsFile;
     var impBtn = $("#setImportBtn", sec); if (impBtn) impBtn.onclick = importSettingsFile;
+    var brandSel = $("#brandModeSel", sec);
+    if (brandSel) brandSel.onchange = function () {
+      var mode = brandSel.value;
+      if (mode === "custom" && !getBranding().dataUrl) { var fi = $("#brandFileInp", sec); if (fi) { fi.click(); return; } }
+      setBranding({ mode: mode, dataUrl: mode === "custom" ? getBranding().dataUrl : undefined });
+      renderSettings();
+    };
+    var brandUploadBtn = $("#brandUploadBtn", sec);
+    var brandFileInp = $("#brandFileInp", sec);
+    if (brandUploadBtn && brandFileInp) brandUploadBtn.onclick = function () { brandFileInp.click(); };
+    if (brandFileInp) brandFileInp.onchange = function () {
+      var f = brandFileInp.files[0]; if (!f) return;
+      if (f.size > BRAND_MAX_BYTES) { toast("Logo too large — please use an image under 200KB.", true); return; }
+      var reader = new FileReader();
+      reader.onload = function (e) { setBranding({ mode: "custom", dataUrl: e.target.result }); renderSettings(); toast("Logo updated."); };
+      reader.readAsDataURL(f);
+    };
   }
   window.__studioRenderSettings = renderSettings; // test hook
 
@@ -4500,7 +4562,7 @@
         "studio-autosave", "studio-export-history", "studio-theme",
         "studio-lw", "studio-rw", "studio-collapse-library", "studio-collapse-inspector",
         "studio-connections", "studio-active-conn", "studio-mob-tab", "studio-simple-mode",
-        "studio-insp-collapsed", "studio-recents", "studio-pins"
+        "studio-insp-collapsed", "studio-recents", "studio-pins", "studio-branding"
       ];
       var msg = "Clear all locally-stored Studio data?\n\nThis will remove:\n" +
         "  • Unsaved spec draft (autosave)\n" +

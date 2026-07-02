@@ -502,6 +502,12 @@
   has no ESM build), New Source builder + DA inspector wiring (File URL + optional Table name + Query +
   Test connection & detect columns), Run-live in the Data preview, `exportCDA` now excludes both
   `duckdb`/`httpvfs` kinds from `.cda`. 13 new tests. Test suite 840/840.
+- v167: **Z12 complete: Branding as a Settings option** — new **Branding** card on the Settings page:
+  **Default** / **Custom logo** (upload PNG/JPG/SVG ≤200KB, stored as a `data:` URL in
+  `localStorage["studio-branding"]`) / **None**, applied live to the `.rail-brand-mark` at the top of the
+  left rail via `applyBranding()` (called at boot + on every change). Included in Settings export/import
+  and "Clear local data" so a custom logo travels with your other preferences. 9 new tests, including a
+  real `setInputFiles()` upload through the actual (hidden) file input. Test suite 849/849.
 
 ## NEXT (top = do first)
 
@@ -807,10 +813,10 @@ Design direction (best practice — the user wants it clean, not a redundant sin
   `site.webmanifest` + `theme-color`. Note: `apple-touch-icon` points at the SVG (no PNG rasterizer in this
   toolchain) — iOS home-screen icons may not render until a real PNG variant is generated; revisit if that
   matters in practice.
-- **Make branding a Settings option (Z5).** Still open — a small **Branding** area: choose the default mark,
-  upload a custom logo, or "none" — so identity isn't hardcoded and can flex in the future. Ties to the
-  Z5/Z6 style presets. Blocked on Z5 (Settings) having real content to host it in. Light-weight, no build
-  step; taste over cleverness.
+- ✓ **Make branding a Settings option — shipped v167.** A **Branding** card on the Settings page: Default /
+  Custom logo (upload, ≤200KB, stored locally) / None, applied live to the rail brand mark. **Z12 track
+  complete.** Still open for a future pass: tying this into the Z5/Z6 style-preset collections once those
+  exist, and generating a real PNG `apple-touch-icon` variant (noted above).
 
 **Z13 — Curated showcase examples: make them a COMPLETE, dazzling survey (user-requested 2026-06-30,
 expanded).** Done so far: replaced the 17 legacy v2 boards with 6 curated examples; gallery glow-up (real
