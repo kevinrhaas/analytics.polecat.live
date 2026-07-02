@@ -535,6 +535,19 @@
   left rail via `applyBranding()` (called at boot + on every change). Included in Settings export/import
   and "Clear local data" so a custom logo travels with your other preferences. 9 new tests, including a
   real `setInputFiles()` upload through the actual (hidden) file input. Test suite 849/849.
+- v172: **Z13 complete: multi-row sample-data mode + 11th example** — `Studio.sampleRows` gained an
+  opt-in multi-row-per-label mode (jittered rows per group instead of one point per label) that
+  `Studio.genMock` auto-applies to any DA feeding a boxplot/violin/ridgeline/beeswarm panel; new
+  "Incident Response & Reliability Distributions" example covers those 4 previously-uncovered chart
+  types. Gallery chart-type coverage now **51 of 51**. 4 new tests. Test suite 870/870.
+- v173: **Z14 track complete: distinct DuckDB/SQLite icons** — the two browser-native connector
+  cards get their own monoline glyphs (`app/icons.js`: `duckdb`, `sqlite`) instead of sharing the
+  generic `db` cylinder with every server-backed connector. 1 new test. Test suite 871/871.
+- v174: **Z2 follow-up: hover life on Home cards** — recent/quick-create cards get a warm glow +
+  lift on hover; fixed a flaky gauge percent-sign test. 2 new tests. Test suite 873/873.
+- v176: **Z6 naming model** — the topbar dashboard title is now a jump-to-inspector button (focuses
+  the Dashboard inspector's Title field, pre-selected) instead of a second, redundant inline editor
+  duplicating the inspector's own Title field. 3 new tests. Test suite 881/881.
 
 ## NEXT (top = do first)
 
@@ -709,12 +722,14 @@ both. Tie into the Z5 style-preset collections. **Also reconsider the ¶ Text bu
 on the Live-preview/canvas bar and reads as cluttered/odd there; fold "add text/annotation" into a cleaner
 add-element affordance (e.g. the **New / ＋** flow or an on-canvas insert), consistent with how panels are
 added, and unified with this header/text-object work.
-> **Naming model (relocate title editing).** Editing the dashboard name up in the **top bar** (`#dashTitle`)
-> now feels out of place with the app shell — move name editing into the **panel/inspector and/or Settings**,
-> not the topbar chip. Also separate the two names that are currently conflated: the **object/file name**
-> (the stem, e.g. `studio-cost`, used for exports/repository) vs the **dashboard display title** (e.g.
-> "Cost Optimization & Sustainability", shown in the header/banner) — they should be independently editable
-> fields. Coordinate with the Z1 top-bar cleanup and the Z3 Repository (where objects are named/organized).
+> ✓ **Naming model shipped v176**: `#dashTitle` in the topbar is no longer an inline text editor — it's a
+> button that jumps to the Dashboard inspector with the **Title** field focused/pre-selected (the topbar
+> still shows the live title with an edit-pencil affordance, staying in sync as you type). The two names
+> were already independently editable fields in the inspector (**Title** = display name in the header/
+> banner; **File name (stem)** = the lowercase-with-dashes name used for exports) — the actual fix here was
+> removing the redundant second editor in the topbar so renaming happens in exactly one place. 3 new tests.
+> Test suite 881/881. **Still open under Z6**: the header/banner editor itself (logo, colors, links, full
+> text formatting, default header presets) — the bigger half of Z6 — and the ¶ Text button placement.
 
 **Z7 — Analytics: forecasting + statistical functions.** Move toward standalone analytic apps: add
 forecasting (moving average, exponential smoothing / Holt-Winters, linear & seasonal trend) and

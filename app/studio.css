@@ -198,10 +198,15 @@ textarea:focus-visible,[tabindex]:focus-visible,.row-item:focus-visible{
 .brand-title{font-weight:800;font-size:15.5px;letter-spacing:.2px;line-height:1.1}
 .brand-sub{font-size:11px;color:#aebfdb;font-weight:500}
 .dash-id{display:flex;flex-direction:column;gap:2px;min-width:200px}
-.dash-title-input{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);color:#fff;
-  font-size:14px;font-weight:700;padding:6px 11px;border-radius:8px;outline:none;width:260px}
-.dash-title-input:focus{border-color:#7fb0ff;background:rgba(255,255,255,.14)}
-.dash-title-input::placeholder{color:#9fb1cf}
+/* Z6 naming model: the topbar no longer edits the title inline — it's a button that jumps
+   to the Dashboard inspector's Title field (the single source of truth for renaming). */
+.dash-title-btn{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.16);color:#fff;font:inherit;font-size:14px;font-weight:700;
+  padding:6px 11px;border-radius:8px;outline:none;width:260px;cursor:pointer;text-align:left}
+.dash-title-btn:hover,.dash-title-btn:focus-visible{border-color:#7fb0ff;background:rgba(255,255,255,.14)}
+.dash-title-txt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
+.dash-title-btn svg{opacity:.55;flex-shrink:0}
+.dash-title-btn:hover svg,.dash-title-btn:focus-visible svg{opacity:.9}
 .dash-meta{font-size:11px;color:#a9badd;padding-left:2px}
 .dash-meta code{color:#cfe0ff;background:rgba(255,255,255,.1);padding:1px 6px;border-radius:5px}
 .top-actions{display:flex;align-items:center;gap:8px}
@@ -553,7 +558,7 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
 @media(max-width:900px){
   #topbar{gap:10px;padding:0 12px;overflow:hidden}
   .brand-sub{display:none}
-  .dash-title-input{width:160px}
+  .dash-title-btn{width:160px}
   .dash-meta{display:none}
   .top-actions{gap:5px;flex-shrink:1;min-width:0;overflow:hidden}
   .brand{flex-shrink:0;min-width:0}

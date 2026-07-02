@@ -1122,6 +1122,30 @@ function serve() {
     ok("Z13 multi-row sample data: distribution DAs get >8 rows with real per-row spread (not one point per label)",
       Object.values(relShow.spread).every((s) => s.rowCount > 8 && s.distinctValues > 4), JSON.stringify(relShow.spread));
 
+    // ---- Z6 naming model: topbar title is a jump-to-inspector button, not an inline editor ----
+    console.log("\n• Z6: topbar title button opens the Dashboard inspector's Title field");
+    await page.evaluate(async () => { const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json()); window.__studioLoad(spec); });
+    await page.waitForTimeout(250);
+    const dashTitleInfo = await page.evaluate(() => {
+      const btn = document.getElementById("dashTitle");
+      return { tag: btn.tagName, text: btn.querySelector(".dash-title-txt").textContent, hasIcon: !!btn.querySelector("svg") };
+    });
+    ok("Z6: #dashTitle is a button (not a free-text input) showing the dashboard title", dashTitleInfo.tag === "BUTTON" && dashTitleInfo.text === "Cost Optimization & Sustainability" && dashTitleInfo.hasIcon, JSON.stringify(dashTitleInfo));
+    await page.click("#dashTitle");
+    await page.waitForTimeout(150);
+    const dashTitleClick = await page.evaluate(() => {
+      const f = document.getElementById("dashTitleField");
+      return { focused: document.activeElement && document.activeElement.id === "dashTitleField", fieldValue: f ? f.value : null, inspectorExpanded: !document.getElementById("inspector").classList.contains("collapsed") };
+    });
+    ok("Z6: clicking the topbar title opens the Dashboard inspector and focuses its Title field", dashTitleClick.focused && dashTitleClick.fieldValue === "Cost Optimization & Sustainability" && dashTitleClick.inspectorExpanded, JSON.stringify(dashTitleClick));
+    // renaming via the inspector's Title field still updates the topbar button + header live
+    await page.fill("#dashTitleField", "Renamed via inspector");
+    await page.waitForTimeout(150);
+    const renamedSync = await page.evaluate(() => document.getElementById("dashTitle").querySelector(".dash-title-txt").textContent);
+    ok("Z6: editing the Title field in the inspector updates the topbar button live", renamedSync === "Renamed via inspector", renamedSync);
+    await page.evaluate(async () => { const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json()); window.__studioLoad(spec); });
+    await page.waitForTimeout(200);
+
     // ---- builder dark mode (themes app + preview) ----
     console.log("\n• dark mode + export modal");
     await page.click("#btnTheme"); await page.waitForTimeout(250);

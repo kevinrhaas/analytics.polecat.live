@@ -1672,7 +1672,9 @@
     else issues.forEach(function (x) { vs.appendChild(iconNote(x.level === "error" ? "err" : x.level === "warn" ? "warn" : "info", x.level === "error" ? "close" : x.level === "warn" ? "warn" : "info", x.msg)); });
 
     var sec = section(body, "Dashboard", null, null, "builder");
-    sec.appendChild(field("Title", input(sp.title, function (v) { sp.title = v; syncHeader(); refreshPreview(); })));
+    var titleInput = input(sp.title, function (v) { sp.title = v; syncHeader(); refreshPreview(); });
+    titleInput.id = "dashTitleField"; // Z6: the topbar's "rename" button focuses this field
+    sec.appendChild(field("Title", titleInput));
     sec.appendChild(field("File name (stem)", input(sp.name, function (v) { sp.name = v.trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-"); syncHeader(); }, "lowercase-with-dashes → " + sp.name + ".html / .cda")));
     sec.appendChild(field("Subtitle", input(sp.subtitle, function (v) { sp.subtitle = v; refreshPreview(); })));
     var grpSel = select2(["Observability", "Governance & Privacy", "Storage & Cost", "Usage & People", "Data Integration", "Executive"], sp.group, function (v) { sp.group = v; syncHeader(); });
@@ -4431,7 +4433,15 @@
   }
 
   function wireTopbar() {
-    $("#dashTitle").addEventListener("input", function () { S.spec.title = this.value; syncHeader(); refreshPreview(); });
+    // Z6 naming model: the topbar title is now a jump-to-inspector button, not an inline
+    // editor — renaming happens in one place (the Dashboard inspector's Title field), so
+    // "what is this dashboard called" and "how do I rename it" aren't split across two UIs.
+    $("#dashTitle").addEventListener("click", function () {
+      selectDashboard();
+      collapsePane("inspector", false);
+      if (window.__studioMobTab) window.__studioMobTab("inspector");
+      setTimeout(function () { var f = $("#dashTitleField"); if (f) { f.focus(); f.select(); } }, 60);
+    });
     var uBtn = $("#btnUndo"); uBtn.onclick = undoAct; uBtn.textContent = ""; uBtn.appendChild(Studio.icon("undo", 16));
     var rBtn = $("#btnRedo"); rBtn.onclick = redoAct; rBtn.textContent = ""; rBtn.appendChild(Studio.icon("redo", 16));
     setIconBtn($("#btnAbout"), "info", "Tour");
@@ -4814,7 +4824,10 @@
   function closeMenus() { $$(".menu").forEach(function (m) { m.classList.remove("open", "phone-pos"); }); }
 
   function syncHeader() {
-    $("#dashTitle").value = S.spec.title; $("#dashName").textContent = S.spec.name; $("#dashGroup").textContent = S.spec.group;
+    var tb = $("#dashTitle");
+    tb.querySelector(".dash-title-txt").textContent = S.spec.title || "Untitled dashboard";
+    if (!tb.querySelector("svg")) tb.appendChild(Studio.icon("edit", 13));
+    $("#dashName").textContent = S.spec.name; $("#dashGroup").textContent = S.spec.group;
   }
 
   /* ---------- Pentaho server connections (Kettle slaveserver format) ---------- */
