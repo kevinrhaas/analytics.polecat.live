@@ -577,6 +577,11 @@
   to every other action is always on-screen instead of scrolling off-canvas. Fixed Repository
   data-source cards overflowing 17px past the phone viewport (missing `min-width:0` on a flex row
   blocked ellipsis truncation). 11 new tests, suite 906/906.
+- v184: **MOBILE (m-d)** — `#mobile-tabs` had `z-index:25` but no `position` set, so the z-index
+  never applied (no-op on static elements); the scrim (z-index:35, full-viewport when a drawer is
+  open) intercepted every tap on the tab bar, forcing two taps to switch Library→Inspector instead
+  of one. Fixed with `position:relative;z-index:37`. Confirmed panel touch ergonomics were already
+  correct from prior M3 work. 3 new tests, suite 909/909.
 
 ## NEXT (top = do first)
 
@@ -656,8 +661,17 @@
 > horizontal overflow** (17px past the viewport edge) — a flex row with no `min-width:0` blocked
 > `text-overflow:ellipsis` from ever kicking in on a long data-source id, forcing the whole
 > 100%-wide card wider than its column. 11 new regression checks. Test suite 906/906.
-> **(m-d) ← DO THIS NEXT:** Library/Inspector reachability + panel ergonomics on phone.
-> **(m-e)** "What's new"/changelog + help reachable; then a real-device pass with the user.
+> **(m-d) ✓ DONE (v184):** `#mobile-tabs` (Library·Canvas·Inspector) was styled `z-index:25` with
+> no explicit `position` set — z-index is a no-op on statically positioned elements, so it never
+> actually applied. `#mobile-scrim` (z-index:35, covers the full viewport whenever a drawer is
+> open) sat on top and intercepted every tap on the tab bar, silently turning a one-tap
+> Library→Inspector switch into two (dismiss, then re-tap) even though the tab-switch JS already
+> supported jumping directly between drawers. Fixed with `position:relative;z-index:37`. Panel
+> touch ergonomics (always-visible ⧉/×/zoom actions, 36-40px targets under `@media(pointer:coarse)`)
+> were already handled by prior M3 work and shared by the live preview — verified still correct,
+> no changes needed there. 3 new regression checks. Test suite 909/909.
+> **(m-e) ← DO THIS NEXT:** "What's new"/changelog + help reachable on mobile; then a real-device
+> pass with the user to confirm m-a through m-e together on an actual iPhone.
 > Keep the desktop experience untouched (scope changes to `≤900px` / touch). Update `docs` + STATUS each slice.
 
 ### ★ Z. Analytics App platform — the new north star (user-requested 2026-06-30; build across many iterations)

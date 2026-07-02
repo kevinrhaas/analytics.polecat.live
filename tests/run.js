@@ -11475,6 +11475,39 @@ function serve() {
     });
     ok("m-c: Repository data-source cards fit within the phone viewport (no horizontal overflow)",
       mcCardOverflow.count > 0 && mcCardOverflow.overflowing === 0, JSON.stringify(mcCardOverflow));
+
+    // ── m-d: mobile tab bar reachable while a drawer is open ──
+    // #mobile-tabs used to sit at z-index:25 with NO explicit `position`, so the z-index
+    // never even applied (z-index is a no-op on statically positioned elements) — the
+    // scrim (z-index:35, covers the full viewport) intercepted every tap on the tab bar
+    // once a drawer was open, silently turning a one-tap Library→Inspector switch into
+    // two taps (dismiss, then re-tap) even though the JS already supported jumping
+    // straight from one drawer to the other.
+    console.log("\n• m-d: mobile tab bar stays tappable while a drawer is open");
+    // the m-c card-overflow check above left mp2 on the Repository section, where
+    // #mobile-tabs (nested inside #appMain) is hidden — jump back to Studio first.
+    await mp2.click("#mobileNavBtn");
+    await mp2.waitForTimeout(300);
+    await mp2.click('#railNav .rail-item[data-sec="studio"]');
+    await mp2.waitForTimeout(350);
+    await mp2.evaluate(() => { document.querySelectorAll(".menu").forEach((m) => m.classList.remove("open")); });
+    await mp2.click('#mobile-tabs .mob-tab[data-mob-tab="library"]');
+    await mp2.waitForTimeout(300);
+    const mdLibOpen = await mp2.evaluate(() => document.getElementById("library").classList.contains("drawer-open"));
+    ok("m-d: Library tab opens the Library drawer", mdLibOpen === true);
+    await mp2.click('#mobile-tabs .mob-tab[data-mob-tab="inspector"]');
+    await mp2.waitForTimeout(300);
+    const mdDirectSwitch = await mp2.evaluate(() => ({
+      libClosed: !document.getElementById("library").classList.contains("drawer-open"),
+      inspOpen: document.getElementById("inspector").classList.contains("drawer-open"),
+    }));
+    ok("m-d: tapping Inspector while Library is open switches directly (no scrim-dismiss step needed)",
+      mdDirectSwitch.libClosed && mdDirectSwitch.inspOpen, JSON.stringify(mdDirectSwitch));
+    // scrim tap-to-close must still work (m-a behavior, unaffected by the z-index bump)
+    await mp2.click("#mobile-scrim", { position: { x: 20, y: 400 } });
+    await mp2.waitForTimeout(300);
+    const mdScrimStillCloses = await mp2.evaluate(() => !document.getElementById("inspector").classList.contains("drawer-open"));
+    ok("m-d: tapping the scrim still closes an open drawer (m-a behavior preserved)", mdScrimStillCloses === true);
     await mp2.close();
 
     // restore Studio + a clean flagship spec for any tests appended after this block
