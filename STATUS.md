@@ -476,6 +476,13 @@
   when `fmt === "pct"` and the unit is still the unmodified default. 1 new regression test drives the real
   inspector "Value format" select (not a standalone `PDC.gauge` call) so the fix in the panel-dispatch
   layer is actually exercised, not just the toolkit primitive. Test suite 829/829.
+- v162: **Z13 loose end: `tools/import-v2.py` no longer clobbers the curated gallery** — the 17 retired
+  v2 `cde-*` boards it converts from `reference/dashboards/*.cdfde` now write to a gitignored
+  `data/legacy-v2-boards/` instead of `data/examples/`, so re-running the importer can never resurrect
+  them into the curated gallery `index.json` reads from. Discovered (but deliberately did NOT fix in this
+  slice — needs its own careful pass) that `data/cda-catalog.json`/`data/sample-data.json` are
+  substantially stale vs. the current `reference/dashboards/*.cda` schema; see the Z13 NEXT note. No JS
+  changed; Python-only, verified by running the script. Test suite unaffected (829/829, unchanged).
 
 ## NEXT (top = do first)
 
@@ -838,8 +845,18 @@ NEXT — turn the examples into a **broad, complete survey of everything the app
   `node tools/export.js <spec> /tmp/x /public`, then the suite. NOTE on sample data: KPI/gauge queries are
   value-only (first column kept numeric); chart queries put a categorical **label column first**; name
   numeric columns to hit the right synthetic kind (`*_pct/rate/coverage/score`→0–100, `count/runs/rows`→counts).
-Loose end: `tools/import-v2.py` still regenerates the retired `cde-*` boards + overwrites `index.json` —
-update it so a regen doesn't clobber the curated gallery (repoint it at / make it additive to the set).
+> ✓ **`tools/import-v2.py` loose end fixed (v162)**: the 17 retired `cde-*` v2 boards it converts from
+> `reference/dashboards/*.cdfde` no longer regenerate into `data/examples/` (the curated gallery
+> `index.json` reads from) — they now write to a separate, gitignored `data/legacy-v2-boards/` for
+> inspection only. (It never actually wrote `index.json` itself — the original STATUS wording was
+> slightly imprecise — but resurrecting 17 unwanted files into the curated directory on every regen was
+> real repo-hygiene risk, now fixed.) **Follow-up discovered while fixing this, deliberately NOT done in
+> the same slice**: running the script showed `data/cda-catalog.json`/`data/sample-data.json` (the
+> committed, live-loaded Query Library data) are substantially stale vs. `reference/dashboards/*.cda` —
+> e.g. several storage-cost queries still reference a retired `entity_storage_demo` table instead of the
+> current `fact_entity_snapshot`/`dim_entity`/`dim_datasource` star schema, and at least one DA
+> (`app_src_chord`) is missing entirely. A full regen is a ~2500-line diff across the whole catalog that
+> needs its own careful review/test pass (not blindly regenerated here) — worth a dedicated future slice.
 > ✓ **Gauge double-percent defensive fix shipped v161**: `studio-render.js`'s gauge case now skips the
 > default Unit "%" when Value format is "pct" (`PDC.fmt.pct` already appends its own %), so a gauge left
 > at fmt:"pct" + the implicit default unit no longer reads "42.3%%". 1 new regression test drives the real

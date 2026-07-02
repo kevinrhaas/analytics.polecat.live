@@ -4,9 +4,19 @@
 Pure stdlib. Reads from the v2 content/dashboards dir and writes three outputs into
 the dashboard-studio project:
 
-  1. data/cda-catalog.json   — every *.cda parsed (connection + dataAccess defs + SQL + cols)
-  2. data/sample-data.json   — deterministic synthetic rows per dataAccess id (offline charts)
-  3. data/examples/<stem>.studio.json — each cde-*.cdfde board converted to a Studio spec
+  1. data/cda-catalog.json   — every *.cda parsed (connection + dataAccess defs + SQL + cols);
+                                 still fetched live by app/studio.js to populate the Query Library.
+  2. data/sample-data.json   — deterministic synthetic rows per dataAccess id (historical; the
+                                 live app now generates offline sample data at runtime via
+                                 app/sampledata.js instead, but this file is kept for inspection).
+  3. data/legacy-v2-boards/<stem>.studio.json — each cde-*.cdfde board converted to a Studio spec,
+                                 for reference/inspection only.
+
+NOTE: output (3) intentionally does NOT write into data/examples/ — that directory holds the
+hand-curated showcase gallery (data/examples/index.json is the manifest the app actually reads),
+and these 17 legacy v2 boards were retired from it in the v51 migration. Re-running this script
+must never resurrect them there; if you want to promote one back into the curated gallery, copy
+it in by hand and add it to index.json.
 
 Re-run to regenerate; output is deterministic (no randomness, no time).
 """
@@ -17,7 +27,9 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 PROJ = os.path.dirname(HERE)                       # repo root
 SRC  = os.path.join(PROJ, "reference", "dashboards")
 DATA = os.path.join(PROJ, "data")
-EXDIR = os.path.join(DATA, "examples")
+# Legacy v2 board conversions are NOT written into data/examples/ (the curated gallery) —
+# see the module docstring. Kept in a separate, gitignored directory for inspection only.
+LEGACY_EXDIR = os.path.join(DATA, "legacy-v2-boards")
 
 # ──────────────────────────────────────────────────────────────────────────────
 # 1. CDA catalog
@@ -393,7 +405,7 @@ def build_example(stem, catalog):
 
 def main():
     os.makedirs(DATA, exist_ok=True)
-    os.makedirs(EXDIR, exist_ok=True)
+    os.makedirs(LEGACY_EXDIR, exist_ok=True)
 
     catalog = build_catalog()
     with open(os.path.join(DATA, "cda-catalog.json"), "w", encoding="utf-8") as f:
@@ -409,7 +421,8 @@ def main():
         stem = os.path.splitext(os.path.basename(cdfde))[0]
         spec, skipped = build_example(stem, catalog)
         all_skipped_comps += skipped
-        out = os.path.join(EXDIR, stem + ".studio.json")
+        # legacy-only output — NOT data/examples/, see module docstring
+        out = os.path.join(LEGACY_EXDIR, stem + ".studio.json")
         with open(out, "w", encoding="utf-8") as f:
             json.dump(spec, f, indent=2, ensure_ascii=False)
         written.append((stem, len(spec["panels"])))
@@ -418,11 +431,11 @@ def main():
     json.load(open(os.path.join(DATA, "cda-catalog.json"), encoding="utf-8"))
     json.load(open(os.path.join(DATA, "sample-data.json"), encoding="utf-8"))
     for stem, _ in written:
-        json.load(open(os.path.join(EXDIR, stem + ".studio.json"), encoding="utf-8"))
+        json.load(open(os.path.join(LEGACY_EXDIR, stem + ".studio.json"), encoding="utf-8"))
 
     print("catalog stems:      %d" % len(catalog))
     print("sample-data keys:   %d" % len(sample))
-    print("example boards:     %d" % len(written))
+    print("legacy v2 boards:   %d  (data/legacy-v2-boards/, NOT the curated data/examples/ gallery)" % len(written))
     for stem, npanels in written:
         print("  %-26s panels=%d" % (stem, npanels))
     if SKIPPED_CDA:

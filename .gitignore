@@ -5,6 +5,7 @@ tests/package-lock.json
 
 __pycache__/
 *.pyc
+data/legacy-v2-boards/
 
 dist/
 node_modules/
