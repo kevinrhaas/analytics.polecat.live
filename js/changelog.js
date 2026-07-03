@@ -15,6 +15,17 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 254,
+    title: 'Z3 follow-up: filter Repository data sources by Group',
+    kind: 'feature',
+    ts: '2026-07-03T10:47:26Z',
+    items: [
+      'A "Group" filter chip strip above the Data sources grid on the Repository page, mirroring the Workbooks chips below it -- click a group to see only its sources, or All to see everything again.',
+      'Uses the "Group" field every data source already has (the same one that sections the Studio library pane) -- no new storage, just a browsable filter over data that already existed.',
+      '2 new tests, suite 1165/1165.',
+    ],
+  },
+  {
     v: 253,
     title: 'Z8 follow-up: the last four one-off setting hints (track complete)',
     kind: 'polish',

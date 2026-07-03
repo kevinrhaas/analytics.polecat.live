@@ -4410,6 +4410,7 @@
     try { localStorage.setItem(_LS_RECENTS, JSON.stringify(list)); } catch (e) {}
   }
   var _repoWbFilter = ""; // "" = All, "__unfiled" = no workbook, else a workbook id
+  var _repoDsFilter = ""; // "" = All, else a data-source "Group" (stem) name — see Z3 folders follow-up
   window.__studioWorkbooks = loadWorkbooks; // test hook
   window.__studioAddWorkbook = addWorkbook; // test hook
   window.__studioDeleteWorkbook = deleteWorkbook; // test hook
@@ -4455,9 +4456,22 @@
   function renderRepository() {
     var results = $("#repoResults"); if (!results) return;
     var q = (($("#repoSearch") || {}).value || "").toLowerCase();
+    // Z3 follow-up (folders/organization for data sources): every data source already carries
+    // a "Group" field (the same `stem` the Studio library pane sections by — see the "Group"
+    // field in dataSourceBuilder()). No new storage needed — just surface it as a filter chip
+    // strip here, mirroring the Workbooks chips below, so Repository lets you browse by folder
+    // instead of only free-text search.
+    var dsGroupCounts = {}, dsGroupOrder = [];
+    Object.keys(S.catalog || {}).sort().forEach(function (stem) {
+      var n = ((S.catalog[stem] || {}).dataAccesses || []).length;
+      if (!n) return;
+      dsGroupCounts[stem] = n; dsGroupOrder.push(stem);
+    });
+    if (_repoDsFilter && !dsGroupCounts[_repoDsFilter]) _repoDsFilter = "";
     var dsCards = [], totalDs = 0;
     Object.keys(S.catalog || {}).sort().forEach(function (stem) {
       var entry = S.catalog[stem];
+      if (_repoDsFilter && stem !== _repoDsFilter) return;
       (entry.dataAccesses || []).forEach(function (d) {
         totalDs++;
         var hay = (stem + " " + d.id + " " + (d.columns || []).join(" ")).toLowerCase();
@@ -4465,6 +4479,12 @@
         dsCards.push(repoDaCardHtml(stem, d));
       });
     });
+    var dsChipDefs = [{ id: "", name: "All", n: dsGroupOrder.reduce(function (s, k) { return s + dsGroupCounts[k]; }, 0) }]
+      .concat(dsGroupOrder.map(function (stem) { return { id: stem, name: stem, n: dsGroupCounts[stem] }; }));
+    var dsChipsHtml = dsGroupOrder.length > 1 ? '<div class="wb-chips ds-chips">' + dsChipDefs.map(function (c) {
+      return '<button type="button" class="wb-chip' + (_repoDsFilter === c.id ? " active" : "") + '" data-ds-filter="' + esc(c.id) + '">' +
+        '<span class="wb-chip-label">' + esc(c.name) + '</span> <span class="wb-chip-n">' + c.n + '</span></button>';
+    }).join("") + '</div>' : '';
     var list = loadRecents(), pins = loadPins(), workbooks = loadWorkbooks();
     var validWbIds = {}; workbooks.forEach(function (w) { validWbIds[w.id] = true; });
     var wbCounts = { all: list.length, unfiled: 0, byId: {} };
@@ -4499,13 +4519,17 @@
       '<button type="button" class="btn" id="wbAddBtn">+ Workbook</button></span></div>';
     results.innerHTML =
       '<h2 class="home-sub">Data sources <span class="repo-count">' + dsCards.length + ' of ' + totalDs + '</span></h2>' +
+      dsChipsHtml +
       (dsCards.length ? '<div class="repo-ds-grid">' + dsCards.join("") + '</div>'
-        : '<div class="home-empty-hint">' + (q ? "No data sources match “" + esc(q) + "”." : "No data sources yet.") + '</div>') +
+        : '<div class="home-empty-hint">' + (q ? "No data sources match “" + esc(q) + "”." : (_repoDsFilter ? "No data sources in this group yet." : "No data sources yet.")) + '</div>') +
       '<h2 class="home-sub repo-sub2">Dashboards <span class="repo-count">' + dashCards.length + ' of ' + filtered.length + '</span></h2>' +
       chipsHtml +
       (dashCards.length ? '<div class="home-recents">' + dashCards.join("") + '</div>'
         : '<div class="home-empty-hint">' + (q ? "No dashboards match “" + esc(q) + "”." : (_repoWbFilter ? "No dashboards in this workbook yet." : "No dashboards yet — build one in Studio and it will show up here.")) + '</div>');
-    $$(".wb-chip", results).forEach(function (btn) {
+    $$("[data-ds-filter]", results).forEach(function (btn) {
+      btn.onclick = function () { _repoDsFilter = btn.getAttribute("data-ds-filter"); renderRepository(); };
+    });
+    $$("[data-wb-filter]", results).forEach(function (btn) {
       btn.onclick = function () { _repoWbFilter = btn.getAttribute("data-wb-filter"); renderRepository(); };
     });
     // Z3 follow-up: rename a workbook via a hover-revealed ✎ button beside the ✕ delete —

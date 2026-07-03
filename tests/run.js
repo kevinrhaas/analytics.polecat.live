@@ -11553,6 +11553,31 @@ function serve() {
       z3Ds.expected > 0 && z3Ds.cardCount === z3Ds.expected && z3Ds.countLabel.indexOf(String(z3Ds.expected)) >= 0 && z3Ds.hasKindBadge,
       JSON.stringify(z3Ds));
 
+    // Z3 follow-up (folders/organization): a "Group" filter chip strip above the data-source
+    // grid, driven by the existing per-source `stem` field (no new storage) — mirrors the
+    // Workbooks chips below for dashboards.
+    const z3DsGroup = await page.evaluate(function () {
+      var catalog = window.__STUDIO_STATE.catalog || {};
+      var firstStem = Object.keys(catalog).sort().filter(function (s) { return (catalog[s].dataAccesses || []).length > 0; })[0];
+      var expected = (catalog[firstStem].dataAccesses || []).length;
+      var chip = document.querySelector('#repoResults [data-ds-filter="' + firstStem + '"]');
+      if (chip) chip.click();
+      var cards = [].slice.call(document.querySelectorAll("#repoResults .repo-ds-card"));
+      var allSameStem = cards.length > 0 && cards.every(function (c) {
+        var s = c.querySelector(".repo-ds-stem"); return s && s.textContent === firstStem;
+      });
+      var allChip = document.querySelector('#repoResults [data-ds-filter=""]');
+      if (allChip) allChip.click();
+      var cardsAfterReset = document.querySelectorAll("#repoResults .repo-ds-card").length;
+      var totalExpected = 0;
+      Object.keys(catalog).forEach(function (s) { totalExpected += (catalog[s].dataAccesses || []).length; });
+      return { firstStem: firstStem, expected: expected, cardCount: cards.length, allSameStem: allSameStem, cardsAfterReset: cardsAfterReset, totalExpected: totalExpected };
+    });
+    ok("Z3: a data-source Group chip filters the grid down to just that group",
+      z3DsGroup.expected > 0 && z3DsGroup.cardCount === z3DsGroup.expected && z3DsGroup.allSameStem, JSON.stringify(z3DsGroup));
+    ok("Z3: the 'All' chip resets the data-source grid back to every source",
+      z3DsGroup.cardsAfterReset === z3DsGroup.totalExpected, JSON.stringify(z3DsGroup));
+
     // Z3-2: dashboards section mirrors the same recents/pins Home already tracks
     const z3Dash = await page.evaluate(function () {
       var recents = window.__studioRecents() || [];

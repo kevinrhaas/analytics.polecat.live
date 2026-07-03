@@ -936,8 +936,14 @@ source library" and "dashboard inventory" ideas into one place.
 > moment it was edited again — now preserves `workbookId` across the rebuild. Travels with the existing
 > whole-repository JSON export/import; included in Clear local data. 7 new tests, suite 1134/1134.
 > ✓ **Workbook rename shipped v242**: a hover-revealed ✎ button on every workbook chip swaps its label
-> into an inline rename `<input>` (Enter/Escape). **Z3 follow-ups (not yet done):** folders/organization
-> for data sources.
+> into an inline rename `<input>` (Enter/Escape).
+> ✓ **Data-source Group filter shipped v254 (closes "folders/organization for data sources")**: every
+> data source already carries a "Group" field (the `stem` the Studio library pane sections by, set via
+> the "Group" input in the New/Edit Source builder) — no new storage needed. Repository now shows a
+> filter chip strip above the Data sources grid (`All` + one chip per group with a live count), mirroring
+> the Workbooks chip strip already below it for dashboards; clicking a chip narrows the grid to that
+> group. Chip strip only renders once there's more than one group (nothing to filter with just one). 2
+> new tests, suite 1165/1165. **Z3 follow-ups (not yet done):** none currently open.
 
 **Z14 — Browser-native, file-hosted SQL engines: DuckDB-Wasm + SQLite-WASM-HTTP (user-requested 2026-07-02).**
 > ★ **PRIORITY: build this connector track BEFORE the Z4 warehouse providers** (user-requested 2026-07-02).
