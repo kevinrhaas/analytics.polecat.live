@@ -1222,8 +1222,16 @@ self-explanatory. Keep it light (inline SVG / CSS, no image assets or deps). One
 > miscounted these two as already-done because `rotate` (a generic option shared by many bar-family
 > types) isn't actually type-specific. Every chart type now carries at least one real type-specific
 > option beyond fmt+height.
-> **Z8 follow-ups (not yet done):** the inline visual setting hints (tiny before/after thumbnails) for
-> the now-dense inspector remain open — the largest remaining piece of the original Z8 ask.
+> ✓ **Inline visual setting hints — first cut shipped v220.** A shared `OPT_HINTS` map in `studio.js`
+> (keyed by option `key` regex, not per chart type) attaches a small SVG glyph + tooltip next to a
+> bool-type option's checkbox in `optField()` — covers the **sort** family (sortBars/sortSlices/
+> sortStack/sorted — "Reorders items largest-value-first…"), **showLegend** ("Shows a small key
+> mapping…"), **smooth** ("Draws curved segments…"), and **showDots** ("Shows a marker dot at every
+> point…") in one pass, since those exact keys repeat across a dozen+ chart types from the earlier Z8
+> per-type slices. 4 new icons (`sort-desc`/`legend`/`curve`/`dots`) in `app/icons.js`. Docs updated.
+> 6 new tests, suite 1015/1015. **Z8 follow-ups (not yet done):** extend `OPT_HINTS` to the remaining
+> option families (showValues/showPct/rotate/etc.) and consider true before/after thumbnails (not just
+> a glyph+tooltip) for the least-obvious ones.
 
 **Z9 — Mobile: fix the broken flows + a proper bottom nav (user-requested 2026-06-30).**
 > ⚠️ **ESCALATED — see the ★★★ TOP PRIORITY — MOBILE block at the top of NEXT** (user re-reported 2026-07-02

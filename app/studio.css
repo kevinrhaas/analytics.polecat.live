@@ -529,6 +529,9 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
 .field .hint{font-size:10.5px;color:var(--faint);margin-top:3px}
 .check{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--ink);font-weight:600;cursor:pointer;margin-bottom:9px}
 .check input{width:15px;height:15px;accent-color:var(--pentaho)}
+/* Z8 follow-up: inline visual setting hint — small glyph after the label explaining a toggle */
+.opt-hint{display:inline-flex;align-items:center;color:var(--faint);opacity:.7;cursor:help;transition:opacity .12s,color .12s}
+.opt-hint:hover{opacity:1;color:var(--pentaho)}
 .row-item{display:flex;align-items:center;gap:9px;padding:7px 8px 7px 9px;border:1px solid var(--line);border-radius:8px;margin-bottom:6px;background:var(--pane);cursor:pointer}
 .row-item:hover{border-color:var(--pentaho)}
 .row-item.active{border-color:var(--pdc);box-shadow:0 0 0 3px color-mix(in srgb,var(--pdc) 16%,transparent)}

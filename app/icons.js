@@ -49,7 +49,14 @@
     // (no brand logos/colour — just a friendly nod: a rubber duck for DuckDB, a database
     // tucked inside a single file for SQLite's "it's just a file" model).
     duckdb:    '<circle cx="9.5" cy="14.5" r="6"/><circle cx="7.5" cy="7" r="4"/><path d="M4 6.3c-1.2-.4-2.4.1-2.8 1.1-.3.9.2 1.4 1 1.4.9 0 1.9-.6 2.4-1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="6.5" cy="6" r="0.5" fill="currentColor" stroke="none"/>',
-    sqlite:    '<path d="M6 2h8l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" stroke-linecap="round" stroke-linejoin="round"/><polyline points="14 2 14 7 19 7" stroke-linecap="round" stroke-linejoin="round"/><ellipse cx="11" cy="13.3" rx="4" ry="1.6"/><path d="M7 13.3v3.6a4 1.6 0 0 0 8 0v-3.6" stroke-linecap="round" stroke-linejoin="round"/>'
+    sqlite:    '<path d="M6 2h8l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" stroke-linecap="round" stroke-linejoin="round"/><polyline points="14 2 14 7 19 7" stroke-linecap="round" stroke-linejoin="round"/><ellipse cx="11" cy="13.3" rx="4" ry="1.6"/><path d="M7 13.3v3.6a4 1.6 0 0 0 8 0v-3.6" stroke-linecap="round" stroke-linejoin="round"/>',
+    // Z8 follow-up: tiny inline "what this toggle does" glyphs, shared by the OPT_HINTS map
+    // in studio.js — reused across every chart type that exposes the matching option key
+    // (sort/legend/smooth/dots families repeat across a dozen+ chart types).
+    "sort-desc": '<rect x="3" y="4" width="18" height="3.4" rx="1" fill="currentColor" stroke="none"/><rect x="3" y="10.3" width="12" height="3.4" rx="1" fill="currentColor" stroke="none"/><rect x="3" y="16.6" width="6" height="3.4" rx="1" fill="currentColor" stroke="none"/>',
+    legend:    '<rect x="3" y="6" width="4" height="4" rx="1" fill="currentColor" stroke="none"/><line x1="10" y1="8" x2="21" y2="8" stroke-linecap="round"/><rect x="3" y="15" width="4" height="4" rx="1" fill="currentColor" stroke="none"/><line x1="10" y1="17" x2="21" y2="17" stroke-linecap="round"/>',
+    curve:     '<path d="M2 16c3-8 7-8 10 0s7 8 10 0" stroke-linecap="round" stroke-linejoin="round"/>',
+    dots:      '<circle cx="5" cy="15" r="2" fill="currentColor" stroke="none"/><circle cx="12" cy="8" r="2" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="2" fill="currentColor" stroke="none"/>'
   };
 
   Studio.icon = function (name, size) {

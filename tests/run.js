@@ -11927,6 +11927,45 @@ function serve() {
     });
     ok("Z8GN: grouped bars / 100% stacked panel inspector shows the new option fields", z8gnInsp.ok, JSON.stringify(z8gnInsp));
 
+    // ---- Z8 follow-up: inline visual setting hints ----
+    console.log("\n• Z8 follow-up: inline visual setting hints");
+    var optHintUI = await page.evaluate(function () {
+      var spec = window.__STUDIO_STATE.spec;
+      var p = spec.panels[0];
+      var prevChart = JSON.parse(JSON.stringify(p.chart));
+      function hintsFor(type) {
+        p.chart.type = type; p.chart.opts = {};
+        window.__studioSelect({ kind: "panel", id: p.id });
+        var body = document.getElementById("inspBody");
+        return body ? [].slice.call(body.querySelectorAll(".opt-hint")) : [];
+      }
+      var barsHints = hintsFor("bars");
+      var barsSort = barsHints.filter(function (h) { return /largest-value/.test(h.title); });
+      var donutHints = hintsFor("donut");
+      var donutLegend = donutHints.filter(function (h) { return /key mapping/.test(h.title); });
+      var lineHints = hintsFor("line");
+      var lineSmooth = lineHints.filter(function (h) { return /curved/.test(h.title); });
+      var lineDots = lineHints.filter(function (h) { return /marker dot/.test(h.title); });
+      var result = {
+        barsHasSortHint: barsSort.length === 1,
+        donutHasLegendHint: donutLegend.length === 1,
+        lineHasSmoothHint: lineSmooth.length === 1,
+        lineHasDotsHint: lineDots.length === 1,
+        hintHasSvg: barsSort.length === 1 && !!barsSort[0].querySelector("svg"),
+        hintHasAriaLabel: barsSort.length === 1 && !!barsSort[0].getAttribute("aria-label")
+      };
+      p.chart = prevChart;
+      window.__studioSelect(null);
+      window.__studioRenderInspector();
+      return result;
+    });
+    ok("Bar chart's 'Sort by value' toggle carries a sort-glyph hint with a 'largest-value' tooltip", optHintUI.barsHasSortHint, JSON.stringify(optHintUI));
+    ok("Donut's 'Show legend' toggle carries a legend-glyph hint", optHintUI.donutHasLegendHint, JSON.stringify(optHintUI));
+    ok("Line's 'Smooth curve' toggle carries a curve-glyph hint", optHintUI.lineHasSmoothHint, JSON.stringify(optHintUI));
+    ok("Line's 'Show data points' toggle carries a dots-glyph hint", optHintUI.lineHasDotsHint, JSON.stringify(optHintUI));
+    ok("Setting hint renders an inline SVG icon", optHintUI.hintHasSvg, JSON.stringify(optHintUI));
+    ok("Setting hint is screen-reader accessible (aria-label)", optHintUI.hintHasAriaLabel, JSON.stringify(optHintUI));
+
     // ---- Track N: command palette (⌘K / Ctrl-K) ----
     console.log("\n• Track N: command palette (⌘K)");
     var cmdk = await page.evaluate(function () {

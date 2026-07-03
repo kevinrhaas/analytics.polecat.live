@@ -15,6 +15,16 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 220,
+    title: 'Inline visual hints for common chart-option toggles',
+    kind: 'polish',
+    ts: '2026-07-03T00:34:42Z',
+    items: [
+      'Sort by value, Show legend, Smooth curve, and Show data points toggles now carry a small glyph next to their label — hover it for a one-line plain-English explanation. These option keys repeat across a dozen-plus chart types, so one shared hint map covers most of the dense inspector at once.',
+      'First cut of the Z8 "inline visual setting hints" follow-up; more option families can be added to the same map over time.',
+    ],
+  },
+  {
     v: 219,
     title: 'Smart chart recommender',
     kind: 'feature',

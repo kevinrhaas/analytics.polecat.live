@@ -5559,8 +5559,31 @@
     return select2pairs((allowEmpty ? [["", "(none)"]] : []).concat(pairs), val || "", onChange);
   }
   function fmtPicker(val, onChange) { return select2pairs(Studio.FORMATS.map(function (f) { return [f.id, f.label]; }), val, onChange); }
+  // Z8 follow-up: inline visual setting hints — a tiny SVG glyph + tooltip next to a
+  // boolean option's label, so the dense per-type inspector is self-explanatory without
+  // reading a chart's own docs entry. Keyed by option `key` (regex) rather than per chart
+  // type: the sort/legend/smooth/dots option families repeat verbatim across a dozen+
+  // chart types (see Z8 slice log in STATUS.md), so one small map covers most of the
+  // dense inspector in one pass instead of hand-authoring 51 bespoke thumbnails.
+  var OPT_HINTS = [
+    { test: /^sort/i,                        icon: "sort-desc", tip: "Reorders items largest-value-first instead of the query's original row order." },
+    { test: /^showLegend$/,                  icon: "legend",    tip: "Shows a small key mapping each color/series to its label." },
+    { test: /^smooth$/,                      icon: "curve",     tip: "Draws curved (cubic-bezier) segments between points instead of straight lines." },
+    { test: /^showDots$/,                    icon: "dots",      tip: "Shows a small marker dot at every data point along the line." }
+  ];
+  function optHint(key) {
+    for (var i = 0; i < OPT_HINTS.length; i++) if (OPT_HINTS[i].test.test(key)) return OPT_HINTS[i];
+    return null;
+  }
   function optField(opts, od) {
-    if (od.type === "bool") { var lab = el("label", "check"); var cb = el("input"); cb.type = "checkbox"; cb.checked = !!opts[od.key]; cb.onchange = function () { opts[od.key] = cb.checked; refreshPreview(); }; lab.appendChild(cb); lab.appendChild(document.createTextNode(od.label)); return lab; }
+    if (od.type === "bool") {
+      var lab = el("label", "check"); var cb = el("input"); cb.type = "checkbox"; cb.checked = !!opts[od.key]; cb.onchange = function () { opts[od.key] = cb.checked; refreshPreview(); }; lab.appendChild(cb); lab.appendChild(document.createTextNode(od.label));
+      var oh = optHint(od.key);
+      if (oh) {
+        var hIc = el("span", "opt-hint"); hIc.title = oh.tip; hIc.setAttribute("aria-label", oh.tip); hIc.appendChild(Studio.icon(oh.icon, 12)); lab.appendChild(hIc);
+      }
+      return lab;
+    }
     if (od.type === "fmt") return field(od.label, fmtPicker(opts[od.key] || od.def, function (v) { opts[od.key] = v; refreshPreview(); }));
     if (od.type === "color") return field(od.label, select2(Studio.COLOR_TOKENS, opts[od.key] || od.def, function (v) { opts[od.key] = v; refreshPreview(); }));
     if (od.type === "select") return field(od.label, select2pairs(od.choices, opts[od.key] || od.def, function (v) { opts[od.key] = v; refreshPreview(); }));
