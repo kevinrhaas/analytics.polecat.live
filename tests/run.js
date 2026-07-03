@@ -11416,9 +11416,55 @@ function serve() {
     const defLogoInKeys = await page.evaluate(function () { return window.__studioImportSettingsKeys.indexOf("studio-default-logo") >= 0; });
     ok("Z6: default header logo is included in Settings export/import keys", defLogoInKeys, String(defLogoInKeys));
 
+    // ── Z6 follow-up: default header background color ──
+    console.log("\n• Z6 follow-up: default header background color");
+    await page.fill("#setDefaultHeaderBgCustom", "#331144");
+    await page.evaluate(function () { document.getElementById("setDefaultHeaderBgCustom").dispatchEvent(new Event("change")); });
+    await page.waitForTimeout(80);
+    const defHeaderBgSaved = await page.evaluate(function () {
+      return { bg: window.__studioDefaultHeaderBg(), hasClear: !!document.getElementById("setDefaultHeaderBgClearBtn") };
+    });
+    ok("Z6: setting a default header background color saves it and shows a Clear button",
+      defHeaderBgSaved.bg === "#331144" && defHeaderBgSaved.hasClear, JSON.stringify(defHeaderBgSaved));
+
+    await page.click('#railNav .rail-item[data-sec="studio"]'); await page.waitForTimeout(120);
+    await page.click("#btnNew"); await page.waitForTimeout(80);
+    await page.click('#menuNew button[data-new="blank"]'); await page.waitForTimeout(300);
+    const blankPicksUpHeaderBg = await page.evaluate(function () { return window.__STUDIO_STATE.spec.headerBg; });
+    ok("Z6: a brand-new blank dashboard picks up the Settings default header background color",
+      blankPicksUpHeaderBg === "#331144", String(blankPicksUpHeaderBg));
+
+    await page.click('#railNav .rail-item[data-sec="settings"]'); await page.waitForTimeout(120);
+    await page.fill("#spNameInp", "Acme");
+    await page.click("#spSaveBtn");
+    await page.waitForTimeout(80);
+    const spHeaderBgSaved = await page.evaluate(function () {
+      var list = window.__studioStylePresets();
+      return { bg: list[0] && list[0].headerBg };
+    });
+    ok("Z6: saving a preset captures the default header background color", spHeaderBgSaved.bg === "#331144", JSON.stringify(spHeaderBgSaved));
+
+    await page.click("#setDefaultHeaderBgClearBtn");
+    await page.waitForTimeout(80);
+    const defHeaderBgCleared = await page.evaluate(function () { return window.__studioDefaultHeaderBg(); });
+    ok("Z6: Clear removes the default header background color", defHeaderBgCleared === "", String(defHeaderBgCleared));
+
+    await page.click(".sp-apply");
+    await page.waitForTimeout(80);
+    const defHeaderBgApplied = await page.evaluate(function () { return window.__studioDefaultHeaderBg(); });
+    ok("Z6: Apply on a saved preset restores its header background color as the active default",
+      defHeaderBgApplied === "#331144", String(defHeaderBgApplied));
+
+    await page.click(".sp-del");
+    await page.waitForTimeout(80);
+
+    const defHeaderBgInKeys = await page.evaluate(function () { return window.__studioImportSettingsKeys.indexOf("studio-default-headerbg") >= 0; });
+    ok("Z6: default header background color is included in Settings export/import keys", defHeaderBgInKeys, String(defHeaderBgInKeys));
+
     await page.evaluate(function () {
       localStorage.removeItem("studio-default-subtitle"); localStorage.removeItem("studio-default-accent");
-      localStorage.removeItem("studio-default-logo"); localStorage.removeItem("studio-style-presets");
+      localStorage.removeItem("studio-default-logo"); localStorage.removeItem("studio-default-headerbg");
+      localStorage.removeItem("studio-style-presets");
       window.__studioRenderSettings();
     }); // restore defaults for later tests
 

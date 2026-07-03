@@ -15,6 +15,17 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 226,
+    title: 'Default header background color joins Style presets',
+    kind: 'feature',
+    ts: '2026-07-03T02:27:05Z',
+    items: [
+      'Settings > Dashboard defaults gains a Default header background color picker -- seeds every brand-new blank dashboard\'s banner fill, same field as the per-dashboard Header background color setting.',
+      'Style presets now snapshot header background color alongside subtitle, accent, and logo, so Apply restores the full house look in one click.',
+      'Included in Settings export/import and Clear local data, matching the other dashboard-default fields.',
+    ],
+  },
+  {
     v: 225,
     title: 'Header background color for the dashboard banner',
     kind: 'feature',

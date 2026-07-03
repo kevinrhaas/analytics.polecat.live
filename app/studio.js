@@ -4102,7 +4102,7 @@
     "studio-theme", "studio-app-theme", "studio-simple-mode", "studio-connections", "studio-active-conn",
     "studio-lw", "studio-rw", "studio-collapse-library", "studio-collapse-inspector",
     "studio-insp-collapsed", "studio-shell-section", "studio-shell-expanded", "studio-branding",
-    "studio-default-jndi", "studio-default-subtitle", "studio-default-accent", "studio-default-logo", "studio-style-presets"
+    "studio-default-jndi", "studio-default-subtitle", "studio-default-accent", "studio-default-logo", "studio-default-headerbg", "studio-style-presets"
   ];
   // Z5 follow-up: data-source defaults. Every new data source (dataSourceBuilder with no
   // `existing`) used to fall back to a hardcoded "PDC-BIDB-EXT" JNDI pool name; most teams
@@ -4128,6 +4128,14 @@
     return v || "";
   }
   function setDefaultAccentColor(v) { try { localStorage.setItem("studio-default-accent", v || ""); } catch (e) {} }
+  // Z6 follow-up: default header background color — same seeding pattern as subtitle/accent,
+  // for the per-dashboard "Header background color" field (flat banner fill, distinct from
+  // Accent color which only tints the border/chart accents).
+  function defaultHeaderBg() {
+    var v; try { v = localStorage.getItem("studio-default-headerbg"); } catch (e) {}
+    return v || "";
+  }
+  function setDefaultHeaderBg(v) { try { localStorage.setItem("studio-default-headerbg", v || ""); } catch (e) {} }
   // Z6 follow-up: default header logo — the last "still open" item under the style-preset
   // collection ask. Same data-URL-in-localStorage approach as per-dashboard headerLogo/app
   // Branding, just seeded onto brand-new blank dashboards like subtitle/accent already are.
@@ -4146,7 +4154,7 @@
   function saveStylePresetList(list) { try { localStorage.setItem("studio-style-presets", JSON.stringify(list)); } catch (e) {} }
   function addStylePreset(name) {
     var list = stylePresets();
-    list.push({ id: "sp" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name: name, subtitle: defaultSubtitle(), accentColor: defaultAccentColor(), logo: defaultLogo() });
+    list.push({ id: "sp" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name: name, subtitle: defaultSubtitle(), accentColor: defaultAccentColor(), logo: defaultLogo(), headerBg: defaultHeaderBg() });
     saveStylePresetList(list);
     return list;
   }
@@ -4154,7 +4162,7 @@
   function applyStylePreset(id) {
     var p = stylePresets().filter(function (x) { return x.id === id; })[0];
     if (!p) return false;
-    setDefaultSubtitle(p.subtitle || ""); setDefaultAccentColor(p.accentColor || ""); setDefaultLogo(p.logo || "");
+    setDefaultSubtitle(p.subtitle || ""); setDefaultAccentColor(p.accentColor || ""); setDefaultLogo(p.logo || ""); setDefaultHeaderBg(p.headerBg || "");
     return true;
   }
   window.__studioStylePresets = stylePresets; // test hook
@@ -4162,11 +4170,13 @@
     var sub = defaultSubtitle(); if (sub && !spec.subtitle) spec.subtitle = sub;
     var acc = defaultAccentColor(); if (acc) spec.themeColor = acc;
     var logo = defaultLogo(); if (logo && !spec.headerLogo) spec.headerLogo = logo;
+    var hbg = defaultHeaderBg(); if (hbg && !spec.headerBg) spec.headerBg = hbg;
     return spec;
   }
   window.__studioDefaultSubtitle = defaultSubtitle; // test hooks
   window.__studioDefaultAccentColor = defaultAccentColor;
   window.__studioDefaultLogo = defaultLogo;
+  window.__studioDefaultHeaderBg = defaultHeaderBg;
   function exportSettingsFile() {
     var out = { _type: "studio-settings", _v: 1 };
     SETTINGS_DATA_KEYS.forEach(function (k) {
@@ -4277,6 +4287,12 @@
           '<button type="button" class="btn" id="setDefaultLogoBtn">' + (defaultLogo() ? "Change…" : "Upload…") + '</button>' +
           (defaultLogo() ? '<button type="button" class="btn" id="setDefaultLogoClearBtn">Clear</button>' : '') +
         '</div>' +
+        '<div class="set-row"><span class="set-row-ic" data-ic="palette"></span>' +
+          '<div class="set-row-txt"><b>Default header background color</b><small>Seeds every new blank dashboard\'s Header background color field (flat banner fill, per-dashboard editable there). Blank keeps the standard navy gradient.</small></div>' +
+          '<div class="set-accent-presets">' +
+            '<input type="color" id="setDefaultHeaderBgCustom" title="Default header background color" value="' + esc(defaultHeaderBg() || "#102445") + '"/>' +
+            (defaultHeaderBg() ? '<button type="button" class="btn" id="setDefaultHeaderBgClearBtn">Clear</button>' : '') +
+          '</div></div>' +
         '<div class="set-row set-row-col"><span class="set-row-ic" data-ic="star"></span>' +
           '<div class="set-row-txt"><b>Style presets</b><small>Save the fields above as a named preset, then switch your team\'s active default with one click — handy for more than one house style (e.g. per client).</small></div>' +
           '<div class="sp-list" id="spList">' +
@@ -4331,6 +4347,10 @@
       reader.readAsDataURL(f);
     };
     if (defLogoClear) defLogoClear.onclick = function () { setDefaultLogo(""); renderSettings(); };
+    var defHeaderBgCustom = $("#setDefaultHeaderBgCustom", sec), defHeaderBgClear = $("#setDefaultHeaderBgClearBtn", sec);
+    if (defHeaderBgCustom) defHeaderBgCustom.oninput = function () { setDefaultHeaderBg(defHeaderBgCustom.value); };
+    if (defHeaderBgCustom) defHeaderBgCustom.onchange = function () { renderSettings(); toast("Default header background color saved"); };
+    if (defHeaderBgClear) defHeaderBgClear.onclick = function () { setDefaultHeaderBg(""); renderSettings(); };
     var spNameInp = $("#spNameInp", sec), spSaveBtn = $("#spSaveBtn", sec);
     if (spSaveBtn) spSaveBtn.onclick = function () {
       var name = (spNameInp.value || "").trim(); if (!name) { spNameInp.focus(); return; }
@@ -5070,7 +5090,7 @@
         "studio-connections", "studio-active-conn", "studio-mob-tab", "studio-simple-mode",
         "studio-insp-collapsed", "studio-recents", "studio-pins", "studio-branding",
         "studio-shell-section", "studio-shell-expanded",
-        "studio-default-jndi", "studio-default-subtitle", "studio-default-accent", "studio-default-logo", "studio-style-presets",
+        "studio-default-jndi", "studio-default-subtitle", "studio-default-accent", "studio-default-logo", "studio-default-headerbg", "studio-style-presets",
         "studio-cmdk-usage", "studio-first-export-done", "studio-export-count"
       ];
       var msg = "Clear all locally-stored Studio data?\n\nThis will remove:\n" +

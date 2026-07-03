@@ -1067,9 +1067,15 @@ added, and unified with this header/text-object work.
 > via the new `Studio.contrastFg(hex)` (WCAG relative luminance) so a light pick never goes white-on-white.
 > "Reset to default" restores the standard navy gradient. `spec.headerBg` follows the same
 > emptySpec/normalize/CSS-override pattern as `headerLogo`/`headerLink`/`themeColor`. 6 new tests, suite
-> 1030/1030. **Still open under Z6**: full text formatting for the banner (bold/italic/size beyond the
-> existing Title/Subtitle plain-text fields), and per-preset header background (style presets don't yet
-> snapshot it).
+> 1030/1030.
+> ✓ **Default header background color + per-preset snapshot shipped v226 (closes "per-preset header
+> background")**: Settings' Dashboard defaults card gains a **Default header background color** picker
+> (same field as the per-dashboard Header background color setting), seeded onto every brand-new blank
+> dashboard alongside subtitle/accent/logo. Style presets now snapshot it too, so Apply restores the full
+> house look — subtitle + accent + logo + header background — in one click. `studio-default-headerbg`
+> added to Settings export/import and Clear local data. 7 new tests, suite 1036/1036. **Still open under
+> Z6**: full text formatting for the banner (bold/italic/size beyond the existing Title/Subtitle
+> plain-text fields).
 
 **Z7 — Analytics: forecasting + statistical functions.** Move toward standalone analytic apps: add
 forecasting (moving average, exponential smoothing / Holt-Winters, linear & seasonal trend) and
