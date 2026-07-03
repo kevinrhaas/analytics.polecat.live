@@ -2137,6 +2137,17 @@ gets covered over time:
   edits to an already-shared dashboard (today it's always the full spec).
 - **Local version history & visual diff:** timeline of auto-saved spec snapshots with a side-by-side diff
   (beyond in-session undo) — "time travel" for a dashboard.
+> ✓ **First cut shipped v258 (closes the "version history" half, diff still open):** the Dashboard
+> inspector gains a **Version history** section (below Share this dashboard) — every explicit Save
+> (topbar Save, ⋯ More → Save spec, or Ctrl/⌘+S) pushes a timestamped checkpoint into
+> `localStorage["studio-versions"]`, keyed by dashboard id, newest-first, capped at 10 per dashboard.
+> Clicking an entry restores it (confirm first); the restore itself pushes a fresh checkpoint, so a
+> restore can be undone too — same convention as git checkout / Google Docs version history. Distinct
+> from in-session Undo/Redo (memory-only, lost on reload) and `studio-autosave` (one unsaved draft).
+> Version lists are pruned to only dashboards still tracked in `studio-recents` (reusing the existing
+> `noteRecent()` debounce) so history can't grow unbounded once a dashboard falls off Home/Repository.
+> Included in Clear local data. `docs/index.html` updated. 5 new tests, suite 1172/1172. **Still open:**
+> a side-by-side visual diff between two versions (today restore is all-or-nothing, no comparison view).
 
 **N-DESIGN — Make it unmistakably sexy.**
 - **Theme studio & gallery:** author/share custom themes (theme × light/dark, extends Z10); a few stunning

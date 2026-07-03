@@ -11918,6 +11918,67 @@ function serve() {
     ok("N-DIST: opening a #share= link boots straight into that exact dashboard and clears the hash",
       shareBootResult.title === "Shared Boot Test Dashboard" && shareBootResult.hash === "", JSON.stringify(shareBootResult));
 
+    // ── N-DIST follow-up: local version history ("time travel" for a dashboard) ──
+    console.log("\n• N-DIST follow-up: local version history");
+    const vhId = "vh-test-9f3";
+    await page.evaluate(function (id) {
+      // seed an "orphan" version entry for a dashboard id that is NOT in studio-recents,
+      // to prove pruneVersions() cleans it up once recents settle again.
+      var versions = {}; try { versions = JSON.parse(localStorage.getItem("studio-versions") || "{}"); } catch (e) {}
+      versions["vh-orphan-xyz"] = [{ ts: new Date().toISOString(), spec: { id: "vh-orphan-xyz", title: "Orphan" } }];
+      delete versions[id];
+      localStorage.setItem("studio-versions", JSON.stringify(versions));
+      window.__studioLoad({ id: id, name: id, title: "VH Original Title", panels: [], kpis: [], filters: [], cda: { connections: [], dataAccesses: [] } });
+    }, vhId);
+    await page.waitForTimeout(120);
+
+    const vhBasic = await page.evaluate(function (id) {
+      var before = (window.__studioVersions()[id] || []).length;
+      window.__studioSnapshotVersion(); // simulates hitting Save once
+      var afterOne = (window.__studioVersions()[id] || []).length;
+      window.__studioSnapshotVersion(); // simulates hitting Save a second time
+      var list = window.__studioVersions()[id] || [];
+      return { before: before, afterOne: afterOne, afterTwo: list.length, newestFirst: list.length === 2 && list[0].ts >= list[1].ts, hasSpec: !!(list[0] && list[0].spec && list[0].spec.title === "VH Original Title") };
+    }, vhId);
+    ok("N-DIST: snapshotVersion() appends a newest-first checkpoint to studio-versions keyed by dashboard id",
+      vhBasic.before === 0 && vhBasic.afterOne === 1 && vhBasic.afterTwo === 2 && vhBasic.newestFirst && vhBasic.hasSpec, JSON.stringify(vhBasic));
+
+    await page.evaluate(function () { window.__studioSelectDashboard(); });
+    await page.waitForTimeout(150);
+    const vhUI = await page.evaluate(function () {
+      var heading = Array.from(document.querySelectorAll("#inspBody h4")).find(function (h) { return /^Version history/.test(h.textContent); });
+      var rows = document.querySelectorAll("#inspBody .row-item .ri-icon");
+      var vhRows = Array.from(rows).filter(function (r) { return r.textContent.indexOf("↺") >= 0; });
+      return { hasHeading: !!heading, headingText: heading ? heading.textContent : "", rowCount: vhRows.length };
+    });
+    ok("N-DIST: Dashboard inspector shows a 'Version history (2)' section listing both checkpoints",
+      vhUI.hasHeading && /\(2\)/.test(vhUI.headingText) && vhUI.rowCount === 2, JSON.stringify(vhUI));
+
+    // Simulate an unsaved edit, then restore the earlier version — the edit should be
+    // discarded and a fresh checkpoint of the *restored* state appended (restoring is
+    // itself undoable, same "time travel" convention as Google Docs / git checkout).
+    page.once("dialog", (d) => d.accept());
+    const vhRestore = await page.evaluate(function (id) {
+      window.__STUDIO_STATE.spec.title = "An unsaved in-progress edit";
+      var target = window.__studioVersions()[id][1]; // the OLDER of the two identical snapshots
+      window.__studioRestoreVersion(target.ts);
+      return { titleAfterRestore: window.__STUDIO_STATE.spec.title, versionCountAfterRestore: (window.__studioVersions()[id] || []).length };
+    }, vhId);
+    ok("N-DIST: restoring a version discards the unsaved edit and replaces the working spec",
+      vhRestore.titleAfterRestore === "VH Original Title", JSON.stringify(vhRestore));
+    ok("N-DIST: restoring a version itself pushes a new checkpoint (a restore can be undone too)",
+      vhRestore.versionCountAfterRestore === 3, JSON.stringify(vhRestore));
+
+    // The debounced noteRecent() (fired ~800ms after any edit settles, via refreshPreview())
+    // prunes studio-versions down to only dashboards still tracked in studio-recents.
+    await page.waitForTimeout(900);
+    const vhPrune = await page.evaluate(function (id) {
+      var versions = window.__studioVersions();
+      return { orphanGone: !versions["vh-orphan-xyz"], targetKept: (versions[id] || []).length > 0 };
+    }, vhId);
+    ok("N-DIST: pruneVersions() removes version history for dashboards no longer in studio-recents, keeping the active one",
+      vhPrune.orphanGone && vhPrune.targetKept, JSON.stringify(vhPrune));
+
     // ── Z12: branding & app identity — de-dup the logo, add a favicon ──
     console.log("\n• Z12: branding & app identity");
     const z12Head = await page.evaluate(function () {

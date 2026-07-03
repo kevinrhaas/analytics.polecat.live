@@ -15,6 +15,18 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 258,
+    title: 'N-DIST: local version history for dashboards ("time travel")',
+    kind: 'feature',
+    ts: '2026-07-03T11:29:54Z',
+    items: [
+      'Every time you hit Save, a timestamped checkpoint of the whole dashboard is now kept in a new Version history section of the Dashboard inspector -- up to the last 10 per dashboard.',
+      'Click any entry to restore it -- your unsaved changes are replaced (after a confirm), and the restore itself becomes a new checkpoint, so a restore can be undone too.',
+      'Distinct from in-session Undo/Redo (lost on reload) and the single-draft autosave -- a real local timeline. Old dashboards no longer in Recents get their history cleaned up automatically.',
+      '5 new tests, suite 1172/1172.',
+    ],
+  },
+  {
     v: 257,
     title: 'Track L sweep: accessible names on row/chip remove buttons',
     kind: 'polish',

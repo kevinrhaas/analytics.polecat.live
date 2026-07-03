@@ -2133,6 +2133,23 @@
     };
     shSec.appendChild(shBtn);
 
+    // N-DIST follow-up: local version history — a timeline of checkpoints captured on every
+    // explicit Save (see snapshotVersion()), distinct from in-session undo (lost on reload)
+    // and studio-autosave (a single draft). Click a version to restore it as "time travel."
+    var vhList = (loadVersions()[sp.id] || []);
+    var vhSec = section(body, "Version history" + (vhList.length ? " (" + vhList.length + ")" : ""), null, null, "exporting");
+    if (!vhList.length) {
+      vhSec.appendChild(hint("Every time you Save, a restorable checkpoint of this dashboard is kept here (last 10)."));
+    } else {
+      vhList.forEach(function (v) {
+        var when = new Date(v.ts).toLocaleString();
+        var vp = v.spec || {};
+        var vDetail = (vp.panels || []).length + " panel" + ((vp.panels || []).length === 1 ? "" : "s") +
+          ((vp.kpis || []).length ? " · " + (vp.kpis || []).length + " KPI" + ((vp.kpis || []).length === 1 ? "" : "s") : "");
+        vhSec.appendChild(rowItem("↺", when, vDetail, function () { restoreVersion(v.ts); }, [], false));
+      });
+    }
+
     // CDA Connections
     sp.cda.connections = sp.cda.connections || [];
     var conns = sp.cda.connections;
@@ -4293,6 +4310,7 @@
     });
     list = capped;
     try { localStorage.setItem(_LS_RECENTS, JSON.stringify(list)); } catch (e) { /* quota or private-mode */ }
+    pruneVersions(list.map(function (r) { return r.id; }));
     renderHome();
     renderRepository();
   }
@@ -4301,6 +4319,42 @@
     if (!r) return;
     S.spec = normalize(r.spec); S.selection = null; syncHeader(); renderInspector(); refreshPreview(); buildLibrary();
     if (window.__studioShellSetSection) window.__studioShellSetSection("studio");
+  }
+
+  /* ---------- N-DIST: local version history ("time travel" for a dashboard) ----------
+     A lightweight checkpoint list, distinct from in-session undo (memory-only, lost on
+     reload) and from studio-autosave (a single unsaved draft). Every explicit Save (the
+     download-a-.studio.json action) pushes a snapshot into studio-versions, keyed by
+     dashboard id, newest-first, capped at 10 per dashboard. Version lists are pruned to
+     only dashboards still tracked in studio-recents so this can't grow unbounded once a
+     dashboard falls off Home/Repository. */
+  var _LS_VERSIONS = "studio-versions";
+  function loadVersions() { try { return JSON.parse(localStorage.getItem(_LS_VERSIONS) || "{}"); } catch (e) { return {}; } }
+  function saveVersions(v) { try { localStorage.setItem(_LS_VERSIONS, JSON.stringify(v)); } catch (e) { /* quota or private-mode */ } }
+  function snapshotVersion() {
+    if (!S.spec || !S.spec.id) return;
+    var versions = loadVersions();
+    var list = versions[S.spec.id] || [];
+    list.unshift({ ts: new Date().toISOString(), spec: Studio.clone(S.spec) });
+    if (list.length > 10) list = list.slice(0, 10);
+    versions[S.spec.id] = list;
+    saveVersions(versions);
+  }
+  function pruneVersions(keepIds) {
+    var versions = loadVersions(), changed = false;
+    Object.keys(versions).forEach(function (id) { if (keepIds.indexOf(id) < 0) { delete versions[id]; changed = true; } });
+    if (changed) saveVersions(versions);
+  }
+  function restoreVersion(vTs) {
+    if (!S.spec || !S.spec.id) return;
+    var list = loadVersions()[S.spec.id] || [];
+    var v = list.filter(function (x) { return x.ts === vTs; })[0];
+    if (!v) return;
+    if (!confirm("Restore this version from " + new Date(v.ts).toLocaleString() + "?\n\nYour current unsaved changes on the canvas will be replaced (this itself becomes a new restorable version).")) return;
+    S.spec = normalize(Studio.clone(v.spec));
+    S.selection = null; syncHeader(); renderInspector(); refreshPreview(); buildLibrary();
+    snapshotVersion(); // the restored state is itself a checkpoint, so a restore can be undone too
+    toast("Version restored");
   }
   // Shared markup for one recents/pinned card. Uses a big invisible "open" button
   // covering the whole card (not the card element itself) so the small pin toggle can
@@ -4395,6 +4449,9 @@
   window.__studioOpenRecent = openRecent; // test hook
   window.__studioPins = loadPins; // test hook
   window.__studioTogglePin = togglePin; // test hook
+  window.__studioVersions = loadVersions; // test hook
+  window.__studioSnapshotVersion = snapshotVersion; // test hook
+  window.__studioRestoreVersion = restoreVersion; // test hook
 
   /* ---------- Z3 follow-up: Workbooks — named collections of dashboards -------------------
      The north star describes a "workbook" as a named collection of dashboards; until now
@@ -5723,7 +5780,7 @@
     loadExportHistory(); renderExportHistory();
 
     $("#btnImport").onclick = openSpecFile;
-    $("#btnSaveSpec").onclick = function () { clearAutosave(); download(S.spec.name + ".studio.json", JSON.stringify(S.spec, null, 2), "application/json"); };
+    $("#btnSaveSpec").onclick = function () { clearAutosave(); snapshotVersion(); download(S.spec.name + ".studio.json", JSON.stringify(S.spec, null, 2), "application/json"); };
     $("#btnLive").onclick = toggleLive;
     $("#btnConn").onclick = connModal;
 
@@ -5807,6 +5864,7 @@
     if (moreSaveSpec) moreSaveSpec.onclick = function () {
       closeMenus();
       clearAutosave();
+      snapshotVersion();
       download(S.spec.name + ".studio.json", JSON.stringify(S.spec, null, 2), "application/json");
     };
 
@@ -5824,7 +5882,7 @@
         "studio-autosave", "studio-export-history", "studio-theme", "studio-app-theme",
         "studio-lw", "studio-rw", "studio-collapse-library", "studio-collapse-inspector",
         "studio-connections", "studio-active-conn", "studio-mob-tab", "studio-simple-mode",
-        "studio-insp-collapsed", "studio-recents", "studio-pins", "studio-workbooks", "studio-branding",
+        "studio-insp-collapsed", "studio-recents", "studio-pins", "studio-workbooks", "studio-branding", "studio-versions",
         "studio-shell-section", "studio-shell-expanded",
         "studio-default-jndi", "studio-default-subtitle", "studio-default-accent", "studio-default-logo", "studio-default-headerbg",
         "studio-default-titlesize", "studio-default-subtitlestyle", "studio-style-presets",
