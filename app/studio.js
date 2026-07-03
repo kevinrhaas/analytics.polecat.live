@@ -4590,7 +4590,7 @@
       btn.onclick = function () {
         var act = btn.getAttribute("data-home");
         if (window.__studioShellSetSection) window.__studioShellSetSection("studio");
-        if (act === "blank") { S.spec = applyDashboardDefaults(Studio.emptySpec()); S.selection = null; syncHeader(); renderInspector(); refreshPreview(); buildLibrary(); }
+        if (act === "blank") { S.spec = applyDashboardDefaults(Studio.emptySpec()); S.selection = null; syncHeader(); renderInspector(); refreshPreview(); buildLibrary(); bumpDashMilestone(); }
         else if (act === "examples") { setTimeout(function () { var b = $("#btnExamples"); if (b) b.click(); }, 60); }
         else if (act === "tour") { setTimeout(function () { if (window.StudioTutorial) StudioTutorial.open(); }, 60); }
       };
@@ -5867,7 +5867,7 @@
       b.onclick = function () {
         var action = b.getAttribute("data-new");
         if (action === "blank") {
-          S.spec = applyDashboardDefaults(Studio.emptySpec()); S.selection = null; syncHeader(); renderInspector(); refreshPreview();
+          S.spec = applyDashboardDefaults(Studio.emptySpec()); S.selection = null; syncHeader(); renderInspector(); refreshPreview(); bumpDashMilestone();
         } else if (action === "dup") {
           // Duplicate the current dashboard: clone the spec, assign a new unique ID,
           // append " (copy)" to the title, and append "-copy" to the file name stem.
@@ -6086,7 +6086,7 @@
         "studio-shell-section", "studio-shell-expanded",
         "studio-default-jndi", "studio-default-subtitle", "studio-default-accent", "studio-default-logo", "studio-default-headerbg",
         "studio-default-titlesize", "studio-default-subtitlestyle", "studio-style-presets",
-        "studio-cmdk-usage", "studio-first-export-done", "studio-export-count",
+        "studio-cmdk-usage", "studio-first-export-done", "studio-export-count", "studio-dash-count",
         "studio-deploy-path", "studio-live-data"
       ];
       var msg = "Clear all locally-stored Studio data?\n\nThis will remove:\n" +
@@ -6385,6 +6385,16 @@
     var n = 0;
     try { n = (parseInt(localStorage.getItem("studio-export-count"), 10) || 0) + 1; localStorage.setItem("studio-export-count", String(n)); } catch (e) { return; }
     if (EXPORT_MILESTONES[n]) { toast(EXPORT_MILESTONES[n] + " Keep it up."); sparkBurst(); }
+  }
+  // N-FUN: another "more milestone moments" slice — celebrate round totals of brand-new blank
+  // dashboards started (Home's Blank quick-create card + New ▾ → Blank dashboard; NOT Open/Import/
+  // examples/Duplicate, which pick up someone else's spec rather than starting fresh). Same running-
+  // counter + spark-burst convention as the export milestones above.
+  var DASH_MILESTONES = { 5: "5 dashboards built!", 10: "10 dashboards — a real portfolio.", 25: "25 dashboards. You're a Studio power user.", 50: "50 dashboards. Incredible pace." };
+  function bumpDashMilestone() {
+    var n = 0;
+    try { n = (parseInt(localStorage.getItem("studio-dash-count"), 10) || 0) + 1; localStorage.setItem("studio-dash-count", String(n)); } catch (e) { return; }
+    if (DASH_MILESTONES[n]) { toast(DASH_MILESTONES[n]); sparkBurst(); }
   }
 
   function doExport(kind) {

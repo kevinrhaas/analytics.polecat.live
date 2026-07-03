@@ -2212,6 +2212,13 @@ gets covered over time:
 > round totals (10/25/50/100/250) with a toast + the same spark burst as the first-export moment —
 > `sparkBurst()` extracted as a shared helper so both moments reuse one implementation. Non-milestone
 > exports stay silent. Included in Clear local data. 3 new tests, suite 1024/1024.
+> ✓ **Dashboards-created milestone toasts shipped v278** (second "more milestone moments" slice): a
+> running `studio-dash-count` celebrates round totals (5/10/25/50) of brand-new **blank** dashboards
+> started — Home's Blank quick-create card and New ▾ → Blank dashboard, the two call sites that both
+> already funnel through `applyDashboardDefaults(Studio.emptySpec())`. Deliberately scoped to just those
+> two: Open/Import/Examples/Duplicate all pick up an existing spec rather than starting fresh, so they
+> don't count. Same `sparkBurst()` + toast convention as the export milestones. Included in Clear local
+> data. 3 new tests, suite 1240/1240.
 
 **N-DATA — Analytical depth (toward standalone analytic apps).**
 - **Cross-filter / brushing everywhere:** click or brush any chart to filter the whole dashboard, with a

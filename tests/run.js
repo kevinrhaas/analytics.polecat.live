@@ -4010,6 +4010,33 @@ function serve() {
     await page.evaluate(() => { document.querySelectorAll(".modal-ov").forEach(m => m.remove()); localStorage.removeItem("studio-export-count"); });
     ok("N-FUN: a non-milestone export (11th) does not re-celebrate", milestone2.count === "11" && milestone2.newSparkHosts === 0, JSON.stringify(milestone2));
 
+    // ---- N-FUN: dashboards-created milestone toast (5th/10th/... blank dashboard started) ----
+    console.log("\n• N-FUN: dashboards-created milestone toast");
+    const dashMilestone1 = await page.evaluate(() => {
+      localStorage.setItem("studio-dash-count", "4"); // next blank dashboard is the 5th
+      const before = document.querySelectorAll(".spark-host").length;
+      document.getElementById("btnNew").click();
+      const btn = document.querySelector('#menuNew button[data-new="blank"]');
+      if (btn) btn.click();
+      return {
+        count: localStorage.getItem("studio-dash-count"),
+        toastText: (document.getElementById("toast") || {}).textContent || "",
+        newSparkHosts: document.querySelectorAll(".spark-host").length - before
+      };
+    });
+    ok("N-FUN: starting a blank dashboard bumps studio-dash-count", dashMilestone1.count === "5", JSON.stringify(dashMilestone1));
+    ok("N-FUN: the 5th blank dashboard shows a '5 dashboards' milestone toast + spark burst", /5 dashboards/i.test(dashMilestone1.toastText) && dashMilestone1.newSparkHosts === 1, JSON.stringify(dashMilestone1));
+
+    const dashMilestone2 = await page.evaluate(() => {
+      const before = document.querySelectorAll(".spark-host").length;
+      document.getElementById("btnNew").click();
+      const btn = document.querySelector('#menuNew button[data-new="blank"]');
+      if (btn) btn.click(); // 6th blank dashboard — not a milestone
+      return { count: localStorage.getItem("studio-dash-count"), newSparkHosts: document.querySelectorAll(".spark-host").length - before };
+    });
+    await page.evaluate(() => { localStorage.removeItem("studio-dash-count"); });
+    ok("N-FUN: a non-milestone blank dashboard (6th) does not re-celebrate", dashMilestone2.count === "6" && dashMilestone2.newSparkHosts === 0, JSON.stringify(dashMilestone2));
+
     // screenshot for the record
     await page.screenshot({ path: path.join(__dirname, "flagship.png"), fullPage: false });
     console.log("\n  (screenshot → tests/flagship.png)");

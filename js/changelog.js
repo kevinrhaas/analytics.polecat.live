@@ -15,6 +15,17 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 278,
+    title: 'N-FUN: dashboards-created milestone toasts',
+    kind: 'polish',
+    ts: '2026-07-03T18:58:19Z',
+    items: [
+      'Starting your 5th / 10th / 25th / 50th brand-new blank dashboard (Home\'s Blank quick-create card, or New > Blank dashboard) now gets the same celebratory toast + spark burst the export-count milestones already have.',
+      'Only counts truly-new blank dashboards -- Open, Import, Examples, and Duplicate all pick up someone else\'s spec rather than starting fresh, so they don\'t bump the counter.',
+      '3 new tests, suite 1240/1240.',
+    ],
+  },
+  {
     v: 277,
     title: 'N-DESIGN: chart cards lift on hover, matching KPI tiles',
     kind: 'polish',
