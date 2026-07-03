@@ -507,6 +507,23 @@ function serve() {
     ok("Z14 slice 4: SQLite source-type card carries a 'Browser-only' badge", connectorBadges.sqlite === true, JSON.stringify(connectorBadges));
     ok("Z14 slice 4: Pentaho-backed source cards (SQL/MDX) do NOT carry the badge", connectorBadges.sql === false && connectorBadges.mdx === false, JSON.stringify(connectorBadges));
 
+    // Z4 follow-up: connector-gallery brand treatment — each third-party provider's icon gets
+    // its own real brand color instead of the app's uniform --pentaho blue.
+    const connectorAccents = await page.evaluate(() => {
+      const m = document.querySelector(".modal .dsb"); if (!m) return { err: "modal missing" };
+      const colorFor = (label) => {
+        const card = [].slice.call(m.querySelectorAll(".dsb-type")).find((c) => c.textContent.includes(label));
+        const ic = card && card.querySelector(".ic");
+        return ic ? ic.style.color : null;
+      };
+      return { snowflake: colorFor("Snowflake"), duckdb: colorFor("DuckDB"), sql: colorFor("SQL") };
+    });
+    ok("Z4: third-party connector icons (Snowflake/DuckDB) carry a distinct inline brand color",
+      !!connectorAccents.snowflake && !!connectorAccents.duckdb && connectorAccents.snowflake !== connectorAccents.duckdb,
+      JSON.stringify(connectorAccents));
+    ok("Z4: native Pentaho access types (SQL) keep the app's own accent, not an inline brand color",
+      !connectorAccents.sql, JSON.stringify(connectorAccents));
+
     // ---- Z14 slice 4 (finish): DuckDB/SQLite get distinct icons instead of the generic "db" cylinder ----
     const connectorIcons = await page.evaluate(() => ({
       duckdbPath: Studio._iconPaths.duckdb, sqlitePath: Studio._iconPaths.sqlite,

@@ -713,12 +713,12 @@
     { kind: "kettle", iconName: "gear", name: "Kettle / PDI", desc: "A .ktr transformation step as a data source", ph: "/public/etl/my-transform.ktr   (step: Output)" },
     { kind: "mql", iconName: "metadata", name: "Metadata", desc: "Pentaho Metadata (MQL) query", ph: "<mql>…</mql>" },
     { kind: "scripting", iconName: "code", name: "Scripting", desc: "Scripted (Kettle/Beanshell) data access", ph: "// return rows…" },
-    { kind: "duckdb", iconName: "duckdb", name: "DuckDB (remote file)", desc: "Query a Parquet/CSV file straight from S3/HTTP — no backend, no proxy", badge: "Browser-only", ph: "SELECT * FROM t\nLIMIT  200   -- t = your file, queried in-browser via DuckDB-Wasm" },
-    { kind: "httpvfs", iconName: "sqlite", name: "SQLite (remote .sqlite)", desc: "Query a .sqlite file over HTTP Range Requests — indexed lookups, no backend", badge: "Browser-only", ph: "SELECT * FROM my_table\nLIMIT  200" },
-    { kind: "snowflake", iconName: "snowflake", name: "Snowflake", desc: "Query a Snowflake warehouse via the SQL API — needs a token + CORS allow-listed origin", badge: "Needs token", ph: "SELECT region,\n       SUM(revenue) AS revenue\nFROM   sales\nGROUP  BY region" },
-    { kind: "databricks", iconName: "databricks", name: "Databricks", desc: "Query a SQL warehouse via the Statement Execution API — needs a token + CORS allow-listed origin", badge: "Needs token", ph: "SELECT region,\n       SUM(revenue) AS revenue\nFROM   sales\nGROUP  BY region" },
-    { kind: "bigquery", iconName: "bigquery", name: "BigQuery", desc: "Query a dataset via the jobs.query REST API — needs a Google OAuth access token", badge: "Needs token", ph: "SELECT region,\n       SUM(revenue) AS revenue\nFROM   `dataset.sales`\nGROUP  BY region" },
-    { kind: "http", iconName: "globe", name: "Generic SQL/HTTP", desc: "POST/GET a JSON API that runs SQL and returns rows — any in-house query service or provider not listed above", badge: "Needs endpoint", ph: "SELECT region,\n       SUM(revenue) AS revenue\nFROM   sales\nGROUP  BY region" }
+    { kind: "duckdb", iconName: "duckdb", name: "DuckDB (remote file)", desc: "Query a Parquet/CSV file straight from S3/HTTP — no backend, no proxy", badge: "Browser-only", accent: "#FFDE00", ph: "SELECT * FROM t\nLIMIT  200   -- t = your file, queried in-browser via DuckDB-Wasm" },
+    { kind: "httpvfs", iconName: "sqlite", name: "SQLite (remote .sqlite)", desc: "Query a .sqlite file over HTTP Range Requests — indexed lookups, no backend", badge: "Browser-only", accent: "#0F80CC", ph: "SELECT * FROM my_table\nLIMIT  200" },
+    { kind: "snowflake", iconName: "snowflake", name: "Snowflake", desc: "Query a Snowflake warehouse via the SQL API — needs a token + CORS allow-listed origin", badge: "Needs token", accent: "#29B5E8", ph: "SELECT region,\n       SUM(revenue) AS revenue\nFROM   sales\nGROUP  BY region" },
+    { kind: "databricks", iconName: "databricks", name: "Databricks", desc: "Query a SQL warehouse via the Statement Execution API — needs a token + CORS allow-listed origin", badge: "Needs token", accent: "#FF3621", ph: "SELECT region,\n       SUM(revenue) AS revenue\nFROM   sales\nGROUP  BY region" },
+    { kind: "bigquery", iconName: "bigquery", name: "BigQuery", desc: "Query a dataset via the jobs.query REST API — needs a Google OAuth access token", badge: "Needs token", accent: "#4285F4", ph: "SELECT region,\n       SUM(revenue) AS revenue\nFROM   `dataset.sales`\nGROUP  BY region" },
+    { kind: "http", iconName: "globe", name: "Generic SQL/HTTP", desc: "POST/GET a JSON API that runs SQL and returns rows — any in-house query service or provider not listed above", badge: "Needs endpoint", accent: "#6b7688", ph: "SELECT region,\n       SUM(revenue) AS revenue\nFROM   sales\nGROUP  BY region" }
   ];
   function dsType(k) { return DS_TYPES.filter(function (t) { return t.kind === k; })[0] || DS_TYPES[0]; }
   // shared by the data-source builder draft and the DA inspector (both store the same sf* keys)
@@ -762,6 +762,13 @@
       DS_TYPES.forEach(function (t) {
         var card = el("div", "dsb-type" + (t.kind === draft.kind ? " sel" : ""));
         var icDiv = el("div", "ic"); icDiv.appendChild(Studio.icon(t.iconName, 20));
+        // Z4 "connector-gallery brand treatment": the third-party providers (DuckDB/SQLite/
+        // Snowflake/Databricks/BigQuery/Generic) each get their real brand color on the icon +
+        // a matching soft tint behind it, so the gallery reads as a row of distinct connectors
+        // rather than one uniform blue set. The native Pentaho access types (SQL/MDX/Kettle/
+        // Metadata/Scripting) intentionally keep the app's own --pentaho accent — they aren't
+        // third-party brands, they're the built-in kinds.
+        if (t.accent) { icDiv.style.color = t.accent; icDiv.style.background = "color-mix(in srgb," + t.accent + " 16%, transparent)"; icDiv.style.borderRadius = "50%"; }
         var txDiv = el("div", "tx"); txDiv.innerHTML = '<b>' + esc(t.name) + (t.badge ? ' <span class="dsb-badge">' + esc(t.badge) + "</span>" : "") + "</b><span>" + esc(t.desc) + "</span>";
         card.appendChild(icDiv); card.appendChild(txDiv);
         card.onclick = function () { draft.kind = t.kind; $$(".dsb-type", types).forEach(function (c) { c.classList.remove("sel"); }); card.classList.add("sel"); syncType(); };

@@ -1071,9 +1071,17 @@ connector feeds the same dashboard model.
 > excludes `http` DAs from `.cda`, same as the other direct connectors. Docs updated. 15 new tests
 > (stubbed at the `Studio.GenericSql` boundary, same no-internet-in-sandbox rationale as the other
 > credential-based connectors). Test suite 1127/1127.
+> ✓ **Connector-gallery brand treatment shipped v248 (closes that "still open" item)**: the New Source
+> builder's type-picker cards now give each third-party provider its real brand color on the icon +
+> a soft matching tint behind it (Snowflake `#29B5E8`, Databricks `#FF3621`, BigQuery `#4285F4`, DuckDB
+> `#FFDE00`, SQLite `#0F80CC`, Generic SQL/HTTP a neutral slate) — the gallery now reads as a row of
+> distinct connectors instead of one uniform blue set. The native Pentaho access types (SQL/MDX/Kettle/
+> Metadata/Scripting) intentionally keep the app's own `--pentaho` accent since they aren't third-party
+> brands. Same shared card gallery used by both New Source and Edit, so the treatment applies everywhere
+> a connector type is picked. 2 new tests, suite 1149/1149.
 > **Still open for Z4**: other cloud warehouses (Redshift/Synapse — can now go through Generic
-> SQL/HTTP until they earn a dedicated slice), connector-gallery brand treatment, and a real
-> live-account smoke test for Snowflake/Databricks/BigQuery/Generic SQL/HTTP.
+> SQL/HTTP until they earn a dedicated slice), and a real live-account smoke test for
+> Snowflake/Databricks/BigQuery/Generic SQL/HTTP.
 
 **Z5 — Settings.** App configuration: theme, default deploy target, gate/access, data-source defaults,
 and **dashboard style defaults** (standard look/style applied to new dashboards). Support **collections

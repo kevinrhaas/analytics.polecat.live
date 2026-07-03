@@ -15,6 +15,17 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 248,
+    title: 'Connector gallery gets real brand colors (Z4 track complete)',
+    kind: 'polish',
+    ts: '2026-07-03T09:43:46Z',
+    items: [
+      'The New Source builder\'s type-picker cards now give each third-party connector its real brand color on the icon (Snowflake blue, Databricks red-orange, BigQuery blue, DuckDB yellow, SQLite blue) instead of one uniform app-blue set.',
+      'Native Pentaho access types (SQL/MDX/Kettle/Metadata/Scripting) keep the app\'s own accent color, since they aren\'t third-party brands.',
+      'Closes the last open item on the Z4 connector-library track. 2 new tests, suite 1149/1149.',
+    ],
+  },
+  {
     v: 247,
     title: 'Left rail now follows the app theme (Z10 track complete)',
     kind: 'polish',
