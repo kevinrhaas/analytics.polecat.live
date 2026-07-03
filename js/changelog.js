@@ -15,6 +15,16 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 223,
+    title: 'Variance + range join the KPI Aggregation picker',
+    kind: 'feature',
+    ts: '2026-07-03T01:26:25Z',
+    items: [
+      'A KPI tile bound to a multi-row query can now aggregate as Variance or Range (max minus min), alongside the existing Sum/Average/Median/percentiles/Std deviation/Z-score/Correlation — closes out the Z7 "distribution computations" backlog item.',
+      'Same pure Studio.aggregate() math (model.js) plus its exported-runtime twin in studio-render.js, so the new aggregations work identically in the live preview and every exported Dashboard Framework file.',
+    ],
+  },
+  {
     v: 222,
     title: 'Rotate-labels toggle gets a visual hint too',
     kind: 'polish',

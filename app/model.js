@@ -54,6 +54,8 @@
     ["p90",    "90th percentile"],
     ["p95",    "95th percentile"],
     ["stddev", "Std deviation"],
+    ["variance", "Variance"],
+    ["range",  "Range (max − min)"],
     ["zscore", "Z-score (latest vs. mean)"],
     ["corr",   "Correlation (vs. Compare-to column)"]
   ];
@@ -67,13 +69,16 @@
     if (agg === "max") return Math.max.apply(null, v);
     var mean = v.reduce(function (a, b) { return a + b; }, 0) / v.length;
     if (agg === "avg") return mean;
-    var sd = Math.sqrt(v.reduce(function (a, b) { return a + (b - mean) * (b - mean); }, 0) / v.length);
+    var variance = v.reduce(function (a, b) { return a + (b - mean) * (b - mean); }, 0) / v.length;
+    var sd = Math.sqrt(variance);
     if (agg === "stddev") return sd;
+    if (agg === "variance") return variance;
     // How many std-deviations the most recent row sits from the distribution's mean —
     // a quick anomaly/outlier read (e.g. "is today's number normal?") without a separate query.
     if (agg === "zscore") return sd === 0 ? 0 : (v[v.length - 1] - mean) / sd;
-    // median / percentiles all need a sorted copy
+    // median / percentiles / range all need a sorted copy
     var sorted = v.slice().sort(function (a, b) { return a - b; });
+    if (agg === "range") return sorted[sorted.length - 1] - sorted[0];
     if (agg === "median") return Studio.percentileOf(sorted, 50);
     if (agg === "p90") return Studio.percentileOf(sorted, 90);
     if (agg === "p95") return Studio.percentileOf(sorted, 95);

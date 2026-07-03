@@ -46,10 +46,13 @@
     if (agg === "max") return Math.max.apply(null, v);
     var mean = v.reduce(function (a, b) { return a + b; }, 0) / v.length;
     if (agg === "avg") return mean;
-    var sd = Math.sqrt(v.reduce(function (a, b) { return a + (b - mean) * (b - mean); }, 0) / v.length);
+    var variance = v.reduce(function (a, b) { return a + (b - mean) * (b - mean); }, 0) / v.length;
+    var sd = Math.sqrt(variance);
     if (agg === "stddev") return sd;
+    if (agg === "variance") return variance;
     if (agg === "zscore") return sd === 0 ? 0 : (v[v.length - 1] - mean) / sd;
     var sorted = v.slice().sort(function (a, b) { return a - b; });
+    if (agg === "range") return sorted[sorted.length - 1] - sorted[0];
     if (agg === "median") return pctOf(sorted, 50);
     if (agg === "p90") return pctOf(sorted, 90);
     if (agg === "p95") return pctOf(sorted, 95);

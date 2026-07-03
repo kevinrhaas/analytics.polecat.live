@@ -1128,7 +1128,13 @@ chart options / derived series / KPI computations. Keep it light (vanilla-JS mat
 > a builder-only inspector feature (not part of the exported/preview runtime), so it isn't subject to the
 > v214 bug class. 3 new tests, suite 996/996 (at the time; the default header logo slice — Z6 entry
 > above — landed the same hour, bringing the final total to 1001/1001).
-> **Still open under Z7:** full regression/distribution KPI computations (beyond scatter's trend line).
+> ✓ **Variance + range shipped v223 (closes the Z7 "still open" item)**: the KPI Aggregation picker
+> gains **Variance** and **Range (max − min)**, alongside the existing Sum/Average/Median/percentiles/
+> Std deviation/Z-score/Correlation. Same `Studio.aggregate()` (model.js) + its exported-runtime twin
+> (`aggregateOf` in studio-render.js) pattern as every prior aggregation. 2 new tests, suite 1021/1021.
+> **Z7 track is now feature-complete**: forecasting (moving average/linear/Holt trend), and a full
+> statistical-KPI-aggregation set (sum/avg/median/min/max/percentiles/stddev/variance/range/zscore/corr).
+> Remaining stretch ideas (not required): seasonal Holt-Winters, regression beyond scatter's trend line.
 
 **Z8 — Context-aware inspector (per chart type) + visual setting hints (user-requested 2026-06-30).**
 The panel inspector currently shows ALL setting sections regardless of chart type — e.g. a **Table**

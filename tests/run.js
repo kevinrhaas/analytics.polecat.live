@@ -12418,6 +12418,23 @@ function serve() {
     ok("Z7AGG: Studio.aggregate zscore is 0 for a zero-variance series and matches the standard formula otherwise",
       z7zUnit.flatZero === 0 && Math.abs(z7zUnit.trendingZ - 1.98) < 0.01, JSON.stringify(z7zUnit));
 
+    // Z7AGG-1c: variance + range — the last two "distribution" aggregations closing out the
+    // Z7 "still open" statistical-computations gap (variance = stddev², range = max - min).
+    var z7rangeUnit = await page.evaluate(function () {
+      var A = window.Studio.aggregate;
+      var v = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+      return {
+        range: A(v, "range"),
+        variance: Math.round(A(v, "variance") * 100) / 100,
+        listed: ["variance", "range"].every(function (id) {
+          return (window.Studio.KPI_AGGS || []).some(function (a) { return a[0] === id; });
+        })
+      };
+    });
+    ok("Z7AGG: KPI_AGGS lists variance + range", z7rangeUnit.listed, JSON.stringify(z7rangeUnit));
+    ok("Z7AGG: Studio.aggregate range=max-min (9) and variance=stddev² (8.25) for 1..10",
+      z7rangeUnit.range === 9 && Math.abs(z7rangeUnit.variance - 8.25) < 0.01, JSON.stringify(z7rangeUnit));
+
     // Z7AGG-2: the KPI inspector's "Aggregation" field changes k.agg, and a non-"first"
     // aggregation recomputes the rendered tile value across every sampled row (not just row 0).
     var z7aggRender = await page.evaluate(async function () {
