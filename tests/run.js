@@ -3560,6 +3560,37 @@ function serve() {
       modalCloseA11y2.found && !!modalCloseA11y2.label && modalCloseA11y2.label.indexOf(modalCloseA11y2.title) >= 0,
       JSON.stringify(modalCloseA11y2));
 
+    // ---- Track L architecture sweep (accessibility, follow-up): row/chip "×" remove buttons ----
+    // Found the same gap in a second spot while re-auditing icon-only buttons: several row/chip
+    // "remove" buttons across the data-source builder (parameters, calc columns, and the visual
+    // SQL builder's joins/columns/aggregates/conditions/group-by) appended only an SVG icon with no
+    // title/aria-label at all — unlike sibling remove buttons (e.g. "Remove series") that already did.
+    console.log("\n• Track L follow-up: row/chip remove buttons have accessible names");
+    await page.evaluate(() => document.getElementById("btnNewDS").click());
+    await page.waitForTimeout(150);
+    const rmA11y = await page.evaluate(() => {
+      var boxes = [].slice.call(document.querySelectorAll(".modal-ov .dsb-params"));
+      var paramsBox = boxes[0], calcBox = boxes[1];
+      var addParamBtn = [].slice.call(document.querySelectorAll(".modal-ov .dsb-mini")).filter(function (b) { return /Parameter/.test(b.textContent); })[0];
+      var addCalcBtn = [].slice.call(document.querySelectorAll(".modal-ov .dsb-mini")).filter(function (b) { return /Calculated column/.test(b.textContent); })[0];
+      if (addParamBtn) addParamBtn.click();
+      if (addCalcBtn) addCalcBtn.click();
+      var paramRm = paramsBox.querySelector(".rm");
+      var calcRm = calcBox.querySelector(".rm");
+      return {
+        paramLabel: paramRm && paramRm.getAttribute("aria-label"),
+        paramTitle: paramRm && paramRm.title,
+        calcLabel: calcRm && calcRm.getAttribute("aria-label"),
+        calcTitle: calcRm && calcRm.title
+      };
+    });
+    await page.evaluate(() => { var x = document.querySelector(".modal-ov .modal .x"); if (x) x.click(); });
+    await page.waitForTimeout(100);
+    ok("Track L follow-up: 'Remove parameter' row button has an aria-label + title",
+      rmA11y.paramLabel === "Remove parameter" && rmA11y.paramTitle === "Remove parameter", JSON.stringify(rmA11y));
+    ok("Track L follow-up: 'Remove calculated column' row button has an aria-label + title",
+      rmA11y.calcLabel === "Remove calculated column" && rmA11y.calcTitle === "Remove calculated column", JSON.stringify(rmA11y));
+
     // ---- Ctrl+S shortcut (v48) ----
     console.log("\n• Ctrl+S save shortcut (v48)");
     // Check that Ctrl+S is listed in the keyboard shortcuts modal

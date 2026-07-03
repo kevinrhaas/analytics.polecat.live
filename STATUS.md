@@ -1886,6 +1886,14 @@ gets covered over time:
   `Studio.defineChart({type, render, opts, thumb, autoPick})` contract so new types are uniform and testable.
 - **Test health** — coverage per feature, flaky/slow checks, and a fast smoke subset for quick loops.
 > **Findings log (append newest on top; keep short):**
+> - **Fixed shipped v257 (accessibility lens):** ten icon-only "×" remove buttons had no `title` and no
+>   `aria-label` at all — genuinely nameless to a screen reader, unlike sibling remove buttons elsewhere
+>   (e.g. the panel-series "Remove series" button) that already set one. Found across the data-source
+>   builder: parameter rows, calculated-column rows, the visual SQL builder's join/column/aggregate/
+>   condition/group-by chips (both the SQL and Kettle variants), and the Table/KPI inspector's column
+>   remove button. Each now gets a specific `title` + `aria-label` (e.g. "Remove parameter", "Remove
+>   join", "Remove condition", "Remove column"). 2 new tests (covering the two most-reachable sites;
+>   the rest share the identical fix pattern), suite 1169/1169.
 > - **Fixed shipped v256 (duplication lens):** the "wire a mousemove → `PDC.showTip(e, html)` handler plus a
 >   mouseout → `PDC.hideTip` handler" pair was hand-written verbatim (`node.addEventListener("mousemove",
 >   function (e) { PDC.showTip(e, html); }); node.addEventListener("mouseout", PDC.hideTip);`) at **36 call

@@ -829,7 +829,7 @@
           var n = input(p.name, function (v) { p.name = v.trim().replace(/[^a-zA-Z0-9_]+/g, ""); }, "name");
           var ty = select2pairs([["String", "String"], ["Integer", "Integer"], ["Numeric", "Numeric"], ["Date", "Date"]], p.type, function (v) { p.type = v; });
           var dv = input(p.default, function (v) { p.default = v; }, "default");
-          var rm = el("button", "rm"); rm.appendChild(Studio.icon("close", 10)); rm.onclick = function () { draft.params.splice(i, 1); renderParams(); };
+          var rm = el("button", "rm"); rm.title = "Remove parameter"; rm.setAttribute("aria-label", "Remove parameter"); rm.appendChild(Studio.icon("close", 10)); rm.onclick = function () { draft.params.splice(i, 1); renderParams(); };
           r.appendChild(n); r.appendChild(ty); r.appendChild(dv); r.appendChild(rm); paramsBox.appendChild(r);
         });
       }
@@ -850,7 +850,7 @@
           var fm = input(cc.formula, function (v) { cc.formula = v; }); fm.placeholder = "=[colA] + [colB]"; fm.style.flex = "2";
           var calcTypePairs = Studio.COLUMN_TYPES.map(function (t) { return [t, t]; });
           var ty = select2pairs(calcTypePairs, cc.type || "Numeric", function (v) { cc.type = v; });
-          var rm = el("button", "rm"); rm.appendChild(Studio.icon("close", 10)); rm.onclick = function () { draft.calcColumns.splice(i, 1); renderCalcCols(); };
+          var rm = el("button", "rm"); rm.title = "Remove calculated column"; rm.setAttribute("aria-label", "Remove calculated column"); rm.appendChild(Studio.icon("close", 10)); rm.onclick = function () { draft.calcColumns.splice(i, 1); renderCalcCols(); };
           r.appendChild(nm); r.appendChild(fm); r.appendChild(ty); r.appendChild(rm); calcBox.appendChild(r);
         });
       }
@@ -935,7 +935,7 @@
             var lOn = el("span"); lOn.textContent = "ON"; lOn.style.cssText = "font-size:10.5px;font-weight:800;color:var(--pentaho);font-family:var(--mono);flex:0 0 auto";
             var onInp = el("input"); onInp.className = "dsb-sqb-inp"; onInp.value = join.on; onInp.placeholder = "t1.id = t2.id"; onInp.style.fontFamily = "var(--mono)";
             onInp.addEventListener("input", function () { join.on = this.value; });
-            var rm = el("button", "rm"); rm.type = "button"; rm.style.color = "var(--bad)";
+            var rm = el("button", "rm"); rm.type = "button"; rm.style.color = "var(--bad)"; rm.title = "Remove join"; rm.setAttribute("aria-label", "Remove join");
             rm.appendChild(Studio.icon("close", 10)); rm.onclick = function () { sbState.joins.splice(i, 1); renderBody(); };
             row.appendChild(typeSel); row.appendChild(tInp); row.appendChild(lOn); row.appendChild(onInp); row.appendChild(rm);
             body.appendChild(row);
@@ -957,7 +957,7 @@
             var colBox = el("div", "dsb-sqb-colbox");
             sbState.selCols.forEach(function (c, i) {
               var chip = el("span", "dsb-chip"); chip.textContent = c;
-              var rm = el("button", "rm"); rm.type = "button"; rm.appendChild(Studio.icon("close", 10));
+              var rm = el("button", "rm"); rm.type = "button"; rm.title = "Remove column"; rm.setAttribute("aria-label", "Remove column"); rm.appendChild(Studio.icon("close", 10));
               rm.onclick = function () { sbState.selCols.splice(i, 1); renderBody(); };
               chip.appendChild(rm); colBox.appendChild(chip);
             });
@@ -987,7 +987,7 @@
             var lAs = el("span"); lAs.textContent = "AS"; lAs.style.cssText = "font-size:10.5px;font-weight:800;color:var(--pentaho);font-family:var(--mono);flex:0 0 auto";
             var aInp = el("input"); aInp.className = "dsb-sqb-inp"; aInp.value = agg.alias; aInp.placeholder = "total_revenue"; aInp.style.fontFamily = "var(--mono)";
             aInp.addEventListener("input", function () { agg.alias = this.value; });
-            var rm = el("button", "rm"); rm.type = "button"; rm.style.color = "var(--bad)";
+            var rm = el("button", "rm"); rm.type = "button"; rm.style.color = "var(--bad)"; rm.title = "Remove aggregate"; rm.setAttribute("aria-label", "Remove aggregate");
             rm.appendChild(Studio.icon("close", 10)); rm.onclick = function () { sbState.aggCols.splice(i, 1); renderBody(); };
             row.appendChild(fnSel); row.appendChild(cInp); row.appendChild(lAs); row.appendChild(aInp); row.appendChild(rm);
             body.appendChild(row);
@@ -1013,7 +1013,7 @@
               vInp.addEventListener("input", function () { cond.val = this.value; });
               row.appendChild(vInp);
             }
-            var rm = el("button", "rm"); rm.type = "button"; rm.style.color = "var(--bad)";
+            var rm = el("button", "rm"); rm.type = "button"; rm.style.color = "var(--bad)"; rm.title = "Remove condition"; rm.setAttribute("aria-label", "Remove condition");
             rm.appendChild(Studio.icon("close", 10)); rm.onclick = function () { sbState.conditions.splice(i, 1); renderBody(); };
             row.appendChild(rm); body.appendChild(row);
           });
@@ -1025,7 +1025,7 @@
           var gBox = el("div", "dsb-sqb-colbox");
           sbState.groupBy.forEach(function (c, i) {
             var chip = el("span", "dsb-chip"); chip.textContent = c;
-            var rm = el("button", "rm"); rm.type = "button"; rm.appendChild(Studio.icon("close", 10));
+            var rm = el("button", "rm"); rm.type = "button"; rm.title = "Remove group-by column"; rm.setAttribute("aria-label", "Remove group-by column"); rm.appendChild(Studio.icon("close", 10));
             rm.onclick = function () { sbState.groupBy.splice(i, 1); renderBody(); };
             chip.appendChild(rm); gBox.appendChild(chip);
           });
@@ -1200,7 +1200,7 @@
           var colBox = el("div", "dsb-sqb-colbox");
           kbState.selCols.forEach(function (c, i) {
             var chip = el("span", "dsb-chip"); chip.textContent = c;
-            var rm = el("button", "rm"); rm.type = "button"; rm.appendChild(Studio.icon("close", 10));
+            var rm = el("button", "rm"); rm.type = "button"; rm.title = "Remove column"; rm.setAttribute("aria-label", "Remove column"); rm.appendChild(Studio.icon("close", 10));
             rm.onclick = function () { kbState.selCols.splice(i, 1); renderBody(); };
             chip.appendChild(rm); colBox.appendChild(chip);
           });
@@ -1231,7 +1231,7 @@
               vInp.addEventListener("input", function () { cond.val = this.value; });
               row.appendChild(vInp);
             }
-            var rm = el("button", "rm"); rm.type = "button"; rm.style.color = "var(--bad)";
+            var rm = el("button", "rm"); rm.type = "button"; rm.style.color = "var(--bad)"; rm.title = "Remove condition"; rm.setAttribute("aria-label", "Remove condition");
             rm.appendChild(Studio.icon("close", 10)); rm.onclick = function () { kbState.conditions.splice(i, 1); renderBody(); };
             row.appendChild(rm); kbBody.appendChild(row);
           });
@@ -3322,7 +3322,7 @@
           var num = el("label", "check"); var cb = el("input"); cb.type = "checkbox"; cb.checked = !!c.num;
           cb.onchange = function () { c.num = cb.checked; refreshPreview(); }; num.appendChild(cb); num.appendChild(document.createTextNode("#"));
           r.appendChild(num);
-          var rm = el("button", "icobtn danger"); rm.appendChild(Studio.icon("close", 13)); rm.onclick = function () { m.cols.splice(i, 1); renderInspector(); refreshPreview(); };
+          var rm = el("button", "icobtn danger"); rm.title = "Remove column"; rm.setAttribute("aria-label", "Remove column"); rm.appendChild(Studio.icon("close", 13)); rm.onclick = function () { m.cols.splice(i, 1); renderInspector(); refreshPreview(); };
           r.appendChild(rm);
           tbl.appendChild(r);
         });

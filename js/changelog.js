@@ -15,6 +15,17 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 257,
+    title: 'Track L sweep: accessible names on row/chip remove buttons',
+    kind: 'polish',
+    ts: '2026-07-03T11:18:48Z',
+    items: [
+      'Ten icon-only "remove" buttons (data-source parameters, calculated columns, and the visual SQL builder\'s joins/columns/aggregates/conditions/group-by chips) had no title or aria-label at all, unlike sibling remove buttons elsewhere in the app -- a screen reader announced only "button" with no name.',
+      'Every one now gets a specific title + aria-label (e.g. "Remove parameter", "Remove join", "Remove condition").',
+      '2 new tests, suite 1169/1169.',
+    ],
+  },
+  {
     v: 256,
     title: 'Track L sweep: de-duplicate the hover-tooltip wiring pattern',
     kind: 'polish',
