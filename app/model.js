@@ -1914,6 +1914,22 @@
 
   Studio.clone = function (o) { return JSON.parse(JSON.stringify(o)); };
 
+  // N-DIST: shareable state links — encode a whole dashboard spec into a URL-safe string so it
+  // can travel as a `#share=...` link with no server/file needed (extends the existing E4
+  // per-filter `#hash` deep-link, which only ever carried filter *defaults* for exported CDF,
+  // never the builder's own working spec). btoa/atob only handle Latin1, so JSON text is UTF-8
+  // escaped first (the standard unescape/escape round-trip) — this is why a plain
+  // `btoa(JSON.stringify(spec))` breaks the moment a title/label has a non-ASCII character.
+  Studio.encodeSpecToShareString = function (spec) {
+    return encodeURIComponent(btoa(unescape(encodeURIComponent(JSON.stringify(spec)))));
+  };
+  Studio.decodeSpecFromShareString = function (str) {
+    try {
+      var spec = JSON.parse(decodeURIComponent(escape(atob(decodeURIComponent(str)))));
+      return (spec && typeof spec === "object") ? spec : null;
+    } catch (e) { return null; }
+  };
+
   // allTags: returns a sorted array of unique tag strings across all panels in the spec.
   // Tags are stored as p.tags (array of lowercase trimmed strings). Used to populate the
   // tag filter bar in the dashboard inspector so builders can highlight panels by topic.

@@ -11751,6 +11751,53 @@ function serve() {
     await page.evaluate(function () { window.__studioShellSetSection("studio"); });
     await page.waitForTimeout(80);
 
+    // ── N-DIST: shareable state links — encode the whole spec into a #share= link ──
+    console.log("\n• N-DIST: shareable state links");
+    const shareRoundTrip = await page.evaluate(function () {
+      var spec = { id: "share-test", title: "Café Résumé 🚀", panels: [{ id: "p1", type: "bars" }], kpis: [], filters: [] };
+      var enc = Studio.encodeSpecToShareString(spec);
+      var dec = Studio.decodeSpecFromShareString(enc);
+      var bad = Studio.decodeSpecFromShareString("not-valid-base64-!!!");
+      return {
+        roundTrips: !!dec && dec.title === spec.title && dec.panels.length === 1,
+        badReturnsNull: bad === null,
+        encIsUrlSafe: !/[^A-Za-z0-9._~%-]/.test(enc)
+      };
+    });
+    ok("N-DIST: encodeSpecToShareString/decodeSpecFromShareString round-trip (incl. unicode/emoji) and reject garbage",
+      shareRoundTrip.roundTrips && shareRoundTrip.badReturnsNull && shareRoundTrip.encIsUrlSafe, JSON.stringify(shareRoundTrip));
+
+    await page.evaluate(() => { window.__studioSelectDashboard(); });
+    await page.waitForTimeout(150);
+    const shareUI = await page.evaluate(function () {
+      var btns = Array.from(document.querySelectorAll("#inspBody .btn"));
+      var shBtn = btns.find(function (b) { return /Copy shareable link/.test(b.textContent); });
+      var heading = Array.from(document.querySelectorAll("#inspBody h4")).find(function (h) { return h.textContent === "Share this dashboard"; });
+      return { hasBtn: !!shBtn, hasHeading: !!heading };
+    });
+    ok("N-DIST: Dashboard inspector shows a 'Share this dashboard' section with a Copy shareable link button",
+      shareUI.hasBtn, JSON.stringify(shareUI));
+
+    // Boot-time load: a fresh tab opened on a #share= link should reopen that exact dashboard
+    // (not the default flagship example) and clear the hash so it can't re-trigger on reload.
+    const shareBootSpec = await page.evaluate(function () {
+      return Studio.encodeSpecToShareString({
+        id: "shared-boot-test", name: "shared-boot-test", title: "Shared Boot Test Dashboard",
+        panels: [], kpis: [], filters: [], cda: { connections: [], dataAccesses: [] }
+      });
+    });
+    const sharePage = await browser.newPage();
+    await sharePage.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); } catch (e) {} });
+    await sharePage.goto(`http://localhost:${PORT}/#share=${shareBootSpec}`, { waitUntil: "networkidle" });
+    await sharePage.waitForFunction(() => window.__STUDIO_STATE && window.__STUDIO_STATE.assets && window.__STUDIO_STATE.assets.js.length > 0, { timeout: 10000 });
+    await sharePage.waitForTimeout(700);
+    const shareBootResult = await sharePage.evaluate(function () {
+      return { title: window.__STUDIO_STATE.spec.title, hash: location.hash };
+    });
+    await sharePage.close();
+    ok("N-DIST: opening a #share= link boots straight into that exact dashboard and clears the hash",
+      shareBootResult.title === "Shared Boot Test Dashboard" && shareBootResult.hash === "", JSON.stringify(shareBootResult));
+
     // ── Z12: branding & app identity — de-dup the logo, add a favicon ──
     console.log("\n• Z12: branding & app identity");
     const z12Head = await page.evaluate(function () {

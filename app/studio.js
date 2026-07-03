@@ -305,10 +305,24 @@
       renderSettings();
       if (window.StudioWelcome) { var ab = $("#btnAbout"); if (ab) ab.onclick = function () { StudioWelcome.open(); }; setTimeout(function () { StudioWelcome.maybeShow(); }, 300); }
       buildLibrary();
-      // open the cost flagship example by default if present, else blank
-      // keepAutosave=true so the restore banner can offer unsaved work from a previous session
-      var def = S.examples.filter(function (e) { return /flagship|cost/.test(e.file); })[0] || S.examples[0];
-      if (def) loadExample(def.file, true); else { renderInspector(); refreshPreview(); }
+      // N-DIST: a #share=<encoded> link (see the Dashboard inspector's "Share this dashboard"
+      // section) takes priority over the normal boot flow — it names an exact dashboard to
+      // open, the same way a direct file Open would. Cleared via replaceState so a reload or
+      // the E4 CDF filter-hash convention never collide with it.
+      var sharedSpec = null;
+      if (location.hash.indexOf("#share=") === 0) sharedSpec = Studio.decodeSpecFromShareString(location.hash.slice(7));
+      if (sharedSpec) {
+        try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
+        S.spec = normalize(sharedSpec); S.selection = null;
+        if (window.__studioShellSetSection) window.__studioShellSetSection("studio");
+        syncHeader(); renderInspector(); refreshPreview(); buildLibrary();
+        toast("Loaded shared dashboard: " + (sharedSpec.title || sharedSpec.name || "Untitled"));
+      } else {
+        // open the cost flagship example by default if present, else blank
+        // keepAutosave=true so the restore banner can offer unsaved work from a previous session
+        var def = S.examples.filter(function (e) { return /flagship|cost/.test(e.file); })[0] || S.examples[0];
+        if (def) loadExample(def.file, true); else { renderInspector(); refreshPreview(); }
+      }
       // offer to restore unsaved work (must run after the default example loads so the banner is visible)
       setTimeout(maybeShowRestoreBanner, 600);
     }).catch(function (e) {
@@ -2092,6 +2106,25 @@
       };
       dlSec.appendChild(dlBtn);
     }
+
+    // N-DIST: shareable state link — encodes the WHOLE working spec into a #share= link
+    // that reopens the exact same dashboard in the Studio builder itself (no file, no
+    // server). Distinct from the E4 block above, which only ever carries filter *defaults*
+    // for an exported CDF's own runtime — this one is a builder-to-builder handoff.
+    var shSec = section(body, "Share this dashboard", null, null, "exporting");
+    var shHint = el("div", "hint");
+    shHint.textContent = "Copies a link that reopens this exact dashboard (panels, KPIs, filters, style) in the Studio builder — handy for handing off a work-in-progress with no file attachment.";
+    shSec.appendChild(shHint);
+    var shBtn = el("button", "btn"); shBtn.style.cssText = "margin-top:6px;width:100%;justify-content:center";
+    setIconBtn(shBtn, "link", "Copy shareable link");
+    shBtn.onclick = function () {
+      var url = location.origin + location.pathname + location.search + "#share=" + Studio.encodeSpecToShareString(S.spec);
+      var okMsg = url.length > 8000
+        ? "Shareable link copied — this dashboard is large, so the link is long and may not work in every app (e.g. some chat clients truncate it)."
+        : "Shareable link copied!";
+      try { navigator.clipboard.writeText(url).then(function () { toast(okMsg); }).catch(function () { toast(url); }); } catch (e) { toast(url); }
+    };
+    shSec.appendChild(shBtn);
 
     // CDA Connections
     sp.cda.connections = sp.cda.connections || [];

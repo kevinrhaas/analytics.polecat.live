@@ -1991,8 +1991,14 @@ gets covered over time:
   (service worker caching the app shell + examples). A dashboard app you can "install."
 - **Client-side PNG/PDF export of a whole dashboard** (canvas/`html-to-image`-style, dependency-light) and
   print-perfect layouts — for sharing where a link won't do.
-- **Shareable state links / snapshots:** encode the full spec (or a diff) into a URL/file so a dashboard
-  travels without a server (extends the existing `#hash` deep-link).
+> ✓ **Shareable state links shipped v240 (closes the item below).** Dashboard inspector's new "Share this
+> dashboard" section — `Studio.encodeSpecToShareString`/`decodeSpecFromShareString` (model.js, pure/
+> testable) encode the whole working spec into a `#share=…` URL; opening it (any browser/device) boots
+> straight into that exact dashboard in the Studio builder, no file/server, distinct from the existing
+> per-filter `#hash` deep-link (which only ever carries filter defaults for an *exported* CDF). A garbage
+> or corrupted link fails safe into the normal boot flow instead of crashing. 3 new tests, suite 1137/1137.
+- **Shareable state links / snapshots:** ✓ shipped v240, see above. Not yet done: a *diff*-based link for
+  edits to an already-shared dashboard (today it's always the full spec).
 - **Local version history & visual diff:** timeline of auto-saved spec snapshots with a side-by-side diff
   (beyond in-session undo) — "time travel" for a dashboard.
 

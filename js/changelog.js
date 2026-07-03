@@ -15,6 +15,18 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 240,
+    title: 'Shareable dashboard links (N-DIST)',
+    kind: 'feature',
+    ts: '2026-07-03T08:00:14Z',
+    items: [
+      'Dashboard inspector gains a \'Share this dashboard\' section -- Copy shareable link encodes the whole working spec (panels, KPIs, filters, style) into a #share=... URL, no file attachment or server involved.',
+      'Opening a shared link (in any browser, any device) reopens that exact dashboard directly in the Studio builder -- a builder-to-builder handoff, distinct from the existing per-filter #hash deep-link used by exported Dashboard Framework files.',
+      'Studio.encodeSpecToShareString/decodeSpecFromShareString in app/model.js are pure, independently-testable functions; a corrupted or garbage link fails safe (falls through to the normal boot flow) rather than crashing.',
+      '3 new tests, suite 1137/1137.',
+    ],
+  },
+  {
     v: 239,
     title: 'Workbooks -- named collections of dashboards (Z3 follow-up)',
     kind: 'feature',
