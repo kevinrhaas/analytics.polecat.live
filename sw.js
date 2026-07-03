@@ -5,7 +5,7 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v1";
+var CACHE_NAME = "studio-shell-v2";
 var SHELL_FILES = [
   "./",
   "index.html",
@@ -36,7 +36,9 @@ var SHELL_FILES = [
   "app/palette.js",
   "app/studio-render.js",
   "app/studio-charts.js",
-  "vendor/pdc-ui.js"
+  "vendor/pdc-ui.js",
+  "data/cda-catalog.json",
+  "data/examples/index.json"
 ];
 
 self.addEventListener("install", function (evt) {
@@ -46,7 +48,19 @@ self.addEventListener("install", function (evt) {
       // renamed asset can't break offline support for everything else.
       return Promise.all(SHELL_FILES.map(function (url) {
         return cache.add(url).catch(function () { /* ignore a single missing asset */ });
-      }));
+      })).then(function () {
+        // Also precache every curated example spec (read from the index we just cached above)
+        // so the Examples gallery genuinely works offline on the very first visit, not just
+        // after the ordinary network-first fetch handler has opportunistically cached one.
+        return cache.match("data/examples/index.json").then(function (res) {
+          if (!res) return;
+          return res.clone().json().then(function (list) {
+            return Promise.all((list || []).map(function (ex) {
+              return ex && ex.file ? cache.add("data/examples/" + ex.file).catch(function () {}) : null;
+            }));
+          }).catch(function () {});
+        });
+      });
     }).then(function () { return self.skipWaiting(); })
   );
 });

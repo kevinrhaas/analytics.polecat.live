@@ -13898,16 +13898,41 @@ function serve() {
     });
     ok("N-DIST: navigator.serviceWorker registers sw.js and reaches the active state on a real page load", pwaSwActive, String(pwaSwActive));
 
-    // The real point of a service worker: the app shell still loads with the network fully cut.
+    // The precache covers more than the static shell: the catalog + every curated example spec
+    // are fetched during install too (from the index we just cached), so a first-ever offline
+    // visit still has a full library/gallery, not just a blank shell.
+    const pwaDataPrecached = await pwaPage.evaluate(async function () {
+      const cache = await caches.open("studio-shell-v2");
+      const keys = (await cache.keys()).map((r) => new URL(r.url).pathname.replace(/^\//, ""));
+      const exIndex = await fetch("data/examples/index.json").then((r) => r.json());
+      const missingExamples = exIndex.filter((ex) => keys.indexOf("data/examples/" + ex.file) < 0);
+      return {
+        hasCatalog: keys.indexOf("data/cda-catalog.json") >= 0,
+        hasExIndex: keys.indexOf("data/examples/index.json") >= 0,
+        exampleCount: exIndex.length,
+        missingExamples: missingExamples.length
+      };
+    });
+    ok("N-DIST: the offline precache covers data/cda-catalog.json, the examples index, and every example spec it lists",
+      pwaDataPrecached.hasCatalog && pwaDataPrecached.hasExIndex && pwaDataPrecached.exampleCount > 0 && pwaDataPrecached.missingExamples === 0,
+      JSON.stringify(pwaDataPrecached));
+
+    // The real point of a service worker: the app shell still loads with the network fully cut,
+    // AND the query library actually has real data (not just an empty shell with no catalog).
     await pwaPage.context().setOffline(true);
     await pwaPage.reload({ waitUntil: "domcontentloaded" });
     await pwaPage.waitForTimeout(300);
     const pwaOfflineBoot = await pwaPage.evaluate(function () {
-      return { hasRail: !!document.getElementById("railNav"), hasTitle: document.title.length > 0 };
+      var st = window.__STUDIO_STATE;
+      return {
+        hasRail: !!document.getElementById("railNav"),
+        hasTitle: document.title.length > 0,
+        catalogSize: st && st.catalog ? Object.keys(st.catalog).length : 0
+      };
     });
     await pwaPage.context().setOffline(false);
-    ok("N-DIST: with the network fully offline, a reload still boots the cached app shell (rail + title present)",
-      pwaOfflineBoot.hasRail && pwaOfflineBoot.hasTitle, JSON.stringify(pwaOfflineBoot));
+    ok("N-DIST: with the network fully offline, a reload still boots the cached app shell with a real, populated catalog",
+      pwaOfflineBoot.hasRail && pwaOfflineBoot.hasTitle && pwaOfflineBoot.catalogSize > 0, JSON.stringify(pwaOfflineBoot));
     await pwaPage.close();
 
   } catch (e) {

@@ -15,6 +15,17 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 245,
+    title: 'Offline precache now covers the catalog + every example (N-DIST follow-up)',
+    kind: 'polish',
+    ts: '2026-07-03T09:02:05Z',
+    items: [
+      'sw.js now precaches data/cda-catalog.json and data/examples/index.json at install time, then reads that index to precache every curated example .studio.json it lists -- a first-ever offline visit now gets a real, populated query library and Examples gallery, not just a blank app shell.',
+      'Cache bumped to studio-shell-v2 so returning visitors pick up the wider precache list on their next online visit.',
+      '1 new test verifying the precache contains the catalog + every listed example, plus the existing offline-reload test now also asserts the reopened catalog is non-empty. Suite 1145/1145.',
+    ],
+  },
+  {
     v: 244,
     title: 'Track L: restored the CI test gate lost in the repo migration',
     kind: 'fix',

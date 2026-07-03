@@ -741,6 +741,11 @@
   1144/1144.
 - v244: **Track L: restored the CI test gate lost in the v60 repo migration** — see Track L findings log
   below. CI-only, no app code changed; suite unaffected at 1144/1144.
+- v245: **N-DIST follow-up: offline precache now covers the catalog + every example** — closes the "not
+  yet done" note from v243. `sw.js` precaches `data/cda-catalog.json` + `data/examples/index.json` at
+  install time, then reads that index to precache every listed example spec too, so a first-ever offline
+  visit has a real, populated library and Examples gallery — not just a blank shell. Cache bumped to
+  `studio-shell-v2`. 1 new test, suite 1145/1145.
 
 ## NEXT (top = do first)
 
@@ -2027,10 +2032,16 @@ gets covered over time:
 > real 192x192/512x512 PNG icons (`tools/gen-pwa-icons.js`, same favicon.svg-rasterizing technique as the
 > Z12 apple-touch-icon) — most browsers require these beyond an SVG-only icon list for "Add to Home
 > Screen"/"Install app" to appear. "Clear local data" also drops the SW cache. 4 new tests, incl. a real
-> `context.setOffline(true)` reload that boots the cached shell. Suite 1144/1144. **Not yet done:**
-> offline caching of the examples gallery data specifically (today only the app shell is precached, not
-> `data/examples/*.json`), and a genuinely offline-tolerant "recently viewed" fallback for Home.
-- **Installable PWA + offline:** ✓ shipped v243, see above.
+> `context.setOffline(true)` reload that boots the cached shell. Suite 1144/1144.
+> ✓ **Offline catalog + examples precache shipped v245 (closes the "not yet done" note above).** `sw.js`
+> now precaches `data/cda-catalog.json` + `data/examples/index.json` at install time, then reads that
+> index to precache every curated example spec it lists — a first-ever offline visit gets a real,
+> populated query library and Examples gallery, not a blank shell. Cache bumped to `studio-shell-v2`.
+> 1 new test (verifies the precache + a repopulated catalog after a real offline reload). Suite
+> 1145/1145. **Still not done:** a genuinely offline-tolerant "recently viewed" fallback for Home (Home's
+> recents already read from localStorage so they should already work offline in practice — not yet
+> verified with a dedicated test).
+- **Installable PWA + offline:** ✓ shipped v243/v245, see above.
 - **Client-side PNG/PDF export of a whole dashboard** (canvas/`html-to-image`-style, dependency-light) and
   print-perfect layouts — for sharing where a link won't do.
 > ✓ **Shareable state links shipped v240 (closes the item below).** Dashboard inspector's new "Share this
