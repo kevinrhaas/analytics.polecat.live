@@ -899,6 +899,24 @@
 > (v123) — extend those; make the modern/Polecat palette the **default look** and keep Classic Blue as an option.
 > Ship one screenshot-verified slice per run (view a 1200px preview + a phone shot); don't call a palette "done"
 > off DOM checks — look at it. Coordinate with Z10.
+> ✓ **Slice 1 shipped v281**: new `Studio.DASHBOARD_THEMES` — a **Dashboard theme** picker (top of the
+> Dashboard inspector's style section) that swaps the WHOLE token system (bg/panel/text hierarchy, brand,
+> and all ten `--c1..--c10` series colors) in one pick, for both preview and every export, on the additive-
+> override architecture already used by themeColor/headerBg/paletteKey (vendor/pdc-ui.css untouched).
+> **Classic Pentaho Blue** (unchanged) and **Fleet Modern** (mirrors jobtracker.polecat.live's bg → surface
+> → surface-2 / text/2/3 / brand/accent hierarchy, light + dark). The 10-color series palette (light + dark)
+> was built with the `dataviz` skill's `validate_palette.js` — all checks pass (lightness band, chroma
+> floor, CVD ≥12 adjacent separation, ≥3:1 contrast) except one WARN-band amber slot, legal since the chart
+> already carries direct-value labels. Visually verified via screenshot (dark-mode preview, Classic vs.
+> Fleet Modern side by side — teal accent replaces purple, series blue lightens, panel/bg shift off navy),
+> not just DOM checks. Wired into `normalize()`'s whitelist + the version-history diff field list so it
+> round-trips and shows up in Compare-to-current. 7 new tests, suite 1259/1259.
+> **Follow-ups (not yet done):** make Fleet Modern the **default** for brand-new dashboards (per the original
+> ask) once it's had a look from the user; a matching Settings → Dashboard defaults picker + style-preset
+> snapshot field (same pattern as accent color/header background, v230); focus-visible rings +
+> `prefers-reduced-motion` audit on the exported dashboard chrome itself (distinct from the app chrome, which
+> Z10 already covers); align the app chrome's Polecat theme to the same jobtracker tokens (currently only the
+> dashboard-facing side is done).
 >
 > **(B) Version history — "switch back to earlier versions" ✓ ALREADY SHIPPED (v258 + v262).** The loop had
 > already built this from the N-DIST backlog: the Dashboard inspector's **Version history** section keeps a

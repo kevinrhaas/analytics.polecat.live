@@ -15,6 +15,18 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 281,
+    title: 'Visual refresh (A): Fleet Modern dashboard theme',
+    kind: 'feature',
+    ts: '2026-07-03T20:40:28Z',
+    items: [
+      'New Dashboard theme picker (top of the style section, Dashboard inspector): Classic Pentaho Blue (unchanged) or Fleet Modern -- swaps the WHOLE look (background/panel/text hierarchy, brand color, and all ten chart series colors) in one pick, in both preview and every export, instead of the old flat Pentaho-blue-everywhere default.',
+      'Fleet Modern mirrors the jobtracker.polecat.live token system (bg -> surface -> surface-2, text/2/3, brand/accent) for both light and dark mode, with a WCAG-AA-contrast, colorblind-safe (CVD >=12) 10-color series palette validated with the dataviz skill\'s validate_palette.js -- every check passes clean except one WARN-band amber slot (legal with the chart\'s existing direct-value labels).',
+      'Layers correctly with the existing Accent color / Header background color / Series palette overrides (those still win on top of whichever theme is active) -- same additive-override architecture as themeColor/headerBg/paletteKey, vendor/pdc-ui.css untouched. Wired into normalize()\'s whitelist and the version-history diff so it round-trips and shows up in Compare-to-current.',
+      'First slice of the user-requested visual refresh -- Studio.DASHBOARD_THEMES is selectable now; making Fleet Modern the default look (plus a Settings default + style-preset entry, matching the existing accent/header pattern) is the next follow-up. 7 new tests, suite 1259/1259.',
+    ],
+  },
+  {
     v: 280,
     title: 'N-DESIGN: glassmorphism depth polish on KPI tiles + chart cards',
     kind: 'polish',

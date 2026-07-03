@@ -2087,6 +2087,26 @@
     sec.appendChild(field("Layout", autoArrangeBtn,
       "Reflows panels into a balanced grid: tables/text/flow diagrams go full-width, everything else keeps a single column, and panels sharing a tag are grouped together."));
 
+    // ★★ Visual refresh (A): Dashboard theme — swaps the WHOLE token system (bg/panel/text
+    // hierarchy + brand + series) in one pick, distinct from the finer Accent color/Header
+    // background/Series palette knobs below (which still layer on top of whichever theme is active).
+    var dtRow = el("div"); dtRow.className = "dt-presets";
+    dtRow.setAttribute("id", "dashThemeRow");
+    Studio.DASHBOARD_THEMES.forEach(function (preset) {
+      var sw = el("button"); sw.type = "button"; sw.className = "dt-swatch";
+      sw.title = preset.label;
+      sw.style.background = preset.swatch;
+      sw.setAttribute("data-dashboard-theme", preset.key);
+      var active = (sp.dashboardTheme || "classic") === preset.key;
+      if (active) sw.classList.add("active");
+      sw.onclick = function () {
+        sp.dashboardTheme = preset.key === "classic" ? "" : preset.key;
+        refreshPreview(); renderInspector();
+      };
+      dtRow.appendChild(sw);
+    });
+    sec.appendChild(field("Dashboard theme", dtRow, "Swaps the whole look (background, panels, text, brand + series colors) in one pick — Accent color/Series palette below still layer on top."));
+
     // H-track: Dashboard accent color — per-dashboard --pentaho override.
     // 6 quick preset swatches + a custom hex picker let the SE team match client branding.
     // Empty string = keep the default Pentaho blue (#005bb5) from pdc-ui.css.
@@ -5741,7 +5761,7 @@
     // Open / restore-banner / example-load / drag-drop-file silently reset a saved dashboard's accent
     // color and series palette back to the default. Keep this list in sync with Studio.emptySpec()'s
     // top-level scalar/optional fields whenever a new one is added (see also headerLogo, Z6).
-    ["schema", "id", "name", "title", "subtitle", "group", "description", "themeColor", "paletteKey", "headerLogo", "headerLink", "headerBg", "titleSize", "subtitleStyle", "templateVars"].forEach(function (k) { if (spec[k] != null) base[k] = spec[k]; });
+    ["schema", "id", "name", "title", "subtitle", "group", "description", "themeColor", "dashboardTheme", "paletteKey", "headerLogo", "headerLink", "headerBg", "titleSize", "subtitleStyle", "templateVars"].forEach(function (k) { if (spec[k] != null) base[k] = spec[k]; });
     base.cda = spec.cda || base.cda;
     base.filters = spec.filters || []; base.kpis = spec.kpis || [];
     base.gridCols = spec.gridCols || 3; base.panels = (spec.panels || []).map(function (p) { if (!p.id) p.id = Studio.uid("p"); return p; });

@@ -1854,6 +1854,40 @@
     }
   ];
 
+  // ★★ Visual refresh (A): full dashboard "look" presets — unlike PALETTE_PRESETS (series
+  // colors only) or themeColor/headerBg (one-off accent tweaks), each entry here overrides the
+  // WHOLE pdc-ui.css token system (bg/panel/text hierarchy + brand + series) in one pick, so a
+  // dashboard reads as one coherent system rather than a blue base with mismatched accents.
+  // "classic" (light/dark: null) leaves vendor/pdc-ui.css untouched. "fleet-modern" mirrors the
+  // jobtracker.polecat.live token hierarchy (bg -> surface -> surface-2, text/2/3, brand/accent)
+  // with a WCAG-AA, colorblind-safe (CVD >=12) 10-color series palette validated via the dataviz
+  // skill's validate_palette.js for both light and dark. Stored as spec.dashboardTheme.
+  Studio.DASHBOARD_THEMES = [
+    { key: "classic", label: "Classic Pentaho Blue", swatch: "#005bb5", light: null, dark: null },
+    { key: "fleet-modern", label: "Fleet Modern", swatch: "#0071bc",
+      light: {
+        "--pentaho": "#0071bc", "--pdc": "#00964a",
+        "--app-bg": "#eef3f9", "--panel-bg": "#ffffff", "--panel-border": "#ccdcec",
+        "--panel-subtle-bg": "#e9f0f8", "--panel-header-bg": "#e9f0f8", "--panel-header-border": "#ccdcec",
+        "--field-bg": "#ffffff", "--field-border": "#ccdcec",
+        "--text-primary": "#0c1c2e", "--text-muted": "#48596f", "--text-faint": "#586b88",
+        "--sidebar-bg": "#0d1a2e", "--header-bg": "#0d1a2e", "--grid-line": "#dde6f0", "--axis": "#586b88",
+        "--c1": "#0071bc", "--c2": "#00964a", "--c3": "#c98500", "--c4": "#5b3fa8", "--c5": "#0e8f86",
+        "--c6": "#d1403f", "--c7": "#c94f82", "--c8": "#d95926", "--c9": "#2a63a8", "--c10": "#a8461f"
+      },
+      dark: {
+        "--pentaho": "#5bb3ea", "--pdc": "#17b9a6",
+        "--app-bg": "#0a0f1a", "--panel-bg": "#111a2b", "--panel-border": "#26344f",
+        "--panel-subtle-bg": "#18243a", "--panel-header-bg": "#18243a", "--panel-header-border": "#26344f",
+        "--field-bg": "#18243a", "--field-border": "#26344f",
+        "--text-primary": "#e9eff8", "--text-muted": "#93a6c2", "--text-faint": "#8496ac",
+        "--sidebar-bg": "#060b14", "--header-bg": "#060b14", "--grid-line": "#1c2740", "--axis": "#8496ac",
+        "--c1": "#3d8fd6", "--c2": "#22a35f", "--c3": "#b8811f", "--c4": "#8a6fd0", "--c5": "#2aa89a",
+        "--c6": "#e2685f", "--c7": "#cf6b98", "--c8": "#c76a2f", "--c9": "#4a7bc4", "--c10": "#b56a3f"
+      }
+    }
+  ];
+
   // Built-in dashboard accent-color presets. Used by the per-dashboard "Accent color"
   // picker (Dashboard inspector) and the Settings "Default accent color" picker (Z6).
   // color: "" keeps the built-in Pentaho blue (#005bb5) from pdc-ui.css untouched.
@@ -1900,6 +1934,7 @@
       kpis: [],
       gridCols: 3,
       themeColor: "", // optional hex color that overrides --pentaho in preview + exported CDF
+      dashboardTheme: "", // optional full look preset key (see Studio.DASHBOARD_THEMES); "" = classic
       paletteKey: "", // optional series palette key (see Studio.PALETTE_PRESETS); "" = default
       headerLogo: "", // optional data: URL image that replaces the default "P" mark in the banner
       headerLink: "", // optional URL — wraps the header brand mark+title in a link (opens in a new tab)
@@ -2401,7 +2436,7 @@
       { key: "panel",  label: "Add a panel",             done: (spec.panels || []).length > 0 },
       { key: "kpi",    label: "Add a KPI tile",          done: (spec.kpis || []).length > 0 },
       { key: "filter", label: "Add a filter",            done: (spec.filters || []).length > 0 },
-      { key: "style",  label: "Add your own accent color or logo", done: !!(spec.themeColor || spec.paletteKey || spec.headerLogo) },
+      { key: "style",  label: "Add your own accent color or logo", done: !!(spec.themeColor || spec.dashboardTheme || spec.paletteKey || spec.headerLogo) },
     ];
     var done = items.filter(function (i) { return i.done; }).length;
     return { done: done, total: items.length, items: items };
@@ -2417,6 +2452,7 @@
     ["title", "Title"], ["subtitle", "Subtitle"], ["name", "File name"], ["description", "Description"],
     ["themeColor", "Accent color"], ["headerBg", "Header background color"], ["headerLink", "Header link"],
     ["titleSize", "Title size"], ["subtitleStyle", "Subtitle style"], ["paletteKey", "Series palette"],
+    ["dashboardTheme", "Dashboard theme"],
     ["gridCols", "Grid columns"]
   ];
   Studio.diffSpecs = function (a, b) {

@@ -11074,6 +11074,95 @@ function serve() {
     });
     ok("H-palette: Clicking 'ocean' preset sets spec.paletteKey to 'ocean'", palKeyOk.paletteKey === "ocean", JSON.stringify(palKeyOk));
 
+    // ── Visual refresh (A): Dashboard theme (Fleet Modern) ─────────────────────
+    console.log("\n• Visual refresh (A): Dashboard theme presets");
+
+    // 1. Studio.DASHBOARD_THEMES defined with classic + fleet-modern, each fully tokened
+    var dtRegistryOk = await page.evaluate(function () {
+      var dt = window.Studio.DASHBOARD_THEMES;
+      var fm = dt && dt.filter(function (t) { return t.key === "fleet-modern"; })[0];
+      var needed = ["--pentaho", "--pdc", "--app-bg", "--panel-bg", "--text-primary", "--c1", "--c10"];
+      var hasAll = fm && needed.every(function (k) { return fm.light[k] && fm.dark[k]; });
+      return {
+        ok: Array.isArray(dt) && dt.some(function (t) { return t.key === "classic"; }) && !!fm && hasAll,
+        len: dt ? dt.length : 0
+      };
+    });
+    ok("Dashboard theme: Studio.DASHBOARD_THEMES has 'classic' + 'fleet-modern' with full light/dark token sets", dtRegistryOk.ok, JSON.stringify(dtRegistryOk));
+
+    // 2. Dashboard inspector renders the theme swatch row
+    await page.evaluate(function () {
+      try {
+        window.__STUDIO_STATE.selection = null;
+        if (window.__studioRenderInspector) window.__studioRenderInspector();
+      } catch (e) {}
+    });
+    await page.waitForTimeout(200);
+    var dtRowOk = await page.evaluate(function () {
+      var row = document.getElementById("dashThemeRow");
+      return { ok: !!row && row.querySelectorAll("button.dt-swatch[data-dashboard-theme]").length >= 2 };
+    });
+    ok("Dashboard theme: inspector renders theme swatch row (#dashThemeRow) with >=2 swatches", dtRowOk.ok, JSON.stringify(dtRowOk));
+
+    // 3. Selecting 'fleet-modern' writes spec.dashboardTheme and the exported CSS carries its tokens
+    await page.evaluate(function () {
+      var row = document.getElementById("dashThemeRow");
+      var btn = row && Array.from(row.querySelectorAll("button[data-dashboard-theme]")).find(function (b) {
+        return b.getAttribute("data-dashboard-theme") === "fleet-modern";
+      });
+      if (btn) btn.click();
+    });
+    await page.waitForTimeout(300);
+    var dtAppliedOk = await page.evaluate(function () {
+      var spec = window.__STUDIO_STATE.spec;
+      var html = window.Studio.buildHtml(spec, window.__STUDIO_STATE.assets, { deployPath: "/x", preview: false });
+      return {
+        specKey: spec.dashboardTheme,
+        lightVar: html.indexOf("--app-bg:#eef3f9") !== -1 && html.indexOf("--pentaho:#0071bc") !== -1,
+        darkVar: html.indexOf("[data-theme='dark']") !== -1 && html.indexOf("--app-bg:#0a0f1a") !== -1
+      };
+    });
+    ok("Dashboard theme: clicking 'Fleet Modern' sets spec.dashboardTheme", dtAppliedOk.specKey === "fleet-modern", JSON.stringify(dtAppliedOk));
+    ok("Dashboard theme: exported HTML carries Fleet Modern's light token overrides", dtAppliedOk.lightVar, JSON.stringify(dtAppliedOk));
+    ok("Dashboard theme: exported HTML carries Fleet Modern's dark token overrides", dtAppliedOk.darkVar, JSON.stringify(dtAppliedOk));
+
+    // 4. Reverting to 'classic' clears the override CSS entirely
+    await page.evaluate(function () {
+      var row = document.getElementById("dashThemeRow");
+      var btn = row && Array.from(row.querySelectorAll("button[data-dashboard-theme]")).find(function (b) {
+        return b.getAttribute("data-dashboard-theme") === "classic";
+      });
+      if (btn) btn.click();
+    });
+    await page.waitForTimeout(300);
+    var dtClassicOk = await page.evaluate(function () {
+      var spec = window.__STUDIO_STATE.spec;
+      var html = window.Studio.buildHtml(spec, window.__STUDIO_STATE.assets, { deployPath: "/x", preview: false });
+      return { specKey: spec.dashboardTheme, hasOverride: html.indexOf("--app-bg:#eef3f9") !== -1 };
+    });
+    ok("Dashboard theme: reverting to 'Classic' clears dashboardTheme and drops the override CSS",
+      dtClassicOk.specKey === "" && !dtClassicOk.hasOverride, JSON.stringify(dtClassicOk));
+
+    // 5. normalize() (via __studioLoad, its only entry point) round-trips dashboardTheme —
+    // the same bug class the v193 headerLogo fix caught (a new scalar field silently reset
+    // on every reopen if the normalize() whitelist forgets it).
+    var dtNormalizeOk = await page.evaluate(function () {
+      var raw = window.Studio.emptySpec();
+      raw.dashboardTheme = "fleet-modern";
+      window.__studioLoad(raw);
+      return { val: window.__STUDIO_STATE.spec.dashboardTheme };
+    });
+    ok("Dashboard theme: normalize() preserves spec.dashboardTheme through __studioLoad", dtNormalizeOk.val === "fleet-modern", JSON.stringify(dtNormalizeOk));
+
+    // Restore a populated example spec — the check above intentionally loaded a bare/empty
+    // spec (0 panels) to test normalize() round-tripping, which would otherwise strand later
+    // tests that assume "whatever's currently loaded" has panels.
+    await page.evaluate(async function () {
+      var spec = await fetch("data/examples/studio-cost.studio.json").then(function (r) { return r.json(); });
+      window.__studioLoad(spec);
+    });
+    await page.waitForTimeout(200);
+
     // ── F33: Pareto chart ─────────────────────────────────────────────────────
     console.log("\n• F33: Pareto chart (46th type)");
 

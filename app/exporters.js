@@ -213,6 +213,20 @@
       ".sr-richtext code{background:var(--field);border-radius:3px;padding:1px 5px;font-size:.88em}" +
       ".sr-richtext hr{border:0;border-top:1px solid var(--panel-border);margin:.5em 0}" +
       ".sr-rt-placeholder{color:var(--faint);font-style:italic;font-size:12px}";
+    // ★★ Visual refresh (A): full dashboard theme — overrides the WHOLE pdc-ui.css token set
+    // (bg/panel/text hierarchy + brand + series) in one pass when spec.dashboardTheme picks a
+    // non-classic preset (see Studio.DASHBOARD_THEMES). Emitted BEFORE the finer-grained
+    // themeColor/headerBg/paletteKey overrides below so a per-dashboard tweak on top of a theme
+    // still wins (later declaration, same :root/[data-theme='dark'] specificity).
+    var dashboardThemeCss = "";
+    if (spec.dashboardTheme && spec.dashboardTheme !== "classic") {
+      var _dt = (Studio.DASHBOARD_THEMES || []).filter(function (t) { return t.key === spec.dashboardTheme; })[0];
+      if (_dt && _dt.light) {
+        var _dtLight = Object.keys(_dt.light).map(function (k) { return k + ":" + _dt.light[k]; }).join(";");
+        var _dtDark  = Object.keys(_dt.dark).map(function (k) { return k + ":" + _dt.dark[k]; }).join(";");
+        dashboardThemeCss = "\n:root{" + _dtLight + "}\n[data-theme='dark']{" + _dtDark + "}";
+      }
+    }
     // Per-dashboard accent color: override --pentaho CSS variable when spec.themeColor is set.
     // The override is appended last so it wins over the base palette in pdc-ui.css (same :root
     // specificity; last-declaration-wins within one stylesheet).
@@ -287,7 +301,7 @@
     var head =
       "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\"/>\n" +
       "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/>\n" +
-      "<title>" + xml(titleText) + " — Pentaho Data Catalog Analytics</title>\n<style>\n" + assets.css + mobileCss + sectionCss + descCss + panelNoteCss + panelAccentCss + targetLineCss + refBandCss + calloutCss + periodHighlightCss + eventMarkerCss + scatterAnnotCss + kpiSubCss + richtextCss + themeColorCss + headerLogoCss + headerLinkCss + headerBgCss + titleSizeCss + subtitleStyleCss + paletteCss + printCss + previewCss + "\n</style>\n</head>\n";
+      "<title>" + xml(titleText) + " — Pentaho Data Catalog Analytics</title>\n<style>\n" + assets.css + mobileCss + sectionCss + descCss + panelNoteCss + panelAccentCss + targetLineCss + refBandCss + calloutCss + periodHighlightCss + eventMarkerCss + scatterAnnotCss + kpiSubCss + richtextCss + dashboardThemeCss + themeColorCss + headerLogoCss + headerLinkCss + headerBgCss + titleSizeCss + subtitleStyleCss + paletteCss + printCss + previewCss + "\n</style>\n</head>\n";
     var logoHtml = spec.headerLogo ?
       "<img class=\"pdc-logo\" src=\"" + xml(spec.headerLogo) + "\" alt=\"\"/>" :
       "<span class=\"pdc-logo\">P</span>";

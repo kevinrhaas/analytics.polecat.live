@@ -1260,12 +1260,15 @@ body.simple-mode .da-acts{display:none!important}
 /* H-track: Dashboard accent color — preset swatches + custom color input.
    Z6/Z5 follow-up: the Settings "Default accent color" picker reuses this exact look via its
    own .set-accent-* class names (not .accent-swatch itself) so document-wide swatch queries
-   elsewhere (e.g. the per-dashboard accent picker) can't accidentally pick up Settings' copies. */
-.accent-presets,.set-accent-presets{display:flex;flex-wrap:wrap;gap:5px;align-items:center;padding:2px 0}
-.accent-swatch,.set-accent-swatch{width:20px;height:20px;border-radius:50%;border:2px solid transparent;
+   elsewhere (e.g. the per-dashboard accent picker) can't accidentally pick up Settings' copies.
+   Visual refresh (A): the Dashboard theme picker follows the same rule with its own .dt-swatch
+   class names — it sits ABOVE the accent-color row in the inspector, so a bare
+   .accent-swatch query would otherwise pick up its swatches first (off-by-N clicks). */
+.accent-presets,.set-accent-presets,.dt-presets{display:flex;flex-wrap:wrap;gap:5px;align-items:center;padding:2px 0}
+.accent-swatch,.set-accent-swatch,.dt-swatch{width:20px;height:20px;border-radius:50%;border:2px solid transparent;
   cursor:pointer;padding:0;flex-shrink:0;transition:border-color .12s,transform .1s;outline:none}
-.accent-swatch:hover,.set-accent-swatch:hover{transform:scale(1.15)}
-.accent-swatch.active,.set-accent-swatch.active{border-color:var(--text-primary,#1a2236)!important}
+.accent-swatch:hover,.set-accent-swatch:hover,.dt-swatch:hover{transform:scale(1.15)}
+.accent-swatch.active,.set-accent-swatch.active,.dt-swatch.active{border-color:var(--text-primary,#1a2236)!important}
 #dashAccentCustom,#setDefaultAccentCustom{width:26px;height:26px;border-radius:5px;border:1px solid var(--line);
   cursor:pointer;padding:1px;background:transparent}
 
