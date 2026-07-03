@@ -15,6 +15,15 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 222,
+    title: 'Rotate-labels toggle gets a visual hint too',
+    kind: 'polish',
+    ts: '2026-07-03T00:43:56Z',
+    items: [
+      'The "Rotate labels" toggle (bars, stacked, groupedBars, barNorm) now carries a hint glyph — "Tilts the axis labels diagonally so long category names fit without overlapping." Closes out the Z8 inline-hint sweep\'s last sizeable option family.',
+    ],
+  },
+  {
     v: 221,
     title: 'More option families get inline visual hints',
     kind: 'polish',

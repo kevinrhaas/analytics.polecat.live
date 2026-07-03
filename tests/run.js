@@ -11951,6 +11951,7 @@ function serve() {
       var sunburstLabels = sunburstHints.filter(function (h) { return /text label directly/.test(h.title); });
       var funnelHints = hintsFor("funnel");
       var funnelPct = funnelHints.filter(function (h) { return /percentage/.test(h.title); });
+      var barsRotate = barsHints.filter(function (h) { return /diagonally/.test(h.title); });
       var result = {
         barsHasSortHint: barsSort.length === 1,
         donutHasLegendHint: donutLegend.length === 1,
@@ -11959,6 +11960,7 @@ function serve() {
         barsHasValuesHint: barsValues.length === 1,
         sunburstHasLabelsHint: sunburstLabels.length === 1,
         funnelHasPctHint: funnelPct.length === 1,
+        barsHasRotateHint: barsRotate.length === 1,
         hintHasSvg: barsSort.length === 1 && !!barsSort[0].querySelector("svg"),
         hintHasAriaLabel: barsSort.length === 1 && !!barsSort[0].getAttribute("aria-label")
       };
@@ -11976,6 +11978,7 @@ function serve() {
     ok("Bar chart's 'Show value labels' toggle carries a tag-glyph hint", optHintUI.barsHasValuesHint, JSON.stringify(optHintUI));
     ok("Sunburst's 'Show arc labels' toggle carries a tag-glyph hint", optHintUI.sunburstHasLabelsHint, JSON.stringify(optHintUI));
     ok("Funnel's 'Show conversion %' toggle carries a percent-glyph hint", optHintUI.funnelHasPctHint, JSON.stringify(optHintUI));
+    ok("Bar chart's 'Rotate labels' toggle carries a rotate-glyph hint", optHintUI.barsHasRotateHint, JSON.stringify(optHintUI));
 
     // ---- Track N: command palette (⌘K / Ctrl-K) ----
     console.log("\n• Track N: command palette (⌘K)");

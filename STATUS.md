@@ -1234,9 +1234,12 @@ self-explanatory. Keep it light (inline SVG / CSS, no image assets or deps). One
 > number/label directly on the chart, not just the tooltip") and `showPct` (a `percent` glyph — "shows the
 > figure as a percentage… rather than its raw value"), covering bars/stacked/groupedBars,
 > sunburst/chord/network/treemap/icicle/polarArea/packedBubble, and funnel/treemap/marimekko/icicle/barNorm
-> respectively. 3 new tests, suite 1018/1018. **Z8 follow-ups (not yet done):** `rotate` (4 types) is the
-> last sizeable un-hinted family; consider true before/after thumbnails (not just a glyph+tooltip) for the
-> least-obvious remaining options.
+> respectively. 3 new tests, suite 1018/1018.
+> ✓ **`rotate` family shipped v222 (Z8 inline-hint sweep now covers every sizeable repeated option
+> family).** New `rotate-text` glyph ("Tilts the axis labels diagonally so long category names fit without
+> overlapping.") on bars/stacked/groupedBars/barNorm. 1 new test, suite 1019/1019. **Z8 follow-ups (not
+> yet done):** true before/after thumbnails (not just a glyph+tooltip) for the least-obvious remaining
+> one-off options, and per-chart-type-specific hints beyond the shared-key families covered here.
 
 **Z9 — Mobile: fix the broken flows + a proper bottom nav (user-requested 2026-06-30).**
 > ⚠️ **ESCALATED — see the ★★★ TOP PRIORITY — MOBILE block at the top of NEXT** (user re-reported 2026-07-02
