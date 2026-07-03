@@ -31,6 +31,7 @@
 
   function setActive(sec, persist) {
     if (SECTIONS.indexOf(sec) < 0) sec = "studio";
+    var changed = sec !== desiredSection;
     desiredSection = sec;
     if (persist !== false) { try { localStorage.setItem(LS_SECTION, sec); } catch (e) {} }
     // m-a: sections now switch on mobile too (the rail is a reachable drawer there,
@@ -44,6 +45,26 @@
       btn.classList.toggle("active", on);
       if (on) btn.setAttribute("aria-current", "page"); else btn.removeAttribute("aria-current");
     });
+    // Z1 follow-up: a brief fade-in on the section you actually switched to (motion
+    // feedback that something happened) — skip on the initial page-load restore (persist
+    // === false) so a saved non-Studio section doesn't "pop in" on first paint. The
+    // `.sec-enter` animation itself is defined in studio.css and disabled entirely under
+    // prefers-reduced-motion, so no JS branching on that preference is needed here. The
+    // class is removed again once the animation finishes — #appMain (the Studio section)
+    // has position:fixed descendants (#mobile-tabs/#statusbar at phone width), and a
+    // *lingering* CSS animation/transform on an ancestor becomes their containing block
+    // instead of the viewport, breaking their fixed positioning for as long as it's applied.
+    if (changed && persist !== false) {
+      var shown = sectionEl(sec);
+      if (shown) {
+        shown.classList.remove("sec-enter");
+        void shown.offsetWidth; // force reflow so re-adding the class restarts the animation
+        shown.classList.add("sec-enter");
+        shown.addEventListener("animationend", function onEnd(e) {
+          if (e.target === shown) { shown.classList.remove("sec-enter"); shown.removeEventListener("animationend", onEnd); }
+        });
+      }
+    }
   }
 
   // ── m-a: mobile nav drawer ─────────────────────────────────────────────

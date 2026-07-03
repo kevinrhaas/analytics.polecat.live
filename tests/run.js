@@ -11460,6 +11460,40 @@ function serve() {
     ok("Z1/m-a: on mobile the rail is an off-canvas drawer (hamburger present) and a saved non-Studio section shows full-screen",
       z1PhoneState.railIsOffCanvasDrawer && z1PhoneState.hamburgerPresent && z1PhoneState.savedSectionShows && z1PhoneState.noOverflow, JSON.stringify(z1PhoneState));
 
+    // Z1-7 follow-up: switching sections plays a brief fade/slide-in on the newly shown
+    // section (motion feedback for the switch itself); disabled under prefers-reduced-motion.
+    await page.click('#railNav .rail-item[data-sec="repository"]');
+    const z1MotionOn = await page.evaluate(function () {
+      var el = document.getElementById("secRepository");
+      var cs = getComputedStyle(el);
+      return { hasClass: el.classList.contains("sec-enter"), animName: cs.animationName };
+    });
+    ok("Z1 follow-up: switching to a section adds .sec-enter with a real CSS animation running",
+      z1MotionOn.hasClass && z1MotionOn.animName !== "none", JSON.stringify(z1MotionOn));
+
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.click('#railNav .rail-item[data-sec="settings"]');
+    const z1MotionReduced = await page.evaluate(function () {
+      var el = document.getElementById("secSettings");
+      return { hasClass: el.classList.contains("sec-enter"), animName: getComputedStyle(el).animationName };
+    });
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    ok("Z1 follow-up: prefers-reduced-motion disables the section-switch animation entirely",
+      z1MotionReduced.animName === "none", JSON.stringify(z1MotionReduced));
+
+    // switching to the SAME already-active section must not replay the animation
+    const z1MotionSame = await page.evaluate(function () {
+      var el = document.getElementById("secSettings");
+      el.classList.remove("sec-enter");
+      window.__studioShellSetSection("settings");
+      return { hasClass: el.classList.contains("sec-enter") };
+    });
+    ok("Z1 follow-up: re-selecting the already-active section does not retrigger the entrance animation",
+      z1MotionSame.hasClass === false, JSON.stringify(z1MotionSame));
+
+    await page.evaluate(function () { window.__studioShellSetSection("studio"); });
+    await page.waitForTimeout(80);
+
     // ── Z2: Home landing section — quick-create + recents ──
     console.log("\n• Z2: Home landing section");
     await page.click('#railNav .rail-item[data-sec="home"]');
