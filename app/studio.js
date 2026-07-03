@@ -5569,7 +5569,10 @@
     { test: /^sort/i,                        icon: "sort-desc", tip: "Reorders items largest-value-first instead of the query's original row order." },
     { test: /^showLegend$/,                  icon: "legend",    tip: "Shows a small key mapping each color/series to its label." },
     { test: /^smooth$/,                      icon: "curve",     tip: "Draws curved (cubic-bezier) segments between points instead of straight lines." },
-    { test: /^showDots$/,                    icon: "dots",      tip: "Shows a small marker dot at every data point along the line." }
+    { test: /^showDots$/,                    icon: "dots",      tip: "Shows a small marker dot at every data point along the line." },
+    { test: /^showValues$/,                  icon: "tag",       tip: "Shows the number directly on the chart (bar/segment/point), not just in the hover tooltip." },
+    { test: /^showLabels$/,                  icon: "tag",       tip: "Shows a text label directly on each element, not just in the hover tooltip." },
+    { test: /^showPct$/,                     icon: "percent",   tip: "Shows the figure as a percentage (of the total, or conversion rate) rather than its raw value." }
   ];
   function optHint(key) {
     for (var i = 0; i < OPT_HINTS.length; i++) if (OPT_HINTS[i].test.test(key)) return OPT_HINTS[i];

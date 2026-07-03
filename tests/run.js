@@ -11946,11 +11946,19 @@ function serve() {
       var lineHints = hintsFor("line");
       var lineSmooth = lineHints.filter(function (h) { return /curved/.test(h.title); });
       var lineDots = lineHints.filter(function (h) { return /marker dot/.test(h.title); });
+      var barsValues = barsHints.filter(function (h) { return /just in the hover tooltip/.test(h.title); });
+      var sunburstHints = hintsFor("sunburst");
+      var sunburstLabels = sunburstHints.filter(function (h) { return /text label directly/.test(h.title); });
+      var funnelHints = hintsFor("funnel");
+      var funnelPct = funnelHints.filter(function (h) { return /percentage/.test(h.title); });
       var result = {
         barsHasSortHint: barsSort.length === 1,
         donutHasLegendHint: donutLegend.length === 1,
         lineHasSmoothHint: lineSmooth.length === 1,
         lineHasDotsHint: lineDots.length === 1,
+        barsHasValuesHint: barsValues.length === 1,
+        sunburstHasLabelsHint: sunburstLabels.length === 1,
+        funnelHasPctHint: funnelPct.length === 1,
         hintHasSvg: barsSort.length === 1 && !!barsSort[0].querySelector("svg"),
         hintHasAriaLabel: barsSort.length === 1 && !!barsSort[0].getAttribute("aria-label")
       };
@@ -11965,6 +11973,9 @@ function serve() {
     ok("Line's 'Show data points' toggle carries a dots-glyph hint", optHintUI.lineHasDotsHint, JSON.stringify(optHintUI));
     ok("Setting hint renders an inline SVG icon", optHintUI.hintHasSvg, JSON.stringify(optHintUI));
     ok("Setting hint is screen-reader accessible (aria-label)", optHintUI.hintHasAriaLabel, JSON.stringify(optHintUI));
+    ok("Bar chart's 'Show value labels' toggle carries a tag-glyph hint", optHintUI.barsHasValuesHint, JSON.stringify(optHintUI));
+    ok("Sunburst's 'Show arc labels' toggle carries a tag-glyph hint", optHintUI.sunburstHasLabelsHint, JSON.stringify(optHintUI));
+    ok("Funnel's 'Show conversion %' toggle carries a percent-glyph hint", optHintUI.funnelHasPctHint, JSON.stringify(optHintUI));
 
     // ---- Track N: command palette (⌘K / Ctrl-K) ----
     console.log("\n• Track N: command palette (⌘K)");

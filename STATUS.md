@@ -1229,9 +1229,14 @@ self-explanatory. Keep it light (inline SVG / CSS, no image assets or deps). One
 > mapping…"), **smooth** ("Draws curved segments…"), and **showDots** ("Shows a marker dot at every
 > point…") in one pass, since those exact keys repeat across a dozen+ chart types from the earlier Z8
 > per-type slices. 4 new icons (`sort-desc`/`legend`/`curve`/`dots`) in `app/icons.js`. Docs updated.
-> 6 new tests, suite 1015/1015. **Z8 follow-ups (not yet done):** extend `OPT_HINTS` to the remaining
-> option families (showValues/showPct/rotate/etc.) and consider true before/after thumbnails (not just
-> a glyph+tooltip) for the least-obvious ones.
+> 6 new tests, suite 1015/1015.
+> ✓ **Three more families shipped v221**: `showValues`/`showLabels` (both get a `tag` glyph — "shows the
+> number/label directly on the chart, not just the tooltip") and `showPct` (a `percent` glyph — "shows the
+> figure as a percentage… rather than its raw value"), covering bars/stacked/groupedBars,
+> sunburst/chord/network/treemap/icicle/polarArea/packedBubble, and funnel/treemap/marimekko/icicle/barNorm
+> respectively. 3 new tests, suite 1018/1018. **Z8 follow-ups (not yet done):** `rotate` (4 types) is the
+> last sizeable un-hinted family; consider true before/after thumbnails (not just a glyph+tooltip) for the
+> least-obvious remaining options.
 
 **Z9 — Mobile: fix the broken flows + a proper bottom nav (user-requested 2026-06-30).**
 > ⚠️ **ESCALATED — see the ★★★ TOP PRIORITY — MOBILE block at the top of NEXT** (user re-reported 2026-07-02

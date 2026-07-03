@@ -15,6 +15,16 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 221,
+    title: 'More option families get inline visual hints',
+    kind: 'polish',
+    ts: '2026-07-03T00:35:55Z',
+    items: [
+      'Extends the v220 hint map to Show value labels, Show \'element\' labels, and Show % toggles — three more families that repeat across a dozen+ chart types (bars/stacked/groupedBars, sunburst/chord/network/treemap/icicle/polarArea/packedBubble, funnel/treemap/marimekko/icicle/barNorm).',
+      'Two new glyphs (tag, percent) in app/icons.js, reusing the same OPT_HINTS mechanism — no per-chart-type work needed.',
+    ],
+  },
+  {
     v: 220,
     title: 'Inline visual hints for common chart-option toggles',
     kind: 'polish',

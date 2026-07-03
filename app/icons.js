@@ -56,7 +56,9 @@
     "sort-desc": '<rect x="3" y="4" width="18" height="3.4" rx="1" fill="currentColor" stroke="none"/><rect x="3" y="10.3" width="12" height="3.4" rx="1" fill="currentColor" stroke="none"/><rect x="3" y="16.6" width="6" height="3.4" rx="1" fill="currentColor" stroke="none"/>',
     legend:    '<rect x="3" y="6" width="4" height="4" rx="1" fill="currentColor" stroke="none"/><line x1="10" y1="8" x2="21" y2="8" stroke-linecap="round"/><rect x="3" y="15" width="4" height="4" rx="1" fill="currentColor" stroke="none"/><line x1="10" y1="17" x2="21" y2="17" stroke-linecap="round"/>',
     curve:     '<path d="M2 16c3-8 7-8 10 0s7 8 10 0" stroke-linecap="round" stroke-linejoin="round"/>',
-    dots:      '<circle cx="5" cy="15" r="2" fill="currentColor" stroke="none"/><circle cx="12" cy="8" r="2" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="2" fill="currentColor" stroke="none"/>'
+    dots:      '<circle cx="5" cy="15" r="2" fill="currentColor" stroke="none"/><circle cx="12" cy="8" r="2" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="2" fill="currentColor" stroke="none"/>',
+    tag:       '<path stroke-linecap="round" stroke-linejoin="round" d="M3 12l9-9h7a2 2 0 0 1 2 2v7l-9 9a2 2 0 0 1-2.83 0l-6.17-6.17a2 2 0 0 1 0-2.83z"/><circle cx="15" cy="9" r="1.4" fill="currentColor" stroke="none"/>',
+    percent:   '<line x1="19" y1="5" x2="5" y2="19" stroke-linecap="round"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>'
   };
 
   Studio.icon = function (name, size) {
