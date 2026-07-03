@@ -15,6 +15,18 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 260,
+    title: 'N-DATA: data quality watchdog for the Query preview',
+    kind: 'feature',
+    ts: '2026-07-03T12:14:18Z',
+    items: [
+      'The Query preview section (panel inspector + Data source inspector) now flags common data smells in its own sample: blank/missing values, a column that is the same value on every row, and duplicate rows.',
+      'Shows up as a small note right below the sample table -- a quick sanity check before you build a chart on top of the data.',
+      'Pure client-side profiling of data already fetched for the preview -- no new connectors, no network call.',
+      '6 new tests, suite 1185/1185.',
+    ],
+  },
+  {
     v: 259,
     title: 'Z5 follow-up: quick settings in the mobile nav drawer',
     kind: 'feature',

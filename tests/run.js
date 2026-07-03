@@ -2131,6 +2131,58 @@ function serve() {
     ok("query peek shows SQL snippet", qpeek.hasSql, JSON.stringify(qpeek));
     ok("query peek shows 3-row sample table with columns", qpeek.hasTable && qpeek.hasCols, JSON.stringify(qpeek));
 
+    // ---- N-DATA: data quality watchdog (pure function + UI wiring) ----
+    console.log("\n• N-DATA: data quality watchdog");
+    const dq = await page.evaluate(function () {
+      var clean = Studio.dataQualityIssues(["a", "b"], [["x", 1], ["y", 2], ["z", 3]]);
+      var blanks = Studio.dataQualityIssues(["a", "b"], [["x", 1], ["", 2], [null, 3]]);
+      var constant = Studio.dataQualityIssues(["a", "b"], [["x", 1], ["x", 2], ["x", 3]]);
+      var dup = Studio.dataQualityIssues(["a", "b"], [["x", 1], ["x", 1], ["y", 2]]);
+      var blankIssue = blanks.filter(function (i) { return i.type === "blank"; })[0];
+      var constIssue = constant.filter(function (i) { return i.type === "constant"; })[0];
+      var dupIssue = dup.filter(function (i) { return i.type === "duplicate"; })[0];
+      var blankMsg = Studio.dataQualityMessage(blankIssue);
+      var constMsg = Studio.dataQualityMessage(constIssue);
+      var dupMsg = Studio.dataQualityMessage(dupIssue);
+      return {
+        cleanCount: clean.length,
+        blankFound: !!blankIssue && blankIssue.col === "a" && blankIssue.count === 2,
+        constFound: !!constIssue && constIssue.col === "a" && constIssue.value === "x",
+        dupFound: !!dupIssue && dupIssue.count === 1,
+        emptyInput: Studio.dataQualityIssues([], []).length === 0,
+        blankMsgOk: blankMsg.indexOf("a") >= 0 && blankMsg.indexOf("2") >= 0,
+        constMsgOk: constMsg.indexOf("a") >= 0 && constMsg.indexOf("x") >= 0,
+        dupMsgOk: dupMsg.indexOf("1") >= 0 && /duplicate/i.test(dupMsg)
+      };
+    });
+    ok("N-DATA: Studio.dataQualityIssues finds nothing wrong with clean, all-distinct data",
+      dq.cleanCount === 0 && dq.emptyInput, JSON.stringify(dq));
+    ok("N-DATA: Studio.dataQualityIssues flags blank/missing values per column",
+      dq.blankFound, JSON.stringify(dq));
+    ok("N-DATA: Studio.dataQualityIssues flags a constant (zero-variance) column",
+      dq.constFound, JSON.stringify(dq));
+    ok("N-DATA: Studio.dataQualityIssues flags duplicate rows",
+      dq.dupFound, JSON.stringify(dq));
+    ok("N-DATA: Studio.dataQualityMessage renders plain-English text naming the column/count for each issue type",
+      dq.blankMsgOk && dq.constMsgOk && dq.dupMsgOk, JSON.stringify(dq));
+
+    // Wiring check: the Query preview section's rendered .note.warn count must exactly match
+    // Studio.dataQualityIssues() over that same DA's own sample rows — proves renderQueryPeek
+    // is actually calling the watchdog (not just that the pure function works in isolation).
+    const dqWiring = await page.evaluate(function () {
+      var sec = [].slice.call(document.querySelectorAll("#inspBody .insp-sec h4")).filter(function (h) { return h.textContent.trim() === "Query preview"; })[0];
+      var parent = sec.closest(".insp-sec");
+      var warnCount = parent.querySelectorAll(".note.warn").length;
+      var sel = window.__STUDIO_STATE.selection;
+      var p = window.__STUDIO_STATE.spec.panels.filter(function (pp) { return pp.id === sel.id; })[0];
+      var da = window.__STUDIO_STATE.spec.cda.dataAccesses.filter(function (d) { return d.id === p.chart.da; })[0];
+      var sd = Studio.sampleRows(da);
+      var expected = Studio.dataQualityIssues(sd.cols, sd.rows).length;
+      return { warnCount: warnCount, expected: expected };
+    });
+    ok("N-DATA: the Query preview section's data-quality notes exactly match Studio.dataQualityIssues() for that DA's own sample",
+      dqWiring.warnCount === dqWiring.expected, JSON.stringify(dqWiring));
+
     // ---- N-AI: "Explain this chart" auto-insight narration ----
     console.log("\n• auto-insight narration");
     const insightUnit = await page.evaluate(() => {

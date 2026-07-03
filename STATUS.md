@@ -2119,6 +2119,19 @@ gets covered over time:
   obviously-inconsistent type mix in one column — and surface them as a small inline note right where the
   DA is browsed/edited, *before* a chart is even built on top of it. Pure client-side profiling over data
   already fetched for the existing Query preview; no new connectors or backend involved.
+> ✓ **First cut shipped v260**: `Studio.dataQualityIssues(cols, rows)` (model.js, pure) flags blank/missing
+> values per column, a column that's the same value on every sampled row, and duplicate rows;
+> `Studio.dataQualityMessage(issue)` renders each as one plain-English sentence. Wired into the existing
+> **Query preview** section (`renderQueryPeek`, shared by the panel inspector and the DA/Data source
+> inspector) — any issue found in that DA's own sample renders as a small amber `.note.warn` right below
+> the sample table. The bundled offline demo data is deliberately clean (no naturally-occurring blanks/
+> duplicates in the synthetic generator), so this mostly earns its keep once a builder points a DuckDB/
+> SQLite/Snowflake/Databricks/BigQuery/Generic-SQL/CDA connector at *real* data. 6 new tests (pure-function
+> correctness + a wiring check that the rendered note count always exactly matches
+> `Studio.dataQualityIssues()` over that DA's own sample), suite 1185/1185. **Still open:** also wiring
+> the watchdog into the richer "Data preview" modal's live/paginated result view (`renderDAPreview`,
+> separate from the inline Query preview this slice covers), and the "inconsistent type mix" smell noted
+> above (not yet implemented — only blank/constant/duplicate so far).
 - **Smart auto-arrange layout (added 2026-07-03):** a one-click "Auto-arrange" that reflows a dashboard's
   panels into a balanced magazine-style grid by content weight (KPIs first in a tight row, wide charts
   full-width, related tags clustered) using the existing `span` system — takes the tedium out of manual

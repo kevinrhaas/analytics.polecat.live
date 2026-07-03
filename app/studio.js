@@ -3169,6 +3169,11 @@
       var rowCount = el("div", "qpeek-hint");
       rowCount.textContent = sd.cols.length + " columns · sample rows (offline)";
       peek.appendChild(tblWrap); peek.appendChild(rowCount);
+      // N-DATA: data quality watchdog — quick smells (blanks, a constant column, duplicate
+      // rows) found in this same sample, surfaced right where the DA is browsed/edited.
+      Studio.dataQualityIssues(sd.cols, sd.rows).forEach(function (issue) {
+        peek.appendChild(noteEl("warn", Studio.dataQualityMessage(issue)));
+      });
     }
   }
 

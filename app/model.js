@@ -271,6 +271,40 @@
       " correlation (r = " + r.toFixed(2) + ") — as " + xCol + " " + (r > 0 ? "increases, " + yCol + " tends to increase too." : "increases, " + yCol + " tends to decrease.");
   };
 
+  /* ---- N-DATA: data quality watchdog (added 2026-07-03) ----
+     Pure client-side profiling of a data access's own sample rows — flags common smells
+     (blank/null values, a column that's the same value on every sampled row, duplicate
+     rows) so a builder notices a likely data problem before ever putting a chart on top
+     of it. Same "computed from the sample, offline, no API" spirit as computeInsights;
+     kept separate since it profiles the WHOLE row set rather than reasoning about one
+     value column. Sample rows are capped small (see sampleRows), so this is a quick smell
+     test on the preview, not an exhaustive audit of the real data. */
+  Studio.dataQualityIssues = function (cols, rows) {
+    if (!cols || !cols.length || !rows || !rows.length) return [];
+    var issues = [];
+    cols.forEach(function (col, i) {
+      var vals = rows.map(function (r) { return r[i]; });
+      var blankCount = vals.filter(function (v) { return v == null || v === ""; }).length;
+      if (blankCount > 0) issues.push({ type: "blank", col: col, count: blankCount });
+      var nonBlank = vals.filter(function (v) { return v != null && v !== ""; });
+      if (nonBlank.length > 1 && nonBlank.every(function (v) { return v === nonBlank[0]; })) {
+        issues.push({ type: "constant", col: col, value: nonBlank[0] });
+      }
+    });
+    var seen = {}, dupCount = 0;
+    rows.forEach(function (r) { var key = JSON.stringify(r); seen[key] = (seen[key] || 0) + 1; });
+    Object.keys(seen).forEach(function (k) { if (seen[k] > 1) dupCount += seen[k] - 1; });
+    if (dupCount > 0) issues.push({ type: "duplicate", count: dupCount });
+    return issues;
+  };
+  // Plain-English rendering of one Studio.dataQualityIssues() entry.
+  Studio.dataQualityMessage = function (issue) {
+    if (issue.type === "blank") return "“" + issue.col + "” has " + issue.count + " blank/missing value" + (issue.count === 1 ? "" : "s") + " in this sample.";
+    if (issue.type === "constant") return "“" + issue.col + "” is the same value (" + JSON.stringify(issue.value) + ") on every sampled row — check whether this column is useful here.";
+    if (issue.type === "duplicate") return issue.count + " duplicate row" + (issue.count === 1 ? "" : "s") + " found in this sample — check for an unintended join fan-out or a missing dedup step.";
+    return "";
+  };
+
   /* ---- chart registry: the heart of the model ----
      Each entry declares how a chart type binds columns + which knobs it exposes,
      plus how it maps to a CDE/CCC component. `fields` drives the inspector. */
