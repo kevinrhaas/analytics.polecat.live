@@ -1060,8 +1060,16 @@ added, and unified with this header/text-object work.
 > field), seeding `spec.headerLogo` on every brand-new blank dashboard alongside subtitle + accent.
 > `stylePresets()` now snapshots `logo` too, and a preset with one saved shows a small thumbnail
 > (`.sp-logo`) instead of a plain color swatch. `studio-default-logo` added to Settings export/import and
-> Clear local data. 6 new tests, suite 1001/1001. **Still open under Z6**: colors beyond the existing
-> accent-color picker and full text formatting for the banner.
+> Clear local data. 6 new tests, suite 1001/1001.
+> ✓ **Header background color shipped v225 (closes "colors beyond the accent-color picker")**: a
+> **Header background color** picker (below Accent color) sets a flat fill for the banner itself —
+> distinct from Accent color, which only tints the border + chart/button accents. Text auto-contrasts
+> via the new `Studio.contrastFg(hex)` (WCAG relative luminance) so a light pick never goes white-on-white.
+> "Reset to default" restores the standard navy gradient. `spec.headerBg` follows the same
+> emptySpec/normalize/CSS-override pattern as `headerLogo`/`headerLink`/`themeColor`. 6 new tests, suite
+> 1030/1030. **Still open under Z6**: full text formatting for the banner (bold/italic/size beyond the
+> existing Title/Subtitle plain-text fields), and per-preset header background (style presets don't yet
+> snapshot it).
 
 **Z7 — Analytics: forecasting + statistical functions.** Move toward standalone analytic apps: add
 forecasting (moving average, exponential smoothing / Holt-Winters, linear & seasonal trend) and

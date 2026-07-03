@@ -15,6 +15,16 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 225,
+    title: 'Header background color for the dashboard banner',
+    kind: 'feature',
+    ts: '2026-07-03T01:53:39Z',
+    items: [
+      'A new Header background color picker (Dashboard inspector, below Accent color) sets a flat fill for the banner itself, separate from Accent color which only tints the border and chart accents.',
+      'Text color auto-adjusts for contrast (dark on a light pick, white on a dark one) via a new Studio.contrastFg() helper, so a light banner never goes white-on-white. Reset to default restores the standard navy gradient.',
+    ],
+  },
+  {
     v: 224,
     title: 'Export milestone toasts',
     kind: 'feature',

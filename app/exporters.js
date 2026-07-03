@@ -217,6 +217,10 @@
     // Z6: header link — .pdc-brand is a <div> normally; when wrapped in an <a> it needs the link
     // underline/color reset so it still reads as plain brand chrome, not a text link.
     var headerLinkCss = spec.headerLink ? "\na.pdc-brand{color:inherit;text-decoration:none;cursor:pointer}" : "";
+    // Z6: per-dashboard header background color — flat fill (not the default navy gradient) with
+    // an auto-contrasting text color (Studio.contrastFg) so a light pick doesn't go invisible-on-white.
+    var headerBgCss = spec.headerBg ?
+      "\n.pdc-header{background:" + spec.headerBg + ";color:" + Studio.contrastFg(spec.headerBg) + "}" : "";
     // Series palette preset: override --c1..--c10 for both light and dark mode.
     // paletteKey "default" or blank → keep pdc-ui.css colors; any other key bakes in
     // the preset's color arrays so the exported CDF always renders with the chosen palette.
@@ -267,7 +271,7 @@
     var head =
       "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\"/>\n" +
       "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/>\n" +
-      "<title>" + xml(spec.title) + " — Pentaho Data Catalog Analytics</title>\n<style>\n" + assets.css + mobileCss + sectionCss + descCss + panelNoteCss + panelAccentCss + targetLineCss + refBandCss + calloutCss + periodHighlightCss + eventMarkerCss + scatterAnnotCss + kpiSubCss + richtextCss + themeColorCss + headerLogoCss + headerLinkCss + paletteCss + printCss + previewCss + "\n</style>\n</head>\n";
+      "<title>" + xml(spec.title) + " — Pentaho Data Catalog Analytics</title>\n<style>\n" + assets.css + mobileCss + sectionCss + descCss + panelNoteCss + panelAccentCss + targetLineCss + refBandCss + calloutCss + periodHighlightCss + eventMarkerCss + scatterAnnotCss + kpiSubCss + richtextCss + themeColorCss + headerLogoCss + headerLinkCss + headerBgCss + paletteCss + printCss + previewCss + "\n</style>\n</head>\n";
     var logoHtml = spec.headerLogo ?
       "<img class=\"pdc-logo\" src=\"" + xml(spec.headerLogo) + "\" alt=\"\"/>" :
       "<span class=\"pdc-logo\">P</span>";

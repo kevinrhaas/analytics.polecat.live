@@ -1783,6 +1783,23 @@
     accentRow.appendChild(accentCustom);
     sec.appendChild(field("Accent color", accentRow, "Overrides the brand color in preview and exported CDF"));
 
+    // Z6: Header background color — a flat fill for the banner itself (distinct from Accent color,
+    // which only tints the bottom border + chart/button accents). Text auto-contrasts (Studio.contrastFg)
+    // so a light pick never goes white-on-white.
+    var hdrBgRow = el("div"); hdrBgRow.className = "accent-presets";
+    var hdrBgCustom = el("input"); hdrBgCustom.type = "color"; hdrBgCustom.id = "dashHeaderBgCustom";
+    hdrBgCustom.title = "Custom header background color";
+    hdrBgCustom.value = sp.headerBg || "#102445";
+    hdrBgCustom.oninput = function () { sp.headerBg = this.value; refreshPreview(); renderInspector(); };
+    hdrBgRow.appendChild(hdrBgCustom);
+    if (sp.headerBg) {
+      var hdrBgClear = el("button"); hdrBgClear.type = "button"; hdrBgClear.className = "btn";
+      hdrBgClear.textContent = "Reset to default";
+      hdrBgClear.onclick = function () { delete sp.headerBg; refreshPreview(); renderInspector(); };
+      hdrBgRow.appendChild(hdrBgClear);
+    }
+    sec.appendChild(field("Header background color", hdrBgRow, "Flat fill for the banner itself (blank = default navy gradient); text color auto-adjusts for contrast."));
+
     // H-track: Series color palette preset — swaps the --c1..--c10 chart series palette.
     // Lets SE teams quickly show the dashboard in a different color family for demos.
     // paletteKey "" / "default" keeps the built-in Pentaho palette from pdc-ui.css.
@@ -4667,7 +4684,7 @@
     // Open / restore-banner / example-load / drag-drop-file silently reset a saved dashboard's accent
     // color and series palette back to the default. Keep this list in sync with Studio.emptySpec()'s
     // top-level scalar/optional fields whenever a new one is added (see also headerLogo, Z6).
-    ["schema", "id", "name", "title", "subtitle", "group", "description", "themeColor", "paletteKey", "headerLogo", "headerLink"].forEach(function (k) { if (spec[k] != null) base[k] = spec[k]; });
+    ["schema", "id", "name", "title", "subtitle", "group", "description", "themeColor", "paletteKey", "headerLogo", "headerLink", "headerBg"].forEach(function (k) { if (spec[k] != null) base[k] = spec[k]; });
     base.cda = spec.cda || base.cda;
     base.filters = spec.filters || []; base.kpis = spec.kpis || [];
     base.gridCols = spec.gridCols || 3; base.panels = (spec.panels || []).map(function (p) { if (!p.id) p.id = Studio.uid("p"); return p; });

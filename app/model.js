@@ -115,6 +115,19 @@
   };
   Studio.PALETTE = "['#005bb5','#7d3c98','#2e8bd0','#9b59b6','#00a39a','#e67e22','#c0392b','#16a085']";
 
+  // Z6: pick a readable foreground (near-black or near-white) for an arbitrary background hex,
+  // via standard WCAG relative luminance. Used by the custom "Header background color" so a light
+  // banner pick automatically gets dark text instead of the default white going invisible.
+  Studio.contrastFg = function (hex) {
+    var h = (hex || "").replace("#", "");
+    if (h.length === 3) h = h.split("").map(function (c) { return c + c; }).join("");
+    if (!/^[0-9a-f]{6}$/i.test(h)) return "#ffffff";
+    var r = parseInt(h.substr(0, 2), 16) / 255, g = parseInt(h.substr(2, 2), 16) / 255, b = parseInt(h.substr(4, 2), 16) / 255;
+    var lin = function (c) { return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+    var lum = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+    return lum > 0.42 ? "#12213b" : "#ffffff";
+  };
+
   /* ---- N-AI: smart chart recommender ----
      Given a query's own columns + sample rows, suggest the 2-3 best-fit chart
      types with a one-line "why" — a lightweight assistant over the chart-type
@@ -1725,6 +1738,7 @@
       paletteKey: "", // optional series palette key (see Studio.PALETTE_PRESETS); "" = default
       headerLogo: "", // optional data: URL image that replaces the default "P" mark in the banner
       headerLink: "", // optional URL — wraps the header brand mark+title in a link (opens in a new tab)
+      headerBg: "", // optional hex color that overrides the banner background (fg auto-contrasts); "" = default navy gradient
       panels: []
     };
   };

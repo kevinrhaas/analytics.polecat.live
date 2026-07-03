@@ -7753,13 +7753,13 @@ function serve() {
     // have shipped with the exact same bug. Verify all three survive a load round-trip.
     const z6Normalize = await page.evaluate(function () {
       var sp = JSON.parse(JSON.stringify(window.__STUDIO_STATE.spec));
-      sp.themeColor = "#123456"; sp.paletteKey = "ocean"; sp.headerLogo = "data:image/png;base64,AAAA";
+      sp.themeColor = "#123456"; sp.paletteKey = "ocean"; sp.headerLogo = "data:image/png;base64,AAAA"; sp.headerBg = "#f5e9d6";
       window.__studioLoad(sp);
       var after = window.__STUDIO_STATE.spec;
-      return { themeColor: after.themeColor, paletteKey: after.paletteKey, headerLogo: after.headerLogo };
+      return { themeColor: after.themeColor, paletteKey: after.paletteKey, headerLogo: after.headerLogo, headerBg: after.headerBg };
     });
-    ok("Z6/H103 regression: normalize() preserves themeColor + paletteKey + headerLogo across Open/reload (previously silently reset)",
-      z6Normalize.themeColor === "#123456" && z6Normalize.paletteKey === "ocean" && z6Normalize.headerLogo === "data:image/png;base64,AAAA",
+    ok("Z6/H103 regression: normalize() preserves themeColor + paletteKey + headerLogo + headerBg across Open/reload (previously silently reset)",
+      z6Normalize.themeColor === "#123456" && z6Normalize.paletteKey === "ocean" && z6Normalize.headerLogo === "data:image/png;base64,AAAA" && z6Normalize.headerBg === "#f5e9d6",
       JSON.stringify(z6Normalize));
 
     // ── Z6 slice: per-dashboard header link (banner brand becomes clickable) ──
@@ -7805,6 +7805,54 @@ function serve() {
     ok("Z6: clearing the Header link URL reverts the banner brand to a plain <div>",
       z6LinkCleared.headerLink === "" && z6LinkCleared.backToDiv, JSON.stringify(z6LinkCleared));
     await page.waitForTimeout(200); // let the preview iframe's srcdoc reload settle (three refreshPreview() calls just fired)
+
+    // ── Z6 slice: header background color (flat fill + auto-contrasting text) ──
+    console.log("\n• Z6: header background color");
+    const z6BgUnit = await page.evaluate(function () {
+      return { onWhite: window.Studio.contrastFg("#ffffff"), onNavy: window.Studio.contrastFg("#0a1323"), onShort: window.Studio.contrastFg("#fff"), onGarbage: window.Studio.contrastFg("not-a-color") };
+    });
+    ok("Z6: Studio.contrastFg picks dark text on a light background and white text on a dark one",
+      z6BgUnit.onWhite === "#12213b" && z6BgUnit.onNavy === "#ffffff", JSON.stringify(z6BgUnit));
+    ok("Z6: Studio.contrastFg handles 3-digit hex and never throws on garbage input (safe default)",
+      z6BgUnit.onShort === "#12213b" && !!z6BgUnit.onGarbage, JSON.stringify(z6BgUnit));
+
+    const z6BgBefore = await page.evaluate(function () {
+      var sp = window.__STUDIO_STATE.spec;
+      delete sp.headerBg; // the earlier Z6/H103 normalize regression test left one set on this spec
+      var rows = [].slice.call(document.querySelectorAll(".field"));
+      var row = rows.filter(function (f) { var lb = f.querySelector("label"); return lb && lb.textContent.indexOf("Header background color") >= 0; })[0];
+      var html = Studio.buildHtml(sp, window.__STUDIO_STATE.assets, { preview: false });
+      // vendor/pdc-ui.css's own base rule always contains ".pdc-header{background:" (the default
+      // gradient) — the override CSS this feature adds is a SECOND occurrence later in the stylesheet
+      // (last-declaration-wins), so "no override" means exactly one occurrence, not zero.
+      var occurrences = html.split(".pdc-header{background:").length - 1;
+      return { fieldPresent: !!row, hasColorInput: !!(row && row.querySelector("input[type=color]")), noOverrideCss: occurrences === 1 };
+    });
+    ok("Z6: Dashboard inspector has a Header background color field (color input)", z6BgBefore.fieldPresent && z6BgBefore.hasColorInput, JSON.stringify(z6BgBefore));
+    ok("Z6: with no header background set, the exported CSS carries only the base .pdc-header rule (no override)", z6BgBefore.noOverrideCss, JSON.stringify(z6BgBefore));
+
+    const z6BgAfter = await page.evaluate(function () {
+      var rows = [].slice.call(document.querySelectorAll(".field"));
+      var row = rows.filter(function (f) { var lb = f.querySelector("label"); return lb && lb.textContent.indexOf("Header background color") >= 0; })[0];
+      var inp = row.querySelector("input[type=color]");
+      inp.value = "#f5e9d6"; // a light custom pick — should get dark auto-contrast text
+      inp.dispatchEvent(new Event("input", { bubbles: true }));
+      var sp = window.__STUDIO_STATE.spec;
+      var html = Studio.buildHtml(sp, window.__STUDIO_STATE.assets, { preview: false });
+      return { specSet: sp.headerBg === "#f5e9d6", cssHasFlatBg: html.indexOf(".pdc-header{background:#f5e9d6;color:#12213b}") >= 0 };
+    });
+    ok("Z6: picking a header background sets spec.headerBg and emits a flat .pdc-header fill with auto-contrast text",
+      z6BgAfter.specSet && z6BgAfter.cssHasFlatBg, JSON.stringify(z6BgAfter));
+
+    const z6BgReset = await page.evaluate(function () {
+      var rows = [].slice.call(document.querySelectorAll(".field"));
+      var row = rows.filter(function (f) { var lb = f.querySelector("label"); return lb && lb.textContent.indexOf("Header background color") >= 0; })[0];
+      var resetBtn = [].slice.call(row.querySelectorAll("button")).filter(function (b) { return /reset/i.test(b.textContent); })[0];
+      if (resetBtn) resetBtn.click();
+      return { headerBg: window.__STUDIO_STATE.spec.headerBg };
+    });
+    ok("Z6: 'Reset to default' clears spec.headerBg (back to the default navy gradient)", z6BgReset.headerBg == null, JSON.stringify(z6BgReset));
+    await page.waitForTimeout(200);
 
     // ── N-FUN: Build-completeness meter ─────────────────────────────────────
     console.log("\n• N-FUN: Build-completeness meter");
