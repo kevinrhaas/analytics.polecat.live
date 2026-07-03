@@ -13060,6 +13060,14 @@ function serve() {
       var heatmapVals = heatmapHints.filter(function (h) { return /each cell's number/.test(h.title); });
       var bumpHints = hintsFor("bump");
       var bumpRank = bumpHints.filter(function (h) { return /numeric rank/.test(h.title); });
+      var boxplotHints = hintsFor("boxplot");
+      var boxplotHorizontal = boxplotHints.filter(function (h) { return /sideways \(horizontal\)/.test(h.title); });
+      var violinHints = hintsFor("violin");
+      var violinBox = violinHints.filter(function (h) { return /box-and-whisker/.test(h.title); });
+      var paretoHints = hintsFor("pareto");
+      var paretoRef = paretoHints.filter(function (h) { return /80% cumulative threshold/.test(h.title); });
+      var areaRangeHints = hintsFor("areaRange");
+      var areaRangeCenter = areaRangeHints.filter(function (h) { return /shaded band/.test(h.title); });
       var result = {
         barsHasSortHint: barsSort.length === 1,
         donutHasLegendHint: donutLegend.length === 1,
@@ -13079,6 +13087,10 @@ function serve() {
         waterfallHasTotalHint: waterfallTotal.length === 1,
         heatmapHasValsHint: heatmapVals.length === 1,
         bumpHasRankHint: bumpRank.length === 1,
+        boxplotHasHorizontalHint: boxplotHorizontal.length === 1,
+        violinHasBoxHint: violinBox.length === 1,
+        paretoHasRefHint: paretoRef.length === 1,
+        areaRangeHasCenterHint: areaRangeCenter.length === 1,
         hintHasSvg: barsSort.length === 1 && !!barsSort[0].querySelector("svg"),
         hintHasAriaLabel: barsSort.length === 1 && !!barsSort[0].getAttribute("aria-label")
       };
@@ -13107,6 +13119,10 @@ function serve() {
     ok("Waterfall's 'Show total bar' toggle carries a total-bar-glyph hint", optHintUI.waterfallHasTotalHint, JSON.stringify(optHintUI));
     ok("Heatmap's 'Show values' toggle carries a tag-glyph hint", optHintUI.heatmapHasValsHint, JSON.stringify(optHintUI));
     ok("Bump chart's 'Show rank numbers' toggle carries a tag-glyph hint", optHintUI.bumpHasRankHint, JSON.stringify(optHintUI));
+    ok("Box plot's 'Horizontal boxes' toggle carries a swap-axis-glyph hint", optHintUI.boxplotHasHorizontalHint, JSON.stringify(optHintUI));
+    ok("Violin's 'Show IQR box' toggle carries an iqr-box-glyph hint", optHintUI.violinHasBoxHint, JSON.stringify(optHintUI));
+    ok("Pareto's '80% reference line' toggle carries a ref-line-glyph hint", optHintUI.paretoHasRefHint, JSON.stringify(optHintUI));
+    ok("Area range's 'Show centre line' toggle carries a center-line-glyph hint", optHintUI.areaRangeHasCenterHint, JSON.stringify(optHintUI));
 
     // ---- Track N: command palette (⌘K / Ctrl-K) ----
     console.log("\n• Track N: command palette (⌘K)");

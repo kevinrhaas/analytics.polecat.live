@@ -1384,9 +1384,13 @@ self-explanatory. Keep it light (inline SVG / CSS, no image assets or deps). One
 > `showTotal` ("Adds a bold final bar showing the running total…"), and two keys that duplicate an
 > already-hinted concept under a different name — Heatmap's `showVals` and Bump's `showRankNumbers` —
 > both reuse the existing `tag` glyph rather than mint a near-duplicate icon. 4 new icons (`area-fill`/
-> `moving-avg`/`freeze-header`/`total-bar`) in `app/icons.js`. 7 new tests, suite 1159/1159. **Z8
-> follow-ups (still not yet done):** true before/after thumbnails, and the remaining un-hinted one-offs
-> — `horizontal` (bars/boxplot), `showBox` (violin), `showRef` (pareto), `showCenter` (areaRange).
+> `moving-avg`/`freeze-header`/`total-bar`) in `app/icons.js`. 7 new tests, suite 1159/1159.
+> ✓ **The last four one-off options hinted, shipped v253 (Z8 inline-hint track now genuinely
+> complete)**: bars/box plot's `horizontal` orientation toggle, Violin's `showBox` (IQR overlay),
+> Pareto's `showRef` (80% reference line), and Area range's `showCenter` (band center line). 4 new
+> icons (`swap-axis`/`iqr-box`/`ref-line`/`center-line`) in `app/icons.js`. 5 new tests, suite
+> 1163/1163. **Z8 follow-ups (still not yet done):** true before/after thumbnails for the least-obvious
+> options — every option now at least carries a glyph+tooltip hint.
 
 **Z9 — Mobile: fix the broken flows + a proper bottom nav (user-requested 2026-06-30).**
 > ⚠️ **ESCALATED — see the ★★★ TOP PRIORITY — MOBILE block at the top of NEXT** (user re-reported 2026-07-02

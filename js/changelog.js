@@ -15,6 +15,17 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 253,
+    title: 'Z8 follow-up: the last four one-off setting hints (track complete)',
+    kind: 'polish',
+    ts: '2026-07-03T10:35:03Z',
+    items: [
+      'Hinted the last remaining un-hinted one-off inspector options: bars/box plot\'s Horizontal orientation, Violin\'s Show IQR box, Pareto\'s 80% reference line, and Area range\'s Show centre line.',
+      'Four new glyphs (swap-axis, iqr-box, ref-line, center-line) in app/icons.js. Every inline visual setting hint the Z8 track called for is now shipped.',
+      '5 new tests, suite 1163/1163.',
+    ],
+  },
+  {
     v: 252,
     title: 'Z8 follow-up: seven more one-off setting hints',
     kind: 'polish',

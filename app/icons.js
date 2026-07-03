@@ -80,7 +80,14 @@
     "area-fill": '<path d="M2 16c3-8 7-8 10 0s7 8 10 0" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 16c3-8 7-8 10 0s7 8 10 0V21H2z" fill="currentColor" opacity=".3" stroke="none"/>',
     "moving-avg": '<polyline points="2 18 6 8 9 14 13 6 16 12 20 5 22 10" stroke-linecap="round" stroke-linejoin="round" opacity=".45"/><path d="M2 13c5-5 10-5 20-3" stroke-linecap="round" stroke-linejoin="round"/>',
     "freeze-header": '<rect x="3" y="4" width="18" height="16" rx="1.5"/><rect x="3.75" y="4.75" width="16.5" height="4.5" fill="currentColor" opacity=".3" stroke="none"/><line x1="3" y1="9" x2="21" y2="9"/>',
-    "total-bar": '<rect x="3" y="14" width="4" height="6" fill="currentColor" opacity=".35" stroke="none"/><rect x="10" y="9" width="4" height="11" fill="currentColor" opacity=".35" stroke="none"/><rect x="17" y="5" width="4" height="15" fill="currentColor" stroke="none"/>'
+    "total-bar": '<rect x="3" y="14" width="4" height="6" fill="currentColor" opacity=".35" stroke="none"/><rect x="10" y="9" width="4" height="11" fill="currentColor" opacity=".35" stroke="none"/><rect x="17" y="5" width="4" height="15" fill="currentColor" stroke="none"/>',
+    // Z8 follow-up (one-off options, batch 2): the last four un-hinted single-use
+    // toggles — orientation flip, box-plot overlay, a threshold reference line, and
+    // a band's bold center line.
+    "swap-axis": '<rect x="4" y="10" width="5" height="10" rx="1"/><path d="M12 8a5 5 0 0 1 5 5" stroke-linecap="round"/><polyline points="18 10 17 13 14 12" stroke-linecap="round" stroke-linejoin="round"/><rect x="12" y="15" width="9" height="5" rx="1" fill="currentColor" stroke="none"/>',
+    "iqr-box": '<line x1="12" y1="3" x2="12" y2="7"/><rect x="7" y="7" width="10" height="10" rx="1"/><line x1="12" y1="17" x2="12" y2="21"/><line x1="7" y1="12" x2="17" y2="12"/>',
+    "ref-line": '<polyline points="3 18 8 13 12 16 20 6" stroke-linecap="round" stroke-linejoin="round" opacity=".45"/><line x1="3" y1="8" x2="21" y2="8" stroke-dasharray="3 3" stroke-linecap="round"/><circle cx="17" cy="8" r="2" fill="currentColor" stroke="none"/>',
+    "center-line": '<path d="M2 7c5-3 15-3 20 2" stroke-linecap="round" stroke-linejoin="round" opacity=".35"/><path d="M2 12c5-3 15-3 20 2" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2"/><path d="M2 17c5-3 15-3 20 2" stroke-linecap="round" stroke-linejoin="round" opacity=".35"/>'
   };
 
   Studio.icon = function (name, size) {
