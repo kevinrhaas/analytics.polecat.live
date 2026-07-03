@@ -201,5 +201,15 @@
 <script src="app/shell.js"></script>
 <script src="app/studio.js"></script>
 <script src="app/palette.js"></script>
+<script>
+  // N-DIST: installable, offline-capable app shell. Feature-detected (older browsers / the
+  // occasional restricted embed just skip it, no behavior change); registered last so it never
+  // delays first paint or any of the boot-time modules above.
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", function () {
+      navigator.serviceWorker.register("sw.js").catch(function () { /* offline support is a bonus, never fatal */ });
+    });
+  }
+</script>
 </body>
 </html>

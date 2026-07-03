@@ -15,6 +15,18 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 243,
+    title: 'Installable, offline-capable app shell (N-DIST)',
+    kind: 'feature',
+    ts: '2026-07-03T08:53:48Z',
+    items: [
+      'A new sw.js service worker precaches the app shell (index.html + every app/*.js/css + vendor/pdc-ui.js) and serves it network-first with a cache fallback, so the Studio keeps working with no connection -- always prefers a fresh copy while online, only falls back to the cached one when offline.',
+      'site.webmanifest gains start_url/scope plus real 192x192 and 512x512 PNG icons (tools/gen-pwa-icons.js rasterizes favicon.svg the same way the existing apple-touch-icon.png was generated) -- most browsers require these beyond an SVG-only icon list before offering \'Add to Home Screen\'/\'Install app\'.',
+      '\'Clear local data\' (More menu) now also drops the service-worker cache so a reset genuinely starts fresh.',
+      '4 new tests, including a real network-cut reload that boots the cached app shell. Suite 1144/1144.',
+    ],
+  },
+  {
     v: 242,
     title: 'Workbook rename (Z3 follow-up)',
     kind: 'feature',

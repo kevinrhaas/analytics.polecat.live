@@ -5785,6 +5785,11 @@
         "The page will reload.";
       if (!confirm(msg)) return;
       try { keys.forEach(function (k) { localStorage.removeItem(k); }); } catch (e) {}
+      // N-DIST: also drop the offline-shell service worker cache so a clean reload can't
+      // still be served a stale cached copy of the app.
+      try {
+        if (window.caches && caches.keys) caches.keys().then(function (names) { names.forEach(function (n) { caches.delete(n); }); });
+      } catch (e) {}
       toast("Local data cleared — reloading…");
       setTimeout(function () { location.reload(); }, 1000);
     };

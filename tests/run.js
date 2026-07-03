@@ -13862,6 +13862,54 @@ function serve() {
     });
     await page.waitForTimeout(200);
 
+    // ── N-DIST: installable, offline-capable app shell (service worker) ──
+    console.log("\n• N-DIST: installable PWA / offline app shell");
+    const pwaManifest = await page.evaluate(async function () {
+      const r = await fetch("site.webmanifest");
+      const j = await r.json();
+      return {
+        ok: r.ok,
+        startUrl: j.start_url,
+        hasIcon192: (j.icons || []).some((i) => i.sizes === "192x192"),
+        hasIcon512: (j.icons || []).some((i) => i.sizes === "512x512")
+      };
+    });
+    ok("N-DIST: site.webmanifest declares a start_url and 192x192/512x512 PNG icons (installability requirements beyond the SVG-only icon)",
+      pwaManifest.ok && !!pwaManifest.startUrl && pwaManifest.hasIcon192 && pwaManifest.hasIcon512, JSON.stringify(pwaManifest));
+
+    const pwaIcon512 = await page.evaluate(async function () {
+      const r = await fetch("icon-512.png");
+      const buf = new Uint8Array(await r.arrayBuffer());
+      const isPng = buf.length > 24 && buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47;
+      const w = (buf[16] << 24) | (buf[17] << 16) | (buf[18] << 8) | buf[19];
+      const h = (buf[20] << 24) | (buf[21] << 16) | (buf[22] << 8) | buf[23];
+      return { ok: r.ok, isPng, w, h };
+    });
+    ok("N-DIST: icon-512.png is a real 512x512 PNG raster (generated from favicon.svg, tools/gen-pwa-icons.js)",
+      pwaIcon512.ok && pwaIcon512.isPng && pwaIcon512.w === 512 && pwaIcon512.h === 512, JSON.stringify(pwaIcon512));
+
+    // A fresh page load registers sw.js and it reaches the "activated" state — the real signal
+    // that the offline app-shell cache is live, not just that registration was attempted.
+    const pwaPage = await browser.newPage();
+    await pwaPage.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); } catch (e) {} });
+    await pwaPage.goto(`http://localhost:${PORT}/`, { waitUntil: "networkidle" });
+    const pwaSwActive = await pwaPage.evaluate(function () {
+      return navigator.serviceWorker.ready.then(function (reg) { return !!(reg && reg.active); });
+    });
+    ok("N-DIST: navigator.serviceWorker registers sw.js and reaches the active state on a real page load", pwaSwActive, String(pwaSwActive));
+
+    // The real point of a service worker: the app shell still loads with the network fully cut.
+    await pwaPage.context().setOffline(true);
+    await pwaPage.reload({ waitUntil: "domcontentloaded" });
+    await pwaPage.waitForTimeout(300);
+    const pwaOfflineBoot = await pwaPage.evaluate(function () {
+      return { hasRail: !!document.getElementById("railNav"), hasTitle: document.title.length > 0 };
+    });
+    await pwaPage.context().setOffline(false);
+    ok("N-DIST: with the network fully offline, a reload still boots the cached app shell (rail + title present)",
+      pwaOfflineBoot.hasRail && pwaOfflineBoot.hasTitle, JSON.stringify(pwaOfflineBoot));
+    await pwaPage.close();
+
   } catch (e) {
     failed++; console.error("FATAL", e);
   } finally {

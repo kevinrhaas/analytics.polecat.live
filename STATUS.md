@@ -737,6 +737,8 @@
   the whole chip strip (to apply the filter), which resets Chromium's double-click target tracking since
   the "same" chip is technically a fresh DOM node after the first click — so this uses a dedicated button
   instead. 3 new tests, suite 1140/1140.
+- v243: **N-DIST: installable, offline-capable app shell** — see N-DIST entry below. 4 new tests, suite
+  1144/1144.
 
 ## NEXT (top = do first)
 
@@ -2006,8 +2008,17 @@ gets covered over time:
   KPIs, no filters, no other panels) — same self-contained toolkit, tiny standalone `.html` widget, no
   separate embed code path to drift out of sync. Also counts toward the N-FUN first-export delight moment.
   Docs updated. 3 new tests, suite 980/980.
-- **Installable PWA + offline:** we already ship a webmanifest — make Studio installable and fully offline
-  (service worker caching the app shell + examples). A dashboard app you can "install."
+> ✓ **Installable PWA + offline shipped v243 (closes the item below).** `sw.js` (repo root) precaches the
+> app shell (index.html + every `app/*.js`/css + `vendor/pdc-ui.js`) and serves network-first with a
+> cache fallback — always prefers a fresh copy while online (safe for an app that redeploys hourly),
+> only serves the cached copy when genuinely offline. `site.webmanifest` gained `start_url`/`scope` +
+> real 192x192/512x512 PNG icons (`tools/gen-pwa-icons.js`, same favicon.svg-rasterizing technique as the
+> Z12 apple-touch-icon) — most browsers require these beyond an SVG-only icon list for "Add to Home
+> Screen"/"Install app" to appear. "Clear local data" also drops the SW cache. 4 new tests, incl. a real
+> `context.setOffline(true)` reload that boots the cached shell. Suite 1144/1144. **Not yet done:**
+> offline caching of the examples gallery data specifically (today only the app shell is precached, not
+> `data/examples/*.json`), and a genuinely offline-tolerant "recently viewed" fallback for Home.
+- **Installable PWA + offline:** ✓ shipped v243, see above.
 - **Client-side PNG/PDF export of a whole dashboard** (canvas/`html-to-image`-style, dependency-light) and
   print-perfect layouts — for sharing where a link won't do.
 > ✓ **Shareable state links shipped v240 (closes the item below).** Dashboard inspector's new "Share this
