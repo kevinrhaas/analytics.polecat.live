@@ -1946,6 +1946,18 @@ gets covered over time:
   `Studio.defineChart({type, render, opts, thumb, autoPick})` contract so new types are uniform and testable.
 - **Test health** — coverage per feature, flaky/slow checks, and a fast smoke subset for quick loops.
 > **Findings log (append newest on top; keep short):**
+> - **Fixed shipped v276 (dead-code lens):** `Studio.fmtFn`, `Studio.PALETTE`, and `Studio.cdeFallback` in
+>   `app/model.js` had zero call sites anywhere in `app/*.js`/`docs/index.html`/`tests/run.js` — a script
+>   diffing every `Studio.*` top-level definition against a full-text search across the repo found 7
+>   candidates; 3 turned out to be internal-only (used elsewhere in model.js, not dead), and a 4th
+>   (`Studio.cdeUnsupported`) looked dead by the same test until a repo-wide grep (this time including
+>   `tests/run.js`, which the first pass had skipped) showed the F-track chart-type tests assert against
+>   it directly — restored it before the first test run confirmed the miss. The remaining three were
+>   genuinely orphaned (the latter two leftover from the Z0 CDE-exporter removal this track's own
+>   description calls out). Pure deletion, no behavior change, suite unchanged at 1235/1235. **Note for
+>   next dead-code pass:** every `Studio.CHARTS[type].cde` metadata object (51 entries) is itself only
+>   ever read by `cdeUnsupported`'s `!c.cde` truthiness check and the tests — a much bigger, riskier
+>   removal than fit in one sweep slice; flagged, not touched.
 > - **Fixed shipped v257 (accessibility lens):** ten icon-only "×" remove buttons had no `title` and no
 >   `aria-label` at all — genuinely nameless to a screen reader, unlike sibling remove buttons elsewhere
 >   (e.g. the panel-series "Remove series" button) that already set one. Found across the data-source

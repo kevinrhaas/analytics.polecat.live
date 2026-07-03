@@ -15,6 +15,17 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 276,
+    title: 'Track L sweep: three dead Studio.* helpers removed from model.js',
+    kind: 'polish',
+    ts: '2026-07-03T18:35:50Z',
+    items: [
+      'Studio.fmtFn, Studio.PALETTE, and Studio.cdeFallback had zero call sites anywhere in the app or test suite -- vestigial leftovers, the latter two from the Z0 CDE-exporter removal -- deleted all three.',
+      'Kept Studio.cdeUnsupported (initially flagged as the same class of dead code, but it turned out to still be the canonical CDF-only check the F-track chart-type tests assert against) -- verified against tests/run.js before removing anything this time.',
+      'Pure deletion, no behavior change. Test suite unchanged at 1235/1235.',
+    ],
+  },
+  {
     v: 275,
     title: 'N-FUN: per-step pan for the Slideshow zoom (closes the choreography track)',
     kind: 'feature',

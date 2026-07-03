@@ -18,13 +18,6 @@
     { id: "bytes", label: "Bytes (KB/MB/GB)" },
     { id: "plain", label: "Plain text" }
   ];
-  // Resolve a fmt id to a function against a (already-loaded) PDC.fmt.
-  Studio.fmtFn = function (id, PDC) {
-    if (!PDC || !PDC.fmt) return function (v) { return v; };
-    if (id === "plain" || !id) return function (v) { return v == null ? "" : String(v); };
-    return PDC.fmt[id] || PDC.fmt.abbr;
-  };
-
   /* ---- color tokens offered in the inspector ---- */
   Studio.COLOR_TOKENS = [
     "--pentaho", "--pdc", "--c1", "--c2", "--c3", "--c4", "--c5",
@@ -113,8 +106,6 @@
     var denom = Math.sqrt(dx2 * dy2);
     return denom === 0 ? 0 : num / denom;
   };
-  Studio.PALETTE = "['#005bb5','#7d3c98','#2e8bd0','#9b59b6','#00a39a','#e67e22','#c0392b','#16a085']";
-
   // Z6: pick a readable foreground (near-black or near-white) for an arbitrary background hex,
   // via standard WCAG relative luminance. Used by the custom "Header background color" so a light
   // banner pick automatically gets dark text instead of the default white going invisible.
@@ -1828,14 +1819,12 @@
       cde: null // CDF-only; no CCC quadrant equivalent
     }
   };
-  // chart types that the CDE/CCC export cannot represent natively
+  // chart types that the CDE/CCC export cannot represent natively (CDF-only) — the `cde` field
+  // on each Studio.CHARTS entry is metadata for docs/tests, not read by the (removed, Z0)
+  // exporter itself, but Studio.cdeUnsupported is still the canonical CDF-only check.
   Studio.cdeUnsupported = function (type) {
     var c = Studio.CHARTS[type];
     return !c || !c.cde;
-  };
-  Studio.cdeFallback = function (type) {
-    var c = Studio.CHARTS[type];
-    return !!(c && c.cde && c.cde.fallback);
   };
 
   /* ---- spec helpers ---- */
