@@ -1345,8 +1345,13 @@ in a new tab — no longer buried solely in ⋯ More (which still has its own en
 > (`Studio.TITLE_SIZE_PX` in model.js; same additive-override pattern as `headerBg`, vendor CSS stays
 > pristine). Added to the `normalize()` whitelist (the exact bug class the v193 headerLogo fix caught —
 > a new scalar field silently reset on every reopen if forgotten there). 4 new tests including a
-> reopen-through-normalize() regression, suite 1042/1042. **Still open under Z6**: bold/italic toggles
-> for title/subtitle independent of size.
+> reopen-through-normalize() regression, suite 1042/1042.
+> ✓ **Subtitle style shipped v229 (closes "full text formatting" — Z6 track now feature-complete)**: a
+> **Subtitle style** picker (Normal / Italic / Bold / Bold italic) next to Title size — `spec.subtitleStyle`
+> → a `.pdc-sub{font-weight/font-style:…}` CSS override, same additive-override + `normalize()`-whitelist
+> pattern as titleSize/headerBg. 4 new tests, suite 1046/1046. **Z6 track (banner/header editor + naming
+> model) is now feature-complete**: title/subtitle/naming, logo, link, accent + background color + title
+> size + subtitle style, and a named style-preset collection covering all of it.
 
 **Z12 — Branding & app identity: de-dup the logo, favicon, Settings option (user-requested; revised 2026-06-30).**
 Design direction (best practice — the user wants it clean, not a redundant single letter):

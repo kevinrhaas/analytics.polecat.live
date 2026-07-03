@@ -225,6 +225,11 @@
     // without touching the vendored pdc-ui.css default.
     var titleSizeCss = (spec.titleSize && Studio.TITLE_SIZE_PX[spec.titleSize]) ?
       "\n.pdc-title{font-size:" + Studio.TITLE_SIZE_PX[spec.titleSize] + "}" : "";
+    // Z6: subtitle style — .pdc-sub defaults to font-weight:500, not italic (vendor pdc-ui.css).
+    var subtitleStyleCss = "";
+    if (spec.subtitleStyle === "italic") subtitleStyleCss = "\n.pdc-sub{font-style:italic}";
+    else if (spec.subtitleStyle === "bold") subtitleStyleCss = "\n.pdc-sub{font-weight:800}";
+    else if (spec.subtitleStyle === "bold-italic") subtitleStyleCss = "\n.pdc-sub{font-weight:800;font-style:italic}";
     // Series palette preset: override --c1..--c10 for both light and dark mode.
     // paletteKey "default" or blank → keep pdc-ui.css colors; any other key bakes in
     // the preset's color arrays so the exported CDF always renders with the chosen palette.
@@ -275,7 +280,7 @@
     var head =
       "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\"/>\n" +
       "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/>\n" +
-      "<title>" + xml(spec.title) + " — Pentaho Data Catalog Analytics</title>\n<style>\n" + assets.css + mobileCss + sectionCss + descCss + panelNoteCss + panelAccentCss + targetLineCss + refBandCss + calloutCss + periodHighlightCss + eventMarkerCss + scatterAnnotCss + kpiSubCss + richtextCss + themeColorCss + headerLogoCss + headerLinkCss + headerBgCss + titleSizeCss + paletteCss + printCss + previewCss + "\n</style>\n</head>\n";
+      "<title>" + xml(spec.title) + " — Pentaho Data Catalog Analytics</title>\n<style>\n" + assets.css + mobileCss + sectionCss + descCss + panelNoteCss + panelAccentCss + targetLineCss + refBandCss + calloutCss + periodHighlightCss + eventMarkerCss + scatterAnnotCss + kpiSubCss + richtextCss + themeColorCss + headerLogoCss + headerLinkCss + headerBgCss + titleSizeCss + subtitleStyleCss + paletteCss + printCss + previewCss + "\n</style>\n</head>\n";
     var logoHtml = spec.headerLogo ?
       "<img class=\"pdc-logo\" src=\"" + xml(spec.headerLogo) + "\" alt=\"\"/>" :
       "<span class=\"pdc-logo\">P</span>";

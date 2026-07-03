@@ -7901,6 +7901,49 @@ function serve() {
     ok("Z6: picking 'Default' clears the title-size override", z6TitleSizeCleared.titleSize === "", JSON.stringify(z6TitleSizeCleared));
     await page.waitForTimeout(200);
 
+    // ── Z6 slice: subtitle style (bold / italic) ──
+    console.log("\n• Z6: subtitle style");
+    const z6SubStyleBefore = await page.evaluate(function () {
+      var sp = window.__STUDIO_STATE.spec;
+      delete sp.subtitleStyle;
+      var rows = [].slice.call(document.querySelectorAll(".field"));
+      var row = rows.filter(function (f) { var lb = f.querySelector("label"); return lb && lb.textContent.indexOf("Subtitle style") >= 0; })[0];
+      var html = Studio.buildHtml(sp, window.__STUDIO_STATE.assets, { preview: false });
+      return { fieldPresent: !!row, hasSelect: !!(row && row.querySelector("select")), noOverrideCss: html.indexOf(".pdc-sub{font-") < 0 };
+    });
+    ok("Z6: Dashboard inspector has a Subtitle style field (select) with no CSS override when unset",
+      z6SubStyleBefore.fieldPresent && z6SubStyleBefore.hasSelect && z6SubStyleBefore.noOverrideCss, JSON.stringify(z6SubStyleBefore));
+
+    const z6SubStyleAfter = await page.evaluate(function () {
+      var rows = [].slice.call(document.querySelectorAll(".field"));
+      var row = rows.filter(function (f) { var lb = f.querySelector("label"); return lb && lb.textContent.indexOf("Subtitle style") >= 0; })[0];
+      var sel = row.querySelector("select");
+      sel.value = "bold-italic"; sel.dispatchEvent(new Event("change", { bubbles: true }));
+      var sp = window.__STUDIO_STATE.spec;
+      var html = Studio.buildHtml(sp, window.__STUDIO_STATE.assets, { preview: false });
+      return { specSet: sp.subtitleStyle === "bold-italic", cssOverride: html.indexOf(".pdc-sub{font-weight:800;font-style:italic}") >= 0 };
+    });
+    ok("Z6: picking 'Bold italic' sets spec.subtitleStyle and emits a matching .pdc-sub CSS override",
+      z6SubStyleAfter.specSet && z6SubStyleAfter.cssOverride, JSON.stringify(z6SubStyleAfter));
+
+    const z6SubStyleReopen = await page.evaluate(function () {
+      var sp = JSON.parse(JSON.stringify(window.__STUDIO_STATE.spec));
+      window.__studioLoad(sp);
+      return { subtitleStyle: window.__STUDIO_STATE.spec.subtitleStyle };
+    });
+    ok("Z6: subtitleStyle survives a reopen through normalize() (whitelist kept in sync)",
+      z6SubStyleReopen.subtitleStyle === "bold-italic", JSON.stringify(z6SubStyleReopen));
+
+    const z6SubStyleCleared = await page.evaluate(function () {
+      var rows = [].slice.call(document.querySelectorAll(".field"));
+      var row = rows.filter(function (f) { var lb = f.querySelector("label"); return lb && lb.textContent.indexOf("Subtitle style") >= 0; })[0];
+      var sel = row.querySelector("select");
+      sel.value = ""; sel.dispatchEvent(new Event("change", { bubbles: true }));
+      return { subtitleStyle: window.__STUDIO_STATE.spec.subtitleStyle };
+    });
+    ok("Z6: picking 'Normal' clears the subtitle-style override", z6SubStyleCleared.subtitleStyle === "", JSON.stringify(z6SubStyleCleared));
+    await page.waitForTimeout(200);
+
     // ── N-FUN: Build-completeness meter ─────────────────────────────────────
     console.log("\n• N-FUN: Build-completeness meter");
     const bcApi = await page.evaluate(function () {

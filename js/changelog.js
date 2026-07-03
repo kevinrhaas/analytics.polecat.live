@@ -15,6 +15,16 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 229,
+    title: 'Subtitle style (bold / italic)',
+    kind: 'feature',
+    ts: '2026-07-03T02:50:54Z',
+    items: [
+      'The Dashboard inspector gains a Subtitle style picker (Normal / Italic / Bold / Bold italic), next to Title size -- adds emphasis to just the banner subtitle in the live preview and exported Dashboard Framework.',
+      'This closes out the banner text-formatting track: title/subtitle wording, logo, link, accent + background color, title size, and now subtitle style are all editable, and style presets snapshot the whole set.',
+    ],
+  },
+  {
     v: 228,
     title: 'Banner title size',
     kind: 'feature',

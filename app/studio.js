@@ -1726,6 +1726,9 @@
     sec.appendChild(field("Title size", select2pairs(Studio.TITLE_SIZES, sp.titleSize || "", function (v) {
       sp.titleSize = v; refreshPreview();
     }), "Overrides the banner title's font size; blank keeps the default."));
+    sec.appendChild(field("Subtitle style", select2pairs(Studio.SUBTITLE_STYLES, sp.subtitleStyle || "", function (v) {
+      sp.subtitleStyle = v; refreshPreview();
+    }), "Bold and/or italic emphasis for the banner subtitle; blank keeps the default."));
 
     // Z6: per-dashboard header logo — replaces the default "P" mark in the banner (preview +
     // exported CDF) with an uploaded image. Lives in the spec itself (not localStorage, unlike
@@ -4712,7 +4715,7 @@
     // Open / restore-banner / example-load / drag-drop-file silently reset a saved dashboard's accent
     // color and series palette back to the default. Keep this list in sync with Studio.emptySpec()'s
     // top-level scalar/optional fields whenever a new one is added (see also headerLogo, Z6).
-    ["schema", "id", "name", "title", "subtitle", "group", "description", "themeColor", "paletteKey", "headerLogo", "headerLink", "headerBg", "titleSize"].forEach(function (k) { if (spec[k] != null) base[k] = spec[k]; });
+    ["schema", "id", "name", "title", "subtitle", "group", "description", "themeColor", "paletteKey", "headerLogo", "headerLink", "headerBg", "titleSize", "subtitleStyle"].forEach(function (k) { if (spec[k] != null) base[k] = spec[k]; });
     base.cda = spec.cda || base.cda;
     base.filters = spec.filters || []; base.kpis = spec.kpis || [];
     base.gridCols = spec.gridCols || 3; base.panels = (spec.panels || []).map(function (p) { if (!p.id) p.id = Studio.uid("p"); return p; });

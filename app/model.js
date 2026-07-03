@@ -1728,6 +1728,14 @@
     ["xl", "Extra large"]
   ];
   Studio.TITLE_SIZE_PX = { sm: "14px", lg: "21px", xl: "27px" };
+  // Z6: subtitle text style — .pdc-sub is font-weight:500 (not bold) and upright by default
+  // (vendor/pdc-ui.css); these two are independent toggles (a subtitle can be both bold and italic).
+  Studio.SUBTITLE_STYLES = [
+    ["", "Normal"],
+    ["italic", "Italic"],
+    ["bold", "Bold"],
+    ["bold-italic", "Bold italic"]
+  ];
 
   Studio.emptySpec = function () {
     return {
@@ -1750,6 +1758,7 @@
       headerLink: "", // optional URL — wraps the header brand mark+title in a link (opens in a new tab)
       headerBg: "", // optional hex color that overrides the banner background (fg auto-contrasts); "" = default navy gradient
       titleSize: "", // optional key into Studio.TITLE_SIZE_PX overriding the banner title's font size; "" = default
+      subtitleStyle: "", // optional key into Studio.SUBTITLE_STYLES ("italic"/"bold"/"bold-italic"); "" = default
       panels: []
     };
   };
