@@ -15,6 +15,18 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 282,
+    title: 'Visual refresh (A) follow-up: Settings default Dashboard theme',
+    kind: 'feature',
+    ts: '2026-07-03T21:24:39Z',
+    items: [
+      'New Settings -> Dashboard defaults row: Default dashboard theme, the same Classic Pentaho Blue / Fleet Modern choice as the per-dashboard picker (v281), applied automatically to every brand-new blank dashboard -- no more re-picking Fleet Modern by hand each time for a team that wants it as their house look.',
+      'Wired into the existing Style presets snapshot (save/apply a named preset now carries its dashboard theme too) and into Settings export/import, matching the pattern already used by default accent color/header background/title size/subtitle style.',
+      'Existing dashboards, examples, and imports are never touched -- this only seeds Studio.emptySpec() output, same as every other Dashboard default.',
+      '6 new tests, suite 1264/1264.',
+    ],
+  },
+  {
     v: 281,
     title: 'Visual refresh (A): Fleet Modern dashboard theme',
     kind: 'feature',

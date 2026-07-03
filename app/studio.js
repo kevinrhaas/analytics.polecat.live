@@ -5066,7 +5066,7 @@
     "studio-lw", "studio-rw", "studio-collapse-library", "studio-collapse-inspector",
     "studio-insp-collapsed", "studio-shell-section", "studio-shell-expanded", "studio-branding",
     "studio-default-jndi", "studio-default-subtitle", "studio-default-accent", "studio-default-logo", "studio-default-headerbg",
-    "studio-default-titlesize", "studio-default-subtitlestyle", "studio-style-presets",
+    "studio-default-titlesize", "studio-default-subtitlestyle", "studio-default-dashboardtheme", "studio-style-presets",
     "studio-deploy-path", "studio-live-data"
   ];
   // Z5 follow-up: data-source defaults. Every new data source (dataSourceBuilder with no
@@ -5128,6 +5128,15 @@
     return v || "";
   }
   function setDefaultSubtitleStyle(v) { try { localStorage.setItem("studio-default-subtitlestyle", v || ""); } catch (e) {} }
+  // Visual refresh (A) follow-up: default Dashboard theme — same seeding pattern as the other
+  // style defaults, for the whole-look Studio.DASHBOARD_THEMES picker (v281). Lets a team make
+  // Fleet Modern (or any future preset) the house look for brand-new dashboards without touching
+  // existing ones, without hardcoding a new global default ahead of a user look-see.
+  function defaultDashboardTheme() {
+    var v; try { v = localStorage.getItem("studio-default-dashboardtheme"); } catch (e) {}
+    return v || "";
+  }
+  function setDefaultDashboardTheme(v) { try { localStorage.setItem("studio-default-dashboardtheme", v || ""); } catch (e) {} }
   // Z6 follow-up: default header logo — the last "still open" item under the style-preset
   // collection ask. Same data-URL-in-localStorage approach as per-dashboard headerLogo/app
   // Branding, just seeded onto brand-new blank dashboards like subtitle/accent already are.
@@ -5149,7 +5158,7 @@
     list.push({
       id: "sp" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name: name,
       subtitle: defaultSubtitle(), accentColor: defaultAccentColor(), logo: defaultLogo(), headerBg: defaultHeaderBg(),
-      titleSize: defaultTitleSize(), subtitleStyle: defaultSubtitleStyle()
+      titleSize: defaultTitleSize(), subtitleStyle: defaultSubtitleStyle(), dashboardTheme: defaultDashboardTheme()
     });
     saveStylePresetList(list);
     return list;
@@ -5159,7 +5168,7 @@
     var p = stylePresets().filter(function (x) { return x.id === id; })[0];
     if (!p) return false;
     setDefaultSubtitle(p.subtitle || ""); setDefaultAccentColor(p.accentColor || ""); setDefaultLogo(p.logo || ""); setDefaultHeaderBg(p.headerBg || "");
-    setDefaultTitleSize(p.titleSize || ""); setDefaultSubtitleStyle(p.subtitleStyle || "");
+    setDefaultTitleSize(p.titleSize || ""); setDefaultSubtitleStyle(p.subtitleStyle || ""); setDefaultDashboardTheme(p.dashboardTheme || "");
     return true;
   }
   window.__studioStylePresets = stylePresets; // test hook
@@ -5170,6 +5179,7 @@
     var hbg = defaultHeaderBg(); if (hbg && !spec.headerBg) spec.headerBg = hbg;
     var tsz = defaultTitleSize(); if (tsz && !spec.titleSize) spec.titleSize = tsz;
     var sst = defaultSubtitleStyle(); if (sst && !spec.subtitleStyle) spec.subtitleStyle = sst;
+    var dth = defaultDashboardTheme(); if (dth && !spec.dashboardTheme) spec.dashboardTheme = dth;
     return spec;
   }
   window.__studioDefaultSubtitle = defaultSubtitle; // test hooks
@@ -5178,6 +5188,7 @@
   window.__studioDefaultHeaderBg = defaultHeaderBg;
   window.__studioDefaultTitleSize = defaultTitleSize;
   window.__studioDefaultSubtitleStyle = defaultSubtitleStyle;
+  window.__studioDefaultDashboardTheme = defaultDashboardTheme;
   function exportSettingsFile() {
     var out = { _type: "studio-settings", _v: 1 };
     SETTINGS_DATA_KEYS.forEach(function (k) {
@@ -5304,6 +5315,11 @@
           '<select id="setDefaultSubtitleStyleSel" class="set-sel">' +
             Studio.SUBTITLE_STYLES.map(function (p) { return '<option value="' + esc(p[0]) + '"' + (defaultSubtitleStyle() === p[0] ? " selected" : "") + '>' + esc(p[1]) + '</option>'; }).join("") +
           '</select></div>' +
+        '<div class="set-row"><span class="set-row-ic" data-ic="palette"></span>' +
+          '<div class="set-row-txt"><b>Default dashboard theme</b><small>Seeds every new blank dashboard\'s whole-look theme (background, panels, text, brand + series colors — same picker as the per-dashboard Dashboard theme field). Classic Pentaho Blue keeps the built-in look.</small></div>' +
+          '<select id="setDefaultDashboardThemeSel" class="set-sel">' +
+            Studio.DASHBOARD_THEMES.map(function (p) { return '<option value="' + esc(p.key === "classic" ? "" : p.key) + '"' + (defaultDashboardTheme() === (p.key === "classic" ? "" : p.key) ? " selected" : "") + '>' + esc(p.label) + '</option>'; }).join("") +
+          '</select></div>' +
         '<div class="set-row set-row-col"><span class="set-row-ic" data-ic="star"></span>' +
           '<div class="set-row-txt"><b>Style presets</b><small>Save the fields above as a named preset, then switch your team\'s active default with one click — handy for more than one house style (e.g. per client).</small></div>' +
           '<div class="sp-list" id="spList">' +
@@ -5377,6 +5393,8 @@
     if (defTitleSizeSel) defTitleSizeSel.onchange = function () { setDefaultTitleSize(defTitleSizeSel.value); toast("Default title size saved"); };
     var defSubtitleStyleSel = $("#setDefaultSubtitleStyleSel", sec);
     if (defSubtitleStyleSel) defSubtitleStyleSel.onchange = function () { setDefaultSubtitleStyle(defSubtitleStyleSel.value); toast("Default subtitle style saved"); };
+    var defDashboardThemeSel = $("#setDefaultDashboardThemeSel", sec);
+    if (defDashboardThemeSel) defDashboardThemeSel.onchange = function () { setDefaultDashboardTheme(defDashboardThemeSel.value); toast("Default dashboard theme saved"); };
     var spNameInp = $("#spNameInp", sec), spSaveBtn = $("#spSaveBtn", sec);
     if (spSaveBtn) spSaveBtn.onclick = function () {
       var name = (spNameInp.value || "").trim(); if (!name) { spNameInp.focus(); return; }

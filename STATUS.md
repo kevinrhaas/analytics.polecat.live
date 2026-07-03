@@ -911,12 +911,17 @@
 > Fleet Modern side by side — teal accent replaces purple, series blue lightens, panel/bg shift off navy),
 > not just DOM checks. Wired into `normalize()`'s whitelist + the version-history diff field list so it
 > round-trips and shows up in Compare-to-current. 7 new tests, suite 1259/1259.
-> **Follow-ups (not yet done):** make Fleet Modern the **default** for brand-new dashboards (per the original
-> ask) once it's had a look from the user; a matching Settings → Dashboard defaults picker + style-preset
-> snapshot field (same pattern as accent color/header background, v230); focus-visible rings +
-> `prefers-reduced-motion` audit on the exported dashboard chrome itself (distinct from the app chrome, which
-> Z10 already covers); align the app chrome's Polecat theme to the same jobtracker tokens (currently only the
-> dashboard-facing side is done).
+> ✓ **Settings → Dashboard defaults picker shipped v282**: a **Default dashboard theme** row (Settings →
+> Dashboard defaults) — same Classic Pentaho Blue / Fleet Modern choice as the per-dashboard picker,
+> applied automatically to every brand-new blank dashboard, same seeding pattern as default accent
+> color/header background/title size/subtitle style. Also wired into the Style presets snapshot
+> (save/apply a preset now carries its dashboard theme) and Settings export/import. 6 new tests, suite
+> 1264/1264.
+> **Follow-ups (not yet done):** make Fleet Modern the **default value** of the new Settings picker itself
+> (per the original ask) once it's had a look from the user (today the picker exists but still defaults to
+> Classic, an opt-in); focus-visible rings + `prefers-reduced-motion` audit on the exported dashboard chrome
+> itself (distinct from the app chrome, which Z10 already covers); align the app chrome's Polecat theme to
+> the same jobtracker tokens (currently only the dashboard-facing side is done).
 >
 > **(B) Version history — "switch back to earlier versions" ✓ ALREADY SHIPPED (v258 + v262).** The loop had
 > already built this from the N-DIST backlog: the Dashboard inspector's **Version history** section keeps a
