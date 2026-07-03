@@ -1430,6 +1430,14 @@ picker); tests green. Coordinate with Z1 (rail) and Z5 (Settings).
 > open:** the rail's own vars aren't Polecat-aware yet (`#railNav` always renders the warm Polecat palette
 > regardless of `data-app-theme` — intentional since the rail was the Z1 foundation, but worth a design
 > call on whether Classic Blue should get a "cool" rail variant too).
+> ✓ **Rail theme-awareness shipped v247 (closes the "still open" design call above)**: `#railNav` (and its
+> mobile-drawer hamburger, `#mobileNavBtn`) used to render the warm Polecat plum/cream palette under EVERY
+> app theme, including Classic Blue — clashing with Classic Blue's cool blue accent. The rail is the app's
+> permanent dark "shell" bar (it never follows light/dark `[data-theme]` mode, by design), so each app
+> theme now gets its own dark rail palette instead: Polecat keeps the original warm plum/terracotta/cream,
+> Classic Blue gets a cool navy/ink variant (`#0f1c33`/`#182c4d`) that reads as one coherent identity with
+> its blue `--pentaho` accent. Per-section icon accents (amber/teal/blue/violet) stay vivid in both, per
+> the design language. 1 new test. Test suite 1147/1147. **Z10 track is now feature-complete.**
 
 **Z11 — In-app docs: discoverability + continuous upkeep (user-requested 2026-06-30).** ✓ **Rail Help
 entry shipped v136**: a persistent `#railHelp` link at the bottom of the left rail opens `docs/index.html`

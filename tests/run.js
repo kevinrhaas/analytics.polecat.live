@@ -12015,10 +12015,19 @@ function serve() {
     const z10InKeys = await page.evaluate(function () { return window.__studioImportSettingsKeys.indexOf("studio-app-theme") >= 0; });
     ok("Z10: studio-app-theme travels through Settings export/import", z10InKeys, "checked SETTINGS_DATA_KEYS");
 
-    // restore Classic Blue + Light for subsequent tests
-    await page.click('#secSettings input[data-set="dark"]');
+    // Z10 follow-up: the left rail is the app's permanent dark shell bar (never follows
+    // light/dark mode) and used to render the warm Polecat palette under EVERY app theme —
+    // Classic Blue now gets its own cool navy rail instead of clashing with its blue accent.
+    await page.click('#secSettings input[data-set="dark"]'); // back to light mode; still Polecat theme here
+    await page.waitForTimeout(80);
+    const z10RailPolecat = await page.evaluate(function () { return getComputedStyle(document.getElementById("railNav")).backgroundColor; });
     await page.selectOption("#appThemeSel", "classic");
     await page.waitForTimeout(80);
+    const z10RailClassic = await page.evaluate(function () { return getComputedStyle(document.getElementById("railNav")).backgroundColor; });
+    ok("Z10: the left rail recolors too — Classic Blue's rail is a distinct cool navy, not the Polecat plum",
+      z10RailClassic !== z10RailPolecat && z10RailClassic === "rgb(15, 28, 51)",
+      "polecat=" + z10RailPolecat + " classic=" + z10RailClassic);
+    // (already restored to Classic Blue + Light above, ready for subsequent tests)
 
     // ── Z11: Help/docs — a persistent, discoverable rail entry (not buried in ⋯ More) ──
     console.log("\n• Z11: rail Help entry");

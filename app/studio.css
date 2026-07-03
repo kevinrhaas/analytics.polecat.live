@@ -60,10 +60,21 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);-webkit-font-
 #appMain[hidden]{display:none}
 
 /* ── Z1: app shell left rail (Home · Repository · Studio · Settings) ── */
+/* Z10 follow-up: the rail always rendered the warm Polecat plum/cream palette regardless
+   of the active app theme (Classic Blue vs Polecat) — the one loose end noted in the Z10
+   track. It's the app's permanent dark "shell" bar (unlike the panes, it never follows
+   light/dark [data-theme] mode), so each app theme now gets its OWN dark rail palette:
+   Polecat keeps the original warm plum/terracotta/cream; Classic Blue gets a cool navy/ink
+   variant that matches its --pentaho blue instead of clashing with it. Per-section icon
+   accents (amber/teal/blue/violet below) stay vivid in both, as the design language calls for. */
 #railNav{--rail-bg:#2E2A33;--rail-bg2:#3A2F3A;--rail-ink:#F5E9D6;--rail-line:rgba(245,233,214,.1);
   flex:0 0 auto;width:56px;display:flex;flex-direction:column;align-items:stretch;
   background:var(--rail-bg);border-right:1px solid var(--rail-line);z-index:35;overflow:hidden;
   transition:width .16s ease}
+html[data-app-theme='classic'] #railNav{--rail-bg:#0f1c33;--rail-bg2:#182c4d;--rail-ink:#eaf1fb;
+  --rail-line:rgba(234,241,251,.12)}
+html[data-app-theme='polecat'] #railNav{--rail-bg:#2E2A33;--rail-bg2:#3A2F3A;--rail-ink:#F5E9D6;
+  --rail-line:rgba(245,233,214,.1)}
 #railNav.expanded{width:184px}
 /* Z12: persistent brand mark anchored at the top of the rail — the app's identity
    lives here (not a redundant letter-box in the content header); click returns Home. */
@@ -110,6 +121,9 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);-webkit-font-
   align-items:center;justify-content:center;border-radius:10px;border:1px solid rgba(245,233,214,.14);
   background:#2E2A33;color:#F5E9D6;cursor:pointer;-webkit-tap-highlight-color:transparent;
   box-shadow:0 2px 8px rgba(10,8,20,.3)}
+/* mirrors the #railNav theme split above — the hamburger opens the same rail, so it should
+   match the rail's own palette rather than staying permanently Polecat-plum. */
+html[data-app-theme='classic'] #mobileNavBtn{background:#0f1c33;border-color:rgba(234,241,251,.16);color:#eaf1fb}
 #mobileNavBtn:active{opacity:.85}
 @media(max-width:900px){
   #railNav{position:fixed;top:0;bottom:0;left:0;width:min(82vw,272px);

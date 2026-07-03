@@ -15,6 +15,17 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 247,
+    title: 'Left rail now follows the app theme (Z10 track complete)',
+    kind: 'polish',
+    ts: '2026-07-03T09:32:45Z',
+    items: [
+      'The left nav rail -- and its mobile hamburger button -- used to always render the warm Polecat plum/cream palette, even when Classic Blue was the active app theme, clashing with its cool blue accent color.',
+      'Classic Blue now gets its own dark navy/ink rail variant; Polecat keeps its original warm plum/terracotta/cream. Per-section icon accents (amber/teal/blue/violet) stay vivid in both.',
+      'Closes the last open item on the Z10 app-theme track. 1 new test, suite 1147/1147.',
+    ],
+  },
+  {
     v: 246,
     title: 'Verified Home works fully offline (N-DIST follow-up, test-only)',
     kind: 'polish',
