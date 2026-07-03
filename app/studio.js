@@ -6401,13 +6401,14 @@
   /* N-DIST: "Import from URL" — a community-template exchange with zero backend. Paste
      any public link to a .studio.json dashboard spec (a GitHub raw link, a gist, a static
      host) and it loads the same way opening a local file would — just a client-side
-     fetch() of a URL the user supplies, no server/credentials involved. First cut: a
-     single spec URL (an "index of several" is a natural follow-up, same pattern as the
-     Examples gallery's own index.json). */
+     fetch() of a URL the user supplies, no server/credentials involved. Also accepts an
+     "index of several" URL — a JSON array, or `{templates:[...]}`, of {title,url,description}
+     entries (same shape as the Examples gallery's own index.json) — which renders a
+     browsable list to pick one from instead of importing directly. */
   function openImportUrlModal() {
     modal("Import dashboard from URL", function (b) {
       var hint = el("p"); hint.style.cssText = "font-size:12.5px;color:var(--faint);margin:0 0 10px;line-height:1.5";
-      hint.textContent = "Paste a public link to a .studio.json dashboard spec (a GitHub raw link, a gist, any static host). This is a plain client-side fetch — no backend, no account needed.";
+      hint.textContent = "Paste a public link to a .studio.json dashboard spec, or an index.json listing several templates (a GitHub raw link, a gist, any static host). This is a plain client-side fetch — no backend, no account needed.";
       b.appendChild(hint);
       var row = el("div"); row.style.cssText = "display:flex;gap:8px";
       var urlInp = el("input"); urlInp.type = "url"; urlInp.placeholder = "https://…/dashboard.studio.json";
@@ -6415,19 +6416,50 @@
       var goBtn = el("button"); goBtn.type = "button"; goBtn.className = "btn btn-primary"; goBtn.id = "importUrlGo"; goBtn.textContent = "Import";
       row.appendChild(urlInp); row.appendChild(goBtn); b.appendChild(row);
       var status = el("div"); status.id = "importUrlStatus"; status.style.cssText = "margin-top:10px;font-size:12.5px"; b.appendChild(status);
+      var list = el("div"); list.id = "importUrlList"; list.style.cssText = "margin-top:10px;max-height:280px;overflow:auto"; b.appendChild(list);
+
+      function importSpec(spec, fallbackName) {
+        if (!spec || typeof spec !== "object" || (!Array.isArray(spec.panels) && !Array.isArray(spec.kpis) && !spec.schema)) {
+          throw new Error("that doesn't look like a dashboard spec (.studio.json)");
+        }
+        S.spec = normalize(spec); S.selection = null; clearAutosave();
+        if (window.__studioShellSetSection) window.__studioShellSetSection("studio");
+        syncHeader(); renderInspector(); refreshPreview(); buildLibrary();
+        toast("Imported dashboard from URL: " + (spec.title || spec.name || fallbackName || "Untitled"));
+        var ov = goBtn.closest(".modal-ov"); if (ov) ov.remove();
+      }
+      function resolveUrl(maybeRelative, baseUrl) {
+        try { return new URL(maybeRelative, baseUrl).href; } catch (e) { return maybeRelative; }
+      }
+      function showTemplateList(entries, baseUrl) {
+        list.innerHTML = "";
+        status.style.color = "var(--faint)";
+        status.textContent = "Found " + entries.length + " template" + (entries.length === 1 ? "" : "s") + " — pick one to import:";
+        entries.forEach(function (entry) {
+          var specUrl = resolveUrl(entry.url || entry.file, baseUrl);
+          list.appendChild(rowItem("⇩", entry.title || specUrl, entry.description || specUrl, function () {
+            status.style.color = "var(--faint)"; status.textContent = "Fetching " + (entry.title || specUrl) + "…";
+            fetchJSON(specUrl).then(function (spec) { importSpec(spec, entry.title); }).catch(function (e) {
+              status.style.color = "#e05a4e";
+              status.textContent = "Couldn't import — " + (e && e.message ? e.message : "network/CORS error") + ".";
+            });
+          }, null, false));
+        });
+      }
       function run() {
         var url = urlInp.value.trim();
         if (!url) { urlInp.focus(); return; }
         status.style.color = "var(--faint)"; status.textContent = "Fetching…"; goBtn.disabled = true;
-        fetchJSON(url).then(function (spec) {
-          if (!spec || typeof spec !== "object" || (!Array.isArray(spec.panels) && !Array.isArray(spec.kpis) && !spec.schema)) {
-            throw new Error("that doesn't look like a dashboard spec (.studio.json)");
+        list.innerHTML = "";
+        fetchJSON(url).then(function (data) {
+          goBtn.disabled = false;
+          var entries = Array.isArray(data) ? data : (data && Array.isArray(data.templates) ? data.templates : null);
+          if (entries) {
+            if (!entries.length) throw new Error("that index has no templates listed");
+            showTemplateList(entries, url);
+            return;
           }
-          S.spec = normalize(spec); S.selection = null; clearAutosave();
-          if (window.__studioShellSetSection) window.__studioShellSetSection("studio");
-          syncHeader(); renderInspector(); refreshPreview(); buildLibrary();
-          toast("Imported dashboard from URL: " + (spec.title || spec.name || "Untitled"));
-          var ov = goBtn.closest(".modal-ov"); if (ov) ov.remove();
+          importSpec(data);
         }).catch(function (e) {
           goBtn.disabled = false;
           status.style.color = "#e05a4e";

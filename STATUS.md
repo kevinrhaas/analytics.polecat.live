@@ -2177,8 +2177,13 @@ gets covered over time:
 > public link to a `.studio.json` file (a GitHub raw link, a gist, a static host) and it fetches,
 > validates, and loads it the same way opening a local file would. Plain client-side `fetch()`, no
 > backend/credentials; a failed or invalid fetch surfaces a clear inline error instead of hanging. 2 new
-> tests, suite 1197/1197. **Still open:** an index-of-several format (like the Examples gallery's own
-> `index.json`) so one URL can offer a browsable set of templates instead of just one.
+> tests, suite 1197/1197.
+> ✓ **Index-of-several format shipped v269 (closes the "still open" item above)**: the same modal now also
+> accepts an index URL — a JSON array, or `{templates:[...]}`, of `{title,url,description}` entries (same
+> shape as the Examples gallery's own `index.json`) — and renders a browsable `rowItem` list to pick one
+> from; entry URLs may be relative to the index URL (resolved via `new URL(entry.url, indexUrl)`). A single
+> dashboard spec URL still imports directly as before — the modal auto-detects which shape it fetched. 4
+> new tests, suite 1218/1218. **N-DIST template-exchange track now feature-complete.**
 - ✓ **Embeddable single-chart widget shipped v211.** "Export this panel…" in the panel inspector (below
   Duplicate/Delete) reuses the full `Studio.exportCDF` on a spec pared down to just that one panel (no
   KPIs, no filters, no other panels) — same self-contained toolkit, tiny standalone `.html` widget, no

@@ -12180,6 +12180,80 @@ function serve() {
     ok("N-DIST: Import from URL surfaces a clear inline error on a failed fetch instead of hanging/crashing",
       importFail.modalStillOpen && /couldn.t import/i.test(importFail.statusText), JSON.stringify(importFail));
 
+    // ── N-DIST follow-up: "index of several" — one URL can list many templates ──
+    console.log("\n• N-DIST follow-up: Import from URL — index of several templates");
+    const importIndex = await page.evaluate(function () {
+      var origFetch = window.fetch;
+      window.fetch = function (url) {
+        if (/index\.json/.test(url)) {
+          return Promise.resolve({ ok: true, json: function () {
+            return Promise.resolve({ templates: [
+              { title: "Sales Overview", url: "https://example.com/templates/sales.studio.json", description: "Quarterly sales KPIs" },
+              { title: "Ops Health", url: "https://example.com/templates/ops.studio.json" }
+            ] });
+          } });
+        }
+        return Promise.resolve({ ok: true, json: function () {
+          return Promise.resolve({ id: "imp2", name: "sales-tpl", title: "Sales Overview Loaded", panels: [], kpis: [], filters: [], cda: { connections: [], dataAccesses: [] } });
+        } });
+      };
+      window.__studioImportFromUrl();
+      var inp = document.getElementById("importUrlInput");
+      inp.value = "https://example.com/templates/index.json";
+      document.getElementById("importUrlGo").click();
+      return new Promise(function (resolve) {
+        setTimeout(function () {
+          var items = [].slice.call(document.querySelectorAll("#importUrlList .row-item"));
+          var titles = items.map(function (r) { return r.querySelector(".ri-t").textContent; });
+          items[0].click();
+          setTimeout(function () {
+            window.fetch = origFetch;
+            resolve({
+              listedTitles: titles,
+              modalGone: !document.querySelector(".modal-ov"),
+              loadedTitle: window.__STUDIO_STATE.spec.title
+            });
+          }, 120);
+        }, 120);
+      });
+    });
+    ok("N-DIST: an index.json URL (array or {templates:[]}) renders a browsable list of templates",
+      importIndex.listedTitles.length === 2 && importIndex.listedTitles[0] === "Sales Overview" && importIndex.listedTitles[1] === "Ops Health",
+      JSON.stringify(importIndex));
+    ok("N-DIST: picking a template from the index fetches its own URL and imports it",
+      importIndex.modalGone && importIndex.loadedTitle === "Sales Overview Loaded", JSON.stringify(importIndex));
+
+    const importIndexArray = await page.evaluate(function () {
+      var origFetch = window.fetch;
+      window.fetch = function (url) {
+        if (/list\.json/.test(url)) {
+          return Promise.resolve({ ok: true, json: function () {
+            return Promise.resolve([{ title: "Bare Array Template", file: "tpl.studio.json" }]);
+          } });
+        }
+        return Promise.resolve({ ok: true, json: function () {
+          return Promise.resolve({ id: "imp3", name: "bare-tpl", title: "Bare Array Loaded", panels: [], kpis: [], filters: [], cda: { connections: [], dataAccesses: [] } });
+        } });
+      };
+      window.__studioImportFromUrl();
+      var inp = document.getElementById("importUrlInput");
+      inp.value = "https://example.com/templates/list.json";
+      document.getElementById("importUrlGo").click();
+      return new Promise(function (resolve) {
+        setTimeout(function () {
+          var item = document.querySelector("#importUrlList .row-item");
+          var hadItem = !!item;
+          if (item) item.click();
+          setTimeout(function () {
+            window.fetch = origFetch;
+            resolve({ hadItem: hadItem, loadedTitle: window.__STUDIO_STATE.spec.title });
+          }, 120);
+        }, 120);
+      });
+    });
+    ok("N-DIST: a bare JSON array index also works, resolving a relative 'file' key against the index URL",
+      importIndexArray.hadItem && importIndexArray.loadedTitle === "Bare Array Loaded", JSON.stringify(importIndexArray));
+
     // ── N-DIST follow-up: local version history ("time travel" for a dashboard) ──
     console.log("\n• N-DIST follow-up: local version history");
     const vhId = "vh-test-9f3";

@@ -15,6 +15,17 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 269,
+    title: 'N-DIST: Import from URL now supports a template index',
+    kind: 'feature',
+    ts: '2026-07-03T15:31:57Z',
+    items: [
+      'The \'+ Import from URL...\' modal (Examples menu) now also accepts an index URL -- a JSON array or {templates:[...]} of {title, url, description} entries -- and renders a browsable list to pick one from, instead of only a single dashboard spec.',
+      'Same shape as the built-in Examples gallery\'s own index.json; entry URLs may be relative to the index URL.',
+      'Closes the \'index of several\' follow-up left open when Import from URL first shipped (v264). 4 new tests, suite 1218/1218.',
+    ],
+  },
+  {
     v: 268,
     title: 'N-FUN: slideshow story-mode captions',
     kind: 'feature',
