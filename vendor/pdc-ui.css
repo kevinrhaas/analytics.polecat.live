@@ -113,7 +113,7 @@ select.pdc-sel option{color:#1f2838}
 .pdc-qm-ov{position:fixed;inset:0;background:rgba(15,23,42,.55);backdrop-filter:blur(2px);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:5vh 16px;animation:pdcqmfade .16s ease}
 @keyframes pdcqmfade{from{opacity:0}to{opacity:1}}
 @media(prefers-reduced-motion:reduce){.pdc-qm-ov{animation:none}}
-.pdc-qm{background:var(--panel-bg);color:var(--text-primary);border:1px solid var(--panel-border);border-radius:var(--radius);box-shadow:var(--panel-shadow-lg);width:min(880px,94vw);max-height:88vh;display:flex;flex-direction:column;overflow:hidden}
+.pdc-qm{background:var(--panel-bg);color:var(--text-primary);border:1px solid var(--panel-border);border-radius:var(--radius);box-shadow:var(--panel-shadow-lg),var(--panel-glass);width:min(880px,94vw);max-height:88vh;display:flex;flex-direction:column;overflow:hidden}
 .pdc-qm-h{display:flex;align-items:center;gap:12px;padding:13px 16px;background:var(--panel-header-bg);border-bottom:1px solid var(--panel-header-border)}
 .pdc-qm-t{font-weight:800;font-size:14px;letter-spacing:.2px}
 .pdc-qm-t code{font-weight:700;font-size:12px;color:var(--pdc);background:var(--panel-subtle-bg);padding:1px 7px;border-radius:6px;margin-left:4px}
@@ -136,7 +136,7 @@ select.pdc-sel option{color:#1f2838}
 /* ── Drill-to-detail drawer (the row-grain "show me the actual records" panel) ── */
 .pdc-dt-ov{position:fixed;inset:0;background:rgba(15,23,42,.45);backdrop-filter:blur(2px);z-index:10000;display:flex;justify-content:flex-end;opacity:0;transition:opacity .18s ease}
 .pdc-dt-ov.in{opacity:1}
-.pdc-dt{background:var(--panel-bg);color:var(--text-primary);border-left:1px solid var(--panel-border);box-shadow:var(--panel-shadow-lg);
+.pdc-dt{background:var(--panel-bg);color:var(--text-primary);border-left:1px solid var(--panel-border);box-shadow:var(--panel-shadow-lg),var(--panel-glass);
   width:min(680px,96vw);max-width:96vw;height:100%;display:flex;flex-direction:column;transform:translateX(28px);transition:transform .2s ease}
 .pdc-dt-ov.in .pdc-dt{transform:translateX(0)}
 @media(prefers-reduced-motion:reduce){.pdc-dt-ov,.pdc-dt{transition:none}}

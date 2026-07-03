@@ -15,6 +15,17 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 284,
+    title: 'N-DESIGN follow-up: glass-edge modal/drawer surfaces',
+    kind: 'polish',
+    ts: '2026-07-03T22:47:28Z',
+    items: [
+      'The CDA query inspector modal (.pdc-qm) and the drill-to-detail drawer (.pdc-dt) now carry the same --panel-glass inset top-highlight / bottom-shade the v280 slice gave KPI tiles and chart cards -- the two remaining un-glassed panel surfaces now match the rest of the material system.',
+      'Pure additive box-shadow chain, no markup changes, applies everywhere the shared toolkit is used (live preview + every exported Dashboard Framework). Closes the "broader elevation scale... modal/sheet surfaces" item from the v280 N-DESIGN note.',
+      '2 new tests, suite 1274/1274.',
+    ],
+  },
+  {
     v: 283,
     title: 'Visual refresh (A) follow-up: focus rings + reduced-motion on exported dashboards',
     kind: 'fix',

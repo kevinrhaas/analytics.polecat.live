@@ -176,6 +176,14 @@ function serve() {
     ok("N-DESIGN: KPI tiles render the layered glass inset shadow", /inset/.test(glassShadow.kpi), glassShadow.kpi);
     ok("N-DESIGN: chart cards render the layered glass inset shadow", /inset/.test(glassShadow.card), glassShadow.card);
 
+    // N-DESIGN follow-up: extend the glass-edge treatment to the two modal/sheet surfaces (the CDA
+    // query inspector modal and the drill-to-detail drawer) that only had the plain drop shadow before.
+    const sheetGlassCss = await page.evaluate(() => window.__STUDIO_STATE.assets.css);
+    ok("N-DESIGN: the CDA query inspector modal (.pdc-qm) carries the glass inset shadow too",
+      sheetGlassCss.indexOf("box-shadow:var(--panel-shadow-lg),var(--panel-glass);width:min(880px") >= 0);
+    ok("N-DESIGN: the drill-to-detail drawer (.pdc-dt) carries the glass inset shadow too",
+      sheetGlassCss.indexOf("box-shadow:var(--panel-shadow-lg),var(--panel-glass);\n  width:min(680px") >= 0);
+
     // a11y: focus-visible ring + prefers-reduced-motion coverage on the exported/preview dashboard
     // chrome (vendor/pdc-ui.css) -- distinct from the app chrome's own audit (Z10 covers studio.css).
     const dashA11yCss = await page.evaluate(() => window.__STUDIO_STATE.assets.css);

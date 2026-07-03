@@ -774,6 +774,10 @@
   `outline:none` on focus with no replacement, so keyboard users saw zero focus indicator. 8 new tests
   (CSS coverage + real keyboard-focus/emulated-reduced-motion checks against the live preview), suite
   1272/1272.
+- v284: **N-DESIGN follow-up: glass-edge modal/drawer surfaces** — the CDA query inspector modal
+  (`.pdc-qm`) and drill-to-detail drawer (`.pdc-dt`) now carry the same `--panel-glass` inset highlight
+  KPI tiles/chart cards got in v280, closing the "modal/sheet surfaces" half of that item's "still open"
+  note. 2 new tests, suite 1274/1274.
 
 ## NEXT (top = do first)
 
@@ -2419,8 +2423,11 @@ gets covered over time:
 > additive to the existing `box-shadow` chain (`var(--panel-shadow[,-lg]),var(--panel-glass)`) — no markup
 > changes, applies everywhere the shared toolkit is used (live preview + every exported Dashboard
 > Framework). 3 new tests (token declared; both `.kpi` and `.card` render an `inset` shadow layer in the
-> live preview), suite 1252/1252. **Still open:** a broader elevation scale beyond hover + this one glass
-> layer (e.g. modal/sheet surfaces), alternate chart "skins."
+> live preview), suite 1252/1252.
+> ✓ **Glass-edge extended to modal/drawer surfaces shipped v284 (closes the "modal/sheet surfaces" half
+> of the "still open" item above)**: the CDA query inspector modal (`.pdc-qm`) and the drill-to-detail
+> drawer (`.pdc-dt`) now carry the same `--panel-glass` inset highlight. 2 new tests, suite 1274/1274.
+> **Still open:** a broader elevation scale beyond hover + this one glass layer, alternate chart "skins."
 
 **N-DEV — Power-user & authoring.**
 - **Live JSON spec editor:** ✓ shipped v267, see below.
