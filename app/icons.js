@@ -71,7 +71,9 @@
     dots:      '<circle cx="5" cy="15" r="2" fill="currentColor" stroke="none"/><circle cx="12" cy="8" r="2" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="2" fill="currentColor" stroke="none"/>',
     tag:       '<path stroke-linecap="round" stroke-linejoin="round" d="M3 12l9-9h7a2 2 0 0 1 2 2v7l-9 9a2 2 0 0 1-2.83 0l-6.17-6.17a2 2 0 0 1 0-2.83z"/><circle cx="15" cy="9" r="1.4" fill="currentColor" stroke="none"/>',
     percent:   '<line x1="19" y1="5" x2="5" y2="19" stroke-linecap="round"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>',
-    "rotate-text": '<path d="M5 20L15 4" stroke-linecap="round"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 4a6.5 6.5 0 0 1 5.5 10"/><polyline points="22 9.5 20.5 13.5 17 11.8" stroke-linecap="round" stroke-linejoin="round"/>'
+    "rotate-text": '<path d="M5 20L15 4" stroke-linecap="round"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 4a6.5 6.5 0 0 1 5.5 10"/><polyline points="22 9.5 20.5 13.5 17 11.8" stroke-linecap="round" stroke-linejoin="round"/>',
+    "trend-up": '<polyline points="3 17 9 11 13 15 21 6" stroke-linecap="round" stroke-linejoin="round"/><polyline points="14 6 21 6 21 13" stroke-linecap="round" stroke-linejoin="round"/>',
+    sigma:     '<path d="M18 4H6l6 8-6 8h12" stroke-linecap="round" stroke-linejoin="round"/>'
   };
 
   Studio.icon = function (name, size) {

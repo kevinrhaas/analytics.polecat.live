@@ -1372,6 +1372,13 @@ self-explanatory. Keep it light (inline SVG / CSS, no image assets or deps). One
 > overlapping.") on bars/stacked/groupedBars/barNorm. 1 new test, suite 1019/1019. **Z8 follow-ups (not
 > yet done):** true before/after thumbnails (not just a glyph+tooltip) for the least-obvious remaining
 > one-off options, and per-chart-type-specific hints beyond the shared-key families covered here.
+> ✓ **Two more repeated families shipped v249**: new `trend-up` glyph ("Draws a straight regression/
+> forecast line through the data, showing its overall direction.") on Scatter's `trend` and Line's
+> `showTrend` toggles — the same underlying concept under two different key names, previously
+> unhinted; new `sigma` glyph ("Adds a bold summary row at the bottom, totalling every numeric column
+> over the visible rows.") on Table's `grandTotal` toggle. 2 new icons in `app/icons.js`, 3 new tests,
+> suite 1152/1152. **Z8 follow-ups (still not yet done):** true before/after thumbnails, and any
+> remaining one-off (non-repeated) options that would benefit from their own hint.
 
 **Z9 — Mobile: fix the broken flows + a proper bottom nav (user-requested 2026-06-30).**
 > ⚠️ **ESCALATED — see the ★★★ TOP PRIORITY — MOBILE block at the top of NEXT** (user re-reported 2026-07-02

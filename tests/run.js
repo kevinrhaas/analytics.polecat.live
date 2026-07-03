@@ -13044,6 +13044,11 @@ function serve() {
       var funnelHints = hintsFor("funnel");
       var funnelPct = funnelHints.filter(function (h) { return /percentage/.test(h.title); });
       var barsRotate = barsHints.filter(function (h) { return /diagonally/.test(h.title); });
+      var scatterHints = hintsFor("scatter");
+      var scatterTrend = scatterHints.filter(function (h) { return /regression\/forecast/.test(h.title); });
+      var lineTrend = lineHints.filter(function (h) { return /regression\/forecast/.test(h.title); });
+      var tableHints = hintsFor("table");
+      var tableGrandTotal = tableHints.filter(function (h) { return /totalling every numeric column/.test(h.title); });
       var result = {
         barsHasSortHint: barsSort.length === 1,
         donutHasLegendHint: donutLegend.length === 1,
@@ -13053,6 +13058,9 @@ function serve() {
         sunburstHasLabelsHint: sunburstLabels.length === 1,
         funnelHasPctHint: funnelPct.length === 1,
         barsHasRotateHint: barsRotate.length === 1,
+        scatterHasTrendHint: scatterTrend.length === 1,
+        lineHasTrendHint: lineTrend.length === 1,
+        tableHasGrandTotalHint: tableGrandTotal.length === 1,
         hintHasSvg: barsSort.length === 1 && !!barsSort[0].querySelector("svg"),
         hintHasAriaLabel: barsSort.length === 1 && !!barsSort[0].getAttribute("aria-label")
       };
@@ -13071,6 +13079,9 @@ function serve() {
     ok("Sunburst's 'Show arc labels' toggle carries a tag-glyph hint", optHintUI.sunburstHasLabelsHint, JSON.stringify(optHintUI));
     ok("Funnel's 'Show conversion %' toggle carries a percent-glyph hint", optHintUI.funnelHasPctHint, JSON.stringify(optHintUI));
     ok("Bar chart's 'Rotate labels' toggle carries a rotate-glyph hint", optHintUI.barsHasRotateHint, JSON.stringify(optHintUI));
+    ok("Scatter's 'Show trend line' toggle carries a trend-glyph hint", optHintUI.scatterHasTrendHint, JSON.stringify(optHintUI));
+    ok("Line's 'Show trend / forecast line' toggle carries the same trend-glyph hint", optHintUI.lineHasTrendHint, JSON.stringify(optHintUI));
+    ok("Table's 'Show grand total row' toggle carries a sigma-glyph hint", optHintUI.tableHasGrandTotalHint, JSON.stringify(optHintUI));
 
     // ---- Track N: command palette (⌘K / Ctrl-K) ----
     console.log("\n• Track N: command palette (⌘K)");

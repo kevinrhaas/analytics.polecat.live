@@ -15,6 +15,17 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 249,
+    title: 'Two more inline setting hints (Z8 follow-up)',
+    kind: 'polish',
+    ts: '2026-07-03T09:50:09Z',
+    items: [
+      'A new trend-up glyph + tooltip now appears on Scatter\'s "Show trend line" and Line\'s "Show trend / forecast line" toggles -- the same regression/forecast concept under two different option names.',
+      'A new sigma glyph + tooltip appears on Table\'s "Show grand total row" toggle.',
+      '2 new icons, 3 new tests, suite 1152/1152.',
+    ],
+  },
+  {
     v: 248,
     title: 'Connector gallery gets real brand colors (Z4 track complete)',
     kind: 'polish',
