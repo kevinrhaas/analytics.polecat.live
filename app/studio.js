@@ -3148,7 +3148,7 @@
     var da = Studio.daById(S.spec, p.chart.da); if (!da) return;
     var m = p.chart.map || {};
     var sd = Studio.sampleRows(da);
-    var text;
+    var text, notable;
     if (p.chart.type === "scatter" && m.xCol && m.yCol) {
       // Two-variable charts get a correlation read instead of a single-series trend.
       text = Studio.computeCorrelation(sd.cols, sd.rows, m.xCol, m.yCol);
@@ -3157,6 +3157,7 @@
       var labelCol = m.labelCol || m.dateCol || m.xCol;
       if (!valueCol) return;
       text = Studio.computeInsights(sd.cols, sd.rows, labelCol, valueCol);
+      notable = Studio.notablePoint(sd.cols, sd.rows, labelCol, valueCol);
     }
     if (!text) return;
     var sec = section(body, "Insight");
@@ -3166,6 +3167,25 @@
     box.appendChild(span);
     sec.appendChild(box);
     sec.appendChild(noteEl("info", "Auto-generated from this panel's own sample data (offline, no API) — a quick read on trend, the biggest single move, and any outlier."));
+    // N-AI: "auto-placed callout markers on the notable points" — one click drops the
+    // existing Callout arrow overlay (see below) right on the outlier/biggest-move point
+    // this narration just called out, instead of the user having to eyeball x%/y% sliders.
+    if (notable) {
+      var caBtn = el("button", "btn-cb-text"); caBtn.type = "button";
+      caBtn.id = "insightAddCallout";
+      caBtn.textContent = "Add callout at “" + notable.label + "”";
+      caBtn.style.marginTop = "6px";
+      caBtn.onclick = function () {
+        p.callout = {
+          text: notable.kind === "outlier" ? "Outlier" : "Biggest move",
+          x: notable.x, y: notable.y,
+          color: (p.callout && p.callout.color) || "#e74c3c"
+        };
+        refreshPreview(); renderInspector();
+        toast("Callout added at the flagged point.");
+      };
+      sec.appendChild(caBtn);
+    }
   }
 
   function renderQueryPeek(body, daId) {

@@ -759,6 +759,12 @@
 - v264: **N-DIST: Import dashboard from URL** — see N-DIST entry below (closes the "local template
   gallery via URL import" idea, first cut — single spec URL, not yet an index of several). 2 new tests,
   suite 1197/1197.
+- v273: **N-AI: auto-placed callout markers on the notable point** — see N-AI entry below (closes the
+  "auto-placed callout markers on the notable points" item). 5 new tests, suite 1231/1231.
+- v274: **Track H sweep: ⋯ More menu grouped into labeled sections** — see Track H findings log below
+  (closes the sweep-cadence gap — the dedicated H-track log hadn't been fed since v125/v126). Purely
+  additive `.grp` section labels (Connect / Present / Help & power tools), no button id/behavior changed.
+  2 new tests, suite 1231/1231.
 
 ## NEXT (top = do first)
 
@@ -1847,6 +1853,14 @@ Next H-track suggestions (pick the highest-value):
   - ✓ **Series color palette presets** — shipped v123: 5 built-in palette groups (default/ocean/forest/sunset/dusk) with separate light+dark ramps; 'Series palette' swatch row in dashboard inspector; selected palette injects CSS variable overrides (--c1…--c10) into preview and exported CDF HTML; stored as `spec.paletteKey`; Studio.PALETTE_PRESETS in model.js; paletteCss generation in exporters.js; 3 new H-palette checks.
   - ✓ **'/' gallery search shortcut** — shipped v124: pressing '/' focuses .cg-search (chart-type gallery search) when a panel is selected and no text field is active; guards against input/textarea/select + modifier keys; listed in shortcuts modal (?); 2 new H-track checks.
   - ✓ **Slideshow mode** — shipped v125: '⋯ More → Slideshow ▶' cycles through all canvas panels one at a time in a full-screen overlay; each slide re-rendered via buildHtml + single-panel iframe (identical quality to CDF export); ◀/▶ nav buttons + keyboard arrows; Escape/× to exit; panel title + 1/N counter in header; test hooks: __slideshowOpen/__slideshowActive/__slideshowPanel; CSS: .ss-overlay/.ss-hdr/.ss-frame in studio.css; 4 new H-track checks. Test suite 683/683.
+  - ✓ **⋯ More menu grouped into labeled sections** — shipped v274 (first dedicated Track H sweep since
+    v125/v126 — this log had gone unfed even as IA-flavored work shipped under other track names in
+    between). The menu had grown to 15 items across 4 visually-separated but unlabeled clumps; added
+    "Connect" / "Present" / "Help & power tools" `.grp` section labels (same convention the Examples/Export
+    menus already use). Purely additive — no button id/order/behavior changed. 2 new tests, suite
+    1231/1231. **Next H-track candidate:** the Z1 follow-up "simplify the top menu bar" reorg (bigger,
+    higher-risk given how much mobile CSS is tuned around today's topbar structure — needs its own
+    dedicated, carefully-tested slice, not folded into a routine sweep).
 
 ### I. Learn from the reference/ lab — match & surpass those visuals (user-requested; RECURRING)
 The `reference/dashboards/` tree is a library of advanced hand-built CDF/CDE dashboards (the original
@@ -2089,6 +2103,15 @@ gets covered over time:
 > list — no new UI, the Insight section already renders whatever `computeInsights()` returns. 3 new
 > tests (a clear period-4 series is named correctly; a plain monotonic trend is NOT flagged, proving the
 > detrend step earns its keep; a too-short series doesn't crash). Suite 1224/1224.
+> ✓ **Auto-placed callout markers shipped v273 (closes that "still open" item — N-AI auto-insight
+> narration track is now feature-complete)**: `Studio.notablePoint(cols, rows, labelCol, valueCol)` in
+> model.js picks the same single point the narration was already talking about (the outlier if beyond 2
+> std-dev, else the biggest single move) and converts it to an (x%, y%) chart-body position — x% from the
+> point's index along the series, y% from where its value falls in the observed min/max range. An **"Add
+> callout at '…'"** button appears below the Insight narration whenever one is found; clicking it drops
+> the panel's existing Callout arrow overlay (v84) straight onto that point instead of eyeballing the x%/y%
+> sliders. Pure/independently-testable, same offline-only spirit as `computeInsights`. 5 new tests, suite
+> 1231/1231.
 > ✓ **Smart chart recommender shipped v219 (closes the item below).** A "Recommended for this data" chip
 > strip appears above the chart-type gallery once a panel has a query bound — `Studio.recommendCharts(cols,
 > rows)` in model.js classifies columns (date-like / numeric / string) and cardinality, then suggests up to

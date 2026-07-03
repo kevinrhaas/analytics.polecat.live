@@ -275,6 +275,55 @@
     return sentences.join(" ");
   };
 
+  /* ---- N-AI: "auto-placed callout markers on the notable points" ----
+     Picks the single most notable point computeInsights already narrates in prose —
+     the outlier (if beyond 2 std-dev) else the biggest single point-to-point move —
+     and returns its position as (x%, y%) of the chart body, ready to drop straight
+     into a panel's `callout` overlay (see the Callout arrow inspector section).
+     x% comes from the point's position along the series (index / (n-1)); y% comes
+     from where its value falls within the observed min/max range (higher value =
+     smaller y%, since the chart's y-axis grows upward but SVG y-coordinates grow
+     downward), clamped to a 5–95% band so the bubble never clips the chart edge.
+     Pure/independently-testable, same offline-only spirit as computeInsights. */
+  Studio.notablePoint = function (cols, rows, labelCol, valueCol) {
+    var vi = (cols || []).indexOf(valueCol);
+    if (vi < 0 || !rows || rows.length < 2) return null;
+    var li = (cols || []).indexOf(labelCol);
+    var pts = rows.map(function (r, i) {
+      return { label: li >= 0 ? r[li] : "row " + (i + 1), value: Number(r[vi]), index: i };
+    }).filter(function (p) { return !isNaN(p.value); });
+    var n = pts.length;
+    if (n < 2) return null;
+    var values = pts.map(function (p) { return p.value; });
+    var mean = values.reduce(function (a, b) { return a + b; }, 0) / n;
+    var sd = Math.sqrt(values.reduce(function (a, b) { return a + (b - mean) * (b - mean); }, 0) / n);
+    var min = Math.min.apply(null, values), max = Math.max.apply(null, values);
+
+    var chosen = null, kind = null;
+    if (sd > 0) {
+      var bestZ = 0, outlier = null;
+      pts.forEach(function (p) {
+        var z = (p.value - mean) / sd;
+        if (Math.abs(z) > Math.abs(bestZ)) { bestZ = z; outlier = p; }
+      });
+      if (outlier && Math.abs(bestZ) > 2) { chosen = outlier; kind = "outlier"; }
+    }
+    if (!chosen) {
+      var biggest = null;
+      for (var j = 1; j < n; j++) {
+        var d = pts[j].value - pts[j - 1].value;
+        if (!biggest || Math.abs(d) > Math.abs(biggest.delta)) biggest = { delta: d, point: pts[j] };
+      }
+      if (biggest && Math.abs(biggest.delta) > 0) { chosen = biggest.point; kind = "move"; }
+    }
+    if (!chosen) return null;
+
+    var xPct = n > 1 ? Math.round(chosen.index / (n - 1) * 100) : 50;
+    var yPct = max > min ? Math.round(100 - (chosen.value - min) / (max - min) * 100) : 50;
+    yPct = Math.max(5, Math.min(95, yPct));
+    return { label: String(chosen.label), value: chosen.value, x: xPct, y: yPct, kind: kind };
+  };
+
   /* ---- Z7/N-AI: correlation insight for two-numeric-variable charts (scatter/bubble) ----
      Pearson's r between the bound X and Y columns, in the same plain-English style as
      computeInsights above. Kept separate because it needs two series, not one. */

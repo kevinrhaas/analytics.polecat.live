@@ -2290,6 +2290,55 @@ function serve() {
     });
     ok("Insight section appears in the panel inspector for a value-bound chart", insightUI.found && insightUI.hasText, JSON.stringify(insightUI));
 
+    // ---- N-AI follow-up: "auto-placed callout markers on the notable points" ----
+    console.log("\n• auto-placed callout markers");
+    const notableUnit = await page.evaluate(() => {
+      const cols = ["month", "revenue"];
+      const rows = [["Jan", 100], ["Feb", 102], ["Mar", 98], ["Apr", 101], ["May", 99], ["Jun", 1000], ["Jul", 103], ["Aug", 97]];
+      return Studio.notablePoint(cols, rows, "month", "revenue");
+    });
+    ok("Studio.notablePoint flags the same outlier computeInsights narrates, positioned by its index (x%) and value (y%)",
+      notableUnit && notableUnit.kind === "outlier" && notableUnit.label === "Jun" && notableUnit.x === 71 && notableUnit.y === 5,
+      JSON.stringify(notableUnit));
+    const notableMove = await page.evaluate(() => {
+      const cols = ["q", "v"];
+      const rows = [10, 12, 15, 30, 32, 34].map((v, i) => ["p" + i, v]);
+      return Studio.notablePoint(cols, rows, "q", "v");
+    });
+    ok("Studio.notablePoint falls back to the biggest single move when nothing is a true outlier",
+      notableMove && notableMove.kind === "move" && notableMove.label === "p3", JSON.stringify(notableMove));
+    ok("Studio.notablePoint returns null with fewer than 2 valid points",
+      await page.evaluate(() => Studio.notablePoint(["a", "b"], [["x", 1]], "a", "b")) === null, "");
+
+    // UI wiring: the "📍 Add callout at…" button (only shown when notablePoint found
+    // something) must set p.callout to exactly what Studio.notablePoint computed for
+    // that panel's own bound DA — not just render text that looks right.
+    const calloutUI = await page.evaluate(function () {
+      var spec = window.__STUDIO_STATE.spec;
+      var sel = window.__STUDIO_STATE.selection;
+      var p = spec.panels.filter(function (pp) { return pp.id === sel.id; })[0];
+      var prevCallout = p.callout;
+      var da = Studio.daById(spec, p.chart.da);
+      var sd = Studio.sampleRows(da);
+      var m = p.chart.map || {};
+      var valueCol = m.valueCol || (m.series && m.series[0] && m.series[0].col);
+      var labelCol = m.labelCol || m.dateCol || m.xCol;
+      var expected = Studio.notablePoint(sd.cols, sd.rows, labelCol, valueCol);
+      var btn = document.getElementById("insightAddCallout");
+      var hasBtn = !!btn;
+      if (btn) btn.click();
+      var result = { hasBtn: hasBtn, expected: expected, callout: p.callout ? JSON.parse(JSON.stringify(p.callout)) : null };
+      p.callout = prevCallout;
+      window.__studioRenderInspector();
+      return result;
+    });
+    ok("N-AI: '📍 Add callout' button appears in the Insight section when a notable point is found",
+      calloutUI.hasBtn === !!calloutUI.expected, JSON.stringify(calloutUI));
+    ok("N-AI: clicking '📍 Add callout' sets p.callout to the exact x/y Studio.notablePoint computed for this panel",
+      !calloutUI.expected || (calloutUI.callout && calloutUI.callout.x === calloutUI.expected.x && calloutUI.callout.y === calloutUI.expected.y &&
+        calloutUI.callout.text === (calloutUI.expected.kind === "outlier" ? "Outlier" : "Biggest move")),
+      JSON.stringify(calloutUI));
+
     // ---- Z7/N-AI follow-up: correlation insight for scatter (two-variable) charts ----
     console.log("\n• scatter correlation insight");
     const scatCorrUnit = await page.evaluate(() => {
@@ -3658,6 +3707,28 @@ function serve() {
     ok("v47: Escape closes the shortcuts modal", modalGone);
     // test More menu entry
     ok("v47: More menu has Keyboard shortcuts button", await page.evaluate(() => !!document.getElementById("moreShortcuts")));
+
+    // ---- Track H (IA sweep): ⋯ More menu grouped into labeled sections ----
+    // The menu had grown to 15 items in 4 visually-separated-but-unlabeled clumps —
+    // a first-time user had no cue *why* they were grouped that way. Purely additive
+    // ".grp" label divs (same convention the Examples/Export menus already use) name
+    // each clump; no button id/behavior changed, so every existing More-menu test
+    // above (and the mobile ones later in this file) still passes unmodified.
+    console.log("\n• Track H: ⋯ More menu section labels");
+    const moreGroups = await page.evaluate(() => {
+      var menu = document.getElementById("menuMore");
+      var labels = [].slice.call(menu.querySelectorAll(".grp")).map(function (g) { return g.textContent.trim(); });
+      return {
+        labels: labels,
+        stillHasShortcuts: !!document.getElementById("moreShortcuts"),
+        stillHasEditJSON: !!document.getElementById("moreEditJSON")
+      };
+    });
+    ok("Track H: ⋯ More menu groups its items under labeled sections (Connect / Present / Help & power tools)",
+      moreGroups.labels.indexOf("Connect") >= 0 && moreGroups.labels.indexOf("Present") >= 0 &&
+      moreGroups.labels.indexOf("Help & power tools") >= 0, JSON.stringify(moreGroups));
+    ok("Track H: grouping is purely additive — every existing More-menu item id is untouched",
+      moreGroups.stillHasShortcuts && moreGroups.stillHasEditJSON, JSON.stringify(moreGroups));
 
     // ---- Focus trap in modals (v48) ----
     console.log("\n• Focus trap in modals (v48)");

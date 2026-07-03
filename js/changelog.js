@@ -15,6 +15,28 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 274,
+    title: 'Track H: ⋯ More menu grouped into labeled sections',
+    kind: 'polish',
+    ts: '2026-07-03T17:34:12Z',
+    items: [
+      'The ⋯ More menu had grown to 15 items across 4 visually-separated but unlabeled clumps -- added \'Connect\' / \'Present\' / \'Help & power tools\' section labels (same .grp convention the Examples/Export menus already use) so the grouping has a visible reason, not just whitespace.',
+      'Purely additive: no button id, order, or behavior changed, so every existing More-menu test (desktop and mobile) still passes unmodified.',
+      'Closes the UX/delight sweep gap -- Track H\'s dedicated findings log had gone unfed since v125/v126 even as IA work happened elsewhere. 2 new tests, suite 1231/1231.',
+    ],
+  },
+  {
+    v: 273,
+    title: 'N-AI: auto-placed callout markers on the notable point',
+    kind: 'feature',
+    ts: '2026-07-03T17:20:00Z',
+    items: [
+      'The auto-insight narration\'s Insight section now also computes exactly which point it was talking about -- the flagged outlier, or the biggest single move when nothing crosses the outlier threshold -- via a new Studio.notablePoint(cols, rows, labelCol, valueCol).',
+      'An \'Add callout at...\' button appears right below the narration text when a notable point is found; one click drops the panel\'s existing Callout arrow overlay right on that point (x% from its position in the series, y% from where its value falls in the observed range) instead of eyeballing the position sliders yourself.',
+      'Closes the \'auto-placed callout markers on the notable points\' item left open in the N-AI auto-insight track. 5 new tests, suite 1231/1231.',
+    ],
+  },
+  {
     v: 272,
     title: 'N-FUN: slide-emphasis zoom/glow choreography for Slideshow',
     kind: 'feature',
