@@ -15,6 +15,17 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 241,
+    title: 'Track L sweep: de-duplicated KDE math in violin + ridgeline charts',
+    kind: 'polish',
+    ts: '2026-07-03T08:29:55Z',
+    items: [
+      'Violin and ridgeline charts each carried their own byte-identical Silverman-bandwidth Gaussian KDE helpers (silverman()/kde()) -- extracted into two shared module-level functions in app/studio-charts.js (silvermanBw/kdeDensity) so future tuning only needs to happen in one place.',
+      'Zero behavior change: same math, same defaults (40 sample points for violin, 48 for ridgeline); ridgeline\'s density-point key was renamed from xv to x to match violin\'s shape, with call sites updated to match.',
+      'No new tests needed -- this is a pure refactor behind the existing suite. Test suite 1137/1137, unchanged.',
+    ],
+  },
+  {
     v: 240,
     title: 'Shareable dashboard links (N-DIST)',
     kind: 'feature',

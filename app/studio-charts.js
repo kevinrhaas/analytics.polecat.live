@@ -55,6 +55,30 @@
   function animD(base) { return base * ((PDC._animD || 600) / 600); }
   function niceMax(m) { if (m <= 0) return 1; var p = Math.pow(10, Math.floor(Math.log10(m))); var n = m / p; var step = n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10; return step * p; }
 
+  // Shared Gaussian KDE (violin + ridgeline both plot a smoothed density curve over
+  // a value range). Silverman's rule of thumb picks the bandwidth; kde() samples the
+  // resulting density at evenly-spaced points across [minV, maxV].
+  function silvermanBw(vals, minV, maxV) {
+    if (vals.length < 2) return (maxV - minV) / 6 || 1;
+    var m = 0; for (var j = 0; j < vals.length; j++) m += vals[j]; m /= vals.length;
+    var v2 = 0; for (var j = 0; j < vals.length; j++) v2 += (vals[j] - m) * (vals[j] - m); v2 /= vals.length;
+    var sd = Math.sqrt(v2);
+    return sd === 0 ? (maxV - minV) / 8 || 1 : 0.9 * sd * Math.pow(vals.length, -0.2);
+  }
+  function kdeDensity(vals, bw, minV, maxV, pts) {
+    var rng = maxV - minV, result = [];
+    var inv2pi = 1 / Math.sqrt(2 * Math.PI);
+    for (var k = 0; k <= pts; k++) {
+      var x = minV + (k / pts) * rng, d = 0;
+      for (var j = 0; j < vals.length; j++) {
+        var u = (x - vals[j]) / bw;
+        d += inv2pi * Math.exp(-0.5 * u * u) / bw;
+      }
+      result.push({ x: x, d: d / vals.length });
+    }
+    return result;
+  }
+
   /* Clickable legend row for multi-series charts.
      items: [{name, color, els: [SVGElement ...], base: opacityString}]
      Clicking a chip toggles the paired SVG elements; class lgi-toggle used by Playwright tests. */
@@ -1371,31 +1395,6 @@
     var halfW = Math.min(iw / n / 2 - 6, 35);
     if (halfW < 4) halfW = 4;
 
-    // Silverman's rule of thumb bandwidth for a vector of values.
-    // Falls back gracefully when n < 2 or σ = 0.
-    function silverman(vals) {
-      if (vals.length < 2) return (maxV - minV) / 6 || 1;
-      var m = 0; for (var j = 0; j < vals.length; j++) m += vals[j]; m /= vals.length;
-      var v2 = 0; for (var j = 0; j < vals.length; j++) v2 += (vals[j] - m) * (vals[j] - m); v2 /= vals.length;
-      var sd = Math.sqrt(v2);
-      return sd === 0 ? (maxV - minV) / 8 || 1 : 0.9 * sd * Math.pow(vals.length, -0.2);
-    }
-
-    // Gaussian KDE over [minV, maxV] at `points` evenly-spaced x values.
-    function kde(vals, bw) {
-      var pts = 40, rng = maxV - minV, result = [];
-      var inv2pi = 1 / Math.sqrt(2 * Math.PI);
-      for (var k = 0; k <= pts; k++) {
-        var x = minV + (k / pts) * rng, d = 0;
-        for (var j = 0; j < vals.length; j++) {
-          var u = (x - vals[j]) / bw;
-          d += inv2pi * Math.exp(-0.5 * u * u) / bw;
-        }
-        result.push({ x: x, d: d / vals.length });
-      }
-      return result;
-    }
-
     var P = PDC.palette();
     cats.forEach(function (cat, ci) {
       var x0 = cx(ci);
@@ -1403,9 +1402,10 @@
       var vals = (cat.values || []).map(Number).filter(isFinite);
       if (!vals.length) return;
 
-      // Build the KDE density curve and normalise so max density = halfW pixels
-      var bw = silverman(vals);
-      var density = kde(vals, bw);
+      // Build the KDE density curve (shared silvermanBw/kdeDensity helpers, also used
+      // by ridgeline) and normalise so max density = halfW pixels
+      var bw = silvermanBw(vals, minV, maxV);
+      var density = kdeDensity(vals, bw, minV, maxV, 40);
       var maxD = 0; for (var k = 0; k < density.length; k++) if (density[k].d > maxD) maxD = density[k].d;
       if (maxD === 0) return;
 
@@ -4790,29 +4790,7 @@
     // X scale: value → pixel
     var xs = function (v) { return mL + ((v - minV) / (maxV - minV)) * iw; };
 
-    // Silverman's bandwidth — same as violin chart
-    function silverman(vals) {
-      if (vals.length < 2) return (maxV - minV) / 6 || 1;
-      var m = 0; for (var j = 0; j < vals.length; j++) m += vals[j]; m /= vals.length;
-      var v2 = 0; for (var j = 0; j < vals.length; j++) v2 += (vals[j] - m) * (vals[j] - m); v2 /= vals.length;
-      var sd = Math.sqrt(v2);
-      return sd === 0 ? (maxV - minV) / 8 || 1 : 0.9 * sd * Math.pow(vals.length, -0.2);
-    }
-
-    // Gaussian KDE over [minV, maxV] at 48 evenly-spaced points
-    function kde(vals, bw) {
-      var pts = 48, rng = maxV - minV, result = [];
-      var inv2pi = 1 / Math.sqrt(2 * Math.PI);
-      for (var k = 0; k <= pts; k++) {
-        var xv = minV + (k / pts) * rng, d = 0;
-        for (var j = 0; j < vals.length; j++) {
-          var u = (xv - vals[j]) / bw;
-          d += inv2pi * Math.exp(-0.5 * u * u) / bw;
-        }
-        result.push({ xv: xv, d: d / vals.length });
-      }
-      return result;
-    }
+    // Silverman-bandwidth Gaussian KDE — shares silvermanBw()/kdeDensity() with the violin chart
 
     // Per-category row slot height (no overlap) and actual ridge height (with overlap)
     var slotH = ih / cats.length;
@@ -4858,22 +4836,22 @@
 
       if (!vals.length) return;
 
-      // Build KDE curve
-      var bw = silverman(vals);
-      var density = kde(vals, bw);
+      // Build KDE curve (shared silvermanBw/kdeDensity helpers, also used by violin)
+      var bw = silvermanBw(vals, minV, maxV);
+      var density = kdeDensity(vals, bw, minV, maxV, 48);
       var maxD = 0;
       density.forEach(function (pt) { if (pt.d > maxD) maxD = pt.d; });
       if (maxD === 0) return;
 
       // Normalise: max density → ridgeH pixels above baseline
       // Build SVG path: M(x0,base) → curve points → L(xN,base) → Z
-      var d = "M" + xs(density[0].xv).toFixed(1) + "," + baseY.toFixed(1);
+      var d = "M" + xs(density[0].x).toFixed(1) + "," + baseY.toFixed(1);
       density.forEach(function (pt) {
-        var px = xs(pt.xv);
+        var px = xs(pt.x);
         var py = baseY - (pt.d / maxD) * ridgeH;
         d += " L" + px.toFixed(1) + "," + py.toFixed(1);
       });
-      d += " L" + xs(density[density.length - 1].xv).toFixed(1) + "," + baseY.toFixed(1) + " Z";
+      d += " L" + xs(density[density.length - 1].x).toFixed(1) + "," + baseY.toFixed(1) + " Z";
 
       var fill = S("path", { d: d, fill: col, opacity: canAnim() ? 0 : 0.18 });
       var line = S("path", { d: d, fill: "none", stroke: col, "stroke-width": 1.4,

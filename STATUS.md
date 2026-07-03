@@ -726,6 +726,10 @@
 - v236: **Z12 loose end: real PNG apple-touch-icon** — see Z12 entry below. 2 new tests, suite 1097/1097.
 - v237: **Z4 slice 3: BigQuery connector** — see Z4 entry below. 15 new tests, suite 1112/1112.
 - v238: **Z4 slice 4: Generic SQL/HTTP connector** — see Z4 entry below. 15 new tests, suite 1127/1127.
+- v239: **Z3 follow-up: Workbooks** — see Z3 entry above. 7 new tests, suite 1134/1134.
+- v240: **N-DIST: shareable dashboard links (#share=)** — see N-DIST entry below. 3 new tests, suite 1137/1137.
+- v241: **Track L sweep: de-duplicated violin/ridgeline KDE math** — see Track L findings log below. Pure
+  refactor, no new tests. Test suite 1137/1137, unchanged.
 
 ## NEXT (top = do first)
 
@@ -1818,6 +1822,13 @@ gets covered over time:
   `Studio.defineChart({type, render, opts, thumb, autoPick})` contract so new types are uniform and testable.
 - **Test health** — coverage per feature, flaky/slow checks, and a fast smoke subset for quick loops.
 > **Findings log (append newest on top; keep short):**
+> - **Fixed shipped v241 (duplication lens):** `app/studio-charts.js`'s `_violin` and `_ridgeline` each
+>   declared their own local `silverman(vals)` + `kde(vals, bw)` — byte-identical Gaussian-KDE math
+>   (ridgeline's own comment even said "same Silverman-bandwidth Gaussian KDE as the violin chart"),
+>   differing only in sample-point count (40 vs 48) and one cosmetic key name (`x` vs `xv`). Extracted
+>   shared `silvermanBw()`/`kdeDensity()` module-level helpers (alongside `mkSVG`/`niceMax`); both chart
+>   functions now call them, parameterized by point count. Zero behavior change (verified: 1137/1137
+>   unchanged, no new tests needed for a pure extraction with no branching logic).
 > - **Fixed shipped v233 (dead-code/duplication lens):** `app/studio.js` declared `function esc(s) {...}`
 >   **twice** in the same top-level scope — once at line 327 (right next to `hlq()`, its obvious caller,
 >   under the "status-bar footer + changelog" comment) and again, byte-identical in behavior, at line 5671
