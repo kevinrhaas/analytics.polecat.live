@@ -2034,6 +2034,10 @@ gets covered over time:
   and generate a starter spec — NL → chart type + column mapping + query. BYO API key stored locally.
 - **NL query bar over a live source:** text → SQL → chart. Becomes real the moment Z14 DuckDB-Wasm lands
   (query a Parquet/CSV by asking in English). The killer combo with the connector track.
+- **Voice command mode (added 2026-07-03):** the browser's built-in `SpeechRecognition` Web API (no key,
+  no backend, no BYO-anything) driving the existing ⌘K command palette — say "add a bar chart" or "switch
+  to dark mode" and it runs that palette command hands-free. A genuinely novel, zero-dependency extension
+  of the keyboard-first palette work already shipped, fits the "fun, game-like" design direction.
 > ✓ **Auto-insight narration ("Explain this chart") — first cut shipped v212.** Any panel bound to a single
 > value column gets an **Insight** section in its inspector (below Query preview): a plain-English
 > paragraph covering overall trend direction (OLS slope sign/magnitude vs. flat), the single biggest
@@ -2110,8 +2114,22 @@ gets covered over time:
   a small safe expression engine (`[revenue] - [cost]`, `pctChange(...)`, `movingAvg(...)`).
 - **Period-over-period / compare mode:** pick two ranges or two sources and diff them across every panel.
 - **Pivot / crosstab builder** and **anomaly + correlation explorer** as first-class analysis surfaces.
+- **Data quality watchdog (added 2026-07-03):** scan a data access's own sample rows for common quality
+  smells — blank/null values, a zero-variance ("always the same value") column, duplicate rows, an
+  obviously-inconsistent type mix in one column — and surface them as a small inline note right where the
+  DA is browsed/edited, *before* a chart is even built on top of it. Pure client-side profiling over data
+  already fetched for the existing Query preview; no new connectors or backend involved.
+- **Smart auto-arrange layout (added 2026-07-03):** a one-click "Auto-arrange" that reflows a dashboard's
+  panels into a balanced magazine-style grid by content weight (KPIs first in a tight row, wide charts
+  full-width, related tags clustered) using the existing `span` system — takes the tedium out of manual
+  drag-resize for a newcomer's first dashboard, pure rearrangement of existing panels/spans, no new spec
+  fields required.
 
 **N-DIST — Distribution & platform reach (still backend-free).**
+- **Local-only template gallery via URL import (added 2026-07-03):** beyond the built-in curated Examples,
+  let a user paste any public JSON URL (a GitHub raw link, a gist, a static host) pointing at a
+  `.studio.json` (or an index of several) and browse/import it the same way Examples works today — a
+  community template exchange with zero backend, since it's just `fetch()` of a URL the user supplies.
 - ✓ **Embeddable single-chart widget shipped v211.** "Export this panel…" in the panel inspector (below
   Duplicate/Delete) reuses the full `Studio.exportCDF` on a spec pared down to just that one panel (no
   KPIs, no filters, no other panels) — same self-contained toolkit, tiny standalone `.html` widget, no
