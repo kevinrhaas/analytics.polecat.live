@@ -2235,8 +2235,14 @@ gets covered over time:
   polecat.live; a coherent elevation/spacing scale.
 
 **N-DEV — Power-user & authoring.**
-- **Live JSON spec editor** with schema validation + inline errors (edit the `.studio.json` directly, see
-  the canvas update) — power users and debugging.
+- **Live JSON spec editor:** ✓ shipped v267, see below.
+> ✓ **Live JSON spec editor shipped v267 (closes the item above).** **⋯ More → Edit JSON spec…** opens
+> the whole working dashboard as raw, editable JSON (panels/KPIs/filters/style/everything) in a modal
+> textarea — **Apply** validates it's well-formed JSON with a plausible spec shape (`panels` array,
+> `cda.dataAccesses` array) before applying; an invalid edit shows an inline error and changes nothing.
+> A **Version history** checkpoint of the pre-edit state is snapshotted first (reuses the N-DIST
+> `snapshotVersion()` machinery), so any hand-edit is always one restore away from being undone — the
+> same safety net a real Save gets. 5 new tests, suite 1211/1211.
 - **Keyboard-first everything** (builds on the ⌘K palette + existing shortcuts) and a shortcuts cheat-sheet.
 - **Dashboard templates/variables** — parameterized starting points beyond the examples.
 

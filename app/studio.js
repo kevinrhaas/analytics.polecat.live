@@ -4387,6 +4387,46 @@
     snapshotVersion(); // the restored state is itself a checkpoint, so a restore can be undone too
     toast("Version restored");
   }
+  // N-DEV: live JSON spec editor — edit the working dashboard's raw .studio.json
+  // directly and see the canvas update. Power-user/debugging tool: validates the
+  // pasted/edited text is a plausible spec (valid JSON, a panels[] array, a
+  // cda.dataAccesses[] array) before applying, and snapshots a version-history
+  // checkpoint of the PRE-edit state first so a bad hand-edit is always one
+  // "Restore this version" away from undoing, same safety net a live Save gets.
+  function openJsonEditor() {
+    modal("Edit JSON spec", function (body) {
+      body.appendChild(hint("Edit the dashboard's raw JSON directly, then Apply to validate and re-render the canvas. A checkpoint of the current state is saved to Version history first, so a bad edit is always restorable."));
+      var ta = el("textarea");
+      ta.value = JSON.stringify(S.spec, null, 2);
+      ta.spellcheck = false;
+      ta.style.cssText = "width:100%;min-height:360px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.5;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--field);color:var(--ink);box-sizing:border-box;resize:vertical;margin-top:8px";
+      body.appendChild(ta);
+      var errEl = el("div", "note err"); errEl.style.cssText = "margin-top:8px;display:none";
+      body.appendChild(errEl);
+      function showErr(msg) { errEl.textContent = msg; errEl.style.display = "block"; }
+      function clearErr() { errEl.style.display = "none"; }
+      ta.addEventListener("input", clearErr);
+      var btnRow = el("div"); btnRow.style.cssText = "display:flex;gap:8px;margin-top:10px";
+      var applyBtn = el("button", "btn"); setIconBtn(applyBtn, "check", "Apply");
+      var copyBtn = el("button", "btn"); setIconBtn(copyBtn, "copy", "Copy");
+      btnRow.appendChild(applyBtn); btnRow.appendChild(copyBtn);
+      body.appendChild(btnRow);
+      copyBtn.onclick = function () { copyText(ta.value, copyBtn); };
+      applyBtn.onclick = function () {
+        var parsed;
+        try { parsed = JSON.parse(ta.value); } catch (e) { showErr("Invalid JSON: " + e.message); return; }
+        if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) { showErr('Spec must be a JSON object, e.g. { "title": "…", "panels": [...] }.'); return; }
+        if (!Array.isArray(parsed.panels)) { showErr('Spec must have a "panels" array (use [] if there are none).'); return; }
+        if (!parsed.cda || !Array.isArray(parsed.cda.dataAccesses)) { showErr('Spec must have a "cda": { "dataAccesses": [...] } block.'); return; }
+        snapshotVersion();
+        S.spec = normalize(parsed);
+        S.selection = null; syncHeader(); renderInspector(); refreshPreview(); buildLibrary();
+        document.querySelector(".modal-ov").remove();
+        toast("JSON spec applied");
+      };
+    });
+  }
+
   // N-DIST follow-up: "visual diff between two versions" — compares one checkpoint
   // against the CURRENT working spec (the practical question when deciding whether to
   // restore) and lists what changed in plain English via Studio.diffSpecs/diffSummary.
@@ -4507,6 +4547,7 @@
   window.__studioSnapshotVersion = snapshotVersion; // test hook
   window.__studioRestoreVersion = restoreVersion; // test hook
   window.__studioOpenVersionDiff = openVersionDiff; // test hook
+  window.__studioOpenJsonEditor = openJsonEditor; // test hook
 
   /* ---------- Z3 follow-up: Workbooks — named collections of dashboards -------------------
      The north star describes a "workbook" as a named collection of dashboards; until now
@@ -5925,6 +5966,8 @@
     var moreHelp = $("#moreHelp"); if (moreHelp) moreHelp.onclick = function () { closeMenus(); window.open("docs/index.html", "_blank", "noopener"); };
     // J6 — interactive tutorial
     var moreTutorial = $("#moreTutorial"); if (moreTutorial) moreTutorial.onclick = function () { closeMenus(); if (window.StudioTutorial) StudioTutorial.open(); };
+    // N-DEV: live JSON spec editor
+    var moreEditJSON = $("#moreEditJSON"); if (moreEditJSON) moreEditJSON.onclick = function () { closeMenus(); openJsonEditor(); };
 
     // M7: phone-only More menu items — exposed at ≤400px when topbar hides these buttons
     var moreExamples = $("#moreExamples");

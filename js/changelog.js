@@ -15,6 +15,17 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 267,
+    title: 'N-DEV: live JSON spec editor',
+    kind: 'feature',
+    ts: '2026-07-03T14:53:17Z',
+    items: [
+      '\'Edit JSON spec...\' in the ⋯ More menu opens the whole working dashboard as raw, editable JSON -- panels, KPIs, filters, style, everything -- for bulk edits, scripting a change outside the app, or just seeing exactly what the builder is tracking.',
+      'Apply validates it is well-formed JSON with a plausible spec shape (a panels array, a cda.dataAccesses array) before applying -- an invalid edit shows an inline error and changes nothing.',
+      'A Version-history checkpoint of the pre-edit state is saved first, so a bad hand-edit is always one restore away from being undone. 5 new tests, suite 1211/1211.',
+    ],
+  },
+  {
     v: 266,
     title: 'N-AI/N-FUN: voice command mode for the command palette',
     kind: 'feature',

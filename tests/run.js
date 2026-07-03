@@ -12236,6 +12236,60 @@ function serve() {
     ok("N-DIST: Compare modal offers a 'Restore this version' action", vhDiffUI.hasRestoreBtn, JSON.stringify(vhDiffUI));
     await page.evaluate(function () { var ov = document.querySelector(".modal-ov"); if (ov) ov.remove(); });
 
+    // ── N-DEV: live JSON spec editor ──
+    console.log("\n• N-DEV: live JSON spec editor");
+    const jsonEdMenu = await page.evaluate(function () {
+      document.getElementById("btnMore").click();
+      var btn = document.getElementById("moreEditJSON");
+      var r = { btnExists: !!btn };
+      if (btn) btn.click();
+      r.modalOpened = !!document.querySelector(".modal-ov .modal textarea");
+      var ov = document.querySelector(".modal-ov"); if (ov) ov.remove();
+      return r;
+    });
+    ok("N-DEV: '⋯ More → Edit JSON spec…' opens the editor modal", jsonEdMenu.btnExists && jsonEdMenu.modalOpened, JSON.stringify(jsonEdMenu));
+
+    const jsonEd = await page.evaluate(function (id) {
+      var r = {};
+      window.__studioLoad({ id: id, name: id, title: "JSON Editor Test", panels: [], kpis: [], filters: [], cda: { connections: [], dataAccesses: [] } });
+      var versionsBefore = (window.__studioVersions()[id] || []).length;
+      window.__studioOpenJsonEditor();
+      var modal = document.querySelector(".modal-ov .modal");
+      var ta = modal.querySelector("textarea");
+      r.hasModal = !!modal;
+      r.taHasTitle = ta.value.indexOf('"JSON Editor Test"') >= 0;
+      var parsed = JSON.parse(ta.value);
+      parsed.title = "Edited Via JSON";
+      ta.value = JSON.stringify(parsed, null, 2);
+      var applyBtn = Array.prototype.filter.call(modal.querySelectorAll("button"), function (b) { return /Apply/.test(b.textContent); })[0];
+      applyBtn.click();
+      r.titleApplied = window.__STUDIO_STATE.spec.title === "Edited Via JSON";
+      r.modalClosedAfterApply = !document.querySelector(".modal-ov");
+      r.versionCheckpointed = (window.__studioVersions()[id] || []).length === versionsBefore + 1;
+      return r;
+    }, "json-ed-test-1");
+    ok("N-DEV: JSON editor pre-fills the textarea with the current spec's real JSON", jsonEd.hasModal && jsonEd.taHasTitle, JSON.stringify(jsonEd));
+    ok("N-DEV: Apply parses the edited JSON and re-renders the working spec from it", jsonEd.titleApplied && jsonEd.modalClosedAfterApply, JSON.stringify(jsonEd));
+    ok("N-DEV: Apply snapshots a version-history checkpoint of the PRE-edit state first (safety net)", jsonEd.versionCheckpointed, JSON.stringify(jsonEd));
+
+    const jsonEdInvalid = await page.evaluate(function () {
+      var r = {};
+      window.__studioOpenJsonEditor();
+      var modal = document.querySelector(".modal-ov .modal");
+      var ta = modal.querySelector("textarea");
+      ta.value = "{ this is not valid json";
+      var applyBtn = Array.prototype.filter.call(modal.querySelectorAll("button"), function (b) { return /Apply/.test(b.textContent); })[0];
+      applyBtn.click();
+      var errEl = modal.querySelector(".note.err");
+      r.errorShown = !!(errEl && errEl.style.display !== "none" && /Invalid JSON/.test(errEl.textContent));
+      r.stillOpen = !!document.querySelector(".modal-ov");
+      r.titleUnchanged = window.__STUDIO_STATE.spec.title === "Edited Via JSON";
+      modal.querySelector(".x").click();
+      return r;
+    });
+    ok("N-DEV: invalid JSON in the editor shows an inline parse error and does not apply",
+      jsonEdInvalid.errorShown && jsonEdInvalid.stillOpen && jsonEdInvalid.titleUnchanged, JSON.stringify(jsonEdInvalid));
+
     // ── Z12: branding & app identity — de-dup the logo, add a favicon ──
     console.log("\n• Z12: branding & app identity");
     const z12Head = await page.evaluate(function () {
