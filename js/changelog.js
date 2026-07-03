@@ -15,6 +15,17 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 271,
+    title: 'N-AI: seasonality detection in auto-insight narration',
+    kind: 'feature',
+    ts: '2026-07-03T15:50:14Z',
+    items: [
+      'The Insight section\'s auto-narration now also detects a repeating pattern in the data -- detrends the series, then finds the period (2 to 12) with the strongest lag autocorrelation on what\'s left, and calls it out by name when convincing: \'It also shows a repeating pattern roughly every 4 points.\'',
+      'Detrending first matters: a plain monotonic trend is trivially self-correlated at every lag, so testing raw values would have flagged ordinary growth as fake seasonality.',
+      'Closes the \'seasonality detection\' still-open item from the original auto-insight narration feature. 3 new tests, suite 1224/1224.',
+    ],
+  },
+  {
     v: 270,
     title: 'Z7: seasonal Holt-Winters forecasting',
     kind: 'feature',

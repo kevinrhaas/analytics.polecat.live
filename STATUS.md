@@ -2080,6 +2080,15 @@ gets covered over time:
 > column when a chart type has no direct `valueCol` (e.g. line/area); silently omitted for chart types with
 > neither (tables, richtext, sankey/chord). 3 new tests, suite 983/983. **Still open:** seasonality
 > detection, auto-placed callout markers on the notable points, and a smart chart-type recommender.
+> ✓ **Seasonality detection shipped v271 (closes that "still open" item)**: `computeInsights()` now also
+> checks for a repeating pattern — it detrends the series (subtracts the same OLS fit line used for the
+> trend sentence, since a plain monotonic climb is trivially "autocorrelated" at every lag and would
+> otherwise read as fake seasonality) then tests every candidate period from 2 up to n/2 (capped at 12)
+> for the strongest lag autocorrelation on the residuals; a convincing hit (r > 0.6) adds "It also shows
+> a repeating pattern roughly every N points (autocorrelation r)." Pure addition to the existing sentence
+> list — no new UI, the Insight section already renders whatever `computeInsights()` returns. 3 new
+> tests (a clear period-4 series is named correctly; a plain monotonic trend is NOT flagged, proving the
+> detrend step earns its keep; a too-short series doesn't crash). Suite 1224/1224.
 > ✓ **Smart chart recommender shipped v219 (closes the item below).** A "Recommended for this data" chip
 > strip appears above the chart-type gallery once a panel has a query bound — `Studio.recommendCharts(cols,
 > rows)` in model.js classifies columns (date-like / numeric / string) and cardinality, then suggests up to

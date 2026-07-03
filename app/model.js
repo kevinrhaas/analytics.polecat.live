@@ -243,6 +243,35 @@
           " (" + Math.abs(bestZ).toFixed(1) + "× std-dev from the mean).");
       }
     }
+
+    // Seasonality: the lag with the strongest autocorrelation, if it's convincing.
+    // Detrend first (subtract the same OLS fit line used for the trend sentence above) —
+    // a plain monotonic trend is trivially "autocorrelated" at every lag (two shifted
+    // copies of a straight climb still track each other), so testing the raw values
+    // would flag ordinary growth as fake seasonality. Working on the residuals isolates
+    // the actual repeating wiggle, if there is one. Tries every candidate period from 2
+    // up to n/2 (capped at 12 — a year of months is the longest cycle worth calling out
+    // in a one-line insight).
+    var interceptOLS = (sumY - slope * sumX) / n;
+    var residuals = values.map(function (v, i) { return v - (interceptOLS + slope * i); });
+    var maxPeriod = Math.min(12, Math.floor(n / 2));
+    if (maxPeriod >= 2) {
+      var bestPeriod = 0, bestR = 0;
+      for (var p = 2; p <= maxPeriod; p++) {
+        var a = residuals.slice(p), b = residuals.slice(0, n - p), m = a.length;
+        if (m < 2) continue;
+        var ma = a.reduce(function (x, y) { return x + y; }, 0) / m;
+        var mb = b.reduce(function (x, y) { return x + y; }, 0) / m;
+        var num = 0, da = 0, db = 0;
+        for (var k = 0; k < m; k++) { num += (a[k] - ma) * (b[k] - mb); da += (a[k] - ma) * (a[k] - ma); db += (b[k] - mb) * (b[k] - mb); }
+        var rDenom = Math.sqrt(da * db);
+        var r = rDenom === 0 ? 0 : num / rDenom;
+        if (r > bestR) { bestR = r; bestPeriod = p; }
+      }
+      if (bestPeriod && bestR > 0.6) {
+        sentences.push("It also shows a repeating pattern roughly every " + bestPeriod + " points (autocorrelation " + bestR.toFixed(2) + ").");
+      }
+    }
     return sentences.join(" ");
   };
 

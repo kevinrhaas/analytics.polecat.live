@@ -2258,6 +2258,30 @@ function serve() {
     ok("Studio.computeInsights returns a narration mentioning the value column + an outlier", /revenue/.test(insightUnit) && /outlier/.test(insightUnit), insightUnit);
     const insightNone = await page.evaluate(() => Studio.computeInsights(["a", "b"], [["x", 1]], "a", "b"));
     ok("Studio.computeInsights returns null with fewer than 2 valid points", insightNone === null, String(insightNone));
+
+    // N-AI follow-up: seasonality detection — a clear repeating pattern (period 4, mild
+    // drift across 3 cycles) should surface a "repeating pattern" sentence naming that
+    // period; a genuinely non-periodic monotonic trend should not.
+    const insightSeasonal = await page.evaluate(() => {
+      const cols = ["q", "v"];
+      const periodic = [10, 30, 15, 32, 11, 31, 16, 33, 12, 32, 17, 34];
+      const rows = periodic.map((v, i) => ["p" + i, v]);
+      const monotonic = [10, 12, 15, 17, 20, 23, 25, 28].map((v, i) => ["p" + i, v]);
+      return {
+        periodicText: Studio.computeInsights(cols, rows, "q", "v"),
+        monotonicText: Studio.computeInsights(cols, monotonic, "q", "v")
+      };
+    });
+    ok("Studio.computeInsights flags a clear period-4 repeating pattern by name",
+      /repeating pattern roughly every 4 points/.test(insightSeasonal.periodicText), insightSeasonal.periodicText);
+    ok("Studio.computeInsights does not claim seasonality on a plain monotonic trend",
+      !/repeating pattern/.test(insightSeasonal.monotonicText), insightSeasonal.monotonicText);
+
+    const insightShort = await page.evaluate(() =>
+      Studio.computeInsights(["a", "b"], [["x", 1], ["y", 2], ["z", 3]], "a", "b"));
+    ok("Studio.computeInsights handles a too-short series (n<4) without crashing or claiming seasonality",
+      typeof insightShort === "string" && !/repeating pattern/.test(insightShort), String(insightShort));
+
     const insightUI = await page.evaluate(() => {
       var sec = [].slice.call(document.querySelectorAll("#inspBody .insp-sec h4")).filter(function (h) { return h.textContent.trim() === "Insight"; })[0];
       if (!sec) return { found: false };
