@@ -433,6 +433,8 @@ textarea:focus-visible,[tabindex]:focus-visible,.row-item:focus-visible{
 .ex-card-types{display:flex;gap:3px;flex-wrap:wrap}
 .ex-chip{font-size:9.5px;color:var(--faint);background:var(--line);padding:1px 5px;border-radius:3px}
 @media(max-width:640px){.ex-cards{grid-template-columns:1fr}.menu.ex-grid{min-width:min(96vw,320px)}}
+/* N-DIST: "Import from URL" entry point below the example cards */
+.ex-url-btn{display:block;width:calc(100% - 12px);margin:2px 6px 8px;text-align:center;font-size:12px}
 
 /* ── workspace 3-pane ── */
 #workspace{flex:1;min-height:0;display:flex;--lw:300px;--rw:340px}

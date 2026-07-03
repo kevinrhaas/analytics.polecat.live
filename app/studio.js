@@ -5817,9 +5817,12 @@
         (meta.length ? '<div class="ex-card-meta">' + meta.join(" · ") + '</div>' : "") +
         '</button>';
     }
-    em.innerHTML = '<div class="grp">Examples</div><div class="ex-cards">' + S.examples.map(exCard).join("") + '</div>';
+    em.innerHTML = '<div class="grp">Examples</div><div class="ex-cards">' + S.examples.map(exCard).join("") + '</div>' +
+      '<button type="button" class="btn ex-url-btn" id="btnImportUrl">＋ Import from URL…</button>';
     $$("button.ex-card", em).forEach(function (b) { b.onclick = function () { loadExample(b.getAttribute("data-f")); closeMenus(); }; });
     menuToggle($("#btnExamples"), em);
+    var importUrlBtn = $("#btnImportUrl", em);
+    if (importUrlBtn) importUrlBtn.onclick = function () { closeMenus(); openImportUrlModal(); };
 
     // export menu
     menuToggle($("#btnExport"), $("#menuExport"));
@@ -6316,6 +6319,48 @@
     };
     inp.click();
   }
+
+  /* N-DIST: "Import from URL" — a community-template exchange with zero backend. Paste
+     any public link to a .studio.json dashboard spec (a GitHub raw link, a gist, a static
+     host) and it loads the same way opening a local file would — just a client-side
+     fetch() of a URL the user supplies, no server/credentials involved. First cut: a
+     single spec URL (an "index of several" is a natural follow-up, same pattern as the
+     Examples gallery's own index.json). */
+  function openImportUrlModal() {
+    modal("Import dashboard from URL", function (b) {
+      var hint = el("p"); hint.style.cssText = "font-size:12.5px;color:var(--faint);margin:0 0 10px;line-height:1.5";
+      hint.textContent = "Paste a public link to a .studio.json dashboard spec (a GitHub raw link, a gist, any static host). This is a plain client-side fetch — no backend, no account needed.";
+      b.appendChild(hint);
+      var row = el("div"); row.style.cssText = "display:flex;gap:8px";
+      var urlInp = el("input"); urlInp.type = "url"; urlInp.placeholder = "https://…/dashboard.studio.json";
+      urlInp.style.flex = "1"; urlInp.id = "importUrlInput";
+      var goBtn = el("button"); goBtn.type = "button"; goBtn.className = "btn btn-primary"; goBtn.id = "importUrlGo"; goBtn.textContent = "Import";
+      row.appendChild(urlInp); row.appendChild(goBtn); b.appendChild(row);
+      var status = el("div"); status.id = "importUrlStatus"; status.style.cssText = "margin-top:10px;font-size:12.5px"; b.appendChild(status);
+      function run() {
+        var url = urlInp.value.trim();
+        if (!url) { urlInp.focus(); return; }
+        status.style.color = "var(--faint)"; status.textContent = "Fetching…"; goBtn.disabled = true;
+        fetchJSON(url).then(function (spec) {
+          if (!spec || typeof spec !== "object" || (!Array.isArray(spec.panels) && !Array.isArray(spec.kpis) && !spec.schema)) {
+            throw new Error("that doesn't look like a dashboard spec (.studio.json)");
+          }
+          S.spec = normalize(spec); S.selection = null; clearAutosave();
+          if (window.__studioShellSetSection) window.__studioShellSetSection("studio");
+          syncHeader(); renderInspector(); refreshPreview(); buildLibrary();
+          toast("Imported dashboard from URL: " + (spec.title || spec.name || "Untitled"));
+          var ov = goBtn.closest(".modal-ov"); if (ov) ov.remove();
+        }).catch(function (e) {
+          goBtn.disabled = false;
+          status.style.color = "#e05a4e";
+          status.textContent = "Couldn't import — " + (e && e.message ? e.message : "network/CORS error") + ".";
+        });
+      }
+      goBtn.onclick = run;
+      urlInp.addEventListener("keydown", function (e) { if (e.key === "Enter") run(); });
+    });
+  }
+  window.__studioImportFromUrl = openImportUrlModal; // test hook
 
   /* ---------- tiny DOM + util helpers ---------- */
 

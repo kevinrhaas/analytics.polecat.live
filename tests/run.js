@@ -12086,6 +12086,51 @@ function serve() {
     ok("N-DIST: opening a #share= link boots straight into that exact dashboard and clears the hash",
       shareBootResult.title === "Shared Boot Test Dashboard" && shareBootResult.hash === "", JSON.stringify(shareBootResult));
 
+    // ── N-DIST: "Import from URL" — a zero-backend community-template exchange ──
+    // Stubs window.fetch (no real internet route in this sandbox) so this exercises the
+    // whole modal → fetchJSON → normalize → load wiring, not just the fetch call itself.
+    console.log("\n• N-DIST: Import dashboard from URL");
+    const importOk = await page.evaluate(function () {
+      var origFetch = window.fetch;
+      window.fetch = function () {
+        return Promise.resolve({ ok: true, json: function () {
+          return Promise.resolve({ id: "imp1", name: "imported-test", title: "Imported From URL Test", panels: [], kpis: [], filters: [], cda: { connections: [], dataAccesses: [] } });
+        } });
+      };
+      window.__studioImportFromUrl();
+      var inp = document.getElementById("importUrlInput");
+      inp.value = "https://example.com/dash.studio.json";
+      document.getElementById("importUrlGo").click();
+      return new Promise(function (resolve) {
+        setTimeout(function () {
+          window.fetch = origFetch;
+          resolve({ modalGone: !document.querySelector(".modal-ov"), title: window.__STUDIO_STATE.spec.title });
+        }, 120);
+      });
+    });
+    ok("N-DIST: Import from URL fetches, normalizes, and loads a valid .studio.json spec, then closes the modal",
+      importOk.modalGone && importOk.title === "Imported From URL Test", JSON.stringify(importOk));
+
+    const importFail = await page.evaluate(function () {
+      var origFetch = window.fetch;
+      window.fetch = function () { return Promise.resolve({ ok: false, status: 404, json: function () { return Promise.reject(new Error("no body")); } }); };
+      window.__studioImportFromUrl();
+      var inp = document.getElementById("importUrlInput");
+      inp.value = "https://example.com/missing.studio.json";
+      document.getElementById("importUrlGo").click();
+      return new Promise(function (resolve) {
+        setTimeout(function () {
+          window.fetch = origFetch;
+          var status = document.getElementById("importUrlStatus");
+          var ov = document.querySelector(".modal-ov");
+          if (ov) ov.remove();
+          resolve({ modalStillOpen: !!ov, statusText: status ? status.textContent : "" });
+        }, 120);
+      });
+    });
+    ok("N-DIST: Import from URL surfaces a clear inline error on a failed fetch instead of hanging/crashing",
+      importFail.modalStillOpen && /couldn.t import/i.test(importFail.statusText), JSON.stringify(importFail));
+
     // ── N-DIST follow-up: local version history ("time travel" for a dashboard) ──
     console.log("\n• N-DIST follow-up: local version history");
     const vhId = "vh-test-9f3";
