@@ -15,6 +15,17 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 234,
+    title: 'Databricks connector (Z4 slice 2)',
+    kind: 'feature',
+    ts: '2026-07-03T04:34:37Z',
+    items: [
+      'New Source builder + DA inspector gain a Databricks source type -- workspace host, personal access token, SQL warehouse id, and optional catalog/schema, following the same Test connection / Run live pattern as the Snowflake and file connectors.',
+      'Calls the Databricks Statement Execution API directly from the browser (app/databricks.js) -- no backend or proxy -- polling automatically while a statement reports PENDING/RUNNING. Same credential-based, CORS-gated story as Snowflake: the workspace must allow this origin or requests fail with a clear inline hint instead of a stuck spinner.',
+      'New monoline databricks icon (a delta triangle over a lake line); Databricks DAs are excluded from the .cda export (not a real Pentaho source), same as duckdb/httpvfs/snowflake. Docs updated. 15 new tests, suite 1092/1092.',
+    ],
+  },
+  {
     v: 233,
     title: 'Code-health sweep: duplicate esc() declaration',
     kind: 'fix',

@@ -720,6 +720,7 @@
 - v204: **Z7 slice 4: statistical KPI computations** — see Z7 entry above. 7 new tests, suite 962/962.
 - v205: **Track L architecture sweep (accessibility): modal() close button aria-label** — see Track L
   findings log above. 2 new tests, suite 964/964.
+- v234: **Z4 slice 2: Databricks connector** — see Z4 entry below. 15 new tests, suite 1092/1092.
 
 ## NEXT (top = do first)
 
@@ -993,8 +994,20 @@ connector feeds the same dashboard model.
 > New monoline snowflake icon (`app/icons.js`); `exportCDA` excludes snowflake DAs from `.cda` (not a real
 > Pentaho source), same as duckdb/httpvfs. Docs updated. 15 new tests (stubbed at the `Studio.Snowflake`
 > boundary — this sandbox has no internet route, and a real check additionally needs a Snowflake account
-> with CORS configured for this origin). Test suite 1066/1066. **Still open for Z4**: Databricks, BigQuery/
-> other warehouses, generic SQL/HTTP, connector-gallery brand treatment, and a real live-account smoke test.
+> with CORS configured for this origin). Test suite 1066/1066.
+> ✓ **Slice 2 shipped v234 — Databricks connector**: `app/databricks.js` calls the Databricks **Statement
+> Execution API** directly from the browser (`POST/GET .../api/2.0/sql/statements`, polling while a
+> statement reports `PENDING`/`RUNNING`) — New Source builder + DA inspector both get a **Databricks**
+> source type with Workspace host / Access token (personal access token, never a password) / SQL warehouse
+> id / optional Catalog+Schema fields, a query editor, and the same **Test connection & detect columns** /
+> **Run live** pattern as Snowflake and the Z14 file connectors. Same credential-based shape as Snowflake
+> (badge reads "Needs token") — the target workspace must allow this origin or every call fails on CORS,
+> surfaced through `Studio.friendlyConnectorError` with the failure appearing inline instead of a stuck
+> spinner. New monoline `databricks` icon (delta triangle over a lake line); `exportCDA` excludes
+> databricks DAs from `.cda`, same as duckdb/httpvfs/snowflake. Docs updated. 15 new tests (stubbed at the
+> `Studio.Databricks` boundary, same no-internet-in-sandbox rationale as Snowflake). Test suite 1092/1092.
+> **Still open for Z4**: BigQuery/other warehouses, generic SQL/HTTP, connector-gallery brand treatment,
+> and a real live-account smoke test for both Snowflake and Databricks.
 
 **Z5 — Settings.** App configuration: theme, default deploy target, gate/access, data-source defaults,
 and **dashboard style defaults** (standard look/style applied to new dashboards). Support **collections

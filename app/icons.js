@@ -53,6 +53,9 @@
     // Z4 slice 1: a 6-spoke snowflake (3 crossing diameters + a short branch tick near each of
     // the 6 tips) for the Snowflake connector — same monoline vocabulary, no brand mark/colour.
     snowflake: '<line x1="3" y1="12" x2="21" y2="12" stroke-linecap="round"/><line x1="16.5" y1="4.21" x2="7.5" y2="19.79" stroke-linecap="round"/><line x1="7.5" y1="4.21" x2="16.5" y2="19.79" stroke-linecap="round"/><line x1="18" y1="10.5" x2="18" y2="13.5" stroke-linecap="round"/><line x1="6" y1="10.5" x2="6" y2="13.5" stroke-linecap="round"/><line x1="13.7" y1="6.05" x2="16.3" y2="7.55" stroke-linecap="round"/><line x1="7.7" y1="16.45" x2="10.3" y2="17.95" stroke-linecap="round"/><line x1="7.7" y1="7.55" x2="10.3" y2="6.05" stroke-linecap="round"/><line x1="13.7" y1="17.95" x2="16.3" y2="16.45" stroke-linecap="round"/>',
+    // Z4 slice 2: a delta triangle over a wavy lake line — a friendly "lakehouse" reference for the
+    // Databricks connector, distinct from the snowflake/db/cube marks (no brand logo reproduced).
+    databricks: '<polygon points="12 3 21 18.5 3 18.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 21c2-1.4 4-1.4 6 0s4 1.4 6 0 4-1.4 6 0" stroke-linecap="round" stroke-linejoin="round"/>',
     // Z8 follow-up: tiny inline "what this toggle does" glyphs, shared by the OPT_HINTS map
     // in studio.js — reused across every chart type that exposes the matching option key
     // (sort/legend/smooth/dots families repeat across a dozen+ chart types).

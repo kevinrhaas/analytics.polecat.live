@@ -701,12 +701,16 @@
     { kind: "scripting", iconName: "code", name: "Scripting", desc: "Scripted (Kettle/Beanshell) data access", ph: "// return rows…" },
     { kind: "duckdb", iconName: "duckdb", name: "DuckDB (remote file)", desc: "Query a Parquet/CSV file straight from S3/HTTP — no backend, no proxy", badge: "Browser-only", ph: "SELECT * FROM t\nLIMIT  200   -- t = your file, queried in-browser via DuckDB-Wasm" },
     { kind: "httpvfs", iconName: "sqlite", name: "SQLite (remote .sqlite)", desc: "Query a .sqlite file over HTTP Range Requests — indexed lookups, no backend", badge: "Browser-only", ph: "SELECT * FROM my_table\nLIMIT  200" },
-    { kind: "snowflake", iconName: "snowflake", name: "Snowflake", desc: "Query a Snowflake warehouse via the SQL API — needs a token + CORS allow-listed origin", badge: "Needs token", ph: "SELECT region,\n       SUM(revenue) AS revenue\nFROM   sales\nGROUP  BY region" }
+    { kind: "snowflake", iconName: "snowflake", name: "Snowflake", desc: "Query a Snowflake warehouse via the SQL API — needs a token + CORS allow-listed origin", badge: "Needs token", ph: "SELECT region,\n       SUM(revenue) AS revenue\nFROM   sales\nGROUP  BY region" },
+    { kind: "databricks", iconName: "databricks", name: "Databricks", desc: "Query a SQL warehouse via the Statement Execution API — needs a token + CORS allow-listed origin", badge: "Needs token", ph: "SELECT region,\n       SUM(revenue) AS revenue\nFROM   sales\nGROUP  BY region" }
   ];
   function dsType(k) { return DS_TYPES.filter(function (t) { return t.kind === k; })[0] || DS_TYPES[0]; }
   // shared by the data-source builder draft and the DA inspector (both store the same sf* keys)
   // so Studio.Snowflake.{testConnection,query} always see the same {account,token,...} shape.
   function sfCfg(o) { return { account: o.sfAccount, token: o.sfToken, tokenType: o.sfTokenType, warehouse: o.sfWarehouse, database: o.sfDatabase, schema: o.sfSchema, role: o.sfRole }; }
+  // same pattern for Databricks (db* keys) so Studio.Databricks.{testConnection,query} always see
+  // the same {host,token,warehouseId,catalog,schema} shape.
+  function dbxCfg(o) { return { host: o.dbxHost, token: o.dbxToken, warehouseId: o.dbxWarehouseId, catalog: o.dbxCatalog, schema: o.dbxSchema }; }
 
   // open the guided builder. existing = {stem, da} to edit, or null to create.
   function dataSourceBuilder(existing) {
@@ -722,7 +726,9 @@
       scriptLang: src.scriptLang || "javascript",
       fileUrl: src.fileUrl || "", fileFormat: src.fileFormat || "auto", tableName: src.tableName || "",
       sfAccount: src.sfAccount || "", sfToken: src.sfToken || "", sfTokenType: src.sfTokenType || "PROGRAMMATIC_ACCESS_TOKEN",
-      sfWarehouse: src.sfWarehouse || "", sfDatabase: src.sfDatabase || "", sfSchema: src.sfSchema || "", sfRole: src.sfRole || "" };
+      sfWarehouse: src.sfWarehouse || "", sfDatabase: src.sfDatabase || "", sfSchema: src.sfSchema || "", sfRole: src.sfRole || "",
+      dbxHost: src.dbxHost || "", dbxToken: src.dbxToken || "", dbxWarehouseId: src.dbxWarehouseId || "",
+      dbxCatalog: src.dbxCatalog || "", dbxSchema: src.dbxSchema || "" };
 
     modal(editing ? "Edit data source · " + existing.da.id : "New data source", function (b) {
       var wrap = el("div", "dsb");
@@ -1300,7 +1306,7 @@
       function renderQSection() {
         qSection.innerHTML = "";
         var k = draft.kind;
-        connF.style.display = (k === "duckdb" || k === "httpvfs" || k === "snowflake") ? "none" : ""; // JNDI doesn't apply to these direct connectors
+        connF.style.display = (k === "duckdb" || k === "httpvfs" || k === "snowflake" || k === "databricks") ? "none" : ""; // JNDI doesn't apply to these direct connectors
         if (k === "httpvfs") {
           // Z14 slice 3 — SQLite-WASM + HTTP-VFS: query a remote .sqlite file over HTTP Range
           // Requests, no backend/proxy/credentials. Test connection lazy-loads the engine, lists
@@ -1433,6 +1439,52 @@
           sfQF.appendChild(sfTa);
           qSection.appendChild(sfQF);
           detectBtn.style.display = "none";
+        } else if (k === "databricks") {
+          // Z4 slice 2 — Databricks Statement Execution API: needs a workspace host + personal
+          // access token (never a password) + SQL warehouse id; same credential-based/CORS-gated
+          // story as the Z4 slice 1 Snowflake connector above.
+          qSection.appendChild(field("Workspace host", input(draft.dbxHost, function (v) { draft.dbxHost = v.trim(); }, "dbc-a1b2c3d4-e5f6.cloud.databricks.com")));
+          qSection.appendChild(field("Access token", input(draft.dbxToken, function (v) { draft.dbxToken = v.trim(); }, "Personal access token (dapi…)")));
+          qSection.appendChild(field("SQL warehouse id", input(draft.dbxWarehouseId, function (v) { draft.dbxWarehouseId = v.trim(); }, "0123456789abcdef")));
+          var dbxRow = el("div", "field row");
+          dbxRow.appendChild(field("Catalog (optional)", input(draft.dbxCatalog, function (v) { draft.dbxCatalog = v.trim(); }, "main")));
+          dbxRow.appendChild(field("Schema (optional)", input(draft.dbxSchema, function (v) { draft.dbxSchema = v.trim(); }, "default")));
+          qSection.appendChild(dbxRow);
+          var dbxStatus = el("div", "hint dsb-databricks-status");
+          dbxStatus.textContent = "Calls the Databricks Statement Execution API directly from your browser — the workspace must allow this origin or requests are blocked by CORS. Uses a personal access token only, never your Databricks password.";
+          qSection.appendChild(dbxStatus);
+          var dbxTestBtn = el("button", "dsb-mini dsb-databricks-test"); dbxTestBtn.style.marginTop = "8px";
+          setIconBtn(dbxTestBtn, "refresh", "Test connection & detect columns", 12);
+          dbxTestBtn.onclick = function () {
+            if (!draft.dbxHost || !draft.dbxToken || !draft.dbxWarehouseId) { toast("Enter a workspace host, access token, and SQL warehouse id first.", true); return; }
+            dbxTestBtn.disabled = true; dbxTestBtn.textContent = "Testing…"; window.__databricksTestState = "testing";
+            dbxStatus.textContent = "Calling the Databricks SQL API…";
+            Studio.Databricks.testConnection(dbxCfg(draft)).then(function (res) {
+              window.__databricksTestState = "done";
+              if (!res.ok) {
+                dbxTestBtn.disabled = false; setIconBtn(dbxTestBtn, "refresh", "Test connection & detect columns", 12);
+                dbxStatus.textContent = "✗ " + res.error;
+                toast("Databricks test failed — " + res.error, true);
+                return;
+              }
+              res.columns.forEach(function (c) { if (draft.columns.indexOf(c.name) < 0) draft.columns.push(c.name); });
+              if (!draft.query.trim()) { draft.query = "SELECT region,\n       SUM(revenue) AS revenue\nFROM   sales\nGROUP  BY region"; dbxTa.value = draft.query; }
+              renderCols(); renderPreview();
+              dbxTestBtn.disabled = false; setIconBtn(dbxTestBtn, "refresh", "Test connection & detect columns", 12);
+              dbxStatus.textContent = "✓ connected — " + res.columns.length + " column" + (res.columns.length === 1 ? "" : "s") + " detected: " +
+                res.columns.map(function (c) { return c.name + " (" + c.type + ")"; }).join(", ");
+              toast(res.columns.length + " column(s) detected from the live warehouse.");
+            });
+          };
+          qSection.appendChild(dbxTestBtn);
+          var dbxT = dsType("databricks");
+          var dbxTa = textarea(draft.query, function (v) { draft.query = v; });
+          dbxTa.className = "dsb-query"; dbxTa.spellcheck = false; dbxTa.placeholder = dbxT.ph;
+          var dbxQF = el("div", "field");
+          dbxQF.appendChild(labelEl("Query"));
+          dbxQF.appendChild(dbxTa);
+          qSection.appendChild(dbxQF);
+          detectBtn.style.display = "none";
         } else if (k === "kettle") {
           qSection.appendChild(field("Transformation file (.ktr)", input(draft.ktrPath, function (v) { draft.ktrPath = v; }, "/public/etl/my-transform.ktr")));
           qSection.appendChild(field("Output step name", input(draft.ktrStep, function (v) { draft.ktrStep = v; }, "Output")));
@@ -1524,6 +1576,10 @@
     if (draft.kind === "snowflake") {
       da.sfAccount = draft.sfAccount || ""; da.sfToken = draft.sfToken || ""; da.sfTokenType = draft.sfTokenType || "PROGRAMMATIC_ACCESS_TOKEN";
       da.sfWarehouse = draft.sfWarehouse || ""; da.sfDatabase = draft.sfDatabase || ""; da.sfSchema = draft.sfSchema || ""; da.sfRole = draft.sfRole || "";
+    }
+    if (draft.kind === "databricks") {
+      da.dbxHost = draft.dbxHost || ""; da.dbxToken = draft.dbxToken || ""; da.dbxWarehouseId = draft.dbxWarehouseId || "";
+      da.dbxCatalog = draft.dbxCatalog || ""; da.dbxSchema = draft.dbxSchema || "";
     }
     // remove the previous record (handles id/group rename on edit)
     if (existing) { var oe = S.catalog[existing.stem]; if (oe) oe.dataAccesses = oe.dataAccesses.filter(function (x) { return x.id !== existing.da.id; }); }
@@ -3420,6 +3476,38 @@
         });
       };
       qsf.appendChild(sfTest2);
+    } else if (kind === "databricks") {
+      var qdx = section(body, "Databricks (Statement Execution API)", null, null, "data-sources");
+      qdx.appendChild(field("Workspace host", input(da.dbxHost || "", function (v) { da.dbxHost = v.trim(); }, "dbc-a1b2c3d4-e5f6.cloud.databricks.com")));
+      qdx.appendChild(field("Access token", input(da.dbxToken || "", function (v) { da.dbxToken = v.trim(); }, "Personal access token (dapi…)")));
+      qdx.appendChild(field("SQL warehouse id", input(da.dbxWarehouseId || "", function (v) { da.dbxWarehouseId = v.trim(); }, "0123456789abcdef")));
+      qdx.appendChild(field("Catalog (optional)", input(da.dbxCatalog || "", function (v) { da.dbxCatalog = v.trim(); }, "main")));
+      qdx.appendChild(field("Schema (optional)", input(da.dbxSchema || "", function (v) { da.dbxSchema = v.trim(); }, "default")));
+      var dbxTa2 = el("textarea"); dbxTa2.style.cssText = "width:100%;min-height:90px;font-family:var(--mono);font-size:11.5px;resize:vertical;box-sizing:border-box";
+      dbxTa2.value = da.sql || da.query || ""; dbxTa2.placeholder = "SELECT region, SUM(revenue) AS revenue FROM sales GROUP BY region";
+      dbxTa2.addEventListener("change", function () { da.sql = dbxTa2.value; da.query = dbxTa2.value; });
+      qdx.appendChild(field("Query", dbxTa2));
+      var dbxStatus2 = el("div", "hint");
+      dbxStatus2.textContent = "Calls the Databricks Statement Execution API directly from the browser — the workspace must allow this origin or requests are blocked by CORS.";
+      qdx.appendChild(dbxStatus2);
+      var dbxTest2 = el("button", "btn-wide"); setIconBtn(dbxTest2, "refresh", "Test connection & detect columns");
+      dbxTest2.onclick = function () {
+        if (!da.dbxHost || !da.dbxToken || !da.dbxWarehouseId) { toast("Enter a workspace host, access token, and SQL warehouse id first.", true); return; }
+        dbxTest2.disabled = true; dbxTest2.textContent = "Testing…"; window.__databricksTestState = "testing";
+        dbxStatus2.textContent = "Calling the Databricks SQL API…";
+        Studio.Databricks.testConnection(dbxCfg(da)).then(function (res) {
+          window.__databricksTestState = "done";
+          if (!res.ok) {
+            dbxTest2.disabled = false; setIconBtn(dbxTest2, "refresh", "Test connection & detect columns");
+            dbxStatus2.textContent = "✗ " + res.error; toast("Databricks test failed — " + res.error, true); return;
+          }
+          da.columns = da.columns || [];
+          res.columns.forEach(function (c) { if (da.columns.indexOf(c.name) < 0) da.columns.push(c.name); });
+          renderInspector(); buildLibrary(); refreshPreview();
+          toast(res.columns.length + " column(s) detected from the live warehouse.");
+        });
+      };
+      qdx.appendChild(dbxTest2);
     }
 
     // Output columns
@@ -3569,12 +3657,14 @@
     var isDuckdb = da.kind === "duckdb";
     var isSqlite = da.kind === "httpvfs";
     var isSnowflake = da.kind === "snowflake";
+    var isDatabricks = da.kind === "databricks";
     var liveBtn = null;
-    if (ac || isDuckdb || isSqlite || isSnowflake) {
+    if (ac || isDuckdb || isSqlite || isSnowflake || isDatabricks) {
       liveBtn = el("button", "btn"); setIconBtn(liveBtn, "play", "Run live");
       liveBtn.title = isDuckdb ? "Query the live file via DuckDB-Wasm (HTTP Range Requests)" :
         isSqlite ? "Query the live file via SQLite-WASM (HTTP Range Requests)" :
-        isSnowflake ? "Query the live warehouse via the Snowflake SQL API" : ("Query live from " + ac.name);
+        isSnowflake ? "Query the live warehouse via the Snowflake SQL API" :
+        isDatabricks ? "Query the live warehouse via the Databricks Statement Execution API" : ("Query live from " + ac.name);
       toolbar.appendChild(liveBtn);
     }
     toolbar.appendChild(copyBtn);
@@ -3694,6 +3784,19 @@
         }).catch(function (e) {
           liveBtn.disabled = false; setIconBtn(liveBtn, "play", "Run live");
           toast("Snowflake query failed — showing sample. (" + ((e && e.message) || e) + ")", true);
+          runSample();
+        });
+        return;
+      }
+      if (isDatabricks) {
+        if (!da.dbxHost || !da.dbxToken || !da.dbxWarehouseId) { liveBtn.disabled = false; setIconBtn(liveBtn, "play", "Run live"); toast("Set a workspace host, access token, and SQL warehouse id first.", true); runSample(); return; }
+        Studio.Databricks.query(dbxCfg(da), da.sql || da.query).then(function (result) {
+          state.result = result; state.source = "live"; state.page = 0;
+          liveBtn.disabled = false; setIconBtn(liveBtn, "play", "Run live");
+          renderTable(state.result, "live");
+        }).catch(function (e) {
+          liveBtn.disabled = false; setIconBtn(liveBtn, "play", "Run live");
+          toast("Databricks query failed — showing sample. (" + ((e && e.message) || e) + ")", true);
           runSample();
         });
         return;

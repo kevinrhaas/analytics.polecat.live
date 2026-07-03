@@ -179,7 +179,7 @@ function serve() {
       const modalGone = !document.querySelector(".modal .dsb");
       return { types, chips, prevRows, prevCols, saved: !!da, cols: da ? da.columns.join(",") : "", inLib, modalGone };
     });
-    ok("builder opens with all source-type cards", built.types === 8, JSON.stringify({ types: built.types, err: built.err }));
+    ok("builder opens with all source-type cards", built.types === 9, JSON.stringify({ types: built.types, err: built.err }));
     ok("Detect reads columns from the SQL + previews rows", built.chips.join(",") === "region,total" && built.prevRows === 5 && built.prevCols === 2, JSON.stringify(built));
     ok("Create saves the data source into the library", built.saved && built.cols === "region,total" && built.inLib && built.modalGone, JSON.stringify(built));
 
@@ -826,6 +826,131 @@ function serve() {
       return { hasDA: cda.indexOf('id="sfSales"') >= 0, hasAccount: cda.indexOf("xy12345.us-east-1") >= 0 };
     });
     ok("Z4: exportCDA excludes snowflake DAs from the .cda XML (not a real Pentaho source)", !sfExport.hasDA && !sfExport.hasAccount, JSON.stringify(sfExport));
+
+    // ---- Z4 slice 2: Databricks Statement Execution API connector (same credential-based/CORS-gated
+    // shape as the slice 1 Snowflake connector above; stubbed here for the same no-public-internet-
+    // route-in-this-sandbox reason) ----
+    console.log("\n• Z4: Databricks connector");
+    const dbxModel = await page.evaluate(() => ({
+      hasApi: typeof Studio.Databricks === "object" && typeof Studio.Databricks.testConnection === "function" && typeof Studio.Databricks.query === "function"
+    }));
+    ok("Z4: Studio.Databricks exposes testConnection()/query()", dbxModel.hasApi, JSON.stringify(dbxModel));
+
+    const dbxCard = await page.evaluate(async () => {
+      document.getElementById("btnNewDS").click();
+      await new Promise((r) => setTimeout(r, 80));
+      const m = document.querySelector(".modal .dsb"); if (!m) return { err: "modal missing" };
+      const card = [].slice.call(m.querySelectorAll(".dsb-type")).find((c) => c.textContent.includes("Databricks"));
+      if (!card) return { err: "no Databricks card" };
+      card.click();
+      await new Promise((r) => setTimeout(r, 60));
+      const fieldLabels = [].slice.call(m.querySelectorAll(".dsb-qsec .field label")).map((l) => l.textContent);
+      const jndiField = [].slice.call(m.querySelectorAll(".dsb > .field")).find((f) => /Connection \(JNDI\)/.test(f.textContent));
+      const jndiHidden = jndiField ? getComputedStyle(jndiField).display === "none" : false;
+      const detectFromQueryVisible = [].slice.call(m.querySelectorAll(".dsb-mini")).some((b) => /Detect from query/.test(b.textContent) && getComputedStyle(b).display !== "none");
+      return {
+        hasHost: fieldLabels.some((f) => /Workspace host/.test(f)),
+        hasToken: fieldLabels.some((f) => /Access token/.test(f)),
+        hasWarehouseId: fieldLabels.some((f) => /SQL warehouse id/.test(f)),
+        hasTestBtn: !!m.querySelector(".dsb-databricks-test"),
+        jndiHidden, detectFromQueryVisible
+      };
+    });
+    ok("Z4: Databricks card shows Workspace host/Access token/SQL warehouse id fields", dbxCard.hasHost && dbxCard.hasToken && dbxCard.hasWarehouseId, JSON.stringify(dbxCard));
+    ok("Z4: Databricks card shows a Test connection button", dbxCard.hasTestBtn, JSON.stringify(dbxCard));
+    ok("Z4: Databricks card hides the JNDI connection field (doesn't apply)", dbxCard.jndiHidden, JSON.stringify(dbxCard));
+    ok("Z4: Databricks card hides the SQL-alias 'Detect from query' button", !dbxCard.detectFromQueryVisible, JSON.stringify(dbxCard));
+
+    const dbxBadge = await page.evaluate(() => {
+      const m = document.querySelector(".modal .dsb"); if (!m) return { err: "modal missing" };
+      const card = [].slice.call(m.querySelectorAll(".dsb-type")).find((c) => c.textContent.includes("Databricks"));
+      return { hasBadge: card ? !!card.querySelector(".dsb-badge") : null, badgeText: card && card.querySelector(".dsb-badge") ? card.querySelector(".dsb-badge").textContent : "" };
+    });
+    ok("Z4: Databricks source-type card carries a 'Needs token' badge", dbxBadge.hasBadge === true && /Needs token/i.test(dbxBadge.badgeText), JSON.stringify(dbxBadge));
+
+    const dbxIcon = await page.evaluate(() => ({
+      path: Studio._iconPaths.databricks,
+      distinctFromSnowflake: Studio._iconPaths.databricks !== Studio._iconPaths.snowflake,
+      distinctFromDuckdb: Studio._iconPaths.databricks !== Studio._iconPaths.duckdb,
+      distinctFromDb: Studio._iconPaths.databricks !== Studio._iconPaths.db
+    }));
+    ok("Z4: databricks icon exists and is distinct from snowflake/duckdb/db icons", !!dbxIcon.path && dbxIcon.distinctFromSnowflake && dbxIcon.distinctFromDuckdb && dbxIcon.distinctFromDb, JSON.stringify(dbxIcon));
+
+    const dbxTestOk = await page.evaluate(async () => {
+      const orig = Studio.Databricks.testConnection;
+      Studio.Databricks.testConnection = function () {
+        return Promise.resolve({ ok: true, columns: [{ name: "region", type: "STRING" }, { name: "revenue", type: "DOUBLE" }], cols: ["region", "revenue"], rows: [["East", 120], ["West", 90]] });
+      };
+      const m = document.querySelector(".modal .dsb"); if (!m) return { err: "modal missing" };
+      const inputs = [].slice.call(m.querySelectorAll(".dsb-qsec input"));
+      const hostInp = inputs[0], tokenInp = inputs[1], warehouseInp = inputs[2];
+      hostInp.value = "dbc-a1b2c3d4-e5f6.cloud.databricks.com"; hostInp.dispatchEvent(new Event("input", { bubbles: true }));
+      tokenInp.value = "dapisometoken"; tokenInp.dispatchEvent(new Event("input", { bubbles: true }));
+      warehouseInp.value = "0123456789abcdef"; warehouseInp.dispatchEvent(new Event("input", { bubbles: true }));
+      m.querySelector(".dsb-databricks-test").click();
+      await new Promise((r) => setTimeout(r, 60));
+      const chips = [].slice.call(m.querySelectorAll(".dsb-chip")).map((c) => c.textContent.replace("×", "").trim());
+      const status = (m.querySelector(".dsb-databricks-status") || {}).textContent || "";
+      Studio.Databricks.testConnection = orig;
+      return { chips, status };
+    });
+    ok("Z4: a successful Test connection detects columns into chips", dbxTestOk.chips.join(",") === "region,revenue", JSON.stringify(dbxTestOk));
+    ok("Z4: a successful Test connection shows a ✓ status line", /^✓ connected/.test(dbxTestOk.status), JSON.stringify(dbxTestOk));
+
+    const dbxSaved = await page.evaluate(async () => {
+      const m = document.querySelector(".modal .dsb"); if (!m) return { err: "modal missing" };
+      const idInp = m.querySelector(".field.row .field input"); idInp.value = "dbxSales"; idInp.dispatchEvent(new Event("input", { bubbles: true }));
+      m.querySelector(".dsb-foot .btn-primary").click();
+      await new Promise((r) => setTimeout(r, 80));
+      const da = window.__STUDIO_STATE.catalog.custom.dataAccesses.find((d) => d.id === "dbxSales");
+      return da ? { kind: da.kind, dbxHost: da.dbxHost, dbxToken: da.dbxToken, dbxWarehouseId: da.dbxWarehouseId, cols: da.columns.join(",") } : { missing: true };
+    });
+    ok("Z4: saving persists kind/host/token/warehouse/columns on the DA", dbxSaved.kind === "databricks" && dbxSaved.dbxHost === "dbc-a1b2c3d4-e5f6.cloud.databricks.com" && dbxSaved.dbxToken === "dapisometoken" && dbxSaved.dbxWarehouseId === "0123456789abcdef" && dbxSaved.cols === "region,revenue", JSON.stringify(dbxSaved));
+
+    const dbxInspector = await page.evaluate(async () => {
+      var daDef = window.__STUDIO_STATE.catalog.custom.dataAccesses.find((d) => d.id === "dbxSales");
+      Studio.ensureDA(window.__STUDIO_STATE.spec, daDef);
+      window.__studioSelect({ kind: "da", id: "dbxSales" });
+      await new Promise((r) => setTimeout(r, 60));
+      const insp = document.getElementById("inspBody");
+      const secs = [].slice.call(insp.querySelectorAll(".insp-sec h4")).map((h) => h.textContent);
+      const hasSection = secs.some((s) => /Databricks \(Statement Execution API\)/.test(s));
+      const liveBtn = [].slice.call(insp.querySelectorAll(".daprev-toolbar .btn")).find((b) => /Run live/.test(b.textContent));
+      return { hasSection, liveBtnTitle: liveBtn ? liveBtn.title : "" };
+    });
+    ok("Z4: DA inspector shows the 'Databricks (Statement Execution API)' section for a databricks DA", dbxInspector.hasSection, JSON.stringify(dbxInspector));
+    ok("Z4: Data preview offers 'Run live' for a databricks DA with no active server", /Databricks Statement Execution API/.test(dbxInspector.liveBtnTitle), JSON.stringify(dbxInspector));
+
+    const dbxRunLive = await page.evaluate(async () => {
+      Studio.Databricks.query = function () { return Promise.resolve({ cols: ["region", "revenue"], rows: [["East", 120], ["West", 90]] }); };
+      const insp = document.getElementById("inspBody");
+      const liveBtn = [].slice.call(insp.querySelectorAll(".daprev-toolbar .btn")).find((b) => /Run live/.test(b.textContent));
+      if (!liveBtn) return { err: "no Run live button" };
+      liveBtn.click();
+      await new Promise((r) => setTimeout(r, 60));
+      return { status: (insp.querySelector(".daprev-status") || {}).textContent || "" };
+    });
+    ok("Z4: Run live queries via Studio.Databricks.query() and shows the live result", /2 rows? · 2 cols? · live/.test(dbxRunLive.status), JSON.stringify(dbxRunLive));
+
+    const dbxTestFail = await page.evaluate(async () => {
+      Studio.Databricks.testConnection = function () { return Promise.resolve({ ok: false, error: "CORS blocked — the host doesn't allow cross-origin requests." }); };
+      const insp = document.getElementById("inspBody");
+      const testBtn = [].slice.call(insp.querySelectorAll("button")).find((b) => /Test connection & detect columns/.test(b.textContent));
+      if (!testBtn) return { err: "no test button in inspector" };
+      testBtn.click();
+      await new Promise((r) => setTimeout(r, 60));
+      const status = [].slice.call(insp.querySelectorAll(".hint")).map((h) => h.textContent).find((t) => t.indexOf("✗") === 0) || "";
+      return { status };
+    });
+    ok("Z4: a failed Test connection surfaces a clear inline error, not a stuck spinner", /^✗ CORS blocked/.test(dbxTestFail.status), JSON.stringify(dbxTestFail));
+
+    const dbxExport = await page.evaluate(() => {
+      var sp = JSON.parse(JSON.stringify(window.__STUDIO_STATE.spec));
+      sp.cda.dataAccesses.push({ id: "dbxSales", name: "dbxSales", kind: "databricks", dbxHost: "dbc-a1b2c3d4-e5f6.cloud.databricks.com", dbxToken: "dapisometoken", columns: ["region", "revenue"], params: [], calcColumns: [], cache: true, cacheDuration: 300 });
+      var cda = Studio.exportCDA(sp);
+      return { hasDA: cda.indexOf('id="dbxSales"') >= 0, hasHost: cda.indexOf("dbc-a1b2c3d4-e5f6.cloud.databricks.com") >= 0 };
+    });
+    ok("Z4: exportCDA excludes databricks DAs from the .cda XML (not a real Pentaho source)", !dbxExport.hasDA && !dbxExport.hasHost, JSON.stringify(dbxExport));
 
     // ---- Z14 slice 4: friendlier connector error messages (shared by DuckDB + SQLite) ----
     const friendlyErrs = await page.evaluate(() => ({
