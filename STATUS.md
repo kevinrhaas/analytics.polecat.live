@@ -1410,7 +1410,15 @@ Design direction (best practice — the user wants it clean, not a redundant sin
 - ✓ **Make branding a Settings option — shipped v167.** A **Branding** card on the Settings page: Default /
   Custom logo (upload, ≤200KB, stored locally) / None, applied live to the rail brand mark. **Z12 track
   complete.** Still open for a future pass: tying this into the Z5/Z6 style-preset collections once those
-  exist, and generating a real PNG `apple-touch-icon` variant (noted above).
+  exist.
+- ✓ **Real PNG `apple-touch-icon` shipped v236 (closes the last Z12 loose end)**: `<link rel="apple-touch-icon">`
+  pointed straight at `favicon.svg`, which iOS Safari does not reliably rasterize for "Add to Home Screen" —
+  the app had no image-processing dependency to generate a real bitmap. `tools/gen-apple-touch-icon.js` is a
+  one-off script that reuses the headless Chromium Playwright already vendors for `tests/run.js` (screenshot
+  the SVG at 180×180, Apple's documented size) instead of adding a new dependency; `apple-touch-icon.png` is
+  committed as a static asset, same as `favicon.svg` itself — not a runtime/build-step dependency of exported
+  dashboards. 2 new tests (real PNG magic bytes + IHDR 180×180 dimensions, not just link-tag presence). Test
+  suite 1097/1097.
 
 **Z13 — Curated showcase examples: make them a COMPLETE, dazzling survey (user-requested 2026-06-30,
 expanded).** Done so far: replaced the 17 legacy v2 boards with 6 curated examples; gallery glow-up (real

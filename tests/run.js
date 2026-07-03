@@ -10,7 +10,7 @@ const path = require("path");
 
 const ROOT = path.resolve(__dirname, "..");
 const PORT = 8011;
-const MIME = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".svg": "image/svg+xml" };
+const MIME = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".svg": "image/svg+xml", ".png": "image/png" };
 
 let passed = 0, failed = 0;
 function ok(name, cond, extra) { if (cond) { passed++; console.log("  ✓ " + name); } else { failed++; console.error("  ✗ " + name + (extra ? "  — " + extra : "")); } }
@@ -11435,12 +11435,12 @@ function serve() {
     const z12Head = await page.evaluate(function () {
       return {
         favicon: !!document.querySelector('link[rel="icon"][href="favicon.svg"]'),
-        appleTouch: !!document.querySelector('link[rel="apple-touch-icon"]'),
+        appleTouch: !!document.querySelector('link[rel="apple-touch-icon"][href="apple-touch-icon.png"]'),
         manifest: !!document.querySelector('link[rel="manifest"][href="site.webmanifest"]'),
         themeColor: (document.querySelector('meta[name="theme-color"]') || {}).content
       };
     });
-    ok("Z12: favicon + apple-touch-icon + manifest + theme-color are wired up",
+    ok("Z12: favicon + apple-touch-icon (real PNG, not the SVG) + manifest + theme-color are wired up",
       z12Head.favicon && z12Head.appleTouch && z12Head.manifest && z12Head.themeColor === "#d4773b", JSON.stringify(z12Head));
 
     const z12Favicon = await page.evaluate(async function () {
@@ -11448,6 +11448,22 @@ function serve() {
       return { ok: r.ok, type: r.headers.get("content-type") || "" };
     });
     ok("Z12: favicon.svg is served and is an SVG", z12Favicon.ok && z12Favicon.type.indexOf("svg") >= 0, JSON.stringify(z12Favicon));
+
+    // Z12 follow-up: apple-touch-icon.png is a genuine 180x180 raster PNG (iOS "Add to Home
+    // Screen" does not reliably rasterize an SVG apple-touch-icon) — generated once via
+    // tools/gen-apple-touch-icon.js (headless Chromium screenshot of favicon.svg, no image-
+    // processing dependency added to the app). Verify the real PNG header bytes + IHDR dims,
+    // not just that the link tag exists.
+    const z12AppleTouchPng = await page.evaluate(async function () {
+      const r = await fetch("apple-touch-icon.png");
+      const buf = new Uint8Array(await r.arrayBuffer());
+      const isPng = buf.length > 24 && buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47;
+      const w = (buf[16] << 24) | (buf[17] << 16) | (buf[18] << 8) | buf[19];
+      const h = (buf[20] << 24) | (buf[21] << 16) | (buf[22] << 8) | buf[23];
+      return { ok: r.ok, type: r.headers.get("content-type") || "", isPng, w, h };
+    });
+    ok("Z12 follow-up: apple-touch-icon.png is served as a real 180x180 PNG raster (not the SVG)",
+      z12AppleTouchPng.ok && z12AppleTouchPng.isPng && z12AppleTouchPng.w === 180 && z12AppleTouchPng.h === 180, JSON.stringify(z12AppleTouchPng));
 
     const z12Brand = await page.evaluate(function () {
       var topbarLogo = document.querySelector("#topbar .brand .logo");

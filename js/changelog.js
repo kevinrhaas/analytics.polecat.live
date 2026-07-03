@@ -15,6 +15,16 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 236,
+    title: 'Real PNG apple-touch-icon (Z12 loose end closed)',
+    kind: 'polish',
+    ts: '2026-07-03T05:27:40Z',
+    items: [
+      'iOS Safari does not reliably rasterize an SVG apple-touch-icon for "Add to Home Screen" -- the link tag now points at a real 180x180 PNG instead of favicon.svg.',
+      'tools/gen-apple-touch-icon.js generates it with the headless Chromium Playwright already vendors for tests, avoiding a new image-processing dependency. Committed as a static asset. 2 new tests, suite 1097/1097.',
+    ],
+  },
+  {
     v: 235,
     title: 'Deploy target config in Settings',
     kind: 'feature',
