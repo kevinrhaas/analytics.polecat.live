@@ -157,8 +157,12 @@ select.pdc-sel option{color:#1f2838}
   font-size:11.5px;line-height:1.5;box-shadow:0 8px 26px rgba(0,0,0,.4);max-width:300px;font-weight:500;pointer-events:none;letter-spacing:.1px}
 
 /* ── Cards ── */
+/* N-DESIGN: depth polish — chart cards now lift on hover the same way KPI tiles already do
+   (.kpi:hover below), so the two sibling panel primitives read as one coherent, tactile
+   material system instead of KPIs alone feeling "alive". */
 .card{background:var(--panel-bg);border:1px solid var(--panel-border);border-radius:var(--radius);position:relative;
-  box-shadow:var(--panel-shadow);display:flex;flex-direction:column;overflow:hidden}
+  box-shadow:var(--panel-shadow);display:flex;flex-direction:column;overflow:hidden;transition:transform .15s,box-shadow .15s}
+.card:hover{transform:translateY(-2px);box-shadow:var(--panel-shadow-lg)}
 .card>h3{margin:0;padding:13px 17px;border-bottom:1px solid var(--panel-header-border);background:var(--panel-header-bg);
   font-size:13.5px;font-weight:700;display:flex;align-items:center;gap:9px}
 .card>h3 .pill{font-size:10px;font-weight:700;color:#fff;background:var(--pdc);padding:2px 9px;border-radius:20px;text-transform:uppercase;letter-spacing:.4px}

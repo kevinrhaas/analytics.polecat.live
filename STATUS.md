@@ -2323,6 +2323,15 @@ gets covered over time:
   toggle, so the same data can feel playful or boardroom.
 - **Depth & material polish:** tasteful gradients, soft shadows, glassmorphism accents pulled from
   polecat.live; a coherent elevation/spacing scale.
+> ✓ **First cut shipped v277**: chart cards (`.card` in `vendor/pdc-ui.css` — the shared toolkit inlined
+> into every live preview AND every exported Dashboard Framework, so this applies everywhere uniformly)
+> now lift on hover — `translateY(-2px)` + `var(--panel-shadow-lg)` — the exact same treatment KPI tiles
+> (`.kpi:hover`) already had. Chart panels previously read as static furniture next to visibly-tactile
+> KPI tiles; now the whole dashboard's panel vocabulary feels like one coherent, alive material system.
+> Pure CSS, both light/dark themes (via the existing `--panel-shadow-lg` variable, already themed). 2 new
+> tests (CSS declaration present; a real hover in the live preview actually produces a non-identity
+> transform), suite 1237/1237. **Still open:** gradients/glassmorphism accents, a broader elevation scale
+> beyond this one hover state.
 
 **N-DEV — Power-user & authoring.**
 - **Live JSON spec editor:** ✓ shipped v267, see below.

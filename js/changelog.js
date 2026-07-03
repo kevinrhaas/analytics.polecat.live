@@ -15,6 +15,17 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 277,
+    title: 'N-DESIGN: chart cards lift on hover, matching KPI tiles',
+    kind: 'polish',
+    ts: '2026-07-03T18:46:30Z',
+    items: [
+      'Chart panels now get the same hover elevation KPI tiles already had -- a small lift + soft shadow -- so the two sibling panel types feel like one coherent, tactile system instead of only KPIs feeling alive.',
+      'Lives in the shared vendor/pdc-ui.css toolkit, so it applies everywhere: the live preview and every exported Dashboard Framework alike, in both light and dark theme.',
+      '2 new tests, suite 1237/1237.',
+    ],
+  },
+  {
     v: 276,
     title: 'Track L sweep: three dead Studio.* helpers removed from model.js',
     kind: 'polish',

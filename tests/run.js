@@ -156,6 +156,14 @@ function serve() {
     ok("preview rendered charts (svg)", fdoc.svgs >= 5, "svgs=" + fdoc.svgs);
     ok("preview has no load/render errors", !fdoc.err && !fdoc.loading);
 
+    // N-DESIGN: depth polish — chart cards now lift on hover the same way KPI tiles already did,
+    // so the two sibling panel primitives read as one coherent material system.
+    const cardHoverCssPresent = await page.evaluate(() => window.__STUDIO_STATE.assets.css.indexOf(".card:hover{transform:translateY(-2px)") >= 0);
+    ok("N-DESIGN: pdc-ui.css declares .card:hover elevation, matching the existing .kpi:hover pattern", cardHoverCssPresent);
+    await frame.hover(".card");
+    const cardHoverStyle = await frame.evaluate(() => getComputedStyle(document.querySelector(".card")).transform);
+    ok("N-DESIGN: hovering a chart card in the live preview actually lifts it (non-identity transform)", cardHoverStyle !== "none" && cardHoverStyle !== "", "transform=" + cardHoverStyle);
+
     // ---- data-source builder: author a new CDA query ----
     console.log("\n• data-source builder");
     const built = await page.evaluate(async () => {
