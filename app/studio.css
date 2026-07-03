@@ -290,7 +290,7 @@ html[data-app-theme='classic'] #mobileNavBtn{background:#0f1c33;border-color:rgb
 .repo-search{width:100%;max-width:420px;display:block;margin-bottom:14px;padding:9px 13px;font-size:13px;
   border:1px solid rgba(245,233,214,.16);border-radius:9px;background:#1c1720;color:#F5E9D6;font-family:var(--font)}
 .repo-search::placeholder{color:#8a7d6d}
-.repo-search:focus{outline:none;border-color:#d4773b}
+.repo-search:focus{border-color:#d4773b}
 .repo-io{display:flex;gap:8px;margin-bottom:30px}
 .repo-count{font-weight:400;text-transform:none;letter-spacing:0;color:#8a7d6d;font-size:11px}
 .repo-sub2{margin-top:30px}

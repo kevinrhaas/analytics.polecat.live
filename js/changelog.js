@@ -15,6 +15,17 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 286,
+    title: 'Track L (a11y lens): Repository search field keyboard focus ring restored',
+    kind: 'fix',
+    ts: '2026-07-03T23:47:56Z',
+    items: [
+      'The Repository section\'s search field (#repoSearch) was the one input in the whole app chrome that re-declared outline:none inside its own :focus rule -- higher specificity than the shared global :focus-visible ring in studio.css -- so tabbing to it showed only a border-color change and zero visible outline, unlike every sibling search field (library search, inspector search, chart-gallery search, changelog search).',
+      'Same bug shape just fixed in the exported-dashboard chrome (v283): an outline:none reset with no replacement, silently winning over the shared focus-visible ring by CSS specificity. Removed the redundant outline:none; the field now gets the same ring as everything else.',
+      '1 new test (real keyboard-focus check against the live app), suite 1276/1276.',
+    ],
+  },
+  {
     v: 285,
     title: 'N-DEV: shortcuts cheat-sheet now lists Ctrl/Cmd+K',
     kind: 'fix',

@@ -12302,6 +12302,19 @@ function serve() {
     await page.fill("#repoSearch", "");
     await page.waitForTimeout(80);
 
+    // a11y: Track L found the Repository search field was the one input in the app chrome that
+    // re-declared outline:none inside its own :focus rule (higher specificity than the shared global
+    // :focus-visible ring in studio.css), so tabbing to it showed only a border-color change and zero
+    // outline -- unlike every sibling search field (.search/.insp-search/.cg-search/.cl-search).
+    await page.evaluate(function () { document.getElementById("repoSearch").focus(); });
+    const repoSearchOutline = await page.evaluate(function () {
+      var s = document.getElementById("repoSearch");
+      return s ? getComputedStyle(s).outlineStyle : "none";
+    });
+    ok("a11y: keyboard-focusing the Repository search field shows a real outline (not 'none')",
+      repoSearchOutline !== "none", "outlineStyle=" + repoSearchOutline);
+    await page.evaluate(function () { document.getElementById("repoSearch").blur(); });
+
     // Z3-4: clicking a data-source card jumps to Studio and locates it in the library search
     const z3Jump = await page.evaluate(function (daId) {
       document.querySelector('#repoResults [data-repo-ds$="|' + daId + '"]').click();

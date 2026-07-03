@@ -781,6 +781,8 @@
 - v285: **N-DEV: shortcuts cheat-sheet now lists Ctrl/Cmd+K** — audited every document-level keydown
   listener against the "?" shortcuts modal's rows and found the command palette (the single most
   powerful shortcut) was the only one missing; added as the first row. 1 new test, suite 1275/1275.
+- v286: **Track L (a11y lens): Repository search field keyboard focus ring restored** — see the Track L
+  findings log below. 1 new test, suite 1276/1276.
 
 ## NEXT (top = do first)
 
@@ -2025,6 +2027,16 @@ gets covered over time:
   `Studio.defineChart({type, render, opts, thumb, autoPick})` contract so new types are uniform and testable.
 - **Test health** — coverage per feature, flaky/slow checks, and a fast smoke subset for quick loops.
 > **Findings log (append newest on top; keep short):**
+> - **Fixed shipped v286 (accessibility lens):** while auditing the exported-dashboard chrome's focus
+>   rings (v283), spot-checked the app chrome (`studio.css`) for the same bug shape and found one:
+>   `.repo-search:focus{outline:none;border-color:#d4773b}` — the Repository section's search field —
+>   re-declared `outline:none` *inside its own `:focus` rule* (specificity `.class:focus` = (0,2,0)),
+>   which beats the shared global `input:focus-visible{outline:2px solid var(--pentaho)}` ring
+>   ((0,1,1)) regardless of source order. Every sibling search field (`.search`/`.insp-search`/
+>   `.cg-search`/`.cl-search`) only sets `outline:none` on its unconditional base state, which the
+>   focus-visible ring's higher tag+pseudo specificity correctly overrides — `.repo-search` was the one
+>   outlier that actively suppressed it. Removed the redundant `outline:none`; the border-color change
+>   still applies as a bonus on top of the ring. 1 new test, suite 1276/1276.
 > - **Fixed shipped v276 (dead-code lens):** `Studio.fmtFn`, `Studio.PALETTE`, and `Studio.cdeFallback` in
 >   `app/model.js` had zero call sites anywhere in `app/*.js`/`docs/index.html`/`tests/run.js` — a script
 >   diffing every `Studio.*` top-level definition against a full-text search across the repo found 7
