@@ -164,6 +164,18 @@ function serve() {
     const cardHoverStyle = await frame.evaluate(() => getComputedStyle(document.querySelector(".card")).transform);
     ok("N-DESIGN: hovering a chart card in the live preview actually lifts it (non-identity transform)", cardHoverStyle !== "none" && cardHoverStyle !== "", "transform=" + cardHoverStyle);
 
+    // N-DESIGN: glassmorphism depth polish — panels layer a subtle inset top-highlight / bottom-shade
+    // "glass edge" (--panel-glass, themed light/dark) under the existing drop shadow.
+    const glassCssPresent = await page.evaluate(() => window.__STUDIO_STATE.assets.css.indexOf("--panel-glass:") >= 0);
+    ok("N-DESIGN: pdc-ui.css declares a --panel-glass token", glassCssPresent);
+    const glassShadow = await frame.evaluate(() => {
+      const kpi = document.querySelector(".kpi");
+      const card = document.querySelector(".card");
+      return { kpi: kpi ? getComputedStyle(kpi).boxShadow : "", card: card ? getComputedStyle(card).boxShadow : "" };
+    });
+    ok("N-DESIGN: KPI tiles render the layered glass inset shadow", /inset/.test(glassShadow.kpi), glassShadow.kpi);
+    ok("N-DESIGN: chart cards render the layered glass inset shadow", /inset/.test(glassShadow.card), glassShadow.card);
+
     // ---- data-source builder: author a new CDA query ----
     console.log("\n• data-source builder");
     const built = await page.evaluate(async () => {

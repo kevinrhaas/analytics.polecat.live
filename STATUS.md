@@ -2337,8 +2337,17 @@ gets covered over time:
 > KPI tiles; now the whole dashboard's panel vocabulary feels like one coherent, alive material system.
 > Pure CSS, both light/dark themes (via the existing `--panel-shadow-lg` variable, already themed). 2 new
 > tests (CSS declaration present; a real hover in the live preview actually produces a non-identity
-> transform), suite 1237/1237. **Still open:** gradients/glassmorphism accents, a broader elevation scale
-> beyond this one hover state.
+> transform), suite 1237/1237.
+> ✓ **Glassmorphism inset highlight shipped v280 (closes the "glassmorphism accents" half of the "still
+> open" item above)**: KPI tiles and chart cards (`.kpi`/`.card` in `vendor/pdc-ui.css`) now layer a
+> `--panel-glass` inset top-highlight / bottom-shade under their existing drop shadow — a subtle "glass
+> edge" (`inset 0 1px 0 …, inset 0 -1px 0 …`), tuned separately for light (soft white top edge) and dark
+> (bright top edge / darker bottom edge, since dark panels show the effect more) app themes. Purely
+> additive to the existing `box-shadow` chain (`var(--panel-shadow[,-lg]),var(--panel-glass)`) — no markup
+> changes, applies everywhere the shared toolkit is used (live preview + every exported Dashboard
+> Framework). 3 new tests (token declared; both `.kpi` and `.card` render an `inset` shadow layer in the
+> live preview), suite 1252/1252. **Still open:** a broader elevation scale beyond hover + this one glass
+> layer (e.g. modal/sheet surfaces), alternate chart "skins."
 
 **N-DEV — Power-user & authoring.**
 - **Live JSON spec editor:** ✓ shipped v267, see below.

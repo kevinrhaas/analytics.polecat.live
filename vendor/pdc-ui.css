@@ -8,6 +8,7 @@
   --app-bg:#eef3fa; --panel-bg:#ffffff; --panel-border:#dbe3ee;
   --panel-subtle-bg:#f7fafc; --panel-header-bg:#f4f7fa; --panel-header-border:#e3e9ef;
   --panel-shadow:0 1px 3px rgba(0,0,0,.08); --panel-shadow-lg:0 6px 24px rgba(16,38,76,.10);
+  --panel-glass:inset 0 1px 0 rgba(255,255,255,.6),inset 0 -1px 0 rgba(16,38,76,.04);
   --field-bg:#ffffff; --field-border:#c8d2df;
   --text-primary:#1f2838; --text-muted:#677489; --text-faint:#97a3b4;
   --sidebar-bg:#122445; --header-bg:#102445; --header-fg:#ffffff;
@@ -24,6 +25,7 @@
   --app-bg:#0f1828; --panel-bg:#162234; --panel-border:#223246;
   --panel-subtle-bg:#101a29; --panel-header-bg:#0d1624; --panel-header-border:#223246;
   --panel-shadow:0 8px 22px rgba(0,0,0,.28); --panel-shadow-lg:0 10px 30px rgba(0,0,0,.4);
+  --panel-glass:inset 0 1px 0 rgba(255,255,255,.08),inset 0 -1px 0 rgba(0,0,0,.3);
   --field-bg:#101a29; --field-border:#2a3a50;
   --text-primary:#e8edf5; --text-muted:#93a1b7; --text-faint:#62718a;
   --header-bg:#0a1323; --grid-line:#1e2c40; --axis:#56657d;
@@ -74,8 +76,8 @@ select.pdc-sel option{color:#1f2838}
 
 /* ── KPI tiles ── */
 .kpi{background:var(--panel-bg);border:1px solid var(--panel-border);border-radius:var(--radius);
-  padding:15px 17px;box-shadow:var(--panel-shadow);position:relative;overflow:hidden;transition:transform .15s,box-shadow .15s}
-.kpi:hover{transform:translateY(-2px);box-shadow:var(--panel-shadow-lg)}
+  padding:15px 17px;box-shadow:var(--panel-shadow),var(--panel-glass);position:relative;overflow:hidden;transition:transform .15s,box-shadow .15s}
+.kpi:hover{transform:translateY(-2px);box-shadow:var(--panel-shadow-lg),var(--panel-glass)}
 .kpi::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--accent,var(--pentaho))}
 .kpi .v{font-size:27px;font-weight:800;line-height:1.05;letter-spacing:-.5px}
 .kpi .l{font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-top:7px}
@@ -161,8 +163,8 @@ select.pdc-sel option{color:#1f2838}
    (.kpi:hover below), so the two sibling panel primitives read as one coherent, tactile
    material system instead of KPIs alone feeling "alive". */
 .card{background:var(--panel-bg);border:1px solid var(--panel-border);border-radius:var(--radius);position:relative;
-  box-shadow:var(--panel-shadow);display:flex;flex-direction:column;overflow:hidden;transition:transform .15s,box-shadow .15s}
-.card:hover{transform:translateY(-2px);box-shadow:var(--panel-shadow-lg)}
+  box-shadow:var(--panel-shadow),var(--panel-glass);display:flex;flex-direction:column;overflow:hidden;transition:transform .15s,box-shadow .15s}
+.card:hover{transform:translateY(-2px);box-shadow:var(--panel-shadow-lg),var(--panel-glass)}
 .card>h3{margin:0;padding:13px 17px;border-bottom:1px solid var(--panel-header-border);background:var(--panel-header-bg);
   font-size:13.5px;font-weight:700;display:flex;align-items:center;gap:9px}
 .card>h3 .pill{font-size:10px;font-weight:700;color:#fff;background:var(--pdc);padding:2px 9px;border-radius:20px;text-transform:uppercase;letter-spacing:.4px}

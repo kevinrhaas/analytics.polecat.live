@@ -15,6 +15,18 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 280,
+    title: 'N-DESIGN: glassmorphism depth polish on KPI tiles + chart cards',
+    kind: 'polish',
+    ts: '2026-07-03T19:31:45Z',
+    items: [
+      'KPI tiles and chart cards now layer a subtle inset top-highlight / bottom-shade \'glass edge\' (--panel-glass) under the existing drop shadow -- both light and dark app themes get their own tuned opacity.',
+      'Lives in the shared vendor/pdc-ui.css toolkit, so it applies everywhere: the live preview and every exported Dashboard Framework alike.',
+      'Continues the v277 hover-elevation slice toward the N-DESIGN \'Depth & material polish\' backlog item (gradients/glassmorphism accents).',
+      '3 new tests, suite 1252/1252.',
+    ],
+  },
+  {
     v: 279,
     title: 'N-DEV: dashboard templates/variables ({{key}} substitution)',
     kind: 'feature',
