@@ -15,6 +15,18 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 239,
+    title: 'Workbooks -- named collections of dashboards (Z3 follow-up)',
+    kind: 'feature',
+    ts: '2026-07-03T07:45:44Z',
+    items: [
+      'Repository gains a Workbooks chip strip above the Dashboards grid -- type a name next to \'+ Workbook\' to create one, click a chip to filter to just that workbook (or \'Unfiled\' for anything not yet organized), hover a chip for a delete affordance.',
+      'Every dashboard card in Repository gets an inline Workbook picker to file or move it; filing lives on the recents entry (not the dashboard spec itself), so it never travels into Save/Export.',
+      'Fixed a real latent bug found while building this: noteRecent() rebuilt each dashboard\'s recents entry from scratch on every autosave tick, which would have silently un-filed a dashboard the moment you kept editing it -- now preserves workbookId across the rebuild.',
+      'Workbooks travel with the existing whole-repository JSON export/import and are wiped by Clear local data, same as recents/pins. 7 new tests, suite 1134/1134.',
+    ],
+  },
+  {
     v: 238,
     title: 'Generic SQL/HTTP connector (Z4 slice 4)',
     kind: 'feature',

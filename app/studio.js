@@ -4234,8 +4234,16 @@
   }
   function noteRecent() {
     if (!S.spec || !S.spec.id) return;
-    var list = loadRecents().filter(function (r) { return r.id !== S.spec.id; });
-    list.unshift({ id: S.spec.id, ts: new Date().toISOString(), spec: Studio.clone(S.spec) });
+    var existing = loadRecents();
+    // Preserve workbookId across the rebuild below — a dashboard's workbook filing is
+    // repository organization, tracked only on the recents entry (see the Workbooks
+    // section), so a naive "drop and re-add" here would silently un-file a dashboard
+    // every time its autosave debounce ticks while it's open.
+    var prior = existing.filter(function (r) { return r.id === S.spec.id; })[0];
+    var list = existing.filter(function (r) { return r.id !== S.spec.id; });
+    var entry = { id: S.spec.id, ts: new Date().toISOString(), spec: Studio.clone(S.spec) };
+    if (prior && prior.workbookId) entry.workbookId = prior.workbookId;
+    list.unshift(entry);
     // cap only the UNPINNED entries at 8 (newest-first order preserved) — pinning a
     // dashboard protects it from ever being evicted by newer activity.
     var pins = loadPins(), capped = [], unpinnedSeen = 0;
@@ -4257,17 +4265,29 @@
   // Shared markup for one recents/pinned card. Uses a big invisible "open" button
   // covering the whole card (not the card element itself) so the small pin toggle can
   // sit on top of it without an invalid <button> inside a <button>.
-  function recentCardHtml(r, pinned) {
+  // wbOpts (optional, Repository-only): { workbooks: [{id,name}, ...] } — when passed, the
+  // card gains an inline "Workbook" select so a dashboard can be filed into a named collection
+  // without a separate screen. Omitted on Home's cards to keep that grid a fast "get back to
+  // work" view (the assignment control lives in the one place that also lists workbooks).
+  function recentCardHtml(r, pinned, wbOpts) {
     var sp = r.spec || {}, panels = (sp.panels || []).length, kpis = (sp.kpis || []).length;
     var meta = panels + " panel" + (panels === 1 ? "" : "s") + (kpis ? " · " + kpis + " KPI" + (kpis === 1 ? "" : "s") : "");
     var thumb = Studio.makeThumbnail(sp, S.theme);
     var title = sp.title || sp.name || "Untitled";
+    var wbSelect = "";
+    if (wbOpts && wbOpts.workbooks) {
+      var cur = r.workbookId || "";
+      wbSelect = '<select class="recent-wb-sel" data-recent-wb="' + esc(r.id) + '" aria-label="Workbook for ' + esc(title) + '">' +
+        '<option value="">No workbook</option>' +
+        wbOpts.workbooks.map(function (w) { return '<option value="' + esc(w.id) + '"' + (cur === w.id ? " selected" : "") + '>' + esc(w.name) + '</option>'; }).join("") +
+        '</select>';
+    }
     return '<div class="recent-card">' +
       '<button class="recent-open" data-recent="' + esc(r.id) + '" aria-label="Open ' + esc(title) + '"></button>' +
       '<button class="recent-pin' + (pinned ? " pinned" : "") + '" data-pin="' + esc(r.id) + '" ' +
         'title="' + (pinned ? "Unpin" : "Pin") + '" aria-label="' + (pinned ? "Unpin " : "Pin ") + esc(title) + '" aria-pressed="' + (pinned ? "true" : "false") + '"></button>' +
       '<div class="recent-thumb">' + thumb + '</div>' +
-      '<div class="recent-meta"><b>' + esc(title) + '</b><small>' + timeAgo(r.ts) + ' · ' + meta + '</small></div></div>';
+      '<div class="recent-meta"><b>' + esc(title) + '</b><small>' + timeAgo(r.ts) + ' · ' + meta + '</small>' + wbSelect + '</div></div>';
   }
   function renderHome() {
     var sec = $("#secHome"); if (!sec) return;
@@ -4312,6 +4332,39 @@
   window.__studioOpenRecent = openRecent; // test hook
   window.__studioPins = loadPins; // test hook
   window.__studioTogglePin = togglePin; // test hook
+
+  /* ---------- Z3 follow-up: Workbooks — named collections of dashboards -------------------
+     The north star describes a "workbook" as a named collection of dashboards; until now
+     Repository only ever showed one flat dashboard list. A workbook is deliberately thin: a
+     {id,name,ts} record plus a `workbookId` stamped onto the matching studio-recents entry
+     (not into the dashboard spec itself — filing a dashboard is repository organization, not
+     a dashboard property, so it doesn't travel with Save/Export). Repository gets a chip strip
+     to filter by workbook; deleting a workbook un-files its dashboards rather than deleting them. */
+  var _LS_WORKBOOKS = "studio-workbooks";
+  function loadWorkbooks() { try { return JSON.parse(localStorage.getItem(_LS_WORKBOOKS) || "[]"); } catch (e) { return []; } }
+  function saveWorkbooks(list) { try { localStorage.setItem(_LS_WORKBOOKS, JSON.stringify(list)); } catch (e) { /* quota or private-mode */ } }
+  function addWorkbook(name) {
+    name = (name || "").trim(); if (!name) return null;
+    var wb = { id: "wb" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name: name, ts: new Date().toISOString() };
+    var list = loadWorkbooks(); list.unshift(wb); saveWorkbooks(list);
+    return wb;
+  }
+  function deleteWorkbook(id) {
+    saveWorkbooks(loadWorkbooks().filter(function (w) { return w.id !== id; }));
+    var list = loadRecents(), changed = false;
+    list.forEach(function (r) { if (r.workbookId === id) { delete r.workbookId; changed = true; } });
+    if (changed) { try { localStorage.setItem(_LS_RECENTS, JSON.stringify(list)); } catch (e) {} }
+  }
+  function setDashboardWorkbook(dashId, workbookId) {
+    var list = loadRecents();
+    list.forEach(function (r) { if (r.id === dashId) { if (workbookId) r.workbookId = workbookId; else delete r.workbookId; } });
+    try { localStorage.setItem(_LS_RECENTS, JSON.stringify(list)); } catch (e) {}
+  }
+  var _repoWbFilter = ""; // "" = All, "__unfiled" = no workbook, else a workbook id
+  window.__studioWorkbooks = loadWorkbooks; // test hook
+  window.__studioAddWorkbook = addWorkbook; // test hook
+  window.__studioDeleteWorkbook = deleteWorkbook; // test hook
+  window.__studioSetDashboardWorkbook = setDashboardWorkbook; // test hook
 
   /* ---------- Z3 slice 1: Repository — data sources + dashboards, one searchable home ---
      Consolidates the two things that used to live in separate corners of the app: the
@@ -4362,19 +4415,76 @@
         dsCards.push(repoDaCardHtml(stem, d));
       });
     });
-    var list = loadRecents(), pins = loadPins();
-    var dashCards = list.filter(function (r) {
+    var list = loadRecents(), pins = loadPins(), workbooks = loadWorkbooks();
+    var validWbIds = {}; workbooks.forEach(function (w) { validWbIds[w.id] = true; });
+    var wbCounts = { all: list.length, unfiled: 0, byId: {} };
+    list.forEach(function (r) {
+      if (r.workbookId && validWbIds[r.workbookId]) wbCounts.byId[r.workbookId] = (wbCounts.byId[r.workbookId] || 0) + 1;
+      else wbCounts.unfiled++;
+    });
+    if (_repoWbFilter && _repoWbFilter !== "__unfiled" && !validWbIds[_repoWbFilter]) _repoWbFilter = "";
+    var filtered = list.filter(function (r) {
+      if (_repoWbFilter === "__unfiled") return !r.workbookId || !validWbIds[r.workbookId];
+      if (_repoWbFilter) return r.workbookId === _repoWbFilter;
+      return true;
+    });
+    var dashCards = filtered.filter(function (r) {
       if (!q) return true;
       var sp = r.spec || {};
       return ((sp.title || sp.name || "") + " " + (sp.desc || "")).toLowerCase().indexOf(q) >= 0;
-    }).map(function (r) { return recentCardHtml(r, pins.indexOf(r.id) >= 0); });
+    }).map(function (r) { return recentCardHtml(r, pins.indexOf(r.id) >= 0, { workbooks: workbooks }); });
+    var chipDefs = [{ id: "", name: "All", n: wbCounts.all }]
+      .concat(workbooks.map(function (w) { return { id: w.id, name: w.name, n: wbCounts.byId[w.id] || 0, del: true }; }))
+      .concat([{ id: "__unfiled", name: "Unfiled", n: wbCounts.unfiled }]);
+    var chipsHtml = '<div class="wb-chips">' + chipDefs.map(function (c) {
+      return '<div class="wb-chip-wrap">' +
+        '<button type="button" class="wb-chip' + (_repoWbFilter === c.id ? " active" : "") + '" data-wb-filter="' + esc(c.id) + '">' +
+        esc(c.name) + ' <span class="wb-chip-n">' + c.n + '</span></button>' +
+        (c.del ? '<button type="button" class="wb-chip-del" data-wb-del="' + esc(c.id) + '" title="Delete workbook ' + esc(c.name) + '" aria-label="Delete workbook ' + esc(c.name) + '"></button>' : '') +
+        '</div>';
+    }).join("") +
+      '<span class="wb-add"><input type="text" id="wbNameInp" class="wb-name-inp" placeholder="New workbook…" aria-label="New workbook name"/>' +
+      '<button type="button" class="btn" id="wbAddBtn">+ Workbook</button></span></div>';
     results.innerHTML =
       '<h2 class="home-sub">Data sources <span class="repo-count">' + dsCards.length + ' of ' + totalDs + '</span></h2>' +
       (dsCards.length ? '<div class="repo-ds-grid">' + dsCards.join("") + '</div>'
         : '<div class="home-empty-hint">' + (q ? "No data sources match “" + esc(q) + "”." : "No data sources yet.") + '</div>') +
-      '<h2 class="home-sub repo-sub2">Dashboards <span class="repo-count">' + dashCards.length + ' of ' + list.length + '</span></h2>' +
+      '<h2 class="home-sub repo-sub2">Dashboards <span class="repo-count">' + dashCards.length + ' of ' + filtered.length + '</span></h2>' +
+      chipsHtml +
       (dashCards.length ? '<div class="home-recents">' + dashCards.join("") + '</div>'
-        : '<div class="home-empty-hint">' + (q ? "No dashboards match “" + esc(q) + "”." : "No dashboards yet — build one in Studio and it will show up here.") + '</div>');
+        : '<div class="home-empty-hint">' + (q ? "No dashboards match “" + esc(q) + "”." : (_repoWbFilter ? "No dashboards in this workbook yet." : "No dashboards yet — build one in Studio and it will show up here.")) + '</div>');
+    $$(".wb-chip", results).forEach(function (btn) {
+      btn.onclick = function () { _repoWbFilter = btn.getAttribute("data-wb-filter"); renderRepository(); };
+    });
+    $$(".wb-chip-del", results).forEach(function (btn) {
+      btn.appendChild(Studio.icon("trash", 9));
+      btn.onclick = function (e) {
+        e.stopPropagation();
+        var id = btn.getAttribute("data-wb-del");
+        var wb = workbooks.filter(function (w) { return w.id === id; })[0];
+        if (!wb) return;
+        if (confirm("Delete workbook “" + wb.name + "”? Its dashboards stay — they're just un-filed.")) {
+          deleteWorkbook(id);
+          if (_repoWbFilter === id) _repoWbFilter = "";
+          renderRepository();
+        }
+      };
+    });
+    var wbAddBtn = $("#wbAddBtn", results);
+    if (wbAddBtn) wbAddBtn.onclick = function () {
+      var inp = $("#wbNameInp", results);
+      var wb = addWorkbook(inp && inp.value);
+      if (wb) { _repoWbFilter = wb.id; renderRepository(); }
+    };
+    var wbNameInp = $("#wbNameInp", results);
+    if (wbNameInp) wbNameInp.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); wbAddBtn.click(); } });
+    $$(".recent-wb-sel", results).forEach(function (sel) {
+      sel.addEventListener("click", function (e) { e.stopPropagation(); });
+      sel.addEventListener("change", function () {
+        setDashboardWorkbook(sel.getAttribute("data-recent-wb"), sel.value);
+        renderRepository();
+      });
+    });
     $$(".repo-ds-open", results).forEach(function (btn) {
       btn.onclick = function () {
         var parts = btn.getAttribute("data-repo-ds").split("|");
@@ -4420,10 +4530,10 @@
         if (d.authored) dataSources.push({ stem: stem, da: d });
       });
     });
-    var out = { _type: "studio-repository", _v: 1, dataSources: dataSources, dashboards: loadRecents(), pins: loadPins() };
+    var out = { _type: "studio-repository", _v: 1, dataSources: dataSources, dashboards: loadRecents(), pins: loadPins(), workbooks: loadWorkbooks() };
     download("dashboard-studio-repository.json", JSON.stringify(out, null, 2), "application/json");
   }
-  // Merges a parsed repository-export object into the current catalog + recents/pins.
+  // Merges a parsed repository-export object into the current catalog + recents/pins/workbooks.
   // Returns {ok, dsCount, dashCount} on success, {ok:false} if the file isn't recognized.
   // Split out from importRepositoryFile so it can be unit-tested without a file-picker.
   function applyRepositoryData(data) {
@@ -4445,6 +4555,10 @@
     var pins = loadPins(), pinSet = {};
     pins.concat(data.pins || []).forEach(function (id) { pinSet[id] = true; });
     savePins(Object.keys(pinSet));
+    var wbList = loadWorkbooks(), wbById = {};
+    wbList.forEach(function (w) { wbById[w.id] = w; });
+    (data.workbooks || []).forEach(function (w) { if (w && w.id) wbById[w.id] = w; });
+    saveWorkbooks(Object.keys(wbById).map(function (id) { return wbById[id]; }));
     buildLibrary(); renderHome(); renderRepository();
     return { ok: true, dsCount: dsCount, dashCount: (data.dashboards || []).length };
   }
@@ -5581,7 +5695,7 @@
         "studio-autosave", "studio-export-history", "studio-theme", "studio-app-theme",
         "studio-lw", "studio-rw", "studio-collapse-library", "studio-collapse-inspector",
         "studio-connections", "studio-active-conn", "studio-mob-tab", "studio-simple-mode",
-        "studio-insp-collapsed", "studio-recents", "studio-pins", "studio-branding",
+        "studio-insp-collapsed", "studio-recents", "studio-pins", "studio-workbooks", "studio-branding",
         "studio-shell-section", "studio-shell-expanded",
         "studio-default-jndi", "studio-default-subtitle", "studio-default-accent", "studio-default-logo", "studio-default-headerbg",
         "studio-default-titlesize", "studio-default-subtitlestyle", "studio-style-presets",

@@ -277,8 +277,38 @@ body.simple-mode .repo-ds-acts{display:none!important}
 .repo-ds-stem{display:block;font-size:10.5px;color:#8a7d6d;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .repo-ds-cols{margin-top:6px;font-size:10px;color:#c9b9a3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 @media(prefers-reduced-motion:reduce){.repo-ds-card{transition:none}}
+/* Z3 follow-up: Workbooks — named collections of dashboards, filterable chip strip above
+   the Dashboards grid. Deleting a workbook only un-files its dashboards (see deleteWorkbook). */
+.wb-chips{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:16px}
+.wb-chip-wrap{position:relative;display:flex;align-items:center}
+.wb-chip{background:#1c1720;border:1px solid rgba(245,233,214,.16);border-radius:999px;color:#c9b9a3;
+  font-family:var(--font);font-size:12px;font-weight:600;padding:6px 12px;cursor:pointer;
+  transition:border-color .12s ease,color .12s ease,background .12s ease}
+.wb-chip:hover{border-color:#d4773b;color:#F5E9D6}
+.wb-chip.active{background:#d4773b;border-color:#d4773b;color:#0a0a0f}
+.wb-chip-n{opacity:.75;font-weight:400}
+.wb-chip.active .wb-chip-n{opacity:.6}
+.wb-chip-del{position:absolute;top:-6px;right:-6px;width:16px;height:16px;border-radius:50%;
+  background:#2E2A33;border:1px solid rgba(245,233,214,.25);color:#c9b9a3;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;padding:0;opacity:0;transition:opacity .12s ease}
+.wb-chip-wrap:hover .wb-chip-del,.wb-chip-del:focus-visible{opacity:1}
+.wb-chip-del:hover{border-color:#f55036;color:#f55036}
+.wb-chip-del svg{width:9px;height:9px}
+@media(pointer:coarse){.wb-chip-del{opacity:1}}
+.wb-add{display:flex;gap:6px;align-items:center}
+.wb-name-inp{width:150px;padding:6px 10px;font-size:12px;border-radius:999px;
+  border:1px solid rgba(245,233,214,.2);background:#1c1720;color:#F5E9D6;font-family:var(--font)}
+.wb-name-inp::placeholder{color:#8a7d6d}
+.wb-name-inp:focus-visible{outline:2px solid #d4773b;outline-offset:2px}
+/* Inline workbook picker on a Repository dashboard card — lifted to z-index:2 (like
+   .recent-pin) so it sits above the full-card .recent-open overlay (z-index:1). */
+.recent-wb-sel{position:relative;z-index:2;display:block;width:100%;margin-top:6px;padding:3px 6px;
+  font-size:10.5px;border-radius:6px;border:1px solid rgba(245,233,214,.18);background:#0a0a0f;
+  color:#c9b9a3;font-family:var(--font)}
+.recent-wb-sel:hover,.recent-wb-sel:focus-visible{border-color:#d4773b;color:#F5E9D6}
+@media(prefers-reduced-motion:reduce){.wb-chip,.wb-chip-del{transition:none}}
 /* m-c: same hamburger-clearance fix as .home-wrap above — keep padding-top:60px. */
-@media(max-width:640px){.repo-wrap{padding:60px 16px 40px}.repo-ds-grid{grid-template-columns:1fr}}
+@media(max-width:640px){.repo-wrap{padding:60px 16px 40px}.repo-ds-grid{grid-template-columns:1fr}.wb-name-inp{width:100%}.wb-add{flex:1 0 100%}}
 
 .spacer{flex:1}
 button{font-family:inherit}

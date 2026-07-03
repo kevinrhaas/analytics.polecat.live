@@ -904,8 +904,17 @@ source library" and "dashboard inventory" ideas into one place.
 > `dataSourceBuilder()`/`deleteDataSource()` the Studio library pane uses — one source of truth, both
 > views always agree. The card's outer element became a plain wrapping `<div>` (a `<button>` can't nest
 > another `<button>`) with a `.repo-ds-open` inner button for the existing open-in-library action.
-> **Z3 follow-ups (not yet done):** folders/organization, the "workbook" concept (a named collection of
-> dashboards) doesn't exist yet — today "dashboards" just means the flat recents list.
+> ✓ **Workbooks — named collections of dashboards, shipped v239 (closes the "workbook" concept item)**:
+> a Workbooks chip strip above the Dashboards grid — create one (name field + "+ Workbook"), filter by
+> clicking a chip ("All"/named workbooks/"Unfiled"), delete via a hover ✕ (un-files its dashboards,
+> never deletes them). Each dashboard card gains an inline Workbook `<select>` to file/move it.
+> Filing is stored on the `studio-recents` entry (`workbookId`), not the dashboard spec, so it never
+> travels into Save/Export. Found + fixed a real bug while building this: `noteRecent()` rebuilt each
+> recents entry from scratch on every autosave tick, which would have silently un-filed a dashboard the
+> moment it was edited again — now preserves `workbookId` across the rebuild. Travels with the existing
+> whole-repository JSON export/import; included in Clear local data. 7 new tests, suite 1134/1134.
+> **Z3 follow-ups (not yet done):** folders/organization for data sources, and workbook rename (today a
+> workbook can be created/deleted but not renamed after the fact).
 
 **Z14 — Browser-native, file-hosted SQL engines: DuckDB-Wasm + SQLite-WASM-HTTP (user-requested 2026-07-02).**
 > ★ **PRIORITY: build this connector track BEFORE the Z4 warehouse providers** (user-requested 2026-07-02).

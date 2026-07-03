@@ -11677,6 +11677,77 @@ function serve() {
       repoImport.before === false && repoImport.bad.ok === false && repoImport.ok === true && repoImport.dsCount === 1 && repoImport.hasDa,
       JSON.stringify(repoImport));
 
+    // ── Z3 follow-up: Workbooks — named collections of dashboards ──
+    console.log("\n• Z3 follow-up: Workbooks");
+    await page.click('#railNav .rail-item[data-sec="repository"]');
+    await page.waitForTimeout(120);
+    const wbDashId = await page.evaluate(function () { var r = window.__studioRecents(); return r.length ? r[0].id : null; });
+    ok("Z3-WB: repository has at least one existing dashboard to test workbook filing", !!wbDashId, String(wbDashId));
+
+    await page.fill("#wbNameInp", "Quarterly Reviews");
+    await page.click("#wbAddBtn");
+    await page.waitForTimeout(100);
+    const wbAfterCreate = await page.evaluate(function () {
+      var chip = Array.from(document.querySelectorAll(".wb-chip")).find(function (b) { return b.textContent.indexOf("Quarterly Reviews") >= 0; });
+      return { count: window.__studioWorkbooks().length, chipVisible: !!chip, chipActive: !!(chip && chip.classList.contains("active")) };
+    });
+    ok("Z3-WB: creating a workbook via the name field + button adds it, shows a filter chip, and auto-selects it",
+      wbAfterCreate.count >= 1 && wbAfterCreate.chipVisible && wbAfterCreate.chipActive, JSON.stringify(wbAfterCreate));
+    const wbId = await page.evaluate(function () { return window.__studioWorkbooks()[0].id; });
+
+    // switch back to "All" so the not-yet-filed dashboard (and its workbook picker) is visible
+    await page.click('.wb-chip[data-wb-filter=""]');
+    await page.waitForTimeout(80);
+    await page.selectOption('.recent-wb-sel[data-recent-wb="' + wbDashId + '"]', wbId);
+    await page.waitForTimeout(80);
+    const wbAfterAssign = await page.evaluate(function (dashId) {
+      var r = window.__studioRecents().find(function (x) { return x.id === dashId; });
+      return { workbookId: r ? r.workbookId : null };
+    }, wbDashId);
+    ok("Z3-WB: assigning a dashboard's inline Workbook select files it into that workbook (persisted)",
+      wbAfterAssign.workbookId === wbId, JSON.stringify(wbAfterAssign));
+
+    // filtering: the workbook's own chip shows the filed dashboard; "Unfiled" hides it
+    await page.click('.wb-chip[data-wb-filter="' + wbId + '"]');
+    await page.waitForTimeout(80);
+    const wbFilteredView = await page.evaluate(function (dashId) {
+      return { cardShown: !!document.querySelector('#repoResults [data-recent="' + dashId + '"]') };
+    }, wbDashId);
+    ok("Z3-WB: filtering by a workbook's chip shows the dashboard filed into it", wbFilteredView.cardShown, JSON.stringify(wbFilteredView));
+    await page.click('.wb-chip[data-wb-filter="__unfiled"]');
+    await page.waitForTimeout(80);
+    const wbUnfiledView = await page.evaluate(function (dashId) {
+      return { cardShown: !!document.querySelector('#repoResults [data-recent="' + dashId + '"]') };
+    }, wbDashId);
+    ok("Z3-WB: the \"Unfiled\" chip excludes a dashboard that's been filed into a workbook",
+      !wbUnfiledView.cardShown, JSON.stringify(wbUnfiledView));
+
+    // deleting a workbook un-files its dashboards instead of deleting them
+    await page.click('.wb-chip[data-wb-filter=""]');
+    await page.waitForTimeout(80);
+    page.once("dialog", (d) => d.accept());
+    await page.click('.wb-chip-del[data-wb-del="' + wbId + '"]');
+    await page.waitForTimeout(100);
+    const wbAfterDelete = await page.evaluate(function (dashId) {
+      var r = window.__studioRecents().find(function (x) { return x.id === dashId; });
+      return { workbooksLeft: window.__studioWorkbooks().length, dashStillExists: !!r, dashUnfiled: !!(r && !r.workbookId) };
+    }, wbDashId);
+    ok("Z3-WB: deleting a workbook un-files its dashboards rather than deleting them",
+      wbAfterDelete.dashStillExists && wbAfterDelete.dashUnfiled, JSON.stringify(wbAfterDelete));
+
+    // workbooks travel with whole-repository export/import
+    const wbExportCheck = await page.evaluate(function () {
+      var wb = window.__studioAddWorkbook("Export Test WB");
+      return { wbId: wb.id, hasHook: typeof window.__studioExportRepository === "function" };
+    });
+    const [wbDl] = await Promise.all([page.waitForEvent("download", { timeout: 45000 }), page.click("#repoExportBtn")]);
+    const wbDlStream = await wbDl.createReadStream();
+    let wbDlText = ""; for await (const chunk of wbDlStream) wbDlText += chunk.toString();
+    let wbDlJson = {}; try { wbDlJson = JSON.parse(wbDlText); } catch (e) {}
+    const wbExported = (wbDlJson.workbooks || []).find((w) => w.id === wbExportCheck.wbId);
+    ok("Z3-WB: whole-repository export includes workbooks", !!wbExported && wbExported.name === "Export Test WB", JSON.stringify(wbDlJson.workbooks || []));
+    await page.evaluate(function (id) { window.__studioDeleteWorkbook(id); }, wbExportCheck.wbId); // cleanup
+
     await page.evaluate(function () { window.__studioShellSetSection("studio"); });
     await page.waitForTimeout(80);
 
