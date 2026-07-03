@@ -2296,6 +2296,22 @@
     // "present findings" — one sentence of context per beat, read aloud or on-screen.
     sec.appendChild(field("Slide caption", textarea(p.slideCaption || "", function (v) { p.slideCaption = v.trim(); }),
       "Narration shown only in Slideshow mode (⋯ More → Slideshow) — tell the story of this panel, one beat at a time"));
+    // N-FUN: first cut of per-step "zoom/highlight" choreography (pan remains open) — a
+    // per-panel toggle that plays a brief zoom+glow entrance when this slide appears in
+    // Slideshow, so the story can draw the eye to the beat that matters. Slideshow-only,
+    // like Slide caption above; the normal preview/export is untouched.
+    (function () {
+      var zoomRow = el("div"); zoomRow.style.cssText = "display:flex;align-items:center;gap:6px";
+      var zoomCb = el("input"); zoomCb.type = "checkbox"; zoomCb.id = "slideZoomCb_" + p.id;
+      zoomCb.checked = !!p.slideZoom;
+      zoomCb.addEventListener("change", function () { p.slideZoom = zoomCb.checked || undefined; });
+      var zoomLbl = el("label"); zoomLbl.htmlFor = zoomCb.id;
+      zoomLbl.className = "check"; zoomLbl.style.cssText = "gap:6px;font-size:12px";
+      zoomLbl.appendChild(zoomCb); zoomLbl.appendChild(document.createTextNode("Emphasize this slide"));
+      zoomRow.appendChild(zoomLbl);
+      sec.appendChild(field("Slide emphasis", zoomRow,
+        "Plays a brief zoom + glow entrance when this panel's slide appears in Slideshow — draws the eye to the moment that matters"));
+    })();
     // Tags: comma-separated labels that enable tag-based filtering/highlighting in the panel list.
     // Stored as p.tags (array of lowercase trimmed strings) so Studio.allTags() can aggregate them.
     (function () {
@@ -5504,6 +5520,10 @@
       nextBtn.disabled = (idx === _ssPanels.length - 1);
       if (p.slideCaption) { capEl.textContent = p.slideCaption; capEl.classList.add("show"); }
       else { capEl.textContent = ""; capEl.classList.remove("show"); }
+      // Slide emphasis: replay the zoom+glow entrance every time this slide is (re)shown,
+      // not just the first time — remove then force reflow before re-adding the class.
+      ifr.classList.remove("ss-zoom"); void ifr.offsetWidth;
+      if (p.slideZoom) ifr.classList.add("ss-zoom");
       // Build a single-panel spec (full-width, no KPIs/filters) via the same
       // pipeline as Panel zoom and the CDF exporter — charts render identically.
       var zp = Studio.clone(p); zp.span = 12;

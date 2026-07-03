@@ -15,6 +15,17 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 272,
+    title: 'N-FUN: slide-emphasis zoom/glow choreography for Slideshow',
+    kind: 'feature',
+    ts: '2026-07-03T16:30:46Z',
+    items: [
+      'Panels gain a new \'Slide emphasis\' toggle (Panel inspector, below Slide caption) -- when on, that panel\'s slide plays a brief zoom + terracotta glow entrance the moment it appears in Slideshow (⋯ More → Slideshow ▶), replaying every time you land back on it.',
+      'First cut of the \'per-step pan/zoom/highlight choreography\' idea left open in the story/scrollytelling track -- covers zoom + highlight together as one subtle animation; per-step pan remains open for a future slice.',
+      'Respects prefers-reduced-motion (the class is still applied for test/state purposes but the animation itself is disabled). 2 new tests, suite 1226/1226.',
+    ],
+  },
+  {
     v: 271,
     title: 'N-AI: seasonality detection in auto-insight narration',
     kind: 'feature',

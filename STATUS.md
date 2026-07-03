@@ -2133,6 +2133,14 @@ gets covered over time:
 > field (shown everywhere); panels without a caption show no bar, so existing dashboards are unaffected.
 > 4 new tests, suite 1215/1215. **Still open:** per-step pan/zoom/highlight choreography (today each
 > slide is the panel at full width, same as before — only the caption is new).
+> ✓ **Zoom/highlight choreography, first cut, shipped v272 (closes the "zoom"/"highlight" half; pan
+> remains open)**: panels gain a **Slide emphasis** toggle (below Slide caption) — when on, that
+> panel's slide plays a brief zoom + terracotta glow entrance the moment it appears in Slideshow,
+> replaying every time you land back on it (`ifr.classList.remove/add("ss-zoom")` + forced reflow in
+> `openSlideshow()`'s `showSlide()`, pure CSS `@keyframes` in `studio.css`, respects
+> `prefers-reduced-motion`). Slideshow-only, like Slide caption — the normal preview/export is
+> untouched. 2 new tests, suite 1226/1226. **Still open:** per-step **pan** (framing/zooming into a
+> specific region of the chart itself, not just the whole panel).
 - **Live "what-if" parameter sliders:** on-canvas sliders that drive derived series / forecasts and animate
   the charts as you drag — analysis as play (pairs with Z7).
 - ✓ **Build-completeness meter + gentle achievements — shipped v196.** A small progress ring + checklist

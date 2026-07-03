@@ -11122,6 +11122,41 @@ function serve() {
     ok("N-FUN: Slideshow shows the caption bar for a slide whose panel has one set", slideCap.slide1Shown, JSON.stringify(slideCap));
     ok("N-FUN: the caption bar updates per-slide as you navigate", slideCap.slide2Shown, JSON.stringify(slideCap));
 
+    // ── N-FUN: per-step "zoom/highlight" choreography, first cut (Slide emphasis) ────
+    console.log("\n• N-FUN: slideshow slide-emphasis (zoom/highlight) choreography");
+    const slideZoom = await page.evaluate(function () {
+      var r = {};
+      window.__studioLoad({
+        id: "ss-zoom-test", name: "ss-zoom-test", title: "Slide zoom test", kpis: [], filters: [],
+        cda: { connections: [], dataAccesses: [] },
+        panels: [
+          { id: "ssz1", title: "Emphasized", span: 1, chart: { type: "kpi", da: "", map: {}, opts: {} }, slideZoom: true },
+          { id: "ssz2", title: "Plain", span: 1, chart: { type: "kpi", da: "", map: {}, opts: {} } },
+          { id: "ssz3", title: "For inspector", span: 1, chart: { type: "kpi", da: "", map: {}, opts: {} } }
+        ]
+      });
+      window.__slideshowOpen();
+      var frame = document.querySelector(".ss-frame");
+      r.slide1Zoomed = frame.classList.contains("ss-zoom");
+      document.querySelector(".ss-next").click();
+      r.slide2NotZoomed = !frame.classList.contains("ss-zoom");
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+
+      // Panel inspector wiring: the "Slide emphasis" checkbox starts unchecked for a
+      // panel with no slideZoom, and checking it sets p.slideZoom truthy.
+      window.__STUDIO_STATE.selection = { kind: "panel", id: "ssz3" };
+      if (window.__studioRenderInspector) window.__studioRenderInspector();
+      var label = Array.prototype.slice.call(document.querySelectorAll("#inspBody label")).filter(function (l) { return /Emphasize this slide/.test(l.textContent); })[0];
+      var cb = label ? label.querySelector('input[type="checkbox"]') : null;
+      r.hasField = !!cb;
+      r.startsUnchecked = !!cb && !cb.checked;
+      if (cb) { cb.checked = true; cb.dispatchEvent(new Event("change", { bubbles: true })); }
+      r.fieldWired = window.__STUDIO_STATE.spec.panels[2].slideZoom === true;
+      return r;
+    });
+    ok("N-FUN: Slideshow plays the zoom/glow entrance only on a slide with Slide emphasis on", slideZoom.slide1Zoomed && slideZoom.slide2NotZoomed, JSON.stringify(slideZoom));
+    ok("N-FUN: panel inspector shows a 'Slide emphasis' checkbox that writes p.slideZoom", slideZoom.hasField && slideZoom.startsUnchecked && slideZoom.fieldWired, JSON.stringify(slideZoom));
+
     const slideCapHidden = await page.evaluate(function () {
       window.__studioLoad({
         id: "ss-cap-test-2", name: "ss-cap-test-2", title: "No captions", kpis: [], filters: [],
