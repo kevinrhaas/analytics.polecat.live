@@ -15,6 +15,17 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 252,
+    title: 'Z8 follow-up: seven more one-off setting hints',
+    kind: 'polish',
+    ts: '2026-07-03T10:29:28Z',
+    items: [
+      'Added inline visual hints (glyph + tooltip) for the last un-hinted one-off inspector options: Line/Radar\'s Area fill and Fill polygons, Line\'s Show moving average, Table\'s Freeze header row, Waterfall\'s Show total bar, Heatmap\'s Show values, and Bump chart\'s Show rank numbers.',
+      'Four new shared glyphs (area-fill, moving-avg, freeze-header, total-bar) in app/icons.js; heatmap and bump reuse the existing tag glyph since they are the same show-the-number-inline concept under a different key name.',
+      '7 new tests, suite 1159/1159.',
+    ],
+  },
+  {
     v: 251,
     title: 'Track L follow-up: finish de-duplicating the SVG-element helper',
     kind: 'polish',

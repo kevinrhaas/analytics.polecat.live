@@ -13049,6 +13049,17 @@ function serve() {
       var lineTrend = lineHints.filter(function (h) { return /regression\/forecast/.test(h.title); });
       var tableHints = hintsFor("table");
       var tableGrandTotal = tableHints.filter(function (h) { return /totalling every numeric column/.test(h.title); });
+      var tableFreeze = tableHints.filter(function (h) { return /pinned in place/.test(h.title); });
+      var lineArea = lineHints.filter(function (h) { return /Fills the shape/.test(h.title); });
+      var radarHints = hintsFor("radar");
+      var radarFill = radarHints.filter(function (h) { return /Fills the shape/.test(h.title); });
+      var lineMA = lineHints.filter(function (h) { return /moving-average line/.test(h.title); });
+      var waterfallHints = hintsFor("waterfall");
+      var waterfallTotal = waterfallHints.filter(function (h) { return /bold final bar/.test(h.title); });
+      var heatmapHints = hintsFor("heatmap");
+      var heatmapVals = heatmapHints.filter(function (h) { return /each cell's number/.test(h.title); });
+      var bumpHints = hintsFor("bump");
+      var bumpRank = bumpHints.filter(function (h) { return /numeric rank/.test(h.title); });
       var result = {
         barsHasSortHint: barsSort.length === 1,
         donutHasLegendHint: donutLegend.length === 1,
@@ -13061,6 +13072,13 @@ function serve() {
         scatterHasTrendHint: scatterTrend.length === 1,
         lineHasTrendHint: lineTrend.length === 1,
         tableHasGrandTotalHint: tableGrandTotal.length === 1,
+        tableHasFreezeHint: tableFreeze.length === 1,
+        lineHasAreaHint: lineArea.length === 1,
+        radarHasFillHint: radarFill.length === 1,
+        lineHasMAHint: lineMA.length === 1,
+        waterfallHasTotalHint: waterfallTotal.length === 1,
+        heatmapHasValsHint: heatmapVals.length === 1,
+        bumpHasRankHint: bumpRank.length === 1,
         hintHasSvg: barsSort.length === 1 && !!barsSort[0].querySelector("svg"),
         hintHasAriaLabel: barsSort.length === 1 && !!barsSort[0].getAttribute("aria-label")
       };
@@ -13082,6 +13100,13 @@ function serve() {
     ok("Scatter's 'Show trend line' toggle carries a trend-glyph hint", optHintUI.scatterHasTrendHint, JSON.stringify(optHintUI));
     ok("Line's 'Show trend / forecast line' toggle carries the same trend-glyph hint", optHintUI.lineHasTrendHint, JSON.stringify(optHintUI));
     ok("Table's 'Show grand total row' toggle carries a sigma-glyph hint", optHintUI.tableHasGrandTotalHint, JSON.stringify(optHintUI));
+    ok("Table's 'Freeze header row' toggle carries a freeze-header-glyph hint", optHintUI.tableHasFreezeHint, JSON.stringify(optHintUI));
+    ok("Line's 'Area fill' toggle carries an area-fill-glyph hint", optHintUI.lineHasAreaHint, JSON.stringify(optHintUI));
+    ok("Radar's 'Fill polygons' toggle carries the same area-fill-glyph hint", optHintUI.radarHasFillHint, JSON.stringify(optHintUI));
+    ok("Line's 'Show moving average' toggle carries a moving-avg-glyph hint", optHintUI.lineHasMAHint, JSON.stringify(optHintUI));
+    ok("Waterfall's 'Show total bar' toggle carries a total-bar-glyph hint", optHintUI.waterfallHasTotalHint, JSON.stringify(optHintUI));
+    ok("Heatmap's 'Show values' toggle carries a tag-glyph hint", optHintUI.heatmapHasValsHint, JSON.stringify(optHintUI));
+    ok("Bump chart's 'Show rank numbers' toggle carries a tag-glyph hint", optHintUI.bumpHasRankHint, JSON.stringify(optHintUI));
 
     // ---- Track N: command palette (⌘K / Ctrl-K) ----
     console.log("\n• Track N: command palette (⌘K)");

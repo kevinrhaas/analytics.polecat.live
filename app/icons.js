@@ -73,7 +73,14 @@
     percent:   '<line x1="19" y1="5" x2="5" y2="19" stroke-linecap="round"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>',
     "rotate-text": '<path d="M5 20L15 4" stroke-linecap="round"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 4a6.5 6.5 0 0 1 5.5 10"/><polyline points="22 9.5 20.5 13.5 17 11.8" stroke-linecap="round" stroke-linejoin="round"/>',
     "trend-up": '<polyline points="3 17 9 11 13 15 21 6" stroke-linecap="round" stroke-linejoin="round"/><polyline points="14 6 21 6 21 13" stroke-linecap="round" stroke-linejoin="round"/>',
-    sigma:     '<path d="M18 4H6l6 8-6 8h12" stroke-linecap="round" stroke-linejoin="round"/>'
+    sigma:     '<path d="M18 4H6l6 8-6 8h12" stroke-linecap="round" stroke-linejoin="round"/>',
+    // Z8 follow-up (one-off options): four more shared glyphs for the remaining
+    // repeated-but-not-yet-hinted option families (area/fill, moving average,
+    // frozen table header, waterfall's bold total bar).
+    "area-fill": '<path d="M2 16c3-8 7-8 10 0s7 8 10 0" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 16c3-8 7-8 10 0s7 8 10 0V21H2z" fill="currentColor" opacity=".3" stroke="none"/>',
+    "moving-avg": '<polyline points="2 18 6 8 9 14 13 6 16 12 20 5 22 10" stroke-linecap="round" stroke-linejoin="round" opacity=".45"/><path d="M2 13c5-5 10-5 20-3" stroke-linecap="round" stroke-linejoin="round"/>',
+    "freeze-header": '<rect x="3" y="4" width="18" height="16" rx="1.5"/><rect x="3.75" y="4.75" width="16.5" height="4.5" fill="currentColor" opacity=".3" stroke="none"/><line x1="3" y1="9" x2="21" y2="9"/>',
+    "total-bar": '<rect x="3" y="14" width="4" height="6" fill="currentColor" opacity=".35" stroke="none"/><rect x="10" y="9" width="4" height="11" fill="currentColor" opacity=".35" stroke="none"/><rect x="17" y="5" width="4" height="15" fill="currentColor" stroke="none"/>'
   };
 
   Studio.icon = function (name, size) {

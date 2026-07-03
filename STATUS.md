@@ -1377,8 +1377,16 @@ self-explanatory. Keep it light (inline SVG / CSS, no image assets or deps). One
 > `showTrend` toggles — the same underlying concept under two different key names, previously
 > unhinted; new `sigma` glyph ("Adds a bold summary row at the bottom, totalling every numeric column
 > over the visible rows.") on Table's `grandTotal` toggle. 2 new icons in `app/icons.js`, 3 new tests,
-> suite 1152/1152. **Z8 follow-ups (still not yet done):** true before/after thumbnails, and any
-> remaining one-off (non-repeated) options that would benefit from their own hint.
+> suite 1152/1152.
+> ✓ **Seven more one-off options hinted, shipped v252**: Line/Radar's `area`/`fill` ("Fills the shape
+> with a soft color instead of drawing only its outline."), Line's `showMA` ("Overlays a smoothed
+> moving-average line…"), Table's `freezeHeader` ("Keeps the header row pinned in place…"), Waterfall's
+> `showTotal` ("Adds a bold final bar showing the running total…"), and two keys that duplicate an
+> already-hinted concept under a different name — Heatmap's `showVals` and Bump's `showRankNumbers` —
+> both reuse the existing `tag` glyph rather than mint a near-duplicate icon. 4 new icons (`area-fill`/
+> `moving-avg`/`freeze-header`/`total-bar`) in `app/icons.js`. 7 new tests, suite 1159/1159. **Z8
+> follow-ups (still not yet done):** true before/after thumbnails, and the remaining un-hinted one-offs
+> — `horizontal` (bars/boxplot), `showBox` (violin), `showRef` (pareto), `showCenter` (areaRange).
 
 **Z9 — Mobile: fix the broken flows + a proper bottom nav (user-requested 2026-06-30).**
 > ⚠️ **ESCALATED — see the ★★★ TOP PRIORITY — MOBILE block at the top of NEXT** (user re-reported 2026-07-02

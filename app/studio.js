@@ -6325,7 +6325,13 @@
     { test: /^showPct$/,                     icon: "percent",   tip: "Shows the figure as a percentage (of the total, or conversion rate) rather than its raw value." },
     { test: /^rotate$/,                      icon: "rotate-text", tip: "Tilts the axis labels diagonally so long category names fit without overlapping." },
     { test: /^(trend|showTrend)$/,           icon: "trend-up",  tip: "Draws a straight regression/forecast line through the data, showing its overall direction." },
-    { test: /^grandTotal$/,                  icon: "sigma",     tip: "Adds a bold summary row at the bottom, totalling every numeric column over the visible rows." }
+    { test: /^grandTotal$/,                  icon: "sigma",     tip: "Adds a bold summary row at the bottom, totalling every numeric column over the visible rows." },
+    { test: /^(area|fill)$/,                 icon: "area-fill", tip: "Fills the shape with a soft color instead of drawing only its outline." },
+    { test: /^showMA$/,                      icon: "moving-avg", tip: "Overlays a smoothed moving-average line to reveal the underlying trend beneath the noisy raw series." },
+    { test: /^freezeHeader$/,                icon: "freeze-header", tip: "Keeps the header row pinned in place at the top while the table body scrolls underneath it." },
+    { test: /^showTotal$/,                   icon: "total-bar", tip: "Adds a bold final bar showing the running total across all the incremental steps." },
+    { test: /^showVals$/,                    icon: "tag",       tip: "Prints each cell's number directly in the grid, not just in the hover tooltip." },
+    { test: /^showRankNumbers$/,             icon: "tag",       tip: "Prints the numeric rank inside every dot instead of leaving the dots blank." }
   ];
   function optHint(key) {
     for (var i = 0; i < OPT_HINTS.length; i++) if (OPT_HINTS[i].test.test(key)) return OPT_HINTS[i];
