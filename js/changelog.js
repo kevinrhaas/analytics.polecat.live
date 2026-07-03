@@ -15,6 +15,17 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 244,
+    title: 'Track L: restored the CI test gate lost in the repo migration',
+    kind: 'fix',
+    ts: '2026-07-03T08:55:26Z',
+    items: [
+      'Found while auditing CI: .github/workflows/deploy.yml deployed to GitHub Pages on every push to main with zero automated verification -- the pre-migration repo had a test job gating publish (see the old STATUS.md v30 entry), but it never carried over to this standalone repo\'s deploy.yml, so a broken push (including from the autonomous loop itself) could have gone live with nothing to catch it.',
+      'Added a test job (installs Playwright globally + Chromium, runs tests/run.js) that deploy now needs -- a failing suite blocks the live deploy again, matching the documented local dev workflow exactly.',
+      'No app code changed; CI-only. Verified the workflow YAML parses correctly; the job itself will run for real on the next push.',
+    ],
+  },
+  {
     v: 243,
     title: 'Installable, offline-capable app shell (N-DIST)',
     kind: 'feature',

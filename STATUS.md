@@ -739,6 +739,8 @@
   instead. 3 new tests, suite 1140/1140.
 - v243: **N-DIST: installable, offline-capable app shell** — see N-DIST entry below. 4 new tests, suite
   1144/1144.
+- v244: **Track L: restored the CI test gate lost in the v60 repo migration** — see Track L findings log
+  below. CI-only, no app code changed; suite unaffected at 1144/1144.
 
 ## NEXT (top = do first)
 
@@ -1832,6 +1834,16 @@ gets covered over time:
   `Studio.defineChart({type, render, opts, thumb, autoPick})` contract so new types are uniform and testable.
 - **Test health** — coverage per feature, flaky/slow checks, and a fast smoke subset for quick loops.
 > **Findings log (append newest on top; keep short):**
+> - **Fixed shipped v244 (test-health lens):** `.github/workflows/deploy.yml` deployed to GitHub Pages on
+>   every push to `main` with **zero automated verification** — the pre-migration repo had a `test` job
+>   gating `publish` (STATUS.md's own v30 entry: "a failing build ... can never deploy to the live site"),
+>   but that gate never carried over when this became a standalone repo (v60): `deploy.yml` was rewritten
+>   from scratch as concurrency-controlled Pages deploy with a single unconditional `deploy` job. A broken
+>   push — including one from this very autonomous loop — could have gone live with nothing to catch it.
+>   Restored a `test` job (installs Playwright globally + Chromium on the runner, runs `tests/run.js` via
+>   the exact documented local command) that `deploy` now `needs`. No app code changed; verified the YAML
+>   parses correctly, but the job itself only proves out for real on the next live push (can't run GitHub
+>   Actions from this sandbox). Suite unaffected, still 1144/1144.
 > - **Fixed shipped v241 (duplication lens):** `app/studio-charts.js`'s `_violin` and `_ridgeline` each
 >   declared their own local `silverman(vals)` + `kde(vals, bw)` — byte-identical Gaussian-KDE math
 >   (ridgeline's own comment even said "same Silverman-bandwidth Gaussian KDE as the violin chart"),
