@@ -1864,6 +1864,19 @@ gets covered over time:
   `Studio.defineChart({type, render, opts, thumb, autoPick})` contract so new types are uniform and testable.
 - **Test health** — coverage per feature, flaky/slow checks, and a fast smoke subset for quick loops.
 > **Findings log (append newest on top; keep short):**
+> - **Fixed shipped v250 (duplication lens):** `app/studio-charts.js`'s module scope already aliases
+>   `var S = PDC.S` (line 10) — the shared SVG-element-with-attrs(+optional text/kids) constructor every
+>   chart renderer is meant to use. Three chart functions (`_marimekko`, `PDC.gantt`, `PDC.divergingBar`)
+>   each locally redeclared their OWN byte-for-byte-equivalent `function S(tag, attrs[, text])`, shadowing
+>   the outer alias for no reason — pure copy-paste boilerplate, confirmed every call site only ever passed
+>   a plain-string 3rd arg (or omitted it), which `PDC.S`'s `kids` param already handles identically to
+>   `textContent =`. Deleted all three local reimplementations; behavior is byte-identical (pure extraction,
+>   no branching logic touched), so no new tests needed — verified 1152/1152 unchanged. **Left for a future
+>   pass** (found but out of scope for one slice — ~39 call sites across 3 functions, a bigger mechanical
+>   rename than a "small, safe" slice should attempt in one go): a near-identical `function mk(tag, attrs)`
+>   (same shape as `S` minus the text/kids param) is separately re-declared, locally, in three OTHER chart
+>   functions around `app/studio-charts.js` lines 3923/4070/4222 — each could likewise call the outer `S`
+>   directly once their `mk(...)` call sites are renamed.
 > - **Fixed shipped v244 (test-health lens):** `.github/workflows/deploy.yml` deployed to GitHub Pages on
 >   every push to `main` with **zero automated verification** — the pre-migration repo had a `test` job
 >   gating `publish` (STATUS.md's own v30 entry: "a failing build ... can never deploy to the live site"),

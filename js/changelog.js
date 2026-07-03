@@ -15,6 +15,16 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 250,
+    title: 'Track L: de-duplicate a shadowed SVG-element helper',
+    kind: 'polish',
+    ts: '2026-07-03T10:02:20Z',
+    items: [
+      'Three chart renderers (Marimekko, Gantt, Diverging bar) each locally re-declared their own copy of the SVG-element-constructor helper, shadowing the identical one already aliased at module scope for the whole file.',
+      'Deleted the three redundant copies; pure extraction with no behavior change. Test suite unchanged at 1152/1152.',
+    ],
+  },
+  {
     v: 249,
     title: 'Two more inline setting hints (Z8 follow-up)',
     kind: 'polish',

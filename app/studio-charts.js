@@ -1702,15 +1702,9 @@
       xCursor += colW + gap;
     });
 
-    // ---- 5. Build SVG
-    function S(tag, attrs, text) {
-      var ns = "http://www.w3.org/2000/svg";
-      var el = document.createElementNS(ns, tag);
-      for (var k in attrs) el.setAttribute(k, attrs[k]);
-      if (text != null) el.textContent = text;
-      return el;
-    }
-
+    // ---- 5. Build SVG (uses the module-level S = PDC.S alias; its 3rd "kids" arg
+    // accepts a plain string, which behaves identically to setting textContent on a
+    // freshly created element with no other children — no local reimplementation needed)
     var svg = S("svg", { width: w, height: h, viewBox: "0 0 " + w + " " + h });
     svg.style.display = "block";
     svg.style.fontFamily = "inherit";
@@ -2298,13 +2292,7 @@
       return LABEL_W + ((v - minV) / range) * (svgW - LABEL_W - PAD_R);
     }
 
-    // ── 3. Build SVG ────────────────────────────────────────────────────────
-    var ns = "http://www.w3.org/2000/svg";
-    function S(tag, attrs) {
-      var el = document.createElementNS(ns, tag);
-      if (attrs) Object.keys(attrs).forEach(function (k) { el.setAttribute(k, attrs[k]); });
-      return el;
-    }
+    // ── 3. Build SVG (S is the module-level S = PDC.S alias — no local reimplementation) ──
     function txt(str, attrs) { var t = S("text", attrs); t.textContent = str; return t; }
 
     var svg = S("svg", {
@@ -2441,11 +2429,7 @@
     var maxAbs = Math.max.apply(null, rows.map(function (r) { return Math.abs(r.value); })) || 1;
     function xLen(v) { return (Math.abs(v) / maxAbs) * HALF_W; }
 
-    function S(tag, a) {
-      var el = document.createElementNS("http://www.w3.org/2000/svg", tag);
-      if (a) Object.keys(a).forEach(function (k) { el.setAttribute(k, a[k]); });
-      return el;
-    }
+    // S is the module-level S = PDC.S alias — no local reimplementation needed
     function T(str, a) { var t = S("text", a); t.textContent = str; return t; }
 
     var svg = S("svg", {
