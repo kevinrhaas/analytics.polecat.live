@@ -1230,6 +1230,15 @@ added, and unified with this header/text-object work.
 > added to Settings export/import and Clear local data. 7 new tests, suite 1036/1036. **Still open under
 > Z6**: full text formatting for the banner (bold/italic/size beyond the existing Title/Subtitle
 > plain-text fields).
+> ✓ **Banner title size + subtitle style shipped v228–v230 (closes the "still open" item above — Z6
+> banner-editing track is now feature-complete)**: a **Title size** picker (Default/Small/Large/Extra
+> large, v228) and a **Subtitle style** picker (Normal/Italic/Bold/Bold italic, v229) join the Dashboard
+> inspector; both travel as `spec.titleSize`/`spec.subtitleStyle`, apply in the live preview and exported
+> Dashboard Framework, and gained their own Settings defaults + Style-preset snapshot slots (v230) so a
+> saved house style covers wording, logo, link, both colors, title size, and subtitle style in one Apply.
+> Title/subtitle wording, logo, link, accent + background color, size, and weight/italics are now all
+> editable — this STATUS entry was out of date (the code shipped, the note here didn't get updated at
+> the time); fixed while auditing the Z-track backlog for open work.
 
 **Z7 — Analytics: forecasting + statistical functions.** Move toward standalone analytic apps: add
 forecasting (moving average, exponential smoothing / Holt-Winters, linear & seasonal trend) and
@@ -2164,6 +2173,12 @@ gets covered over time:
 > `prefers-reduced-motion`). Slideshow-only, like Slide caption — the normal preview/export is
 > untouched. 2 new tests, suite 1226/1226. **Still open:** per-step **pan** (framing/zooming into a
 > specific region of the chart itself, not just the whole panel).
+> ✓ **Per-step pan shipped v275 (closes the "still open" item above — N-FUN Story/scrollytelling
+> track now feature-complete: caption v268, zoom/glow v272, pan v275)**: when Slide emphasis is on, a
+> panel gains **Pan X / Pan Y** sliders (0–100%, default 50/50 = center) that set the emphasis iframe's
+> CSS `transform-origin` — the zoom-in entrance now pushes toward that chosen spot instead of always
+> the panel's dead center, so a spike near an edge can be the actual focus of the push-in. The sliders
+> are hidden until Slide emphasis is checked. 2 new tests, suite 1235/1235.
 - **Live "what-if" parameter sliders:** on-canvas sliders that drive derived series / forecasts and animate
   the charts as you drag — analysis as play (pairs with Z7).
 - ✓ **Build-completeness meter + gentle achievements — shipped v196.** A small progress ring + checklist

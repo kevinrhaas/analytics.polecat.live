@@ -15,6 +15,17 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 275,
+    title: 'N-FUN: per-step pan for the Slideshow zoom (closes the choreography track)',
+    kind: 'feature',
+    ts: '2026-07-03T18:27:05Z',
+    items: [
+      'Panels with Slide emphasis on now get Pan X / Pan Y sliders (Panel inspector, below the Emphasize checkbox) that anchor the zoom entrance toward a specific spot in the chart instead of dead center -- frame a spike near the right edge and the push-in reads as zooming INTO that region, not just the whole panel.',
+      'Implemented as the emphasis iframe\'s CSS transform-origin, set from the panel\'s slideFocusX/slideFocusY (default 50/50 = today\'s centered behavior, so every existing dashboard is unaffected).',
+      'Closes the last open item in the N-FUN Story/scrollytelling track (caption -- v268, zoom/glow -- v272, pan -- this slice). 2 new tests, suite 1235/1235.',
+    ],
+  },
+  {
     v: 274,
     title: 'Track H: ⋯ More menu grouped into labeled sections',
     kind: 'polish',

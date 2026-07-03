@@ -2296,21 +2296,43 @@
     // "present findings" — one sentence of context per beat, read aloud or on-screen.
     sec.appendChild(field("Slide caption", textarea(p.slideCaption || "", function (v) { p.slideCaption = v.trim(); }),
       "Narration shown only in Slideshow mode (⋯ More → Slideshow) — tell the story of this panel, one beat at a time"));
-    // N-FUN: first cut of per-step "zoom/highlight" choreography (pan remains open) — a
-    // per-panel toggle that plays a brief zoom+glow entrance when this slide appears in
-    // Slideshow, so the story can draw the eye to the beat that matters. Slideshow-only,
-    // like Slide caption above; the normal preview/export is untouched.
+    // N-FUN: per-step "zoom/highlight" choreography (v272) — a per-panel toggle that plays
+    // a brief zoom+glow entrance when this slide appears in Slideshow, so the story can draw
+    // the eye to the beat that matters. Slideshow-only, like Slide caption above; the normal
+    // preview/export is untouched.
     (function () {
       var zoomRow = el("div"); zoomRow.style.cssText = "display:flex;align-items:center;gap:6px";
       var zoomCb = el("input"); zoomCb.type = "checkbox"; zoomCb.id = "slideZoomCb_" + p.id;
       zoomCb.checked = !!p.slideZoom;
-      zoomCb.addEventListener("change", function () { p.slideZoom = zoomCb.checked || undefined; });
       var zoomLbl = el("label"); zoomLbl.htmlFor = zoomCb.id;
       zoomLbl.className = "check"; zoomLbl.style.cssText = "gap:6px;font-size:12px";
       zoomLbl.appendChild(zoomCb); zoomLbl.appendChild(document.createTextNode("Emphasize this slide"));
       zoomRow.appendChild(zoomLbl);
       sec.appendChild(field("Slide emphasis", zoomRow,
         "Plays a brief zoom + glow entrance when this panel's slide appears in Slideshow — draws the eye to the moment that matters"));
+      // N-FUN: per-step "pan" (closes the "pan remains open" note from v272) — the zoom's
+      // transform-origin defaults to dead center; these two sliders let it anchor toward a
+      // specific spot in the chart instead, so the entrance reads as pushing IN on that region
+      // (e.g. a spike near the right edge) rather than a generic whole-panel zoom.
+      var focusRow = el("div"); focusRow.style.cssText = "display:flex;align-items:center;gap:10px;margin-top:6px";
+      function focusSlider(labelTxt, val, onInput) {
+        var wrap = el("span"); wrap.style.cssText = "display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted)";
+        var lbl = el("span"); lbl.textContent = labelTxt; wrap.appendChild(lbl);
+        var inp = el("input"); inp.type = "range"; inp.min = "0"; inp.max = "100"; inp.step = "1";
+        inp.value = String(val); inp.style.width = "80px";
+        inp.addEventListener("input", function () { onInput(+inp.value); });
+        wrap.appendChild(inp);
+        return wrap;
+      }
+      focusRow.appendChild(focusSlider("Pan X", p.slideFocusX != null ? p.slideFocusX : 50, function (v) { p.slideFocusX = v; }));
+      focusRow.appendChild(focusSlider("Pan Y", p.slideFocusY != null ? p.slideFocusY : 50, function (v) { p.slideFocusY = v; }));
+      focusRow.style.display = zoomCb.checked ? "flex" : "none";
+      zoomCb.addEventListener("change", function () {
+        p.slideZoom = zoomCb.checked || undefined;
+        focusRow.style.display = zoomCb.checked ? "flex" : "none";
+      });
+      sec.appendChild(field("Slide pan point", focusRow,
+        "Where the emphasis zoom pushes IN toward — drag off-center to frame a specific spike or region of the chart"));
     })();
     // Tags: comma-separated labels that enable tag-based filtering/highlighting in the panel list.
     // Stored as p.tags (array of lowercase trimmed strings) so Studio.allTags() can aggregate them.
@@ -5543,7 +5565,15 @@
       // Slide emphasis: replay the zoom+glow entrance every time this slide is (re)shown,
       // not just the first time — remove then force reflow before re-adding the class.
       ifr.classList.remove("ss-zoom"); void ifr.offsetWidth;
-      if (p.slideZoom) ifr.classList.add("ss-zoom");
+      if (p.slideZoom) {
+        // Pan: anchor the zoom's transform-origin at the panel's chosen focus point (default
+        // dead center) so the entrance pushes IN toward a specific region, not just the whole panel.
+        var fx = p.slideFocusX != null ? p.slideFocusX : 50, fy = p.slideFocusY != null ? p.slideFocusY : 50;
+        ifr.style.transformOrigin = fx + "% " + fy + "%";
+        ifr.classList.add("ss-zoom");
+      } else {
+        ifr.style.transformOrigin = "";
+      }
       // Build a single-panel spec (full-width, no KPIs/filters) via the same
       // pipeline as Panel zoom and the CDF exporter — charts render identically.
       var zp = Studio.clone(p); zp.span = 12;

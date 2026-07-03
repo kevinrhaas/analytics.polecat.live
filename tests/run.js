@@ -11228,6 +11228,50 @@ function serve() {
     ok("N-FUN: Slideshow plays the zoom/glow entrance only on a slide with Slide emphasis on", slideZoom.slide1Zoomed && slideZoom.slide2NotZoomed, JSON.stringify(slideZoom));
     ok("N-FUN: panel inspector shows a 'Slide emphasis' checkbox that writes p.slideZoom", slideZoom.hasField && slideZoom.startsUnchecked && slideZoom.fieldWired, JSON.stringify(slideZoom));
 
+    // ── N-FUN: per-step "pan" — anchor the emphasis zoom at a chosen focus point ─────
+    console.log("\n• N-FUN: slideshow slide-emphasis pan (transform-origin focus point)");
+    const slidePan = await page.evaluate(function () {
+      var r = {};
+      window.__studioLoad({
+        id: "ss-pan-test", name: "ss-pan-test", title: "Slide pan test", kpis: [], filters: [],
+        cda: { connections: [], dataAccesses: [] },
+        panels: [
+          { id: "ssp1", title: "Off-center", span: 1, chart: { type: "kpi", da: "", map: {}, opts: {} }, slideZoom: true, slideFocusX: 80, slideFocusY: 20 },
+          { id: "ssp2", title: "Default center", span: 1, chart: { type: "kpi", da: "", map: {}, opts: {} }, slideZoom: true },
+          { id: "ssp3", title: "For inspector", span: 1, chart: { type: "kpi", da: "", map: {}, opts: {} } }
+        ]
+      });
+      window.__slideshowOpen();
+      var frame = document.querySelector(".ss-frame");
+      r.slide1Origin = frame.style.transformOrigin;
+      document.querySelector(".ss-next").click();
+      r.slide2Origin = frame.style.transformOrigin;
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+
+      // Panel inspector: Pan X/Y sliders are hidden until Slide emphasis is on, and write
+      // p.slideFocusX/slideFocusY once toggled on.
+      window.__STUDIO_STATE.selection = { kind: "panel", id: "ssp3" };
+      if (window.__studioRenderInspector) window.__studioRenderInspector();
+      var panLabel = Array.prototype.slice.call(document.querySelectorAll("#inspBody label")).filter(function (l) { return /Slide pan point/.test(l.textContent); })[0];
+      var panRow = panLabel ? panLabel.closest(".field").querySelector("div") : null;
+      r.hiddenInitially = !!panRow && panRow.style.display === "none";
+      var emphLabel = Array.prototype.slice.call(document.querySelectorAll("#inspBody label")).filter(function (l) { return /Emphasize this slide/.test(l.textContent); })[0];
+      var cb = emphLabel ? emphLabel.querySelector('input[type="checkbox"]') : null;
+      if (cb) { cb.checked = true; cb.dispatchEvent(new Event("change", { bubbles: true })); }
+      r.shownAfterToggle = !!panRow && panRow.style.display === "flex";
+      var sliders = panRow ? panRow.querySelectorAll('input[type="range"]') : [];
+      if (sliders.length === 2) {
+        sliders[0].value = "77"; sliders[0].dispatchEvent(new Event("input", { bubbles: true }));
+        sliders[1].value = "12"; sliders[1].dispatchEvent(new Event("input", { bubbles: true }));
+      }
+      r.wired = window.__STUDIO_STATE.spec.panels[2].slideFocusX === 77 && window.__STUDIO_STATE.spec.panels[2].slideFocusY === 12;
+      return r;
+    });
+    ok("N-FUN: Slideshow anchors the emphasis zoom's transform-origin at the panel's pan point (default center)",
+      slidePan.slide1Origin === "80% 20%" && slidePan.slide2Origin === "50% 50%", JSON.stringify(slidePan));
+    ok("N-FUN: panel inspector's Pan X/Y sliders are hidden until Slide emphasis is on, then write p.slideFocusX/Y",
+      slidePan.hiddenInitially && slidePan.shownAfterToggle && slidePan.wired, JSON.stringify(slidePan));
+
     const slideCapHidden = await page.evaluate(function () {
       window.__studioLoad({
         id: "ss-cap-test-2", name: "ss-cap-test-2", title: "No captions", kpis: [], filters: [],

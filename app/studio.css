@@ -1286,8 +1286,10 @@ body.simple-mode .da-acts{display:none!important}
 /* N-FUN: story-mode caption bar — hidden unless the current slide's panel has one */
 .ss-caption{display:none;flex-shrink:0;padding:14px 22px;background:rgba(255,255,255,.06);border-top:1px solid rgba(255,255,255,.12);color:#f2eee6;font-size:15px;line-height:1.5;text-align:center;max-height:30vh;overflow:auto}
 .ss-caption.show{display:block}
-/* N-FUN: first cut of per-step "zoom/highlight" choreography (pan remains open) — a per-panel
-   "Slide emphasis" toggle plays this once when the slide appears, drawing the eye to it. */
+/* N-FUN: per-step "zoom/highlight + pan" choreography — a per-panel "Slide emphasis" toggle
+   plays this once when the slide appears, drawing the eye to it. The scale anchors at the
+   iframe's transform-origin (set inline from the panel's Pan X/Y sliders, default center),
+   so an off-center pick reads as pushing IN toward that region rather than a generic zoom. */
 .ss-frame.ss-zoom{animation:ssZoomIn .7s cubic-bezier(.22,.61,.36,1)}
 @keyframes ssZoomIn{from{transform:scale(.94);opacity:.7;box-shadow:0 0 0 6px rgba(212,119,59,.55)}to{transform:scale(1);opacity:1;box-shadow:0 0 0 0 rgba(212,119,59,0)}}
 @media(prefers-reduced-motion:reduce){.ss-frame.ss-zoom{animation:none}}
