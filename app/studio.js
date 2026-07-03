@@ -4329,6 +4329,23 @@
       '<div class="recent-thumb">' + thumb + '</div>' +
       '<div class="recent-meta"><b>' + esc(title) + '</b><small>' + timeAgo(r.ts) + ' · ' + meta + '</small>' + wbSelect + '</div></div>';
   }
+  // Z2 follow-up: "instructions/how-tos/tips beyond the existing tour link" — a small,
+  // dismissable-by-clicking-through tip card on Home surfacing one bite-sized power-user
+  // tip at a time (real shipped features, not aspirational). Starts on a day-of-month-based
+  // tip so it doesn't always show the same one; the ➜ arrow advances (and wraps) on click.
+  var HOME_TIPS = [
+    "Press ⌘K / Ctrl+K to open the command palette and jump anywhere fast.",
+    "Pin a dashboard from its card (★) so it's never evicted from Recents.",
+    "Query a hosted CSV or Parquet file straight from the browser with the DuckDB (remote file) source — no backend needed.",
+    "File dashboards into Workbooks from the Repository page to keep big projects organized.",
+    "Flip on Simple mode in Settings for a friendlier, decluttered builder.",
+    "See a small ⓘ glyph beside a setting? Hover it for a plain-English explanation of what it does.",
+    "Switch between Classic and Polecat color themes in Settings → Appearance.",
+    "Add a trend or forecast line to any Line/Scatter chart — pick linear or Holt exponential smoothing."
+  ];
+  var _homeTipIdx = new Date().getDate() % HOME_TIPS.length;
+  window.__studioHomeTipIdx = function () { return _homeTipIdx; }; // test hook
+  window.__studioHomeTipsCount = function () { return HOME_TIPS.length; }; // test hook
   function renderHome() {
     var sec = $("#secHome"); if (!sec) return;
     var list = loadRecents(), pins = loadPins();
@@ -4345,6 +4362,10 @@
         return '<button class="home-card" data-home="' + c.act + '"><span class="home-card-ic" data-ic="' + c.ic + '"></span>' +
           '<div><b>' + esc(c.t) + '</b><small>' + esc(c.d) + '</small></div></button>';
       }).join("") + '</div>' +
+      '<div class="home-tip"><span class="home-tip-ic" data-ic="info"></span>' +
+      '<p class="home-tip-txt">' + esc(HOME_TIPS[_homeTipIdx]) + '</p>' +
+      '<button type="button" class="home-tip-next" title="Next tip" aria-label="Next tip">' +
+      '<span data-ic="chevron-right"></span></button></div>' +
       (pinnedList.length ? '<h2 class="home-sub">Pinned</h2><div class="home-recents">' +
         pinnedList.map(function (r) { return recentCardHtml(r, true); }).join("") + '</div>' : "") +
       (unpinnedList.length ? '<h2 class="home-sub">Recent dashboards</h2><div class="home-recents">' +
@@ -4352,7 +4373,7 @@
         : (pinnedList.length ? "" : '<div class="home-empty-hint">No recent dashboards yet — start one above and it will show up here.</div>'));
     sec.classList.add("has-content");
     sec.innerHTML = html;
-    $$(".home-card-ic[data-ic]", sec).forEach(function (span) { span.appendChild(Studio.icon(span.getAttribute("data-ic"), 18)); });
+    $$("[data-ic]", sec).forEach(function (span) { span.appendChild(Studio.icon(span.getAttribute("data-ic"), span.classList.contains("home-card-ic") ? 18 : 14)); });
     $$(".home-card", sec).forEach(function (btn) {
       btn.onclick = function () {
         var act = btn.getAttribute("data-home");
@@ -4362,6 +4383,8 @@
         else if (act === "tour") { setTimeout(function () { if (window.StudioTutorial) StudioTutorial.open(); }, 60); }
       };
     });
+    var tipNext = $(".home-tip-next", sec);
+    if (tipNext) tipNext.onclick = function () { _homeTipIdx = (_homeTipIdx + 1) % HOME_TIPS.length; renderHome(); };
     $$(".recent-open", sec).forEach(function (btn) { btn.onclick = function () { openRecent(btn.getAttribute("data-recent")); }; });
     $$(".recent-pin", sec).forEach(function (btn) {
       btn.appendChild(Studio.icon("star", 14));

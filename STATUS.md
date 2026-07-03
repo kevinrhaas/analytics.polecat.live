@@ -901,8 +901,12 @@ reopens the exact dashboard (full spec captured on the auto-save debounce path, 
 > ✓ **More lively hover shipped v174**: recent-dashboard cards lift further + gain a warm glow + their
 > thumbnail zooms slightly on hover; quick-create cards get the same glow + an icon bump. Reduced-motion
 > respected. Small CSS-only polish — no new state.
-**Z2 follow-ups (not yet done):** folders/organization, branding area, instructions/how-tos/tips beyond
-the existing tour link.
+**Z2 follow-ups (not yet done):** folders/organization, branding area.
+> ✓ **Rotating tips card shipped v255 (closes "instructions/how-tos/tips beyond the existing tour
+> link")**: a small card between the quick-create cards and Recents shows one real power-user tip
+> (command palette, pinning, DuckDB file sources, Workbooks, Simple mode, inline setting hints, color
+> themes, forecasting) with a → arrow that cycles through the list; starts on a day-of-month-based
+> index so repeat visits don't always see the same tip. 2 new tests, suite 1167/1167.
 
 **Z3 — Repository (Data Sources + Workbooks).** One "repository" holding **data-source definitions** and
 **workbook definitions** (a workbook = a named collection of HTML dashboards). Browse/search/organize into

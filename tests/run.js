@@ -11369,6 +11369,21 @@ function serve() {
     });
     ok("Z2: Home shows 3 quick-create cards with SVG icons", z2Quick.count === 3 && z2Quick.icons === 3 && z2Quick.acts === "blank,examples,tour", JSON.stringify(z2Quick));
 
+    // Z2 follow-up (instructions/how-tos/tips): a small tip card cycles through real
+    // power-user tips via a Next arrow, wrapping back to the start.
+    const z2Tip = await page.evaluate(function () {
+      var before = document.querySelector("#secHome .home-tip-txt").textContent;
+      var idxBefore = window.__studioHomeTipIdx();
+      var hasIcon = !!document.querySelector("#secHome .home-tip-ic svg");
+      document.querySelector("#secHome .home-tip-next").click();
+      var after = document.querySelector("#secHome .home-tip-txt").textContent;
+      var idxAfter = window.__studioHomeTipIdx();
+      var tipCount = window.__studioHomeTipsCount();
+      return { before: before, after: after, changed: before !== after, hasIcon: hasIcon, idxBefore: idxBefore, idxAfter: idxAfter, tipCount: tipCount };
+    });
+    ok("Z2: Home tip card shows a real tip with an icon", z2Tip.before.length > 10 && z2Tip.hasIcon, JSON.stringify(z2Tip));
+    ok("Z2: clicking the tip's Next arrow advances to a different tip", z2Tip.changed && z2Tip.idxAfter === (z2Tip.idxBefore + 1) % z2Tip.tipCount, JSON.stringify(z2Tip));
+
     // Z2-2: Home surfaces recents captured from the many dashboard loads/edits earlier in this run,
     // each with a live-rendered SVG thumbnail (Studio.makeThumbnail) and matching localStorage.
     const z2Recents = await page.evaluate(function () {

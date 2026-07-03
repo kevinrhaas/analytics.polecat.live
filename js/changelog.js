@@ -15,6 +15,17 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 255,
+    title: 'Z2 follow-up: a rotating tips card on Home',
+    kind: 'feature',
+    ts: '2026-07-03T10:56:15Z',
+    items: [
+      'Home now shows a small tip card between the quick-create cards and your recents -- one real power-user tip at a time (command palette, pinning, DuckDB file sources, Workbooks, Simple mode, setting hints, color themes, forecasting), with a Next arrow that cycles through them.',
+      'Starts on a day-of-month-based tip so it is not always the same one on repeat visits.',
+      '2 new tests, suite 1167/1167.',
+    ],
+  },
+  {
     v: 254,
     title: 'Z3 follow-up: filter Repository data sources by Group',
     kind: 'feature',

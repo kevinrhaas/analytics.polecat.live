@@ -171,6 +171,13 @@ html[data-app-theme='classic'] #mobileNavBtn{background:#0f1c33;border-color:rgb
 .home-card:hover .home-card-ic{transform:scale(1.1)}
 .home-card b{display:block;font-size:13px}
 .home-card small{display:block;font-size:11px;color:#c9b9a3;margin-top:2px;font-weight:400}
+.home-tip{display:flex;align-items:center;gap:10px;background:#1c1720;border:1px solid rgba(245,233,214,.12);
+  border-radius:12px;padding:12px 14px;margin-bottom:34px;color:#c9b9a3;font-size:12.5px}
+.home-tip-ic{flex:0 0 auto;color:#d4773b;display:flex}
+.home-tip-txt{flex:1;margin:0;line-height:1.5}
+.home-tip-next{flex:0 0 auto;width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;
+  background:transparent;border:1px solid rgba(245,233,214,.18);color:#c9b9a3;cursor:pointer;transition:border-color .12s ease,color .12s ease}
+.home-tip-next:hover,.home-tip-next:focus-visible{border-color:#d4773b;color:#F5E9D6}
 .home-sub{font-size:13.5px;font-weight:700;color:#F5E9D6;margin:0 0 14px;text-transform:uppercase;letter-spacing:.03em}
 .home-recents+.home-sub{margin-top:28px} /* gap before "Recent dashboards" when a "Pinned" grid precedes it */
 .home-recents{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px}
@@ -196,7 +203,7 @@ html[data-app-theme='classic'] #mobileNavBtn{background:#0f1c33;border-color:rgb
 .recent-meta b{display:block;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .recent-meta small{display:block;font-size:10.5px;color:#c9b9a3;margin-top:3px;font-weight:400}
 .home-empty-hint{font-size:12.5px;color:#c9b9a3}
-@media(prefers-reduced-motion:reduce){.home-card,.recent-card,.recent-pin,.home-card-ic,.recent-thumb svg{transition:none}}
+@media(prefers-reduced-motion:reduce){.home-card,.recent-card,.recent-pin,.home-card-ic,.recent-thumb svg,.home-tip-next{transition:none}}
 /* m-c: keep the 60px top clearance the hamburger needs (set for ≤900px above) — this rule
    used to say `padding:28px 16px 40px`, resetting padding-top back down to 28px and letting
    the fixed hamburger cover the "Home" heading on phones (same equal-specificity/later-wins
