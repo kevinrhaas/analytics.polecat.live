@@ -4113,7 +4113,8 @@
     "studio-theme", "studio-app-theme", "studio-simple-mode", "studio-connections", "studio-active-conn",
     "studio-lw", "studio-rw", "studio-collapse-library", "studio-collapse-inspector",
     "studio-insp-collapsed", "studio-shell-section", "studio-shell-expanded", "studio-branding",
-    "studio-default-jndi", "studio-default-subtitle", "studio-default-accent", "studio-default-logo", "studio-default-headerbg", "studio-style-presets"
+    "studio-default-jndi", "studio-default-subtitle", "studio-default-accent", "studio-default-logo", "studio-default-headerbg",
+    "studio-default-titlesize", "studio-default-subtitlestyle", "studio-style-presets"
   ];
   // Z5 follow-up: data-source defaults. Every new data source (dataSourceBuilder with no
   // `existing`) used to fall back to a hardcoded "PDC-BIDB-EXT" JNDI pool name; most teams
@@ -4147,6 +4148,18 @@
     return v || "";
   }
   function setDefaultHeaderBg(v) { try { localStorage.setItem("studio-default-headerbg", v || ""); } catch (e) {} }
+  // Z6 follow-up: default title size + subtitle style — same seeding pattern, for the
+  // per-dashboard "Title size"/"Subtitle style" fields added after the preset collection shipped.
+  function defaultTitleSize() {
+    var v; try { v = localStorage.getItem("studio-default-titlesize"); } catch (e) {}
+    return v || "";
+  }
+  function setDefaultTitleSize(v) { try { localStorage.setItem("studio-default-titlesize", v || ""); } catch (e) {} }
+  function defaultSubtitleStyle() {
+    var v; try { v = localStorage.getItem("studio-default-subtitlestyle"); } catch (e) {}
+    return v || "";
+  }
+  function setDefaultSubtitleStyle(v) { try { localStorage.setItem("studio-default-subtitlestyle", v || ""); } catch (e) {} }
   // Z6 follow-up: default header logo — the last "still open" item under the style-preset
   // collection ask. Same data-URL-in-localStorage approach as per-dashboard headerLogo/app
   // Branding, just seeded onto brand-new blank dashboards like subtitle/accent already are.
@@ -4165,7 +4178,11 @@
   function saveStylePresetList(list) { try { localStorage.setItem("studio-style-presets", JSON.stringify(list)); } catch (e) {} }
   function addStylePreset(name) {
     var list = stylePresets();
-    list.push({ id: "sp" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name: name, subtitle: defaultSubtitle(), accentColor: defaultAccentColor(), logo: defaultLogo(), headerBg: defaultHeaderBg() });
+    list.push({
+      id: "sp" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name: name,
+      subtitle: defaultSubtitle(), accentColor: defaultAccentColor(), logo: defaultLogo(), headerBg: defaultHeaderBg(),
+      titleSize: defaultTitleSize(), subtitleStyle: defaultSubtitleStyle()
+    });
     saveStylePresetList(list);
     return list;
   }
@@ -4174,6 +4191,7 @@
     var p = stylePresets().filter(function (x) { return x.id === id; })[0];
     if (!p) return false;
     setDefaultSubtitle(p.subtitle || ""); setDefaultAccentColor(p.accentColor || ""); setDefaultLogo(p.logo || ""); setDefaultHeaderBg(p.headerBg || "");
+    setDefaultTitleSize(p.titleSize || ""); setDefaultSubtitleStyle(p.subtitleStyle || "");
     return true;
   }
   window.__studioStylePresets = stylePresets; // test hook
@@ -4182,12 +4200,16 @@
     var acc = defaultAccentColor(); if (acc) spec.themeColor = acc;
     var logo = defaultLogo(); if (logo && !spec.headerLogo) spec.headerLogo = logo;
     var hbg = defaultHeaderBg(); if (hbg && !spec.headerBg) spec.headerBg = hbg;
+    var tsz = defaultTitleSize(); if (tsz && !spec.titleSize) spec.titleSize = tsz;
+    var sst = defaultSubtitleStyle(); if (sst && !spec.subtitleStyle) spec.subtitleStyle = sst;
     return spec;
   }
   window.__studioDefaultSubtitle = defaultSubtitle; // test hooks
   window.__studioDefaultAccentColor = defaultAccentColor;
   window.__studioDefaultLogo = defaultLogo;
   window.__studioDefaultHeaderBg = defaultHeaderBg;
+  window.__studioDefaultTitleSize = defaultTitleSize;
+  window.__studioDefaultSubtitleStyle = defaultSubtitleStyle;
   function exportSettingsFile() {
     var out = { _type: "studio-settings", _v: 1 };
     SETTINGS_DATA_KEYS.forEach(function (k) {
@@ -4304,6 +4326,16 @@
             '<input type="color" id="setDefaultHeaderBgCustom" title="Default header background color" value="' + esc(defaultHeaderBg() || "#102445") + '"/>' +
             (defaultHeaderBg() ? '<button type="button" class="btn" id="setDefaultHeaderBgClearBtn">Clear</button>' : '') +
           '</div></div>' +
+        '<div class="set-row"><span class="set-row-ic" data-ic="layers"></span>' +
+          '<div class="set-row-txt"><b>Default title size</b><small>Seeds every new blank dashboard\'s Title size field (per-dashboard editable there).</small></div>' +
+          '<select id="setDefaultTitleSizeSel" class="set-sel">' +
+            Studio.TITLE_SIZES.map(function (p) { return '<option value="' + esc(p[0]) + '"' + (defaultTitleSize() === p[0] ? " selected" : "") + '>' + esc(p[1]) + '</option>'; }).join("") +
+          '</select></div>' +
+        '<div class="set-row"><span class="set-row-ic" data-ic="layers"></span>' +
+          '<div class="set-row-txt"><b>Default subtitle style</b><small>Seeds every new blank dashboard\'s Subtitle style field (per-dashboard editable there).</small></div>' +
+          '<select id="setDefaultSubtitleStyleSel" class="set-sel">' +
+            Studio.SUBTITLE_STYLES.map(function (p) { return '<option value="' + esc(p[0]) + '"' + (defaultSubtitleStyle() === p[0] ? " selected" : "") + '>' + esc(p[1]) + '</option>'; }).join("") +
+          '</select></div>' +
         '<div class="set-row set-row-col"><span class="set-row-ic" data-ic="star"></span>' +
           '<div class="set-row-txt"><b>Style presets</b><small>Save the fields above as a named preset, then switch your team\'s active default with one click — handy for more than one house style (e.g. per client).</small></div>' +
           '<div class="sp-list" id="spList">' +
@@ -4362,6 +4394,10 @@
     if (defHeaderBgCustom) defHeaderBgCustom.oninput = function () { setDefaultHeaderBg(defHeaderBgCustom.value); };
     if (defHeaderBgCustom) defHeaderBgCustom.onchange = function () { renderSettings(); toast("Default header background color saved"); };
     if (defHeaderBgClear) defHeaderBgClear.onclick = function () { setDefaultHeaderBg(""); renderSettings(); };
+    var defTitleSizeSel = $("#setDefaultTitleSizeSel", sec);
+    if (defTitleSizeSel) defTitleSizeSel.onchange = function () { setDefaultTitleSize(defTitleSizeSel.value); toast("Default title size saved"); };
+    var defSubtitleStyleSel = $("#setDefaultSubtitleStyleSel", sec);
+    if (defSubtitleStyleSel) defSubtitleStyleSel.onchange = function () { setDefaultSubtitleStyle(defSubtitleStyleSel.value); toast("Default subtitle style saved"); };
     var spNameInp = $("#spNameInp", sec), spSaveBtn = $("#spSaveBtn", sec);
     if (spSaveBtn) spSaveBtn.onclick = function () {
       var name = (spNameInp.value || "").trim(); if (!name) { spNameInp.focus(); return; }
@@ -5101,7 +5137,8 @@
         "studio-connections", "studio-active-conn", "studio-mob-tab", "studio-simple-mode",
         "studio-insp-collapsed", "studio-recents", "studio-pins", "studio-branding",
         "studio-shell-section", "studio-shell-expanded",
-        "studio-default-jndi", "studio-default-subtitle", "studio-default-accent", "studio-default-logo", "studio-default-headerbg", "studio-style-presets",
+        "studio-default-jndi", "studio-default-subtitle", "studio-default-accent", "studio-default-logo", "studio-default-headerbg",
+        "studio-default-titlesize", "studio-default-subtitlestyle", "studio-style-presets",
         "studio-cmdk-usage", "studio-first-export-done", "studio-export-count"
       ];
       var msg = "Clear all locally-stored Studio data?\n\nThis will remove:\n" +

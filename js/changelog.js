@@ -15,6 +15,16 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 230,
+    title: 'Default title size + subtitle style, plus preset parity',
+    kind: 'polish',
+    ts: '2026-07-03T02:56:30Z',
+    items: [
+      'Settings > Dashboard defaults gains Default title size and Default subtitle style pickers, seeding every brand-new blank dashboard the same way the existing subtitle/accent/logo/header background defaults already do.',
+      'Style presets now snapshot both, so a saved house style covers every banner field -- text and color alike -- in one Apply.',
+    ],
+  },
+  {
     v: 229,
     title: 'Subtitle style (bold / italic)',
     kind: 'feature',

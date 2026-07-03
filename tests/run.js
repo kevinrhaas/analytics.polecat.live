@@ -11580,9 +11580,62 @@ function serve() {
     const defHeaderBgInKeys = await page.evaluate(function () { return window.__studioImportSettingsKeys.indexOf("studio-default-headerbg") >= 0; });
     ok("Z6: default header background color is included in Settings export/import keys", defHeaderBgInKeys, String(defHeaderBgInKeys));
 
+    // ── Z6 follow-up: default title size + subtitle style ──
+    console.log("\n• Z6 follow-up: default title size + subtitle style");
+    await page.selectOption("#setDefaultTitleSizeSel", "lg");
+    await page.selectOption("#setDefaultSubtitleStyleSel", "italic");
+    await page.waitForTimeout(80);
+    const defTextStyleSaved = await page.evaluate(function () {
+      return { titleSize: window.__studioDefaultTitleSize(), subtitleStyle: window.__studioDefaultSubtitleStyle() };
+    });
+    ok("Z6: setting default title size + subtitle style persists both",
+      defTextStyleSaved.titleSize === "lg" && defTextStyleSaved.subtitleStyle === "italic", JSON.stringify(defTextStyleSaved));
+
+    await page.click('#railNav .rail-item[data-sec="studio"]'); await page.waitForTimeout(80);
+    await page.click("#btnNew"); await page.waitForTimeout(80);
+    await page.click('#menuNew button[data-new="blank"]'); await page.waitForTimeout(300);
+    const blankPicksUpTextStyle = await page.evaluate(function () {
+      var sp = window.__STUDIO_STATE.spec;
+      return { titleSize: sp.titleSize, subtitleStyle: sp.subtitleStyle };
+    });
+    ok("Z6: a brand-new blank dashboard picks up the Settings default title size + subtitle style",
+      blankPicksUpTextStyle.titleSize === "lg" && blankPicksUpTextStyle.subtitleStyle === "italic", JSON.stringify(blankPicksUpTextStyle));
+
+    await page.click('#railNav .rail-item[data-sec="settings"]'); await page.waitForTimeout(120);
+    await page.fill("#spNameInp", "Acme");
+    await page.click("#spSaveBtn");
+    await page.waitForTimeout(80);
+    const spTextStyleSaved = await page.evaluate(function () {
+      var list = window.__studioStylePresets();
+      return { titleSize: list[0] && list[0].titleSize, subtitleStyle: list[0] && list[0].subtitleStyle };
+    });
+    ok("Z6: saving a preset captures the default title size + subtitle style",
+      spTextStyleSaved.titleSize === "lg" && spTextStyleSaved.subtitleStyle === "italic", JSON.stringify(spTextStyleSaved));
+
+    await page.selectOption("#setDefaultTitleSizeSel", "");
+    await page.selectOption("#setDefaultSubtitleStyleSel", "");
+    await page.waitForTimeout(80);
+    await page.click(".sp-apply");
+    await page.waitForTimeout(80);
+    const defTextStyleApplied = await page.evaluate(function () {
+      return { titleSize: window.__studioDefaultTitleSize(), subtitleStyle: window.__studioDefaultSubtitleStyle() };
+    });
+    ok("Z6: Apply on a saved preset restores its title size + subtitle style as the active default",
+      defTextStyleApplied.titleSize === "lg" && defTextStyleApplied.subtitleStyle === "italic", JSON.stringify(defTextStyleApplied));
+
+    await page.click(".sp-del");
+    await page.waitForTimeout(80);
+
+    const defTextStyleInKeys = await page.evaluate(function () {
+      var ks = window.__studioImportSettingsKeys;
+      return ks.indexOf("studio-default-titlesize") >= 0 && ks.indexOf("studio-default-subtitlestyle") >= 0;
+    });
+    ok("Z6: default title size + subtitle style are included in Settings export/import keys", defTextStyleInKeys, String(defTextStyleInKeys));
+
     await page.evaluate(function () {
       localStorage.removeItem("studio-default-subtitle"); localStorage.removeItem("studio-default-accent");
       localStorage.removeItem("studio-default-logo"); localStorage.removeItem("studio-default-headerbg");
+      localStorage.removeItem("studio-default-titlesize"); localStorage.removeItem("studio-default-subtitlestyle");
       localStorage.removeItem("studio-style-presets");
       window.__studioRenderSettings();
     }); // restore defaults for later tests

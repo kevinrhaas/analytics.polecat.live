@@ -1352,6 +1352,10 @@ in a new tab — no longer buried solely in ⋯ More (which still has its own en
 > pattern as titleSize/headerBg. 4 new tests, suite 1046/1046. **Z6 track (banner/header editor + naming
 > model) is now feature-complete**: title/subtitle/naming, logo, link, accent + background color + title
 > size + subtitle style, and a named style-preset collection covering all of it.
+> ✓ **Default title size + subtitle style shipped v230 (Settings/preset parity follow-up)**: the two
+> newest per-dashboard fields (titleSize/subtitleStyle, v228/v229) now have Settings defaults + style-preset
+> snapshotting too, matching subtitle/accent/logo/headerBg — a house style saved as a preset now covers
+> every banner field that exists. 5 new tests, suite 1051/1051.
 
 **Z12 — Branding & app identity: de-dup the logo, favicon, Settings option (user-requested; revised 2026-06-30).**
 Design direction (best practice — the user wants it clean, not a redundant single letter):
