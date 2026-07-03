@@ -15,6 +15,17 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 268,
+    title: 'N-FUN: slideshow story-mode captions',
+    kind: 'feature',
+    ts: '2026-07-03T15:00:52Z',
+    items: [
+      'A new \'Slide caption\' field on any panel (below Note in the inspector) adds narration shown ONLY in Slideshow mode -- a caption bar beneath the chart carries one beat of the story per slide.',
+      'Separate from the always-visible Note field: Note shows everywhere, Slide caption is presentation-only. Panels without one show no caption bar, so existing dashboards look unchanged.',
+      'First cut of the N-FUN \'story / scrollytelling mode\' backlog idea, built on the existing Slideshow overlay. 4 new tests, suite 1215/1215.',
+    ],
+  },
+  {
     v: 267,
     title: 'N-DEV: live JSON spec editor',
     kind: 'feature',

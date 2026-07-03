@@ -2106,6 +2106,13 @@ gets covered over time:
 > suite 968/968.
 - **Story / scrollytelling mode:** author an ordered, annotated narrative through a dashboard (extends
   Slideshow) — each step pans/zooms/highlights and shows a caption. Present findings, not just charts.
+> ✓ **First cut shipped v268 (closes the "caption" half; pan/zoom/highlight-per-step remains open for a
+> future slice).** Panels gain an optional **Slide caption** field (panel inspector, below Note) —
+> narration shown ONLY inside the existing Slideshow overlay (⋯ More → Slideshow ▶), a caption bar
+> beneath the chart that updates per-slide as you navigate. Distinct from the always-visible **Note**
+> field (shown everywhere); panels without a caption show no bar, so existing dashboards are unaffected.
+> 4 new tests, suite 1215/1215. **Still open:** per-step pan/zoom/highlight choreography (today each
+> slide is the panel at full width, same as before — only the caption is new).
 - **Live "what-if" parameter sliders:** on-canvas sliders that drive derived series / forecasts and animate
   the charts as you drag — analysis as play (pairs with Z7).
 - ✓ **Build-completeness meter + gentle achievements — shipped v196.** A small progress ring + checklist

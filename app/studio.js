@@ -2290,6 +2290,12 @@
     sec.appendChild(field("Info tooltip", textarea(p.info, function (v) { p.info = v; refreshPreview(); })));
     sec.appendChild(field("Note (visible)", input(p.note || "", function (v) { p.note = v.trim(); refreshPreview(); }),
       "Short annotation shown below the panel title in the preview and exported CDF — stakeholder context at a glance"));
+    // N-FUN: a first cut of "story / scrollytelling mode" — an optional narrative line
+    // shown ONLY in Slideshow (never in the normal preview/export), distinct from the
+    // always-visible panel Note above. Turns Slideshow from "cycle through charts" into
+    // "present findings" — one sentence of context per beat, read aloud or on-screen.
+    sec.appendChild(field("Slide caption", textarea(p.slideCaption || "", function (v) { p.slideCaption = v.trim(); }),
+      "Narration shown only in Slideshow mode (⋯ More → Slideshow) — tell the story of this panel, one beat at a time"));
     // Tags: comma-separated labels that enable tag-based filtering/highlighting in the panel list.
     // Stored as p.tags (array of lowercase trimmed strings) so Studio.allTags() can aggregate them.
     (function () {
@@ -5475,7 +5481,10 @@
     hdr.appendChild(prevBtn); hdr.appendChild(titleEl); hdr.appendChild(counter); hdr.appendChild(nextBtn); hdr.appendChild(closeBtn);
 
     var ifr = document.createElement("iframe"); ifr.className = "ss-frame"; ifr.title = "Slideshow";
-    ov.appendChild(hdr); ov.appendChild(ifr); document.body.appendChild(ov);
+    // N-FUN: story-mode caption bar — only shown for slides whose panel has a Slide
+    // caption set; a plain narrative strip pinned above the Exit/nav footer area.
+    var capEl = document.createElement("div"); capEl.className = "ss-caption"; capEl.id = "ssCaption";
+    ov.appendChild(hdr); ov.appendChild(ifr); ov.appendChild(capEl); document.body.appendChild(ov);
     _ssOverlay = ov;
     window.__slideshowActive = true;
 
@@ -5493,6 +5502,8 @@
       counter.textContent = (idx + 1) + " / " + _ssPanels.length;
       prevBtn.disabled = (idx === 0);
       nextBtn.disabled = (idx === _ssPanels.length - 1);
+      if (p.slideCaption) { capEl.textContent = p.slideCaption; capEl.classList.add("show"); }
+      else { capEl.textContent = ""; capEl.classList.remove("show"); }
       // Build a single-panel spec (full-width, no KPIs/filters) via the same
       // pipeline as Panel zoom and the CDF exporter — charts render identically.
       var zp = Studio.clone(p); zp.span = 12;

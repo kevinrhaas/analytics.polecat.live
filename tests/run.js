@@ -11063,6 +11063,55 @@ function serve() {
     });
     ok("H-track: Escape key closes the slideshow overlay", ssClosed.ok, JSON.stringify(ssClosed));
 
+    // ── N-FUN: story-mode slide captions (first cut of "scrollytelling") ─────
+    console.log("\n• N-FUN: slideshow story-mode captions");
+    const slideCap = await page.evaluate(function () {
+      var r = {};
+      window.__studioLoad({
+        id: "ss-cap-test", name: "ss-cap-test", title: "Slide caption test", kpis: [], filters: [],
+        cda: { connections: [], dataAccesses: [] },
+        panels: [
+          { id: "ssp1", title: "With caption", span: 1, chart: { type: "kpi", da: "", map: {}, opts: {} }, slideCaption: "This is the opening beat of the story." },
+          { id: "ssp2", title: "No caption", span: 1, chart: { type: "kpi", da: "", map: {}, opts: {} } }
+        ]
+      });
+      // Panel inspector wiring: selecting the captioned panel shows the field pre-filled;
+      // editing it (a different panel) updates p.slideCaption live.
+      window.__STUDIO_STATE.selection = { kind: "panel", id: "ssp2" };
+      if (window.__studioRenderInspector) window.__studioRenderInspector();
+      var label = Array.prototype.slice.call(document.querySelectorAll("#inspBody label")).filter(function (l) { return /Slide caption/.test(l.textContent); })[0];
+      var ta = label ? label.parentElement.querySelector("textarea") : null;
+      r.hasField = !!ta;
+      if (ta) { ta.value = "A newly-typed caption."; ta.dispatchEvent(new Event("input", { bubbles: true })); ta.dispatchEvent(new Event("change", { bubbles: true })); }
+      r.fieldWired = window.__STUDIO_STATE.spec.panels[1].slideCaption === "A newly-typed caption.";
+
+      window.__slideshowOpen();
+      var cap = document.getElementById("ssCaption");
+      r.slide1Shown = cap.classList.contains("show") && cap.textContent === "This is the opening beat of the story.";
+      // advance to the (now-captioned, just typed) second slide
+      document.querySelector(".ss-next").click();
+      r.slide2Shown = cap.classList.contains("show") && cap.textContent === "A newly-typed caption.";
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+      return r;
+    });
+    ok("N-FUN: panel inspector shows a 'Slide caption' field that writes p.slideCaption", slideCap.hasField && slideCap.fieldWired, JSON.stringify(slideCap));
+    ok("N-FUN: Slideshow shows the caption bar for a slide whose panel has one set", slideCap.slide1Shown, JSON.stringify(slideCap));
+    ok("N-FUN: the caption bar updates per-slide as you navigate", slideCap.slide2Shown, JSON.stringify(slideCap));
+
+    const slideCapHidden = await page.evaluate(function () {
+      window.__studioLoad({
+        id: "ss-cap-test-2", name: "ss-cap-test-2", title: "No captions", kpis: [], filters: [],
+        cda: { connections: [], dataAccesses: [] },
+        panels: [{ id: "ssp3", title: "Plain panel", span: 1, chart: { type: "kpi", da: "", map: {}, opts: {} } }]
+      });
+      window.__slideshowOpen();
+      var cap = document.getElementById("ssCaption");
+      var r = { hidden: !cap.classList.contains("show") };
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+      return r;
+    });
+    ok("N-FUN: the caption bar stays hidden for a slide whose panel has no caption", slideCapHidden.hidden, JSON.stringify(slideCapHidden));
+
     // ── H-track: / keyboard shortcut for chart gallery search ────────────────
     console.log("\n• H-track: / shortcut for gallery search");
 
