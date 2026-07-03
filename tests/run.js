@@ -12022,8 +12022,9 @@ function serve() {
       vhRestore.versionCountAfterRestore === 3, JSON.stringify(vhRestore));
 
     // The debounced noteRecent() (fired ~800ms after any edit settles, via refreshPreview())
-    // prunes studio-versions down to only dashboards still tracked in studio-recents.
-    await page.waitForTimeout(900);
+    // prunes studio-versions down to only dashboards still tracked in studio-recents. Margin
+    // padded well past the 800ms debounce to absorb event-loop scheduling jitter under load.
+    await page.waitForTimeout(1800);
     const vhPrune = await page.evaluate(function (id) {
       var versions = window.__studioVersions();
       return { orphanGone: !versions["vh-orphan-xyz"], targetKept: (versions[id] || []).length > 0 };
