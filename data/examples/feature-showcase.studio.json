@@ -1,0 +1,132 @@
+{
+  "schema": 1,
+  "id": "showcase-features",
+  "name": "feature-showcase",
+  "title": "Interactive Feature Showcase",
+  "subtitle": "filters, cross-filter, drill-through & every annotation type — a guided tour",
+  "group": "Showcase",
+  "description": "A guided tour of every interaction the Studio can build, not just chart types: cascading filters with a shareable deep-link, click-to-cross-filter, drill-through (panel and KPI), the detail drawer, target lines, reference bands, callout arrows, period highlights, event markers, conditional formatting, color scales, and KPI compare + sparkline.",
+  "cda": {
+    "connection": { "id": "pdc", "jndi": "PDC-BIDB-EXT" },
+    "dataAccesses": [
+      {
+        "id": "kpi", "name": "ShowcaseKPI", "params": [], "cache": true, "cacheDuration": 120,
+        "sql": "SELECT ROUND(SUM(amount),0) AS monthly_cost, ROUND(SUM(amount)*0.92,0) AS prior_month_cost, ROUND(SUM(amount)*0.9,0) AS cost_trend, ROUND(AVG(sla_pct),1) AS sla_pct, COUNT(DISTINCT region) AS active_regions, ROUND(AVG(incident_rate_pct),1) AS incident_rate_pct FROM v_showcase_summary",
+        "columns": ["monthly_cost", "prior_month_cost", "cost_trend", "sla_pct", "active_regions", "incident_rate_pct"]
+      },
+      {
+        "id": "sources_filter", "name": "SourceSystems", "params": [], "cache": true, "cacheDuration": 300,
+        "sql": "SELECT DISTINCT source_system FROM dim_datasource ORDER BY 1",
+        "columns": ["source_system"]
+      },
+      {
+        "id": "status_filter", "name": "RunStatuses", "params": [], "cache": true, "cacheDuration": 300,
+        "sql": "SELECT DISTINCT status FROM fact_pipeline_run ORDER BY 1",
+        "columns": ["status"]
+      },
+      {
+        "id": "revenue_trend", "name": "RevenueTrend", "params": [ { "name": "src", "type": "String", "default": "%" } ], "cache": true, "cacheDuration": 180,
+        "sql": "SELECT d.year_month_name AS month, ROUND(SUM(r.amount),0) AS revenue FROM fact_revenue r JOIN dim_date d ON r.month_key=d.date_key WHERE r.source_system LIKE ${src} GROUP BY d.year_month_number, d.year_month_name ORDER BY d.year_month_number",
+        "columns": ["month", "revenue"]
+      },
+      {
+        "id": "cost_by_region", "name": "CostByRegion", "params": [ { "name": "src", "type": "String", "default": "%" } ], "cache": true, "cacheDuration": 180,
+        "sql": "SELECT region, ROUND(SUM(amount),0) AS cost FROM fact_cost WHERE source_system LIKE ${src} GROUP BY 1 ORDER BY 2 DESC",
+        "columns": ["region", "cost"]
+      },
+      {
+        "id": "cost_detail", "name": "CostByRegionDetail", "params": [ { "name": "label", "type": "String", "default": "%" } ], "cache": true, "cacheDuration": 120,
+        "sql": "SELECT invoice_id, region, service, ROUND(amount,2) AS amount FROM fact_cost_detail WHERE region LIKE ${label} ORDER BY amount DESC LIMIT 50",
+        "columns": ["invoice_id", "region", "service", "amount"]
+      },
+      {
+        "id": "assets_by_source", "name": "AssetsBySource", "params": [], "cache": true, "cacheDuration": 180,
+        "sql": "SELECT source_system, COUNT(*) AS asset_count FROM dim_asset GROUP BY 1 ORDER BY 2 DESC",
+        "columns": ["source_system", "asset_count"]
+      },
+      {
+        "id": "storage_by_platform", "name": "StorageByPlatform", "params": [], "cache": true, "cacheDuration": 180,
+        "sql": "SELECT platform, ROUND(SUM(size_gb),0) AS size_gb FROM v_storage_footprint GROUP BY 1 ORDER BY 2 DESC",
+        "columns": ["platform", "size_gb"]
+      },
+      {
+        "id": "cost_vs_usage", "name": "CostVsUsage", "params": [], "cache": true, "cacheDuration": 180,
+        "sql": "SELECT entity, usage_score, spend_score FROM v_cost_efficiency",
+        "columns": ["entity", "usage_score", "spend_score"]
+      },
+      {
+        "id": "quarterly_budget", "name": "QuarterlyBudget", "params": [], "cache": true, "cacheDuration": 180,
+        "sql": "SELECT d.year_month_name AS month, ROUND(SUM(b.actual_spend),0) AS actual_spend FROM fact_budget b JOIN dim_date d ON b.month_key=d.date_key GROUP BY d.year_month_number, d.year_month_name ORDER BY d.year_month_number",
+        "columns": ["month", "actual_spend"]
+      }
+    ]
+  },
+  "filters": [
+    { "id": "src", "label": "Data Source", "da": "sources_filter", "valueCol": "source_system", "textCol": "source_system", "allLabel": "All sources", "def": "%" },
+    { "id": "status", "label": "Run Status", "da": "status_filter", "valueCol": "status", "textCol": "status", "allLabel": "All statuses", "def": "%" }
+  ],
+  "kpis": [
+    { "da": "kpi", "valueCol": "monthly_cost", "label": "Monthly Cost", "fmt": "money", "state": "purple",
+      "compareCol": "prior_month_cost", "compareMode": "pct", "compareLabel": "last month",
+      "sparkCol": "cost_trend", "sparkType": "line", "sparkColor": "--pentaho",
+      "drill": { "url": "#kpi-drill-demo", "param": "metric" },
+      "info": "Click this tile — KPI drill-through navigates to a target URL, same as a chart's drill-through.",
+      "subtitle": "click to try KPI drill-through" },
+    { "da": "kpi", "valueCol": "sla_pct", "label": "SLA Compliance", "fmt": "pct", "state": "good", "info": "Share of services meeting their SLA this period." },
+    { "da": "kpi", "valueCol": "active_regions", "label": "Active Regions", "fmt": "n", "state": "", "info": "Distinct regions with activity in the observed window." },
+    { "da": "kpi", "valueCol": "incident_rate_pct", "label": "Incident Rate", "fmt": "pct", "state": "warn", "info": "Incidents per 100 runs, trailing 7 days." }
+  ],
+  "gridCols": 3,
+  "panels": [
+    {
+      "id": "p_intro", "title": "How to use this showcase", "span": "full", "pill": "", "sub": "a guided tour of every interaction the Studio can build",
+      "info": "", "src": "",
+      "chart": { "type": "richtext", "da": "", "map": {},
+        "opts": { "content": "## Interactive Feature Showcase\nThis dashboard exists purely to demonstrate **interactions**, not just chart types — every chart type already has its own showcase elsewhere in the gallery.\n\n- Try the **Data Source** / **Run Status** filters above — picks travel in the URL as a shareable `#` deep-link\n- Click a slice in *Assets by Source* to **cross-filter**\n- Click a bar in *Cost by Region* for **drill-through**, or its ⓘ for the **detail drawer**\n- Click the **Monthly Cost** KPI tile for KPI-level drill-through\n- Look for the **target line**, **period highlight**, **event markers**, **reference band**, and **callout arrow** overlays on the charts below" }
+      }
+    },
+    {
+      "id": "p_trend", "title": "Revenue Trend", "span": 2, "pill": "$", "sub": "target line · period highlight · event markers",
+      "info": "A line chart wearing three overlay annotations at once: a target goal line, a shaded period-of-interest band, and two labeled event markers.", "src": "fact_revenue",
+      "chart": { "type": "line", "da": "revenue_trend", "map": { "labelCol": "month", "series": [ { "col": "revenue", "name": "Revenue" } ] }, "opts": { "fmt": "money", "height": 320 } },
+      "targetLine": { "pct": 22, "color": "#e74c3c", "label": "Annual goal" },
+      "periodHighlight": { "xStart": 40, "xEnd": 65, "color": "#3498db", "label": "Renewal season" },
+      "eventMarkers": [ { "label": "Price change", "xPct": 30, "color": "#f5a623" }, { "label": "New region launch", "xPct": 78, "color": "#8b5cf6" } ]
+    },
+    {
+      "id": "p_region", "title": "Cost by Region", "span": 1, "pill": "$", "sub": "conditional formatting · drill-through · detail drawer",
+      "info": "Bars over budget turn red via a conditional-formatting rule; click a bar to drill through, or open the detail drawer for the underlying invoice rows.", "src": "fact_cost",
+      "chart": { "type": "bars", "da": "cost_by_region", "map": { "labelCol": "region", "valueCol": "cost" }, "opts": { "horizontal": true, "fmt": "money", "color": "--pentaho", "height": 300 } },
+      "condFmt": [ { "op": ">=", "value": 900, "color": "#e74c3c" }, { "op": ">=", "value": 600, "color": "#f5a623" } ],
+      "drill": { "url": "#region-drill-demo", "param": "region" },
+      "detail": { "da": "cost_detail", "param": "label", "noun": "invoice lines", "titlePrefix": "Cost detail —" }
+    },
+    {
+      "id": "p_assets", "title": "Assets by Source", "span": 1, "pill": "assets", "sub": "color scale · click a slice to cross-filter",
+      "info": "A continuous low→high color gradient encodes magnitude directly in the slice color; clicking a slice emits a cross-filter that other panels bound to the same parameter would pick up.", "src": "dim_asset",
+      "chart": { "type": "donut", "da": "assets_by_source", "map": { "labelCol": "source_system", "valueCol": "asset_count" }, "opts": { "fmt": "n", "height": 300 } },
+      "colorScale": { "enabled": true, "low": "#2a5599", "high": "#e74c3c" },
+      "crossFilter": { "emit": "src" }
+    },
+    {
+      "id": "p_storage", "title": "Storage by Platform", "span": 1, "pill": "GB", "sub": "color scale + conditional formatting together",
+      "info": "Both a continuous color scale AND threshold conditional-formatting rules on one panel — condFmt wins wherever a rule matches, the gradient fills the rest.", "src": "v_storage_footprint",
+      "chart": { "type": "treemap", "da": "storage_by_platform", "map": { "labelCol": "platform", "valueCol": "size_gb" }, "opts": { "fmt": "gb", "height": 300 } },
+      "colorScale": { "enabled": true, "low": "#1f9e6b", "high": "#f5a623" },
+      "condFmt": [ { "op": ">=", "value": 850, "color": "#e74c3c" } ]
+    },
+    {
+      "id": "p_scatter", "title": "Cost vs Usage Efficiency", "span": 1, "pill": "score", "sub": "annotated outliers",
+      "info": "Two point annotations call out the entities worth investigating first — a callout label anchored to a specific data point.", "src": "v_cost_efficiency",
+      "chart": { "type": "scatter", "da": "cost_vs_usage", "map": { "xCol": "usage_score", "yCol": "spend_score", "labelCol": "entity" }, "opts": { "fmt": "n", "height": 300 } },
+      "scatterAnnotations": [ { "text": "Most efficient", "xPct": 18, "yPct": 20, "color": "#1f9e6b" }, { "text": "Investigate — high spend, low usage", "xPct": 78, "yPct": 22, "color": "#e74c3c" } ]
+    },
+    {
+      "id": "p_budget", "title": "Quarterly Budget", "span": "full", "pill": "$", "sub": "reference band · callout arrow",
+      "info": "A shaded reference band marks the comfort zone, and a callout arrow with a leader line points straight at the one spike worth explaining.", "src": "fact_budget",
+      "chart": { "type": "areaStacked", "da": "quarterly_budget", "map": { "labelCol": "month", "series": [ { "col": "actual_spend", "name": "Actual spend" } ] }, "opts": { "fmt": "money", "height": 280 } },
+      "refBand": { "topPct": 15, "bottomPct": 45, "color": "#2ecc71", "label": "Budget comfort zone" },
+      "callout": { "x": 68, "y": 25, "text": "Unplanned infra spike", "color": "#e74c3c" }
+    }
+  ]
+}

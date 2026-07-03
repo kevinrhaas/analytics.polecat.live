@@ -1143,6 +1143,70 @@ function serve() {
     }
     ok("all " + examples.length + " examples render every panel", exFail === 0, details.join("; "));
 
+    // ---- Z13: Interactive Feature Showcase — every interaction/annotation type demonstrated at once ----
+    // Chart-type coverage across the gallery was completed at v172; this example closes the companion
+    // "every interaction, not just every chart type" ask — filters+deep-link, cross-filter, drill-through
+    // (panel + KPI), the detail drawer, and all six overlay annotation kinds, none of which any prior
+    // example demonstrated. Assert the actual DOM markup each feature produces, not just "it renders".
+    console.log("\n• Z13: Interactive Feature Showcase (every interaction demonstrated)");
+    const showcase = await page.evaluate(async () => {
+      const spec = await fetch("data/examples/feature-showcase.studio.json").then((r) => r.json());
+      const S = window.__STUDIO_STATE;
+      const html = Studio.buildHtml(spec, S.assets, { deployPath: "/x", preview: true, mock: Studio.genMock(spec), launcher: false });
+      const ifr = document.createElement("iframe");
+      ifr.style.cssText = "position:fixed;left:-9999px;width:1200px;height:900px";
+      document.body.appendChild(ifr);
+      await new Promise((res) => { ifr.onload = res; ifr.srcdoc = html; });
+      await new Promise((r) => setTimeout(r, 850)); // outwait the KPI count-up animation + setTimeout(0) overlays
+      const d = ifr.contentDocument;
+      const kpiTiles = d.querySelectorAll("#kpis .kpi");
+      const drillBar = [].slice.call(d.querySelectorAll("#content .card")).some((c) => [].slice.call(c.querySelectorAll("rect.bar")).some((r) => r.style.cursor === "pointer"));
+      const result = {
+        filterSelects: d.querySelectorAll("#ctrls select.pdc-sel").length,
+        targetLine: d.querySelectorAll(".pdc-target-line").length,
+        refBand: d.querySelectorAll(".pdc-ref-band").length,
+        periodHighlight: d.querySelectorAll(".pdc-period").length,
+        eventMarkers: d.querySelectorAll(".pdc-event-mark").length,
+        scatterAnnotations: d.querySelectorAll(".pdc-pt-annot").length,
+        callout: d.querySelectorAll(".pdc-callout").length,
+        kpiCount: kpiTiles.length,
+        kpiHasDelta: [].slice.call(kpiTiles).some((k) => k.querySelector(".d.up, .d.down, .d.flat")),
+        kpiHasSpark: [].slice.call(kpiTiles).some((k) => k.querySelector(".spark")),
+        kpiDrillCursor: kpiTiles[0] ? kpiTiles[0].style.cursor === "pointer" : false,
+        drillBar
+      };
+      ifr.remove();
+      return result;
+    });
+    ok("Z13 showcase: both dashboard filters render as selects (Data Source / Run Status)", showcase.filterSelects === 2, JSON.stringify(showcase));
+    ok("Z13 showcase: target line overlay renders on the Revenue Trend panel", showcase.targetLine >= 1, JSON.stringify(showcase));
+    ok("Z13 showcase: reference band overlay renders on the Quarterly Budget panel", showcase.refBand >= 1, JSON.stringify(showcase));
+    ok("Z13 showcase: period highlight overlay renders on the Revenue Trend panel", showcase.periodHighlight >= 1, JSON.stringify(showcase));
+    ok("Z13 showcase: event marker overlays render on the Revenue Trend panel", showcase.eventMarkers >= 2, JSON.stringify(showcase));
+    ok("Z13 showcase: scatter point annotations render on the Cost vs Usage panel", showcase.scatterAnnotations >= 2, JSON.stringify(showcase));
+    ok("Z13 showcase: callout arrow overlay renders on the Quarterly Budget panel", showcase.callout >= 1, JSON.stringify(showcase));
+    ok("Z13 showcase: KPI tiles render with a compare delta and a sparkline", showcase.kpiCount === 4 && showcase.kpiHasDelta && showcase.kpiHasSpark, JSON.stringify(showcase));
+    ok("Z13 showcase: the Monthly Cost KPI tile is wired for drill-through (pointer cursor)", showcase.kpiDrillCursor, JSON.stringify(showcase));
+    ok("Z13 showcase: the Cost by Region bars are wired for drill-through (pointer cursor)", showcase.drillBar, JSON.stringify(showcase));
+
+    const showcaseHash = await page.evaluate(async () => {
+      const spec = await fetch("data/examples/feature-showcase.studio.json").then((r) => r.json());
+      const S = window.__STUDIO_STATE;
+      const html = Studio.buildHtml(spec, S.assets, { deployPath: "/x", preview: true, mock: Studio.genMock(spec), launcher: false })
+        .replace("<head>", '<head>\n<script>location.hash="src=Oracle";<\/script>');
+      const ifr = document.createElement("iframe");
+      ifr.style.cssText = "position:fixed;left:-9999px;width:1200px;height:900px";
+      document.body.appendChild(ifr);
+      await new Promise((res) => { ifr.onload = res; ifr.srcdoc = html; });
+      await new Promise((r) => setTimeout(r, 500));
+      const d = ifr.contentDocument;
+      const sel = d.getElementById("f_src");
+      const result = { hash: ifr.contentWindow.location.hash, value: sel ? sel.value : null };
+      ifr.remove();
+      return result;
+    });
+    ok("Z13 showcase: the Data Source filter deep-links from the URL hash (#src=Oracle pre-selects it)", showcaseHash.value === "Oracle", JSON.stringify(showcaseHash));
+
     // ---- Z13: "ops-command" showcase covers 8 chart types unused by any other example ----
     console.log("\n• Z13: ops-command showcase (sankey/network/calHeatmap/sunburst/bump/quadrant/waffle/pareto)");
     const opsShow = await page.evaluate(async () => {
@@ -3985,7 +4049,7 @@ function serve() {
     ok("E5: card thumbnails render real per-chart mini SVGs", e5.hasRealThumb, JSON.stringify(e5));
     ok("E5: no CDF/CDE track badges (retired terminology)", !e5.hasCdfBadge && !e5.hasCdeBadge, JSON.stringify(e5));
     ok("E5: chart-type chips rendered", e5.chipCount >= 2, JSON.stringify(e5));
-    ok("E5: most-spectacular example leads the gallery (no single hero)", e5.firstCardFile === "governance-command.studio.json", JSON.stringify(e5));
+    ok("E5: most-spectacular example leads the gallery (no single hero)", e5.firstCardFile === "feature-showcase.studio.json", JSON.stringify(e5));
     // Click a card and verify the example loads
     await page.click("#menuExamples button.ex-card");
     await page.waitForTimeout(400);

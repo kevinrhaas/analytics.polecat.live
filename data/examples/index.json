@@ -1,5 +1,14 @@
 [
   {
+    "file": "feature-showcase.studio.json",
+    "title": "Interactive Feature Showcase",
+    "panels": 7,
+    "kpis": 4,
+    "gridCols": 3,
+    "types": ["richtext", "line", "bars", "donut", "treemap", "scatter", "areaStacked"],
+    "layout": [["richtext", "full"], ["line", 2], ["bars", 1], ["donut", 1], ["treemap", 1], ["scatter", 1], ["areaStacked", "full"]]
+  },
+  {
     "file": "governance-command.studio.json",
     "title": "Data Governance Command Center",
     "panels": 5,

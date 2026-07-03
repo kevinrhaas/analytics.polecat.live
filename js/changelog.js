@@ -15,6 +15,16 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 232,
+    title: 'Interactive Feature Showcase (Z13 track complete)',
+    kind: 'feature',
+    ts: '2026-07-03T04:11:52Z',
+    items: [
+      'New example dashboard "Interactive Feature Showcase" leads the gallery and demonstrates every interaction the chart-type showcases never touched: two cascading filters with a working #hash deep-link, click-to-cross-filter, panel drill-through + the detail drawer, a KPI drill-through tile, KPI compare + sparkline, and all six overlay annotation kinds -- target line, reference band, callout arrow, period highlight, event markers, and scatter point annotations -- plus conditional formatting and a color scale.',
+      'Closes the Z13 track: every chart type (51 of 51, shipped earlier) and now every interaction/annotation each appear in at least one example. 11 new tests, suite 1077/1077.',
+    ],
+  },
+  {
     v: 231,
     title: 'Snowflake connector (Z4 slice 1)',
     kind: 'feature',

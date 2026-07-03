@@ -1435,11 +1435,10 @@ fixed KPI/gauge NaN/`0`/double-`%` (sample-data generator + example gauges).
 NEXT — turn the examples into a **broad, complete survey of everything the app can do**, built
 **progressively simple → dazzling**:
 - ✓ **Cover EVERY chart type at least once** — DONE (v172, see above), 51 of 51.
-- **Show EVERY interaction/feature at least once**: **filters** (dashboard filters + the `#hash` deep-link),
-  **cross-filter**, **drill-through / detail drawer** (internal drill AND cross-dashboard drill), and all
-  the **marks/annotations** — target lines, reference bands, callout arrows, period highlights, event
-  markers, conditional formatting, color scales, KPI compare/sparkline. Each capability demonstrated in a
-  showcase, ideally called out in the panel subtitle so it reads as a guided tour.
+- ✓ **Show EVERY interaction/feature at least once** — DONE (v232, see below): filters + `#hash` deep-link,
+  cross-filter, drill-through (panel + KPI), detail drawer, target lines, reference bands, callout arrows,
+  period highlights, event markers, conditional formatting, color scales, KPI compare/sparkline — all in
+  one guided-tour showcase (`feature-showcase.studio.json`), leading the gallery.
 - **Progressive complexity**: keep a couple of simple “start here” boards, then ramp to the most complex,
   fully-annotated, cross-drilling, drawer-rich dashboards — really dazzle at the top of the list.
 - Ordering: keep the gallery **most-spectacular-first** (index.json order); no single hero card.
@@ -1464,6 +1463,19 @@ NEXT — turn the examples into a **broad, complete survey of everything the app
 > default Unit "%" when Value format is "pct" (`PDC.fmt.pct` already appends its own %), so a gauge left
 > at fmt:"pct" + the implicit default unit no longer reads "42.3%%". 1 new regression test drives the real
 > "Value format" inspector select (not a standalone PDC.gauge call) so the fix is exercised end-to-end.
+> ✓ **"Show EVERY interaction/feature at least once" — DONE, shipped v232**: new `feature-showcase.studio.json`
+> ("Interactive Feature Showcase", leads the gallery — most-spectacular-first) demonstrates every interaction
+> the chart-type showcases never touched: two cascading **filters** with a working **`#` deep-link** (verified
+> `#src=Oracle` pre-selects the Data Source filter), a **cross-filter** emitter on the donut panel, panel
+> **drill-through** + the **detail drawer** on the bars panel, a **KPI drill-through** (click-through tile),
+> **KPI compare** (delta vs. prior period) + **sparkline**, and all six overlay annotation kinds — target
+> line, reference band, callout arrow, period highlight, event markers, and scatter point annotations — plus
+> **conditional formatting** and a **color scale** (one panel combines both, showing condFmt wins ties).
+> A richtext intro panel frames it as a guided tour. 11 new tests assert the actual DOM markup each feature
+> produces (not just "it renders") — overlay CSS classes, filter `<select>` count, KPI delta/spark elements,
+> `cursor:pointer` drill wiring, and the hash-deep-link pre-selection. Test suite 1077/1077. **Z13 track is
+> now feature-complete**: every chart type (v172) and every interaction/annotation (this slice) each appear
+> in at least one example, gallery stays most-spectacular-first, no single hero.
 
 **Z0 — Finish the terminology migration (Phase 2, started 2026-06-30). ✓ DONE, shipped v163.** User-facing
 CDA→"Data Access", CDF→"Dashboard Framework"; CDE export removed from the menu/inspector/bundle/push/CLI;
