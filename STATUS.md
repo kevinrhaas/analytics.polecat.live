@@ -876,6 +876,36 @@
 > still broken.
 > Keep the desktop experience untouched (scope changes to `≤900px` / touch). Update `docs` + STATUS each slice.
 
+### ★★ HIGH PRIORITY — Visual refresh to the fleet's modern look + dashboard version history (user-requested 2026-07-02)
+> Do this **right after the mobile track**, ahead of the general Z platform backlog. Two user asks:
+>
+> **(A) Kill the "blue cast" — align the DASHBOARD to the fleet's modern dark system (ref: jobtracker.polecat.live).**
+> The app chrome has the Z10 theme system, but the **dashboards themselves** (preview + exported) still lean on
+> the dated flat Pentaho blue (`--pentaho:#005bb5`) — bars, donut, header, KPI accents all read cool-blue. The
+> user wants the fresh, cohesive, accessible look the rest of the fleet now uses. **jobtracker.polecat.live is
+> the reference** — capture its token system and apply it as the new default dashboard palette (and align the
+> app chrome's Polecat theme to it). Its actual tokens:
+> - **Dark:** `--bg:#0a0f1a` · `--surface:#111a2b` · `--surface-2:#18243a` · `--border:#26344f` ·
+>   `--text:#e9eff8` · `--text-2:#93a6c2` · `--text-3:#8496ac` · `--brand:#1a8fd6` · `--brand-2:#5bb3ea` ·
+>   `--accent:#12a24f` · `--accent-2:#17b9a6`
+> - **Light:** `--bg:#eef3f9` · `--surface:#fff` · `--surface-2:#e9f0f8` · `--border:#ccdcec` ·
+>   `--text:#0c1c2e` · `--text-2:#48596f` · `--text-3:#586b88` · `--brand:#0071bc` · `--accent:#00964a`
+> Note the deliberate **surface hierarchy** (bg → surface → surface-2) and **text hierarchy** (text/2/3) — adopt
+> that structure, not just the hexes. Build a **categorical chart series palette** (the `--c1…--c10` ramp used by
+> preview + export) that's harmonious in BOTH modes and colorblind-safe — this is chart-color work, so **load the
+> `dataviz` skill first** and run its contrast validator (WCAG AA: ≥4.5:1 text, ≥3:1 large text / UI, ≥3:1
+> adjacent categorical hues). Also: focus-visible rings on every control, honor `prefers-reduced-motion`. Z10
+> already has the theme plumbing (`data-app-theme`, per-theme light/dark) + a `paletteKey` series-palette system
+> (v123) — extend those; make the modern/Polecat palette the **default look** and keep Classic Blue as an option.
+> Ship one screenshot-verified slice per run (view a 1200px preview + a phone shot); don't call a palette "done"
+> off DOM checks — look at it. Coordinate with Z10.
+>
+> **(B) Version history — "switch back to earlier versions" ✓ ALREADY SHIPPED (v258 + v262).** The loop had
+> already built this from the N-DIST backlog: the Dashboard inspector's **Version history** section keeps a
+> capped, id-keyed ring of saved checkpoints in localStorage, each **Restore**-able (restore is itself undoable),
+> plus a **⇄ Compare to current** plain-English diff. Feature-complete — so **(A) below is the one remaining
+> active item in this block.** (Follow-ups if desired: mini thumbnail per checkpoint, a footer/⋯-More shortcut.)
+
 ### ★ Z. Analytics App platform — the new north star (user-requested 2026-06-30; build across many iterations)
 > The studio is becoming a multi-section **analytics application**, not just a dashboard builder.
 > Build this incrementally — one small, shippable, tested slice per loop. Keep it pure HTML/JS with all
@@ -1488,7 +1518,11 @@ specific bugs + the new-shell mobile behavior.)
 > fade-out completes) rather than merely invisible. Respects `prefers-reduced-motion`. Desktop/tablet
 > only — mobile drawers/sheets already have their own dedicated open/close motion.
 
-**Z10 — App theme system: theme × light/dark (user-requested 2026-06-30).** The new Polecat warm-dark
+**Z10 — App theme system: theme × light/dark (user-requested 2026-06-30).**
+> ★ **See the ★★ HIGH PRIORITY visual-refresh block at the top of NEXT** (user-requested 2026-07-02): align the
+> **default dashboard palette** to the fleet's modern dark system (jobtracker.polecat.live tokens) and kill the
+> flat-blue cast — do that ahead of the remaining Z10 polish below.
+The new Polecat warm-dark
 rail (Z1) currently **clashes** with the Studio's original "classic blue" chrome + dark mode — two
 palettes on screen at once. Introduce a real **theme system in Settings**, not a one-off recolor: a small
 set of named color themes (e.g. **Classic Blue**, **Polecat** (warm plum/terracotta/cream), room for
@@ -2322,6 +2356,7 @@ gets covered over time:
 > removed/changed (matched by stable `id`), KPIs added/removed/changed (positional — they carry no id).
 > The modal also offers "Restore this version" so you can see what a restore would actually undo before
 > committing. New `diff` icon (`app/icons.js`). 6 new tests, suite 1194/1194.
+> ✓ **User-requested again 2026-07-02 — already shipped (v258 + v262 above); confirmed feature-complete.**
 
 **N-DESIGN — Make it unmistakably sexy.**
 - **Theme studio & gallery:** author/share custom themes (theme × light/dark, extends Z10); a few stunning
