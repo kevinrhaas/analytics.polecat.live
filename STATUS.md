@@ -1886,6 +1886,16 @@ gets covered over time:
   `Studio.defineChart({type, render, opts, thumb, autoPick})` contract so new types are uniform and testable.
 - **Test health** — coverage per feature, flaky/slow checks, and a fast smoke subset for quick loops.
 > **Findings log (append newest on top; keep short):**
+> - **Fixed shipped v256 (duplication lens):** the "wire a mousemove → `PDC.showTip(e, html)` handler plus a
+>   mouseout → `PDC.hideTip` handler" pair was hand-written verbatim (`node.addEventListener("mousemove",
+>   function (e) { PDC.showTip(e, html); }); node.addEventListener("mouseout", PDC.hideTip);`) at **36 call
+>   sites** across `app/studio-charts.js`'s chart-extension renderers (sunburst, bullet, calendar heatmap,
+>   radar, boxplot, line/area, waterfall, funnel, chord, network, sankey, and more). Verified every site's
+>   `mouseout` line immediately follows its `mousemove` line and targets the same element before touching
+>   anything (a script matched + validated all 36 pairs first). Added one shared `_tip(node, html)` helper
+>   next to `mkSVG`/`reg` and collapsed all 36 sites to one-line calls. Pure refactor — confirmed
+>   byte-identical behavior with a live hover screenshot on the sankey chart (tooltip renders correctly) —
+>   suite unchanged at 1167/1167.
 > - **Fixed shipped v250 (duplication lens):** `app/studio-charts.js`'s module scope already aliases
 >   `var S = PDC.S` (line 10) — the shared SVG-element-with-attrs(+optional text/kids) constructor every
 >   chart renderer is meant to use. Three chart functions (`_marimekko`, `PDC.gantt`, `PDC.divergingBar`)

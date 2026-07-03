@@ -47,6 +47,12 @@
   };
   function mkSVG(el, h) { el.innerHTML = ""; var w = W(el); var s = S("svg", { viewBox: "0 0 " + w + " " + h, width: "100%", height: h }); el.appendChild(s); return { s: s, w: w, h: h }; }
   function reg(el, fn) { PDC._reg.push(fn); fn(); }
+  // Track L sweep: the "show a fixed tooltip HTML string on hover, hide it on mouseout"
+  // pair was hand-wired verbatim at ~36 call sites across the chart renderers below.
+  function _tip(node, html) {
+    node.addEventListener("mousemove", function (e) { PDC.showTip(e, html); });
+    node.addEventListener("mouseout", PDC.hideTip);
+  }
   var RM = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   // canAnim() combines prefers-reduced-motion with the per-panel animate flag set by studio-render.js
   // (PDC._anim = p.animate !== false) so users can disable entrance animations panel-by-panel.
@@ -184,8 +190,7 @@
     labels.forEach(function (lb, i) {
       var x = mL + i * bw, bh = ih * (bv[i] / (bmax || 1));
       var r = S("rect", { class: "bar", x: x + bw * 0.18, y: mT + ih - bh, width: bw * 0.64, height: Math.max(1, bh), rx: 3, fill: bcol });
-      r.addEventListener("mousemove", function (e) { PDC.showTip(e, "<b>" + lb + "</b><br>" + (bars.name || "Bars") + ": " + fmt(bv[i]) + "<br>" + (line.name || "Line") + ": " + fmt2(lv[i])); });
-      r.addEventListener("mouseout", PDC.hideTip);
+      _tip(r, "<b>" + lb + "</b><br>" + (bars.name || "Bars") + ": " + fmt(bv[i]) + "<br>" + (line.name || "Line") + ": " + fmt2(lv[i]));
       s.appendChild(r); barEls.push(r);
       s.appendChild(S("text", { class: "tick", x: x + bw / 2, y: mT + ih + 14, "text-anchor": "middle" }, PDC.fmt.trunc(lb, 9)));
     });
@@ -377,8 +382,7 @@
 
     function addArc(r1, r2, a1, a2, col, opac, tip, delay) {
       var p = S("path", { d: arcPath(r1, r2, a1, a2), fill: col, opacity: opac, stroke: bg, "stroke-width": "0.9" });
-      p.addEventListener("mousemove", function (e) { PDC.showTip(e, tip); });
-      p.addEventListener("mouseout", PDC.hideTip);
+      _tip(p, tip);
       if (canAnim()) { p.style.opacity = 0; setTimeout(function () { p.style.transition = "opacity .45s ease"; p.style.opacity = opac; }, animD(delay)); }
       s.appendChild(p);
     }
@@ -485,8 +489,7 @@
       var bar = S("rect", { x: mL, y: cy - barH / 2, width: barW, height: barH, fill: PDC.cssvar("--pentaho") || "#005bb5", rx: 2 });
       if (canAnim()) { bar.setAttribute("width", 0); setTimeout((function (b, fw) { return function () { b.style.transition = "width .6s ease"; b.setAttribute("width", fw); }; })(bar, barW), animD(40 + ri * 65)); }
       var tipTxt = "<b>" + (row.label || "") + "</b><br>Actual: " + fmtFn(+row.value || 0) + (row.target != null ? "<br>Target: " + fmtFn(+row.target) : "");
-      bar.addEventListener("mousemove", function (e) { PDC.showTip(e, tipTxt); });
-      bar.addEventListener("mouseout", PDC.hideTip);
+      _tip(bar, tipTxt);
       s.appendChild(bar);
       // target tick (thick vertical mark)
       if (row.target != null) {
@@ -551,8 +554,7 @@
           fill: val > 0 ? curColor : "#9aa7b8", opacity: opacity });
         if (val > 0) {
           (function (d, v) {
-            cell.addEventListener("mousemove", function (e) { PDC.showTip(e, "<b>" + d + "</b><br>" + fmtFn(v)); });
-            cell.addEventListener("mouseout", PDC.hideTip);
+            _tip(cell, "<b>" + d + "</b><br>" + fmtFn(v));
           })(ds, val);
         }
         s.appendChild(cell);
@@ -595,14 +597,12 @@
         if (cfg.showDots === false) {
           // Dots hidden — keep an invisible hover target so tooltips still work.
           var hit = S("circle", { cx: p[0], cy: p[1], r: 8, fill: "transparent" });
-          hit.addEventListener("mousemove", function (e) { PDC.showTip(e, "<b>" + labels[i] + "</b><br>" + (se.name || ("Series " + (si + 1))) + ": " + fmt(+se.values[i] || 0)); });
-          hit.addEventListener("mouseout", PDC.hideTip);
+          _tip(hit, "<b>" + labels[i] + "</b><br>" + (se.name || ("Series " + (si + 1))) + ": " + fmt(+se.values[i] || 0));
           s.appendChild(hit); seEls.push(hit);
           return;
         }
         var dot = S("circle", { cx: p[0], cy: p[1], r: 3, fill: col, stroke: PDC.cssvar("--panel-bg"), "stroke-width": 1.2 });
-        dot.addEventListener("mousemove", function (e) { PDC.showTip(e, "<b>" + labels[i] + "</b><br>" + (se.name || ("Series " + (si + 1))) + ": " + fmt(+se.values[i] || 0)); });
-        dot.addEventListener("mouseout", PDC.hideTip);
+        _tip(dot, "<b>" + labels[i] + "</b><br>" + (se.name || ("Series " + (si + 1))) + ": " + fmt(+se.values[i] || 0));
         s.appendChild(dot); seEls.push(dot);
       });
       radarEls.push(seEls);
@@ -666,8 +666,7 @@
         // Invisible hover target
         var tipHtml = "<b>" + st.label + "</b><br>Min: " + fmt(qs.min) + " &nbsp;Q1: " + fmt(qs.q1) + "<br>Median: " + fmt(qs.med) + "<br>Q3: " + fmt(qs.q3) + " &nbsp;Max: " + fmt(qs.max);
         var hit = S("rect", { x: xMin - 2, y: cy - bh * 2, width: Math.max(4, xMax - xMin + 4), height: bh * 4, fill: "transparent", style: "cursor:pointer" });
-        hit.addEventListener("mousemove", function (e) { PDC.showTip(e, tipHtml); });
-        hit.addEventListener("mouseout", PDC.hideTip);
+        _tip(hit, tipHtml);
         sv.appendChild(hit);
       });
     } else {
@@ -696,8 +695,7 @@
         // Invisible hover target
         var tipHtml2 = "<b>" + st.label + "</b><br>Min: " + fmt(qs.min) + " &nbsp;Q1: " + fmt(qs.q1) + "<br>Median: " + fmt(qs.med) + "<br>Q3: " + fmt(qs.q3) + " &nbsp;Max: " + fmt(qs.max);
         var hit2 = S("rect", { x: cx - bw * 2, y: Math.min(yMax, yMin), width: bw * 4, height: Math.max(4, Math.abs(yMin - yMax)), fill: "transparent", style: "cursor:pointer" });
-        hit2.addEventListener("mousemove", function (e) { PDC.showTip(e, tipHtml2); });
-        hit2.addEventListener("mouseout", PDC.hideTip);
+        _tip(hit2, tipHtml2);
         sv.appendChild(hit2);
       });
     }
@@ -735,8 +733,7 @@
       // dot at the value — bold & prominent
       var dot = S("circle", { class: "dot", cx: mL + barW, cy: midY, r: dotR,
         fill: col, stroke: PDC.cssvar("--panel-bg"), "stroke-width": 2 });
-      dot.addEventListener("mousemove", function (e) { PDC.showTip(e, tipHtml); });
-      dot.addEventListener("mouseout", PDC.hideTip);
+      _tip(dot, tipHtml);
       s.appendChild(dot);
       // label (left-aligned, right-anchored)
       s.appendChild(S("text", { class: "tick", x: mL - 8, y: midY + 4, "text-anchor": "end" },
@@ -805,14 +802,12 @@
         stroke: strokeCol, "stroke-width": 2, opacity: 0.8, "stroke-linecap": "round" });
       var tipHtml = "<b>" + it.label + "</b><br>" + t1 + ": " + fmtFn(it.v1) + "<br>" + t2 + ": " + fmtFn(it.v2) +
         (dir !== 0 ? "<br>Δ " + (dir > 0 ? "+" : "") + fmtFn(dir) : "");
-      line.addEventListener("mousemove", function (e) { PDC.showTip(e, tipHtml); });
-      line.addEventListener("mouseout", PDC.hideTip);
+      _tip(line, tipHtml);
       s.appendChild(line);
       // endpoint dots
       [{ x: xL, y: y1 }, { x: xR, y: y2 }].forEach(function (pt) {
         var dot = S("circle", { cx: pt.x, cy: pt.y, r: 4, fill: strokeCol, stroke: PDC.cssvar("--panel-bg") || "#fff", "stroke-width": 2 });
-        dot.addEventListener("mousemove", function (e) { PDC.showTip(e, tipHtml); });
-        dot.addEventListener("mouseout", PDC.hideTip);
+        _tip(dot, tipHtml);
         s.appendChild(dot);
       });
       // left value label (right-aligned just inside left axis)
@@ -899,8 +894,7 @@
       var tipHtml1 = "<b>" + it.label + "</b>" + (hasGroup ? " — " + g1 : "") + "<br>" + fmtFn(it.v1);
       var dot1 = S("circle", { class: "dot", cx: x1, cy: midY, r: dotR,
         fill: c1, stroke: PDC.cssvar("--panel-bg"), "stroke-width": 1.5 });
-      dot1.addEventListener("mousemove", function (e) { PDC.showTip(e, tipHtml1); });
-      dot1.addEventListener("mouseout", PDC.hideTip);
+      _tip(dot1, tipHtml1);
       s.appendChild(dot1);
       // optional second dot (v2) for group comparison
       if (hasGroup && it.v2 != null) {
@@ -913,8 +907,7 @@
         var tipHtml2 = "<b>" + it.label + "</b> — " + g2 + "<br>" + fmtFn(it.v2);
         var dot2 = S("circle", { class: "dot", cx: x2, cy: midY, r: dotR,
           fill: c2, stroke: PDC.cssvar("--panel-bg"), "stroke-width": 1.5 });
-        dot2.addEventListener("mousemove", function (e) { PDC.showTip(e, tipHtml2); });
-        dot2.addEventListener("mouseout", PDC.hideTip);
+        _tip(dot2, tipHtml2);
         s.appendChild(dot2);
       }
       // value label to the right of the rightmost dot
@@ -1033,8 +1026,7 @@
         if (it.category) tipHtml += "<br><span class='muted'>" + it.category + "</span>";
         var dot = S("circle", { cx: x, cy: y, r: dotR, fill: col,
           stroke: PDC.cssvar("--panel-bg") || "#fff", "stroke-width": 1.2, opacity: 0.8 });
-        dot.addEventListener("mousemove", function (e) { PDC.showTip(e, tipHtml); });
-        dot.addEventListener("mouseout", PDC.hideTip);
+        _tip(dot, tipHtml);
         s.appendChild(dot);
         if (canAnim()) {
           dot.style.opacity = 0;
@@ -1133,8 +1125,7 @@
           }, animD(bi_ * 20));
         })(rect, bi);
       }
-      rect.addEventListener("mousemove", function (e) { PDC.showTip(e, tip); });
-      rect.addEventListener("mouseout", PDC.hideTip);
+      _tip(rect, tip);
       svg.appendChild(rect);
     });
 
@@ -1203,8 +1194,7 @@
 
       var path = S("path", { d: d, fill: col, opacity: 0.85,
         stroke: PDC.cssvar("--panel-bg") || "#fff", "stroke-width": 1.5 });
-      path.addEventListener("mousemove", function (e) { PDC.showTip(e, tipHtml); });
-      path.addEventListener("mouseout", PDC.hideTip);
+      _tip(path, tipHtml);
       s.appendChild(path);
 
       // Label at the outer edge, aligned to the arc midpoint
@@ -1896,16 +1886,14 @@
       var line = S("line", { x1: xs, y1: midY, x2: xe, y2: midY,
         stroke: lineCol, "stroke-width": 2.5, opacity: 0.72,
         "stroke-linecap": "round" });
-      line.addEventListener("mousemove", function (e) { PDC.showTip(e, tipHtml); });
-      line.addEventListener("mouseout", PDC.hideTip);
+      _tip(line, tipHtml);
       s.appendChild(line);
 
       // start dot: muted gray — the baseline / "before"
       var sd = S("circle", { cx: xs, cy: midY, r: dotR,
         fill: "var(--muted-dot,#b0bec5)",
         stroke: "var(--panel-bg,#fff)", "stroke-width": 1.5 });
-      sd.addEventListener("mousemove", function (e) { PDC.showTip(e, tipHtml); });
-      sd.addEventListener("mouseout", PDC.hideTip);
+      _tip(sd, tipHtml);
       s.appendChild(sd);
 
       // end dot: brand color — the current / "after" value (the story)
@@ -1913,8 +1901,7 @@
       var ed = S("circle", { cx: xe, cy: midY, r: dotR + 0.5,
         fill: endCol,
         stroke: "var(--panel-bg,#fff)", "stroke-width": 1.5 });
-      ed.addEventListener("mousemove", function (e) { PDC.showTip(e, tipHtml); });
-      ed.addEventListener("mouseout", PDC.hideTip);
+      _tip(ed, tipHtml);
       s.appendChild(ed);
 
       // row label (left side, right-aligned into the margin)
@@ -2048,8 +2035,7 @@
 
       // filled circle
       var circle = S("circle", { cx: d.x, cy: d.y, r: d.r, fill: d.color, opacity: "0.82" });
-      circle.addEventListener("mousemove", function (e) { PDC.showTip(e, tipHtml); });
-      circle.addEventListener("mouseout", PDC.hideTip);
+      _tip(circle, tipHtml);
       g.appendChild(circle);
 
       // subtle white border
@@ -2217,8 +2203,7 @@
         "font-weight": d.fs >= 28 ? "700" : d.fs >= 18 ? "600" : "400",
         "cursor": "default"
       }, d.label);
-      txt.addEventListener("mousemove", function (e) { PDC.showTip(e, tipHtml); });
-      txt.addEventListener("mouseout", PDC.hideTip);
+      _tip(txt, tipHtml);
 
       // staggered fade-in entrance
       if (canAnim()) {
@@ -2350,8 +2335,7 @@
         sLabel + ": " + fmtFn(row.start) + " &nbsp; " +
         eLabel + ": " + fmtFn(row.end)   + "<br>" +
         "Duration: " + fmtFn(row.end - row.start);
-      bar.addEventListener("mousemove", function (e) { PDC.showTip(e, tipHtml); });
-      bar.addEventListener("mouseout",  PDC.hideTip);
+      _tip(bar, tipHtml);
       svg.appendChild(bar);
 
       // Value label inside bar if it fits (end value)
@@ -2484,8 +2468,7 @@
 
       // Hover tooltip
       var tipHtml = "<b>" + row.label + "</b>: " + fmtFn(row.value);
-      bar.addEventListener("mousemove", function (e) { PDC.showTip(e, tipHtml); });
-      bar.addEventListener("mouseout",  PDC.hideTip);
+      _tip(bar, tipHtml);
       svg.appendChild(bar);
 
       // Value label inside bar when it is wide enough to hold text
@@ -2968,8 +2951,7 @@
         var idx = data.indexOf(r.d), col = r.d.color || pal[idx % 10];
         var pctTxt = (100 * r.d.value / total).toFixed(1) + "%";
         var rc = S("rect", { x: rx + 1, y: ry + 1, width: Math.max(0, rw - 2), height: Math.max(0, rh2 - 2), rx: 3, fill: col, opacity: .92, class: "bar" });
-        rc.addEventListener("mousemove", function (e) { PDC.showTip(e, "<b>" + r.d.label + "</b><br>" + fmt(r.d.value) + " (" + pctTxt + ")"); });
-        rc.addEventListener("mouseout", PDC.hideTip);
+        _tip(rc, "<b>" + r.d.label + "</b><br>" + fmt(r.d.value) + " (" + pctTxt + ")");
         if (cfg.detail) PDC.bindDetail(rc, cfg.detail, r.d.label);
         s.appendChild(rc);
         if (showLabels && rw > 54 && rh2 > 22) {
@@ -3157,8 +3139,7 @@
       se.values.forEach(function (v, i) {
         var c = S("circle", { class: showDots ? "dot" : "dot-ghost", cx: xs(i), cy: ys(+v || 0), r: showDots ? 3.2 : 6, fill: showDots ? col : "transparent",
           stroke: showDots ? PDC.cssvar("--panel-bg") : "none", "stroke-width": showDots ? 1.5 : 0 });
-        c.addEventListener("mousemove", function (e) { PDC.showTip(e, "<b>" + labels[i] + "</b><br>" + se.name + ": " + fmt(v)); });
-        c.addEventListener("mouseout", PDC.hideTip);
+        _tip(c, "<b>" + labels[i] + "</b><br>" + se.name + ": " + fmt(v));
         s.appendChild(c); els.push(c);
         if (showDots && canAnim()) { c.style.opacity = "0"; setTimeout(function () { c.style.transition = "opacity .3s ease"; c.style.opacity = "1"; }, animD(520 + i * 16)); }
       });
@@ -3175,8 +3156,7 @@
         });
         var maPts = maVals.map(function (v, i) { return [xs(i), ys(v)]; });
         var maPath = S("path", { d: pathFor(maPts), fill: "none", stroke: col, "stroke-width": 1.8, "stroke-dasharray": "5,4", opacity: .7, class: "ma-line" });
-        maPath.addEventListener("mousemove", function (e) { PDC.showTip(e, (series.length > 1 ? "<b>" + se.name + "</b> " : "") + maW + "-pt moving avg"); });
-        maPath.addEventListener("mouseout", PDC.hideTip);
+        _tip(maPath, (series.length > 1 ? "<b>" + se.name + "</b> " : "") + maW + "-pt moving avg");
         s.appendChild(maPath); els.push(maPath);
       }
       // Z7 forecasting slice 2: the OLS trend line, extrapolated across the
@@ -3194,8 +3174,7 @@
           "stroke-width": 1.6, "stroke-dasharray": "8,3", opacity: .55, class: "trend-line" });
         var trendTip = (series.length > 1 ? "<b>" + se.name + "</b> " : "") +
           (trendMethod === "holt" ? "Holt smoothing" + (fcN ? " · " + fcN + "-period forecast" : "") : (fcN ? fcN + "-period forecast" : "trend"));
-        trendPath.addEventListener("mousemove", function (e) { PDC.showTip(e, trendTip); });
-        trendPath.addEventListener("mouseout", PDC.hideTip);
+        _tip(trendPath, trendTip);
         s.appendChild(trendPath); els.push(trendPath);
       }
       seriesEls.push(els);
@@ -3236,8 +3215,7 @@
         ? "M" + x0 + "," + y0 + " A" + R + "," + R + " 0 " + big + " 1 " + x1 + "," + y1 + " L" + xi0 + "," + yi0 + " A" + r + "," + r + " 0 " + big + " 0 " + xi1 + "," + yi1 + " Z"
         : "M" + cx + "," + cy + " L" + x0 + "," + y0 + " A" + R + "," + R + " 0 " + big + " 1 " + x1 + "," + y1 + " Z";
       var p = S("path", { d: d1, fill: col, stroke: PDC.cssvar("--panel-bg"), "stroke-width": 2 });
-      p.addEventListener("mousemove", function (e) { PDC.showTip(e, "<b>" + d.label + "</b><br>" + fmt(d.value) + " (" + (100 * d.value / total).toFixed(1) + "%)"); });
-      p.addEventListener("mouseout", PDC.hideTip);
+      _tip(p, "<b>" + d.label + "</b><br>" + fmt(d.value) + " (" + (100 * d.value / total).toFixed(1) + "%)");
       if (cfg.drill) PDC.bindDrill(p, cfg.drill, d.label);
       if (cfg.detail) PDC.bindDetail(p, cfg.detail, d.label);
       s.appendChild(p);
@@ -3284,8 +3262,7 @@
       data.forEach(function (d, i) {
         var y = mT + i * bh, bw = (w - mL - mR) * ((+d.value || 0) / max), col = d.color || base;
         var r = S("rect", { class: "bar", x: mL, y: y + bh * 0.16, width: 0, height: bh * 0.68, rx: 4, fill: col });
-        r.addEventListener("mousemove", function (e) { PDC.showTip(e, cfg.tip ? cfg.tip(d) : ("<b>" + d.label + "</b><br>" + fmt(d.value))); });
-        r.addEventListener("mouseout", PDC.hideTip);
+        _tip(r, cfg.tip ? cfg.tip(d) : ("<b>" + d.label + "</b><br>" + fmt(d.value)));
         if (cfg.drill) PDC.bindDrill(r, cfg.drill, d.label);
         if (cfg.detail) PDC.bindDetail(r, cfg.detail, d.label);
         s.appendChild(r);
@@ -3300,8 +3277,7 @@
       data.forEach(function (d, i) {
         var x = mL2 + i * bw2, bhh = ih2 * ((+d.value || 0) / max), col = d.color || base;
         var r = S("rect", { class: "bar", x: x + bw2 * 0.14, y: mT2 + ih2, width: bw2 * 0.72, height: 0, rx: 4, fill: col });
-        r.addEventListener("mousemove", function (e) { PDC.showTip(e, cfg.tip ? cfg.tip(d) : ("<b>" + d.label + "</b><br>" + fmt(d.value))); });
-        r.addEventListener("mouseout", PDC.hideTip);
+        _tip(r, cfg.tip ? cfg.tip(d) : ("<b>" + d.label + "</b><br>" + fmt(d.value)));
         if (cfg.drill) PDC.bindDrill(r, cfg.drill, d.label);
         if (cfg.detail) PDC.bindDetail(r, cfg.detail, d.label);
         s.appendChild(r);
@@ -3365,8 +3341,7 @@
         var hh = ih * (v / max), y0 = mT + ih - acc - hh, col = se.color || pal[si % 10];
         acc += hh;
         var r = S("rect", { class: "bar", x: x + bw * 0.14, y: y0, width: bw * 0.72, height: hh, fill: col });
-        r.addEventListener("mousemove", function (e) { PDC.showTip(e, "<b>" + c + "</b><br>" + se.name + ": " + fmt(v)); });
-        r.addEventListener("mouseout", PDC.hideTip);
+        _tip(r, "<b>" + c + "</b><br>" + se.name + ": " + fmt(v));
         s.appendChild(r);
         if (cfg.showValues && hh >= 14) s.appendChild(S("text", { class: "val-label", x: x + bw / 2, y: y0 + hh / 2 + 4, "text-anchor": "middle" }, fmt(v)));
       });
@@ -5305,8 +5280,7 @@
         (cfg.xLabel || "X") + ": " + fmtFn(px) + "<br>" +
         (cfg.yLabel || "Y") + ": " + fmtFn(py);
       (function (d_, t_) {
-        d_.addEventListener("mousemove", function (e) { PDC.showTip(e, t_); });
-        d_.addEventListener("mouseout", PDC.hideTip);
+        _tip(d_, t_);
       })(dot, tipHtml);
 
       if (canAnim()) {
@@ -5382,8 +5356,7 @@
       var ni = N[order[i]], nj = N[order[j]]; if (!ni.sub[j] || !nj.sub[i]) return;
       var col = pal[i % 10];
       var p = S("path", { d: ribbon(ni.sub[j], nj.sub[i]), fill: col, opacity: 0, stroke: col, "stroke-width": 0.5 });
-      p.addEventListener("mousemove", function (e) { PDC.showTip(e, "<b>" + order[i] + " &harr; " + order[j] + "</b><br>" + fmt(v)); });
-      p.addEventListener("mouseout", PDC.hideTip);
+      _tip(p, "<b>" + order[i] + " &harr; " + order[j] + "</b><br>" + fmt(v));
       p._i = i; p._j = j; p._base = 0.42; ribEls.push(p); s.appendChild(p);
       if (canAnim()) {
         (function (pp, delay) { setTimeout(function () { pp.style.transition = "opacity .5s ease"; pp.setAttribute("opacity", pp._base); }, delay); })(p, animD(120 + ribEls.length * 30));
@@ -5398,8 +5371,7 @@
       var nd = N[k]; if (nd.span < 0.001) return; var col = pal[i % 10];
       var grp = S("g", { opacity: 1, style: "cursor:pointer" });
       var arcEl = S("path", { d: arcPath(nd.a0, nd.a1, R, R + band), fill: col, stroke: "#fff", "stroke-width": 1 });
-      arcEl.addEventListener("mousemove", function (e) { PDC.showTip(e, "<b>" + k + "</b><br>" + fmt(nd.val) + " total flow"); });
-      arcEl.addEventListener("mouseout", PDC.hideTip);
+      _tip(arcEl, "<b>" + k + "</b><br>" + fmt(nd.val) + " total flow");
       grp.appendChild(arcEl);
       var am = (nd.a0 + nd.a1) / 2, anc = Math.cos(am) < -0.3 ? "end" : Math.cos(am) > 0.3 ? "start" : "middle", lr = R + band + 7;
       if (showLabels && nd.span >= 0.06) grp.appendChild(S("text", { x: (cx + lr * Math.cos(am)).toFixed(1), y: (cy + lr * Math.sin(am) + (Math.sin(am) > 0.3 ? 7 : Math.sin(am) < -0.3 ? -1 : 3)).toFixed(1),
@@ -5442,8 +5414,7 @@
       var cpx = cx + (((u.x + vv.x) / 2) - cx) * 0.35, cpy = cy + (((u.y + vv.y) / 2) - cy) * 0.35;
       var p = S("path", { d: "M" + u.x.toFixed(1) + "," + u.y.toFixed(1) + " Q" + cpx.toFixed(1) + "," + cpy.toFixed(1) + " " + vv.x.toFixed(1) + "," + vv.y.toFixed(1),
         fill: "none", stroke: col, "stroke-width": Math.max(1, Math.sqrt(l.value / maxL) * 7), opacity: 0, "stroke-linecap": "round" });
-      p.addEventListener("mousemove", function (e) { PDC.showTip(e, "<b>" + l.source + " &harr; " + l.target + "</b><br>" + fmt(l.value) + (l.conns != null ? " &middot; " + PDC.fmt.n(l.conns) + " connections" : "")); });
-      p.addEventListener("mouseout", PDC.hideTip);
+      _tip(p, "<b>" + l.source + " &harr; " + l.target + "</b><br>" + fmt(l.value) + (l.conns != null ? " &middot; " + PDC.fmt.n(l.conns) + " connections" : ""));
       p._u = l.source; p._v = l.target; p._base = Math.min(.5, .18 + l.value / maxL * .4); edgeEls.push(p); s.appendChild(p);
       if (canAnim()) {
         (function (pp, delay) { setTimeout(function () { pp.style.transition = "opacity .5s ease"; pp.setAttribute("opacity", pp._base); }, delay); })(p, animD(60 + i * 26));
@@ -5458,8 +5429,7 @@
       var nd = N[k];
       var grp = S("g", { opacity: 1, style: "cursor:pointer" });
       var c = S("circle", { cx: nd.x, cy: nd.y, r: nd.rad, fill: cfg.color ? cfg.color(k) : PDC.color(nd.i), stroke: "#fff", "stroke-width": 1.5 });
-      c.addEventListener("mousemove", function (e) { PDC.showTip(e, "<b>" + k + "</b><br>" + fmt(nd.val) + " total &middot; " + Object.keys(nd.adj).length + " links"); });
-      c.addEventListener("mouseout", PDC.hideTip);
+      _tip(c, "<b>" + k + "</b><br>" + fmt(nd.val) + " total &middot; " + Object.keys(nd.adj).length + " links");
       grp.appendChild(c);
       var anc = Math.cos(nd.a) < -0.3 ? "end" : Math.cos(nd.a) > 0.3 ? "start" : "middle";
       var lx = nd.x + Math.cos(nd.a) * (nd.rad + 6), ly = nd.y + Math.sin(nd.a) * (nd.rad + 6) + (Math.sin(nd.a) > 0.3 ? 9 : Math.sin(nd.a) < -0.3 ? -2 : 3);

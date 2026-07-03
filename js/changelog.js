@@ -15,6 +15,16 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 256,
+    title: 'Track L sweep: de-duplicate the hover-tooltip wiring pattern',
+    kind: 'polish',
+    ts: '2026-07-03T11:05:27Z',
+    items: [
+      'The "show a fixed tooltip on hover, hide it on mouseout" pair was hand-wired verbatim at 36 call sites across the chart-extension renderers in app/studio-charts.js -- consolidated onto one shared _tip(node, html) helper.',
+      'Pure refactor, verified with a live hover screenshot on the sankey chart -- suite unchanged at 1167/1167.',
+    ],
+  },
+  {
     v: 255,
     title: 'Z2 follow-up: a rotating tips card on Home',
     kind: 'feature',
