@@ -1055,7 +1055,7 @@ added, and unified with this header/text-object work.
 > `studio-style-presets` (JSON array) added to Settings export/import keys and Clear local data. 5 new
 > tests, suite 988/988. **Still open under Z6**: colors beyond the existing accent-color picker, full text
 > formatting for the banner, and logo defaults per preset.
-> ✓ **Logo defaults per preset shipped v217** (closes that "still open" item): a **Default header logo**
+> ✓ **Logo defaults per preset shipped v218** (closes that "still open" item): a **Default header logo**
 > upload joins the Dashboard defaults card (same 200KB PNG/JPG/SVG rule as the per-dashboard Header logo
 > field), seeding `spec.headerLogo` on every brand-new blank dashboard alongside subtitle + accent.
 > `stylePresets()` now snapshots `logo` too, and a preset with one saved shows a small thumbnail
@@ -1120,7 +1120,7 @@ chart options / derived series / KPI computations. Keep it light (vanilla-JS mat
 > 4 new tests (unit math + inspector hint + a self-correlated column rendering 1 with no crash, correctly
 > outwaiting the KPI tile's 750ms count-up animation this time — the two prior attempts at this exact
 > assertion were false failures from reading the tile mid-animation, not real bugs). Test suite 993/993.
-> ✓ **Scatter correlation insight shipped v216 (independent take on correlation, built the same hour)**:
+> ✓ **Scatter correlation insight shipped v217 (independent take on correlation, built the same hour)**:
 > rather than only a correlation *aggregation* on the single-column KPI picker, **Scatter / bubble**
 > panels also get their own Insight narration — `Studio.computeCorrelation(cols, rows, xCol, yCol)`
 > (Pearson's r, same plain-English strength/direction phrasing as `computeInsights`) replaces the
