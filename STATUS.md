@@ -1871,12 +1871,15 @@ gets covered over time:
 >   the outer alias for no reason — pure copy-paste boilerplate, confirmed every call site only ever passed
 >   a plain-string 3rd arg (or omitted it), which `PDC.S`'s `kids` param already handles identically to
 >   `textContent =`. Deleted all three local reimplementations; behavior is byte-identical (pure extraction,
->   no branching logic touched), so no new tests needed — verified 1152/1152 unchanged. **Left for a future
->   pass** (found but out of scope for one slice — ~39 call sites across 3 functions, a bigger mechanical
->   rename than a "small, safe" slice should attempt in one go): a near-identical `function mk(tag, attrs)`
->   (same shape as `S` minus the text/kids param) is separately re-declared, locally, in three OTHER chart
->   functions around `app/studio-charts.js` lines 3923/4070/4222 — each could likewise call the outer `S`
->   directly once their `mk(...)` call sites are renamed.
+>   no branching logic touched), so no new tests needed — verified 1152/1152 unchanged. **Follow-up
+>   fixed the same run (v251):** the near-identical `function mk(tag, attrs)` noted below (same shape as
+>   `S` minus the text/kids param) was separately re-declared, locally, in three OTHER chart functions
+>   (`PDC.radialBar`, `PDC.pyramidBar`, `_icicle`). Confirmed every one of the ~34 call sites only ever
+>   passed the 2 args `mk` supported (tag, attrs — none relied on the missing 3rd text/kids param `S`
+>   also has), mechanically renamed `mk(` → `S(` at each site, then deleted the 3 now-dead local `mk`
+>   definitions (and one now-orphaned `svgNS` var in `_icicle` that only that local `mk` had used). Pure
+>   extraction, no behavior change — verified 1152/1152 unchanged again. Every chart renderer in
+>   `studio-charts.js` now shares the one `S = PDC.S` SVG-element helper with no local shadow copies left.
 > - **Fixed shipped v244 (test-health lens):** `.github/workflows/deploy.yml` deployed to GitHub Pages on
 >   every push to `main` with **zero automated verification** — the pre-migration repo had a `test` job
 >   gating `publish` (STATUS.md's own v30 entry: "a failing build ... can never deploy to the live site"),

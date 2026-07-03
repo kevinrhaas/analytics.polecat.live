@@ -15,6 +15,16 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 251,
+    title: 'Track L follow-up: finish de-duplicating the SVG-element helper',
+    kind: 'polish',
+    ts: '2026-07-03T10:08:17Z',
+    items: [
+      'Radial bar, Population pyramid, and Icicle charts each locally re-declared a near-identical SVG-element helper (mk) instead of using the shared one already available in scope.',
+      'Consolidated all three onto the shared helper and removed the redundant local copies (plus one now-unused variable). Pure refactor, no behavior change -- suite unchanged at 1152/1152.',
+    ],
+  },
+  {
     v: 250,
     title: 'Track L: de-duplicate a shadowed SVG-element helper',
     kind: 'polish',

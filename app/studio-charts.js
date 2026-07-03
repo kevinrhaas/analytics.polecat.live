@@ -3920,13 +3920,8 @@
     }
 
     var svgNS = 'http://www.w3.org/2000/svg';
-    function mk(tag, attrs) {
-      var e = document.createElementNS(svgNS, tag);
-      if (attrs) Object.keys(attrs).forEach(function (k) { e.setAttribute(k, attrs[k]); });
-      return e;
-    }
 
-    var svg = mk('svg', { width: '100%', height: totalH,
+    var svg = S('svg', { width: '100%', height: totalH,
                           viewBox: '0 0 ' + w + ' ' + totalH });
 
     sorted.forEach(function (d, rank) {
@@ -3936,7 +3931,7 @@
       var sweep = SWEEP270 * (d.value / maxVal);
 
       // Ghost background arc (full 270°, very faint)
-      var ghost = mk('path', {
+      var ghost = S('path', {
         d: arcPath(rMid, SWEEP270),
         fill: 'none', stroke: color,
         'stroke-opacity': '0.1',
@@ -3947,7 +3942,7 @@
 
       // Value arc
       if (sweep > 0.01) {
-        var valArc = mk('path', {
+        var valArc = S('path', {
           fill: 'none', stroke: color,
           'stroke-width': trackH,
           'stroke-linecap': 'round',
@@ -3986,7 +3981,7 @@
           var lr = rMid + trackH / 2 + 5;
           var lx = cx + lr * Math.cos(tipAng), ly = cy + lr * Math.sin(tipAng);
           var anchor = lx < cx - 4 ? 'end' : lx > cx + 4 ? 'start' : 'middle';
-          var vt = mk('text', {
+          var vt = S('text', {
             x: lx.toFixed(1), y: (ly + 3.5).toFixed(1),
             'font-size': '9', 'text-anchor': anchor, fill: color
           });
@@ -4004,10 +3999,10 @@
       var lx  = col * colW + 6;
       var ly  = circH + 8 + row * LEGEND_LINE + 10;
       var color = PDC.color(d.origIdx);
-      var dot   = mk('circle', { cx: lx + 4, cy: ly - 1, r: 4, fill: color });
+      var dot   = S('circle', { cx: lx + 4, cy: ly - 1, r: 4, fill: color });
       svg.appendChild(dot);
       var label = d.label.length > 17 ? d.label.slice(0, 15) + '…' : d.label;
-      var txt   = mk('text', {
+      var txt   = S('text', {
         x: lx + 11, y: ly + 3, 'font-size': '10',
         fill: 'currentColor', 'text-anchor': 'start'
       });
@@ -4067,35 +4062,30 @@
     var BAR_MAX = barZone - 6;  // leave 6px gutter between bar tip and label zone
 
     var svgNS = 'http://www.w3.org/2000/svg';
-    function mk(tag, attrs) {
-      var e = document.createElementNS(svgNS, tag);
-      if (attrs) Object.keys(attrs).forEach(function (k) { e.setAttribute(k, attrs[k]); });
-      return e;
-    }
 
-    var svg = mk('svg', { width: '100%', height: actualH,
+    var svg = S('svg', { width: '100%', height: actualH,
                           viewBox: '0 0 ' + w + ' ' + actualH });
 
     // Column header labels (left side / right side)
     var cx = barZone + LABEL_W / 2;
-    svg.appendChild(mk('text', {
+    svg.appendChild(S('text', {
       x: (barZone / 2).toFixed(1), y: '14', 'text-anchor': 'middle',
       'font-size': '10', fill: leftColor, 'font-weight': '600'
     }));
     svg.lastChild.textContent = leftLabel;
 
-    svg.appendChild(mk('text', {
+    svg.appendChild(S('text', {
       x: (barZone + LABEL_W + barZone / 2).toFixed(1), y: '14',
       'text-anchor': 'middle', 'font-size': '10', fill: rightColor, 'font-weight': '600'
     }));
     svg.lastChild.textContent = rightLabel;
 
     // Subtle divider lines flanking the centre label column
-    svg.appendChild(mk('line', {
+    svg.appendChild(S('line', {
       x1: barZone.toFixed(1), y1: '17', x2: barZone.toFixed(1), y2: String(actualH),
       stroke: 'currentColor', 'stroke-opacity': '0.13', 'stroke-width': '1'
     }));
-    svg.appendChild(mk('line', {
+    svg.appendChild(S('line', {
       x1: (barZone + LABEL_W).toFixed(1), y1: '17',
       x2: (barZone + LABEL_W).toFixed(1), y2: String(actualH),
       stroke: 'currentColor', 'stroke-opacity': '0.13', 'stroke-width': '1'
@@ -4110,7 +4100,7 @@
 
       // ── Left bar: extends from barZone leftward ──
       if (lw > 0.5) {
-        var lBar = mk('rect', {
+        var lBar = S('rect', {
           x: (barZone - lw).toFixed(2), y: yb.toFixed(1),
           width: lw.toFixed(2), height: barH, rx: '2', fill: leftColor
         });
@@ -4142,7 +4132,7 @@
 
         // Value label inside bar (right-aligned near the centre edge)
         if (lw > 28) {
-          var lt = mk('text', {
+          var lt = S('text', {
             x: (barZone - 4).toFixed(1), y: yc.toFixed(1),
             'text-anchor': 'end', 'font-size': '8.5',
             fill: 'white', 'pointer-events': 'none'
@@ -4155,7 +4145,7 @@
       // ── Right bar: extends from (barZone + LABEL_W) rightward ──
       var rxStart = barZone + LABEL_W;
       if (rw > 0.5) {
-        var rBar = mk('rect', {
+        var rBar = S('rect', {
           x: rxStart.toFixed(2), y: yb.toFixed(1),
           width: rw.toFixed(2), height: barH, rx: '2', fill: rightColor
         });
@@ -4182,7 +4172,7 @@
         rBar.appendChild(tip2);
 
         if (rw > 28) {
-          var rt = mk('text', {
+          var rt = S('text', {
             x: (rxStart + 4).toFixed(1), y: yc.toFixed(1),
             'text-anchor': 'start', 'font-size': '8.5',
             fill: 'white', 'pointer-events': 'none'
@@ -4195,7 +4185,7 @@
       // ── Centre category label ──
       var catStr = String(row.label);
       if (catStr.length > 9) catStr = catStr.slice(0, 8) + '…';
-      var cl = mk('text', {
+      var cl = S('text', {
         x: cx.toFixed(1), y: yc.toFixed(1), 'text-anchor': 'middle',
         'font-size': '9', fill: 'currentColor', 'pointer-events': 'none'
       });
@@ -4218,13 +4208,6 @@
   PDC.icicle = function (el, cfg) { reg(el, function () { _icicle(el, cfg); }); };
 
   function _icicle(el, cfg) {
-    var svgNS = "http://www.w3.org/2000/svg";
-    function mk(tag, attrs) {
-      var e = document.createElementNS(svgNS, tag);
-      if (attrs) Object.keys(attrs).forEach(function (k) { e.setAttribute(k, attrs[k]); });
-      return e;
-    }
-
     var rows = cfg.rows || [];
     if (!rows.length) { el.innerHTML = '<div class="empty">No data</div>'; return; }
 
@@ -4240,7 +4223,7 @@
     var PAD      = 1.5; // gap between adjacent cells (px)
 
     el.innerHTML = "";
-    var svg = mk("svg", { viewBox: "0 0 " + cW + " " + h, width: "100%", height: h });
+    var svg = S("svg", { viewBox: "0 0 " + cW + " " + h, width: "100%", height: h });
 
     var allRects = []; // collect for animation
 
@@ -4269,7 +4252,7 @@
         var color = pal[gi % pal.length];
 
         // Group header rectangle
-        var headerRect = mk("rect", {
+        var headerRect = S("rect", {
           x: gx.toFixed(1), y: topY,
           width: Math.max(1, gw - PAD).toFixed(1), height: topH.toFixed(1),
           fill: color, rx: 3
@@ -4285,7 +4268,7 @@
         // Group label (truncated to fit cell width) — Z8 slice 17: gated by showLabels.
         if (showLabels && gw > 36) {
           var maxCh = Math.max(2, Math.floor((gw - 8) / 5.5));
-          var gLbl = mk("text", {
+          var gLbl = S("text", {
             x: (gx + gw / 2).toFixed(1), y: (topY + topH / 2 + 1).toFixed(1),
             "text-anchor": "middle", "dominant-baseline": "middle",
             fill: "#fff", "font-size": 10, "font-weight": 600, "pointer-events": "none"
@@ -4303,7 +4286,7 @@
           // Lighter shades for smaller items so the visual hierarchy is clear
           var op  = (0.60 + 0.36 * (1 - ii / Math.max(1, items.length - 1))).toFixed(2);
 
-          var iRect = mk("rect", {
+          var iRect = S("rect", {
             x: cx.toFixed(1), y: botY.toFixed(1),
             width: Math.max(1, iw - PAD).toFixed(1), height: (botH - 1).toFixed(1),
             fill: color, rx: 2, opacity: op
@@ -4321,7 +4304,7 @@
           if (showLabels && iw > 24) {
             var maxCi = Math.max(1, Math.floor((iw - 6) / 5));
             var twoLine = botH > 34;
-            var iLbl = mk("text", {
+            var iLbl = S("text", {
               x: (cx + iw / 2).toFixed(1), y: (twoLine ? botY + botH / 2 - 5 : botY + botH / 2 + 1).toFixed(1),
               "text-anchor": "middle", "dominant-baseline": "middle",
               fill: "#fff", "font-size": 9, "pointer-events": "none"
@@ -4329,7 +4312,7 @@
             iLbl.textContent = PDC.fmt.trunc(item.label, maxCi);
             svg.appendChild(iLbl);
             if (twoLine) {
-              var iVal = mk("text", {
+              var iVal = S("text", {
                 x: (cx + iw / 2).toFixed(1), y: (botY + botH / 2 + 8).toFixed(1),
                 "text-anchor": "middle", "dominant-baseline": "middle",
                 fill: "rgba(255,255,255,.8)", "font-size": 8, "pointer-events": "none"
@@ -4354,7 +4337,7 @@
         var rw = cW * v / total;
         var color = pal[ri % pal.length];
 
-        var rect = mk("rect", {
+        var rect = S("rect", {
           x: x.toFixed(1), y: 0,
           width: Math.max(1, rw - PAD).toFixed(1), height: h,
           fill: color, rx: 3
@@ -4373,7 +4356,7 @@
         if (showLabels && rw > 24) {
           var maxCh2 = Math.max(1, Math.floor((rw - 8) / 5.5));
           var twoLine2 = h > 44;
-          var lbl = mk("text", {
+          var lbl = S("text", {
             x: (x + rw / 2).toFixed(1), y: (twoLine2 ? h / 2 - 5 : h / 2 + 1).toFixed(1),
             "text-anchor": "middle", "dominant-baseline": "middle",
             fill: "#fff", "font-size": 10, "font-weight": 600, "pointer-events": "none"
@@ -4381,7 +4364,7 @@
           lbl.textContent = PDC.fmt.trunc(r[labelCol] || "", maxCh2);
           svg.appendChild(lbl);
           if (twoLine2) {
-            var val2 = mk("text", {
+            var val2 = S("text", {
               x: (x + rw / 2).toFixed(1), y: (h / 2 + 9).toFixed(1),
               "text-anchor": "middle", "dominant-baseline": "middle",
               fill: "rgba(255,255,255,.85)", "font-size": 9, "pointer-events": "none"
