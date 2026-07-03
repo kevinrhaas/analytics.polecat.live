@@ -15,6 +15,17 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 238,
+    title: 'Generic SQL/HTTP connector (Z4 slice 4)',
+    kind: 'feature',
+    ts: '2026-07-03T06:40:06Z',
+    items: [
+      'New Source builder + DA inspector gain a Generic SQL/HTTP source type -- endpoint URL, POST/GET method, a configurable param name, and an optional auth header -- the escape hatch for in-house query services or any provider not covered by a named connector.',
+      'app/genericsql.js sends the SQL as a JSON body or query-string param straight from the browser (no backend/proxy) and accepts three response shapes: an array of row objects, {data:[...]}, or {columns,rows} -- so it fits most home-grown \'run this SQL\' endpoints without extra glue.',
+      'Same Test connection / Run live pattern as Snowflake, Databricks, and BigQuery, with a new monoline globe icon and a \'Needs endpoint\' badge (auth is optional and up to your endpoint). Excluded from the .cda export like the other direct connectors. Docs updated. 15 new tests, suite 1127/1127.',
+    ],
+  },
+  {
     v: 237,
     title: 'BigQuery connector (Z4 slice 3)',
     kind: 'feature',

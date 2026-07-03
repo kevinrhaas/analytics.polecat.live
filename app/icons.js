@@ -59,6 +59,9 @@
     // Z4 slice 3: a magnifying glass (query) with three ascending bars inside the lens (data) —
     // distinct from the plain "search" glass and the "db" cylinder for the BigQuery connector.
     bigquery: '<circle cx="10" cy="10" r="7"/><line x1="15" y1="15" x2="21" y2="21" stroke-linecap="round"/><line x1="7" y1="12" x2="7" y2="8" stroke-linecap="round"/><line x1="10" y1="13" x2="10" y2="6" stroke-linecap="round"/><line x1="13" y1="13" x2="13" y2="9" stroke-linecap="round"/>',
+    // Z4 slice 4: a globe (meridian + equator lines) for the Generic SQL/HTTP connector — "any
+    // JSON API on the web", distinct from every named-provider mark above.
+    globe:     '<circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><line x1="3" y1="12" x2="21" y2="12" stroke-linecap="round"/>',
     // Z8 follow-up: tiny inline "what this toggle does" glyphs, shared by the OPT_HINTS map
     // in studio.js — reused across every chart type that exposes the matching option key
     // (sort/legend/smooth/dots families repeat across a dozen+ chart types).

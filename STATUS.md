@@ -725,6 +725,7 @@
   the concurrently-shipped v234 Databricks connector, combined suite 1096/1096.
 - v236: **Z12 loose end: real PNG apple-touch-icon** — see Z12 entry below. 2 new tests, suite 1097/1097.
 - v237: **Z4 slice 3: BigQuery connector** — see Z4 entry below. 15 new tests, suite 1112/1112.
+- v238: **Z4 slice 4: Generic SQL/HTTP connector** — see Z4 entry below. 15 new tests, suite 1127/1127.
 
 ## NEXT (top = do first)
 
@@ -1023,8 +1024,24 @@ connector feeds the same dashboard model.
 > DAs from `.cda`, same as duckdb/httpvfs/snowflake/databricks. Docs updated. 15 new tests (stubbed at
 > the `Studio.BigQuery` boundary, same no-internet-in-sandbox rationale as Snowflake/Databricks). Test
 > suite 1112/1112.
-> **Still open for Z4**: other cloud warehouses (Redshift/Synapse), generic SQL/HTTP,
-> connector-gallery brand treatment, and a real live-account smoke test for Snowflake/Databricks/BigQuery.
+> ✓ **Slice 4 shipped v238 — Generic SQL/HTTP connector (the "generic SQL/HTTP" item closed)**:
+> `app/genericsql.js` POSTs (or GETs) a SQL string to any JSON API you point it at — an in-house
+> query service, a serverless function, or a provider not yet covered by a named connector — the
+> escape hatch for everything Z4 doesn't have a dedicated slice for yet. New Source builder + DA
+> inspector both get a **Generic SQL/HTTP** source type with Endpoint URL / Method (POST JSON body
+> or GET query-string) / Param name (which JSON/query key carries the SQL, default `sql`) / an
+> optional raw Auth header value, the same **Test connection & detect columns** / **Run live**
+> pattern as Snowflake/Databricks/BigQuery. Genuinely different from the other Z4 connectors: no
+> per-provider CORS/network-policy story (it's your own endpoint, so that's on you) and auth is
+> optional, not required — badge reads "Needs endpoint" instead of "Needs token". Accepts three
+> response shapes (array of row objects / `{data:[...]}` / `{columns,rows}`) so it fits most
+> home-grown "run this SQL" endpoints with no extra glue. New monoline `globe` icon; `exportCDA`
+> excludes `http` DAs from `.cda`, same as the other direct connectors. Docs updated. 15 new tests
+> (stubbed at the `Studio.GenericSql` boundary, same no-internet-in-sandbox rationale as the other
+> credential-based connectors). Test suite 1127/1127.
+> **Still open for Z4**: other cloud warehouses (Redshift/Synapse — can now go through Generic
+> SQL/HTTP until they earn a dedicated slice), connector-gallery brand treatment, and a real
+> live-account smoke test for Snowflake/Databricks/BigQuery/Generic SQL/HTTP.
 
 **Z5 — Settings.** App configuration: theme, default deploy target, gate/access, data-source defaults,
 and **dashboard style defaults** (standard look/style applied to new dashboards). Support **collections

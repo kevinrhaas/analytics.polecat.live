@@ -703,7 +703,8 @@
     { kind: "httpvfs", iconName: "sqlite", name: "SQLite (remote .sqlite)", desc: "Query a .sqlite file over HTTP Range Requests — indexed lookups, no backend", badge: "Browser-only", ph: "SELECT * FROM my_table\nLIMIT  200" },
     { kind: "snowflake", iconName: "snowflake", name: "Snowflake", desc: "Query a Snowflake warehouse via the SQL API — needs a token + CORS allow-listed origin", badge: "Needs token", ph: "SELECT region,\n       SUM(revenue) AS revenue\nFROM   sales\nGROUP  BY region" },
     { kind: "databricks", iconName: "databricks", name: "Databricks", desc: "Query a SQL warehouse via the Statement Execution API — needs a token + CORS allow-listed origin", badge: "Needs token", ph: "SELECT region,\n       SUM(revenue) AS revenue\nFROM   sales\nGROUP  BY region" },
-    { kind: "bigquery", iconName: "bigquery", name: "BigQuery", desc: "Query a dataset via the jobs.query REST API — needs a Google OAuth access token", badge: "Needs token", ph: "SELECT region,\n       SUM(revenue) AS revenue\nFROM   `dataset.sales`\nGROUP  BY region" }
+    { kind: "bigquery", iconName: "bigquery", name: "BigQuery", desc: "Query a dataset via the jobs.query REST API — needs a Google OAuth access token", badge: "Needs token", ph: "SELECT region,\n       SUM(revenue) AS revenue\nFROM   `dataset.sales`\nGROUP  BY region" },
+    { kind: "http", iconName: "globe", name: "Generic SQL/HTTP", desc: "POST/GET a JSON API that runs SQL and returns rows — any in-house query service or provider not listed above", badge: "Needs endpoint", ph: "SELECT region,\n       SUM(revenue) AS revenue\nFROM   sales\nGROUP  BY region" }
   ];
   function dsType(k) { return DS_TYPES.filter(function (t) { return t.kind === k; })[0] || DS_TYPES[0]; }
   // shared by the data-source builder draft and the DA inspector (both store the same sf* keys)
@@ -715,6 +716,9 @@
   // same pattern for BigQuery (bq* keys) so Studio.BigQuery.{testConnection,query} always see
   // the same {project,token,location,dataset} shape.
   function bqCfg(o) { return { project: o.bqProject, token: o.bqToken, location: o.bqLocation, dataset: o.bqDataset }; }
+  // same pattern for Generic SQL/HTTP (http* keys) so Studio.GenericSql.{testConnection,query}
+  // always see the same {url,method,authHeader,paramName} shape.
+  function httpCfg(o) { return { url: o.httpUrl, method: o.httpMethod, authHeader: o.httpAuthHeader, paramName: o.httpParamName }; }
 
   // open the guided builder. existing = {stem, da} to edit, or null to create.
   function dataSourceBuilder(existing) {
@@ -733,7 +737,8 @@
       sfWarehouse: src.sfWarehouse || "", sfDatabase: src.sfDatabase || "", sfSchema: src.sfSchema || "", sfRole: src.sfRole || "",
       dbxHost: src.dbxHost || "", dbxToken: src.dbxToken || "", dbxWarehouseId: src.dbxWarehouseId || "",
       dbxCatalog: src.dbxCatalog || "", dbxSchema: src.dbxSchema || "",
-      bqProject: src.bqProject || "", bqToken: src.bqToken || "", bqLocation: src.bqLocation || "", bqDataset: src.bqDataset || "" };
+      bqProject: src.bqProject || "", bqToken: src.bqToken || "", bqLocation: src.bqLocation || "", bqDataset: src.bqDataset || "",
+      httpUrl: src.httpUrl || "", httpMethod: src.httpMethod || "POST", httpAuthHeader: src.httpAuthHeader || "", httpParamName: src.httpParamName || "sql" };
 
     modal(editing ? "Edit data source · " + existing.da.id : "New data source", function (b) {
       var wrap = el("div", "dsb");
@@ -1311,7 +1316,7 @@
       function renderQSection() {
         qSection.innerHTML = "";
         var k = draft.kind;
-        connF.style.display = (k === "duckdb" || k === "httpvfs" || k === "snowflake" || k === "databricks" || k === "bigquery") ? "none" : ""; // JNDI doesn't apply to these direct connectors
+        connF.style.display = (k === "duckdb" || k === "httpvfs" || k === "snowflake" || k === "databricks" || k === "bigquery" || k === "http") ? "none" : ""; // JNDI doesn't apply to these direct connectors
         if (k === "httpvfs") {
           // Z14 slice 3 — SQLite-WASM + HTTP-VFS: query a remote .sqlite file over HTTP Range
           // Requests, no backend/proxy/credentials. Test connection lazy-loads the engine, lists
@@ -1536,6 +1541,51 @@
           bqQF.appendChild(bqTa);
           qSection.appendChild(bqQF);
           detectBtn.style.display = "none";
+        } else if (k === "http") {
+          // Z4 slice 4 — Generic SQL/HTTP: any JSON API that accepts a SQL string and answers with
+          // rows, no backend/proxy. The escape hatch for in-house query services / providers not
+          // yet covered by a named connector; no per-account CORS story since it's your own endpoint.
+          qSection.appendChild(field("Endpoint URL", input(draft.httpUrl, function (v) { draft.httpUrl = v.trim(); }, "https://api.example.com/query")));
+          var httpRow = el("div", "field row");
+          httpRow.appendChild(field("Method", select2pairs([["POST", "POST (JSON body)"], ["GET", "GET (query string)"]], draft.httpMethod, function (v) { draft.httpMethod = v; })));
+          httpRow.appendChild(field("Param name", input(draft.httpParamName, function (v) { draft.httpParamName = v.trim() || "sql"; }, "sql")));
+          qSection.appendChild(httpRow);
+          qSection.appendChild(field("Auth header (optional)", input(draft.httpAuthHeader, function (v) { draft.httpAuthHeader = v.trim(); }, "Bearer …")));
+          var httpStatus = el("div", "hint dsb-http-status");
+          httpStatus.textContent = "Sends the SQL as JSON ({\"" + "sql\": \"…\"}) or a query-string param directly from your browser. Expects the response as an array of row objects, {data:[...]}, or {columns,rows}.";
+          qSection.appendChild(httpStatus);
+          var httpTestBtn = el("button", "dsb-mini dsb-http-test"); httpTestBtn.style.marginTop = "8px";
+          setIconBtn(httpTestBtn, "refresh", "Test connection & detect columns", 12);
+          httpTestBtn.onclick = function () {
+            if (!draft.httpUrl) { toast("Enter an endpoint URL first.", true); return; }
+            httpTestBtn.disabled = true; httpTestBtn.textContent = "Testing…"; window.__httpTestState = "testing";
+            httpStatus.textContent = "Calling the endpoint…";
+            Studio.GenericSql.testConnection(httpCfg(draft)).then(function (res) {
+              window.__httpTestState = "done";
+              if (!res.ok) {
+                httpTestBtn.disabled = false; setIconBtn(httpTestBtn, "refresh", "Test connection & detect columns", 12);
+                httpStatus.textContent = "✗ " + res.error;
+                toast("Endpoint test failed — " + res.error, true);
+                return;
+              }
+              res.columns.forEach(function (c) { if (draft.columns.indexOf(c.name) < 0) draft.columns.push(c.name); });
+              if (!draft.query.trim()) { draft.query = "SELECT region,\n       SUM(revenue) AS revenue\nFROM   sales\nGROUP  BY region"; httpTa.value = draft.query; }
+              renderCols(); renderPreview();
+              httpTestBtn.disabled = false; setIconBtn(httpTestBtn, "refresh", "Test connection & detect columns", 12);
+              httpStatus.textContent = "✓ connected — " + res.columns.length + " column" + (res.columns.length === 1 ? "" : "s") + " detected: " +
+                res.columns.map(function (c) { return c.name + " (" + c.type + ")"; }).join(", ");
+              toast(res.columns.length + " column(s) detected from the live endpoint.");
+            });
+          };
+          qSection.appendChild(httpTestBtn);
+          var httpT = dsType("http");
+          var httpTa = textarea(draft.query, function (v) { draft.query = v; });
+          httpTa.className = "dsb-query"; httpTa.spellcheck = false; httpTa.placeholder = httpT.ph;
+          var httpQF = el("div", "field");
+          httpQF.appendChild(labelEl("Query"));
+          httpQF.appendChild(httpTa);
+          qSection.appendChild(httpQF);
+          detectBtn.style.display = "none";
         } else if (k === "kettle") {
           qSection.appendChild(field("Transformation file (.ktr)", input(draft.ktrPath, function (v) { draft.ktrPath = v; }, "/public/etl/my-transform.ktr")));
           qSection.appendChild(field("Output step name", input(draft.ktrStep, function (v) { draft.ktrStep = v; }, "Output")));
@@ -1635,6 +1685,10 @@
     if (draft.kind === "bigquery") {
       da.bqProject = draft.bqProject || ""; da.bqToken = draft.bqToken || "";
       da.bqLocation = draft.bqLocation || ""; da.bqDataset = draft.bqDataset || "";
+    }
+    if (draft.kind === "http") {
+      da.httpUrl = draft.httpUrl || ""; da.httpMethod = draft.httpMethod || "POST";
+      da.httpAuthHeader = draft.httpAuthHeader || ""; da.httpParamName = draft.httpParamName || "sql";
     }
     // remove the previous record (handles id/group rename on edit)
     if (existing) { var oe = S.catalog[existing.stem]; if (oe) oe.dataAccesses = oe.dataAccesses.filter(function (x) { return x.id !== existing.da.id; }); }
@@ -3594,6 +3648,39 @@
         });
       };
       qbq.appendChild(bqTest2);
+    } else if (kind === "http") {
+      var qhttp = section(body, "Generic SQL/HTTP", null, null, "data-sources");
+      qhttp.appendChild(field("Endpoint URL", input(da.httpUrl || "", function (v) { da.httpUrl = v.trim(); }, "https://api.example.com/query")));
+      var httpRow2 = el("div", "field row");
+      httpRow2.appendChild(field("Method", select2pairs([["POST", "POST (JSON body)"], ["GET", "GET (query string)"]], da.httpMethod || "POST", function (v) { da.httpMethod = v; })));
+      httpRow2.appendChild(field("Param name", input(da.httpParamName || "sql", function (v) { da.httpParamName = v.trim() || "sql"; }, "sql")));
+      qhttp.appendChild(httpRow2);
+      qhttp.appendChild(field("Auth header (optional)", input(da.httpAuthHeader || "", function (v) { da.httpAuthHeader = v.trim(); }, "Bearer …")));
+      var httpTa2 = el("textarea"); httpTa2.style.cssText = "width:100%;min-height:90px;font-family:var(--mono);font-size:11.5px;resize:vertical;box-sizing:border-box";
+      httpTa2.value = da.sql || da.query || ""; httpTa2.placeholder = "SELECT region, SUM(revenue) AS revenue FROM sales GROUP BY region";
+      httpTa2.addEventListener("change", function () { da.sql = httpTa2.value; da.query = httpTa2.value; });
+      qhttp.appendChild(field("Query", httpTa2));
+      var httpStatus2 = el("div", "hint");
+      httpStatus2.textContent = "Sends the SQL directly from your browser as a JSON body or query-string param — any in-house query service or provider not covered by a named connector.";
+      qhttp.appendChild(httpStatus2);
+      var httpTest2 = el("button", "btn-wide"); setIconBtn(httpTest2, "refresh", "Test connection & detect columns");
+      httpTest2.onclick = function () {
+        if (!da.httpUrl) { toast("Enter an endpoint URL first.", true); return; }
+        httpTest2.disabled = true; httpTest2.textContent = "Testing…"; window.__httpTestState = "testing";
+        httpStatus2.textContent = "Calling the endpoint…";
+        Studio.GenericSql.testConnection(httpCfg(da)).then(function (res) {
+          window.__httpTestState = "done";
+          if (!res.ok) {
+            httpTest2.disabled = false; setIconBtn(httpTest2, "refresh", "Test connection & detect columns");
+            httpStatus2.textContent = "✗ " + res.error; toast("Endpoint test failed — " + res.error, true); return;
+          }
+          da.columns = da.columns || [];
+          res.columns.forEach(function (c) { if (da.columns.indexOf(c.name) < 0) da.columns.push(c.name); });
+          renderInspector(); buildLibrary(); refreshPreview();
+          toast(res.columns.length + " column(s) detected from the live endpoint.");
+        });
+      };
+      qhttp.appendChild(httpTest2);
     }
 
     // Output columns
@@ -3745,14 +3832,16 @@
     var isSnowflake = da.kind === "snowflake";
     var isDatabricks = da.kind === "databricks";
     var isBigquery = da.kind === "bigquery";
+    var isHttp = da.kind === "http";
     var liveBtn = null;
-    if (ac || isDuckdb || isSqlite || isSnowflake || isDatabricks || isBigquery) {
+    if (ac || isDuckdb || isSqlite || isSnowflake || isDatabricks || isBigquery || isHttp) {
       liveBtn = el("button", "btn"); setIconBtn(liveBtn, "play", "Run live");
       liveBtn.title = isDuckdb ? "Query the live file via DuckDB-Wasm (HTTP Range Requests)" :
         isSqlite ? "Query the live file via SQLite-WASM (HTTP Range Requests)" :
         isSnowflake ? "Query the live warehouse via the Snowflake SQL API" :
         isDatabricks ? "Query the live warehouse via the Databricks Statement Execution API" :
-        isBigquery ? "Query the live dataset via the BigQuery jobs.query API" : ("Query live from " + ac.name);
+        isBigquery ? "Query the live dataset via the BigQuery jobs.query API" :
+        isHttp ? "Query the live endpoint" : ("Query live from " + ac.name);
       toolbar.appendChild(liveBtn);
     }
     toolbar.appendChild(copyBtn);
@@ -3898,6 +3987,19 @@
         }).catch(function (e) {
           liveBtn.disabled = false; setIconBtn(liveBtn, "play", "Run live");
           toast("BigQuery query failed — showing sample. (" + ((e && e.message) || e) + ")", true);
+          runSample();
+        });
+        return;
+      }
+      if (isHttp) {
+        if (!da.httpUrl) { liveBtn.disabled = false; setIconBtn(liveBtn, "play", "Run live"); toast("Set an endpoint URL first.", true); runSample(); return; }
+        Studio.GenericSql.query(httpCfg(da), da.sql || da.query).then(function (result) {
+          state.result = result; state.source = "live"; state.page = 0;
+          liveBtn.disabled = false; setIconBtn(liveBtn, "play", "Run live");
+          renderTable(state.result, "live");
+        }).catch(function (e) {
+          liveBtn.disabled = false; setIconBtn(liveBtn, "play", "Run live");
+          toast("Endpoint query failed — showing sample. (" + ((e && e.message) || e) + ")", true);
           runSample();
         });
         return;

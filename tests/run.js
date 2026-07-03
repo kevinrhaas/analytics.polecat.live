@@ -179,7 +179,7 @@ function serve() {
       const modalGone = !document.querySelector(".modal .dsb");
       return { types, chips, prevRows, prevCols, saved: !!da, cols: da ? da.columns.join(",") : "", inLib, modalGone };
     });
-    ok("builder opens with all source-type cards", built.types === 10, JSON.stringify({ types: built.types, err: built.err }));
+    ok("builder opens with all source-type cards", built.types === 11, JSON.stringify({ types: built.types, err: built.err }));
     ok("Detect reads columns from the SQL + previews rows", built.chips.join(",") === "region,total" && built.prevRows === 5 && built.prevCols === 2, JSON.stringify(built));
     ok("Create saves the data source into the library", built.saved && built.cols === "region,total" && built.inLib && built.modalGone, JSON.stringify(built));
 
@@ -1075,6 +1075,132 @@ function serve() {
       return { hasDA: cda.indexOf('id="bqSales"') >= 0, hasProject: cda.indexOf("my-analytics-project") >= 0 };
     });
     ok("Z4: exportCDA excludes bigquery DAs from the .cda XML (not a real Pentaho source)", !bqExport.hasDA && !bqExport.hasProject, JSON.stringify(bqExport));
+
+    // ---- Z4 slice 4: Generic SQL/HTTP connector — the escape hatch for any JSON API that runs
+    // SQL and returns rows, no per-provider CORS/network-policy story since it's your own endpoint
+    // (stubbed here for the same no-public-internet-route-in-this-sandbox reason as the other
+    // credential-based connectors) ----
+    console.log("\n• Z4: Generic SQL/HTTP connector");
+    const httpModel = await page.evaluate(() => ({
+      hasApi: typeof Studio.GenericSql === "object" && typeof Studio.GenericSql.testConnection === "function" && typeof Studio.GenericSql.query === "function"
+    }));
+    ok("Z4: Studio.GenericSql exposes testConnection()/query()", httpModel.hasApi, JSON.stringify(httpModel));
+
+    const httpCard = await page.evaluate(async () => {
+      document.getElementById("btnNewDS").click();
+      await new Promise((r) => setTimeout(r, 80));
+      const m = document.querySelector(".modal .dsb"); if (!m) return { err: "modal missing" };
+      const card = [].slice.call(m.querySelectorAll(".dsb-type")).find((c) => c.textContent.includes("Generic SQL/HTTP"));
+      if (!card) return { err: "no Generic SQL/HTTP card" };
+      card.click();
+      await new Promise((r) => setTimeout(r, 60));
+      const fieldLabels = [].slice.call(m.querySelectorAll(".dsb-qsec .field label")).map((l) => l.textContent);
+      const jndiField = [].slice.call(m.querySelectorAll(".dsb > .field")).find((f) => /Connection \(JNDI\)/.test(f.textContent));
+      const jndiHidden = jndiField ? getComputedStyle(jndiField).display === "none" : false;
+      const detectFromQueryVisible = [].slice.call(m.querySelectorAll(".dsb-mini")).some((b) => /Detect from query/.test(b.textContent) && getComputedStyle(b).display !== "none");
+      return {
+        hasUrl: fieldLabels.some((f) => /Endpoint URL/.test(f)),
+        hasMethod: fieldLabels.some((f) => /Method/.test(f)),
+        hasParamName: fieldLabels.some((f) => /Param name/.test(f)),
+        hasAuth: fieldLabels.some((f) => /Auth header/.test(f)),
+        hasTestBtn: !!m.querySelector(".dsb-http-test"),
+        jndiHidden, detectFromQueryVisible
+      };
+    });
+    ok("Z4: Generic SQL/HTTP card shows Endpoint URL/Method/Param name/Auth header fields", httpCard.hasUrl && httpCard.hasMethod && httpCard.hasParamName && httpCard.hasAuth, JSON.stringify(httpCard));
+    ok("Z4: Generic SQL/HTTP card shows a Test connection button", httpCard.hasTestBtn, JSON.stringify(httpCard));
+    ok("Z4: Generic SQL/HTTP card hides the JNDI connection field (doesn't apply)", httpCard.jndiHidden, JSON.stringify(httpCard));
+    ok("Z4: Generic SQL/HTTP card hides the SQL-alias 'Detect from query' button", !httpCard.detectFromQueryVisible, JSON.stringify(httpCard));
+
+    const httpBadge = await page.evaluate(() => {
+      const m = document.querySelector(".modal .dsb"); if (!m) return { err: "modal missing" };
+      const card = [].slice.call(m.querySelectorAll(".dsb-type")).find((c) => c.textContent.includes("Generic SQL/HTTP"));
+      return { hasBadge: card ? !!card.querySelector(".dsb-badge") : null, badgeText: card && card.querySelector(".dsb-badge") ? card.querySelector(".dsb-badge").textContent : "" };
+    });
+    ok("Z4: Generic SQL/HTTP source-type card carries a 'Needs endpoint' badge", httpBadge.hasBadge === true && /Needs endpoint/i.test(httpBadge.badgeText), JSON.stringify(httpBadge));
+
+    const httpIcon = await page.evaluate(() => ({
+      path: Studio._iconPaths.globe,
+      distinctFromBigquery: Studio._iconPaths.globe !== Studio._iconPaths.bigquery,
+      distinctFromDb: Studio._iconPaths.globe !== Studio._iconPaths.db,
+      distinctFromSearch: Studio._iconPaths.globe !== Studio._iconPaths.search
+    }));
+    ok("Z4: globe icon exists and is distinct from bigquery/db/search icons", !!httpIcon.path && httpIcon.distinctFromBigquery && httpIcon.distinctFromDb && httpIcon.distinctFromSearch, JSON.stringify(httpIcon));
+
+    const httpTestOk = await page.evaluate(async () => {
+      const orig = Studio.GenericSql.testConnection;
+      Studio.GenericSql.testConnection = function () {
+        return Promise.resolve({ ok: true, columns: [{ name: "region", type: "STRING" }, { name: "revenue", type: "STRING" }], cols: ["region", "revenue"], rows: [["East", "120"], ["West", "90"]] });
+      };
+      const m = document.querySelector(".modal .dsb"); if (!m) return { err: "modal missing" };
+      const inputs = [].slice.call(m.querySelectorAll(".dsb-qsec input"));
+      const urlInp = inputs[0], authInp = inputs[2];
+      urlInp.value = "https://api.example.com/query"; urlInp.dispatchEvent(new Event("input", { bubbles: true }));
+      authInp.value = "Bearer sometoken"; authInp.dispatchEvent(new Event("input", { bubbles: true }));
+      m.querySelector(".dsb-http-test").click();
+      await new Promise((r) => setTimeout(r, 60));
+      const chips = [].slice.call(m.querySelectorAll(".dsb-chip")).map((c) => c.textContent.replace("×", "").trim());
+      const status = (m.querySelector(".dsb-http-status") || {}).textContent || "";
+      Studio.GenericSql.testConnection = orig;
+      return { chips, status };
+    });
+    ok("Z4: a successful Test connection detects columns into chips", httpTestOk.chips.join(",") === "region,revenue", JSON.stringify(httpTestOk));
+    ok("Z4: a successful Test connection shows a ✓ status line", /^✓ connected/.test(httpTestOk.status), JSON.stringify(httpTestOk));
+
+    const httpSaved = await page.evaluate(async () => {
+      const m = document.querySelector(".modal .dsb"); if (!m) return { err: "modal missing" };
+      const idInp = m.querySelector(".field.row .field input"); idInp.value = "httpSales"; idInp.dispatchEvent(new Event("input", { bubbles: true }));
+      m.querySelector(".dsb-foot .btn-primary").click();
+      await new Promise((r) => setTimeout(r, 80));
+      const da = window.__STUDIO_STATE.catalog.custom.dataAccesses.find((d) => d.id === "httpSales");
+      return da ? { kind: da.kind, httpUrl: da.httpUrl, httpAuthHeader: da.httpAuthHeader, cols: da.columns.join(",") } : { missing: true };
+    });
+    ok("Z4: saving persists kind/url/auth header/columns on the DA", httpSaved.kind === "http" && httpSaved.httpUrl === "https://api.example.com/query" && httpSaved.httpAuthHeader === "Bearer sometoken" && httpSaved.cols === "region,revenue", JSON.stringify(httpSaved));
+
+    const httpInspector = await page.evaluate(async () => {
+      var daDef = window.__STUDIO_STATE.catalog.custom.dataAccesses.find((d) => d.id === "httpSales");
+      Studio.ensureDA(window.__STUDIO_STATE.spec, daDef);
+      window.__studioSelect({ kind: "da", id: "httpSales" });
+      await new Promise((r) => setTimeout(r, 60));
+      const insp = document.getElementById("inspBody");
+      const secs = [].slice.call(insp.querySelectorAll(".insp-sec h4")).map((h) => h.textContent);
+      const hasSection = secs.some((s) => /Generic SQL\/HTTP/.test(s));
+      const liveBtn = [].slice.call(insp.querySelectorAll(".daprev-toolbar .btn")).find((b) => /Run live/.test(b.textContent));
+      return { hasSection, liveBtnTitle: liveBtn ? liveBtn.title : "" };
+    });
+    ok("Z4: DA inspector shows the 'Generic SQL/HTTP' section for an http DA", httpInspector.hasSection, JSON.stringify(httpInspector));
+    ok("Z4: Data preview offers 'Run live' for an http DA with no active server", /Query the live endpoint/.test(httpInspector.liveBtnTitle), JSON.stringify(httpInspector));
+
+    const httpRunLive = await page.evaluate(async () => {
+      Studio.GenericSql.query = function () { return Promise.resolve({ cols: ["region", "revenue"], rows: [["East", 120], ["West", 90]] }); };
+      const insp = document.getElementById("inspBody");
+      const liveBtn = [].slice.call(insp.querySelectorAll(".daprev-toolbar .btn")).find((b) => /Run live/.test(b.textContent));
+      if (!liveBtn) return { err: "no Run live button" };
+      liveBtn.click();
+      await new Promise((r) => setTimeout(r, 60));
+      return { status: (insp.querySelector(".daprev-status") || {}).textContent || "" };
+    });
+    ok("Z4: Run live queries via Studio.GenericSql.query() and shows the live result", /2 rows? · 2 cols? · live/.test(httpRunLive.status), JSON.stringify(httpRunLive));
+
+    const httpTestFail = await page.evaluate(async () => {
+      Studio.GenericSql.testConnection = function () { return Promise.resolve({ ok: false, error: "CORS blocked — the host doesn't allow cross-origin requests." }); };
+      const insp = document.getElementById("inspBody");
+      const testBtn = [].slice.call(insp.querySelectorAll("button")).find((b) => /Test connection & detect columns/.test(b.textContent));
+      if (!testBtn) return { err: "no test button in inspector" };
+      testBtn.click();
+      await new Promise((r) => setTimeout(r, 60));
+      const status = [].slice.call(insp.querySelectorAll(".hint")).map((h) => h.textContent).find((t) => t.indexOf("✗") === 0) || "";
+      return { status };
+    });
+    ok("Z4: a failed Test connection surfaces a clear inline error, not a stuck spinner", /^✗ CORS blocked/.test(httpTestFail.status), JSON.stringify(httpTestFail));
+
+    const httpExport = await page.evaluate(() => {
+      var sp = JSON.parse(JSON.stringify(window.__STUDIO_STATE.spec));
+      sp.cda.dataAccesses.push({ id: "httpSales", name: "httpSales", kind: "http", httpUrl: "https://api.example.com/query", httpAuthHeader: "Bearer sometoken", columns: ["region", "revenue"], params: [], calcColumns: [], cache: true, cacheDuration: 300 });
+      var cda = Studio.exportCDA(sp);
+      return { hasDA: cda.indexOf('id="httpSales"') >= 0, hasUrl: cda.indexOf("api.example.com") >= 0 };
+    });
+    ok("Z4: exportCDA excludes http DAs from the .cda XML (not a real Pentaho source)", !httpExport.hasDA && !httpExport.hasUrl, JSON.stringify(httpExport));
 
     // ---- Z14 slice 4: friendlier connector error messages (shared by DuckDB + SQLite) ----
     const friendlyErrs = await page.evaluate(() => ({

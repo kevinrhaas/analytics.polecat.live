@@ -373,6 +373,7 @@
     <li><strong>Snowflake</strong> — query a live Snowflake warehouse via the SQL API, straight from the browser (see below).</li>
     <li><strong>Databricks</strong> — query a live SQL warehouse via the Statement Execution API, straight from the browser (see below).</li>
     <li><strong>BigQuery</strong> — query a live dataset via the jobs.query REST API, straight from the browser (see below).</li>
+    <li><strong>Generic SQL/HTTP</strong> — POST/GET a JSON API that runs SQL and returns rows, straight from the browser (see below).</li>
   </ul>
 
   <h3>Browser-native connectors: no backend required</h3>
@@ -417,6 +418,16 @@
     <li><strong>A short-lived OAuth 2.0 access token, never a service-account key file.</strong> Paste it into <strong>Access token</strong>; Studio never asks for or stores a downloadable key.</li>
   </ul>
   <p>Fill in the <strong>Project id</strong> (e.g. <code>my-analytics-project</code>) and optionally a job <strong>Location</strong> (e.g. <code>US</code>, needed for datasets outside the default region) and a <strong>Default dataset</strong> (so unqualified table names resolve against it), write a <strong>Query</strong>, then click <strong>Test connection &amp; detect columns</strong> — it runs <code>SELECT 1</code> to validate the project/token and, once you have a real query, detects output columns from the live result. The Data preview's <strong>Run live</strong> button queries the dataset the same way; jobs that don't complete immediately are polled automatically. Like the other direct connectors, a BigQuery DA isn't a Pentaho data source, so it's excluded from the <code>.cda</code> export.</p>
+
+  <h3>Generic SQL/HTTP connector</h3>
+  <p>The <strong>Generic SQL/HTTP</strong> source type is the escape hatch: it POSTs (or GETs) a SQL string to <strong>any JSON API you point it at</strong> — an in-house query service, a serverless function, or a provider not yet covered by a named connector — straight from the browser, no backend or proxy. Flagged with a "Needs endpoint" badge (not "Needs token" — auth is optional and entirely up to your endpoint).</p>
+  <ul>
+    <li>Fill in the <strong>Endpoint URL</strong>, pick a <strong>Method</strong> (POST sends a JSON body, GET appends a query-string param), and optionally an <strong>Auth header</strong> (the full header value, e.g. <code>Bearer …</code> — sent as-is, nothing is stored beyond your browser).</li>
+    <li><strong>Param name</strong> (default <code>sql</code>) is the JSON key or query-string key that carries the query text — match it to whatever your endpoint expects.</li>
+    <li>Write a <strong>Query</strong>, then click <strong>Test connection &amp; detect columns</strong> — it sends <code>SELECT 1</code> and detects output columns from the live response. The Data preview's <strong>Run live</strong> button queries the endpoint the same way.</li>
+    <li>The response can be shaped three ways: an array of row objects (<code>[{"col":1,...}]</code>), the same nested under <code>{"data":[...]}</code>, or an already column/row-shaped <code>{"columns":[...],"rows":[[...]]}</code>.</li>
+    <li>Like the other direct connectors, a Generic SQL/HTTP DA isn't a Pentaho data source, so it's excluded from the <code>.cda</code> export.</li>
+  </ul>
 
   <h3>Joins and compound DAs</h3>
   <p>Click <strong>⧈ Join</strong> in the library to create a <strong>Compound data access</strong> — either a join (left/right DA + key columns) or a union (stack rows from N DAs). These map directly to CDA <code>&lt;CompoundDataAccess&gt;</code> XML.</p>
