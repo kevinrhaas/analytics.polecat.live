@@ -11484,7 +11484,7 @@ function serve() {
       var switches = Array.prototype.map.call(sec.querySelectorAll("input[data-set]"), function (cb) { return cb.getAttribute("data-set"); });
       return {
         visible: sec.hidden === false,
-        hasCards: sec.querySelectorAll(".settings-card").length === 7, // 3 toggle groups + Branding (Z12) + Data source defaults (Z5 follow-up) + Dashboard defaults (Z6/Z5 follow-up) + Data (Z5 follow-up)
+        hasCards: sec.querySelectorAll(".settings-card").length === 8, // 3 toggle groups + Branding (Z12) + Data source defaults + Dashboard defaults + Deploy (Z5 follow-up) + Data
         switchIds: switches.join(","),
         darkChecked: sec.querySelector('input[data-set="dark"]').checked,
         simpleChecked: sec.querySelector('input[data-set="simple"]').checked,
@@ -11492,7 +11492,7 @@ function serve() {
         focusChecked: sec.querySelector('input[data-set="focus"]').checked
       };
     });
-    ok("Z5: Settings section renders 7 cards (3 mode-switch groups + Branding + Data source defaults + Dashboard defaults + Data) with 4 mode switches, all off by default",
+    ok("Z5: Settings section renders 8 cards (3 mode-switch groups + Branding + Data source defaults + Dashboard defaults + Deploy + Data) with 4 mode switches, all off by default",
       z5Boot.visible && z5Boot.hasCards && z5Boot.switchIds === "dark,simple,demo,focus"
         && !z5Boot.darkChecked && !z5Boot.simpleChecked && !z5Boot.demoChecked && !z5Boot.focusChecked,
       JSON.stringify(z5Boot));
@@ -11662,7 +11662,7 @@ function serve() {
       };
     });
     ok("Z5: Settings page has a Data card with Export/Import buttons",
-      z5Data.cardCount === 7 && z5Data.hasExportBtn && z5Data.hasImportBtn, JSON.stringify(z5Data));
+      z5Data.cardCount === 8 && z5Data.hasExportBtn && z5Data.hasImportBtn, JSON.stringify(z5Data));
 
     const [z5Dl] = await Promise.all([page.waitForEvent("download"), page.click("#setExportBtn")]);
     const z5DlName = z5Dl.suggestedFilename();
@@ -11722,6 +11722,48 @@ function serve() {
     ok("Z5: a brand-new data source's Connection (JNDI) field pre-fills with the Settings default",
       z5JndiNewDs.found && z5JndiNewDs.val === "ACME-PROD-DS", JSON.stringify(z5JndiNewDs));
     await page.evaluate(function () { localStorage.removeItem("studio-default-jndi"); window.__studioRenderSettings(); }); // restore default for later tests
+
+    // ── Z5 follow-up: Settings — Deploy card (deploy path + live-data toggle, now persisted) ──
+    // Previously S.settings.{deployPath,live} were in-memory-only (hardcoded, reset every reload)
+    // despite living on a page whose own header promises "saved locally on this device" — this
+    // slice surfaces them as a first-class card AND fixes the missing persistence in one pass.
+    console.log("\n• Z5 follow-up: Deploy card (deploy path + live data, persisted)");
+    await page.click('#railNav .rail-item[data-sec="settings"]'); await page.waitForTimeout(100);
+    const z5DeployBoot = await page.evaluate(function () {
+      try { localStorage.removeItem("studio-deploy-path"); localStorage.removeItem("studio-live-data"); } catch (e) {}
+      window.__STUDIO_STATE.settings.deployPath = "/public/pdc-iteration/v2"; window.__STUDIO_STATE.settings.live = false;
+      window.__studioRenderSettings();
+      var pathInp = document.getElementById("setDeployPathInp"), liveCb = document.getElementById("setLiveDataCb");
+      return { pathPresent: !!pathInp, pathVal: pathInp ? pathInp.value : "", livePresent: !!liveCb, liveChecked: liveCb ? liveCb.checked : null };
+    });
+    ok("Z5: Settings shows a Deploy path field, defaulting to the built-in path", z5DeployBoot.pathPresent && z5DeployBoot.pathVal === "/public/pdc-iteration/v2", JSON.stringify(z5DeployBoot));
+    ok("Z5: Settings shows a Live data toggle, off by default", z5DeployBoot.livePresent && z5DeployBoot.liveChecked === false, JSON.stringify(z5DeployBoot));
+
+    await page.fill("#setDeployPathInp", "/public/acme-dashboards");
+    await page.evaluate(function () { document.getElementById("setDeployPathInp").dispatchEvent(new Event("change")); });
+    await page.waitForTimeout(80);
+    const z5DeploySet = await page.evaluate(function () {
+      return {
+        runtime: window.__STUDIO_STATE.settings.deployPath, stored: localStorage.getItem("studio-deploy-path"),
+        inKeys: window.__studioImportSettingsKeys.indexOf("studio-deploy-path") >= 0
+      };
+    });
+    ok("Z5: changing the Deploy path field persists it (was in-memory-only before this slice) and is in Settings export/import keys",
+      z5DeploySet.runtime === "/public/acme-dashboards" && z5DeploySet.stored === "/public/acme-dashboards" && z5DeploySet.inKeys, JSON.stringify(z5DeploySet));
+
+    await page.click("#setLiveDataCb").catch(function () {}); // may be disabled with no active connection — that's fine, still exercises the handler if enabled
+    await page.waitForTimeout(60);
+    const z5LiveSet = await page.evaluate(function () {
+      var cb = document.getElementById("setLiveDataCb");
+      return { disabled: cb.disabled, runtime: window.__STUDIO_STATE.settings.live, stored: localStorage.getItem("studio-live-data"), inKeys: window.__studioImportSettingsKeys.indexOf("studio-live-data") >= 0 };
+    });
+    ok("Z5: the Live data toggle is disabled with no active server connection, and its key is tracked for export/import either way",
+      z5LiveSet.disabled === true && z5LiveSet.inKeys, JSON.stringify(z5LiveSet));
+
+    await page.evaluate(function () {
+      localStorage.removeItem("studio-deploy-path"); localStorage.removeItem("studio-live-data");
+      window.__STUDIO_STATE.settings.deployPath = "/public/pdc-iteration/v2"; window.__STUDIO_STATE.settings.live = false;
+    }); // restore defaults for later tests
 
     // ── Z6/Z5 follow-up: Dashboard defaults (default subtitle + accent color for new blank dashboards) ──
     console.log("\n• Z6/Z5 follow-up: dashboard defaults");

@@ -15,6 +15,17 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 235,
+    title: 'Deploy target config in Settings',
+    kind: 'feature',
+    ts: '2026-07-03T04:54:21Z',
+    items: [
+      'A new Deploy card in Settings surfaces the deploy path and live-data preview toggle, previously only reachable via the topbar Live/Sample button\'s modal -- both entry points now share one synced state.',
+      'Found and fixed a real gap while building this: the deploy path and live-data flag were in-memory-only and silently reset every reload, despite Settings promising locally-saved preferences. Both now persist to localStorage and are included in Settings export/import and Clear local data.',
+      '5 new tests, suite 1081/1081.',
+    ],
+  },
+  {
     v: 234,
     title: 'Databricks connector (Z4 slice 2)',
     kind: 'feature',

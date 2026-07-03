@@ -15,7 +15,7 @@
     assets: { css: "", js: "", render: "" },
     spec: Studio.emptySpec(),
     selection: null,                       // null=dashboard | {kind,id} | {kind:'kpi',index}
-    settings: { deployPath: "/public/pdc-iteration/v2", live: false },
+    settings: { deployPath: deployPathPref(), live: liveDataPref() },
     connections: [], activeConn: null,
     theme: "light",
     simpleMode: false,
@@ -4326,7 +4326,8 @@
     "studio-lw", "studio-rw", "studio-collapse-library", "studio-collapse-inspector",
     "studio-insp-collapsed", "studio-shell-section", "studio-shell-expanded", "studio-branding",
     "studio-default-jndi", "studio-default-subtitle", "studio-default-accent", "studio-default-logo", "studio-default-headerbg",
-    "studio-default-titlesize", "studio-default-subtitlestyle", "studio-style-presets"
+    "studio-default-titlesize", "studio-default-subtitlestyle", "studio-style-presets",
+    "studio-deploy-path", "studio-live-data"
   ];
   // Z5 follow-up: data-source defaults. Every new data source (dataSourceBuilder with no
   // `existing`) used to fall back to a hardcoded "PDC-BIDB-EXT" JNDI pool name; most teams
@@ -4337,6 +4338,21 @@
   }
   function setDefaultJndi(v) { try { localStorage.setItem("studio-default-jndi", (v || "").trim()); } catch (e) {} }
   window.__studioDefaultJndi = defaultJndi; // test hook
+
+  // Z5 follow-up: deploy target config. S.settings.{deployPath,live} used to be in-memory-only
+  // (hardcoded defaults, reset every reload) despite living on a page titled "app-wide preferences,
+  // saved locally on this device" — found while surfacing them as a first-class Settings card.
+  // Persisted the same way every other Settings default already is.
+  function deployPathPref() {
+    var v; try { v = localStorage.getItem("studio-deploy-path"); } catch (e) {}
+    return (v && v.trim()) || "/public/pdc-iteration/v2";
+  }
+  function setDeployPathPref(v) { try { localStorage.setItem("studio-deploy-path", (v || "").trim()); } catch (e) {} }
+  function liveDataPref() {
+    var v; try { v = localStorage.getItem("studio-live-data"); } catch (e) {}
+    return v === "1";
+  }
+  function setLiveDataPref(v) { try { localStorage.setItem("studio-live-data", v ? "1" : "0"); } catch (e) {} }
 
   // Z6/Z5 follow-up: dashboard defaults. A light first cut of the "style-preset collections"
   // ask — a single default subtitle + accent color applied to every brand-new blank dashboard,
@@ -4565,6 +4581,17 @@
             '<button type="button" class="btn" id="spSaveBtn">+ Save as preset</button></div>' +
         '</div>' +
       '</div>' +
+      (function () {
+        var ac = activeConnection();
+        return '<div class="settings-card"><h2>Deploy</h2>' +
+          '<div class="set-row"><span class="set-row-ic" data-ic="db"></span>' +
+            '<div class="set-row-txt"><b>Deploy path</b><small>Server folder that stamps the CDA links in every export, and where Push publishes artifacts.</small></div>' +
+            '<input type="text" id="setDeployPathInp" class="set-txt" value="' + esc(S.settings.deployPath || "") + '" placeholder="/public/studio"/></div>' +
+          '<div class="set-row"><span class="set-row-ic" data-ic="eye"></span>' +
+            '<div class="set-row-txt"><b>Live data in preview</b><small>' + (ac ? "Active server: " + esc(ac.name) + " — " + esc(Studio.PentahoClient(ac).base()) : "No active server connection — add one in ⚙ Servers first.") + '</small></div>' +
+            '<label class="set-sw"><input type="checkbox" id="setLiveDataCb"' + (S.settings.live ? " checked" : "") + (ac ? "" : " disabled") + '/><span class="set-sw-track"></span></label></div>' +
+        '</div>';
+      })() +
       '<div class="settings-card"><h2>Data</h2>' +
         '<div class="set-row"><span class="set-row-ic" data-ic="download"></span>' +
           '<div class="set-row-txt"><b>Export settings</b><small>Save theme, mode, connections &amp; layout preferences as a .json file.</small></div>' +
@@ -4623,6 +4650,10 @@
       b.appendChild(Studio.icon("trash", 13));
       b.onclick = function () { deleteStylePreset(b.getAttribute("data-id")); renderSettings(); };
     });
+    var deployPathInp = $("#setDeployPathInp", sec);
+    if (deployPathInp) deployPathInp.addEventListener("change", function () { S.settings.deployPath = deployPathInp.value.trim(); setDeployPathPref(S.settings.deployPath); toast("Deploy path saved"); });
+    var liveDataCb = $("#setLiveDataCb", sec);
+    if (liveDataCb) liveDataCb.addEventListener("change", function () { S.settings.live = liveDataCb.checked; setLiveDataPref(S.settings.live); syncLiveButton(); });
     var expBtn = $("#setExportBtn", sec); if (expBtn) expBtn.onclick = exportSettingsFile;
     var impBtn = $("#setImportBtn", sec); if (impBtn) impBtn.onclick = importSettingsFile;
     var brandSel = $("#brandModeSel", sec);
@@ -5351,7 +5382,8 @@
         "studio-shell-section", "studio-shell-expanded",
         "studio-default-jndi", "studio-default-subtitle", "studio-default-accent", "studio-default-logo", "studio-default-headerbg",
         "studio-default-titlesize", "studio-default-subtitlestyle", "studio-style-presets",
-        "studio-cmdk-usage", "studio-first-export-done", "studio-export-count"
+        "studio-cmdk-usage", "studio-first-export-done", "studio-export-count",
+        "studio-deploy-path", "studio-live-data"
       ];
       var msg = "Clear all locally-stored Studio data?\n\nThis will remove:\n" +
         "  • Unsaved spec draft (autosave)\n" +
@@ -5684,20 +5716,24 @@
     });
   }
 
+  // Reflects S.settings.live onto the topbar Live/Sample button + repaints the preview. Shared by
+  // the toggleLive() modal (⋯ More / #btnLive) and the Settings "Deploy" card so both entry points
+  // to the same S.settings.live flag stay in sync (single source of truth, see Z5 deploy-target ask).
+  function syncLiveButton() {
+    var on = S.settings.live && activeConnection();
+    var lb = $("#btnLive"); if (lb) { setIconBtn(lb, on ? "eye" : "refresh", on ? "Live" : "Sample"); lb.classList.toggle("live-on", !!on); }
+    refreshPreview();
+  }
   function toggleLive() {
     modal("Live data / deploy settings", function (b) {
       b.appendChild(noteEl("info", "Exported dashboards always read live data via CDA on the Pentaho server. The deploy path stamps the CDA links in exports. Live preview is best-effort and needs the active connection reachable (CORS / same-origin / login)."));
       var ac = activeConnection();
       b.appendChild(noteEl(ac ? "ok" : "warn", ac ? ("Active server: " + ac.name + " — " + Studio.PentahoClient(ac).base()) : "No active server connection. Add one in ⚙ Servers to preview live."));
-      b.appendChild(field("Deploy path (server folder)", input(S.settings.deployPath, function (v) { S.settings.deployPath = v.trim(); })));
+      b.appendChild(field("Deploy path (server folder)", input(S.settings.deployPath, function (v) { S.settings.deployPath = v.trim(); setDeployPathPref(S.settings.deployPath); })));
       var lab = el("label", "check"); var cb = el("input"); cb.type = "checkbox"; cb.checked = S.settings.live;
-      cb.onchange = function () { S.settings.live = cb.checked; }; lab.appendChild(cb); lab.appendChild(document.createTextNode("Use live data (active server) in the preview"));
+      cb.onchange = function () { S.settings.live = cb.checked; setLiveDataPref(S.settings.live); }; lab.appendChild(cb); lab.appendChild(document.createTextNode("Use live data (active server) in the preview"));
       b.appendChild(lab);
-    }, function () {
-      var on = S.settings.live && activeConnection();
-      var lb = $("#btnLive"); setIconBtn(lb, on ? "eye" : "refresh", on ? "Live" : "Sample"); lb.classList.toggle("live-on", !!on);
-      refreshPreview();
-    });
+    }, syncLiveButton);
   }
 
   function openSpecFile() {

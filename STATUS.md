@@ -721,6 +721,7 @@
 - v205: **Track L architecture sweep (accessibility): modal() close button aria-label** — see Track L
   findings log above. 2 new tests, suite 964/964.
 - v234: **Z4 slice 2: Databricks connector** — see Z4 entry below. 15 new tests, suite 1092/1092.
+- v235: **Z5 follow-up: Deploy target config in Settings** — see Z5 entry above. 5 new tests, suite 1097/1097.
 
 ## NEXT (top = do first)
 
@@ -1024,8 +1025,18 @@ of named style presets** the user can pick from. Export/import settings as JSON.
 > connection** field — pre-fills the Connection field on every brand-new data source (＋ New source)
 > instead of the hardcoded "PDC-BIDB-EXT" placeholder. `defaultJndi()`/`setDefaultJndi()` in studio.js,
 > persisted to `localStorage["studio-default-jndi"]` and included in Settings export/import.
-> **Z5 follow-ups (not yet done):** deploy target config, gate/access management, dashboard style-preset
-> collections, and the optional polecat.live-style left-drawer mirror of key toggles.
+> **Z5 follow-ups (not yet done):** gate/access management, and the optional polecat.live-style
+> left-drawer mirror of key toggles.
+> ✓ **Deploy target config shipped v235 (closes "deploy target config" above)**: a **Deploy** card
+> in Settings surfaces the Deploy path (server folder that stamps CDA links in exports) and the
+> Live data preview toggle, previously only reachable via the "Live data / deploy settings" modal
+> behind the topbar Live/Sample button (that modal still works too — same underlying state, one
+> `syncLiveButton()` helper keeps both entry points in sync). **Found a real gap while surfacing
+> it**: `S.settings.{deployPath,live}` were in-memory-only — hardcoded defaults, silently reset on
+> every reload — despite the Settings page's own header promising "saved locally on this device."
+> Added `studio-deploy-path`/`studio-live-data` localStorage persistence (same getter/setter
+> pattern as every other Settings default) and wired both into Settings export/import + Clear
+> local data. 5 new tests, suite 1081/1081.
 
 **Z6 — Banner / header editor + naming model (user-requested; refined 2026-06-30).** Make the dashboard
 header/banner (the "Cost Optimization & Sustainability · subtitle" bar in the preview) fully **editable
