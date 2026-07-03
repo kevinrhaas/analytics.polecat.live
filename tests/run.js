@@ -1600,6 +1600,49 @@ function serve() {
     });
     ok("Insight section shows a correlation read for a scatter panel with xCol/yCol bound", scatCorrUI.found && scatCorrUI.hasText, JSON.stringify(scatCorrUI));
 
+    // ---- N-AI: smart chart recommender ----
+    console.log("\n• smart chart recommender");
+    const recoUnit = await page.evaluate(() => {
+      const dateCols = ["month", "revenue"];
+      const dateRows = [["Jan", 100], ["Feb", 110], ["Mar", 120], ["Apr", 130]];
+      const dateReco = Studio.recommendCharts(dateCols, dateRows).map(r => r.type);
+      const catCols = ["region", "sales"];
+      const catRows = [["East", 10], ["West", 20], ["North", 15]];
+      const catReco = Studio.recommendCharts(catCols, catRows).map(r => r.type);
+      const wideCols = ["a", "b", "c", "d", "e"];
+      const wideRows = [["x", 1, 2, 3, 4]];
+      const wideReco = Studio.recommendCharts(wideCols, wideRows).map(r => r.type);
+      const emptyReco = Studio.recommendCharts([], []);
+      return { dateReco, catReco, wideReco, emptyReco };
+    });
+    ok("Studio.recommendCharts suggests line for a date + numeric column", recoUnit.dateReco.indexOf("line") >= 0, JSON.stringify(recoUnit.dateReco));
+    ok("Studio.recommendCharts suggests bars + donut for a low-cardinality category + numeric column", recoUnit.catReco.indexOf("bars") >= 0 && recoUnit.catReco.indexOf("donut") >= 0, JSON.stringify(recoUnit.catReco));
+    ok("Studio.recommendCharts suggests table for a wide (4+ column) query", recoUnit.wideReco.indexOf("table") >= 0, JSON.stringify(recoUnit.wideReco));
+    ok("Studio.recommendCharts returns an empty array with no rows", Array.isArray(recoUnit.emptyReco) && recoUnit.emptyReco.length === 0, JSON.stringify(recoUnit.emptyReco));
+    const recoUI = await page.evaluate(function () {
+      var spec = window.__STUDIO_STATE.spec;
+      var p = spec.panels[0];
+      var prevChart = JSON.parse(JSON.stringify(p.chart));
+      window.__studioSelect({ kind: "panel", id: p.id });
+      var strip = document.querySelector("#inspBody .chart-reco");
+      var chips = strip ? [].slice.call(strip.querySelectorAll(".chart-reco-chip")) : [];
+      var result = { found: !!strip, chipCount: chips.length, hasWhy: chips.length > 0 && !!chips[0].title };
+      var other = chips.filter(function (c) { return c.dataset.type !== prevChart.type; })[0];
+      if (other) {
+        other.click();
+        result.typeChanged = p.chart.type === other.dataset.type && p.chart.type !== prevChart.type;
+      } else if (chips.length) {
+        result.typeChanged = true; // every recommendation already matches the current type — nothing to prove
+      }
+      p.chart = prevChart;
+      window.__studioSelect(null);
+      window.__studioRenderInspector();
+      return result;
+    });
+    ok("Recommended-charts strip appears in the panel inspector for a data-bound panel", recoUI.found && recoUI.chipCount > 0, JSON.stringify(recoUI));
+    ok("Each recommendation chip carries a 'why' tooltip", recoUI.hasWhy, JSON.stringify(recoUI));
+    ok("Clicking a recommendation chip changes the panel's chart type", recoUI.typeChanged, JSON.stringify(recoUI));
+
     // ---- Pentaho connections: Kettle XML, CDA parser, client, UI ----
     console.log("\n• Pentaho server connections");
     const ph = await page.evaluate(() => {

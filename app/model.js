@@ -110,6 +110,56 @@
   };
   Studio.PALETTE = "['#005bb5','#7d3c98','#2e8bd0','#9b59b6','#00a39a','#e67e22','#c0392b','#16a085']";
 
+  /* ---- N-AI: smart chart recommender ----
+     Given a query's own columns + sample rows, suggest the 2-3 best-fit chart
+     types with a one-line "why" — a lightweight assistant over the chart-type
+     gallery for newcomers who don't yet know which of the 51 types fits their
+     data shape. Pure, no DOM; classification is a simplified version of the
+     same numeric/date heuristics autoPickCols() (studio.js) already uses. */
+  Studio.classifyCols = function (cols, rows) {
+    var DATEISH = /date|month|day|period|time|year|week/i;
+    var numeric = [], strings = [], dateish = [];
+    (cols || []).forEach(function (c, i) {
+      if (DATEISH.test(c)) { dateish.push(c); return; }
+      var vals = (rows || []).map(function (r) { return r[i]; }).filter(function (v) { return v !== "" && v != null; });
+      var isNum = vals.length > 0 && vals.every(function (v) { return !isNaN(Number(v)); });
+      (isNum ? numeric : strings).push(c);
+    });
+    return { numeric: numeric, strings: strings, dateish: dateish };
+  };
+  Studio.recommendCharts = function (cols, rows) {
+    if (!cols || !cols.length || !rows || !rows.length) return [];
+    var k = Studio.classifyCols(cols, rows);
+    var n = rows.length;
+    var strIdx = k.strings.length ? cols.indexOf(k.strings[0]) : -1;
+    var cardinality = strIdx >= 0 ? new Set(rows.map(function (r) { return r[strIdx]; })).size : 0;
+    var picks = [];
+    function add(type, why) {
+      if (!Studio.CHARTS[type] || picks.length >= 3 || picks.some(function (p) { return p.type === type; })) return;
+      picks.push({ type: type, label: Studio.CHARTS[type].label, why: why });
+    }
+    if (k.dateish.length && k.numeric.length) {
+      add("line", "Has a time-like column (" + k.dateish[0] + ") — good for showing a trend over time.");
+    }
+    if (k.strings.length && k.numeric.length) {
+      add("bars", "A category (" + k.strings[0] + ") plus a number is the classic side-by-side comparison.");
+      if (cardinality > 1 && cardinality <= 7) {
+        add("donut", k.strings[0] + " has only " + cardinality + " distinct values — good for a part-to-whole view.");
+      }
+    }
+    if (k.numeric.length >= 2 && n >= 5) {
+      add("scatter", "Two numeric columns across " + n + " rows — a scatter plot can reveal a relationship.");
+    }
+    if (cols.length >= 4) {
+      add("table", "This query returns " + cols.length + " columns — a table shows every field at once.");
+    }
+    if (n === 1 && k.numeric.length) {
+      add("kpi", "A single row is best summarized as one headline number.");
+    }
+    if (!picks.length && k.numeric.length) add("bars", "A safe general-purpose default for this data shape.");
+    return picks.slice(0, 3);
+  };
+
   /* ---- N-AI: "Explain this chart" auto-insight narration ----
      Pure client-side stats over a chart's own sample rows (no API, ties to Z7): trend
      direction via OLS slope, the single biggest point-to-point move, and any outlier

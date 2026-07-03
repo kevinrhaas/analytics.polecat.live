@@ -2006,6 +2006,38 @@
 
     // chart type picker — grouped by c.group for scannability (Content group = richtext/annotation)
     var cs = section(body, "Chart type", null, null, "chart-types");
+
+    // N-AI: smart chart recommender — a quick "try one of these" strip above the full
+    // gallery, computed from the bound query's own columns/rows. Silently omitted when
+    // no query is bound yet, or when nothing rises above the generic fallback.
+    if (p.chart.da && p.chart.type !== "richtext") {
+      var recoDa = Studio.daById(S.spec, p.chart.da);
+      if (recoDa) {
+        var recoSd = Studio.sampleRows(recoDa);
+        var recoPicks = Studio.recommendCharts(recoSd.cols, recoSd.rows);
+        if (recoPicks.length) {
+          var recoWrap = el("div", "chart-reco");
+          var recoLbl = el("div", "chart-reco-lbl");
+          recoLbl.appendChild(Studio.icon("star", 12));
+          var recoLblTxt = el("span"); recoLblTxt.textContent = "Recommended for this data";
+          recoLbl.appendChild(recoLblTxt);
+          recoWrap.appendChild(recoLbl);
+          var recoChips = el("div", "chart-reco-chips");
+          recoPicks.forEach(function (r) {
+            var chip = el("button", "chart-reco-chip" + (p.chart.type === r.type ? " sel" : ""));
+            chip.type = "button";
+            chip.dataset.type = r.type;
+            chip.title = r.why;
+            chip.innerHTML = '<span class="ic">' + (CHART_SVG[r.type] || Studio.CHARTS[r.type].icon) + '</span><span>' + r.label + '</span>';
+            chip.onclick = function () { changeChartType(p, r.type); };
+            recoChips.appendChild(chip);
+          });
+          recoWrap.appendChild(recoChips);
+          cs.appendChild(recoWrap);
+        }
+      }
+    }
+
     var grid = el("div", "chart-grid");
     var groups = {}, groupOrder = [];
     Object.keys(Studio.CHARTS).forEach(function (t) {

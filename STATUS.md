@@ -1744,8 +1744,16 @@ gets covered over time:
 > column when a chart type has no direct `valueCol` (e.g. line/area); silently omitted for chart types with
 > neither (tables, richtext, sankey/chord). 3 new tests, suite 983/983. **Still open:** seasonality
 > detection, auto-placed callout markers on the notable points, and a smart chart-type recommender.
+> ✓ **Smart chart recommender shipped v219 (closes the item below).** A "Recommended for this data" chip
+> strip appears above the chart-type gallery once a panel has a query bound — `Studio.recommendCharts(cols,
+> rows)` in model.js classifies columns (date-like / numeric / string) and cardinality, then suggests up to
+> 3 fitting types (Line for a date+number, Bars+Donut for a low-cardinality category+number, Scatter for two
+> numeric columns across ≥5 rows, Table for a wide query, KPI for a single row) each with a one-line "why"
+> shown on hover; clicking a chip calls the existing `changeChartType()`. Pure, no API/network. 7 new tests,
+> suite 1009/1009.
 - **Smart chart recommender:** given a bound DA's shape (cardinality, types, row count), suggest the 3 best
-  chart types with a why. Guides newcomers; upgrades the gallery from a menu to an assistant.
+  chart types with a why. Guides newcomers; upgrades the gallery from a menu to an assistant. ✓ shipped
+  v219, see above.
 
 **N-FUN — Engagement, delight & "game-like."**
 - ✓ **Command palette (⌘K / Ctrl-K) — slice 1 shipped v175** (`app/palette.js`): fuzzy-searchable list of

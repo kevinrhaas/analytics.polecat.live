@@ -15,6 +15,16 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 219,
+    title: 'Smart chart recommender',
+    kind: 'feature',
+    ts: '2026-07-03T00:28:27Z',
+    items: [
+      'Once a panel has a query bound, a "Recommended for this data" strip appears above the chart-type gallery with 1–3 suggested types — Line for a date column + a number, Donut for a low-cardinality category, Scatter for two numeric columns, Table for a wide query, and so on.',
+      'Each recommendation chip explains its "why" on hover and switches the chart type with one click. Pure client-side heuristics, no API call — Studio.recommendCharts() in model.js.',
+    ],
+  },
+  {
     v: 218,
     title: 'Style presets now carry a default header logo too',
     kind: 'feature',
