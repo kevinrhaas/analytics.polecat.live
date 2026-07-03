@@ -2211,8 +2211,14 @@ gets covered over time:
 > from in-session Undo/Redo (memory-only, lost on reload) and `studio-autosave` (one unsaved draft).
 > Version lists are pruned to only dashboards still tracked in `studio-recents` (reusing the existing
 > `noteRecent()` debounce) so history can't grow unbounded once a dashboard falls off Home/Repository.
-> Included in Clear local data. `docs/index.html` updated. 5 new tests, suite 1172/1172. **Still open:**
-> a side-by-side visual diff between two versions (today restore is all-or-nothing, no comparison view).
+> Included in Clear local data. `docs/index.html` updated. 5 new tests, suite 1172/1172.
+> ✓ **Side-by-side diff shipped v262 (closes the "still open" item above; N-DIST version-history track
+> now feature-complete)**: every checkpoint gains a **⇄ Compare to current** button — opens a plain-
+> English change list (`Studio.diffSpecs`/`Studio.diffSummary` in model.js, pure) between that checkpoint
+> and the live working spec: scalar fields (title/subtitle/accent/header bg/etc.), panels/filters added/
+> removed/changed (matched by stable `id`), KPIs added/removed/changed (positional — they carry no id).
+> The modal also offers "Restore this version" so you can see what a restore would actually undo before
+> committing. New `diff` icon (`app/icons.js`). 6 new tests, suite 1194/1194.
 
 **N-DESIGN — Make it unmistakably sexy.**
 - **Theme studio & gallery:** author/share custom themes (theme × light/dark, extends Z10); a few stunning

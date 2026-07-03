@@ -12193,6 +12193,49 @@ function serve() {
     ok("N-DIST: pruneVersions() removes version history for dashboards no longer in studio-recents, keeping the active one",
       vhPrune.orphanGone && vhPrune.targetKept, JSON.stringify(vhPrune));
 
+    // ── N-DIST follow-up: version-history visual diff (Compare to current) ──
+    console.log("\n• N-DIST follow-up: version-history diff");
+    const diffPure = await page.evaluate(function () {
+      var a = { title: "Old title", panels: [{ id: "p1", title: "Revenue" }, { id: "p2", title: "Costs" }], kpis: [{ label: "K1" }], filters: [{ id: "f1", label: "Region" }] };
+      var b = { title: "New title", panels: [{ id: "p1", title: "Revenue (renamed)" }, { id: "p3", title: "New panel" }], kpis: [{ label: "K1" }, { label: "K2" }], filters: [] };
+      var d = Studio.diffSpecs(a, b);
+      var summary = Studio.diffSummary(d);
+      var identical = Studio.diffSummary(Studio.diffSpecs(a, a));
+      return {
+        titleField: d.fields.some(function (f) { return f.key === "title" && f.from === "Old title" && f.to === "New title"; }),
+        panelAdded: d.panels.added.indexOf("New panel") >= 0,
+        panelRemoved: d.panels.removed.indexOf("Costs") >= 0,
+        panelChanged: d.panels.changed.indexOf("Revenue (renamed)") >= 0,
+        kpiAdded: d.kpis.added === 1,
+        filterRemoved: d.filters.removed.indexOf("Region") >= 0,
+        summaryLen: summary.length,
+        identicalLen: identical.length
+      };
+    });
+    ok("Studio.diffSpecs detects a changed scalar field (title)", diffPure.titleField, JSON.stringify(diffPure));
+    ok("Studio.diffSpecs detects an added + a removed + a changed panel (matched by id)",
+      diffPure.panelAdded && diffPure.panelRemoved && diffPure.panelChanged, JSON.stringify(diffPure));
+    ok("Studio.diffSpecs counts an added KPI (positional) and a removed filter (matched by id)",
+      diffPure.kpiAdded && diffPure.filterRemoved, JSON.stringify(diffPure));
+    ok("Studio.diffSummary renders lines for a real diff, and none for two identical specs",
+      diffPure.summaryLen > 0 && diffPure.identicalLen === 0, JSON.stringify(diffPure));
+
+    // Live UI: open the Compare modal on the earlier checkpoint (title differs from the
+    // now-current "VH Original Title" restored state) and confirm it surfaces a real diff.
+    const vhDiffUI = await page.evaluate(function (id) {
+      window.__STUDIO_STATE.spec.title = "A brand-new unsaved title";
+      var list = window.__studioVersions()[id] || [];
+      window.__studioOpenVersionDiff(list[list.length - 1]); // oldest checkpoint vs. current
+      var modal = document.querySelector(".modal-ov .modal");
+      var rows = modal ? Array.from(modal.querySelectorAll(".vdiff-row")).map(function (r) { return r.textContent; }) : [];
+      var hasRestoreBtn = !!(modal && Array.from(modal.querySelectorAll("button")).find(function (b) { return /Restore this version/.test(b.textContent); }));
+      return { hasModal: !!modal, rowCount: rows.length, mentionsTitle: rows.some(function (r) { return /Title:/.test(r); }), hasRestoreBtn: hasRestoreBtn };
+    }, vhId);
+    ok("N-DIST: Compare-to-current modal opens and lists the Title field change",
+      vhDiffUI.hasModal && vhDiffUI.rowCount > 0 && vhDiffUI.mentionsTitle, JSON.stringify(vhDiffUI));
+    ok("N-DIST: Compare modal offers a 'Restore this version' action", vhDiffUI.hasRestoreBtn, JSON.stringify(vhDiffUI));
+    await page.evaluate(function () { var ov = document.querySelector(".modal-ov"); if (ov) ov.remove(); });
+
     // ── Z12: branding & app identity — de-dup the logo, add a favicon ──
     console.log("\n• Z12: branding & app identity");
     const z12Head = await page.evaluate(function () {

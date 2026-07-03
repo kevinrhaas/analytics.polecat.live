@@ -626,6 +626,9 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
 .icobtn{background:none;border:0;color:var(--faint);cursor:pointer;font-size:13px;padding:2px 4px;border-radius:5px;line-height:1;display:inline-flex;align-items:center;justify-content:center}
 .icobtn:hover{background:var(--field);color:var(--ink)}
 .icobtn.danger:hover{color:var(--bad)}
+/* N-DIST follow-up: version-history compare modal — a plain-English change list */
+.vdiff-list{display:flex;flex-direction:column;gap:6px}
+.vdiff-row{font-size:12.5px;line-height:1.5;padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:var(--pane)}
 .chart-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:6px}
 .chart-opt{border:1px solid var(--line);border-radius:9px;padding:8px 5px 6px;text-align:center;cursor:pointer;background:var(--pane);transition:border-color .12s,box-shadow .12s,transform .08s;position:relative}
 .chart-opt:hover{border-color:var(--pentaho);transform:translateY(-1px);box-shadow:var(--shadow)}

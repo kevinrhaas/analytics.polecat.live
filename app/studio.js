@@ -2162,7 +2162,7 @@
         var vp = v.spec || {};
         var vDetail = (vp.panels || []).length + " panel" + ((vp.panels || []).length === 1 ? "" : "s") +
           ((vp.kpis || []).length ? " · " + (vp.kpis || []).length + " KPI" + ((vp.kpis || []).length === 1 ? "" : "s") : "");
-        vhSec.appendChild(rowItem("↺", when, vDetail, function () { restoreVersion(v.ts); }, [], false));
+        vhSec.appendChild(rowItem("↺", when, vDetail, function () { restoreVersion(v.ts); }, [compareBtn(function () { openVersionDiff(v); })], false));
       });
     }
 
@@ -4387,6 +4387,29 @@
     snapshotVersion(); // the restored state is itself a checkpoint, so a restore can be undone too
     toast("Version restored");
   }
+  // N-DIST follow-up: "visual diff between two versions" — compares one checkpoint
+  // against the CURRENT working spec (the practical question when deciding whether to
+  // restore) and lists what changed in plain English via Studio.diffSpecs/diffSummary.
+  function openVersionDiff(v) {
+    var when = new Date(v.ts).toLocaleString();
+    var lines = Studio.diffSummary(Studio.diffSpecs(v.spec || {}, S.spec));
+    modal("Compare: " + when + " → Current", function (body) {
+      body.appendChild(hint("What changed between this checkpoint and the dashboard as it stands now."));
+      if (!lines.length) {
+        body.appendChild(noteEl("info", "No differences — this checkpoint matches the current dashboard."));
+      } else {
+        var list = el("div", "vdiff-list");
+        lines.forEach(function (line) {
+          var row = el("div", "vdiff-row"); row.textContent = line; list.appendChild(row);
+        });
+        body.appendChild(list);
+      }
+      var restoreB = el("button", "btn"); restoreB.style.cssText = "margin-top:10px;width:100%;justify-content:center";
+      setIconBtn(restoreB, "undo", "Restore this version");
+      restoreB.onclick = function () { document.querySelector(".modal-ov").remove(); restoreVersion(v.ts); };
+      body.appendChild(restoreB);
+    });
+  }
   // Shared markup for one recents/pinned card. Uses a big invisible "open" button
   // covering the whole card (not the card element itself) so the small pin toggle can
   // sit on top of it without an invalid <button> inside a <button>.
@@ -4483,6 +4506,7 @@
   window.__studioVersions = loadVersions; // test hook
   window.__studioSnapshotVersion = snapshotVersion; // test hook
   window.__studioRestoreVersion = restoreVersion; // test hook
+  window.__studioOpenVersionDiff = openVersionDiff; // test hook
 
   /* ---------- Z3 follow-up: Workbooks — named collections of dashboards -------------------
      The north star describes a "workbook" as a named collection of dashboards; until now
@@ -6563,6 +6587,7 @@
     return r;
   }
   function delBtn(fn) { var b = el("button", "icobtn danger"); b.appendChild(Studio.icon("trash", 14)); b.title = "Delete"; b.onclick = function (e) { e.stopPropagation(); fn(); }; return b; }
+  function compareBtn(fn) { var b = el("button", "icobtn"); b.appendChild(Studio.icon("diff", 14)); b.title = "Compare to current"; b.setAttribute("aria-label", "Compare to current"); b.onclick = function (e) { e.stopPropagation(); fn(); }; return b; }
   function moveBtn(t, fn) { var b = el("button", "icobtn"); b.appendChild(Studio.icon(t === "↑" ? "chevron-up" : "chevron-down", 13)); b.title = t === "↑" ? "Move up" : "Move down"; b.onclick = function (e) { e.stopPropagation(); fn(); }; return b; }
   function setIconBtn(btn, iconName, text, sz) { btn.innerHTML = ""; btn.appendChild(Studio.icon(iconName, sz || 14)); btn.appendChild(document.createTextNode(" " + text)); }
   function hint(t) { var h = el("div"); h.style.cssText = "font-size:12px;color:var(--faint);line-height:1.5"; h.textContent = t; return h; }

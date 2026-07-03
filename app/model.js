@@ -2318,4 +2318,71 @@
     var done = items.filter(function (i) { return i.done; }).length;
     return { done: done, total: items.length, items: items };
   };
+
+  // N-DIST follow-up: side-by-side diff between two dashboard specs (e.g. a past version
+  // history checkpoint vs. the current working spec) — "what changed" for time travel.
+  // Pure/testable: no DOM, no PDC. Panels/filters match by their stable `id`; KPIs have no
+  // id (positional array), so they're compared by index. Field/value changes inside a
+  // matched panel/KPI/filter are reported as one JSON-equality check (not a nested diff) —
+  // enough to say "this changed," which is what a checkpoint-restore decision needs.
+  var DIFF_FIELDS = [
+    ["title", "Title"], ["subtitle", "Subtitle"], ["name", "File name"], ["description", "Description"],
+    ["themeColor", "Accent color"], ["headerBg", "Header background color"], ["headerLink", "Header link"],
+    ["titleSize", "Title size"], ["subtitleStyle", "Subtitle style"], ["paletteKey", "Series palette"],
+    ["gridCols", "Grid columns"]
+  ];
+  Studio.diffSpecs = function (a, b) {
+    a = a || {}; b = b || {};
+    var out = { fields: [], panels: { added: [], removed: [], changed: [] }, kpis: { added: 0, removed: 0, changed: 0 }, filters: { added: [], removed: [], changed: [] } };
+    DIFF_FIELDS.forEach(function (f) {
+      var from = a[f[0]] || "", to = b[f[0]] || "";
+      if (from !== to) out.fields.push({ key: f[0], label: f[1], from: from, to: to });
+    });
+    if ((a.headerLogo || "") !== (b.headerLogo || "")) {
+      out.fields.push({ key: "headerLogo", label: "Header logo", from: a.headerLogo ? "custom image" : "(none)", to: b.headerLogo ? "custom image" : "(none)" });
+    }
+    var aP = a.panels || [], bP = b.panels || [];
+    var aPMap = {}; aP.forEach(function (p) { aPMap[p.id] = p; });
+    var bPMap = {}; bP.forEach(function (p) { bPMap[p.id] = p; });
+    bP.forEach(function (p) { if (!aPMap[p.id]) out.panels.added.push(p.title || p.id); });
+    aP.forEach(function (p) {
+      var bp = bPMap[p.id];
+      if (!bp) out.panels.removed.push(p.title || p.id);
+      else if (JSON.stringify(p) !== JSON.stringify(bp)) out.panels.changed.push(bp.title || bp.id);
+    });
+    var aK = a.kpis || [], bK = b.kpis || [];
+    if (bK.length > aK.length) out.kpis.added = bK.length - aK.length;
+    if (aK.length > bK.length) out.kpis.removed = aK.length - bK.length;
+    for (var i = 0; i < Math.min(aK.length, bK.length); i++) {
+      if (JSON.stringify(aK[i]) !== JSON.stringify(bK[i])) out.kpis.changed++;
+    }
+    var aF = a.filters || [], bF = b.filters || [];
+    var aFMap = {}; aF.forEach(function (f) { aFMap[f.id] = f; });
+    var bFMap = {}; bF.forEach(function (f) { bFMap[f.id] = f; });
+    bF.forEach(function (f) { if (!aFMap[f.id]) out.filters.added.push(f.label || f.id); });
+    aF.forEach(function (f) {
+      var bf = bFMap[f.id];
+      if (!bf) out.filters.removed.push(f.label || f.id);
+      else if (JSON.stringify(f) !== JSON.stringify(bf)) out.filters.changed.push(bf.label || bf.id);
+    });
+    return out;
+  };
+  // Flattens a diffSpecs() result into plain-English lines for display; [] means identical.
+  Studio.diffSummary = function (diff) {
+    var lines = [];
+    (diff.fields || []).forEach(function (f) {
+      lines.push(f.label + ": “" + (f.from || "(empty)") + "” → “" + (f.to || "(empty)") + "”");
+    });
+    function group(kind, d) {
+      if (d.added && d.added.length) lines.push(d.added.length + " " + kind + (d.added.length === 1 ? "" : "s") + " added: " + d.added.join(", "));
+      if (d.removed && d.removed.length) lines.push(d.removed.length + " " + kind + (d.removed.length === 1 ? "" : "s") + " removed: " + d.removed.join(", "));
+      if (d.changed) {
+        var n = typeof d.changed === "number" ? d.changed : d.changed.length;
+        var names = typeof d.changed === "number" ? "" : (d.changed.length ? ": " + d.changed.join(", ") : "");
+        if (n) lines.push(n + " " + kind + (n === 1 ? "" : "s") + " changed" + names);
+      }
+    }
+    group("panel", diff.panels); group("KPI", diff.kpis); group("filter", diff.filters);
+    return lines;
+  };
 })();

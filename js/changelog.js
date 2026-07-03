@@ -15,6 +15,17 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 265,
+    title: 'N-DIST follow-up: side-by-side diff for version history',
+    kind: 'feature',
+    ts: '2026-07-03T14:31:32Z',
+    items: [
+      'Every Version history checkpoint in the Dashboard inspector now has a \'Compare to current\' button -- opens a plain-English change list (title/style fields, plus which panels, KPIs, and filters were added, removed, or changed) between that checkpoint and the dashboard as it stands right now.',
+      'New Studio.diffSpecs()/Studio.diffSummary() (model.js, pure) drive it -- panels/filters matched by id, KPIs compared positionally since they carry none.',
+      'The compare modal also offers a \'Restore this version\' action, so you can see what a restore would undo before committing to it. New diff icon in app/icons.js. 6 new tests, suite 1194/1194.',
+    ],
+  },
+  {
     v: 264,
     title: 'N-DIST: Import dashboard from URL',
     kind: 'feature',
