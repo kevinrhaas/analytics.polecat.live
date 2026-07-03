@@ -15,6 +15,16 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 233,
+    title: 'Code-health sweep: duplicate esc() declaration',
+    kind: 'fix',
+    ts: '2026-07-03T04:26:08Z',
+    items: [
+      'app/studio.js declared the HTML-escaping helper esc() twice in the same scope; JS hoisting meant every one of its 50+ call sites silently ran the second (line 5671) copy, not the first (line 327, next to its obvious caller) -- both were behaviorally identical today, but the shadowed copy was a landmine for a future edit. Removed the dead duplicate.',
+      'No behavior change; test suite unchanged at 1077/1077.',
+    ],
+  },
+  {
     v: 232,
     title: 'Interactive Feature Showcase (Z13 track complete)',
     kind: 'feature',

@@ -5668,7 +5668,6 @@
   }
 
   function el(t, c) { var e = document.createElement(t); if (c) e.className = c; return e; }
-  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (m) { return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[m]; }); }
   function labelEl(t) { var l = el("label"); l.textContent = t; return l; }
   function section(parent, title, onAdd, summaryFn, helpAnchor) {
     /* Collapsible inspector section. Returns the body div so callers do

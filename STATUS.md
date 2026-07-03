@@ -1744,6 +1744,17 @@ gets covered over time:
   `Studio.defineChart({type, render, opts, thumb, autoPick})` contract so new types are uniform and testable.
 - **Test health** — coverage per feature, flaky/slow checks, and a fast smoke subset for quick loops.
 > **Findings log (append newest on top; keep short):**
+> - **Fixed shipped v233 (dead-code/duplication lens):** `app/studio.js` declared `function esc(s) {...}`
+>   **twice** in the same top-level scope — once at line 327 (right next to `hlq()`, its obvious caller,
+>   under the "status-bar footer + changelog" comment) and again, byte-identical in behavior, at line 5671
+>   (in the inspector-helpers cluster next to `el()`/`labelEl()`). Function declarations hoist, so the
+>   *lexically later* one wins for the ENTIRE file scope — every one of the 50+ `esc(...)` call sites
+>   actually ran the line-5671 copy, silently shadowing the line-327 one from the first line of the file.
+>   Both bodies happened to be equivalent so there was no live bug today, but it was a landmine: a future
+>   edit to the line-327 copy (the one a reader would naturally find first, beside its caller) would have
+>   had zero effect anywhere in the app. Deleted the redundant line-5671 declaration, kept the original.
+>   No behavior change, no new tests needed (the fix removes dead code that was never actually executing).
+>   Test suite unchanged at 1077/1077.
 > - **Fixed shipped v216 (was an open finding from the v214 KPI-agg fix earlier the same run):**
 >   `vendor/pdc-ui.js`'s default `PDC.cda()` (the live/non-mock query path) built its request URL with
 >   `new URL(CDA_URL, location.origin)`. Inside the **builder's own live-preview iframe** (`#preview`,
