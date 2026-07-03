@@ -4388,6 +4388,15 @@
     list.forEach(function (r) { if (r.workbookId === id) { delete r.workbookId; changed = true; } });
     if (changed) { try { localStorage.setItem(_LS_RECENTS, JSON.stringify(list)); } catch (e) {} }
   }
+  // Z3 follow-up: rename a workbook after creation (previously create/delete-only).
+  // No-op on a blank name or a name unchanged after trimming, same convention as panel/KPI rename.
+  function renameWorkbook(id, name) {
+    name = (name || "").trim(); if (!name) return false;
+    var list = loadWorkbooks(), found = false;
+    list.forEach(function (w) { if (w.id === id) { w.name = name; found = true; } });
+    if (found) saveWorkbooks(list);
+    return found;
+  }
   function setDashboardWorkbook(dashId, workbookId) {
     var list = loadRecents();
     list.forEach(function (r) { if (r.id === dashId) { if (workbookId) r.workbookId = workbookId; else delete r.workbookId; } });
@@ -4397,6 +4406,7 @@
   window.__studioWorkbooks = loadWorkbooks; // test hook
   window.__studioAddWorkbook = addWorkbook; // test hook
   window.__studioDeleteWorkbook = deleteWorkbook; // test hook
+  window.__studioRenameWorkbook = renameWorkbook; // test hook
   window.__studioSetDashboardWorkbook = setDashboardWorkbook; // test hook
 
   /* ---------- Z3 slice 1: Repository — data sources + dashboards, one searchable home ---
@@ -4471,9 +4481,11 @@
       .concat([{ id: "__unfiled", name: "Unfiled", n: wbCounts.unfiled }]);
     var chipsHtml = '<div class="wb-chips">' + chipDefs.map(function (c) {
       return '<div class="wb-chip-wrap">' +
-        '<button type="button" class="wb-chip' + (_repoWbFilter === c.id ? " active" : "") + '" data-wb-filter="' + esc(c.id) + '">' +
-        esc(c.name) + ' <span class="wb-chip-n">' + c.n + '</span></button>' +
-        (c.del ? '<button type="button" class="wb-chip-del" data-wb-del="' + esc(c.id) + '" title="Delete workbook ' + esc(c.name) + '" aria-label="Delete workbook ' + esc(c.name) + '"></button>' : '') +
+        '<button type="button" class="wb-chip' + (_repoWbFilter === c.id ? " active" : "") + '" data-wb-filter="' + esc(c.id) + '"' +
+        (c.del ? ' data-wb-name="' + esc(c.id) + '"' : '') + '>' +
+        '<span class="wb-chip-label">' + esc(c.name) + '</span> <span class="wb-chip-n">' + c.n + '</span></button>' +
+        (c.del ? '<button type="button" class="wb-chip-rename" data-wb-rename="' + esc(c.id) + '" title="Rename workbook ' + esc(c.name) + '" aria-label="Rename workbook ' + esc(c.name) + '"></button>' +
+          '<button type="button" class="wb-chip-del" data-wb-del="' + esc(c.id) + '" title="Delete workbook ' + esc(c.name) + '" aria-label="Delete workbook ' + esc(c.name) + '"></button>' : '') +
         '</div>';
     }).join("") +
       '<span class="wb-add"><input type="text" id="wbNameInp" class="wb-name-inp" placeholder="New workbook…" aria-label="New workbook name"/>' +
@@ -4488,6 +4500,36 @@
         : '<div class="home-empty-hint">' + (q ? "No dashboards match “" + esc(q) + "”." : (_repoWbFilter ? "No dashboards in this workbook yet." : "No dashboards yet — build one in Studio and it will show up here.")) + '</div>');
     $$(".wb-chip", results).forEach(function (btn) {
       btn.onclick = function () { _repoWbFilter = btn.getAttribute("data-wb-filter"); renderRepository(); };
+    });
+    // Z3 follow-up: rename a workbook via a hover-revealed ✎ button beside the ✕ delete —
+    // swaps the chip's label span for an inline <input> (same convention as panel/KPI rename),
+    // committing on Enter/blur and discarding on Escape.
+    $$(".wb-chip-rename", results).forEach(function (btn) {
+      btn.appendChild(Studio.icon("edit", 9));
+      btn.onclick = function (e) {
+        e.stopPropagation();
+        var wbId = btn.getAttribute("data-wb-rename");
+        var chip = btn.previousElementSibling; // the .wb-chip button itself
+        var labelEl = chip && $(".wb-chip-label", chip); if (!labelEl) return;
+        var cur = labelEl.textContent;
+        var inp = document.createElement("input");
+        inp.type = "text"; inp.className = "wb-chip-rename-inp"; inp.value = cur;
+        inp.setAttribute("aria-label", "Rename workbook");
+        labelEl.replaceWith(inp); inp.focus(); inp.select();
+        var done = false;
+        function commit(save) {
+          if (done) return; done = true;
+          if (save) renameWorkbook(wbId, inp.value);
+          renderRepository();
+        }
+        inp.addEventListener("keydown", function (ev) {
+          if (ev.key === "Enter") { ev.preventDefault(); commit(true); }
+          else if (ev.key === "Escape") { commit(false); }
+        });
+        inp.addEventListener("blur", function () { commit(true); });
+        inp.addEventListener("click", function (ev) { ev.stopPropagation(); });
+        inp.addEventListener("dblclick", function (ev) { ev.stopPropagation(); });
+      };
     });
     $$(".wb-chip-del", results).forEach(function (btn) {
       btn.appendChild(Studio.icon("trash", 9));

@@ -288,13 +288,19 @@ body.simple-mode .repo-ds-acts{display:none!important}
 .wb-chip.active{background:#d4773b;border-color:#d4773b;color:#0a0a0f}
 .wb-chip-n{opacity:.75;font-weight:400}
 .wb-chip.active .wb-chip-n{opacity:.6}
-.wb-chip-del{position:absolute;top:-6px;right:-6px;width:16px;height:16px;border-radius:50%;
+.wb-chip-del,.wb-chip-rename{position:absolute;top:-6px;width:16px;height:16px;border-radius:50%;
   background:#2E2A33;border:1px solid rgba(245,233,214,.25);color:#c9b9a3;cursor:pointer;
   display:flex;align-items:center;justify-content:center;padding:0;opacity:0;transition:opacity .12s ease}
-.wb-chip-wrap:hover .wb-chip-del,.wb-chip-del:focus-visible{opacity:1}
+.wb-chip-del{right:-6px}
+.wb-chip-rename{right:12px}
+.wb-chip-wrap:hover .wb-chip-del,.wb-chip-del:focus-visible,
+.wb-chip-wrap:hover .wb-chip-rename,.wb-chip-rename:focus-visible{opacity:1}
 .wb-chip-del:hover{border-color:#f55036;color:#f55036}
-.wb-chip-del svg{width:9px;height:9px}
-@media(pointer:coarse){.wb-chip-del{opacity:1}}
+.wb-chip-rename:hover{border-color:#d4773b;color:#F5E9D6}
+.wb-chip-del svg,.wb-chip-rename svg{width:9px;height:9px}
+@media(pointer:coarse){.wb-chip-del,.wb-chip-rename{opacity:1}}
+.wb-chip-rename-inp{width:90px;padding:0;margin:-2px 0;font:inherit;font-size:12px;color:inherit;
+  background:transparent;border:none;border-bottom:1px solid currentColor;outline:none}
 .wb-add{display:flex;gap:6px;align-items:center}
 .wb-name-inp{width:150px;padding:6px 10px;font-size:12px;border-radius:999px;
   border:1px solid rgba(245,233,214,.2);background:#1c1720;color:#F5E9D6;font-family:var(--font)}
@@ -306,7 +312,7 @@ body.simple-mode .repo-ds-acts{display:none!important}
   font-size:10.5px;border-radius:6px;border:1px solid rgba(245,233,214,.18);background:#0a0a0f;
   color:#c9b9a3;font-family:var(--font)}
 .recent-wb-sel:hover,.recent-wb-sel:focus-visible{border-color:#d4773b;color:#F5E9D6}
-@media(prefers-reduced-motion:reduce){.wb-chip,.wb-chip-del{transition:none}}
+@media(prefers-reduced-motion:reduce){.wb-chip,.wb-chip-del,.wb-chip-rename{transition:none}}
 /* m-c: same hamburger-clearance fix as .home-wrap above — keep padding-top:60px. */
 @media(max-width:640px){.repo-wrap{padding:60px 16px 40px}.repo-ds-grid{grid-template-columns:1fr}.wb-name-inp{width:100%}.wb-add{flex:1 0 100%}}
 

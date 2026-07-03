@@ -11695,6 +11695,38 @@ function serve() {
       wbAfterCreate.count >= 1 && wbAfterCreate.chipVisible && wbAfterCreate.chipActive, JSON.stringify(wbAfterCreate));
     const wbId = await page.evaluate(function () { return window.__studioWorkbooks()[0].id; });
 
+    // Z3 follow-up: hovering a workbook chip reveals a ✎ rename button that swaps its label
+    // into an inline rename input (Enter commits, Escape cancels) — same convention as
+    // panel/KPI inline rename, just via a dedicated button instead of a native dblclick
+    // gesture (a bare dblclick doesn't reliably fire here since each single click already
+    // re-renders the whole chip strip, which resets the browser's double-click target tracking).
+    await page.click('.wb-chip-rename[data-wb-rename="' + wbId + '"]');
+    await page.waitForTimeout(60);
+    const wbRenameInputVisible = await page.evaluate(function () { return !!document.querySelector(".wb-chip-rename-inp"); });
+    ok("Z3-WB: the ✎ rename button swaps a workbook chip's label into a rename <input>", wbRenameInputVisible, String(wbRenameInputVisible));
+    await page.fill(".wb-chip-rename-inp", "Board Reviews");
+    await page.press(".wb-chip-rename-inp", "Enter");
+    await page.waitForTimeout(80);
+    const wbAfterRename = await page.evaluate(function (id) {
+      var wb = window.__studioWorkbooks().find(function (w) { return w.id === id; });
+      var chip = document.querySelector('.wb-chip[data-wb-name="' + id + '"] .wb-chip-label');
+      return { name: wb ? wb.name : null, chipText: chip ? chip.textContent : null };
+    }, wbId);
+    ok("Z3-WB: renaming a workbook via the inline input persists the new name and re-renders the chip",
+      wbAfterRename.name === "Board Reviews" && wbAfterRename.chipText === "Board Reviews", JSON.stringify(wbAfterRename));
+
+    // Escape cancels the rename — name stays whatever it was just set to above
+    await page.click('.wb-chip-rename[data-wb-rename="' + wbId + '"]');
+    await page.waitForTimeout(60);
+    await page.fill(".wb-chip-rename-inp", "Should Not Save");
+    await page.press(".wb-chip-rename-inp", "Escape");
+    await page.waitForTimeout(80);
+    const wbAfterEscape = await page.evaluate(function (id) {
+      var wb = window.__studioWorkbooks().find(function (w) { return w.id === id; });
+      return wb ? wb.name : null;
+    }, wbId);
+    ok("Z3-WB: pressing Escape during a workbook rename discards the edit", wbAfterEscape === "Board Reviews", String(wbAfterEscape));
+
     // switch back to "All" so the not-yet-filed dashboard (and its workbook picker) is visible
     await page.click('.wb-chip[data-wb-filter=""]');
     await page.waitForTimeout(80);

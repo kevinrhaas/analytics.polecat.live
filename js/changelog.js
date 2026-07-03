@@ -15,6 +15,18 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 242,
+    title: 'Workbook rename (Z3 follow-up)',
+    kind: 'feature',
+    ts: '2026-07-03T08:43:24Z',
+    items: [
+      'Every workbook chip on the Repository page now shows a hover-revealed pencil rename button beside the existing delete button -- click it to swap the chip label into an editable field (Enter saves, Escape cancels).',
+      'Closes the last open Z3 follow-up: a workbook could be created and deleted but never renamed after the fact.',
+      'renameWorkbook() is a thin, testable wrapper over the existing studio-workbooks storage; no new storage keys.',
+      '3 new tests, suite 1140/1140.',
+    ],
+  },
+  {
     v: 241,
     title: 'Track L sweep: de-duplicated KDE math in violin + ridgeline charts',
     kind: 'polish',

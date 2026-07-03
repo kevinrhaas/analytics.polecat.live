@@ -730,6 +730,13 @@
 - v240: **N-DIST: shareable dashboard links (#share=)** — see N-DIST entry below. 3 new tests, suite 1137/1137.
 - v241: **Track L sweep: de-duplicated violin/ridgeline KDE math** — see Track L findings log below. Pure
   refactor, no new tests. Test suite 1137/1137, unchanged.
+- v242: **Z3 follow-up: workbook rename (closes the last open Z3 item)** — every workbook chip on the
+  Repository page gets a hover-revealed ✎ rename button beside the existing ✕ delete; click it to swap
+  the chip label into an inline `<input>` (Enter saves, Escape cancels), same convention as panel/KPI
+  rename. A bare native `dblclick` on the chip doesn't work here — each single click already re-renders
+  the whole chip strip (to apply the filter), which resets Chromium's double-click target tracking since
+  the "same" chip is technically a fresh DOM node after the first click — so this uses a dedicated button
+  instead. 3 new tests, suite 1140/1140.
 
 ## NEXT (top = do first)
 
@@ -917,8 +924,9 @@ source library" and "dashboard inventory" ideas into one place.
 > recents entry from scratch on every autosave tick, which would have silently un-filed a dashboard the
 > moment it was edited again — now preserves `workbookId` across the rebuild. Travels with the existing
 > whole-repository JSON export/import; included in Clear local data. 7 new tests, suite 1134/1134.
-> **Z3 follow-ups (not yet done):** folders/organization for data sources, and workbook rename (today a
-> workbook can be created/deleted but not renamed after the fact).
+> ✓ **Workbook rename shipped v242**: a hover-revealed ✎ button on every workbook chip swaps its label
+> into an inline rename `<input>` (Enter/Escape). **Z3 follow-ups (not yet done):** folders/organization
+> for data sources.
 
 **Z14 — Browser-native, file-hosted SQL engines: DuckDB-Wasm + SQLite-WASM-HTTP (user-requested 2026-07-02).**
 > ★ **PRIORITY: build this connector track BEFORE the Z4 warehouse providers** (user-requested 2026-07-02).
