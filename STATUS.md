@@ -1297,6 +1297,17 @@ chart options / derived series / KPI computations. Keep it light (vanilla-JS mat
 > **Z7 track is now feature-complete**: forecasting (moving average/linear/Holt trend), and a full
 > statistical-KPI-aggregation set (sum/avg/median/min/max/percentiles/stddev/variance/range/zscore/corr).
 > Remaining stretch ideas (not required): seasonal Holt-Winters, regression beyond scatter's trend line.
+> ✓ **Seasonal Holt-Winters shipped v270 (closes the "seasonal Holt-Winters" stretch idea)**: Line/area's
+> Forecast method picker gains a third choice, **Seasonal (Holt-Winters)** — `holtWintersOf()` in
+> `studio-charts.js` layers a repeating additive seasonal offset on top of Holt's level+trend (two new
+> tuning fields, **Smoothing seasonality γ** and **Season length**), so the forecast tail reproduces a
+> recurring pattern (e.g. a quarterly spike) instead of a straight extrapolation through it. Needs at
+> least 2 full seasons of real data (`seasonLength * 2` points) to fit initial seasonal indices; with
+> less it quietly falls back to plain Holt rather than guessing. Shares the same builder-only vs.
+> exported-runtime split every prior Z7 feature follows (`studio-charts.js` is inlined into both, so no
+> separate render-side copy was needed here, unlike the KPI aggregations). `docs/index.html` updated. 3
+> new tests, suite 1221/1221. **Remaining stretch idea (not required):** regression beyond scatter's
+> existing trend line.
 
 **Z8 — Context-aware inspector (per chart type) + visual setting hints (user-requested 2026-06-30).**
 The panel inspector currently shows ALL setting sections regardless of chart type — e.g. a **Table**

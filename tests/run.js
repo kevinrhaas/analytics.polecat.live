@@ -14367,6 +14367,84 @@ function serve() {
     });
     ok("Z7HW: line panel inspector shows Forecast method / smoothing α / smoothing β fields", z7hwInsp.ok, JSON.stringify(z7hwInsp));
 
+    // ── Z7 stretch: seasonal Holt-Winters trend method (the "-Winters" part of
+    // Holt-Winters, left open when plain Holt shipped in v199) ──
+    console.log("\n• Z7 stretch: Holt-Winters seasonal forecasting");
+
+    // Z7HW2-1: line registry offers "hw" as a trendMethod choice + declares gamma/seasonLength
+    var z7hw2Opts = await page.evaluate(function () {
+      var o = (window.Studio.CHARTS.line || {}).opts || [];
+      var keys = o.map(function (od) { return od.key; });
+      var tm = o.filter(function (od) { return od.key === "trendMethod"; })[0];
+      var choiceIds = ((tm || {}).choices || []).map(function (c) { return c[0]; });
+      return { keysOk: keys.indexOf("gamma") >= 0 && keys.indexOf("seasonLength") >= 0, hwChoice: choiceIds.indexOf("hw") >= 0 };
+    });
+    ok("Z7HW2: Studio.CHARTS.line.opts declares gamma + seasonLength, and trendMethod offers 'hw'",
+      z7hw2Opts.keysOk && z7hw2Opts.hwChoice, JSON.stringify(z7hw2Opts));
+
+    // Z7HW2-2: the panel inspector shows the new γ / Season length fields too
+    var z7hw2Insp = await page.evaluate(function () {
+      var spec = window.__STUDIO_STATE.spec;
+      var p = spec.panels[0];
+      var prevChart = JSON.parse(JSON.stringify(p.chart));
+      p.chart.type = "line"; p.chart.opts = {};
+      window.__studioSelect({ kind: "panel", id: p.id });
+      var body = document.getElementById("inspBody");
+      var text = body ? body.textContent : "";
+      var ok = text.indexOf("Smoothing seasonality") >= 0 && text.indexOf("Season length") >= 0;
+      p.chart = prevChart;
+      window.__studioSelect(null);
+      window.__studioRenderInspector();
+      return { ok: ok };
+    });
+    ok("Z7HW2: line panel inspector shows Smoothing seasonality γ / Season length fields", z7hw2Insp.ok, JSON.stringify(z7hw2Insp));
+
+    // Z7HW2-3: with < 2 full seasons of data, trendMethod:"hw" falls back to plain Holt
+    // (a single smoothed line, no seasonal wiggle) rather than guessing at seasonality.
+    // With >= 2 full seasons, it renders a real seasonal forecast that reproduces the
+    // repeating pattern in the forecast tail (unlike Holt's straight extrapolation).
+    var z7hw2Render = await page.evaluate(function () {
+      var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
+      for (var i = 0; i < iframes.length; i++) {
+        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.line === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+      }
+      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      try {
+        // Too little data (1 season of 4) — should fall back to plain Holt cleanly, no throw.
+        var shortLabels = ["Q1", "Q2", "Q3", "Q4"], shortSeries = [{ name: "S1", values: [10, 30, 15, 25] }];
+        var elS = iframeDoc.createElement("div"); elS.style.cssText = "position:absolute;top:-9999px;width:300px";
+        iframeDoc.body.appendChild(elS);
+        w.PDC.line(elS, { labels: shortLabels, series: shortSeries, height: 200, showTrend: true, trendMethod: "hw", seasonLength: 4, forecastPeriods: 2 });
+        var shortOk = !!elS.querySelector(".trend-line");
+        iframeDoc.body.removeChild(elS);
+
+        // Two clean repeating seasons of 4 (a low/high/mid/high pattern) with a mild upward
+        // drift — a real seasonal fit should forecast a HIGH point 1 period out (matching the
+        // seasonal pattern), clearly above a plain straight-line continuation would predict.
+        var labels = ["Q1a", "Q2a", "Q3a", "Q4a", "Q1b", "Q2b", "Q3b", "Q4b"];
+        var series = [{ name: "S1", values: [10, 30, 15, 32, 12, 33, 18, 36] }];
+        var el1 = iframeDoc.createElement("div"); el1.style.cssText = "position:absolute;top:-9999px;width:400px";
+        iframeDoc.body.appendChild(el1);
+        w.PDC.line(el1, { labels: labels, series: series, height: 200, showTrend: true, trendMethod: "hw", seasonLength: 4, forecastPeriods: 1, alpha: 40, beta: 10, gamma: 60 });
+        var hwPath = el1.querySelector(".trend-line");
+        var hwD = hwPath.getAttribute("d");
+        var hwSegs = (hwD.match(/L/g) || []).length; // fitted (n-1) + 1 forecast point
+        var hwEndY = +hwD.split("L").pop().split(",")[1];
+        // the two points BEFORE the forecast tail — should straddle it if seasonality
+        // is really driving a jump back up toward the "high" phase (Q1 was always low).
+        var pts = hwD.replace(/^M/, "").split(/[ML]/).filter(Boolean).map(function (p) { return p.split(",").map(Number); });
+        var lastFittedY = pts[pts.length - 2][1], forecastY = pts[pts.length - 1][1];
+        // lower Y = higher chart value (SVG y grows downward); forecast should read
+        // meaningfully different from a flat continuation of the last fitted point.
+        var seasonalJump = Math.abs(forecastY - lastFittedY) > 3;
+        iframeDoc.body.removeChild(el1);
+
+        return { ok: shortOk && hwSegs === labels.length && seasonalJump, shortOk: shortOk, hwSegs: hwSegs, segsExpected: labels.length, seasonalJump: seasonalJump };
+      } catch (e) { return { ok: false, err: e.message }; }
+    });
+    ok("Z7HW2: trendMethod:'hw' falls back to plain Holt on too little data, and produces a real seasonal forecast (not a flat continuation) once 2+ seasons are present",
+      z7hw2Render.ok, JSON.stringify(z7hw2Render));
+
     // ── m-a: mobile nav drawer (rail → slide-in left drawer at ≤900px) ──
     // Runs on a SEPARATE 390×844 page so it never disturbs the main desktop page.
     console.log("\n• m-a: mobile nav drawer");

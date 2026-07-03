@@ -15,6 +15,17 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 270,
+    title: 'Z7: seasonal Holt-Winters forecasting',
+    kind: 'feature',
+    ts: '2026-07-03T15:39:34Z',
+    items: [
+      'Line/area\'s Forecast method picker gains a third choice, \'Seasonal (Holt-Winters)\' -- layers a repeating seasonal pattern on top of Holt\'s level+trend smoothing, so the forecast tail reproduces a recurring spike/dip instead of a flat extrapolation through it.',
+      'Two new tuning fields: Smoothing seasonality gamma and Season length (points per season). Needs at least 2 full seasons of real data to fit -- with less, it falls back to plain Holt rather than guessing.',
+      'Closes the \'seasonal Holt-Winters\' stretch idea left open in the Z7 forecasting track. 3 new tests, suite 1221/1221.',
+    ],
+  },
+  {
     v: 269,
     title: 'N-DIST: Import from URL now supports a template index',
     kind: 'feature',

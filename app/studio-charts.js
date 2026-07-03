@@ -3069,17 +3069,53 @@
       }
       return { fitted: fitted, level: level, trend: trend };
     }
-    var trendMethod = cfg.trendMethod === "holt" ? "holt" : "linear";
+    // Z7 stretch: Holt-Winters additive seasonality — the "-Winters" part Holt (above)
+    // doesn't cover. Adds a repeating seasonal offset on top of Holt's level+trend, so
+    // e.g. a monthly series with a December spike projects that spike again next
+    // December instead of just extrapolating the smoothed slope through it. Needs at
+    // least two full seasons of real data to estimate initial seasonal indices; with
+    // less than that it falls back to plain Holt (no seasonality) rather than guessing.
+    function holtWintersOf(vals, alpha, beta, gamma, L) {
+      var n = vals.length;
+      if (L < 2 || n < L * 2) return holtOf(vals, alpha, beta);
+      var season = new Array(L);
+      var avg1 = 0, avg2 = 0, i;
+      for (i = 0; i < L; i++) avg1 += (+vals[i] || 0); avg1 /= L;
+      for (i = L; i < L * 2; i++) avg2 += (+vals[i] || 0); avg2 /= L;
+      var trend = (avg2 - avg1) / L;
+      var level = avg1;
+      for (i = 0; i < L; i++) season[i] = (+vals[i] || 0) - avg1;
+      var fitted = new Array(n);
+      for (i = 0; i < n; i++) {
+        var val = +vals[i] || 0, s = season[i % L], prevLevel = level;
+        fitted[i] = level + trend + s;
+        level = alpha * (val - s) + (1 - alpha) * (level + trend);
+        trend = beta * (level - prevLevel) + (1 - beta) * trend;
+        season[i % L] = gamma * (val - level) + (1 - gamma) * s;
+      }
+      return { fitted: fitted, level: level, trend: trend, season: season, seasonLen: L };
+    }
+    var trendMethod = cfg.trendMethod === "holt" ? "holt" : (cfg.trendMethod === "hw" ? "hw" : "linear");
     var alpha = Math.min(1, Math.max(.01, (+cfg.alpha || 30) / 100)), beta = Math.min(1, Math.max(.01, (+cfg.beta || 10) / 100));
+    var gamma = Math.min(1, Math.max(.01, (+cfg.gamma || 20) / 100)), seasonLen = Math.max(2, Math.floor(+cfg.seasonLength || 4));
     var trends = cfg.showTrend ? series.map(function (se) {
+      if (trendMethod === "hw") return holtWintersOf(se.values, alpha, beta, gamma, seasonLen);
       return trendMethod === "holt" ? holtOf(se.values, alpha, beta) : trendOf(se.values);
     }) : null;
+    // Forecast value m periods past the last real point. Non-seasonal (Holt) walks the
+    // smoothed trend forward in a straight line; Holt-Winters also re-applies whichever
+    // seasonal index that future period lines up with (wrapping every `seasonLen`).
+    function fcValueOf(t, m) {
+      return t.season ? t.level + t.trend * m + t.season[(n - 1 + m) % t.seasonLen] : t.level + t.trend * m;
+    }
     var o = mkSVG(el, h), s = o.s, w = o.w, fmt = cfg.fmt || PDC.fmt.abbr, pal = PDC.palette();
     var showDots = cfg.showDots !== false;
     var allv = []; series.forEach(function (se) { se.values.forEach(function (v) { allv.push(+v || 0); }); });
     if (trends) trends.forEach(function (t) {
-      if (trendMethod === "holt") { allv.push.apply(allv, t.fitted); allv.push(t.level + t.trend * fcN); }
-      else { allv.push(t.intercept + t.slope * totalSpan); }
+      if (trendMethod === "holt" || trendMethod === "hw") {
+        allv.push.apply(allv, t.fitted);
+        for (var fm = 1; fm <= fcN; fm++) allv.push(fcValueOf(t, fm));
+      } else { allv.push(t.intercept + t.slope * totalSpan); }
     });
     var max = niceMax(Math.max.apply(null, allv.concat([0]))), min = cfg.min0 === false ? Math.min.apply(null, allv) : 0;
     var mL = 46, mR = 12, mT = 12, mB = 30, iw = w - mL - mR, ih = h - mT - mB;
@@ -3163,17 +3199,18 @@
       // forecast tail when forecastPeriods > 0 (otherwise just spans the real data).
       if (trends) {
         var tr = trends[si], trendD;
-        if (trendMethod === "holt") {
+        if (trendMethod === "holt" || trendMethod === "hw") {
           var hPts = tr.fitted.map(function (v, i) { return [xs(i), ys(v)]; });
-          for (var hf = 1; hf <= fcN; hf++) hPts.push([xs(n - 1 + hf), ys(tr.level + tr.trend * hf)]);
+          for (var hf = 1; hf <= fcN; hf++) hPts.push([xs(n - 1 + hf), ys(fcValueOf(tr, hf))]);
           trendD = pathFor(hPts);
         } else {
           trendD = "M" + xs(0) + "," + ys(tr.intercept) + " L" + xs(totalSpan) + "," + ys(tr.intercept + tr.slope * totalSpan);
         }
         var trendPath = S("path", { d: trendD, fill: "none", stroke: col,
           "stroke-width": 1.6, "stroke-dasharray": "8,3", opacity: .55, class: "trend-line" });
+        var methodLabel = trendMethod === "hw" && tr.season ? "Holt-Winters (seasonal)" : trendMethod === "hw" ? "Holt smoothing (not enough data for a season)" : trendMethod === "holt" ? "Holt smoothing" : null;
         var trendTip = (series.length > 1 ? "<b>" + se.name + "</b> " : "") +
-          (trendMethod === "holt" ? "Holt smoothing" + (fcN ? " · " + fcN + "-period forecast" : "") : (fcN ? fcN + "-period forecast" : "trend"));
+          (methodLabel ? methodLabel + (fcN ? " · " + fcN + "-period forecast" : "") : (fcN ? fcN + "-period forecast" : "trend"));
         _tip(trendPath, trendTip);
         s.appendChild(trendPath); els.push(trendPath);
       }

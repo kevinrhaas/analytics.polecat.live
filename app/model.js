@@ -401,9 +401,15 @@
         // real data (reacts to recent moves, not just the overall slope) before extending
         // linearly into the forecast tail. Only used when "Show trend / forecast line" is on.
         { key: "trendMethod", type: "select", label: "Forecast method", def: "linear",
-          choices: [["linear", "Linear trend (OLS)"], ["holt", "Exponential smoothing (Holt)"]] },
-        { key: "alpha", type: "int", label: "Smoothing level α (%, Holt only)", def: 30 },
-        { key: "beta",  type: "int", label: "Smoothing trend β (%, Holt only)", def: 10 },
+          choices: [["linear", "Linear trend (OLS)"], ["holt", "Exponential smoothing (Holt)"], ["hw", "Seasonal (Holt-Winters)"]] },
+        { key: "alpha", type: "int", label: "Smoothing level α (%, Holt/Holt-Winters only)", def: 30 },
+        { key: "beta",  type: "int", label: "Smoothing trend β (%, Holt/Holt-Winters only)", def: 10 },
+        // Holt-Winters adds a repeating seasonal offset on top of Holt's level+trend —
+        // needs at least 2 full seasons of real data (seasonLength * 2 points) to fit;
+        // with less it quietly falls back to plain Holt (see holtWintersOf in
+        // studio-charts.js).
+        { key: "gamma", type: "int", label: "Smoothing seasonality γ (%, Holt-Winters only)", def: 20 },
+        { key: "seasonLength", type: "int", label: "Season length (points, Holt-Winters only)", def: 4 },
         { key: "fmt",      type: "fmt",   label: "Value format", def: "abbr" },
         { key: "height",   type: "int",   label: "Height (px)", def: 300 }
       ],
