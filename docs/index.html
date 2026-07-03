@@ -370,6 +370,7 @@
     <li><strong>Scripting</strong> — JavaScript/Groovy/Python DA for custom logic.</li>
     <li><strong>DuckDB (remote file)</strong> — query a Parquet/CSV file directly over HTTP, no backend (see below).</li>
     <li><strong>SQLite (remote .sqlite)</strong> — query a <code>.sqlite</code> file directly over HTTP, no backend (see below).</li>
+    <li><strong>Snowflake</strong> — query a live Snowflake warehouse via the SQL API, straight from the browser (see below).</li>
   </ul>
 
   <h3>Browser-native connectors: no backend required</h3>
@@ -391,6 +392,14 @@
     <li>The Data preview's <strong>Run live</strong> button queries the real file the same way — no Pentaho server connection required.</li>
   </ul>
   <p>Neither connector is a Pentaho data source, so DAs of either kind are excluded from the <code>.cda</code> export; they work like any other query in the live preview and the Dashboard Framework export, which use offline sample data for charting.</p>
+
+  <h3>Snowflake connector</h3>
+  <p>The <strong>Snowflake</strong> source type queries a live warehouse directly from the browser via Snowflake's <a href="https://docs.snowflake.com/en/developer-guide/sql-api/index" target="_blank" rel="noopener noreferrer">SQL API</a> — no backend or proxy, but unlike the file connectors above it's <strong>credential-based</strong> and flagged with a "Needs token" badge instead of "Browser-only". Two things to set up before it will work:</p>
+  <ul>
+    <li><strong>A token, never a password.</strong> Generate a Programmatic Access Token (or use an OAuth access token) in Snowflake and paste it into <strong>Access token</strong>; pick the matching <strong>Token type</strong>. Studio never asks for or stores a Snowflake username/password.</li>
+    <li><strong>CORS allow-listing.</strong> Snowflake blocks cross-origin browser calls by default — a Snowflake admin must add this app's origin to the account's <code>ALLOWED_HTTP_ORIGINS</code> network policy before <strong>Test connection</strong> will succeed. Until then, requests fail with a clear CORS hint rather than a stuck spinner.</li>
+  </ul>
+  <p>Fill in <strong>Account identifier</strong> (e.g. <code>xy12345.us-east-1</code>), <strong>Warehouse</strong>/<strong>Database</strong>/<strong>Schema</strong> and an optional <strong>Role</strong>, write a <strong>Query</strong>, then click <strong>Test connection &amp; detect columns</strong> — it runs <code>SELECT 1</code> to validate everything and, once you have a real query, detects output columns from the live result. The Data preview's <strong>Run live</strong> button queries the warehouse the same way. Like the file connectors, a Snowflake DA isn't a Pentaho data source, so it's excluded from the <code>.cda</code> export.</p>
 
   <h3>Joins and compound DAs</h3>
   <p>Click <strong>⧈ Join</strong> in the library to create a <strong>Compound data access</strong> — either a join (left/right DA + key columns) or a union (stack rows from N DAs). These map directly to CDA <code>&lt;CompoundDataAccess&gt;</code> XML.</p>

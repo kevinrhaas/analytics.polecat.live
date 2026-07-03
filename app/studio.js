@@ -700,9 +700,13 @@
     { kind: "mql", iconName: "metadata", name: "Metadata", desc: "Pentaho Metadata (MQL) query", ph: "<mql>…</mql>" },
     { kind: "scripting", iconName: "code", name: "Scripting", desc: "Scripted (Kettle/Beanshell) data access", ph: "// return rows…" },
     { kind: "duckdb", iconName: "duckdb", name: "DuckDB (remote file)", desc: "Query a Parquet/CSV file straight from S3/HTTP — no backend, no proxy", badge: "Browser-only", ph: "SELECT * FROM t\nLIMIT  200   -- t = your file, queried in-browser via DuckDB-Wasm" },
-    { kind: "httpvfs", iconName: "sqlite", name: "SQLite (remote .sqlite)", desc: "Query a .sqlite file over HTTP Range Requests — indexed lookups, no backend", badge: "Browser-only", ph: "SELECT * FROM my_table\nLIMIT  200" }
+    { kind: "httpvfs", iconName: "sqlite", name: "SQLite (remote .sqlite)", desc: "Query a .sqlite file over HTTP Range Requests — indexed lookups, no backend", badge: "Browser-only", ph: "SELECT * FROM my_table\nLIMIT  200" },
+    { kind: "snowflake", iconName: "snowflake", name: "Snowflake", desc: "Query a Snowflake warehouse via the SQL API — needs a token + CORS allow-listed origin", badge: "Needs token", ph: "SELECT region,\n       SUM(revenue) AS revenue\nFROM   sales\nGROUP  BY region" }
   ];
   function dsType(k) { return DS_TYPES.filter(function (t) { return t.kind === k; })[0] || DS_TYPES[0]; }
+  // shared by the data-source builder draft and the DA inspector (both store the same sf* keys)
+  // so Studio.Snowflake.{testConnection,query} always see the same {account,token,...} shape.
+  function sfCfg(o) { return { account: o.sfAccount, token: o.sfToken, tokenType: o.sfTokenType, warehouse: o.sfWarehouse, database: o.sfDatabase, schema: o.sfSchema, role: o.sfRole }; }
 
   // open the guided builder. existing = {stem, da} to edit, or null to create.
   function dataSourceBuilder(existing) {
@@ -716,7 +720,9 @@
       mdxCatalog: src.mdxCatalog || "", mqlDomain: src.mqlDomain || "",
       ktrPath: src.ktrPath || "", ktrStep: src.ktrStep || "Output",
       scriptLang: src.scriptLang || "javascript",
-      fileUrl: src.fileUrl || "", fileFormat: src.fileFormat || "auto", tableName: src.tableName || "" };
+      fileUrl: src.fileUrl || "", fileFormat: src.fileFormat || "auto", tableName: src.tableName || "",
+      sfAccount: src.sfAccount || "", sfToken: src.sfToken || "", sfTokenType: src.sfTokenType || "PROGRAMMATIC_ACCESS_TOKEN",
+      sfWarehouse: src.sfWarehouse || "", sfDatabase: src.sfDatabase || "", sfSchema: src.sfSchema || "", sfRole: src.sfRole || "" };
 
     modal(editing ? "Edit data source · " + existing.da.id : "New data source", function (b) {
       var wrap = el("div", "dsb");
@@ -1294,7 +1300,7 @@
       function renderQSection() {
         qSection.innerHTML = "";
         var k = draft.kind;
-        connF.style.display = (k === "duckdb" || k === "httpvfs") ? "none" : ""; // JNDI doesn't apply to a browser-side file connector
+        connF.style.display = (k === "duckdb" || k === "httpvfs" || k === "snowflake") ? "none" : ""; // JNDI doesn't apply to these direct connectors
         if (k === "httpvfs") {
           // Z14 slice 3 — SQLite-WASM + HTTP-VFS: query a remote .sqlite file over HTTP Range
           // Requests, no backend/proxy/credentials. Test connection lazy-loads the engine, lists
@@ -1376,6 +1382,56 @@
           dkQF.appendChild(labelEl("Query (optional — runs against the file, aliased as “t”)"));
           dkQF.appendChild(dkTa);
           qSection.appendChild(dkQF);
+          detectBtn.style.display = "none";
+        } else if (k === "snowflake") {
+          // Z4 slice 1 — Snowflake SQL API v2: needs an account identifier + access token (never
+          // a password) and, unlike the Z14 file connectors, the target account must explicitly
+          // allow this origin (ALLOWED_HTTP_ORIGINS network policy) or every call fails on CORS.
+          qSection.appendChild(field("Account identifier", input(draft.sfAccount, function (v) { draft.sfAccount = v.trim(); }, "xy12345.us-east-1")));
+          var sfRow1 = el("div", "field row");
+          sfRow1.appendChild(field("Access token", input(draft.sfToken, function (v) { draft.sfToken = v.trim(); }, "Programmatic Access Token or OAuth token")));
+          sfRow1.appendChild(field("Token type", select2pairs([["PROGRAMMATIC_ACCESS_TOKEN", "Programmatic Access Token"], ["OAUTH", "OAuth"]], draft.sfTokenType, function (v) { draft.sfTokenType = v; })));
+          qSection.appendChild(sfRow1);
+          var sfRow2 = el("div", "field row");
+          sfRow2.appendChild(field("Warehouse", input(draft.sfWarehouse, function (v) { draft.sfWarehouse = v.trim(); }, "COMPUTE_WH")));
+          sfRow2.appendChild(field("Database", input(draft.sfDatabase, function (v) { draft.sfDatabase = v.trim(); }, "ANALYTICS")));
+          sfRow2.appendChild(field("Schema", input(draft.sfSchema, function (v) { draft.sfSchema = v.trim(); }, "PUBLIC")));
+          qSection.appendChild(sfRow2);
+          qSection.appendChild(field("Role (optional)", input(draft.sfRole, function (v) { draft.sfRole = v.trim(); }, "ANALYST")));
+          var sfStatus = el("div", "hint dsb-snowflake-status");
+          sfStatus.textContent = "Calls the Snowflake SQL API directly from your browser — the account must allow this origin via its ALLOWED_HTTP_ORIGINS network policy or requests are blocked by CORS. Uses a token only, never your Snowflake password.";
+          qSection.appendChild(sfStatus);
+          var sfTestBtn = el("button", "dsb-mini dsb-snowflake-test"); sfTestBtn.style.marginTop = "8px";
+          setIconBtn(sfTestBtn, "refresh", "Test connection & detect columns", 12);
+          sfTestBtn.onclick = function () {
+            if (!draft.sfAccount || !draft.sfToken) { toast("Enter an account identifier and access token first.", true); return; }
+            sfTestBtn.disabled = true; sfTestBtn.textContent = "Testing…"; window.__snowflakeTestState = "testing";
+            sfStatus.textContent = "Calling the Snowflake SQL API…";
+            Studio.Snowflake.testConnection(sfCfg(draft)).then(function (res) {
+              window.__snowflakeTestState = "done";
+              if (!res.ok) {
+                sfTestBtn.disabled = false; setIconBtn(sfTestBtn, "refresh", "Test connection & detect columns", 12);
+                sfStatus.textContent = "✗ " + res.error;
+                toast("Snowflake test failed — " + res.error, true);
+                return;
+              }
+              res.columns.forEach(function (c) { if (draft.columns.indexOf(c.name) < 0) draft.columns.push(c.name); });
+              if (!draft.query.trim()) { draft.query = "SELECT region,\n       SUM(revenue) AS revenue\nFROM   sales\nGROUP  BY region"; sfTa.value = draft.query; }
+              renderCols(); renderPreview();
+              sfTestBtn.disabled = false; setIconBtn(sfTestBtn, "refresh", "Test connection & detect columns", 12);
+              sfStatus.textContent = "✓ connected — " + res.columns.length + " column" + (res.columns.length === 1 ? "" : "s") + " detected: " +
+                res.columns.map(function (c) { return c.name + " (" + c.type + ")"; }).join(", ");
+              toast(res.columns.length + " column(s) detected from the live warehouse.");
+            });
+          };
+          qSection.appendChild(sfTestBtn);
+          var sfT = dsType("snowflake");
+          var sfTa = textarea(draft.query, function (v) { draft.query = v; });
+          sfTa.className = "dsb-query"; sfTa.spellcheck = false; sfTa.placeholder = sfT.ph;
+          var sfQF = el("div", "field");
+          sfQF.appendChild(labelEl("Query"));
+          sfQF.appendChild(sfTa);
+          qSection.appendChild(sfQF);
           detectBtn.style.display = "none";
         } else if (k === "kettle") {
           qSection.appendChild(field("Transformation file (.ktr)", input(draft.ktrPath, function (v) { draft.ktrPath = v; }, "/public/etl/my-transform.ktr")));
@@ -1465,6 +1521,10 @@
     if (draft.scriptLang && draft.scriptLang !== "javascript") da.scriptLang = draft.scriptLang;
     if (draft.kind === "duckdb") { da.fileUrl = draft.fileUrl || ""; da.fileFormat = draft.fileFormat || "auto"; }
     if (draft.kind === "httpvfs") { da.fileUrl = draft.fileUrl || ""; da.tableName = draft.tableName || ""; }
+    if (draft.kind === "snowflake") {
+      da.sfAccount = draft.sfAccount || ""; da.sfToken = draft.sfToken || ""; da.sfTokenType = draft.sfTokenType || "PROGRAMMATIC_ACCESS_TOKEN";
+      da.sfWarehouse = draft.sfWarehouse || ""; da.sfDatabase = draft.sfDatabase || ""; da.sfSchema = draft.sfSchema || ""; da.sfRole = draft.sfRole || "";
+    }
     // remove the previous record (handles id/group rename on edit)
     if (existing) { var oe = S.catalog[existing.stem]; if (oe) oe.dataAccesses = oe.dataAccesses.filter(function (x) { return x.id !== existing.da.id; }); }
     var dup = entry.dataAccesses.filter(function (x) { return x.id === da.id; })[0];
@@ -3326,6 +3386,40 @@
         });
       };
       qsl.appendChild(slTest2);
+    } else if (kind === "snowflake") {
+      var qsf = section(body, "Snowflake (SQL API)", null, null, "data-sources");
+      qsf.appendChild(field("Account identifier", input(da.sfAccount || "", function (v) { da.sfAccount = v.trim(); }, "xy12345.us-east-1")));
+      qsf.appendChild(field("Access token", input(da.sfToken || "", function (v) { da.sfToken = v.trim(); }, "Programmatic Access Token or OAuth token")));
+      qsf.appendChild(field("Token type", select2pairs([["PROGRAMMATIC_ACCESS_TOKEN", "Programmatic Access Token"], ["OAUTH", "OAuth"]], da.sfTokenType || "PROGRAMMATIC_ACCESS_TOKEN", function (v) { da.sfTokenType = v; })));
+      qsf.appendChild(field("Warehouse", input(da.sfWarehouse || "", function (v) { da.sfWarehouse = v.trim(); }, "COMPUTE_WH")));
+      qsf.appendChild(field("Database", input(da.sfDatabase || "", function (v) { da.sfDatabase = v.trim(); }, "ANALYTICS")));
+      qsf.appendChild(field("Schema", input(da.sfSchema || "", function (v) { da.sfSchema = v.trim(); }, "PUBLIC")));
+      qsf.appendChild(field("Role (optional)", input(da.sfRole || "", function (v) { da.sfRole = v.trim(); }, "ANALYST")));
+      var sfTa2 = el("textarea"); sfTa2.style.cssText = "width:100%;min-height:90px;font-family:var(--mono);font-size:11.5px;resize:vertical;box-sizing:border-box";
+      sfTa2.value = da.sql || da.query || ""; sfTa2.placeholder = "SELECT region, SUM(revenue) AS revenue FROM sales GROUP BY region";
+      sfTa2.addEventListener("change", function () { da.sql = sfTa2.value; da.query = sfTa2.value; });
+      qsf.appendChild(field("Query", sfTa2));
+      var sfStatus2 = el("div", "hint");
+      sfStatus2.textContent = "Calls the Snowflake SQL API directly from the browser — the account must allow this origin via ALLOWED_HTTP_ORIGINS or requests are blocked by CORS.";
+      qsf.appendChild(sfStatus2);
+      var sfTest2 = el("button", "btn-wide"); setIconBtn(sfTest2, "refresh", "Test connection & detect columns");
+      sfTest2.onclick = function () {
+        if (!da.sfAccount || !da.sfToken) { toast("Enter an account identifier and access token first.", true); return; }
+        sfTest2.disabled = true; sfTest2.textContent = "Testing…"; window.__snowflakeTestState = "testing";
+        sfStatus2.textContent = "Calling the Snowflake SQL API…";
+        Studio.Snowflake.testConnection(sfCfg(da)).then(function (res) {
+          window.__snowflakeTestState = "done";
+          if (!res.ok) {
+            sfTest2.disabled = false; setIconBtn(sfTest2, "refresh", "Test connection & detect columns");
+            sfStatus2.textContent = "✗ " + res.error; toast("Snowflake test failed — " + res.error, true); return;
+          }
+          da.columns = da.columns || [];
+          res.columns.forEach(function (c) { if (da.columns.indexOf(c.name) < 0) da.columns.push(c.name); });
+          renderInspector(); buildLibrary(); refreshPreview();
+          toast(res.columns.length + " column(s) detected from the live warehouse.");
+        });
+      };
+      qsf.appendChild(sfTest2);
     }
 
     // Output columns
@@ -3474,11 +3568,13 @@
     var ac = activeConnection();
     var isDuckdb = da.kind === "duckdb";
     var isSqlite = da.kind === "httpvfs";
+    var isSnowflake = da.kind === "snowflake";
     var liveBtn = null;
-    if (ac || isDuckdb || isSqlite) {
+    if (ac || isDuckdb || isSqlite || isSnowflake) {
       liveBtn = el("button", "btn"); setIconBtn(liveBtn, "play", "Run live");
       liveBtn.title = isDuckdb ? "Query the live file via DuckDB-Wasm (HTTP Range Requests)" :
-        isSqlite ? "Query the live file via SQLite-WASM (HTTP Range Requests)" : ("Query live from " + ac.name);
+        isSqlite ? "Query the live file via SQLite-WASM (HTTP Range Requests)" :
+        isSnowflake ? "Query the live warehouse via the Snowflake SQL API" : ("Query live from " + ac.name);
       toolbar.appendChild(liveBtn);
     }
     toolbar.appendChild(copyBtn);
@@ -3585,6 +3681,19 @@
         }).catch(function (e) {
           liveBtn.disabled = false; setIconBtn(liveBtn, "play", "Run live");
           toast("SQLite query failed — showing sample. (" + ((e && e.message) || e) + ")", true);
+          runSample();
+        });
+        return;
+      }
+      if (isSnowflake) {
+        if (!da.sfAccount || !da.sfToken) { liveBtn.disabled = false; setIconBtn(liveBtn, "play", "Run live"); toast("Set an account identifier and access token first.", true); runSample(); return; }
+        Studio.Snowflake.query(sfCfg(da), da.sql || da.query).then(function (result) {
+          state.result = result; state.source = "live"; state.page = 0;
+          liveBtn.disabled = false; setIconBtn(liveBtn, "play", "Run live");
+          renderTable(state.result, "live");
+        }).catch(function (e) {
+          liveBtn.disabled = false; setIconBtn(liveBtn, "play", "Run live");
+          toast("Snowflake query failed — showing sample. (" + ((e && e.message) || e) + ")", true);
           runSample();
         });
         return;

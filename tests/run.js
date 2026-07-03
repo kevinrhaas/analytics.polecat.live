@@ -179,7 +179,7 @@ function serve() {
       const modalGone = !document.querySelector(".modal .dsb");
       return { types, chips, prevRows, prevCols, saved: !!da, cols: da ? da.columns.join(",") : "", inLib, modalGone };
     });
-    ok("builder opens with all source-type cards", built.types === 7, JSON.stringify({ types: built.types, err: built.err }));
+    ok("builder opens with all source-type cards", built.types === 8, JSON.stringify({ types: built.types, err: built.err }));
     ok("Detect reads columns from the SQL + previews rows", built.chips.join(",") === "region,total" && built.prevRows === 5 && built.prevCols === 2, JSON.stringify(built));
     ok("Create saves the data source into the library", built.saved && built.cols === "region,total" && built.inLib && built.modalGone, JSON.stringify(built));
 
@@ -699,6 +699,133 @@ function serve() {
       return { hasDA: cda.indexOf('id="s3Orders"') >= 0, hasUrl: cda.indexOf("orders.sqlite") >= 0 };
     });
     ok("Z14: exportCDA excludes sqlite DAs from the .cda XML (not a real Pentaho source)", !slExport.hasDA && !slExport.hasUrl, JSON.stringify(slExport));
+
+    // ---- Z4 slice 1: Snowflake SQL API connector (credential-based, unlike the Z14 file connectors) ----
+    // Studio.Snowflake.{testConnection,query} are stubbed here for the same reason as DuckDB/SQLite
+    // above — no public-internet route in this sandbox, and a real Snowflake account would also need
+    // its ALLOWED_HTTP_ORIGINS network policy configured for this origin. The stub still exercises the
+    // exact click handlers / draft-mutation / table-render code a real success or failure would.
+    console.log("\n• Z4: Snowflake connector");
+    const sfModel = await page.evaluate(() => ({
+      hasApi: typeof Studio.Snowflake === "object" && typeof Studio.Snowflake.testConnection === "function" && typeof Studio.Snowflake.query === "function"
+    }));
+    ok("Z4: Studio.Snowflake exposes testConnection()/query()", sfModel.hasApi, JSON.stringify(sfModel));
+
+    const sfCard = await page.evaluate(async () => {
+      document.getElementById("btnNewDS").click();
+      await new Promise((r) => setTimeout(r, 80));
+      const m = document.querySelector(".modal .dsb"); if (!m) return { err: "modal missing" };
+      const card = [].slice.call(m.querySelectorAll(".dsb-type")).find((c) => c.textContent.includes("Snowflake"));
+      if (!card) return { err: "no Snowflake card" };
+      card.click();
+      await new Promise((r) => setTimeout(r, 60));
+      const fieldLabels = [].slice.call(m.querySelectorAll(".dsb-qsec .field label")).map((l) => l.textContent);
+      const jndiField = [].slice.call(m.querySelectorAll(".dsb > .field")).find((f) => /Connection \(JNDI\)/.test(f.textContent));
+      const jndiHidden = jndiField ? getComputedStyle(jndiField).display === "none" : false;
+      const detectFromQueryVisible = [].slice.call(m.querySelectorAll(".dsb-mini")).some((b) => /Detect from query/.test(b.textContent) && getComputedStyle(b).display !== "none");
+      return {
+        hasAccount: fieldLabels.some((f) => /Account identifier/.test(f)),
+        hasToken: fieldLabels.some((f) => /Access token/.test(f)),
+        hasTokenType: fieldLabels.some((f) => /Token type/.test(f)),
+        hasWarehouse: fieldLabels.some((f) => /Warehouse/.test(f)),
+        hasTestBtn: !!m.querySelector(".dsb-snowflake-test"),
+        jndiHidden, detectFromQueryVisible
+      };
+    });
+    ok("Z4: Snowflake card shows Account/Token/Token type/Warehouse fields", sfCard.hasAccount && sfCard.hasToken && sfCard.hasTokenType && sfCard.hasWarehouse, JSON.stringify(sfCard));
+    ok("Z4: Snowflake card shows a Test connection button", sfCard.hasTestBtn, JSON.stringify(sfCard));
+    ok("Z4: Snowflake card hides the JNDI connection field (doesn't apply)", sfCard.jndiHidden, JSON.stringify(sfCard));
+    ok("Z4: Snowflake card hides the SQL-alias 'Detect from query' button", !sfCard.detectFromQueryVisible, JSON.stringify(sfCard));
+
+    const sfBadge = await page.evaluate(() => {
+      const m = document.querySelector(".modal .dsb"); if (!m) return { err: "modal missing" };
+      const card = [].slice.call(m.querySelectorAll(".dsb-type")).find((c) => c.textContent.includes("Snowflake"));
+      return { hasBadge: card ? !!card.querySelector(".dsb-badge") : null, badgeText: card && card.querySelector(".dsb-badge") ? card.querySelector(".dsb-badge").textContent : "" };
+    });
+    ok("Z4: Snowflake source-type card carries a 'Needs token' badge (unlike the Z14 no-credential connectors)", sfBadge.hasBadge === true && /Needs token/i.test(sfBadge.badgeText), JSON.stringify(sfBadge));
+
+    const sfIcon = await page.evaluate(() => ({
+      path: Studio._iconPaths.snowflake,
+      distinctFromDuckdb: Studio._iconPaths.snowflake !== Studio._iconPaths.duckdb,
+      distinctFromSqlite: Studio._iconPaths.snowflake !== Studio._iconPaths.sqlite,
+      distinctFromDb: Studio._iconPaths.snowflake !== Studio._iconPaths.db
+    }));
+    ok("Z4: snowflake icon exists and is distinct from duckdb/sqlite/db icons", !!sfIcon.path && sfIcon.distinctFromDuckdb && sfIcon.distinctFromSqlite && sfIcon.distinctFromDb, JSON.stringify(sfIcon));
+
+    const sfTestOk = await page.evaluate(async () => {
+      const orig = Studio.Snowflake.testConnection;
+      Studio.Snowflake.testConnection = function () {
+        return Promise.resolve({ ok: true, columns: [{ name: "region", type: "TEXT" }, { name: "revenue", type: "NUMBER" }], cols: ["region", "revenue"], rows: [["East", 120], ["West", 90]] });
+      };
+      const m = document.querySelector(".modal .dsb"); if (!m) return { err: "modal missing" };
+      const inputs = [].slice.call(m.querySelectorAll(".dsb-qsec input"));
+      const accountInp = inputs[0], tokenInp = inputs[1];
+      accountInp.value = "xy12345.us-east-1"; accountInp.dispatchEvent(new Event("input", { bubbles: true }));
+      tokenInp.value = "sometoken"; tokenInp.dispatchEvent(new Event("input", { bubbles: true }));
+      m.querySelector(".dsb-snowflake-test").click();
+      await new Promise((r) => setTimeout(r, 60));
+      const chips = [].slice.call(m.querySelectorAll(".dsb-chip")).map((c) => c.textContent.replace("×", "").trim());
+      const status = (m.querySelector(".dsb-snowflake-status") || {}).textContent || "";
+      Studio.Snowflake.testConnection = orig;
+      return { chips, status };
+    });
+    ok("Z4: a successful Test connection detects columns into chips", sfTestOk.chips.join(",") === "region,revenue", JSON.stringify(sfTestOk));
+    ok("Z4: a successful Test connection shows a ✓ status line", /^✓ connected/.test(sfTestOk.status), JSON.stringify(sfTestOk));
+
+    const sfSaved = await page.evaluate(async () => {
+      const m = document.querySelector(".modal .dsb"); if (!m) return { err: "modal missing" };
+      const idInp = m.querySelector(".field.row .field input"); idInp.value = "sfSales"; idInp.dispatchEvent(new Event("input", { bubbles: true }));
+      m.querySelector(".dsb-foot .btn-primary").click();
+      await new Promise((r) => setTimeout(r, 80));
+      const da = window.__STUDIO_STATE.catalog.custom.dataAccesses.find((d) => d.id === "sfSales");
+      return da ? { kind: da.kind, sfAccount: da.sfAccount, sfToken: da.sfToken, sfTokenType: da.sfTokenType, cols: da.columns.join(",") } : { missing: true };
+    });
+    ok("Z4: saving persists kind/account/token/columns on the DA", sfSaved.kind === "snowflake" && sfSaved.sfAccount === "xy12345.us-east-1" && sfSaved.sfToken === "sometoken" && sfSaved.sfTokenType === "PROGRAMMATIC_ACCESS_TOKEN" && sfSaved.cols === "region,revenue", JSON.stringify(sfSaved));
+
+    const sfInspector = await page.evaluate(async () => {
+      var daDef = window.__STUDIO_STATE.catalog.custom.dataAccesses.find((d) => d.id === "sfSales");
+      Studio.ensureDA(window.__STUDIO_STATE.spec, daDef);
+      window.__studioSelect({ kind: "da", id: "sfSales" });
+      await new Promise((r) => setTimeout(r, 60));
+      const insp = document.getElementById("inspBody");
+      const secs = [].slice.call(insp.querySelectorAll(".insp-sec h4")).map((h) => h.textContent);
+      const hasSection = secs.some((s) => /Snowflake \(SQL API\)/.test(s));
+      const liveBtn = [].slice.call(insp.querySelectorAll(".daprev-toolbar .btn")).find((b) => /Run live/.test(b.textContent));
+      return { hasSection, liveBtnTitle: liveBtn ? liveBtn.title : "" };
+    });
+    ok("Z4: DA inspector shows the 'Snowflake (SQL API)' section for a snowflake DA", sfInspector.hasSection, JSON.stringify(sfInspector));
+    ok("Z4: Data preview offers 'Run live' for a snowflake DA with no active server", /Snowflake SQL API/.test(sfInspector.liveBtnTitle), JSON.stringify(sfInspector));
+
+    const sfRunLive = await page.evaluate(async () => {
+      Studio.Snowflake.query = function () { return Promise.resolve({ cols: ["region", "revenue"], rows: [["East", 120], ["West", 90]] }); };
+      const insp = document.getElementById("inspBody");
+      const liveBtn = [].slice.call(insp.querySelectorAll(".daprev-toolbar .btn")).find((b) => /Run live/.test(b.textContent));
+      if (!liveBtn) return { err: "no Run live button" };
+      liveBtn.click();
+      await new Promise((r) => setTimeout(r, 60));
+      return { status: (insp.querySelector(".daprev-status") || {}).textContent || "" };
+    });
+    ok("Z4: Run live queries via Studio.Snowflake.query() and shows the live result", /2 rows? · 2 cols? · live/.test(sfRunLive.status), JSON.stringify(sfRunLive));
+
+    const sfTestFail = await page.evaluate(async () => {
+      Studio.Snowflake.testConnection = function () { return Promise.resolve({ ok: false, error: "CORS blocked — the host doesn't allow cross-origin requests." }); };
+      const insp = document.getElementById("inspBody");
+      const testBtn = [].slice.call(insp.querySelectorAll("button")).find((b) => /Test connection & detect columns/.test(b.textContent));
+      if (!testBtn) return { err: "no test button in inspector" };
+      testBtn.click();
+      await new Promise((r) => setTimeout(r, 60));
+      const status = [].slice.call(insp.querySelectorAll(".hint")).map((h) => h.textContent).find((t) => t.indexOf("✗") === 0) || "";
+      return { status };
+    });
+    ok("Z4: a failed Test connection surfaces a clear inline error, not a stuck spinner", /^✗ CORS blocked/.test(sfTestFail.status), JSON.stringify(sfTestFail));
+
+    const sfExport = await page.evaluate(() => {
+      var sp = JSON.parse(JSON.stringify(window.__STUDIO_STATE.spec));
+      sp.cda.dataAccesses.push({ id: "sfSales", name: "sfSales", kind: "snowflake", sfAccount: "xy12345.us-east-1", sfToken: "sometoken", columns: ["region", "revenue"], params: [], calcColumns: [], cache: true, cacheDuration: 300 });
+      var cda = Studio.exportCDA(sp);
+      return { hasDA: cda.indexOf('id="sfSales"') >= 0, hasAccount: cda.indexOf("xy12345.us-east-1") >= 0 };
+    });
+    ok("Z4: exportCDA excludes snowflake DAs from the .cda XML (not a real Pentaho source)", !sfExport.hasDA && !sfExport.hasAccount, JSON.stringify(sfExport));
 
     // ---- Z14 slice 4: friendlier connector error messages (shared by DuckDB + SQLite) ----
     const friendlyErrs = await page.evaluate(() => ({

@@ -980,6 +980,21 @@ connector feeds the same dashboard model.
 > **START HERE → do Z14 (immediately above) FIRST**: **DuckDB-Wasm** and **SQLite-WASM-HTTP** query a static
 > file over HTTP Range Requests with **no backend/proxy/credentials**, so they're the prioritized first
 > connectors. Build all of Z14's slices before the token-gated warehouse providers in this Z4 entry.
+> ✓ **Slice 1 shipped v231 — Snowflake connector (first token-gated provider)**: `app/snowflake.js` calls
+> the Snowflake SQL API v2 directly from the browser (`POST/GET .../api/v2/statements`, with async-statement
+> polling for the 202 "still executing" case) — New Source builder + DA inspector both get a **Snowflake**
+> source type with Account identifier / Access token (Programmatic Access Token or OAuth, never a password)
+> / Token type / Warehouse / Database / Schema / Role fields, a query editor, and the same **Test connection
+> & detect columns** / **Run live** pattern the Z14 file connectors use. Genuinely different from Z14 in one
+> respect: this is **credential-based** (badge reads "Needs token", not "Browser-only") and the target
+> Snowflake account must allow this origin via its `ALLOWED_HTTP_ORIGINS` network policy or every call fails
+> on CORS — surfaced through the same `Studio.friendlyConnectorError` path, with an explicit inline hint
+> about the network-policy requirement so the failure mode is self-explanatory instead of a stuck spinner.
+> New monoline snowflake icon (`app/icons.js`); `exportCDA` excludes snowflake DAs from `.cda` (not a real
+> Pentaho source), same as duckdb/httpvfs. Docs updated. 15 new tests (stubbed at the `Studio.Snowflake`
+> boundary — this sandbox has no internet route, and a real check additionally needs a Snowflake account
+> with CORS configured for this origin). Test suite 1066/1066. **Still open for Z4**: Databricks, BigQuery/
+> other warehouses, generic SQL/HTTP, connector-gallery brand treatment, and a real live-account smoke test.
 
 **Z5 — Settings.** App configuration: theme, default deploy target, gate/access, data-source defaults,
 and **dashboard style defaults** (standard look/style applied to new dashboards). Support **collections

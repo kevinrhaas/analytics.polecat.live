@@ -15,6 +15,17 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 231,
+    title: 'Snowflake connector (Z4 slice 1)',
+    kind: 'feature',
+    ts: '2026-07-03T03:39:10Z',
+    items: [
+      'New Source builder + DA inspector gain a Snowflake source type -- account identifier, access token (Programmatic Access Token or OAuth, never a password), warehouse/database/schema/role, and a query editor, following the same Test connection / Run live pattern as the DuckDB-Wasm and SQLite-WASM connectors.',
+      'Calls the Snowflake SQL API v2 directly from the browser (app/snowflake.js) -- no backend or proxy -- but unlike the file connectors it needs the target account\'s ALLOWED_HTTP_ORIGINS network policy to allow this origin, or requests fail on CORS with a clear inline hint instead of a stuck spinner.',
+      'New monoline snowflake icon; Snowflake DAs are excluded from the .cda export (not a real Pentaho source) same as duckdb/httpvfs. Docs updated. 15 new tests, suite 1066/1066.',
+    ],
+  },
+  {
     v: 230,
     title: 'Default title size + subtitle style, plus preset parity',
     kind: 'polish',

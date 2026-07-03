@@ -1938,7 +1938,8 @@
     { id: "kettle",        label: "Kettle (.ktr transform)" },
     { id: "scripting",     label: "Scripting (JS / Groovy)" },
     { id: "duckdb",        label: "DuckDB-Wasm (remote Parquet/CSV, no backend)" },
-    { id: "httpvfs",       label: "SQLite-WASM (remote .sqlite over HTTP, no backend)" }
+    { id: "httpvfs",       label: "SQLite-WASM (remote .sqlite over HTTP, no backend)" },
+    { id: "snowflake",     label: "Snowflake (SQL API, needs token + CORS allow-list)" }
   ];
   Studio.COLUMN_TYPES = ["String", "Integer", "Numeric", "Date", "Boolean"];
 

@@ -50,6 +50,9 @@
     // tucked inside a single file for SQLite's "it's just a file" model).
     duckdb:    '<circle cx="9.5" cy="14.5" r="6"/><circle cx="7.5" cy="7" r="4"/><path d="M4 6.3c-1.2-.4-2.4.1-2.8 1.1-.3.9.2 1.4 1 1.4.9 0 1.9-.6 2.4-1.6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="6.5" cy="6" r="0.5" fill="currentColor" stroke="none"/>',
     sqlite:    '<path d="M6 2h8l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z" stroke-linecap="round" stroke-linejoin="round"/><polyline points="14 2 14 7 19 7" stroke-linecap="round" stroke-linejoin="round"/><ellipse cx="11" cy="13.3" rx="4" ry="1.6"/><path d="M7 13.3v3.6a4 1.6 0 0 0 8 0v-3.6" stroke-linecap="round" stroke-linejoin="round"/>',
+    // Z4 slice 1: a 6-spoke snowflake (3 crossing diameters + a short branch tick near each of
+    // the 6 tips) for the Snowflake connector — same monoline vocabulary, no brand mark/colour.
+    snowflake: '<line x1="3" y1="12" x2="21" y2="12" stroke-linecap="round"/><line x1="16.5" y1="4.21" x2="7.5" y2="19.79" stroke-linecap="round"/><line x1="7.5" y1="4.21" x2="16.5" y2="19.79" stroke-linecap="round"/><line x1="18" y1="10.5" x2="18" y2="13.5" stroke-linecap="round"/><line x1="6" y1="10.5" x2="6" y2="13.5" stroke-linecap="round"/><line x1="13.7" y1="6.05" x2="16.3" y2="7.55" stroke-linecap="round"/><line x1="7.7" y1="16.45" x2="10.3" y2="17.95" stroke-linecap="round"/><line x1="7.7" y1="7.55" x2="10.3" y2="6.05" stroke-linecap="round"/><line x1="13.7" y1="17.95" x2="16.3" y2="16.45" stroke-linecap="round"/>',
     // Z8 follow-up: tiny inline "what this toggle does" glyphs, shared by the OPT_HINTS map
     // in studio.js — reused across every chart type that exposes the matching option key
     // (sort/legend/smooth/dots families repeat across a dozen+ chart types).
