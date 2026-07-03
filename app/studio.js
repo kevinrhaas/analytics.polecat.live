@@ -4452,6 +4452,7 @@
     var stem = (p.title || "panel").trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "") || "panel";
     single.name = stem;
     celebrateFirstExport();
+    bumpExportMilestone();
     bundleModal("Embed panel", [{ name: stem + "-embed.html", body: Studio.exportCDF(single, S.assets, S.settings.deployPath), mime: "text/html" }]);
   }
   function duplicateKpi(i) {
@@ -5053,7 +5054,7 @@
         "studio-insp-collapsed", "studio-recents", "studio-pins", "studio-branding",
         "studio-shell-section", "studio-shell-expanded",
         "studio-default-jndi", "studio-default-subtitle", "studio-default-accent", "studio-default-logo", "studio-style-presets",
-        "studio-cmdk-usage", "studio-first-export-done"
+        "studio-cmdk-usage", "studio-first-export-done", "studio-export-count"
       ];
       var msg = "Clear all locally-stored Studio data?\n\nThis will remove:\n" +
         "  • Unsaved spec draft (autosave)\n" +
@@ -5312,15 +5313,10 @@
   function closeAllModals() { $$(".modal-ov").forEach(function (m) { m.remove(); }); }
 
   /* ---------- export ---------- */
-  // N-FUN: first-export delight moment — a small, rare, one-time celebration the first time this
-  // browser ever exports a dashboard (any kind, including Push). Purely tasteful: a toast + a brief
-  // spark burst that respects prefers-reduced-motion, then never fires again (localStorage flag).
-  function celebrateFirstExport() {
-    try {
-      if (localStorage.getItem("studio-first-export-done")) return;
-      localStorage.setItem("studio-first-export-done", "1");
-    } catch (e) { return; }
-    toast("First export! Nice work — your dashboard is ready to share.");
+  // N-FUN: delight moments — small, rare, tasteful celebrations. Shared spark-burst visual (respects
+  // prefers-reduced-motion) backs both the one-time first-export moment and the recurring export
+  // milestones below.
+  function sparkBurst() {
     if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     var colors = ["#d4773b", "#f55036", "#8b5cf6", "#4285f4", "#10a37f", "#ffb000"];
     var host = el("div", "spark-host");
@@ -5335,9 +5331,27 @@
     document.body.appendChild(host);
     setTimeout(function () { host.remove(); }, 1400);
   }
+  function celebrateFirstExport() {
+    try {
+      if (localStorage.getItem("studio-first-export-done")) return;
+      localStorage.setItem("studio-first-export-done", "1");
+    } catch (e) { return; }
+    toast("First export! Nice work — your dashboard is ready to share.");
+    sparkBurst();
+  }
+  // N-FUN: export milestones — a light "you're on a roll" nudge at round totals, counted across every
+  // export this browser has ever made (any kind). Purely encouraging, never repeats a given milestone
+  // (tracked via the running total itself, which only grows), same spark-burst as the first-export moment.
+  var EXPORT_MILESTONES = { 10: "10 exports!", 25: "25 exports — you're on a roll.", 50: "50 exports! Dashboard machine.", 100: "100 exports. Legendary.", 250: "250 exports. Absolute unit of a portfolio." };
+  function bumpExportMilestone() {
+    var n = 0;
+    try { n = (parseInt(localStorage.getItem("studio-export-count"), 10) || 0) + 1; localStorage.setItem("studio-export-count", String(n)); } catch (e) { return; }
+    if (EXPORT_MILESTONES[n]) { toast(EXPORT_MILESTONES[n] + " Keep it up."); sparkBurst(); }
+  }
 
   function doExport(kind) {
     celebrateFirstExport();
+    bumpExportMilestone();
     if (kind === "push") return pushToServer();
     var sp = S.spec, dp = S.settings.deployPath;
     var problems = Studio.validate(sp).filter(function (x) { return x.level === "error"; });

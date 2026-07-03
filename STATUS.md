@@ -1819,6 +1819,11 @@ gets covered over time:
 - **Data-driven motion system:** spring-physics transitions between filter/data states so numbers *move*
   meaningfully; a coherent motion language across the app (respect reduced-motion).
 - **Delight moments:** playful empty-states, easter-eggs, more milestone moments — small, rare, tasteful.
+> ✓ **Export milestone toasts shipped v224** (first "more milestone moments" slice): a running
+> `studio-export-count` (localStorage, any export kind — CDF/CDA/bundle/Push/panel-embed) celebrates
+> round totals (10/25/50/100/250) with a toast + the same spark burst as the first-export moment —
+> `sparkBurst()` extracted as a shared helper so both moments reuse one implementation. Non-milestone
+> exports stay silent. Included in Clear local data. 3 new tests, suite 1024/1024.
 
 **N-DATA — Analytical depth (toward standalone analytic apps).**
 - **Cross-filter / brushing everywhere:** click or brush any chart to filter the whole dashboard, with a

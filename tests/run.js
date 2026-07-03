@@ -3133,6 +3133,32 @@ function serve() {
     await page.evaluate(() => { document.querySelectorAll(".modal-ov").forEach(m => m.remove()); });
     ok("N-FUN: prefers-reduced-motion skips the spark burst but still marks the flag", firstExpRM && firstExpRMResult.newSparkHosts === 0 && firstExpRMResult.flagSet, JSON.stringify(firstExpRMResult));
 
+    // ---- N-FUN: export milestone toast (10th/25th/... export ever, any kind) ----
+    console.log("\n• N-FUN: export milestone toast");
+    const milestone1 = await page.evaluate(() => {
+      localStorage.setItem("studio-export-count", "9"); // next export is the 10th
+      const before = document.querySelectorAll(".spark-host").length;
+      const btn = document.querySelector("#menuExport button[data-exp='cdf']");
+      if (btn) btn.click();
+      return {
+        count: localStorage.getItem("studio-export-count"),
+        toastText: (document.getElementById("toast") || {}).textContent || "",
+        newSparkHosts: document.querySelectorAll(".spark-host").length - before
+      };
+    });
+    await page.evaluate(() => { document.querySelectorAll(".modal-ov").forEach(m => m.remove()); });
+    ok("N-FUN: the 10th export bumps studio-export-count to 10", milestone1.count === "10", JSON.stringify(milestone1));
+    ok("N-FUN: the 10th export shows a '10 exports' milestone toast + spark burst", /10 exports/i.test(milestone1.toastText) && milestone1.newSparkHosts === 1, JSON.stringify(milestone1));
+
+    const milestone2 = await page.evaluate(() => {
+      const before = document.querySelectorAll(".spark-host").length;
+      const btn = document.querySelector("#menuExport button[data-exp='cdf']");
+      if (btn) btn.click(); // 11th export — not a milestone
+      return { count: localStorage.getItem("studio-export-count"), newSparkHosts: document.querySelectorAll(".spark-host").length - before };
+    });
+    await page.evaluate(() => { document.querySelectorAll(".modal-ov").forEach(m => m.remove()); localStorage.removeItem("studio-export-count"); });
+    ok("N-FUN: a non-milestone export (11th) does not re-celebrate", milestone2.count === "11" && milestone2.newSparkHosts === 0, JSON.stringify(milestone2));
+
     // screenshot for the record
     await page.screenshot({ path: path.join(__dirname, "flagship.png"), fullPage: false });
     console.log("\n  (screenshot → tests/flagship.png)");

@@ -15,6 +15,16 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 224,
+    title: 'Export milestone toasts',
+    kind: 'feature',
+    ts: '2026-07-03T01:32:39Z',
+    items: [
+      'Exporting a dashboard now counts toward a running lifetime total (any format, including single-panel embeds and Push) that quietly celebrates round numbers -- 10, 25, 50, 100, 250 exports -- with a toast and the same spark burst as the first-export moment.',
+      'Non-milestone exports stay silent, and the counter is included in Clear local data.',
+    ],
+  },
+  {
     v: 223,
     title: 'Variance + range join the KPI Aggregation picker',
     kind: 'feature',
