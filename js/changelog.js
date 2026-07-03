@@ -15,6 +15,16 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 246,
+    title: 'Verified Home works fully offline (N-DIST follow-up, test-only)',
+    kind: 'polish',
+    ts: '2026-07-03T09:07:43Z',
+    items: [
+      'Added a regression test proving Home\'s Recent dashboards grid -- which reads purely from localStorage, no network involved -- genuinely renders correctly with the network fully cut, closing the "not yet verified" note from the offline app-shell work.',
+      'No app code changed; it already worked, this just proves it rather than assuming it. Suite 1146/1146.',
+    ],
+  },
+  {
     v: 245,
     title: 'Offline precache now covers the catalog + every example (N-DIST follow-up)',
     kind: 'polish',

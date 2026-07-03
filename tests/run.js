@@ -13933,6 +13933,26 @@ function serve() {
     await pwaPage.context().setOffline(false);
     ok("N-DIST: with the network fully offline, a reload still boots the cached app shell with a real, populated catalog",
       pwaOfflineBoot.hasRail && pwaOfflineBoot.hasTitle && pwaOfflineBoot.catalogSize > 0, JSON.stringify(pwaOfflineBoot));
+
+    // Home's "Recent dashboards" grid reads purely from localStorage (studio-recents), so it
+    // should already work offline with zero service-worker involvement — verify that's actually
+    // true rather than just assuming it (closes the "not yet verified" note from the v243 slice).
+    await pwaPage.evaluate(function () {
+      var entry = { id: "offline-recent-test", ts: new Date().toISOString(),
+        spec: { id: "offline-recent-test", title: "Offline Recent Test", panels: [], kpis: [], filters: [] } };
+      localStorage.setItem("studio-recents", JSON.stringify([entry]));
+    });
+    await pwaPage.context().setOffline(true);
+    await pwaPage.reload({ waitUntil: "domcontentloaded" });
+    await pwaPage.waitForTimeout(400);
+    await pwaPage.click('#railNav .rail-item[data-sec="home"]');
+    await pwaPage.waitForTimeout(150);
+    const pwaOfflineHome = await pwaPage.evaluate(function () {
+      return { hasRecentCard: !!document.querySelector('#secHome [data-recent="offline-recent-test"]') };
+    });
+    await pwaPage.context().setOffline(false);
+    ok("N-DIST: Home's Recent dashboards grid (localStorage-backed) renders correctly with the network fully offline",
+      pwaOfflineHome.hasRecentCard, JSON.stringify(pwaOfflineHome));
     await pwaPage.close();
 
   } catch (e) {

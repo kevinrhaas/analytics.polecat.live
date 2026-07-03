@@ -746,6 +746,8 @@
   install time, then reads that index to precache every listed example spec too, so a first-ever offline
   visit has a real, populated library and Examples gallery — not just a blank shell. Cache bumped to
   `studio-shell-v2`. 1 new test, suite 1145/1145.
+- v246: **N-DIST follow-up: verified Home works fully offline (test-only)** — see N-DIST entry below.
+  No app code changed. 1 new test, suite 1146/1146.
 
 ## NEXT (top = do first)
 
@@ -2038,10 +2040,12 @@ gets covered over time:
 > index to precache every curated example spec it lists — a first-ever offline visit gets a real,
 > populated query library and Examples gallery, not a blank shell. Cache bumped to `studio-shell-v2`.
 > 1 new test (verifies the precache + a repopulated catalog after a real offline reload). Suite
-> 1145/1145. **Still not done:** a genuinely offline-tolerant "recently viewed" fallback for Home (Home's
-> recents already read from localStorage so they should already work offline in practice — not yet
-> verified with a dedicated test).
-- **Installable PWA + offline:** ✓ shipped v243/v245, see above.
+> 1145/1145.
+> ✓ **Home offline verified shipped v246 (closes the last "not yet done" note above).** Added a
+> regression test proving Home's Recent dashboards grid (localStorage-backed, no network involved)
+> genuinely renders with the network fully cut — it already worked, this proves it instead of assuming
+> it. No app code changed. Suite 1146/1146. **N-DIST offline/PWA track is now feature-complete.**
+- **Installable PWA + offline:** ✓ shipped v243/v245/v246, see above.
 - **Client-side PNG/PDF export of a whole dashboard** (canvas/`html-to-image`-style, dependency-light) and
   print-perfect layouts — for sharing where a link won't do.
 > ✓ **Shareable state links shipped v240 (closes the item below).** Dashboard inspector's new "Share this
