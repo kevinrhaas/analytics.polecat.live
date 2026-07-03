@@ -15,6 +15,18 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 283,
+    title: 'Visual refresh (A) follow-up: focus rings + reduced-motion on exported dashboards',
+    kind: 'fix',
+    ts: '2026-07-03T22:34:47Z',
+    items: [
+      'Every exported/preview dashboard (vendor/pdc-ui.css) now gets a real keyboard focus ring on every button, link, select, input, and tabindex element -- header controls (theme toggle, print, query-info) get a white-tinted ring for contrast against the dark header gradient.',
+      'Fixed a real a11y bug found in the audit: the info-dot (.pdc-i, a real tabIndex=0/role=button element) set outline:none on :focus with no replacement, so keyboard users tabbing to it saw zero focus indicator -- same bug existed on the header theme/warehouse select and the drill-detail search input.',
+      'Every transition/animation in the dashboard chrome (KPI/card hover-lift, drill-detail drawer slide-in, query-inspector modal fade, info-dot color fade, bar hover, tooltip fade) now respects prefers-reduced-motion, matching the pattern already used by the app chrome (studio.css).',
+      'Closes the exported-dashboard-chrome half of the v281/v282 visual refresh follow-up list. 8 new tests (CSS coverage + real keyboard-focus and emulated-reduced-motion checks against the live preview), suite 1272/1272.',
+    ],
+  },
+  {
     v: 282,
     title: 'Visual refresh (A) follow-up: Settings default Dashboard theme',
     kind: 'feature',

@@ -39,6 +39,16 @@
 html,body{margin:0;padding:0}
 body{font-family:var(--font);background:var(--app-bg);color:var(--text-primary);
   -webkit-font-smoothing:antialiased;transition:background .25s,color .25s;}
+@media(prefers-reduced-motion:reduce){body{transition:none}}
+
+/* a11y: keyboard-only focus ring on every interactive element (buttons, links, selects,
+   inputs, anything with a tabindex) — same :focus-visible pattern as the app chrome
+   (studio.css), so exported/preview dashboards get the same clear keyboard-nav affordance.
+   :focus-visible keeps mouse clicks ring-free; a few elements below reset a plain
+   outline:none for their default state and are fixed individually so this ring still wins. */
+:focus-visible{outline:2px solid var(--pentaho);outline-offset:2px;border-radius:6px}
+a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,
+textarea:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--pentaho);outline-offset:2px}
 
 /* ── Header ── */
 .pdc-header{background:linear-gradient(100deg,var(--header-bg),#163a6e);color:var(--header-fg);
@@ -54,7 +64,7 @@ body{font-family:var(--font);background:var(--app-bg);color:var(--text-primary);
 .pdc-ctrls{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .pdc-ctrls label{font-size:11px;color:#a9b8d2;font-weight:700;text-transform:uppercase;letter-spacing:.6px}
 select.pdc-sel{font-family:inherit;font-size:13px;padding:7px 11px;border-radius:8px;border:1px solid rgba(255,255,255,.18);
-  background:rgba(255,255,255,.10);color:#fff;font-weight:600;cursor:pointer;outline:none}
+  background:rgba(255,255,255,.10);color:#fff;font-weight:600;cursor:pointer}
 select.pdc-sel option{color:#1f2838}
 .pdc-iconbtn{background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.18);color:#fff;
   border-radius:8px;padding:7px 11px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
@@ -62,6 +72,9 @@ select.pdc-sel option{color:#1f2838}
 .pdc-toggle{display:inline-flex;border:1px solid rgba(255,255,255,.18);border-radius:8px;overflow:hidden}
 .pdc-toggle button{background:rgba(255,255,255,.06);color:#cdd8ec;border:0;padding:7px 15px;font-family:inherit;font-weight:600;font-size:13px;cursor:pointer}
 .pdc-toggle button.active{background:var(--pentaho);color:#fff}
+/* a11y: header sits on a dark gradient (var(--header-bg)) in both app themes, so the
+   default pentaho-blue focus ring reads low-contrast there — swap to white for its controls. */
+.pdc-header :focus-visible{outline-color:#fff}
 
 /* ── Layout ── */
 .pdc-wrap{padding:18px 22px 48px;max-width:1860px;margin:0 auto}
@@ -78,6 +91,7 @@ select.pdc-sel option{color:#1f2838}
 .kpi{background:var(--panel-bg);border:1px solid var(--panel-border);border-radius:var(--radius);
   padding:15px 17px;box-shadow:var(--panel-shadow),var(--panel-glass);position:relative;overflow:hidden;transition:transform .15s,box-shadow .15s}
 .kpi:hover{transform:translateY(-2px);box-shadow:var(--panel-shadow-lg),var(--panel-glass)}
+@media(prefers-reduced-motion:reduce){.kpi{transition:none}}
 .kpi::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--accent,var(--pentaho))}
 .kpi .v{font-size:27px;font-weight:800;line-height:1.05;letter-spacing:-.5px}
 .kpi .l{font-size:11px;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-top:7px}
@@ -93,10 +107,12 @@ select.pdc-sel option{color:#1f2838}
   opacity:.42;letter-spacing:.3px;font-style:italic;pointer-events:auto;max-width:60%;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:opacity .15s}
 .card:hover .src{opacity:.85}
 .card .src:hover{opacity:1;color:var(--pdc);text-decoration:underline}
+@media(prefers-reduced-motion:reduce){.card .src{transition:none}}
 
 /* ── CDA query inspector modal (discrete ⓘ) ── */
 .pdc-qm-ov{position:fixed;inset:0;background:rgba(15,23,42,.55);backdrop-filter:blur(2px);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:5vh 16px;animation:pdcqmfade .16s ease}
 @keyframes pdcqmfade{from{opacity:0}to{opacity:1}}
+@media(prefers-reduced-motion:reduce){.pdc-qm-ov{animation:none}}
 .pdc-qm{background:var(--panel-bg);color:var(--text-primary);border:1px solid var(--panel-border);border-radius:var(--radius);box-shadow:var(--panel-shadow-lg);width:min(880px,94vw);max-height:88vh;display:flex;flex-direction:column;overflow:hidden}
 .pdc-qm-h{display:flex;align-items:center;gap:12px;padding:13px 16px;background:var(--panel-header-bg);border-bottom:1px solid var(--panel-header-border)}
 .pdc-qm-t{font-weight:800;font-size:14px;letter-spacing:.2px}
@@ -123,6 +139,7 @@ select.pdc-sel option{color:#1f2838}
 .pdc-dt{background:var(--panel-bg);color:var(--text-primary);border-left:1px solid var(--panel-border);box-shadow:var(--panel-shadow-lg);
   width:min(680px,96vw);max-width:96vw;height:100%;display:flex;flex-direction:column;transform:translateX(28px);transition:transform .2s ease}
 .pdc-dt-ov.in .pdc-dt{transform:translateX(0)}
+@media(prefers-reduced-motion:reduce){.pdc-dt-ov,.pdc-dt{transition:none}}
 .pdc-dt-h{display:flex;align-items:flex-start;gap:12px;padding:15px 18px 13px;background:var(--panel-header-bg);border-bottom:1px solid var(--panel-header-border)}
 .pdc-dt-tt{display:flex;flex-direction:column;gap:3px;min-width:0}
 .pdc-dt-t{font-weight:800;font-size:15px;letter-spacing:.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -132,7 +149,7 @@ select.pdc-sel option{color:#1f2838}
 .pdc-dt-bar{display:flex;align-items:center;gap:12px;padding:9px 18px;border-bottom:1px solid var(--panel-border);flex-wrap:wrap}
 .pdc-dt-count{font-size:12px;color:var(--text-muted)} .pdc-dt-count b{color:var(--pdc);font-size:14px;font-weight:800}
 .pdc-dt-q{flex:1;min-width:120px;border:1px solid var(--field-border);background:var(--field-bg);color:var(--text-primary);
-  font-size:12.5px;padding:6px 11px;border-radius:7px;outline:none}
+  font-size:12.5px;padding:6px 11px;border-radius:7px}
 .pdc-dt-q:focus{border-color:var(--pdc)}
 .pdc-dt-drilllink{font-size:11.5px;font-weight:700;color:var(--pdc);text-decoration:none;white-space:nowrap;padding:5px 10px;border:1px solid var(--pdc);border-radius:7px;opacity:.9}
 .pdc-dt-drilllink:hover{opacity:1;background:var(--pdc);color:#fff}
@@ -153,7 +170,8 @@ select.pdc-sel option{color:#1f2838}
 /* info dot (metric/chart definitions) */
 .pdc-i{display:inline-flex;align-items:center;justify-content:center;margin-left:5px;font-size:11.5px;font-style:normal;
   color:var(--text-faint);cursor:help;line-height:1;vertical-align:middle;opacity:.55;transition:opacity .12s,color .12s;user-select:none}
-.pdc-i:hover,.pdc-i:focus{opacity:1;color:var(--pdc);outline:none}
+.pdc-i:hover,.pdc-i:focus{opacity:1;color:var(--pdc)}
+@media(prefers-reduced-motion:reduce){.pdc-i{transition:none}}
 .kpi .l{display:inline-flex;align-items:center}.kpi .l .pdc-i{font-size:10.5px;margin-left:4px}
 .pdc-info-pop{position:fixed;display:none;z-index:10001;background:#0d1624;color:#fff;padding:9px 12px;border-radius:8px;
   font-size:11.5px;line-height:1.5;box-shadow:0 8px 26px rgba(0,0,0,.4);max-width:300px;font-weight:500;pointer-events:none;letter-spacing:.1px}
@@ -165,6 +183,7 @@ select.pdc-sel option{color:#1f2838}
 .card{background:var(--panel-bg);border:1px solid var(--panel-border);border-radius:var(--radius);position:relative;
   box-shadow:var(--panel-shadow),var(--panel-glass);display:flex;flex-direction:column;overflow:hidden;transition:transform .15s,box-shadow .15s}
 .card:hover{transform:translateY(-2px);box-shadow:var(--panel-shadow-lg),var(--panel-glass)}
+@media(prefers-reduced-motion:reduce){.card{transition:none}}
 .card>h3{margin:0;padding:13px 17px;border-bottom:1px solid var(--panel-header-border);background:var(--panel-header-bg);
   font-size:13.5px;font-weight:700;display:flex;align-items:center;gap:9px}
 .card>h3 .pill{font-size:10px;font-weight:700;color:#fff;background:var(--pdc);padding:2px 9px;border-radius:20px;text-transform:uppercase;letter-spacing:.4px}
@@ -178,6 +197,7 @@ select.pdc-sel option{color:#1f2838}
 .tick-strong{fill:var(--text-muted);font-size:11px;font-weight:600}
 .gridline{stroke:var(--grid-line);stroke-width:1}
 .bar{transition:opacity .15s}.bar:hover{opacity:.82;cursor:pointer}
+@media(prefers-reduced-motion:reduce){.bar{transition:none}}
 .dot{cursor:pointer}
 .series-label{fill:var(--text-muted);font-size:11px}
 .val-label{fill:var(--text-primary);font-size:10.5px;font-weight:600}
@@ -209,6 +229,7 @@ select.pdc-sel option{color:#1f2838}
 .pdc-foot code{background:var(--panel-subtle-bg);padding:1px 6px;border-radius:5px}
 .tip{position:fixed;pointer-events:none;background:#0d1624;color:#fff;padding:8px 11px;border-radius:8px;font-size:12px;
   opacity:0;transition:opacity .1s;max-width:300px;z-index:90;box-shadow:0 6px 20px rgba(0,0,0,.35);line-height:1.45}
+@media(prefers-reduced-motion:reduce){.tip{transition:none}}
 .tip b{color:#fff} .tip .muted{color:#9fb0c8}
 a.crosslink{color:var(--pentaho);text-decoration:none;font-weight:600} a.crosslink:hover{text-decoration:underline}
 .gauge-val{font-weight:800;fill:var(--text-primary)} .gauge-cap{fill:var(--text-muted);font-size:11px}

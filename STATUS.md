@@ -765,6 +765,15 @@
   (closes the sweep-cadence gap — the dedicated H-track log hadn't been fed since v125/v126). Purely
   additive `.grp` section labels (Connect / Present / Help & power tools), no button id/behavior changed.
   2 new tests, suite 1231/1231.
+- v283: **Visual refresh (A) follow-up: focus-visible rings + prefers-reduced-motion audit on the
+  exported dashboard chrome** (`vendor/pdc-ui.css`, distinct from the app chrome Z10 already covers) —
+  every button/link/select/input/tabindex element now gets a real keyboard focus ring, header controls
+  get a white-tinted ring for contrast on the dark header gradient, and every hover/enter transition +
+  the query-modal fade now respect the OS reduced-motion preference. Found and fixed a real bug along
+  the way: the info-dot (`.pdc-i`, a genuine `tabIndex=0`/`role=button` element) and two form fields set
+  `outline:none` on focus with no replacement, so keyboard users saw zero focus indicator. 8 new tests
+  (CSS coverage + real keyboard-focus/emulated-reduced-motion checks against the live preview), suite
+  1272/1272.
 
 ## NEXT (top = do first)
 
@@ -917,11 +926,17 @@
 > color/header background/title size/subtitle style. Also wired into the Style presets snapshot
 > (save/apply a preset now carries its dashboard theme) and Settings export/import. 6 new tests, suite
 > 1264/1264.
+> ✓ **Focus-visible + prefers-reduced-motion audit on the exported dashboard chrome shipped v283**:
+> `vendor/pdc-ui.css` now carries the same `:focus-visible` keyboard-ring pattern as the app chrome
+> (studio.css) — every button/link/select/input/tabindex element, with a white-tinted ring on header
+> controls for contrast on the dark header gradient — and every hover/enter transition + the query-modal
+> fade respects `prefers-reduced-motion`. Fixed a real bug in the process: the info-dot and two form
+> fields set `outline:none` on focus with no replacement (zero keyboard focus indicator). 8 new tests,
+> suite 1272/1272.
 > **Follow-ups (not yet done):** make Fleet Modern the **default value** of the new Settings picker itself
 > (per the original ask) once it's had a look from the user (today the picker exists but still defaults to
-> Classic, an opt-in); focus-visible rings + `prefers-reduced-motion` audit on the exported dashboard chrome
-> itself (distinct from the app chrome, which Z10 already covers); align the app chrome's Polecat theme to
-> the same jobtracker tokens (currently only the dashboard-facing side is done).
+> Classic, an opt-in); align the app chrome's Polecat theme to the same jobtracker tokens (currently only
+> the dashboard-facing side is done).
 >
 > **(B) Version history — "switch back to earlier versions" ✓ ALREADY SHIPPED (v258 + v262).** The loop had
 > already built this from the N-DIST backlog: the Dashboard inspector's **Version history** section keeps a

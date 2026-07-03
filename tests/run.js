@@ -176,6 +176,37 @@ function serve() {
     ok("N-DESIGN: KPI tiles render the layered glass inset shadow", /inset/.test(glassShadow.kpi), glassShadow.kpi);
     ok("N-DESIGN: chart cards render the layered glass inset shadow", /inset/.test(glassShadow.card), glassShadow.card);
 
+    // a11y: focus-visible ring + prefers-reduced-motion coverage on the exported/preview dashboard
+    // chrome (vendor/pdc-ui.css) -- distinct from the app chrome's own audit (Z10 covers studio.css).
+    const dashA11yCss = await page.evaluate(() => window.__STUDIO_STATE.assets.css);
+    ok("a11y: pdc-ui.css declares a global :focus-visible ring", dashA11yCss.indexOf(":focus-visible{outline:2px solid var(--pentaho)") >= 0);
+    ok("a11y: pdc-ui.css gives header controls a white focus ring (contrast on the dark header bg)", dashA11yCss.indexOf(".pdc-header :focus-visible{outline-color:#fff}") >= 0);
+    ok("a11y: pdc-ui.css no longer strips the focus outline on the info-dot (.pdc-i)", !/\.pdc-i:hover,\.pdc-i:focus\{[^}]*outline:none/.test(dashA11yCss));
+    ok("a11y: pdc-ui.css no longer strips the focus outline on the drill-detail search input", !/\.pdc-dt-q\{[^}]*outline:none/.test(dashA11yCss));
+    ok("a11y: pdc-ui.css no longer strips the focus outline on the header select", !/select\.pdc-sel\{[^}]*outline:none/.test(dashA11yCss));
+    const reducedMotionCoverage = ["body{transition:none}", ".kpi{transition:none}", ".card{transition:none}", ".pdc-qm-ov{animation:none}", ".pdc-dt-ov,.pdc-dt{transition:none}", ".pdc-i{transition:none}", ".bar{transition:none}", ".tip{transition:none}"]
+      .every((s) => dashA11yCss.indexOf("@media(prefers-reduced-motion:reduce){" + s + "}") >= 0);
+    ok("a11y: pdc-ui.css disables every dashboard-chrome transition/animation under prefers-reduced-motion", reducedMotionCoverage);
+
+    // Real keyboard-focus behavior: tabbing to a header icon button shows a visible (white) outline.
+    await frame.evaluate(() => { const b = document.getElementById("themeBtn"); if (b) b.focus(); });
+    const themeBtnFocus = await frame.evaluate(() => {
+      const b = document.getElementById("themeBtn");
+      const cs = b ? getComputedStyle(b) : null;
+      return cs ? { style: cs.outlineStyle, color: cs.outlineColor } : null;
+    });
+    ok("a11y: keyboard-focusing a header button in the live preview shows a real, white-tinted outline",
+      !!themeBtnFocus && themeBtnFocus.style !== "none" && /255,\s*255,\s*255/.test(themeBtnFocus.color), JSON.stringify(themeBtnFocus));
+
+    // Real reduced-motion behavior: a KPI's hover-lift transition duration collapses to 0 under the OS preference.
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    const kpiTransitionRM = await frame.evaluate(() => {
+      const kpi = document.querySelector(".kpi");
+      return kpi ? getComputedStyle(kpi).transitionDuration : "";
+    });
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    ok("a11y: prefers-reduced-motion collapses the KPI hover-lift transition to 0s in the live preview", /^0s(,\s*0s)*$/.test(kpiTransitionRM), "transitionDuration=" + kpiTransitionRM);
+
     // ---- data-source builder: author a new CDA query ----
     console.log("\n• data-source builder");
     const built = await page.evaluate(async () => {
