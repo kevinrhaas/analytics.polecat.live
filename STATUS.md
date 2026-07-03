@@ -721,7 +721,8 @@
 - v205: **Track L architecture sweep (accessibility): modal() close button aria-label** — see Track L
   findings log above. 2 new tests, suite 964/964.
 - v234: **Z4 slice 2: Databricks connector** — see Z4 entry below. 15 new tests, suite 1092/1092.
-- v235: **Z5 follow-up: Deploy target config in Settings** — see Z5 entry above. 5 new tests, suite 1097/1097.
+- v235: **Z5 follow-up: Deploy target config in Settings** — see Z5 entry above. 5 new tests; merged with
+  the concurrently-shipped v234 Databricks connector, combined suite 1096/1096.
 
 ## NEXT (top = do first)
 
