@@ -2190,6 +2190,64 @@ function serve() {
     ok("N-DATA: the Query preview section's data-quality notes exactly match Studio.dataQualityIssues() for that DA's own sample",
       dqWiring.warnCount === dqWiring.expected, JSON.stringify(dqWiring));
 
+    // ---- N-DATA: "Auto-arrange" — one-click panel reflow (pure function + UI wiring) ----
+    console.log("\n• N-DATA: Auto-arrange panel layout");
+    const aa = await page.evaluate(function () {
+      var panels = [
+        { id: "p1", span: 1, tags: ["ops"], chart: { type: "bars" } },
+        { id: "p2", span: 1, tags: [], chart: { type: "table" } },
+        { id: "p3", span: 1, tags: ["cost"], chart: { type: "donut" } },
+        { id: "p4", span: 1, tags: ["ops"], chart: { type: "line" } }
+      ];
+      var out = Studio.autoArrange(panels);
+      return {
+        order: out.map(function (p) { return p.id; }),
+        spans: out.map(function (p) { return p.span; }),
+        inputUnchanged: panels[1].span === 1, // pure — must not mutate the input array's objects
+        isNewArray: out !== panels
+      };
+    });
+    ok("N-DATA: Studio.autoArrange gives a wide chart type (table) a full-width span, others span 1",
+      aa.spans[aa.order.indexOf("p2")] === "full" && aa.spans[aa.order.indexOf("p1")] === 1 && aa.spans[aa.order.indexOf("p3")] === 1,
+      JSON.stringify(aa));
+    ok("N-DATA: Studio.autoArrange clusters panels sharing a first tag together (p1/p4 both 'ops')",
+      Math.abs(aa.order.indexOf("p1") - aa.order.indexOf("p4")) === 1, JSON.stringify(aa));
+    ok("N-DATA: Studio.autoArrange is pure — does not mutate the panels array/objects passed in",
+      aa.inputUnchanged && aa.isNewArray, JSON.stringify(aa));
+
+    // UI wiring: the Dashboard inspector's "Auto-arrange" button must actually call
+    // Studio.autoArrange on the live spec's panels, not just look like a button. Runs
+    // against a disposable synthetic spec (loaded via the same __studioLoad path as
+    // opening a file) rather than the shared example spec other tests rely on the panel
+    // order/selection of, then restores exactly what was loaded + selected beforehand.
+    const prevState = await page.evaluate(function () {
+      return { spec: window.__STUDIO_STATE.spec, selection: window.__STUDIO_STATE.selection };
+    });
+    const aaWiring = await page.evaluate(function () {
+      var testSpec = {
+        id: "aa-wiring-test", name: "aa-wiring-test", title: "Auto-arrange wiring test",
+        panels: [
+          { id: "awp1", span: 1, tags: [], chart: { type: "bars" } },
+          { id: "awp2", span: 1, tags: [], chart: { type: "table" } }
+        ],
+        kpis: [], filters: [], cda: { connections: [], dataAccesses: [] }
+      };
+      window.__studioLoad(testSpec);
+      var before = window.__STUDIO_STATE.spec.panels;
+      var expected = JSON.stringify(Studio.autoArrange(before));
+      var btn = document.getElementById("dashAutoArrange");
+      if (btn) btn.click();
+      var after = JSON.stringify(window.__STUDIO_STATE.spec.panels);
+      return { hasBtn: !!btn, matches: after === expected };
+    });
+    ok("N-DATA: clicking Auto-arrange in the Dashboard inspector reflows spec.panels via Studio.autoArrange",
+      aaWiring.hasBtn && aaWiring.matches, JSON.stringify(aaWiring));
+    await page.evaluate(function (prev) {
+      window.__studioLoad(prev.spec);
+      window.__STUDIO_STATE.selection = prev.selection;
+      window.__studioRenderInspector();
+    }, prevState);
+
     // ---- N-AI: "Explain this chart" auto-insight narration ----
     console.log("\n• auto-insight narration");
     const insightUnit = await page.evaluate(() => {

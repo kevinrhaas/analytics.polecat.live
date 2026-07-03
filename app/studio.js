@@ -2014,6 +2014,22 @@
     var gc = select2(["1", "2", "3", "4"], String(sp.gridCols), function (v) { sp.gridCols = +v; refreshPreview(); });
     sec.appendChild(field("Grid columns", gc));
 
+    // N-DATA: "Auto-arrange" — one click reflows the existing panels into a more balanced
+    // grid (wide chart types full-width, everything else 1 column, related tags clustered
+    // together). Pure rearrangement of what's already there — no new spec fields, and the
+    // usual drag-resize still works afterward if the result isn't quite right.
+    var autoArrangeBtn = el("button"); autoArrangeBtn.type = "button"; autoArrangeBtn.className = "btn";
+    autoArrangeBtn.id = "dashAutoArrange";
+    autoArrangeBtn.textContent = "Auto-arrange";
+    autoArrangeBtn.onclick = function () {
+      if (!(sp.panels || []).length) { toast("No panels to arrange yet."); return; }
+      sp.panels = Studio.autoArrange(sp.panels);
+      renderInspector(); refreshPreview();
+      toast("Panels auto-arranged.");
+    };
+    sec.appendChild(field("Layout", autoArrangeBtn,
+      "Reflows panels into a balanced grid: tables/text/flow diagrams go full-width, everything else keeps a single column, and panels sharing a tag are grouped together."));
+
     // H-track: Dashboard accent color — per-dashboard --pentaho override.
     // 6 quick preset swatches + a custom hex picker let the SE team match client branding.
     // Empty string = keep the default Pentaho blue (#005bb5) from pdc-ui.css.

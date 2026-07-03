@@ -265,6 +265,7 @@
     <li>Drag the right edge of a panel → resize its column span (1–4 columns).</li>
     <li>Double-click a panel title on the canvas to rename it inline.</li>
   </ul>
+  <p><strong>Auto-arrange:</strong> the <strong>Layout</strong> field in the Dashboard inspector (next to Grid columns) has an <strong>Auto-arrange</strong> button that reflows the existing panels for you — chart types with a lot of horizontal detail (Table, Text/annotation, Sankey, Chord, Calendar heatmap) get a full-width row of their own, everything else defaults to a single column, and panels sharing a tag are grouped together. A quick starting point for a first draft; drag-resize still works normally afterward.</p>
 
   <h3>Undo / Redo</h3>
   <p>Every structural edit (add, remove, reorder, resize, rename) is snapshotted. Use <kbd>Ctrl Z</kbd> / <kbd>⌘ Z</kbd> to undo and <kbd>Shift Z</kbd> to redo. The topbar ↶/↷ buttons work too. Text-field edits are not tracked individually (to avoid flooding the history).</p>

@@ -313,6 +313,38 @@
     return "";
   };
 
+  // N-DATA: chart types that read best filling an entire row on their own — a lot of
+  // rows/columns (Table), long-form prose (Text/annotation), or a wide flow diagram.
+  Studio.WIDE_CHART_TYPES = ["table", "richtext", "sankey", "chord", "calHeatmap"];
+
+  // N-DATA: "Auto-arrange" — a one-click reflow of a dashboard's existing panels into a
+  // more balanced grid, taking the tedium out of manual drag-resize for a first draft.
+  // Pure rearrangement of what's already there: no new spec fields, KPIs are untouched
+  // (they already lay out in their own row above the panel grid — see Studio.buildHtml).
+  //   - Wide chart types (Studio.WIDE_CHART_TYPES) get a full-width row of their own.
+  //   - Everything else defaults to a single grid column (the builder's own resize
+  //     handles still let a user widen any panel afterward — this is a starting point,
+  //     not a lock).
+  //   - Panels sharing a first tag are clustered together (stable within a cluster, and
+  //     clusters keep their first-seen order) so related content reads as one group.
+  // Returns a NEW array of shallow-cloned panels; does not mutate the input.
+  Studio.autoArrange = function (panels) {
+    var list = (panels || []).map(function (p) { return Studio.clone(p); });
+    list.forEach(function (p) {
+      var type = p.chart && p.chart.type;
+      p.span = Studio.WIDE_CHART_TYPES.indexOf(type) >= 0 ? "full" : 1;
+    });
+    var clusterOrder = [], clusters = {};
+    list.forEach(function (p) {
+      var key = (p.tags && p.tags[0]) || "";
+      if (!clusters[key]) { clusters[key] = []; clusterOrder.push(key); }
+      clusters[key].push(p);
+    });
+    var out = [];
+    clusterOrder.forEach(function (key) { out = out.concat(clusters[key]); });
+    return out;
+  };
+
   /* ---- chart registry: the heart of the model ----
      Each entry declares how a chart type binds columns + which knobs it exposes,
      plus how it maps to a CDE/CCC component. `fields` drives the inspector. */
