@@ -1330,10 +1330,15 @@ picker); tests green. Coordinate with Z1 (rail) and Z5 (Settings).
 **Z11 — In-app docs: discoverability + continuous upkeep (user-requested 2026-06-30).** ✓ **Rail Help
 entry shipped v136**: a persistent `#railHelp` link at the bottom of the left rail opens `docs/index.html`
 in a new tab — no longer buried solely in ⋯ More (which still has its own entry too). Contextual `.sec-help`/
-`.ct-help` links (J2/J4) already exist per-section/per-chart-type. **Still open:** style `docs/index.html`
-to match the active app theme (it's currently a fixed light Pentaho-style doc, independent of the app's
-dark/Polecat theme — may be fine as a deliberately neutral reference, revisit once Z10 theme system lands);
-keep treating docs as a living reference (standing responsibility, see Conventions).
+`.ct-help` links (J2/J4) already exist per-section/per-chart-type.
+> ✓ **Docs page now follows the active app theme, shipped v227 (closes "still open" above)**: `docs/index.html`
+> reads `studio-theme`/`studio-app-theme` from `localStorage` and sets `data-theme`/`data-app-theme` on
+> `<html>` before first paint (same pattern `app/gate.js` uses), so opening Help in a new tab no longer
+> looks like a stray unstyled light page when the Studio itself is in dark mode or the Polecat theme.
+> Classic Blue/Polecat × light/dark variants defined for the existing CSS custom properties plus the
+> hardcoded CDF/CDE/CDA badge chip colors and the tip-card gradient. No saved preference (first-ever visit,
+> or Help opened outside the app) keeps the original light default untouched. 2 new tests, suite 1038/1038.
+> Keep treating docs as a living reference (standing responsibility, see Conventions).
 
 **Z12 — Branding & app identity: de-dup the logo, favicon, Settings option (user-requested; revised 2026-06-30).**
 Design direction (best practice — the user wants it clean, not a redundant single letter):

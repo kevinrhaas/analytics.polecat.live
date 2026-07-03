@@ -11214,6 +11214,35 @@ function serve() {
       z11Help.exists && z11Help.tag === "A" && /docs\/index\.html$/.test(z11Help.href || "") && z11Help.target === "_blank" && z11Help.hasIcon && !z11Help.hasDataSec,
       JSON.stringify(z11Help));
 
+    // ── Z11 follow-up: docs/index.html follows the active app theme (Classic Blue/Polecat × light/dark) ──
+    console.log("\n• Z11 follow-up: docs page theme matching");
+    const docsPage = await browser.newPage();
+    await docsPage.addInitScript(function () {
+      localStorage.setItem("studio-theme", "dark");
+      localStorage.setItem("studio-app-theme", "polecat");
+    });
+    await docsPage.goto(`http://localhost:${PORT}/docs/index.html`, { waitUntil: "load" });
+    const docsThemed = await docsPage.evaluate(function () {
+      var html = document.documentElement;
+      return {
+        dataTheme: html.getAttribute("data-theme"),
+        dataAppTheme: html.getAttribute("data-app-theme"),
+        bg: getComputedStyle(document.body).backgroundColor
+      };
+    });
+    await docsPage.close();
+    ok("Z11: docs/index.html reads studio-theme/studio-app-theme from localStorage and sets data-theme/data-app-theme before paint",
+      docsThemed.dataTheme === "dark" && docsThemed.dataAppTheme === "polecat", JSON.stringify(docsThemed));
+
+    const docsUnthemedPage = await browser.newPage();
+    await docsUnthemedPage.goto(`http://localhost:${PORT}/docs/index.html`, { waitUntil: "load" });
+    const docsUnthemed = await docsUnthemedPage.evaluate(function () {
+      return { dataTheme: document.documentElement.getAttribute("data-theme"), bg: getComputedStyle(document.body).backgroundColor };
+    });
+    await docsUnthemedPage.close();
+    ok("Z11: with no saved theme preference, docs/index.html stays on its default light styling (no data-theme attr, distinct background)",
+      docsUnthemed.dataTheme === null && docsUnthemed.bg !== docsThemed.bg, JSON.stringify(docsUnthemed));
+
     // ── Z5 follow-up: Settings — export/import preferences as JSON ──
     console.log("\n• Z5 follow-up: Settings export/import JSON");
     await page.click('#railNav .rail-item[data-sec="settings"]');

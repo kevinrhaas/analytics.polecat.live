@@ -5,9 +5,28 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Help — Analytics Dashboard Studio</title>
+  <script>
+    // Z11: this reference page is opened standalone (new tab, no app chrome around it), but
+    // should still follow whichever theme/mode the user last set in the Studio — same
+    // localStorage keys, same before-first-paint pattern app/gate.js uses to avoid a flash.
+    (function () {
+      try {
+        if (localStorage.getItem("studio-theme") === "dark") document.documentElement.setAttribute("data-theme", "dark");
+        if (localStorage.getItem("studio-app-theme") === "polecat") document.documentElement.setAttribute("data-app-theme", "polecat");
+      } catch (e) {}
+    })();
+  </script>
   <style>
     :root{--brand:#0a1c3d;--accent:#7d3c98;--accent2:#005bb5;--bg:#f7f9fc;--card:#fff;
       --fg:#1a2a42;--faint:#5d6b82;--line:#dde3ee;--code-bg:#f0f4f9;font-size:15px}
+    /* Z11: theme variants — mirrors the app's Classic Blue/Polecat × light/dark system (Z10),
+       so this page never looks like a stray unstyled tab when opened from a themed app. */
+    :root[data-theme="dark"]{--brand:#141b2e;--accent:#b489d1;--accent2:#5b9bff;--bg:#11151f;
+      --card:#1a2030;--fg:#e8ecf5;--faint:#98a2b8;--line:#2a3348;--code-bg:#212942}
+    :root[data-app-theme="polecat"]{--brand:#2E2A33;--accent:#d4773b;--accent2:#8b5cf6;--bg:#F5E9D6;
+      --card:#fff;--fg:#2E2A33;--faint:#6b5f52;--line:#e6d9c2;--code-bg:#efe3cb}
+    :root[data-app-theme="polecat"][data-theme="dark"]{--brand:#1c1720;--accent:#f2905a;--accent2:#a78bfa;
+      --bg:#17131b;--card:#241f2b;--fg:#F5E9D6;--faint:#b8a894;--line:#382f3f;--code-bg:#241f2b}
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
       background:var(--bg);color:var(--fg);line-height:1.6}
@@ -99,6 +118,10 @@
     .badge-cdf{background:#e8f0fe;color:#1a5ccc}
     .badge-cde{background:#fff3cd;color:#856404}
     .badge-cda{background:#e8f8e8;color:#236e23}
+    :root[data-theme="dark"] .badge-cdf{background:#1a2a4a;color:#8bb4ff}
+    :root[data-theme="dark"] .badge-cde{background:#3a3110;color:#e0c050}
+    :root[data-theme="dark"] .badge-cda{background:#15301a;color:#5fd66f}
+    :root[data-theme="dark"] .tip{background:linear-gradient(135deg,#1c2333,#241c30);border-color:#3a2f4a}
 
     @media(max-width:640px){
       header{padding:0 16px}main{padding:24px 14px 60px}

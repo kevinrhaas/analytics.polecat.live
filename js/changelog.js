@@ -15,6 +15,17 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 227,
+    title: 'Help docs now follow your app theme',
+    kind: 'polish',
+    ts: '2026-07-03T02:35:58Z',
+    items: [
+      'docs/index.html (opened via the rail Help link or More menu) now matches whichever theme and mode you last set in the Studio -- Classic Blue or Polecat, light or dark -- instead of always rendering as a fixed light page.',
+      'Applied before first paint, same technique the passcode gate uses, so there is no flash of the wrong theme.',
+      'First-ever visit with no saved preference keeps the original light default.',
+    ],
+  },
+  {
     v: 226,
     title: 'Default header background color joins Style presets',
     kind: 'feature',
