@@ -748,6 +748,17 @@
   `studio-shell-v2`. 1 new test, suite 1145/1145.
 - v246: **N-DIST follow-up: verified Home works fully offline (test-only)** — see N-DIST entry below.
   No app code changed. 1 new test, suite 1146/1146.
+- v262: **Z1 follow-up: section-switch entrance motion** — see Z1 entry above. Caught + fixed a real bug
+  along the way: the first cut used a `translateY` transform, but `#appMain` has `position:fixed`
+  descendants (`#mobile-tabs`/`#statusbar` at phone width) and a *lingering* transform/animation on an
+  ancestor becomes their containing block instead of the viewport — broke their fixed positioning on
+  every real Studio-section switch (caught by the m-d regression test). Fixed: opacity-only animation +
+  an `animationend` cleanup so the class never lingers. 3 new tests, suite 1191/1191.
+- v263: **N-DATA: Auto-arrange — one-click panel layout** — see N-DATA entry below (closes the "smart
+  auto-arrange layout" idea). 4 new tests, suite 1195/1195.
+- v264: **N-DIST: Import dashboard from URL** — see N-DIST entry below (closes the "local template
+  gallery via URL import" idea, first cut — single spec URL, not yet an index of several). 2 new tests,
+  suite 1197/1197.
 
 ## NEXT (top = do first)
 
@@ -884,10 +895,14 @@ existing library pane. Home/Repository/Settings currently show "coming soon" pla
 is Z2/Z3/Z5 below. Scoped to desktop for now: rail hidden ≤900px, Studio always wins on narrow viewports,
 so mobile/tablet is completely unaffected (see Z9 for the dedicated mobile track). 8 new tests, suite
 713/713.
-> **Z1 follow-ups (not yet done):** richer motion (panel slide-in, selection transitions — collapse/expand
-> already animates); **simplify the TOP menu bar** now that the rail owns primary navigation — reorganize
-> to consistent, best-practice IA (logical grouping, no redundancy, clear labels/icons: rail = "where am
-> I", top bar = "what can I do here"); extend the rail to tablet width once Home/Repository/Settings have
+> ✓ **Section-switch entrance motion shipped v262**: switching sections via the rail now plays a brief
+> opacity fade-in on the section you switched to (disabled under prefers-reduced-motion). First cut used a
+> `translateY` transform, but that made a lingering CSS animation on `#appMain` act as the containing block
+> for its `position:fixed` descendants (`#mobile-tabs`/`#statusbar` at phone width) instead of the viewport,
+> breaking their fixed positioning — fixed to opacity-only + an `animationend` cleanup. 3 new tests.
+> **Z1 follow-ups (not yet done):** **simplify the TOP menu bar** now that the rail owns primary navigation
+> — reorganize to consistent, best-practice IA (logical grouping, no redundancy, clear labels/icons: rail =
+> "where am I", top bar = "what can I do here"); extend the rail to tablet width once Home/Repository/Settings have
 > real content worth navigating to on a smaller screen.
 
 **Z2 — Home.** ✓ slice 1 shipped v133: quick-create cards (Blank / Browse examples / Take the tour) +
@@ -2136,17 +2151,21 @@ gets covered over time:
 > type + message case, plus a wiring check that the Data preview modal's note count exactly matches
 > `Studio.dataQualityIssues()` over its own result sample), suite 1188/1188. **N-DATA data quality
 > watchdog track is now feature-complete.**
-- **Smart auto-arrange layout (added 2026-07-03):** a one-click "Auto-arrange" that reflows a dashboard's
-  panels into a balanced magazine-style grid by content weight (KPIs first in a tight row, wide charts
-  full-width, related tags clustered) using the existing `span` system — takes the tedium out of manual
-  drag-resize for a newcomer's first dashboard, pure rearrangement of existing panels/spans, no new spec
-  fields required.
+> ✓ **Auto-arrange shipped v263 (closes this idea)**: a one-click **Auto-arrange** button (next to Grid
+> columns in the Dashboard inspector) reflows a dashboard's existing panels — `Studio.autoArrange()` in
+> model.js gives wide chart types (Table, Text/annotation, Sankey, Chord, Calendar heatmap) a full-width
+> span, everything else a single column, and clusters panels sharing a first tag together, using the
+> existing `span` system. Pure rearrangement of what's already there — no new spec fields; KPIs are
+> untouched (they already lay out in their own row). 4 new tests, suite 1195/1195.
 
 **N-DIST — Distribution & platform reach (still backend-free).**
-- **Local-only template gallery via URL import (added 2026-07-03):** beyond the built-in curated Examples,
-  let a user paste any public JSON URL (a GitHub raw link, a gist, a static host) pointing at a
-  `.studio.json` (or an index of several) and browse/import it the same way Examples works today — a
-  community template exchange with zero backend, since it's just `fetch()` of a URL the user supplies.
+> ✓ **Import from URL shipped v264 (first cut of this idea — a single spec URL, not yet an index of
+> several)**: **＋ Import from URL…** at the bottom of the Examples ▾ menu opens a small modal — paste a
+> public link to a `.studio.json` file (a GitHub raw link, a gist, a static host) and it fetches,
+> validates, and loads it the same way opening a local file would. Plain client-side `fetch()`, no
+> backend/credentials; a failed or invalid fetch surfaces a clear inline error instead of hanging. 2 new
+> tests, suite 1197/1197. **Still open:** an index-of-several format (like the Examples gallery's own
+> `index.json`) so one URL can offer a browsable set of templates instead of just one.
 - ✓ **Embeddable single-chart widget shipped v211.** "Export this panel…" in the panel inspector (below
   Duplicate/Delete) reuses the full `Studio.exportCDF` on a spec pared down to just that one panel (no
   KPIs, no filters, no other panels) — same self-contained toolkit, tiny standalone `.html` widget, no

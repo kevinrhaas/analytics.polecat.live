@@ -15,6 +15,38 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 264,
+    title: 'N-DIST: Import dashboard from URL',
+    kind: 'feature',
+    ts: '2026-07-03T14:22:05Z',
+    items: [
+      'A new \'+ Import from URL...\' entry at the bottom of the Examples menu loads a dashboard from any public link to a .studio.json file -- a GitHub raw link, a gist, a static host.',
+      'Plain client-side fetch, no backend or account -- a zero-backend way to share dashboards as a community template exchange.',
+      'A failed or invalid fetch shows a clear inline error instead of hanging. 2 new tests.',
+    ],
+  },
+  {
+    v: 263,
+    title: 'N-DATA: Auto-arrange -- one-click panel layout',
+    kind: 'feature',
+    ts: '2026-07-03T14:21:39Z',
+    items: [
+      'A new \'Auto-arrange\' button next to Grid columns in the Dashboard inspector reflows the existing panels into a more balanced grid.',
+      'Wide chart types (Table, Text/annotation, Sankey, Chord, Calendar heatmap) get a full-width row; everything else keeps a single column; panels sharing a tag are grouped together.',
+      'Pure rearrangement of what is already there -- no new spec fields, and drag-resize still works normally afterward. 4 new tests.',
+    ],
+  },
+  {
+    v: 262,
+    title: 'Z1 follow-up: section-switch motion',
+    kind: 'polish',
+    ts: '2026-07-03T14:18:46Z',
+    items: [
+      'Switching sections from the left rail now plays a brief fade-in on the section you switched to -- a small cue that something happened instead of a silent hard-cut. Disabled under prefers-reduced-motion.',
+      'Caught and fixed a real bug while building this: a lingering CSS transform on #appMain (which has position:fixed descendants like the mobile tab bar and footer) was breaking their fixed positioning on real section switches -- the motion is opacity-only now and the animation class is cleaned up right after it finishes. 3 new tests.',
+    ],
+  },
+  {
     v: 261,
     title: 'N-DATA follow-up: type-mix detection + watchdog in the Data preview modal',
     kind: 'feature',
