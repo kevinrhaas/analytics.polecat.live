@@ -15,6 +15,17 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 266,
+    title: 'N-AI/N-FUN: voice command mode for the command palette',
+    kind: 'feature',
+    ts: '2026-07-03T14:45:32Z',
+    items: [
+      'The command palette (Ctrl/Cmd+K) now shows a mic button on browsers with the built-in SpeechRecognition Web API (Chrome/Edge/Safari) -- no API key, no backend, no BYO-anything.',
+      'Click it, say a command out loud (\'add a bar chart\', \'go to settings\'), and it runs hands-free the same way typing it and pressing Enter would -- the mic pulses while listening and auto-stops once you finish speaking.',
+      'Not shown at all where the API is absent (e.g. Firefox); typing still works everywhere. New mic icon (app/icons.js). 3 new tests, suite 1206/1206.',
+    ],
+  },
+  {
     v: 265,
     title: 'N-DIST follow-up: side-by-side diff for version history',
     kind: 'feature',

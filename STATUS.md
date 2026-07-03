@@ -2049,10 +2049,16 @@ gets covered over time:
   and generate a starter spec — NL → chart type + column mapping + query. BYO API key stored locally.
 - **NL query bar over a live source:** text → SQL → chart. Becomes real the moment Z14 DuckDB-Wasm lands
   (query a Parquet/CSV by asking in English). The killer combo with the connector track.
-- **Voice command mode (added 2026-07-03):** the browser's built-in `SpeechRecognition` Web API (no key,
-  no backend, no BYO-anything) driving the existing ⌘K command palette — say "add a bar chart" or "switch
-  to dark mode" and it runs that palette command hands-free. A genuinely novel, zero-dependency extension
-  of the keyboard-first palette work already shipped, fits the "fun, game-like" design direction.
+- **Voice command mode:** ✓ shipped v266, see below.
+> ✓ **Voice command mode shipped v266 (closes the item above).** A mic button now sits inside the ⌘K
+> palette's search field — shown only when `window.SpeechRecognition`/`webkitSpeechRecognition` actually
+> exists (Chrome/Edge/Safari; silently absent on Firefox, typing still works everywhere). Click it, say a
+> command ("add a bar chart", "go to settings"), and once recognition finalizes it fills the query and
+> **runs the top match automatically** — hands-free, the same path pressing Enter would take. Pulses red
+> while listening; auto-stops on its own. No API key, no backend, pure browser API — a genuinely novel,
+> zero-dependency extension of the keyboard-first palette (`app/palette.js`). New `mic` icon
+> (`app/icons.js`). 3 new tests (mic presence tracks API availability; a stubbed-`SpeechRecognition` page
+> exercises the full listen→transcribe→auto-run flow), suite 1206/1206.
 > ✓ **Auto-insight narration ("Explain this chart") — first cut shipped v212.** Any panel bound to a single
 > value column gets an **Insight** section in its inspector (below Query preview): a plain-English
 > paragraph covering overall trend direction (OLS slope sign/magnitude vs. flat), the single biggest

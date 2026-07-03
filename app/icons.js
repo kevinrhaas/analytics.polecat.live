@@ -90,7 +90,9 @@
     "center-line": '<path d="M2 7c5-3 15-3 20 2" stroke-linecap="round" stroke-linejoin="round" opacity=".35"/><path d="M2 12c5-3 15-3 20 2" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2"/><path d="M2 17c5-3 15-3 20 2" stroke-linecap="round" stroke-linejoin="round" opacity=".35"/>',
     // N-DIST follow-up: version-history "compare" affordance — two overlapping panes
     // with a delta mark, distinct from "copy"/"duplicate" (identical rectangles).
-    diff: '<rect x="3" y="4" width="11" height="16" rx="1.5"/><rect x="10" y="4" width="11" height="16" rx="1.5" fill="currentColor" opacity=".18"/><line x1="10" y1="9" x2="14" y2="9" stroke-linecap="round"/><line x1="10" y1="15" x2="14" y2="15" stroke-linecap="round"/>'
+    diff: '<rect x="3" y="4" width="11" height="16" rx="1.5"/><rect x="10" y="4" width="11" height="16" rx="1.5" fill="currentColor" opacity=".18"/><line x1="10" y1="9" x2="14" y2="9" stroke-linecap="round"/><line x1="10" y1="15" x2="14" y2="15" stroke-linecap="round"/>',
+    // N-AI/N-FUN: voice command mode — the command-palette mic toggle.
+    mic: '<rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0" stroke-linecap="round" stroke-linejoin="round"/><line x1="12" y1="17" x2="12" y2="22" stroke-linecap="round"/><line x1="8" y1="22" x2="16" y2="22" stroke-linecap="round"/>'
   };
 
   Studio.icon = function (name, size) {

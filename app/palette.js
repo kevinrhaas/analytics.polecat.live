@@ -123,6 +123,40 @@
     saveUsage(u);
   }
 
+  // ---- N-AI/N-FUN: voice command mode -------------------------------------
+  // The browser's built-in SpeechRecognition Web API — no API key, no backend,
+  // no BYO-anything — drives this same palette hands-free: say "add a bar
+  // chart" and it runs that command, same as typing + Enter would. Only
+  // rendered when the API actually exists (Chrome/Edge/Safari; not Firefox),
+  // so it's a progressive-enhancement affordance, never a hard dependency.
+  var SR = (typeof window !== "undefined") && (window.SpeechRecognition || window.webkitSpeechRecognition);
+  function voiceSupported() { return !!SR; }
+  var recognizer = null, listening = false, micBtn = null;
+  function setListening(on) {
+    listening = on;
+    if (micBtn) { micBtn.classList.toggle("listening", on); micBtn.setAttribute("aria-pressed", on ? "true" : "false"); }
+    if (input) input.placeholder = on ? "Listening…" : "Type a command or section…";
+  }
+  function startVoice() {
+    if (!SR || listening) return;
+    try { recognizer = new SR(); } catch (e) { return; }
+    recognizer.lang = "en-US"; recognizer.interimResults = true; recognizer.maxAlternatives = 1;
+    recognizer.onresult = function (e) {
+      var text = "";
+      for (var i = 0; i < e.results.length; i++) text += e.results[i][0].transcript;
+      input.value = text; refresh();
+    };
+    recognizer.onerror = function () { setListening(false); };
+    recognizer.onend = function () {
+      setListening(false);
+      // Recognition finalized — hands-free means it runs, not just fills the box.
+      if (filtered.length && input.value.trim()) run();
+    };
+    setListening(true);
+    try { recognizer.start(); } catch (e) { setListening(false); }
+  }
+  function stopVoice() { if (recognizer) { try { recognizer.stop(); } catch (e) {} } }
+
   // ---- state + DOM ------------------------------------------------------
   var overlay = null, input = null, listEl = null;
   var allCommands = COMMANDS;
@@ -140,9 +174,16 @@
       'animation:cmdkIn .13s ease-out}' +
       '@keyframes cmdkIn{from{opacity:0;transform:translateY(-8px) scale(.985)}to{opacity:1;transform:none}}' +
       '@media (prefers-reduced-motion:reduce){#cmdkBox{animation:none}}' +
+      '#cmdkInputRow{display:flex;align-items:center;border-bottom:1px solid var(--line,rgba(120,120,140,.2))}' +
       '#cmdkInput{border:0;outline:0;background:transparent;color:inherit;font-size:17px;padding:16px 18px;' +
-      'border-bottom:1px solid var(--line,rgba(120,120,140,.2));width:100%;box-sizing:border-box}' +
+      'width:100%;box-sizing:border-box}' +
       '#cmdkInput::placeholder{color:var(--muted,#8a8f9e)}' +
+      '#cmdkMic{flex:0 0 auto;margin-right:12px;width:30px;height:30px;border-radius:50%;border:1px solid var(--line,rgba(120,120,140,.3));' +
+      'background:transparent;color:inherit;opacity:.7;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:opacity .12s,background .12s}' +
+      '#cmdkMic:hover{opacity:1;background:var(--field,rgba(120,120,140,.12))}' +
+      '#cmdkMic.listening{opacity:1;color:#fff;background:#e0453b;border-color:#e0453b;animation:cmdkMicPulse 1.1s ease-in-out infinite}' +
+      '@keyframes cmdkMicPulse{0%,100%{box-shadow:0 0 0 0 rgba(224,69,59,.45)}50%{box-shadow:0 0 0 7px rgba(224,69,59,0)}}' +
+      '@media (prefers-reduced-motion:reduce){#cmdkMic.listening{animation:none}}' +
       '#cmdkList{list-style:none;margin:0;padding:6px;overflow:auto}' +
       '.cmdk-row{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:9px;cursor:pointer;user-select:none}' +
       '.cmdk-row .cmdk-ic{width:17px;height:17px;flex:0 0 17px;opacity:.72;display:flex;align-items:center;justify-content:center}' +
@@ -168,18 +209,27 @@
     overlay.setAttribute("aria-label", "Command palette");
     overlay.innerHTML =
       '<div id="cmdkBox">' +
+      '<div id="cmdkInputRow">' +
+      (voiceSupported() ? '<button id="cmdkMic" type="button" aria-label="Speak a command" aria-pressed="false" title="Speak a command"></button>' : "") +
       '<input id="cmdkInput" type="text" autocomplete="off" spellcheck="false" ' +
       'placeholder="Type a command or section…" aria-label="Command palette search"/>' +
+      '</div>' +
       '<ul id="cmdkList" role="listbox"></ul>' +
-      '<div id="cmdkFoot"><span>↑↓ navigate</span><span>↵ run</span><span>esc close</span></div>' +
+      '<div id="cmdkFoot"><span>↑↓ navigate</span><span>↵ run</span><span>esc close</span>' +
+      (voiceSupported() ? '<span>🎙 speak</span>' : "") + '</div>' +
       '</div>';
     document.body.appendChild(overlay);
     input = document.getElementById("cmdkInput");
     listEl = document.getElementById("cmdkList");
+    micBtn = document.getElementById("cmdkMic");
 
     overlay.addEventListener("mousedown", function (e) { if (e.target === overlay) close(); });
     input.addEventListener("input", function () { refresh(); });
     input.addEventListener("keydown", onKey);
+    if (micBtn) {
+      if (window.Studio && Studio.icon) micBtn.appendChild(Studio.icon("mic", 15));
+      micBtn.addEventListener("click", function () { listening ? stopVoice() : startVoice(); });
+    }
     built = true;
   }
 
@@ -261,6 +311,7 @@
 
   function open() {
     build();
+    stopVoice();
     allCommands = COMMANDS.concat(exampleCommands(), recentCommands(), chartTypeCommands());
     input.value = "";
     refresh();
@@ -268,6 +319,7 @@
     input.focus();
   }
   function close() {
+    stopVoice();
     if (overlay) overlay.classList.remove("open");
   }
   function isOpen() { return !!(overlay && overlay.classList.contains("open")); }
@@ -305,5 +357,5 @@
   var railCmdk = document.getElementById("railCmdk");
   if (railCmdk) railCmdk.addEventListener("click", open);
 
-  window.StudioPalette = { open: open, close: close, toggle: toggle, isOpen: isOpen, commands: COMMANDS, usage: loadUsage };
+  window.StudioPalette = { open: open, close: close, toggle: toggle, isOpen: isOpen, commands: COMMANDS, usage: loadUsage, voiceSupported: voiceSupported, startVoice: startVoice };
 })();

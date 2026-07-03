@@ -13654,6 +13654,66 @@ function serve() {
     ok("Track N follow-up: a just-run command leads the empty-query list next time the palette opens",
       cmdkUsage.rankedFirst === "Keyboard shortcuts", JSON.stringify(cmdkUsage));
 
+    // ---- N-AI/N-FUN: voice command mode (SpeechRecognition drives the palette hands-free) ----
+    console.log("\n• N-AI/N-FUN: voice command mode");
+    const voiceUnsupported = await page.evaluate(function () {
+      // The main run's headless Chromium build; whatever it reports for the API's
+      // presence, the mic affordance must match it exactly (never show a mic with
+      // no engine behind it, never hide one when the API IS there).
+      var apiPresent = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+      window.StudioPalette.open();
+      var micPresent = !!document.getElementById("cmdkMic");
+      document.getElementById("cmdkInput").dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+      return { apiPresent: apiPresent, micPresent: micPresent, reportsSupported: window.StudioPalette.voiceSupported() };
+    });
+    ok("N-AI: the mic button's presence exactly matches SpeechRecognition API availability",
+      voiceUnsupported.micPresent === voiceUnsupported.apiPresent && voiceUnsupported.reportsSupported === voiceUnsupported.apiPresent,
+      JSON.stringify(voiceUnsupported));
+
+    // A dedicated page stubs a fake SpeechRecognition (headless Chromium has no real
+    // engine/mic) so the full listen -> transcribe -> auto-run flow can be exercised
+    // end to end, the way it would on a real Chrome/Edge/Safari with mic permission.
+    const voicePage = await browser.newPage();
+    await voicePage.addInitScript(() => {
+      try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); } catch (e) {}
+      function FakeRecognition() {}
+      FakeRecognition.prototype.start = function () {
+        var self = this;
+        setTimeout(function () {
+          if (self.onresult) self.onresult({ results: [[{ transcript: "go to settings" }]] });
+          if (self.onend) self.onend();
+        }, 10);
+      };
+      FakeRecognition.prototype.stop = function () {};
+      window.SpeechRecognition = FakeRecognition;
+    });
+    await voicePage.goto(`http://localhost:${PORT}/`, { waitUntil: "networkidle" });
+    await voicePage.waitForFunction(() => window.StudioPalette && window.StudioPalette.voiceSupported && window.StudioPalette.voiceSupported());
+    const voiceFlow = await voicePage.evaluate(function () {
+      return new Promise(function (resolve) {
+        window.StudioPalette.open();
+        var mic = document.getElementById("cmdkMic");
+        var hadMic = !!mic;
+        mic.click();
+        var wasListening = mic.classList.contains("listening");
+        setTimeout(function () {
+          var setBtn = document.querySelector('.rail-item[data-sec="settings"]');
+          resolve({
+            hadMic: hadMic,
+            wasListening: wasListening,
+            stoppedListening: !mic.classList.contains("listening"),
+            paletteClosed: !document.getElementById("cmdkOverlay").classList.contains("open"),
+            navigatedToSettings: !!(setBtn && setBtn.classList.contains("active"))
+          });
+        }, 200);
+      });
+    });
+    await voicePage.close();
+    ok("N-AI: clicking the mic starts listening (pulsing state) then auto-stops once recognition ends",
+      voiceFlow.hadMic && voiceFlow.wasListening && voiceFlow.stoppedListening, JSON.stringify(voiceFlow));
+    ok("N-AI: a finalized voice transcript ('go to settings') runs that command hands-free — palette closes + navigates",
+      voiceFlow.paletteClosed && voiceFlow.navigatedToSettings, JSON.stringify(voiceFlow));
+
     // ---- N-FUN slice 5: "Add panel: <chart type>" commands ----
     console.log("\n• Track N follow-up: add-panel-of-type palette commands");
     var cmdkAddPanel = await page.evaluate(async function () {
