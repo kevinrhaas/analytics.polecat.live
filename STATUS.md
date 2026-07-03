@@ -2466,9 +2466,19 @@ gets covered over time:
 > with zero separate wiring; the editable `spec.title`/`spec.subtitle` fields themselves keep the raw
 > `{{key}}` text, only the rendered output substitutes. An unmatched key is left as literal text (a typo
 > stays visible instead of vanishing). `spec.templateVars` added to `Studio.emptySpec()` + the `normalize()`
-> whitelist so it survives Open/Import/reload. 9 new tests, suite 1249/1249. **Not yet done:** applying
-> variables to panel titles/notes beyond the banner, and a way to save/reuse a named variable set across
-> dashboards (today each dashboard's variables are its own).
+> whitelist so it survives Open/Import/reload. 9 new tests, suite 1249/1249.
+> ✓ **Panel Title/Note coverage shipped v287**: `{{key}}` now also resolves in any panel's Title and
+> Note (previously the dashboard Title/Subtitle banner only), rendered by `studio-render.js`'s
+> `renderGrid` — a small local copy of the substitution logic, since that file ships inside the
+> exported/preview bundle where the builder-only `Studio` namespace isn't available (same convention
+> as its existing `fmt()`/`color()`/`pctOf()` local copies). Double-click-to-rename on a panel title
+> still starts from the RAW `{{key}}` string (stashed in a `data-raw-title` attribute), so renaming
+> never silently bakes a resolved value back into the template. 4 new tests, suite 1280/1280.
+> ✓ **Named, reusable variable sets shipped v288 (closes the "save/reuse a named variable set" item)**:
+> the Template variables section can now "Save current as..." a named set and Apply a saved set to any
+> dashboard in one click — same architecture as the existing named style-preset collection
+> (`localStorage["studio-templatevar-sets"]`), travels with Settings export/import, wiped by Clear
+> local data. 5 new tests, suite 1285/1285.
 
 ## Quality bar
 Every iteration: builds, `tests/run.js` green, UI cohesive, README/STATUS updated, commit + push.

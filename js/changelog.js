@@ -15,6 +15,28 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 288,
+    title: 'N-DEV follow-up: named, reusable template-variable sets',
+    kind: 'feature',
+    ts: '2026-07-03T23:31:59Z',
+    items: [
+      'The Dashboard inspector\'s Template variables section can now save the current {{key}} rows under a name ("Save current as...") and later Apply that same saved set to any dashboard with one click -- handy for a reusable {{region}}-templated spec you fill in differently per deployment (an "APAC" set, an "EMEA" set, etc.) without retyping values each time.',
+      'Saved sets persist in localStorage (studio-templatevar-sets), travel with Settings export/import, and are wiped by Clear local data, same pattern as the existing named style-preset collection.',
+      '5 new tests, suite 1285/1285.',
+    ],
+  },
+  {
+    v: 287,
+    title: 'N-DEV follow-up: {{key}} template vars now resolve in panel Title/Note too',
+    kind: 'feature',
+    ts: '2026-07-03T23:20:00Z',
+    items: [
+      'Template variables previously only substituted in the dashboard Title/Subtitle banner -- {{key}} tokens now also resolve in any panel\'s Title and Note, in both the live preview and every export, via the same shared substitution pass (a small local copy in studio-render.js, since that file ships inside the exported bundle where the builder-only Studio namespace is not available).',
+      'Double-click-to-rename on a panel title still edits the RAW {{key}} string, not the resolved display text, so renaming never silently bakes a resolved value back into the template.',
+      '4 new tests, suite 1280/1280.',
+    ],
+  },
+  {
     v: 286,
     title: 'Track L (a11y lens): Repository search field keyboard focus ring restored',
     kind: 'fix',

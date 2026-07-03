@@ -18,6 +18,20 @@
   var I_CLOSE = iSvg('<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>', 12);
   var I_MAXIMIZE = iSvg('<path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>', 13);
 
+  // N-DEV: {{key}} template-var substitution for panel titles/notes. Studio.applyTemplateVars
+  // (app/model.js) is NOT available here — model.js is a builder-only module, never inlined into
+  // the exported/preview bundle (see the file header + the pctOf() note above). Local copy of the
+  // same pure substitution logic; the dashboard Title/Subtitle banner is resolved separately, in
+  // exporters.js's buildHtml (which runs in the builder page where Studio.applyTemplateVars exists).
+  function applyTemplateVars(str, vars) {
+    if (!str || !vars || !vars.length) return str;
+    var map = {};
+    vars.forEach(function (v) { if (v && v.key) map[v.key] = v.value == null ? "" : v.value; });
+    return str.replace(/\{\{\s*([A-Za-z0-9_]+)\s*\}\}/g, function (m, key) {
+      return Object.prototype.hasOwnProperty.call(map, key) ? map[key] : m;
+    });
+  }
+
   function fmt(id) {
     if (id === "plain" || !id) return function (v) { return v == null ? "" : String(v); };
     return (PDC.fmt[id] || PDC.fmt.abbr);
@@ -1254,14 +1268,20 @@
       var g = PDC.grid(spec.gridCols || 3); content.appendChild(g);
       grp.panels.forEach(function (p) {
         var spanClass = p.span === "full" ? "full" : (p.span > 1 ? String(p.span) : null);
-        var card = PDC.card(p.title || "", { pill: p.pill || "", sub: p.sub || "", info: p.info || "",
+        // N-DEV follow-up: {{key}} template vars now resolve in panel titles/notes too (previously
+        // only the dashboard Title/Subtitle banner), same shared Studio.applyTemplateVars pass so
+        // preview and every export agree. The RAW p.title (with the literal {{token}}) stays the
+        // source of truth in the spec — resolution happens only for display, here at render time.
+        var titleText = applyTemplateVars(p.title || "", spec.templateVars);
+        var noteText = applyTemplateVars(p.note || "", spec.templateVars);
+        var card = PDC.card(titleText, { pill: p.pill || "", sub: p.sub || "", info: p.info || "",
           src: p.src || "", span: spanClass });
         // Panel note: visible annotation line shown below the card header, above the chart.
         // Gives stakeholders quick context without needing to hover over the info dot.
-        if (p.note) {
+        if (noteText) {
           var noteEl = document.createElement("div");
           noteEl.className = "pdc-panel-note";
-          noteEl.textContent = p.note;
+          noteEl.textContent = noteText;
           card.el.insertBefore(noteEl, card.body);
         }
         // Per-panel accent color: a colored left border that visually differentiates panels
@@ -1278,6 +1298,10 @@
           var titleEl = card.el.querySelector(".pdc-h-t");
           if (titleEl && h3) {
             titleEl.title = "Double-click to rename";
+            // Keep the RAW (unresolved) title on the element so double-click-to-rename edits the
+            // real {{token}}-bearing string, not the resolved display text — otherwise saving would
+            // silently bake the resolved value back into spec.panels[i].title and destroy the template.
+            titleEl.setAttribute("data-raw-title", p.title || "");
             (function (h, t, id) { t.addEventListener("dblclick", function (e) { e.preventDefault(); e.stopPropagation(); startRename(h, t, id); }); })(h3, titleEl, p.id);
           }
           var rz = document.createElement("div"); rz.className = "sr-resize"; rz.title = "Drag to resize"; card.el.appendChild(rz);
@@ -1400,7 +1424,9 @@
 
   // builder-only: double-click a panel title to rename it inline (commit on Enter/blur, cancel on Esc)
   function startRename(h3, titleEl, id) {
-    var node = titleEl.firstChild, cur = (node && node.nodeType === 3 ? node.textContent : titleEl.textContent).trim();
+    var raw = titleEl.getAttribute("data-raw-title");
+    var node = titleEl.firstChild;
+    var cur = raw != null ? raw.trim() : (node && node.nodeType === 3 ? node.textContent : titleEl.textContent).trim();
     var inp = document.createElement("input"); inp.className = "sr-rename"; inp.value = cur;
     titleEl.style.display = "none"; h3.insertBefore(inp, titleEl); inp.focus(); inp.select();
     var done = false;

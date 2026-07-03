@@ -1941,7 +1941,7 @@
       headerBg: "", // optional hex color that overrides the banner background (fg auto-contrasts); "" = default navy gradient
       titleSize: "", // optional key into Studio.TITLE_SIZE_PX overriding the banner title's font size; "" = default
       subtitleStyle: "", // optional key into Studio.SUBTITLE_STYLES ("italic"/"bold"/"bold-italic"); "" = default
-      templateVars: [], // N-DEV: [{key,value}] — {{key}} tokens in title/subtitle get substituted at render time
+      templateVars: [], // N-DEV: [{key,value}] — {{key}} tokens in dashboard title/subtitle AND panel title/note get substituted at render time
       panels: []
     };
   };

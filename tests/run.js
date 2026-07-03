@@ -8943,6 +8943,126 @@ function serve() {
     await page.evaluate(function () { window.__STUDIO_STATE.spec.title = window.__tvOrigTitle; window.__STUDIO_STATE.spec.templateVars = []; });
     await page.waitForTimeout(150);
 
+    // N-DEV follow-up: {{key}} template vars now also resolve in panel Title/Note (previously
+    // Title/Subtitle only), rendered via studio-render.js's renderGrid (shared by preview + export).
+    const tvPanelRender = await page.evaluate(async function () {
+      var freshSpec = await fetch("data/examples/studio-cost.studio.json").then(function (r) { return r.json(); });
+      freshSpec.templateVars = [{ key: "region", value: "APAC" }];
+      freshSpec.panels[0].title = "{{region}} Panel Title";
+      freshSpec.panels[0].note = "{{region}} panel note";
+      window.__studioLoad(freshSpec);
+      return true;
+    });
+    await page.waitForTimeout(500);
+    const tvPanelRendered = await page.evaluate(function () {
+      var ifr = document.getElementById("preview");
+      var doc = ifr && ifr.contentWindow && ifr.contentWindow.document;
+      var titleEl = doc && doc.querySelector("[data-panel-id] .pdc-h-t");
+      var noteEl = doc && doc.querySelector("[data-panel-id] .pdc-panel-note");
+      var titleNode = titleEl && titleEl.firstChild; // ignore a possible trailing info-dot icon appended after the text
+      return {
+        titleText: titleEl ? (titleNode && titleNode.nodeType === 3 ? titleNode.textContent : titleEl.textContent).trim() : null,
+        noteText: noteEl ? noteEl.textContent.trim() : null,
+        rawTitleUntouched: window.__STUDIO_STATE.spec.panels[0].title
+      };
+    });
+    ok("N-DEV: {{key}} resolves in a panel's rendered Title", tvPanelRender && tvPanelRendered.titleText === "APAC Panel Title", JSON.stringify(tvPanelRendered));
+    ok("N-DEV: {{key}} resolves in a panel's rendered Note", tvPanelRendered.noteText === "APAC panel note", JSON.stringify(tvPanelRendered));
+    ok("N-DEV: the underlying spec.panels[i].title keeps the raw {{key}} token (substitution happens only at render)",
+      tvPanelRendered.rawTitleUntouched === "{{region}} Panel Title", JSON.stringify(tvPanelRendered));
+
+    // Double-click-to-rename must edit the RAW template string, not the resolved display text —
+    // otherwise committing the rename would silently bake the resolved value back into the spec.
+    const tvPanelFrame = page.frames().find((f) => f !== page.mainFrame());
+    await tvPanelFrame.locator("[data-panel-id] .pdc-h-t").first().dblclick();
+    await page.waitForTimeout(120);
+    const tvRenameValue = await tvPanelFrame.evaluate(function () {
+      var inp = document.querySelector(".sr-rename");
+      return inp ? inp.value : null;
+    });
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(100);
+    ok("N-DEV: double-click rename on a panel title starts from the raw {{key}} token, not the resolved text",
+      tvRenameValue === "{{region}} Panel Title", "got: " + tvRenameValue);
+
+    // Restore spec to clean state
+    await page.evaluate(async function () {
+      var freshSpec = await fetch("data/examples/studio-cost.studio.json").then(function (r) { return r.json(); });
+      window.__studioLoad(freshSpec);
+    });
+    await page.waitForTimeout(200);
+
+    // N-DEV follow-up: named, reusable template-variable sets — save the current {{key}}→value
+    // rows under a name, then apply that same set to any dashboard.
+    await page.evaluate(function () { try { localStorage.removeItem("studio-templatevar-sets"); } catch (e) {} window.__STUDIO_STATE.spec.templateVars = []; window.__STUDIO_STATE.selection = null; window.__studioRenderInspector(); });
+    await page.waitForTimeout(100);
+    const tvSetsEmpty = await page.evaluate(function () {
+      var h4s = [].slice.call(document.querySelectorAll("#inspBody h4"));
+      var sec = h4s.filter(function (h) { return h.textContent.indexOf("Template variables") >= 0; })[0];
+      var box = sec.closest(".insp-sec");
+      return { hasSelect: !!box.querySelector("select"), sets: window.__studioTemplateVarSets().length };
+    });
+    ok("N-DEV: no saved template-variable sets initially, so no picker <select> renders",
+      !tvSetsEmpty.hasSelect && tvSetsEmpty.sets === 0, JSON.stringify(tvSetsEmpty));
+
+    const tvSetSaved = await page.evaluate(function () {
+      var h4s = [].slice.call(document.querySelectorAll("#inspBody h4"));
+      var sec = h4s.filter(function (h) { return h.textContent.indexOf("Template variables") >= 0; })[0];
+      var box = sec.closest(".insp-sec");
+      var addBtn = [].slice.call(box.querySelectorAll("button")).filter(function (b) { return /Add variable/.test(b.textContent); })[0];
+      addBtn.click();
+      var rows = box.querySelectorAll(".dsb-sqb-inp");
+      var keyInp = rows[rows.length - 2], valInp = rows[rows.length - 1];
+      keyInp.value = "region"; keyInp.dispatchEvent(new Event("change", { bubbles: true }));
+      valInp.value = "APAC"; valInp.dispatchEvent(new Event("input", { bubbles: true }));
+      var nameInp = [].slice.call(box.querySelectorAll('input[type="text"]')).filter(function (i) { return /Set name/.test(i.placeholder || ""); })[0];
+      nameInp.value = "APAC set";
+      var saveBtn = [].slice.call(box.querySelectorAll("button")).filter(function (b) { return /Save current as/.test(b.textContent); })[0];
+      saveBtn.click();
+      return { sets: window.__studioTemplateVarSets() };
+    });
+    ok("N-DEV: 'Save current as…' captures the current template variables under a named set",
+      tvSetSaved.sets.length === 1 && tvSetSaved.sets[0].name === "APAC set" &&
+      tvSetSaved.sets[0].vars.length === 1 && tvSetSaved.sets[0].vars[0].key === "region" && tvSetSaved.sets[0].vars[0].value === "APAC",
+      JSON.stringify(tvSetSaved));
+
+    // Mutate templateVars away, then Apply the saved set to prove it restores the snapshot
+    await page.evaluate(function () { window.__STUDIO_STATE.spec.templateVars = [{ key: "other", value: "X" }]; window.__studioRenderInspector(); });
+    await page.waitForTimeout(100);
+    const tvSetApplied = await page.evaluate(function () {
+      var h4s = [].slice.call(document.querySelectorAll("#inspBody h4"));
+      var sec = h4s.filter(function (h) { return h.textContent.indexOf("Template variables") >= 0; })[0];
+      var box = sec.closest(".insp-sec");
+      var applyBtn = [].slice.call(box.querySelectorAll("button")).filter(function (b) { return b.textContent.trim() === "Apply"; })[0];
+      applyBtn.click();
+      return { vars: window.__STUDIO_STATE.spec.templateVars.slice() };
+    });
+    ok("N-DEV: Apply on a saved template-variable set restores its {key,value} rows onto the dashboard",
+      tvSetApplied.vars.length === 1 && tvSetApplied.vars[0].key === "region" && tvSetApplied.vars[0].value === "APAC",
+      JSON.stringify(tvSetApplied));
+
+    const tvSetsInKeys = await page.evaluate(function () { return window.__studioImportSettingsKeys.indexOf("studio-templatevar-sets") >= 0; });
+    ok("N-DEV: template-variable sets are included in Settings export/import keys", tvSetsInKeys, String(tvSetsInKeys));
+
+    await page.evaluate(function () { window.__studioRenderInspector(); });
+    await page.waitForTimeout(100);
+    const tvSetDeleted = await page.evaluate(function () {
+      var h4s = [].slice.call(document.querySelectorAll("#inspBody h4"));
+      var sec = h4s.filter(function (h) { return h.textContent.indexOf("Template variables") >= 0; })[0];
+      var box = sec.closest(".insp-sec");
+      var delBtn = box.querySelector('button[title="Delete this saved set"]');
+      if (delBtn) delBtn.click();
+      return { sets: window.__studioTemplateVarSets().length };
+    });
+    ok("N-DEV: deleting a saved template-variable set removes it", tvSetDeleted.sets === 0, JSON.stringify(tvSetDeleted));
+
+    await page.evaluate(function () {
+      window.__STUDIO_STATE.spec.templateVars = [];
+      try { localStorage.removeItem("studio-templatevar-sets"); } catch (e) {}
+      window.__studioRenderInspector();
+    });
+    await page.waitForTimeout(100);
+
     // ── N-FUN: Build-completeness meter ─────────────────────────────────────
     console.log("\n• N-FUN: Build-completeness meter");
     const bcApi = await page.evaluate(function () {

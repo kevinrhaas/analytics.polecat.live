@@ -1976,11 +1976,11 @@
       sp.subtitleStyle = v; refreshPreview();
     }), "Bold and/or italic emphasis for the banner subtitle; blank keeps the default."));
 
-    // N-DEV: dashboard templates/variables — first cut. Named {{key}} placeholders in Title/
-    // Subtitle get substituted with a saved value at render time (Studio.applyTemplateVars, called
-    // once from the shared buildHtml pipeline so preview and every export stay in sync). Lets one
-    // spec serve as a reusable template — e.g. Title "{{region}} — Weekly Ops Review" filled in per
-    // deployment instead of hand-editing the title text every time.
+    // N-DEV: dashboard templates/variables. Named {{key}} placeholders in the dashboard Title/
+    // Subtitle AND any panel's Title/Note get substituted with a saved value at render time
+    // (Studio.applyTemplateVars, called from the shared buildHtml/renderGrid pipeline so preview
+    // and every export stay in sync). Lets one spec serve as a reusable template — e.g. Title
+    // "{{region}} — Weekly Ops Review" filled in per deployment instead of hand-editing every time.
     (function () {
       var tvSec = section(body, "Template variables", null, function () {
         var n = sp.templateVars && sp.templateVars.length;
@@ -2030,7 +2030,56 @@
         renderTvItems(); refreshPreview();
       });
       tvSec.appendChild(addTvBtn);
-      tvSec.appendChild(noteEl("info", "Use {{key}} anywhere in Title or Subtitle above — it's replaced with the matching value here, in both the live preview and every export. A key with no matching variable is left as literal text."));
+
+      // Named, reusable variable sets — save the current {{key}}→value rows under a name (e.g.
+      // "APAC"), then apply that same set to any dashboard sharing the {{region}}-style template.
+      var setsWrap = el("div"); setsWrap.style.cssText = "margin-top:8px;padding-top:8px;border-top:1px solid var(--line)";
+      function renderTvSets() {
+        setsWrap.innerHTML = "";
+        var sets = templateVarSets();
+        if (sets.length) {
+          var pickRow = el("div"); pickRow.style.cssText = "display:flex;gap:4px;align-items:center;margin-bottom:5px";
+          // Deliberately NOT .dsb-sqb-inp — that class is also how existing tests locate the
+          // key/value row inputs by position (querySelectorAll(".dsb-sqb-inp")); sharing it here
+          // would silently shift those indices. Same look via inline styles instead.
+          var sel = el("select"); sel.style.cssText = "flex:1;min-width:0;font-size:12px;height:26px;padding:5px 8px;border:1px solid var(--line);border-radius:7px;background:var(--field);color:var(--ink)";
+          sets.forEach(function (s) {
+            var opt = el("option"); opt.value = s.id; opt.textContent = s.name + " (" + s.vars.length + ")";
+            sel.appendChild(opt);
+          });
+          var applyBtn = el("button"); applyBtn.type = "button"; applyBtn.className = "btn";
+          applyBtn.style.cssText = "font-size:11.5px;padding:3px 10px;flex-shrink:0"; applyBtn.textContent = "Apply";
+          applyBtn.addEventListener("click", function () {
+            applyTemplateVarSet(sel.value, sp); renderInspector(); refreshPreview(); toast("Template variable set applied.");
+          });
+          var delSetBtn = el("button"); delSetBtn.type = "button"; delSetBtn.className = "icobtn danger";
+          delSetBtn.title = "Delete this saved set"; delSetBtn.setAttribute("aria-label", "Delete saved set");
+          delSetBtn.innerHTML = Studio.icon("trash", 12);
+          delSetBtn.style.cssText = "flex-shrink:0;width:24px;height:26px;padding:0;min-width:0";
+          delSetBtn.addEventListener("click", function () { deleteTemplateVarSet(sel.value); renderTvSets(); });
+          pickRow.appendChild(sel); pickRow.appendChild(applyBtn); pickRow.appendChild(delSetBtn);
+          setsWrap.appendChild(pickRow);
+        }
+        var saveRow = el("div"); saveRow.style.cssText = "display:flex;gap:4px;align-items:center";
+        var setNameInp = el("input"); setNameInp.type = "text"; // not .dsb-sqb-inp — see note above
+        setNameInp.placeholder = "Set name, e.g. APAC";
+        setNameInp.style.cssText = "flex:1;min-width:0;font-size:12px;height:26px;padding:5px 8px;border:1px solid var(--line);border-radius:7px;background:var(--field);color:var(--ink)";
+        var saveSetBtn = el("button"); saveSetBtn.type = "button"; saveSetBtn.className = "rm cf-add-rule";
+        saveSetBtn.style.cssText = "font-size:11.5px;padding:3px 10px;flex-shrink:0"; saveSetBtn.textContent = "Save current as…";
+        saveSetBtn.addEventListener("click", function () {
+          var name = (setNameInp.value || "").trim(); if (!name) { setNameInp.focus(); return; }
+          if (!sp.templateVars || !sp.templateVars.length) { toast("Add at least one variable first.", true); return; }
+          addTemplateVarSet(name, sp.templateVars); setNameInp.value = ""; renderTvSets();
+          toast("Saved template variable set “" + name + "”.");
+        });
+        setNameInp.addEventListener("keydown", function (e) { if (e.key === "Enter") saveSetBtn.click(); });
+        saveRow.appendChild(setNameInp); saveRow.appendChild(saveSetBtn);
+        setsWrap.appendChild(saveRow);
+      }
+      renderTvSets();
+      tvSec.appendChild(setsWrap);
+
+      tvSec.appendChild(noteEl("info", "Use {{key}} in the dashboard Title/Subtitle above, or in any panel's Title/Note — it's replaced with the matching value here, in both the live preview and every export. A key with no matching variable is left as literal text. Save the rows above as a named set to reuse them on other dashboards."));
     })();
 
     // Z6: per-dashboard header logo — replaces the default "P" mark in the banner (preview +
@@ -5067,7 +5116,7 @@
     "studio-insp-collapsed", "studio-shell-section", "studio-shell-expanded", "studio-branding",
     "studio-default-jndi", "studio-default-subtitle", "studio-default-accent", "studio-default-logo", "studio-default-headerbg",
     "studio-default-titlesize", "studio-default-subtitlestyle", "studio-default-dashboardtheme", "studio-style-presets",
-    "studio-deploy-path", "studio-live-data"
+    "studio-deploy-path", "studio-live-data", "studio-templatevar-sets"
   ];
   // Z5 follow-up: data-source defaults. Every new data source (dataSourceBuilder with no
   // `existing`) used to fall back to a hardcoded "PDC-BIDB-EXT" JNDI pool name; most teams
@@ -5172,6 +5221,32 @@
     return true;
   }
   window.__studioStylePresets = stylePresets; // test hook
+  // N-DEV follow-up: named, reusable template-variable sets. A style preset (above) seeds new
+  // dashboards with default look fields; this instead lets ANY dashboard grab a previously-saved
+  // {{key}}→value set in one click — e.g. save an "APAC" set and an "EMEA" set once, then apply
+  // whichever fits to any dashboard built from the same {{region}}-templated spec.
+  function templateVarSets() {
+    var v; try { v = localStorage.getItem("studio-templatevar-sets"); } catch (e) {}
+    try { return v ? JSON.parse(v) : []; } catch (e) { return []; }
+  }
+  function saveTemplateVarSetList(list) { try { localStorage.setItem("studio-templatevar-sets", JSON.stringify(list)); } catch (e) {} }
+  function addTemplateVarSet(name, vars) {
+    var list = templateVarSets();
+    list.push({
+      id: "tv" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name: name,
+      vars: (vars || []).map(function (v) { return { key: v.key, value: v.value }; })
+    });
+    saveTemplateVarSetList(list);
+    return list;
+  }
+  function deleteTemplateVarSet(id) { saveTemplateVarSetList(templateVarSets().filter(function (p) { return p.id !== id; })); }
+  function applyTemplateVarSet(id, sp) {
+    var p = templateVarSets().filter(function (x) { return x.id === id; })[0];
+    if (!p) return false;
+    sp.templateVars = (p.vars || []).map(function (v) { return { key: v.key, value: v.value }; });
+    return true;
+  }
+  window.__studioTemplateVarSets = templateVarSets; // test hook
   function applyDashboardDefaults(spec) {
     var sub = defaultSubtitle(); if (sub && !spec.subtitle) spec.subtitle = sub;
     var acc = defaultAccentColor(); if (acc) spec.themeColor = acc;
@@ -6183,7 +6258,7 @@
         "studio-default-jndi", "studio-default-subtitle", "studio-default-accent", "studio-default-logo", "studio-default-headerbg",
         "studio-default-titlesize", "studio-default-subtitlestyle", "studio-style-presets",
         "studio-cmdk-usage", "studio-first-export-done", "studio-export-count", "studio-dash-count",
-        "studio-deploy-path", "studio-live-data"
+        "studio-deploy-path", "studio-live-data", "studio-templatevar-sets"
       ];
       var msg = "Clear all locally-stored Studio data?\n\nThis will remove:\n" +
         "  • Unsaved spec draft (autosave)\n" +
