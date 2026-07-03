@@ -290,6 +290,13 @@
       if (nonBlank.length > 1 && nonBlank.every(function (v) { return v === nonBlank[0]; })) {
         issues.push({ type: "constant", col: col, value: nonBlank[0] });
       }
+      // Inconsistent type mix: a column whose sample carries both number-looking and
+      // text-looking values (e.g. a quantity column with a stray "N/A") — usually a data error.
+      var numeric = nonBlank.filter(function (v) { return typeof v === "number" || /^-?\d+(\.\d+)?$/.test(String(v).trim()); });
+      var textLike = nonBlank.length - numeric.length;
+      if (numeric.length > 0 && textLike > 0) {
+        issues.push({ type: "mixed", col: col, numericCount: numeric.length, textCount: textLike });
+      }
     });
     var seen = {}, dupCount = 0;
     rows.forEach(function (r) { var key = JSON.stringify(r); seen[key] = (seen[key] || 0) + 1; });
@@ -302,6 +309,7 @@
     if (issue.type === "blank") return "“" + issue.col + "” has " + issue.count + " blank/missing value" + (issue.count === 1 ? "" : "s") + " in this sample.";
     if (issue.type === "constant") return "“" + issue.col + "” is the same value (" + JSON.stringify(issue.value) + ") on every sampled row — check whether this column is useful here.";
     if (issue.type === "duplicate") return issue.count + " duplicate row" + (issue.count === 1 ? "" : "s") + " found in this sample — check for an unintended join fan-out or a missing dedup step.";
+    if (issue.type === "mixed") return "“" + issue.col + "” mixes numbers and text — " + issue.numericCount + " numeric-looking and " + issue.textCount + " text value" + (issue.textCount === 1 ? "" : "s") + " in this sample — check for a data type error.";
     return "";
   };
 

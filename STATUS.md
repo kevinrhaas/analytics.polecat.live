@@ -2126,12 +2126,16 @@ gets covered over time:
 > inspector) — any issue found in that DA's own sample renders as a small amber `.note.warn` right below
 > the sample table. The bundled offline demo data is deliberately clean (no naturally-occurring blanks/
 > duplicates in the synthetic generator), so this mostly earns its keep once a builder points a DuckDB/
-> SQLite/Snowflake/Databricks/BigQuery/Generic-SQL/CDA connector at *real* data. 6 new tests (pure-function
-> correctness + a wiring check that the rendered note count always exactly matches
-> `Studio.dataQualityIssues()` over that DA's own sample), suite 1185/1185. **Still open:** also wiring
-> the watchdog into the richer "Data preview" modal's live/paginated result view (`renderDAPreview`,
-> separate from the inline Query preview this slice covers), and the "inconsistent type mix" smell noted
-> above (not yet implemented — only blank/constant/duplicate so far).
+> SQLite/Snowflake/Databricks/BigQuery/Generic-SQL/CDA connector at *real* data.
+> ✓ **Track complete, shipped v261**: `dataQualityIssues` now also flags an "inconsistent type mix" column
+> (both number-looking and text-looking non-blank values in one column's sample — e.g. a quantity column
+> with a stray "N/A"), closing the one remaining smell from the original list. The richer **"Data preview"**
+> modal (`renderDAPreview` — live + paginated results, distinct from the inline Query preview the first cut
+> covered) now runs the same watchdog over its own result sample (a `.daprev-quality` note wrap below the
+> table), so live connector data gets flagged too, not just the offline sample. 3 new tests (the "mixed"
+> type + message case, plus a wiring check that the Data preview modal's note count exactly matches
+> `Studio.dataQualityIssues()` over its own result sample), suite 1188/1188. **N-DATA data quality
+> watchdog track is now feature-complete.**
 - **Smart auto-arrange layout (added 2026-07-03):** a one-click "Auto-arrange" that reflows a dashboard's
   panels into a balanced magazine-style grid by content weight (KPIs first in a tight row, wide charts
   full-width, related tags clustered) using the existing `span` system — takes the tedium out of manual

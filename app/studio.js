@@ -3923,6 +3923,9 @@
     pagination.style.display = "none";
     sec.appendChild(pagination);
 
+    var qualityWrap = el("div", "daprev-quality");
+    sec.appendChild(qualityWrap);
+
     function guessType(colName, vals) {
       var n = (colName || "").toLowerCase();
       if (/date|time|month|year|quarter|week/.test(n)) return "Date";
@@ -3973,6 +3976,13 @@
         prevBtn.disabled = state.page === 0;
         nextBtn.disabled = state.page >= totalPages - 1;
       }
+
+      // N-DATA follow-up: same watchdog as the inline Query preview, but here it runs over
+      // this preview's own (possibly live, possibly paginated) result — not just the offline sample.
+      qualityWrap.innerHTML = "";
+      Studio.dataQualityIssues(result.cols, sample).forEach(function (issue) {
+        qualityWrap.appendChild(noteEl("warn", Studio.dataQualityMessage(issue)));
+      });
     }
 
     function runSample() {

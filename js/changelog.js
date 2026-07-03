@@ -15,6 +15,17 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 261,
+    title: 'N-DATA follow-up: type-mix detection + watchdog in the Data preview modal',
+    kind: 'feature',
+    ts: '2026-07-03T12:42:17Z',
+    items: [
+      'The data quality watchdog now also flags a column whose sample mixes number-looking and text-looking values (e.g. a quantity column with a stray \'N/A\') -- a common sign of a data type error.',
+      'The richer \'Data preview\' modal (live + paginated results, not just the inline Query preview) now runs the same watchdog over its own result sample -- catches issues on live connector data, not only the offline sample.',
+      'Closes out the N-DATA data quality watchdog track. 3 new tests, suite 1188/1188.',
+    ],
+  },
+  {
     v: 260,
     title: 'N-DATA: data quality watchdog for the Query preview',
     kind: 'feature',

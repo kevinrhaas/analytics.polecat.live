@@ -2138,21 +2138,26 @@ function serve() {
       var blanks = Studio.dataQualityIssues(["a", "b"], [["x", 1], ["", 2], [null, 3]]);
       var constant = Studio.dataQualityIssues(["a", "b"], [["x", 1], ["x", 2], ["x", 3]]);
       var dup = Studio.dataQualityIssues(["a", "b"], [["x", 1], ["x", 1], ["y", 2]]);
+      var mixed = Studio.dataQualityIssues(["a", "qty"], [["x", 1], ["y", 2], ["z", "N/A"]]);
       var blankIssue = blanks.filter(function (i) { return i.type === "blank"; })[0];
       var constIssue = constant.filter(function (i) { return i.type === "constant"; })[0];
       var dupIssue = dup.filter(function (i) { return i.type === "duplicate"; })[0];
+      var mixedIssue = mixed.filter(function (i) { return i.type === "mixed"; })[0];
       var blankMsg = Studio.dataQualityMessage(blankIssue);
       var constMsg = Studio.dataQualityMessage(constIssue);
       var dupMsg = Studio.dataQualityMessage(dupIssue);
+      var mixedMsg = Studio.dataQualityMessage(mixedIssue);
       return {
         cleanCount: clean.length,
         blankFound: !!blankIssue && blankIssue.col === "a" && blankIssue.count === 2,
         constFound: !!constIssue && constIssue.col === "a" && constIssue.value === "x",
         dupFound: !!dupIssue && dupIssue.count === 1,
+        mixedFound: !!mixedIssue && mixedIssue.col === "qty" && mixedIssue.numericCount === 2 && mixedIssue.textCount === 1,
         emptyInput: Studio.dataQualityIssues([], []).length === 0,
         blankMsgOk: blankMsg.indexOf("a") >= 0 && blankMsg.indexOf("2") >= 0,
         constMsgOk: constMsg.indexOf("a") >= 0 && constMsg.indexOf("x") >= 0,
-        dupMsgOk: dupMsg.indexOf("1") >= 0 && /duplicate/i.test(dupMsg)
+        dupMsgOk: dupMsg.indexOf("1") >= 0 && /duplicate/i.test(dupMsg),
+        mixedMsgOk: mixedMsg.indexOf("qty") >= 0 && /mixes numbers and text/.test(mixedMsg)
       };
     });
     ok("N-DATA: Studio.dataQualityIssues finds nothing wrong with clean, all-distinct data",
@@ -2163,8 +2168,10 @@ function serve() {
       dq.constFound, JSON.stringify(dq));
     ok("N-DATA: Studio.dataQualityIssues flags duplicate rows",
       dq.dupFound, JSON.stringify(dq));
+    ok("N-DATA follow-up: Studio.dataQualityIssues flags an inconsistent number/text type mix in one column",
+      dq.mixedFound, JSON.stringify(dq));
     ok("N-DATA: Studio.dataQualityMessage renders plain-English text naming the column/count for each issue type",
-      dq.blankMsgOk && dq.constMsgOk && dq.dupMsgOk, JSON.stringify(dq));
+      dq.blankMsgOk && dq.constMsgOk && dq.dupMsgOk && dq.mixedMsgOk, JSON.stringify(dq));
 
     // Wiring check: the Query preview section's rendered .note.warn count must exactly match
     // Studio.dataQualityIssues() over that same DA's own sample rows — proves renderQueryPeek
@@ -3511,6 +3518,23 @@ function serve() {
       return { count: badges.length, first: badges.length ? badges[0].textContent : "" };
     });
     ok("Data preview table shows column type badges", typebadges.count > 0, JSON.stringify(typebadges));
+
+    // N-DATA follow-up: the "Data preview" modal's live/paginated result view runs the same
+    // watchdog as the inline Query preview — wiring check, not just the pure function.
+    const daPrevQuality = await page.evaluate(() => {
+      var insp = document.getElementById("inspBody");
+      var sel = window.__STUDIO_STATE.selection;
+      var da = window.__STUDIO_STATE.spec.cda.dataAccesses.filter(function (d) { return d.id === sel.id; })[0];
+      var raw = Studio.sampleRows({ id: da.id, columns: da.columns || [], params: da.params || [] });
+      var expected = Studio.dataQualityIssues(raw.cols, raw.rows.slice(0, 30)).length;
+      var wrap = insp.querySelector(".daprev-quality");
+      var warnCount = wrap ? wrap.querySelectorAll(".note.warn").length : -1;
+      return { hasWrap: !!wrap, warnCount: warnCount, expected: expected };
+    });
+    ok("Data preview modal has a quality-notes wrapper below the table",
+      daPrevQuality.hasWrap, JSON.stringify(daPrevQuality));
+    ok("Data preview modal's quality notes exactly match Studio.dataQualityIssues() over its own result sample",
+      daPrevQuality.warnCount === daPrevQuality.expected, JSON.stringify(daPrevQuality));
 
     // ---- Search highlighting (v47) ----
     console.log("\n• Search highlighting (v47)");
