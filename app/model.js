@@ -1719,6 +1719,16 @@
     { label: "Coral rose",  color: "#c82b5e" }
   ];
 
+  // Z6: banner title size presets — the one lever of "full text formatting" that's genuinely
+  // useful across the widest range of dashboards (default keeps pdc-ui.css's 17px/800-weight).
+  Studio.TITLE_SIZES = [
+    ["", "Default"],
+    ["sm", "Small"],
+    ["lg", "Large"],
+    ["xl", "Extra large"]
+  ];
+  Studio.TITLE_SIZE_PX = { sm: "14px", lg: "21px", xl: "27px" };
+
   Studio.emptySpec = function () {
     return {
       schema: 1,
@@ -1739,6 +1749,7 @@
       headerLogo: "", // optional data: URL image that replaces the default "P" mark in the banner
       headerLink: "", // optional URL — wraps the header brand mark+title in a link (opens in a new tab)
       headerBg: "", // optional hex color that overrides the banner background (fg auto-contrasts); "" = default navy gradient
+      titleSize: "", // optional key into Studio.TITLE_SIZE_PX overriding the banner title's font size; "" = default
       panels: []
     };
   };

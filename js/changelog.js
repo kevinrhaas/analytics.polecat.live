@@ -15,6 +15,16 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 228,
+    title: 'Banner title size',
+    kind: 'feature',
+    ts: '2026-07-03T02:46:06Z',
+    items: [
+      'The Dashboard inspector gains a Title size picker (Default / Small / Large / Extra large), right below Subtitle -- resizes just the banner title text in the live preview and exported Dashboard Framework.',
+      'Handy for a dense multi-KPI ops board (Small) or a single-hero exec dashboard where the title should dominate the banner (Extra large).',
+    ],
+  },
+  {
     v: 227,
     title: 'Help docs now follow your app theme',
     kind: 'polish',

@@ -221,6 +221,10 @@
     // an auto-contrasting text color (Studio.contrastFg) so a light pick doesn't go invisible-on-white.
     var headerBgCss = spec.headerBg ?
       "\n.pdc-header{background:" + spec.headerBg + ";color:" + Studio.contrastFg(spec.headerBg) + "}" : "";
+    // Z6: banner title size — overrides .pdc-title's inherited font-size (17px, from .pdc-brand)
+    // without touching the vendored pdc-ui.css default.
+    var titleSizeCss = (spec.titleSize && Studio.TITLE_SIZE_PX[spec.titleSize]) ?
+      "\n.pdc-title{font-size:" + Studio.TITLE_SIZE_PX[spec.titleSize] + "}" : "";
     // Series palette preset: override --c1..--c10 for both light and dark mode.
     // paletteKey "default" or blank → keep pdc-ui.css colors; any other key bakes in
     // the preset's color arrays so the exported CDF always renders with the chosen palette.
@@ -271,7 +275,7 @@
     var head =
       "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\"/>\n" +
       "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/>\n" +
-      "<title>" + xml(spec.title) + " — Pentaho Data Catalog Analytics</title>\n<style>\n" + assets.css + mobileCss + sectionCss + descCss + panelNoteCss + panelAccentCss + targetLineCss + refBandCss + calloutCss + periodHighlightCss + eventMarkerCss + scatterAnnotCss + kpiSubCss + richtextCss + themeColorCss + headerLogoCss + headerLinkCss + headerBgCss + paletteCss + printCss + previewCss + "\n</style>\n</head>\n";
+      "<title>" + xml(spec.title) + " — Pentaho Data Catalog Analytics</title>\n<style>\n" + assets.css + mobileCss + sectionCss + descCss + panelNoteCss + panelAccentCss + targetLineCss + refBandCss + calloutCss + periodHighlightCss + eventMarkerCss + scatterAnnotCss + kpiSubCss + richtextCss + themeColorCss + headerLogoCss + headerLinkCss + headerBgCss + titleSizeCss + paletteCss + printCss + previewCss + "\n</style>\n</head>\n";
     var logoHtml = spec.headerLogo ?
       "<img class=\"pdc-logo\" src=\"" + xml(spec.headerLogo) + "\" alt=\"\"/>" :
       "<span class=\"pdc-logo\">P</span>";

@@ -1339,6 +1339,14 @@ in a new tab — no longer buried solely in ⋯ More (which still has its own en
 > hardcoded CDF/CDE/CDA badge chip colors and the tip-card gradient. No saved preference (first-ever visit,
 > or Help opened outside the app) keeps the original light default untouched. 2 new tests, suite 1038/1038.
 > Keep treating docs as a living reference (standing responsibility, see Conventions).
+> ✓ **Banner title size shipped v228 (first cut of "full text formatting")**: a **Title size** picker
+> (Default / Small / Large / Extra large) in the Dashboard inspector, right below Subtitle —
+> `spec.titleSize` → a `.pdc-title{font-size:…}` CSS override in the exported/preview banner
+> (`Studio.TITLE_SIZE_PX` in model.js; same additive-override pattern as `headerBg`, vendor CSS stays
+> pristine). Added to the `normalize()` whitelist (the exact bug class the v193 headerLogo fix caught —
+> a new scalar field silently reset on every reopen if forgotten there). 4 new tests including a
+> reopen-through-normalize() regression, suite 1042/1042. **Still open under Z6**: bold/italic toggles
+> for title/subtitle independent of size.
 
 **Z12 — Branding & app identity: de-dup the logo, favicon, Settings option (user-requested; revised 2026-06-30).**
 Design direction (best practice — the user wants it clean, not a redundant single letter):

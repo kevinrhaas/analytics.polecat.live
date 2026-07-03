@@ -1719,6 +1719,14 @@
     sec.appendChild(field("File name (stem)", input(sp.name, function (v) { sp.name = v.trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-"); syncHeader(); }, "lowercase-with-dashes → " + sp.name + ".html / .cda")));
     sec.appendChild(field("Subtitle", input(sp.subtitle, function (v) { sp.subtitle = v; refreshPreview(); })));
 
+    // Z6: banner title size — a first cut of "full text formatting for the banner." The title is
+    // already bold (font-weight:800 in vendor/pdc-ui.css, kept pristine); size is the one lever
+    // that's genuinely useful across the widest range of dashboards (a dense ops board wants a
+    // quieter title, a single-hero exec dashboard wants it to dominate the banner).
+    sec.appendChild(field("Title size", select2pairs(Studio.TITLE_SIZES, sp.titleSize || "", function (v) {
+      sp.titleSize = v; refreshPreview();
+    }), "Overrides the banner title's font size; blank keeps the default."));
+
     // Z6: per-dashboard header logo — replaces the default "P" mark in the banner (preview +
     // exported CDF) with an uploaded image. Lives in the spec itself (not localStorage, unlike
     // the app-wide Z12 rail branding) so it travels with Save/Open/Export like any other content.
@@ -4704,7 +4712,7 @@
     // Open / restore-banner / example-load / drag-drop-file silently reset a saved dashboard's accent
     // color and series palette back to the default. Keep this list in sync with Studio.emptySpec()'s
     // top-level scalar/optional fields whenever a new one is added (see also headerLogo, Z6).
-    ["schema", "id", "name", "title", "subtitle", "group", "description", "themeColor", "paletteKey", "headerLogo", "headerLink", "headerBg"].forEach(function (k) { if (spec[k] != null) base[k] = spec[k]; });
+    ["schema", "id", "name", "title", "subtitle", "group", "description", "themeColor", "paletteKey", "headerLogo", "headerLink", "headerBg", "titleSize"].forEach(function (k) { if (spec[k] != null) base[k] = spec[k]; });
     base.cda = spec.cda || base.cda;
     base.filters = spec.filters || []; base.kpis = spec.kpis || [];
     base.gridCols = spec.gridCols || 3; base.panels = (spec.panels || []).map(function (p) { if (!p.id) p.id = Studio.uid("p"); return p; });

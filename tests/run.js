@@ -7854,6 +7854,53 @@ function serve() {
     ok("Z6: 'Reset to default' clears spec.headerBg (back to the default navy gradient)", z6BgReset.headerBg == null, JSON.stringify(z6BgReset));
     await page.waitForTimeout(200);
 
+    // ── Z6 slice: banner title size ──
+    console.log("\n• Z6: banner title size");
+    const z6TitleSizeBefore = await page.evaluate(function () {
+      var sp = window.__STUDIO_STATE.spec;
+      delete sp.titleSize;
+      var rows = [].slice.call(document.querySelectorAll(".field"));
+      var row = rows.filter(function (f) { var lb = f.querySelector("label"); return lb && lb.textContent.indexOf("Title size") >= 0; })[0];
+      var html = Studio.buildHtml(sp, window.__STUDIO_STATE.assets, { preview: false });
+      return { fieldPresent: !!row, hasSelect: !!(row && row.querySelector("select")), noOverrideCss: html.indexOf(".pdc-title{font-size:") < 0 };
+    });
+    ok("Z6: Dashboard inspector has a Title size field (select) with no CSS override when unset",
+      z6TitleSizeBefore.fieldPresent && z6TitleSizeBefore.hasSelect && z6TitleSizeBefore.noOverrideCss, JSON.stringify(z6TitleSizeBefore));
+
+    const z6TitleSizeAfter = await page.evaluate(function () {
+      var rows = [].slice.call(document.querySelectorAll(".field"));
+      var row = rows.filter(function (f) { var lb = f.querySelector("label"); return lb && lb.textContent.indexOf("Title size") >= 0; })[0];
+      var sel = row.querySelector("select");
+      sel.value = "xl"; sel.dispatchEvent(new Event("change", { bubbles: true }));
+      var sp = window.__STUDIO_STATE.spec;
+      var html = Studio.buildHtml(sp, window.__STUDIO_STATE.assets, { preview: false });
+      return { specSet: sp.titleSize === "xl", cssOverride: html.indexOf(".pdc-title{font-size:27px}") >= 0 };
+    });
+    ok("Z6: picking 'Extra large' sets spec.titleSize and emits a .pdc-title font-size override",
+      z6TitleSizeAfter.specSet && z6TitleSizeAfter.cssOverride, JSON.stringify(z6TitleSizeAfter));
+
+    // normalize() (internal to studio.js) rebuilds the in-memory spec from Studio.emptySpec() plus
+    // a whitelist of scalar fields on every Open/example-load/restore — a field missing from that
+    // whitelist gets silently reset (the exact bug class the v193 headerLogo fix found). __studioLoad
+    // routes through normalize() the same way a real Open does, so this proves titleSize survives it.
+    const z6TitleSizeReopen = await page.evaluate(function () {
+      var sp = JSON.parse(JSON.stringify(window.__STUDIO_STATE.spec));
+      window.__studioLoad(sp);
+      return { titleSize: window.__STUDIO_STATE.spec.titleSize };
+    });
+    ok("Z6: titleSize survives a reopen through normalize() (whitelist kept in sync)",
+      z6TitleSizeReopen.titleSize === "xl", JSON.stringify(z6TitleSizeReopen));
+
+    const z6TitleSizeCleared = await page.evaluate(function () {
+      var rows = [].slice.call(document.querySelectorAll(".field"));
+      var row = rows.filter(function (f) { var lb = f.querySelector("label"); return lb && lb.textContent.indexOf("Title size") >= 0; })[0];
+      var sel = row.querySelector("select");
+      sel.value = ""; sel.dispatchEvent(new Event("change", { bubbles: true }));
+      return { titleSize: window.__STUDIO_STATE.spec.titleSize };
+    });
+    ok("Z6: picking 'Default' clears the title-size override", z6TitleSizeCleared.titleSize === "", JSON.stringify(z6TitleSizeCleared));
+    await page.waitForTimeout(200);
+
     // ── N-FUN: Build-completeness meter ─────────────────────────────────────
     console.log("\n• N-FUN: Build-completeness meter");
     const bcApi = await page.evaluate(function () {
