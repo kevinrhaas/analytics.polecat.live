@@ -1906,8 +1906,23 @@
       headerBg: "", // optional hex color that overrides the banner background (fg auto-contrasts); "" = default navy gradient
       titleSize: "", // optional key into Studio.TITLE_SIZE_PX overriding the banner title's font size; "" = default
       subtitleStyle: "", // optional key into Studio.SUBTITLE_STYLES ("italic"/"bold"/"bold-italic"); "" = default
+      templateVars: [], // N-DEV: [{key,value}] — {{key}} tokens in title/subtitle get substituted at render time
       panels: []
     };
+  };
+
+  // N-DEV: dashboard templates/variables — replace every {{key}} token in `str` with the matching
+  // entry's value from `vars` ([{key,value}]). A token whose key has no matching var is left as
+  // literal text (visibly wrong beats silently blank — makes a typo obvious instead of hiding it).
+  // Pure/independently-testable; called from the shared buildHtml pipeline so preview and every
+  // export substitute identically with zero separate wiring.
+  Studio.applyTemplateVars = function (str, vars) {
+    if (!str || !vars || !vars.length) return str;
+    var map = {};
+    vars.forEach(function (v) { if (v && v.key) map[v.key] = v.value == null ? "" : v.value; });
+    return str.replace(/\{\{\s*([A-Za-z0-9_]+)\s*\}\}/g, function (m, key) {
+      return Object.prototype.hasOwnProperty.call(map, key) ? map[key] : m;
+    });
   };
 
   // find a dataAccess def in the spec by id

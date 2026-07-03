@@ -1976,6 +1976,63 @@
       sp.subtitleStyle = v; refreshPreview();
     }), "Bold and/or italic emphasis for the banner subtitle; blank keeps the default."));
 
+    // N-DEV: dashboard templates/variables — first cut. Named {{key}} placeholders in Title/
+    // Subtitle get substituted with a saved value at render time (Studio.applyTemplateVars, called
+    // once from the shared buildHtml pipeline so preview and every export stay in sync). Lets one
+    // spec serve as a reusable template — e.g. Title "{{region}} — Weekly Ops Review" filled in per
+    // deployment instead of hand-editing the title text every time.
+    (function () {
+      var tvSec = section(body, "Template variables", null, function () {
+        var n = sp.templateVars && sp.templateVars.length;
+        return n ? n + (n === 1 ? " variable" : " variables") : "";
+      });
+      var tvList = el("div"); tvList.style.cssText = "display:flex;flex-direction:column;gap:5px;margin-bottom:6px";
+      tvSec.appendChild(tvList);
+
+      function renderTvItems() {
+        tvList.innerHTML = "";
+        (sp.templateVars || []).forEach(function (tv, idx) {
+          var row = el("div"); row.style.cssText = "display:flex;gap:3px;align-items:center";
+          var keyInp = el("input"); keyInp.type = "text"; keyInp.className = "dsb-sqb-inp";
+          keyInp.style.cssText = "width:38%;font-size:12px;height:26px;padding:0 6px";
+          keyInp.value = tv.key || ""; keyInp.placeholder = "key";
+          keyInp.addEventListener("change", function () {
+            tv.key = keyInp.value.trim().replace(/[^A-Za-z0-9_]+/g, "_"); refreshPreview();
+          });
+          var valInp = el("input"); valInp.type = "text"; valInp.className = "dsb-sqb-inp";
+          valInp.style.cssText = "flex:1;min-width:0;font-size:12px;height:26px;padding:0 6px";
+          valInp.value = tv.value || ""; valInp.placeholder = "value";
+          valInp.addEventListener("input", function () { tv.value = valInp.value; refreshPreview(); });
+          var delBtn = el("button"); delBtn.type = "button"; delBtn.title = "Remove variable";
+          delBtn.setAttribute("aria-label", "Remove variable");
+          delBtn.innerHTML = Studio.icon("trash", 12);
+          delBtn.className = "rm icobtn";
+          delBtn.style.cssText = "flex-shrink:0;width:24px;height:26px;padding:0;min-width:0";
+          (function (i) {
+            delBtn.addEventListener("click", function () {
+              sp.templateVars.splice(i, 1);
+              if (!sp.templateVars.length) sp.templateVars = [];
+              renderTvItems(); refreshPreview();
+            });
+          })(idx);
+          row.appendChild(keyInp); row.appendChild(valInp); row.appendChild(delBtn);
+          tvList.appendChild(row);
+        });
+      }
+      renderTvItems();
+
+      var addTvBtn = el("button"); addTvBtn.type = "button"; addTvBtn.className = "rm cf-add-rule";
+      addTvBtn.style.cssText = "font-size:11.5px;padding:3px 10px;margin-top:2px";
+      addTvBtn.textContent = "+ Add variable";
+      addTvBtn.addEventListener("click", function () {
+        if (!sp.templateVars) sp.templateVars = [];
+        sp.templateVars.push({ key: "var" + (sp.templateVars.length + 1), value: "" });
+        renderTvItems(); refreshPreview();
+      });
+      tvSec.appendChild(addTvBtn);
+      tvSec.appendChild(noteEl("info", "Use {{key}} anywhere in Title or Subtitle above — it's replaced with the matching value here, in both the live preview and every export. A key with no matching variable is left as literal text."));
+    })();
+
     // Z6: per-dashboard header logo — replaces the default "P" mark in the banner (preview +
     // exported CDF) with an uploaded image. Lives in the spec itself (not localStorage, unlike
     // the app-wide Z12 rail branding) so it travels with Save/Open/Export like any other content.
@@ -5684,7 +5741,7 @@
     // Open / restore-banner / example-load / drag-drop-file silently reset a saved dashboard's accent
     // color and series palette back to the default. Keep this list in sync with Studio.emptySpec()'s
     // top-level scalar/optional fields whenever a new one is added (see also headerLogo, Z6).
-    ["schema", "id", "name", "title", "subtitle", "group", "description", "themeColor", "paletteKey", "headerLogo", "headerLink", "headerBg", "titleSize", "subtitleStyle"].forEach(function (k) { if (spec[k] != null) base[k] = spec[k]; });
+    ["schema", "id", "name", "title", "subtitle", "group", "description", "themeColor", "paletteKey", "headerLogo", "headerLink", "headerBg", "titleSize", "subtitleStyle", "templateVars"].forEach(function (k) { if (spec[k] != null) base[k] = spec[k]; });
     base.cda = spec.cda || base.cda;
     base.filters = spec.filters || []; base.kpis = spec.kpis || [];
     base.gridCols = spec.gridCols || 3; base.panels = (spec.panels || []).map(function (p) { if (!p.id) p.id = Studio.uid("p"); return p; });

@@ -2351,6 +2351,17 @@ gets covered over time:
 > same safety net a real Save gets. 5 new tests, suite 1211/1211.
 - **Keyboard-first everything** (builds on the ⌘K palette + existing shortcuts) and a shortcuts cheat-sheet.
 - **Dashboard templates/variables** — parameterized starting points beyond the examples.
+> ✓ **First cut shipped v279**: `{{key}}` tokens anywhere in Title/Subtitle now resolve against a new
+> **Template variables** list in the Dashboard inspector (below Subtitle style — key/value rows, +
+> Add/remove, same list-editor convention as Scatter's Point annotations). `Studio.applyTemplateVars(str,
+> vars)` (model.js, pure) runs once inside the shared `buildHtml` pipeline (the `<title>` tag AND the
+> banner `.pdc-title` span both resolve through it), so the live preview and every export always agree
+> with zero separate wiring; the editable `spec.title`/`spec.subtitle` fields themselves keep the raw
+> `{{key}}` text, only the rendered output substitutes. An unmatched key is left as literal text (a typo
+> stays visible instead of vanishing). `spec.templateVars` added to `Studio.emptySpec()` + the `normalize()`
+> whitelist so it survives Open/Import/reload. 9 new tests, suite 1249/1249. **Not yet done:** applying
+> variables to panel titles/notes beyond the banner, and a way to save/reuse a named variable set across
+> dashboards (today each dashboard's variables are its own).
 
 ## Quality bar
 Every iteration: builds, `tests/run.js` green, UI cohesive, README/STATUS updated, commit + push.

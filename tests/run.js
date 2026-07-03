@@ -8822,6 +8822,76 @@ function serve() {
     ok("Z6: picking 'Normal' clears the subtitle-style override", z6SubStyleCleared.subtitleStyle === "", JSON.stringify(z6SubStyleCleared));
     await page.waitForTimeout(200);
 
+    // ── N-DEV: dashboard templates/variables ({{key}} substitution in Title/Subtitle) ──
+    console.log("\n• N-DEV: dashboard templates/variables");
+    const tvUnit = await page.evaluate(function () {
+      return {
+        basic: Studio.applyTemplateVars("{{region}} Weekly Review", [{ key: "region", value: "EMEA" }]),
+        unmatched: Studio.applyTemplateVars("{{unknown}} Report", [{ key: "region", value: "EMEA" }]),
+        noVars: Studio.applyTemplateVars("Plain title", []),
+        multi: Studio.applyTemplateVars("{{a}} / {{b}}", [{ key: "a", value: "X" }, { key: "b", value: "Y" }])
+      };
+    });
+    ok("N-DEV: Studio.applyTemplateVars substitutes a matched {{key}}", tvUnit.basic === "EMEA Weekly Review", JSON.stringify(tvUnit));
+    ok("N-DEV: an unmatched {{key}} is left as literal text (visible, not silently blanked)", tvUnit.unmatched === "{{unknown}} Report", JSON.stringify(tvUnit));
+    ok("N-DEV: a string with no vars set is returned unchanged", tvUnit.noVars === "Plain title", JSON.stringify(tvUnit));
+    ok("N-DEV: multiple distinct {{key}} tokens all substitute", tvUnit.multi === "X / Y", JSON.stringify(tvUnit));
+
+    const tvRender = await page.evaluate(function () {
+      var sp = window.__STUDIO_STATE.spec;
+      window.__tvOrigTitle = sp.title; // restored after this test block — later tests assume the flagship's real title
+      sp.title = "{{region}} — Weekly Ops Review"; sp.templateVars = [{ key: "region", value: "APAC" }];
+      var html = Studio.buildHtml(sp, window.__STUDIO_STATE.assets, { preview: false });
+      return {
+        titleTag: html.indexOf("<title>APAC — Weekly Ops Review —") >= 0,
+        brandTitle: html.indexOf('<span class="pdc-title">APAC — Weekly Ops Review</span>') >= 0,
+        rawTitleUntouched: sp.title === "{{region}} — Weekly Ops Review" // editing field itself must keep the raw token
+      };
+    });
+    ok("N-DEV: buildHtml substitutes {{key}} in both the <title> tag and the banner .pdc-title span",
+      tvRender.titleTag && tvRender.brandTitle, JSON.stringify(tvRender));
+    ok("N-DEV: the editable spec.title itself keeps the raw {{key}} token (substitution happens only at render)",
+      tvRender.rawTitleUntouched, JSON.stringify(tvRender));
+
+    // Inspector: Template variables section — add/edit/remove rows
+    await page.evaluate(function () { window.__STUDIO_STATE.selection = null; window.__studioRenderInspector(); });
+    await page.waitForTimeout(100);
+    const tvInspAdd = await page.evaluate(function () {
+      var h4s = [].slice.call(document.querySelectorAll("#inspBody h4"));
+      var sec = h4s.filter(function (h) { return h.textContent.indexOf("Template variables") >= 0; })[0];
+      var box = sec ? sec.closest(".insp-sec") : null;
+      var addBtn = box ? [].slice.call(box.querySelectorAll("button")).filter(function (b) { return /Add variable/.test(b.textContent); })[0] : null;
+      if (addBtn) addBtn.click();
+      return { sectionPresent: !!sec, rowCount: window.__STUDIO_STATE.spec.templateVars.length };
+    });
+    ok("N-DEV: Dashboard inspector has a 'Template variables' section, and '+ Add variable' pushes a new row",
+      tvInspAdd.sectionPresent && tvInspAdd.rowCount === 2, JSON.stringify(tvInspAdd)); // region (from tvRender above) + the new row
+
+    const tvInspEdit = await page.evaluate(function () {
+      var h4s = [].slice.call(document.querySelectorAll("#inspBody h4"));
+      var sec = h4s.filter(function (h) { return h.textContent.indexOf("Template variables") >= 0; })[0];
+      var box = sec.closest(".insp-sec");
+      var rows = box.querySelectorAll(".dsb-sqb-inp");
+      var lastKeyInp = rows[rows.length - 2], lastValInp = rows[rows.length - 1];
+      lastKeyInp.value = "team"; lastKeyInp.dispatchEvent(new Event("change", { bubbles: true }));
+      lastValInp.value = "Growth"; lastValInp.dispatchEvent(new Event("input", { bubbles: true }));
+      return { vars: window.__STUDIO_STATE.spec.templateVars.slice() };
+    });
+    ok("N-DEV: editing the key/value inputs writes back into spec.templateVars",
+      tvInspEdit.vars[1].key === "team" && tvInspEdit.vars[1].value === "Growth", JSON.stringify(tvInspEdit));
+
+    const tvInspRemove = await page.evaluate(function () {
+      var h4s = [].slice.call(document.querySelectorAll("#inspBody h4"));
+      var sec = h4s.filter(function (h) { return h.textContent.indexOf("Template variables") >= 0; })[0];
+      var box = sec.closest(".insp-sec");
+      var delBtns = box.querySelectorAll('button[title="Remove variable"]');
+      delBtns[delBtns.length - 1].click();
+      return { rowCount: window.__STUDIO_STATE.spec.templateVars.length };
+    });
+    ok("N-DEV: the remove button deletes that row from spec.templateVars", tvInspRemove.rowCount === 1, JSON.stringify(tvInspRemove));
+    await page.evaluate(function () { window.__STUDIO_STATE.spec.title = window.__tvOrigTitle; window.__STUDIO_STATE.spec.templateVars = []; });
+    await page.waitForTimeout(150);
+
     // ── N-FUN: Build-completeness meter ─────────────────────────────────────
     console.log("\n• N-FUN: Build-completeness meter");
     const bcApi = await page.evaluate(function () {

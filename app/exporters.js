@@ -127,6 +127,11 @@
   }
   Studio.buildHtml = function (spec, assets, opts) {
     opts = opts || {};
+    // N-DEV: dashboard templates/variables — resolve {{key}} tokens in the banner text once, here,
+    // so both the live preview and every real export (they both funnel through this one function)
+    // substitute identically with no separate wiring.
+    var titleText = Studio.applyTemplateVars(spec.title, spec.templateVars);
+    var subtitleText = Studio.applyTemplateVars(spec.subtitle, spec.templateVars);
     var deployPath = opts.deployPath || "/public/pdc-iteration/v2";
     var cdaPath = deployPath + "/" + spec.name + ".cda";
     var home = "/pentaho/api/repos/" + deployPath.replace(/^\/+/, "").replace(/\//g, ":") + ":i-home.html/content";
@@ -282,20 +287,20 @@
     var head =
       "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\"/>\n" +
       "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/>\n" +
-      "<title>" + xml(spec.title) + " — Pentaho Data Catalog Analytics</title>\n<style>\n" + assets.css + mobileCss + sectionCss + descCss + panelNoteCss + panelAccentCss + targetLineCss + refBandCss + calloutCss + periodHighlightCss + eventMarkerCss + scatterAnnotCss + kpiSubCss + richtextCss + themeColorCss + headerLogoCss + headerLinkCss + headerBgCss + titleSizeCss + subtitleStyleCss + paletteCss + printCss + previewCss + "\n</style>\n</head>\n";
+      "<title>" + xml(titleText) + " — Pentaho Data Catalog Analytics</title>\n<style>\n" + assets.css + mobileCss + sectionCss + descCss + panelNoteCss + panelAccentCss + targetLineCss + refBandCss + calloutCss + periodHighlightCss + eventMarkerCss + scatterAnnotCss + kpiSubCss + richtextCss + themeColorCss + headerLogoCss + headerLinkCss + headerBgCss + titleSizeCss + subtitleStyleCss + paletteCss + printCss + previewCss + "\n</style>\n</head>\n";
     var logoHtml = spec.headerLogo ?
       "<img class=\"pdc-logo\" src=\"" + xml(spec.headerLogo) + "\" alt=\"\"/>" :
       "<span class=\"pdc-logo\">P</span>";
     // Z6: an optional header link wraps the brand mark+title in an <a> (opens in a new tab) —
     // e.g. back to a company site or portal. Plain <span>s when unset (the common case).
-    var brandInner = logoHtml + "<span class=\"pdc-title\">" + xml(spec.title) + "</span>";
+    var brandInner = logoHtml + "<span class=\"pdc-title\">" + xml(titleText) + "</span>";
     var brandHtml = spec.headerLink ?
       "<a class=\"pdc-brand\" href=\"" + xml(spec.headerLink) + "\" target=\"_blank\" rel=\"noopener noreferrer\">" + brandInner + "</a>" :
       "<div class=\"pdc-brand\">" + brandInner + "</div>";
     var body =
       "<body>\n<header class=\"pdc-header\">\n" +
       "  " + brandHtml + "\n" +
-      "  <div class=\"pdc-sub\">" + xml(spec.subtitle || "") + "</div>\n  <div class=\"spacer\"></div>\n" +
+      "  <div class=\"pdc-sub\">" + xml(subtitleText || "") + "</div>\n  <div class=\"spacer\"></div>\n" +
       "  <div class=\"pdc-ctrls\" id=\"ctrls\"></div>\n" +
       "  <button class=\"pdc-iconbtn\" id=\"qInfoBtn\" title=\"View the CDA queries behind this dashboard\" aria-label=\"View the CDA queries behind this dashboard\" onclick=\"PDC.queryModal()\">&#9432;</button>\n" +
       "  <button class=\"pdc-iconbtn\" id=\"themeBtn\" aria-label=\"Toggle dark/light mode\" onclick=\"PDC.toggleTheme()\">&#9790; Dark</button>\n" +

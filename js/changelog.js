@@ -15,6 +15,17 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 279,
+    title: 'N-DEV: dashboard templates/variables ({{key}} substitution)',
+    kind: 'feature',
+    ts: '2026-07-03T19:23:50Z',
+    items: [
+      'Write {{key}} anywhere in a dashboard\'s Title or Subtitle, then define matching values in the Dashboard inspector\'s new Template variables section -- substituted live in the preview and every export, so one spec can serve as a reusable template (e.g. "{{region}} -- Weekly Ops Review") instead of hand-editing the title text each time.',
+      'A {{key}} with no matching variable is left as literal text rather than silently blanked, so a typo is obvious.',
+      'Studio.applyTemplateVars() is pure and runs once inside the shared buildHtml pipeline, so preview and export always agree with zero separate wiring. 9 new tests, suite 1249/1249.',
+    ],
+  },
+  {
     v: 278,
     title: 'N-FUN: dashboards-created milestone toasts',
     kind: 'polish',
