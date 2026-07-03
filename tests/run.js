@@ -11580,6 +11580,24 @@ function serve() {
     await page.keyboard.press("Escape");
     await page.waitForTimeout(100);
 
+    // N-DEV: the command palette (Ctrl/Cmd+K) is the single most-used power-user shortcut but was
+    // missing from the shortcuts cheat-sheet entirely -- added as the first row.
+    await page.evaluate(function () {
+      try { if (document.activeElement && /^(input|textarea|select)$/i.test(document.activeElement.tagName || "")) document.activeElement.blur(); } catch (e) {}
+    });
+    await page.keyboard.press("?");
+    await page.waitForTimeout(200);
+    var shortcutsHaveCmdK = await page.evaluate(function () {
+      try {
+        var rows = Array.from(document.querySelectorAll(".modal-ov table tr"));
+        var hasCmdK = rows.some(function (r) { return r.textContent.indexOf("K") >= 0 && /command palette/i.test(r.textContent); });
+        return { ok: hasCmdK, rowCount: rows.length };
+      } catch (e) { return { ok: false, err: e.message }; }
+    });
+    ok("N-DEV: Keyboard shortcuts modal lists Ctrl/Cmd+K for the command palette", shortcutsHaveCmdK.ok, JSON.stringify(shortcutsHaveCmdK));
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(100);
+
     // ── F35: Ridgeline / joy plot (v126) ─────────────────────────────────────
     console.log("\n• F35: Ridgeline / joy plot chart");
 

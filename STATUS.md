@@ -778,6 +778,9 @@
   (`.pdc-qm`) and drill-to-detail drawer (`.pdc-dt`) now carry the same `--panel-glass` inset highlight
   KPI tiles/chart cards got in v280, closing the "modal/sheet surfaces" half of that item's "still open"
   note. 2 new tests, suite 1274/1274.
+- v285: **N-DEV: shortcuts cheat-sheet now lists Ctrl/Cmd+K** — audited every document-level keydown
+  listener against the "?" shortcuts modal's rows and found the command palette (the single most
+  powerful shortcut) was the only one missing; added as the first row. 1 new test, suite 1275/1275.
 
 ## NEXT (top = do first)
 
@@ -2439,6 +2442,9 @@ gets covered over time:
 > `snapshotVersion()` machinery), so any hand-edit is always one restore away from being undone — the
 > same safety net a real Save gets. 5 new tests, suite 1211/1211.
 - **Keyboard-first everything** (builds on the ⌘K palette + existing shortcuts) and a shortcuts cheat-sheet.
+> ✓ **Shortcuts cheat-sheet exists** (`showShortcuts()`, `?` key / ⋯ More / ⌘K palette) and covers every
+> global shortcut. **Gap found + fixed, shipped v285**: the command palette shortcut itself (Ctrl/Cmd+K)
+> was missing from its own cheat-sheet — added as the first row. 1 new test, suite 1275/1275.
 - **Dashboard templates/variables** — parameterized starting points beyond the examples.
 > ✓ **First cut shipped v279**: `{{key}}` tokens anywhere in Title/Subtitle now resolve against a new
 > **Template variables** list in the Dashboard inspector (below Subtitle style — key/value rows, +

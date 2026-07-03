@@ -5790,6 +5790,7 @@
   function showShortcuts() {
     modal("Keyboard shortcuts", function (b) {
       var rows = [
+        ["Ctrl / ⌘  +  K", "Open the command palette"],
         ["Ctrl / ⌘  +  Z", "Undo"],
         ["Ctrl / ⌘  +  Shift+Z", "Redo"],
         ["Ctrl / ⌘  +  D", "Duplicate selected panel or KPI"],

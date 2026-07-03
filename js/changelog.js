@@ -15,6 +15,17 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 285,
+    title: 'N-DEV: shortcuts cheat-sheet now lists Ctrl/Cmd+K',
+    kind: 'fix',
+    ts: '2026-07-03T23:18:14Z',
+    items: [
+      'The command palette (Ctrl/Cmd+K) is the single most powerful keyboard shortcut in the app -- open literally anything by typing -- but it was missing from the "?" Keyboard shortcuts cheat-sheet entirely, so a keyboard-first user checking the reference would never discover it.',
+      'Added as the first row (Ctrl / Cmd + K -- Open the command palette). Found while auditing every document-level keydown listener in studio.js/palette.js against the cheat-sheet rows for the N-DEV "keyboard-first everything" backlog item -- every other global shortcut was already listed.',
+      '1 new test, suite 1275/1275.',
+    ],
+  },
+  {
     v: 284,
     title: 'N-DESIGN follow-up: glass-edge modal/drawer surfaces',
     kind: 'polish',
