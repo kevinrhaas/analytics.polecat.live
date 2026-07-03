@@ -13916,6 +13916,60 @@ function serve() {
     ok("m-a: tapping the scrim closes the drawer", mScrim === true);
     await mp.close();
 
+    // ── Z5 follow-up: "quick settings" mirror in the mobile drawer ──
+    // The Dark mode / Simple mode switches Settings already has, mirrored into the
+    // #railQuick block at the bottom of the rail so the drawer covers the most-reached-for
+    // toggles without a trip to the full Settings page. Desktop-only assertion first (on the
+    // shared `page`), then the drawer behavior on a dedicated 390px page.
+    console.log("\n• Z5 follow-up: quick settings in the mobile drawer");
+    const rqDesktop = await page.evaluate(() => getComputedStyle(document.getElementById("railQuick")).display);
+    ok("Z5 follow-up: #railQuick is hidden on desktop (the icon rail has no room for full switches)", rqDesktop === "none", rqDesktop);
+
+    const rq = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    await rq.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); } catch (e) {} });
+    await rq.goto(`http://localhost:${PORT}/`, { waitUntil: "networkidle" });
+    await rq.waitForTimeout(500);
+    await rq.click("#mobileNavBtn"); // open the drawer so #railQuick's switches are on-screen/actionable
+    await rq.waitForTimeout(350);
+    const rqBoot = await rq.evaluate(() => {
+      var disp = getComputedStyle(document.getElementById("railQuick")).display;
+      var dark = document.getElementById("railQuickDark"), simple = document.getElementById("railQuickSimple");
+      return { disp: disp, darkPresent: !!dark, simplePresent: !!simple, darkChecked: dark && dark.checked, simpleChecked: simple && simple.checked };
+    });
+    ok("Z5 follow-up: #railQuick shows Dark mode + Simple mode switches in the drawer at 390px, off by default",
+      rqBoot.disp === "flex" && rqBoot.darkPresent && rqBoot.simplePresent && !rqBoot.darkChecked && !rqBoot.simpleChecked, JSON.stringify(rqBoot));
+
+    await rq.click("#railQuickDark");
+    await rq.waitForTimeout(80);
+    const rqDark = await rq.evaluate(() => ({
+      theme: window.__STUDIO_STATE.theme,
+      attr: document.documentElement.getAttribute("data-theme"),
+      checked: document.getElementById("railQuickDark").checked
+    }));
+    ok("Z5 follow-up: the drawer's Dark mode switch drives the same S.theme/data-theme as the Settings page switch",
+      rqDark.theme === "dark" && rqDark.attr === "dark" && rqDark.checked, JSON.stringify(rqDark));
+
+    await rq.click("#railQuickSimple");
+    await rq.waitForTimeout(80);
+    const rqSimple = await rq.evaluate(() => ({
+      simpleMode: window.__STUDIO_STATE.simpleMode,
+      bodyClass: document.body.classList.contains("simple-mode"),
+      checked: document.getElementById("railQuickSimple").checked
+    }));
+    ok("Z5 follow-up: the drawer's Simple mode switch drives the same S.simpleMode/body class as the Settings page switch",
+      rqSimple.simpleMode === true && rqSimple.bodyClass && rqSimple.checked, JSON.stringify(rqSimple));
+
+    // Toggling from the *Settings page itself* should sync #railQuick back too (single
+    // source of truth both ways, not just drawer → state).
+    await rq.click('#railNav .rail-item[data-sec="settings"]');
+    await rq.waitForTimeout(120);
+    await rq.click('#secSettings input[data-set="dark"]'); // Settings page toggles it OFF (currently on)
+    await rq.waitForTimeout(80);
+    const rqSynced = await rq.evaluate(() => ({ theme: window.__STUDIO_STATE.theme, drawerChecked: document.getElementById("railQuickDark").checked }));
+    ok("Z5 follow-up: toggling Dark mode from the Settings page syncs #railQuick's switch back too",
+      rqSynced.theme === "light" && rqSynced.drawerChecked === false, JSON.stringify(rqSynced));
+    await rq.close();
+
     // ── m-b: iOS safe-area / 100dvh fix (mobile TOP PRIORITY, the "killer bug") ──
     // Headless Chromium has no browser toolbar, so #mobile-tabs/#statusbar always sit
     // fully on-screen here regardless of this fix — that's exactly why the bug shipped

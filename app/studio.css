@@ -106,6 +106,11 @@ html[data-app-theme='polecat'] #railNav{--rail-bg:#2E2A33;--rail-bg2:#3A2F3A;--r
   font-family:inherit;border:1px solid var(--rail-line);opacity:.75}
 #railNav .rail-toggle{opacity:.5;border-top:1px solid var(--rail-line)}
 #railNav .rail-toggle:hover{opacity:.9}
+/* Z5 follow-up: "quick settings" mirror in the mobile drawer (relay.polecat.live-style) — the
+   two most-reached-for toggles (Dark mode, Simple mode) one tap away without a trip to Settings.
+   Desktop keeps the icon rail uncluttered (full switches don't fit collapsed); only shown in the
+   ≤900px drawer, see the media query below. Reuses the shared .set-sw switch look from Settings. */
+.rail-quick{display:none}
 @media(prefers-reduced-motion:reduce){#railNav{transition:none}}
 /* ── m-a (mobile TOP PRIORITY): the rail becomes a slide-in left drawer ──
    On desktop the rail is the in-flow 56/184px column (above). At ≤900px it turns
@@ -134,6 +139,13 @@ html[data-app-theme='classic'] #mobileNavBtn{background:#0f1c33;border-color:rgb
   #railNav .rail-lbl{position:static!important;width:auto!important;height:auto!important;clip:auto!important}
   #railNav .rail-toggle{display:none}
   #mobileNavBtn{display:flex}
+  .rail-quick{display:flex;flex-direction:column;gap:2px;padding:10px 18px;
+    border-top:1px solid var(--rail-line)}
+  .rail-quick-row{display:flex;align-items:center;justify-content:space-between;gap:10px;
+    padding:6px 0;color:var(--rail-ink);font-size:13px;cursor:pointer}
+  .rail-quick-row .set-sw{flex:0 0 auto;width:36px;height:21px}
+  .rail-quick-row .set-sw-track::after{width:16px;height:16px}
+  .rail-quick-row .set-sw input:checked+.set-sw-track::after{transform:translateX(15px)}
   /* NOTE: the hamburger's left-clearance padding is NOT set here — a second,
      later @media(max-width:900px) block (the M1 responsive-shell rule, below)
      also targets #topbar and was overwriting padding-left back to 12px on

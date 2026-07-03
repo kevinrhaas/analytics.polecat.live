@@ -1120,6 +1120,17 @@ of named style presets** the user can pick from. Export/import settings as JSON.
 > Added `studio-deploy-path`/`studio-live-data` localStorage persistence (same getter/setter
 > pattern as every other Settings default) and wired both into Settings export/import + Clear
 > local data. 5 new tests, suite 1081/1081.
+> ✓ **Left-drawer mirror of key toggles shipped v259 (closes that "still open" item; gate/access
+> management remains genuinely open — see below)**: the mobile nav drawer (`#railNav` ≤900px) gains
+> a compact **#railQuick** block above the Collapse button — Dark mode + Simple mode as the same
+> `.set-sw` switches Settings uses, reusing `SETTINGS_TOGGLES` as the single source of truth so
+> toggling from the drawer, the ⋯ More menu, or the Settings page all stay in sync (verified both
+> directions). Desktop keeps the icon-only rail uncluttered — `.rail-quick{display:none}` outside the
+> `≤900px` drawer, matching the relay.polecat.live reference the original ask cited. Demo/Focus modes
+> deliberately excluded (Focus mode hides the rail itself, so surfacing it there is self-defeating).
+> 5 new tests, suite 1179/1179. **Z5 follow-up still open:** gate/access management (deferred — the
+> passcode gate is a single shared site-wide hash baked into `gate-config.js` at deploy time, not a
+> per-browser preference, so it doesn't fit the Settings-page model without real backend/auth work).
 
 **Z6 — Banner / header editor + naming model (user-requested; refined 2026-06-30).** Make the dashboard
 header/banner (the "Cost Optimization & Sustainability · subtitle" bar in the preview) fully **editable

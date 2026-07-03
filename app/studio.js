@@ -5176,8 +5176,18 @@
       reader.onload = function (e) { setBranding({ mode: "custom", dataUrl: e.target.result }); renderSettings(); toast("Logo updated."); };
       reader.readAsDataURL(f);
     };
+    syncRailQuick();
   }
   window.__studioRenderSettings = renderSettings; // test hook
+
+  // Keeps the mobile-drawer "quick settings" checkboxes (#railQuick) in sync with the real
+  // state after every mutation path that already calls renderSettings() (Settings page itself,
+  // ⋯ More menu, keyboard shortcuts, and the quick-settings checkboxes' own change handler).
+  function syncRailQuick() {
+    var d = document.getElementById("railQuickDark"); if (d) d.checked = S.theme === "dark";
+    var sm = document.getElementById("railQuickSimple"); if (sm) sm.checked = !!S.simpleMode;
+  }
+  window.__studioSyncRailQuick = syncRailQuick; // test hook
 
   function maybeShowRestoreBanner() {
     var raw; try { raw = localStorage.getItem("studio-autosave"); } catch (e) { return; }
@@ -5652,6 +5662,14 @@
       }
     });
     $("#btnTheme").onclick = function () { setTheme(S.theme === "dark" ? "light" : "dark"); };
+    // Z5 follow-up: "quick settings" mirror in the mobile nav drawer (relay.polecat.live-style) —
+    // the two most-reached-for toggles (Dark mode, Simple mode) one tap away without leaving the
+    // drawer for a full trip to Settings. Reuses SETTINGS_TOGGLES as the single source of truth
+    // (same data-set id convention Settings' own checkboxes use) so both stay in sync for free.
+    $$("#railQuick input[data-set]").forEach(function (cb) {
+      var t = SETTINGS_TOGGLES.filter(function (x) { return x.id === cb.getAttribute("data-set"); })[0];
+      if (t) cb.addEventListener("change", t.set);
+    });
     $("#libSearch").addEventListener("input", buildLibrary);
     var repoSearchInp = $("#repoSearch"); if (repoSearchInp) repoSearchInp.addEventListener("input", renderRepository);
     var repoExpBtn = $("#repoExportBtn"); if (repoExpBtn) repoExpBtn.onclick = exportRepositoryFile;

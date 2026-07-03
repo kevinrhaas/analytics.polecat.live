@@ -15,6 +15,18 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 259,
+    title: 'Z5 follow-up: quick settings in the mobile nav drawer',
+    kind: 'feature',
+    ts: '2026-07-03T12:02:41Z',
+    items: [
+      'The mobile nav drawer now shows Dark mode + Simple mode as quick switches near the bottom -- flip them without leaving the drawer for a full trip to Settings.',
+      'Same switches Settings already has under the hood, so toggling from either place (or the ⋯ More menu) always stays in sync.',
+      'Desktop keeps the icon-only rail exactly as it was -- these only appear in the ≤900px drawer.',
+      '5 new tests, suite 1179/1179.',
+    ],
+  },
+  {
     v: 258,
     title: 'N-DIST: local version history for dashboards ("time travel")',
     kind: 'feature',
