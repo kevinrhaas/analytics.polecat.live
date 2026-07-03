@@ -179,7 +179,7 @@ function serve() {
       const modalGone = !document.querySelector(".modal .dsb");
       return { types, chips, prevRows, prevCols, saved: !!da, cols: da ? da.columns.join(",") : "", inLib, modalGone };
     });
-    ok("builder opens with all source-type cards", built.types === 9, JSON.stringify({ types: built.types, err: built.err }));
+    ok("builder opens with all source-type cards", built.types === 10, JSON.stringify({ types: built.types, err: built.err }));
     ok("Detect reads columns from the SQL + previews rows", built.chips.join(",") === "region,total" && built.prevRows === 5 && built.prevCols === 2, JSON.stringify(built));
     ok("Create saves the data source into the library", built.saved && built.cols === "region,total" && built.inLib && built.modalGone, JSON.stringify(built));
 
@@ -951,6 +951,130 @@ function serve() {
       return { hasDA: cda.indexOf('id="dbxSales"') >= 0, hasHost: cda.indexOf("dbc-a1b2c3d4-e5f6.cloud.databricks.com") >= 0 };
     });
     ok("Z4: exportCDA excludes databricks DAs from the .cda XML (not a real Pentaho source)", !dbxExport.hasDA && !dbxExport.hasHost, JSON.stringify(dbxExport));
+
+    // ---- Z4 slice 3: BigQuery jobs.query connector (credential-based like Snowflake/Databricks,
+    // but Google's API already sends permissive CORS for this endpoint — no allow-list step;
+    // stubbed here for the same no-public-internet-route-in-this-sandbox reason) ----
+    console.log("\n• Z4: BigQuery connector");
+    const bqModel = await page.evaluate(() => ({
+      hasApi: typeof Studio.BigQuery === "object" && typeof Studio.BigQuery.testConnection === "function" && typeof Studio.BigQuery.query === "function"
+    }));
+    ok("Z4: Studio.BigQuery exposes testConnection()/query()", bqModel.hasApi, JSON.stringify(bqModel));
+
+    const bqCard = await page.evaluate(async () => {
+      document.getElementById("btnNewDS").click();
+      await new Promise((r) => setTimeout(r, 80));
+      const m = document.querySelector(".modal .dsb"); if (!m) return { err: "modal missing" };
+      const card = [].slice.call(m.querySelectorAll(".dsb-type")).find((c) => c.textContent.includes("BigQuery"));
+      if (!card) return { err: "no BigQuery card" };
+      card.click();
+      await new Promise((r) => setTimeout(r, 60));
+      const fieldLabels = [].slice.call(m.querySelectorAll(".dsb-qsec .field label")).map((l) => l.textContent);
+      const jndiField = [].slice.call(m.querySelectorAll(".dsb > .field")).find((f) => /Connection \(JNDI\)/.test(f.textContent));
+      const jndiHidden = jndiField ? getComputedStyle(jndiField).display === "none" : false;
+      const detectFromQueryVisible = [].slice.call(m.querySelectorAll(".dsb-mini")).some((b) => /Detect from query/.test(b.textContent) && getComputedStyle(b).display !== "none");
+      return {
+        hasProject: fieldLabels.some((f) => /Project id/.test(f)),
+        hasToken: fieldLabels.some((f) => /Access token/.test(f)),
+        hasLocation: fieldLabels.some((f) => /Location/.test(f)),
+        hasTestBtn: !!m.querySelector(".dsb-bigquery-test"),
+        jndiHidden, detectFromQueryVisible
+      };
+    });
+    ok("Z4: BigQuery card shows Project id/Access token/Location fields", bqCard.hasProject && bqCard.hasToken && bqCard.hasLocation, JSON.stringify(bqCard));
+    ok("Z4: BigQuery card shows a Test connection button", bqCard.hasTestBtn, JSON.stringify(bqCard));
+    ok("Z4: BigQuery card hides the JNDI connection field (doesn't apply)", bqCard.jndiHidden, JSON.stringify(bqCard));
+    ok("Z4: BigQuery card hides the SQL-alias 'Detect from query' button", !bqCard.detectFromQueryVisible, JSON.stringify(bqCard));
+
+    const bqBadge = await page.evaluate(() => {
+      const m = document.querySelector(".modal .dsb"); if (!m) return { err: "modal missing" };
+      const card = [].slice.call(m.querySelectorAll(".dsb-type")).find((c) => c.textContent.includes("BigQuery"));
+      return { hasBadge: card ? !!card.querySelector(".dsb-badge") : null, badgeText: card && card.querySelector(".dsb-badge") ? card.querySelector(".dsb-badge").textContent : "" };
+    });
+    ok("Z4: BigQuery source-type card carries a 'Needs token' badge", bqBadge.hasBadge === true && /Needs token/i.test(bqBadge.badgeText), JSON.stringify(bqBadge));
+
+    const bqIcon = await page.evaluate(() => ({
+      path: Studio._iconPaths.bigquery,
+      distinctFromSnowflake: Studio._iconPaths.bigquery !== Studio._iconPaths.snowflake,
+      distinctFromDatabricks: Studio._iconPaths.bigquery !== Studio._iconPaths.databricks,
+      distinctFromSearch: Studio._iconPaths.bigquery !== Studio._iconPaths.search
+    }));
+    ok("Z4: bigquery icon exists and is distinct from snowflake/databricks/search icons", !!bqIcon.path && bqIcon.distinctFromSnowflake && bqIcon.distinctFromDatabricks && bqIcon.distinctFromSearch, JSON.stringify(bqIcon));
+
+    const bqTestOk = await page.evaluate(async () => {
+      const orig = Studio.BigQuery.testConnection;
+      Studio.BigQuery.testConnection = function () {
+        return Promise.resolve({ ok: true, columns: [{ name: "region", type: "STRING" }, { name: "revenue", type: "FLOAT" }], cols: ["region", "revenue"], rows: [["East", 120], ["West", 90]] });
+      };
+      const m = document.querySelector(".modal .dsb"); if (!m) return { err: "modal missing" };
+      const inputs = [].slice.call(m.querySelectorAll(".dsb-qsec input"));
+      const projectInp = inputs[0], tokenInp = inputs[1];
+      projectInp.value = "my-analytics-project"; projectInp.dispatchEvent(new Event("input", { bubbles: true }));
+      tokenInp.value = "ya29.sometoken"; tokenInp.dispatchEvent(new Event("input", { bubbles: true }));
+      m.querySelector(".dsb-bigquery-test").click();
+      await new Promise((r) => setTimeout(r, 60));
+      const chips = [].slice.call(m.querySelectorAll(".dsb-chip")).map((c) => c.textContent.replace("×", "").trim());
+      const status = (m.querySelector(".dsb-bigquery-status") || {}).textContent || "";
+      Studio.BigQuery.testConnection = orig;
+      return { chips, status };
+    });
+    ok("Z4: a successful Test connection detects columns into chips", bqTestOk.chips.join(",") === "region,revenue", JSON.stringify(bqTestOk));
+    ok("Z4: a successful Test connection shows a ✓ status line", /^✓ connected/.test(bqTestOk.status), JSON.stringify(bqTestOk));
+
+    const bqSaved = await page.evaluate(async () => {
+      const m = document.querySelector(".modal .dsb"); if (!m) return { err: "modal missing" };
+      const idInp = m.querySelector(".field.row .field input"); idInp.value = "bqSales"; idInp.dispatchEvent(new Event("input", { bubbles: true }));
+      m.querySelector(".dsb-foot .btn-primary").click();
+      await new Promise((r) => setTimeout(r, 80));
+      const da = window.__STUDIO_STATE.catalog.custom.dataAccesses.find((d) => d.id === "bqSales");
+      return da ? { kind: da.kind, bqProject: da.bqProject, bqToken: da.bqToken, cols: da.columns.join(",") } : { missing: true };
+    });
+    ok("Z4: saving persists kind/project/token/columns on the DA", bqSaved.kind === "bigquery" && bqSaved.bqProject === "my-analytics-project" && bqSaved.bqToken === "ya29.sometoken" && bqSaved.cols === "region,revenue", JSON.stringify(bqSaved));
+
+    const bqInspector = await page.evaluate(async () => {
+      var daDef = window.__STUDIO_STATE.catalog.custom.dataAccesses.find((d) => d.id === "bqSales");
+      Studio.ensureDA(window.__STUDIO_STATE.spec, daDef);
+      window.__studioSelect({ kind: "da", id: "bqSales" });
+      await new Promise((r) => setTimeout(r, 60));
+      const insp = document.getElementById("inspBody");
+      const secs = [].slice.call(insp.querySelectorAll(".insp-sec h4")).map((h) => h.textContent);
+      const hasSection = secs.some((s) => /BigQuery \(jobs\.query API\)/.test(s));
+      const liveBtn = [].slice.call(insp.querySelectorAll(".daprev-toolbar .btn")).find((b) => /Run live/.test(b.textContent));
+      return { hasSection, liveBtnTitle: liveBtn ? liveBtn.title : "" };
+    });
+    ok("Z4: DA inspector shows the 'BigQuery (jobs.query API)' section for a bigquery DA", bqInspector.hasSection, JSON.stringify(bqInspector));
+    ok("Z4: Data preview offers 'Run live' for a bigquery DA with no active server", /BigQuery jobs\.query API/.test(bqInspector.liveBtnTitle), JSON.stringify(bqInspector));
+
+    const bqRunLive = await page.evaluate(async () => {
+      Studio.BigQuery.query = function () { return Promise.resolve({ cols: ["region", "revenue"], rows: [["East", 120], ["West", 90]] }); };
+      const insp = document.getElementById("inspBody");
+      const liveBtn = [].slice.call(insp.querySelectorAll(".daprev-toolbar .btn")).find((b) => /Run live/.test(b.textContent));
+      if (!liveBtn) return { err: "no Run live button" };
+      liveBtn.click();
+      await new Promise((r) => setTimeout(r, 60));
+      return { status: (insp.querySelector(".daprev-status") || {}).textContent || "" };
+    });
+    ok("Z4: Run live queries via Studio.BigQuery.query() and shows the live result", /2 rows? · 2 cols? · live/.test(bqRunLive.status), JSON.stringify(bqRunLive));
+
+    const bqTestFail = await page.evaluate(async () => {
+      Studio.BigQuery.testConnection = function () { return Promise.resolve({ ok: false, error: "CORS blocked — the host doesn't allow cross-origin requests." }); };
+      const insp = document.getElementById("inspBody");
+      const testBtn = [].slice.call(insp.querySelectorAll("button")).find((b) => /Test connection & detect columns/.test(b.textContent));
+      if (!testBtn) return { err: "no test button in inspector" };
+      testBtn.click();
+      await new Promise((r) => setTimeout(r, 60));
+      const status = [].slice.call(insp.querySelectorAll(".hint")).map((h) => h.textContent).find((t) => t.indexOf("✗") === 0) || "";
+      return { status };
+    });
+    ok("Z4: a failed Test connection surfaces a clear inline error, not a stuck spinner", /^✗ CORS blocked/.test(bqTestFail.status), JSON.stringify(bqTestFail));
+
+    const bqExport = await page.evaluate(() => {
+      var sp = JSON.parse(JSON.stringify(window.__STUDIO_STATE.spec));
+      sp.cda.dataAccesses.push({ id: "bqSales", name: "bqSales", kind: "bigquery", bqProject: "my-analytics-project", bqToken: "ya29.sometoken", columns: ["region", "revenue"], params: [], calcColumns: [], cache: true, cacheDuration: 300 });
+      var cda = Studio.exportCDA(sp);
+      return { hasDA: cda.indexOf('id="bqSales"') >= 0, hasProject: cda.indexOf("my-analytics-project") >= 0 };
+    });
+    ok("Z4: exportCDA excludes bigquery DAs from the .cda XML (not a real Pentaho source)", !bqExport.hasDA && !bqExport.hasProject, JSON.stringify(bqExport));
 
     // ---- Z14 slice 4: friendlier connector error messages (shared by DuckDB + SQLite) ----
     const friendlyErrs = await page.evaluate(() => ({

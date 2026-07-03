@@ -44,10 +44,12 @@
     var firstConnId = connections[0].id;
 
     var connXml = connections.map(cdaConnectionXml).join("\n    ");
-    // duckdb/sqlite/snowflake/databricks DAs query a remote source straight from the browser (Z14/Z4) —
-    // they aren't a real Pentaho data source and have no <Connection>/<DataAccess> XML equivalent, so
-    // they're simply not part of the .cda artifact (they still work fine in preview/CDF via sample data).
-    var das = (spec.cda.dataAccesses || []).filter(function (d) { return d.kind !== "duckdb" && d.kind !== "httpvfs" && d.kind !== "snowflake" && d.kind !== "databricks"; }).map(function (d) {
+    // duckdb/sqlite/snowflake/databricks/bigquery DAs query a remote source straight from the browser
+    // (Z14/Z4) — they aren't a real Pentaho data source and have no <Connection>/<DataAccess> XML
+    // equivalent, so they're simply not part of the .cda artifact (they still work fine in
+    // preview/CDF via sample data).
+    var directDAKinds = { duckdb: 1, httpvfs: 1, snowflake: 1, databricks: 1, bigquery: 1 };
+    var das = (spec.cda.dataAccesses || []).filter(function (d) { return !directDAKinds[d.kind]; }).map(function (d) {
       // compound (join / union) — no connection ref, own XML element
       if (d.kind === "compound") {
         var cacheAttr = 'cache="' + (d.cache === false ? "false" : "true") + '" cacheDuration="' + (d.cacheDuration || 300) + '"';

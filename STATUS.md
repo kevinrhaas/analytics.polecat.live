@@ -723,6 +723,8 @@
 - v234: **Z4 slice 2: Databricks connector** — see Z4 entry below. 15 new tests, suite 1092/1092.
 - v235: **Z5 follow-up: Deploy target config in Settings** — see Z5 entry above. 5 new tests; merged with
   the concurrently-shipped v234 Databricks connector, combined suite 1096/1096.
+- v236: **Z12 loose end: real PNG apple-touch-icon** — see Z12 entry below. 2 new tests, suite 1097/1097.
+- v237: **Z4 slice 3: BigQuery connector** — see Z4 entry below. 15 new tests, suite 1112/1112.
 
 ## NEXT (top = do first)
 
@@ -1008,8 +1010,21 @@ connector feeds the same dashboard model.
 > spinner. New monoline `databricks` icon (delta triangle over a lake line); `exportCDA` excludes
 > databricks DAs from `.cda`, same as duckdb/httpvfs/snowflake. Docs updated. 15 new tests (stubbed at the
 > `Studio.Databricks` boundary, same no-internet-in-sandbox rationale as Snowflake). Test suite 1092/1092.
-> **Still open for Z4**: BigQuery/other warehouses, generic SQL/HTTP, connector-gallery brand treatment,
-> and a real live-account smoke test for both Snowflake and Databricks.
+> ✓ **Slice 3 shipped v237 — BigQuery connector**: `app/bigquery.js` calls the BigQuery **jobs.query**
+> REST API directly from the browser (`POST .../bigquery/v2/projects/{project}/queries`, polling
+> `GET .../queries/{jobId}` while `jobComplete` is false) — New Source builder + DA inspector both get
+> a **BigQuery** source type with Project id / Access token (short-lived OAuth 2.0 token, never a
+> service-account key file) / optional Location + Default dataset fields, a query editor, and the same
+> **Test connection & detect columns** / **Run live** pattern as Snowflake and Databricks. Genuinely
+> different from the other credential-based connectors: Google's API already sends permissive CORS
+> headers for this endpoint, so there's **no per-account network-policy allow-list step** — the OAuth
+> token itself is the only gate (still badge "Needs token", since a token is required). New monoline
+> `bigquery` icon (magnifying glass over ascending bars — `app/icons.js`); `exportCDA` excludes bigquery
+> DAs from `.cda`, same as duckdb/httpvfs/snowflake/databricks. Docs updated. 15 new tests (stubbed at
+> the `Studio.BigQuery` boundary, same no-internet-in-sandbox rationale as Snowflake/Databricks). Test
+> suite 1112/1112.
+> **Still open for Z4**: other cloud warehouses (Redshift/Synapse), generic SQL/HTTP,
+> connector-gallery brand treatment, and a real live-account smoke test for Snowflake/Databricks/BigQuery.
 
 **Z5 — Settings.** App configuration: theme, default deploy target, gate/access, data-source defaults,
 and **dashboard style defaults** (standard look/style applied to new dashboards). Support **collections

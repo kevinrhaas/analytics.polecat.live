@@ -372,6 +372,7 @@
     <li><strong>SQLite (remote .sqlite)</strong> — query a <code>.sqlite</code> file directly over HTTP, no backend (see below).</li>
     <li><strong>Snowflake</strong> — query a live Snowflake warehouse via the SQL API, straight from the browser (see below).</li>
     <li><strong>Databricks</strong> — query a live SQL warehouse via the Statement Execution API, straight from the browser (see below).</li>
+    <li><strong>BigQuery</strong> — query a live dataset via the jobs.query REST API, straight from the browser (see below).</li>
   </ul>
 
   <h3>Browser-native connectors: no backend required</h3>
@@ -409,6 +410,13 @@
     <li><strong>An allowed origin.</strong> Databricks workspaces don't emit permissive CORS headers by default — check with your workspace admin that this app's origin is allowed, or requests will fail on CORS with a clear inline hint rather than a stuck spinner.</li>
   </ul>
   <p>Fill in the <strong>Workspace host</strong> (e.g. <code>dbc-a1b2c3d4-e5f6.cloud.databricks.com</code>, no protocol), the <strong>SQL warehouse id</strong> (from the warehouse's Connection details), and optionally a <strong>Catalog</strong>/<strong>Schema</strong>, write a <strong>Query</strong>, then click <strong>Test connection &amp; detect columns</strong> — it runs <code>SELECT 1</code> to validate everything and, once you have a real query, detects output columns from the live result. The Data preview's <strong>Run live</strong> button queries the warehouse the same way; statements that start out <code>PENDING</code>/<code>RUNNING</code> are polled automatically. Like the file connectors and Snowflake, a Databricks DA isn't a Pentaho data source, so it's excluded from the <code>.cda</code> export.</p>
+
+  <h3>BigQuery connector</h3>
+  <p>The <strong>BigQuery</strong> source type queries a live dataset directly from the browser via Google's <a href="https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query" target="_blank" rel="noopener noreferrer">jobs.query REST API</a> — no backend or proxy. It's credential-based like Snowflake/Databricks above, flagged with the same "Needs token" badge, but Google's API already sends permissive CORS headers for this endpoint, so there's no admin allow-listing step — the token itself is the only gate.</p>
+  <ul>
+    <li><strong>A short-lived OAuth 2.0 access token, never a service-account key file.</strong> Paste it into <strong>Access token</strong>; Studio never asks for or stores a downloadable key.</li>
+  </ul>
+  <p>Fill in the <strong>Project id</strong> (e.g. <code>my-analytics-project</code>) and optionally a job <strong>Location</strong> (e.g. <code>US</code>, needed for datasets outside the default region) and a <strong>Default dataset</strong> (so unqualified table names resolve against it), write a <strong>Query</strong>, then click <strong>Test connection &amp; detect columns</strong> — it runs <code>SELECT 1</code> to validate the project/token and, once you have a real query, detects output columns from the live result. The Data preview's <strong>Run live</strong> button queries the dataset the same way; jobs that don't complete immediately are polled automatically. Like the other direct connectors, a BigQuery DA isn't a Pentaho data source, so it's excluded from the <code>.cda</code> export.</p>
 
   <h3>Joins and compound DAs</h3>
   <p>Click <strong>⧈ Join</strong> in the library to create a <strong>Compound data access</strong> — either a join (left/right DA + key columns) or a union (stack rows from N DAs). These map directly to CDA <code>&lt;CompoundDataAccess&gt;</code> XML.</p>

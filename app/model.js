@@ -1940,7 +1940,8 @@
     { id: "duckdb",        label: "DuckDB-Wasm (remote Parquet/CSV, no backend)" },
     { id: "httpvfs",       label: "SQLite-WASM (remote .sqlite over HTTP, no backend)" },
     { id: "snowflake",     label: "Snowflake (SQL API, needs token + CORS allow-list)" },
-    { id: "databricks",    label: "Databricks (Statement Execution API, needs token + CORS allow-list)" }
+    { id: "databricks",    label: "Databricks (Statement Execution API, needs token + CORS allow-list)" },
+    { id: "bigquery",      label: "BigQuery (jobs.query REST API, needs OAuth token)" }
   ];
   Studio.COLUMN_TYPES = ["String", "Integer", "Numeric", "Date", "Boolean"];
 

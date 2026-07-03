@@ -56,6 +56,9 @@
     // Z4 slice 2: a delta triangle over a wavy lake line — a friendly "lakehouse" reference for the
     // Databricks connector, distinct from the snowflake/db/cube marks (no brand logo reproduced).
     databricks: '<polygon points="12 3 21 18.5 3 18.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 21c2-1.4 4-1.4 6 0s4 1.4 6 0 4-1.4 6 0" stroke-linecap="round" stroke-linejoin="round"/>',
+    // Z4 slice 3: a magnifying glass (query) with three ascending bars inside the lens (data) —
+    // distinct from the plain "search" glass and the "db" cylinder for the BigQuery connector.
+    bigquery: '<circle cx="10" cy="10" r="7"/><line x1="15" y1="15" x2="21" y2="21" stroke-linecap="round"/><line x1="7" y1="12" x2="7" y2="8" stroke-linecap="round"/><line x1="10" y1="13" x2="10" y2="6" stroke-linecap="round"/><line x1="13" y1="13" x2="13" y2="9" stroke-linecap="round"/>',
     // Z8 follow-up: tiny inline "what this toggle does" glyphs, shared by the OPT_HINTS map
     // in studio.js — reused across every chart type that exposes the matching option key
     // (sort/legend/smooth/dots families repeat across a dozen+ chart types).

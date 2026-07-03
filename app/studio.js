@@ -702,7 +702,8 @@
     { kind: "duckdb", iconName: "duckdb", name: "DuckDB (remote file)", desc: "Query a Parquet/CSV file straight from S3/HTTP — no backend, no proxy", badge: "Browser-only", ph: "SELECT * FROM t\nLIMIT  200   -- t = your file, queried in-browser via DuckDB-Wasm" },
     { kind: "httpvfs", iconName: "sqlite", name: "SQLite (remote .sqlite)", desc: "Query a .sqlite file over HTTP Range Requests — indexed lookups, no backend", badge: "Browser-only", ph: "SELECT * FROM my_table\nLIMIT  200" },
     { kind: "snowflake", iconName: "snowflake", name: "Snowflake", desc: "Query a Snowflake warehouse via the SQL API — needs a token + CORS allow-listed origin", badge: "Needs token", ph: "SELECT region,\n       SUM(revenue) AS revenue\nFROM   sales\nGROUP  BY region" },
-    { kind: "databricks", iconName: "databricks", name: "Databricks", desc: "Query a SQL warehouse via the Statement Execution API — needs a token + CORS allow-listed origin", badge: "Needs token", ph: "SELECT region,\n       SUM(revenue) AS revenue\nFROM   sales\nGROUP  BY region" }
+    { kind: "databricks", iconName: "databricks", name: "Databricks", desc: "Query a SQL warehouse via the Statement Execution API — needs a token + CORS allow-listed origin", badge: "Needs token", ph: "SELECT region,\n       SUM(revenue) AS revenue\nFROM   sales\nGROUP  BY region" },
+    { kind: "bigquery", iconName: "bigquery", name: "BigQuery", desc: "Query a dataset via the jobs.query REST API — needs a Google OAuth access token", badge: "Needs token", ph: "SELECT region,\n       SUM(revenue) AS revenue\nFROM   `dataset.sales`\nGROUP  BY region" }
   ];
   function dsType(k) { return DS_TYPES.filter(function (t) { return t.kind === k; })[0] || DS_TYPES[0]; }
   // shared by the data-source builder draft and the DA inspector (both store the same sf* keys)
@@ -711,6 +712,9 @@
   // same pattern for Databricks (db* keys) so Studio.Databricks.{testConnection,query} always see
   // the same {host,token,warehouseId,catalog,schema} shape.
   function dbxCfg(o) { return { host: o.dbxHost, token: o.dbxToken, warehouseId: o.dbxWarehouseId, catalog: o.dbxCatalog, schema: o.dbxSchema }; }
+  // same pattern for BigQuery (bq* keys) so Studio.BigQuery.{testConnection,query} always see
+  // the same {project,token,location,dataset} shape.
+  function bqCfg(o) { return { project: o.bqProject, token: o.bqToken, location: o.bqLocation, dataset: o.bqDataset }; }
 
   // open the guided builder. existing = {stem, da} to edit, or null to create.
   function dataSourceBuilder(existing) {
@@ -728,7 +732,8 @@
       sfAccount: src.sfAccount || "", sfToken: src.sfToken || "", sfTokenType: src.sfTokenType || "PROGRAMMATIC_ACCESS_TOKEN",
       sfWarehouse: src.sfWarehouse || "", sfDatabase: src.sfDatabase || "", sfSchema: src.sfSchema || "", sfRole: src.sfRole || "",
       dbxHost: src.dbxHost || "", dbxToken: src.dbxToken || "", dbxWarehouseId: src.dbxWarehouseId || "",
-      dbxCatalog: src.dbxCatalog || "", dbxSchema: src.dbxSchema || "" };
+      dbxCatalog: src.dbxCatalog || "", dbxSchema: src.dbxSchema || "",
+      bqProject: src.bqProject || "", bqToken: src.bqToken || "", bqLocation: src.bqLocation || "", bqDataset: src.bqDataset || "" };
 
     modal(editing ? "Edit data source · " + existing.da.id : "New data source", function (b) {
       var wrap = el("div", "dsb");
@@ -1306,7 +1311,7 @@
       function renderQSection() {
         qSection.innerHTML = "";
         var k = draft.kind;
-        connF.style.display = (k === "duckdb" || k === "httpvfs" || k === "snowflake" || k === "databricks") ? "none" : ""; // JNDI doesn't apply to these direct connectors
+        connF.style.display = (k === "duckdb" || k === "httpvfs" || k === "snowflake" || k === "databricks" || k === "bigquery") ? "none" : ""; // JNDI doesn't apply to these direct connectors
         if (k === "httpvfs") {
           // Z14 slice 3 — SQLite-WASM + HTTP-VFS: query a remote .sqlite file over HTTP Range
           // Requests, no backend/proxy/credentials. Test connection lazy-loads the engine, lists
@@ -1485,6 +1490,52 @@
           dbxQF.appendChild(dbxTa);
           qSection.appendChild(dbxQF);
           detectBtn.style.display = "none";
+        } else if (k === "bigquery") {
+          // Z4 slice 3 — BigQuery jobs.query REST API: needs a project id + OAuth access token
+          // (never a service-account key file); Google's API already sends permissive CORS
+          // headers for this endpoint, so there's no per-project network-policy step like
+          // Snowflake/Databricks — the token itself is the only gate.
+          qSection.appendChild(field("Project id", input(draft.bqProject, function (v) { draft.bqProject = v.trim(); }, "my-analytics-project")));
+          qSection.appendChild(field("Access token", input(draft.bqToken, function (v) { draft.bqToken = v.trim(); }, "OAuth 2.0 access token")));
+          var bqRow = el("div", "field row");
+          bqRow.appendChild(field("Location (optional)", input(draft.bqLocation, function (v) { draft.bqLocation = v.trim(); }, "US")));
+          bqRow.appendChild(field("Default dataset (optional)", input(draft.bqDataset, function (v) { draft.bqDataset = v.trim(); }, "analytics")));
+          qSection.appendChild(bqRow);
+          var bqStatus = el("div", "hint dsb-bigquery-status");
+          bqStatus.textContent = "Calls the BigQuery jobs.query REST API directly from your browser using a short-lived OAuth access token — never a service-account key file.";
+          qSection.appendChild(bqStatus);
+          var bqTestBtn = el("button", "dsb-mini dsb-bigquery-test"); bqTestBtn.style.marginTop = "8px";
+          setIconBtn(bqTestBtn, "refresh", "Test connection & detect columns", 12);
+          bqTestBtn.onclick = function () {
+            if (!draft.bqProject || !draft.bqToken) { toast("Enter a project id and access token first.", true); return; }
+            bqTestBtn.disabled = true; bqTestBtn.textContent = "Testing…"; window.__bigqueryTestState = "testing";
+            bqStatus.textContent = "Calling the BigQuery jobs.query API…";
+            Studio.BigQuery.testConnection(bqCfg(draft)).then(function (res) {
+              window.__bigqueryTestState = "done";
+              if (!res.ok) {
+                bqTestBtn.disabled = false; setIconBtn(bqTestBtn, "refresh", "Test connection & detect columns", 12);
+                bqStatus.textContent = "✗ " + res.error;
+                toast("BigQuery test failed — " + res.error, true);
+                return;
+              }
+              res.columns.forEach(function (c) { if (draft.columns.indexOf(c.name) < 0) draft.columns.push(c.name); });
+              if (!draft.query.trim()) { draft.query = "SELECT region,\n       SUM(revenue) AS revenue\nFROM   `dataset.sales`\nGROUP  BY region"; bqTa.value = draft.query; }
+              renderCols(); renderPreview();
+              bqTestBtn.disabled = false; setIconBtn(bqTestBtn, "refresh", "Test connection & detect columns", 12);
+              bqStatus.textContent = "✓ connected — " + res.columns.length + " column" + (res.columns.length === 1 ? "" : "s") + " detected: " +
+                res.columns.map(function (c) { return c.name + " (" + c.type + ")"; }).join(", ");
+              toast(res.columns.length + " column(s) detected from the live dataset.");
+            });
+          };
+          qSection.appendChild(bqTestBtn);
+          var bqT = dsType("bigquery");
+          var bqTa = textarea(draft.query, function (v) { draft.query = v; });
+          bqTa.className = "dsb-query"; bqTa.spellcheck = false; bqTa.placeholder = bqT.ph;
+          var bqQF = el("div", "field");
+          bqQF.appendChild(labelEl("Query"));
+          bqQF.appendChild(bqTa);
+          qSection.appendChild(bqQF);
+          detectBtn.style.display = "none";
         } else if (k === "kettle") {
           qSection.appendChild(field("Transformation file (.ktr)", input(draft.ktrPath, function (v) { draft.ktrPath = v; }, "/public/etl/my-transform.ktr")));
           qSection.appendChild(field("Output step name", input(draft.ktrStep, function (v) { draft.ktrStep = v; }, "Output")));
@@ -1580,6 +1631,10 @@
     if (draft.kind === "databricks") {
       da.dbxHost = draft.dbxHost || ""; da.dbxToken = draft.dbxToken || ""; da.dbxWarehouseId = draft.dbxWarehouseId || "";
       da.dbxCatalog = draft.dbxCatalog || ""; da.dbxSchema = draft.dbxSchema || "";
+    }
+    if (draft.kind === "bigquery") {
+      da.bqProject = draft.bqProject || ""; da.bqToken = draft.bqToken || "";
+      da.bqLocation = draft.bqLocation || ""; da.bqDataset = draft.bqDataset || "";
     }
     // remove the previous record (handles id/group rename on edit)
     if (existing) { var oe = S.catalog[existing.stem]; if (oe) oe.dataAccesses = oe.dataAccesses.filter(function (x) { return x.id !== existing.da.id; }); }
@@ -3508,6 +3563,37 @@
         });
       };
       qdx.appendChild(dbxTest2);
+    } else if (kind === "bigquery") {
+      var qbq = section(body, "BigQuery (jobs.query API)", null, null, "data-sources");
+      qbq.appendChild(field("Project id", input(da.bqProject || "", function (v) { da.bqProject = v.trim(); }, "my-analytics-project")));
+      qbq.appendChild(field("Access token", input(da.bqToken || "", function (v) { da.bqToken = v.trim(); }, "OAuth 2.0 access token")));
+      qbq.appendChild(field("Location (optional)", input(da.bqLocation || "", function (v) { da.bqLocation = v.trim(); }, "US")));
+      qbq.appendChild(field("Default dataset (optional)", input(da.bqDataset || "", function (v) { da.bqDataset = v.trim(); }, "analytics")));
+      var bqTa2 = el("textarea"); bqTa2.style.cssText = "width:100%;min-height:90px;font-family:var(--mono);font-size:11.5px;resize:vertical;box-sizing:border-box";
+      bqTa2.value = da.sql || da.query || ""; bqTa2.placeholder = "SELECT region, SUM(revenue) AS revenue FROM `dataset.sales` GROUP BY region";
+      bqTa2.addEventListener("change", function () { da.sql = bqTa2.value; da.query = bqTa2.value; });
+      qbq.appendChild(field("Query", bqTa2));
+      var bqStatus2 = el("div", "hint");
+      bqStatus2.textContent = "Calls the BigQuery jobs.query REST API directly from the browser using a short-lived OAuth access token — never a service-account key file.";
+      qbq.appendChild(bqStatus2);
+      var bqTest2 = el("button", "btn-wide"); setIconBtn(bqTest2, "refresh", "Test connection & detect columns");
+      bqTest2.onclick = function () {
+        if (!da.bqProject || !da.bqToken) { toast("Enter a project id and access token first.", true); return; }
+        bqTest2.disabled = true; bqTest2.textContent = "Testing…"; window.__bigqueryTestState = "testing";
+        bqStatus2.textContent = "Calling the BigQuery jobs.query API…";
+        Studio.BigQuery.testConnection(bqCfg(da)).then(function (res) {
+          window.__bigqueryTestState = "done";
+          if (!res.ok) {
+            bqTest2.disabled = false; setIconBtn(bqTest2, "refresh", "Test connection & detect columns");
+            bqStatus2.textContent = "✗ " + res.error; toast("BigQuery test failed — " + res.error, true); return;
+          }
+          da.columns = da.columns || [];
+          res.columns.forEach(function (c) { if (da.columns.indexOf(c.name) < 0) da.columns.push(c.name); });
+          renderInspector(); buildLibrary(); refreshPreview();
+          toast(res.columns.length + " column(s) detected from the live dataset.");
+        });
+      };
+      qbq.appendChild(bqTest2);
     }
 
     // Output columns
@@ -3658,13 +3744,15 @@
     var isSqlite = da.kind === "httpvfs";
     var isSnowflake = da.kind === "snowflake";
     var isDatabricks = da.kind === "databricks";
+    var isBigquery = da.kind === "bigquery";
     var liveBtn = null;
-    if (ac || isDuckdb || isSqlite || isSnowflake || isDatabricks) {
+    if (ac || isDuckdb || isSqlite || isSnowflake || isDatabricks || isBigquery) {
       liveBtn = el("button", "btn"); setIconBtn(liveBtn, "play", "Run live");
       liveBtn.title = isDuckdb ? "Query the live file via DuckDB-Wasm (HTTP Range Requests)" :
         isSqlite ? "Query the live file via SQLite-WASM (HTTP Range Requests)" :
         isSnowflake ? "Query the live warehouse via the Snowflake SQL API" :
-        isDatabricks ? "Query the live warehouse via the Databricks Statement Execution API" : ("Query live from " + ac.name);
+        isDatabricks ? "Query the live warehouse via the Databricks Statement Execution API" :
+        isBigquery ? "Query the live dataset via the BigQuery jobs.query API" : ("Query live from " + ac.name);
       toolbar.appendChild(liveBtn);
     }
     toolbar.appendChild(copyBtn);
@@ -3797,6 +3885,19 @@
         }).catch(function (e) {
           liveBtn.disabled = false; setIconBtn(liveBtn, "play", "Run live");
           toast("Databricks query failed — showing sample. (" + ((e && e.message) || e) + ")", true);
+          runSample();
+        });
+        return;
+      }
+      if (isBigquery) {
+        if (!da.bqProject || !da.bqToken) { liveBtn.disabled = false; setIconBtn(liveBtn, "play", "Run live"); toast("Set a project id and access token first.", true); runSample(); return; }
+        Studio.BigQuery.query(bqCfg(da), da.sql || da.query).then(function (result) {
+          state.result = result; state.source = "live"; state.page = 0;
+          liveBtn.disabled = false; setIconBtn(liveBtn, "play", "Run live");
+          renderTable(state.result, "live");
+        }).catch(function (e) {
+          liveBtn.disabled = false; setIconBtn(liveBtn, "play", "Run live");
+          toast("BigQuery query failed — showing sample. (" + ((e && e.message) || e) + ")", true);
           runSample();
         });
         return;

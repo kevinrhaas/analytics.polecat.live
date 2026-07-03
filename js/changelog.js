@@ -15,6 +15,17 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 237,
+    title: 'BigQuery connector (Z4 slice 3)',
+    kind: 'feature',
+    ts: '2026-07-03T05:39:16Z',
+    items: [
+      'New Source builder + DA inspector gain a BigQuery source type -- project id, OAuth access token, optional job location and default dataset -- following the same Test connection / Run live pattern as the Snowflake and Databricks connectors.',
+      'Calls the BigQuery jobs.query REST API directly from the browser (app/bigquery.js) -- no backend or proxy -- polling automatically while a job hasn\'t completed yet. Unlike Snowflake/Databricks, Google\'s API already sends permissive CORS headers for this endpoint, so there\'s no per-account network-policy step -- the OAuth token itself is the only gate.',
+      'New monoline bigquery icon (a magnifying glass over ascending bars); BigQuery DAs are excluded from the .cda export (not a real Pentaho source), same as duckdb/httpvfs/snowflake/databricks. Docs updated. 15 new tests, suite 1112/1112.',
+    ],
+  },
+  {
     v: 236,
     title: 'Real PNG apple-touch-icon (Z12 loose end closed)',
     kind: 'polish',
