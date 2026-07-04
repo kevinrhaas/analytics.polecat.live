@@ -1852,6 +1852,13 @@ self-explanatory. Keep it light (inline SVG / CSS, no image assets or deps). One
 > `docs/index.html` updated. 5 new tests, suite 1404/1404. **Still open:** the remaining one-off hint
 > families (legend/dots/labels/etc.) could get their own thumbs too if a future pass judges the
 > picture genuinely clearer than the prose for them.
+> ✓ **Two more families shipped v332 (extends the "still open" item above — legend/dots now also get a
+> real picture)**: `showLegend` (a mini bar chart gaining a 3-row legend key on) and `showDots` (a line
+> path gaining circle markers at each point on) join `sort`/`smooth` with the same opt-in `.opt-hint-pop`
+> Off → On popover. The tag-glyph family (`showValues`/`showLabels`/etc.) deliberately stays tooltip-only
+> — verified by a regression test — since it's a much less visual concept ("a number appears somewhere")
+> than these four. `docs/index.html` updated. 4 new tests, suite 1445/1445. **Still open:** the tag/percent/
+> rotate/etc. one-off families could still get their own thumbs if a future pass judges a picture clearer.
 
 **Z9 — Mobile: fix the broken flows + a proper bottom nav (user-requested 2026-06-30).**
 > ⚠️ **ESCALATED — see the ★★★ TOP PRIORITY — MOBILE block at the top of NEXT** (user re-reported 2026-07-02

@@ -15,6 +15,16 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 332,
+    title: 'More option toggles get a real before/after picture',
+    kind: 'polish',
+    ts: '2026-07-04T16:31:02Z',
+    items: [
+      '"Show legend" and "Show data points" join "Sort by value" and "Smooth curve" with a genuine Off → On popover picture, not just a tooltip sentence.',
+      'Hover or Tab to the small hint glyph next to either toggle in the panel inspector to see it.',
+    ],
+  },
+  {
     v: 331,
     title: '"N changes since you were last here" on recent dashboard cards',
     kind: 'feature',

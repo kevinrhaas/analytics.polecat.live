@@ -7356,6 +7356,31 @@
     }
     return '<svg viewBox="0 0 64 28" width="64" height="28" aria-hidden="true"><path d="' + d + '" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
   }
+  function svgDotsThumb(withDots) {
+    var pts = [[4, 20], [20, 10], [36, 16], [52, 6], [60, 12]];
+    var d = "M" + pts.map(function (p) { return p[0] + " " + p[1]; }).join(" L");
+    var dots = "";
+    if (withDots) pts.forEach(function (p) { dots += '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="2.4" fill="currentColor"/>'; });
+    return '<svg viewBox="0 0 64 28" width="64" height="28" aria-hidden="true"><path d="' + d + '" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity="0.75"/>' + dots + '</svg>';
+  }
+  function svgLegendThumb(withLegend) {
+    var barW = withLegend ? 8 : 12, gap = withLegend ? 3 : 4, x = 2, bars = "", vals = [16, 22, 10];
+    for (var i = 0; i < vals.length; i++) {
+      var h = vals[i], y = 26 - h;
+      bars += '<rect x="' + x + '" y="' + y + '" width="' + barW + '" height="' + h + '" rx="1.5" fill="currentColor" opacity="' + (0.5 + i * 0.2) + '"/>';
+      x += barW + gap;
+    }
+    var legend = "";
+    if (withLegend) {
+      var ly = 4;
+      for (var j = 0; j < 3; j++) {
+        legend += '<rect x="44" y="' + ly + '" width="6" height="6" rx="1" fill="currentColor" opacity="' + (0.5 + j * 0.2) + '"/>' +
+          '<rect x="53" y="' + (ly + 1.5) + '" width="9" height="3" rx="1" fill="currentColor" opacity="0.4"/>';
+        ly += 9;
+      }
+    }
+    return '<svg viewBox="0 0 64 28" width="64" height="28" aria-hidden="true">' + bars + legend + '</svg>';
+  }
   // Z8 follow-up: inline visual setting hints — a tiny SVG glyph + tooltip next to a
   // boolean option's label, so the dense per-type inspector is self-explanatory without
   // reading a chart's own docs entry. Keyed by option `key` (regex) rather than per chart
@@ -7364,9 +7389,9 @@
   // dense inspector in one pass instead of hand-authoring 51 bespoke thumbnails.
   var OPT_HINTS = [
     { test: /^sort/i,                        icon: "sort-desc", tip: "Reorders items largest-value-first instead of the query's original row order.", thumb: svgBarsThumb },
-    { test: /^showLegend$/,                  icon: "legend",    tip: "Shows a small key mapping each color/series to its label." },
+    { test: /^showLegend$/,                  icon: "legend",    tip: "Shows a small key mapping each color/series to its label.", thumb: svgLegendThumb },
     { test: /^smooth$/,                      icon: "curve",     tip: "Draws curved (cubic-bezier) segments between points instead of straight lines.", thumb: svgLineThumb },
-    { test: /^showDots$/,                    icon: "dots",      tip: "Shows a small marker dot at every data point along the line." },
+    { test: /^showDots$/,                    icon: "dots",      tip: "Shows a small marker dot at every data point along the line.", thumb: svgDotsThumb },
     { test: /^showValues$/,                  icon: "tag",       tip: "Shows the number directly on the chart (bar/segment/point), not just in the hover tooltip." },
     { test: /^showLabels$/,                  icon: "tag",       tip: "Shows a text label directly on each element, not just in the hover tooltip." },
     { test: /^showPct$/,                     icon: "percent",   tip: "Shows the figure as a percentage (of the total, or conversion rate) rather than its raw value." },

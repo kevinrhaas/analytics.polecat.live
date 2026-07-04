@@ -15822,7 +15822,23 @@ function serve() {
           var paths = [].slice.call(lineSmooth[0].querySelectorAll(".opt-hint-pop path")).map(function (e) { return e.getAttribute("d"); });
           return paths.length === 2 && paths[0] !== paths[1] && paths[1].indexOf("C") >= 0 && paths[0].indexOf("C") < 0;
         })(),
-        legendHintHasNoPopover: donutLegend.length === 1 && !donutLegend[0].querySelector(".opt-hint-pop")
+        legendHintHasPopover: donutLegend.length === 1 && !!donutLegend[0].querySelector(".opt-hint-pop"),
+        legendPopoverHasTwoSvgs: donutLegend.length === 1 && donutLegend[0].querySelectorAll(".opt-hint-pop svg").length === 2,
+        legendPopoverOnHasMoreRects: donutLegend.length === 1 && (function () {
+          var svgs = donutLegend[0].querySelectorAll(".opt-hint-pop svg");
+          if (svgs.length !== 2) return false;
+          return svgs[1].querySelectorAll("rect").length > svgs[0].querySelectorAll("rect").length;
+        })(),
+        dotsHintHasPopover: lineDots.length === 1 && !!lineDots[0].querySelector(".opt-hint-pop"),
+        dotsPopoverHasTwoSvgs: lineDots.length === 1 && lineDots[0].querySelectorAll(".opt-hint-pop svg").length === 2,
+        dotsPopoverOnHasCircles: lineDots.length === 1 && (function () {
+          var svgs = lineDots[0].querySelectorAll(".opt-hint-pop svg");
+          if (svgs.length !== 2) return false;
+          return svgs[0].querySelectorAll("circle").length === 0 && svgs[1].querySelectorAll("circle").length === 5;
+        })(),
+        // A family that deliberately still has NO thumb (proves the opt-in stays selective,
+        // not a blanket change) — the tag-glyph family (showValues et al.) is the control.
+        tagHintHasNoPopover: barsValues.length === 1 && !barsValues[0].querySelector(".opt-hint-pop")
       };
       p.chart = prevChart;
       window.__studioSelect(null);
@@ -15860,7 +15876,11 @@ function serve() {
     ok("'Sort by value' popover labels its two pictures Off/On", optHintUI.sortPopoverHasOffOnLabels, JSON.stringify(optHintUI));
     ok("'Smooth curve' hint popover shows a real before/after picture (two SVGs)", optHintUI.smoothHintHasPopover && optHintUI.smoothPopoverHasTwoSvgs, JSON.stringify(optHintUI));
     ok("'Smooth curve' popover's On picture is an actual curved path, Off is a straight polyline", optHintUI.smoothPopoverPathsDiffer, JSON.stringify(optHintUI));
-    ok("Hint families without a thumb (e.g. 'Show legend') stay tooltip-only, no popover added", optHintUI.legendHintHasNoPopover, JSON.stringify(optHintUI));
+    ok("'Show legend' hint popover shows a real before/after picture (two SVGs)", optHintUI.legendHintHasPopover && optHintUI.legendPopoverHasTwoSvgs, JSON.stringify(optHintUI));
+    ok("'Show legend' popover's On picture draws a legend key, Off doesn't", optHintUI.legendPopoverOnHasMoreRects, JSON.stringify(optHintUI));
+    ok("'Show data points' hint popover shows a real before/after picture (two SVGs)", optHintUI.dotsHintHasPopover && optHintUI.dotsPopoverHasTwoSvgs, JSON.stringify(optHintUI));
+    ok("'Show data points' popover's On picture draws dot markers, Off doesn't", optHintUI.dotsPopoverOnHasCircles, JSON.stringify(optHintUI));
+    ok("Hint families without a thumb (e.g. tag-glyph 'Show value labels') stay tooltip-only, no popover added", optHintUI.tagHintHasNoPopover, JSON.stringify(optHintUI));
 
     // ---- Track N: command palette (⌘K / Ctrl-K) ----
     console.log("\n• Track N: command palette (⌘K)");
