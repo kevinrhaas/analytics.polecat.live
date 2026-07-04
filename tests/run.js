@@ -12523,6 +12523,42 @@ function serve() {
     ok("Dashboard theme: exported HTML carries Editorial's light token overrides", edAppliedOk.lightVar, JSON.stringify(edAppliedOk));
     ok("Dashboard theme: exported HTML carries Editorial's dark token overrides", edAppliedOk.darkVar, JSON.stringify(edAppliedOk));
 
+    // N-DESIGN "a few stunning presets" — a fifth dashboard-theme mood, Neon (near-black synthwave
+    // panels + electric cyan/magenta accents, header/sidebar stay near-black in BOTH light and dark
+    // mode). Same registry/apply pattern as the checks above, just for the new key.
+    var neRegistryOk = await page.evaluate(function () {
+      var dt = window.Studio.DASHBOARD_THEMES;
+      var ne = dt && dt.filter(function (t) { return t.key === "neon"; })[0];
+      var needed = ["--pentaho", "--pdc", "--app-bg", "--panel-bg", "--text-primary", "--c1", "--c10"];
+      var hasAll = ne && needed.every(function (k) { return ne.light[k] && ne.dark[k]; });
+      return { ok: !!ne && hasAll, appBgLight: ne && ne.light["--app-bg"], appBgDark: ne && ne.dark["--app-bg"], sidebarLight: ne && ne.light["--sidebar-bg"] };
+    });
+    ok("Dashboard theme: Studio.DASHBOARD_THEMES has a 'neon' entry with full light/dark token sets",
+      neRegistryOk.ok, JSON.stringify(neRegistryOk));
+    ok("Dashboard theme: 'Neon' keeps the header/sidebar near-black even in light mode (distinct from every prior theme)",
+      neRegistryOk.appBgLight === "#fafafa" && neRegistryOk.appBgDark === "#050507" && neRegistryOk.sidebarLight === "#000000", JSON.stringify(neRegistryOk));
+
+    await page.evaluate(function () {
+      var row = document.getElementById("dashThemeRow");
+      var btn = row && Array.from(row.querySelectorAll("button[data-dashboard-theme]")).find(function (b) {
+        return b.getAttribute("data-dashboard-theme") === "neon";
+      });
+      if (btn) btn.click();
+    });
+    await page.waitForTimeout(300);
+    var neAppliedOk = await page.evaluate(function () {
+      var spec = window.__STUDIO_STATE.spec;
+      var html = window.Studio.buildHtml(spec, window.__STUDIO_STATE.assets, { deployPath: "/x", preview: false });
+      return {
+        specKey: spec.dashboardTheme,
+        lightVar: html.indexOf("--app-bg:#fafafa") !== -1 && html.indexOf("--pentaho:#0891b2") !== -1,
+        darkVar: html.indexOf("[data-theme='dark']") !== -1 && html.indexOf("--app-bg:#050507") !== -1
+      };
+    });
+    ok("Dashboard theme: clicking 'Neon' sets spec.dashboardTheme", neAppliedOk.specKey === "neon", JSON.stringify(neAppliedOk));
+    ok("Dashboard theme: exported HTML carries Neon's light token overrides", neAppliedOk.lightVar, JSON.stringify(neAppliedOk));
+    ok("Dashboard theme: exported HTML carries Neon's dark token overrides", neAppliedOk.darkVar, JSON.stringify(neAppliedOk));
+
     // Track L follow-up (found while screenshotting Editorial): vendor/pdc-ui.css's .pdc-header
     // banner gradient had its SECOND stop hardcoded (#163a6e) — every non-Classic dashboardTheme
     // recolored only the gradient's start, leaving a stray navy sliver at the other end. Fixed
@@ -12545,6 +12581,9 @@ function serve() {
       spec.dashboardTheme = "editorial";
       var edHtml = window.Studio.buildHtml(spec, window.__STUDIO_STATE.assets, { deployPath: "/x", preview: false });
       out.editorialOwnStop = edHtml.indexOf("--header-bg-2:#3a3024") !== -1 && edHtml.indexOf("--header-bg-2:#1f1710") !== -1;
+      spec.dashboardTheme = "neon";
+      var neHtml = window.Studio.buildHtml(spec, window.__STUDIO_STATE.assets, { deployPath: "/x", preview: false });
+      out.neonOwnStop = neHtml.indexOf("--header-bg-2:#180022") !== -1 && neHtml.indexOf("--header-bg-2:#14001a") !== -1;
       spec.dashboardTheme = "";
       return out;
     });
@@ -12556,6 +12595,8 @@ function serve() {
       headerGradientOk.highContrastOwnStop, JSON.stringify(headerGradientOk));
     ok("Header banner gradient: Editorial carries its own light+dark second-stop color",
       headerGradientOk.editorialOwnStop, JSON.stringify(headerGradientOk));
+    ok("Header banner gradient: Neon carries its own light+dark second-stop color",
+      headerGradientOk.neonOwnStop, JSON.stringify(headerGradientOk));
 
     // revert back to classic so later tests (which assume the default look) aren't affected
     await page.evaluate(function () {

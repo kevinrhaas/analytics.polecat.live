@@ -2138,6 +2138,38 @@
         "--c1": "#c96a3f", "--c2": "#2a9c89", "--c3": "#b8842a", "--c4": "#3f9c58", "--c5": "#a3577d",
         "--c6": "#4a86c2", "--c7": "#c96f3a", "--c8": "#b8597a", "--c9": "#4fa066", "--c10": "#b8863f"
       }
+    },
+    // N-DESIGN "a few stunning presets" — third alternate mood: "Neon," a near-black-and-white
+    // synthwave/cyberpunk look (electric cyan + magenta brand accents on true near-black panels)
+    // for a completely different energy than Fleet Modern's cool corporate blue, High Contrast's
+    // stark black/white, or Editorial's warm paper-and-ink. Header/sidebar stay near-black in
+    // BOTH light and dark mode (same convention Fleet Modern already uses) so the brand strip
+    // always reads "neon on black" even when the panels themselves are light. Its own 10-color
+    // series ramp re-validated against the #fafafa (light) / #050507 (dark) surfaces it actually
+    // uses via the dataviz skill's validate_palette.js — dark: all six checks PASS outright;
+    // light: all six checks PASS with one legal WARN-band contrast slot (green), mitigated the
+    // same way every other theme's WARN slot is — the app already ships direct-value labels.
+    { key: "neon", label: "Neon", swatch: "#0891b2",
+      light: {
+        "--pentaho": "#0891b2", "--pdc": "#c2185b",
+        "--app-bg": "#fafafa", "--panel-bg": "#ffffff", "--panel-border": "#e2dfea",
+        "--panel-subtle-bg": "#f1eff7", "--panel-header-bg": "#f1eff7", "--panel-header-border": "#e2dfea",
+        "--field-bg": "#ffffff", "--field-border": "#e2dfea",
+        "--text-primary": "#14101d", "--text-muted": "#4f4a63", "--text-faint": "#6f6885",
+        "--sidebar-bg": "#000000", "--header-bg": "#000000", "--header-bg-2": "#180022", "--grid-line": "#e9e6f0", "--axis": "#6f6885",
+        "--c1": "#0d6efd", "--c2": "#00a86b", "--c3": "#b8860b", "--c4": "#7b2fbf", "--c5": "#0e8a7a",
+        "--c6": "#e0342a", "--c7": "#c2298a", "--c8": "#d1650c", "--c9": "#2f5fb0", "--c10": "#a8461f"
+      },
+      dark: {
+        "--pentaho": "#22d3ee", "--pdc": "#ff3fd0",
+        "--app-bg": "#050507", "--panel-bg": "#0d0d13", "--panel-border": "#26232f",
+        "--panel-subtle-bg": "#131018", "--panel-header-bg": "#131018", "--panel-header-border": "#26232f",
+        "--field-bg": "#0d0d13", "--field-border": "#26232f",
+        "--text-primary": "#f5f3fb", "--text-muted": "#a9a3c0", "--text-faint": "#7a7492",
+        "--sidebar-bg": "#000000", "--header-bg": "#000000", "--header-bg-2": "#14001a", "--grid-line": "#1c1826", "--axis": "#7a7492",
+        "--c1": "#1e96e8", "--c2": "#009c58", "--c3": "#c1811f", "--c4": "#9b5fe0", "--c5": "#0da090",
+        "--c6": "#f0524a", "--c7": "#e0479c", "--c8": "#d1650c", "--c9": "#3f6fc2", "--c10": "#c0632f"
+      }
     }
   ];
 

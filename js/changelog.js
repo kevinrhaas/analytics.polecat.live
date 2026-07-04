@@ -15,6 +15,16 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 338,
+    title: 'New "Neon" dashboard theme',
+    kind: 'feature',
+    ts: '2026-07-04T18:37:04Z',
+    items: [
+      'A fifth whole-look Dashboard theme joins the picker: Neon, a synthwave mood with near-black panels and electric cyan/magenta accents.',
+      'Its own colorblind-safe series palette, validated for both light and dark preview. The banner and sidebar stay near-black in both modes for one consistent "neon on black" identity.',
+    ],
+  },
+  {
     v: 337,
     title: 'New "Editorial" dashboard theme, plus a banner-color fix for the others',
     kind: 'feature',

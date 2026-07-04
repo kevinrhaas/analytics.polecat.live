@@ -1014,6 +1014,9 @@
   theme (`vendor/pdc-ui.css`'s `.pdc-header` gradient had a hardcoded second stop, leaving a stray
   navy sliver on Fleet Modern/High Contrast banners) with a themeable `--header-bg-2`. 7 new tests,
   suite 1464/1464. (v336, a concurrent run's Track H topbar-grouping polish, interleaved here too.)
+- v338: **N-DESIGN: "Neon" dashboard theme** — a fifth `Studio.DASHBOARD_THEMES` preset (synthwave
+  mood, near-black panels + cyan/magenta accents, header/sidebar stay near-black in both light and
+  dark app mode); own `dataviz`-validated series palette. 6 new tests, suite 1476/1476.
 
 ## NEXT (top = do first)
 
@@ -3200,6 +3203,23 @@ gets covered over time:
 > Fleet Modern, High Contrast, and Editorial now read as one coherent color end-to-end instead of
 > a mismatched navy sliver). 7 new tests, suite 1464/1464. **Still open:** a "Neon" preset and true
 > author/share custom themes.
+> ✓ **"Neon" dashboard theme shipped v338 (third of the "a few stunning presets" idea — closes that
+> "still open" item)**: a fifth `Studio.DASHBOARD_THEMES` entry — a synthwave/cyberpunk mood, near-
+> black panels (`#050507` dark bg / `#fafafa` light bg) with electric cyan (`#22d3ee`/`#0891b2`) and
+> magenta (`#ff3fd0`/`#c2185b`) brand accents. Unlike every prior theme, the header/sidebar stay
+> near-black in BOTH light AND dark app mode (not just dark) — pushes the "keep header/sidebar dark
+> regardless of mode" convention Fleet Modern established further, so "neon on black" reads as one
+> consistent identity no matter the app's own light/dark toggle. Its own 10-color series ramp
+> validated against the exact `#fafafa`/`#050507` surfaces it uses via the `dataviz` skill's
+> `validate_palette.js` — dark: all six checks PASS outright; light: all six PASS with one legal
+> WARN-band contrast slot (green), mitigated the same way every other theme's WARN slot is (the app
+> already ships direct-value labels). Visually verified via screenshot (live preview in both light
+> and dark app mode against a real 6-panel example, using the preview's own in-iframe theme toggle
+> so the dashboardTheme's dark variant actually renders, not just the app chrome's) — the dark shot
+> shows true near-black panels with vivid cyan bars and a magenta accent badge, distinct from Fleet
+> Modern's blue-gray, High Contrast's stark black/white, and Editorial's warm cream. 6 new tests
+> (registry/apply/header-gradient, same pattern as Fleet Modern/High Contrast/Editorial). Suite
+> 1476/1476. **Still open:** true author/share custom themes.
 
 **N-DEV — Power-user & authoring.**
 - **Live JSON spec editor:** ✓ shipped v267, see below.
