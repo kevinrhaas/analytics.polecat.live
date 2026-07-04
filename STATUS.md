@@ -1582,6 +1582,31 @@ chart options / derived series / KPI computations. Keep it light (vanilla-JS mat
 > **Still open:** seasonal trend lines (the "-Winters" part of Holt-Winters), extending trend/forecast to
 > bars/stacked/combo, and the statistical-functions half (regression beyond scatter's existing trend line,
 > percentiles, z-scores, correlation, distributions) as KPI computations.
+> ✓ **Doc correction (2026-07-04):** the "seasonal trend lines" half of the note above was stale —
+> Holt-Winters (`holtWintersOf()` in `app/studio-charts.js`, a `trendMethod:"hw"` choice alongside
+> `linear`/`holt`, with `gamma`/`seasonLength` fields) was already implemented and tested (search
+> `Z7HW2` in `tests/run.js`) in an earlier slice that never updated this specific note. Genuinely
+> still open: extending ANY trend/forecast overlay (linear/Holt/Holt-Winters alike) beyond the Line
+> chart to bars/stacked/combo — today `showTrend`/`trendMethod` only exist in `Studio.CHARTS.line.opts`.
+> ⚠️→✓ **Real bug found + fixed while starting that extension (2026-07-04):** every Z7HW/Z7TR test
+> above calls `PDC.line(...)` directly on a scratch element, bypassing `studio-render.js`'s actual
+> `renderPanel()` dispatch — the ONLY render path for both the live preview and every real export
+> (`Studio.CHARTS` itself is never inlined here, see the v214 note in the DONE log). That dispatch's
+> `"line"` case only ever forwarded `showTrend`/`forecastPeriods`, NOT `trendMethod`/`alpha`/`beta`/
+> `gamma`/`seasonLength` — so picking "Seasonal (Holt-Winters)" (or any Holt tuning) in the real
+> inspector silently rendered plain linear OLS regardless, on every dashboard, since Holt shipped in
+> v199. Confirmed live (not just by reading code): reverting the fix reproduced a 2-point straight
+> line with `trendMethod:"hw"` set; the fix produces a genuine multi-segment seasonal fit. Fixed by
+> passing the missing fields through. **Extended the Line chart's trend overlay to Combo** in the
+> same slice (closes the "combo" part of the "still open" note above — hoisted `trendOf`/`holtOf`/
+> `holtWintersOf` out of `_lineOpts` to module scope first so Combo reuses the identical math rather
+> than a second copy, the same "one source of truth" lesson v304 applied elsewhere): a **Show trend
+> line** toggle + Forecast method/alpha/beta/gamma/seasonLength on Combo's own line series, fitted
+> over the real data only (no forecast tail yet — Combo's fixed-width bars leave no room to widen
+> without their own follow-up). New regression tests drive the REAL inspector controls / a REAL
+> panel + preview iframe (not a direct `PDC.line`/`PDC.combo` call) specifically so this class of
+> dispatch gap can't silently regress again. 6 new tests, suite 1412/1412. **Still open:** bars/
+> stacked, and a forecast tail for Combo.
 > ✓ **Slice 4 shipped v204 — statistical KPI computations, first cut**: KPI inspector gets an
 > **Aggregation** picker (First row / Sum / Average / Median / Min / Max / P90 / P95 / Std deviation);
 > non-default choices recompute the tile's value across every row the bound query returns instead of only

@@ -15,6 +15,17 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 325,
+    title: 'Fix: Holt-Winters forecasting was silently ignored outside the builder',
+    kind: 'fix',
+    ts: '2026-07-04T14:25:17Z',
+    items: [
+      'Picking "Seasonal (Holt-Winters)" (or Exponential smoothing / any alpha-beta-gamma tuning) as a Line chart\'s Forecast method has silently rendered plain linear regression instead, on every dashboard, since Holt-Winters shipped -- the actual render path used by both the live preview and every export never passed those settings through.',
+      'Fixed: the trend line now genuinely reflects whichever forecast method and smoothing values you pick.',
+      'Also extended trend/forecast lines to the Bar + line (Combo) chart\'s own line series, sharing the exact same fitting math as the Line chart.',
+    ],
+  },
+  {
     v: 324,
     title: 'N-DATA: Checks now catches a broken Detail-drawer target (dashboard health score)',
     kind: 'fix',

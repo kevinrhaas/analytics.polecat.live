@@ -511,9 +511,19 @@
                      values: colVals(res, s.col).map(function (v) { return +v || 0; }) };
           });
           if (ch.type === "line")
+            // Bug fix (found auditing the Z7 forecasting track): trendMethod/alpha/beta/gamma/
+            // seasonLength were declared in Studio.CHARTS.line.opts and editable in the inspector,
+            // but this dispatch — the ONLY render path for both the live preview and every real
+            // export (Studio itself is never inlined here, see the v214 note above) — never passed
+            // them through. showTrend/forecastPeriods DID make it across, so the trend line still
+            // appeared, but it silently rendered as plain OLS linear no matter what "Forecast
+            // method" was picked, and any alpha/beta/gamma/seasonLength tuning was ignored — the
+            // Holt / Holt-Winters options have been dead on arrival outside the Studio-only test
+            // harness (which calls PDC.line directly) since they shipped.
             PDC.line(body, { area: o.area !== false, smooth: !!o.smooth, showDots: o.showDots !== false,
               showMA: !!o.showMA, maWindow: o.maWindow,
-              showTrend: !!o.showTrend, forecastPeriods: o.forecastPeriods,
+              showTrend: !!o.showTrend, forecastPeriods: o.forecastPeriods, trendMethod: o.trendMethod,
+              alpha: o.alpha, beta: o.beta, gamma: o.gamma, seasonLength: o.seasonLength,
               fmt: f, height: o.height || 300, labels: labels, series: series });
           else if (ch.type === "areaStacked")
             PDC.areaStacked(body, { smooth: !!o.smooth, legend: o.showLegend !== false,
@@ -533,6 +543,8 @@
           break;
         case "combo":
           PDC.combo(body, { height: o.height || 300, fmt: f, fmt2: fmt(o.fmt2),
+            showTrend: !!o.showTrend, trendMethod: o.trendMethod,
+            alpha: o.alpha, beta: o.beta, gamma: o.gamma, seasonLength: o.seasonLength,
             labels: colVals(res, m.labelCol).map(String),
             bars: { name: m.barCol, color: color(o.color, "--pentaho"), values: colVals(res, m.barCol) },
             line: { name: m.lineCol, color: color(o.lineColor, "--pdc"), values: colVals(res, m.lineCol) } });

@@ -779,6 +779,18 @@
         { key: "fmt2",      type: "fmt",   label: "Line (right) format", def: "abbr" },
         { key: "lineColor", type: "color", label: "Line color", def: "--pdc" },
         { key: "color",     type: "color", label: "Bar color", def: "--pentaho" },
+        // Z7 follow-up: extend the Line chart's trend-line overlay to Combo's own line
+        // series (closes part of the "extending trend/forecast to bars/stacked/combo"
+        // backlog note) — a fitted read over the real data only, no forecast tail yet
+        // (see app/studio-charts.js's _combo for why). Same field set/labels as Line's,
+        // minus forecastPeriods.
+        { key: "showTrend", type: "bool", label: "Show trend line (on the line series)", def: false },
+        { key: "trendMethod", type: "select", label: "Forecast method", def: "linear",
+          choices: [["linear", "Linear trend (OLS)"], ["holt", "Exponential smoothing (Holt)"], ["hw", "Seasonal (Holt-Winters)"]] },
+        { key: "alpha", type: "range", label: "Smoothing level α (%, Holt/Holt-Winters only)", def: 30, min: 0, max: 100, step: 5, suffix: "%" },
+        { key: "beta",  type: "range", label: "Smoothing trend β (%, Holt/Holt-Winters only)", def: 10, min: 0, max: 100, step: 5, suffix: "%" },
+        { key: "gamma", type: "range", label: "Smoothing seasonality γ (%, Holt-Winters only)", def: 20, min: 0, max: 100, step: 5, suffix: "%" },
+        { key: "seasonLength", type: "range", label: "Season length (points, Holt-Winters only)", def: 4, min: 2, max: 12, step: 1 },
         { key: "height",    type: "int",   label: "Height (px)", def: 300 }
       ],
       cde: null // CDF-only (no clean single CCC equivalent)

@@ -169,6 +169,66 @@
     }));
   }
 
+  /* ── Shared forecasting math (Z7) ────────────────────────────────────────────
+     Hoisted out of _lineOpts (where these three were first written, one series
+     at a time) so _combo's line series can reuse the exact same fitting math
+     instead of a second hand-copied implementation drifting out of sync with
+     it — the same "one source of truth" lesson the v304 Track L sweep applied
+     to computeInsights/notablePoint. Pure functions of their arguments only, so
+     hoisting to module scope changes nothing about their behavior. */
+  // Ordinary least-squares linear regression (y = slope·x + intercept) over an
+  // evenly-spaced series (x = point index).
+  function trendOf(vals) {
+    var sx = 0, sy = 0, sxy = 0, sxx = 0, m = vals.length;
+    vals.forEach(function (v, i) { var x = i, y = +v || 0; sx += x; sy += y; sxy += x * y; sxx += x * x; });
+    var denom = (m * sxx - sx * sx) || 1;
+    var slope = (m * sxy - sx * sy) / denom, intercept = (sy - slope * sx) / m;
+    return { slope: slope, intercept: intercept };
+  }
+  // Holt's linear (double exponential smoothing) — a level that tracks the
+  // smoothed series plus a smoothed trend, updated one point at a time.
+  // `fitted` is the smoothed line over the real data (reacts to recent moves,
+  // unlike the single straight OLS line); `level`/`trend` at the end are then
+  // walked forward for a forecast tail (level + m*trend) by the caller.
+  function holtOf(vals, alpha, beta) {
+    var n = vals.length, fitted = new Array(n);
+    var level = +vals[0] || 0, trend = n > 1 ? ((+vals[1] || 0) - level) : 0;
+    fitted[0] = level;
+    for (var i = 1; i < n; i++) {
+      var val = +vals[i] || 0, prevLevel = level;
+      level = alpha * val + (1 - alpha) * (level + trend);
+      trend = beta * (level - prevLevel) + (1 - beta) * trend;
+      fitted[i] = level;
+    }
+    return { fitted: fitted, level: level, trend: trend };
+  }
+  // Holt-Winters additive seasonality — the "-Winters" part Holt (above) doesn't
+  // cover. Adds a repeating seasonal offset on top of Holt's level+trend, so
+  // e.g. a monthly series with a December spike projects that spike again next
+  // December instead of just extrapolating the smoothed slope through it. Needs
+  // at least two full seasons of real data to estimate initial seasonal
+  // indices; with less than that it falls back to plain Holt (no seasonality).
+  function holtWintersOf(vals, alpha, beta, gamma, L) {
+    var n = vals.length;
+    if (L < 2 || n < L * 2) return holtOf(vals, alpha, beta);
+    var season = new Array(L);
+    var avg1 = 0, avg2 = 0, i;
+    for (i = 0; i < L; i++) avg1 += (+vals[i] || 0); avg1 /= L;
+    for (i = L; i < L * 2; i++) avg2 += (+vals[i] || 0); avg2 /= L;
+    var trend = (avg2 - avg1) / L;
+    var level = avg1;
+    for (i = 0; i < L; i++) season[i] = (+vals[i] || 0) - avg1;
+    var fitted = new Array(n);
+    for (i = 0; i < n; i++) {
+      var val = +vals[i] || 0, s = season[i % L], prevLevel = level;
+      fitted[i] = level + trend + s;
+      level = alpha * (val - s) + (1 - alpha) * (level + trend);
+      trend = beta * (level - prevLevel) + (1 - beta) * trend;
+      season[i % L] = gamma * (val - level) + (1 - gamma) * s;
+    }
+    return { fitted: fitted, level: level, trend: trend, season: season, seasonLen: L };
+  }
+
   /* ---------- combo: bars (left axis) + line (right axis) ---------- */
   PDC.combo = function (el, cfg) { reg(el, function () { _combo(el, cfg); }); };
   function _combo(el, cfg) {
@@ -198,6 +258,29 @@
     var d = lv.map(function (v, i) { return (i ? "L" : "M") + xc(i) + "," + ys2(v); }).join(" ");
     var lp = S("path", { d: d, fill: "none", stroke: lcol, "stroke-width": 2.4, "stroke-linejoin": "round" }); s.appendChild(lp); lineEls.push(lp);
     lv.forEach(function (v, i) { var c = S("circle", { cx: xc(i), cy: ys2(v), r: 3.2, fill: lcol, stroke: PDC.cssvar("--panel-bg"), "stroke-width": 1.4 }); s.appendChild(c); lineEls.push(c); });
+    // Z7 follow-up: extend the Line chart's trend-line overlay (linear / Holt /
+    // Holt-Winters, shared math above) to Combo's own line series — reads on the
+    // SAME right-axis scale (ys2) as the real line, immediately above/below it.
+    // Deliberately a smoothed/fitted read over the real data only, no forecast
+    // tail yet (Combo's fixed-width bars leave no room to widen for one without
+    // its own follow-up slice) — narrower in scope than the Line chart's version.
+    if (cfg.showTrend && lv.length > 1) {
+      var comboTrendMethod = cfg.trendMethod === "holt" ? "holt" : (cfg.trendMethod === "hw" ? "hw" : "linear");
+      var cAlpha = Math.min(1, Math.max(.01, (+cfg.alpha || 30) / 100)), cBeta = Math.min(1, Math.max(.01, (+cfg.beta || 10) / 100));
+      var cGamma = Math.min(1, Math.max(.01, (+cfg.gamma || 20) / 100)), cSeasonLen = Math.max(2, Math.floor(+cfg.seasonLength || 4));
+      var ctr = comboTrendMethod === "hw" ? holtWintersOf(lv, cAlpha, cBeta, cGamma, cSeasonLen) :
+        comboTrendMethod === "holt" ? holtOf(lv, cAlpha, cBeta) : trendOf(lv);
+      var trendD;
+      if (comboTrendMethod === "holt" || comboTrendMethod === "hw") {
+        trendD = ctr.fitted.map(function (v, i) { return (i ? "L" : "M") + xc(i) + "," + ys2(v); }).join(" ");
+      } else {
+        trendD = "M" + xc(0) + "," + ys2(ctr.intercept) + " L" + xc(lv.length - 1) + "," + ys2(ctr.intercept + ctr.slope * (lv.length - 1));
+      }
+      var comboTrendPath = S("path", { d: trendD, fill: "none", stroke: lcol, "stroke-width": 1.6, "stroke-dasharray": "8,3", opacity: .55, class: "trend-line" });
+      var comboMethodLabel = comboTrendMethod === "hw" && ctr.season ? "Holt-Winters (seasonal)" : comboTrendMethod === "hw" ? "Holt smoothing (not enough data for a season)" : comboTrendMethod === "holt" ? "Holt smoothing" : "trend";
+      _tip(comboTrendPath, (line.name || "Line") + " " + comboMethodLabel);
+      s.appendChild(comboTrendPath); lineEls.push(comboTrendPath);
+    }
     if (cfg.legend !== false) _toggleLegend(el, [
       { name: bars.name || "Bars", color: bcol, els: barEls, base: "1" },
       { name: line.name || "Line", color: lcol, els: lineEls, base: "1" }
@@ -3045,57 +3128,6 @@
     // than the projection overlapping existing data).
     var fcN = (cfg.showTrend && (+cfg.forecastPeriods || 0) > 0) ? Math.max(0, Math.floor(+cfg.forecastPeriods)) : 0;
     var totalSpan = n - 1 + fcN;
-    function trendOf(vals) {
-      var sx = 0, sy = 0, sxy = 0, sxx = 0, m = vals.length;
-      vals.forEach(function (v, i) { var x = i, y = +v || 0; sx += x; sy += y; sxy += x * y; sxx += x * x; });
-      var denom = (m * sxx - sx * sx) || 1;
-      var slope = (m * sxy - sx * sy) / denom, intercept = (sy - slope * sx) / m;
-      return { slope: slope, intercept: intercept };
-    }
-    // Z7 forecasting slice 3: Holt's linear (double exponential smoothing) — a level
-    // that tracks the smoothed series plus a smoothed trend, updated one point at a
-    // time. `fitted` is the smoothed line over the real data (reacts to recent moves,
-    // unlike the single straight OLS line); `level`/`trend` at the end are then walked
-    // forward for the forecast tail (level + m*trend), same shape as Holt's classic
-    // no-seasonality forecast.
-    function holtOf(vals, alpha, beta) {
-      var n = vals.length, fitted = new Array(n);
-      var level = +vals[0] || 0, trend = n > 1 ? ((+vals[1] || 0) - level) : 0;
-      fitted[0] = level;
-      for (var i = 1; i < n; i++) {
-        var val = +vals[i] || 0, prevLevel = level;
-        level = alpha * val + (1 - alpha) * (level + trend);
-        trend = beta * (level - prevLevel) + (1 - beta) * trend;
-        fitted[i] = level;
-      }
-      return { fitted: fitted, level: level, trend: trend };
-    }
-    // Z7 stretch: Holt-Winters additive seasonality — the "-Winters" part Holt (above)
-    // doesn't cover. Adds a repeating seasonal offset on top of Holt's level+trend, so
-    // e.g. a monthly series with a December spike projects that spike again next
-    // December instead of just extrapolating the smoothed slope through it. Needs at
-    // least two full seasons of real data to estimate initial seasonal indices; with
-    // less than that it falls back to plain Holt (no seasonality) rather than guessing.
-    function holtWintersOf(vals, alpha, beta, gamma, L) {
-      var n = vals.length;
-      if (L < 2 || n < L * 2) return holtOf(vals, alpha, beta);
-      var season = new Array(L);
-      var avg1 = 0, avg2 = 0, i;
-      for (i = 0; i < L; i++) avg1 += (+vals[i] || 0); avg1 /= L;
-      for (i = L; i < L * 2; i++) avg2 += (+vals[i] || 0); avg2 /= L;
-      var trend = (avg2 - avg1) / L;
-      var level = avg1;
-      for (i = 0; i < L; i++) season[i] = (+vals[i] || 0) - avg1;
-      var fitted = new Array(n);
-      for (i = 0; i < n; i++) {
-        var val = +vals[i] || 0, s = season[i % L], prevLevel = level;
-        fitted[i] = level + trend + s;
-        level = alpha * (val - s) + (1 - alpha) * (level + trend);
-        trend = beta * (level - prevLevel) + (1 - beta) * trend;
-        season[i % L] = gamma * (val - level) + (1 - gamma) * s;
-      }
-      return { fitted: fitted, level: level, trend: trend, season: season, seasonLen: L };
-    }
     var trendMethod = cfg.trendMethod === "holt" ? "holt" : (cfg.trendMethod === "hw" ? "hw" : "linear");
     var alpha = Math.min(1, Math.max(.01, (+cfg.alpha || 30) / 100)), beta = Math.min(1, Math.max(.01, (+cfg.beta || 10) / 100));
     var gamma = Math.min(1, Math.max(.01, (+cfg.gamma || 20) / 100)), seasonLen = Math.max(2, Math.floor(+cfg.seasonLength || 4));

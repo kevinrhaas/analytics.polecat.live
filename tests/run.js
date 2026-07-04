@@ -5301,6 +5301,61 @@ function serve() {
     });
     ok("F8: combo chart has a clickable toggle legend with Bars + Line chips", f8Combo.hasLegend && f8Combo.chips === 2, JSON.stringify(f8Combo));
 
+    // Z7 follow-up: extend the Line chart's trend-line overlay to Combo's own line series
+    // (closes part of the "extending trend/forecast to bars/stacked/combo" backlog note).
+    // Drives the REAL studio-render.js dispatch (window.__studioLoad + __waitForPreview, same
+    // as the F8 combo test above) rather than calling PDC.combo directly — the Z7HW dispatch
+    // bug found and fixed this same run (studio-render.js's "line" case silently dropped
+    // trendMethod/alpha/beta/gamma/seasonLength) makes this end-to-end check worth its own
+    // dedicated coverage rather than trusting a scratch-element unit call alone.
+    const comboTrend = await page.evaluate(async () => {
+      const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json());
+      var d = spec.cda.dataAccesses.find((x) => x.id === "cost_trend") || spec.cda.dataAccesses[1];
+      spec.kpis = []; spec.filters = [];
+      spec.panels = [{ id: "f8ct", title: "ComboTrend", span: "full", chart: {
+        type: "combo", da: d.id,
+        map: { labelCol: d.columns[0], barCol: d.columns[1], lineCol: d.columns[d.columns.length - 1] },
+        opts: { height: 260 }
+      } }];
+      window.__studioLoad(spec);
+      // Wait for the combo's own toggle legend (added at the very end of _combo(), after any
+      // trend line) rather than just the panel title text — the title can paint before the
+      // chart body's own synchronous render call has actually run, which raced and produced
+      // false negatives here until this fix.
+      var doc = await window.__waitForPreview((dd) => !!dd.querySelector(".lgi-toggle"));
+      var offTrend = doc.querySelector(".trend-line");
+      // Now flip showTrend on (linear default) and reload the same spec
+      spec.panels[0].chart.opts.showTrend = true;
+      window.__studioLoad(spec);
+      doc = await window.__waitForPreview((dd) => !!dd.querySelector(".trend-line"));
+      var linearTrend = doc.querySelector(".trend-line");
+      var linearSegs = linearTrend ? (linearTrend.getAttribute("d").match(/L/g) || []).length : 0;
+      // Holt-Winters: multi-segment fitted line, not a single straight "M..L.." — proves
+      // trendMethod actually reached PDC.combo through the real dispatch, not just showTrend.
+      spec.panels[0].chart.opts.trendMethod = "hw";
+      spec.panels[0].chart.opts.seasonLength = 2;
+      window.__studioLoad(spec);
+      doc = await window.__waitForPreview((dd) => {
+        var t = dd.querySelector(".trend-line");
+        return !!t && (t.getAttribute("d").match(/L/g) || []).length > 1;
+      });
+      var hwTrend = doc.querySelector(".trend-line");
+      var hwSegs = hwTrend ? (hwTrend.getAttribute("d").match(/L/g) || []).length : 0;
+      return { offHasNoTrend: !offTrend, linearHasOneSeg: linearSegs === 1, hwHasMoreSegs: hwSegs > 1 };
+    });
+    ok("Z7 follow-up: Combo has no .trend-line when 'Show trend line' is off (default)", comboTrend.offHasNoTrend, JSON.stringify(comboTrend));
+    ok("Z7 follow-up: Combo's default (linear) trend is a single straight segment", comboTrend.linearHasOneSeg, JSON.stringify(comboTrend));
+    ok("Z7 follow-up: Combo's trendMethod:'hw' actually reaches PDC.combo through the real dispatch — a genuine multi-segment seasonal fit, not a straight line", comboTrend.hwHasMoreSegs, JSON.stringify(comboTrend));
+
+    const comboTrendOpts = await page.evaluate(function () {
+      var o = (window.Studio.CHARTS.combo || {}).opts || [];
+      var keys = o.map(function (od) { return od.key; });
+      return { keys: keys };
+    });
+    ok("Z7 follow-up: Studio.CHARTS.combo.opts declares showTrend/trendMethod/alpha/beta/gamma/seasonLength",
+      ["showTrend", "trendMethod", "alpha", "beta", "gamma", "seasonLength"].every(function (k) { return comboTrendOpts.keys.indexOf(k) >= 0; }),
+      JSON.stringify(comboTrendOpts));
+
     const f8Radar = await page.evaluate(async () => {
       const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json());
       var d = spec.cda.dataAccesses.find((x) => x.id === "cost_trend") || spec.cda.dataAccesses[1];
@@ -15977,6 +16032,51 @@ function serve() {
       } catch (e) { return { ok: false, err: e.message }; }
     });
     ok("Z7HW: default method is a single-segment linear trend; trendMethod:'holt' draws a multi-segment smoothed line that extends with forecastPeriods", z7hwRender.ok, JSON.stringify(z7hwRender));
+
+    // Z7HW-3: real dispatch bug fix — every Z7HW/Z7TR check above calls w.PDC.line(...) directly
+    // on a scratch element, bypassing studio-render.js's actual renderPanel() dispatch entirely.
+    // That dispatch (the ONLY render path for both the live preview and every real export) was
+    // found to only pass showTrend/forecastPeriods through, never trendMethod/alpha/beta/gamma/
+    // seasonLength — so picking "Seasonal (Holt-Winters)" in the real inspector silently rendered
+    // plain linear OLS regardless, since Studio itself is never inlined into this runtime (see the
+    // v214 note) to catch the mismatch. This test drives the REAL inspector controls (checkbox +
+    // select, not a direct PDC.line call) on a REAL bound panel and reads the REAL preview iframe.
+    var z7hwDispatch = await page.evaluate(async function () {
+      // Self-contained spec (rather than reusing spec.panels[0], whatever DA it happens to be
+      // bound to this deep into the suite) so this check doesn't depend on earlier tests' state.
+      var spec = await fetch("data/examples/studio-cost.studio.json").then(function (r) { return r.json(); });
+      var d = spec.cda.dataAccesses.find(function (x) { return x.id === "cost_trend"; }) || spec.cda.dataAccesses[1];
+      spec.kpis = []; spec.filters = [];
+      spec.panels = [{ id: "z7hwd", title: "Z7HWDispatch", span: "full", chart: {
+        type: "line", da: d.id,
+        map: { labelCol: d.columns[0], series: [{ col: d.columns[d.columns.length - 1], name: "Cost" }] },
+        opts: {}
+      } }];
+      window.__studioLoad(spec);
+      window.__studioSelect({ kind: "panel", id: "z7hwd" });
+      var checks = document.querySelectorAll("#inspBody .check"), trendCb;
+      for (var i = 0; i < checks.length; i++) if (/Show trend \/ forecast line/.test(checks[i].textContent)) trendCb = checks[i].querySelector("input[type=checkbox]");
+      if (trendCb) trendCb.click();
+      var selects = document.querySelectorAll("#inspBody select"), hwOpt;
+      for (var j = 0; j < selects.length; j++) {
+        hwOpt = [].slice.call(selects[j].options).filter(function (o) { return /Seasonal \(Holt-Winters\)/.test(o.textContent); })[0];
+        if (hwOpt) { selects[j].value = hwOpt.value; selects[j].dispatchEvent(new Event("change", { bubbles: true })); break; }
+      }
+      // Poll the REAL preview iframe (async re-render, debounced by refreshPreview()) for a
+      // genuine multi-segment fit rather than reading it on the same tick as the click/change —
+      // reading immediately raced the debounce and produced a false failure here at first.
+      var doc = await window.__waitForPreview(function (dd) {
+        var t = dd.querySelector(".trend-line");
+        return !!t && (t.getAttribute("d").match(/L/g) || []).length > 1;
+      }, 4000);
+      var trend = doc && doc.querySelector(".trend-line");
+      var segs = trend ? (trend.getAttribute("d").match(/L/g) || []).length : 0;
+      window.__studioSelect(null);
+      window.__studioRenderInspector();
+      return { hadTrendCheckbox: !!trendCb, hadHwOption: !!hwOpt, hasTrend: !!trend, segs: segs };
+    });
+    ok("Z7HW dispatch fix: picking 'Seasonal (Holt-Winters)' via the REAL inspector controls on a REAL panel renders a genuine multi-segment seasonal fit (not a 2-point straight line) in the REAL preview iframe",
+      z7hwDispatch.hadTrendCheckbox && z7hwDispatch.hadHwOption && z7hwDispatch.hasTrend && z7hwDispatch.segs > 1, JSON.stringify(z7hwDispatch));
 
     // ── Z7 slice 4: KPI statistical computations (sum/avg/median/percentile/stddev) ──
     console.log("\n• Z7: KPI statistical aggregation");
