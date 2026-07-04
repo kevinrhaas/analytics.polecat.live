@@ -15,6 +15,16 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 306,
+    title: 'N-DATA follow-up: Test connection also counts as a freshness signal',
+    kind: 'feature',
+    ts: '2026-07-04T06:26:23Z',
+    items: [
+      'A DA inspector\'s "Test connection & detect columns" runs a real probe against the live source (DESCRIBE/PRAGMA/sample query) -- just as strong a liveness signal as "Run live", so its six per-connector success handlers (DuckDB/SQLite/Snowflake/Databricks/BigQuery/Generic SQL-HTTP) now stamp the freshness badge too.',
+      'Closes the last "still open" question on the freshness-badge track (v301/v302/v305): the badge no longer under-reports a source a builder just successfully tested moments ago as "Never verified live". 1 new test, suite 1338/1338.',
+    ],
+  },
+  {
     v: 305,
     title: 'N-DATA follow-up: freshness badge extended to the library pane',
     kind: 'feature',

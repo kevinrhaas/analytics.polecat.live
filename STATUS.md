@@ -881,6 +881,12 @@
   appears on a data source's card in the library pane's **My Data Sources** section, scoped to the same
   always-live-capable connector kinds. New `window.__studioBuildLibrary` test hook. 2 new tests, suite
   1337/1337.
+- v306: **N-DATA follow-up: "Test connection" also counts as a freshness signal (closes the last "still
+  open" question on this track)** — the DA inspector's own **Test connection & detect columns** runs a
+  real probe against the live source (DESCRIBE/PRAGMA/sample query) for all six direct connectors
+  (DuckDB/SQLite/Snowflake/Databricks/BigQuery/Generic SQL-HTTP) — just as strong a liveness signal as
+  "Run live" — so each success handler now calls `markDaFreshness()` too, instead of only the shared
+  `renderTable(..., "live")` path. 1 new test, suite 1338/1338.
 
 ## NEXT (top = do first)
 
@@ -2500,6 +2506,11 @@ gets covered over time:
 > always-live-capable-kind scoping as the Repository card. New `window.__studioBuildLibrary` test
 > hook. 2 new tests, suite 1337/1337. **Still open:** whether "Test connection" should also count as
 > a freshness signal (today only a real "Run live" query stamps it).
+> ✓ **"Test connection" now also counts, shipped v306 (closes the last "still open" question — N-DATA
+> freshness-badge track is now fully feature-complete)**: all six direct connectors' DA-inspector
+> **Test connection & detect columns** success handlers now call `markDaFreshness()` too — a real probe
+> against the live source (DESCRIBE/PRAGMA/sample query) is just as strong a liveness signal as "Run
+> live". 1 new test, suite 1338/1338.
 - **Dashboard health score (added 2026-07-04, innovation sweep):** the existing build-completeness meter
   (v196) only checks "did you fill things in" — extend it (or add a sibling score) that also runs the
   Data quality watchdog (v260/v261) across every bound DA, flags orphaned data accesses (declared but no

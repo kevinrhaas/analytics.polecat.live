@@ -753,6 +753,25 @@ function serve() {
     });
     ok("Z14: a failed Test connection surfaces a clear inline error, not a stuck spinner", /^✗ CORS blocked/.test(dkTestFail.status), JSON.stringify(dkTestFail));
 
+    // N-DATA follow-up: a DA inspector's own "Test connection & detect columns" runs a real probe
+    // against the live source too (DESCRIBE/PRAGMA/sample query) — just as strong a liveness signal
+    // as "Run live", so it should stamp the freshness badge too (closes the last "still open" item
+    // on the freshness-badge track: v301/v302/v305 scoped this to Run live only).
+    const dkTestFreshness = await page.evaluate(async () => {
+      try { localStorage.removeItem("studio-da-freshness"); } catch (e) {}
+      Studio.DuckDB.testConnection = function () { return Promise.resolve({ ok: true, columns: [{ name: "region", type: "VARCHAR" }, { name: "revenue", type: "DOUBLE" }] }); };
+      const insp = document.getElementById("inspBody");
+      const testBtn = [].slice.call(insp.querySelectorAll("button")).find((b) => /Test connection & detect columns/.test(b.textContent));
+      if (!testBtn) return { err: "no test button in inspector" };
+      testBtn.click();
+      await new Promise((r) => setTimeout(r, 60));
+      let stored; try { stored = JSON.parse(localStorage.getItem("studio-da-freshness") || "{}"); } catch (e) { stored = {}; }
+      const badge = document.querySelector("#inspBody .daprev-freshness");
+      return { storedHasS3Sales: !!stored.s3Sales, badgeText: badge ? badge.textContent : "" };
+    });
+    ok("N-DATA: a successful 'Test connection & detect columns' also stamps the freshness signal",
+      dkTestFreshness.storedHasS3Sales && /Last verified live/.test(dkTestFreshness.badgeText), JSON.stringify(dkTestFreshness));
+
     const dkExport = await page.evaluate(() => {
       var sp = JSON.parse(JSON.stringify(window.__STUDIO_STATE.spec));
       sp.cda.dataAccesses.push({ id: "s3Sales", name: "s3Sales", kind: "duckdb", fileUrl: "https://bucket.s3.amazonaws.com/sales.parquet", fileFormat: "parquet", columns: ["region", "revenue"], params: [], calcColumns: [], cache: true, cacheDuration: 300 });

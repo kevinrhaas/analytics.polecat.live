@@ -3800,6 +3800,7 @@
           }
           da.columns = da.columns || [];
           res.columns.forEach(function (c) { if (da.columns.indexOf(c.name) < 0) da.columns.push(c.name); });
+          markDaFreshness(da.id);
           renderInspector(); buildLibrary(); refreshPreview();
           toast(res.columns.length + " column(s) detected from the live file.");
         });
@@ -3830,6 +3831,7 @@
           da.tableName = res.table;
           da.columns = da.columns || [];
           res.columns.forEach(function (c) { if (da.columns.indexOf(c.name) < 0) da.columns.push(c.name); });
+          markDaFreshness(da.id);
           renderInspector(); buildLibrary(); refreshPreview();
           toast(res.columns.length + " column(s) detected from the live file.");
         });
@@ -3864,6 +3866,7 @@
           }
           da.columns = da.columns || [];
           res.columns.forEach(function (c) { if (da.columns.indexOf(c.name) < 0) da.columns.push(c.name); });
+          markDaFreshness(da.id);
           renderInspector(); buildLibrary(); refreshPreview();
           toast(res.columns.length + " column(s) detected from the live warehouse.");
         });
@@ -3896,6 +3899,7 @@
           }
           da.columns = da.columns || [];
           res.columns.forEach(function (c) { if (da.columns.indexOf(c.name) < 0) da.columns.push(c.name); });
+          markDaFreshness(da.id);
           renderInspector(); buildLibrary(); refreshPreview();
           toast(res.columns.length + " column(s) detected from the live warehouse.");
         });
@@ -3927,6 +3931,7 @@
           }
           da.columns = da.columns || [];
           res.columns.forEach(function (c) { if (da.columns.indexOf(c.name) < 0) da.columns.push(c.name); });
+          markDaFreshness(da.id);
           renderInspector(); buildLibrary(); refreshPreview();
           toast(res.columns.length + " column(s) detected from the live dataset.");
         });
@@ -3960,6 +3965,7 @@
           }
           da.columns = da.columns || [];
           res.columns.forEach(function (c) { if (da.columns.indexOf(c.name) < 0) da.columns.push(c.name); });
+          markDaFreshness(da.id);
           renderInspector(); buildLibrary(); refreshPreview();
           toast(res.columns.length + " column(s) detected from the live endpoint.");
         });
@@ -4085,11 +4091,12 @@
   // N-DATA innovation-sweep idea (added 2026-07-04): data source freshness badge — a builder
   // trusting a live connector has no way to tell a genuinely-current query from one that quietly
   // went stale (expired token, dead endpoint) days ago. Stamp + surface the last time THIS data
-  // access's "Run live" actually succeeded, keyed by DA id, so a dodgy connector gets noticed
-  // instead of silently trusted. Deliberately scoped to "Run live" (a real query), not "Test
-  // connection" (mere connectivity) — and to the one shared renderTable() call site every
-  // connector kind's live path already funnels through, not the dozen separate per-connector
-  // Test-connection success handlers.
+  // access last proved it's actually live, keyed by DA id, so a dodgy connector gets noticed
+  // instead of silently trusted. First cut (v301) scoped this to "Run live" only, via the one
+  // shared renderTable() call site every connector kind's live path funnels through. A DA
+  // inspector's own "Test connection & detect columns" also runs a real probe against the live
+  // source (DESCRIBE/PRAGMA/sample query) — just as strong a liveness signal — so its six
+  // per-connector success handlers (below) now call markDaFreshness() too.
   function daFreshnessMap() {
     try { return JSON.parse(localStorage.getItem("studio-da-freshness") || "{}"); } catch (e) { return {}; }
   }
