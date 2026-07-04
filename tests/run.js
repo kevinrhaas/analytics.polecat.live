@@ -3262,6 +3262,68 @@ function serve() {
     });
     ok("DA inspector: a calc formula referencing an unknown column shows an inline error naming it", calcInvalid.shown && /test1/.test(calcInvalid.text) && /nope/.test(calcInvalid.text), JSON.stringify(calcInvalid));
 
+    // ---- N-DATA formula-language follow-up: pctChange()/movingAvg() named functions ----
+    console.log("\n• N-DATA: pctChange()/movingAvg() named functions");
+    const namedFn = await page.evaluate(() => {
+      var series = [100, 110, 121];
+      function ctxAt(i) { return { index: i, series: function (name) { return name === "revenue" ? series : null; } }; }
+      var pct1 = Studio.evalFormula("=pctChange([revenue])", { revenue: series[1] }, ctxAt(1));
+      var pct2 = Studio.evalFormula("=pctChange([revenue])", { revenue: series[2] }, ctxAt(2));
+      var pctFirstRow = Studio.evalFormula("=pctChange([revenue])", { revenue: series[0] }, ctxAt(0));
+      var pctNoCtx = Studio.evalFormula("=pctChange([revenue])", { revenue: 100 }); // no ctx at all
+      var pctUnknownCol = Studio.evalFormula("=pctChange([nope])", { revenue: 100 }, ctxAt(1));
+      var maSeries = [10, 20, 30, 40];
+      function maCtxAt(i) { return { index: i, series: function (name) { return name === "v" ? maSeries : null; } }; }
+      var ma1 = Studio.evalFormula("=movingAvg([v],2)", { v: maSeries[1] }, maCtxAt(1));   // avg(10,20)=15
+      var maFull = Studio.evalFormula("=movingAvg([v],2)", { v: maSeries[3] }, maCtxAt(3)); // avg(30,40)=35
+      var maPartial = Studio.evalFormula("=movingAvg([v])", { v: maSeries[0] }, maCtxAt(0)); // window 3, only 1 value so far -> 10
+      var applied = Studio.applyCalcCols(["revenue"], [[100], [110], [121]], [
+        { name: "chg", formula: "=pctChange([revenue])" },
+        { name: "ma", formula: "=movingAvg([revenue],2)" }
+      ]);
+      return {
+        pct1: pct1.value, pct1Err: pct1.error,
+        pct2: pct2.value,
+        pctFirstRowErr: !!pctFirstRow.error,
+        pctNoCtxErr: !!pctNoCtx.error,
+        pctUnknownColErr: !!pctUnknownCol.error,
+        ma1: ma1.value, maFull: maFull.value, maPartial: maPartial.value,
+        appliedCols: applied.cols.join(","),
+        appliedRows: JSON.stringify(applied.rows)
+      };
+    });
+    ok("pctChange() computes percent change vs. the previous row, in percentage points",
+      Math.abs(namedFn.pct1 - 10) < 1e-9 && !namedFn.pct1Err, JSON.stringify(namedFn));
+    ok("pctChange() is consistent across rows (110→121 is also +10%)", Math.abs(namedFn.pct2 - 10) < 1e-9, JSON.stringify(namedFn));
+    ok("pctChange() errors on the first row (no prior row to compare against)", namedFn.pctFirstRowErr, JSON.stringify(namedFn));
+    ok("pctChange()/movingAvg() error when no row ctx is supplied at all", namedFn.pctNoCtxErr, JSON.stringify(namedFn));
+    ok("pctChange() errors on an unknown column", namedFn.pctUnknownColErr, JSON.stringify(namedFn));
+    ok("movingAvg([col],2) averages the trailing 2 values ending at the current row", namedFn.ma1 === 15 && namedFn.maFull === 35, JSON.stringify(namedFn));
+    ok("movingAvg() defaults to a 3-row window and averages a partial window at the very start", namedFn.maPartial === 10, JSON.stringify(namedFn));
+    ok("Studio.applyCalcCols wires pctChange()/movingAvg() through row index + a per-column series", namedFn.appliedCols === "revenue,chg,ma" &&
+      namedFn.appliedRows === JSON.stringify([[100, null, 100], [110, 10, 105], [121, 10, 115.5]]), JSON.stringify(namedFn));
+
+    // DA inspector's live validator must not falsely flag a real pctChange()/movingAvg() formula —
+    // it only ever probes a single dummy row, so it needs its own tiny 2-row dummy series (the fix
+    // alongside the named functions themselves) or these would always show a false "no prior row" error.
+    const namedFnValid = await page.evaluate(() => {
+      var hs = [].slice.call(document.querySelectorAll("#inspBody .insp-sec h4"));
+      var ch = hs.filter(function (h) { return /Calculated/i.test(h.textContent); })[0];
+      var sec = ch.closest(".insp-sec");
+      var rows = [].slice.call(sec.querySelectorAll(".field.row"));
+      var lastRow = rows[rows.length - 1];
+      var inputs = [].slice.call(lastRow.querySelectorAll("input"));
+      inputs[1].value = "=movingAvg([col1],3)"; inputs[1].dispatchEvent(new Event("input"));
+      var errs1 = [].slice.call(sec.querySelectorAll(".calc-col-err"));
+      var maHidden = errs1[errs1.length - 1].style.display === "none";
+      inputs[1].value = "=pctChange([col1])"; inputs[1].dispatchEvent(new Event("input"));
+      var errs2 = [].slice.call(sec.querySelectorAll(".calc-col-err"));
+      var pctHidden = errs2[errs2.length - 1].style.display === "none";
+      return { maHidden: maHidden, pctHidden: pctHidden };
+    });
+    ok("DA inspector: a real movingAvg() formula validates clean (no false 'no prior row' error)", namedFnValid.maHidden, JSON.stringify(namedFnValid));
+    ok("DA inspector: a real pctChange() formula validates clean (no false 'no prior row' error)", namedFnValid.pctHidden, JSON.stringify(namedFnValid));
+
     // ---- Output options (filter / sort / limit) — slice 6 ----
     console.log("\n• Output options (post-query filter / sort / limit)");
 

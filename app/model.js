@@ -391,9 +391,13 @@
      whole section a no-op for the six direct-query connectors (DuckDB/SQLite/Snowflake/
      Databricks/BigQuery/Generic SQL — none of which go through a CDA server to evaluate it).
      `evalFormula` is a small, safe recursive-descent arithmetic parser — no eval()/Function(),
-     only add/subtract/multiply/divide, parens, numbers and [column] references — safe to run
-     on user-typed text. */
-  Studio.evalFormula = function (formula, rowObj) {
+     only add/subtract/multiply/divide, parens, numbers, [column] references, and the two named
+     functions below — safe to run on user-typed text.
+     `ctx` (added for pctChange()/movingAvg()) gives the parser row-position + whole-column
+     access: { index: <row's position>, series: function(colName){ returns that column's numeric
+     values for EVERY row, same order } }. Plain arithmetic never touches it — only the two named
+     functions need more than the current row. */
+  Studio.evalFormula = function (formula, rowObj, ctx) {
     var s = String(formula || "").replace(/^\s*=\s*/, ""); // formulas are typed as "=[a]+[b]"
     var i = 0;
     function skipWs() { while (i < s.length && /\s/.test(s[i])) i++; }
@@ -420,6 +424,54 @@
       }
       return v;
     }
+    // [colName] — a bare column reference, used both as an ordinary operand and as the
+    // required first argument to pctChange()/movingAvg() (they need the column's IDENTITY,
+    // not a computed number, so they can look up its values across other rows).
+    function parseColRef() {
+      if (s[i] !== "[") throw new Error("expected a [column] reference");
+      i++; var start = i;
+      while (i < s.length && s[i] !== "]") i++;
+      if (s[i] !== "]") throw new Error("missing closing ]");
+      var name = s.slice(start, i); i++;
+      return name;
+    }
+    // pctChange([col]) / movingAvg([col], n) — the two named functions the formula language
+    // supports beyond plain arithmetic. Both need the row's position + the column's full
+    // series (via `ctx`), not just the current row, so they can't be plain [col] arithmetic.
+    function parseNamedFn(name) {
+      i++; // consume "("
+      var colName = parseColRef();
+      var windowArg = null;
+      skipWs();
+      if (s[i] === ",") {
+        i++; skipWs();
+        var numStart = i;
+        while (i < s.length && /[0-9.]/.test(s[i])) i++;
+        if (i === numStart) throw new Error(name + "()'s second argument must be a number");
+        windowArg = parseFloat(s.slice(numStart, i));
+      }
+      skipWs();
+      if (s[i] !== ")") throw new Error("missing closing ) in " + name + "(...)");
+      i++;
+      if (!ctx || typeof ctx.series !== "function" || ctx.index == null)
+        throw new Error(name + "() isn't available here");
+      var series = ctx.series(colName);
+      if (!series) throw new Error("unknown column [" + colName + "] in " + name + "()");
+      if (name === "pctChange") {
+        if (ctx.index <= 0) throw new Error("pctChange() has no prior row to compare against");
+        var prev = series[ctx.index - 1], cur = series[ctx.index];
+        if (!isFinite(prev) || prev === 0) throw new Error("pctChange()'s previous value isn't a usable number");
+        return ((cur - prev) / prev) * 100; // expressed in percentage points, e.g. 12.5 for +12.5%
+      }
+      // movingAvg([col], n) — same "partial window at the start" semantics as the line chart's
+      // own Show moving average overlay (studio-charts.js), so the two never disagree: average
+      // of the trailing n values (default 3) ending at (and including) the current row.
+      var w = Math.max(1, Math.round(windowArg || 3));
+      var from = Math.max(0, ctx.index - w + 1), sum = 0, cnt = 0;
+      for (var j = from; j <= ctx.index; j++) { var v = series[j]; if (isFinite(v)) { sum += v; cnt++; } }
+      if (!cnt) throw new Error("movingAvg() has no numeric values in its window");
+      return sum / cnt;
+    }
     function parseFactor() {
       skipWs();
       var c = s[i];
@@ -431,15 +483,14 @@
         i++; return v;
       }
       if (c === "[") {
-        i++; var start = i;
-        while (i < s.length && s[i] !== "]") i++;
-        if (s[i] !== "]") throw new Error("missing closing ]");
-        var name = s.slice(start, i); i++;
+        var name = parseColRef();
         if (!rowObj || !(name in rowObj)) throw new Error("unknown column [" + name + "]");
         var val = +rowObj[name];
         if (isNaN(val)) throw new Error("[" + name + "] isn't numeric here");
         return val;
       }
+      var identMatch = /^(pctChange|movingAvg)\s*\(/.exec(s.slice(i));
+      if (identMatch) { i += identMatch[1].length; skipWs(); return parseNamedFn(identMatch[1]); }
       var numStart = i;
       while (i < s.length && /[0-9.]/.test(s[i])) i++;
       if (i === numStart) throw new Error(c ? "unexpected \"" + c + "\"" : "unexpected end of formula");
@@ -457,18 +508,28 @@
   };
   // Appends every valid (name + formula) calc column to {cols, rows}, computing each row's
   // value from that row's OTHER columns. A calc column that fails to evaluate (bad syntax,
-  // an unknown/non-numeric reference) becomes `null` for that row rather than throwing.
+  // an unknown/non-numeric reference, pctChange() on the first row, …) becomes `null` for that
+  // row rather than throwing. `seriesFor` (memoized per column) is what lets pctChange()/
+  // movingAvg() see the WHOLE column, not just the row currently being computed.
   Studio.applyCalcCols = function (cols, rows, calcColumns) {
     cols = cols || []; rows = rows || [];
     var valid = (calcColumns || []).filter(function (c) { return c && c.name && c.formula; });
     if (!valid.length) return { cols: cols.slice(), rows: rows.map(function (r) { return r.slice(); }) };
     var outCols = cols.concat(valid.map(function (c) { return c.name; }));
-    var outRows = rows.map(function (row) {
+    var seriesCache = {};
+    function seriesFor(name) {
+      if (Object.prototype.hasOwnProperty.call(seriesCache, name)) return seriesCache[name];
+      var ci = cols.indexOf(name);
+      var s = ci < 0 ? null : rows.map(function (r) { return +r[ci]; });
+      seriesCache[name] = s;
+      return s;
+    }
+    var outRows = rows.map(function (row, rowIndex) {
       var rowObj = {};
       cols.forEach(function (c, i) { rowObj[c] = row[i]; });
       var out = row.slice();
       valid.forEach(function (c) {
-        var r = Studio.evalFormula(c.formula, rowObj);
+        var r = Studio.evalFormula(c.formula, rowObj, { index: rowIndex, series: seriesFor });
         out.push(r.error ? null : r.value);
       });
       return out;

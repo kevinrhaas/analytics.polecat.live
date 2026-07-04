@@ -2762,12 +2762,27 @@ gets covered over time:
 > column — mirroring how a real Pentaho server appends calc columns to the query's own output.
 > The DA inspector's formula field now validates live against a probe row and shows a small
 > inline error naming the problem (unknown column, divide-by-zero, malformed syntax) instead of
-> failing silently. 10 new tests. **Still open:** `pctChange()`/`movingAvg()`-style named
-> functions beyond plain arithmetic. **Also found while scoping a "wire it into the exported/live
+> failing silently. 10 new tests. **Also found while scoping a "wire it into the exported/live
 > runtime too" follow-up — a much bigger, pre-existing gap, written up under Z14/Z4 below:** an
 > *exported* dashboard has no live-query mechanism at all for the six direct connectors, so this
 > stays a builder-preview-only feature for them until that's addressed (see "⚠️ direct connectors
 > don't actually run once deployed" under Z14).
+> ✓ **`pctChange()`/`movingAvg()` named functions shipped v319 (closes that "still open" item)**:
+> `Studio.evalFormula` now recognizes `pctChange([col])` (percent change vs. the previous row, in
+> percentage points; errors — becomes `null` — on the first row, no prior to compare against) and
+> `movingAvg([col], n)` (trailing n-row average, default 3, partial window at the very start — the
+> same convention as the line chart's own Show moving average overlay), alongside the existing
+> arithmetic. Needed a real signature change: both functions need the row's *position* + the whole
+> column's values, not just the current row, so `evalFormula(formula, rowObj, ctx)` grew an optional
+> `ctx = {index, series(colName)}`; `applyCalcCols` builds a memoized per-column series lookup once,
+> shared by every row. The DA inspector's live formula validator (a single dummy probe row) now
+> builds a tiny 2-row dummy series too, so a real `pctChange()`/`movingAvg()` formula validates
+> clean instead of always erroring on "no prior row" against what's otherwise a one-row probe. Docs
+> updated with examples. **Found + documented (not fixed, scope creep) while updating the docs:** a
+> calc column still isn't appended to the v318 DuckDB/SQLite **live runtime** query result (only the
+> offline preview evaluates it) — same limitation those two connectors' own builder "Run live"
+> button already has today, tracked as a distinct future follow-up rather than silently claimed
+> fixed. 9 new tests, suite 1391/1391.
 - **Period-over-period / compare mode:** pick two ranges or two sources and diff them across every panel.
 - **Pivot / crosstab builder** and **anomaly + correlation explorer** as first-class analysis surfaces.
 - **Data quality watchdog (added 2026-07-03):** scan a data access's own sample rows for common quality

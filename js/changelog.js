@@ -15,6 +15,17 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 319,
+    title: 'N-DATA: the formula language gains pctChange() and movingAvg() named functions',
+    kind: 'feature',
+    ts: '2026-07-04T10:41:53Z',
+    items: [
+      'A calculated column\'s formula can now call =pctChange([col]) (percent change vs. the previous row, in percentage points -- blank on the first row, which has no prior row to compare against) or =movingAvg([col], n) (trailing n-row average, default 3, partial window at the very start -- the same convention the line chart\'s own Show moving average overlay already uses), alongside the existing +, -, *, /, and parens.',
+      'Both functions need the row\'s position and the WHOLE column\'s values, not just the current row, so Studio.evalFormula grew an optional ctx argument ({index, series(colName)}); Studio.applyCalcCols builds a memoized per-column series once and shares it across every row.',
+      'The DA inspector\'s live formula validator (a single dummy probe row) now builds a tiny 2-row dummy series too, so a real pctChange()/movingAvg() formula validates clean instead of always erroring on "no prior row." Docs updated with examples. 9 new tests.',
+    ],
+  },
+  {
     v: 318,
     title: 'Z14 fix: exported dashboards can now query DuckDB/SQLite live -- closes the credential-free half of the architecture gap',
     kind: 'fix',

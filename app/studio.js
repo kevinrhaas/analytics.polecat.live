@@ -4032,14 +4032,19 @@
     var ccs = advSection(body, "Calculated columns", function () {
       da.calcColumns.push(Studio.newCalcCol()); renderInspector();
     });
-    if (!da.calcColumns.length) ccs.appendChild(hint("Add formula-based columns derived from output. Formula syntax: =[col1] + [col2]"));
+    if (!da.calcColumns.length) ccs.appendChild(hint("Add formula-based columns derived from output. Formula syntax: =[col1] + [col2], or =pctChange([col]) / =movingAvg([col], n)"));
     da.calcColumns.forEach(function (cc, i) {
       var r = el("div", "field row");
       var errEl = el("div", "note err calc-col-err"); errEl.style.display = "none";
       function revalidate() {
         if (!cc.name || !cc.formula) { errEl.style.display = "none"; return; }
         var probe = {}; (da.columns || []).forEach(function (c) { probe[c] = 1; });
-        var res = Studio.evalFormula(cc.formula, probe);
+        // pctChange()/movingAvg() need row-position + whole-column context (a "previous row" to
+        // compare/average against) — give the live validator a tiny 2-row dummy series so a real
+        // formula validates clean instead of always erroring on "no prior row" against what's
+        // otherwise a single dummy probe row.
+        var ctx = { index: 1, series: function (name) { return (da.columns || []).indexOf(name) >= 0 ? [1, 1] : null; } };
+        var res = Studio.evalFormula(cc.formula, probe, ctx);
         if (res.error) { errEl.textContent = "“" + cc.name + "”: " + res.error; errEl.style.display = ""; }
         else errEl.style.display = "none";
       }
