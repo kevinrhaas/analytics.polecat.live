@@ -935,6 +935,10 @@
   color picker — that manually toggles `.active` instead of a full re-render, so its click handler now
   updates `aria-pressed` on all siblings too). Same family of gap the v286/v299 focus-ring fixes closed
   elsewhere. 5 new tests, suite 1363/1363.
+- v315: **N-DATA: calculated columns now actually compute (formula-language first cut)** — see the
+  Track N entry above. `Studio.evalFormula`/`Studio.applyCalcCols` (model.js), wired into
+  `Studio.sampleRows`/`genMock` and `Studio.columnsOf`; live inline validation in the DA inspector.
+  10 new tests, suite 1373/1373.
 
 ## NEXT (top = do first)
 
@@ -2534,6 +2538,11 @@ gets covered over time:
 > two: Open/Import/Examples/Duplicate all pick up an existing spec rather than starting fresh, so they
 > don't count. Same `sparkBurst()` + toast convention as the export milestones. Included in Clear local
 > data. 3 new tests, suite 1240/1240.
+- **Dashboard health celebration (added 2026-07-04, innovation sweep):** the dashboard-health Checks
+  section (build-completeness meter v196 + orphaned-DA/data-quality-watchdog notes v307/v309) only ever
+  shows a neutral "ready to export" line even when a dashboard is genuinely spotless — pair it with the
+  existing milestone-toast/spark-burst delight convention (v210/v224/v278) so reaching zero warnings for
+  the first time on a dashboard gets a small, tasteful, one-time celebration instead of just silence.
 
 **N-DATA — Analytical depth (toward standalone analytic apps).**
 - **Data source freshness badge (added 2026-07-04, innovation sweep):** track each data access's last
@@ -2665,6 +2674,23 @@ gets covered over time:
 > feature-complete** for every chart type with a clean category shape.
 - **Dashboard-wide formula language:** calculated fields across data sources (not just CDA calc columns) —
   a small safe expression engine (`[revenue] - [cost]`, `pctChange(...)`, `movingAvg(...)`).
+> ✓ **First cut shipped v315**: found the real gap driving this idea — every DA's existing
+> "Calculated columns" section (`da.calcColumns`, formula `=[col1] + [col2]`) only ever fed the
+> real Pentaho `.cda` XML export; the builder itself never evaluated the formula, so the offline
+> preview always showed nothing for a calc column and the whole section was a silent no-op for
+> the six direct-query connectors (DuckDB/SQLite/Snowflake/Databricks/BigQuery/Generic SQL) —
+> none of which go through a CDA server to compute it. New `Studio.evalFormula` (model.js) is a
+> small, safe recursive-descent `+ - * / ( )` parser (no `eval()`/`Function()`) plus
+> `Studio.applyCalcCols(cols, rows, calcColumns)`; wired into `Studio.sampleRows`/`genMock`
+> (sampledata.js) so the offline preview now shows a real computed value, and into
+> `Studio.columnsOf` so a valid calc column's name is offered everywhere a panel/KPI picks a
+> column — mirroring how a real Pentaho server appends calc columns to the query's own output.
+> The DA inspector's formula field now validates live against a probe row and shows a small
+> inline error naming the problem (unknown column, divide-by-zero, malformed syntax) instead of
+> failing silently. 10 new tests. **Still open:** `pctChange()`/`movingAvg()`-style named
+> functions beyond plain arithmetic, and wiring the same evaluation into the exported/live
+> runtime (`studio-render.js`) so calc columns compute for real at runtime on the six direct
+> connectors, not just in the builder's own preview.
 - **Period-over-period / compare mode:** pick two ranges or two sources and diff them across every panel.
 - **Pivot / crosstab builder** and **anomaly + correlation explorer** as first-class analysis surfaces.
 - **Data quality watchdog (added 2026-07-03):** scan a data access's own sample rows for common quality
@@ -2695,6 +2721,17 @@ gets covered over time:
 > span, everything else a single column, and clusters panels sharing a first tag together, using the
 > existing `span` system. Pure rearrangement of what's already there — no new spec fields; KPIs are
 > untouched (they already lay out in their own row). 4 new tests, suite 1195/1195.
+- **"What changed since your last visit" digest (added 2026-07-04, innovation sweep):** Home/Repository's
+  recent-dashboard cards already know when a dashboard was last opened (`studio-recents`) and Version
+  history already captures a checkpoint on every meaningful edit — combine them into a small "3 changes
+  since you were last here" line on a recent card, reusing the existing `diffSpecs`/`diffSummary` engine
+  (the same one Version-history-restore and Compare-dashboards already share) rather than a new comparison
+  path. Nudges a returning collaborator toward what actually moved instead of re-reading the whole spec.
+- **Cross-dashboard column search (added 2026-07-04, innovation sweep):** once a data source's schema
+  changes (a column renamed/dropped upstream), there's no way today to ask "which of my saved dashboards
+  actually use column X" — extend the Repository's existing search to also match against each recent
+  dashboard's bound DA columns (not just title/DA name), so a schema change's blast radius is a search
+  away instead of opening every dashboard to check.
 
 **N-DIST — Distribution & platform reach (still backend-free).**
 > ✓ **Import from URL shipped v264 (first cut of this idea — a single spec URL, not yet an index of

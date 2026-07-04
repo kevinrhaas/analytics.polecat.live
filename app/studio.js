@@ -4032,15 +4032,25 @@
     if (!da.calcColumns.length) ccs.appendChild(hint("Add formula-based columns derived from output. Formula syntax: =[col1] + [col2]"));
     da.calcColumns.forEach(function (cc, i) {
       var r = el("div", "field row");
-      var nm = input(cc.name, function (v) { cc.name = v.trim().replace(/[^a-zA-Z0-9_]+/g, "_"); }); nm.placeholder = "col_name";
-      var fm = input(cc.formula, function (v) { cc.formula = v; }); fm.placeholder = "=[col1] + [col2]";
+      var errEl = el("div", "note err calc-col-err"); errEl.style.display = "none";
+      function revalidate() {
+        if (!cc.name || !cc.formula) { errEl.style.display = "none"; return; }
+        var probe = {}; (da.columns || []).forEach(function (c) { probe[c] = 1; });
+        var res = Studio.evalFormula(cc.formula, probe);
+        if (res.error) { errEl.textContent = "“" + cc.name + "”: " + res.error; errEl.style.display = ""; }
+        else errEl.style.display = "none";
+      }
+      var nm = input(cc.name, function (v) { cc.name = v.trim().replace(/[^a-zA-Z0-9_]+/g, "_"); revalidate(); refreshPreview(); }); nm.placeholder = "col_name";
+      var fm = input(cc.formula, function (v) { cc.formula = v; revalidate(); refreshPreview(); }); fm.placeholder = "=[col1] + [col2]";
       var calcTypePairs = Studio.COLUMN_TYPES.map(function (t) { return [t, t]; });
       var ty = select2pairs(calcTypePairs, cc.type || "Numeric", function (v) { cc.type = v; });
-      var rm = delBtn(function () { da.calcColumns.splice(i, 1); renderInspector(); });
+      var rm = delBtn(function () { da.calcColumns.splice(i, 1); renderInspector(); refreshPreview(); });
       var d1 = el("div"); d1.style.flex = "1.5"; d1.appendChild(labelEl("Name")); d1.appendChild(nm);
       var d2 = el("div"); d2.style.flex = "2"; d2.appendChild(labelEl("Formula")); d2.appendChild(fm);
       var d3 = el("div"); d3.appendChild(labelEl("Type")); d3.appendChild(ty);
       r.appendChild(d1); r.appendChild(d2); r.appendChild(d3); r.appendChild(rm); ccs.appendChild(r);
+      ccs.appendChild(errEl);
+      revalidate();
     });
 
     // Output options — post-query filter / sort / limit; hidden in Simple mode (K5)

@@ -15,6 +15,17 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 315,
+    title: 'N-DATA: calculated columns now actually compute (dashboard-wide formula language, first cut)',
+    kind: 'feature',
+    ts: '2026-07-04T09:31:26Z',
+    items: [
+      'Every data source\'s "Calculated columns" section (formula: =[col1] + [col2]) previously only fed the real Pentaho .cda XML export -- the builder itself never evaluated the formula, so the offline preview always showed nothing for it and the whole section was a silent no-op for the six direct-query connectors (DuckDB/SQLite/Snowflake/Databricks/BigQuery/Generic SQL), none of which go through a CDA server to compute it.',
+      'New Studio.evalFormula -- a small, safe +/-/*/(( )) parser, no eval()/Function() -- now evaluates every calc column against its own row, both in the offline sample preview and as a real bindable column any panel/KPI can pick (Studio.columnsOf now offers valid calc column names, mirroring how a real Pentaho server appends them to the query\'s own output columns). A bad formula (unknown column, divide-by-zero, malformed syntax) shows a small inline error naming the problem instead of failing silently.',
+      'Docs updated. 10 new tests.',
+    ],
+  },
+  {
     v: 314,
     title: 'Track L sweep (accessibility lens): color-swatch pickers gain aria-pressed',
     kind: 'fix',

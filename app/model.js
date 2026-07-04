@@ -382,6 +382,100 @@
     return "";
   };
 
+  /* ---- N-DATA: dashboard-wide formula language, first cut (added 2026-07-04) ----
+     A data access's "Calculated columns" (formula: "=[col1] + [col2]") already round-trip
+     through the real Pentaho CDA export as <CalculatedColumns> XML — a real Pentaho server
+     evaluates them. But the builder never evaluates the formula itself, so (a) the offline
+     preview always showed a blank/undefined value for a calc column and (b) the calc column's
+     name was never offered as a real column a panel/KPI could bind to, silently making the
+     whole section a no-op for the six direct-query connectors (DuckDB/SQLite/Snowflake/
+     Databricks/BigQuery/Generic SQL — none of which go through a CDA server to evaluate it).
+     `evalFormula` is a small, safe recursive-descent arithmetic parser — no eval()/Function(),
+     only add/subtract/multiply/divide, parens, numbers and [column] references — safe to run
+     on user-typed text. */
+  Studio.evalFormula = function (formula, rowObj) {
+    var s = String(formula || "").replace(/^\s*=\s*/, ""); // formulas are typed as "=[a]+[b]"
+    var i = 0;
+    function skipWs() { while (i < s.length && /\s/.test(s[i])) i++; }
+    function parseExpr() {
+      var v = parseTerm();
+      for (;;) {
+        skipWs();
+        var c = s[i];
+        if (c === "+" || c === "-") { i++; var r = parseTerm(); v = c === "+" ? v + r : v - r; }
+        else break;
+      }
+      return v;
+    }
+    function parseTerm() {
+      var v = parseFactor();
+      for (;;) {
+        skipWs();
+        var c = s[i];
+        if (c === "*" || c === "/") {
+          i++; var r = parseFactor();
+          if (c === "*") v = v * r;
+          else { if (r === 0) throw new Error("division by zero"); v = v / r; }
+        } else break;
+      }
+      return v;
+    }
+    function parseFactor() {
+      skipWs();
+      var c = s[i];
+      if (c === "+") { i++; return parseFactor(); }
+      if (c === "-") { i++; return -parseFactor(); }
+      if (c === "(") {
+        i++; var v = parseExpr(); skipWs();
+        if (s[i] !== ")") throw new Error("missing closing )");
+        i++; return v;
+      }
+      if (c === "[") {
+        i++; var start = i;
+        while (i < s.length && s[i] !== "]") i++;
+        if (s[i] !== "]") throw new Error("missing closing ]");
+        var name = s.slice(start, i); i++;
+        if (!rowObj || !(name in rowObj)) throw new Error("unknown column [" + name + "]");
+        var val = +rowObj[name];
+        if (isNaN(val)) throw new Error("[" + name + "] isn't numeric here");
+        return val;
+      }
+      var numStart = i;
+      while (i < s.length && /[0-9.]/.test(s[i])) i++;
+      if (i === numStart) throw new Error(c ? "unexpected \"" + c + "\"" : "unexpected end of formula");
+      return parseFloat(s.slice(numStart, i));
+    }
+    try {
+      if (!s.trim()) throw new Error("empty formula");
+      var result = parseExpr();
+      skipWs();
+      if (i < s.length) throw new Error("unexpected trailing text");
+      return { value: result, error: null };
+    } catch (e) {
+      return { value: null, error: e.message };
+    }
+  };
+  // Appends every valid (name + formula) calc column to {cols, rows}, computing each row's
+  // value from that row's OTHER columns. A calc column that fails to evaluate (bad syntax,
+  // an unknown/non-numeric reference) becomes `null` for that row rather than throwing.
+  Studio.applyCalcCols = function (cols, rows, calcColumns) {
+    cols = cols || []; rows = rows || [];
+    var valid = (calcColumns || []).filter(function (c) { return c && c.name && c.formula; });
+    if (!valid.length) return { cols: cols.slice(), rows: rows.map(function (r) { return r.slice(); }) };
+    var outCols = cols.concat(valid.map(function (c) { return c.name; }));
+    var outRows = rows.map(function (row) {
+      var rowObj = {};
+      cols.forEach(function (c, i) { rowObj[c] = row[i]; });
+      var out = row.slice();
+      valid.forEach(function (c) {
+        var r = Studio.evalFormula(c.formula, rowObj);
+        out.push(r.error ? null : r.value);
+      });
+      return out;
+    });
+    return { cols: outCols, rows: outRows };
+  };
+
   // N-DATA: chart types that read best filling an entire row on their own — a lot of
   // rows/columns (Table), long-form prose (Text/annotation), or a wide flow diagram.
   Studio.WIDE_CHART_TYPES = ["table", "richtext", "sankey", "chord", "calHeatmap"];
@@ -1985,7 +2079,14 @@
   };
   Studio.columnsOf = function (spec, daId) {
     var d = Studio.daById(spec, daId);
-    return (d && d.columns) || [];
+    if (!d) return [];
+    var cols = (d.columns || []).slice();
+    // A calc column is a real, bindable output column (mirrors real Pentaho CDA behavior,
+    // which appends <CalculatedColumns> to the query's own columns) — offer it here too.
+    (d.calcColumns || []).forEach(function (c) {
+      if (c && c.name && c.formula && cols.indexOf(c.name) < 0) cols.push(c.name);
+    });
+    return cols;
   };
 
   // default panel for a chart type bound to a dataAccess (auto column mapping)

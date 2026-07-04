@@ -118,7 +118,7 @@
           }));
         }
       }
-      return { cols: cols, rows: rows2 };
+      return Studio.applyCalcCols(cols, rows2, da && da.calcColumns);
     }
 
     // if the row is a per-record detail (has a name col) keep names; otherwise distinct categories
@@ -127,7 +127,9 @@
     for (var i = 0; i < n; i++) {
       rows.push(cols.map(function (c, j) { return valueFor(kinds[j], i, n, j === 0, c); }));
     }
-    return { cols: cols, rows: rows };
+    // N-DATA: evaluate any declared Calculated columns against this sample too — the ONLY
+    // place they get a real value in the builder (see the Studio.evalFormula header note).
+    return Studio.applyCalcCols(cols, rows, da && da.calcColumns);
   };
 
   // mock map for an entire dashboard, built from its bound data accesses

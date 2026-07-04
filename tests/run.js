@@ -3175,6 +3175,93 @@ function serve() {
     });
     ok("DA inspector: adding a calculated column creates an input row", calcColAdded);
 
+    // ---- N-DATA: dashboard-wide formula language, first cut — calc columns now actually
+    // evaluate (previously the "Calculated columns" section only fed the .cda XML export;
+    // the builder never computed a value, silently making it a no-op for the six direct-query
+    // connectors that never go through a CDA server) ----
+    console.log("\n• N-DATA: calc column formula evaluation");
+    const calcPure = await page.evaluate(() => {
+      var add = Studio.evalFormula("=[a]+[b]", { a: 2, b: 3 });
+      var nested = Studio.evalFormula("([a]-[b])/2", { a: 10, b: 4 });
+      var unknownCol = Studio.evalFormula("[nope]+1", { a: 1 });
+      var divZero = Studio.evalFormula("[a]/0", { a: 5 });
+      var badSyntax = Studio.evalFormula("[a]+", { a: 1 });
+      var applied = Studio.applyCalcCols(["a", "b"], [[2, 3], [4, 5]], [{ name: "sum", formula: "=[a]+[b]" }]);
+      var appliedInvalid = Studio.applyCalcCols(["a"], [[2], [4]], [{ name: "bad", formula: "[nope]" }]);
+      return {
+        add: add.value === 5 && !add.error,
+        nested: nested.value === 3 && !nested.error,
+        unknownCol: !!unknownCol.error,
+        divZero: !!divZero.error,
+        badSyntax: !!badSyntax.error,
+        appliedCols: applied.cols.join(","),
+        appliedRows: JSON.stringify(applied.rows),
+        invalidRows: JSON.stringify(appliedInvalid.rows)
+      };
+    });
+    ok("Studio.evalFormula computes +/-/*// with parens (leading '=' stripped)", calcPure.add && calcPure.nested, JSON.stringify(calcPure));
+    ok("Studio.evalFormula reports an error for an unknown column reference", calcPure.unknownCol, JSON.stringify(calcPure));
+    ok("Studio.evalFormula reports an error for division by zero", calcPure.divZero, JSON.stringify(calcPure));
+    ok("Studio.evalFormula reports an error for malformed syntax", calcPure.badSyntax, JSON.stringify(calcPure));
+    ok("Studio.applyCalcCols appends a computed column per row", calcPure.appliedCols === "a,b,sum" && calcPure.appliedRows === JSON.stringify([[2, 3, 5], [4, 5, 9]]), JSON.stringify(calcPure));
+    ok("Studio.applyCalcCols emits null (not a throw) for a calc column that fails to evaluate", calcPure.invalidRows === JSON.stringify([[2, null], [4, null]]), JSON.stringify(calcPure));
+
+    const calcColsOf = await page.evaluate(() => {
+      var spec = { cda: { dataAccesses: [{ id: "d1", columns: ["a", "b"], calcColumns: [{ name: "sum", formula: "=[a]+[b]" }] }] } };
+      return Studio.columnsOf(spec, "d1");
+    });
+    ok("Studio.columnsOf offers a valid calc column's name as a real bindable column", calcColsOf.indexOf("sum") >= 0, JSON.stringify(calcColsOf));
+
+    const calcSample = await page.evaluate(() => {
+      var da = { id: "d1", columns: ["region", "revenue", "cost"], calcColumns: [{ name: "margin", formula: "=[revenue]-[cost]" }] };
+      var sd = Studio.sampleRows(da);
+      var mi = sd.cols.indexOf("margin");
+      return { hasCol: mi >= 0, allNumeric: mi >= 0 && sd.rows.every(function (r) { return typeof r[mi] === "number" && !isNaN(r[mi]); }) };
+    });
+    ok("Studio.sampleRows evaluates calc columns into real offline preview values", calcSample.hasCol && calcSample.allNumeric, JSON.stringify(calcSample));
+
+    // DA inspector: the formula field is validated live against this DA's own output columns —
+    // add a real output column, then a calc column, and confirm the inline error tracks correctness
+    await page.evaluate(() => {
+      var hs = [].slice.call(document.querySelectorAll("#inspBody .insp-sec h4"));
+      var oh = hs.filter(function (h) { return /Output columns/i.test(h.textContent); })[0];
+      if (oh) { var add = oh.querySelector(".add"); if (add) add.click(); }
+    });
+    await page.waitForTimeout(150);
+    await page.evaluate(() => {
+      var hs = [].slice.call(document.querySelectorAll("#inspBody .insp-sec h4"));
+      var ch = hs.filter(function (h) { return /Calculated/i.test(h.textContent); })[0];
+      if (ch) { var add = ch.querySelector(".add"); if (add) add.click(); }
+    });
+    await page.waitForTimeout(150);
+    const calcValid = await page.evaluate(() => {
+      var hs = [].slice.call(document.querySelectorAll("#inspBody .insp-sec h4"));
+      var ch = hs.filter(function (h) { return /Calculated/i.test(h.textContent); })[0];
+      var sec = ch.closest(".insp-sec");
+      var rows = [].slice.call(sec.querySelectorAll(".field.row"));
+      var lastRow = rows[rows.length - 1];
+      var inputs = [].slice.call(lastRow.querySelectorAll("input"));
+      inputs[0].value = "test1"; inputs[0].dispatchEvent(new Event("input"));
+      inputs[1].value = "[col1]+1"; inputs[1].dispatchEvent(new Event("input"));
+      var errs = [].slice.call(sec.querySelectorAll(".calc-col-err"));
+      var lastErr = errs[errs.length - 1];
+      return { hidden: lastErr && lastErr.style.display === "none" };
+    });
+    ok("DA inspector: a calc formula referencing a real output column shows no error", calcValid.hidden, JSON.stringify(calcValid));
+    const calcInvalid = await page.evaluate(() => {
+      var hs = [].slice.call(document.querySelectorAll("#inspBody .insp-sec h4"));
+      var ch = hs.filter(function (h) { return /Calculated/i.test(h.textContent); })[0];
+      var sec = ch.closest(".insp-sec");
+      var rows = [].slice.call(sec.querySelectorAll(".field.row"));
+      var lastRow = rows[rows.length - 1];
+      var inputs = [].slice.call(lastRow.querySelectorAll("input"));
+      inputs[1].value = "[nope]+1"; inputs[1].dispatchEvent(new Event("input"));
+      var errs = [].slice.call(sec.querySelectorAll(".calc-col-err"));
+      var lastErr = errs[errs.length - 1];
+      return { shown: lastErr && lastErr.style.display !== "none", text: lastErr ? lastErr.textContent : "" };
+    });
+    ok("DA inspector: a calc formula referencing an unknown column shows an inline error naming it", calcInvalid.shown && /test1/.test(calcInvalid.text) && /nope/.test(calcInvalid.text), JSON.stringify(calcInvalid));
+
     // ---- Output options (filter / sort / limit) — slice 6 ----
     console.log("\n• Output options (post-query filter / sort / limit)");
 
