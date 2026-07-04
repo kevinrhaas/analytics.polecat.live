@@ -15882,6 +15882,26 @@ function serve() {
     ok("'Show data points' popover's On picture draws dot markers, Off doesn't", optHintUI.dotsPopoverOnHasCircles, JSON.stringify(optHintUI));
     ok("Hint families without a thumb (e.g. tag-glyph 'Show value labels') stay tooltip-only, no popover added", optHintUI.tagHintHasNoPopover, JSON.stringify(optHintUI));
 
+    // a11y: Track L found a THIRD instance of the same "outline re-declared inside :focus"
+    // bug shape v286 (.repo-search) and v299 (.dsb-sqb-inp) already fixed — .opt-hint (the
+    // Z8 setting-hint glyph, tabIndex=0 so it's a real keyboard stop) set outline:none inside
+    // its own :focus rule (specificity (0,2,0), beats the shared global [tabindex]:focus-visible
+    // ring at the same specificity — equal specificity falls back to source order, and
+    // .opt-hint:focus came later, so it always won). Unlike the .repo-search/.dsb-sqb-inp fixes
+    // (real <input> elements, whose :focus-visible reliably fires even after a scripted .focus()
+    // — a browser-default carve-out for text fields), .opt-hint is a plain <span>, and Chromium's
+    // :focus-visible heuristic for non-form elements goes cold for the rest of the page the moment
+    // ANY mouse click has happened — which thousands of earlier clicks in this same suite run
+    // guarantee. A live focus-simulation check would therefore be reliably wrong here, not
+    // reliably right, so this guards the actual CSS source instead: the `.opt-hint:focus` rule
+    // must not re-declare `outline:none` (a real user tabbing to it in a fresh browser session
+    // does get a genuine keyboard ring — confirmed by hand in a clean Playwright page with no
+    // prior mouse activity before writing this guard).
+    var optHintCss = fs.readFileSync(path.join(ROOT, "app", "studio.css"), "utf8");
+    var optHintFocusRule = (optHintCss.match(/\.opt-hint:focus\s*\{[^}]*\}/) || [""])[0];
+    ok("a11y: '.opt-hint:focus' no longer re-declares outline:none (keyboard ring restored)",
+      optHintFocusRule.length > 0 && !/outline\s*:\s*none/.test(optHintFocusRule), optHintFocusRule);
+
     // ---- Track N: command palette (⌘K / Ctrl-K) ----
     console.log("\n• Track N: command palette (⌘K)");
     var cmdk = await page.evaluate(function () {

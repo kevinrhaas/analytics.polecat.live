@@ -15,6 +15,16 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 333,
+    title: 'Fixed a missing keyboard focus ring on chart-option hint icons',
+    kind: 'fix',
+    ts: '2026-07-04T16:58:59Z',
+    items: [
+      'Tabbing to the small info glyph next to a chart option (e.g. "Sort by value") showed no visible keyboard focus ring, even though it\'s a real keyboard stop.',
+      'A leftover CSS rule was silently suppressing it; fixed so it now matches every other focusable control in the app.',
+    ],
+  },
+  {
     v: 332,
     title: 'More option toggles get a real before/after picture',
     kind: 'polish',

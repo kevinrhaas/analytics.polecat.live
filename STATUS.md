@@ -2362,6 +2362,23 @@ gets covered over time:
   `Studio.defineChart({type, render, opts, thumb, autoPick})` contract so new types are uniform and testable.
 - **Test health** — coverage per feature, flaky/slow checks, and a fast smoke subset for quick loops.
 > **Findings log (append newest on top; keep short):**
+> - **Fixed shipped v333 (accessibility lens, third instance of the same bug shape):** grepped every
+>   `[a-z.#-]+:focus\{[^}]*\}` block in `app/studio.css` (vendor CSS has none) looking for the
+>   "outline re-declared inside its own `:focus` rule" pattern already fixed twice before (v286
+>   `.repo-search`, v299 `.dsb-sqb-inp`) — found a third live instance: `.opt-hint` (the Z8 setting-
+>   hint glyph, `tabIndex=0` so it's a real keyboard stop) set `outline:none` inside its own `:focus`
+>   rule, at the same (0,2,0) specificity as the shared `[tabindex]:focus-visible` ring but declared
+>   LATER in source order, so it always won — for every input method, not just mouse. Fixed by
+>   dropping the redundant `outline:none`. **Test-writing note for next time:** a live focus-
+>   simulation check (`el.focus()` + read `getComputedStyle`) is NOT reliable for a plain `<span>`
+>   here the way it is for `<input>`/`<textarea>` (the v286/v299 fixes) — Chromium's `:focus-visible`
+>   heuristic gives text fields a permanent carve-out (always focus-visible on script `.focus()`),
+>   but a non-form `[tabindex]` element's `:focus-visible` goes cold for the rest of the page the
+>   moment ANY mouse click has occurred, which thousands of earlier clicks in this same suite
+>   guarantee — confirmed by hand in an isolated fresh page (focus-visible fires correctly with zero
+>   prior mouse activity) vs. inside the real suite (always false after prior tests' clicks). Guarded
+>   with a static CSS-source assertion instead (the `.opt-hint:focus` rule text must not contain
+>   `outline:none`) rather than a flaky live simulation. 1 new test, suite 1446/1446.
 > - **Fixed shipped v322 (orphaned-state lens, round 2):** widened the v313 audit beyond `studio.js`
 >   itself — grepped every `localStorage.setItem`/`getItem` call across ALL of `app/*.js` and diffed
 >   the key set against `CLEAR_DATA_KEYS`. Found `app/welcome.js`'s `studio-welcome-seen` and
