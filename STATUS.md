@@ -1,5 +1,11 @@
 # Analytics Dashboard Studio — STATUS (hourly-loop resume anchor)
 
+> # ⛔ PAUSED — DO NOT DO ANY WORK THIS RUN (user-requested 2026-07-04, to save tokens).
+> If you are the hourly loop and reading this: **STOP IMMEDIATELY. Make no changes, no commits, no pushes.**
+> Just exit with a one-line note that the loop is paused. The routine itself is being disabled; this is a
+> belt-and-suspenders guard in case a run still fires. **To RESUME: delete this ⛔ block (and re-enable the
+> routine).** — Everything below is the normal protocol, inert while this block is present.
+
 > **RESUME PROTOCOL:** An hourly cron (`17 * * * *`, fresh-session job) runs the improvement loop.
 > **FILL THE RUN — this is the point:** you have the better part of an hour, so **keep working until your
 > time/context budget is nearly spent, NOT until you've done "a task."** One or two slices and stopping is
