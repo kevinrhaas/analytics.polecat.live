@@ -2204,13 +2204,25 @@ function serve() {
     // The dup/del click's effect on window.__STUDIO_STATE (parent page) round-trips through
     // the preview iframe's postMessage, so poll for the expected panel count instead of a
     // fixed wait — was observed to flake on slower machines (Track L sweep, 2026-07-02).
-    // Locator .click() itself already auto-waits for the button to be attached/actionable.
-    await pvp.locator('[data-panel-id] .sr-act[data-act="dup"]').first().click({ force: true });
-    await page.waitForFunction((n) => window.__STUDIO_STATE.spec.panels.length === n, pcount0 + 1, { timeout: 2000 }).catch(() => {});
+    // Track H sweep (2026-07-04): `force:true` skips Playwright's normal actionability
+    // auto-wait/retry (that's the whole point of force), so on a loaded sandbox the click
+    // could fire while the panel row was still mid-reflow from the PRIOR action and fail
+    // outright with "Element is not visible" instead of retrying — confirmed independently
+    // on origin/main HEAD with zero other changes (three different failure shapes across
+    // three runs of the identical commit). Explicitly wait for the target to be visible
+    // first (real auto-retry), THEN force-click (still needed in case something transient
+    // overlaps it) — belt and suspenders. Also widened the post-click poll to 8000ms; both
+    // assertions below are still an exact panel-count match, unchanged.
+    const dupBtn = pvp.locator('[data-panel-id] .sr-act[data-act="dup"]').first();
+    await dupBtn.waitFor({ state: "visible", timeout: 8000 });
+    await dupBtn.click({ force: true });
+    await page.waitForFunction((n) => window.__STUDIO_STATE.spec.panels.length === n, pcount0 + 1, { timeout: 8000 }).catch(() => {});
     const pcount1 = await page.evaluate(() => window.__STUDIO_STATE.spec.panels.length);
     ok("canvas ⧉ duplicates a panel", pcount1 === pcount0 + 1, pcount0 + "→" + pcount1);
-    await pvp.locator('[data-panel-id] .sr-act[data-act="del"]').first().click({ force: true });
-    await page.waitForFunction((n) => window.__STUDIO_STATE.spec.panels.length === n, pcount1 - 1, { timeout: 2000 }).catch(() => {});
+    const delBtn = pvp.locator('[data-panel-id] .sr-act[data-act="del"]').first();
+    await delBtn.waitFor({ state: "visible", timeout: 8000 });
+    await delBtn.click({ force: true });
+    await page.waitForFunction((n) => window.__STUDIO_STATE.spec.panels.length === n, pcount1 - 1, { timeout: 8000 }).catch(() => {});
     const pcount2 = await page.evaluate(() => window.__STUDIO_STATE.spec.panels.length);
     ok("canvas × deletes a panel", pcount2 === pcount1 - 1, pcount1 + "→" + pcount2);
     // inspector duplicate
