@@ -2618,6 +2618,18 @@
     das.forEach(function (da) {
       if (!usedDaIds[da.id]) out.push({ level: "info", msg: "Data access “" + (da.name || da.id) + "” is declared but not used by any panel, KPI, or filter." });
     });
+    // N-DATA follow-up (closes the "broken drill-through/detail-drawer target" health-score item):
+    // panel/KPI drill-through (`p.drill`/`k.drill`) only ever targets an external URL, which can't
+    // be meaningfully validated offline — but the Detail drawer (`p.detail.da`) targets a DA id
+    // INSIDE this same spec, and that DA can be deleted or renamed after the drawer was wired up.
+    // When that happens, clicking the chart silently does nothing (PDC.openDetail finds no
+    // matching DA) — no error, no console warning, just a dead click. Flag it here instead.
+    var daIds = {}; das.forEach(function (da) { daIds[da.id] = true; });
+    spec.panels.forEach(function (p) {
+      if (p.detail && p.detail.da && !daIds[p.detail.da]) {
+        out.push({ level: "warn", msg: "Panel “" + (p.title || p.id) + "”'s Detail drawer points to a data access that no longer exists — clicking a chart element will silently do nothing." });
+      }
+    });
     // N-DATA innovation idea follow-up: the "still open" half of the dashboard health score idea
     // — run the existing Data quality watchdog (v260/v261) over every bound DA's own sample rows,
     // not just the DA that happens to be selected in the inspector at the time. Compound DAs have

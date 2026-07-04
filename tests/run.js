@@ -9711,6 +9711,35 @@ function serve() {
     ok("N-DATA: a compound (join/union) DA's leftId/rightId sources are not flagged as orphaned even with no panel bound directly to them",
       orphanFixes.compoundSourcesNotFlagged, JSON.stringify(orphanFixes));
 
+    // N-DATA follow-up: closes the "broken drill-through/detail-drawer target" health-score item
+    // (was left "still open" at v309) — a panel's Detail drawer (p.detail.da) targets a DA id
+    // INSIDE the spec, unlike drill-through's always-external URL, so it's a real, checkable
+    // target that can go stale if the DA it points at gets deleted or renamed.
+    const detailTarget = await page.evaluate(function () {
+      var healthy = Studio.validate({
+        name: "ok-name", title: "T",
+        panels: [{ id: "p1", chart: { da: "usedDa" }, detail: { da: "usedDa" } }], kpis: [],
+        cda: { dataAccesses: [{ id: "usedDa", name: "usedDa" }] }
+      });
+      var broken = Studio.validate({
+        name: "ok-name", title: "T",
+        panels: [{ id: "p1", title: "Sales by region", chart: { da: "usedDa" }, detail: { da: "deletedDa" } }], kpis: [],
+        cda: { dataAccesses: [{ id: "usedDa", name: "usedDa" }] }
+      });
+      var noDetail = Studio.validate({
+        name: "ok-name", title: "T", panels: [{ id: "p1", chart: { da: "usedDa" } }], kpis: [],
+        cda: { dataAccesses: [{ id: "usedDa", name: "usedDa" }] }
+      });
+      return {
+        healthyNotFlagged: !healthy.some(function (i) { return /Detail drawer points to a data access/.test(i.msg); }),
+        brokenIsFlagged: broken.some(function (i) { return i.level === "warn" && /“Sales by region”.*Detail drawer points to a data access that no longer exists/.test(i.msg); }),
+        noDetailNotFlagged: !noDetail.some(function (i) { return /Detail drawer points to a data access/.test(i.msg); })
+      };
+    });
+    ok("N-DATA: a panel with a healthy Detail drawer target is not flagged", detailTarget.healthyNotFlagged, JSON.stringify(detailTarget));
+    ok("N-DATA: a panel whose Detail drawer points at a deleted/renamed data access is flagged (warn)", detailTarget.brokenIsFlagged, JSON.stringify(detailTarget));
+    ok("N-DATA: a panel with no Detail drawer configured at all is not flagged", detailTarget.noDetailNotFlagged, JSON.stringify(detailTarget));
+
     // N-DATA: closes the "still open" data-quality-watchdog half of the dashboard health score
     // idea — Studio.validate() now also runs the existing watchdog (v260/v261) over every bound
     // (non-orphaned) DA's own sample rows, surfacing each issue as a warn-level Checks note.

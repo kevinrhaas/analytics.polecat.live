@@ -2701,6 +2701,15 @@ gets covered over time:
 > target check — today `panel.drill`/`kpi.drill` only model an external URL (`{url,param}`), so there's
 > no internal "target that can stop resolving" yet; a distinct glanceable "health score" UI beyond the
 > Checks-section notes remains optional/not yet done too.
+> ✓ **Broken Detail-drawer target check shipped v324 (closes the "still open" item above — health
+> score track now feature-complete)**: re-examined the claim that there's "no internal target that
+> can stop resolving" — that's true for `drill` (always an external URL) but NOT for the **Detail
+> drawer** (`panel.detail.da`), which targets a DA id inside the very same spec. Deleting or
+> renaming that DA after wiring up the drawer silently breaks it (`PDC.openDetail` just finds
+> nothing and the click does nothing — no error, no console warning). `Studio.validate()` now
+> flags this as a warn-level Checks note. 3 new tests, suite 1407/1407. **A distinct glanceable
+> "health score" UI beyond the Checks-section notes remains optional/not yet done**, per the
+> original note — every underlying check the idea asked for now exists.
 - **Compare dashboards side-by-side (added 2026-07-04, innovation sweep):** pick any two saved dashboards
   from Home/Repository and view them in a synced-scroll split-screen — distinct from the existing
   per-dashboard Version-history diff (v262, which compares a dashboard against ITS OWN past checkpoint,

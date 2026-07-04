@@ -15,6 +15,17 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 324,
+    title: 'N-DATA: Checks now catches a broken Detail-drawer target (dashboard health score)',
+    kind: 'fix',
+    ts: '2026-07-04T13:45:50Z',
+    items: [
+      'Drill-through always targets an external URL, which can\'t be validated offline -- but the Detail drawer targets a data access ID inside the very same dashboard, and that DA can be deleted or renamed after the drawer was wired up.',
+      'When that happens today, clicking the chart silently does nothing: no error, no console warning, just a dead click.',
+      'The Dashboard inspector\'s Checks section now flags it with a clear warning, closing out the last open piece of the dashboard health score idea.',
+    ],
+  },
+  {
     v: 323,
     title: 'Z8 follow-up: option hints get a real before/after picture, not just a tooltip',
     kind: 'feature',
