@@ -2569,6 +2569,17 @@
         out.push({ level: "warn", msg: "Data access “" + (da.name || da.id) + "”: " + Studio.dataQualityMessage(issue) });
       });
     });
+    // Architecture-gap finding (2026-07-04): the six direct-query connectors (DuckDB/SQLite/
+    // Snowflake/Databricks/BigQuery/Generic SQL) run genuinely live in the builder's own Test
+    // connection/Run live flow, but the exported/deployed Dashboard Framework has no runtime query
+    // path for any of them (see STATUS.md's Z14 writeup) — a real deployment would silently show
+    // only the offline sample data these DAs were authored against. Warn about it right where a
+    // builder can act on it, instead of it being a deploy-time surprise.
+    var DIRECT_DA_KINDS = { duckdb: "DuckDB", httpvfs: "SQLite", snowflake: "Snowflake", databricks: "Databricks", bigquery: "BigQuery", http: "Generic SQL/HTTP" };
+    das.forEach(function (da) {
+      if (!usedDaIds[da.id] || !DIRECT_DA_KINDS[da.kind]) return; // an orphaned DA already has its own note above
+      out.push({ level: "warn", msg: "Data access “" + (da.name || da.id) + "” (" + DIRECT_DA_KINDS[da.kind] + ") has no live query path once this dashboard is exported/deployed — outside the builder it will only ever show the sample data it was authored against." });
+    });
     return out;
   };
 

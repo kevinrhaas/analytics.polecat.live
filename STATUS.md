@@ -939,14 +939,22 @@
   Track N entry above. `Studio.evalFormula`/`Studio.applyCalcCols` (model.js), wired into
   `Studio.sampleRows`/`genMock` and `Studio.columnsOf`; live inline validation in the DA inspector.
   10 new tests, suite 1373/1373.
-- (docs-only) **Architecture finding: exported/deployed dashboards can't actually query the six
-  direct connectors at runtime** — traced while scoping a v315 follow-up; see the ⚠️ writeup under
-  Z14 and the updated Z4 "Still open" note. `PDC.cda()` (the exported bundle's only data-fetch path)
-  only ever reads injected offline mock data or calls a real Pentaho CDA endpoint; nothing dispatches
-  to duckdb.js/sqlitehttp.js/snowflake.js/databricks.js/bigquery.js/genericsql.js at runtime, so those
-  connectors only ever work inside the builder's own authoring/preview flow today. No code changed —
-  documented as a dedicated future decision (credential-in-static-file concerns for the four
-  token-based kinds; DuckDB/SQLite are the safer, credential-free half to fix first).
+- v316: **(docs-only) Architecture finding: exported/deployed dashboards can't actually query the
+  six direct connectors at runtime** — traced while scoping a v315 follow-up; see the ⚠️ writeup
+  under Z14 and the updated Z4 "Still open" note. `PDC.cda()` (the exported bundle's only data-fetch
+  path) only ever reads injected offline mock data or calls a real Pentaho CDA endpoint; nothing
+  dispatches to duckdb.js/sqlitehttp.js/snowflake.js/databricks.js/bigquery.js/genericsql.js at
+  runtime, so those connectors only ever work inside the builder's own authoring/preview flow today.
+  No code changed — documented as a dedicated future decision (credential-in-static-file concerns
+  for the four token-based kinds; DuckDB/SQLite are the safer, credential-free half to fix first).
+  Corrected the docs' DuckDB/SQLite/connector paragraphs, which had implied the export falls back
+  safely to offline sample data (it doesn't).
+- v317: **N-DATA: dashboard Checks now warn about the v316 gap right where a builder can act on
+  it** — `Studio.validate()` (model.js) flags any bound (non-orphaned) DuckDB/SQLite/Snowflake/
+  Databricks/BigQuery/Generic-SQL data access with a warn-level note: "...has no live query path
+  once this dashboard is exported/deployed — outside the builder it will only ever show the sample
+  data it was authored against." Never fires for a real Pentaho SQL/MDX/etc. source or a DA already
+  flagged orphaned. 3 new tests, suite 1376/1376.
 
 ## NEXT (top = do first)
 
@@ -1310,6 +1318,12 @@ as two connector types in the Z3/Z4 Data-Source model; one shippable slice per l
 > real answer exists for shipping a token in a static file) rather than a same-run patch. Docs and
 > the in-app copy should stop implying full live-after-export parity for these connectors until
 > this is resolved.
+> ✓ **Docs corrected + a Checks-section warning shipped (v316/v317), same run as this finding.**
+> The docs no longer imply the export falls back safely to offline data, and `Studio.validate()`
+> now warns right in the Dashboard inspector whenever one of these six connectors is actually bound
+> — the "explicit, loud warning" half of the plan above. **Still genuinely open:** the real fix
+> (DuckDB/SQLite runtime dispatch in `studio-render.js`, and the harder credential-in-static-file
+> design decision for the four token-based kinds).
 
 **Z4 — Data Source library + connectors.** Expand beyond CDA to direct querying of leading providers,
 browser-only via each provider's REST/SQL API with locally-saved credentials. Priority connectors:

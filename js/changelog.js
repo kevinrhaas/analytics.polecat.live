@@ -15,6 +15,26 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 317,
+    title: 'N-DATA: dashboard Checks now warn when a direct-query connector has no live path after export',
+    kind: 'feature',
+    ts: '2026-07-04T09:48:18Z',
+    items: [
+      'Found while tracing an architecture gap (see the v316 note below): a dashboard bound to DuckDB/SQLite/Snowflake/Databricks/BigQuery/Generic SQL now gets a warn-level Checks-section note -- "...has no live query path once this dashboard is exported/deployed -- outside the builder it will only ever show the sample data it was authored against" -- right where a builder can act on it, instead of it being a deploy-time surprise.',
+      'Studio.validate() (model.js) skips a DA that\'s already flagged as orphaned (no double note) and never fires for a real Pentaho SQL/MDX/etc. data source. 3 new tests.',
+    ],
+  },
+  {
+    v: 316,
+    title: 'Docs correction: the direct connectors don\'t actually go live once a dashboard is exported',
+    kind: 'fix',
+    ts: '2026-07-04T09:43:18Z',
+    items: [
+      'The DuckDB/SQLite docs paragraph claimed the exported Dashboard Framework "uses offline sample data for charting" for these connectors -- not true: the real .html export has no offline mock baked in at all and would call the real Pentaho CDA endpoint, which doesn\'t exist for these DA kinds, so it fails outright once actually deployed. Corrected the wording for all six direct connectors instead of implying a safe fallback that doesn\'t exist, and called out the extra secret-handling question the four token-based ones raise for ever shipping this for real.',
+      'STATUS.md carries the full trace of this finding for whoever picks up the real fix.',
+    ],
+  },
+  {
     v: 315,
     title: 'N-DATA: calculated columns now actually compute (dashboard-wide formula language, first cut)',
     kind: 'feature',

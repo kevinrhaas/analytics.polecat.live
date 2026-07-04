@@ -9664,6 +9664,32 @@ function serve() {
     ok("N-DATA: an orphaned DA isn't also profiled for quality (avoids piling a second, redundant note on top of 'declared but not used')",
       dqWatchdog.orphanedSkipsQualityCheck, JSON.stringify(dqWatchdog));
 
+    // Architecture-gap finding: a dashboard using one of the six direct-query connectors gets a
+    // warn-level Checks note that it has no live query path once exported/deployed.
+    const directConnWarn = await page.evaluate(function () {
+      function specWith(kind) {
+        return {
+          name: "ok-name", title: "T", panels: [{ id: "p1", chart: { da: "d1" } }], kpis: [], filters: [],
+          cda: { dataAccesses: [{ id: "d1", name: "duckDa", kind: kind, columns: ["x"] }] }
+        };
+      }
+      var duckdb = Studio.validate(specWith("duckdb"));
+      var pentaho = Studio.validate(specWith("sql.jndi"));
+      var orphanedDuckdb = Studio.validate({
+        name: "ok-name", title: "T", panels: [], kpis: [], filters: [],
+        cda: { dataAccesses: [{ id: "d1", name: "duckDa", kind: "duckdb", columns: ["x"] }] }
+      });
+      return {
+        duckdbFlagged: duckdb.some(function (i) { return i.level === "warn" && /“duckDa” \(DuckDB\) has no live query path/.test(i.msg); }),
+        pentahoNotFlagged: !pentaho.some(function (i) { return /no live query path/.test(i.msg); }),
+        orphanedNotDoubleFlagged: !orphanedDuckdb.some(function (i) { return /no live query path/.test(i.msg); })
+      };
+    });
+    ok("N-DATA: a bound DuckDB (or Snowflake/Databricks/BigQuery/SQLite/Generic SQL) DA gets a warn-level 'no live query path once exported' Checks note",
+      directConnWarn.duckdbFlagged, JSON.stringify(directConnWarn));
+    ok("N-DATA: a plain Pentaho SQL/MDX DA is NOT flagged with the direct-connector export warning", directConnWarn.pentahoNotFlagged, JSON.stringify(directConnWarn));
+    ok("N-DATA: an orphaned direct-connector DA only gets the 'declared but not used' note, not also the export warning", directConnWarn.orphanedNotDoubleFlagged, JSON.stringify(directConnWarn));
+
     // ── F18: Bump / ranking chart (v104) ─────────────────────────────────────
     console.log("\n• F18: Bump chart");
 
