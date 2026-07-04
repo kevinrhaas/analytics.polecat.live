@@ -15,6 +15,18 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 296,
+    title: 'Visual refresh (A) follow-up: Fleet Modern app-chrome theme',
+    kind: 'feature',
+    ts: '2026-07-04T02:40:00Z',
+    items: [
+      'Settings -> Color theme picker gains a third option, Fleet Modern, alongside Classic Blue and Polecat -- reuses the exact jobtracker.polecat.live tokens already validated for the Fleet Modern DASHBOARD theme (Studio.DASHBOARD_THEMES, v281), so picking Fleet Modern on both the app chrome and a dashboard reads as one coherent system.',
+      'Additive, same pattern as the existing app-theme system: Classic Blue and Polecat are untouched, exported dashboards are unaffected (this only sets a data-app-theme attribute the builder chrome CSS reads).',
+      'The left rail + mobile hamburger get their own Fleet Modern navy palette (matching the dashboard theme\'s sidebar/header color) instead of inheriting Classic\'s blue-navy or Polecat\'s warm plum; docs/index.html also picks up the new theme so the Help tab never looks like a stray unstyled page.',
+      'Found + fixed a real bug while wiring the Settings toast: a theme-label lookup object was declared inside the wrong closure (a per-iteration map callback instead of the enclosing render function), so the onchange handler threw a silent ReferenceError and the theme-switch confirmation toast never actually appeared for any of the three options -- caught by a new test that asserts the toast text itself, not just the DOM attribute. 5 new tests, suite 1310/1310.',
+    ],
+  },
+  {
     v: 295,
     title: 'N-DATA: cross-filter extended to Funnel',
     kind: 'feature',

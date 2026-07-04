@@ -41,6 +41,28 @@ html[data-app-theme='polecat'][data-theme='dark']{
   --good:#59d68e; --warn:#f2ab5c; --bad:#ff6b82;
   --shadow:0 1px 3px rgba(0,0,0,.5); --shadow-lg:0 16px 46px rgba(0,0,0,.6);
 }
+/* Visual refresh (A) follow-up: a third app theme, "Fleet Modern" -- the same
+   jobtracker.polecat.live token hierarchy (bg -> surface -> surface-2, text/2/3,
+   brand/accent) already adopted for the DASHBOARD side (Studio.DASHBOARD_THEMES,
+   v281) now available for the builder chrome itself, coexisting alongside Classic
+   Blue and Polecat rather than replacing either (same "add, don't overwrite"
+   pattern the dashboard theme picker used). Values below are lifted verbatim from
+   Studio.DASHBOARD_THEMES' fleet-modern entry so the two surfaces read as one
+   coherent system when both are set to the modern look. */
+html[data-app-theme='modern']{
+  --pentaho:#0071bc; --pdc:#00964a;
+  --ink:#0c1c2e; --muted:#48596f; --faint:#586b88;
+  --bg:#eef3f9; --pane:#ffffff; --line:#ccdcec; --line-2:#e9f0f8; --field:#ffffff;
+  --good:#00964a; --warn:#c98500; --bad:#d1403f;
+  --shadow:0 1px 3px rgba(13,26,46,.08); --shadow-lg:0 12px 40px rgba(13,26,46,.16);
+}
+html[data-app-theme='modern'][data-theme='dark']{
+  --pentaho:#5bb3ea; --pdc:#17b9a6;
+  --ink:#e9eff8; --muted:#93a6c2; --faint:#8496ac;
+  --bg:#0a0f1a; --pane:#111a2b; --line:#26344f; --line-2:#18243a; --field:#18243a;
+  --good:#22a35f; --warn:#b8811f; --bad:#e2685f;
+  --shadow:0 1px 3px rgba(0,0,0,.4); --shadow-lg:0 16px 46px rgba(0,0,0,.55);
+}
 *{box-sizing:border-box}
 html,body{margin:0;height:100%}
 /* M9: clip html as well as body so no element can create a horizontal scroll channel
@@ -75,6 +97,11 @@ html[data-app-theme='classic'] #railNav{--rail-bg:#0f1c33;--rail-bg2:#182c4d;--r
   --rail-line:rgba(234,241,251,.12)}
 html[data-app-theme='polecat'] #railNav{--rail-bg:#2E2A33;--rail-bg2:#3A2F3A;--rail-ink:#F5E9D6;
   --rail-line:rgba(245,233,214,.1)}
+/* Fleet Modern's rail reuses the jobtracker header/sidebar navy (--sidebar-bg in
+   Studio.DASHBOARD_THEMES) instead of Classic's blue-tinted navy or Polecat's warm
+   plum, so the rail visually matches an exported/previewed Fleet Modern dashboard. */
+html[data-app-theme='modern'] #railNav{--rail-bg:#0d1a2e;--rail-bg2:#152540;--rail-ink:#e9eff8;
+  --rail-line:rgba(233,239,248,.12)}
 #railNav.expanded{width:184px}
 /* Z12: persistent brand mark anchored at the top of the rail — the app's identity
    lives here (not a redundant letter-box in the content header); click returns Home. */
@@ -129,6 +156,7 @@ html[data-app-theme='polecat'] #railNav{--rail-bg:#2E2A33;--rail-bg2:#3A2F3A;--r
 /* mirrors the #railNav theme split above — the hamburger opens the same rail, so it should
    match the rail's own palette rather than staying permanently Polecat-plum. */
 html[data-app-theme='classic'] #mobileNavBtn{background:#0f1c33;border-color:rgba(234,241,251,.16);color:#eaf1fb}
+html[data-app-theme='modern'] #mobileNavBtn{background:#0d1a2e;border-color:rgba(233,239,248,.16);color:#e9eff8}
 #mobileNavBtn:active{opacity:.85}
 @media(max-width:900px){
   #railNav{position:fixed;top:0;bottom:0;left:0;width:min(82vw,272px);

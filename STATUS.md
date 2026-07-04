@@ -807,6 +807,16 @@
 - v295: **N-DATA: cross-filter extended to Funnel** — `wireXFilter()` gains a funnel branch (tags each
   new `.funnel-bar` stage rect); `ANNOT_CAPS.crossFilter` includes funnel so the inspector section
   appears. 3 new tests, suite 1305/1305.
+- v296: **Visual refresh (A) follow-up: Fleet Modern app-chrome theme** — Settings' Color theme picker
+  gains a third option (Classic Blue / Polecat / **Fleet Modern**), reusing the exact
+  jobtracker.polecat.live tokens already validated for the Fleet Modern DASHBOARD theme
+  (`Studio.DASHBOARD_THEMES`, v281), additive alongside the existing two (exported dashboards
+  untouched). Rail/hamburger get a matching navy palette; `docs/index.html` picks it up too.
+  **Found + fixed a real bug**: the theme-label lookup was declared inside the wrong closure (a
+  per-iteration `groups.map` callback instead of the enclosing `renderSettings`), so the Settings
+  onchange handler threw a silent `ReferenceError` and the theme-switch confirmation toast never
+  fired for ANY of the three options — caught by a test that asserts the toast's actual text, not
+  just the `data-app-theme` attribute. 5 new tests, suite 1310/1310.
 
 ## NEXT (top = do first)
 
@@ -966,10 +976,15 @@
 > fade respects `prefers-reduced-motion`. Fixed a real bug in the process: the info-dot and two form
 > fields set `outline:none` on focus with no replacement (zero keyboard focus indicator). 8 new tests,
 > suite 1272/1272.
-> **Follow-ups (not yet done):** make Fleet Modern the **default value** of the new Settings picker itself
-> (per the original ask) once it's had a look from the user (today the picker exists but still defaults to
-> Classic, an opt-in); align the app chrome's Polecat theme to the same jobtracker tokens (currently only
-> the dashboard-facing side is done).
+> ✓ **App chrome now offers the jobtracker tokens too, shipped v296**: Settings' Color theme picker gains
+> a third **Fleet Modern** option (alongside Classic Blue / Polecat, additive — neither existing option
+> changed) using the exact tokens already validated for the Fleet Modern dashboard theme; rail/hamburger/
+> docs page all pick it up. Re-reads the original ask as "make the look available," not "force Polecat to
+> become it" — Polecat's warm plum/terracotta identity (a deliberate Z-platform design-language choice,
+> see the top of this ★ Z section) stays intact as its own option.
+> **Follow-ups (not yet done):** make Fleet Modern the **default value** of both Settings pickers (app
+> chrome + dashboard) once it's had a look from the user (today both exist but still default to Classic,
+> opt-in).
 >
 > **(B) Version history — "switch back to earlier versions" ✓ ALREADY SHIPPED (v258 + v262).** The loop had
 > already built this from the N-DIST backlog: the Dashboard inspector's **Version history** section keeps a

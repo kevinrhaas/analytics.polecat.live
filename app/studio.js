@@ -5327,15 +5327,16 @@
     var sec = $("#secSettings"); if (!sec) return;
     var groups = [];
     SETTINGS_TOGGLES.forEach(function (t) { if (groups.indexOf(t.grp) < 0) groups.push(t.grp); });
+    var APP_THEME_LABELS = { classic: "Classic Blue", polecat: "Polecat", modern: "Fleet Modern" };
     var html = '<div class="settings-wrap"><div class="settings-hero"><h1>Settings</h1>' +
       '<p>App-wide preferences, saved locally on this device.</p></div>' +
       groups.map(function (g) {
         var themeRow = g === "Appearance" ?
           '<div class="set-row"><span class="set-row-ic" data-ic="palette"></span>' +
-            '<div class="set-row-txt"><b>Color theme</b><small>Classic Blue is the original Pentaho-style chrome; Polecat recolors the builder in the warm terracotta/plum look the left rail already uses.</small></div>' +
+            '<div class="set-row-txt"><b>Color theme</b><small>Classic Blue is the original Pentaho-style chrome; Polecat recolors the builder in the warm terracotta/plum look the left rail already uses; Fleet Modern applies the same jobtracker.polecat.live tokens as the Fleet Modern dashboard theme.</small></div>' +
             '<select id="appThemeSel" class="set-sel">' +
-              ['classic', 'polecat'].map(function (m) {
-                return '<option value="' + m + '"' + (appTheme() === m ? " selected" : "") + '>' + (m === "classic" ? "Classic Blue" : "Polecat") + '</option>';
+              APP_THEME_KEYS.map(function (m) {
+                return '<option value="' + m + '"' + (appTheme() === m ? " selected" : "") + '>' + APP_THEME_LABELS[m] + '</option>';
               }).join("") +
             '</select></div>' : "";
         return '<div class="settings-card"><h2>' + esc(g) + '</h2>' +
@@ -5461,7 +5462,7 @@
       if (t) cb.addEventListener("change", t.set);
     });
     var appThemeSel = $("#appThemeSel", sec);
-    if (appThemeSel) appThemeSel.onchange = function () { setAppTheme(appThemeSel.value); toast(appThemeSel.value === "polecat" ? "Polecat theme applied" : "Classic Blue theme applied"); };
+    if (appThemeSel) appThemeSel.onchange = function () { setAppTheme(appThemeSel.value); toast(APP_THEME_LABELS[appThemeSel.value] + " theme applied"); };
     var defJndiInp = $("#setDefaultJndiInp", sec);
     if (defJndiInp) defJndiInp.addEventListener("change", function () { setDefaultJndi(defJndiInp.value); toast("Default JNDI connection saved"); });
     var defSubInp = $("#setDefaultSubtitleInp", sec);
@@ -5588,12 +5589,16 @@
   /* Z10: app COLOR theme — orthogonal to the light/dark MODE toggle above. "classic" is
      the original Pentaho blue chrome (default, unchanged); "polecat" recolors the builder
      to the same warm plum/terracotta/cream palette #railNav already uses, so the whole app
-     reads as one coherent identity instead of two clashing palettes. Exported dashboards
-     are deliberately untouched — this only sets a data attribute the studio.css variables
-     key off of; pdc-ui.css (the export/preview toolkit) never reads it. */
+     reads as one coherent identity instead of two clashing palettes. "modern" (Visual
+     refresh (A) follow-up) recolors the builder with the same jobtracker.polecat.live
+     tokens already used for the Fleet Modern DASHBOARD theme (Studio.DASHBOARD_THEMES),
+     so picking Fleet Modern on both sides reads as one system. Exported dashboards are
+     deliberately untouched by this app-chrome setting — this only sets a data attribute the
+     studio.css variables key off of; pdc-ui.css (the export/preview toolkit) never reads it. */
   function appTheme() { return S.appTheme || "classic"; }
+  var APP_THEME_KEYS = ["classic", "polecat", "modern"];
   function setAppTheme(t) {
-    t = (t === "polecat") ? "polecat" : "classic";
+    t = APP_THEME_KEYS.indexOf(t) >= 0 ? t : "classic";
     S.appTheme = t; document.documentElement.setAttribute("data-app-theme", t);
     try { localStorage.setItem("studio-app-theme", t); } catch (e) {}
   }

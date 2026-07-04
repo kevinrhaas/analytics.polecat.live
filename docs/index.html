@@ -12,7 +12,8 @@
     (function () {
       try {
         if (localStorage.getItem("studio-theme") === "dark") document.documentElement.setAttribute("data-theme", "dark");
-        if (localStorage.getItem("studio-app-theme") === "polecat") document.documentElement.setAttribute("data-app-theme", "polecat");
+        var savedAppTheme = localStorage.getItem("studio-app-theme");
+        if (savedAppTheme === "polecat" || savedAppTheme === "modern") document.documentElement.setAttribute("data-app-theme", savedAppTheme);
       } catch (e) {}
     })();
   </script>
@@ -27,6 +28,12 @@
       --card:#fff;--fg:#2E2A33;--faint:#6b5f52;--line:#e6d9c2;--code-bg:#efe3cb}
     :root[data-app-theme="polecat"][data-theme="dark"]{--brand:#1c1720;--accent:#f2905a;--accent2:#a78bfa;
       --bg:#17131b;--card:#241f2b;--fg:#F5E9D6;--faint:#b8a894;--line:#382f3f;--code-bg:#241f2b}
+    /* Fleet Modern (Visual refresh (A) follow-up) -- same jobtracker.polecat.live tokens as
+       the app chrome's "modern" theme and the Fleet Modern dashboard theme. */
+    :root[data-app-theme="modern"]{--brand:#0d1a2e;--accent:#00964a;--accent2:#0071bc;--bg:#eef3f9;
+      --card:#fff;--fg:#0c1c2e;--faint:#48596f;--line:#ccdcec;--code-bg:#e9f0f8}
+    :root[data-app-theme="modern"][data-theme="dark"]{--brand:#060b14;--accent:#17b9a6;--accent2:#5bb3ea;
+      --bg:#0a0f1a;--card:#111a2b;--fg:#e9eff8;--faint:#93a6c2;--line:#26344f;--code-bg:#18243a}
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
       background:var(--bg);color:var(--fg);line-height:1.6}

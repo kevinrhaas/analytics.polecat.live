@@ -13289,6 +13289,50 @@ function serve() {
       "polecat=" + z10RailPolecat + " classic=" + z10RailClassic);
     // (already restored to Classic Blue + Light above, ready for subsequent tests)
 
+    // ── Visual refresh (A) follow-up: "Fleet Modern" app-chrome theme, third option ──
+    console.log("\n• Visual refresh (A) follow-up: Fleet Modern app-chrome theme");
+    const modernOpts = await page.evaluate(function () {
+      var sel = document.getElementById("appThemeSel");
+      return Array.prototype.map.call(sel.options, function (o) { return o.value; });
+    });
+    ok("Fleet Modern: the Color theme picker offers a third 'modern' option alongside classic/polecat",
+      modernOpts.length === 3 && modernOpts.indexOf("modern") >= 0, JSON.stringify(modernOpts));
+
+    await page.selectOption("#appThemeSel", "modern");
+    await page.waitForTimeout(80);
+    const modernLight = await page.evaluate(function () {
+      return {
+        attr: document.documentElement.getAttribute("data-app-theme"),
+        stored: localStorage.getItem("studio-app-theme"),
+        pentaho: getComputedStyle(document.documentElement).getPropertyValue("--pentaho").trim(),
+        rail: getComputedStyle(document.getElementById("railNav")).backgroundColor,
+        toast: document.getElementById("toast").textContent
+      };
+    });
+    ok("Fleet Modern: selecting it sets data-app-theme + persists + recolors --pentaho + the rail",
+      modernLight.attr === "modern" && modernLight.stored === "modern" &&
+      modernLight.pentaho === "#0071bc" && modernLight.rail !== z10RailClassic && modernLight.rail !== z10RailPolecat,
+      JSON.stringify(modernLight));
+    ok("Fleet Modern: switching shows a toast naming the theme (not silently applying it)",
+      /Fleet Modern theme applied/.test(modernLight.toast), "toast=" + modernLight.toast);
+
+    await page.click('#secSettings input[data-set="dark"]');
+    await page.waitForTimeout(80);
+    const modernDark = await page.evaluate(function () {
+      return {
+        pentaho: getComputedStyle(document.documentElement).getPropertyValue("--pentaho").trim(),
+        bg: getComputedStyle(document.documentElement).getPropertyValue("--bg").trim()
+      };
+    });
+    ok("Fleet Modern: has its own dark variant, distinct from its light --pentaho/--bg",
+      modernDark.pentaho === "#5bb3ea" && modernDark.pentaho !== modernLight.pentaho && modernDark.bg !== modernLight.rail && !!modernDark.bg,
+      JSON.stringify(modernDark) + " vs light " + JSON.stringify(modernLight));
+
+    // restore to Classic Blue + Light so subsequent tests see the original baseline
+    await page.click('#secSettings input[data-set="dark"]');
+    await page.selectOption("#appThemeSel", "classic");
+    await page.waitForTimeout(80);
+
     // ── Z11: Help/docs — a persistent, discoverable rail entry (not buried in ⋯ More) ──
     console.log("\n• Z11: rail Help entry");
     const z11Help = await page.evaluate(function () {
@@ -13333,6 +13377,22 @@ function serve() {
     await docsUnthemedPage.close();
     ok("Z11: with no saved theme preference, docs/index.html stays on its default light styling (no data-theme attr, distinct background)",
       docsUnthemed.dataTheme === null && docsUnthemed.bg !== docsThemed.bg, JSON.stringify(docsUnthemed));
+
+    // Fleet Modern also has to be picked up by docs/index.html (Z11's theme-matching promise
+    // extends to the new third app-chrome theme, not just Classic Blue/Polecat).
+    const docsModernPage = await browser.newPage();
+    await docsModernPage.addInitScript(function () { localStorage.setItem("studio-app-theme", "modern"); });
+    await docsModernPage.goto(`http://localhost:${PORT}/docs/index.html`, { waitUntil: "load" });
+    const docsModern = await docsModernPage.evaluate(function () {
+      return {
+        dataAppTheme: document.documentElement.getAttribute("data-app-theme"),
+        bg: getComputedStyle(document.body).backgroundColor
+      };
+    });
+    await docsModernPage.close();
+    ok("Fleet Modern: docs/index.html also recolors for the 'modern' app theme",
+      docsModern.dataAppTheme === "modern" && docsModern.bg !== docsThemed.bg && docsModern.bg !== docsUnthemed.bg,
+      JSON.stringify(docsModern));
 
     // ── Z5 follow-up: Settings — export/import preferences as JSON ──
     console.log("\n• Z5 follow-up: Settings export/import JSON");
