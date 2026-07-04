@@ -15396,7 +15396,23 @@ function serve() {
         paretoHasRefHint: paretoRef.length === 1,
         areaRangeHasCenterHint: areaRangeCenter.length === 1,
         hintHasSvg: barsSort.length === 1 && !!barsSort[0].querySelector("svg"),
-        hintHasAriaLabel: barsSort.length === 1 && !!barsSort[0].getAttribute("aria-label")
+        hintHasAriaLabel: barsSort.length === 1 && !!barsSort[0].getAttribute("aria-label"),
+        // Z8 follow-up: "true before/after thumbnails" — sort/smooth get a real Off/On SVG
+        // popover, not just tooltip prose; other hint families (e.g. donut's legend toggle)
+        // deliberately don't, proving the popover is opt-in per family, not a blanket change.
+        sortHintHasPopover: barsSort.length === 1 && !!barsSort[0].querySelector(".opt-hint-pop"),
+        sortPopoverHasTwoSvgs: barsSort.length === 1 && barsSort[0].querySelectorAll(".opt-hint-pop svg").length === 2,
+        sortPopoverHasOffOnLabels: barsSort.length === 1 && (function () {
+          var labs = [].slice.call(barsSort[0].querySelectorAll(".oh-pop-lab")).map(function (e) { return e.textContent; });
+          return labs.indexOf("Off") >= 0 && labs.indexOf("On") >= 0;
+        })(),
+        smoothHintHasPopover: lineSmooth.length === 1 && !!lineSmooth[0].querySelector(".opt-hint-pop"),
+        smoothPopoverHasTwoSvgs: lineSmooth.length === 1 && lineSmooth[0].querySelectorAll(".opt-hint-pop svg").length === 2,
+        smoothPopoverPathsDiffer: lineSmooth.length === 1 && (function () {
+          var paths = [].slice.call(lineSmooth[0].querySelectorAll(".opt-hint-pop path")).map(function (e) { return e.getAttribute("d"); });
+          return paths.length === 2 && paths[0] !== paths[1] && paths[1].indexOf("C") >= 0 && paths[0].indexOf("C") < 0;
+        })(),
+        legendHintHasNoPopover: donutLegend.length === 1 && !donutLegend[0].querySelector(".opt-hint-pop")
       };
       p.chart = prevChart;
       window.__studioSelect(null);
@@ -15427,6 +15443,14 @@ function serve() {
     ok("Violin's 'Show IQR box' toggle carries an iqr-box-glyph hint", optHintUI.violinHasBoxHint, JSON.stringify(optHintUI));
     ok("Pareto's '80% reference line' toggle carries a ref-line-glyph hint", optHintUI.paretoHasRefHint, JSON.stringify(optHintUI));
     ok("Area range's 'Show centre line' toggle carries a center-line-glyph hint", optHintUI.areaRangeHasCenterHint, JSON.stringify(optHintUI));
+
+    // ---- Z8 follow-up: "true before/after thumbnails" (real Off/On pictures, not just tooltip prose) ----
+    console.log("\n• Z8 follow-up: true before/after thumbnails");
+    ok("'Sort by value' hint popover shows a real before/after picture (two SVGs)", optHintUI.sortHintHasPopover && optHintUI.sortPopoverHasTwoSvgs, JSON.stringify(optHintUI));
+    ok("'Sort by value' popover labels its two pictures Off/On", optHintUI.sortPopoverHasOffOnLabels, JSON.stringify(optHintUI));
+    ok("'Smooth curve' hint popover shows a real before/after picture (two SVGs)", optHintUI.smoothHintHasPopover && optHintUI.smoothPopoverHasTwoSvgs, JSON.stringify(optHintUI));
+    ok("'Smooth curve' popover's On picture is an actual curved path, Off is a straight polyline", optHintUI.smoothPopoverPathsDiffer, JSON.stringify(optHintUI));
+    ok("Hint families without a thumb (e.g. 'Show legend') stay tooltip-only, no popover added", optHintUI.legendHintHasNoPopover, JSON.stringify(optHintUI));
 
     // ---- Track N: command palette (⌘K / Ctrl-K) ----
     console.log("\n• Track N: command palette (⌘K)");

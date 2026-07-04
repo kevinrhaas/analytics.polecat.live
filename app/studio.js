@@ -7250,6 +7250,38 @@
     return select2pairs((allowEmpty ? [["", "(none)"]] : []).concat(pairs), val || "", onChange);
   }
   function fmtPicker(val, onChange) { return select2pairs(Studio.FORMATS.map(function (f) { return [f.id, f.label]; }), val, onChange); }
+  // Z8 follow-up: "true before/after thumbnails" — the glyph+tooltip hints below explain
+  // an option in words; for the two families where a picture beats a sentence (reordering
+  // bars, straight-vs-curved lines) a hover/focus popover shows an actual tiny Off/On SVG
+  // pair instead of just prose. Generic mini-diagram generators, not tied to any one real
+  // chart type's data.
+  function svgBarsThumb(sorted) {
+    var vals = sorted ? [18, 14, 10, 6] : [10, 18, 6, 14]; // same 4 values, reordered
+    var w = 12, gap = 4, x = 2, bars = "";
+    for (var i = 0; i < vals.length; i++) {
+      var h = vals[i], y = 26 - h;
+      bars += '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="1.5" fill="currentColor"/>';
+      x += w + gap;
+    }
+    return '<svg viewBox="0 0 64 28" width="64" height="28" aria-hidden="true">' + bars + '</svg>';
+  }
+  function svgLineThumb(smooth) {
+    var pts = [[4, 22], [20, 8], [36, 18], [52, 4], [60, 14]];
+    var d;
+    if (!smooth) {
+      d = "M" + pts.map(function (p) { return p[0] + " " + p[1]; }).join(" L");
+    } else {
+      // Same midpoint-control-point cubic-bezier technique the real Line/Bump renderers use
+      // for their "Smooth curve" option (see Z8 slice 7 in STATUS.md) — the thumbnail should
+      // look like what the option actually draws, not an unrelated curve shape.
+      d = "M" + pts[0][0] + " " + pts[0][1];
+      for (var i = 1; i < pts.length; i++) {
+        var p0 = pts[i - 1], p1 = pts[i], mx = (p0[0] + p1[0]) / 2;
+        d += " C" + mx + " " + p0[1] + " " + mx + " " + p1[1] + " " + p1[0] + " " + p1[1];
+      }
+    }
+    return '<svg viewBox="0 0 64 28" width="64" height="28" aria-hidden="true"><path d="' + d + '" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+  }
   // Z8 follow-up: inline visual setting hints — a tiny SVG glyph + tooltip next to a
   // boolean option's label, so the dense per-type inspector is self-explanatory without
   // reading a chart's own docs entry. Keyed by option `key` (regex) rather than per chart
@@ -7257,9 +7289,9 @@
   // chart types (see Z8 slice log in STATUS.md), so one small map covers most of the
   // dense inspector in one pass instead of hand-authoring 51 bespoke thumbnails.
   var OPT_HINTS = [
-    { test: /^sort/i,                        icon: "sort-desc", tip: "Reorders items largest-value-first instead of the query's original row order." },
+    { test: /^sort/i,                        icon: "sort-desc", tip: "Reorders items largest-value-first instead of the query's original row order.", thumb: svgBarsThumb },
     { test: /^showLegend$/,                  icon: "legend",    tip: "Shows a small key mapping each color/series to its label." },
-    { test: /^smooth$/,                      icon: "curve",     tip: "Draws curved (cubic-bezier) segments between points instead of straight lines." },
+    { test: /^smooth$/,                      icon: "curve",     tip: "Draws curved (cubic-bezier) segments between points instead of straight lines.", thumb: svgLineThumb },
     { test: /^showDots$/,                    icon: "dots",      tip: "Shows a small marker dot at every data point along the line." },
     { test: /^showValues$/,                  icon: "tag",       tip: "Shows the number directly on the chart (bar/segment/point), not just in the hover tooltip." },
     { test: /^showLabels$/,                  icon: "tag",       tip: "Shows a text label directly on each element, not just in the hover tooltip." },
@@ -7287,7 +7319,19 @@
       var lab = el("label", "check"); var cb = el("input"); cb.type = "checkbox"; cb.checked = !!opts[od.key]; cb.onchange = function () { opts[od.key] = cb.checked; refreshPreview(); }; lab.appendChild(cb); lab.appendChild(document.createTextNode(od.label));
       var oh = optHint(od.key);
       if (oh) {
-        var hIc = el("span", "opt-hint"); hIc.title = oh.tip; hIc.setAttribute("aria-label", oh.tip); hIc.appendChild(Studio.icon(oh.icon, 12)); lab.appendChild(hIc);
+        var hIc = el("span", "opt-hint"); hIc.title = oh.tip; hIc.setAttribute("aria-label", oh.tip); hIc.tabIndex = 0; hIc.appendChild(Studio.icon(oh.icon, 12));
+        // Z8 follow-up: a real before/after picture, not just the tooltip prose, for the option
+        // families where "off vs on" is genuinely easier to SEE than to read (sort/smooth).
+        // CSS-only reveal (:hover/:focus) so no show/hide JS or hover-timing races are needed —
+        // the popover markup is simply always in the DOM, letting tests assert its content directly.
+        if (oh.thumb) {
+          var pop = el("div", "opt-hint-pop");
+          pop.innerHTML = '<div class="oh-pop-row"><div class="oh-pop-cell"><span class="oh-pop-lab">Off</span>' + oh.thumb(false) +
+            '</div><div class="oh-pop-cell"><span class="oh-pop-lab">On</span>' + oh.thumb(true) + "</div></div>" +
+            '<div class="oh-pop-tip">' + esc(oh.tip) + "</div>";
+          hIc.appendChild(pop);
+        }
+        lab.appendChild(hIc);
       }
       return lab;
     }

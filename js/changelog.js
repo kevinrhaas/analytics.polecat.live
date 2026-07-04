@@ -15,6 +15,18 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 323,
+    title: 'Z8 follow-up: option hints get a real before/after picture, not just a tooltip',
+    kind: 'feature',
+    ts: '2026-07-04T13:39:16Z',
+    items: [
+      'The "Sort by value" and "Smooth curve" setting hints now reveal a genuine Off to On picture on hover or keyboard focus -- two tiny diagrams (unsorted vs. sorted bars; straight line vs. curved) instead of only a sentence of tooltip text.',
+      'The curved-line thumbnail uses the exact same midpoint cubic-bezier technique the real Line/Bump chart renderers use for their own Smooth curve option, so the picture matches what the toggle actually draws.',
+      'Deliberately opt-in per hint family -- lighter option hints (Show legend, Show data points, etc.) keep their existing tooltip-only treatment; a picture only replaces prose where it genuinely explains more.',
+      'docs/index.html updated. 5 new tests.',
+    ],
+  },
+  {
     v: 322,
     title: 'Track L sweep: two more onboarding flags never got wiped by Clear local data',
     kind: 'fix',

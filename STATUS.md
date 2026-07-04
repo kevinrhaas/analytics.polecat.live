@@ -1772,6 +1772,17 @@ self-explanatory. Keep it light (inline SVG / CSS, no image assets or deps). One
 > icons (`swap-axis`/`iqr-box`/`ref-line`/`center-line`) in `app/icons.js`. 5 new tests, suite
 > 1163/1163. **Z8 follow-ups (still not yet done):** true before/after thumbnails for the least-obvious
 > options — every option now at least carries a glyph+tooltip hint.
+> ✓ **True before/after thumbnails, first cut shipped v323 (closes the "still not yet done" item
+> above for the two option families where it matters most)**: the `sort`/`smooth` hint icons now
+> reveal a genuine **Off → On picture popover** on hover/focus (`.opt-hint-pop`, CSS-only
+> `:hover`/`:focus`/`:focus-within` reveal, no JS show/hide race) instead of only a text tooltip —
+> two tiny generic SVG diagrams (unsorted vs. sorted bars; straight polyline vs. the SAME
+> midpoint-control-point cubic-bezier the real Line/Bump renderers use for "Smooth curve") labeled
+> Off/On. Deliberately opt-in per hint family (via a new `thumb` fn on the `OPT_HINTS` entry) rather
+> than a blanket change — families like `showLegend` keep the lighter tooltip-only treatment.
+> `docs/index.html` updated. 5 new tests, suite 1404/1404. **Still open:** the remaining one-off hint
+> families (legend/dots/labels/etc.) could get their own thumbs too if a future pass judges the
+> picture genuinely clearer than the prose for them.
 
 **Z9 — Mobile: fix the broken flows + a proper bottom nav (user-requested 2026-06-30).**
 > ⚠️ **ESCALATED — see the ★★★ TOP PRIORITY — MOBILE block at the top of NEXT** (user re-reported 2026-07-02

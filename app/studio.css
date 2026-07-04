@@ -642,8 +642,21 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
 .check{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--ink);font-weight:600;cursor:pointer;margin-bottom:9px}
 .check input{width:15px;height:15px;accent-color:var(--pentaho)}
 /* Z8 follow-up: inline visual setting hint — small glyph after the label explaining a toggle */
-.opt-hint{display:inline-flex;align-items:center;color:var(--faint);opacity:.7;cursor:help;transition:opacity .12s,color .12s}
+.opt-hint{position:relative;display:inline-flex;align-items:center;color:var(--faint);opacity:.7;cursor:help;transition:opacity .12s,color .12s}
 .opt-hint:hover{opacity:1;color:var(--pentaho)}
+.opt-hint:focus{outline:none;opacity:1;color:var(--pentaho)}
+/* Z8 follow-up: "true before/after thumbnails" — a real Off/On picture popover for option
+   families where a picture beats a sentence (sort/smooth); CSS-only reveal, no JS. */
+.opt-hint-pop{display:none;position:absolute;left:0;top:100%;margin-top:6px;z-index:40;width:168px;
+  background:var(--pane);border:1px solid var(--line);border-radius:8px;padding:8px 10px;
+  box-shadow:var(--shadow-lg);color:var(--muted);font-size:11px;line-height:1.4;font-weight:400;cursor:auto}
+.opt-hint:hover .opt-hint-pop,.opt-hint:focus .opt-hint-pop,.opt-hint:focus-within .opt-hint-pop{display:block}
+.oh-pop-row{display:flex;gap:8px;justify-content:center;margin-bottom:6px}
+.oh-pop-cell{display:flex;flex-direction:column;align-items:center;gap:2px;color:var(--pentaho)}
+.oh-pop-lab{font-size:9px;text-transform:uppercase;letter-spacing:.04em;color:var(--faint)}
+.oh-pop-tip{color:var(--faint)}
+@media(prefers-reduced-motion:no-preference){.opt-hint-pop{animation:opthintfade .12s ease-out}}
+@keyframes opthintfade{from{opacity:0;transform:translateY(-2px)}to{opacity:1;transform:translateY(0)}}
 /* N-FUN live what-if slider — a drag-to-animate numeric control (Holt-Winters alpha/beta/
    gamma, MA window, forecast periods…); the value badge tracks the thumb in real time. */
 .opt-range{display:flex;align-items:center;gap:9px}
