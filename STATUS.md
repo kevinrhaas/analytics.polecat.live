@@ -1017,6 +1017,8 @@
 - v338: **N-DESIGN: "Neon" dashboard theme** — a fifth `Studio.DASHBOARD_THEMES` preset (synthwave
   mood, near-black panels + cyan/magenta accents, header/sidebar stay near-black in both light and
   dark app mode); own `dataviz`-validated series palette. 6 new tests, suite 1476/1476.
+- v339: **Track L: harden the flaky panel dup/delete test, round 2** — see Track L findings log
+  below. Test-only, no product change. Suite 1476/1476.
 
 ## NEXT (top = do first)
 
@@ -2409,6 +2411,19 @@ gets covered over time:
   `Studio.defineChart({type, render, opts, thumb, autoPick})` contract so new types are uniform and testable.
 - **Test health** — coverage per feature, flaky/slow checks, and a fast smoke subset for quick loops.
 > **Findings log (append newest on top; keep short):**
+> - **Fixed shipped v339 (test-health lens, round 2 on the same test):** the panel dup/delete test
+>   (already hardened once — see the v274-era "Track H sweep" note inline in `tests/run.js` — visible-
+>   wait + `force:true`) still hit a live "Element is not visible" FATAL on a fresh run of unrelated
+>   (Neon-theme) work, confirming the fix wasn't complete: `force:true` skips Playwright's actionability
+>   *retry loop* entirely, so if the button's bounding box happens to sample as invisible for one frame
+>   (the row can be mid-reflow right after the preceding `__studioLoad` fetch), a single bad sample
+>   throws instead of getting a second try. Wrapped both the duplicate and delete clicks in a small
+>   `retryForceClick()` helper (wait-visible → force-click, up to 3 attempts with a 250ms backoff) —
+>   test-infra only, no app code touched, same exact-count assertions as before. Verified across 3
+>   consecutive full suite runs post-fix (all green); did NOT manage to reproduce the original flake
+>   to prove the fix directly catches it (it's a rare, load-dependent race), so this is a best-effort
+>   hardening, not a proven root-cause fix — flag for a future Track L pass if it recurs a third time.
+>   Suite 1476/1476 (no new tests — this is test-infra reliability, not new coverage).
 > - **Fixed shipped v333 (accessibility lens, third instance of the same bug shape):** grepped every
 >   `[a-z.#-]+:focus\{[^}]*\}` block in `app/studio.css` (vendor CSS has none) looking for the
 >   "outline re-declared inside its own `:focus` rule" pattern already fixed twice before (v286

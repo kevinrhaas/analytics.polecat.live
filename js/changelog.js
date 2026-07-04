@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 340,
+    title: 'Track L: harden the flaky panel duplicate/delete test, round 2',
+    ts: '2026-07-04T19:06:56Z',
+    items: [
+      'Test-only, no product change. The panel dup/delete check (already hardened once before) still hit a rare "element not visible" failure on a live run -- force-clicking skips Playwright\'s normal retry loop, so one bad frame threw instead of trying again.',
+      'Wrapped both clicks in a small retry helper (wait-visible then force-click, up to 3 attempts) so a one-frame flicker gets a second try instead of failing the whole suite.',
+    ],
+  },
+  {
     v: 339,
     title: 'Changelog hardened to the fleet "push step" pipeline (games/relay-style)',
     kind: 'fix',

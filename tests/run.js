@@ -2213,15 +2213,32 @@ function serve() {
     // first (real auto-retry), THEN force-click (still needed in case something transient
     // overlaps it) — belt and suspenders. Also widened the post-click poll to 8000ms; both
     // assertions below are still an exact panel-count match, unchanged.
+    // Track L (test-health lens, round 2): even the visible-wait + force-click combo above
+    // still hit "Element is not visible" once in a live run — a `waitFor` resolving true
+    // doesn't guarantee the element is STILL visible by the time `.click()` itself samples
+    // its bounding box a moment later (the row can be mid-reflow from the fetch/__studioLoad
+    // just above it). `force:true` skips the actionability retry loop entirely, so a single
+    // bad sample throws instead of retrying — wrap both actions in a tiny click-retry so a
+    // one-frame flicker gets a second real attempt instead of failing the whole run.
+    async function retryForceClick(locator, attempts) {
+      for (let i = 0; i < attempts; i++) {
+        try {
+          await locator.waitFor({ state: "visible", timeout: 8000 });
+          await locator.click({ force: true, timeout: 3000 });
+          return;
+        } catch (e) {
+          if (i === attempts - 1) throw e;
+          await page.waitForTimeout(250);
+        }
+      }
+    }
     const dupBtn = pvp.locator('[data-panel-id] .sr-act[data-act="dup"]').first();
-    await dupBtn.waitFor({ state: "visible", timeout: 8000 });
-    await dupBtn.click({ force: true });
+    await retryForceClick(dupBtn, 3);
     await page.waitForFunction((n) => window.__STUDIO_STATE.spec.panels.length === n, pcount0 + 1, { timeout: 8000 }).catch(() => {});
     const pcount1 = await page.evaluate(() => window.__STUDIO_STATE.spec.panels.length);
     ok("canvas ⧉ duplicates a panel", pcount1 === pcount0 + 1, pcount0 + "→" + pcount1);
     const delBtn = pvp.locator('[data-panel-id] .sr-act[data-act="del"]').first();
-    await delBtn.waitFor({ state: "visible", timeout: 8000 });
-    await delBtn.click({ force: true });
+    await retryForceClick(delBtn, 3);
     await page.waitForFunction((n) => window.__STUDIO_STATE.spec.panels.length === n, pcount1 - 1, { timeout: 8000 }).catch(() => {});
     const pcount2 = await page.evaluate(() => window.__STUDIO_STATE.spec.panels.length);
     ok("canvas × deletes a panel", pcount2 === pcount1 - 1, pcount1 + "→" + pcount2);
