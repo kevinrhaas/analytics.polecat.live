@@ -2673,6 +2673,12 @@ gets covered over time:
   shows a neutral "ready to export" line even when a dashboard is genuinely spotless — pair it with the
   existing milestone-toast/spark-burst delight convention (v210/v224/v278) so reaching zero warnings for
   the first time on a dashboard gets a small, tasteful, one-time celebration instead of just silence.
+> ✓ **Shipped v326 (closes this idea)**: the Checks section now calls a new `celebrateHealthZero(sp)`
+> whenever `Studio.validate(sp)` returns zero issues — a one-time-per-dashboard toast ("All clear — this
+> dashboard has zero warnings.") + the shared `sparkBurst()`, keyed by `spec.id` in
+> `localStorage["studio-health-celebrated"]` so it never repeats for the same dashboard even across
+> reloads (same "once, keyed, never again" convention as `celebrateFirstExport`). Included in Clear local
+> data. 4 new tests.
 
 **N-DATA — Analytical depth (toward standalone analytic apps).**
 - **Data source freshness badge (added 2026-07-04, innovation sweep):** track each data access's last

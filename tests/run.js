@@ -4431,6 +4431,35 @@ function serve() {
     await page.evaluate(() => { localStorage.removeItem("studio-dash-count"); });
     ok("N-FUN: a non-milestone blank dashboard (6th) does not re-celebrate", dashMilestone2.count === "6" && dashMilestone2.newSparkHosts === 0, JSON.stringify(dashMilestone2));
 
+    // ---- N-FUN: dashboard health celebration (zero-warnings, one-time per dashboard) ----
+    console.log("\n• N-FUN: dashboard health celebration");
+    const health1 = await page.evaluate(async () => {
+      try { localStorage.removeItem("studio-health-celebrated"); } catch (e) {}
+      const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json());
+      const issueCount = window.Studio.validate(spec).length; // this curated example is expected to be spotless
+      const before = document.querySelectorAll(".spark-host").length;
+      window.__studioLoad(spec);
+      return {
+        issueCount,
+        toastText: (document.getElementById("toast") || {}).textContent || "",
+        newSparkHosts: document.querySelectorAll(".spark-host").length - before,
+        flag: JSON.parse(localStorage.getItem("studio-health-celebrated") || "{}")
+      };
+    });
+    ok("N-FUN: the curated example spec has zero Checks issues (test precondition)", health1.issueCount === 0, JSON.stringify(health1));
+    ok("N-FUN: loading a dashboard with zero Checks warnings shows a one-time celebration toast", /zero warnings/i.test(health1.toastText), JSON.stringify(health1));
+    ok("N-FUN: the health celebration plays a spark burst", health1.newSparkHosts === 1, JSON.stringify(health1));
+    ok("N-FUN: the health celebration is recorded per-dashboard-id so it won't repeat", Object.keys(health1.flag).length === 1, JSON.stringify(health1));
+
+    const health2 = await page.evaluate(async () => {
+      const before = document.querySelectorAll(".spark-host").length;
+      const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json());
+      window.__studioLoad(spec); // re-load the SAME dashboard id — should stay silent
+      return { newSparkHosts: document.querySelectorAll(".spark-host").length - before };
+    });
+    ok("N-FUN: re-loading the same still-clean dashboard does not re-celebrate", health2.newSparkHosts === 0, JSON.stringify(health2));
+    await page.evaluate(() => { localStorage.removeItem("studio-health-celebrated"); });
+
     // screenshot for the record
     await page.screenshot({ path: path.join(__dirname, "flagship.png"), fullPage: false });
     console.log("\n  (screenshot → tests/flagship.png)");

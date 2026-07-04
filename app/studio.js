@@ -1965,7 +1965,7 @@
     // ── checks (live validation) ──
     var issues = Studio.validate(sp);
     var vs = section(body, "Checks");
-    if (!issues.length) vs.appendChild(iconNote("ok", "check", "Looks good — ready to export."));
+    if (!issues.length) { vs.appendChild(iconNote("ok", "check", "Looks good — ready to export.")); celebrateHealthZero(sp); }
     else issues.forEach(function (x) { vs.appendChild(iconNote(x.level === "error" ? "err" : x.level === "warn" ? "warn" : "info", x.level === "error" ? "close" : x.level === "warn" ? "warn" : "info", x.msg)); });
 
     var sec = section(body, "Dashboard", null, null, "builder");
@@ -6338,7 +6338,7 @@
     "studio-default-titlesize", "studio-default-subtitlestyle", "studio-default-dashboardtheme", "studio-default-cardskin", "studio-style-presets",
     "studio-cmdk-usage", "studio-first-export-done", "studio-export-count", "studio-dash-count",
     "studio-deploy-path", "studio-live-data", "studio-templatevar-sets", "studio-da-freshness",
-    "studio-canvas-notes",
+    "studio-canvas-notes", "studio-health-celebrated",
     // Track L sweep (dead/orphaned-key lens): "studio-k8-dismissed" (the Simple-mode "What's
     // next?" onboarding card's dismissal flag) was written on dismiss but never wiped here — the
     // exact "new key, forgot Clear local data" gap the v194/v235/v281 notes above already
@@ -6947,6 +6947,20 @@
     var n = 0;
     try { n = (parseInt(localStorage.getItem("studio-dash-count"), 10) || 0) + 1; localStorage.setItem("studio-dash-count", String(n)); } catch (e) { return; }
     if (DASH_MILESTONES[n]) { toast(DASH_MILESTONES[n]); sparkBurst(); }
+  }
+  // N-FUN "dashboard health celebration" (innovation idea added 2026-07-04): the Checks section
+  // above only ever shows a neutral "ready to export" line, even the first time a dashboard reaches
+  // genuinely zero warnings/notes. One-time-per-dashboard toast + spark, keyed by spec.id so it never
+  // repeats for the same dashboard (same "once, keyed, never again" convention as celebrateFirstExport).
+  function celebrateHealthZero(sp) {
+    if (!sp || !sp.id) return;
+    var done;
+    try { done = JSON.parse(localStorage.getItem("studio-health-celebrated") || "{}"); } catch (e) { done = {}; }
+    if (done[sp.id]) return;
+    done[sp.id] = 1;
+    try { localStorage.setItem("studio-health-celebrated", JSON.stringify(done)); } catch (e) { return; }
+    toast("All clear — this dashboard has zero warnings. Nicely built.");
+    sparkBurst();
   }
 
   function doExport(kind) {

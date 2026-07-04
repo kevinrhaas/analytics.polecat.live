@@ -15,6 +15,17 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 326,
+    title: 'N-FUN: a first-ever "zero warnings" dashboard gets a small celebration',
+    kind: 'feature',
+    ts: '2026-07-04T14:20:00Z',
+    items: [
+      'The dashboard Checks section only ever showed a neutral "ready to export" line, even the first time a dashboard reached genuinely zero warnings.',
+      'Reaching zero Checks issues on a dashboard for the first time now plays the same toast + spark-burst delight moment as a first export or a milestone.',
+      'One-time per dashboard (tracked by id), included in Clear local data.',
+    ],
+  },
+  {
     v: 325,
     title: 'Fix: Holt-Winters forecasting was silently ignored outside the builder',
     kind: 'fix',
