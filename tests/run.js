@@ -5308,7 +5308,11 @@ function serve() {
       keys.forEach(function (k) { try { localStorage.setItem(k, JSON.stringify({ test: 1 })); } catch (e) {} });
       try { keys.forEach(function (k) { localStorage.removeItem(k); }); } catch (e) {}
       var remaining = keys.filter(function (k) { try { return localStorage.getItem(k) !== null; } catch (x) { return false; } });
-      return { keyCount: keys.length, remaining: remaining, hasNotesKey: keys.indexOf("studio-canvas-notes") >= 0, hasK8Key: keys.indexOf("studio-k8-dismissed") >= 0 };
+      return {
+        keyCount: keys.length, remaining: remaining,
+        hasNotesKey: keys.indexOf("studio-canvas-notes") >= 0, hasK8Key: keys.indexOf("studio-k8-dismissed") >= 0,
+        hasWelcomeKey: keys.indexOf("studio-welcome-seen") >= 0, hasTutorialKey: keys.indexOf("studio-tutorial-done") >= 0
+      };
     });
     ok("E8: all Studio localStorage keys removed by clear-data logic", e8Clear.keyCount > 20 && e8Clear.remaining.length === 0, JSON.stringify(e8Clear));
     // Track L sweep (dead/orphaned-key lens): studio-k8-dismissed (the Simple-mode "What's next?"
@@ -5316,6 +5320,12 @@ function serve() {
     // same recurring "new key, forgot Clear local data" gap the v194/v235/v281 notes describe.
     ok("E8: the real clear-data key list includes studio-canvas-notes and studio-k8-dismissed (found missing in a Track L sweep)",
       e8Clear.hasNotesKey && e8Clear.hasK8Key, JSON.stringify(e8Clear));
+    // Track L sweep round 2: app/welcome.js's "studio-welcome-seen" and app/tutorial.js's
+    // "studio-tutorial-done" live outside studio.js and were never wiped either — found by
+    // cross-checking every localStorage call across ALL of app/*.js, not just this file. Without
+    // this, "Clear local data" left a device stuck "already onboarded" forever.
+    ok("E8: the real clear-data key list includes studio-welcome-seen and studio-tutorial-done (found missing in the same Track L sweep)",
+      e8Clear.hasWelcomeKey && e8Clear.hasTutorialKey, JSON.stringify(e8Clear));
 
     // ---- E3: Dashboard thumbnail ----
     console.log("\n• Dashboard thumbnail (E3)");

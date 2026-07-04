@@ -2269,6 +2269,16 @@ gets covered over time:
   `Studio.defineChart({type, render, opts, thumb, autoPick})` contract so new types are uniform and testable.
 - **Test health** — coverage per feature, flaky/slow checks, and a fast smoke subset for quick loops.
 > **Findings log (append newest on top; keep short):**
+> - **Fixed shipped v322 (orphaned-state lens, round 2):** widened the v313 audit beyond `studio.js`
+>   itself — grepped every `localStorage.setItem`/`getItem` call across ALL of `app/*.js` and diffed
+>   the key set against `CLEAR_DATA_KEYS`. Found `app/welcome.js`'s `studio-welcome-seen` and
+>   `app/tutorial.js`'s `studio-tutorial-done`, two first-run onboarding flags that live in their own
+>   small modules (so eyeballing `studio.js` alone would never surface them) — neither was ever wiped
+>   by "Clear local data," so a reset left a device permanently stuck "already onboarded," silently
+>   skipping the welcome screen and interactive tutorial. Added both keys; 2 new tests assert the real
+>   `CLEAR_DATA_KEYS`/`window.__studioClearDataKeys` list (not a second hardcoded copy) includes them.
+>   Suite 1399/1399. **Lesson for the next orphaned-state sweep:** search ALL of `app/*.js`, not just
+>   the file that owns the majority of Settings state.
 > - **Fixed shipped v313 (orphaned-state lens):** `studio-k8-dismissed` (the Simple-mode "What's
 >   next?" onboarding card's dismissal flag, `app/studio.js`) was written via `localStorage.setItem`
 >   on dismiss but never included in the "Clear local data" key list — the exact recurring

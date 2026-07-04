@@ -15,6 +15,17 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 322,
+    title: 'Track L sweep: two more onboarding flags never got wiped by Clear local data',
+    kind: 'fix',
+    ts: '2026-07-04T13:31:49Z',
+    items: [
+      'Cross-checked every localStorage call across ALL of app/*.js (not just studio.js) against the Clear local data key list -- the same orphaned-key lens the v194/v235/v281/v313 sweeps used.',
+      'Found two first-run flags living outside studio.js that were never in the list: app/welcome.js\'s studio-welcome-seen and app/tutorial.js\'s studio-tutorial-done -- a "Clear local data" reset left a device stuck "already onboarded" forever, silently skipping the welcome screen and interactive tutorial.',
+      'Both now wipe correctly; 2 new regression tests assert the real key list (not a second hardcoded copy) includes them.',
+    ],
+  },
+  {
     v: 321,
     title: 'Z2 follow-up: Home gets a Workbook filter (closes the "folders/organization" gap)',
     kind: 'feature',

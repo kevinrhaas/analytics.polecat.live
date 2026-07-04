@@ -6343,7 +6343,15 @@
     // next?" onboarding card's dismissal flag) was written on dismiss but never wiped here — the
     // exact "new key, forgot Clear local data" gap the v194/v235/v281 notes above already
     // describe, just for a dismissal flag rather than a Settings default this time.
-    "studio-k8-dismissed"
+    "studio-k8-dismissed",
+    // Track L sweep (dead/orphaned-key lens, round 2): app/welcome.js's "studio-welcome-seen" and
+    // app/tutorial.js's "studio-tutorial-done" are two more first-run flags that live entirely
+    // outside studio.js (so they'd never show up while eyeballing this file alone) — found by
+    // cross-checking every localStorage.setItem/getItem call across ALL of app/*.js against this
+    // list rather than just this file. Without them, "Clear local data" left a device stuck
+    // "already onboarded" — the welcome screen and interactive tutorial would never re-offer
+    // themselves after a supposedly-full reset.
+    "studio-welcome-seen", "studio-tutorial-done"
   ];
   window.__studioClearDataKeys = CLEAR_DATA_KEYS; // test hook
 
