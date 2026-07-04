@@ -997,6 +997,23 @@
   reuses `Studio.diffSpecs`/`diffSummary` (the same engine Version-history-restore and Compare-
   dashboards already share) to show a small "N changes since you were last here" hint on Home/
   Repository recent-dashboard cards. 6 new tests, suite 1441/1441.
+- v332: **Z8: 'Show legend'/'Show data points' get real before/after thumbnails** — extends the
+  v323 opt-in `.opt-hint-pop` popover to two more hint families. 4 new tests, suite 1445/1445.
+- v333: **Track L a11y fix: `.opt-hint` keyboard focus ring was silently suppressed** — third
+  instance of the "outline re-declared inside its own `:focus` rule" bug shape (v286/v299). 1 new
+  test (a static CSS-source guard — a live focus simulation is unreliable for a non-form element
+  once any mouse click has occurred on the page). Suite 1446/1446.
+- v334: **N-DESIGN: "High Contrast" dashboard theme** — a third `Studio.DASHBOARD_THEMES` preset,
+  true black/white extremes with its own `dataviz`-validated series palette. 5 new tests, suite
+  1451/1451.
+- v335: **Z8: 'Show value/label'/'Rotate labels' get real before/after thumbnails** — extends v332
+  further; `showPct` stays tooltip-only, still proving the mechanism is opt-in. 4 new tests, suite
+  1455/1455.
+- v337: **N-DESIGN: "Editorial" dashboard theme + a shared banner-gradient fix** — a fourth
+  dashboard theme (warm paper-and-ink mood); found + fixed a real gap shared by every non-Classic
+  theme (`vendor/pdc-ui.css`'s `.pdc-header` gradient had a hardcoded second stop, leaving a stray
+  navy sliver on Fleet Modern/High Contrast banners) with a themeable `--header-bg-2`. 7 new tests,
+  suite 1464/1464. (v336, a concurrent run's Track H topbar-grouping polish, interleaved here too.)
 
 ## NEXT (top = do first)
 
