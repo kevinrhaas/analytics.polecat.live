@@ -4831,10 +4831,17 @@
      over data that already exists, filtered by one shared search box. Folders/CRUD/JSON
      export of the whole repository are deliberately deferred to a later Z3 slice; this one
      is "can I find and jump to any data source or dashboard I have from a single page?" */
+  // N-DATA freshness badge (v301) follow-up: only the connector kinds that are ALWAYS
+  // live-capable regardless of the builder's ambient "active connection" setting get a
+  // Repository badge — a plain Pentaho sql/mdx/etc. catalog DA's "live-ness" depends on that
+  // global setting, not the DA itself, and the bundled catalog has dozens of them, so showing
+  // "Never verified live" on every one would be pure noise rather than a useful signal.
+  var REPO_LIVE_KINDS = { duckdb: 1, httpvfs: 1, snowflake: 1, databricks: 1, bigquery: 1, http: 1 };
   function repoDaCardHtml(stem, d) {
     var kind = ((d.kind || "sql").split(".")[0]).toUpperCase();
     var cols = (d.columns || []).slice(0, 6).join(", ") + ((d.columns || []).length > 6 ? "…" : "");
     var key = esc(stem) + '|' + esc(d.id);
+    var freshness = REPO_LIVE_KINDS[d.kind] ? '<span class="repo-ds-fresh">' + esc(daFreshnessLabel(d.id)) + '</span>' : '';
     // Z3 follow-up: full CRUD from the Repository page itself — edit/delete reuse the
     // exact same dataSourceBuilder()/deleteDataSource() the Studio library pane already
     // uses, so both views always agree (one source of truth, no parallel edit path).
@@ -4844,7 +4851,7 @@
       '<button type="button" class="repo-ds-open" data-repo-ds="' + key + '">' +
       '<div class="repo-ds-top"><span class="repo-ds-id">' + esc(d.id) + '</span><span class="repo-ds-kind">' + esc(kind) + '</span></div>' +
       '<span class="repo-ds-stem">' + esc(stem) + '</span>' +
-      (cols ? '<div class="repo-ds-cols">' + esc(cols) + '</div>' : '') + '</button>' +
+      (cols ? '<div class="repo-ds-cols">' + esc(cols) + '</div>' : '') + freshness + '</button>' +
       '<div class="repo-ds-acts">' +
       '<button type="button" class="da-act" data-repo-edit="' + key + '" title="Edit data source"></button>' +
       '<button type="button" class="da-act" data-repo-del="' + key + '" title="Delete data source"></button>' +

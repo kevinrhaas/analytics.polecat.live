@@ -12693,6 +12693,29 @@ function serve() {
       z3Ds.expected > 0 && z3Ds.cardCount === z3Ds.expected && z3Ds.countLabel.indexOf(String(z3Ds.expected)) >= 0 && z3Ds.hasKindBadge,
       JSON.stringify(z3Ds));
 
+    // N-DATA follow-up: the freshness badge (v301, DA-inspector-only) also surfaces on
+    // Repository cards, but ONLY for connector kinds that are ALWAYS live-capable regardless of
+    // the builder's ambient "active connection" setting (duckdb/httpvfs/snowflake/databricks/
+    // bigquery/http) -- a plain Pentaho sql/mdx/etc. card's live-ness depends on that global
+    // setting, not the DA itself, and the bundled catalog has dozens of those, so it deliberately
+    // stays badge-free there rather than showing "Never verified live" as noise everywhere.
+    const repoFreshness = await page.evaluate(function () {
+      var LIVE_KINDS = { DUCKDB: 1, HTTPVFS: 1, SNOWFLAKE: 1, DATABRICKS: 1, BIGQUERY: 1, HTTP: 1 };
+      var cards = [].slice.call(document.querySelectorAll("#repoResults .repo-ds-card"));
+      var liveCards = cards.filter(function (c) { return LIVE_KINDS[(c.querySelector(".repo-ds-kind") || {}).textContent]; });
+      var plainCards = cards.filter(function (c) { return !LIVE_KINDS[(c.querySelector(".repo-ds-kind") || {}).textContent]; });
+      return {
+        liveCount: liveCards.length,
+        allLiveHaveBadge: liveCards.length > 0 && liveCards.every(function (c) { return !!c.querySelector(".repo-ds-fresh"); }),
+        noPlainHasBadge: plainCards.every(function (c) { return !c.querySelector(".repo-ds-fresh"); }),
+        plainCount: plainCards.length
+      };
+    });
+    ok("N-DATA: every live-capable-kind Repository card (DuckDB/SQLite/Snowflake/Databricks/BigQuery/Generic SQL-HTTP) shows a freshness badge",
+      repoFreshness.liveCount === 0 || repoFreshness.allLiveHaveBadge, JSON.stringify(repoFreshness));
+    ok("N-DATA: plain Pentaho-kind Repository cards (the vast majority) stay badge-free, not noisy 'Never verified' everywhere",
+      repoFreshness.noPlainHasBadge, JSON.stringify(repoFreshness));
+
     // Z3 follow-up (folders/organization): a "Group" filter chip strip above the data-source
     // grid, driven by the existing per-source `stem` field (no new storage) — mirrors the
     // Workbooks chips below for dashboards.

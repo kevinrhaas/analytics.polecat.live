@@ -849,6 +849,11 @@
   ideas added to the N backlog; shipped the first: any DA with a **Run live** button shows a "Last
   verified live …" / "Never verified live" badge, stamped via the one shared `renderTable(...,
   "live")` call every connector kind already funnels through. 3 new tests, suite 1331/1331.
+- v302: **N-DATA follow-up: freshness badge extended to Repository cards** — the "Last verified
+  live …" badge now also shows on a data source's Repository card, scoped to the connector kinds
+  that are always live-capable (DuckDB/SQLite/Snowflake/Databricks/BigQuery/Generic SQL-HTTP) so
+  the hundreds of plain Pentaho catalog cards stay badge-free instead of noisy. 2 new tests, suite
+  1333/1333.
 
 ## NEXT (top = do first)
 
@@ -2443,6 +2448,13 @@ gets covered over time:
 > after a live click). 3 new tests, suite 1331/1331. **Still open:** surfacing the badge in the
 > library pane / Repository too (today it's DA-inspector-only), and whether "Test connection" should
 > also count as a freshness signal.
+> ✓ **Extended to Repository cards, shipped v302 (closes the Repository half of that "still open"
+> item)**: the same badge now appears on a data source's card in the Repository — but ONLY for
+> `duckdb`/`httpvfs`/`snowflake`/`databricks`/`bigquery`/`http` kinds (always live-capable
+> regardless of the ambient active-connection setting); a plain Pentaho `sql`/`mdx`/etc. catalog
+> card (the vast majority — hundreds of them) deliberately stays badge-free rather than showing
+> "Never verified live" as noise everywhere. 2 new tests, suite 1333/1333. **Still open:** the
+> library pane, and whether "Test connection" should also count as a freshness signal.
 - **Dashboard health score (added 2026-07-04, innovation sweep):** the existing build-completeness meter
   (v196) only checks "did you fill things in" — extend it (or add a sibling score) that also runs the
   Data quality watchdog (v260/v261) across every bound DA, flags orphaned data accesses (declared but no

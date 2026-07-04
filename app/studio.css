@@ -348,6 +348,7 @@ body.simple-mode .repo-ds-acts{display:none!important}
   background:rgba(16,163,127,.14);border-radius:5px;padding:2px 6px}
 .repo-ds-stem{display:block;font-size:10.5px;color:#8a7d6d;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .repo-ds-cols{margin-top:6px;font-size:10px;color:#c9b9a3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.repo-ds-fresh{display:block;margin-top:5px;font-size:9.5px;color:#8a7d6d;font-style:italic}
 @media(prefers-reduced-motion:reduce){.repo-ds-card{transition:none}}
 /* Z3 follow-up: Workbooks — named collections of dashboards, filterable chip strip above
    the Dashboards grid. Deleting a workbook only un-files its dashboards (see deleteWorkbook). */

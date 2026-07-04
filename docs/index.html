@@ -478,7 +478,7 @@
   </ul>
 
   <h3>Data source freshness</h3>
-  <p>Any data access with a <strong>Run live</strong> button (DuckDB, SQLite, Snowflake, Databricks, BigQuery, Generic SQL/HTTP, or a Pentaho connection) shows a small <strong>"Last verified live …"</strong> / <strong>"Never verified live"</strong> badge next to it in the Data preview — stamped locally each time a live query actually succeeds, so a token that quietly expired or an endpoint that went dark doesn't get silently trusted just because it worked once.</p>
+  <p>Any data access with a <strong>Run live</strong> button (DuckDB, SQLite, Snowflake, Databricks, BigQuery, Generic SQL/HTTP, or a Pentaho connection) shows a small <strong>"Last verified live …"</strong> / <strong>"Never verified live"</strong> badge next to it in the Data preview — stamped locally each time a live query actually succeeds, so a token that quietly expired or an endpoint that went dark doesn't get silently trusted just because it worked once. The same badge appears on that data source's card in the Repository — but only for the connector kinds above, whose live-ness doesn't depend on the builder's active Pentaho connection setting; a plain SQL/MDX-style catalog data source stays badge-free instead of showing "Never verified live" everywhere.</p>
 
   <h3>Joins and compound DAs</h3>
   <p>Click <strong>⧈ Join</strong> in the library to create a <strong>Compound data access</strong> — either a join (left/right DA + key columns) or a union (stack rows from N DAs). These map directly to CDA <code>&lt;CompoundDataAccess&gt;</code> XML.</p>

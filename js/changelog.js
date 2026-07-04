@@ -15,6 +15,17 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 302,
+    title: 'N-DATA follow-up: freshness badge extended to Repository cards',
+    kind: 'feature',
+    ts: '2026-07-04T05:39:33Z',
+    items: [
+      'The "Last verified live ..." / "Never verified live" badge (v301) now also appears on that data source\'s card in the Repository, closing the "still open" gap from that slice.',
+      'Scoped to connector kinds that are ALWAYS live-capable regardless of the ambient active-connection setting (DuckDB/SQLite/Snowflake/Databricks/BigQuery/Generic SQL-HTTP) -- a plain Pentaho sql/mdx/etc. catalog data source\'s live-ness depends on that global builder setting, not the data source itself, and the bundled catalog has hundreds of those, so it deliberately stays badge-free rather than showing "Never verified live" as noise on every card.',
+      '2 new tests, suite 1333/1333.',
+    ],
+  },
+  {
     v: 301,
     title: 'N-DATA: data source freshness badge (innovation sweep + first slice)',
     kind: 'feature',
