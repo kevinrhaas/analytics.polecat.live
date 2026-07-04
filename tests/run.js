@@ -13683,11 +13683,51 @@ function serve() {
     });
     ok("default dashboard theme is included in Settings export/import keys", defDashboardThemeInKeys, String(defDashboardThemeInKeys));
 
+    // ── N-DESIGN follow-up: Settings → default Card style + style-preset parity ──
+    console.log("\n• N-DESIGN follow-up: default Card style");
+    await page.selectOption("#setDefaultCardSkinSel", "flat");
+    await page.waitForTimeout(80);
+    const defCardSkinSaved = await page.evaluate(function () { return window.__studioDefaultCardSkin(); });
+    ok("setting default card style persists it", defCardSkinSaved === "flat", String(defCardSkinSaved));
+
+    await page.click('#railNav .rail-item[data-sec="studio"]'); await page.waitForTimeout(80);
+    await page.click("#btnNew"); await page.waitForTimeout(80);
+    await page.click('#menuNew button[data-new="blank"]'); await page.waitForTimeout(300);
+    const blankPicksUpCardSkin = await page.evaluate(function () { return window.__STUDIO_STATE.spec.cardSkin; });
+    ok("a brand-new blank dashboard picks up the Settings default card style",
+      blankPicksUpCardSkin === "flat", String(blankPicksUpCardSkin));
+
+    await page.click('#railNav .rail-item[data-sec="settings"]'); await page.waitForTimeout(120);
+    await page.fill("#spNameInp", "Acme");
+    await page.click("#spSaveBtn");
+    await page.waitForTimeout(80);
+    const spCardSkinSaved = await page.evaluate(function () {
+      var list = window.__studioStylePresets();
+      return list[0] && list[0].cardSkin;
+    });
+    ok("saving a preset captures the default card style", spCardSkinSaved === "flat", String(spCardSkinSaved));
+
+    await page.selectOption("#setDefaultCardSkinSel", "");
+    await page.waitForTimeout(80);
+    await page.click(".sp-apply");
+    await page.waitForTimeout(80);
+    const defCardSkinApplied = await page.evaluate(function () { return window.__studioDefaultCardSkin(); });
+    ok("Apply on a saved preset restores its card style as the active default",
+      defCardSkinApplied === "flat", String(defCardSkinApplied));
+
+    await page.click(".sp-del");
+    await page.waitForTimeout(80);
+
+    const defCardSkinInKeys = await page.evaluate(function () {
+      return window.__studioImportSettingsKeys.indexOf("studio-default-cardskin") >= 0;
+    });
+    ok("default card style is included in Settings export/import keys", defCardSkinInKeys, String(defCardSkinInKeys));
+
     await page.evaluate(function () {
       localStorage.removeItem("studio-default-subtitle"); localStorage.removeItem("studio-default-accent");
       localStorage.removeItem("studio-default-logo"); localStorage.removeItem("studio-default-headerbg");
       localStorage.removeItem("studio-default-titlesize"); localStorage.removeItem("studio-default-subtitlestyle");
-      localStorage.removeItem("studio-default-dashboardtheme");
+      localStorage.removeItem("studio-default-dashboardtheme"); localStorage.removeItem("studio-default-cardskin");
       localStorage.removeItem("studio-style-presets");
       window.__studioRenderSettings();
     }); // restore defaults for later tests

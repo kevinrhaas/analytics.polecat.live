@@ -15,6 +15,17 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 294,
+    title: 'N-DESIGN follow-up: Card style Settings default + preset parity',
+    kind: 'polish',
+    ts: '2026-07-04T01:31:38Z',
+    items: [
+      'A Default card style row joins Settings -> Dashboard defaults (seeds every brand-new blank dashboard); style presets now snapshot/restore it too, so a saved house style covers card style alongside every other look field.',
+      'Found and fixed a real pre-existing gap while wiring this up: studio-default-dashboardtheme (v281) had never been added to the "Clear local data" key list -- folded it in alongside the new studio-default-cardskin key.',
+      '5 new tests, suite 1302/1302.',
+    ],
+  },
+  {
     v: 293,
     title: 'N-DESIGN: chart "skins" first cut -- Card style (Raised / Flat)',
     kind: 'feature',

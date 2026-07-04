@@ -801,6 +801,9 @@
   strips the shadow/glass-edge/hover-lift on every chart card + KPI tile for a quieter, editorial-minimal
   mood. Pure additive CSS override, same pattern as headerBg/titleSize/subtitleStyle. 4 new tests, suite
   1297/1297.
+- v294: **N-DESIGN follow-up: Settings default + style-preset parity for Card style** — plus a found-and-
+  fixed pre-existing gap: `studio-default-dashboardtheme` (v281) had never been added to the "Clear local
+  data" key list. 5 new tests, suite 1302/1302.
 
 ## NEXT (top = do first)
 
@@ -2506,6 +2509,13 @@ gets covered over time:
 > v228/v229 → v230), and further alternate moods (hand-drawn/sketch, deeper glass/depth) beyond
 > Raised/Flat. **Still open (unrelated to this slice):** a broader elevation scale beyond hover + the one
 > glass layer.
+> ✓ **Settings default + style-preset parity shipped v294 (closes that "still open" item)**: a **Default
+> card style** row joins Settings → Dashboard defaults (same Raised/Flat picker, seeds every brand-new
+> blank dashboard); `stylePresets()`/`applyStylePreset()` now snapshot/restore `cardSkin` too, so a saved
+> house style covers wording, logo, link, both colors, size, weight, dashboard theme, AND card style in
+> one Apply. **Found + fixed a real pre-existing gap while wiring Clear local data**:
+> `studio-default-dashboardtheme` (v281) had never been added to the "Clear local data" key list —
+> folded it in alongside the new `studio-default-cardskin` key. 5 new tests, suite 1302/1302.
 
 **N-DEV — Power-user & authoring.**
 - **Live JSON spec editor:** ✓ shipped v267, see below.

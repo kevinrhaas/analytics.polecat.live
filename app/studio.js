@@ -5120,7 +5120,7 @@
     "studio-lw", "studio-rw", "studio-collapse-library", "studio-collapse-inspector",
     "studio-insp-collapsed", "studio-shell-section", "studio-shell-expanded", "studio-branding",
     "studio-default-jndi", "studio-default-subtitle", "studio-default-accent", "studio-default-logo", "studio-default-headerbg",
-    "studio-default-titlesize", "studio-default-subtitlestyle", "studio-default-dashboardtheme", "studio-style-presets",
+    "studio-default-titlesize", "studio-default-subtitlestyle", "studio-default-dashboardtheme", "studio-default-cardskin", "studio-style-presets",
     "studio-deploy-path", "studio-live-data", "studio-templatevar-sets"
   ];
   // Z5 follow-up: data-source defaults. Every new data source (dataSourceBuilder with no
@@ -5191,6 +5191,13 @@
     return v || "";
   }
   function setDefaultDashboardTheme(v) { try { localStorage.setItem("studio-default-dashboardtheme", v || ""); } catch (e) {} }
+  // N-DESIGN follow-up: default card style — same seeding pattern, for the per-dashboard
+  // "Card style" (Raised/Flat chart skin) field added right after the picker itself shipped.
+  function defaultCardSkin() {
+    var v; try { v = localStorage.getItem("studio-default-cardskin"); } catch (e) {}
+    return v || "";
+  }
+  function setDefaultCardSkin(v) { try { localStorage.setItem("studio-default-cardskin", v || ""); } catch (e) {} }
   // Z6 follow-up: default header logo — the last "still open" item under the style-preset
   // collection ask. Same data-URL-in-localStorage approach as per-dashboard headerLogo/app
   // Branding, just seeded onto brand-new blank dashboards like subtitle/accent already are.
@@ -5212,7 +5219,8 @@
     list.push({
       id: "sp" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name: name,
       subtitle: defaultSubtitle(), accentColor: defaultAccentColor(), logo: defaultLogo(), headerBg: defaultHeaderBg(),
-      titleSize: defaultTitleSize(), subtitleStyle: defaultSubtitleStyle(), dashboardTheme: defaultDashboardTheme()
+      titleSize: defaultTitleSize(), subtitleStyle: defaultSubtitleStyle(), dashboardTheme: defaultDashboardTheme(),
+      cardSkin: defaultCardSkin()
     });
     saveStylePresetList(list);
     return list;
@@ -5223,6 +5231,7 @@
     if (!p) return false;
     setDefaultSubtitle(p.subtitle || ""); setDefaultAccentColor(p.accentColor || ""); setDefaultLogo(p.logo || ""); setDefaultHeaderBg(p.headerBg || "");
     setDefaultTitleSize(p.titleSize || ""); setDefaultSubtitleStyle(p.subtitleStyle || ""); setDefaultDashboardTheme(p.dashboardTheme || "");
+    setDefaultCardSkin(p.cardSkin || "");
     return true;
   }
   window.__studioStylePresets = stylePresets; // test hook
@@ -5260,6 +5269,7 @@
     var tsz = defaultTitleSize(); if (tsz && !spec.titleSize) spec.titleSize = tsz;
     var sst = defaultSubtitleStyle(); if (sst && !spec.subtitleStyle) spec.subtitleStyle = sst;
     var dth = defaultDashboardTheme(); if (dth && !spec.dashboardTheme) spec.dashboardTheme = dth;
+    var csk = defaultCardSkin(); if (csk && !spec.cardSkin) spec.cardSkin = csk;
     return spec;
   }
   window.__studioDefaultSubtitle = defaultSubtitle; // test hooks
@@ -5269,6 +5279,7 @@
   window.__studioDefaultTitleSize = defaultTitleSize;
   window.__studioDefaultSubtitleStyle = defaultSubtitleStyle;
   window.__studioDefaultDashboardTheme = defaultDashboardTheme;
+  window.__studioDefaultCardSkin = defaultCardSkin;
   function exportSettingsFile() {
     var out = { _type: "studio-settings", _v: 1 };
     SETTINGS_DATA_KEYS.forEach(function (k) {
@@ -5400,6 +5411,11 @@
           '<select id="setDefaultDashboardThemeSel" class="set-sel">' +
             Studio.DASHBOARD_THEMES.map(function (p) { return '<option value="' + esc(p.key === "classic" ? "" : p.key) + '"' + (defaultDashboardTheme() === (p.key === "classic" ? "" : p.key) ? " selected" : "") + '>' + esc(p.label) + '</option>'; }).join("") +
           '</select></div>' +
+        '<div class="set-row"><span class="set-row-ic" data-ic="layers"></span>' +
+          '<div class="set-row-txt"><b>Default card style</b><small>Seeds every new blank dashboard\'s Card style field (per-dashboard editable there) — Flat drops the shadow/hover-lift on every chart card and KPI tile for a quieter, editorial look.</small></div>' +
+          '<select id="setDefaultCardSkinSel" class="set-sel">' +
+            Studio.CARD_SKINS.map(function (p) { return '<option value="' + esc(p[0]) + '"' + (defaultCardSkin() === p[0] ? " selected" : "") + '>' + esc(p[1]) + '</option>'; }).join("") +
+          '</select></div>' +
         '<div class="set-row set-row-col"><span class="set-row-ic" data-ic="star"></span>' +
           '<div class="set-row-txt"><b>Style presets</b><small>Save the fields above as a named preset, then switch your team\'s active default with one click — handy for more than one house style (e.g. per client).</small></div>' +
           '<div class="sp-list" id="spList">' +
@@ -5475,6 +5491,8 @@
     if (defSubtitleStyleSel) defSubtitleStyleSel.onchange = function () { setDefaultSubtitleStyle(defSubtitleStyleSel.value); toast("Default subtitle style saved"); };
     var defDashboardThemeSel = $("#setDefaultDashboardThemeSel", sec);
     if (defDashboardThemeSel) defDashboardThemeSel.onchange = function () { setDefaultDashboardTheme(defDashboardThemeSel.value); toast("Default dashboard theme saved"); };
+    var defCardSkinSel = $("#setDefaultCardSkinSel", sec);
+    if (defCardSkinSel) defCardSkinSel.onchange = function () { setDefaultCardSkin(defCardSkinSel.value); toast("Default card style saved"); };
     var spNameInp = $("#spNameInp", sec), spSaveBtn = $("#spSaveBtn", sec);
     if (spSaveBtn) spSaveBtn.onclick = function () {
       var name = (spNameInp.value || "").trim(); if (!name) { spNameInp.focus(); return; }
@@ -6261,7 +6279,11 @@
         "studio-insp-collapsed", "studio-recents", "studio-pins", "studio-workbooks", "studio-branding", "studio-versions",
         "studio-shell-section", "studio-shell-expanded",
         "studio-default-jndi", "studio-default-subtitle", "studio-default-accent", "studio-default-logo", "studio-default-headerbg",
-        "studio-default-titlesize", "studio-default-subtitlestyle", "studio-style-presets",
+        // N-DESIGN follow-up: studio-default-dashboardtheme (v281) and studio-default-cardskin (this
+        // slice) were/are new Settings-default keys — folded straight into this list from the start
+        // this time, since studio-default-dashboardtheme itself was found missing here while adding
+        // cardSkin (same "new Settings key, forgot Clear local data" gap the v194/v235 notes describe).
+        "studio-default-titlesize", "studio-default-subtitlestyle", "studio-default-dashboardtheme", "studio-default-cardskin", "studio-style-presets",
         "studio-cmdk-usage", "studio-first-export-done", "studio-export-count", "studio-dash-count",
         "studio-deploy-path", "studio-live-data", "studio-templatevar-sets"
       ];
