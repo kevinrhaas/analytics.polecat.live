@@ -254,6 +254,7 @@ html[data-app-theme='modern'] #mobileNavBtn{background:#0d1a2e;border-color:rgba
 .recent-meta b{display:block;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .recent-meta small{display:block;font-size:10.5px;color:#c9b9a3;margin-top:3px;font-weight:400}
 .recent-col-match{color:#d4773b!important;font-weight:600!important}
+.recent-changed{color:#8fb8c9!important;font-weight:500!important}
 .home-empty-hint{font-size:12.5px;color:#c9b9a3}
 @media(prefers-reduced-motion:reduce){.home-card,.recent-card,.recent-pin,.home-card-ic,.recent-thumb svg,.home-tip-next{transition:none}}
 /* m-c: keep the 60px top clearance the hamburger needs (set for ≤900px above) — this rule

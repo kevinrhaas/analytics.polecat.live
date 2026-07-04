@@ -15,6 +15,17 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 331,
+    title: '"N changes since you were last here" on recent dashboard cards',
+    kind: 'feature',
+    ts: '2026-07-04T16:02:30Z',
+    items: [
+      'Home and Repository recent-dashboard cards now show a small hint whenever a dashboard has moved on since you last had it open — a new panel, a color change, whatever moved.',
+      'Hover the hint to see the actual list of changes, powered by the same plain-English diff engine Version history and Compare dashboards already use.',
+      'It clears the moment you reopen the dashboard, since that becomes the new "last here."',
+    ],
+  },
+  {
     v: 330,
     title: 'Combo chart trend line now gets a forecast tail, too',
     kind: 'feature',

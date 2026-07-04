@@ -13630,6 +13630,87 @@ function serve() {
       window.__studioRenderRepository();
     });
 
+    // N-FUN innovation idea (added 2026-07-04): "what changed since your last visit" digest —
+    // combines studio-recents (already tracks a dashboard's current spec) with Version history
+    // (already snapshots a checkpoint on Save) into a "N changes since you were last here" hint,
+    // reusing Studio.diffSpecs/diffSummary verbatim (same engine Version-history-restore and
+    // Compare-dashboards already share).
+    console.log("\n• N-FUN: 'what changed since your last visit' digest");
+    // Each step gets a real await (not back-to-back synchronous calls) so the ISO timestamps
+    // snapshotVersion()/markLastViewed() stamp are guaranteed distinct millisecond values —
+    // changesSinceLastView()'s "checkpoint at-or-before last-viewed" lookup depends on real
+    // ordering, which synchronous same-tick calls can't reliably produce.
+    const civId = "civ-test-dash";
+    await page.evaluate(function (id) {
+      window.__studioLoad({ id: id, name: id, title: "CIV Original Title", panels: [], kpis: [], filters: [], cda: { connections: [], dataAccesses: [] } });
+      window.__studioSnapshotVersion(); // checkpoint #1 — the state as it stood when "last viewed"
+    }, civId);
+    await page.waitForTimeout(20);
+    await page.evaluate(function (id) { window.__studioMarkLastViewed(id); }, civId); // pretend the user just opened it right now
+    await page.waitForTimeout(20);
+    const civSetup = await page.evaluate(function (id) {
+      window.__STUDIO_STATE.spec.title = "CIV Changed Title"; // an edit made during this same visit
+      window.__studioSnapshotVersion(); // checkpoint #2 — the Save that follows the edit
+      var list = (window.__studioRecents() || []).filter(function (r) { return r.id !== id; });
+      list.unshift({ id: id, ts: new Date().toISOString(), spec: window.__STUDIO_STATE.spec });
+      localStorage.setItem("studio-recents", JSON.stringify(list));
+      return id;
+    }, civId);
+    const civPure = await page.evaluate(function (id) {
+      var r = (window.__studioRecents() || []).filter(function (x) { return x.id === id; })[0];
+      return window.__studioChangesSinceLastView(r);
+    }, civSetup);
+    ok("N-FUN: changesSinceLastView() finds a real diff between the last-viewed checkpoint and the current spec",
+      !!civPure && civPure.count >= 1 && /Title/.test(civPure.lines.join(" ")), JSON.stringify(civPure));
+    await page.evaluate(function () { window.__studioRenderHome(); });
+    const civCard = await page.evaluate(function (id) {
+      var open = document.querySelector('#secHome [data-recent="' + id + '"]');
+      var card = open ? open.closest(".recent-card") : null;
+      var hint = card ? card.querySelector(".recent-changed") : null;
+      return { hasHint: !!hint, text: hint ? hint.textContent : "", title: hint ? hint.getAttribute("title") : "" };
+    }, civSetup);
+    ok("N-FUN: Home's recent card shows a '1 change since you were last here' hint",
+      civCard.hasHint && /1 change since you were last here/.test(civCard.text), JSON.stringify(civCard));
+    ok("N-FUN: the hint's tooltip lists the actual diff line, not just a bare count",
+      /Title/.test(civCard.title), JSON.stringify(civCard));
+    const civNulls = await page.evaluate(function () {
+      var neverViewedId = "civ-test-never-viewed";
+      window.__studioLoad({ id: neverViewedId, name: neverViewedId, title: "Never Viewed", panels: [], kpis: [], filters: [], cda: { connections: [], dataAccesses: [] } });
+      window.__studioSnapshotVersion();
+      var neverViewed = window.__studioChangesSinceLastView({ id: neverViewedId, spec: window.__STUDIO_STATE.spec });
+      var noChangeId = "civ-test-no-changes";
+      window.__studioLoad({ id: noChangeId, name: noChangeId, title: "No Changes", panels: [], kpis: [], filters: [], cda: { connections: [], dataAccesses: [] } });
+      window.__studioSnapshotVersion();
+      window.__studioMarkLastViewed(noChangeId);
+      var noChange = window.__studioChangesSinceLastView({ id: noChangeId, spec: window.__STUDIO_STATE.spec });
+      return { neverViewed: neverViewed, noChange: noChange };
+    });
+    ok("N-FUN: changesSinceLastView() returns null when the dashboard was never marked as last-viewed",
+      civNulls.neverViewed === null, JSON.stringify(civNulls));
+    ok("N-FUN: changesSinceLastView() returns null when nothing has actually changed since the last view",
+      civNulls.noChange === null, JSON.stringify(civNulls));
+    const civOpenMarks = await page.evaluate(function () {
+      var id = "civ-test-open-marks";
+      var list = (window.__studioRecents() || []).filter(function (r) { return r.id !== id; });
+      list.unshift({ id: id, ts: new Date().toISOString(), spec: { id: id, name: id, title: "Open Marks Test", panels: [], kpis: [], filters: [], cda: { connections: [], dataAccesses: [] } } });
+      localStorage.setItem("studio-recents", JSON.stringify(list));
+      var before = window.__studioLastViewed()[id];
+      window.__studioOpenRecent(id);
+      var after = window.__studioLastViewed()[id];
+      return { before: before, after: after };
+    });
+    ok("N-FUN: opening a dashboard via openRecent() marks it as last-viewed right now (resets the clock)",
+      !civOpenMarks.before && !!civOpenMarks.after, JSON.stringify(civOpenMarks));
+    await page.evaluate(function () {
+      var list = (window.__studioRecents() || []).filter(function (r) { return ["civ-test-dash", "civ-test-open-marks"].indexOf(r.id) < 0; });
+      localStorage.setItem("studio-recents", JSON.stringify(list));
+      window.__studioRenderHome(); window.__studioRenderRepository();
+      // __studioOpenRecent() above (like a real "open a dashboard" click) switches the active
+      // shell section to Studio — switch back to Repository so the a11y check right after this
+      // still finds #repoSearch in the visible section, not a hidden one.
+      if (window.__studioShellSetSection) window.__studioShellSetSection("repository");
+    });
+
     // a11y: Track L found the Repository search field was the one input in the app chrome that
     // re-declared outline:none inside its own :focus rule (higher specificity than the shared global
     // :focus-visible ring in studio.css), so tabbing to it showed only a border-color change and zero

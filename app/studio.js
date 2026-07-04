@@ -4632,6 +4632,35 @@
     if (!r) return;
     S.spec = normalize(r.spec); S.selection = null; syncHeader(); renderInspector(); refreshPreview(); buildLibrary();
     if (window.__studioShellSetSection) window.__studioShellSetSection("studio");
+    markLastViewed(id); // "since you were last here" resets the clock the moment you actually open it
+  }
+
+  /* ---------- N-FUN innovation idea: "what changed since your last visit" digest ----------
+     Home/Repository already know when a dashboard was last touched (studio-recents) and Version
+     history already snapshots a checkpoint on every Save — this combines them into a small "N
+     changes since you were last here" line on a recent card, reusing the same diffSpecs/diffSummary
+     engine Version-history-restore and Compare-dashboards already share (no new diff logic).
+     `studio-last-viewed` tracks, per dashboard id, the ISO timestamp of the last time you actually
+     OPENED it (not merely saw its card) — updated only by markLastViewed()/openRecent() so the
+     window it measures is "since you last had this open," not "since the page last re-rendered." */
+  var _LS_LASTVIEW = "studio-last-viewed";
+  function loadLastViewed() { try { return JSON.parse(localStorage.getItem(_LS_LASTVIEW) || "{}"); } catch (e) { return {}; } }
+  function markLastViewed(id) {
+    var m = loadLastViewed(); m[id] = new Date().toISOString();
+    try { localStorage.setItem(_LS_LASTVIEW, JSON.stringify(m)); } catch (e) { /* quota or private-mode */ }
+  }
+  // Finds the version-history checkpoint at-or-before `ts` (the dashboard's state as it stood the
+  // last time you opened it) and diffs it against the CURRENT spec. Returns null when there's
+  // nothing to show: no recorded last-view yet, no checkpoint old enough to diff from, or a clean
+  // diff (you looked, but nothing has actually changed since).
+  function changesSinceLastView(r) {
+    var lastTs = loadLastViewed()[r.id];
+    if (!lastTs) return null;
+    var history = loadVersions()[r.id] || [];
+    var baseline = history.filter(function (v) { return v.ts <= lastTs; })[0]; // newest-first list
+    if (!baseline) return null;
+    var lines = Studio.diffSummary(Studio.diffSpecs(baseline.spec || {}, r.spec || {}));
+    return lines.length ? { count: lines.length, lines: lines } : null;
   }
 
   /* ---------- N-DIST: local version history ("time travel" for a dashboard) ----------
@@ -4883,12 +4912,16 @@
     }
     var colHint = (wbOpts && wbOpts.matchedCol) ?
       '<small class="recent-col-match">Matches column “' + esc(wbOpts.matchedCol) + '”</small>' : '';
+    var changed = changesSinceLastView(r);
+    var changeHint = changed ?
+      '<small class="recent-changed" title="' + esc(changed.lines.join("\n")) + '">' +
+        changed.count + " change" + (changed.count === 1 ? "" : "s") + " since you were last here</small>" : '';
     return '<div class="recent-card">' +
       '<button class="recent-open" data-recent="' + esc(r.id) + '" aria-label="Open ' + esc(title) + '"></button>' +
       '<button class="recent-pin' + (pinned ? " pinned" : "") + '" data-pin="' + esc(r.id) + '" ' +
         'title="' + (pinned ? "Unpin" : "Pin") + '" aria-label="' + (pinned ? "Unpin " : "Pin ") + esc(title) + '" aria-pressed="' + (pinned ? "true" : "false") + '"></button>' +
       '<div class="recent-thumb">' + thumb + '</div>' +
-      '<div class="recent-meta"><b>' + esc(title) + '</b><small>' + timeAgo(r.ts) + ' · ' + meta + '</small>' + colHint + wbSelect + '</div></div>';
+      '<div class="recent-meta"><b>' + esc(title) + '</b><small>' + timeAgo(r.ts) + ' · ' + meta + '</small>' + changeHint + colHint + wbSelect + '</div></div>';
   }
   // Z2 follow-up: "instructions/how-tos/tips beyond the existing tour link" — a small,
   // dismissable-by-clicking-through tip card on Home surfacing one bite-sized power-user
@@ -4996,6 +5029,9 @@
   window.__studioVersions = loadVersions; // test hook
   window.__studioSnapshotVersion = snapshotVersion; // test hook
   window.__studioRestoreVersion = restoreVersion; // test hook
+  window.__studioLastViewed = loadLastViewed; // test hook
+  window.__studioMarkLastViewed = markLastViewed; // test hook
+  window.__studioChangesSinceLastView = changesSinceLastView; // test hook
   window.__studioOpenVersionDiff = openVersionDiff; // test hook
   window.__studioOpenCompareDashboards = openCompareDashboards; // test hook
   window.__studioOpenJsonEditor = openJsonEditor; // test hook
@@ -6372,7 +6408,10 @@
     // list rather than just this file. Without them, "Clear local data" left a device stuck
     // "already onboarded" — the welcome screen and interactive tutorial would never re-offer
     // themselves after a supposedly-full reset.
-    "studio-welcome-seen", "studio-tutorial-done"
+    "studio-welcome-seen", "studio-tutorial-done",
+    // N-FUN: "studio-last-viewed" (per-dashboard last-opened timestamps, powers the "N changes
+    // since you were last here" Home/Repository card hint) — folded in from the start this time.
+    "studio-last-viewed"
   ];
   window.__studioClearDataKeys = CLEAR_DATA_KEYS; // test hook
 

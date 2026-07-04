@@ -991,6 +991,12 @@
   bar-less slots past the real data, with matching "+1/+2/…" ticks and a dashed separator; the
   right-axis scale now accounts for forecasted values so a rising/falling projection isn't clipped.
   4 new tests. Docs updated. Suite 1435/1435.
+- v331: **N-FUN: "what changed since your last visit" digest** — closes the innovation-backlog idea.
+  A new `studio-last-viewed` map (stamped only by actually opening a dashboard, not by every
+  autosave tick) plus the existing Version-history checkpoints feed `changesSinceLastView()`, which
+  reuses `Studio.diffSpecs`/`diffSummary` (the same engine Version-history-restore and Compare-
+  dashboards already share) to show a small "N changes since you were last here" hint on Home/
+  Repository recent-dashboard cards. 6 new tests, suite 1441/1441.
 
 ## NEXT (top = do first)
 
@@ -2938,6 +2944,17 @@ gets covered over time:
   since you were last here" line on a recent card, reusing the existing `diffSpecs`/`diffSummary` engine
   (the same one Version-history-restore and Compare-dashboards already share) rather than a new comparison
   path. Nudges a returning collaborator toward what actually moved instead of re-reading the whole spec.
+> ✓ **Shipped (2026-07-04, closes this idea)**: a new `studio-last-viewed` map (dashboard id → ISO
+> timestamp) is stamped only by actually OPENING a dashboard (`openRecent()`), distinct from
+> `studio-recents`' `ts` which updates on every autosave tick and would reset the "since you were
+> last here" clock on every keystroke. `changesSinceLastView(r)` finds the Version-history checkpoint
+> at-or-before that timestamp (the dashboard's state as it stood at last open) and diffs it against
+> the current spec via the exact same `Studio.diffSpecs`/`diffSummary` engine Version-history-restore
+> and Compare-dashboards already share — null when there's no recorded last-view, no old-enough
+> checkpoint, or a clean diff. Home/Repository cards show a small "N changes since you were last
+> here" hint (hover for the actual diff lines) whenever it fires. Added to Clear local data. 6 new
+> tests (real diff renders on the card, both null cases, and `openRecent()` genuinely resets the
+> clock). Docs updated. Suite 1441/1441.
 - **Cross-dashboard column search (added 2026-07-04, innovation sweep):** once a data source's schema
   changes (a column renamed/dropped upstream), there's no way today to ask "which of my saved dashboards
   actually use column X" — extend the Repository's existing search to also match against each recent
