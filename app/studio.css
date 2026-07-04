@@ -664,6 +664,12 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
 /* N-DIST follow-up: version-history compare modal — a plain-English change list */
 .vdiff-list{display:flex;flex-direction:column;gap:6px}
 .vdiff-row{font-size:12.5px;line-height:1.5;padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:var(--pane)}
+/* N-DATA innovation sweep: "Compare dashboards" modal — pick two saved dashboards, reuses
+   the same .vdiff-list/.vdiff-row rows the version-history diff above already established. */
+.cmp-pick-row{display:flex;align-items:center;gap:10px;margin:12px 0}
+.cmp-pick{flex:1;min-width:0;padding:6px 8px;border:1px solid var(--line);border-radius:7px;background:var(--field);color:var(--ink);font-size:12.5px}
+.cmp-arrow{color:var(--faint);font-weight:700;flex-shrink:0}
+.cmp-out{margin-top:4px}
 .chart-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:6px}
 .chart-opt{border:1px solid var(--line);border-radius:9px;padding:8px 5px 6px;text-align:center;cursor:pointer;background:var(--pane);transition:border-color .12s,box-shadow .12s,transform .08s;position:relative}
 .chart-opt:hover{border-color:var(--pentaho);transform:translateY(-1px);box-shadow:var(--shadow)}

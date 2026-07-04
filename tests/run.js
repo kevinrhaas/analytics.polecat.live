@@ -13463,6 +13463,63 @@ function serve() {
     ok("N-DATA/Track N: sticky notes are never part of the dashboard spec/export (scratch space only, keyed separately in localStorage)",
       !noteNeverExported.specHasNoteField && noteNeverExported.cdaClean, JSON.stringify(noteNeverExported));
 
+    // ── N-DATA innovation sweep: compare dashboards side-by-side (first cut — diff summary) ──
+    // Distinct from the Version-history diff above (which compares a dashboard against ITS OWN
+    // past checkpoint) — this picks any two DIFFERENT saved dashboards and reuses the same
+    // Studio.diffSpecs/diffSummary the version-history diff already established.
+    console.log("\n• N-DATA: compare dashboards side-by-side");
+    // Seed studio-recents directly (same {id,ts,spec} shape noteRecent() writes) rather than
+    // relying on two back-to-back __studioLoad calls to survive the shared, debounced
+    // scheduleNoteRecent() timer -- a second load within its ~930ms (130ms preview-refresh +
+    // 800ms noteRecent) window cancels the first dashboard's pending save entirely.
+    const cmpIdA = "cmp-test-a", cmpIdB = "cmp-test-b";
+    await page.evaluate(function (ids) {
+      var specA = { id: ids.a, name: ids.a, title: "Compare Dash A", panels: [{ id: "cp1", title: "Revenue", chart: { type: "bars", da: "" } }], kpis: [{ label: "K1" }], filters: [], cda: { connections: [], dataAccesses: [] } };
+      var specB = { id: ids.b, name: ids.b, title: "Compare Dash B", panels: [{ id: "cp1", title: "Revenue (renamed)", chart: { type: "bars", da: "" } }, { id: "cp2", title: "New panel", chart: { type: "bars", da: "" } }], kpis: [{ label: "K1" }, { label: "K2" }], filters: [], cda: { connections: [], dataAccesses: [] } };
+      var recents = []; try { recents = JSON.parse(localStorage.getItem("studio-recents") || "[]"); } catch (e) {}
+      recents.unshift({ id: ids.b, ts: new Date().toISOString(), spec: specB });
+      recents.unshift({ id: ids.a, ts: new Date().toISOString(), spec: specA });
+      localStorage.setItem("studio-recents", JSON.stringify(recents));
+    }, { a: cmpIdA, b: cmpIdB });
+
+    const cmpBtn = await page.evaluate(function () {
+      var btn = document.getElementById("repoCompareBtn");
+      return { exists: !!btn, text: btn ? btn.textContent.trim() : "" };
+    });
+    ok("N-DATA: Repository page has a 'Compare dashboards…' button", cmpBtn.exists && /Compare dashboards/.test(cmpBtn.text), JSON.stringify(cmpBtn));
+
+    const cmpUI = await page.evaluate(function (ids) {
+      window.__studioOpenCompareDashboards();
+      var modal = document.querySelector(".modal-ov .modal");
+      var sels = modal ? modal.querySelectorAll(".cmp-pick") : [];
+      if (sels.length === 2) { sels[0].value = ids.a; sels[0].dispatchEvent(new Event("change", { bubbles: true })); sels[1].value = ids.b; sels[1].dispatchEvent(new Event("change", { bubbles: true })); }
+      var rows = modal ? Array.from(modal.querySelectorAll(".vdiff-row")).map(function (r) { return r.textContent; }) : [];
+      return { hasModal: !!modal, pickerCount: sels.length, rowCount: rows.length, mentionsTitle: rows.some(function (r) { return /Title:/.test(r); }), mentionsPanelAdded: rows.some(function (r) { return /New panel/.test(r); }) };
+    }, { a: cmpIdA, b: cmpIdB });
+    ok("N-DATA: 'Compare dashboards' modal opens with two dashboard pickers", cmpUI.hasModal && cmpUI.pickerCount === 2, JSON.stringify(cmpUI));
+    ok("N-DATA: picking two different saved dashboards shows a real diff (title + added panel)",
+      cmpUI.rowCount > 0 && cmpUI.mentionsTitle && cmpUI.mentionsPanelAdded, JSON.stringify(cmpUI));
+
+    const cmpSameDash = await page.evaluate(function (id) {
+      var modal = document.querySelector(".modal-ov .modal");
+      var sels = modal.querySelectorAll(".cmp-pick");
+      sels[1].value = id; sels[1].dispatchEvent(new Event("change", { bubbles: true }));
+      return { note: (modal.querySelector(".note") || {}).textContent || "" };
+    }, cmpIdA);
+    ok("N-DATA: picking the SAME dashboard twice shows a friendly 'pick two different dashboards' note instead of a false empty diff",
+      /different dashboards/.test(cmpSameDash.note), JSON.stringify(cmpSameDash));
+    await page.evaluate(function () { var ov = document.querySelector(".modal-ov"); if (ov) ov.remove(); });
+
+    const cmpTooFew = await page.evaluate(function () {
+      localStorage.setItem("studio-recents", "[]");
+      window.__studioOpenCompareDashboards();
+      var hadModal = !!document.querySelector(".modal-ov");
+      var t = (document.getElementById("toast") || {}).textContent || "";
+      return { hadModal: hadModal, toastMentionsTwo: /two/.test(t) };
+    });
+    ok("N-DATA: with fewer than two saved dashboards, Compare shows a toast instead of an unusable empty modal",
+      !cmpTooFew.hadModal && cmpTooFew.toastMentionsTwo, JSON.stringify(cmpTooFew));
+
     // ── N-DEV: live JSON spec editor ──
     console.log("\n• N-DEV: live JSON spec editor");
     const jsonEdMenu = await page.evaluate(function () {
