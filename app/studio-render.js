@@ -51,6 +51,137 @@
     return hint ? msg + " — " + hint : msg;
   };
 
+  // N-DATA follow-up (STATUS.md, "a calc column still isn't appended to the v318 DuckDB/SQLite
+  // live runtime query result"): Studio.evalFormula/applyCalcCols (app/model.js) are, again, a
+  // "builder-only module, never inlined here" situation (see applyTemplateVars above) — local
+  // copies of the same pure logic so a DA's Calculated columns actually land in the live-query
+  // result once deployed, matching what the builder's own offline preview already computes.
+  function evalFormula(formula, rowObj, ctx) {
+    var s = String(formula || "").replace(/^\s*=\s*/, "");
+    var i = 0;
+    function skipWs() { while (i < s.length && /\s/.test(s[i])) i++; }
+    function parseExpr() {
+      var v = parseTerm();
+      for (;;) {
+        skipWs();
+        var c = s[i];
+        if (c === "+" || c === "-") { i++; var r = parseTerm(); v = c === "+" ? v + r : v - r; }
+        else break;
+      }
+      return v;
+    }
+    function parseTerm() {
+      var v = parseFactor();
+      for (;;) {
+        skipWs();
+        var c = s[i];
+        if (c === "*" || c === "/") {
+          i++; var r = parseFactor();
+          if (c === "*") v = v * r;
+          else { if (r === 0) throw new Error("division by zero"); v = v / r; }
+        } else break;
+      }
+      return v;
+    }
+    function parseColRef() {
+      if (s[i] !== "[") throw new Error("expected a [column] reference");
+      i++; var start = i;
+      while (i < s.length && s[i] !== "]") i++;
+      if (s[i] !== "]") throw new Error("missing closing ]");
+      var name = s.slice(start, i); i++;
+      return name;
+    }
+    function parseNamedFn(name) {
+      i++; // consume "("
+      var colName = parseColRef();
+      var windowArg = null;
+      skipWs();
+      if (s[i] === ",") {
+        i++; skipWs();
+        var numStart = i;
+        while (i < s.length && /[0-9.]/.test(s[i])) i++;
+        if (i === numStart) throw new Error(name + "()'s second argument must be a number");
+        windowArg = parseFloat(s.slice(numStart, i));
+      }
+      skipWs();
+      if (s[i] !== ")") throw new Error("missing closing ) in " + name + "(...)");
+      i++;
+      if (!ctx || typeof ctx.series !== "function" || ctx.index == null)
+        throw new Error(name + "() isn't available here");
+      var series = ctx.series(colName);
+      if (!series) throw new Error("unknown column [" + colName + "] in " + name + "()");
+      if (name === "pctChange") {
+        if (ctx.index <= 0) throw new Error("pctChange() has no prior row to compare against");
+        var prev = series[ctx.index - 1], cur = series[ctx.index];
+        if (!isFinite(prev) || prev === 0) throw new Error("pctChange()'s previous value isn't a usable number");
+        return ((cur - prev) / prev) * 100;
+      }
+      var w = Math.max(1, Math.round(windowArg || 3));
+      var from = Math.max(0, ctx.index - w + 1), sum = 0, cnt = 0;
+      for (var j = from; j <= ctx.index; j++) { var v = series[j]; if (isFinite(v)) { sum += v; cnt++; } }
+      if (!cnt) throw new Error("movingAvg() has no numeric values in its window");
+      return sum / cnt;
+    }
+    function parseFactor() {
+      skipWs();
+      var c = s[i];
+      if (c === "+") { i++; return parseFactor(); }
+      if (c === "-") { i++; return -parseFactor(); }
+      if (c === "(") {
+        i++; var v = parseExpr(); skipWs();
+        if (s[i] !== ")") throw new Error("missing closing )");
+        i++; return v;
+      }
+      if (c === "[") {
+        var name = parseColRef();
+        if (!rowObj || !(name in rowObj)) throw new Error("unknown column [" + name + "]");
+        var val = +rowObj[name];
+        if (isNaN(val)) throw new Error("[" + name + "] isn't numeric here");
+        return val;
+      }
+      var identMatch = /^(pctChange|movingAvg)\s*\(/.exec(s.slice(i));
+      if (identMatch) { i += identMatch[1].length; skipWs(); return parseNamedFn(identMatch[1]); }
+      var numStart = i;
+      while (i < s.length && /[0-9.]/.test(s[i])) i++;
+      if (i === numStart) throw new Error(c ? "unexpected \"" + c + "\"" : "unexpected end of formula");
+      return parseFloat(s.slice(numStart, i));
+    }
+    try {
+      if (!s.trim()) throw new Error("empty formula");
+      var result = parseExpr();
+      skipWs();
+      if (i < s.length) throw new Error("unexpected trailing text");
+      return { value: result, error: null };
+    } catch (e) {
+      return { value: null, error: e.message };
+    }
+  }
+  function applyCalcCols(cols, rows, calcColumns) {
+    cols = cols || []; rows = rows || [];
+    var valid = (calcColumns || []).filter(function (c) { return c && c.name && c.formula; });
+    if (!valid.length) return { cols: cols.slice(), rows: rows.map(function (r) { return r.slice(); }) };
+    var outCols = cols.concat(valid.map(function (c) { return c.name; }));
+    var seriesCache = {};
+    function seriesFor(name) {
+      if (Object.prototype.hasOwnProperty.call(seriesCache, name)) return seriesCache[name];
+      var ci = cols.indexOf(name);
+      var s = ci < 0 ? null : rows.map(function (r) { return +r[ci]; });
+      seriesCache[name] = s;
+      return s;
+    }
+    var outRows = rows.map(function (row, rowIndex) {
+      var rowObj = {};
+      cols.forEach(function (c, i) { rowObj[c] = row[i]; });
+      var out = row.slice();
+      valid.forEach(function (c) {
+        var r = evalFormula(c.formula, rowObj, { index: rowIndex, series: seriesFor });
+        out.push(r.error ? null : r.value);
+      });
+      return out;
+    });
+    return { cols: outCols, rows: outRows };
+  }
+
   // Z14 architecture-gap fix (STATUS.md): PDC.cda (vendor/pdc-ui.js, kept pristine) only ever
   // reads injected mock data (in-app preview) or calls a real Pentaho CDA endpoint — a duckdb/
   // httpvfs data access has no CDA definition on the server, so it 404s the moment a dashboard
@@ -59,15 +190,21 @@
   // instead — the mock and real-Pentaho-CDA paths (and PDC.cda's contract) are untouched.
   (function () {
     var realCda = PDC.cda;
-    function wrapResult(r) { var cols = r.cols || []; return { cols: cols, rows: r.rows || [], col: function (n) { return cols.indexOf(n); } }; }
+    function wrapResult(r, da) {
+      var applied = (da && da.calcColumns && da.calcColumns.length)
+        ? applyCalcCols(r.cols || [], r.rows || [], da.calcColumns)
+        : { cols: r.cols || [], rows: r.rows || [] };
+      var cols = applied.cols;
+      return { cols: cols, rows: applied.rows, col: function (n) { return cols.indexOf(n); } };
+    }
     PDC.cda = function (dataAccessId, params) {
       if (window.PDC_MOCK && window.PDC_MOCK[dataAccessId]) return realCda(dataAccessId, params);
       var spec = window.STUDIO_SPEC;
       var da = spec && ((spec.cda && spec.cda.dataAccesses) || []).filter(function (d) { return d.id === dataAccessId; })[0];
       if (da && da.kind === "duckdb" && window.Studio && Studio.DuckDB)
-        return Studio.DuckDB.query({ fileUrl: da.fileUrl, fileFormat: da.fileFormat }, da.sql || da.query).then(wrapResult);
+        return Studio.DuckDB.query({ fileUrl: da.fileUrl, fileFormat: da.fileFormat }, da.sql || da.query).then(function (r) { return wrapResult(r, da); });
       if (da && da.kind === "httpvfs" && window.Studio && Studio.SQLiteHttp)
-        return Studio.SQLiteHttp.query({ fileUrl: da.fileUrl, tableName: da.tableName }, da.sql || da.query).then(wrapResult);
+        return Studio.SQLiteHttp.query({ fileUrl: da.fileUrl, tableName: da.tableName }, da.sql || da.query).then(function (r) { return wrapResult(r, da); });
       return realCda(dataAccessId, params);
     };
   })();

@@ -2783,6 +2783,14 @@ gets covered over time:
 > offline preview evaluates it) — same limitation those two connectors' own builder "Run live"
 > button already has today, tracked as a distinct future follow-up rather than silently claimed
 > fixed. 9 new tests, suite 1391/1391.
+> ✓ **Live-runtime calc columns shipped v320 (closes that "distinct future follow-up" — the N-DATA
+> formula-language track is now feature-complete)**: `app/studio-render.js` (the module that ships
+> INSIDE every exported dashboard) now carries its own pure local copy of `Studio.evalFormula`/
+> `applyCalcCols` — the same "builder-only module never inlined here" situation as the existing
+> `applyTemplateVars`/`withTimeout` local copies in that file — and applies it to every duckdb/httpvfs
+> live query result's `{cols, rows}` before handing them back through `PDC.cda`. A DA with no
+> `calcColumns` pays zero extra cost (short-circuits to a plain copy); mock-data and real Pentaho CDA
+> paths are untouched. 2 new tests, suite 1394/1394.
 - **Period-over-period / compare mode:** pick two ranges or two sources and diff them across every panel.
 - **Pivot / crosstab builder** and **anomaly + correlation explorer** as first-class analysis surfaces.
 - **Data quality watchdog (added 2026-07-03):** scan a data access's own sample rows for common quality

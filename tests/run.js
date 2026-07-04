@@ -9833,6 +9833,58 @@ function serve() {
       z14SqliteDispatch.cols.join(",") === "x" && z14SqliteDispatch.rows.length === 1 && z14SqliteDispatch.rows[0][0] === 7 && z14SqliteDispatch.colIdx === 0,
       JSON.stringify(z14SqliteDispatch));
 
+    // N-DATA follow-up (closes "a calc column still isn't appended to the v318 DuckDB/SQLite live
+    // runtime query result"): a DA's calcColumns should now be computed and appended to the LIVE
+    // query result too, the same as the builder's own offline preview already does.
+    const calcLiveDuck = await page.evaluate(async function () {
+      var assets = window.__STUDIO_STATE.assets;
+      var spec = {
+        name: "ok-name", title: "T", panels: [], kpis: [], filters: [],
+        cda: {
+          dataAccesses: [{
+            id: "d1", name: "d1", kind: "duckdb", columns: ["revenue", "cost"],
+            fileUrl: "https://x/y.parquet", sql: "SELECT * FROM t",
+            calcColumns: [{ name: "profit", formula: "=[revenue]-[cost]" }]
+          }]
+        }
+      };
+      var html = Studio.exportCDF(spec, assets, "/x");
+      var ifr = document.createElement("iframe");
+      ifr.style.display = "none";
+      document.body.appendChild(ifr);
+      await new Promise(function (resolve) { ifr.onload = resolve; ifr.srcdoc = html; });
+      var iw = ifr.contentWindow;
+      iw.Studio.DuckDB.query = function () { return Promise.resolve({ cols: ["revenue", "cost"], rows: [[100, 40], [200, 150]] }); };
+      var result = await iw.PDC.cda("d1", {});
+      document.body.removeChild(ifr);
+      return { cols: result.cols, rows: result.rows, profitIdx: result.col("profit") };
+    });
+    ok("N-DATA: a duckdb DA's calcColumns are computed and appended to the live-exported query result",
+      calcLiveDuck.cols.join(",") === "revenue,cost,profit" && calcLiveDuck.profitIdx === 2 &&
+      calcLiveDuck.rows[0][2] === 60 && calcLiveDuck.rows[1][2] === 50,
+      JSON.stringify(calcLiveDuck));
+
+    const calcLiveNone = await page.evaluate(async function () {
+      var assets = window.__STUDIO_STATE.assets;
+      var spec = {
+        name: "ok-name", title: "T", panels: [], kpis: [], filters: [],
+        cda: { dataAccesses: [{ id: "d1", name: "d1", kind: "duckdb", columns: ["x"], fileUrl: "https://x/y.parquet", sql: "SELECT * FROM t" }] }
+      };
+      var html = Studio.exportCDF(spec, assets, "/x");
+      var ifr = document.createElement("iframe");
+      ifr.style.display = "none";
+      document.body.appendChild(ifr);
+      await new Promise(function (resolve) { ifr.onload = resolve; ifr.srcdoc = html; });
+      var iw = ifr.contentWindow;
+      iw.Studio.DuckDB.query = function () { return Promise.resolve({ cols: ["x"], rows: [[42]] }); };
+      var result = await iw.PDC.cda("d1", {});
+      document.body.removeChild(ifr);
+      return { cols: result.cols, rows: result.rows };
+    });
+    ok("N-DATA: a DA with no calcColumns is unaffected by the new live-runtime calc-column path",
+      calcLiveNone.cols.join(",") === "x" && calcLiveNone.rows.length === 1 && calcLiveNone.rows[0][0] === 42,
+      JSON.stringify(calcLiveNone));
+
     // ── F18: Bump / ranking chart (v104) ─────────────────────────────────────
     console.log("\n• F18: Bump chart");
 

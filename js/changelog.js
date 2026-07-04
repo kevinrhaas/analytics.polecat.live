@@ -15,6 +15,17 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 320,
+    title: 'N-DATA fix: calculated columns now compute in the deployed DuckDB/SQLite live runtime too',
+    kind: 'fix',
+    ts: '2026-07-04T11:25:02Z',
+    items: [
+      'Closes the gap the v319 changelog entry flagged: a DA\'s Calculated columns (formula, pctChange()/movingAvg()) were only ever evaluated in the builder\'s own offline preview -- the v318 live-query path for exported DuckDB/SQLite dashboards returned the raw query result with no calc columns appended.',
+      'studio-render.js (the module that ships INSIDE every exported dashboard) now carries its own pure copy of Studio.evalFormula/applyCalcCols -- the same "builder-only module never inlined here" situation as the existing applyTemplateVars/withTimeout local copies -- and applies it to every duckdb/httpvfs live query result before handing rows back to PDC.cda.',
+      'Mock-data and real Pentaho CDA paths are untouched; a DA with no calcColumns pays zero extra cost. 2 new tests.',
+    ],
+  },
+  {
     v: 319,
     title: 'N-DATA: the formula language gains pctChange() and movingAvg() named functions',
     kind: 'feature',
