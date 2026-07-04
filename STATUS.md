@@ -908,6 +908,12 @@
   progress, pinned to a specific panel or general. Deliberately never exported — pure scratch space
   in `localStorage["studio-canvas-notes"]`, keyed by dashboard id, wiped by Clear local data. 5 new
   tests, suite 1351/1351.
+- v311: **N-DATA innovation sweep: compare dashboards side-by-side (first cut)** — a "Compare
+  dashboards…" button on the Repository page opens a modal to pick any two saved dashboards and see
+  a plain-English diff summary — distinct from the existing Version-history diff (which compares a
+  dashboard against its OWN past checkpoint). Reuses `Studio.diffSpecs`/`diffSummary` (the same engine
+  the version-history diff already established) rather than building a second comparison engine. 5
+  new tests, suite 1356/1356.
 
 ## NEXT (top = do first)
 
@@ -2557,6 +2563,14 @@ gets covered over time:
   per-dashboard Version-history diff (v262, which compares a dashboard against ITS OWN past checkpoint,
   not two different dashboards). Useful for "which of these two drafts is better" or a before/after across
   a redesign.
+> ✓ **First cut shipped v311**: a **Compare dashboards…** button on the Repository page opens a modal
+> with two dashboard pickers (populated from `studio-recents`) and a plain-English diff summary below
+> them, reusing `Studio.diffSpecs`/`diffSummary` verbatim (the same engine the Version-history diff
+> already established) — same `.vdiff-list`/`.vdiff-row` rows, one comparison engine powering both
+> features. Picking the same dashboard twice shows a friendly note instead of a false "no differences."
+> 5 new tests, suite 1356/1356. **Still open:** the actual side-by-side synced-scroll LIVE PREVIEW
+> (today's first cut is diff-summary only, no rendered dashboards) — a real next slice, not just
+> polish, since "which of these two looks better" was half the original ask.
 - **Canvas sticky notes (added 2026-07-04, innovation sweep):** small colored freehand notes a builder can
   pin to a specific panel or blank canvas area — for team brainstorming/review while a dashboard is in
   progress. Builder-only UI state (`localStorage`, keyed by dashboard id), deliberately never exported —

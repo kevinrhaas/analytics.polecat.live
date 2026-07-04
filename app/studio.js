@@ -4775,6 +4775,48 @@
       body.appendChild(restoreB);
     });
   }
+  // "Compare dashboards side-by-side" innovation idea, first cut: distinct from the
+  // Version-history diff above (which compares a dashboard against ITS OWN past checkpoint) --
+  // this picks any TWO different saved dashboards from Home/Repository and reuses the exact
+  // same Studio.diffSpecs/diffSummary plain-English diff. Scoped to the diff summary first
+  // (smallest real signal); a true synced-scroll live-preview split-screen is a follow-up.
+  function openCompareDashboards() {
+    var list = loadRecents();
+    if (list.length < 2) { toast("Save at least two dashboards to compare them", true); return; }
+    modal("Compare dashboards", function (body) {
+      body.appendChild(hint("Pick any two saved dashboards to see a plain-English summary of what differs between them."));
+      var row = el("div", "cmp-pick-row");
+      function pickerFor(defaultIdx) {
+        var sel = document.createElement("select"); sel.className = "cmp-pick";
+        list.forEach(function (r, i) {
+          var opt = document.createElement("option");
+          opt.value = r.id; opt.textContent = (r.spec && (r.spec.title || r.spec.name)) || r.id;
+          if (i === defaultIdx) opt.selected = true;
+          sel.appendChild(opt);
+        });
+        return sel;
+      }
+      var selA = pickerFor(0), selB = pickerFor(1);
+      var arrow = el("span", "cmp-arrow"); arrow.textContent = "⇄";
+      row.appendChild(selA); row.appendChild(arrow); row.appendChild(selB);
+      body.appendChild(row);
+      var out = el("div", "cmp-out"); body.appendChild(out);
+      function renderDiff() {
+        out.innerHTML = "";
+        var a = list.filter(function (r) { return r.id === selA.value; })[0];
+        var b = list.filter(function (r) { return r.id === selB.value; })[0];
+        if (!a || !b) return;
+        if (a.id === b.id) { out.appendChild(noteEl("info", "Pick two different dashboards to compare.")); return; }
+        var lines = Studio.diffSummary(Studio.diffSpecs(a.spec || {}, b.spec || {}));
+        if (!lines.length) { out.appendChild(noteEl("info", "No differences — these two dashboards match.")); return; }
+        var listEl = el("div", "vdiff-list");
+        lines.forEach(function (line) { var r = el("div", "vdiff-row"); r.textContent = line; listEl.appendChild(r); });
+        out.appendChild(listEl);
+      }
+      selA.onchange = renderDiff; selB.onchange = renderDiff;
+      renderDiff();
+    });
+  }
   // Shared markup for one recents/pinned card. Uses a big invisible "open" button
   // covering the whole card (not the card element itself) so the small pin toggle can
   // sit on top of it without an invalid <button> inside a <button>.
@@ -4872,6 +4914,7 @@
   window.__studioSnapshotVersion = snapshotVersion; // test hook
   window.__studioRestoreVersion = restoreVersion; // test hook
   window.__studioOpenVersionDiff = openVersionDiff; // test hook
+  window.__studioOpenCompareDashboards = openCompareDashboards; // test hook
   window.__studioOpenJsonEditor = openJsonEditor; // test hook
   window.__studioCanvasNotes = loadCanvasNotes; // test hook
   window.__studioSaveCanvasNote = saveCanvasNote; // test hook
@@ -6252,6 +6295,7 @@
     var repoSearchInp = $("#repoSearch"); if (repoSearchInp) repoSearchInp.addEventListener("input", renderRepository);
     var repoExpBtn = $("#repoExportBtn"); if (repoExpBtn) repoExpBtn.onclick = exportRepositoryFile;
     var repoImpBtn = $("#repoImportBtn"); if (repoImpBtn) repoImpBtn.onclick = importRepositoryFile;
+    var repoCompareBtn = $("#repoCompareBtn"); if (repoCompareBtn) repoCompareBtn.onclick = openCompareDashboards;
     var ndsBtn = $("#btnNewDS"); setIconBtn(ndsBtn, "plus", "New source", 12); ndsBtn.onclick = function () { dataSourceBuilder(null); };
     $("#inspBack").onclick = selectDashboard;
 

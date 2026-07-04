@@ -15,6 +15,16 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 311,
+    title: 'N-DATA innovation sweep: compare dashboards side-by-side (first cut)',
+    kind: 'feature',
+    ts: '2026-07-04T07:54:52Z',
+    items: [
+      'New \'Compare dashboards...\' button on the Repository page opens a modal to pick any TWO saved dashboards and see a plain-English summary of what differs between them -- distinct from the existing Version-history diff, which only compares a dashboard against its OWN past checkpoint.',
+      'Reuses the exact same Studio.diffSpecs/diffSummary engine the Version-history \'Compare to current\' diff already established, so the same well-tested field/panel/KPI/filter comparison logic powers both. First cut is the diff summary only; a true synced-scroll side-by-side live preview is a follow-up. 5 new tests, suite 1356/1356.',
+    ],
+  },
+  {
     v: 310,
     title: 'Track N: canvas sticky notes (first cut)',
     kind: 'feature',
