@@ -15,6 +15,16 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 334,
+    title: 'New "High Contrast" dashboard theme',
+    kind: 'feature',
+    ts: '2026-07-04T17:12:37Z',
+    items: [
+      'A third whole-look Dashboard theme joins Classic Pentaho Blue and Fleet Modern: true black/white extremes with solid borders and its own colorblind-safe series palette, for maximum legibility.',
+      'Pick it from the Dashboard theme picker in the style section, or set it as everyone\'s default in Settings → Dashboard defaults.',
+    ],
+  },
+  {
     v: 333,
     title: 'Fixed a missing keyboard focus ring on chart-option hint icons',
     kind: 'fix',

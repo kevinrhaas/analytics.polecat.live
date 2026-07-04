@@ -12393,6 +12393,52 @@ function serve() {
     ok("Dashboard theme: reverting to 'Classic' clears dashboardTheme and drops the override CSS",
       dtClassicOk.specKey === "" && !dtClassicOk.hasOverride, JSON.stringify(dtClassicOk));
 
+    // N-DESIGN "a few stunning presets" — a third dashboard-theme mood, High Contrast (true
+    // black/white extremes, its own re-validated series palette). Same registry/apply/aria
+    // pattern the Fleet Modern checks above already establish, just for the new key.
+    var hcRegistryOk = await page.evaluate(function () {
+      var dt = window.Studio.DASHBOARD_THEMES;
+      var hc = dt && dt.filter(function (t) { return t.key === "high-contrast"; })[0];
+      var needed = ["--pentaho", "--pdc", "--app-bg", "--panel-bg", "--text-primary", "--c1", "--c10"];
+      var hasAll = hc && needed.every(function (k) { return hc.light[k] && hc.dark[k]; });
+      return { ok: !!hc && hasAll, appBgLight: hc && hc.light["--app-bg"], appBgDark: hc && hc.dark["--app-bg"] };
+    });
+    ok("Dashboard theme: Studio.DASHBOARD_THEMES has a 'high-contrast' entry with full light/dark token sets",
+      hcRegistryOk.ok, JSON.stringify(hcRegistryOk));
+    ok("Dashboard theme: 'High Contrast' uses true black/white surfaces (not a tinted shade)",
+      hcRegistryOk.appBgLight === "#ffffff" && hcRegistryOk.appBgDark === "#000000", JSON.stringify(hcRegistryOk));
+
+    await page.evaluate(function () {
+      var row = document.getElementById("dashThemeRow");
+      var btn = row && Array.from(row.querySelectorAll("button[data-dashboard-theme]")).find(function (b) {
+        return b.getAttribute("data-dashboard-theme") === "high-contrast";
+      });
+      if (btn) btn.click();
+    });
+    await page.waitForTimeout(300);
+    var hcAppliedOk = await page.evaluate(function () {
+      var spec = window.__STUDIO_STATE.spec;
+      var html = window.Studio.buildHtml(spec, window.__STUDIO_STATE.assets, { deployPath: "/x", preview: false });
+      return {
+        specKey: spec.dashboardTheme,
+        lightVar: html.indexOf("--app-bg:#ffffff") !== -1 && html.indexOf("--pentaho:#0b3d91") !== -1,
+        darkVar: html.indexOf("[data-theme='dark']") !== -1 && html.indexOf("--app-bg:#000000") !== -1
+      };
+    });
+    ok("Dashboard theme: clicking 'High Contrast' sets spec.dashboardTheme", hcAppliedOk.specKey === "high-contrast", JSON.stringify(hcAppliedOk));
+    ok("Dashboard theme: exported HTML carries High Contrast's light token overrides", hcAppliedOk.lightVar, JSON.stringify(hcAppliedOk));
+    ok("Dashboard theme: exported HTML carries High Contrast's dark token overrides", hcAppliedOk.darkVar, JSON.stringify(hcAppliedOk));
+
+    // revert back to classic so later tests (which assume the default look) aren't affected
+    await page.evaluate(function () {
+      var row = document.getElementById("dashThemeRow");
+      var btn = row && Array.from(row.querySelectorAll("button[data-dashboard-theme]")).find(function (b) {
+        return b.getAttribute("data-dashboard-theme") === "classic";
+      });
+      if (btn) btn.click();
+    });
+    await page.waitForTimeout(300);
+
     // 5. normalize() (via __studioLoad, its only entry point) round-trips dashboardTheme —
     // the same bug class the v193 headerLogo fix caught (a new scalar field silently reset
     // on every reopen if the normalize() whitelist forgets it).

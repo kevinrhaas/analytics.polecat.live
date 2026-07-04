@@ -3123,6 +3123,20 @@ gets covered over time:
 > cards/KPIs share — floating surfaces now visibly out-elevate a merely-hovered panel. 2 new tests,
 > suite 1335/1335. **Still open:** further alternate chart-skin moods (hand-drawn/sketch) beyond
 > Raised/Flat.
+> ✓ **"High Contrast" dashboard theme shipped v334 (first of the "a few stunning presets" idea —
+> theme studio/gallery item)**: a third `Studio.DASHBOARD_THEMES` entry alongside Classic Pentaho
+> Blue/Fleet Modern — true black/white extremes (not just a darker blue): `#ffffff` bg + solid
+> `#000000` borders/text in light, `#000000` bg + solid `#ffffff` borders/text in dark, plus its
+> OWN 10-color series palette re-validated (not reused from Fleet Modern) against these exact
+> `#ffffff`/`#000000` surfaces via the `dataviz` skill's `validate_palette.js` (light: all six
+> checks PASS with one legal WARN-band contrast slot; dark: all PASS except a legal floor-band CVD
+> WARN — both mitigated the same way Fleet Modern's own WARN slot already is, direct-value labels
+> the app ships by default). Uses the exact same additive-override architecture as Fleet Modern
+> (`spec.dashboardTheme`), so the per-dashboard picker, Settings default picker, and Style-preset
+> snapshot all pick it up with zero extra plumbing. Visually verified via cropped screenshots in
+> both light and dark app mode (crisp black-on-white and white-on-black panel borders, not just a
+> DOM/CSS-variable check). 5 new tests, suite 1451/1451. **Still open:** the remaining named
+> presets from the original idea (neon, editorial) and true author/share custom themes.
 
 **N-DEV — Power-user & authoring.**
 - **Live JSON spec editor:** ✓ shipped v267, see below.

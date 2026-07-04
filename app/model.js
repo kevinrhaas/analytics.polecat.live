@@ -2076,6 +2076,38 @@
         "--c1": "#3d8fd6", "--c2": "#22a35f", "--c3": "#b8811f", "--c4": "#8a6fd0", "--c5": "#2aa89a",
         "--c6": "#e2685f", "--c7": "#cf6b98", "--c8": "#c76a2f", "--c9": "#4a7bc4", "--c10": "#b56a3f"
       }
+    },
+    // N-DESIGN "a few stunning presets" (theme studio/gallery idea) — the first genuinely
+    // alternate MOOD beyond Classic/Fleet Modern: true black/white extremes (not just a darker
+    // blue) for maximum legibility — bigger text/data contrast than either existing theme, solid
+    // (not soft-tinted) borders for crisp panel separation. The 10-color series ramp is a
+    // DIFFERENT set from Fleet Modern's, re-validated against the #ffffff/#000000 surfaces this
+    // theme actually uses (not reused from Fleet Modern's #eef3f9/#0a0f1a surfaces) via the
+    // dataviz skill's validate_palette.js — light: all six checks PASS (one legal WARN-band
+    // contrast case, same as Fleet Modern's own amber slot, mitigated the same way — direct
+    // value labels are already on by default); dark: all PASS except a legal floor-band (8-12)
+    // CVD WARN, again mitigated by the app's existing direct-value labels.
+    { key: "high-contrast", label: "High Contrast", swatch: "#0b3d91",
+      light: {
+        "--pentaho": "#0b3d91", "--pdc": "#8a1c1c",
+        "--app-bg": "#ffffff", "--panel-bg": "#ffffff", "--panel-border": "#000000",
+        "--panel-subtle-bg": "#e8e8e8", "--panel-header-bg": "#e8e8e8", "--panel-header-border": "#000000",
+        "--field-bg": "#ffffff", "--field-border": "#000000",
+        "--text-primary": "#000000", "--text-muted": "#3d3d3d", "--text-faint": "#595959",
+        "--sidebar-bg": "#000000", "--header-bg": "#000000", "--grid-line": "#8a8a8a", "--axis": "#000000",
+        "--c1": "#2a78d6", "--c2": "#1baf7a", "--c3": "#eda100", "--c4": "#008300", "--c5": "#4a3aa7",
+        "--c6": "#e34948", "--c7": "#e87ba4", "--c8": "#eb6834", "--c9": "#0093ab", "--c10": "#a8531f"
+      },
+      dark: {
+        "--pentaho": "#5b9bff", "--pdc": "#ff6b6b",
+        "--app-bg": "#000000", "--panel-bg": "#0a0a0a", "--panel-border": "#ffffff",
+        "--panel-subtle-bg": "#1a1a1a", "--panel-header-bg": "#1a1a1a", "--panel-header-border": "#ffffff",
+        "--field-bg": "#0a0a0a", "--field-border": "#ffffff",
+        "--text-primary": "#ffffff", "--text-muted": "#d9d9d9", "--text-faint": "#bfbfbf",
+        "--sidebar-bg": "#000000", "--header-bg": "#000000", "--grid-line": "#595959", "--axis": "#ffffff",
+        "--c1": "#3987e5", "--c2": "#199e70", "--c3": "#c98500", "--c4": "#008300", "--c5": "#9085e9",
+        "--c6": "#e66767", "--c7": "#d55181", "--c8": "#d95926", "--c9": "#1c93a5", "--c10": "#c96a3a"
+      }
     }
   ];
 
