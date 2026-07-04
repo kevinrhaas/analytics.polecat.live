@@ -15,6 +15,16 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 330,
+    title: 'Combo chart trend line now gets a forecast tail, too',
+    kind: 'feature',
+    ts: '2026-07-04T15:44:30Z',
+    items: [
+      'The Bar + line (combo) chart\'s trend line was fitted over the real data only, unlike Line\'s version which can project a forecast tail.',
+      'Combo now supports the same "Forecast periods ahead" field: the chart widens to make room, and the trend line projects past the real data with forecast tick labels and a separator.',
+    ],
+  },
+  {
     v: 329,
     title: 'Trend/forecast lines now work on Bar charts and Stacked bars',
     kind: 'feature',

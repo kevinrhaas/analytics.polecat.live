@@ -237,15 +237,40 @@
     var o = mkSVG(el, h), s = o.s, w = o.w, P = PDC.palette(), n = labels.length;
     var fmt = cfg.fmt || PDC.fmt.abbr, fmt2 = cfg.fmt2 || fmt;
     var bv = bars.values.map(function (v) { return +v || 0; }), lv = line.values.map(function (v) { return +v || 0; });
-    var bmax = niceMax(Math.max.apply(null, bv.concat([0]))), lmax = niceMax(Math.max.apply(null, lv.concat([0])));
+    var bmax = niceMax(Math.max.apply(null, bv.concat([0])));
     var bcol = bars.color || P[0], lcol = line.color || P[1];
-    var mL = 46, mR = 48, mT = 12, mB = 30, iw = w - mL - mR, ih = h - mT - mB, bw = iw / n;
+    // Z7 follow-up: a forecast tail (same shape as Line's) — widen the slot count past the
+    // real n categories so bars stay put and the line's trend/forecast projects into new,
+    // bar-less slots at the right. Computed before lmax below so the forecast values aren't
+    // clipped off the top/bottom of the right-axis scale.
+    var fcN = (cfg.showTrend && (+cfg.forecastPeriods || 0) > 0) ? Math.max(0, Math.floor(+cfg.forecastPeriods)) : 0;
+    var totalSlots = n + fcN;
+    var comboTrendMethod = cfg.trendMethod === "holt" ? "holt" : (cfg.trendMethod === "hw" ? "hw" : "linear");
+    var cAlpha = Math.min(1, Math.max(.01, (+cfg.alpha || 30) / 100)), cBeta = Math.min(1, Math.max(.01, (+cfg.beta || 10) / 100));
+    var cGamma = Math.min(1, Math.max(.01, (+cfg.gamma || 20) / 100)), cSeasonLen = Math.max(2, Math.floor(+cfg.seasonLength || 4));
+    var ctr = (cfg.showTrend && lv.length > 1) ? (comboTrendMethod === "hw" ? holtWintersOf(lv, cAlpha, cBeta, cGamma, cSeasonLen) :
+      comboTrendMethod === "holt" ? holtOf(lv, cAlpha, cBeta) : trendOf(lv)) : null;
+    function comboFcValueOf(t, m) {
+      return t.season ? t.level + t.trend * m + t.season[(lv.length - 1 + m) % t.seasonLen] : t.level + t.trend * m;
+    }
+    var lAll = lv.slice();
+    if (ctr) {
+      if (comboTrendMethod === "holt" || comboTrendMethod === "hw") {
+        lAll = lAll.concat(ctr.fitted);
+        for (var fm = 1; fm <= fcN; fm++) lAll.push(comboFcValueOf(ctr, fm));
+      } else {
+        lAll.push(ctr.intercept + ctr.slope * (lv.length - 1 + fcN));
+      }
+    }
+    var lmax = niceMax(Math.max.apply(null, lAll.concat([0])));
+    var mL = 46, mR = 48, mT = 12, mB = 30, iw = w - mL - mR, ih = h - mT - mB, bw = iw / totalSlots;
     for (var g = 0; g <= 4; g++) {
       var gy = mT + ih * (1 - g / 4);
       s.appendChild(S("line", { class: "gridline", x1: mL, y1: gy, x2: w - mR, y2: gy }));
       s.appendChild(S("text", { class: "tick", x: mL - 7, y: gy + 3, "text-anchor": "end" }, fmt(bmax * g / 4)));
       s.appendChild(S("text", { class: "tick", x: w - mR + 7, y: gy + 3, "text-anchor": "start", fill: lcol }, fmt2(lmax * g / 4)));
     }
+    var xc = function (i) { return mL + i * bw + bw / 2; };
     var barEls = [], lineEls = [];
     labels.forEach(function (lb, i) {
       var x = mL + i * bw, bh = ih * (bv[i] / (bmax || 1));
@@ -254,31 +279,35 @@
       s.appendChild(r); barEls.push(r);
       s.appendChild(S("text", { class: "tick", x: x + bw / 2, y: mT + ih + 14, "text-anchor": "middle" }, PDC.fmt.trunc(lb, 9)));
     });
-    var ys2 = function (v) { return mT + ih * (1 - v / (lmax || 1)); }, xc = function (i) { return mL + i * bw + bw / 2; };
+    if (fcN > 0) {
+      for (var fi = 1; fi <= fcN; fi++) {
+        s.appendChild(S("text", { class: "tick forecast-tick", x: xc(n - 1 + fi), y: mT + ih + 14, "text-anchor": "middle", opacity: .55, "font-style": "italic" }, "+" + fi));
+      }
+      var sepX = mL + n * bw;
+      s.appendChild(S("line", { class: "forecast-sep", x1: sepX, y1: mT, x2: sepX, y2: mT + ih, stroke: PDC.cssvar("--panel-border"), "stroke-width": 1, "stroke-dasharray": "3,3", opacity: .7 }));
+      s.appendChild(S("text", { class: "tick forecast-label", x: sepX + 4, y: mT + 11, opacity: .6, "font-style": "italic" }, "Forecast →"));
+    }
+    var ys2 = function (v) { return mT + ih * (1 - v / (lmax || 1)); };
     var d = lv.map(function (v, i) { return (i ? "L" : "M") + xc(i) + "," + ys2(v); }).join(" ");
     var lp = S("path", { d: d, fill: "none", stroke: lcol, "stroke-width": 2.4, "stroke-linejoin": "round" }); s.appendChild(lp); lineEls.push(lp);
     lv.forEach(function (v, i) { var c = S("circle", { cx: xc(i), cy: ys2(v), r: 3.2, fill: lcol, stroke: PDC.cssvar("--panel-bg"), "stroke-width": 1.4 }); s.appendChild(c); lineEls.push(c); });
     // Z7 follow-up: extend the Line chart's trend-line overlay (linear / Holt /
     // Holt-Winters, shared math above) to Combo's own line series — reads on the
-    // SAME right-axis scale (ys2) as the real line, immediately above/below it.
-    // Deliberately a smoothed/fitted read over the real data only, no forecast
-    // tail yet (Combo's fixed-width bars leave no room to widen for one without
-    // its own follow-up slice) — narrower in scope than the Line chart's version.
-    if (cfg.showTrend && lv.length > 1) {
-      var comboTrendMethod = cfg.trendMethod === "holt" ? "holt" : (cfg.trendMethod === "hw" ? "hw" : "linear");
-      var cAlpha = Math.min(1, Math.max(.01, (+cfg.alpha || 30) / 100)), cBeta = Math.min(1, Math.max(.01, (+cfg.beta || 10) / 100));
-      var cGamma = Math.min(1, Math.max(.01, (+cfg.gamma || 20) / 100)), cSeasonLen = Math.max(2, Math.floor(+cfg.seasonLength || 4));
-      var ctr = comboTrendMethod === "hw" ? holtWintersOf(lv, cAlpha, cBeta, cGamma, cSeasonLen) :
-        comboTrendMethod === "holt" ? holtOf(lv, cAlpha, cBeta) : trendOf(lv);
+    // SAME right-axis scale (ys2) as the real line, immediately above/below it. When
+    // forecastPeriods > 0 the trend also projects across the widened forecast tail,
+    // same as Line's own version.
+    if (ctr) {
       var trendD;
       if (comboTrendMethod === "holt" || comboTrendMethod === "hw") {
-        trendD = ctr.fitted.map(function (v, i) { return (i ? "L" : "M") + xc(i) + "," + ys2(v); }).join(" ");
+        var cPts = ctr.fitted.map(function (v, i) { return [xc(i), ys2(v)]; });
+        for (var hf = 1; hf <= fcN; hf++) cPts.push([xc(lv.length - 1 + hf), ys2(comboFcValueOf(ctr, hf))]);
+        trendD = cPts.map(function (p, i) { return (i ? "L" : "M") + p[0] + "," + p[1]; }).join(" ");
       } else {
-        trendD = "M" + xc(0) + "," + ys2(ctr.intercept) + " L" + xc(lv.length - 1) + "," + ys2(ctr.intercept + ctr.slope * (lv.length - 1));
+        trendD = "M" + xc(0) + "," + ys2(ctr.intercept) + " L" + xc(lv.length - 1 + fcN) + "," + ys2(ctr.intercept + ctr.slope * (lv.length - 1 + fcN));
       }
       var comboTrendPath = S("path", { d: trendD, fill: "none", stroke: lcol, "stroke-width": 1.6, "stroke-dasharray": "8,3", opacity: .55, class: "trend-line" });
       var comboMethodLabel = comboTrendMethod === "hw" && ctr.season ? "Holt-Winters (seasonal)" : comboTrendMethod === "hw" ? "Holt smoothing (not enough data for a season)" : comboTrendMethod === "holt" ? "Holt smoothing" : "trend";
-      _tip(comboTrendPath, (line.name || "Line") + " " + comboMethodLabel);
+      _tip(comboTrendPath, (line.name || "Line") + " " + comboMethodLabel + (fcN ? " · " + fcN + "-period forecast" : ""));
       s.appendChild(comboTrendPath); lineEls.push(comboTrendPath);
     }
     if (cfg.legend !== false) _toggleLegend(el, [

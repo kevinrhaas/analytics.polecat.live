@@ -547,7 +547,7 @@
           break;
         case "combo":
           PDC.combo(body, { height: o.height || 300, fmt: f, fmt2: fmt(o.fmt2),
-            showTrend: !!o.showTrend, trendMethod: o.trendMethod,
+            showTrend: !!o.showTrend, forecastPeriods: o.forecastPeriods, trendMethod: o.trendMethod,
             alpha: o.alpha, beta: o.beta, gamma: o.gamma, seasonLength: o.seasonLength,
             labels: colVals(res, m.labelCol).map(String),
             bars: { name: m.barCol, color: color(o.color, "--pentaho"), values: colVals(res, m.barCol) },

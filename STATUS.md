@@ -985,6 +985,12 @@
   fits over each category's stack total. Wired through `studio-render.js`'s real dispatch (the same
   class of gap the v199 Holt-Winters bug exposed) so preview and every export agree. 9 new tests
   drive real inspector opts through a real panel + preview iframe. Docs updated. Suite 1431/1431.
+- v330: **Z7: Combo chart gains a forecast tail** — closes the last open half of the Z7 "extend
+  trend/forecast to bars/stacked/combo" note. Combo's line series now supports `forecastPeriods`
+  (same field as Line), widening the bar-slot count so the trend/forecast line projects into new,
+  bar-less slots past the real data, with matching "+1/+2/…" ticks and a dashed separator; the
+  right-axis scale now accounts for forecasted values so a rising/falling projection isn't clipped.
+  4 new tests. Docs updated. Suite 1435/1435.
 
 ## NEXT (top = do first)
 
@@ -1627,6 +1633,15 @@ chart options / derived series / KPI computations. Keep it light (vanilla-JS mat
 > single-segment linear, and multi-segment Holt-Winters all asserted; horizontal bars asserted to
 > never draw the overlay even when explicitly requested. Docs updated. Suite 1431/1431. **Still
 > open:** a forecast tail for Combo/Bars/Stacked (today only Line widens its x-scale for one).
+> ✓ **Combo forecast tail shipped (2026-07-04, closes the "Combo" half of the note above).** Combo
+> gains the same `forecastPeriods` field Line has; when set, the chart widens its bar-slot count
+> (bars stay put, new bar-less slots appear at the right) so the trend/forecast line can project
+> past the real data — same "+1/+2/…" forecast ticks + dashed separator as Line. `lmax` (the line's
+> right-axis scale) now accounts for the forecasted values too, so a rising/falling forecast isn't
+> clipped. 4 new tests (no-tail baseline, 3-period tail ticks/separator, trend line spans the tail).
+> Docs updated. Suite 1435/1435. **Genuinely still open:** a forecast tail for Bars/Stacked (their
+> fixed category axis has no obvious "future slot" the way a time-ordered Line/Combo does — would
+> need its own design pass, not a copy-paste of this pattern).
 > ✓ **Slice 4 shipped v204 — statistical KPI computations, first cut**: KPI inspector gets an
 > **Aggregation** picker (First row / Sum / Average / Median / Min / Max / P90 / P95 / Std deviation);
 > non-default choices recompute the tile's value across every row the bound query returns instead of only

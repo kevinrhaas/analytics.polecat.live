@@ -5384,6 +5384,42 @@ function serve() {
     ok("Z7 follow-up: Studio.CHARTS.combo.opts declares showTrend/trendMethod/alpha/beta/gamma/seasonLength",
       ["showTrend", "trendMethod", "alpha", "beta", "gamma", "seasonLength"].every(function (k) { return comboTrendOpts.keys.indexOf(k) >= 0; }),
       JSON.stringify(comboTrendOpts));
+    ok("Z7 follow-up: Studio.CHARTS.combo.opts declares forecastPeriods (closes the 'no forecast tail yet' note)",
+      comboTrendOpts.keys.indexOf("forecastPeriods") >= 0, JSON.stringify(comboTrendOpts));
+
+    // Z7 follow-up: Combo's trend line now also carries a forecast tail (closes the
+    // "a forecast tail for Combo" backlog note) — widens the bar-slot count so new,
+    // bar-less slots appear at the right for the projection, same shape as Line's tail.
+    const comboForecastTail = await page.evaluate(async () => {
+      const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json());
+      var d = spec.cda.dataAccesses.find((x) => x.id === "cost_trend") || spec.cda.dataAccesses[1];
+      spec.kpis = []; spec.filters = [];
+      spec.panels = [{ id: "f8cf", title: "ComboForecast", span: "full", chart: {
+        type: "combo", da: d.id,
+        map: { labelCol: d.columns[0], barCol: d.columns[1], lineCol: d.columns[d.columns.length - 1] },
+        opts: { height: 260, showTrend: true, forecastPeriods: 0 }
+      } }];
+      window.__studioLoad(spec);
+      var doc = await window.__waitForPreview((dd) => !!dd.querySelector(".trend-line"));
+      var noTailTicks = doc.querySelectorAll(".forecast-tick").length;
+      var noTailSep = doc.querySelector(".forecast-sep");
+      spec.panels[0].chart.opts.forecastPeriods = 3;
+      window.__studioLoad(spec);
+      doc = await window.__waitForPreview((dd) => dd.querySelectorAll(".forecast-tick").length === 3);
+      var tailTicks = doc.querySelectorAll(".forecast-tick");
+      var tickTexts = [].slice.call(tailTicks).map((t) => t.textContent);
+      var sep = doc.querySelector(".forecast-sep");
+      var trendPath = doc.querySelector(".trend-line");
+      var trendSegs = trendPath ? (trendPath.getAttribute("d").match(/L/g) || []).length : 0;
+      return {
+        noTailHasNoTicks: noTailTicks === 0, noTailHasNoSep: !noTailSep,
+        tailTickCount: tailTicks.length, tickTexts: tickTexts.join(","),
+        hasSep: !!sep, trendSegs: trendSegs
+      };
+    });
+    ok("Z7 follow-up: Combo with forecastPeriods:0 draws no forecast ticks/separator", comboForecastTail.noTailHasNoTicks && comboForecastTail.noTailHasNoSep, JSON.stringify(comboForecastTail));
+    ok("Z7 follow-up: Combo with forecastPeriods:3 draws exactly 3 forecast ticks labeled +1/+2/+3, plus the separator", comboForecastTail.tailTickCount === 3 && comboForecastTail.tickTexts === "+1,+2,+3" && comboForecastTail.hasSep, JSON.stringify(comboForecastTail));
+    ok("Z7 follow-up: Combo's trend line extends across the forecast tail (more segments than just the real data)", comboForecastTail.trendSegs >= 1, JSON.stringify(comboForecastTail));
 
     // Z7 follow-up: extend the same trend/forecast overlay to the vertical Bar chart
     // (closes the "bars" half of the "still open: bars/stacked" backlog note). Drives the

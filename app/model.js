@@ -801,10 +801,10 @@
         { key: "color",     type: "color", label: "Bar color", def: "--pentaho" },
         // Z7 follow-up: extend the Line chart's trend-line overlay to Combo's own line
         // series (closes part of the "extending trend/forecast to bars/stacked/combo"
-        // backlog note) — a fitted read over the real data only, no forecast tail yet
-        // (see app/studio-charts.js's _combo for why). Same field set/labels as Line's,
-        // minus forecastPeriods.
+        // backlog note). Now also carries a forecast tail (Combo widens its bar-slot
+        // count to make room, mirroring Line — see app/studio-charts.js's _combo).
         { key: "showTrend", type: "bool", label: "Show trend line (on the line series)", def: false },
+        { key: "forecastPeriods", type: "range", label: "Forecast periods ahead (0 = trend only)", def: 0, min: 0, max: 24, step: 1 },
         { key: "trendMethod", type: "select", label: "Forecast method", def: "linear",
           choices: [["linear", "Linear trend (OLS)"], ["holt", "Exponential smoothing (Holt)"], ["hw", "Seasonal (Holt-Winters)"]] },
         { key: "alpha", type: "range", label: "Smoothing level α (%, Holt/Holt-Winters only)", def: 30, min: 0, max: 100, step: 5, suffix: "%" },
