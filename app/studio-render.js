@@ -200,11 +200,17 @@
   // After a chart renders, tag each data element with its label and wire click-to-filter.
   // Supports bars (rect.bar in data order, or value-desc order when "Sort by value" is on),
   // donut (svg path in data order, or value-desc order when "Sort slices" is on),
-  // treemap (rect.bar always sorted by value descending, mirroring PDC._treemap's sort), and
-  // lollipop (circle.dot in data order — lollipop has no "sort by value" option of its own).
+  // treemap (rect.bar always sorted by value descending, mirroring PDC._treemap's sort),
+  // lollipop (circle.dot in data order — lollipop has no "sort by value" option of its own),
+  // and the stacked/grouped bar family (stacked / groupedBars / barNorm — a category maps to
+  // MULTIPLE segments there, and a stacked/normalized bar can render a variable segment count
+  // per category since zero-value series are skipped, so index-based re-tagging isn't reliable;
+  // those three renderers (studio-charts.js) self-tag every segment with data-xf-label directly
+  // at creation time instead, keyed off the category — not the series — so a click anywhere in
+  // a stack/group filters to that whole category, same semantics as every other chart type here.
   function wireXFilter(body, param, lvData, spec, chartType, sortByValue) {
     if (!param || !lvData || !lvData.length) return;
-    var els, sorted = lvData;
+    var els, sorted = lvData, selfTagged = false;
     if (chartType === "bars" || chartType === "treemap") {
       els = [].slice.call(body.querySelectorAll("rect.bar"));
       // Treemap always pre-sorts by value desc; bars only sorts when "Sort by value" is on.
@@ -227,21 +233,38 @@
       // label, so it stays unclickable; the remaining bars render in given order (no
       // sort option of its own), matching lvData with no re-sort needed.
       els = [].slice.call(body.querySelectorAll("rect.wf-bar:not(.wf-total)"));
+    } else if (chartType === "stacked" || chartType === "groupedBars" || chartType === "barNorm") {
+      var cls = chartType === "stacked" ? "stacked-seg" : chartType === "groupedBars" ? "grouped-bar" : "barnorm-seg";
+      els = [].slice.call(body.querySelectorAll("rect." + cls));
+      selfTagged = true;
     } else {
       return;
     }
-    sorted.forEach(function (d, i) {
+    if (!selfTagged) sorted.forEach(function (d, i) {
       var el = els[i]; if (!el) return;
       el.setAttribute("data-xf-label", d.label);
     });
-    // Single delegated listener on the container
-    body.addEventListener("click", function (e) {
-      var t = e.target;
-      while (t && t !== body) { if (t.getAttribute && t.getAttribute("data-xf-label") != null) break; t = t.parentNode; }
-      if (!t || t === body) return;
-      e.stopPropagation();
-      xfEmit(param, t.getAttribute("data-xf-label"), spec);
-    });
+    // Single delegated listener on the container — wireXFilter is called again on every
+    // PDC.redrawAll() replay (debounced resize, theme change), so guard against re-adding a
+    // second/third listener onto the same still-live `body` each time: a bare
+    // `addEventListener` call here duplicated the listener on every redraw, and a single click
+    // then fired xfEmit's toggle N times in one go — for an even N that instantly cancels the
+    // filter right back off (found while adding this feature; not specific to the chart types
+    // added here, every cross-filter-capable chart type shared this latent bug).
+    if (!body.__xfWired) {
+      body.__xfWired = true;
+      body.addEventListener("click", function (e) {
+        var t = e.target;
+        while (t && t !== body) { if (t.getAttribute && t.getAttribute("data-xf-label") != null) break; t = t.parentNode; }
+        if (!t || t === body) return;
+        e.stopPropagation();
+        xfEmit(body.__xfParam, t.getAttribute("data-xf-label"), body.__xfSpec);
+      });
+    }
+    // The active param/spec can change across redraws (e.g. a different panel's data access is
+    // now bound) — always refresh what the delegated listener above will read at click time.
+    body.__xfParam = param;
+    body.__xfSpec = spec;
     // Dim non-selected elements when a filter is active
     var active = _crossFilters[param];
     if (active != null) {
@@ -1142,13 +1165,21 @@
       }
     }
     // Cross-filter emission: tag elements with their labels and wire click-to-filter.
-    // Works for bars, donut, and treemap; silently skipped for other chart types.
+    // Supported chart types are whitelisted in Studio.ANNOT_CAPS.crossFilter (model.js) and
+    // handled one-by-one in wireXFilter above; silently skipped for every other chart type.
     // PDC.redrawAll() (fired on theme change / resize) calls _bars again, which
     // clears body.innerHTML and re-renders bars — so we push a re-tagger into
     // PDC._reg to re-apply data-xf-label after every redraw as well.
+    // The stacked/grouped bar family (stacked/groupedBars/barNorm) binds labelCol+series
+    // rather than labelCol+valueCol — there's no single "value" column to read, so build
+    // the label list straight off labelCol (value is unused downstream in wireXFilter).
+    var xfSeriesFamily = ch.type === "stacked" || ch.type === "groupedBars" || ch.type === "barNorm";
     var xfParam = p.crossFilter && p.crossFilter.emit;
-    if (xfParam && res && m.labelCol && m.valueCol) {
-      var _xfLv = lv(res, m.labelCol, m.valueCol), _xfType = ch.type, _xfSort = !!(o.sortSlices || o.sortBars);
+    if (xfParam && res && m.labelCol && (m.valueCol || (xfSeriesFamily && m.series && m.series.length))) {
+      var _xfLv = xfSeriesFamily
+        ? colVals(res, m.labelCol).map(function (v) { return { label: String(v), value: 0 }; })
+        : lv(res, m.labelCol, m.valueCol);
+      var _xfType = ch.type, _xfSort = !!(o.sortSlices || o.sortBars);
       try { wireXFilter(body, xfParam, _xfLv, spec, _xfType, _xfSort); } catch (e2) {}
       PDC._reg.push(function () {
         try { wireXFilter(body, xfParam, _xfLv, spec, _xfType, _xfSort); } catch (e3) {}

@@ -3378,7 +3378,12 @@
         var v = +se.values[i] || 0; if (v <= 0) return;
         var hh = ih * (v / max), y0 = mT + ih - acc - hh, col = se.color || pal[si % 10];
         acc += hh;
-        var r = S("rect", { class: "bar", x: x + bw * 0.14, y: y0, width: bw * 0.72, height: hh, fill: col });
+        // "stacked-seg" + data-xf-label tag every segment with its own category (not series)
+        // so wireXFilter (studio-render.js) can wire click-to-cross-filter straight off the
+        // rendered element — a stack has a variable segment count per category (zero-value
+        // series are skipped above), so re-deriving labels by render-order index afterward
+        // (like bars/donut/treemap do) isn't reliable here.
+        var r = S("rect", { class: "bar stacked-seg", "data-xf-label": String(c), x: x + bw * 0.14, y: y0, width: bw * 0.72, height: hh, fill: col });
         _tip(r, "<b>" + c + "</b><br>" + se.name + ": " + fmt(v));
         s.appendChild(r);
         if (cfg.showValues && hh >= 14) s.appendChild(S("text", { class: "val-label", x: x + bw / 2, y: y0 + hh / 2 + 4, "text-anchor": "middle" }, fmt(v)));
@@ -4659,7 +4664,11 @@
         var finalY  = mT + ih - bh;
         var baseY   = mT + ih;
 
+        // "grouped-bar" + data-xf-label tag every bar with its own category (not series) so
+        // wireXFilter (studio-render.js) can wire click-to-cross-filter directly off the
+        // rendered element, same reasoning as stacked-seg above.
         var rect = S("rect", {
+          class: "grouped-bar", "data-xf-label": String(lb),
           x: bx.toFixed(1), y: baseY, width: barW.toFixed(1), height: 0,
           fill: serColor, rx: 2
         });
@@ -4962,7 +4971,10 @@
         // Rounded top corners only on the topmost segment (the last series drawn for this column).
         // We don't know ahead of time which is last, so apply rx=2 to all and let the bottom
         // rectangle inherit it — the visual effect is a slightly rounded bar overall.
+        // "barnorm-seg" + data-xf-label tag every segment with its own category (not series),
+        // same reasoning as stacked-seg above (a variable segment count per category).
         var rect = S("rect", {
+          class: "barnorm-seg", "data-xf-label": String(lb),
           x: bx.toFixed(1), y: (mT + ih).toFixed(1),
           width: bWidth.toFixed(1), height: 0,
           fill: serColor, rx: 2

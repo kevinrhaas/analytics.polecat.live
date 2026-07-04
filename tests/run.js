@@ -5691,6 +5691,85 @@ function serve() {
     ok("N-DATA: Studio.chartSupports('crossFilter', 'waterfall') is true (inspector shows the section)",
       await page.evaluate(() => Studio.chartSupports("crossFilter", "waterfall") === true));
 
+    // ---- N-DATA follow-up: cross-filter extended to the stacked/grouped bar family
+    // (stacked, groupedBars, barNorm) — closes the long-open "still open" item: unlike every
+    // chart above (one element per category), these bind labelCol+series (multiple segments
+    // per category), so a click anywhere in a stack/group filters to that WHOLE category —
+    // the same UX decision every other chart type already makes (click = category, not series) ----
+    console.log("\n• N-DATA follow-up: cross-filter extended to the stacked/grouped bar family");
+    for (const xfFamType of ["stacked", "groupedBars", "barNorm"]) {
+      const xfFamPersist = await page.evaluate((chartType) => {
+        try {
+          var spec = window.__STUDIO_STATE.spec;
+          var da = spec.cda && spec.cda.dataAccesses && spec.cda.dataAccesses[0];
+          if (!da) return false;
+          var p = spec.panels[0];
+          p.chart.type = chartType;
+          p.chart.da = da.id;
+          p.chart.map = { labelCol: da.columns[0] || "label", series: [{ col: da.columns[1] || "value" }, { col: da.columns[da.columns.length - 1] || "value" }] };
+          p.chart.opts = {};
+          p.crossFilter = { emit: "p_region" };
+          window.__studioLoad(spec);
+          return (window.__STUDIO_STATE.spec.panels[0].crossFilter || {}).emit === "p_region";
+        } catch (e) { return false; }
+      }, xfFamType);
+      ok("N-DATA: " + xfFamType + " crossFilter.emit persists in spec after load", xfFamPersist);
+      await page.waitForTimeout(700);
+      const xfFamLabels = await page.evaluate((chartType) => {
+        try {
+          var cls = chartType === "stacked" ? "stacked-seg" : chartType === "groupedBars" ? "grouped-bar" : "barnorm-seg";
+          var iframe = document.querySelector("#preview");
+          if (!iframe || !iframe.contentDocument) return { ok: false, reason: "no iframe" };
+          var allSegs = iframe.contentDocument.querySelectorAll("rect." + cls);
+          if (!allSegs.length) return { ok: false, reason: "no rect." + cls + " elements" };
+          var tagged = Array.from(iframe.contentDocument.querySelectorAll("rect." + cls + "[data-xf-label]"));
+          return { ok: tagged.length === allSegs.length, count: tagged.length, totalSegs: allSegs.length };
+        } catch (e) { return { ok: false, err: e.message }; }
+      }, xfFamType);
+      ok("N-DATA: " + xfFamType + " segments ALL get data-xf-label attributes (self-tagged at render time) when crossFilter.emit is set",
+        xfFamLabels.ok, JSON.stringify(xfFamLabels));
+      ok("N-DATA: Studio.chartSupports('crossFilter', '" + xfFamType + "') is true (inspector shows the section)",
+        await page.evaluate((chartType) => Studio.chartSupports("crossFilter", chartType) === true, xfFamType));
+    }
+    // Clicking any segment within one category's stack should filter to that whole category —
+    // verify a real click actually emits the cross-filter and dims other categories' segments.
+    const xfStackedClick = await page.evaluate(() => {
+      try {
+        var iframe = document.querySelector("#preview");
+        var doc = iframe.contentDocument;
+        var segs = Array.from(doc.querySelectorAll("rect.barnorm-seg[data-xf-label]"));
+        if (!segs.length) return { ok: false, reason: "no tagged segments" };
+        var targetLabel = segs[0].getAttribute("data-xf-label");
+        segs[0].dispatchEvent(new doc.defaultView.MouseEvent("click", { bubbles: true }));
+        return { ok: true, targetLabel: targetLabel };
+      } catch (e) { return { ok: false, err: e.message }; }
+    });
+    ok("N-DATA: stacked/grouped-family click handler runs without throwing", xfStackedClick.ok, JSON.stringify(xfStackedClick));
+    await page.waitForTimeout(400);
+    const xfStackedDimmed = await page.evaluate((targetLabel) => {
+      try {
+        var iframe = document.querySelector("#preview");
+        var doc = iframe.contentDocument;
+        var segs = Array.from(doc.querySelectorAll("rect.barnorm-seg[data-xf-label]"));
+        var matching = segs.filter(function (s) { return s.getAttribute("data-xf-label") === targetLabel; });
+        var others = segs.filter(function (s) { return s.getAttribute("data-xf-label") !== targetLabel; });
+        var matchFull = matching.every(function (s) { return s.style.opacity === "1" || s.style.opacity === ""; });
+        var othersDimmed = others.length === 0 || others.every(function (s) { return s.style.opacity === "0.18"; });
+        return { ok: matchFull && othersDimmed, matchCount: matching.length, otherCount: others.length };
+      } catch (e) { return { ok: false, err: e.message }; }
+    }, xfStackedClick.targetLabel);
+    ok("N-DATA: clicking a stacked-family segment dims OTHER categories' segments (whole-category filter semantics)",
+      xfStackedDimmed.ok, JSON.stringify(xfStackedDimmed));
+    // Reset the panel back to a clean state (clear the cross-filter + chart-type override) so
+    // later tests in this file aren't affected by this block's mutations.
+    await page.evaluate(() => {
+      var spec = window.__STUDIO_STATE.spec;
+      var p = spec.panels[0];
+      delete p.crossFilter;
+      window.__studioLoad(spec);
+    });
+    await page.waitForTimeout(200);
+
     // ---- H2: keyboard shortcuts — Delete to remove panel, Escape to deselect ----
     console.log("\n• keyboard shortcuts (H2: Delete + Escape)");
 

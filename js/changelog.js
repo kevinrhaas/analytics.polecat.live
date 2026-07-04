@@ -15,6 +15,18 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 298,
+    title: 'N-DATA: cross-filter closes out the stacked/grouped bar family',
+    kind: 'feature',
+    ts: '2026-07-04T04:45:14Z',
+    items: [
+      'Stacked bars, Grouped bars, and 100% Normalized Stacked Bar now emit a cross-filter too -- clicking any segment/bar in a category filters the whole dashboard to that category, closing the long-open "stacked/grouped bar family" gap left by every other cross-filter-capable chart type (Bars/Donut/Treemap/Lollipop/Funnel/Waterfall).',
+      'The UX call the gap had been waiting on: these three bind labelCol+series (one category maps to MULTIPLE segments), so a click anywhere in a stack/group filters to that whole category -- not to one series -- matching the semantics every other chart type here already uses.',
+      '_stackedOpts/_groupedBars/_barNorm (app/studio-charts.js) now self-tag every segment with data-xf-label directly at render time (stacked-seg/grouped-bar/barnorm-seg classes) instead of relying on wireXFilter to re-derive labels by render-order index -- a stack/normalized-bar can render a variable segment count per category (zero-value series are skipped), so index reconstruction was not reliable there the way it is for bars/donut.',
+      'Found + fixed a real latent bug while adding a first-ever real-click regression test: wireXFilter() (app/studio-render.js) re-added a fresh click listener onto the same panel body on every redraw (debounced resize, theme change) without ever removing the old one, so after 2+ redraws a single click fired the toggle twice and instantly cancelled the filter back off -- affected every cross-filter-capable chart type, just never caught since no prior test simulated an actual click. Fixed with a one-time-attach guard. 11 new tests, suite 1324/1324.',
+    ],
+  },
+  {
     v: 297,
     title: 'N-DATA: cross-filter extended to Waterfall',
     kind: 'feature',

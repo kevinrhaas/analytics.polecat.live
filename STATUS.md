@@ -822,6 +822,19 @@
   onchange handler threw a silent `ReferenceError` and the theme-switch confirmation toast never
   fired for ANY of the three options — caught by a test that asserts the toast's actual text, not
   just the `data-app-theme` attribute. 5 new tests, suite 1310/1310.
+- v297: **N-DATA: cross-filter extended to Waterfall** — new `wf-bar` class on each step rect
+  (synthetic "Total" bar gets `wf-total`, deliberately excluded); `ANNOT_CAPS.crossFilter` now
+  includes waterfall. Fixed a pre-existing timing flake in the Z7 Holt-Winters test suite. 3 new
+  tests, suite 1313/1313.
+- v298: **N-DATA: cross-filter closes out the stacked/grouped bar family** — Stacked bars, Grouped
+  bars, and 100% Normalized Stacked Bar all emit a cross-filter now (click anywhere in a
+  stack/group filters to the whole category); `_stackedOpts`/`_groupedBars`/`_barNorm` self-tag
+  every segment with `data-xf-label` directly at render time since these can render a variable
+  segment count per category. **Found + fixed a real latent bug**: `wireXFilter()` re-added a
+  fresh click listener on every redraw without removing the old one, so 2+ redraws made a single
+  click double-fire and cancel the filter right back off — affected every cross-filter chart type;
+  fixed with a one-time-attach guard. 11 new tests, suite 1324/1324. **N-DATA cross-filter track is
+  now feature-complete.**
 
 ## NEXT (top = do first)
 
@@ -2403,6 +2416,22 @@ gets covered over time:
 > reload was missing the settle wait every other reload uses, so the preview-iframe search right after it
 > could intermittently come up empty). **Still open:** stacked/grouped bar family and any chart without a
 > clean one-element-per-category shape. 3 new tests, suite 1313/1313.
+> ✓ **Stacked/grouped bar family shipped v298 (closes that "still open" item — N-DATA cross-filter/
+> brushing track now covers every chart type with a clean per-category shape)**: Stacked bars, Grouped
+> bars, and 100% Normalized Stacked Bar (`barNorm`) all emit a cross-filter now. UX call: since these bind
+> labelCol+**series** (one category maps to multiple segments), a click anywhere in a stack/group filters
+> to the WHOLE category, not one series — same semantics as every other cross-filter chart type here.
+> `_stackedOpts`/`_groupedBars`/`_barNorm` (`app/studio-charts.js`) self-tag every segment with
+> `data-xf-label` directly at render time (`stacked-seg`/`grouped-bar`/`barnorm-seg` classes) instead of
+> `wireXFilter` re-deriving labels by render-order index — a stack/normalized-bar renders a variable
+> segment count per category (zero-value series are skipped), so index reconstruction wasn't reliable
+> there. **Found + fixed a real latent bug** while writing the first-ever real-click regression test for
+> this feature: `wireXFilter()` re-added a fresh click listener onto the same panel body on every redraw
+> (debounced resize, theme change) without removing the old one, so after 2+ redraws a single click fired
+> the toggle twice and instantly cancelled the filter back off — affected every cross-filter chart type,
+> just never caught since no prior test simulated an actual click. Fixed with a one-time-attach guard
+> (`body.__xfWired`). 11 new tests, suite 1324/1324. **N-DATA cross-filter/brushing track is now
+> feature-complete** for every chart type with a clean category shape.
 - **Dashboard-wide formula language:** calculated fields across data sources (not just CDA calc columns) —
   a small safe expression engine (`[revenue] - [cost]`, `pctChange(...)`, `movingAvg(...)`).
 - **Period-over-period / compare mode:** pick two ranges or two sources and diff them across every panel.
