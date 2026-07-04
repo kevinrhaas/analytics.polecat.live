@@ -2062,7 +2062,7 @@
         "--panel-subtle-bg": "#e9f0f8", "--panel-header-bg": "#e9f0f8", "--panel-header-border": "#ccdcec",
         "--field-bg": "#ffffff", "--field-border": "#ccdcec",
         "--text-primary": "#0c1c2e", "--text-muted": "#48596f", "--text-faint": "#586b88",
-        "--sidebar-bg": "#0d1a2e", "--header-bg": "#0d1a2e", "--grid-line": "#dde6f0", "--axis": "#586b88",
+        "--sidebar-bg": "#0d1a2e", "--header-bg": "#0d1a2e", "--header-bg-2": "#1b3358", "--grid-line": "#dde6f0", "--axis": "#586b88",
         "--c1": "#0071bc", "--c2": "#00964a", "--c3": "#c98500", "--c4": "#5b3fa8", "--c5": "#0e8f86",
         "--c6": "#d1403f", "--c7": "#c94f82", "--c8": "#d95926", "--c9": "#2a63a8", "--c10": "#a8461f"
       },
@@ -2072,7 +2072,7 @@
         "--panel-subtle-bg": "#18243a", "--panel-header-bg": "#18243a", "--panel-header-border": "#26344f",
         "--field-bg": "#18243a", "--field-border": "#26344f",
         "--text-primary": "#e9eff8", "--text-muted": "#93a6c2", "--text-faint": "#8496ac",
-        "--sidebar-bg": "#060b14", "--header-bg": "#060b14", "--grid-line": "#1c2740", "--axis": "#8496ac",
+        "--sidebar-bg": "#060b14", "--header-bg": "#060b14", "--header-bg-2": "#122040", "--grid-line": "#1c2740", "--axis": "#8496ac",
         "--c1": "#3d8fd6", "--c2": "#22a35f", "--c3": "#b8811f", "--c4": "#8a6fd0", "--c5": "#2aa89a",
         "--c6": "#e2685f", "--c7": "#cf6b98", "--c8": "#c76a2f", "--c9": "#4a7bc4", "--c10": "#b56a3f"
       }
@@ -2094,7 +2094,7 @@
         "--panel-subtle-bg": "#e8e8e8", "--panel-header-bg": "#e8e8e8", "--panel-header-border": "#000000",
         "--field-bg": "#ffffff", "--field-border": "#000000",
         "--text-primary": "#000000", "--text-muted": "#3d3d3d", "--text-faint": "#595959",
-        "--sidebar-bg": "#000000", "--header-bg": "#000000", "--grid-line": "#8a8a8a", "--axis": "#000000",
+        "--sidebar-bg": "#000000", "--header-bg": "#000000", "--header-bg-2": "#000000", "--grid-line": "#8a8a8a", "--axis": "#000000",
         "--c1": "#2a78d6", "--c2": "#1baf7a", "--c3": "#eda100", "--c4": "#008300", "--c5": "#4a3aa7",
         "--c6": "#e34948", "--c7": "#e87ba4", "--c8": "#eb6834", "--c9": "#0093ab", "--c10": "#a8531f"
       },
@@ -2104,9 +2104,39 @@
         "--panel-subtle-bg": "#1a1a1a", "--panel-header-bg": "#1a1a1a", "--panel-header-border": "#ffffff",
         "--field-bg": "#0a0a0a", "--field-border": "#ffffff",
         "--text-primary": "#ffffff", "--text-muted": "#d9d9d9", "--text-faint": "#bfbfbf",
-        "--sidebar-bg": "#000000", "--header-bg": "#000000", "--grid-line": "#595959", "--axis": "#ffffff",
+        "--sidebar-bg": "#000000", "--header-bg": "#000000", "--header-bg-2": "#000000", "--grid-line": "#595959", "--axis": "#ffffff",
         "--c1": "#3987e5", "--c2": "#199e70", "--c3": "#c98500", "--c4": "#008300", "--c5": "#9085e9",
         "--c6": "#e66767", "--c7": "#d55181", "--c8": "#d95926", "--c9": "#1c93a5", "--c10": "#c96a3a"
+      }
+    },
+    // N-DESIGN "a few stunning presets" — second alternate mood: a warm, paper-and-ink editorial
+    // boardroom look (cream/ink instead of Fleet Modern's cool blue-gray or High Contrast's stark
+    // black/white) — quieter, warmer, more "print report" than "software UI." Its own 10-color
+    // earthy-but-saturated series ramp (terracotta/teal/ochre/moss/plum/slate/rust/berry/forest/
+    // gold), re-validated against the #f7f3ea (light) / #1c1712 (dark) surfaces it actually uses
+    // via the dataviz skill's validate_palette.js — light: all six checks PASS with one legal
+    // WARN-band contrast slot (mustard/ochre, same mitigation as Fleet Modern's own amber slot —
+    // the app already ships direct-value labels); dark: all six checks PASS outright.
+    { key: "editorial", label: "Editorial", swatch: "#8a3324",
+      light: {
+        "--pentaho": "#8a3324", "--pdc": "#2f4858",
+        "--app-bg": "#f7f3ea", "--panel-bg": "#fffdf8", "--panel-border": "#d8cdb8",
+        "--panel-subtle-bg": "#efe8d8", "--panel-header-bg": "#efe8d8", "--panel-header-border": "#d8cdb8",
+        "--field-bg": "#fffdf8", "--field-border": "#d8cdb8",
+        "--text-primary": "#2b241c", "--text-muted": "#6b5f4d", "--text-faint": "#8c8069",
+        "--sidebar-bg": "#2b241c", "--header-bg": "#2b241c", "--header-bg-2": "#3a3024", "--grid-line": "#e3dac5", "--axis": "#8c8069",
+        "--c1": "#b0451f", "--c2": "#0a8a7a", "--c3": "#c8890c", "--c4": "#1f8a3f", "--c5": "#8a3a63",
+        "--c6": "#2166a3", "--c7": "#c1591b", "--c8": "#a13e5c", "--c9": "#3f8a54", "--c10": "#9c6b1f"
+      },
+      dark: {
+        "--pentaho": "#c97b5e", "--pdc": "#5a90a3",
+        "--app-bg": "#1c1712", "--panel-bg": "#24201a", "--panel-border": "#3d362b",
+        "--panel-subtle-bg": "#2c261f", "--panel-header-bg": "#2c261f", "--panel-header-border": "#3d362b",
+        "--field-bg": "#24201a", "--field-border": "#3d362b",
+        "--text-primary": "#f2ece0", "--text-muted": "#b8ac95", "--text-faint": "#8f8570",
+        "--sidebar-bg": "#141009", "--header-bg": "#141009", "--header-bg-2": "#1f1710", "--grid-line": "#332c22", "--axis": "#8f8570",
+        "--c1": "#c96a3f", "--c2": "#2a9c89", "--c3": "#b8842a", "--c4": "#3f9c58", "--c5": "#a3577d",
+        "--c6": "#4a86c2", "--c7": "#c96f3a", "--c8": "#b8597a", "--c9": "#4fa066", "--c10": "#b8863f"
       }
     }
   ];

@@ -12487,6 +12487,76 @@ function serve() {
     ok("Dashboard theme: exported HTML carries High Contrast's light token overrides", hcAppliedOk.lightVar, JSON.stringify(hcAppliedOk));
     ok("Dashboard theme: exported HTML carries High Contrast's dark token overrides", hcAppliedOk.darkVar, JSON.stringify(hcAppliedOk));
 
+    // N-DESIGN "a few stunning presets" — a fourth dashboard-theme mood, Editorial (warm
+    // paper/ink, distinct from Fleet Modern's cool blue and High Contrast's stark black/white).
+    // Same registry/apply pattern as the checks above, just for the new key.
+    var edRegistryOk = await page.evaluate(function () {
+      var dt = window.Studio.DASHBOARD_THEMES;
+      var ed = dt && dt.filter(function (t) { return t.key === "editorial"; })[0];
+      var needed = ["--pentaho", "--pdc", "--app-bg", "--panel-bg", "--text-primary", "--c1", "--c10"];
+      var hasAll = ed && needed.every(function (k) { return ed.light[k] && ed.dark[k]; });
+      return { ok: !!ed && hasAll, appBgLight: ed && ed.light["--app-bg"], appBgDark: ed && ed.dark["--app-bg"] };
+    });
+    ok("Dashboard theme: Studio.DASHBOARD_THEMES has an 'editorial' entry with full light/dark token sets",
+      edRegistryOk.ok, JSON.stringify(edRegistryOk));
+    ok("Dashboard theme: 'Editorial' uses warm cream/ink surfaces (distinct from Fleet Modern/High Contrast)",
+      edRegistryOk.appBgLight === "#f7f3ea" && edRegistryOk.appBgDark === "#1c1712", JSON.stringify(edRegistryOk));
+
+    await page.evaluate(function () {
+      var row = document.getElementById("dashThemeRow");
+      var btn = row && Array.from(row.querySelectorAll("button[data-dashboard-theme]")).find(function (b) {
+        return b.getAttribute("data-dashboard-theme") === "editorial";
+      });
+      if (btn) btn.click();
+    });
+    await page.waitForTimeout(300);
+    var edAppliedOk = await page.evaluate(function () {
+      var spec = window.__STUDIO_STATE.spec;
+      var html = window.Studio.buildHtml(spec, window.__STUDIO_STATE.assets, { deployPath: "/x", preview: false });
+      return {
+        specKey: spec.dashboardTheme,
+        lightVar: html.indexOf("--app-bg:#f7f3ea") !== -1 && html.indexOf("--pentaho:#8a3324") !== -1,
+        darkVar: html.indexOf("[data-theme='dark']") !== -1 && html.indexOf("--app-bg:#1c1712") !== -1
+      };
+    });
+    ok("Dashboard theme: clicking 'Editorial' sets spec.dashboardTheme", edAppliedOk.specKey === "editorial", JSON.stringify(edAppliedOk));
+    ok("Dashboard theme: exported HTML carries Editorial's light token overrides", edAppliedOk.lightVar, JSON.stringify(edAppliedOk));
+    ok("Dashboard theme: exported HTML carries Editorial's dark token overrides", edAppliedOk.darkVar, JSON.stringify(edAppliedOk));
+
+    // Track L follow-up (found while screenshotting Editorial): vendor/pdc-ui.css's .pdc-header
+    // banner gradient had its SECOND stop hardcoded (#163a6e) — every non-Classic dashboardTheme
+    // recolored only the gradient's start, leaving a stray navy sliver at the other end. Fixed
+    // with a themeable --header-bg-2 (default #163a6e in both :root and dark, so Classic's own
+    // banner gradient must render byte-identical to before). Verify both halves: Classic's exported
+    // CSS still carries the exact original two-stop gradient, and each new theme's CSS carries ITS
+    // OWN second stop (not the leftover #163a6e) in both light and dark.
+    var headerGradientOk = await page.evaluate(function () {
+      var spec = window.__STUDIO_STATE.spec;
+      var out = {};
+      spec.dashboardTheme = "";
+      var classicHtml = window.Studio.buildHtml(spec, window.__STUDIO_STATE.assets, { deployPath: "/x", preview: false });
+      out.classicUnchanged = classicHtml.indexOf("linear-gradient(100deg,var(--header-bg),var(--header-bg-2,#163a6e))") !== -1;
+      spec.dashboardTheme = "fleet-modern";
+      var fmHtml = window.Studio.buildHtml(spec, window.__STUDIO_STATE.assets, { deployPath: "/x", preview: false });
+      out.fleetModernOwnStop = fmHtml.indexOf("--header-bg-2:#1b3358") !== -1 && fmHtml.indexOf("--header-bg-2:#122040") !== -1;
+      spec.dashboardTheme = "high-contrast";
+      var hcHtml = window.Studio.buildHtml(spec, window.__STUDIO_STATE.assets, { deployPath: "/x", preview: false });
+      out.highContrastOwnStop = (hcHtml.match(/--header-bg-2:#000000/g) || []).length === 2;
+      spec.dashboardTheme = "editorial";
+      var edHtml = window.Studio.buildHtml(spec, window.__STUDIO_STATE.assets, { deployPath: "/x", preview: false });
+      out.editorialOwnStop = edHtml.indexOf("--header-bg-2:#3a3024") !== -1 && edHtml.indexOf("--header-bg-2:#1f1710") !== -1;
+      spec.dashboardTheme = "";
+      return out;
+    });
+    ok("Header banner gradient: Classic's base rule is untouched (same var+fallback as before this fix)",
+      headerGradientOk.classicUnchanged, JSON.stringify(headerGradientOk));
+    ok("Header banner gradient: Fleet Modern carries its own light+dark second-stop color (not the leftover navy)",
+      headerGradientOk.fleetModernOwnStop, JSON.stringify(headerGradientOk));
+    ok("Header banner gradient: High Contrast carries a flat black second stop in both modes",
+      headerGradientOk.highContrastOwnStop, JSON.stringify(headerGradientOk));
+    ok("Header banner gradient: Editorial carries its own light+dark second-stop color",
+      headerGradientOk.editorialOwnStop, JSON.stringify(headerGradientOk));
+
     // revert back to classic so later tests (which assume the default look) aren't affected
     await page.evaluate(function () {
       var row = document.getElementById("dashThemeRow");

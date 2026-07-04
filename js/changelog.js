@@ -15,6 +15,16 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 337,
+    title: 'New "Editorial" dashboard theme, plus a banner-color fix for the others',
+    kind: 'feature',
+    ts: '2026-07-04T17:51:28Z',
+    items: [
+      'A fourth whole-look Dashboard theme joins the picker: Editorial, a warm paper-and-ink boardroom mood with its own colorblind-safe series palette.',
+      'Fixed: the banner\'s background gradient had a hardcoded tail color, so Fleet Modern and High Contrast dashboards showed a stray navy sliver at one end of the header. All non-Classic themes now color the whole banner.',
+    ],
+  },
+  {
     v: 336,
     title: 'Top toolbar now reads as three clear groups',
     kind: 'polish',

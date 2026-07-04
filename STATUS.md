@@ -3164,6 +3164,25 @@ gets covered over time:
 > both light and dark app mode (crisp black-on-white and white-on-black panel borders, not just a
 > DOM/CSS-variable check). 5 new tests, suite 1451/1451. **Still open:** the remaining named
 > presets from the original idea (neon, editorial) and true author/share custom themes.
+> ✓ **"Editorial" dashboard theme shipped v337 (second of the "a few stunning presets" idea)**:
+> a fourth `Studio.DASHBOARD_THEMES` entry — a warm, paper-and-ink boardroom mood (cream `#f7f3ea`
+> bg / warm-black `#2b241c` ink in light, warm charcoal `#1c1712` bg / cream `#f2ece0` ink in dark),
+> distinct from Fleet Modern's cool blue-gray and High Contrast's stark black/white. Its own
+> earthy-but-saturated 10-color series ramp (terracotta/teal/ochre/moss/plum/slate/rust/berry/
+> forest/gold) re-validated against the `#f7f3ea`/`#1c1712` surfaces it actually uses — light: all
+> six checks PASS with one legal WARN-band contrast slot (same mitigation as Fleet Modern's own);
+> dark: all six PASS outright. **Found + fixed a real gap shared by every prior theme while
+> screenshotting this one**: `vendor/pdc-ui.css`'s `.pdc-header` banner gradient had its SECOND
+> stop hardcoded (`linear-gradient(100deg,var(--header-bg),#163a6e)`) — so switching dashboardTheme
+> only ever re-colored the first 0% of the banner, leaving a stray navy-blue tail on every non-
+> Classic theme's banner (Fleet Modern and the just-shipped High Contrast both had this, unnoticed
+> because no prior screenshot cropped in on the banner itself). Added a themeable `--header-bg-2`
+> (defaults to the exact same `#163a6e` in both `:root` and `[data-theme='dark']`, so Classic is
+> pixel-identical) and gave Fleet Modern/High Contrast/Editorial each their own matching second
+> stop. Visually verified all four themes' banners via cropped screenshots (Classic unchanged;
+> Fleet Modern, High Contrast, and Editorial now read as one coherent color end-to-end instead of
+> a mismatched navy sliver). 7 new tests, suite 1464/1464. **Still open:** a "Neon" preset and true
+> author/share custom themes.
 
 **N-DEV — Power-user & authoring.**
 - **Live JSON spec editor:** ✓ shipped v267, see below.
