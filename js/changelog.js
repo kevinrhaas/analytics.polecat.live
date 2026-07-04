@@ -15,6 +15,16 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 307,
+    title: 'N-DATA: orphaned data-access check (dashboard health score, first slice)',
+    kind: 'feature',
+    ts: '2026-07-04T06:29:17Z',
+    items: [
+      'Studio.validate() -- the same check that already powers the Dashboard inspector\'s "Checks" section, no new UI needed -- now flags a declared data access that no panel or KPI actually references: an info-level "Data access \'X\' is declared but not used by any panel or KPI" note.',
+      'First slice of the "dashboard health score" innovation idea (flags dead config a builder would otherwise never notice). Still open: the data quality watchdog and a broken drill-through target check. 4 new tests, suite 1342/1342.',
+    ],
+  },
+  {
     v: 306,
     title: 'N-DATA follow-up: Test connection also counts as a freshness signal',
     kind: 'feature',

@@ -887,6 +887,11 @@
   (DuckDB/SQLite/Snowflake/Databricks/BigQuery/Generic SQL-HTTP) — just as strong a liveness signal as
   "Run live" — so each success handler now calls `markDaFreshness()` too, instead of only the shared
   `renderTable(..., "live")` path. 1 new test, suite 1338/1338.
+- v307: **N-DATA: orphaned data-access check (dashboard health score, first slice)** — `Studio.validate()`
+  now flags a declared data access that no panel or KPI actually references, an info-level "Data access
+  “X” is declared but not used by any panel or KPI" note in the existing Checks section — dead config a
+  builder would otherwise never notice. First slice of the "dashboard health score" innovation idea. 4 new
+  tests, suite 1342/1342.
 
 ## NEXT (top = do first)
 
@@ -2517,6 +2522,12 @@ gets covered over time:
   panel/KPI/filter references them), and flags a drill-through/detail-drawer target that no longer
   resolves — one glanceable score + punch-list for "is this dashboard actually sound," not just "is it
   filled in."
+> ✓ **First slice shipped v307**: `Studio.validate()` (the existing "Checks" section's data source,
+> already rendered in the Dashboard inspector — no new UI needed) now flags any data access in
+> `spec.cda.dataAccesses` that no panel or KPI references, as an info-level note. Deliberately scoped
+> to the smallest real signal first; **still open:** wiring in the Data quality watchdog (v260/v261)
+> and a broken drill-through/detail-drawer target check, plus a distinct glanceable "health score" UI
+> if this grows beyond a Checks-section note. 4 new tests, suite 1342/1342.
 - **Compare dashboards side-by-side (added 2026-07-04, innovation sweep):** pick any two saved dashboards
   from Home/Repository and view them in a synced-scroll split-screen — distinct from the existing
   per-dashboard Version-history diff (v262, which compares a dashboard against ITS OWN past checkpoint,

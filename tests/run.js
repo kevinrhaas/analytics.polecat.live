@@ -9478,6 +9478,35 @@ function serve() {
     ok("N-FUN: once every milestone is met the meter shows 5/5 + a celebratory line, no leftover checklist",
       /Build progress: 5\/5/.test(bcCelebrate.txt) && bcCelebrate.listCount === 0, JSON.stringify(bcCelebrate));
 
+    // ── N-DATA innovation idea ("dashboard health score", first slice): Studio.validate() now
+    // flags a declared data access that no panel/KPI actually references — dead config a builder
+    // would otherwise never notice. Pure model-level check, exercised directly (no DOM).
+    console.log("\n• N-DATA: orphaned data-access check (dashboard health score, first slice)");
+    const orphanDa = await page.evaluate(function () {
+      var used = Studio.validate({
+        name: "ok-name", title: "T", panels: [{ id: "p1", chart: { da: "usedDa" } }], kpis: [],
+        cda: { dataAccesses: [{ id: "usedDa", name: "usedDa" }] }
+      });
+      var orphaned = Studio.validate({
+        name: "ok-name", title: "T", panels: [{ id: "p1", chart: { da: "usedDa" } }], kpis: [],
+        cda: { dataAccesses: [{ id: "usedDa", name: "usedDa" }, { id: "deadDa", name: "Old Sales Query" }] }
+      });
+      var usedByKpi = Studio.validate({
+        name: "ok-name", title: "T", panels: [], kpis: [{ da: "kpiDa" }],
+        cda: { dataAccesses: [{ id: "kpiDa", name: "kpiDa" }] }
+      });
+      return {
+        usedHasNoOrphanIssue: !used.some(function (i) { return /declared but not used/.test(i.msg); }),
+        orphanedFlagsDeadDa: orphaned.some(function (i) { return i.level === "info" && /“Old Sales Query” is declared but not used/.test(i.msg); }),
+        orphanedDoesNotFlagUsedDa: !orphaned.some(function (i) { return /“usedDa” is declared but not used/.test(i.msg); }),
+        kpiBoundDaNotFlagged: !usedByKpi.some(function (i) { return /declared but not used/.test(i.msg); })
+      };
+    });
+    ok("N-DATA: a data access bound to a panel is not flagged as orphaned", orphanDa.usedHasNoOrphanIssue, JSON.stringify(orphanDa));
+    ok("N-DATA: a data access bound to NO panel/KPI is flagged as an info-level 'declared but not used' issue", orphanDa.orphanedFlagsDeadDa, JSON.stringify(orphanDa));
+    ok("N-DATA: the actually-used data access in that same spec is not also flagged", orphanDa.orphanedDoesNotFlagUsedDa, JSON.stringify(orphanDa));
+    ok("N-DATA: a data access bound to a KPI (not a panel) is also recognized as used", orphanDa.kpiBoundDaNotFlagged, JSON.stringify(orphanDa));
+
     // ── F18: Bump / ranking chart (v104) ─────────────────────────────────────
     console.log("\n• F18: Bump chart");
 
