@@ -1202,10 +1202,13 @@ so mobile/tablet is completely unaffected (see Z9 for the dedicated mobile track
 > `translateY` transform, but that made a lingering CSS animation on `#appMain` act as the containing block
 > for its `position:fixed` descendants (`#mobile-tabs`/`#statusbar` at phone width) instead of the viewport,
 > breaking their fixed positioning — fixed to opacity-only + an `animationend` cleanup. 3 new tests.
-> **Z1 follow-ups (not yet done):** **simplify the TOP menu bar** now that the rail owns primary navigation
-> — reorganize to consistent, best-practice IA (logical grouping, no redundancy, clear labels/icons: rail =
-> "where am I", top bar = "what can I do here"); extend the rail to tablet width once Home/Repository/Settings have
-> real content worth navigating to on a smaller screen.
+> **Z1 follow-ups:** **simplify the TOP menu bar** now that the rail owns primary navigation — reorganize
+> to consistent, best-practice IA (logical grouping, no redundancy, clear labels/icons: rail = "where am
+> I", top bar = "what can I do here"). ✓ **First slice shipped v336** (see the H-track entry below):
+> subtle dividers now group the topbar into History / File / Connect & present clusters. **Still not yet
+> done:** extend the rail to tablet width once Home/Repository/Settings have real content worth
+> navigating to on a smaller screen; consider a deeper topbar consolidation if grouping alone isn't
+> enough.
 
 **Z2 — Home.** ✓ slice 1 shipped v133: quick-create cards (Blank / Browse examples / Take the tour) +
 a "Recent dashboards" grid, each card a live SVG thumbnail (`Studio.makeThumbnail`) that genuinely
@@ -2295,6 +2298,21 @@ Next H-track suggestions (pick the highest-value):
     the kind of "didn't know that existed" capability it's meant to surface — added it to the rotation.
     Purely additive (one new string in `HOME_TIPS`); 1 new test cycles every tip and confirms it's
     present. **Next H-track candidate unchanged:** the Z1 "simplify the top menu bar" reorg above.
+  - ✓ **Topbar grouping dividers — first slice of the Z1 "simplify the top menu bar" reorg, shipped
+    v336**: the 11-button desktop topbar row (Undo/Redo, New▾/Examples▾/Open/Save/Export▾, Tour/Servers/
+    Sample/Theme) read as one undifferentiated strip with no visual cue for *why* buttons sat where they
+    did. Added two subtle `.top-sep` dividers marking three logical clusters — **History** (Undo/Redo) |
+    **File** (New/Examples/Open/Save/Export) | **Connect & present** (Tour/Servers/Sample/Theme) —
+    matching the grouping the ⋯ More menu's `.grp` labels already use. Deliberately conservative per the
+    risk this item was flagged with (see the v274 note above): plain `<span>` siblings, not wrapping
+    group containers, so no button id/order/direct-child relationship to `.top-actions` changed — the
+    MNAV mobile tests that walk `:scope > .btn` keep passing unmodified. The Connect & present divider
+    hides at ≤900px alongside the `.btn-secondary` cluster it separates (both collapse into ⋯ More
+    there); the History|File divider stays since both those groups remain visible down to phone width.
+    4 new desktop tests + 2 new tablet-width tests. **Z1 follow-up still open:** the top bar's IA is
+    only lightly grouped so far — a deeper pass (e.g. consolidating Open/Save/Export under one "File ▾"
+    menu, or moving Tour/Servers/Sample/Theme into a labeled cluster button) remains a future slice if
+    the grouping alone doesn't read as "simplified" enough.
 
 ### I. Learn from the reference/ lab — match & surpass those visuals (user-requested; RECURRING)
 The `reference/dashboards/` tree is a library of advanced hand-built CDF/CDE dashboards (the original

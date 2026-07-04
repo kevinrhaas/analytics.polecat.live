@@ -422,6 +422,12 @@ textarea:focus-visible,[tabindex]:focus-visible,.row-item:focus-visible{
 .dash-meta{font-size:11px;color:#a9badd;padding-left:2px}
 .dash-meta code{color:#cfe0ff;background:rgba(255,255,255,.1);padding:1px 6px;border-radius:5px}
 .top-actions{display:flex;align-items:center;gap:8px}
+/* H-track: subtle grouping dividers between topbar action clusters (History | File |
+   Connect & present) — purely visual, no ids/order/behavior changed. Sits inline as a
+   plain sibling (not a wrapping group container) so it can't interfere with any code
+   that walks `.top-actions`'s direct children looking for `.btn`/`.menu-wrap`. */
+.top-sep{width:1px;height:22px;background:rgba(255,255,255,.18);flex:0 0 auto;margin:0 1px}
+@media(max-width:900px){.top-sep.sep-connect{display:none}}
 .btn{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);color:#fff;border-radius:8px;
   padding:8px 13px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;transition:background .14s,transform .1s}
 .btn:hover{background:rgba(255,255,255,.22)}

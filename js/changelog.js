@@ -15,6 +15,16 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 336,
+    title: 'Top toolbar now reads as three clear groups',
+    kind: 'polish',
+    ts: '2026-07-04T17:32:55Z',
+    items: [
+      'The row of buttons at the top (Undo/Redo, New/Examples/Open/Save/Export, Tour/Servers/Sample/Theme) now has subtle dividers marking History, File, and Connect & present clusters.',
+      'Purely visual — no button moved, was renamed, or changed behavior.',
+    ],
+  },
+  {
     v: 335,
     title: '"Show value/label" and "Rotate labels" get real before/after pictures',
     kind: 'polish',

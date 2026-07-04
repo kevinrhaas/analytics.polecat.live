@@ -4132,6 +4132,37 @@ function serve() {
     ok("Track H: grouping is purely additive — every existing More-menu item id is untouched",
       moreGroups.stillHasShortcuts && moreGroups.stillHasEditJSON, JSON.stringify(moreGroups));
 
+    // ---- Track H (IA sweep): topbar action clusters get subtle visual dividers ----
+    // Z1 follow-up ("simplify the top menu bar") — first slice. Undo/Redo (History) | New/
+    // Examples/Open/Save/Export (File) | Tour/Servers/Sample/Theme (Connect & present) now
+    // read as three visually distinct clusters instead of one undifferentiated row of 11
+    // buttons. Purely additive: plain `<span class="top-sep">` siblings, not wrapping group
+    // containers, so every button keeps its existing id/order/direct-child relationship to
+    // `.top-actions` (the MNAV mobile tests below walk `:scope > .btn` and must keep working).
+    console.log("\n• Track H: topbar action clusters get grouping dividers");
+    const topSeps = await page.evaluate(() => {
+      var ta = document.querySelector(".top-actions");
+      var kids = [].slice.call(ta.children);
+      var seps = kids.filter((k) => k.classList.contains("top-sep"));
+      var idxRedo = kids.findIndex((k) => k.id === "btnRedo");
+      var idxSep1 = kids.findIndex((k) => k.classList.contains("top-sep") && !k.classList.contains("sep-connect"));
+      var idxNewWrap = kids.findIndex((k) => k.querySelector && k.querySelector("#btnNew"));
+      var idxExportWrap = kids.findIndex((k) => k.querySelector && k.querySelector("#btnExport"));
+      var idxSep2 = kids.findIndex((k) => k.classList.contains("sep-connect"));
+      var idxAbout = kids.findIndex((k) => k.id === "btnAbout");
+      return {
+        count: seps.length,
+        allAriaHidden: seps.every((s) => s.getAttribute("aria-hidden") === "true"),
+        noneFocusable: seps.every((s) => s.tabIndex === -1 || !s.hasAttribute("tabindex")),
+        historyBeforeFile: idxRedo < idxSep1 && idxSep1 < idxNewWrap,
+        fileBeforeConnect: idxExportWrap < idxSep2 && idxSep2 < idxAbout
+      };
+    });
+    ok("Track H: topbar has exactly 2 grouping dividers (History | File | Connect & present)", topSeps.count === 2, JSON.stringify(topSeps));
+    ok("Track H: topbar dividers are decorative only (aria-hidden, not tab-focusable)", topSeps.allAriaHidden && topSeps.noneFocusable, JSON.stringify(topSeps));
+    ok("Track H: divider 1 sits between Redo (History) and New (File)", topSeps.historyBeforeFile, JSON.stringify(topSeps));
+    ok("Track H: divider 2 sits between Export (File) and Tour (Connect & present)", topSeps.fileBeforeConnect, JSON.stringify(topSeps));
+
     // ---- Focus trap in modals (v48) ----
     console.log("\n• Focus trap in modals (v48)");
     // Open the keyboard shortcuts modal and verify focus management
@@ -4542,6 +4573,21 @@ function serve() {
     ok("tablet viewport: New ▾ menu opens and its items are reachable", newReach.wasOpen && newReach.reachable, JSON.stringify(newReach));
     const exportReach = await menuItemReachable(tabletPage, "btnExport", "menuExport");
     ok("tablet viewport: Export ▾ menu opens and its items are reachable", exportReach.wasOpen && exportReach.reachable, JSON.stringify(exportReach));
+    // Track H: the Connect & present divider must hide alongside the .btn-secondary
+    // cluster it separates (Tour/Servers/Sample/Theme) — otherwise it'd dangle at the
+    // end of the row with nothing after it. The History|File divider stays visible
+    // since both of those groups remain on-screen at tablet width.
+    const tabletSeps = await tabletPage.evaluate(() => {
+      var seps = [].slice.call(document.querySelectorAll(".top-sep"));
+      var connect = seps.filter((s) => s.classList.contains("sep-connect"));
+      var other = seps.filter((s) => !s.classList.contains("sep-connect"));
+      return {
+        connectHidden: connect.every((s) => getComputedStyle(s).display === "none"),
+        otherVisible: other.every((s) => getComputedStyle(s).display !== "none")
+      };
+    });
+    ok("tablet viewport: the Connect & present divider hides along with its now-hidden button group", tabletSeps.connectHidden, JSON.stringify(tabletSeps));
+    ok("tablet viewport: the History|File divider stays visible (both flanking groups still show)", tabletSeps.otherVisible, JSON.stringify(tabletSeps));
     await tabletPage.close();
 
     // Z9 motion polish: dropdown menus fade+rise in instead of a hard display:none/block cut,
