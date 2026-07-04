@@ -2457,6 +2457,43 @@
     return { done: done, total: items.length, items: items };
   };
 
+  // N-DATA (Track N innovation backlog, added 2026-07-04): "Dashboard health score" — a third
+  // question beyond "did you fill things in" (dashboardCompleteness above) and "is it exportable"
+  // (validate() above): "is this dashboard actually SOUND." Runs the existing Data quality watchdog
+  // (dataQualityIssues, v260/v261) over every bound data access's own sample rows, and flags a data
+  // access that's declared in the spec but never wired into any panel/KPI/filter — a common leftover
+  // from iterating on a dashboard (delete the panel, forget the now-dangling query). Pure/testable,
+  // no DOM. Compound DAs (join/union) aren't profiled directly (no sample rows of their own) but
+  // their leftId/rightId sources count as "used" even with no panel bound straight to them.
+  Studio.dashboardHealth = function (spec) {
+    var das = (spec.cda && spec.cda.dataAccesses) || [];
+    var used = {};
+    (spec.panels || []).forEach(function (p) { if (p.chart && p.chart.da) used[p.chart.da] = true; });
+    (spec.kpis || []).forEach(function (k) { if (k.da) used[k.da] = true; });
+    (spec.filters || []).forEach(function (f) { if (f.da) used[f.da] = true; });
+    das.forEach(function (d) {
+      if (Studio.isCompoundDA(d)) { if (d.leftId) used[d.leftId] = true; if (d.rightId) used[d.rightId] = true; }
+    });
+    var orphaned = das.filter(function (d) { return !used[d.id]; }).map(function (d) { return d.name || d.id; });
+
+    var qualityCount = 0;
+    das.forEach(function (d) {
+      if (Studio.isCompoundDA(d)) return;
+      var sample;
+      try { sample = Studio.sampleRows({ id: d.id, columns: d.columns || [], params: d.params || [] }).rows; } catch (e) { sample = []; }
+      qualityCount += Studio.dataQualityIssues(d.columns || [], sample).length;
+    });
+
+    var issues = [];
+    if (orphaned.length) issues.push({ key: "orphaned", level: "warn",
+      msg: orphaned.length + " data source" + (orphaned.length === 1 ? "" : "s") + " declared but not used by any panel, KPI, or filter: " + orphaned.join(", ") + "." });
+    if (qualityCount) issues.push({ key: "quality", level: "warn",
+      msg: qualityCount + " data quality issue" + (qualityCount === 1 ? "" : "s") + " found across this dashboard's bound data sources — see each source's Data preview for details." });
+
+    var total = 2; // orphaned-DA check, data-quality check
+    return { score: total - issues.length, total: total, issues: issues };
+  };
+
   // N-DIST follow-up: side-by-side diff between two dashboard specs (e.g. a past version
   // history checkpoint vs. the current working spec) — "what changed" for time travel.
   // Pure/testable: no DOM, no PDC. Panels/filters match by their stable `id`; KPIs have no

@@ -887,6 +887,11 @@
   (DuckDB/SQLite/Snowflake/Databricks/BigQuery/Generic SQL-HTTP) — just as strong a liveness signal as
   "Run live" — so each success handler now calls `markDaFreshness()` too, instead of only the shared
   `renderTable(..., "live")` path. 1 new test, suite 1338/1338.
+- v307: **N-DATA: Dashboard health score (first cut, closes the innovation-sweep idea)** — new
+  Dashboard inspector section "Dashboard health": runs the Data quality watchdog (v260/v261) over
+  every bound DA's own sample rows, and flags a data access declared but never wired into any
+  panel/KPI/filter. A compound (join/union) DA's leftId/rightId sources count as used even with no
+  panel bound directly to them. 5 new tests, suite 1343/1343.
 
 ## NEXT (top = do first)
 
@@ -2517,6 +2522,15 @@ gets covered over time:
   panel/KPI/filter references them), and flags a drill-through/detail-drawer target that no longer
   resolves — one glanceable score + punch-list for "is this dashboard actually sound," not just "is it
   filled in."
+> ✓ **First cut shipped v307**: a new **Dashboard health** inspector section (`Studio.dashboardHealth`,
+> model.js, pure/testable) runs the Data quality watchdog over every bound DA's own sample rows and
+> flags a data access declared but never wired into any panel/KPI/filter — a common leftover from
+> iterating on a dashboard. A compound (join/union) DA's `leftId`/`rightId` sources count as used even
+> with no panel bound directly to them, so they don't falsely show as orphaned alongside their parent.
+> 5 new tests, suite 1343/1343. **Still open:** the drill-through/detail-drawer half of the original
+> idea — today `panel.drill`/`kpi.drill` only model an external URL (`{url,param}`), there's no
+> internal "target that can stop resolving" in the current data model, so that check doesn't
+> genuinely apply yet; revisit if/when an internal drill-to-panel target is ever added.
 - **Compare dashboards side-by-side (added 2026-07-04, innovation sweep):** pick any two saved dashboards
   from Home/Repository and view them in a synced-scroll split-screen — distinct from the existing
   per-dashboard Version-history diff (v262, which compares a dashboard against ITS OWN past checkpoint,

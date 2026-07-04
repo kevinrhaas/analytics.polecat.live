@@ -9478,6 +9478,62 @@ function serve() {
     ok("N-FUN: once every milestone is met the meter shows 5/5 + a celebratory line, no leftover checklist",
       /Build progress: 5\/5/.test(bcCelebrate.txt) && bcCelebrate.listCount === 0, JSON.stringify(bcCelebrate));
 
+    // ── N-DATA: Dashboard health score (Track N innovation backlog, added 2026-07-04) ────────
+    // A third question beyond "did you fill things in" (build-completeness above) and "will this
+    // export" (Checks): "is this dashboard actually sound" — orphaned data accesses + the existing
+    // Data quality watchdog (v260/v261) run across every bound DA.
+    console.log("\n• N-DATA: Dashboard health score");
+    const dhApi = await page.evaluate(function () {
+      var origSample = Studio.sampleRows;
+      var empty = Studio.dashboardHealth(Studio.emptySpec());
+
+      var spOrphan = Studio.emptySpec();
+      spOrphan.cda.dataAccesses.push({ id: "orphanDa", name: "orphanDa", kind: "sql.jndi", columns: ["x"], params: [], calcColumns: [], cache: true, cacheDuration: 300 });
+      var orphanHealth = Studio.dashboardHealth(spOrphan);
+
+      var spDirty = Studio.emptySpec();
+      spDirty.cda.dataAccesses.push({ id: "dirtyDa", name: "dirtyDa", kind: "sql.jndi", columns: ["x"], params: [], calcColumns: [], cache: true, cacheDuration: 300 });
+      spDirty.panels.push({ id: "p1", title: "P1", chart: { type: "bars", da: "dirtyDa", map: {} } });
+      Studio.sampleRows = function () { return { cols: ["x"], rows: [["a"], ["a"], [null]] }; };
+      var dirtyHealth = Studio.dashboardHealth(spDirty);
+      Studio.sampleRows = origSample;
+
+      var spCompound = Studio.emptySpec();
+      spCompound.cda.dataAccesses.push({ id: "leftDa", name: "leftDa", kind: "sql.jndi", columns: ["x"], params: [], calcColumns: [], cache: true, cacheDuration: 300 });
+      spCompound.cda.dataAccesses.push({ id: "rightDa", name: "rightDa", kind: "sql.jndi", columns: ["y"], params: [], calcColumns: [], cache: true, cacheDuration: 300 });
+      var joinDa = Studio.newCompoundDA("join"); joinDa.id = "joinDa"; joinDa.leftId = "leftDa"; joinDa.rightId = "rightDa";
+      spCompound.cda.dataAccesses.push(joinDa);
+      var compoundHealth = Studio.dashboardHealth(spCompound);
+
+      return {
+        emptyScore: empty.score, emptyTotal: empty.total, emptyIssues: empty.issues.length,
+        orphanScore: orphanHealth.score, orphanIssueMsg: (orphanHealth.issues[0] || {}).msg || "",
+        dirtyScore: dirtyHealth.score, dirtyIssueMsg: (dirtyHealth.issues.filter(function (i) { return i.key === "quality"; })[0] || {}).msg || "",
+        compoundIssues: compoundHealth.issues.length,
+        compoundOrphanMsg: (compoundHealth.issues.filter(function (i) { return i.key === "orphaned"; })[0] || {}).msg || ""
+      };
+    });
+    ok("N-DATA: Studio.dashboardHealth scores 2/2 with no issues for a blank spec",
+      dhApi.emptyScore === 2 && dhApi.emptyTotal === 2 && dhApi.emptyIssues === 0, JSON.stringify(dhApi));
+    ok("N-DATA: a data access declared but not bound to any panel/KPI/filter is flagged orphaned",
+      dhApi.orphanScore === 1 && /orphanDa/.test(dhApi.orphanIssueMsg), JSON.stringify(dhApi));
+    ok("N-DATA: data quality issues in a bound DA's sample rows count against the health score",
+      dhApi.dirtyScore === 1 && /data quality issue/.test(dhApi.dirtyIssueMsg), JSON.stringify(dhApi));
+    ok("N-DATA: a compound DA's leftId/rightId sources count as used even with no panel bound directly to them",
+      dhApi.compoundIssues === 1 && /joinDa/.test(dhApi.compoundOrphanMsg) && !/leftDa/.test(dhApi.compoundOrphanMsg) && !/rightDa/.test(dhApi.compoundOrphanMsg),
+      JSON.stringify(dhApi));
+
+    await page.evaluate(function () { window.__STUDIO_STATE.selection = null; window.__studioRenderInspector(); });
+    await page.waitForTimeout(100);
+    const dhDom = await page.evaluate(function () {
+      var secs = [].slice.call(document.querySelectorAll("#inspBody .insp-sec"));
+      var hs = secs.find(function (s) { return /Dashboard health/.test((s.querySelector("h4") || {}).textContent || ""); });
+      var note = hs ? hs.querySelector(".note") : null;
+      return { present: !!hs, scoreTxt: note ? note.textContent : "" };
+    });
+    ok("N-DATA: dashboard inspector shows a 'Dashboard health' section with a glanceable score",
+      dhDom.present && /Health: \d\/2/.test(dhDom.scoreTxt), JSON.stringify(dhDom));
+
     // ── F18: Bump / ranking chart (v104) ─────────────────────────────────────
     console.log("\n• F18: Bump chart");
 
