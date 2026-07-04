@@ -1,19 +1,21 @@
 /* js/changelog.js — Analytics Dashboard Studio revision history.
-   Published in the shared Polecat fleet format (relay/manager style) so the
-   manager.polecat.live "Sync changelog" tool can fetch + parse it. Newest first.
-
-   ── CHANGELOG CONVENTION (follow for EVERY new entry) ──
-   • Prepend ONE entry at the TOP: integer `v` (+1 over current top), a friendly
-     `title`, optional `kind` ("feature" | "polish" | "fix"), an ISO-8601 UTC
-     `ts`, and 1–4 plain `items`.
-   • This is an ES MODULE and MUST use relay's LITERAL style: UNQUOTED keys and
-     SINGLE-QUOTED strings with apostrophes escaped as \'. The manager parses the
-     text (it does NOT run the file) via a single-quote-aware normalizer, so
-     double-quoted JSON with raw apostrophes breaks it — keep single quotes.
-   • `ts` MUST be real (never fabricated): stamp the actual UTC commit time.
-   • Avoid the literal sequence // in item text (the manager strips line comments).
-   Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
+   Fleet-canonical format (games.polecat.live / relay.polecat.live): an ES module
+   `export const CHANGELOG` of { v, title, kind?, ts, items } entries. Newest first.
+   Regenerated + timestamped by tools/changelog-normalize.js — DO NOT hand-format;
+   add an entry with ts:'' at the top and run that script. Exposed as
+   window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
+  {
+    v: 339,
+    title: 'Changelog hardened to the fleet "push step" pipeline (games/relay-style)',
+    kind: 'fix',
+    ts: '2026-07-04T19:05:29.000Z',
+    items: [
+      'Adopted the fleet convention that manager.polecat.live, games and relay use: a normalizer script re-emits the whole changelog in the canonical single-quoted style and stamps real timestamps on every push, so an entry can never break the manager\'s "Sync changelog" parser and times are never fabricated.',
+      'New tools/changelog-normalize.js does exactly that -- it also self-verifies against the manager\'s own parser and refuses to write if the result would not sync. A test guard runs the same parser so a bad entry fails the suite too.',
+      'This fixes the intermittent "Found a CHANGELOG array but couldn\'t parse its contents" the manager showed when a raw apostrophe slipped into an entry.',
+    ],
+  },
   {
     v: 338,
     title: 'New "Neon" dashboard theme',

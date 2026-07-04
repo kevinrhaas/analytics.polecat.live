@@ -84,18 +84,18 @@
   literal with **UNQUOTED keys and SINGLE-QUOTED strings, apostrophes escaped as `\'`** (double quotes inside
   stay raw), e.g.:
   `{ v: <INTEGER, +1 over top>, title: '…', kind: 'feature'|'polish'|'fix', ts: '<ISO-8601 UTC>', items: [ '…' ] }`.
-  Prepend ONE entry at the TOP per user-visible change. **`ts` MUST be real — but do NOT trust the local clock:**
-  these ephemeral run containers have shown **clock skew of ~1 day** (entries got stamped `2026-07-02` while
-  the true date was `07-03/07-04`), so `date -u` / `new Date()` are unreliable. Stamp `ts` from an
-  **authoritative network time source** instead, e.g.
-  `date -u -d "$(curl -sI https://www.google.com | grep -i '^date:' | sed 's/^[Dd]ate: //')" +%Y-%m-%dT%H:%M:%SZ`
-  (or GitHub's `Date:` header). Never fabricate/future-date. (Timezone handling itself is fine — `ts` is UTC
-  and the app renders CT; the only past bug was skewed UTC values.) **Do NOT put the literal `//` in item text**
-  (the manager strips line comments). The in-app footer + "What's new" sheet render `window.STUDIO_CHANGELOG`.
-  Regenerate/normalize the whole file with `scratchpad/to-relay-style.js` if it ever drifts back to JSON.
-  **GUARD:** `tests/run.js` runs the manager's EXACT parser against `js/changelog.js` (asserts it parses +
-  yields every entry) — so a breaking entry fails the suite and you catch it before committing. If that guard
-  goes red, your newest entry has a raw apostrophe in a double-quoted string, a `//`, or JSON drift — fix it.
+  **HOW TO ADD AN ENTRY (do this exactly — the fleet's "push step" pattern, per games/relay):** prepend ONE
+  entry at the TOP with **`ts: ''` (empty)** and rough content, then run **`node tools/changelog-normalize.js`**
+  before committing. That script (1) stamps every empty `ts` with the REAL current UTC time from an
+  **authoritative network source** (a live server's `Date` header — because these run containers have shown
+  ~1-day clock skew, so `date -u`/`new Date()` are unreliable), (2) re-emits the WHOLE file in canonical
+  single-quoted style (correct apostrophe escaping — no more parse breakage), and (3) self-verifies with the
+  manager's EXACT parser, refusing to write (and telling you to remove a stray `//`) if it wouldn't sync. So
+  you never hand-format quotes or timestamps. **Do NOT put the literal `//` in item text** (the manager strips
+  line comments). The in-app footer + "What's new" sheet render `window.STUDIO_CHANGELOG`.
+  **GUARD (belt-and-suspenders):** `tests/run.js` also runs the manager's EXACT parser against
+  `js/changelog.js` (asserts it parses + yields every entry) — so even if you forget the normalizer, a
+  breaking entry fails the suite before you commit.
 - **CI / deploy — NEVER hard-gate the live deploy on the CI test suite.** `.github/workflows/deploy.yml`
   deploys the static site (concurrency group `pages`, cancel-in-progress). It has a **soft** `test` job with
   `continue-on-error: true`, and the `deploy` job **must NOT** `needs: test`. Reason (learned the hard way):
