@@ -2438,6 +2438,15 @@
     spec.panels.forEach(function (p) {
       if (!p.chart.da) out.push({ level: "error", msg: "Panel “" + (p.title || p.id) + "” has no data query bound." });
     });
+    // N-DATA innovation idea (added 2026-07-04, "dashboard health score"): flag a declared data
+    // access that no panel/KPI actually references — dead config left over from an earlier draft
+    // that a builder would otherwise never notice (it doesn't break anything, it's just unused).
+    var usedDaIds = {};
+    spec.panels.forEach(function (p) { if (p.chart && p.chart.da) usedDaIds[p.chart.da] = true; });
+    (spec.kpis || []).forEach(function (k) { if (k.da) usedDaIds[k.da] = true; });
+    ((spec.cda && spec.cda.dataAccesses) || []).forEach(function (da) {
+      if (!usedDaIds[da.id]) out.push({ level: "info", msg: "Data access “" + (da.name || da.id) + "” is declared but not used by any panel or KPI." });
+    });
     return out;
   };
 
