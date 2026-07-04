@@ -13452,6 +13452,44 @@ function serve() {
     await page.fill("#repoSearch", "");
     await page.waitForTimeout(80);
 
+    // N-FUN innovation idea (added 2026-07-04): cross-dashboard column search — a saved dashboard
+    // with no title/desc match should still surface when the query matches one of its bound
+    // data access's column names, so a schema change's blast radius is a search away.
+    const colSearchSetup = await page.evaluate(function () {
+      var uniqueCol = "zzzuniquecolumnxyz";
+      var spec = {
+        id: "test-col-search-dash", title: "Totally Unrelated Title", name: "totally-unrelated-title",
+        panels: [], kpis: [], cda: { dataAccesses: [{ id: "da1", columns: [uniqueCol, "other_col"] }] }
+      };
+      var list = (window.__studioRecents() || []).filter(function (r) { return r.id !== spec.id; });
+      list.unshift({ id: spec.id, ts: new Date().toISOString(), spec: spec });
+      localStorage.setItem("studio-recents", JSON.stringify(list));
+      window.__studioRenderRepository();
+      return uniqueCol;
+    });
+    await page.fill("#repoSearch", colSearchSetup);
+    await page.waitForTimeout(80);
+    const colSearch = await page.evaluate(function () {
+      var cards = [].slice.call(document.querySelectorAll("#repoResults .recent-card"));
+      var match = cards.filter(function (c) { return /Totally Unrelated Title/.test(c.textContent); })[0];
+      return {
+        cardCount: cards.length,
+        found: !!match,
+        hintText: match ? (match.querySelector(".recent-col-match") || {}).textContent : null
+      };
+    });
+    ok("N-FUN: a dashboard with no title match still surfaces via a bound column-name match",
+      colSearch.found && colSearch.cardCount === 1, JSON.stringify(colSearch));
+    ok("N-FUN: the matched card shows WHICH column matched, not just a silent hit",
+      !!colSearch.hintText && colSearch.hintText.indexOf(colSearchSetup) >= 0, JSON.stringify(colSearch));
+    await page.fill("#repoSearch", "");
+    await page.waitForTimeout(80);
+    await page.evaluate(function () {
+      var list = (window.__studioRecents() || []).filter(function (r) { return r.id !== "test-col-search-dash"; });
+      localStorage.setItem("studio-recents", JSON.stringify(list));
+      window.__studioRenderRepository();
+    });
+
     // a11y: Track L found the Repository search field was the one input in the app chrome that
     // re-declared outline:none inside its own :focus rule (higher specificity than the shared global
     // :focus-visible ring in studio.css), so tabbing to it showed only a border-color change and zero

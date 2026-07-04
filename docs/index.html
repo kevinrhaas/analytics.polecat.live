@@ -174,6 +174,9 @@
   recent/pinned dashboards, plus a small rotating tip card — click its → arrow to see another),
   <strong>Repository</strong> (every data source and dashboard you have,
   browsable and searchable from one page — type in its search box to filter both lists at once;
+  a dashboard also matches if the query doesn't hit its title but does hit one of its bound data
+  access's column names (the card then shows exactly which column matched), so a schema change
+  in a data source is one search away from finding every dashboard it could affect;
   a <strong>Group</strong> filter chip strip above the data-source grid lets you narrow to one
   group at a time (the same "Group" field every data source carries); click a data source to jump
   straight to it in the Studio library, or click a dashboard to reopen

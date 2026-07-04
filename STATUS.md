@@ -2902,6 +2902,11 @@ gets covered over time:
   actually use column X" — extend the Repository's existing search to also match against each recent
   dashboard's bound DA columns (not just title/DA name), so a schema change's blast radius is a search
   away instead of opening every dashboard to check.
+> ✓ **Shipped v327 (closes this idea)**: Repository's dashboard search now falls back to matching each
+> recent dashboard's bound `cda.dataAccesses[].columns` once title/desc don't match, AND surfaces WHICH
+> column matched (a small terracotta "Matches column "…"" hint on the card) so a title-less hit isn't a
+> silent mystery. Pure additive filter/render change — `renderRepository()`'s `dashCards` build +
+> `recentCardHtml()`'s new optional `matchedCol`. 3 new tests.
 
 **N-DIST — Distribution & platform reach (still backend-free).**
 > ✓ **Import from URL shipped v264 (first cut of this idea — a single spec URL, not yet an index of

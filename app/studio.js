@@ -4881,12 +4881,14 @@
         wbOpts.workbooks.map(function (w) { return '<option value="' + esc(w.id) + '"' + (cur === w.id ? " selected" : "") + '>' + esc(w.name) + '</option>'; }).join("") +
         '</select>';
     }
+    var colHint = (wbOpts && wbOpts.matchedCol) ?
+      '<small class="recent-col-match">Matches column “' + esc(wbOpts.matchedCol) + '”</small>' : '';
     return '<div class="recent-card">' +
       '<button class="recent-open" data-recent="' + esc(r.id) + '" aria-label="Open ' + esc(title) + '"></button>' +
       '<button class="recent-pin' + (pinned ? " pinned" : "") + '" data-pin="' + esc(r.id) + '" ' +
         'title="' + (pinned ? "Unpin" : "Pin") + '" aria-label="' + (pinned ? "Unpin " : "Pin ") + esc(title) + '" aria-pressed="' + (pinned ? "true" : "false") + '"></button>' +
       '<div class="recent-thumb">' + thumb + '</div>' +
-      '<div class="recent-meta"><b>' + esc(title) + '</b><small>' + timeAgo(r.ts) + ' · ' + meta + '</small>' + wbSelect + '</div></div>';
+      '<div class="recent-meta"><b>' + esc(title) + '</b><small>' + timeAgo(r.ts) + ' · ' + meta + '</small>' + colHint + wbSelect + '</div></div>';
   }
   // Z2 follow-up: "instructions/how-tos/tips beyond the existing tour link" — a small,
   // dismissable-by-clicking-through tip card on Home surfacing one bite-sized power-user
@@ -5133,11 +5135,29 @@
       if (_repoWbFilter) return r.workbookId === _repoWbFilter;
       return true;
     });
-    var dashCards = filtered.filter(function (r) {
-      if (!q) return true;
+    // Innovation-sweep idea (added 2026-07-04): "which of my saved dashboards use column X" —
+    // once a query's schema changes upstream, this is the only way to find the blast radius
+    // without opening every dashboard. Falls back to matching a bound data access's column
+    // names once the title/desc don't match, and surfaces WHICH column matched on the card so
+    // a title-less hit isn't a mystery.
+    function matchedColumnName(sp, ql) {
+      var found = null;
+      ((sp.cda && sp.cda.dataAccesses) || []).some(function (da) {
+        return (da.columns || []).some(function (c) {
+          if (String(c).toLowerCase().indexOf(ql) >= 0) { found = c; return true; }
+          return false;
+        });
+      });
+      return found;
+    }
+    var dashCards = filtered.map(function (r) {
       var sp = r.spec || {};
-      return ((sp.title || sp.name || "") + " " + (sp.desc || "")).toLowerCase().indexOf(q) >= 0;
-    }).map(function (r) { return recentCardHtml(r, pins.indexOf(r.id) >= 0, { workbooks: workbooks }); });
+      if (!q) return { r: r, show: true, col: null };
+      var titleMatch = ((sp.title || sp.name || "") + " " + (sp.desc || "")).toLowerCase().indexOf(q) >= 0;
+      var col = titleMatch ? null : matchedColumnName(sp, q);
+      return { r: r, show: titleMatch || !!col, col: col };
+    }).filter(function (x) { return x.show; })
+      .map(function (x) { return recentCardHtml(x.r, pins.indexOf(x.r.id) >= 0, { workbooks: workbooks, matchedCol: x.col }); });
     var chipDefs = [{ id: "", name: "All", n: wbCounts.all }]
       .concat(workbooks.map(function (w) { return { id: w.id, name: w.name, n: wbCounts.byId[w.id] || 0, del: true }; }))
       .concat([{ id: "__unfiled", name: "Unfiled", n: wbCounts.unfiled }]);

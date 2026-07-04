@@ -15,6 +15,17 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 327,
+    title: 'N-FUN: cross-dashboard column search in the Repository',
+    kind: 'feature',
+    ts: '2026-07-04T14:30:00Z',
+    items: [
+      'Once a data source\'s schema changes upstream, there was no way to ask "which of my saved dashboards actually use column X" without opening every one to check.',
+      'The Repository\'s dashboard search now also matches against each saved dashboard\'s bound data-access column names, not just its title.',
+      'A matched card shows exactly which column matched, so a hit with no title match isn\'t a silent mystery.',
+    ],
+  },
+  {
     v: 326,
     title: 'N-FUN: a first-ever "zero warnings" dashboard gets a small celebration',
     kind: 'feature',
