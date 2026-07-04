@@ -6260,6 +6260,34 @@
     renderSettings();
   }
 
+  // E8 — the full list of localStorage keys "Clear local data" wipes. Hoisted to a module-level
+  // constant (was previously rebuilt inline inside the click handler every time) so it can be
+  // exposed as a test hook and asserted against directly — every new key introduced elsewhere in
+  // the file should be added here too; see the v194/v235/v281 notes below for the recurring "new
+  // key, forgot Clear local data" gap this guards against.
+  var CLEAR_DATA_KEYS = [
+    "studio-autosave", "studio-export-history", "studio-theme", "studio-app-theme",
+    "studio-lw", "studio-rw", "studio-collapse-library", "studio-collapse-inspector",
+    "studio-connections", "studio-active-conn", "studio-mob-tab", "studio-simple-mode",
+    "studio-insp-collapsed", "studio-recents", "studio-pins", "studio-workbooks", "studio-branding", "studio-versions",
+    "studio-shell-section", "studio-shell-expanded",
+    "studio-default-jndi", "studio-default-subtitle", "studio-default-accent", "studio-default-logo", "studio-default-headerbg",
+    // N-DESIGN follow-up: studio-default-dashboardtheme (v281) and studio-default-cardskin were/are
+    // new Settings-default keys — folded straight into this list from the start this time, since
+    // studio-default-dashboardtheme itself was found missing here while adding cardSkin (same "new
+    // Settings key, forgot Clear local data" gap the v194/v235 notes describe).
+    "studio-default-titlesize", "studio-default-subtitlestyle", "studio-default-dashboardtheme", "studio-default-cardskin", "studio-style-presets",
+    "studio-cmdk-usage", "studio-first-export-done", "studio-export-count", "studio-dash-count",
+    "studio-deploy-path", "studio-live-data", "studio-templatevar-sets", "studio-da-freshness",
+    "studio-canvas-notes",
+    // Track L sweep (dead/orphaned-key lens): "studio-k8-dismissed" (the Simple-mode "What's
+    // next?" onboarding card's dismissal flag) was written on dismiss but never wiped here — the
+    // exact "new key, forgot Clear local data" gap the v194/v235/v281 notes above already
+    // describe, just for a dismissal flag rather than a Settings default this time.
+    "studio-k8-dismissed"
+  ];
+  window.__studioClearDataKeys = CLEAR_DATA_KEYS; // test hook
+
   function wireTopbar() {
     // Z6 naming model: the topbar title is now a jump-to-inspector button, not an inline
     // editor — renaming happens in one place (the Dashboard inspector's Title field), so
@@ -6544,22 +6572,7 @@
     // E8 — Clear local data: wipe all Studio localStorage with a confirm, then toast
     var moreClearData = $("#moreClearData"); if (moreClearData) moreClearData.onclick = function () {
       closeMenus();
-      var keys = [
-        "studio-autosave", "studio-export-history", "studio-theme", "studio-app-theme",
-        "studio-lw", "studio-rw", "studio-collapse-library", "studio-collapse-inspector",
-        "studio-connections", "studio-active-conn", "studio-mob-tab", "studio-simple-mode",
-        "studio-insp-collapsed", "studio-recents", "studio-pins", "studio-workbooks", "studio-branding", "studio-versions",
-        "studio-shell-section", "studio-shell-expanded",
-        "studio-default-jndi", "studio-default-subtitle", "studio-default-accent", "studio-default-logo", "studio-default-headerbg",
-        // N-DESIGN follow-up: studio-default-dashboardtheme (v281) and studio-default-cardskin (this
-        // slice) were/are new Settings-default keys — folded straight into this list from the start
-        // this time, since studio-default-dashboardtheme itself was found missing here while adding
-        // cardSkin (same "new Settings key, forgot Clear local data" gap the v194/v235 notes describe).
-        "studio-default-titlesize", "studio-default-subtitlestyle", "studio-default-dashboardtheme", "studio-default-cardskin", "studio-style-presets",
-        "studio-cmdk-usage", "studio-first-export-done", "studio-export-count", "studio-dash-count",
-        "studio-deploy-path", "studio-live-data", "studio-templatevar-sets", "studio-da-freshness",
-        "studio-canvas-notes"
-      ];
+      var keys = CLEAR_DATA_KEYS;
       var msg = "Clear all locally-stored Studio data?\n\nThis will remove:\n" +
         "  • Unsaved spec draft (autosave)\n" +
         "  • Export history\n" +

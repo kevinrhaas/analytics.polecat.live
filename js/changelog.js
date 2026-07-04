@@ -15,6 +15,16 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 313,
+    title: 'Track L sweep: orphaned localStorage key fixed + Clear-local-data list hardened',
+    kind: 'fix',
+    ts: '2026-07-04T08:29:44Z',
+    items: [
+      'Found + fixed a real gap while auditing the codebase for orphaned state: "studio-k8-dismissed" (the Simple-mode "What\'s next?" onboarding card\'s dismissal flag) was written on dismiss but never wiped by Clear local data -- the same recurring "new key, forgot Clear local data" class of bug the v194/v235/v281 notes already describe.',
+      'Hoisted the Clear-local-data key list out of the click handler into a module-level constant exposed as a test hook, so future additions can be asserted against directly instead of relying on a second, easily-forgotten hardcoded copy in the test file. 1 new/strengthened test, suite 1357/1357.',
+    ],
+  },
+  {
     v: 312,
     title: 'N-DATA follow-up: Compare dashboards gets a real live side-by-side preview',
     kind: 'feature',

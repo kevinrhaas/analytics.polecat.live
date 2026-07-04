@@ -920,6 +920,13 @@
   render every export/preview iframe uses — not a static thumbnail), widened via a new reusable
   `modal-wide` option so both previews fit comfortably; the plain-English diff list is unchanged below
   them. Docs updated. 3 new tests, suite 1357/1357.
+- v313: **Track L sweep (orphaned-state lens): fixed a real Clear-local-data gap** — found
+  `studio-k8-dismissed` (the Simple-mode "What's next?" card's dismissal flag) was written on
+  dismiss but never wiped by Clear local data, the same recurring "new key, forgot Clear local
+  data" bug the v194/v235/v281 notes describe. Hoisted the key list out of the click handler into
+  a module-level constant + test hook (`window.__studioClearDataKeys`) so it can be asserted
+  against directly instead of via a second hardcoded copy in the test file. 1 test strengthened,
+  suite 1357/1357.
 
 ## NEXT (top = do first)
 
@@ -2169,6 +2176,17 @@ gets covered over time:
   `Studio.defineChart({type, render, opts, thumb, autoPick})` contract so new types are uniform and testable.
 - **Test health** — coverage per feature, flaky/slow checks, and a fast smoke subset for quick loops.
 > **Findings log (append newest on top; keep short):**
+> - **Fixed shipped v313 (orphaned-state lens):** `studio-k8-dismissed` (the Simple-mode "What's
+>   next?" onboarding card's dismissal flag, `app/studio.js`) was written via `localStorage.setItem`
+>   on dismiss but never included in the "Clear local data" key list — the exact recurring
+>   "new key, forgot Clear local data" gap the v194/v235/v281 notes below already describe, just
+>   for a one-shot dismissal flag rather than a Settings default this time. A user who dismissed the
+>   card, then later used Clear local data expecting a full reset, would never see it reappear.
+>   Fixed by adding the key, and hoisted the whole key list out of the click handler (it was rebuilt
+>   inline on every click) into a module-level `CLEAR_DATA_KEYS` constant exposed as
+>   `window.__studioClearDataKeys`, so the existing E8 test now asserts against the REAL list
+>   directly instead of a second hardcoded copy in the test file that could silently drift out of
+>   sync with it (as this bug itself proves it already had). Suite 1357/1357.
 > - **Fixed shipped v304 (duplication lens):** `Studio.computeInsights` and `Studio.notablePoint`
 >   (`app/model.js`) independently rebuilt the same filtered `{label,value}` points array from
 >   `cols`/`rows`/`labelCol`/`valueCol` and re-derived byte-identical mean/population-std-dev math,

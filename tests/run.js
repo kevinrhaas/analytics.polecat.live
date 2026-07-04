@@ -5149,20 +5149,24 @@ function serve() {
     ok("E8: Sign out button text is 'Sign out'", e8Menu.signOutText === "Sign out", JSON.stringify(e8Menu));
     ok("E8: Clear local data button text contains 'Clear'", e8Menu.clearDataText.indexOf("Clear") >= 0, JSON.stringify(e8Menu));
 
-    // Verify clear-data removes localStorage keys
+    // Verify clear-data removes localStorage keys — exercises the REAL key list the app's own
+    // "Clear local data" handler uses (window.__studioClearDataKeys, hoisted out of the click
+    // handler in the Track L sweep below), not a second hardcoded copy that could silently drift
+    // out of sync with it.
     const e8Clear = await page.evaluate(() => {
-      // plant a key, then call the handler logic directly (without confirm)
-      try { localStorage.setItem("studio-autosave", JSON.stringify({test:1})); } catch (e) {}
-      var keys = [
-        "studio-autosave", "studio-export-history", "studio-theme",
-        "studio-lw", "studio-rw", "studio-collapse-library", "studio-collapse-inspector",
-        "studio-connections", "studio-active-conn", "studio-mob-tab"
-      ];
+      var keys = window.__studioClearDataKeys;
+      // plant every key, then remove via the real list (without confirm/reload)
+      keys.forEach(function (k) { try { localStorage.setItem(k, JSON.stringify({ test: 1 })); } catch (e) {} });
       try { keys.forEach(function (k) { localStorage.removeItem(k); }); } catch (e) {}
       var remaining = keys.filter(function (k) { try { return localStorage.getItem(k) !== null; } catch (x) { return false; } });
-      return { remaining: remaining };
+      return { keyCount: keys.length, remaining: remaining, hasNotesKey: keys.indexOf("studio-canvas-notes") >= 0, hasK8Key: keys.indexOf("studio-k8-dismissed") >= 0 };
     });
-    ok("E8: all Studio localStorage keys removed by clear-data logic", e8Clear.remaining.length === 0, JSON.stringify(e8Clear));
+    ok("E8: all Studio localStorage keys removed by clear-data logic", e8Clear.keyCount > 20 && e8Clear.remaining.length === 0, JSON.stringify(e8Clear));
+    // Track L sweep (dead/orphaned-key lens): studio-k8-dismissed (the Simple-mode "What's next?"
+    // card's dismissal flag) was found written on dismiss but never wiped by Clear local data —
+    // same recurring "new key, forgot Clear local data" gap the v194/v235/v281 notes describe.
+    ok("E8: the real clear-data key list includes studio-canvas-notes and studio-k8-dismissed (found missing in a Track L sweep)",
+      e8Clear.hasNotesKey && e8Clear.hasK8Key, JSON.stringify(e8Clear));
 
     // ---- E3: Dashboard thumbnail ----
     console.log("\n• Dashboard thumbnail (E3)");
