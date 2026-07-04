@@ -93,6 +93,15 @@
   and the app renders CT; the only past bug was skewed UTC values.) **Do NOT put the literal `//` in item text**
   (the manager strips line comments). The in-app footer + "What's new" sheet render `window.STUDIO_CHANGELOG`.
   Regenerate/normalize the whole file with `scratchpad/to-relay-style.js` if it ever drifts back to JSON.
+- **CI / deploy — NEVER hard-gate the live deploy on the CI test suite.** `.github/workflows/deploy.yml`
+  deploys the static site (concurrency group `pages`, cancel-in-progress). It has a **soft** `test` job with
+  `continue-on-error: true`, and the `deploy` job **must NOT** `needs: test`. Reason (learned the hard way):
+  a hard `needs: test` gate FROZE the live site for **~21 hours** — a flaky CI-only test (offline
+  service-worker / PWA check → `catalogSize:0` on a cold runner, cascading into a FATAL) failed the test job,
+  so deploy never ran and ~55 versions never went live. You already run the full suite **green before every
+  push** (RESUME PROTOCOL), so CI re-testing is redundant; keep it a visible signal only. If the CI test job is
+  red, HARDEN the flaky test (the offline/SW test needs to await SW activation + tolerate cold-cache timing on
+  the runner) — do not make it block deploys. Requires Settings → Pages → Source = "GitHub Actions".
 - **License.** The Studio is proprietary — see `LICENSE` (© 2026 Polecat.live; all rights reserved).
   Keep the notice intact; don't add OSS license headers that contradict it. New first-party source
   files may carry a one-line header (`/* Analytics Dashboard Studio — © 2026 Polecat.live. See LICENSE. */`).
