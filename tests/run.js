@@ -274,6 +274,30 @@ function serve() {
     ok("G1: SQL Builder body opens on toggle click", sqbBasic.bodyVisible, JSON.stringify(sqbBasic));
     ok("G1: Generate SQL writes FROM clause to textarea", sqbBasic.sql.includes("public.fact_sales") && sqbBasic.sql.includes("SELECT"), JSON.stringify({ sql: sqbBasic.sql }));
 
+    // a11y: Track L found a second instance of the same "outline re-declared inside :focus"
+    // bug shape v286 fixed on .repo-search — .dsb-sqb-inp (every FROM/JOIN/SELECT/AGG/WHERE
+    // field in the visual SQL/Kettle query builder, ~20 call sites) set outline:0 inside its
+    // own :focus rule (specificity (0,2,0), beats the shared global input:focus-visible ring
+    // at (0,1,1) regardless of source order) instead of on its unconditional base state like
+    // every sibling field in this file — so tabbing to any of these fields showed zero
+    // keyboard focus ring.
+    const sqbFocusRing = await page.evaluate(async () => {
+      document.getElementById("btnNewDS").click();
+      await new Promise((r) => setTimeout(r, 80));
+      const m = document.querySelector(".modal .dsb"); if (!m) return { err: "modal missing" };
+      const sqbTog = m.querySelector(".dsb-sqb-tog"); if (!sqbTog) return { err: "no toggle" };
+      sqbTog.click(); await new Promise((r) => setTimeout(r, 40));
+      const inp = m.querySelector(".dsb-sqb-body .dsb-sqb-inp"); if (!inp) return { err: "no .dsb-sqb-inp" };
+      inp.focus();
+      const outlineStyle = getComputedStyle(inp).outlineStyle;
+      inp.blur();
+      const cancel = m.querySelector(".dsb-foot .btn:not(.btn-primary)");
+      if (cancel) cancel.click();
+      return { outlineStyle };
+    });
+    ok("a11y: keyboard-focusing a .dsb-sqb-inp field (SQL builder FROM/JOIN/SELECT/etc.) shows a real outline (not 'none')",
+      sqbFocusRing.outlineStyle !== "none", JSON.stringify(sqbFocusRing));
+
     const sqbAdvanced = await page.evaluate(async () => {
       document.getElementById("btnNewDS").click();
       await new Promise((r) => setTimeout(r, 80));

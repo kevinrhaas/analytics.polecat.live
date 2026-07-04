@@ -15,6 +15,18 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 299,
+    title: 'Track L sweep (accessibility lens): SQL query builder fields regain their keyboard focus ring',
+    kind: 'fix',
+    ts: '2026-07-04T04:57:59Z',
+    items: [
+      'Found a second instance of the exact "outline re-declared inside :focus" bug shape a prior sweep (v286) fixed on the Repository search field: .dsb-sqb-inp (every FROM/JOIN/SELECT/AGG/WHERE field in the visual SQL/Kettle query builder, ~20 call sites across the data-source builder) set outline:0 inside its own :focus rule.',
+      'That rule\'s specificity (class + pseudo-class) beats the shared global input:focus-visible ring (tag + pseudo-class) regardless of source order, so tabbing to any FROM/JOIN/SELECT/AGG/WHERE field in the query builder showed a border-color change but zero keyboard focus ring.',
+      'Fixed by moving outline:none onto the field\'s unconditional base rule instead (the pattern every OTHER search/input field in studio.css already follows), so the higher-specificity focus-visible ring can still win for keyboard users while mouse clicks stay ring-free.',
+      '1 new regression test asserting the actual computed outline style on a keyboard-focused field, not just the CSS text. Suite 1325/1325.',
+    ],
+  },
+  {
     v: 298,
     title: 'N-DATA: cross-filter closes out the stacked/grouped bar family',
     kind: 'feature',

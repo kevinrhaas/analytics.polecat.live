@@ -835,6 +835,11 @@
   click double-fire and cancel the filter right back off — affected every cross-filter chart type;
   fixed with a one-time-attach guard. 11 new tests, suite 1324/1324. **N-DATA cross-filter track is
   now feature-complete.**
+- v299: **Track L sweep (accessibility lens): SQL query builder fields regain their keyboard focus
+  ring** — `.dsb-sqb-inp` (every FROM/JOIN/SELECT/AGG/WHERE field in the visual SQL/Kettle query
+  builder) had the same "outline re-declared inside its own `:focus` rule" bug v286 fixed on
+  `.repo-search`, silently killing the keyboard focus ring there too. Fixed by moving `outline:none`
+  onto the base rule instead. 1 new test, suite 1325/1325.
 
 ## NEXT (top = do first)
 
@@ -2084,6 +2089,26 @@ gets covered over time:
   `Studio.defineChart({type, render, opts, thumb, autoPick})` contract so new types are uniform and testable.
 - **Test health** — coverage per feature, flaky/slow checks, and a fast smoke subset for quick loops.
 > **Findings log (append newest on top; keep short):**
+> - **Fixed shipped v299 (accessibility lens):** found a second instance of the exact "outline
+>   re-declared inside `:focus`" bug shape the v286 finding below fixed on `.repo-search` —
+>   `.dsb-sqb-inp` (every FROM/JOIN/SELECT/AGG/WHERE field in the visual SQL/Kettle query builder,
+>   ~20 call sites) set `outline:0` inside its own `:focus` rule, whose specificity (class +
+>   pseudo-class) beats the shared global `input:focus-visible` ring (tag + pseudo-class)
+>   regardless of source order — every field in that builder showed a border-color change but
+>   zero keyboard focus ring. Fixed by moving `outline:none` onto the field's unconditional base
+>   rule instead (the pattern every other search/input field in `studio.css` already follows).
+>   Worth a grep sweep for any other `[a-z-]+:focus\{[^}]*outline` occurrences the next time this
+>   lens comes up, since this is now the second independent instance found. 1 new test, suite
+>   1325/1325.
+> - **Fixed shipped v298 (global-state-creep lens, found while shipping a feature, not a dedicated
+>   sweep):** `wireXFilter()` (`app/studio-render.js`) called `body.addEventListener("click", …)`
+>   on every invocation with no de-dup guard — and it's re-invoked on every `PDC.redrawAll()`
+>   replay (debounced resize, theme change), so the SAME still-live panel body accumulated a new
+>   listener on every redraw. A single click then fired the crossFilter toggle N times in one go;
+>   for an even N that instantly cancelled the filter right back off. Affected every
+>   cross-filter-capable chart type (bars/donut/treemap/lollipop/funnel/waterfall too, not just the
+>   three added that slice) — never caught before because no prior test simulated an actual click,
+>   only DOM-tagging assertions. Fixed with a one-time-attach guard (`body.__xfWired`).
 > - **Fixed shipped v292 (dead-code lens, follow-up to the v276 pass):** `Studio.DuckDB_ensureEngine`/
 >   `Studio.SQLiteHttp_ensureEngine` (each commented "exposed so tests can stub/observe it") and
 >   `Studio.xmlEscape` had zero call sites anywhere in `app/*.js`/`docs/index.html`/`tests/run.js` — the
