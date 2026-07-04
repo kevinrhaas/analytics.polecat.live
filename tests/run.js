@@ -5624,6 +5624,38 @@ function serve() {
     ok("N-DATA: Studio.chartSupports('crossFilter', 'lollipop') is true (inspector shows the section)",
       await page.evaluate(() => Studio.chartSupports("crossFilter", "lollipop") === true));
 
+    // ---- N-DATA follow-up: cross-filter/brushing extended to Funnel ----
+    console.log("\n• N-DATA follow-up: cross-filter extended to Funnel");
+    const xfFunnelPersist = await page.evaluate(() => {
+      try {
+        var spec = window.__STUDIO_STATE.spec;
+        var da = spec.cda && spec.cda.dataAccesses && spec.cda.dataAccesses[0];
+        if (!da) return false;
+        var p = spec.panels[0];
+        p.chart.type = "funnel";
+        p.chart.da = da.id;
+        p.chart.map = { labelCol: da.columns[0] || "label", valueCol: da.columns[1] || "value" };
+        p.crossFilter = { emit: "p_region" };
+        window.__studioLoad(spec);
+        return (window.__STUDIO_STATE.spec.panels[0].crossFilter || {}).emit === "p_region";
+      } catch (e) { return false; }
+    });
+    ok("N-DATA: Funnel crossFilter.emit persists in spec after load", xfFunnelPersist);
+    await page.waitForTimeout(700);
+    const xfFunnelLabels = await page.evaluate(() => {
+      try {
+        var iframe = document.querySelector("#preview");
+        if (!iframe || !iframe.contentDocument) return { ok: false, reason: "no iframe" };
+        var allBars = iframe.contentDocument.querySelectorAll("rect.funnel-bar");
+        if (!allBars.length) return { ok: false, reason: "no rect.funnel-bar elements" };
+        var tagged = Array.from(iframe.contentDocument.querySelectorAll("rect.funnel-bar[data-xf-label]"));
+        return { ok: tagged.length > 0, count: tagged.length, totalBars: allBars.length };
+      } catch (e) { return { ok: false, err: e.message }; }
+    });
+    ok("N-DATA: Funnel bars get data-xf-label attributes when crossFilter.emit is set", xfFunnelLabels.ok, JSON.stringify(xfFunnelLabels));
+    ok("N-DATA: Studio.chartSupports('crossFilter', 'funnel') is true (inspector shows the section)",
+      await page.evaluate(() => Studio.chartSupports("crossFilter", "funnel") === true));
+
     // ---- H2: keyboard shortcuts — Delete to remove panel, Escape to deselect ----
     console.log("\n• keyboard shortcuts (H2: Delete + Escape)");
 

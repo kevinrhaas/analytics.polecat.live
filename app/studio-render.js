@@ -218,6 +218,10 @@
       if (sortByValue) sorted = lvData.slice().sort(function (a, b) { return (+b.value || 0) - (+a.value || 0); });
     } else if (chartType === "lollipop") {
       els = [].slice.call(body.querySelectorAll("circle.dot"));
+    } else if (chartType === "funnel") {
+      // Funnel has no "sort by value" option of its own — stages render in given order,
+      // same reasoning as lollipop above, so `sorted` stays as lvData with no re-sort.
+      els = [].slice.call(body.querySelectorAll("rect.funnel-bar"));
     } else {
       return;
     }

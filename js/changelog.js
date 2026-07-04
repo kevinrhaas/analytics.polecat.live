@@ -15,6 +15,18 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 295,
+    title: 'N-DATA: cross-filter extended to Funnel',
+    kind: 'feature',
+    ts: '2026-07-04T01:25:22Z',
+    items: [
+      'Clicking a Funnel stage now emits a cross-filter just like Bars/Donut/Treemap/Lollipop already did -- Funnel is the next most structurally similar chart (one bar per stage, same labelCol/valueCol binding, no sort-by-value option of its own so stages stay in given order).',
+      'wireXFilter() (app/studio-render.js) gains a funnel branch keyed off a new funnel-bar class on each stage rect (app/studio-charts.js); Studio.ANNOT_CAPS.crossFilter now includes funnel so the Cross-filter inspector section appears for it too.',
+      'Still open: stacked/grouped bar family and any chart without a clean one-element-per-category shape.',
+      '3 new tests, suite 1305/1305.',
+    ],
+  },
+  {
     v: 294,
     title: 'N-DESIGN follow-up: Card style Settings default + preset parity',
     kind: 'polish',

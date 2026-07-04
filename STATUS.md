@@ -804,6 +804,9 @@
 - v294: **N-DESIGN follow-up: Settings default + style-preset parity for Card style** — plus a found-and-
   fixed pre-existing gap: `studio-default-dashboardtheme` (v281) had never been added to the "Clear local
   data" key list. 5 new tests, suite 1302/1302.
+- v295: **N-DATA: cross-filter extended to Funnel** — `wireXFilter()` gains a funnel branch (tags each
+  new `.funnel-bar` stage rect); `ANNOT_CAPS.crossFilter` includes funnel so the inspector section
+  appears. 3 new tests, suite 1305/1305.
 
 ## NEXT (top = do first)
 
@@ -2368,6 +2371,11 @@ gets covered over time:
 > the smallest safe next slice. **Still open:** stacked/grouped bar family (ambiguous — one category maps
 > to multiple series segments, needs a real UX decision on what a click should filter to) and any chart
 > without a clean one-element-per-category shape. 2 new tests, suite 1293/1293.
+> ✓ **Extended to Funnel, shipped v295**: same pattern — a new `funnel-bar` class on each stage rect
+> (`app/studio-charts.js`) lets `wireXFilter()` tag stages with their labels (Funnel also has no sort
+> option, stages stay in given order); `Studio.ANNOT_CAPS.crossFilter` now includes `funnel`. **Still
+> open:** stacked/grouped bar family and any chart without a clean one-element-per-category shape. 3 new
+> tests, suite 1305/1305.
 - **Dashboard-wide formula language:** calculated fields across data sources (not just CDA calc columns) —
   a small safe expression engine (`[revenue] - [cost]`, `pctChange(...)`, `movingAvg(...)`).
 - **Period-over-period / compare mode:** pick two ranges or two sources and diff them across every panel.

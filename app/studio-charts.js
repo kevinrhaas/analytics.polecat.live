@@ -306,7 +306,7 @@
       var slotY = mT + i * slotH;
       var barY = slotY + gap / 2;
       var barX = chartL + (chartW - barW) / 2; // centred
-      var rect = S("rect", { x: barX, y: barY, width: barW, height: barH, rx: 3, fill: col, opacity: 0.85 });
+      var rect = S("rect", { class: "funnel-bar", x: barX, y: barY, width: barW, height: barH, rx: 3, fill: col, opacity: 0.85 });
       (function (lb_, v_, prevV_) {
         rect.addEventListener("mousemove", function (e) {
           var html = "<b>" + lb_ + "</b><br>" + fmt(v_);
