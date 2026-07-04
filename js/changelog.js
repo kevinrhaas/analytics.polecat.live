@@ -15,16 +15,6 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
-    v: 307,
-    title: 'N-DATA: Dashboard health score (first cut)',
-    kind: 'feature',
-    ts: '2026-07-04T06:44:44Z',
-    items: [
-      'New Dashboard inspector section, "Dashboard health" -- a third question beyond the build-completeness meter ("did you fill things in") and Checks ("will this export"): "is this dashboard actually sound."',
-      'Runs the existing Data quality watchdog (v260/v261) over every bound data access\'s own sample rows, and flags a data access that\'s declared in the spec but never wired into any panel, KPI, or filter -- a common leftover from iterating on a dashboard. A compound (join/union) DA\'s leftId/rightId sources count as used even with no panel bound directly to them. 5 new tests, suite 1343/1343.',
-    ],
-  },
-  {
     v: 306,
     title: 'N-DATA follow-up: Test connection also counts as a freshness signal',
     kind: 'feature',

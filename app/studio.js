@@ -1965,17 +1965,6 @@
     if (!issues.length) vs.appendChild(iconNote("ok", "check", "Looks good — ready to export."));
     else issues.forEach(function (x) { vs.appendChild(iconNote(x.level === "error" ? "err" : x.level === "warn" ? "warn" : "info", x.level === "error" ? "close" : x.level === "warn" ? "warn" : "info", x.msg)); });
 
-    // N-DATA (Track N innovation backlog): Dashboard health score — a third question beyond "did
-    // you fill things in" (build-completeness above) and "will this export" (Checks above): "is
-    // this dashboard actually sound." Runs the Data quality watchdog (v260/v261) over every bound
-    // data access's own sample rows and flags a data access declared but never wired into any
-    // panel/KPI/filter.
-    var health = Studio.dashboardHealth(sp);
-    var hs = section(body, "Dashboard health");
-    hs.appendChild(iconNote(health.issues.length ? "warn" : "ok", health.issues.length ? "warn" : "check",
-      "Health: " + health.score + "/" + health.total + (health.issues.length ? " checks passing." : " — no orphaned sources or data quality issues found.")));
-    health.issues.forEach(function (x) { hs.appendChild(iconNote("warn", "warn", x.msg)); });
-
     var sec = section(body, "Dashboard", null, null, "builder");
     var titleInput = input(sp.title, function (v) { sp.title = v; syncHeader(); refreshPreview(); });
     titleInput.id = "dashTitleField"; // Z6: the topbar's "rename" button focuses this field
