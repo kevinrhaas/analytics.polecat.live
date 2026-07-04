@@ -4775,16 +4775,18 @@
       body.appendChild(restoreB);
     });
   }
-  // "Compare dashboards side-by-side" innovation idea, first cut: distinct from the
-  // Version-history diff above (which compares a dashboard against ITS OWN past checkpoint) --
-  // this picks any TWO different saved dashboards from Home/Repository and reuses the exact
-  // same Studio.diffSpecs/diffSummary plain-English diff. Scoped to the diff summary first
-  // (smallest real signal); a true synced-scroll live-preview split-screen is a follow-up.
+  // "Compare dashboards side-by-side" innovation idea: distinct from the Version-history diff
+  // above (which compares a dashboard against ITS OWN past checkpoint) -- this picks any TWO
+  // different saved dashboards from Home/Repository and shows (1) a real live preview of each,
+  // rendered the exact same way the builder's own preview iframe is (Studio.buildHtml + mock
+  // data, so it's a genuine "which of these looks better" comparison, not a static thumbnail)
+  // and (2) a plain-English diff, reusing Studio.diffSpecs/diffSummary verbatim (the same engine
+  // the version-history diff already established).
   function openCompareDashboards() {
     var list = loadRecents();
     if (list.length < 2) { toast("Save at least two dashboards to compare them", true); return; }
     modal("Compare dashboards", function (body) {
-      body.appendChild(hint("Pick any two saved dashboards to see a plain-English summary of what differs between them."));
+      body.appendChild(hint("Pick any two saved dashboards to see a live side-by-side preview and a plain-English summary of what differs between them."));
       var row = el("div", "cmp-pick-row");
       function pickerFor(defaultIdx) {
         var sel = document.createElement("select"); sel.className = "cmp-pick";
@@ -4800,12 +4802,31 @@
       var arrow = el("span", "cmp-arrow"); arrow.textContent = "⇄";
       row.appendChild(selA); row.appendChild(arrow); row.appendChild(selB);
       body.appendChild(row);
+      var pvRow = el("div", "cmp-preview-row");
+      function previewCol() {
+        var col = el("div", "cmp-preview-col");
+        var h = el("h5"); var fr = document.createElement("iframe");
+        fr.className = "cmp-preview-frame"; fr.setAttribute("aria-hidden", "true");
+        col.appendChild(h); col.appendChild(fr);
+        return { col: col, h: h, fr: fr };
+      }
+      var pvA = previewCol(), pvB = previewCol();
+      pvRow.appendChild(pvA.col); pvRow.appendChild(pvB.col);
+      body.appendChild(pvRow);
       var out = el("div", "cmp-out"); body.appendChild(out);
-      function renderDiff() {
-        out.innerHTML = "";
+      function renderPreview(pv, r) {
+        var sp = (r && r.spec) || {};
+        pv.h.textContent = sp.title || sp.name || "Untitled";
+        pv.fr.title = "Live preview: " + (sp.title || sp.name || "Untitled");
+        pv.fr.srcdoc = Studio.buildHtml(sp, S.assets, { preview: true, mock: Studio.genMock(sp), launcher: false });
+        pv.fr.onload = function () { try { pv.fr.contentWindow.postMessage({ studio: 1, type: "theme", value: S.theme }, "*"); } catch (e) {} };
+      }
+      function renderAll() {
         var a = list.filter(function (r) { return r.id === selA.value; })[0];
         var b = list.filter(function (r) { return r.id === selB.value; })[0];
         if (!a || !b) return;
+        renderPreview(pvA, a); renderPreview(pvB, b);
+        out.innerHTML = "";
         if (a.id === b.id) { out.appendChild(noteEl("info", "Pick two different dashboards to compare.")); return; }
         var lines = Studio.diffSummary(Studio.diffSpecs(a.spec || {}, b.spec || {}));
         if (!lines.length) { out.appendChild(noteEl("info", "No differences — these two dashboards match.")); return; }
@@ -4813,9 +4834,9 @@
         lines.forEach(function (line) { var r = el("div", "vdiff-row"); r.textContent = line; listEl.appendChild(r); });
         out.appendChild(listEl);
       }
-      selA.onchange = renderDiff; selB.onchange = renderDiff;
-      renderDiff();
-    });
+      selA.onchange = renderAll; selB.onchange = renderAll;
+      renderAll();
+    }, null, true);
   }
   // Shared markup for one recents/pinned card. Uses a big invisible "open" button
   // covering the whole card (not the card element itself) so the small pin toggle can
@@ -7230,8 +7251,8 @@
   function panelById(id) { return S.spec.panels.filter(function (p) { return p.id === id; })[0]; }
   function renderListsOnly() { if (!S.selection) renderInspector(); }
 
-  function modal(title, build, onClose) {
-    var ov = el("div", "modal-ov"); var m = el("div", "modal");
+  function modal(title, build, onClose, wide) {
+    var ov = el("div", "modal-ov"); var m = el("div", "modal" + (wide ? " modal-wide" : ""));
     var h = el("div", "modal-h"); h.textContent = title; var x = el("button", "x"); x.type = "button"; x.setAttribute("aria-label", "Close " + title); x.appendChild(Studio.icon("close", 16)); h.appendChild(x);
     var b = el("div", "modal-b"); m.appendChild(h); m.appendChild(b); ov.appendChild(m); document.body.appendChild(ov);
     build(b);

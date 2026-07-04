@@ -670,6 +670,13 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
 .cmp-pick{flex:1;min-width:0;padding:6px 8px;border:1px solid var(--line);border-radius:7px;background:var(--field);color:var(--ink);font-size:12.5px}
 .cmp-arrow{color:var(--faint);font-weight:700;flex-shrink:0}
 .cmp-out{margin-top:4px}
+/* N-DATA follow-up: live side-by-side preview above the diff, using the exact same
+   Studio.buildHtml render every export/preview iframe already uses. */
+.cmp-preview-row{display:flex;gap:12px;margin:4px 0 14px}
+.cmp-preview-col{flex:1;min-width:0}
+.cmp-preview-col h5{margin:0 0 6px;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cmp-preview-frame{width:100%;height:280px;border:1px solid var(--line);border-radius:8px;background:#fff}
+@media(max-width:640px){.cmp-preview-row{flex-direction:column}}
 .chart-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:6px}
 .chart-opt{border:1px solid var(--line);border-radius:9px;padding:8px 5px 6px;text-align:center;cursor:pointer;background:var(--pane);transition:border-color .12s,box-shadow .12s,transform .08s;position:relative}
 .chart-opt:hover{border-color:var(--pentaho);transform:translateY(-1px);box-shadow:var(--shadow)}
@@ -737,6 +744,7 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
 /* ── modal (export bundle / live settings) ── */
 .modal-ov{position:fixed;inset:0;background:rgba(12,24,46,.5);display:flex;align-items:center;justify-content:center;z-index:80;padding:24px}
 .modal{background:var(--pane);border-radius:14px;box-shadow:var(--shadow-lg);width:min(560px,94vw);max-height:88vh;display:flex;flex-direction:column;overflow:hidden}
+.modal.modal-wide{width:min(920px,96vw)}
 .modal-h{padding:15px 18px;font-size:15px;font-weight:800;border-bottom:1px solid var(--line);display:flex;align-items:center}
 .modal-h .x{margin-left:auto;background:none;border:0;color:var(--muted);cursor:pointer;display:inline-flex;align-items:center;padding:2px 4px;border-radius:4px}.modal-h .x:hover{background:var(--line)}
 .modal-b{padding:16px 18px;overflow:auto}

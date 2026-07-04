@@ -13494,11 +13494,25 @@ function serve() {
       var sels = modal ? modal.querySelectorAll(".cmp-pick") : [];
       if (sels.length === 2) { sels[0].value = ids.a; sels[0].dispatchEvent(new Event("change", { bubbles: true })); sels[1].value = ids.b; sels[1].dispatchEvent(new Event("change", { bubbles: true })); }
       var rows = modal ? Array.from(modal.querySelectorAll(".vdiff-row")).map(function (r) { return r.textContent; }) : [];
-      return { hasModal: !!modal, pickerCount: sels.length, rowCount: rows.length, mentionsTitle: rows.some(function (r) { return /Title:/.test(r); }), mentionsPanelAdded: rows.some(function (r) { return /New panel/.test(r); }) };
+      var frames = modal ? modal.querySelectorAll(".cmp-preview-frame") : [];
+      var heads = modal ? Array.from(modal.querySelectorAll(".cmp-preview-col h5")).map(function (h) { return h.textContent; }) : [];
+      return {
+        hasModal: !!modal, pickerCount: sels.length, rowCount: rows.length,
+        mentionsTitle: rows.some(function (r) { return /Title:/.test(r); }),
+        mentionsPanelAdded: rows.some(function (r) { return /New panel/.test(r); }),
+        isWide: modal ? modal.classList.contains("modal-wide") : false,
+        frameCount: frames.length,
+        frameASrc: frames.length ? frames[0].srcdoc : "",
+        frameBSrc: frames.length ? frames[1].srcdoc : "",
+        heads: heads
+      };
     }, { a: cmpIdA, b: cmpIdB });
-    ok("N-DATA: 'Compare dashboards' modal opens with two dashboard pickers", cmpUI.hasModal && cmpUI.pickerCount === 2, JSON.stringify(cmpUI));
+    ok("N-DATA: 'Compare dashboards' modal opens wide with two dashboard pickers", cmpUI.hasModal && cmpUI.pickerCount === 2 && cmpUI.isWide, JSON.stringify(cmpUI));
     ok("N-DATA: picking two different saved dashboards shows a real diff (title + added panel)",
       cmpUI.rowCount > 0 && cmpUI.mentionsTitle && cmpUI.mentionsPanelAdded, JSON.stringify(cmpUI));
+    ok("N-DATA follow-up: a genuine live side-by-side preview renders both dashboards (Studio.buildHtml output, not a static thumbnail) labeled by title",
+      cmpUI.frameCount === 2 && /Compare Dash A/.test(cmpUI.frameASrc) && /Compare Dash B/.test(cmpUI.frameBSrc) &&
+      cmpUI.heads[0] === "Compare Dash A" && cmpUI.heads[1] === "Compare Dash B", JSON.stringify(cmpUI));
 
     const cmpSameDash = await page.evaluate(function (id) {
       var modal = document.querySelector(".modal-ov .modal");

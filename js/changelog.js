@@ -15,6 +15,16 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 312,
+    title: 'N-DATA follow-up: Compare dashboards gets a real live side-by-side preview',
+    kind: 'feature',
+    ts: '2026-07-04T08:28:57Z',
+    items: [
+      'The \'Compare dashboards...\' modal (Repository page) now renders a genuine live preview of each of the two picked dashboards side by side -- the exact same Studio.buildHtml render every export/preview iframe already uses, not a static thumbnail -- so \'which of these looks better\' is now an actual answerable question, not just a text diff.',
+      'The modal itself widens to fit two previews comfortably (a new reusable modal-wide option); the plain-English diff summary below is unchanged. Closes the \'still open\' live-preview half of this innovation-sweep idea. 3 new tests.',
+    ],
+  },
+  {
     v: 311,
     title: 'N-DATA innovation sweep: compare dashboards side-by-side (first cut)',
     kind: 'feature',

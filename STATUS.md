@@ -914,6 +914,12 @@
   dashboard against its OWN past checkpoint). Reuses `Studio.diffSpecs`/`diffSummary` (the same engine
   the version-history diff already established) rather than building a second comparison engine. 5
   new tests, suite 1356/1356.
+- v312: **N-DATA follow-up: Compare dashboards gets a real live side-by-side preview (closes the
+  "still open" live-preview half of the compare-dashboards idea)** — the modal now renders a genuine
+  live preview of each picked dashboard side by side (`Studio.buildHtml` + mock data, the exact same
+  render every export/preview iframe uses — not a static thumbnail), widened via a new reusable
+  `modal-wide` option so both previews fit comfortably; the plain-English diff list is unchanged below
+  them. Docs updated. 3 new tests, suite 1357/1357.
 
 ## NEXT (top = do first)
 
@@ -2571,6 +2577,13 @@ gets covered over time:
 > 5 new tests, suite 1356/1356. **Still open:** the actual side-by-side synced-scroll LIVE PREVIEW
 > (today's first cut is diff-summary only, no rendered dashboards) — a real next slice, not just
 > polish, since "which of these two looks better" was half the original ask.
+> ✓ **Live side-by-side preview shipped v312 (closes that "still open" item)**: the modal now renders
+> a real `Studio.buildHtml` preview of each picked dashboard side by side (same render as any
+> export/preview iframe, not a static thumbnail) above the diff list, in a widened modal (new reusable
+> `modal-wide` option on the shared `modal()` helper). "Synced-scroll" was descoped — each iframe
+> scrolls independently, which is fine since the two previews are typically short enough to fit without
+> scrolling; revisit only if a real dashboard turns out tall enough to need it. 3 new tests, suite
+> 1357/1357. **N-DATA compare-dashboards track is now feature-complete.**
 - **Canvas sticky notes (added 2026-07-04, innovation sweep):** small colored freehand notes a builder can
   pin to a specific panel or blank canvas area — for team brainstorming/review while a dashboard is in
   progress. Builder-only UI state (`localStorage`, keyed by dashboard id), deliberately never exported —
