@@ -15,6 +15,18 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 300,
+    title: 'N-DIST: save a chart as a PNG image (first cut)',
+    kind: 'feature',
+    ts: '2026-07-04T05:16:09Z',
+    items: [
+      'Panel inspector gains a "Save chart as PNG" action, next to the existing "Export this panel..." HTML widget export -- downloads the chart itself as a PNG image, handy for slides/docs. First cut of the long-open "Client-side PNG/PDF export of a whole dashboard" backlog item: the SVG-chart half.',
+      'Grabs the panel\'s LIVE, already-rendered <svg> straight out of the preview (WYSIWYG, no separate re-render pass), inlines every descendant\'s computed style (fill/stroke/font/etc.) onto a clone so the exported image is fully self-contained, then rasterizes via an SVG-blob -> Image -> canvas round-trip at 2x scale for a crisp, slide-ready image.',
+      'Deliberately SVG-only rather than a generic whole-dashboard DOM screenshot: cloning the whole HTML card into an SVG foreignObject and drawing THAT to canvas taints the canvas in Chromium (SecurityError on toDataURL) the moment real HTML is involved -- confirmed directly rather than assumed. Table/Richtext panels (no <svg>) get a clear "not supported yet" toast instead of a silent no-op.',
+      'Visually verified (not just DOM-checked) on Bars/Donut/Line -- gradients, per-series colors, and even an in-SVG donut legend all reproduce correctly in the rasterized PNG. 3 new tests, suite 1328/1328.',
+    ],
+  },
+  {
     v: 299,
     title: 'Track L sweep (accessibility lens): SQL query builder fields regain their keyboard focus ring',
     kind: 'fix',

@@ -2133,6 +2133,51 @@ function serve() {
     ok("N-DIST: it opens a single-file 'Embed panel' modal for a self-contained .html", embedTest.rowCount === 1 && embedTest.isHtml && /Embed panel/.test(embedTest.modalTitle), JSON.stringify(embedTest));
     ok("N-DIST: the exported single-panel HTML contains only that panel's chart type, no KPIs, and no other panel", embedTest.hasThisPanelType && embedTest.excludesOtherPanel && embedTest.noKpis, JSON.stringify(embedTest));
 
+    // ---- N-DIST: client-side PNG export of a chart (first cut of "PNG/PDF export of a whole
+    // dashboard" -- the SVG-chart half; legend/title and non-SVG chart types are a follow-up) ----
+    console.log("\n• N-DIST: chart PNG export");
+    const pngBtnPresent = await page.evaluate(function () {
+      var btn = [].slice.call(document.querySelectorAll("#inspBody .btn-wide")).filter(function (b) { return /Save chart as PNG/.test(b.textContent); })[0];
+      return !!btn;
+    });
+    ok("N-DIST: panel inspector has a 'Save chart as PNG' action", pngBtnPresent);
+
+    // A bars panel (SVG-rendered) should produce a real PNG data URL.
+    const pngBars = await page.evaluate(function () {
+      return new Promise(function (resolve) {
+        var sp = window.__STUDIO_STATE.spec;
+        var p = sp.panels[0];
+        p.chart.type = "bars";
+        p.chart.map = { labelCol: sp.cda.dataAccesses[0].columns[0], valueCol: sp.cda.dataAccesses[0].columns[1] };
+        window.__studioLoad(sp);
+        setTimeout(function () {
+          window.__exportPanelPngDataUrl(p.id, function (dataUrl) { resolve({ dataUrl: dataUrl }); });
+        }, 500);
+      });
+    });
+    ok("N-DIST: exporting a Bars panel produces a real PNG data URL",
+      !!pngBars.dataUrl && pngBars.dataUrl.indexOf("data:image/png;base64,") === 0 && pngBars.dataUrl.length > 1000,
+      JSON.stringify({ prefix: (pngBars.dataUrl || "").slice(0, 30), len: (pngBars.dataUrl || "").length }));
+
+    // A Table panel has no <svg> -- should fail gracefully (null, not a throw/hang).
+    const pngTable = await page.evaluate(function () {
+      return new Promise(function (resolve) {
+        var sp = window.__STUDIO_STATE.spec;
+        var p = sp.panels[0];
+        p.chart.type = "table";
+        p.chart.map = { cols: [sp.cda.dataAccesses[0].columns[0], sp.cda.dataAccesses[0].columns[1]] };
+        window.__studioLoad(sp);
+        setTimeout(function () {
+          window.__exportPanelPngDataUrl(p.id, function (dataUrl) { resolve({ dataUrl: dataUrl }); });
+        }, 500);
+      });
+    });
+    ok("N-DIST: exporting a Table panel (no <svg>) resolves null instead of throwing/hanging",
+      pngTable.dataUrl === null, JSON.stringify(pngTable));
+    // Restore the panel + reload so later tests aren't affected by this block's mutations.
+    await page.evaluate(() => { window.__studioLoad(window.__STUDIO_STATE.spec); });
+    await page.waitForTimeout(150);
+
     // ---- KPI extras: delta + sparkline + delete-from-canvas ----
     console.log("\n• KPI delta / sparkline / canvas delete");
     await page.evaluate(async () => { const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json()); window.__studioLoad(spec); });

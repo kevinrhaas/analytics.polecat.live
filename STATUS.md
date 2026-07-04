@@ -840,6 +840,11 @@
   builder) had the same "outline re-declared inside its own `:focus` rule" bug v286 fixed on
   `.repo-search`, silently killing the keyboard focus ring there too. Fixed by moving `outline:none`
   onto the base rule instead. 1 new test, suite 1325/1325.
+- v300: **N-DIST: save a chart as a PNG image (first cut)** — panel inspector gains **Save chart as
+  PNG**, rasterizing the panel's live `<svg>` (computed styles inlined onto a clone, so it's
+  self-contained) via an SVG-blob → Image → canvas round-trip. Deliberately SVG-only — confirmed the
+  "whole-card-in-a-foreignObject" route taints the canvas in Chromium. Visually verified on
+  Bars/Donut/Line. 3 new tests, suite 1328/1328.
 
 ## NEXT (top = do first)
 
@@ -2529,6 +2534,19 @@ gets covered over time:
 - **Installable PWA + offline:** ✓ shipped v243/v245/v246, see above.
 - **Client-side PNG/PDF export of a whole dashboard** (canvas/`html-to-image`-style, dependency-light) and
   print-perfect layouts — for sharing where a link won't do.
+> ✓ **First cut shipped v300 (the single-chart PNG half)**: panel inspector gains **Save chart as
+> PNG** — grabs the panel's live `<svg>` straight out of the preview, inlines every descendant's
+> *computed* style onto a clone (fill/stroke/font/etc., so the exported image is self-contained),
+> then rasterizes via an SVG-blob → `Image` → `canvas` round-trip at 2x scale. Deliberately
+> SVG-only rather than a generic whole-dashboard screenshot: cloning the whole HTML card into an
+> SVG `<foreignObject>` and drawing that to canvas **taints the canvas in Chromium**
+> (`SecurityError` on `toDataURL`) the moment real HTML is involved — confirmed directly in this
+> sandbox's headless Chromium rather than assumed. Table/Richtext panels (no `<svg>`) get a clear
+> "not supported yet" toast instead of a silent no-op. Visually verified (not just DOM-checked) on
+> Bars/Donut/Line — gradients, per-series colors, and even an in-SVG donut legend all reproduce
+> correctly. **Still open:** a true whole-dashboard PNG (needs a different technique for the
+> non-SVG chrome — KPI tiles/titles/legend divs — since the foreignObject route is a dead end in
+> Chromium) and print-perfect PDF layouts. 3 new tests, suite 1328/1328.
 > ✓ **Shareable state links shipped v240 (closes the item below).** Dashboard inspector's new "Share this
 > dashboard" section — `Studio.encodeSpecToShareString`/`decodeSpecFromShareString` (model.js, pure/
 > testable) encode the whole working spec into a `#share=…` URL; opening it (any browser/device) boots

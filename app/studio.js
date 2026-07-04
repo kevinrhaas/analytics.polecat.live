@@ -2504,6 +2504,10 @@
     var embedBtn = el("button", "btn-wide"); setIconBtn(embedBtn, "code", "Export this panel…"); embedBtn.onclick = function () { exportPanelEmbed(p); };
     embedRow.appendChild(embedBtn); sec.appendChild(embedRow);
     sec.appendChild(noteEl("info", "Downloads a tiny, self-contained HTML file with just this one panel — an embeddable widget you can drop anywhere, no server or the rest of the dashboard needed."));
+    var pngRow = el("div"); pngRow.style.cssText = "display:flex;gap:8px;margin-top:6px";
+    var pngBtn = el("button", "btn-wide"); setIconBtn(pngBtn, "image", "Save chart as PNG"); pngBtn.onclick = function () { exportPanelPng(p); };
+    pngRow.appendChild(pngBtn); sec.appendChild(pngRow);
+    sec.appendChild(noteEl("info", "Downloads the chart itself as a PNG image — great for slides/docs. SVG-rendered chart types only (not Table/Richtext); legend and title aren't included, just the chart."));
 
     // chart type picker — grouped by c.group for scannability (Content group = richtext/annotation)
     var cs = section(body, "Chart type", null, null, "chart-types");
@@ -5653,6 +5657,67 @@
     bumpExportMilestone();
     bundleModal("Embed panel", [{ name: stem + "-embed.html", body: Studio.exportCDF(single, S.assets, S.settings.deployPath), mime: "text/html" }]);
   }
+  // N-DIST: client-side PNG export of a chart — first cut of "Client-side PNG/PDF export of a whole
+  // dashboard" (the SVG-chart half; legend/title/table chart types are a separate follow-up).
+  // Grabs the panel's LIVE, already-rendered <svg> straight out of the #preview iframe (WYSIWYG —
+  // whatever's on screen right now, no separate re-render pass), inlines every descendant's
+  // *computed* style (fill/stroke/font/etc.) onto a clone so the exported image is self-contained,
+  // then rasterizes via a classic SVG-blob → Image → canvas round-trip. Deliberately SVG-only, not a
+  // generic DOM screenshot: the naive "clone the whole HTML card into an SVG <foreignObject>, then
+  // draw that to canvas" approach taints the canvas in Chromium (SecurityError on toDataURL) the
+  // moment real HTML is involved, so only the pure-SVG chart itself is exportable this way.
+  var SVG_STYLE_PROPS = ["fill", "stroke", "stroke-width", "stroke-dasharray", "stroke-linecap",
+    "stroke-linejoin", "stroke-opacity", "fill-opacity", "opacity", "font-family", "font-size",
+    "font-weight", "font-style", "text-anchor", "dominant-baseline", "letter-spacing"];
+  function inlineSvgComputedStyle(srcEl, destEl, win) {
+    var cs = win.getComputedStyle(srcEl), css = "";
+    SVG_STYLE_PROPS.forEach(function (k) { var v = cs.getPropertyValue(k); if (v) css += k + ":" + v + ";"; });
+    if (css) destEl.setAttribute("style", css);
+    for (var i = 0; i < srcEl.children.length; i++) inlineSvgComputedStyle(srcEl.children[i], destEl.children[i], win);
+  }
+  // `onDataUrl` is test-only (Playwright drives the canvas/rasterization path directly since a
+  // real click/download isn't observable headlessly); the real UI click path never passes it.
+  function exportPanelPng(p, onDataUrl) {
+    var ifr = $("#preview"), doc = ifr && ifr.contentDocument;
+    var card = doc && doc.querySelector('[data-panel-id="' + p.id + '"]');
+    var svg = card && card.querySelector(".body svg");
+    if (!svg) { toast("This chart type doesn't support PNG export yet"); if (onDataUrl) onDataUrl(null); return; }
+    var win = ifr.contentWindow;
+    var rect = svg.getBoundingClientRect();
+    var w = Math.max(1, Math.round(rect.width)), h = Math.max(1, Math.round(rect.height));
+    var clone = svg.cloneNode(true);
+    inlineSvgComputedStyle(svg, clone, win);
+    clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    clone.setAttribute("width", w); clone.setAttribute("height", h);
+    var bg = win.getComputedStyle(card.querySelector(".body") || card).backgroundColor;
+    var xml = new XMLSerializer().serializeToString(clone);
+    var blobUrl = URL.createObjectURL(new Blob([xml], { type: "image/svg+xml;charset=utf-8" }));
+    var img = new Image();
+    img.onload = function () {
+      var scale = 2; // export at 2x for a crisp, slide/doc-ready image
+      var canvas = document.createElement("canvas");
+      canvas.width = w * scale; canvas.height = h * scale;
+      var ctx = canvas.getContext("2d");
+      ctx.scale(scale, scale);
+      if (bg && bg !== "rgba(0, 0, 0, 0)") { ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h); }
+      ctx.drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(blobUrl);
+      var dataUrl = canvas.toDataURL("image/png");
+      if (onDataUrl) { onDataUrl(dataUrl); return; }
+      var stem = (p.title || "chart").trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "") || "chart";
+      var a = document.createElement("a");
+      a.download = stem + ".png"; a.href = dataUrl;
+      document.body.appendChild(a); a.click(); a.remove();
+      celebrateFirstExport(); bumpExportMilestone();
+    };
+    img.onerror = function () { URL.revokeObjectURL(blobUrl); toast("Couldn't render this chart to PNG"); if (onDataUrl) onDataUrl(null); };
+    img.src = blobUrl;
+  }
+  // Test hook — exercised by Playwright suite.
+  window.__exportPanelPngDataUrl = function (panelId, cb) {
+    var p = panelById(panelId); if (!p) { cb(null); return; }
+    exportPanelPng(p, cb);
+  };
   function duplicateKpi(i) {
     var k = S.spec.kpis[i]; if (!k) return;
     var dup = Studio.clone(k); dup.label = (dup.label || "Metric") + " copy";
