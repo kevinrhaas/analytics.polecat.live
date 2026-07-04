@@ -7381,6 +7381,28 @@
     }
     return '<svg viewBox="0 0 64 28" width="64" height="28" aria-hidden="true">' + bars + legend + '</svg>';
   }
+  function svgTagThumb(withTags) {
+    var vals = [12, 18, 8], w = 12, gap = 4, x = 2, bars = "", tags = "";
+    for (var i = 0; i < vals.length; i++) {
+      var h = vals[i], y = 26 - h;
+      bars += '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="1.5" fill="currentColor" opacity="0.65"/>';
+      if (withTags) tags += '<rect x="' + (x + 1) + '" y="' + (y - 6) + '" width="' + (w - 2) + '" height="4" rx="1" fill="currentColor"/>';
+      x += w + gap;
+    }
+    return '<svg viewBox="0 0 64 28" width="64" height="28" aria-hidden="true">' + bars + tags + '</svg>';
+  }
+  function svgRotateThumb(rotated) {
+    var vals = [10, 16, 7], w = 10, gap = 6, x = 3, bars = "", labels = "";
+    for (var i = 0; i < vals.length; i++) {
+      var h = vals[i], y = 20 - h, cx = x + w / 2;
+      bars += '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="1.5" fill="currentColor" opacity="0.65"/>';
+      var tform = rotated ? ' transform="rotate(-35 ' + cx + ' 24)"' : "";
+      var lineW = rotated ? 9 : 6;
+      labels += '<rect x="' + (cx - lineW / 2) + '" y="23" width="' + lineW + '" height="2.4" rx="1.2" fill="currentColor" opacity="0.85"' + tform + "/>";
+      x += w + gap;
+    }
+    return '<svg viewBox="0 0 64 28" width="64" height="28" aria-hidden="true">' + bars + labels + '</svg>';
+  }
   // Z8 follow-up: inline visual setting hints — a tiny SVG glyph + tooltip next to a
   // boolean option's label, so the dense per-type inspector is self-explanatory without
   // reading a chart's own docs entry. Keyed by option `key` (regex) rather than per chart
@@ -7392,18 +7414,18 @@
     { test: /^showLegend$/,                  icon: "legend",    tip: "Shows a small key mapping each color/series to its label.", thumb: svgLegendThumb },
     { test: /^smooth$/,                      icon: "curve",     tip: "Draws curved (cubic-bezier) segments between points instead of straight lines.", thumb: svgLineThumb },
     { test: /^showDots$/,                    icon: "dots",      tip: "Shows a small marker dot at every data point along the line.", thumb: svgDotsThumb },
-    { test: /^showValues$/,                  icon: "tag",       tip: "Shows the number directly on the chart (bar/segment/point), not just in the hover tooltip." },
-    { test: /^showLabels$/,                  icon: "tag",       tip: "Shows a text label directly on each element, not just in the hover tooltip." },
+    { test: /^showValues$/,                  icon: "tag",       tip: "Shows the number directly on the chart (bar/segment/point), not just in the hover tooltip.", thumb: svgTagThumb },
+    { test: /^showLabels$/,                  icon: "tag",       tip: "Shows a text label directly on each element, not just in the hover tooltip.", thumb: svgTagThumb },
     { test: /^showPct$/,                     icon: "percent",   tip: "Shows the figure as a percentage (of the total, or conversion rate) rather than its raw value." },
-    { test: /^rotate$/,                      icon: "rotate-text", tip: "Tilts the axis labels diagonally so long category names fit without overlapping." },
+    { test: /^rotate$/,                      icon: "rotate-text", tip: "Tilts the axis labels diagonally so long category names fit without overlapping.", thumb: svgRotateThumb },
     { test: /^(trend|showTrend)$/,           icon: "trend-up",  tip: "Draws a straight regression/forecast line through the data, showing its overall direction." },
     { test: /^grandTotal$/,                  icon: "sigma",     tip: "Adds a bold summary row at the bottom, totalling every numeric column over the visible rows." },
     { test: /^(area|fill)$/,                 icon: "area-fill", tip: "Fills the shape with a soft color instead of drawing only its outline." },
     { test: /^showMA$/,                      icon: "moving-avg", tip: "Overlays a smoothed moving-average line to reveal the underlying trend beneath the noisy raw series." },
     { test: /^freezeHeader$/,                icon: "freeze-header", tip: "Keeps the header row pinned in place at the top while the table body scrolls underneath it." },
     { test: /^showTotal$/,                   icon: "total-bar", tip: "Adds a bold final bar showing the running total across all the incremental steps." },
-    { test: /^showVals$/,                    icon: "tag",       tip: "Prints each cell's number directly in the grid, not just in the hover tooltip." },
-    { test: /^showRankNumbers$/,             icon: "tag",       tip: "Prints the numeric rank inside every dot instead of leaving the dots blank." },
+    { test: /^showVals$/,                    icon: "tag",       tip: "Prints each cell's number directly in the grid, not just in the hover tooltip.", thumb: svgTagThumb },
+    { test: /^showRankNumbers$/,             icon: "tag",       tip: "Prints the numeric rank inside every dot instead of leaving the dots blank.", thumb: svgTagThumb },
     { test: /^horizontal$/,                  icon: "swap-axis", tip: "Draws it sideways (horizontal) instead of the default vertical orientation." },
     { test: /^showBox$/,                     icon: "iqr-box",   tip: "Overlays a mini box-and-whisker (quartile range) on top of the density shape." },
     { test: /^showRef$/,                     icon: "ref-line",  tip: "Draws a dashed reference line at the classic 80% cumulative threshold." },

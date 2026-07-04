@@ -15,6 +15,16 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 335,
+    title: '"Show value/label" and "Rotate labels" get real before/after pictures',
+    kind: 'polish',
+    ts: '2026-07-04T17:26:02Z',
+    items: [
+      'Two more option toggles in the panel inspector now show a genuine Off → On popover picture instead of just a tooltip sentence.',
+      'Hover or Tab to the hint glyph next to "Show value/label" or "Rotate labels" to see it — Rotate\'s picture visibly tilts, which is hard to describe in words.',
+    ],
+  },
+  {
     v: 334,
     title: 'New "High Contrast" dashboard theme',
     kind: 'feature',

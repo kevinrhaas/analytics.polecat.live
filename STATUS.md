@@ -1859,6 +1859,15 @@ self-explanatory. Keep it light (inline SVG / CSS, no image assets or deps). One
 > — verified by a regression test — since it's a much less visual concept ("a number appears somewhere")
 > than these four. `docs/index.html` updated. 4 new tests, suite 1445/1445. **Still open:** the tag/percent/
 > rotate/etc. one-off families could still get their own thumbs if a future pass judges a picture clearer.
+> ✓ **Two more families shipped v335 (extends the item above — 'Show value/label' and 'Rotate
+> labels' now also get a real picture)**: the tag-glyph family (`showValues`/`showLabels`/`showVals`/
+> `showRankNumbers` — all four share the same icon and concept, "a label appears on the element")
+> gains a mini bar chart that sprouts label tags above each bar when on; `rotate` gains a mini bar
+> chart whose axis-label ticks visibly tilt ~35° when on vs. stay upright when off — genuinely the
+> single clearest case for a picture over prose in the whole hint set. `showPct` (percent-glyph)
+> deliberately stays tooltip-only, still proving the mechanism is opt-in. `docs/index.html` updated.
+> 4 new tests, suite 1455/1455. **Still open:** `showPct`/`horizontal`/etc. could still get their
+> own thumbs if a future pass judges a picture clearer.
 
 **Z9 — Mobile: fix the broken flows + a proper bottom nav (user-requested 2026-06-30).**
 > ⚠️ **ESCALATED — see the ★★★ TOP PRIORITY — MOBILE block at the top of NEXT** (user re-reported 2026-07-02

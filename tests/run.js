@@ -15882,9 +15882,21 @@ function serve() {
           if (svgs.length !== 2) return false;
           return svgs[0].querySelectorAll("circle").length === 0 && svgs[1].querySelectorAll("circle").length === 5;
         })(),
+        barsValuesHintHasPopover: barsValues.length === 1 && !!barsValues[0].querySelector(".opt-hint-pop"),
+        barsValuesPopoverOnHasMoreRects: barsValues.length === 1 && (function () {
+          var svgs = barsValues[0].querySelectorAll(".opt-hint-pop svg");
+          if (svgs.length !== 2) return false;
+          return svgs[1].querySelectorAll("rect").length > svgs[0].querySelectorAll("rect").length;
+        })(),
+        barsRotateHintHasPopover: barsRotate.length === 1 && !!barsRotate[0].querySelector(".opt-hint-pop"),
+        barsRotatePopoverOnIsTilted: barsRotate.length === 1 && (function () {
+          var svgs = barsRotate[0].querySelectorAll(".opt-hint-pop svg");
+          if (svgs.length !== 2) return false;
+          return svgs[0].innerHTML.indexOf("rotate(") === -1 && svgs[1].innerHTML.indexOf("rotate(") !== -1;
+        })(),
         // A family that deliberately still has NO thumb (proves the opt-in stays selective,
-        // not a blanket change) — the tag-glyph family (showValues et al.) is the control.
-        tagHintHasNoPopover: barsValues.length === 1 && !barsValues[0].querySelector(".opt-hint-pop")
+        // not a blanket change) — the percent-glyph family (showPct) is the control.
+        tagHintHasNoPopover: funnelPct.length === 1 && !funnelPct[0].querySelector(".opt-hint-pop")
       };
       p.chart = prevChart;
       window.__studioSelect(null);
@@ -15926,7 +15938,11 @@ function serve() {
     ok("'Show legend' popover's On picture draws a legend key, Off doesn't", optHintUI.legendPopoverOnHasMoreRects, JSON.stringify(optHintUI));
     ok("'Show data points' hint popover shows a real before/after picture (two SVGs)", optHintUI.dotsHintHasPopover && optHintUI.dotsPopoverHasTwoSvgs, JSON.stringify(optHintUI));
     ok("'Show data points' popover's On picture draws dot markers, Off doesn't", optHintUI.dotsPopoverOnHasCircles, JSON.stringify(optHintUI));
-    ok("Hint families without a thumb (e.g. tag-glyph 'Show value labels') stay tooltip-only, no popover added", optHintUI.tagHintHasNoPopover, JSON.stringify(optHintUI));
+    ok("Bar chart's 'Show value labels' hint popover shows a real before/after picture (two SVGs)", optHintUI.barsValuesHintHasPopover, JSON.stringify(optHintUI));
+    ok("'Show value labels' popover's On picture draws label tags above the bars, Off doesn't", optHintUI.barsValuesPopoverOnHasMoreRects, JSON.stringify(optHintUI));
+    ok("Bar chart's 'Rotate labels' hint popover shows a real before/after picture (two SVGs)", optHintUI.barsRotateHintHasPopover, JSON.stringify(optHintUI));
+    ok("'Rotate labels' popover's On picture is genuinely tilted, Off is upright", optHintUI.barsRotatePopoverOnIsTilted, JSON.stringify(optHintUI));
+    ok("Hint families without a thumb (e.g. percent-glyph 'Show %') stay tooltip-only, no popover added", optHintUI.tagHintHasNoPopover, JSON.stringify(optHintUI));
 
     // a11y: Track L found a THIRD instance of the same "outline re-declared inside :focus"
     // bug shape v286 (.repo-search) and v299 (.dsb-sqb-inp) already fixed — .opt-hint (the
