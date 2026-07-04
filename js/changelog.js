@@ -15,6 +15,17 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 321,
+    title: 'Z2 follow-up: Home gets a Workbook filter (closes the "folders/organization" gap)',
+    kind: 'feature',
+    ts: '2026-07-04T12:24:19Z',
+    items: [
+      'Repository has let you file dashboards into Workbooks since v239, but Home only ever showed one flat Pinned/Recent split with no way to narrow it down -- the last open half of the Z2 "folders/organization" follow-up.',
+      'A Workbook filter chip strip now appears above Home\'s Pinned/Recent dashboards once at least one workbook exists, reusing the exact same studio-workbooks storage and counts Repository already computes -- no new state.',
+      'Deliberately lighter than Repository\'s strip: no add/rename/delete controls here (that stays Repository\'s job) -- Home is the quick-glance view, just pick a chip to narrow what you see. 3 new tests.',
+    ],
+  },
+  {
     v: 320,
     title: 'N-DATA fix: calculated columns now compute in the deployed DuckDB/SQLite live runtime too',
     kind: 'fix',

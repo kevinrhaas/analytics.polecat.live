@@ -1195,12 +1195,18 @@ reopens the exact dashboard (full spec captured on the auto-save debounce path, 
 > ✓ **More lively hover shipped v174**: recent-dashboard cards lift further + gain a warm glow + their
 > thumbnail zooms slightly on hover; quick-create cards get the same glow + an icon bump. Reduced-motion
 > respected. Small CSS-only polish — no new state.
-**Z2 follow-ups (not yet done):** folders/organization, branding area.
+**Z2 follow-ups (not yet done):** branding area.
 > ✓ **Rotating tips card shipped v255 (closes "instructions/how-tos/tips beyond the existing tour
 > link")**: a small card between the quick-create cards and Recents shows one real power-user tip
 > (command palette, pinning, DuckDB file sources, Workbooks, Simple mode, inline setting hints, color
 > themes, forecasting) with a → arrow that cycles through the list; starts on a day-of-month-based
 > index so repeat visits don't always see the same tip. 2 new tests, suite 1167/1167.
+> ✓ **Home Workbook filter shipped v321 (closes "folders/organization" — Home now has the same
+> organizing power Repository already had)**: a Workbook filter chip strip (reusing the exact Z3
+> `studio-workbooks` storage + counts, no new state) appears above Home's Pinned/Recent dashboards
+> once at least one workbook exists; picking a chip narrows both lists to that workbook (or
+> "Unfiled"). Deliberately lighter than Repository's strip — no add/rename/delete controls here,
+> those stay Repository's job; Home is the quick-glance view. 3 new tests, suite 1398/1398.
 
 **Z3 — Repository (Data Sources + Workbooks).** One "repository" holding **data-source definitions** and
 **workbook definitions** (a workbook = a named collection of HTML dashboards). Browse/search/organize into

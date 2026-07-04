@@ -4905,11 +4905,40 @@
   var _homeTipIdx = new Date().getDate() % HOME_TIPS.length;
   window.__studioHomeTipIdx = function () { return _homeTipIdx; }; // test hook
   window.__studioHomeTipsCount = function () { return HOME_TIPS.length; }; // test hook
+  var _homeWbFilter = ""; // Z2 follow-up (folders/organization): "" = All, "__unfiled", else a workbook id
+  window.__studioHomeWbFilter = function () { return _homeWbFilter; }; // test hook
   function renderHome() {
     var sec = $("#secHome"); if (!sec) return;
     var list = loadRecents(), pins = loadPins();
-    var pinnedList = list.filter(function (r) { return pins.indexOf(r.id) >= 0; });
-    var unpinnedList = list.filter(function (r) { return pins.indexOf(r.id) < 0; });
+    // Z2 follow-up (folders/organization): Repository already lets you file dashboards into
+    // Workbooks (Z3); Home only ever showed one flat Recent/Pinned split with no way to narrow
+    // by workbook. Reuses the exact same storage/helpers, just a lighter chip strip (no rename/
+    // delete/add controls here — those stay Repository's job) since Home is a quick-glance view.
+    var workbooks = loadWorkbooks();
+    var validWbIds = {}; workbooks.forEach(function (w) { validWbIds[w.id] = true; });
+    if (_homeWbFilter && _homeWbFilter !== "__unfiled" && !validWbIds[_homeWbFilter]) _homeWbFilter = "";
+    var wbCounts = { all: list.length, unfiled: 0, byId: {} };
+    list.forEach(function (r) {
+      if (r.workbookId && validWbIds[r.workbookId]) wbCounts.byId[r.workbookId] = (wbCounts.byId[r.workbookId] || 0) + 1;
+      else wbCounts.unfiled++;
+    });
+    var wbFiltered = list.filter(function (r) {
+      if (_homeWbFilter === "__unfiled") return !r.workbookId || !validWbIds[r.workbookId];
+      if (_homeWbFilter) return r.workbookId === _homeWbFilter;
+      return true;
+    });
+    var pinnedList = wbFiltered.filter(function (r) { return pins.indexOf(r.id) >= 0; });
+    var unpinnedList = wbFiltered.filter(function (r) { return pins.indexOf(r.id) < 0; });
+    var wbChipsHtml = "";
+    if (workbooks.length) {
+      var wbChipDefs = [{ id: "", name: "All", n: wbCounts.all }]
+        .concat(workbooks.map(function (w) { return { id: w.id, name: w.name, n: wbCounts.byId[w.id] || 0 }; }))
+        .concat([{ id: "__unfiled", name: "Unfiled", n: wbCounts.unfiled }]);
+      wbChipsHtml = '<div class="wb-chips home-wb-chips">' + wbChipDefs.map(function (c) {
+        return '<button type="button" class="wb-chip' + (_homeWbFilter === c.id ? " active" : "") + '" data-home-wb-filter="' + esc(c.id) + '">' +
+          '<span class="wb-chip-label">' + esc(c.name) + '</span> <span class="wb-chip-n">' + c.n + '</span></button>';
+      }).join("") + '</div>';
+    }
     var cards = [
       { act: "blank", ic: "plus", t: "Blank dashboard", d: "Start from scratch" },
       { act: "examples", ic: "grid", t: "Browse examples", d: "Auto-build from a query set" },
@@ -4925,13 +4954,19 @@
       '<p class="home-tip-txt">' + esc(HOME_TIPS[_homeTipIdx]) + '</p>' +
       '<button type="button" class="home-tip-next" title="Next tip" aria-label="Next tip">' +
       '<span data-ic="chevron-right"></span></button></div>' +
+      wbChipsHtml +
       (pinnedList.length ? '<h2 class="home-sub">Pinned</h2><div class="home-recents">' +
         pinnedList.map(function (r) { return recentCardHtml(r, true); }).join("") + '</div>' : "") +
       (unpinnedList.length ? '<h2 class="home-sub">Recent dashboards</h2><div class="home-recents">' +
         unpinnedList.map(function (r) { return recentCardHtml(r, false); }).join("") + '</div>'
-        : (pinnedList.length ? "" : '<div class="home-empty-hint">No recent dashboards yet — start one above and it will show up here.</div>'));
+        : (pinnedList.length ? "" : '<div class="home-empty-hint">' +
+          (_homeWbFilter ? "No dashboards in this workbook yet." : "No recent dashboards yet — start one above and it will show up here.") +
+          '</div>'));
     sec.classList.add("has-content");
     sec.innerHTML = html;
+    $$("[data-home-wb-filter]", sec).forEach(function (btn) {
+      btn.onclick = function () { _homeWbFilter = btn.getAttribute("data-home-wb-filter"); renderHome(); };
+    });
     $$("[data-ic]", sec).forEach(function (span) { span.appendChild(Studio.icon(span.getAttribute("data-ic"), span.classList.contains("home-card-ic") ? 18 : 14)); });
     $$(".home-card", sec).forEach(function (btn) {
       btn.onclick = function () {
@@ -4950,6 +4985,7 @@
       btn.onclick = function (e) { e.stopPropagation(); togglePin(btn.getAttribute("data-pin")); };
     });
   }
+  window.__studioRenderHome = renderHome; // test hook
   window.__studioRecents = loadRecents; // test hook
   window.__studioOpenRecent = openRecent; // test hook
   window.__studioPins = loadPins; // test hook

@@ -13151,6 +13151,49 @@ function serve() {
     // clean up synthetic pin/recents state so it doesn't leak into later tests
     await page.evaluate(function () { localStorage.removeItem("studio-pins"); });
 
+    // ── Z2 follow-up (folders/organization): Home gets a Workbook filter chip strip ──
+    // Repository already lets you file dashboards into Workbooks (Z3); Home only ever showed a
+    // flat Recent/Pinned split with no way to narrow by workbook. Reuses the exact same storage.
+    console.log("\n• Z2 follow-up: Home Workbook filter");
+    const homeWbSetup = await page.evaluate(function () {
+      var recents = window.__studioRecents();
+      var firstId = recents.length ? recents[0].id : null;
+      var wb = window.__studioAddWorkbook("Home Filter Test");
+      if (firstId) window.__studioSetDashboardWorkbook(firstId, wb.id);
+      return { firstId: firstId, wbId: wb.id };
+    });
+    ok("Z2-HWB: setup has a dashboard and a workbook to file it into", !!homeWbSetup.firstId && !!homeWbSetup.wbId, JSON.stringify(homeWbSetup));
+    await page.evaluate(function () { if (window.__studioShellSetSection) window.__studioShellSetSection("home"); window.__studioRenderHome(); });
+    await page.waitForTimeout(120);
+    const homeWbChips = await page.evaluate(function () {
+      var chips = [].slice.call(document.querySelectorAll("#secHome .wb-chip"));
+      return { count: chips.length, labels: chips.map(function (c) { return c.textContent; }) };
+    });
+    ok("Z2-HWB: a Workbook filter chip strip appears on Home once a workbook exists",
+      homeWbChips.count >= 3 && homeWbChips.labels.some(function (l) { return l.indexOf("Home Filter Test") >= 0; }) && homeWbChips.labels.some(function (l) { return l.indexOf("Unfiled") >= 0; }),
+      JSON.stringify(homeWbChips));
+    await page.click('#secHome [data-home-wb-filter="' + homeWbSetup.wbId + '"]');
+    await page.waitForTimeout(100);
+    const homeWbFiltered = await page.evaluate(function (id) {
+      return { cardShown: !!document.querySelector('#secHome [data-recent="' + id + '"]'), filter: window.__studioHomeWbFilter() };
+    }, homeWbSetup.firstId);
+    ok("Z2-HWB: clicking a workbook chip on Home filters recents down to that workbook",
+      homeWbFiltered.cardShown && homeWbFiltered.filter === homeWbSetup.wbId, JSON.stringify(homeWbFiltered));
+    await page.click('#secHome [data-home-wb-filter="__unfiled"]');
+    await page.waitForTimeout(100);
+    const homeWbUnfiled = await page.evaluate(function (id) {
+      return { cardShown: !!document.querySelector('#secHome [data-recent="' + id + '"]') };
+    }, homeWbSetup.firstId);
+    ok("Z2-HWB: the Unfiled chip excludes a dashboard that's been filed into a workbook",
+      !homeWbUnfiled.cardShown, JSON.stringify(homeWbUnfiled));
+    await page.click('#secHome [data-home-wb-filter=""]');
+    await page.waitForTimeout(100);
+    // cleanup: unfile + delete the synthetic workbook, and reset the in-memory filter
+    await page.evaluate(function (args) {
+      window.__studioDeleteWorkbook(args.wbId);
+    }, homeWbSetup);
+    await page.waitForTimeout(80);
+
     // ── Z3 slice 1: Repository — data sources + dashboards, one searchable page ──
     console.log("\n• Z3: Repository section");
     await page.click('#railNav .rail-item[data-sec="repository"]');
