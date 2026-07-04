@@ -15,6 +15,16 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 308,
+    title: 'Docs catch-up: freshness badge + orphaned-DA Checks note',
+    kind: 'polish',
+    ts: '2026-07-04T06:43:05Z',
+    items: [
+      'docs/index.html\'s "Data source freshness" paragraph now mentions the library pane surface and that a successful Test connection counts as a freshness signal too, not just Run live.',
+      'The Build progress paragraph now calls out the new "declared but not used" Checks note for orphaned data accesses. Docs-only, no behavior change -- suite unchanged at 1342/1342.',
+    ],
+  },
+  {
     v: 307,
     title: 'N-DATA: orphaned data-access check (dashboard health score, first slice)',
     kind: 'feature',

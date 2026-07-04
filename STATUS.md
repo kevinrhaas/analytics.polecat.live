@@ -892,6 +892,11 @@
   “X” is declared but not used by any panel or KPI" note in the existing Checks section — dead config a
   builder would otherwise never notice. First slice of the "dashboard health score" innovation idea. 4 new
   tests, suite 1342/1342.
+- v308: **Docs catch-up: freshness badge (library pane + Test connection) and the orphaned-DA Checks
+  note** — `docs/index.html`'s "Data source freshness" paragraph now mentions the library pane surface
+  (v305) and that Test connection also counts (v306); the Build progress paragraph now calls out the new
+  "declared but not used" Checks note (v307). Docs-only, no behavior change — suite unchanged at
+  1342/1342.
 
 ## NEXT (top = do first)
 
