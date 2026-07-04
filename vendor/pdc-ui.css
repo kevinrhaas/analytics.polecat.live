@@ -8,6 +8,7 @@
   --app-bg:#eef3fa; --panel-bg:#ffffff; --panel-border:#dbe3ee;
   --panel-subtle-bg:#f7fafc; --panel-header-bg:#f4f7fa; --panel-header-border:#e3e9ef;
   --panel-shadow:0 1px 3px rgba(0,0,0,.08); --panel-shadow-lg:0 6px 24px rgba(16,38,76,.10);
+  --panel-shadow-xl:0 18px 48px rgba(16,38,76,.20);
   --panel-glass:inset 0 1px 0 rgba(255,255,255,.6),inset 0 -1px 0 rgba(16,38,76,.04);
   --field-bg:#ffffff; --field-border:#c8d2df;
   --text-primary:#1f2838; --text-muted:#677489; --text-faint:#97a3b4;
@@ -25,6 +26,7 @@
   --app-bg:#0f1828; --panel-bg:#162234; --panel-border:#223246;
   --panel-subtle-bg:#101a29; --panel-header-bg:#0d1624; --panel-header-border:#223246;
   --panel-shadow:0 8px 22px rgba(0,0,0,.28); --panel-shadow-lg:0 10px 30px rgba(0,0,0,.4);
+  --panel-shadow-xl:0 24px 60px rgba(0,0,0,.55);
   --panel-glass:inset 0 1px 0 rgba(255,255,255,.08),inset 0 -1px 0 rgba(0,0,0,.3);
   --field-bg:#101a29; --field-border:#2a3a50;
   --text-primary:#e8edf5; --text-muted:#93a1b7; --text-faint:#62718a;
@@ -113,7 +115,7 @@ select.pdc-sel option{color:#1f2838}
 .pdc-qm-ov{position:fixed;inset:0;background:rgba(15,23,42,.55);backdrop-filter:blur(2px);z-index:9999;display:flex;align-items:flex-start;justify-content:center;padding:5vh 16px;animation:pdcqmfade .16s ease}
 @keyframes pdcqmfade{from{opacity:0}to{opacity:1}}
 @media(prefers-reduced-motion:reduce){.pdc-qm-ov{animation:none}}
-.pdc-qm{background:var(--panel-bg);color:var(--text-primary);border:1px solid var(--panel-border);border-radius:var(--radius);box-shadow:var(--panel-shadow-lg),var(--panel-glass);width:min(880px,94vw);max-height:88vh;display:flex;flex-direction:column;overflow:hidden}
+.pdc-qm{background:var(--panel-bg);color:var(--text-primary);border:1px solid var(--panel-border);border-radius:var(--radius);box-shadow:var(--panel-shadow-xl),var(--panel-glass);width:min(880px,94vw);max-height:88vh;display:flex;flex-direction:column;overflow:hidden}
 .pdc-qm-h{display:flex;align-items:center;gap:12px;padding:13px 16px;background:var(--panel-header-bg);border-bottom:1px solid var(--panel-header-border)}
 .pdc-qm-t{font-weight:800;font-size:14px;letter-spacing:.2px}
 .pdc-qm-t code{font-weight:700;font-size:12px;color:var(--pdc);background:var(--panel-subtle-bg);padding:1px 7px;border-radius:6px;margin-left:4px}
@@ -136,7 +138,7 @@ select.pdc-sel option{color:#1f2838}
 /* ── Drill-to-detail drawer (the row-grain "show me the actual records" panel) ── */
 .pdc-dt-ov{position:fixed;inset:0;background:rgba(15,23,42,.45);backdrop-filter:blur(2px);z-index:10000;display:flex;justify-content:flex-end;opacity:0;transition:opacity .18s ease}
 .pdc-dt-ov.in{opacity:1}
-.pdc-dt{background:var(--panel-bg);color:var(--text-primary);border-left:1px solid var(--panel-border);box-shadow:var(--panel-shadow-lg),var(--panel-glass);
+.pdc-dt{background:var(--panel-bg);color:var(--text-primary);border-left:1px solid var(--panel-border);box-shadow:var(--panel-shadow-xl),var(--panel-glass);
   width:min(680px,96vw);max-width:96vw;height:100%;display:flex;flex-direction:column;transform:translateX(28px);transition:transform .2s ease}
 .pdc-dt-ov.in .pdc-dt{transform:translateX(0)}
 @media(prefers-reduced-motion:reduce){.pdc-dt-ov,.pdc-dt{transition:none}}

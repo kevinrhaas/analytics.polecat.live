@@ -180,9 +180,20 @@ function serve() {
     // query inspector modal and the drill-to-detail drawer) that only had the plain drop shadow before.
     const sheetGlassCss = await page.evaluate(() => window.__STUDIO_STATE.assets.css);
     ok("N-DESIGN: the CDA query inspector modal (.pdc-qm) carries the glass inset shadow too",
-      sheetGlassCss.indexOf("box-shadow:var(--panel-shadow-lg),var(--panel-glass);width:min(880px") >= 0);
+      sheetGlassCss.indexOf("box-shadow:var(--panel-shadow-xl),var(--panel-glass);width:min(880px") >= 0);
     ok("N-DESIGN: the drill-to-detail drawer (.pdc-dt) carries the glass inset shadow too",
-      sheetGlassCss.indexOf("box-shadow:var(--panel-shadow-lg),var(--panel-glass);\n  width:min(680px") >= 0);
+      sheetGlassCss.indexOf("box-shadow:var(--panel-shadow-xl),var(--panel-glass);\n  width:min(680px") >= 0);
+
+    // N-DESIGN follow-up: a broader elevation scale — a third, deeper shadow tier (--panel-shadow-xl)
+    // for floating surfaces (modal/drawer) so they read as sitting visibly above a merely-hovered
+    // card/KPI tile, instead of sharing the exact same --panel-shadow-lg depth as hover-lift.
+    ok("N-DESIGN: pdc-ui.css declares a third --panel-shadow-xl elevation tier", sheetGlassCss.indexOf("--panel-shadow-xl:") >= 0);
+    const elevationTiers = await frame.evaluate(() => {
+      const cs = getComputedStyle(document.documentElement);
+      return { lg: cs.getPropertyValue("--panel-shadow-lg").trim(), xl: cs.getPropertyValue("--panel-shadow-xl").trim() };
+    });
+    ok("N-DESIGN: --panel-shadow-xl is declared distinct from --panel-shadow-lg (a real deeper tier, not an alias)",
+      !!elevationTiers.xl && elevationTiers.xl !== elevationTiers.lg, JSON.stringify(elevationTiers));
 
     // a11y: focus-visible ring + prefers-reduced-motion coverage on the exported/preview dashboard
     // chrome (vendor/pdc-ui.css) -- distinct from the app chrome's own audit (Z10 covers studio.css).

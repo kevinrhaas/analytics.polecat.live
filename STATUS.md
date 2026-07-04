@@ -854,6 +854,12 @@
   that are always live-capable (DuckDB/SQLite/Snowflake/Databricks/BigQuery/Generic SQL-HTTP) so
   the hundreds of plain Pentaho catalog cards stay badge-free instead of noisy. 2 new tests, suite
   1333/1333.
+- v303: **N-DESIGN follow-up: a broader elevation scale (closes that "still open" item)** — a third,
+  deeper `--panel-shadow-xl` tier (light + dark) now sets the CDA query inspector modal (`.pdc-qm`) and
+  the drill-to-detail drawer (`.pdc-dt`) apart from the shallower `--panel-shadow-lg` tier shared by
+  hover-lifted cards/KPIs — floating surfaces now visibly out-elevate a merely-hovered panel instead of
+  tying with it. Pure additive token + two selector swaps, `vendor/pdc-ui.css` only. 2 new tests, suite
+  1335/1335.
 
 ## NEXT (top = do first)
 
@@ -2650,7 +2656,6 @@ gets covered over time:
 > ✓ **Glass-edge extended to modal/drawer surfaces shipped v284 (closes the "modal/sheet surfaces" half
 > of the "still open" item above)**: the CDA query inspector modal (`.pdc-qm`) and the drill-to-detail
 > drawer (`.pdc-dt`) now carry the same `--panel-glass` inset highlight. 2 new tests, suite 1274/1274.
-> **Still open:** a broader elevation scale beyond hover + this one glass layer, alternate chart "skins."
 > ✓ **Chart "skins" first cut shipped v293 (closes the "alternate chart skins" half of the "still open"
 > item above)**: a **Card style** picker (Dashboard inspector, below Subtitle style) — **Raised (default)**
 > keeps the v277/v280 shadow + glass-edge + hover-lift; **Flat / minimal** strips all three (pure CSS
@@ -2670,6 +2675,12 @@ gets covered over time:
 > one Apply. **Found + fixed a real pre-existing gap while wiring Clear local data**:
 > `studio-default-dashboardtheme` (v281) had never been added to the "Clear local data" key list —
 > folded it in alongside the new `studio-default-cardskin` key. 5 new tests, suite 1302/1302.
+> ✓ **Broader elevation scale shipped v303 (closes the "still open" elevation-scale item above)**: a
+> third, deeper `--panel-shadow-xl` tier now sets the CDA query inspector modal (`.pdc-qm`) and
+> drill-to-detail drawer (`.pdc-dt`) apart from the shallower `--panel-shadow-lg` tier hover-lifted
+> cards/KPIs share — floating surfaces now visibly out-elevate a merely-hovered panel. 2 new tests,
+> suite 1335/1335. **Still open:** further alternate chart-skin moods (hand-drawn/sketch) beyond
+> Raised/Flat.
 
 **N-DEV — Power-user & authoring.**
 - **Live JSON spec editor:** ✓ shipped v267, see below.

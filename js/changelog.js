@@ -15,6 +15,17 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 303,
+    title: 'N-DESIGN follow-up: a broader elevation scale (three depth tiers)',
+    kind: 'polish',
+    ts: '2026-07-04T05:36:45Z',
+    items: [
+      'Closes the long-open "a broader elevation scale beyond hover + one glass layer" item. Until now the toolkit had only two shadow depths -- --panel-shadow (resting) and --panel-shadow-lg (both hover-lifted cards/KPIs AND floating modal/drawer surfaces shared the exact same depth).',
+      'Added a third, deeper tier: --panel-shadow-xl (light + dark themed), now used by the CDA query inspector modal (.pdc-qm) and the drill-to-detail drawer (.pdc-dt) -- so a floating sheet reads as sitting visibly above a merely-hovered card instead of tying with it.',
+      'Pure additive box-shadow token + two selector swaps in vendor/pdc-ui.css, no markup changes; applies everywhere the shared toolkit renders (live preview + every exported Dashboard Framework). 2 new tests, suite 1335/1335.',
+    ],
+  },
+  {
     v: 302,
     title: 'N-DATA follow-up: freshness badge extended to Repository cards',
     kind: 'feature',
