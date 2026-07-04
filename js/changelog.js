@@ -15,6 +15,17 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 329,
+    title: 'Trend/forecast lines now work on Bar charts and Stacked bars',
+    kind: 'feature',
+    ts: '2026-07-04T15:35:00Z',
+    items: [
+      'The trend/forecast overlay (linear, Holt, and seasonal Holt-Winters) was only ever available on Line and Combo charts.',
+      'Vertical Bar charts can now show the same trend line fitted across the bars (horizontal bars skip it, since there\'s no left-to-right sequence to follow).',
+      'Stacked bars gain a trend line fitted over each category\'s stack total.',
+    ],
+  },
+  {
     v: 328,
     title: 'Track H sweep: Home tip rotation surfaces the new column search',
     kind: 'polish',

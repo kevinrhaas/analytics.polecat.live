@@ -3357,6 +3357,27 @@
         if (cfg.rotate) tx.setAttribute("transform", "rotate(-38 " + lx + " " + ty + ")");
         s.appendChild(tx);
       });
+      // Z7 follow-up: trend/forecast overlay (linear/Holt/Holt-Winters, same math as
+      // Line/Combo) across category centers, fitted over the real bar values. Vertical
+      // layout only — horizontal bars have no left-to-right sequence for a trend to
+      // follow, and rank-sorted bars (sortBars) still draw one, on the displayed order.
+      if (cfg.showTrend && n2 > 1) {
+        var bTrendMethod = cfg.trendMethod === "holt" ? "holt" : (cfg.trendMethod === "hw" ? "hw" : "linear");
+        var bAlpha = Math.min(1, Math.max(.01, (+cfg.alpha || 30) / 100)), bBeta = Math.min(1, Math.max(.01, (+cfg.beta || 10) / 100));
+        var bGamma = Math.min(1, Math.max(.01, (+cfg.gamma || 20) / 100)), bSeasonLen = Math.max(2, Math.floor(+cfg.seasonLength || 4));
+        var bVals = data.map(function (d) { return +d.value || 0; });
+        var btr = bTrendMethod === "hw" ? holtWintersOf(bVals, bAlpha, bBeta, bGamma, bSeasonLen) :
+          bTrendMethod === "holt" ? holtOf(bVals, bAlpha, bBeta) : trendOf(bVals);
+        var bxc = function (i) { return mL2 + i * bw2 + bw2 / 2; }, bys = function (v) { return mT2 + ih2 * (1 - v / (max || 1)); };
+        var bTrendD = (bTrendMethod === "holt" || bTrendMethod === "hw")
+          ? btr.fitted.map(function (v, i) { return (i ? "L" : "M") + bxc(i) + "," + bys(v); }).join(" ")
+          : "M" + bxc(0) + "," + bys(btr.intercept) + " L" + bxc(n2 - 1) + "," + bys(btr.intercept + btr.slope * (n2 - 1));
+        var bTrendPath = S("path", { d: bTrendD, fill: "none", stroke: PDC.cssvar("--pdc"),
+          "stroke-width": 1.6, "stroke-dasharray": "8,3", opacity: .6, class: "trend-line" });
+        var bMethodLabel = bTrendMethod === "hw" && btr.season ? "Holt-Winters (seasonal)" : bTrendMethod === "hw" ? "Holt smoothing (not enough data for a season)" : bTrendMethod === "holt" ? "Holt smoothing" : "trend";
+        _tip(bTrendPath, bMethodLabel);
+        s.appendChild(bTrendPath);
+      }
     }
     function apply(a) {
       if (a.kind === "width") a.el.setAttribute("width", a.to);
@@ -3425,6 +3446,25 @@
       if (cfg.rotate) tx.setAttribute("transform", "rotate(-38 " + lx + " " + ty + ")");
       s.appendChild(tx);
     });
+    // Z7 follow-up: same trend/forecast overlay as Bars/Line/Combo, fitted over each
+    // category's STACK TOTAL (`totals`, already in display order) — the only single
+    // number per category a stacked bar has to trend against.
+    if (cfg.showTrend && cats2.length > 1) {
+      var sTrendMethod = cfg.trendMethod === "holt" ? "holt" : (cfg.trendMethod === "hw" ? "hw" : "linear");
+      var sAlpha = Math.min(1, Math.max(.01, (+cfg.alpha || 30) / 100)), sBeta = Math.min(1, Math.max(.01, (+cfg.beta || 10) / 100));
+      var sGamma = Math.min(1, Math.max(.01, (+cfg.gamma || 20) / 100)), sSeasonLen = Math.max(2, Math.floor(+cfg.seasonLength || 4));
+      var str = sTrendMethod === "hw" ? holtWintersOf(totals, sAlpha, sBeta, sGamma, sSeasonLen) :
+        sTrendMethod === "holt" ? holtOf(totals, sAlpha, sBeta) : trendOf(totals);
+      var sxc = function (i) { return mL + i * bw + bw / 2; }, sys = function (v) { return mT + ih * (1 - v / (max || 1)); };
+      var sTrendD = (sTrendMethod === "holt" || sTrendMethod === "hw")
+        ? str.fitted.map(function (v, i) { return (i ? "L" : "M") + sxc(i) + "," + sys(v); }).join(" ")
+        : "M" + sxc(0) + "," + sys(str.intercept) + " L" + sxc(cats2.length - 1) + "," + sys(str.intercept + str.slope * (cats2.length - 1));
+      var sTrendPath = S("path", { d: sTrendD, fill: "none", stroke: PDC.cssvar("--pdc"),
+        "stroke-width": 1.6, "stroke-dasharray": "8,3", opacity: .6, class: "trend-line" });
+      var sMethodLabel = sTrendMethod === "hw" && str.season ? "Holt-Winters (seasonal)" : sTrendMethod === "hw" ? "Holt smoothing (not enough data for a season)" : sTrendMethod === "holt" ? "Holt smoothing" : "trend";
+      _tip(sTrendPath, "Total " + sMethodLabel);
+      s.appendChild(sTrendPath);
+    }
     if (cfg.legend !== false) {
       var d = document.createElement("div"); d.className = "legend";
       series2.forEach(function (se, i) {

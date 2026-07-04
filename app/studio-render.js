@@ -485,6 +485,8 @@
         case "bars":
           PDC.bars(body, { horizontal: o.horizontal !== false, rotate: !!o.rotate, fmt: f,
             sortBars: !!o.sortBars, showValues: o.showValues !== false,
+            showTrend: !!o.showTrend, trendMethod: o.trendMethod,
+            alpha: o.alpha, beta: o.beta, gamma: o.gamma, seasonLength: o.seasonLength,
             color: color(o.color, "--pentaho"), height: o.height || 300,
             data: cfData(csData(lv(res, m.labelCol, m.valueCol), p.colorScale), p.condFmt),
             drill: drillCfg, detail: detailCfg });
@@ -538,6 +540,8 @@
             PDC.step(body, { area: !!o.area, fmt: f, height: o.height || 300, labels: labels, series: series });
           else
             PDC.stacked(body, { rotate: !!o.rotate, sortStack: !!o.sortStack, showValues: !!o.showValues,
+              showTrend: !!o.showTrend, trendMethod: o.trendMethod,
+              alpha: o.alpha, beta: o.beta, gamma: o.gamma, seasonLength: o.seasonLength,
               fmt: f, height: o.height || 300,
               categories: labels, series: series.map(function (s) { return { name: s.name, color: s.color, values: s.values }; }) });
           break;

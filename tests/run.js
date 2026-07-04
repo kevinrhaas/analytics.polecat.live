@@ -5385,6 +5385,97 @@ function serve() {
       ["showTrend", "trendMethod", "alpha", "beta", "gamma", "seasonLength"].every(function (k) { return comboTrendOpts.keys.indexOf(k) >= 0; }),
       JSON.stringify(comboTrendOpts));
 
+    // Z7 follow-up: extend the same trend/forecast overlay to the vertical Bar chart
+    // (closes the "bars" half of the "still open: bars/stacked" backlog note). Drives the
+    // real studio-render.js dispatch, same rigor as the Combo test above — this is the only
+    // render path for both the live preview and every real export.
+    const barsTrend = await page.evaluate(async () => {
+      const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json());
+      var d = spec.cda.dataAccesses.find((x) => x.id === "cost_trend") || spec.cda.dataAccesses[1];
+      spec.kpis = []; spec.filters = [];
+      spec.panels = [{ id: "z7bt", title: "BarsTrend", span: "full", chart: {
+        type: "bars", da: d.id,
+        map: { labelCol: d.columns[0], valueCol: d.columns[1] },
+        opts: { height: 260, horizontal: false }
+      } }];
+      window.__studioLoad(spec);
+      var doc = await window.__waitForPreview((dd) => (dd.querySelector("#content") || {}).textContent.indexOf("BarsTrend") >= 0);
+      var offTrend = doc.querySelector(".trend-line");
+      // Horizontal bars have no left-to-right sequence — trend must stay off even if requested.
+      spec.panels[0].chart.opts.horizontal = true;
+      spec.panels[0].chart.opts.showTrend = true;
+      window.__studioLoad(spec);
+      doc = await window.__waitForPreview((dd) => (dd.querySelector("#content") || {}).textContent.indexOf("BarsTrend") >= 0);
+      var horizTrend = doc.querySelector(".trend-line");
+      // Vertical + showTrend: linear default draws a single straight segment.
+      spec.panels[0].chart.opts.horizontal = false;
+      window.__studioLoad(spec);
+      doc = await window.__waitForPreview((dd) => !!dd.querySelector(".trend-line"));
+      var linearTrend = doc.querySelector(".trend-line");
+      var linearSegs = linearTrend ? (linearTrend.getAttribute("d").match(/L/g) || []).length : 0;
+      // Holt-Winters: multi-segment fitted line proves trendMethod reached PDC.bars for real.
+      spec.panels[0].chart.opts.trendMethod = "hw";
+      spec.panels[0].chart.opts.seasonLength = 2;
+      window.__studioLoad(spec);
+      doc = await window.__waitForPreview((dd) => {
+        var t = dd.querySelector(".trend-line");
+        return !!t && (t.getAttribute("d").match(/L/g) || []).length > 1;
+      });
+      var hwTrend = doc.querySelector(".trend-line");
+      var hwSegs = hwTrend ? (hwTrend.getAttribute("d").match(/L/g) || []).length : 0;
+      return { offHasNoTrend: !offTrend, horizHasNoTrend: !horizTrend, linearHasOneSeg: linearSegs === 1, hwHasMoreSegs: hwSegs > 1 };
+    });
+    ok("Z7 follow-up: vertical Bars has no .trend-line when 'Show trend line' is off (default)", barsTrend.offHasNoTrend, JSON.stringify(barsTrend));
+    ok("Z7 follow-up: horizontal Bars never draws .trend-line, even with showTrend:true (no left-to-right sequence)", barsTrend.horizHasNoTrend, JSON.stringify(barsTrend));
+    ok("Z7 follow-up: vertical Bars' default (linear) trend is a single straight segment", barsTrend.linearHasOneSeg, JSON.stringify(barsTrend));
+    ok("Z7 follow-up: Bars' trendMethod:'hw' actually reaches PDC.bars through the real dispatch — a genuine multi-segment seasonal fit", barsTrend.hwHasMoreSegs, JSON.stringify(barsTrend));
+
+    // Z7 follow-up: extend the same trend/forecast overlay to Stacked bars, fitted over each
+    // category's STACK TOTAL (the only single number per category a stack has to trend against).
+    const stackedTrend = await page.evaluate(async () => {
+      const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json());
+      var d = spec.cda.dataAccesses.find((x) => x.id === "cost_trend") || spec.cda.dataAccesses[1];
+      spec.kpis = []; spec.filters = [];
+      spec.panels = [{ id: "z7st", title: "StackedTrend", span: "full", chart: {
+        type: "stacked", da: d.id,
+        map: { labelCol: d.columns[0], series: [{ col: d.columns[1] }, { col: d.columns[d.columns.length - 1] }] },
+        opts: { height: 260 }
+      } }];
+      window.__studioLoad(spec);
+      var doc = await window.__waitForPreview((dd) => (dd.querySelector("#content") || {}).textContent.indexOf("StackedTrend") >= 0);
+      var offTrend = doc.querySelector(".trend-line");
+      spec.panels[0].chart.opts.showTrend = true;
+      window.__studioLoad(spec);
+      doc = await window.__waitForPreview((dd) => !!dd.querySelector(".trend-line"));
+      var linearTrend = doc.querySelector(".trend-line");
+      var linearSegs = linearTrend ? (linearTrend.getAttribute("d").match(/L/g) || []).length : 0;
+      spec.panels[0].chart.opts.trendMethod = "hw";
+      spec.panels[0].chart.opts.seasonLength = 2;
+      window.__studioLoad(spec);
+      doc = await window.__waitForPreview((dd) => {
+        var t = dd.querySelector(".trend-line");
+        return !!t && (t.getAttribute("d").match(/L/g) || []).length > 1;
+      });
+      var hwTrend = doc.querySelector(".trend-line");
+      var hwSegs = hwTrend ? (hwTrend.getAttribute("d").match(/L/g) || []).length : 0;
+      return { offHasNoTrend: !offTrend, linearHasOneSeg: linearSegs === 1, hwHasMoreSegs: hwSegs > 1 };
+    });
+    ok("Z7 follow-up: Stacked bars has no .trend-line when 'Show trend line' is off (default)", stackedTrend.offHasNoTrend, JSON.stringify(stackedTrend));
+    ok("Z7 follow-up: Stacked bars' default (linear) trend (over category totals) is a single straight segment", stackedTrend.linearHasOneSeg, JSON.stringify(stackedTrend));
+    ok("Z7 follow-up: Stacked bars' trendMethod:'hw' actually reaches PDC.stacked through the real dispatch — a genuine multi-segment seasonal fit", stackedTrend.hwHasMoreSegs, JSON.stringify(stackedTrend));
+
+    const barsStackedTrendOpts = await page.evaluate(function () {
+      var b = (window.Studio.CHARTS.bars || {}).opts || [];
+      var st = (window.Studio.CHARTS.stacked || {}).opts || [];
+      return { barsKeys: b.map(function (od) { return od.key; }), stackedKeys: st.map(function (od) { return od.key; }) };
+    });
+    ok("Z7 follow-up: Studio.CHARTS.bars.opts declares showTrend/trendMethod/alpha/beta/gamma/seasonLength",
+      ["showTrend", "trendMethod", "alpha", "beta", "gamma", "seasonLength"].every(function (k) { return barsStackedTrendOpts.barsKeys.indexOf(k) >= 0; }),
+      JSON.stringify(barsStackedTrendOpts));
+    ok("Z7 follow-up: Studio.CHARTS.stacked.opts declares showTrend/trendMethod/alpha/beta/gamma/seasonLength",
+      ["showTrend", "trendMethod", "alpha", "beta", "gamma", "seasonLength"].every(function (k) { return barsStackedTrendOpts.stackedKeys.indexOf(k) >= 0; }),
+      JSON.stringify(barsStackedTrendOpts));
+
     const f8Radar = await page.evaluate(async () => {
       const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json());
       var d = spec.cda.dataAccesses.find((x) => x.id === "cost_trend") || spec.cda.dataAccesses[1];

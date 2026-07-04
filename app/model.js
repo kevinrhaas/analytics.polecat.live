@@ -582,6 +582,17 @@
         { key: "rotate",     type: "bool",   label: "Rotate labels", def: false },
         { key: "sortBars",   type: "bool",   label: "Sort by value", def: false },
         { key: "showValues", type: "bool",   label: "Show value labels", def: true },
+        // Z7 follow-up: the trend/forecast overlay (linear/Holt/Holt-Winters, shared math
+        // with Line/Combo) extended to the vertical bar layout — reads across category
+        // centers on the same value scale as the bars. Horizontal bars have no meaningful
+        // left-to-right sequence, so the renderer skips it there (see studio-charts.js).
+        { key: "showTrend", type: "bool", label: "Show trend line (vertical bars only)", def: false },
+        { key: "trendMethod", type: "select", label: "Forecast method", def: "linear",
+          choices: [["linear", "Linear trend (OLS)"], ["holt", "Exponential smoothing (Holt)"], ["hw", "Seasonal (Holt-Winters)"]] },
+        { key: "alpha", type: "range", label: "Smoothing level α (%, Holt/Holt-Winters only)", def: 30, min: 0, max: 100, step: 5, suffix: "%" },
+        { key: "beta",  type: "range", label: "Smoothing trend β (%, Holt/Holt-Winters only)", def: 10, min: 0, max: 100, step: 5, suffix: "%" },
+        { key: "gamma", type: "range", label: "Smoothing seasonality γ (%, Holt-Winters only)", def: 20, min: 0, max: 100, step: 5, suffix: "%" },
+        { key: "seasonLength", type: "range", label: "Season length (points, Holt-Winters only)", def: 4, min: 2, max: 12, step: 1 },
         { key: "fmt",        type: "fmt",    label: "Value format", def: "abbr" },
         { key: "color",      type: "color",  label: "Bar color", def: "--pentaho" },
         { key: "height",     type: "int",    label: "Height (px)", def: 300 }
@@ -653,6 +664,15 @@
         { key: "rotate",     type: "bool", label: "Rotate labels", def: false },
         { key: "sortStack",  type: "bool", label: "Sort by total", def: false },
         { key: "showValues", type: "bool", label: "Show value labels", def: false },
+        // Z7 follow-up: same trend/forecast overlay as Bars/Line/Combo, fitted over each
+        // category's STACK TOTAL (the only single number per category a stacked bar has).
+        { key: "showTrend", type: "bool", label: "Show trend line (on category totals)", def: false },
+        { key: "trendMethod", type: "select", label: "Forecast method", def: "linear",
+          choices: [["linear", "Linear trend (OLS)"], ["holt", "Exponential smoothing (Holt)"], ["hw", "Seasonal (Holt-Winters)"]] },
+        { key: "alpha", type: "range", label: "Smoothing level α (%, Holt/Holt-Winters only)", def: 30, min: 0, max: 100, step: 5, suffix: "%" },
+        { key: "beta",  type: "range", label: "Smoothing trend β (%, Holt/Holt-Winters only)", def: 10, min: 0, max: 100, step: 5, suffix: "%" },
+        { key: "gamma", type: "range", label: "Smoothing seasonality γ (%, Holt-Winters only)", def: 20, min: 0, max: 100, step: 5, suffix: "%" },
+        { key: "seasonLength", type: "range", label: "Season length (points, Holt-Winters only)", def: 4, min: 2, max: 12, step: 1 },
         { key: "fmt",        type: "fmt",  label: "Value format", def: "abbr" },
         { key: "height",     type: "int",  label: "Height (px)", def: 300 }
       ],

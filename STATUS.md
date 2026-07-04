@@ -977,6 +977,14 @@
   decision on shipping a live credential inside a static exported file before they can follow; a real
   hosted-file smoke test for both fixed connectors (needs a live/internet environment). 6 new tests,
   suite 1382/1382.
+- v329: **Z7: trend/forecast overlay extended to Bar charts (vertical) and Stacked bars** — closes
+  the "bars/stacked" half of the long-open Z7 note. Same `trendOf`/`holtOf`/`holtWintersOf` math
+  (linear OLS / Holt / seasonal Holt-Winters) now available on `Studio.CHARTS.bars`/`.stacked` via
+  new `showTrend`/`trendMethod`/`alpha`/`beta`/`gamma`/`seasonLength` opts; Bars fits across the raw
+  category values (vertical layout only — horizontal bars have no left-to-right sequence), Stacked
+  fits over each category's stack total. Wired through `studio-render.js`'s real dispatch (the same
+  class of gap the v199 Holt-Winters bug exposed) so preview and every export agree. 9 new tests
+  drive real inspector opts through a real panel + preview iframe. Docs updated. Suite 1431/1431.
 
 ## NEXT (top = do first)
 
@@ -1607,6 +1615,18 @@ chart options / derived series / KPI computations. Keep it light (vanilla-JS mat
 > panel + preview iframe (not a direct `PDC.line`/`PDC.combo` call) specifically so this class of
 > dispatch gap can't silently regress again. 6 new tests, suite 1412/1412. **Still open:** bars/
 > stacked, and a forecast tail for Combo.
+> ✓ **Bars/Stacked trend overlay shipped (2026-07-04, closes the "bars/stacked" half of the note
+> above).** Same shared `trendOf`/`holtOf`/`holtWintersOf` math extended to the vertical **Bar
+> chart** (trend across category values; horizontal bars skip it — no left-to-right sequence to
+> follow there) and to **Stacked bars** (trend fitted over each category's stack TOTAL, the only
+> single number per category a stack has). New `showTrend`/`trendMethod`/`alpha`/`beta`/`gamma`/
+> `seasonLength` opts on both `Studio.CHARTS.bars`/`.stacked`; wired through `studio-render.js`'s
+> real dispatch (the exact fields the v199/Holt-Winters bug above showed get silently dropped if
+> forgotten) so preview and every export share the same fix. 9 new tests drive the real inspector
+> options through a real panel + preview iframe (mirroring the Combo test's rigor) — off-by-default,
+> single-segment linear, and multi-segment Holt-Winters all asserted; horizontal bars asserted to
+> never draw the overlay even when explicitly requested. Docs updated. Suite 1431/1431. **Still
+> open:** a forecast tail for Combo/Bars/Stacked (today only Line widens its x-scale for one).
 > ✓ **Slice 4 shipped v204 — statistical KPI computations, first cut**: KPI inspector gets an
 > **Aggregation** picker (First row / Sum / Average / Median / Min / Max / P90 / P95 / Std deviation);
 > non-default choices recompute the tile's value across every row the bound query returns instead of only
