@@ -84,10 +84,15 @@
   literal with **UNQUOTED keys and SINGLE-QUOTED strings, apostrophes escaped as `\'`** (double quotes inside
   stay raw), e.g.:
   `{ v: <INTEGER, +1 over top>, title: '…', kind: 'feature'|'polish'|'fix', ts: '<ISO-8601 UTC>', items: [ '…' ] }`.
-  Prepend ONE entry at the TOP per user-visible change. **`ts` MUST be real** — stamp the ACTUAL UTC commit
-  time (`date -u`); never fabricate/future-date. **Do NOT put the literal `//` in item text** (the manager
-  strips line comments). The in-app footer + "What's new" sheet render `window.STUDIO_CHANGELOG`. Regenerate/
-  normalize the whole file with `scratchpad/to-relay-style.js` if it ever drifts back to JSON.
+  Prepend ONE entry at the TOP per user-visible change. **`ts` MUST be real — but do NOT trust the local clock:**
+  these ephemeral run containers have shown **clock skew of ~1 day** (entries got stamped `2026-07-02` while
+  the true date was `07-03/07-04`), so `date -u` / `new Date()` are unreliable. Stamp `ts` from an
+  **authoritative network time source** instead, e.g.
+  `date -u -d "$(curl -sI https://www.google.com | grep -i '^date:' | sed 's/^[Dd]ate: //')" +%Y-%m-%dT%H:%M:%SZ`
+  (or GitHub's `Date:` header). Never fabricate/future-date. (Timezone handling itself is fine — `ts` is UTC
+  and the app renders CT; the only past bug was skewed UTC values.) **Do NOT put the literal `//` in item text**
+  (the manager strips line comments). The in-app footer + "What's new" sheet render `window.STUDIO_CHANGELOG`.
+  Regenerate/normalize the whole file with `scratchpad/to-relay-style.js` if it ever drifts back to JSON.
 - **License.** The Studio is proprietary — see `LICENSE` (© 2026 Polecat.live; all rights reserved).
   Keep the notice intact; don't add OSS license headers that contradict it. New first-party source
   files may carry a one-line header (`/* Analytics Dashboard Studio — © 2026 Polecat.live. See LICENSE. */`).
