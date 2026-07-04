@@ -908,11 +908,6 @@
   progress, pinned to a specific panel or general. Deliberately never exported — pure scratch space
   in `localStorage["studio-canvas-notes"]`, keyed by dashboard id, wiped by Clear local data. 5 new
   tests, suite 1351/1351.
-- v311: **Track N: compare dashboards side-by-side (first cut)** — Home/Repository dashboard cards
-  gain a "select for comparison" toggle; picking two shows a "Compare selected" bar that opens a
-  modal with both thumbnails side by side plus a plain-English diff (reuses `Studio.diffSpecs`/
-  `diffSummary` from the Version-history track, not new diff logic). Selection is session-only. 6
-  new tests, suite 1357/1357.
 
 ## NEXT (top = do first)
 
@@ -2562,16 +2557,6 @@ gets covered over time:
   per-dashboard Version-history diff (v262, which compares a dashboard against ITS OWN past checkpoint,
   not two different dashboards). Useful for "which of these two drafts is better" or a before/after across
   a redesign.
-> ✓ **First cut shipped v311**: every dashboard card (Home + Repository, shared `recentCardHtml`) gains
-> a small "select for comparison" toggle (top-left, mirrors the pin star's top-right treatment); picking
-> two shows a "Compare selected" bar, opening a modal with both dashboards' thumbnails + title + panel/
-> KPI counts side by side, plus a plain-English "What's different" list underneath — reuses
-> `Studio.diffSpecs`/`diffSummary` (already built for the Version-history track) rather than new diff
-> logic. Selection (`_compareIds`) is session-only, not persisted. 6 new tests, suite 1357/1357. **Not
-> yet done:** true synced-scroll split-screen live previews (today it's thumbnails, not full
-> interactive dashboards side by side) — a reasonable first cut given the thumbnail+diff combo already
-> answers "which of these two is different/better" for most cases; revisit if that turns out to not be
-> enough.
 - **Canvas sticky notes (added 2026-07-04, innovation sweep):** small colored freehand notes a builder can
   pin to a specific panel or blank canvas area — for team brainstorming/review while a dashboard is in
   progress. Builder-only UI state (`localStorage`, keyed by dashboard id), deliberately never exported —

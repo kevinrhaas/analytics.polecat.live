@@ -4580,65 +4580,6 @@
     renderHome();
     renderRepository();
   }
-
-  // Track N innovation idea (added 2026-07-04): compare dashboards side-by-side — pick any two
-  // saved dashboards from Home/Repository and view their thumbnails + a plain-English diff.
-  // Distinct from the per-dashboard Version-history diff (v262), which compares a dashboard
-  // against ITS OWN past checkpoint — this compares two DIFFERENT dashboards. Selection is
-  // session-only (in-memory, not persisted) — a "pick 2 right now" flow, not a saved state.
-  var _compareIds = [];
-  function toggleCompareSelect(id) {
-    var i = _compareIds.indexOf(id);
-    if (i >= 0) { _compareIds.splice(i, 1); }
-    else { _compareIds.push(id); if (_compareIds.length > 2) _compareIds.shift(); } // keep the 2 most recent picks
-    renderHome();
-    renderRepository();
-  }
-  function compareBarHtml() {
-    if (!_compareIds.length) return "";
-    var n = _compareIds.length;
-    return '<div class="compare-bar">' +
-      '<span>' + n + ' of 2 selected for comparison</span>' +
-      '<button type="button" class="btn" id="compareClearBtn">Clear</button>' +
-      '<button type="button" class="btn btn-primary" id="compareGoBtn"' + (n < 2 ? " disabled" : "") + '>Compare selected</button>' +
-      '</div>';
-  }
-  function wireCompareBar(container) {
-    var clearBtn = $("#compareClearBtn", container); if (clearBtn) clearBtn.onclick = function () { _compareIds = []; renderHome(); renderRepository(); };
-    var goBtn = $("#compareGoBtn", container); if (goBtn) goBtn.onclick = function () { if (_compareIds.length === 2) openCompareDashboards(_compareIds[0], _compareIds[1]); };
-  }
-  function openCompareDashboards(idA, idB) {
-    var list = loadRecents();
-    var rA = list.filter(function (r) { return r.id === idA; })[0], rB = list.filter(function (r) { return r.id === idB; })[0];
-    if (!rA || !rB) { toast("One of the selected dashboards is no longer available.", true); return; }
-    var spA = rA.spec || {}, spB = rB.spec || {};
-    var lines = Studio.diffSummary(Studio.diffSpecs(spA, spB));
-    modal("Compare dashboards", function (body) {
-      var cols = el("div", "compare-cols");
-      [[rA, spA], [rB, spB]].forEach(function (pair) {
-        var r = pair[0], sp = pair[1];
-        var col = el("div", "compare-col");
-        var thumb = el("div", "compare-thumb"); thumb.innerHTML = Studio.makeThumbnail(sp, S.theme) || "";
-        col.appendChild(thumb);
-        var ttl = el("b"); ttl.textContent = sp.title || sp.name || "Untitled"; col.appendChild(ttl);
-        var meta = el("small"); var panels = (sp.panels || []).length, kpis = (sp.kpis || []).length;
-        meta.textContent = panels + " panel" + (panels === 1 ? "" : "s") + (kpis ? " · " + kpis + " KPI" + (kpis === 1 ? "" : "s") : "") + " · updated " + timeAgo(r.ts);
-        col.appendChild(meta);
-        cols.appendChild(col);
-      });
-      body.appendChild(cols);
-      var diffSec = el("div"); diffSec.style.marginTop = "14px";
-      diffSec.appendChild(labelEl("What's different"));
-      if (!lines.length) {
-        diffSec.appendChild(noteEl("info", "These two dashboards look identical by every field this diff checks."));
-      } else {
-        var list2 = el("div", "vdiff-list");
-        lines.forEach(function (line) { var row = el("div", "vdiff-row"); row.textContent = line; list2.appendChild(row); });
-        diffSec.appendChild(list2);
-      }
-      body.appendChild(diffSec);
-    });
-  }
   function noteRecent() {
     if (!S.spec || !S.spec.id) return;
     var existing = loadRecents();
@@ -4854,16 +4795,10 @@
         wbOpts.workbooks.map(function (w) { return '<option value="' + esc(w.id) + '"' + (cur === w.id ? " selected" : "") + '>' + esc(w.name) + '</option>'; }).join("") +
         '</select>';
     }
-    // Track N innovation idea: compare dashboards side-by-side — a small toggle to select this
-    // dashboard as one of the (up to) two being compared, shared state across Home/Repository.
-    var compareSelected = _compareIds.indexOf(r.id) >= 0;
     return '<div class="recent-card">' +
       '<button class="recent-open" data-recent="' + esc(r.id) + '" aria-label="Open ' + esc(title) + '"></button>' +
       '<button class="recent-pin' + (pinned ? " pinned" : "") + '" data-pin="' + esc(r.id) + '" ' +
         'title="' + (pinned ? "Unpin" : "Pin") + '" aria-label="' + (pinned ? "Unpin " : "Pin ") + esc(title) + '" aria-pressed="' + (pinned ? "true" : "false") + '"></button>' +
-      '<button class="recent-compare' + (compareSelected ? " active" : "") + '" data-compare="' + esc(r.id) + '" ' +
-        'title="' + (compareSelected ? "Remove from comparison" : "Select for comparison") + '" ' +
-        'aria-label="' + (compareSelected ? "Remove " + esc(title) + " from comparison" : "Select " + esc(title) + " for comparison") + '" aria-pressed="' + (compareSelected ? "true" : "false") + '"></button>' +
       '<div class="recent-thumb">' + thumb + '</div>' +
       '<div class="recent-meta"><b>' + esc(title) + '</b><small>' + timeAgo(r.ts) + ' · ' + meta + '</small>' + wbSelect + '</div></div>';
   }
@@ -4904,7 +4839,6 @@
       '<p class="home-tip-txt">' + esc(HOME_TIPS[_homeTipIdx]) + '</p>' +
       '<button type="button" class="home-tip-next" title="Next tip" aria-label="Next tip">' +
       '<span data-ic="chevron-right"></span></button></div>' +
-      compareBarHtml() +
       (pinnedList.length ? '<h2 class="home-sub">Pinned</h2><div class="home-recents">' +
         pinnedList.map(function (r) { return recentCardHtml(r, true); }).join("") + '</div>' : "") +
       (unpinnedList.length ? '<h2 class="home-sub">Recent dashboards</h2><div class="home-recents">' +
@@ -4929,11 +4863,6 @@
       btn.appendChild(Studio.icon("star", 14));
       btn.onclick = function (e) { e.stopPropagation(); togglePin(btn.getAttribute("data-pin")); };
     });
-    $$(".recent-compare", sec).forEach(function (btn) {
-      btn.appendChild(Studio.icon("diff", 14));
-      btn.onclick = function (e) { e.stopPropagation(); toggleCompareSelect(btn.getAttribute("data-compare")); };
-    });
-    wireCompareBar(sec);
   }
   window.__studioRecents = loadRecents; // test hook
   window.__studioOpenRecent = openRecent; // test hook
@@ -4948,9 +4877,6 @@
   window.__studioSaveCanvasNote = saveCanvasNote; // test hook
   window.__studioDeleteCanvasNote = deleteCanvasNote; // test hook
   window.__studioOpenNoteEditor = openNoteEditor; // test hook
-  window.__studioCompareIds = function () { return _compareIds.slice(); }; // test hook
-  window.__studioToggleCompareSelect = toggleCompareSelect; // test hook
-  window.__studioOpenCompareDashboards = openCompareDashboards; // test hook
 
   /* ---------- Z3 follow-up: Workbooks — named collections of dashboards -------------------
      The north star describes a "workbook" as a named collection of dashboards; until now
@@ -5110,7 +5036,6 @@
         : '<div class="home-empty-hint">' + (q ? "No data sources match “" + esc(q) + "”." : (_repoDsFilter ? "No data sources in this group yet." : "No data sources yet.")) + '</div>') +
       '<h2 class="home-sub repo-sub2">Dashboards <span class="repo-count">' + dashCards.length + ' of ' + filtered.length + '</span></h2>' +
       chipsHtml +
-      compareBarHtml() +
       (dashCards.length ? '<div class="home-recents">' + dashCards.join("") + '</div>'
         : '<div class="home-empty-hint">' + (q ? "No dashboards match “" + esc(q) + "”." : (_repoWbFilter ? "No dashboards in this workbook yet." : "No dashboards yet — build one in Studio and it will show up here.")) + '</div>');
     $$("[data-ds-filter]", results).forEach(function (btn) {
@@ -5119,11 +5044,6 @@
     $$("[data-wb-filter]", results).forEach(function (btn) {
       btn.onclick = function () { _repoWbFilter = btn.getAttribute("data-wb-filter"); renderRepository(); };
     });
-    $$(".recent-compare", results).forEach(function (btn) {
-      btn.appendChild(Studio.icon("diff", 14));
-      btn.onclick = function (e) { e.stopPropagation(); toggleCompareSelect(btn.getAttribute("data-compare")); };
-    });
-    wireCompareBar(results);
     // Z3 follow-up: rename a workbook via a hover-revealed ✎ button beside the ✕ delete —
     // swaps the chip's label span for an inline <input> (same convention as panel/KPI rename),
     // committing on Enter/blur and discarding on Escape.
@@ -5213,7 +5133,6 @@
     });
   }
   window.__studioRenderRepository = renderRepository; // test hook
-  window.__studioRenderHome = renderHome; // test hook
 
   /* ---------- Z3 follow-up: whole-repository JSON export/import ----------
      Bundled examples/catalog entries already live in the repo as files, so exporting

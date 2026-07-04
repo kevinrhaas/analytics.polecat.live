@@ -15,16 +15,6 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
-    v: 311,
-    title: 'Track N: compare dashboards side-by-side (first cut)',
-    kind: 'feature',
-    ts: '2026-07-04T08:01:30Z',
-    items: [
-      'Home and Repository dashboard cards gain a small "select for comparison" toggle -- pick any two and a "Compare selected" bar appears, opening a modal with both dashboards\' thumbnails side by side plus a plain-English list of what differs.',
-      'Distinct from the per-dashboard Version-history diff (v262, a dashboard vs. its OWN past checkpoint) -- this compares two DIFFERENT saved dashboards, reusing Studio.diffSpecs/diffSummary rather than new diff logic. Selection is session-only (not persisted). 6 new tests, suite 1357/1357.',
-    ],
-  },
-  {
     v: 310,
     title: 'Track N: canvas sticky notes (first cut)',
     kind: 'feature',
