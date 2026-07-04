@@ -897,6 +897,12 @@
   (v305) and that Test connection also counts (v306); the Build progress paragraph now calls out the new
   "declared but not used" Checks note (v307). Docs-only, no behavior change — suite unchanged at
   1342/1342.
+- v309: **N-DATA: data quality watchdog closes the dashboard health score track (+ two false-positive
+  fixes)** — `Studio.validate()` now also runs the Data quality watchdog (v260/v261) over every bound
+  (non-orphaned) DA's own sample rows, surfacing each issue as a warn-level Checks note — closes the
+  "still open" half of the dashboard health score idea. Found + fixed two false positives in the v307
+  "declared but not used" check: a DA bound only to a filter, or only feeding a compound (join/union)
+  DA's leftId/rightId, was wrongly flagged unused. 4 new tests, suite 1346/1346.
 
 ## NEXT (top = do first)
 
@@ -2533,6 +2539,14 @@ gets covered over time:
 > to the smallest real signal first; **still open:** wiring in the Data quality watchdog (v260/v261)
 > and a broken drill-through/detail-drawer target check, plus a distinct glanceable "health score" UI
 > if this grows beyond a Checks-section note. 4 new tests, suite 1342/1342.
+> ✓ **Data quality watchdog wired in, shipped v309 (closes that "still open" half)**: `Studio.validate()`
+> now also runs the watchdog over every bound (non-orphaned) DA's own sample rows, one warn-level Checks
+> note per issue. Found + fixed two false positives in the v307 orphan check while wiring this up: a DA
+> bound only to a filter, or only feeding a compound (join/union) DA's leftId/rightId, was wrongly
+> flagged unused. 4 new tests, suite 1346/1346. **Still open:** a broken drill-through/detail-drawer
+> target check — today `panel.drill`/`kpi.drill` only model an external URL (`{url,param}`), so there's
+> no internal "target that can stop resolving" yet; a distinct glanceable "health score" UI beyond the
+> Checks-section notes remains optional/not yet done too.
 - **Compare dashboards side-by-side (added 2026-07-04, innovation sweep):** pick any two saved dashboards
   from Home/Repository and view them in a synced-scroll split-screen — distinct from the existing
   per-dashboard Version-history diff (v262, which compares a dashboard against ITS OWN past checkpoint,

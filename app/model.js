@@ -2441,11 +2441,32 @@
     // N-DATA innovation idea (added 2026-07-04, "dashboard health score"): flag a declared data
     // access that no panel/KPI actually references — dead config left over from an earlier draft
     // that a builder would otherwise never notice (it doesn't break anything, it's just unused).
+    var das = (spec.cda && spec.cda.dataAccesses) || [];
     var usedDaIds = {};
     spec.panels.forEach(function (p) { if (p.chart && p.chart.da) usedDaIds[p.chart.da] = true; });
     (spec.kpis || []).forEach(function (k) { if (k.da) usedDaIds[k.da] = true; });
-    ((spec.cda && spec.cda.dataAccesses) || []).forEach(function (da) {
-      if (!usedDaIds[da.id]) out.push({ level: "info", msg: "Data access “" + (da.name || da.id) + "” is declared but not used by any panel or KPI." });
+    // Found while extending this check: a DA bound only to a filter, or only feeding a compound
+    // (join/union) DA as its leftId/rightId source, was wrongly flagged "unused" — neither of those
+    // is dead config. Filters bind a DA directly (Studio.addFilter's `f.da`); a compound DA's own
+    // leftId/rightId sources are used BY that compound DA even with no panel bound straight to them.
+    (spec.filters || []).forEach(function (f) { if (f.da) usedDaIds[f.da] = true; });
+    das.forEach(function (da) {
+      if (Studio.isCompoundDA(da)) { if (da.leftId) usedDaIds[da.leftId] = true; if (da.rightId) usedDaIds[da.rightId] = true; }
+    });
+    das.forEach(function (da) {
+      if (!usedDaIds[da.id]) out.push({ level: "info", msg: "Data access “" + (da.name || da.id) + "” is declared but not used by any panel, KPI, or filter." });
+    });
+    // N-DATA innovation idea follow-up: the "still open" half of the dashboard health score idea
+    // — run the existing Data quality watchdog (v260/v261) over every bound DA's own sample rows,
+    // not just the DA that happens to be selected in the inspector at the time. Compound DAs have
+    // no sample rows of their own (they're a join/union OF other DAs), so they're skipped here.
+    das.forEach(function (da) {
+      if (Studio.isCompoundDA(da) || !usedDaIds[da.id]) return; // an orphaned DA already has its own note above
+      var sample;
+      try { sample = Studio.sampleRows({ id: da.id, columns: da.columns || [], params: da.params || [] }).rows; } catch (e) { sample = []; }
+      Studio.dataQualityIssues(da.columns || [], sample).forEach(function (issue) {
+        out.push({ level: "warn", msg: "Data access “" + (da.name || da.id) + "”: " + Studio.dataQualityMessage(issue) });
+      });
     });
     return out;
   };

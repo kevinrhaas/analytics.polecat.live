@@ -9507,6 +9507,54 @@ function serve() {
     ok("N-DATA: the actually-used data access in that same spec is not also flagged", orphanDa.orphanedDoesNotFlagUsedDa, JSON.stringify(orphanDa));
     ok("N-DATA: a data access bound to a KPI (not a panel) is also recognized as used", orphanDa.kpiBoundDaNotFlagged, JSON.stringify(orphanDa));
 
+    // N-DATA follow-up: found + fixed two false positives in that same "declared but not used"
+    // check while closing the "still open" data-quality-watchdog half of this idea — a DA bound
+    // only to a FILTER, or only feeding a compound (join/union) DA as its leftId/rightId source,
+    // was wrongly flagged "unused" even though it genuinely is.
+    const orphanFixes = await page.evaluate(function () {
+      var filterBound = Studio.validate({
+        name: "ok-name", title: "T", panels: [], kpis: [], filters: [{ id: "f1", da: "filterDa" }],
+        cda: { dataAccesses: [{ id: "filterDa", name: "filterDa" }] }
+      });
+      var joinDa = Studio.newCompoundDA("join"); joinDa.id = "joinDa"; joinDa.leftId = "leftDa"; joinDa.rightId = "rightDa";
+      var compoundSpec = Studio.validate({
+        name: "ok-name", title: "T", panels: [{ id: "p1", chart: { da: "joinDa" } }], kpis: [], filters: [],
+        cda: { dataAccesses: [{ id: "leftDa", name: "leftDa" }, { id: "rightDa", name: "rightDa" }, joinDa] }
+      });
+      return {
+        filterBoundNotFlagged: !filterBound.some(function (i) { return /declared but not used/.test(i.msg); }),
+        compoundSourcesNotFlagged: !compoundSpec.some(function (i) { return /declared but not used/.test(i.msg); })
+      };
+    });
+    ok("N-DATA: a data access bound only to a filter is not flagged as orphaned", orphanFixes.filterBoundNotFlagged, JSON.stringify(orphanFixes));
+    ok("N-DATA: a compound (join/union) DA's leftId/rightId sources are not flagged as orphaned even with no panel bound directly to them",
+      orphanFixes.compoundSourcesNotFlagged, JSON.stringify(orphanFixes));
+
+    // N-DATA: closes the "still open" data-quality-watchdog half of the dashboard health score
+    // idea — Studio.validate() now also runs the existing watchdog (v260/v261) over every bound
+    // (non-orphaned) DA's own sample rows, surfacing each issue as a warn-level Checks note.
+    const dqWatchdog = await page.evaluate(function () {
+      var origSample = Studio.sampleRows;
+      Studio.sampleRows = function () { return { cols: ["x"], rows: [["a"], ["a"], [null]] }; };
+      var dirty = Studio.validate({
+        name: "ok-name", title: "T", panels: [{ id: "p1", chart: { da: "dirtyDa" } }], kpis: [], filters: [],
+        cda: { dataAccesses: [{ id: "dirtyDa", name: "dirtyDa", columns: ["x"] }] }
+      });
+      var orphanedNotProfiled = Studio.validate({
+        name: "ok-name", title: "T", panels: [], kpis: [], filters: [],
+        cda: { dataAccesses: [{ id: "dirtyDa", name: "dirtyDa", columns: ["x"] }] }
+      });
+      Studio.sampleRows = origSample;
+      return {
+        dirtyFlagsQuality: dirty.some(function (i) { return i.level === "warn" && /“dirtyDa”: “x” has 1 blank/.test(i.msg); }),
+        orphanedSkipsQualityCheck: !orphanedNotProfiled.some(function (i) { return /blank/.test(i.msg); })
+      };
+    });
+    ok("N-DATA: a bound DA's data quality issues (from Studio.dataQualityIssues) surface as warn-level Checks notes",
+      dqWatchdog.dirtyFlagsQuality, JSON.stringify(dqWatchdog));
+    ok("N-DATA: an orphaned DA isn't also profiled for quality (avoids piling a second, redundant note on top of 'declared but not used')",
+      dqWatchdog.orphanedSkipsQualityCheck, JSON.stringify(dqWatchdog));
+
     // ── F18: Bump / ranking chart (v104) ─────────────────────────────────────
     console.log("\n• F18: Bump chart");
 

@@ -15,6 +15,16 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 309,
+    title: 'N-DATA: data quality watchdog closes the dashboard health score track + two false-positive fixes',
+    kind: 'fix',
+    ts: '2026-07-04T07:03:53Z',
+    items: [
+      'Studio.validate() now also runs the Data quality watchdog (v260/v261) over every bound (non-orphaned) data access\'s own sample rows, surfacing each issue as a warn-level Checks note -- closing the "still open" half of the dashboard health score idea (v307 shipped the orphaned-DA half only).',
+      'Found + fixed two false positives in that same "declared but not used" check while wiring this up: a data access bound only to a FILTER, or only feeding a compound (join/union) DA as its leftId/rightId source, was wrongly flagged "unused" even though it genuinely is. 4 new tests, suite 1346/1346.',
+    ],
+  },
+  {
     v: 308,
     title: 'Docs catch-up: freshness badge + orphaned-DA Checks note',
     kind: 'polish',
