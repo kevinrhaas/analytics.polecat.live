@@ -2304,6 +2304,22 @@
       });
     }
 
+    // Track N innovation idea: canvas sticky notes — small colored, builder-only notes for
+    // team brainstorming/review while a dashboard is in progress. Never exported.
+    var noteList = (loadCanvasNotes()[sp.id] || []);
+    var noteSec = section(body, "Builder notes" + (noteList.length ? " (" + noteList.length + ")" : ""), function () { openNoteEditor(null); }, null, "builder");
+    if (!noteList.length) {
+      noteSec.appendChild(hint("Pin a small colored note to a panel, or add a general one — for your own reference or team review while building. Never exported, never leaves this browser."));
+    } else {
+      noteList.forEach(function (n) {
+        var panel = n.panelId ? panelById(n.panelId) : null;
+        var sub = n.panelId ? ("Pinned to: " + (panel ? (panel.title || panel.id) : "a deleted panel")) : "General note";
+        var dot = '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + esc(n.color || NOTE_COLORS[0]) + '"></span>';
+        var label = n.text.length > 40 ? n.text.slice(0, 40) + "…" : n.text;
+        noteSec.appendChild(rowItem(dot, label, sub, function () { openNoteEditor(n); }, [delBtn(function () { deleteCanvasNote(n.id); })], false));
+      });
+    }
+
     // CDA Connections
     sp.cda.connections = sp.cda.connections || [];
     var conns = sp.cda.connections;
@@ -4631,6 +4647,71 @@
     snapshotVersion(); // the restored state is itself a checkpoint, so a restore can be undone too
     toast("Version restored");
   }
+
+  /* Track N innovation idea (added 2026-07-04): canvas sticky notes — small colored, builder-only
+     notes for team brainstorming/review while a dashboard is in progress. Deliberately never
+     exported (no spec field, no involvement in the render pipeline shared with export) — scratch
+     space, not a dashboard feature. Keyed by dashboard id, same storage shape as studio-versions.
+     First cut pins to a specific PANEL (stable `id`) or a dashboard-wide "General note" — KPIs have
+     no stable id yet (diffSpecs already notes this: they're compared positionally), so pinning to
+     one would silently drift onto the wrong tile the moment a KPI is reordered or deleted; left for
+     a future slice once KPIs gain a stable id. */
+  var _LS_NOTES = "studio-canvas-notes";
+  var NOTE_COLORS = ["#ffd76a", "#7dd3c0", "#f4a6a6", "#8fb8f6", "#c9a4f2"];
+  function loadCanvasNotes() { try { return JSON.parse(localStorage.getItem(_LS_NOTES) || "{}"); } catch (e) { return {}; } }
+  function saveCanvasNotes(n) { try { localStorage.setItem(_LS_NOTES, JSON.stringify(n)); } catch (e) { /* quota or private-mode */ } }
+  function saveCanvasNote(note) {
+    if (!S.spec || !S.spec.id) return;
+    var all = loadCanvasNotes();
+    var list = all[S.spec.id] || [];
+    var existing = list.filter(function (n) { return n.id === note.id; })[0];
+    if (existing) { existing.color = note.color; existing.text = note.text.trim(); existing.panelId = note.panelId; existing.ts = new Date().toISOString(); }
+    else { list.push({ id: note.id, color: note.color, text: note.text.trim(), panelId: note.panelId, ts: new Date().toISOString() }); }
+    all[S.spec.id] = list;
+    saveCanvasNotes(all);
+  }
+  function deleteCanvasNote(id) {
+    if (!S.spec || !S.spec.id) return;
+    var all = loadCanvasNotes();
+    all[S.spec.id] = (all[S.spec.id] || []).filter(function (n) { return n.id !== id; });
+    saveCanvasNotes(all);
+    renderInspector();
+  }
+  function openNoteEditor(existing) {
+    var draft = existing ? { id: existing.id, color: existing.color, text: existing.text, panelId: existing.panelId || "" }
+      : { id: Studio.uid("note"), color: NOTE_COLORS[0], text: "", panelId: "" };
+    modal(existing ? "Edit note" : "Add note", function (body) {
+      body.appendChild(hint("A small colored note for your own reference or team review while building — never exported, never leaves this browser."));
+      var presets = el("div", "note-presets");
+      NOTE_COLORS.forEach(function (c) {
+        var sw = el("button", "note-swatch" + (draft.color === c ? " active" : "")); sw.type = "button"; sw.title = c;
+        sw.style.background = c;
+        sw.onclick = function () {
+          draft.color = c;
+          [].slice.call(presets.children).forEach(function (b) { b.classList.remove("active"); });
+          sw.classList.add("active");
+        };
+        presets.appendChild(sw);
+      });
+      body.appendChild(field("Color", presets));
+      var ta = textarea(draft.text, function (v) { draft.text = v; });
+      ta.placeholder = "What do you want to remember or flag here?";
+      ta.style.cssText = "width:100%;min-height:70px;resize:vertical;box-sizing:border-box";
+      body.appendChild(field("Note", ta));
+      var targetOpts = [["", "General note (not tied to a panel)"]].concat(
+        (S.spec.panels || []).map(function (p) { return [p.id, "Panel: " + (p.title || p.id)]; }));
+      body.appendChild(field("Pin to", select2pairs(targetOpts, draft.panelId, function (v) { draft.panelId = v; })));
+      var saveBtn = el("button", "btn btn-primary"); saveBtn.style.cssText = "width:100%;justify-content:center;margin-top:8px";
+      saveBtn.textContent = existing ? "Save changes" : "Add note";
+      saveBtn.onclick = function () {
+        if (!draft.text.trim()) { toast("Enter some note text first.", true); return; }
+        saveCanvasNote(draft);
+        document.querySelector(".modal-ov").remove();
+        renderInspector();
+      };
+      body.appendChild(saveBtn);
+    });
+  }
   // N-DEV: live JSON spec editor — edit the working dashboard's raw .studio.json
   // directly and see the canvas update. Power-user/debugging tool: validates the
   // pasted/edited text is a plausible spec (valid JSON, a panels[] array, a
@@ -4792,6 +4873,10 @@
   window.__studioRestoreVersion = restoreVersion; // test hook
   window.__studioOpenVersionDiff = openVersionDiff; // test hook
   window.__studioOpenJsonEditor = openJsonEditor; // test hook
+  window.__studioCanvasNotes = loadCanvasNotes; // test hook
+  window.__studioSaveCanvasNote = saveCanvasNote; // test hook
+  window.__studioDeleteCanvasNote = deleteCanvasNote; // test hook
+  window.__studioOpenNoteEditor = openNoteEditor; // test hook
 
   /* ---------- Z3 follow-up: Workbooks — named collections of dashboards -------------------
      The north star describes a "workbook" as a named collection of dashboards; until now
@@ -6407,7 +6492,8 @@
         // cardSkin (same "new Settings key, forgot Clear local data" gap the v194/v235 notes describe).
         "studio-default-titlesize", "studio-default-subtitlestyle", "studio-default-dashboardtheme", "studio-default-cardskin", "studio-style-presets",
         "studio-cmdk-usage", "studio-first-export-done", "studio-export-count", "studio-dash-count",
-        "studio-deploy-path", "studio-live-data", "studio-templatevar-sets", "studio-da-freshness"
+        "studio-deploy-path", "studio-live-data", "studio-templatevar-sets", "studio-da-freshness",
+        "studio-canvas-notes"
       ];
       var msg = "Clear all locally-stored Studio data?\n\nThis will remove:\n" +
         "  • Unsaved spec draft (autosave)\n" +

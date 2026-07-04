@@ -13406,6 +13406,63 @@ function serve() {
     ok("N-DIST: Compare modal offers a 'Restore this version' action", vhDiffUI.hasRestoreBtn, JSON.stringify(vhDiffUI));
     await page.evaluate(function () { var ov = document.querySelector(".modal-ov"); if (ov) ov.remove(); });
 
+    // ── Track N innovation idea (added 2026-07-04): canvas sticky notes ──
+    // Small colored, builder-only notes for team brainstorming/review while a dashboard is in
+    // progress — deliberately never exported, keyed by dashboard id (same shape as studio-versions).
+    console.log("\n• Track N: canvas sticky notes");
+    const noteId = "notes-test-7a2";
+    await page.evaluate(function (id) {
+      try { localStorage.removeItem("studio-canvas-notes"); } catch (e) {}
+      window.__studioLoad({ id: id, name: id, title: "Notes Test Dashboard",
+        panels: [{ id: "pA", title: "Revenue panel", chart: { type: "bars", da: "" } }], kpis: [], filters: [],
+        cda: { connections: [], dataAccesses: [] } });
+    }, noteId);
+    await page.waitForTimeout(120);
+
+    const noteSave = await page.evaluate(function (id) {
+      var before = (window.__studioCanvasNotes()[id] || []).length;
+      window.__studioSaveCanvasNote({ id: "n1", color: "#ffd76a", text: "  Double-check this figure with finance  ", panelId: "pA" });
+      window.__studioSaveCanvasNote({ id: "n2", color: "#8fb8f6", text: "General reminder", panelId: "" });
+      var list = window.__studioCanvasNotes()[id] || [];
+      var n1 = list.filter(function (n) { return n.id === "n1"; })[0];
+      return { before: before, afterCount: list.length, n1Trimmed: n1 && n1.text === "Double-check this figure with finance", n1PanelId: n1 && n1.panelId, hasTs: !!(n1 && n1.ts) };
+    }, noteId);
+    ok("N-DATA/Track N: saveCanvasNote() appends a new note keyed by dashboard id, trimming its text and stamping a timestamp",
+      noteSave.before === 0 && noteSave.afterCount === 2 && noteSave.n1Trimmed && noteSave.n1PanelId === "pA" && noteSave.hasTs, JSON.stringify(noteSave));
+
+    const noteUpdate = await page.evaluate(function (id) {
+      window.__studioSaveCanvasNote({ id: "n1", color: "#f4a6a6", text: "Edited text", panelId: "pA" });
+      var list = window.__studioCanvasNotes()[id] || [];
+      return { count: list.length, n1: list.filter(function (n) { return n.id === "n1"; })[0] };
+    }, noteId);
+    ok("N-DATA/Track N: saving a note with an existing id edits it in place rather than duplicating it",
+      noteUpdate.count === 2 && noteUpdate.n1.text === "Edited text" && noteUpdate.n1.color === "#f4a6a6" && noteUpdate.n1.panelId === "pA",
+      JSON.stringify(noteUpdate));
+
+    await page.evaluate(function () { window.__studioSelectDashboard(); });
+    await page.waitForTimeout(150);
+    const noteUI = await page.evaluate(function () {
+      var heading = Array.from(document.querySelectorAll("#inspBody h4")).find(function (h) { return /^Builder notes/.test(h.textContent); });
+      var rows = document.querySelectorAll("#inspBody .row-item .ri-txt .ri-s");
+      var subs = Array.from(rows).map(function (r) { return r.textContent; });
+      return { hasHeading: !!heading, headingText: heading ? heading.textContent : "", hasGeneral: subs.indexOf("General note") >= 0, hasPinned: subs.some(function (s) { return /Pinned to: Revenue panel/.test(s); }) };
+    });
+    ok("N-DATA/Track N: Dashboard inspector shows a 'Builder notes (2)' section listing both notes with their pin target",
+      noteUI.hasHeading && /\(2\)/.test(noteUI.headingText) && noteUI.hasGeneral && noteUI.hasPinned, JSON.stringify(noteUI));
+
+    const noteDelete = await page.evaluate(function (id) {
+      window.__studioDeleteCanvasNote("n2");
+      return { count: (window.__studioCanvasNotes()[id] || []).length };
+    }, noteId);
+    ok("N-DATA/Track N: deleteCanvasNote() removes just that one note", noteDelete.count === 1, JSON.stringify(noteDelete));
+
+    const noteNeverExported = await page.evaluate(function () {
+      var cda = Studio.exportCDA(window.__STUDIO_STATE.spec);
+      return { specHasNoteField: JSON.stringify(window.__STUDIO_STATE.spec).indexOf("canvas-notes") >= 0, cdaClean: cda.indexOf("Double-check") < 0 && cda.indexOf("Edited text") < 0 };
+    });
+    ok("N-DATA/Track N: sticky notes are never part of the dashboard spec/export (scratch space only, keyed separately in localStorage)",
+      !noteNeverExported.specHasNoteField && noteNeverExported.cdaClean, JSON.stringify(noteNeverExported));
+
     // ── N-DEV: live JSON spec editor ──
     console.log("\n• N-DEV: live JSON spec editor");
     const jsonEdMenu = await page.evaluate(function () {

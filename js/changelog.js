@@ -15,6 +15,16 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 310,
+    title: 'Track N: canvas sticky notes (first cut)',
+    kind: 'feature',
+    ts: '2026-07-04T07:29:19Z',
+    items: [
+      'New Dashboard inspector section, "Builder notes" -- small colored, builder-only notes for team brainstorming/review while a dashboard is in progress. Pin one to a specific panel, or add a general note for the whole dashboard.',
+      'Deliberately never exported: no spec field, no involvement in the shared preview/export render pipeline -- pure scratch space kept in localStorage, keyed by dashboard id, wiped by Clear local data. KPIs aren\'t a pin target yet since they have no stable id. 5 new tests, suite 1351/1351.',
+    ],
+  },
+  {
     v: 309,
     title: 'N-DATA: data quality watchdog closes the dashboard health score track + two false-positive fixes',
     kind: 'fix',

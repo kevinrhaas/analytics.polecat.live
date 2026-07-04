@@ -1299,12 +1299,13 @@ body.simple-mode .da-acts{display:none!important}
    elsewhere (e.g. the per-dashboard accent picker) can't accidentally pick up Settings' copies.
    Visual refresh (A): the Dashboard theme picker follows the same rule with its own .dt-swatch
    class names — it sits ABOVE the accent-color row in the inspector, so a bare
-   .accent-swatch query would otherwise pick up its swatches first (off-by-N clicks). */
-.accent-presets,.set-accent-presets,.dt-presets{display:flex;flex-wrap:wrap;gap:5px;align-items:center;padding:2px 0}
-.accent-swatch,.set-accent-swatch,.dt-swatch{width:20px;height:20px;border-radius:50%;border:2px solid transparent;
+   .accent-swatch query would otherwise pick up its swatches first (off-by-N clicks).
+   Track N (canvas sticky notes) follows the same rule with its own .note-swatch class. */
+.accent-presets,.set-accent-presets,.dt-presets,.note-presets{display:flex;flex-wrap:wrap;gap:5px;align-items:center;padding:2px 0}
+.accent-swatch,.set-accent-swatch,.dt-swatch,.note-swatch{width:20px;height:20px;border-radius:50%;border:2px solid transparent;
   cursor:pointer;padding:0;flex-shrink:0;transition:border-color .12s,transform .1s;outline:none}
-.accent-swatch:hover,.set-accent-swatch:hover,.dt-swatch:hover{transform:scale(1.15)}
-.accent-swatch.active,.set-accent-swatch.active,.dt-swatch.active{border-color:var(--text-primary,#1a2236)!important}
+.accent-swatch:hover,.set-accent-swatch:hover,.dt-swatch:hover,.note-swatch:hover{transform:scale(1.15)}
+.accent-swatch.active,.set-accent-swatch.active,.dt-swatch.active,.note-swatch.active{border-color:var(--text-primary,#1a2236)!important}
 #dashAccentCustom,#setDefaultAccentCustom{width:26px;height:26px;border-radius:5px;border:1px solid var(--line);
   cursor:pointer;padding:1px;background:transparent}
 

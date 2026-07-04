@@ -903,6 +903,11 @@
   "still open" half of the dashboard health score idea. Found + fixed two false positives in the v307
   "declared but not used" check: a DA bound only to a filter, or only feeding a compound (join/union)
   DA's leftId/rightId, was wrongly flagged unused. 4 new tests, suite 1346/1346.
+- v310: **Track N: canvas sticky notes (first cut)** — new Dashboard inspector section "Builder
+  notes": small colored, builder-only notes for team brainstorming/review while a dashboard is in
+  progress, pinned to a specific panel or general. Deliberately never exported — pure scratch space
+  in `localStorage["studio-canvas-notes"]`, keyed by dashboard id, wiped by Clear local data. 5 new
+  tests, suite 1351/1351.
 
 ## NEXT (top = do first)
 
@@ -2556,6 +2561,16 @@ gets covered over time:
   pin to a specific panel or blank canvas area — for team brainstorming/review while a dashboard is in
   progress. Builder-only UI state (`localStorage`, keyed by dashboard id), deliberately never exported —
   scratch space, not a dashboard feature.
+> ✓ **First cut shipped v310**: a new **Builder notes** Dashboard-inspector section — small colored
+> notes (5 preset colors), each pinned to a specific panel (matched by its stable `id`) or left as a
+> "General note" for the whole dashboard. Kept out of `spec`/export entirely — stored in
+> `localStorage["studio-canvas-notes"]`, keyed by dashboard id, same shape as `studio-versions`; wiped
+> by Clear local data. 5 new tests, suite 1351/1351. **Not yet done (scoped down from the original
+> ask, on purpose):** true freehand/blank-canvas-area pinning — the canvas is literally the same
+> preview iframe used for export, so a pixel-position overlay risks leaking builder scratch state
+> into the render pipeline; today's "General note" covers the whole-dashboard case instead. Pinning to
+> a KPI tile also isn't supported yet (KPIs have no stable id — see `diffSpecs`'s positional KPI
+> comparison — so a KPI-targeted note would silently drift onto the wrong tile after a reorder).
 - **Cross-filter / brushing everywhere:** click or brush any chart to filter the whole dashboard, with a
   visible active-filter bar and one-click clear. The feature that makes a dashboard feel *alive*.
 > ✓ **Extended to Lollipop, shipped v291**: `wireXFilter()` (`app/studio-render.js`) gains a `lollipop`
