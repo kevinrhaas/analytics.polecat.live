@@ -5592,6 +5592,38 @@ function serve() {
     });
     ok("F8: cross-filter inspector section has an input field", xfInput.ok, JSON.stringify(xfInput));
 
+    // ---- N-DATA follow-up: cross-filter/brushing extended to Lollipop ----
+    console.log("\n• N-DATA follow-up: cross-filter extended to Lollipop");
+    const xfLolliPersist = await page.evaluate(() => {
+      try {
+        var spec = window.__STUDIO_STATE.spec;
+        var da = spec.cda && spec.cda.dataAccesses && spec.cda.dataAccesses[0];
+        if (!da) return false;
+        var p = spec.panels[0];
+        p.chart.type = "lollipop";
+        p.chart.da = da.id;
+        p.chart.map = { labelCol: da.columns[0] || "label", valueCol: da.columns[1] || "value" };
+        p.crossFilter = { emit: "p_region" };
+        window.__studioLoad(spec);
+        return (window.__STUDIO_STATE.spec.panels[0].crossFilter || {}).emit === "p_region";
+      } catch (e) { return false; }
+    });
+    ok("N-DATA: Lollipop crossFilter.emit persists in spec after load", xfLolliPersist);
+    await page.waitForTimeout(700);
+    const xfLolliLabels = await page.evaluate(() => {
+      try {
+        var iframe = document.querySelector("#preview");
+        if (!iframe || !iframe.contentDocument) return { ok: false, reason: "no iframe" };
+        var allDots = iframe.contentDocument.querySelectorAll("circle.dot");
+        if (!allDots.length) return { ok: false, reason: "no circle.dot elements" };
+        var tagged = Array.from(iframe.contentDocument.querySelectorAll("circle.dot[data-xf-label]"));
+        return { ok: tagged.length > 0, count: tagged.length, totalDots: allDots.length };
+      } catch (e) { return { ok: false, err: e.message }; }
+    });
+    ok("N-DATA: Lollipop dots get data-xf-label attributes when crossFilter.emit is set", xfLolliLabels.ok, JSON.stringify(xfLolliLabels));
+    ok("N-DATA: Studio.chartSupports('crossFilter', 'lollipop') is true (inspector shows the section)",
+      await page.evaluate(() => Studio.chartSupports("crossFilter", "lollipop") === true));
+
     // ---- H2: keyboard shortcuts — Delete to remove panel, Escape to deselect ----
     console.log("\n• keyboard shortcuts (H2: Delete + Escape)");
 

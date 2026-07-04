@@ -791,6 +791,9 @@
 - v290: **N-FUN follow-up: range sliders on the rest of the percentage-shaped opts** — Donut's Inner
   radius %, Stream graph's Band opacity %, Parallel coordinates' Line opacity %, and Gauge's Warning/Good
   zone % thresholds. 2 new tests, suite 1290/1290.
+- v291: **N-DATA: cross-filter extended to Lollipop** — `wireXFilter()` gains a lollipop branch (tags
+  each `circle.dot`); `ANNOT_CAPS.crossFilter` includes lollipop so the inspector section appears. 2 new
+  tests, suite 1293/1293.
 
 ## NEXT (top = do first)
 
@@ -2338,6 +2341,15 @@ gets covered over time:
 **N-DATA — Analytical depth (toward standalone analytic apps).**
 - **Cross-filter / brushing everywhere:** click or brush any chart to filter the whole dashboard, with a
   visible active-filter bar and one-click clear. The feature that makes a dashboard feel *alive*.
+> ✓ **Extended to Lollipop, shipped v291**: `wireXFilter()` (`app/studio-render.js`) gains a `lollipop`
+> branch (tags each `circle.dot` with its label — lollipop has no "sort by value" option of its own, so
+> data renders in the given order already, unlike bars/donut which mirror their own sort toggle);
+> `Studio.ANNOT_CAPS.crossFilter` now includes `lollipop`, so the Cross-filter inspector section appears
+> for it too. Bars/donut/treemap were the only three wired since Z8 shipped this section; Lollipop is the
+> most structurally similar chart (one taggable element per category + a labelCol/valueCol binding), so
+> the smallest safe next slice. **Still open:** stacked/grouped bar family (ambiguous — one category maps
+> to multiple series segments, needs a real UX decision on what a click should filter to) and any chart
+> without a clean one-element-per-category shape. 2 new tests, suite 1293/1293.
 - **Dashboard-wide formula language:** calculated fields across data sources (not just CDA calc columns) —
   a small safe expression engine (`[revenue] - [cost]`, `pctChange(...)`, `movingAvg(...)`).
 - **Period-over-period / compare mode:** pick two ranges or two sources and diff them across every panel.

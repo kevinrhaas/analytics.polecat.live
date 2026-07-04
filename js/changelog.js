@@ -15,6 +15,17 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 291,
+    title: 'N-DATA: cross-filter extended to Lollipop',
+    kind: 'feature',
+    ts: '2026-07-04T01:03:09Z',
+    items: [
+      'Clicking a Lollipop chart\'s dot now emits a cross-filter just like Bars/Donut/Treemap already did -- the same "click one panel, filter the whole dashboard" interaction, extended to the chart type it fits most naturally (one dot per category, same labelCol/valueCol binding).',
+      'wireXFilter() (app/studio-render.js) gains a lollipop branch that tags each circle.dot with its label; Studio.ANNOT_CAPS.crossFilter now includes lollipop so the Cross-filter inspector section appears for it too.',
+      '2 new tests, suite 1293/1293.',
+    ],
+  },
+  {
     v: 290,
     title: 'N-FUN follow-up: range sliders on the rest of the percentage opts',
     kind: 'polish',

@@ -199,8 +199,9 @@
 
   // After a chart renders, tag each data element with its label and wire click-to-filter.
   // Supports bars (rect.bar in data order, or value-desc order when "Sort by value" is on),
-  // donut (svg path in data order, or value-desc order when "Sort slices" is on), and
-  // treemap (rect.bar always sorted by value descending, mirroring PDC._treemap's sort).
+  // donut (svg path in data order, or value-desc order when "Sort slices" is on),
+  // treemap (rect.bar always sorted by value descending, mirroring PDC._treemap's sort), and
+  // lollipop (circle.dot in data order — lollipop has no "sort by value" option of its own).
   function wireXFilter(body, param, lvData, spec, chartType, sortByValue) {
     if (!param || !lvData || !lvData.length) return;
     var els, sorted = lvData;
@@ -215,6 +216,8 @@
       // Donut's own "Sort slices by value" option reorders its rendered paths; mirror
       // that here too so a click on a slice maps back to the right label.
       if (sortByValue) sorted = lvData.slice().sort(function (a, b) { return (+b.value || 0) - (+a.value || 0); });
+    } else if (chartType === "lollipop") {
+      els = [].slice.call(body.querySelectorAll("circle.dot"));
     } else {
       return;
     }
