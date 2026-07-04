@@ -15,6 +15,16 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 305,
+    title: 'N-DATA follow-up: freshness badge extended to the library pane',
+    kind: 'feature',
+    ts: '2026-07-04T06:15:48Z',
+    items: [
+      'The "Last verified live ..." / "Never verified live" badge (v301 DA inspector, v302 Repository) now also appears on a data source\'s card in the library pane\'s My Data Sources section -- closing the last "still open" surface, so the freshness-badge track is now feature-complete.',
+      'Same scoping as the Repository card: only connector kinds that are ALWAYS live-capable (DuckDB/SQLite/Snowflake/Databricks/BigQuery/Generic SQL-HTTP) show the badge; plain Pentaho catalog sources stay badge-free. 2 new tests, suite 1337/1337.',
+    ],
+  },
+  {
     v: 304,
     title: 'Track L sweep (duplication lens): deduped insight/callout math',
     kind: 'fix',

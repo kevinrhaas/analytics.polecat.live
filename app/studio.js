@@ -508,6 +508,13 @@
     c.appendChild(idDiv);
     if (da.name) { var nm = el("div", "da-name"); nm.textContent = da.name; c.appendChild(nm); }
     if (cols) { var cd = el("div", "da-cols"); cd.innerHTML = cols; c.appendChild(cd); }
+    // N-DATA freshness badge (v301/v302) follow-up: closes the "library pane" gap from the
+    // "still open" note — same REPO_LIVE_KINDS scoping as the Repository card (only the
+    // connector kinds that are ALWAYS live-capable, so plain Pentaho DAs stay badge-free).
+    if (REPO_LIVE_KINDS[da.kind]) {
+      var freshEl = el("div", "da-mine-fresh"); freshEl.textContent = daFreshnessLabel(da.id);
+      c.appendChild(freshEl);
+    }
     var acts = el("div", "da-mine-acts");
     var dup = el("button", "icobtn"); dup.appendChild(Studio.icon("duplicate", 14)); dup.title = "Duplicate";
     dup.onclick = function (e) { e.stopPropagation(); duplicateDA(da.id); };
@@ -6541,6 +6548,7 @@
   window.__studioSelectDashboard = selectDashboard; // exposed for tests
   window.__studioSelect = select;                   // exposed for tests (K6, etc.)
   window.__studioRenderInspector = renderInspector; // exposed for tests
+  window.__studioBuildLibrary = buildLibrary;       // exposed for tests
 
   function connModal() { modal("Pentaho server connections", function (b) { renderConnBody(b); }, function () { refreshPreview(); }); }
   function renderConnBody(b) {

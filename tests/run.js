@@ -714,6 +714,33 @@ function serve() {
     ok("N-DATA: a DA that's never been queried live shows 'Never verified live'",
       dkNeverVerified.skip || dkNeverVerified.badgeText === "Never verified live", JSON.stringify(dkNeverVerified));
 
+    // N-DATA follow-up: the freshness badge also surfaces in the library pane's "My Data
+    // Sources" section (the last of the three "still open" surfaces — DA inspector v301,
+    // Repository v302, library pane here) -- same REPO_LIVE_KINDS scoping as Repository.
+    const dkLibFreshness = await page.evaluate(() => {
+      var sp = window.__STUDIO_STATE.spec;
+      var duckDa = sp.cda.dataAccesses.find((d) => d.kind === "duckdb");
+      // deterministic negative case: a plain Pentaho-kind My Data Source, added fresh here
+      // rather than relying on one happening to already exist in the shared fixture spec.
+      sp.cda.dataAccesses.push({ id: "plainLibDa", name: "plainLibDa", kind: "sql.jndi", connectionId: "sqlConn", sql: "SELECT 1 AS x FROM t", columns: ["x"], params: [], calcColumns: [], cache: true, cacheDuration: 300 });
+      var m = {}; if (duckDa) m[duckDa.id] = new Date().toISOString();
+      try { localStorage.setItem("studio-da-freshness", JSON.stringify(m)); } catch (e) {}
+      window.__studioBuildLibrary();
+      function cardFor(id) { return [].slice.call(document.querySelectorAll("#libList .da-mine")).find((c) => (c.querySelector(".da-id-nm") || {}).textContent === id); }
+      var duckCard = duckDa && cardFor(duckDa.id);
+      var plainCard = cardFor("plainLibDa");
+      return {
+        hasDuckDa: !!duckDa,
+        duckHasBadge: duckCard ? !!duckCard.querySelector(".da-mine-fresh") : null,
+        duckBadgeText: duckCard ? (duckCard.querySelector(".da-mine-fresh") || {}).textContent : "",
+        plainHasBadge: plainCard ? !!plainCard.querySelector(".da-mine-fresh") : null
+      };
+    });
+    ok("N-DATA: a live-capable My Data Source (DuckDB) shows the freshness badge in the library pane",
+      !dkLibFreshness.hasDuckDa || (dkLibFreshness.duckHasBadge && /Last verified live/.test(dkLibFreshness.duckBadgeText)), JSON.stringify(dkLibFreshness));
+    ok("N-DATA: a plain Pentaho-kind My Data Source stays badge-free in the library pane",
+      dkLibFreshness.plainHasBadge === false, JSON.stringify(dkLibFreshness));
+
     const dkTestFail = await page.evaluate(async () => {
       Studio.DuckDB.testConnection = function () { return Promise.resolve({ ok: false, error: "CORS blocked — the host doesn't allow cross-origin range requests." }); };
       const insp = document.getElementById("inspBody");

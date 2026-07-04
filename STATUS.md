@@ -866,6 +866,12 @@
   logic byte-for-byte, risking silent drift between the prose insight and the callout marker it's
   supposed to match. Extracted shared `numericSeries()`/`findOutlier()`/`findBiggestMove()` helpers; both
   callers now compute from one source. Pure refactor, no behavior change — suite unchanged at 1335/1335.
+- v305: **N-DATA follow-up: freshness badge extended to the library pane (closes that "still open"
+  item — the freshness-badge track is now feature-complete across all three surfaces)** — the same
+  "Last verified live …" / "Never verified live" badge (v301 DA inspector, v302 Repository) now also
+  appears on a data source's card in the library pane's **My Data Sources** section, scoped to the same
+  always-live-capable connector kinds. New `window.__studioBuildLibrary` test hook. 2 new tests, suite
+  1337/1337.
 
 ## NEXT (top = do first)
 
@@ -2479,6 +2485,12 @@ gets covered over time:
 > card (the vast majority — hundreds of them) deliberately stays badge-free rather than showing
 > "Never verified live" as noise everywhere. 2 new tests, suite 1333/1333. **Still open:** the
 > library pane, and whether "Test connection" should also count as a freshness signal.
+> ✓ **Extended to the library pane, shipped v305 (closes the last "still open" surface — the
+> freshness-badge track is now feature-complete)**: the same badge now appears on a data source's
+> card in the library pane's **My Data Sources** section (`myDACard`, `app/studio.js`), same
+> always-live-capable-kind scoping as the Repository card. New `window.__studioBuildLibrary` test
+> hook. 2 new tests, suite 1337/1337. **Still open:** whether "Test connection" should also count as
+> a freshness signal (today only a real "Run live" query stamps it).
 - **Dashboard health score (added 2026-07-04, innovation sweep):** the existing build-completeness meter
   (v196) only checks "did you fill things in" — extend it (or add a sibling score) that also runs the
   Data quality watchdog (v260/v261) across every bound DA, flags orphaned data accesses (declared but no

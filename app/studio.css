@@ -547,6 +547,7 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
 .da-mine .da-id .da-id-nm:hover{text-decoration:underline}
 .da-mine .kind-badge{font-size:9px;font-weight:800;letter-spacing:.4px;padding:1px 6px;border-radius:8px;background:var(--field);border:1px solid var(--line);color:var(--muted);text-transform:uppercase;flex-shrink:0}
 .da-mine .da-name{font-size:11px;color:var(--muted);margin:2px 0 3px}
+.da-mine-fresh{display:block;margin-top:4px;font-size:9.5px;color:var(--faint);font-style:italic}
 .da-mine .da-mine-acts{display:flex;gap:4px;margin-top:5px}
 .da-mine-sel{border-color:var(--pdc) !important;box-shadow:0 0 0 2px color-mix(in srgb,var(--pdc) 18%,transparent)}
 
