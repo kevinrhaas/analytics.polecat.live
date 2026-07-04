@@ -250,6 +250,12 @@
     if (spec.subtitleStyle === "italic") subtitleStyleCss = "\n.pdc-sub{font-style:italic}";
     else if (spec.subtitleStyle === "bold") subtitleStyleCss = "\n.pdc-sub{font-weight:800}";
     else if (spec.subtitleStyle === "bold-italic") subtitleStyleCss = "\n.pdc-sub{font-weight:800;font-style:italic}";
+    // N-DESIGN "chart skins" first cut: "flat" strips the raised shadow/glass-edge/hover-lift
+    // .card and .kpi already carry (vendor/pdc-ui.css) for a quieter, editorial-minimal mood —
+    // pure CSS override, no markup change, so it applies uniformly in preview + every export.
+    var cardSkinCss = spec.cardSkin === "flat" ?
+      "\n.card,.kpi{box-shadow:none;border:1px solid var(--panel-border)}" +
+      "\n.card:hover,.kpi:hover{transform:none;box-shadow:none}" : "";
     // Series palette preset: override --c1..--c10 for both light and dark mode.
     // paletteKey "default" or blank → keep pdc-ui.css colors; any other key bakes in
     // the preset's color arrays so the exported CDF always renders with the chosen palette.
@@ -300,7 +306,7 @@
     var head =
       "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\"/>\n" +
       "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/>\n" +
-      "<title>" + xml(titleText) + " — Pentaho Data Catalog Analytics</title>\n<style>\n" + assets.css + mobileCss + sectionCss + descCss + panelNoteCss + panelAccentCss + targetLineCss + refBandCss + calloutCss + periodHighlightCss + eventMarkerCss + scatterAnnotCss + kpiSubCss + richtextCss + dashboardThemeCss + themeColorCss + headerLogoCss + headerLinkCss + headerBgCss + titleSizeCss + subtitleStyleCss + paletteCss + printCss + previewCss + "\n</style>\n</head>\n";
+      "<title>" + xml(titleText) + " — Pentaho Data Catalog Analytics</title>\n<style>\n" + assets.css + mobileCss + sectionCss + descCss + panelNoteCss + panelAccentCss + targetLineCss + refBandCss + calloutCss + periodHighlightCss + eventMarkerCss + scatterAnnotCss + kpiSubCss + richtextCss + dashboardThemeCss + themeColorCss + headerLogoCss + headerLinkCss + headerBgCss + titleSizeCss + subtitleStyleCss + cardSkinCss + paletteCss + printCss + previewCss + "\n</style>\n</head>\n";
     var logoHtml = spec.headerLogo ?
       "<img class=\"pdc-logo\" src=\"" + xml(spec.headerLogo) + "\" alt=\"\"/>" :
       "<span class=\"pdc-logo\">P</span>";

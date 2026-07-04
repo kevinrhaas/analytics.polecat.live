@@ -1921,6 +1921,15 @@
     ["bold", "Bold"],
     ["bold-italic", "Bold italic"]
   ];
+  // N-DESIGN "chart skins" (first cut): an alternate render mood for every chart card + KPI tile,
+  // toggled dashboard-wide. "Raised" is today's default material (shadow + glass edge + hover lift,
+  // vendor/pdc-ui.css); "Flat" strips all three for a quieter, editorial-minimal boardroom look —
+  // same data, same layout, just a different surface treatment. Additive CSS override (see
+  // exporters.js cardSkinCss), vendor/pdc-ui.css itself stays untouched.
+  Studio.CARD_SKINS = [
+    ["", "Raised (default)"],
+    ["flat", "Flat / minimal"]
+  ];
 
   Studio.emptySpec = function () {
     return {
@@ -1945,6 +1954,7 @@
       headerBg: "", // optional hex color that overrides the banner background (fg auto-contrasts); "" = default navy gradient
       titleSize: "", // optional key into Studio.TITLE_SIZE_PX overriding the banner title's font size; "" = default
       subtitleStyle: "", // optional key into Studio.SUBTITLE_STYLES ("italic"/"bold"/"bold-italic"); "" = default
+      cardSkin: "", // N-DESIGN: "flat" drops the raised shadow/hover-lift on chart cards + KPI tiles for an editorial-minimal mood; "" = default raised skin
       templateVars: [], // N-DEV: [{key,value}] — {{key}} tokens in dashboard title/subtitle AND panel title/note get substituted at render time
       panels: []
     };

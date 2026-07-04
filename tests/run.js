@@ -8905,6 +8905,49 @@ function serve() {
     ok("Z6: picking 'Normal' clears the subtitle-style override", z6SubStyleCleared.subtitleStyle === "", JSON.stringify(z6SubStyleCleared));
     await page.waitForTimeout(200);
 
+    // ── N-DESIGN: "chart skins" first cut — Card style (Raised / Flat) ──
+    console.log("\n• N-DESIGN: Card style (chart skins first cut)");
+    const cardSkinBefore = await page.evaluate(function () {
+      var sp = window.__STUDIO_STATE.spec;
+      delete sp.cardSkin;
+      var rows = [].slice.call(document.querySelectorAll(".field"));
+      var row = rows.filter(function (f) { var lb = f.querySelector("label"); return lb && lb.textContent.indexOf("Card style") >= 0; })[0];
+      var html = Studio.buildHtml(sp, window.__STUDIO_STATE.assets, { preview: false });
+      return { fieldPresent: !!row, hasSelect: !!(row && row.querySelector("select")), noOverrideCss: html.indexOf(".card,.kpi{box-shadow:none") < 0 };
+    });
+    ok("N-DESIGN: Dashboard inspector has a Card style field (select) with no CSS override when unset",
+      cardSkinBefore.fieldPresent && cardSkinBefore.hasSelect && cardSkinBefore.noOverrideCss, JSON.stringify(cardSkinBefore));
+
+    const cardSkinAfter = await page.evaluate(function () {
+      var rows = [].slice.call(document.querySelectorAll(".field"));
+      var row = rows.filter(function (f) { var lb = f.querySelector("label"); return lb && lb.textContent.indexOf("Card style") >= 0; })[0];
+      var sel = row.querySelector("select");
+      sel.value = "flat"; sel.dispatchEvent(new Event("change", { bubbles: true }));
+      var sp = window.__STUDIO_STATE.spec;
+      var html = Studio.buildHtml(sp, window.__STUDIO_STATE.assets, { preview: false });
+      return { specSet: sp.cardSkin === "flat", cssOverride: html.indexOf(".card,.kpi{box-shadow:none;border:1px solid var(--panel-border)}") >= 0 };
+    });
+    ok("N-DESIGN: picking 'Flat / minimal' sets spec.cardSkin and emits a matching .card/.kpi CSS override",
+      cardSkinAfter.specSet && cardSkinAfter.cssOverride, JSON.stringify(cardSkinAfter));
+
+    const cardSkinReopen = await page.evaluate(function () {
+      var sp = JSON.parse(JSON.stringify(window.__STUDIO_STATE.spec));
+      window.__studioLoad(sp);
+      return { cardSkin: window.__STUDIO_STATE.spec.cardSkin };
+    });
+    ok("N-DESIGN: cardSkin survives a reopen through normalize() (whitelist kept in sync)",
+      cardSkinReopen.cardSkin === "flat", JSON.stringify(cardSkinReopen));
+
+    const cardSkinCleared = await page.evaluate(function () {
+      var rows = [].slice.call(document.querySelectorAll(".field"));
+      var row = rows.filter(function (f) { var lb = f.querySelector("label"); return lb && lb.textContent.indexOf("Card style") >= 0; })[0];
+      var sel = row.querySelector("select");
+      sel.value = ""; sel.dispatchEvent(new Event("change", { bubbles: true }));
+      return { cardSkin: window.__STUDIO_STATE.spec.cardSkin };
+    });
+    ok("N-DESIGN: picking 'Raised (default)' clears the card-skin override", cardSkinCleared.cardSkin === "", JSON.stringify(cardSkinCleared));
+    await page.waitForTimeout(200);
+
     // ── N-DEV: dashboard templates/variables ({{key}} substitution in Title/Subtitle) ──
     console.log("\n• N-DEV: dashboard templates/variables");
     const tvUnit = await page.evaluate(function () {

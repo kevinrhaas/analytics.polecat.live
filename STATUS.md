@@ -797,6 +797,10 @@
 - v292: **Track L sweep (dead-code lens): removed 3 orphaned `Studio.*` exports** —
   `DuckDB_ensureEngine`/`SQLiteHttp_ensureEngine`/`xmlEscape` had zero call sites anywhere in the repo.
   Pure deletion, no behavior change, suite unchanged at 1293/1293.
+- v293: **N-DESIGN: chart "skins" first cut — Card style (Raised / Flat)** — a per-dashboard picker that
+  strips the shadow/glass-edge/hover-lift on every chart card + KPI tile for a quieter, editorial-minimal
+  mood. Pure additive CSS override, same pattern as headerBg/titleSize/subtitleStyle. 4 new tests, suite
+  1297/1297.
 
 ## NEXT (top = do first)
 
@@ -2490,6 +2494,18 @@ gets covered over time:
 > of the "still open" item above)**: the CDA query inspector modal (`.pdc-qm`) and the drill-to-detail
 > drawer (`.pdc-dt`) now carry the same `--panel-glass` inset highlight. 2 new tests, suite 1274/1274.
 > **Still open:** a broader elevation scale beyond hover + this one glass layer, alternate chart "skins."
+> ✓ **Chart "skins" first cut shipped v293 (closes the "alternate chart skins" half of the "still open"
+> item above)**: a **Card style** picker (Dashboard inspector, below Subtitle style) — **Raised (default)**
+> keeps the v277/v280 shadow + glass-edge + hover-lift; **Flat / minimal** strips all three (pure CSS
+> override, `.card,.kpi{box-shadow:none;border:1px solid var(--panel-border)}` +
+> `.card:hover,.kpi:hover{transform:none;box-shadow:none}`) for a quieter, editorial-minimal boardroom
+> mood — same data/layout, applies uniformly in preview + every export, `vendor/pdc-ui.css` untouched.
+> `spec.cardSkin` follows the established additive-override pattern (`Studio.CARD_SKINS`, `emptySpec`,
+> `normalize()` whitelist). 4 new tests, suite 1297/1297. **Still open:** Settings default + style-preset
+> snapshot parity (same "ship the field, then the defaults" sequencing titleSize/subtitleStyle followed —
+> v228/v229 → v230), and further alternate moods (hand-drawn/sketch, deeper glass/depth) beyond
+> Raised/Flat. **Still open (unrelated to this slice):** a broader elevation scale beyond hover + the one
+> glass layer.
 
 **N-DEV — Power-user & authoring.**
 - **Live JSON spec editor:** ✓ shipped v267, see below.

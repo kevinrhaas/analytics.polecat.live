@@ -1975,6 +1975,11 @@
     sec.appendChild(field("Subtitle style", select2pairs(Studio.SUBTITLE_STYLES, sp.subtitleStyle || "", function (v) {
       sp.subtitleStyle = v; refreshPreview();
     }), "Bold and/or italic emphasis for the banner subtitle; blank keeps the default."));
+    // N-DESIGN "chart skins" first cut: an alternate mood for every chart card + KPI tile,
+    // dashboard-wide — same data/layout, just a quieter surface treatment for a boardroom look.
+    sec.appendChild(field("Card style", select2pairs(Studio.CARD_SKINS, sp.cardSkin || "", function (v) {
+      sp.cardSkin = v; refreshPreview();
+    }), "Flat drops the shadow/hover-lift on every chart card and KPI tile for a quieter, editorial look."));
 
     // N-DEV: dashboard templates/variables. Named {{key}} placeholders in the dashboard Title/
     // Subtitle AND any panel's Title/Note get substituted with a saved value at render time
@@ -5854,7 +5859,7 @@
     // Open / restore-banner / example-load / drag-drop-file silently reset a saved dashboard's accent
     // color and series palette back to the default. Keep this list in sync with Studio.emptySpec()'s
     // top-level scalar/optional fields whenever a new one is added (see also headerLogo, Z6).
-    ["schema", "id", "name", "title", "subtitle", "group", "description", "themeColor", "dashboardTheme", "paletteKey", "headerLogo", "headerLink", "headerBg", "titleSize", "subtitleStyle", "templateVars"].forEach(function (k) { if (spec[k] != null) base[k] = spec[k]; });
+    ["schema", "id", "name", "title", "subtitle", "group", "description", "themeColor", "dashboardTheme", "paletteKey", "headerLogo", "headerLink", "headerBg", "titleSize", "subtitleStyle", "cardSkin", "templateVars"].forEach(function (k) { if (spec[k] != null) base[k] = spec[k]; });
     base.cda = spec.cda || base.cda;
     base.filters = spec.filters || []; base.kpis = spec.kpis || [];
     base.gridCols = spec.gridCols || 3; base.panels = (spec.panels || []).map(function (p) { if (!p.id) p.id = Studio.uid("p"); return p; });

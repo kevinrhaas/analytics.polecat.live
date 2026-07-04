@@ -15,6 +15,17 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 293,
+    title: 'N-DESIGN: chart "skins" first cut -- Card style (Raised / Flat)',
+    kind: 'feature',
+    ts: '2026-07-04T01:20:29Z',
+    items: [
+      'New Card style picker in the Dashboard inspector (below Subtitle style): Raised (default) keeps the existing shadow + glass-edge + hover-lift on every chart card and KPI tile; Flat / minimal strips all three for a quieter, editorial boardroom mood -- same data and layout, just a calmer surface.',
+      'Pure additive CSS override (spec.cardSkin), same pattern as headerBg/titleSize/subtitleStyle -- vendor/pdc-ui.css itself stays untouched, applies uniformly in the live preview and every export.',
+      'Closes the "alternate chart skins" half of the N-DESIGN backlog\'s still-open item as a first cut. 4 new tests, suite 1297/1297.',
+    ],
+  },
+  {
     v: 292,
     title: 'Track L sweep: removed 3 orphaned Studio.* exports',
     kind: 'polish',
