@@ -15,6 +15,18 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 318,
+    title: 'Z14 fix: exported dashboards can now query DuckDB/SQLite live -- closes the credential-free half of the architecture gap',
+    kind: 'fix',
+    ts: '2026-07-04T10:33:23Z',
+    items: [
+      'A downloaded/deployed Dashboard Framework .html export previously had NO runtime query path for DuckDB/SQLite data accesses -- PDC.cda only ever read injected mock data or called a real Pentaho CDA endpoint, which doesn\'t exist for these DA kinds, so they\'d 404 the moment a dashboard was actually deployed (see the v316/v317 finding).',
+      'studio-render.js now wraps PDC.cda so a duckdb/httpvfs data access is answered by querying its file directly over HTTP Range Requests via app/duckdb.js / app/sqlitehttp.js -- mock data (in-app preview) and real Pentaho CDA sources are completely untouched.',
+      'exporters.js bundles each connector\'s small façade into the export ONLY when that dashboard actually has a data access of that kind, so a dashboard using neither stays exactly as lean as before.',
+      'Studio.validate()\'s "no live query path once exported" Checks warning no longer fires for DuckDB/SQLite (only the four credential-based connectors -- Snowflake/Databricks/BigQuery/Generic SQL/HTTP -- still need it, since shipping a live token in a static file is a real unresolved design question). Docs updated to match. 6 new tests.',
+    ],
+  },
+  {
     v: 317,
     title: 'N-DATA: dashboard Checks now warn when a direct-query connector has no live path after export',
     kind: 'feature',

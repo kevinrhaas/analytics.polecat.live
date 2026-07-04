@@ -286,11 +286,14 @@
       fetchJSON("data/cda-catalog.json"),
       fetchText("vendor/pdc-ui.css"), fetchText("vendor/pdc-ui.js"), fetchText("app/studio-render.js"),
       fetchText("app/studio-charts.js"),
+      // Z14 architecture-gap fix: bundled into an export only when that dashboard actually has a
+      // duckdb/httpvfs data access (see exporters.js's buildHtml) — fetched once here either way.
+      fetchText("app/duckdb.js"), fetchText("app/sqlitehttp.js"),
       fetchJSON("data/examples/index.json").catch(function () { return []; })
     ]).then(function (r) {
       S.catalog = r[0];
-      S.assets = { css: r[1], js: r[2], render: r[3], charts: r[4] };
-      S.examples = r[5] || [];
+      S.assets = { css: r[1], js: r[2], render: r[3], charts: r[4], duckdb: r[5], httpvfs: r[6] };
+      S.examples = r[7] || [];
       wireTopbar();
       try { renderFooter(); } catch (e) { /* footer is non-critical chrome */ }
       setupPanes();

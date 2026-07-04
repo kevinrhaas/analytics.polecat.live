@@ -32,6 +32,46 @@
     });
   }
 
+  // Z14 architecture-gap fix: app/duckdb.js / app/sqlitehttp.js (bundled into the export only
+  // when the dashboard uses one, see exporters.js) both call Studio.withTimeout /
+  // Studio.friendlyConnectorError, which live in app/model.js — same "builder-only module, never
+  // inlined here" situation as applyTemplateVars above. Local copies of the same pure helpers.
+  window.Studio = window.Studio || {};
+  Studio.withTimeout = Studio.withTimeout || function (promise, ms, label) {
+    return new Promise(function (resolve, reject) {
+      var timer = setTimeout(function () { reject(new Error((label || "Operation") + " timed out — check the URL and your network connection.")); }, ms);
+      promise.then(function (v) { clearTimeout(timer); resolve(v); }, function (e) { clearTimeout(timer); reject(e); });
+    });
+  };
+  Studio.friendlyConnectorError = Studio.friendlyConnectorError || function (message) {
+    var msg = String(message || "Unknown error"), low = msg.toLowerCase(), hint = null;
+    if (/failed to fetch|networkerror|load failed|cors/.test(low)) hint = "This usually means the host doesn't allow cross-origin requests (CORS) or blocks HTTP Range Requests. Try a public S3/GCS/R2 bucket with CORS enabled for your origin, or a direct static-file host.";
+    else if (/timed out/.test(low)) hint = "The file may be unreachable, very large, or the host may be slow to respond to range requests — double-check the URL in a new browser tab first.";
+    else if (/404|not found/.test(low)) hint = "The file URL returned a 404 — double-check the path and that the file is publicly readable.";
+    return hint ? msg + " — " + hint : msg;
+  };
+
+  // Z14 architecture-gap fix (STATUS.md): PDC.cda (vendor/pdc-ui.js, kept pristine) only ever
+  // reads injected mock data (in-app preview) or calls a real Pentaho CDA endpoint — a duckdb/
+  // httpvfs data access has no CDA definition on the server, so it 404s the moment a dashboard
+  // with one bound is actually exported/deployed. Wrap PDC.cda so a matching spec DA of kind
+  // "duckdb"/"httpvfs" is answered by querying its file directly over HTTP Range Requests
+  // instead — the mock and real-Pentaho-CDA paths (and PDC.cda's contract) are untouched.
+  (function () {
+    var realCda = PDC.cda;
+    function wrapResult(r) { var cols = r.cols || []; return { cols: cols, rows: r.rows || [], col: function (n) { return cols.indexOf(n); } }; }
+    PDC.cda = function (dataAccessId, params) {
+      if (window.PDC_MOCK && window.PDC_MOCK[dataAccessId]) return realCda(dataAccessId, params);
+      var spec = window.STUDIO_SPEC;
+      var da = spec && ((spec.cda && spec.cda.dataAccesses) || []).filter(function (d) { return d.id === dataAccessId; })[0];
+      if (da && da.kind === "duckdb" && window.Studio && Studio.DuckDB)
+        return Studio.DuckDB.query({ fileUrl: da.fileUrl, fileFormat: da.fileFormat }, da.sql || da.query).then(wrapResult);
+      if (da && da.kind === "httpvfs" && window.Studio && Studio.SQLiteHttp)
+        return Studio.SQLiteHttp.query({ fileUrl: da.fileUrl, tableName: da.tableName }, da.sql || da.query).then(wrapResult);
+      return realCda(dataAccessId, params);
+    };
+  })();
+
   function fmt(id) {
     if (id === "plain" || !id) return function (v) { return v == null ? "" : String(v); };
     return (PDC.fmt[id] || PDC.fmt.abbr);

@@ -9664,31 +9664,112 @@ function serve() {
     ok("N-DATA: an orphaned DA isn't also profiled for quality (avoids piling a second, redundant note on top of 'declared but not used')",
       dqWatchdog.orphanedSkipsQualityCheck, JSON.stringify(dqWatchdog));
 
-    // Architecture-gap finding: a dashboard using one of the six direct-query connectors gets a
-    // warn-level Checks note that it has no live query path once exported/deployed.
+    // Architecture-gap finding: a dashboard using one of the four credential-based direct-query
+    // connectors gets a warn-level Checks note that it has no live query path once exported/
+    // deployed. DuckDB/SQLite are exempt (Z14 fix, same run as this test update): they now have a
+    // real runtime path via studio-render.js's PDC.cda dispatch, see the dedicated test below.
     const directConnWarn = await page.evaluate(function () {
       function specWith(kind) {
         return {
           name: "ok-name", title: "T", panels: [{ id: "p1", chart: { da: "d1" } }], kpis: [], filters: [],
-          cda: { dataAccesses: [{ id: "d1", name: "duckDa", kind: kind, columns: ["x"] }] }
+          cda: { dataAccesses: [{ id: "d1", name: "sfDa", kind: kind, columns: ["x"] }] }
         };
       }
+      var snowflake = Studio.validate(specWith("snowflake"));
       var duckdb = Studio.validate(specWith("duckdb"));
       var pentaho = Studio.validate(specWith("sql.jndi"));
-      var orphanedDuckdb = Studio.validate({
+      var orphanedSnowflake = Studio.validate({
         name: "ok-name", title: "T", panels: [], kpis: [], filters: [],
-        cda: { dataAccesses: [{ id: "d1", name: "duckDa", kind: "duckdb", columns: ["x"] }] }
+        cda: { dataAccesses: [{ id: "d1", name: "sfDa", kind: "snowflake", columns: ["x"] }] }
       });
       return {
-        duckdbFlagged: duckdb.some(function (i) { return i.level === "warn" && /“duckDa” \(DuckDB\) has no live query path/.test(i.msg); }),
+        snowflakeFlagged: snowflake.some(function (i) { return i.level === "warn" && /“sfDa” \(Snowflake\) has no live query path/.test(i.msg); }),
+        duckdbNotFlagged: !duckdb.some(function (i) { return /no live query path/.test(i.msg); }),
         pentahoNotFlagged: !pentaho.some(function (i) { return /no live query path/.test(i.msg); }),
-        orphanedNotDoubleFlagged: !orphanedDuckdb.some(function (i) { return /no live query path/.test(i.msg); })
+        orphanedNotDoubleFlagged: !orphanedSnowflake.some(function (i) { return /no live query path/.test(i.msg); })
       };
     });
-    ok("N-DATA: a bound DuckDB (or Snowflake/Databricks/BigQuery/SQLite/Generic SQL) DA gets a warn-level 'no live query path once exported' Checks note",
-      directConnWarn.duckdbFlagged, JSON.stringify(directConnWarn));
+    ok("N-DATA: a bound Snowflake (or Databricks/BigQuery/Generic SQL) DA gets a warn-level 'no live query path once exported' Checks note",
+      directConnWarn.snowflakeFlagged, JSON.stringify(directConnWarn));
+    ok("Z14: a bound DuckDB/SQLite DA is NOT flagged — they have a real runtime query path once exported now", directConnWarn.duckdbNotFlagged, JSON.stringify(directConnWarn));
     ok("N-DATA: a plain Pentaho SQL/MDX DA is NOT flagged with the direct-connector export warning", directConnWarn.pentahoNotFlagged, JSON.stringify(directConnWarn));
     ok("N-DATA: an orphaned direct-connector DA only gets the 'declared but not used' note, not also the export warning", directConnWarn.orphanedNotDoubleFlagged, JSON.stringify(directConnWarn));
+
+    // Z14 architecture-gap FIX (2026-07-04, same run as the test update above): the exported
+    // Dashboard Framework now has a real runtime query path for DuckDB/SQLite. Verify (1) lean
+    // bundling — the connector façade is only inlined when that DA kind is actually used — and
+    // (2) studio-render.js's PDC.cda dispatch genuinely reaches Studio.DuckDB/SQLiteHttp.query()
+    // once no PDC_MOCK data is present (i.e. a real deployment), not a Pentaho CDA fetch that
+    // would 404 for a DA with no server-side definition.
+    console.log("\n• Z14 fix: exported dashboards can now query DuckDB/SQLite live");
+    const z14Bundling = await page.evaluate(function () {
+      var assets = window.__STUDIO_STATE.assets;
+      function specWith(kind) {
+        return {
+          name: "ok-name", title: "T", panels: [], kpis: [], filters: [],
+          cda: { dataAccesses: kind ? [{ id: "d1", name: "d1", kind: kind, columns: ["x"], fileUrl: "https://x/y.parquet" }] : [] }
+        };
+      }
+      var duckHtml = Studio.exportCDF(specWith("duckdb"), assets, "/x");
+      var httpvfsHtml = Studio.exportCDF(specWith("httpvfs"), assets, "/x");
+      var plainHtml = Studio.exportCDF(specWith(""), assets, "/x");
+      return {
+        duckdbHasFacade: /Studio\.DuckDB\s*=/.test(duckHtml),
+        duckdbOmitsSqlite: !/Studio\.SQLiteHttp\s*=/.test(duckHtml),
+        httpvfsHasFacade: /Studio\.SQLiteHttp\s*=/.test(httpvfsHtml),
+        httpvfsOmitsDuckdb: !/Studio\.DuckDB\s*=/.test(httpvfsHtml),
+        plainOmitsBoth: !/Studio\.DuckDB\s*=/.test(plainHtml) && !/Studio\.SQLiteHttp\s*=/.test(plainHtml)
+      };
+    });
+    ok("Z14 fix: a duckdb-only export bundles the DuckDB façade but not the SQLite one", z14Bundling.duckdbHasFacade && z14Bundling.duckdbOmitsSqlite, JSON.stringify(z14Bundling));
+    ok("Z14 fix: an httpvfs-only export bundles the SQLite façade but not the DuckDB one", z14Bundling.httpvfsHasFacade && z14Bundling.httpvfsOmitsDuckdb, JSON.stringify(z14Bundling));
+    ok("Z14 fix: a dashboard using neither connector bundles neither façade (stays lean)", z14Bundling.plainOmitsBoth, JSON.stringify(z14Bundling));
+
+    // Functional dispatch check — load the REAL exported HTML (no PDC_MOCK, zero panels so the
+    // auto-boot never itself calls PDC.cda) into a throwaway iframe, stub Studio.DuckDB.query
+    // inside it (the network boundary, same rationale as the builder's own Run-live tests above),
+    // then call PDC.cda directly and confirm it reaches the stub.
+    const z14DuckDispatch = await page.evaluate(async function () {
+      var assets = window.__STUDIO_STATE.assets;
+      var spec = {
+        name: "ok-name", title: "T", panels: [], kpis: [], filters: [],
+        cda: { dataAccesses: [{ id: "d1", name: "d1", kind: "duckdb", columns: ["x"], fileUrl: "https://x/y.parquet", sql: "SELECT * FROM t" }] }
+      };
+      var html = Studio.exportCDF(spec, assets, "/x");
+      var ifr = document.createElement("iframe");
+      ifr.style.display = "none";
+      document.body.appendChild(ifr);
+      await new Promise(function (resolve) { ifr.onload = resolve; ifr.srcdoc = html; });
+      var iw = ifr.contentWindow;
+      iw.Studio.DuckDB.query = function () { return Promise.resolve({ cols: ["x"], rows: [[42]] }); };
+      var result = await iw.PDC.cda("d1", {});
+      document.body.removeChild(ifr);
+      return { cols: result.cols, rows: result.rows, colIdx: result.col("x") };
+    });
+    ok("Z14 fix: PDC.cda dispatches a duckdb DA to Studio.DuckDB.query() in the real exported bundle",
+      z14DuckDispatch.cols.join(",") === "x" && z14DuckDispatch.rows.length === 1 && z14DuckDispatch.rows[0][0] === 42 && z14DuckDispatch.colIdx === 0,
+      JSON.stringify(z14DuckDispatch));
+
+    const z14SqliteDispatch = await page.evaluate(async function () {
+      var assets = window.__STUDIO_STATE.assets;
+      var spec = {
+        name: "ok-name", title: "T", panels: [], kpis: [], filters: [],
+        cda: { dataAccesses: [{ id: "d1", name: "d1", kind: "httpvfs", columns: ["x"], fileUrl: "https://x/y.sqlite", tableName: "t" }] }
+      };
+      var html = Studio.exportCDF(spec, assets, "/x");
+      var ifr = document.createElement("iframe");
+      ifr.style.display = "none";
+      document.body.appendChild(ifr);
+      await new Promise(function (resolve) { ifr.onload = resolve; ifr.srcdoc = html; });
+      var iw = ifr.contentWindow;
+      iw.Studio.SQLiteHttp.query = function () { return Promise.resolve({ cols: ["x"], rows: [[7]] }); };
+      var result = await iw.PDC.cda("d1", {});
+      document.body.removeChild(ifr);
+      return { cols: result.cols, rows: result.rows, colIdx: result.col("x") };
+    });
+    ok("Z14 fix: PDC.cda dispatches an httpvfs DA to Studio.SQLiteHttp.query() in the real exported bundle",
+      z14SqliteDispatch.cols.join(",") === "x" && z14SqliteDispatch.rows.length === 1 && z14SqliteDispatch.rows[0][0] === 7 && z14SqliteDispatch.colIdx === 0,
+      JSON.stringify(z14SqliteDispatch));
 
     // ── F18: Bump / ranking chart (v104) ─────────────────────────────────────
     console.log("\n• F18: Bump chart");

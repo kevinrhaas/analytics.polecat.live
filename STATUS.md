@@ -955,6 +955,25 @@
   once this dashboard is exported/deployed — outside the builder it will only ever show the sample
   data it was authored against." Never fires for a real Pentaho SQL/MDX/etc. source or a DA already
   flagged orphaned. 3 new tests, suite 1376/1376.
+- v318: **Z14 architecture-gap FIX: exported dashboards can now query DuckDB/SQLite live** — closes
+  the credential-free half of the v316/v317 finding. `app/studio-render.js`'s `PDC.cda` is now
+  wrapped: a spec DA of kind `duckdb`/`httpvfs` is answered by querying its file directly over HTTP
+  Range Requests via `app/duckdb.js`/`app/sqlitehttp.js` instead of falling through to a Pentaho CDA
+  fetch that has no server-side definition for these DAs (the mock-data preview path and real-Pentaho
+  DAs are completely untouched — mock is checked first, same as before). `app/exporters.js` bundles
+  each connector's small façade into the export **only when that dashboard actually has a DA of that
+  kind**, so a dashboard using neither stays exactly as lean as before; `app/studio.js`'s boot fetch
+  now loads both façade files alongside the existing css/js/render/charts bundle. `Studio.withTimeout`/
+  `Studio.friendlyConnectorError` (app/model.js, a builder-only module never inlined into the export)
+  get a small local fallback copy in studio-render.js — same "local copy of a pure helper" pattern
+  already established there for `applyTemplateVars`. `Studio.validate()`'s "no live query path once
+  exported" warning no longer fires for duckdb/httpvfs (verified via a real exported-bundle iframe +
+  a stubbed `Studio.DuckDB`/`SQLiteHttp.query()`, not just a DOM check) — only the four credential-
+  based connectors (Snowflake/Databricks/BigQuery/Generic SQL/HTTP) still need it; docs corrected to
+  match. **Still genuinely open (Z4/Z14):** the four token-based connectors need a real design
+  decision on shipping a live credential inside a static exported file before they can follow; a real
+  hosted-file smoke test for both fixed connectors (needs a live/internet environment). 6 new tests,
+  suite 1382/1382.
 
 ## NEXT (top = do first)
 
@@ -1321,9 +1340,13 @@ as two connector types in the Z3/Z4 Data-Source model; one shippable slice per l
 > ✓ **Docs corrected + a Checks-section warning shipped (v316/v317), same run as this finding.**
 > The docs no longer imply the export falls back safely to offline data, and `Studio.validate()`
 > now warns right in the Dashboard inspector whenever one of these six connectors is actually bound
-> — the "explicit, loud warning" half of the plan above. **Still genuinely open:** the real fix
-> (DuckDB/SQLite runtime dispatch in `studio-render.js`, and the harder credential-in-static-file
-> design decision for the four token-based kinds).
+> — the "explicit, loud warning" half of the plan above.
+> ✓ **The real fix for the two credential-free kinds shipped (v318): DuckDB/SQLite runtime dispatch
+> in `studio-render.js`.** A duckdb/httpvfs DA is now answered by querying its file live over HTTP
+> Range Requests once exported/deployed (PDC.cda wrapper + façade bundled into the export only when
+> used); `Studio.validate()`'s warning no longer fires for these two. **Still genuinely open:** the
+> harder credential-in-static-file design decision for the four token-based kinds (Snowflake/
+> Databricks/BigQuery/Generic SQL/HTTP) — they still have no runtime query path after export.
 
 **Z4 — Data Source library + connectors.** Expand beyond CDA to direct querying of leading providers,
 browser-only via each provider's REST/SQL API with locally-saved credentials. Priority connectors:
@@ -1400,10 +1423,9 @@ connector feeds the same dashboard model.
 > **Still open for Z4**: other cloud warehouses (Redshift/Synapse — can now go through Generic
 > SQL/HTTP until they earn a dedicated slice), a real live-account smoke test for
 > Snowflake/Databricks/BigQuery/Generic SQL/HTTP, and — the important one — **the exported/deployed
-> dashboard has no runtime query path for any of these six connectors at all** (see the ⚠️ finding
-> under Z14 above): fix the two credential-free kinds (DuckDB/SQLite) first; the four token-based
-> kinds need a real design decision on shipping a live credential in a static exported file before
-> they can follow.
+> dashboard still has no runtime query path for these four token-based connectors** (DuckDB/SQLite
+> got theirs in v318 — see Z14 above): they need a real design decision on shipping a live credential
+> in a static exported file before they can follow.
 
 **Z5 — Settings.** App configuration: theme, default deploy target, gate/access, data-source defaults,
 and **dashboard style defaults** (standard look/style applied to new dashboards). Support **collections

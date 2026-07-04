@@ -330,7 +330,17 @@
       "  <div id=\"content\"><div class=\"loading\">Loading…</div></div>\n" +
       "</div>\n";
     var charts = assets.charts ? ("<script>\n" + assets.charts + "\n</script>\n") : "";
-    var boot = "<script>\n" + assets.js + "\n</script>\n" + charts + "<script>\n" + assets.render + "\n</script>\n<script>\n" +
+    // Z14 architecture-gap fix: bundle the DuckDB-Wasm / SQLite-WASM-HTTP connector façades into
+    // the export ONLY when the dashboard actually has a data access of that kind — their wasm
+    // engines are lazy-loaded from a CDN at query time regardless (see app/duckdb.js/sqlitehttp.js),
+    // but there's no reason to add even these small façade files to a dashboard that doesn't use
+    // one. This is what lets studio-render.js's PDC.cda dispatch actually answer a duckdb/httpvfs
+    // DA once exported/deployed, instead of falling through to a Pentaho CDA call that 404s.
+    var daKinds = {};
+    ((spec.cda && spec.cda.dataAccesses) || []).forEach(function (d) { if (d.kind) daKinds[d.kind] = 1; });
+    var duckdbScript = (daKinds.duckdb && assets.duckdb) ? ("<script>\n" + assets.duckdb + "\n</script>\n") : "";
+    var httpvfsScript = (daKinds.httpvfs && assets.httpvfs) ? ("<script>\n" + assets.httpvfs + "\n</script>\n") : "";
+    var boot = "<script>\n" + assets.js + "\n</script>\n" + charts + duckdbScript + httpvfsScript + "<script>\n" + assets.render + "\n</script>\n<script>\n" +
       "window.STUDIO_AUTOBOOT=false;\n" +
       "PDC.cdaPath=" + JSON.stringify(cdaPath) + ";\nvar CDAPATH=PDC.cdaPath;\n";
     if (opts.preview) {
