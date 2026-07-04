@@ -15,6 +15,17 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 289,
+    title: 'N-FUN: live "what-if" sliders for forecast knobs (first cut)',
+    kind: 'feature',
+    ts: '2026-07-04T00:31:00Z',
+    items: [
+      'The Line/area chart inspector\'s Holt-Winters forecast knobs -- Smoothing level alpha, Smoothing trend beta, Smoothing seasonality gamma, Season length, Moving avg window, and Forecast periods ahead -- are now drag-to-animate range sliders (with a live value badge) instead of plain number boxes, so dragging one re-shapes the trend/forecast line in the live preview in real time.',
+      'New generic "range" option type in the shared inspector-field builder (optField in app/studio.js) that any chart type\'s opts array can opt into -- reuses the existing live-refresh wiring already firing on every keystroke, so no new event plumbing was needed.',
+      'Closes the N-FUN backlog\'s "Live what-if parameter sliders...analysis as play" idea as a first cut. 3 new tests, suite 1288/1288.',
+    ],
+  },
+  {
     v: 288,
     title: 'N-DEV follow-up: named, reusable template-variable sets',
     kind: 'feature',

@@ -461,9 +461,9 @@
         { key: "smooth",   type: "bool",  label: "Smooth curve", def: false },
         { key: "showDots", type: "bool",  label: "Show data points", def: true },
         { key: "showMA",   type: "bool",  label: "Show moving average", def: false },
-        { key: "maWindow", type: "int",   label: "Moving avg window (points)", def: 3 },
+        { key: "maWindow", type: "range", label: "Moving avg window (points)", def: 3, min: 2, max: 14, step: 1 },
         { key: "showTrend", type: "bool", label: "Show trend / forecast line", def: false },
-        { key: "forecastPeriods", type: "int", label: "Forecast periods ahead (0 = trend only)", def: 0 },
+        { key: "forecastPeriods", type: "range", label: "Forecast periods ahead (0 = trend only)", def: 0, min: 0, max: 24, step: 1 },
         // Z7 forecasting slice 3: a second forecast method alongside the v187 OLS linear
         // trend — Holt's double exponential smoothing (level + trend, no seasonality yet).
         // Unlike the straight OLS line, the drawn line tracks a smoothed version of the
@@ -471,14 +471,18 @@
         // linearly into the forecast tail. Only used when "Show trend / forecast line" is on.
         { key: "trendMethod", type: "select", label: "Forecast method", def: "linear",
           choices: [["linear", "Linear trend (OLS)"], ["holt", "Exponential smoothing (Holt)"], ["hw", "Seasonal (Holt-Winters)"]] },
-        { key: "alpha", type: "int", label: "Smoothing level α (%, Holt/Holt-Winters only)", def: 30 },
-        { key: "beta",  type: "int", label: "Smoothing trend β (%, Holt/Holt-Winters only)", def: 10 },
+        // N-FUN "live what-if sliders": these three (%, Holt/Holt-Winters knobs) are the
+        // clearest "analysis as play" fit in the whole opts model — drag and watch the
+        // smoothed/forecast line re-shape live, so they render as range sliders, not a
+        // bare number box. min/max/step and the "%" suffix badge are optField()'s (studio.js).
+        { key: "alpha", type: "range", label: "Smoothing level α (%, Holt/Holt-Winters only)", def: 30, min: 0, max: 100, step: 5, suffix: "%" },
+        { key: "beta",  type: "range", label: "Smoothing trend β (%, Holt/Holt-Winters only)", def: 10, min: 0, max: 100, step: 5, suffix: "%" },
         // Holt-Winters adds a repeating seasonal offset on top of Holt's level+trend —
         // needs at least 2 full seasons of real data (seasonLength * 2 points) to fit;
         // with less it quietly falls back to plain Holt (see holtWintersOf in
         // studio-charts.js).
-        { key: "gamma", type: "int", label: "Smoothing seasonality γ (%, Holt-Winters only)", def: 20 },
-        { key: "seasonLength", type: "int", label: "Season length (points, Holt-Winters only)", def: 4 },
+        { key: "gamma", type: "range", label: "Smoothing seasonality γ (%, Holt-Winters only)", def: 20, min: 0, max: 100, step: 5, suffix: "%" },
+        { key: "seasonLength", type: "range", label: "Season length (points, Holt-Winters only)", def: 4, min: 2, max: 12, step: 1 },
         { key: "fmt",      type: "fmt",   label: "Value format", def: "abbr" },
         { key: "height",   type: "int",   label: "Height (px)", def: 300 }
       ],

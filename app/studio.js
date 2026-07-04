@@ -6914,6 +6914,22 @@
     if (od.type === "color") return field(od.label, select2(Studio.COLOR_TOKENS, opts[od.key] || od.def, function (v) { opts[od.key] = v; refreshPreview(); }));
     if (od.type === "select") return field(od.label, select2pairs(od.choices, opts[od.key] || od.def, function (v) { opts[od.key] = v; refreshPreview(); }));
     if (od.type === "int") { var i = el("input"); i.type = "number"; i.value = opts[od.key] != null ? opts[od.key] : od.def; i.addEventListener("input", function () { opts[od.key] = +i.value || 0; refreshPreview(); }); return field(od.label, i); }
+    // N-FUN "live what-if sliders": a drag-to-animate control for numeric knobs that feed
+    // derived series/forecasts (Holt-Winters alpha/beta/gamma, MA window, forecast periods…).
+    // Fires refreshPreview() on every 'input' tick (not just change), so the chart redraws
+    // live as the slider is dragged — the same "analysis as play" idea the N-FUN backlog asks
+    // for, reusing the existing live-preview pipeline with zero new wiring.
+    if (od.type === "range") {
+      var wrap = el("div", "opt-range");
+      var rng = el("input"); rng.type = "range";
+      rng.min = od.min != null ? od.min : 0; rng.max = od.max != null ? od.max : 100; rng.step = od.step != null ? od.step : 1;
+      var cur = opts[od.key] != null ? opts[od.key] : od.def;
+      rng.value = cur;
+      var val = el("span", "opt-range-val"); val.textContent = cur + (od.suffix || "");
+      rng.addEventListener("input", function () { opts[od.key] = +rng.value; val.textContent = rng.value + (od.suffix || ""); refreshPreview(); });
+      wrap.appendChild(rng); wrap.appendChild(val);
+      return field(od.label, wrap);
+    }
     return field(od.label, input(opts[od.key] != null ? opts[od.key] : od.def, function (v) { opts[od.key] = v; refreshPreview(); }));
   }
   function rowItem(icon, title, sub, onClick, btns, active) {

@@ -15056,6 +15056,38 @@ function serve() {
     ok("Z7HW2: trendMethod:'hw' falls back to plain Holt on too little data, and produces a real seasonal forecast (not a flat continuation) once 2+ seasons are present",
       z7hw2Render.ok, JSON.stringify(z7hw2Render));
 
+    // ---- N-FUN: "live what-if" parameter sliders for forecast knobs ----
+    console.log("\n• N-FUN: live what-if sliders (Holt-Winters alpha/beta/gamma, MA window, forecast periods)");
+    const whatIfUI = await page.evaluate(function () {
+      var spec = window.__STUDIO_STATE.spec;
+      var p = spec.panels[0];
+      var prevChart = JSON.parse(JSON.stringify(p.chart));
+      p.chart.type = "line"; p.chart.opts = { showTrend: true, trendMethod: "holt" };
+      window.__studioSelect({ kind: "panel", id: p.id });
+      var fields = [].slice.call(document.querySelectorAll("#inspBody .field"));
+      var alphaField = fields.find(function (f) { return /Smoothing level/.test(f.textContent); });
+      var result = { found: !!alphaField };
+      if (alphaField) {
+        var rng = alphaField.querySelector('input[type="range"]');
+        var badge = alphaField.querySelector(".opt-range-val");
+        result.isRange = !!rng;
+        result.badgeBefore = badge ? badge.textContent : null;
+        if (rng) {
+          rng.value = "75";
+          rng.dispatchEvent(new Event("input", { bubbles: true }));
+          result.optAfter = p.chart.opts.alpha;
+          result.badgeAfter = badge.textContent;
+        }
+      }
+      p.chart = prevChart;
+      window.__studioSelect(null);
+      window.__studioRenderInspector();
+      return result;
+    });
+    ok("N-FUN: Smoothing level α field exists and renders as a range slider", whatIfUI.found && whatIfUI.isRange, JSON.stringify(whatIfUI));
+    ok("N-FUN: dragging the α slider updates opts.alpha live (75) and its value badge in real time", whatIfUI.optAfter === 75 && whatIfUI.badgeAfter === "75%", JSON.stringify(whatIfUI));
+    ok("N-FUN: the value badge starts at the field's current value (30%)", whatIfUI.badgeBefore === "30%", JSON.stringify(whatIfUI));
+
     // ── m-a: mobile nav drawer (rail → slide-in left drawer at ≤900px) ──
     // Runs on a SEPARATE 390×844 page so it never disturbs the main desktop page.
     console.log("\n• m-a: mobile nav drawer");

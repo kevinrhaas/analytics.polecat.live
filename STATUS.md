@@ -783,6 +783,11 @@
   powerful shortcut) was the only one missing; added as the first row. 1 new test, suite 1275/1275.
 - v286: **Track L (a11y lens): Repository search field keyboard focus ring restored** — see the Track L
   findings log below. 1 new test, suite 1276/1276.
+- v289: **N-FUN: live "what-if" sliders for forecast knobs (first cut)** — the Line/area inspector's
+  Holt-Winters forecast knobs (α/β/γ/season length/MA window/forecast periods) are now drag-to-animate
+  range sliders with a live value badge, reusing the existing live-refresh wiring so the trend/forecast
+  line re-shapes as you drag. New generic `type:"range"` option in `optField()` (`app/studio.js`) any
+  chart's opts can reuse. 3 new tests, suite 1288/1288.
 
 ## NEXT (top = do first)
 
@@ -2284,6 +2289,15 @@ gets covered over time:
 > are hidden until Slide emphasis is checked. 2 new tests, suite 1235/1235.
 - **Live "what-if" parameter sliders:** on-canvas sliders that drive derived series / forecasts and animate
   the charts as you drag — analysis as play (pairs with Z7).
+> ✓ **First cut shipped v289 (closes the item above)**: the Line/area inspector's Holt-Winters forecast
+> knobs (Smoothing level α, Smoothing trend β, Smoothing seasonality γ, Season length, Moving avg window,
+> Forecast periods ahead) render as drag-to-animate range sliders with a live value badge instead of plain
+> number boxes — dragging one re-shapes the trend/forecast line in the live preview in real time. New
+> generic `type:"range"` option in the shared `optField()` inspector-field builder (`app/studio.js`) any
+> chart type's `opts` can opt into; reuses the existing live-refresh wiring (already fires on every
+> keystroke), so no new event plumbing was needed. **Still open:** extending "range" sliders to other
+> chart types' numeric knobs beyond Z7 forecasting (e.g. Callout/Reference band position %, Inner radius %
+> on Donut — currently plain number/text inputs).
 - ✓ **Build-completeness meter + gentle achievements — shipped v196.** A small progress ring + checklist
   at the top of the Dashboard inspector (title / panel / KPI / filter / a touch of style), purely
   encouraging (never a warning), collapses to a "nice work" note once complete.

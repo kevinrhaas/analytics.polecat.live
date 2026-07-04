@@ -614,6 +614,11 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
 /* Z8 follow-up: inline visual setting hint — small glyph after the label explaining a toggle */
 .opt-hint{display:inline-flex;align-items:center;color:var(--faint);opacity:.7;cursor:help;transition:opacity .12s,color .12s}
 .opt-hint:hover{opacity:1;color:var(--pentaho)}
+/* N-FUN live what-if slider — a drag-to-animate numeric control (Holt-Winters alpha/beta/
+   gamma, MA window, forecast periods…); the value badge tracks the thumb in real time. */
+.opt-range{display:flex;align-items:center;gap:9px}
+.opt-range input[type="range"]{flex:1;accent-color:var(--pentaho)}
+.opt-range-val{font-size:11.5px;color:var(--muted);min-width:2.6em;text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
 .row-item{display:flex;align-items:center;gap:9px;padding:7px 8px 7px 9px;border:1px solid var(--line);border-radius:8px;margin-bottom:6px;background:var(--pane);cursor:pointer}
 .row-item:hover{border-color:var(--pentaho)}
 .row-item.active{border-color:var(--pdc);box-shadow:0 0 0 3px color-mix(in srgb,var(--pdc) 16%,transparent)}
