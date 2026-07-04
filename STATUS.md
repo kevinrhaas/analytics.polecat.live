@@ -93,6 +93,9 @@
   and the app renders CT; the only past bug was skewed UTC values.) **Do NOT put the literal `//` in item text**
   (the manager strips line comments). The in-app footer + "What's new" sheet render `window.STUDIO_CHANGELOG`.
   Regenerate/normalize the whole file with `scratchpad/to-relay-style.js` if it ever drifts back to JSON.
+  **GUARD:** `tests/run.js` runs the manager's EXACT parser against `js/changelog.js` (asserts it parses +
+  yields every entry) — so a breaking entry fails the suite and you catch it before committing. If that guard
+  goes red, your newest entry has a raw apostrophe in a double-quoted string, a `//`, or JSON drift — fix it.
 - **CI / deploy — NEVER hard-gate the live deploy on the CI test suite.** `.github/workflows/deploy.yml`
   deploys the static site (concurrency group `pages`, cancel-in-progress). It has a **soft** `test` job with
   `continue-on-error: true`, and the `deploy` job **must NOT** `needs: test`. Reason (learned the hard way):

@@ -79,6 +79,44 @@ function serve() {
     ok("examples menu has entries", (await page.$$("#menuExamples button")).length >= 6);
     ok("brand reads “Analytics Dashboard Studio”", /Analytics Dashboard/.test(await page.$eval("#topbar .brand-title", (e) => e.textContent)));
 
+    // ---- fleet-manager changelog parse guard ----
+    // js/changelog.js is synced by manager.polecat.live, which does NOT run the file — it
+    // text-extracts the CHANGELOG array and normalizes single-quoted JS to JSON (see its
+    // js/ingest.js). A raw apostrophe in a double-quoted string, a `//`, or JSON drift breaks
+    // it. This guard runs the manager's EXACT parser so the loop catches a breaking entry
+    // before committing (the suite gates every commit) — do NOT weaken it.
+    console.log("\n• fleet changelog parse guard");
+    (function () {
+      // verbatim copy of manager.polecat.live/js/ingest.js extract+normalize
+      function extractArrayLiteral(src, varName) {
+        const m = src.match(new RegExp(varName + "\\s*=\\s*\\["));
+        if (!m) return null;
+        const start = m.index + m[0].length - 1;
+        let depth = 0, inStr = null, esc = false;
+        for (let i = start; i < src.length; i++) {
+          const c = src[i];
+          if (inStr) { if (esc) esc = false; else if (c === "\\") esc = true; else if (c === inStr) inStr = null; continue; }
+          if (c === '"' || c === "'" || c === "`") { inStr = c; continue; }
+          if (c === "[") depth++; else if (c === "]") { depth--; if (depth === 0) return src.slice(start, i + 1); }
+        }
+        return null;
+      }
+      function jsLiteralToJSON(lit) {
+        const out = lit.replace(/\/\/[^\n]*$/gm, "").replace(/,\s*([}\]])/g, "$1")
+          .replace(/([{,]\s*)([A-Za-z_$][A-Za-z0-9_$]*)\s*:/g, '$1"$2":')
+          .replace(/'((?:\\.|[^'\\])*)'/g, (_, s) => '"' + s.replace(/\\'/g, "'").replace(/"/g, '\\"') + '"');
+        return JSON.parse(out);
+      }
+      const clSrc = fs.readFileSync(path.join(ROOT, "js/changelog.js"), "utf8");
+      let parsed = null, perr = null;
+      try { parsed = jsLiteralToJSON(extractArrayLiteral(clSrc, "CHANGELOG")); } catch (e) { perr = e.message; }
+      ok("changelog parses with the fleet manager's exact parser (relay literal style)", Array.isArray(parsed) && parsed.length > 0, perr || "");
+      // and it must yield EVERY entry (a bad entry can truncate silently mid-array)
+      const w = {}; new Function("window", clSrc.replace(/export\s+const/g, "const"))(w);
+      const actual = (w.STUDIO_CHANGELOG || []).length;
+      ok("manager parse yields ALL changelog entries (no silent truncation)", parsed && parsed.length === actual, (parsed ? parsed.length : 0) + " parsed vs " + actual + " actual");
+    })();
+
     // ---- a11y: keyboard focus ring (Tab triggers :focus-visible) ----
     await page.keyboard.press("Tab");
     const focusRing = await page.evaluate(() => {
