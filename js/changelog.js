@@ -15,6 +15,16 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 328,
+    title: 'Track H sweep: Home tip rotation surfaces the new column search',
+    kind: 'polish',
+    ts: '2026-07-04T15:05:00Z',
+    items: [
+      'The Home page\'s rotating tip card only ever shows real shipped features, so a returning user discovers something they didn\'t know existed.',
+      'Added a tip about searching the Repository by column name (shipped last version), so it doesn\'t stay a hidden feature.',
+    ],
+  },
+  {
     v: 327,
     title: 'N-FUN: cross-dashboard column search in the Repository',
     kind: 'feature',

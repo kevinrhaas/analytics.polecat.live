@@ -4902,7 +4902,8 @@
     "Flip on Simple mode in Settings for a friendlier, decluttered builder.",
     "See a small ⓘ glyph beside a setting? Hover it for a plain-English explanation of what it does.",
     "Switch between Classic and Polecat color themes in Settings → Appearance.",
-    "Add a trend or forecast line to any Line/Scatter chart — pick linear or Holt exponential smoothing."
+    "Add a trend or forecast line to any Line/Scatter chart — pick linear or Holt exponential smoothing.",
+    "Search the Repository by column name, not just title — a match shows exactly which data source column it hit."
   ];
   var _homeTipIdx = new Date().getDate() % HOME_TIPS.length;
   window.__studioHomeTipIdx = function () { return _homeTipIdx; }; // test hook

@@ -2232,6 +2232,12 @@ Next H-track suggestions (pick the highest-value):
     1231/1231. **Next H-track candidate:** the Z1 follow-up "simplify the top menu bar" reorg (bigger,
     higher-risk given how much mobile CSS is tuned around today's topbar structure — needs its own
     dedicated, carefully-tested slice, not folded into a routine sweep).
+  - ✓ **Home tip rotation surfaces the new cross-dashboard column search** — shipped v328 (second
+    dedicated Track H sweep — last one was v274, ~50 versions ago). The Home tip card (Z2 follow-up)
+    only ever shows real shipped features, and the just-shipped column-search idea (v327) is exactly
+    the kind of "didn't know that existed" capability it's meant to surface — added it to the rotation.
+    Purely additive (one new string in `HOME_TIPS`); 1 new test cycles every tip and confirms it's
+    present. **Next H-track candidate unchanged:** the Z1 "simplify the top menu bar" reorg above.
 
 ### I. Learn from the reference/ lab — match & surpass those visuals (user-requested; RECURRING)
 The `reference/dashboards/` tree is a library of advanced hand-built CDF/CDE dashboards (the original

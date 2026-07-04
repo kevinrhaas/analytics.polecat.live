@@ -13153,6 +13153,19 @@ function serve() {
     ok("Z2: Home tip card shows a real tip with an icon", z2Tip.before.length > 10 && z2Tip.hasIcon, JSON.stringify(z2Tip));
     ok("Z2: clicking the tip's Next arrow advances to a different tip", z2Tip.changed && z2Tip.idxAfter === (z2Tip.idxBefore + 1) % z2Tip.tipCount, JSON.stringify(z2Tip));
 
+    // Track H (onboarding/guidance): the tip rotation should mention the just-shipped cross-dashboard
+    // column search, so returning users discover it — cycle through every tip and check the text is there.
+    const z2TipTexts = await page.evaluate(function () {
+      var n = window.__studioHomeTipsCount(), seen = [];
+      for (var i = 0; i < n; i++) {
+        seen.push(document.querySelector("#secHome .home-tip-txt").textContent);
+        document.querySelector("#secHome .home-tip-next").click();
+      }
+      return seen;
+    });
+    ok("Track H: the Home tip rotation includes a tip about searching by column name",
+      z2TipTexts.some(function (t) { return /column name/i.test(t); }), JSON.stringify(z2TipTexts));
+
     // Z2-2: Home surfaces recents captured from the many dashboard loads/edits earlier in this run,
     // each with a live-rendered SVG thumbnail (Studio.makeThumbnail) and matching localStorage.
     const z2Recents = await page.evaluate(function () {
