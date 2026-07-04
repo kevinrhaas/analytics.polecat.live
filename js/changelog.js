@@ -15,6 +15,16 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 304,
+    title: 'Track L sweep (duplication lens): deduped insight/callout math',
+    kind: 'fix',
+    ts: '2026-07-04T06:01:22Z',
+    items: [
+      'Studio.computeInsights and Studio.notablePoint (app/model.js) independently rebuilt the same filtered points array and re-derived byte-identical mean/std-dev/outlier/biggest-move math -- risking silent drift between the prose insight and the callout marker it is supposed to match.',
+      'Extracted shared numericSeries()/findOutlier()/findBiggestMove() helpers; both callers now compute from one source. Pure refactor, no behavior change -- suite unchanged at 1335/1335.',
+    ],
+  },
+  {
     v: 303,
     title: 'N-DESIGN follow-up: a broader elevation scale (three depth tiers)',
     kind: 'polish',

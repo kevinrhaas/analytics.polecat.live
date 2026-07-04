@@ -860,6 +860,12 @@
   hover-lifted cards/KPIs — floating surfaces now visibly out-elevate a merely-hovered panel instead of
   tying with it. Pure additive token + two selector swaps, `vendor/pdc-ui.css` only. 2 new tests, suite
   1335/1335.
+- v304: **Track L sweep (duplication lens): deduped mean/std-dev/outlier/biggest-move math in
+  `app/model.js`** — `Studio.computeInsights` and `Studio.notablePoint` independently rebuilt the same
+  filtered numeric-points array and re-derived the same mean/population-std-dev/outlier/biggest-move
+  logic byte-for-byte, risking silent drift between the prose insight and the callout marker it's
+  supposed to match. Extracted shared `numericSeries()`/`findOutlier()`/`findBiggestMove()` helpers; both
+  callers now compute from one source. Pure refactor, no behavior change — suite unchanged at 1335/1335.
 
 ## NEXT (top = do first)
 
@@ -2109,6 +2115,18 @@ gets covered over time:
   `Studio.defineChart({type, render, opts, thumb, autoPick})` contract so new types are uniform and testable.
 - **Test health** — coverage per feature, flaky/slow checks, and a fast smoke subset for quick loops.
 > **Findings log (append newest on top; keep short):**
+> - **Fixed shipped v304 (duplication lens):** `Studio.computeInsights` and `Studio.notablePoint`
+>   (`app/model.js`) independently rebuilt the same filtered `{label,value}` points array from
+>   `cols`/`rows`/`labelCol`/`valueCol` and re-derived byte-identical mean/population-std-dev math,
+>   plus the same outlier-detection (z-score > 2) and biggest-point-to-point-move loops — `notablePoint`'s
+>   own doc comment even calls out that it picks "the single most notable point `computeInsights`
+>   already narrates," acknowledging the conceptual pairing without sharing the code, so a future tweak
+>   to the z-score threshold or tie-break rule in one wouldn't propagate to the other and the callout
+>   marker could silently stop matching the outlier/move the insight prose calls out for the same chart.
+>   Extracted shared `numericSeries()` (points + mean + sd), `findOutlier()`, and `findBiggestMove()`
+>   helpers; both callers now compute from the one source. Pure refactor, no behavior change — suite
+>   unchanged at 1335/1335 (existing outlier/biggest-move/notablePoint coverage already exercises both
+>   paths).
 > - **Fixed shipped v299 (accessibility lens):** found a second instance of the exact "outline
 >   re-declared inside `:focus`" bug shape the v286 finding below fixed on `.repo-search` —
 >   `.dsb-sqb-inp` (every FROM/JOIN/SELECT/AGG/WHERE field in the visual SQL/Kettle query builder,

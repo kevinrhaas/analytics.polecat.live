@@ -182,18 +182,46 @@
     if (n >= 1e3) return sign + (n / 1e3).toFixed(n >= 1e4 ? 0 : 1).replace(/\.0$/, "") + "K";
     return sign + (Math.round(n * 100) / 100).toLocaleString();
   };
-  Studio.computeInsights = function (cols, rows, labelCol, valueCol) {
+  // Shared by computeInsights() and notablePoint() below: {label,value,index} points for a
+  // label/value column pair (NaN values dropped), plus their mean + population std-dev.
+  function numericSeries(cols, rows, labelCol, valueCol) {
     var vi = (cols || []).indexOf(valueCol);
     if (vi < 0 || !rows || rows.length < 2) return null;
     var li = (cols || []).indexOf(labelCol);
     var pts = rows.map(function (r, i) {
-      return { label: li >= 0 ? r[li] : "row " + (i + 1), value: Number(r[vi]) };
+      return { label: li >= 0 ? r[li] : "row " + (i + 1), value: Number(r[vi]), index: i };
     }).filter(function (p) { return !isNaN(p.value); });
     if (pts.length < 2) return null;
     var n = pts.length;
     var values = pts.map(function (p) { return p.value; });
     var mean = values.reduce(function (a, b) { return a + b; }, 0) / n;
     var sd = Math.sqrt(values.reduce(function (a, b) { return a + (b - mean) * (b - mean); }, 0) / n);
+    return { pts: pts, values: values, n: n, mean: mean, sd: sd };
+  }
+  // The point furthest from the mean, if beyond 2 std-deviations — null otherwise.
+  function findOutlier(pts, mean, sd) {
+    if (sd <= 0) return null;
+    var outlier = null, bestZ = 0;
+    pts.forEach(function (p) {
+      var z = (p.value - mean) / sd;
+      if (Math.abs(z) > Math.abs(bestZ)) { bestZ = z; outlier = p; }
+    });
+    return (outlier && Math.abs(bestZ) > 2) ? { point: outlier, z: bestZ } : null;
+  }
+  // The biggest single point-to-point move, if any.
+  function findBiggestMove(pts) {
+    var biggest = null;
+    for (var j = 1; j < pts.length; j++) {
+      var d = pts[j].value - pts[j - 1].value;
+      if (!biggest || Math.abs(d) > Math.abs(biggest.delta)) biggest = { delta: d, point: pts[j] };
+    }
+    return (biggest && Math.abs(biggest.delta) > 0) ? biggest : null;
+  }
+
+  Studio.computeInsights = function (cols, rows, labelCol, valueCol) {
+    var series = numericSeries(cols, rows, labelCol, valueCol);
+    if (!series) return null;
+    var pts = series.pts, values = series.values, n = series.n, mean = series.mean, sd = series.sd;
     var sentences = [];
 
     // Trend: sign + magnitude of an OLS slope fit to point index -> value.
@@ -212,27 +240,17 @@
     }
 
     // Biggest single point-to-point move.
-    var biggest = null;
-    for (var j = 1; j < n; j++) {
-      var d = pts[j].value - pts[j - 1].value;
-      if (!biggest || Math.abs(d) > Math.abs(biggest.delta)) biggest = { delta: d, label: pts[j].label };
-    }
-    if (biggest && Math.abs(biggest.delta) > 0) {
-      sentences.push("The biggest single move is at “" + biggest.label + "”, " +
+    var biggest = findBiggestMove(pts);
+    if (biggest) {
+      sentences.push("The biggest single move is at “" + biggest.point.label + "”, " +
         (biggest.delta > 0 ? "up " : "down ") + Studio.abbrNum(Math.abs(biggest.delta)) + " from the prior point.");
     }
 
     // Outlier: the point furthest from the mean, if beyond 2 std-deviations.
-    if (sd > 0) {
-      var outlier = null, bestZ = 0;
-      pts.forEach(function (p) {
-        var z = (p.value - mean) / sd;
-        if (Math.abs(z) > Math.abs(bestZ)) { bestZ = z; outlier = p; }
-      });
-      if (outlier && Math.abs(bestZ) > 2) {
-        sentences.push("“" + outlier.label + "” stands out as an outlier at " + Studio.abbrNum(outlier.value) +
-          " (" + Math.abs(bestZ).toFixed(1) + "× std-dev from the mean).");
-      }
+    var outlierHit = findOutlier(pts, mean, sd);
+    if (outlierHit) {
+      sentences.push("“" + outlierHit.point.label + "” stands out as an outlier at " + Studio.abbrNum(outlierHit.point.value) +
+        " (" + Math.abs(outlierHit.z).toFixed(1) + "× std-dev from the mean).");
     }
 
     // Seasonality: the lag with the strongest autocorrelation, if it's convincing.
@@ -277,35 +295,17 @@
      downward), clamped to a 5–95% band so the bubble never clips the chart edge.
      Pure/independently-testable, same offline-only spirit as computeInsights. */
   Studio.notablePoint = function (cols, rows, labelCol, valueCol) {
-    var vi = (cols || []).indexOf(valueCol);
-    if (vi < 0 || !rows || rows.length < 2) return null;
-    var li = (cols || []).indexOf(labelCol);
-    var pts = rows.map(function (r, i) {
-      return { label: li >= 0 ? r[li] : "row " + (i + 1), value: Number(r[vi]), index: i };
-    }).filter(function (p) { return !isNaN(p.value); });
-    var n = pts.length;
-    if (n < 2) return null;
-    var values = pts.map(function (p) { return p.value; });
-    var mean = values.reduce(function (a, b) { return a + b; }, 0) / n;
-    var sd = Math.sqrt(values.reduce(function (a, b) { return a + (b - mean) * (b - mean); }, 0) / n);
+    var series = numericSeries(cols, rows, labelCol, valueCol);
+    if (!series) return null;
+    var pts = series.pts, values = series.values, n = series.n, mean = series.mean, sd = series.sd;
     var min = Math.min.apply(null, values), max = Math.max.apply(null, values);
 
     var chosen = null, kind = null;
-    if (sd > 0) {
-      var bestZ = 0, outlier = null;
-      pts.forEach(function (p) {
-        var z = (p.value - mean) / sd;
-        if (Math.abs(z) > Math.abs(bestZ)) { bestZ = z; outlier = p; }
-      });
-      if (outlier && Math.abs(bestZ) > 2) { chosen = outlier; kind = "outlier"; }
-    }
+    var outlierHit = findOutlier(pts, mean, sd);
+    if (outlierHit) { chosen = outlierHit.point; kind = "outlier"; }
     if (!chosen) {
-      var biggest = null;
-      for (var j = 1; j < n; j++) {
-        var d = pts[j].value - pts[j - 1].value;
-        if (!biggest || Math.abs(d) > Math.abs(biggest.delta)) biggest = { delta: d, point: pts[j] };
-      }
-      if (biggest && Math.abs(biggest.delta) > 0) { chosen = biggest.point; kind = "move"; }
+      var biggest = findBiggestMove(pts);
+      if (biggest) { chosen = biggest.point; kind = "move"; }
     }
     if (!chosen) return null;
 
