@@ -52,7 +52,6 @@
     })(), 20000, "Loading the SQLite engine").catch(function (e) { _scriptPromise = null; throw e; });
     return _scriptPromise;
   }
-  Studio.SQLiteHttp_ensureEngine = ensureEngine; // exposed so tests can stub/observe it
 
   var _dbCache = {}; // fileUrl -> Promise<WorkerHttpvfs> — one open httpvfs worker per distinct file
   // Opens (or reuses) a worker-backed connection to cfg.fileUrl over HTTP Range Requests, then

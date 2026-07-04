@@ -794,6 +794,9 @@
 - v291: **N-DATA: cross-filter extended to Lollipop** — `wireXFilter()` gains a lollipop branch (tags
   each `circle.dot`); `ANNOT_CAPS.crossFilter` includes lollipop so the inspector section appears. 2 new
   tests, suite 1293/1293.
+- v292: **Track L sweep (dead-code lens): removed 3 orphaned `Studio.*` exports** —
+  `DuckDB_ensureEngine`/`SQLiteHttp_ensureEngine`/`xmlEscape` had zero call sites anywhere in the repo.
+  Pure deletion, no behavior change, suite unchanged at 1293/1293.
 
 ## NEXT (top = do first)
 
@@ -2038,6 +2041,14 @@ gets covered over time:
   `Studio.defineChart({type, render, opts, thumb, autoPick})` contract so new types are uniform and testable.
 - **Test health** — coverage per feature, flaky/slow checks, and a fast smoke subset for quick loops.
 > **Findings log (append newest on top; keep short):**
+> - **Fixed shipped v292 (dead-code lens, follow-up to the v276 pass):** `Studio.DuckDB_ensureEngine`/
+>   `Studio.SQLiteHttp_ensureEngine` (each commented "exposed so tests can stub/observe it") and
+>   `Studio.xmlEscape` had zero call sites anywhere in `app/*.js`/`docs/index.html`/`tests/run.js` — the
+>   comments' own justification was never actually true. Same repo-wide `Studio.*`-definitions-vs-usage
+>   diff technique as v276 (re-run periodically, not a one-off script) turned up exactly 3 candidates this
+>   time, all genuine. Pure deletion of the dead export line in each of the three files; the underlying
+>   local functions (`ensureEngine`/`xml`) are still very much alive and used internally. No behavior
+>   change, suite unchanged at 1293/1293.
 > - **Fixed shipped v286 (accessibility lens):** while auditing the exported-dashboard chrome's focus
 >   rings (v283), spot-checked the app chrome (`studio.css`) for the same bug shape and found one:
 >   `.repo-search:focus{outline:none;border-color:#d4773b}` — the Repository section's search field —

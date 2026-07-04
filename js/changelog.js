@@ -15,6 +15,16 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 292,
+    title: 'Track L sweep: removed 3 orphaned Studio.* exports',
+    kind: 'polish',
+    ts: '2026-07-04T01:08:52Z',
+    items: [
+      'Dead-code lens: Studio.DuckDB_ensureEngine, Studio.SQLiteHttp_ensureEngine, and Studio.xmlEscape had zero call sites anywhere in the app, docs, or test suite -- the DuckDB/SQLite ones were commented "exposed so tests can stub/observe it" but no test ever did.',
+      'Pure deletion of the dead export line in each file; the underlying local functions are still used internally. No behavior change, suite unchanged at 1293/1293.',
+    ],
+  },
+  {
     v: 291,
     title: 'N-DATA: cross-filter extended to Lollipop',
     kind: 'feature',

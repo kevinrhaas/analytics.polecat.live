@@ -61,7 +61,6 @@
     })(), 20000, "Loading the DuckDB engine").catch(function (e) { _enginePromise = null; throw e; });
     return _enginePromise;
   }
-  Studio.DuckDB_ensureEngine = ensureEngine; // exposed so tests can stub/observe it
 
   // Opens a connection, registers cfg.fileUrl as an HTTP-range-backed file, and (re)creates
   // a "t" view over it via read_parquet/read_csv_auto — the shared entry point for both
