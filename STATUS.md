@@ -939,6 +939,14 @@
   Track N entry above. `Studio.evalFormula`/`Studio.applyCalcCols` (model.js), wired into
   `Studio.sampleRows`/`genMock` and `Studio.columnsOf`; live inline validation in the DA inspector.
   10 new tests, suite 1373/1373.
+- (docs-only) **Architecture finding: exported/deployed dashboards can't actually query the six
+  direct connectors at runtime** — traced while scoping a v315 follow-up; see the ⚠️ writeup under
+  Z14 and the updated Z4 "Still open" note. `PDC.cda()` (the exported bundle's only data-fetch path)
+  only ever reads injected offline mock data or calls a real Pentaho CDA endpoint; nothing dispatches
+  to duckdb.js/sqlitehttp.js/snowflake.js/databricks.js/bigquery.js/genericsql.js at runtime, so those
+  connectors only ever work inside the builder's own authoring/preview flow today. No code changed —
+  documented as a dedicated future decision (credential-in-static-file concerns for the four
+  token-based kinds; DuckDB/SQLite are the safer, credential-free half to fix first).
 
 ## NEXT (top = do first)
 
@@ -1275,6 +1283,33 @@ as two connector types in the Z3/Z4 Data-Source model; one shippable slice per l
 > closes the "make the connector gallery sexy" ask within the app's no-images/no-deps constraint. **Still
 > genuinely open (needs a live/internet environment, not buildable in this sandbox)**: (2) a real
 > hosted-file smoke test against a public S3/GCS file for both connectors.
+> ⚠️ **Architecture gap found (2026-07-04, while scoping an N-DATA calc-columns follow-up) —
+> a real *exported/deployed* dashboard cannot actually query any of the six direct connectors.**
+> Traced the runtime data path all the way down: the exported CDF's ONLY data-fetch mechanism is
+> `PDC.cda(dataAccessId, params)` in `vendor/pdc-ui.js`, which either reads injected offline
+> `window.PDC_MOCK` data (the **in-app preview only** — `Studio.buildHtml(..., {preview:true})`)
+> or calls the real Pentaho endpoint `/pentaho/plugin/cda/api/doQuery` (`Studio.exportCDF`, the
+> real `.html` export, and the `opts.liveBase` "live preview" override — both still just point at
+> a Pentaho CDA server). There is **no code path anywhere in `studio-render.js`/`vendor/pdc-ui.js`
+> that dispatches to `duckdb.js`/`sqlitehttp.js`/`snowflake.js`/`databricks.js`/`bigquery.js`/
+> `genericsql.js`** — those modules are called ONLY from the builder page itself (`studio.js`'s
+> "Test connection"/"Run live" handlers, for authoring-time verification). Since these six kinds
+> are deliberately excluded from `.cda` (Z14/Z4 above), a dashboard exported/deployed with one of
+> them bound to a panel would call `PDC.cda()` for a `dataAccessId` that has **no real CDA
+> definition on the server** and fail outright once actually deployed — despite "Data source
+> freshness"/"Run live" language implying these connectors are live end-to-end. **Why this
+> probably was never wired (a real constraint, not just an oversight):** naively fixing it by
+> inlining the connector JS + calling it at runtime would mean baking a live credential
+> (Snowflake/Databricks/BigQuery access token) as **plaintext inside a static, exported HTML
+> file** — a real secret-handling anti-pattern, not merely a nice-to-have gap, for the four
+> credential-based kinds. DuckDB/SQLite (URL-only, no secret) don't have that problem, so they're
+> the safer half to fix first. **Left as a documented, dedicated future decision rather than
+> attempted here** — it needs its own careful design pass (at minimum: DuckDB/SQLite dispatch in
+> `studio-render.js` for the two credential-free kinds; an explicit, loud warning in the Export
+> modal / `Studio.validate()` Checks section for the four credential-based kinds until/unless a
+> real answer exists for shipping a token in a static file) rather than a same-run patch. Docs and
+> the in-app copy should stop implying full live-after-export parity for these connectors until
+> this is resolved.
 
 **Z4 — Data Source library + connectors.** Expand beyond CDA to direct querying of leading providers,
 browser-only via each provider's REST/SQL API with locally-saved credentials. Priority connectors:
@@ -1349,8 +1384,12 @@ connector feeds the same dashboard model.
 > brands. Same shared card gallery used by both New Source and Edit, so the treatment applies everywhere
 > a connector type is picked. 2 new tests, suite 1149/1149.
 > **Still open for Z4**: other cloud warehouses (Redshift/Synapse — can now go through Generic
-> SQL/HTTP until they earn a dedicated slice), and a real live-account smoke test for
-> Snowflake/Databricks/BigQuery/Generic SQL/HTTP.
+> SQL/HTTP until they earn a dedicated slice), a real live-account smoke test for
+> Snowflake/Databricks/BigQuery/Generic SQL/HTTP, and — the important one — **the exported/deployed
+> dashboard has no runtime query path for any of these six connectors at all** (see the ⚠️ finding
+> under Z14 above): fix the two credential-free kinds (DuckDB/SQLite) first; the four token-based
+> kinds need a real design decision on shipping a live credential in a static exported file before
+> they can follow.
 
 **Z5 — Settings.** App configuration: theme, default deploy target, gate/access, data-source defaults,
 and **dashboard style defaults** (standard look/style applied to new dashboards). Support **collections
@@ -2688,9 +2727,11 @@ gets covered over time:
 > The DA inspector's formula field now validates live against a probe row and shows a small
 > inline error naming the problem (unknown column, divide-by-zero, malformed syntax) instead of
 > failing silently. 10 new tests. **Still open:** `pctChange()`/`movingAvg()`-style named
-> functions beyond plain arithmetic, and wiring the same evaluation into the exported/live
-> runtime (`studio-render.js`) so calc columns compute for real at runtime on the six direct
-> connectors, not just in the builder's own preview.
+> functions beyond plain arithmetic. **Also found while scoping a "wire it into the exported/live
+> runtime too" follow-up — a much bigger, pre-existing gap, written up under Z14/Z4 below:** an
+> *exported* dashboard has no live-query mechanism at all for the six direct connectors, so this
+> stays a builder-preview-only feature for them until that's addressed (see "⚠️ direct connectors
+> don't actually run once deployed" under Z14).
 - **Period-over-period / compare mode:** pick two ranges or two sources and diff them across every panel.
 - **Pivot / crosstab builder** and **anomaly + correlation explorer** as first-class analysis surfaces.
 - **Data quality watchdog (added 2026-07-03):** scan a data access's own sample rows for common quality
