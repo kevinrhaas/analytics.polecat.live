@@ -673,6 +673,36 @@ function serve() {
     });
     ok("Z14: Run live queries via Studio.DuckDB.query() and shows the live result", /2 rows? · 2 cols? · live/.test(dkRunLive.status), JSON.stringify(dkRunLive));
 
+    // ---- N-DATA innovation-sweep idea: data source freshness badge ----
+    // A successful "Run live" (the shared renderTable(..., "live") call every connector kind's
+    // live path funnels through) should stamp + surface a "Last verified live" badge, so a builder
+    // trusting a live connector can tell a genuinely-current query from a silently stale one.
+    console.log("\n• N-DATA: data source freshness badge");
+    const dkFreshness = await page.evaluate(() => {
+      const insp = document.getElementById("inspBody");
+      const badge = insp.querySelector(".daprev-freshness");
+      let stored; try { stored = JSON.parse(localStorage.getItem("studio-da-freshness") || "{}"); } catch (e) { stored = {}; }
+      return { badgeText: badge ? badge.textContent : "", storedHasS3Sales: !!stored.s3Sales };
+    });
+    ok("N-DATA: freshness badge reads 'Last verified live ...' right after a successful Run live",
+      /Last verified live/.test(dkFreshness.badgeText), JSON.stringify(dkFreshness));
+    ok("N-DATA: the DA's freshness timestamp is persisted in localStorage keyed by DA id",
+      dkFreshness.storedHasS3Sales, JSON.stringify(dkFreshness));
+
+    // A DA that has never been queried live shows "Never verified live" instead.
+    const dkNeverVerified = await page.evaluate(async () => {
+      var sp = window.__STUDIO_STATE.spec;
+      var da = sp.cda.dataAccesses.find((d) => d.kind === "duckdb");
+      if (!da) return { skip: true };
+      try { localStorage.removeItem("studio-da-freshness"); } catch (e) {}
+      window.__studioSelect({ kind: "da", id: da.id });
+      await new Promise((r) => setTimeout(r, 60));
+      const badge = document.querySelector("#inspBody .daprev-freshness");
+      return { badgeText: badge ? badge.textContent : "" };
+    });
+    ok("N-DATA: a DA that's never been queried live shows 'Never verified live'",
+      dkNeverVerified.skip || dkNeverVerified.badgeText === "Never verified live", JSON.stringify(dkNeverVerified));
+
     const dkTestFail = await page.evaluate(async () => {
       Studio.DuckDB.testConnection = function () { return Promise.resolve({ ok: false, error: "CORS blocked — the host doesn't allow cross-origin range requests." }); };
       const insp = document.getElementById("inspBody");

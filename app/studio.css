@@ -1056,8 +1056,9 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
 .daprev-params{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
 .daprev-param-field{flex:1;min-width:90px}
 .daprev-param-field label{font-size:10px;font-weight:600;color:var(--muted);font-family:var(--mono)}
-.daprev-toolbar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px}
+.daprev-toolbar{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px}
 .daprev-status{font-size:10.5px;color:var(--faint);margin-bottom:4px;min-height:14px}
+.daprev-freshness{font-size:10.5px;color:var(--faint);margin-left:auto;white-space:nowrap}
 .daprev-tbl-wrap{overflow:auto;max-height:220px;border:1px solid var(--line-2);border-radius:6px}
 .daprev-tbl{width:100%;border-collapse:collapse;font-size:10.5px}
 .daprev-tbl th{position:sticky;top:0;background:var(--field);font-weight:600;color:var(--muted);

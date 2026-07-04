@@ -15,6 +15,18 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 301,
+    title: 'N-DATA: data source freshness badge (innovation sweep + first slice)',
+    kind: 'feature',
+    ts: '2026-07-04T05:31:31Z',
+    items: [
+      'New innovation-sweep ideas added to the backlog (data source freshness, dashboard health score, compare-dashboards side-by-side, canvas sticky notes) plus the first shipped: any data access with a "Run live" button now shows a small "Last verified live ..." / "Never verified live" badge in its Data preview.',
+      'Stamped locally (localStorage, keyed by DA id) each time a live query actually succeeds -- via the one shared renderTable(..., "live") call every connector kind (DuckDB/SQLite/Snowflake/Databricks/BigQuery/Generic SQL/HTTP/Pentaho) already funnels through, so a token that quietly expired or an endpoint that went dark stops getting silently trusted just because it worked once before.',
+      'Deliberately scoped to "Run live" (a real query) rather than "Test connection" (mere connectivity, and a dozen separate per-connector success handlers) -- a smaller, safer, still-meaningful first cut.',
+      '3 new tests, suite 1331/1331.',
+    ],
+  },
+  {
     v: 300,
     title: 'N-DIST: save a chart as a PNG image (first cut)',
     kind: 'feature',

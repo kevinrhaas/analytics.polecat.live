@@ -845,6 +845,10 @@
   self-contained) via an SVG-blob → Image → canvas round-trip. Deliberately SVG-only — confirmed the
   "whole-card-in-a-foreignObject" route taints the canvas in Chromium. Visually verified on
   Bars/Donut/Line. 3 new tests, suite 1328/1328.
+- v301: **N-DATA: data source freshness badge (innovation sweep + first slice)** — 4 new innovation
+  ideas added to the N backlog; shipped the first: any DA with a **Run live** button shows a "Last
+  verified live …" / "Never verified live" badge, stamped via the one shared `renderTable(...,
+  "live")` call every connector kind already funnels through. 3 new tests, suite 1331/1331.
 
 ## NEXT (top = do first)
 
@@ -2423,6 +2427,37 @@ gets covered over time:
 > data. 3 new tests, suite 1240/1240.
 
 **N-DATA — Analytical depth (toward standalone analytic apps).**
+- **Data source freshness badge (added 2026-07-04, innovation sweep):** track each data access's last
+  successful "Test connection"/"Run live" timestamp locally (`localStorage`, keyed by DA id) and surface a
+  small "checked 2h ago" / "never verified" badge wherever a DA is browsed (library pane, Repository,
+  DA inspector) — nudges a builder to re-check a dodgy live connector rather than silently trusting
+  demo/mock data that quietly went stale. Pure client-side, no new connector work.
+> ✓ **First cut shipped v301 (same run as the idea was added)**: any DA with a **Run live** button
+> (DuckDB/SQLite/Snowflake/Databricks/BigQuery/Generic SQL/HTTP/Pentaho) shows a **"Last verified
+> live …" / "Never verified live"** badge (`.daprev-freshness`) in its Data preview toolbar, stamped
+> in `localStorage["studio-da-freshness"]` (keyed by DA id) via the ONE shared `renderTable(...,
+> "live")` call every connector kind already funnels through — no per-connector wiring needed.
+> Deliberately scoped to "Run live" (a real query), not "Test connection" (mere connectivity, and a
+> dozen separate per-connector success handlers) — a smaller, safer first cut. Reuses the existing
+> `timeAgo()` helper. Included in Clear local data. Visually verified (never-verified → "just now"
+> after a live click). 3 new tests, suite 1331/1331. **Still open:** surfacing the badge in the
+> library pane / Repository too (today it's DA-inspector-only), and whether "Test connection" should
+> also count as a freshness signal.
+- **Dashboard health score (added 2026-07-04, innovation sweep):** the existing build-completeness meter
+  (v196) only checks "did you fill things in" — extend it (or add a sibling score) that also runs the
+  Data quality watchdog (v260/v261) across every bound DA, flags orphaned data accesses (declared but no
+  panel/KPI/filter references them), and flags a drill-through/detail-drawer target that no longer
+  resolves — one glanceable score + punch-list for "is this dashboard actually sound," not just "is it
+  filled in."
+- **Compare dashboards side-by-side (added 2026-07-04, innovation sweep):** pick any two saved dashboards
+  from Home/Repository and view them in a synced-scroll split-screen — distinct from the existing
+  per-dashboard Version-history diff (v262, which compares a dashboard against ITS OWN past checkpoint,
+  not two different dashboards). Useful for "which of these two drafts is better" or a before/after across
+  a redesign.
+- **Canvas sticky notes (added 2026-07-04, innovation sweep):** small colored freehand notes a builder can
+  pin to a specific panel or blank canvas area — for team brainstorming/review while a dashboard is in
+  progress. Builder-only UI state (`localStorage`, keyed by dashboard id), deliberately never exported —
+  scratch space, not a dashboard feature.
 - **Cross-filter / brushing everywhere:** click or brush any chart to filter the whole dashboard, with a
   visible active-filter bar and one-click clear. The feature that makes a dashboard feel *alive*.
 > ✓ **Extended to Lollipop, shipped v291**: `wireXFilter()` (`app/studio-render.js`) gains a `lollipop`

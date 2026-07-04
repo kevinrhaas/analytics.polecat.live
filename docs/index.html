@@ -477,6 +477,9 @@
     <li>Like the other direct connectors, a Generic SQL/HTTP DA isn't a Pentaho data source, so it's excluded from the <code>.cda</code> export.</li>
   </ul>
 
+  <h3>Data source freshness</h3>
+  <p>Any data access with a <strong>Run live</strong> button (DuckDB, SQLite, Snowflake, Databricks, BigQuery, Generic SQL/HTTP, or a Pentaho connection) shows a small <strong>"Last verified live …"</strong> / <strong>"Never verified live"</strong> badge next to it in the Data preview — stamped locally each time a live query actually succeeds, so a token that quietly expired or an endpoint that went dark doesn't get silently trusted just because it worked once.</p>
+
   <h3>Joins and compound DAs</h3>
   <p>Click <strong>⧈ Join</strong> in the library to create a <strong>Compound data access</strong> — either a join (left/right DA + key columns) or a union (stack rows from N DAs). These map directly to CDA <code>&lt;CompoundDataAccess&gt;</code> XML.</p>
 </section>

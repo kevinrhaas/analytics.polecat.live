@@ -4075,6 +4075,28 @@
     renderDAPreview(body, da);
   }
 
+  // N-DATA innovation-sweep idea (added 2026-07-04): data source freshness badge — a builder
+  // trusting a live connector has no way to tell a genuinely-current query from one that quietly
+  // went stale (expired token, dead endpoint) days ago. Stamp + surface the last time THIS data
+  // access's "Run live" actually succeeded, keyed by DA id, so a dodgy connector gets noticed
+  // instead of silently trusted. Deliberately scoped to "Run live" (a real query), not "Test
+  // connection" (mere connectivity) — and to the one shared renderTable() call site every
+  // connector kind's live path already funnels through, not the dozen separate per-connector
+  // Test-connection success handlers.
+  function daFreshnessMap() {
+    try { return JSON.parse(localStorage.getItem("studio-da-freshness") || "{}"); } catch (e) { return {}; }
+  }
+  function markDaFreshness(daId) {
+    try {
+      var m = daFreshnessMap(); m[daId] = new Date().toISOString();
+      localStorage.setItem("studio-da-freshness", JSON.stringify(m));
+    } catch (e) {}
+  }
+  function daFreshnessLabel(daId) {
+    var ts = daFreshnessMap()[daId];
+    return ts ? "Last verified live " + timeAgo(ts) : "Never verified live";
+  }
+
   function renderDAPreview(body, da) {
     var PAGE_SIZE = 10;
     var state = { page: 0, result: null, source: "" };
@@ -4122,6 +4144,11 @@
       toolbar.appendChild(liveBtn);
     }
     toolbar.appendChild(copyBtn);
+    if (liveBtn) {
+      var freshBadge = el("span", "daprev-freshness");
+      freshBadge.textContent = daFreshnessLabel(da.id);
+      toolbar.appendChild(freshBadge);
+    }
     sec.appendChild(toolbar);
 
     var statusLine = el("div", "daprev-status");
@@ -4184,6 +4211,10 @@
 
       var srcLabel = src === "live" ? " · live" : " · sample";
       statusLine.textContent = totalRows + " row" + (totalRows !== 1 ? "s" : "") + " · " + result.cols.length + " col" + (result.cols.length !== 1 ? "s" : "") + srcLabel;
+      if (src === "live") {
+        markDaFreshness(da.id);
+        if (freshBadge) freshBadge.textContent = daFreshnessLabel(da.id);
+      }
 
       if (totalPages > 1) {
         pagination.style.display = "";
@@ -6355,7 +6386,7 @@
         // cardSkin (same "new Settings key, forgot Clear local data" gap the v194/v235 notes describe).
         "studio-default-titlesize", "studio-default-subtitlestyle", "studio-default-dashboardtheme", "studio-default-cardskin", "studio-style-presets",
         "studio-cmdk-usage", "studio-first-export-done", "studio-export-count", "studio-dash-count",
-        "studio-deploy-path", "studio-live-data", "studio-templatevar-sets"
+        "studio-deploy-path", "studio-live-data", "studio-templatevar-sets", "studio-da-freshness"
       ];
       var msg = "Clear all locally-stored Studio data?\n\nThis will remove:\n" +
         "  • Unsaved spec draft (autosave)\n" +
