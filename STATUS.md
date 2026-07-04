@@ -927,6 +927,14 @@
   a module-level constant + test hook (`window.__studioClearDataKeys`) so it can be asserted
   against directly instead of via a second hardcoded copy in the test file. 1 test strengthened,
   suite 1357/1357.
+- v314: **Track L sweep (accessibility lens): color-swatch pickers gain aria-pressed** — every
+  color-swatch button (Dashboard theme, Accent color, Series palette, Builder-note color, Settings'
+  default accent color) had `outline:none` and no `aria-pressed`, so only a visual `.active` border
+  told you which swatch was selected — a keyboard/screen-reader user got no selection feedback at all.
+  Fixed at the source in every swatch's creation/click path (including the one modal — Builder notes'
+  color picker — that manually toggles `.active` instead of a full re-render, so its click handler now
+  updates `aria-pressed` on all siblings too). Same family of gap the v286/v299 focus-ring fixes closed
+  elsewhere. 5 new tests, suite 1363/1363.
 
 ## NEXT (top = do first)
 

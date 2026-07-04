@@ -8951,6 +8951,24 @@ function serve() {
     });
     ok("H103: clicking a swatch updates spec.themeColor", h103Click.ok, JSON.stringify(h103Click));
 
+    // Track L sweep (a11y lens): accent-color/palette/dashboard-theme/note swatch buttons had
+    // outline:none with no aria-pressed, so a keyboard/screen-reader user got no way to tell which
+    // swatch is the current selection (only a visual .active border) — same family of gap the v286/
+    // v299 focus-ring fixes closed elsewhere. Fixed at the source (aria-pressed set whenever .active
+    // is set); this checks the accent-color row specifically (dt-swatch/palette/note checked below).
+    const h103Aria = await page.evaluate(function () {
+      function accentOnly() { return Array.prototype.filter.call(document.querySelectorAll(".accent-swatch"), function (b) { return !b.closest("#dashPaletteRow"); }); }
+      var before = accentOnly();
+      before[2].click();
+      var after = accentOnly();
+      return {
+        clickedPressed: after[2].getAttribute("aria-pressed"),
+        othersFalse: after.every(function (b, i) { return i === 2 || b.getAttribute("aria-pressed") === "false"; })
+      };
+    });
+    ok("Track L a11y: clicking an accent-color swatch marks it aria-pressed=\"true\" and un-presses its siblings",
+      h103Aria.clickedPressed === "true" && h103Aria.othersFalse, JSON.stringify(h103Aria));
+
     // H103-3: themeColor appears in the exported CDF HTML as a :root override
     const h103Export = await page.evaluate(function () {
       try {
@@ -11691,6 +11709,16 @@ function serve() {
     });
     ok("H-palette: Clicking 'ocean' preset sets spec.paletteKey to 'ocean'", palKeyOk.paletteKey === "ocean", JSON.stringify(palKeyOk));
 
+    // Track L a11y follow-up: the series-palette swatch just clicked should be the only one
+    // in its row marked aria-pressed="true" after the rebuild.
+    const palAriaOk = await page.evaluate(function () {
+      var btns = Array.prototype.slice.call(document.querySelectorAll("#dashPaletteRow button.accent-swatch"));
+      var ocean = btns.find(function (b) { return b.getAttribute("data-palette-key") === "ocean"; });
+      return { oceanPressed: ocean && ocean.getAttribute("aria-pressed"), othersFalse: btns.every(function (b) { return b === ocean || b.getAttribute("aria-pressed") === "false"; }) };
+    });
+    ok("Track L a11y: series-palette swatches expose aria-pressed reflecting the current selection",
+      palAriaOk.oceanPressed === "true" && palAriaOk.othersFalse, JSON.stringify(palAriaOk));
+
     // ── Visual refresh (A): Dashboard theme (Fleet Modern) ─────────────────────
     console.log("\n• Visual refresh (A): Dashboard theme presets");
 
@@ -11740,6 +11768,15 @@ function serve() {
       };
     });
     ok("Dashboard theme: clicking 'Fleet Modern' sets spec.dashboardTheme", dtAppliedOk.specKey === "fleet-modern", JSON.stringify(dtAppliedOk));
+
+    // Track L a11y follow-up: same aria-pressed check for the dashboard-theme swatch row.
+    var dtAriaOk = await page.evaluate(function () {
+      var btns = Array.prototype.slice.call(document.querySelectorAll("#dashThemeRow button.dt-swatch"));
+      var fm = btns.find(function (b) { return b.getAttribute("data-dashboard-theme") === "fleet-modern"; });
+      return { fmPressed: fm && fm.getAttribute("aria-pressed"), othersFalse: btns.every(function (b) { return b === fm || b.getAttribute("aria-pressed") === "false"; }) };
+    });
+    ok("Track L a11y: dashboard-theme swatches expose aria-pressed reflecting the current selection",
+      dtAriaOk.fmPressed === "true" && dtAriaOk.othersFalse, JSON.stringify(dtAriaOk));
     ok("Dashboard theme: exported HTML carries Fleet Modern's light token overrides", dtAppliedOk.lightVar, JSON.stringify(dtAppliedOk));
     ok("Dashboard theme: exported HTML carries Fleet Modern's dark token overrides", dtAppliedOk.darkVar, JSON.stringify(dtAppliedOk));
 
@@ -13467,6 +13504,23 @@ function serve() {
     ok("N-DATA/Track N: sticky notes are never part of the dashboard spec/export (scratch space only, keyed separately in localStorage)",
       !noteNeverExported.specHasNoteField && noteNeverExported.cdaClean, JSON.stringify(noteNeverExported));
 
+    // Track L a11y follow-up: the note-color swatch picker in the "Add/Edit note" modal manually
+    // toggles .active on click (this modal doesn't rebuild on every change like the inspector
+    // does) — make sure it keeps aria-pressed in sync too, not just the visual border.
+    const noteSwatchAria = await page.evaluate(function () {
+      window.__studioOpenNoteEditor(null);
+      var sws = Array.prototype.slice.call(document.querySelectorAll(".modal-ov .note-swatch"));
+      var initial = sws.map(function (b) { return b.getAttribute("aria-pressed"); });
+      sws[1].click();
+      var after = sws.map(function (b) { return b.getAttribute("aria-pressed"); });
+      var ov = document.querySelector(".modal-ov"); if (ov) ov.remove();
+      return { count: sws.length, initial: initial, after: after };
+    });
+    ok("Track L a11y: note-color swatches expose aria-pressed, and clicking one flips it to the only pressed swatch",
+      noteSwatchAria.count >= 4 && noteSwatchAria.initial[0] === "true" &&
+      noteSwatchAria.after[1] === "true" && noteSwatchAria.after.filter(function (v) { return v === "true"; }).length === 1,
+      JSON.stringify(noteSwatchAria));
+
     // ── N-DATA innovation sweep: compare dashboards side-by-side (first cut — diff summary) ──
     // Distinct from the Version-history diff above (which compares a dashboard against ITS OWN
     // past checkpoint) — this picks any two DIFFERENT saved dashboards and reuses the same
@@ -14033,11 +14087,14 @@ function serve() {
         subInKeys: window.__studioImportSettingsKeys.indexOf("studio-default-subtitle") >= 0,
         accInKeys: window.__studioImportSettingsKeys.indexOf("studio-default-accent") >= 0,
         swatchActive: document.querySelector('#setDefaultAccentRow .set-accent-swatch[data-accent="#1a7a4a"]').classList.contains("active"),
+        swatchPressed: document.querySelector('#setDefaultAccentRow .set-accent-swatch[data-accent="#1a7a4a"]').getAttribute("aria-pressed"),
       };
     });
     ok("Z6/Z5: saving default subtitle + accent color persists them and both are in Settings export/import keys",
       dashDefSaved.subtitle === "Prepared by the SE team" && dashDefSaved.accent === "#1a7a4a" && dashDefSaved.subInKeys && dashDefSaved.accInKeys && dashDefSaved.swatchActive,
       JSON.stringify(dashDefSaved));
+    ok("Track L a11y: the Settings default-accent swatch also exposes aria-pressed=\"true\" for the current selection",
+      dashDefSaved.swatchPressed === "true", JSON.stringify(dashDefSaved));
 
     await page.evaluate(function () { localStorage.setItem("studio-default-logo", "data:image/png;base64,iVBORw0KGgo="); });
     await page.evaluate(function () { window.__studioShellSetSection("studio"); });

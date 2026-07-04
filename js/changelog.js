@@ -15,6 +15,16 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 314,
+    title: 'Track L sweep (accessibility lens): color-swatch pickers gain aria-pressed',
+    kind: 'fix',
+    ts: '2026-07-04T08:42:30Z',
+    items: [
+      'Every color-swatch button in the app -- Dashboard theme, Accent color, Series palette, Builder-note color, and Settings\' default accent color -- announced no selection state to screen readers/keyboard users, only a visual border on the active one. Each now sets aria-pressed to match, updated live wherever a swatch group toggles without a full re-render.',
+      'Same family of gap the v286/v299 focus-ring fixes closed elsewhere in the builder -- a real usability bug, not just polish. 5 new tests.',
+    ],
+  },
+  {
     v: 313,
     title: 'Track L sweep: orphaned localStorage key fixed + Clear-local-data list hardened',
     kind: 'fix',

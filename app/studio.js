@@ -2160,6 +2160,7 @@
       sw.setAttribute("data-dashboard-theme", preset.key);
       var active = (sp.dashboardTheme || "classic") === preset.key;
       if (active) sw.classList.add("active");
+      sw.setAttribute("aria-pressed", active ? "true" : "false");
       sw.onclick = function () {
         sp.dashboardTheme = preset.key === "classic" ? "" : preset.key;
         refreshPreview(); renderInspector();
@@ -2183,7 +2184,9 @@
       var sw = el("button"); sw.type = "button"; sw.className = "accent-swatch";
       sw.title = preset.label;
       sw.style.background = preset.color || "#005bb5";
-      if (sp.themeColor === preset.color) sw.classList.add("active");
+      var isActiveAccent = sp.themeColor === preset.color;
+      if (isActiveAccent) sw.classList.add("active");
+      sw.setAttribute("aria-pressed", isActiveAccent ? "true" : "false");
       sw.onclick = function () {
         sp.themeColor = preset.color;
         accentCustom.value = preset.color || "#005bb5";
@@ -2223,6 +2226,7 @@
       sw.setAttribute("data-palette-key", preset.key);
       var active = (sp.paletteKey || "default") === preset.key || (!sp.paletteKey && preset.key === "default");
       if (active) sw.classList.add("active");
+      sw.setAttribute("aria-pressed", active ? "true" : "false");
       sw.onclick = function () {
         sp.paletteKey = preset.key === "default" ? "" : preset.key;
         refreshPreview(); renderInspector();
@@ -4686,10 +4690,11 @@
       NOTE_COLORS.forEach(function (c) {
         var sw = el("button", "note-swatch" + (draft.color === c ? " active" : "")); sw.type = "button"; sw.title = c;
         sw.style.background = c;
+        sw.setAttribute("aria-pressed", draft.color === c ? "true" : "false");
         sw.onclick = function () {
           draft.color = c;
-          [].slice.call(presets.children).forEach(function (b) { b.classList.remove("active"); });
-          sw.classList.add("active");
+          [].slice.call(presets.children).forEach(function (b) { b.classList.remove("active"); b.setAttribute("aria-pressed", "false"); });
+          sw.classList.add("active"); sw.setAttribute("aria-pressed", "true");
         };
         presets.appendChild(sw);
       });
@@ -5584,7 +5589,7 @@
           '<div class="set-row-txt"><b>Default accent color</b><small>Applied to every new blank dashboard\'s banner (same picker as the per-dashboard Accent color field). Pentaho blue keeps the built-in default.</small></div>' +
           '<div class="set-accent-presets" id="setDefaultAccentRow">' +
             Studio.THEME_PRESETS.map(function (preset) {
-              return '<button type="button" class="set-accent-swatch' + (defaultAccentColor() === preset.color ? " active" : "") + '" data-accent="' + esc(preset.color) + '" title="' + esc(preset.label) + '" style="background:' + (preset.color || "#005bb5") + '"></button>';
+              return '<button type="button" class="set-accent-swatch' + (defaultAccentColor() === preset.color ? " active" : "") + '" data-accent="' + esc(preset.color) + '" title="' + esc(preset.label) + '" aria-pressed="' + (defaultAccentColor() === preset.color ? "true" : "false") + '" style="background:' + (preset.color || "#005bb5") + '"></button>';
             }).join("") +
             '<input type="color" id="setDefaultAccentCustom" title="Custom accent color" value="' + esc(defaultAccentColor() || "#005bb5") + '"/>' +
           '</div></div>' +
