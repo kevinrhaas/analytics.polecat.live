@@ -15,6 +15,17 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 290,
+    title: 'N-FUN follow-up: range sliders on the rest of the percentage opts',
+    kind: 'polish',
+    ts: '2026-07-04T00:42:03Z',
+    items: [
+      'Extended the v289 range-slider treatment to every other genuinely percentage-shaped chart option: Donut\'s Inner radius %, Stream graph\'s Band opacity %, Parallel coordinates\' Line opacity %, and Gauge\'s Warning/Good zone starts at % thresholds.',
+      'Deliberately left height/row-count/max-value fields as plain number boxes -- they are not naturally a 0-100% range, so a slider would mislead rather than help.',
+      '2 new tests, suite 1290/1290.',
+    ],
+  },
+  {
     v: 289,
     title: 'N-FUN: live "what-if" sliders for forecast knobs (first cut)',
     kind: 'feature',

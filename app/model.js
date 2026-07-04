@@ -447,7 +447,7 @@
         { key: "fmt",        type: "fmt",   label: "Value format", def: "abbr" },
         { key: "sortSlices", type: "bool",  label: "Sort slices by value", def: false },
         { key: "showLegend", type: "bool",  label: "Show legend", def: true },
-        { key: "innerPct",   type: "int",   label: "Inner radius %", def: 60 },
+        { key: "innerPct",   type: "range", label: "Inner radius %", def: 60, min: 0, max: 100, step: 5, suffix: "%" },
         { key: "height",     type: "int",   label: "Height (px)", def: 300 }
       ],
       cde: { type: "cccPieChart", extra: function () { return [["valuesVisible", "Boolean", "true"]]; } }
@@ -534,7 +534,7 @@
       // hardcoded 0.78 band fill-opacity, but neither was ever exposed in the inspector.
       opts: [
         { key: "showLegend",  type: "bool", label: "Show legend", def: true },
-        { key: "bandOpacity", type: "int",  label: "Band opacity (%)", def: 78 },
+        { key: "bandOpacity", type: "range", label: "Band opacity (%)", def: 78, min: 0, max: 100, step: 5, suffix: "%" },
         { key: "fmt",    type: "fmt", label: "Value format", def: "abbr" },
         { key: "height", type: "int", label: "Height (px)", def: 300 }
       ],
@@ -610,7 +610,7 @@
         return svg + '</svg>';
       }()),
       opts: [
-        { key: "opacity", type: "int", label: "Line opacity (%)", def: 70 },
+        { key: "opacity", type: "range", label: "Line opacity (%)", def: 70, min: 10, max: 100, step: 5, suffix: "%" },
         { key: "height",  type: "int", label: "Height (px)",      def: 320 }
       ],
       cde: null // CDF-only; no equivalent CCC multi-axis chart
@@ -780,8 +780,8 @@
         { key: "fmt",    type: "fmt", label: "Value format", def: "n" },
         { key: "unit",   type: "text", label: "Unit", def: "%" },
         { key: "max",    type: "int", label: "Max", def: 100 },
-        { key: "warnAt", type: "int", label: "Warning zone starts at %", def: 70 },
-        { key: "goodAt", type: "int", label: "Good zone starts at %", def: 90 }
+        { key: "warnAt", type: "range", label: "Warning zone starts at %", def: 70, min: 0, max: 100, step: 5, suffix: "%" },
+        { key: "goodAt", type: "range", label: "Good zone starts at %", def: 90, min: 0, max: 100, step: 5, suffix: "%" }
       ],
       cde: null // CDF-only
     },

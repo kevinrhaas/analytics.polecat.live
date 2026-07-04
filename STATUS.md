@@ -788,6 +788,9 @@
   range sliders with a live value badge, reusing the existing live-refresh wiring so the trend/forecast
   line re-shapes as you drag. New generic `type:"range"` option in `optField()` (`app/studio.js`) any
   chart's opts can reuse. 3 new tests, suite 1288/1288.
+- v290: **N-FUN follow-up: range sliders on the rest of the percentage-shaped opts** — Donut's Inner
+  radius %, Stream graph's Band opacity %, Parallel coordinates' Line opacity %, and Gauge's Warning/Good
+  zone % thresholds. 2 new tests, suite 1290/1290.
 
 ## NEXT (top = do first)
 
@@ -2298,6 +2301,13 @@ gets covered over time:
 > keystroke), so no new event plumbing was needed. **Still open:** extending "range" sliders to other
 > chart types' numeric knobs beyond Z7 forecasting (e.g. Callout/Reference band position %, Inner radius %
 > on Donut — currently plain number/text inputs).
+> ✓ **Extended to the other genuinely percentage-shaped opts, shipped v290**: Donut's **Inner radius %**,
+> Stream graph's **Band opacity %**, Parallel coordinates' **Line opacity %**, and Gauge's **Warning/Good
+> zone starts at %** thresholds are now range sliders too (same `type:"range"` + live badge). The overlay
+> annotations (Target line, Reference band, Callout arrow, Period highlight, Point annotations, Slideshow
+> duration) already used bespoke range sliders before this track existed, so this closes the gap in the
+> generic per-chart-type `opts` system specifically. Left `height`/row-count/max-value fields as plain
+> number inputs (not naturally 0–100%, a slider would mislead). 2 new tests, suite 1290/1290.
 - ✓ **Build-completeness meter + gentle achievements — shipped v196.** A small progress ring + checklist
   at the top of the Dashboard inspector (title / panel / KPI / filter / a touch of style), purely
   encouraging (never a warning), collapses to a "nice work" note once complete.

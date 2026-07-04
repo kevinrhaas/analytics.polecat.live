@@ -15088,6 +15088,30 @@ function serve() {
     ok("N-FUN: dragging the α slider updates opts.alpha live (75) and its value badge in real time", whatIfUI.optAfter === 75 && whatIfUI.badgeAfter === "75%", JSON.stringify(whatIfUI));
     ok("N-FUN: the value badge starts at the field's current value (30%)", whatIfUI.badgeBefore === "30%", JSON.stringify(whatIfUI));
 
+    // N-FUN follow-up: extend "range" sliders to the other genuinely percentage-shaped
+    // opts fields beyond Z7 forecasting (Donut's Inner radius %, Gauge's zone thresholds).
+    const whatIfMore = await page.evaluate(function () {
+      var spec = window.__STUDIO_STATE.spec;
+      var p = spec.panels[0];
+      var prevChart = JSON.parse(JSON.stringify(p.chart));
+      p.chart.type = "donut"; p.chart.opts = {};
+      window.__studioSelect({ kind: "panel", id: p.id });
+      var donutField = [].slice.call(document.querySelectorAll("#inspBody .field")).find(function (f) { return /Inner radius/.test(f.textContent); });
+      var donutOk = !!(donutField && donutField.querySelector('input[type="range"]'));
+      p.chart.type = "gauge"; p.chart.opts = {};
+      window.__studioSelect({ kind: "panel", id: p.id });
+      var fields = [].slice.call(document.querySelectorAll("#inspBody .field"));
+      var warnField = fields.find(function (f) { return /Warning zone/.test(f.textContent); });
+      var goodField = fields.find(function (f) { return /Good zone/.test(f.textContent); });
+      var gaugeOk = !!(warnField && warnField.querySelector('input[type="range"]') && goodField && goodField.querySelector('input[type="range"]'));
+      p.chart = prevChart;
+      window.__studioSelect(null);
+      window.__studioRenderInspector();
+      return { donutOk: donutOk, gaugeOk: gaugeOk };
+    });
+    ok("N-FUN follow-up: Donut's Inner radius % is a range slider", whatIfMore.donutOk, JSON.stringify(whatIfMore));
+    ok("N-FUN follow-up: Gauge's Warning/Good zone % thresholds are range sliders", whatIfMore.gaugeOk, JSON.stringify(whatIfMore));
+
     // ── m-a: mobile nav drawer (rail → slide-in left drawer at ≤900px) ──
     // Runs on a SEPARATE 390×844 page so it never disturbs the main desktop page.
     console.log("\n• m-a: mobile nav drawer");
