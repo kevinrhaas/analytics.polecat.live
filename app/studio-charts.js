@@ -250,7 +250,8 @@
       var yBot = yScale(Math.min(barFrom, barTo));
       var bh = Math.max(1, yBot - yTop);
       var col = isTotal ? brandCol : (delta >= 0 ? posCol : negCol);
-      var rect = S("rect", { x: bx + bPad, y: yTop, width: bw - bPad * 2, height: bh, rx: 2, fill: col, opacity: 0.9 });
+      var rect = S("rect", { x: bx + bPad, y: yTop, width: bw - bPad * 2, height: bh, rx: 2, fill: col, opacity: 0.9,
+        class: isTotal ? "wf-bar wf-total" : "wf-bar" });
       (function (lb_, delta_, barTo_, isTot_) {
         rect.addEventListener("mousemove", function (e) {
           var html = "<b>" + lb_ + "</b>";

@@ -2181,7 +2181,7 @@
   Studio.ANNOT_CAPS = {
     drill:      { bars: 1, donut: 1 },                            // PDC.bars/donut accept cfg.drill
     detail:     { bars: 1, donut: 1, treemap: 1, table: 1 },      // PDC.*/table accept cfg.detail
-    crossFilter:{ bars: 1, donut: 1, treemap: 1, lollipop: 1, funnel: 1 }, // only these emit on click
+    crossFilter:{ bars: 1, donut: 1, treemap: 1, lollipop: 1, funnel: 1, waterfall: 1 }, // only these emit on click
     condFmt:    { bars: 1, donut: 1, treemap: 1, lollipop: 1 },   // cfData() consumers
     colorScale: { bars: 1, donut: 1, treemap: 1, lollipop: 1 }    // csData() consumers
   };

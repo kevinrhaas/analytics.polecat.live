@@ -5656,6 +5656,41 @@ function serve() {
     ok("N-DATA: Studio.chartSupports('crossFilter', 'funnel') is true (inspector shows the section)",
       await page.evaluate(() => Studio.chartSupports("crossFilter", "funnel") === true));
 
+    // ---- N-DATA follow-up: cross-filter/brushing extended to Waterfall ----
+    console.log("\n• N-DATA follow-up: cross-filter extended to Waterfall");
+    const xfWaterfallPersist = await page.evaluate(() => {
+      try {
+        var spec = window.__STUDIO_STATE.spec;
+        var da = spec.cda && spec.cda.dataAccesses && spec.cda.dataAccesses[0];
+        if (!da) return false;
+        var p = spec.panels[0];
+        p.chart.type = "waterfall";
+        p.chart.da = da.id;
+        p.chart.map = { labelCol: da.columns[0] || "label", valueCol: da.columns[1] || "value" };
+        p.chart.opts = { showTotal: true };
+        p.crossFilter = { emit: "p_region" };
+        window.__studioLoad(spec);
+        return (window.__STUDIO_STATE.spec.panels[0].crossFilter || {}).emit === "p_region";
+      } catch (e) { return false; }
+    });
+    ok("N-DATA: Waterfall crossFilter.emit persists in spec after load", xfWaterfallPersist);
+    await page.waitForTimeout(700);
+    const xfWaterfallLabels = await page.evaluate(() => {
+      try {
+        var iframe = document.querySelector("#preview");
+        if (!iframe || !iframe.contentDocument) return { ok: false, reason: "no iframe" };
+        var allBars = iframe.contentDocument.querySelectorAll("rect.wf-bar");
+        if (!allBars.length) return { ok: false, reason: "no rect.wf-bar elements" };
+        var tagged = Array.from(iframe.contentDocument.querySelectorAll("rect.wf-bar[data-xf-label]"));
+        var totalTagged = iframe.contentDocument.querySelector("rect.wf-total[data-xf-label]");
+        return { ok: tagged.length > 0 && !totalTagged, count: tagged.length, totalBars: allBars.length };
+      } catch (e) { return { ok: false, err: e.message }; }
+    });
+    ok("N-DATA: Waterfall bars get data-xf-label attributes (synthetic Total bar excluded) when crossFilter.emit is set",
+      xfWaterfallLabels.ok, JSON.stringify(xfWaterfallLabels));
+    ok("N-DATA: Studio.chartSupports('crossFilter', 'waterfall') is true (inspector shows the section)",
+      await page.evaluate(() => Studio.chartSupports("crossFilter", "waterfall") === true));
+
     // ---- H2: keyboard shortcuts — Delete to remove panel, Escape to deselect ----
     console.log("\n• keyboard shortcuts (H2: Delete + Escape)");
 
@@ -15162,11 +15197,16 @@ function serve() {
     ok("PDC.cda's live-fetch URL construction doesn't throw inside the srcdoc live-preview iframe",
       cdaUrlFix.threw === false, JSON.stringify(cdaUrlFix));
 
-    // Restore clean spec
+    // Restore clean spec — wait for the srcdoc preview iframe to actually settle (same
+    // pattern as the __studioLoad reload earlier in this file); the Z7HW2-3 test below
+    // queries that iframe's window.PDC directly, and without this wait the reload can
+    // still be in flight, making the iframe search below intermittently come up empty
+    // ("no PDC iframe").
     await page.evaluate(async function () {
       var freshSpec = await fetch("data/examples/studio-cost.studio.json").then(function (r) { return r.json(); });
       window.__studioLoad(freshSpec);
     });
+    await page.waitForTimeout(200);
 
     // Z7HW-3: the panel inspector shows the new Forecast method / α / β fields
     var z7hwInsp = await page.evaluate(function () {

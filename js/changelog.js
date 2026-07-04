@@ -15,6 +15,18 @@
    Exposed as window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 297,
+    title: 'N-DATA: cross-filter extended to Waterfall',
+    kind: 'feature',
+    ts: '2026-07-04T03:33:02Z',
+    items: [
+      'Clicking a Waterfall step bar now emits a cross-filter just like Bars/Donut/Treemap/Lollipop/Funnel already did -- the next most structurally similar chart (one bar per category, same labelCol/valueCol binding).',
+      'The optional synthetic "Total" bar (Show total bar option) is deliberately excluded from the click target -- it is not a real data label, so it stays a plain summary bar rather than filtering to a nonexistent category.',
+      'wireXFilter() (app/studio-render.js) gains a waterfall branch keyed off a new wf-bar class on each step rect (app/studio-charts.js, wf-total marks the synthetic bar); Studio.ANNOT_CAPS.crossFilter now includes waterfall so the Cross-filter inspector section appears for it too.',
+      'Also fixed a pre-existing timing flake in the Z7 Holt-Winters test (tests/run.js): a spec reload was missing the settle wait every other reload in the file uses, so the preview iframe search immediately after it could intermittently come up empty. 3 new tests, suite 1313/1313.',
+    ],
+  },
+  {
     v: 296,
     title: 'Visual refresh (A) follow-up: Fleet Modern app-chrome theme',
     kind: 'feature',

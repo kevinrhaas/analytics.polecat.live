@@ -2391,6 +2391,13 @@ gets covered over time:
 > option, stages stay in given order); `Studio.ANNOT_CAPS.crossFilter` now includes `funnel`. **Still
 > open:** stacked/grouped bar family and any chart without a clean one-element-per-category shape. 3 new
 > tests, suite 1305/1305.
+> ✓ **Extended to Waterfall, shipped v297**: a new `wf-bar` class on each step rect (`app/studio-charts.js`,
+> the optional synthetic "Total" bar gets `wf-total` alongside it and is deliberately excluded — it isn't
+> a real data label) lets `wireXFilter()` tag steps with their labels; `Studio.ANNOT_CAPS.crossFilter` now
+> includes `waterfall`. Also fixed a pre-existing timing flake in the Z7 Holt-Winters test suite (a spec
+> reload was missing the settle wait every other reload uses, so the preview-iframe search right after it
+> could intermittently come up empty). **Still open:** stacked/grouped bar family and any chart without a
+> clean one-element-per-category shape. 3 new tests, suite 1313/1313.
 - **Dashboard-wide formula language:** calculated fields across data sources (not just CDA calc columns) —
   a small safe expression engine (`[revenue] - [cost]`, `pctChange(...)`, `movingAvg(...)`).
 - **Period-over-period / compare mode:** pick two ranges or two sources and diff them across every panel.

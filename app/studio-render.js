@@ -222,6 +222,11 @@
       // Funnel has no "sort by value" option of its own — stages render in given order,
       // same reasoning as lollipop above, so `sorted` stays as lvData with no re-sort.
       els = [].slice.call(body.querySelectorAll("rect.funnel-bar"));
+    } else if (chartType === "waterfall") {
+      // Exclude the optional synthetic "Total" bar (.wf-total) — it isn't a real data
+      // label, so it stays unclickable; the remaining bars render in given order (no
+      // sort option of its own), matching lvData with no re-sort needed.
+      els = [].slice.call(body.querySelectorAll("rect.wf-bar:not(.wf-total)"));
     } else {
       return;
     }
