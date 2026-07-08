@@ -58,6 +58,25 @@ const canon = entries.map((e) => {
   return out;
 });
 
+// ── lint: reject text the manager's bare-key regex would mangle ──
+// The manager quotes bare object keys with /([{,]\s*)(ident)\s*:/ AFTER requoting
+// strings, so any STRING VALUE containing `{ident:` or `,ident:` gets unescaped
+// quotes injected into it and the whole file fails to parse. Catch it here (with
+// the offending entry named) instead of leaving a cryptic JSON error below.
+const BARE_KEY = /[{,]\s*[A-Za-z_$][A-Za-z0-9_$]*\s*:/;
+for (const e of canon) {
+  for (const [field, val] of [["title", e.title], ...e.items.map((it, k) => ["items[" + k + "]", it])]) {
+    const m = BARE_KEY.exec(val);
+    if (m) {
+      console.error(`changelog-normalize: v${e.v} ${field} contains "${m[0]}" — the manager's bare-key`);
+      console.error(`  regex would turn that into {"...":} inside the string and break the sync parser.`);
+      console.error(`  Reword so no '{' or ',' is immediately followed by an identifier and a colon`);
+      console.error(`  (e.g. use parentheses, or drop the colon). Offending text: …${val.slice(Math.max(0, m.index - 20), m.index + 30)}…`);
+      process.exit(1);
+    }
+  }
+}
+
 // ── emit canonical relay/games literal style ──
 function sq(s) { return "'" + String(s).replace(/\\/g, "\\\\").replace(/'/g, "\\'") + "'"; }
 function entryStr(e) {
@@ -94,11 +113,38 @@ function extractArrayLiteral(s, name) {
   }
   return null;
 }
+// EXACT port of manager.polecat.live/js/ingest.js jsLiteralToJSON. The operation
+// ORDER matters and is easy to get wrong: the manager requotes every string
+// FIRST (char-walk, escaping internal `"`), THEN runs the bare-key regex over the
+// whole result. So a string VALUE containing `{ident:` (e.g. "{templates:[...]}")
+// gets its `{ident:` rewritten to `{"ident":` — injecting UNescaped quotes into a
+// string and breaking JSON.parse. A verifier that requotes strings AFTER the
+// bare-key pass would silently "fix" that and pass a file the manager rejects, so
+// this must mirror the manager's order verbatim.
 function jsLiteralToJSON(lit) {
-  const o = lit.replace(/\/\/[^\n]*$/gm, "").replace(/,\s*([}\]])/g, "$1")
-    .replace(/([{,]\s*)([A-Za-z_$][A-Za-z0-9_$]*)\s*:/g, '$1"$2":')
-    .replace(/'((?:\\.|[^'\\])*)'/g, (_, x) => '"' + x.replace(/\\'/g, "'").replace(/"/g, '\\"') + '"');
-  return JSON.parse(o);
+  let out = "", i = 0; const n = lit.length;
+  const esc = (ch) => ch === '"' ? '\\"' : ch;
+  while (i < n) {
+    const c = lit[i];
+    if (c === "/" && lit[i + 1] === "/") { while (i < n && lit[i] !== "\n") i++; continue; }
+    if (c === "'" || c === '"') {
+      const quote = c; i++; let s = '"';
+      while (i < n) {
+        const ch = lit[i];
+        if (ch === "\\" && i + 1 < n) {
+          const next = lit[i + 1];
+          if (next === "\\") s += "\\\\"; else if ("ntrbf".includes(next)) s += "\\" + next; else s += esc(next);
+          i += 2; continue;
+        }
+        if (ch === quote) { i++; break; }
+        s += esc(ch); i++;
+      }
+      out += s + '"'; continue;
+    }
+    out += c; i++;
+  }
+  out = out.replace(/,\s*([}\]])/g, "$1").replace(/([{,]\s*)([A-Za-z_$][A-Za-z0-9_$]*)\s*:/g, '$1"$2":');
+  return JSON.parse(out);
 }
 let verified;
 try { verified = jsLiteralToJSON(extractArrayLiteral(outText, "CHANGELOG")); }

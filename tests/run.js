@@ -101,10 +101,35 @@ function serve() {
         }
         return null;
       }
+      // Byte-for-byte port of the manager's char-walker. The ORDER is load-bearing:
+      // it requotes strings FIRST, THEN runs the bare-key regex over the whole result,
+      // so a string value containing `{ident:` gets unescaped quotes injected and the
+      // file fails to parse. An earlier "verbatim" copy here applied the same regexes
+      // in the opposite order, which silently re-escaped that break and passed files
+      // the real manager rejected — the exact reason a broken changelog shipped.
       function jsLiteralToJSON(lit) {
-        const out = lit.replace(/\/\/[^\n]*$/gm, "").replace(/,\s*([}\]])/g, "$1")
-          .replace(/([{,]\s*)([A-Za-z_$][A-Za-z0-9_$]*)\s*:/g, '$1"$2":')
-          .replace(/'((?:\\.|[^'\\])*)'/g, (_, s) => '"' + s.replace(/\\'/g, "'").replace(/"/g, '\\"') + '"');
+        let out = "", i = 0; const n = lit.length;
+        const esc = (ch) => ch === '"' ? '\\"' : ch;
+        while (i < n) {
+          const c = lit[i];
+          if (c === "/" && lit[i + 1] === "/") { while (i < n && lit[i] !== "\n") i++; continue; }
+          if (c === "'" || c === '"') {
+            const quote = c; i++; let s = '"';
+            while (i < n) {
+              const ch = lit[i];
+              if (ch === "\\" && i + 1 < n) {
+                const next = lit[i + 1];
+                if (next === "\\") s += "\\\\"; else if ("ntrbf".includes(next)) s += "\\" + next; else s += esc(next);
+                i += 2; continue;
+              }
+              if (ch === quote) { i++; break; }
+              s += esc(ch); i++;
+            }
+            out += s + '"'; continue;
+          }
+          out += c; i++;
+        }
+        out = out.replace(/,\s*([}\]])/g, "$1").replace(/([{,]\s*)([A-Za-z_$][A-Za-z0-9_$]*)\s*:/g, '$1"$2":');
         return JSON.parse(out);
       }
       const clSrc = fs.readFileSync(path.join(ROOT, "js/changelog.js"), "utf8");
