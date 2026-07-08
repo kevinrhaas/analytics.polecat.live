@@ -5654,7 +5654,7 @@
       groups.map(function (g) {
         var themeRow = g === "Appearance" ?
           '<div class="set-row"><span class="set-row-ic" data-ic="palette"></span>' +
-            '<div class="set-row-txt"><b>Color theme</b><small>Classic Blue is the original Pentaho-style chrome; Polecat recolors the builder in the warm terracotta/plum look the left rail already uses; Fleet Modern applies the same jobtracker.polecat.live tokens as the Fleet Modern dashboard theme.</small></div>' +
+            '<div class="set-row-txt"><b>Color theme</b><small>Classic Blue is the original built-in chrome; Polecat recolors the builder in the warm terracotta/plum look the left rail already uses; Fleet Modern applies the same jobtracker.polecat.live tokens as the Fleet Modern dashboard theme.</small></div>' +
             '<select id="appThemeSel" class="set-sel">' +
               APP_THEME_KEYS.map(function (m) {
                 return '<option value="' + m + '"' + (appTheme() === m ? " selected" : "") + '>' + APP_THEME_LABELS[m] + '</option>';
@@ -5697,7 +5697,7 @@
           '<div class="set-row-txt"><b>Default subtitle</b><small>Pre-fills every new blank dashboard\'s subtitle field with your team\'s house style (e.g. a standard tagline). Blank leaves it empty.</small></div>' +
           '<input type="text" id="setDefaultSubtitleInp" class="set-txt" value="' + esc(defaultSubtitle()) + '" placeholder="e.g. Prepared by the SE team"/></div>' +
         '<div class="set-row"><span class="set-row-ic" data-ic="palette"></span>' +
-          '<div class="set-row-txt"><b>Default accent color</b><small>Applied to every new blank dashboard\'s banner (same picker as the per-dashboard Accent color field). Pentaho blue keeps the built-in default.</small></div>' +
+          '<div class="set-row-txt"><b>Default accent color</b><small>Applied to every new blank dashboard\'s banner (same picker as the per-dashboard Accent color field). Classic blue keeps the built-in default.</small></div>' +
           '<div class="set-accent-presets" id="setDefaultAccentRow">' +
             Studio.THEME_PRESETS.map(function (preset) {
               return '<button type="button" class="set-accent-swatch' + (defaultAccentColor() === preset.color ? " active" : "") + '" data-accent="' + esc(preset.color) + '" title="' + esc(preset.label) + '" aria-pressed="' + (defaultAccentColor() === preset.color ? "true" : "false") + '" style="background:' + (preset.color || "#005bb5") + '"></button>';
@@ -5729,7 +5729,7 @@
             Studio.SUBTITLE_STYLES.map(function (p) { return '<option value="' + esc(p[0]) + '"' + (defaultSubtitleStyle() === p[0] ? " selected" : "") + '>' + esc(p[1]) + '</option>'; }).join("") +
           '</select></div>' +
         '<div class="set-row"><span class="set-row-ic" data-ic="palette"></span>' +
-          '<div class="set-row-txt"><b>Default dashboard theme</b><small>Seeds every new blank dashboard\'s whole-look theme (background, panels, text, brand + series colors — same picker as the per-dashboard Dashboard theme field). Classic Pentaho Blue keeps the built-in look.</small></div>' +
+          '<div class="set-row-txt"><b>Default dashboard theme</b><small>Seeds every new blank dashboard\'s whole-look theme (background, panels, text, brand + series colors — same picker as the per-dashboard Dashboard theme field). Classic Blue keeps the built-in look.</small></div>' +
           '<select id="setDefaultDashboardThemeSel" class="set-sel">' +
             Studio.DASHBOARD_THEMES.map(function (p) { return '<option value="' + esc(p.key === "classic" ? "" : p.key) + '"' + (defaultDashboardTheme() === (p.key === "classic" ? "" : p.key) ? " selected" : "") + '>' + esc(p.label) + '</option>'; }).join("") +
           '</select></div>' +

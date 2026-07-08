@@ -6,6 +6,7 @@
    ============================================================================ */
 :root{
   --pentaho:#005bb5; --pdc:#7d3c98; --ink:#16233b; --muted:#5d6b82; --faint:#8a97ab;
+  --topbar-bg:linear-gradient(100deg,#0a1c3d,#163a6e 60%,#1c4a86); --topbar-ink:#ffffff; /* classic (default) */
   --bg:#eef2f8; --pane:#ffffff; --line:#e1e7f0; --line-2:#eef1f7; --field:#f5f8fc;
   --good:#1f9d57; --warn:#d6820a; --bad:#d63a5e; --accent:#005bb5;
   --shadow:0 1px 3px rgba(18,38,76,.07); --shadow-lg:0 12px 40px rgba(16,38,76,.16);
@@ -29,6 +30,7 @@ html[data-theme='dark']{
    their own theming (pdc-ui.css) and are deliberately NOT coupled to this. */
 html[data-app-theme='polecat']{
   --pentaho:#c1602c; --pdc:#7c5cbf;
+  --topbar-bg:linear-gradient(100deg,#231e28,#3A2F3A 58%,#4a3a48); --topbar-ink:#F5E9D6; /* warm plum, matches the rail */
   --ink:#2E2A33; --muted:#6f6260; --faint:#9c8f8a;
   --bg:#F7EEDF; --pane:#FFFBF4; --line:#E7D9C2; --line-2:#F1E6D3; --field:#FBF3E6;
   --good:#2f8f52; --warn:#b8710f; --bad:#c1405a;
@@ -51,6 +53,7 @@ html[data-app-theme='polecat'][data-theme='dark']{
    coherent system when both are set to the modern look. */
 html[data-app-theme='modern']{
   --pentaho:#0071bc; --pdc:#00964a;
+  --topbar-bg:linear-gradient(100deg,#0b1524,#14243f 58%,#1c3358); --topbar-ink:#e9eff8; /* deep navy-slate, matches the rail */
   --ink:#0c1c2e; --muted:#48596f; --faint:#586b88;
   --bg:#eef3f9; --pane:#ffffff; --line:#ccdcec; --line-2:#e9f0f8; --field:#ffffff;
   --good:#00964a; --warn:#c98500; --bad:#d1403f;
@@ -404,23 +407,25 @@ textarea:focus-visible,[tabindex]:focus-visible,.row-item:focus-visible{
 
 /* ── top bar ── */
 #topbar{display:flex;align-items:center;gap:18px;padding:0 18px;height:58px;flex:0 0 auto;
-  background:linear-gradient(100deg,#0a1c3d,#163a6e 60%,#1c4a86);color:#fff;
+  /* the topbar chrome follows the active app theme (was a hardcoded navy gradient);
+     --topbar-bg/--topbar-ink are set per [data-app-theme] to match that theme's rail */
+  background:var(--topbar-bg);color:var(--topbar-ink);
   border-bottom:3px solid var(--pentaho);box-shadow:0 2px 14px rgba(0,0,0,.18);z-index:30}
 .brand{display:flex;align-items:center;gap:11px}
 .brand-title{font-weight:800;font-size:15.5px;letter-spacing:.2px;line-height:1.1}
-.brand-sub{font-size:11px;color:#aebfdb;font-weight:500}
+.brand-sub{font-size:11px;color:color-mix(in srgb,var(--topbar-ink,#fff) 62%,transparent);font-weight:500}
 .dash-id{display:flex;flex-direction:column;gap:2px;min-width:200px}
 /* Z6 naming model: the topbar no longer edits the title inline — it's a button that jumps
    to the Dashboard inspector's Title field (the single source of truth for renaming). */
 .dash-title-btn{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.08);
   border:1px solid rgba(255,255,255,.16);color:#fff;font:inherit;font-size:14px;font-weight:700;
   padding:6px 11px;border-radius:8px;outline:none;width:260px;cursor:pointer;text-align:left}
-.dash-title-btn:hover,.dash-title-btn:focus-visible{border-color:#7fb0ff;background:rgba(255,255,255,.14)}
+.dash-title-btn:hover,.dash-title-btn:focus-visible{border-color:color-mix(in srgb,var(--topbar-ink,#fff) 48%,transparent);background:rgba(255,255,255,.14)}
 .dash-title-txt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
 .dash-title-btn svg{opacity:.55;flex-shrink:0}
 .dash-title-btn:hover svg,.dash-title-btn:focus-visible svg{opacity:.9}
-.dash-meta{font-size:11px;color:#a9badd;padding-left:2px}
-.dash-meta code{color:#cfe0ff;background:rgba(255,255,255,.1);padding:1px 6px;border-radius:5px}
+.dash-meta{font-size:11px;color:color-mix(in srgb,var(--topbar-ink,#fff) 60%,transparent);padding-left:2px}
+.dash-meta code{color:var(--topbar-ink,#fff);background:rgba(255,255,255,.1);padding:1px 6px;border-radius:5px}
 .top-actions{display:flex;align-items:center;gap:8px}
 /* H-track: subtle grouping dividers between topbar action clusters (History | File |
    Connect & present) — purely visual, no ids/order/behavior changed. Sits inline as a

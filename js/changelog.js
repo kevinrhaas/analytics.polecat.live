@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 341,
+    title: 'App title bar follows the color theme; dropped "Pentaho" from color names',
+    ts: '2026-07-08T15:07:05.000Z',
+    items: [
+      'The application title bar now recolors with the selected Color theme, matching the left rail, instead of staying a fixed navy gradient: Polecat gets the warm plum-black bar with cream text, Fleet Modern a deep navy-slate, and Classic Blue keeps the original navy -- so the whole chrome reads as one theme rather than a themed builder under an off-color bar.',
+      'Renamed the user-facing color and theme presets that said "Pentaho" -- "Classic Pentaho Blue" is now "Classic Blue" and the default accent "Pentaho blue" is now "Classic blue" (same colors, just the name). "Pentaho" now only appears where it actually refers to a Pentaho data source or server connection.',
+    ],
+  },
+  {
     v: 340,
     title: 'Track L: harden the flaky panel duplicate/delete test, round 2',
     ts: '2026-07-04T19:06:56Z',

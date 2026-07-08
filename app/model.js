@@ -2054,7 +2054,7 @@
   // with a WCAG-AA, colorblind-safe (CVD >=12) 10-color series palette validated via the dataviz
   // skill's validate_palette.js for both light and dark. Stored as spec.dashboardTheme.
   Studio.DASHBOARD_THEMES = [
-    { key: "classic", label: "Classic Pentaho Blue", swatch: "#005bb5", light: null, dark: null },
+    { key: "classic", label: "Classic Blue", swatch: "#005bb5", light: null, dark: null },
     { key: "fleet-modern", label: "Fleet Modern", swatch: "#0071bc",
       light: {
         "--pentaho": "#0071bc", "--pdc": "#00964a",
@@ -2177,7 +2177,7 @@
   // picker (Dashboard inspector) and the Settings "Default accent color" picker (Z6).
   // color: "" keeps the built-in Pentaho blue (#005bb5) from pdc-ui.css untouched.
   Studio.THEME_PRESETS = [
-    { label: "Pentaho blue (default)", color: "" },
+    { label: "Classic blue (default)", color: "" },
     { label: "Ocean teal",  color: "#0d7a8a" },
     { label: "Forest",      color: "#1a7a4a" },
     { label: "Sunset",      color: "#d95f2b" },
