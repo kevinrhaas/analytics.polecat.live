@@ -19,10 +19,12 @@
       <img class="rail-brand-mark" src="favicon.svg" width="26" height="26" alt=""/>
       <span class="rail-brand-txt rail-lbl">Dashboard Studio</span>
     </button>
+    <div class="rail-group-lbl rail-lbl" aria-hidden="true">Workspace</div>
     <button class="rail-item" data-sec="home" title="Home" aria-label="Home"><span class="rail-ic" data-ic="home"></span><span class="rail-lbl">Home</span></button>
-    <button class="rail-item" data-sec="repository" title="Repository" aria-label="Repository"><span class="rail-ic" data-ic="layers"></span><span class="rail-lbl">Repository</span></button>
+    <button class="rail-item" data-sec="dashboards" title="Dashboards" aria-label="Dashboards"><span class="rail-ic" data-ic="layers"></span><span class="rail-lbl">Dashboards</span></button>
     <button class="rail-item" data-sec="datasets" title="Datasets" aria-label="Datasets"><span class="rail-ic" data-ic="db"></span><span class="rail-lbl">Datasets</span></button>
     <button class="rail-item" data-sec="connections" title="Connections" aria-label="Connections"><span class="rail-ic" data-ic="link"></span><span class="rail-lbl">Connections</span></button>
+    <div class="rail-group-lbl rail-lbl" aria-hidden="true">Build</div>
     <button class="rail-item active" data-sec="studio" title="Studio" aria-label="Studio" aria-current="page"><span class="rail-ic" data-ic="grid"></span><span class="rail-lbl">Studio</span></button>
     <div class="rail-spacer"></div>
     <button class="rail-item" data-sec="settings" title="Settings" aria-label="Settings"><span class="rail-ic" data-ic="gear"></span><span class="rail-lbl">Settings</span></button>
@@ -42,15 +44,16 @@
       <p>Loading…</p>
     </div>
   </section>
-  <section id="secRepository" class="app-sec has-content" hidden>
+  <section id="secDashboards" class="app-sec has-content" hidden>
     <div class="repo-wrap">
-      <div class="repo-hero"><h1>Repository</h1>
-        <p>Every data source and dashboard you have, browsable and searchable in one place.</p>
-        <input id="repoSearch" class="repo-search" type="search" placeholder="Search data sources and dashboards…" aria-label="Search repository"/>
+      <div class="repo-hero"><h1>Dashboards</h1>
+        <p>Every dashboard you've saved — searchable, filterable by workbook, as tiles or a list. Searching also finds dashboards by the columns their datasets use.</p>
+        <input id="repoSearch" class="repo-search" type="search" placeholder="Search dashboards…" aria-label="Search dashboards"/>
         <div class="repo-io">
+          <button type="button" class="btn" id="dashViewToggle" title="Switch between tile and list layout" aria-pressed="false">☰ List view</button>
           <button type="button" class="btn" id="repoCompareBtn" title="Pick any two saved dashboards and see what differs between them">⇄ Compare dashboards…</button>
-          <button type="button" class="btn" id="repoExportBtn">Export repository…</button>
-          <button type="button" class="btn" id="repoImportBtn">Import repository…</button>
+          <button type="button" class="btn" id="repoExportBtn">Export dashboards…</button>
+          <button type="button" class="btn" id="repoImportBtn">Import dashboards…</button>
         </div>
       </div>
       <div id="repoResults"></div>

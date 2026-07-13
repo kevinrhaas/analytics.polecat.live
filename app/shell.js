@@ -8,7 +8,7 @@
   "use strict";
   var LS_SECTION = "studio-shell-section";
   var LS_EXPANDED = "studio-shell-expanded";
-  var SECTIONS = ["home", "repository", "datasets", "connections", "studio", "settings"];
+  var SECTIONS = ["home", "dashboards", "datasets", "connections", "studio", "settings"];
 
   var nav = document.getElementById("railNav");
   var appMain = document.getElementById("appMain");
@@ -134,6 +134,7 @@
 
   var savedSection = "studio", savedExpanded = false;
   try { savedSection = localStorage.getItem(LS_SECTION) || "studio"; savedExpanded = localStorage.getItem(LS_EXPANDED) === "1"; } catch (e) {}
+  if (savedSection === "repository") savedSection = "dashboards"; // Repository retired → Dashboards
   setActive(savedSection, false);
   setExpanded(savedExpanded, false);
 

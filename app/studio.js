@@ -331,7 +331,7 @@
       applyBranding();
       loadConnections();
       renderHome();
-      renderRepository();
+      renderDashboards();
       renderConnections();
       // keep the Connections list live: any workspace mutation (local edit or a
       // future remote adopt) repaints it
@@ -1852,7 +1852,7 @@
     var dup = entry.dataAccesses.filter(function (x) { return x.id === da.id; })[0];
     if (dup && !(existing && existing.stem === stem && existing.da.id === da.id)) { toast("“" + da.id + "” already exists in " + stem + ".", true); return false; }
     entry.dataAccesses = entry.dataAccesses.filter(function (x) { return x.id !== da.id; }).concat([da]);
-    buildLibrary(); renderRepository();
+    buildLibrary(); renderDashboards();
     var w = document.querySelector('.lib-cda[data-stem="' + stem + '"]'); if (w) w.classList.add("open");
     toast((existing ? "Updated " : "Created ") + stem + " › " + da.id);
     return true;
@@ -1862,7 +1862,7 @@
     var e = S.catalog[stem]; if (!e) return;
     e.dataAccesses = e.dataAccesses.filter(function (x) { return x.id !== daId; });
     if (!e.dataAccesses.length) delete S.catalog[stem];
-    buildLibrary(); renderRepository(); toast("Removed " + daId);
+    buildLibrary(); renderDashboards(); toast("Removed " + daId);
   }
 
   /* ---------- selection + inspector ---------- */
@@ -4746,7 +4746,7 @@
     if (i >= 0) pins.splice(i, 1); else pins.unshift(id);
     savePins(pins);
     renderHome();
-    renderRepository();
+    renderDashboards();
   }
   function noteRecent() {
     if (!S.spec || !S.spec.id) return;
@@ -4771,7 +4771,7 @@
     try { localStorage.setItem(_LS_RECENTS, JSON.stringify(list)); } catch (e) { /* quota or private-mode */ }
     pruneVersions(list.map(function (r) { return r.id; }));
     renderHome();
-    renderRepository();
+    renderDashboards();
   }
   function openRecent(id) {
     var r = loadRecents().filter(function (x) { return x.id === id; })[0];
@@ -5223,88 +5223,24 @@
     try { localStorage.setItem(_LS_RECENTS, JSON.stringify(list)); } catch (e) {}
   }
   var _repoWbFilter = ""; // "" = All, "__unfiled" = no workbook, else a workbook id
-  var _repoDsFilter = ""; // "" = All, else a data-source "Group" (stem) name — see Z3 folders follow-up
   window.__studioWorkbooks = loadWorkbooks; // test hook
   window.__studioAddWorkbook = addWorkbook; // test hook
   window.__studioDeleteWorkbook = deleteWorkbook; // test hook
   window.__studioRenameWorkbook = renameWorkbook; // test hook
   window.__studioSetDashboardWorkbook = setDashboardWorkbook; // test hook
 
-  /* ---------- Z3 slice 1: Repository — data sources + dashboards, one searchable home ---
-     Consolidates the two things that used to live in separate corners of the app: the
-     catalog of query-library data accesses (S.catalog, same data the Studio library pane
-     browses) and the local inventory of dashboards (studio-recents/-pins, same data Home's
-     "recent dashboards" grid already tracks). No new storage — this is a browsing surface
-     over data that already exists, filtered by one shared search box. Folders/CRUD/JSON
-     export of the whole repository are deliberately deferred to a later Z3 slice; this one
-     is "can I find and jump to any data source or dashboard I have from a single page?" */
-  // N-DATA freshness badge (v301) follow-up: only the connector kinds that are ALWAYS
-  // live-capable regardless of the builder's ambient "active connection" setting get a
-  // Repository badge — a plain Pentaho sql/mdx/etc. catalog DA's "live-ness" depends on that
-  // global setting, not the DA itself, and the bundled catalog has dozens of them, so showing
-  // "Never verified live" on every one would be pure noise rather than a useful signal.
+  // N-DATA freshness badge (v301): only the connector kinds that are ALWAYS live-capable
+  // regardless of the builder's ambient "active connection" setting get a library badge —
+  // a plain sql/mdx catalog DA's "live-ness" depends on that global setting, not the DA.
   var REPO_LIVE_KINDS = { duckdb: 1, httpvfs: 1, snowflake: 1, databricks: 1, bigquery: 1, http: 1 };
-  function repoDaCardHtml(stem, d) {
-    var kind = ((d.kind || "sql").split(".")[0]).toUpperCase();
-    var cols = (d.columns || []).slice(0, 6).join(", ") + ((d.columns || []).length > 6 ? "…" : "");
-    var key = esc(stem) + '|' + esc(d.id);
-    var freshness = REPO_LIVE_KINDS[d.kind] ? '<span class="repo-ds-fresh">' + esc(daFreshnessLabel(d.id)) + '</span>' : '';
-    // Z3 follow-up: full CRUD from the Repository page itself — edit/delete reuse the
-    // exact same dataSourceBuilder()/deleteDataSource() the Studio library pane already
-    // uses, so both views always agree (one source of truth, no parallel edit path).
-    // A <button> can't nest another <button>, so the open-in-library affordance and the
-    // edit/delete actions are separate sibling buttons inside a plain wrapping div.
-    return '<div class="repo-ds-card">' +
-      '<button type="button" class="repo-ds-open" data-repo-ds="' + key + '">' +
-      '<div class="repo-ds-top"><span class="repo-ds-id">' + esc(d.id) + '</span><span class="repo-ds-kind">' + esc(kind) + '</span></div>' +
-      '<span class="repo-ds-stem">' + esc(stem) + '</span>' +
-      (cols ? '<div class="repo-ds-cols">' + esc(cols) + '</div>' : '') + freshness + '</button>' +
-      '<div class="repo-ds-acts">' +
-      '<button type="button" class="da-act" data-repo-edit="' + key + '" title="Edit data source"></button>' +
-      '<button type="button" class="da-act" data-repo-del="' + key + '" title="Delete data source"></button>' +
-      '</div></div>';
-  }
-  function openDsInLibrary(stem, id) {
-    if (window.__studioShellSetSection) window.__studioShellSetSection("studio");
-    var ls = $("#libSearch");
-    if (ls) { ls.value = id; buildLibrary(); }
-    setTimeout(function () {
-      var card = document.querySelector('[data-stem="' + CSS.escape(stem) + '"]');
-      if (card) card.scrollIntoView({ block: "center", behavior: "smooth" });
-    }, 60);
-  }
-  function renderRepository() {
+  // Dashboards section (was "Repository"): the saved-dashboards catalog only —
+  // data-source browsing moved to the Datasets/Connections sections, and the
+  // sample catalog stays reachable from the Studio library pane.
+  var _dashViewMode = "tiles";
+  try { _dashViewMode = localStorage.getItem("studio-dash-view") || "tiles"; } catch (e) {}
+  function renderDashboards() {
     var results = $("#repoResults"); if (!results) return;
     var q = (($("#repoSearch") || {}).value || "").toLowerCase();
-    // Z3 follow-up (folders/organization for data sources): every data source already carries
-    // a "Group" field (the same `stem` the Studio library pane sections by — see the "Group"
-    // field in dataSourceBuilder()). No new storage needed — just surface it as a filter chip
-    // strip here, mirroring the Workbooks chips below, so Repository lets you browse by folder
-    // instead of only free-text search.
-    var dsGroupCounts = {}, dsGroupOrder = [];
-    Object.keys(S.catalog || {}).sort().forEach(function (stem) {
-      var n = ((S.catalog[stem] || {}).dataAccesses || []).length;
-      if (!n) return;
-      dsGroupCounts[stem] = n; dsGroupOrder.push(stem);
-    });
-    if (_repoDsFilter && !dsGroupCounts[_repoDsFilter]) _repoDsFilter = "";
-    var dsCards = [], totalDs = 0;
-    Object.keys(S.catalog || {}).sort().forEach(function (stem) {
-      var entry = S.catalog[stem];
-      if (_repoDsFilter && stem !== _repoDsFilter) return;
-      (entry.dataAccesses || []).forEach(function (d) {
-        totalDs++;
-        var hay = (stem + " " + d.id + " " + (d.columns || []).join(" ")).toLowerCase();
-        if (q && hay.indexOf(q) < 0) return;
-        dsCards.push(repoDaCardHtml(stem, d));
-      });
-    });
-    var dsChipDefs = [{ id: "", name: "All", n: dsGroupOrder.reduce(function (s, k) { return s + dsGroupCounts[k]; }, 0) }]
-      .concat(dsGroupOrder.map(function (stem) { return { id: stem, name: stem, n: dsGroupCounts[stem] }; }));
-    var dsChipsHtml = dsGroupOrder.length > 1 ? '<div class="wb-chips ds-chips">' + dsChipDefs.map(function (c) {
-      return '<button type="button" class="wb-chip' + (_repoDsFilter === c.id ? " active" : "") + '" data-ds-filter="' + esc(c.id) + '">' +
-        '<span class="wb-chip-label">' + esc(c.name) + '</span> <span class="wb-chip-n">' + c.n + '</span></button>';
-    }).join("") + '</div>' : '';
     var list = loadRecents(), pins = loadPins(), workbooks = loadWorkbooks();
     var validWbIds = {}; workbooks.forEach(function (w) { validWbIds[w.id] = true; });
     var wbCounts = { all: list.length, unfiled: 0, byId: {} };
@@ -5333,14 +5269,17 @@
       });
       return found;
     }
-    var dashCards = filtered.map(function (r) {
+    var dashMatches = filtered.map(function (r) {
       var sp = r.spec || {};
       if (!q) return { r: r, show: true, col: null };
       var titleMatch = ((sp.title || sp.name || "") + " " + (sp.desc || "")).toLowerCase().indexOf(q) >= 0;
       var col = titleMatch ? null : matchedColumnName(sp, q);
       return { r: r, show: titleMatch || !!col, col: col };
-    }).filter(function (x) { return x.show; })
-      .map(function (x) { return recentCardHtml(x.r, pins.indexOf(x.r.id) >= 0, { workbooks: workbooks, matchedCol: x.col }); });
+    }).filter(function (x) { return x.show; });
+    // tiles (thumbnail cards) or a compact list — the user picks via #dashViewToggle
+    var dashCards = _dashViewMode === "list"
+      ? dashMatches.map(function (x) { return dashListRowHtml(x.r, pins.indexOf(x.r.id) >= 0, x.col); })
+      : dashMatches.map(function (x) { return recentCardHtml(x.r, pins.indexOf(x.r.id) >= 0, { workbooks: workbooks, matchedCol: x.col }); });
     var chipDefs = [{ id: "", name: "All", n: wbCounts.all }]
       .concat(workbooks.map(function (w) { return { id: w.id, name: w.name, n: wbCounts.byId[w.id] || 0, del: true }; }))
       .concat([{ id: "__unfiled", name: "Unfiled", n: wbCounts.unfiled }]);
@@ -5356,19 +5295,14 @@
       '<span class="wb-add"><input type="text" id="wbNameInp" class="wb-name-inp" placeholder="New workbook…" aria-label="New workbook name"/>' +
       '<button type="button" class="btn" id="wbAddBtn">+ Workbook</button></span></div>';
     results.innerHTML =
-      '<h2 class="home-sub">Data sources <span class="repo-count">' + dsCards.length + ' of ' + totalDs + '</span></h2>' +
-      dsChipsHtml +
-      (dsCards.length ? '<div class="repo-ds-grid">' + dsCards.join("") + '</div>'
-        : '<div class="home-empty-hint">' + (q ? "No data sources match “" + esc(q) + "”." : (_repoDsFilter ? "No data sources in this group yet." : "No data sources yet.")) + '</div>') +
-      '<h2 class="home-sub repo-sub2">Dashboards <span class="repo-count">' + dashCards.length + ' of ' + filtered.length + '</span></h2>' +
+      '<h2 class="home-sub">Dashboards <span class="repo-count">' + dashCards.length + ' of ' + filtered.length + '</span></h2>' +
       chipsHtml +
-      (dashCards.length ? '<div class="home-recents">' + dashCards.join("") + '</div>'
+      (dashCards.length
+        ? (_dashViewMode === "list" ? '<div class="cx-list dash-list">' + dashCards.join("") + '</div>'
+                                    : '<div class="home-recents">' + dashCards.join("") + '</div>')
         : '<div class="home-empty-hint">' + (q ? "No dashboards match “" + esc(q) + "”." : (_repoWbFilter ? "No dashboards in this workbook yet." : "No dashboards yet — build one in Studio and it will show up here.")) + '</div>');
-    $$("[data-ds-filter]", results).forEach(function (btn) {
-      btn.onclick = function () { _repoDsFilter = btn.getAttribute("data-ds-filter"); renderRepository(); };
-    });
     $$("[data-wb-filter]", results).forEach(function (btn) {
-      btn.onclick = function () { _repoWbFilter = btn.getAttribute("data-wb-filter"); renderRepository(); };
+      btn.onclick = function () { _repoWbFilter = btn.getAttribute("data-wb-filter"); renderDashboards(); };
     });
     // Z3 follow-up: rename a workbook via a hover-revealed ✎ button beside the ✕ delete —
     // swaps the chip's label span for an inline <input> (same convention as panel/KPI rename),
@@ -5389,7 +5323,7 @@
         function commit(save) {
           if (done) return; done = true;
           if (save) renameWorkbook(wbId, inp.value);
-          renderRepository();
+          renderDashboards();
         }
         inp.addEventListener("keydown", function (ev) {
           if (ev.key === "Enter") { ev.preventDefault(); commit(true); }
@@ -5410,7 +5344,7 @@
         if (confirm("Delete workbook “" + wb.name + "”? Its dashboards stay — they're just un-filed.")) {
           deleteWorkbook(id);
           if (_repoWbFilter === id) _repoWbFilter = "";
-          renderRepository();
+          renderDashboards();
         }
       };
     });
@@ -5418,7 +5352,7 @@
     if (wbAddBtn) wbAddBtn.onclick = function () {
       var inp = $("#wbNameInp", results);
       var wb = addWorkbook(inp && inp.value);
-      if (wb) { _repoWbFilter = wb.id; renderRepository(); }
+      if (wb) { _repoWbFilter = wb.id; renderDashboards(); }
     };
     var wbNameInp = $("#wbNameInp", results);
     if (wbNameInp) wbNameInp.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); wbAddBtn.click(); } });
@@ -5426,39 +5360,41 @@
       sel.addEventListener("click", function (e) { e.stopPropagation(); });
       sel.addEventListener("change", function () {
         setDashboardWorkbook(sel.getAttribute("data-recent-wb"), sel.value);
-        renderRepository();
+        renderDashboards();
       });
-    });
-    $$(".repo-ds-open", results).forEach(function (btn) {
-      btn.onclick = function () {
-        var parts = btn.getAttribute("data-repo-ds").split("|");
-        openDsInLibrary(parts[0], parts[1]);
-      };
-    });
-    $$("[data-repo-edit]", results).forEach(function (btn) {
-      btn.appendChild(Studio.icon("edit", 12));
-      btn.onclick = function (e) {
-        e.stopPropagation();
-        var parts = btn.getAttribute("data-repo-edit").split("|"), stem = parts[0], id = parts[1];
-        var entry = S.catalog[stem], da = entry && (entry.dataAccesses || []).filter(function (x) { return x.id === id; })[0];
-        if (da) dataSourceBuilder({ stem: stem, da: da });
-      };
-    });
-    $$("[data-repo-del]", results).forEach(function (btn) {
-      btn.appendChild(Studio.icon("trash", 12));
-      btn.onclick = function (e) {
-        e.stopPropagation();
-        var parts = btn.getAttribute("data-repo-del").split("|"), stem = parts[0], id = parts[1];
-        if (confirm("Delete data source “" + id + "” from the library?")) deleteDataSource(stem, id);
-      };
     });
     $$(".recent-open", results).forEach(function (btn) { btn.onclick = function () { openRecent(btn.getAttribute("data-recent")); }; });
     $$(".recent-pin", results).forEach(function (btn) {
       btn.appendChild(Studio.icon("star", 14));
       btn.onclick = function (e) { e.stopPropagation(); togglePin(btn.getAttribute("data-pin")); };
     });
+    $$(".dash-li", results).forEach(function (row) {
+      row.addEventListener("click", function (e) {
+        if (e.target.closest(".recent-pin,.recent-wb-sel")) return;
+        openRecent(row.getAttribute("data-recent"));
+      });
+      row.addEventListener("keydown", function (e) {
+        if ((e.key === "Enter" || e.key === " ") && e.target === row) { e.preventDefault(); openRecent(row.getAttribute("data-recent")); }
+      });
+    });
   }
-  window.__studioRenderRepository = renderRepository; // test hook
+  // Compact list-mode row for the Dashboards section (same anatomy as the
+  // Connections/Datasets rows, so the whole workspace browses one way).
+  function dashListRowHtml(r, pinned, matchedCol) {
+    var sp = r.spec || {}, panels = (sp.panels || []).length, kpis = (sp.kpis || []).length;
+    var title = sp.title || sp.name || "Untitled";
+    var meta = [sp.name || "", panels + " panel" + (panels === 1 ? "" : "s") + (kpis ? " · " + kpis + " KPI" + (kpis === 1 ? "" : "s") : "")]
+      .filter(Boolean).join(" · ");
+    var when = r.ts ? new Date(r.ts).toLocaleDateString() : "";
+    return '<div class="cx-row dash-li" data-recent="' + esc(r.id) + '" tabindex="0" role="button" aria-label="Open ' + esc(title) + '">' +
+      '<span class="cx-name"><b>' + esc(title) + '</b><small>' + esc(meta) +
+        (matchedCol ? ' · matches column “' + esc(matchedCol) + '”' : "") + '</small></span>' +
+      (sp.dashboardTheme ? '<span class="cx-badge">' + esc(sp.dashboardTheme) + '</span>' : "") +
+      '<span class="cx-when">' + esc(when) + '</span>' +
+      '<span class="cx-actions"><button type="button" class="recent-pin' + (pinned ? " pinned" : "") + '" data-pin="' + esc(r.id) + '" title="' + (pinned ? "Unpin" : "Pin to Home") + '" aria-pressed="' + (pinned ? "true" : "false") + '"></button></span>' +
+      '</div>';
+  }
+  window.__studioRenderDashboards = renderDashboards; // test hook
 
   /* ---------- Connections section ----------
      Workspace-level connections to external sources (one adapter each), the
@@ -6009,7 +5945,7 @@
     wbList.forEach(function (w) { wbById[w.id] = w; });
     (data.workbooks || []).forEach(function (w) { if (w && w.id) wbById[w.id] = w; });
     saveWorkbooks(Object.keys(wbById).map(function (id) { return wbById[id]; }));
-    buildLibrary(); renderHome(); renderRepository();
+    buildLibrary(); renderHome(); renderDashboards();
     return { ok: true, dsCount: dsCount, dashCount: (data.dashboards || []).length };
   }
   function importRepositoryFile() {
@@ -7127,7 +7063,21 @@
       if (t) cb.addEventListener("change", t.set);
     });
     $("#libSearch").addEventListener("input", buildLibrary);
-    var repoSearchInp = $("#repoSearch"); if (repoSearchInp) repoSearchInp.addEventListener("input", renderRepository);
+    var repoSearchInp = $("#repoSearch"); if (repoSearchInp) repoSearchInp.addEventListener("input", renderDashboards);
+    var dashViewToggle = $("#dashViewToggle");
+    if (dashViewToggle) {
+      var syncDashToggle = function () {
+        var isList = _dashViewMode === "list";
+        dashViewToggle.textContent = isList ? "▦ Tile view" : "☰ List view";
+        dashViewToggle.setAttribute("aria-pressed", isList ? "true" : "false");
+      };
+      syncDashToggle();
+      dashViewToggle.onclick = function () {
+        _dashViewMode = _dashViewMode === "list" ? "tiles" : "list";
+        try { localStorage.setItem("studio-dash-view", _dashViewMode); } catch (e) {}
+        syncDashToggle(); renderDashboards();
+      };
+    }
     var repoExpBtn = $("#repoExportBtn"); if (repoExpBtn) repoExpBtn.onclick = exportRepositoryFile;
     var repoImpBtn = $("#repoImportBtn"); if (repoImpBtn) repoImpBtn.onclick = importRepositoryFile;
     var repoCompareBtn = $("#repoCompareBtn"); if (repoCompareBtn) repoCompareBtn.onclick = openCompareDashboards;

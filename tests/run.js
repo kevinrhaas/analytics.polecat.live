@@ -13840,15 +13840,15 @@ function serve() {
     await page.waitForTimeout(80);
 
     // Z1-5: active section persists across reloads
-    await page.click('#railNav .rail-item[data-sec="repository"]');
+    await page.click('#railNav .rail-item[data-sec="dashboards"]');
     await page.waitForTimeout(80);
     await page.reload({ waitUntil: "networkidle" });
     await page.waitForFunction(() => window.__STUDIO_STATE && window.__STUDIO_STATE.assets.js.length > 0, { timeout: 10000 });
     await page.waitForTimeout(300);
     const z1Persisted = await page.evaluate(function () {
       return {
-        repoVisible: document.getElementById("secRepository").hidden === false,
-        repoActive: document.querySelector('#railNav .rail-item[data-sec="repository"]').classList.contains("active")
+        repoVisible: document.getElementById("secDashboards").hidden === false,
+        repoActive: document.querySelector('#railNav .rail-item[data-sec="dashboards"]').classList.contains("active")
       };
     });
     ok("Z1: active section (Repository) persists across a full page reload", z1Persisted.repoVisible && z1Persisted.repoActive, JSON.stringify(z1Persisted));
@@ -13880,9 +13880,9 @@ function serve() {
 
     // Z1-7 follow-up: switching sections plays a brief fade/slide-in on the newly shown
     // section (motion feedback for the switch itself); disabled under prefers-reduced-motion.
-    await page.click('#railNav .rail-item[data-sec="repository"]');
+    await page.click('#railNav .rail-item[data-sec="dashboards"]');
     const z1MotionOn = await page.evaluate(function () {
-      var el = document.getElementById("secRepository");
+      var el = document.getElementById("secDashboards");
       var cs = getComputedStyle(el);
       return { hasClass: el.classList.contains("sec-enter"), animName: cs.animationName };
     });
@@ -14158,78 +14158,20 @@ function serve() {
     }, homeWbSetup);
     await page.waitForTimeout(80);
 
-    // ── Z3 slice 1: Repository — data sources + dashboards, one searchable page ──
-    console.log("\n• Z3: Repository section");
-    await page.click('#railNav .rail-item[data-sec="repository"]');
+    // ── Z3: Dashboards section (Repository retired — data sources live in Datasets/Connections) ──
+    console.log("\n• Z3: Dashboards section");
+    await page.click('#railNav .rail-item[data-sec="dashboards"]');
     await page.waitForTimeout(150);
     const z3Nav = await page.evaluate(function () {
       return {
-        repoVisible: document.getElementById("secRepository").hidden === false,
-        appMainHidden: document.getElementById("appMain").hidden === true
+        repoVisible: document.getElementById("secDashboards").hidden === false,
+        appMainHidden: document.getElementById("appMain").hidden === true,
+        noDsCards: !document.querySelector("#repoResults .repo-ds-card"),
+        heading: (document.querySelector("#repoResults .home-sub") || {}).textContent || ""
       };
     });
-    ok("Z3: selecting Repository shows its section and hides the builder", z3Nav.repoVisible && z3Nav.appMainHidden, JSON.stringify(z3Nav));
-
-    // Z3-1: every catalog data access appears as a card, with the total matching the real catalog size
-    const z3Ds = await page.evaluate(function () {
-      var expected = 0;
-      var catalog = window.__STUDIO_STATE.catalog || {};
-      Object.keys(catalog).forEach(function (stem) { expected += (catalog[stem].dataAccesses || []).length; });
-      var cards = [].slice.call(document.querySelectorAll("#repoResults .repo-ds-card"));
-      var countLabel = document.querySelector("#repoResults .home-sub .repo-count").textContent;
-      return { expected: expected, cardCount: cards.length, countLabel: countLabel, hasKindBadge: cards.every(function (c) { return !!c.querySelector(".repo-ds-kind"); }) };
-    });
-    ok("Z3: Repository lists every catalog data source as a card",
-      z3Ds.expected > 0 && z3Ds.cardCount === z3Ds.expected && z3Ds.countLabel.indexOf(String(z3Ds.expected)) >= 0 && z3Ds.hasKindBadge,
-      JSON.stringify(z3Ds));
-
-    // N-DATA follow-up: the freshness badge (v301, DA-inspector-only) also surfaces on
-    // Repository cards, but ONLY for connector kinds that are ALWAYS live-capable regardless of
-    // the builder's ambient "active connection" setting (duckdb/httpvfs/snowflake/databricks/
-    // bigquery/http) -- a plain Pentaho sql/mdx/etc. card's live-ness depends on that global
-    // setting, not the DA itself, and the bundled catalog has dozens of those, so it deliberately
-    // stays badge-free there rather than showing "Never verified live" as noise everywhere.
-    const repoFreshness = await page.evaluate(function () {
-      var LIVE_KINDS = { DUCKDB: 1, HTTPVFS: 1, SNOWFLAKE: 1, DATABRICKS: 1, BIGQUERY: 1, HTTP: 1 };
-      var cards = [].slice.call(document.querySelectorAll("#repoResults .repo-ds-card"));
-      var liveCards = cards.filter(function (c) { return LIVE_KINDS[(c.querySelector(".repo-ds-kind") || {}).textContent]; });
-      var plainCards = cards.filter(function (c) { return !LIVE_KINDS[(c.querySelector(".repo-ds-kind") || {}).textContent]; });
-      return {
-        liveCount: liveCards.length,
-        allLiveHaveBadge: liveCards.length > 0 && liveCards.every(function (c) { return !!c.querySelector(".repo-ds-fresh"); }),
-        noPlainHasBadge: plainCards.every(function (c) { return !c.querySelector(".repo-ds-fresh"); }),
-        plainCount: plainCards.length
-      };
-    });
-    ok("N-DATA: every live-capable-kind Repository card (DuckDB/SQLite/Snowflake/Databricks/BigQuery/Generic SQL-HTTP) shows a freshness badge",
-      repoFreshness.liveCount === 0 || repoFreshness.allLiveHaveBadge, JSON.stringify(repoFreshness));
-    ok("N-DATA: plain Pentaho-kind Repository cards (the vast majority) stay badge-free, not noisy 'Never verified' everywhere",
-      repoFreshness.noPlainHasBadge, JSON.stringify(repoFreshness));
-
-    // Z3 follow-up (folders/organization): a "Group" filter chip strip above the data-source
-    // grid, driven by the existing per-source `stem` field (no new storage) — mirrors the
-    // Workbooks chips below for dashboards.
-    const z3DsGroup = await page.evaluate(function () {
-      var catalog = window.__STUDIO_STATE.catalog || {};
-      var firstStem = Object.keys(catalog).sort().filter(function (s) { return (catalog[s].dataAccesses || []).length > 0; })[0];
-      var expected = (catalog[firstStem].dataAccesses || []).length;
-      var chip = document.querySelector('#repoResults [data-ds-filter="' + firstStem + '"]');
-      if (chip) chip.click();
-      var cards = [].slice.call(document.querySelectorAll("#repoResults .repo-ds-card"));
-      var allSameStem = cards.length > 0 && cards.every(function (c) {
-        var s = c.querySelector(".repo-ds-stem"); return s && s.textContent === firstStem;
-      });
-      var allChip = document.querySelector('#repoResults [data-ds-filter=""]');
-      if (allChip) allChip.click();
-      var cardsAfterReset = document.querySelectorAll("#repoResults .repo-ds-card").length;
-      var totalExpected = 0;
-      Object.keys(catalog).forEach(function (s) { totalExpected += (catalog[s].dataAccesses || []).length; });
-      return { firstStem: firstStem, expected: expected, cardCount: cards.length, allSameStem: allSameStem, cardsAfterReset: cardsAfterReset, totalExpected: totalExpected };
-    });
-    ok("Z3: a data-source Group chip filters the grid down to just that group",
-      z3DsGroup.expected > 0 && z3DsGroup.cardCount === z3DsGroup.expected && z3DsGroup.allSameStem, JSON.stringify(z3DsGroup));
-    ok("Z3: the 'All' chip resets the data-source grid back to every source",
-      z3DsGroup.cardsAfterReset === z3DsGroup.totalExpected, JSON.stringify(z3DsGroup));
+    ok("Z3: selecting Dashboards shows its section (dashboards only — no data-source cards) and hides the builder",
+      z3Nav.repoVisible && z3Nav.appMainHidden && z3Nav.noDsCards && /Dashboards/.test(z3Nav.heading), JSON.stringify(z3Nav));
 
     // Z3-2: dashboards section mirrors the same recents/pins Home already tracks
     const z3Dash = await page.evaluate(function () {
@@ -14237,23 +14179,47 @@ function serve() {
       var cards = document.querySelectorAll("#repoResults .recent-card").length;
       return { recentsLen: recents.length, cards: cards };
     });
-    ok("Z3: Repository lists the same dashboards Home's recents track", z3Dash.recentsLen > 0 && z3Dash.cards === z3Dash.recentsLen, JSON.stringify(z3Dash));
+    ok("Z3: Dashboards lists the same dashboards Home's recents track", z3Dash.recentsLen > 0 && z3Dash.cards === z3Dash.recentsLen, JSON.stringify(z3Dash));
 
-    // Z3-3: the shared search box filters BOTH data sources and dashboards, without losing focus
-    const z3FirstDaId = await page.evaluate(function () { return document.querySelector("#repoResults .repo-ds-open").getAttribute("data-repo-ds").split("|")[1]; });
-    await page.fill("#repoSearch", z3FirstDaId);
+    // Z3-3: searching filters dashboard cards without losing focus
+    const z3FirstTitle = await page.evaluate(function () {
+      var r = (window.__studioRecents() || [])[0];
+      return r && (r.spec.title || r.spec.name || "");
+    });
+    await page.fill("#repoSearch", z3FirstTitle);
     await page.waitForTimeout(80);
     const z3Search = await page.evaluate(function (needle) {
-      var cards = [].slice.call(document.querySelectorAll("#repoResults .repo-ds-open"));
+      var cards = [].slice.call(document.querySelectorAll("#repoResults .recent-card"));
       return {
-        allMatch: cards.length > 0 && cards.every(function (c) { return c.getAttribute("data-repo-ds").toLowerCase().indexOf(needle.toLowerCase()) >= 0; }),
+        count: cards.length,
+        allMatch: cards.length > 0 && cards.every(function (c) { return c.textContent.toLowerCase().indexOf(needle.toLowerCase()) >= 0; }),
         focusStillOnSearch: document.activeElement && document.activeElement.id === "repoSearch"
       };
-    }, z3FirstDaId);
-    ok("Z3: searching filters data-source cards to the query, keeping focus in the search box",
+    }, z3FirstTitle);
+    ok("Z3: searching filters dashboard cards to the query, keeping focus in the search box",
       z3Search.allMatch && z3Search.focusStillOnSearch, JSON.stringify(z3Search));
     await page.fill("#repoSearch", "");
     await page.waitForTimeout(80);
+
+    // Z3-4: tiles ⇄ list toggle — the list mode reuses the workspace row anatomy and persists
+    await page.click("#dashViewToggle");
+    await page.waitForTimeout(80);
+    const z3List = await page.evaluate(function () {
+      return {
+        rows: document.querySelectorAll("#repoResults .dash-li").length,
+        tiles: document.querySelectorAll("#repoResults .recent-card").length,
+        stored: localStorage.getItem("studio-dash-view"),
+        btn: document.getElementById("dashViewToggle").textContent
+      };
+    });
+    ok("Z3: List view swaps tiles for compact rows and persists the preference",
+      z3List.rows > 0 && z3List.tiles === 0 && z3List.stored === "list" && /Tile view/.test(z3List.btn), JSON.stringify(z3List));
+    await page.click("#dashViewToggle");
+    await page.waitForTimeout(80);
+    const z3Tiles = await page.evaluate(function () {
+      return { tiles: document.querySelectorAll("#repoResults .recent-card").length, stored: localStorage.getItem("studio-dash-view") };
+    });
+    ok("Z3: toggling back restores tile cards", z3Tiles.tiles > 0 && z3Tiles.stored === "tiles", JSON.stringify(z3Tiles));
 
     // N-FUN innovation idea (added 2026-07-04): cross-dashboard column search — a saved dashboard
     // with no title/desc match should still surface when the query matches one of its bound
@@ -14267,7 +14233,7 @@ function serve() {
       var list = (window.__studioRecents() || []).filter(function (r) { return r.id !== spec.id; });
       list.unshift({ id: spec.id, ts: new Date().toISOString(), spec: spec });
       localStorage.setItem("studio-recents", JSON.stringify(list));
-      window.__studioRenderRepository();
+      window.__studioRenderDashboards();
       return uniqueCol;
     });
     await page.fill("#repoSearch", colSearchSetup);
@@ -14290,7 +14256,7 @@ function serve() {
     await page.evaluate(function () {
       var list = (window.__studioRecents() || []).filter(function (r) { return r.id !== "test-col-search-dash"; });
       localStorage.setItem("studio-recents", JSON.stringify(list));
-      window.__studioRenderRepository();
+      window.__studioRenderDashboards();
     });
 
     // N-FUN innovation idea (added 2026-07-04): "what changed since your last visit" digest —
@@ -14367,11 +14333,11 @@ function serve() {
     await page.evaluate(function () {
       var list = (window.__studioRecents() || []).filter(function (r) { return ["civ-test-dash", "civ-test-open-marks"].indexOf(r.id) < 0; });
       localStorage.setItem("studio-recents", JSON.stringify(list));
-      window.__studioRenderHome(); window.__studioRenderRepository();
+      window.__studioRenderHome(); window.__studioRenderDashboards();
       // __studioOpenRecent() above (like a real "open a dashboard" click) switches the active
       // shell section to Studio — switch back to Repository so the a11y check right after this
       // still finds #repoSearch in the visible section, not a hidden one.
-      if (window.__studioShellSetSection) window.__studioShellSetSection("repository");
+      if (window.__studioShellSetSection) window.__studioShellSetSection("dashboards");
     });
 
     // a11y: Track L found the Repository search field was the one input in the app chrome that
@@ -14387,24 +14353,10 @@ function serve() {
       repoSearchOutline !== "none", "outlineStyle=" + repoSearchOutline);
     await page.evaluate(function () { document.getElementById("repoSearch").blur(); });
 
-    // Z3-4: clicking a data-source card jumps to Studio and locates it in the library search
-    const z3Jump = await page.evaluate(function (daId) {
-      document.querySelector('#repoResults [data-repo-ds$="|' + daId + '"]').click();
-    }, z3FirstDaId);
-    await page.waitForTimeout(150);
-    const z3JumpState = await page.evaluate(function (daId) {
-      return {
-        studioVisible: document.getElementById("appMain").hidden === false,
-        libSearchValue: document.getElementById("libSearch").value
-      };
-    }, z3FirstDaId);
-    ok("Z3: clicking a data source card switches to Studio and searches the library for it",
-      z3JumpState.studioVisible && z3JumpState.libSearchValue === z3FirstDaId, JSON.stringify(z3JumpState));
-    await page.fill("#libSearch", "");
-    await page.waitForTimeout(80);
+    // (Z3-4 "jump to a data-source card in the library" retired with the Repository screen.)
 
     // Z3-5: clicking a dashboard card in Repository reopens it (same behavior as Home)
-    await page.click('#railNav .rail-item[data-sec="repository"]');
+    await page.click('#railNav .rail-item[data-sec="dashboards"]');
     await page.waitForTimeout(120);
     const z3RecId = await page.evaluate(function () { return document.querySelector("#repoResults .recent-open").getAttribute("data-recent"); });
     await page.click("#repoResults .recent-card");
@@ -14430,47 +14382,13 @@ function serve() {
       z3PinState.pinnedInRepo && z3PinState.storedPins.indexOf(z3PinFirstId) >= 0, JSON.stringify(z3PinState));
     await page.evaluate(function (id) { window.__studioTogglePin(id); }, z3PinFirstId); // unpin — restore state
 
-    // Z3 follow-up: full CRUD from the Repository page itself — edit/delete a data
-    // source without switching to Studio's library first.
-    await page.click('#railNav .rail-item[data-sec="repository"]');
-    await page.waitForTimeout(120);
-    await page.evaluate(function () {
-      window.__STUDIO_STATE.catalog.repoCrudTest = { file: "repoCrudTest.cda", connection: { id: "pdc", jndi: "PDC-BIDB-EXT" },
-        dataAccesses: [{ id: "repoCrudDs", name: "repoCrudDs", kind: "sql", jndi: "PDC-BIDB-EXT", columns: ["a", "b"], authored: true, sql: "SELECT 1", query: "SELECT 1", params: [], calcColumns: [], cache: true, cacheDuration: 300 }] };
-      window.__studioRenderRepository();
-    });
-    await page.waitForTimeout(80);
-    const z3CrudCardBefore = await page.evaluate(function () {
-      var open = document.querySelector('#repoResults [data-repo-ds$="|repoCrudDs"]');
-      var card = open ? open.closest(".repo-ds-card") : null;
-      return { hasOpen: !!open, hasEdit: !!(card && card.querySelector('[data-repo-edit$="|repoCrudDs"]')), hasDel: !!(card && card.querySelector('[data-repo-del$="|repoCrudDs"]')) };
-    });
-    ok("Z3-CRUD: a Repository data-source card has edit + delete actions alongside the open button",
-      z3CrudCardBefore.hasOpen && z3CrudCardBefore.hasEdit && z3CrudCardBefore.hasDel, JSON.stringify(z3CrudCardBefore));
-
-    await page.click('#repoResults [data-repo-edit$="|repoCrudDs"]');
-    await page.waitForTimeout(150);
-    const z3CrudEditModal = await page.evaluate(function () {
-      var h = document.querySelector(".modal-h"); return { title: h ? h.textContent : "", idField: (document.querySelector(".dsb input") || {}).value };
-    });
-    ok("Z3-CRUD: clicking a card's edit action opens the same data-source builder modal, pre-filled",
-      z3CrudEditModal.title.indexOf("Edit data source") >= 0 && z3CrudEditModal.title.indexOf("repoCrudDs") >= 0,
-      JSON.stringify(z3CrudEditModal));
-    await page.evaluate(function () { var m = document.querySelector(".modal-ov"); if (m) m.remove(); }); // cancel out (no native close click needed)
-
-    page.once("dialog", (d) => d.accept()); // confirm() for delete
-    await page.click('#repoResults [data-repo-del$="|repoCrudDs"]');
-    await page.waitForTimeout(120);
-    const z3CrudAfterDel = await page.evaluate(function () {
-      return { stillInCatalog: !!window.__STUDIO_STATE.catalog.repoCrudTest, cardGone: !document.querySelector('[data-repo-ds$="|repoCrudDs"]') };
-    });
-    ok("Z3-CRUD: deleting from Repository removes the data source from the catalog and the card",
-      !z3CrudAfterDel.stillInCatalog && z3CrudAfterDel.cardGone, JSON.stringify(z3CrudAfterDel));
+    // (Repository data-source card CRUD retired with the Repository screen — data sources
+    // are managed in the Datasets/Connections sections and the Studio library pane now.)
 
     // Z3 follow-up: whole-repository JSON export/import (data sources you authored + dashboard inventory)
     // Z3-5 above navigated away to Studio (opening a dashboard) — the Export/Import buttons only
     // exist in the (now-hidden) Repository section, so switch back before driving a real click on them.
-    await page.click('#railNav .rail-item[data-sec="repository"]');
+    await page.click('#railNav .rail-item[data-sec="dashboards"]');
     await page.waitForTimeout(120);
     await page.evaluate(function () {
       window.__STUDIO_STATE.catalog.repoExportTest = { file: "repoExportTest.cda", connection: { id: "pdc", jndi: "PDC-BIDB-EXT" },
@@ -14506,7 +14424,7 @@ function serve() {
 
     // ── Z3 follow-up: Workbooks — named collections of dashboards ──
     console.log("\n• Z3 follow-up: Workbooks");
-    await page.click('#railNav .rail-item[data-sec="repository"]');
+    await page.click('#railNav .rail-item[data-sec="dashboards"]');
     await page.waitForTimeout(120);
     const wbDashId = await page.evaluate(function () { var r = window.__studioRecents(); return r.length ? r[0].id : null; });
     ok("Z3-WB: repository has at least one existing dashboard to test workbook filing", !!wbDashId, String(wbDashId));
@@ -14527,12 +14445,19 @@ function serve() {
     // panel/KPI inline rename, just via a dedicated button instead of a native dblclick
     // gesture (a bare dblclick doesn't reliably fire here since each single click already
     // re-renders the whole chip strip, which resets the browser's double-click target tracking).
-    await page.click('.wb-chip-rename[data-wb-rename="' + wbId + '"]');
-    await page.waitForTimeout(60);
-    const wbRenameInputVisible = await page.evaluate(function () { return !!document.querySelector(".wb-chip-rename-inp"); });
-    ok("Z3-WB: the ✎ rename button swaps a workbook chip's label into a rename <input>", wbRenameInputVisible, String(wbRenameInputVisible));
-    await page.fill(".wb-chip-rename-inp", "Board Reviews");
-    await page.press(".wb-chip-rename-inp", "Enter");
+    // Driven fully in-page and synchronously: the ✎ button is hover-revealed and the input
+    // commits on blur, so split physical click/fill/press steps race Playwright's own
+    // focus transitions (flaky in full-suite runs). The handler contract — click swaps the
+    // label for an input, Enter commits, Escape discards — is what's being tested.
+    const wbRenameFlow = await page.evaluate(function (id) {
+      document.querySelector('.wb-chip-rename[data-wb-rename="' + id + '"]').click();
+      var inp = document.querySelector(".wb-chip-rename-inp");
+      if (!inp) return { input: false };
+      inp.value = "Board Reviews";
+      inp.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+      return { input: true };
+    }, wbId);
+    ok("Z3-WB: the ✎ rename button swaps a workbook chip's label into a rename <input>", wbRenameFlow.input, JSON.stringify(wbRenameFlow));
     await page.waitForTimeout(80);
     const wbAfterRename = await page.evaluate(function (id) {
       var wb = window.__studioWorkbooks().find(function (w) { return w.id === id; });
@@ -14543,10 +14468,13 @@ function serve() {
       wbAfterRename.name === "Board Reviews" && wbAfterRename.chipText === "Board Reviews", JSON.stringify(wbAfterRename));
 
     // Escape cancels the rename — name stays whatever it was just set to above
-    await page.click('.wb-chip-rename[data-wb-rename="' + wbId + '"]');
-    await page.waitForTimeout(60);
-    await page.fill(".wb-chip-rename-inp", "Should Not Save");
-    await page.press(".wb-chip-rename-inp", "Escape");
+    await page.evaluate(function (id) {
+      document.querySelector('.wb-chip-rename[data-wb-rename="' + id + '"]').click();
+      var inp = document.querySelector(".wb-chip-rename-inp");
+      if (!inp) return;
+      inp.value = "Should Not Save";
+      inp.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    }, wbId);
     await page.waitForTimeout(80);
     const wbAfterEscape = await page.evaluate(function (id) {
       var wb = window.__studioWorkbooks().find(function (w) { return w.id === id; });
@@ -17468,10 +17396,10 @@ function serve() {
       return { open: nav.classList.contains("mobile-open"), scrim: document.getElementById("mobile-scrim").classList.contains("active"), onScreen: r.left >= -2 && r.width > 100 };
     });
     ok("m-a: hamburger opens the drawer + scrim (rail slides on-screen)", mOpen.open && mOpen.scrim && mOpen.onScreen, JSON.stringify(mOpen));
-    await mp.click('#railNav .rail-item[data-sec="repository"]');
+    await mp.click('#railNav .rail-item[data-sec="dashboards"]');
     await mp.waitForTimeout(350);
     const mPick = await mp.evaluate(() => ({
-      repoShown: !document.getElementById("secRepository").hidden,
+      repoShown: !document.getElementById("secDashboards").hidden,
       studioHidden: document.getElementById("appMain").hidden,
       drawerClosed: !document.getElementById("railNav").classList.contains("mobile-open"),
       scrimGone: !document.getElementById("mobile-scrim").classList.contains("active")
@@ -17603,26 +17531,29 @@ function serve() {
         return { ok: r.top >= h.bottom - 1, headingTop: Math.round(r.top), hambBottom: Math.round(h.bottom) };
       });
     }
-    const mcRepo = await headingClearsHamburger("repository");
-    ok("m-c: Repository heading clears the hamburger at 390px", mcRepo.ok, JSON.stringify(mcRepo));
+    const mcRepo = await headingClearsHamburger("dashboards");
+    ok("m-c: Dashboards heading clears the hamburger at 390px", mcRepo.ok, JSON.stringify(mcRepo));
+    const mcDatasets = await headingClearsHamburger("datasets");
+    ok("m-c: Datasets heading clears the hamburger at 390px", mcDatasets.ok, JSON.stringify(mcDatasets));
+    const mcConnections = await headingClearsHamburger("connections");
+    ok("m-c: Connections heading clears the hamburger at 390px", mcConnections.ok, JSON.stringify(mcConnections));
     const mcSettings = await headingClearsHamburger("settings");
     ok("m-c: Settings heading clears the hamburger at 390px", mcSettings.ok, JSON.stringify(mcSettings));
     const mcHome = await headingClearsHamburger("home");
     ok("m-c: Home heading clears the hamburger at 390px", mcHome.ok, JSON.stringify(mcHome));
 
-    // m-c: Repository data-source cards must not overflow the phone viewport (a long
-    // data-source id inside a flex row with no min-width:0 was forcing 100%-wide cards
-    // 17px past the right edge, clipping the SQL/kind badge).
+    // m-c: Dashboards cards must not overflow the phone viewport (same class of bug the
+    // old Repository data-source cards had — flex rows without min-width:0).
     await mp2.evaluate(() => { document.getElementById("mobileNavBtn").click(); });
     await mp2.waitForTimeout(300);
-    await mp2.click('#railNav .rail-item[data-sec="repository"]');
+    await mp2.click('#railNav .rail-item[data-sec="dashboards"]');
     await mp2.waitForTimeout(350);
     const mcCardOverflow = await mp2.evaluate(() => {
-      var cards = [].slice.call(document.querySelectorAll(".repo-ds-card"));
+      var cards = [].slice.call(document.querySelectorAll("#repoResults .recent-card, #repoResults .dash-li"));
       var bad = cards.filter((c) => c.getBoundingClientRect().right > window.innerWidth + 1);
       return { count: cards.length, overflowing: bad.length };
     });
-    ok("m-c: Repository data-source cards fit within the phone viewport (no horizontal overflow)",
+    ok("m-c: Dashboards cards fit within the phone viewport (no horizontal overflow)",
       mcCardOverflow.count > 0 && mcCardOverflow.overflowing === 0, JSON.stringify(mcCardOverflow));
 
     // ── m-d: mobile tab bar reachable while a drawer is open ──

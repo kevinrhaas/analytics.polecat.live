@@ -120,9 +120,14 @@ html[data-app-theme='modern'] #railNav{--rail-bg:#0d1a2e;--rail-bg2:#152540;--ra
 #railNav .rail-item:hover{opacity:1;background:var(--rail-bg2)}
 #railNav .rail-item.active{opacity:1;background:var(--rail-bg2);box-shadow:inset 3px 0 0 var(--rail-accent,#d4773b)}
 #railNav .rail-item[data-sec="home"]{--rail-accent:#ffb000}
-#railNav .rail-item[data-sec="repository"]{--rail-accent:#10a37f}
+#railNav .rail-item[data-sec="dashboards"]{--rail-accent:#10a37f}
+#railNav .rail-item[data-sec="datasets"]{--rail-accent:#e0639c}
+#railNav .rail-item[data-sec="connections"]{--rail-accent:#17a08f}
 #railNav .rail-item[data-sec="studio"]{--rail-accent:#4285f4}
 #railNav .rail-item[data-sec="settings"]{--rail-accent:#8b5cf6}
+/* manager-style group labels — visible only when the rail is expanded */
+#railNav .rail-group-lbl{padding:10px 18px 4px;font-size:10px;font-weight:800;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--rail-ink);opacity:.42}
 #railNav .rail-item.active .rail-ic{color:var(--rail-accent,#d4773b)}
 #railNav .rail-ic{display:flex;flex:0 0 auto}
 #railNav .rail-lbl{overflow:hidden;text-overflow:ellipsis}
