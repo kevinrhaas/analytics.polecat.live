@@ -5,7 +5,7 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v2";
+var CACHE_NAME = "studio-shell-v3";
 var SHELL_FILES = [
   "./",
   "index.html",
@@ -18,6 +18,14 @@ var SHELL_FILES = [
   "app/gate-config.js",
   "app/gate.js",
   "app/model.js",
+  "app/sources/schema.js",
+  "app/sources/crypto.js",
+  "app/sources/local.js",
+  "app/sources/turso.js",
+  "app/sources/supabase.js",
+  "app/sources/firebase.js",
+  "app/sources/registry.js",
+  "app/sources/workspace.js",
   "app/sampledata.js",
   "app/pentaho.js",
   "app/duckdb.js",

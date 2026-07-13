@@ -15,11 +15,61 @@ const MIME = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css
 let passed = 0, failed = 0;
 function ok(name, cond, extra) { if (cond) { passed++; console.log("  ✓ " + name); } else { failed++; console.error("  ✗ " + name + (extra ? "  — " + extra : "")); } }
 
+// ---- mock Turso /v2/pipeline (adapter end-to-end tests) --------------------
+// A tiny in-memory emulation of the libSQL HTTP pipeline covering exactly the
+// SQL shapes app/sources/turso.js issues (list tables, DDL, delete+insert
+// write-through, data/meta reads, counts, drops). Deterministic and offline,
+// so the adapter's provision→save→load round-trip is tested over real HTTP.
+const mockTurso = { tables: new Map() }; // name -> { rows:Map(id->{cols,data}) | kv:Map }
+function mockTursoExec(stmt) {
+  const sql = (stmt.sql || "").trim();
+  const args = (stmt.args || []).map((a) => (a && a.value != null ? a.value : null));
+  const T = mockTurso.tables;
+  const result = (cols, rows) => ({ cols: cols.map((name) => ({ name })), rows: rows.map((r) => r.map((v) => (v == null ? { type: "null" } : { type: "text", value: String(v) }))) });
+  let m;
+  if (/^SELECT 1$/i.test(sql)) return result(["1"], [["1"]]);
+  if (/FROM sqlite_master/i.test(sql)) return result(["name"], [...T.keys()].map((n) => [n]));
+  if ((m = sql.match(/^CREATE TABLE IF NOT EXISTS "([^"]+)"/i))) { if (!T.has(m[1])) T.set(m[1], new Map()); return result([], []); }
+  if ((m = sql.match(/^DROP TABLE IF EXISTS "([^"]+)"/i))) { T.delete(m[1]); return result([], []); }
+  if ((m = sql.match(/^DELETE FROM "([^"]+)"$/i))) { if (T.has(m[1])) T.get(m[1]).clear(); return result([], []); }
+  if ((m = sql.match(/^INSERT OR REPLACE INTO "([^"]+)"\(key,value\)/i))) { T.get(m[1]).set(args[0], args[1]); return result([], []); }
+  if ((m = sql.match(/^INSERT INTO "([^"]+)"\(/i))) { T.get(m[1]).set(args[0], args); return result([], []); }
+  if ((m = sql.match(/^SELECT COUNT\(\*\) FROM "([^"]+)"$/i))) { const t = T.get(m[1]); return result(["c"], [[t ? t.size : 0]]); }
+  if ((m = sql.match(/^SELECT data FROM "([^"]+)"$/i))) {
+    const t = T.get(m[1]); if (!t) throw new Error("no such table: " + m[1]);
+    return result(["data"], [...t.values()].map((args2) => [args2[args2.length - 1]]));
+  }
+  if ((m = sql.match(/^SELECT key, ?value FROM "([^"]+)"(?: WHERE key IN \('app','schema_version'\))?$/i))) {
+    const t = T.get(m[1]); if (!t) throw new Error("no such table: " + m[1]);
+    const wantIdent = / WHERE /i.test(sql);
+    return result(["key", "value"], [...t.entries()].filter(([k]) => !wantIdent || k === "app" || k === "schema_version"));
+  }
+  throw new Error("mock turso: unhandled SQL: " + sql);
+}
+function handleMockTurso(req, rep) {
+  let body = "";
+  req.on("data", (c) => (body += c));
+  req.on("end", () => {
+    let out = [];
+    try {
+      const reqs = (JSON.parse(body || "{}").requests || []);
+      out = reqs.map((r) => {
+        if (r.type === "close") return { type: "ok", response: { type: "close" } };
+        try { return { type: "ok", response: { type: "execute", result: mockTursoExec(r.stmt || {}) } }; }
+        catch (e) { return { type: "error", error: { message: e.message } }; }
+      });
+    } catch (e) { out = [{ type: "error", error: { message: e.message } }]; }
+    rep.writeHead(200, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" });
+    rep.end(JSON.stringify({ results: out }));
+  });
+}
+
 function serve() {
   return new Promise((res) => {
     const srv = http.createServer((req, rep) => {
       let p = decodeURIComponent(req.url.split("?")[0]); if (p === "/") p = "/index.html";
       if (p === "/favicon.ico") { rep.writeHead(204); return rep.end(); }
+      if (p === "/__turso/v2/pipeline") return handleMockTurso(req, rep);
       const fp = path.join(ROOT, p);
       if (!fp.startsWith(ROOT) || !fs.existsSync(fp) || fs.statSync(fp).isDirectory()) { rep.writeHead(404); return rep.end("404"); }
       rep.writeHead(200, { "Content-Type": MIME[path.extname(fp)] || "application/octet-stream" });
@@ -141,6 +191,128 @@ function serve() {
       const actual = (w.STUDIO_CHANGELOG || []).length;
       ok("manager parse yields ALL changelog entries (no silent truncation)", parsed && parsed.length === actual, (parsed ? parsed.length : 0) + " parsed vs " + actual + " actual");
     })();
+
+    // ---- WS: adapter infrastructure (app/sources/) ----
+    // The manager-pattern source layer: schema/contract, registry, workspace
+    // store, secrets crypto, and the Turso adapter exercised END-TO-END against
+    // the mock /v2/pipeline the test server exposes.
+    console.log("\n• WS: adapter/connection/dataset infrastructure");
+    const wsRegistry = await page.evaluate(function () {
+      var S = window.Studio;
+      return {
+        ids: (S.SOURCES || []).map(function (s) { return s.id; }),
+        localMetaOnly: !!(S.localSource.caps.meta && !S.localSource.caps.data && S.localSource.local),
+        tursoBoth: !!(S.tursoSource.caps.meta && S.tursoSource.caps.data),
+        metaCount: S.metaSources().length, dataCount: S.dataSources().length,
+        byId: !!(S.sourceById("turso") && S.sourceById("nope") === null),
+        appId: S.WS.APP_ID, tableNames: S.WS.TABLE_NAMES
+      };
+    });
+    ok("WS: registry carries local/turso/supabase/firebase with caps planes",
+      wsRegistry.ids.join(",") === "local,turso,supabase,firebase" && wsRegistry.localMetaOnly && wsRegistry.tursoBoth &&
+      wsRegistry.metaCount === 4 && wsRegistry.dataCount === 3 && wsRegistry.byId, JSON.stringify(wsRegistry));
+    ok("WS: workspace schema is analytics-owned (connections/datasets/dashboards)",
+      wsRegistry.appId === "analytics" && wsRegistry.tableNames.join(",") === "connections,datasets,dashboards", JSON.stringify(wsRegistry.tableNames));
+
+    const wsStore = await page.evaluate(function () {
+      var W = Studio.Workspace, events = [];
+      var off = W.on("change", function (p) { events.push(p.table + ":" + (p.removed ? "del" : "put")); });
+      var row = W.put("connections", { name: "test-conn", adapter: "turso", cfg: { url: "libsql://x" } });
+      var got = W.get("connections", row.id);
+      var all = W.all("connections").length;
+      var snap = W.snapshot();
+      var persisted = null;
+      try { persisted = JSON.parse(localStorage.getItem("analytics.workspace.v1")); } catch (e) {}
+      W.remove("connections", row.id);
+      off();
+      var afterRemove = W.all("connections").length;
+      return {
+        putGetOk: !!(got && got.name === "test-conn" && got.createdAt && got.updatedAt),
+        allCount: all, afterRemove: afterRemove,
+        snapHasRow: (snap.tables.connections || []).length === 1 && snap.app === "analytics",
+        persistedOk: !!(persisted && persisted.tables && persisted.tables.connections),
+        events: events.join(",")
+      };
+    });
+    ok("WS: workspace store round-trips put/get/all/remove with events + persistence",
+      wsStore.putGetOk && wsStore.allCount === 1 && wsStore.afterRemove === 0 && wsStore.snapHasRow &&
+      wsStore.persistedOk && wsStore.events === "connections:put,connections:del", JSON.stringify(wsStore));
+
+    const wsReplace = await page.evaluate(function () {
+      var W = Studio.Workspace;
+      var snap = Studio.WS.emptySnapshot();
+      snap.tables.datasets = [{ id: "ds-1", name: "orders", connectionId: "c-1", kind: "sql", sql: "SELECT 1" }];
+      snap.settings = { hello: "world" };
+      W.replaceAll(snap);
+      var back = { count: W.all("datasets").length, name: (W.get("datasets", "ds-1") || {}).name, setting: W.settings().hello };
+      W.reset();
+      return back;
+    });
+    ok("WS: replaceAll adopts a snapshot wholesale (rows re-keyed by id, settings merged)",
+      wsReplace.count === 1 && wsReplace.name === "orders" && wsReplace.setting === "world", JSON.stringify(wsReplace));
+
+    const wsParams = await page.evaluate(function () {
+      return {
+        sub: Studio.WS.applyParams("SELECT * FROM {{schema}}.orders WHERE r='{{ region }}'", { schema: "prod", region: "EMEA" }),
+        keep: Studio.WS.applyParams("WHERE x={{missing}}", { other: 1 })
+      };
+    });
+    ok("WS: dataset {{param}} substitution fills values and leaves unmatched keys intact",
+      wsParams.sub === "SELECT * FROM prod.orders WHERE r='EMEA'" && wsParams.keep === "WHERE x={{missing}}", JSON.stringify(wsParams));
+
+    const wsCrypto = await page.evaluate(async function () {
+      var C = Studio.SecretsCrypto;
+      if (!C.cryptoAvailable()) return { skip: true };
+      var salt = C.newSalt();
+      var key = await C.deriveKey("hunter2", salt, 1000); // low iters: test speed only
+      var env = await C.encryptStr(key, "s3cret-token");
+      var plain = await C.decryptStr(key, env);
+      var wrongOk = false;
+      try { var bad = await C.deriveKey("wrong", salt, 1000); await C.decryptStr(bad, env); wrongOk = true; } catch (e) {}
+      return { isEnv: C.isEnvelope(env), plain: plain, wrongOk: wrongOk, rawNotEnv: C.isEnvelope("plain") };
+    });
+    ok("WS: secrets crypto round-trips AES-GCM envelopes and rejects a wrong passphrase",
+      wsCrypto.skip || (wsCrypto.isEnv && wsCrypto.plain === "s3cret-token" && !wsCrypto.wrongOk && !wsCrypto.rawNotEnv), JSON.stringify(wsCrypto));
+
+    // Turso adapter end-to-end against the mock pipeline: probe empty →
+    // provision → probe ours → save a real snapshot → load it back → drop.
+    const wsTurso = await page.evaluate(async function (port) {
+      var t = Studio.tursoSource;
+      var cfg = { url: "http://localhost:" + port + "/__turso", token: "tok" };
+      var out = {};
+      out.test = await t.test(cfg);
+      out.probeEmpty = (await t.probe(cfg)).state;
+      out.provision = await t.provision(cfg, Studio.WS.emptySnapshot());
+      var probed = await t.probe(cfg);
+      out.probeState = probed.state; out.probeApp = probed.app; out.probeVer = probed.schemaVersion;
+      var snap = Studio.WS.emptySnapshot();
+      snap.tables.connections = [{ id: "c-1", name: "warehouse", adapter: "turso", cfg: { url: "libsql://w" } }];
+      snap.tables.datasets = [{ id: "d-1", name: "orders", connectionId: "c-1", kind: "sql", sql: "SELECT * FROM orders" }];
+      snap.settings = { theme: "polecat" };
+      out.save = await t.save(cfg, snap);
+      var back = await t.load(cfg);
+      out.loadedConn = (back.tables.connections[0] || {}).name;
+      out.loadedDs = (back.tables.datasets[0] || {}).sql;
+      out.loadedSetting = back.settings.theme;
+      out.query = await t.queryData(cfg, { kind: "sql", sql: "SELECT 1" });
+      out.drop = await t.drop(cfg);
+      out.probeAfterDrop = (await t.probe(cfg)).state;
+      return out;
+    }, PORT);
+    ok("WS: turso adapter end-to-end — probe(empty)→provision→probe(ours, app=analytics)",
+      wsTurso.test.ok && wsTurso.probeEmpty === "empty" && wsTurso.provision.ok &&
+      wsTurso.probeState === "polecat" && wsTurso.probeApp === "analytics" && wsTurso.probeVer === 1, JSON.stringify(wsTurso));
+    ok("WS: turso adapter round-trips a full workspace snapshot (save → load)",
+      wsTurso.save.ok && wsTurso.loadedConn === "warehouse" && wsTurso.loadedDs === "SELECT * FROM orders" && wsTurso.loadedSetting === "polecat", JSON.stringify(wsTurso));
+    ok("WS: turso data plane answers queryData and drop() resets to empty",
+      wsTurso.query.columns.length === 1 && wsTurso.query.rows.length === 1 && wsTurso.drop.ok && wsTurso.probeAfterDrop === "empty", JSON.stringify(wsTurso.query));
+
+    const wsSupabase = await page.evaluate(async function () {
+      var res = await Studio.supabaseSource.provision({}, Studio.WS.emptySnapshot());
+      return { manual: !!res.manual, hasDDL: /CREATE TABLE IF NOT EXISTS "connections"/.test(res.sql || ""), hasApp: /'app', 'analytics'/.test((res.sql || "").replace(/\s+/g, " ")) };
+    });
+    ok("WS: supabase provision hands back a paste-me SQL bootstrap (no browser DDL pretence)",
+      wsSupabase.manual && wsSupabase.hasDDL && wsSupabase.hasApp, JSON.stringify(wsSupabase));
 
     // ---- a11y: keyboard focus ring (Tab triggers :focus-visible) ----
     await page.keyboard.press("Tab");
@@ -17330,7 +17502,7 @@ function serve() {
     // are fetched during install too (from the index we just cached), so a first-ever offline
     // visit still has a full library/gallery, not just a blank shell.
     const pwaDataPrecached = await pwaPage.evaluate(async function () {
-      const cache = await caches.open("studio-shell-v2");
+      const cache = await caches.open("studio-shell-v3");
       const keys = (await cache.keys()).map((r) => new URL(r.url).pathname.replace(/^\//, ""));
       const exIndex = await fetch("data/examples/index.json").then((r) => r.json());
       const missingExamples = exIndex.filter((ex) => keys.indexOf("data/examples/" + ex.file) < 0);
