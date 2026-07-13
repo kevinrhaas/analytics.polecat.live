@@ -333,6 +333,105 @@ function serve() {
     ok("WS: supabase provision hands back a paste-me SQL bootstrap (no browser DDL pretence)",
       wsSupabase.manual && wsSupabase.hasDDL && wsSupabase.hasApp, JSON.stringify(wsSupabase));
 
+    // ---- CX: Connections section (list, pills, wizard) ----
+    console.log("\n• CX: Connections section");
+    await page.evaluate(function () { window.__studioShellSetSection("connections"); });
+    await page.waitForTimeout(120);
+    const cxEmpty = await page.evaluate(function () {
+      return {
+        visible: document.getElementById("secConnections").hidden === false,
+        empty: !!document.querySelector("#connResults .cx-empty"),
+        cta: !!document.getElementById("connEmptyNew")
+      };
+    });
+    ok("CX: Connections section shows an empty state with a create CTA", cxEmpty.visible && cxEmpty.empty && cxEmpty.cta, JSON.stringify(cxEmpty));
+
+    await page.click("#connNewBtn");
+    await page.waitForTimeout(120);
+    const cxWiz = await page.evaluate(function () {
+      var cards = [].slice.call(document.querySelectorAll(".cx-src-card"));
+      return {
+        count: cards.length,
+        wsCapable: document.querySelectorAll(".cx-src-card .cx-badge").length,
+        labels: cards.map(function (c) { return c.querySelector("b").textContent; }).slice(0, 3).join(",")
+      };
+    });
+    ok("CX: wizard step 1 lists every data-capable adapter with workspace-capable badges",
+      cxWiz.count === 9 && cxWiz.wsCapable === 3, JSON.stringify(cxWiz));
+
+    // pick Turso → step 2 → point it at the mock pipeline → inline Test → Save
+    await page.evaluate(function () {
+      [].slice.call(document.querySelectorAll(".cx-src-card")).filter(function (c) { return c.querySelector("b").textContent === "Turso"; })[0].click();
+    });
+    await page.waitForTimeout(100);
+    await page.evaluate(function (port) {
+      var fields = [].slice.call(document.querySelectorAll(".cx-field input"));
+      fields[0].value = "Mock Turso";                                  // name
+      fields[1].value = "http://localhost:" + port + "/__turso";       // url
+      fields[2].value = "tok";                                          // token
+    }, PORT);
+    await page.evaluate(function () {
+      var btns = [].slice.call(document.querySelectorAll(".cx-wiz-foot .btn"));
+      btns.filter(function (b) { return /Test connection/.test(b.textContent); })[0].click();
+    });
+    await page.waitForFunction(() => /Connection works|failed|✕/.test((document.querySelector(".cx-test-result") || {}).textContent || ""), { timeout: 5000 });
+    const cxTestInline = await page.evaluate(function () { return (document.querySelector(".cx-test-result") || {}).textContent; });
+    ok("CX: wizard inline Test reaches the adapter and reports success", /Connection works/.test(cxTestInline), cxTestInline);
+    await page.evaluate(function () {
+      var btns = [].slice.call(document.querySelectorAll(".cx-wiz-foot .btn"));
+      btns.filter(function (b) { return /Add connection/.test(b.textContent); })[0].click();
+    });
+    await page.waitForTimeout(150);
+    const cxSaved = await page.evaluate(function () {
+      var rows = document.querySelectorAll("#connResults .cx-row");
+      var stored = Studio.Workspace.all("connections");
+      return {
+        rows: rows.length, stored: stored.length,
+        name: stored[0] && stored[0].name, adapter: stored[0] && stored[0].adapter,
+        dotOk: !!document.querySelector("#connResults .cx-dot.ok"),
+        modalGone: !document.querySelector(".modal-ov")
+      };
+    });
+    ok("CX: saving the wizard persists the connection and the list shows a green status dot",
+      cxSaved.rows === 1 && cxSaved.stored === 1 && cxSaved.name === "Mock Turso" && cxSaved.adapter === "turso" && cxSaved.dotOk && cxSaved.modalGone, JSON.stringify(cxSaved));
+
+    // multi-select adapter pills + search that never matches secrets
+    const cxFilter = await page.evaluate(function () {
+      Studio.Workspace.put("connections", { name: "Prod snowflake", adapter: "snowflake", cfg: { account: "xy", token: "SECRETVALUE" } });
+      window.__studioRenderConnections();
+      var out = { pills: document.querySelectorAll("#connResults .cx-pill").length };
+      var sfPill = [].slice.call(document.querySelectorAll("[data-conn-adapter]")).filter(function (b) { return b.getAttribute("data-conn-adapter") === "snowflake"; })[0];
+      sfPill.click();
+      out.afterPick = document.querySelectorAll("#connResults .cx-row").length;
+      var tuPill = [].slice.call(document.querySelectorAll("[data-conn-adapter]")).filter(function (b) { return b.getAttribute("data-conn-adapter") === "turso"; })[0];
+      tuPill.click();
+      out.afterBoth = document.querySelectorAll("#connResults .cx-row").length;
+      document.getElementById("connPillClear").click();
+      out.afterClear = document.querySelectorAll("#connResults .cx-row").length;
+      var search = document.getElementById("connSearch");
+      search.value = "snowfl"; window.__studioRenderConnections();
+      out.bySearch = document.querySelectorAll("#connResults .cx-row").length;
+      search.value = "SECRETVALUE"; window.__studioRenderConnections();
+      out.bySecret = document.querySelectorAll("#connResults .cx-row").length;
+      search.value = ""; window.__studioRenderConnections();
+      return out;
+    });
+    ok("CX: adapter pills multi-select (1 → 2 adapters → clear) and search skips password values",
+      cxFilter.pills === 2 && cxFilter.afterPick === 1 && cxFilter.afterBoth === 2 && cxFilter.afterClear === 2 &&
+      cxFilter.bySearch === 1 && cxFilter.bySecret === 0, JSON.stringify(cxFilter));
+
+    const cxDelete = await page.evaluate(function () {
+      window.confirm = function () { return true; };
+      var stored = Studio.Workspace.all("connections");
+      var delBtns = [].slice.call(document.querySelectorAll("[data-conn-del]"));
+      delBtns.forEach(function (b) { b.click(); });
+      // re-query after re-render for remaining rows
+      return { before: stored.length, after: Studio.Workspace.all("connections").length };
+    });
+    ok("CX: delete removes connections (with confirm)", cxDelete.before === 2 && cxDelete.after === 0, JSON.stringify(cxDelete));
+    await page.evaluate(function () { Studio.Workspace.reset(); window.__studioShellSetSection("studio"); });
+    await page.waitForTimeout(120);
+
     // ---- a11y: keyboard focus ring (Tab triggers :focus-visible) ----
     await page.keyboard.press("Tab");
     const focusRing = await page.evaluate(() => {
@@ -13565,20 +13664,20 @@ function serve() {
       var items = nav ? Array.prototype.slice.call(nav.querySelectorAll(".rail-item[data-sec]")) : [];
       var studioBtn = nav && nav.querySelector('.rail-item[data-sec="studio"]');
       return {
-        ok: !!nav && items.length === 4 && !!studioBtn && studioBtn.classList.contains("active")
+        ok: !!nav && items.length === 5 && !!studioBtn && studioBtn.classList.contains("active")
           && studioBtn.getAttribute("aria-current") === "page",
         secs: items.map(function (b) { return b.getAttribute("data-sec"); }),
         appMainHidden: document.getElementById("appMain").hidden,
         collapseBtn: !!document.getElementById("railCollapse")
       };
     });
-    ok("Z1: rail has Home/Repository/Studio/Settings + Studio active by default", z1Boot.ok, JSON.stringify(z1Boot));
+    ok("Z1: rail has Home/Repository/Connections/Studio/Settings + Studio active by default", z1Boot.ok, JSON.stringify(z1Boot));
     ok("Z1: #appMain (the builder) is visible by default", z1Boot.appMainHidden === false, JSON.stringify(z1Boot));
 
     // Z1-2: rail icons are real inline SVGs (Studio.icon(), theme-aware — no emoji/unicode glyphs)
     const z1Icons = await page.evaluate(function () {
       var svgs = document.querySelectorAll("#railNav .rail-ic svg");
-      return { ok: svgs.length === 7, count: svgs.length }; // 4 sections + Search/⌘K (Track N) + Help (Z11) + collapse toggle
+      return { ok: svgs.length === 8, count: svgs.length }; // 5 sections + Search/⌘K (Track N) + Help (Z11) + collapse toggle
     });
     ok("Z1: rail buttons render inline SVG icons (Studio.icon helper)", z1Icons.ok, JSON.stringify(z1Icons));
 

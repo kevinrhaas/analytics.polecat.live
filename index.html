@@ -21,6 +21,7 @@
     </button>
     <button class="rail-item" data-sec="home" title="Home" aria-label="Home"><span class="rail-ic" data-ic="home"></span><span class="rail-lbl">Home</span></button>
     <button class="rail-item" data-sec="repository" title="Repository" aria-label="Repository"><span class="rail-ic" data-ic="layers"></span><span class="rail-lbl">Repository</span></button>
+    <button class="rail-item" data-sec="connections" title="Connections" aria-label="Connections"><span class="rail-ic" data-ic="link"></span><span class="rail-lbl">Connections</span></button>
     <button class="rail-item active" data-sec="studio" title="Studio" aria-label="Studio" aria-current="page"><span class="rail-ic" data-ic="grid"></span><span class="rail-lbl">Studio</span></button>
     <div class="rail-spacer"></div>
     <button class="rail-item" data-sec="settings" title="Settings" aria-label="Settings"><span class="rail-ic" data-ic="gear"></span><span class="rail-lbl">Settings</span></button>
@@ -52,6 +53,18 @@
         </div>
       </div>
       <div id="repoResults"></div>
+    </div>
+  </section>
+  <section id="secConnections" class="app-sec has-content" hidden>
+    <div class="repo-wrap">
+      <div class="repo-hero"><h1>Connections</h1>
+        <p>Where your dashboards' data lives — reusable connections to warehouses, files and APIs, one adapter each. Credentials stay in this browser.</p>
+        <input id="connSearch" class="repo-search" type="search" placeholder="Search connections…" aria-label="Search connections"/>
+        <div class="repo-io">
+          <button type="button" class="btn primary" id="connNewBtn">+ New connection</button>
+        </div>
+      </div>
+      <div id="connResults"></div>
     </div>
   </section>
   <section id="secSettings" class="app-sec" hidden>

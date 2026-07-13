@@ -332,6 +332,14 @@
       loadConnections();
       renderHome();
       renderRepository();
+      renderConnections();
+      // keep the Connections list live: any workspace mutation (local edit or a
+      // future remote adopt) repaints it
+      Studio.Workspace.on("change", function (p) {
+        if (p.table === "connections" || p.table === "*") renderConnections();
+      });
+      var connSearchInp = $("#connSearch"); if (connSearchInp) connSearchInp.addEventListener("input", renderConnections);
+      var connNewBtn = $("#connNewBtn"); if (connNewBtn) connNewBtn.onclick = function () { openConnectionWizard(); };
       renderSettings();
       if (window.StudioWelcome) { var ab = $("#btnAbout"); if (ab) ab.onclick = function () { StudioWelcome.open(); }; setTimeout(function () { StudioWelcome.maybeShow(); }, 300); }
       buildLibrary();
@@ -5340,6 +5348,227 @@
     });
   }
   window.__studioRenderRepository = renderRepository; // test hook
+
+  /* ---------- Connections section ----------
+     Workspace-level connections to external sources (one adapter each), the
+     first plane of the connections → datasets → dashboards model. List UX
+     follows the fleet's jobtracker patterns: adapter pills are MULTI-select
+     (toggle any subset; none = all), plus free-text search; rows carry a
+     status dot from the last Test result. Rows live in Studio.Workspace
+     ('connections' table) so a remote workspace backend can mirror them. */
+  var _connAdapterFilter = {}; // multi-select: adapterId -> true; empty = all
+  function connStatusDot(c) {
+    var t = c.lastTest;
+    var cls = !t ? "cx-dot" : (t.ok ? "cx-dot ok" : "cx-dot bad");
+    var tip = !t ? "Never tested" : (t.ok ? "Test OK" : "Test failed: " + (t.error || "")) + " · " + new Date(t.at).toLocaleString();
+    return '<span class="' + cls + '" title="' + esc(tip) + '"></span>';
+  }
+  function renderConnections() {
+    var results = $("#connResults"); if (!results) return;
+    var q = (($("#connSearch") || {}).value || "").toLowerCase();
+    var list = Studio.Workspace.all("connections").sort(function (a, b) { return (b.updatedAt || 0) - (a.updatedAt || 0); });
+    // adapter pills: one per adapter present, multi-select (empty selection = all)
+    var counts = {};
+    list.forEach(function (c) { counts[c.adapter] = (counts[c.adapter] || 0) + 1; });
+    Object.keys(_connAdapterFilter).forEach(function (k) { if (!counts[k]) delete _connAdapterFilter[k]; });
+    var anyFilter = Object.keys(_connAdapterFilter).length > 0;
+    var pills = Object.keys(counts).sort().map(function (aid) {
+      var src = Studio.sourceById(aid) || { label: aid };
+      return '<button type="button" class="wb-chip cx-pill' + (_connAdapterFilter[aid] ? " active" : "") + '" data-conn-adapter="' + esc(aid) + '" aria-pressed="' + (_connAdapterFilter[aid] ? "true" : "false") + '">' +
+        '<span class="cx-pill-dot" style="background:' + esc(src.accent || "var(--pentaho)") + '"></span>' +
+        '<span class="wb-chip-label">' + esc(src.label) + '</span> <span class="wb-chip-n">' + counts[aid] + '</span></button>';
+    }).join("");
+    var shown = list.filter(function (c) {
+      if (anyFilter && !_connAdapterFilter[c.adapter]) return false;
+      if (!q) return true;
+      var src = Studio.sourceById(c.adapter) || {};
+      var cfgHay = Object.keys(c.cfg || {}).map(function (k) {
+        // never match on secrets
+        var f = (src.fields || []).filter(function (x) { return x.key === k; })[0];
+        return f && f.type === "password" ? "" : String(c.cfg[k] || "");
+      }).join(" ");
+      return (c.name + " " + (src.label || c.adapter) + " " + cfgHay).toLowerCase().indexOf(q) >= 0;
+    });
+    var rows = shown.map(function (c) {
+      var src = Studio.sourceById(c.adapter) || { label: c.adapter, icon: "db" };
+      var metaBadge = src.caps && src.caps.meta ? '<span class="cx-badge" title="Can also host this app\'s workspace (see Settings → Workspace backend)">workspace-capable</span>' : "";
+      return '<div class="cx-row" data-conn-id="' + esc(c.id) + '" tabindex="0" role="button" aria-label="Edit connection ' + esc(c.name) + '">' +
+        connStatusDot(c) +
+        '<span class="cx-ic" style="color:' + esc(src.accent || "var(--pentaho)") + '"></span>' +
+        '<span class="cx-name"><b>' + esc(c.name) + '</b><small>' + esc(src.label || c.adapter) + '</small></span>' +
+        metaBadge +
+        '<span class="cx-when" title="Last edited">' + esc(new Date(c.updatedAt || c.createdAt || Date.now()).toLocaleDateString()) + '</span>' +
+        '<span class="cx-actions">' +
+          '<button type="button" class="btn" data-conn-test="' + esc(c.id) + '">Test</button>' +
+          '<button type="button" class="btn" data-conn-edit="' + esc(c.id) + '">Edit</button>' +
+          '<button type="button" class="btn" data-conn-del="' + esc(c.id) + '" aria-label="Delete ' + esc(c.name) + '">✕</button>' +
+        '</span></div>';
+    });
+    results.innerHTML =
+      (pills ? '<div class="wb-chips cx-pills">' + pills + (anyFilter ? '<button type="button" class="wb-chip" id="connPillClear" title="Show all adapters">Clear</button>' : "") + '</div>' : "") +
+      (rows.length ? '<div class="cx-list">' + rows.join("") + '</div>'
+        : '<div class="cx-empty">' +
+            (q || anyFilter ? "No connections match." :
+              "<b>No connections yet.</b><br/>A connection points at where your data lives — a warehouse, a file over HTTP, an API — using one of the built-in adapters. Datasets are then defined on top of a connection and feed your dashboards.") +
+            (q || anyFilter ? "" : '<br/><button type="button" class="btn primary" id="connEmptyNew">+ New connection</button>') +
+          '</div>');
+    $$("[data-conn-adapter]", results).forEach(function (btn) {
+      btn.onclick = function () {
+        var k = btn.getAttribute("data-conn-adapter");
+        if (_connAdapterFilter[k]) delete _connAdapterFilter[k]; else _connAdapterFilter[k] = true;
+        renderConnections();
+      };
+    });
+    var clearBtn = $("#connPillClear", results);
+    if (clearBtn) clearBtn.onclick = function () { _connAdapterFilter = {}; renderConnections(); };
+    var emptyNew = $("#connEmptyNew", results);
+    if (emptyNew) emptyNew.onclick = function () { openConnectionWizard(); };
+    // paint adapter icons (inline SVG so theming is free)
+    $$(".cx-row", results).forEach(function (row) {
+      var c = Studio.Workspace.get("connections", row.getAttribute("data-conn-id"));
+      var src = c && Studio.sourceById(c.adapter);
+      var icEl = row.querySelector(".cx-ic");
+      if (icEl && src) icEl.appendChild(Studio.icon(src.icon || "db", 18));
+      row.addEventListener("click", function (e) {
+        if (e.target.closest("[data-conn-test],[data-conn-edit],[data-conn-del]")) return;
+        openConnectionWizard(c);
+      });
+      row.addEventListener("keydown", function (e) {
+        if ((e.key === "Enter" || e.key === " ") && e.target === row) { e.preventDefault(); openConnectionWizard(c); }
+      });
+    });
+    $$("[data-conn-test]", results).forEach(function (btn) {
+      btn.onclick = function () {
+        var c = Studio.Workspace.get("connections", btn.getAttribute("data-conn-test"));
+        if (!c) return;
+        btn.disabled = true; btn.textContent = "Testing…";
+        testConnectionRow(c).then(function () { renderConnections(); });
+      };
+    });
+    $$("[data-conn-edit]", results).forEach(function (btn) {
+      btn.onclick = function () { openConnectionWizard(Studio.Workspace.get("connections", btn.getAttribute("data-conn-edit"))); };
+    });
+    $$("[data-conn-del]", results).forEach(function (btn) {
+      btn.onclick = function () {
+        var c = Studio.Workspace.get("connections", btn.getAttribute("data-conn-del"));
+        if (!c) return;
+        var used = Studio.Workspace.all("datasets").filter(function (d) { return d.connectionId === c.id; });
+        var msg = used.length
+          ? 'Delete connection "' + c.name + '"? ' + used.length + " dataset" + (used.length > 1 ? "s" : "") + " reference" + (used.length > 1 ? "" : "s") + " it and will stop running."
+          : 'Delete connection "' + c.name + '"?';
+        if (!window.confirm(msg)) return;
+        Studio.Workspace.remove("connections", c.id);
+        toast("Deleted " + c.name);
+      };
+    });
+  }
+  // Run the right plane's test for a connection row and persist the outcome
+  // on the row itself, so the list's status dot reflects reality across reloads.
+  function testConnectionRow(c) {
+    var src = Studio.sourceById(c.adapter);
+    if (!src) return Promise.resolve({ ok: false, error: "Unknown adapter " + c.adapter });
+    var fn = src.caps && src.caps.data ? src.testData : src.test;
+    return fn.call(src, c.cfg || {}).then(function (r) {
+      c.lastTest = { ok: !!r.ok, error: r.ok ? "" : (r.error || "failed"), at: Date.now() };
+      Studio.Workspace.put("connections", c, { silent: true });
+      toast(r.ok ? "Connection OK" : "Test failed: " + (r.error || ""), !r.ok);
+      return r;
+    });
+  }
+  // The 2-step connect wizard (manager pattern): pick an adapter → name +
+  // credential fields (from adapter.fields) with an inline Test. Editing an
+  // existing connection opens straight at step 2.
+  function openConnectionWizard(existing) {
+    var src = existing ? Studio.sourceById(existing.adapter) : null;
+    modal(existing ? "Edit connection" : "New connection", function (b) {
+      function step2(adapter) {
+        b.innerHTML = "";
+        var head = el("div", "cx-wiz-head");
+        var ic = el("span", "cx-wiz-ic"); ic.style.color = adapter.accent || "var(--pentaho)"; ic.appendChild(Studio.icon(adapter.icon || "db", 22));
+        var ttl = el("div", "cx-wiz-ttl");
+        ttl.innerHTML = "<b>" + esc(adapter.label) + "</b><small>" + esc(adapter.blurb || "") + "</small>";
+        head.appendChild(ic); head.appendChild(ttl); b.appendChild(head);
+        var form = el("div", "cx-wiz-form");
+        var nameRow = el("label", "cx-field");
+        nameRow.innerHTML = '<span>Connection name</span>';
+        var nameInp = el("input"); nameInp.type = "text"; nameInp.value = existing ? existing.name : adapter.label;
+        nameInp.placeholder = "e.g. Prod warehouse";
+        nameRow.appendChild(nameInp); form.appendChild(nameRow);
+        var inputs = {};
+        (adapter.fields || []).forEach(function (f) {
+          var row = el("label", "cx-field");
+          row.innerHTML = "<span>" + esc(f.label) + "</span>";
+          var inp = el("input");
+          inp.type = f.type === "password" ? "password" : "text";
+          inp.placeholder = f.placeholder || "";
+          inp.autocomplete = "off";
+          inp.value = (existing && existing.cfg && existing.cfg[f.key]) || "";
+          row.appendChild(inp);
+          if (f.hint) { var h = el("small", "cx-hint"); h.textContent = f.hint; row.appendChild(h); }
+          form.appendChild(row); inputs[f.key] = inp;
+        });
+        b.appendChild(form);
+        if (adapter.docsUrl) {
+          var docs = el("div", "cx-docs");
+          docs.innerHTML = 'Where do these values come from? <a href="' + esc(adapter.docsUrl) + '" target="_blank" rel="noopener noreferrer">' + esc(adapter.docsUrl.replace(/^https?:\/\//, "").split("/")[0]) + ' docs ↗</a>';
+          b.appendChild(docs);
+        }
+        var result = el("div", "cx-test-result"); b.appendChild(result);
+        var foot = el("div", "cx-wiz-foot");
+        var testBtn = el("button", "btn"); testBtn.type = "button"; testBtn.textContent = "Test connection";
+        var saveBtn = el("button", "btn primary"); saveBtn.type = "button"; saveBtn.textContent = existing ? "Save changes" : "Add connection";
+        foot.appendChild(testBtn); foot.appendChild(saveBtn); b.appendChild(foot);
+        function cfg() {
+          var o = {};
+          Object.keys(inputs).forEach(function (k) { var v = inputs[k].value.trim(); if (v) o[k] = v; });
+          return o;
+        }
+        var lastInlineTest = existing ? existing.lastTest : null;
+        testBtn.onclick = function () {
+          testBtn.disabled = true; testBtn.textContent = "Testing…";
+          result.className = "cx-test-result"; result.textContent = "";
+          var fn = adapter.caps && adapter.caps.data ? adapter.testData : adapter.test;
+          fn.call(adapter, cfg()).then(function (r) {
+            testBtn.disabled = false; testBtn.textContent = "Test connection";
+            lastInlineTest = { ok: !!r.ok, error: r.ok ? "" : (r.error || "failed"), at: Date.now() };
+            result.className = "cx-test-result " + (r.ok ? "ok" : "bad");
+            result.textContent = r.ok ? "✓ Connection works" : "✕ " + (r.error || "Test failed");
+          });
+        };
+        saveBtn.onclick = function () {
+          var name = nameInp.value.trim();
+          if (!name) { nameInp.focus(); result.className = "cx-test-result bad"; result.textContent = "Give the connection a name first."; return; }
+          var row = existing || { id: Studio.Workspace.uid("conn") };
+          row.name = name; row.adapter = adapter.id; row.cfg = cfg();
+          if (lastInlineTest) row.lastTest = lastInlineTest;
+          Studio.Workspace.put("connections", row);
+          toast(existing ? "Saved " + name : "Added " + name);
+          document.querySelector(".modal-ov .x").click();
+        };
+        nameInp.focus();
+      }
+      if (src) { step2(src); return; }
+      // step 1: adapter picker — every data-capable adapter (a connection is a
+      // place datasets read from; the local workspace store is not that)
+      var grid = el("div", "cx-src-grid");
+      Studio.dataSources().forEach(function (adapter) {
+        var card = el("button", "cx-src-card"); card.type = "button";
+        card.style.setProperty("--src-accent", adapter.accent || "var(--pentaho)");
+        var ic = el("span", "cx-src-ic"); ic.appendChild(Studio.icon(adapter.icon || "db", 22));
+        var txt = el("span", "cx-src-txt");
+        txt.innerHTML = "<b>" + esc(adapter.label) + "</b><small>" + esc(adapter.blurb || "") + "</small>" +
+          (adapter.caps && adapter.caps.meta ? '<span class="cx-badge">workspace-capable</span>' : "");
+        card.appendChild(ic); card.appendChild(txt);
+        card.onclick = function () { step2(adapter); };
+        grid.appendChild(card);
+      });
+      var intro = el("p", "cx-wiz-intro");
+      intro.textContent = "Pick where the data lives. More adapters (Postgres, Redshift, Azure, files) join this list over time.";
+      b.appendChild(intro); b.appendChild(grid);
+    }, function () { renderConnections(); }, true);
+  }
+  window.__studioRenderConnections = renderConnections; // test hook
+  window.__studioOpenConnectionWizard = openConnectionWizard; // test hook
 
   /* ---------- Z3 follow-up: whole-repository JSON export/import ----------
      Bundled examples/catalog entries already live in the repo as files, so exporting

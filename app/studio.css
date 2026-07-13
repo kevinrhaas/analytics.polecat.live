@@ -1384,3 +1384,63 @@ body.simple-mode .da-acts{display:none!important}
   letter-spacing:.01em}
 .pz-close:hover{background:rgba(0,0,0,.88);transform:translateY(-1px)}
 .pz-close:active{transform:translateY(0)}
+
+/* ── Connections section (cx-*) ─────────────────────────────────────────────
+   The connections → datasets → dashboards data plane's first surface. Same
+   warm dark canvas as Home/Repository; rows follow the jobtracker list
+   anatomy (status dot · icon · name/sub · badges · date · hover actions),
+   adapter pills are multi-select. (`conn-*` belongs to the older ⚙ Servers
+   modal — keep the namespaces separate.) */
+.cx-pills{margin-bottom:16px}
+.cx-pill-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px;flex:0 0 auto}
+.cx-list{display:flex;flex-direction:column;gap:8px}
+.cx-row{display:flex;align-items:center;gap:12px;background:#1c1720;border:1px solid rgba(245,233,214,.12);
+  border-radius:12px;padding:12px 16px;cursor:pointer;transition:transform .12s ease,border-color .12s ease}
+.cx-row:hover,.cx-row:focus-visible{border-color:#d4773b;transform:translateY(-1px)}
+.cx-dot{width:9px;height:9px;border-radius:50%;background:#6b5f52;flex:0 0 auto}
+.cx-dot.ok{background:#4cde8c;box-shadow:0 0 6px rgba(76,222,140,.5)}
+.cx-dot.bad{background:#ff5c7a;box-shadow:0 0 6px rgba(255,92,122,.5)}
+.cx-ic{display:flex;align-items:center;flex:0 0 auto}
+.cx-name{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:1px}
+.cx-name b{color:#F5E9D6;font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cx-name small{color:#8a7d6d;font-size:11.5px}
+.cx-badge{font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#c9b9a3;
+  border:1px solid rgba(245,233,214,.2);border-radius:999px;padding:2px 8px;flex:0 0 auto}
+.cx-when{color:#8a7d6d;font-size:11.5px;flex:0 0 auto}
+.cx-actions{display:flex;gap:6px;flex:0 0 auto;opacity:0;transition:opacity .12s ease}
+.cx-row:hover .cx-actions,.cx-row:focus-within .cx-actions{opacity:1}
+.cx-empty{background:#1c1720;border:1px dashed rgba(245,233,214,.2);border-radius:12px;padding:34px;
+  text-align:center;color:#c9b9a3;font-size:13.5px;line-height:1.7}
+.cx-empty .btn{margin-top:12px}
+/* wizard */
+.cx-wiz-intro{margin:0 0 14px;font-size:13px;color:var(--muted)}
+.cx-src-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+.cx-src-card{display:flex;gap:10px;align-items:flex-start;text-align:left;background:var(--field);
+  border:1px solid var(--line);border-left:3px solid var(--src-accent,var(--pentaho));border-radius:10px;
+  padding:12px;cursor:pointer;font-family:var(--font);transition:transform .12s ease,border-color .12s ease}
+.cx-src-card:hover,.cx-src-card:focus-visible{border-color:var(--src-accent,var(--pentaho));transform:translateY(-1px)}
+.cx-src-ic{color:var(--src-accent,var(--pentaho));flex:0 0 auto;margin-top:2px}
+.cx-src-txt{display:flex;flex-direction:column;gap:3px;min-width:0}
+.cx-src-txt b{color:var(--ink);font-size:13px}
+.cx-src-txt small{color:var(--muted);font-size:11.5px;line-height:1.45}
+.cx-src-txt .cx-badge{align-self:flex-start;color:var(--muted);border-color:var(--line)}
+.cx-wiz-head{display:flex;gap:10px;align-items:flex-start;margin-bottom:14px}
+.cx-wiz-ic{flex:0 0 auto;margin-top:2px}
+.cx-wiz-ttl b{display:block;color:var(--ink);font-size:14px}
+.cx-wiz-ttl small{color:var(--muted);font-size:12px;line-height:1.5}
+.cx-wiz-form{display:flex;flex-direction:column;gap:10px}
+.cx-field{display:flex;flex-direction:column;gap:4px}
+.cx-field>span{font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.cx-field input{padding:8px 11px;font-size:13px;border:1px solid var(--line);border-radius:8px;
+  background:var(--field);color:var(--ink);font-family:var(--font)}
+.cx-field input:focus{border-color:var(--pentaho);outline:none}
+.cx-hint{color:var(--faint);font-size:11px;line-height:1.4}
+.cx-docs{margin-top:12px;font-size:12px;color:var(--muted)}
+.cx-docs a{color:var(--pentaho)}
+.cx-test-result{min-height:18px;margin-top:10px;font-size:12.5px;font-weight:600}
+.cx-test-result.ok{color:var(--good)}
+.cx-test-result.bad{color:var(--bad)}
+.cx-wiz-foot{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
+.cx-wiz-foot .btn{color:var(--ink);background:var(--field);border:1px solid var(--line)}
+.cx-wiz-foot .btn.primary,#connNewBtn.primary,.cx-empty .btn.primary{background:var(--pentaho);border-color:var(--pentaho);color:#fff}
+@media(max-width:640px){.cx-when{display:none}.cx-actions{opacity:1}}
