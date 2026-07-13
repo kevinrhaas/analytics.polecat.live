@@ -34,6 +34,7 @@ var SHELL_FILES = [
   "app/databricks.js",
   "app/bigquery.js",
   "app/genericsql.js",
+  "app/sources/data-adapters.js",
   "app/exporters.js",
   "app/icons.js",
   "app/welcome.js",

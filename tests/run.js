@@ -208,9 +208,28 @@ function serve() {
         appId: S.WS.APP_ID, tableNames: S.WS.TABLE_NAMES
       };
     });
-    ok("WS: registry carries local/turso/supabase/firebase with caps planes",
-      wsRegistry.ids.join(",") === "local,turso,supabase,firebase" && wsRegistry.localMetaOnly && wsRegistry.tursoBoth &&
-      wsRegistry.metaCount === 4 && wsRegistry.dataCount === 3 && wsRegistry.byId, JSON.stringify(wsRegistry));
+    ok("WS: registry carries local/turso/supabase/firebase + the six data adapters, with caps planes",
+      wsRegistry.ids.join(",") === "local,turso,supabase,firebase,snowflake,databricks,bigquery,duckdb,sqlite,httpsql" &&
+      wsRegistry.localMetaOnly && wsRegistry.tursoBoth &&
+      wsRegistry.metaCount === 4 && wsRegistry.dataCount === 9 && wsRegistry.byId, JSON.stringify(wsRegistry));
+
+    const wsDataAdapters = await page.evaluate(async function () {
+      var sf = Studio.sourceById("snowflake");
+      // no account/token → the engine's own friendly in-band error, not a throw
+      var bad = await sf.testData({});
+      var refuse = await sf.provision({});
+      var noSql = await sf.queryData({}, { kind: "sql", sql: "" });
+      return {
+        dataOnly: !sf.caps.meta && sf.caps.data,
+        fieldKeys: sf.fields.map(function (f) { return f.key; }).join(","),
+        badIsInBand: bad && bad.ok === false && !!bad.error,
+        refuses: refuse.ok === false && /workspace/i.test(refuse.error || ""),
+        noSqlInBand: noSql && !!noSql.error
+      };
+    });
+    ok("WS: data adapters are data-only bridges over the proven engines (in-band errors, meta-plane refusals)",
+      wsDataAdapters.dataOnly && wsDataAdapters.fieldKeys === "account,token,warehouse,database,schema,role" &&
+      wsDataAdapters.badIsInBand && wsDataAdapters.refuses && wsDataAdapters.noSqlInBand, JSON.stringify(wsDataAdapters));
     ok("WS: workspace schema is analytics-owned (connections/datasets/dashboards)",
       wsRegistry.appId === "analytics" && wsRegistry.tableNames.join(",") === "connections,datasets,dashboards", JSON.stringify(wsRegistry.tableNames));
 
