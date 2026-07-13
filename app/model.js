@@ -2055,6 +2055,33 @@
   // skill's validate_palette.js for both light and dark. Stored as spec.dashboardTheme.
   Studio.DASHBOARD_THEMES = [
     { key: "classic", label: "Classic Blue", swatch: "#005bb5", light: null, dark: null },
+    // "Polecat" — the house look and the DEFAULT for new dashboards: warm terracotta brand +
+    // plum accent on cream (light) / plum-black (dark), matching the app's own Polecat chrome.
+    // Its 10-color series ramp was validated against the #faf6ef / #141017 surfaces it actually
+    // uses via the dataviz skill's validate_palette.js — light AND dark: all six checks PASS
+    // outright (worst adjacent-pair CVD ΔE 24.8 light / 23.2 dark, target 12; all slots ≥3:1).
+    { key: "polecat", label: "Polecat", swatch: "#b8632e",
+      light: {
+        "--pentaho": "#b8632e", "--pdc": "#8a3fa8",
+        "--app-bg": "#faf6ef", "--panel-bg": "#fffcf5", "--panel-border": "#e2d5c2",
+        "--panel-subtle-bg": "#f2ead9", "--panel-header-bg": "#f2ead9", "--panel-header-border": "#e2d5c2",
+        "--field-bg": "#fffcf5", "--field-border": "#e2d5c2",
+        "--text-primary": "#2b2027", "--text-muted": "#6b5a63", "--text-faint": "#8c7a83",
+        "--sidebar-bg": "#231e28", "--header-bg": "#231e28", "--header-bg-2": "#3a2f3a", "--grid-line": "#eadfca", "--axis": "#8c7a83",
+        "--c1": "#b8632e", "--c2": "#0e8f86", "--c3": "#8a3fa8", "--c4": "#b87d00", "--c5": "#2a63a8",
+        "--c6": "#00964a", "--c7": "#c9457f", "--c8": "#787a00", "--c9": "#5b3fa8", "--c10": "#a8461f"
+      },
+      dark: {
+        "--pentaho": "#e79a5f", "--pdc": "#b573dc",
+        "--app-bg": "#141017", "--panel-bg": "#1c1721", "--panel-border": "#352b3a",
+        "--panel-subtle-bg": "#241d2a", "--panel-header-bg": "#241d2a", "--panel-header-border": "#352b3a",
+        "--field-bg": "#1c1721", "--field-border": "#352b3a",
+        "--text-primary": "#f5e9d6", "--text-muted": "#b3a0ab", "--text-faint": "#8a7d8a",
+        "--sidebar-bg": "#0f0c12", "--header-bg": "#0f0c12", "--header-bg-2": "#2a2130", "--grid-line": "#2a2230", "--axis": "#8a7d8a",
+        "--c1": "#cc7038", "--c2": "#17a08f", "--c3": "#b573dc", "--c4": "#bd8a0f", "--c5": "#4f8ed8",
+        "--c6": "#26a361", "--c7": "#e0639c", "--c8": "#96962a", "--c9": "#8a73dc", "--c10": "#d6683f"
+      }
+    },
     { key: "fleet-modern", label: "Fleet Modern", swatch: "#0071bc",
       light: {
         "--pentaho": "#0071bc", "--pdc": "#00964a",
@@ -2175,9 +2202,10 @@
 
   // Built-in dashboard accent-color presets. Used by the per-dashboard "Accent color"
   // picker (Dashboard inspector) and the Settings "Default accent color" picker (Z6).
-  // color: "" keeps the built-in Pentaho blue (#005bb5) from pdc-ui.css untouched.
+  // color: "" keeps whichever accent the active dashboard theme defines (terracotta for
+  // Polecat, #005bb5 for Classic) rather than pinning a specific hex.
   Studio.THEME_PRESETS = [
-    { label: "Classic blue (default)", color: "" },
+    { label: "Theme default", color: "" },
     { label: "Ocean teal",  color: "#0d7a8a" },
     { label: "Forest",      color: "#1a7a4a" },
     { label: "Sunset",      color: "#d95f2b" },
@@ -2228,7 +2256,7 @@
       kpis: [],
       gridCols: 3,
       themeColor: "", // optional hex color that overrides --pentaho in preview + exported CDF
-      dashboardTheme: "", // optional full look preset key (see Studio.DASHBOARD_THEMES); "" = classic
+      dashboardTheme: "", // optional full look preset key (see Studio.DASHBOARD_THEMES); "" = classic. New blanks/examples are seeded with the Settings default (Polecat out of the box) at create/load time.
       paletteKey: "", // optional series palette key (see Studio.PALETTE_PRESETS); "" = default
       headerLogo: "", // optional data: URL image that replaces the default "P" mark in the banner
       headerLink: "", // optional URL — wraps the header brand mark+title in a link (opens in a new tab)
@@ -2607,22 +2635,36 @@
      Returns a raw SVG string representing the spec's visual structure:
      a header strip, optional KPI row, and the panel grid with per-chart-type
      accent colors. Embed directly via innerHTML or as a data: img src. */
-  Studio.makeThumbnail = function (spec, theme) {
+  // Resolve a dashboard theme key to its token object for the given light/dark mode.
+  // Returns null for "classic" (or unknown keys) — classic has no token overrides.
+  Studio.resolveThemeTokens = function (themeKey, mode) {
+    if (!themeKey || themeKey === "classic") return null;
+    var t = (Studio.DASHBOARD_THEMES || []).filter(function (x) { return x.key === themeKey; })[0];
+    if (!t) return null;
+    return (mode === "dark" ? t.dark : t.light) || null;
+  };
+
+  Studio.makeThumbnail = function (spec, theme, defaultThemeKey) {
     var W = 240, H = 140, dark = theme === "dark";
-    var bg   = dark ? "#161c2b" : "#f4f6fb";
-    var card = dark ? "#1c2235" : "#ffffff";
-    var text = dark ? "#c8d4e8" : "#1a2742";
-    var pal  = ["#005bb5","#7d3c98","#2e8bd0","#00a39a","#e67e22"];
-    var cpals = { bars:"#005bb5",donut:"#7d3c98",line:"#2e8bd0",stacked:"#005bb5",
-      areaStacked:"#7d3c98",combo:"#005bb5",treemap:"#00a39a",scatter:"#e67e22",
-      gauge:"#c0392b",radar:"#8e44ad",heatmap:"#16a085",table:"#2c3e50",
-      waterfall:"#27ae60",funnel:"#e67e22",sankey:"#005bb5",chord:"#7d3c98",
-      network:"#1a6fa8",sunburst:"#2e8bd0",bullet:"#c0392b",calHeatmap:"#00a39a",kpi:"#005bb5" };
+    // The thumbnail wears the dashboard's own whole-look theme (or the app default for specs
+    // that don't set one) so Home cards and the inspector preview match what opens.
+    var tk = Studio.resolveThemeTokens(spec.dashboardTheme || defaultThemeKey, dark ? "dark" : "light");
+    var bg   = tk ? tk["--app-bg"]       : (dark ? "#161c2b" : "#f4f6fb");
+    var card = tk ? tk["--panel-bg"]     : (dark ? "#1c2235" : "#ffffff");
+    var text = tk ? tk["--text-primary"] : (dark ? "#c8d4e8" : "#1a2742");
+    var accent = tk ? tk["--pentaho"] : "#005bb5";
+    var pal  = tk ? [tk["--c1"], tk["--c3"], tk["--c5"], tk["--c2"], tk["--c4"]]
+                  : ["#005bb5","#7d3c98","#2e8bd0","#00a39a","#e67e22"];
+    var cpals = { bars:pal[0],donut:pal[1],line:pal[2],stacked:pal[0],
+      areaStacked:pal[1],combo:pal[0],treemap:pal[3],scatter:pal[4],
+      gauge:(tk?tk["--c10"]:"#c0392b"),radar:pal[1],heatmap:pal[3],table:(tk?tk["--text-muted"]:"#2c3e50"),
+      waterfall:(tk?tk["--c6"]:"#27ae60"),funnel:pal[4],sankey:pal[0],chord:pal[1],
+      network:pal[2],sunburst:pal[2],bullet:(tk?tk["--c10"]:"#c0392b"),calHeatmap:pal[3],kpi:pal[0] };
     function svgEsc(s) { return (s || "").slice(0,32).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
     var p = ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + W + ' ' + H + '">'];
     p.push('<rect width="' + W + '" height="' + H + '" fill="' + bg + '"/>');
     p.push('<rect width="' + W + '" height="20" fill="' + card + '"/>');
-    p.push('<rect width="3" height="20" fill="#005bb5"/>');
+    p.push('<rect width="3" height="20" fill="' + accent + '"/>');
     p.push('<text x="8" y="13" font-family="system-ui,sans-serif" font-size="8.5" font-weight="700" fill="' + text + '">' + svgEsc(spec.title || "Dashboard") + '</text>');
     var kpis = spec.kpis || [], startY = 24;
     if (kpis.length) {
@@ -2647,7 +2689,7 @@
         if (pcol + span > cols) { pcol = 0; prow++; }
         var px = 6 + pcol * (pw + 4), py = startY + prow * (ph + 4);
         var pws = pw * span + 4 * (span - 1);
-        var cc = cpals[panel.chart && panel.chart.type] || "#005bb5";
+        var cc = cpals[panel.chart && panel.chart.type] || accent;
         p.push('<rect x="' + px + '" y="' + py + '" width="' + pws + '" height="' + ph + '" rx="2" fill="' + card + '"/>');
         p.push('<rect x="' + px + '" y="' + py + '" width="' + pws + '" height="' + ph + '" rx="2" fill="' + cc + '" opacity="0.18"/>');
         p.push('<rect x="' + px + '" y="' + py + '" width="' + pws + '" height="2.5" fill="' + cc + '" rx="1"/>');

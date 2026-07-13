@@ -2876,14 +2876,15 @@ function serve() {
       hd: getComputedStyle(document.querySelector("#studio-welcome .sw-hd")).backgroundImage,
       card: getComputedStyle(document.querySelector("#studio-welcome .sw")).backgroundColor
     }));
-    await gp.evaluate(() => { document.documentElement.setAttribute("data-app-theme", "polecat"); document.documentElement.setAttribute("data-theme", "dark"); });
+    await gp.evaluate(() => { document.documentElement.setAttribute("data-app-theme", "classic"); document.documentElement.setAttribute("data-theme", "dark"); });
     await gp.waitForTimeout(80);
     const wThemeAfter = await gp.evaluate(() => ({
       hd: getComputedStyle(document.querySelector("#studio-welcome .sw-hd")).backgroundImage,
       card: getComputedStyle(document.querySelector("#studio-welcome .sw")).backgroundColor
     }));
-    ok("Z10: welcome tour header + card follow the app theme (Classic->Polecat, light->dark) instead of fixed hex",
-      wThemeAfter.hd !== wThemeBefore.hd && wThemeAfter.card !== wThemeBefore.card && wThemeBefore.card === "rgb(255, 255, 255)",
+    // boot default is Polecat light (warm #fffbf4 card); flipping to Classic dark must restyle both
+    ok("Z10: welcome tour header + card follow the app theme (Polecat default->Classic, light->dark) instead of fixed hex",
+      wThemeAfter.hd !== wThemeBefore.hd && wThemeAfter.card !== wThemeBefore.card && wThemeBefore.card === "rgb(255, 251, 244)",
       JSON.stringify({ before: wThemeBefore, after: wThemeAfter }));
     await gp.close();
 
@@ -15346,7 +15347,7 @@ function serve() {
     });
     ok("saving a preset captures the default dashboard theme", spDashboardThemeSaved === "fleet-modern", String(spDashboardThemeSaved));
 
-    await page.selectOption("#setDefaultDashboardThemeSel", "");
+    await page.selectOption("#setDefaultDashboardThemeSel", "classic");
     await page.waitForTimeout(80);
     await page.click(".sp-apply");
     await page.waitForTimeout(80);

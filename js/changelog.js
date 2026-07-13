@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 343,
+    title: 'Polecat is now the house look — default app theme, dashboard theme, and thumbnails',
+    ts: '2026-07-13T20:43:20.000Z',
+    items: [
+      'Fresh setups now boot in the Polecat color theme (warm terracotta/plum/cream) instead of Classic Blue, and a brand-new whole-look "Polecat" dashboard theme is the default for every new blank dashboard and shipped example -- light AND dark variants with a 10-color chart series ramp validated colorblind-safe and WCAG-AA against its actual cream/plum-black surfaces.',
+      'Dashboard thumbnails (Home recents, the inspector layout preview, example cards, and the chart gallery minis) now render in the dashboard\'s own theme -- or the house default -- instead of always classic blue, so what you see on a card is what opens.',
+      'The accent preset formerly pinned as the blue default is now "Theme default": leaving Accent color empty keeps whichever accent the active dashboard theme defines. Anyone who previously picked a theme or accent keeps their choice -- only never-touched setups adopt the new default.',
+    ],
+  },
+  {
     v: 342,
     title: 'Changelog now syncs into the fleet manager again',
     kind: 'fix',

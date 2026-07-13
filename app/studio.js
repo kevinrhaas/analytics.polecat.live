@@ -278,6 +278,33 @@
       return '<svg viewBox="0 0 44 30">' + out + '</svg>';
     }())
   };
+  // The gallery/thumbnail minis above are authored in the CLASSIC series hues. When the house
+  // default dashboard theme is something else (Polecat out of the box), remap the classic
+  // series hexes to that theme's validated ramp at render time — one mapping instead of
+  // re-authoring ~40 SVGs. Semantic greens/reds (waterfall deltas, candlestick bull/bear,
+  // quadrant state tints) are NOT remapped: they encode direction/state, not series identity.
+  // 'pareto' is skipped whole: its bars are an ordinal light→dark ramp of one hue, and
+  // substituting categorical slots would break that read.
+  // The accent a dashboard gets when its Accent color is left on "Theme default" —
+  // whatever --pentaho its whole-look theme defines (classic → the original blue).
+  function themeDefaultAccent(themeKey) {
+    var tk = Studio.resolveThemeTokens(themeKey || "classic", S.theme === "dark" ? "dark" : "light");
+    return (tk && tk["--pentaho"]) || "#005bb5";
+  }
+  var THEMED_SVG_SKIP = { pareto: 1 };
+  function themedChartSvg(svg, type) {
+    if (!svg || THEMED_SVG_SKIP[type]) return svg;
+    var tk = Studio.resolveThemeTokens(defaultDashboardTheme() || "classic", S.theme === "dark" ? "dark" : "light");
+    if (!tk) return svg;
+    var map = {
+      "#005bb5": tk["--c1"], "#7d3c98": tk["--c3"], "#2e8bd0": tk["--c5"],
+      "#00a39a": tk["--c2"], "#e67e22": tk["--c4"], "#9b59b6": tk["--c9"],
+      "#8e44ad": tk["--c3"], "#16a085": tk["--c2"], "#1a6fa8": tk["--c5"], "#0e9aa7": tk["--c2"]
+    };
+    return svg.replace(/#(?:005bb5|7d3c98|2e8bd0|00a39a|e67e22|9b59b6|8e44ad|16a085|1a6fa8|0e9aa7)/gi, function (m) {
+      return map[m.toLowerCase()] || m;
+    });
+  }
   window.__studioLoad = function (spec) { S.spec = normalize(spec); S.selection = null; _tagFilter = null; syncHeader(); renderInspector(); refreshPreview(); buildLibrary(); };
 
   /* ---------- boot ---------- */
@@ -299,7 +326,7 @@
       setupPanes();
       setupMobileTabs();
       try { setTheme(localStorage.getItem("studio-theme") || "light"); } catch (e) { setTheme("light"); }
-      try { setAppTheme(localStorage.getItem("studio-app-theme") || "classic"); } catch (e) {}
+      try { setAppTheme(localStorage.getItem("studio-app-theme") || "polecat"); } catch (e) {}
       try { if (localStorage.getItem("studio-simple-mode") === "1") { S.simpleMode = true; document.body.classList.add("simple-mode"); } } catch (e) {}
       applyBranding();
       loadConnections();
@@ -1930,7 +1957,7 @@
 
     // E3: Layout thumbnail — a quick visual cue of the spec structure so the user can
     // identify the dashboard at a glance without scrolling through the inspector.
-    var thumbSvg = Studio.makeThumbnail(sp, S.theme);
+    var thumbSvg = Studio.makeThumbnail(sp, S.theme, defaultDashboardTheme());
     if (thumbSvg) {
       var tc = el("div", "insp-thumb"); tc.setAttribute("aria-label", "Dashboard layout preview");
       tc.innerHTML = thumbSvg; body.appendChild(tc);
@@ -2174,19 +2201,19 @@
 
     // H-track: Dashboard accent color — per-dashboard --pentaho override.
     // 6 quick preset swatches + a custom hex picker let the SE team match client branding.
-    // Empty string = keep the default Pentaho blue (#005bb5) from pdc-ui.css.
+    // Empty string = keep whatever accent this dashboard's whole-look theme defines.
     var THEME_PRESETS = Studio.THEME_PRESETS;
     var accentRow = el("div"); accentRow.className = "accent-presets";
     var accentCustom = el("input"); accentCustom.type = "color"; accentCustom.id = "dashAccentCustom";
     accentCustom.title = "Custom accent color";
-    accentCustom.value = sp.themeColor || "#005bb5";
+    accentCustom.value = sp.themeColor || themeDefaultAccent(sp.dashboardTheme);
     accentCustom.oninput = function () {
       sp.themeColor = this.value; refreshPreview(); renderInspector();
     };
     THEME_PRESETS.forEach(function (preset) {
       var sw = el("button"); sw.type = "button"; sw.className = "accent-swatch";
       sw.title = preset.label;
-      sw.style.background = preset.color || "#005bb5";
+      sw.style.background = preset.color || themeDefaultAccent(sp.dashboardTheme);
       var isActiveAccent = sp.themeColor === preset.color;
       if (isActiveAccent) sw.classList.add("active");
       sw.setAttribute("aria-pressed", isActiveAccent ? "true" : "false");
@@ -2563,7 +2590,7 @@
             chip.type = "button";
             chip.dataset.type = r.type;
             chip.title = r.why;
-            chip.innerHTML = '<span class="ic">' + (CHART_SVG[r.type] || Studio.CHARTS[r.type].icon) + '</span><span>' + r.label + '</span>';
+            chip.innerHTML = '<span class="ic">' + (themedChartSvg(CHART_SVG[r.type], r.type) || Studio.CHARTS[r.type].icon) + '</span><span>' + r.label + '</span>';
             chip.onclick = function () { changeChartType(p, r.type); };
             recoChips.appendChild(chip);
           });
@@ -2652,7 +2679,7 @@
         var o = el("div", cls);
         o.dataset.grp = g; // used by applyFilter() to show/hide by group
         o.dataset.t = t; // chart type id — lets the command palette (N-FUN) target a specific card
-        o.innerHTML = '<div class="ic">' + (CHART_SVG[t] || c.icon) + '</div><div class="lb">' + c.label + '</div>' + (c.desc ? '<div class="lb-desc">' + c.desc + '</div>' : '');
+        o.innerHTML = '<div class="ic">' + (themedChartSvg(CHART_SVG[t], t) || c.icon) + '</div><div class="lb">' + c.label + '</div>' + (c.desc ? '<div class="lb-desc">' + c.desc + '</div>' : '');
         o.title = c.label + " (" + g + ")";
         o.onclick = function () { changeChartType(p, t); };
         // J4: small docs link — appears on hover in the top-right corner of each card.
@@ -4900,7 +4927,7 @@
   function recentCardHtml(r, pinned, wbOpts) {
     var sp = r.spec || {}, panels = (sp.panels || []).length, kpis = (sp.kpis || []).length;
     var meta = panels + " panel" + (panels === 1 ? "" : "s") + (kpis ? " · " + kpis + " KPI" + (kpis === 1 ? "" : "s") : "");
-    var thumb = Studio.makeThumbnail(sp, S.theme);
+    var thumb = Studio.makeThumbnail(sp, S.theme, defaultDashboardTheme());
     var title = sp.title || sp.name || "Untitled";
     var wbSelect = "";
     if (wbOpts && wbOpts.workbooks) {
@@ -5509,7 +5536,11 @@
   // existing ones, without hardcoding a new global default ahead of a user look-see.
   function defaultDashboardTheme() {
     var v; try { v = localStorage.getItem("studio-default-dashboardtheme"); } catch (e) {}
-    return v || "";
+    // Never-set → Polecat, the house default. A stored "" is a LEGACY explicit Classic pick
+    // (the old Settings select stored classic as empty), and "classic" is the new explicit
+    // form — both resolve to "" because a blank key means classic everywhere downstream.
+    if (v === null || v === undefined) return "polecat";
+    return v === "classic" ? "" : v;
   }
   function setDefaultDashboardTheme(v) { try { localStorage.setItem("studio-default-dashboardtheme", v || ""); } catch (e) {} }
   // N-DESIGN follow-up: default card style — same seeding pattern, for the per-dashboard
@@ -5697,12 +5728,12 @@
           '<div class="set-row-txt"><b>Default subtitle</b><small>Pre-fills every new blank dashboard\'s subtitle field with your team\'s house style (e.g. a standard tagline). Blank leaves it empty.</small></div>' +
           '<input type="text" id="setDefaultSubtitleInp" class="set-txt" value="' + esc(defaultSubtitle()) + '" placeholder="e.g. Prepared by the SE team"/></div>' +
         '<div class="set-row"><span class="set-row-ic" data-ic="palette"></span>' +
-          '<div class="set-row-txt"><b>Default accent color</b><small>Applied to every new blank dashboard\'s banner (same picker as the per-dashboard Accent color field). Classic blue keeps the built-in default.</small></div>' +
+          '<div class="set-row-txt"><b>Default accent color</b><small>Applied to every new blank dashboard\'s banner (same picker as the per-dashboard Accent color field). Theme default keeps the active dashboard theme\'s own accent.</small></div>' +
           '<div class="set-accent-presets" id="setDefaultAccentRow">' +
             Studio.THEME_PRESETS.map(function (preset) {
-              return '<button type="button" class="set-accent-swatch' + (defaultAccentColor() === preset.color ? " active" : "") + '" data-accent="' + esc(preset.color) + '" title="' + esc(preset.label) + '" aria-pressed="' + (defaultAccentColor() === preset.color ? "true" : "false") + '" style="background:' + (preset.color || "#005bb5") + '"></button>';
+              return '<button type="button" class="set-accent-swatch' + (defaultAccentColor() === preset.color ? " active" : "") + '" data-accent="' + esc(preset.color) + '" title="' + esc(preset.label) + '" aria-pressed="' + (defaultAccentColor() === preset.color ? "true" : "false") + '" style="background:' + (preset.color || themeDefaultAccent(defaultDashboardTheme())) + '"></button>';
             }).join("") +
-            '<input type="color" id="setDefaultAccentCustom" title="Custom accent color" value="' + esc(defaultAccentColor() || "#005bb5") + '"/>' +
+            '<input type="color" id="setDefaultAccentCustom" title="Custom accent color" value="' + esc(defaultAccentColor() || themeDefaultAccent(defaultDashboardTheme())) + '"/>' +
           '</div></div>' +
         '<div class="set-row"><span class="set-row-ic" data-ic="upload"></span>' +
           '<div class="set-row-txt"><b>Default header logo</b><small>Seeds every new blank dashboard\'s Header logo field (per-dashboard, still editable there). PNG/JPG/SVG, up to 200KB.</small>' +
@@ -5729,9 +5760,9 @@
             Studio.SUBTITLE_STYLES.map(function (p) { return '<option value="' + esc(p[0]) + '"' + (defaultSubtitleStyle() === p[0] ? " selected" : "") + '>' + esc(p[1]) + '</option>'; }).join("") +
           '</select></div>' +
         '<div class="set-row"><span class="set-row-ic" data-ic="palette"></span>' +
-          '<div class="set-row-txt"><b>Default dashboard theme</b><small>Seeds every new blank dashboard\'s whole-look theme (background, panels, text, brand + series colors — same picker as the per-dashboard Dashboard theme field). Classic Blue keeps the built-in look.</small></div>' +
+          '<div class="set-row-txt"><b>Default dashboard theme</b><small>Seeds every new blank dashboard\'s whole-look theme (background, panels, text, brand + series colors — same picker as the per-dashboard Dashboard theme field). Polecat is the house default; Classic Blue keeps the original look.</small></div>' +
           '<select id="setDefaultDashboardThemeSel" class="set-sel">' +
-            Studio.DASHBOARD_THEMES.map(function (p) { return '<option value="' + esc(p.key === "classic" ? "" : p.key) + '"' + (defaultDashboardTheme() === (p.key === "classic" ? "" : p.key) ? " selected" : "") + '>' + esc(p.label) + '</option>'; }).join("") +
+            Studio.DASHBOARD_THEMES.map(function (p) { return '<option value="' + esc(p.key) + '"' + ((defaultDashboardTheme() || "classic") === p.key ? " selected" : "") + '>' + esc(p.label) + '</option>'; }).join("") +
           '</select></div>' +
         '<div class="set-row"><span class="set-row-ic" data-ic="layers"></span>' +
           '<div class="set-row-txt"><b>Default card style</b><small>Seeds every new blank dashboard\'s Card style field (per-dashboard editable there) — Flat drops the shadow/hover-lift on every chart card and KPI tile for a quieter, editorial look.</small></div>' +
@@ -5916,10 +5947,10 @@
      so picking Fleet Modern on both sides reads as one system. Exported dashboards are
      deliberately untouched by this app-chrome setting — this only sets a data attribute the
      studio.css variables key off of; pdc-ui.css (the export/preview toolkit) never reads it. */
-  function appTheme() { return S.appTheme || "classic"; }
+  function appTheme() { return S.appTheme || "polecat"; }
   var APP_THEME_KEYS = ["classic", "polecat", "modern"];
   function setAppTheme(t) {
-    t = APP_THEME_KEYS.indexOf(t) >= 0 ? t : "classic";
+    t = APP_THEME_KEYS.indexOf(t) >= 0 ? t : "polecat";
     S.appTheme = t; document.documentElement.setAttribute("data-app-theme", t);
     try { localStorage.setItem("studio-app-theme", t); } catch (e) {}
   }
@@ -6253,6 +6284,9 @@
   function loadExample(file, keepAutosave) {
     fetchJSON("data/examples/" + file).then(function (spec) {
       S.spec = normalize(spec); S.selection = null;
+      // Shipped examples that don't pin a whole-look theme adopt the house default
+      // (Polecat unless Settings says otherwise) so the out-of-box gallery wears it.
+      if (!S.spec.dashboardTheme) S.spec.dashboardTheme = defaultDashboardTheme();
       if (!keepAutosave) clearAutosave();
       syncHeader(); renderInspector(); refreshPreview(); buildLibrary();
       if (!keepAutosave) toast("Loaded " + (S.spec.title || S.spec.name));
@@ -6522,11 +6556,16 @@
         : (e.types || []).slice(0, 6).map(function (t) { return [t, 1]; });
       layout = layout.slice(0, 8);
       var W = 80, H = 46;
-      var pal = ["#005bb5","#7d3c98","#2e8bd0","#00a39a","#e67e22"];
+      // Example cards preview the HOUSE look (the default dashboard theme every example
+      // adopts at load) — series accents and the header strip come from its ramp.
+      var extk = Studio.resolveThemeTokens(defaultDashboardTheme() || "classic", S.theme === "dark" ? "dark" : "light");
+      var pal = extk ? [extk["--c1"], extk["--c3"], extk["--c5"], extk["--c2"], extk["--c4"]]
+                     : ["#005bb5","#7d3c98","#2e8bd0","#00a39a","#e67e22"];
+      var exAccent = extk ? extk["--pentaho"] : "#005bb5";
       var p = ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + W + ' ' + H + '">'];
       p.push('<rect width="' + W + '" height="' + H + '" fill="var(--field,#f4f6fb)"/>');
       p.push('<rect width="' + W + '" height="7" fill="var(--bg,#fff)"/>');
-      p.push('<rect width="2" height="7" fill="#005bb5"/>');
+      p.push('<rect width="2" height="7" fill="' + exAccent + '"/>');
       var y = 9;
       if (kpis) {
         var kCount = Math.min(kpis, 4), kw = (W - 4 - (kCount - 1) * 3) / kCount;
@@ -6557,7 +6596,7 @@
         // white panel card, then the REAL chart-type mini SVG scaled into it — so each card
         // previews the actual charts (and their spans) in the dashboard, not a generic mockup.
         p.push('<rect x="' + px + '" y="' + py + '" width="' + pw + '" height="' + ph + '" rx="1.5" fill="var(--bg,#fff)"/>');
-        var mini = CHART_SVG[cel.type];
+        var mini = themedChartSvg(CHART_SVG[cel.type], cel.type);
         if (mini) {
           var pad = 1.3;
           p.push(mini.replace('<svg ', '<svg x="' + (px + pad).toFixed(2) + '" y="' + (py + pad).toFixed(2) + '" width="' + (pw - 2 * pad).toFixed(2) + '" height="' + (ph - 2 * pad).toFixed(2) + '" preserveAspectRatio="xMidYMid meet" '));
