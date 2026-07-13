@@ -344,6 +344,19 @@
       var connNewBtn = $("#connNewBtn"); if (connNewBtn) connNewBtn.onclick = function () { openConnectionWizard(); };
       var dsxSearchInp = $("#dsxSearch"); if (dsxSearchInp) dsxSearchInp.addEventListener("input", renderDatasets);
       var dsxNewBtn = $("#dsxNewBtn"); if (dsxNewBtn) dsxNewBtn.onclick = function () { openDatasetEditor(); };
+      // workspace-backend sync: restore a saved remote, keep the rail dot +
+      // Settings card live, and flush any pending mirror write on page close
+      Studio.Sync.onSync(function (st) {
+        var dot = $("#railSourceDot"), lbl = $("#railSourceLbl"), rs = $("#railSource");
+        if (dot) dot.className = "cx-dot " + (st.status === "connected" ? "ok" : st.status === "error" ? "bad" : st.status === "local" ? "" : "busy");
+        if (lbl) lbl.textContent = st.sourceId === "local" ? "Local" : st.label;
+        if (rs) rs.title = "Workspace backend — " + st.label + (st.lastError ? " · " + st.lastError : "");
+        renderWorkspaceBackendCard();
+      });
+      var railSourceBtn = $("#railSource");
+      if (railSourceBtn) railSourceBtn.onclick = function () { if (window.__studioShellSetSection) window.__studioShellSetSection("settings"); };
+      Studio.Sync.initSync();
+      window.addEventListener("pagehide", function () { try { Studio.Sync.pushNow(); } catch (e) {} });
       renderSettings();
       if (window.StudioWelcome) { var ab = $("#btnAbout"); if (ab) ab.onclick = function () { StudioWelcome.open(); }; setTimeout(function () { StudioWelcome.maybeShow(); }, 300); }
       buildLibrary();
@@ -5902,6 +5915,224 @@
   window.__studioOpenDatasetEditor = openDatasetEditor; // test hook
   window.__studioRunDataset = runDataset; // builder live path + tests
 
+  /* ---------- Workspace backend (Settings card + rail indicator) ----------
+     Manager's data-source pattern: the app's own catalog (dashboards/datasets/
+     connections) is local-first, and a meta-capable source (Turso/Supabase/
+     Firebase) can be connected as the backend it mirrors to — created/updated
+     from the browser via the 3-step wizard (pick → creds → probe/classify). */
+  function renderWorkspaceBackendCard() {
+    var card = $("#wsBackendCard"); if (!card) return;
+    var st = Studio.Sync.syncState();
+    var sec = Studio.Sync.secretsState();
+    var dot = st.status === "connected" ? "ok" : (st.status === "error" ? "bad" : (st.status === "local" ? "" : "busy"));
+    var statusLine = st.status === "local" ? "Changes stay in this browser only"
+      : st.status === "connected" ? "Connected — changes mirror automatically" + (st.lastPushAt ? " · last sync " + new Date(st.lastPushAt).toLocaleTimeString() : "")
+      : st.status === "syncing" ? "Syncing…"
+      : st.status === "connecting" ? "Connecting…"
+      : "Error: " + (st.lastError || "sync failed");
+    card.innerHTML = '<h2>Workspace backend</h2>' +
+      '<p class="ws-card-intro">Where this workspace\'s catalog lives — dashboards, datasets and connections. Local by default; connect a database to reach the same workspace from any browser. <b>Credentials are stored in this browser only.</b></p>' +
+      '<div class="ws-current">' +
+        '<span class="cx-dot ' + dot + '"></span>' +
+        '<span class="cx-name"><b>' + esc(st.label) + '</b><small>' + esc(statusLine) + '</small></span>' +
+        '<span class="cx-actions ws-actions">' +
+          (st.isRemote ? '<button type="button" class="btn" id="wsRefreshBtn" title="Pull the backend\'s current contents (edits from other browsers)">Refresh</button>' +
+            '<button type="button" class="btn" id="wsEditBtn">Edit</button>' +
+            '<button type="button" class="btn" id="wsDisconnectBtn">Disconnect</button>' : "") +
+          '<button type="button" class="btn primary" id="wsSwitchBtn">' + (st.isRemote ? "Switch backend" : "+ Connect backend") + '</button>' +
+        '</span></div>' +
+      (st.isRemote ?
+        '<div class="ws-secrets">' +
+          '<span class="cx-name"><b>' + (sec.enabled ? (sec.locked ? "Secrets encrypted — locked" : "Secrets encrypted") : "Secrets stored as plaintext") + '</b>' +
+          '<small>' + (sec.enabled
+            ? (sec.locked ? "This browser hasn't unlocked the passphrase yet — connection credentials stay ciphertext until it does." : "Connection credentials are AES-GCM ciphertext in the backend; the passphrase never leaves this browser.")
+            : "Connection credential values are written to the backend unencrypted. Turn on encryption to store them as ciphertext only.") + '</small></span>' +
+          '<span class="cx-actions ws-actions">' +
+            (sec.enabled
+              ? (sec.locked ? '<button type="button" class="btn primary" id="wsUnlockBtn">Unlock…</button>' : '<button type="button" class="btn" id="wsSecretsOffBtn">Turn off</button>')
+              : '<button type="button" class="btn" id="wsSecretsOnBtn"' + (sec.available ? "" : " disabled title=\"WebCrypto unavailable\"") + '>Encrypt secrets…</button>') +
+          '</span></div>' : "");
+    var refreshBtn = $("#wsRefreshBtn", card);
+    if (refreshBtn) refreshBtn.onclick = function () {
+      refreshBtn.disabled = true;
+      Studio.Sync.pullNow().then(function (s) { toast(s.status === "connected" ? "Workspace refreshed" : "Refresh failed: " + s.lastError, s.status !== "connected"); });
+    };
+    var disconnectBtn = $("#wsDisconnectBtn", card);
+    if (disconnectBtn) disconnectBtn.onclick = function () {
+      if (!window.confirm("Disconnect from " + st.label + "? Your current local copy stays; it just stops mirroring.")) return;
+      Studio.Sync.disconnect();
+      toast("Back to local-only");
+    };
+    var editBtn = $("#wsEditBtn", card);
+    if (editBtn) editBtn.onclick = function () { openBackendWizard(st.source, Studio.Sync.currentConfig()); };
+    var switchBtn = $("#wsSwitchBtn", card);
+    if (switchBtn) switchBtn.onclick = function () { openBackendWizard(); };
+    var onBtn = $("#wsSecretsOnBtn", card);
+    if (onBtn) onBtn.onclick = function () {
+      var pass = window.prompt("Choose an encryption passphrase (needed on every browser that opens this workspace):");
+      if (!pass) return;
+      Studio.Sync.enableSecrets(pass).then(function () { toast("Secrets encrypted"); }, function (e) { toast(e.message, true); });
+    };
+    var offBtn = $("#wsSecretsOffBtn", card);
+    if (offBtn) offBtn.onclick = function () {
+      if (!window.confirm("Turn encryption off and store credential values as plaintext in the backend?")) return;
+      Studio.Sync.disableSecrets().then(function () { toast("Secrets stored as plaintext"); });
+    };
+    var unlockBtn = $("#wsUnlockBtn", card);
+    if (unlockBtn) unlockBtn.onclick = function () {
+      var pass = window.prompt("Enter the workspace's encryption passphrase:");
+      if (!pass) return;
+      Studio.Sync.unlockSecrets(pass).then(function () { toast("Secrets unlocked"); }, function () { toast("Wrong passphrase", true); });
+    };
+  }
+  // The 3-step connect wizard: pick a meta-capable backend → credentials →
+  // probe + classify (empty → provision & push up; ours → adopt or reset;
+  // another app's / foreign → refuse, with an explicit destructive escape).
+  function openBackendWizard(presetSrc, presetCfg) {
+    modal(presetSrc ? "Edit backend connection" : "Connect a workspace backend", function (b) {
+      function classifyStep(src, cfg) {
+        b.innerHTML = '<p class="cx-wiz-intro">Checking what\'s in that database…</p>';
+        src.probe(cfg).then(function (probe) {
+          b.innerHTML = "";
+          var intro = el("div", "cx-wiz-head");
+          intro.innerHTML = '<div class="cx-wiz-ttl"><b>' + esc(src.label) + '</b><small>' + esc(Studio.WS.describeContents(probe)) + '</small></div>';
+          b.appendChild(intro);
+          var result = el("div", "cx-test-result"); b.appendChild(result);
+          var foot = el("div", "cx-wiz-foot"); b.appendChild(foot);
+          function act(label, primary, fn) {
+            var btn = el("button", "btn" + (primary ? " primary" : "")); btn.type = "button"; btn.textContent = label;
+            btn.onclick = function () {
+              btn.disabled = true; result.className = "cx-test-result"; result.textContent = "Working…";
+              fn().then(function () {
+                toast("Workspace backend connected");
+                document.querySelector(".modal-ov .x").click();
+              }, function (e) {
+                btn.disabled = false;
+                result.className = "cx-test-result bad"; result.textContent = "✕ " + ((e && e.message) || e);
+              });
+            };
+            foot.appendChild(btn);
+            return btn;
+          }
+          if (probe.state === "empty") {
+            if (src.browserProvision) {
+              result.textContent = "Empty database — Studio will create its tables and copy your current workspace up.";
+              act("Set up & connect", true, function () {
+                return src.provision(cfg, Studio.Workspace.snapshot()).then(function (r) {
+                  if (r && r.ok === false) throw new Error(r.error || "provision failed");
+                  return Studio.Sync.connectPush(src.id, cfg);
+                });
+              });
+            } else {
+              // manual provisioning (Supabase): show the paste-me script, then re-probe
+              src.provision(cfg, Studio.Workspace.snapshot()).then(function (r) {
+                result.textContent = "This backend can't create tables from the browser — run this once in its SQL editor, then continue:";
+                var pre = el("textarea", "dsx-sql ws-provision-sql"); pre.readOnly = true; pre.value = r.sql || "";
+                b.insertBefore(pre, foot);
+                act("I've run it — connect", true, function () {
+                  return src.probe(cfg).then(function (p2) {
+                    if (p2.state !== "polecat") throw new Error("Still can't see the workspace tables — did the script run?");
+                    return Studio.Sync.connectPush(src.id, cfg);
+                  });
+                });
+              });
+            }
+          } else if (probe.state === "polecat" && Studio.WS.isOwnApp(probe.app)) {
+            result.textContent = "Found an existing Studio workspace (" + Studio.WS.describeContents(probe) + "). Adopt it as your working copy, or overwrite it with this browser's.";
+            act("Adopt backend copy", true, function () { return Studio.Sync.connectAdopt(src.id, cfg); });
+            act("Overwrite with mine", false, function () {
+              if (!window.confirm("Replace EVERYTHING in the backend with this browser's workspace?")) return Promise.reject(new Error("cancelled"));
+              return src.drop(cfg).then(function () {
+                return src.provision(cfg, Studio.Workspace.snapshot());
+              }).then(function (r) {
+                if (r && r.ok === false && !r.manual) throw new Error(r.error || "provision failed");
+                return Studio.Sync.connectPush(src.id, cfg);
+              });
+            });
+          } else if (probe.state === "polecat") {
+            result.className = "cx-test-result bad";
+            result.textContent = "That database belongs to another Polecat app (“" + (probe.app || "unknown") + "”) — pick a different one.";
+          } else {
+            result.className = "cx-test-result bad";
+            result.textContent = "That database already has unrelated tables. Studio won't touch them.";
+            act("Wipe it & set up here", false, function () {
+              if (!window.confirm("Drop EVERY table in that database and set up a fresh Studio workspace?")) return Promise.reject(new Error("cancelled"));
+              return src.drop(cfg).then(function () {
+                return src.provision(cfg, Studio.Workspace.snapshot());
+              }).then(function (r) {
+                if (r && r.ok === false && !r.manual) throw new Error(r.error || "provision failed");
+                return Studio.Sync.connectPush(src.id, cfg);
+              });
+            });
+          }
+        }, function (e) {
+          b.innerHTML = '<div class="cx-test-result bad">✕ ' + esc((e && e.message) || String(e)) + '</div>';
+        });
+      }
+      function credsStep(src) {
+        b.innerHTML = "";
+        var head = el("div", "cx-wiz-head");
+        var ic = el("span", "cx-wiz-ic"); ic.style.color = src.accent || "var(--pentaho)"; ic.appendChild(Studio.icon(src.icon || "db", 22));
+        var ttl = el("div", "cx-wiz-ttl"); ttl.innerHTML = "<b>" + esc(src.label) + "</b><small>" + esc(src.blurb || "") + "</small>";
+        head.appendChild(ic); head.appendChild(ttl); b.appendChild(head);
+        var form = el("div", "cx-wiz-form");
+        var inputs = {};
+        (src.fields || []).forEach(function (f) {
+          var row = el("label", "cx-field");
+          row.innerHTML = "<span>" + esc(f.label) + "</span>";
+          var inp = el("input");
+          inp.type = f.type === "password" ? "password" : "text";
+          inp.placeholder = f.placeholder || ""; inp.autocomplete = "off";
+          inp.value = (presetCfg && presetCfg[f.key]) || "";
+          row.appendChild(inp);
+          if (f.hint) { var h = el("small", "cx-hint"); h.textContent = f.hint; row.appendChild(h); }
+          form.appendChild(row); inputs[f.key] = inp;
+        });
+        b.appendChild(form);
+        if (src.docsUrl) {
+          var docs = el("div", "cx-docs");
+          docs.innerHTML = 'Where do these values come from? <a href="' + esc(src.docsUrl) + '" target="_blank" rel="noopener noreferrer">docs ↗</a>';
+          b.appendChild(docs);
+        }
+        var result = el("div", "cx-test-result"); b.appendChild(result);
+        var foot = el("div", "cx-wiz-foot");
+        var nextBtn = el("button", "btn primary"); nextBtn.type = "button"; nextBtn.textContent = "Check database →";
+        foot.appendChild(nextBtn); b.appendChild(foot);
+        nextBtn.onclick = function () {
+          var cfg = {};
+          Object.keys(inputs).forEach(function (k) { var v = inputs[k].value.trim(); if (v) cfg[k] = v; });
+          nextBtn.disabled = true; result.className = "cx-test-result"; result.textContent = "Testing…";
+          src.test(cfg).then(function (r) {
+            if (!r.ok && !/META_TABLE|relation|does not exist|404/i.test(r.error || "")) {
+              nextBtn.disabled = false;
+              result.className = "cx-test-result bad"; result.textContent = "✕ " + (r.error || "unreachable");
+              return;
+            }
+            classifyStep(src, cfg);
+          });
+        };
+      }
+      if (presetSrc) { credsStep(presetSrc); return; }
+      var intro = el("p", "cx-wiz-intro");
+      intro.textContent = "Pick where the workspace should live. Only backends that can host the app's own catalog are listed.";
+      b.appendChild(intro);
+      var grid = el("div", "cx-src-grid");
+      Studio.remoteMetaSources().forEach(function (src) {
+        var cardEl = el("button", "cx-src-card"); cardEl.type = "button";
+        cardEl.style.setProperty("--src-accent", src.accent || "var(--pentaho)");
+        var ic = el("span", "cx-src-ic"); ic.appendChild(Studio.icon(src.icon || "db", 22));
+        var txt = el("span", "cx-src-txt");
+        txt.innerHTML = "<b>" + esc(src.label) + "</b><small>" + esc(src.blurb || "") + "</small>";
+        cardEl.appendChild(ic); cardEl.appendChild(txt);
+        cardEl.onclick = function () { credsStep(src); };
+        grid.appendChild(cardEl);
+      });
+      b.appendChild(grid);
+    }, function () { renderWorkspaceBackendCard(); }, true);
+  }
+  window.__studioRenderWorkspaceBackendCard = renderWorkspaceBackendCard; // test hook
+  window.__studioOpenBackendWizard = openBackendWizard; // test hook
+
   /* ---------- Z3 follow-up: whole-repository JSON export/import ----------
      Bundled examples/catalog entries already live in the repo as files, so exporting
      those back out would just be redundant noise. What's actually "yours" and worth
@@ -6243,6 +6474,7 @@
     var APP_THEME_LABELS = { classic: "Classic Blue", polecat: "Polecat", modern: "Fleet Modern" };
     var html = '<div class="settings-wrap"><div class="settings-hero"><h1>Settings</h1>' +
       '<p>App-wide preferences, saved locally on this device.</p></div>' +
+      '<div class="settings-card" id="wsBackendCard"></div>' +
       groups.map(function (g) {
         var themeRow = g === "Appearance" ?
           '<div class="set-row"><span class="set-row-ic" data-ic="palette"></span>' +
@@ -6369,6 +6601,7 @@
       '</div>';
     sec.classList.add("has-content");
     sec.innerHTML = html;
+    renderWorkspaceBackendCard();
     $$(".set-row-ic[data-ic]", sec).forEach(function (span) { span.appendChild(Studio.icon(span.getAttribute("data-ic"), 18)); });
     $$("input[data-set]", sec).forEach(function (cb) {
       var t = SETTINGS_TOGGLES.filter(function (x) { return x.id === cb.getAttribute("data-set"); })[0];

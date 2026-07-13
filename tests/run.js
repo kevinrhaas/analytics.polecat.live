@@ -547,6 +547,82 @@ function serve() {
     await page.evaluate(function () { Studio.Workspace.reset(); window.__studioLoad({ title: "post-dsx", panels: [], kpis: [] }); window.__studioShellSetSection("studio"); });
     await page.waitForTimeout(120);
 
+    // ---- SYNC: workspace backend (write-through mirror + secrets) ----
+    console.log("\n• SYNC: workspace backend");
+    const syncFlow = await page.evaluate(async function (port) {
+      var cfg = { url: "http://localhost:" + port + "/__turso", token: "tok" };
+      var t = Studio.tursoSource;
+      var out = {};
+      out.initial = Studio.Sync.syncState().status;
+      // wizard path: provision the empty backend, then push local up
+      Studio.Workspace.put("connections", { id: "c-sec", name: "Warehouse", adapter: "snowflake", cfg: { account: "xy", token: "hunter2secret" } }, { silent: true });
+      await t.provision(cfg, Studio.WS.emptySnapshot());
+      var st = await Studio.Sync.connectPush("turso", cfg);
+      out.afterConnect = st.status;
+      out.persisted = !!localStorage.getItem("analytics.datasource.v1");
+      // a mutation mirrors up on pushNow (debounce short-circuited)
+      Studio.Workspace.put("datasets", { id: "d-sync", name: "orders", connectionId: "c-sec", kind: "sql", sql: "SELECT 1" });
+      await Studio.Sync.pushNow();
+      var remote = await t.load(cfg);
+      out.remoteHasDataset = (remote.tables.datasets || []).some(function (r) { return r.id === "d-sync"; });
+      out.remoteTokenPlain = ((remote.tables.connections || [])[0] || { cfg: {} }).cfg.token;
+      // secrets: enable → remote holds ciphertext envelopes + marker; local stays plaintext
+      await Studio.Sync.enableSecrets("pass1234");
+      var enc = await t.load(cfg);
+      var encRow = (enc.tables.connections || [])[0] || { cfg: {} };
+      out.remoteTokenIsEnvelope = !!(encRow.cfg.token && encRow.cfg.token.__enc === 1);
+      out.marker = !!(enc.meta && enc.meta.secretsEnc && enc.meta.secretsEnc.salt);
+      out.localStillPlain = Studio.Workspace.get("connections", "c-sec").cfg.token === "hunter2secret";
+      out.secState = Studio.Sync.secretsState();
+      // pull round-trip decrypts back to plaintext locally
+      await Studio.Sync.pullNow();
+      out.afterPullToken = Studio.Workspace.get("connections", "c-sec").cfg.token;
+      // "another browser" wrote a change — pullNow adopts it
+      var foreign = await t.load(cfg);
+      foreign.tables.datasets.push({ id: "d-other", name: "from_elsewhere", connectionId: "c-sec", kind: "sql", sql: "SELECT 2" });
+      await t.save(cfg, foreign);
+      await Studio.Sync.pullNow();
+      out.pulledForeign = !!Studio.Workspace.get("datasets", "d-other");
+      // disconnect: local copy stays, mirroring stops, key cleared
+      Studio.Sync.disconnect();
+      out.afterDisconnect = Studio.Sync.syncState().status;
+      out.keptLocal = !!Studio.Workspace.get("datasets", "d-sync");
+      out.connKeyGone = !localStorage.getItem("analytics.datasource.v1");
+      await t.drop(cfg);
+      Studio.Workspace.reset();
+      try { localStorage.removeItem("analytics.datasource.secret.v1"); } catch (e) {}
+      return out;
+    }, PORT);
+    ok("SYNC: connectPush mirrors the workspace up and persists the connection",
+      syncFlow.initial === "local" && syncFlow.afterConnect === "connected" && syncFlow.persisted &&
+      syncFlow.remoteHasDataset && syncFlow.remoteTokenPlain === "hunter2secret", JSON.stringify(syncFlow));
+    ok("SYNC: enabling secrets stores ciphertext + marker in the backend while local stays plaintext",
+      syncFlow.remoteTokenIsEnvelope && syncFlow.marker && syncFlow.localStillPlain &&
+      syncFlow.secState.enabled && !syncFlow.secState.locked, JSON.stringify(syncFlow));
+    ok("SYNC: pullNow decrypts secrets back and adopts edits made from another browser",
+      syncFlow.afterPullToken === "hunter2secret" && syncFlow.pulledForeign, JSON.stringify(syncFlow));
+    ok("SYNC: disconnect returns to local-only, keeping the working copy",
+      syncFlow.afterDisconnect === "local" && syncFlow.keptLocal && syncFlow.connKeyGone, JSON.stringify(syncFlow));
+
+    // the Settings card + rail indicator reflect the sync state
+    await page.evaluate(function () { window.__studioShellSetSection("settings"); window.__studioRenderWorkspaceBackendCard(); });
+    await page.waitForTimeout(100);
+    const syncCard = await page.evaluate(function () {
+      var card = document.getElementById("wsBackendCard");
+      return {
+        title: (card.querySelector("h2") || {}).textContent,
+        label: (card.querySelector(".cx-name b") || {}).textContent,
+        connectBtn: (document.getElementById("wsSwitchBtn") || {}).textContent,
+        noSecretsRowWhenLocal: !card.querySelector(".ws-secrets"),
+        railLbl: (document.getElementById("railSourceLbl") || {}).textContent
+      };
+    });
+    ok("SYNC: the Settings card + rail indicator read Local with a Connect backend action",
+      syncCard.title === "Workspace backend" && /Local/.test(syncCard.label) && /Connect backend/.test(syncCard.connectBtn) &&
+      syncCard.noSecretsRowWhenLocal && syncCard.railLbl === "Local", JSON.stringify(syncCard));
+    await page.evaluate(function () { window.__studioShellSetSection("studio"); });
+    await page.waitForTimeout(100);
+
     // ---- a11y: keyboard focus ring (Tab triggers :focus-visible) ----
     await page.keyboard.press("Tab");
     const focusRing = await page.evaluate(() => {
@@ -15078,7 +15154,7 @@ function serve() {
       var switches = Array.prototype.map.call(sec.querySelectorAll("input[data-set]"), function (cb) { return cb.getAttribute("data-set"); });
       return {
         visible: sec.hidden === false,
-        hasCards: sec.querySelectorAll(".settings-card").length === 8, // 3 toggle groups + Branding (Z12) + Data source defaults + Dashboard defaults + Deploy (Z5 follow-up) + Data
+        hasCards: sec.querySelectorAll(".settings-card").length === 9, // Workspace backend + 3 toggle groups + Branding (Z12) + Data source defaults + Dashboard defaults + Deploy (Z5 follow-up) + Data
         switchIds: switches.join(","),
         darkChecked: sec.querySelector('input[data-set="dark"]').checked,
         simpleChecked: sec.querySelector('input[data-set="simple"]').checked,
@@ -15086,7 +15162,7 @@ function serve() {
         focusChecked: sec.querySelector('input[data-set="focus"]').checked
       };
     });
-    ok("Z5: Settings section renders 8 cards (3 mode-switch groups + Branding + Data source defaults + Dashboard defaults + Deploy + Data) with 4 mode switches, all off by default",
+    ok("Z5: Settings section renders 9 cards (Workspace backend + 3 mode-switch groups + Branding + Data source defaults + Dashboard defaults + Deploy + Data) with 4 mode switches, all off by default",
       z5Boot.visible && z5Boot.hasCards && z5Boot.switchIds === "dark,simple,demo,focus"
         && !z5Boot.darkChecked && !z5Boot.simpleChecked && !z5Boot.demoChecked && !z5Boot.focusChecked,
       JSON.stringify(z5Boot));
@@ -15325,7 +15401,7 @@ function serve() {
       };
     });
     ok("Z5: Settings page has a Data card with Export/Import buttons",
-      z5Data.cardCount === 8 && z5Data.hasExportBtn && z5Data.hasImportBtn, JSON.stringify(z5Data));
+      z5Data.cardCount === 9 && z5Data.hasExportBtn && z5Data.hasImportBtn, JSON.stringify(z5Data));
 
     const [z5Dl] = await Promise.all([page.waitForEvent("download"), page.click("#setExportBtn")]);
     const z5DlName = z5Dl.suggestedFilename();

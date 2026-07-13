@@ -26,6 +26,7 @@ var SHELL_FILES = [
   "app/sources/firebase.js",
   "app/sources/registry.js",
   "app/sources/workspace.js",
+  "app/sources/sync.js",
   "app/sampledata.js",
   "app/pentaho.js",
   "app/duckdb.js",

@@ -124,7 +124,11 @@
       emit("replaced", {});
     },
 
-    reset: function () { db = blank(); persist(); emit("change", { table: "*" }); emit("replaced", {}); }
+    reset: function () { db = blank(); persist(); emit("change", { table: "*" }); emit("replaced", {}); },
+
+    // Fire a change event for a table without mutating it — used after a batch
+    // of silent puts (e.g. secrets unlock decrypting rows in place).
+    notify: function (table) { emit("change", { table: table || "*" }); }
   };
 
   load();

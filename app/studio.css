@@ -1469,3 +1469,13 @@ body.simple-mode .da-acts{display:none!important}
 .dsx-preview th{text-align:left;color:var(--muted);font-weight:700;text-transform:uppercase;font-size:10.5px;
   letter-spacing:.04em;padding:5px 10px;border-bottom:1px solid var(--line)}
 .dsx-preview td{padding:5px 10px;border-bottom:1px solid var(--line-2);color:var(--ink);font-family:var(--mono);font-size:11.5px}
+
+/* ── Workspace backend (Settings card + rail source indicator) ── */
+.ws-card-intro{margin:0 0 14px;font-size:12.5px;line-height:1.6;color:#c9b9a3}
+.ws-current,.ws-secrets{display:flex;align-items:center;gap:12px;background:#241d2a;
+  border:1px solid rgba(245,233,214,.12);border-radius:10px;padding:12px 14px;margin-bottom:10px}
+.ws-actions{opacity:1}
+.cx-dot.busy{background:#f0a750;box-shadow:0 0 6px rgba(240,167,80,.5)}
+.ws-provision-sql{min-height:150px;margin:10px 0;width:100%;box-sizing:border-box}
+#railSource .cx-dot{margin:0 auto}
+#railSource .rail-lbl{font-size:11.5px;opacity:.8}
