@@ -1,10 +1,6 @@
 /* ============================================================================
-   exporters.js — turn a Studio spec into deployable Pentaho artifacts:
-     • .cda            (CDA data layer, XML)
-     • .cdfde + .wcdf  (CDE editor format — opens in Pentaho CDE)
-     • .html           (self-contained CDF dashboard via the PDC toolkit)
+   exporters.js — turn a Studio spec into a self-contained .html dashboard.
    The same HTML assembler powers the live-preview iframe (preview:true).
-   Ports the structure of iteration/v2/dash-build/{build.py,gen-cde.py}.
    ============================================================================ */
 (function () {
   "use strict";
@@ -14,109 +10,6 @@
     return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;")
       .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
-
-  /* ---------- .cda ---------- */
-  function cdaConnectionXml(conn) {
-    var t = conn.type || "sql.jndi", inner = "";
-    if (t === "sql.jndi")             inner = "<Jndi>" + xml(conn.jndi || "PDC-BIDB-EXT") + "</Jndi>";
-    else if (t === "sql.jdbc")        inner = "<Driver>" + xml(conn.driver) + "</Driver>" +
-                                               "<Url>" + xml(conn.url) + "</Url>" +
-                                               "<User>" + xml(conn.user) + "</User>" +
-                                               "<Password>" + xml(conn.pass) + "</Password>";
-    else if (t === "mondrian.jndi")   inner = "<Jndi>" + xml(conn.jndi) + "</Jndi>" +
-                                               "<Catalog>" + xml(conn.catalog) + "</Catalog>";
-    else if (t === "olap4j")          inner = "<ConnectString>" + xml(conn.connectString) + "</ConnectString>";
-    else if (t === "metadata")        inner = "<DomainId>" + xml(conn.domainId) + "</DomainId>" +
-                                               "<XmiFile>" + xml(conn.xmiFile) + "</XmiFile>";
-    else if (t === "kettle.TransFromFile") inner = "<KtrFile>" + xml(conn.fileName) + "</KtrFile>" +
-                                               "<Step>" + xml(conn.step || "Output") + "</Step>";
-    else if (t === "scripting")       inner = "<Language>" + xml(conn.language || "javascript") + "</Language>";
-    return '<Connection id="' + xml(conn.id) + '" type="' + xml(t) + '">' + inner + "</Connection>";
-  }
-  Studio.cdaConnectionXml = cdaConnectionXml;
-
-  Studio.exportCDA = function (spec) {
-    // Support both new connections[] and legacy single connection.
-    var connections = (spec.cda.connections && spec.cda.connections.length)
-      ? spec.cda.connections
-      : [spec.cda.connection || { id: "pdc", type: "sql.jndi", jndi: "PDC-BIDB-EXT" }];
-    var firstConnId = connections[0].id;
-
-    var connXml = connections.map(cdaConnectionXml).join("\n    ");
-    // duckdb/sqlite/snowflake/databricks/bigquery/http DAs query a remote source straight from the
-    // browser (Z14/Z4) — they aren't a real Pentaho data source and have no <Connection>/<DataAccess>
-    // XML equivalent, so they're simply not part of the .cda artifact (they still work fine in
-    // preview/CDF via sample data).
-    var directDAKinds = { duckdb: 1, httpvfs: 1, snowflake: 1, databricks: 1, bigquery: 1, http: 1 };
-    var das = (spec.cda.dataAccesses || []).filter(function (d) { return !directDAKinds[d.kind]; }).map(function (d) {
-      // compound (join / union) — no connection ref, own XML element
-      if (d.kind === "compound") {
-        var cacheAttr = 'cache="' + (d.cache === false ? "false" : "true") + '" cacheDuration="' + (d.cacheDuration || 300) + '"';
-        var nameEl = "    <Name>" + xml(d.name || d.id) + "</Name>\n";
-        if (d.compoundType === "union") {
-          var members = (d.unionDas || []).map(function (did) { return '    <DataAccess id="' + xml(did) + '"/>'; }).join("\n");
-          return '  <CompoundDataAccess type="union" id="' + xml(d.id) + '" access="public" ' + cacheAttr + '>\n' +
-                 nameEl + members + "\n  </CompoundDataAccess>";
-        }
-        // default: join
-        return '  <CompoundDataAccess type="join" id="' + xml(d.id) + '" access="public" ' + cacheAttr + '>\n' +
-               nameEl +
-               '    <Left id="' + xml(d.leftId || "") + '" keys="' + xml(d.leftKeys || "") + '"/>\n' +
-               '    <Right id="' + xml(d.rightId || "") + '" keys="' + xml(d.rightKeys || "") + '"/>\n' +
-               "  </CompoundDataAccess>";
-      }
-
-      var connId = d.connectionId || firstConnId;
-      var accessType = Studio.daAccessType ? Studio.daAccessType(d.kind) : "sql";
-      var params = (d.params && d.params.length)
-        ? "<Parameters>" + d.params.map(function (p) {
-            return '<Parameter name="' + xml(p.name) + '" type="' + xml(p.type || "String") + '" default="' + xml(p.default != null ? p.default : "") + '"/>';
-          }).join("") + "</Parameters>"
-        : "<Parameters/>";
-      var validCalcCols = (d.calcColumns || []).filter(function (c) { return c.name && c.formula; });
-      var calcColsXml = validCalcCols.length
-        ? "<CalculatedColumns>" + validCalcCols.map(function (c) {
-            return "<CalculatedColumn><Name>" + xml(c.name) + "</Name><Formula>" + xml(c.formula) + "</Formula><Type>" + xml(c.type || "Numeric") + "</Type></CalculatedColumn>";
-          }).join("") + "</CalculatedColumns>"
-        : "<CalculatedColumns/>";
-      var bodyXml;
-      if (accessType === "kettle") {
-        bodyXml = "    <KtrFile>" + xml(d.ktrPath || "") + "</KtrFile>\n" +
-                  "    <Step>" + xml(d.ktrStep || "Output") + "</Step>";
-      } else if (accessType === "scripting") {
-        bodyXml = "    <Language>" + xml(d.scriptLang || "javascript") + "</Language>\n" +
-                  "    <InitScript/>\n" +
-                  "    <QueryScript><![CDATA[ " + (d.sql || d.query || "") + " ]]></QueryScript>";
-      } else {
-        bodyXml = "    <Query><![CDATA[ " + (d.sql || d.query || "") + " ]]></Query>";
-      }
-      // OutputOptions block — emitted when filters, sorts, or a limit are defined
-      var oo = d.outputOptions || {};
-      var activeFilters = (oo.filters || []).filter(function (f) { return f.col && String(f.val || "") !== ""; });
-      var activeSorts   = (oo.sortBy || []).filter(function (s) { return s.col; });
-      var limit = oo.limit ? parseInt(oo.limit, 10) : 0;
-      var opMap = { "=": "EQ", "!=": "NE", ">": "GT", ">=": "GE", "<": "LT", "<=": "LE", "contains": "LIKE", "startsWith": "LIKE_START" };
-      var outputOptionsXml = "";
-      if (activeFilters.length || activeSorts.length || limit > 0) {
-        var inner = "";
-        if (activeSorts.length)
-          inner += "\n      <SortBy>" + xml(activeSorts.map(function (s) { return s.col + " " + (s.dir === "desc" ? "DESC" : "ASC"); }).join(", ")) + "</SortBy>";
-        if (limit > 0)
-          inner += "\n      <RowLimit>" + limit + "</RowLimit>";
-        activeFilters.forEach(function (f) {
-          inner += '\n      <Filter column="' + xml(f.col) + '" operator="' + xml(opMap[f.op] || "EQ") + '" value="' + xml(f.val) + '"/>';
-        });
-        outputOptionsXml = "\n    <OutputOptions>" + inner + "\n    </OutputOptions>";
-      }
-      return '  <DataAccess id="' + xml(d.id) + '" connection="' + xml(connId) + '" type="' + accessType + '" access="public" cache="' +
-        (d.cache === false ? "false" : "true") + '" cacheDuration="' + (d.cacheDuration || 300) + '">\n' +
-        "    <Name>" + xml(d.name || d.id) + "</Name>" + params + calcColsXml + outputOptionsXml + "\n" +
-        bodyXml + "\n  </DataAccess>";
-    }).join("\n\n");
-    return '<?xml version="1.0" encoding="UTF-8"?>\n<CDADescriptor>\n' +
-      '  <DataSources>' + connXml + "</DataSources>\n\n" +
-      das + "\n</CDADescriptor>\n";
-  };
 
   /* ---------- CDF (.html) + preview ----------
      assets = { css, js, render }  (text of vendor/pdc-ui.css, vendor/pdc-ui.js, app/studio-render.js)
@@ -132,10 +25,9 @@
     var titleText = Studio.applyTemplateVars(spec.title, spec.templateVars);
     var subtitleText = Studio.applyTemplateVars(spec.subtitle, spec.templateVars);
     var deployPath = opts.deployPath || "/public/pdc-iteration/v2";
-    var cdaPath = deployPath + "/" + spec.name + ".cda";
-    var home = "/pentaho/api/repos/" + deployPath.replace(/^\/+/, "").replace(/\//g, ":") + ":i-home.html/content";
-    var launcher = (opts.launcher === false) ? "" :
-      '<a class="pdc-iconbtn" href="' + home + '" style="text-decoration:none">&#9632; All dashboards</a>';
+    var cdaPath = deployPath + "/" + spec.name + ".cda"; // legacy id namespace for PDC.cdaPath; nothing fetches it
+    // The old "All dashboards" launcher linked into a Pentaho repo listing — gone with Pentaho.
+    var launcher = "";
     var mobileCss =
       "\n@media(max-width:640px){" +
       ".pdc-header{flex-wrap:wrap;padding:8px 12px;gap:5px 8px;min-height:0}" +
@@ -306,7 +198,7 @@
     var head =
       "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\"/>\n" +
       "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/>\n" +
-      "<title>" + xml(titleText) + " — Pentaho Data Catalog Analytics</title>\n<style>\n" + assets.css + mobileCss + sectionCss + descCss + panelNoteCss + panelAccentCss + targetLineCss + refBandCss + calloutCss + periodHighlightCss + eventMarkerCss + scatterAnnotCss + kpiSubCss + richtextCss + dashboardThemeCss + themeColorCss + headerLogoCss + headerLinkCss + headerBgCss + titleSizeCss + subtitleStyleCss + cardSkinCss + paletteCss + printCss + previewCss + "\n</style>\n</head>\n";
+      "<title>" + xml(titleText) + " — Analytics Dashboard Studio</title>\n<style>\n" + assets.css + mobileCss + sectionCss + descCss + panelNoteCss + panelAccentCss + targetLineCss + refBandCss + calloutCss + periodHighlightCss + eventMarkerCss + scatterAnnotCss + kpiSubCss + richtextCss + dashboardThemeCss + themeColorCss + headerLogoCss + headerLinkCss + headerBgCss + titleSizeCss + subtitleStyleCss + cardSkinCss + paletteCss + printCss + previewCss + "\n</style>\n</head>\n";
     var logoHtml = spec.headerLogo ?
       "<img class=\"pdc-logo\" src=\"" + xml(spec.headerLogo) + "\" alt=\"\"/>" :
       "<span class=\"pdc-logo\">P</span>";
@@ -335,7 +227,7 @@
     // engines are lazy-loaded from a CDN at query time regardless (see app/duckdb.js/sqlitehttp.js),
     // but there's no reason to add even these small façade files to a dashboard that doesn't use
     // one. This is what lets studio-render.js's PDC.cda dispatch actually answer a duckdb/httpvfs
-    // DA once exported/deployed, instead of falling through to a Pentaho CDA call that 404s.
+    // DA once exported/deployed, instead of falling through to a data call that 404s.
     var daKinds = {};
     ((spec.cda && spec.cda.dataAccesses) || []).forEach(function (d) { if (d.kind) daKinds[d.kind] = 1; });
     var duckdbScript = (daKinds.duckdb && assets.duckdb) ? ("<script>\n" + assets.duckdb + "\n</script>\n") : "";
@@ -345,14 +237,6 @@
       "PDC.cdaPath=" + JSON.stringify(cdaPath) + ";\nvar CDAPATH=PDC.cdaPath;\n";
     if (opts.preview) {
       boot += "window.STUDIO_PREVIEW=true;\n" + jsonScript("window.PDC_MOCK", opts.mock || {}) + "\n";
-    }
-    if (opts.liveBase) {
-      // best-effort live preview: route PDC.cda at an absolute Pentaho origin (needs CORS/login)
-      boot += "(function(){var B=" + JSON.stringify(opts.liveBase.replace(/\/+$/, "")) + ";var orig=PDC.cda;" +
-        "PDC.cda=function(id,params){var u=new URL(B+'/pentaho/plugin/cda/api/doQuery');u.searchParams.set('path',PDC.cdaPath);" +
-        "u.searchParams.set('dataAccessId',id);u.searchParams.set('outputType','json');if(params)for(var k in params)u.searchParams.set('param'+k,params[k]);" +
-        "return fetch(u.toString(),{credentials:'include'}).then(function(r){if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})" +
-        ".then(function(j){var cols=(j.metadata||[]).map(function(m){return m.colName;});return{cols:cols,rows:(j.resultset||[]),col:function(n){return cols.indexOf(n);}};});};})();\n";
     }
     boot += jsonScript("window.STUDIO_SPEC", spec) + "\n" +
       "document.addEventListener('DOMContentLoaded',function(){StudioRender.boot(window.STUDIO_SPEC);});\n</script>\n</body>\n</html>\n";

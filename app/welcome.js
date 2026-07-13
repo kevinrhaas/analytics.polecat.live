@@ -18,11 +18,11 @@
       h: "Drag panels to reorder (across rows), drag the right edge to resize, double-click a title to rename, ⧉ duplicate, Ctrl/Cmd-Z to undo. KPIs, filters and 13 chart types included.",
       s: "Or hit <b>New ▸ Auto-build</b> to scaffold a whole dashboard from a query set in one click." },
     { t: "Export your dashboard", ic: "⤓",
-      h: "Export a self-contained, interactive <b>Dashboard Framework</b> (.html) you can open anywhere, or its <b>Data Access</b> queries (.cda) — in the browser or via the CLI. The editable source is the <b>.studio.json</b> (Save / Open).",
+      h: "Export a self-contained, interactive <b>.html</b> dashboard you can open or host anywhere — in the browser or via the CLI. The editable source is the <b>.studio.json</b> (Save / Open).",
       s: "The live preview is byte-identical to the exported dashboard." },
-    { t: "Connect to a live server", ic: "⚙",
-      h: "Add servers in <b>⚙ Servers</b> (Kettle slaveserver format), then <b>import</b> existing data sources/dashboards, <b>preview live</b>, and <b>push</b> changes back — or schedule deploys with the CLI.",
-      s: "No server? Everything works standalone with sample data + file export." }
+    { t: "Connect your data", ic: "⚙",
+      h: "Add <b>Connections</b> and <b>Datasets</b> from the left rail — DuckDB/SQLite files over HTTP, Snowflake, Databricks, BigQuery, or any SQL/HTTP endpoint — then <b>Run live</b> against the real source.",
+      s: "No connection? Everything works standalone with sample data + file export." }
   ];
 
   function injectStyle() {

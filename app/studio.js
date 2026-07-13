@@ -15,7 +15,7 @@
     assets: { css: "", js: "", render: "" },
     spec: Studio.emptySpec(),
     selection: null,                       // null=dashboard | {kind,id} | {kind:'kpi',index}
-    settings: { deployPath: deployPathPref(), live: liveDataPref() },
+    settings: { deployPath: deployPathPref() },
     connections: [], activeConn: null,
     theme: "light",
     simpleMode: false,
@@ -329,7 +329,6 @@
       try { setAppTheme(localStorage.getItem("studio-app-theme") || "polecat"); } catch (e) {}
       try { if (localStorage.getItem("studio-simple-mode") === "1") { S.simpleMode = true; document.body.classList.add("simple-mode"); } } catch (e) {}
       applyBranding();
-      loadConnections();
       renderHome();
       renderDashboards();
       renderConnections();
@@ -637,7 +636,7 @@
   function myDACard(da) {
     var c = el("div", "da da-mine");
     var isCompound = Studio.isCompoundDA(da);
-    var shortKind = isCompound ? (da.compoundType === "union" ? "UNION" : "JOIN") : ((da.kind || "sql.jndi").split(".")[0]).toUpperCase();
+    var shortKind = isCompound ? (da.compoundType === "union" ? "UNION" : "JOIN") : ((da.kind || "sql").split(".")[0]).toUpperCase();
     var cols = isCompound
       ? (da.compoundType === "union" ? (da.unionDas || []).map(function (id) { return '<span class="col">' + esc(id) + "</span>"; }).join("") :
          '<span class="col">' + esc(da.leftId || "?") + "</span> ⧈ <span class=\"col\">" + esc(da.rightId || "?") + "</span>")
@@ -652,7 +651,7 @@
     if (cols) { var cd = el("div", "da-cols"); cd.innerHTML = cols; c.appendChild(cd); }
     // N-DATA freshness badge (v301/v302) follow-up: closes the "library pane" gap from the
     // "still open" note — same REPO_LIVE_KINDS scoping as the Repository card (only the
-    // connector kinds that are ALWAYS live-capable, so plain Pentaho DAs stay badge-free).
+    // connector kinds that are ALWAYS live-capable, so plain sample-engine DAs stay badge-free).
     if (REPO_LIVE_KINDS[da.kind]) {
       var freshEl = el("div", "da-mine-fresh"); freshEl.textContent = daFreshnessLabel(da.id);
       c.appendChild(freshEl);
@@ -756,7 +755,7 @@
           body.appendChild(field("Left join key(s)", input(draft.leftKeys, function (v) { draft.leftKeys = v; }, "comma-separated column names")));
           body.appendChild(field("Right DA", select2pairs(emptyPair.concat(daPairs), draft.rightId, function (v) { draft.rightId = v; })));
           body.appendChild(field("Right join key(s)", input(draft.rightKeys, function (v) { draft.rightKeys = v; }, "comma-separated column names")));
-          body.appendChild(hint("The join produces a Pentaho CDA <CompoundDataAccess type=\"join\"> — results available on the server when both DAs share the same Pentaho connection."));
+          body.appendChild(hint("The join is computed in the builder over the two DAs' rows — both sides must be data accesses declared in this dashboard."));
         }
       }
       renderBody();
@@ -830,8 +829,6 @@
 
   function addFromDA(stem, daId, type) {
     var daDef = catalogDA(stem, daId); if (!daDef) return;
-    // adopt the connection from the source cda if the spec is still empty
-    if (!S.spec.cda.dataAccesses.length && S.catalog[stem]) S.spec.cda.connection = Studio.clone(S.catalog[stem].connection);
     Studio.ensureDA(S.spec, daDef);
     if (type === "kpi") {
       var k = Studio.newKpi(daDef); k.fmt = Studio.guessFmt(k.valueCol);
@@ -857,11 +854,7 @@
 
   /* ---------- data-source builder (author CDA queries) ---------- */
   var DS_TYPES = [
-    { kind: "sql", iconName: "db", name: "SQL", desc: "Relational query over a JDBC / JNDI connection", ph: "SELECT region AS region,\n       SUM(amount) AS total\nFROM   sales\nGROUP  BY region\nORDER  BY total DESC" },
-    { kind: "mdx", iconName: "cube", name: "MDX / OLAP", desc: "Mondrian cube query (catalog + JNDI)", ph: "SELECT NON EMPTY {[Measures].[Sales]} ON COLUMNS,\n       NON EMPTY {[Markets].Children} ON ROWS\nFROM [SteelWheelsSales]" },
-    { kind: "kettle", iconName: "gear", name: "Kettle / PDI", desc: "A .ktr transformation step as a data source", ph: "/public/etl/my-transform.ktr   (step: Output)" },
-    { kind: "mql", iconName: "metadata", name: "Metadata", desc: "Pentaho Metadata (MQL) query", ph: "<mql>…</mql>" },
-    { kind: "scripting", iconName: "code", name: "Scripting", desc: "Scripted (Kettle/Beanshell) data access", ph: "// return rows…" },
+    { kind: "sql", iconName: "db", name: "SQL", desc: "SQL authored against the built-in sample engine — columns come from your AS aliases, and every dashboard stays fully demoable offline", ph: "SELECT region AS region,\n       SUM(amount) AS total\nFROM   sales\nGROUP  BY region\nORDER  BY total DESC" },
     { kind: "duckdb", iconName: "duckdb", name: "DuckDB (remote file)", desc: "Query a Parquet/CSV file straight from S3/HTTP — no backend, no proxy", badge: "Browser-only", accent: "#FFDE00", ph: "SELECT * FROM t\nLIMIT  200   -- t = your file, queried in-browser via DuckDB-Wasm" },
     { kind: "httpvfs", iconName: "sqlite", name: "SQLite (remote .sqlite)", desc: "Query a .sqlite file over HTTP Range Requests — indexed lookups, no backend", badge: "Browser-only", accent: "#0F80CC", ph: "SELECT * FROM my_table\nLIMIT  200" },
     { kind: "snowflake", iconName: "snowflake", name: "Snowflake", desc: "Query a Snowflake warehouse via the SQL API — needs a token + CORS allow-listed origin", badge: "Needs token", accent: "#29B5E8", ph: "SELECT region,\n       SUM(revenue) AS revenue\nFROM   sales\nGROUP  BY region" },
@@ -886,15 +879,12 @@
   // open the guided builder. existing = {stem, da} to edit, or null to create.
   function dataSourceBuilder(existing) {
     var editing = !!existing;
-    var src = editing ? Studio.clone(existing.da) : { id: "", name: "", kind: "sql", jndi: defaultJndi(), sql: "", query: "", params: [], columns: [], calcColumns: [], cache: true, cacheDuration: 300 };
+    var src = editing ? Studio.clone(existing.da) : { id: "", name: "", kind: "sql", sql: "", query: "", params: [], columns: [], calcColumns: [], cache: true, cacheDuration: 300 };
     src.kind = src.kind || "sql";
-    var draft = { stem: editing ? existing.stem : "custom", id: src.id, kind: src.kind, jndi: src.jndi,
+    var draft = { stem: editing ? existing.stem : "custom", id: src.id, kind: src.kind,
       query: src.query || src.sql || "", columns: (src.columns || []).slice(),
       params: (src.params || []).map(function (p) { return { name: p.name, type: p.type || "String", default: p.default || "" }; }),
       calcColumns: (src.calcColumns || []).map(function (c) { return { name: c.name || "", formula: c.formula || "", type: c.type || "Numeric" }; }),
-      mdxCatalog: src.mdxCatalog || "", mqlDomain: src.mqlDomain || "",
-      ktrPath: src.ktrPath || "", ktrStep: src.ktrStep || "Output",
-      scriptLang: src.scriptLang || "javascript",
       fileUrl: src.fileUrl || "", fileFormat: src.fileFormat || "auto", tableName: src.tableName || "",
       sfAccount: src.sfAccount || "", sfToken: src.sfToken || "", sfTokenType: src.sfTokenType || "PROGRAMMATIC_ACCESS_TOKEN",
       sfWarehouse: src.sfWarehouse || "", sfDatabase: src.sfDatabase || "", sfSchema: src.sfSchema || "", sfRole: src.sfRole || "",
@@ -914,9 +904,8 @@
         // Z4 "connector-gallery brand treatment": the third-party providers (DuckDB/SQLite/
         // Snowflake/Databricks/BigQuery/Generic) each get their real brand color on the icon +
         // a matching soft tint behind it, so the gallery reads as a row of distinct connectors
-        // rather than one uniform blue set. The native Pentaho access types (SQL/MDX/Kettle/
-        // Metadata/Scripting) intentionally keep the app's own --pentaho accent — they aren't
-        // third-party brands, they're the built-in kinds.
+        // rather than one uniform blue set. The built-in SQL sample-engine kind intentionally
+        // keeps the app's own --pentaho accent — it isn't a third-party brand.
         if (t.accent) { icDiv.style.color = t.accent; icDiv.style.background = "color-mix(in srgb," + t.accent + " 16%, transparent)"; icDiv.style.borderRadius = "50%"; }
         var txDiv = el("div", "tx"); txDiv.innerHTML = '<b>' + esc(t.name) + (t.badge ? ' <span class="dsb-badge">' + esc(t.badge) + "</span>" : "") + "</b><span>" + esc(t.desc) + "</span>";
         card.appendChild(icDiv); card.appendChild(txDiv);
@@ -930,8 +919,6 @@
       var idF = field("Query id", input(draft.id, function (v) { draft.id = v.trim().replace(/[^a-zA-Z0-9_]+/g, ""); }, "e.g. salesByRegion"));
       var grpF = field("Group", input(draft.stem, function (v) { draft.stem = v.trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-") || "custom"; }, "library section"));
       row.appendChild(idF); row.appendChild(grpF); wrap.appendChild(row);
-      var connF = field("Connection (JNDI)", input(draft.jndi, function (v) { draft.jndi = v.trim(); }, "PDC-BIDB-EXT"));
-      wrap.appendChild(connF);
 
       // 3 — query editor (type-aware; rebuilt on kind change)
       var qSection = el("div", "dsb-qsec");
@@ -1285,208 +1272,9 @@
         return sqb;
       }
 
-      // G2 — Visual KTR Builder: constructs a minimal Kettle .ktr transform step graph and exports XML.
-      // Pipeline: Table Input → [Select Values (if cols specified)] → Output (Dummy step).
-      function renderKTRBuilder(draft) {
-        var kbState = { table: "", selCols: [], conditions: [], stepName: draft.ktrStep || "Output", jndi: draft.jndi || "", generatedXml: "" };
-        var ktrb = el("div", "dsb-ktrb");
-        var tog = el("button", "dsb-sqb-tog"); tog.type = "button";
-        var togL = el("span", "dsb-sqb-tog-l");
-        togL.appendChild(Studio.icon("gear", 13));
-        var togTx = el("span"); togTx.textContent = " KTR Builder "; togTx.style.cssText = "font-size:12px;font-weight:700;color:inherit";
-        var togHint = el("span"); togHint.style.cssText = "font-size:10.5px;color:var(--faint);font-weight:400";
-        togHint.textContent = "generate a minimal .ktr transform visually";
-        togL.appendChild(togTx); togL.appendChild(togHint);
-        var caret = el("span", "sqb-caret");
-        caret.innerHTML = '<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="3 5 8 10 13 5"/></svg>';
-        tog.appendChild(togL); tog.appendChild(caret);
-        var kbBody = el("div", "dsb-sqb-body"); kbBody.hidden = true;
-
-        function mkOpts(sel, pairs, val) {
-          pairs.forEach(function (p) { var o = el("option"); o.value = p[0]; o.textContent = p[1]; if (p[0] === val) o.selected = true; sel.appendChild(o); });
-          return sel;
-        }
-
-        function renderBody() {
-          kbBody.innerHTML = "";
-
-          // Pipeline diagram
-          var pipeRow = el("div"); pipeRow.style.cssText = "display:flex;align-items:center;gap:5px;margin-bottom:10px;flex-wrap:wrap";
-          function stepPill(label, active) {
-            var s = el("span"); s.textContent = label;
-            s.style.cssText = "font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:4px;" + (active ? "background:var(--pentaho);color:#fff" : "background:var(--hover-bg,#eee);border:1px solid var(--border);color:var(--fg)");
-            return s;
-          }
-          function arw() { var a = el("span"); a.textContent = "→"; a.style.cssText = "color:var(--faint);font-size:11px"; return a; }
-          pipeRow.appendChild(stepPill("Table Input", true));
-          pipeRow.appendChild(arw());
-          pipeRow.appendChild(stepPill("Select Values", kbState.selCols.length > 0));
-          pipeRow.appendChild(arw());
-          pipeRow.appendChild(stepPill("Output (Dummy)", false));
-          kbBody.appendChild(pipeRow);
-
-          // FROM table
-          var rFrom = el("div", "dsb-sqb-row");
-          var lFrom = el("span", "dsb-sqb-lbl"); lFrom.textContent = "FROM";
-          var iTable = el("input"); iTable.className = "dsb-sqb-inp"; iTable.value = kbState.table;
-          iTable.placeholder = "schema.table_name"; iTable.style.fontFamily = "var(--mono)";
-          iTable.addEventListener("input", function () { kbState.table = this.value.trim(); });
-          rFrom.appendChild(lFrom); rFrom.appendChild(iTable); kbBody.appendChild(rFrom);
-
-          // JNDI connection
-          var rJndi = el("div", "dsb-sqb-row");
-          var lJndi = el("span", "dsb-sqb-lbl"); lJndi.textContent = "JNDI";
-          var iJndi = el("input"); iJndi.className = "dsb-sqb-inp"; iJndi.value = kbState.jndi;
-          iJndi.placeholder = "PDC-BIDB-EXT"; iJndi.style.fontFamily = "var(--mono)";
-          iJndi.addEventListener("input", function () { kbState.jndi = this.value.trim(); });
-          rJndi.appendChild(lJndi); rJndi.appendChild(iJndi); kbBody.appendChild(rJndi);
-
-          // SELECT columns (chip-based; blank = SELECT *)
-          var rSel = el("div", "dsb-sqb-row");
-          var lSel = el("span", "dsb-sqb-lbl"); lSel.textContent = "SELECT";
-          var selHint = el("span"); selHint.style.cssText = "font-size:10.5px;color:var(--faint)"; selHint.textContent = "leave blank for all (*)";
-          rSel.appendChild(lSel); rSel.appendChild(selHint); kbBody.appendChild(rSel);
-          var colBox = el("div", "dsb-sqb-colbox");
-          kbState.selCols.forEach(function (c, i) {
-            var chip = el("span", "dsb-chip"); chip.textContent = c;
-            var rm = el("button", "rm"); rm.type = "button"; rm.title = "Remove column"; rm.setAttribute("aria-label", "Remove column"); rm.appendChild(Studio.icon("close", 10));
-            rm.onclick = function () { kbState.selCols.splice(i, 1); renderBody(); };
-            chip.appendChild(rm); colBox.appendChild(chip);
-          });
-          var addIn = el("input"); addIn.placeholder = "column + Enter"; addIn.className = "dsb-sqb-inp";
-          addIn.style.cssText = "font-family:var(--mono);flex:none;width:140px";
-          addIn.addEventListener("keydown", function (e) {
-            if (e.key === "Enter") { var v = this.value.trim().replace(/[^a-zA-Z0-9_.]+/g, ""); if (v && kbState.selCols.indexOf(v) < 0) { kbState.selCols.push(v); this.value = ""; renderBody(); } }
-          });
-          colBox.appendChild(addIn); kbBody.appendChild(colBox);
-
-          // WHERE conditions
-          var rWhere = el("div", "dsb-sqb-row");
-          var lWhere = el("span", "dsb-sqb-lbl"); lWhere.textContent = "WHERE";
-          var addCond = el("button", "dsb-mini"); addCond.type = "button";
-          setIconBtn(addCond, "plus", "Add condition", 11);
-          addCond.onclick = function () { kbState.conditions.push({ col: "", op: "=", val: "" }); renderBody(); };
-          rWhere.appendChild(lWhere); rWhere.appendChild(addCond); kbBody.appendChild(rWhere);
-          kbState.conditions.forEach(function (cond, i) {
-            var row = el("div", "dsb-sqb-row dsb-sqb-indent");
-            var cInp = el("input"); cInp.className = "dsb-sqb-inp"; cInp.value = cond.col; cInp.placeholder = "column"; cInp.style.fontFamily = "var(--mono)";
-            cInp.addEventListener("input", function () { cond.col = this.value; });
-            var opSel = el("select"); opSel.className = "dsb-sqb-inp"; opSel.style.cssText = "flex:0 0 auto;width:96px";
-            mkOpts(opSel, [["=","="],["<>","≠"],["<","<"],["<=","≤"],[">=","≥"],[">",">"],["LIKE","LIKE"],["IS NULL","IS NULL"],["IS NOT NULL","IS NOT NULL"]], cond.op);
-            opSel.addEventListener("change", function () { cond.op = this.value; renderBody(); });
-            row.appendChild(cInp); row.appendChild(opSel);
-            if (cond.op !== "IS NULL" && cond.op !== "IS NOT NULL") {
-              var vInp = el("input"); vInp.className = "dsb-sqb-inp"; vInp.value = cond.val; vInp.placeholder = "value"; vInp.style.fontFamily = "var(--mono)";
-              vInp.addEventListener("input", function () { cond.val = this.value; });
-              row.appendChild(vInp);
-            }
-            var rm = el("button", "rm"); rm.type = "button"; rm.style.color = "var(--bad)"; rm.title = "Remove condition"; rm.setAttribute("aria-label", "Remove condition");
-            rm.appendChild(Studio.icon("close", 10)); rm.onclick = function () { kbState.conditions.splice(i, 1); renderBody(); };
-            row.appendChild(rm); kbBody.appendChild(row);
-          });
-
-          // Output step name
-          var rOut = el("div", "dsb-sqb-row");
-          var lOut = el("span", "dsb-sqb-lbl"); lOut.textContent = "OUTPUT";
-          var outInp = el("input"); outInp.className = "dsb-sqb-inp"; outInp.value = kbState.stepName;
-          outInp.placeholder = "Output"; outInp.style.cssText = "flex:0 0 auto;width:130px";
-          outInp.addEventListener("input", function () { kbState.stepName = this.value.trim() || "Output"; draft.ktrStep = kbState.stepName; });
-          var outHint = el("span"); outHint.style.cssText = "font-size:10.5px;color:var(--faint)"; outHint.textContent = "referenced by the 'Output step name' field above";
-          rOut.appendChild(lOut); rOut.appendChild(outInp); rOut.appendChild(outHint); kbBody.appendChild(rOut);
-
-          // Generate .ktr button
-          var rGen = el("div", "dsb-sqb-row dsb-sqb-gen-row");
-          var genBtn = el("button", "btn sqb-gen-btn ktrb-gen-btn"); genBtn.type = "button";
-          setIconBtn(genBtn, "play", "Generate .ktr");
-          genBtn.style.cssText = "color:var(--pentaho);border-color:color-mix(in srgb,var(--pentaho) 45%,transparent);font-size:12px;padding:5px 14px";
-          genBtn.onclick = function () { var xml = buildKTR(); if (!xml) return; kbState.generatedXml = xml; renderBody(); toast(".ktr generated — download and deploy to Pentaho."); };
-          rGen.appendChild(genBtn); kbBody.appendChild(rGen);
-
-          // Show generated XML + download button if available
-          if (kbState.generatedXml) {
-            var outTa = el("textarea"); outTa.className = "dsb-ktrb-out"; outTa.readOnly = true;
-            outTa.spellcheck = false; outTa.rows = 7;
-            outTa.style.cssText = "width:100%;font-family:var(--mono);font-size:11px;resize:vertical;margin-top:6px;border:1px solid var(--border);border-radius:4px;padding:6px;box-sizing:border-box;background:var(--code-bg,#f4f4f4);color:var(--fg)";
-            outTa.value = kbState.generatedXml;
-            var dlRow = el("div"); dlRow.style.cssText = "display:flex;gap:8px;margin-top:4px";
-            var dlBtn = el("button", "btn"); dlBtn.type = "button"; dlBtn.style.cssText = "font-size:11px;padding:4px 10px";
-            setIconBtn(dlBtn, "download", "Download .ktr");
-            dlBtn.onclick = function () { download((kbState.stepName || "transform") + ".ktr", kbState.generatedXml, "application/xml"); };
-            dlRow.appendChild(dlBtn); kbBody.appendChild(outTa); kbBody.appendChild(dlRow);
-          }
-        }
-
-        function escXml(s) { return (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
-        function fmtKtrCond(c) {
-          var op = c.op.trim();
-          if (op === "IS NULL" || op === "IS NOT NULL") return c.col.trim() + " " + op;
-          var isNum = c.val.trim() && /^-?\d+(\.\d+)?$/.test(c.val.trim());
-          return c.col.trim() + " " + op + " " + (isNum ? c.val.trim() : "'" + c.val.replace(/'/g, "''") + "'");
-        }
-
-        function buildKTR() {
-          var table = kbState.table.trim();
-          if (!table) { toast("Enter a FROM table first.", true); return null; }
-          var stepName = kbState.stepName || "Output";
-          var jndi = kbState.jndi || (draft.jndi || "");
-          var hasSelect = kbState.selCols.length > 0;
-          var cols = hasSelect ? kbState.selCols.join(", ") : "*";
-          var sqlLines = ["SELECT " + cols, "FROM   " + table];
-          var wheres = kbState.conditions.filter(function (c) { return c.col.trim(); });
-          if (wheres.length) {
-            sqlLines.push("WHERE  " + fmtKtrCond(wheres[0]));
-            wheres.slice(1).forEach(function (c) { sqlLines.push("  AND  " + fmtKtrCond(c)); });
-          }
-          var sql = sqlLines.join("\n");
-          var xLocs = hasSelect ? ["100", "300", "500"] : ["100", "300"];
-          var lines = ['<?xml version="1.0" encoding="UTF-8"?>'];
-          lines.push("<transformation>");
-          lines.push("  <info><name>" + escXml(stepName) + "</name><description/></info>");
-          lines.push("  <step>");
-          lines.push("    <name>Table input</name><type>TableInput</type><copies>1</copies>");
-          if (jndi) lines.push("    <connection>" + escXml(jndi) + "</connection>");
-          lines.push("    <sql>" + escXml(sql) + "</sql>");
-          lines.push("    <limit>0</limit><execute_each_row>N</execute_each_row>");
-          lines.push("    <GUI><xloc>" + xLocs[0] + "</xloc><yloc>100</yloc><draw>Y</draw></GUI>");
-          lines.push("  </step>");
-          if (hasSelect) {
-            lines.push("  <step>");
-            lines.push("    <name>Select values</name><type>SelectValues</type><copies>1</copies>");
-            lines.push("    <fields>");
-            kbState.selCols.forEach(function (c) { lines.push("      <field><name>" + escXml(c) + "</name><rename/><length>-2</length><precision>-2</precision></field>"); });
-            lines.push("    </fields><select_unspecified>N</select_unspecified>");
-            lines.push("    <GUI><xloc>" + xLocs[1] + "</xloc><yloc>100</yloc><draw>Y</draw></GUI>");
-            lines.push("  </step>");
-          }
-          lines.push("  <step>");
-          lines.push("    <name>" + escXml(stepName) + "</name><type>Dummy</type><copies>1</copies>");
-          lines.push("    <GUI><xloc>" + xLocs[hasSelect ? 2 : 1] + "</xloc><yloc>100</yloc><draw>Y</draw></GUI>");
-          lines.push("  </step>");
-          lines.push("  <order>");
-          if (hasSelect) {
-            lines.push("    <hop><from>Table input</from><to>Select values</to><enabled>Y</enabled></hop>");
-            lines.push("    <hop><from>Select values</from><to>" + escXml(stepName) + "</to><enabled>Y</enabled></hop>");
-          } else {
-            lines.push("    <hop><from>Table input</from><to>" + escXml(stepName) + "</to><enabled>Y</enabled></hop>");
-          }
-          lines.push("  </order>");
-          lines.push("</transformation>");
-          return lines.join("\n");
-        }
-
-        var isKtrOpen = false;
-        tog.onclick = function () {
-          isKtrOpen = !isKtrOpen; kbBody.hidden = !isKtrOpen; tog.classList.toggle("open", isKtrOpen);
-          if (isKtrOpen) renderBody();
-        };
-        ktrb.appendChild(tog); ktrb.appendChild(kbBody);
-        return ktrb;
-      }
-
       function renderQSection() {
         qSection.innerHTML = "";
         var k = draft.kind;
-        connF.style.display = (k === "duckdb" || k === "httpvfs" || k === "snowflake" || k === "databricks" || k === "bigquery" || k === "http") ? "none" : ""; // JNDI doesn't apply to these direct connectors
         if (k === "httpvfs") {
           // Z14 slice 3 — SQLite-WASM + HTTP-VFS: query a remote .sqlite file over HTTP Range
           // Requests, no backend/proxy/credentials. Test connection lazy-loads the engine, lists
@@ -1756,70 +1544,17 @@
           httpQF.appendChild(httpTa);
           qSection.appendChild(httpQF);
           detectBtn.style.display = "none";
-        } else if (k === "kettle") {
-          qSection.appendChild(field("Transformation file (.ktr)", input(draft.ktrPath, function (v) { draft.ktrPath = v; }, "/public/etl/my-transform.ktr")));
-          qSection.appendChild(field("Output step name", input(draft.ktrStep, function (v) { draft.ktrStep = v; }, "Output")));
-          var kh = el("div", "hint"); kh.textContent = "Columns come from the step's output fields — declare them in the Columns section below."; qSection.appendChild(kh);
-          // G2: visual KTR Builder accordion — generates a minimal .ktr and shows it for download
-          qSection.appendChild(renderKTRBuilder(draft));
-          /* G3 — Import an existing .ktr: pick the file, inspect its steps, click a step name to
-             set it as the output step. Stores parsed data in draft._ktrImported so it survives
-             re-renders (renderQSection() is called after parsing to refresh the step chips). */
-          var kImpInput = el("input"); kImpInput.type = "file"; kImpInput.accept = ".ktr,.xml"; kImpInput.style.display = "none";
-          var kImpBtn = el("button", "dsb-mini"); kImpBtn.style.marginTop = "8px";
-          setIconBtn(kImpBtn, "upload", "Import .ktr…", 12);
-          kImpBtn.onclick = function () { kImpInput.click(); };
-          kImpInput.onchange = function () {
-            var file = kImpInput.files[0]; if (!file) return;
-            var reader = new FileReader();
-            reader.onload = function (e) {
-              draft._ktrImported = Studio.parseKtr(e.target.result);
-              if (!draft.ktrPath) draft.ktrPath = "/public/etl/" + file.name;
-              renderQSection();
-            };
-            reader.readAsText(file);
-          };
-          qSection.appendChild(kImpBtn);
-          qSection.appendChild(kImpInput);
-          if (draft._ktrImported && draft._ktrImported.steps.length) {
-            var imp = el("div", "ktr-imp-box");
-            var impHd = el("div", "hint"); impHd.textContent = "✓ Loaded “" + (draft._ktrImported.name || "transform") + "” — click a step to use as output:"; imp.appendChild(impHd);
-            var impChips = el("div", "ktr-imp-chips");
-            draft._ktrImported.steps.forEach(function (s) {
-              var chip = el("button", "ktr-imp-chip" + (draft.ktrStep === s.name ? " sel" : ""));
-              chip.textContent = s.name;
-              chip.title = s.type;
-              chip.onclick = function () { draft.ktrStep = s.name; renderQSection(); };
-              impChips.appendChild(chip);
-            });
-            imp.appendChild(impChips);
-            qSection.appendChild(imp);
-          }
-          detectBtn.style.display = "none";
         } else {
           var t = dsType(k);
           var qH = el("div", "hint");
-          if (k === "mdx") {
-            qSection.appendChild(field("Schema catalog path", input(draft.mdxCatalog, function (v) { draft.mdxCatalog = v; }, "/pentaho/etc/mondrian/schema.xml")));
-            qH.textContent = "Use NON EMPTY to filter empty cells; cube name must match the Mondrian schema file.";
-          } else if (k === "mql") {
-            qSection.appendChild(field("Domain ID", input(draft.mqlDomain, function (v) { draft.mqlDomain = v; }, "SteelWheels")));
-            qH.textContent = "Domain ID from Pentaho Metadata; leave query blank for all-rows DAs.";
-          } else if (k === "scripting") {
-            var langs = [["javascript","JavaScript"],["beanshell","BeanShell"],["groovy","Groovy"],["python","Python"]];
-            qSection.appendChild(field("Language", select2pairs(langs, draft.scriptLang, function (v) { draft.scriptLang = v; })));
-            qH.textContent = "Return rows as a list of arrays; column count must match the Output columns below.";
-          } else {
-            qH.textContent = "Alias each output with “as name” so columns can be detected.";
-          }
+          qH.textContent = "Alias each output with “as name” so columns can be detected.";
           var qTa = textarea(draft.query, function (v) { draft.query = v; });
           qTa.className = "dsb-query"; qTa.spellcheck = false; qTa.placeholder = t.ph;
-          var lbl = k === "sql" ? "SQL Query" : k === "mdx" ? "MDX Query" : k === "mql" ? "MQL Query" : "Script";
-          var qF = el("div", "field"); qF.appendChild(labelEl(lbl)); qF.appendChild(qTa); qF.appendChild(qH);
+          var qF = el("div", "field"); qF.appendChild(labelEl("SQL Query")); qF.appendChild(qTa); qF.appendChild(qH);
           qSection.appendChild(qF);
           // SQL Builder accordion: available for SQL kind to assist with SELECT generation (G1)
-          if (k === "sql") { qSection.appendChild(renderSQLBuilder(qTa)); }
-          detectBtn.style.display = k === "sql" ? "" : "none";
+          qSection.appendChild(renderSQLBuilder(qTa));
+          detectBtn.style.display = "";
         }
       }
       function syncType() { renderQSection(); }
@@ -1830,18 +1565,13 @@
     if (!draft.id) { toast("Give the query an id.", true); return false; }
     if (!draft.columns.length) { toast("Add at least one column.", true); return false; }
     var stem = draft.stem || "custom";
-    if (!S.catalog[stem]) S.catalog[stem] = { file: stem + ".cda", connection: { id: "pdc", jndi: draft.jndi || "PDC-BIDB-EXT" }, dataAccesses: [] };
+    if (!S.catalog[stem]) S.catalog[stem] = { file: stem + ".cda", dataAccesses: [] };
     var entry = S.catalog[stem];
-    var da = { id: draft.id, name: draft.id, kind: draft.kind, jndi: draft.jndi,
+    var da = { id: draft.id, name: draft.id, kind: draft.kind,
       params: draft.params.filter(function (p) { return p.name; }),
       calcColumns: (draft.calcColumns || []).filter(function (c) { return c.name; }),
       cache: true, cacheDuration: 300, sql: draft.query, query: draft.query,
       columns: draft.columns.slice(), authored: true };
-    if (draft.mdxCatalog) da.mdxCatalog = draft.mdxCatalog;
-    if (draft.mqlDomain) da.mqlDomain = draft.mqlDomain;
-    if (draft.ktrPath) da.ktrPath = draft.ktrPath;
-    if (draft.ktrStep && draft.ktrStep !== "Output") da.ktrStep = draft.ktrStep;
-    if (draft.scriptLang && draft.scriptLang !== "javascript") da.scriptLang = draft.scriptLang;
     if (draft.kind === "duckdb") { da.fileUrl = draft.fileUrl || ""; da.fileFormat = draft.fileFormat || "auto"; }
     if (draft.kind === "httpvfs") { da.fileUrl = draft.fileUrl || ""; da.tableName = draft.tableName || ""; }
     if (draft.kind === "snowflake") {
@@ -2010,7 +1740,7 @@
         }
       }));
       // Step 3 is the end goal — shown as upcoming to frame the overall journey.
-      cl.appendChild(clStep(false, "Export your dashboard", "Use Export ▾ to download a self-contained CDF HTML file ready for your Pentaho server."));
+      cl.appendChild(clStep(false, "Export your dashboard", "Use Export ▾ to download a self-contained HTML file you can host anywhere static pages live."));
       body.appendChild(cl);
     }
 
@@ -2053,7 +1783,7 @@
       k8.appendChild(k8Tip("plus", "Add more panels or KPIs",
         "Drag more queries from the library onto the canvas to expand your dashboard."));
       k8.appendChild(k8Tip("download", "Export when ready",
-        "Use Export ▾ in the toolbar to download a CDF HTML file ready for your Pentaho server.",
+        "Use Export ▾ in the toolbar to download a self-contained HTML file you can host anywhere.",
         "Open Export ▾", function () {
           var btnExp = document.getElementById("btnExport"); if (btnExp) btnExp.click();
         }));
@@ -2466,20 +2196,6 @@
       });
     }
 
-    // CDA Connections
-    sp.cda.connections = sp.cda.connections || [];
-    var conns = sp.cda.connections;
-    var cs2 = section(body, "CDA Connections", function () { addCDAConnection(); });
-    if (!conns.length) cs2.appendChild(hint("No custom connections — the default SQL/JNDI pool is used. Add one to use JDBC, MDX, or other types."));
-    conns.forEach(function (conn, i) {
-      var typeLabel = (Studio.CDA_CONNECTION_TYPES.find(function (t) { return t.id === conn.type; }) || { label: conn.type }).label;
-      var detail = conn.jndi || conn.url || conn.connectString || conn.fileName || conn.domainId || "";
-      cs2.appendChild(rowItem("⊛", conn.id, typeLabel + (detail ? " · " + detail : ""),
-        function () { openConnEditor(conn); },
-        [delBtn(function () { conns.splice(i, 1); renderInspector(); })],
-        false));
-    });
-
     // Panels (reorderable) with tag-based filter bar
     // _tagFilter holds the currently-active tag (string) or null (show all panels).
     var allTags = Studio.allTags(sp);
@@ -2521,60 +2237,6 @@
         if (riTxt) riTxt.appendChild(tagRow);
       }
       ps.appendChild(row);
-    });
-  }
-
-  function addCDAConnection() {
-    var conn = Studio.newCDAConnection("sql.jndi");
-    S.spec.cda.connections = S.spec.cda.connections || [];
-    S.spec.cda.connections.push(conn);
-    openConnEditor(conn);
-  }
-
-  function openConnEditor(conn) {
-    modal("CDA Connection · " + conn.id, function (b) {
-      var draft = Studio.clone(conn);
-      var form = el("div"); form.style.cssText = "display:flex;flex-direction:column;gap:10px";
-
-      // ID
-      form.appendChild(field("Connection ID", (function () {
-        var inp = input(draft.id, function (v) { draft.id = v.trim().replace(/\s+/g, "_") || draft.id; }); inp.placeholder = "pdc"; return inp;
-      })()));
-
-      // Type picker
-      var typeSel = el("select");
-      Studio.CDA_CONNECTION_TYPES.forEach(function (t) {
-        var o = el("option"); o.value = t.id; o.textContent = t.label; if (t.id === draft.type) o.selected = true; typeSel.appendChild(o);
-      });
-      form.appendChild(field("Connection type", typeSel));
-
-      // Type-specific fields (rendered below, replaced on type change)
-      var fieldsBox = el("div");
-      function renderFields() {
-        fieldsBox.innerHTML = "";
-        var ct = Studio.CDA_CONNECTION_TYPES.find(function (t) { return t.id === draft.type; });
-        if (!ct) return;
-        ct.fields.forEach(function (fd) {
-          var inp = el("input"); inp.type = fd.secret ? "password" : "text";
-          inp.value = draft[fd.key] || ""; inp.placeholder = fd.ph || "";
-          inp.addEventListener("input", function () { draft[fd.key] = inp.value; });
-          fieldsBox.appendChild(field(fd.label, inp));
-        });
-      }
-      typeSel.onchange = function () { draft.type = typeSel.value; renderFields(); };
-      renderFields();
-      form.appendChild(fieldsBox);
-
-      b.appendChild(form);
-      var foot = el("div"); foot.style.cssText = "display:flex;gap:8px;justify-content:flex-end;padding-top:10px";
-      var save = el("button", "btn btn-primary"); save.textContent = "Save";
-      save.onclick = function () {
-        Object.assign(conn, draft);
-        renderInspector();
-        b.closest(".modal-ov").remove();
-        toast("Connection saved");
-      };
-      foot.appendChild(save); b.appendChild(foot);
     });
   }
 
@@ -3875,14 +3537,7 @@
       buildLibrary();
     }), "Used to bind panels, KPIs and filters to this query"));
     sec.appendChild(field("Name / description", input(da.name || "", function (v) { da.name = v; buildLibrary(); })));
-    sec.appendChild(field("Kind", select2pairs(Studio.DA_KINDS.map(function (k) { return [k.id, k.label]; }), da.kind || "sql.jndi", function (v) { da.kind = v; renderInspector(); })));
-
-    // Connection picker — shown only when the spec has named connections
-    var conns = S.spec.cda.connections || [];
-    if (conns.length) {
-      var connPairs = conns.map(function (c) { return [c.id, c.id + " (" + (c.type || "sql.jndi") + ")"]; });
-      sec.appendChild(field("Connection", select2pairs(connPairs, da.connectionId || conns[0].id, function (v) { da.connectionId = v; })));
-    }
+    sec.appendChild(field("Kind", select2pairs(Studio.DA_KINDS.map(function (k) { return [k.id, k.label]; }), da.kind || "sql", function (v) { da.kind = v; renderInspector(); })));
 
     var acts = el("div"); acts.style.cssText = "display:flex;gap:8px;margin-top:4px";
     var dup = el("button", "btn-wide"); setIconBtn(dup, "duplicate", "Duplicate"); dup.onclick = function () { duplicateDA(da.id); };
@@ -3890,7 +3545,7 @@
     acts.appendChild(dup); acts.appendChild(del); sec.appendChild(acts);
 
     // Per-kind query editor
-    var kind = da.kind || "sql.jndi";
+    var kind = da.kind || "sql";
     if (/^sql/.test(kind)) {
       var qs = section(body, "SQL Query", null, null, "data-sources");
       var ta = el("textarea"); ta.style.cssText = "width:100%;min-height:130px;font-family:var(--mono);font-size:11.5px;resize:vertical;box-sizing:border-box";
@@ -3909,35 +3564,6 @@
         else toast("No AS aliases found — add them: SELECT x AS label, SUM(y) AS value", true);
       };
       qs.appendChild(det);
-    } else if (/^(mondrian|olap4j)/.test(kind)) {
-      var qm = section(body, "MDX Query", null, null, "data-sources");
-      qm.appendChild(field("Schema catalog path", input(da.mdxCatalog || "", function (v) { da.mdxCatalog = v; }, "/pentaho/etc/mondrian/schema.xml")));
-      var ta = el("textarea"); ta.style.cssText = "width:100%;min-height:130px;font-family:var(--mono);font-size:11.5px;resize:vertical;box-sizing:border-box";
-      ta.value = da.sql || da.query || ""; ta.placeholder = "SELECT NON EMPTY {[Measures].[Sales]} ON COLUMNS,\n  NON EMPTY {[Markets].Children} ON ROWS\nFROM [SteelWheelsSales]";
-      ta.addEventListener("change", function () { da.sql = ta.value; da.query = ta.value; });
-      qm.appendChild(ta);
-      qm.appendChild(hint("Cube name must match the Mondrian schema; use NON EMPTY to suppress empty cells."));
-    } else if (/^kettle/.test(kind)) {
-      var qk = section(body, "Kettle / PDI Source", null, null, "data-sources");
-      qk.appendChild(field(".ktr file path", input(da.ktrPath || "", function (v) { da.ktrPath = v; }, "/public/etl/my-transform.ktr")));
-      qk.appendChild(field("Output step name", input(da.ktrStep || "Output", function (v) { da.ktrStep = v; }, "Output")));
-      qk.appendChild(hint("Output columns come from the step's output fields — declare them in Columns below."));
-    } else if (/^metadata/.test(kind)) {
-      var qq = section(body, "Metadata / MQL Query", null, null, "data-sources");
-      qq.appendChild(field("Domain ID", input(da.mqlDomain || "", function (v) { da.mqlDomain = v; }, "SteelWheels")));
-      var ta = el("textarea"); ta.style.cssText = "width:100%;min-height:90px;font-family:var(--mono);font-size:11.5px;resize:vertical;box-sizing:border-box";
-      ta.value = da.sql || da.query || ""; ta.placeholder = "<mql>…</mql>";
-      ta.addEventListener("change", function () { da.sql = ta.value; da.query = ta.value; });
-      qq.appendChild(field("MQL Query (optional)", ta));
-    } else if (/^scripting/.test(kind)) {
-      var qsc = section(body, "Script", null, null, "data-sources");
-      var langs = [["javascript","JavaScript"],["beanshell","BeanShell"],["groovy","Groovy"],["python","Python"]];
-      qsc.appendChild(field("Language", select2pairs(langs, da.scriptLang || "javascript", function (v) { da.scriptLang = v; })));
-      var ta = el("textarea"); ta.style.cssText = "width:100%;min-height:130px;font-family:var(--mono);font-size:11.5px;resize:vertical;box-sizing:border-box";
-      ta.value = da.sql || da.query || ""; ta.placeholder = "// return [[row1col1, row1col2], [row2col1, row2col2]]";
-      ta.addEventListener("change", function () { da.sql = ta.value; da.query = ta.value; });
-      qsc.appendChild(ta);
-      qsc.appendChild(hint("Return rows as a list of arrays; column count must match Output columns."));
     } else if (kind === "duckdb") {
       var qdk = section(body, "DuckDB-Wasm (remote file)", null, null, "data-sources");
       qdk.appendChild(field("File URL", input(da.fileUrl || "", function (v) { da.fileUrl = v.trim(); }, "https://your-bucket.s3.amazonaws.com/data.parquet")));
@@ -4316,7 +3942,7 @@
     var runBtn = el("button", "btn"); setIconBtn(runBtn, "play", "Run sample"); runBtn.title = "Preview offline sample data";
     var copyBtn = el("button", "btn"); setIconBtn(copyBtn, "copy", "Copy TSV"); copyBtn.title = "Copy all rows as tab-separated values";
     toolbar.appendChild(runBtn);
-    var ac = activeConnection();
+    var hasConn = !!da.connectionId; // bound to a workspace connection → adapter live path
     var isDuckdb = da.kind === "duckdb";
     var isSqlite = da.kind === "httpvfs";
     var isSnowflake = da.kind === "snowflake";
@@ -4324,14 +3950,15 @@
     var isBigquery = da.kind === "bigquery";
     var isHttp = da.kind === "http";
     var liveBtn = null;
-    if (ac || isDuckdb || isSqlite || isSnowflake || isDatabricks || isBigquery || isHttp) {
+    if (hasConn || isDuckdb || isSqlite || isSnowflake || isDatabricks || isBigquery || isHttp) {
       liveBtn = el("button", "btn"); setIconBtn(liveBtn, "play", "Run live");
-      liveBtn.title = isDuckdb ? "Query the live file via DuckDB-Wasm (HTTP Range Requests)" :
+      liveBtn.title = hasConn ? "Query live through this dataset's connection" :
+        isDuckdb ? "Query the live file via DuckDB-Wasm (HTTP Range Requests)" :
         isSqlite ? "Query the live file via SQLite-WASM (HTTP Range Requests)" :
         isSnowflake ? "Query the live warehouse via the Snowflake SQL API" :
         isDatabricks ? "Query the live warehouse via the Databricks Statement Execution API" :
         isBigquery ? "Query the live dataset via the BigQuery jobs.query API" :
-        isHttp ? "Query the live endpoint" : ("Query live from " + ac.name);
+        "Query the live endpoint";
       toolbar.appendChild(liveBtn);
     }
     toolbar.appendChild(copyBtn);
@@ -4533,24 +4160,12 @@
         });
         return;
       }
-      var ac2 = activeConnection();
-      if (!ac2) { liveBtn.disabled = false; setIconBtn(liveBtn, "play", "Run live"); toast("No active server.", true); runSample(); return; }
-      var deployPath = (S.settings && S.settings.deployPath) || "/public/studio";
-      var cdaFile = (S.spec.title || "dashboard").replace(/[^a-zA-Z0-9_-]+/g, "_") + ".cda";
-      var cdaPath = deployPath.replace(/\/$/, "") + "/" + cdaFile;
-      var params = {};
-      (da.params || []).forEach(function (p) { params[p.name] = paramVals[p.name] != null ? paramVals[p.name] : (p.default || ""); });
-      Studio.PentahoClient(ac2).doQuery(cdaPath, da.id, params).then(function (json) {
-        var cols = (json.metadata || []).map(function (m) { return m.colName || m.colLabel || "col"; });
-        state.result = { cols: cols, rows: json.resultset || [] };
-        state.source = "live"; state.page = 0;
-        liveBtn.disabled = false; setIconBtn(liveBtn, "play", "Run live");
-        renderTable(state.result, "live");
-      }).catch(function (e) {
-        liveBtn.disabled = false; setIconBtn(liveBtn, "play", "Run live");
-        toast("Live query failed — showing sample. (" + e.message + ")", true);
-        runSample();
-      });
+      // No connection binding and no direct-connector kind: this query runs on
+      // the built-in sample engine only. Bind it to a Connection (import a
+      // workspace dataset, or add connection fields) to run it live.
+      liveBtn.disabled = false; setIconBtn(liveBtn, "play", "Run live");
+      toast("This query has no connection — showing sample data. Bind it to a workspace dataset to run live.", true);
+      runSample();
     }
 
     runBtn.onclick = function () { state.page = 0; runSample(); };
@@ -4660,13 +4275,13 @@
     // H-track v117: in Demo mode substitute varied sample data so values pulse realistically.
     var mockData = S.demoMode ? genMockLive(S.spec, _demoTick) : Studio.genMock(S.spec);
     var opts = { deployPath: S.settings.deployPath, preview: true, mock: mockData, launcher: false };
-    if (S.settings.live) { var ac = activeConnection(); if (ac) { opts.liveBase = Studio.PentahoClient(ac).base(); opts.mock = {}; } }
+
     var html = Studio.buildHtml(S.spec, S.assets, opts);
     ifr.onload = function () {
       postToPreview({ type: "theme", value: S.theme });
       highlightPreview();
       var n = (S.spec.panels || []).length, k = (S.spec.kpis || []).length;
-      var dataLabel = S.demoMode ? " · demo LIVE" : (S.settings.live ? " · LIVE" : " · sample data");
+      var dataLabel = S.demoMode ? " · demo LIVE" : " · sample data";
       $("#previewStatus").textContent = n + " panel" + (n === 1 ? "" : "s") + (k ? " · " + k + " KPI" + (k === 1 ? "" : "s") : "") + dataLabel;
     };
     ifr.srcdoc = html;
@@ -5244,7 +4859,7 @@
 
   // N-DATA freshness badge (v301): only the connector kinds that are ALWAYS live-capable
   // regardless of the builder's ambient "active connection" setting get a library badge —
-  // a plain sql/mdx catalog DA's "live-ness" depends on that global setting, not the DA.
+  // a plain sql catalog DA's "live-ness" depends on that global setting, not the DA.
   var REPO_LIVE_KINDS = { duckdb: 1, httpvfs: 1, snowflake: 1, databricks: 1, bigquery: 1, http: 1 };
   // Dashboards section (was "Repository"): the saved-dashboards catalog only —
   // data-source browsing moved to the Datasets/Connections sections, and the
@@ -6158,7 +5773,7 @@
     var dsCount = 0;
     (data.dataSources || []).forEach(function (item) {
       var stem = item.stem || "custom", d = item.da; if (!d || !d.id) return;
-      if (!S.catalog[stem]) S.catalog[stem] = { file: stem + ".cda", connection: { id: "pdc", jndi: d.jndi || "PDC-BIDB-EXT" }, dataAccesses: [] };
+      if (!S.catalog[stem]) S.catalog[stem] = { file: stem + ".cda", dataAccesses: [] };
       var entry = S.catalog[stem];
       entry.dataAccesses = entry.dataAccesses.filter(function (x) { return x.id !== d.id; }).concat([d]);
       dsCount++;
@@ -6259,19 +5874,10 @@
     "studio-theme", "studio-app-theme", "studio-simple-mode", "studio-connections", "studio-active-conn",
     "studio-lw", "studio-rw", "studio-collapse-library", "studio-collapse-inspector",
     "studio-insp-collapsed", "studio-shell-section", "studio-shell-expanded", "studio-branding",
-    "studio-default-jndi", "studio-default-subtitle", "studio-default-accent", "studio-default-logo", "studio-default-headerbg",
+    "studio-default-subtitle", "studio-default-accent", "studio-default-logo", "studio-default-headerbg",
     "studio-default-titlesize", "studio-default-subtitlestyle", "studio-default-dashboardtheme", "studio-default-cardskin", "studio-style-presets",
-    "studio-deploy-path", "studio-live-data", "studio-templatevar-sets"
+    "studio-deploy-path", "studio-templatevar-sets"
   ];
-  // Z5 follow-up: data-source defaults. Every new data source (dataSourceBuilder with no
-  // `existing`) used to fall back to a hardcoded "PDC-BIDB-EXT" JNDI pool name; most teams
-  // have their own standard pool, so make it a one-time Settings preference instead.
-  function defaultJndi() {
-    var v; try { v = localStorage.getItem("studio-default-jndi"); } catch (e) {}
-    return (v && v.trim()) || "PDC-BIDB-EXT";
-  }
-  function setDefaultJndi(v) { try { localStorage.setItem("studio-default-jndi", (v || "").trim()); } catch (e) {} }
-  window.__studioDefaultJndi = defaultJndi; // test hook
 
   // Z5 follow-up: deploy target config. S.settings.{deployPath,live} used to be in-memory-only
   // (hardcoded defaults, reset every reload) despite living on a page titled "app-wide preferences,
@@ -6282,11 +5888,6 @@
     return (v && v.trim()) || "/public/pdc-iteration/v2";
   }
   function setDeployPathPref(v) { try { localStorage.setItem("studio-deploy-path", (v || "").trim()); } catch (e) {} }
-  function liveDataPref() {
-    var v; try { v = localStorage.getItem("studio-live-data"); } catch (e) {}
-    return v === "1";
-  }
-  function setLiveDataPref(v) { try { localStorage.setItem("studio-live-data", v ? "1" : "0"); } catch (e) {} }
 
   // Z6/Z5 follow-up: dashboard defaults. A light first cut of the "style-preset collections"
   // ask — a single default subtitle + accent color applied to every brand-new blank dashboard,
@@ -6511,11 +6112,6 @@
             '<button type="button" class="btn" id="brandUploadBtn">Choose file…</button></div>' +
         '</div>';
       })() +
-      '<div class="settings-card"><h2>Data source defaults</h2>' +
-        '<div class="set-row"><span class="set-row-ic" data-ic="db"></span>' +
-          '<div class="set-row-txt"><b>Default JNDI connection</b><small>Pre-fills the Connection field whenever you create a new data source (＋ New source), instead of the built-in "PDC-BIDB-EXT" placeholder.</small></div>' +
-          '<input type="text" id="setDefaultJndiInp" class="set-txt" value="' + esc(defaultJndi()) + '" placeholder="PDC-BIDB-EXT"/></div>' +
-      '</div>' +
       '<div class="settings-card"><h2>Dashboard defaults</h2>' +
         '<div class="set-row"><span class="set-row-ic" data-ic="layers"></span>' +
           '<div class="set-row-txt"><b>Default subtitle</b><small>Pre-fills every new blank dashboard\'s subtitle field with your team\'s house style (e.g. a standard tagline). Blank leaves it empty.</small></div>' +
@@ -6579,17 +6175,6 @@
             '<button type="button" class="btn" id="spSaveBtn">+ Save as preset</button></div>' +
         '</div>' +
       '</div>' +
-      (function () {
-        var ac = activeConnection();
-        return '<div class="settings-card"><h2>Deploy</h2>' +
-          '<div class="set-row"><span class="set-row-ic" data-ic="db"></span>' +
-            '<div class="set-row-txt"><b>Deploy path</b><small>Server folder that stamps the CDA links in every export, and where Push publishes artifacts.</small></div>' +
-            '<input type="text" id="setDeployPathInp" class="set-txt" value="' + esc(S.settings.deployPath || "") + '" placeholder="/public/studio"/></div>' +
-          '<div class="set-row"><span class="set-row-ic" data-ic="eye"></span>' +
-            '<div class="set-row-txt"><b>Live data in preview</b><small>' + (ac ? "Active server: " + esc(ac.name) + " — " + esc(Studio.PentahoClient(ac).base()) : "No active server connection — add one in ⚙ Servers first.") + '</small></div>' +
-            '<label class="set-sw"><input type="checkbox" id="setLiveDataCb"' + (S.settings.live ? " checked" : "") + (ac ? "" : " disabled") + '/><span class="set-sw-track"></span></label></div>' +
-        '</div>';
-      })() +
       '<div class="settings-card"><h2>Data</h2>' +
         '<div class="set-row"><span class="set-row-ic" data-ic="download"></span>' +
           '<div class="set-row-txt"><b>Export settings</b><small>Save theme, mode, connections &amp; layout preferences as a .json file.</small></div>' +
@@ -6609,8 +6194,6 @@
     });
     var appThemeSel = $("#appThemeSel", sec);
     if (appThemeSel) appThemeSel.onchange = function () { setAppTheme(appThemeSel.value); toast(APP_THEME_LABELS[appThemeSel.value] + " theme applied"); };
-    var defJndiInp = $("#setDefaultJndiInp", sec);
-    if (defJndiInp) defJndiInp.addEventListener("change", function () { setDefaultJndi(defJndiInp.value); toast("Default JNDI connection saved"); });
     var defSubInp = $("#setDefaultSubtitleInp", sec);
     if (defSubInp) defSubInp.addEventListener("change", function () { setDefaultSubtitle(defSubInp.value); toast("Default subtitle saved"); });
     var defAccentCustom = $("#setDefaultAccentCustom", sec);
@@ -6653,10 +6236,6 @@
       b.appendChild(Studio.icon("trash", 13));
       b.onclick = function () { deleteStylePreset(b.getAttribute("data-id")); renderSettings(); };
     });
-    var deployPathInp = $("#setDeployPathInp", sec);
-    if (deployPathInp) deployPathInp.addEventListener("change", function () { S.settings.deployPath = deployPathInp.value.trim(); setDeployPathPref(S.settings.deployPath); toast("Deploy path saved"); });
-    var liveDataCb = $("#setLiveDataCb", sec);
-    if (liveDataCb) liveDataCb.addEventListener("change", function () { S.settings.live = liveDataCb.checked; setLiveDataPref(S.settings.live); syncLiveButton(); });
     var expBtn = $("#setExportBtn", sec); if (expBtn) expBtn.onclick = exportSettingsFile;
     var impBtn = $("#setImportBtn", sec); if (impBtn) impBtn.onclick = importSettingsFile;
     var brandSel = $("#brandModeSel", sec);
@@ -7057,7 +6636,7 @@
     var e = S.catalog[stem]; if (!e) return;
     var sp = Studio.emptySpec();
     sp.name = stem.toLowerCase().replace(/[^a-z0-9-]+/g, "-"); sp.title = Studio.titleize(stem); sp.group = guessGroup(sp.title);
-    sp.cda.connection = Studio.clone(e.connection); sp.gridCols = 3;
+    sp.gridCols = 3;
     (e.dataAccesses || []).forEach(function (da) {
       if (/^kpi/i.test(da.id) && (da.columns || []).length) {
         Studio.ensureDA(sp, da);
@@ -7215,14 +6794,14 @@
     "studio-connections", "studio-active-conn", "studio-mob-tab", "studio-simple-mode",
     "studio-insp-collapsed", "studio-recents", "studio-pins", "studio-workbooks", "studio-branding", "studio-versions",
     "studio-shell-section", "studio-shell-expanded",
-    "studio-default-jndi", "studio-default-subtitle", "studio-default-accent", "studio-default-logo", "studio-default-headerbg",
+    "studio-default-subtitle", "studio-default-accent", "studio-default-logo", "studio-default-headerbg",
     // N-DESIGN follow-up: studio-default-dashboardtheme (v281) and studio-default-cardskin were/are
     // new Settings-default keys — folded straight into this list from the start this time, since
     // studio-default-dashboardtheme itself was found missing here while adding cardSkin (same "new
     // Settings key, forgot Clear local data" gap the v194/v235 notes describe).
     "studio-default-titlesize", "studio-default-subtitlestyle", "studio-default-dashboardtheme", "studio-default-cardskin", "studio-style-presets",
     "studio-cmdk-usage", "studio-first-export-done", "studio-export-count", "studio-dash-count",
-    "studio-deploy-path", "studio-live-data", "studio-templatevar-sets", "studio-da-freshness",
+    "studio-deploy-path", "studio-templatevar-sets", "studio-da-freshness",
     "studio-canvas-notes", "studio-health-celebrated",
     // Track L sweep (dead/orphaned-key lens): "studio-k8-dismissed" (the Simple-mode "What's
     // next?" onboarding card's dismissal flag) was written on dismiss but never wiped here — the
@@ -7256,7 +6835,6 @@
     var uBtn = $("#btnUndo"); uBtn.onclick = undoAct; uBtn.textContent = ""; uBtn.appendChild(Studio.icon("undo", 16));
     var rBtn = $("#btnRedo"); rBtn.onclick = redoAct; rBtn.textContent = ""; rBtn.appendChild(Studio.icon("redo", 16));
     setIconBtn($("#btnAbout"), "info", "Tour");
-    setIconBtn($("#btnLive"), "refresh", "Sample");
     document.addEventListener("keydown", function (e) {
       if (!(e.metaKey || e.ctrlKey)) return;
       var inEdit = /^(input|textarea|select)$/i.test(e.target.tagName || "") || e.target.isContentEditable;
@@ -7441,14 +7019,11 @@
     // export menu
     menuToggle($("#btnExport"), $("#menuExport"));
     $$("#menuExport button").forEach(function (b) { b.onclick = function () { doExport(b.getAttribute("data-exp")); closeMenus(); }; });
-    var pushBtn = $("#menuExport button[data-exp='push']"); if (pushBtn) setIconBtn(pushBtn, "upload", "Push to active server…");
     var histWrap = el("div"); histWrap.id = "exportHistWrap"; $("#menuExport").appendChild(histWrap);
     loadExportHistory(); renderExportHistory();
 
     $("#btnImport").onclick = openSpecFile;
     $("#btnSaveSpec").onclick = function () { clearAutosave(); snapshotVersion(); download(S.spec.name + ".studio.json", JSON.stringify(S.spec, null, 2), "application/json"); };
-    $("#btnLive").onclick = toggleLive;
-    $("#btnConn").onclick = connModal;
 
     // ? key → shortcuts modal (when not in a text field)
     document.addEventListener("keydown", function (e) {
@@ -7501,7 +7076,7 @@
 
     // responsive "⋯ More" menu — mirrors the .btn-secondary actions hidden at ≤900px
     menuToggle($("#btnMore"), $("#menuMore"));
-    [["moreAbout","btnAbout"],["moreConn","btnConn"],["moreLive","btnLive"],["moreTheme","btnTheme"]].forEach(function(pair) {
+    [["moreAbout","btnAbout"],["moreTheme","btnTheme"]].forEach(function(pair) {
       var tgt = $("#" + pair[0]), src = $("#" + pair[1]);
       if (tgt && src) tgt.onclick = function () { closeMenus(); src.click(); };
     });
@@ -7675,138 +7250,12 @@
     $("#dashName").textContent = S.spec.name; $("#dashGroup").textContent = S.spec.group;
   }
 
-  /* ---------- Pentaho server connections (Kettle slaveserver format) ---------- */
-  function loadConnections() {
-    try { S.connections = JSON.parse(localStorage.getItem("studio-connections") || "[]"); S.activeConn = localStorage.getItem("studio-active-conn") || null; } catch (e) { S.connections = []; }
-    if (S.activeConn && !S.connections.some(function (c) { return c.id === S.activeConn; })) S.activeConn = null;
-    updateConnBtn();
-  }
-  function saveConnections() {
-    try { localStorage.setItem("studio-connections", JSON.stringify(S.connections)); if (S.activeConn) localStorage.setItem("studio-active-conn", S.activeConn); else localStorage.removeItem("studio-active-conn"); } catch (e) {}
-    updateConnBtn();
-  }
-  function activeConnection() { return S.connections.filter(function (c) { return c.id === S.activeConn; })[0] || null; }
-  function client() { var c = activeConnection(); return c ? Studio.PentahoClient(c) : null; }
-  function updateConnBtn() { var c = activeConnection(), b = $("#btnConn"); if (!b) return; setIconBtn(b, c ? "link" : "gear", c ? c.name : "Servers"); b.classList.toggle("live-on", !!c); }
-  window.__studioConns = function () { return { connections: S.connections, active: S.activeConn }; };
   window.__fireToast = function (msg, isErr) { toast(msg, isErr); }; // exposed for tests
   window.__studioSelectDashboard = selectDashboard; // exposed for tests
   window.__studioSelect = select;                   // exposed for tests (K6, etc.)
   window.__studioRenderInspector = renderInspector; // exposed for tests
   window.__studioBuildLibrary = buildLibrary;       // exposed for tests
 
-  function connModal() { modal("Pentaho server connections", function (b) { renderConnBody(b); }, function () { refreshPreview(); }); }
-  function renderConnBody(b) {
-    b.innerHTML = "";
-    b.appendChild(noteEl("info", "Connections use the Kettle slaveserver format. Live calls need the server reachable (same-origin cookie session, or CORS + the connection’s credentials). Standalone mode works fully without a connection."));
-    if (!S.connections.length) b.appendChild(hint("No connections yet — add one below or import a Kettle XML."));
-    S.connections.forEach(function (c) {
-      var row = el("div", "conn-row" + (c.id === S.activeConn ? " active" : ""));
-      var info = el("div", "cn"); info.innerHTML = "<b>" + esc(c.name) + "</b><span>" + esc(Studio.PentahoClient(c).base()) + "</span>"; row.appendChild(info);
-      var acts = el("div", "conn-acts");
-      var use = el("button", "btn"); if (c.id === S.activeConn) { use.appendChild(Studio.icon("check", 13)); use.appendChild(document.createTextNode(" Active")); } else { use.textContent = "Use"; } use.onclick = function () { S.activeConn = c.id; saveConnections(); refreshPreview(); renderConnBody(b); };
-      var imp = el("button", "btn"); imp.textContent = "Import sources…"; imp.onclick = function () { S.activeConn = c.id; saveConnections(); importFromServer(); };
-      var ed = el("button", "btn"); ed.textContent = "Edit"; ed.onclick = function () { connForm(b, c); };
-      var del = el("button", "icobtn danger"); del.appendChild(Studio.icon("close", 13)); del.title = "Delete"; del.onclick = function () { S.connections = S.connections.filter(function (x) { return x.id !== c.id; }); if (S.activeConn === c.id) S.activeConn = null; saveConnections(); renderConnBody(b); };
-      [use, imp, ed, del].forEach(function (x) { acts.appendChild(x); }); row.appendChild(acts); b.appendChild(row);
-    });
-    var bar = el("div"); bar.style.cssText = "display:flex;gap:8px;flex-wrap:wrap;margin-top:12px";
-    var add = el("button", "btn btn-primary"); add.style.color = "#fff"; setIconBtn(add, "plus", "Add connection"); add.onclick = function () { connForm(b, null); };
-    var imp = el("button", "btn"); imp.textContent = "Import Kettle XML"; imp.onclick = function () { importKettle(b); };
-    var exp = el("button", "btn"); exp.textContent = "Export Kettle XML"; exp.onclick = function () { download("slaveservers.xml", "<slaveservers>\n" + Studio.kettle.serialize(S.connections) + "\n</slaveservers>\n", "application/xml"); };
-    [add, imp, exp].forEach(function (x) { bar.appendChild(x); }); b.appendChild(bar);
-  }
-  function connForm(b, c) {
-    var isNew = !c; c = c ? Studio.clone(c) : { id: Studio.uid("conn"), name: "", scheme: "http", hostname: "localhost", port: "8080", webAppName: "pentaho", username: "", password: "" };
-    b.innerHTML = ""; var w = el("div");
-    w.appendChild(field("Name", input(c.name, function (v) { c.name = v; })));
-    w.appendChild(field("Scheme", select2(["http", "https"], c.scheme, function (v) { c.scheme = v; })));
-    w.appendChild(field("Hostname", input(c.hostname, function (v) { c.hostname = v; })));
-    w.appendChild(field("Port", input(c.port, function (v) { c.port = v; })));
-    w.appendChild(field("Web app name", input(c.webAppName, function (v) { c.webAppName = v; })));
-    w.appendChild(field("Username", input(c.username, function (v) { c.username = v; })));
-    w.appendChild(field("Password", input(c.password, function (v) { c.password = v; }), "stored locally; blank = use the browser’s Pentaho session cookie"));
-    var bar = el("div"); bar.style.cssText = "display:flex;gap:8px;margin-top:6px";
-    var save = el("button", "btn btn-primary"); save.style.color = "#fff"; save.textContent = "Save connection";
-    save.onclick = function () { if (!c.name) c.name = c.hostname || "Pentaho"; if (isNew) S.connections.push(c); else { var i = -1; S.connections.forEach(function (x, ix) { if (x.id === c.id) i = ix; }); if (i >= 0) S.connections[i] = c; } saveConnections(); renderConnBody(b); toast("Connection saved"); };
-    var cancel = el("button", "btn"); cancel.textContent = "Cancel"; cancel.onclick = function () { renderConnBody(b); };
-    bar.appendChild(save); bar.appendChild(cancel); w.appendChild(bar); b.appendChild(w);
-  }
-  function importKettle(b) {
-    b.innerHTML = ""; var w = el("div");
-    w.appendChild(hint("Paste <slaveserver> XML (or a Kettle repositories.xml), or choose a file."));
-    var ta = el("textarea"); ta.style.cssText = "width:100%;min-height:130px;font-family:var(--mono);font-size:11px"; w.appendChild(ta);
-    var file = el("input"); file.type = "file"; file.accept = ".xml"; file.style.marginTop = "6px";
-    file.onchange = function () { var f = file.files[0]; if (!f) return; var rd = new FileReader(); rd.onload = function () { ta.value = rd.result; }; rd.readAsText(f); };
-    w.appendChild(file);
-    var bar = el("div"); bar.style.cssText = "display:flex;gap:8px;margin-top:8px";
-    var imp = el("button", "btn btn-primary"); imp.style.color = "#fff"; imp.textContent = "Import";
-    imp.onclick = function () { try { var cs = Studio.kettle.parse(ta.value); if (!cs.length) { toast("No <slaveserver> found", true); return; } cs.forEach(function (c) { S.connections.push(c); }); saveConnections(); toast("Imported " + cs.length + " connection(s)"); renderConnBody(b); } catch (e) { toast("Parse error: " + e.message, true); } };
-    var cancel = el("button", "btn"); cancel.textContent = "Back"; cancel.onclick = function () { renderConnBody(b); };
-    bar.appendChild(imp); bar.appendChild(cancel); w.appendChild(bar); b.appendChild(w);
-  }
-  function importFromServer() {
-    var cl = client(); if (!cl) { toast("No active connection", true); return; }
-    modal("Import from " + activeConnection().name, function (b) {
-      b.appendChild(noteEl("info", "Browsing the repository via the Pentaho API. Needs the server reachable (CORS / login)."));
-      var status = el("div", "hint"); status.textContent = "Loading file list…"; b.appendChild(status);
-      var qBox = el("div"); qBox.style.cssText = "max-height:200px;overflow:auto;margin:6px 0"; var dBox = el("div"); dBox.style.cssText = "max-height:200px;overflow:auto;margin:6px 0";
-      cl.listFiles("/public", "*.cda|*.cdfde").then(function (files) {
-        var cdas = files.filter(function (f) { return f.ext === "cda"; });
-        var dashes = files.filter(function (f) { return f.ext === "cdfde"; });
-        status.textContent = cdas.length + " CDA queries · " + dashes.length + " CDE dashboards found.";
-        // queries → library
-        var qh = section(b, "Queries → library"); qh.appendChild(qBox);
-        cdas.forEach(function (f) { var lab = el("label", "check"); var cb = el("input"); cb.type = "checkbox"; cb.checked = true; cb.value = f.path; lab.appendChild(cb); lab.appendChild(document.createTextNode(" " + f.path)); qBox.appendChild(lab); });
-        var imp = el("button", "btn-wide"); imp.textContent = "Import selected queries"; qBox.parentNode.appendChild(imp);
-        imp.onclick = function () {
-          var sel = [].slice.call(qBox.querySelectorAll("input:checked")).map(function (x) { return x.value; });
-          Promise.all(sel.map(function (p) { return cl.getFile(p).then(function (xml) { return { stem: p.split("/").pop().replace(/\.cda$/, ""), entry: Object.assign(Studio.parseCDA(xml), { file: p.split("/").pop() }) }; }); }))
-            .then(function (res) { res.forEach(function (r) { S.catalog[r.stem] = r.entry; }); buildLibrary(); toast("Imported " + res.length + " CDA(s)"); })
-            .catch(function (e) { toast("Import failed: " + e.message, true); });
-        };
-        // dashboards → open in editor
-        var dh = section(b, "Dashboards → open & edit"); dh.appendChild(dBox);
-        dashes.forEach(function (f) {
-          var stem = f.path.replace(/\.cdfde$/, ""), row = el("div", "row-item");
-          row.innerHTML = '<span class="ri-icon">▦</span><span class="ri-txt"><span class="ri-t">' + esc(f.path.split("/").pop()) + '</span></span>';
-          var open = el("button", "btn"); open.textContent = "Open"; row.appendChild(open);
-          open.onclick = function () { openServerDashboard(cl, stem); };
-          dBox.appendChild(row);
-        });
-      }).catch(function (e) { status.textContent = "Could not browse server (" + e.message + "). Check the connection / CORS / login."; });
-    });
-  }
-  function openServerDashboard(cl, stem) {
-    var name = stem.split("/").pop();
-    Promise.all([cl.getFile(stem + ".cdfde"), cl.getFile(stem + ".cda").catch(function () { return ""; }), cl.getFile(stem + ".wcdf").catch(function () { return ""; })])
-      .then(function (r) {
-        var cda = r[1] ? Studio.parseCDA(r[1]) : null;
-        var spec = Studio.parseCDE(r[0], r[2], cda); spec.name = name; spec.id = Studio.uid("dash");
-        S.spec = normalize(spec); S.selection = null; syncHeader(); renderInspector(); refreshPreview();
-        toast("Opened " + name + " from server"); closeAllModals();
-      }).catch(function (e) { toast("Open failed: " + e.message, true); });
-  }
-  function pushToServer() {
-    var cl = client(); if (!cl) { toast("No active connection — add one in ⚙ Servers", true); return; }
-    var sp = S.spec, dp = S.settings.deployPath;
-    var files = [[dp + "/" + sp.name + ".cda", Studio.exportCDA(sp), "application/xml"],
-      [dp + "/" + sp.name + ".html", Studio.exportCDF(sp, S.assets, dp), "text/html"]];
-    modal("Push to " + activeConnection().name, function (b) {
-      b.appendChild(noteEl("info", "Publishing " + files.length + " artifacts to " + dp + " via the Pentaho import API. Needs Publish permission + a reachable server."));
-      var log = el("div", "hint"); log.textContent = "Ready."; b.appendChild(log);
-      var go = el("button", "btn btn-primary"); go.style.color = "#fff"; go.textContent = "Publish now";
-      go.onclick = function () {
-        go.disabled = true; var ok = 0, fail = 0;
-        (function next(i) {
-          if (i >= files.length) { log.textContent = "Done: " + ok + " published, " + fail + " failed."; toast(fail ? ("Push: " + fail + " failed") : ("Pushed " + ok + " artifacts"), !!fail); return; }
-          var f = files[i]; log.textContent = "Publishing " + f[0].split("/").pop() + "…";
-          cl.publishFile(f[0], f[1], f[2], true).then(function (r) { r.ok ? ok++ : fail++; next(i + 1); }).catch(function () { fail++; next(i + 1); });
-        })(0);
-      };
-      b.appendChild(go);
-    });
-  }
   function closeAllModals() { $$(".modal-ov").forEach(function (m) { m.remove(); }); }
 
   /* ---------- export ---------- */
@@ -7873,17 +7322,14 @@
   function doExport(kind) {
     celebrateFirstExport();
     bumpExportMilestone();
-    if (kind === "push") return pushToServer();
     var sp = S.spec, dp = S.settings.deployPath;
     var problems = Studio.validate(sp).filter(function (x) { return x.level === "error"; });
     if (problems.length) { toast(problems[0].msg, true); }
     recordExport(kind, sp.title || sp.name);
-    if (kind === "cda") return bundleModal("Data Access", [{ name: sp.name + ".cda", body: Studio.exportCDA(sp), mime: "application/xml" }]);
-    if (kind === "cdf") return bundleModal("Dashboard Framework", [{ name: sp.name + ".html", body: Studio.exportCDF(sp, S.assets, dp), mime: "text/html" }]);
+    if (kind === "cdf") return bundleModal("Dashboard", [{ name: sp.name + ".html", body: Studio.exportCDF(sp, S.assets, dp), mime: "text/html" }]);
     if (kind === "all") {
       bundleModal("All artifacts", [
         { name: sp.name + ".html", body: Studio.exportCDF(sp, S.assets, dp), mime: "text/html" },
-        { name: sp.name + ".cda", body: Studio.exportCDA(sp), mime: "application/xml" },
         { name: sp.name + ".studio.json", body: JSON.stringify(sp, null, 2), mime: "application/json" }
       ]);
     }
@@ -7908,38 +7354,14 @@
     });
   }
 
-  // Reflects S.settings.live onto the topbar Live/Sample button + repaints the preview. Shared by
-  // the toggleLive() modal (⋯ More / #btnLive) and the Settings "Deploy" card so both entry points
-  // to the same S.settings.live flag stay in sync (single source of truth, see Z5 deploy-target ask).
-  function syncLiveButton() {
-    var on = S.settings.live && activeConnection();
-    var lb = $("#btnLive"); if (lb) { setIconBtn(lb, on ? "eye" : "refresh", on ? "Live" : "Sample"); lb.classList.toggle("live-on", !!on); }
-    refreshPreview();
-  }
-  function toggleLive() {
-    modal("Live data / deploy settings", function (b) {
-      b.appendChild(noteEl("info", "Exported dashboards always read live data via CDA on the Pentaho server. The deploy path stamps the CDA links in exports. Live preview is best-effort and needs the active connection reachable (CORS / same-origin / login)."));
-      var ac = activeConnection();
-      b.appendChild(noteEl(ac ? "ok" : "warn", ac ? ("Active server: " + ac.name + " — " + Studio.PentahoClient(ac).base()) : "No active server connection. Add one in ⚙ Servers to preview live."));
-      b.appendChild(field("Deploy path (server folder)", input(S.settings.deployPath, function (v) { S.settings.deployPath = v.trim(); setDeployPathPref(S.settings.deployPath); })));
-      var lab = el("label", "check"); var cb = el("input"); cb.type = "checkbox"; cb.checked = S.settings.live;
-      cb.onchange = function () { S.settings.live = cb.checked; setLiveDataPref(S.settings.live); }; lab.appendChild(cb); lab.appendChild(document.createTextNode("Use live data (active server) in the preview"));
-      b.appendChild(lab);
-    }, syncLiveButton);
-  }
-
   function openSpecFile() {
-    var inp = el("input"); inp.type = "file"; inp.accept = ".json,.studio.json,.html,.htm,.cdfde,application/json,text/html";
+    var inp = el("input"); inp.type = "file"; inp.accept = ".json,.studio.json,.html,.htm,application/json,text/html";
     inp.onchange = function () {
       var f = inp.files[0]; if (!f) return; var rd = new FileReader();
       rd.onload = function () {
         try {
           var txt = rd.result, spec;
-          if (/\.cdfde$/i.test(f.name) || /"datasources"\s*:/.test(txt) && /"components"\s*:/.test(txt)) {
-            spec = Studio.parseCDE(txt);            // lone .cdfde — CDA reconstructed from embedded datasources
-            if (!spec || !spec.panels.length) throw new Error("no renderable components found in this .cdfde");
-            spec.name = (f.name.replace(/\.cdfde$/i, "") || "imported").toLowerCase().replace(/[^a-z0-9-]+/g, "-");
-          } else if (/\.html?$/i.test(f.name) || /window\.STUDIO_SPEC/.test(txt)) {
+          if (/\.html?$/i.test(f.name) || /window\.STUDIO_SPEC/.test(txt)) {
             spec = Studio.parseCDFHtml(txt);
             if (!spec) throw new Error("no embedded dashboard found (was it exported from this Studio?)");
           } else spec = JSON.parse(txt);

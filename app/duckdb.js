@@ -105,7 +105,7 @@
     },
 
     // Runs `sql` (defaults to "SELECT * FROM t LIMIT 200") against the registered file's view.
-    // Rejects on failure (mirrors Studio.PentahoClient().doQuery()'s contract) so callers reuse
+    // Rejects on failure (mirrors the shared query() contract) so callers reuse
     // the same .then/.catch pattern as the existing Pentaho "Run live" preview.
     query: function (cfg, sql) {
       return withView(cfg, function (conn) {

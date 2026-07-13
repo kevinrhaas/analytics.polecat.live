@@ -117,16 +117,11 @@
       <button class="btn" id="btnSaveSpec" title="Save the editable .studio.json">Save</button>
       <div class="menu-wrap"><button class="btn btn-primary" id="btnExport">Export ▾</button>
         <div class="menu" id="menuExport">
-          <button data-exp="cdf">Dashboard Framework (.html)</button>
-          <button data-exp="cda">Data Access (.cda)</button>
+          <button data-exp="cdf">Dashboard (.html)</button>
           <button data-exp="all">All artifacts (bundle)</button>
-          <div class="sep"></div>
-          <button data-exp="push">Push to active server…</button>
         </div></div>
       <span class="top-sep sep-connect" aria-hidden="true"></span>
       <button class="btn icon btn-secondary" id="btnAbout" title="About / take the tour">Tour</button>
-      <button class="btn icon btn-secondary" id="btnConn" title="Manage Pentaho server connections">Servers</button>
-      <button class="btn icon btn-secondary" id="btnLive" title="Toggle live Pentaho data vs offline sample data">Sample</button>
       <button class="btn icon btn-secondary" id="btnTheme" title="Toggle preview light/dark">Theme</button>
       <span id="simpleBadge" class="simple-badge" aria-live="polite" aria-label="Simple mode active">Simple mode</span>
       <!-- H-track v117: Demo mode — pulsing LIVE badge shown while demo simulation is running -->
@@ -134,10 +129,8 @@
       <div class="menu-wrap" id="moreWrap">
         <button class="btn icon" id="btnMore" title="More actions" aria-label="More actions">⋯</button>
         <div class="menu" id="menuMore">
-          <div class="grp">Connect</div>
+          <div class="grp">View</div>
           <button id="moreAbout">Tour</button>
-          <button id="moreConn">Servers</button>
-          <button id="moreLive">Sample / Live</button>
           <button id="moreTheme">Theme</button>
           <div class="sep"></div>
           <div class="grp">Present</div>
@@ -237,7 +230,6 @@
 <script src="app/sources/workspace.js"></script>
 <script src="app/sources/sync.js"></script>
 <script src="app/sampledata.js"></script>
-<script src="app/pentaho.js"></script>
 <script src="app/duckdb.js"></script>
 <script src="app/sqlitehttp.js"></script>
 <script src="app/snowflake.js"></script>

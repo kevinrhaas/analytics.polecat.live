@@ -1,6 +1,6 @@
-/* tools/lib.js — shared Node helpers for the CLI tools (export, push).
+/* tools/lib.js — shared Node helpers for the CLI tools (export).
    Loads the browser app modules (DOM-free ones) into a fake window so the CLI
-   builds byte-identical artifacts, and provides a Node-safe Kettle parser. */
+   builds byte-identical artifacts. */
 "use strict";
 const fs = require("fs");
 const path = require("path");
@@ -9,7 +9,7 @@ const VENDOR = path.join(__dirname, "..", "vendor");
 
 function loadStudio() {
   const win = {};
-  ["model.js", "sampledata.js", "pentaho.js", "exporters.js"].forEach(function (f) {
+  ["model.js", "sampledata.js", "exporters.js"].forEach(function (f) {
     new Function("window", fs.readFileSync(path.join(APP, f), "utf8"))(win);
   });
   return win.Studio;
@@ -28,22 +28,8 @@ function assets() {
 function buildArtifacts(Studio, spec, deployPath) {
   const a = assets(), stem = spec.name;
   return [
-    { name: stem + ".cda", mime: "application/xml", body: Studio.exportCDA(spec) },
     { name: stem + ".html", mime: "text/html", body: Studio.exportCDF(spec, a, deployPath) }
   ].map(function (f) { f.path = deployPath + "/" + f.name; return f; });
 }
 
-// Node-safe Kettle <slaveserver> parser (regex; no DOM) → connection objects
-function nodeKettleParse(xml) {
-  const out = [], re = /<slaveserver>([\s\S]*?)<\/slaveserver>/gi; let m;
-  const tag = function (block, t) { const r = new RegExp("<" + t + ">([\\s\\S]*?)</" + t + ">", "i").exec(block); return r ? r[1].trim() : ""; };
-  while ((m = re.exec(xml))) {
-    const b = m[1], ssl = /^y/i.test(tag(b, "sslMode")), port = tag(b, "port");
-    out.push({ name: tag(b, "name") || tag(b, "hostname"), scheme: ssl ? "https" : "http", hostname: tag(b, "hostname") || "localhost",
-      port: port || (ssl ? "8443" : "8080"), webAppName: tag(b, "webAppName") || "pentaho", username: tag(b, "username"), password: tag(b, "password") });
-  }
-  return out;
-}
-function connBase(c) { return c.scheme + "://" + c.hostname + (c.port ? (":" + c.port) : "") + "/" + (c.webAppName || "pentaho"); }
-
-module.exports = { loadStudio, assets, buildArtifacts, nodeKettleParse, connBase };
+module.exports = { loadStudio, assets, buildArtifacts };

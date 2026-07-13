@@ -166,8 +166,8 @@
 <!-- ── Getting started ─────────────────────────────────────────── -->
 <section id="getting-started">
   <h2>Getting started</h2>
-  <p>Analytics Dashboard Studio lets you design Pentaho Dashboard Framework and Data Access
-  components visually — no hand-coding required. Open a browser, choose a data source,
+  <p>Analytics Dashboard Studio lets you design complete analytics dashboards visually —
+  no hand-coding required. Open a browser, choose a data source,
   drop it onto the canvas, and export a production-ready file in minutes.</p>
 
   <p>The left rail switches between the app's sections: <strong>Home</strong> (quick-create + your
@@ -231,7 +231,7 @@
     <div class="step">
       <div class="step-num">Step 3</div>
       <div class="step-title">Export and deploy</div>
-      <div class="step-desc">Use <strong>Export ▾</strong> to download a self-contained Dashboard Framework <code>.html</code>, the raw Data Access <code>.cda</code>, or a full bundle — ready to drop onto any Pentaho server.</div>
+      <div class="step-desc">Use <strong>Export ▾</strong> to download a self-contained dashboard <code>.html</code>, or a full bundle (<code>.html</code> + the editable <code>.studio.json</code> spec) — host it anywhere static pages live.</div>
     </div>
   </div>
 
@@ -261,13 +261,13 @@
 
   <h3>Three panes</h3>
   <ul>
-    <li><strong>Query Library (left)</strong> — All CDA data accesses organized by group. Search by name, table, or column keyword. Drag any card onto the canvas to create a panel. In Advanced mode, use <strong>＋ New source</strong> to author your own CDA query.</li>
+    <li><strong>Query Library (left)</strong> — All data accesses organized by group. Search by name, table, or column keyword. Drag any card onto the canvas to create a panel. In Advanced mode, use <strong>＋ New source</strong> to author your own query.</li>
     <li><strong>Live preview (center)</strong> — The real dashboard rendered in an iframe. This is byte-identical to what the CDF export produces — no approximation. Click a panel to select it; drag the title bar to reorder; drag the right edge to resize.</li>
     <li><strong>Inspector (right)</strong> — Contextual editor for whatever is selected. When nothing is selected, shows the dashboard-level controls. Click a panel → panel inspector. Click a KPI tile → KPI inspector. Click a filter → filter inspector.</li>
   </ul>
   <p>The panel inspector is <strong>context-aware</strong>: interaction sections like Drill-through, Detail drawer, Cross-filter, Conditional formatting, and Color scale only appear when the selected chart type actually supports them (e.g. Conditional formatting shows for Bar/Donut/Treemap/Lollipop but not for Table or Line — clicking a table row instead opens the Detail drawer). This keeps the inspector focused on settings that do something for the current chart.</p>
 
-  <p><strong>Renaming a dashboard:</strong> the dashboard name in the topbar is a button, not a text field — click it to jump straight to the Dashboard inspector's <strong>Title</strong> field with the text pre-selected. The Title (the display name shown in the dashboard's header/banner) and the <strong>File name (stem)</strong> (the lowercase-with-dashes name used for exported files, e.g. <code>my-dashboard.html</code>/<code>.cda</code>) are two independent fields right below it, so you can rename either without the other changing.</p>
+  <p><strong>Renaming a dashboard:</strong> the dashboard name in the topbar is a button, not a text field — click it to jump straight to the Dashboard inspector's <strong>Title</strong> field with the text pre-selected. The Title (the display name shown in the dashboard's header/banner) and the <strong>File name (stem)</strong> (the lowercase-with-dashes name used for exported files, e.g. <code>my-dashboard.html</code>) are two independent fields right below it, so you can rename either without the other changing.</p>
 
   <p><strong>Header logo:</strong> the Dashboard inspector's <strong>Header logo</strong> field (below Subtitle) uploads a PNG/JPG/SVG (up to 200KB) that replaces the default "P" mark in the dashboard's banner, in both the live preview and the exported Dashboard Framework — a per-dashboard brand mark, separate from the app-wide rail branding in Settings. Leave it blank to keep the default mark.</p>
 
@@ -319,7 +319,7 @@
 <!-- ── Chart types ────────────────────────────────────────────── -->
 <section id="chart-types">
   <h2>Chart types</h2>
-  <p>51 chart types are available, grouped by purpose. Select the chart type in the panel inspector after clicking a panel on the canvas. Types marked <span class="badge badge-cdf">CDF</span> are Dashboard Framework-only; types marked with both badges also map to a real Pentaho CDE component, so a CDE dashboard using one of them imports cleanly (see <a href="#exporting">Exporting</a>).</p>
+  <p>51 chart types are available, grouped by purpose. Select the chart type in the panel inspector after clicking a panel on the canvas. Types marked <span class="badge badge-cdf">CDF</span> render via the built-in Dashboard Framework toolkit; the <span class="badge badge-cde">CDE</span> badge is a historical lineage marker from the retired CDE compatibility path — both render identically today.</p>
   <p>Not sure where to start? Once a panel has a query bound, a <strong>"Recommended for this data"</strong> strip appears above the full gallery with 1–3 suggested types (e.g. Line for a date column + a number, Donut for a low-cardinality category) — each button explains its "why" on hover and switches the chart type on click.</p>
   <p>Once you're in a chart type's own options (below the gallery), common toggles like <strong>Sort by value</strong>, <strong>Show legend</strong>, <strong>Smooth curve</strong>, <strong>Show data points</strong>, <strong>Show value/label</strong>, <strong>Show %</strong>, and <strong>Rotate labels</strong> carry a small glyph next to their label — hover it (or Tab to it) for a one-line explanation of what the toggle actually changes. <strong>Sort by value</strong>, <strong>Smooth curve</strong>, <strong>Show legend</strong>, <strong>Show data points</strong>, <strong>Show value/label</strong>, and <strong>Rotate labels</strong> go a step further with a genuine Off → On picture — two tiny side-by-side diagrams showing exactly what the toggle redraws, not just a sentence about it.</p>
 
@@ -417,8 +417,8 @@
 
 <!-- ── Data sources ───────────────────────────────────────────── -->
 <section id="data-sources">
-  <h2>Data sources &amp; CDA</h2>
-  <p>Every chart panel is bound to a <strong>data access (DA)</strong> — a named CDA query. The Query Library (left pane) contains the full catalog of available DAs grouped by domain. In Advanced mode you can also author your own queries.</p>
+  <h2>Data sources &amp; data accesses</h2>
+  <p>Every chart panel is bound to a <strong>data access (DA)</strong> — a named query. The Query Library (left pane) contains the full catalog of available DAs grouped by domain. In Advanced mode you can also author your own queries.</p>
 
   <h3>Using catalog queries</h3>
   <ul>
@@ -431,11 +431,7 @@
   <h3>Authoring new data sources (Advanced)</h3>
   <p>Click <strong>＋ New source</strong> in the library header to open the data-source builder. Supported types:</p>
   <ul>
-    <li><strong>SQL</strong> — Write a SELECT query (or use the visual SQL Builder: FROM / JOIN / WHERE / GROUP BY / ORDER BY / LIMIT). Use "Detect from query" to pull column names automatically.</li>
-    <li><strong>MDX</strong> — Multidimensional query against a Mondrian cube.</li>
-    <li><strong>Kettle</strong> — Reference an existing <code>.ktr</code> PDI transform (path + output step). Or use the KTR Builder to generate a simple pipeline and download the <code>.ktr</code>.</li>
-    <li><strong>Metadata</strong> — Pentaho Metadata domain + query.</li>
-    <li><strong>Scripting</strong> — JavaScript/Groovy/Python DA for custom logic.</li>
+    <li><strong>SQL</strong> — Write a SELECT query against the built-in sample engine (or use the visual SQL Builder: FROM / JOIN / WHERE / GROUP BY / ORDER BY / LIMIT). Columns come from your <code>AS</code> aliases ("Detect from query" pulls them automatically), and deterministic demo rows are generated from them so every dashboard stays fully demoable offline.</li>
     <li><strong>DuckDB (remote file)</strong> — query a Parquet/CSV file directly over HTTP, no backend (see below).</li>
     <li><strong>SQLite (remote .sqlite)</strong> — query a <code>.sqlite</code> file directly over HTTP, no backend (see below).</li>
     <li><strong>Snowflake</strong> — query a live Snowflake warehouse via the SQL API, straight from the browser (see below).</li>
@@ -445,7 +441,7 @@
   </ul>
 
   <h3>Browser-native connectors: no backend required</h3>
-  <p>Two source types query a file hosted anywhere over plain HTTP — S3, any static host — entirely inside your browser, with no proxy, no saved credentials, and no CDA connection. Both intercept the query engine's disk reads and turn them into <strong>HTTP Range Requests</strong>, so they only transfer the bytes a query actually touches. Both are flagged with a small "Browser-only" badge on their source-type card in the New Source builder, and a failed <strong>Test connection</strong> surfaces a plain-English hint (CORS/Range support, a slow/unreachable host, a 404) instead of a raw browser error. Pick whichever fits your workload:</p>
+  <p>Two source types query a file hosted anywhere over plain HTTP — S3, any static host — entirely inside your browser, with no proxy, no saved credentials, and no server connection. Both intercept the query engine's disk reads and turn them into <strong>HTTP Range Requests</strong>, so they only transfer the bytes a query actually touches. Both are flagged with a small "Browser-only" badge on their source-type card in the New Source builder, and a failed <strong>Test connection</strong> surfaces a plain-English hint (CORS/Range support, a slow/unreachable host, a 404) instead of a raw browser error. Pick whichever fits your workload:</p>
   <ul>
     <li><strong>DuckDB (remote file)</strong> is the columnar / analytics engine — best for aggregations and dashboards over a Parquet or CSV file, via <a href="https://duckdb.org/docs/api/wasm/overview" target="_blank" rel="noopener noreferrer">DuckDB-Wasm</a>.</li>
     <li><strong>SQLite (remote .sqlite)</strong> is the relational / indexed-lookup engine — best for point lookups and small joins over a <code>.sqlite</code> file with real indexes, via <a href="https://github.com/phiresky/sql.js-httpvfs" target="_blank" rel="noopener noreferrer">sql.js-httpvfs</a>. An indexed query only fetches the handful of ~4KB pages it needs, even from a multi-GB file.</li>
@@ -454,15 +450,15 @@
   <ul>
     <li>Set the <strong>File URL</strong> (and optionally the format — auto-detected from the extension) and click <strong>Test connection &amp; detect columns</strong>. This lazy-loads the ~3–5MB DuckDB engine the first time it's needed, registers the file, and runs a schema probe — the base app stays small until you actually use this connector.</li>
     <li>The optional <strong>Query</strong> field runs SQL against the file, aliased as the view <code>t</code> (e.g. <code>SELECT region, SUM(revenue) FROM t GROUP BY region</code>). Leave it blank for <code>SELECT * FROM t LIMIT 200</code>.</li>
-    <li>The Data preview's <strong>Run live</strong> button queries the real file the same way — no Pentaho server connection required.</li>
+    <li>The Data preview's <strong>Run live</strong> button queries the real file the same way — no server required.</li>
   </ul>
   <p><strong>SQLite (remote .sqlite):</strong></p>
   <ul>
     <li>Set the <strong>File URL</strong> and optionally a <strong>Table name</strong>, then click <strong>Test connection &amp; detect columns</strong>. Leave the table blank and Studio auto-picks the first table in the file; the test lists its columns via <code>PRAGMA table_info</code> and a 5-row sample.</li>
     <li>The optional <strong>Query</strong> field runs SQL against the opened database (any table in the file, not just the detected one). Leave it blank for <code>SELECT * FROM &lt;table&gt; LIMIT 200</code>.</li>
-    <li>The Data preview's <strong>Run live</strong> button queries the real file the same way — no Pentaho server connection required.</li>
+    <li>The Data preview's <strong>Run live</strong> button queries the real file the same way — no server required.</li>
   </ul>
-  <p>Neither connector is a Pentaho data source, so DAs of either kind are excluded from the <code>.cda</code> export. Both run genuinely live everywhere: the builder itself (Test connection, Run live, the live-preview iframe), the offline sample preview used while you're building, and — a downloaded/deployed Dashboard Framework <code>.html</code> export queries the real file directly too, no Pentaho server involved (the export bundles the small connector façade automatically whenever a dashboard uses one).</p>
+  <p>Both connectors run genuinely live everywhere: the builder itself (Test connection, Run live, the live-preview iframe), the offline sample preview used while you're building, and — a downloaded/deployed dashboard <code>.html</code> export queries the real file directly too, no server involved (the export bundles the small connector façade automatically whenever a dashboard uses one).</p>
 
   <h3>Snowflake connector</h3>
   <p>The <strong>Snowflake</strong> source type queries a live warehouse directly from the browser via Snowflake's <a href="https://docs.snowflake.com/en/developer-guide/sql-api/index" target="_blank" rel="noopener noreferrer">SQL API</a> — no backend or proxy, but unlike the file connectors above it's <strong>credential-based</strong> and flagged with a "Needs token" badge instead of "Browser-only". Two things to set up before it will work:</p>
@@ -470,7 +466,7 @@
     <li><strong>A token, never a password.</strong> Generate a Programmatic Access Token (or use an OAuth access token) in Snowflake and paste it into <strong>Access token</strong>; pick the matching <strong>Token type</strong>. Studio never asks for or stores a Snowflake username/password.</li>
     <li><strong>CORS allow-listing.</strong> Snowflake blocks cross-origin browser calls by default — a Snowflake admin must add this app's origin to the account's <code>ALLOWED_HTTP_ORIGINS</code> network policy before <strong>Test connection</strong> will succeed. Until then, requests fail with a clear CORS hint rather than a stuck spinner.</li>
   </ul>
-  <p>Fill in <strong>Account identifier</strong> (e.g. <code>xy12345.us-east-1</code>), <strong>Warehouse</strong>/<strong>Database</strong>/<strong>Schema</strong> and an optional <strong>Role</strong>, write a <strong>Query</strong>, then click <strong>Test connection &amp; detect columns</strong> — it runs <code>SELECT 1</code> to validate everything and, once you have a real query, detects output columns from the live result. The Data preview's <strong>Run live</strong> button queries the warehouse the same way. Like the file connectors, a Snowflake DA isn't a Pentaho data source, so it's excluded from the <code>.cda</code> export.</p>
+  <p>Fill in <strong>Account identifier</strong> (e.g. <code>xy12345.us-east-1</code>), <strong>Warehouse</strong>/<strong>Database</strong>/<strong>Schema</strong> and an optional <strong>Role</strong>, write a <strong>Query</strong>, then click <strong>Test connection &amp; detect columns</strong> — it runs <code>SELECT 1</code> to validate everything and, once you have a real query, detects output columns from the live result. The Data preview's <strong>Run live</strong> button queries the warehouse the same way.</p>
 
   <h3>Databricks connector</h3>
   <p>The <strong>Databricks</strong> source type queries a live SQL warehouse directly from the browser via Databricks' <a href="https://docs.databricks.com/api/workspace/statementexecution" target="_blank" rel="noopener noreferrer">Statement Execution API</a> — no backend or proxy, same credential-based shape as the Snowflake connector above and flagged with the same "Needs token" badge. Two things to set up before it will work:</p>
@@ -478,14 +474,14 @@
     <li><strong>A personal access token, never a password.</strong> Generate one under Databricks' <em>Settings → Developer → Access tokens</em> and paste it into <strong>Access token</strong>. Studio never asks for or stores a Databricks username/password.</li>
     <li><strong>An allowed origin.</strong> Databricks workspaces don't emit permissive CORS headers by default — check with your workspace admin that this app's origin is allowed, or requests will fail on CORS with a clear inline hint rather than a stuck spinner.</li>
   </ul>
-  <p>Fill in the <strong>Workspace host</strong> (e.g. <code>dbc-a1b2c3d4-e5f6.cloud.databricks.com</code>, no protocol), the <strong>SQL warehouse id</strong> (from the warehouse's Connection details), and optionally a <strong>Catalog</strong>/<strong>Schema</strong>, write a <strong>Query</strong>, then click <strong>Test connection &amp; detect columns</strong> — it runs <code>SELECT 1</code> to validate everything and, once you have a real query, detects output columns from the live result. The Data preview's <strong>Run live</strong> button queries the warehouse the same way; statements that start out <code>PENDING</code>/<code>RUNNING</code> are polled automatically. Like the file connectors and Snowflake, a Databricks DA isn't a Pentaho data source, so it's excluded from the <code>.cda</code> export.</p>
+  <p>Fill in the <strong>Workspace host</strong> (e.g. <code>dbc-a1b2c3d4-e5f6.cloud.databricks.com</code>, no protocol), the <strong>SQL warehouse id</strong> (from the warehouse's Connection details), and optionally a <strong>Catalog</strong>/<strong>Schema</strong>, write a <strong>Query</strong>, then click <strong>Test connection &amp; detect columns</strong> — it runs <code>SELECT 1</code> to validate everything and, once you have a real query, detects output columns from the live result. The Data preview's <strong>Run live</strong> button queries the warehouse the same way; statements that start out <code>PENDING</code>/<code>RUNNING</code> are polled automatically.</p>
 
   <h3>BigQuery connector</h3>
   <p>The <strong>BigQuery</strong> source type queries a live dataset directly from the browser via Google's <a href="https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query" target="_blank" rel="noopener noreferrer">jobs.query REST API</a> — no backend or proxy. It's credential-based like Snowflake/Databricks above, flagged with the same "Needs token" badge, but Google's API already sends permissive CORS headers for this endpoint, so there's no admin allow-listing step — the token itself is the only gate.</p>
   <ul>
     <li><strong>A short-lived OAuth 2.0 access token, never a service-account key file.</strong> Paste it into <strong>Access token</strong>; Studio never asks for or stores a downloadable key.</li>
   </ul>
-  <p>Fill in the <strong>Project id</strong> (e.g. <code>my-analytics-project</code>) and optionally a job <strong>Location</strong> (e.g. <code>US</code>, needed for datasets outside the default region) and a <strong>Default dataset</strong> (so unqualified table names resolve against it), write a <strong>Query</strong>, then click <strong>Test connection &amp; detect columns</strong> — it runs <code>SELECT 1</code> to validate the project/token and, once you have a real query, detects output columns from the live result. The Data preview's <strong>Run live</strong> button queries the dataset the same way; jobs that don't complete immediately are polled automatically. Like the other direct connectors, a BigQuery DA isn't a Pentaho data source, so it's excluded from the <code>.cda</code> export.</p>
+  <p>Fill in the <strong>Project id</strong> (e.g. <code>my-analytics-project</code>) and optionally a job <strong>Location</strong> (e.g. <code>US</code>, needed for datasets outside the default region) and a <strong>Default dataset</strong> (so unqualified table names resolve against it), write a <strong>Query</strong>, then click <strong>Test connection &amp; detect columns</strong> — it runs <code>SELECT 1</code> to validate the project/token and, once you have a real query, detects output columns from the live result. The Data preview's <strong>Run live</strong> button queries the dataset the same way; jobs that don't complete immediately are polled automatically.</p>
 
   <h3>Generic SQL/HTTP connector</h3>
   <p>The <strong>Generic SQL/HTTP</strong> source type is the escape hatch: it POSTs (or GETs) a SQL string to <strong>any JSON API you point it at</strong> — an in-house query service, a serverless function, or a provider not yet covered by a named connector — straight from the browser, no backend or proxy. Flagged with a "Needs endpoint" badge (not "Needs token" — auth is optional and entirely up to your endpoint).</p>
@@ -494,18 +490,17 @@
     <li><strong>Param name</strong> (default <code>sql</code>) is the JSON key or query-string key that carries the query text — match it to whatever your endpoint expects.</li>
     <li>Write a <strong>Query</strong>, then click <strong>Test connection &amp; detect columns</strong> — it sends <code>SELECT 1</code> and detects output columns from the live response. The Data preview's <strong>Run live</strong> button queries the endpoint the same way.</li>
     <li>The response can be shaped three ways: an array of row objects (<code>[{"col":1,...}]</code>), the same nested under <code>{"data":[...]}</code>, or an already column/row-shaped <code>{"columns":[...],"rows":[[...]]}</code>.</li>
-    <li>Like the other direct connectors, a Generic SQL/HTTP DA isn't a Pentaho data source, so it's excluded from the <code>.cda</code> export.</li>
   </ul>
   <p><strong>Current limitation shared by all four credential-based connectors above (Snowflake, Databricks, BigQuery, Generic SQL/HTTP):</strong> unlike DuckDB/SQLite (which now query live after export too, since neither needs a saved secret), they're fully live in the builder — Test connection, Run live, and the live-preview iframe all call the real API — but a downloaded/deployed Dashboard Framework <code>.html</code> export has no runtime query path for them yet, so treat them as authoring/preview-ready today rather than deploy-ready. Baking a live access token into a static exported file raises a real secret-handling question that needs its own answer before "live after export" can ship for these four.</p>
 
   <h3>Calculated columns</h3>
-  <p>Every data source has a <strong>Calculated columns</strong> section (Advanced mode) for formula-based columns derived from its own output columns — e.g. <code>=[revenue]-[cost]</code> for a margin, <code>=[revenue]/1000</code> to rescale a value, <code>=pctChange([revenue])</code> for the percent change vs. the previous row (in percentage points, e.g. <code>12.5</code> for +12.5%; the first row has no prior row to compare against, so it's blank there), or <code>=movingAvg([revenue], 5)</code> for a trailing 5-row average (defaults to 3; partial windows at the very start average whatever's available, the same convention as the line chart's own Show moving average overlay). Give it a <strong>Name</strong> and a <strong>Formula</strong> referencing other output columns in square brackets; the four arithmetic operators and parentheses are also supported (<code>+ - * / ( )</code>). A bad reference (an unknown column, a divide-by-zero, malformed syntax) shows a small inline error naming the problem rather than silently failing. Once valid, the calculated column is a real, bindable column everywhere a panel/KPI picks a column from this data source, and its value is computed live in the offline sample preview. For DuckDB/SQLite, a calculated column is also appended to the live query result once the dashboard is exported/deployed — its value is computed the same way there as in the offline preview. <strong>Current limitation:</strong> the remaining four direct-query connectors (Snowflake/Databricks/BigQuery/Generic SQL/HTTP) don't yet have any live-query runtime once exported (see above), so a calc column defined against one of them is only ever evaluated in the offline sample preview, the same gap as those connectors' own "Run live" button in the builder. For a Pentaho SQL/MDX/etc. data source, the same definition <em>also</em> exports as real <code>&lt;CalculatedColumns&gt;</code> XML in the <code>.cda</code>, which a live Pentaho server evaluates itself.</p>
+  <p>Every data source has a <strong>Calculated columns</strong> section (Advanced mode) for formula-based columns derived from its own output columns — e.g. <code>=[revenue]-[cost]</code> for a margin, <code>=[revenue]/1000</code> to rescale a value, <code>=pctChange([revenue])</code> for the percent change vs. the previous row (in percentage points, e.g. <code>12.5</code> for +12.5%; the first row has no prior row to compare against, so it's blank there), or <code>=movingAvg([revenue], 5)</code> for a trailing 5-row average (defaults to 3; partial windows at the very start average whatever's available, the same convention as the line chart's own Show moving average overlay). Give it a <strong>Name</strong> and a <strong>Formula</strong> referencing other output columns in square brackets; the four arithmetic operators and parentheses are also supported (<code>+ - * / ( )</code>). A bad reference (an unknown column, a divide-by-zero, malformed syntax) shows a small inline error naming the problem rather than silently failing. Once valid, the calculated column is a real, bindable column everywhere a panel/KPI picks a column from this data source, and its value is computed live in the offline sample preview. For DuckDB/SQLite, a calculated column is also appended to the live query result once the dashboard is exported/deployed — its value is computed the same way there as in the offline preview. <strong>Current limitation:</strong> the remaining four direct-query connectors (Snowflake/Databricks/BigQuery/Generic SQL/HTTP) don't yet have any live-query runtime once exported (see above), so a calc column defined against one of them is only ever evaluated in the offline sample preview, the same gap as those connectors' own "Run live" button in the builder.</p>
 
   <h3>Data source freshness</h3>
-  <p>Any data access with a <strong>Run live</strong> button (DuckDB, SQLite, Snowflake, Databricks, BigQuery, Generic SQL/HTTP, or a Pentaho connection) shows a small <strong>"Last verified live …"</strong> / <strong>"Never verified live"</strong> badge next to it in the Data preview — stamped locally each time a live query actually succeeds, so a token that quietly expired or an endpoint that went dark doesn't get silently trusted just because it worked once. A successful <strong>Test connection &amp; detect columns</strong> counts too, for the six direct connectors above — you don't have to run a full live query just to refresh the badge. The same badge appears on that data source's card in the Repository <em>and</em> the library pane's My Data Sources section — but only for the connector kinds above, whose live-ness doesn't depend on the builder's active Pentaho connection setting; a plain SQL/MDX-style catalog data source stays badge-free instead of showing "Never verified live" everywhere.</p>
+  <p>Any data access with a <strong>Run live</strong> button (DuckDB, SQLite, Snowflake, Databricks, BigQuery, Generic SQL/HTTP, or a dataset bound to a workspace connection) shows a small <strong>"Last verified live …"</strong> / <strong>"Never verified live"</strong> badge next to it in the Data preview — stamped locally each time a live query actually succeeds, so a token that quietly expired or an endpoint that went dark doesn't get silently trusted just because it worked once. A successful <strong>Test connection &amp; detect columns</strong> counts too, for the six direct connectors above — you don't have to run a full live query just to refresh the badge. The same badge appears on that data source's card in the Repository <em>and</em> the library pane's My Data Sources section — but only for the connector kinds above, which are always live-capable on their own; a plain sample-engine SQL data source stays badge-free instead of showing "Never verified live" everywhere.</p>
 
   <h3>Joins and compound DAs</h3>
-  <p>Click <strong>⧈ Join</strong> in the library to create a <strong>Compound data access</strong> — either a join (left/right DA + key columns) or a union (stack rows from N DAs). These map directly to CDA <code>&lt;CompoundDataAccess&gt;</code> XML.</p>
+  <p>Click <strong>⧈ Join</strong> in the library to create a <strong>Compound data access</strong> — either a join (left/right DA + key columns) or a union (stack rows from N DAs). The result is computed in the builder over the member DAs' rows.</p>
 </section>
 
 <!-- ── Exporting ──────────────────────────────────────────────── -->
@@ -520,19 +515,13 @@
         <td><strong>Dashboard Framework</strong></td>
         <td><span class="badge badge-cdf">CDF</span></td>
         <td>A fully self-contained <code>.html</code> file with all toolkit JS/CSS inlined. No server required — open in any browser.</td>
-        <td>Sharing demos, embedding in portals, or deploying as a standalone CDF dashboard on Pentaho.</td>
-      </tr>
-      <tr>
-        <td><strong>Data Access</strong></td>
-        <td><span class="badge badge-cda">CDA</span></td>
-        <td><code>.cda</code> XML file defining all data accesses, connections, and output options.</td>
-        <td>Updating the data layer independently, or importing into an existing CDE project.</td>
+        <td>Sharing demos, embedding in portals, or hosting as a standalone dashboard on any static web host.</td>
       </tr>
       <tr>
         <td><strong>Bundle (all artifacts)</strong></td>
-        <td><span class="badge badge-cdf">CDF</span> <span class="badge badge-cda">CDA</span></td>
-        <td>All artifacts together — <code>.html</code>, <code>.cda</code>, and the editable <code>.studio.json</code> spec.</td>
-        <td>Full delivery to a Pentaho SE or server admin.</td>
+        <td><span class="badge badge-cdf">CDF</span></td>
+        <td>Both artifacts together — the <code>.html</code> and the editable <code>.studio.json</code> spec.</td>
+        <td>Full delivery: the rendered dashboard plus its editable source of truth.</td>
       </tr>
     </tbody>
   </table>
@@ -540,12 +529,9 @@
   <h3>Saving and loading your work</h3>
   <ul>
     <li><strong>Save spec</strong> (<kbd>Ctrl S</kbd> / <kbd>⌘ S</kbd>) — downloads a <code>.studio.json</code> spec file. This is the editable source of truth; re-open it with <strong>Open file…</strong>.</li>
-    <li><strong>Open file…</strong> — accepts <code>.studio.json</code>, a Pentaho CDE <code>.cdfde</code> (existing CDE dashboards import and become fully editable), <code>.cda</code>, or a previously exported <code>.html</code> (Studio embeds the spec in exported files).</li>
+    <li><strong>Open file…</strong> — accepts <code>.studio.json</code> or a previously exported <code>.html</code> (Studio embeds the spec in exported files).</li>
     <li><strong>Auto-save</strong> — the Studio quietly saves your work to browser localStorage after each edit. If you accidentally close the tab, a restore banner appears on next open.</li>
   </ul>
-
-  <h3>Push to server (Advanced)</h3>
-  <p>With an active Pentaho server connection (⚙ Servers), use <strong>Export ▾ → Push to server</strong> to publish all artifacts directly. You can also use the CLI tool <code>tools/push.js</code> for automated or scheduled deploys.</p>
 
   <h3>Embedding a single panel</h3>
   <p>Select any panel and click <strong>Export this panel…</strong> in its inspector to download a tiny, self-contained <code>.html</code> widget with just that one chart — the same toolkit, minus the rest of the dashboard's KPIs, filters, and other panels. Drop it anywhere you'd embed a standalone chart.</p>
@@ -589,7 +575,7 @@
   <ul>
     <li>13 chart types shown in the gallery (the most universally understood).</li>
     <li>Advanced inspector sections hidden (Drill-through, Cross-filter, Conditional formatting, Callout arrow, Color scale, Period highlight, Event markers, etc.).</li>
-    <li>Query Library is read-only browse + drag — no CDA authoring controls.</li>
+    <li>Query Library is read-only browse + drag — no data-source authoring controls.</li>
     <li>Guided <strong>Getting started</strong> checklist and <strong>What's next?</strong> tips appear in the dashboard inspector to help newcomers.</li>
     <li>KPI and panel data sections show an <strong>Auto-pick</strong> button to assign columns automatically.</li>
   </ul>
@@ -597,7 +583,7 @@
   <h3>Advanced mode (default)</h3>
   <ul>
     <li>All 51 chart types + specialist annotation and interaction tools.</li>
-    <li>Full CDA authoring: author SQL / MDX / Kettle / Metadata / Scripting data accesses; create compound joins and unions; manage connections; configure output options.</li>
+    <li>Full data-source authoring: author SQL (sample engine) and direct-connector data accesses; create compound joins and unions; manage workspace connections and datasets; configure output options.</li>
     <li>Drill-through, Detail drawer, Cross-filter, Conditional formatting, Color scales, Target lines, Reference bands, and more.</li>
   </ul>
 
@@ -608,18 +594,12 @@
     </div>
   </div>
 
-  <h3>Data source defaults</h3>
-  <p>The Settings page has a <strong>Data source defaults</strong> card with a <strong>Default JNDI connection</strong> field. It pre-fills the Connection field whenever you create a brand-new data source (the ＋ New source builder), so teams with their own standard connection pool name don't have to retype it every time — instead of the built-in "PDC-BIDB-EXT" placeholder. It's carried along by Export/Import settings like every other preference here.</p>
-
   <h3>Dashboard defaults</h3>
   <p>The Settings page has a <strong>Dashboard defaults</strong> card with a <strong>Default subtitle</strong> field, a <strong>Default accent color</strong> picker (the same swatches as the per-dashboard Accent color field), a <strong>Default header logo</strong> upload, a <strong>Default header background color</strong> picker (same flat-fill banner field as the per-dashboard Header background color setting; blank keeps the standard navy gradient), matching <strong>Default title size</strong> / <strong>Default subtitle style</strong> pickers, and a <strong>Default dashboard theme</strong> picker (same whole-look Classic Blue / Polecat / Fleet Modern / High Contrast / Editorial / Neon choice as the per-dashboard Dashboard theme field; Polecat is the out-of-box default). All seven are applied automatically to every brand-new <strong>Blank dashboard</strong> (Home's quick-create card or New ▾ → Blank dashboard) — handy for teams with a house tagline, brand color, logo, banner fill, text formatting, or whole-look theme. Existing dashboards, examples, and imports are never touched. Carried along by Export/Import settings and included in Clear local data.</p>
   <p>Below that, <strong>Style presets</strong> lets you save the current set of defaults above as a named preset — type a name and click "+ Save as preset". Save more than one (e.g. one per client) and click <strong>Apply</strong> on any saved preset to switch which one is the active default; the trash button removes a preset. A preset with a saved logo shows a small thumbnail instead of a plain color swatch. Presets travel with Export/Import settings and are included in Clear local data too.</p>
 
-  <h3>Deploy</h3>
-  <p>The Settings page has a <strong>Deploy</strong> card with the <strong>Deploy path</strong> (the server folder that stamps the CDA links in every export, and where <strong>Export ▸ Push</strong> publishes artifacts) and a <strong>Live data in preview</strong> toggle (queries the active server instead of offline sample data in the live preview; needs a reachable connection set in ⚙ Servers, otherwise the toggle is disabled). Both fields are the same underlying settings as the "Live data / deploy settings" modal behind the topbar <strong>Live/Sample</strong> button — either entry point stays in sync with the other. Carried along by Export/Import settings and included in Clear local data.</p>
-
   <h3>Backing up your settings</h3>
-  <p>The Settings page has a <strong>Data</strong> card with <strong>Export settings</strong> / <strong>Import settings</strong>. This saves/restores your theme, mode, server connections, and pane-layout preferences as a <code>.json</code> file — handy before clearing local data, or to carry your setup to another browser or device. It only covers app preferences, not dashboard content (use <strong>Save</strong> / <strong>Open</strong> for a <code>.studio.json</code>).</p>
+  <p>The Settings page has a <strong>Data</strong> card with <strong>Export settings</strong> / <strong>Import settings</strong>. This saves/restores your theme, mode, workspace connections, and pane-layout preferences as a <code>.json</code> file — handy before clearing local data, or to carry your setup to another browser or device. It only covers app preferences, not dashboard content (use <strong>Save</strong> / <strong>Open</strong> for a <code>.studio.json</code>).</p>
 
   <h3>Branding</h3>
   <p>The Settings page has a <strong>Branding</strong> card that controls the app mark shown at the top of the left rail: <strong>Default</strong> (the Analytics Dashboard Studio mark), <strong>Custom logo</strong> (upload a PNG/JPG/SVG up to 200KB — stored locally on this device as part of your Settings, so <strong>Export settings</strong> carries it to another browser too), or <strong>None</strong> (hide the mark, keep just the "Dashboard Studio" label). This only affects the app's own chrome — it's independent of any exported dashboard's branding.</p>

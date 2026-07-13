@@ -6,6 +6,55 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 348,
+    title: 'Pentaho is fully removed',
+    kind: 'polish',
+    ts: '2026-07-13T22:54:09.000Z',
+    items: [
+      'The last Pentaho pieces are gone: the server connections screen, the Live and Sample toggle, the Data Access (.cda) export, Push to server publishing, and the MDX, Kettle, MQL and Scripting source types. Exports are now purely self-contained .html dashboards (plus the editable .studio.json).',
+      'The bundled demo catalog stays -- its queries always ran on the built-in offline sample engine (a deterministic fake database generated from each query, so every dashboard demos without any server), and that engine is unchanged. Plain SQL sources you author keep working the same way.',
+      'Live data now flows exclusively through the new connections and datasets model below.',
+    ],
+  },
+  {
+    v: 347,
+    title: 'Workspace backend: sync your whole catalog to Turso, Supabase or Firebase',
+    ts: '2026-07-13T22:54:09.000Z',
+    items: [
+      'A new Settings card connects the app\'s own catalog (connections, datasets, settings) to a real database, manager-style: local-first with an automatic write-through mirror, a Refresh action to pull edits made from another browser, and a 3-step wizard that probes the target (empty, ours, or foreign) and provisions, adopts, or refuses accordingly.',
+      'Optional zero-knowledge secrets encryption: connection credentials become AES-GCM ciphertext before they leave the browser (PBKDF2-derived key, passphrase never transmitted); other browsers unlock with the passphrase.',
+      'The rail footer shows a live backend indicator (dot plus label) that jumps to the Settings card.',
+    ],
+  },
+  {
+    v: 346,
+    title: 'Dashboards section + the new workspace rail',
+    ts: '2026-07-13T22:54:09.000Z',
+    items: [
+      'Repository is retired. The rail is now Home, Dashboards, Datasets, Connections (Workspace group) and Studio (Build group), manager-style with group labels and per-section accents.',
+      'The Dashboards section is the saved-dashboard catalog: workbook chips, pins, compare, export and import carry over, plus a persisted tiles-or-list toggle whose list mode matches the Connections and Datasets row anatomy. Searching still finds dashboards by the columns their queries use.',
+    ],
+  },
+  {
+    v: 345,
+    title: 'Datasets: named, parameterizable queries on top of connections',
+    ts: '2026-07-13T22:54:09.000Z',
+    items: [
+      'New Datasets section: define a query once against a connection (SQL for warehouses and files, a table for Supabase, a collection for Firestore), give it {{parameters}} with defaults, tags and an owner, preview it live through the adapter (which also learns the real column list), and filter the catalog with multi-select pills by adapter AND by tag.',
+      'The Studio library pins a Workspace datasets group: drag one onto the canvas (or use the chart chips) and it imports as a self-contained copy that stays LINKED -- Run live re-resolves the workspace dataset through its connection, and dashboard template variables flow into the parameters.',
+    ],
+  },
+  {
+    v: 344,
+    title: 'Connections: adapter-backed data connections, the new data model',
+    ts: '2026-07-13T22:54:09.000Z',
+    items: [
+      'New Connections section built on a fleet-standard adapter layer: pick one of 9 adapters (Turso, Supabase, Firebase, Snowflake, Databricks, BigQuery, DuckDB remote files, SQLite over HTTP, generic SQL endpoints), fill its declared credential fields, test inline, and save. Credentials stay in this browser.',
+      'The list follows the jobtracker anatomy: status dot from the last test, brand-colored adapter icons, multi-select adapter pills, and search that never matches password values. Workspace-capable adapters (which can also host the app catalog) carry a badge.',
+      'Under the hood every adapter implements one contract with two capability planes -- meta (host the workspace) and data (run dataset queries) -- so adding a backend is one file. More adapters (Postgres, Redshift, Azure, files) join over time.',
+    ],
+  },
+  {
     v: 343,
     title: 'Polecat is now the house look — default app theme, dashboard theme, and thumbnails',
     ts: '2026-07-13T20:43:20.000Z',

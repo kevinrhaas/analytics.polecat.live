@@ -793,7 +793,7 @@ function serve() {
       const modalGone = !document.querySelector(".modal .dsb");
       return { types, chips, prevRows, prevCols, saved: !!da, cols: da ? da.columns.join(",") : "", inLib, modalGone };
     });
-    ok("builder opens with all source-type cards", built.types === 11, JSON.stringify({ types: built.types, err: built.err }));
+    ok("builder opens with all source-type cards", built.types === 7, JSON.stringify({ types: built.types, err: built.err }));
     ok("Detect reads columns from the SQL + previews rows", built.chips.join(",") === "region,total" && built.prevRows === 5 && built.prevCols === 2, JSON.stringify(built));
     ok("Create saves the data source into the library", built.saved && built.cols === "region,total" && built.inLib && built.modalGone, JSON.stringify(built));
 
@@ -831,7 +831,7 @@ function serve() {
 
     // a11y: Track L found a second instance of the same "outline re-declared inside :focus"
     // bug shape v286 fixed on .repo-search — .dsb-sqb-inp (every FROM/JOIN/SELECT/AGG/WHERE
-    // field in the visual SQL/Kettle query builder, ~20 call sites) set outline:0 inside its
+    // field in the visual SQL query builder, ~20 call sites) set outline:0 inside its
     // own :focus rule (specificity (0,2,0), beats the shared global input:focus-visible ring
     // at (0,1,1) regardless of source order) instead of on its unconditional base state like
     // every sibling field in this file — so tabbing to any of these fields showed zero
@@ -976,117 +976,6 @@ function serve() {
     ok("G1c: GROUP BY clause appears in generated SQL", sqbGroupAgg.sql.includes("GROUP BY"), JSON.stringify({ sql: sqbGroupAgg.sql }));
     ok("G1c: GROUP BY column matches the added chip", sqbGroupAgg.sql.includes("GROUP BY region"), JSON.stringify({ sql: sqbGroupAgg.sql }));
 
-    // ---- G2: KTR Builder ----
-    console.log("\n• G2: KTR Builder");
-    const ktrBasic = await page.evaluate(async () => {
-      document.getElementById("btnNewDS").click();
-      await new Promise((r) => setTimeout(r, 80));
-      const m = document.querySelector(".modal .dsb"); if (!m) return { err: "modal missing" };
-      // switch to kettle kind by clicking the "Kettle / PDI" type card
-      const kettleCard = [].slice.call(m.querySelectorAll(".dsb-type")).filter(function(c) { return c.textContent.includes("Kettle"); })[0];
-      if (!kettleCard) return { err: "no kettle card" };
-      kettleCard.click(); await new Promise((r) => setTimeout(r, 60));
-      // KTR Builder toggle should exist for kettle kind
-      const ktrTog = m.querySelector(".dsb-ktrb .dsb-sqb-tog");
-      if (!ktrTog) return { hasTog: false };
-      ktrTog.click(); await new Promise((r) => setTimeout(r, 40));
-      const ktrBody = m.querySelector(".dsb-ktrb .dsb-sqb-body");
-      const bodyVisible = ktrBody && !ktrBody.hidden;
-      // fill FROM table
-      const tableInp = ktrBody && ktrBody.querySelector(".dsb-sqb-inp");
-      if (tableInp) { tableInp.value = "public.dim_product"; tableInp.dispatchEvent(new Event("input", { bubbles: true })); }
-      // click Generate .ktr
-      const genBtn = ktrBody && ktrBody.querySelector(".ktrb-gen-btn");
-      if (genBtn) genBtn.click(); await new Promise((r) => setTimeout(r, 40));
-      const outTa = ktrBody && ktrBody.querySelector(".dsb-ktrb-out");
-      const xml = outTa ? outTa.value : "";
-      const cancel = m.querySelector(".dsb-foot .btn:not(.btn-primary)"); if (cancel) cancel.click();
-      return { hasTog: !!ktrTog, bodyVisible, hasGenBtn: !!genBtn, xml };
-    });
-    ok("G2: KTR Builder toggle visible for Kettle DA", ktrBasic.hasTog, JSON.stringify(ktrBasic));
-    ok("G2: KTR Builder body opens on toggle click", ktrBasic.bodyVisible, JSON.stringify(ktrBasic));
-    ok("G2: Generate .ktr produces valid XML with TableInput step", (ktrBasic.xml || "").includes("<type>TableInput</type>") && (ktrBasic.xml || "").includes("public.dim_product"), JSON.stringify({ xml: (ktrBasic.xml || "").slice(0, 200) }));
-
-    const ktrCols = await page.evaluate(async () => {
-      document.getElementById("btnNewDS").click();
-      await new Promise((r) => setTimeout(r, 80));
-      const m = document.querySelector(".modal .dsb"); if (!m) return { err: "modal missing" };
-      const kettleCard = [].slice.call(m.querySelectorAll(".dsb-type")).filter(function(c) { return c.textContent.includes("Kettle"); })[0];
-      if (!kettleCard) return { err: "no kettle card" };
-      kettleCard.click(); await new Promise((r) => setTimeout(r, 60));
-      const ktrTog = m.querySelector(".dsb-ktrb .dsb-sqb-tog"); if (!ktrTog) return { err: "no toggle" };
-      ktrTog.click(); await new Promise((r) => setTimeout(r, 40));
-      const ktrBody = m.querySelector(".dsb-ktrb .dsb-sqb-body");
-      // fill FROM
-      const tableInp = ktrBody.querySelector(".dsb-sqb-inp");
-      if (tableInp) { tableInp.value = "sales.orders"; tableInp.dispatchEvent(new Event("input", { bubbles: true })); }
-      // add two columns via Enter on the chip input
-      const addIn = ktrBody.querySelector(".dsb-sqb-colbox input");
-      if (addIn) {
-        addIn.value = "order_id"; addIn.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-        await new Promise((r) => setTimeout(r, 20));
-        addIn.value = "amount"; addIn.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-      }
-      await new Promise((r) => setTimeout(r, 20));
-      // generate
-      const genBtn = ktrBody.querySelector(".ktrb-gen-btn"); if (genBtn) genBtn.click();
-      await new Promise((r) => setTimeout(r, 40));
-      const outTa = ktrBody.querySelector(".dsb-ktrb-out");
-      const xml = outTa ? outTa.value : "";
-      const cancel = m.querySelector(".dsb-foot .btn:not(.btn-primary)"); if (cancel) cancel.click();
-      return { xml };
-    });
-    ok("G2: .ktr with columns includes SelectValues step + hop order", (ktrCols.xml || "").includes("<type>SelectValues</type>") && (ktrCols.xml || "").includes("<from>Select values</from>"), JSON.stringify({ xml: (ktrCols.xml || "").slice(0, 300) }));
-    ok("G2: column chips appear as <field> entries in SelectValues", (ktrCols.xml || "").includes("<name>order_id</name>") && (ktrCols.xml || "").includes("<name>amount</name>"), JSON.stringify({ xml: (ktrCols.xml || "").slice(0, 400) }));
-
-    // ---- G3: Import .ktr — step picker ----
-    console.log("\n• G3: parseKtr + Import .ktr step picker");
-
-    const g3Model = await page.evaluate(() => {
-      var sampleKtr = [
-        '<?xml version="1.0" encoding="UTF-8"?>',
-        "<transformation>",
-        "  <info><name>sales_transform</name><description/></info>",
-        "  <step><name>Table input</name><type>TableInput</type><sql>SELECT * FROM sales</sql></step>",
-        "  <step><name>Select values</name><type>SelectValues</type><fields/></step>",
-        "  <step><name>Output</name><type>Dummy</type></step>",
-        "</transformation>"
-      ].join("\n");
-      var result = Studio.parseKtr(sampleKtr);
-      return {
-        isFn:       typeof Studio.parseKtr === "function",
-        name:       result.name,
-        stepCount:  result.steps.length,
-        firstStep:  result.steps[0] && result.steps[0].name,
-        firstType:  result.steps[0] && result.steps[0].type,
-        lastStep:   result.steps[result.steps.length - 1] && result.steps[result.steps.length - 1].name
-      };
-    });
-    ok("G3: Studio.parseKtr is a function", g3Model.isFn, String(g3Model.isFn));
-    ok("G3: parseKtr extracts the transform name from <info>", g3Model.name === "sales_transform", JSON.stringify(g3Model));
-    ok("G3: parseKtr returns all 3 steps from the sample .ktr", g3Model.stepCount === 3, JSON.stringify(g3Model));
-    ok("G3: parseKtr preserves step types (TableInput)", g3Model.firstType === "TableInput", JSON.stringify(g3Model));
-
-    // UI check: Import .ktr button visible in the Kettle DA editor
-    const g3BtnCheck = await page.evaluate(() => {
-      // re-open a fresh DA builder if it was closed
-      if (!document.querySelector(".modal")) document.getElementById("btnNewDS").click();
-      return new Promise(function (resolve) {
-        setTimeout(function () {
-          var m = document.querySelector(".modal .dsb");
-          if (!m) { resolve({ found: false }); return; }
-          var kettleCard = [].slice.call(m.querySelectorAll(".dsb-type")).find(function (c) { return c.textContent.includes("Kettle"); });
-          if (!kettleCard) { resolve({ found: false, reason: "no kettle card" }); return; }
-          kettleCard.click();
-          setTimeout(function () {
-            var btns = [].slice.call(m.querySelectorAll("button"));
-            var hasImpBtn = btns.some(function (b) { return b.textContent.includes("Import .ktr"); });
-            resolve({ found: true, hasImpBtn: hasImpBtn });
-          }, 80);
-        }, 150);
-      });
-    });
-    ok("G3: 'Import .ktr…' button is visible in the Kettle DA editor", g3BtnCheck.hasImpBtn, JSON.stringify(g3BtnCheck));
 
     // close modal
     await page.keyboard.press("Escape");
@@ -1118,19 +1007,16 @@ function serve() {
       card.click();
       await new Promise((r) => setTimeout(r, 60));
       const fieldLabels = [].slice.call(m.querySelectorAll(".dsb-qsec .field label")).map((l) => l.textContent);
-      const jndiField = [].slice.call(m.querySelectorAll(".dsb > .field")).find((f) => /Connection \(JNDI\)/.test(f.textContent));
-      const jndiHidden = jndiField ? getComputedStyle(jndiField).display === "none" : false;
       const detectFromQueryVisible = [].slice.call(m.querySelectorAll(".dsb-mini")).some((b) => /Detect from query/.test(b.textContent) && getComputedStyle(b).display !== "none");
       return {
         hasFileUrl: fieldLabels.some((f) => /File URL/.test(f)),
         hasFormat: fieldLabels.some((f) => /Format/.test(f)),
         hasTestBtn: !!m.querySelector(".dsb-duckdb-test"),
-        jndiHidden, detectFromQueryVisible
+        detectFromQueryVisible
       };
     });
     ok("Z14: DuckDB card shows File URL + Format fields", dkCard.hasFileUrl && dkCard.hasFormat, JSON.stringify(dkCard));
     ok("Z14: DuckDB card shows a Test connection button", dkCard.hasTestBtn, JSON.stringify(dkCard));
-    ok("Z14: DuckDB card hides the JNDI connection field (doesn't apply)", dkCard.jndiHidden, JSON.stringify(dkCard));
     ok("Z14: DuckDB card hides the SQL-alias 'Detect from query' button", !dkCard.detectFromQueryVisible, JSON.stringify(dkCard));
 
     const connectorBadges = await page.evaluate(() => {
@@ -1139,11 +1025,11 @@ function serve() {
         const card = [].slice.call(m.querySelectorAll(".dsb-type")).find((c) => c.textContent.includes(label));
         return card ? !!card.querySelector(".dsb-badge") : null;
       };
-      return { duckdb: badgeFor("DuckDB"), sqlite: badgeFor("SQLite (remote"), sql: badgeFor("SQL"), mdx: badgeFor("MDX") };
+      return { duckdb: badgeFor("DuckDB"), sqlite: badgeFor("SQLite (remote"), sql: badgeFor("SQL") };
     });
     ok("Z14 slice 4: DuckDB source-type card carries a 'Browser-only' badge", connectorBadges.duckdb === true, JSON.stringify(connectorBadges));
     ok("Z14 slice 4: SQLite source-type card carries a 'Browser-only' badge", connectorBadges.sqlite === true, JSON.stringify(connectorBadges));
-    ok("Z14 slice 4: Pentaho-backed source cards (SQL/MDX) do NOT carry the badge", connectorBadges.sql === false && connectorBadges.mdx === false, JSON.stringify(connectorBadges));
+    ok("Z14 slice 4: the built-in sample-engine SQL source card does NOT carry the badge", connectorBadges.sql === false, JSON.stringify(connectorBadges));
 
     // Z4 follow-up: connector-gallery brand treatment — each third-party provider's icon gets
     // its own real brand color instead of the app's uniform --pentaho blue.
@@ -1159,7 +1045,7 @@ function serve() {
     ok("Z4: third-party connector icons (Snowflake/DuckDB) carry a distinct inline brand color",
       !!connectorAccents.snowflake && !!connectorAccents.duckdb && connectorAccents.snowflake !== connectorAccents.duckdb,
       JSON.stringify(connectorAccents));
-    ok("Z4: native Pentaho access types (SQL) keep the app's own accent, not an inline brand color",
+    ok("Z4: the built-in sample-engine SQL card keeps the app's own accent, not an inline brand color",
       !connectorAccents.sql, JSON.stringify(connectorAccents));
 
     // ---- Z14 slice 4 (finish): DuckDB/SQLite get distinct icons instead of the generic "db" cylinder ----
@@ -1264,9 +1150,9 @@ function serve() {
     const dkLibFreshness = await page.evaluate(() => {
       var sp = window.__STUDIO_STATE.spec;
       var duckDa = sp.cda.dataAccesses.find((d) => d.kind === "duckdb");
-      // deterministic negative case: a plain Pentaho-kind My Data Source, added fresh here
+      // deterministic negative case: a plain sample-kind My Data Source, added fresh here
       // rather than relying on one happening to already exist in the shared fixture spec.
-      sp.cda.dataAccesses.push({ id: "plainLibDa", name: "plainLibDa", kind: "sql.jndi", connectionId: "sqlConn", sql: "SELECT 1 AS x FROM t", columns: ["x"], params: [], calcColumns: [], cache: true, cacheDuration: 300 });
+      sp.cda.dataAccesses.push({ id: "plainLibDa", name: "plainLibDa", kind: "sql", connectionId: "sqlConn", sql: "SELECT 1 AS x FROM t", columns: ["x"], params: [], calcColumns: [], cache: true, cacheDuration: 300 });
       var m = {}; if (duckDa) m[duckDa.id] = new Date().toISOString();
       try { localStorage.setItem("studio-da-freshness", JSON.stringify(m)); } catch (e) {}
       window.__studioBuildLibrary();
@@ -1282,7 +1168,7 @@ function serve() {
     });
     ok("N-DATA: a live-capable My Data Source (DuckDB) shows the freshness badge in the library pane",
       !dkLibFreshness.hasDuckDa || (dkLibFreshness.duckHasBadge && /Last verified live/.test(dkLibFreshness.duckBadgeText)), JSON.stringify(dkLibFreshness));
-    ok("N-DATA: a plain Pentaho-kind My Data Source stays badge-free in the library pane",
+    ok("N-DATA: a plain sample-kind My Data Source stays badge-free in the library pane",
       dkLibFreshness.plainHasBadge === false, JSON.stringify(dkLibFreshness));
 
     const dkTestFail = await page.evaluate(async () => {
@@ -1316,13 +1202,6 @@ function serve() {
     ok("N-DATA: a successful 'Test connection & detect columns' also stamps the freshness signal",
       dkTestFreshness.storedHasS3Sales && /Last verified live/.test(dkTestFreshness.badgeText), JSON.stringify(dkTestFreshness));
 
-    const dkExport = await page.evaluate(() => {
-      var sp = JSON.parse(JSON.stringify(window.__STUDIO_STATE.spec));
-      sp.cda.dataAccesses.push({ id: "s3Sales", name: "s3Sales", kind: "duckdb", fileUrl: "https://bucket.s3.amazonaws.com/sales.parquet", fileFormat: "parquet", columns: ["region", "revenue"], params: [], calcColumns: [], cache: true, cacheDuration: 300 });
-      var cda = Studio.exportCDA(sp);
-      return { hasDA: cda.indexOf('id="s3Sales"') >= 0, hasUrl: cda.indexOf("sales.parquet") >= 0 };
-    });
-    ok("Z14: exportCDA excludes duckdb DAs from the .cda XML (not a real Pentaho source)", !dkExport.hasDA && !dkExport.hasUrl, JSON.stringify(dkExport));
 
     // ---- Z14 slice 3: SQLite-WASM + HTTP-VFS connector (query a remote .sqlite over HTTP) ----
     // Studio.SQLiteHttp.{testConnection,query} are stubbed here for the same reason as DuckDB
@@ -1343,19 +1222,16 @@ function serve() {
       card.click();
       await new Promise((r) => setTimeout(r, 60));
       const fieldLabels = [].slice.call(m.querySelectorAll(".dsb-qsec .field label")).map((l) => l.textContent);
-      const jndiField = [].slice.call(m.querySelectorAll(".dsb > .field")).find((f) => /Connection \(JNDI\)/.test(f.textContent));
-      const jndiHidden = jndiField ? getComputedStyle(jndiField).display === "none" : false;
       const detectFromQueryVisible = [].slice.call(m.querySelectorAll(".dsb-mini")).some((b) => /Detect from query/.test(b.textContent) && getComputedStyle(b).display !== "none");
       return {
         hasFileUrl: fieldLabels.some((f) => /File URL/.test(f)),
         hasTableName: fieldLabels.some((f) => /Table name/.test(f)),
         hasTestBtn: !!m.querySelector(".dsb-sqlite-test"),
-        jndiHidden, detectFromQueryVisible
+        detectFromQueryVisible
       };
     });
     ok("Z14: SQLite card shows File URL + Table name fields", slCard.hasFileUrl && slCard.hasTableName, JSON.stringify(slCard));
     ok("Z14: SQLite card shows a Test connection button", slCard.hasTestBtn, JSON.stringify(slCard));
-    ok("Z14: SQLite card hides the JNDI connection field (doesn't apply)", slCard.jndiHidden, JSON.stringify(slCard));
     ok("Z14: SQLite card hides the SQL-alias 'Detect from query' button", !slCard.detectFromQueryVisible, JSON.stringify(slCard));
 
     const slTestOk = await page.evaluate(async () => {
@@ -1423,13 +1299,6 @@ function serve() {
     });
     ok("Z14: a failed Test connection surfaces a clear inline error, not a stuck spinner", /^✗ CORS blocked/.test(slTestFail.status), JSON.stringify(slTestFail));
 
-    const slExport = await page.evaluate(() => {
-      var sp = JSON.parse(JSON.stringify(window.__STUDIO_STATE.spec));
-      sp.cda.dataAccesses.push({ id: "s3Orders", name: "s3Orders", kind: "httpvfs", fileUrl: "https://bucket.s3.amazonaws.com/orders.sqlite", tableName: "orders", columns: ["region", "revenue"], params: [], calcColumns: [], cache: true, cacheDuration: 300 });
-      var cda = Studio.exportCDA(sp);
-      return { hasDA: cda.indexOf('id="s3Orders"') >= 0, hasUrl: cda.indexOf("orders.sqlite") >= 0 };
-    });
-    ok("Z14: exportCDA excludes sqlite DAs from the .cda XML (not a real Pentaho source)", !slExport.hasDA && !slExport.hasUrl, JSON.stringify(slExport));
 
     // ---- Z4 slice 1: Snowflake SQL API connector (credential-based, unlike the Z14 file connectors) ----
     // Studio.Snowflake.{testConnection,query} are stubbed here for the same reason as DuckDB/SQLite
@@ -1451,8 +1320,6 @@ function serve() {
       card.click();
       await new Promise((r) => setTimeout(r, 60));
       const fieldLabels = [].slice.call(m.querySelectorAll(".dsb-qsec .field label")).map((l) => l.textContent);
-      const jndiField = [].slice.call(m.querySelectorAll(".dsb > .field")).find((f) => /Connection \(JNDI\)/.test(f.textContent));
-      const jndiHidden = jndiField ? getComputedStyle(jndiField).display === "none" : false;
       const detectFromQueryVisible = [].slice.call(m.querySelectorAll(".dsb-mini")).some((b) => /Detect from query/.test(b.textContent) && getComputedStyle(b).display !== "none");
       return {
         hasAccount: fieldLabels.some((f) => /Account identifier/.test(f)),
@@ -1460,12 +1327,11 @@ function serve() {
         hasTokenType: fieldLabels.some((f) => /Token type/.test(f)),
         hasWarehouse: fieldLabels.some((f) => /Warehouse/.test(f)),
         hasTestBtn: !!m.querySelector(".dsb-snowflake-test"),
-        jndiHidden, detectFromQueryVisible
+        detectFromQueryVisible
       };
     });
     ok("Z4: Snowflake card shows Account/Token/Token type/Warehouse fields", sfCard.hasAccount && sfCard.hasToken && sfCard.hasTokenType && sfCard.hasWarehouse, JSON.stringify(sfCard));
     ok("Z4: Snowflake card shows a Test connection button", sfCard.hasTestBtn, JSON.stringify(sfCard));
-    ok("Z4: Snowflake card hides the JNDI connection field (doesn't apply)", sfCard.jndiHidden, JSON.stringify(sfCard));
     ok("Z4: Snowflake card hides the SQL-alias 'Detect from query' button", !sfCard.detectFromQueryVisible, JSON.stringify(sfCard));
 
     const sfBadge = await page.evaluate(() => {
@@ -1550,13 +1416,6 @@ function serve() {
     });
     ok("Z4: a failed Test connection surfaces a clear inline error, not a stuck spinner", /^✗ CORS blocked/.test(sfTestFail.status), JSON.stringify(sfTestFail));
 
-    const sfExport = await page.evaluate(() => {
-      var sp = JSON.parse(JSON.stringify(window.__STUDIO_STATE.spec));
-      sp.cda.dataAccesses.push({ id: "sfSales", name: "sfSales", kind: "snowflake", sfAccount: "xy12345.us-east-1", sfToken: "sometoken", columns: ["region", "revenue"], params: [], calcColumns: [], cache: true, cacheDuration: 300 });
-      var cda = Studio.exportCDA(sp);
-      return { hasDA: cda.indexOf('id="sfSales"') >= 0, hasAccount: cda.indexOf("xy12345.us-east-1") >= 0 };
-    });
-    ok("Z4: exportCDA excludes snowflake DAs from the .cda XML (not a real Pentaho source)", !sfExport.hasDA && !sfExport.hasAccount, JSON.stringify(sfExport));
 
     // ---- Z4 slice 2: Databricks Statement Execution API connector (same credential-based/CORS-gated
     // shape as the slice 1 Snowflake connector above; stubbed here for the same no-public-internet-
@@ -1576,20 +1435,17 @@ function serve() {
       card.click();
       await new Promise((r) => setTimeout(r, 60));
       const fieldLabels = [].slice.call(m.querySelectorAll(".dsb-qsec .field label")).map((l) => l.textContent);
-      const jndiField = [].slice.call(m.querySelectorAll(".dsb > .field")).find((f) => /Connection \(JNDI\)/.test(f.textContent));
-      const jndiHidden = jndiField ? getComputedStyle(jndiField).display === "none" : false;
       const detectFromQueryVisible = [].slice.call(m.querySelectorAll(".dsb-mini")).some((b) => /Detect from query/.test(b.textContent) && getComputedStyle(b).display !== "none");
       return {
         hasHost: fieldLabels.some((f) => /Workspace host/.test(f)),
         hasToken: fieldLabels.some((f) => /Access token/.test(f)),
         hasWarehouseId: fieldLabels.some((f) => /SQL warehouse id/.test(f)),
         hasTestBtn: !!m.querySelector(".dsb-databricks-test"),
-        jndiHidden, detectFromQueryVisible
+        detectFromQueryVisible
       };
     });
     ok("Z4: Databricks card shows Workspace host/Access token/SQL warehouse id fields", dbxCard.hasHost && dbxCard.hasToken && dbxCard.hasWarehouseId, JSON.stringify(dbxCard));
     ok("Z4: Databricks card shows a Test connection button", dbxCard.hasTestBtn, JSON.stringify(dbxCard));
-    ok("Z4: Databricks card hides the JNDI connection field (doesn't apply)", dbxCard.jndiHidden, JSON.stringify(dbxCard));
     ok("Z4: Databricks card hides the SQL-alias 'Detect from query' button", !dbxCard.detectFromQueryVisible, JSON.stringify(dbxCard));
 
     const dbxBadge = await page.evaluate(() => {
@@ -1675,13 +1531,6 @@ function serve() {
     });
     ok("Z4: a failed Test connection surfaces a clear inline error, not a stuck spinner", /^✗ CORS blocked/.test(dbxTestFail.status), JSON.stringify(dbxTestFail));
 
-    const dbxExport = await page.evaluate(() => {
-      var sp = JSON.parse(JSON.stringify(window.__STUDIO_STATE.spec));
-      sp.cda.dataAccesses.push({ id: "dbxSales", name: "dbxSales", kind: "databricks", dbxHost: "dbc-a1b2c3d4-e5f6.cloud.databricks.com", dbxToken: "dapisometoken", columns: ["region", "revenue"], params: [], calcColumns: [], cache: true, cacheDuration: 300 });
-      var cda = Studio.exportCDA(sp);
-      return { hasDA: cda.indexOf('id="dbxSales"') >= 0, hasHost: cda.indexOf("dbc-a1b2c3d4-e5f6.cloud.databricks.com") >= 0 };
-    });
-    ok("Z4: exportCDA excludes databricks DAs from the .cda XML (not a real Pentaho source)", !dbxExport.hasDA && !dbxExport.hasHost, JSON.stringify(dbxExport));
 
     // ---- Z4 slice 3: BigQuery jobs.query connector (credential-based like Snowflake/Databricks,
     // but Google's API already sends permissive CORS for this endpoint — no allow-list step;
@@ -1701,20 +1550,17 @@ function serve() {
       card.click();
       await new Promise((r) => setTimeout(r, 60));
       const fieldLabels = [].slice.call(m.querySelectorAll(".dsb-qsec .field label")).map((l) => l.textContent);
-      const jndiField = [].slice.call(m.querySelectorAll(".dsb > .field")).find((f) => /Connection \(JNDI\)/.test(f.textContent));
-      const jndiHidden = jndiField ? getComputedStyle(jndiField).display === "none" : false;
       const detectFromQueryVisible = [].slice.call(m.querySelectorAll(".dsb-mini")).some((b) => /Detect from query/.test(b.textContent) && getComputedStyle(b).display !== "none");
       return {
         hasProject: fieldLabels.some((f) => /Project id/.test(f)),
         hasToken: fieldLabels.some((f) => /Access token/.test(f)),
         hasLocation: fieldLabels.some((f) => /Location/.test(f)),
         hasTestBtn: !!m.querySelector(".dsb-bigquery-test"),
-        jndiHidden, detectFromQueryVisible
+        detectFromQueryVisible
       };
     });
     ok("Z4: BigQuery card shows Project id/Access token/Location fields", bqCard.hasProject && bqCard.hasToken && bqCard.hasLocation, JSON.stringify(bqCard));
     ok("Z4: BigQuery card shows a Test connection button", bqCard.hasTestBtn, JSON.stringify(bqCard));
-    ok("Z4: BigQuery card hides the JNDI connection field (doesn't apply)", bqCard.jndiHidden, JSON.stringify(bqCard));
     ok("Z4: BigQuery card hides the SQL-alias 'Detect from query' button", !bqCard.detectFromQueryVisible, JSON.stringify(bqCard));
 
     const bqBadge = await page.evaluate(() => {
@@ -1799,13 +1645,6 @@ function serve() {
     });
     ok("Z4: a failed Test connection surfaces a clear inline error, not a stuck spinner", /^✗ CORS blocked/.test(bqTestFail.status), JSON.stringify(bqTestFail));
 
-    const bqExport = await page.evaluate(() => {
-      var sp = JSON.parse(JSON.stringify(window.__STUDIO_STATE.spec));
-      sp.cda.dataAccesses.push({ id: "bqSales", name: "bqSales", kind: "bigquery", bqProject: "my-analytics-project", bqToken: "ya29.sometoken", columns: ["region", "revenue"], params: [], calcColumns: [], cache: true, cacheDuration: 300 });
-      var cda = Studio.exportCDA(sp);
-      return { hasDA: cda.indexOf('id="bqSales"') >= 0, hasProject: cda.indexOf("my-analytics-project") >= 0 };
-    });
-    ok("Z4: exportCDA excludes bigquery DAs from the .cda XML (not a real Pentaho source)", !bqExport.hasDA && !bqExport.hasProject, JSON.stringify(bqExport));
 
     // ---- Z4 slice 4: Generic SQL/HTTP connector — the escape hatch for any JSON API that runs
     // SQL and returns rows, no per-provider CORS/network-policy story since it's your own endpoint
@@ -1826,8 +1665,6 @@ function serve() {
       card.click();
       await new Promise((r) => setTimeout(r, 60));
       const fieldLabels = [].slice.call(m.querySelectorAll(".dsb-qsec .field label")).map((l) => l.textContent);
-      const jndiField = [].slice.call(m.querySelectorAll(".dsb > .field")).find((f) => /Connection \(JNDI\)/.test(f.textContent));
-      const jndiHidden = jndiField ? getComputedStyle(jndiField).display === "none" : false;
       const detectFromQueryVisible = [].slice.call(m.querySelectorAll(".dsb-mini")).some((b) => /Detect from query/.test(b.textContent) && getComputedStyle(b).display !== "none");
       return {
         hasUrl: fieldLabels.some((f) => /Endpoint URL/.test(f)),
@@ -1835,12 +1672,11 @@ function serve() {
         hasParamName: fieldLabels.some((f) => /Param name/.test(f)),
         hasAuth: fieldLabels.some((f) => /Auth header/.test(f)),
         hasTestBtn: !!m.querySelector(".dsb-http-test"),
-        jndiHidden, detectFromQueryVisible
+        detectFromQueryVisible
       };
     });
     ok("Z4: Generic SQL/HTTP card shows Endpoint URL/Method/Param name/Auth header fields", httpCard.hasUrl && httpCard.hasMethod && httpCard.hasParamName && httpCard.hasAuth, JSON.stringify(httpCard));
     ok("Z4: Generic SQL/HTTP card shows a Test connection button", httpCard.hasTestBtn, JSON.stringify(httpCard));
-    ok("Z4: Generic SQL/HTTP card hides the JNDI connection field (doesn't apply)", httpCard.jndiHidden, JSON.stringify(httpCard));
     ok("Z4: Generic SQL/HTTP card hides the SQL-alias 'Detect from query' button", !httpCard.detectFromQueryVisible, JSON.stringify(httpCard));
 
     const httpBadge = await page.evaluate(() => {
@@ -1925,13 +1761,6 @@ function serve() {
     });
     ok("Z4: a failed Test connection surfaces a clear inline error, not a stuck spinner", /^✗ CORS blocked/.test(httpTestFail.status), JSON.stringify(httpTestFail));
 
-    const httpExport = await page.evaluate(() => {
-      var sp = JSON.parse(JSON.stringify(window.__STUDIO_STATE.spec));
-      sp.cda.dataAccesses.push({ id: "httpSales", name: "httpSales", kind: "http", httpUrl: "https://api.example.com/query", httpAuthHeader: "Bearer sometoken", columns: ["region", "revenue"], params: [], calcColumns: [], cache: true, cacheDuration: 300 });
-      var cda = Studio.exportCDA(sp);
-      return { hasDA: cda.indexOf('id="httpSales"') >= 0, hasUrl: cda.indexOf("api.example.com") >= 0 };
-    });
-    ok("Z4: exportCDA excludes http DAs from the .cda XML (not a real Pentaho source)", !httpExport.hasDA && !httpExport.hasUrl, JSON.stringify(httpExport));
 
     // ---- Z14 slice 4: friendlier connector error messages (shared by DuckDB + SQLite) ----
     const friendlyErrs = await page.evaluate(() => ({
@@ -2163,17 +1992,13 @@ function serve() {
     console.log("\n• exporters");
     const exp = await page.evaluate(() => {
       const S = window.__STUDIO_STATE, sp = S.spec, A = S.assets, dp = S.settings.deployPath;
-      const cda = Studio.exportCDA(sp);
       const cdf = Studio.exportCDF(sp, A, dp);
       return {
-        cdaHasDesc: cda.includes("<CDADescriptor>") && cda.includes("PDC-BIDB-EXT"),
-        cdaHasDA: (sp.cda.dataAccesses[0] && cda.includes('id="' + sp.cda.dataAccesses[0].id + '"')),
         cdfHasSpec: cdf.includes("window.STUDIO_SPEC") && cdf.includes("pdc-header") && cdf.includes("StudioRender"),
         cdfInlinesToolkit: cdf.includes("PDC.bars") && cdf.includes(".pdc-header{"),
         cdfLen: cdf.length
       };
     });
-    ok("CDA export is valid descriptor", exp.cdaHasDesc && exp.cdaHasDA);
     ok("CDF .html embeds spec + inlines toolkit", exp.cdfHasSpec && exp.cdfInlinesToolkit, "cdf=" + exp.cdfLen + "B");
 
     // ---- exported CDF html actually renders (inject a mock, like a deployed server would feed it) ----
@@ -2487,7 +2312,7 @@ function serve() {
       var copy = rows.length && [].slice.call(rows[0].querySelectorAll("button")).some(function (b) { return /copy/i.test(b.textContent); });
       return { rows: rows.length, copy: copy };
     });
-    ok("export modal lists all 3 artifacts with copy buttons", modalInfo.rows === 3 && modalInfo.copy, JSON.stringify(modalInfo));
+    ok("export modal lists both artifacts (.html + .studio.json) with copy buttons", modalInfo.rows === 2 && modalInfo.copy, JSON.stringify(modalInfo));
     await page.evaluate(() => { var x = document.querySelector(".modal-h .x"); if (x) x.click(); });
 
     // ---- per-series color picker (line/stacked) ----
@@ -3204,89 +3029,7 @@ function serve() {
     ok("Each recommendation chip carries a 'why' tooltip", recoUI.hasWhy, JSON.stringify(recoUI));
     ok("Clicking a recommendation chip changes the panel's chart type", recoUI.typeChanged, JSON.stringify(recoUI));
 
-    // ---- Pentaho connections: Kettle XML, CDA parser, client, UI ----
-    console.log("\n• Pentaho server connections");
-    const ph = await page.evaluate(() => {
-      var xml = "<slaveserver><name>Prod BA</name><hostname>pentaho.acme.com</hostname><port>8443</port><webAppName>pentaho</webAppName><username>admin</username><password>secret</password><sslMode>Y</sslMode></slaveserver>";
-      var conns = Studio.kettle.parse(xml);
-      var ser = Studio.kettle.serialize(conns);
-      var reparse = Studio.kettle.parse(ser);
-      var cda = Studio.parseCDA('<?xml version="1.0"?><CDADescriptor><DataSources><Connection id="pdc" type="sql.jndi"><Jndi>PDC-BIDB-EXT</Jndi></Connection></DataSources><DataAccess id="q1" cache="true" cacheDuration="120"><Name>Q1</Name><Parameters><Parameter name="ds" type="String" default="%"/></Parameters><Query><![CDATA[ SELECT a AS src, SUM(b) AS total FROM t WHERE x LIKE ${ds} GROUP BY 1 ]]></Query></DataAccess></CDADescriptor>');
-      var cl = Studio.PentahoClient(conns[0]);
-      return { n: conns.length, scheme: conns[0].scheme, host: conns[0].hostname, port: conns[0].port, reN: reparse.length, reHost: reparse[0].hostname,
-        base: cl.base(), content: cl.contentUrl("/public/x/y.cda"), tree: cl.treeUrl("/public", "*.cda"), pub: cl.publishUrl(), dq: cl.doQueryUrl("/p/q.cda", "kpi", { ds: "%" }),
-        cdaJndi: cda.connection.jndi, cdaDa: cda.dataAccesses[0].id, cdaCols: cda.dataAccesses[0].columns.join(","), cdaParam: (cda.dataAccesses[0].params[0] || {}).name };
-    });
-    ok("Kettle XML parses (https→port, ssl)", ph.n === 1 && ph.scheme === "https" && ph.host === "pentaho.acme.com" && ph.port === "8443", JSON.stringify(ph).slice(0, 120));
-    ok("Kettle XML round-trips", ph.reN === 1 && ph.reHost === "pentaho.acme.com");
-    ok("CDA parser extracts da/cols/params", ph.cdaJndi === "PDC-BIDB-EXT" && ph.cdaDa === "q1" && ph.cdaCols === "src,total" && ph.cdaParam === "ds", ph.cdaCols);
-    ok("client builds Pentaho REST urls", ph.base === "https://pentaho.acme.com:8443/pentaho" && /\/api\/repos\/:public:x:y\.cda\/content$/.test(ph.content) && /\/plugin\/cda\/api\/doQuery\?/.test(ph.dq) && /\/api\/repo\/publish\/publishfile$/.test(ph.pub), ph.base);
 
-    // connections UI: open ⚙ Servers → Import Kettle XML → Use
-    await page.click("#btnConn"); await page.waitForTimeout(120);
-    await page.evaluate(() => { [].slice.call(document.querySelectorAll(".modal .btn")).filter(function (b) { return /Import Kettle XML/.test(b.textContent); })[0].click(); });
-    await page.waitForTimeout(80);
-    await page.evaluate(() => {
-      var ta = document.querySelector(".modal textarea"); ta.value = "<slaveserver><name>Local</name><hostname>localhost</hostname><port>8080</port></slaveserver>";
-      [].slice.call(document.querySelectorAll(".modal .btn")).filter(function (b) { return b.textContent.trim() === "Import"; })[0].click();
-    });
-    await page.waitForTimeout(150);
-    const connCount = await page.evaluate(() => window.__studioConns().connections.length);
-    ok("connections UI imports a Kettle connection", connCount >= 1, "count=" + connCount);
-    await page.evaluate(() => { [].slice.call(document.querySelectorAll(".modal .conn-row .btn")).filter(function (b) { return b.textContent.trim() === "Use"; })[0].click(); });
-    await page.waitForTimeout(120);
-    const active = await page.evaluate(() => ({ active: !!window.__studioConns().active, live: document.querySelector("#btnConn").classList.contains("live-on"), btn: document.querySelector("#btnConn").textContent.trim() }));
-    ok("activating a connection persists + updates the topbar", active.active && active.live, JSON.stringify(active));
-    await page.evaluate(() => { var x = document.querySelector(".modal-h .x"); if (x) x.click(); });
-
-    // ---- CDE → spec round-trip (import existing dashboards) ----
-    // Fixture (tests/fixtures/studio-cost.cde-fixture.json) is a captured .cdfde/.wcdf pair for
-    // studio-cost.studio.json — a real dashboard authored elsewhere (e.g. Pentaho's CDE editor)
-    // would hand us exactly this shape. Studio no longer emits CDE itself (Studio.exportCDE was
-    // removed, Z0), but Studio.parseCDE (import) stays supported, so this test now round-trips
-    // against a static fixture instead of a live exportCDE() call.
-    console.log("\n• CDE import (round-trip)");
-    const cdeFixture = JSON.parse(fs.readFileSync(path.join(__dirname, "fixtures/studio-cost.cde-fixture.json"), "utf8"));
-    const rtc = await page.evaluate(async (cde) => {
-      const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json());
-      const back = Studio.parseCDE(cde.cdfde, cde.wcdf, spec.cda);
-      return {
-        title: back.title, srcTitle: spec.title,
-        panels: back.panels.length, srcPanels: spec.panels.length,
-        types: back.panels.map((p) => p.chart.type).join(","), srcTypes: spec.panels.map((p) => p.chart.type).join(","),
-        das: back.panels.map((p) => p.chart.da).join(","), srcDas: spec.panels.map((p) => p.chart.da).join(","),
-        cols: back.panels.map((p) => p.chart.map.labelCol + ">" + (p.chart.map.valueCol || "")).join(",")
-      };
-    }, cdeFixture);
-    ok("CDE import recovers title + panel count", rtc.title === rtc.srcTitle && rtc.panels === rtc.srcPanels, JSON.stringify({ t: rtc.title, p: rtc.panels }));
-    ok("CDE import recovers chart types + queries", rtc.types === rtc.srcTypes && rtc.das === rtc.srcDas, rtc.types + " | " + rtc.das);
-    ok("CDE import re-binds columns from the CDA", /src>cost/.test(rtc.cols), rtc.cols);
-
-    // ---- lone .cdfde import: reconstruct CDA from embedded datasources ----
-    const lone = await page.evaluate(() => {
-      const cdfde = {
-        datasources: { rows: [
-          { type: "Label", properties: [{ name: "Group", value: "DS" }] },
-          { type: "Componentssql_jndi", properties: [
-            { name: "name", value: "sales" }, { name: "jndi", value: "SampleData" },
-            { name: "query", value: "SELECT region AS region, SUM(amt) AS total FROM s GROUP BY region" },
-            { name: "parameters", value: '[["year","year","String","2024",""]]' },
-            { name: "cdacolumns", value: "[]" }
-          ] }
-        ] },
-        layout: { rows: [{ type: "LayoutColumn", properties: [{ name: "name", value: "c0Col" }, { name: "columnSpan", value: "12" }] }] },
-        components: { rows: [{ type: "ComponentscccBarChart", properties: [
-          { name: "name", value: "cmp0" }, { name: "dataSource", value: "sales" }, { name: "htmlObject", value: "${h:c0Col}" }
-        ] }] }
-      };
-      const spec = Studio.parseCDE(cdfde);   // no .wcdf, no .cda — must reconstruct
-      const da = spec.cda.dataAccesses[0] || {};
-      const p = spec.panels[0] || { chart: { map: {} } };
-      return { panels: spec.panels.length, type: p.chart.type, cols: (da.columns || []).join(","),
-               params: (da.params || []).map((x) => x.name).join(","), bind: p.chart.map.labelCol + ">" + p.chart.map.valueCol };
-    });
-    ok("lone .cdfde reconstructs CDA columns from embedded query", lone.cols === "region,total", lone.cols);
-    ok("lone .cdfde recovers params + binds panel", lone.panels === 1 && lone.type === "bars" && lone.params === "year" && lone.bind === "region>total", JSON.stringify(lone));
 
     // ---- CDF (.html) import: recover the embedded spec ----
     const cdfImp = await page.evaluate(async () => {
@@ -3303,22 +3046,10 @@ function serve() {
     const outDir = fs.mkdtempSync(path.join(os.tmpdir(), "studio-cli-"));
     cp.execFileSync("node", [path.join(ROOT, "tools", "export.js"), path.join(ROOT, "data", "examples", "studio-cost.studio.json"), outDir, "/public/pdc-iteration/v2"]);
     const cliFiles = fs.readdirSync(outDir).sort();
-    ok("CLI exporter writes .cda/.html", ["studio-cost.cda", "studio-cost.html"].every((f) => cliFiles.includes(f)), cliFiles.join(","));
+    ok("CLI exporter writes the dashboard .html", cliFiles.includes("studio-cost.html"), cliFiles.join(","));
     const cliHtml = fs.readFileSync(path.join(outDir, "studio-cost.html"), "utf8");
     ok("CLI artifacts are well-formed (html self-contained)", cliHtml.includes("window.STUDIO_SPEC") && cliHtml.includes("PDC.bars"));
 
-    // ---- CLI publish (push.js) + scheduler-job request shaping (--dry-run) ----
-    console.log("\n• CLI publish / schedule (dry-run)");
-    const pushOut = cp.execFileSync("node", [path.join(ROOT, "tools", "push.js"), "--spec", path.join(ROOT, "data", "examples", "studio-cost.studio.json"), "--dry-run", "--server", "http://localhost:8080/pentaho", "--deploy", "/public/pdc-iteration/v2"]).toString();
-    const pubLines = (pushOut.match(/publish\/publishfile/g) || []).length;
-    ok("push --dry-run shapes 2 publishfile requests at the deploy path", pubLines === 2 && /importPath=\/public\/pdc-iteration\/v2/.test(pushOut), "lines=" + pubLines);
-    const kettleXml = path.join(outDir, "ss.xml");
-    fs.writeFileSync(kettleXml, "<slaveservers><slaveserver><name>Local</name><hostname>localhost</hostname><port>8080</port><webAppName>pentaho</webAppName><username>admin</username><password>pw</password></slaveserver></slaveservers>");
-    const pushK = cp.execFileSync("node", [path.join(ROOT, "tools", "push.js"), "--spec", path.join(ROOT, "data", "examples", "studio-cost.studio.json"), "--dry-run", "--kettle", kettleXml]).toString();
-    ok("push resolves a server from Kettle XML", /localhost:8080\/pentaho/.test(pushK));
-    const schedOut = cp.execFileSync("node", [path.join(ROOT, "tools", "schedule-job.js"), "--input", "/public/x/report.prpt", "--cron", "0 0 6 * * ?", "--name", "Daily", "--dry-run"]).toString();
-    let schedJson = null; try { schedJson = JSON.parse(schedOut.slice(schedOut.indexOf("{"))); } catch (e) {}
-    ok("schedule-job shapes a valid JobScheduleRequest", !!schedJson && schedJson.inputFile === "/public/x/report.prpt" && schedJson.cronJobTrigger.cronString === "0 0 6 * * ?", schedOut.split("\n")[0]);
     const genHash = cp.execFileSync("node", [path.join(ROOT, "tools", "gen-code.js"), "pentaho-studio"]).toString().trim().split("\n")[0];
     ok("gen-code.js hashes an access code (matches the default gate hash)", genHash === "a0b4ac228aecdf5dfdffd338c5b9d0b10b945860712a14259fa95bb7be3bf279", genHash.slice(0, 16));
 
@@ -3409,7 +3140,7 @@ function serve() {
     const daFields = await page.evaluate(() => {
       var body = document.getElementById("inspBody");
       var hasSql = !!body.querySelector("textarea");
-      var kindSel = [].slice.call(body.querySelectorAll("select")).some(function (s) { return [].slice.call(s.options).some(function (o) { return o.value === "sql.jndi"; }); });
+      var kindSel = [].slice.call(body.querySelectorAll("select")).some(function (s) { return [].slice.call(s.options).some(function (o) { return o.value === "sql"; }); });
       return { hasSql, kindSel };
     });
     ok("DA inspector shows SQL textarea + kind picker", daFields.hasSql && daFields.kindSel, JSON.stringify(daFields));
@@ -3445,211 +3176,7 @@ function serve() {
     const daAfterDel = await page.evaluate(() => window.__STUDIO_STATE.spec.cda.dataAccesses.length);
     ok("deleting from My Data Sources removes the DA", delDAClicked && daAfterDel === daAfterDup - 1, daAfterDup + "→" + daAfterDel);
 
-    // ---- CDA connections manager ----
-    console.log("\n• CDA connections manager");
-    await page.evaluate(async () => { const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json()); window.__studioLoad(spec); });
-    await page.waitForTimeout(300);
 
-    // Model: CDA_CONNECTION_TYPES has 7 types + helpers exist
-    const connModel = await page.evaluate(() => ({
-      types: Studio.CDA_CONNECTION_TYPES.length,
-      hasJndi: Studio.CDA_CONNECTION_TYPES.some(function (t) { return t.id === "sql.jndi"; }),
-      hasJdbc: Studio.CDA_CONNECTION_TYPES.some(function (t) { return t.id === "sql.jdbc"; }),
-      hasMondrian: Studio.CDA_CONNECTION_TYPES.some(function (t) { return t.id === "mondrian.jndi"; }),
-      accessSql: Studio.daAccessType("sql.jndi"),
-      accessMdx: Studio.daAccessType("mondrian.jndi"),
-      accessMql: Studio.daAccessType("metadata"),
-      accessKettle: Studio.daAccessType("kettle"),
-      accessScrpt: Studio.daAccessType("scripting")
-    }));
-    ok("CDA_CONNECTION_TYPES has 7 types", connModel.types === 7, "types=" + connModel.types);
-    ok("daAccessType maps kinds correctly", connModel.accessSql === "sql" && connModel.accessMdx === "mdx" && connModel.accessMql === "mql" && connModel.accessKettle === "kettle" && connModel.accessScrpt === "scripting", JSON.stringify(connModel));
-
-    // cdaConnectionXml emits correct XML for sql.jndi and sql.jdbc
-    const connXml = await page.evaluate(() => {
-      var jndi = Studio.cdaConnectionXml({ id: "pdc", type: "sql.jndi", jndi: "PDC-BIDB-EXT" });
-      var jdbc = Studio.cdaConnectionXml({ id: "pg", type: "sql.jdbc", driver: "org.postgresql.Driver", url: "jdbc:postgresql://host/db", user: "admin", pass: "secret" });
-      var mdx  = Studio.cdaConnectionXml({ id: "mo", type: "mondrian.jndi", jndi: "PDC-BIDB-EXT", catalog: "/etc/schema.xml" });
-      return { jndi: jndi, jdbc: jdbc, mdx: mdx };
-    });
-    ok("cdaConnectionXml emits sql.jndi <Jndi>", connXml.jndi.includes('type="sql.jndi"') && connXml.jndi.includes("<Jndi>PDC-BIDB-EXT</Jndi>"), connXml.jndi);
-    ok("cdaConnectionXml emits sql.jdbc with <Driver>/<Url>/<User>/<Password>", connXml.jdbc.includes('type="sql.jdbc"') && connXml.jdbc.includes("<Driver>org.postgresql.Driver</Driver>") && connXml.jdbc.includes("<Password>secret</Password>"), connXml.jdbc);
-    ok("cdaConnectionXml emits mondrian.jndi with <Catalog>", connXml.mdx.includes('type="mondrian.jndi"') && connXml.mdx.includes("<Catalog>/etc/schema.xml</Catalog>"), connXml.mdx);
-
-    // exportCDA with connections[] emits all connections + correct DA access type
-    const multiConnExport = await page.evaluate(() => {
-      var spec = {
-        name: "test", title: "T", cda: {
-          connections: [
-            { id: "sqlConn", type: "sql.jndi", jndi: "PDC-BIDB-EXT" },
-            { id: "mdxConn", type: "mondrian.jndi", jndi: "PDC-BIDB-EXT", catalog: "/etc/schema.xml" }
-          ],
-          dataAccesses: [
-            { id: "da1", kind: "sql.jndi", connectionId: "sqlConn", sql: "SELECT a AS a FROM t", columns: ["a"], params: [], cache: true, cacheDuration: 300 },
-            { id: "da2", kind: "mondrian.jndi", connectionId: "mdxConn", sql: "SELECT ...", columns: [], params: [], cache: true, cacheDuration: 300 }
-          ]
-        }, panels: [], kpis: [], filters: [], gridCols: 3
-      };
-      var cda = Studio.exportCDA(spec);
-      return {
-        hasBothConns: cda.includes('id="sqlConn"') && cda.includes('id="mdxConn"'),
-        hasMdxConnType: cda.includes('type="mondrian.jndi"'),
-        da1TypeSql: /<DataAccess id="da1"[^>]*type="sql"/.test(cda),
-        da2TypeMdx: /<DataAccess id="da2"[^>]*type="mdx"/.test(cda),
-        da1Conn: /<DataAccess id="da1"[^>]*connection="sqlConn"/.test(cda),
-        da2Conn: /<DataAccess id="da2"[^>]*connection="mdxConn"/.test(cda)
-      };
-    });
-    ok("exportCDA with connections[] emits all named connections", multiConnExport.hasBothConns && multiConnExport.hasMdxConnType, JSON.stringify(multiConnExport));
-    ok("exportCDA assigns correct DA access types (sql/mdx)", multiConnExport.da1TypeSql && multiConnExport.da2TypeMdx, JSON.stringify(multiConnExport));
-    ok("exportCDA assigns each DA to its connectionId", multiConnExport.da1Conn && multiConnExport.da2Conn, JSON.stringify(multiConnExport));
-
-    // Dashboard inspector has a CDA Connections section
-    // Navigate to dashboard inspector (click back if needed)
-    await page.evaluate(() => { var b = document.getElementById("inspBack"); if (b && !b.hidden) b.click(); });
-    await page.waitForTimeout(80);
-    const connSection = await page.evaluate(() => {
-      var hs = [].slice.call(document.querySelectorAll("#inspBody .insp-sec h4"));
-      return hs.some(function (h) { return /CDA Connections/i.test(h.textContent); });
-    });
-    ok("dashboard inspector has a 'CDA Connections' section", connSection);
-
-    // Add a connection via the ＋ button → modal opens + save persists
-    const connBefore = await page.evaluate(() => (window.__STUDIO_STATE.spec.cda.connections || []).length);
-    await page.evaluate(() => {
-      var hs = [].slice.call(document.querySelectorAll("#inspBody .insp-sec h4"));
-      var ch = hs.filter(function (h) { return /CDA Connections/i.test(h.textContent); })[0];
-      if (ch) { var add = ch.querySelector(".add"); if (add) add.click(); }
-    });
-    await page.waitForTimeout(200);
-    // Modal is open — change type to sql.jdbc + fill driver + save
-    const modalOpened = await page.evaluate(() => !!document.querySelector(".modal select"));
-    ok("Add Connection opens an editor modal", modalOpened);
-    await page.evaluate(() => {
-      var sel = [].slice.call(document.querySelectorAll(".modal select")).filter(function (s) {
-        return [].slice.call(s.options).some(function (o) { return o.value === "sql.jdbc"; });
-      })[0];
-      if (sel) { sel.value = "sql.jdbc"; sel.dispatchEvent(new Event("change")); }
-    });
-    await page.waitForTimeout(80);
-    await page.evaluate(() => {
-      var save = [].slice.call(document.querySelectorAll(".modal .btn-primary")).filter(function (b) { return /Save/.test(b.textContent); })[0];
-      if (save) save.click();
-    });
-    await page.waitForTimeout(150);
-    const connAfter = await page.evaluate(() => (window.__STUDIO_STATE.spec.cda.connections || []).length);
-    ok("saving the connection editor adds it to the spec", connAfter === connBefore + 1, connBefore + "→" + connAfter);
-
-    // Track L regression: the Save handler used to call renderDashboardInspector(body) directly
-    // (which never clears body itself) instead of the top-level renderInspector() — same class of
-    // append-duplicate-section bug the Z6 kickoff fixed at three other self-redraw call sites.
-    // Saving a connection would leave TWO copies of every dashboard-inspector section stacked up.
-    const connNoDup = await page.evaluate(() => {
-      var hs = [].slice.call(document.querySelectorAll("#inspBody .insp-sec h4"));
-      var ccCount = hs.filter(function (h) { return /CDA Connections/i.test(h.textContent); }).length;
-      var dashCount = hs.filter(function (h) { return /^Dashboard$/i.test(h.textContent.trim()); }).length;
-      return { ccCount: ccCount, dashCount: dashCount };
-    });
-    ok("Track L regression: saving a CDA connection does not duplicate inspector sections (exactly one 'CDA Connections'/'Dashboard' section each)",
-      connNoDup.ccCount === 1 && connNoDup.dashCount === 1, JSON.stringify(connNoDup));
-
-    // DA inspector shows a connection picker when connections exist
-    // Click a My Data Sources DA card (not a row item) to open the DA inspector
-    await page.evaluate(() => {
-      var btn = document.querySelector(".lib-mine .mine-add"); if (btn) btn.click();
-    });
-    await page.waitForTimeout(200);
-    const connPicker = await page.evaluate(() => {
-      if (document.querySelector("#inspTitle").textContent !== "Data Source") return false;
-      var body = document.getElementById("inspBody");
-      // The connection picker options include "(sql.jndi)" or "(sql.jdbc)" in the label
-      return [].slice.call(body.querySelectorAll("select")).some(function (s) {
-        return [].slice.call(s.options).some(function (o) { return /sql\.(jndi|jdbc)/.test(o.textContent + o.value); });
-      });
-    });
-    ok("DA inspector shows a connection picker when connections are defined", connPicker);
-
-    // ---- per-kind query editors ----
-    console.log("\n• per-kind query editors");
-
-    // exportCDA emits <KtrFile>/<Step> for kettle DAs, not <Query>
-    const kettleExport = await page.evaluate(() => {
-      var spec = {
-        name: "k", title: "K", cda: {
-          connections: [{ id: "kconn", type: "kettle.TransFromFile", fileName: "/etl/x.ktr", step: "Output" }],
-          dataAccesses: [{ id: "kda", kind: "kettle", connectionId: "kconn", ktrPath: "/etl/x.ktr", ktrStep: "MyStep", columns: ["a"], params: [], cache: true, cacheDuration: 300 }]
-        }, panels: [], kpis: [], filters: [], gridCols: 3
-      };
-      var cda = Studio.exportCDA(spec);
-      return {
-        hasKtrFile: cda.includes("<KtrFile>/etl/x.ktr</KtrFile>"),
-        hasStep: cda.includes("<Step>MyStep</Step>"),
-        noQuery: !cda.includes("<Query>")
-      };
-    });
-    ok("exportCDA emits <KtrFile>/<Step> for kettle DAs", kettleExport.hasKtrFile && kettleExport.hasStep, JSON.stringify(kettleExport));
-    ok("exportCDA omits <Query> for kettle DAs", kettleExport.noQuery, JSON.stringify(kettleExport));
-
-    // exportCDA emits <Language>/<QueryScript> for scripting DAs
-    const scriptExport = await page.evaluate(() => {
-      var spec = {
-        name: "s", title: "S", cda: {
-          connections: [{ id: "sc", type: "scripting", language: "groovy" }],
-          dataAccesses: [{ id: "sda", kind: "scripting", connectionId: "sc", sql: "return []", scriptLang: "groovy", columns: ["x"], params: [], cache: true, cacheDuration: 300 }]
-        }, panels: [], kpis: [], filters: [], gridCols: 3
-      };
-      var cda = Studio.exportCDA(spec);
-      return {
-        hasLang: cda.includes("<Language>groovy</Language>"),
-        hasQScript: cda.includes("<QueryScript>"),
-        noQuery: !cda.includes("<Query>")
-      };
-    });
-    ok("exportCDA emits <Language>/<QueryScript> for scripting DAs", scriptExport.hasLang && scriptExport.hasQScript, JSON.stringify(scriptExport));
-    ok("exportCDA omits <Query> for scripting DAs", scriptExport.noQuery, JSON.stringify(scriptExport));
-
-    // DA inspector: changing kind to kettle shows .ktr path + step fields (not textarea)
-    await page.evaluate(async () => { const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json()); window.__studioLoad(spec); });
-    await page.waitForTimeout(300);
-    await page.evaluate(() => { var btn = document.querySelector(".lib-mine .mine-add"); if (btn) btn.click(); });
-    await page.waitForTimeout(200);
-    // Switch the DA to kettle kind
-    await page.evaluate(() => {
-      var sel = [].slice.call(document.querySelectorAll("#inspBody select")).filter(function (s) {
-        return [].slice.call(s.options).some(function (o) { return o.value === "kettle"; });
-      })[0];
-      if (sel) { sel.value = "kettle"; sel.dispatchEvent(new Event("change")); }
-    });
-    await page.waitForTimeout(200);
-    const kettleInspector = await page.evaluate(() => {
-      var body = document.getElementById("inspBody");
-      var labels = [].slice.call(body.querySelectorAll("label")).map(function (l) { return l.textContent.trim(); });
-      var hasKtrPath = labels.some(function (l) { return /\.ktr/i.test(l); });
-      var hasStep = labels.some(function (l) { return /step/i.test(l); });
-      var hasNoTextarea = !body.querySelector(".insp-sec textarea");
-      return { hasKtrPath: hasKtrPath, hasStep: hasStep, hasNoTextarea: hasNoTextarea, labels: labels };
-    });
-    ok("DA inspector shows .ktr path + step fields for kettle kind", kettleInspector.hasKtrPath && kettleInspector.hasStep, JSON.stringify(kettleInspector));
-    ok("DA inspector hides SQL textarea for kettle kind", kettleInspector.hasNoTextarea, JSON.stringify(kettleInspector));
-
-    // DA inspector: MDX kind shows catalog path field
-    await page.evaluate(() => {
-      var sel = [].slice.call(document.querySelectorAll("#inspBody select")).filter(function (s) {
-        return [].slice.call(s.options).some(function (o) { return o.value === "mondrian.jndi"; });
-      })[0];
-      if (sel) { sel.value = "mondrian.jndi"; sel.dispatchEvent(new Event("change")); }
-    });
-    await page.waitForTimeout(200);
-    const mdxInspector = await page.evaluate(() => {
-      var body = document.getElementById("inspBody");
-      var labels = [].slice.call(body.querySelectorAll("label")).map(function (l) { return l.textContent.trim(); });
-      return {
-        hasCatalog: labels.some(function (l) { return /catalog/i.test(l); }),
-        hasTa: !!body.querySelector(".insp-sec textarea")
-      };
-    });
-    ok("DA inspector shows catalog path field for MDX kind", mdxInspector.hasCatalog, JSON.stringify(mdxInspector));
-    ok("DA inspector shows query textarea for MDX kind", mdxInspector.hasTa, JSON.stringify(mdxInspector));
 
     // ---- assisted column + parameter tooling (slice 4) ----
     console.log("\n• assisted column + parameter tooling");
@@ -3658,47 +3185,6 @@ function serve() {
     const colTypes = await page.evaluate(() => Array.isArray(Studio.COLUMN_TYPES) && Studio.COLUMN_TYPES.length >= 4 && Studio.COLUMN_TYPES.indexOf("String") >= 0 && Studio.COLUMN_TYPES.indexOf("Numeric") >= 0);
     ok("Studio.COLUMN_TYPES defines at least 4 types including String and Numeric", colTypes);
 
-    // exportCDA emits <CalculatedColumns> when a DA has calcColumns
-    const calcColExport = await page.evaluate(() => {
-      var spec = {
-        name: "cc", title: "CC", cda: {
-          connections: [{ id: "c1", type: "sql.jndi", jndi: "PDC-BIDB-EXT" }],
-          dataAccesses: [{
-            id: "da1", kind: "sql.jndi", connectionId: "c1", sql: "SELECT a AS a, b AS b FROM t",
-            columns: ["a", "b"], params: [],
-            calcColumns: [
-              { name: "margin", formula: "=[b] - [a]", type: "Numeric" },
-              { name: "label",  formula: "=[a]",       type: "String"  }
-            ],
-            cache: true, cacheDuration: 300
-          }]
-        }, panels: [], kpis: [], filters: [], gridCols: 3
-      };
-      var cda = Studio.exportCDA(spec);
-      return {
-        hasTag: cda.includes("<CalculatedColumns>"),
-        hasMargin: cda.includes("<Name>margin</Name>"),
-        hasFormula: cda.includes("<Formula>=[b] - [a]</Formula>"),
-        hasType: cda.includes("<Type>Numeric</Type>"),
-        hasLabel: cda.includes("<Name>label</Name>"),
-        raw: cda.slice(cda.indexOf("<CalculatedColumns>"), cda.indexOf("</CalculatedColumns>") + 20)
-      };
-    });
-    ok("exportCDA emits <CalculatedColumns> with calc col entries", calcColExport.hasTag && calcColExport.hasMargin && calcColExport.hasFormula && calcColExport.hasType, JSON.stringify(calcColExport));
-    ok("exportCDA emits multiple calculated columns correctly", calcColExport.hasLabel, JSON.stringify(calcColExport));
-
-    // exportCDA emits <CalculatedColumns/> when no calcColumns
-    const noCalcExport = await page.evaluate(() => {
-      var spec = {
-        name: "nc", title: "NC", cda: {
-          connections: [{ id: "c1", type: "sql.jndi", jndi: "PDC-BIDB-EXT" }],
-          dataAccesses: [{ id: "da1", kind: "sql.jndi", connectionId: "c1", sql: "", columns: ["a"], params: [], cache: true, cacheDuration: 300 }]
-        }, panels: [], kpis: [], filters: [], gridCols: 3
-      };
-      var cda = Studio.exportCDA(spec);
-      return cda.includes("<CalculatedColumns/>");
-    });
-    ok("exportCDA emits <CalculatedColumns/> when no calc columns defined", noCalcExport);
 
     // DA inspector shows a parameter type dropdown
     await page.evaluate(async () => { const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json()); window.__studioLoad(spec); });
@@ -4006,48 +3492,6 @@ function serve() {
     });
     ok("applyOutputOptions: returns result unchanged when no outputOptions", noopTest === 2, String(noopTest));
 
-    // exportCDA emits <OutputOptions> when filters/sort/limit defined
-    const cdaOutputOptions = await page.evaluate(() => {
-      var spec = {
-        name: "ootest", title: "OO", cda: {
-          connections: [{ id: "c1", type: "sql.jndi", jndi: "PDC-BIDB-EXT" }],
-          dataAccesses: [{
-            id: "da1", kind: "sql.jndi", connectionId: "c1", sql: "SELECT region AS region FROM t",
-            columns: ["region", "revenue"], params: [], calcColumns: [], cache: true, cacheDuration: 300,
-            outputOptions: {
-              filters: [{ col: "region", op: "=", val: "Snowflake" }],
-              sortBy: [{ col: "revenue", dir: "desc" }],
-              limit: 50
-            }
-          }]
-        }, panels: [], kpis: [], filters: [], gridCols: 3
-      };
-      var cda = Studio.exportCDA(spec);
-      return {
-        hasOutputOptions: cda.includes("<OutputOptions>"),
-        hasFilter: cda.includes('<Filter column="region" operator="EQ" value="Snowflake"/>'),
-        hasSortBy: cda.includes('<SortBy>revenue DESC</SortBy>'),
-        hasRowLimit: cda.includes('<RowLimit>50</RowLimit>'),
-        raw: cda.slice(cda.indexOf("<OutputOptions>"), cda.indexOf("</OutputOptions>") + 17)
-      };
-    });
-    ok("exportCDA emits <OutputOptions> block with filters/sort/limit", cdaOutputOptions.hasOutputOptions && cdaOutputOptions.hasFilter && cdaOutputOptions.hasSortBy && cdaOutputOptions.hasRowLimit, JSON.stringify(cdaOutputOptions));
-
-    // exportCDA: no <OutputOptions> when outputOptions is empty
-    const cdaNoOutputOptions = await page.evaluate(() => {
-      var spec = {
-        name: "ootest2", title: "OO2", cda: {
-          connections: [{ id: "c1", type: "sql.jndi", jndi: "PDC-BIDB-EXT" }],
-          dataAccesses: [{
-            id: "da2", kind: "sql.jndi", connectionId: "c1", sql: "SELECT x AS x FROM t",
-            columns: ["x"], params: [], calcColumns: [], cache: true, cacheDuration: 300
-          }]
-        }, panels: [], kpis: [], filters: [], gridCols: 3
-      };
-      var cda = Studio.exportCDA(spec);
-      return !cda.includes("<OutputOptions>");
-    });
-    ok("exportCDA: no <OutputOptions> block when outputOptions is absent/empty", cdaNoOutputOptions);
 
     // DA inspector has an "Output options" section
     const ooSection = await page.evaluate(() => {
@@ -4116,91 +3560,12 @@ function serve() {
     const isCompound = await page.evaluate(() => {
       return {
         yes: Studio.isCompoundDA({ kind: "compound", compoundType: "join" }),
-        noSql: Studio.isCompoundDA({ kind: "sql.jndi" }),
+        noSql: Studio.isCompoundDA({ kind: "sql" }),
         noNull: Studio.isCompoundDA(null)
       };
     });
     ok("Studio.isCompoundDA correctly identifies compound vs normal DAs", isCompound.yes && !isCompound.noSql && !isCompound.noNull, JSON.stringify(isCompound));
 
-    // exportCDA emits <CompoundDataAccess type="join">
-    const joinExport = await page.evaluate(() => {
-      var spec = {
-        name: "jtest", title: "JT", cda: {
-          connections: [{ id: "c1", type: "sql.jndi", jndi: "PDC-BIDB-EXT" }],
-          dataAccesses: [
-            { id: "da1", kind: "sql.jndi", connectionId: "c1", sql: "SELECT a AS a FROM t", columns: ["a"], params: [], cache: true, cacheDuration: 300 },
-            { id: "da2", kind: "sql.jndi", connectionId: "c1", sql: "SELECT a AS a, b AS b FROM u", columns: ["a", "b"], params: [], cache: true, cacheDuration: 300 },
-            { id: "joinedDA", kind: "compound", compoundType: "join", leftId: "da1", rightId: "da2", leftKeys: "a", rightKeys: "a", columns: [], cache: true, cacheDuration: 300 }
-          ]
-        }, panels: [], kpis: [], filters: [], gridCols: 3
-      };
-      var cda = Studio.exportCDA(spec);
-      return {
-        hasCompound: cda.includes("<CompoundDataAccess"),
-        isJoin: cda.includes('type="join"'),
-        hasId: cda.includes('id="joinedDA"'),
-        hasLeft: cda.includes('<Left id="da1" keys="a"/>'),
-        hasRight: cda.includes('<Right id="da2" keys="a"/>'),
-        noCompoundDA: !/<DataAccess id="joinedDA"/.test(cda),
-        raw: cda.slice(cda.indexOf("<CompoundDataAccess"), cda.indexOf("</CompoundDataAccess>") + 21)
-      };
-    });
-    ok("exportCDA emits <CompoundDataAccess type=\"join\"> for compound join DAs", joinExport.hasCompound && joinExport.isJoin && joinExport.hasId, JSON.stringify(joinExport));
-    ok("exportCDA join has <Left> and <Right> with keys", joinExport.hasLeft && joinExport.hasRight, JSON.stringify(joinExport));
-    ok("exportCDA compound join is not emitted as a plain <DataAccess>", joinExport.noCompoundDA, joinExport.raw);
-
-    // exportCDA emits <CompoundDataAccess type="union">
-    const unionExport = await page.evaluate(() => {
-      var spec = {
-        name: "utest", title: "UT", cda: {
-          connections: [{ id: "c1", type: "sql.jndi", jndi: "PDC-BIDB-EXT" }],
-          dataAccesses: [
-            { id: "da3", kind: "sql.jndi", connectionId: "c1", sql: "", columns: ["x"], params: [], cache: true, cacheDuration: 300 },
-            { id: "da4", kind: "sql.jndi", connectionId: "c1", sql: "", columns: ["x"], params: [], cache: true, cacheDuration: 300 },
-            { id: "unionDA", kind: "compound", compoundType: "union", unionDas: ["da3", "da4"], columns: [], cache: true, cacheDuration: 300 }
-          ]
-        }, panels: [], kpis: [], filters: [], gridCols: 3
-      };
-      var cda = Studio.exportCDA(spec);
-      return {
-        hasUnion: cda.includes('type="union"'),
-        hasMembers: cda.includes('<DataAccess id="da3"/>') && cda.includes('<DataAccess id="da4"/>'),
-        rawSlice: cda.slice(cda.indexOf("<CompoundDataAccess"), cda.indexOf("</CompoundDataAccess>") + 21)
-      };
-    });
-    ok("exportCDA emits <CompoundDataAccess type=\"union\"> with member DAs", unionExport.hasUnion && unionExport.hasMembers, JSON.stringify(unionExport));
-
-    // parseCDA round-trips compound DAs from CDA XML
-    const parsedCompound = await page.evaluate(() => {
-      var xml = '<?xml version="1.0" encoding="UTF-8"?>\n<CDADescriptor>\n' +
-        '  <DataSources><Connection id="pdc" type="sql.jndi"><Jndi>PDC-BIDB-EXT</Jndi></Connection></DataSources>\n' +
-        '  <DataAccess id="da1" connection="pdc" type="sql" access="public"><Name>DA One</Name><Query><![CDATA[SELECT x AS x FROM t]]></Query></DataAccess>\n' +
-        '  <CompoundDataAccess type="join" id="joinedDA" access="public" cache="true" cacheDuration="300">\n' +
-        '    <Name>Joined</Name>\n    <Left id="da1" keys="x"/>\n    <Right id="da1" keys="x"/>\n' +
-        '  </CompoundDataAccess>\n' +
-        '  <CompoundDataAccess type="union" id="unionDA" access="public" cache="true" cacheDuration="300">\n' +
-        '    <Name>Unioned</Name>\n    <DataAccess id="da1"/>\n    <DataAccess id="da1"/>\n' +
-        '  </CompoundDataAccess>\n' +
-        '</CDADescriptor>\n';
-      var parsed = Studio.parseCDA(xml);
-      var normal = parsed.dataAccesses.filter(function (d) { return d.id === "da1"; })[0];
-      var joined = parsed.dataAccesses.filter(function (d) { return d.id === "joinedDA"; })[0];
-      var unioned = parsed.dataAccesses.filter(function (d) { return d.id === "unionDA"; })[0];
-      return {
-        count: parsed.dataAccesses.length,
-        normalId: normal ? normal.id : null,
-        joinKind: joined ? joined.kind : null,
-        joinType: joined ? joined.compoundType : null,
-        joinLeft: joined ? joined.leftId : null,
-        joinLeftKeys: joined ? joined.leftKeys : null,
-        unionKind: unioned ? unioned.kind : null,
-        unionType: unioned ? unioned.compoundType : null,
-        unionCount: unioned ? (unioned.unionDas || []).length : 0
-      };
-    });
-    ok("parseCDA reconstructs normal DataAccess and two CompoundDataAccess elements", parsedCompound.count === 3 && parsedCompound.normalId === "da1", JSON.stringify(parsedCompound));
-    ok("parseCDA compound join has correct kind, type, leftId, leftKeys", parsedCompound.joinKind === "compound" && parsedCompound.joinType === "join" && parsedCompound.joinLeft === "da1" && parsedCompound.joinLeftKeys === "x", JSON.stringify(parsedCompound));
-    ok("parseCDA compound union has correct kind, type, and member count", parsedCompound.unionKind === "compound" && parsedCompound.unionType === "union" && parsedCompound.unionCount === 2, JSON.stringify(parsedCompound));
 
     // UI: ⧈ Join button appears in the library header
     const joinBtnExists = await page.evaluate(() => {
@@ -4225,96 +3590,6 @@ function serve() {
     // close the modal
     await page.evaluate(() => { var ov = document.querySelector(".modal-ov"); if (ov) ov.remove(); });
 
-    // ---- parseCDA full round-trip parity (v38) ----
-    console.log("\n• parseCDA round-trip parity");
-
-    const parseCdaRoundTrip = await page.evaluate(() => {
-      // Build a spec with 3 connections + 4 DA kinds, export it, then re-parse and compare
-      var spec = {
-        name: "rt", title: "T",
-        cda: {
-          connections: [
-            { id: "sqlConn", type: "sql.jndi", jndi: "BIDB" },
-            { id: "mdxConn", type: "mondrian.jndi", jndi: "BIDB", catalog: "/schema.xml" },
-            { id: "ktrConn", type: "kettle.TransFromFile", fileName: "/etl/t.ktr", step: "Out" }
-          ],
-          dataAccesses: [
-            { id: "sqlDA", name: "SQL", kind: "sql.jndi", connectionId: "sqlConn",
-              sql: "SELECT region AS region, SUM(revenue) AS revenue FROM t GROUP BY region",
-              columns: ["region", "revenue"],
-              params: [{ name: "yr", type: "Integer", default: "2024" }],
-              calcColumns: [{ name: "revK", formula: "[revenue]/1000", type: "Numeric" }],
-              outputOptions: { filters: [{ col: "region", op: "!=", val: "Other" }], sortBy: [{ col: "revenue", dir: "desc" }], limit: 50 },
-              cache: true, cacheDuration: 300 },
-            { id: "mdxDA", name: "MDX", kind: "mondrian.jndi", connectionId: "mdxConn",
-              sql: "SELECT {[Measures].[Sales]} ON COLUMNS FROM [SW]",
-              columns: [], params: [], calcColumns: [], cache: false, cacheDuration: 300 },
-            { id: "ktrDA", name: "Kettle", kind: "kettle", connectionId: "ktrConn",
-              ktrPath: "/etl/t.ktr", ktrStep: "Output", sql: "", columns: [], params: [], calcColumns: [], cache: true, cacheDuration: 600 },
-            { id: "scrDA", name: "Script", kind: "scripting", connectionId: "sqlConn",
-              scriptLang: "javascript", sql: "return [[1,'a']];", columns: [], params: [], calcColumns: [], cache: true, cacheDuration: 300 }
-          ]
-        },
-        panels: [], kpis: [], filters: [], gridCols: 3
-      };
-      var cdaXml = Studio.exportCDA(spec);
-      var parsed = Studio.parseCDA(cdaXml);
-      var sqlDA = parsed.dataAccesses.filter(function (d) { return d.id === "sqlDA"; })[0];
-      var mdxDA = parsed.dataAccesses.filter(function (d) { return d.id === "mdxDA"; })[0];
-      var ktrDA = parsed.dataAccesses.filter(function (d) { return d.id === "ktrDA"; })[0];
-      var scrDA = parsed.dataAccesses.filter(function (d) { return d.id === "scrDA"; })[0];
-      return {
-        connCount: parsed.connections.length,
-        conn0Id: parsed.connections[0] ? parsed.connections[0].id : null,
-        conn0Type: parsed.connections[0] ? parsed.connections[0].type : null,
-        conn1Type: parsed.connections[1] ? parsed.connections[1].type : null,
-        conn1Catalog: parsed.connections[1] ? parsed.connections[1].catalog : null,
-        conn2Type: parsed.connections[2] ? parsed.connections[2].type : null,
-        conn2FileName: parsed.connections[2] ? parsed.connections[2].fileName : null,
-        conn2Step: parsed.connections[2] ? parsed.connections[2].step : null,
-        // SQL DA
-        sqlKind: sqlDA ? sqlDA.kind : null,
-        sqlConnId: sqlDA ? sqlDA.connectionId : null,
-        sqlCols: sqlDA ? sqlDA.columns.join(",") : null,
-        sqlParam: sqlDA ? ((sqlDA.params[0] || {}).name) : null,
-        sqlParamType: sqlDA ? ((sqlDA.params[0] || {}).type) : null,
-        sqlCalcCol: sqlDA ? (sqlDA.calcColumns && sqlDA.calcColumns[0] ? sqlDA.calcColumns[0].name : null) : null,
-        sqlCalcFormula: sqlDA ? (sqlDA.calcColumns && sqlDA.calcColumns[0] ? sqlDA.calcColumns[0].formula : null) : null,
-        sqlFilter: sqlDA ? (sqlDA.outputOptions && sqlDA.outputOptions.filters ? sqlDA.outputOptions.filters[0].op : null) : null,
-        sqlFilterCol: sqlDA ? (sqlDA.outputOptions && sqlDA.outputOptions.filters ? sqlDA.outputOptions.filters[0].col : null) : null,
-        sqlSort: sqlDA ? (sqlDA.outputOptions && sqlDA.outputOptions.sortBy ? sqlDA.outputOptions.sortBy[0].dir : null) : null,
-        sqlLimit: sqlDA ? (sqlDA.outputOptions ? sqlDA.outputOptions.limit : null) : null,
-        sqlCacheTrue: sqlDA ? sqlDA.cache : null,
-        // MDX DA
-        mdxKind: mdxDA ? mdxDA.kind : null,
-        mdxConnId: mdxDA ? mdxDA.connectionId : null,
-        mdxCacheFalse: mdxDA ? mdxDA.cache : null,
-        mdxHasQuery: mdxDA ? !!mdxDA.sql : null,
-        // Kettle DA
-        ktrKind: ktrDA ? ktrDA.kind : null,
-        ktrPath: ktrDA ? ktrDA.ktrPath : null,
-        ktrStep: ktrDA ? ktrDA.ktrStep : null,
-        // Scripting DA
-        scrKind: scrDA ? scrDA.kind : null,
-        scrLang: scrDA ? scrDA.scriptLang : null,
-        scrHasScript: scrDA ? !!scrDA.sql : null
-      };
-    });
-    ok("parseCDA round-trips all 3 connections", parseCdaRoundTrip.connCount === 3, JSON.stringify(parseCdaRoundTrip));
-    ok("parseCDA conn[0]: sql.jndi id preserved", parseCdaRoundTrip.conn0Type === "sql.jndi" && parseCdaRoundTrip.conn0Id === "sqlConn", JSON.stringify(parseCdaRoundTrip));
-    ok("parseCDA conn[1]: mondrian.jndi with catalog", parseCdaRoundTrip.conn1Type === "mondrian.jndi" && parseCdaRoundTrip.conn1Catalog === "/schema.xml", JSON.stringify(parseCdaRoundTrip));
-    ok("parseCDA conn[2]: kettle.TransFromFile with fileName + step", parseCdaRoundTrip.conn2Type === "kettle.TransFromFile" && parseCdaRoundTrip.conn2Step === "Out" && parseCdaRoundTrip.conn2FileName, JSON.stringify(parseCdaRoundTrip));
-    ok("parseCDA SQL DA: kind=sql.jndi, connectionId preserved", parseCdaRoundTrip.sqlKind === "sql.jndi" && parseCdaRoundTrip.sqlConnId === "sqlConn", JSON.stringify(parseCdaRoundTrip));
-    ok("parseCDA SQL DA: columns inferred from AS aliases", parseCdaRoundTrip.sqlCols === "region,revenue", JSON.stringify(parseCdaRoundTrip));
-    ok("parseCDA SQL DA: parameter name + type round-trip", parseCdaRoundTrip.sqlParam === "yr" && parseCdaRoundTrip.sqlParamType === "Integer", JSON.stringify(parseCdaRoundTrip));
-    ok("parseCDA SQL DA: calcColumn name + formula round-trip", parseCdaRoundTrip.sqlCalcCol === "revK" && parseCdaRoundTrip.sqlCalcFormula, JSON.stringify(parseCdaRoundTrip));
-    ok("parseCDA SQL DA: outputOptions filter operator + column", parseCdaRoundTrip.sqlFilter === "!=" && parseCdaRoundTrip.sqlFilterCol === "region", JSON.stringify(parseCdaRoundTrip));
-    ok("parseCDA SQL DA: outputOptions sortBy direction", parseCdaRoundTrip.sqlSort === "desc", JSON.stringify(parseCdaRoundTrip));
-    ok("parseCDA SQL DA: outputOptions limit", parseCdaRoundTrip.sqlLimit === 50, JSON.stringify(parseCdaRoundTrip));
-    ok("parseCDA MDX DA: kind=mondrian.jndi, connectionId, cache=false", parseCdaRoundTrip.mdxKind === "mondrian.jndi" && parseCdaRoundTrip.mdxConnId === "mdxConn" && parseCdaRoundTrip.mdxCacheFalse === false, JSON.stringify(parseCdaRoundTrip));
-    ok("parseCDA MDX DA: query body preserved", parseCdaRoundTrip.mdxHasQuery, JSON.stringify(parseCdaRoundTrip));
-    ok("parseCDA Kettle DA: kind=kettle, ktrPath + ktrStep", parseCdaRoundTrip.ktrKind === "kettle" && parseCdaRoundTrip.ktrPath && parseCdaRoundTrip.ktrStep === "Output", JSON.stringify(parseCdaRoundTrip));
-    ok("parseCDA Scripting DA: kind=scripting, scriptLang + script body", parseCdaRoundTrip.scrKind === "scripting" && parseCdaRoundTrip.scrLang === "javascript" && parseCdaRoundTrip.scrHasScript, JSON.stringify(parseCdaRoundTrip));
 
     // ---- Icon registry (v37) ----
     console.log("\n• Icon registry");
@@ -4383,9 +3658,8 @@ function serve() {
 
       // 5. DS_TYPES iconName fields exist (not emoji icon)
       var dsTypes = [
-        { kind: "sql", expected: "db" }, { kind: "mdx", expected: "cube" },
-        { kind: "kettle", expected: "gear" }, { kind: "mql", expected: "metadata" },
-        { kind: "scripting", expected: "code" }
+        { kind: "sql", expected: "db" }, { kind: "duckdb", expected: "duckdb" },
+        { kind: "httpvfs", expected: "sqlite" }, { kind: "http", expected: "globe" }
       ];
       results.dsTypeIconNames = true;
       if (window.__DS_TYPES_EXPORTED) {
@@ -4424,21 +3698,15 @@ function serve() {
       var themeBtn = document.getElementById("btnTheme");
       r.themeBtnHasSvg = themeBtn ? !!themeBtn.querySelector("svg") : false;
       r.themeBtnNoEmoji = themeBtn ? !/[☀☾]/.test(themeBtn.textContent) : true;
-      var connBtn = document.getElementById("btnConn");
-      r.connBtnHasSvg = connBtn ? !!connBtn.querySelector("svg") : false;
-      var liveBtn = document.getElementById("btnLive");
-      r.liveBtnHasSvg = liveBtn ? !!liveBtn.querySelector("svg") : false;
       var aboutBtn = document.getElementById("btnAbout");
       r.aboutBtnHasSvg = aboutBtn ? !!aboutBtn.querySelector("svg") : false;
       return r;
     });
     ok("theme button has SVG icon (not emoji)", i3Topbar.themeBtnHasSvg && i3Topbar.themeBtnNoEmoji, JSON.stringify(i3Topbar));
-    ok("#btnConn (Servers) has SVG icon", i3Topbar.connBtnHasSvg, JSON.stringify(i3Topbar));
-    ok("#btnLive (Sample/Live) has SVG icon", i3Topbar.liveBtnHasSvg, JSON.stringify(i3Topbar));
     ok("#btnAbout (Tour) has SVG icon", i3Topbar.aboutBtnHasSvg, JSON.stringify(i3Topbar));
 
-    // 2. Modal close button has SVG — open Servers modal
-    await page.click("#btnConn"); await page.waitForTimeout(120);
+    // 2. Modal close button has SVG — open the data-source builder modal
+    await page.click("#btnNewDS"); await page.waitForTimeout(120);
     const i3Modal = await page.evaluate(() => {
       var x = document.querySelector(".modal-h .x");
       return { exists: !!x, hasSvg: x ? !!x.querySelector("svg") : false, noTimes: x ? !x.textContent.includes("×") : true };
@@ -4662,15 +3930,15 @@ function serve() {
         stillHasEditJSON: !!document.getElementById("moreEditJSON")
       };
     });
-    ok("Track H: ⋯ More menu groups its items under labeled sections (Connect / Present / Help & power tools)",
-      moreGroups.labels.indexOf("Connect") >= 0 && moreGroups.labels.indexOf("Present") >= 0 &&
+    ok("Track H: ⋯ More menu groups its items under labeled sections (View / Present / Help & power tools)",
+      moreGroups.labels.indexOf("View") >= 0 && moreGroups.labels.indexOf("Present") >= 0 &&
       moreGroups.labels.indexOf("Help & power tools") >= 0, JSON.stringify(moreGroups));
     ok("Track H: grouping is purely additive — every existing More-menu item id is untouched",
       moreGroups.stillHasShortcuts && moreGroups.stillHasEditJSON, JSON.stringify(moreGroups));
 
     // ---- Track H (IA sweep): topbar action clusters get subtle visual dividers ----
     // Z1 follow-up ("simplify the top menu bar") — first slice. Undo/Redo (History) | New/
-    // Examples/Open/Save/Export (File) | Tour/Servers/Sample/Theme (Connect & present) now
+    // Examples/Open/Save/Export (File) | Tour/Theme (Connect & present) now
     // read as three visually distinct clusters instead of one undifferentiated row of 11
     // buttons. Purely additive: plain `<span class="top-sep">` siblings, not wrapping group
     // containers, so every button keeps its existing id/order/direct-child relationship to
@@ -5110,7 +4378,7 @@ function serve() {
     const exportReach = await menuItemReachable(tabletPage, "btnExport", "menuExport");
     ok("tablet viewport: Export ▾ menu opens and its items are reachable", exportReach.wasOpen && exportReach.reachable, JSON.stringify(exportReach));
     // Track H: the Connect & present divider must hide alongside the .btn-secondary
-    // cluster it separates (Tour/Servers/Sample/Theme) — otherwise it'd dangle at the
+    // cluster it separates (Tour/Theme) — otherwise it'd dangle at the
     // end of the row with nothing after it. The History|File divider stays visible
     // since both of those groups remain on-screen at tablet width.
     const tabletSeps = await tabletPage.evaluate(() => {
@@ -5690,7 +4958,7 @@ function serve() {
       // Ensure spec has at least one DA and one filter
       if (!S.spec.cda) S.spec.cda = { connections: [], dataAccesses: [] };
       if (!(S.spec.cda.dataAccesses || []).length) {
-        S.spec.cda.dataAccesses = [{ id: "testDA", kind: "sql.jndi", columns: ["col"], sql: "SELECT 1 AS col FROM t", params: [], calcColumns: [], cache: true, cacheDuration: 300 }];
+        S.spec.cda.dataAccesses = [{ id: "testDA", kind: "sql", columns: ["col"], sql: "SELECT 1 AS col FROM t", params: [], calcColumns: [], cache: true, cacheDuration: 300 }];
       }
       S.spec.filters = [{ id: "region", label: "Region", da: S.spec.cda.dataAccesses[0].id, valueCol: "col", textCol: "col", allLabel: "All", def: "North" }];
     });
@@ -5805,7 +5073,7 @@ function serve() {
       const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json());
       // Build a minimal DA with a date column (sampledata.js isodate classification)
       spec.cda.dataAccesses = [{
-        id: "daily_events", kind: "sql.jndi", connectionId: "pdc",
+        id: "daily_events", kind: "sql", connectionId: "pdc",
         sql: "SELECT event_date, count FROM events", columns: ["event_date", "count"],
         params: [], calcColumns: [], cache: true, cacheDuration: 300
       }];
@@ -5834,7 +5102,7 @@ function serve() {
     const calHmOpts = await page.evaluate(async () => {
       const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json());
       spec.cda.dataAccesses = [{
-        id: "daily_events", kind: "sql.jndi", connectionId: "pdc",
+        id: "daily_events", kind: "sql", connectionId: "pdc",
         sql: "SELECT event_date, count FROM events", columns: ["event_date", "count"],
         params: [], calcColumns: [], cache: true, cacheDuration: 300
       }];
@@ -8984,7 +8252,7 @@ function serve() {
     await page.evaluate(function () {
       try {
         var spec = window.__STUDIO_STATE.spec;
-        spec.cda.dataAccesses.push({ id: "da_k6_empty", kind: "sql.jndi", columns: [], params: [], query: "SELECT 1", jndi: "test" });
+        spec.cda.dataAccesses.push({ id: "da_k6_empty", kind: "sql", columns: [], params: [], query: "SELECT 1" });
         var p = { id: "k6test2", title: "K6 No Cols", span: 2, chart: { type: "bars", da: "da_k6_empty", map: { labelCol: "", valueCol: "" }, opts: {} } };
         spec.panels.push(p);
         if (window.__studioSelect) window.__studioSelect({ kind: "panel", id: p.id });
@@ -9005,7 +8273,7 @@ function serve() {
     await page.evaluate(function () {
       try {
         var spec = window.__STUDIO_STATE.spec;
-        spec.cda.dataAccesses.push({ id: "da_k6_cols", kind: "sql.jndi", columns: ["region", "revenue", "cost"], params: [], query: "SELECT region, revenue, cost FROM t", jndi: "test" });
+        spec.cda.dataAccesses.push({ id: "da_k6_cols", kind: "sql", columns: ["region", "revenue", "cost"], params: [], query: "SELECT region, revenue, cost FROM t" });
         var p = { id: "k6test3", title: "K6 Auto-Pick", span: 2, chart: { type: "bars", da: "da_k6_cols", map: { labelCol: "", valueCol: "" }, opts: {} } };
         spec.panels.push(p);
         if (window.__studioSelect) window.__studioSelect({ kind: "panel", id: p.id });
@@ -9515,7 +8783,7 @@ function serve() {
         if (!spec.cda.dataAccesses) spec.cda.dataAccesses = [];
         var daId = "j2testda";
         if (!spec.cda.dataAccesses.find(function (d) { return d.id === daId; })) {
-          spec.cda.dataAccesses.push({ id: daId, kind: "sql.jndi", columns: [], params: [], sql: "SELECT 1 AS val" });
+          spec.cda.dataAccesses.push({ id: daId, kind: "sql", columns: [], params: [], sql: "SELECT 1 AS val" });
         }
         if (window.__studioSelect) window.__studioSelect({ kind: "da", id: daId });
       } catch (e) {}
@@ -10609,7 +9877,7 @@ function serve() {
       }
       var snowflake = Studio.validate(specWith("snowflake"));
       var duckdb = Studio.validate(specWith("duckdb"));
-      var pentaho = Studio.validate(specWith("sql.jndi"));
+      var sample = Studio.validate(specWith("sql"));
       var orphanedSnowflake = Studio.validate({
         name: "ok-name", title: "T", panels: [], kpis: [], filters: [],
         cda: { dataAccesses: [{ id: "d1", name: "sfDa", kind: "snowflake", columns: ["x"] }] }
@@ -10617,21 +9885,21 @@ function serve() {
       return {
         snowflakeFlagged: snowflake.some(function (i) { return i.level === "warn" && /“sfDa” \(Snowflake\) has no live query path/.test(i.msg); }),
         duckdbNotFlagged: !duckdb.some(function (i) { return /no live query path/.test(i.msg); }),
-        pentahoNotFlagged: !pentaho.some(function (i) { return /no live query path/.test(i.msg); }),
+        sampleNotFlagged: !sample.some(function (i) { return /no live query path/.test(i.msg); }),
         orphanedNotDoubleFlagged: !orphanedSnowflake.some(function (i) { return /no live query path/.test(i.msg); })
       };
     });
     ok("N-DATA: a bound Snowflake (or Databricks/BigQuery/Generic SQL) DA gets a warn-level 'no live query path once exported' Checks note",
       directConnWarn.snowflakeFlagged, JSON.stringify(directConnWarn));
     ok("Z14: a bound DuckDB/SQLite DA is NOT flagged — they have a real runtime query path once exported now", directConnWarn.duckdbNotFlagged, JSON.stringify(directConnWarn));
-    ok("N-DATA: a plain Pentaho SQL/MDX DA is NOT flagged with the direct-connector export warning", directConnWarn.pentahoNotFlagged, JSON.stringify(directConnWarn));
+    ok("N-DATA: a plain sample-engine SQL DA is NOT flagged with the direct-connector export warning", directConnWarn.sampleNotFlagged, JSON.stringify(directConnWarn));
     ok("N-DATA: an orphaned direct-connector DA only gets the 'declared but not used' note, not also the export warning", directConnWarn.orphanedNotDoubleFlagged, JSON.stringify(directConnWarn));
 
     // Z14 architecture-gap FIX (2026-07-04, same run as the test update above): the exported
     // Dashboard Framework now has a real runtime query path for DuckDB/SQLite. Verify (1) lean
     // bundling — the connector façade is only inlined when that DA kind is actually used — and
     // (2) studio-render.js's PDC.cda dispatch genuinely reaches Studio.DuckDB/SQLiteHttp.query()
-    // once no PDC_MOCK data is present (i.e. a real deployment), not a Pentaho CDA fetch that
+    // once no PDC_MOCK data is present (i.e. a real deployment), not a legacy CDA fetch that
     // would 404 for a DA with no server-side definition.
     console.log("\n• Z14 fix: exported dashboards can now query DuckDB/SQLite live");
     const z14Bundling = await page.evaluate(function () {
@@ -14936,11 +14204,11 @@ function serve() {
     ok("N-DATA/Track N: deleteCanvasNote() removes just that one note", noteDelete.count === 1, JSON.stringify(noteDelete));
 
     const noteNeverExported = await page.evaluate(function () {
-      var cda = Studio.exportCDA(window.__STUDIO_STATE.spec);
-      return { specHasNoteField: JSON.stringify(window.__STUDIO_STATE.spec).indexOf("canvas-notes") >= 0, cdaClean: cda.indexOf("Double-check") < 0 && cda.indexOf("Edited text") < 0 };
+      var html = Studio.exportCDF(window.__STUDIO_STATE.spec, window.__STUDIO_STATE.assets, window.__STUDIO_STATE.settings.deployPath);
+      return { specHasNoteField: JSON.stringify(window.__STUDIO_STATE.spec).indexOf("canvas-notes") >= 0, htmlClean: html.indexOf("Double-check") < 0 && html.indexOf("Edited text") < 0 };
     });
     ok("N-DATA/Track N: sticky notes are never part of the dashboard spec/export (scratch space only, keyed separately in localStorage)",
-      !noteNeverExported.specHasNoteField && noteNeverExported.cdaClean, JSON.stringify(noteNeverExported));
+      !noteNeverExported.specHasNoteField && noteNeverExported.htmlClean, JSON.stringify(noteNeverExported));
 
     // Track L a11y follow-up: the note-color swatch picker in the "Add/Edit note" modal manually
     // toggles .active on click (this modal doesn't rebuild on every change like the inspector
@@ -15154,7 +14422,7 @@ function serve() {
       var switches = Array.prototype.map.call(sec.querySelectorAll("input[data-set]"), function (cb) { return cb.getAttribute("data-set"); });
       return {
         visible: sec.hidden === false,
-        hasCards: sec.querySelectorAll(".settings-card").length === 9, // Workspace backend + 3 toggle groups + Branding (Z12) + Data source defaults + Dashboard defaults + Deploy (Z5 follow-up) + Data
+        hasCards: sec.querySelectorAll(".settings-card").length === 7, // Workspace backend + 3 toggle groups + Branding (Z12) + Dashboard defaults + Data
         switchIds: switches.join(","),
         darkChecked: sec.querySelector('input[data-set="dark"]').checked,
         simpleChecked: sec.querySelector('input[data-set="simple"]').checked,
@@ -15162,7 +14430,7 @@ function serve() {
         focusChecked: sec.querySelector('input[data-set="focus"]').checked
       };
     });
-    ok("Z5: Settings section renders 9 cards (Workspace backend + 3 mode-switch groups + Branding + Data source defaults + Dashboard defaults + Deploy + Data) with 4 mode switches, all off by default",
+    ok("Z5: Settings section renders 7 cards (Workspace backend + 3 mode-switch groups + Branding + Dashboard defaults + Data) with 4 mode switches, all off by default",
       z5Boot.visible && z5Boot.hasCards && z5Boot.switchIds === "dark,simple,demo,focus"
         && !z5Boot.darkChecked && !z5Boot.simpleChecked && !z5Boot.demoChecked && !z5Boot.focusChecked,
       JSON.stringify(z5Boot));
@@ -15401,7 +14669,7 @@ function serve() {
       };
     });
     ok("Z5: Settings page has a Data card with Export/Import buttons",
-      z5Data.cardCount === 9 && z5Data.hasExportBtn && z5Data.hasImportBtn, JSON.stringify(z5Data));
+      z5Data.cardCount === 7 && z5Data.hasExportBtn && z5Data.hasImportBtn, JSON.stringify(z5Data));
 
     const [z5Dl] = await Promise.all([page.waitForEvent("download"), page.click("#setExportBtn")]);
     const z5DlName = z5Dl.suggestedFilename();
@@ -15426,83 +14694,7 @@ function serve() {
       z5Import.ok1 === false && z5Import.afterRejected === "light" && z5Import.ok2 === true && z5Import.afterApplied === "dark",
       JSON.stringify(z5Import));
 
-    // ── Z5 follow-up: Settings — data-source defaults (default JNDI connection) ──
-    console.log("\n• Z5 follow-up: data-source defaults");
-    const z5JndiDefault = await page.evaluate(function () {
-      try { localStorage.removeItem("studio-default-jndi"); } catch (e) {}
-      window.__studioRenderSettings();
-      var inp = document.getElementById("setDefaultJndiInp");
-      return { present: !!inp, value: inp ? inp.value : "", helperDefault: window.__studioDefaultJndi() };
-    });
-    ok("Z5: Settings shows a Default JNDI connection field, defaulting to PDC-BIDB-EXT",
-      z5JndiDefault.present && z5JndiDefault.value === "PDC-BIDB-EXT" && z5JndiDefault.helperDefault === "PDC-BIDB-EXT",
-      JSON.stringify(z5JndiDefault));
 
-    await page.fill("#setDefaultJndiInp", "ACME-PROD-DS");
-    await page.evaluate(function () { document.getElementById("setDefaultJndiInp").dispatchEvent(new Event("change")); });
-    await page.waitForTimeout(80);
-    const z5JndiSet = await page.evaluate(function () {
-      return { helper: window.__studioDefaultJndi(), stored: localStorage.getItem("studio-default-jndi"), inKeys: window.__studioImportSettingsKeys.indexOf("studio-default-jndi") >= 0 };
-    });
-    ok("Z5: changing the Default JNDI field persists it and is included in Settings export/import keys",
-      z5JndiSet.helper === "ACME-PROD-DS" && z5JndiSet.stored === "ACME-PROD-DS" && z5JndiSet.inKeys, JSON.stringify(z5JndiSet));
-
-    await page.evaluate(function () { window.__studioShellSetSection("studio"); });
-    await page.waitForTimeout(80);
-    const z5JndiNewDs = await page.evaluate(function () {
-      document.getElementById("btnNewDS").click();
-      var fields = [].slice.call(document.querySelectorAll(".dsb .field"));
-      var connField = fields.filter(function (f) { var lb = f.querySelector("label"); return lb && lb.textContent.indexOf("Connection (JNDI)") >= 0; })[0];
-      var jndiInp = connField ? connField.querySelector("input") : null;
-      var val = jndiInp ? jndiInp.value : "";
-      var modal = document.querySelector(".modal-ov"); if (modal) modal.remove(); // cancel out
-      return { val: val, found: !!jndiInp };
-    });
-    ok("Z5: a brand-new data source's Connection (JNDI) field pre-fills with the Settings default",
-      z5JndiNewDs.found && z5JndiNewDs.val === "ACME-PROD-DS", JSON.stringify(z5JndiNewDs));
-    await page.evaluate(function () { localStorage.removeItem("studio-default-jndi"); window.__studioRenderSettings(); }); // restore default for later tests
-
-    // ── Z5 follow-up: Settings — Deploy card (deploy path + live-data toggle, now persisted) ──
-    // Previously S.settings.{deployPath,live} were in-memory-only (hardcoded, reset every reload)
-    // despite living on a page whose own header promises "saved locally on this device" — this
-    // slice surfaces them as a first-class card AND fixes the missing persistence in one pass.
-    console.log("\n• Z5 follow-up: Deploy card (deploy path + live data, persisted)");
-    await page.click('#railNav .rail-item[data-sec="settings"]'); await page.waitForTimeout(100);
-    const z5DeployBoot = await page.evaluate(function () {
-      try { localStorage.removeItem("studio-deploy-path"); localStorage.removeItem("studio-live-data"); } catch (e) {}
-      window.__STUDIO_STATE.settings.deployPath = "/public/pdc-iteration/v2"; window.__STUDIO_STATE.settings.live = false;
-      window.__studioRenderSettings();
-      var pathInp = document.getElementById("setDeployPathInp"), liveCb = document.getElementById("setLiveDataCb");
-      return { pathPresent: !!pathInp, pathVal: pathInp ? pathInp.value : "", livePresent: !!liveCb, liveChecked: liveCb ? liveCb.checked : null };
-    });
-    ok("Z5: Settings shows a Deploy path field, defaulting to the built-in path", z5DeployBoot.pathPresent && z5DeployBoot.pathVal === "/public/pdc-iteration/v2", JSON.stringify(z5DeployBoot));
-    ok("Z5: Settings shows a Live data toggle, off by default", z5DeployBoot.livePresent && z5DeployBoot.liveChecked === false, JSON.stringify(z5DeployBoot));
-
-    await page.fill("#setDeployPathInp", "/public/acme-dashboards");
-    await page.evaluate(function () { document.getElementById("setDeployPathInp").dispatchEvent(new Event("change")); });
-    await page.waitForTimeout(80);
-    const z5DeploySet = await page.evaluate(function () {
-      return {
-        runtime: window.__STUDIO_STATE.settings.deployPath, stored: localStorage.getItem("studio-deploy-path"),
-        inKeys: window.__studioImportSettingsKeys.indexOf("studio-deploy-path") >= 0
-      };
-    });
-    ok("Z5: changing the Deploy path field persists it (was in-memory-only before this slice) and is in Settings export/import keys",
-      z5DeploySet.runtime === "/public/acme-dashboards" && z5DeploySet.stored === "/public/acme-dashboards" && z5DeploySet.inKeys, JSON.stringify(z5DeploySet));
-
-    await page.click("#setLiveDataCb").catch(function () {}); // may be disabled with no active connection — that's fine, still exercises the handler if enabled
-    await page.waitForTimeout(60);
-    const z5LiveSet = await page.evaluate(function () {
-      var cb = document.getElementById("setLiveDataCb");
-      return { disabled: cb.disabled, runtime: window.__STUDIO_STATE.settings.live, stored: localStorage.getItem("studio-live-data"), inKeys: window.__studioImportSettingsKeys.indexOf("studio-live-data") >= 0 };
-    });
-    ok("Z5: the Live data toggle is disabled with no active server connection, and its key is tracked for export/import either way",
-      z5LiveSet.disabled === true && z5LiveSet.inKeys, JSON.stringify(z5LiveSet));
-
-    await page.evaluate(function () {
-      localStorage.removeItem("studio-deploy-path"); localStorage.removeItem("studio-live-data");
-      window.__STUDIO_STATE.settings.deployPath = "/public/pdc-iteration/v2"; window.__STUDIO_STATE.settings.live = false;
-    }); // restore defaults for later tests
 
     // ── Z6/Z5 follow-up: Dashboard defaults (default subtitle + accent color for new blank dashboards) ──
     console.log("\n• Z6/Z5 follow-up: dashboard defaults");
@@ -17202,8 +16394,8 @@ function serve() {
       const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json());
       spec.kpis[0].agg = "sum";
       // preview:true + mock data (same as the live builder preview / a Studio-generated preview
-      // link) — a bare preview:false export would need a real Pentaho server behind it to answer
-      // the CDA queries, which isn't what this regression is about.
+      // link) — a bare preview:false export has no mock feed to answer the data queries,
+      // which isn't what this regression is about.
       return Studio.buildHtml(spec, window.__STUDIO_STATE.assets, { preview: true, mock: Studio.genMock(spec), launcher: false });
     });
     const bundlePage = await browser.newPage();
@@ -17742,7 +16934,7 @@ function serve() {
     // are fetched during install too (from the index we just cached), so a first-ever offline
     // visit still has a full library/gallery, not just a blank shell.
     const pwaDataPrecached = await pwaPage.evaluate(async function () {
-      const cache = await caches.open("studio-shell-v3");
+      const cache = await caches.open("studio-shell-v4");
       const keys = (await cache.keys()).map((r) => new URL(r.url).pathname.replace(/^\//, ""));
       const exIndex = await fetch("data/examples/index.json").then((r) => r.json());
       const missingExamples = exIndex.filter((ex) => keys.indexOf("data/examples/" + ex.file) < 0);

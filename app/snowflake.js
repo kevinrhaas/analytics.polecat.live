@@ -90,7 +90,7 @@
       });
     },
 
-    // Rejects on failure (mirrors Studio.PentahoClient().doQuery()'s / Studio.DuckDB.query()'s
+    // Rejects on failure (mirrors Studio.DuckDB.query()'s
     // contract) so callers reuse the same .then/.catch pattern as the existing "Run live" preview.
     query: function (cfg, sql) {
       return runStatement(cfg, (sql && sql.trim()) || "SELECT 1 AS ok");

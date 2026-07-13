@@ -41,15 +41,20 @@
 
 > **GOAL / NORTH STAR:** build **Analytics Dashboard Studio** into a best-in-class, gorgeous, fun,
 > industry-leading **analytics application** (analytics.polecat.live) — not just a dashboard builder.
-> The direction: a multi-section app (Home · Repository · Studio · Settings) where you connect to
-> **many data providers directly** (Snowflake, Databricks, BigQuery, generic SQL — plus Pentaho CDA),
-> author stunning interactive dashboards, and manage data sources + workbooks — heading toward
-> standalone analytic apps with forecasting/statistics. Everything stays **pure HTML/JS, config saved
-> locally, no backend** (for now). Aesthetic: fun, clean, elegant, a little **game-like**, on the
-> Polecat warm-dark design language. The visual **dashboard builder** (the "Studio" section, exporting
-> byte-faithful self-contained HTML) is the mature core; the ★ Z backlog below drives the platform
-> expansion. Terminology is generic (Data Access, Dashboard Framework); Pentaho remains one supported
-> backend, not the framing.
+> The app is a multi-section workspace (Home · Dashboards · Datasets · Connections · Studio · Settings)
+> built on the **adapters → connections → datasets** model (2026-07-13 overhaul, user-directed):
+> **Adapters** (app/sources/) implement one contract with two capability planes — `caps.meta` (can host
+> the app's own workspace catalog) and `caps.data` (can run dataset queries). **Connections** are saved,
+> credentialed instances of an adapter. **Datasets** are named, `{{param}}`-substitutable queries on a
+> connection that dashboards bind to (imported into the spec as self-contained copies that stay LINKED
+> via datasetId/connectionId for live runs). The **workspace backend** (Settings card, manager-pattern
+> write-through sync, optional zero-knowledge secrets encryption) mirrors the whole catalog to
+> Turso/Supabase/Firebase. **Pentaho is fully removed** (sources, Servers, CDA/CDE export, publish);
+> the old CDA demo catalog now just feeds the built-in offline sample engine. Everything stays
+> **pure HTML/JS, no build step**; local-first with the optional remote backend. Aesthetic: Polecat
+> warm-dark (the DEFAULT app + dashboard theme), fun, clean, elegant, a little **game-like** —
+> jobtracker-style filterable lists (multi-select pills, search, tiles/list), manager-style rail.
+> The visual **dashboard builder** (Studio, exporting self-contained HTML) is the mature core.
 
 ## Environment / how to work
 - Project root: the **repository root** of `kevinrhaas/analytics.polecat.live` (the app is the repo —
@@ -1027,6 +1032,32 @@
   below. Test-only, no product change. Suite 1476/1476.
 
 ## NEXT (top = do first)
+
+### ★★★ POST-OVERHAUL BACKLOG (2026-07-13, user-directed — do these FIRST when the loop resumes)
+> The adapters → connections → datasets overhaul (see GOAL block) landed its baseline in one long
+> interactive session (Polecat default look · app/sources/ adapter layer · Connections/Datasets/
+> Dashboards sections · manager-style rail · workspace-backend sync w/ secrets · full Pentaho removal).
+> These are the follow-ons, in priority order:
+> 1. **Dashboards into the workspace store.** The Dashboards catalog still reads `studio-recents`
+>    (localStorage) — the Workspace `dashboards` table stays empty, so the remote backend mirrors
+>    connections+datasets+settings but NOT dashboards yet. Migrate save/recents into
+>    `Studio.Workspace` (keep pins/workbooks), so the whole catalog travels to Turso/Supabase/Firebase.
+> 2. **More data adapters** (user: "we will add many more"): PostgreSQL (via PostgREST/pg-http or a
+>    documented proxy), AWS Redshift (Data API), Azure SQL / Fabric, MotherDuck, CSV/JSON file-drop
+>    (local File System Access API), Google Sheets. Each = one file implementing the contract in
+>    app/sources/schema.js + registerSource + wizard fields + tests against a mock.
+> 3. **Exported-runtime support for connection-bound datasets** — bundle the needed adapter engines
+>    into exports (like duckdb/httpvfs already do) so a shipped .html can run live against Turso etc.,
+>    with credentials prompted at open (never embedded).
+> 4. **Terminology sweep**: "My Data Sources" → "This dashboard's datasets", data-source builder →
+>    dataset editor naming, sample catalog groups labeled as "Samples"; rename the internal `--pentaho`
+>    CSS var → `--brand` (mechanical, ~100 refs incl. themes/vendor/tests, zero user impact).
+> 5. **Dataset delight**: schema browser per connection (list tables/columns via adapter), dataset
+>    lineage chips (which dashboards use this dataset — blast-radius view), scheduled refresh hints,
+>    result caching with TTL per dataset (the old cache/cacheDuration fields are still on the rows).
+> 6. **Workspace polish**: saved views for the Datasets/Connections lists (jobtracker pattern),
+>    keyboard palette entries for the new sections, drag a dataset card straight onto Home to start
+>    a dashboard.
 
 ### ★★★ TOP PRIORITY — MOBILE IS BROKEN, FIX IT FIRST (user-requested 2026-07-02, with screenshots)
 > **Spend the next several consecutive runs on mobile — ahead of ALL Z-platform work — until the app is

@@ -383,13 +383,12 @@
   };
 
   /* ---- N-DATA: dashboard-wide formula language, first cut (added 2026-07-04) ----
-     A data access's "Calculated columns" (formula: "=[col1] + [col2]") already round-trip
-     through the real Pentaho CDA export as <CalculatedColumns> XML — a real Pentaho server
-     evaluates them. But the builder never evaluates the formula itself, so (a) the offline
-     preview always showed a blank/undefined value for a calc column and (b) the calc column's
-     name was never offered as a real column a panel/KPI could bind to, silently making the
-     whole section a no-op for the six direct-query connectors (DuckDB/SQLite/Snowflake/
-     Databricks/BigQuery/Generic SQL — none of which go through a CDA server to evaluate it).
+     A data access's "Calculated columns" (formula: "=[col1] + [col2]") originally only
+     round-tripped through the (since-retired) server-side CDA export. The builder never
+     evaluated the formula itself, so (a) the offline preview always showed a blank/undefined
+     value for a calc column and (b) the calc column's name was never offered as a real column
+     a panel/KPI could bind to, silently making the whole section a no-op for the six
+     direct-query connectors (DuckDB/SQLite/Snowflake/Databricks/BigQuery/Generic SQL).
      `evalFormula` is a small, safe recursive-descent arithmetic parser — no eval()/Function(),
      only add/subtract/multiply/divide, parens, numbers, [column] references, and the two named
      functions below — safe to run on user-typed text.
@@ -2026,7 +2025,7 @@
   // in both light and dark mode so chart series always look intentional together.
   // key: "default" leaves pdc-ui.css values intact. Stored as spec.paletteKey.
   Studio.PALETTE_PRESETS = [
-    { key: "default", label: "Pentaho (default)", swatch: "#005bb5", light: null, dark: null },
+    { key: "default", label: "Classic (default)", swatch: "#005bb5", light: null, dark: null },
     { key: "ocean",  label: "Ocean",  swatch: "#0277bd",
       light: ["#0277bd","#006d77","#0097a7","#1aadca","#00838f","#1565c0","#00acc1","#29b6f6","#006064","#4fc3f7"],
       dark:  ["#29b6f6","#4dd0e1","#26c6da","#80deea","#64b5f6","#64ffda","#7cc4ff","#00e5ff","#b3e5fc","#b2ebf2"]
@@ -2249,9 +2248,7 @@
       subtitle: "",
       group: "Observability",
       description: "",
-      cda: { connection: { id: "pdc", jndi: "PDC-BIDB-EXT" },
-             connections: [{ id: "pdc", type: "sql.jndi", jndi: "PDC-BIDB-EXT" }],
-             dataAccesses: [] },
+      cda: { dataAccesses: [] },
       filters: [],
       kpis: [],
       gridCols: 3,
@@ -2473,13 +2470,7 @@
 
   /* ---- CDA authoring helpers ---- */
   Studio.DA_KINDS = [
-    { id: "sql.jndi",      label: "SQL / JNDI (connection pool)" },
-    { id: "sql.jdbc",      label: "SQL / JDBC (direct connection)" },
-    { id: "mondrian.jndi", label: "Mondrian MDX (JNDI)" },
-    { id: "olap4j",        label: "OLAP4J" },
-    { id: "metadata",      label: "Metadata (MQL)" },
-    { id: "kettle",        label: "Kettle (.ktr transform)" },
-    { id: "scripting",     label: "Scripting (JS / Groovy)" },
+    { id: "sql",           label: "SQL (sample engine)" },
     { id: "duckdb",        label: "DuckDB-Wasm (remote Parquet/CSV, no backend)" },
     { id: "httpvfs",       label: "SQLite-WASM (remote .sqlite over HTTP, no backend)" },
     { id: "snowflake",     label: "Snowflake (SQL API, needs token + CORS allow-list)" },
@@ -2505,7 +2496,7 @@
   // true when chart type `t` supports interaction/annotation kind `k` (one of ANNOT_CAPS' keys).
   Studio.chartSupports = function (k, t) { return !!(Studio.ANNOT_CAPS[k] && Studio.ANNOT_CAPS[k][t]); };
   Studio.newDA = function () {
-    return { id: Studio.uid("da"), name: "", kind: "sql.jndi", connectionId: "", sql: "", columns: [], params: [], calcColumns: [], cache: true, cacheDuration: 300 };
+    return { id: Studio.uid("da"), name: "", kind: "sql", connectionId: "", sql: "", columns: [], params: [], calcColumns: [], cache: true, cacheDuration: 300 };
   };
   Studio.newCalcCol = function () { return { name: "", formula: "", type: "Numeric" }; };
   Studio.newCompoundDA = function (compoundType) {
@@ -2514,30 +2505,6 @@
              unionDas: [], columns: [], cache: true, cacheDuration: 300 };
   };
   Studio.isCompoundDA = function (da) { return da && da.kind === "compound"; };
-
-  /* ---- CDA connections ---- */
-  Studio.CDA_CONNECTION_TYPES = [
-    { id: "sql.jndi",             label: "SQL / JNDI",              fields: [{ key: "jndi",          label: "JNDI pool name",    ph: "PDC-BIDB-EXT" }] },
-    { id: "sql.jdbc",             label: "SQL / JDBC (direct)",     fields: [{ key: "driver",         label: "JDBC driver class", ph: "org.postgresql.Driver" },
-                                                                               { key: "url",            label: "JDBC URL",          ph: "jdbc:postgresql://host:5432/db" },
-                                                                               { key: "user",           label: "User",              ph: "pentaho" },
-                                                                               { key: "pass",           label: "Password",          ph: "", secret: true }] },
-    { id: "mondrian.jndi",        label: "Mondrian MDX / JNDI",     fields: [{ key: "jndi",           label: "JNDI pool name",    ph: "PDC-BIDB-EXT" },
-                                                                               { key: "catalog",        label: "Schema catalog path", ph: "/pentaho/etc/mondrian/schema.xml" }] },
-    { id: "olap4j",               label: "OLAP4J",                  fields: [{ key: "connectString",  label: "Connect string",    ph: "Provider=Mondrian;DataSource=..." }] },
-    { id: "metadata",             label: "Metadata / MQL",          fields: [{ key: "domainId",       label: "Domain ID",         ph: "pdc" },
-                                                                               { key: "xmiFile",        label: "XMI file path",     ph: "/etc/metadata.xmi" }] },
-    { id: "kettle.TransFromFile", label: "Kettle / PDI transform",  fields: [{ key: "fileName",       label: ".ktr file path",    ph: "/public/etl/my.ktr" },
-                                                                               { key: "step",           label: "Output step name",  ph: "Output" }] },
-    { id: "scripting",            label: "Scripting (JS / Groovy)", fields: [{ key: "language",       label: "Language",          ph: "javascript" }] }
-  ];
-
-  Studio.newCDAConnection = function (type) {
-    return { id: Studio.uid("conn"), type: type || "sql.jndi",
-             jndi: "", driver: "", url: "", user: "", pass: "",
-             catalog: "", connectString: "", domainId: "", xmiFile: "",
-             fileName: "", step: "", language: "javascript" };
-  };
 
   /* ---- output options (post-query filter / sort / limit) ---- */
   Studio.DA_OPS = [
@@ -2607,17 +2574,6 @@
     if (limit > 0) rows = rows.slice(0, limit);
 
     return { cols: cols, rows: rows };
-  };
-
-  // Map a DA kind to the CDA XML <DataAccess type="..."> attribute value.
-  Studio.daAccessType = function (kind) {
-    if (!kind || /^sql/.test(kind)) return "sql";
-    if (kind === "mondrian.jndi") return "mdx";
-    if (kind === "olap4j") return "olap4j";
-    if (kind === "metadata") return "mql";
-    if (/^kettle/.test(kind)) return "kettle";
-    if (kind === "scripting") return "scripting";
-    return "sql";
   };
 
   // extract column aliases from SQL (SELECT … AS alias …)
@@ -2700,28 +2656,28 @@
     return p.join("");
   };
 
-  /* G3 — Parse an existing .ktr XML string and return its metadata.
-     Returns { name: string, steps: [{name, type}] }.
-     Used by the "Import .ktr…" file picker in the Kettle DA editor so users
-     can inspect an existing transform and pick its output step without opening PDI.
-     Handles both compact (one-liner) and pretty-printed .ktr files. */
-  Studio.parseKtr = function (xmlStr) {
-    var infoM = xmlStr.match(/<info>([\s\S]*?)<\/info>/);
-    var nameM = infoM ? infoM[1].match(/<name>([^<]+)<\/name>/) : null;
-    var transformName = nameM ? nameM[1].trim() : "";
-    var steps = [];
-    // Process each <step>…</step> block independently to avoid cross-step regex confusion.
-    xmlStr.replace(/<step>([\s\S]*?)<\/step>/g, function (_, block) {
-      var nm = block.match(/<name>([^<]+)<\/name>/);
-      var tp = block.match(/<type>([^<]+)<\/type>/);
-      if (nm && tp) {
-        var n = nm[1].trim(), t = tp[1].trim();
-        if (n && !steps.some(function (s) { return s.name === n; })) {
-          steps.push({ name: n, type: t });
-        }
-      }
-    });
-    return { name: transformName, steps: steps };
+  // Column aliases from a SQL string (used by the data-source builder's
+  // "Detect" button and dataset imports). Rescued from the retired Pentaho
+  // module — nothing Pentaho about it.
+  Studio.colsFromSql = function (sql) {
+    var cols = [], re = /\bAS\s+([a-zA-Z_]\w*)/gi, m;
+    sql = String(sql || "");
+    while ((m = re.exec(sql))) if (cols.indexOf(m[1]) < 0) cols.push(m[1]);
+    return cols;
+  };
+
+  /* ---------- exported .html → spec (Studio exports embed window.STUDIO_SPEC) ---------- */
+  Studio.parseCDFHtml = function (html) {
+    var m = /window\.STUDIO_SPEC\s*=\s*\{/.exec(html); if (!m) return null;   // the assignment, not toolkit refs
+    var b = m.index + m[0].length - 1;
+    var depth = 0, inStr = false, esc2 = false, end = -1;
+    for (var k = b; k < html.length; k++) {
+      var ch = html[k];
+      if (inStr) { if (esc2) esc2 = false; else if (ch === "\\") esc2 = true; else if (ch === '"') inStr = false; }
+      else if (ch === '"') inStr = true; else if (ch === "{") depth++; else if (ch === "}") { depth--; if (depth === 0) { end = k + 1; break; } }
+    }
+    if (end < 0) return null;
+    try { return JSON.parse(html.slice(b, end)); } catch (e) { return null; }
   };
 
   // Track L (architecture sweep): shared by both browser-native connectors (duckdb.js, sqlitehttp.js) —

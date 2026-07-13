@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-/* tools/export.js — generate deployable Pentaho artifacts from a .studio.json,
-   reusing the SAME app/exporters.js the browser builder uses (no DOM needed).
+/* tools/export.js — generate a deployable self-contained dashboard .html from a
+   .studio.json, reusing the SAME app/exporters.js the browser builder uses (no DOM needed).
    Usage: node tools/export.js <spec.studio.json> [outDir] [deployPath] */
 "use strict";
 const fs = require("fs");

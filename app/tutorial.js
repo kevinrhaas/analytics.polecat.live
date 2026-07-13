@@ -47,8 +47,8 @@
     },
     {
       t: "4 · Export",
-      h: "When your dashboard looks great, click <b>Export ▾</b> to download a self-contained <b>CDF .html</b> file — ready to drop into Pentaho. You can also export CDE editor files or push directly to a live Pentaho server.",
-      sub: "Or use the CLI tool (tools/export.js) to generate artifacts outside the browser.",
+      h: "When your dashboard looks great, click <b>Export ▾</b> to download a self-contained <b>.html</b> file — host it anywhere static pages live. The bundle export adds the editable <b>.studio.json</b> spec alongside it.",
+      sub: "Or use the CLI tool (tools/export.js) to generate the artifacts outside the browser.",
       target: "#btnExport",
       pos: "bottom"
     },
