@@ -335,11 +335,15 @@
       renderConnections();
       // keep the Connections list live: any workspace mutation (local edit or a
       // future remote adopt) repaints it
+      renderDatasets();
       Studio.Workspace.on("change", function (p) {
         if (p.table === "connections" || p.table === "*") renderConnections();
+        if (p.table === "datasets" || p.table === "connections" || p.table === "*") { renderDatasets(); buildLibrary(); }
       });
       var connSearchInp = $("#connSearch"); if (connSearchInp) connSearchInp.addEventListener("input", renderConnections);
       var connNewBtn = $("#connNewBtn"); if (connNewBtn) connNewBtn.onclick = function () { openConnectionWizard(); };
+      var dsxSearchInp = $("#dsxSearch"); if (dsxSearchInp) dsxSearchInp.addEventListener("input", renderDatasets);
+      var dsxNewBtn = $("#dsxNewBtn"); if (dsxNewBtn) dsxNewBtn.onclick = function () { openDatasetEditor(); };
       renderSettings();
       if (window.StudioWelcome) { var ab = $("#btnAbout"); if (ab) ab.onclick = function () { StudioWelcome.open(); }; setTimeout(function () { StudioWelcome.maybeShow(); }, 300); }
       buildLibrary();
@@ -498,10 +502,97 @@
     if (q && !shownDA) {
       var empty = el("div", "lib-empty"); empty.textContent = 'No catalog queries match "' + esc(q) + '".'; list.appendChild(empty);
     }
-    // "My Data Sources" section always at the top
+    // "Workspace datasets" (the shared connections → datasets catalog), then
+    // "My Data Sources" (this dashboard's own queries) above it — both pinned
+    // over the sample-catalog groups.
+    buildWorkspaceDatasets(list, q);
     buildMyDataSources(list);
     $("#libCount").textContent = shownDA + " queries";
   }
+
+  /* ---------- Workspace datasets in the library (drag/add like any query) ---------- */
+  function buildWorkspaceDatasets(list, q) {
+    var all = (window.Studio.Workspace ? Studio.Workspace.all("datasets") : []);
+    if (!all.length) return;
+    var dss = all.filter(function (d) {
+      if (!q) return true;
+      return (d.name + " " + (d.sql || d.table || d.collection || "") + " " + (d.columns || []).join(" ") + " " + (d.tags || []).join(" ")).toLowerCase().indexOf(q) >= 0;
+    }).sort(function (a, b) { return (a.name || "").localeCompare(b.name || ""); });
+    if (!dss.length) return;
+    var wrap = el("div", "lib-mine lib-wsds open");
+    var h = el("div", "h");
+    h.innerHTML = '<span class="car">▶</span><span class="nm">Workspace datasets</span><span class="badge">' + dss.length + "</span>";
+    h.onclick = function () { wrap.classList.toggle("open"); };
+    wrap.appendChild(h);
+    var box = el("div", "lib-das");
+    dss.forEach(function (ds) { box.appendChild(wsDatasetCard(ds, q)); });
+    wrap.appendChild(box);
+    list.insertBefore(wrap, list.firstChild);
+  }
+  function wsDatasetCard(ds, q) {
+    var c = el("div", "da");
+    c.draggable = true;
+    var conn = Studio.Workspace.get("connections", ds.connectionId);
+    var src = conn && Studio.sourceById(conn.adapter);
+    var cols = (ds.columns || []).map(function (x) { return '<span class="col">' + hlq(x, q) + "</span>"; }).join("");
+    var chips = ["bars", "donut", "line", "treemap", "table"].map(function (t) {
+      return '<span class="chip" data-t="' + t + '">+ ' + Studio.CHARTS[t].label + "</span>";
+    }).join("") + '<span class="chip" data-t="kpi">+ KPI</span>';
+    c.innerHTML = '<div class="da-top"><div class="da-id">' + hlq(ds.name, q) + "</div></div>" +
+      '<div class="da-name">' + esc(conn ? conn.name : "no connection") + (src ? " · " + esc(src.label) : "") + "</div>" +
+      (cols ? '<div class="da-cols">' + cols + "</div>" : '<div class="da-cols"><span class="col" style="opacity:.6">columns appear after a Preview run</span></div>') +
+      '<div class="da-add">' + chips + "</div>";
+    $$(".chip", c).forEach(function (chip) {
+      chip.onclick = function (e) { e.stopPropagation(); addFromWorkspaceDataset(ds.id, chip.getAttribute("data-t")); };
+    });
+    c.addEventListener("dragstart", function (e) {
+      e.dataTransfer.setData("text/plain", JSON.stringify({ wsDataset: ds.id }));
+      e.dataTransfer.effectAllowed = "copy";
+    });
+    return c;
+  }
+  // Import a workspace dataset into the spec as a self-contained data access
+  // (exports keep working with sample data even if the workspace row is later
+  // deleted) that stays LINKED via datasetId + connectionId for live runs.
+  function specDAFromDataset(ds) {
+    var existing = (S.spec.cda.dataAccesses || []).filter(function (x) { return x.datasetId === ds.id; })[0];
+    if (existing) return existing;
+    var da = Studio.newDA();
+    var base = String(ds.name || "dataset").replace(/[^A-Za-z0-9_]+/g, "_").replace(/^_+|_+$/g, "") || "dataset";
+    var id = base, n = 2;
+    while (Studio.daById(S.spec, id)) id = base + "_" + (n++);
+    da.id = id; da.name = ds.name || id;
+    da.kind = "sql";
+    da.sql = ds.sql || ""; da.query = da.sql;
+    da.columns = (ds.columns || []).slice();
+    if (!da.columns.length && ds.sql && Studio.detectColumns) da.columns = Studio.detectColumns(ds.sql) || [];
+    da.params = (ds.params || []).map(function (p) { return { name: p.key, default: p.value || "" }; });
+    da.datasetId = ds.id;
+    da.connectionId = ds.connectionId;
+    da.dataset = { kind: ds.kind || "sql", sql: ds.sql, table: ds.table, query: ds.query, collection: ds.collection, params: ds.params };
+    da.authored = true;
+    S.spec.cda.dataAccesses.push(da);
+    return da;
+  }
+  function addFromWorkspaceDataset(dsId, type) {
+    var ds = Studio.Workspace.get("datasets", dsId); if (!ds) return;
+    if (!(ds.columns || []).length && !(ds.sql && (Studio.detectColumns(ds.sql) || []).length)) {
+      toast("Run a Preview on this dataset first so its columns are known.", true);
+      return;
+    }
+    var da = specDAFromDataset(ds);
+    if (type === "kpi") {
+      var k = Studio.newKpi(da); k.fmt = Studio.guessFmt(k.valueCol);
+      S.spec.kpis.push(k); select({ kind: "kpi", index: S.spec.kpis.length - 1 });
+    } else {
+      var p = Studio.newPanel(type || "bars", da);
+      if (p.chart.opts && "fmt" in p.chart.opts) p.chart.opts.fmt = Studio.guessFmt(p.chart.map.valueCol || (p.chart.map.series && p.chart.map.series[0] && p.chart.map.series[0].col));
+      S.spec.panels.push(p); select({ kind: "panel", id: p.id });
+    }
+    toast("Added dataset “" + ds.name + "” to “" + S.spec.title + "”");
+    refreshPreview(); buildLibrary();
+  }
+  window.__studioAddFromWorkspaceDataset = addFromWorkspaceDataset; // test hook
 
   /* ---------- My Data Sources (spec-owned DAs) ---------- */
   function buildMyDataSources(list) {
@@ -4331,6 +4422,26 @@
       if (!liveBtn) return;
       liveBtn.disabled = true; liveBtn.textContent = "Loading…";
       statusLine.textContent = "Querying…";
+      // Connection-bound dataset (the connections → datasets model): resolve the
+      // workspace dataset fresh when it still exists (edits in the Datasets
+      // section flow through), else run the copy embedded at import time. The
+      // adapter runs through the referenced Connection's stored credentials.
+      // Params: dataset defaults ← dashboard template variables ← the
+      // inspector's own param inputs (most specific wins).
+      if (da.connectionId) {
+        var wsd = (da.datasetId && Studio.Workspace.get("datasets", da.datasetId)) ||
+          Object.assign({ id: da.datasetId || da.id, name: da.name, connectionId: da.connectionId }, da.dataset || { kind: "sql", sql: da.sql || da.query });
+        var dsParams = {};
+        (S.spec.templateVars || []).forEach(function (tv) { if (tv.key) dsParams[tv.key] = tv.value; });
+        (da.params || []).forEach(function (p) { if (paramVals[p.name] != null) dsParams[p.name] = paramVals[p.name]; });
+        window.__studioRunDataset(wsd, dsParams).then(function (r) {
+          liveBtn.disabled = false; setIconBtn(liveBtn, "play", "Run live");
+          if (r.error) { toast("Dataset query failed — showing sample. (" + r.error + ")", true); runSample(); return; }
+          state.result = { cols: r.columns, rows: r.rows }; state.source = "live"; state.page = 0;
+          renderTable(state.result, "live");
+        });
+        return;
+      }
       if (isDuckdb) {
         if (!da.fileUrl) { liveBtn.disabled = false; setIconBtn(liveBtn, "play", "Run live"); toast("Set a file URL first.", true); runSample(); return; }
         Studio.DuckDB.query({ fileUrl: da.fileUrl, fileFormat: da.fileFormat }, da.sql || da.query).then(function (result) {
@@ -5569,6 +5680,291 @@
   }
   window.__studioRenderConnections = renderConnections; // test hook
   window.__studioOpenConnectionWizard = openConnectionWizard; // test hook
+
+  /* ---------- Datasets section ----------
+     A dataset = a named, parameterizable query defined on top of a Connection
+     ({{key}} placeholders resolve at run time — dashboard template variables
+     and per-dataset defaults). Workspace-level and reusable: the Studio
+     library lists them for drag-to-canvas, and this view manages the catalog
+     with the fleet's list UX (multi-select pills by adapter AND by tag,
+     search, status dot from the last preview run). */
+  var _dsxAdapterFilter = {}; // multi-select adapterId -> true; empty = all
+  var _dsxTagFilter = {};     // multi-select tag -> true; empty = all
+  function dsxConnOf(d) { return Studio.Workspace.get("connections", d.connectionId); }
+  function dsxAdapterOf(d) { var c = dsxConnOf(d); return c ? Studio.sourceById(c.adapter) : null; }
+  // What a dataset's definition looks like for a given adapter: SQL for the
+  // sql-family, a table+query for Supabase (PostgREST), a collection for
+  // Firestore. One place so the editor + runner + library agree.
+  function dsxKindFor(adapterId) {
+    if (adapterId === "supabase") return "table";
+    if (adapterId === "firebase") return "collection";
+    return "sql";
+  }
+  // Resolve a dataset's definition + params into what adapter.queryData expects.
+  function dsxRunnableDef(d, extraParams) {
+    var params = {};
+    (d.params || []).forEach(function (p) { if (p.key) params[p.key] = p.value; });
+    if (extraParams) Object.keys(extraParams).forEach(function (k) { params[k] = extraParams[k]; });
+    var def = { kind: d.kind || "sql" };
+    if (def.kind === "table") { def.table = Studio.WS.applyParams(d.table || "", params); def.query = Studio.WS.applyParams(d.query || "", params); }
+    else if (def.kind === "collection") { def.collection = Studio.WS.applyParams(d.collection || "", params); }
+    else def.sql = Studio.WS.applyParams(d.sql || "", params);
+    return def;
+  }
+  // Run a dataset through its connection's adapter; resolves {columns, rows}
+  // or an in-band {error}. Used by the editor preview, the list's Run action,
+  // and (via __studioRunDataset) the builder's live path.
+  function runDataset(d, extraParams) {
+    var conn = dsxConnOf(d);
+    if (!conn) return Promise.resolve({ columns: [], rows: [], error: "Dataset has no connection — pick one in the editor." });
+    var src = Studio.sourceById(conn.adapter);
+    if (!src || !src.caps || !src.caps.data) return Promise.resolve({ columns: [], rows: [], error: "Adapter " + conn.adapter + " can't run queries." });
+    return src.queryData(conn.cfg || {}, dsxRunnableDef(d, extraParams)).then(function (r) {
+      d.lastRun = { ok: !r.error, error: r.error || "", at: Date.now(), rows: (r.rows || []).length };
+      if (!r.error && (r.columns || []).length) d.columns = r.columns.slice();
+      Studio.Workspace.put("datasets", d, { silent: true });
+      return r;
+    });
+  }
+  function renderDatasets() {
+    var results = $("#dsxResults"); if (!results) return;
+    var q = (($("#dsxSearch") || {}).value || "").toLowerCase();
+    var list = Studio.Workspace.all("datasets").sort(function (a, b) { return (b.updatedAt || 0) - (a.updatedAt || 0); });
+    var adapterCounts = {}, tagCounts = {};
+    list.forEach(function (d) {
+      var src = dsxAdapterOf(d);
+      var aid = src ? src.id : "—";
+      adapterCounts[aid] = (adapterCounts[aid] || 0) + 1;
+      (d.tags || []).forEach(function (t) { tagCounts[t] = (tagCounts[t] || 0) + 1; });
+    });
+    Object.keys(_dsxAdapterFilter).forEach(function (k) { if (!adapterCounts[k]) delete _dsxAdapterFilter[k]; });
+    Object.keys(_dsxTagFilter).forEach(function (k) { if (!tagCounts[k]) delete _dsxTagFilter[k]; });
+    var anyA = Object.keys(_dsxAdapterFilter).length > 0, anyT = Object.keys(_dsxTagFilter).length > 0;
+    var pillsA = Object.keys(adapterCounts).sort().map(function (aid) {
+      var src = Studio.sourceById(aid) || { label: aid === "—" ? "No connection" : aid };
+      return '<button type="button" class="wb-chip cx-pill' + (_dsxAdapterFilter[aid] ? " active" : "") + '" data-dsx-adapter="' + esc(aid) + '" aria-pressed="' + (_dsxAdapterFilter[aid] ? "true" : "false") + '">' +
+        '<span class="cx-pill-dot" style="background:' + esc(src.accent || "var(--faint)") + '"></span>' +
+        '<span class="wb-chip-label">' + esc(src.label) + '</span> <span class="wb-chip-n">' + adapterCounts[aid] + '</span></button>';
+    }).join("");
+    var pillsT = Object.keys(tagCounts).sort().map(function (t) {
+      return '<button type="button" class="wb-chip cx-pill' + (_dsxTagFilter[t] ? " active" : "") + '" data-dsx-tag="' + esc(t) + '" aria-pressed="' + (_dsxTagFilter[t] ? "true" : "false") + '">' +
+        '<span class="wb-chip-label">#' + esc(t) + '</span> <span class="wb-chip-n">' + tagCounts[t] + '</span></button>';
+    }).join("");
+    var shown = list.filter(function (d) {
+      var src = dsxAdapterOf(d);
+      if (anyA && !_dsxAdapterFilter[src ? src.id : "—"]) return false;
+      if (anyT && !(d.tags || []).some(function (t) { return _dsxTagFilter[t]; })) return false;
+      if (!q) return true;
+      var conn = dsxConnOf(d);
+      var hay = (d.name + " " + (d.desc || "") + " " + (d.owner || "") + " " + (d.sql || d.table || d.collection || "") + " " +
+        (d.tags || []).join(" ") + " " + (conn ? conn.name : "") + " " + (d.columns || []).join(" ")).toLowerCase();
+      return hay.indexOf(q) >= 0;
+    });
+    var rows = shown.map(function (d) {
+      var conn = dsxConnOf(d), src = dsxAdapterOf(d);
+      var dot = !d.lastRun ? '<span class="cx-dot" title="Never run"></span>'
+        : (d.lastRun.ok ? '<span class="cx-dot ok" title="Last run OK · ' + esc(new Date(d.lastRun.at).toLocaleString()) + ' · ' + d.lastRun.rows + ' rows"></span>'
+          : '<span class="cx-dot bad" title="Last run failed: ' + esc(d.lastRun.error) + '"></span>');
+      var tags = (d.tags || []).map(function (t) { return '<span class="cx-badge">#' + esc(t) + '</span>'; }).join("");
+      return '<div class="cx-row" data-dsx-id="' + esc(d.id) + '" tabindex="0" role="button" aria-label="Edit dataset ' + esc(d.name) + '">' +
+        dot +
+        '<span class="cx-ic" style="color:' + esc((src && src.accent) || "var(--faint)") + '"></span>' +
+        '<span class="cx-name"><b>' + esc(d.name) + '</b><small>' + esc(conn ? conn.name : "no connection") + (src ? " · " + src.label : "") + (d.owner ? " · " + esc(d.owner) : "") + '</small></span>' +
+        tags +
+        ((d.params || []).length ? '<span class="cx-badge" title="Accepts parameters">' + (d.params || []).length + " param" + ((d.params || []).length > 1 ? "s" : "") + '</span>' : "") +
+        '<span class="cx-when">' + esc(new Date(d.updatedAt || Date.now()).toLocaleDateString()) + '</span>' +
+        '<span class="cx-actions">' +
+          '<button type="button" class="btn" data-dsx-run="' + esc(d.id) + '">Run</button>' +
+          '<button type="button" class="btn" data-dsx-edit="' + esc(d.id) + '">Edit</button>' +
+          '<button type="button" class="btn" data-dsx-del="' + esc(d.id) + '" aria-label="Delete ' + esc(d.name) + '">✕</button>' +
+        '</span></div>';
+    });
+    results.innerHTML =
+      (pillsA || pillsT ? '<div class="wb-chips cx-pills">' + pillsA + (pillsT ? '<span class="dsx-pill-sep"></span>' + pillsT : "") +
+        (anyA || anyT ? '<button type="button" class="wb-chip" id="dsxPillClear" title="Show everything">Clear</button>' : "") + '</div>' : "") +
+      (rows.length ? '<div class="cx-list">' + rows.join("") + '</div>'
+        : '<div class="cx-empty">' +
+            (q || anyA || anyT ? "No datasets match." :
+              "<b>No datasets yet.</b><br/>A dataset is a named query on top of a connection — SQL for warehouses and files, a table for Supabase, a collection for Firestore — with optional {{parameters}} a dashboard can fill in at run time." +
+              (Studio.Workspace.all("connections").length ? "" : "<br/>Start by adding a connection in the Connections section.")) +
+            (q || anyA || anyT || !Studio.Workspace.all("connections").length ? "" : '<br/><button type="button" class="btn primary" id="dsxEmptyNew">+ New dataset</button>') +
+          '</div>');
+    $$("[data-dsx-adapter]", results).forEach(function (btn) {
+      btn.onclick = function () {
+        var k = btn.getAttribute("data-dsx-adapter");
+        if (_dsxAdapterFilter[k]) delete _dsxAdapterFilter[k]; else _dsxAdapterFilter[k] = true;
+        renderDatasets();
+      };
+    });
+    $$("[data-dsx-tag]", results).forEach(function (btn) {
+      btn.onclick = function () {
+        var k = btn.getAttribute("data-dsx-tag");
+        if (_dsxTagFilter[k]) delete _dsxTagFilter[k]; else _dsxTagFilter[k] = true;
+        renderDatasets();
+      };
+    });
+    var clearBtn = $("#dsxPillClear", results);
+    if (clearBtn) clearBtn.onclick = function () { _dsxAdapterFilter = {}; _dsxTagFilter = {}; renderDatasets(); };
+    var emptyNew = $("#dsxEmptyNew", results);
+    if (emptyNew) emptyNew.onclick = function () { openDatasetEditor(); };
+    $$(".cx-row", results).forEach(function (row) {
+      var d = Studio.Workspace.get("datasets", row.getAttribute("data-dsx-id"));
+      var src = d && dsxAdapterOf(d);
+      var icEl = row.querySelector(".cx-ic");
+      if (icEl) icEl.appendChild(Studio.icon((src && src.icon) || "db", 18));
+      row.addEventListener("click", function (e) {
+        if (e.target.closest("[data-dsx-run],[data-dsx-edit],[data-dsx-del]")) return;
+        openDatasetEditor(d);
+      });
+      row.addEventListener("keydown", function (e) {
+        if ((e.key === "Enter" || e.key === " ") && e.target === row) { e.preventDefault(); openDatasetEditor(d); }
+      });
+    });
+    $$("[data-dsx-run]", results).forEach(function (btn) {
+      btn.onclick = function () {
+        var d = Studio.Workspace.get("datasets", btn.getAttribute("data-dsx-run"));
+        if (!d) return;
+        btn.disabled = true; btn.textContent = "Running…";
+        runDataset(d).then(function (r) {
+          toast(r.error ? "Run failed: " + r.error : "OK — " + (r.rows || []).length + " rows", !!r.error);
+          renderDatasets();
+        });
+      };
+    });
+    $$("[data-dsx-edit]", results).forEach(function (btn) {
+      btn.onclick = function () { openDatasetEditor(Studio.Workspace.get("datasets", btn.getAttribute("data-dsx-edit"))); };
+    });
+    $$("[data-dsx-del]", results).forEach(function (btn) {
+      btn.onclick = function () {
+        var d = Studio.Workspace.get("datasets", btn.getAttribute("data-dsx-del"));
+        if (!d) return;
+        if (!window.confirm('Delete dataset "' + d.name + '"?')) return;
+        Studio.Workspace.remove("datasets", d.id);
+        toast("Deleted " + d.name);
+      };
+    });
+  }
+  function openDatasetEditor(existing) {
+    var conns = Studio.Workspace.all("connections");
+    modal(existing ? "Edit dataset" : "New dataset", function (b) {
+      var d = existing ? JSON.parse(JSON.stringify(existing)) : { id: Studio.Workspace.uid("ds"), name: "", params: [], tags: [] };
+      var form = el("div", "cx-wiz-form");
+      function field(lbl, input, hint) {
+        var row = el("label", "cx-field");
+        row.innerHTML = "<span>" + esc(lbl) + "</span>";
+        row.appendChild(input);
+        if (hint) { var h = el("small", "cx-hint"); h.textContent = hint; row.appendChild(h); }
+        form.appendChild(row);
+        return input;
+      }
+      var nameInp = field("Dataset name", el("input")); nameInp.type = "text"; nameInp.value = d.name || ""; nameInp.placeholder = "e.g. monthly_cost_by_source";
+      var descInp = field("Description", el("input")); descInp.type = "text"; descInp.value = d.desc || ""; descInp.placeholder = "optional — what this returns";
+      var connSel = field("Connection", el("select"), conns.length ? "" : "No connections yet — add one in the Connections section first.");
+      connSel.className = "cx-sel";
+      connSel.innerHTML = '<option value="">— pick a connection —</option>' + conns.map(function (c) {
+        var src = Studio.sourceById(c.adapter);
+        return '<option value="' + esc(c.id) + '"' + (d.connectionId === c.id ? " selected" : "") + '>' + esc(c.name) + " (" + esc(src ? src.label : c.adapter) + ")</option>";
+      }).join("");
+      var defWrap = el("div"); form.appendChild(defWrap);
+      var defInputs = {};
+      function renderDefFields() {
+        defWrap.innerHTML = ""; defInputs = {};
+        var conn = Studio.Workspace.get("connections", connSel.value);
+        var kind = dsxKindFor(conn ? conn.adapter : "");
+        d.kind = kind;
+        function defField(lbl, key, multiline, ph, hint) {
+          var row = el("label", "cx-field");
+          row.innerHTML = "<span>" + esc(lbl) + "</span>";
+          var inp = multiline ? el("textarea", "dsx-sql") : el("input");
+          if (!multiline) inp.type = "text";
+          inp.value = d[key] || "";
+          inp.placeholder = ph || "";
+          row.appendChild(inp);
+          if (hint) { var h = el("small", "cx-hint"); h.textContent = hint; row.appendChild(h); }
+          defWrap.appendChild(row); defInputs[key] = inp;
+        }
+        if (kind === "table") {
+          defField("Table", "table", false, "orders", "The Supabase table (RLS governs access).");
+          defField("PostgREST query", "query", false, "select=*&order=total.desc&limit=200", "Optional — PostgREST query string; {{params}} allowed.");
+        } else if (kind === "collection") {
+          defField("Collection", "collection", false, "orders", "The Firestore collection; documents flatten into rows.");
+        } else {
+          defField("SQL", "sql", true, "SELECT region, SUM(amount) AS total\nFROM {{schema}}.sales\nGROUP BY region",
+            "Use {{key}} placeholders for parameters — dashboard template variables fill them at run time.");
+        }
+      }
+      connSel.onchange = renderDefFields;
+      renderDefFields();
+      // parameters: key + default value rows
+      var paramWrap = el("div", "dsx-params"); form.appendChild(paramWrap);
+      function renderParams() {
+        paramWrap.innerHTML = '<span class="dsx-params-lbl">Parameters</span>';
+        (d.params || []).forEach(function (p, i) {
+          var row = el("div", "dsx-param-row");
+          var k = el("input"); k.type = "text"; k.placeholder = "key"; k.value = p.key || "";
+          var v = el("input"); v.type = "text"; v.placeholder = "default value"; v.value = p.value || "";
+          k.oninput = function () { p.key = k.value.trim(); };
+          v.oninput = function () { p.value = v.value; };
+          var del = el("button", "btn dsx-param-del"); del.type = "button"; del.textContent = "✕"; del.setAttribute("aria-label", "Remove parameter " + (p.key || i));
+          del.onclick = function () { d.params.splice(i, 1); renderParams(); };
+          row.appendChild(k); row.appendChild(v); row.appendChild(del);
+          paramWrap.appendChild(row);
+        });
+        var add = el("button", "btn"); add.type = "button"; add.textContent = "+ Parameter";
+        add.onclick = function () { (d.params = d.params || []).push({ key: "", value: "" }); renderParams(); };
+        paramWrap.appendChild(add);
+      }
+      renderParams();
+      var tagsInp = field("Tags", el("input"), "Comma-separated groups for filtering (e.g. finance, demo). Anyone can slice the list by these.");
+      tagsInp.type = "text"; tagsInp.value = (d.tags || []).join(", "); tagsInp.placeholder = "finance, demo";
+      var ownerInp = field("Owner", el("input"), "Optional — who to ask about this dataset.");
+      ownerInp.type = "text"; ownerInp.value = d.owner || ""; ownerInp.placeholder = "e.g. kevin";
+      b.appendChild(form);
+      var result = el("div", "cx-test-result"); b.appendChild(result);
+      var preview = el("div", "dsx-preview"); b.appendChild(preview);
+      var foot = el("div", "cx-wiz-foot");
+      var runBtn = el("button", "btn"); runBtn.type = "button"; runBtn.textContent = "Preview";
+      var saveBtn = el("button", "btn primary"); saveBtn.type = "button"; saveBtn.textContent = existing ? "Save changes" : "Add dataset";
+      foot.appendChild(runBtn); foot.appendChild(saveBtn); b.appendChild(foot);
+      function collect() {
+        d.name = nameInp.value.trim();
+        d.desc = descInp.value.trim();
+        d.connectionId = connSel.value;
+        Object.keys(defInputs).forEach(function (k) { d[k] = defInputs[k].value; });
+        d.params = (d.params || []).filter(function (p) { return p.key; });
+        d.tags = tagsInp.value.split(",").map(function (t) { return t.trim().toLowerCase(); }).filter(Boolean);
+        d.owner = ownerInp.value.trim();
+        return d;
+      }
+      runBtn.onclick = function () {
+        collect();
+        runBtn.disabled = true; runBtn.textContent = "Running…";
+        result.className = "cx-test-result"; result.textContent = ""; preview.innerHTML = "";
+        runDataset(d).then(function (r) {
+          runBtn.disabled = false; runBtn.textContent = "Preview";
+          if (r.error) { result.className = "cx-test-result bad"; result.textContent = "✕ " + r.error; return; }
+          result.className = "cx-test-result ok"; result.textContent = "✓ " + r.rows.length + " rows · " + r.columns.length + " columns";
+          var head = "<tr>" + r.columns.map(function (c) { return "<th>" + esc(c) + "</th>"; }).join("") + "</tr>";
+          var body = r.rows.slice(0, 8).map(function (row) {
+            return "<tr>" + row.map(function (v) { return "<td>" + esc(v == null ? "" : String(v)) + "</td>"; }).join("") + "</tr>";
+          }).join("");
+          preview.innerHTML = "<table>" + head + body + "</table>";
+        });
+      };
+      saveBtn.onclick = function () {
+        collect();
+        if (!d.name) { nameInp.focus(); result.className = "cx-test-result bad"; result.textContent = "Give the dataset a name first."; return; }
+        if (!d.connectionId) { connSel.focus(); result.className = "cx-test-result bad"; result.textContent = "Pick the connection this dataset runs against."; return; }
+        Studio.Workspace.put("datasets", d);
+        toast(existing ? "Saved " + d.name : "Added " + d.name);
+        document.querySelector(".modal-ov .x").click();
+      };
+      nameInp.focus();
+    }, function () { renderDatasets(); }, true);
+  }
+  window.__studioRenderDatasets = renderDatasets; // test hook
+  window.__studioOpenDatasetEditor = openDatasetEditor; // test hook
+  window.__studioRunDataset = runDataset; // builder live path + tests
 
   /* ---------- Z3 follow-up: whole-repository JSON export/import ----------
      Bundled examples/catalog entries already live in the repo as files, so exporting
@@ -7807,7 +8203,11 @@
     ["dragleave", "drop"].forEach(function (ev) { stage.addEventListener(ev, function (e) { if (ev === "dragleave" && e.target !== stage && stage.contains(e.relatedTarget)) return; stage.classList.remove("dragover"); }); });
     stage.addEventListener("drop", function (e) {
       e.preventDefault(); stage.classList.remove("dragover");
-      try { var d = JSON.parse(e.dataTransfer.getData("text/plain")); if (d && d.da) { var _da = catalogDA(d.stem, d.da); addFromDA(d.stem, d.da, (_da && chartForDA(_da)) || "bars"); } } catch (x) {}
+      try {
+        var d = JSON.parse(e.dataTransfer.getData("text/plain"));
+        if (d && d.wsDataset) { addFromWorkspaceDataset(d.wsDataset, "bars"); }
+        else if (d && d.da) { var _da = catalogDA(d.stem, d.da); addFromDA(d.stem, d.da, (_da && chartForDA(_da)) || "bars"); }
+      } catch (x) {}
     });
 
     // H-track: canvas empty-state overlay — set the icon and wire the Open library button

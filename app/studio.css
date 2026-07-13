@@ -1444,3 +1444,23 @@ body.simple-mode .da-acts{display:none!important}
 .cx-wiz-foot .btn{color:var(--ink);background:var(--field);border:1px solid var(--line)}
 .cx-wiz-foot .btn.primary,#connNewBtn.primary,.cx-empty .btn.primary{background:var(--pentaho);border-color:var(--pentaho);color:#fff}
 @media(max-width:640px){.cx-when{display:none}.cx-actions{opacity:1}}
+
+/* ── Datasets section (dsx-*) — shares the cx-* list/row/wizard anatomy ── */
+.dsx-pill-sep{width:1px;align-self:stretch;background:rgba(245,233,214,.14);margin:0 4px}
+.cx-sel{padding:8px 11px;font-size:13px;border:1px solid var(--line);border-radius:8px;
+  background:var(--field);color:var(--ink);font-family:var(--font)}
+.dsx-sql{min-height:110px;resize:vertical;padding:9px 11px;font-size:12.5px;line-height:1.5;
+  border:1px solid var(--line);border-radius:8px;background:var(--field);color:var(--ink);font-family:var(--mono)}
+.dsx-sql:focus{border-color:var(--pentaho);outline:none}
+.dsx-params{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.dsx-params-lbl{font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.dsx-param-row{display:flex;gap:6px;width:100%}
+.dsx-param-row input{flex:1;padding:7px 10px;font-size:12.5px;border:1px solid var(--line);border-radius:8px;
+  background:var(--field);color:var(--ink);font-family:var(--font)}
+.dsx-param-row input:first-child{font-family:var(--mono);max-width:180px}
+.dsx-params .btn,.dsx-param-del{color:var(--ink);background:var(--field);border:1px solid var(--line);font-size:12px;padding:6px 10px}
+.dsx-preview{margin-top:10px;overflow-x:auto}
+.dsx-preview table{border-collapse:collapse;font-size:12px;width:100%}
+.dsx-preview th{text-align:left;color:var(--muted);font-weight:700;text-transform:uppercase;font-size:10.5px;
+  letter-spacing:.04em;padding:5px 10px;border-bottom:1px solid var(--line)}
+.dsx-preview td{padding:5px 10px;border-bottom:1px solid var(--line-2);color:var(--ink);font-family:var(--mono);font-size:11.5px}

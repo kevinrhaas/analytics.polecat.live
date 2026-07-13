@@ -28,6 +28,12 @@ function mockTursoExec(stmt) {
   const result = (cols, rows) => ({ cols: cols.map((name) => ({ name })), rows: rows.map((r) => r.map((v) => (v == null ? { type: "null" } : { type: "text", value: String(v) }))) });
   let m;
   if (/^SELECT 1$/i.test(sql)) return result(["1"], [["1"]]);
+  // demo data for dataset tests — including a {{schema}}-parameterized table
+  if (/^SELECT \* FROM demo_sales$/i.test(sql)) return result(["region", "total"], [["EMEA", "120"], ["AMER", "200"], ["APAC", "80"]]);
+  if ((m = sql.match(/^SELECT \* FROM (\w+)\.sales$/i))) {
+    if (m[1] !== "prod") throw new Error("no such table: " + m[1] + ".sales");
+    return result(["region", "total"], [["EMEA", "120"], ["AMER", "200"]]);
+  }
   if (/FROM sqlite_master/i.test(sql)) return result(["name"], [...T.keys()].map((n) => [n]));
   if ((m = sql.match(/^CREATE TABLE IF NOT EXISTS "([^"]+)"/i))) { if (!T.has(m[1])) T.set(m[1], new Map()); return result([], []); }
   if ((m = sql.match(/^DROP TABLE IF EXISTS "([^"]+)"/i))) { T.delete(m[1]); return result([], []); }
@@ -429,7 +435,116 @@ function serve() {
       return { before: stored.length, after: Studio.Workspace.all("connections").length };
     });
     ok("CX: delete removes connections (with confirm)", cxDelete.before === 2 && cxDelete.after === 0, JSON.stringify(cxDelete));
-    await page.evaluate(function () { Studio.Workspace.reset(); window.__studioShellSetSection("studio"); });
+
+    // ---- DSX: Datasets section (editor, params, library binding) ----
+    console.log("\n• DSX: Datasets section");
+    await page.evaluate(function () { Studio.Workspace.reset(); window.__studioShellSetSection("datasets"); });
+    await page.waitForTimeout(120);
+    const dsxEmpty = await page.evaluate(function () {
+      return {
+        visible: document.getElementById("secDatasets").hidden === false,
+        empty: !!document.querySelector("#dsxResults .cx-empty"),
+        mentionsConnections: /Connections section/.test((document.querySelector("#dsxResults .cx-empty") || {}).textContent || "")
+      };
+    });
+    ok("DSX: empty state explains datasets and points at Connections first", dsxEmpty.visible && dsxEmpty.empty && dsxEmpty.mentionsConnections, JSON.stringify(dsxEmpty));
+
+    // seed a mock-turso connection, then author a parameterized dataset through the EDITOR UI
+    await page.evaluate(function (port) {
+      Studio.Workspace.put("connections", { id: "conn-mock", name: "Mock warehouse", adapter: "turso", cfg: { url: "http://localhost:" + port + "/__turso", token: "t" } });
+    }, PORT);
+    await page.click("#dsxNewBtn");
+    await page.waitForTimeout(120);
+    await page.evaluate(function () {
+      var inputs = [].slice.call(document.querySelectorAll(".modal .cx-field input, .modal .cx-field textarea, .modal .cx-field select"));
+      document.querySelector(".modal .cx-field input").value = "sales_by_region";               // name
+      document.querySelector(".modal select.cx-sel").value = "conn-mock";
+      document.querySelector(".modal select.cx-sel").dispatchEvent(new Event("change"));
+    });
+    await page.evaluate(function () {
+      document.querySelector(".modal textarea.dsx-sql").value = "SELECT * FROM {{schema}}.sales";
+      // add a parameter row: schema=prod
+      [].slice.call(document.querySelectorAll(".modal .dsx-params .btn")).filter(function (b) { return /Parameter/.test(b.textContent); })[0].click();
+    });
+    await page.evaluate(function () {
+      var rows = document.querySelectorAll(".modal .dsx-param-row input");
+      rows[0].value = "schema"; rows[0].dispatchEvent(new Event("input"));
+      rows[1].value = "prod"; rows[1].dispatchEvent(new Event("input"));
+      // tags
+      var fields = [].slice.call(document.querySelectorAll(".modal .cx-field"));
+      var tagsInp = fields.filter(function (f) { return /^Tags/.test(f.textContent); })[0].querySelector("input");
+      tagsInp.value = "finance, demo";
+    });
+    await page.evaluate(function () {
+      [].slice.call(document.querySelectorAll(".modal .cx-wiz-foot .btn")).filter(function (b) { return b.textContent === "Preview"; })[0].click();
+    });
+    await page.waitForFunction(() => /rows|✕/.test((document.querySelector(".modal .cx-test-result") || {}).textContent || ""), { timeout: 5000 });
+    const dsxPreview = await page.evaluate(function () {
+      return {
+        result: (document.querySelector(".modal .cx-test-result") || {}).textContent,
+        tableCols: [].slice.call(document.querySelectorAll(".modal .dsx-preview th")).map(function (t) { return t.textContent; }).join(",")
+      };
+    });
+    ok("DSX: editor Preview runs the {{param}}-substituted SQL through the connection's adapter",
+      /✓ 2 rows/.test(dsxPreview.result) && dsxPreview.tableCols === "region,total", JSON.stringify(dsxPreview));
+    await page.evaluate(function () {
+      [].slice.call(document.querySelectorAll(".modal .cx-wiz-foot .btn")).filter(function (b) { return /Add dataset/.test(b.textContent); })[0].click();
+    });
+    await page.waitForTimeout(150);
+    const dsxSaved = await page.evaluate(function () {
+      var stored = Studio.Workspace.all("datasets");
+      return {
+        stored: stored.length, name: stored[0] && stored[0].name,
+        cols: stored[0] && (stored[0].columns || []).join(","),
+        params: stored[0] && JSON.stringify(stored[0].params),
+        tags: stored[0] && (stored[0].tags || []).join(","),
+        rowShown: document.querySelectorAll("#dsxResults .cx-row").length,
+        dotOk: !!document.querySelector("#dsxResults .cx-dot.ok"),
+        tagPill: !!document.querySelector('[data-dsx-tag="finance"]')
+      };
+    });
+    ok("DSX: saving persists the dataset (columns learned from the preview run) with tags + param pills",
+      dsxSaved.stored === 1 && dsxSaved.name === "sales_by_region" && dsxSaved.cols === "region,total" &&
+      dsxSaved.params === '[{"key":"schema","value":"prod"}]' && dsxSaved.tags === "finance,demo" &&
+      dsxSaved.rowShown === 1 && dsxSaved.dotOk && dsxSaved.tagPill, JSON.stringify(dsxSaved));
+
+    const dsxParams = await page.evaluate(async function () {
+      var d = Studio.Workspace.all("datasets")[0];
+      var okRun = await window.__studioRunDataset(d);                      // default schema=prod
+      var badRun = await window.__studioRunDataset(d, { schema: "nope" }); // caller override wins
+      return { okRows: okRun.rows.length, okErr: okRun.error || "", badErr: badRun.error || "" };
+    });
+    ok("DSX: runDataset applies param defaults and lets caller overrides win",
+      dsxParams.okRows === 2 && !dsxParams.okErr && /no such table: nope/.test(dsxParams.badErr), JSON.stringify(dsxParams));
+
+    // library integration: the dataset shows as a draggable card and imports as a linked, self-contained DA
+    await page.evaluate(function () { window.__studioShellSetSection("studio"); });
+    await page.waitForTimeout(120);
+    const dsxLib = await page.evaluate(function () {
+      window.__studioLoad({ title: "DS test", panels: [], kpis: [] });
+      var group = document.querySelector("#libList .lib-wsds");
+      var card = group && group.querySelector(".da");
+      return { group: !!group, card: !!card, cardText: card ? card.textContent.slice(0, 80) : "" };
+    });
+    ok("DSX: the library pins a Workspace datasets group with the dataset card", dsxLib.group && dsxLib.card && /sales_by_region/.test(dsxLib.cardText), JSON.stringify(dsxLib));
+    const dsxImport = await page.evaluate(function () {
+      var ds = Studio.Workspace.all("datasets")[0];
+      window.__studioAddFromWorkspaceDataset(ds.id, "bars");
+      var spec = window.__STUDIO_STATE.spec;
+      var da = spec.cda.dataAccesses[0];
+      return {
+        das: spec.cda.dataAccesses.length, panels: spec.panels.length,
+        linked: da && da.datasetId === ds.id && da.connectionId === "conn-mock",
+        selfContained: da && /\{\{schema\}\}/.test(da.dataset.sql) && da.kind === "sql",
+        cols: da && (da.columns || []).join(","),
+        panelBound: spec.panels[0] && spec.panels[0].chart.da === da.id
+      };
+    });
+    ok("DSX: importing a dataset creates a linked, self-contained data access bound to the new panel",
+      dsxImport.das === 1 && dsxImport.panels === 1 && dsxImport.linked && dsxImport.selfContained &&
+      dsxImport.cols === "region,total" && dsxImport.panelBound, JSON.stringify(dsxImport));
+
+    await page.evaluate(function () { Studio.Workspace.reset(); window.__studioLoad({ title: "post-dsx", panels: [], kpis: [] }); window.__studioShellSetSection("studio"); });
     await page.waitForTimeout(120);
 
     // ---- a11y: keyboard focus ring (Tab triggers :focus-visible) ----
@@ -13664,20 +13779,20 @@ function serve() {
       var items = nav ? Array.prototype.slice.call(nav.querySelectorAll(".rail-item[data-sec]")) : [];
       var studioBtn = nav && nav.querySelector('.rail-item[data-sec="studio"]');
       return {
-        ok: !!nav && items.length === 5 && !!studioBtn && studioBtn.classList.contains("active")
+        ok: !!nav && items.length === 6 && !!studioBtn && studioBtn.classList.contains("active")
           && studioBtn.getAttribute("aria-current") === "page",
         secs: items.map(function (b) { return b.getAttribute("data-sec"); }),
         appMainHidden: document.getElementById("appMain").hidden,
         collapseBtn: !!document.getElementById("railCollapse")
       };
     });
-    ok("Z1: rail has Home/Repository/Connections/Studio/Settings + Studio active by default", z1Boot.ok, JSON.stringify(z1Boot));
+    ok("Z1: rail has Home/Repository/Datasets/Connections/Studio/Settings + Studio active by default", z1Boot.ok, JSON.stringify(z1Boot));
     ok("Z1: #appMain (the builder) is visible by default", z1Boot.appMainHidden === false, JSON.stringify(z1Boot));
 
     // Z1-2: rail icons are real inline SVGs (Studio.icon(), theme-aware — no emoji/unicode glyphs)
     const z1Icons = await page.evaluate(function () {
       var svgs = document.querySelectorAll("#railNav .rail-ic svg");
-      return { ok: svgs.length === 8, count: svgs.length }; // 5 sections + Search/⌘K (Track N) + Help (Z11) + collapse toggle
+      return { ok: svgs.length === 9, count: svgs.length }; // 6 sections + Search/⌘K (Track N) + Help (Z11) + collapse toggle
     });
     ok("Z1: rail buttons render inline SVG icons (Studio.icon helper)", z1Icons.ok, JSON.stringify(z1Icons));
 

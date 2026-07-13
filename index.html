@@ -21,6 +21,7 @@
     </button>
     <button class="rail-item" data-sec="home" title="Home" aria-label="Home"><span class="rail-ic" data-ic="home"></span><span class="rail-lbl">Home</span></button>
     <button class="rail-item" data-sec="repository" title="Repository" aria-label="Repository"><span class="rail-ic" data-ic="layers"></span><span class="rail-lbl">Repository</span></button>
+    <button class="rail-item" data-sec="datasets" title="Datasets" aria-label="Datasets"><span class="rail-ic" data-ic="db"></span><span class="rail-lbl">Datasets</span></button>
     <button class="rail-item" data-sec="connections" title="Connections" aria-label="Connections"><span class="rail-ic" data-ic="link"></span><span class="rail-lbl">Connections</span></button>
     <button class="rail-item active" data-sec="studio" title="Studio" aria-label="Studio" aria-current="page"><span class="rail-ic" data-ic="grid"></span><span class="rail-lbl">Studio</span></button>
     <div class="rail-spacer"></div>
@@ -53,6 +54,18 @@
         </div>
       </div>
       <div id="repoResults"></div>
+    </div>
+  </section>
+  <section id="secDatasets" class="app-sec has-content" hidden>
+    <div class="repo-wrap">
+      <div class="repo-hero"><h1>Datasets</h1>
+        <p>Named, parameterizable queries defined on top of your connections — the reusable building blocks dashboards are made of.</p>
+        <input id="dsxSearch" class="repo-search" type="search" placeholder="Search datasets…" aria-label="Search datasets"/>
+        <div class="repo-io">
+          <button type="button" class="btn primary" id="dsxNewBtn">+ New dataset</button>
+        </div>
+      </div>
+      <div id="dsxResults"></div>
     </div>
   </section>
   <section id="secConnections" class="app-sec has-content" hidden>
