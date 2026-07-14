@@ -6135,12 +6135,18 @@
                 return '<option value="' + m + '"' + (appTheme() === m ? " selected" : "") + '>' + APP_THEME_LABELS[m] + '</option>';
               }).join("") +
             '</select></div>' : "";
+        // Tour lives with the other guided/presentation affordances (moved out of the
+        // topbar per user feedback — it's a once-in-a-while action, not daily chrome).
+        var tourRow = g === "Presentation" ?
+          '<div class="set-row"><span class="set-row-ic" data-ic="play"></span>' +
+            '<div class="set-row-txt"><b>Welcome tour</b><small>Re-run the guided walkthrough of the builder (also under ⋯ More → Tour).</small></div>' +
+            '<button type="button" class="btn" id="setTourBtn">Take the tour</button></div>' : "";
         return '<div class="settings-card"><h2>' + esc(g) + '</h2>' +
           SETTINGS_TOGGLES.filter(function (t) { return t.grp === g; }).map(function (t) {
             return '<div class="set-row"><span class="set-row-ic" data-ic="' + t.ic() + '"></span>' +
               '<div class="set-row-txt"><b>' + esc(t.t) + '</b><small>' + esc(t.d) + '</small></div>' +
               '<label class="set-sw"><input type="checkbox" data-set="' + t.id + '"' + (t.on() ? " checked" : "") + '/><span class="set-sw-track"></span></label></div>';
-          }).join("") + themeRow + '</div>';
+          }).join("") + themeRow + tourRow + '</div>';
       }).join("") +
       (function () {
         var b = getBranding(), mode = b.mode || "default";
@@ -6286,6 +6292,11 @@
       b.appendChild(Studio.icon("trash", 13));
       b.onclick = function () { deleteStylePreset(b.getAttribute("data-id")); renderSettings(); };
     });
+    var setTourBtn = $("#setTourBtn", sec);
+    if (setTourBtn) setTourBtn.onclick = function () {
+      if (window.__studioShellSetSection) window.__studioShellSetSection("studio");
+      if (window.StudioWelcome) StudioWelcome.open();
+    };
     var expBtn = $("#setExportBtn", sec); if (expBtn) expBtn.onclick = exportSettingsFile;
     var impBtn = $("#setImportBtn", sec); if (impBtn) impBtn.onclick = importSettingsFile;
     var brandSel = $("#brandModeSel", sec);
@@ -6736,7 +6747,7 @@
         ["Ctrl / ⌘  +  Z", "Undo"],
         ["Ctrl / ⌘  +  Shift+Z", "Redo"],
         ["Ctrl / ⌘  +  D", "Duplicate selected panel or KPI"],
-        ["Ctrl / ⌘  +  S", "Save spec as .studio.json"],
+        ["Ctrl / ⌘  +  S", "Save to your Dashboards catalog"],
         ["Ctrl / ⌘  +  F", "Focus library search (filter queries)"],
         ["/", "Focus chart-type gallery search (panel selected)"],
         ["↑ / ↓   (panel selected)", "Reorder panel up / down"],
@@ -7042,18 +7053,33 @@
   }
 
   function wireTopbar() {
-    // Z6 naming model: the topbar title is now a jump-to-inspector button, not an inline
-    // editor — renaming happens in one place (the Dashboard inspector's Title field), so
-    // "what is this dashboard called" and "how do I rename it" aren't split across two UIs.
+    // UX sprint 2026-07-14: the dashbar title renames IN PLACE — click swaps it for an
+    // input (Enter/blur commits, Escape cancels), same convention as workbook renames.
+    // The inspector's Title field stays in sync (one model, two entry points).
     $("#dashTitle").addEventListener("click", function () {
-      selectDashboard();
-      collapsePane("inspector", false);
-      if (window.__studioMobTab) window.__studioMobTab("inspector");
-      setTimeout(function () { var f = $("#dashTitleField"); if (f) { f.focus(); f.select(); } }, 60);
+      var tb = $("#dashTitle");
+      if (tb.style.display === "none") return;
+      var inp = el("input", "dash-title-inp");
+      inp.type = "text"; inp.value = S.spec.title || ""; inp.placeholder = "Dashboard title";
+      inp.setAttribute("aria-label", "Rename dashboard");
+      tb.style.display = "none";
+      tb.parentNode.insertBefore(inp, tb);
+      inp.focus(); inp.select();
+      var done = false;
+      function commit(save) {
+        if (done) return; done = true;
+        if (save && inp.value.trim()) { S.spec.title = inp.value.trim(); refreshPreview(); renderInspector(); }
+        inp.remove(); tb.style.display = "";
+        syncHeader();
+      }
+      inp.addEventListener("keydown", function (ev) {
+        if (ev.key === "Enter") { ev.preventDefault(); commit(true); }
+        else if (ev.key === "Escape") { commit(false); }
+      });
+      inp.addEventListener("blur", function () { commit(true); });
     });
     var uBtn = $("#btnUndo"); uBtn.onclick = undoAct; uBtn.textContent = ""; uBtn.appendChild(Studio.icon("undo", 16));
     var rBtn = $("#btnRedo"); rBtn.onclick = redoAct; rBtn.textContent = ""; rBtn.appendChild(Studio.icon("redo", 16));
-    setIconBtn($("#btnAbout"), "info", "Tour");
     document.addEventListener("keydown", function (e) {
       if (!(e.metaKey || e.ctrlKey)) return;
       var inEdit = /^(input|textarea|select)$/i.test(e.target.tagName || "") || e.target.isContentEditable;
@@ -7062,7 +7088,7 @@
       if (k === "z" && !e.shiftKey) { e.preventDefault(); undoAct(); }
       else if ((k === "z" && e.shiftKey) || k === "y") { e.preventDefault(); redoAct(); }
       else if (k === "d") { if (S.selection && S.selection.kind === "panel") { e.preventDefault(); duplicatePanel(S.selection.id); } else if (S.selection && S.selection.kind === "kpi") { e.preventDefault(); duplicateKpi(S.selection.index); } }
-      else if (k === "s") { e.preventDefault(); download(S.spec.name + ".studio.json", JSON.stringify(S.spec, null, 2), "application/json"); }
+      else if (k === "s") { e.preventDefault(); saveToCatalog(); }
     });
     // arrow-key reorder/resize for the selected panel (when the builder has focus)
     document.addEventListener("keydown", function (e) {
@@ -7136,8 +7162,8 @@
     var histWrap = el("div"); histWrap.id = "exportHistWrap"; $("#menuExport").appendChild(histWrap);
     loadExportHistory(); renderExportHistory();
 
-    $("#btnImport").onclick = openSpecFile;
-    $("#btnSaveSpec").onclick = function () { clearAutosave(); snapshotVersion(); download(S.spec.name + ".studio.json", JSON.stringify(S.spec, null, 2), "application/json"); };
+    $("#btnImport").onclick = openDashboardPicker;
+    $("#btnSaveSpec").onclick = saveToCatalog;
 
     // ? key → shortcuts modal (when not in a text field)
     document.addEventListener("keydown", function (e) {
@@ -7190,7 +7216,9 @@
 
     // responsive "⋯ More" menu — mirrors the .btn-secondary actions hidden at ≤900px
     menuToggle($("#btnMore"), $("#menuMore"));
-    [["moreAbout","btnAbout"],["moreTheme","btnTheme"]].forEach(function(pair) {
+    var moreAboutBtn = $("#moreAbout");
+    if (moreAboutBtn) moreAboutBtn.onclick = function () { closeMenus(); if (window.StudioWelcome) StudioWelcome.open(); };
+    [["moreTheme","btnTheme"]].forEach(function(pair) {
       var tgt = $("#" + pair[0]), src = $("#" + pair[1]);
       if (tgt && src) tgt.onclick = function () { closeMenus(); src.click(); };
     });
@@ -7215,15 +7243,12 @@
       var em = $("#menuExamples");
       em.classList.add("phone-pos", "open");
     };
+    // phone variants mirror the dashbar Open/Save: catalog picker + save-to-catalog
+    // (the picker's footer still offers "Open file…" for .studio.json imports)
     var moreImport = $("#moreImport");
-    if (moreImport) moreImport.onclick = function () { closeMenus(); openSpecFile(); };
+    if (moreImport) moreImport.onclick = function () { closeMenus(); openDashboardPicker(); };
     var moreSaveSpec = $("#moreSaveSpec");
-    if (moreSaveSpec) moreSaveSpec.onclick = function () {
-      closeMenus();
-      clearAutosave();
-      snapshotVersion();
-      download(S.spec.name + ".studio.json", JSON.stringify(S.spec, null, 2), "application/json");
-    };
+    if (moreSaveSpec) moreSaveSpec.onclick = function () { closeMenus(); saveToCatalog(); };
 
     // E8 — Sign out: clear gate session flag and reload so the passcode is required again
     var moreSignOut = $("#moreSignOut"); if (moreSignOut) moreSignOut.onclick = function () {
@@ -7360,7 +7385,12 @@
     var tb = $("#dashTitle");
     tb.querySelector(".dash-title-txt").textContent = S.spec.title || "Untitled dashboard";
     if (!tb.querySelector("svg")) tb.appendChild(Studio.icon("edit", 13));
-    $("#dashName").textContent = S.spec.name; $("#dashGroup").textContent = S.spec.group;
+    $("#dashName").textContent = S.spec.name;
+    // the "· group" fragment only exists when a group is actually set — a blank
+    // dashboard should not claim a category it doesn't have
+    var gw = $("#dashGroupWrap");
+    if (gw) gw.style.display = S.spec.group ? "" : "none";
+    $("#dashGroup").textContent = S.spec.group || "";
   }
 
   window.__fireToast = function (msg, isErr) { toast(msg, isErr); }; // exposed for tests
@@ -7370,6 +7400,59 @@
   window.__studioBuildLibrary = buildLibrary;       // exposed for tests
 
   function closeAllModals() { $$(".modal-ov").forEach(function (m) { m.remove(); }); }
+
+  /* ---------- repo-first Save / Open (UX sprint 2026-07-14) ----------
+     The .studio.json file is still the complete, portable dashboard — it just
+     moved to Export ▸ Editable spec. Day-to-day Save/Open work against the
+     Dashboards catalog instead of the Downloads folder. */
+  function saveToCatalog() {
+    clearAutosave();
+    snapshotVersion();          // version-history checkpoint (restorable)
+    noteRecent();               // upsert into the Dashboards catalog
+    renderHome(); renderDashboards();
+    var ss = $("#saveState");
+    if (ss) { ss.textContent = "Saved ✓"; ss.classList.add("show"); setTimeout(function () { ss.classList.remove("show"); }, 2000); }
+    toast("Saved “" + (S.spec.title || S.spec.name) + "” to Dashboards");
+  }
+  window.__studioSaveToCatalog = saveToCatalog; // test hook
+  function openDashboardPicker() {
+    modal("Open a dashboard", function (b) {
+      var search = el("input", "search"); search.type = "search"; search.placeholder = "Search your dashboards…";
+      search.setAttribute("aria-label", "Search dashboards");
+      b.appendChild(search);
+      var listWrap = el("div", "odp-list"); b.appendChild(listWrap);
+      function paint() {
+        var q = (search.value || "").toLowerCase();
+        var list = loadRecents().filter(function (r) {
+          if (!q) return true;
+          var sp = r.spec || {};
+          return ((sp.title || "") + " " + (sp.name || "")).toLowerCase().indexOf(q) >= 0;
+        });
+        listWrap.innerHTML = list.length ? "" : '<div class="odp-empty">' + (q ? "No dashboards match." : "Nothing saved yet — Save adds the current dashboard here.") + '</div>';
+        list.forEach(function (r) {
+          var sp = r.spec || {};
+          var row = el("button", "odp-row"); row.type = "button";
+          var panels = (sp.panels || []).length;
+          row.innerHTML = '<b>' + esc(sp.title || sp.name || "Untitled") + '</b>' +
+            '<small>' + esc(sp.name || "") + " · " + panels + " panel" + (panels === 1 ? "" : "s") +
+            (r.ts ? " · " + new Date(r.ts).toLocaleDateString() : "") + '</small>';
+          row.onclick = function () { closeAllModals(); openRecent(r.id); };
+          listWrap.appendChild(row);
+        });
+      }
+      search.addEventListener("input", paint);
+      paint();
+      var foot = el("div", "cx-wiz-foot odp-foot");
+      var fileBtn = el("button", "btn"); fileBtn.type = "button"; fileBtn.textContent = "Open file…";
+      fileBtn.title = "Open a .studio.json or an exported .html";
+      fileBtn.onclick = function () { closeAllModals(); openSpecFile(); };
+      var urlBtn = el("button", "btn"); urlBtn.type = "button"; urlBtn.textContent = "Import from URL…";
+      urlBtn.onclick = function () { closeAllModals(); openImportUrlModal(); };
+      foot.appendChild(fileBtn); foot.appendChild(urlBtn); b.appendChild(foot);
+      search.focus();
+    });
+  }
+  window.__studioOpenDashboardPicker = openDashboardPicker; // test hook
 
   /* ---------- export ---------- */
   // N-FUN: delight moments — small, rare, tasteful celebrations. Shared spark-burst visual (respects
@@ -7439,6 +7522,7 @@
     var problems = Studio.validate(sp).filter(function (x) { return x.level === "error"; });
     if (problems.length) { toast(problems[0].msg, true); }
     recordExport(kind, sp.title || sp.name);
+    if (kind === "spec") return bundleModal("Editable spec", [{ name: sp.name + ".studio.json", body: JSON.stringify(sp, null, 2), mime: "application/json" }]);
     if (kind === "cdf") return bundleModal("Dashboard", [{ name: sp.name + ".html", body: Studio.exportCDF(sp, S.assets, dp), mime: "text/html" }]);
     if (kind === "all") {
       bundleModal("All artifacts", [

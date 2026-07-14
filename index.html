@@ -98,34 +98,15 @@
       <div class="brand-txt"><div class="brand-title">Analytics Dashboard&nbsp;Studio</div>
         <div class="brand-sub">build interactive dashboards from your data</div></div>
     </div>
-    <div class="dash-id">
-      <button type="button" id="dashTitle" class="dash-title-btn" title="Rename in the Dashboard inspector →"><span class="dash-title-txt">Dashboard title</span></button>
-      <span class="dash-meta"><code id="dashName">untitled</code> · <span id="dashGroup">Observability</span></span>
-    </div>
     <!-- H-track: auto-save state indicator — flashes "Saved ✓" for 2s after each auto-save -->
     <span id="saveState" class="save-state" aria-live="polite" aria-atomic="true"></span>
     <div class="spacer"></div>
-    <div class="top-actions">
-      <button class="btn icon" id="btnUndo" title="Undo (Ctrl/Cmd+Z)" disabled>↶</button>
-      <button class="btn icon" id="btnRedo" title="Redo (Ctrl/Cmd+Shift+Z)" disabled>↷</button>
-      <span class="top-sep" aria-hidden="true"></span>
-      <div class="menu-wrap"><button class="btn" id="btnNew" title="New dashboard">＋ New ▾</button>
-        <div class="menu" id="menuNew"></div></div>
-      <div class="menu-wrap"><button class="btn" id="btnExamples">Examples ▾</button>
-        <div class="menu" id="menuExamples"></div></div>
-      <button class="btn" id="btnImport" title="Open a .studio.json">Open</button>
-      <button class="btn" id="btnSaveSpec" title="Save the editable .studio.json">Save</button>
-      <div class="menu-wrap"><button class="btn btn-primary" id="btnExport">Export ▾</button>
-        <div class="menu" id="menuExport">
-          <button data-exp="cdf">Dashboard (.html)</button>
-          <button data-exp="all">All artifacts (bundle)</button>
-        </div></div>
-      <span class="top-sep sep-connect" aria-hidden="true"></span>
-      <button class="btn icon btn-secondary" id="btnAbout" title="About / take the tour">Tour</button>
-      <button class="btn icon btn-secondary" id="btnTheme" title="Toggle preview light/dark">Theme</button>
+    <div class="top-app">
       <span id="simpleBadge" class="simple-badge" aria-live="polite" aria-label="Simple mode active">Simple mode</span>
       <!-- H-track v117: Demo mode — pulsing LIVE badge shown while demo simulation is running -->
       <span id="demoBadge" class="demo-badge" aria-live="polite" aria-label="Demo mode: data refreshes every 4 seconds">● LIVE</span>
+      <div class="menu-wrap"><button class="btn btn-primary" id="btnNew" title="New dashboard">＋ New ▾</button>
+        <div class="menu" id="menuNew"></div></div>
       <div class="menu-wrap" id="moreWrap">
         <button class="btn icon" id="btnMore" title="More actions" aria-label="More actions">⋯</button>
         <div class="menu" id="menuMore">
@@ -147,8 +128,8 @@
           <!-- M7: phone-only items — revealed via CSS at ≤400px when topbar hides these buttons -->
           <div class="sep more-phone-only"></div>
           <button id="moreExamples" class="more-phone-only">Examples…</button>
-          <button id="moreImport" class="more-phone-only">Open file…</button>
-          <button id="moreSaveSpec" class="more-phone-only">Save spec…</button>
+          <button id="moreImport" class="more-phone-only">Open…</button>
+          <button id="moreSaveSpec" class="more-phone-only">Save</button>
           <div class="sep"></div>
           <button id="moreClearData">Clear local data…</button>
           <button id="moreSignOut">Sign out</button>
@@ -178,6 +159,32 @@
 
     <!-- CENTER: live preview -->
     <section id="canvas">
+      <!-- UX sprint 2026-07-14: dashboard-scoped controls live HERE, above the preview they
+           act on — the app topbar keeps only app-level actions (＋New, ⋯More), manager-style. -->
+      <div id="dashbar">
+        <div class="dash-id">
+          <button type="button" id="dashTitle" class="dash-title-btn" title="Click to rename"><span class="dash-title-txt">Dashboard title</span></button>
+          <span class="dash-meta"><code id="dashName">untitled</code><span id="dashGroupWrap"> · <span id="dashGroup"></span></span></span>
+        </div>
+        <div class="spacer"></div>
+        <div class="top-actions">
+          <button class="btn icon" id="btnUndo" title="Undo (Ctrl/Cmd+Z)" disabled>↶</button>
+          <button class="btn icon" id="btnRedo" title="Redo (Ctrl/Cmd+Shift+Z)" disabled>↷</button>
+          <span class="top-sep" aria-hidden="true"></span>
+          <div class="menu-wrap"><button class="btn" id="btnExamples">Examples ▾</button>
+            <div class="menu" id="menuExamples"></div></div>
+          <button class="btn" id="btnImport" title="Open a dashboard from your catalog">Open</button>
+          <button class="btn" id="btnSaveSpec" title="Save to your Dashboards catalog (Ctrl/Cmd+S)">Save</button>
+          <div class="menu-wrap"><button class="btn btn-primary" id="btnExport">Export ▾</button>
+            <div class="menu" id="menuExport">
+              <button data-exp="cdf">Dashboard (.html)</button>
+              <button data-exp="spec">Editable spec (.studio.json)</button>
+              <button data-exp="all">All artifacts (bundle)</button>
+            </div></div>
+          <span class="top-sep sep-connect" aria-hidden="true"></span>
+          <button class="btn icon btn-secondary" id="btnTheme" title="Toggle preview light/dark">Theme</button>
+        </div>
+      </div>
       <div id="canvas-bar">
         <span class="cb-title">Live preview</span>
         <span class="cb-hint">click to edit · drag the header to reorder · drag the right edge to resize · drop a query to add</span>

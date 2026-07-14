@@ -1056,8 +1056,21 @@
 >    lineage chips (which dashboards use this dataset — blast-radius view), scheduled refresh hints,
 >    result caching with TTL per dataset (the old cache/cacheDuration fields are still on the rows).
 > 6. **Workspace polish**: saved views for the Datasets/Connections lists (jobtracker pattern),
->    keyboard palette entries for the new sections, drag a dataset card straight onto Home to start
->    a dashboard.
+>    drag a dataset card straight onto Home to start a dashboard. (Palette entries for the new
+>    sections landed with the 2026-07-14 UX sprint.)
+> 7. **Organization at scale (user, 2026-07-14):** dashboards/datasets/connections "will start to
+>    become very long lists" — needs favorites/pinning everywhere, grouping (maybe folders, maybe
+>    tags — user unsure a tree is right), and cross-cutting views: see datasets by connection, by
+>    adapter, by type; dashboards by group/workbook. Design one organizing model shared by all three
+>    catalogs (the jobtracker pill/multiselect pattern is the seed) rather than three ad-hoc ones.
+>
+> **2026-07-14 UX sprint (interactive session, all landed, v349):** split topbar → slim app bar +
+> dashboard toolbar above the preview; inline title rename (no phantom "Observability" group);
+> Save/Open target the Dashboards catalog with .studio.json under Export; Data panel dataset-first
+> (＋New menu: dataset/connection/dashboard-only query; ¶Text → canvas empty state; samples fold
+> into one collapsible group); Settings toggle hides/reinstates ALL sample content (never deletes);
+> Tour → Settings + ⋯More; renderer info popup lists Datasets; +Workbook empty-name feedback;
+> command palette updated for the new sections.
 
 ### ★★★ TOP PRIORITY — MOBILE IS BROKEN, FIX IT FIRST (user-requested 2026-07-02, with screenshots)
 > **Spend the next several consecutive runs on mobile — ahead of ALL Z-platform work — until the app is

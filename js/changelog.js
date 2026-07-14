@@ -6,6 +6,19 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 349,
+    title: 'A calmer Studio: slim app bar + a dashboard toolbar',
+    ts: '2026-07-14T03:02:29.000Z',
+    items: [
+      'The crowded topbar is split in two, manager-style: the app bar keeps just the brand, + New and the ... menu, while a new dashboard toolbar sits directly above the live preview with the title, undo/redo, Examples, Open, Save, Export and the preview theme toggle -- dashboard actions now live next to the dashboard they act on.',
+      'Rename in place: click the dashboard title in that toolbar and it becomes a text field (Enter commits, Escape cancels). The inspector Title field stays in sync, and blank dashboards no longer claim an "Observability" group they never had.',
+      'Save and Open now target your Dashboards catalog (Ctrl/Cmd+S saves there too); the editable .studio.json file -- all a dashboard needs -- moved to Export, next to the rendered .html.',
+      'The Data panel is dataset-first: its + New menu creates workspace datasets, connections, or dashboard-only queries; the Text-panel button moved onto the canvas empty state; and the sample query library folds into one collapsible Samples group so your own data leads.',
+      'Sample content is now manageable: a Settings toggle hides every sample (example dashboards, demo queries, the samples group) for a clean empty workspace and reinstates them exactly as they were -- nothing is ever deleted.',
+      'Sweep of smaller fixes: Tour moved to Settings and the ... menu, the rendered dashboard info popup lists Datasets (not "CDA Queries"), + Workbook explains itself instead of silently doing nothing on an empty name, and the command palette learned the new Dashboards, Datasets and Connections sections.',
+    ],
+  },
+  {
     v: 348,
     title: 'Pentaho is fully removed',
     kind: 'polish',

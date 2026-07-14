@@ -2246,7 +2246,7 @@
       name: "untitled",
       title: "Untitled Dashboard",
       subtitle: "",
-      group: "Observability",
+      group: "", // no category until the author sets one — a blank dashboard shouldn't claim "Observability"
       description: "",
       cda: { dataAccesses: [] },
       filters: [],

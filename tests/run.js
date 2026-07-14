@@ -2279,27 +2279,47 @@ function serve() {
     ok("Z13 multi-row sample data: distribution DAs get >8 rows with real per-row spread (not one point per label)",
       Object.values(relShow.spread).every((s) => s.rowCount > 8 && s.distinctValues > 4), JSON.stringify(relShow.spread));
 
-    // ---- Z6 naming model: topbar title is a jump-to-inspector button, not an inline editor ----
-    console.log("\n• Z6: topbar title button opens the Dashboard inspector's Title field");
+    // ---- UX sprint: the dashbar title renames IN PLACE (click → input → Enter commits) ----
+    console.log("\n• dashbar title: inline rename");
     await page.evaluate(async () => { const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json()); window.__studioLoad(spec); });
     await page.waitForTimeout(250);
     const dashTitleInfo = await page.evaluate(() => {
       const btn = document.getElementById("dashTitle");
-      return { tag: btn.tagName, text: btn.querySelector(".dash-title-txt").textContent, hasIcon: !!btn.querySelector("svg") };
+      return { tag: btn.tagName, text: btn.querySelector(".dash-title-txt").textContent, hasIcon: !!btn.querySelector("svg"), inDashbar: !!btn.closest("#dashbar") };
     });
-    ok("Z6: #dashTitle is a button (not a free-text input) showing the dashboard title", dashTitleInfo.tag === "BUTTON" && dashTitleInfo.text === "Cost Optimization & Sustainability" && dashTitleInfo.hasIcon, JSON.stringify(dashTitleInfo));
+    ok("dashbar: #dashTitle is a button in the dashboard toolbar showing the title", dashTitleInfo.tag === "BUTTON" && dashTitleInfo.text === "Cost Optimization & Sustainability" && dashTitleInfo.hasIcon && dashTitleInfo.inDashbar, JSON.stringify(dashTitleInfo));
     await page.click("#dashTitle");
-    await page.waitForTimeout(150);
-    const dashTitleClick = await page.evaluate(() => {
-      const f = document.getElementById("dashTitleField");
-      return { focused: document.activeElement && document.activeElement.id === "dashTitleField", fieldValue: f ? f.value : null, inspectorExpanded: !document.getElementById("inspector").classList.contains("collapsed") };
+    await page.waitForTimeout(120);
+    const inlineEdit = await page.evaluate(() => {
+      const inp = document.querySelector(".dash-title-inp");
+      return { present: !!inp, focused: document.activeElement === inp, value: inp ? inp.value : null };
     });
-    ok("Z6: clicking the topbar title opens the Dashboard inspector and focuses its Title field", dashTitleClick.focused && dashTitleClick.fieldValue === "Cost Optimization & Sustainability" && dashTitleClick.inspectorExpanded, JSON.stringify(dashTitleClick));
-    // renaming via the inspector's Title field still updates the topbar button + header live
+    ok("dashbar: clicking the title swaps it for a focused inline input pre-filled with the title",
+      inlineEdit.present && inlineEdit.focused && inlineEdit.value === "Cost Optimization & Sustainability", JSON.stringify(inlineEdit));
+    await page.fill(".dash-title-inp", "Renamed inline");
+    await page.press(".dash-title-inp", "Enter");
+    await page.waitForTimeout(150);
+    const afterInline = await page.evaluate(() => ({
+      btnText: document.getElementById("dashTitle").querySelector(".dash-title-txt").textContent,
+      specTitle: window.__STUDIO_STATE.spec.title,
+      inputGone: !document.querySelector(".dash-title-inp")
+    }));
+    ok("dashbar: Enter commits the rename to the spec and restores the button",
+      afterInline.btnText === "Renamed inline" && afterInline.specTitle === "Renamed inline" && afterInline.inputGone, JSON.stringify(afterInline));
+    // Escape discards
+    await page.click("#dashTitle");
+    await page.fill(".dash-title-inp", "Should Not Stick");
+    await page.press(".dash-title-inp", "Escape");
+    await page.waitForTimeout(100);
+    const afterEsc = await page.evaluate(() => window.__STUDIO_STATE.spec.title);
+    ok("dashbar: Escape discards the rename", afterEsc === "Renamed inline", afterEsc);
+    // renaming via the inspector's Title field still updates the dashbar button live
+    await page.evaluate(() => { window.__studioSelectDashboard(); });
+    await page.waitForTimeout(150);
     await page.fill("#dashTitleField", "Renamed via inspector");
     await page.waitForTimeout(150);
     const renamedSync = await page.evaluate(() => document.getElementById("dashTitle").querySelector(".dash-title-txt").textContent);
-    ok("Z6: editing the Title field in the inspector updates the topbar button live", renamedSync === "Renamed via inspector", renamedSync);
+    ok("dashbar: editing the Title field in the inspector updates the toolbar button live", renamedSync === "Renamed via inspector", renamedSync);
     await page.evaluate(async () => { const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json()); window.__studioLoad(spec); });
     await page.waitForTimeout(200);
 
@@ -3090,8 +3110,10 @@ function serve() {
     await gp.evaluate(() => { var b = document.querySelector('#studio-welcome [data-act="next"]'); }); // ensure present
     await gp.evaluate(() => document.querySelector("#studio-welcome .sw-skip").click()); await gp.waitForTimeout(120);
     ok("welcome tour dismisses + persists", await gp.evaluate(() => !document.querySelector("#studio-welcome") && localStorage.getItem("studio-welcome-seen") === "1"));
-    await gp.click("#btnAbout"); await gp.waitForTimeout(120);
-    ok("ⓘ Tour reopens the welcome", await gp.evaluate(() => !!document.querySelector("#studio-welcome")));
+    // Tour moved out of the topbar (user feedback) — reachable via ⋯ More → Tour and Settings
+    await gp.click("#btnMore"); await gp.waitForTimeout(80);
+    await gp.click("#moreAbout"); await gp.waitForTimeout(120);
+    ok("⋯ More → Tour reopens the welcome", await gp.evaluate(() => !!document.querySelector("#studio-welcome")));
 
     // Z10 follow-up: the welcome tour was fixed hex (Classic-Blue-only regardless of the
     // app theme picker) — now themed via the shared --pentaho/--pdc/--pane/etc vars.
@@ -3709,12 +3731,13 @@ function serve() {
       var themeBtn = document.getElementById("btnTheme");
       r.themeBtnHasSvg = themeBtn ? !!themeBtn.querySelector("svg") : false;
       r.themeBtnNoEmoji = themeBtn ? !/[☀☾]/.test(themeBtn.textContent) : true;
-      var aboutBtn = document.getElementById("btnAbout");
-      r.aboutBtnHasSvg = aboutBtn ? !!aboutBtn.querySelector("svg") : false;
+      // UX sprint 2026-07-14: #btnAbout retired — Tour lives in ⋯ More (#moreAbout) + Settings
+      r.aboutBtnGone = !document.getElementById("btnAbout");
+      r.moreAboutExists = !!document.getElementById("moreAbout");
       return r;
     });
     ok("theme button has SVG icon (not emoji)", i3Topbar.themeBtnHasSvg && i3Topbar.themeBtnNoEmoji, JSON.stringify(i3Topbar));
-    ok("#btnAbout (Tour) has SVG icon", i3Topbar.aboutBtnHasSvg, JSON.stringify(i3Topbar));
+    ok("#btnAbout is retired — Tour reachable via ⋯ More instead", i3Topbar.aboutBtnGone && i3Topbar.moreAboutExists, JSON.stringify(i3Topbar));
 
     // 2. Modal close button has SVG — open the dashboard-query builder modal (behind + New ▾)
     await page.click("#btnNewDS"); await page.waitForTimeout(80);
@@ -3955,29 +3978,32 @@ function serve() {
     // buttons. Purely additive: plain `<span class="top-sep">` siblings, not wrapping group
     // containers, so every button keeps its existing id/order/direct-child relationship to
     // `.top-actions` (the MNAV mobile tests below walk `:scope > .btn` and must keep working).
-    console.log("\n• Track H: topbar action clusters get grouping dividers");
+    // UX sprint 2026-07-14: .top-actions moved into #dashbar (dashboard-scoped toolbar above
+    // the preview); its clusters are now History (Undo/Redo) | File (Examples/Open/Save/Export)
+    // | Present (Theme). ＋New lives in the app topbar's .top-app, not here.
+    console.log("\n• Track H: dashbar action clusters get grouping dividers");
     const topSeps = await page.evaluate(() => {
-      var ta = document.querySelector(".top-actions");
+      var ta = document.querySelector("#dashbar .top-actions");
       var kids = [].slice.call(ta.children);
       var seps = kids.filter((k) => k.classList.contains("top-sep"));
       var idxRedo = kids.findIndex((k) => k.id === "btnRedo");
       var idxSep1 = kids.findIndex((k) => k.classList.contains("top-sep") && !k.classList.contains("sep-connect"));
-      var idxNewWrap = kids.findIndex((k) => k.querySelector && k.querySelector("#btnNew"));
+      var idxExamplesWrap = kids.findIndex((k) => k.querySelector && k.querySelector("#btnExamples"));
       var idxExportWrap = kids.findIndex((k) => k.querySelector && k.querySelector("#btnExport"));
       var idxSep2 = kids.findIndex((k) => k.classList.contains("sep-connect"));
-      var idxAbout = kids.findIndex((k) => k.id === "btnAbout");
+      var idxTheme = kids.findIndex((k) => k.id === "btnTheme");
       return {
         count: seps.length,
         allAriaHidden: seps.every((s) => s.getAttribute("aria-hidden") === "true"),
         noneFocusable: seps.every((s) => s.tabIndex === -1 || !s.hasAttribute("tabindex")),
-        historyBeforeFile: idxRedo < idxSep1 && idxSep1 < idxNewWrap,
-        fileBeforeConnect: idxExportWrap < idxSep2 && idxSep2 < idxAbout
+        historyBeforeFile: idxRedo < idxSep1 && idxSep1 < idxExamplesWrap,
+        fileBeforePresent: idxExportWrap < idxSep2 && idxSep2 < idxTheme
       };
     });
-    ok("Track H: topbar has exactly 2 grouping dividers (History | File | Connect & present)", topSeps.count === 2, JSON.stringify(topSeps));
-    ok("Track H: topbar dividers are decorative only (aria-hidden, not tab-focusable)", topSeps.allAriaHidden && topSeps.noneFocusable, JSON.stringify(topSeps));
-    ok("Track H: divider 1 sits between Redo (History) and New (File)", topSeps.historyBeforeFile, JSON.stringify(topSeps));
-    ok("Track H: divider 2 sits between Export (File) and Tour (Connect & present)", topSeps.fileBeforeConnect, JSON.stringify(topSeps));
+    ok("Track H: dashbar has exactly 2 grouping dividers (History | File | Present)", topSeps.count === 2, JSON.stringify(topSeps));
+    ok("Track H: dashbar dividers are decorative only (aria-hidden, not tab-focusable)", topSeps.allAriaHidden && topSeps.noneFocusable, JSON.stringify(topSeps));
+    ok("Track H: divider 1 sits between Redo (History) and Examples (File)", topSeps.historyBeforeFile, JSON.stringify(topSeps));
+    ok("Track H: divider 2 sits between Export (File) and Theme (Present)", topSeps.fileBeforePresent, JSON.stringify(topSeps));
 
     // ---- Focus trap in modals (v48) ----
     console.log("\n• Focus trap in modals (v48)");

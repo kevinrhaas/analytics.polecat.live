@@ -19,34 +19,34 @@
 
   var COMMANDS = [
     // navigation
-    { label: "Go to Home", hint: "Section", kw: "home start dashboards recent", ic: "home", run: function () { goSec("home"); } },
-    { label: "Go to Repository", hint: "Section", kw: "repository data sources workbooks library", ic: "layers", run: function () { goSec("repository"); } },
+    { label: "Go to Home", hint: "Section", kw: "home start recent", ic: "home", run: function () { goSec("home"); } },
+    { label: "Go to Dashboards", hint: "Section", kw: "dashboards catalog repository saved workbooks", ic: "layers", run: function () { goSec("dashboards"); } },
+    { label: "Go to Datasets", hint: "Section", kw: "datasets queries data catalog", ic: "db", run: function () { goSec("datasets"); } },
+    { label: "Go to Connections", hint: "Section", kw: "connections adapters databases warehouses servers", ic: "join", run: function () { goSec("connections"); } },
     { label: "Go to Studio", hint: "Section", kw: "studio builder canvas editor", ic: "grid", run: function () { studio(); } },
     { label: "Go to Settings", hint: "Section", kw: "settings preferences theme mode config", ic: "gear", run: function () { goSec("settings"); } },
     { label: "Open Help & docs", hint: "Reference", kw: "help docs documentation reference guide", ic: "info", run: function () { window.open("docs/index.html", "_blank", "noopener"); } },
     // dashboard lifecycle
     { label: "New dashboard", hint: "Create", kw: "new create blank start build", ic: "plus", run: function () { studio(); click("btnNew"); } },
     { label: "Browse examples", hint: "Create", kw: "examples gallery showcase templates samples", ic: "star", run: function () { studio(); click("btnExamples"); } },
-    { label: "Open a .studio.json file", hint: "File", kw: "open import load file json", ic: "upload", run: function () { studio(); click("btnImport"); } },
-    { label: "Save spec (.studio.json)", hint: "File", kw: "save download export json spec", ic: "download", run: function () { studio(); click("btnSaveSpec"); } },
+    { label: "Open a dashboard…", hint: "File", kw: "open import load catalog file json", ic: "upload", run: function () { studio(); click("btnImport"); } },
+    { label: "Save to Dashboards catalog", hint: "File", kw: "save catalog store keep spec", ic: "download", run: function () { studio(); click("btnSaveSpec"); } },
     { label: "Export dashboard (.html)", hint: "Export", kw: "export dashboard framework html cdf publish", ic: "code", run: function () { studio(); var b = document.querySelector('#menuExport button[data-exp="cdf"]'); if (b) b.click(); } },
+    { label: "Export editable spec (.studio.json)", hint: "Export", kw: "export download json spec file source", ic: "download", run: function () { studio(); var b = document.querySelector('#menuExport button[data-exp="spec"]'); if (b) b.click(); } },
     { label: "Export all artifacts (bundle)", hint: "Export", kw: "export all bundle zip artifacts", ic: "copy", run: function () { studio(); var b = document.querySelector('#menuExport button[data-exp="all"]'); if (b) b.click(); } },
-    { label: "Push to active server…", hint: "Export", kw: "push publish server pentaho deploy", ic: "upload", run: function () { studio(); var b = document.querySelector('#menuExport button[data-exp="push"]'); if (b) b.click(); } },
     // editing
     { label: "Add text / annotation panel", hint: "Edit", kw: "text annotation note markdown richtext add panel", ic: "edit", run: function () { studio(); click("btnAddText"); } },
-    { label: "New data source", hint: "Data", kw: "new source data access cda query connect", ic: "db", run: function () { studio(); click("btnNewDS"); } },
+    { label: "New dataset / connection", hint: "Data", kw: "new dataset connection source data query connect", ic: "db", run: function () { studio(); click("btnNewDS"); } },
     { label: "Undo", hint: "Edit", kw: "undo revert back step", ic: "undo", run: function () { studio(); click("btnUndo"); } },
     { label: "Redo", hint: "Edit", kw: "redo forward step", ic: "redo", run: function () { studio(); click("btnRedo"); } },
     // view / modes
     { label: "Toggle light / dark theme", hint: "View", kw: "theme dark light mode appearance color", ic: "moon", run: function () { click("btnTheme"); } },
-    { label: "Toggle sample / live data", hint: "Data", kw: "sample live data offline pentaho connect toggle", ic: "refresh", run: function () { studio(); click("btnLive"); } },
     { label: "Focus mode", hint: "View", kw: "focus present clean distraction zen", ic: "eye", run: function () { studio(); click("morePresent"); } },
     { label: "Slideshow", hint: "Present", kw: "slideshow present slides fullscreen cycle", ic: "play", run: function () { studio(); click("moreSlideshow"); } },
     { label: "Demo mode", hint: "Present", kw: "demo live simulate refresh animate", ic: "clock", run: function () { studio(); click("moreDemoMode"); } },
     { label: "Simple mode", hint: "View", kw: "simple beginner basic easy streamlined", ic: "check", run: function () { studio(); click("moreSimple"); } },
     // learn / manage
-    { label: "Manage server connections", hint: "Connect", kw: "servers connections pentaho jndi kettle manage", ic: "join", run: function () { studio(); click("btnConn"); } },
-    { label: "Take the tour", hint: "Learn", kw: "tour welcome intro walkthrough onboarding", ic: "play", run: function () { studio(); click("btnAbout"); } },
+    { label: "Take the tour", hint: "Learn", kw: "tour welcome intro walkthrough onboarding about", ic: "play", run: function () { studio(); click("moreAbout"); } },
     { label: "Interactive tutorial", hint: "Learn", kw: "tutorial walkthrough guide learn steps", ic: "metadata", run: function () { studio(); click("moreTutorial"); } },
     { label: "Keyboard shortcuts", hint: "Learn", kw: "keyboard shortcuts keys hotkeys cheatsheet", ic: "grip", run: function () { studio(); click("moreShortcuts"); } },
     { label: "Clear local data…", hint: "Manage", kw: "clear reset wipe local storage cache data", ic: "trash", run: function () { studio(); click("moreClearData"); } },

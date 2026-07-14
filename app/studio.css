@@ -424,7 +424,7 @@ textarea:focus-visible,[tabindex]:focus-visible,.row-item:focus-visible{
    to the Dashboard inspector's Title field (the single source of truth for renaming). */
 .dash-title-btn{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.08);
   border:1px solid rgba(255,255,255,.16);color:#fff;font:inherit;font-size:14px;font-weight:700;
-  padding:6px 11px;border-radius:8px;outline:none;width:260px;cursor:pointer;text-align:left}
+  padding:6px 11px;border-radius:8px;outline:none;max-width:320px;min-width:0;cursor:pointer;text-align:left}
 .dash-title-btn:hover,.dash-title-btn:focus-visible{border-color:color-mix(in srgb,var(--topbar-ink,#fff) 48%,transparent);background:rgba(255,255,255,.14)}
 .dash-title-txt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
 .dash-title-btn svg{opacity:.55;flex-shrink:0}
@@ -432,6 +432,17 @@ textarea:focus-visible,[tabindex]:focus-visible,.row-item:focus-visible{
 .dash-meta{font-size:11px;color:color-mix(in srgb,var(--topbar-ink,#fff) 60%,transparent);padding-left:2px}
 .dash-meta code{color:var(--topbar-ink,#fff);background:rgba(255,255,255,.1);padding:1px 6px;border-radius:5px}
 .top-actions{display:flex;align-items:center;gap:8px}
+/* UX sprint 2026-07-14: the dashboard toolbar — dashboard-scoped actions sit ABOVE the
+   preview they act on; the app topbar keeps only brand + ＋New + ⋯More (manager-style).
+   Same chrome tokens as the topbar so the two bars read as one system. */
+#dashbar{display:flex;align-items:center;gap:10px;padding:5px 12px;flex:0 0 auto;min-height:46px;
+  box-sizing:border-box;background:var(--topbar-bg);color:var(--topbar-ink);
+  border-bottom:2px solid var(--pentaho)}
+#dashbar .dash-id{min-width:0}
+.top-app{display:flex;align-items:center;gap:8px}
+.dash-title-inp{font-family:var(--font);font-size:14px;font-weight:700;color:var(--topbar-ink,#fff);
+  background:rgba(255,255,255,.14);border:1px solid color-mix(in srgb,var(--topbar-ink,#fff) 48%,transparent);
+  border-radius:8px;padding:4px 9px;width:240px}
 /* H-track: subtle grouping dividers between topbar action clusters (History | File |
    Connect & present) — purely visual, no ids/order/behavior changed. Sits inline as a
    plain sibling (not a wrapping group container) so it can't interfere with any code
@@ -863,8 +874,9 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
 .dl-row .btn.btn-primary{background:var(--pdc);border-color:transparent;color:#fff}
 .dl-row .btn.btn-primary:hover{background:#8e49ab}
 /* ── responsive shell (M1) ── */
-/* Tablet ≤900px: tighten topbar; collapse secondary actions into ⋯ More */
-#btnMore{display:none}
+/* Tablet ≤900px: tighten topbar; collapse secondary actions into ⋯ More.
+   UX sprint 2026-07-14: #btnMore is no longer a mobile-only overflow — it's the app menu
+   (Tour, Theme, Present, Sign out…) at every width, so it has no display:none base rule. */
 @media(max-width:900px){
   /* m-c: 52px left padding clears the fixed #mobileNavBtn hamburger (see the earlier
      ≤900px block) — this rule used to say `padding:0 12px`, silently overwriting that
@@ -872,22 +884,23 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
      which let the hamburger overlap the brand wordmark on phones/tablets. */
   #topbar{gap:10px;padding:0 12px 0 52px;overflow:hidden}
   .brand-sub{display:none}
-  .dash-title-btn{width:160px}
+  .dash-title-btn{max-width:160px}
   .dash-meta{display:none}
   .top-actions{gap:5px;flex-shrink:1;min-width:0;overflow:hidden}
   .brand{flex-shrink:0;min-width:0}
   .btn-secondary{display:none}
-  #btnMore{display:flex}
   #workspace{overflow-x:auto}
   /* Z9 fix: #topbar/.top-actions need overflow:hidden here to stop the button row
      from forcing page-level horizontal scroll — but that same clipping box also hid
      every dropdown (New/Examples/Export/More), since .menu is position:absolute and
      extends below the topbar's own box. Escape via position:fixed so tablet-width
      dropdowns are reachable at all (previously only the ≤640 phone rule below did this). */
-  .top-actions .menu{position:fixed;top:64px;right:12px;left:auto;width:max-content;max-width:min(80vw,320px)}
+  .top-actions .menu{position:fixed;top:108px;right:12px;left:auto;width:max-content;max-width:min(80vw,320px)}
+  .top-app .menu{position:fixed;top:64px;right:12px;left:auto;width:max-content;max-width:min(80vw,320px)}
+  #dashbar{overflow:hidden;gap:8px}
 }
 /* phone-pos: examples menu opened from the More menu gets fixed position below the topbar */
-#menuExamples.phone-pos{position:fixed;top:64px;left:8px;right:8px;max-width:none}
+#menuExamples.phone-pos{position:fixed;top:64px;left:8px;right:8px;max-width:none;z-index:60}
 /* phone-only More menu items: hidden by default, revealed at ≤640px below.
    IMPORTANT: this global rule must appear BEFORE the @media block so the media
    query's display:block can override it (later = wins in same-specificity cascade). */
@@ -925,7 +938,8 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
   .top-actions{overflow-x:auto;overflow-y:hidden;flex-wrap:nowrap;-webkit-overflow-scrolling:touch;scrollbar-width:none}
   .top-actions::-webkit-scrollbar{display:none}
   .top-actions>*{flex:0 0 auto}
-  .top-actions .menu{position:fixed;top:60px;left:8px;right:8px;width:auto;max-width:none}
+  .top-actions .menu{position:fixed;top:104px;left:8px;right:8px;width:auto;max-width:none}
+  .top-app .menu{position:fixed;top:60px;left:8px;right:8px;width:auto;max-width:none}
   /* m-c: even after hiding secondary buttons, the remaining essentials (Undo/Redo/New/
      Export/⋯More) still overflow a 390px bar — measured ⋯More sitting fully off-screen
      (left:430 on a 390-wide viewport) with no on-screen cue a user could scroll to find
@@ -935,13 +949,14 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
      matter how far the row is scrolled. Reserve matching space at the row's end so
      scrolled-in content doesn't render underneath it. */
   #moreWrap{position:fixed;top:9px;right:8px;z-index:34}
+  /* fixed #moreWrap leaves the flow — reserve its footprint so ＋New can't slide under it */
+  .top-app{padding-right:48px}
   /* #btnMore's normal style is a barely-there translucent tint (right at home over the
      solid topbar gradient) — floating fixed over the scrolling row it let whatever was
      scrolled underneath (e.g. the purple Export button) show straight through, nearly
      invisible. Give it the same opaque-chip treatment as #mobileNavBtn so it always
      reads clearly regardless of what's scrolled beneath it. */
   #moreWrap #btnMore{background:#0a1c3d;border-color:rgba(255,255,255,.16);box-shadow:0 2px 8px rgba(10,8,20,.35)}
-  .top-actions{padding-right:48px}
   /* M12: tighten status bar at phone — drop the build stamp to save space.
      m-b: #statusbar is the true bottom-most flex child of #appMain, so it — not
      #mobile-tabs above it — is the one that sits against the iOS home-indicator strip;
@@ -955,7 +970,7 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
 /* M7: Narrow phones (≤400px) — 44px tap targets and brand shrinkage */
 @media(max-width:400px){
   /* ensure all topbar buttons meet the 44px touch-target minimum */
-  #topbar .btn{min-height:44px}
+  #topbar .btn,#dashbar .btn{min-height:44px}
   /* brand can yield a little space so buttons don't overflow */
   .brand{flex-shrink:1;min-width:40px}
   .brand-title{font-size:12px}
@@ -1501,3 +1516,14 @@ body.simple-mode .da-acts{display:none!important}
 .ex-demo-note{margin-left:8px;font-size:9.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
   color:var(--faint);border:1px dashed var(--line);border-radius:999px;padding:1px 7px;cursor:help}
 .ex-hidden-note{font-size:12px;color:var(--faint);padding:10px 12px;line-height:1.6;max-width:340px}
+
+/* ── Open-dashboard picker (repo-first Open) ── */
+.odp-list{display:flex;flex-direction:column;gap:6px;max-height:340px;overflow:auto;margin-top:10px}
+.odp-row{display:flex;flex-direction:column;gap:2px;text-align:left;background:var(--field);
+  border:1px solid var(--line);border-radius:9px;padding:9px 12px;cursor:pointer;font-family:var(--font)}
+.odp-row:hover,.odp-row:focus-visible{border-color:var(--pentaho)}
+.odp-row b{color:var(--ink);font-size:13px}
+.odp-row small{color:var(--muted);font-size:11.5px}
+.odp-empty{color:var(--faint);font-size:12.5px;padding:14px 4px}
+.odp-foot{justify-content:flex-start}
+.odp-foot .btn{color:var(--ink);background:var(--field);border:1px solid var(--line)}
