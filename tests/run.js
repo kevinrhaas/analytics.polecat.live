@@ -672,11 +672,22 @@ function serve() {
     await page.click('#library .pane-rail'); await page.waitForTimeout(120);
     ok("the rail expands the library again", await page.evaluate(() => !document.getElementById("library").classList.contains("collapsed")));
 
-    // New ▾ → auto-build a starter dashboard from a query set
+    // New ▾ → auto-build a starter dashboard. The set list is CAPPED with a
+    // type-to-filter box (there could be thousands of datasets eventually).
     await page.click("#btnNew"); await page.waitForTimeout(80);
-    const newMenu = await page.$$("#menuNew button[data-stem]");
-    ok("New menu lists query sets to scaffold from", newMenu.length >= 10, "stems=" + newMenu.length);
-    await page.click('#menuNew button[data-stem="pdc-cost"]'); await page.waitForTimeout(400);
+    const newMenu = await page.evaluate(() => ({
+      sets: document.querySelectorAll("#menuNew button[data-set-key]").length,
+      filter: !!document.getElementById("newMenuFilter"),
+      more: /more/.test((document.querySelector("#menuNew .new-menu-more") || {}).textContent || "")
+    }));
+    ok("New menu lists auto-build sets, capped with a type-to-filter box at scale",
+      newMenu.sets === 10 && newMenu.filter && newMenu.more, JSON.stringify(newMenu));
+    await page.evaluate(() => {
+      var f = document.getElementById("newMenuFilter");
+      f.value = "pdc-cost"; f.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await page.waitForTimeout(80);
+    await page.click('#menuNew button[data-set-key="pdc-cost"]'); await page.waitForTimeout(400);
     const scaf = await page.evaluate(() => ({ panels: window.__STUDIO_STATE.spec.panels.length, kpis: window.__STUDIO_STATE.spec.kpis.length, name: window.__STUDIO_STATE.spec.name }));
     ok("scaffolding builds panels + KPIs from the query set", scaf.panels >= 3 && scaf.kpis >= 1 && scaf.name === "pdc-cost", JSON.stringify(scaf));
     const scafRender = await page.evaluate(() => document.querySelector("#preview").contentDocument.querySelectorAll("#content svg").length);
@@ -773,7 +784,7 @@ function serve() {
     // ---- data-source builder: author a new CDA query ----
     console.log("\n• data-source builder");
     const built = await page.evaluate(async () => {
-      document.getElementById("btnNewDS").click();
+      document.getElementById("ndDashQuery").click();
       await new Promise((r) => setTimeout(r, 80));
       const m = document.querySelector(".modal .dsb"); if (!m) return { err: "builder did not open" };
       const types = m.querySelectorAll(".dsb-type").length;
@@ -801,7 +812,7 @@ function serve() {
     console.log("\n• G1: SQL builder");
     const sqbBasic = await page.evaluate(async () => {
       // open a fresh SQL DA builder
-      document.getElementById("btnNewDS").click();
+      document.getElementById("ndDashQuery").click();
       await new Promise((r) => setTimeout(r, 80));
       const m = document.querySelector(".modal .dsb"); if (!m) return { err: "modal missing" };
       // SQL Builder toggle should exist for SQL kind (default)
@@ -837,7 +848,7 @@ function serve() {
     // every sibling field in this file — so tabbing to any of these fields showed zero
     // keyboard focus ring.
     const sqbFocusRing = await page.evaluate(async () => {
-      document.getElementById("btnNewDS").click();
+      document.getElementById("ndDashQuery").click();
       await new Promise((r) => setTimeout(r, 80));
       const m = document.querySelector(".modal .dsb"); if (!m) return { err: "modal missing" };
       const sqbTog = m.querySelector(".dsb-sqb-tog"); if (!sqbTog) return { err: "no toggle" };
@@ -854,7 +865,7 @@ function serve() {
       sqbFocusRing.outlineStyle !== "none", JSON.stringify(sqbFocusRing));
 
     const sqbAdvanced = await page.evaluate(async () => {
-      document.getElementById("btnNewDS").click();
+      document.getElementById("ndDashQuery").click();
       await new Promise((r) => setTimeout(r, 80));
       const m = document.querySelector(".modal .dsb"); if (!m) return { err: "modal missing" };
       const sqbTog = m.querySelector(".dsb-sqb-tog"); if (!sqbTog) return { err: "no toggle" };
@@ -893,7 +904,7 @@ function serve() {
     // ---- G1b: JOIN builder ----
     console.log("\n• G1b: SQL Builder JOIN");
     const sqbJoin = await page.evaluate(async () => {
-      document.getElementById("btnNewDS").click();
+      document.getElementById("ndDashQuery").click();
       await new Promise((r) => setTimeout(r, 80));
       const m = document.querySelector(".modal .dsb"); if (!m) return { err: "modal missing" };
       const sqbTog = m.querySelector(".dsb-sqb-tog"); if (!sqbTog) return { err: "no toggle" };
@@ -928,7 +939,7 @@ function serve() {
     // ---- G1c: GROUP BY + aggregate expressions ----
     console.log("\n• G1c: SQL Builder GROUP BY + aggregates");
     const sqbGroupAgg = await page.evaluate(async () => {
-      document.getElementById("btnNewDS").click();
+      document.getElementById("ndDashQuery").click();
       await new Promise((r) => setTimeout(r, 80));
       const m = document.querySelector(".modal .dsb"); if (!m) return { err: "modal missing" };
       const sqbTog = m.querySelector(".dsb-sqb-tog"); if (!sqbTog) return { err: "no toggle" };
@@ -999,7 +1010,7 @@ function serve() {
     ok("Z14: detectFormat falls back to parquet for unknown extensions", dkModel.fallback === "parquet", JSON.stringify(dkModel));
 
     const dkCard = await page.evaluate(async () => {
-      document.getElementById("btnNewDS").click();
+      document.getElementById("ndDashQuery").click();
       await new Promise((r) => setTimeout(r, 80));
       const m = document.querySelector(".modal .dsb"); if (!m) return { err: "modal missing" };
       const card = [].slice.call(m.querySelectorAll(".dsb-type")).find((c) => c.textContent.includes("DuckDB"));
@@ -1214,7 +1225,7 @@ function serve() {
     ok("Z14: Studio.SQLiteHttp exposes testConnection()/query()/ensureEngine()", slModel.hasApi, JSON.stringify(slModel));
 
     const slCard = await page.evaluate(async () => {
-      document.getElementById("btnNewDS").click();
+      document.getElementById("ndDashQuery").click();
       await new Promise((r) => setTimeout(r, 80));
       const m = document.querySelector(".modal .dsb"); if (!m) return { err: "modal missing" };
       const card = [].slice.call(m.querySelectorAll(".dsb-type")).find((c) => c.textContent.includes("SQLite"));
@@ -1312,7 +1323,7 @@ function serve() {
     ok("Z4: Studio.Snowflake exposes testConnection()/query()", sfModel.hasApi, JSON.stringify(sfModel));
 
     const sfCard = await page.evaluate(async () => {
-      document.getElementById("btnNewDS").click();
+      document.getElementById("ndDashQuery").click();
       await new Promise((r) => setTimeout(r, 80));
       const m = document.querySelector(".modal .dsb"); if (!m) return { err: "modal missing" };
       const card = [].slice.call(m.querySelectorAll(".dsb-type")).find((c) => c.textContent.includes("Snowflake"));
@@ -1427,7 +1438,7 @@ function serve() {
     ok("Z4: Studio.Databricks exposes testConnection()/query()", dbxModel.hasApi, JSON.stringify(dbxModel));
 
     const dbxCard = await page.evaluate(async () => {
-      document.getElementById("btnNewDS").click();
+      document.getElementById("ndDashQuery").click();
       await new Promise((r) => setTimeout(r, 80));
       const m = document.querySelector(".modal .dsb"); if (!m) return { err: "modal missing" };
       const card = [].slice.call(m.querySelectorAll(".dsb-type")).find((c) => c.textContent.includes("Databricks"));
@@ -1542,7 +1553,7 @@ function serve() {
     ok("Z4: Studio.BigQuery exposes testConnection()/query()", bqModel.hasApi, JSON.stringify(bqModel));
 
     const bqCard = await page.evaluate(async () => {
-      document.getElementById("btnNewDS").click();
+      document.getElementById("ndDashQuery").click();
       await new Promise((r) => setTimeout(r, 80));
       const m = document.querySelector(".modal .dsb"); if (!m) return { err: "modal missing" };
       const card = [].slice.call(m.querySelectorAll(".dsb-type")).find((c) => c.textContent.includes("BigQuery"));
@@ -1657,7 +1668,7 @@ function serve() {
     ok("Z4: Studio.GenericSql exposes testConnection()/query()", httpModel.hasApi, JSON.stringify(httpModel));
 
     const httpCard = await page.evaluate(async () => {
-      document.getElementById("btnNewDS").click();
+      document.getElementById("ndDashQuery").click();
       await new Promise((r) => setTimeout(r, 80));
       const m = document.querySelector(".modal .dsb"); if (!m) return { err: "modal missing" };
       const card = [].slice.call(m.querySelectorAll(".dsb-type")).find((c) => c.textContent.includes("Generic SQL/HTTP"));
@@ -3705,8 +3716,9 @@ function serve() {
     ok("theme button has SVG icon (not emoji)", i3Topbar.themeBtnHasSvg && i3Topbar.themeBtnNoEmoji, JSON.stringify(i3Topbar));
     ok("#btnAbout (Tour) has SVG icon", i3Topbar.aboutBtnHasSvg, JSON.stringify(i3Topbar));
 
-    // 2. Modal close button has SVG — open the data-source builder modal
-    await page.click("#btnNewDS"); await page.waitForTimeout(120);
+    // 2. Modal close button has SVG — open the dashboard-query builder modal (behind + New ▾)
+    await page.click("#btnNewDS"); await page.waitForTimeout(80);
+    await page.click("#ndDashQuery"); await page.waitForTimeout(120);
     const i3Modal = await page.evaluate(() => {
       var x = document.querySelector(".modal-h .x");
       return { exists: !!x, hasSvg: x ? !!x.querySelector("svg") : false, noTimes: x ? !x.textContent.includes("×") : true };
@@ -4015,6 +4027,10 @@ function serve() {
     // second, independent modal() call site (New data source builder) confirms the fix is generic,
     // not a one-off patch on the shortcuts modal alone
     await page.evaluate(() => document.getElementById("btnNewDS").click());
+    await page.waitForTimeout(60);
+    await page.evaluate(() => document.getElementById("ndDashQuery").click());
+    await page.waitForTimeout(80);
+    await page.evaluate(() => document.getElementById("ndDashQuery").click());
     await page.waitForTimeout(150);
     const modalCloseA11y2 = await page.evaluate(() => {
       var x = document.querySelector(".modal-ov .modal .x");
@@ -4033,6 +4049,8 @@ function serve() {
     // title/aria-label at all — unlike sibling remove buttons (e.g. "Remove series") that already did.
     console.log("\n• Track L follow-up: row/chip remove buttons have accessible names");
     await page.evaluate(() => document.getElementById("btnNewDS").click());
+    await page.waitForTimeout(60);
+    await page.evaluate(() => document.getElementById("ndDashQuery").click());
     await page.waitForTimeout(150);
     const rmA11y = await page.evaluate(() => {
       var boxes = [].slice.call(document.querySelectorAll(".modal-ov .dsb-params"));
@@ -4059,14 +4077,20 @@ function serve() {
 
     // ---- Ctrl+S shortcut (v48) ----
     console.log("\n• Ctrl+S save shortcut (v48)");
-    // Check that Ctrl+S is listed in the keyboard shortcuts modal
+    // Check that Ctrl+S is listed in the keyboard shortcuts modal. The "?" hotkey is
+    // deliberately ignored while an input has focus, and the modal that just closed
+    // restores focus to the previously-focused element — make sure that isn't an input.
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(120);
+    await page.evaluate(() => { if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); });
+    const v48Pre = await page.evaluate(() => ({ overlays: document.querySelectorAll(".modal-ov").length, active: document.activeElement && document.activeElement.tagName, menuOpen: !!document.querySelector(".menu.open") }));
     await page.keyboard.press("?");
     await page.waitForTimeout(200);
     const ctrlSInModal = await page.evaluate(() => {
       var ov = document.querySelector(".modal-ov");
-      return ov ? /Ctrl.*S/i.test(ov.textContent) : false;
+      return { hit: ov ? /Ctrl.*S/i.test(ov.textContent) : false, title: ov ? (ov.querySelector(".modal-h") || {}).textContent : "(no modal)" };
     });
-    ok("v48: Ctrl+S shortcut is listed in the keyboard shortcuts modal", ctrlSInModal);
+    ok("v48: Ctrl+S shortcut is listed in the keyboard shortcuts modal", ctrlSInModal.hit, JSON.stringify({ pre: v48Pre, got: ctrlSInModal }));
     await page.keyboard.press("Escape");
     await page.waitForTimeout(100);
 
@@ -4561,6 +4585,8 @@ function serve() {
     await phonePage.click(".mob-tab[data-mob-tab='library']");
     await phonePage.waitForTimeout(300);
     await phonePage.click(".pane-add").catch(() => {});
+    await phonePage.waitForTimeout(150);
+    await phonePage.click("#ndDashQuery").catch(() => {});
     await phonePage.waitForTimeout(300);
     const inputFontSize = await phonePage.evaluate(() => {
       var inp = document.querySelector(".modal input[type='text'], .modal input:not([type]), .modal textarea");
@@ -6320,29 +6346,28 @@ function serve() {
     });
     ok("v72: PDC.boxplot extension function is defined", rt3.hasFn, JSON.stringify(rt3));
 
-    // 4. Add text panel via #btnAddText button — panel appears with type richtext
+    // 4. Add text panel via the canvas empty-state #cesText button (moved out of the Data-panel header) — panel appears with type richtext
     const rtBefore = await page.evaluate(() => ({ count: window.__STUDIO_STATE.spec.panels.length }));
-    await page.evaluate(() => { var b = document.getElementById("btnAddText"); if (b) b.click(); });
+    await page.evaluate(() => { var b = document.getElementById("cesText"); if (b) b.click(); });
     await page.waitForTimeout(200);
     const rtAfter = await page.evaluate(() => {
       var panels = window.__STUDIO_STATE.spec.panels;
       var rtp = panels[panels.length - 1];
       return { count: panels.length, type: rtp && rtp.chart && rtp.chart.type };
     });
-    ok("v72: clicking #btnAddText adds a richtext panel", rtAfter.count === rtBefore.count + 1 && rtAfter.type === "richtext", JSON.stringify({ before: rtBefore, after: rtAfter }));
+    ok("v72: clicking the canvas ¶ Text button adds a richtext panel", rtAfter.count === rtBefore.count + 1 && rtAfter.type === "richtext", JSON.stringify({ before: rtBefore, after: rtAfter }));
 
-    // Z6 follow-up (v200): "¶ Text" moved from the live-preview canvas bar (where it read as a
-    // cluttered one-off among preview hints) into the Query Library pane header, beside
-    // "＋ New source" — both are "add something to the dashboard" affordances and now live
-    // together instead of split across two different toolbars.
+    // UX sprint (2026-07-14, user feedback): "¶ Text" creates a PANEL, so it moved out of the
+    // Data-panel header (which is about datasets/queries) into the canvas empty state, next to
+    // "Open data panel" — the moment you'd actually reach for it.
     const textBtnHome = await page.evaluate(() => {
-      var b = document.getElementById("btnAddText");
+      var b = document.getElementById("cesText");
       return {
-        inLibraryHeader: !!(b && b.closest("#library .pane-h")),
-        inCanvasBar: !!(b && b.closest("#canvas-bar")),
+        inCanvasEmpty: !!(b && b.closest("#canvasEmpty")),
+        oldHeaderBtnGone: !document.getElementById("btnAddText")
       };
     });
-    ok("Z6: ¶ Text button now lives in the library pane header, not the canvas bar", textBtnHome.inLibraryHeader && !textBtnHome.inCanvasBar, JSON.stringify(textBtnHome));
+    ok("UX: ¶ Text button lives in the canvas empty state, not the Data-panel header", textBtnHome.inCanvasEmpty && textBtnHome.oldHeaderBtnGone, JSON.stringify(textBtnHome));
 
     // 5. Richtext panel inspector shows content textarea (no DA binding shown)
     const rtInsp = await page.evaluate(() => ({
@@ -13777,7 +13802,9 @@ function serve() {
     await page.click("#wbAddBtn");
     await page.waitForTimeout(100);
     const wbAfterCreate = await page.evaluate(function () {
-      var chip = Array.from(document.querySelectorAll(".wb-chip")).find(function (b) { return b.textContent.indexOf("Quarterly Reviews") >= 0; });
+      // scope to the Dashboards section — Home renders its own (never-active) copy of the
+      // workbook chips, and a background autosave tick can re-render Home mid-test
+      var chip = Array.from(document.querySelectorAll("#repoResults .wb-chip")).find(function (b) { return b.textContent.indexOf("Quarterly Reviews") >= 0; });
       return { count: window.__studioWorkbooks().length, chipVisible: !!chip, chipActive: !!(chip && chip.classList.contains("active")) };
     });
     ok("Z3-WB: creating a workbook via the name field + button adds it, shows a filter chip, and auto-selects it",
@@ -14427,12 +14454,13 @@ function serve() {
         darkChecked: sec.querySelector('input[data-set="dark"]').checked,
         simpleChecked: sec.querySelector('input[data-set="simple"]').checked,
         demoChecked: sec.querySelector('input[data-set="demo"]').checked,
-        focusChecked: sec.querySelector('input[data-set="focus"]').checked
+        focusChecked: sec.querySelector('input[data-set="focus"]').checked,
+        samplesChecked: sec.querySelector('input[data-set="samples"]').checked
       };
     });
-    ok("Z5: Settings section renders 7 cards (Workspace backend + 3 mode-switch groups + Branding + Dashboard defaults + Data) with 4 mode switches, all off by default",
-      z5Boot.visible && z5Boot.hasCards && z5Boot.switchIds === "dark,simple,demo,focus"
-        && !z5Boot.darkChecked && !z5Boot.simpleChecked && !z5Boot.demoChecked && !z5Boot.focusChecked,
+    ok("Z5: Settings section renders 7 cards with 5 mode switches — modes off by default, Sample content ON by default",
+      z5Boot.visible && z5Boot.hasCards && z5Boot.switchIds === "dark,samples,simple,demo,focus"
+        && !z5Boot.darkChecked && !z5Boot.simpleChecked && !z5Boot.demoChecked && !z5Boot.focusChecked && z5Boot.samplesChecked,
       JSON.stringify(z5Boot));
 
     // Z5-2: Dark mode switch drives the same S.theme + data-theme as the topbar toggle

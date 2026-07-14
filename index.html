@@ -160,9 +160,17 @@
   <main id="workspace">
     <!-- LEFT: query library -->
     <aside id="library" class="pane">
-      <div class="pane-rail" data-pane="library" title="Expand Query Library"><button class="rail-btn">›</button><span class="rail-label">Query Library</span></div>
-      <div class="pane-h"><button class="pane-collapse" data-pane="library" title="Collapse panel">‹</button><span>Query Library</span><button class="pane-add" id="btnNewDS" title="Author a new CDA data source">＋ New source</button><button class="btn-cb-text" id="btnAddText" title="Add a text / annotation panel">¶ Text</button><span class="count" id="libCount"></span></div>
-      <input id="libSearch" class="search" placeholder="Search queries, columns, tables…"/>
+      <div class="pane-rail" data-pane="library" title="Expand Data panel"><button class="rail-btn">›</button><span class="rail-label">Data</span></div>
+      <div class="pane-h"><button class="pane-collapse" data-pane="library" title="Collapse panel">‹</button><span>Data</span>
+        <div class="menu-wrap"><button class="pane-add" id="btnNewDS" title="Add a dataset, connection, or dashboard-only query">＋ New ▾</button>
+          <div class="menu" id="menuNewData">
+            <button id="ndWorkspaceDataset">Dataset (workspace)…</button>
+            <button id="ndConnection">Connection…</button>
+            <div class="sep"></div>
+            <button id="ndDashQuery">Dashboard-only query…</button>
+          </div></div>
+        <span class="count" id="libCount"></span></div>
+      <input id="libSearch" class="search" placeholder="Search datasets, columns, tables…"/>
       <div class="lib-scroll" id="libList"></div>
     </aside>
 
@@ -183,8 +191,9 @@
         <div id="canvasEmpty" aria-hidden="true">
           <div class="ces-ic" id="cesIc"></div>
           <div class="ces-title">Canvas is empty</div>
-          <div class="ces-desc">Drag a query from the library onto the canvas, or drop one below.</div>
-          <button type="button" class="ces-btn" id="cesLib">Open library</button>
+          <div class="ces-desc">Drag a dataset or sample query from the Data panel onto the canvas, or drop one below.</div>
+          <button type="button" class="ces-btn" id="cesLib">Open data panel</button>
+          <button type="button" class="ces-btn ces-btn-2" id="cesText">¶ Add a text panel</button>
         </div>
       </div>
     </section>

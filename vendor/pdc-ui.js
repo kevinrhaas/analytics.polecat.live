@@ -632,50 +632,47 @@ PDC.card=function(title,opts){opts=opts||{};var c=document.createElement("div");
   return{el:c,body:b};};
 PDC.el=function(id){return document.getElementById(id);};
 
-/* ---------- CDA query inspector (discrete ⓘ; shows the SQL behind the dashboard) ---------- */
-// Derive the repo content URL of this dashboard's .cda from PDC.cdaPath (e.g.
-// "/public/pdc-iteration/v2/pdc-x.cda" -> "/pentaho/api/repos/:public:pdc-iteration:v2:pdc-x.cda/content").
-PDC.cdaContentUrl=function(){var p=PDC.cdaPath||"";if(!p)return null;return "/pentaho/api/repos/"+p.replace(/^\/+/,"").replace(/\//g,":")+"/content";};
-PDC._cdaCache=null;
-// Open a clean modal listing the dashboard's CDA data accesses + their SQL. Optional `focusId`
-// scrolls to / highlights one data access (used by the per-panel provenance caption).
+/* ---------- Datasets inspector (discrete ⓘ; shows the query behind every panel) ----------
+   Reads the dashboard's dataset definitions straight from the embedded spec
+   (window.STUDIO_SPEC.cda.dataAccesses) — always available in previews and
+   exports, no server round-trip. Optional `focusId` scrolls to / highlights
+   one dataset (used by the per-panel provenance caption). */
 PDC.queryModal=function(focusId){
-  var url=PDC.cdaContentUrl(); if(!url)return;
   var existing=document.getElementById("pdc-qm"); if(existing){ if(focusId)_qmFocus(existing,focusId); return; }
+  var spec=window.STUDIO_SPEC||{};
+  var das=((spec.cda&&spec.cda.dataAccesses)||[]).slice();
   var ov=document.createElement("div"); ov.id="pdc-qm"; ov.className="pdc-qm-ov";
-  var fname=PDC.cdaPath.split("/").pop();
-  ov.innerHTML='<div class="pdc-qm" role="dialog" aria-modal="true" aria-label="CDA queries">'+
-    '<div class="pdc-qm-h"><span class="pdc-qm-t">◴ CDA Queries <code>'+fname+'</code></span>'+
-    '<span class="pdc-qm-note">the live SQL behind every panel · read-only</span>'+
+  ov.innerHTML='<div class="pdc-qm" role="dialog" aria-modal="true" aria-label="Datasets">'+
+    '<div class="pdc-qm-h"><span class="pdc-qm-t">◴ Datasets</span>'+
+    '<span class="pdc-qm-note">the query behind every panel · read-only</span>'+
     '<button class="pdc-qm-x" aria-label="Close">&times;</button></div>'+
-    '<div class="pdc-qm-b"><div class="pdc-qm-load">Loading queries…</div></div></div>';
+    '<div class="pdc-qm-b"></div></div>';
   document.body.appendChild(ov);
   function close(){ov.remove();document.removeEventListener("keydown",esc);}
   function esc(e){if(e.key==="Escape")close();}
   ov.addEventListener("click",function(e){if(e.target===ov)close();});
   ov.querySelector(".pdc-qm-x").addEventListener("click",close);
   document.addEventListener("keydown",esc);
-  var done=function(xml){
-    var doc=new DOMParser().parseFromString(xml,"text/xml");
-    var das=[].slice.call(doc.getElementsByTagName("DataAccess"));
-    var b=ov.querySelector(".pdc-qm-b"); b.innerHTML="";
-    if(!das.length){b.innerHTML='<div class="pdc-qm-load">No queries found in this CDA.</div>';return;}
-    das.forEach(function(da){
-      var id=da.getAttribute("id")||"", type=da.getAttribute("type")||"";
-      var qn=da.getElementsByTagName("Query")[0], sql=qn?qn.textContent.trim():"(no SQL — "+type+")";
-      var params=[].slice.call(da.getElementsByTagName("Parameter")).map(function(p){return p.getAttribute("name");}).filter(Boolean);
-      var sec=document.createElement("section"); sec.className="pdc-q"; sec.setAttribute("data-id",id);
-      var pill=params.length?'<span class="pdc-q-params">'+params.join(" · ")+'</span>':'';
-      sec.innerHTML='<div class="pdc-q-id"><span class="pdc-q-name">'+id+'</span>'+pill+'<button class="pdc-q-copy" title="Copy SQL">copy</button></div><pre class="pdc-q-sql"></pre>';
-      sec.querySelector(".pdc-q-sql").textContent=sql;
-      sec.querySelector(".pdc-q-copy").addEventListener("click",function(){var t=this;try{navigator.clipboard.writeText(sql);t.textContent="copied ✓";setTimeout(function(){t.textContent="copy";},1200);}catch(e){}});
-      b.appendChild(sec);
-    });
-    if(focusId)_qmFocus(ov,focusId);
-  };
-  if(PDC._cdaCache){done(PDC._cdaCache);}
-  else fetch(url,{credentials:"include"}).then(function(r){return r.text();}).then(function(t){PDC._cdaCache=t;done(t);})
-    .catch(function(e){ov.querySelector(".pdc-qm-b").innerHTML='<div class="pdc-qm-load">Could not load queries ('+e+').</div>';});
+  var b=ov.querySelector(".pdc-qm-b");
+  if(!das.length){b.innerHTML='<div class="pdc-qm-load">This dashboard has no dataset definitions.</div>';return;}
+  das.forEach(function(da){
+    var id=da.id||"";
+    var def=da.dataset||{};
+    var sql=(da.sql||da.query||def.sql||"").trim()||
+      (def.table?("table: "+def.table+(def.query?" · "+def.query:"")):
+       def.collection?("collection: "+def.collection):
+       da.kind==="compound"?("compound "+(da.compoundType||"join")+" of "+(da.unionDas?da.unionDas.join(", "):(da.leftId||"?")+" + "+(da.rightId||"?"))):
+       "(no query — "+(da.kind||"sample")+")");
+    var params=(da.params||[]).map(function(p){return p.name||p.key;}).filter(Boolean);
+    var sec=document.createElement("section"); sec.className="pdc-q"; sec.setAttribute("data-id",id);
+    var pill=params.length?'<span class="pdc-q-params">'+params.join(" · ")+'</span>':'';
+    sec.innerHTML='<div class="pdc-q-id"><span class="pdc-q-name"></span>'+pill+'<button class="pdc-q-copy" title="Copy query">copy</button></div><pre class="pdc-q-sql"></pre>';
+    sec.querySelector(".pdc-q-name").textContent=da.name&&da.name!==id?(da.name+" ("+id+")"):id;
+    sec.querySelector(".pdc-q-sql").textContent=sql;
+    sec.querySelector(".pdc-q-copy").addEventListener("click",function(){var t=this;try{navigator.clipboard.writeText(sql);t.textContent="copied ✓";setTimeout(function(){t.textContent="copy";},1200);}catch(e){}});
+    b.appendChild(sec);
+  });
+  if(focusId)_qmFocus(ov,focusId);
 };
 function _qmFocus(ov,id){var s=ov.querySelector('.pdc-q[data-id="'+id+'"]');if(!s)return;
   ov.querySelectorAll(".pdc-q.hot").forEach&&ov.querySelectorAll(".pdc-q.hot").forEach(function(x){x.classList.remove("hot");});

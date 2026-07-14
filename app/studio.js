@@ -488,35 +488,79 @@
   }
 
   /* ---------- query library ---------- */
+  // Sample-content visibility (user ask: "I might want to start with an empty
+  // repository"): one pref hides the built-in demo content everywhere it
+  // surfaces — the Samples library group, New ▾ auto-build sets, the Examples
+  // menu and Home's example gallery. Nothing is deleted; flip it back and the
+  // full demo suite (which shows the app's feature breadth against the internal
+  // sample database) reinstates itself.
+  function showSamples() {
+    var v; try { v = localStorage.getItem("studio-show-samples"); } catch (e) {}
+    return v !== "0";
+  }
+  function setShowSamples(on) {
+    try { localStorage.setItem("studio-show-samples", on ? "1" : "0"); } catch (e) {}
+    buildLibrary(); renderHome(); buildExamplesMenu(); buildNewMenu();
+  }
+  window.__studioShowSamples = { get: showSamples, set: setShowSamples }; // test hook
+  var _samplesOpen = false;
+  try { _samplesOpen = localStorage.getItem("studio-lib-samples-open") === "1"; } catch (e) {}
   function buildLibrary() {
     var list = $("#libList"), q = ($("#libSearch").value || "").toLowerCase();
     list.innerHTML = "";
-    var stems = Object.keys(S.catalog).sort();
     var shownDA = 0;
-    stems.forEach(function (stem) {
-      var entry = S.catalog[stem];
-      var das = (entry.dataAccesses || []).filter(function (d) {
-        if (!q) return true;
-        return (stem + " " + d.id + " " + (d.columns || []).join(" ") + " " + (d.sql || "")).toLowerCase().indexOf(q) >= 0;
+    if (showSamples()) {
+      // The whole demo catalog nests under ONE collapsible "Samples" group so
+      // the pane leads with YOUR datasets instead of ~20 sample folders. A
+      // search auto-opens it; the open state persists.
+      var stems = Object.keys(S.catalog).sort();
+      var stemWraps = [];
+      stems.forEach(function (stem) {
+        var entry = S.catalog[stem];
+        var das = (entry.dataAccesses || []).filter(function (d) {
+          if (!q) return true;
+          return (stem + " " + d.id + " " + (d.columns || []).join(" ") + " " + (d.sql || "")).toLowerCase().indexOf(q) >= 0;
+        });
+        if (!das.length) return;
+        shownDA += das.length;
+        var wrap = el("div", "lib-cda" + (q ? " open" : "")); wrap.setAttribute("data-stem", stem);
+        var h = el("div", "h");
+        h.innerHTML = '<span class="car">▶</span><span class="nm">' + esc(stem) + '</span><span class="badge">' + das.length + "</span>";
+        h.onclick = function () { wrap.classList.toggle("open"); };
+        wrap.appendChild(h);
+        var box = el("div", "lib-das");
+        das.forEach(function (d) { box.appendChild(daCard(stem, d, q)); });
+        wrap.appendChild(box);
+        stemWraps.push(wrap);
       });
-      if (!das.length) return;
-      shownDA += das.length;
-      var wrap = el("div", "lib-cda" + (q ? " open" : "")); wrap.setAttribute("data-stem", stem);
-      var h = el("div", "h");
-      h.innerHTML = '<span class="car">▶</span><span class="nm">' + esc(stem) + '</span><span class="badge">' + das.length + "</span>";
-      h.onclick = function () { wrap.classList.toggle("open"); };
-      wrap.appendChild(h);
-      var box = el("div", "lib-das");
-      das.forEach(function (d) { box.appendChild(daCard(stem, d, q)); });
-      wrap.appendChild(box);
-      list.appendChild(wrap);
-    });
-    if (q && !shownDA) {
-      var empty = el("div", "lib-empty"); empty.textContent = 'No catalog queries match "' + esc(q) + '".'; list.appendChild(empty);
+      if (stemWraps.length) {
+        var sWrap = el("div", "lib-samples" + ((q || _samplesOpen) ? " open" : ""));
+        var sh = el("div", "h lib-samples-h");
+        sh.innerHTML = '<span class="car">▶</span><span class="nm">Samples</span><span class="badge">' + shownDA + '</span>' +
+          '<span class="lib-samples-hint" title="Demo queries against the built-in sample database — every dashboard stays demoable offline. Hide them in Settings if you want a clean workspace.">demo db</span>';
+        sh.onclick = function () {
+          sWrap.classList.toggle("open");
+          _samplesOpen = sWrap.classList.contains("open");
+          try { localStorage.setItem("studio-lib-samples-open", _samplesOpen ? "1" : "0"); } catch (e) {}
+        };
+        sWrap.appendChild(sh);
+        var sBox = el("div", "lib-samples-box");
+        stemWraps.forEach(function (w) { sBox.appendChild(w); });
+        sWrap.appendChild(sBox);
+        list.appendChild(sWrap);
+      }
+      if (q && !shownDA) {
+        var empty = el("div", "lib-empty"); empty.textContent = 'No sample queries match "' + esc(q) + '".'; list.appendChild(empty);
+      }
+    } else {
+      var off = el("div", "lib-samples-off");
+      off.innerHTML = 'Sample content is hidden. <button type="button" class="lib-samples-show" id="libSamplesShow">Show samples</button>';
+      list.appendChild(off);
+      var showBtn = $("#libSamplesShow", list);
+      if (showBtn) showBtn.onclick = function () { setShowSamples(true); toast("Sample content restored"); };
     }
     // "Workspace datasets" (the shared connections → datasets catalog), then
-    // "My Data Sources" (this dashboard's own queries) above it — both pinned
-    // over the sample-catalog groups.
+    // "This dashboard's datasets" above it — both pinned over the samples.
     buildWorkspaceDatasets(list, q);
     buildMyDataSources(list);
     $("#libCount").textContent = shownDA + " queries";
@@ -606,12 +650,12 @@
   }
   window.__studioAddFromWorkspaceDataset = addFromWorkspaceDataset; // test hook
 
-  /* ---------- My Data Sources (spec-owned DAs) ---------- */
+  /* ---------- This dashboard's datasets (spec-owned query definitions) ---------- */
   function buildMyDataSources(list) {
     var das = S.spec.cda.dataAccesses || [];
     var wrap = el("div", "lib-mine open");
     var h = el("div", "h");
-    h.innerHTML = '<span class="car">▶</span><span class="nm">My Data Sources</span><span class="badge">' + das.length + "</span>";
+    h.innerHTML = '<span class="car">▶</span><span class="nm">This dashboard\u2019s datasets</span><span class="badge">' + das.length + "</span>";
     var addBtn = el("button", "mine-add"); setIconBtn(addBtn, "plus", "New", 12);
     addBtn.title = "Create a new data source"; addBtn.type = "button";
     addBtn.onclick = function (e) { e.stopPropagation(); addNewDA(); };
@@ -625,7 +669,7 @@
     var box = el("div", "lib-das");
     if (!das.length) {
       var em = el("div"); em.style.cssText = "font-size:11.5px;color:var(--faint);padding:6px 4px;line-height:1.5";
-      em.textContent = "No data sources yet. Click + New, or add a query from the catalog below.";
+      em.textContent = "Nothing bound yet. Drag a dataset or sample query onto the canvas, or click + New above.";
       box.appendChild(em);
     }
     das.forEach(function (da) { box.appendChild(myDACard(da)); });
@@ -687,7 +731,7 @@
     S.spec.cda.dataAccesses.push(da);
     select({ kind: "da", id: da.id });
     buildLibrary();
-    toast("New data source created");
+    toast("New dashboard query created");
   }
   function duplicateDA(id) {
     var da = Studio.daById(S.spec, id); if (!da) return;
@@ -4750,10 +4794,9 @@
       }).join("") + '</div>';
     }
     var cards = [
-      { act: "blank", ic: "plus", t: "Blank dashboard", d: "Start from scratch" },
-      { act: "examples", ic: "grid", t: "Browse examples", d: "Auto-build from a query set" },
-      { act: "tour", ic: "play", t: "Take the tour", d: "Guided walkthrough of the builder" }
-    ];
+      { act: "blank", ic: "plus", t: "Blank dashboard", d: "Start from scratch" }
+    ].concat(showSamples() ? [{ act: "examples", ic: "grid", t: "Browse examples", d: "Sample dashboards on the demo database" }] : [])
+      .concat([{ act: "tour", ic: "play", t: "Take the tour", d: "Guided walkthrough of the builder" }]);
     var html = '<div class="home-wrap">' +
       '<div class="home-hero"><h1>Welcome back</h1><p>Pick up a recent dashboard, or start something new.</p></div>' +
       '<div class="home-quick">' + cards.map(function (c) {
@@ -4979,8 +5022,11 @@
     var wbAddBtn = $("#wbAddBtn", results);
     if (wbAddBtn) wbAddBtn.onclick = function () {
       var inp = $("#wbNameInp", results);
-      var wb = addWorkbook(inp && inp.value);
-      if (wb) { _repoWbFilter = wb.id; renderDashboards(); }
+      var name = inp ? inp.value.trim() : "";
+      // an empty name used to silently no-op — that reads as a dead button
+      if (!name) { if (inp) inp.focus(); toast("Type a name in the box first — e.g. “Client demos”.", true); return; }
+      var wb = addWorkbook(name);
+      if (wb) { toast("Workbook “" + wb.name + "” created"); _repoWbFilter = wb.id; renderDashboards(); }
     };
     var wbNameInp = $("#wbNameInp", results);
     if (wbNameInp) wbNameInp.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); wbAddBtn.click(); } });
@@ -5826,6 +5872,10 @@
       ic: function () { return S.theme === "dark" ? "moon" : "sun"; },
       on: function () { return S.theme === "dark"; },
       set: function () { setTheme(S.theme === "dark" ? "light" : "dark"); } },
+    { grp: "Mode", id: "samples", t: "Sample content", d: "Show the built-in demo suite — sample dashboards and the sample query library, all running on the internal demo database. Turn off to start from an empty workspace; nothing is deleted, flip it back anytime.",
+      ic: function () { return "layers"; },
+      on: function () { return showSamples(); },
+      set: function () { setShowSamples(!showSamples()); toast(showSamples() ? "Sample content shown" : "Sample content hidden — flip this back anytime"); } },
     { grp: "Mode", id: "simple", t: "Simple mode", d: "Hide advanced inspector sections and narrow the chart gallery to the most common types.",
       ic: function () { return "layers"; },
       on: function () { return !!S.simpleMode; },
@@ -6822,96 +6872,38 @@
   ];
   window.__studioClearDataKeys = CLEAR_DATA_KEYS; // test hook
 
-  function wireTopbar() {
-    // Z6 naming model: the topbar title is now a jump-to-inspector button, not an inline
-    // editor — renaming happens in one place (the Dashboard inspector's Title field), so
-    // "what is this dashboard called" and "how do I rename it" aren't split across two UIs.
-    $("#dashTitle").addEventListener("click", function () {
-      selectDashboard();
-      collapsePane("inspector", false);
-      if (window.__studioMobTab) window.__studioMobTab("inspector");
-      setTimeout(function () { var f = $("#dashTitleField"); if (f) { f.focus(); f.select(); } }, 60);
-    });
-    var uBtn = $("#btnUndo"); uBtn.onclick = undoAct; uBtn.textContent = ""; uBtn.appendChild(Studio.icon("undo", 16));
-    var rBtn = $("#btnRedo"); rBtn.onclick = redoAct; rBtn.textContent = ""; rBtn.appendChild(Studio.icon("redo", 16));
-    setIconBtn($("#btnAbout"), "info", "Tour");
-    document.addEventListener("keydown", function (e) {
-      if (!(e.metaKey || e.ctrlKey)) return;
-      var inEdit = /^(input|textarea|select)$/i.test(e.target.tagName || "") || e.target.isContentEditable;
-      if (inEdit) return;
-      var k = (e.key || "").toLowerCase();
-      if (k === "z" && !e.shiftKey) { e.preventDefault(); undoAct(); }
-      else if ((k === "z" && e.shiftKey) || k === "y") { e.preventDefault(); redoAct(); }
-      else if (k === "d") { if (S.selection && S.selection.kind === "panel") { e.preventDefault(); duplicatePanel(S.selection.id); } else if (S.selection && S.selection.kind === "kpi") { e.preventDefault(); duplicateKpi(S.selection.index); } }
-      else if (k === "s") { e.preventDefault(); download(S.spec.name + ".studio.json", JSON.stringify(S.spec, null, 2), "application/json"); }
-    });
-    // arrow-key reorder/resize for the selected panel (when the builder has focus)
-    document.addEventListener("keydown", function (e) {
-      if (!S.selection || S.selection.kind !== "panel" || e.metaKey || e.ctrlKey || e.altKey) return;
-      if (/^(input|textarea|select)$/i.test(e.target.tagName || "") || e.target.isContentEditable) return;
-      if ((e.key || "").indexOf("Arrow") !== 0) return;
-      var i = -1; S.spec.panels.forEach(function (p, ix) { if (p.id === S.selection.id) i = ix; });
-      if (i < 0) return;
-      e.preventDefault();
-      if (e.shiftKey) {
-        var seq = []; for (var n = 1; n < (S.spec.gridCols || 3); n++) seq.push(n); seq.push("full");
-        var idx = seq.indexOf(S.spec.panels[i].span); if (idx < 0) idx = 0;
-        if (e.key === "ArrowRight") idx = Math.min(seq.length - 1, idx + 1);
-        else if (e.key === "ArrowLeft") idx = Math.max(0, idx - 1); else return;
-        S.spec.panels[i].span = seq[idx]; renderInspector(); refreshPreview();
-      } else {
-        var j = (e.key === "ArrowUp" || e.key === "ArrowLeft") ? i - 1 : i + 1;
-        if (j !== i) swap(S.spec.panels, i, j);
-      }
-    });
-    $("#btnTheme").onclick = function () { setTheme(S.theme === "dark" ? "light" : "dark"); };
-    // Z5 follow-up: "quick settings" mirror in the mobile nav drawer (relay.polecat.live-style) —
-    // the two most-reached-for toggles (Dark mode, Simple mode) one tap away without leaving the
-    // drawer for a full trip to Settings. Reuses SETTINGS_TOGGLES as the single source of truth
-    // (same data-set id convention Settings' own checkboxes use) so both stay in sync for free.
-    $$("#railQuick input[data-set]").forEach(function (cb) {
-      var t = SETTINGS_TOGGLES.filter(function (x) { return x.id === cb.getAttribute("data-set"); })[0];
-      if (t) cb.addEventListener("change", t.set);
-    });
-    $("#libSearch").addEventListener("input", buildLibrary);
-    var repoSearchInp = $("#repoSearch"); if (repoSearchInp) repoSearchInp.addEventListener("input", renderDashboards);
-    var dashViewToggle = $("#dashViewToggle");
-    if (dashViewToggle) {
-      var syncDashToggle = function () {
-        var isList = _dashViewMode === "list";
-        dashViewToggle.textContent = isList ? "▦ Tile view" : "☰ List view";
-        dashViewToggle.setAttribute("aria-pressed", isList ? "true" : "false");
-      };
-      syncDashToggle();
-      dashViewToggle.onclick = function () {
-        _dashViewMode = _dashViewMode === "list" ? "tiles" : "list";
-        try { localStorage.setItem("studio-dash-view", _dashViewMode); } catch (e) {}
-        syncDashToggle(); renderDashboards();
-      };
-    }
-    var repoExpBtn = $("#repoExportBtn"); if (repoExpBtn) repoExpBtn.onclick = exportRepositoryFile;
-    var repoImpBtn = $("#repoImportBtn"); if (repoImpBtn) repoImpBtn.onclick = importRepositoryFile;
-    var repoCompareBtn = $("#repoCompareBtn"); if (repoCompareBtn) repoCompareBtn.onclick = openCompareDashboards;
-    var ndsBtn = $("#btnNewDS"); setIconBtn(ndsBtn, "plus", "New source", 12); ndsBtn.onclick = function () { dataSourceBuilder(null); };
-    $("#inspBack").onclick = selectDashboard;
-
-    // New menu: blank, duplicate current, or auto-build a starter dashboard from a catalog query set
-    var nm = $("#menuNew");
-    var stems = Object.keys(S.catalog).filter(function (s) {
-      return (S.catalog[s].dataAccesses || []).some(function (d) { return (d.columns || []).length >= 2; });
-    }).sort();
+  // New ▾ menu: blank, duplicate, then auto-build starters. Auto-build now
+  // draws from BOTH planes — your workspace datasets first, then the sample
+  // query sets (only while samples are shown) — and stays usable at scale:
+  // beyond a handful of entries it gets a type-to-filter box instead of an
+  // endless list (there could be thousands of datasets eventually).
+  function buildNewMenu(filterText) {
+    var nm = $("#menuNew"); if (!nm) return;
+    var flt = (filterText || "").toLowerCase();
+    var dsSets = Studio.Workspace.all("datasets").filter(function (d) { return (d.columns || []).length >= 2; })
+      .sort(function (a, b) { return (b.updatedAt || 0) - (a.updatedAt || 0); })
+      .map(function (d) { return { kind: "dataset", key: d.id, label: d.name }; });
+    var stemSets = !showSamples() ? [] : Object.keys(S.catalog).filter(function (st) {
+      return (S.catalog[st].dataAccesses || []).some(function (d) { return (d.columns || []).length >= 2; });
+    }).sort().map(function (st) { return { kind: "stem", key: st, label: st }; });
+    var sets = dsSets.concat(stemSets).filter(function (x) { return !flt || x.label.toLowerCase().indexOf(flt) >= 0; });
+    var CAP = 10, total = sets.length, needsFilter = total > CAP || flt;
+    var shown = sets.slice(0, CAP);
     nm.innerHTML = '<button data-new="blank">＋ Blank dashboard</button>' +
-      '<button data-new="dup" id="btnDupDash">⧉ Duplicate current</button><div class="sep"></div>' +
-      '<div class="grp">Auto-build from a query set</div>' +
-      stems.map(function (s) { return '<button data-stem="' + esc(s) + '">' + esc(s) + "</button>"; }).join("");
+      '<button data-new="dup" id="btnDupDash">⧉ Duplicate current</button>' +
+      (total || needsFilter ? '<div class="sep"></div><div class="grp">Auto-build a starter</div>' : "") +
+      (needsFilter ? '<input type="search" id="newMenuFilter" class="new-menu-filter" placeholder="Filter ' + total + ' sets…" aria-label="Filter auto-build sets"/>' : "") +
+      shown.map(function (x) {
+        return '<button data-set-kind="' + x.kind + '" data-set-key="' + esc(x.key) + '">' +
+          (x.kind === "dataset" ? "◈ " : "") + esc(x.label) + "</button>";
+      }).join("") +
+      (total > CAP ? '<div class="new-menu-more">+ ' + (total - CAP) + " more — type to filter</div>" : "");
     $$("button", nm).forEach(function (b) {
       b.onclick = function () {
         var action = b.getAttribute("data-new");
         if (action === "blank") {
           S.spec = applyDashboardDefaults(Studio.emptySpec()); S.selection = null; syncHeader(); renderInspector(); refreshPreview(); bumpDashMilestone();
         } else if (action === "dup") {
-          // Duplicate the current dashboard: clone the spec, assign a new unique ID,
-          // append " (copy)" to the title, and append "-copy" to the file name stem.
           var dup = Studio.clone(S.spec);
           dup.id    = Studio.uid("dash");
           dup.title = (dup.title || "Untitled Dashboard") + " (copy)";
@@ -6920,15 +6912,46 @@
           S.selection = null;
           syncHeader(); renderInspector(); refreshPreview();
           flashBtn(document.getElementById("btnNew"), "Duplicated!");
-        } else {
-          scaffoldFromStem(b.getAttribute("data-stem"));
-        }
+        } else if (b.getAttribute("data-set-kind") === "dataset") {
+          scaffoldFromDataset(b.getAttribute("data-set-key"));
+        } else if (b.getAttribute("data-set-kind") === "stem") {
+          scaffoldFromStem(b.getAttribute("data-set-key"));
+        } else { return; }
         closeMenus();
       };
     });
-    menuToggle($("#btnNew"), nm);
+    var fltInp = $("#newMenuFilter", nm);
+    if (fltInp) {
+      fltInp.value = filterText || "";
+      fltInp.addEventListener("click", function (e) { e.stopPropagation(); });
+      fltInp.addEventListener("input", function () {
+        var v = fltInp.value;
+        buildNewMenu(v);
+        var again = $("#newMenuFilter", nm); if (again) { again.focus(); again.setSelectionRange(v.length, v.length); }
+      });
+    }
+  }
+  // Auto-build a starter dashboard from a WORKSPACE dataset: a KPI on its first
+  // numeric-looking column pair + a bars panel, same spirit as scaffoldFromStem.
+  function scaffoldFromDataset(dsId) {
+    var ds = Studio.Workspace.get("datasets", dsId); if (!ds) return;
+    S.spec = applyDashboardDefaults(Studio.emptySpec());
+    S.spec.title = ds.name; S.spec.name = String(ds.name || "dashboard").toLowerCase().replace(/[^a-z0-9-]+/g, "-");
+    S.spec.cda.dataAccesses = [];
+    var da2 = specDAFromDataset(ds);
+    var k = Studio.newKpi(da2); k.fmt = Studio.guessFmt(k.valueCol);
+    S.spec.kpis.push(k);
+    var pnl = Studio.newPanel("bars", da2);
+    S.spec.panels.push(pnl);
+    S.selection = null; syncHeader(); renderInspector(); refreshPreview(); buildLibrary();
+    bumpDashMilestone();
+    toast("Starter built from dataset " + ds.name);
+  }
 
-    // examples menu — E5: visual card gallery
+  // examples menu — E5: visual card gallery. Rebuilt whenever sample visibility
+  // flips: the gallery IS the sample-dashboard showcase (internal demo database),
+  // so hiding samples leaves just the Import-from-URL entry.
+  function buildExamplesMenu() {
     var em = $("#menuExamples");
     em.classList.add("ex-grid");
     // one grid, ordered by index.json — most spectacular first (no single "hero" card)
@@ -7009,12 +7032,103 @@
         (meta.length ? '<div class="ex-card-meta">' + meta.join(" · ") + '</div>' : "") +
         '</button>';
     }
-    em.innerHTML = '<div class="grp">Examples</div><div class="ex-cards">' + S.examples.map(exCard).join("") + '</div>' +
+    em.innerHTML = (showSamples()
+        ? '<div class="grp">Examples <span class="ex-demo-note" title="Sample dashboards running on the built-in demo database — they show the app\'s full feature breadth.">demo db</span></div><div class="ex-cards">' + S.examples.map(exCard).join("") + '</div>'
+        : '<div class="grp">Examples</div><div class="ex-hidden-note">Sample dashboards are hidden — turn “Sample content” back on in Settings to browse them.</div>') +
       '<button type="button" class="btn ex-url-btn" id="btnImportUrl">＋ Import from URL…</button>';
     $$("button.ex-card", em).forEach(function (b) { b.onclick = function () { loadExample(b.getAttribute("data-f")); closeMenus(); }; });
-    menuToggle($("#btnExamples"), em);
     var importUrlBtn = $("#btnImportUrl", em);
     if (importUrlBtn) importUrlBtn.onclick = function () { closeMenus(); openImportUrlModal(); };
+  }
+
+  function wireTopbar() {
+    // Z6 naming model: the topbar title is now a jump-to-inspector button, not an inline
+    // editor — renaming happens in one place (the Dashboard inspector's Title field), so
+    // "what is this dashboard called" and "how do I rename it" aren't split across two UIs.
+    $("#dashTitle").addEventListener("click", function () {
+      selectDashboard();
+      collapsePane("inspector", false);
+      if (window.__studioMobTab) window.__studioMobTab("inspector");
+      setTimeout(function () { var f = $("#dashTitleField"); if (f) { f.focus(); f.select(); } }, 60);
+    });
+    var uBtn = $("#btnUndo"); uBtn.onclick = undoAct; uBtn.textContent = ""; uBtn.appendChild(Studio.icon("undo", 16));
+    var rBtn = $("#btnRedo"); rBtn.onclick = redoAct; rBtn.textContent = ""; rBtn.appendChild(Studio.icon("redo", 16));
+    setIconBtn($("#btnAbout"), "info", "Tour");
+    document.addEventListener("keydown", function (e) {
+      if (!(e.metaKey || e.ctrlKey)) return;
+      var inEdit = /^(input|textarea|select)$/i.test(e.target.tagName || "") || e.target.isContentEditable;
+      if (inEdit) return;
+      var k = (e.key || "").toLowerCase();
+      if (k === "z" && !e.shiftKey) { e.preventDefault(); undoAct(); }
+      else if ((k === "z" && e.shiftKey) || k === "y") { e.preventDefault(); redoAct(); }
+      else if (k === "d") { if (S.selection && S.selection.kind === "panel") { e.preventDefault(); duplicatePanel(S.selection.id); } else if (S.selection && S.selection.kind === "kpi") { e.preventDefault(); duplicateKpi(S.selection.index); } }
+      else if (k === "s") { e.preventDefault(); download(S.spec.name + ".studio.json", JSON.stringify(S.spec, null, 2), "application/json"); }
+    });
+    // arrow-key reorder/resize for the selected panel (when the builder has focus)
+    document.addEventListener("keydown", function (e) {
+      if (!S.selection || S.selection.kind !== "panel" || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (/^(input|textarea|select)$/i.test(e.target.tagName || "") || e.target.isContentEditable) return;
+      if ((e.key || "").indexOf("Arrow") !== 0) return;
+      var i = -1; S.spec.panels.forEach(function (p, ix) { if (p.id === S.selection.id) i = ix; });
+      if (i < 0) return;
+      e.preventDefault();
+      if (e.shiftKey) {
+        var seq = []; for (var n = 1; n < (S.spec.gridCols || 3); n++) seq.push(n); seq.push("full");
+        var idx = seq.indexOf(S.spec.panels[i].span); if (idx < 0) idx = 0;
+        if (e.key === "ArrowRight") idx = Math.min(seq.length - 1, idx + 1);
+        else if (e.key === "ArrowLeft") idx = Math.max(0, idx - 1); else return;
+        S.spec.panels[i].span = seq[idx]; renderInspector(); refreshPreview();
+      } else {
+        var j = (e.key === "ArrowUp" || e.key === "ArrowLeft") ? i - 1 : i + 1;
+        if (j !== i) swap(S.spec.panels, i, j);
+      }
+    });
+    $("#btnTheme").onclick = function () { setTheme(S.theme === "dark" ? "light" : "dark"); };
+    // Z5 follow-up: "quick settings" mirror in the mobile nav drawer (relay.polecat.live-style) —
+    // the two most-reached-for toggles (Dark mode, Simple mode) one tap away without leaving the
+    // drawer for a full trip to Settings. Reuses SETTINGS_TOGGLES as the single source of truth
+    // (same data-set id convention Settings' own checkboxes use) so both stay in sync for free.
+    $$("#railQuick input[data-set]").forEach(function (cb) {
+      var t = SETTINGS_TOGGLES.filter(function (x) { return x.id === cb.getAttribute("data-set"); })[0];
+      if (t) cb.addEventListener("change", t.set);
+    });
+    $("#libSearch").addEventListener("input", buildLibrary);
+    var repoSearchInp = $("#repoSearch"); if (repoSearchInp) repoSearchInp.addEventListener("input", renderDashboards);
+    var dashViewToggle = $("#dashViewToggle");
+    if (dashViewToggle) {
+      var syncDashToggle = function () {
+        var isList = _dashViewMode === "list";
+        dashViewToggle.textContent = isList ? "▦ Tile view" : "☰ List view";
+        dashViewToggle.setAttribute("aria-pressed", isList ? "true" : "false");
+      };
+      syncDashToggle();
+      dashViewToggle.onclick = function () {
+        _dashViewMode = _dashViewMode === "list" ? "tiles" : "list";
+        try { localStorage.setItem("studio-dash-view", _dashViewMode); } catch (e) {}
+        syncDashToggle(); renderDashboards();
+      };
+    }
+    var repoExpBtn = $("#repoExportBtn"); if (repoExpBtn) repoExpBtn.onclick = exportRepositoryFile;
+    var repoImpBtn = $("#repoImportBtn"); if (repoImpBtn) repoImpBtn.onclick = importRepositoryFile;
+    var repoCompareBtn = $("#repoCompareBtn"); if (repoCompareBtn) repoCompareBtn.onclick = openCompareDashboards;
+    // Data pane "+ New ▾": dataset-first creation. Workspace datasets and
+    // connections are the primary path; a dashboard-only query (the sample-
+    // engine builder) remains for quick demo authoring.
+    var ndsBtn = $("#btnNewDS"); setIconBtn(ndsBtn, "plus", "New", 12);
+    menuToggle(ndsBtn, $("#menuNewData"));
+    var ndWs = $("#ndWorkspaceDataset");
+    if (ndWs) ndWs.onclick = function () { closeMenus(); openDatasetEditor(); };
+    var ndConn = $("#ndConnection");
+    if (ndConn) ndConn.onclick = function () { closeMenus(); openConnectionWizard(); };
+    var ndDash = $("#ndDashQuery");
+    if (ndDash) ndDash.onclick = function () { closeMenus(); dataSourceBuilder(null); };
+    $("#inspBack").onclick = selectDashboard;
+
+    buildNewMenu();
+    menuToggle($("#btnNew"), $("#menuNew"));
+
+    buildExamplesMenu();
+    menuToggle($("#btnExamples"), $("#menuExamples"));
 
     // export menu
     menuToggle($("#btnExport"), $("#menuExport"));
@@ -7140,7 +7254,6 @@
     };
 
     // "¶ Text" canvas-bar button — add a rich-text annotation panel to the current dashboard
-    var addTextBtn = $("#btnAddText"); if (addTextBtn) addTextBtn.onclick = addTextPanel;
 
     document.addEventListener("click", function (e) { if (!e.target.closest(".menu-wrap")) closeMenus(); });
   }
@@ -7827,6 +7940,10 @@
         var ls = document.getElementById("libSearch"); if (ls) { ls.focus(); ls.select(); }
       }
     });
+    // ¶ Text moved here from the Data-panel header (it creates a PANEL, so it
+    // belongs with the canvas) — also reachable via the empty canvas itself.
+    var cesTextBtn = $("#cesText");
+    if (cesTextBtn) cesTextBtn.addEventListener("click", addTextPanel);
   }
 
   document.addEventListener("DOMContentLoaded", function () { wireCanvas(); boot(); });
