@@ -8,6 +8,10 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png"/>
 <link rel="manifest" href="site.webmanifest"/>
 <meta name="theme-color" content="#d4773b"/>
+<!-- Polecat Shell design tokens (vendor/polecat-shell/ is READ-ONLY — synced from
+     kevinrhaas/polecat-platform). Loads BEFORE studio.css so the Studio's own variable
+     blocks win every name collision; the shell-token bridge lives in studio.css. -->
+<link rel="stylesheet" href="vendor/polecat-shell/tokens.css"/>
 <link rel="stylesheet" href="app/studio.css"/>
 <script src="app/gate-config.js"></script>
 <script src="app/gate.js"></script>

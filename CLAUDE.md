@@ -49,10 +49,15 @@ runs skip this app).
   migrations — never wipe or break existing user data.
 - **Bump the `sw.js` CACHE name** in the same commit as any change to
   precached files (and any shell adoption).
-- `vendor/polecat-shell/` (once vendored) is **READ-ONLY** — changes belong in
-  `kevinrhaas/polecat-platform` `lib/` (bump `lib/VERSION` + run
-  `scripts/gen-manifest.mjs` there) and arrive via `chore: polecat-shell
-  vX.Y.Z` sync PRs. App-side skinning lives in this repo's own CSS.
+- **`vendor/polecat-shell/` is READ-ONLY** — a verbatim copy of
+  `kevinrhaas/polecat-platform` `lib/` (the test suite sha256-verifies every
+  file against MANIFEST.json; fleet sweeps drift-check it too). Changes belong
+  in the platform repo (bump `lib/VERSION` + run `scripts/gen-manifest.mjs`
+  there) and arrive via `chore: polecat-shell vX.Y.Z` sync PRs. App-side
+  skinning lives in this repo's own CSS: the shell-token bridge at the top of
+  `app/studio.css` maps the canonical shell tokens onto Studio values, and
+  `data-palette` mirrors `data-app-theme` (historical `studio-theme` /
+  `studio-app-theme` storage keys, stamped by gate.js + setAppTheme).
 
 ## Layout
 
@@ -62,7 +67,7 @@ app/                Studio modules: model.js → studio-render.js ↔ studio.js
                     → exporters.js; sources/ = DataSource adapters (schema.js
                     is the contract); studio-charts.js = chart extensions
 js/changelog.js     Fleet-format changelog (see contract above)
-vendor/             pdc-ui.js toolkit mirror (pristine) + future polecat-shell
+vendor/             pdc-ui.js toolkit mirror (pristine) + polecat-shell/ (read-only)
 tests/run.js        The Playwright suite (~1,400 checks) — the merge gate
 tools/              changelog-normalize/check, export.js CLI, lib.js
 docs/index.html     User-facing Help (update in the same slice as features)

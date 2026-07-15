@@ -6386,6 +6386,10 @@
   function setAppTheme(t) {
     t = APP_THEME_KEYS.indexOf(t) >= 0 ? t : "polecat";
     S.appTheme = t; document.documentElement.setAttribute("data-app-theme", t);
+    // Polecat Shell contract: the vendored shell keys off data-palette × data-theme.
+    // Mirror the app theme onto data-palette (the storage keys stay the historical
+    // studio-theme / studio-app-theme pair — no user state is touched).
+    document.documentElement.setAttribute("data-palette", t);
     try { localStorage.setItem("studio-app-theme", t); } catch (e) {}
   }
   window.__studioAppTheme = { get: appTheme, set: setAppTheme }; // test hook
