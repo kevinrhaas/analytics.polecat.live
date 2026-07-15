@@ -781,29 +781,49 @@ function serve() {
     });
     ok("keyboard-focused controls get a visible outline ring", focusRing.ok, JSON.stringify(focusRing));
 
-    // ---- status-bar footer + collapsible changelog ----
+    // ---- status-bar footer + What's-new right panel (shell adoption, stage 4) ----
     const footer = await page.evaluate(() => {
       var f = document.getElementById("statusbar");
       var stamp = document.getElementById("fbStamp");
-      var pop = document.getElementById("changelogPop");
       return {
         hasFooter: !!f,
         atBottom: f ? Math.abs(f.getBoundingClientRect().bottom - window.innerHeight) < 2 : false,
         stamp: stamp ? stamp.textContent : "",
-        popHidden: pop ? pop.hidden : null
+        panelClosed: !document.querySelector(".ps-rpanel"),
+        hasUnseenDot: !!document.getElementById("wnDot")
       };
     });
     ok("page has a status-bar footer pinned to the bottom", footer.hasFooter && footer.atBottom, JSON.stringify(footer));
     ok("footer shows a “Last updated” stamp", /Last updated/.test(footer.stamp), footer.stamp);
-    ok("changelog starts collapsed", footer.popHidden === true);
+    ok("What's-new panel starts closed", footer.panelClosed === true);
+    // Fresh profile (no studio-whatsnew-seen key) → the footer button carries the unseen dot.
+    ok("unseen-updates dot lights the Changelog button on a fresh profile (shell seen-version contract)", footer.hasUnseenDot);
     await page.click("#btnChangelog");
+    await page.waitForTimeout(300);
     const cl = await page.evaluate(() => {
+      var panel = document.querySelector(".ps-rpanel");
       var pop = document.getElementById("changelogPop");
-      var entries = pop.querySelectorAll(".cl-entry");
+      var entries = pop ? pop.querySelectorAll(".cl-entry") : [];
       var first = entries[0] ? entries[0].querySelector(".cl-v").textContent : "";
-      return { open: !pop.hidden, count: entries.length, first, expanded: document.getElementById("btnChangelog").getAttribute("aria-expanded") };
+      var latest = window.STUDIO_LATEST_VERSION || 0;
+      return { open: !!panel && !!pop, inBody: pop && !!pop.closest(".ps-rpanel-body"),
+        title: panel ? panel.querySelector(".ps-rpanel-head h2").textContent : "",
+        count: entries.length, first, latest,
+        expanded: document.getElementById("btnChangelog").getAttribute("aria-expanded"),
+        seen: localStorage.getItem("studio-whatsnew-seen"),
+        dotCleared: !document.getElementById("wnDot") };
     });
-    ok("changelog opens with newest revision first", cl.open && cl.count >= 3 && cl.expanded === "true", JSON.stringify(cl));
+    ok("Changelog opens the What's-new feed in the shell right panel, newest revision first",
+      cl.open && cl.inBody && /new/i.test(cl.title) && cl.count >= 3 && cl.first === "v" + cl.latest && cl.expanded === "true", JSON.stringify(cl));
+    ok("opening marks the latest version seen and clears the unseen dot",
+      cl.seen === String(cl.latest) && cl.dotCleared, JSON.stringify({ seen: cl.seen, latest: cl.latest, dotCleared: cl.dotCleared }));
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(320);
+    const clEsc = await page.evaluate(() => ({
+      closed: !document.querySelector(".ps-rpanel"),
+      expanded: document.getElementById("btnChangelog").getAttribute("aria-expanded")
+    }));
+    ok("Escape closes the What's-new panel and resets aria-expanded", clEsc.closed && clEsc.expanded === "false", JSON.stringify(clEsc));
 
     // ---- resizable + collapsible side panels ----
     console.log("\n• resizable / collapsible panels");
@@ -4958,21 +4978,25 @@ function serve() {
     });
     ok("M11: restore banner 'No thanks' button has ≥36px tap target on phone", m11Banner.tapOk, JSON.stringify(m11Banner));
 
-    // ---- M12: changelog popup stays within phone viewport ----
-    console.log("\n• M12: changelog popup width on phone (390px)");
-    await phonePage.evaluate(() => {
-      var cl = document.getElementById("changelogPop");
-      if (cl) cl.removeAttribute("hidden");
-    });
+    // ---- M12: What's-new panel stays within phone viewport ----
+    console.log("\n• M12: What's-new panel width on phone (390px)");
+    // Earlier phone checks can leave a drawer open; its #mobile-scrim covers the
+    // footer and would swallow the click (the pre-panel M12 never clicked, so this
+    // never mattered before). Close any open drawer first.
+    await phonePage.evaluate(() => { var s = document.getElementById("mobile-scrim"); if (s && s.classList.contains("active")) s.click(); });
+    await phonePage.waitForTimeout(350);
+    await phonePage.click("#btnChangelog");
+    await phonePage.waitForTimeout(320);
     const m12CL = await phonePage.evaluate(() => {
-      var cl = document.getElementById("changelogPop");
-      if (!cl) return { ok: false, err: "no popup" };
-      var rect = cl.getBoundingClientRect();
+      var p = document.querySelector(".ps-rpanel");
+      if (!p) return { ok: false, err: "no panel" };
+      var rect = p.getBoundingClientRect();
       var vpW  = window.innerWidth;
-      return { popW: Math.round(rect.width), vpW, ok: rect.width <= vpW + 4 };
+      return { popW: Math.round(rect.width), vpW, ok: rect.width <= vpW + 4 && rect.left >= -1 && rect.right <= vpW + 1 };
     });
-    ok("M12: changelog popup width ≤ phone viewport width", m12CL.ok, JSON.stringify(m12CL));
-    await phonePage.evaluate(() => { var cl = document.getElementById("changelogPop"); if (cl) cl.setAttribute("hidden",""); });
+    ok("M12: What's-new panel width ≤ phone viewport width", m12CL.ok, JSON.stringify(m12CL));
+    await phonePage.keyboard.press("Escape");
+    await phonePage.waitForTimeout(320);
 
     await narrowPage.close();
 
@@ -5040,39 +5064,41 @@ function serve() {
     await phonePage.evaluate(() => document.querySelector('#mobile-tabs .mob-tab[data-mob-tab="canvas"]').click());
 
     await phonePage.click("#btnChangelog");
-    await phonePage.waitForTimeout(120);
-    const mnavCL = await phonePage.evaluate(() => { var c = document.getElementById("changelogPop"); var r = c.getBoundingClientRect(); return { open: !c.hidden, inView: r.left >= -1 && r.right <= window.innerWidth + 1 }; });
-    ok("MNAV: changelog popout sits fully within the viewport", mnavCL.open && mnavCL.inView, JSON.stringify(mnavCL));
+    await phonePage.waitForTimeout(320);
+    const mnavCL = await phonePage.evaluate(() => { var c = document.querySelector(".ps-rpanel"); if (!c) return { open: false }; var r = c.getBoundingClientRect(); return { open: true, inView: r.left >= -1 && r.right <= window.innerWidth + 1 }; });
+    ok("MNAV: What's-new panel sits fully within the viewport", mnavCL.open && mnavCL.inView, JSON.stringify(mnavCL));
 
-    // m-e: on phone the changelog reads as a near-full-screen "What's new" sheet (not a small
-    // floating box easy to mistake for empty space) and has an explicit, visible Close button —
-    // the previous tap-outside-to-dismiss had no on-screen cue it was even possible.
+    // m-e (carried into the shell right panel): on phone the feed reads as a full-height
+    // sheet (not a small floating box easy to mistake for empty space) and has an explicit,
+    // visible, thumb-sized Close button — tap-outside alone has no on-screen cue.
     const mnavCLSheet = await phonePage.evaluate(() => {
-      var c = document.getElementById("changelogPop"), close = document.getElementById("clClose");
+      var c = document.querySelector(".ps-rpanel"), close = c ? c.querySelector('.ps-rpanel-head button[aria-label="Close panel"]') : null;
       var r = c.getBoundingClientRect(), cr = close ? close.getBoundingClientRect() : null;
       return {
         tallSheet: r.height > window.innerHeight * 0.6,
         hasClose: !!close,
         closeOnScreen: !!cr && cr.left >= 0 && cr.right <= window.innerWidth && cr.top >= 0,
+        closeThumbSized: !!cr && cr.width >= 36 && cr.height >= 36,
       };
     });
-    ok("MNAV: changelog reads as a near-full-screen sheet with a visible Close button", mnavCLSheet.tallSheet && mnavCLSheet.hasClose && mnavCLSheet.closeOnScreen, JSON.stringify(mnavCLSheet));
+    ok("MNAV: What's-new reads as a full-height sheet with a visible, thumb-sized Close button",
+      mnavCLSheet.tallSheet && mnavCLSheet.hasClose && mnavCLSheet.closeOnScreen && mnavCLSheet.closeThumbSized, JSON.stringify(mnavCLSheet));
 
-    await phonePage.click("#clClose");
-    await phonePage.waitForTimeout(80);
-    const mnavCLClosed = await phonePage.evaluate(() => document.getElementById("changelogPop").hidden);
-    ok("MNAV: the Close button actually dismisses the changelog sheet", mnavCLClosed === true, String(mnavCLClosed));
+    await phonePage.click('.ps-rpanel-head button[aria-label="Close panel"]');
+    await phonePage.waitForTimeout(320);
+    const mnavCLClosed = await phonePage.evaluate(() => !document.querySelector(".ps-rpanel"));
+    ok("MNAV: the Close button actually dismisses the What's-new sheet", mnavCLClosed === true, String(mnavCLClosed));
 
     await phonePage.close();
 
-    // ---- E6: Changelog search ----
+    // ---- E6: Changelog search (inside the shell right panel) ----
     console.log("\n• Changelog search (E6)");
-    await page.click("#btnChangelog"); await page.waitForTimeout(150);
+    await page.click("#btnChangelog"); await page.waitForTimeout(320);
     const e6Init = await page.evaluate(() => {
       var pop = document.getElementById("changelogPop");
       var srch = pop ? pop.querySelector("#clSearch") : null;
       var entries = pop ? pop.querySelectorAll(".cl-entry") : [];
-      return { hasPop: !!pop, hasSrch: !!srch, srchType: srch ? srch.getAttribute("type") : "", entryCount: entries.length };
+      return { hasPop: !!pop && !!pop.closest(".ps-rpanel"), hasSrch: !!srch, srchType: srch ? srch.getAttribute("type") : "", entryCount: entries.length };
     });
     ok("E6: changelog has a search input", e6Init.hasPop && e6Init.hasSrch && e6Init.srchType === "search", JSON.stringify(e6Init));
     ok("E6: changelog shows all entries on open (≥10)", e6Init.entryCount >= 10, JSON.stringify(e6Init));
@@ -5110,16 +5136,14 @@ function serve() {
     });
     ok("E6: search with no matches shows empty state", e6NoMatch.entryCount === 0 && e6NoMatch.hasEmpty, JSON.stringify(e6NoMatch));
     await page.fill("#clSearch", "");
-    // m-e: explicit ✕ Close button on the changelog/"What's new" sheet (tap-outside and
-    // Escape already worked; a visible dismiss control matters most on a full-width phone
-    // sheet where there's no obvious "outside" to tap).
-    const clCloseBtn = await page.evaluate(() => !!document.querySelector("#clClose"));
-    ok("m-e: changelog popup has an explicit ✕ Close button", clCloseBtn);
-    await page.click("#clClose"); await page.waitForTimeout(120);
-    const clClosedByBtn = await page.evaluate(() => document.getElementById("changelogPop").hidden);
-    ok("m-e: clicking ✕ closes the changelog popup", clClosedByBtn === true);
-    // Close changelog
-    await page.keyboard.press("Escape"); await page.waitForTimeout(100);
+    // m-e (carried into the shell right panel): explicit ✕ Close in the panel head
+    // (tap-outside and Escape also work; a visible dismiss control matters most on a
+    // full-width phone sheet where there's no obvious "outside" to tap).
+    const clCloseBtn = await page.evaluate(() => !!document.querySelector('.ps-rpanel-head button[aria-label="Close panel"]'));
+    ok("m-e: What's-new panel has an explicit ✕ Close button in its head", clCloseBtn);
+    await page.click('.ps-rpanel-head button[aria-label="Close panel"]'); await page.waitForTimeout(320);
+    const clClosedByBtn = await page.evaluate(() => !document.querySelector(".ps-rpanel"));
+    ok("m-e: clicking ✕ closes the What's-new panel", clClosedByBtn === true);
 
     // ---- E4: Deep-link parameters ----
     console.log("\n• Deep-link filter parameters (E4)");
@@ -17069,14 +17093,14 @@ function serve() {
     await mp2.click("#btnChangelog");
     await mp2.waitForTimeout(300);
     const meCloseBtn = await mp2.evaluate(() => {
-      var b = document.getElementById("clClose");
+      var b = document.querySelector('.ps-rpanel-head button[aria-label="Close panel"]');
       if (!b) return { present: false };
       var r = b.getBoundingClientRect();
       return { present: true, onScreen: r.left >= 0 && r.right <= innerWidth, tapSize: Math.min(r.width, r.height) };
     });
-    ok("m-e: changelog ✕ Close is on-screen and phone-sized (≥36px tap target) at 390px", meCloseBtn.present && meCloseBtn.onScreen && meCloseBtn.tapSize >= 36, JSON.stringify(meCloseBtn));
-    await mp2.click("#clClose");
-    await mp2.waitForTimeout(200);
+    ok("m-e: What's-new ✕ Close is on-screen and phone-sized (≥36px tap target) at 390px", meCloseBtn.present && meCloseBtn.onScreen && meCloseBtn.tapSize >= 36, JSON.stringify(meCloseBtn));
+    await mp2.click('.ps-rpanel-head button[aria-label="Close panel"]');
+    await mp2.waitForTimeout(350);
     await mp2.click("#mobileNavBtn");
     await mp2.waitForTimeout(300);
     const meHelp = await mp2.evaluate(() => {
@@ -17135,7 +17159,7 @@ function serve() {
     // are fetched during install too (from the index we just cached), so a first-ever offline
     // visit still has a full library/gallery, not just a blank shell.
     const pwaDataPrecached = await pwaPage.evaluate(async function () {
-      const cache = await caches.open("studio-shell-v6");
+      const cache = await caches.open("studio-shell-v7");
       const keys = (await cache.keys()).map((r) => new URL(r.url).pathname.replace(/^\//, ""));
       const exIndex = await fetch("data/examples/index.json").then((r) => r.json());
       const missingExamples = exIndex.filter((ex) => keys.indexOf("data/examples/" + ex.file) < 0);
