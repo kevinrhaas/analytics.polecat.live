@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 350,
+    title: 'The Studio joins the Polecat fleet process',
+    kind: 'polish',
+    ts: '2026-07-15T21:45:37.000Z',
+    items: [
+      'Every change now ships through a reviewed steward branch and pull request instead of direct pushes to the live branch -- the same flow as the rest of the polecat.live fleet, with the full test suite green before every merge.',
+      'A new Guard-main workflow watches the published branch and automatically reverts a broken commit within about a minute, so the live site self-heals instead of staying down.',
+      'A verify-only changelog checker proves this feed still syncs to the fleet manager without rewriting anything, and the repo gains an agent guide documenting the Studio\'s working rules and invariants.',
+    ],
+  },
+  {
     v: 349,
     title: 'A calmer Studio: slim app bar + a dashboard toolbar',
     ts: '2026-07-14T03:02:29.000Z',

@@ -1,43 +1,33 @@
-# Analytics Dashboard Studio — STATUS (hourly-loop resume anchor)
+# Analytics Dashboard Studio — STATUS (product playbook + resume anchor)
 
-> # ⛔ PAUSED — DO NOT DO ANY WORK THIS RUN (user-requested 2026-07-04, to save tokens).
-> If you are the hourly loop and reading this: **STOP IMMEDIATELY. Make no changes, no commits, no pushes.**
-> Just exit with a one-line note that the loop is paused. The routine itself is being disabled; this is a
-> belt-and-suspenders guard in case a run still fires. **To RESUME: delete this ⛔ block (and re-enable the
-> routine).** — Everything below is the normal protocol, inert while this block is present.
-
-> **RESUME PROTOCOL:** An hourly cron (`17 * * * *`, fresh-session job) runs the improvement loop.
-> **FILL THE RUN — this is the point:** you have the better part of an hour, so **keep working until your
-> time/context budget is nearly spent, NOT until you've done "a task."** One or two slices and stopping is
-> the failure mode to avoid — a normal fire should ship **many** improvements (aim for **~5–8+ slices**,
-> more when they're small).
-> On each fire: read THIS file first, then work in a tight inner loop —
-> 1. Pick the top **NEXT** item that isn't already done.
-> 2. Implement the smallest coherent, valuable slice of it.
-> 3. Keep the Playwright suite **green**, update DONE/NEXT here, then **commit + push** that ONE slice.
-> 4. **Immediately go back to step 1** and continue. Only stop when time/context is genuinely running out
->    (or at a clean checkpoint) — never because "one thing is done." Do a sweep instead of a feature only
->    when the SWEEP CADENCE calls for it.
-> One commit per slice so progress always survives a mid-run stop. Push to `main` of
-> `kevinrhaas/analytics.polecat.live` — main is the GitHub Pages deploy branch, so pushing publishes the
-> live site at https://analytics.polecat.live. **Before each push `git pull --rebase origin main`** (a
-> concurrent run may have pushed) so parallel/back-to-back runs coordinate and don't collide.
+> **SHIP PROTOCOL (Polecat platform process, adopted 2026-07-15 — supersedes the old hourly loop):**
+> This app is on the fleet flow — read `kevinrhaas/polecat-platform` → docs/FLEET-GUIDE.md; the
+> migration row is docs/MIGRATION.md #6, **ASSIGNED to a dedicated session** (scheduled steward
+> improve runs SKIP this app and its open `steward/*` PRs). The old hourly push-to-main routine is
+> **RETIRED** (its trigger is kept disabled as zzARCHIVE — never re-enable it), which also retires
+> the old ⛔ pause block that guarded it. The flow for EVERY unit of work now:
+> 1. Check for open `steward/*` PRs and sweep-findings issues first (daily platform UX/tech sweeps
+>    file them in this repo; fixing a top finding is a first-class unit of work). Don't collide.
+> 2. Branch `steward/<topic>` off latest main. **Never push to main directly.**
+> 3. Build ONE coherent unit of work (top NEXT item below, ★ items first). Keep the Playwright
+>    suite green (`NODE_PATH=$(npm root -g) node tests/run.js`); add a check per feature; never
+>    weaken assertions to pass.
+> 4. Prepend a changelog entry (`ts: ''`) to `js/changelog.js` and run
+>    `node tools/changelog-normalize.js` to stamp it YOURSELF — nothing stamps after merge;
+>    Manager and the polecat.live launcher parse the file live (`tools/changelog-check.js`
+>    verifies without writing).
+> 5. Update THIS file (DONE/NEXT) in the same PR; update `docs/index.html` in the same slice as
+>    any user-facing feature change; bump the `sw.js` cache name if precached files changed.
+> 6. Open the PR and **merge it yourself when green — merge is ship** (`deploy.yml` publishes on
+>    merge; never hard-gate deploy on CI — see the "CI / deploy" convention below). Guard main
+>    (`.github/workflows/auto-revert.yml`) self-heals a broken main, and the platform janitor
+>    re-tests and merges green `steward/*` PRs every 2h as a backstop. The ONLY way to park work
+>    for Kevin is leaving the PR open with the **`hold` label** plus a written explanation.
 >
-> **SWEEP CADENCE:** roughly every ~5th run (or whenever the feature backlog is thin), spend the run on a
-> **sweep** instead of a new feature. **Rotate through three sweep types** (track which you did last in the
-> DONE log so they cycle):
-> 1. **UX / delight sweep (track H):** step back and make the app cleaner, more logical, more elegant, and
->    more **fun, interactive, engaging, and sexy** — IA/menus, onboarding, motion/micro-delight, visual
->    polish. Small, safe, well-tested slices; never a wild rewrite.
-> 2. **Architecture & code-review sweep (track L):** review the codebase like a senior engineer — module
->    boundaries, dead code, duplication, global-state creep, perf (bundle size / render cost), a11y,
->    error handling, test coverage per feature, and the chart-extension API surface. Fix ONE concrete
->    health issue per sweep (refactor behind green tests, no behavior change) and log findings.
-> 3. **Innovation / roadmap sweep (track N):** look **back** at everything shipped and **forward** at
->    what's now possible, and be **exceptionally innovative** — add 2–4 genuinely leading ideas to the
->    Track N innovation backlog (below), then optionally build the smallest delightful slice of one.
->    The north star is meant to keep expanding; this sweep is how it grows.
-> This is ongoing, not one-and-done. Keep every sweep shippable and tested.
+> **SWEEPS:** the platform runs daily read-only UX + tech sweeps that file findings issues here —
+> work those first. The old self-directed sweep rotation (H: UX/delight · L: architecture/code
+> review · N: innovation/roadmap) remains a good instinct when the findings queue and the ★
+> backlog are thin: same rules, one shippable, tested slice per sweep, logged in DONE.
 
 > **GOAL / NORTH STAR:** build **Analytics Dashboard Studio** into a best-in-class, gorgeous, fun,
 > industry-leading **analytics application** (analytics.polecat.live) — not just a dashboard builder.
@@ -113,9 +103,13 @@
   a hard `needs: test` gate FROZE the live site for **~21 hours** — a flaky CI-only test (offline
   service-worker / PWA check → `catalogSize:0` on a cold runner, cascading into a FATAL) failed the test job,
   so deploy never ran and ~55 versions never went live. You already run the full suite **green before every
-  push** (RESUME PROTOCOL), so CI re-testing is redundant; keep it a visible signal only. If the CI test job is
+  merge** (SHIP PROTOCOL), so CI re-testing is redundant; keep it a visible signal only. If the CI test job is
   red, HARDEN the flaky test (the offline/SW test needs to await SW activation + tolerate cold-cache timing on
   the runner) — do not make it block deploys. Requires Settings → Pages → Source = "GitHub Actions".
+  Since 2026-07-15 the fleet's **Guard main** pattern (`.github/workflows/auto-revert.yml`) is the safety
+  net instead of a gate: on every push to main it runs a fast browser-free validation (syntax across
+  first-party JS + the manager's exact changelog parser via `tools/changelog-check.js`) and, if main is
+  broken, auto-reverts the offending commit and redeploys — self-healing beats gating.
 - **License.** The Studio is proprietary — see `LICENSE` (© 2026 Polecat.live; all rights reserved).
   Keep the notice intact; don't add OSS license headers that contradict it. New first-party source
   files may carry a one-line header (`/* Analytics Dashboard Studio — © 2026 Polecat.live. See LICENSE. */`).
@@ -1032,6 +1026,29 @@
   below. Test-only, no product change. Suite 1476/1476.
 
 ## NEXT (top = do first)
+
+### ⬢ PLATFORM MIGRATION (2026-07-15, assigned — runs ALONGSIDE the product backlog, one slice per PR)
+> The staged plan for bringing the Studio onto the Polecat platform (docs/MIGRATION.md #6 in
+> kevinrhaas/polecat-platform). Product work (★ blocks below) continues between slices — the app
+> doesn't stop for the migration.
+> 1. ✓ **Process adoption (this slice):** steward/<topic> PR flow, CLAUDE.md agent guide, Guard
+>    main auto-revert workflow, self-stamped changelog + verify-only `tools/changelog-check.js`,
+>    this protocol rewrite.
+> 2. **Vendor the shell:** `polecat-platform/lib/` → `vendor/polecat-shell/` (READ-ONLY once
+>    vendored; MANIFEST sha256 drift-checked by fleet sweeps). Bridge design tokens/theming —
+>    keep the historical `studio-theme` / `studio-app-theme` keys via `configure()` so no user
+>    state is lost. Bump the sw.js cache in the same commit.
+> 3. **Fleet waffle app-switcher** (`appSwitcher` + vendored `catalog.js` FLEET) in the app bar.
+> 4. **What's-New via the shell** (`rightPanel` + `initWhatsNew`) over `window.STUDIO_CHANGELOG`,
+>    keeping the app's seen-version key.
+> 5. **WAIT for shell v2** before touching the Studio three-pane workspace (in-grid views,
+>    inspector-grade right panel). If a needed shell capability doesn't exist, build it in
+>    `polecat-platform/lib/` via a platform PR (bump lib/VERSION + gen-manifest) — NEVER by
+>    editing the vendored copy.
+> Look-ahead noted for the roadmap: the `app/sources/` adapter architecture (schema.js contract,
+> meta/data capability planes) is the platform's DataSource template — analytics is slated as the
+> suite's cross-app reporting substrate, and Supabase (the planned main backend) is Postgres this
+> app already speaks. Keep logging concrete cross-app reporting opportunities here as they appear.
 
 ### ★★★ POST-OVERHAUL BACKLOG (2026-07-13, user-directed — do these FIRST when the loop resumes)
 > The adapters → connections → datasets overhaul (see GOAL block) landed its baseline in one long
