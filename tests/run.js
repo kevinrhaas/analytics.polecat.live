@@ -5630,10 +5630,16 @@ function serve() {
       keys.forEach(function (k) { try { localStorage.setItem(k, JSON.stringify({ test: 1 })); } catch (e) {} });
       try { keys.forEach(function (k) { localStorage.removeItem(k); }); } catch (e) {}
       var remaining = keys.filter(function (k) { try { return localStorage.getItem(k) !== null; } catch (x) { return false; } });
+      // the list now includes analytics.workspace.v1 (the live workspace blob) — the real
+      // handler reloads right after, but this in-place probe must re-persist the in-memory
+      // store so later tests still find the workspace on disk
+      try { Studio.Workspace.setMeta("e8-clear-repersist", Date.now()); } catch (e) {}
       return {
         keyCount: keys.length, remaining: remaining,
         hasNotesKey: keys.indexOf("studio-canvas-notes") >= 0, hasK8Key: keys.indexOf("studio-k8-dismissed") >= 0,
-        hasWelcomeKey: keys.indexOf("studio-welcome-seen") >= 0, hasTutorialKey: keys.indexOf("studio-tutorial-done") >= 0
+        hasWelcomeKey: keys.indexOf("studio-welcome-seen") >= 0, hasTutorialKey: keys.indexOf("studio-tutorial-done") >= 0,
+        hasWorkspaceKey: keys.indexOf("analytics.workspace.v1") >= 0, hasWhatsnewKey: keys.indexOf("studio-whatsnew-seen") >= 0,
+        workspaceStillOnDisk: (function () { try { return !!localStorage.getItem("analytics.workspace.v1"); } catch (x) { return false; } })()
       };
     });
     ok("E8: all Studio localStorage keys removed by clear-data logic", e8Clear.keyCount > 20 && e8Clear.remaining.length === 0, JSON.stringify(e8Clear));
@@ -5648,6 +5654,10 @@ function serve() {
     // this, "Clear local data" left a device stuck "already onboarded" forever.
     ok("E8: the real clear-data key list includes studio-welcome-seen and studio-tutorial-done (found missing in the same Track L sweep)",
       e8Clear.hasWelcomeKey && e8Clear.hasTutorialKey, JSON.stringify(e8Clear));
+    // ★★★-1 sweep: the workspace-store blob (connections/datasets/settings/dashboards) and the
+    // What's-new seen-version were BOTH missing from the list — the same recurring gap again.
+    ok("E8: the real clear-data key list includes analytics.workspace.v1 and studio-whatsnew-seen (★★★-1 sweep)",
+      e8Clear.hasWorkspaceKey && e8Clear.hasWhatsnewKey && e8Clear.workspaceStillOnDisk, JSON.stringify(e8Clear));
 
     // ---- E3: Dashboard thumbnail ----
     console.log("\n• Dashboard thumbnail (E3)");
@@ -13594,16 +13604,17 @@ function serve() {
     ok("Z2: 'Blank dashboard' quick-create starts a fresh spec and returns to Studio",
       z2Blank.panels === 0 && z2Blank.title === "Untitled Dashboard" && z2Blank.homeHidden === true, JSON.stringify(z2Blank));
 
-    // Z2-5: recents list stays capped at 8 entries (newest-first)
+    // Z2-5: recents list stays capped at 8 entries (newest-first) — the catalog now
+    // lives in the Workspace `dashboards` table (★★★-1), seeded via the test hook.
     const z2Cap = await page.evaluate(async function () {
       var many = [];
       for (var i = 0; i < 12; i++) many.push({ id: "synthetic-" + i, ts: new Date().toISOString(), spec: { id: "synthetic-" + i, title: "Synthetic " + i, panels: [], kpis: [] } });
-      localStorage.setItem("studio-recents", JSON.stringify(many));
+      window.__studioSeedDashboards(many);
       var spec = JSON.parse(JSON.stringify(window.__STUDIO_STATE.spec));
       spec.title = "Cap test";
       window.__studioLoad(spec);
       await new Promise(function (r) { setTimeout(r, 1300); }); // past the 130ms preview + 800ms recent debounce
-      return JSON.parse(localStorage.getItem("studio-recents") || "[]").length;
+      return window.__studioRecents().length;
     });
     ok("Z2: recents list is capped at 8 entries", z2Cap === 8, "len=" + z2Cap);
 
@@ -13665,21 +13676,24 @@ function serve() {
     const z2pCapProtect = await page.evaluate(async function () {
       var many = [];
       for (var i = 0; i < 12; i++) many.push({ id: "pincap-" + i, ts: new Date().toISOString(), spec: { id: "pincap-" + i, title: "PinCap " + i, panels: [], kpis: [] } });
-      localStorage.setItem("studio-recents", JSON.stringify(many));
-      localStorage.setItem("studio-pins", JSON.stringify(["pincap-5"])); // pin one from the middle
+      many[5].pinned = true; many[5].pinnedAt = new Date().toISOString(); // pin one from the middle (pins ride on the row now)
+      window.__studioSeedDashboards(many);
       var spec = JSON.parse(JSON.stringify(window.__STUDIO_STATE.spec));
       spec.title = "Cap protect test";
       window.__studioLoad(spec);
       await new Promise(function (r) { setTimeout(r, 1300); }); // past the 130ms preview + 800ms recent debounce
-      var list = JSON.parse(localStorage.getItem("studio-recents") || "[]");
+      var list = window.__studioRecents();
       var ids = list.map(function (r) { return r.id; });
       return { total: list.length, hasProtected: ids.indexOf("pincap-5") >= 0, unpinnedCount: ids.filter(function (id) { return id !== "pincap-5"; }).length };
     });
     ok("Z2P: a pinned entry survives the recents cap while unpinned entries stay capped at 8",
       z2pCapProtect.hasProtected && z2pCapProtect.unpinnedCount === 8 && z2pCapProtect.total === 9, JSON.stringify(z2pCapProtect));
 
-    // clean up synthetic pin/recents state so it doesn't leak into later tests
-    await page.evaluate(function () { localStorage.removeItem("studio-pins"); });
+    // clean up synthetic pin state so it doesn't leak into later tests
+    await page.evaluate(function () {
+      var r = Studio.Workspace.get("dashboards", "pincap-5");
+      if (r) { delete r.pinned; delete r.pinnedAt; Studio.Workspace.put("dashboards", r); }
+    });
 
     // ── Z2 follow-up (folders/organization): Home gets a Workbook filter chip strip ──
     // Repository already lets you file dashboards into Workbooks (Z3); Home only ever showed a
@@ -13796,9 +13810,7 @@ function serve() {
         id: "test-col-search-dash", title: "Totally Unrelated Title", name: "totally-unrelated-title",
         panels: [], kpis: [], cda: { dataAccesses: [{ id: "da1", columns: [uniqueCol, "other_col"] }] }
       };
-      var list = (window.__studioRecents() || []).filter(function (r) { return r.id !== spec.id; });
-      list.unshift({ id: spec.id, ts: new Date().toISOString(), spec: spec });
-      localStorage.setItem("studio-recents", JSON.stringify(list));
+      Studio.Workspace.put("dashboards", { id: spec.id, ts: new Date().toISOString(), spec: spec });
       window.__studioRenderDashboards();
       return uniqueCol;
     });
@@ -13820,8 +13832,7 @@ function serve() {
     await page.fill("#repoSearch", "");
     await page.waitForTimeout(80);
     await page.evaluate(function () {
-      var list = (window.__studioRecents() || []).filter(function (r) { return r.id !== "test-col-search-dash"; });
-      localStorage.setItem("studio-recents", JSON.stringify(list));
+      Studio.Workspace.remove("dashboards", "test-col-search-dash");
       window.__studioRenderDashboards();
     });
 
@@ -13846,9 +13857,7 @@ function serve() {
     const civSetup = await page.evaluate(function (id) {
       window.__STUDIO_STATE.spec.title = "CIV Changed Title"; // an edit made during this same visit
       window.__studioSnapshotVersion(); // checkpoint #2 — the Save that follows the edit
-      var list = (window.__studioRecents() || []).filter(function (r) { return r.id !== id; });
-      list.unshift({ id: id, ts: new Date().toISOString(), spec: window.__STUDIO_STATE.spec });
-      localStorage.setItem("studio-recents", JSON.stringify(list));
+      Studio.Workspace.put("dashboards", { id: id, ts: new Date().toISOString(), spec: window.__STUDIO_STATE.spec });
       return id;
     }, civId);
     const civPure = await page.evaluate(function (id) {
@@ -13886,9 +13895,7 @@ function serve() {
       civNulls.noChange === null, JSON.stringify(civNulls));
     const civOpenMarks = await page.evaluate(function () {
       var id = "civ-test-open-marks";
-      var list = (window.__studioRecents() || []).filter(function (r) { return r.id !== id; });
-      list.unshift({ id: id, ts: new Date().toISOString(), spec: { id: id, name: id, title: "Open Marks Test", panels: [], kpis: [], filters: [], cda: { connections: [], dataAccesses: [] } } });
-      localStorage.setItem("studio-recents", JSON.stringify(list));
+      Studio.Workspace.put("dashboards", { id: id, ts: new Date().toISOString(), spec: { id: id, name: id, title: "Open Marks Test", panels: [], kpis: [], filters: [], cda: { connections: [], dataAccesses: [] } } });
       var before = window.__studioLastViewed()[id];
       window.__studioOpenRecent(id);
       var after = window.__studioLastViewed()[id];
@@ -13897,8 +13904,7 @@ function serve() {
     ok("N-FUN: opening a dashboard via openRecent() marks it as last-viewed right now (resets the clock)",
       !civOpenMarks.before && !!civOpenMarks.after, JSON.stringify(civOpenMarks));
     await page.evaluate(function () {
-      var list = (window.__studioRecents() || []).filter(function (r) { return ["civ-test-dash", "civ-test-open-marks"].indexOf(r.id) < 0; });
-      localStorage.setItem("studio-recents", JSON.stringify(list));
+      ["civ-test-dash", "civ-test-open-marks"].forEach(function (id) { Studio.Workspace.remove("dashboards", id); });
       window.__studioRenderHome(); window.__studioRenderDashboards();
       // __studioOpenRecent() above (like a real "open a dashboard" click) switches the active
       // shell section to Studio — switch back to Repository so the a11y check right after this
@@ -14456,18 +14462,17 @@ function serve() {
     // past checkpoint) — this picks any two DIFFERENT saved dashboards and reuses the same
     // Studio.diffSpecs/diffSummary the version-history diff already established.
     console.log("\n• N-DATA: compare dashboards side-by-side");
-    // Seed studio-recents directly (same {id,ts,spec} shape noteRecent() writes) rather than
-    // relying on two back-to-back __studioLoad calls to survive the shared, debounced
-    // scheduleNoteRecent() timer -- a second load within its ~930ms (130ms preview-refresh +
-    // 800ms noteRecent) window cancels the first dashboard's pending save entirely.
+    // Seed the dashboard catalog directly (same {id,ts,spec} row shape noteRecent() writes,
+    // now in the Workspace store) rather than relying on two back-to-back __studioLoad calls
+    // to survive the shared, debounced scheduleNoteRecent() timer -- a second load within its
+    // ~930ms (130ms preview-refresh + 800ms noteRecent) window cancels the first dashboard's
+    // pending save entirely.
     const cmpIdA = "cmp-test-a", cmpIdB = "cmp-test-b";
     await page.evaluate(function (ids) {
       var specA = { id: ids.a, name: ids.a, title: "Compare Dash A", panels: [{ id: "cp1", title: "Revenue", chart: { type: "bars", da: "" } }], kpis: [{ label: "K1" }], filters: [], cda: { connections: [], dataAccesses: [] } };
       var specB = { id: ids.b, name: ids.b, title: "Compare Dash B", panels: [{ id: "cp1", title: "Revenue (renamed)", chart: { type: "bars", da: "" } }, { id: "cp2", title: "New panel", chart: { type: "bars", da: "" } }], kpis: [{ label: "K1" }, { label: "K2" }], filters: [], cda: { connections: [], dataAccesses: [] } };
-      var recents = []; try { recents = JSON.parse(localStorage.getItem("studio-recents") || "[]"); } catch (e) {}
-      recents.unshift({ id: ids.b, ts: new Date().toISOString(), spec: specB });
-      recents.unshift({ id: ids.a, ts: new Date().toISOString(), spec: specA });
-      localStorage.setItem("studio-recents", JSON.stringify(recents));
+      Studio.Workspace.put("dashboards", { id: ids.b, ts: new Date().toISOString(), spec: specB });
+      Studio.Workspace.put("dashboards", { id: ids.a, ts: new Date().toISOString(), spec: specA });
     }, { a: cmpIdA, b: cmpIdB });
 
     const cmpBtn = await page.evaluate(function () {
@@ -14513,7 +14518,7 @@ function serve() {
     await page.evaluate(function () { var ov = document.querySelector(".modal-ov"); if (ov) ov.remove(); });
 
     const cmpTooFew = await page.evaluate(function () {
-      localStorage.setItem("studio-recents", "[]");
+      window.__studioSeedDashboards([]);
       window.__studioOpenCompareDashboards();
       var hadModal = !!document.querySelector(".modal-ov");
       var t = (document.getElementById("toast") || {}).textContent || "";
@@ -17191,13 +17196,12 @@ function serve() {
     ok("N-DIST: with the network fully offline, a reload still boots the cached app shell with a real, populated catalog",
       pwaOfflineBoot.hasRail && pwaOfflineBoot.hasTitle && pwaOfflineBoot.catalogSize > 0, JSON.stringify(pwaOfflineBoot));
 
-    // Home's "Recent dashboards" grid reads purely from localStorage (studio-recents), so it
-    // should already work offline with zero service-worker involvement — verify that's actually
-    // true rather than just assuming it (closes the "not yet verified" note from the v243 slice).
+    // Home's "Recent dashboards" grid reads from the Workspace store (localStorage-backed,
+    // analytics.workspace.v1), so it should already work offline with zero service-worker
+    // involvement — verify that's actually true rather than just assuming it.
     await pwaPage.evaluate(function () {
-      var entry = { id: "offline-recent-test", ts: new Date().toISOString(),
-        spec: { id: "offline-recent-test", title: "Offline Recent Test", panels: [], kpis: [], filters: [] } };
-      localStorage.setItem("studio-recents", JSON.stringify([entry]));
+      Studio.Workspace.put("dashboards", { id: "offline-recent-test", ts: new Date().toISOString(),
+        spec: { id: "offline-recent-test", title: "Offline Recent Test", panels: [], kpis: [], filters: [] } });
     });
     await pwaPage.context().setOffline(true);
     await pwaPage.reload({ waitUntil: "domcontentloaded" });
@@ -17211,6 +17215,86 @@ function serve() {
     ok("N-DIST: Home's Recent dashboards grid (localStorage-backed) renders correctly with the network fully offline",
       pwaOfflineHome.hasRecentCard, JSON.stringify(pwaOfflineHome));
     await pwaPage.close();
+
+    // ---- ★★★-1: dashboards live in the WORKSPACE store (mirror to remote backends) ----
+    console.log("\n• dashboards in the workspace store (★★★-1)");
+    // (a) MIGRATION: a profile with the legacy studio-recents/pins/workbooks keys boots
+    // into the workspace store with everything carried over — entries, pin flags,
+    // workbook filings and the workbook catalog itself (now in workspace settings).
+    const wsDashPage = await browser.newPage();
+    await wsDashPage.addInitScript(() => {
+      try {
+        sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1");
+        var mk = function (i) { return { id: "legacy-" + i, ts: new Date(2026, 0, 1 + i).toISOString(),
+          spec: { id: "legacy-" + i, title: "Legacy " + i, panels: [], kpis: [], filters: [] },
+          workbookId: i === 2 ? "wb-legacy" : undefined }; };
+        localStorage.setItem("studio-recents", JSON.stringify([mk(3), mk(2), mk(1)]));
+        localStorage.setItem("studio-pins", JSON.stringify(["legacy-1"]));
+        localStorage.setItem("studio-workbooks", JSON.stringify([{ id: "wb-legacy", name: "Legacy WB", ts: new Date().toISOString() }]));
+      } catch (e) {}
+    });
+    await wsDashPage.goto(`http://localhost:${PORT}/`, { waitUntil: "networkidle" });
+    await wsDashPage.waitForFunction(() => window.__STUDIO_STATE && window.Studio && Studio.Workspace, { timeout: 10000 });
+    const wsDashMigrated = await wsDashPage.evaluate(function () {
+      var rows = Studio.Workspace.all("dashboards");
+      var byId = {}; rows.forEach(function (r) { byId[r.id] = r; });
+      return {
+        count: rows.filter(function (r) { return /^legacy-/.test(r.id); }).length,
+        pinCarried: !!(byId["legacy-1"] && byId["legacy-1"].pinned),
+        wbCarried: byId["legacy-2"] ? byId["legacy-2"].workbookId : null,
+        wbCatalog: (Studio.Workspace.settings().workbooks || []).map(function (w) { return w.name; }).join(","),
+        titleCol: byId["legacy-3"] ? byId["legacy-3"].title : null,
+        stamped: !!Studio.Workspace.meta().dashboardsMigratedAt,
+        legacyKeptAsBackup: (JSON.parse(localStorage.getItem("studio-recents") || "[]")).length === 3
+      };
+    });
+    ok("★★★-1: legacy studio-recents/pins/workbooks migrate into the workspace store on boot (backup keys untouched)",
+      wsDashMigrated.count === 3 && wsDashMigrated.pinCarried && wsDashMigrated.wbCarried === "wb-legacy" &&
+      wsDashMigrated.wbCatalog === "Legacy WB" && wsDashMigrated.titleCol === "Legacy 3" &&
+      wsDashMigrated.stamped && wsDashMigrated.legacyKeptAsBackup, JSON.stringify(wsDashMigrated));
+    // (b) the migration is ONE-TIME: emptying the catalog and rebooting must NOT
+    // resurrect the legacy backup (the meta stamp guards it).
+    await wsDashPage.evaluate(function () { window.__studioSeedDashboards([]); });
+    await wsDashPage.reload({ waitUntil: "networkidle" });
+    await wsDashPage.waitForFunction(() => window.Studio && Studio.Workspace, { timeout: 10000 });
+    const wsDashNoResurrect = await wsDashPage.evaluate(function () {
+      // filter to the seeded legacy ids — the boot spec may legitimately self-register
+      // via noteRecent; only the LEGACY rows must stay gone (no re-import from backup)
+      return { legacyCount: Studio.Workspace.all("dashboards").filter(function (r) { return /^legacy-/.test(r.id); }).length };
+    });
+    ok("★★★-1: an emptied catalog stays empty across reboot — the legacy backup is never re-imported",
+      wsDashNoResurrect.legacyCount === 0, JSON.stringify(wsDashNoResurrect));
+    // (c) MIRRORING: a saved dashboard + its workbook catalog ride the workspace
+    // snapshot — exactly what the write-through sync pushes to Turso/Supabase/Firebase.
+    const wsDashSnapshot = await wsDashPage.evaluate(function () {
+      Studio.Workspace.put("dashboards", { id: "mirror-me", ts: new Date().toISOString(), pinned: true, pinnedAt: new Date().toISOString(),
+        spec: { id: "mirror-me", title: "Mirror Me", panels: [], kpis: [], filters: [] }, title: "Mirror Me", name: "mirror-me" });
+      Studio.Workspace.setSetting("workbooks", [{ id: "wb-m", name: "Mirrored WB", ts: new Date().toISOString() }]);
+      var snap = Studio.Workspace.snapshot();
+      var row = (snap.tables.dashboards || []).filter(function (r) { return r.id === "mirror-me"; })[0];
+      return {
+        inSnapshot: !!row, specTravels: !!(row && row.spec && row.spec.title === "Mirror Me"),
+        pinTravels: !!(row && row.pinned),
+        wbTravels: ((snap.settings.workbooks || [])[0] || {}).name === "Mirrored WB",
+        tableDeclared: Studio.WS.TABLE_NAMES.indexOf("dashboards") >= 0
+      };
+    });
+    ok("★★★-1: dashboards (spec + pin) and the workbook catalog ride the workspace snapshot that syncs to remote backends",
+      wsDashSnapshot.inSnapshot && wsDashSnapshot.specTravels && wsDashSnapshot.pinTravels && wsDashSnapshot.wbTravels && wsDashSnapshot.tableDeclared,
+      JSON.stringify(wsDashSnapshot));
+    // (d) a remote pull (replaceAll — what Refresh/adopt does) repaints Home with
+    // the arriving dashboards.
+    const wsDashPull = await wsDashPage.evaluate(function () {
+      var snap = Studio.WS.emptySnapshot();
+      snap.tables.dashboards = [{ id: "pulled-dash", ts: new Date().toISOString(), title: "Pulled Dash", name: "pulled-dash",
+        spec: { id: "pulled-dash", title: "Pulled Dash", panels: [], kpis: [], filters: [] } }];
+      Studio.Workspace.replaceAll(snap);
+      return { cardShows: !!document.querySelector('#secHome [data-recent="pulled-dash"]'),
+        inStore: !!Studio.Workspace.get("dashboards", "pulled-dash") };
+    });
+    ok("★★★-1: a remote workspace pull (replaceAll) lands dashboards in the store AND repaints Home",
+      wsDashPull.cardShows && wsDashPull.inStore, JSON.stringify(wsDashPull));
+    await wsDashPage.close();
 
   } catch (e) {
     failed++; console.error("FATAL", e);

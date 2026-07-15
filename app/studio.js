@@ -4412,45 +4412,107 @@
      localStorage list so a recent card can genuinely reopen that exact dashboard —
      not just show a label. Thumbnails are rendered fresh from the stored spec at
      paint time (via Studio.makeThumbnail) so they always match the current theme. */
-  var _LS_RECENTS = "studio-recents";
-  var _LS_PINS = "studio-pins"; // array of pinned dashboard ids — pinned entries never fall off the recents cap
+  /* ★★★-1 (2026-07-15): the dashboard catalog lives in the WORKSPACE STORE
+     (Studio.Workspace `dashboards` table) — the same local-first store that
+     already mirrors connections + datasets + settings to Turso/Supabase/
+     Firebase via the write-through sync, so saved dashboards now travel to
+     the remote backend too. Rows keep the historical recents-entry shape
+     {id, ts, spec, workbookId?} plus `pinned`/`pinnedAt` (pins ride ON the
+     row now, so they mirror as well) and promoted title/name columns.
+     `studio-recents`/`studio-pins`/`studio-workbooks` are migrated once at
+     boot (see migrateDashboardCatalog) and left behind untouched as a frozen
+     local backup — never wiped. */
   var _recentTimer = null;
   function scheduleNoteRecent() { clearTimeout(_recentTimer); _recentTimer = setTimeout(noteRecent, 800); }
-  function loadRecents() { try { return JSON.parse(localStorage.getItem(_LS_RECENTS) || "[]"); } catch (e) { return []; } }
-  function loadPins() { try { return JSON.parse(localStorage.getItem(_LS_PINS) || "[]"); } catch (e) { return []; } }
-  function savePins(pins) { try { localStorage.setItem(_LS_PINS, JSON.stringify(pins)); } catch (e) { /* quota or private-mode */ } }
+  function loadRecents() {
+    return Studio.Workspace.all("dashboards")
+      .sort(function (a, b) { return (b.ts || "").localeCompare(a.ts || ""); });
+  }
+  // Pins are derived from row flags (newest pin first — the historical
+  // `pins.unshift` ordering, preserved via pinnedAt).
+  function loadPins() {
+    return loadRecents()
+      .filter(function (r) { return r.pinned; })
+      .sort(function (a, b) { return (b.pinnedAt || "").localeCompare(a.pinnedAt || ""); })
+      .map(function (r) { return r.id; });
+  }
+  // Retained for the repository-import merge path: applies an id list as
+  // pinned flags (union semantics — never un-pins anything).
+  function savePins(pins) {
+    var W = Studio.Workspace, changed = false;
+    (pins || []).forEach(function (id) {
+      var r = W.get("dashboards", id);
+      if (r && !r.pinned) { r.pinned = true; r.pinnedAt = r.pinnedAt || new Date().toISOString(); W.put("dashboards", r, { silent: true }); changed = true; }
+    });
+    if (changed) W.notify("dashboards");
+  }
   function togglePin(id) {
-    var pins = loadPins(), i = pins.indexOf(id);
-    if (i >= 0) pins.splice(i, 1); else pins.unshift(id);
-    savePins(pins);
+    var W = Studio.Workspace, r = W.get("dashboards", id);
+    if (!r) return;
+    if (r.pinned) { delete r.pinned; delete r.pinnedAt; }
+    else { r.pinned = true; r.pinnedAt = new Date().toISOString(); }
+    W.put("dashboards", r);
     renderHome();
     renderDashboards();
   }
   function noteRecent() {
     if (!S.spec || !S.spec.id) return;
-    var existing = loadRecents();
-    // Preserve workbookId across the rebuild below — a dashboard's workbook filing is
-    // repository organization, tracked only on the recents entry (see the Workbooks
-    // section), so a naive "drop and re-add" here would silently un-file a dashboard
-    // every time its autosave debounce ticks while it's open.
-    var prior = existing.filter(function (r) { return r.id === S.spec.id; })[0];
-    var list = existing.filter(function (r) { return r.id !== S.spec.id; });
+    var W = Studio.Workspace;
+    // Preserve workbookId/pinned across the upsert — filing and pinning are
+    // catalog organization tracked on the row, so a naive rebuild would
+    // silently un-file/un-pin a dashboard every time its autosave debounce
+    // ticks while it's open.
+    var prior = W.get("dashboards", S.spec.id);
     var entry = { id: S.spec.id, ts: new Date().toISOString(), spec: Studio.clone(S.spec) };
-    if (prior && prior.workbookId) entry.workbookId = prior.workbookId;
-    list.unshift(entry);
-    // cap only the UNPINNED entries at 8 (newest-first order preserved) — pinning a
-    // dashboard protects it from ever being evicted by newer activity.
-    var pins = loadPins(), capped = [], unpinnedSeen = 0;
-    list.forEach(function (r) {
-      if (pins.indexOf(r.id) >= 0) { capped.push(r); }
-      else if (unpinnedSeen < 8) { capped.push(r); unpinnedSeen++; }
+    if (prior) {
+      if (prior.workbookId) entry.workbookId = prior.workbookId;
+      if (prior.pinned) { entry.pinned = true; entry.pinnedAt = prior.pinnedAt; }
+      if (prior.createdAt) entry.createdAt = prior.createdAt;
+    }
+    entry.title = entry.spec.title || "";
+    entry.name = entry.spec.name || "";
+    W.put("dashboards", entry, { silent: true });
+    // cap only the UNPINNED entries at 8 (newest-first) — pinning a dashboard
+    // protects it from ever being evicted by newer activity.
+    var unpinnedSeen = 0;
+    loadRecents().forEach(function (r) {
+      if (r.pinned) return;
+      unpinnedSeen++;
+      if (unpinnedSeen > 8) W.remove("dashboards", r.id, { silent: true });
     });
-    list = capped;
-    try { localStorage.setItem(_LS_RECENTS, JSON.stringify(list)); } catch (e) { /* quota or private-mode */ }
-    pruneVersions(list.map(function (r) { return r.id; }));
+    W.notify("dashboards");
+    pruneVersions(loadRecents().map(function (r) { return r.id; }));
     renderHome();
     renderDashboards();
   }
+  // One-time boot migration: lift the legacy localStorage catalog into the
+  // workspace store. Guarded by a meta stamp so an emptied catalog is never
+  // re-populated from the stale backup on a later boot.
+  function migrateDashboardCatalog() {
+    var W = Studio.Workspace;
+    if (W.meta().dashboardsMigratedAt) return;
+    try {
+      var old = JSON.parse(localStorage.getItem("studio-recents") || "[]");
+      var pins = JSON.parse(localStorage.getItem("studio-pins") || "[]");
+      var wbs = JSON.parse(localStorage.getItem("studio-workbooks") || "[]");
+      if (old.length && !W.all("dashboards").length) {
+        old.forEach(function (r) {
+          if (!r || !r.id) return;
+          if (pins.indexOf(r.id) >= 0) { r.pinned = true; r.pinnedAt = r.pinnedAt || r.ts || new Date().toISOString(); }
+          r.title = (r.spec && r.spec.title) || r.title || "";
+          r.name = (r.spec && r.spec.name) || r.name || "";
+          W.put("dashboards", r, { silent: true });
+        });
+        W.notify("dashboards");
+      }
+      if (wbs.length && !(W.settings().workbooks || []).length) W.setSetting("workbooks", wbs);
+    } catch (e) { /* malformed legacy data — start from the workspace as-is */ }
+    W.setMeta("dashboardsMigratedAt", new Date().toISOString());
+  }
+  migrateDashboardCatalog();
+  // Remote pulls (workspace backend Refresh / connect-adopt) replace the whole
+  // store — repaint the dashboard surfaces when rows arrive from elsewhere.
+  Studio.Workspace.on("replaced", function () { renderHome(); renderDashboards(); });
   function openRecent(id) {
     var r = loadRecents().filter(function (x) { return x.id === id; })[0];
     if (!r) return;
@@ -4849,6 +4911,20 @@
   window.__studioOpenRecent = openRecent; // test hook
   window.__studioPins = loadPins; // test hook
   window.__studioTogglePin = togglePin; // test hook
+  window.__studioNoteRecent = noteRecent; // test hook
+  // test hook: replace the whole dashboard catalog (rows in recents-entry shape)
+  window.__studioSeedDashboards = function (rows) {
+    var W = Studio.Workspace;
+    W.all("dashboards").forEach(function (r) { W.remove("dashboards", r.id, { silent: true }); });
+    (rows || []).forEach(function (r) {
+      if (!r || !r.id) return;
+      r.title = (r.spec && r.spec.title) || r.title || "";
+      r.name = (r.spec && r.spec.name) || r.name || "";
+      W.put("dashboards", r, { silent: true });
+    });
+    W.notify("dashboards");
+    renderHome(); renderDashboards();
+  };
   window.__studioVersions = loadVersions; // test hook
   window.__studioSnapshotVersion = snapshotVersion; // test hook
   window.__studioRestoreVersion = restoreVersion; // test hook
@@ -4870,9 +4946,12 @@
      (not into the dashboard spec itself — filing a dashboard is repository organization, not
      a dashboard property, so it doesn't travel with Save/Export). Repository gets a chip strip
      to filter by workbook; deleting a workbook un-files its dashboards rather than deleting them. */
-  var _LS_WORKBOOKS = "studio-workbooks";
-  function loadWorkbooks() { try { return JSON.parse(localStorage.getItem(_LS_WORKBOOKS) || "[]"); } catch (e) { return []; } }
-  function saveWorkbooks(list) { try { localStorage.setItem(_LS_WORKBOOKS, JSON.stringify(list)); } catch (e) { /* quota or private-mode */ } }
+  /* ★★★-1: workbooks moved into WORKSPACE SETTINGS (settings already mirror to
+     the remote backend), so the named collections travel with the dashboards
+     that are filed into them. Legacy `studio-workbooks` is migrated once at
+     boot (migrateDashboardCatalog) and left as a frozen local backup. */
+  function loadWorkbooks() { return (Studio.Workspace.settings().workbooks || []).slice(); }
+  function saveWorkbooks(list) { Studio.Workspace.setSetting("workbooks", list); }
   function addWorkbook(name) {
     name = (name || "").trim(); if (!name) return null;
     var wb = { id: "wb" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name: name, ts: new Date().toISOString() };
@@ -4881,9 +4960,11 @@
   }
   function deleteWorkbook(id) {
     saveWorkbooks(loadWorkbooks().filter(function (w) { return w.id !== id; }));
-    var list = loadRecents(), changed = false;
-    list.forEach(function (r) { if (r.workbookId === id) { delete r.workbookId; changed = true; } });
-    if (changed) { try { localStorage.setItem(_LS_RECENTS, JSON.stringify(list)); } catch (e) {} }
+    var W = Studio.Workspace, changed = false;
+    loadRecents().forEach(function (r) {
+      if (r.workbookId === id) { delete r.workbookId; W.put("dashboards", r, { silent: true }); changed = true; }
+    });
+    if (changed) W.notify("dashboards");
   }
   // Z3 follow-up: rename a workbook after creation (previously create/delete-only).
   // No-op on a blank name or a name unchanged after trimming, same convention as panel/KPI rename.
@@ -4895,9 +4976,10 @@
     return found;
   }
   function setDashboardWorkbook(dashId, workbookId) {
-    var list = loadRecents();
-    list.forEach(function (r) { if (r.id === dashId) { if (workbookId) r.workbookId = workbookId; else delete r.workbookId; } });
-    try { localStorage.setItem(_LS_RECENTS, JSON.stringify(list)); } catch (e) {}
+    var W = Studio.Workspace, r = W.get("dashboards", dashId);
+    if (!r) return;
+    if (workbookId) r.workbookId = workbookId; else delete r.workbookId;
+    W.put("dashboards", r);
   }
   var _repoWbFilter = ""; // "" = All, "__unfiled" = no workbook, else a workbook id
   window.__studioWorkbooks = loadWorkbooks; // test hook
@@ -5830,12 +5912,22 @@
       entry.dataAccesses = entry.dataAccesses.filter(function (x) { return x.id !== d.id; }).concat([d]);
       dsCount++;
     });
-    var existing = loadRecents(), byId = {};
-    existing.forEach(function (r) { byId[r.id] = r; });
-    (data.dashboards || []).forEach(function (r) { if (r && r.id) byId[r.id] = r; });
-    var merged = Object.keys(byId).map(function (id) { return byId[id]; })
-      .sort(function (a, b) { return (b.ts || "").localeCompare(a.ts || ""); });
-    try { localStorage.setItem(_LS_RECENTS, JSON.stringify(merged)); } catch (e) { /* quota or private-mode */ }
+    var W = Studio.Workspace, dashCountImported = 0;
+    (data.dashboards || []).forEach(function (r) {
+      if (!r || !r.id) return;
+      var prior = W.get("dashboards", r.id);
+      // an imported row wins (same rule as the old byId overwrite), but keeps
+      // local-only organization it doesn't carry itself
+      if (prior) {
+        if (prior.pinned && !r.pinned) { r.pinned = true; r.pinnedAt = prior.pinnedAt; }
+        if (prior.workbookId && !r.workbookId) r.workbookId = prior.workbookId;
+      }
+      r.title = (r.spec && r.spec.title) || r.title || "";
+      r.name = (r.spec && r.spec.name) || r.name || "";
+      W.put("dashboards", r, { silent: true });
+      dashCountImported++;
+    });
+    if (dashCountImported) W.notify("dashboards");
     var pins = loadPins(), pinSet = {};
     pins.concat(data.pins || []).forEach(function (id) { pinSet[id] = true; });
     savePins(Object.keys(pinSet));
@@ -6889,7 +6981,14 @@
     "studio-welcome-seen", "studio-tutorial-done",
     // N-FUN: "studio-last-viewed" (per-dashboard last-opened timestamps, powers the "N changes
     // since you were last here" Home/Repository card hint) — folded in from the start this time.
-    "studio-last-viewed"
+    "studio-last-viewed",
+    // ★★★-1 sweep: two more instances of the same recurring gap. "analytics.workspace.v1" is
+    // the WORKSPACE STORE blob (connections/datasets/settings since the 2026-07-13 overhaul,
+    // dashboards since ★★★-1) — it was never added here, so "Clear local data" silently left
+    // the user's connections and datasets behind. "studio-whatsnew-seen" is the What's-new
+    // unseen-dot seen-version (stage-4 shell adoption). The page reloads right after clearing,
+    // so the in-memory Workspace can't re-persist the removed blob.
+    "analytics.workspace.v1", "studio-whatsnew-seen"
   ];
   window.__studioClearDataKeys = CLEAR_DATA_KEYS; // test hook
 

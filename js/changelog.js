@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 354,
+    title: 'Your dashboards now travel: the catalog joins the workspace backend',
+    kind: 'feature',
+    ts: '2026-07-15T22:39:20.000Z',
+    items: [
+      'The Dashboards catalog (everything Save writes, plus pins and workbook filing) now lives in the same local-first workspace store as your Connections and Datasets -- so if you\'ve connected a workspace backend in Settings (Turso, Supabase or Firebase), your saved dashboards mirror to it automatically and follow you to another browser via Refresh. The workbook list itself travels too.',
+      'Existing catalogs migrate in place on first load -- entries, pins and workbooks all carry over, your old data is kept untouched as a local backup, and nothing changes at all if you haven\'t connected a backend.',
+      'Found and fixed while wiring this up: "Clear local data" was silently leaving the whole workspace store (your connections and datasets) plus the What\'s-new seen-state behind -- both are now properly cleared.',
+    ],
+  },
+  {
     v: 353,
     title: 'What\'s new moves into a fleet-style right panel, with an unseen-updates dot',
     kind: 'feature',
