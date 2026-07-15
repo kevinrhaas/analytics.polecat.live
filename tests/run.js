@@ -4980,6 +4980,11 @@ function serve() {
 
     // ---- M12: What's-new panel stays within phone viewport ----
     console.log("\n• M12: What's-new panel width on phone (390px)");
+    // Earlier phone checks can leave a drawer open; its #mobile-scrim covers the
+    // footer and would swallow the click (the pre-panel M12 never clicked, so this
+    // never mattered before). Close any open drawer first.
+    await phonePage.evaluate(() => { var s = document.getElementById("mobile-scrim"); if (s && s.classList.contains("active")) s.click(); });
+    await phonePage.waitForTimeout(350);
     await phonePage.click("#btnChangelog");
     await phonePage.waitForTimeout(320);
     const m12CL = await phonePage.evaluate(() => {
