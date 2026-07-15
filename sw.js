@@ -5,7 +5,7 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v4";
+var CACHE_NAME = "studio-shell-v5"; /* v5: vendored polecat-shell tokens.css joins the precache */
 var SHELL_FILES = [
   "./",
   "index.html",
@@ -14,6 +14,7 @@ var SHELL_FILES = [
   "apple-touch-icon.png",
   "icon-192.png",
   "icon-512.png",
+  "vendor/polecat-shell/tokens.css",
   "app/studio.css",
   "app/gate-config.js",
   "app/gate.js",

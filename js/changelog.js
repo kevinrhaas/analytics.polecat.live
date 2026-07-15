@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 351,
+    title: 'Polecat Shell vendored: the fleet design foundation arrives',
+    kind: 'polish',
+    ts: '2026-07-15T21:57:19.000Z',
+    items: [
+      'The shared Polecat Shell library (the UI foundation used across the polecat.live suite) is now vendored into the app, read-only and integrity-checked against its signed manifest by the test suite.',
+      'The fleet\'s design-token vocabulary is live under the Studio\'s own themes: a token bridge expresses the shared names in the Studio\'s existing palette values, so upcoming fleet chrome (the app switcher and the What\'s-new panel) will render as native Studio UI in every theme and mode.',
+      'Your theme choices are untouched -- the same light/dark and app-theme settings, stored under the same keys, now also drive the fleet palette axis.',
+    ],
+  },
+  {
     v: 350,
     title: 'The Studio joins the Polecat fleet process',
     kind: 'polish',

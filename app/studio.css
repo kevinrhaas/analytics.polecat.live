@@ -66,6 +66,28 @@ html[data-app-theme='modern'][data-theme='dark']{
   --good:#22a35f; --warn:#b8811f; --bad:#e2685f;
   --shadow:0 1px 3px rgba(0,0,0,.4); --shadow-lg:0 16px 46px rgba(0,0,0,.55);
 }
+/* ── Polecat Shell token bridge ──────────────────────────────────────────────
+   vendor/polecat-shell/tokens.css (loaded BEFORE this file) defines the fleet's
+   canonical token vocabulary; this block re-expresses those canonical names in
+   the Studio's OWN variables so any vendored shell component (app-switcher
+   waffle, right panel, What's-New — adopted in later slices) renders as
+   Studio-native chrome in every app theme × mode combination. var() indirection
+   means each name tracks the [data-theme]/[data-app-theme] blocks above
+   automatically — one bridge, all six theme combinations. Names this file
+   already shares with the shell (--bg --line --accent --radius --shadow --font
+   --mono) need no bridge: studio.css loads later, so its values win. The
+   data-palette attribute mirrors data-app-theme (stamped by gate.js pre-paint
+   and studio.js setAppTheme); the shell only reads tokens, never palette names. */
+:root{
+  --bg-2:var(--field);
+  --surface:var(--pane); --surface-2:var(--field); --surface-3:var(--line-2);
+  --border:var(--line);
+  --text:var(--ink); --text-2:var(--muted); --text-3:var(--faint);
+  --ink-dim:var(--muted);
+  --brand:var(--pentaho); --brand-2:var(--pdc); --accent-2:var(--pdc);
+  --success:var(--good); --danger:var(--bad); --warning:var(--warn); --info:var(--accent);
+  --shadow-sm:var(--shadow); --radius-lg:16px;
+}
 *{box-sizing:border-box}
 html,body{margin:0;height:100%}
 /* M9: clip html as well as body so no element can create a horizontal scroll channel

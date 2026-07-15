@@ -29,6 +29,9 @@
       var savedAppTheme = localStorage.getItem("studio-app-theme");
       if (savedMode) document.documentElement.setAttribute("data-theme", savedMode);
       if (savedAppTheme) document.documentElement.setAttribute("data-app-theme", savedAppTheme);
+      // Mirror onto the Polecat Shell's data-palette axis pre-paint too (same value as
+      // data-app-theme; studio.js keeps them in sync from here on).
+      if (savedAppTheme) document.documentElement.setAttribute("data-palette", savedAppTheme);
     } catch (e) {}
     st.textContent =
       "#studio-gate{position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;" +

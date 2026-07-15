@@ -1034,10 +1034,15 @@
 > 1. ✓ **Process adoption (this slice):** steward/<topic> PR flow, CLAUDE.md agent guide, Guard
 >    main auto-revert workflow, self-stamped changelog + verify-only `tools/changelog-check.js`,
 >    this protocol rewrite.
-> 2. **Vendor the shell:** `polecat-platform/lib/` → `vendor/polecat-shell/` (READ-ONLY once
->    vendored; MANIFEST sha256 drift-checked by fleet sweeps). Bridge design tokens/theming —
->    keep the historical `studio-theme` / `studio-app-theme` keys via `configure()` so no user
->    state is lost. Bump the sw.js cache in the same commit.
+> 2. ✓ **Vendor the shell (shipped):** `polecat-platform/lib/` v0.1.0 → `vendor/polecat-shell/`
+>    (READ-ONLY; the suite now sha256-verifies every vendored file against MANIFEST.json).
+>    Theming bridge: `tokens.css` loads before `studio.css` (the Studio wins every shared
+>    name), a bridge block in studio.css expresses the shell's canonical tokens in Studio
+>    values for all 6 theme combos, and `data-palette` mirrors `data-app-theme` (stamped
+>    pre-paint in gate.js + in setAppTheme). Historical `studio-theme` / `studio-app-theme`
+>    keys unchanged — no user state lost. SW cache bumped to studio-shell-v5. NOTE: the shell's
+>    own theme.js stays unused for now (it wants ONE `palette:mode` storage key; the Studio
+>    keeps its two historical keys and stamps the attributes itself — same contract, no loss).
 > 3. **Fleet waffle app-switcher** (`appSwitcher` + vendored `catalog.js` FLEET) in the app bar.
 > 4. **What's-New via the shell** (`rightPanel` + `initWhatsNew`) over `window.STUDIO_CHANGELOG`,
 >    keeping the app's seen-version key.

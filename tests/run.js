@@ -198,6 +198,87 @@ function serve() {
       ok("manager parse yields ALL changelog entries (no silent truncation)", parsed && parsed.length === actual, (parsed ? parsed.length : 0) + " parsed vs " + actual + " actual");
     })();
 
+    // ---- vendored Polecat Shell integrity guard ----
+    // vendor/polecat-shell/ is a READ-ONLY verbatim copy of kevinrhaas/polecat-platform
+    // lib/ (fleet sweeps drift-check it remotely; this is the same check locally, so an
+    // accidental edit fails the suite before it ever ships). Every file listed in
+    // MANIFEST.json must hash-match, and no unlisted stray files may appear.
+    console.log("\n• vendored polecat-shell integrity (MANIFEST sha256)");
+    (function () {
+      const crypto = require("crypto");
+      const VDIR = path.join(ROOT, "vendor/polecat-shell");
+      const manifest = JSON.parse(fs.readFileSync(path.join(VDIR, "MANIFEST.json"), "utf8"));
+      const listed = Object.keys(manifest.files);
+      let drifted = [];
+      for (const f of listed) {
+        const h = crypto.createHash("sha256").update(fs.readFileSync(path.join(VDIR, f))).digest("hex");
+        if (h !== manifest.files[f]) drifted.push(f);
+      }
+      ok("every vendored shell file sha256-matches MANIFEST.json (v" + manifest.version + ", " + listed.length + " files)",
+        listed.length > 0 && drifted.length === 0, drifted.join(", "));
+      const onDisk = [];
+      (function walk(dir, rel) {
+        for (const name of fs.readdirSync(dir)) {
+          const fp = path.join(dir, name), r = rel ? rel + "/" + name : name;
+          if (fs.statSync(fp).isDirectory()) walk(fp, r);
+          else if (name !== "MANIFEST.json") onDisk.push(r);
+        }
+      })(VDIR, "");
+      const strays = onDisk.filter((f) => listed.indexOf(f) < 0);
+      ok("no stray files under vendor/polecat-shell/ beyond the MANIFEST", strays.length === 0, strays.join(", "));
+      const version = fs.readFileSync(path.join(VDIR, "VERSION"), "utf8").trim();
+      ok("vendored VERSION file agrees with MANIFEST.json version", version === manifest.version, version + " vs " + manifest.version);
+    })();
+
+    // ---- Polecat Shell token bridge (theming) ----
+    // tokens.css loads BEFORE studio.css; the Studio's own variable blocks must win
+    // every shared name, the bridge must express the shell's canonical tokens in
+    // Studio values, and data-palette must mirror data-app-theme (historical
+    // studio-theme / studio-app-theme storage keys unchanged).
+    console.log("\n• polecat-shell token bridge");
+    const shellBridge = await page.evaluate(function () {
+      var de = document.documentElement;
+      var cs = getComputedStyle(de);
+      var links = Array.prototype.map.call(document.querySelectorAll('link[rel="stylesheet"]'), function (l) { return l.getAttribute("href"); });
+      return {
+        palette: de.getAttribute("data-palette"),
+        appTheme: de.getAttribute("data-app-theme"),
+        tokensIdx: links.indexOf("vendor/polecat-shell/tokens.css"),
+        studioIdx: links.indexOf("app/studio.css"),
+        surface: cs.getPropertyValue("--surface").trim(),
+        pane: cs.getPropertyValue("--pane").trim(),
+        text: cs.getPropertyValue("--text").trim(),
+        ink: cs.getPropertyValue("--ink").trim(),
+        brand: cs.getPropertyValue("--brand").trim(),
+        pentaho: cs.getPropertyValue("--pentaho").trim(),
+        bg: cs.getPropertyValue("--bg").trim()
+      };
+    });
+    ok("tokens.css is linked before studio.css (Studio wins shared names)",
+      shellBridge.tokensIdx >= 0 && shellBridge.studioIdx > shellBridge.tokensIdx, JSON.stringify({ tokensIdx: shellBridge.tokensIdx, studioIdx: shellBridge.studioIdx }));
+    ok("data-palette mirrors data-app-theme on <html>",
+      !!shellBridge.palette && shellBridge.palette === shellBridge.appTheme, shellBridge.palette + " vs " + shellBridge.appTheme);
+    // Computed custom properties substitute var() (verified in Chromium), so the
+    // bridge names must RESOLVE to the exact same values as the Studio's own vars.
+    ok("bridge maps shell canonical tokens onto Studio values (--surface→--pane, --text→--ink, --brand→--pentaho)",
+      shellBridge.surface !== "" && shellBridge.surface === shellBridge.pane &&
+      shellBridge.text === shellBridge.ink && shellBridge.brand === shellBridge.pentaho,
+      JSON.stringify(shellBridge));
+    // Regression: the Studio's own look is untouched — its --bg (not the shell's
+    // #0a0a0f dark base / #f4f4fb light) must still win in the default polecat light theme.
+    ok("studio.css still wins the shared --bg token (Polecat warm cream, not the shell base)",
+      shellBridge.bg.toUpperCase() === "#F7EEDF", shellBridge.bg);
+    const shellBridgeToggle = await page.evaluate(function () {
+      window.__studioAppTheme.set("modern");
+      var de = document.documentElement;
+      var after = { palette: de.getAttribute("data-palette"), appTheme: de.getAttribute("data-app-theme"), stored: localStorage.getItem("studio-app-theme") };
+      window.__studioAppTheme.set("polecat");
+      return after;
+    });
+    ok("switching the app theme re-stamps data-palette and keeps the historical storage key",
+      shellBridgeToggle.palette === "modern" && shellBridgeToggle.appTheme === "modern" && shellBridgeToggle.stored === "modern",
+      JSON.stringify(shellBridgeToggle));
+
     // ---- WS: adapter infrastructure (app/sources/) ----
     // The manager-pattern source layer: schema/contract, registry, workspace
     // store, secrets crypto, and the Turso adapter exercised END-TO-END against
@@ -16988,7 +17069,7 @@ function serve() {
     // are fetched during install too (from the index we just cached), so a first-ever offline
     // visit still has a full library/gallery, not just a blank shell.
     const pwaDataPrecached = await pwaPage.evaluate(async function () {
-      const cache = await caches.open("studio-shell-v4");
+      const cache = await caches.open("studio-shell-v5");
       const keys = (await cache.keys()).map((r) => new URL(r.url).pathname.replace(/^\//, ""));
       const exIndex = await fetch("data/examples/index.json").then((r) => r.json());
       const missingExamples = exIndex.filter((ex) => keys.indexOf("data/examples/" + ex.file) < 0);
