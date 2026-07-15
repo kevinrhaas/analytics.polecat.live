@@ -1074,10 +1074,15 @@
 > interactive session (Polecat default look · app/sources/ adapter layer · Connections/Datasets/
 > Dashboards sections · manager-style rail · workspace-backend sync w/ secrets · full Pentaho removal).
 > These are the follow-ons, in priority order:
-> 1. **Dashboards into the workspace store.** The Dashboards catalog still reads `studio-recents`
->    (localStorage) — the Workspace `dashboards` table stays empty, so the remote backend mirrors
->    connections+datasets+settings but NOT dashboards yet. Migrate save/recents into
->    `Studio.Workspace` (keep pins/workbooks), so the whole catalog travels to Turso/Supabase/Firebase.
+> 1. ✓ **Dashboards into the workspace store (shipped 2026-07-15, steward PR).** The catalog now
+>    lives in the Workspace `dashboards` table (rows keep the recents-entry shape {id, ts, spec,
+>    workbookId?} + pinned/pinnedAt flags + promoted title/name columns); pins ride ON the row and
+>    workbooks moved into workspace SETTINGS, so the remote backend mirrors the whole catalog.
+>    One-time boot migration (meta-stamped so an emptied catalog is never re-imported; legacy
+>    studio-recents/pins/workbooks kept untouched as a frozen local backup). Home/Dashboards
+>    repaint on remote pulls via Workspace 'replaced'. Fixed alongside (recurring clear-data gap):
+>    "Clear local data" never wiped `analytics.workspace.v1` (connections/datasets survived a
+>    "full" reset since the overhaul!) nor `studio-whatsnew-seen` — both added + tested.
 > 2. **More data adapters** (user: "we will add many more"): PostgreSQL (via PostgREST/pg-http or a
 >    documented proxy), AWS Redshift (Data API), Azure SQL / Fabric, MotherDuck, CSV/JSON file-drop
 >    (local File System Access API), Google Sheets. Each = one file implementing the contract in
