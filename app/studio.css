@@ -88,6 +88,29 @@ html[data-app-theme='modern'][data-theme='dark']{
   --success:var(--good); --danger:var(--bad); --warning:var(--warn); --info:var(--accent);
   --shadow-sm:var(--shadow); --radius-lg:16px;
 }
+/* ── Polecat Shell components — app-side skin ────────────────────────────────
+   The vendored shell.css is NOT loaded (it styles generic .btn/.chip/.field and
+   would fight the Studio's own components), so each adopted shell component gets
+   its ps-* selectors skinned here, on the bridged tokens above. Structure mirrors
+   the shell's own rules; values resolve to Studio theme colors automatically. */
+/* fleet app-switcher (app/fleet.js → vendored appSwitcher) */
+.ps-waffle-btn{display:inline-flex;align-items:center;justify-content:center}
+.ps-waffle-btn svg{width:18px;height:18px;display:block}
+.ps-waffle-pop{position:fixed;z-index:120;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  box-shadow:var(--shadow-lg);padding:12px;width:min(320px,92vw);animation:ps-pop-in .12s ease}
+.ps-waffle-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-3);padding:0 4px 8px}
+.ps-waffle-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.ps-waffle-item{display:flex;flex-direction:column;align-items:center;gap:7px;padding:12px 6px 10px;border-radius:11px;
+  color:var(--text);text-decoration:none;cursor:pointer;border:1px solid transparent;transition:background .12s,border-color .12s;text-align:center}
+.ps-waffle-item:hover{background:var(--surface-2);text-decoration:none}
+.ps-waffle-item:focus-visible{outline:2px solid var(--brand);outline-offset:1px}
+.ps-waffle-item.current{border-color:color-mix(in srgb,var(--brand) 45%,var(--border));background:color-mix(in srgb,var(--brand) 10%,transparent)}
+.ps-waffle-item.soon{opacity:.45;cursor:default}
+.ps-waffle-ic{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;color:#fff;font-size:17px;font-weight:700;
+  background:linear-gradient(135deg,var(--w-accent,var(--brand)),color-mix(in srgb,var(--w-accent,var(--brand)) 55%,var(--pdc)))}
+.ps-waffle-ic svg{width:20px;height:20px}
+.ps-waffle-name{font-size:11.5px;font-weight:600;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+@keyframes ps-pop-in{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
 *{box-sizing:border-box}
 html,body{margin:0;height:100%}
 /* M9: clip html as well as body so no element can create a horizontal scroll channel

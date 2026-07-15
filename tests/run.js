@@ -279,6 +279,72 @@ function serve() {
       shellBridgeToggle.palette === "modern" && shellBridgeToggle.appTheme === "modern" && shellBridgeToggle.stored === "modern",
       JSON.stringify(shellBridgeToggle));
 
+    // ---- fleet app-switcher (vendored appSwitcher via app/fleet.js) ----
+    console.log("\n• fleet app-switcher (waffle)");
+    await page.waitForSelector("#topbar .top-app .ps-waffle-btn", { timeout: 5000 });
+    const waffleBtn = await page.evaluate(function () {
+      var b = document.querySelector("#topbar .top-app .ps-waffle-btn");
+      var r = b.getBoundingClientRect();
+      return { present: !!b, hasSvg: !!b.querySelector("svg"), expanded: b.getAttribute("aria-expanded"),
+        onScreen: r.width > 0 && r.left >= 0 && r.right <= window.innerWidth };
+    });
+    ok("waffle button mounts in the app bar with its glyph, collapsed", waffleBtn.present && waffleBtn.hasSvg && waffleBtn.expanded === "false" && waffleBtn.onScreen, JSON.stringify(waffleBtn));
+    await page.click("#topbar .top-app .ps-waffle-btn");
+    await page.waitForTimeout(200);
+    const wafflePop = await page.evaluate(function () {
+      var pop = document.querySelector(".ps-waffle-pop");
+      if (!pop) return { present: false };
+      var items = Array.prototype.slice.call(pop.querySelectorAll(".ps-waffle-item"));
+      var current = pop.querySelector(".ps-waffle-item.current");
+      var names = items.map(function (i) { var n = i.querySelector(".ps-waffle-name"); return n ? n.textContent : ""; });
+      var pr = pop.getBoundingClientRect();
+      return {
+        present: true, count: items.length, names: names.join(","),
+        currentIsAnalytics: !!(current && /Analytics/.test(current.textContent)),
+        currentNotLink: current ? current.getAttribute("href") : "(none)",
+        allLiveAreLinks: items.every(function (i) { return i.tagName === "A" || i.classList.contains("soon"); }),
+        iconsResolved: items.every(function (i) { return !!i.querySelector(".ps-waffle-ic svg"); }),
+        onScreen: pr.left >= 0 && pr.right <= window.innerWidth && pr.top >= 0,
+        surfaceBg: getComputedStyle(pop).backgroundColor
+      };
+    });
+    ok("waffle opens the fleet grid: 7 live apps, real shell icons, Analytics highlighted as current",
+      wafflePop.present && wafflePop.count === 7 && wafflePop.currentIsAnalytics && wafflePop.allLiveAreLinks && wafflePop.iconsResolved && wafflePop.onScreen,
+      JSON.stringify(wafflePop));
+    ok("waffle popover is skinned by the token bridge (opaque Studio surface, not transparent)",
+      /rgb\(/.test(wafflePop.surfaceBg) && wafflePop.surfaceBg !== "rgba(0, 0, 0, 0)", wafflePop.surfaceBg);
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(150);
+    const waffleClosed = await page.evaluate(function () {
+      return { popGone: !document.querySelector(".ps-waffle-pop"),
+        expanded: document.querySelector(".ps-waffle-btn").getAttribute("aria-expanded") };
+    });
+    ok("Escape closes the waffle and restores aria-expanded=false", waffleClosed.popGone && waffleClosed.expanded === "false", JSON.stringify(waffleClosed));
+
+    // Mobile is a release gate: the waffle must be reachable AND the phone topbar must
+    // not regress (the m-c overflow lesson — every essential stays on-screen at 390px).
+    const wafflePhone = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    await wafflePhone.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); } catch (e) {} });
+    await wafflePhone.goto(`http://localhost:${PORT}/`, { waitUntil: "networkidle" });
+    await wafflePhone.waitForSelector(".ps-waffle-btn", { timeout: 5000 });
+    const wafflePhoneState = await wafflePhone.evaluate(function () {
+      var b = document.querySelector(".ps-waffle-btn"), n = document.getElementById("btnNew");
+      var br = b.getBoundingClientRect(), nr = n.getBoundingClientRect();
+      return { waffleOnScreen: br.width > 0 && br.left >= 0 && br.right <= window.innerWidth,
+        newOnScreen: nr.width > 0 && nr.left >= 0 && nr.right <= window.innerWidth };
+    });
+    ok("390px: waffle button on-screen and ＋New not pushed off-canvas", wafflePhoneState.waffleOnScreen && wafflePhoneState.newOnScreen, JSON.stringify(wafflePhoneState));
+    await wafflePhone.click(".ps-waffle-btn");
+    await wafflePhone.waitForTimeout(200);
+    const wafflePhonePop = await wafflePhone.evaluate(function () {
+      var pop = document.querySelector(".ps-waffle-pop");
+      if (!pop) return { present: false };
+      var r = pop.getBoundingClientRect();
+      return { present: true, fits: r.left >= 0 && r.right <= window.innerWidth && r.top >= 0 && r.bottom <= window.innerHeight };
+    });
+    ok("390px: the fleet grid opens fully on-screen", wafflePhonePop.present && wafflePhonePop.fits, JSON.stringify(wafflePhonePop));
+    await wafflePhone.close();
+
     // ---- WS: adapter infrastructure (app/sources/) ----
     // The manager-pattern source layer: schema/contract, registry, workspace
     // store, secrets crypto, and the Turso adapter exercised END-TO-END against
@@ -17069,7 +17135,7 @@ function serve() {
     // are fetched during install too (from the index we just cached), so a first-ever offline
     // visit still has a full library/gallery, not just a blank shell.
     const pwaDataPrecached = await pwaPage.evaluate(async function () {
-      const cache = await caches.open("studio-shell-v5");
+      const cache = await caches.open("studio-shell-v6");
       const keys = (await cache.keys()).map((r) => new URL(r.url).pathname.replace(/^\//, ""));
       const exIndex = await fetch("data/examples/index.json").then((r) => r.json());
       const missingExamples = exIndex.filter((ex) => keys.indexOf("data/examples/" + ex.file) < 0);

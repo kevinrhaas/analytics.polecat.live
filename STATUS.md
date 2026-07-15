@@ -1043,7 +1043,14 @@
 >    keys unchanged — no user state lost. SW cache bumped to studio-shell-v5. NOTE: the shell's
 >    own theme.js stays unused for now (it wants ONE `palette:mode` storage key; the Studio
 >    keeps its two historical keys and stamps the attributes itself — same contract, no loss).
-> 3. **Fleet waffle app-switcher** (`appSwitcher` + vendored `catalog.js` FLEET) in the app bar.
+> 3. ✓ **Fleet waffle app-switcher (shipped):** `app/fleet.js` (ES module) imports the vendored
+>    `appSwitcher` + `publicFleet()` + icon registry and mounts the waffle in the app bar (left
+>    of ＋New). The vendored shell.css is deliberately NOT loaded (it styles generic .btn/.chip/
+>    .field and would fight the Studio's components) — ps-waffle-* is skinned in studio.css on
+>    the bridged tokens. SW cache → studio-shell-v6. SHELL FIX TO UPSTREAM (platform PR, shell
+>    v0.1.x): appSwitcher's outside-tap dismiss binds `mousedown` only — mobile Safari needs
+>    `touchstart` too (the Studio's own m-e lesson); meanwhile Escape / re-tap / link-click all
+>    close it fine.
 > 4. **What's-New via the shell** (`rightPanel` + `initWhatsNew`) over `window.STUDIO_CHANGELOG`,
 >    keeping the app's seen-version key.
 > 5. **WAIT for shell v2** before touching the Studio three-pane workspace (in-grid views,
