@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 352,
+    title: 'The Polecat apps switcher lands in the app bar',
+    kind: 'feature',
+    ts: '2026-07-15T22:05:56.000Z',
+    items: [
+      'A waffle button in the app bar opens the fleet app switcher -- one-click jumps to every app in the polecat.live suite (Chat, JobTracker, AutoSelector, Relay, Games, Manager), with Analytics highlighted as where you are. The same switcher every fleet app carries, rendered here in your Studio theme.',
+      'Under the hood this is the first vendored shell COMPONENT in use (the read-only fleet library adopted last release), skinned entirely through the design-token bridge -- it follows all six app-theme and light/dark combinations automatically.',
+      'Works offline like the rest of the app shell, and it\'s fully reachable on phones: verified on-screen at 390px along with the rest of the app bar.',
+    ],
+  },
+  {
     v: 351,
     title: 'Polecat Shell vendored: the fleet design foundation arrives',
     kind: 'polish',
