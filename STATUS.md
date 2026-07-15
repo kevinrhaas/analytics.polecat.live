@@ -1051,8 +1051,15 @@
 >    v0.1.x): appSwitcher's outside-tap dismiss binds `mousedown` only — mobile Safari needs
 >    `touchstart` too (the Studio's own m-e lesson); meanwhile Escape / re-tap / link-click all
 >    close it fine.
-> 4. **What's-New via the shell** (`rightPanel` + `initWhatsNew`) over `window.STUDIO_CHANGELOG`,
->    keeping the app's seen-version key.
+> 4. ✓ **What's-New via the shell (shipped):** the footer Changelog button now opens the feed in
+>    the vendored `rightPanel` (focus-trapped dialog, Escape/backdrop/✕ close, full-height phone
+>    sheet), with the shell's seen-version contract (`hasUnseen`/`markSeen` from whatsnew.js, new
+>    key `studio-whatsnew-seen`) driving an unseen dot on the button. DELIBERATE DEVIATION: the
+>    shell's `initWhatsNew` feed BODY was not adopted — the Studio's own feed is richer (E6 live
+>    search with <mark> highlighting; tests assert it) — so the shell contributes container +
+>    seen-state, the app keeps its body. Old floating-popup code deleted. SW cache → v7. SECOND
+>    UPSTREAM FIX for the same shell v0.1.x PR: rightPanel's backdrop dismiss also binds
+>    `mousedown` only (needs `touchstart` for mobile Safari — the visible ✕ covers the gap).
 > 5. **WAIT for shell v2** before touching the Studio three-pane workspace (in-grid views,
 >    inspector-grade right panel). If a needed shell capability doesn't exist, build it in
 >    `polecat-platform/lib/` via a platform PR (bump lib/VERSION + gen-manifest) — NEVER by

@@ -111,6 +111,22 @@ html[data-app-theme='modern'][data-theme='dark']{
 .ps-waffle-ic svg{width:20px;height:20px}
 .ps-waffle-name{font-size:11.5px;font-weight:600;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
 @keyframes ps-pop-in{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+/* right panel (What's-new container — studio.js renderFooter via window.PolecatShell) */
+.ps-rpanel-back{position:fixed;inset:0;z-index:90;background:rgba(6,4,20,.45);backdrop-filter:blur(2px);
+  opacity:0;transition:opacity .2s;pointer-events:none}
+.ps-rpanel-back.in{opacity:1;pointer-events:auto}
+.ps-rpanel{position:fixed;top:0;right:0;bottom:0;z-index:95;width:min(420px,100vw);
+  background:var(--pane);border-left:1px solid var(--line);box-shadow:var(--shadow-lg);
+  display:flex;flex-direction:column;transform:translateX(102%);transition:transform .24s cubic-bezier(.2,.8,.3,1);
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+.ps-rpanel.in{transform:none}
+.ps-rpanel:focus-visible{outline:none}
+.ps-rpanel-head{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line);flex:none}
+.ps-rpanel-head h2{margin:0;font-size:15px;color:var(--ink);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ps-rpanel-head .btn.icon{flex:0 0 auto;color:var(--muted);background:var(--field);border:1px solid var(--line);border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;width:28px;height:28px;padding:0}
+.ps-rpanel-head .btn.icon:hover{color:var(--ink);border-color:var(--pentaho)}
+.ps-rpanel-head .btn.icon svg{width:16px;height:16px;display:block}
+.ps-rpanel-body{flex:1;overflow-y:auto;padding:14px 18px;-webkit-overflow-scrolling:touch}
 *{box-sizing:border-box}
 html,body{margin:0;height:100%}
 /* M9: clip html as well as body so no element can create a horizontal scroll channel
@@ -963,19 +979,11 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
   .more-phone-only{display:block}
   /* M11: restore-banner dismiss button gets a full-row tap-friendly layout on phone */
   .restore-banner .rb-acts .btn{min-height:44px;flex:1;display:flex;align-items:center;justify-content:center}
-  /* M12: changelog popup is viewport-fixed on phone so it can never overflow off-screen.
-     Uses the #id so it wins over the later base `.changelog-pop` rule regardless of source order.
-     m-e: stretched into a near-full-screen "What's new" sheet (top clears the topbar, bottom
-     clears the tab bar + status bar) instead of a small floating box, matching the reference
-     app's full-screen changelog sheet — small popovers are easy to mistake for empty space on
-     a phone. */
-  #changelogPop{position:fixed;left:8px;right:8px;top:60px;bottom:90px;width:auto;max-width:none;max-height:none}
+  /* M12/m-e (carried into the shell right panel): the What's-new feed must stay a
+     full-height, viewport-contained sheet on phones with a big, unmissable Close.
+     The .ps-rpanel is already full-height/edge-to-edge; make the head's ✕ thumb-sized. */
   .cl-sub{display:none}
-  .cl-head{padding-right:44px}
-  /* Scoped to #changelogPop (not a bare `.cl-close`) for the same reason as the #changelogPop
-     rule above: a bare class selector here would lose to the later unconditional `.cl-close`
-     base rule at equal specificity regardless of this media query being active. */
-  #changelogPop .cl-close{position:absolute;top:6px;right:6px;width:36px;height:36px;font-size:20px}
+  .ps-rpanel-head .btn.icon{min-width:36px;min-height:36px}
   /* M10: topbar actions scroll horizontally so EVERY menu/button stays reachable by swipe
      (overflow-hidden previously clipped them off the right edge → untappable). The dropdown
      menus are floated to a fixed full-width sheet below the topbar so the scroll container
@@ -1105,21 +1113,18 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
 .sb-caret{font-size:9px;transition:transform .15s}
 .sb-btn[aria-expanded="true"]{border-color:var(--line);color:var(--ink);background:var(--field)}
 .sb-btn[aria-expanded="true"] .sb-caret{transform:rotate(180deg)}
-.changelog-pop{position:absolute;bottom:calc(100% + 8px);right:0;width:380px;max-height:60vh;overflow:auto;
-  background:var(--pane);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow-lg);
-  padding:6px 4px;z-index:60}
-.changelog-pop[hidden]{display:none}
-.cl-head{display:flex;align-items:center;gap:8px;padding:9px 14px 7px;position:sticky;top:0;
+/* The What's-new feed body — lives INSIDE the shell right panel (.ps-rpanel-body)
+   since the stage-4 shell adoption; the panel owns position/scroll/close, this
+   block only styles the feed content itself. */
+.changelog-pop{position:static;width:auto}
+.cl-head{display:flex;align-items:center;gap:8px;padding:0 0 9px;position:sticky;top:0;
   background:var(--pane);border-bottom:1px solid var(--line-2);flex-wrap:wrap}
-.cl-head h4{margin:0;font-size:13px;color:var(--ink)}
 .cl-head .cl-sub{font-size:11px;color:var(--faint);margin-left:auto}
-.cl-search{flex:0 1 110px;height:22px;padding:0 6px;border:1px solid var(--line);border-radius:5px;background:var(--canvas);color:var(--ink);font-size:11px;outline:none;min-width:60px}
+.cl-search{flex:1 1 140px;height:28px;padding:0 8px;border:1px solid var(--line);border-radius:7px;background:var(--canvas);color:var(--ink);font-size:12px;outline:none;min-width:80px}
 .cl-search:focus{border-color:var(--pentaho)}
-/* m-e: explicit Close for the changelog/"What's new" sheet — tap-outside and Escape both
-   already dismissed it, but a full-width phone sheet needs a visible, unambiguous exit. */
-.cl-close{flex:0 0 auto;width:22px;height:22px;border:none;background:transparent;color:var(--faint);
-  font-size:13px;line-height:1;border-radius:6px;cursor:pointer;display:flex;align-items:center;justify-content:center}
-.cl-close:hover{background:var(--field);color:var(--ink)}
+/* unseen-updates dot on the footer Changelog button (shell seen-version contract) */
+.sb-new-dot{width:7px;height:7px;border-radius:50%;background:var(--pentaho);flex:0 0 auto;
+  box-shadow:0 0 0 2px color-mix(in srgb,var(--pentaho) 25%,transparent)}
 .cl-empty{padding:14px;font-size:12px;color:var(--faint);text-align:center}
 .fhash{font-family:var(--mono);font-size:10.5px;background:var(--canvas);color:var(--muted);padding:1px 4px;border-radius:3px;word-break:break-all;border:1px solid var(--line-2)}
 .cl-entry{padding:11px 14px;border-bottom:1px solid var(--line-2)}

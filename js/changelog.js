@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 353,
+    title: 'What\'s new moves into a fleet-style right panel, with an unseen-updates dot',
+    kind: 'feature',
+    ts: '2026-07-15T22:19:14.000Z',
+    items: [
+      'The footer Changelog button now opens the release feed in a proper right-hand panel (the same slide-in panel style the rest of the polecat.live fleet uses) instead of a floating popup -- full-height, focus-trapped, closable via the header ✕, Escape, or the backdrop.',
+      'A small dot lights up on the Changelog button whenever there are releases you haven\'t seen yet, and clears the moment you open the feed -- so a returning visit tells you at a glance that something shipped.',
+      'Everything the feed already did carries over unchanged: live search with highlighted matches, newest-first ordering, and Central-time stamps on every entry. On phones the panel is a full-height sheet with a thumb-sized close button.',
+    ],
+  },
+  {
     v: 352,
     title: 'The Polecat apps switcher lands in the app bar',
     kind: 'feature',

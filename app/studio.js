@@ -438,14 +438,20 @@
       else stamp.textContent = "";
       if (log[0]) stamp.textContent += "  ·  " + vLabel(log[0]);
     }
-    // changelog panel — E6: live search
-    var pop = $("#changelogPop");
-    if (pop) {
+    // What's-new feed — opens in the Polecat Shell right panel (app/fleet.js exposes
+    // window.PolecatShell). The BODY stays the Studio's own richer feed (E6 live search
+    // with <mark> highlighting, Central-time stamps) rather than the shell's generic
+    // initWhatsNew list; the shell contributes the container (focus-trapped dialog,
+    // Escape/backdrop close, slide-in) and the seen-version contract (unseen dot on
+    // the footer button, cleared on open). Built fresh per open — rightPanel removes
+    // its DOM on close.
+    function buildWhatsNewBody() {
+      var pop = document.createElement("div");
+      pop.className = "changelog-pop";
+      pop.id = "changelogPop";
       pop.innerHTML = '<div class="cl-head">' +
-        '<h4>What&rsquo;s new</h4>' +
         '<input id="clSearch" type="search" class="cl-search" placeholder="Search…" aria-label="Search changelog">' +
-        '<span class="cl-sub">latest first</span>' +
-        '<button type="button" id="clClose" class="cl-close" aria-label="Close changelog">✕</button></div>' +
+        '<span class="cl-sub">latest first</span></div>' +
         '<div id="clEntries"></div>';
       var clEntries = pop.querySelector("#clEntries");
       function renderClEntries(q) {
@@ -466,24 +472,24 @@
       renderClEntries("");
       var clSrch = pop.querySelector("#clSearch");
       if (clSrch) clSrch.addEventListener("input", function () { renderClEntries(clSrch.value); });
+      return pop;
     }
     var btn = $("#btnChangelog");
-    if (btn && pop) {
-      // m-e: outside-tap listens for BOTH mousedown and touchstart — mobile Safari doesn't
-      // reliably synthesize a mousedown from a tap, so touch-only closing needs its own listener
-      // (this is the same "on-device behavior the sandbox can't reproduce" class of bug as m-b).
-      var close = function () { pop.hidden = true; btn.setAttribute("aria-expanded", "false"); document.removeEventListener("mousedown", onDoc); document.removeEventListener("touchstart", onDoc); document.removeEventListener("keydown", onKey); };
-      var onDoc = function (ev) { if (!pop.contains(ev.target) && ev.target !== btn && !btn.contains(ev.target)) close(); };
-      var onKey = function (ev) { if (ev.key === "Escape") close(); };
+    if (btn) {
+      var openPanel = null;
       btn.onclick = function () {
-        if (pop.hidden) { pop.hidden = false; btn.setAttribute("aria-expanded", "true"); setTimeout(function () { document.addEventListener("mousedown", onDoc); document.addEventListener("touchstart", onDoc); document.addEventListener("keydown", onKey); }, 0); }
-        else close();
+        var PS = window.PolecatShell;
+        if (!PS) return; // fleet.js module not loaded yet (sub-second boot window)
+        if (openPanel) { openPanel.close(); return; } // toggle: second click closes
+        btn.setAttribute("aria-expanded", "true");
+        openPanel = PS.rightPanel({
+          title: "What’s new",
+          body: buildWhatsNewBody(),
+          onClose: function () { openPanel = null; btn.setAttribute("aria-expanded", "false"); },
+        });
+        PS.markSeen(PS.SEEN_KEY, window.STUDIO_LATEST_VERSION || (log[0] && log[0].v) || 0);
+        PS.clearWhatsNewDot();
       };
-      // m-e: explicit Close button — tap-outside/Escape both already worked, but the
-      // reference "What's new" sheet design (and touch UX generally) expects a visible,
-      // unambiguous way to dismiss a full-width phone sheet without guessing.
-      var clClose = pop.querySelector("#clClose");
-      if (clClose) clClose.onclick = close;
     }
   }
 

@@ -227,9 +227,12 @@
     <span class="sb-brand"><span class="sb-dot"></span>Analytics Dashboard Studio · analytics.polecat.live</span>
     <span class="spacer"></span>
     <div class="sb-cl">
-      <button class="sb-btn" id="btnChangelog" aria-expanded="false" aria-controls="changelogPop"
+      <!-- Opens the What's-new feed in the shell right panel (app/fleet.js provides
+           window.PolecatShell; the feed body is built per-open in studio.js renderFooter).
+           app/fleet.js adds an unseen dot here when there are releases newer than the
+           stored seen-version (studio-whatsnew-seen). -->
+      <button class="sb-btn" id="btnChangelog" aria-expanded="false" aria-haspopup="dialog"
         title="What changed recently">📋 Changelog <span class="sb-caret">▴</span></button>
-      <div class="changelog-pop" id="changelogPop" role="dialog" aria-label="Changelog" hidden></div>
     </div>
     <span class="sb-stamp" id="fbStamp" title="When this build was last published"></span>
   </footer>
