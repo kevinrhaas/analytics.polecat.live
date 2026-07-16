@@ -1143,10 +1143,21 @@
 >     Empty-ensemble is prevented (last provider can't toggle off). NOTE: the dashboard-level
 >     filter system was deliberately left untouched — V5's Explore can layer a filter-control
 >     surface over the same bus later.
-> V4. **MapLibre renderer (the "GL mode"):** vendor MapLibre GL JS behind the SAME app/geo.js
->     API as an opt-in interactive renderer (buttery pan/zoom, county+HUC8 at any polygon count).
->     Per-panel renderer choice; EXPORTS default to the light renderer (self-contained + small);
->     evaluate both side-by-side and record the verdict here.
+> V4. ✓ **MapLibre renderer (shipped 2026-07-16):** MapLibre GL JS v5.24.0 vendored
+>     (vendor/maplibre/, BSD-3-Clause, LICENSE + notices row; NOT precached — runtime cache)
+>     behind the SAME PDC.choropleth API via a per-panel `renderer` opt (svg default | gl).
+>     KEY TRICK: no second geometry set — the pre-projected 975×610 plane maps into MapLibre's
+>     mercator space exactly (x linear in lng, y linear in mercator-y, lat=gd(m)), so GL
+>     re-projects onto the identical planar shape the SVG renderer draws. No basemap tiles ON
+>     PURPOSE (tiles would phone external servers; exports stay self-contained/offline). GL
+>     panels inline maplibre js+css into preview/export (~1MB, opt-in weight only; CLI parity);
+>     ensureGeoAssets pulls it lazily; WebGL-less environments fall back to the SVG renderer
+>     automatically (never a blank panel); ensemble-bus recolors preserve the user's camera.
+>     VERDICT (side-by-side): keep BOTH. SVG = default (tiny exports, hatched no-data,
+>     print-clean, zero GL contexts); GL = the demo/exploration mode (buttery pan/zoom on 3k+
+>     counties even under SwiftShader, zoom buttons, hover highlight). Recommend GL for the
+>     Viridis live demo dashboards, SVG for everything shipped wide. Suite exercises REAL GL
+>     boot in CI (SwiftShader) + the fallback path + lean/inline export splits.
 > V5. **Explore designer (new rail section):** dataset-first flow — pick dataset → table preview
 >     → pick viz (incl. choropleth/ensemble) → map columns (geo id, value, time, series) → add
 >     filters + {{params}} → SAVE as an "Analysis" (new workspace `analyses` table) → analyses

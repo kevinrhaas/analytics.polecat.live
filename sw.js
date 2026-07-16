@@ -5,9 +5,9 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v13"; /* v13: marketing hero carousel (index.html + landing.css)
-   site/shots/*.png are deliberately NOT precached (~2.7MB of marketing imagery would tax
-   every SW install); the fetch handler runtime-caches them after first view. */
+var CACHE_NAME = "studio-shell-v14"; /* v14: GL map renderer (charts/model/render/exporters).
+   vendor/maplibre/* and site/shots/*.png are deliberately NOT precached (~3.8MB combined
+   would tax every SW install); the fetch handler runtime-caches them after first view. */
 var SHELL_FILES = [
   "./",
   "index.html",

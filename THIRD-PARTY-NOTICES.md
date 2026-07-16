@@ -14,9 +14,9 @@ required notice inside the export too.
 | PDC dashboard toolkit | `vendor/pdc-ui.js` | © Polecat.live (first-party) | Inlined into exported dashboards. |
 | topojson-client v3.1.0 | `vendor/geo/topojson-client.min.js` | ISC — © 2012–2019 Michael Bostock (`vendor/geo/LICENSE-topojson-client`) | Inlined (banner comment intact) into any exported dashboard that contains a map panel. |
 | us-atlas v3.0.1 | `vendor/geo/counties-albers-10m.json`, `vendor/geo/states-albers-10m.json` | ISC — © Michael Bostock (`vendor/geo/LICENSE-us-atlas`) | Pre-projected TopoJSON; underlying geometry is US Census Bureau cartographic boundary data (public domain). Inlined into exported map dashboards. |
+| MapLibre GL JS v5.24.0 | `vendor/maplibre/maplibre-gl.js`, `vendor/maplibre/maplibre-gl.css` | BSD-3-Clause — © 2023 MapLibre contributors (`vendor/maplibre/LICENSE-maplibre-gl`) | Powers the opt-in interactive ("GL") map renderer. Inlined (license banner intact) ONLY into exported dashboards whose map panels choose the GL renderer; SVG-renderer exports carry none of it. |
 
-*(Planned: `MapLibre GL JS` (BSD-3-Clause) arrives with the V4 interactive renderer, with its
-LICENSE alongside. `d3-geo`/`d3-array` (ISC) are used only at BUILD time by `tools/build-geo.mjs`
+*(`d3-geo`/`d3-array` (ISC) are used only at BUILD time by `tools/build-geo.mjs`
 and are not redistributed.)*
 
 ## Data & geometry sources
