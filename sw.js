@@ -5,7 +5,9 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v12"; /* v12: geo module — vendored topojson-client + region geometry */
+var CACHE_NAME = "studio-shell-v13"; /* v13: marketing hero carousel (index.html + landing.css)
+   site/shots/*.png are deliberately NOT precached (~2.7MB of marketing imagery would tax
+   every SW install); the fetch handler runtime-caches them after first view. */
 var SHELL_FILES = [
   "./",
   "index.html",

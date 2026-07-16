@@ -17694,6 +17694,45 @@ function serve() {
     });
     ok("V1: marketing page has no horizontal scroll at 390px", mktPhone.noHScroll, JSON.stringify(mktPhone));
     ok("V1: marketing page loads with zero pageerrors", mktErrors.length === 0, mktErrors.join(" | "));
+    // ---- the hero carousel: real screenshots, dots, arrows, captions ----
+    await mkt.setViewportSize({ width: 1280, height: 900 });
+    await mkt.waitForTimeout(200);
+    const car = await mkt.evaluate(function () {
+      var imgs = [].slice.call(document.querySelectorAll(".hc-img"));
+      var dots = [].slice.call(document.querySelectorAll(".hc-dot"));
+      return {
+        slides: imgs.length,
+        srcs: imgs.map(function (m) { return m.getAttribute("src"); }),
+        dots: dots.length,
+        firstOn: imgs[0] && imgs[0].classList.contains("on"),
+        capText: (document.getElementById("hcCap") || {}).textContent || "",
+        hasArrows: !!document.getElementById("hcPrev") && !!document.getElementById("hcNext")
+      };
+    });
+    ok("CAR: hero carousel renders ≥5 slides with dots, arrows, and a caption for the active slide",
+      car.slides >= 5 && car.dots === car.slides && car.firstOn && car.capText.length > 20 && car.hasArrows,
+      JSON.stringify({ slides: car.slides, dots: car.dots, cap: car.capText.slice(0, 40) }));
+    ok("CAR: every carousel slide src is a real committed screenshot under site/shots/",
+      car.srcs.length > 0 && car.srcs.every(function (s) { return /^site\/shots\/[\w-]+\.png$/.test(s) && fs.existsSync(path.join(ROOT, s)); }),
+      car.srcs.join(","));
+    await mkt.click("#hcNext");
+    await mkt.waitForTimeout(150);
+    const carNext = await mkt.evaluate(function () {
+      var imgs = [].slice.call(document.querySelectorAll(".hc-img"));
+      var dots = [].slice.call(document.querySelectorAll(".hc-dot"));
+      return { on: imgs.findIndex(function (m) { return m.classList.contains("on"); }),
+        dotOn: dots.findIndex(function (d) { return d.classList.contains("on"); }),
+        cap: (document.getElementById("hcCap") || {}).textContent || "" };
+    });
+    await mkt.click(".hc-dot"); // first dot → back to slide 0
+    await mkt.waitForTimeout(150);
+    const carDot = await mkt.evaluate(function () {
+      var imgs = [].slice.call(document.querySelectorAll(".hc-img"));
+      return imgs.findIndex(function (m) { return m.classList.contains("on"); });
+    });
+    ok("CAR: the next arrow advances slide + dot + caption together, and clicking a dot jumps back",
+      carNext.on === 1 && carNext.dotOn === 1 && carNext.cap.length > 20 && carDot === 0,
+      JSON.stringify({ next: carNext.on, dot: carNext.dotOn, back: carDot }));
     // Old pre-move deep links carried app hashes on the ROOT — they must forward into /app/.
     // (about:blank first: navigating "/" → "/#share=…" would be a SAME-DOCUMENT hash change
     // that never re-runs the head script; real legacy links arrive as fresh navigations.)
@@ -17752,7 +17791,7 @@ function serve() {
     // are fetched during install too (from the index we just cached), so a first-ever offline
     // visit still has a full library/gallery, not just a blank shell.
     const pwaDataPrecached = await pwaPage.evaluate(async function () {
-      const cache = await caches.open("studio-shell-v12");
+      const cache = await caches.open("studio-shell-v13");
       const keys = (await cache.keys()).map((r) => new URL(r.url).pathname.replace(/^\//, ""));
       const exIndex = await fetch("data/examples/index.json").then((r) => r.json());
       const missingExamples = exIndex.filter((ex) => keys.indexOf("data/examples/" + ex.file) < 0);
