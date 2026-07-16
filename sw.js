@@ -17,11 +17,9 @@ var SHELL_FILES = [
   "apple-touch-icon.png",
   "icon-192.png",
   "icon-512.png",
-  "vendor/geo/topojson-client.min.js",
-  "vendor/geo/counties-albers-10m.json",
-  "vendor/geo/states-albers-10m.json",
-  "vendor/geo/us-crd-counties.json",
-  "vendor/geo/us-huc8-cornbelt-albers.json",
+  /* vendor/geo/* is deliberately NOT precached: ~1.5MB that would tax every SW
+     install (and every fresh test context). The fetch handler runtime-caches all
+     same-origin GETs, so map dashboards work offline after their first view. */
   "vendor/polecat-shell/tokens.css",
   "vendor/polecat-shell/shell.js",
   "vendor/polecat-shell/catalog.js",
