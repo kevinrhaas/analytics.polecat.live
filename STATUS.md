@@ -1088,11 +1088,14 @@
 > marketing site at the root with the app at /app/ (fleet pattern).
 >
 > **The slices (one steward PR each, tests green, in order):**
-> V1. **Marketing site + app moves to /app/** (fleet pattern: manager/relay/jobtracker). Root =
->     marketing page (hero, feature tour, screenshots, CTA → /app/). Mechanical blast radius:
->     sw.js scope/precache paths, tests (~every goto), gate, PWA manifest start_url, deep-link
->     hashes (#share=… forwards from root to /app/#…), docs links. Old root bookmarks land on
->     marketing with a prominent "Open the app".
+> V1. ✓ **Marketing site + app moves to /app/ (shipped 2026-07-16).** Root = marketing page
+>     (index.html + css/landing.css, warm-Polecat light/dark, hero + features + sources strip,
+>     CTAs → /app/, NO shell per fleet convention). The app index moved INTO app/ with
+>     `<base href="/">` so every historical relative path resolves unchanged (module imports
+>     resolve against module URLs and were never affected). Legacy root #share=/#view hashes
+>     forward to /app/ automatically; manifest start_url → /app/; SW precaches both pages
+>     (cache → v11); test server learned directory-index resolution; docs back-link fixed;
+>     THIRD-PARTY-NOTICES.md seeded (footer-linked) for the geo libraries to come.
 > V2. **Geo foundation — light renderer first (the "D3 mode"):** vendor topojson-client + d3-geo
 >     (tiny, MIT, ESM, no build step) + simplified US Atlas counties/states TopoJSON under
 >     vendor/geo/. New app/geo.js (renderer-agnostic Geo API: fit/project/hover/click/legend/

@@ -5,10 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v10"; /* v10: Google Sheets adapter joins the precache */
+var CACHE_NAME = "studio-shell-v11"; /* v11: app moves to /app/ (root = marketing site) */
 var SHELL_FILES = [
   "./",
   "index.html",
+  "css/landing.css",
+  "app/",
+  "app/index.html",
   "site.webmanifest",
   "favicon.svg",
   "apple-touch-icon.png",
