@@ -407,8 +407,12 @@ function serve() {
         surfaceBg: getComputedStyle(pop).backgroundColor
       };
     });
-    ok("waffle opens the fleet grid: 7 live apps, real shell icons, Analytics highlighted as current",
-      wafflePop.present && wafflePop.count === 7 && wafflePop.currentIsAnalytics && wafflePop.allLiveAreLinks && wafflePop.iconsResolved && wafflePop.onScreen,
+    // expected app count comes from the vendored catalog itself, so a shell sync
+    // that grows the fleet (e.g. v0.1.1 added Model Server) can't silently rot
+    // this check — the waffle must render EVERY live app the catalog declares.
+    const catalogLive = (fs.readFileSync(path.join(ROOT, "vendor/polecat-shell/catalog.js"), "utf8").match(/status: 'live'/g) || []).length;
+    ok("waffle opens the fleet grid: every live catalog app (" + catalogLive + "), real shell icons, Analytics highlighted as current",
+      wafflePop.present && catalogLive >= 7 && wafflePop.count === catalogLive && wafflePop.currentIsAnalytics && wafflePop.allLiveAreLinks && wafflePop.iconsResolved && wafflePop.onScreen,
       JSON.stringify(wafflePop));
     ok("waffle popover is skinned by the token bridge (opaque Studio surface, not transparent)",
       /rgb\(/.test(wafflePop.surfaceBg) && wafflePop.surfaceBg !== "rgba(0, 0, 0, 0)", wafflePop.surfaceBg);
