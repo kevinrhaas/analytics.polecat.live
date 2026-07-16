@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 359,
+    title: 'Maps arrive: US choropleths down to county, district, and watershed scale',
+    kind: 'feature',
+    ts: '2026-07-16T16:21:06.000Z',
+    items: [
+      'A new Map (US choropleth) chart type colors US regions by any value column -- all 3,100+ counties by FIPS code, states (by postal code, name, or FIPS), USDA crop reporting districts, or Corn Belt watersheds (HUC8). The map auto-zooms to the regions that carry data, shows a hatched No-data texture everywhere else, and keeps a state-border overlay for orientation.',
+      'When several rows land on the same region, they combine by the MEDIAN by default -- a single best common estimate, with mean/sum/min/max/last available. Hover any region for its name and value; the legend shows the color ramp and the No-data key.',
+      'Exports stay true to form: a dashboard with a map inlines the geometry and the tiny topojson runtime into its self-contained .html (works offline, from a plain file, no server), while dashboards without maps carry none of it. Geometry ships pre-projected, sourced from the US Census Bureau, USGS, and USDA NASS (all public domain) -- see the new Third-party notices page.',
+    ],
+  },
+  {
     v: 358,
     title: 'A public front door: analytics.polecat.live gets a marketing site, the app moves to /app/',
     kind: 'feature',

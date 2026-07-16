@@ -5,7 +5,7 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v11"; /* v11: app moves to /app/ (root = marketing site) */
+var CACHE_NAME = "studio-shell-v12"; /* v12: geo module — vendored topojson-client + region geometry */
 var SHELL_FILES = [
   "./",
   "index.html",
@@ -17,6 +17,9 @@ var SHELL_FILES = [
   "apple-touch-icon.png",
   "icon-192.png",
   "icon-512.png",
+  /* vendor/geo/* is deliberately NOT precached: ~1.5MB that would tax every SW
+     install (and every fresh test context). The fetch handler runtime-caches all
+     same-origin GETs, so map dashboards work offline after their first view. */
   "vendor/polecat-shell/tokens.css",
   "vendor/polecat-shell/shell.js",
   "vendor/polecat-shell/catalog.js",

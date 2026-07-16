@@ -32,6 +32,9 @@
     if (/category|type|restype|kind|tier|band|group/.test(c)) return "type";
     if (/^date$|^date_|_date$|_at$/.test(c)) return "isodate"; // exact date cols → YYYY-MM-DD
     if (/month|ymn|^ym$|period|date|day/.test(c)) return "month";
+    // Viridis V2: geo-id columns get REAL Corn Belt county FIPS codes so a freshly
+    // dragged choropleth panel renders a colored map, not an all-no-data hatch.
+    if (/fips|geoid|county_?(id|code)?$|^huc/.test(c)) return "geoid";
     if (/name|label|title|entity|object|table|schema|job|view|file|folder/.test(c)) return "name";
     if (/cum|cumulative|running/.test(c)) return "cum";
     if (/cost|usd|monthly|annual|reclaim|saving|spend|price|budget/.test(c)) return "money";
@@ -51,6 +54,8 @@
   function valueFor(kind, i, n, firstIsLabel, col) {
     var hv = seed(col);
     switch (kind) {
+      // real Corn Belt county FIPS (IL/IN/IA) — see the geoid classify note
+      case "geoid": return ["17031", "17113", "17167", "19153", "19113", "18097", "18157", "17019"][i % 8];
       case "cat": return CATS[i % CATS.length];
       case "sens": return SENS[i % SENS.length];
       case "owner": return OWNERS[i % OWNERS.length];
@@ -83,7 +88,7 @@
     }
   }
 
-  var CATEGORICAL_KINDS = /^(cat|sens|owner|status|app|ext|term|type|month|name|isodate)$/;
+  var CATEGORICAL_KINDS = /^(cat|sens|owner|status|app|ext|term|type|month|name|isodate|geoid)$/;
 
   // produce {cols, rows} for one data-access definition.
   // valueOnly=true → this DA feeds only KPIs/gauges (its first column IS a value, not an

@@ -16,11 +16,20 @@ function loadStudio() {
 }
 
 function assets() {
+  // Viridis V2: geo assets ride along so CLI exports of map dashboards stay
+  // byte-identical to browser exports (exporters.js only inlines what the
+  // spec's Studio.geoAssetKeys() actually needs).
+  const geo = {};
+  [["county", "geo/counties-albers-10m.json"], ["state", "geo/states-albers-10m.json"],
+   ["huc8", "geo/us-huc8-cornbelt-albers.json"], ["crdMap", "geo/us-crd-counties.json"]]
+    .forEach(function (kv) { geo[kv[0]] = fs.readFileSync(path.join(VENDOR, kv[1]), "utf8"); });
   return {
     css: fs.readFileSync(path.join(VENDOR, "pdc-ui.css"), "utf8"),
     js: fs.readFileSync(path.join(VENDOR, "pdc-ui.js"), "utf8"),
     render: fs.readFileSync(path.join(APP, "studio-render.js"), "utf8"),
-    charts: fs.readFileSync(path.join(APP, "studio-charts.js"), "utf8")
+    charts: fs.readFileSync(path.join(APP, "studio-charts.js"), "utf8"),
+    topojson: fs.readFileSync(path.join(VENDOR, "geo/topojson-client.min.js"), "utf8"),
+    geo: geo
   };
 }
 

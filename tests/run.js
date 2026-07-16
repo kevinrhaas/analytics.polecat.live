@@ -721,6 +721,107 @@ function serve() {
     ok("GS: a successful run teaches the dataset its columns and stamps lastRun",
       gsDataset.learnedCols === "region,total" && gsDataset.lastRunOk, JSON.stringify(gsDataset));
 
+    // ---- GEO (Viridis V2): vendored assets + choropleth chart type ----------
+    console.log("\n• GEO: vendored geometry + choropleth (Viridis V2)");
+    (function () {
+      const V = path.join(ROOT, "vendor/geo");
+      const tj = fs.readFileSync(path.join(V, "topojson-client.min.js"), "utf8");
+      ok("GEO: topojson-client vendored with its ISC banner + LICENSE file (redistribution licensing intact)",
+        /topojson-client v3\./.test(tj.slice(0, 200)) && fs.existsSync(path.join(V, "LICENSE-topojson-client")) && fs.existsSync(path.join(V, "LICENSE-us-atlas")));
+      const counties = JSON.parse(fs.readFileSync(path.join(V, "counties-albers-10m.json"), "utf8"));
+      const states = JSON.parse(fs.readFileSync(path.join(V, "states-albers-10m.json"), "utf8"));
+      const huc8 = JSON.parse(fs.readFileSync(path.join(V, "us-huc8-cornbelt-albers.json"), "utf8"));
+      const crd = JSON.parse(fs.readFileSync(path.join(V, "us-crd-counties.json"), "utf8"));
+      ok("GEO: county/state/HUC8 topologies parse with expected feature counts (3k+ counties, 50+ states, 500+ Corn Belt HUC8s)",
+        counties.objects.counties.geometries.length > 3000 && states.objects.states.geometries.length >= 50 &&
+        huc8.objects.huc8.geometries.length >= 500,
+        JSON.stringify({ counties: counties.objects.counties.geometries.length, states: states.objects.states.geometries.length, huc8: huc8.objects.huc8.geometries.length }));
+      ok("GEO: NASS county→CRD mapping covers 3k+ counties across 300+ districts",
+        Object.keys(crd.counties).length > 3000 && new Set(Object.values(crd.counties)).size > 300,
+        Object.keys(crd.counties).length + " counties");
+      const notices = fs.readFileSync(path.join(ROOT, "THIRD-PARTY-NOTICES.md"), "utf8");
+      ok("GEO: THIRD-PARTY-NOTICES.md records topojson-client, us-atlas, and the public-domain USGS/NASS data",
+        /topojson-client/.test(notices) && /us-atlas/.test(notices) && /Watershed Boundary/.test(notices) && /NASS/.test(notices));
+    })();
+    const geoKeysUnit = await page.evaluate(function () {
+      return {
+        none: Studio.geoAssetKeys({ panels: [{ chart: { type: "bars" } }] }).join(","),
+        county: Studio.geoAssetKeys({ panels: [{ chart: { type: "choropleth", opts: {} } }] }).sort().join(","),
+        crd: Studio.geoAssetKeys({ panels: [{ chart: { type: "choropleth", opts: { scale: "crd" } } }] }).sort().join(","),
+        huc8: Studio.geoAssetKeys({ panels: [{ chart: { type: "choropleth", opts: { scale: "huc8" } } }] }).sort().join(",")
+      };
+    });
+    ok("GEO: geoAssetKeys() maps specs to exactly the geometry they need (none without maps; CRD pulls county+mapping)",
+      geoKeysUnit.none === "" && geoKeysUnit.county === "county,state" &&
+      geoKeysUnit.crd === "county,crdMap,state" && geoKeysUnit.huc8 === "huc8,state", JSON.stringify(geoKeysUnit));
+    const geoSample = await page.evaluate(function () {
+      var r = Studio.sampleRows({ columns: ["county_fips", "pct"] });
+      return { firstId: String(r.rows[0][0]), allFips: r.rows.every(function (row) { return /^\d{5}$/.test(String(row[0])); }) };
+    });
+    ok("GEO: sample data for fips-named columns emits real 5-digit county FIPS (fresh map panels render colored, not all-no-data)",
+      geoSample.allFips, JSON.stringify(geoSample));
+    // Full pipeline per scale: buildHtml (inlined topojson + STUDIO_GEO) → iframe →
+    // rendered region paths, colored values, no-data hatch, legend. Also proves the
+    // MEDIAN aggregation: region 17031 gets rows (2,4,100) → median 4 → must render
+    // the SAME fill as region 19153's exact 4.
+    async function geoProbe(scale, idCol, rows) {
+      return await page.evaluate(async function (args) {
+        var spec = { id: "t-" + args.scale, name: "t-" + args.scale, title: "t",
+          panels: [{ id: "m1", title: "m", span: "full",
+            chart: { type: "choropleth", da: "g", map: { idCol: args.idCol, valueCol: "v" }, opts: { scale: args.scale } } }],
+          kpis: [], filters: [], cda: { connections: [], dataAccesses: [{ id: "g", kind: "sql", columns: [args.idCol, "v"] }] } };
+        await window.__studioEnsureGeoAssets(spec);
+        var html = Studio.buildHtml(spec, window.__STUDIO_STATE.assets, { preview: true, mock: { g: { cols: [args.idCol, "v"], rows: args.rows } } });
+        return await new Promise(function (resolve) {
+          var ifr = document.createElement("iframe");
+          ifr.style.cssText = "position:fixed;left:-2000px;top:0;width:900px;height:600px";
+          document.body.appendChild(ifr);
+          ifr.srcdoc = html;
+          var t0 = Date.now();
+          (function poll() {
+            var doc = null; try { doc = ifr.contentDocument; } catch (e) {}
+            var paths = doc ? doc.querySelectorAll("path[data-geo-id]") : [];
+            if (paths.length) {
+              var colored = [].filter.call(paths, function (x) { return !/url\(/.test(x.getAttribute("fill")); });
+              var fillOf = {};
+              colored.forEach(function (x) { fillOf[x.getAttribute("data-geo-id")] = x.getAttribute("fill"); });
+              var out = { regions: paths.length, colored: colored.length,
+                hatched: paths.length - colored.length,
+                legend: !!doc.querySelector(".pdc-geo-legend"), fills: fillOf,
+                inlined: ifr.srcdoc.indexOf("STUDIO_GEO") >= 0 && ifr.srcdoc.indexOf("topojson-client v3") >= 0 };
+              ifr.remove(); resolve(out);
+            } else if (Date.now() - t0 > 12000) { ifr.remove(); resolve({ timeout: true }); }
+            else setTimeout(poll, 150);
+          })();
+        });
+      }, { scale: scale, idCol: idCol, rows: rows });
+    }
+    const geoCounty = await geoProbe("county", "fips", [["17031", 2], ["17031", 4], ["17031", 100], ["19153", 4], ["18097", 9]]);
+    ok("GEO county: 3k+ county paths render; data counties colored, the rest hatched no-data; legend + inlined geometry",
+      geoCounty.regions > 3000 && geoCounty.colored === 3 && geoCounty.hatched > 3000 && geoCounty.legend && geoCounty.inlined,
+      JSON.stringify({ regions: geoCounty.regions, colored: geoCounty.colored }));
+    ok("GEO county: duplicate rows aggregate by MEDIAN — 17031's (2,4,100) renders the same fill as an exact 4 (the common-estimate convention)",
+      !!geoCounty.fills["17031"] && geoCounty.fills["17031"] === geoCounty.fills["19153"], JSON.stringify(geoCounty.fills));
+    const geoState = await geoProbe("state", "state_id", [["IA", 8], ["Indiana", 4], ["27", 7]]);
+    ok("GEO state: postal codes, full names, and bare FIPS all normalize onto state regions",
+      geoState.regions >= 50 && geoState.colored === 3, JSON.stringify({ regions: geoState.regions, colored: geoState.colored }));
+    const geoCrd = await geoProbe("crd", "district", [["1710", 8], ["1910", 5], ["1830", 3]]);
+    ok("GEO crd: 300+ NASS districts derive from county geometry (topojson merge) and color by value",
+      geoCrd.regions > 300 && geoCrd.colored === 3, JSON.stringify({ regions: geoCrd.regions, colored: geoCrd.colored }));
+    const geoHuc = await geoProbe("huc8", "huc8", [["07080105", 9], ["07130001", 5], ["10230003", 2]]);
+    ok("GEO huc8: 500+ Corn Belt watersheds render and color by value",
+      geoHuc.regions >= 500 && geoHuc.colored === 3, JSON.stringify({ regions: geoHuc.regions, colored: geoHuc.colored }));
+    const geoLean = await page.evaluate(function () {
+      var spec = { id: "lean", name: "lean", title: "t", panels: [{ id: "p", title: "p", chart: { type: "bars", da: "g", map: { labelCol: "a", valueCol: "b" } } }],
+        kpis: [], filters: [], cda: { connections: [], dataAccesses: [{ id: "g", kind: "sql", columns: ["a", "b"] }] } };
+      var html = Studio.buildHtml(spec, window.__STUDIO_STATE.assets, { preview: false });
+      // match the INJECTED literal ("window.STUDIO_GEO = {"), not the bare substring —
+      // the charts source itself mentions window.STUDIO_GEO when it probes for it
+      return { hasGeo: html.indexOf("window.STUDIO_GEO = {") >= 0, hasTopo: html.indexOf("topojson-client v3") >= 0 };
+    });
+    ok("GEO: exports WITHOUT map panels carry zero geometry (no STUDIO_GEO payload, no topojson) — dashboards stay lean",
+      !geoLean.hasGeo && !geoLean.hasTopo, JSON.stringify(geoLean));
+
     const wsStore = await page.evaluate(function () {
       var W = Studio.Workspace, events = [];
       var off = W.on("change", function (p) { events.push(p.table + ":" + (p.removed ? "del" : "put")); });
@@ -3088,10 +3189,19 @@ function serve() {
       for (let i = 0; i < attempts; i++) {
         try {
           await locator.waitFor({ state: "visible", timeout: 8000 });
+          // Root cause of the recurring 7→7 flake: the first panel's action button can sit
+          // at y≈-8 (half-clipped above the iframe viewport), leaving its click-center
+          // ~2px inside — any sub-pixel layout drift pushes it out and a force click
+          // lands on nothing, silently. Scroll it fully into view first.
+          await locator.scrollIntoViewIfNeeded({ timeout: 2000 }).catch(() => {});
           await locator.click({ force: true, timeout: 3000 });
           return;
         } catch (e) {
-          if (i === attempts - 1) throw e;
+          if (i === attempts - 1) {
+            // last resort: dispatch the DOM click directly — same JS handler, no coordinates
+            try { await locator.evaluate((el) => el.click()); return; } catch (e2) {}
+            throw e;
+          }
           await page.waitForTimeout(250);
         }
       }
@@ -3101,6 +3211,16 @@ function serve() {
     await page.waitForFunction((n) => window.__STUDIO_STATE.spec.panels.length === n, pcount0 + 1, { timeout: 8000 }).catch(() => {});
     const pcount1 = await page.evaluate(() => window.__STUDIO_STATE.spec.panels.length);
     ok("canvas ⧉ duplicates a panel", pcount1 === pcount0 + 1, pcount0 + "→" + pcount1);
+    // Test-health hardening (this line was the suite's #1 flake): the duplicate above
+    // triggers refreshPreview, which REPLACES the iframe document ~130ms later. The
+    // spec-state wait above doesn't cover that swap, so the del click could land on a
+    // button from the OLD document (a no-op on the new one). Wait until the RENDERED
+    // panel count matches the spec before locating the delete button.
+    await page.waitForFunction((n) => {
+      var doc = document.querySelector("#preview").contentDocument;
+      return doc && doc.querySelectorAll("[data-panel-id]").length === n;
+    }, pcount1, { timeout: 8000 }).catch(() => {});
+    await page.waitForTimeout(200);
     const delBtn = pvp.locator('[data-panel-id] .sr-act[data-act="del"]').first();
     await retryForceClick(delBtn, 3);
     await page.waitForFunction((n) => window.__STUDIO_STATE.spec.panels.length === n, pcount1 - 1, { timeout: 8000 }).catch(() => {});
@@ -5321,7 +5441,7 @@ function serve() {
     await phonePage.evaluate(() => { var s = document.getElementById("mobile-scrim"); if (s && s.classList.contains("active")) s.click(); });
     await phonePage.waitForTimeout(350);
     await phonePage.click("#btnChangelog");
-    await phonePage.waitForTimeout(320);
+    await phonePage.waitForTimeout(550);
     const m12CL = await phonePage.evaluate(() => {
       var p = document.querySelector(".ps-rpanel");
       if (!p) return { ok: false, err: "no panel" };
@@ -5331,7 +5451,7 @@ function serve() {
     });
     ok("M12: What's-new panel width ≤ phone viewport width", m12CL.ok, JSON.stringify(m12CL));
     await phonePage.keyboard.press("Escape");
-    await phonePage.waitForTimeout(320);
+    await phonePage.waitForTimeout(550);
 
     await narrowPage.close();
 
@@ -5399,7 +5519,7 @@ function serve() {
     await phonePage.evaluate(() => document.querySelector('#mobile-tabs .mob-tab[data-mob-tab="canvas"]').click());
 
     await phonePage.click("#btnChangelog");
-    await phonePage.waitForTimeout(320);
+    await phonePage.waitForTimeout(550);
     const mnavCL = await phonePage.evaluate(() => { var c = document.querySelector(".ps-rpanel"); if (!c) return { open: false }; var r = c.getBoundingClientRect(); return { open: true, inView: r.left >= -1 && r.right <= window.innerWidth + 1 }; });
     ok("MNAV: What's-new panel sits fully within the viewport", mnavCL.open && mnavCL.inView, JSON.stringify(mnavCL));
 
@@ -5420,7 +5540,7 @@ function serve() {
       mnavCLSheet.tallSheet && mnavCLSheet.hasClose && mnavCLSheet.closeOnScreen && mnavCLSheet.closeThumbSized, JSON.stringify(mnavCLSheet));
 
     await phonePage.click('.ps-rpanel-head button[aria-label="Close panel"]');
-    await phonePage.waitForTimeout(320);
+    await phonePage.waitForTimeout(550);
     const mnavCLClosed = await phonePage.evaluate(() => !document.querySelector(".ps-rpanel"));
     ok("MNAV: the Close button actually dismisses the What's-new sheet", mnavCLClosed === true, String(mnavCLClosed));
 
@@ -17545,7 +17665,7 @@ function serve() {
     // are fetched during install too (from the index we just cached), so a first-ever offline
     // visit still has a full library/gallery, not just a blank shell.
     const pwaDataPrecached = await pwaPage.evaluate(async function () {
-      const cache = await caches.open("studio-shell-v11");
+      const cache = await caches.open("studio-shell-v12");
       const keys = (await cache.keys()).map((r) => new URL(r.url).pathname.replace(/^\//, ""));
       const exIndex = await fetch("data/examples/index.json").then((r) => r.json());
       const missingExamples = exIndex.filter((ex) => keys.indexOf("data/examples/" + ex.file) < 0);

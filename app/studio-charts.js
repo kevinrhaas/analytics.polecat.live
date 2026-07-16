@@ -5592,4 +5592,256 @@
     if (cfg.caption) s.appendChild(S("text", { x: cx, y: cy, "text-anchor": "middle", fill: "var(--muted)", "font-size": "10", "font-weight": "700" }, cfg.caption));
   }
 
+  /* ══════════════════════════════════════════════════════════════════════════
+     GEO / CHOROPLETH (Viridis track V2)
+
+     Renders US region maps from PRE-PROJECTED TopoJSON (the us-atlas AlbersUsa
+     975×610 plane — see vendor/geo/README.md), so the only geometry runtime is
+     topojson-client (global `topojson`, inlined into any export that contains a
+     map panel alongside window.STUDIO_GEO carrying the topology JSON).
+
+     Scales: county | state | crd (NASS crop reporting districts, derived by
+     merging county polygons per district) | huc8 (Corn Belt watersheds).
+     Duplicate rows per region aggregate via cfg.agg — MEDIAN by default, the
+     Viridis "single best common estimate" convention (see STATUS ★★★★ V3).
+     ══════════════════════════════════════════════════════════════════════════ */
+
+  // state FIPS ↔ postal so state-scale data can key by FIPS, postal, or name
+  var FIPS_POSTAL = { "01":"AL","02":"AK","04":"AZ","05":"AR","06":"CA","08":"CO","09":"CT","10":"DE","11":"DC","12":"FL","13":"GA","15":"HI","16":"ID","17":"IL","18":"IN","19":"IA","20":"KS","21":"KY","22":"LA","23":"ME","24":"MD","25":"MA","26":"MI","27":"MN","28":"MS","29":"MO","30":"MT","31":"NE","32":"NV","33":"NH","34":"NJ","35":"NM","36":"NY","37":"NC","38":"ND","39":"OH","40":"OK","41":"OR","42":"PA","44":"RI","45":"SC","46":"SD","47":"TN","48":"TX","49":"UT","50":"VT","51":"VA","53":"WA","54":"WV","55":"WI","56":"WY","72":"PR" };
+
+  var GEO_FILES = {
+    county: "vendor/geo/counties-albers-10m.json",
+    state: "vendor/geo/states-albers-10m.json",
+    crd: null, // derived from county + the NASS mapping
+    huc8: "vendor/geo/us-huc8-cornbelt-albers.json",
+    crdMap: "vendor/geo/us-crd-counties.json"
+  };
+  var _geoCache = {}; // key -> Promise<topology-or-mapping JSON>
+  function geoJson(key) {
+    if (_geoCache[key]) return _geoCache[key];
+    var inlined = window.STUDIO_GEO && window.STUDIO_GEO[key];
+    _geoCache[key] = inlined ? Promise.resolve(inlined)
+      : fetch(GEO_FILES[key]).then(function (r) {
+          if (!r.ok) throw new Error("geometry HTTP " + r.status);
+          return r.json();
+        });
+    return _geoCache[key];
+  }
+  var _featCache = {}; // scale -> Promise<{features, borders, states}>
+  // Resolves { features:[{id,name,path}], borders:pathString, states:pathString }
+  // in the shared 975×610 plane. Pure string path building from pre-projected
+  // arcs — no projection math at runtime.
+  function geoFeatures(scale) {
+    if (_featCache[scale]) return _featCache[scale];
+    function ring2path(ring) {
+      var d = "M" + ring[0][0] + "," + ring[0][1];
+      for (var i = 1; i < ring.length; i++) d += "L" + ring[i][0] + "," + ring[i][1];
+      return d + "Z";
+    }
+    function geom2path(geom) {
+      if (!geom) return "";
+      var polys = geom.type === "Polygon" ? [geom.coordinates] : geom.type === "MultiPolygon" ? geom.coordinates : [];
+      var d = "";
+      polys.forEach(function (poly) { poly.forEach(function (ring) { d += ring2path(ring); }); });
+      return d;
+    }
+    function build(topo, objName, nameOf, borderTopo) {
+      var fc = topojson.feature(topo, topo.objects[objName]);
+      var features = fc.features.map(function (f) {
+        return { id: String(f.id), name: nameOf(f), path: geom2path(f.geometry), bbox: geomBbox(f.geometry) };
+      }).filter(function (f) { return f.path; });
+      var borders = geom2path(topojson.mesh(topo, topo.objects[objName], function (a, b) { return a !== b; }));
+      return { features: features, borders: borders, statesOverlay: borderTopo || "" };
+    }
+    function geomBbox(geom) {
+      var polys = geom.type === "Polygon" ? [geom.coordinates] : geom.type === "MultiPolygon" ? geom.coordinates : [];
+      var x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      polys.forEach(function (poly) { poly.forEach(function (ring) { ring.forEach(function (p) {
+        if (p[0] < x0) x0 = p[0]; if (p[0] > x1) x1 = p[0];
+        if (p[1] < y0) y0 = p[1]; if (p[1] > y1) y1 = p[1];
+      }); }); });
+      return [x0, y0, x1, y1];
+    }
+    var statesMesh = geoJson("state").then(function (st) {
+      return geom2path(topojson.mesh(st, st.objects.states, function (a, b) { return a !== b; }));
+    });
+    if (scale === "state") {
+      _featCache.state = Promise.all([geoJson("state")]).then(function (r) {
+        return build(r[0], "states", function (f) { return (f.properties && f.properties.name) || f.id; });
+      });
+    } else if (scale === "county") {
+      _featCache.county = Promise.all([geoJson("county"), statesMesh]).then(function (r) {
+        var out = build(r[0], "counties", function (f) { return (f.properties && f.properties.name) || f.id; });
+        out.statesOverlay = r[1];
+        return out;
+      });
+    } else if (scale === "huc8") {
+      _featCache.huc8 = Promise.all([geoJson("huc8"), statesMesh]).then(function (r) {
+        var out = build(r[0], "huc8", function (f) { return (f.properties && f.properties.name) || f.id; });
+        out.statesOverlay = r[1];
+        return out;
+      });
+    } else { // crd — merge county geometry per NASS district
+      _featCache.crd = Promise.all([geoJson("county"), geoJson("crdMap"), statesMesh]).then(function (r) {
+        var topo = r[0], map = r[1].counties || {}, groups = {};
+        (topo.objects.counties.geometries || []).forEach(function (g) {
+          var crd = map[String(g.id)];
+          if (crd) (groups[crd] = groups[crd] || []).push(g);
+        });
+        var features = Object.keys(groups).map(function (crd) {
+          var merged = topojson.merge(topo, groups[crd]);
+          return { id: crd, name: (FIPS_POSTAL[crd.slice(0, 2)] || crd.slice(0, 2)) + " district " + crd.slice(2),
+            path: geom2path(merged), bbox: geomBbox(merged) };
+        }).filter(function (f) { return f.path; });
+        var geomList = [];
+        Object.keys(groups).forEach(function (crd) { geomList = geomList.concat(groups[crd]); });
+        var borders = geom2path(topojson.mesh(topo, { type: "GeometryCollection", geometries: geomList },
+          function (a, b) { return map[String(a.id)] !== map[String(b.id)]; }));
+        return { features: features, borders: borders, statesOverlay: r[2] };
+      });
+    }
+    return _featCache[scale];
+  }
+
+  // Region-id normalization: counties accept 4/5-digit FIPS; states accept FIPS,
+  // postal, or full name; HUC8 accepts 7/8-digit codes; CRDs accept "SSDD".
+  function geoNormalizeId(scale, raw, stateNameIdx) {
+    var s = String(raw == null ? "" : raw).trim();
+    if (scale === "county") return /^\d{4,5}$/.test(s) ? ("00000" + s).slice(-5) : s;
+    if (scale === "huc8") return /^\d{7,8}$/.test(s) ? ("00000000" + s).slice(-8) : s;
+    if (scale === "crd") return /^\d{3,4}$/.test(s) ? ("0000" + s).slice(-4) : s;
+    if (scale === "state") {
+      if (/^\d{1,2}$/.test(s)) return ("00" + s).slice(-2);
+      var up = s.toUpperCase();
+      for (var k in FIPS_POSTAL) if (FIPS_POSTAL[k] === up) return k;
+      if (stateNameIdx && stateNameIdx[s.toLowerCase()]) return stateNameIdx[s.toLowerCase()];
+      return s;
+    }
+    return s;
+  }
+
+  function hexParse(c) {
+    c = String(c || "").trim();
+    var m = c.match(/^#([0-9a-f]{6})$/i);
+    if (m) return [parseInt(m[1].slice(0, 2), 16), parseInt(m[1].slice(2, 4), 16), parseInt(m[1].slice(4, 6), 16)];
+    m = c.match(/^rgba?\((\d+)[,\s]+(\d+)[,\s]+(\d+)/i);
+    if (m) return [+m[1], +m[2], +m[3]];
+    return null;
+  }
+  function mix(a, b, t) { return [Math.round(a[0] + (b[0] - a[0]) * t), Math.round(a[1] + (b[1] - a[1]) * t), Math.round(a[2] + (b[2] - a[2]) * t)]; }
+  function rgbStr(c) { return "rgb(" + c[0] + "," + c[1] + "," + c[2] + ")"; }
+  // Sequential ramp: pale wash → base token → deepened base. Theme-aware (reads
+  // the live CSS variables) and license-free (computed, not a copied palette).
+  function geoRamp(baseToken, n) {
+    var base = hexParse(PDC.cssvar(baseToken)) || hexParse("#2f8f52");
+    var pane = hexParse(PDC.cssvar("--panel-bg")) || hexParse(PDC.cssvar("--pane")) || [255, 255, 255];
+    var light = mix(pane, base, 0.14);
+    var dark = mix(base, [20, 24, 20], 0.35);
+    var stops = [];
+    for (var i = 0; i < n; i++) {
+      var t = n === 1 ? 1 : i / (n - 1);
+      stops.push(rgbStr(t < 0.5 ? mix(light, base, t * 2) : mix(base, dark, (t - 0.5) * 2)));
+    }
+    return stops;
+  }
+
+  // PDC.choropleth(el, cfg): cfg = { scale, data:[{label:regionId, value}], agg,
+  // classes, colorToken, fmt, height, fit:'data'|'all', stateLines, legend, noDataLabel }
+  PDC.choropleth = function (el, cfg) { reg(el, function () { _choropleth(el, cfg); }); };
+  function _choropleth(el, cfg) {
+    var scale = cfg.scale || "county";
+    el.innerHTML = '<div class="empty" style="padding:24px 8px">Loading geometry…</div>';
+    geoFeatures(scale).then(function (geo) {
+      // state-name index for friendly state-scale keys
+      var nameIdx = null;
+      if (scale === "state") {
+        nameIdx = {};
+        geo.features.forEach(function (f) { nameIdx[f.name.toLowerCase()] = f.id; });
+      }
+      // aggregate duplicate rows per region — median by default (the Viridis
+      // "common estimate" convention; see the ensemble slice)
+      var buckets = {};
+      (cfg.data || []).forEach(function (r) {
+        if (r.value == null || isNaN(+r.value)) return;
+        var id = geoNormalizeId(scale, r.label, nameIdx);
+        (buckets[id] = buckets[id] || []).push(+r.value);
+      });
+      var agg = cfg.agg || "median";
+      var values = {};
+      Object.keys(buckets).forEach(function (id) {
+        var v = buckets[id].slice().sort(function (a, b) { return a - b; });
+        if (agg === "sum") values[id] = v.reduce(function (a, b) { return a + b; }, 0);
+        else if (agg === "mean") values[id] = v.reduce(function (a, b) { return a + b; }, 0) / v.length;
+        else if (agg === "min") values[id] = v[0];
+        else if (agg === "max") values[id] = v[v.length - 1];
+        else if (agg === "last") values[id] = buckets[id][buckets[id].length - 1];
+        else values[id] = (v.length % 2) ? v[(v.length - 1) / 2] : (v[v.length / 2 - 1] + v[v.length / 2]) / 2; // median
+      });
+      var ids = Object.keys(values);
+      var vmin = Infinity, vmax = -Infinity;
+      ids.forEach(function (id) { if (values[id] < vmin) vmin = values[id]; if (values[id] > vmax) vmax = values[id]; });
+      if (!ids.length) { el.innerHTML = '<div class="empty">No region values — map an id column and a value column</div>'; return; }
+      if (vmin === vmax) { vmin = vmin - 0.5; vmax = vmax + 0.5; }
+      var classes = Math.max(3, Math.min(9, cfg.classes || 5));
+      var ramp = geoRamp(cfg.colorToken || "--good", classes);
+      function colorOf(v) {
+        var t = (v - vmin) / (vmax - vmin);
+        return ramp[Math.max(0, Math.min(classes - 1, Math.floor(t * classes)))];
+      }
+      // viewBox: fit to the regions that HAVE data (Corn Belt data on a national
+      // county map auto-zooms), or the whole layer with fit:'all'
+      var x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity, fitAll = cfg.fit === "all";
+      geo.features.forEach(function (f) {
+        if (!fitAll && values[f.id] == null) return;
+        if (f.bbox[0] < x0) x0 = f.bbox[0]; if (f.bbox[1] < y0) y0 = f.bbox[1];
+        if (f.bbox[2] > x1) x1 = f.bbox[2]; if (f.bbox[3] > y1) y1 = f.bbox[3];
+      });
+      if (!isFinite(x0)) { x0 = 0; y0 = 0; x1 = 975; y1 = 610; }
+      var pad = Math.max((x1 - x0), (y1 - y0)) * 0.02 + 4;
+      var vb = [(x0 - pad).toFixed(1), (y0 - pad).toFixed(1), (x1 - x0 + pad * 2).toFixed(1), (y1 - y0 + pad * 2).toFixed(1)].join(" ");
+      var h = cfg.height || 380;
+      var f = cfg.fmt || function (v) { return String(v); };
+      el.innerHTML = "";
+      var svg = S("svg", { viewBox: vb, width: "100%", height: h, "aria-label": "choropleth map", role: "img" });
+      // no-data hatch pattern (namespaced id per render to avoid collisions)
+      var pid = "geoHatch" + Math.floor(Math.random() * 1e9);
+      var defs = S("defs", {});
+      defs.innerHTML = '<pattern id="' + pid + '" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">' +
+        '<rect width="6" height="6" fill="var(--panel-subtle-bg, rgba(120,120,120,.08))"/>' +
+        '<line x1="0" y1="0" x2="0" y2="6" stroke="var(--panel-border, rgba(120,120,120,.25))" stroke-width="1"/></pattern>';
+      svg.appendChild(defs);
+      var gRegions = S("g", {});
+      var strokeW = Math.max(0.4, (x1 - x0) / 975 * 0.75);
+      geo.features.forEach(function (feat) {
+        var v = values[feat.id];
+        var p = S("path", { d: feat.path,
+          fill: v == null ? "url(#" + pid + ")" : colorOf(v),
+          stroke: "var(--panel-border, #ccc)", "stroke-width": strokeW * 0.5, "data-geo-id": feat.id });
+        p.style.cursor = "default";
+        _tip(p, "<b>" + feat.name + "</b><br>" + (v == null ? (cfg.noDataLabel || "No data") : f(v)));
+        p.addEventListener("mouseenter", function () { p.setAttribute("stroke", "var(--ink, #333)"); p.setAttribute("stroke-width", strokeW * 1.6); p.parentNode.appendChild(p); });
+        p.addEventListener("mouseleave", function () { p.setAttribute("stroke", "var(--panel-border, #ccc)"); p.setAttribute("stroke-width", strokeW * 0.5); });
+        gRegions.appendChild(p);
+      });
+      svg.appendChild(gRegions);
+      if (geo.statesOverlay && cfg.stateLines !== false && scale !== "state") {
+        svg.appendChild(S("path", { d: geo.statesOverlay, fill: "none", stroke: "var(--text-muted, #888)", "stroke-width": strokeW * 1.1, "stroke-opacity": "0.55", "pointer-events": "none" }));
+      }
+      el.appendChild(svg);
+      if (cfg.legend !== false) {
+        var lg = document.createElement("div");
+        lg.className = "pdc-geo-legend";
+        lg.style.cssText = "display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:10.5px;color:var(--text-muted,#6b7a99);padding:6px 4px 0";
+        var swatches = '<span style="display:inline-flex;border-radius:3px;overflow:hidden">' + ramp.map(function (c) {
+          return '<i style="width:22px;height:10px;background:' + c + '"></i>';
+        }).join("") + "</span>";
+        lg.innerHTML = "<span>" + f(vmin) + "</span>" + swatches + "<span>" + f(vmax) + "</span>" +
+          '<span style="display:inline-flex;align-items:center;gap:4px;margin-left:10px"><i style="width:14px;height:10px;border-radius:2px;background:url(#' + pid + ');border:1px solid var(--panel-border,#ccc);background:repeating-linear-gradient(45deg,transparent,transparent 2px,var(--panel-border,#ccc) 2px,var(--panel-border,#ccc) 3px)"></i>' + (cfg.noDataLabel || "No data") + "</span>";
+        el.appendChild(lg);
+      }
+    }).catch(function (e) {
+      el.innerHTML = '<div class="empty">Map geometry unavailable: ' + String(e && e.message || e).replace(/</g, "&lt;") + "</div>";
+    });
+  }
+
 })();

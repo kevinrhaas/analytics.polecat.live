@@ -232,7 +232,18 @@
     ((spec.cda && spec.cda.dataAccesses) || []).forEach(function (d) { if (d.kind) daKinds[d.kind] = 1; });
     var duckdbScript = (daKinds.duckdb && assets.duckdb) ? ("<script>\n" + assets.duckdb + "\n</script>\n") : "";
     var httpvfsScript = (daKinds.httpvfs && assets.httpvfs) ? ("<script>\n" + assets.httpvfs + "\n</script>\n") : "";
-    var boot = "<script>\n" + assets.js + "\n</script>\n" + charts + duckdbScript + httpvfsScript + "<script>\n" + assets.render + "\n</script>\n<script>\n" +
+    // Viridis V2: map panels — inline topojson-client (keep its ISC banner: it is
+    // redistributed inside the export) + the pre-projected geometry the spec's
+    // scales need, as window.STUDIO_GEO. Dashboards without maps carry none of it.
+    var geoScript = "";
+    var geoKeys = Studio.geoAssetKeys(spec);
+    if (geoKeys.length && assets.topojson && assets.geo) {
+      var geoParts = geoKeys.filter(function (k) { return assets.geo[k]; })
+        .map(function (k) { return JSON.stringify(k) + ":" + assets.geo[k]; });
+      geoScript = "<script>\n" + assets.topojson + "\n</script>\n" +
+        "<script>window.STUDIO_GEO = {" + geoParts.join(",") + "};</script>\n";
+    }
+    var boot = "<script>\n" + assets.js + "\n</script>\n" + charts + geoScript + duckdbScript + httpvfsScript + "<script>\n" + assets.render + "\n</script>\n<script>\n" +
       "window.STUDIO_AUTOBOOT=false;\n" +
       "PDC.cdaPath=" + JSON.stringify(cdaPath) + ";\nvar CDAPATH=PDC.cdaPath;\n";
     if (opts.preview) {

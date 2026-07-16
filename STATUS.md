@@ -1096,13 +1096,21 @@
 >     forward to /app/ automatically; manifest start_url → /app/; SW precaches both pages
 >     (cache → v11); test server learned directory-index resolution; docs back-link fixed;
 >     THIRD-PARTY-NOTICES.md seeded (footer-linked) for the geo libraries to come.
-> V2. **Geo foundation — light renderer first (the "D3 mode"):** vendor topojson-client + d3-geo
->     (tiny, MIT, ESM, no build step) + simplified US Atlas counties/states TopoJSON under
->     vendor/geo/. New app/geo.js (renderer-agnostic Geo API: fit/project/hover/click/legend/
->     no-data) + `choropleth` chart type in app/studio-charts.js (SVG/canvas path renderer —
->     small enough to INLINE IN EXPORTS, preserving the byte-identical export invariant). County
->     + State first; CRD (NASS defs) and HUC8 (WBD, aggressively simplified — the one heavy
->     geometry, staged) follow.
+> V2. ✓ **Geo foundation (shipped 2026-07-16) — lighter than planned:** us-atlas ships
+>     PRE-PROJECTED AlbersUsa TopoJSON, so the ONLY runtime lib is topojson-client (~7KB, ISC);
+>     d3-geo/d3-array are BUILD-TIME only (tools/build-geo.mjs, reproducible, commits outputs).
+>     vendor/geo/: counties+states (us-atlas, ISC), county→CRD mapping (NASS, PD; CRD polygons
+>     derived at runtime via topojson.merge), HUC8 Corn Belt (571 subbasins, USGS WBD via the
+>     National Map REST w/ server-side generalization, reprojected onto the same 975×610 plane,
+>     173KB gz). ALL FOUR SCALES SHIPPED (county/state/CRD/HUC8 — Kevin: CRD+HUC8 needed for the
+>     demo). `choropleth` chart type: median-default duplicate aggregation, auto-zoom to data,
+>     hatched no-data + legend, state-border overlay, hover tooltips, id normalization (4/5-digit
+>     FIPS, postal/name/FIPS states, 7/8-digit HUCs), theme-aware computed ramp (license-free).
+>     Exports inline topojson-client (ISC banner intact) + only the geometry the spec needs —
+>     mapless dashboards carry zero geometry; CLI export (tools/lib.js) has parity. Sample engine
+>     emits real Corn Belt FIPS for fips-ish columns so fresh map panels render colored. SW → v12.
+>     Licensing: THIRD-PARTY-NOTICES.md updated (suite-asserted). Marketing site: one modest
+>     clause added per Kevin ("also" feature, not a takeover).
 > V3. **Ensemble views — THE MEDIAN IS THE PRODUCT (user, 2026-07-16):** the goal is a SINGLE
 >     BEST COMMON ESTIMATE, not a comparison of providers — that's the whole point of the
 >     collaborative ("gain a common view"). Design consequences, non-negotiable:
