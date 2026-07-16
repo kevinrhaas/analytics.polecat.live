@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 355,
+    title: 'New connector: PostgreSQL, via any PostgREST endpoint',
+    kind: 'feature',
+    ts: '2026-07-16T02:53:42.000Z',
+    items: [
+      'Connections gains a PostgreSQL (PostgREST) adapter -- point it at any Postgres exposed through PostgREST (self-hosted or managed, not just Supabase) and query it straight from the browser. Just a URL, an optional JWT bearer token, and an optional schema for multi-schema deployments.',
+      'Datasets on it are table-based like Supabase (the same protocol under the hood): a table or view plus an optional raw PostgREST query string, with {{parameters}} allowed in both -- so dashboard template variables flow into filters like region=eq.{{region}} at run time.',
+      'Exercised end-to-end in the test suite against a mock PostgREST server: root reachability, query-string passthrough, bearer-token auth, friendly in-band errors for a missing relation or rejected JWT, and the full connection-to-dataset run path with parameter overrides.',
+    ],
+  },
+  {
     v: 354,
     title: 'Your dashboards now travel: the catalog joins the workspace backend',
     kind: 'feature',

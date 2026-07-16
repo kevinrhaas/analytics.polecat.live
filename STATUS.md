@@ -1083,10 +1083,13 @@
 >    repaint on remote pulls via Workspace 'replaced'. Fixed alongside (recurring clear-data gap):
 >    "Clear local data" never wiped `analytics.workspace.v1` (connections/datasets survived a
 >    "full" reset since the overhaul!) nor `studio-whatsnew-seen` — both added + tested.
-> 2. **More data adapters** (user: "we will add many more"): PostgreSQL (via PostgREST/pg-http or a
->    documented proxy), AWS Redshift (Data API), Azure SQL / Fabric, MotherDuck, CSV/JSON file-drop
->    (local File System Access API), Google Sheets. Each = one file implementing the contract in
->    app/sources/schema.js + registerSource + wizard fields + tests against a mock.
+> 2. **More data adapters** (user: "we will add many more"): ✓ **PostgreSQL via PostgREST (shipped
+>    2026-07-15** — `app/sources/postgrest.js`, data-only, url/token/Accept-Profile fields,
+>    kind:'table' datasets like Supabase since it IS the same protocol; mock-served end-to-end
+>    tests incl. the full connection→dataset→{{params}} run path). Still to do: AWS Redshift
+>    (Data API), Azure SQL / Fabric, MotherDuck, CSV/JSON file-drop (local File System Access
+>    API), Google Sheets. Each = one file implementing the contract in app/sources/schema.js +
+>    registerSource + wizard fields + tests against a mock.
 > 3. **Exported-runtime support for connection-bound datasets** — bundle the needed adapter engines
 >    into exports (like duckdb/httpvfs already do) so a shipped .html can run live against Turso etc.,
 >    with credentials prompted at open (never embedded).
