@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 364,
+    title: 'Explore -- from any dataset to a saved, reusable analysis in four steps',
+    kind: 'feature',
+    ts: '2026-07-16T20:31:31.000Z',
+    items: [
+      'A new Explore section is the fastest path from data to chart. Pick a dataset (your own or a sample), see its rows as a table, choose a chart type -- including the US county map and the Ensemble common-estimate chart -- adjust the column mapping, and watch the LIVE preview render with the real dashboard engine. Name it, save it. That saved "analysis" is a first-class workspace object that syncs to your backend like everything else.',
+      'Analyses go everywhere. Pin one to Home with a star and it greets you on open. Find them in the Studio library under Analyses and click or drag one straight onto any dashboard as a ready-made panel. They embed their data access, so they keep working even if the original dataset is deleted.',
+      'In Simple mode, Explore is now the front door -- the app opens there until you choose otherwise. Workspace upgrades are seamless. Turso backends add the new analyses table automatically on the next sync, and Supabase users get the exact one-line SQL to paste if theirs predates it.',
+    ],
+  },
+  {
     v: 363,
     title: 'It\'s just Analytics now',
     ts: '2026-07-16T19:47:58.000Z',

@@ -183,6 +183,10 @@
       var byTable, stmts = [];
       try { byTable = WS.snapshotToRows(snapshot); } catch (e) { return Promise.resolve({ ok: false, error: e.message }); }
       WS.TABLE_NAMES.forEach(function (t) {
+        // additive-schema self-heal: a workspace provisioned before a table
+        // existed (e.g. v1 → v2 added analyses) gets it created on the next
+        // save — idempotent DDL, no manual step for Turso users.
+        stmts.push({ sql: WS.tableDDL(t) });
         stmts.push({ sql: 'DELETE FROM "' + t + '"' });
         byTable[t].forEach(function (rec) {
           var keys = Object.keys(rec.cols);

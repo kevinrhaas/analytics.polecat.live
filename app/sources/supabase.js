@@ -146,10 +146,22 @@
       var byTable;
       try { byTable = WS.snapshotToRows(snapshot); } catch (e) { return Promise.resolve({ ok: false, error: e.message }); }
       var chain = Promise.resolve();
+      // a write that lands on a missing table (v1 workspace, v2 client) must
+      // FAIL LOUDLY, not silently skip — rest() only throws on auth errors.
+      function mustOk(t) {
+        return function (r) {
+          if (r && r.ok === false) {
+            return r.text().then(function (b) {
+              throw new Error('HTTP ' + r.status + ' writing "' + t + '": ' + String(b || "").slice(0, 140));
+            });
+          }
+          return r;
+        };
+      }
       WS.TABLE_NAMES.forEach(function (t) {
         // replace-all: clear then bulk upsert (metadata-sized, so this is fine)
         chain = chain.then(function () {
-          return rest(cfg, "/" + t + "?id=not.is.null", { method: "DELETE" });
+          return rest(cfg, "/" + t + "?id=not.is.null", { method: "DELETE" }).then(mustOk(t));
         }).then(function () {
           var rows = byTable[t].map(function (rec) {
             var o = { id: rec.id, data: rec.data };
@@ -157,14 +169,22 @@
             return o;
           });
           if (!rows.length) return null;
-          return rest(cfg, "/" + t, { method: "POST", headers: { Prefer: "resolution=merge-duplicates" }, body: JSON.stringify(rows) });
+          return rest(cfg, "/" + t, { method: "POST", headers: { Prefer: "resolution=merge-duplicates" }, body: JSON.stringify(rows) }).then(mustOk(t));
         });
       });
       return chain.then(function () {
         var meta = WS.metaRows(snapshot).map(function (m) { return { key: m.key, value: m.value }; });
-        return rest(cfg, "/" + WS.META_TABLE, { method: "POST", headers: { Prefer: "resolution=merge-duplicates" }, body: JSON.stringify(meta) });
+        return rest(cfg, "/" + WS.META_TABLE, { method: "POST", headers: { Prefer: "resolution=merge-duplicates" }, body: JSON.stringify(meta) }).then(mustOk(WS.META_TABLE));
       }).then(function () { return { ok: true }; })
-        .catch(function (e) { return { ok: false, error: e.message }; });
+        .catch(function (e) {
+          var msg = e.message || String(e);
+          // v1 → v2 delta: Supabase can't DDL over REST, so a pre-analyses
+          // workspace needs one paste-me statement — say so instead of a bare 404.
+          if (/analyses/.test(msg)) {
+            msg += " — your workspace predates the analyses table. Run this once in Supabase → SQL editor: " + WS.provisionDeltaSQL();
+          }
+          return { ok: false, error: msg };
+        });
     },
 
     // ---- data plane ---------------------------------------------------------

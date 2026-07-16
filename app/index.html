@@ -31,6 +31,7 @@
     </button>
     <div class="rail-group-lbl rail-lbl" aria-hidden="true">Workspace</div>
     <button class="rail-item" data-sec="home" title="Home" aria-label="Home"><span class="rail-ic" data-ic="home"></span><span class="rail-lbl">Home</span></button>
+    <button class="rail-item" data-sec="explore" title="Explore" aria-label="Explore"><span class="rail-ic" data-ic="trend-up"></span><span class="rail-lbl">Explore</span></button>
     <button class="rail-item" data-sec="dashboards" title="Dashboards" aria-label="Dashboards"><span class="rail-ic" data-ic="layers"></span><span class="rail-lbl">Dashboards</span></button>
     <button class="rail-item" data-sec="datasets" title="Datasets" aria-label="Datasets"><span class="rail-ic" data-ic="db"></span><span class="rail-lbl">Datasets</span></button>
     <button class="rail-item" data-sec="connections" title="Connections" aria-label="Connections"><span class="rail-ic" data-ic="link"></span><span class="rail-lbl">Connections</span></button>
@@ -68,6 +69,14 @@
         </div>
       </div>
       <div id="repoResults"></div>
+    </div>
+  </section>
+  <section id="secExplore" class="app-sec has-content" hidden>
+    <div class="repo-wrap">
+      <div class="repo-hero"><h1>Explore</h1>
+        <p>Start from a dataset, see it as a table, pick a chart, and save the result as an <b>analysis</b> — a reusable chart you can pin to Home or drop into any dashboard.</p>
+      </div>
+      <div id="xpBody" class="xp-body"></div>
     </div>
   </section>
   <section id="secDatasets" class="app-sec has-content" hidden>

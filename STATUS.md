@@ -1164,12 +1164,28 @@
 >     counties even under SwiftShader, zoom buttons, hover highlight). Recommend GL for the
 >     Viridis live demo dashboards, SVG for everything shipped wide. Suite exercises REAL GL
 >     boot in CI (SwiftShader) + the fallback path + lean/inline export splits.
-> V5. **Explore designer (new rail section):** dataset-first flow — pick dataset → table preview
->     → pick viz (incl. choropleth/ensemble) → map columns (geo id, value, time, series) → add
->     filters + {{params}} → SAVE as an "Analysis" (new workspace `analyses` table) → analyses
->     are drag-in objects in the Studio library and pinnable to Home. Simple-mode-first UI.
->     NOTE: new WS table ⇒ SCHEMA_VERSION bump + additive migration + provisionDDL delta (manual
->     SQL notice for existing Supabase workspaces).
+> V5. ✓ **Explore designer (shipped 2026-07-16):** dataset-first flow in a new rail section —
+>     pick dataset (workspace first, samples below; live rows w/ typed-sample fallback) → table
+>     preview → chart chips (everyday set + choropleth + ensembleSeries w/ scale + refSeries
+>     options) → guessed column mappings (editable) → LIVE preview via the REAL Studio.buildHtml
+>     in an iframe → SAVE as an "Analysis" (workspace `analyses` table; SCHEMA_VERSION 1→2,
+>     additive: local store tolerates, Turso save() self-heals via ensure-DDL — tested — and
+>     Supabase gets provisionDeltaSQL in its error hint; its save() also learned to FAIL LOUDLY
+>     on non-ok writes instead of silently skipping). Analyses embed their da (self-contained,
+>     survive dataset deletion), appear in the Studio library ("Analyses" group, click-add +
+>     drag-to-canvas), pin to Home (★ → card → click-through re-opens in Explore), and
+>     "Add to dashboard" pushes a panel + da into the current spec. Simple mode with no saved
+>     section boots into Explore (Kevin-confirmed direction). Explore param/filter authoring
+>     deferred to the V8 jobs layer (analyses inherit dataset {{params}} defaults).
+>
+> ── ★ HANDOFF (Kevin, 2026-07-16): the REST OF THIS TRACK (V6→V9, in order) is now the ──
+> ── TOP PRIORITY for the HOURLY FOCUS RUNS. Complete the Viridis requirements FIRST,   ──
+> ── before any other backlog: V6 Home-as-instant-analytics, V7 the demo pack (the RFP  ──
+> ── demo itself), V8 prep/load jobs (the base DATA-MANAGEMENT INFRASTRUCTURE — jobs,   ──
+> ── mappings, aggregation/rollups incl. acreage-weighted mean, joins/unions,           ──
+> ── materialized datasets, repeatable loads), V9 scientific-honesty polish. Satisfy    ──
+> ── ALL RFP requirements (bid due 7/31; see the GOAL block above). One slice per run,  ──
+> ── same PR discipline; coordinate via open steward/* PRs.                             ──
 > V6. **Home = instant analytics:** per-dashboard "Feature on Home" flag; Home renders featured
 >     dashboards LIVE (view-only preview iframes, click-through to open) + pinned analyses as
 >     widgets; Simple mode boots to Home with featured content before any machinery. Pins/

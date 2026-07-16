@@ -486,8 +486,8 @@ function serve() {
     ok("WS: data adapters are data-only bridges over the proven engines (in-band errors, meta-plane refusals)",
       wsDataAdapters.dataOnly && wsDataAdapters.fieldKeys === "account,token,warehouse,database,schema,role" &&
       wsDataAdapters.badIsInBand && wsDataAdapters.refuses && wsDataAdapters.noSqlInBand, JSON.stringify(wsDataAdapters));
-    ok("WS: workspace schema is analytics-owned (connections/datasets/dashboards)",
-      wsRegistry.appId === "analytics" && wsRegistry.tableNames.join(",") === "connections,datasets,dashboards", JSON.stringify(wsRegistry.tableNames));
+    ok("WS: workspace schema is analytics-owned (connections/datasets/dashboards/analyses — v2)",
+      wsRegistry.appId === "analytics" && wsRegistry.tableNames.join(",") === "connections,datasets,dashboards,analyses", JSON.stringify(wsRegistry.tableNames));
 
     // ---- PostgREST adapter (★★★-2): end-to-end against a mock PostgREST -----
     console.log("\n• PostgREST data adapter (★★★-2)");
@@ -1010,6 +1010,150 @@ function serve() {
       glLive.canvas === true && glLive.nav === 1 && /^4/.test(glLive.legend || "") && (glLive.legend || "").indexOf("9") > 0 && glLive.svgPaths === 0,
       JSON.stringify(glLive));
 
+    // ---- EXPLORE (Viridis V5): dataset-first designer → saved analyses ------
+    console.log("\n• EXPLORE: dataset-first analysis designer (Viridis V5)");
+    const xpSchema = await page.evaluate(function () {
+      return { v: Studio.WS.SCHEMA_VERSION,
+        hasTable: Studio.WS.TABLE_NAMES.indexOf("analyses") >= 0,
+        ddl: Studio.WS.provisionDDL().join(";"),
+        delta: Studio.WS.provisionDeltaSQL() };
+    });
+    ok("XP: workspace schema v2 adds the analyses table — provisionDDL creates it, provisionDeltaSQL carries the paste-me upgrade",
+      xpSchema.v === 2 && xpSchema.hasTable && /CREATE TABLE IF NOT EXISTS "analyses"/.test(xpSchema.ddl) &&
+      /CREATE TABLE IF NOT EXISTS "analyses"/.test(xpSchema.delta), JSON.stringify({ v: xpSchema.v, hasTable: xpSchema.hasTable }));
+    // v1 → v2 self-heal on Turso: drop the analyses table (simulating a workspace
+    // provisioned before it existed), save, and the ensure-DDL recreates it.
+    const xpHeal = await page.evaluate(async function () {
+      var cfg = { url: location.origin + "/__turso", token: "t" };
+      var src = Studio.sourceById("turso");
+      await src.provision(cfg, Studio.WS.emptySnapshot());              // a provisioned workspace…
+      await src.queryData(cfg, { kind: "sql", sql: 'DROP TABLE IF EXISTS "analyses"' }); // …from BEFORE v2
+      var snap = Studio.WS.emptySnapshot();
+      snap.tables.analyses = [{ id: "an-heal", name: "healed", chartType: "bars", da: { id: "d" }, chart: { type: "bars", map: {}, opts: {} } }];
+      var saved = await src.save(cfg, snap);
+      var back = await src.load(cfg);
+      await src.drop(cfg); // leave the mock EMPTY — the adapter e2e later probes a pristine backend
+      return { ok: saved.ok, rows: (back.tables.analyses || []).length, name: back.tables.analyses[0] && back.tables.analyses[0].name };
+    });
+    ok("XP: a Turso workspace provisioned BEFORE v2 self-heals on save — the analyses table is created and the row round-trips",
+      xpHeal.ok === true && xpHeal.rows === 1 && xpHeal.name === "healed", JSON.stringify(xpHeal));
+    // the full designer flow, driven through the UI
+    await page.evaluate(function () { window.__studioShellSetSection("explore"); });
+    await page.waitForTimeout(300);
+    const xpList = await page.evaluate(function () {
+      return { visible: !document.getElementById("secExplore").hidden,
+        railItem: !!document.querySelector('.rail-item[data-sec="explore"]'),
+        datasets: document.querySelectorAll(".xp-ds").length };
+    });
+    ok("XP: the Explore rail section renders with a dataset-first picker (workspace datasets + samples)",
+      xpList.visible && xpList.railItem && xpList.datasets >= 40, JSON.stringify(xpList));
+    // pick the first SAMPLE dataset deterministically (earlier suite blocks may
+    // have left workspace datasets around whose connections are gone)
+    await page.evaluate(function () {
+      var btn = [].filter.call(document.querySelectorAll(".xp-ds"), function (b) {
+        return b.getAttribute("data-xp-ds").indexOf("sample") === 0;
+      })[0];
+      btn.click();
+    });
+    await page.waitForTimeout(600);
+    const xpPicked = await page.evaluate(function () {
+      return { tableRows: document.querySelectorAll(".xp-table tbody tr").length,
+        cols: document.querySelectorAll(".xp-table thead th").length,
+        chips: document.querySelectorAll(".xp-chip").length,
+        mapSelects: document.querySelectorAll("[data-xp-field]").length };
+    });
+    ok("XP: picking a dataset shows its rows as a table, the chart-type chips (incl. map + ensemble), and guessed column mappings",
+      xpPicked.tableRows > 0 && xpPicked.cols > 0 && xpPicked.chips === 9 && xpPicked.mapSelects > 0, JSON.stringify(xpPicked));
+    // live preview = the REAL renderer in an iframe
+    const xpPrev = await page.evaluate(function () {
+      return new Promise(function (resolve) {
+        var t0 = Date.now();
+        (function poll() {
+          var f = document.querySelector(".xp-ifr"), doc = null;
+          try { doc = f && f.contentDocument; } catch (e) {}
+          var hit = doc && doc.querySelector(".pdc-grid svg, .pdc-grid table");
+          if (hit) resolve({ rendered: true });
+          else if (Date.now() - t0 > 10000) resolve({ rendered: false });
+          else setTimeout(poll, 120);
+        })();
+      });
+    });
+    ok("XP: the live preview renders the actual chart (Studio.buildHtml in an iframe, fed the previewed rows)", xpPrev.rendered);
+    // switch type → save → the analysis lands in the workspace store
+    await page.click('[data-xp-type="donut"]');
+    await page.waitForTimeout(400);
+    await page.fill("#xpName", "Suite analysis");
+    await page.click("#xpSaveBtn");
+    await page.waitForTimeout(350);
+    const xpSaved = await page.evaluate(function () {
+      var rows = Studio.Workspace.all("analyses").filter(function (a) { return a.name === "Suite analysis"; });
+      var a = rows[0];
+      return { n: rows.length, type: a && a.chartType, hasDa: !!(a && a.da && a.da.id && (a.da.columns || []).length),
+        inSnapshot: Studio.Workspace.snapshot().tables.analyses.some(function (r) { return r.name === "Suite analysis"; }) };
+    });
+    ok("XP: Save writes a self-contained analysis row (embedded data access + chart mapping) that rides the workspace snapshot",
+      xpSaved.n === 1 && xpSaved.type === "donut" && xpSaved.hasDa && xpSaved.inSnapshot, JSON.stringify(xpSaved));
+    // saved analyses are drag-in objects in the Studio library + addable panels
+    const xpLib = await page.evaluate(function () {
+      window.__studioShellSetSection("studio");
+      var before = window.__STUDIO_STATE.spec.panels.length;
+      var a = Studio.Workspace.all("analyses").filter(function (x) { return x.name === "Suite analysis"; })[0];
+      window.__studioExplore.addToSpec(a.id);
+      var sp = window.__STUDIO_STATE.spec;
+      var p = sp.panels[sp.panels.length - 1];
+      var da = (sp.cda.dataAccesses || []).filter(function (d) { return d.id === p.chart.da; })[0];
+      var libGroup = document.querySelector(".lib-analyses");
+      return { added: sp.panels.length === before + 1, type: p.chart.type, daBound: !!da,
+        titled: p.title === "Suite analysis",
+        inLibrary: !!libGroup && libGroup.textContent.indexOf("Suite analysis") >= 0 };
+    });
+    ok("XP: an analysis drops into the current dashboard as a panel (same chart + its own data access) and shows in the library's Analyses group",
+      xpLib.added && xpLib.type === "donut" && xpLib.daBound && xpLib.titled && xpLib.inLibrary, JSON.stringify(xpLib));
+    // pin → Home card → click-through back into Explore with the analysis loaded
+    const xpPin = await page.evaluate(function () {
+      var a = Studio.Workspace.all("analyses").filter(function (x) { return x.name === "Suite analysis"; })[0];
+      window.__studioExplore.togglePin(a.id);
+      window.__studioShellSetSection("home");
+      var card = document.querySelector('[data-home-analysis="' + a.id + '"]');
+      if (card) card.click();
+      return { hadCard: !!card };
+    });
+    await page.waitForTimeout(500);
+    const xpPinState = await page.evaluate(function () {
+      return { section: !document.getElementById("secExplore").hidden,
+        loaded: window.__studioExplore.state.name };
+    });
+    ok("XP: pinning surfaces the analysis on Home; its card opens Explore with that analysis loaded",
+      xpPin.hadCard && xpPinState.section && xpPinState.loaded === "Suite analysis",
+      JSON.stringify({ hadCard: xpPin.hadCard, section: xpPinState.section, loaded: xpPinState.loaded }));
+    // cleanup + restore studio section for later tests
+    await page.evaluate(function () {
+      Studio.Workspace.all("analyses").forEach(function (a) { Studio.Workspace.remove("analyses", a.id, { silent: true }); });
+      Studio.Workspace.notify("analyses");
+      var sp = window.__STUDIO_STATE.spec;
+      sp.panels = sp.panels.filter(function (p) { return p.title !== "Suite analysis"; });
+      window.__studioShellSetSection("studio");
+    });
+    await page.waitForTimeout(250);
+    // Simple mode boots into Explore when the user hasn't chosen a section yet
+    const xpSimple = await browser.newPage();
+    await xpSimple.addInitScript(() => { try {
+      sessionStorage.setItem("studio-gate-ok", "1");
+      localStorage.setItem("studio-welcome-seen", "1");
+      localStorage.setItem("studio-simple-mode", "1");
+      localStorage.removeItem("studio-shell-section");
+    } catch (e) {} });
+    await xpSimple.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
+    await xpSimple.waitForFunction(() => window.__STUDIO_STATE && window.__STUDIO_STATE.assets.js.length > 0, { timeout: 15000 });
+    await xpSimple.waitForTimeout(400);
+    const xpSimpleState = await xpSimple.evaluate(function () {
+      return { explore: !document.getElementById("secExplore").hidden,
+        active: (document.querySelector(".rail-item.active") || {}).getAttribute ? document.querySelector(".rail-item.active").getAttribute("data-sec") : "" };
+    });
+    ok("XP: Simple mode with no saved section boots into Explore (the dataset-first front door); a user's own choice still wins",
+      xpSimpleState.explore && xpSimpleState.active === "explore", JSON.stringify(xpSimpleState));
+    await xpSimple.close();
+
     const wsStore = await page.evaluate(function () {
       var W = Studio.Workspace, events = [];
       var off = W.on("change", function (p) { events.push(p.table + ":" + (p.removed ? "del" : "put")); });
@@ -1097,7 +1241,7 @@ function serve() {
     }, PORT);
     ok("WS: turso adapter end-to-end — probe(empty)→provision→probe(ours, app=analytics)",
       wsTurso.test.ok && wsTurso.probeEmpty === "empty" && wsTurso.provision.ok &&
-      wsTurso.probeState === "polecat" && wsTurso.probeApp === "analytics" && wsTurso.probeVer === 1, JSON.stringify(wsTurso));
+      wsTurso.probeState === "polecat" && wsTurso.probeApp === "analytics" && wsTurso.probeVer === 2, JSON.stringify(wsTurso));
     ok("WS: turso adapter round-trips a full workspace snapshot (save → load)",
       wsTurso.save.ok && wsTurso.loadedConn === "warehouse" && wsTurso.loadedDs === "SELECT * FROM orders" && wsTurso.loadedSetting === "polecat", JSON.stringify(wsTurso));
     ok("WS: turso data plane answers queryData and drop() resets to empty",
@@ -13998,20 +14142,20 @@ function serve() {
       var items = nav ? Array.prototype.slice.call(nav.querySelectorAll(".rail-item[data-sec]")) : [];
       var studioBtn = nav && nav.querySelector('.rail-item[data-sec="studio"]');
       return {
-        ok: !!nav && items.length === 6 && !!studioBtn && studioBtn.classList.contains("active")
+        ok: !!nav && items.length === 7 && !!studioBtn && studioBtn.classList.contains("active")
           && studioBtn.getAttribute("aria-current") === "page",
         secs: items.map(function (b) { return b.getAttribute("data-sec"); }),
         appMainHidden: document.getElementById("appMain").hidden,
         collapseBtn: !!document.getElementById("railCollapse")
       };
     });
-    ok("Z1: rail has Home/Repository/Datasets/Connections/Studio/Settings + Studio active by default", z1Boot.ok, JSON.stringify(z1Boot));
+    ok("Z1: rail has Home/Explore/Dashboards/Datasets/Connections/Studio/Settings + Studio active by default", z1Boot.ok, JSON.stringify(z1Boot));
     ok("Z1: #appMain (the builder) is visible by default", z1Boot.appMainHidden === false, JSON.stringify(z1Boot));
 
     // Z1-2: rail icons are real inline SVGs (Studio.icon(), theme-aware — no emoji/unicode glyphs)
     const z1Icons = await page.evaluate(function () {
       var svgs = document.querySelectorAll("#railNav .rail-ic svg");
-      return { ok: svgs.length === 9, count: svgs.length }; // 6 sections + Search/⌘K (Track N) + Help (Z11) + collapse toggle
+      return { ok: svgs.length === 10, count: svgs.length }; // 7 sections + Search/⌘K (Track N) + Help (Z11) + collapse toggle
     });
     ok("Z1: rail buttons render inline SVG icons (Studio.icon helper)", z1Icons.ok, JSON.stringify(z1Icons));
 
@@ -17892,7 +18036,7 @@ function serve() {
     // are fetched during install too (from the index we just cached), so a first-ever offline
     // visit still has a full library/gallery, not just a blank shell.
     const pwaDataPrecached = await pwaPage.evaluate(async function () {
-      const cache = await caches.open("studio-shell-v15");
+      const cache = await caches.open("studio-shell-v16");
       const keys = (await cache.keys()).map((r) => new URL(r.url).pathname.replace(/^\//, ""));
       const exIndex = await fetch("data/examples/index.json").then((r) => r.json());
       const missingExamples = exIndex.filter((ex) => keys.indexOf("data/examples/" + ex.file) < 0);
