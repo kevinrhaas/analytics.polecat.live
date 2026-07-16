@@ -1086,10 +1086,16 @@
 > 2. **More data adapters** (user: "we will add many more"): ✓ **PostgreSQL via PostgREST (shipped
 >    2026-07-15** — `app/sources/postgrest.js`, data-only, url/token/Accept-Profile fields,
 >    kind:'table' datasets like Supabase since it IS the same protocol; mock-served end-to-end
->    tests incl. the full connection→dataset→{{params}} run path). Still to do: AWS Redshift
->    (Data API), Azure SQL / Fabric, MotherDuck, CSV/JSON file-drop (local File System Access
->    API), Google Sheets. Each = one file implementing the contract in app/sources/schema.js +
->    registerSource + wizard fields + tests against a mock.
+>    tests incl. the full connection→dataset→{{params}} run path). ✓ **CSV/JSON file-drop
+>    (shipped 2026-07-16** — `app/sources/localfile.js`, kind:'file' datasets whose content
+>    rides INSIDE the row (offline + mirrors with the workspace; ~2MB cap pointing bigger data
+>    at DuckDB remote-file), drop-zone editor branch, RFC4180 CSV w/ delimiter sniff + typed
+>    numbers, JSON array-of-objects w/ key-union columns; NOTE: went inline-content instead of
+>    File System Access API handles — handles can't persist in localStorage, are Chromium-only,
+>    and re-prompt permissions; an FSA "link live file" variant can layer on later). Still to
+>    do: AWS Redshift (Data API), Azure SQL / Fabric, MotherDuck, Google Sheets. Each = one
+>    file implementing the contract in app/sources/schema.js + registerSource + wizard fields +
+>    tests against a mock.
 > 3. **Exported-runtime support for connection-bound datasets** — bundle the needed adapter engines
 >    into exports (like duckdb/httpvfs already do) so a shipped .html can run live against Turso etc.,
 >    with credentials prompted at open (never embedded).
