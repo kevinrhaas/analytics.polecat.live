@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 357,
+    title: 'New connector: Google Sheets, straight from a share link',
+    kind: 'feature',
+    ts: '2026-07-16T03:43:30.000Z',
+    items: [
+      'Connections gains a Google Sheets adapter -- paste the link of any sheet shared as "anyone with the link can view" and chart it straight from the browser. No OAuth, no API key, no backend.',
+      'Datasets pick a tab and can use Google\'s own query language (select A, sum(B) group by A) -- with {{parameters}} allowed, so dashboard template variables flow into clauses like where A = \'{{region}}\' at run time. Header labels become column names and dates render in their formatted form.',
+      'Friendly failure modes throughout: a private sheet answers with a "share the link" hint rather than a raw error, and a URL without a spreadsheet id says exactly what to paste. Private-sheet OAuth access is a noted follow-up.',
+    ],
+  },
+  {
     v: 356,
     title: 'Drop a CSV or JSON file, get a chartable dataset',
     kind: 'feature',

@@ -111,6 +111,46 @@ function handleMockPostgrest(req, rep, p) {
   return send(200, rows);
 }
 
+// ---- mock Google Sheets gviz endpoint (app/sources/gsheets.js tests) --------
+// Real shape: /__gsheets/spreadsheets/d/<ID>/gviz/tq?sheet=…&tq=… answering the
+// `google.visualization.Query.setResponse({...})` wrapper. TESTSHEET has two
+// tabs; PRIVATESHEET answers the real access_denied error payload; a tq with
+// a `where` clause returns the filtered subset (enough to prove passthrough).
+function handleMockGviz(req, rep, p) {
+  const send = (obj) => {
+    rep.writeHead(200, { "Content-Type": "application/javascript", "Access-Control-Allow-Origin": "*" });
+    rep.end("/*O_o*/\ngoogle.visualization.Query.setResponse(" + JSON.stringify(obj) + ");");
+  };
+  const m = p.match(/^\/__gsheets\/spreadsheets\/d\/([A-Za-z0-9_-]+)\/gviz\/tq$/);
+  if (!m) { rep.writeHead(404); return rep.end("404"); }
+  if (m[1] === "PRIVATESHEET1x") {
+    return send({ version: "0.6", status: "error", errors: [{ reason: "access_denied", detailed_message: "The spreadsheet is private" }] });
+  }
+  if (m[1] !== "TESTSHEET1234x") {
+    return send({ version: "0.6", status: "error", errors: [{ reason: "invalid_query", detailed_message: "Unknown spreadsheet" }] });
+  }
+  const qs = new URLSearchParams(req.url.split("?")[1] || "");
+  const tab = qs.get("sheet") || "Sales";
+  const tq = qs.get("tq") || "";
+  if (tab === "Costs") {
+    return send({ version: "0.6", status: "ok", table: {
+      cols: [{ id: "A", label: "item", type: "string" }, { id: "B", label: "cost", type: "number" }],
+      rows: [{ c: [{ v: "Compute" }, { v: 900 }] }] } });
+  }
+  let rows = [
+    { c: [{ v: "EMEA" }, { v: 120 }, { v: "Date(2026,0,15)", f: "Jan 15, 2026" }] },
+    { c: [{ v: "AMER" }, { v: 200 }, { v: "Date(2026,1,2)", f: "Feb 2, 2026" }] },
+    { c: [{ v: "APAC" }, { v: 80 }, null] },
+  ];
+  if (/where/i.test(tq)) {
+    const wm = tq.match(/A\s*=\s*'([^']*)'/);
+    rows = wm ? rows.filter((r) => r.c[0].v === wm[1]) : rows;
+  }
+  return send({ version: "0.6", status: "ok", table: {
+    cols: [{ id: "A", label: "region", type: "string" }, { id: "B", label: "total", type: "number" }, { id: "C", label: "", type: "date" }],
+    rows: rows } });
+}
+
 function serve() {
   return new Promise((res) => {
     const srv = http.createServer((req, rep) => {
@@ -122,6 +162,7 @@ function serve() {
         return rep.end(JSON.stringify({ message: "JWT required" }));
       }
       if (p === "/__postgrest/" || p.indexOf("/__postgrest/") === 0) return handleMockPostgrest(req, rep, p);
+      if (p.indexOf("/__gsheets/") === 0) return handleMockGviz(req, rep, p);
       const fp = path.join(ROOT, p);
       if (!fp.startsWith(ROOT) || !fs.existsSync(fp) || fs.statSync(fp).isDirectory()) { rep.writeHead(404); return rep.end("404"); }
       rep.writeHead(200, { "Content-Type": MIME[path.extname(fp)] || "application/octet-stream" });
@@ -416,10 +457,10 @@ function serve() {
         appId: S.WS.APP_ID, tableNames: S.WS.TABLE_NAMES
       };
     });
-    ok("WS: registry carries local/turso/supabase/firebase + the eight data adapters, with caps planes",
-      wsRegistry.ids.join(",") === "local,turso,supabase,firebase,postgrest,file,snowflake,databricks,bigquery,duckdb,sqlite,httpsql" &&
+    ok("WS: registry carries local/turso/supabase/firebase + the nine data adapters, with caps planes",
+      wsRegistry.ids.join(",") === "local,turso,supabase,firebase,postgrest,file,gsheets,snowflake,databricks,bigquery,duckdb,sqlite,httpsql" &&
       wsRegistry.localMetaOnly && wsRegistry.tursoBoth &&
-      wsRegistry.metaCount === 4 && wsRegistry.dataCount === 11 && wsRegistry.byId, JSON.stringify(wsRegistry));
+      wsRegistry.metaCount === 4 && wsRegistry.dataCount === 12 && wsRegistry.byId, JSON.stringify(wsRegistry));
 
     const wsDataAdapters = await page.evaluate(async function () {
       var sf = Studio.sourceById("snowflake");
@@ -610,6 +651,74 @@ function serve() {
       fileRun.rows === '[["EMEA",120],["AMER",200]]' && fileRun.cols === "region,total" && fileRun.lastRunOk, JSON.stringify(fileRun));
     fs.unlinkSync(fixturePath);
 
+    // ---- Google Sheets adapter (★★★-2): gviz endpoint against a mock --------
+    console.log("\n• Google Sheets adapter (★★★-2)");
+    const gsShape = await page.evaluate(async function () {
+      var gs = Studio.sourceById("gsheets");
+      var refuse = await gs.provision({});
+      var noUrl = await gs.queryData({}, { kind: "sheet" });
+      var badUrl = await gs.queryData({ url: "https://example.com/not-a-sheet" }, { kind: "sheet" });
+      return {
+        present: !!gs, dataOnly: !!(gs && !gs.caps.meta && gs.caps.data),
+        fieldKeys: gs ? gs.fields.map(function (f) { return f.key; }).join(",") : "",
+        refuses: refuse.ok === false && /workspace/i.test(refuse.error || ""),
+        noUrlInBand: /required/i.test(noUrl.error || ""),
+        badUrlInBand: /spreadsheet id/i.test(badUrl.error || "")
+      };
+    });
+    ok("GS: gsheets adapter registered — data-only, one url field, meta refusals, in-band missing/bad-url errors",
+      gsShape.present && gsShape.dataOnly && gsShape.fieldKeys === "url" && gsShape.refuses && gsShape.noUrlInBand && gsShape.badUrlInBand,
+      JSON.stringify(gsShape));
+    const gsLive = await page.evaluate(async function () {
+      var gs = Studio.sourceById("gsheets");
+      var cfg = { url: location.origin + "/__gsheets/spreadsheets/d/TESTSHEET1234x/edit#gid=0" };
+      var test = await gs.testData(cfg);
+      var all = await gs.queryData(cfg, { kind: "sheet" });
+      var tab = await gs.queryData(cfg, { kind: "sheet", sheet: "Costs" });
+      var filtered = await gs.queryData(cfg, { kind: "sheet", query: "select A, B where A = 'EMEA'" });
+      var priv = await gs.testData({ url: location.origin + "/__gsheets/spreadsheets/d/PRIVATESHEET1x/edit" });
+      return {
+        testOk: test.ok === true,
+        cols: all.columns.join("|"), rowCount: all.rows.length,
+        dateFormatted: all.rows[0][2], nullCell: all.rows[2][2],
+        tabCols: tab.columns.join("|"), tabRow: JSON.stringify(tab.rows[0]),
+        filteredRows: JSON.stringify(filtered.rows.map(function (r) { return r.slice(0, 2); })),
+        privFriendly: priv.ok === false && /anyone with the link/i.test(priv.error || "")
+      };
+    });
+    ok("GS: testData validates the sheet; a plain read returns labeled columns (id fallback for unlabeled) and rows",
+      gsLive.testOk && gsLive.cols === "region|total|C" && gsLive.rowCount === 3, JSON.stringify(gsLive));
+    ok("GS: gviz Date(...) cells render their formatted value; null cells become empty strings",
+      gsLive.dateFormatted === "Jan 15, 2026" && gsLive.nullCell === "", JSON.stringify(gsLive));
+    ok("GS: the tab selector and the gviz tq query both pass through (filtered read returns just EMEA)",
+      gsLive.tabCols === "item|cost" && gsLive.tabRow === '["Compute",900]' && gsLive.filteredRows === '[["EMEA",120]]',
+      JSON.stringify(gsLive));
+    ok("GS: a private sheet comes back as a friendly share-the-link hint, not a raw error", gsLive.privFriendly, JSON.stringify(gsLive));
+    // Full workspace path: connection → kind:'sheet' dataset → runDataset with a
+    // {{param}} flowing into the tq where-clause, learned columns, lastRun.
+    const gsDataset = await page.evaluate(async function () {
+      var W = Studio.Workspace;
+      W.put("connections", { id: "cx-gs-test", name: "Mock Sheet", adapter: "gsheets", cfg: { url: location.origin + "/__gsheets/spreadsheets/d/TESTSHEET1234x/edit" } }, { silent: true });
+      var d = { id: "ds-gs-test", name: "Sales by region", connectionId: "cx-gs-test", kind: "sheet",
+        query: "select A, B where A = '{{region}}'", params: [{ key: "region", value: "AMER" }] };
+      W.put("datasets", d, { silent: true });
+      var r = await window.__studioRunDataset(d, null);
+      var override = await window.__studioRunDataset(d, { region: "APAC" });
+      var saved = W.get("datasets", "ds-gs-test");
+      W.remove("datasets", "ds-gs-test", { silent: true });
+      W.remove("connections", "cx-gs-test", { silent: true });
+      return {
+        rows: JSON.stringify(r.rows.map(function (x) { return x.slice(0, 2); })),
+        overrideRows: JSON.stringify(override.rows.map(function (x) { return x.slice(0, 2); })),
+        learnedCols: (saved.columns || []).slice(0, 2).join(","), lastRunOk: !!(saved.lastRun && saved.lastRun.ok)
+      };
+    });
+    ok("GS: a workspace dataset on a sheets connection runs live — {{params}} flow into the tq where-clause and dashboard variables override",
+      gsDataset.rows === '[["AMER",200]]' && gsDataset.overrideRows === '[["APAC",80]]',
+      JSON.stringify(gsDataset));
+    ok("GS: a successful run teaches the dataset its columns and stamps lastRun",
+      gsDataset.learnedCols === "region,total" && gsDataset.lastRunOk, JSON.stringify(gsDataset));
+
     const wsStore = await page.evaluate(function () {
       var W = Studio.Workspace, events = [];
       var off = W.on("change", function (p) { events.push(p.table + ":" + (p.removed ? "del" : "put")); });
@@ -734,7 +843,7 @@ function serve() {
       };
     });
     ok("CX: wizard step 1 lists every data-capable adapter with workspace-capable badges",
-      cxWiz.count === 11 && cxWiz.wsCapable === 3, JSON.stringify(cxWiz)); // 11 = the 9 originals + postgrest + file (★★★-2)
+      cxWiz.count === 12 && cxWiz.wsCapable === 3, JSON.stringify(cxWiz)); // 12 = the 9 originals + postgrest + file + gsheets (★★★-2)
 
     // pick Turso → step 2 → point it at the mock pipeline → inline Test → Save
     await page.evaluate(function () {
@@ -17388,7 +17497,7 @@ function serve() {
     // are fetched during install too (from the index we just cached), so a first-ever offline
     // visit still has a full library/gallery, not just a blank shell.
     const pwaDataPrecached = await pwaPage.evaluate(async function () {
-      const cache = await caches.open("studio-shell-v9");
+      const cache = await caches.open("studio-shell-v10");
       const keys = (await cache.keys()).map((r) => new URL(r.url).pathname.replace(/^\//, ""));
       const exIndex = await fetch("data/examples/index.json").then((r) => r.json());
       const missingExamples = exIndex.filter((ex) => keys.indexOf("data/examples/" + ex.file) < 0);

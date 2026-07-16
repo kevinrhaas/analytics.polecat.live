@@ -5397,6 +5397,7 @@
     if (adapterId === "supabase" || adapterId === "postgrest") return "table"; // both speak PostgREST
     if (adapterId === "firebase") return "collection";
     if (adapterId === "file") return "file"; // CSV/JSON drop — content rides in the dataset row
+    if (adapterId === "gsheets") return "sheet"; // tab + optional gviz tq query
     return "sql";
   }
   // Resolve a dataset's definition + params into what adapter.queryData expects.
@@ -5408,6 +5409,7 @@
     if (def.kind === "table") { def.table = Studio.WS.applyParams(d.table || "", params); def.query = Studio.WS.applyParams(d.query || "", params); }
     else if (def.kind === "collection") { def.collection = Studio.WS.applyParams(d.collection || "", params); }
     else if (def.kind === "file") { def.fileName = d.fileName || ""; def.format = d.format || ""; def.content = d.content || ""; } // content IS the data — no {{params}}
+    else if (def.kind === "sheet") { def.sheet = Studio.WS.applyParams(d.sheet || "", params); def.query = Studio.WS.applyParams(d.query || "", params); }
     else def.sql = Studio.WS.applyParams(d.sql || "", params);
     return def;
   }
@@ -5588,6 +5590,10 @@
           defField("PostgREST query", "query", false, "select=*&order=total.desc&limit=200", "Optional — PostgREST query string; {{params}} allowed.");
         } else if (kind === "collection") {
           defField("Collection", "collection", false, "orders", "The Firestore collection; documents flatten into rows.");
+        } else if (kind === "sheet") {
+          defField("Tab", "sheet", false, "Sheet1", "Optional — the tab name; the first tab when blank.");
+          defField("Query", "query", false, "select A, B where C > 100 order by B desc",
+            "Optional — Google's gviz query language (columns are A, B, C…); {{params}} allowed.");
         } else if (kind === "file") {
           // CSV/JSON drop zone — the file's text is stored INSIDE the dataset row
           // (works offline, mirrors with the workspace; capped, see localfile.js).
