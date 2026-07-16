@@ -5,7 +5,7 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v16"; /* v16: Explore designer (studio.js/css, shell.js, index.html, schema).
+var CACHE_NAME = "studio-shell-v17"; /* v17: Home = instant analytics — featured live previews (studio.js/css).
    vendor/maplibre/* and site/shots/*.png are deliberately NOT precached (~3.8MB combined
    would tax every SW install); the fetch handler runtime-caches them after first view. */
 var SHELL_FILES = [

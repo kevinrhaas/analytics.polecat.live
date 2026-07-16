@@ -330,11 +330,17 @@
       try { setTheme(localStorage.getItem("studio-theme") || "light"); } catch (e) { setTheme("light"); }
       try { setAppTheme(localStorage.getItem("studio-app-theme") || "polecat"); } catch (e) {}
       try { if (localStorage.getItem("studio-simple-mode") === "1") { S.simpleMode = true; document.body.classList.add("simple-mode"); } } catch (e) {}
-      // Viridis V5 (confirmed direction): in Simple mode the dataset-first
-      // Explore designer is the default entry — but only when the user hasn't
-      // chosen a section themselves yet (their last choice always wins).
+      // Viridis V5/V6: in Simple mode, with no section chosen yet, boot to the
+      // FEATURED CONTENT when there is any (Home renders it live — instant
+      // analytics before any machinery), otherwise to the dataset-first
+      // Explore designer. A user's own last choice always wins over both.
       try {
-        if (S.simpleMode && !localStorage.getItem("studio-shell-section") && window.__studioShellSetSection) __studioShellSetSection("explore");
+        if (S.simpleMode && !localStorage.getItem("studio-shell-section") && window.__studioShellSetSection) {
+          var W6 = Studio.Workspace;
+          var hasFeatured = W6.all("dashboards").some(function (r) { return r.featured; }) ||
+            W6.all("analyses").some(function (a) { return a.pinned; });
+          __studioShellSetSection(hasFeatured ? "home" : "explore");
+        }
       } catch (e) {}
       applyBranding();
       renderHome();
@@ -844,6 +850,18 @@
     var load = haveDs ? xpLoadRows() : Promise.resolve(
       XP.run = (function () { var sd = Studio.sampleRows(a.da || { columns: [] }); return { cols: sd.cols, rows: sd.rows, live: false, orphan: !haveDs }; })());
     load.then(function () { renderExplore(); xpPreview(); });
+  }
+  // A standalone one-panel spec for a saved analysis — used by Home's live
+  // widgets (and anything else that needs to render an analysis outside Explore).
+  function analysisSpec(a) {
+    var da = JSON.parse(JSON.stringify(a.da || {}));
+    return {
+      id: "analysis-" + a.id, name: "analysis-" + a.id, title: a.name || "Analysis",
+      panels: [{ id: "a1", title: a.name || "Analysis", span: "full",
+        chart: { type: a.chart.type, da: da.id, map: JSON.parse(JSON.stringify(a.chart.map || {})), opts: JSON.parse(JSON.stringify(a.chart.opts || {})) } }],
+      kpis: [], filters: [],
+      cda: { connections: [], dataAccesses: [da] }
+    };
   }
   // Add a saved analysis to the CURRENT dashboard as a new panel (the library
   // group and canvas drag-drop both land here).
@@ -4882,6 +4900,20 @@
     renderHome();
     renderDashboards();
   }
+  // Viridis V6: "Feature on Home" — featured dashboards render on Home as LIVE
+  // view-only previews (the real renderer on sample data), not just thumbnails.
+  // The flag rides on the dashboards row like pinned does (additive, syncs).
+  function toggleFeature(id) {
+    var W = Studio.Workspace, r = W.get("dashboards", id);
+    if (!r) return;
+    if (r.featured) { delete r.featured; delete r.featuredAt; }
+    else { r.featured = true; r.featuredAt = new Date().toISOString(); }
+    W.put("dashboards", r);
+    toast(r.featured ? "Featured on Home — it renders there live" : "No longer featured on Home");
+    renderHome();
+    renderDashboards();
+  }
+  window.__studioToggleFeature = toggleFeature; // test hook
   function noteRecent() {
     if (!S.spec || !S.spec.id) return;
     var W = Studio.Workspace;
@@ -5233,6 +5265,8 @@
       '<button class="recent-open" data-recent="' + esc(r.id) + '" aria-label="Open ' + esc(title) + '"></button>' +
       '<button class="recent-pin' + (pinned ? " pinned" : "") + '" data-pin="' + esc(r.id) + '" ' +
         'title="' + (pinned ? "Unpin" : "Pin") + '" aria-label="' + (pinned ? "Unpin " : "Pin ") + esc(title) + '" aria-pressed="' + (pinned ? "true" : "false") + '"></button>' +
+      '<button class="recent-feature' + (r.featured ? " featured" : "") + '" data-feature="' + esc(r.id) + '" ' +
+        'title="' + (r.featured ? "Remove from Home" : "Feature on Home (live preview)") + '" aria-label="' + (r.featured ? "Remove " : "Feature ") + esc(title) + (r.featured ? " from Home" : " on Home") + '" aria-pressed="' + (r.featured ? "true" : "false") + '"></button>' +
       '<div class="recent-thumb">' + thumb + '</div>' +
       '<div class="recent-meta"><b>' + esc(title) + '</b><small>' + timeAgo(r.ts) + ' · ' + meta + '</small>' + changeHint + colHint + wbSelect + '</div></div>';
   }
@@ -5303,18 +5337,37 @@
       '<button type="button" class="home-tip-next" title="Next tip" aria-label="Next tip">' +
       '<span data-ic="chevron-right"></span></button></div>' +
       wbChipsHtml +
-      // Viridis V5: analyses pinned in Explore surface on Home — the quickest
-      // path from "open the app" to "see my chart". Cards open Explore loaded.
+      // Viridis V6: featured dashboards render LIVE on Home — real preview
+      // iframes (the actual renderer on sample data), view-only, click to open.
+      (function () {
+        var feat = list.filter(function (r) { return r.featured && r.spec; })
+          .sort(function (a, b) { return (b.featuredAt || "").localeCompare(a.featuredAt || ""); });
+        if (!feat.length) return "";
+        var shownF = feat.slice(0, 6);
+        return '<h2 class="home-sub">Featured <small class="home-sub-hint">live previews · click to open</small></h2>' +
+          '<div class="home-featured">' + shownF.map(function (r) {
+            var sp = r.spec, title = sp.title || sp.name || "Untitled";
+            return '<div class="home-feat" data-home-feat="' + esc(r.id) + '">' +
+              '<div class="home-feat-h"><b>' + esc(title) + '</b>' +
+              '<span>' + (sp.panels || []).length + " panels" + ((sp.kpis || []).length ? " · " + sp.kpis.length + " KPIs" : "") + "</span></div>" +
+              '<div class="home-feat-frame" data-feat-frame="' + esc(r.id) + '"></div>' +
+              '<button type="button" class="home-feat-open" data-feat-open="' + esc(r.id) + '" aria-label="Open ' + esc(title) + '"></button></div>';
+          }).join("") + "</div>" +
+          (feat.length > 6 ? '<div class="home-feat-more">+ ' + (feat.length - 6) + " more featured — see Dashboards</div>" : "");
+      })() +
+      // Viridis V5/V6: analyses pinned in Explore render as LIVE widgets — the
+      // quickest path from "open the app" to "see my chart". Click opens Explore.
       (function () {
         var pinnedA = (Studio.Workspace ? Studio.Workspace.all("analyses") : []).filter(function (a) { return a.pinned; })
           .sort(function (a, b) { return (b.updatedAt || 0) - (a.updatedAt || 0); });
         if (!pinnedA.length) return "";
-        return '<h2 class="home-sub">Pinned analyses</h2><div class="home-recents home-analyses">' +
-          pinnedA.map(function (a) {
-            return '<button type="button" class="recent-card home-analysis" data-home-analysis="' + esc(a.id) + '">' +
-              '<span class="home-analysis-thumb">' + (CHART_SVG[a.chartType] ? themedChartSvg(CHART_SVG[a.chartType], a.chartType) : "") + "</span>" +
-              '<b>' + esc(a.name || "Analysis") + '</b>' +
-              '<small>' + esc((Studio.CHARTS[a.chartType] || {}).label || a.chartType) + " · " + esc((a.da && a.da.name) || "dataset") + "</small></button>";
+        return '<h2 class="home-sub">Pinned analyses</h2><div class="home-analyses">' +
+          pinnedA.slice(0, 8).map(function (a) {
+            return '<div class="home-analysis" data-home-analysis-card="' + esc(a.id) + '">' +
+              '<div class="home-feat-h"><b>' + esc(a.name || "Analysis") + '</b>' +
+              '<span>' + esc((Studio.CHARTS[a.chartType] || {}).label || a.chartType) + "</span></div>" +
+              '<div class="home-analysis-frame" data-analysis-frame="' + esc(a.id) + '"></div>' +
+              '<button type="button" class="home-feat-open" data-home-analysis="' + esc(a.id) + '" aria-label="Open analysis ' + esc(a.name || "") + '"></button></div>';
           }).join("") + "</div>";
       })() +
       (pinnedList.length ? '<h2 class="home-sub">Pinned</h2><div class="home-recents">' +
@@ -5352,6 +5405,71 @@
       btn.appendChild(Studio.icon("star", 14));
       btn.onclick = function (e) { e.stopPropagation(); togglePin(btn.getAttribute("data-pin")); };
     });
+    $$(".recent-feature", sec).forEach(function (btn) {
+      btn.appendChild(Studio.icon("home", 14));
+      btn.onclick = function (e) { e.stopPropagation(); toggleFeature(btn.getAttribute("data-feature")); };
+    });
+    // V6: hydrate the live frames AFTER the html lands (each is the real
+    // renderer in a scaled, view-only iframe; geometry inlined when needed)
+    $$("[data-feat-frame]", sec).forEach(function (box) {
+      var r = Studio.Workspace.get("dashboards", box.getAttribute("data-feat-frame"));
+      if (r && r.spec) homeLiveFrame(box, r.spec, 1200);
+    });
+    $$("[data-analysis-frame]", sec).forEach(function (box) {
+      var a = Studio.Workspace.get("analyses", box.getAttribute("data-analysis-frame"));
+      if (a && a.chart) homeLiveFrame(box, analysisSpec(a), 720, 96); // crop the mini banner — widgets are chart-first
+    });
+    $$("[data-feat-open]", sec).forEach(function (btn) {
+      btn.onclick = function () { openRecent(btn.getAttribute("data-feat-open")); };
+    });
+  }
+  // A live, view-only mini render of a spec: the REAL preview html in an iframe
+  // scaled from its design width down to the card. pointer-events are disabled
+  // in CSS — the overlay button owns the click. Hydration is LAZY: renderHome
+  // often runs while Home is hidden (workspace change events), where the box
+  // measures 0 — so the frame is only built once the box is actually visible
+  // (IntersectionObserver), which also spares offscreen work.
+  function homeLiveFrame(box, spec, designW, cropTop) {
+    var build = function () {
+      var html;
+      try { html = Studio.buildHtml(spec, S.assets, { preview: true, mock: Studio.genMock(spec), launcher: false }); }
+      catch (e) { box.innerHTML = '<div class="home-feat-err">Preview unavailable</div>'; return; }
+      var ifr = document.createElement("iframe");
+      ifr.className = "home-live-ifr";
+      ifr.setAttribute("tabindex", "-1");
+      ifr.setAttribute("aria-hidden", "true");
+      ifr.style.width = designW + "px";
+      function fit() {
+        var w = box.clientWidth;
+        if (!w) return; // hidden again — the ResizeObserver re-fits on return
+        var s = w / designW;
+        ifr.style.transform = "scale(" + s + ")";
+        ifr.style.top = -Math.round((cropTop || 0) * s) + "px";
+        ifr.style.height = Math.max(120, Math.ceil((box.clientHeight || 220) / s) + (cropTop || 0)) + "px";
+      }
+      box.innerHTML = "";
+      box.appendChild(ifr);
+      fit();
+      // the mini render follows the app's light/dark theme (same message the
+      // builder preview uses)
+      ifr.addEventListener("load", function () {
+        try { ifr.contentWindow.postMessage({ studio: 1, type: "theme", value: S.theme }, "*"); } catch (e) {}
+      });
+      ifr.srcdoc = html;
+      if (window.ResizeObserver) { box._ro = new ResizeObserver(fit); box._ro.observe(box); }
+    };
+    var start = function () {
+      if (box._liveStarted) return;
+      box._liveStarted = true;
+      if (Studio.geoAssetKeys(spec).length) { ensureGeoAssets(spec).then(build); } else { build(); }
+    };
+    if (box.clientWidth) { start(); return; }
+    if ("IntersectionObserver" in window) {
+      box._io = new IntersectionObserver(function (es) {
+        if (es.some(function (e) { return e.isIntersecting; })) { box._io.disconnect(); start(); }
+      });
+      box._io.observe(box);
+    } else { setTimeout(start, 400); }
   }
   window.__studioRenderHome = renderHome; // test hook
   window.__studioRecents = loadRecents; // test hook
@@ -5576,6 +5694,10 @@
     $$(".recent-pin", results).forEach(function (btn) {
       btn.appendChild(Studio.icon("star", 14));
       btn.onclick = function (e) { e.stopPropagation(); togglePin(btn.getAttribute("data-pin")); };
+    });
+    $$(".recent-feature", results).forEach(function (btn) {
+      btn.appendChild(Studio.icon("home", 14));
+      btn.onclick = function (e) { e.stopPropagation(); toggleFeature(btn.getAttribute("data-feature")); };
     });
     $$(".dash-li", results).forEach(function (row) {
       row.addEventListener("click", function (e) {

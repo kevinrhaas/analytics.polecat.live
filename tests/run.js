@@ -1154,6 +1154,92 @@ function serve() {
       xpSimpleState.explore && xpSimpleState.active === "explore", JSON.stringify(xpSimpleState));
     await xpSimple.close();
 
+    // ---- HOME LIVE (Viridis V6): featured dashboards + analysis widgets -----
+    console.log("\n• HOME LIVE: featured dashboards render live on Home (Viridis V6)");
+    await page.evaluate(function () {
+      var sp = window.__STUDIO_STATE.spec;
+      Studio.Workspace.put("dashboards", { id: "v6-feat", ts: Date.now(), spec: JSON.parse(JSON.stringify(sp)), title: sp.title, name: sp.name });
+      Studio.Workspace.put("analyses", { id: "v6-an", name: "V6 widget", chartType: "bars", pinned: true,
+        da: { id: "v6w", kind: "sql", columns: ["region", "total"] },
+        chart: { type: "bars", map: { labelCol: "region", valueCol: "total" }, opts: {} } });
+      window.__studioToggleFeature("v6-feat");
+      window.__studioShellSetSection("home");
+    });
+    await page.waitForTimeout(300);
+    const v6Cards = await page.evaluate(function () {
+      var row = Studio.Workspace.get("dashboards", "v6-feat");
+      return { flag: !!row.featured, featCard: !!document.querySelector('[data-home-feat="v6-feat"]'),
+        widgetCard: !!document.querySelector('[data-analysis-frame="v6-an"]'),
+        featureBtns: document.querySelectorAll(".recent-feature[aria-pressed]").length };
+    });
+    ok("V6: Feature-on-Home flags the dashboard row and Home gains its featured card + the pinned-analysis widget (feature toggles on every card)",
+      v6Cards.flag && v6Cards.featCard && v6Cards.widgetCard && v6Cards.featureBtns > 0, JSON.stringify(v6Cards));
+    // the featured frame hydrates LAZILY (only when visible) with the REAL renderer,
+    // correctly scaled, and follows the app theme
+    const v6Live = await page.evaluate(function () {
+      return new Promise(function (resolve) {
+        var t0 = Date.now();
+        (function poll() {
+          var fi = document.querySelector('[data-feat-frame="v6-feat"] iframe');
+          var wi = document.querySelector('[data-analysis-frame="v6-an"] iframe');
+          var fd = null, wd = null;
+          try { fd = fi && fi.contentDocument; wd = wi && wi.contentDocument; } catch (e) {}
+          var fOk = fd && fd.querySelectorAll(".pdc-grid svg").length > 3;
+          var wOk = wd && wd.querySelector(".pdc-grid svg");
+          if (fOk && wOk && fi.style.transform && wi.style.transform) {
+            resolve({ featSvgs: fd.querySelectorAll(".pdc-grid svg").length,
+              featScale: +(fi.style.transform.match(/scale\(([\d.]+)\)/) || [])[1],
+              widgetScale: +(wi.style.transform.match(/scale\(([\d.]+)\)/) || [])[1],
+              widgetTheme: wd.documentElement.getAttribute("data-theme"),
+              appTheme: window.__STUDIO_STATE.theme,
+              viewOnly: getComputedStyle(fi).pointerEvents === "none" });
+          } else if (Date.now() - t0 > 15000) resolve({ timeout: true, fOk: !!fOk, wOk: !!wOk });
+          else setTimeout(poll, 200);
+        })();
+      });
+    });
+    ok("V6: both live frames hydrate with the REAL renderer, scaled well below 1 (never the hidden-section scale bug), view-only, theme-matched",
+      !v6Live.timeout && v6Live.featSvgs > 3 && v6Live.featScale > 0.1 && v6Live.featScale < 0.9 &&
+      v6Live.widgetScale > 0.1 && v6Live.widgetScale < 0.9 && v6Live.widgetTheme === v6Live.appTheme && v6Live.viewOnly,
+      JSON.stringify(v6Live));
+    // click-through opens the real dashboard in the Studio
+    await page.click('[data-feat-open="v6-feat"]');
+    await page.waitForTimeout(500);
+    const v6Open = await page.evaluate(function () {
+      return { studio: !document.getElementById("appMain").hidden, title: window.__STUDIO_STATE.spec.title };
+    });
+    ok("V6: clicking a featured card opens that dashboard in the Studio", v6Open.studio && !!v6Open.title, JSON.stringify(v6Open));
+    // Simple mode WITH featured content boots to Home (without it → Explore, proven above)
+    const v6Simple = await browser.newPage();
+    await v6Simple.addInitScript(() => { try {
+      sessionStorage.setItem("studio-gate-ok", "1");
+      localStorage.setItem("studio-welcome-seen", "1");
+      localStorage.setItem("studio-simple-mode", "1");
+      localStorage.removeItem("studio-shell-section");
+      localStorage.setItem("analytics.workspace.v1", JSON.stringify({ tables: { connections: {}, datasets: {}, dashboards: {},
+        analyses: { "an-s": { id: "an-s", name: "Boot widget", chartType: "bars", pinned: true,
+          da: { id: "b1", kind: "sql", columns: ["a", "b"] }, chart: { type: "bars", map: { labelCol: "a", valueCol: "b" }, opts: {} },
+          createdAt: 1, updatedAt: 1 } } }, settings: {}, meta: { createdAt: 1 } }));
+    } catch (e) {} });
+    await v6Simple.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
+    await v6Simple.waitForFunction(() => window.__STUDIO_STATE && window.__STUDIO_STATE.assets.js.length > 0, { timeout: 15000 });
+    await v6Simple.waitForTimeout(400);
+    const v6SimpleState = await v6Simple.evaluate(function () {
+      return { home: !document.getElementById("secHome").hidden,
+        widget: !!document.querySelector('[data-analysis-frame="an-s"]') };
+    });
+    ok("V6: Simple mode with featured content boots to HOME (instant analytics before any machinery); the pinned widget is there",
+      v6SimpleState.home && v6SimpleState.widget, JSON.stringify(v6SimpleState));
+    await v6Simple.close();
+    // cleanup
+    await page.evaluate(function () {
+      Studio.Workspace.remove("dashboards", "v6-feat", { silent: true });
+      Studio.Workspace.remove("analyses", "v6-an", { silent: true });
+      Studio.Workspace.notify("dashboards");
+      window.__studioShellSetSection("studio");
+    });
+    await page.waitForTimeout(250);
+
     const wsStore = await page.evaluate(function () {
       var W = Studio.Workspace, events = [];
       var off = W.on("change", function (p) { events.push(p.table + ":" + (p.removed ? "del" : "put")); });
@@ -18036,7 +18122,7 @@ function serve() {
     // are fetched during install too (from the index we just cached), so a first-ever offline
     // visit still has a full library/gallery, not just a blank shell.
     const pwaDataPrecached = await pwaPage.evaluate(async function () {
-      const cache = await caches.open("studio-shell-v16");
+      const cache = await caches.open("studio-shell-v17");
       const keys = (await cache.keys()).map((r) => new URL(r.url).pathname.replace(/^\//, ""));
       const exIndex = await fetch("data/examples/index.json").then((r) => r.json());
       const missingExamples = exIndex.filter((ex) => keys.indexOf("data/examples/" + ex.file) < 0);

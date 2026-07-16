@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 365,
+    title: 'Home becomes instant analytics -- featured dashboards render LIVE',
+    kind: 'feature',
+    ts: '2026-07-16T21:03:53.000Z',
+    items: [
+      'Every dashboard card gains a little house button. Feature a dashboard and it renders on Home as a real, live preview -- the actual dashboard engine in a scaled-down view-only frame, not a static thumbnail -- with one click to open it. Analyses pinned in Explore render the same way, as live chart widgets.',
+      'The live frames follow your light/dark theme, hydrate lazily (offscreen cards cost nothing until you scroll to them), and map dashboards bring their geometry along.',
+      'Simple mode now opens where your content is. With featured dashboards or pinned analyses, the app boots straight to Home and your charts greet you before any machinery; with none yet, it boots to Explore to help you make your first one. Your own last-used section always wins over both.',
+    ],
+  },
+  {
     v: 364,
     title: 'Explore -- from any dataset to a saved, reusable analysis in four steps',
     kind: 'feature',
