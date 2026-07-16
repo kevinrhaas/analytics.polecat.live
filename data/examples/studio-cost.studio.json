@@ -5,7 +5,7 @@
   "title": "Cost Optimization & Sustainability",
   "subtitle": "cost by source, tiering candidates & carbon \u2014 a CDF showcase",
   "group": "Storage & Cost",
-  "description": "Flagship example built in Demonstration Dashboard Studio \u2014 KPIs, treemap, donut and a cumulative-spend trend over the cost/sustainability CDA queries.",
+  "description": "Flagship example built in Analytics \u2014 KPIs, treemap, donut and a cumulative-spend trend over the cost/sustainability CDA queries.",
   "cda": {
     "connection": {
       "id": "pdc",

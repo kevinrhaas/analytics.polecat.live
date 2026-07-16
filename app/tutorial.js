@@ -1,4 +1,4 @@
-/* tutorial.js — Analytics Dashboard Studio interactive tutorial.
+/* tutorial.js — Analytics interactive tutorial.
    J6: step-by-step guided walkthrough of the core builder workflow.
    Distinct from the welcome tour (welcome.js), which is informational.
    This tutorial spotlights real UI elements and guides the user through

@@ -1,4 +1,4 @@
-/* Analytics Dashboard Studio — © 2026 Polecat.live. See LICENSE. */
+/* Analytics — © 2026 Polecat.live. See LICENSE. */
 /* app/sources/postgrest.js — plain PostgreSQL exposed through PostgREST
    (★★★ post-overhaul item 2: the first of the "many more" adapters, and the
    strategic one — Supabase, the suite's planned main backend, IS Postgres +

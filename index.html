@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Analytics Dashboard Studio — connect your data, build beautiful dashboards, share them anywhere</title>
+<title>Analytics — connect your data, build beautiful dashboards, share them anywhere</title>
 <meta name="description" content="A local-first analytics workspace in your browser: connect databases, warehouses, files and Google Sheets, design interactive dashboards visually, and export them as single self-contained HTML files. Free, private, no account."/>
-<meta property="og:title" content="Analytics Dashboard Studio"/>
+<meta property="og:title" content="Analytics"/>
 <meta property="og:description" content="Connect your data, build beautiful dashboards, share them anywhere. Local-first, in your browser."/>
 <meta property="og:url" content="https://analytics.polecat.live/"/>
 <meta property="og:image" content="https://analytics.polecat.live/site/shots/studio.png"/>
@@ -28,14 +28,14 @@
 <header class="nav">
   <a class="brand" href="/">
     <img src="favicon.svg" width="30" height="30" alt=""/>
-    <span>Analytics<b>Dashboard Studio</b></span>
+    <span>Analytics<b>polecat.live</b></span>
   </a>
   <nav class="nav-links">
     <a href="#features">Features</a>
     <a href="#sources">Data sources</a>
     <a href="docs/">Docs</a>
     <a href="https://polecat.live" class="fleet-link">polecat.live</a>
-    <a href="app/" class="btn-cta small">Open the Studio</a>
+    <a href="app/" class="btn-cta small">Open Analytics</a>
   </nav>
 </header>
 
@@ -46,18 +46,18 @@
     warehouses, files and Google Sheets, design interactive dashboards visually, and export them as
     single self-contained HTML files anyone can open. Free. Private. No account.</p>
     <div class="hero-cta">
-      <a href="app/" class="btn-cta">Open the Studio →</a>
+      <a href="app/" class="btn-cta">Open Analytics →</a>
       <span class="cta-note">nothing to install · your data stays on your device</span>
     </div>
     <!-- hero: auto-playing carousel of real app screenshots -->
     <div class="hero-carousel" id="showcase">
-      <div class="hc-frame" aria-roledescription="carousel" aria-label="Analytics Dashboard Studio screenshots">
-        <img class="hc-img on" data-i="0" src="site/shots/studio.png"         width="2160" height="1350" alt="The Studio builder with the flagship cost dashboard, light theme"/>
+      <div class="hc-frame" aria-roledescription="carousel" aria-label="Analytics screenshots">
+        <img class="hc-img on" data-i="0" src="site/shots/studio.png"         width="2160" height="1350" alt="The Analytics builder with the flagship cost dashboard, light theme"/>
         <img class="hc-img"    data-i="1" src="site/shots/dashboard-dark.png" width="2160" height="1350" loading="lazy" alt="An exported dashboard in dark mode — KPIs, donut, treemap and bars"/>
         <img class="hc-img"    data-i="2" src="site/shots/showcase.png"       width="2160" height="1350" loading="lazy" alt="The chart showcase dashboard — ribbons, slopes and funnel views"/>
         <img class="hc-img"    data-i="3" src="site/shots/map.png"            width="2160" height="1350" loading="lazy" alt="A US county choropleth map of the Corn Belt"/>
         <img class="hc-img"    data-i="4" src="site/shots/ensemble.png"       width="2160" height="1350" loading="lazy" alt="The Ensemble chart — a bold median line over muted provider estimates"/>
-        <img class="hc-img"    data-i="5" src="site/shots/studio-dark.png"    width="2160" height="1350" loading="lazy" alt="The Studio builder in dark theme with a finance dashboard"/>
+        <img class="hc-img"    data-i="5" src="site/shots/studio-dark.png"    width="2160" height="1350" loading="lazy" alt="The Analytics builder in dark theme with a finance dashboard"/>
         <button class="hc-arrow prev" id="hcPrev" type="button" aria-label="Previous screenshot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button>
         <button class="hc-arrow next" id="hcNext" type="button" aria-label="Next screenshot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
       </div>
@@ -105,7 +105,7 @@
 
   <section class="final">
     <h2>Open a browser. Build a dashboard. That's it.</h2>
-    <a href="app/" class="btn-cta">Open the Studio →</a>
+    <a href="app/" class="btn-cta">Open Analytics →</a>
   </section>
 </main>
 
@@ -120,12 +120,12 @@
   var dotsWrap = document.getElementById("hcDots");
   if (!frame || !imgs.length) return;
   var CAPS = [
-    "<b>The Studio.</b> Drag datasets onto the canvas, tune every chart in the inspector, and watch the real dashboard render live — on sample data before you ever connect anything.",
+    "<b>The builder.</b> Drag datasets onto the canvas, tune every chart in the inspector, and watch the real dashboard render live — on sample data before you ever connect anything.",
     "<b>The finished product.</b> Every dashboard exports as one self-contained .html file — byte-identical to the live preview, light and dark, no server required.",
     "<b>25+ chart types.</b> Flowing ribbons, before/after slopes, treemaps, radials, Marimekkos — a full visual vocabulary, not just bars and lines.",
     "<b>US maps, down to the county.</b> Choropleths at state, county, USDA-district and watershed scale — colored by the median of the sources you select.",
     "<b>One best estimate.</b> The Ensemble chart blends many data providers into a single bold line with an agreement band — the evidence stays visible, muted behind it.",
-    "<b>Dark, light &amp; delightful.</b> Warm themes, a keyboard palette, guided tour and version history — analytics that feels like a creative tool."
+    "<b>Dark, light &amp; delightful.</b> Warm themes, a keyboard palette, guided tour and version history — Analytics feels like a creative tool."
   ];
   var dots = imgs.map(function (_, i) {
     var d = document.createElement("button");
@@ -158,7 +158,7 @@
 </script>
 
 <footer class="foot">
-  <span>Analytics Dashboard Studio · part of the <a href="https://polecat.live">polecat.live</a> suite</span>
+  <span>Analytics · part of the <a href="https://polecat.live">polecat.live</a> suite</span>
   <span class="foot-links"><a href="docs/">Docs</a> · <a href="app/">App</a> · <a href="THIRD-PARTY-NOTICES.md">Third-party notices</a> · © 2026 Polecat.live</span>
 </footer>
 

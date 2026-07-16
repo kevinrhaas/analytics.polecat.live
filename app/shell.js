@@ -1,4 +1,4 @@
-/* Analytics Dashboard Studio — © 2026 Polecat.live. See LICENSE. */
+/* Analytics — © 2026 Polecat.live. See LICENSE. */
 /* shell.js — Z1: the app shell's collapsible left rail. Frames the whole app
    as a multi-section product (Home · Repository · Studio · Settings); Studio
    is the existing builder, moved under its own section with zero feature

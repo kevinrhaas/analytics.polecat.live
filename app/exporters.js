@@ -198,7 +198,7 @@
     var head =
       "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\"/>\n" +
       "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/>\n" +
-      "<title>" + xml(titleText) + " — Analytics Dashboard Studio</title>\n<style>\n" + assets.css + mobileCss + sectionCss + descCss + panelNoteCss + panelAccentCss + targetLineCss + refBandCss + calloutCss + periodHighlightCss + eventMarkerCss + scatterAnnotCss + kpiSubCss + richtextCss + dashboardThemeCss + themeColorCss + headerLogoCss + headerLinkCss + headerBgCss + titleSizeCss + subtitleStyleCss + cardSkinCss + paletteCss + printCss + previewCss + "\n</style>\n</head>\n";
+      "<title>" + xml(titleText) + " — Analytics</title>\n<style>\n" + assets.css + mobileCss + sectionCss + descCss + panelNoteCss + panelAccentCss + targetLineCss + refBandCss + calloutCss + periodHighlightCss + eventMarkerCss + scatterAnnotCss + kpiSubCss + richtextCss + dashboardThemeCss + themeColorCss + headerLogoCss + headerLinkCss + headerBgCss + titleSizeCss + subtitleStyleCss + cardSkinCss + paletteCss + printCss + previewCss + "\n</style>\n</head>\n";
     var logoHtml = spec.headerLogo ?
       "<img class=\"pdc-logo\" src=\"" + xml(spec.headerLogo) + "\" alt=\"\"/>" :
       "<span class=\"pdc-logo\">P</span>";

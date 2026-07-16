@@ -1,5 +1,5 @@
 /* ============================================================================
-   model.js — PDC Dashboard Studio canonical model
+   model.js — the Analytics (PDC Studio) canonical model
    The chart registry + spec helpers shared by the builder, the live preview
    render runtime, and every exporter (CDF html / CDE .cdfde+.wcdf / .cda).
    Pure data + helpers; no DOM. Loaded as a plain <script> -> window.Studio.

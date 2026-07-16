@@ -1,4 +1,4 @@
-/* Analytics Dashboard Studio — © 2026 Polecat.live. See LICENSE. */
+/* Analytics — © 2026 Polecat.live. See LICENSE. */
 /* Z4 slice 2 — Databricks connector: query a Databricks SQL warehouse directly from the browser via
    the Statement Execution API (https://{host}/api/2.0/sql/statements), no backend/proxy. Credential-
    based like the Z4 slice 1 Snowflake connector — a personal access token, never a password — and the

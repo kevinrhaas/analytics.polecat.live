@@ -1,4 +1,4 @@
-/* Analytics Dashboard Studio — © 2026 Polecat.live. See LICENSE. */
+/* Analytics — © 2026 Polecat.live. See LICENSE. */
 /* app/sources/localfile.js — CSV / JSON file-drop (★★★ post-overhaul item 2).
 
    The most local-first adapter there is: the file's TEXT rides inside the

@@ -1111,6 +1111,12 @@
 >     emits real Corn Belt FIPS for fips-ish columns so fresh map panels render colored. SW → v12.
 >     Licensing: THIRD-PARTY-NOTICES.md updated (suite-asserted). Marketing site: one modest
 >     clause added per Kevin ("also" feature, not a takeover).
+>     ✚ RENAMED (Kevin, 2026-07-16, shipped same day): the product name is just **"Analytics"**
+>     — "Dashboard Studio" dropped from the public site, app chrome (topbar/rail/gate/welcome/
+>     status bar), site.webmanifest, docs, exported-dashboard titles, and file banners. The
+>     shared-shell catalog tagline updated via platform PR #39 (shell v0.1.1; vendored copy
+>     synced here in the same slice); carousel screenshots re-captured with the new name.
+>     Internal module names (Studio.* API, studio-*.js, storage keys) deliberately unchanged.
 >     ✚ V1 follow-up (Kevin, 2026-07-16, shipped same day): the landing page's single static
 >     screenshot became an auto-playing hero CAROUSEL of six REAL app screens (JobTracker-style:
 >     fade slides, captions, dots, arrows, hover/focus pause, reduced-motion + offscreen aware).

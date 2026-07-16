@@ -47,7 +47,7 @@
       "#studio-gate .shake{animation:gshake .4s}@keyframes gshake{0%,100%{transform:translateX(0)}25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}";
     document.head.appendChild(st);
     var ov = document.createElement("div"); ov.id = "studio-gate";
-    ov.innerHTML = '<div class="g-card"><div class="g-logo">P</div><h1>Analytics Dashboard Studio</h1>' +
+    ov.innerHTML = '<div class="g-card"><div class="g-logo">P</div><h1>Analytics</h1>' +
       '<p>Gated preview — enter the access passcode.</p><form id="g-form">' +
       '<input type="password" id="g-pass" placeholder="Passcode" autocomplete="off"/>' +
       '<button type="submit">Unlock</button></form><div class="g-err" id="g-err"></div>' +

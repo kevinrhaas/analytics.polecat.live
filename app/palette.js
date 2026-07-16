@@ -1,4 +1,4 @@
-/* Analytics Dashboard Studio — © 2026 Polecat.live. See LICENSE. */
+/* Analytics — © 2026 Polecat.live. See LICENSE. */
 /* palette.js — Track N (innovation): a command palette (⌘K / Ctrl-K).
    Fuzzy-jump to any section or action from one keyboard-first surface. It is
    deliberately additive and self-contained: every command simply drives an

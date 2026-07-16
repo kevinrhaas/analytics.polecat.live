@@ -1,4 +1,4 @@
-/* Analytics Dashboard Studio — © 2026 Polecat.live. See LICENSE. */
+/* Analytics — © 2026 Polecat.live. See LICENSE. */
 /* Z4 slice 1 — Snowflake connector: query a Snowflake warehouse directly from the browser via
    the SQL API v2 (https://{account}.snowflakecomputing.com/api/v2/statements), no backend/proxy.
    Unlike the Z14 file connectors (DuckDB-Wasm/SQLite-WASM), this one is credential-based and

@@ -1,4 +1,4 @@
-/* Analytics Dashboard Studio — © 2026 Polecat.live. See LICENSE. */
+/* Analytics — © 2026 Polecat.live. See LICENSE. */
 /* app/sources/gsheets.js — Google Sheets (★★★ post-overhaul item 2).
 
    Uses the GViz endpoint (/gviz/tq) — the standard browser-side path for

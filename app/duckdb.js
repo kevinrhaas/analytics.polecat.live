@@ -1,4 +1,4 @@
-/* Analytics Dashboard Studio — © 2026 Polecat.live. See LICENSE. */
+/* Analytics — © 2026 Polecat.live. See LICENSE. */
 /* Z14 slice 1 — DuckDB-Wasm connector: query a remote Parquet/CSV file directly over HTTP
    Range Requests, entirely client-side — no backend, no proxy, no saved credentials. The
    ~3–5MB wasm engine is lazy-loaded from a CDN only the first time a "duckdb" data source is
