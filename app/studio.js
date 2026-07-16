@@ -330,6 +330,12 @@
       try { setTheme(localStorage.getItem("studio-theme") || "light"); } catch (e) { setTheme("light"); }
       try { setAppTheme(localStorage.getItem("studio-app-theme") || "polecat"); } catch (e) {}
       try { if (localStorage.getItem("studio-simple-mode") === "1") { S.simpleMode = true; document.body.classList.add("simple-mode"); } } catch (e) {}
+      // Viridis V5 (confirmed direction): in Simple mode the dataset-first
+      // Explore designer is the default entry — but only when the user hasn't
+      // chosen a section themselves yet (their last choice always wins).
+      try {
+        if (S.simpleMode && !localStorage.getItem("studio-shell-section") && window.__studioShellSetSection) __studioShellSetSection("explore");
+      } catch (e) {}
       applyBranding();
       renderHome();
       renderDashboards();
@@ -337,9 +343,12 @@
       // keep the Connections list live: any workspace mutation (local edit or a
       // future remote adopt) repaints it
       renderDatasets();
+      renderExplore();
       Studio.Workspace.on("change", function (p) {
         if (p.table === "connections" || p.table === "*") renderConnections();
         if (p.table === "datasets" || p.table === "connections" || p.table === "*") { renderDatasets(); buildLibrary(); }
+        if (p.table === "analyses" || p.table === "datasets" || p.table === "*") renderExplore();
+        if (p.table === "analyses" || p.table === "*") { buildLibrary(); renderHome(); }
       });
       var connSearchInp = $("#connSearch"); if (connSearchInp) connSearchInp.addEventListener("input", renderConnections);
       var connNewBtn = $("#connNewBtn"); if (connNewBtn) connNewBtn.onclick = function () { openConnectionWizard(); };
@@ -567,8 +576,10 @@
       var showBtn = $("#libSamplesShow", list);
       if (showBtn) showBtn.onclick = function () { setShowSamples(true); toast("Sample content restored"); };
     }
-    // "Workspace datasets" (the shared connections → datasets catalog), then
-    // "This dashboard's datasets" above it — both pinned over the samples.
+    // "Analyses" (saved Explore results), then "Workspace datasets" (the shared
+    // connections → datasets catalog), then "This dashboard's datasets" — all
+    // pinned over the samples (each insertBefore stacks above the previous).
+    buildAnalysesLib(list, q);
     buildWorkspaceDatasets(list, q);
     buildMyDataSources(list);
     $("#libCount").textContent = shownDA + " queries";
@@ -618,13 +629,14 @@
   // Import a workspace dataset into the spec as a self-contained data access
   // (exports keep working with sample data even if the workspace row is later
   // deleted) that stays LINKED via datasetId + connectionId for live runs.
-  function specDAFromDataset(ds) {
-    var existing = (S.spec.cda.dataAccesses || []).filter(function (x) { return x.datasetId === ds.id; })[0];
-    if (existing) return existing;
+  // The dataset → data-access conversion, side-effect free (shared by the
+  // Studio library path below and the Explore designer, which builds specs of
+  // its own). `takenId(id)` lets each caller enforce its own id uniqueness.
+  function dsToDA(ds, takenId) {
     var da = Studio.newDA();
     var base = String(ds.name || "dataset").replace(/[^A-Za-z0-9_]+/g, "_").replace(/^_+|_+$/g, "") || "dataset";
     var id = base, n = 2;
-    while (Studio.daById(S.spec, id)) id = base + "_" + (n++);
+    while (takenId && takenId(id)) id = base + "_" + (n++);
     da.id = id; da.name = ds.name || id;
     da.kind = "sql";
     da.sql = ds.sql || ""; da.query = da.sql;
@@ -635,6 +647,12 @@
     da.connectionId = ds.connectionId;
     da.dataset = { kind: ds.kind || "sql", sql: ds.sql, table: ds.table, query: ds.query, collection: ds.collection, params: ds.params };
     da.authored = true;
+    return da;
+  }
+  function specDAFromDataset(ds) {
+    var existing = (S.spec.cda.dataAccesses || []).filter(function (x) { return x.datasetId === ds.id; })[0];
+    if (existing) return existing;
+    var da = dsToDA(ds, function (id) { return !!Studio.daById(S.spec, id); });
     S.spec.cda.dataAccesses.push(da);
     return da;
   }
@@ -657,6 +675,377 @@
     refreshPreview(); buildLibrary();
   }
   window.__studioAddFromWorkspaceDataset = addFromWorkspaceDataset; // test hook
+
+  /* ══════════════ Explore (Viridis V5) — dataset-first analysis designer ═════
+     The non-expert front door: pick a dataset → see it as a table → pick a
+     chart → map columns → SAVE as an "analysis" (workspace `analyses` table).
+     Analyses are reusable: pin to Home, drop into any dashboard from the
+     Studio library, re-open here to refine. The chart preview is the REAL
+     renderer (Studio.buildHtml in an iframe) fed with the rows just previewed,
+     so what you save is exactly what a dashboard will show. */
+  var XP_SEP = "\u001f"; // sample-dataset ids are "<stem><SEP><daId>"
+  var XP = {
+    kind: null, dsId: null,          // 'ws' (workspace dataset) | 'sample' (catalog stem/da)
+    run: null,                       // { cols, rows, live, error? }
+    type: "bars", map: {}, opts: {},
+    analysisId: null, name: "",
+    q: ""                            // dataset search
+  };
+  // The chart types Explore offers — the everyday set plus the Viridis pair.
+  // (Deep option tuning stays in the Studio inspector; Explore keeps the two
+  // options non-experts actually need: map scale and the reference series.)
+  var XP_TYPES = ["bars", "line", "donut", "treemap", "scatter", "heatmap", "table", "choropleth", "ensembleSeries"];
+  var XP_FIELD_LABELS = {
+    labelCol: "Label / category", valueCol: "Value", seriesCol: "Series / provider",
+    idCol: "Region id (FIPS, state, HUC8…)", xCol: "X value", yCol: "Y value", rCol: "Bubble size (optional)",
+    rowCol: "Row", colCol: "Column", series: "Value series"
+  };
+  function xpCatalogDA(stem, daId) {
+    var entry = S.catalog[stem];
+    return entry ? (entry.dataAccesses || []).filter(function (d) { return d.id === daId; })[0] : null;
+  }
+  function xpDatasets() {
+    var out = [];
+    (Studio.Workspace ? Studio.Workspace.all("datasets") : []).sort(function (a, b) {
+      return (b.updatedAt || 0) - (a.updatedAt || 0);
+    }).forEach(function (d) {
+      var conn = Studio.Workspace.get("connections", d.connectionId);
+      out.push({ kind: "ws", id: d.id, name: d.name || d.id, sub: conn ? conn.name : "no connection", cols: d.columns || [] });
+    });
+    if (showSamples()) {
+      Object.keys(S.catalog).sort().forEach(function (stem) {
+        (S.catalog[stem].dataAccesses || []).forEach(function (d) {
+          out.push({ kind: "sample", id: stem + XP_SEP + d.id, name: d.id, sub: stem + " · sample", cols: d.columns || [] });
+        });
+      });
+    }
+    return out;
+  }
+  // Resolve the picked dataset to preview rows. Workspace datasets run LIVE
+  // through their adapter (falling back to typed sample rows when the run
+  // fails or columns are unknown); catalog samples use the sample engine.
+  function xpLoadRows() {
+    XP.run = null;
+    if (XP.kind === "ws") {
+      var ds = Studio.Workspace.get("datasets", XP.dsId);
+      if (!ds) return Promise.resolve(null);
+      return runDataset(ds).then(function (r) {
+        if (r && !r.error && (r.rows || []).length) {
+          return (XP.run = { cols: r.columns || ds.columns || [], rows: r.rows.slice(0, 500), live: true });
+        }
+        var cols = (ds.columns || []);
+        if (!cols.length) return (XP.run = { cols: [], rows: [], live: false, error: (r && r.error) || "no columns known — Preview the dataset once" });
+        var sd = Studio.sampleRows({ id: ds.id, columns: cols });
+        return (XP.run = { cols: sd.cols, rows: sd.rows, live: false, error: r && r.error });
+      });
+    }
+    var parts = String(XP.dsId).split(XP_SEP);
+    var da = xpCatalogDA(parts[0], parts[1]);
+    if (!da) return Promise.resolve(null);
+    var sd = Studio.sampleRows(da);
+    return Promise.resolve(XP.run = { cols: sd.cols, rows: sd.rows, live: false });
+  }
+  // The embeddable data-access for the current pick (self-contained, like the
+  // Studio library produces, so analyses survive dataset deletion and export).
+  function xpDA(takenId) {
+    if (XP.kind === "ws") {
+      var ds = Studio.Workspace.get("datasets", XP.dsId);
+      if (!ds) return null;
+      var da = dsToDA(ds, takenId);
+      if (!da.columns.length && XP.run) da.columns = (XP.run.cols || []).slice();
+      return da;
+    }
+    var parts = String(XP.dsId).split(XP_SEP);
+    var cda = xpCatalogDA(parts[0], parts[1]);
+    if (!cda) return null;
+    return JSON.parse(JSON.stringify(cda));
+  }
+  function xpGuessMapping() {
+    var cols = (XP.run && XP.run.cols) || [];
+    var p = Studio.newPanel(XP.type, { columns: cols });
+    XP.map = p.chart.map || {};
+    XP.opts = p.chart.opts || {};
+    if (XP.type === "choropleth" || XP.type === "ensembleSeries") {
+      var f = Studio.guessFmt(XP.map.valueCol || "");
+      if (f && "fmt" in XP.opts) XP.opts.fmt = f;
+    }
+  }
+  function xpSpec(mockOnly) {
+    var da = xpDA();
+    if (!da) return null;
+    var title = XP.name || (XP.run ? "Exploring " + (Studio.CHARTS[XP.type] || {}).label : "Analysis");
+    return {
+      id: "explore-preview", name: "explore-preview", title: title,
+      panels: [{ id: "xp1", title: title, span: "full",
+        chart: { type: XP.type, da: da.id, map: JSON.parse(JSON.stringify(XP.map)), opts: JSON.parse(JSON.stringify(XP.opts)) } }],
+      kpis: [], filters: [],
+      cda: { connections: [], dataAccesses: [da] }
+    };
+  }
+  var _xpPvTimer = null;
+  function xpPreview() {
+    clearTimeout(_xpPvTimer);
+    _xpPvTimer = setTimeout(function () {
+      var box = $("#xpPreview"); if (!box) return;
+      var spec = xpSpec();
+      if (!spec || !XP.run) { box.innerHTML = ""; return; }
+      var mock = {};
+      mock[spec.cda.dataAccesses[0].id] = { cols: XP.run.cols, rows: XP.run.rows };
+      var build = function () {
+        var html = Studio.buildHtml(spec, S.assets, { preview: true, mock: mock, launcher: false });
+        var ifr = box.querySelector("iframe");
+        if (!ifr) {
+          box.innerHTML = "";
+          ifr = document.createElement("iframe");
+          ifr.className = "xp-ifr"; ifr.title = "Analysis preview"; ifr.setAttribute("aria-label", "Analysis preview");
+          box.appendChild(ifr);
+        }
+        ifr.srcdoc = html;
+      };
+      // map panels need geometry (and MapLibre for GL) inlined first
+      if (Studio.geoAssetKeys(spec).length) { ensureGeoAssets(spec).then(build); } else { build(); }
+    }, 120);
+  }
+  function xpSave() {
+    var nameInp = $("#xpName");
+    XP.name = ((nameInp && nameInp.value) || XP.name || "").trim();
+    if (!XP.name) { toast("Give the analysis a name first", true); if (nameInp) nameInp.focus(); return; }
+    var da = xpDA();
+    if (!da || !XP.run) { toast("Pick a dataset first", true); return; }
+    var prev = XP.analysisId ? Studio.Workspace.get("analyses", XP.analysisId) : null;
+    var row = {
+      id: XP.analysisId || undefined,
+      name: XP.name,
+      datasetId: XP.kind === "ws" ? XP.dsId : null,
+      sample: XP.kind === "sample" ? XP.dsId : null,
+      da: da,
+      chart: { type: XP.type, map: JSON.parse(JSON.stringify(XP.map)), opts: JSON.parse(JSON.stringify(XP.opts)) },
+      chartType: XP.type,
+      pinned: prev ? !!prev.pinned : false,
+      createdAt: prev ? prev.createdAt : undefined
+    };
+    var saved = Studio.Workspace.put("analyses", row);
+    XP.analysisId = saved.id;
+    toast(prev ? "Analysis updated" : "Analysis saved — pin it to Home or add it to a dashboard");
+    renderExplore();
+  }
+  function xpLoadAnalysis(id) {
+    var a = Studio.Workspace.get("analyses", id); if (!a) return;
+    XP.analysisId = a.id; XP.name = a.name || "";
+    XP.kind = a.datasetId ? "ws" : "sample";
+    XP.dsId = a.datasetId || a.sample;
+    XP.type = (a.chart && a.chart.type) || a.chartType || "bars";
+    XP.map = JSON.parse(JSON.stringify((a.chart && a.chart.map) || {}));
+    XP.opts = JSON.parse(JSON.stringify((a.chart && a.chart.opts) || {}));
+    // dataset may be gone (analyses are self-contained) — fall back to the
+    // embedded da's columns through the sample engine
+    var haveDs = XP.kind === "ws" ? !!Studio.Workspace.get("datasets", XP.dsId)
+      : !!xpCatalogDA(String(XP.dsId).split(XP_SEP)[0], String(XP.dsId).split(XP_SEP)[1]);
+    var load = haveDs ? xpLoadRows() : Promise.resolve(
+      XP.run = (function () { var sd = Studio.sampleRows(a.da || { columns: [] }); return { cols: sd.cols, rows: sd.rows, live: false, orphan: !haveDs }; })());
+    load.then(function () { renderExplore(); xpPreview(); });
+  }
+  // Add a saved analysis to the CURRENT dashboard as a new panel (the library
+  // group and canvas drag-drop both land here).
+  function xpAddAnalysisToSpec(id) {
+    var a = Studio.Workspace.get("analyses", id); if (!a) return;
+    var da = null;
+    if (a.datasetId) da = (S.spec.cda.dataAccesses || []).filter(function (x) { return x.datasetId === a.datasetId; })[0];
+    if (!da) da = (S.spec.cda.dataAccesses || []).filter(function (x) { return JSON.stringify(x) === JSON.stringify(a.da); })[0];
+    if (!da) {
+      da = JSON.parse(JSON.stringify(a.da));
+      var base = da.id, n = 2;
+      while (Studio.daById(S.spec, da.id)) da.id = base + "_" + (n++);
+      S.spec.cda.dataAccesses.push(da);
+    }
+    var p = { id: Studio.uid("p"), title: a.name || "Analysis", span: Studio.WIDE_CHART_TYPES.indexOf(a.chart.type) >= 0 ? "full" : 1,
+      chart: { type: a.chart.type, da: da.id, map: JSON.parse(JSON.stringify(a.chart.map || {})), opts: JSON.parse(JSON.stringify(a.chart.opts || {})) } };
+    S.spec.panels.push(p);
+    select({ kind: "panel", id: p.id });
+    if (window.__studioShellSetSection) __studioShellSetSection("studio");
+    toast("Added analysis “" + (a.name || "Analysis") + "” to “" + S.spec.title + "”");
+    refreshPreview(); buildLibrary();
+  }
+  function xpTogglePin(id) {
+    var a = Studio.Workspace.get("analyses", id); if (!a) return;
+    a.pinned = !a.pinned;
+    Studio.Workspace.put("analyses", a);
+    toast(a.pinned ? "Pinned to Home" : "Unpinned");
+  }
+  function xpMapEditorHtml() {
+    var def = Studio.CHARTS[XP.type] || {}; var cols = (XP.run && XP.run.cols) || [];
+    var fields = (def.fields || []).filter(function (f) { return f !== "cols"; });
+    var opts = '<option value="">—</option>' + cols.map(function (c) { return '<option value="' + esc(c) + '">' + esc(c) + "</option>"; }).join("");
+    var rows = fields.map(function (f) {
+      var cur = f === "series" ? ((XP.map.series && XP.map.series[0] && XP.map.series[0].col) || "") : (XP.map[f] || "");
+      return '<label class="xp-map-row"><span>' + esc(XP_FIELD_LABELS[f] || f) + '</span>' +
+        '<select data-xp-field="' + esc(f) + '">' + opts.replace('value="' + esc(cur) + '"', 'value="' + esc(cur) + '" selected') + "</select></label>";
+    });
+    if (XP.type === "choropleth") {
+      rows.push('<label class="xp-map-row"><span>Region scale</span><select data-xp-opt="scale">' +
+        [["county", "Counties (FIPS)"], ["state", "States"], ["crd", "USDA districts (CRD)"], ["huc8", "Watersheds (HUC8)"]].map(function (o) {
+          return '<option value="' + o[0] + '"' + ((XP.opts.scale || "county") === o[0] ? " selected" : "") + ">" + o[1] + "</option>";
+        }).join("") + "</select></label>");
+    }
+    if (XP.type === "ensembleSeries") {
+      var series = {};
+      var si = (XP.run && XP.run.cols || []).indexOf(XP.map.seriesCol);
+      if (si >= 0) (XP.run.rows || []).forEach(function (r) { series[String(r[si])] = 1; });
+      rows.push('<label class="xp-map-row"><span>Reference series (never joins the estimate)</span><select data-xp-opt="refSeries">' +
+        '<option value="">—</option>' + Object.keys(series).sort().map(function (s2) {
+          return '<option value="' + esc(s2) + '"' + (XP.opts.refSeries === s2 ? " selected" : "") + ">" + esc(s2) + "</option>";
+        }).join("") + "</select></label>");
+    }
+    return rows.join("");
+  }
+  function renderExplore() {
+    var body = $("#xpBody"); if (!body) return;
+    var dss = xpDatasets();
+    var q = XP.q.toLowerCase();
+    var shown = dss.filter(function (d) {
+      return !q || (d.name + " " + d.sub + " " + d.cols.join(" ")).toLowerCase().indexOf(q) >= 0;
+    });
+    var analyses = Studio.Workspace.all("analyses").sort(function (a, b) { return (b.updatedAt || 0) - (a.updatedAt || 0); });
+    var dsRows = shown.slice(0, 60).map(function (d) {
+      var on = XP.kind === d.kind && XP.dsId === d.id;
+      return '<button type="button" class="xp-ds' + (on ? " active" : "") + '" data-xp-ds="' + esc(d.kind) + XP_SEP + esc(d.id) + '">' +
+        '<b>' + esc(d.name) + '</b><small>' + esc(d.sub) + '</small></button>';
+    }).join("");
+    var savedRows = analyses.map(function (a) {
+      var on = XP.analysisId === a.id;
+      return '<div class="xp-saved-row' + (on ? " active" : "") + '" data-xp-a="' + esc(a.id) + '">' +
+        '<button type="button" class="xp-saved-open" data-xp-open="' + esc(a.id) + '" title="Open in Explore"><b>' + esc(a.name) + '</b>' +
+        '<small>' + esc((Studio.CHARTS[a.chartType] || {}).label || a.chartType) + '</small></button>' +
+        '<span class="xp-saved-acts">' +
+        '<button type="button" class="xp-act' + (a.pinned ? " on" : "") + '" data-xp-pin="' + esc(a.id) + '" title="' + (a.pinned ? "Unpin from Home" : "Pin to Home") + '" aria-pressed="' + (a.pinned ? "true" : "false") + '">★</button>' +
+        '<button type="button" class="xp-act" data-xp-dash="' + esc(a.id) + '" title="Add to the current dashboard">▦</button>' +
+        '<button type="button" class="xp-act" data-xp-del="' + esc(a.id) + '" title="Delete analysis">✕</button>' +
+        '</span></div>';
+    }).join("");
+    var main;
+    if (!XP.dsId || !XP.run) {
+      main = '<div class="xp-empty"><h3>Pick a dataset to start</h3>' +
+        '<p>Choose one on the left — your workspace datasets first, sample data below them. ' +
+        'You’ll see the data as a table, then choose how to chart it.</p></div>';
+    } else {
+      var chips = XP_TYPES.map(function (t) {
+        var def = Studio.CHARTS[t] || {};
+        return '<button type="button" class="xp-chip' + (XP.type === t ? " active" : "") + '" data-xp-type="' + t + '" title="' + esc(def.desc || def.label || t) + '" aria-pressed="' + (XP.type === t ? "true" : "false") + '">' +
+          '<span class="xp-chip-thumb">' + (CHART_SVG[t] ? themedChartSvg(CHART_SVG[t], t) : "") + '</span><span>' + esc(def.label || t) + "</span></button>";
+      }).join("");
+      var cols = XP.run.cols, rows = XP.run.rows;
+      var thead = "<tr>" + cols.map(function (c) { return "<th>" + esc(c) + "</th>"; }).join("") + "</tr>";
+      var tbody = rows.slice(0, 8).map(function (r) {
+        return "<tr>" + cols.map(function (_, i) { return "<td>" + esc(String(r[i] == null ? "" : r[i])) + "</td>"; }).join("") + "</tr>";
+      }).join("");
+      main =
+        '<div class="xp-step"><div class="xp-step-h">1 · The data' +
+          '<span class="xp-badge' + (XP.run.live ? " live" : "") + '">' + (XP.run.live ? "live rows" : "sample rows") + "</span>" +
+          (XP.run.error ? '<span class="xp-badge warn" title="' + esc(XP.run.error) + '">live run failed</span>' : "") +
+          '<span class="xp-note">' + rows.length + " rows · " + cols.length + " columns</span></div>" +
+          '<div class="xp-table-wrap"><table class="xp-table"><thead>' + thead + "</thead><tbody>" + tbody + "</tbody></table></div></div>" +
+        '<div class="xp-step"><div class="xp-step-h">2 · The chart</div><div class="xp-chips">' + chips + "</div></div>" +
+        '<div class="xp-step"><div class="xp-step-h">3 · The mapping</div><div class="xp-map-grid">' + xpMapEditorHtml() + "</div></div>" +
+        '<div class="xp-step"><div class="xp-step-h">4 · The result</div><div id="xpPreview" class="xp-preview"></div>' +
+          '<div class="xp-savebar">' +
+            '<input id="xpName" type="text" placeholder="Name this analysis…" value="' + esc(XP.name) + '" aria-label="Analysis name"/>' +
+            '<button type="button" class="btn primary" id="xpSaveBtn">' + (XP.analysisId ? "Update analysis" : "Save analysis") + "</button>" +
+            (XP.analysisId ? '<button type="button" class="btn" id="xpSaveAsBtn">Save as new</button>' : "") +
+            '<button type="button" class="btn" id="xpToDashBtn" title="Add this chart to the current dashboard">Add to dashboard</button>' +
+          "</div></div>";
+    }
+    body.innerHTML =
+      '<aside class="xp-side">' +
+        '<input id="xpSearch" class="repo-search" type="search" placeholder="Search datasets…" aria-label="Search datasets" value="' + esc(XP.q) + '"/>' +
+        '<div class="xp-list">' + (dsRows || '<div class="xp-none">No datasets' + (showSamples() ? "" : " (samples are hidden in Settings)") + ".</div>") + "</div>" +
+        '<div class="xp-saved"><div class="xp-saved-h">Saved analyses <span class="badge">' + analyses.length + "</span></div>" +
+          (savedRows || '<div class="xp-none">Nothing saved yet.</div>') + "</div>" +
+      "</aside>" +
+      '<div class="xp-main">' + main + "</div>";
+    // wire
+    var search = $("#xpSearch", body);
+    if (search) search.addEventListener("input", function () { XP.q = search.value || ""; renderExplore(); });
+    $$("[data-xp-ds]", body).forEach(function (btn) {
+      btn.onclick = function () {
+        var parts = btn.getAttribute("data-xp-ds").split(XP_SEP);
+        XP.kind = parts.shift(); XP.dsId = parts.join(XP_SEP); // sample ids contain the SEP themselves
+        XP.analysisId = null; XP.name = "";
+        xpLoadRows().then(function () { xpGuessMapping(); renderExplore(); xpPreview(); });
+      };
+    });
+    $$("[data-xp-type]", body).forEach(function (btn) {
+      btn.onclick = function () { XP.type = btn.getAttribute("data-xp-type"); xpGuessMapping(); renderExplore(); xpPreview(); };
+    });
+    $$("[data-xp-field]", body).forEach(function (sel) {
+      sel.onchange = function () {
+        var f = sel.getAttribute("data-xp-field");
+        if (f === "series") XP.map.series = sel.value ? [{ col: sel.value }] : [];
+        else XP.map[f] = sel.value;
+        xpPreview();
+      };
+    });
+    $$("[data-xp-opt]", body).forEach(function (sel) {
+      sel.onchange = function () { XP.opts[sel.getAttribute("data-xp-opt")] = sel.value; xpPreview(); };
+    });
+    var saveBtn = $("#xpSaveBtn", body); if (saveBtn) saveBtn.onclick = xpSave;
+    var saveAs = $("#xpSaveAsBtn", body); if (saveAs) saveAs.onclick = function () { XP.analysisId = null; xpSave(); };
+    var toDash = $("#xpToDashBtn", body);
+    if (toDash) toDash.onclick = function () {
+      if (XP.analysisId) { xpAddAnalysisToSpec(XP.analysisId); return; }
+      // unsaved → save silently under a default name, then add
+      var nameInp = $("#xpName", body);
+      if (nameInp && !nameInp.value.trim()) nameInp.value = "Exploration " + new Date().toLocaleDateString();
+      xpSave();
+      if (XP.analysisId) xpAddAnalysisToSpec(XP.analysisId);
+    };
+    var nameInp2 = $("#xpName", body);
+    if (nameInp2) nameInp2.addEventListener("input", function () { XP.name = nameInp2.value; });
+    $$("[data-xp-open]", body).forEach(function (btn) { btn.onclick = function () { xpLoadAnalysis(btn.getAttribute("data-xp-open")); }; });
+    $$("[data-xp-pin]", body).forEach(function (btn) { btn.onclick = function () { xpTogglePin(btn.getAttribute("data-xp-pin")); }; });
+    $$("[data-xp-dash]", body).forEach(function (btn) { btn.onclick = function () { xpAddAnalysisToSpec(btn.getAttribute("data-xp-dash")); }; });
+    $$("[data-xp-del]", body).forEach(function (btn) {
+      btn.onclick = function () {
+        var a = Studio.Workspace.get("analyses", btn.getAttribute("data-xp-del")); if (!a) return;
+        if (!window.confirm('Delete analysis "' + a.name + '"?')) return;
+        if (XP.analysisId === a.id) XP.analysisId = null;
+        Studio.Workspace.remove("analyses", a.id);
+        toast("Deleted " + a.name);
+      };
+    });
+    if (XP.dsId && XP.run) xpPreview();
+  }
+  // Analyses in the Studio library — saved Explore results as drag-in objects.
+  function buildAnalysesLib(list, q) {
+    var all = (Studio.Workspace ? Studio.Workspace.all("analyses") : []);
+    var shown = all.filter(function (a) {
+      if (!q) return true;
+      return ((a.name || "") + " " + (a.chartType || "")).toLowerCase().indexOf(q) >= 0;
+    }).sort(function (a, b) { return (b.updatedAt || 0) - (a.updatedAt || 0); });
+    if (!shown.length) return;
+    var wrap = el("div", "lib-mine lib-analyses open");
+    var h = el("div", "h");
+    h.innerHTML = '<span class="car">▶</span><span class="nm">Analyses</span><span class="badge">' + shown.length + "</span>";
+    h.onclick = function () { wrap.classList.toggle("open"); };
+    wrap.appendChild(h);
+    var box = el("div", "lib-das");
+    shown.forEach(function (a) {
+      var c = el("div", "da");
+      c.draggable = true;
+      c.innerHTML = '<div class="da-top"><div class="da-id">' + hlq(a.name || "Analysis", q) + '</div></div>' +
+        '<div class="da-name">' + esc((Studio.CHARTS[a.chartType] || {}).label || a.chartType) + " · " + esc((a.da && a.da.name) || "dataset") + "</div>" +
+        '<div class="da-add"><span class="chip" data-xp-lib-add="' + esc(a.id) + '">+ Add to dashboard</span></div>';
+      var chip = c.querySelector("[data-xp-lib-add]");
+      if (chip) chip.onclick = function (e) { e.stopPropagation(); xpAddAnalysisToSpec(a.id); };
+      c.addEventListener("dragstart", function (e) {
+        e.dataTransfer.setData("text/plain", JSON.stringify({ analysis: a.id }));
+        e.dataTransfer.effectAllowed = "copy";
+      });
+      box.appendChild(c);
+    });
+    wrap.appendChild(box);
+    list.insertBefore(wrap, list.firstChild);
+  }
+  window.__studioExplore = { state: XP, render: renderExplore, load: xpLoadAnalysis, save: xpSave, addToSpec: xpAddAnalysisToSpec, togglePin: xpTogglePin }; // test hooks
 
   /* ---------- This dashboard's datasets (spec-owned query definitions) ---------- */
   function buildMyDataSources(list) {
@@ -4914,6 +5303,20 @@
       '<button type="button" class="home-tip-next" title="Next tip" aria-label="Next tip">' +
       '<span data-ic="chevron-right"></span></button></div>' +
       wbChipsHtml +
+      // Viridis V5: analyses pinned in Explore surface on Home — the quickest
+      // path from "open the app" to "see my chart". Cards open Explore loaded.
+      (function () {
+        var pinnedA = (Studio.Workspace ? Studio.Workspace.all("analyses") : []).filter(function (a) { return a.pinned; })
+          .sort(function (a, b) { return (b.updatedAt || 0) - (a.updatedAt || 0); });
+        if (!pinnedA.length) return "";
+        return '<h2 class="home-sub">Pinned analyses</h2><div class="home-recents home-analyses">' +
+          pinnedA.map(function (a) {
+            return '<button type="button" class="recent-card home-analysis" data-home-analysis="' + esc(a.id) + '">' +
+              '<span class="home-analysis-thumb">' + (CHART_SVG[a.chartType] ? themedChartSvg(CHART_SVG[a.chartType], a.chartType) : "") + "</span>" +
+              '<b>' + esc(a.name || "Analysis") + '</b>' +
+              '<small>' + esc((Studio.CHARTS[a.chartType] || {}).label || a.chartType) + " · " + esc((a.da && a.da.name) || "dataset") + "</small></button>";
+          }).join("") + "</div>";
+      })() +
       (pinnedList.length ? '<h2 class="home-sub">Pinned</h2><div class="home-recents">' +
         pinnedList.map(function (r) { return recentCardHtml(r, true); }).join("") + '</div>' : "") +
       (unpinnedList.length ? '<h2 class="home-sub">Recent dashboards</h2><div class="home-recents">' +
@@ -4938,6 +5341,12 @@
     });
     var tipNext = $(".home-tip-next", sec);
     if (tipNext) tipNext.onclick = function () { _homeTipIdx = (_homeTipIdx + 1) % HOME_TIPS.length; renderHome(); };
+    $$("[data-home-analysis]", sec).forEach(function (btn) {
+      btn.onclick = function () {
+        if (window.__studioShellSetSection) __studioShellSetSection("explore");
+        xpLoadAnalysis(btn.getAttribute("data-home-analysis"));
+      };
+    });
     $$(".recent-open", sec).forEach(function (btn) { btn.onclick = function () { openRecent(btn.getAttribute("data-recent")); }; });
     $$(".recent-pin", sec).forEach(function (btn) {
       btn.appendChild(Studio.icon("star", 14));
@@ -8194,6 +8603,7 @@
       try {
         var d = JSON.parse(e.dataTransfer.getData("text/plain"));
         if (d && d.wsDataset) { addFromWorkspaceDataset(d.wsDataset, "bars"); }
+        else if (d && d.analysis) { xpAddAnalysisToSpec(d.analysis); }
         else if (d && d.da) { var _da = catalogDA(d.stem, d.da); addFromDA(d.stem, d.da, (_da && chartForDA(_da)) || "bars"); }
       } catch (x) {}
     });
