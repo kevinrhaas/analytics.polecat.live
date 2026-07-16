@@ -70,12 +70,58 @@ function handleMockTurso(req, rep) {
   });
 }
 
+// ---- mock PostgREST (app/sources/postgrest.js end-to-end tests) ------------
+// Just enough of the real protocol: GET / answers the OpenAPI doc; GET /<table>
+// supports select= (column subset), <col>=eq.<v> filters and limit=; the
+// `secure_orders` table demands `Authorization: Bearer test-token`. CORS open.
+const mockPgTables = {
+  orders: [
+    { region: "EMEA", total: 120, year: 2026 },
+    { region: "AMER", total: 200, year: 2026 },
+    { region: "APAC", total: 80, year: 2025 },
+  ],
+};
+function handleMockPostgrest(req, rep, p) {
+  const send = (code, body) => {
+    rep.writeHead(code, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "*" });
+    rep.end(JSON.stringify(body));
+  };
+  if (req.method === "OPTIONS") return send(200, {});
+  const rel = p.replace(/^\/__postgrest\/?/, "");
+  if (!rel) return send(200, { openapi: "3.0.0", info: { title: "mock PostgREST" } }); // the root = OpenAPI doc
+  const table = decodeURIComponent(rel);
+  const needsAuth = table === "secure_orders";
+  if (needsAuth && req.headers.authorization !== "Bearer test-token") return send(401, { message: "JWT invalid" });
+  const data = mockPgTables[needsAuth ? "orders" : table];
+  if (!data) return send(404, { message: "relation does not exist" });
+  const qs = new URLSearchParams(req.url.split("?")[1] || "");
+  let rows = data.slice();
+  for (const [k, v] of qs.entries()) {
+    if (k === "select" || k === "limit" || k === "order") continue;
+    const m = /^eq\.(.*)$/.exec(v);
+    if (m) rows = rows.filter((r) => String(r[k]) === m[1]);
+  }
+  const sel = (qs.get("select") || "*").trim();
+  if (sel && sel !== "*") {
+    const cols = sel.split(",").map((s) => s.trim());
+    rows = rows.map((r) => { const o = {}; cols.forEach((c) => { o[c] = r[c]; }); return o; });
+  }
+  const lim = parseInt(qs.get("limit") || "", 10);
+  if (lim > 0) rows = rows.slice(0, lim);
+  return send(200, rows);
+}
+
 function serve() {
   return new Promise((res) => {
     const srv = http.createServer((req, rep) => {
       let p = decodeURIComponent(req.url.split("?")[0]); if (p === "/") p = "/index.html";
       if (p === "/favicon.ico") { rep.writeHead(204); return rep.end(); }
       if (p === "/__turso/v2/pipeline") return handleMockTurso(req, rep);
+      if (p === "/__postgrest401/" || p.indexOf("/__postgrest401/") === 0) {
+        rep.writeHead(401, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" });
+        return rep.end(JSON.stringify({ message: "JWT required" }));
+      }
+      if (p === "/__postgrest/" || p.indexOf("/__postgrest/") === 0) return handleMockPostgrest(req, rep, p);
       const fp = path.join(ROOT, p);
       if (!fp.startsWith(ROOT) || !fs.existsSync(fp) || fs.statSync(fp).isDirectory()) { rep.writeHead(404); return rep.end("404"); }
       rep.writeHead(200, { "Content-Type": MIME[path.extname(fp)] || "application/octet-stream" });
@@ -361,10 +407,10 @@ function serve() {
         appId: S.WS.APP_ID, tableNames: S.WS.TABLE_NAMES
       };
     });
-    ok("WS: registry carries local/turso/supabase/firebase + the six data adapters, with caps planes",
-      wsRegistry.ids.join(",") === "local,turso,supabase,firebase,snowflake,databricks,bigquery,duckdb,sqlite,httpsql" &&
+    ok("WS: registry carries local/turso/supabase/firebase + the seven data adapters, with caps planes",
+      wsRegistry.ids.join(",") === "local,turso,supabase,firebase,postgrest,snowflake,databricks,bigquery,duckdb,sqlite,httpsql" &&
       wsRegistry.localMetaOnly && wsRegistry.tursoBoth &&
-      wsRegistry.metaCount === 4 && wsRegistry.dataCount === 9 && wsRegistry.byId, JSON.stringify(wsRegistry));
+      wsRegistry.metaCount === 4 && wsRegistry.dataCount === 10 && wsRegistry.byId, JSON.stringify(wsRegistry));
 
     const wsDataAdapters = await page.evaluate(async function () {
       var sf = Studio.sourceById("snowflake");
@@ -385,6 +431,77 @@ function serve() {
       wsDataAdapters.badIsInBand && wsDataAdapters.refuses && wsDataAdapters.noSqlInBand, JSON.stringify(wsDataAdapters));
     ok("WS: workspace schema is analytics-owned (connections/datasets/dashboards)",
       wsRegistry.appId === "analytics" && wsRegistry.tableNames.join(",") === "connections,datasets,dashboards", JSON.stringify(wsRegistry.tableNames));
+
+    // ---- PostgREST adapter (★★★-2): end-to-end against a mock PostgREST -----
+    console.log("\n• PostgREST data adapter (★★★-2)");
+    const pgShape = await page.evaluate(async function () {
+      var pg = Studio.sourceById("postgrest");
+      var refuse = await pg.provision({});
+      var noTable = await pg.queryData({ url: location.origin + "/__postgrest" }, { kind: "table", table: "" });
+      return {
+        present: !!pg, dataOnly: !!(pg && !pg.caps.meta && pg.caps.data),
+        fieldKeys: pg ? pg.fields.map(function (f) { return f.key; }).join(",") : "",
+        refuses: refuse.ok === false && /workspace/i.test(refuse.error || ""),
+        noTableInBand: noTable && /no table/i.test(noTable.error || "")
+      };
+    });
+    ok("PG: postgrest adapter registered — data-only, url/token/schema fields, meta-plane refusals, in-band empty-table error",
+      pgShape.present && pgShape.dataOnly && pgShape.fieldKeys === "url,token,schema" && pgShape.refuses && pgShape.noTableInBand,
+      JSON.stringify(pgShape));
+    const pgLive = await page.evaluate(async function () {
+      var pg = Studio.sourceById("postgrest");
+      var cfg = { url: location.origin + "/__postgrest" };
+      var test = await pg.testData(cfg);
+      var all = await pg.queryData(cfg, { kind: "table", table: "orders" });
+      var filtered = await pg.queryData(cfg, { kind: "table", table: "orders", query: "select=region,total&region=eq.EMEA" });
+      var missing = await pg.queryData(cfg, { kind: "table", table: "nope" });
+      var bad = await pg.testData({ url: location.origin + "/__postgrest401" });
+      return {
+        testOk: test.ok === true,
+        cols: all.columns.join(","), rowCount: all.rows.length,
+        filteredCols: filtered.columns.join(","), filteredRows: JSON.stringify(filtered.rows),
+        missingInBand: /HTTP 404/.test(missing.error || ""),
+        badTokenInBand: bad.ok === false && /401/.test(bad.error || "") && /token/i.test(bad.error || "")
+      };
+    });
+    ok("PG: testData reaches the REST root; a whole-table read returns real columns and rows",
+      pgLive.testOk && pgLive.cols === "region,total,year" && pgLive.rowCount === 3, JSON.stringify(pgLive));
+    ok("PG: a raw PostgREST query string (select + eq filter) passes through verbatim",
+      pgLive.filteredCols === "region,total" && pgLive.filteredRows === '[["EMEA",120]]', JSON.stringify(pgLive));
+    ok("PG: a missing relation and a rejected JWT both come back as friendly in-band errors",
+      pgLive.missingInBand && pgLive.badTokenInBand, JSON.stringify(pgLive));
+    const pgAuth = await page.evaluate(async function () {
+      var pg = Studio.sourceById("postgrest");
+      var base = location.origin + "/__postgrest";
+      var withToken = await pg.queryData({ url: base, token: "test-token" }, { kind: "table", table: "secure_orders" });
+      var noToken = await pg.queryData({ url: base }, { kind: "table", table: "secure_orders" });
+      return { authedRows: withToken.rows.length, deniedInBand: /HTTP 401/.test(noToken.error || "") };
+    });
+    ok("PG: the Bearer token flows as an Authorization header (authed table reads; denied without)",
+      pgAuth.authedRows === 3 && pgAuth.deniedInBand, JSON.stringify(pgAuth));
+    // The full workspace path a dashboard uses: connection row → dataset row
+    // (kind:'table' via dsxKindFor) → runDataset applies {{params}} to the
+    // query string, learns the real column list, and stamps lastRun.
+    const pgDataset = await page.evaluate(async function () {
+      var W = Studio.Workspace;
+      W.put("connections", { id: "cx-pg-test", name: "Mock Postgres", adapter: "postgrest", cfg: { url: location.origin + "/__postgrest" } }, { silent: true });
+      var d = { id: "ds-pg-test", name: "Orders by region", connectionId: "cx-pg-test", kind: "table",
+        table: "orders", query: "select=region,total&region=eq.{{region}}", params: [{ key: "region", value: "AMER" }] };
+      W.put("datasets", d, { silent: true });
+      var r = await window.__studioRunDataset(d, null);            // defaults: region=AMER
+      var override = await window.__studioRunDataset(d, { region: "APAC" }); // dashboard variable wins
+      var saved = W.get("datasets", "ds-pg-test");
+      W.remove("datasets", "ds-pg-test", { silent: true });
+      W.remove("connections", "cx-pg-test", { silent: true });
+      return {
+        rows: JSON.stringify(r.rows), overrideRows: JSON.stringify(override.rows),
+        learnedCols: (saved.columns || []).join(","), lastRunOk: !!(saved.lastRun && saved.lastRun.ok)
+      };
+    });
+    ok("PG: a workspace dataset on a postgrest connection runs live — parameter defaults apply and dashboard variables override them",
+      pgDataset.rows === '[["AMER",200]]' && pgDataset.overrideRows === '[["APAC",80]]', JSON.stringify(pgDataset));
+    ok("PG: a successful run teaches the dataset its real column list and stamps lastRun",
+      pgDataset.learnedCols === "region,total" && pgDataset.lastRunOk, JSON.stringify(pgDataset));
 
     const wsStore = await page.evaluate(function () {
       var W = Studio.Workspace, events = [];
@@ -17164,7 +17281,7 @@ function serve() {
     // are fetched during install too (from the index we just cached), so a first-ever offline
     // visit still has a full library/gallery, not just a blank shell.
     const pwaDataPrecached = await pwaPage.evaluate(async function () {
-      const cache = await caches.open("studio-shell-v7");
+      const cache = await caches.open("studio-shell-v8");
       const keys = (await cache.keys()).map((r) => new URL(r.url).pathname.replace(/^\//, ""));
       const exIndex = await fetch("data/examples/index.json").then((r) => r.json());
       const missingExamples = exIndex.filter((ex) => keys.indexOf("data/examples/" + ex.file) < 0);

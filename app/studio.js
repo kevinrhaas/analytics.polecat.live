@@ -5394,7 +5394,7 @@
   // sql-family, a table+query for Supabase (PostgREST), a collection for
   // Firestore. One place so the editor + runner + library agree.
   function dsxKindFor(adapterId) {
-    if (adapterId === "supabase") return "table";
+    if (adapterId === "supabase" || adapterId === "postgrest") return "table"; // both speak PostgREST
     if (adapterId === "firebase") return "collection";
     return "sql";
   }
@@ -5582,7 +5582,7 @@
           defWrap.appendChild(row); defInputs[key] = inp;
         }
         if (kind === "table") {
-          defField("Table", "table", false, "orders", "The Supabase table (RLS governs access).");
+          defField("Table", "table", false, "orders", "The exposed table or view (RLS/grants govern access).");
           defField("PostgREST query", "query", false, "select=*&order=total.desc&limit=200", "Optional — PostgREST query string; {{params}} allowed.");
         } else if (kind === "collection") {
           defField("Collection", "collection", false, "orders", "The Firestore collection; documents flatten into rows.");
