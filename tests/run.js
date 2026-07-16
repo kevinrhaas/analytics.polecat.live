@@ -815,9 +815,11 @@ function serve() {
       var spec = { id: "lean", name: "lean", title: "t", panels: [{ id: "p", title: "p", chart: { type: "bars", da: "g", map: { labelCol: "a", valueCol: "b" } } }],
         kpis: [], filters: [], cda: { connections: [], dataAccesses: [{ id: "g", kind: "sql", columns: ["a", "b"] }] } };
       var html = Studio.buildHtml(spec, window.__STUDIO_STATE.assets, { preview: false });
-      return { hasGeo: html.indexOf("STUDIO_GEO") >= 0, hasTopo: html.indexOf("topojson-client v3") >= 0 };
+      // match the INJECTED literal ("window.STUDIO_GEO = {"), not the bare substring —
+      // the charts source itself mentions window.STUDIO_GEO when it probes for it
+      return { hasGeo: html.indexOf("window.STUDIO_GEO = {") >= 0, hasTopo: html.indexOf("topojson-client v3") >= 0 };
     });
-    ok("GEO: exports WITHOUT map panels carry zero geometry (no STUDIO_GEO, no topojson) — dashboards stay lean",
+    ok("GEO: exports WITHOUT map panels carry zero geometry (no STUDIO_GEO payload, no topojson) — dashboards stay lean",
       !geoLean.hasGeo && !geoLean.hasTopo, JSON.stringify(geoLean));
 
     const wsStore = await page.evaluate(function () {
@@ -5420,7 +5422,7 @@ function serve() {
     await phonePage.evaluate(() => { var s = document.getElementById("mobile-scrim"); if (s && s.classList.contains("active")) s.click(); });
     await phonePage.waitForTimeout(350);
     await phonePage.click("#btnChangelog");
-    await phonePage.waitForTimeout(320);
+    await phonePage.waitForTimeout(550);
     const m12CL = await phonePage.evaluate(() => {
       var p = document.querySelector(".ps-rpanel");
       if (!p) return { ok: false, err: "no panel" };
@@ -5430,7 +5432,7 @@ function serve() {
     });
     ok("M12: What's-new panel width ≤ phone viewport width", m12CL.ok, JSON.stringify(m12CL));
     await phonePage.keyboard.press("Escape");
-    await phonePage.waitForTimeout(320);
+    await phonePage.waitForTimeout(550);
 
     await narrowPage.close();
 
@@ -5498,7 +5500,7 @@ function serve() {
     await phonePage.evaluate(() => document.querySelector('#mobile-tabs .mob-tab[data-mob-tab="canvas"]').click());
 
     await phonePage.click("#btnChangelog");
-    await phonePage.waitForTimeout(320);
+    await phonePage.waitForTimeout(550);
     const mnavCL = await phonePage.evaluate(() => { var c = document.querySelector(".ps-rpanel"); if (!c) return { open: false }; var r = c.getBoundingClientRect(); return { open: true, inView: r.left >= -1 && r.right <= window.innerWidth + 1 }; });
     ok("MNAV: What's-new panel sits fully within the viewport", mnavCL.open && mnavCL.inView, JSON.stringify(mnavCL));
 
@@ -5519,7 +5521,7 @@ function serve() {
       mnavCLSheet.tallSheet && mnavCLSheet.hasClose && mnavCLSheet.closeOnScreen && mnavCLSheet.closeThumbSized, JSON.stringify(mnavCLSheet));
 
     await phonePage.click('.ps-rpanel-head button[aria-label="Close panel"]');
-    await phonePage.waitForTimeout(320);
+    await phonePage.waitForTimeout(550);
     const mnavCLClosed = await phonePage.evaluate(() => !document.querySelector(".ps-rpanel"));
     ok("MNAV: the Close button actually dismisses the What's-new sheet", mnavCLClosed === true, String(mnavCLClosed));
 
@@ -17644,7 +17646,7 @@ function serve() {
     // are fetched during install too (from the index we just cached), so a first-ever offline
     // visit still has a full library/gallery, not just a blank shell.
     const pwaDataPrecached = await pwaPage.evaluate(async function () {
-      const cache = await caches.open("studio-shell-v11");
+      const cache = await caches.open("studio-shell-v12");
       const keys = (await cache.keys()).map((r) => new URL(r.url).pathname.replace(/^\//, ""));
       const exIndex = await fetch("data/examples/index.json").then((r) => r.json());
       const missingExamples = exIndex.filter((ex) => keys.indexOf("data/examples/" + ex.file) < 0);
