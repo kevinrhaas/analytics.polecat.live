@@ -1240,6 +1240,94 @@ function serve() {
     });
     await page.waitForTimeout(250);
 
+    // ---- DEMO PACKS (Viridis V7): second sample library, install/remove ----
+    console.log("\n• DEMO PACKS: Viridis pack install/remove (Viridis V7)");
+    const dpUnit = await page.evaluate(function () {
+      var provSample = Studio.sampleRows({ columns: ["year", "provider", "pct"] });
+      var allProviders = provSample.rows.every(function (r) { return /^[A-Za-z][A-Za-z .]*$/.test(String(r[1])); });
+      var crossed = Studio.crossedRows({ id: "t", columns: ["year", "provider", "pct"] }, "provider");
+      var nonAg = crossed.rows.filter(function (r) { return r[1] !== "AgCensus"; });
+      var years = {}, provsPerYear = {};
+      nonAg.forEach(function (r) { years[r[0]] = 1; provsPerYear[r[0]] = (provsPerYear[r[0]] || 0) + 1; });
+      var agRows = crossed.rows.filter(function (r) { return r[1] === "AgCensus"; });
+      return { allProviders: allProviders, yearCount: Object.keys(years).length,
+        perYearCounts: Object.keys(provsPerYear).map(function (y) { return provsPerYear[y]; }),
+        totalRows: crossed.rows.length, agYears: agRows.map(function (r) { return r[0]; }).sort() };
+    });
+    ok("DP: classify() gives 'provider'-named columns real provider names (not random numbers) — a believable ensemble everywhere the sample engine runs",
+      dpUnit.allProviders, JSON.stringify(dpUnit));
+    ok("DP: Studio.crossedRows crosses the full label domain (11 years) against every provider (5 each) instead of one row per index",
+      dpUnit.yearCount === 11 && dpUnit.perYearCounts.length === 11 && dpUnit.perYearCounts.every(function (n) { return n === 5; }) &&
+      dpUnit.totalRows === 11 * 5 + 2, JSON.stringify(dpUnit));
+    ok("DP: AgCensus reference rows land only on real AgCensus years (2017, 2022) — sparse like the real release cadence",
+      JSON.stringify(dpUnit.agYears) === JSON.stringify(["2017", "2022"]), JSON.stringify(dpUnit.agYears));
+
+    const dpInstall = await page.evaluate(function () {
+      window.__studioDemoPacks.install("viridis");
+      var conns = Studio.Workspace.all("connections").filter(function (r) { return r.demoPackId === "viridis"; });
+      var dss = Studio.Workspace.all("datasets").filter(function (r) { return r.demoPackId === "viridis"; });
+      var ans = Studio.Workspace.all("analyses").filter(function (r) { return r.demoPackId === "viridis"; });
+      var dashes = Studio.Workspace.all("dashboards").filter(function (r) { return r.demoPackId === "viridis"; });
+      return { installed: window.__studioDemoPacks.installed("viridis"),
+        conns: conns.length, dss: dss.length, ans: ans.length, dashes: dashes.length,
+        pinned: ans.every(function (a) { return a.pinned; }), featured: dashes[0] && dashes[0].featured,
+        panelTypes: dashes[0] && dashes[0].spec.panels.map(function (p) { return p.chart.type; }),
+        dsKind: dss[0] && dss[0].kind, dsFormat: dss[0] && dss[0].format };
+    });
+    ok("DP: installDemoPack writes a tagged connection + file dataset (the mapping demo), 4 pinned ensemble analyses, and 1 featured dashboard",
+      dpInstall.installed && dpInstall.conns === 1 && dpInstall.dss === 1 && dpInstall.ans === 4 && dpInstall.dashes === 1 &&
+      dpInstall.pinned && dpInstall.featured && dpInstall.dsKind === "file" && dpInstall.dsFormat === "csv" &&
+      dpInstall.panelTypes.filter(function (t) { return t === "ensembleSeries"; }).length === 4 &&
+      dpInstall.panelTypes.filter(function (t) { return t === "choropleth"; }).length === 1,
+      JSON.stringify(dpInstall));
+    // the raw file dataset queries LIVE (real CSV parse) — proves the "mapping demo" file is real, not mock
+    const dpRaw = await page.evaluate(async function () {
+      var ds = Studio.Workspace.all("datasets").filter(function (r) { return r.demoPackId === "viridis"; })[0];
+      var r = await window.__studioRunDataset(ds);
+      return { cols: r.columns, rowCount: r.rows.length, error: r.error || null };
+    });
+    ok("DP: the raw provider CSV dataset runs live through the file adapter with its own raw column names (State_FIPS, Provider_Name, ...) — a real mapping target, not a mock",
+      !dpRaw.error && dpRaw.rowCount > 0 && dpRaw.cols.indexOf("Provider_Name") >= 0 && dpRaw.cols.indexOf("Adoption_Pct") >= 0,
+      JSON.stringify(dpRaw));
+    // installed pack shows on Home (reuses the exact V6 featured/pinned machinery — no new Home code)
+    await page.evaluate(function () { window.__studioShellSetSection("home"); });
+    await page.waitForTimeout(300);
+    const dpHome = await page.evaluate(function () {
+      var dash = Studio.Workspace.all("dashboards").filter(function (r) { return r.demoPackId === "viridis"; })[0];
+      var ans = Studio.Workspace.all("analyses").filter(function (r) { return r.demoPackId === "viridis"; });
+      return { featCard: !!document.querySelector('[data-home-feat="' + dash.id + '"]'),
+        widgetCards: ans.filter(function (a) { return !!document.querySelector('[data-analysis-frame="' + a.id + '"]'); }).length };
+    });
+    ok("DP: the installed pack's dashboard appears as a featured live card on Home, and all 4 pinned analyses appear as widgets",
+      dpHome.featCard && dpHome.widgetCards === 4, JSON.stringify(dpHome));
+    // Settings + Library are hide-samples aware (nest under the same toggle as the CDA Samples group)
+    await page.evaluate(function () { window.__studioShellSetSection("settings"); });
+    await page.waitForTimeout(150);
+    const dpSettingsOn = await page.evaluate(function () { return { hasCard: !!document.querySelector('[data-demopack="viridis"]') }; });
+    await page.evaluate(function () { window.__studioShowSamples.set(false); });
+    await page.waitForTimeout(150);
+    const dpHidden = await page.evaluate(function () {
+      return { settingsCard: !!document.querySelector('[data-demopack="viridis"]'), libGroup: !!document.querySelector(".lib-demopacks") };
+    });
+    await page.evaluate(function () { window.__studioShowSamples.set(true); });
+    await page.waitForTimeout(150);
+    ok("DP: the Demo packs Settings card and Library group are hide-samples aware — visible with samples on, gone with samples off",
+      dpSettingsOn.hasCard && !dpHidden.settingsCard && !dpHidden.libGroup, JSON.stringify({ on: dpSettingsOn, off: dpHidden }));
+    // remove cleans up every tagged row + the install flag
+    const dpRemove = await page.evaluate(function () {
+      window.__studioDemoPacks.remove("viridis");
+      var left = ["connections", "datasets", "analyses", "dashboards"].reduce(function (n, t) {
+        return n + Studio.Workspace.all(t).filter(function (r) { return r.demoPackId === "viridis"; }).length;
+      }, 0);
+      return { installed: window.__studioDemoPacks.installed("viridis"), left: left };
+    });
+    ok("DP: removeDemoPack deletes every row it wrote (connection, dataset, analyses, dashboard) and clears the installed flag",
+      !dpRemove.installed && dpRemove.left === 0, JSON.stringify(dpRemove));
+    ok("DP: 'studio-demopacks-installed' is in the Clear-local-data key list (same recurring gap the file's other sweep notes guard against)",
+      (await page.evaluate(function () { return window.__studioClearDataKeys; })).indexOf("studio-demopacks-installed") >= 0);
+    await page.evaluate(function () { window.__studioShellSetSection("studio"); });
+    await page.waitForTimeout(200);
+
     const wsStore = await page.evaluate(function () {
       var W = Studio.Workspace, events = [];
       var off = W.on("change", function (p) { events.push(p.table + ":" + (p.removed ? "del" : "put")); });
@@ -15524,7 +15612,7 @@ function serve() {
       var switches = Array.prototype.map.call(sec.querySelectorAll("input[data-set]"), function (cb) { return cb.getAttribute("data-set"); });
       return {
         visible: sec.hidden === false,
-        hasCards: sec.querySelectorAll(".settings-card").length === 7, // Workspace backend + 3 toggle groups + Branding (Z12) + Dashboard defaults + Data
+        hasCards: sec.querySelectorAll(".settings-card").length === 8, // Workspace backend + 3 toggle groups + Branding (Z12) + Demo packs (Viridis V7) + Dashboard defaults + Data
         switchIds: switches.join(","),
         darkChecked: sec.querySelector('input[data-set="dark"]').checked,
         simpleChecked: sec.querySelector('input[data-set="simple"]').checked,
@@ -15772,7 +15860,7 @@ function serve() {
       };
     });
     ok("Z5: Settings page has a Data card with Export/Import buttons",
-      z5Data.cardCount === 7 && z5Data.hasExportBtn && z5Data.hasImportBtn, JSON.stringify(z5Data));
+      z5Data.cardCount === 8 && z5Data.hasExportBtn && z5Data.hasImportBtn, JSON.stringify(z5Data));
 
     const [z5Dl] = await Promise.all([page.waitForEvent("download"), page.click("#setExportBtn")]);
     const z5DlName = z5Dl.suggestedFilename();
