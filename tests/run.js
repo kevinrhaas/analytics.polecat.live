@@ -168,7 +168,16 @@ function serve() {
   });
   const errors = [];
   page.on("pageerror", (e) => errors.push("page: " + e.message));
-  page.on("console", (m) => { if (m.type() === "error") errors.push("console: " + m.text()); });
+  page.on("console", (m) => {
+    if (m.type() !== "error") return;
+    // The PostgREST adapter tests DELIBERATELY hit 404/401 fixtures (missing relation,
+    // rejected JWT) to assert friendly in-band errors — the browser logs each failed
+    // resource load as a console error regardless. Ignore only those fixture URLs;
+    // every other console error still fails the no-uncaught-errors check.
+    const loc = (m.location() || {}).url || "";
+    if (/\/__postgrest(401)?\//.test(loc)) return;
+    errors.push("console: " + m.text());
+  });
 
   try {
     console.log("\n• boot");
@@ -627,7 +636,7 @@ function serve() {
       };
     });
     ok("CX: wizard step 1 lists every data-capable adapter with workspace-capable badges",
-      cxWiz.count === 9 && cxWiz.wsCapable === 3, JSON.stringify(cxWiz));
+      cxWiz.count === 10 && cxWiz.wsCapable === 3, JSON.stringify(cxWiz)); // 10 = the 9 originals + postgrest (★★★-2)
 
     // pick Turso → step 2 → point it at the mock pipeline → inline Test → Save
     await page.evaluate(function () {
