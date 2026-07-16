@@ -506,6 +506,17 @@
   <h3>Workspace connections: PostgreSQL (PostgREST)</h3>
   <p>The <strong>Connections</strong> section (left rail) manages saved, credentialed connections that workspace <strong>Datasets</strong> query through. Alongside the workspace backends (Turso, Supabase, Firebase) and the warehouse connectors above, the <strong>PostgreSQL (PostgREST)</strong> adapter connects to <em>any</em> Postgres exposed through a <a href="https://postgrest.org" target="_blank" rel="noopener noreferrer">PostgREST</a> deployment — self-hosted or managed — straight from the browser. Set the <strong>PostgREST URL</strong> (its root answers with the OpenAPI document, which is exactly what <strong>Test</strong> checks), an optional <strong>Bearer token</strong> (a PostgREST JWT; leave blank for anonymous access), and an optional <strong>Schema</strong> (sent as <code>Accept-Profile</code> for multi-schema deployments). Datasets on this connection are <strong>table-based</strong>, like Supabase: a table or view name plus an optional raw PostgREST query string (<code>select=region,total&amp;order=total.desc&amp;limit=200</code>) — with <code>{{parameters}}</code> allowed in both, so dashboard template variables flow into filters like <code>region=eq.{{region}}</code> at run time.</p>
 
+  <h3>Workspace connections: Google Sheets</h3>
+  <p>The <strong>Google Sheets</strong> adapter charts a sheet shared as <em>"anyone with the link can view"</em> straight
+  from the browser — no OAuth, no API key. Paste the sheet's URL (or just its id) into the connection; datasets on it
+  pick an optional <strong>Tab</strong> (the first tab when blank) and an optional <strong>Query</strong> in
+  <a href="https://developers.google.com/chart/interactive/docs/querylanguage" target="_blank" rel="noopener noreferrer">Google's
+  query language</a> — columns are addressed as <code>A, B, C…</code>, e.g. <code>select A, sum(B) group by A</code> —
+  with <code>{{parameters}}</code> allowed, so dashboard template variables flow into clauses like
+  <code>where A = '{{region}}'</code> at run time. Header labels become column names, dates render in their formatted
+  form, and a private sheet gets a friendly "share the link" hint instead of a raw error. Private-sheet (OAuth) access
+  isn't supported yet.</p>
+
   <h3>Workspace connections: CSV / JSON files</h3>
   <p>The <strong>CSV / JSON file</strong> adapter is the fastest way from a file on your disk to a chart: add a file
   connection (nothing to configure), create a dataset on it, and <strong>drop a <code>.csv</code>, <code>.tsv</code> or

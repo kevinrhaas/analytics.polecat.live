@@ -1092,9 +1092,13 @@
 >    at DuckDB remote-file), drop-zone editor branch, RFC4180 CSV w/ delimiter sniff + typed
 >    numbers, JSON array-of-objects w/ key-union columns; NOTE: went inline-content instead of
 >    File System Access API handles — handles can't persist in localStorage, are Chromium-only,
->    and re-prompt permissions; an FSA "link live file" variant can layer on later). Still to
->    do: AWS Redshift (Data API), Azure SQL / Fabric, MotherDuck, Google Sheets. Each = one
->    file implementing the contract in app/sources/schema.js + registerSource + wizard fields +
+>    and re-prompt permissions; an FSA "link live file" variant can layer on later). ✓ **Google
+>    Sheets (shipped 2026-07-16** — `app/sources/gsheets.js` via the gviz endpoint for
+>    link-shared sheets: kind:'sheet' datasets (tab + optional tq query, {{params}} flow into
+>    where-clauses), formatted dates, friendly access_denied hint; mock-gviz end-to-end tests.
+>    FOLLOW-UP: private-sheet OAuth via Sheets API v4 + bearer token, the BigQuery pattern).
+>    Still to do: AWS Redshift (Data API), Azure SQL / Fabric, MotherDuck. Each = one file
+>    implementing the contract in app/sources/schema.js + registerSource + wizard fields +
 >    tests against a mock.
 > 3. **Exported-runtime support for connection-bound datasets** — bundle the needed adapter engines
 >    into exports (like duckdb/httpvfs already do) so a shipped .html can run live against Turso etc.,
