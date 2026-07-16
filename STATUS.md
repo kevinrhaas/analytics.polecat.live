@@ -1069,6 +1069,77 @@
 > suite's cross-app reporting substrate, and Supabase (the planned main backend) is Postgres this
 > app already speaks. Keep logging concrete cross-app reporting opportunities here as they appear.
 
+### ★★★★ VIRIDIS VIEW / GEO-ANALYTICS TRACK (2026-07-16, user-directed — TOP priority)
+> **The case:** CTIC's Viridis View RFP (bid due 7/31, $35–45K, launch Nov 18–19 at SAS) — a public
+> tool showing county-level cover-crop + conservation-tillage adoption (2015–2025, annual updates
+> to 2030) from FIVE providers (DTN, Indigo/Terion, Iowa State, Regrow, Terra Diagnostics), maps
+> colored by the MEDIAN of user-selected providers, linked time-series charts with AgCensus
+> reference points, at county/State/CRD/HUC8 scales, Corn Belt focus, embedded free on ctic.org.
+> KEY FRAMING (per the office-hours prep): this is an ENSEMBLE — the median is the estimate, the
+> provider spread is uncertainty information to show honestly, not noise to hide. Provenance,
+> no-data handling and simplicity beat slick visuals for this audience. Static/client-side is the
+> winning architecture (data is single-digit MB gzipped; geometry is the heavy asset).
+> **Charter (user, 2026-07-16):** extend Analytics to support this case — non-expert-easy (Simple
+> mode hides machinery; Home features live dashboards; pins/favorites/recents), a simpler
+> dataset-first "Explore" designer feeding Studio, BOTH MapLibre GL JS and D3+TopoJSON attempted
+> behind one geo API, multi-connection + file-type import with mapping, a Viridis demo/sample
+> pack (a SECOND sample library, distinct from the CDA catalog), light data-management (jobs:
+> mapping/aggregation/rollup/join/union → materialized datasets, repeatable loads), and a public
+> marketing site at the root with the app at /app/ (fleet pattern).
+>
+> **The slices (one steward PR each, tests green, in order):**
+> V1. **Marketing site + app moves to /app/** (fleet pattern: manager/relay/jobtracker). Root =
+>     marketing page (hero, feature tour, screenshots, CTA → /app/). Mechanical blast radius:
+>     sw.js scope/precache paths, tests (~every goto), gate, PWA manifest start_url, deep-link
+>     hashes (#share=… forwards from root to /app/#…), docs links. Old root bookmarks land on
+>     marketing with a prominent "Open the app".
+> V2. **Geo foundation — light renderer first (the "D3 mode"):** vendor topojson-client + d3-geo
+>     (tiny, MIT, ESM, no build step) + simplified US Atlas counties/states TopoJSON under
+>     vendor/geo/. New app/geo.js (renderer-agnostic Geo API: fit/project/hover/click/legend/
+>     no-data) + `choropleth` chart type in app/studio-charts.js (SVG/canvas path renderer —
+>     small enough to INLINE IN EXPORTS, preserving the byte-identical export invariant). County
+>     + State first; CRD (NASS defs) and HUC8 (WBD, aggressively simplified — the one heavy
+>     geometry, staged) follow.
+> V3. **Ensemble views:** `ensembleSeries` chart type (N toggleable provider series + BOLD median
+>     overlay + discrete reference points (AgCensus) + optional min–max agreement band);
+>     provider-toggle filter control; median-of-selected computed client-side; choropleth colors
+>     from the same selection via the existing cross-filter/shared-parameter mechanism (map ↔
+>     chart stay linked). Median/agreement semantics live in one shared module so map + chart
+>     can never disagree.
+> V4. **MapLibre renderer (the "GL mode"):** vendor MapLibre GL JS behind the SAME app/geo.js
+>     API as an opt-in interactive renderer (buttery pan/zoom, county+HUC8 at any polygon count).
+>     Per-panel renderer choice; EXPORTS default to the light renderer (self-contained + small);
+>     evaluate both side-by-side and record the verdict here.
+> V5. **Explore designer (new rail section):** dataset-first flow — pick dataset → table preview
+>     → pick viz (incl. choropleth/ensemble) → map columns (geo id, value, time, series) → add
+>     filters + {{params}} → SAVE as an "Analysis" (new workspace `analyses` table) → analyses
+>     are drag-in objects in the Studio library and pinnable to Home. Simple-mode-first UI.
+>     NOTE: new WS table ⇒ SCHEMA_VERSION bump + additive migration + provisionDDL delta (manual
+>     SQL notice for existing Supabase workspaces).
+> V6. **Home = instant analytics:** per-dashboard "Feature on Home" flag; Home renders featured
+>     dashboards LIVE (view-only preview iframes, click-through to open) + pinned analyses as
+>     widgets; Simple mode boots to Home with featured content before any machinery. Pins/
+>     favorites/recents already ship (v354) — this makes Home the non-expert front door.
+> V7. **Viridis demo pack + sample-pack framework:** a SECOND sample library ("Demo packs",
+>     separate from the CDA catalog, one-click install/remove, hide-samples aware): synthetic
+>     Corn Belt county data for 5 providers × 4 practices (cover crops, no-till, reduced,
+>     conventional) × 2015–2025 + AgCensus reference rows (clearly labeled illustrative), a
+>     file-connection with mapping demo, 4 prebuilt ensemble analyses (one per mock-up layout),
+>     and a featured "Viridis View" dashboard on Home. This IS the RFP demo.
+> V8. **Prep / load processes (data-management-lite):** new workspace `jobs` table — a job =
+>     ordered steps over datasets: field mapping/rename/cast/derive, filter, AGGREGATE/ROLLUP
+>     (group-by + sum/avg/count/median/**acreage-weighted mean** — required for honest State/CRD/
+>     HUC8 roll-ups of percent metrics), JOIN/UNION across datasets (the 5-provider normalize-and-
+>     stack case), output → materialized workspace dataset; execute on demand, re-run for annual
+>     updates; optional custom-SQL step via the existing engines. Client-side executor first.
+> V9. **Scientific-honesty polish:** first-class no-data/coverage rendering, provenance popover
+>     (which providers, coverage, last updated), CSV download of the current selection (the
+>     RFP's deferred download question), docs + a "make the ensemble legible" help page.
+>
+> Open questions parked for Kevin: (a) confirm /app/ move + redirect posture; (b) MapLibre vendor
+> size (~850KB) is fine as vendored no-build code?; (c) HUC8/CRD geometry sourcing priority;
+> (d) whether Explore replaces "New dashboard" as the Simple-mode default entry.
+
 ### ★★★ POST-OVERHAUL BACKLOG (2026-07-13, user-directed — do these FIRST when the loop resumes)
 > The adapters → connections → datasets overhaul (see GOAL block) landed its baseline in one long
 > interactive session (Polecat default look · app/sources/ adapter layer · Connections/Datasets/
