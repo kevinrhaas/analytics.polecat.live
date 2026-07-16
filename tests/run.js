@@ -17488,6 +17488,9 @@ function serve() {
     ok("V1: marketing page has no horizontal scroll at 390px", mktPhone.noHScroll, JSON.stringify(mktPhone));
     ok("V1: marketing page loads with zero pageerrors", mktErrors.length === 0, mktErrors.join(" | "));
     // Old pre-move deep links carried app hashes on the ROOT — they must forward into /app/.
+    // (about:blank first: navigating "/" → "/#share=…" would be a SAME-DOCUMENT hash change
+    // that never re-runs the head script; real legacy links arrive as fresh navigations.)
+    await mkt.goto("about:blank");
     await mkt.goto(`http://localhost:${PORT}/#share=OLDLINKTOKEN`, { waitUntil: "load" });
     await mkt.waitForTimeout(400);
     const mktForward = await mkt.evaluate(function () { return { path: location.pathname, hash: location.hash }; });
