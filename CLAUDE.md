@@ -62,7 +62,9 @@ runs skip this app).
 ## Layout
 
 ```
-index.html          The app shell (repo root IS the site)
+index.html          The PUBLIC MARKETING page (root; css/landing.css; no shell)
+app/index.html      The APP (at /app/, with <base href="/"> so historical
+                    relative paths still resolve from the repo root)
 app/                Studio modules: model.js → studio-render.js ↔ studio.js
                     → exporters.js; sources/ = DataSource adapters (schema.js
                     is the contract); studio-charts.js = chart extensions

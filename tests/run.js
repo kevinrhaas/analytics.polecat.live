@@ -163,7 +163,9 @@ function serve() {
       }
       if (p === "/__postgrest/" || p.indexOf("/__postgrest/") === 0) return handleMockPostgrest(req, rep, p);
       if (p.indexOf("/__gsheets/") === 0) return handleMockGviz(req, rep, p);
-      const fp = path.join(ROOT, p);
+      let fp = path.join(ROOT, p);
+      // directory URLs resolve to their index.html (matches GitHub Pages: /app/ → app/index.html)
+      if (fs.existsSync(fp) && fs.statSync(fp).isDirectory()) fp = path.join(fp, "index.html");
       if (!fp.startsWith(ROOT) || !fs.existsSync(fp) || fs.statSync(fp).isDirectory()) { rep.writeHead(404); return rep.end("404"); }
       rep.writeHead(200, { "Content-Type": MIME[path.extname(fp)] || "application/octet-stream" });
       fs.createReadStream(fp).pipe(rep);
@@ -222,7 +224,7 @@ function serve() {
 
   try {
     console.log("\n• boot");
-    await page.goto(`http://localhost:${PORT}/`, { waitUntil: "networkidle" });
+    await page.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
     await page.waitForFunction(() => window.__STUDIO_STATE && window.__STUDIO_STATE.assets.js.length > 0, { timeout: 10000 });
     await page.waitForTimeout(400);
 
@@ -421,7 +423,7 @@ function serve() {
     // not regress (the m-c overflow lesson — every essential stays on-screen at 390px).
     const wafflePhone = await browser.newPage({ viewport: { width: 390, height: 844 } });
     await wafflePhone.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); } catch (e) {} });
-    await wafflePhone.goto(`http://localhost:${PORT}/`, { waitUntil: "networkidle" });
+    await wafflePhone.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
     await wafflePhone.waitForSelector(".ps-waffle-btn", { timeout: 5000 });
     const wafflePhoneState = await wafflePhone.evaluate(function () {
       var b = document.querySelector(".ps-waffle-btn"), n = document.getElementById("btnNew");
@@ -3592,7 +3594,7 @@ function serve() {
     const TEST_CODE = "studio-test-code";
     const TEST_HASH = require("crypto").createHash("sha256").update(TEST_CODE).digest("hex");
     await gp.route("**/app/gate-config.js", (route) => route.fulfill({ contentType: "text/javascript", body: 'window.STUDIO_GATE_SHA256=["' + TEST_HASH + '"];' }));
-    await gp.goto(`http://localhost:${PORT}/`, { waitUntil: "domcontentloaded" });
+    await gp.goto(`http://localhost:${PORT}/app/`, { waitUntil: "domcontentloaded" });
     await gp.waitForTimeout(400);
     const gated = await gp.evaluate(() => ({ overlay: !!document.querySelector("#studio-gate"), appHidden: document.getElementById("app").style.visibility === "hidden" }));
     ok("passcode gate blocks the app on first load", gated.overlay && gated.appHidden, JSON.stringify(gated));
@@ -3641,7 +3643,7 @@ function serve() {
     gp2.on("pageerror", (e) => errors.push("gate theme page: " + e.message));
     await gp2.route("**/app/gate-config.js", (route) => route.fulfill({ contentType: "text/javascript", body: 'window.STUDIO_GATE_SHA256=["' + TEST_HASH + '"];' }));
     await gp2.addInitScript(() => { try { localStorage.setItem("studio-theme", "dark"); localStorage.setItem("studio-app-theme", "polecat"); } catch (e) {} });
-    await gp2.goto(`http://localhost:${PORT}/`, { waitUntil: "domcontentloaded" });
+    await gp2.goto(`http://localhost:${PORT}/app/`, { waitUntil: "domcontentloaded" });
     await gp2.waitForTimeout(400);
     const gateThemed = await gp2.evaluate(() => ({
       attr: document.documentElement.getAttribute("data-app-theme") + "/" + document.documentElement.getAttribute("data-theme"),
@@ -4853,7 +4855,7 @@ function serve() {
     console.log("\n• Responsive shell (phone 390×844)");
     const phonePage = await browser.newPage({ viewport: { width: 390, height: 844 } });
     await phonePage.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); } catch (e) {} });
-    await phonePage.goto(`http://localhost:${PORT}/`, { waitUntil: "networkidle" });
+    await phonePage.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
     await phonePage.waitForTimeout(500);
 
     const phoneTopbar = await phonePage.evaluate(() => {
@@ -4903,7 +4905,7 @@ function serve() {
     console.log("\n• Tablet dropdown reachability (Z9) 800×1024");
     const tabletPage = await browser.newPage({ viewport: { width: 800, height: 1024 } });
     await tabletPage.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); } catch (e) {} });
-    await tabletPage.goto(`http://localhost:${PORT}/`, { waitUntil: "networkidle" });
+    await tabletPage.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
     await tabletPage.waitForTimeout(500);
 
     async function menuItemReachable(page, btnId, menuId) {
@@ -5202,7 +5204,7 @@ function serve() {
     console.log("\n• M7: narrow phone topbar (360×780)");
     const narrowPage = await browser.newPage({ viewport: { width: 360, height: 780 } });
     await narrowPage.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); } catch (e) {} });
-    await narrowPage.goto(`http://localhost:${PORT}/`, { waitUntil: "networkidle" });
+    await narrowPage.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
     await narrowPage.waitForTimeout(500);
 
     const m7Topbar = await narrowPage.evaluate(() => {
@@ -13770,7 +13772,7 @@ function serve() {
     // (mobile is no longer force-pinned to Studio). Verify the drawer-shell contract here.
     const z1Phone = await browser.newPage({ viewport: { width: 390, height: 844 } });
     await z1Phone.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); localStorage.setItem("studio-shell-section", "settings"); } catch (e) {} });
-    await z1Phone.goto(`http://localhost:${PORT}/`, { waitUntil: "networkidle" });
+    await z1Phone.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
     await z1Phone.waitForTimeout(500);
     const z1PhoneState = await z1Phone.evaluate(function () {
       var nav = document.getElementById("railNav");
@@ -14482,7 +14484,7 @@ function serve() {
     });
     const sharePage = await browser.newPage();
     await sharePage.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); } catch (e) {} });
-    await sharePage.goto(`http://localhost:${PORT}/#share=${shareBootSpec}`, { waitUntil: "networkidle" });
+    await sharePage.goto(`http://localhost:${PORT}/app/#share=${shareBootSpec}`, { waitUntil: "networkidle" });
     await sharePage.waitForFunction(() => window.__STUDIO_STATE && window.__STUDIO_STATE.assets && window.__STUDIO_STATE.assets.js.length > 0, { timeout: 10000 });
     await sharePage.waitForTimeout(700);
     const shareBootResult = await sharePage.evaluate(function () {
@@ -16514,7 +16516,7 @@ function serve() {
       FakeRecognition.prototype.stop = function () {};
       window.SpeechRecognition = FakeRecognition;
     });
-    await voicePage.goto(`http://localhost:${PORT}/`, { waitUntil: "networkidle" });
+    await voicePage.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
     await voicePage.waitForFunction(() => window.StudioPalette && window.StudioPalette.voiceSupported && window.StudioPalette.voiceSupported());
     const voiceFlow = await voicePage.evaluate(function () {
       return new Promise(function (resolve) {
@@ -17206,7 +17208,7 @@ function serve() {
     console.log("\n• m-a: mobile nav drawer");
     const mp = await browser.newPage({ viewport: { width: 390, height: 844 } });
     await mp.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); } catch (e) {} });
-    await mp.goto(`http://localhost:${PORT}/`, { waitUntil: "networkidle" });
+    await mp.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
     await mp.waitForTimeout(500);
     const mHamb = await mp.evaluate(() => {
       var b = document.getElementById("mobileNavBtn");
@@ -17255,7 +17257,7 @@ function serve() {
 
     const rq = await browser.newPage({ viewport: { width: 390, height: 844 } });
     await rq.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); } catch (e) {} });
-    await rq.goto(`http://localhost:${PORT}/`, { waitUntil: "networkidle" });
+    await rq.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
     await rq.waitForTimeout(500);
     await rq.click("#mobileNavBtn"); // open the drawer so #railQuick's switches are on-screen/actionable
     await rq.waitForTimeout(350);
@@ -17323,7 +17325,7 @@ function serve() {
     console.log("\n• m-c: topbar hamburger/brand overlap + ⋯ More reachability");
     const mp2 = await browser.newPage({ viewport: { width: 390, height: 844 } });
     await mp2.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); } catch (e) {} });
-    await mp2.goto(`http://localhost:${PORT}/`, { waitUntil: "networkidle" });
+    await mp2.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
     await mp2.waitForTimeout(500);
     const mcOverlap = await mp2.evaluate(() => {
       var h = document.getElementById("mobileNavBtn").getBoundingClientRect();
@@ -17458,6 +17460,52 @@ function serve() {
     await page.waitForTimeout(200);
 
     // ── N-DIST: installable, offline-capable app shell (service worker) ──
+    // ---- V1: public marketing site at the root; the app lives at /app/ ----
+    console.log("\n• V1: marketing site (root) + app at /app/");
+    const mkt = await browser.newPage();
+    const mktErrors = [];
+    mkt.on("pageerror", (e) => mktErrors.push(String(e)));
+    await mkt.goto(`http://localhost:${PORT}/`, { waitUntil: "load" });
+    const mktState = await mkt.evaluate(function () {
+      var ctas = [].slice.call(document.querySelectorAll('a[href="app/"]'));
+      return {
+        title: document.title,
+        hasHero: !!document.querySelector(".hero h1"),
+        ctaCount: ctas.length,
+        hasDocsLink: !!document.querySelector('a[href="docs/"]'),
+        noAppShell: !document.getElementById("railNav") && !document.getElementById("topbar"),
+        hasDescription: !!document.querySelector('meta[name="description"]')
+      };
+    });
+    ok("V1: root serves the marketing page (hero, ≥2 Open-the-Studio CTAs, docs link, SEO description, NO app shell)",
+      /Analytics Dashboard Studio/.test(mktState.title) && mktState.hasHero && mktState.ctaCount >= 2 &&
+      mktState.hasDocsLink && mktState.noAppShell && mktState.hasDescription, JSON.stringify(mktState));
+    await mkt.setViewportSize({ width: 390, height: 844 });
+    await mkt.waitForTimeout(150);
+    const mktPhone = await mkt.evaluate(function () {
+      return { noHScroll: document.documentElement.scrollWidth <= window.innerWidth + 1 };
+    });
+    ok("V1: marketing page has no horizontal scroll at 390px", mktPhone.noHScroll, JSON.stringify(mktPhone));
+    ok("V1: marketing page loads with zero pageerrors", mktErrors.length === 0, mktErrors.join(" | "));
+    // Old pre-move deep links carried app hashes on the ROOT — they must forward into /app/.
+    // (about:blank first: navigating "/" → "/#share=…" would be a SAME-DOCUMENT hash change
+    // that never re-runs the head script; real legacy links arrive as fresh navigations.)
+    await mkt.goto("about:blank");
+    await mkt.goto(`http://localhost:${PORT}/#share=OLDLINKTOKEN`, { waitUntil: "load" });
+    await mkt.waitForTimeout(400);
+    const mktForward = await mkt.evaluate(function () { return { path: location.pathname, hash: location.hash }; });
+    ok("V1: a legacy root #share= deep link forwards to /app/ with the hash intact",
+      mktForward.path === "/app/" && mktForward.hash === "#share=OLDLINKTOKEN", JSON.stringify(mktForward));
+    await mkt.close();
+    // The app itself boots at /app/ (the main `page` in this suite already proves the full
+    // app there; this asserts the MOVE specifics — base href and share-link minting).
+    const appBase = await page.evaluate(function () {
+      var base = document.querySelector("base");
+      return { base: base ? base.getAttribute("href") : null, path: location.pathname };
+    });
+    ok("V1: the app at /app/ carries base href=/ so all historical relative paths still resolve",
+      appBase.base === "/" && appBase.path === "/app/", JSON.stringify(appBase));
+
     console.log("\n• N-DIST: installable PWA / offline app shell");
     const pwaManifest = await page.evaluate(async function () {
       const r = await fetch("site.webmanifest");
@@ -17487,7 +17535,7 @@ function serve() {
     // that the offline app-shell cache is live, not just that registration was attempted.
     const pwaPage = await browser.newPage();
     await pwaPage.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); } catch (e) {} });
-    await pwaPage.goto(`http://localhost:${PORT}/`, { waitUntil: "networkidle" });
+    await pwaPage.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
     const pwaSwActive = await pwaPage.evaluate(function () {
       return navigator.serviceWorker.ready.then(function (reg) { return !!(reg && reg.active); });
     });
@@ -17497,7 +17545,7 @@ function serve() {
     // are fetched during install too (from the index we just cached), so a first-ever offline
     // visit still has a full library/gallery, not just a blank shell.
     const pwaDataPrecached = await pwaPage.evaluate(async function () {
-      const cache = await caches.open("studio-shell-v10");
+      const cache = await caches.open("studio-shell-v11");
       const keys = (await cache.keys()).map((r) => new URL(r.url).pathname.replace(/^\//, ""));
       const exIndex = await fetch("data/examples/index.json").then((r) => r.json());
       const missingExamples = exIndex.filter((ex) => keys.indexOf("data/examples/" + ex.file) < 0);
@@ -17566,7 +17614,7 @@ function serve() {
         localStorage.setItem("studio-workbooks", JSON.stringify([{ id: "wb-legacy", name: "Legacy WB", ts: new Date().toISOString() }]));
       } catch (e) {}
     });
-    await wsDashPage.goto(`http://localhost:${PORT}/`, { waitUntil: "networkidle" });
+    await wsDashPage.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
     await wsDashPage.waitForFunction(() => window.__STUDIO_STATE && window.Studio && Studio.Workspace, { timeout: 10000 });
     const wsDashMigrated = await wsDashPage.evaluate(function () {
       var rows = Studio.Workspace.all("dashboards");

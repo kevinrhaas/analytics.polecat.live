@@ -1088,11 +1088,14 @@
 > marketing site at the root with the app at /app/ (fleet pattern).
 >
 > **The slices (one steward PR each, tests green, in order):**
-> V1. **Marketing site + app moves to /app/** (fleet pattern: manager/relay/jobtracker). Root =
->     marketing page (hero, feature tour, screenshots, CTA → /app/). Mechanical blast radius:
->     sw.js scope/precache paths, tests (~every goto), gate, PWA manifest start_url, deep-link
->     hashes (#share=… forwards from root to /app/#…), docs links. Old root bookmarks land on
->     marketing with a prominent "Open the app".
+> V1. ✓ **Marketing site + app moves to /app/ (shipped 2026-07-16).** Root = marketing page
+>     (index.html + css/landing.css, warm-Polecat light/dark, hero + features + sources strip,
+>     CTAs → /app/, NO shell per fleet convention). The app index moved INTO app/ with
+>     `<base href="/">` so every historical relative path resolves unchanged (module imports
+>     resolve against module URLs and were never affected). Legacy root #share=/#view hashes
+>     forward to /app/ automatically; manifest start_url → /app/; SW precaches both pages
+>     (cache → v11); test server learned directory-index resolution; docs back-link fixed;
+>     THIRD-PARTY-NOTICES.md seeded (footer-linked) for the geo libraries to come.
 > V2. **Geo foundation — light renderer first (the "D3 mode"):** vendor topojson-client + d3-geo
 >     (tiny, MIT, ESM, no build step) + simplified US Atlas counties/states TopoJSON under
 >     vendor/geo/. New app/geo.js (renderer-agnostic Geo API: fit/project/hover/click/legend/
@@ -1100,12 +1103,22 @@
 >     small enough to INLINE IN EXPORTS, preserving the byte-identical export invariant). County
 >     + State first; CRD (NASS defs) and HUC8 (WBD, aggressively simplified — the one heavy
 >     geometry, staged) follow.
-> V3. **Ensemble views:** `ensembleSeries` chart type (N toggleable provider series + BOLD median
->     overlay + discrete reference points (AgCensus) + optional min–max agreement band);
->     provider-toggle filter control; median-of-selected computed client-side; choropleth colors
->     from the same selection via the existing cross-filter/shared-parameter mechanism (map ↔
->     chart stay linked). Median/agreement semantics live in one shared module so map + chart
->     can never disagree.
+> V3. **Ensemble views — THE MEDIAN IS THE PRODUCT (user, 2026-07-16):** the goal is a SINGLE
+>     BEST COMMON ESTIMATE, not a comparison of providers — that's the whole point of the
+>     collaborative ("gain a common view"). Design consequences, non-negotiable:
+>     · Visual hierarchy: the median renders BOLD and first-class everywhere; provider series
+>       are thin, muted supporting evidence (toggleable, but never co-equal stars).
+>     · The choropleth ALWAYS colors from the median of the selected providers — never from a
+>       single provider. Tooltips/KPIs report the median as THE value; providers appear as
+>       provenance beneath it.
+>     · The agreement band expresses CONFIDENCE IN the common estimate (tight band = high
+>       confidence), not a compare-the-vendors affordance. Wording throughout: "common
+>       estimate" / "consensus", never "compare providers". Neutrality is the brand.
+>     `ensembleSeries` chart type (bold median overlay + muted provider series + discrete
+>     reference points (AgCensus) + agreement band); provider-toggle filter control;
+>     median-of-selected computed client-side; choropleth colors from the same selection via
+>     the existing cross-filter/shared-parameter mechanism (map ↔ chart stay linked). Median/
+>     agreement semantics live in ONE shared module so map + chart can never disagree.
 > V4. **MapLibre renderer (the "GL mode"):** vendor MapLibre GL JS behind the SAME app/geo.js
 >     API as an opt-in interactive renderer (buttery pan/zoom, county+HUC8 at any polygon count).
 >     Per-panel renderer choice; EXPORTS default to the light renderer (self-contained + small);

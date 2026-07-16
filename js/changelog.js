@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 358,
+    title: 'A public front door: analytics.polecat.live gets a marketing site, the app moves to /app/',
+    kind: 'feature',
+    ts: '2026-07-16T15:39:50.000Z',
+    items: [
+      'Visiting analytics.polecat.live now lands on a proper public site -- what the Studio is, what it connects to, and a big Open the Studio button -- matching the rest of the polecat.live suite. The app itself lives at /app/ (same app, same data, nothing else changed).',
+      'Old links keep working: share links and saved views minted before the move forward automatically from the root into the app with their codes intact, and installed PWA icons now open straight into the app.',
+      'The footer gains a Third-party notices page listing everything the Studio redistributes and its licensing -- groundwork for the mapping libraries arriving in the geo-analytics track.',
+    ],
+  },
+  {
     v: 357,
     title: 'New connector: Google Sheets, straight from a share link',
     kind: 'feature',

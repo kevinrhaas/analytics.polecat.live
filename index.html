@@ -2,285 +2,103 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
-<title>Analytics Dashboard Studio — build interactive dashboards from your data · analytics.polecat.live</title>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Analytics Dashboard Studio — connect your data, build beautiful dashboards, share them anywhere</title>
+<meta name="description" content="A local-first analytics workspace in your browser: connect databases, warehouses, files and Google Sheets, design interactive dashboards visually, and export them as single self-contained HTML files. Free, private, no account."/>
+<meta property="og:title" content="Analytics Dashboard Studio"/>
+<meta property="og:description" content="Connect your data, build beautiful dashboards, share them anywhere. Local-first, in your browser."/>
+<meta property="og:url" content="https://analytics.polecat.live/"/>
 <link rel="icon" type="image/svg+xml" href="favicon.svg"/>
 <link rel="apple-touch-icon" href="apple-touch-icon.png"/>
-<link rel="manifest" href="site.webmanifest"/>
-<meta name="theme-color" content="#d4773b"/>
-<!-- Polecat Shell design tokens (vendor/polecat-shell/ is READ-ONLY — synced from
-     kevinrhaas/polecat-platform). Loads BEFORE studio.css so the Studio's own variable
-     blocks win every name collision; the shell-token bridge lives in studio.css. -->
-<link rel="stylesheet" href="vendor/polecat-shell/tokens.css"/>
-<link rel="stylesheet" href="app/studio.css"/>
-<script src="app/gate-config.js"></script>
-<script src="app/gate.js"></script>
+<meta name="theme-color" content="#231e28"/>
+<link rel="stylesheet" href="css/landing.css"/>
+<script>
+/* Deep links minted before the app moved to /app/ (share codes, saved views) landed on
+   the root with a meaningful hash — forward them into the app so old links keep working.
+   Only app-shaped hashes are forwarded; the marketing page's own #section anchors are not. */
+(function () {
+  var h = location.hash || "";
+  if (/^#(share=|view|filter)/.test(h)) location.replace("/app/" + h);
+}());
+</script>
 </head>
 <body>
-<div id="app">
-  <nav id="railNav" aria-label="App sections">
-    <button id="railBrand" class="rail-brand" title="Analytics Dashboard Studio — Home" aria-label="Analytics Dashboard Studio — go to Home">
-      <img class="rail-brand-mark" src="favicon.svg" width="26" height="26" alt=""/>
-      <span class="rail-brand-txt rail-lbl">Dashboard Studio</span>
-    </button>
-    <div class="rail-group-lbl rail-lbl" aria-hidden="true">Workspace</div>
-    <button class="rail-item" data-sec="home" title="Home" aria-label="Home"><span class="rail-ic" data-ic="home"></span><span class="rail-lbl">Home</span></button>
-    <button class="rail-item" data-sec="dashboards" title="Dashboards" aria-label="Dashboards"><span class="rail-ic" data-ic="layers"></span><span class="rail-lbl">Dashboards</span></button>
-    <button class="rail-item" data-sec="datasets" title="Datasets" aria-label="Datasets"><span class="rail-ic" data-ic="db"></span><span class="rail-lbl">Datasets</span></button>
-    <button class="rail-item" data-sec="connections" title="Connections" aria-label="Connections"><span class="rail-ic" data-ic="link"></span><span class="rail-lbl">Connections</span></button>
-    <div class="rail-group-lbl rail-lbl" aria-hidden="true">Build</div>
-    <button class="rail-item active" data-sec="studio" title="Studio" aria-label="Studio" aria-current="page"><span class="rail-ic" data-ic="grid"></span><span class="rail-lbl">Studio</span></button>
-    <div class="rail-spacer"></div>
-    <button id="railSource" class="rail-item rail-source" title="Workspace backend — Local" aria-label="Workspace backend status"><span class="rail-ic"><span class="cx-dot" id="railSourceDot"></span></span><span class="rail-lbl" id="railSourceLbl">Local</span></button>
-    <button class="rail-item" data-sec="settings" title="Settings" aria-label="Settings"><span class="rail-ic" data-ic="gear"></span><span class="rail-lbl">Settings</span></button>
-    <button id="railCmdk" class="rail-item" type="button" title="Command palette (⌘K / Ctrl-K)" aria-label="Open command palette"><span class="rail-ic" data-ic="search"></span><span class="rail-lbl">Search <kbd class="rail-kbd">⌘K</kbd></span></button>
-    <a id="railHelp" class="rail-item" href="docs/index.html" target="_blank" rel="noopener noreferrer" title="Help &amp; docs (opens in new tab)" aria-label="Help and documentation, opens in a new tab"><span class="rail-ic" data-ic="info"></span><span class="rail-lbl">Help</span></a>
-    <div id="railQuick" class="rail-quick">
-      <label class="rail-quick-row"><span class="rail-quick-lbl">Dark mode</span><span class="set-sw"><input type="checkbox" id="railQuickDark" data-set="dark"/><span class="set-sw-track"></span></span></label>
-      <label class="rail-quick-row"><span class="rail-quick-lbl">Simple mode</span><span class="set-sw"><input type="checkbox" id="railQuickSimple" data-set="simple"/><span class="set-sw-track"></span></span></label>
-    </div>
-    <button id="railCollapse" class="rail-item rail-toggle" title="Collapse navigation" aria-label="Collapse navigation" aria-expanded="true"><span class="rail-ic" data-ic="chevron-left"></span><span class="rail-lbl">Collapse</span></button>
+
+<header class="nav">
+  <a class="brand" href="/">
+    <img src="favicon.svg" width="30" height="30" alt=""/>
+    <span>Analytics<b>Dashboard Studio</b></span>
+  </a>
+  <nav class="nav-links">
+    <a href="#features">Features</a>
+    <a href="#sources">Data sources</a>
+    <a href="docs/">Docs</a>
+    <a href="https://polecat.live" class="fleet-link">polecat.live</a>
+    <a href="app/" class="btn-cta small">Open the Studio</a>
   </nav>
+</header>
 
-  <section id="secHome" class="app-sec" hidden>
-    <div class="sec-empty">
-      <div class="sec-empty-ic" data-ic="home"></div>
-      <h2>Home</h2>
-      <p>Loading…</p>
+<main>
+  <section class="hero">
+    <h1>Connect your data.<br/>Build <em>beautiful</em> dashboards.<br/>Share them anywhere.</h1>
+    <p class="sub">A full analytics workspace that runs entirely in your browser — connect databases,
+    warehouses, files and Google Sheets, design interactive dashboards visually, and export them as
+    single self-contained HTML files anyone can open. Free. Private. No account.</p>
+    <div class="hero-cta">
+      <a href="app/" class="btn-cta">Open the Studio →</a>
+      <span class="cta-note">nothing to install · your data stays on your device</span>
     </div>
-  </section>
-  <section id="secDashboards" class="app-sec has-content" hidden>
-    <div class="repo-wrap">
-      <div class="repo-hero"><h1>Dashboards</h1>
-        <p>Every dashboard you've saved — searchable, filterable by workbook, as tiles or a list. Searching also finds dashboards by the columns their datasets use.</p>
-        <input id="repoSearch" class="repo-search" type="search" placeholder="Search dashboards…" aria-label="Search dashboards"/>
-        <div class="repo-io">
-          <button type="button" class="btn" id="dashViewToggle" title="Switch between tile and list layout" aria-pressed="false">☰ List view</button>
-          <button type="button" class="btn" id="repoCompareBtn" title="Pick any two saved dashboards and see what differs between them">⇄ Compare dashboards…</button>
-          <button type="button" class="btn" id="repoExportBtn">Export dashboards…</button>
-          <button type="button" class="btn" id="repoImportBtn">Import dashboards…</button>
-        </div>
-      </div>
-      <div id="repoResults"></div>
-    </div>
-  </section>
-  <section id="secDatasets" class="app-sec has-content" hidden>
-    <div class="repo-wrap">
-      <div class="repo-hero"><h1>Datasets</h1>
-        <p>Named, parameterizable queries defined on top of your connections — the reusable building blocks dashboards are made of.</p>
-        <input id="dsxSearch" class="repo-search" type="search" placeholder="Search datasets…" aria-label="Search datasets"/>
-        <div class="repo-io">
-          <button type="button" class="btn primary" id="dsxNewBtn">+ New dataset</button>
-        </div>
-      </div>
-      <div id="dsxResults"></div>
-    </div>
-  </section>
-  <section id="secConnections" class="app-sec has-content" hidden>
-    <div class="repo-wrap">
-      <div class="repo-hero"><h1>Connections</h1>
-        <p>Where your dashboards' data lives — reusable connections to warehouses, files and APIs, one adapter each. Credentials stay in this browser.</p>
-        <input id="connSearch" class="repo-search" type="search" placeholder="Search connections…" aria-label="Search connections"/>
-        <div class="repo-io">
-          <button type="button" class="btn primary" id="connNewBtn">+ New connection</button>
-        </div>
-      </div>
-      <div id="connResults"></div>
-    </div>
-  </section>
-  <section id="secSettings" class="app-sec" hidden>
-    <div class="sec-empty">
-      <div class="sec-empty-ic" data-ic="gear"></div>
-      <h2>Settings</h2>
-      <p>Loading…</p>
+    <div class="hero-shot" aria-hidden="true">
+      <img src="site/studio.png" alt="" loading="lazy"/>
     </div>
   </section>
 
-  <div id="appMain">
-  <header id="topbar">
-    <div class="brand">
-      <div class="brand-txt"><div class="brand-title">Analytics Dashboard&nbsp;Studio</div>
-        <div class="brand-sub">build interactive dashboards from your data</div></div>
+  <section id="features" class="grid-sec">
+    <h2>Everything an analytics team needs, nothing to run</h2>
+    <div class="cards">
+      <div class="card"><span class="ic">⛁</span><b>Connect 12 kinds of sources</b>
+        <p>Postgres (PostgREST), Supabase, Turso, Firebase, Snowflake, Databricks, BigQuery, DuckDB
+        &amp; SQLite over HTTP, Google Sheets, any SQL/HTTP API — or just drop a CSV/JSON file.</p></div>
+      <div class="card"><span class="ic">▦</span><b>Design visually</b>
+        <p>A three-pane studio: drag datasets onto the canvas, tune every chart in the inspector, and
+        watch the real dashboard render live — 25+ chart types from KPIs to heatmaps to forecasts.</p></div>
+      <div class="card"><span class="ic">⬡</span><b>Parameterized datasets</b>
+        <p>Define a query once with {{parameters}}; dashboard template variables fill them at run
+        time — one dataset powers many views, filters cascade, everything stays linked.</p></div>
+      <div class="card"><span class="ic">⇩</span><b>Exports that just work</b>
+        <p>Every dashboard exports as one self-contained .html file — byte-identical to the live
+        preview, no server, no dependencies. Email it, host it, embed it.</p></div>
+      <div class="card"><span class="ic">⌂</span><b>Local-first &amp; private</b>
+        <p>Your workspace lives in your browser and works offline. Optionally mirror it to your own
+        Turso, Supabase or Firebase backend — with zero-knowledge secret encryption.</p></div>
+      <div class="card"><span class="ic">✦</span><b>Delightful by design</b>
+        <p>Warm themes, light and dark, keyboard palette, guided tour, version history with visual
+        compare — analytics that feels like a creative tool, not a chore.</p></div>
     </div>
-    <!-- H-track: auto-save state indicator — flashes "Saved ✓" for 2s after each auto-save -->
-    <span id="saveState" class="save-state" aria-live="polite" aria-atomic="true"></span>
-    <div class="spacer"></div>
-    <div class="top-app">
-      <span id="simpleBadge" class="simple-badge" aria-live="polite" aria-label="Simple mode active">Simple mode</span>
-      <!-- H-track v117: Demo mode — pulsing LIVE badge shown while demo simulation is running -->
-      <span id="demoBadge" class="demo-badge" aria-live="polite" aria-label="Demo mode: data refreshes every 4 seconds">● LIVE</span>
-      <div class="menu-wrap"><button class="btn btn-primary" id="btnNew" title="New dashboard">＋ New ▾</button>
-        <div class="menu" id="menuNew"></div></div>
-      <div class="menu-wrap" id="moreWrap">
-        <button class="btn icon" id="btnMore" title="More actions" aria-label="More actions">⋯</button>
-        <div class="menu" id="menuMore">
-          <div class="grp">View</div>
-          <button id="moreAbout">Tour</button>
-          <button id="moreTheme">Theme</button>
-          <div class="sep"></div>
-          <div class="grp">Present</div>
-          <button id="moreDemoMode">Demo mode  ▶</button>
-          <button id="morePresent">Focus mode</button>
-          <button id="moreSlideshow">Slideshow  ▶</button>
-          <button id="moreSimple">Simple mode  ✦</button>
-          <div class="sep"></div>
-          <div class="grp">Help &amp; power tools</div>
-          <button id="moreShortcuts">Keyboard shortcuts  ?</button>
-          <button id="moreHelp">Help docs  ⓘ</button>
-          <button id="moreTutorial">Interactive tutorial  ▶</button>
-          <button id="moreEditJSON">Edit JSON spec…  { }</button>
-          <!-- M7: phone-only items — revealed via CSS at ≤400px when topbar hides these buttons -->
-          <div class="sep more-phone-only"></div>
-          <button id="moreExamples" class="more-phone-only">Examples…</button>
-          <button id="moreImport" class="more-phone-only">Open…</button>
-          <button id="moreSaveSpec" class="more-phone-only">Save</button>
-          <div class="sep"></div>
-          <button id="moreClearData">Clear local data…</button>
-          <button id="moreSignOut">Sign out</button>
-        </div>
-      </div>
+  </section>
+
+  <section id="sources" class="strip">
+    <h2>Your data, wherever it lives</h2>
+    <p class="strip-sub">Local-first never means local-only. Connections and datasets form a reusable
+    catalog that follows you — and every adapter speaks a friendly, in-band-error dialect when
+    something's misconfigured.</p>
+    <div class="chips">
+      <span>PostgreSQL</span><span>Supabase</span><span>Turso</span><span>Firebase</span>
+      <span>Snowflake</span><span>Databricks</span><span>BigQuery</span><span>DuckDB</span>
+      <span>SQLite</span><span>Google Sheets</span><span>CSV / JSON files</span><span>Any SQL/HTTP API</span>
     </div>
-  </header>
+  </section>
 
-  <main id="workspace">
-    <!-- LEFT: query library -->
-    <aside id="library" class="pane">
-      <div class="pane-rail" data-pane="library" title="Expand Data panel"><button class="rail-btn">›</button><span class="rail-label">Data</span></div>
-      <div class="pane-h"><button class="pane-collapse" data-pane="library" title="Collapse panel">‹</button><span>Data</span>
-        <div class="menu-wrap"><button class="pane-add" id="btnNewDS" title="Add a dataset, connection, or dashboard-only query">＋ New ▾</button>
-          <div class="menu" id="menuNewData">
-            <button id="ndWorkspaceDataset">Dataset (workspace)…</button>
-            <button id="ndConnection">Connection…</button>
-            <div class="sep"></div>
-            <button id="ndDashQuery">Dashboard-only query…</button>
-          </div></div>
-        <span class="count" id="libCount"></span></div>
-      <input id="libSearch" class="search" placeholder="Search datasets, columns, tables…"/>
-      <div class="lib-scroll" id="libList"></div>
-    </aside>
+  <section class="final">
+    <h2>Open a browser. Build a dashboard. That's it.</h2>
+    <a href="app/" class="btn-cta">Open the Studio →</a>
+  </section>
+</main>
 
-    <div class="resizer" id="resizeL" title="Drag to resize"></div>
+<footer class="foot">
+  <span>Analytics Dashboard Studio · part of the <a href="https://polecat.live">polecat.live</a> suite</span>
+  <span class="foot-links"><a href="docs/">Docs</a> · <a href="app/">App</a> · <a href="THIRD-PARTY-NOTICES.md">Third-party notices</a> · © 2026 Polecat.live</span>
+</footer>
 
-    <!-- CENTER: live preview -->
-    <section id="canvas">
-      <!-- UX sprint 2026-07-14: dashboard-scoped controls live HERE, above the preview they
-           act on — the app topbar keeps only app-level actions (＋New, ⋯More), manager-style. -->
-      <div id="dashbar">
-        <div class="dash-id">
-          <button type="button" id="dashTitle" class="dash-title-btn" title="Click to rename"><span class="dash-title-txt">Dashboard title</span></button>
-          <span class="dash-meta"><code id="dashName">untitled</code><span id="dashGroupWrap"> · <span id="dashGroup"></span></span></span>
-        </div>
-        <div class="spacer"></div>
-        <div class="top-actions">
-          <button class="btn icon" id="btnUndo" title="Undo (Ctrl/Cmd+Z)" disabled>↶</button>
-          <button class="btn icon" id="btnRedo" title="Redo (Ctrl/Cmd+Shift+Z)" disabled>↷</button>
-          <span class="top-sep" aria-hidden="true"></span>
-          <div class="menu-wrap"><button class="btn" id="btnExamples">Examples ▾</button>
-            <div class="menu" id="menuExamples"></div></div>
-          <button class="btn" id="btnImport" title="Open a dashboard from your catalog">Open</button>
-          <button class="btn" id="btnSaveSpec" title="Save to your Dashboards catalog (Ctrl/Cmd+S)">Save</button>
-          <div class="menu-wrap"><button class="btn btn-primary" id="btnExport">Export ▾</button>
-            <div class="menu" id="menuExport">
-              <button data-exp="cdf">Dashboard (.html)</button>
-              <button data-exp="spec">Editable spec (.studio.json)</button>
-              <button data-exp="all">All artifacts (bundle)</button>
-            </div></div>
-          <span class="top-sep sep-connect" aria-hidden="true"></span>
-          <button class="btn icon btn-secondary" id="btnTheme" title="Toggle preview light/dark">Theme</button>
-        </div>
-      </div>
-      <div id="canvas-bar">
-        <span class="cb-title">Live preview</span>
-        <span class="cb-hint">click to edit · drag the header to reorder · drag the right edge to resize · drop a query to add</span>
-        <span class="spacer"></span>
-        <span class="cb-status" id="previewStatus"></span>
-      </div>
-      <div id="canvas-stage">
-        <iframe id="preview" title="Dashboard preview"></iframe>
-        <div id="dropHint" class="drop-hint">Drop a query here to add a panel</div>
-        <!-- H-track: canvas empty state overlay; shown when the spec has 0 panels and 0 KPIs -->
-        <div id="canvasEmpty" aria-hidden="true">
-          <div class="ces-ic" id="cesIc"></div>
-          <div class="ces-title">Canvas is empty</div>
-          <div class="ces-desc">Drag a dataset or sample query from the Data panel onto the canvas, or drop one below.</div>
-          <button type="button" class="ces-btn" id="cesLib">Open data panel</button>
-          <button type="button" class="ces-btn ces-btn-2" id="cesText">¶ Add a text panel</button>
-        </div>
-      </div>
-    </section>
-
-    <div class="resizer" id="resizeR" title="Drag to resize"></div>
-
-    <!-- RIGHT: inspector -->
-    <aside id="inspector" class="pane">
-      <div class="pane-rail" data-pane="inspector" title="Expand Inspector"><button class="rail-btn">‹</button><span class="rail-label">Inspector</span></div>
-      <div class="pane-h"><span id="inspTitle">Dashboard</span>
-        <a id="inspHelpLink" class="insp-help-link" href="docs/index.html#builder" target="_blank" rel="noopener noreferrer" title="Open help docs" aria-label="Open help documentation">?</a>
-        <button class="link" id="inspBack" hidden>‹ Dashboard</button>
-        <button class="pane-collapse" data-pane="inspector" title="Collapse panel">›</button></div>
-      <div class="insp-scroll" id="inspBody"></div>
-    </aside>
-  </main>
-
-  <nav id="mobile-tabs" aria-label="Section navigation"></nav>
-  <footer id="statusbar">
-    <span class="sb-brand"><span class="sb-dot"></span>Analytics Dashboard Studio · analytics.polecat.live</span>
-    <span class="spacer"></span>
-    <div class="sb-cl">
-      <!-- Opens the What's-new feed in the shell right panel (app/fleet.js provides
-           window.PolecatShell; the feed body is built per-open in studio.js renderFooter).
-           app/fleet.js adds an unseen dot here when there are releases newer than the
-           stored seen-version (studio-whatsnew-seen). -->
-      <button class="sb-btn" id="btnChangelog" aria-expanded="false" aria-haspopup="dialog"
-        title="What changed recently">📋 Changelog <span class="sb-caret">▴</span></button>
-    </div>
-    <span class="sb-stamp" id="fbStamp" title="When this build was last published"></span>
-  </footer>
-  </div>
-</div>
-<div id="mobile-scrim" aria-hidden="true"></div>
-
-<div id="toast" class="toast"></div>
-
-<script src="app/model.js"></script>
-<script src="app/sources/schema.js"></script>
-<script src="app/sources/crypto.js"></script>
-<script src="app/sources/local.js"></script>
-<script src="app/sources/turso.js"></script>
-<script src="app/sources/supabase.js"></script>
-<script src="app/sources/firebase.js"></script>
-<script src="app/sources/registry.js"></script>
-<script src="app/sources/postgrest.js"></script>
-<script src="app/sources/localfile.js"></script>
-<script src="app/sources/gsheets.js"></script>
-<script src="app/sources/workspace.js"></script>
-<script src="app/sources/sync.js"></script>
-<script src="app/sampledata.js"></script>
-<script src="app/duckdb.js"></script>
-<script src="app/sqlitehttp.js"></script>
-<script src="app/snowflake.js"></script>
-<script src="app/databricks.js"></script>
-<script src="app/bigquery.js"></script>
-<script src="app/genericsql.js"></script>
-<script src="app/sources/data-adapters.js"></script>
-<script src="app/exporters.js"></script>
-<script src="app/icons.js"></script>
-<script src="app/welcome.js"></script>
-<script src="app/tutorial.js"></script>
-<script type="module" src="js/changelog.js"></script>
-<script type="module" src="app/fleet.js"></script>
-<script src="app/shell.js"></script>
-<script src="app/studio.js"></script>
-<script src="app/palette.js"></script>
-<script>
-  // N-DIST: installable, offline-capable app shell. Feature-detected (older browsers / the
-  // occasional restricted embed just skip it, no behavior change); registered last so it never
-  // delays first paint or any of the boot-time modules above.
-  if ("serviceWorker" in navigator) {
-    window.addEventListener("load", function () {
-      navigator.serviceWorker.register("sw.js").catch(function () { /* offline support is a bonus, never fatal */ });
-    });
-  }
-</script>
 </body>
 </html>
