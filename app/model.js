@@ -991,10 +991,12 @@
     choropleth: {
       label: "Map (US choropleth)", icon: "⬢", group: "Maps",
       desc: "US regions colored by value — county, state, district, or watershed",
-      fields: ["idCol", "valueCol"],
+      fields: ["idCol", "valueCol", "seriesCol"],
       opts: [
         { key: "scale",   type: "select", label: "Region scale", def: "county",
           choices: [["county", "Counties (FIPS)"], ["state", "States"], ["crd", "USDA districts (CRD)"], ["huc8", "Watersheds (HUC8, Corn Belt)"]] },
+        { key: "channel", type: "text", label: "Ensemble channel", def: "providers",
+          hint: "Panels sharing a channel stay linked: an Ensemble chart's provider toggles re-color this map live." },
         { key: "agg",     type: "select", label: "Combine duplicate rows by", def: "median",
           choices: [["median", "Median (common estimate)"], ["mean", "Mean"], ["sum", "Sum"], ["min", "Min"], ["max", "Max"], ["last", "Last"]] },
         { key: "classes", type: "int",  label: "Color classes", def: 5 },
@@ -1005,6 +1007,31 @@
         { key: "showLegend", type: "bool", label: "Show legend", def: true },
         { key: "fmt",     type: "fmt",  label: "Value format", def: "raw" },
         { key: "height",  type: "int",  label: "Height (px)", def: 380 }
+      ]
+    },
+    // ── Ensemble series (Viridis V3) — CDF-only ──────────────────────────────
+    // THE MEDIAN IS THE PRODUCT: a bold consensus line (median of the providers
+    // toggled on) over thin, muted provider series; an agreement band expressing
+    // confidence; reference-series rows (AgCensus) as hollow squares that never
+    // join the median. Toggles publish on an ensemble channel; a choropleth on
+    // the same channel re-colors live — map and chart share ONE aggregation.
+    ensembleSeries: {
+      label: "Ensemble (common estimate)", icon: "≋", group: "Trend",
+      desc: "One best estimate from many providers — bold median, muted evidence",
+      fields: ["labelCol", "seriesCol", "valueCol"],
+      opts: [
+        { key: "refSeries",   type: "text", label: "Reference series (excluded from the estimate)", def: "",
+          hint: "A series name (e.g. AgCensus) drawn as hollow squares for context — never part of the median." },
+        { key: "channel",     type: "text", label: "Ensemble channel", def: "providers",
+          hint: "Provider toggles broadcast on this channel; maps sharing it re-color live." },
+        { key: "agg",         type: "select", label: "Common estimate", def: "median",
+          choices: [["median", "Median (recommended)"], ["mean", "Mean"]] },
+        { key: "medianLabel", type: "text", label: "Estimate label", def: "Common estimate" },
+        { key: "showBand",    type: "bool", label: "Agreement band (confidence)", def: true },
+        { key: "showProviders", type: "bool", label: "Show provider series", def: true },
+        { key: "showToggles", type: "bool", label: "Provider on/off toggles", def: true },
+        { key: "fmt",         type: "fmt",  label: "Value format", def: "raw" },
+        { key: "height",      type: "int",  label: "Height (px)", def: 320 }
       ]
     },
     table: {
@@ -2349,7 +2376,14 @@
       // region id first (fips/county/state/huc-ish names win), value = first other column
       var geoIdGuess = cols.filter(function (c) { return /fips|county|state|region|huc|district|geo/i.test(c); })[0];
       map.idCol = geoIdGuess || cols[0] || "";
-      map.valueCol = cols.filter(function (c) { return c !== map.idCol; })[0] || cols[1] || "";
+      var provGuess = cols.filter(function (c) { return /provider|series|source|method/i.test(c) && c !== map.idCol; })[0];
+      if (provGuess) map.seriesCol = provGuess;
+      map.valueCol = cols.filter(function (c) { return c !== map.idCol && c !== map.seriesCol; })[0] || cols[1] || "";
+    } else if (type === "ensembleSeries") {
+      var provCol = cols.filter(function (c) { return /provider|series|source|method/i.test(c); })[0];
+      map.labelCol = cols[0] || "";
+      map.seriesCol = provCol || cols[1] || "";
+      map.valueCol = cols.filter(function (c) { return c !== map.labelCol && c !== map.seriesCol; })[0] || cols[2] || "";
     } else if (type === "table") {
       map.cols = cols.map(function (col, i) { return { col: col, label: titleize(col), num: i > 0 }; });
     } else if (type === "gauge") {

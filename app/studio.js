@@ -51,7 +51,7 @@
   var SIMPLE_CHART_TYPES = {
     bars: 1, donut: 1, line: 1, stacked: 1, areaStacked: 1,
     combo: 1, scatter: 1, gauge: 1, heatmap: 1, table: 1,
-    kpi: 1, treemap: 1, richtext: 1, choropleth: 1
+    kpi: 1, treemap: 1, richtext: 1, choropleth: 1, ensembleSeries: 1
   };
 
   // little gallery thumbnails per chart type (static representative SVGs)
@@ -62,6 +62,7 @@
     stacked: '<svg viewBox="0 0 44 30"><rect x="5" y="14" width="8" height="14" fill="#005bb5"/><rect x="5" y="6" width="8" height="8" fill="#7d3c98"/><rect x="18" y="10" width="8" height="18" fill="#005bb5"/><rect x="18" y="4" width="8" height="6" fill="#7d3c98"/><rect x="31" y="16" width="8" height="12" fill="#005bb5"/><rect x="31" y="9" width="8" height="7" fill="#7d3c98"/></svg>',
     areaStacked: '<svg viewBox="0 0 44 30"><path d="M3 26 L13 21 L23 24 L33 17 L41 20 L41 28 L3 28 Z" fill="#005bb5" opacity=".55"/><path d="M3 20 L13 13 L23 17 L33 8 L41 12 L41 20 L33 17 L23 24 L13 21 L3 26 Z" fill="#7d3c98" opacity=".6"/></svg>',
     choropleth: '<svg viewBox="0 0 44 30"><path d="M4 6 L16 4 L18 12 L10 15 L5 12 Z" fill="#1f9d57" opacity=".85"/><path d="M16 4 L30 5 L29 14 L18 12 Z" fill="#1f9d57" opacity=".45"/><path d="M30 5 L40 8 L38 18 L29 14 Z" fill="#1f9d57" opacity=".65"/><path d="M10 15 L18 12 L29 14 L27 24 L12 25 Z" fill="#1f9d57" opacity=".3"/><path d="M29 14 L38 18 L35 26 L27 24 Z" fill="#1f9d57" opacity=".95"/></svg>',
+    ensembleSeries: '<svg viewBox="0 0 44 30"><polyline points="3,22 13,18 23,20 33,14 41,16" fill="none" stroke="#7d3c98" stroke-width="1" opacity=".45"/><polyline points="3,18 13,22 23,14 33,18 41,10" fill="none" stroke="#0aa" stroke-width="1" opacity=".45"/><polyline points="3,24 13,15 23,17 33,10 41,13" fill="none" stroke="#d6820a" stroke-width="1" opacity=".45"/><polyline points="3,21 13,18.5 23,17 33,14 41,13" fill="none" stroke="#16233b" stroke-width="2.6" stroke-linecap="round"/><rect x="7" y="25" width="5" height="5" fill="none" stroke="#d63a5e" stroke-width="1.6"/></svg>',
     combo: '<svg viewBox="0 0 44 30"><rect x="5" y="14" width="6" height="14" fill="#005bb5"/><rect x="15" y="10" width="6" height="18" fill="#005bb5"/><rect x="25" y="17" width="6" height="11" fill="#005bb5"/><rect x="35" y="8" width="6" height="20" fill="#005bb5"/><path d="M8 16 L18 8 L28 13 L38 5" fill="none" stroke="#7d3c98" stroke-width="2"/><circle cx="8" cy="16" r="2" fill="#7d3c98"/><circle cx="38" cy="5" r="2" fill="#7d3c98"/></svg>',
     treemap: '<svg viewBox="0 0 44 30"><rect x="2" y="3" width="24" height="24" rx="1" fill="#005bb5"/><rect x="27" y="3" width="15" height="12" rx="1" fill="#7d3c98"/><rect x="27" y="16" width="15" height="11" rx="1" fill="#2e8bd0"/></svg>',
     scatter: '<svg viewBox="0 0 44 30"><circle cx="10" cy="21" r="3" fill="#005bb5"/><circle cx="20" cy="12" r="4" fill="#7d3c98"/><circle cx="30" cy="18" r="2.5" fill="#2e8bd0"/><circle cx="37" cy="8" r="3.5" fill="#00a39a"/><circle cx="14" cy="9" r="2" fill="#e67e22"/></svg>',
@@ -3464,6 +3465,7 @@
           upperCol:  "Upper bound column",
           centerCol: "Centre / actual line column (optional)",
           idCol: "Region id column (county FIPS, state, CRD, or HUC8)",
+          seriesCol: t === "choropleth" ? "Provider / series column (optional — joins the ensemble channel)" : "Provider / series column",
           xCol: "X column", yCol: "Y column", rCol: "Bubble-size column (optional)", rowCol: "Row column",
           colCol: "Column column", barCol: "Bar value column", lineCol: "Line value column",
           sourceCol: "Source column", targetCol: "Target / destination column",

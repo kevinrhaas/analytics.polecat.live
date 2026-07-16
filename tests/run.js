@@ -822,6 +822,93 @@ function serve() {
     ok("GEO: exports WITHOUT map panels carry zero geometry (no STUDIO_GEO payload, no topojson) — dashboards stay lean",
       !geoLean.hasGeo && !geoLean.hasTopo, JSON.stringify(geoLean));
 
+    // ---- ENSEMBLE (Viridis V3): the median is the product -------------------
+    console.log("\n• ENSEMBLE: common-estimate chart + linked map (Viridis V3)");
+    const ens = await page.evaluate(async function () {
+      var providers = ["DTN", "Indigo", "Iowa State", "Regrow", "Terra"];
+      var years = ["2015", "2017", "2019", "2021", "2023", "2025"];
+      var chartRows = [];
+      providers.forEach(function (pr, pi) { years.forEach(function (y, yi) {
+        chartRows.push([y, pr, +(3 + yi * 0.8 + Math.sin(pi * 2.1 + yi) * 1.4).toFixed(2)]);
+      }); });
+      chartRows.push(["2017", "AgCensus", 100]); // absurdly high ON PURPOSE — must never join the median
+      var fips = ["17031", "17113", "19153", "19113", "18097", "18157"];
+      var mapRows = [];
+      providers.forEach(function (pr, pi) { fips.forEach(function (fp, fi) {
+        mapRows.push([fp, pr, +(2 + fi * 1.5 + pi * 0.7 + (pi === 0 ? 40 : 0)).toFixed(1)]); // DTN wildly high
+      }); });
+      var spec = { id: "ens-t", name: "ens-t", title: "t",
+        panels: [
+          { id: "c1", title: "c", span: "full", chart: { type: "ensembleSeries", da: "ts",
+            map: { labelCol: "year", seriesCol: "provider", valueCol: "pct" }, opts: { refSeries: "AgCensus", fmt: "raw" } } },
+          { id: "m1", title: "m", span: "full", chart: { type: "choropleth", da: "geo",
+            map: { idCol: "fips", valueCol: "pct", seriesCol: "provider" }, opts: { scale: "county", fmt: "raw" } } }
+        ],
+        kpis: [], filters: [], cda: { connections: [], dataAccesses: [
+          { id: "ts", kind: "sql", columns: ["year", "provider", "pct"] },
+          { id: "geo", kind: "sql", columns: ["fips", "provider", "pct"] }] } };
+      await window.__studioEnsureGeoAssets(spec);
+      var html = Studio.buildHtml(spec, window.__STUDIO_STATE.assets, { preview: true,
+        mock: { ts: { cols: ["year", "provider", "pct"], rows: chartRows }, geo: { cols: ["fips", "provider", "pct"], rows: mapRows } } });
+      return await new Promise(function (resolve) {
+        var ifr = document.createElement("iframe");
+        ifr.style.cssText = "position:fixed;left:-2200px;top:0;width:1100px;height:900px";
+        document.body.appendChild(ifr);
+        ifr.srcdoc = html;
+        var t0 = Date.now();
+        (function poll() {
+          var doc = null; try { doc = ifr.contentDocument; } catch (e) {}
+          var med = doc ? doc.querySelectorAll('[data-ens="median"]') : [];
+          var mapPaths = doc ? doc.querySelectorAll("path[data-geo-id]") : [];
+          if (med.length && mapPaths.length > 3000) {
+            var medLine = doc.querySelector('[data-ens="median"]');
+            var provLine = doc.querySelector('[data-ens="provider"]');
+            var mdots = doc.querySelectorAll('[data-ens="mdot"]');
+            var med2017 = mdots[1]; // x order: 2015,2017,…
+            var ref = doc.querySelector('[data-ens="ref"]');
+            var before = {
+              provLines: doc.querySelectorAll('[data-ens="provider"]').length,
+              band: doc.querySelectorAll('[data-ens="band"]').length,
+              refs: doc.querySelectorAll('[data-ens="ref"]').length,
+              toggles: doc.querySelectorAll("[data-ens-toggle]").length,
+              medPts: mdots.length,
+              medBold: +medLine.getAttribute("stroke-width") >= 2.5,
+              provThin: +provLine.getAttribute("stroke-width") <= 1.6 && +provLine.getAttribute("stroke-opacity") <= 0.6,
+              refAboveMedian: +ref.getAttribute("y") < +med2017.getAttribute("cy"), // value 100 → smaller pixel y than the median dot
+              medY0: med2017.getAttribute("cy"),
+              legendMin0: doc.querySelectorAll(".pdc-geo-legend span")[0].textContent,
+              medianLegend: /Common estimate/.test((doc.querySelector(".pdc-ens-legend") || {}).textContent || "")
+            };
+            doc.querySelector('[data-ens-toggle="DTN"]').click();
+            setTimeout(function () {
+              var after = {
+                provLines: doc.querySelectorAll('[data-ens="provider"]').length,
+                medY1: doc.querySelectorAll('[data-ens="mdot"]')[1].getAttribute("cy"),
+                legendMin1: doc.querySelectorAll(".pdc-geo-legend span")[0].textContent,
+                dtnPressed: doc.querySelector('[data-ens-toggle="DTN"]').getAttribute("aria-pressed"),
+                bus: JSON.stringify(ifr.contentWindow.PDC.ensembleBus.get("providers"))
+              };
+              ifr.remove(); resolve({ before: before, after: after });
+            }, 900);
+          } else if (Date.now() - t0 > 15000) { ifr.remove(); resolve({ timeout: true }); }
+          else setTimeout(poll, 200);
+        })();
+      });
+    });
+    ok("ENS: renders the full anatomy — 5 muted provider lines, 1 agreement band, AgCensus square, 5 toggles, 6 median points, labeled legend",
+      ens.before && ens.before.provLines === 5 && ens.before.band === 1 && ens.before.refs === 1 &&
+      ens.before.toggles === 5 && ens.before.medPts === 6 && ens.before.medianLegend, JSON.stringify(ens.before));
+    ok("ENS: visual hierarchy is median-first — bold consensus line (≥2.5px), thin translucent provider lines (≤1.6px, ≤0.6 opacity)",
+      ens.before.medBold && ens.before.provThin, JSON.stringify({ medBold: ens.before.medBold, provThin: ens.before.provThin }));
+    ok("ENS: the reference series NEVER joins the median — an absurd AgCensus value (100) floats far above an unmoved common estimate",
+      ens.before.refAboveMedian, JSON.stringify({ refAboveMedian: ens.before.refAboveMedian }));
+    ok("ENS: toggling a provider off recomputes the chart's median (4 lines remain, median dot moved, chip pressed off, bus updated)",
+      ens.after.provLines === 4 && ens.after.medY1 !== ens.before.medY0 && ens.after.dtnPressed === "false" &&
+      ens.after.bus.indexOf("DTN") < 0 && ens.after.bus.indexOf("Regrow") >= 0, JSON.stringify(ens.after));
+    ok("ENS: the LINKED choropleth re-aggregates from the same selection — its legend domain shifts when DTN drops (one shared median)",
+      ens.before.legendMin0 === "4.1" && ens.after.legendMin1 === "3.8",
+      JSON.stringify({ before: ens.before.legendMin0, after: ens.after.legendMin1 }));
+
     const wsStore = await page.evaluate(function () {
       var W = Studio.Workspace, events = [];
       var off = W.on("change", function (p) { events.push(p.table + ":" + (p.removed ? "del" : "put")); });

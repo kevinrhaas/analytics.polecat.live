@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 360,
+    title: 'The Ensemble chart: one best estimate from many sources, linked to the map',
+    kind: 'feature',
+    ts: '2026-07-16T17:06:29.000Z',
+    items: [
+      'A new Ensemble (common estimate) chart draws each data provider as a thin, muted line and the MEDIAN of the providers you toggle on as a bold consensus line -- the product is a single best common estimate, not a vendor comparison. A translucent agreement band spans the providers\' range, so a tight band reads as high confidence at a glance.',
+      'Provider on/off chips live right under the chart: click to include or exclude a source and the estimate recomputes instantly. Maps sharing the ensemble channel re-color from the very same median at the same moment -- chart and map can never disagree, in the Studio or in a self-contained export.',
+      'A reference series (say, AgCensus survey points) draws as hollow squares for honest context and never joins the estimate. The choropleth map gained the matching provider/series binding so county colors always reflect exactly the sources you kept on.',
+    ],
+  },
+  {
     v: 359,
     title: 'Maps arrive: US choropleths down to county, district, and watershed scale',
     kind: 'feature',
