@@ -416,10 +416,10 @@ function serve() {
         appId: S.WS.APP_ID, tableNames: S.WS.TABLE_NAMES
       };
     });
-    ok("WS: registry carries local/turso/supabase/firebase + the seven data adapters, with caps planes",
-      wsRegistry.ids.join(",") === "local,turso,supabase,firebase,postgrest,snowflake,databricks,bigquery,duckdb,sqlite,httpsql" &&
+    ok("WS: registry carries local/turso/supabase/firebase + the eight data adapters, with caps planes",
+      wsRegistry.ids.join(",") === "local,turso,supabase,firebase,postgrest,file,snowflake,databricks,bigquery,duckdb,sqlite,httpsql" &&
       wsRegistry.localMetaOnly && wsRegistry.tursoBoth &&
-      wsRegistry.metaCount === 4 && wsRegistry.dataCount === 10 && wsRegistry.byId, JSON.stringify(wsRegistry));
+      wsRegistry.metaCount === 4 && wsRegistry.dataCount === 11 && wsRegistry.byId, JSON.stringify(wsRegistry));
 
     const wsDataAdapters = await page.evaluate(async function () {
       var sf = Studio.sourceById("snowflake");
@@ -511,6 +511,104 @@ function serve() {
       pgDataset.rows === '[["AMER",200]]' && pgDataset.overrideRows === '[["APAC",80]]', JSON.stringify(pgDataset));
     ok("PG: a successful run teaches the dataset its real column list and stamps lastRun",
       pgDataset.learnedCols === "region,total" && pgDataset.lastRunOk, JSON.stringify(pgDataset));
+
+    // ---- CSV/JSON file adapter (★★★-2): inline-content datasets ------------
+    console.log("\n• CSV/JSON file adapter (★★★-2)");
+    const fileShape = await page.evaluate(async function () {
+      var fa = Studio.sourceById("file");
+      var test = await fa.testData({});
+      var refuse = await fa.provision({});
+      var empty = await fa.queryData({}, { kind: "file", content: "" });
+      return {
+        present: !!fa, dataOnly: !!(fa && !fa.caps.meta && fa.caps.data),
+        noFields: fa && fa.fields.length === 0,
+        testOk: test.ok === true,
+        refuses: refuse.ok === false && /workspace/i.test(refuse.error || ""),
+        emptyInBand: /no file/i.test(empty.error || "")
+      };
+    });
+    ok("FILE: adapter registered — data-only, zero connection fields, always-ok test, in-band no-file error",
+      fileShape.present && fileShape.dataOnly && fileShape.noFields && fileShape.testOk && fileShape.refuses && fileShape.emptyInBand,
+      JSON.stringify(fileShape));
+    const fileParse = await page.evaluate(async function () {
+      var fa = Studio.sourceById("file");
+      // RFC4180: quoted field with an embedded comma + escaped quote; numbers typed
+      var csv = 'region,note,total\nEMEA,"hello, ""world""",120\nAMER,plain,200.5\n';
+      var c = await fa.queryData({}, { kind: "file", fileName: "t.csv", content: csv });
+      // semicolon CSV (European) — delimiter sniffed from the header
+      var semi = await fa.queryData({}, { kind: "file", fileName: "s.csv", content: "a;b\n1;2\n" });
+      // JSON array with a sparse first object — columns are the UNION over rows
+      var json = await fa.queryData({}, { kind: "file", fileName: "t.json", content: '[{"region":"EMEA","total":120},{"region":"APAC","total":80,"year":2025}]' });
+      // format sniffed from CONTENT when the name has no useful extension
+      var sniffed = await fa.queryData({}, { kind: "file", fileName: "data.txt", content: '[{"x":1}]' });
+      var badJson = await fa.queryData({}, { kind: "file", fileName: "bad.json", content: "{not json" });
+      var scalarJson = await fa.queryData({}, { kind: "file", fileName: "nums.json", content: "[1,2,3]" });
+      var tooBig = await fa.queryData({}, { kind: "file", fileName: "big.csv", content: new Array(2100000).join("x") });
+      return {
+        csvCols: c.columns.join("|"), csvRow0: JSON.stringify(c.rows[0]), csvTotalTyped: typeof c.rows[1][2],
+        semiCols: semi.columns.join("|"), semiRow: JSON.stringify(semi.rows[0]),
+        jsonCols: json.columns.join("|"), jsonRow1: JSON.stringify(json.rows[1]),
+        sniffedCols: sniffed.columns.join("|"),
+        badJsonInBand: /Could not parse bad\.json/.test(badJson.error || ""),
+        scalarInBand: /objects/i.test(scalarJson.error || ""),
+        tooBigInBand: /too large/i.test(tooBig.error || "") && /DuckDB/.test(tooBig.error || "")
+      };
+    });
+    ok("FILE: CSV parses RFC4180 (quoted commas, escaped quotes) and types numeric cells",
+      fileParse.csvCols === "region|note|total" && fileParse.csvRow0 === '["EMEA","hello, \\"world\\"",120]' && fileParse.csvTotalTyped === "number",
+      JSON.stringify(fileParse));
+    ok("FILE: semicolon CSVs sniff their delimiter; JSON arrays use the key UNION and content-sniff a .txt name",
+      fileParse.semiCols === "a|b" && fileParse.semiRow === "[1,2]" &&
+      fileParse.jsonCols === "region|total|year" && fileParse.jsonRow1 === '["APAC",80,2025]' &&
+      fileParse.sniffedCols === "x", JSON.stringify(fileParse));
+    ok("FILE: malformed JSON, non-object rows, and the 2MB cap all come back as friendly in-band errors (cap points at DuckDB)",
+      fileParse.badJsonInBand && fileParse.scalarInBand && fileParse.tooBigInBand, JSON.stringify(fileParse));
+    // The real user flow: a file connection + the dataset editor's DROP ZONE —
+    // pick a file through the real input, save, and run it through the builder path.
+    const fixturePath = path.join(__dirname, "fixture-sales.csv");
+    fs.writeFileSync(fixturePath, "region,total\nEMEA,120\nAMER,200\n");
+    await page.evaluate(function () {
+      Studio.Workspace.put("connections", { id: "cx-file-test", name: "My files", adapter: "file", cfg: {} }, { silent: true });
+      window.__studioOpenDatasetEditor();
+    });
+    await page.waitForTimeout(150);
+    await page.evaluate(function () {
+      var sel = document.querySelector(".modal select.cx-sel");
+      sel.value = "cx-file-test"; sel.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await page.waitForTimeout(100);
+    const fileZone = await page.evaluate(function () {
+      var zone = document.querySelector(".modal .dsx-drop");
+      return { hasZone: !!zone, invites: !!zone && /Drop a \.csv or \.json/.test(zone.textContent) };
+    });
+    ok("FILE: picking a file connection in the dataset editor renders the drop zone", fileZone.hasZone && fileZone.invites, JSON.stringify(fileZone));
+    await page.setInputFiles(".modal .dsx-drop-input", fixturePath);
+    await page.waitForTimeout(250);
+    const fileLoaded = await page.evaluate(function () {
+      var zone = document.querySelector(".modal .dsx-drop");
+      var name = document.querySelector(".modal input");
+      return { label: zone.textContent, nameAutofilled: name.value === "fixture-sales" };
+    });
+    ok("FILE: the drop zone loads the file (shows name + size) and auto-fills the dataset name from the file",
+      /fixture-sales\.csv/.test(fileLoaded.label) && /KB loaded/.test(fileLoaded.label) && fileLoaded.nameAutofilled, JSON.stringify(fileLoaded));
+    await page.evaluate(function () {
+      var btns = [].slice.call(document.querySelectorAll(".modal button"));
+      btns.filter(function (x) { return /^(Save|Add)/.test(x.textContent.trim()); })[0].click();
+    });
+    await page.waitForTimeout(200);
+    const fileRun = await page.evaluate(async function () {
+      var d = Studio.Workspace.all("datasets").filter(function (x) { return x.connectionId === "cx-file-test"; })[0];
+      if (!d) return { saved: false };
+      var r = await window.__studioRunDataset(d, null);
+      var saved = Studio.Workspace.get("datasets", d.id);
+      Studio.Workspace.remove("datasets", d.id, { silent: true });
+      Studio.Workspace.remove("connections", "cx-file-test", { silent: true });
+      return { saved: true, kind: d.kind, fileName: d.fileName, rows: JSON.stringify(r.rows), cols: (saved.columns || []).join(","), lastRunOk: !!(saved.lastRun && saved.lastRun.ok) };
+    });
+    ok("FILE: the saved dataset runs through the builder path — parsed rows, learned columns, lastRun stamped",
+      fileRun.saved && fileRun.kind === "file" && fileRun.fileName === "fixture-sales.csv" &&
+      fileRun.rows === '[["EMEA",120],["AMER",200]]' && fileRun.cols === "region,total" && fileRun.lastRunOk, JSON.stringify(fileRun));
+    fs.unlinkSync(fixturePath);
 
     const wsStore = await page.evaluate(function () {
       var W = Studio.Workspace, events = [];
@@ -636,7 +734,7 @@ function serve() {
       };
     });
     ok("CX: wizard step 1 lists every data-capable adapter with workspace-capable badges",
-      cxWiz.count === 10 && cxWiz.wsCapable === 3, JSON.stringify(cxWiz)); // 10 = the 9 originals + postgrest (★★★-2)
+      cxWiz.count === 11 && cxWiz.wsCapable === 3, JSON.stringify(cxWiz)); // 11 = the 9 originals + postgrest + file (★★★-2)
 
     // pick Turso → step 2 → point it at the mock pipeline → inline Test → Save
     await page.evaluate(function () {
@@ -17290,7 +17388,7 @@ function serve() {
     // are fetched during install too (from the index we just cached), so a first-ever offline
     // visit still has a full library/gallery, not just a blank shell.
     const pwaDataPrecached = await pwaPage.evaluate(async function () {
-      const cache = await caches.open("studio-shell-v8");
+      const cache = await caches.open("studio-shell-v9");
       const keys = (await cache.keys()).map((r) => new URL(r.url).pathname.replace(/^\//, ""));
       const exIndex = await fetch("data/examples/index.json").then((r) => r.json());
       const missingExamples = exIndex.filter((ex) => keys.indexOf("data/examples/" + ex.file) < 0);

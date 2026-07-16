@@ -1122,6 +1122,13 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
 .cl-head .cl-sub{font-size:11px;color:var(--faint);margin-left:auto}
 .cl-search{flex:1 1 140px;height:28px;padding:0 8px;border:1px solid var(--line);border-radius:7px;background:var(--canvas);color:var(--ink);font-size:12px;outline:none;min-width:80px}
 .cl-search:focus{border-color:var(--pentaho)}
+/* CSV/JSON drop zone in the dataset editor (kind:'file' — app/sources/localfile.js) */
+.dsx-drop{border:2px dashed var(--line);border-radius:10px;padding:22px 16px;text-align:center;cursor:pointer;
+  color:var(--muted);background:var(--field);transition:border-color .15s,background .15s;margin:4px 0}
+.dsx-drop:hover,.dsx-drop.over{border-color:var(--pentaho);background:color-mix(in srgb,var(--pentaho) 6%,var(--field));color:var(--ink)}
+.dsx-drop b{display:block;font-size:13px;color:var(--ink)}
+.dsx-drop small{display:block;margin-top:4px;font-size:11.5px;color:var(--faint)}
+.dsx-drop .dsx-drop-err{color:var(--bad)}
 /* unseen-updates dot on the footer Changelog button (shell seen-version contract) */
 .sb-new-dot{width:7px;height:7px;border-radius:50%;background:var(--pentaho);flex:0 0 auto;
   box-shadow:0 0 0 2px color-mix(in srgb,var(--pentaho) 25%,transparent)}

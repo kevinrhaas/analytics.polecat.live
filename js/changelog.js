@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 356,
+    title: 'Drop a CSV or JSON file, get a chartable dataset',
+    kind: 'feature',
+    ts: '2026-07-16T03:33:15.000Z',
+    items: [
+      'A new CSV / JSON file adapter joins Connections -- the fastest path from a file on your disk to a dashboard. Add a file connection (nothing to configure), create a dataset, and drop a .csv, .tsv or .json onto the editor\'s new drop zone (or click to browse). The dataset name even fills itself in from the file.',
+      'The file\'s data is stored inside the dataset itself: fully offline, no re-picking after a reload, and it travels with your workspace -- including to a remote backend. CSVs handle quoted fields and sniff comma, semicolon or tab delimiters; numeric cells become real numbers so charts can aggregate them; JSON expects an array of row objects.',
+      'Files are capped at about 2MB to keep the local-first store fast -- the friendly error points bigger data at the DuckDB remote-file connector, which streams only the bytes a query touches.',
+    ],
+  },
+  {
     v: 355,
     title: 'New connector: PostgreSQL, via any PostgREST endpoint',
     kind: 'feature',

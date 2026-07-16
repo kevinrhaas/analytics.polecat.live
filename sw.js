@@ -5,7 +5,7 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v8"; /* v8: PostgREST data adapter joins the precache */
+var CACHE_NAME = "studio-shell-v9"; /* v9: CSV/JSON file-drop adapter joins the precache */
 var SHELL_FILES = [
   "./",
   "index.html",
@@ -33,6 +33,7 @@ var SHELL_FILES = [
   "app/sources/firebase.js",
   "app/sources/registry.js",
   "app/sources/postgrest.js",
+  "app/sources/localfile.js",
   "app/sources/workspace.js",
   "app/sources/sync.js",
   "app/sampledata.js",

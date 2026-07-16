@@ -5396,6 +5396,7 @@
   function dsxKindFor(adapterId) {
     if (adapterId === "supabase" || adapterId === "postgrest") return "table"; // both speak PostgREST
     if (adapterId === "firebase") return "collection";
+    if (adapterId === "file") return "file"; // CSV/JSON drop — content rides in the dataset row
     return "sql";
   }
   // Resolve a dataset's definition + params into what adapter.queryData expects.
@@ -5406,6 +5407,7 @@
     var def = { kind: d.kind || "sql" };
     if (def.kind === "table") { def.table = Studio.WS.applyParams(d.table || "", params); def.query = Studio.WS.applyParams(d.query || "", params); }
     else if (def.kind === "collection") { def.collection = Studio.WS.applyParams(d.collection || "", params); }
+    else if (def.kind === "file") { def.fileName = d.fileName || ""; def.format = d.format || ""; def.content = d.content || ""; } // content IS the data — no {{params}}
     else def.sql = Studio.WS.applyParams(d.sql || "", params);
     return def;
   }
@@ -5586,6 +5588,37 @@
           defField("PostgREST query", "query", false, "select=*&order=total.desc&limit=200", "Optional — PostgREST query string; {{params}} allowed.");
         } else if (kind === "collection") {
           defField("Collection", "collection", false, "orders", "The Firestore collection; documents flatten into rows.");
+        } else if (kind === "file") {
+          // CSV/JSON drop zone — the file's text is stored INSIDE the dataset row
+          // (works offline, mirrors with the workspace; capped, see localfile.js).
+          var zone = el("div", "dsx-drop");
+          var fileInp = el("input"); fileInp.type = "file"; fileInp.accept = ".csv,.tsv,.json,text/csv,application/json"; fileInp.hidden = true;
+          function zoneLabel() {
+            zone.innerHTML = d.content
+              ? "<b>" + esc(d.fileName || "file") + "</b> · " + Math.max(1, Math.round(d.content.length / 1024)) + " KB loaded<small>Drop a new .csv / .json here (or click) to replace it</small>"
+              : "<b>Drop a .csv or .json file here</b><small>or click to browse — the data is stored with the dataset and works offline</small>";
+          }
+          function loadFile(f) {
+            if (!f) return;
+            f.text().then(function (text) {
+              if (text.length > Studio.FILE_DATASET_MAX_CHARS) {
+                zone.innerHTML = "<b class='dsx-drop-err'>" + esc(f.name) + " is too large (" + Math.round(text.length / 1e6) + "MB > 2MB)</b><small>Host it and use the DuckDB (remote file) connector instead.</small>";
+                return;
+              }
+              d.fileName = f.name; d.content = text;
+              d.format = /\.(csv|tsv)$/i.test(f.name) ? "csv" : /\.json$/i.test(f.name) ? "json" : "";
+              if (!nameInp.value.trim()) nameInp.value = f.name.replace(/\.[^.]+$/, "");
+              zoneLabel();
+            });
+          }
+          zone.onclick = function () { fileInp.click(); };
+          fileInp.onchange = function () { loadFile(fileInp.files[0]); };
+          zone.ondragover = function (e) { e.preventDefault(); zone.classList.add("over"); };
+          zone.ondragleave = function () { zone.classList.remove("over"); };
+          zone.ondrop = function (e) { e.preventDefault(); zone.classList.remove("over"); loadFile(e.dataTransfer.files && e.dataTransfer.files[0]); };
+          zoneLabel();
+          fileInp.className = "dsx-drop-input"; // stable hook for tests (setInputFiles); NOT in defInputs — the save loop copies .value, and a file input's value is a fakepath string
+          defWrap.appendChild(zone); defWrap.appendChild(fileInp);
         } else {
           defField("SQL", "sql", true, "SELECT region, SUM(amount) AS total\nFROM {{schema}}.sales\nGROUP BY region",
             "Use {{key}} placeholders for parameters — dashboard template variables fill them at run time.");
