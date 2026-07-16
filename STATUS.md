@@ -1122,11 +1122,18 @@
 >     · The agreement band expresses CONFIDENCE IN the common estimate (tight band = high
 >       confidence), not a compare-the-vendors affordance. Wording throughout: "common
 >       estimate" / "consensus", never "compare providers". Neutrality is the brand.
->     `ensembleSeries` chart type (bold median overlay + muted provider series + discrete
->     reference points (AgCensus) + agreement band); provider-toggle filter control;
->     median-of-selected computed client-side; choropleth colors from the same selection via
->     the existing cross-filter/shared-parameter mechanism (map ↔ chart stay linked). Median/
->     agreement semantics live in ONE shared module so map + chart can never disagree.
+>     ✓ SHIPPED 2026-07-16: `ensembleSeries` chart (bold 3px median line + dots; provider
+>     series at 1.3px/50% opacity with hollow dots; translucent agreement band with a
+>     confidence tooltip; refSeries (AgCensus) as hollow red squares NEVER in the median;
+>     legend leads with "Common estimate"; provider on/off chips owned by the chart, exactly
+>     the mock-ups' toggle column). Linkage via PDC.ensembleBus — a per-document pub-sub that
+>     ships inside preview iframes AND exports (no filter-system surgery): toggles publish the
+>     selected set on a channel (default "providers"); the choropleth's new seriesCol binding
+>     joins the channel and re-aggregates via the SAME PDC.aggValues the chart uses (proven in
+>     tests: legend domain shifts to the exact 4-provider median when a provider drops).
+>     Empty-ensemble is prevented (last provider can't toggle off). NOTE: the dashboard-level
+>     filter system was deliberately left untouched — V5's Explore can layer a filter-control
+>     surface over the same bus later.
 > V4. **MapLibre renderer (the "GL mode"):** vendor MapLibre GL JS behind the SAME app/geo.js
 >     API as an opt-in interactive renderer (buttery pan/zoom, county+HUC8 at any polygon count).
 >     Per-panel renderer choice; EXPORTS default to the light renderer (self-contained + small);

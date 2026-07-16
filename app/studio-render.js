@@ -497,13 +497,32 @@
             data: cfData(csData(lv(res, m.labelCol, m.valueCol), p.colorScale), p.condFmt), drill: drillCfg, detail: detailCfg });
           break;
         case "choropleth":
-          // Viridis V2: US region map. Duplicate rows per region aggregate via the
-          // MEDIAN by default (the "single best common estimate" convention).
-          PDC.choropleth(body, { scale: o.scale || "county", agg: o.agg || "median",
+          // Viridis V2/V3: US region map, colored by the MEDIAN of the rows per
+          // region (the "single best common estimate" convention). With a series
+          // column mapped, rows go long-format and the map joins the ensemble
+          // channel — provider toggles on an Ensemble chart re-color it live.
+          var choroCfg = { scale: o.scale || "county", agg: o.agg || "median",
             classes: o.classes || 5, colorToken: o.color || "--good",
             fit: o.fit || "data", stateLines: o.stateLines !== false,
-            legend: o.showLegend !== false, fmt: f, height: o.height || 380,
-            data: lv(res, m.idCol, m.valueCol) });
+            legend: o.showLegend !== false, fmt: f, height: o.height || 380 };
+          if (m.seriesCol && res.col(m.seriesCol) >= 0) {
+            var cli = res.col(m.idCol), csi = res.col(m.seriesCol), cvi = res.col(m.valueCol);
+            choroCfg.rowsSV = res.rows.map(function (r) { return { label: String(r[cli]), series: String(r[csi]), value: +r[cvi] }; });
+            choroCfg.providersChannel = o.channel || "providers";
+          } else {
+            choroCfg.data = lv(res, m.idCol, m.valueCol);
+          }
+          PDC.choropleth(body, choroCfg);
+          break;
+        case "ensembleSeries":
+          // Viridis V3: THE MEDIAN IS THE PRODUCT — bold consensus over muted evidence.
+          var eli = res.col(m.labelCol), esi = res.col(m.seriesCol), evi = res.col(m.valueCol);
+          PDC.ensembleSeries(body, {
+            rows: res.rows.map(function (r) { return { label: String(r[eli]), series: String(r[esi]), value: +r[evi] }; }),
+            refSeries: o.refSeries || "", channel: o.channel || "providers",
+            agg: o.agg || "median", medianLabel: o.medianLabel || "Common estimate",
+            showBand: o.showBand !== false, showProviders: o.showProviders !== false,
+            showToggles: o.showToggles !== false, fmt: f, height: o.height || 320 });
           break;
         case "treemap":
           PDC.treemap(body, { fmt: f, height: o.height || 300,

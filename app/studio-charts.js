@@ -5745,9 +5745,55 @@
     return stops;
   }
 
+  /* ── Ensemble machinery (Viridis V3) — THE MEDIAN IS THE PRODUCT ────────────
+     The goal is a SINGLE BEST COMMON ESTIMATE across data providers, not a
+     provider comparison. aggValues() is the ONE aggregation implementation the
+     ensemble chart and the choropleth both call, so map and chart can never
+     disagree on what "the median of the selected providers" is.
+
+     PDC.ensembleBus is a per-document pub-sub: ensembleSeries renders the
+     provider on/off toggles and publishes the selected set on a named channel;
+     every panel subscribed to that channel (the chart itself, any choropleth
+     with opts.providersChannel) re-renders from the same state. It lives inside
+     the preview iframe / exported html, so linked map↔chart behavior ships in
+     the self-contained export with zero extra wiring. */
+  function aggValues(list, agg) {
+    var v = list.slice().sort(function (a, b) { return a - b; });
+    if (!v.length) return null;
+    if (agg === "sum") return v.reduce(function (a, b) { return a + b; }, 0);
+    if (agg === "mean") return v.reduce(function (a, b) { return a + b; }, 0) / v.length;
+    if (agg === "min") return v[0];
+    if (agg === "max") return v[v.length - 1];
+    if (agg === "last") return list[list.length - 1];
+    return (v.length % 2) ? v[(v.length - 1) / 2] : (v[v.length / 2 - 1] + v[v.length / 2]) / 2; // median
+  }
+  PDC.aggValues = aggValues;
+  PDC.ensembleBus = {
+    _state: {}, _subs: {},
+    // selected: null = "no selection made yet" (everything on); Set otherwise
+    get: function (channel) { return this._state[channel] || null; },
+    set: function (channel, selectedArr) {
+      this._state[channel] = selectedArr ? {} : null;
+      if (selectedArr) { var st = this._state[channel]; selectedArr.forEach(function (s) { st[s] = 1; }); }
+      (this._subs[channel] || []).forEach(function (fn) { try { fn(); } catch (e) {} });
+    },
+    isOn: function (channel, name) {
+      var st = this._state[channel];
+      return !st || !!st[name];
+    },
+    sub: function (channel, fn) { (this._subs[channel] = this._subs[channel] || []).push(fn); }
+  };
+
   // PDC.choropleth(el, cfg): cfg = { scale, data:[{label:regionId, value}], agg,
-  // classes, colorToken, fmt, height, fit:'data'|'all', stateLines, legend, noDataLabel }
-  PDC.choropleth = function (el, cfg) { reg(el, function () { _choropleth(el, cfg); }); };
+  // classes, colorToken, fmt, height, fit:'data'|'all', stateLines, legend, noDataLabel,
+  // rowsSV (optional long-format [{label,series,value}] + providersChannel: filter rows
+  // to the channel's selected providers BEFORE aggregation — the linked-map path) }
+  PDC.choropleth = function (el, cfg) {
+    var draw = function () { if (el.isConnected !== false) _choropleth(el, cfg); };
+    reg(el, draw);
+    // Linked-map path: re-color when the ensemble channel's provider set changes.
+    if (cfg.providersChannel) PDC.ensembleBus.sub(cfg.providersChannel, draw);
+  };
   function _choropleth(el, cfg) {
     var scale = cfg.scale || "county";
     el.innerHTML = '<div class="empty" style="padding:24px 8px">Loading geometry…</div>';
@@ -5758,25 +5804,23 @@
         nameIdx = {};
         geo.features.forEach(function (f) { nameIdx[f.name.toLowerCase()] = f.id; });
       }
+      // rows: either simple {label,value} pairs, or long-format {label,series,value}
+      // filtered to the ensemble channel's selected providers before aggregating —
+      // the map then colors by the median of exactly the providers the user kept on.
+      var rows = cfg.rowsSV
+        ? cfg.rowsSV.filter(function (r) { return !cfg.providersChannel || PDC.ensembleBus.isOn(cfg.providersChannel, r.series); })
+        : (cfg.data || []);
       // aggregate duplicate rows per region — median by default (the Viridis
-      // "common estimate" convention; see the ensemble slice)
+      // "single best common estimate" convention), via the SHARED aggValues
       var buckets = {};
-      (cfg.data || []).forEach(function (r) {
+      rows.forEach(function (r) {
         if (r.value == null || isNaN(+r.value)) return;
         var id = geoNormalizeId(scale, r.label, nameIdx);
         (buckets[id] = buckets[id] || []).push(+r.value);
       });
       var agg = cfg.agg || "median";
       var values = {};
-      Object.keys(buckets).forEach(function (id) {
-        var v = buckets[id].slice().sort(function (a, b) { return a - b; });
-        if (agg === "sum") values[id] = v.reduce(function (a, b) { return a + b; }, 0);
-        else if (agg === "mean") values[id] = v.reduce(function (a, b) { return a + b; }, 0) / v.length;
-        else if (agg === "min") values[id] = v[0];
-        else if (agg === "max") values[id] = v[v.length - 1];
-        else if (agg === "last") values[id] = buckets[id][buckets[id].length - 1];
-        else values[id] = (v.length % 2) ? v[(v.length - 1) / 2] : (v[v.length / 2 - 1] + v[v.length / 2]) / 2; // median
-      });
+      Object.keys(buckets).forEach(function (id) { values[id] = aggValues(buckets[id], agg); });
       var ids = Object.keys(values);
       var vmin = Infinity, vmax = -Infinity;
       ids.forEach(function (id) { if (values[id] < vmin) vmin = values[id]; if (values[id] > vmax) vmax = values[id]; });
@@ -5842,6 +5886,175 @@
     }).catch(function (e) {
       el.innerHTML = '<div class="empty">Map geometry unavailable: ' + String(e && e.message || e).replace(/</g, "&lt;") + "</div>";
     });
+  }
+
+  /* ── Ensemble series (Viridis V3) ────────────────────────────────────────────
+     A time series whose PRODUCT is the bold consensus line: the median of the
+     providers currently toggled on. Provider series render as thin, muted
+     supporting evidence; the min–max agreement band expresses CONFIDENCE in the
+     common estimate (tight band = high agreement); reference-series rows (e.g.
+     AgCensus) draw as discrete hollow squares and are NEVER part of the median.
+
+     cfg = { rows:[{label(x), series, value}], refSeries, channel, agg,
+             showBand, showProviders, showToggles, medianLabel, fmt, height } */
+  PDC.ensembleSeries = function (el, cfg) {
+    var draw = function () { if (el.isConnected !== false) _ensembleSeries(el, cfg); };
+    reg(el, draw);
+    if (cfg.channel) PDC.ensembleBus.sub(cfg.channel, draw);
+  };
+  function _ensembleSeries(el, cfg) {
+    var rows = cfg.rows || [];
+    var refName = (cfg.refSeries || "").trim();
+    var channel = cfg.channel || "";
+    var f = cfg.fmt || function (v) { return String(v); };
+    // provider list (stable order of appearance), reference rows split out
+    var provOrder = [], provSeen = {}, refRows = [];
+    rows.forEach(function (r) {
+      var s = String(r.series == null ? "" : r.series);
+      if (refName && s === refName) { refRows.push(r); return; }
+      if (!provSeen[s]) { provSeen[s] = 1; provOrder.push(s); }
+    });
+    var xOrder = [], xSeen = {};
+    rows.forEach(function (r) {
+      var x = String(r.label);
+      if (!xSeen[x]) { xSeen[x] = 1; xOrder.push(x); }
+    });
+    var on = provOrder.filter(function (s) { return !channel || PDC.ensembleBus.isOn(channel, s); });
+    var byProv = {};
+    provOrder.forEach(function (s) { byProv[s] = {}; });
+    rows.forEach(function (r) {
+      var s = String(r.series == null ? "" : r.series);
+      if (byProv[s] && r.value != null && !isNaN(+r.value)) byProv[s][String(r.label)] = +r.value;
+    });
+    // the consensus per x over the providers that are ON — the shared aggValues
+    var median = {}, lo = {}, hi = {};
+    xOrder.forEach(function (x) {
+      var vals = [];
+      on.forEach(function (s) { if (byProv[s][x] != null) vals.push(byProv[s][x]); });
+      if (vals.length) {
+        median[x] = aggValues(vals, cfg.agg || "median");
+        lo[x] = Math.min.apply(null, vals); hi[x] = Math.max.apply(null, vals);
+      }
+    });
+    // y domain across everything visible (providers on + median + refs), zero-based
+    var vmax = 0;
+    xOrder.forEach(function (x) { if (hi[x] != null && hi[x] > vmax) vmax = hi[x]; });
+    refRows.forEach(function (r) { if (+r.value > vmax) vmax = +r.value; });
+    on.forEach(function (s) { xOrder.forEach(function (x) { var v = byProv[s][x]; if (v != null && v > vmax) vmax = v; }); });
+    vmax = niceMax(vmax || 1);
+    var h = cfg.height || 320;
+    el.innerHTML = "";
+    var host = mkSVG(el, h), s = host.s, w = host.w;
+    var padL = 44, padR = 12, padT = 10, padB = 24;
+    var iw = w - padL - padR, ih = h - padT - padB;
+    var X = function (i) { return padL + (xOrder.length < 2 ? iw / 2 : (i / (xOrder.length - 1)) * iw); };
+    var Y = function (v) { return padT + ih - (v / vmax) * ih; };
+    // gridlines + axis labels
+    for (var g = 0; g <= 4; g++) {
+      var gv = (vmax / 4) * g, gy = Y(gv);
+      s.appendChild(S("line", { x1: padL, y1: gy, x2: w - padR, y2: gy, stroke: "var(--panel-border,#e0e4ef)", "stroke-width": g === 0 ? 1.2 : 0.6 }));
+      s.appendChild(S("text", { x: padL - 6, y: gy + 3, "text-anchor": "end", "font-size": 9, fill: "var(--text-muted,#6b7a99)" }, f(gv)));
+    }
+    var xStep = Math.max(1, Math.ceil(xOrder.length / Math.max(2, Math.floor(iw / 56))));
+    xOrder.forEach(function (x, i) {
+      if (i % xStep) return;
+      s.appendChild(S("text", { x: X(i), y: h - 8, "text-anchor": "middle", "font-size": 9, fill: "var(--text-muted,#6b7a99)" }, x));
+    });
+    function linePts(get) {
+      var pts = [];
+      xOrder.forEach(function (x, i) { var v = get(x); if (v != null) pts.push([X(i), Y(v), v, x]); });
+      return pts;
+    }
+    function polyline(pts, attrs) {
+      if (pts.length < 2) return null;
+      attrs.points = pts.map(function (p) { return p[0].toFixed(1) + "," + p[1].toFixed(1); }).join(" ");
+      attrs.fill = "none";
+      return S("polyline", attrs);
+    }
+    // 1. agreement band — confidence in the common estimate, not a comparison
+    if (cfg.showBand !== false && on.length > 1) {
+      var loPts = linePts(function (x) { return lo[x]; });
+      var hiPts = linePts(function (x) { return hi[x]; });
+      if (loPts.length > 1 && hiPts.length > 1) {
+        var d = "M" + hiPts.map(function (p) { return p[0].toFixed(1) + "," + p[1].toFixed(1); }).join("L") +
+          "L" + loPts.slice().reverse().map(function (p) { return p[0].toFixed(1) + "," + p[1].toFixed(1); }).join("L") + "Z";
+        var band = S("path", { d: d, fill: PDC.cssvar("--pentaho") || "#005bb5", "fill-opacity": "0.09", stroke: "none", "data-ens": "band" });
+        _tip(band, "<b>Agreement band</b><br>The range across the selected providers — a tight band means high confidence in the common estimate.");
+        s.appendChild(band);
+      }
+    }
+    // 2. provider series — thin, muted supporting evidence
+    if (cfg.showProviders !== false) {
+      provOrder.forEach(function (name, pi) {
+        if (on.indexOf(name) < 0) return;
+        var c = PDC.cssvar("--c" + ((pi % 10) + 1)) || "#888";
+        var pts = linePts(function (x) { return byProv[name][x]; });
+        var pl = polyline(pts, { stroke: c, "stroke-width": 1.3, "stroke-opacity": "0.5", "data-ens": "provider", "data-ens-name": name });
+        if (pl) s.appendChild(pl);
+        pts.forEach(function (p) {
+          var dot = S("circle", { cx: p[0], cy: p[1], r: 2.4, fill: "var(--panel-bg,#fff)", stroke: c, "stroke-width": 1.1, "stroke-opacity": "0.6", "data-ens": "pdot" });
+          _tip(dot, "<b>" + name + "</b> · " + p[3] + "<br>" + f(p[2]) + '<br><span style="opacity:.7">One provider\'s estimate — the bold line is the common estimate.</span>');
+          s.appendChild(dot);
+        });
+      });
+    }
+    // 3. THE COMMON ESTIMATE — bold, first-class, always on top
+    var medPts = linePts(function (x) { return median[x]; });
+    var medLine = polyline(medPts, { stroke: "var(--ink,#16233b)", "stroke-width": 3, "stroke-linejoin": "round", "stroke-linecap": "round", "data-ens": "median" });
+    if (medLine) s.appendChild(medLine);
+    medPts.forEach(function (p) {
+      var dot = S("circle", { cx: p[0], cy: p[1], r: 3.2, fill: "var(--ink,#16233b)", "data-ens": "mdot" });
+      _tip(dot, "<b>" + (cfg.medianLabel || "Common estimate") + "</b> · " + p[3] + "<br>" + f(p[2]) +
+        (on.length ? '<br><span style="opacity:.7">Median of ' + on.length + " selected provider" + (on.length === 1 ? "" : "s") + "</span>" : ""));
+      s.appendChild(dot);
+    });
+    // 4. reference points (e.g. AgCensus) — discrete hollow squares, never in the median
+    refRows.forEach(function (r) {
+      var i = xOrder.indexOf(String(r.label));
+      if (i < 0 || r.value == null || isNaN(+r.value)) return;
+      var sq = S("rect", { x: X(i) - 4, y: Y(+r.value) - 4, width: 8, height: 8, fill: "none",
+        stroke: "var(--bad,#d63a5e)", "stroke-width": 1.8, "data-ens": "ref" });
+      _tip(sq, "<b>" + refName + "</b> · " + r.label + "<br>" + f(+r.value) + '<br><span style="opacity:.7">Reference point — shown for context, never part of the common estimate.</span>');
+      s.appendChild(sq);
+    });
+    // 5. legend + provider toggles (the mock-ups' on/off checkboxes, owned by the chart)
+    var foot = document.createElement("div");
+    foot.className = "pdc-ens-legend";
+    foot.style.cssText = "display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:10.5px;color:var(--text-muted,#6b7a99);padding:6px 4px 0";
+    var med = document.createElement("span");
+    med.style.cssText = "display:inline-flex;align-items:center;gap:5px;font-weight:700;color:var(--ink,#16233b)";
+    med.innerHTML = '<i style="width:18px;height:3px;background:var(--ink,#16233b);border-radius:2px"></i>' + (cfg.medianLabel || "Common estimate");
+    foot.appendChild(med);
+    if (refName && refRows.length) {
+      var refLg = document.createElement("span");
+      refLg.style.cssText = "display:inline-flex;align-items:center;gap:5px";
+      refLg.innerHTML = '<i style="width:8px;height:8px;border:1.8px solid var(--bad,#d63a5e)"></i>' + refName;
+      foot.appendChild(refLg);
+    }
+    if (cfg.showToggles !== false && provOrder.length) {
+      provOrder.forEach(function (name, pi) {
+        var c = PDC.cssvar("--c" + ((pi % 10) + 1)) || "#888";
+        var isOn = on.indexOf(name) >= 0;
+        var chip = document.createElement("button");
+        chip.type = "button";
+        chip.className = "pdc-ens-toggle";
+        chip.setAttribute("data-ens-toggle", name);
+        chip.setAttribute("aria-pressed", isOn ? "true" : "false");
+        chip.style.cssText = "display:inline-flex;align-items:center;gap:5px;border:1px solid var(--panel-border,#dfe4ee);" +
+          "border-radius:999px;padding:2px 9px;background:none;cursor:pointer;font:inherit;font-size:10.5px;" +
+          "color:" + (isOn ? "var(--text-secondary,#3a4560)" : "var(--text-muted,#9aa4b8)") + (isOn ? "" : ";opacity:.55;text-decoration:line-through");
+        chip.innerHTML = '<i style="width:10px;height:10px;border-radius:50%;border:2px solid ' + c + ';background:' + (isOn ? c : "transparent") + '"></i>' + name;
+        chip.title = (isOn ? "Click to exclude " : "Click to include ") + name + " — the common estimate recomputes from the providers left on.";
+        chip.onclick = function () {
+          var next = provOrder.filter(function (n) { return (n === name) ? !(on.indexOf(n) >= 0) : on.indexOf(n) >= 0; });
+          if (!next.length) return; // never allow an empty ensemble
+          if (channel) PDC.ensembleBus.set(channel, next);
+          else { on = next; _ensembleSeries(el, cfg); }
+        };
+        foot.appendChild(chip);
+      });
+    }
+    el.appendChild(foot);
   }
 
 })();
