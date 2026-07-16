@@ -5745,6 +5745,171 @@
     return stops;
   }
 
+  /* ── GL renderer (Viridis V4) — MapLibre GL behind the same choropleth API ──
+     The vendored geometry is PRE-PROJECTED (AlbersUsa, 975×610 plane), which a
+     geographic map engine can't ingest directly. Rather than shipping a second
+     lon/lat geometry set, the plane maps into MapLibre's mercator space
+     EXACTLY: x is linear in longitude and y linear in mercator-y, so MapLibre
+     re-projects the fake coordinates back onto the very same planar shape the
+     SVG renderer draws — one geometry, two renderers, zero visual drift. No
+     basemap tiles on purpose: the dashboard stays self-contained and offline
+     (a tile layer would phone external servers on every open). */
+  var GL_DPU = 360 / 975; // degrees of longitude per plane unit
+  function planeToLL(x, y) {
+    var lng = (x - 487.5) * GL_DPU;
+    var m = (305 - y) * GL_DPU * Math.PI / 180; // mercator y, radians
+    return [lng, Math.atan(Math.sinh(m)) * 180 / Math.PI];
+  }
+  function coordsToLL(c) { return (typeof c[0] === "number") ? planeToLL(c[0], c[1]) : c.map(coordsToLL); }
+  function geomToLL(geom) { return { type: geom.type, coordinates: coordsToLL(geom.coordinates) }; }
+  var _webglCache = null;
+  function _webglOK() {
+    if (_webglCache !== null) return _webglCache;
+    try {
+      var c = document.createElement("canvas");
+      _webglCache = !!(c.getContext("webgl2") || c.getContext("webgl"));
+    } catch (e) { _webglCache = false; }
+    return _webglCache;
+  }
+  var _featCacheGL = {}; // scale -> Promise<{fc, borders, statesOverlay}>
+  // GeoJSON (fake-mercator coords) for the GL renderer. Mirrors geoFeatures()'s
+  // per-scale assembly; borders use unfiltered meshes so exterior coastlines
+  // draw too (the SVG path strokes per-region instead).
+  function geoFeaturesGL(scale) {
+    if (_featCacheGL[scale]) return _featCacheGL[scale];
+    function feat(id, name, geom) { return { type: "Feature", geometry: geomToLL(geom), properties: { gid: String(id), name: name } }; }
+    function build(topo, objName, nameOf) {
+      var fc = topojson.feature(topo, topo.objects[objName]);
+      return {
+        fc: { type: "FeatureCollection", features: fc.features.map(function (f) {
+          return feat(f.id, nameOf(f), f.geometry);
+        }) },
+        borders: geomToLL(topojson.mesh(topo, topo.objects[objName]))
+      };
+    }
+    var statesMesh = geoJson("state").then(function (st) {
+      return geomToLL(topojson.mesh(st, st.objects.states, function (a, b) { return a !== b; }));
+    });
+    if (scale === "state") {
+      _featCacheGL.state = geoJson("state").then(function (st) {
+        var out = build(st, "states", function (f) { return (f.properties && f.properties.name) || f.id; });
+        out.statesOverlay = null;
+        return out;
+      });
+    } else if (scale === "county") {
+      _featCacheGL.county = Promise.all([geoJson("county"), statesMesh]).then(function (r) {
+        var out = build(r[0], "counties", function (f) { return (f.properties && f.properties.name) || f.id; });
+        out.statesOverlay = r[1];
+        return out;
+      });
+    } else if (scale === "huc8") {
+      _featCacheGL.huc8 = Promise.all([geoJson("huc8"), statesMesh]).then(function (r) {
+        var out = build(r[0], "huc8", function (f) { return (f.properties && f.properties.name) || f.id; });
+        out.statesOverlay = r[1];
+        return out;
+      });
+    } else { // crd — merge county geometry per NASS district (same grouping as SVG)
+      _featCacheGL.crd = Promise.all([geoJson("county"), geoJson("crdMap"), statesMesh]).then(function (r) {
+        var topo = r[0], map = r[1].counties || {}, groups = {};
+        (topo.objects.counties.geometries || []).forEach(function (g) {
+          var crd = map[String(g.id)];
+          if (crd) (groups[crd] = groups[crd] || []).push(g);
+        });
+        var features = Object.keys(groups).map(function (crd) {
+          return feat(crd, (FIPS_POSTAL[crd.slice(0, 2)] || crd.slice(0, 2)) + " district " + crd.slice(2),
+            topojson.merge(topo, groups[crd]));
+        });
+        var geomList = [];
+        Object.keys(groups).forEach(function (crd) { geomList = geomList.concat(groups[crd]); });
+        var borders = geomToLL(topojson.mesh(topo, { type: "GeometryCollection", geometries: geomList },
+          function (a, b) { return a === b || map[String(a.id)] !== map[String(b.id)]; }));
+        return { fc: { type: "FeatureCollection", features: features }, borders: borders, statesOverlay: r[2] };
+      });
+    }
+    return _featCacheGL[scale];
+  }
+  // GL needs concrete colors (it can't resolve CSS variables at paint time)
+  function concreteColor(token, fallback) {
+    var c = hexParse(PDC.cssvar(token));
+    return c ? rgbStr(c) : fallback;
+  }
+  function _choroplethGL(el, cfg, C) {
+    geoFeaturesGL(C.scale).then(function (geo) {
+      // camera carries over across re-renders of the same panel+scale so
+      // ensemble toggles / theme flips re-color without yanking pan/zoom away
+      var prevCam = null;
+      if (el._glMap && el._glScale === C.scale) {
+        try { prevCam = { center: el._glMap.getCenter(), zoom: el._glMap.getZoom() }; } catch (e) {}
+      }
+      if (el._glMap) { try { el._glMap.remove(); } catch (e) {} el._glMap = null; }
+      var borderCol = concreteColor("--panel-border", "#c8c2b8");
+      var stateCol = concreteColor("--text-muted", "#888888");
+      var inkCol = concreteColor("--ink", "#333333");
+      var muteCol = concreteColor("--panel-subtle-bg", "#efece4");
+      var feats = geo.fc.features.map(function (ft) {
+        var v = C.values[ft.properties.gid];
+        return { type: "Feature", geometry: ft.geometry, properties: {
+          gid: ft.properties.gid, name: ft.properties.name,
+          val: v == null ? 0 : v, has: v == null ? 0 : 1,
+          fill: v == null ? muteCol : C.colorOf(v) } };
+      });
+      el.innerHTML = "";
+      var wrap = document.createElement("div");
+      wrap.setAttribute("data-geo-gl", "1");
+      wrap.style.cssText = "position:relative;width:100%;height:" + C.h + "px;border-radius:6px;overflow:hidden";
+      el.appendChild(wrap);
+      var sw = planeToLL(C.bbox[0] - 8, C.bbox[3] + 8), ne = planeToLL(C.bbox[2] + 8, C.bbox[1] - 8);
+      var map = new maplibregl.Map({
+        container: wrap, attributionControl: false, dragRotate: false, pitchWithRotate: false,
+        renderWorldCopies: false, fadeDuration: 0, bounds: [sw, ne], fitBoundsOptions: { padding: 12 },
+        style: { version: 8,
+          sources: {
+            regions: { type: "geojson", data: { type: "FeatureCollection", features: feats } },
+            borders: { type: "geojson", data: { type: "Feature", geometry: geo.borders, properties: {} } },
+            states: { type: "geojson", data: geo.statesOverlay
+              ? { type: "Feature", geometry: geo.statesOverlay, properties: {} }
+              : { type: "FeatureCollection", features: [] } }
+          },
+          layers: [
+            { id: "fill", source: "regions", type: "fill",
+              paint: { "fill-color": ["get", "fill"], "fill-opacity": ["case", ["==", ["get", "has"], 0], 0.35, 1] } },
+            { id: "borders", source: "borders", type: "line",
+              paint: { "line-color": borderCol, "line-width": 0.5 } },
+            { id: "hover", source: "regions", type: "line",
+              paint: { "line-color": inkCol, "line-width": 1.8 }, filter: ["==", ["get", "gid"], " "] }
+          ].concat((cfg.stateLines !== false && C.scale !== "state" && geo.statesOverlay) ? [
+            { id: "states", source: "states", type: "line",
+              paint: { "line-color": stateCol, "line-width": 1, "line-opacity": 0.55 } }] : [])
+        }
+      });
+      map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+      if (prevCam) map.jumpTo(prevCam);
+      el._glMap = map; el._glScale = C.scale;
+      // floating hover tooltip — GL surfaces features via events, not DOM nodes,
+      // so the shared _tip (element-bound) doesn't apply here
+      var tip = document.createElement("div");
+      tip.className = "pdc-geo-gltip";
+      tip.style.cssText = "position:absolute;pointer-events:none;display:none;z-index:5;background:var(--panel-bg,#fff);border:1px solid var(--panel-border,#ccc);border-radius:6px;padding:5px 8px;font-size:11px;color:var(--ink,#333);box-shadow:0 4px 14px rgba(0,0,0,.18);max-width:240px";
+      wrap.appendChild(tip);
+      map.on("mousemove", "fill", function (e) {
+        var ft = e.features && e.features[0]; if (!ft) return;
+        map.getCanvas().style.cursor = "default";
+        map.setFilter("hover", ["==", ["get", "gid"], ft.properties.gid]);
+        tip.innerHTML = "<b>" + ft.properties.name + "</b><br>" + (ft.properties.has ? C.f(ft.properties.val) : (cfg.noDataLabel || "No data"));
+        tip.style.display = "block";
+        tip.style.left = Math.min(e.point.x + 12, Math.max(0, wrap.clientWidth - 150)) + "px";
+        tip.style.top = (e.point.y + 12) + "px";
+      });
+      map.on("mouseleave", "fill", function () {
+        map.setFilter("hover", ["==", ["get", "gid"], " "]);
+        tip.style.display = "none";
+      });
+      geoLegend(el, C.ramp, C.vmin, C.vmax, C.f, cfg);
+    }).catch(function (e) {
+      el.innerHTML = '<div class="empty">Map geometry unavailable: ' + String(e && e.message || e).replace(/</g, "&lt;") + "</div>";
+    });
+  }
+
   /* ── Ensemble machinery (Viridis V3) — THE MEDIAN IS THE PRODUCT ────────────
      The goal is a SINGLE BEST COMMON ESTIMATE across data providers, not a
      provider comparison. aggValues() is the ONE aggregation implementation the
@@ -5845,6 +6010,16 @@
       var vb = [(x0 - pad).toFixed(1), (y0 - pad).toFixed(1), (x1 - x0 + pad * 2).toFixed(1), (y1 - y0 + pad * 2).toFixed(1)].join(" ");
       var h = cfg.height || 380;
       var f = cfg.fmt || function (v) { return String(v); };
+      // Viridis V4: opt-in GL renderer (buttery pan/zoom) behind the same API.
+      // Falls back to the built-in SVG renderer when MapLibre isn't inlined or
+      // WebGL is unavailable — the dashboard always renders.
+      if (cfg.renderer === "gl" && window.maplibregl && _webglOK()) {
+        _choroplethGL(el, cfg, { scale: scale, values: values, colorOf: colorOf, ramp: ramp,
+          vmin: vmin, vmax: vmax, f: f, h: h, bbox: [x0, y0, x1, y1] });
+        return;
+      }
+      if (cfg.renderer === "gl") { try { console.warn("choropleth: GL renderer unavailable — using the built-in renderer"); } catch (e) {} }
+      if (el._glMap) { try { el._glMap.remove(); } catch (e) {} el._glMap = null; }
       el.innerHTML = "";
       var svg = S("svg", { viewBox: vb, width: "100%", height: h, "aria-label": "choropleth map", role: "img" });
       // no-data hatch pattern (namespaced id per render to avoid collisions)
@@ -5872,20 +6047,24 @@
         svg.appendChild(S("path", { d: geo.statesOverlay, fill: "none", stroke: "var(--text-muted, #888)", "stroke-width": strokeW * 1.1, "stroke-opacity": "0.55", "pointer-events": "none" }));
       }
       el.appendChild(svg);
-      if (cfg.legend !== false) {
-        var lg = document.createElement("div");
-        lg.className = "pdc-geo-legend";
-        lg.style.cssText = "display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:10.5px;color:var(--text-muted,#6b7a99);padding:6px 4px 0";
-        var swatches = '<span style="display:inline-flex;border-radius:3px;overflow:hidden">' + ramp.map(function (c) {
-          return '<i style="width:22px;height:10px;background:' + c + '"></i>';
-        }).join("") + "</span>";
-        lg.innerHTML = "<span>" + f(vmin) + "</span>" + swatches + "<span>" + f(vmax) + "</span>" +
-          '<span style="display:inline-flex;align-items:center;gap:4px;margin-left:10px"><i style="width:14px;height:10px;border-radius:2px;background:url(#' + pid + ');border:1px solid var(--panel-border,#ccc);background:repeating-linear-gradient(45deg,transparent,transparent 2px,var(--panel-border,#ccc) 2px,var(--panel-border,#ccc) 3px)"></i>' + (cfg.noDataLabel || "No data") + "</span>";
-        el.appendChild(lg);
-      }
+      geoLegend(el, ramp, vmin, vmax, f, cfg);
     }).catch(function (e) {
       el.innerHTML = '<div class="empty">Map geometry unavailable: ' + String(e && e.message || e).replace(/</g, "&lt;") + "</div>";
     });
+  }
+  // Shared legend — identical under both renderers (the no-data swatch draws
+  // its hatch with a CSS gradient, so it needs no SVG pattern reference).
+  function geoLegend(el, ramp, vmin, vmax, f, cfg) {
+    if (cfg.legend === false) return;
+    var lg = document.createElement("div");
+    lg.className = "pdc-geo-legend";
+    lg.style.cssText = "display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:10.5px;color:var(--text-muted,#6b7a99);padding:6px 4px 0";
+    var swatches = '<span style="display:inline-flex;border-radius:3px;overflow:hidden">' + ramp.map(function (c) {
+      return '<i style="width:22px;height:10px;background:' + c + '"></i>';
+    }).join("") + "</span>";
+    lg.innerHTML = "<span>" + f(vmin) + "</span>" + swatches + "<span>" + f(vmax) + "</span>" +
+      '<span style="display:inline-flex;align-items:center;gap:4px;margin-left:10px"><i style="width:14px;height:10px;border-radius:2px;border:1px solid var(--panel-border,#ccc);background:repeating-linear-gradient(45deg,transparent,transparent 2px,var(--panel-border,#ccc) 2px,var(--panel-border,#ccc) 3px)"></i>' + (cfg.noDataLabel || "No data") + "</span>";
+    el.appendChild(lg);
   }
 
   /* ── Ensemble series (Viridis V3) ────────────────────────────────────────────

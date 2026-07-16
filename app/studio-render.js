@@ -504,6 +504,7 @@
           var choroCfg = { scale: o.scale || "county", agg: o.agg || "median",
             classes: o.classes || 5, colorToken: o.color || "--good",
             fit: o.fit || "data", stateLines: o.stateLines !== false,
+            renderer: o.renderer || "svg",
             legend: o.showLegend !== false, fmt: f, height: o.height || 380 };
           if (m.seriesCol && res.col(m.seriesCol) >= 0) {
             var cli = res.col(m.idCol), csi = res.col(m.seriesCol), cvi = res.col(m.valueCol);

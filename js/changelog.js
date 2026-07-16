@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 362,
+    title: 'Maps go interactive: an opt-in GL renderer with buttery pan and zoom',
+    kind: 'feature',
+    ts: '2026-07-16T19:36:15.000Z',
+    items: [
+      'The Map (US choropleth) chart gained a Renderer option: keep the built-in renderer (light, smallest export) or switch a panel to Interactive GL -- smooth panning and zooming at any polygon count, zoom buttons, and a hover highlight, powered by a vendored MapLibre GL JS (BSD-3-Clause, license included). Same colors, same median-of-selected-sources values, same legend -- one geometry drives both renderers, so nothing shifts when you switch.',
+      'Exports stay honest about weight: only dashboards whose map panels choose GL carry MapLibre inside their self-contained .html (about 1MB extra); built-in-renderer exports remain as lean as before. Where WebGL is unavailable the GL panel quietly falls back to the built-in renderer, so the dashboard always renders.',
+      'Ensemble linkage carries over: provider toggles re-color a GL map from the same common estimate as the chart, and the map keeps your pan/zoom position while it recolors.',
+    ],
+  },
+  {
     v: 361,
     title: 'The front door shows off: a live screenshot carousel on the public site',
     ts: '2026-07-16T19:00:41.000Z',

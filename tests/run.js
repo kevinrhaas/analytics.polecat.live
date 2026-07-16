@@ -909,6 +909,102 @@ function serve() {
       ens.before.legendMin0 === "4.1" && ens.after.legendMin1 === "3.8",
       JSON.stringify({ before: ens.before.legendMin0, after: ens.after.legendMin1 }));
 
+    // ---- GL MAP (Viridis V4): opt-in MapLibre renderer behind the same API ----
+    console.log("\n• GL MAP: opt-in MapLibre renderer (Viridis V4)");
+    (function () {
+      const ml = fs.readFileSync(path.join(ROOT, "vendor/maplibre/maplibre-gl.js"), "utf8");
+      ok("GL: MapLibre vendored with its BSD-3-Clause banner + LICENSE file, and recorded in THIRD-PARTY-NOTICES.md",
+        /MapLibre GL JS/.test(ml.slice(0, 200)) && /3-Clause BSD/.test(ml.slice(0, 300)) &&
+        fs.existsSync(path.join(ROOT, "vendor/maplibre/LICENSE-maplibre-gl")) &&
+        /MapLibre GL JS/.test(fs.readFileSync(path.join(ROOT, "THIRD-PARTY-NOTICES.md"), "utf8")));
+      ok("GL: the bundle contains no </" + "script> sequences (inlining into the export is structurally safe)",
+        ml.indexOf("</" + "script>") < 0 && fs.readFileSync(path.join(ROOT, "vendor/maplibre/maplibre-gl.css"), "utf8").indexOf("</" + "style>") < 0);
+    })();
+    const glUnit = await page.evaluate(function () {
+      var mk = function (renderer) {
+        return { panels: [{ chart: { type: "choropleth", opts: renderer ? { renderer: renderer } : {} } }] };
+      };
+      return { none: Studio.usesGLMap(mk(null)), svg: Studio.usesGLMap(mk("svg")), gl: Studio.usesGLMap(mk("gl")),
+        noMap: Studio.usesGLMap({ panels: [{ chart: { type: "bars" } }] }) };
+    });
+    ok("GL: Studio.usesGLMap() flags only specs whose map panels choose the GL renderer",
+      glUnit.gl === true && glUnit.none === false && glUnit.svg === false && glUnit.noMap === false, JSON.stringify(glUnit));
+    // one GL spec reused by the inline/fallback/e2e probes below
+    const glSpecSrc = function (renderer) {
+      return { id: "gl-t", name: "gl-t", title: "t",
+        panels: [{ id: "m1", title: "m", span: "full",
+          chart: { type: "choropleth", da: "g", map: { idCol: "fips", valueCol: "v" },
+            opts: { scale: "county", renderer: renderer, fmt: "raw", height: 420 } } }],
+        kpis: [], filters: [], cda: { connections: [], dataAccesses: [{ id: "g", kind: "sql", columns: ["fips", "v"] }] } };
+    };
+    const glInline = await page.evaluate(async function (specs) {
+      await window.__studioEnsureGeoAssets(specs.gl); // pulls geometry AND maplibre
+      var mock = { g: { cols: ["fips", "v"], rows: [["17031", 4], ["19153", 9], ["18097", 6]] } };
+      var glHtml = Studio.buildHtml(specs.gl, window.__STUDIO_STATE.assets, { preview: true, mock: mock });
+      var svgHtml = Studio.buildHtml(specs.svg, window.__STUDIO_STATE.assets, { preview: true, mock: mock });
+      return {
+        loaderGotMaplibre: !!(window.__STUDIO_STATE.assets.maplibre && window.__STUDIO_STATE.assets.maplibre.js.length > 500000),
+        glCarries: glHtml.indexOf("MapLibre GL JS") >= 0 && glHtml.indexOf(".maplibregl-map") >= 0,
+        svgLean: svgHtml.indexOf("MapLibre GL JS") < 0 && svgHtml.indexOf(".maplibregl-map") < 0
+      };
+    }, { gl: glSpecSrc("gl"), svg: glSpecSrc("svg") });
+    ok("GL: the lazy loader fetches MapLibre for GL specs; GL exports inline js+css, SVG-renderer exports stay lean",
+      glInline.loaderGotMaplibre && glInline.glCarries && glInline.svgLean, JSON.stringify(glInline));
+    // graceful degradation: a GL spec built WITHOUT the maplibre asset (or opened
+    // where WebGL is missing) must still render — via the built-in SVG renderer
+    const glFallback = await page.evaluate(async function (spec) {
+      var assets = Object.assign({}, window.__STUDIO_STATE.assets);
+      delete assets.maplibre;
+      var html = Studio.buildHtml(spec, assets, { preview: true,
+        mock: { g: { cols: ["fips", "v"], rows: [["17031", 4], ["19153", 9]] } } });
+      return await new Promise(function (resolve) {
+        var ifr = document.createElement("iframe");
+        ifr.style.cssText = "position:fixed;left:-2000px;top:0;width:900px;height:600px";
+        document.body.appendChild(ifr);
+        ifr.srcdoc = html;
+        var t0 = Date.now();
+        (function poll() {
+          var doc = null; try { doc = ifr.contentDocument; } catch (e) {}
+          var paths = doc ? doc.querySelectorAll("path[data-geo-id]").length : 0;
+          if (paths > 3000) {
+            var out = { paths: paths, glMarker: !!doc.querySelector("[data-geo-gl]") };
+            ifr.remove(); resolve(out);
+          } else if (Date.now() - t0 > 12000) { ifr.remove(); resolve({ timeout: true, paths: paths }); }
+          else setTimeout(poll, 150);
+        })();
+      });
+    }, glSpecSrc("gl"));
+    ok("GL: a GL-renderer dashboard without MapLibre available falls back to the built-in SVG renderer (never a blank panel)",
+      glFallback.paths > 3000 && !glFallback.glMarker, JSON.stringify(glFallback));
+    // the real thing: MapLibre boots in the export, draws its canvas, keeps the
+    // shared legend, and ships zoom controls (SwiftShader WebGL in CI/headless)
+    const glLive = await page.evaluate(async function (spec) {
+      var html = Studio.buildHtml(spec, window.__STUDIO_STATE.assets, { preview: true,
+        mock: { g: { cols: ["fips", "v"], rows: [["17031", 4], ["17113", 7], ["19153", 9], ["18097", 6]] } } });
+      return await new Promise(function (resolve) {
+        var ifr = document.createElement("iframe");
+        ifr.style.cssText = "position:fixed;left:-2400px;top:0;width:1000px;height:640px";
+        document.body.appendChild(ifr);
+        ifr.srcdoc = html;
+        var t0 = Date.now();
+        (function poll() {
+          var doc = null; try { doc = ifr.contentDocument; } catch (e) {}
+          var canvas = doc ? doc.querySelector("[data-geo-gl] canvas.maplibregl-canvas") : null;
+          var legend = doc ? doc.querySelector(".pdc-geo-legend") : null;
+          if (canvas && legend) {
+            var out = { canvas: true, legend: legend.textContent,
+              nav: doc.querySelectorAll(".maplibregl-ctrl-zoom-in").length,
+              svgPaths: doc.querySelectorAll("path[data-geo-id]").length };
+            ifr.remove(); resolve(out);
+          } else if (Date.now() - t0 > 25000) { ifr.remove(); resolve({ timeout: true }); }
+          else setTimeout(poll, 250);
+        })();
+      });
+    }, glSpecSrc("gl"));
+    ok("GL: the GL renderer boots for real inside the export — MapLibre canvas + zoom control + the shared legend (4→9), no SVG paths",
+      glLive.canvas === true && glLive.nav === 1 && /^4/.test(glLive.legend || "") && (glLive.legend || "").indexOf("9") > 0 && glLive.svgPaths === 0,
+      JSON.stringify(glLive));
+
     const wsStore = await page.evaluate(function () {
       var W = Studio.Workspace, events = [];
       var off = W.on("change", function (p) { events.push(p.table + ":" + (p.removed ? "del" : "put")); });
@@ -17791,7 +17887,7 @@ function serve() {
     // are fetched during install too (from the index we just cached), so a first-ever offline
     // visit still has a full library/gallery, not just a blank shell.
     const pwaDataPrecached = await pwaPage.evaluate(async function () {
-      const cache = await caches.open("studio-shell-v13");
+      const cache = await caches.open("studio-shell-v14");
       const keys = (await cache.keys()).map((r) => new URL(r.url).pathname.replace(/^\//, ""));
       const exIndex = await fetch("data/examples/index.json").then((r) => r.json());
       const missingExamples = exIndex.filter((ex) => keys.indexOf("data/examples/" + ex.file) < 0);

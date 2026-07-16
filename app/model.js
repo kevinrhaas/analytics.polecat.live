@@ -995,6 +995,9 @@
       opts: [
         { key: "scale",   type: "select", label: "Region scale", def: "county",
           choices: [["county", "Counties (FIPS)"], ["state", "States"], ["crd", "USDA districts (CRD)"], ["huc8", "Watersheds (HUC8, Corn Belt)"]] },
+        { key: "renderer", type: "select", label: "Renderer", def: "svg",
+          choices: [["svg", "Built-in (light — smallest export)"], ["gl", "Interactive GL (pan & zoom, ~1MB heavier export)"]],
+          hint: "GL mode pans and zooms smoothly at any polygon count; it inlines MapLibre into the export. Falls back to the built-in renderer where WebGL is unavailable." },
         { key: "channel", type: "text", label: "Ensemble channel", def: "providers",
           hint: "Panels sharing a channel stay linked: an Ensemble chart's provider toggles re-color this map live." },
         { key: "agg",     type: "select", label: "Combine duplicate rows by", def: "median",
@@ -2575,6 +2578,14 @@
     if (scales.crd) { keys.county = 1; keys.crdMap = 1; keys.state = 1; } // CRDs merge county geometry
     if (scales.state) { keys.state = 1; }
     return Object.keys(keys);
+  };
+  // Viridis V4: true when any map panel opts into the MapLibre GL renderer —
+  // the preview/export inliner and the lazy asset loader share this so a GL
+  // dashboard always carries its engine and an SVG-only one never does.
+  Studio.usesGLMap = function (spec) {
+    return ((spec && spec.panels) || []).some(function (p) {
+      return p.chart && p.chart.type === "choropleth" && p.chart.opts && p.chart.opts.renderer === "gl";
+    });
   };
   Studio.newDA = function () {
     return { id: Studio.uid("da"), name: "", kind: "sql", connectionId: "", sql: "", columns: [], params: [], calcColumns: [], cache: true, cacheDuration: 300 };

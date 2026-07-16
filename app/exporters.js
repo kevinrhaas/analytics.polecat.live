@@ -243,6 +243,13 @@
       geoScript = "<script>\n" + assets.topojson + "\n</script>\n" +
         "<script>window.STUDIO_GEO = {" + geoParts.join(",") + "};</script>\n";
     }
+    // Viridis V4: a spec with a GL-renderer map panel carries MapLibre inside the
+    // export (opt-in weight); SVG-only maps stay lean. The bundle contains no
+    // "</script>" sequences, so direct inlining is safe (same as topojson above).
+    if (Studio.usesGLMap && Studio.usesGLMap(spec) && assets.maplibre) {
+      geoScript += "<style>\n" + assets.maplibre.css + "\n</style>\n" +
+        "<script>\n" + assets.maplibre.js + "\n</script>\n";
+    }
     var boot = "<script>\n" + assets.js + "\n</script>\n" + charts + geoScript + duckdbScript + httpvfsScript + "<script>\n" + assets.render + "\n</script>\n<script>\n" +
       "window.STUDIO_AUTOBOOT=false;\n" +
       "PDC.cdaPath=" + JSON.stringify(cdaPath) + ";\nvar CDAPATH=PDC.cdaPath;\n";

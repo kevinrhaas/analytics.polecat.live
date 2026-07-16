@@ -29,7 +29,11 @@ function assets() {
     render: fs.readFileSync(path.join(APP, "studio-render.js"), "utf8"),
     charts: fs.readFileSync(path.join(APP, "studio-charts.js"), "utf8"),
     topojson: fs.readFileSync(path.join(VENDOR, "geo/topojson-client.min.js"), "utf8"),
-    geo: geo
+    geo: geo,
+    maplibre: {
+      js: fs.readFileSync(path.join(VENDOR, "maplibre/maplibre-gl.js"), "utf8"),
+      css: fs.readFileSync(path.join(VENDOR, "maplibre/maplibre-gl.css"), "utf8")
+    }
   };
 }
 

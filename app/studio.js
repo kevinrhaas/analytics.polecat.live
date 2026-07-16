@@ -4332,13 +4332,20 @@
     var keys = Studio.geoAssetKeys(spec);
     S.assets.geo = S.assets.geo || {};
     var missing = keys.filter(function (k) { return !S.assets.geo[k]; });
-    if (!missing.length && (S.assets.topojson || !keys.length)) return Promise.resolve(false);
+    var needGL = Studio.usesGLMap(spec) && !S.assets.maplibre; // Viridis V4: GL panels pull MapLibre too
+    if (!missing.length && !needGL && (S.assets.topojson || !keys.length)) return Promise.resolve(false);
     var FILES = { county: "vendor/geo/counties-albers-10m.json", state: "vendor/geo/states-albers-10m.json",
       huc8: "vendor/geo/us-huc8-cornbelt-albers.json", crdMap: "vendor/geo/us-crd-counties.json" };
     var jobs = missing.map(function (k) {
       return fetch(FILES[k]).then(function (r) { return r.text(); }).then(function (t) { S.assets.geo[k] = t; });
     });
     if (!S.assets.topojson) jobs.push(fetch("vendor/geo/topojson-client.min.js").then(function (r) { return r.text(); }).then(function (t) { S.assets.topojson = t; }));
+    if (needGL) {
+      jobs.push(Promise.all([
+        fetch("vendor/maplibre/maplibre-gl.js").then(function (r) { return r.text(); }),
+        fetch("vendor/maplibre/maplibre-gl.css").then(function (r) { return r.text(); })
+      ]).then(function (r) { S.assets.maplibre = { js: r[0], css: r[1] }; }));
+    }
     return Promise.all(jobs).then(function () { return true; });
   }
   window.__studioEnsureGeoAssets = ensureGeoAssets; // test hook + used by export paths
@@ -4349,7 +4356,8 @@
     // finds nothing missing and renders straight through).
     var needGeo = Studio.geoAssetKeys(S.spec);
     if (needGeo.length) {
-      var haveAll = S.assets.topojson && S.assets.geo && needGeo.every(function (k) { return S.assets.geo[k]; });
+      var haveAll = S.assets.topojson && S.assets.geo && needGeo.every(function (k) { return S.assets.geo[k]; })
+        && (!Studio.usesGLMap(S.spec) || S.assets.maplibre); // V4: GL panels wait for MapLibre too
       if (!haveAll) { ensureGeoAssets(S.spec).then(function () { doRefresh(); }); return; }
     }
     // H-track v117: in Demo mode substitute varied sample data so values pulse realistically.
