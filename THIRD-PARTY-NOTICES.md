@@ -12,18 +12,20 @@ required notice inside the export too.
 |---|---|---|---|
 | Polecat Shell | `vendor/polecat-shell/` | © Polecat.live (first-party fleet library) | Synced read-only from kevinrhaas/polecat-platform; not third-party. |
 | PDC dashboard toolkit | `vendor/pdc-ui.js` | © Polecat.live (first-party) | Inlined into exported dashboards. |
+| topojson-client v3.1.0 | `vendor/geo/topojson-client.min.js` | ISC — © 2012–2019 Michael Bostock (`vendor/geo/LICENSE-topojson-client`) | Inlined (banner comment intact) into any exported dashboard that contains a map panel. |
+| us-atlas v3.0.1 | `vendor/geo/counties-albers-10m.json`, `vendor/geo/states-albers-10m.json` | ISC — © Michael Bostock (`vendor/geo/LICENSE-us-atlas`) | Pre-projected TopoJSON; underlying geometry is US Census Bureau cartographic boundary data (public domain). Inlined into exported map dashboards. |
 
-*(The geo-analytics track adds `topojson-client` and `d3-geo` (ISC) and `MapLibre GL JS`
-(BSD-3-Clause) under `vendor/geo/` — each with its upstream LICENSE file — plus public-domain
-US government geometry (US Census Bureau cartographic boundaries, USGS Watershed Boundary
-Dataset, USDA NASS district definitions). This table is updated in the same PR that vendors
-each component.)*
+*(Planned: `MapLibre GL JS` (BSD-3-Clause) arrives with the V4 interactive renderer, with its
+LICENSE alongside. `d3-geo`/`d3-array` (ISC) are used only at BUILD time by `tools/build-geo.mjs`
+and are not redistributed.)*
 
 ## Data & geometry sources
 
 | Source | Use | Terms |
 |---|---|---|
-| — | *(none redistributed yet)* | — |
+| USGS Watershed Boundary Dataset (via The National Map `wbd` service) | `vendor/geo/us-huc8-cornbelt-albers.json` — Corn Belt HUC8 subbasins, generalized + reprojected by `tools/build-geo.mjs` | US government work, public domain |
+| USDA NASS county list (`county_list.txt`) | `vendor/geo/us-crd-counties.json` — county FIPS → crop reporting district mapping | US government work, public domain |
+| US Census Bureau cartographic boundary files | county/state geometry underlying the us-atlas files above | US government work, public domain |
 
 ## Fonts
 

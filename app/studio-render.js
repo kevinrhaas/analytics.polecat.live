@@ -496,6 +496,15 @@
             sortSlices: !!o.sortSlices, legend: o.showLegend !== false, innerPct: o.innerPct,
             data: cfData(csData(lv(res, m.labelCol, m.valueCol), p.colorScale), p.condFmt), drill: drillCfg, detail: detailCfg });
           break;
+        case "choropleth":
+          // Viridis V2: US region map. Duplicate rows per region aggregate via the
+          // MEDIAN by default (the "single best common estimate" convention).
+          PDC.choropleth(body, { scale: o.scale || "county", agg: o.agg || "median",
+            classes: o.classes || 5, colorToken: o.color || "--good",
+            fit: o.fit || "data", stateLines: o.stateLines !== false,
+            legend: o.showLegend !== false, fmt: f, height: o.height || 380,
+            data: lv(res, m.idCol, m.valueCol) });
+          break;
         case "treemap":
           PDC.treemap(body, { fmt: f, height: o.height || 300,
             showLabels: o.showLabels !== false, showPct: !!o.showPct,

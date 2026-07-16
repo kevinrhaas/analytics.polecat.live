@@ -538,7 +538,7 @@
 
   // N-DATA: chart types that read best filling an entire row on their own — a lot of
   // rows/columns (Table), long-form prose (Text/annotation), or a wide flow diagram.
-  Studio.WIDE_CHART_TYPES = ["table", "richtext", "sankey", "chord", "calHeatmap"];
+  Studio.WIDE_CHART_TYPES = ["table", "richtext", "sankey", "chord", "calHeatmap", "choropleth"];
 
   // N-DATA: "Auto-arrange" — a one-click reflow of a dashboard's existing panels into a
   // more balanced grid, taking the tedium out of manual drag-resize for a first draft.
@@ -981,6 +981,31 @@
         { key: "height",  type: "int",  label: "Height (px)", def: 320 }
       ],
       cde: { type: "cccHeatGridChart", extra: function () { return [["valuesVisible", "Boolean", "true"]]; } }
+    },
+    // ── US choropleth map (Viridis track V2) — CDF-only ──────────────────────
+    // County / State / NASS-district / Corn-Belt-HUC8 regions colored by a value
+    // column; duplicate rows per region aggregate via the MEDIAN by default (the
+    // Viridis "single best common estimate" convention). Geometry is vendored,
+    // pre-projected TopoJSON (vendor/geo/) rendered by studio-charts.js with
+    // topojson-client — inlined into any export that contains a map panel.
+    choropleth: {
+      label: "Map (US choropleth)", icon: "⬢", group: "Maps",
+      desc: "US regions colored by value — county, state, district, or watershed",
+      fields: ["idCol", "valueCol"],
+      opts: [
+        { key: "scale",   type: "select", label: "Region scale", def: "county",
+          choices: [["county", "Counties (FIPS)"], ["state", "States"], ["crd", "USDA districts (CRD)"], ["huc8", "Watersheds (HUC8, Corn Belt)"]] },
+        { key: "agg",     type: "select", label: "Combine duplicate rows by", def: "median",
+          choices: [["median", "Median (common estimate)"], ["mean", "Mean"], ["sum", "Sum"], ["min", "Min"], ["max", "Max"], ["last", "Last"]] },
+        { key: "classes", type: "int",  label: "Color classes", def: 5 },
+        { key: "color",   type: "color", label: "Ramp color", def: "--good" },
+        { key: "fit",     type: "select", label: "Zoom", def: "data",
+          choices: [["data", "Fit regions with data"], ["all", "Whole layer"]] },
+        { key: "stateLines", type: "bool", label: "State border overlay", def: true },
+        { key: "showLegend", type: "bool", label: "Show legend", def: true },
+        { key: "fmt",     type: "fmt",  label: "Value format", def: "raw" },
+        { key: "height",  type: "int",  label: "Height (px)", def: 380 }
+      ]
     },
     table: {
       label: "Table", icon: "▥", group: "Detail",
@@ -2320,6 +2345,11 @@
       map.rCol = cols[3] || ""; map.labelCol = cols[0] || "";
     } else if (type === "heatmap") {
       map.rowCol = cols[0] || ""; map.colCol = cols[1] || ""; map.valueCol = cols[2] || cols[1] || "";
+    } else if (type === "choropleth") {
+      // region id first (fips/county/state/huc-ish names win), value = first other column
+      var geoIdGuess = cols.filter(function (c) { return /fips|county|state|region|huc|district|geo/i.test(c); })[0];
+      map.idCol = geoIdGuess || cols[0] || "";
+      map.valueCol = cols.filter(function (c) { return c !== map.idCol; })[0] || cols[1] || "";
     } else if (type === "table") {
       map.cols = cols.map(function (col, i) { return { col: col, label: titleize(col), num: i > 0 }; });
     } else if (type === "gauge") {
@@ -2495,6 +2525,23 @@
   };
   // true when chart type `t` supports interaction/annotation kind `k` (one of ANNOT_CAPS' keys).
   Studio.chartSupports = function (k, t) { return !!(Studio.ANNOT_CAPS[k] && Studio.ANNOT_CAPS[k][t]); };
+
+  // Viridis V2: which vendor/geo asset keys a spec's choropleth panels need.
+  // One pure helper shared by the preview/export inliner (exporters.js) and the
+  // lazy asset loader (studio.js) so they can never disagree. Returns [] when
+  // the spec has no map panels — exports stay geometry-free unless needed.
+  Studio.geoAssetKeys = function (spec) {
+    var scales = {};
+    ((spec && spec.panels) || []).forEach(function (p) {
+      if (p.chart && p.chart.type === "choropleth") scales[(p.chart.opts && p.chart.opts.scale) || "county"] = 1;
+    });
+    var keys = {};
+    if (scales.county) { keys.county = 1; keys.state = 1; }           // + state border overlay
+    if (scales.huc8) { keys.huc8 = 1; keys.state = 1; }
+    if (scales.crd) { keys.county = 1; keys.crdMap = 1; keys.state = 1; } // CRDs merge county geometry
+    if (scales.state) { keys.state = 1; }
+    return Object.keys(keys);
+  };
   Studio.newDA = function () {
     return { id: Studio.uid("da"), name: "", kind: "sql", connectionId: "", sql: "", columns: [], params: [], calcColumns: [], cache: true, cacheDuration: 300 };
   };

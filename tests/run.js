@@ -721,6 +721,105 @@ function serve() {
     ok("GS: a successful run teaches the dataset its columns and stamps lastRun",
       gsDataset.learnedCols === "region,total" && gsDataset.lastRunOk, JSON.stringify(gsDataset));
 
+    // ---- GEO (Viridis V2): vendored assets + choropleth chart type ----------
+    console.log("\n• GEO: vendored geometry + choropleth (Viridis V2)");
+    (function () {
+      const V = path.join(ROOT, "vendor/geo");
+      const tj = fs.readFileSync(path.join(V, "topojson-client.min.js"), "utf8");
+      ok("GEO: topojson-client vendored with its ISC banner + LICENSE file (redistribution licensing intact)",
+        /topojson-client v3\./.test(tj.slice(0, 200)) && fs.existsSync(path.join(V, "LICENSE-topojson-client")) && fs.existsSync(path.join(V, "LICENSE-us-atlas")));
+      const counties = JSON.parse(fs.readFileSync(path.join(V, "counties-albers-10m.json"), "utf8"));
+      const states = JSON.parse(fs.readFileSync(path.join(V, "states-albers-10m.json"), "utf8"));
+      const huc8 = JSON.parse(fs.readFileSync(path.join(V, "us-huc8-cornbelt-albers.json"), "utf8"));
+      const crd = JSON.parse(fs.readFileSync(path.join(V, "us-crd-counties.json"), "utf8"));
+      ok("GEO: county/state/HUC8 topologies parse with expected feature counts (3k+ counties, 50+ states, 500+ Corn Belt HUC8s)",
+        counties.objects.counties.geometries.length > 3000 && states.objects.states.geometries.length >= 50 &&
+        huc8.objects.huc8.geometries.length >= 500,
+        JSON.stringify({ counties: counties.objects.counties.geometries.length, states: states.objects.states.geometries.length, huc8: huc8.objects.huc8.geometries.length }));
+      ok("GEO: NASS county→CRD mapping covers 3k+ counties across 300+ districts",
+        Object.keys(crd.counties).length > 3000 && new Set(Object.values(crd.counties)).size > 300,
+        Object.keys(crd.counties).length + " counties");
+      const notices = fs.readFileSync(path.join(ROOT, "THIRD-PARTY-NOTICES.md"), "utf8");
+      ok("GEO: THIRD-PARTY-NOTICES.md records topojson-client, us-atlas, and the public-domain USGS/NASS data",
+        /topojson-client/.test(notices) && /us-atlas/.test(notices) && /Watershed Boundary/.test(notices) && /NASS/.test(notices));
+    })();
+    const geoKeysUnit = await page.evaluate(function () {
+      return {
+        none: Studio.geoAssetKeys({ panels: [{ chart: { type: "bars" } }] }).join(","),
+        county: Studio.geoAssetKeys({ panels: [{ chart: { type: "choropleth", opts: {} } }] }).sort().join(","),
+        crd: Studio.geoAssetKeys({ panels: [{ chart: { type: "choropleth", opts: { scale: "crd" } } }] }).sort().join(","),
+        huc8: Studio.geoAssetKeys({ panels: [{ chart: { type: "choropleth", opts: { scale: "huc8" } } }] }).sort().join(",")
+      };
+    });
+    ok("GEO: geoAssetKeys() maps specs to exactly the geometry they need (none without maps; CRD pulls county+mapping)",
+      geoKeysUnit.none === "" && geoKeysUnit.county === "county,state" &&
+      geoKeysUnit.crd === "county,crdMap,state" && geoKeysUnit.huc8 === "huc8,state", JSON.stringify(geoKeysUnit));
+    const geoSample = await page.evaluate(function () {
+      var r = Studio.sampleRows({ columns: ["county_fips", "pct"] });
+      return { firstId: String(r.rows[0][0]), allFips: r.rows.every(function (row) { return /^\d{5}$/.test(String(row[0])); }) };
+    });
+    ok("GEO: sample data for fips-named columns emits real 5-digit county FIPS (fresh map panels render colored, not all-no-data)",
+      geoSample.allFips, JSON.stringify(geoSample));
+    // Full pipeline per scale: buildHtml (inlined topojson + STUDIO_GEO) → iframe →
+    // rendered region paths, colored values, no-data hatch, legend. Also proves the
+    // MEDIAN aggregation: region 17031 gets rows (2,4,100) → median 4 → must render
+    // the SAME fill as region 19153's exact 4.
+    async function geoProbe(scale, idCol, rows) {
+      return await page.evaluate(async function (args) {
+        var spec = { id: "t-" + args.scale, name: "t-" + args.scale, title: "t",
+          panels: [{ id: "m1", title: "m", span: "full",
+            chart: { type: "choropleth", da: "g", map: { idCol: args.idCol, valueCol: "v" }, opts: { scale: args.scale } } }],
+          kpis: [], filters: [], cda: { connections: [], dataAccesses: [{ id: "g", kind: "sql", columns: [args.idCol, "v"] }] } };
+        await window.__studioEnsureGeoAssets(spec);
+        var html = Studio.buildHtml(spec, window.__STUDIO_STATE.assets, { preview: true, mock: { g: { cols: [args.idCol, "v"], rows: args.rows } } });
+        return await new Promise(function (resolve) {
+          var ifr = document.createElement("iframe");
+          ifr.style.cssText = "position:fixed;left:-2000px;top:0;width:900px;height:600px";
+          document.body.appendChild(ifr);
+          ifr.srcdoc = html;
+          var t0 = Date.now();
+          (function poll() {
+            var doc = null; try { doc = ifr.contentDocument; } catch (e) {}
+            var paths = doc ? doc.querySelectorAll("path[data-geo-id]") : [];
+            if (paths.length) {
+              var colored = [].filter.call(paths, function (x) { return !/url\(/.test(x.getAttribute("fill")); });
+              var fillOf = {};
+              colored.forEach(function (x) { fillOf[x.getAttribute("data-geo-id")] = x.getAttribute("fill"); });
+              var out = { regions: paths.length, colored: colored.length,
+                hatched: paths.length - colored.length,
+                legend: !!doc.querySelector(".pdc-geo-legend"), fills: fillOf,
+                inlined: ifr.srcdoc.indexOf("STUDIO_GEO") >= 0 && ifr.srcdoc.indexOf("topojson-client v3") >= 0 };
+              ifr.remove(); resolve(out);
+            } else if (Date.now() - t0 > 12000) { ifr.remove(); resolve({ timeout: true }); }
+            else setTimeout(poll, 150);
+          })();
+        });
+      }, { scale: scale, idCol: idCol, rows: rows });
+    }
+    const geoCounty = await geoProbe("county", "fips", [["17031", 2], ["17031", 4], ["17031", 100], ["19153", 4], ["18097", 9]]);
+    ok("GEO county: 3k+ county paths render; data counties colored, the rest hatched no-data; legend + inlined geometry",
+      geoCounty.regions > 3000 && geoCounty.colored === 3 && geoCounty.hatched > 3000 && geoCounty.legend && geoCounty.inlined,
+      JSON.stringify({ regions: geoCounty.regions, colored: geoCounty.colored }));
+    ok("GEO county: duplicate rows aggregate by MEDIAN — 17031's (2,4,100) renders the same fill as an exact 4 (the common-estimate convention)",
+      !!geoCounty.fills["17031"] && geoCounty.fills["17031"] === geoCounty.fills["19153"], JSON.stringify(geoCounty.fills));
+    const geoState = await geoProbe("state", "state_id", [["IA", 8], ["Indiana", 4], ["27", 7]]);
+    ok("GEO state: postal codes, full names, and bare FIPS all normalize onto state regions",
+      geoState.regions >= 50 && geoState.colored === 3, JSON.stringify({ regions: geoState.regions, colored: geoState.colored }));
+    const geoCrd = await geoProbe("crd", "district", [["1710", 8], ["1910", 5], ["1830", 3]]);
+    ok("GEO crd: 300+ NASS districts derive from county geometry (topojson merge) and color by value",
+      geoCrd.regions > 300 && geoCrd.colored === 3, JSON.stringify({ regions: geoCrd.regions, colored: geoCrd.colored }));
+    const geoHuc = await geoProbe("huc8", "huc8", [["07080105", 9], ["07130001", 5], ["10230003", 2]]);
+    ok("GEO huc8: 500+ Corn Belt watersheds render and color by value",
+      geoHuc.regions >= 500 && geoHuc.colored === 3, JSON.stringify({ regions: geoHuc.regions, colored: geoHuc.colored }));
+    const geoLean = await page.evaluate(function () {
+      var spec = { id: "lean", name: "lean", title: "t", panels: [{ id: "p", title: "p", chart: { type: "bars", da: "g", map: { labelCol: "a", valueCol: "b" } } }],
+        kpis: [], filters: [], cda: { connections: [], dataAccesses: [{ id: "g", kind: "sql", columns: ["a", "b"] }] } };
+      var html = Studio.buildHtml(spec, window.__STUDIO_STATE.assets, { preview: false });
+      return { hasGeo: html.indexOf("STUDIO_GEO") >= 0, hasTopo: html.indexOf("topojson-client v3") >= 0 };
+    });
+    ok("GEO: exports WITHOUT map panels carry zero geometry (no STUDIO_GEO, no topojson) — dashboards stay lean",
+      !geoLean.hasGeo && !geoLean.hasTopo, JSON.stringify(geoLean));
+
     const wsStore = await page.evaluate(function () {
       var W = Studio.Workspace, events = [];
       var off = W.on("change", function (p) { events.push(p.table + ":" + (p.removed ? "del" : "put")); });
