@@ -3202,6 +3202,16 @@ function serve() {
     await page.waitForFunction((n) => window.__STUDIO_STATE.spec.panels.length === n, pcount0 + 1, { timeout: 8000 }).catch(() => {});
     const pcount1 = await page.evaluate(() => window.__STUDIO_STATE.spec.panels.length);
     ok("canvas ⧉ duplicates a panel", pcount1 === pcount0 + 1, pcount0 + "→" + pcount1);
+    // Test-health hardening (this line was the suite's #1 flake): the duplicate above
+    // triggers refreshPreview, which REPLACES the iframe document ~130ms later. The
+    // spec-state wait above doesn't cover that swap, so the del click could land on a
+    // button from the OLD document (a no-op on the new one). Wait until the RENDERED
+    // panel count matches the spec before locating the delete button.
+    await page.waitForFunction((n) => {
+      var doc = document.querySelector("#preview").contentDocument;
+      return doc && doc.querySelectorAll("[data-panel-id]").length === n;
+    }, pcount1, { timeout: 8000 }).catch(() => {});
+    await page.waitForTimeout(200);
     const delBtn = pvp.locator('[data-panel-id] .sr-act[data-act="del"]').first();
     await retryForceClick(delBtn, 3);
     await page.waitForFunction((n) => window.__STUDIO_STATE.spec.panels.length === n, pcount1 - 1, { timeout: 8000 }).catch(() => {});
