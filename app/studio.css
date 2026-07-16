@@ -1644,11 +1644,31 @@ body.simple-mode .da-acts{display:none!important}
 .xp-savebar{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap}
 .xp-savebar input{flex:1;min-width:180px;border:1px solid var(--line);border-radius:9px;
   background:var(--field);color:var(--ink);padding:9px 11px;font-size:13px}
-.home-analysis{display:flex;flex-direction:column;align-items:flex-start;gap:3px;cursor:pointer}
-.home-analysis-thumb{width:52px;height:34px;display:block;opacity:.9}
-.home-analysis-thumb svg{width:100%;height:100%}
 @media (max-width:900px){
   .xp-body{grid-template-columns:1fr}
   .xp-side{position:static}
   .xp-list{max-height:32vh}
 }
+
+/* ── Home = instant analytics (Viridis V6) — featured live previews ──────── */
+.home-sub-hint{font-weight:400;color:var(--faint);font-size:11.5px;margin-left:8px;text-transform:none;letter-spacing:0}
+.home-featured{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px;margin-bottom:8px}
+.home-feat,.home-analysis{position:relative;border:1px solid var(--line);border-radius:14px;background:var(--pane);
+  overflow:hidden;box-shadow:0 2px 10px rgba(60,40,20,.05);transition:border-color .12s,box-shadow .12s}
+.home-feat:hover,.home-analysis:hover{border-color:var(--brand);box-shadow:0 6px 20px rgba(60,40,20,.12)}
+.home-feat-h{display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:9px 12px 7px}
+.home-feat-h b{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink)}
+.home-feat-h span{font-size:11px;color:var(--faint);white-space:nowrap}
+.home-feat-frame{height:230px;overflow:hidden;position:relative;background:var(--field)}
+.home-analyses{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;margin-bottom:8px}
+.home-analysis-frame{height:170px;overflow:hidden;position:relative;background:var(--field)}
+.home-live-ifr{border:0;transform-origin:top left;pointer-events:none;display:block;background:transparent;position:absolute;left:0}
+.home-feat-open{position:absolute;inset:0;background:none;border:none;cursor:pointer}
+.home-feat-open:focus-visible{outline:2px solid var(--brand);outline-offset:-2px;border-radius:14px}
+.home-feat-err{display:grid;place-items:center;height:100%;color:var(--faint);font-size:12px}
+.home-feat-more{color:var(--faint);font-size:12px;margin:-2px 0 8px}
+.recent-feature{position:absolute;top:8px;right:34px;z-index:2;width:24px;height:24px;display:grid;place-items:center;
+  border:none;border-radius:7px;background:none;cursor:pointer;color:var(--faint);opacity:0;transition:opacity .12s}
+.recent-card:hover .recent-feature,.recent-feature.featured{opacity:1}
+.recent-feature:hover{background:var(--field);color:var(--ink)}
+.recent-feature.featured{color:var(--brand)}

@@ -1186,10 +1186,15 @@
 > ── materialized datasets, repeatable loads), V9 scientific-honesty polish. Satisfy    ──
 > ── ALL RFP requirements (bid due 7/31; see the GOAL block above). One slice per run,  ──
 > ── same PR discipline; coordinate via open steward/* PRs.                             ──
-> V6. **Home = instant analytics:** per-dashboard "Feature on Home" flag; Home renders featured
->     dashboards LIVE (view-only preview iframes, click-through to open) + pinned analyses as
->     widgets; Simple mode boots to Home with featured content before any machinery. Pins/
->     favorites/recents already ship (v354) — this makes Home the non-expert front door.
+> V6. ✓ **Home = instant analytics (shipped 2026-07-16):** per-dashboard "Feature on Home" flag
+>     (house button on every card; rides the dashboards row like pinned). Home renders featured
+>     dashboards LIVE — the REAL renderer (buildHtml + genMock) in scaled view-only iframes,
+>     theme-following (same postMessage the builder preview uses), click-through opens in Studio.
+>     Pinned analyses render as live chart widgets (banner cropped, chart-first) that reopen in
+>     Explore. Hydration is LAZY via IntersectionObserver — fixes the hidden-section scale(0-width)
+>     bug AND spares offscreen work. Simple-mode boot: featured content → Home, none → Explore,
+>     user's own last section always wins (reconciles V5/V6 boot directions). Suite guards the
+>     scale factor explicitly (never the hidden-section scale bug again).
 > V7. **Viridis demo pack + sample-pack framework:** a SECOND sample library ("Demo packs",
 >     separate from the CDA catalog, one-click install/remove, hide-samples aware): synthetic
 >     Corn Belt county data for 5 providers × 4 practices (cover crops, no-till, reduced,
