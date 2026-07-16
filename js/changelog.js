@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 361,
+    title: 'The front door shows off: a live screenshot carousel on the public site',
+    ts: '2026-07-16T19:00:41.000Z',
+    items: [
+      'The public analytics.polecat.live page traded its single static screenshot for a large auto-playing carousel of six real app screens -- the Studio builder in light and dark, a finished exported dashboard, the 25-chart showcase, a county-scale US map, and the Ensemble common-estimate chart -- each with a one-line caption. Arrows, dots, and hover-to-pause included; it respects reduced-motion preferences and stops when scrolled away.',
+      'The screenshots are captured from the REAL app by a new tools/gen-shots.mjs script (headless browser driving the actual builder and real dashboard exports), so the marketing imagery can be regenerated any time the Studio evolves instead of going stale.',
+    ],
+  },
+  {
     v: 360,
     title: 'The Ensemble chart: one best estimate from many sources, linked to the map',
     kind: 'feature',

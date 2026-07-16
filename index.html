@@ -8,6 +8,7 @@
 <meta property="og:title" content="Analytics Dashboard Studio"/>
 <meta property="og:description" content="Connect your data, build beautiful dashboards, share them anywhere. Local-first, in your browser."/>
 <meta property="og:url" content="https://analytics.polecat.live/"/>
+<meta property="og:image" content="https://analytics.polecat.live/site/shots/studio.png"/>
 <link rel="icon" type="image/svg+xml" href="favicon.svg"/>
 <link rel="apple-touch-icon" href="apple-touch-icon.png"/>
 <meta name="theme-color" content="#231e28"/>
@@ -48,8 +49,20 @@
       <a href="app/" class="btn-cta">Open the Studio →</a>
       <span class="cta-note">nothing to install · your data stays on your device</span>
     </div>
-    <div class="hero-shot" aria-hidden="true">
-      <img src="site/studio.png" alt="" loading="lazy"/>
+    <!-- hero: auto-playing carousel of real app screenshots -->
+    <div class="hero-carousel" id="showcase">
+      <div class="hc-frame" aria-roledescription="carousel" aria-label="Analytics Dashboard Studio screenshots">
+        <img class="hc-img on" data-i="0" src="site/shots/studio.png"         width="2160" height="1350" alt="The Studio builder with the flagship cost dashboard, light theme"/>
+        <img class="hc-img"    data-i="1" src="site/shots/dashboard-dark.png" width="2160" height="1350" loading="lazy" alt="An exported dashboard in dark mode — KPIs, donut, treemap and bars"/>
+        <img class="hc-img"    data-i="2" src="site/shots/showcase.png"       width="2160" height="1350" loading="lazy" alt="The chart showcase dashboard — ribbons, slopes and funnel views"/>
+        <img class="hc-img"    data-i="3" src="site/shots/map.png"            width="2160" height="1350" loading="lazy" alt="A US county choropleth map of the Corn Belt"/>
+        <img class="hc-img"    data-i="4" src="site/shots/ensemble.png"       width="2160" height="1350" loading="lazy" alt="The Ensemble chart — a bold median line over muted provider estimates"/>
+        <img class="hc-img"    data-i="5" src="site/shots/studio-dark.png"    width="2160" height="1350" loading="lazy" alt="The Studio builder in dark theme with a finance dashboard"/>
+        <button class="hc-arrow prev" id="hcPrev" type="button" aria-label="Previous screenshot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button>
+        <button class="hc-arrow next" id="hcNext" type="button" aria-label="Next screenshot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
+      </div>
+      <p class="hc-cap" id="hcCap"></p>
+      <div class="hc-dots" id="hcDots" role="tablist" aria-label="Choose a screenshot"></div>
     </div>
   </section>
 
@@ -95,6 +108,54 @@
     <a href="app/" class="btn-cta">Open the Studio →</a>
   </section>
 </main>
+
+<script>
+// Hero screenshot carousel: a large, auto-playing showcase of real app screens
+// with a caption per slide and clickable dots. Pauses on hover / focus, respects
+// prefers-reduced-motion, and stops when scrolled out of view.
+(function () {
+  var frame = document.querySelector(".hero-carousel");
+  var imgs = [].slice.call(document.querySelectorAll(".hc-img"));
+  var cap = document.getElementById("hcCap");
+  var dotsWrap = document.getElementById("hcDots");
+  if (!frame || !imgs.length) return;
+  var CAPS = [
+    "<b>The Studio.</b> Drag datasets onto the canvas, tune every chart in the inspector, and watch the real dashboard render live — on sample data before you ever connect anything.",
+    "<b>The finished product.</b> Every dashboard exports as one self-contained .html file — byte-identical to the live preview, light and dark, no server required.",
+    "<b>25+ chart types.</b> Flowing ribbons, before/after slopes, treemaps, radials, Marimekkos — a full visual vocabulary, not just bars and lines.",
+    "<b>US maps, down to the county.</b> Choropleths at state, county, USDA-district and watershed scale — colored by the median of the sources you select.",
+    "<b>One best estimate.</b> The Ensemble chart blends many data providers into a single bold line with an agreement band — the evidence stays visible, muted behind it.",
+    "<b>Dark, light &amp; delightful.</b> Warm themes, a keyboard palette, guided tour and version history — analytics that feels like a creative tool."
+  ];
+  var dots = imgs.map(function (_, i) {
+    var d = document.createElement("button");
+    d.className = "hc-dot" + (i === 0 ? " on" : ""); d.type = "button";
+    d.setAttribute("role", "tab"); d.setAttribute("aria-label", "Screenshot " + (i + 1));
+    d.addEventListener("click", function () { stop(); show(i); });
+    dotsWrap.appendChild(d); return d;
+  });
+  var cur = 0, timer = null;
+  var reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function show(i) {
+    cur = (i + imgs.length) % imgs.length;
+    imgs.forEach(function (m, k) { m.classList.toggle("on", k === cur); });
+    dots.forEach(function (d, k) { d.classList.toggle("on", k === cur); d.setAttribute("aria-selected", k === cur); });
+    cap.innerHTML = CAPS[cur] || "";
+  }
+  function stop() { if (timer) { clearInterval(timer); timer = null; } }
+  function play() { if (!timer && !reduce) timer = setInterval(function () { show(cur + 1); }, 5200); }
+  document.getElementById("hcPrev").addEventListener("click", function () { stop(); show(cur - 1); });
+  document.getElementById("hcNext").addEventListener("click", function () { stop(); show(cur + 1); });
+  frame.addEventListener("mouseenter", stop);
+  frame.addEventListener("mouseleave", play);
+  frame.addEventListener("focusin", stop);
+  frame.addEventListener("focusout", play);
+  if ("IntersectionObserver" in window) {
+    new IntersectionObserver(function (es) { es[0].isIntersecting ? play() : stop(); }, { threshold: 0.15 }).observe(frame);
+  } else { play(); }
+  show(0);
+}());
+</script>
 
 <footer class="foot">
   <span>Analytics Dashboard Studio · part of the <a href="https://polecat.live">polecat.live</a> suite</span>

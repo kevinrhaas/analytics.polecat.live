@@ -1111,6 +1111,15 @@
 >     emits real Corn Belt FIPS for fips-ish columns so fresh map panels render colored. SW → v12.
 >     Licensing: THIRD-PARTY-NOTICES.md updated (suite-asserted). Marketing site: one modest
 >     clause added per Kevin ("also" feature, not a takeover).
+>     ✚ V1 follow-up (Kevin, 2026-07-16, shipped same day): the landing page's single static
+>     screenshot became an auto-playing hero CAROUSEL of six REAL app screens (JobTracker-style:
+>     fade slides, captions, dots, arrows, hover/focus pause, reduced-motion + offscreen aware).
+>     Screens: builder light (flagship) / builder dark (finance), exported flagship in dark, the
+>     marketing-growth chart showcase, a Corn Belt county choropleth, the ensemble chart —
+>     captured from the REAL app + real Studio.buildHtml exports by tools/gen-shots.mjs
+>     (committed baselines in site/shots/, regenerate whenever showcased features change; the
+>     Viridis screens keep "also"-feature billing: slides 4-5 of 6, general product first).
+>     SW → v13 (shots deliberately NOT precached — runtime cache covers them).
 > V3. **Ensemble views — THE MEDIAN IS THE PRODUCT (user, 2026-07-16):** the goal is a SINGLE
 >     BEST COMMON ESTIMATE, not a comparison of providers — that's the whole point of the
 >     collaborative ("gain a common view"). Design consequences, non-negotiable:
