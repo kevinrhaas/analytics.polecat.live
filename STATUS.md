@@ -1195,12 +1195,32 @@
 >     bug AND spares offscreen work. Simple-mode boot: featured content → Home, none → Explore,
 >     user's own last section always wins (reconciles V5/V6 boot directions). Suite guards the
 >     scale factor explicitly (never the hidden-section scale bug again).
-> V7. **Viridis demo pack + sample-pack framework:** a SECOND sample library ("Demo packs",
->     separate from the CDA catalog, one-click install/remove, hide-samples aware): synthetic
->     Corn Belt county data for 5 providers × 4 practices (cover crops, no-till, reduced,
->     conventional) × 2015–2025 + AgCensus reference rows (clearly labeled illustrative), a
->     file-connection with mapping demo, 4 prebuilt ensemble analyses (one per mock-up layout),
->     and a featured "Viridis View" dashboard on Home. This IS the RFP demo.
+> V7. ✓ **Viridis demo pack + sample-pack framework (shipped 2026-07-16):** a SECOND sample
+>     library ("Demo packs", `app/demopacks.js`) separate from the CDA catalog — Settings and
+>     the Studio library both gain a hide-samples-aware "Demo packs" group nested under the same
+>     `showSamples()` toggle as the built-in Samples catalog. One-click **Install** writes ordinary,
+>     tagged (`demoPackId`) workspace rows — a raw-column-named provider CSV (`kind:'file'`, the
+>     file-connection + mapping demo: real live rows through the file adapter, raw headers like
+>     `Provider_Name`/`Adoption_Pct` a user maps onto chart roles), 4 pinned Ensemble analyses (one
+>     per practice: cover crops/no-till/reduced tillage/conventional), and 1 featured "Viridis
+>     View" dashboard (4 Ensemble panels + 1 provider-colored county choropleth) — so it appears
+>     live on Home the moment it's installed, via the EXACT V5/V6 pinned-analysis/featured-dashboard
+>     machinery (zero new Home code). **Remove** deletes every row it wrote and clears the install
+>     flag; nothing else touches workspace state. Synthetic content is labeled illustrative
+>     throughout (Settings blurb, docs, dashboard subtitle) — it's a sales-demo fixture, not real
+>     provider/AgCensus data.
+>     ✚ **Sample-engine upgrade (shared, not pack-specific):** `classify()`/`valueFor()` learned
+>     `provider`/`practice`/`year` columns (real names, not placeholder numbers/categories) — the
+>     same precedent as V2's `geoid` heuristic. New `Studio.crossedRows(da, seriesCol)` crosses a
+>     label domain (year or geoid) against the series domain instead of the flat engine's one row
+>     per index, wired into `Studio.genMock` for any `ensembleSeries`/`choropleth` panel that sets
+>     `map.seriesCol` — so ANY Ensemble or provider-colored map (ours or a user's own) renders a
+>     believable multi-provider ensemble in every offline preview (Explore, the Studio canvas, Home
+>     tiles), not a single point per label. AgCensus reference rows land sparsely on real release
+>     years (2017, 2022) rather than every label. Backward compatible: only activates when
+>     `map.seriesCol` is set, so existing single-series choropleth panels (V2's common case) are
+>     unaffected. SW cache → v18. Test suite gains a "DEMO PACKS" block (unit tests for the sample-
+>     engine heuristics/crossing + full install → verify-everywhere → remove flow).
 > V8. **Prep / load processes (data-management-lite):** new workspace `jobs` table — a job =
 >     ordered steps over datasets: field mapping/rename/cast/derive, filter, AGGREGATE/ROLLUP
 >     (group-by + sum/avg/count/median/**acreage-weighted mean** — required for honest State/CRD/

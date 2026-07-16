@@ -354,7 +354,13 @@
         if (p.table === "connections" || p.table === "*") renderConnections();
         if (p.table === "datasets" || p.table === "connections" || p.table === "*") { renderDatasets(); buildLibrary(); }
         if (p.table === "analyses" || p.table === "datasets" || p.table === "*") renderExplore();
-        if (p.table === "analyses" || p.table === "*") { buildLibrary(); renderHome(); }
+        // Viridis V7: "dashboards" was missing here — a direct put/remove on that
+        // table (e.g. Studio.installDemoPack/removeDemoPack) left Home's featured
+        // card stale until some OTHER path (toggleFeature, a "*" resync) happened
+        // to repaint it. Pinned analyses already triggered a repaint; a featured
+        // DASHBOARD deserves the same live-on-Home guarantee.
+        if (p.table === "analyses" || p.table === "dashboards" || p.table === "*") { buildLibrary(); renderHome(); }
+        if (p.table === "dashboards" || p.table === "*") renderDashboards();
       });
       var connSearchInp = $("#connSearch"); if (connSearchInp) connSearchInp.addEventListener("input", renderConnections);
       var connNewBtn = $("#connNewBtn"); if (connNewBtn) connNewBtn.onclick = function () { openConnectionWizard(); };
@@ -523,7 +529,9 @@
   }
   function setShowSamples(on) {
     try { localStorage.setItem("studio-show-samples", on ? "1" : "0"); } catch (e) {}
-    buildLibrary(); renderHome(); buildExamplesMenu(); buildNewMenu();
+    // Viridis V7: the Demo packs Settings card is also gated on showSamples(),
+    // so it needs the same re-render the other three sample-gated surfaces get.
+    buildLibrary(); renderHome(); buildExamplesMenu(); buildNewMenu(); renderSettings();
   }
   window.__studioShowSamples = { get: showSamples, set: setShowSamples }; // test hook
   var _samplesOpen = false;
@@ -585,11 +593,61 @@
     // "Analyses" (saved Explore results), then "Workspace datasets" (the shared
     // connections → datasets catalog), then "This dashboard's datasets" — all
     // pinned over the samples (each insertBefore stacks above the previous).
+    buildDemoPacksLib(list);
     buildAnalysesLib(list, q);
     buildWorkspaceDatasets(list, q);
     buildMyDataSources(list);
     $("#libCount").textContent = shownDA + " queries";
   }
+
+  // ---------- Demo packs (Viridis V7) — a SECOND sample library, separate
+  // from the CDA catalog, of one-click install/remove pitch-specific content
+  // (see app/demopacks.js). Hide-samples aware: nests under the same
+  // showSamples() toggle as the CDA "Samples" group above it. ----------
+  function buildDemoPacksLib(list) {
+    if (!showSamples()) return;
+    var packs = (Studio.DEMO_PACKS || {});
+    var keys = Object.keys(packs);
+    if (!keys.length) return;
+    var wrap = el("div", "lib-mine lib-demopacks open");
+    var h = el("div", "h");
+    h.innerHTML = '<span class="car">▶</span><span class="nm">Demo packs</span><span class="badge">' + keys.length + "</span>";
+    h.onclick = function () { wrap.classList.toggle("open"); };
+    wrap.appendChild(h);
+    var box = el("div", "lib-das");
+    keys.forEach(function (id) { box.appendChild(demoPackCard(id, packs[id])); });
+    wrap.appendChild(box);
+    list.insertBefore(wrap, list.firstChild);
+  }
+  function demoPackCard(id, p) {
+    var on = Studio.demoPackInstalled(id);
+    var c = el("div", "da");
+    c.innerHTML = '<div class="da-top"><div class="da-id">' + esc(p.name) + '</div></div>' +
+      '<div class="da-name">' + esc(p.tagline) + '</div>' +
+      '<div class="da-add"><span class="chip" data-lib-demopack="' + esc(id) + '">' + (on ? "Remove pack" : "+ Install pack") + '</span>' +
+      (on ? '<span class="chip" data-lib-demopack-open="' + esc(id) + '">Open dashboard</span>' : "") + '</div>';
+    var installChip = c.querySelector("[data-lib-demopack]");
+    installChip.onclick = function (e) { e.stopPropagation(); toggleDemoPack(id, p); };
+    var openChip = c.querySelector("[data-lib-demopack-open]");
+    if (openChip) openChip.onclick = function (e) {
+      e.stopPropagation();
+      var row = Studio.Workspace.all("dashboards").filter(function (r) { return r.demoPackId === id; })[0];
+      if (row) openRecent(row.id);
+    };
+    return c;
+  }
+  function toggleDemoPack(id, p) {
+    if (Studio.demoPackInstalled(id)) {
+      if (!window.confirm("Remove the “" + (p && p.name || id) + "” demo pack? This deletes its dataset, analyses, and dashboard.")) return;
+      Studio.removeDemoPack(id);
+      toast("Demo pack removed");
+    } else {
+      Studio.installDemoPack(id);
+      toast("Demo pack installed — see Home, Explore, and Datasets");
+    }
+    buildLibrary(); renderSettings();
+  }
+  window.__studioToggleDemoPack = toggleDemoPack; // test hook
 
   /* ---------- Workspace datasets in the library (drag/add like any query) ---------- */
   function buildWorkspaceDatasets(list, q) {
@@ -6937,6 +6995,16 @@
             '<button type="button" class="btn" id="spSaveBtn">+ Save as preset</button></div>' +
         '</div>' +
       '</div>' +
+      (showSamples() && Object.keys(Studio.DEMO_PACKS || {}).length ?
+        '<div class="settings-card"><h2>Demo packs</h2>' +
+          '<p class="ws-card-intro">A second, opt-in sample library for pitch-specific demos — installs as ordinary workspace content (a dataset, analyses, a dashboard), tagged so Remove cleans up exactly what Install wrote.</p>' +
+          Object.keys(Studio.DEMO_PACKS).map(function (id) {
+            var p = Studio.DEMO_PACKS[id], on = Studio.demoPackInstalled(id);
+            return '<div class="set-row"><span class="set-row-ic" data-ic="globe"></span>' +
+              '<div class="set-row-txt"><b>' + esc(p.name) + '</b><small>' + esc(p.blurb) + '</small></div>' +
+              '<button type="button" class="btn' + (on ? "" : " primary") + '" data-demopack="' + esc(id) + '">' + (on ? "Remove" : "Install") + '</button></div>';
+          }).join("") +
+        '</div>' : "") +
       '<div class="settings-card"><h2>Data</h2>' +
         '<div class="set-row"><span class="set-row-ic" data-ic="download"></span>' +
           '<div class="set-row-txt"><b>Export settings</b><small>Save theme, mode, connections &amp; layout preferences as a .json file.</small></div>' +
@@ -7003,6 +7071,9 @@
       if (window.__studioShellSetSection) window.__studioShellSetSection("studio");
       if (window.StudioWelcome) StudioWelcome.open();
     };
+    $$("[data-demopack]", sec).forEach(function (btn) {
+      btn.onclick = function () { toggleDemoPack(btn.getAttribute("data-demopack"), Studio.DEMO_PACKS[btn.getAttribute("data-demopack")]); };
+    });
     var expBtn = $("#setExportBtn", sec); if (expBtn) expBtn.onclick = exportSettingsFile;
     var impBtn = $("#setImportBtn", sec); if (impBtn) impBtn.onclick = importSettingsFile;
     var brandSel = $("#brandModeSel", sec);
@@ -7596,7 +7667,10 @@
     // the user's connections and datasets behind. "studio-whatsnew-seen" is the What's-new
     // unseen-dot seen-version (stage-4 shell adoption). The page reloads right after clearing,
     // so the in-memory Workspace can't re-persist the removed blob.
-    "analytics.workspace.v1", "studio-whatsnew-seen"
+    "analytics.workspace.v1", "studio-whatsnew-seen",
+    // Viridis V7: the Demo packs install-tracker (app/demopacks.js) — same
+    // "new key, forgot Clear local data" gap the notes above already cover.
+    "studio-demopacks-installed"
   ];
   window.__studioClearDataKeys = CLEAR_DATA_KEYS; // test hook
 

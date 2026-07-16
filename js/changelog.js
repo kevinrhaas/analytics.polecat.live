@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 366,
+    title: 'Demo packs -- a one-click Viridis View sample for the geo-analytics pitch',
+    kind: 'feature',
+    ts: '2026-07-16T22:49:57.000Z',
+    items: [
+      'Settings and the Studio library gain a "Demo packs" section -- a second, opt-in sample library separate from the built-in CDA catalog. Install the Viridis View pack for a one-click, illustrative sample of the cover-crop and conservation-tillage ensemble use case: a raw provider CSV to try the mapping flow on, four pinned ensemble analyses (one per practice), and a featured multi-panel dashboard pairing them with a county map -- all live on Home the moment you install it. Remove cleans up everything it wrote; nothing else changes.',
+      'The sample-data engine now recognizes provider/practice/year columns (real names, not placeholder numbers) and can cross a label domain against a series domain, so any Ensemble or provider-colored map panel -- ours or your own -- renders a believable multi-provider picture in every offline preview, not just a single point per row.',
+    ],
+  },
+  {
     v: 365,
     title: 'Home becomes instant analytics -- featured dashboards render LIVE',
     kind: 'feature',
