@@ -1,4 +1,4 @@
-/* Analytics Dashboard Studio — © 2026 Polecat.live. See LICENSE. */
+/* Analytics — © 2026 Polecat.live. See LICENSE. */
 /* Z14 slice 3 — SQLite-WASM + HTTP-VFS connector: query a `.sqlite` file hosted anywhere over
    plain HTTP by intercepting SQLite's page reads and turning them into HTTP Range Requests, so
    an indexed lookup on a multi-GB file transfers only the handful of ~4KB pages it touches.

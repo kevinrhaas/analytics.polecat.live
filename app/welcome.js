@@ -1,4 +1,4 @@
-/* welcome.js — first-run welcome / tour. Introduces Analytics Dashboard Studio
+/* welcome.js — first-run welcome / tour. Introduces Analytics
    (an analytics.polecat.live project) for building interactive dashboards over
    your data. Shows once (localStorage), reopenable via the topbar ⓘ.
    Self-contained styles. window.StudioWelcome.open() / .maybeShow(). */
@@ -8,7 +8,7 @@
   var SEEN = "studio-welcome-seen";
 
   var STEPS = [
-    { t: "Welcome to Analytics Dashboard Studio", ic: "P",
+    { t: "Welcome to Analytics", ic: "P",
       h: "An <b>analytics.polecat.live</b> project — a modern, visual way to build interactive dashboards over your existing data.",
       s: "Design dashboards from your existing queries, preview them live, and export deployable artifacts." },
     { t: "Three panes", ic: "▥",

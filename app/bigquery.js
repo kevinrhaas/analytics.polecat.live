@@ -1,4 +1,4 @@
-/* Analytics Dashboard Studio — © 2026 Polecat.live. See LICENSE. */
+/* Analytics — © 2026 Polecat.live. See LICENSE. */
 /* Z4 slice 3 — BigQuery connector: query a BigQuery dataset directly from the browser via the
    jobs.query REST endpoint (https://bigquery.googleapis.com/bigquery/v2/projects/{project}/queries),
    no backend/proxy. Same credential-based shape as the Z4 Snowflake/Databricks connectors — an OAuth

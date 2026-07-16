@@ -1,4 +1,4 @@
-/* Analytics Dashboard Studio — © 2026 Polecat.live. See LICENSE. */
+/* Analytics — © 2026 Polecat.live. See LICENSE. */
 /* Z4 slice 4 — Generic SQL/HTTP connector: query ANY JSON API that accepts a SQL string and
    returns rows, straight from the browser, no backend/proxy. This is the "escape hatch" connector
    for in-house query services, serverless functions, or any provider not yet covered by a named

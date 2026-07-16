@@ -27,7 +27,7 @@ export const FLEET = [
     changelogUrl: 'https://jobtracker.polecat.live/js/changelog.js' },
 
   { id: 'analytics',    name: 'Analytics',    url: 'https://analytics.polecat.live',
-    tagline: 'Dashboard Studio — connect a database, build, export.',
+    tagline: 'Connect your data, build dashboards, share anywhere.',
     icon: 'chart',      accent: '#b8632e', status: 'live', visibility: 'public',
     changelogUrl: 'https://analytics.polecat.live/js/changelog.js' },
 
@@ -50,6 +50,14 @@ export const FLEET = [
     tagline: 'Mission control for the fleet.',
     icon: 'gauge',      accent: '#38bdf8', status: 'live', visibility: 'public',
     changelogUrl: 'https://manager.polecat.live/js/changelog.js' },
+
+  // Self-hosted (OCI VM + Caddy, not Pages); lives in the solution-engineering
+  // monorepo under model-server/. The console is admin-token gated, but the
+  // tile is public — see docs/DOMAINS.md.
+  { id: 'modelserver',  name: 'Model Server', url: 'https://modelserver.polecat.live',
+    tagline: 'Your own OpenAI- & Anthropic-compatible model server.',
+    icon: 'terminal',   accent: '#d4773b', status: 'live', visibility: 'public',
+    changelogUrl: 'https://modelserver.polecat.live/js/changelog.js' },
 ];
 
 export function fleetApp(id){ return FLEET.find(a => a.id === id) || null; }

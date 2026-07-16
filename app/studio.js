@@ -1,5 +1,5 @@
 /* ============================================================================
-   studio.js — PDC Dashboard Studio controller.
+   studio.js — the Analytics (PDC Studio) controller.
    Wires the 3-pane builder: query library · live-preview iframe · inspector.
    Holds the single spec, mutates it, debounces a preview rebuild, and drives
    the exporters. Plain DOM, no framework.
@@ -6023,7 +6023,7 @@
       rd.onload = function () {
         var data;
         try { data = JSON.parse(rd.result); } catch (e) { toast("Invalid repository file", true); return; }
-        if (!data || data._type !== "studio-repository") { toast("Not a Dashboard Studio repository file", true); return; }
+        if (!data || data._type !== "studio-repository") { toast("Not an Analytics repository file", true); return; }
         if (!confirm("Import " + (data.dataSources || []).length + " data source(s) and " + (data.dashboards || []).length + " dashboard(s)? This merges into your current repository — nothing existing is deleted.")) return;
         var res = applyRepositoryData(data);
         toast("Imported " + res.dsCount + " data source(s), " + res.dashCount + " dashboard(s)");
@@ -6285,7 +6285,7 @@
     inp.click();
   }
   function confirmAndApplySettings(data) {
-    if (!data || data._type !== "studio-settings") { toast("Not a Dashboard Studio settings file", true); return false; }
+    if (!data || data._type !== "studio-settings") { toast("Not an Analytics settings file", true); return false; }
     if (!confirm("Import these settings? This replaces your current theme, mode, connections, and layout preferences, then reloads.")) return false;
     return applySettingsData(data);
   }

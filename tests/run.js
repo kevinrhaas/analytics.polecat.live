@@ -1,4 +1,4 @@
-/* End-to-end test for PDC Dashboard Studio.
+/* End-to-end test for Analytics (PDC Studio).
    Starts a static server, boots the app in Chromium, exercises the builder,
    validates the live preview renders, and checks all four exporters.
    Run:  node tests/run.js            (from dashboard-studio/)              */
@@ -231,7 +231,8 @@ function serve() {
     const libCount = await page.$eval("#libCount", (e) => e.textContent);
     ok("query library populated", /\d+ queries/.test(libCount) && parseInt(libCount) > 100, libCount);
     ok("examples menu has entries", (await page.$$("#menuExamples button")).length >= 6);
-    ok("brand reads “Analytics Dashboard Studio”", /Analytics Dashboard/.test(await page.$eval("#topbar .brand-title", (e) => e.textContent)));
+    ok("brand reads “Analytics” — the old Dashboard Studio name is gone from the topbar (renamed per Kevin 2026-07-16)",
+      await page.$eval("#topbar .brand-title", (e) => e.textContent.trim() === "Analytics"));
 
     // ---- fleet-manager changelog parse guard ----
     // js/changelog.js is synced by manager.polecat.live, which does NOT run the file — it
@@ -17781,7 +17782,7 @@ function serve() {
       };
     });
     ok("V1: root serves the marketing page (hero, ≥2 Open-the-Studio CTAs, docs link, SEO description, NO app shell)",
-      /Analytics Dashboard Studio/.test(mktState.title) && mktState.hasHero && mktState.ctaCount >= 2 &&
+      /^Analytics — /.test(mktState.title) && mktState.title.indexOf("Dashboard Studio") < 0 && mktState.hasHero && mktState.ctaCount >= 2 &&
       mktState.hasDocsLink && mktState.noAppShell && mktState.hasDescription, JSON.stringify(mktState));
     await mkt.setViewportSize({ width: 390, height: 844 });
     await mkt.waitForTimeout(150);
@@ -17887,7 +17888,7 @@ function serve() {
     // are fetched during install too (from the index we just cached), so a first-ever offline
     // visit still has a full library/gallery, not just a blank shell.
     const pwaDataPrecached = await pwaPage.evaluate(async function () {
-      const cache = await caches.open("studio-shell-v14");
+      const cache = await caches.open("studio-shell-v15");
       const keys = (await cache.keys()).map((r) => new URL(r.url).pathname.replace(/^\//, ""));
       const exIndex = await fetch("data/examples/index.json").then((r) => r.json());
       const missingExamples = exIndex.filter((ex) => keys.indexOf("data/examples/" + ex.file) < 0);

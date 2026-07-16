@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 363,
+    title: 'It\'s just Analytics now',
+    ts: '2026-07-16T19:47:58.000Z',
+    items: [
+      'The app dropped the "Dashboard Studio" name -- it\'s simply Analytics everywhere. That covers the public site, the top bar, the rail, the passcode gate, the welcome tour, the Help pages, the install manifest, and the title of every exported dashboard.',
+      'The fleet app switcher and the polecat.live launcher describe it the same way (shared shell synced to v0.1.1), and the public site\'s screenshot carousel was re-captured so the pictures match the name.',
+    ],
+  },
+  {
     v: 362,
     title: 'Maps go interactive: an opt-in GL renderer with buttery pan and zoom',
     kind: 'feature',

@@ -1,4 +1,4 @@
-/* Analytics Dashboard Studio — © 2026 Polecat.live. See LICENSE. */
+/* Analytics — © 2026 Polecat.live. See LICENSE. */
 /* app/fleet.js — Polecat Shell wiring (migration stages 3–4). An ES module on
    purpose: the vendored shell is ESM, and this file is the ONLY place the app
    imports it — vendor/polecat-shell/ stays read-only, and every ps-* skin lives

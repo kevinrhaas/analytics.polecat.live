@@ -1,5 +1,5 @@
 /* ============================================================================
-   studio.css — PDC Dashboard Studio builder chrome.
+   studio.css — the Analytics (PDC Studio) builder chrome.
    A modern 3-pane IDE: query library · live preview · inspector.
    Pentaho blue #005bb5 / purple #7d3c98. The PREVIEW iframe carries its own
    theme (pdc-ui.css); this styles only the builder shell.
