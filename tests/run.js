@@ -3189,10 +3189,19 @@ function serve() {
       for (let i = 0; i < attempts; i++) {
         try {
           await locator.waitFor({ state: "visible", timeout: 8000 });
+          // Root cause of the recurring 7→7 flake: the first panel's action button can sit
+          // at y≈-8 (half-clipped above the iframe viewport), leaving its click-center
+          // ~2px inside — any sub-pixel layout drift pushes it out and a force click
+          // lands on nothing, silently. Scroll it fully into view first.
+          await locator.scrollIntoViewIfNeeded({ timeout: 2000 }).catch(() => {});
           await locator.click({ force: true, timeout: 3000 });
           return;
         } catch (e) {
-          if (i === attempts - 1) throw e;
+          if (i === attempts - 1) {
+            // last resort: dispatch the DOM click directly — same JS handler, no coordinates
+            try { await locator.evaluate((el) => el.click()); return; } catch (e2) {}
+            throw e;
+          }
           await page.waitForTimeout(250);
         }
       }
