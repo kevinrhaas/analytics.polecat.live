@@ -5,7 +5,9 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v24"; /* v24: V9 scientific-honesty polish slice 4 — "Last updated"
+var CACHE_NAME = "studio-shell-v25"; /* v25: Track L sweep — removed a dead orphaned function
+   from app/studio.js (content changed, so precached copies need to roll).
+   v24: V9 scientific-honesty polish slice 4 — "Last updated"
    surfaces in both the ensemble and choropleth Sources popovers, resolved from the panel's
    workspace dataset (app/exporters.js, app/studio-render.js, app/studio-charts.js changed).
    v23: V9 scientific-honesty polish slice 2 — a "Sources"

@@ -7068,7 +7068,6 @@
     var v; try { v = localStorage.getItem("studio-deploy-path"); } catch (e) {}
     return (v && v.trim()) || "/public/pdc-iteration/v2";
   }
-  function setDeployPathPref(v) { try { localStorage.setItem("studio-deploy-path", (v || "").trim()); } catch (e) {} }
 
   // Z6/Z5 follow-up: dashboard defaults. A light first cut of the "style-preset collections"
   // ask — a single default subtitle + accent color applied to every brand-new blank dashboard,

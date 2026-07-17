@@ -1365,9 +1365,22 @@
 > 3. **Exported-runtime support for connection-bound datasets** — bundle the needed adapter engines
 >    into exports (like duckdb/httpvfs already do) so a shipped .html can run live against Turso etc.,
 >    with credentials prompted at open (never embedded).
-> 4. **Terminology sweep**: "My Data Sources" → "This dashboard's datasets", data-source builder →
->    dataset editor naming, sample catalog groups labeled as "Samples"; rename the internal `--pentaho`
->    CSS var → `--brand` (mechanical, ~100 refs incl. themes/vendor/tests, zero user impact).
+> 4. **Terminology sweep**: ✓ "My Data Sources" → "This dashboard's datasets" (already shipped, landed
+>    silently in the 2026-07-14 UX sprint's dataset-first Data panel work) and ✓ sample catalog groups
+>    labeled "Samples" (already shipped, same era) — both confirmed still live in `app/studio.js` as of
+>    2026-07-17. Still open: data-source builder → dataset editor naming (cosmetic, code-comment-only
+>    today — low value). Still open, but **NOT as simple as it looks**: rename the internal `--pentaho`
+>    CSS var → `--brand`. Investigated 2026-07-17 — `--pentaho` is actually TWO independent variables
+>    that happen to share a name: (A) the Studio builder-chrome's own accent in `app/studio.css`
+>    (~40 refs), already bridged to the shell's `--brand` token one line down (`--brand:var(--pentaho)`)
+>    — safe, mechanical to fold together; (B) the exported-dashboard/preview content's own theming
+>    primitive (`vendor/pdc-ui.js`/`.css` — PRISTINE, cannot rename — plus `exporters.js`,
+>    `studio-charts.js`, `studio-render.js`, every static exported `.html`, and the `spec.themeColor`
+>    → `:root --pentaho` contract tests around H103) which has nothing to do with the shell bridge and
+>    must stay `--pentaho` forever (or get its own, much bigger, separately-scoped rename). Only (A)
+>    (~40 of the ~252 total refs) is safe to fold into `--brand`; (B) is NOT "zero user impact" busywork,
+>    it's product-critical export theming under RFP deadline pressure — do not attempt without care to
+>    keep the two contexts separate, and ideally with a screenshot-diff of exported dashboards before/after.
 > 5. **Dataset delight**: schema browser per connection (list tables/columns via adapter), dataset
 >    lineage chips (which dashboards use this dataset — blast-radius view), scheduled refresh hints,
 >    result caching with TTL per dataset (the old cache/cacheDuration fields are still on the rows).
@@ -2777,6 +2790,17 @@ gets covered over time:
   `Studio.defineChart({type, render, opts, thumb, autoPick})` contract so new types are uniform and testable.
 - **Test health** — coverage per feature, flaky/slow checks, and a fast smoke subset for quick loops.
 > **Findings log (append newest on top; keep short):**
+> - **Fixed shipped v374 (dead-code lens, first use of this specific lens on a fresh audit):**
+>   `setDeployPathPref` (`app/studio.js`) was the write-half of a get/set pair for the "deploy
+>   path" Settings preference — but the Settings import feature (`applySettingsData`) writes
+>   `localStorage["studio-deploy-path"]` directly via its generic `SETTINGS_DATA_KEYS` bulk-import
+>   loop, and no Settings-UI field was ever wired to call the setter itself. Built a full inventory
+>   of every top-level function across `app/*.js` + `app/sources/*.js` (749 functions) and grepped
+>   the whole repo (excluding `vendor/` and `reference/`, which are pristine/historical) for each
+>   name; `setDeployPathPref` was the only one with zero references anywhere outside its own
+>   definition. The getter (`deployPathPref()`, still called at boot to seed `S.settings.deployPath`)
+>   and the `"studio-deploy-path"` key itself are both still live — only the orphaned setter is
+>   gone. Pure deletion, no behavior change, suite unchanged.
 > - **Fixed shipped v339 (test-health lens, round 2 on the same test):** the panel dup/delete test
 >   (already hardened once — see the v274-era "Track H sweep" note inline in `tests/run.js` — visible-
 >   wait + `force:true`) still hit a live "Element is not visible" FATAL on a fresh run of unrelated
