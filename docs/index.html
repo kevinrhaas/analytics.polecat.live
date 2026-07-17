@@ -302,6 +302,24 @@
     synthetic and labeled as illustrative.</li>
   </ul>
 
+  <h2>Jobs — prep &amp; rollup</h2>
+  <p><strong>Jobs</strong> (left rail) prep one dataset before it's charted: rename or cast a
+  column, derive a new one from arithmetic on two others, filter rows, and roll everything up
+  with a group-by aggregate. Run a job and the result is saved back as an ordinary dataset —
+  ready for Explore, the Studio library, or any dashboard — and re-running the same job updates
+  that dataset in place, so an annual data refresh is a single click.</p>
+  <ul>
+    <li><strong>Steps run in order</strong> and can be reordered or removed; <strong>Preview</strong>
+    runs the source dataset live and shows the pipeline's output before you save.</li>
+    <li><strong>Rollup metrics</strong> include sum, average, count, median, and a
+    <strong>weighted mean</strong> — the honest way to aggregate a percent metric from county up
+    to State, USDA Crop Reporting District, or HUC8 watershed: a flat average of percentages
+    misrepresents counties of very different size, so pick an acreage (or similar) column as the
+    weight.</li>
+    <li><strong>Join/union across datasets and a custom-SQL step are on the roadmap</strong> — this
+    first slice covers the single-dataset prep pipeline.</li>
+  </ul>
+
   <h2>The builder</h2>
   <p>The workspace is divided into three resizable panes. Each pane can be collapsed to a labeled rail by clicking the <code>‹</code> / <code>›</code> collapse button.</p>
 

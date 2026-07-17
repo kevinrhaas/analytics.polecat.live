@@ -349,10 +349,12 @@
       // keep the Connections list live: any workspace mutation (local edit or a
       // future remote adopt) repaints it
       renderDatasets();
+      renderJobs();
       renderExplore();
       Studio.Workspace.on("change", function (p) {
         if (p.table === "connections" || p.table === "*") renderConnections();
         if (p.table === "datasets" || p.table === "connections" || p.table === "*") { renderDatasets(); buildLibrary(); }
+        if (p.table === "jobs" || p.table === "datasets" || p.table === "*") renderJobs();
         if (p.table === "analyses" || p.table === "datasets" || p.table === "*") renderExplore();
         // Viridis V7: "dashboards" was missing here — a direct put/remove on that
         // table (e.g. Studio.installDemoPack/removeDemoPack) left Home's featured
@@ -366,6 +368,7 @@
       var connNewBtn = $("#connNewBtn"); if (connNewBtn) connNewBtn.onclick = function () { openConnectionWizard(); };
       var dsxSearchInp = $("#dsxSearch"); if (dsxSearchInp) dsxSearchInp.addEventListener("input", renderDatasets);
       var dsxNewBtn = $("#dsxNewBtn"); if (dsxNewBtn) dsxNewBtn.onclick = function () { openDatasetEditor(); };
+      var jobsNewBtn = $("#jobsNewBtn"); if (jobsNewBtn) jobsNewBtn.onclick = function () { openJobEditor(); };
       // workspace-backend sync: restore a saved remote, keep the rail dot +
       // Settings card live, and flush any pending mirror write on page close
       Studio.Sync.onSync(function (st) {
@@ -6329,6 +6332,282 @@
   window.__studioRenderDatasets = renderDatasets; // test hook
   window.__studioOpenDatasetEditor = openDatasetEditor; // test hook
   window.__studioRunDataset = runDataset; // builder live path + tests
+
+  /* ---------- Jobs (Viridis V8 slice 1: data-management-lite) -------------
+     A job reads ONE source dataset's live rows through a rename/cast/derive/
+     filter/aggregate pipeline (app/sources/jobs-engine.js) and materializes
+     the result back as an ordinary kind:'file' dataset — tagged "job-output"
+     and re-written in place on every re-run via job.outputDatasetId — so the
+     result is chartable in Explore/Studio with zero new dataset-kind code.
+     JOIN/UNION across datasets and a custom-SQL step are a later slice. */
+  function jobOutputConnection() {
+    var existing = Studio.Workspace.all("connections").filter(function (c) { return c.jobOutputs; })[0];
+    if (existing) return existing;
+    return Studio.Workspace.put("connections", { name: "Job outputs", adapter: "file", cfg: {}, jobOutputs: true });
+  }
+  function runJob(job) {
+    var src = Studio.Workspace.get("datasets", job.sourceDatasetId);
+    if (!src) {
+      job.lastRun = { ok: false, error: "No source dataset selected.", at: Date.now(), rows: 0 };
+      Studio.Workspace.put("jobs", job, { silent: true });
+      return Promise.resolve({ error: job.lastRun.error });
+    }
+    return runDataset(src).then(function (r) {
+      if (r.error) {
+        job.lastRun = { ok: false, error: r.error, at: Date.now(), rows: 0 };
+        Studio.Workspace.put("jobs", job, { silent: true });
+        return r;
+      }
+      var out = Studio.runJobSteps({ columns: r.columns, rows: r.rows }, job.steps || []);
+      if (out.error) {
+        job.lastRun = { ok: false, error: out.error, at: Date.now(), rows: 0 };
+        Studio.Workspace.put("jobs", job, { silent: true });
+        return out;
+      }
+      var row = (job.outputDatasetId && Studio.Workspace.get("datasets", job.outputDatasetId)) ||
+        { id: Studio.Workspace.uid("ds"), connectionId: jobOutputConnection().id, tags: [] };
+      row.name = job.outputName || (job.name + " (job output)");
+      row.kind = "file"; row.format = "csv";
+      row.fileName = row.name.replace(/[^a-z0-9]+/gi, "_").toLowerCase() + ".csv";
+      row.content = Studio.rowsToCsv(out.columns, out.rows);
+      row.columns = out.columns.slice();
+      row.jobId = job.id;
+      if ((row.tags || []).indexOf("job-output") < 0) row.tags = (row.tags || []).concat(["job-output"]);
+      Studio.Workspace.put("datasets", row);
+      job.outputDatasetId = row.id;
+      job.lastRun = { ok: true, error: "", at: Date.now(), rows: out.rows.length };
+      Studio.Workspace.put("jobs", job);
+      return { columns: out.columns, rows: out.rows, outputDatasetId: row.id };
+    });
+  }
+  function renderJobs() {
+    var results = $("#jobsResults"); if (!results) return;
+    var list = Studio.Workspace.all("jobs").sort(function (a, b) { return (b.updatedAt || 0) - (a.updatedAt || 0); });
+    var rows = list.map(function (j) {
+      var src = Studio.Workspace.get("datasets", j.sourceDatasetId);
+      var out = j.outputDatasetId && Studio.Workspace.get("datasets", j.outputDatasetId);
+      var dot = !j.lastRun ? '<span class="cx-dot" title="Never run"></span>'
+        : (j.lastRun.ok ? '<span class="cx-dot ok" title="Last run OK · ' + esc(new Date(j.lastRun.at).toLocaleString()) + ' · ' + j.lastRun.rows + ' rows"></span>'
+          : '<span class="cx-dot bad" title="Last run failed: ' + esc(j.lastRun.error) + '"></span>');
+      return '<div class="cx-row" data-job-id="' + esc(j.id) + '" tabindex="0" role="button" aria-label="Edit job ' + esc(j.name) + '">' +
+        dot +
+        '<span class="cx-ic" style="color:var(--faint)"></span>' +
+        '<span class="cx-name"><b>' + esc(j.name) + '</b><small>' + (src ? "from " + esc(src.name) : "no source dataset") +
+          (out ? " → " + esc(out.name) : "") + '</small></span>' +
+        '<span class="cx-badge">' + (j.steps || []).length + " step" + ((j.steps || []).length === 1 ? "" : "s") + '</span>' +
+        '<span class="cx-when">' + esc(new Date(j.updatedAt || Date.now()).toLocaleDateString()) + '</span>' +
+        '<span class="cx-actions">' +
+          '<button type="button" class="btn" data-job-run="' + esc(j.id) + '">Run</button>' +
+          '<button type="button" class="btn" data-job-edit="' + esc(j.id) + '">Edit</button>' +
+          '<button type="button" class="btn" data-job-del="' + esc(j.id) + '" aria-label="Delete ' + esc(j.name) + '">✕</button>' +
+        '</span></div>';
+    });
+    results.innerHTML = rows.length ? '<div class="cx-list">' + rows.join("") + '</div>'
+      : '<div class="cx-empty"><b>No jobs yet.</b><br/>A job preps one dataset — rename/cast/derive columns, filter rows, and roll up ' +
+        'with sum/avg/count/median or an acreage-weighted mean — then saves the result as a new dataset you can chart.' +
+        (Studio.Workspace.all("datasets").length ? "" : "<br/>Add a dataset first, in the Datasets section.") + '</div>';
+    $$(".cx-row", results).forEach(function (row) {
+      var j = Studio.Workspace.get("jobs", row.getAttribute("data-job-id"));
+      var icEl = row.querySelector(".cx-ic"); if (icEl && Studio.icon) icEl.appendChild(Studio.icon("sliders", 18));
+      row.addEventListener("click", function (e) { if (e.target.closest("[data-job-run],[data-job-edit],[data-job-del]")) return; openJobEditor(j); });
+      row.addEventListener("keydown", function (e) { if ((e.key === "Enter" || e.key === " ") && e.target === row) { e.preventDefault(); openJobEditor(j); } });
+    });
+    $$("[data-job-run]", results).forEach(function (btn) {
+      btn.onclick = function () {
+        var j = Studio.Workspace.get("jobs", btn.getAttribute("data-job-run")); if (!j) return;
+        btn.disabled = true; btn.textContent = "Running…";
+        runJob(j).then(function (r) {
+          toast(r.error ? "Run failed: " + r.error : "OK — " + (r.rows || []).length + " rows", !!r.error);
+          renderJobs();
+        });
+      };
+    });
+    $$("[data-job-edit]", results).forEach(function (btn) {
+      btn.onclick = function () { openJobEditor(Studio.Workspace.get("jobs", btn.getAttribute("data-job-edit"))); };
+    });
+    $$("[data-job-del]", results).forEach(function (btn) {
+      btn.onclick = function () {
+        var j = Studio.Workspace.get("jobs", btn.getAttribute("data-job-del")); if (!j) return;
+        if (!window.confirm('Delete job "' + j.name + '"? Its output dataset is kept.')) return;
+        Studio.Workspace.remove("jobs", j.id);
+        toast("Deleted " + j.name);
+      };
+    });
+  }
+  function openJobEditor(existing) {
+    var dsets = Studio.Workspace.all("datasets").filter(function (d) { return (d.tags || []).indexOf("job-output") < 0 || (existing && d.id === existing.outputDatasetId); });
+    modal(existing ? "Edit job" : "New job", function (b) {
+      var j = existing ? JSON.parse(JSON.stringify(existing)) : { id: Studio.Workspace.uid("job"), name: "", steps: [] };
+      var form = el("div", "cx-wiz-form");
+      function field(lbl, input, hint) {
+        var row = el("label", "cx-field");
+        row.innerHTML = "<span>" + esc(lbl) + "</span>";
+        row.appendChild(input);
+        if (hint) { var h = el("small", "cx-hint"); h.textContent = hint; row.appendChild(h); }
+        form.appendChild(row);
+        return input;
+      }
+      var nameInp = field("Job name", el("input")); nameInp.type = "text"; nameInp.value = j.name || ""; nameInp.placeholder = "e.g. county_to_state_rollup";
+      var srcSel = field("Source dataset", el("select"), dsets.length ? "" : "No datasets yet — add one in the Datasets section first.");
+      srcSel.className = "cx-sel";
+      srcSel.innerHTML = '<option value="">— pick a dataset —</option>' + dsets.map(function (d) {
+        return '<option value="' + esc(d.id) + '"' + (j.sourceDatasetId === d.id ? " selected" : "") + '>' + esc(d.name) + "</option>";
+      }).join("");
+      var outInp = field("Output dataset name", el("input"), "Where the result lands — re-running this job updates the same dataset in place.");
+      outInp.type = "text"; outInp.value = j.outputName || "";
+
+      var stepsWrap = el("div", "jobs-steps"); form.appendChild(stepsWrap);
+      function operandRow(op) {
+        var wrap = el("span", "jobs-operand");
+        var kindSel = el("select"); kindSel.innerHTML = '<option value="col">column</option><option value="value">number</option>';
+        var valInp = el("input"); valInp.type = "text";
+        function sync() {
+          if (op.col != null) { kindSel.value = "col"; valInp.value = op.col; valInp.placeholder = "column"; }
+          else { kindSel.value = "value"; valInp.value = op.value != null ? op.value : ""; valInp.placeholder = "number"; }
+        }
+        sync();
+        kindSel.onchange = function () {
+          if (kindSel.value === "col") { op.col = valInp.value || ""; delete op.value; } else { op.value = valInp.value || ""; delete op.col; }
+          sync();
+        };
+        valInp.oninput = function () { if (kindSel.value === "col") op.col = valInp.value; else op.value = valInp.value; };
+        wrap.appendChild(kindSel); wrap.appendChild(valInp);
+        return wrap;
+      }
+      function metricsEditor(step) {
+        var wrap = el("div", "jobs-metrics");
+        function draw() {
+          wrap.innerHTML = "";
+          (step.metrics = step.metrics || []).forEach(function (m, i) {
+            var row = el("div", "jobs-metric-row");
+            var col = el("input"); col.type = "text"; col.placeholder = "column"; col.value = m.col || "";
+            col.oninput = function () { m.col = col.value; };
+            var fnSel = el("select");
+            fnSel.innerHTML = Studio.JOB_AGG_FNS.map(function (f) { return '<option value="' + f.fn + '"' + (m.fn === f.fn ? " selected" : "") + '>' + esc(f.label) + '</option>'; }).join("");
+            fnSel.onchange = function () { m.fn = fnSel.value; draw(); };
+            var asInp = el("input"); asInp.type = "text"; asInp.placeholder = "output name"; asInp.value = m.as || "";
+            asInp.oninput = function () { m.as = asInp.value; };
+            row.appendChild(col); row.appendChild(fnSel); row.appendChild(asInp);
+            if (fnSel.value === "wmean") {
+              var w = el("input"); w.type = "text"; w.placeholder = "weight column (e.g. acres)"; w.value = m.weightCol || "";
+              w.oninput = function () { m.weightCol = w.value; };
+              row.appendChild(w);
+            }
+            var del = el("button", "btn"); del.type = "button"; del.textContent = "✕"; del.setAttribute("aria-label", "Remove metric");
+            del.onclick = function () { step.metrics.splice(i, 1); draw(); };
+            row.appendChild(del);
+            wrap.appendChild(row);
+          });
+          var add = el("button", "btn"); add.type = "button"; add.textContent = "+ Metric";
+          add.onclick = function () { step.metrics.push({ col: "", fn: "sum", as: "" }); draw(); };
+          wrap.appendChild(add);
+        }
+        draw();
+        return wrap;
+      }
+      function stepFields(step) {
+        var wrap = el("div", "jobs-step-fields");
+        function mini(ph, val, onChange) {
+          var i = el("input"); i.type = "text"; i.placeholder = ph; i.value = val || ""; i.oninput = function () { onChange(i.value); };
+          wrap.appendChild(i); return i;
+        }
+        if (step.op === "rename") {
+          mini("from column", step.from, function (v) { step.from = v; });
+          mini("to column", step.to, function (v) { step.to = v; });
+        } else if (step.op === "cast") {
+          mini("column", step.col, function (v) { step.col = v; });
+          var sel = el("select"); sel.innerHTML = '<option value="number">number</option><option value="string">string</option>';
+          sel.value = step.to || "number"; sel.onchange = function () { step.to = sel.value; }; wrap.appendChild(sel);
+        } else if (step.op === "derive") {
+          mini("output column", step.outCol, function (v) { step.outCol = v; });
+          step.a = step.a || {}; wrap.appendChild(operandRow(step.a));
+          var opSel = el("select"); opSel.innerHTML = ["+", "-", "*", "/"].map(function (o) { return '<option value="' + o + '"' + (step.operator === o ? " selected" : "") + '>' + o + '</option>'; }).join("");
+          step.operator = step.operator || "*"; opSel.value = step.operator; opSel.onchange = function () { step.operator = opSel.value; }; wrap.appendChild(opSel);
+          step.b = step.b || {}; wrap.appendChild(operandRow(step.b));
+        } else if (step.op === "filter") {
+          mini("column", step.col, function (v) { step.col = v; });
+          var cmpSel = el("select");
+          cmpSel.innerHTML = ["eq", "ne", "gt", "gte", "lt", "lte", "contains"].map(function (c) { return '<option value="' + c + '"' + (step.cmp === c ? " selected" : "") + '>' + c + '</option>'; }).join("");
+          step.cmp = step.cmp || "eq"; cmpSel.value = step.cmp; cmpSel.onchange = function () { step.cmp = cmpSel.value; }; wrap.appendChild(cmpSel);
+          mini("value", step.value, function (v) { step.value = v; });
+        } else if (step.op === "aggregate") {
+          mini("group by (comma-separated columns)", (step.groupBy || []).join(", "), function (v) { step.groupBy = v.split(",").map(function (s) { return s.trim(); }).filter(Boolean); });
+          wrap.appendChild(metricsEditor(step));
+        }
+        return wrap;
+      }
+      function renderSteps() {
+        stepsWrap.innerHTML = "";
+        (j.steps || []).forEach(function (step, i) {
+          var card = el("div", "jobs-step-card");
+          var head = el("div", "jobs-step-head");
+          var opSel = el("select");
+          opSel.innerHTML = Studio.JOB_STEP_KINDS.map(function (k) { return '<option value="' + k.op + '"' + (step.op === k.op ? " selected" : "") + '>' + esc(k.label) + '</option>'; }).join("");
+          opSel.onchange = function () { j.steps[i] = { op: opSel.value }; renderSteps(); };
+          head.appendChild(opSel);
+          var up = el("button", "btn"); up.type = "button"; up.textContent = "↑"; up.setAttribute("aria-label", "Move step up");
+          up.disabled = i === 0; up.onclick = function () { var t = j.steps[i - 1]; j.steps[i - 1] = j.steps[i]; j.steps[i] = t; renderSteps(); };
+          var down = el("button", "btn"); down.type = "button"; down.textContent = "↓"; down.setAttribute("aria-label", "Move step down");
+          down.disabled = i === j.steps.length - 1; down.onclick = function () { var t = j.steps[i + 1]; j.steps[i + 1] = j.steps[i]; j.steps[i] = t; renderSteps(); };
+          var del = el("button", "btn"); del.type = "button"; del.textContent = "✕ Remove step";
+          del.onclick = function () { j.steps.splice(i, 1); renderSteps(); };
+          head.appendChild(up); head.appendChild(down); head.appendChild(del);
+          card.appendChild(head);
+          card.appendChild(stepFields(step));
+          stepsWrap.appendChild(card);
+        });
+        var addStep = el("button", "btn"); addStep.type = "button"; addStep.textContent = "+ Step";
+        addStep.onclick = function () { (j.steps = j.steps || []).push({ op: "rename" }); renderSteps(); };
+        stepsWrap.appendChild(addStep);
+      }
+      renderSteps();
+      b.appendChild(form);
+      var result = el("div", "cx-test-result"); b.appendChild(result);
+      var preview = el("div", "dsx-preview"); b.appendChild(preview);
+      var foot = el("div", "cx-wiz-foot");
+      var runBtn = el("button", "btn"); runBtn.type = "button"; runBtn.textContent = "Preview";
+      var saveBtn = el("button", "btn primary"); saveBtn.type = "button"; saveBtn.textContent = existing ? "Save changes" : "Add job";
+      foot.appendChild(runBtn); foot.appendChild(saveBtn); b.appendChild(foot);
+      function collect() {
+        j.name = nameInp.value.trim();
+        j.sourceDatasetId = srcSel.value;
+        j.outputName = outInp.value.trim();
+        return j;
+      }
+      runBtn.onclick = function () {
+        collect();
+        var src = Studio.Workspace.get("datasets", j.sourceDatasetId);
+        if (!src) { result.className = "cx-test-result bad"; result.textContent = "Pick a source dataset first."; return; }
+        runBtn.disabled = true; runBtn.textContent = "Running…";
+        result.className = "cx-test-result"; result.textContent = ""; preview.innerHTML = "";
+        runDataset(src).then(function (r) {
+          runBtn.disabled = false; runBtn.textContent = "Preview";
+          if (r.error) { result.className = "cx-test-result bad"; result.textContent = "✕ " + r.error; return; }
+          var out = Studio.runJobSteps({ columns: r.columns, rows: r.rows }, j.steps || []);
+          if (out.error) { result.className = "cx-test-result bad"; result.textContent = "✕ " + out.error; return; }
+          result.className = "cx-test-result ok"; result.textContent = "✓ " + out.rows.length + " rows · " + out.columns.length + " columns";
+          var head = "<tr>" + out.columns.map(function (c) { return "<th>" + esc(c) + "</th>"; }).join("") + "</tr>";
+          var body = out.rows.slice(0, 8).map(function (row) {
+            return "<tr>" + row.map(function (v) { return "<td>" + esc(v == null ? "" : String(v)) + "</td>"; }).join("") + "</tr>";
+          }).join("");
+          preview.innerHTML = "<table>" + head + body + "</table>";
+        });
+      };
+      saveBtn.onclick = function () {
+        collect();
+        if (!j.name) { nameInp.focus(); result.className = "cx-test-result bad"; result.textContent = "Give the job a name first."; return; }
+        if (!j.sourceDatasetId) { srcSel.focus(); result.className = "cx-test-result bad"; result.textContent = "Pick the source dataset this job preps."; return; }
+        if (!j.outputName) j.outputName = j.name + " (job output)";
+        Studio.Workspace.put("jobs", j);
+        toast(existing ? "Saved " + j.name : "Added " + j.name);
+        document.querySelector(".modal-ov .x").click();
+      };
+      nameInp.focus();
+    }, function () { renderJobs(); }, true);
+  }
+  window.__studioRenderJobs = renderJobs; // test hook
+  window.__studioOpenJobEditor = openJobEditor; // test hook
+  window.__studioRunJob = runJob; // test hook
 
   /* ---------- Workspace backend (Settings card + rail indicator) ----------
      Manager's data-source pattern: the app's own catalog (dashboards/datasets/

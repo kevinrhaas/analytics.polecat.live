@@ -54,10 +54,12 @@
 
   // Bump when the shape below changes in a way an older client couldn't read.
   // v2 (Viridis V5): + analyses table — saved Explore analyses (a dataset +
-  // one chart mapping). ADDITIVE: a v1 workspace loads fine (the local store
-  // fills missing tables; SQL adapters ensure-create on save; Supabase needs
-  // the provision delta run once — see provisionDeltaSQL below).
-  WS.SCHEMA_VERSION = 2;
+  // one chart mapping). v3 (Viridis V8): + jobs table — prep/rollup jobs that
+  // materialize their output as an ordinary workspace dataset. Both bumps are
+  // ADDITIVE: an older workspace loads fine (the local store fills missing
+  // tables; SQL adapters ensure-create on save; Supabase needs the provision
+  // delta run once — see provisionDeltaSQL below).
+  WS.SCHEMA_VERSION = 3;
 
   // The app that owns a workspace. probe() uses it to tell "my repo" from
   // "another Polecat app's repo" (manager, relay, …) from "a foreign database".
@@ -76,7 +78,8 @@
     { name: "connections", columns: ["name", "adapter", "updatedAt"] },
     { name: "datasets",    columns: ["name", "connectionId", "kind", "updatedAt"] },
     { name: "dashboards",  columns: ["name", "title", "updatedAt"] },
-    { name: "analyses",    columns: ["name", "datasetId", "chartType", "updatedAt"] } // v2 — Explore
+    { name: "analyses",    columns: ["name", "datasetId", "chartType", "updatedAt"] }, // v2 — Explore
+    { name: "jobs",        columns: ["name", "sourceDatasetId", "updatedAt"] } // v3 — prep/rollup jobs
   ];
   WS.TABLE_NAMES = WS.WORKSPACE_TABLES.map(function (t) { return t.name; });
 
@@ -107,11 +110,13 @@
       .concat(WS.TABLE_NAMES.map(WS.tableDDL));
   };
 
-  // The paste-me SQL that upgrades a v1 workspace to v2 (Supabase can't DDL
-  // from the browser; Turso self-heals — its save() runs the ensure-DDL).
+  // The paste-me SQL that upgrades an older workspace to the current version
+  // (Supabase can't DDL from the browser; Turso self-heals — its save() runs
+  // the ensure-DDL). Cumulative and idempotent (CREATE TABLE IF NOT EXISTS),
+  // so it's safe to run against a v1 OR v2 workspace, and safe to run twice.
   WS.provisionDeltaSQL = function () {
-    return "-- Analytics workspace v2 delta — adds the analyses table (safe to run twice).\n" +
-      WS.tableDDL("analyses") + ";";
+    return "-- Analytics workspace delta — adds the analyses (v2) and jobs (v3) tables. Safe to run twice.\n" +
+      WS.tableDDL("analyses") + ";\n" + WS.tableDDL("jobs") + ";";
   };
 
   // The rows written into polecat_meta at provision time — workspace identity

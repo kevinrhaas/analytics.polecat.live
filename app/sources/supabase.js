@@ -178,10 +178,11 @@
       }).then(function () { return { ok: true }; })
         .catch(function (e) {
           var msg = e.message || String(e);
-          // v1 → v2 delta: Supabase can't DDL over REST, so a pre-analyses
-          // workspace needs one paste-me statement — say so instead of a bare 404.
-          if (/analyses/.test(msg)) {
-            msg += " — your workspace predates the analyses table. Run this once in Supabase → SQL editor: " + WS.provisionDeltaSQL();
+          // v1 → v2 → v3 delta: Supabase can't DDL over REST, so a workspace that
+          // predates the analyses or jobs table needs one paste-me statement —
+          // say so instead of a bare 404.
+          if (/analyses|jobs/.test(msg)) {
+            msg += " — your workspace predates the analyses/jobs tables. Run this once in Supabase → SQL editor: " + WS.provisionDeltaSQL();
           }
           return { ok: false, error: msg };
         });

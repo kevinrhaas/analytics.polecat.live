@@ -1227,6 +1227,21 @@
 >     HUC8 roll-ups of percent metrics), JOIN/UNION across datasets (the 5-provider normalize-and-
 >     stack case), output → materialized workspace dataset; execute on demand, re-run for annual
 >     updates; optional custom-SQL step via the existing engines. Client-side executor first.
+>     ⏳ **Slice 1 shipped (2026-07-17):** the single-dataset prep pipeline — `app/sources/
+>     jobs-engine.js` (pure, unit-tested) runs ordered rename/cast/derive/filter/aggregate steps
+>     over one source dataset's live rows; derive takes two explicit `{col}`/`{value}` operands
+>     (no string-sniffing ambiguity); aggregate's `wmean` metric is the acreage-weighted mean
+>     (skips rows missing either half of the value/weight pair rather than treating them as zero).
+>     New **Jobs** rail section (list + editor: name, source dataset, reorderable step cards,
+>     live Preview) mirrors the Datasets section's UX. Running a job materializes the result as an
+>     ordinary `kind:'file'` dataset (tagged `job-output`, same shape localfile.js already speaks —
+>     zero new dataset-kind code) and re-running the SAME job updates that dataset in place via
+>     `job.outputDatasetId` (the annual-refresh case). Schema v2→v3 (additive: Turso self-heals via
+>     the existing `WS.TABLE_NAMES` loop; `provisionDeltaSQL` now covers analyses+jobs together for
+>     Supabase's paste-me path). SW cache → v19; docs gain a Jobs section.
+>     **Deferred to a slice 2:** JOIN/UNION across datasets and the custom-SQL step — this slice is
+>     the single-dataset pipeline the Viridis rollups need; the 5-provider normalize-and-stack case
+>     needs the join/union work still to come.
 > V9. **Scientific-honesty polish:** first-class no-data/coverage rendering, provenance popover
 >     (which providers, coverage, last updated), CSV download of the current selection (the
 >     RFP's deferred download question), docs + a "make the ensemble legible" help page.
