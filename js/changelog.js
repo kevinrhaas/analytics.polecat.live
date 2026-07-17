@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 374,
+    title: 'Track L sweep (dead-code lens): removed an orphaned Settings setter',
+    kind: 'polish',
+    ts: '2026-07-17T11:44:32.000Z',
+    items: [
+      'setDeployPathPref (app/studio.js) had zero call sites anywhere in the app or test suite -- the deploy-path Settings preference is written by the generic Settings-import bulk loop instead, leaving this setter vestigial. Pure deletion, no behavior change.',
+    ],
+  },
+  {
     v: 373,
     title: 'A "Last updated" line on the Sources popover',
     kind: 'polish',
