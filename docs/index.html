@@ -304,10 +304,11 @@
 
   <h2>Jobs — prep &amp; rollup</h2>
   <p><strong>Jobs</strong> (left rail) prep one dataset before it's charted: rename or cast a
-  column, derive a new one from arithmetic on two others, filter rows, and roll everything up
-  with a group-by aggregate. Run a job and the result is saved back as an ordinary dataset —
-  ready for Explore, the Studio library, or any dashboard — and re-running the same job updates
-  that dataset in place, so an annual data refresh is a single click.</p>
+  column, derive a new one from arithmetic on two others, filter rows, roll everything up with a
+  group-by aggregate, and join or union in a second dataset. Run a job and the result is saved
+  back as an ordinary dataset — ready for Explore, the Studio library, or any dashboard — and
+  re-running the same job updates that dataset in place, so an annual data refresh is a single
+  click.</p>
   <ul>
     <li><strong>Steps run in order</strong> and can be reordered or removed; <strong>Preview</strong>
     runs the source dataset live and shows the pipeline's output before you save.</li>
@@ -316,8 +317,15 @@
     to State, USDA Crop Reporting District, or HUC8 watershed: a flat average of percentages
     misrepresents counties of very different size, so pick an acreage (or similar) column as the
     weight.</li>
-    <li><strong>Join/union across datasets and a custom-SQL step are on the roadmap</strong> — this
-    first slice covers the single-dataset prep pipeline.</li>
+    <li><strong>Join</strong> adds a second dataset's columns onto matching rows by a key column
+    (inner drops unmatched rows, left keeps them with blanks); added columns that collide with an
+    existing name get an auto suffix, or set a prefix yourself.</li>
+    <li><strong>Union</strong> stacks a second dataset's rows onto the pipeline's existing schema —
+    the normalize-and-stack case for combining several differently-shaped sources (e.g. five
+    providers with five different raw column names) into one common table. Each output column
+    maps from a column in the other dataset (or falls back to a same-name match, else blank).</li>
+    <li><strong>A custom-SQL step is on the roadmap</strong> — join/union across datasets now
+    cover the multi-dataset prep the Viridis rollups need.</li>
   </ul>
 
   <h2>The builder</h2>

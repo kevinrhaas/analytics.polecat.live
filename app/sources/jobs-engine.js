@@ -1,19 +1,26 @@
 /* Analytics — © 2026 Polecat.live. See LICENSE. */
-/* app/sources/jobs-engine.js — Viridis V8 slice 1 (data-management-lite): the
+/* app/sources/jobs-engine.js — Viridis V8 (data-management-lite): the
    prep/load job engine. Pure functions over {columns, rows} (rows are arrays
    of cells, matching every adapter's queryData() shape) — no Workspace/DOM
    dependency, so the step logic is unit-testable directly.
 
    A job is an ordered list of steps run over one source dataset's live rows:
-   rename, cast, derive (arithmetic on two operands), filter, and one
-   aggregate/rollup (group-by + sum/avg/count/median/wmean). wmean is the
-   acreage-weighted mean — the honest way to roll a percent metric up from
-   county to State/CRD/HUC8 (a flat average of percentages misrepresents
-   counties of very different size).
+   rename, cast, derive (arithmetic on two operands), filter, aggregate/rollup
+   (group-by + sum/avg/count/median/wmean — wmean is the acreage-weighted
+   mean, the honest way to roll a percent metric up from county to
+   State/CRD/HUC8, since a flat average of percentages misrepresents counties
+   of very different size), join, and union.
 
-   JOIN/UNION across datasets and a custom-SQL step are deferred to a later
-   slice (see STATUS.md V8) — this slice covers the single-dataset prep
-   pipeline the Viridis rollups need. */
+   join/union pull in a SECOND dataset's already-resolved {columns, rows} —
+   the engine stays pure/synchronous, so the caller (studio.js, which has
+   Workspace + adapter access) runs the referenced dataset(s) first and
+   passes the result in as `ctx.datasets[datasetId] = {columns, rows}`.
+   union is the "5-provider normalize-and-stack" case: each provider's raw
+   column names get mapped onto the pipeline's existing schema via
+   step.columnMap, so five differently-shaped provider datasets land as rows
+   in one common table.
+
+   A custom-SQL step is deferred to a later slice (see STATUS.md V8). */
 (function () {
   "use strict";
   window.Studio = window.Studio || {};
@@ -139,17 +146,89 @@
     return { columns: outCols, objs: out };
   }
 
-  var STEP_HANDLERS = { rename: applyRename, cast: applyCast, derive: applyDerive, filter: applyFilter, aggregate: applyAggregate };
+  // join: {op:'join', datasetId, leftCol, rightCol, type:'inner'|'left', prefix?}
+  // Adds the right dataset's non-key columns onto every matching left row
+  // (the join key column itself isn't duplicated). Name collisions with an
+  // existing column get an auto "_2" suffix so a step can never silently
+  // clobber data. 'left' keeps unmatched left rows (added columns -> null);
+  // 'inner' (default) drops them.
+  function applyJoin(columns, objs, step, ctx) {
+    var right = (ctx && ctx.datasets && ctx.datasets[step.datasetId]) || { columns: [], rows: [] };
+    var rightObjs = toObjects(right.columns, right.rows);
+    var leftKey = step.leftCol, rightKey = step.rightCol;
+    var type = step.type === "left" ? "left" : "inner";
+    var idx = {};
+    rightObjs.forEach(function (r) {
+      var k = String(r[rightKey]);
+      (idx[k] = idx[k] || []).push(r);
+    });
+    var addCols = (right.columns || []).filter(function (c) { return c !== rightKey; });
+    var outNames = addCols.map(function (c) {
+      var name = (step.prefix || "") + c;
+      while (columns.indexOf(name) >= 0) name += "_2";
+      return name;
+    });
+    var outCols = columns.concat(outNames);
+    var out = [];
+    objs.forEach(function (o) {
+      var matches = idx[String(o[leftKey])] || [];
+      if (!matches.length) {
+        if (type === "left") {
+          var row = Object.assign({}, o);
+          outNames.forEach(function (name) { row[name] = null; });
+          out.push(row);
+        }
+        return;
+      }
+      matches.forEach(function (m) {
+        var row = Object.assign({}, o);
+        addCols.forEach(function (c, i) { row[outNames[i]] = m[c]; });
+        out.push(row);
+      });
+    });
+    return { columns: outCols, objs: out };
+  }
 
-  // Studio.runJobSteps({columns, rows}, steps) -> {columns, rows, error?}
-  Studio.runJobSteps = function (input, steps) {
+  // union: {op:'union', datasetId, columnMap:[{to,from}, ...]}
+  // Stacks the right dataset's rows onto the pipeline WITHOUT changing its
+  // schema — every added row is reshaped onto the current `columns`. Each
+  // target column pulls from step.columnMap's matching `from` name when
+  // given, else falls back to a same-name match, else null. This is the
+  // normalize-and-stack case: five providers with five different raw column
+  // names each get their own columnMap onto one common schema.
+  function applyUnion(columns, objs, step, ctx) {
+    var right = (ctx && ctx.datasets && ctx.datasets[step.datasetId]) || { columns: [], rows: [] };
+    var rightObjs = toObjects(right.columns, right.rows);
+    var byTarget = {};
+    (step.columnMap || []).forEach(function (m) { if (m.to) byTarget[m.to] = m.from; });
+    var mapped = rightObjs.map(function (r) {
+      var o = {};
+      columns.forEach(function (c) {
+        var src = Object.prototype.hasOwnProperty.call(byTarget, c) ? byTarget[c] : c;
+        o[c] = Object.prototype.hasOwnProperty.call(r, src) ? r[src] : null;
+      });
+      return o;
+    });
+    return { columns: columns, objs: objs.concat(mapped) };
+  }
+
+  var STEP_HANDLERS = {
+    rename: applyRename, cast: applyCast, derive: applyDerive, filter: applyFilter,
+    aggregate: applyAggregate, join: applyJoin, union: applyUnion
+  };
+
+  // Studio.runJobSteps({columns, rows}, steps, ctx?) -> {columns, rows, error?}
+  // ctx.datasets, when join/union steps are present, maps datasetId ->
+  // {columns, rows} for every dataset those steps reference (resolved by the
+  // caller before running steps — see studio.js's resolveJobCtx).
+  Studio.runJobSteps = function (input, steps, ctx) {
     var columns = ((input && input.columns) || []).slice();
     var objs = toObjects(columns, input && input.rows);
     try {
       (steps || []).forEach(function (step) {
         var handler = STEP_HANDLERS[step.op];
         if (!handler) return;
-        var r = handler(columns, objs, step);
+        var r = handler(columns, objs, step, ctx);
         columns = r.columns; objs = r.objs;
       });
     } catch (e) {
@@ -158,12 +237,26 @@
     return { columns: columns, rows: toRows(columns, objs) };
   };
 
+  // datasetIdsFor(steps) -> array of every distinct datasetId a job's
+  // join/union steps reference, so the caller knows what to resolve first.
+  Studio.jobStepDatasetIds = function (steps) {
+    var seen = {}, ids = [];
+    (steps || []).forEach(function (step) {
+      if ((step.op === "join" || step.op === "union") && step.datasetId && !seen[step.datasetId]) {
+        seen[step.datasetId] = true; ids.push(step.datasetId);
+      }
+    });
+    return ids;
+  };
+
   Studio.JOB_STEP_KINDS = [
     { op: "rename", label: "Rename column" },
     { op: "cast", label: "Cast type" },
     { op: "derive", label: "Derive column" },
     { op: "filter", label: "Filter rows" },
-    { op: "aggregate", label: "Aggregate / rollup" }
+    { op: "aggregate", label: "Aggregate / rollup" },
+    { op: "join", label: "Join with another dataset" },
+    { op: "union", label: "Union / stack another dataset" }
   ];
   Studio.JOB_AGG_FNS = [
     { fn: "sum", label: "Sum" }, { fn: "avg", label: "Average" }, { fn: "count", label: "Count" },

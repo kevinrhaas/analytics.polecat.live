@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 368,
+    title: 'Jobs -- join and union across datasets',
+    kind: 'feature',
+    ts: '2026-07-17T03:18:41.000Z',
+    items: [
+      'A job step can now join a second dataset onto matching rows by a key column (inner drops unmatched rows, left keeps them with blanks -- added columns that collide with an existing name get an automatic suffix so nothing is silently overwritten) or union a second dataset in, mapping its columns onto the pipeline\'s existing schema.',
+      'Union is the normalize-and-stack case for combining several differently-shaped sources -- for example five providers that each name the same field differently -- into one common table; unmapped columns fall back to a same-name match, else blank. A custom-SQL step remains on the roadmap.',
+    ],
+  },
+  {
     v: 367,
     title: 'Jobs -- prep and roll up a dataset, including an acreage-weighted mean',
     kind: 'feature',
