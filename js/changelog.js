@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 378,
+    title: 'Fix: 2px horizontal scroll on the mobile Help page',
+    kind: 'fix',
+    ts: '2026-07-17T20:35:03.000Z',
+    items: [
+      'The Exporting table on docs/index.html used auto table-layout, and unbreakable tokens inside it (.html, .studio.json) forced the table a couple pixels past the 390px viewport edge -- a carried-over UX-sweep finding (2026-07-16 #10, 2026-07-17 #24, item 4).',
+      'Scoped the wrap fix to just the <code> tokens inside export/shortcut table cells rather than every cell, so the table keeps its natural proportional column widths instead of table-layout:fixed\'s equal-width columns, which broke short headers like "FORMAT" and "CDF" mid-word.',
+    ],
+  },
+  {
     v: 377,
     title: 'Dataset lineage: see which dashboards use a dataset before deleting it',
     kind: 'feature',
