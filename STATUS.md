@@ -1047,6 +1047,17 @@
   shell's `modal()`/`sheet()` already use elsewhere in the app (kept as a hand-rolled trap rather
   than switching to `modal()` outright, since the tour's `.sw-*` markup/CSS and existing tests are
   built around its own structure). SW cache → v27. 4 new tests, suite 1546/1546.
+- v378: **Fix: 2px horizontal scroll on the mobile Help page** — closes UX sweep finding #4
+  (carried across #10 2026-07-16 and #24 2026-07-17). `docs/index.html`'s Exporting table used
+  auto table-layout, and unbreakable `<code>` tokens inside it (`.html`, `.studio.json`) forced
+  the table's min-content a few px past the 390px viewport edge. Scoped `overflow-wrap:anywhere`
+  to just those `<code>` tokens (in both the export and shortcut tables) rather than every cell —
+  an earlier attempt at `table-layout:fixed` + a blanket cell-level `overflow-wrap` "fixed" the
+  scroll but broke short headers like "FORMAT"/"CDF" into mid-word line breaks, worse than the
+  bug. Verified no horizontal overflow at 390×780 (light + dark) and no regression at 1280×800.
+  No product-code test coverage (static reference page, not exercised by `tests/run.js`) —
+  verified via a one-off Playwright scrollWidth/screenshot check instead. Suite 1549/1549
+  (unchanged, no new product surface).
 
 ## NEXT (top = do first)
 

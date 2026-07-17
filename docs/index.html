@@ -133,6 +133,13 @@
     @media(max-width:640px){
       header{padding:0 16px}main{padding:24px 14px 60px}
       .steps{grid-template-columns:1fr}.chart-grid{grid-template-columns:repeat(2,1fr)}
+      /* Z-sweep fix: unbreakable <code> tokens (".html", ".studio.json") inside table cells
+         pushed .export-table's auto-layout min-content a few px past the viewport edge on
+         narrow screens (2px horizontal page scroll). Scoped to just those code tokens (not
+         every cell) so the table keeps its natural proportional column widths — a blanket
+         overflow-wrap on td/th let the layout shrink Format/Badge to the point of breaking
+         "FORMAT"/"CDF" mid-word, which is worse than the bug it fixed. */
+      .export-table td code,.export-table th code{overflow-wrap:anywhere}
     }
   </style>
 </head>
