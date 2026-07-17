@@ -1404,9 +1404,16 @@
 >    (~40 of the ~252 total refs) is safe to fold into `--brand`; (B) is NOT "zero user impact" busywork,
 >    it's product-critical export theming under RFP deadline pressure — do not attempt without care to
 >    keep the two contexts separate, and ideally with a screenshot-diff of exported dashboards before/after.
-> 5. **Dataset delight**: schema browser per connection (list tables/columns via adapter), dataset
->    lineage chips (which dashboards use this dataset — blast-radius view), scheduled refresh hints,
->    result caching with TTL per dataset (the old cache/cacheDuration fields are still on the rows).
+> 5. **Dataset delight**: schema browser per connection (list tables/columns via adapter), scheduled
+>    refresh hints, result caching with TTL per dataset (the old cache/cacheDuration fields are
+>    still on the rows). ✓ **Dataset lineage chips shipped (2026-07-17, steward PR):** each row in
+>    the Datasets catalog now carries a "↪ N dashboards" badge (`dsxLineage()` in `app/studio.js`,
+>    scans every saved workspace dashboard's `spec.cda.dataAccesses` for a matching `datasetId` —
+>    the same link `dsToDA` stamps when a dataset is dropped onto the canvas) whose hover title
+>    names the referencing dashboards — the "blast-radius view" the backlog asked for. Deleting a
+>    dataset that's in use now says so in the confirm prompt (which dashboards, and that they fall
+>    back to their own frozen self-contained copy rather than silently going stale — the real
+>    behavior per `runData`'s `da.datasetId`-first resolution). 3 new tests. Test suite 1549/1549.
 > 6. **Workspace polish**: saved views for the Datasets/Connections lists (jobtracker pattern),
 >    drag a dataset card straight onto Home to start a dashboard. (Palette entries for the new
 >    sections landed with the 2026-07-14 UX sprint.)

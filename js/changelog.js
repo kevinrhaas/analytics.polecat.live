@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 377,
+    title: 'Dataset lineage: see which dashboards use a dataset before deleting it',
+    kind: 'feature',
+    ts: '2026-07-17T16:53:41.000Z',
+    items: [
+      'Each row in the Datasets catalog now shows a "↪ N dashboards" badge when one or more saved dashboards link to it, with the dashboard names on hover -- a blast-radius view for a workspace where datasets/dashboards "will start to become very long lists" (post-overhaul backlog item 5).',
+      'Deleting a dataset that\'s in use now names the dashboards that reference it in the confirmation prompt, and explains that they keep working off their own saved copy of the query rather than silently going stale.',
+    ],
+  },
+  {
     v: 376,
     title: 'Fix: the welcome tour traps keyboard focus, closes on Escape',
     kind: 'fix',

@@ -2193,6 +2193,43 @@ function serve() {
       dsxImport.das === 1 && dsxImport.panels === 1 && dsxImport.linked && dsxImport.selfContained &&
       dsxImport.cols === "region,total" && dsxImport.panelBound, JSON.stringify(dsxImport));
 
+    // dataset lineage (post-overhaul backlog item 5, "blast-radius view"): the
+    // Datasets catalog badges each row with the dashboards that reference it,
+    // and warns about them before a delete.
+    await page.evaluate(function () { window.__studioShellSetSection("datasets"); });
+    await page.waitForTimeout(120);
+    const dsxLineageBefore = await page.evaluate(function () {
+      return { badge: !!document.querySelector("#dsxResults .cx-lineage") };
+    });
+    ok("DSX: no lineage badge while a dataset isn't saved into any dashboard yet",
+      !dsxLineageBefore.badge, JSON.stringify(dsxLineageBefore));
+
+    await page.evaluate(function () {
+      var ds = Studio.Workspace.all("datasets")[0];
+      Studio.Workspace.put("dashboards", {
+        id: "dash-lineage", ts: new Date().toISOString(), title: "Sales overview", name: "",
+        spec: { title: "Sales overview", cda: { dataAccesses: [{ id: "da1", datasetId: ds.id }] }, panels: [], kpis: [] }
+      }, { silent: true }); // silent: a dashboards-table write isn't in renderDatasets' auto-refresh filter (datasets/connections/*)
+      window.__studioRenderDatasets();
+    });
+    await page.waitForTimeout(120);
+    const dsxLineageAfter = await page.evaluate(function () {
+      var badge = document.querySelector("#dsxResults .cx-lineage");
+      return { present: !!badge, text: badge ? badge.textContent : "", title: badge ? badge.getAttribute("title") : "" };
+    });
+    ok("DSX: a dataset linked from a saved dashboard shows a '↪ N dashboards' badge naming it",
+      dsxLineageAfter.present && /1 dashboard/.test(dsxLineageAfter.text) && /Sales overview/.test(dsxLineageAfter.title), JSON.stringify(dsxLineageAfter));
+
+    const dsxDelWarn = await page.evaluate(function () {
+      var msg = "";
+      window.confirm = function (m) { msg = m; return false; }; // cancel — don't actually delete
+      var d = Studio.Workspace.all("datasets")[0];
+      document.querySelector('[data-dsx-del="' + d.id + '"]').click();
+      return { msg: msg, stillThere: !!Studio.Workspace.get("datasets", d.id) };
+    });
+    ok("DSX: deleting a dataset in use warns which dashboards reference it, and a cancel keeps it",
+      /Sales overview/.test(dsxDelWarn.msg) && /1 dashboard/.test(dsxDelWarn.msg) && dsxDelWarn.stillThere, JSON.stringify(dsxDelWarn));
+
     await page.evaluate(function () { Studio.Workspace.reset(); window.__studioLoad({ title: "post-dsx", panels: [], kpis: [] }); window.__studioShellSetSection("studio"); });
     await page.waitForTimeout(120);
 

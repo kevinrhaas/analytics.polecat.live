@@ -680,6 +680,9 @@
 
   <h3>Joins and compound DAs</h3>
   <p>Click <strong>⧈ Join</strong> in the library to create a <strong>Compound data access</strong> — either a join (left/right DA + key columns) or a union (stack rows from N DAs). The result is computed in the builder over the member DAs' rows.</p>
+
+  <h3>Dataset lineage</h3>
+  <p>The <strong>Datasets</strong> catalog badges each row with <strong>"↪ N dashboards"</strong> when one or more saved dashboards reference it — hover the badge for the list of names. It's a blast-radius view: before deleting a dataset, you can see what depends on it. Deleting one that's in use warns you which dashboards reference it — they don't break, but they fall back to the self-contained copy of the query that was saved into them the last time they linked to it, rather than continuing to follow live edits to the dataset.</p>
 </section>
 
 <!-- ── Exporting ──────────────────────────────────────────────── -->

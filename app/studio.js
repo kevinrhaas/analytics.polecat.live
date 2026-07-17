@@ -6020,6 +6020,17 @@
   var _dsxTagFilter = {};     // multi-select tag -> true; empty = all
   function dsxConnOf(d) { return Studio.Workspace.get("connections", d.connectionId); }
   function dsxAdapterOf(d) { var c = dsxConnOf(d); return c ? Studio.sourceById(c.adapter) : null; }
+  // Dataset lineage (post-overhaul backlog item 5, "blast-radius view"): every
+  // dashboard whose spec links a data access back to this dataset (dsToDA
+  // stamps da.datasetId = ds.id when a dataset is dropped onto the canvas).
+  // Workspace-wide, so it survives across sessions/devices just like the
+  // dashboards it inspects.
+  function dsxLineage(dsId) {
+    return Studio.Workspace.all("dashboards").filter(function (r) {
+      var das = (r.spec && r.spec.cda && r.spec.cda.dataAccesses) || [];
+      return das.some(function (da) { return da.datasetId === dsId; });
+    });
+  }
   // What a dataset's definition looks like for a given adapter: SQL for the
   // sql-family, a table+query for Supabase (PostgREST), a collection for
   // Firestore. One place so the editor + runner + library agree.
@@ -6098,12 +6109,18 @@
         : (d.lastRun.ok ? '<span class="cx-dot ok" title="Last run OK · ' + esc(new Date(d.lastRun.at).toLocaleString()) + ' · ' + d.lastRun.rows + ' rows"></span>'
           : '<span class="cx-dot bad" title="Last run failed: ' + esc(d.lastRun.error) + '"></span>');
       var tags = (d.tags || []).map(function (t) { return '<span class="cx-badge">#' + esc(t) + '</span>'; }).join("");
+      var lineage = dsxLineage(d.id);
+      var lineageBadge = lineage.length
+        ? '<span class="cx-badge cx-lineage" title="Used in: ' + esc(lineage.map(function (r) { return r.title || r.name || "Untitled"; }).join(", ")) + '">↪ ' +
+          lineage.length + " dashboard" + (lineage.length !== 1 ? "s" : "") + '</span>'
+        : "";
       return '<div class="cx-row" data-dsx-id="' + esc(d.id) + '" tabindex="0" role="button" aria-label="Edit dataset ' + esc(d.name) + '">' +
         dot +
         '<span class="cx-ic" style="color:' + esc((src && src.accent) || "var(--faint)") + '"></span>' +
         '<span class="cx-name"><b>' + esc(d.name) + '</b><small>' + esc(conn ? conn.name : "no connection") + (src ? " · " + src.label : "") + (d.owner ? " · " + esc(d.owner) : "") + '</small></span>' +
         tags +
         ((d.params || []).length ? '<span class="cx-badge" title="Accepts parameters">' + (d.params || []).length + " param" + ((d.params || []).length > 1 ? "s" : "") + '</span>' : "") +
+        lineageBadge +
         '<span class="cx-when">' + esc(new Date(d.updatedAt || Date.now()).toLocaleDateString()) + '</span>' +
         '<span class="cx-actions">' +
           '<button type="button" class="btn" data-dsx-run="' + esc(d.id) + '">Run</button>' +
@@ -6170,7 +6187,12 @@
       btn.onclick = function () {
         var d = Studio.Workspace.get("datasets", btn.getAttribute("data-dsx-del"));
         if (!d) return;
-        if (!window.confirm('Delete dataset "' + d.name + '"?')) return;
+        var lineage = dsxLineage(d.id);
+        var warn = lineage.length
+          ? " It's used in " + lineage.length + " dashboard" + (lineage.length !== 1 ? "s" : "") +
+            " (" + lineage.map(function (r) { return r.title || r.name || "Untitled"; }).join(", ") + ") — those keep working off their own saved copy, but won't get live updates from this dataset anymore."
+          : "";
+        if (!window.confirm('Delete dataset "' + d.name + '"?' + warn)) return;
         Studio.Workspace.remove("datasets", d.id);
         toast("Deleted " + d.name);
       };
