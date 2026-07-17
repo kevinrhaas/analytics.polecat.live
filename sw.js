@@ -5,7 +5,10 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v26"; /* v26: fixed the dark/light theme toggle not reaching
+var CACHE_NAME = "studio-shell-v27"; /* v27: welcome tour (app/welcome.js) traps Tab focus
+   inside the dialog and closes on Escape, so a keyboard user can no longer tab through into
+   the header nav trigger hidden behind the backdrop (app/welcome.js changed).
+   v26: fixed the dark/light theme toggle not reaching
    Home/Dashboards/Datasets/Connections/Jobs/Settings (app/studio.css changed).
    v25: Track L sweep — removed a dead orphaned function
    from app/studio.js (content changed, so precached copies need to roll).

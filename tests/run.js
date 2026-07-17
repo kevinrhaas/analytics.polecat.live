@@ -4819,6 +4819,30 @@ function serve() {
     ok("Z10: welcome tour header + card follow the app theme (Polecat default->Classic, light->dark) instead of fixed hex",
       wThemeAfter.hd !== wThemeBefore.hd && wThemeAfter.card !== wThemeBefore.card && wThemeBefore.card === "rgb(255, 251, 244)",
       JSON.stringify({ before: wThemeBefore, after: wThemeAfter }));
+
+    // steward: UX sweep #24 finding — the tour's full-viewport backdrop hid the header nav
+    // trigger underneath it with no focus trap, so a keyboard user could Tab straight through
+    // into a control they couldn't see. welcome.js now traps Tab inside the dialog and closes
+    // on Escape (matching the vendored shell's own modal()/sheet() convention).
+    const wFocusedInside = await gp.evaluate(() => !!(document.activeElement && document.querySelector("#studio-welcome").contains(document.activeElement)));
+    ok("welcome tour autofocuses inside the dialog on open", wFocusedInside);
+    await gp.evaluate(() => document.querySelector('#studio-welcome [data-act="next"]').focus());
+    await gp.keyboard.press("Tab");
+    const wrappedTo = await gp.evaluate(() => document.activeElement && document.activeElement.className);
+    ok("Tab from the last focusable control wraps back to Skip instead of escaping to the header nav trigger hidden behind the backdrop",
+      wrappedTo === "sw-skip", "focused=" + wrappedTo);
+    await gp.keyboard.press("Escape"); await gp.waitForTimeout(120);
+    ok("Escape closes the welcome tour + persists seen (same as Skip)",
+      await gp.evaluate(() => !document.querySelector("#studio-welcome") && localStorage.getItem("studio-welcome-seen") === "1"));
+    // Focus-restore, exercised against a trigger that stays visible/focusable throughout
+    // (unlike #moreAbout, which the app's own closeMenus() hides mid-click, blurring it
+    // before StudioWelcome.open() ever captures document.activeElement).
+    await gp.evaluate(() => document.getElementById("btnMore").focus());
+    await gp.evaluate(() => window.StudioWelcome.open());
+    await gp.waitForTimeout(120);
+    await gp.keyboard.press("Escape"); await gp.waitForTimeout(120);
+    ok("closing the tour restores focus to whatever opened it",
+      await gp.evaluate(() => document.activeElement && document.activeElement.id === "btnMore"));
     await gp.close();
 
     // Z10 follow-up: the passcode gate itself (gate.js) was still 100% fixed hex — the one

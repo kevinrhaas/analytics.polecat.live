@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 376,
+    title: 'Fix: the welcome tour traps keyboard focus, closes on Escape',
+    kind: 'fix',
+    ts: '2026-07-17T15:55:22.000Z',
+    items: [
+      'The first-run welcome tour is a full-viewport overlay with the header nav trigger hidden behind it -- but had no focus trap, so a keyboard (Tab) user could tab straight past its Skip/Back/Next buttons into that hidden control instead of staying inside the dialog. Flagged as a carried-over UX-sweep finding (2026-07-16 #10, 2026-07-17 #24).',
+      'Tab now cycles within the tour while it is open, Escape closes it (same as Skip), and closing restores focus to whatever opened it -- the same dialog contract the vendored shell\'s modal()/sheet() already use elsewhere in the app.',
+    ],
+  },
+  {
     v: 375,
     title: 'Fix: dark mode now reaches Home, Dashboards, Datasets, Connections and Settings',
     kind: 'fix',

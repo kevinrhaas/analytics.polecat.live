@@ -1038,6 +1038,15 @@
   the story-mode screenshot overlay (`.ss-*`, its own fixed black canvas). SW cache → v26. Suite
   1542/1542, verified visually via Playwright screenshots of Home/Settings/Dashboards/Connections
   in both themes.
+- v376: **Fix: the welcome tour traps keyboard focus, closes on Escape** — closes UX sweep finding
+  #2 (carried across #10 2026-07-16 and #24 2026-07-17). `app/welcome.js`'s full-viewport overlay
+  hides the header nav trigger behind it but had no focus trap, so a keyboard (Tab) user could
+  tab straight past the tour's own Skip/Back/Next buttons into that hidden control instead of
+  staying inside the dialog. Tab now cycles within the open tour, Escape closes it (same as
+  Skip), and closing restores focus to whatever opened it — the same contract the vendored
+  shell's `modal()`/`sheet()` already use elsewhere in the app (kept as a hand-rolled trap rather
+  than switching to `modal()` outright, since the tour's `.sw-*` markup/CSS and existing tests are
+  built around its own structure). SW cache → v27. 4 new tests, suite 1546/1546.
 
 ## NEXT (top = do first)
 
