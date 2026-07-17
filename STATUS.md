@@ -1311,6 +1311,21 @@
 >     Viridis View demo pack as a worked example. Linked from the docs nav bar. "Last updated"
 >     (needs dataset/job timestamp plumbed through to the render config) remains, tracked
 >     separately as it's a bigger lift than a doc slice.
+>     ✓ **Slice 4 shipped (2026-07-17): "Last updated" in the Sources popover.** `Studio.buildHtml`
+>     (`app/exporters.js`, the one place the live builder preview AND every static export funnel
+>     through) resolves each data access's linked workspace dataset and stamps its `updatedAt`
+>     into a sibling global, `window.STUDIO_DA_META` — kept OUT of `spec.cda.dataAccesses` itself
+>     so this derived, point-in-time value never gets saved back into a dashboard's persisted
+>     spec. A job run already bumps its materialized output dataset's `updatedAt` on every
+>     mutation (existing `Workspace.put` behavior — no new plumbing there), so this is exactly
+>     "when this panel's data was last (re)loaded," matching the annual-refresh model V8 built.
+>     `studio-render.js`'s `renderPanel` reads it per panel (`daLastUpdated(ch.da)`) and passes
+>     `lastUpdated` into both the choropleth and ensemble render configs; `studio-charts.js`
+>     appends a shared "Last updated <date>" line to both Sources popover bodies, omitted
+>     entirely when the DA has no linked dataset (samples, direct connectors, synthetic specs) —
+>     same "omit rather than guess" convention as the no-data hatching. Docs updated
+>     (`docs/index.html#ensembles`) to mention the line. **V9 is now feature-complete — the
+>     Viridis View track (V6→V9) Kevin handed off on 2026-07-16 is DONE.**
 >
 > Open questions parked for Kevin: (a) confirm /app/ move + redirect posture; (b) MapLibre vendor
 > size (~850KB) is fine as vendored no-build code?; (c) HUC8/CRD geometry sourcing priority;

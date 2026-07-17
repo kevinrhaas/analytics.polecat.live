@@ -1065,6 +1065,63 @@ function serve() {
       /4 of 5 providers currently selected/.test(prov.ensHtmlAfterToggle) &&
       /<li style="opacity:.55;text-decoration:line-through">DTN/.test(prov.ensHtmlAfterToggle),
       JSON.stringify(prov.ensHtmlAfterToggle));
+    ok("V9 LAST-UPDATED: omitted when a data access has no linked workspace dataset (the synthetic-spec case above)",
+      !/Last updated/.test(prov.ensHtml) && !/Last updated/.test(prov.mapHtml), "unexpected 'Last updated' with no linked dataset");
+
+    // ---- LAST UPDATED (Viridis V9 slice 4): dataset/job timestamp in both popovers ----
+    console.log("\n• V9: 'Last updated' — a linked workspace dataset's timestamp surfaces in both popovers");
+    const lastUpd = await page.evaluate(async function () {
+      var conn = Studio.Workspace.put("connections", { name: "lu-test", adapter: "file", cfg: {} });
+      var ds = Studio.Workspace.put("datasets", { name: "lu-ds", connectionId: conn.id, kind: "file", format: "csv", content: "year,provider,pct\n2020,DTN,10\n" });
+      var spec = { id: "lu-t", name: "lu-t", title: "t",
+        panels: [
+          { id: "c1", title: "c", span: "full", chart: { type: "ensembleSeries", da: "ts",
+            map: { labelCol: "year", seriesCol: "provider", valueCol: "pct" }, opts: { fmt: "raw" } } },
+          { id: "m1", title: "m", span: "full", chart: { type: "choropleth", da: "geo",
+            map: { idCol: "fips", valueCol: "pct", seriesCol: "provider" }, opts: { scale: "county", fmt: "raw" } } }
+        ],
+        kpis: [], filters: [], cda: { connections: [], dataAccesses: [
+          { id: "ts", kind: "sql", datasetId: ds.id, columns: ["year", "provider", "pct"] },
+          { id: "geo", kind: "sql", datasetId: ds.id, columns: ["fips", "provider", "pct"] }] } };
+      await window.__studioEnsureGeoAssets(spec);
+      var html = Studio.buildHtml(spec, window.__STUDIO_STATE.assets, { preview: true,
+        mock: { ts: { cols: ["year", "provider", "pct"], rows: [["2020", "DTN", 10], ["2021", "DTN", 12]] },
+                geo: { cols: ["fips", "provider", "pct"], rows: [["17031", "DTN", 10]] } } });
+      var dsUpdatedAt = ds.updatedAt;
+      Studio.Workspace.remove("datasets", ds.id, { silent: true });
+      Studio.Workspace.remove("connections", conn.id, { silent: true });
+      return await new Promise(function (resolve) {
+        var ifr = document.createElement("iframe");
+        ifr.style.cssText = "position:fixed;left:-2200px;top:0;width:1100px;height:900px";
+        document.body.appendChild(ifr);
+        ifr.srcdoc = html;
+        var t0 = Date.now();
+        (function poll() {
+          var doc = null; try { doc = ifr.contentDocument; } catch (e) {}
+          var med = doc ? doc.querySelectorAll('[data-ens="median"]') : [];
+          var mapPaths = doc ? doc.querySelectorAll("path[data-geo-id]") : [];
+          if (med.length && mapPaths.length > 3000) {
+            var daMeta = ifr.contentWindow.STUDIO_DA_META;
+            var ensBtn = doc.querySelector(".pdc-ens-legend [data-provenance-btn]");
+            var mapBtn = doc.querySelector(".pdc-geo-legend [data-provenance-btn]");
+            ensBtn.click();
+            var ensHtml = doc.querySelector(".pdc-ens-legend [data-provenance-pop]").innerHTML;
+            mapBtn.click();
+            var mapHtml = doc.querySelector(".pdc-geo-legend [data-provenance-pop]").innerHTML;
+            ifr.remove();
+            resolve({ daMeta: daMeta, dsUpdatedAt: dsUpdatedAt, ensHtml: ensHtml, mapHtml: mapHtml });
+          } else if (Date.now() - t0 > 15000) { ifr.remove(); resolve({ timeout: true }); }
+          else setTimeout(poll, 200);
+        })();
+      });
+    });
+    ok("V9 LAST-UPDATED: buildHtml resolves each data access's linked dataset into window.STUDIO_DA_META (a sibling global, not saved onto the spec)",
+      lastUpd.daMeta && lastUpd.daMeta.ts === lastUpd.dsUpdatedAt && lastUpd.daMeta.geo === lastUpd.dsUpdatedAt,
+      JSON.stringify(lastUpd.daMeta));
+    ok("V9 LAST-UPDATED: the ensemble chart's Sources popover shows a 'Last updated' line",
+      /Last updated/.test(lastUpd.ensHtml), lastUpd.ensHtml);
+    ok("V9 LAST-UPDATED: the choropleth's Sources popover shows a 'Last updated' line",
+      /Last updated/.test(lastUpd.mapHtml), lastUpd.mapHtml);
 
     // ---- GL MAP (Viridis V4): opt-in MapLibre renderer behind the same API ----
     console.log("\n• GL MAP: opt-in MapLibre renderer (Viridis V4)");
@@ -18713,7 +18770,7 @@ function serve() {
     // are fetched during install too (from the index we just cached), so a first-ever offline
     // visit still has a full library/gallery, not just a blank shell.
     const pwaDataPrecached = await pwaPage.evaluate(async function () {
-      const cache = await caches.open("studio-shell-v23");
+      const cache = await caches.open("studio-shell-v24");
       const keys = (await cache.keys()).map((r) => new URL(r.url).pathname.replace(/^\//, ""));
       const exIndex = await fetch("data/examples/index.json").then((r) => r.json());
       const missingExamples = exIndex.filter((ex) => keys.indexOf("data/examples/" + ex.file) < 0);

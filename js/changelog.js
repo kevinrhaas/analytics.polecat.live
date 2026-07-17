@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 373,
+    title: 'A "Last updated" line on the Sources popover',
+    kind: 'polish',
+    ts: '2026-07-17T10:47:09.000Z',
+    items: [
+      'The Sources popover on ensemble and choropleth charts now shows when the underlying dataset was last loaded, so a chart fed by a re-run prep job (or a stale one) is honest about its own freshness, not just its providers.',
+    ],
+  },
+  {
     v: 372,
     title: 'Help docs: an "Ensembles & scientific honesty" page',
     kind: 'polish',
