@@ -256,6 +256,21 @@
     if (opts.preview) {
       boot += "window.STUDIO_PREVIEW=true;\n" + jsonScript("window.PDC_MOCK", opts.mock || {}) + "\n";
     }
+    // V9 (scientific-honesty polish): "Last updated" per data access, resolved HERE
+    // (the one place both the live builder context and the static export funnel
+    // through) from the workspace dataset's own updatedAt — which a job run already
+    // bumps on materialization (Studio.Workspace.put stamps every mutation), so a
+    // job-output dataset's timestamp is exactly "when this was last (re)loaded". A
+    // separate global (not a field stamped onto spec.cda.dataAccesses) so this derived,
+    // point-in-time value never gets saved back into a dashboard's persisted spec.
+    var daMeta = {};
+    if (Studio.Workspace) {
+      ((spec.cda && spec.cda.dataAccesses) || []).forEach(function (d) {
+        var ds = d.datasetId && Studio.Workspace.get("datasets", d.datasetId);
+        if (ds && ds.updatedAt) daMeta[d.id] = ds.updatedAt;
+      });
+    }
+    boot += jsonScript("window.STUDIO_DA_META", daMeta) + "\n";
     boot += jsonScript("window.STUDIO_SPEC", spec) + "\n" +
       "document.addEventListener('DOMContentLoaded',function(){StudioRender.boot(window.STUDIO_SPEC);});\n</script>\n</body>\n</html>\n";
     return head + body + boot;

@@ -9,6 +9,11 @@
   var SR = window.StudioRender = {};
   // read lazily — the boot script may set STUDIO_PREVIEW AFTER this file loads
   function isPreview() { return !!window.STUDIO_PREVIEW; }
+  // V9 (scientific-honesty polish): "Last updated" epoch ms for a data access's
+  // backing dataset, stamped by exporters.js's buildHtml into window.STUDIO_DA_META
+  // (a sibling global to STUDIO_SPEC, not a spec field — see that file for why).
+  // null when the DA has no linked workspace dataset (samples, direct connectors).
+  function daLastUpdated(daId) { return (window.STUDIO_DA_META && window.STUDIO_DA_META[daId]) || null; }
 
   // Studio.icon() is NOT available here (iframe scope). Tiny inline SVG helper for builder-only buttons.
   function iSvg(d, sz) {
@@ -505,7 +510,8 @@
             classes: o.classes || 5, colorToken: o.color || "--good",
             fit: o.fit || "data", stateLines: o.stateLines !== false,
             renderer: o.renderer || "svg",
-            legend: o.showLegend !== false, fmt: f, height: o.height || 380 };
+            legend: o.showLegend !== false, fmt: f, height: o.height || 380,
+            lastUpdated: daLastUpdated(ch.da) };
           if (m.seriesCol && res.col(m.seriesCol) >= 0) {
             var cli = res.col(m.idCol), csi = res.col(m.seriesCol), cvi = res.col(m.valueCol);
             choroCfg.rowsSV = res.rows.map(function (r) { return { label: String(r[cli]), series: String(r[csi]), value: +r[cvi] }; });
@@ -523,7 +529,8 @@
             refSeries: o.refSeries || "", channel: o.channel || "providers",
             agg: o.agg || "median", medianLabel: o.medianLabel || "Common estimate",
             showBand: o.showBand !== false, showProviders: o.showProviders !== false,
-            showToggles: o.showToggles !== false, fmt: f, height: o.height || 320 });
+            showToggles: o.showToggles !== false, fmt: f, height: o.height || 320,
+            lastUpdated: daLastUpdated(ch.da) });
           break;
         case "treemap":
           PDC.treemap(body, { fmt: f, height: o.height || 300,

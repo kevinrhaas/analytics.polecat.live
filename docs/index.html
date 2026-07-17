@@ -443,7 +443,10 @@
   (and, when a provider column is mapped, each provider's own region count); on the Ensemble chart, how
   many providers are currently selected, how many points have <em>every</em> selected provider reporting
   (full coverage — a stricter, more honest signal than the agreement band alone), each provider's own point
-  count, and the reference series' point count with a reminder that it never joins the estimate. The popover
+  count, and the reference series' point count with a reminder that it never joins the estimate. When the
+  chart's data comes from a saved workspace dataset, the popover also shows a <strong>Last updated</strong>
+  line — the dataset's own timestamp, which a re-run prep job bumps automatically, so a chart is honest about
+  its own freshness and not just its providers. The popover
   stays open while you read it (unlike a hover tooltip) and works identically in an exported dashboard.</p>
 
   <h3>Handing off the underlying numbers</h3>

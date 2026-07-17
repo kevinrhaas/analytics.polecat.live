@@ -6153,10 +6153,19 @@
   function scaleNoun(scale) {
     return scale === "state" ? "states" : scale === "crd" ? "CRDs" : scale === "huc8" ? "HUC8 subbasins" : "counties";
   }
+  // V9: "Last updated" line shared by both provenance popovers — lastUpdated is an
+  // epoch-ms timestamp resolved from the panel's workspace dataset (see
+  // studio-render.js's daLastUpdated), null when the DA isn't backed by one
+  // (samples, direct connectors, or a builder preview with no saved dataset).
+  function lastUpdatedHtml(lastUpdated) {
+    if (!lastUpdated) return "";
+    return '<div style="margin-top:8px;padding-top:6px;border-top:1px solid var(--panel-border,#dfe4ee)">Last updated ' +
+      new Date(lastUpdated).toLocaleDateString() + "</div>";
+  }
   // V9: the "Sources" popover body for the map — coverage of what's CURRENTLY
   // shown (post channel-filter) plus, when linked to the ensemble bus, each
   // provider's own region count (dimmed+struck when toggled off elsewhere).
-  function mapProvenanceHtml(scale, coverage) {
+  function mapProvenanceHtml(scale, coverage, lastUpdated) {
     var pct = coverage.total ? Math.round((coverage.covered / coverage.total) * 100) : 0;
     var noun = scaleNoun(scale);
     var html = "<b>Coverage</b><div style=\"margin-top:2px\">" + coverage.covered + " of " + coverage.total + " " + noun + " have data (" + pct + "%).</div>";
@@ -6166,7 +6175,7 @@
           return "<li" + (p.on ? "" : ' style="opacity:.55;text-decoration:line-through"') + ">" + p.name + " — " + p.count + " " + noun + "</li>";
         }).join("") + "</ul>";
     }
-    return html;
+    return html + lastUpdatedHtml(lastUpdated);
   }
   // Shared legend — identical under both renderers (the no-data swatch draws
   // its hatch with a CSS gradient, so it needs no SVG pattern reference).
@@ -6186,7 +6195,7 @@
       '<span style="display:inline-flex;align-items:center;gap:4px;margin-left:10px"><i style="width:14px;height:10px;border-radius:2px;border:1px solid var(--panel-border,#ccc);background:repeating-linear-gradient(45deg,transparent,transparent 2px,var(--panel-border,#ccc) 2px,var(--panel-border,#ccc) 3px)"></i>' + (cfg.noDataLabel || "No data") + "</span>";
     el.appendChild(lg);
     if (cfg.provenance !== false && coverage) {
-      lg.appendChild(provenanceBtn(function () { return mapProvenanceHtml(cfg.scale || "county", coverage); }));
+      lg.appendChild(provenanceBtn(function () { return mapProvenanceHtml(cfg.scale || "county", coverage, cfg.lastUpdated); }));
     }
     if (cfg.csvDownload !== false && csvRows) {
       lg.appendChild(csvDownloadBtn("map-data.csv", function () {
@@ -6379,7 +6388,7 @@
         if (refName && refRows.length) {
           html += '<div style="margin-top:8px">Reference: ' + refName + " — " + refRows.length + " point" + (refRows.length === 1 ? "" : "s") + ", never part of the common estimate.</div>";
         }
-        return html;
+        return html + lastUpdatedHtml(cfg.lastUpdated);
       }));
     }
     // V9: CSV download of the CURRENT SELECTION — exactly the providers left
