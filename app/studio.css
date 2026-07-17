@@ -1542,6 +1542,22 @@ body.simple-mode .da-acts{display:none!important}
   letter-spacing:.04em;padding:5px 10px;border-bottom:1px solid var(--line)}
 .dsx-preview td{padding:5px 10px;border-bottom:1px solid var(--line-2);color:var(--ink);font-family:var(--mono);font-size:11.5px}
 
+/* ── Jobs section (jobs-*, Viridis V8) — a rename/cast/derive/filter/aggregate
+   pipeline over one dataset; shares the cx-*/dsx-* list and wizard anatomy ── */
+.jobs-steps{display:flex;flex-direction:column;gap:10px}
+.jobs-step-card{border:1px solid var(--line);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:8px;background:var(--field)}
+.jobs-step-head{display:flex;gap:6px;align-items:center}
+.jobs-step-head select{flex:1}
+.jobs-step-head .btn{padding:5px 9px;font-size:12px}
+.jobs-step-fields{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.jobs-step-fields input,.jobs-step-fields select{padding:7px 10px;font-size:12.5px;border:1px solid var(--line);border-radius:8px;
+  background:var(--surface,var(--field));color:var(--ink);font-family:var(--font)}
+.jobs-operand{display:inline-flex;gap:4px}
+.jobs-operand input{width:100px}
+.jobs-metrics{display:flex;flex-direction:column;gap:6px;width:100%}
+.jobs-metric-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.jobs-metric-row input{flex:1;min-width:90px}
+
 /* ── Workspace backend (Settings card + rail source indicator) ── */
 .ws-card-intro{margin:0 0 14px;font-size:12.5px;line-height:1.6;color:#c9b9a3}
 .ws-current,.ws-secrets{display:flex;align-items:center;gap:12px;background:#241d2a;

@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 367,
+    title: 'Jobs -- prep and roll up a dataset, including an acreage-weighted mean',
+    kind: 'feature',
+    ts: '2026-07-17T01:51:51.000Z',
+    items: [
+      'A new Jobs section preps a dataset before it is charted: rename or cast a column, derive a new one from two others, filter rows, and roll everything up with a group-by aggregate -- sum, average, count, median, or a weighted mean (the honest way to aggregate a percent metric up from county to State, CRD, or HUC8, instead of a flat average that misrepresents counties of very different size).',
+      'Run a job and the result saves back as an ordinary dataset, ready for Explore or any dashboard; re-running the same job updates that dataset in place, so an annual refresh is one click. Join/union across datasets and a custom-SQL step are on the roadmap.',
+    ],
+  },
+  {
     v: 366,
     title: 'Demo packs -- a one-click Viridis View sample for the geo-analytics pitch',
     kind: 'feature',

@@ -34,6 +34,7 @@
     <button class="rail-item" data-sec="explore" title="Explore" aria-label="Explore"><span class="rail-ic" data-ic="trend-up"></span><span class="rail-lbl">Explore</span></button>
     <button class="rail-item" data-sec="dashboards" title="Dashboards" aria-label="Dashboards"><span class="rail-ic" data-ic="layers"></span><span class="rail-lbl">Dashboards</span></button>
     <button class="rail-item" data-sec="datasets" title="Datasets" aria-label="Datasets"><span class="rail-ic" data-ic="db"></span><span class="rail-lbl">Datasets</span></button>
+    <button class="rail-item" data-sec="jobs" title="Jobs" aria-label="Jobs"><span class="rail-ic" data-ic="sliders"></span><span class="rail-lbl">Jobs</span></button>
     <button class="rail-item" data-sec="connections" title="Connections" aria-label="Connections"><span class="rail-ic" data-ic="link"></span><span class="rail-lbl">Connections</span></button>
     <div class="rail-group-lbl rail-lbl" aria-hidden="true">Build</div>
     <button class="rail-item active" data-sec="studio" title="Studio" aria-label="Studio" aria-current="page"><span class="rail-ic" data-ic="grid"></span><span class="rail-lbl">Studio</span></button>
@@ -89,6 +90,17 @@
         </div>
       </div>
       <div id="dsxResults"></div>
+    </div>
+  </section>
+  <section id="secJobs" class="app-sec has-content" hidden>
+    <div class="repo-wrap">
+      <div class="repo-hero"><h1>Jobs</h1>
+        <p>Prep a dataset before it's charted: rename/cast/derive columns, filter rows, and roll up with an acreage-weighted mean for honest State/CRD/HUC8 aggregates. Run a job and its output lands back in Datasets, ready for Explore or any dashboard.</p>
+        <div class="repo-io">
+          <button type="button" class="btn primary" id="jobsNewBtn">+ New job</button>
+        </div>
+      </div>
+      <div id="jobsResults"></div>
     </div>
   </section>
   <section id="secConnections" class="app-sec has-content" hidden>
@@ -269,6 +281,7 @@
 <script src="app/sources/localfile.js"></script>
 <script src="app/sources/gsheets.js"></script>
 <script src="app/sources/workspace.js"></script>
+<script src="app/sources/jobs-engine.js"></script>
 <script src="app/sources/sync.js"></script>
 <script src="app/sampledata.js"></script>
 <script src="app/demopacks.js"></script>

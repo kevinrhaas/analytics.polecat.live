@@ -8,7 +8,7 @@
   "use strict";
   var LS_SECTION = "studio-shell-section";
   var LS_EXPANDED = "studio-shell-expanded";
-  var SECTIONS = ["home", "explore", "dashboards", "datasets", "connections", "studio", "settings"];
+  var SECTIONS = ["home", "explore", "dashboards", "datasets", "jobs", "connections", "studio", "settings"];
 
   var nav = document.getElementById("railNav");
   var appMain = document.getElementById("appMain");

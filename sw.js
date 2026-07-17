@@ -5,7 +5,10 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v18"; /* v18: Demo packs (Viridis V7) — app/demopacks.js added to the precache list.
+var CACHE_NAME = "studio-shell-v19"; /* v19: Jobs (Viridis V8 slice 1) — app/sources/jobs-engine.js
+   added to the precache list. Also fixes a pre-existing gap: vendor/pdc-ui.css (fetched at boot
+   by studio.js) was never precached even though its vendor/pdc-ui.js counterpart was, breaking
+   the very first offline boot before the runtime cache had a chance to see it.
    vendor/maplibre/* and site/shots/*.png are deliberately NOT precached (~3.8MB combined
    would tax every SW install); the fetch handler runtime-caches them after first view. */
 var SHELL_FILES = [
@@ -44,6 +47,7 @@ var SHELL_FILES = [
   "app/sources/localfile.js",
   "app/sources/gsheets.js",
   "app/sources/workspace.js",
+  "app/sources/jobs-engine.js",
   "app/sources/sync.js",
   "app/sampledata.js",
   "app/demopacks.js",
@@ -64,6 +68,7 @@ var SHELL_FILES = [
   "app/palette.js",
   "app/studio-render.js",
   "app/studio-charts.js",
+  "vendor/pdc-ui.css",
   "vendor/pdc-ui.js",
   "data/cda-catalog.json",
   "data/examples/index.json"

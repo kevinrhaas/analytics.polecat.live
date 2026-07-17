@@ -486,8 +486,8 @@ function serve() {
     ok("WS: data adapters are data-only bridges over the proven engines (in-band errors, meta-plane refusals)",
       wsDataAdapters.dataOnly && wsDataAdapters.fieldKeys === "account,token,warehouse,database,schema,role" &&
       wsDataAdapters.badIsInBand && wsDataAdapters.refuses && wsDataAdapters.noSqlInBand, JSON.stringify(wsDataAdapters));
-    ok("WS: workspace schema is analytics-owned (connections/datasets/dashboards/analyses — v2)",
-      wsRegistry.appId === "analytics" && wsRegistry.tableNames.join(",") === "connections,datasets,dashboards,analyses", JSON.stringify(wsRegistry.tableNames));
+    ok("WS: workspace schema is analytics-owned (connections/datasets/dashboards/analyses/jobs — v3)",
+      wsRegistry.appId === "analytics" && wsRegistry.tableNames.join(",") === "connections,datasets,dashboards,analyses,jobs", JSON.stringify(wsRegistry.tableNames));
 
     // ---- PostgREST adapter (★★★-2): end-to-end against a mock PostgREST -----
     console.log("\n• PostgREST data adapter (★★★-2)");
@@ -1018,8 +1018,8 @@ function serve() {
         ddl: Studio.WS.provisionDDL().join(";"),
         delta: Studio.WS.provisionDeltaSQL() };
     });
-    ok("XP: workspace schema v2 adds the analyses table — provisionDDL creates it, provisionDeltaSQL carries the paste-me upgrade",
-      xpSchema.v === 2 && xpSchema.hasTable && /CREATE TABLE IF NOT EXISTS "analyses"/.test(xpSchema.ddl) &&
+    ok("XP: workspace schema (now v3) still carries the analyses table (v2) — provisionDDL creates it, provisionDeltaSQL carries the paste-me upgrade",
+      xpSchema.v === 3 && xpSchema.hasTable && /CREATE TABLE IF NOT EXISTS "analyses"/.test(xpSchema.ddl) &&
       /CREATE TABLE IF NOT EXISTS "analyses"/.test(xpSchema.delta), JSON.stringify({ v: xpSchema.v, hasTable: xpSchema.hasTable }));
     // v1 → v2 self-heal on Turso: drop the analyses table (simulating a workspace
     // provisioned before it existed), save, and the ensure-DDL recreates it.
@@ -1328,6 +1328,112 @@ function serve() {
     await page.evaluate(function () { window.__studioShellSetSection("studio"); });
     await page.waitForTimeout(200);
 
+    // ---- JOBS (Viridis V8 slice 1): prep/rollup engine + materialize --------
+    console.log("\n• JOBS: prep/rollup engine (Viridis V8 slice 1)");
+    const jobsEngine = await page.evaluate(function () {
+      var input = {
+        columns: ["county", "state", "pct", "acres"],
+        rows: [
+          ["Story", "IA", "40", "100"],
+          ["Polk", "IA", "60", "300"],
+          ["Cook", "IL", "20", "50"]
+        ]
+      };
+      var renamed = Studio.runJobSteps(input, [{ op: "rename", from: "pct", to: "adoption_pct" }]);
+      var cast = Studio.runJobSteps(input, [{ op: "cast", col: "pct", to: "number" }]);
+      var derived = Studio.runJobSteps(input, [{ op: "derive", outCol: "acre_pct", a: { col: "pct" }, operator: "*", b: { col: "acres" } }]);
+      var filtered = Studio.runJobSteps(input, [{ op: "filter", col: "state", cmp: "eq", value: "IA" }]);
+      var rolled = Studio.runJobSteps(input, [
+        { op: "cast", col: "pct", to: "number" }, { op: "cast", col: "acres", to: "number" },
+        { op: "aggregate", groupBy: ["state"], metrics: [
+          { col: "pct", fn: "wmean", as: "wmean_pct", weightCol: "acres" },
+          { col: "pct", fn: "avg", as: "avg_pct" },
+          { col: "county", fn: "count", as: "n" }
+        ] }
+      ]);
+      var csv = Studio.rowsToCsv(["a", "b"], [["1", "x,y"], ["2", 'he said "hi"']]);
+      var iaRow = rolled.rows.filter(function (r) { return r[0] === "IA"; })[0];
+      return {
+        renamedCols: renamed.columns, castType: typeof cast.rows[0][2],
+        derivedVal: derived.rows[0][4], filteredCount: filtered.rows.length,
+        iaRow: iaRow, csv: csv
+      };
+    });
+    ok("JOBS: rename swaps the column name in place",
+      jobsEngine.renamedCols.indexOf("adoption_pct") >= 0 && jobsEngine.renamedCols.indexOf("pct") < 0, JSON.stringify(jobsEngine.renamedCols));
+    ok("JOBS: cast turns a text cell into a real number",
+      jobsEngine.castType === "number", jobsEngine.castType);
+    ok("JOBS: derive multiplies two explicit {col} operands into a new column (40*100=4000)",
+      jobsEngine.derivedVal === 4000, String(jobsEngine.derivedVal));
+    ok("JOBS: filter keeps only rows matching the comparator",
+      jobsEngine.filteredCount === 2, String(jobsEngine.filteredCount));
+    ok("JOBS: aggregate's weighted mean is acreage-weighted, not a flat average — IA's 40%/100ac + 60%/300ac -> 55%, not the flat 50% average",
+      jobsEngine.iaRow && Math.abs(jobsEngine.iaRow[1] - 55) < 1e-9 && Math.abs(jobsEngine.iaRow[2] - 50) < 1e-9 && jobsEngine.iaRow[3] === 2,
+      JSON.stringify(jobsEngine.iaRow));
+    ok("JOBS: rowsToCsv quotes cells containing commas/quotes",
+      jobsEngine.csv === 'a,b\n1,"x,y"\n2,"he said ""hi"""', jobsEngine.csv);
+
+    const jobsSchema = await page.evaluate(function () {
+      return { v: Studio.WS.SCHEMA_VERSION, hasTable: Studio.WS.TABLE_NAMES.indexOf("jobs") >= 0,
+        ddl: Studio.WS.provisionDDL().join(";"), delta: Studio.WS.provisionDeltaSQL() };
+    });
+    ok("JOBS: workspace schema v3 adds the jobs table — provisionDDL creates it, provisionDeltaSQL carries the paste-me upgrade",
+      jobsSchema.v === 3 && jobsSchema.hasTable && /CREATE TABLE IF NOT EXISTS "jobs"/.test(jobsSchema.ddl) &&
+      /CREATE TABLE IF NOT EXISTS "jobs"/.test(jobsSchema.delta), JSON.stringify(jobsSchema));
+
+    // end-to-end: a real source dataset (file adapter, live parse) -> run a job -> a materialized dataset
+    const jobsRun = await page.evaluate(async function () {
+      var conn = Studio.Workspace.put("connections", { name: "jobs-test-file", adapter: "file", cfg: {} });
+      var src = Studio.Workspace.put("datasets", {
+        name: "jobs-src", connectionId: conn.id, kind: "file", format: "csv",
+        content: "county,state,pct,acres\nStory,IA,40,100\nPolk,IA,60,300\nCook,IL,20,50\n"
+      });
+      var job = Studio.Workspace.put("jobs", {
+        name: "state-rollup", sourceDatasetId: src.id, outputName: "state-rollup-out",
+        steps: [
+          { op: "cast", col: "pct", to: "number" }, { op: "cast", col: "acres", to: "number" },
+          { op: "aggregate", groupBy: ["state"], metrics: [{ col: "pct", fn: "wmean", as: "wmean_pct", weightCol: "acres" }] }
+        ]
+      });
+      var r1 = await window.__studioRunJob(job);
+      var out1 = Studio.Workspace.get("datasets", job.outputDatasetId);
+      var reran = Studio.Workspace.get("jobs", job.id);
+      var r2 = await window.__studioRunJob(reran); // re-run: same outputDatasetId, not a new row
+      var dsCountAfter = Studio.Workspace.all("datasets").filter(function (d) { return d.jobId === job.id; }).length;
+      return {
+        rows1: r1.rows.length, outKind: out1 && out1.kind, outTags: out1 && out1.tags,
+        outputId1: r1.outputDatasetId, outputId2: r2.outputDatasetId, dsCountAfter: dsCountAfter,
+        jobLastRunOk: Studio.Workspace.get("jobs", job.id).lastRun.ok
+      };
+    });
+    ok("JOBS: running a job materializes its output as a tagged, kind:'file' dataset with the rolled-up rows",
+      jobsRun.rows1 === 2 && jobsRun.outKind === "file" && (jobsRun.outTags || []).indexOf("job-output") >= 0, JSON.stringify(jobsRun));
+    ok("JOBS: re-running the SAME job updates the same output dataset in place (annual-refresh case) — no duplicate row",
+      jobsRun.outputId1 === jobsRun.outputId2 && jobsRun.dsCountAfter === 1 && jobsRun.jobLastRunOk, JSON.stringify(jobsRun));
+
+    // the Jobs rail section renders the job we just created
+    await page.evaluate(function () { window.__studioShellSetSection("jobs"); });
+    await page.waitForTimeout(200);
+    const jobsUI = await page.evaluate(function () {
+      return { rowCount: document.querySelectorAll("#jobsResults .cx-row").length,
+        hasName: (document.querySelector("#jobsResults .cx-name b") || {}).textContent };
+    });
+    ok("JOBS: the Jobs section lists the saved job",
+      jobsUI.rowCount >= 1 && jobsUI.hasName === "state-rollup", JSON.stringify(jobsUI));
+    // cleanup
+    await page.evaluate(function () {
+      var job = Studio.Workspace.all("jobs").filter(function (j) { return j.name === "state-rollup"; })[0];
+      if (job) {
+        if (job.outputDatasetId) Studio.Workspace.remove("datasets", job.outputDatasetId, { silent: true });
+        Studio.Workspace.remove("jobs", job.id, { silent: true });
+      }
+      Studio.Workspace.all("datasets").filter(function (d) { return d.name === "jobs-src"; }).forEach(function (d) { Studio.Workspace.remove("datasets", d.id, { silent: true }); });
+      Studio.Workspace.all("connections").filter(function (c) { return c.name === "jobs-test-file" || c.jobOutputs; }).forEach(function (c) { Studio.Workspace.remove("connections", c.id, { silent: true }); });
+      Studio.Workspace.notify("*");
+      window.__studioShellSetSection("studio");
+    });
+    await page.waitForTimeout(200);
+
     const wsStore = await page.evaluate(function () {
       var W = Studio.Workspace, events = [];
       var off = W.on("change", function (p) { events.push(p.table + ":" + (p.removed ? "del" : "put")); });
@@ -1415,7 +1521,7 @@ function serve() {
     }, PORT);
     ok("WS: turso adapter end-to-end — probe(empty)→provision→probe(ours, app=analytics)",
       wsTurso.test.ok && wsTurso.probeEmpty === "empty" && wsTurso.provision.ok &&
-      wsTurso.probeState === "polecat" && wsTurso.probeApp === "analytics" && wsTurso.probeVer === 2, JSON.stringify(wsTurso));
+      wsTurso.probeState === "polecat" && wsTurso.probeApp === "analytics" && wsTurso.probeVer === 3, JSON.stringify(wsTurso));
     ok("WS: turso adapter round-trips a full workspace snapshot (save → load)",
       wsTurso.save.ok && wsTurso.loadedConn === "warehouse" && wsTurso.loadedDs === "SELECT * FROM orders" && wsTurso.loadedSetting === "polecat", JSON.stringify(wsTurso));
     ok("WS: turso data plane answers queryData and drop() resets to empty",
@@ -14316,20 +14422,20 @@ function serve() {
       var items = nav ? Array.prototype.slice.call(nav.querySelectorAll(".rail-item[data-sec]")) : [];
       var studioBtn = nav && nav.querySelector('.rail-item[data-sec="studio"]');
       return {
-        ok: !!nav && items.length === 7 && !!studioBtn && studioBtn.classList.contains("active")
+        ok: !!nav && items.length === 8 && !!studioBtn && studioBtn.classList.contains("active")
           && studioBtn.getAttribute("aria-current") === "page",
         secs: items.map(function (b) { return b.getAttribute("data-sec"); }),
         appMainHidden: document.getElementById("appMain").hidden,
         collapseBtn: !!document.getElementById("railCollapse")
       };
     });
-    ok("Z1: rail has Home/Explore/Dashboards/Datasets/Connections/Studio/Settings + Studio active by default", z1Boot.ok, JSON.stringify(z1Boot));
+    ok("Z1: rail has Home/Explore/Dashboards/Datasets/Jobs/Connections/Studio/Settings + Studio active by default", z1Boot.ok, JSON.stringify(z1Boot));
     ok("Z1: #appMain (the builder) is visible by default", z1Boot.appMainHidden === false, JSON.stringify(z1Boot));
 
     // Z1-2: rail icons are real inline SVGs (Studio.icon(), theme-aware — no emoji/unicode glyphs)
     const z1Icons = await page.evaluate(function () {
       var svgs = document.querySelectorAll("#railNav .rail-ic svg");
-      return { ok: svgs.length === 10, count: svgs.length }; // 7 sections + Search/⌘K (Track N) + Help (Z11) + collapse toggle
+      return { ok: svgs.length === 11, count: svgs.length }; // 8 sections + Search/⌘K (Track N) + Help (Z11) + collapse toggle
     });
     ok("Z1: rail buttons render inline SVG icons (Studio.icon helper)", z1Icons.ok, JSON.stringify(z1Icons));
 
@@ -18210,7 +18316,7 @@ function serve() {
     // are fetched during install too (from the index we just cached), so a first-ever offline
     // visit still has a full library/gallery, not just a blank shell.
     const pwaDataPrecached = await pwaPage.evaluate(async function () {
-      const cache = await caches.open("studio-shell-v17");
+      const cache = await caches.open("studio-shell-v19");
       const keys = (await cache.keys()).map((r) => new URL(r.url).pathname.replace(/^\//, ""));
       const exIndex = await fetch("data/examples/index.json").then((r) => r.json());
       const missingExamples = exIndex.filter((ex) => keys.indexOf("data/examples/" + ex.file) < 0);
