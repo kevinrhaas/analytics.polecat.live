@@ -1557,6 +1557,8 @@ body.simple-mode .da-acts{display:none!important}
 .jobs-metrics{display:flex;flex-direction:column;gap:6px;width:100%}
 .jobs-metric-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 .jobs-metric-row input{flex:1;min-width:90px}
+.jobs-sql-box{width:100%;padding:7px 10px;font-size:12.5px;font-family:var(--mono,monospace);
+  border:1px solid var(--line);border-radius:8px;background:var(--surface,var(--field));color:var(--ink);resize:vertical}
 
 /* ── Workspace backend (Settings card + rail source indicator) ── */
 .ws-card-intro{margin:0 0 14px;font-size:12.5px;line-height:1.6;color:#c9b9a3}

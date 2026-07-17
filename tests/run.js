@@ -1433,6 +1433,78 @@ function serve() {
       joinUnionEngine.datasetIds.length === 2 && joinUnionEngine.datasetIds.indexOf("R") >= 0 && joinUnionEngine.datasetIds.indexOf("A") >= 0,
       JSON.stringify(joinUnionEngine.datasetIds));
 
+    // ---- JOBS: Custom SQL step (Viridis V8 slice 3) -----------------------
+    console.log("\n• JOBS: Custom SQL step (Viridis V8 slice 3)");
+    const jobsSqlEngine = await page.evaluate(async function () {
+      var input = { columns: ["state", "score"], rows: [["IA", "10"], ["IL", "20"]] };
+      var calls = [];
+      function fakeSqlRunner(columns, rows, query) {
+        calls.push({ columns: columns, rows: rows, query: query });
+        return Promise.resolve({ columns: ["state", "doubled"], rows: rows.map(function (r) { return [r[0], Number(r[1]) * 2]; }) });
+      }
+      // no 'sql' step -> the fast path never calls sqlRunner at all
+      var noSql = await Studio.runJobStepsAsync(input, [{ op: "rename", from: "score", to: "pts" }], null, fakeSqlRunner);
+      var callsAfterNoSql = calls.length;
+
+      // a pipe step, then 'sql', then another pipe step -> proves ordering AND that the sql
+      // step's output becomes the input to the step after it
+      var mixed = await Studio.runJobStepsAsync(input,
+        [{ op: "rename", from: "score", to: "pts" }, { op: "sql", query: "SELECT * FROM t WHERE doubled > 20" }, { op: "cast", col: "doubled", to: "string" }],
+        null, fakeSqlRunner);
+
+      // no sqlRunner supplied -> a clear in-band error, not a thrown exception
+      var noRunner = await Studio.runJobStepsAsync(input, [{ op: "sql", query: "SELECT 1" }], null, null);
+
+      return {
+        noSqlRows: noSql.rows, callsAfterNoSql: callsAfterNoSql,
+        mixedCols: mixed.columns, mixedRows: mixed.rows, sqlCallColumns: calls[0] && calls[0].columns, sqlCallQuery: calls[0] && calls[0].query,
+        noRunnerError: noRunner.error,
+        stepKinds: Studio.JOB_STEP_KINDS.map(function (k) { return k.op; })
+      };
+    });
+    ok("JOBS: runJobStepsAsync never calls sqlRunner when a job has no 'sql' step (zero async engine cost)",
+      jobsSqlEngine.callsAfterNoSql === 0 && jobsSqlEngine.noSqlRows[0][1] === "10", JSON.stringify(jobsSqlEngine.noSqlRows));
+    ok("JOBS: runJobStepsAsync runs pipe segments around a 'sql' step in order, feeding the sql step's output to the next pipe segment",
+      jobsSqlEngine.sqlCallColumns && jobsSqlEngine.sqlCallColumns.join(",") === "state,pts" &&
+      jobsSqlEngine.sqlCallQuery === "SELECT * FROM t WHERE doubled > 20" &&
+      jobsSqlEngine.mixedCols.join(",") === "state,doubled" &&
+      jobsSqlEngine.mixedRows.length === 2 && typeof jobsSqlEngine.mixedRows[0][1] === "string",
+      JSON.stringify(jobsSqlEngine));
+    ok("JOBS: runJobStepsAsync resolves an in-band error (not a rejection) when a 'sql' step has no sqlRunner available",
+      /Custom SQL/.test(jobsSqlEngine.noRunnerError || ""), jobsSqlEngine.noRunnerError);
+    ok("JOBS: JOB_STEP_KINDS now includes sql",
+      jobsSqlEngine.stepKinds.indexOf("sql") >= 0, JSON.stringify(jobsSqlEngine.stepKinds));
+
+    // end-to-end: a real job with a 'sql' step, DuckDB stubbed (never hits the real CDN/wasm —
+    // same precedent as the Z14 DuckDB connector tests above)
+    const jobsSqlRun = await page.evaluate(async function () {
+      var origQueryRows = Studio.DuckDB.queryRows;
+      Studio.DuckDB.queryRows = function (columns, rows, sql) {
+        return Promise.resolve({ columns: columns.concat(["flag"]), rows: rows.map(function (r) { return r.concat(["seen:" + sql]); }) });
+      };
+      var conn = Studio.Workspace.put("connections", { name: "jobs-sql-test", adapter: "file", cfg: {} });
+      var src = Studio.Workspace.put("datasets", { name: "jobs-sql-src", connectionId: conn.id, kind: "file", format: "csv", content: "state,score\nIA,10\nIL,20\n" });
+      var job = Studio.Workspace.put("jobs", {
+        name: "sql-test-job", sourceDatasetId: src.id, outputName: "sql-test-out",
+        steps: [{ op: "sql", query: "SELECT * FROM t" }]
+      });
+      var r = await window.__studioRunJob(job);
+      var out = Studio.Workspace.get("datasets", job.outputDatasetId);
+      Studio.Workspace.remove("jobs", job.id, { silent: true });
+      if (out) Studio.Workspace.remove("datasets", out.id, { silent: true });
+      Studio.Workspace.remove("datasets", src.id, { silent: true });
+      Studio.Workspace.remove("connections", conn.id, { silent: true });
+      Studio.Workspace.all("connections").filter(function (c) { return c.jobOutputs; }).forEach(function (c) { Studio.Workspace.remove("connections", c.id, { silent: true }); });
+      Studio.Workspace.notify("*");
+      Studio.DuckDB.queryRows = origQueryRows;
+      return { columns: r.columns, rows: r.rows, outTags: out && out.tags };
+    });
+    ok("JOBS: end-to-end a job with a 'sql' step runs it via Studio.DuckDB.queryRows and materializes the result",
+      jobsSqlRun.columns.join(",") === "state,score,flag" &&
+      jobsSqlRun.rows.length === 2 && jobsSqlRun.rows[0][2] === "seen:SELECT * FROM t" &&
+      (jobsSqlRun.outTags || []).indexOf("job-output") >= 0,
+      JSON.stringify(jobsSqlRun));
+
     const jobsSchema = await page.evaluate(function () {
       return { v: Studio.WS.SCHEMA_VERSION, hasTable: Studio.WS.TABLE_NAMES.indexOf("jobs") >= 0,
         ddl: Studio.WS.provisionDDL().join(";"), delta: Studio.WS.provisionDeltaSQL() };
@@ -1577,6 +1649,31 @@ function serve() {
       Studio.Workspace.all("jobs").filter(function (j) { return j.name === "ui-join-job"; }).forEach(function (j) { Studio.Workspace.remove("jobs", j.id, { silent: true }); });
       Studio.Workspace.all("datasets").filter(function (d) { return d.name === "jobs-editor-ui-ds"; }).forEach(function (d) { Studio.Workspace.remove("datasets", d.id, { silent: true }); });
       Studio.Workspace.all("connections").filter(function (c) { return c.name === "jobs-editor-ui-test"; }).forEach(function (c) { Studio.Workspace.remove("connections", c.id, { silent: true }); });
+      Studio.Workspace.notify("*");
+      window.__studioShellSetSection("studio");
+    });
+    await page.waitForTimeout(200);
+
+    // opening the job editor on a job with a 'sql' step renders the SQL textarea
+    await page.evaluate(function () {
+      window.__studioShellSetSection("jobs");
+      var conn = Studio.Workspace.put("connections", { name: "jobs-sql-editor-ui-test", adapter: "file", cfg: {} });
+      var ds = Studio.Workspace.put("datasets", { name: "jobs-sql-editor-ui-ds", connectionId: conn.id, kind: "file", format: "csv", content: "a,b\n1,2\n" });
+      var job = Studio.Workspace.put("jobs", { name: "ui-sql-job", sourceDatasetId: ds.id, steps: [{ op: "sql", query: "SELECT * FROM t" }] });
+      window.__studioOpenJobEditor(job);
+    });
+    await page.waitForTimeout(150);
+    const sqlEditorUI = await page.evaluate(function () {
+      var box = document.querySelector(".jobs-step-fields .jobs-sql-box");
+      return { hasBox: !!box, value: box && box.value };
+    });
+    ok("JOBS: opening the editor on a sql step renders the Custom SQL textarea with its saved query",
+      sqlEditorUI.hasBox && sqlEditorUI.value === "SELECT * FROM t", JSON.stringify(sqlEditorUI));
+    await page.evaluate(function () {
+      document.querySelector(".modal-ov .x").click();
+      Studio.Workspace.all("jobs").filter(function (j) { return j.name === "ui-sql-job"; }).forEach(function (j) { Studio.Workspace.remove("jobs", j.id, { silent: true }); });
+      Studio.Workspace.all("datasets").filter(function (d) { return d.name === "jobs-sql-editor-ui-ds"; }).forEach(function (d) { Studio.Workspace.remove("datasets", d.id, { silent: true }); });
+      Studio.Workspace.all("connections").filter(function (c) { return c.name === "jobs-sql-editor-ui-test"; }).forEach(function (c) { Studio.Workspace.remove("connections", c.id, { silent: true }); });
       Studio.Workspace.notify("*");
       window.__studioShellSetSection("studio");
     });
@@ -18464,7 +18561,7 @@ function serve() {
     // are fetched during install too (from the index we just cached), so a first-ever offline
     // visit still has a full library/gallery, not just a blank shell.
     const pwaDataPrecached = await pwaPage.evaluate(async function () {
-      const cache = await caches.open("studio-shell-v20");
+      const cache = await caches.open("studio-shell-v21");
       const keys = (await cache.keys()).map((r) => new URL(r.url).pathname.replace(/^\//, ""));
       const exIndex = await fetch("data/examples/index.json").then((r) => r.json());
       const missingExamples = exIndex.filter((ex) => keys.indexOf("data/examples/" + ex.file) < 0);

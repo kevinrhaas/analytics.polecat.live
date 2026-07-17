@@ -324,8 +324,9 @@
     the normalize-and-stack case for combining several differently-shaped sources (e.g. five
     providers with five different raw column names) into one common table. Each output column
     maps from a column in the other dataset (or falls back to a same-name match, else blank).</li>
-    <li><strong>A custom-SQL step is on the roadmap</strong> — join/union across datasets now
-    cover the multi-dataset prep the Viridis rollups need.</li>
+    <li><strong>Custom SQL</strong> runs an arbitrary query against the pipeline's rows so far
+    (table <code>t</code>), via an in-browser DuckDB engine loaded the first time a job uses
+    it — useful for anything the built-in steps don't cover directly.</li>
   </ul>
 
   <h2>The builder</h2>

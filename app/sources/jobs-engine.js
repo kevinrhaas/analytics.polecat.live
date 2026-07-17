@@ -20,7 +20,13 @@
    step.columnMap, so five differently-shaped provider datasets land as rows
    in one common table.
 
-   A custom-SQL step is deferred to a later slice (see STATUS.md V8). */
+   A 'sql' step (Viridis V8 slice 3) is the one op this pure engine can't run
+   itself — it needs an actual SQL engine (DuckDB-Wasm, see app/duckdb.js),
+   which is async and DOM/CDN-dependent. Studio.runJobStepsAsync() below
+   splits a step list at 'sql' boundaries, running the synchronous engine on
+   each pipe segment and handing 'sql' segments off to a caller-supplied
+   sqlRunner — so this file still has zero Workspace/DOM/engine dependency,
+   and stays unit-testable by injecting a fake sqlRunner. */
 (function () {
   "use strict";
   window.Studio = window.Studio || {};
@@ -237,6 +243,47 @@
     return { columns: columns, rows: toRows(columns, objs) };
   };
 
+  // Studio.runJobStepsAsync(input, steps, ctx?, sqlRunner?) -> Promise<{columns, rows, error?}>
+  // Splits `steps` at every 'sql' step into alternating pipe/sql segments,
+  // running pipe segments through the synchronous runJobSteps and each 'sql'
+  // segment through sqlRunner(columns, rows, query) -> Promise<{columns, rows}>
+  // (query text addresses the CURRENT pipeline state as table "t" — the
+  // caller owns that convention, this file just orchestrates the split).
+  // A job with no 'sql' step never calls sqlRunner at all — zero async
+  // engine cost for the common case. Rejections/thrown errors from a pipe
+  // segment or sqlRunner resolve to {error} rather than rejecting, matching
+  // runJobSteps' own error contract.
+  Studio.runJobStepsAsync = function (input, steps, ctx, sqlRunner) {
+    var segments = [], pipe = [];
+    (steps || []).forEach(function (step) {
+      if (step.op === "sql") { segments.push({ pipe: pipe }); segments.push({ sql: step }); pipe = []; }
+      else pipe.push(step);
+    });
+    segments.push({ pipe: pipe });
+
+    var state = { columns: ((input && input.columns) || []).slice(), rows: (input && input.rows) || [] };
+    var chain = Promise.resolve();
+    segments.forEach(function (seg) {
+      chain = chain.then(function () {
+        if (seg.pipe) {
+          var out = Studio.runJobSteps(state, seg.pipe, ctx);
+          if (out.error) throw new Error(out.error);
+          state = { columns: out.columns, rows: out.rows };
+          return;
+        }
+        if (!sqlRunner) throw new Error("This job has a Custom SQL step, but no SQL engine is available.");
+        return Promise.resolve(sqlRunner(state.columns, state.rows, seg.sql.query || "")).then(function (r) {
+          state = { columns: (r && r.columns) || [], rows: (r && r.rows) || [] };
+        });
+      });
+    });
+    return chain.then(function () {
+      return { columns: state.columns, rows: state.rows };
+    }, function (e) {
+      return { columns: state.columns, rows: [], error: e.message || String(e) };
+    });
+  };
+
   // datasetIdsFor(steps) -> array of every distinct datasetId a job's
   // join/union steps reference, so the caller knows what to resolve first.
   Studio.jobStepDatasetIds = function (steps) {
@@ -256,7 +303,8 @@
     { op: "filter", label: "Filter rows" },
     { op: "aggregate", label: "Aggregate / rollup" },
     { op: "join", label: "Join with another dataset" },
-    { op: "union", label: "Union / stack another dataset" }
+    { op: "union", label: "Union / stack another dataset" },
+    { op: "sql", label: "Custom SQL" }
   ];
   Studio.JOB_AGG_FNS = [
     { fn: "sum", label: "Sum" }, { fn: "avg", label: "Average" }, { fn: "count", label: "Count" },

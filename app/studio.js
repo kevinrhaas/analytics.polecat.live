@@ -6335,11 +6335,18 @@
 
   /* ---------- Jobs (Viridis V8: data-management-lite) ---------------------
      A job reads ONE source dataset's live rows through a rename/cast/derive/
-     filter/aggregate/join/union pipeline (app/sources/jobs-engine.js) and
+     filter/aggregate/join/union/sql pipeline (app/sources/jobs-engine.js) and
      materializes the result back as an ordinary kind:'file' dataset —
      tagged "job-output" and re-written in place on every re-run via
      job.outputDatasetId — so the result is chartable in Explore/Studio with
-     zero new dataset-kind code. A custom-SQL step is a later slice. */
+     zero new dataset-kind code. The 'sql' step (slice 3) runs its query
+     against DuckDB-Wasm (lazy-loaded, see app/duckdb.js) over the pipeline's
+     CURRENT rows as table "t" — Studio.runJobStepsAsync is the async
+     orchestrator that splits a job's steps at 'sql' boundaries and calls
+     duckSqlRunner for each one; jobs with no 'sql' step never touch it. */
+  function duckSqlRunner(columns, rows, query) {
+    return Studio.DuckDB.queryRows(columns, rows, query);
+  }
   function jobOutputConnection() {
     var existing = Studio.Workspace.all("connections").filter(function (c) { return c.jobOutputs; })[0];
     if (existing) return existing;
@@ -6377,7 +6384,8 @@
         return r;
       }
       return resolveJobCtx(job.steps).then(function (ctx) {
-        var out = Studio.runJobSteps({ columns: r.columns, rows: r.rows }, job.steps || [], ctx);
+        return Studio.runJobStepsAsync({ columns: r.columns, rows: r.rows }, job.steps || [], ctx, duckSqlRunner);
+      }).then(function (out) {
         if (out.error) {
           job.lastRun = { ok: false, error: out.error, at: Date.now(), rows: 0 };
           Studio.Workspace.put("jobs", job, { silent: true });
@@ -6602,6 +6610,14 @@
           unionDsSel.onchange = function () { step.datasetId = unionDsSel.value; };
           wrap.appendChild(unionDsSel);
           wrap.appendChild(unionMapEditor(step));
+        } else if (step.op === "sql") {
+          var sqlBox = el("textarea"); sqlBox.className = "jobs-sql-box"; sqlBox.rows = 4;
+          sqlBox.placeholder = "SELECT * FROM t"; sqlBox.value = step.query || "";
+          sqlBox.oninput = function () { step.query = sqlBox.value; };
+          wrap.appendChild(sqlBox);
+          var sqlHint = el("small", "cx-hint");
+          sqlHint.textContent = "Runs against the pipeline's rows so far, in a DuckDB table named \"t\" (loaded on first use).";
+          wrap.appendChild(sqlHint);
         }
         return wrap;
       }
@@ -6652,8 +6668,9 @@
         runDataset(src).then(function (r) {
           if (r.error) { runBtn.disabled = false; runBtn.textContent = "Preview"; result.className = "cx-test-result bad"; result.textContent = "✕ " + r.error; return; }
           resolveJobCtx(j.steps).then(function (ctx) {
+            return Studio.runJobStepsAsync({ columns: r.columns, rows: r.rows }, j.steps || [], ctx, duckSqlRunner);
+          }).then(function (out) {
             runBtn.disabled = false; runBtn.textContent = "Preview";
-            var out = Studio.runJobSteps({ columns: r.columns, rows: r.rows }, j.steps || [], ctx);
             if (out.error) { result.className = "cx-test-result bad"; result.textContent = "✕ " + out.error; return; }
             result.className = "cx-test-result ok"; result.textContent = "✓ " + out.rows.length + " rows · " + out.columns.length + " columns";
             var head = "<tr>" + out.columns.map(function (c) { return "<th>" + esc(c) + "</th>"; }).join("") + "</tr>";
