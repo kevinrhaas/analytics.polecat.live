@@ -1283,8 +1283,24 @@
 >     ensemble-channel-linked path; both the SVG and GL renderers call the same shared
 >     `geoLegend`). Suite gains 3 checks driving the export end-to-end inside a real exported
 >     iframe (intercepting the anchor's `click()` to read the Blob instead of triggering an
->     OS download). SW cache → v22. Remaining V9 sub-items (no-data/coverage rendering,
->     provenance popover, docs/help page) are next.
+>     OS download). SW cache → v22.
+>     ✓ **Slice 2 shipped (2026-07-17): the "ⓘ Sources" provenance popover** — which providers,
+>     how much coverage — on both charts, next to the CSV button (`provenanceBtn()` in
+>     `app/studio-charts.js`, a click-to-open popover that persists while read, unlike the
+>     hover-only `_tip`; closes on outside click, Escape, or its own re-click, and only one stays
+>     open across the dashboard at a time). Choropleth: "N of M counties/states/CRDs/HUC8
+>     subbasins have data (P%)" plus, when a provider/series column is mapped, each provider's
+>     own region count (struck through when toggled off elsewhere — computed from the FULL
+>     `rowsSV`, not just the channel-filtered rows, so an excluded provider's coverage stays
+>     visible instead of disappearing). Ensemble: "N of M providers currently selected" + "N of M
+>     points have every selected provider reporting" (the full-coverage count — an honest signal
+>     distinct from the agreement band) + a per-provider point count + the reference series'
+>     point count with its "never part of the common estimate" reminder. Both popovers are pure
+>     functions of data already in the render config — no new dataset-metadata plumbing, so this
+>     slice stays self-contained. Suite gains 6 checks (open/content, only-one-open-at-a-time,
+>     outside-click, Escape, and a live update when a provider toggle changes the selection).
+>     SW cache → v23. "Last updated" (needs dataset/job timestamp plumbed through to the render
+>     config — bigger lift than a single slice) and the docs/help page are next.
 >
 > Open questions parked for Kevin: (a) confirm /app/ move + redirect posture; (b) MapLibre vendor
 > size (~850KB) is fine as vendored no-build code?; (c) HUC8/CRD geometry sourcing priority;
