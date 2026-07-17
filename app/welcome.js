@@ -6,6 +6,12 @@
   "use strict";
   var W = window.StudioWelcome = {};
   var SEEN = "studio-welcome-seen";
+  // Elements a keyboard user can land on, for the Tab-trap below (mirrors the
+  // vendored shell's modal() FOCUSABLE — this tour predates it and keeps its
+  // own .sw-* markup for the tests/CSS already built on it, so the trap is
+  // ported in-place rather than switching to modal()).
+  var FOCUSABLE = 'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])';
+  var trigger = null;
 
   var STEPS = [
     { t: "Welcome to Analytics", ic: "P",
@@ -64,16 +70,46 @@
     ov.querySelector(".sw-skip").onclick = close;
     var nx = ov.querySelector('[data-act="next"]'); if (nx) nx.onclick = function () { i === STEPS.length - 1 ? close() : render(i + 1); };
     var bk = ov.querySelector('[data-act="back"]'); if (bk) bk.onclick = function () { render(i - 1); };
+    // Re-render replaces .sw's innerHTML, dropping whatever had focus — land
+    // it back on the primary button so Tab stays inside the trap below
+    // instead of silently falling through to <body> (and, from there, to
+    // whatever's underneath the backdrop).
+    (nx || bk || ov.querySelector(".sw-skip")).focus();
   }
-  function close() { try { localStorage.setItem(SEEN, "1"); } catch (e) {} var ov = document.getElementById("studio-welcome"); if (ov) ov.remove(); }
+  function close() {
+    try { localStorage.setItem(SEEN, "1"); } catch (e) {}
+    var ov = document.getElementById("studio-welcome"); if (ov) ov.remove();
+    document.removeEventListener("keydown", onKey);
+    // Restore focus to whatever opened the tour (the ⓘ/More→Tour trigger),
+    // matching the shell's own modal()/sheet() focus-restore convention.
+    if (trigger && document.contains(trigger) && typeof trigger.focus === "function") trigger.focus();
+    trigger = null;
+  }
+  function onKey(e) {
+    var ov = document.getElementById("studio-welcome"); if (!ov) return;
+    if (e.key === "Escape") { close(); return; }
+    if (e.key !== "Tab") return;
+    var focusable = ov.querySelectorAll(FOCUSABLE);
+    if (!focusable.length) { e.preventDefault(); return; }
+    var first = focusable[0], last = focusable[focusable.length - 1];
+    // Keep Tab (and Shift+Tab) cycling within the dialog — without this, a
+    // keyboard user tabs straight through into the header nav trigger
+    // sitting (invisibly, behind the backdrop) underneath the tour.
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    else if (!ov.contains(document.activeElement)) { e.preventDefault(); first.focus(); }
+  }
 
   W.open = function () {
     injectStyle();
     if (document.getElementById("studio-welcome")) return;
+    trigger = document.activeElement;
     var ov = document.createElement("div"); ov.id = "studio-welcome";
+    ov.setAttribute("role", "dialog"); ov.setAttribute("aria-modal", "true"); ov.setAttribute("aria-label", "Welcome to Analytics");
     ov.innerHTML = '<div class="sw"></div>';
     ov.addEventListener("click", function (e) { if (e.target === ov) close(); });
     document.body.appendChild(ov); render(0);
+    document.addEventListener("keydown", onKey);
   };
   W.maybeShow = function () { try { if (localStorage.getItem(SEEN) === "1") return; } catch (e) {} W.open(); };
 })();
