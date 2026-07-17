@@ -1301,6 +1301,16 @@
 >     outside-click, Escape, and a live update when a provider toggle changes the selection).
 >     SW cache → v23. "Last updated" (needs dataset/job timestamp plumbed through to the render
 >     config — bigger lift than a single slice) and the docs/help page are next.
+>     ✓ **Slice 3 shipped (2026-07-17): the "make the ensemble legible" help page.** New
+>     `docs/index.html#ensembles` section ("Ensembles & scientific honesty") spells out the
+>     design rules the Ensemble chart and choropleth map already implement — median renders
+>     bold as the common estimate while providers stay thin supporting evidence, the agreement
+>     band is a literal (not decorative) confidence signal, a reference series is context that
+>     never joins the estimate, no-data is shown (hatched) rather than guessed — and documents
+>     the ⓘ Sources popover + Download CSV controls from slices 1–2, with a pointer to the
+>     Viridis View demo pack as a worked example. Linked from the docs nav bar. "Last updated"
+>     (needs dataset/job timestamp plumbed through to the render config) remains, tracked
+>     separately as it's a bigger lift than a doc slice.
 >
 > Open questions parked for Kevin: (a) confirm /app/ move + redirect posture; (b) MapLibre vendor
 > size (~850KB) is fine as vendored no-build code?; (c) HUC8/CRD geometry sourcing priority;
