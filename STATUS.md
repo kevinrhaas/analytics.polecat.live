@@ -1024,6 +1024,20 @@
   dark app mode); own `dataviz`-validated series palette. 6 new tests, suite 1476/1476.
 - v339: **Track L: harden the flaky panel dup/delete test, round 2** — see Track L findings log
   below. Test-only, no product change. Suite 1476/1476.
+- v375: **Fix: dark mode now reaches Home, Dashboards, Datasets, Connections, Jobs and Settings**
+  — closes the worst-offender finding carried across two UX sweeps (#10 2026-07-16, #24
+  2026-07-17). All five primary sections shared one base rule (`.app-sec` in `app/studio.css`)
+  that hardcoded a dark background + cream text regardless of `[data-theme]`, so the light/dark
+  toggle only ever reached the Studio builder/Inspector. Every hardcoded color in the Home/
+  Dashboards/Datasets/Connections/Jobs/Settings chrome (surfaces, borders, text, the accent) now
+  resolves through the same tokens (`--bg`/`--ink`/`--muted`/`--faint`/`--field`/`--pane`/
+  `--pentaho`) already driving the rest of the app, so these sections follow both light/dark mode
+  and all three app themes (Classic Blue/Polecat/Fleet Modern) — not just Polecat dark, which is
+  what the literals happened to match. Left deliberately untouched: the permanently-dark left
+  rail/`#mobileNavBtn` (by design, never follows `[data-theme]` — see the Z1 rail comment) and
+  the story-mode screenshot overlay (`.ss-*`, its own fixed black canvas). SW cache → v26. Suite
+  1542/1542, verified visually via Playwright screenshots of Home/Settings/Dashboards/Connections
+  in both themes.
 
 ## NEXT (top = do first)
 

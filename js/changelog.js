@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 375,
+    title: 'Fix: dark mode now reaches Home, Dashboards, Datasets, Connections and Settings',
+    kind: 'fix',
+    ts: '2026-07-17T12:49:48.000Z',
+    items: [
+      'The five primary sections shared one base rule (.app-sec) that hardcoded a dark background and cream text regardless of the light/dark toggle -- Settings, Home and the rest looked pixel-identical in both modes even though the Studio builder and Inspector correctly re-themed. Reported two sweeps running (2026-07-16 UX sweep #10, carried over as the worst offender in the 2026-07-17 sweep #24).',
+      'Every hardcoded color across Home, Dashboards, Datasets, Connections, Jobs and Settings (surfaces, borders, text, the accent) now resolves through the same theme tokens (--bg/--ink/--muted/--faint/--field/--pane/--pentaho) the rest of the chrome already uses, so these sections follow both the light/dark mode toggle and all three app themes (Classic Blue/Polecat/Fleet Modern). The permanently-dark left rail is unaffected -- it\'s deliberately theme-invariant by design.',
+    ],
+  },
+  {
     v: 374,
     title: 'Track L sweep (dead-code lens): removed an orphaned Settings setter',
     kind: 'polish',
