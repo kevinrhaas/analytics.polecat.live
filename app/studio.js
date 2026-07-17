@@ -6333,17 +6333,35 @@
   window.__studioOpenDatasetEditor = openDatasetEditor; // test hook
   window.__studioRunDataset = runDataset; // builder live path + tests
 
-  /* ---------- Jobs (Viridis V8 slice 1: data-management-lite) -------------
+  /* ---------- Jobs (Viridis V8: data-management-lite) ---------------------
      A job reads ONE source dataset's live rows through a rename/cast/derive/
-     filter/aggregate pipeline (app/sources/jobs-engine.js) and materializes
-     the result back as an ordinary kind:'file' dataset — tagged "job-output"
-     and re-written in place on every re-run via job.outputDatasetId — so the
-     result is chartable in Explore/Studio with zero new dataset-kind code.
-     JOIN/UNION across datasets and a custom-SQL step are a later slice. */
+     filter/aggregate/join/union pipeline (app/sources/jobs-engine.js) and
+     materializes the result back as an ordinary kind:'file' dataset —
+     tagged "job-output" and re-written in place on every re-run via
+     job.outputDatasetId — so the result is chartable in Explore/Studio with
+     zero new dataset-kind code. A custom-SQL step is a later slice. */
   function jobOutputConnection() {
     var existing = Studio.Workspace.all("connections").filter(function (c) { return c.jobOutputs; })[0];
     if (existing) return existing;
     return Studio.Workspace.put("connections", { name: "Job outputs", adapter: "file", cfg: {}, jobOutputs: true });
+  }
+  // Runs every dataset a job's join/union steps reference (the engine stays
+  // pure/synchronous, so this is the async pre-fetch the engine can't do
+  // itself) and hands back {datasets:{id:{columns,rows}}} for runJobSteps.
+  function resolveJobCtx(steps) {
+    var ids = Studio.jobStepDatasetIds(steps);
+    if (!ids.length) return Promise.resolve({ datasets: {} });
+    return Promise.all(ids.map(function (id) {
+      var ds = Studio.Workspace.get("datasets", id);
+      if (!ds) return { id: id, columns: [], rows: [] };
+      return runDataset(ds).then(function (r) {
+        return { id: id, columns: r.error ? [] : r.columns, rows: r.error ? [] : r.rows };
+      });
+    })).then(function (results) {
+      var datasets = {};
+      results.forEach(function (x) { datasets[x.id] = { columns: x.columns, rows: x.rows }; });
+      return { datasets: datasets };
+    });
   }
   function runJob(job) {
     var src = Studio.Workspace.get("datasets", job.sourceDatasetId);
@@ -6358,26 +6376,28 @@
         Studio.Workspace.put("jobs", job, { silent: true });
         return r;
       }
-      var out = Studio.runJobSteps({ columns: r.columns, rows: r.rows }, job.steps || []);
-      if (out.error) {
-        job.lastRun = { ok: false, error: out.error, at: Date.now(), rows: 0 };
-        Studio.Workspace.put("jobs", job, { silent: true });
-        return out;
-      }
-      var row = (job.outputDatasetId && Studio.Workspace.get("datasets", job.outputDatasetId)) ||
-        { id: Studio.Workspace.uid("ds"), connectionId: jobOutputConnection().id, tags: [] };
-      row.name = job.outputName || (job.name + " (job output)");
-      row.kind = "file"; row.format = "csv";
-      row.fileName = row.name.replace(/[^a-z0-9]+/gi, "_").toLowerCase() + ".csv";
-      row.content = Studio.rowsToCsv(out.columns, out.rows);
-      row.columns = out.columns.slice();
-      row.jobId = job.id;
-      if ((row.tags || []).indexOf("job-output") < 0) row.tags = (row.tags || []).concat(["job-output"]);
-      Studio.Workspace.put("datasets", row);
-      job.outputDatasetId = row.id;
-      job.lastRun = { ok: true, error: "", at: Date.now(), rows: out.rows.length };
-      Studio.Workspace.put("jobs", job);
-      return { columns: out.columns, rows: out.rows, outputDatasetId: row.id };
+      return resolveJobCtx(job.steps).then(function (ctx) {
+        var out = Studio.runJobSteps({ columns: r.columns, rows: r.rows }, job.steps || [], ctx);
+        if (out.error) {
+          job.lastRun = { ok: false, error: out.error, at: Date.now(), rows: 0 };
+          Studio.Workspace.put("jobs", job, { silent: true });
+          return out;
+        }
+        var row = (job.outputDatasetId && Studio.Workspace.get("datasets", job.outputDatasetId)) ||
+          { id: Studio.Workspace.uid("ds"), connectionId: jobOutputConnection().id, tags: [] };
+        row.name = job.outputName || (job.name + " (job output)");
+        row.kind = "file"; row.format = "csv";
+        row.fileName = row.name.replace(/[^a-z0-9]+/gi, "_").toLowerCase() + ".csv";
+        row.content = Studio.rowsToCsv(out.columns, out.rows);
+        row.columns = out.columns.slice();
+        row.jobId = job.id;
+        if ((row.tags || []).indexOf("job-output") < 0) row.tags = (row.tags || []).concat(["job-output"]);
+        Studio.Workspace.put("datasets", row);
+        job.outputDatasetId = row.id;
+        job.lastRun = { ok: true, error: "", at: Date.now(), rows: out.rows.length };
+        Studio.Workspace.put("jobs", job);
+        return { columns: out.columns, rows: out.rows, outputDatasetId: row.id };
+      });
     });
   }
   function renderJobs() {
@@ -6403,8 +6423,9 @@
         '</span></div>';
     });
     results.innerHTML = rows.length ? '<div class="cx-list">' + rows.join("") + '</div>'
-      : '<div class="cx-empty"><b>No jobs yet.</b><br/>A job preps one dataset — rename/cast/derive columns, filter rows, and roll up ' +
-        'with sum/avg/count/median or an acreage-weighted mean — then saves the result as a new dataset you can chart.' +
+      : '<div class="cx-empty"><b>No jobs yet.</b><br/>A job preps one dataset — rename/cast/derive columns, filter rows, roll up ' +
+        'with sum/avg/count/median or an acreage-weighted mean, and join or union in another dataset — then saves the result as ' +
+        'a new dataset you can chart.' +
         (Studio.Workspace.all("datasets").length ? "" : "<br/>Add a dataset first, in the Datasets section.") + '</div>';
     $$(".cx-row", results).forEach(function (row) {
       var j = Studio.Workspace.get("jobs", row.getAttribute("data-job-id"));
@@ -6505,6 +6526,31 @@
         draw();
         return wrap;
       }
+      function unionMapEditor(step) {
+        var wrap = el("div", "jobs-metrics");
+        function draw() {
+          wrap.innerHTML = "";
+          (step.columnMap = step.columnMap || []).forEach(function (m, i) {
+            var row = el("div", "jobs-metric-row");
+            var to = el("input"); to.type = "text"; to.placeholder = "output column"; to.value = m.to || "";
+            to.oninput = function () { m.to = to.value; };
+            var from = el("input"); from.type = "text"; from.placeholder = "column in the other dataset"; from.value = m.from || "";
+            from.oninput = function () { m.from = from.value; };
+            row.appendChild(to); row.appendChild(from);
+            var del = el("button", "btn"); del.type = "button"; del.textContent = "✕"; del.setAttribute("aria-label", "Remove mapping");
+            del.onclick = function () { step.columnMap.splice(i, 1); draw(); };
+            row.appendChild(del);
+            wrap.appendChild(row);
+          });
+          var add = el("button", "btn"); add.type = "button"; add.textContent = "+ Column mapping";
+          add.onclick = function () { step.columnMap.push({ to: "", from: "" }); draw(); };
+          wrap.appendChild(add);
+          var note = el("small", "cx-hint"); note.textContent = "Unmapped output columns fall back to a same-name match in the other dataset, else blank.";
+          wrap.appendChild(note);
+        }
+        draw();
+        return wrap;
+      }
       function stepFields(step) {
         var wrap = el("div", "jobs-step-fields");
         function mini(ph, val, onChange) {
@@ -6533,6 +6579,29 @@
         } else if (step.op === "aggregate") {
           mini("group by (comma-separated columns)", (step.groupBy || []).join(", "), function (v) { step.groupBy = v.split(",").map(function (s) { return s.trim(); }).filter(Boolean); });
           wrap.appendChild(metricsEditor(step));
+        } else if (step.op === "join") {
+          var joinDsSel = el("select");
+          joinDsSel.innerHTML = '<option value="">— pick dataset —</option>' + dsets.map(function (d) {
+            return '<option value="' + esc(d.id) + '"' + (step.datasetId === d.id ? " selected" : "") + '>' + esc(d.name) + "</option>";
+          }).join("");
+          joinDsSel.onchange = function () { step.datasetId = joinDsSel.value; };
+          wrap.appendChild(joinDsSel);
+          mini("left key column", step.leftCol, function (v) { step.leftCol = v; });
+          mini("right key column", step.rightCol, function (v) { step.rightCol = v; });
+          var joinTypeSel = el("select");
+          joinTypeSel.innerHTML = '<option value="inner">inner join</option><option value="left">left join (keep unmatched)</option>';
+          step.type = step.type || "inner"; joinTypeSel.value = step.type;
+          joinTypeSel.onchange = function () { step.type = joinTypeSel.value; };
+          wrap.appendChild(joinTypeSel);
+          mini("added-column prefix (optional)", step.prefix, function (v) { step.prefix = v; });
+        } else if (step.op === "union") {
+          var unionDsSel = el("select");
+          unionDsSel.innerHTML = '<option value="">— pick dataset —</option>' + dsets.map(function (d) {
+            return '<option value="' + esc(d.id) + '"' + (step.datasetId === d.id ? " selected" : "") + '>' + esc(d.name) + "</option>";
+          }).join("");
+          unionDsSel.onchange = function () { step.datasetId = unionDsSel.value; };
+          wrap.appendChild(unionDsSel);
+          wrap.appendChild(unionMapEditor(step));
         }
         return wrap;
       }
@@ -6581,16 +6650,18 @@
         runBtn.disabled = true; runBtn.textContent = "Running…";
         result.className = "cx-test-result"; result.textContent = ""; preview.innerHTML = "";
         runDataset(src).then(function (r) {
-          runBtn.disabled = false; runBtn.textContent = "Preview";
-          if (r.error) { result.className = "cx-test-result bad"; result.textContent = "✕ " + r.error; return; }
-          var out = Studio.runJobSteps({ columns: r.columns, rows: r.rows }, j.steps || []);
-          if (out.error) { result.className = "cx-test-result bad"; result.textContent = "✕ " + out.error; return; }
-          result.className = "cx-test-result ok"; result.textContent = "✓ " + out.rows.length + " rows · " + out.columns.length + " columns";
-          var head = "<tr>" + out.columns.map(function (c) { return "<th>" + esc(c) + "</th>"; }).join("") + "</tr>";
-          var body = out.rows.slice(0, 8).map(function (row) {
-            return "<tr>" + row.map(function (v) { return "<td>" + esc(v == null ? "" : String(v)) + "</td>"; }).join("") + "</tr>";
-          }).join("");
-          preview.innerHTML = "<table>" + head + body + "</table>";
+          if (r.error) { runBtn.disabled = false; runBtn.textContent = "Preview"; result.className = "cx-test-result bad"; result.textContent = "✕ " + r.error; return; }
+          resolveJobCtx(j.steps).then(function (ctx) {
+            runBtn.disabled = false; runBtn.textContent = "Preview";
+            var out = Studio.runJobSteps({ columns: r.columns, rows: r.rows }, j.steps || [], ctx);
+            if (out.error) { result.className = "cx-test-result bad"; result.textContent = "✕ " + out.error; return; }
+            result.className = "cx-test-result ok"; result.textContent = "✓ " + out.rows.length + " rows · " + out.columns.length + " columns";
+            var head = "<tr>" + out.columns.map(function (c) { return "<th>" + esc(c) + "</th>"; }).join("") + "</tr>";
+            var body = out.rows.slice(0, 8).map(function (row) {
+              return "<tr>" + row.map(function (v) { return "<td>" + esc(v == null ? "" : String(v)) + "</td>"; }).join("") + "</tr>";
+            }).join("");
+            preview.innerHTML = "<table>" + head + body + "</table>";
+          });
         });
       };
       saveBtn.onclick = function () {

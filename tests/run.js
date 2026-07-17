@@ -1373,6 +1373,66 @@ function serve() {
     ok("JOBS: rowsToCsv quotes cells containing commas/quotes",
       jobsEngine.csv === 'a,b\n1,"x,y"\n2,"he said ""hi"""', jobsEngine.csv);
 
+    // ---- JOBS: join/union across datasets (Viridis V8 slice 2) ------------
+    console.log("\n• JOBS: join/union across datasets (Viridis V8 slice 2)");
+    const joinUnionEngine = await page.evaluate(function () {
+      var left = { columns: ["state", "score"], rows: [["IA", "10"], ["IL", "20"], ["MO", "5"]] };
+      var right = { columns: ["state", "pop", "region"], rows: [["IA", "3000", "Midwest"], ["IL", "12000", "Midwest"]] };
+      var ctx = { datasets: { R: right } };
+      var innerJoin = Studio.runJobSteps(left, [{ op: "join", datasetId: "R", leftCol: "state", rightCol: "state", type: "inner" }], ctx);
+      var leftJoin = Studio.runJobSteps(left, [{ op: "join", datasetId: "R", leftCol: "state", rightCol: "state", type: "left" }], ctx);
+      var collideJoin = Studio.runJobSteps({ columns: ["state", "score", "pop"], rows: [["IA", "10", "1"]] },
+        [{ op: "join", datasetId: "R", leftCol: "state", rightCol: "state", type: "inner" }], ctx);
+
+      var providerA = { columns: ["Provider_Name", "Adoption_Pct", "State"], rows: [["DTN", "35", "IA"]] };
+      var providerB = { columns: ["vendor", "pct", "st"], rows: [["Indigo", "42", "IL"]] };
+      var base = { columns: ["provider", "adoption_pct", "state"], rows: [] };
+      var unionCtx = { datasets: { A: providerA, B: providerB } };
+      var unioned = Studio.runJobSteps(base, [
+        { op: "union", datasetId: "A", columnMap: [{ to: "provider", from: "Provider_Name" }, { to: "adoption_pct", from: "Adoption_Pct" }, { to: "state", from: "State" }] },
+        { op: "union", datasetId: "B", columnMap: [{ to: "provider", from: "vendor" }, { to: "adoption_pct", from: "pct" }, { to: "state", from: "st" }] }
+      ], unionCtx);
+      var unionFallback = Studio.runJobSteps({ columns: ["state", "score"], rows: [] },
+        [{ op: "union", datasetId: "R", columnMap: [] }], ctx);
+
+      return {
+        innerRows: innerJoin.rows, innerCols: innerJoin.columns,
+        leftRows: leftJoin.rows, collideCols: collideJoin.columns,
+        unionRows: unioned.rows, unionCols: unioned.columns,
+        fallbackRows: unionFallback.rows,
+        stepKinds: Studio.JOB_STEP_KINDS.map(function (k) { return k.op; }),
+        datasetIds: Studio.jobStepDatasetIds([{ op: "join", datasetId: "R" }, { op: "union", datasetId: "A" }, { op: "union", datasetId: "R" }, { op: "rename", from: "x", to: "y" }])
+      };
+    });
+    ok("JOBS: inner join adds the right dataset's non-key columns onto matching rows only (MO has no match, dropped)",
+      joinUnionEngine.innerCols.join(",") === "state,score,pop,region" &&
+      joinUnionEngine.innerRows.length === 2 &&
+      joinUnionEngine.innerRows[0].join(",") === "IA,10,3000,Midwest",
+      JSON.stringify(joinUnionEngine.innerRows));
+    ok("JOBS: left join keeps the unmatched row (MO) with blank added columns instead of dropping it",
+      joinUnionEngine.leftRows.length === 3 &&
+      joinUnionEngine.leftRows.filter(function (r) { return r[0] === "MO"; })[0][2] == null,
+      JSON.stringify(joinUnionEngine.leftRows));
+    ok("JOBS: a join column name colliding with an existing column gets an auto _2 suffix, never silently clobbers",
+      joinUnionEngine.collideCols.join(",") === "state,score,pop,pop_2,region",
+      JSON.stringify(joinUnionEngine.collideCols));
+    ok("JOBS: union normalizes two differently-named provider schemas onto one common schema via columnMap (the 5-provider case)",
+      joinUnionEngine.unionCols.join(",") === "provider,adoption_pct,state" &&
+      joinUnionEngine.unionRows.length === 2 &&
+      joinUnionEngine.unionRows[0].join(",") === "DTN,35,IA" &&
+      joinUnionEngine.unionRows[1].join(",") === "Indigo,42,IL",
+      JSON.stringify(joinUnionEngine.unionRows));
+    ok("JOBS: union with no columnMap falls back to a same-name match, else blank (state matches, score has no counterpart)",
+      joinUnionEngine.fallbackRows.length === 2 &&
+      joinUnionEngine.fallbackRows[0][0] === "IA" && joinUnionEngine.fallbackRows[0][1] == null,
+      JSON.stringify(joinUnionEngine.fallbackRows));
+    ok("JOBS: JOB_STEP_KINDS now includes join and union",
+      joinUnionEngine.stepKinds.indexOf("join") >= 0 && joinUnionEngine.stepKinds.indexOf("union") >= 0,
+      JSON.stringify(joinUnionEngine.stepKinds));
+    ok("JOBS: jobStepDatasetIds collects every distinct join/union datasetId, ignoring non-referencing steps",
+      joinUnionEngine.datasetIds.length === 2 && joinUnionEngine.datasetIds.indexOf("R") >= 0 && joinUnionEngine.datasetIds.indexOf("A") >= 0,
+      JSON.stringify(joinUnionEngine.datasetIds));
+
     const jobsSchema = await page.evaluate(function () {
       return { v: Studio.WS.SCHEMA_VERSION, hasTable: Studio.WS.TABLE_NAMES.indexOf("jobs") >= 0,
         ddl: Studio.WS.provisionDDL().join(";"), delta: Studio.WS.provisionDeltaSQL() };
@@ -1411,6 +1471,66 @@ function serve() {
     ok("JOBS: re-running the SAME job updates the same output dataset in place (annual-refresh case) — no duplicate row",
       jobsRun.outputId1 === jobsRun.outputId2 && jobsRun.dsCountAfter === 1 && jobsRun.jobLastRunOk, JSON.stringify(jobsRun));
 
+    // end-to-end: a job with a join step pulls a SECOND real dataset's live rows in via
+    // resolveJobCtx (proves the async pre-fetch wiring, not just the pure engine)
+    const jobsJoinRun = await page.evaluate(async function () {
+      var conn = Studio.Workspace.put("connections", { name: "jobs-join-test", adapter: "file", cfg: {} });
+      var left = Studio.Workspace.put("datasets", { name: "jobs-join-left", connectionId: conn.id, kind: "file", format: "csv", content: "state,score\nIA,10\nIL,20\nMO,5\n" });
+      var right = Studio.Workspace.put("datasets", { name: "jobs-join-right", connectionId: conn.id, kind: "file", format: "csv", content: "state,pop\nIA,3000\nIL,12000\n" });
+      var job = Studio.Workspace.put("jobs", {
+        name: "join-test-job", sourceDatasetId: left.id, outputName: "join-test-out",
+        steps: [{ op: "join", datasetId: right.id, leftCol: "state", rightCol: "state", type: "left" }]
+      });
+      var r = await window.__studioRunJob(job);
+      var out = Studio.Workspace.get("datasets", job.outputDatasetId);
+      Studio.Workspace.remove("jobs", job.id, { silent: true });
+      if (out) Studio.Workspace.remove("datasets", out.id, { silent: true });
+      Studio.Workspace.remove("datasets", left.id, { silent: true });
+      Studio.Workspace.remove("datasets", right.id, { silent: true });
+      Studio.Workspace.remove("connections", conn.id, { silent: true });
+      Studio.Workspace.all("connections").filter(function (c) { return c.jobOutputs; }).forEach(function (c) { Studio.Workspace.remove("connections", c.id, { silent: true }); });
+      Studio.Workspace.notify("*");
+      return { columns: r.columns, rows: r.rows };
+    });
+    ok("JOBS: end-to-end left join across two real (file-adapter) datasets keeps the unmatched row with blank added columns",
+      jobsJoinRun.columns && jobsJoinRun.columns.join(",") === "state,score,pop" &&
+      jobsJoinRun.rows.length === 3 &&
+      jobsJoinRun.rows.filter(function (r) { return r[0] === "MO"; })[0][2] == null,
+      JSON.stringify(jobsJoinRun));
+
+    // end-to-end: union normalizes two differently-shaped provider datasets onto one schema
+    // (the RFP's 5-provider normalize-and-stack case)
+    const jobsUnionRun = await page.evaluate(async function () {
+      var conn = Studio.Workspace.put("connections", { name: "jobs-union-test", adapter: "file", cfg: {} });
+      var a = Studio.Workspace.put("datasets", { name: "jobs-union-a", connectionId: conn.id, kind: "file", format: "csv", content: "Provider_Name,Adoption_Pct,State\nDTN,35,IA\n" });
+      var b = Studio.Workspace.put("datasets", { name: "jobs-union-b", connectionId: conn.id, kind: "file", format: "csv", content: "vendor,pct,st\nIndigo,42,IL\n" });
+      var job = Studio.Workspace.put("jobs", {
+        name: "union-test-job", sourceDatasetId: a.id, outputName: "union-test-out",
+        steps: [
+          { op: "rename", from: "Provider_Name", to: "provider" },
+          { op: "rename", from: "Adoption_Pct", to: "adoption_pct" },
+          { op: "rename", from: "State", to: "state" },
+          { op: "union", datasetId: b.id, columnMap: [{ to: "provider", from: "vendor" }, { to: "adoption_pct", from: "pct" }, { to: "state", from: "st" }] }
+        ]
+      });
+      var r = await window.__studioRunJob(job);
+      var out = Studio.Workspace.get("datasets", job.outputDatasetId);
+      Studio.Workspace.remove("jobs", job.id, { silent: true });
+      if (out) Studio.Workspace.remove("datasets", out.id, { silent: true });
+      Studio.Workspace.remove("datasets", a.id, { silent: true });
+      Studio.Workspace.remove("datasets", b.id, { silent: true });
+      Studio.Workspace.remove("connections", conn.id, { silent: true });
+      Studio.Workspace.all("connections").filter(function (c) { return c.jobOutputs; }).forEach(function (c) { Studio.Workspace.remove("connections", c.id, { silent: true }); });
+      Studio.Workspace.notify("*");
+      return { columns: r.columns, rows: r.rows };
+    });
+    ok("JOBS: end-to-end union normalizes two differently-shaped provider (file-adapter) datasets onto one schema",
+      jobsUnionRun.columns && jobsUnionRun.columns.join(",") === "provider,adoption_pct,state" &&
+      jobsUnionRun.rows.length === 2 &&
+      jobsUnionRun.rows.some(function (r) { return r[0] === "DTN" && r[2] === "IA"; }) &&
+      jobsUnionRun.rows.some(function (r) { return r[0] === "Indigo" && r[2] === "IL"; }),
+      JSON.stringify(jobsUnionRun));
+
     // the Jobs rail section renders the job we just created
     await page.evaluate(function () { window.__studioShellSetSection("jobs"); });
     await page.waitForTimeout(200);
@@ -1429,6 +1549,34 @@ function serve() {
       }
       Studio.Workspace.all("datasets").filter(function (d) { return d.name === "jobs-src"; }).forEach(function (d) { Studio.Workspace.remove("datasets", d.id, { silent: true }); });
       Studio.Workspace.all("connections").filter(function (c) { return c.name === "jobs-test-file" || c.jobOutputs; }).forEach(function (c) { Studio.Workspace.remove("connections", c.id, { silent: true }); });
+      Studio.Workspace.notify("*");
+      window.__studioShellSetSection("studio");
+    });
+    await page.waitForTimeout(200);
+
+    // opening the job editor on a job with a join step renders a dataset picker + join-type selector
+    await page.evaluate(function () {
+      window.__studioShellSetSection("jobs");
+      var conn = Studio.Workspace.put("connections", { name: "jobs-editor-ui-test", adapter: "file", cfg: {} });
+      var ds = Studio.Workspace.put("datasets", { name: "jobs-editor-ui-ds", connectionId: conn.id, kind: "file", format: "csv", content: "a,b\n1,2\n" });
+      var job = Studio.Workspace.put("jobs", { name: "ui-join-job", sourceDatasetId: ds.id, steps: [{ op: "join", datasetId: ds.id, leftCol: "a", rightCol: "a" }] });
+      window.__studioOpenJobEditor(job);
+    });
+    await page.waitForTimeout(150);
+    const joinEditorUI = await page.evaluate(function () {
+      var selects = Array.prototype.slice.call(document.querySelectorAll(".jobs-step-fields select"));
+      return {
+        hasJoinTypeSelect: selects.some(function (s) { return s.innerHTML.indexOf("inner join") >= 0; }),
+        hasDatasetOption: selects.some(function (s) { return s.innerHTML.indexOf("jobs-editor-ui-ds") >= 0; })
+      };
+    });
+    ok("JOBS: opening the editor on a join step renders a join-type selector and the dataset picker",
+      joinEditorUI.hasJoinTypeSelect && joinEditorUI.hasDatasetOption, JSON.stringify(joinEditorUI));
+    await page.evaluate(function () {
+      document.querySelector(".modal-ov .x").click();
+      Studio.Workspace.all("jobs").filter(function (j) { return j.name === "ui-join-job"; }).forEach(function (j) { Studio.Workspace.remove("jobs", j.id, { silent: true }); });
+      Studio.Workspace.all("datasets").filter(function (d) { return d.name === "jobs-editor-ui-ds"; }).forEach(function (d) { Studio.Workspace.remove("datasets", d.id, { silent: true }); });
+      Studio.Workspace.all("connections").filter(function (c) { return c.name === "jobs-editor-ui-test"; }).forEach(function (c) { Studio.Workspace.remove("connections", c.id, { silent: true }); });
       Studio.Workspace.notify("*");
       window.__studioShellSetSection("studio");
     });
@@ -18316,7 +18464,7 @@ function serve() {
     // are fetched during install too (from the index we just cached), so a first-ever offline
     // visit still has a full library/gallery, not just a blank shell.
     const pwaDataPrecached = await pwaPage.evaluate(async function () {
-      const cache = await caches.open("studio-shell-v19");
+      const cache = await caches.open("studio-shell-v20");
       const keys = (await cache.keys()).map((r) => new URL(r.url).pathname.replace(/^\//, ""));
       const exIndex = await fetch("data/examples/index.json").then((r) => r.json());
       const missingExamples = exIndex.filter((ex) => keys.indexOf("data/examples/" + ex.file) < 0);

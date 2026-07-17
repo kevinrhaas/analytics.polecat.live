@@ -1239,9 +1239,20 @@
 >     `job.outputDatasetId` (the annual-refresh case). Schema v2→v3 (additive: Turso self-heals via
 >     the existing `WS.TABLE_NAMES` loop; `provisionDeltaSQL` now covers analyses+jobs together for
 >     Supabase's paste-me path). SW cache → v19; docs gain a Jobs section.
->     **Deferred to a slice 2:** JOIN/UNION across datasets and the custom-SQL step — this slice is
->     the single-dataset pipeline the Viridis rollups need; the 5-provider normalize-and-stack case
->     needs the join/union work still to come.
+>     ⏳ **Slice 2 shipped (2026-07-17):** JOIN and UNION across datasets. The engine stays pure/
+>     synchronous (`Studio.runJobSteps(input, steps, ctx)` now takes an optional `ctx.datasets`
+>     map); `studio.js`'s new `resolveJobCtx` runs every dataset a job's join/union steps
+>     reference through the real adapters BEFORE calling the engine, so join/union work against
+>     live rows from any connection type. **join** (`{op:'join', datasetId, leftCol, rightCol,
+>     type:'inner'|'left', prefix?}`) adds the right dataset's non-key columns onto matching left
+>     rows (inner drops unmatched, left keeps them with blank added columns); a name collision with
+>     an existing column gets an automatic `_2` suffix so a join can never silently overwrite data.
+>     **union** (`{op:'union', datasetId, columnMap:[{to,from}]}`) is the normalize-and-stack case:
+>     it reshapes the right dataset's rows onto the pipeline's EXISTING schema via an explicit
+>     per-column mapping (falls back to a same-name match, else blank) — run once per additional
+>     provider dataset, this is exactly the 5-provider case the Viridis rollups need. Job editor
+>     gained dataset-picker + key/type fields for join and a column-mapping editor for union.
+>     SW cache → v20; docs updated. **Deferred to a later slice:** the custom-SQL step.
 > V9. **Scientific-honesty polish:** first-class no-data/coverage rendering, provenance popover
 >     (which providers, coverage, last updated), CSV download of the current selection (the
 >     RFP's deferred download question), docs + a "make the ensemble legible" help page.
