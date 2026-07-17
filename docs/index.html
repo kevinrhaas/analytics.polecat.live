@@ -153,6 +153,7 @@
   <div class="nav-inner">
     <a href="#getting-started" class="active">Getting started</a>
     <a href="#builder">The builder</a>
+    <a href="#ensembles">Ensembles &amp; honesty</a>
     <a href="#chart-types">Chart types</a>
     <a href="#data-sources">Data sources</a>
     <a href="#exporting">Exporting</a>
@@ -397,6 +398,70 @@
 
   <h3>Template variables</h3>
   <p>Write <code>{{key}}</code> anywhere in the dashboard's <strong>Title</strong> or <strong>Subtitle</strong>, or in any panel's <strong>Title</strong> or <strong>Note</strong>, then define matching entries in the Dashboard inspector's <strong>Template variables</strong> section (below Subtitle style) — each is substituted with its saved value in the live preview and every export. A <code>{{key}}</code> with no matching variable is left as literal text, so a typo is obvious rather than silently blank. Handy for turning one spec into a reusable template — e.g. a title of <code>{{region}} — Weekly Ops Review</code> filled in differently per deployment instead of hand-editing the title text each time. Use <strong>Save current as…</strong> to name the current set of variables, then <strong>Apply</strong> that same saved set on any other dashboard built from the same template.</p>
+</section>
+
+<!-- ── Ensembles & scientific honesty ────────────────────────────── -->
+<section id="ensembles">
+  <h2>Ensembles &amp; scientific honesty</h2>
+  <p>When several sources estimate the same thing — several vendors' models, several surveys, several
+  labs — the <strong>Ensemble</strong> chart and the <strong>Map (US choropleth)</strong> chart are built
+  around one rule: <strong>the common estimate is the product, not a leaderboard.</strong> The sections
+  below explain the design choices behind that rule and how to read (or build) an honest ensemble
+  dashboard.</p>
+
+  <h3>The median is bold; providers are supporting evidence</h3>
+  <p>On both charts, the combined value — the <strong>median</strong> of whichever sources are currently
+  toggled on — always renders as the boldest, most prominent element: a thick line on Ensemble, the fill
+  color on the map. Individual providers draw thin and muted (hollow dots, low opacity) — present so you
+  can inspect the underlying evidence, but never competing visually with the estimate itself. Toggling a
+  provider off (click its chip under an Ensemble chart) removes it from the median calculation everywhere
+  it's used, including any map sharing the same <strong>ensemble channel</strong> (the map's Provider/series
+  column option) — both charts recompute and re-render live from the same reduced set.</p>
+
+  <h3>The agreement band is a confidence signal, not decoration</h3>
+  <p>The translucent band around the Ensemble chart's median line spans the full range of the toggled-on
+  providers at each point. Read it literally: a <strong>tight band means the sources agree</strong> (high
+  confidence in the estimate there), and a <strong>wide band means they don't</strong> (treat that point
+  with more caution). It is not a stylistic flourish — it's the chart's way of showing uncertainty honestly
+  instead of hiding it behind a single confident-looking line.</p>
+
+  <h3>A reference series is context, never the estimate</h3>
+  <p>Both charts support an optional <strong>reference series</strong> (e.g. an independent census or
+  ground-truth figure) drawn as hollow markers, visually distinct from the provider lines and the median.
+  A reference series is deliberately excluded from the median calculation — it's there to let a viewer
+  compare the ensemble's estimate against an outside benchmark, not to be folded into the estimate itself.</p>
+
+  <h3>No-data is shown, never guessed</h3>
+  <p>The choropleth renders regions with no data as a hatched "No data" texture rather than leaving them
+  blank (easy to misread as zero) or interpolating a value (which would misrepresent coverage). Combined
+  with the provenance popover below, a viewer always knows exactly how much of the map is real data versus
+  gaps.</p>
+
+  <h3>Checking the honesty story: the ⓘ Sources popover</h3>
+  <p>Both charts have an <strong>ⓘ Sources</strong> button next to their legend that opens a popover
+  answering "how much of this can I trust?": on the map, what fraction of regions actually carry data
+  (and, when a provider column is mapped, each provider's own region count); on the Ensemble chart, how
+  many providers are currently selected, how many points have <em>every</em> selected provider reporting
+  (full coverage — a stricter, more honest signal than the agreement band alone), each provider's own point
+  count, and the reference series' point count with a reminder that it never joins the estimate. The popover
+  stays open while you read it (unlike a hover tooltip) and works identically in an exported dashboard.</p>
+
+  <h3>Handing off the underlying numbers</h3>
+  <p>Both charts have a <strong>Download CSV</strong> link in their legend that exports exactly the
+  selection currently shown — the map's region id/value pairs post-aggregation, or the Ensemble chart's
+  long-format label/provider/value rows for the toggled-on providers plus the computed median and any
+  reference series. Re-download after toggling a provider and the file reflects the new selection — a
+  quick way to hand a stakeholder the same numbers the chart is drawing from.</p>
+
+  <div class="tip">
+    <div class="tip-ic">🌾</div>
+    <div class="tip-body">
+      <p><strong>Worked example:</strong> install the <strong>Viridis View</strong> demo pack (Settings, or
+      the Studio library's Demo packs group) for a complete, ready-made illustration of everything on this
+      page — four pinned Ensemble analyses (one per conservation practice) and a featured dashboard pairing
+      them with a provider-aware county choropleth, all built from synthetic, clearly-labeled sample data.</p>
+    </div>
+  </div>
 </section>
 
 <!-- ── Chart types ────────────────────────────────────────────── -->

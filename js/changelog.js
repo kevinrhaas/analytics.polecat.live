@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 372,
+    title: 'Help docs: an "Ensembles & scientific honesty" page',
+    kind: 'polish',
+    ts: '2026-07-17T09:49:59.000Z',
+    items: [
+      'New docs section explaining the design rules behind the Ensemble chart and the choropleth map: the median renders bold as the common estimate, providers stay thin supporting evidence, the agreement band is a literal confidence signal, and a reference series never joins the estimate.',
+      'Walks through the ⓘ Sources provenance popover and Download CSV controls, and points to the Viridis View demo pack as a worked example. Linked from the docs nav.',
+    ],
+  },
+  {
     v: 371,
     title: 'A Sources popover for ensemble and map charts',
     kind: 'feature',
