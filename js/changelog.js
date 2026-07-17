@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 371,
+    title: 'A Sources popover for ensemble and map charts',
+    kind: 'feature',
+    ts: '2026-07-17T08:18:01.000Z',
+    items: [
+      'Ensemble charts and choropleth maps now offer a Sources button next to Download CSV: a popover showing which providers are included, how much of the chart they actually cover, and (on the ensemble chart) how many points have every selected provider reporting.',
+      'A provider excluded elsewhere on the chart still shows its own coverage in the popover, struck through, so nobody mistakes "toggled off" for "no data available."',
+    ],
+  },
+  {
     v: 370,
     title: 'Download the data behind an ensemble or map chart as CSV',
     kind: 'feature',

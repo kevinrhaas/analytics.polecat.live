@@ -82,6 +82,51 @@
     btn.onclick = function (e) { e.stopPropagation(); csvDownload(filename, rowsFn()); };
     return btn;
   }
+  // V9 (Viridis scientific-honesty polish): a click-to-open "Sources" popover —
+  // which providers contributed and how much coverage they have. Unlike _tip's
+  // hover-only tooltip, this PERSISTS while read (closes on outside click, its
+  // own re-click, or Escape) since honesty info is meant to be studied, not glanced.
+  function provenanceBtn(bodyFn) {
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "pdc-provenance-btn";
+    btn.setAttribute("data-provenance-btn", "1");
+    btn.setAttribute("aria-expanded", "false");
+    btn.style.cssText = "display:inline-flex;align-items:center;gap:4px;border:1px solid var(--panel-border,#dfe4ee);" +
+      "border-radius:999px;padding:2px 9px;background:none;cursor:pointer;font:inherit;font-size:10.5px;" +
+      "color:var(--text-secondary,#3a4560)";
+    btn.innerHTML = "ⓘ Sources";
+    btn.title = "Which providers, and how much coverage, went into what's currently shown.";
+    var pop = null;
+    function close() {
+      if (!pop) return;
+      pop.remove(); pop = null; btn.setAttribute("aria-expanded", "false");
+      document.removeEventListener("click", onDocClick, true);
+      document.removeEventListener("keydown", onKey, true);
+    }
+    function onDocClick(e) { if (pop && e.target !== btn && !pop.contains(e.target)) close(); }
+    function onKey(e) { if (e.key === "Escape") close(); }
+    btn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      if (pop) { close(); return; }
+      var host = btn.parentNode;
+      host.style.position = "relative";
+      pop = document.createElement("div");
+      pop.className = "pdc-provenance-pop";
+      pop.setAttribute("data-provenance-pop", "1");
+      pop.setAttribute("role", "dialog");
+      pop.style.cssText = "position:absolute;z-index:40;top:100%;right:0;margin-top:6px;width:230px;" +
+        "padding:10px 12px;border:1px solid var(--panel-border,#dfe4ee);border-radius:8px;" +
+        "background:var(--panel-bg,#fff);box-shadow:0 6px 20px rgba(0,0,0,.16);font-size:11px;" +
+        "line-height:1.5;color:var(--text-secondary,#3a4560);text-align:left";
+      pop.innerHTML = bodyFn();
+      host.appendChild(pop);
+      btn.setAttribute("aria-expanded", "true");
+      document.addEventListener("click", onDocClick, true);
+      document.addEventListener("keydown", onKey, true);
+    });
+    return btn;
+  }
   var RM = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   // canAnim() combines prefers-reduced-motion with the per-panel animate flag set by studio-render.js
   // (PDC._anim = p.animate !== false) so users can disable entrance animations panel-by-panel.
@@ -5937,7 +5982,7 @@
         var v = C.values[ft.properties.gid];
         return [ft.properties.gid, ft.properties.name, v == null ? "" : v];
       });
-      geoLegend(el, C.ramp, C.vmin, C.vmax, C.f, cfg, csvRows);
+      geoLegend(el, C.ramp, C.vmin, C.vmax, C.f, cfg, csvRows, C.coverage);
     }).catch(function (e) {
       el.innerHTML = '<div class="empty">Map geometry unavailable: ' + String(e && e.message || e).replace(/</g, "&lt;") + "</div>";
     });
@@ -6024,6 +6069,25 @@
       ids.forEach(function (id) { if (values[id] < vmin) vmin = values[id]; if (values[id] > vmax) vmax = values[id]; });
       if (!ids.length) { el.innerHTML = '<div class="empty">No region values — map an id column and a value column</div>'; return; }
       if (vmin === vmax) { vmin = vmin - 0.5; vmax = vmax + 0.5; }
+      // V9: provenance info for the "Sources" popover — coverage of the CURRENT
+      // selection (post channel-filter), plus, when the map is linked to the
+      // ensemble bus, a per-provider region count so the honesty story behind
+      // the map (who's in, who's out, how much of the map they each cover) is
+      // never more than one click away.
+      var coverage = { covered: ids.length, total: geo.features.length, providers: null };
+      if (cfg.rowsSV) {
+        var provSeen = {}, provOrder = [], provIds = {};
+        cfg.rowsSV.forEach(function (r) {
+          if (r.value == null || isNaN(+r.value)) return;
+          var s = String(r.series);
+          if (!provSeen[s]) { provSeen[s] = 1; provOrder.push(s); provIds[s] = {}; }
+          provIds[s][geoNormalizeId(scale, r.label, nameIdx)] = 1;
+        });
+        coverage.providers = provOrder.map(function (s) {
+          return { name: s, count: Object.keys(provIds[s]).length,
+            on: !cfg.providersChannel || PDC.ensembleBus.isOn(cfg.providersChannel, s) };
+        });
+      }
       var classes = Math.max(3, Math.min(9, cfg.classes || 5));
       var ramp = geoRamp(cfg.colorToken || "--good", classes);
       function colorOf(v) {
@@ -6048,7 +6112,7 @@
       // WebGL is unavailable — the dashboard always renders.
       if (cfg.renderer === "gl" && window.maplibregl && _webglOK()) {
         _choroplethGL(el, cfg, { scale: scale, values: values, colorOf: colorOf, ramp: ramp,
-          vmin: vmin, vmax: vmax, f: f, h: h, bbox: [x0, y0, x1, y1] });
+          vmin: vmin, vmax: vmax, f: f, h: h, bbox: [x0, y0, x1, y1], coverage: coverage });
         return;
       }
       if (cfg.renderer === "gl") { try { console.warn("choropleth: GL renderer unavailable — using the built-in renderer"); } catch (e) {} }
@@ -6081,16 +6145,36 @@
       }
       el.appendChild(svg);
       var csvRows = geo.features.map(function (f2) { return [f2.id, f2.name, values[f2.id] == null ? "" : values[f2.id]]; });
-      geoLegend(el, ramp, vmin, vmax, f, cfg, csvRows);
+      geoLegend(el, ramp, vmin, vmax, f, cfg, csvRows, coverage);
     }).catch(function (e) {
       el.innerHTML = '<div class="empty">Map geometry unavailable: ' + String(e && e.message || e).replace(/</g, "&lt;") + "</div>";
     });
+  }
+  function scaleNoun(scale) {
+    return scale === "state" ? "states" : scale === "crd" ? "CRDs" : scale === "huc8" ? "HUC8 subbasins" : "counties";
+  }
+  // V9: the "Sources" popover body for the map — coverage of what's CURRENTLY
+  // shown (post channel-filter) plus, when linked to the ensemble bus, each
+  // provider's own region count (dimmed+struck when toggled off elsewhere).
+  function mapProvenanceHtml(scale, coverage) {
+    var pct = coverage.total ? Math.round((coverage.covered / coverage.total) * 100) : 0;
+    var noun = scaleNoun(scale);
+    var html = "<b>Coverage</b><div style=\"margin-top:2px\">" + coverage.covered + " of " + coverage.total + " " + noun + " have data (" + pct + "%).</div>";
+    if (coverage.providers && coverage.providers.length) {
+      html += "<b style=\"display:block;margin-top:8px\">Providers</b><ul style=\"margin:4px 0 0;padding-left:16px\">" +
+        coverage.providers.map(function (p) {
+          return "<li" + (p.on ? "" : ' style="opacity:.55;text-decoration:line-through"') + ">" + p.name + " — " + p.count + " " + noun + "</li>";
+        }).join("") + "</ul>";
+    }
+    return html;
   }
   // Shared legend — identical under both renderers (the no-data swatch draws
   // its hatch with a CSS gradient, so it needs no SVG pattern reference).
   // csvRows (V9): [id, name, value] triples for every region CURRENTLY shown
   // (post channel-filter/aggregation) — omitted (no button) when not provided.
-  function geoLegend(el, ramp, vmin, vmax, f, cfg, csvRows) {
+  // coverage (V9): { covered, total, providers } from _choropleth — drives the
+  // "Sources" provenance popover; omitted (no button) when not provided.
+  function geoLegend(el, ramp, vmin, vmax, f, cfg, csvRows, coverage) {
     if (cfg.legend === false) return;
     var lg = document.createElement("div");
     lg.className = "pdc-geo-legend";
@@ -6101,6 +6185,9 @@
     lg.innerHTML = "<span>" + f(vmin) + "</span>" + swatches + "<span>" + f(vmax) + "</span>" +
       '<span style="display:inline-flex;align-items:center;gap:4px;margin-left:10px"><i style="width:14px;height:10px;border-radius:2px;border:1px solid var(--panel-border,#ccc);background:repeating-linear-gradient(45deg,transparent,transparent 2px,var(--panel-border,#ccc) 2px,var(--panel-border,#ccc) 3px)"></i>' + (cfg.noDataLabel || "No data") + "</span>";
     el.appendChild(lg);
+    if (cfg.provenance !== false && coverage) {
+      lg.appendChild(provenanceBtn(function () { return mapProvenanceHtml(cfg.scale || "county", coverage); }));
+    }
     if (cfg.csvDownload !== false && csvRows) {
       lg.appendChild(csvDownloadBtn("map-data.csv", function () {
         return [["Region ID", "Region", "Value"]].concat(csvRows);
@@ -6273,6 +6360,27 @@
         };
         foot.appendChild(chip);
       });
+    }
+    // V9: "Sources" popover — which providers are included and how much of the
+    // timeline each actually covers, so the common estimate's honesty story is
+    // always one click away (mirrors the choropleth's identical popover).
+    if (cfg.provenance !== false) {
+      foot.appendChild(provenanceBtn(function () {
+        var total = xOrder.length;
+        var full = xOrder.filter(function (x) { return on.length && on.every(function (s) { return byProv[s][x] != null; }); }).length;
+        var html = "<b>Coverage</b><div style=\"margin-top:2px\">" + on.length + " of " + provOrder.length + " providers currently selected.</div>" +
+          "<div style=\"margin-top:2px\">" + full + " of " + total + " points have every selected provider reporting.</div>" +
+          "<b style=\"display:block;margin-top:8px\">Providers</b><ul style=\"margin:4px 0 0;padding-left:16px\">" +
+          provOrder.map(function (name) {
+            var isOn = on.indexOf(name) >= 0;
+            var cnt = Object.keys(byProv[name]).length;
+            return "<li" + (isOn ? "" : ' style="opacity:.55;text-decoration:line-through"') + ">" + name + " — " + cnt + " of " + total + " points</li>";
+          }).join("") + "</ul>";
+        if (refName && refRows.length) {
+          html += '<div style="margin-top:8px">Reference: ' + refName + " — " + refRows.length + " point" + (refRows.length === 1 ? "" : "s") + ", never part of the common estimate.</div>";
+        }
+        return html;
+      }));
     }
     // V9: CSV download of the CURRENT SELECTION — exactly the providers left
     // toggled on, plus the common estimate and any reference series, long-format

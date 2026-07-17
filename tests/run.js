@@ -979,6 +979,93 @@ function serve() {
       csvTest.ensAfter && csvTest.ensAfter.text.indexOf("DTN") < 0 && csvTest.ensAfter.text.indexOf("Regrow") >= 0 &&
       csvTest.ensAfter.text.indexOf("Common estimate") >= 0, JSON.stringify(csvTest.ensAfter));
 
+    // ---- PROVENANCE (Viridis V9): "Sources" popover — which providers, how ----
+    // much coverage — on both the ensemble chart and its linked choropleth.
+    console.log("\n• V9: provenance popover — which providers, how much coverage");
+    const prov = await page.evaluate(async function () {
+      var providers = ["DTN", "Indigo", "Iowa State", "Regrow", "Terra"];
+      var years = ["2015", "2017", "2019", "2021", "2023", "2025"];
+      var chartRows = [];
+      providers.forEach(function (pr, pi) { years.forEach(function (y, yi) {
+        chartRows.push([y, pr, +(3 + yi * 0.8 + Math.sin(pi * 2.1 + yi) * 1.4).toFixed(2)]);
+      }); });
+      chartRows.push(["2017", "AgCensus", 100]);
+      var fips = ["17031", "17113", "19153", "19113", "18097", "18157"];
+      var mapRows = [];
+      providers.forEach(function (pr, pi) { fips.forEach(function (fp, fi) {
+        mapRows.push([fp, pr, +(2 + fi * 1.5 + pi * 0.7 + (pi === 0 ? 40 : 0)).toFixed(1)]);
+      }); });
+      var spec = { id: "prov-t", name: "prov-t", title: "t",
+        panels: [
+          { id: "c1", title: "c", span: "full", chart: { type: "ensembleSeries", da: "ts",
+            map: { labelCol: "year", seriesCol: "provider", valueCol: "pct" }, opts: { refSeries: "AgCensus", fmt: "raw" } } },
+          { id: "m1", title: "m", span: "full", chart: { type: "choropleth", da: "geo",
+            map: { idCol: "fips", valueCol: "pct", seriesCol: "provider" }, opts: { scale: "county", fmt: "raw" } } }
+        ],
+        kpis: [], filters: [], cda: { connections: [], dataAccesses: [
+          { id: "ts", kind: "sql", columns: ["year", "provider", "pct"] },
+          { id: "geo", kind: "sql", columns: ["fips", "provider", "pct"] }] } };
+      await window.__studioEnsureGeoAssets(spec);
+      var html = Studio.buildHtml(spec, window.__STUDIO_STATE.assets, { preview: true,
+        mock: { ts: { cols: ["year", "provider", "pct"], rows: chartRows }, geo: { cols: ["fips", "provider", "pct"], rows: mapRows } } });
+      return await new Promise(function (resolve) {
+        var ifr = document.createElement("iframe");
+        ifr.style.cssText = "position:fixed;left:-2200px;top:0;width:1100px;height:900px";
+        document.body.appendChild(ifr);
+        ifr.srcdoc = html;
+        var t0 = Date.now();
+        (function poll() {
+          var doc = null; try { doc = ifr.contentDocument; } catch (e) {}
+          var med = doc ? doc.querySelectorAll('[data-ens="median"]') : [];
+          var mapPaths = doc ? doc.querySelectorAll("path[data-geo-id]") : [];
+          if (med.length && mapPaths.length > 3000) {
+            var ensBtn = doc.querySelector(".pdc-ens-legend [data-provenance-btn]");
+            var mapBtn = doc.querySelector(".pdc-geo-legend [data-provenance-btn]");
+            var out = {};
+            ensBtn.click();
+            out.ensExpanded = ensBtn.getAttribute("aria-expanded");
+            out.ensHtml = doc.querySelector(".pdc-ens-legend [data-provenance-pop]").innerHTML;
+            // opening the map's popover is an "outside click" for the ensemble's —
+            // only one provenance popover stays open across the dashboard at a time
+            mapBtn.click();
+            out.ensAutoClosedByOtherPopover = !doc.querySelector(".pdc-ens-legend [data-provenance-pop]");
+            out.mapHtml = doc.querySelector(".pdc-geo-legend [data-provenance-pop]").innerHTML;
+            doc.body.click(); // outside click closes the (map) popover left open
+            out.mapClosedAfterOutside = !doc.querySelector(".pdc-geo-legend [data-provenance-pop]");
+            out.mapExpandedAfterClose = mapBtn.getAttribute("aria-expanded");
+            ensBtn.click(); // reopen the ensemble one
+            doc.dispatchEvent(new doc.defaultView.KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+            out.ensClosedAfterEscape = !doc.querySelector(".pdc-ens-legend [data-provenance-pop]");
+            doc.querySelector('[data-ens-toggle="DTN"]').click(); // re-renders the ensemble legend
+            doc.querySelector(".pdc-ens-legend [data-provenance-btn]").click();
+            out.ensHtmlAfterToggle = doc.querySelector(".pdc-ens-legend [data-provenance-pop]").innerHTML;
+            ifr.remove(); resolve(out);
+          } else if (Date.now() - t0 > 15000) { ifr.remove(); resolve({ timeout: true }); }
+          else setTimeout(poll, 200);
+        })();
+      });
+    });
+    ok("V9 PROVENANCE: the ensemble chart's Sources popover opens (aria-expanded=true) and lists coverage + all 5 providers + the AgCensus reference note",
+      prov.ensExpanded === "true" && /5 of 5 providers currently selected/.test(prov.ensHtml) &&
+      /6 of 6 points have every selected provider reporting/.test(prov.ensHtml) &&
+      ["DTN", "Indigo", "Iowa State", "Regrow", "Terra"].every(function (p) { return prov.ensHtml.indexOf(p) >= 0; }) &&
+      /Reference: AgCensus.*never part of the common estimate/.test(prov.ensHtml), JSON.stringify(prov.ensHtml));
+    ok("V9 PROVENANCE: the linked choropleth's Sources popover reports region coverage and a per-provider county count",
+      /6 of \d+ counties have data/.test(prov.mapHtml) &&
+      ["DTN", "Indigo", "Iowa State", "Regrow", "Terra"].every(function (p) { return prov.mapHtml.indexOf(p) >= 0; }) &&
+      /DTN — 6 counties/.test(prov.mapHtml), JSON.stringify(prov.mapHtml));
+    ok("V9 PROVENANCE: only one provenance popover stays open at a time — opening the map's auto-closes the ensemble's",
+      prov.ensAutoClosedByOtherPopover, JSON.stringify(prov.ensAutoClosedByOtherPopover));
+    ok("V9 PROVENANCE: clicking outside closes the open popover (aria-expanded resets)",
+      prov.mapClosedAfterOutside && prov.mapExpandedAfterClose === "false",
+      JSON.stringify({ mapClosedAfterOutside: prov.mapClosedAfterOutside, mapExpandedAfterClose: prov.mapExpandedAfterClose }));
+    ok("V9 PROVENANCE: Escape closes the popover too",
+      prov.ensClosedAfterEscape, JSON.stringify(prov));
+    ok("V9 PROVENANCE: toggling DTN off updates the popover live — '4 of 5 providers' and DTN shown struck-through, never silently dropped from the list",
+      /4 of 5 providers currently selected/.test(prov.ensHtmlAfterToggle) &&
+      /<li style="opacity:.55;text-decoration:line-through">DTN/.test(prov.ensHtmlAfterToggle),
+      JSON.stringify(prov.ensHtmlAfterToggle));
+
     // ---- GL MAP (Viridis V4): opt-in MapLibre renderer behind the same API ----
     console.log("\n• GL MAP: opt-in MapLibre renderer (Viridis V4)");
     (function () {
@@ -18626,7 +18713,7 @@ function serve() {
     // are fetched during install too (from the index we just cached), so a first-ever offline
     // visit still has a full library/gallery, not just a blank shell.
     const pwaDataPrecached = await pwaPage.evaluate(async function () {
-      const cache = await caches.open("studio-shell-v22");
+      const cache = await caches.open("studio-shell-v23");
       const keys = (await cache.keys()).map((r) => new URL(r.url).pathname.replace(/^\//, ""));
       const exIndex = await fetch("data/examples/index.json").then((r) => r.json());
       const missingExamples = exIndex.filter((ex) => keys.indexOf("data/examples/" + ex.file) < 0);
