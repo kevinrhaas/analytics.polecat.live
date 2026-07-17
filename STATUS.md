@@ -1221,13 +1221,14 @@
 >     `map.seriesCol` is set, so existing single-series choropleth panels (V2's common case) are
 >     unaffected. SW cache → v18. Test suite gains a "DEMO PACKS" block (unit tests for the sample-
 >     engine heuristics/crossing + full install → verify-everywhere → remove flow).
-> V8. **Prep / load processes (data-management-lite):** new workspace `jobs` table — a job =
+> V8. ✓ **Prep / load processes (data-management-lite, feature-complete 2026-07-17):** new
+>     workspace `jobs` table — a job =
 >     ordered steps over datasets: field mapping/rename/cast/derive, filter, AGGREGATE/ROLLUP
 >     (group-by + sum/avg/count/median/**acreage-weighted mean** — required for honest State/CRD/
 >     HUC8 roll-ups of percent metrics), JOIN/UNION across datasets (the 5-provider normalize-and-
 >     stack case), output → materialized workspace dataset; execute on demand, re-run for annual
 >     updates; optional custom-SQL step via the existing engines. Client-side executor first.
->     ⏳ **Slice 1 shipped (2026-07-17):** the single-dataset prep pipeline — `app/sources/
+>     ✓ **Slice 1 shipped (2026-07-17):** the single-dataset prep pipeline — `app/sources/
 >     jobs-engine.js` (pure, unit-tested) runs ordered rename/cast/derive/filter/aggregate steps
 >     over one source dataset's live rows; derive takes two explicit `{col}`/`{value}` operands
 >     (no string-sniffing ambiguity); aggregate's `wmean` metric is the acreage-weighted mean
@@ -1239,7 +1240,7 @@
 >     `job.outputDatasetId` (the annual-refresh case). Schema v2→v3 (additive: Turso self-heals via
 >     the existing `WS.TABLE_NAMES` loop; `provisionDeltaSQL` now covers analyses+jobs together for
 >     Supabase's paste-me path). SW cache → v19; docs gain a Jobs section.
->     ⏳ **Slice 2 shipped (2026-07-17):** JOIN and UNION across datasets. The engine stays pure/
+>     ✓ **Slice 2 shipped (2026-07-17):** JOIN and UNION across datasets. The engine stays pure/
 >     synchronous (`Studio.runJobSteps(input, steps, ctx)` now takes an optional `ctx.datasets`
 >     map); `studio.js`'s new `resolveJobCtx` runs every dataset a job's join/union steps
 >     reference through the real adapters BEFORE calling the engine, so join/union work against
@@ -1252,7 +1253,21 @@
 >     per-column mapping (falls back to a same-name match, else blank) — run once per additional
 >     provider dataset, this is exactly the 5-provider case the Viridis rollups need. Job editor
 >     gained dataset-picker + key/type fields for join and a column-mapping editor for union.
->     SW cache → v20; docs updated. **Deferred to a later slice:** the custom-SQL step.
+>     SW cache → v20; docs updated.
+>     ✓ **Slice 3 shipped (2026-07-17): the Custom SQL step.** New `sql` op runs an arbitrary
+>     query against the pipeline's CURRENT rows, table-aliased `t`, via DuckDB-Wasm (the same
+>     engine Z14 slice 1 already vendors for remote-file querying) — `app/duckdb.js` gains
+>     `queryRows(columns, rows, sql)`, which registers the rows as in-memory CSV text via
+>     `registerFileText()` (no network) instead of `registerFileURL()`, so the query never
+>     leaves the browser. The pure engine in `jobs-engine.js` stays synchronous and
+>     DOM/engine-free — `Studio.runJobStepsAsync(input, steps, ctx, sqlRunner)` is the new
+>     orchestrator that splits a job's steps at `sql` boundaries, runs each pipe segment
+>     through the existing `runJobSteps`, and awaits `sqlRunner` (DuckDB in the app, a fake
+>     function in tests) for each `sql` segment; a job with no `sql` step never touches the
+>     engine, so the WASM load stays fully lazy. `runJob()` and the job editor's Preview both
+>     switched from `runJobSteps` to `runJobStepsAsync`. Job editor gained a SQL textarea step
+>     (monospace, table `t` hinted). V8 is now **feature-complete**. SW cache → v21; docs
+>     updated.
 > V9. **Scientific-honesty polish:** first-class no-data/coverage rendering, provenance popover
 >     (which providers, coverage, last updated), CSV download of the current selection (the
 >     RFP's deferred download question), docs + a "make the ensemble legible" help page.

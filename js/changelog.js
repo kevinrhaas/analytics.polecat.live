@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 369,
+    title: 'Jobs -- a Custom SQL step',
+    kind: 'feature',
+    ts: '2026-07-17T05:28:18.000Z',
+    items: [
+      'A job step can now run an arbitrary SQL query against the pipeline\'s rows so far (table t), via an in-browser DuckDB engine that loads the first time a job uses it -- no network round trip, no server.',
+      'Steps before and after a Custom SQL step still run through the existing rename/cast/derive/filter/aggregate/join/union pipeline, so SQL is an escape hatch for the odd case those steps don\'t cover, not a replacement for them.',
+    ],
+  },
+  {
     v: 368,
     title: 'Jobs -- join and union across datasets',
     kind: 'feature',

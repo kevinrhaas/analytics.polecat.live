@@ -7,6 +7,10 @@
      ensureEngine()        — lazy-load + cache a single AsyncDuckDB instance for this tab
      testConnection(cfg)   — probe a file URL: schema (DESCRIBE) + a 5-row sample
      query(cfg, sql)       — run an arbitrary SQL string against the file (view alias "t")
+     queryRows(columns, rows, sql) — Viridis V8 slice 3: run arbitrary SQL against an
+       IN-MEMORY {columns,rows} table (view alias "t", same convention), no file/network
+       involved — the job engine's Custom SQL step registers the pipeline's current rows
+       as CSV text via registerFileText() rather than a remote URL.
    cfg = { fileUrl, fileFormat }  — fileFormat is "auto" | "parquet" | "csv". */
 (function () {
   "use strict";
@@ -83,6 +87,25 @@
     });
   }
 
+  // Registers `csvText` as an in-memory virtual file (no network) and hands a connection
+  // with a "t" view over it to `fn` — the in-memory counterpart to withView() above, shared
+  // by queryRows(). Table alias and connection lifecycle match withView() exactly so both
+  // paths behave identically to callers.
+  function withTextView(csvText, fn) {
+    return ensureEngine().then(function (eng) {
+      return eng.db.registerFileText(FILE_ALIAS + ".csv", csvText)
+        .then(function () { return eng.db.connect(); })
+        .then(function (conn) {
+          return conn.query("CREATE OR REPLACE VIEW " + VIEW_NAME + " AS SELECT * FROM read_csv_auto('" + FILE_ALIAS + ".csv')")
+            .then(function () { return fn(conn); })
+            .then(
+              function (result) { return conn.close().then(function () { return result; }); },
+              function (err) { return conn.close().then(function () { throw err; }, function () { throw err; }); }
+            );
+        });
+    });
+  }
+
   // Probes a file: schema via DESCRIBE + a small sample. Never rejects — resolves
   // {ok:false, error} on any failure (bad URL, no CORS/Range support, network unreachable,
   // engine load failure) so the inspector can show a clear message instead of a stuck spinner.
@@ -111,6 +134,18 @@
       return withView(cfg, function (conn) {
         return conn.query((sql && sql.trim()) || ("SELECT * FROM " + VIEW_NAME + " LIMIT 200")).then(arrowToResult);
       });
+    },
+
+    // Runs `sql` (defaults to "SELECT * FROM t") against an in-memory table built from
+    // `columns`/`rows` (a job pipeline's current state — the {columns, rows} shape every
+    // adapter and the jobs engine already share). Rejects on failure, same contract as
+    // query(); the job engine's Custom SQL step (Studio.runJobStepsAsync in
+    // app/sources/jobs-engine.js) is the caller.
+    queryRows: function (columns, rows, sql) {
+      var csv = Studio.rowsToCsv(columns || [], rows || []);
+      return withTextView(csv, function (conn) {
+        return conn.query((sql && sql.trim()) || ("SELECT * FROM " + VIEW_NAME)).then(arrowToResult);
+      }).then(function (res) { return { columns: res.cols, rows: res.rows }; });
     }
   };
 })();
