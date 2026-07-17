@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 370,
+    title: 'Download the data behind an ensemble or map chart as CSV',
+    kind: 'feature',
+    ts: '2026-07-17T07:18:55.000Z',
+    items: [
+      'Ensemble charts and choropleth maps now offer a Download CSV control in their legend that exports exactly what is currently on screen -- for an ensemble chart, the providers left toggled on plus the common estimate; for a map, the region values as aggregated and colored.',
+      'Answers the deferred download question from public embed use cases: a reader who wants the numbers behind a chart, not just the picture, gets a real file.',
+    ],
+  },
+  {
     v: 369,
     title: 'Jobs -- a Custom SQL step',
     kind: 'feature',

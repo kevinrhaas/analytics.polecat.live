@@ -5,7 +5,9 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v21"; /* v21: Jobs (Viridis V8 slice 3) gains a Custom SQL step —
+var CACHE_NAME = "studio-shell-v22"; /* v22: V9 scientific-honesty polish slice 1 — Download-CSV
+   controls on the ensemble and choropleth charts (app/studio-charts.js changed).
+   v21: Jobs (Viridis V8 slice 3) gains a Custom SQL step —
    app/sources/jobs-engine.js, app/duckdb.js and app/studio.js content changed, so precached
    copies need to roll. v20: Jobs (Viridis V8) gains join/union steps across
    datasets — app/sources/jobs-engine.js and app/studio.js content changed, so precached copies
