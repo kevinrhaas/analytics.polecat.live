@@ -53,6 +53,35 @@
     node.addEventListener("mousemove", function (e) { PDC.showTip(e, html); });
     node.addEventListener("mouseout", PDC.hideTip);
   }
+  // V9 (Viridis scientific-honesty polish): a self-contained CSV download the
+  // geo/ensemble charts trigger for "the current selection" — no dependency on
+  // the app shell's own download() helper, since this module ships standalone
+  // inside every export/preview iframe.
+  function csvCell(v) {
+    var s = v == null ? "" : String(v);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+  function csvDownload(filename, rows) {
+    var csv = rows.map(function (r) { return r.map(csvCell).join(","); }).join("\r\n");
+    var blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = filename; a.style.display = "none";
+    document.body.appendChild(a); a.click();
+    setTimeout(function () { document.body.removeChild(a); URL.revokeObjectURL(a.href); }, 0);
+  }
+  function csvDownloadBtn(filename, rowsFn, label) {
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "pdc-csv-dl";
+    btn.setAttribute("data-csv-dl", "1");
+    btn.style.cssText = "display:inline-flex;align-items:center;gap:4px;border:1px solid var(--panel-border,#dfe4ee);" +
+      "border-radius:999px;padding:2px 9px;background:none;cursor:pointer;font:inherit;font-size:10.5px;" +
+      "color:var(--text-secondary,#3a4560);margin-left:auto";
+    btn.textContent = "⬇ " + (label || "Download CSV");
+    btn.title = "Download the data currently shown (respects the active provider selection) as CSV.";
+    btn.onclick = function (e) { e.stopPropagation(); csvDownload(filename, rowsFn()); };
+    return btn;
+  }
   var RM = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   // canAnim() combines prefers-reduced-motion with the per-panel animate flag set by studio-render.js
   // (PDC._anim = p.animate !== false) so users can disable entrance animations panel-by-panel.
@@ -5904,7 +5933,11 @@
         map.setFilter("hover", ["==", ["get", "gid"], " "]);
         tip.style.display = "none";
       });
-      geoLegend(el, C.ramp, C.vmin, C.vmax, C.f, cfg);
+      var csvRows = geo.fc.features.map(function (ft) {
+        var v = C.values[ft.properties.gid];
+        return [ft.properties.gid, ft.properties.name, v == null ? "" : v];
+      });
+      geoLegend(el, C.ramp, C.vmin, C.vmax, C.f, cfg, csvRows);
     }).catch(function (e) {
       el.innerHTML = '<div class="empty">Map geometry unavailable: ' + String(e && e.message || e).replace(/</g, "&lt;") + "</div>";
     });
@@ -6047,14 +6080,17 @@
         svg.appendChild(S("path", { d: geo.statesOverlay, fill: "none", stroke: "var(--text-muted, #888)", "stroke-width": strokeW * 1.1, "stroke-opacity": "0.55", "pointer-events": "none" }));
       }
       el.appendChild(svg);
-      geoLegend(el, ramp, vmin, vmax, f, cfg);
+      var csvRows = geo.features.map(function (f2) { return [f2.id, f2.name, values[f2.id] == null ? "" : values[f2.id]]; });
+      geoLegend(el, ramp, vmin, vmax, f, cfg, csvRows);
     }).catch(function (e) {
       el.innerHTML = '<div class="empty">Map geometry unavailable: ' + String(e && e.message || e).replace(/</g, "&lt;") + "</div>";
     });
   }
   // Shared legend — identical under both renderers (the no-data swatch draws
   // its hatch with a CSS gradient, so it needs no SVG pattern reference).
-  function geoLegend(el, ramp, vmin, vmax, f, cfg) {
+  // csvRows (V9): [id, name, value] triples for every region CURRENTLY shown
+  // (post channel-filter/aggregation) — omitted (no button) when not provided.
+  function geoLegend(el, ramp, vmin, vmax, f, cfg, csvRows) {
     if (cfg.legend === false) return;
     var lg = document.createElement("div");
     lg.className = "pdc-geo-legend";
@@ -6065,6 +6101,11 @@
     lg.innerHTML = "<span>" + f(vmin) + "</span>" + swatches + "<span>" + f(vmax) + "</span>" +
       '<span style="display:inline-flex;align-items:center;gap:4px;margin-left:10px"><i style="width:14px;height:10px;border-radius:2px;border:1px solid var(--panel-border,#ccc);background:repeating-linear-gradient(45deg,transparent,transparent 2px,var(--panel-border,#ccc) 2px,var(--panel-border,#ccc) 3px)"></i>' + (cfg.noDataLabel || "No data") + "</span>";
     el.appendChild(lg);
+    if (cfg.csvDownload !== false && csvRows) {
+      lg.appendChild(csvDownloadBtn("map-data.csv", function () {
+        return [["Region ID", "Region", "Value"]].concat(csvRows);
+      }));
+    }
   }
 
   /* ── Ensemble series (Viridis V3) ────────────────────────────────────────────
@@ -6232,6 +6273,20 @@
         };
         foot.appendChild(chip);
       });
+    }
+    // V9: CSV download of the CURRENT SELECTION — exactly the providers left
+    // toggled on, plus the common estimate and any reference series, long-format
+    // so it stays honest about what's median vs. per-provider vs. reference.
+    if (cfg.csvDownload !== false) {
+      foot.appendChild(csvDownloadBtn("ensemble-data.csv", function () {
+        var rows = [["Label", "Series", "Value"]];
+        xOrder.forEach(function (x) {
+          on.forEach(function (name) { var v = byProv[name][x]; if (v != null) rows.push([x, name, v]); });
+          if (median[x] != null) rows.push([x, cfg.medianLabel || "Common estimate", median[x]]);
+        });
+        if (refName) refRows.forEach(function (r) { if (r.value != null && !isNaN(+r.value)) rows.push([r.label, refName, +r.value]); });
+        return rows;
+      }));
     }
     el.appendChild(foot);
   }

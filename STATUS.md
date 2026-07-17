@@ -1271,6 +1271,20 @@
 > V9. **Scientific-honesty polish:** first-class no-data/coverage rendering, provenance popover
 >     (which providers, coverage, last updated), CSV download of the current selection (the
 >     RFP's deferred download question), docs + a "make the ensemble legible" help page.
+>     ✓ **Slice 1 shipped (2026-07-17): CSV download of the current selection.** Both the
+>     ensembleSeries and choropleth chart legends gain a "⬇ Download CSV" control,
+>     self-contained inside `app/studio-charts.js` (no dependency on the app shell's own
+>     download() helper, since this module ships standalone in every preview/export iframe).
+>     Ensemble exports long-format label/series/value rows for EXACTLY the providers left
+>     toggled on plus the computed common estimate and any reference series — a re-download
+>     after a provider toggle reflects the new selection live (same `PDC.ensembleBus`-driven
+>     re-render V3 already wired). Choropleth exports region id/name/value for what's
+>     currently shown post-aggregation (works for both the plain single-series path and the
+>     ensemble-channel-linked path; both the SVG and GL renderers call the same shared
+>     `geoLegend`). Suite gains 3 checks driving the export end-to-end inside a real exported
+>     iframe (intercepting the anchor's `click()` to read the Blob instead of triggering an
+>     OS download). SW cache → v22. Remaining V9 sub-items (no-data/coverage rendering,
+>     provenance popover, docs/help page) are next.
 >
 > Open questions parked for Kevin: (a) confirm /app/ move + redirect posture; (b) MapLibre vendor
 > size (~850KB) is fine as vendored no-build code?; (c) HUC8/CRD geometry sourcing priority;

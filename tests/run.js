@@ -914,6 +914,71 @@ function serve() {
       ens.before.legendMin0 === "4.1" && ens.after.legendMin1 === "3.8",
       JSON.stringify({ before: ens.before.legendMin0, after: ens.after.legendMin1 }));
 
+    // ---- CSV DOWNLOAD (Viridis V9): "the current selection" as a real file --
+    console.log("\n• V9: CSV download of the current selection — ensemble + choropleth");
+    const csvTest = await page.evaluate(async function () {
+      var spec = { id: "csv-t", name: "csv-t", title: "t",
+        panels: [
+          { id: "c1", title: "c", span: "full", chart: { type: "ensembleSeries", da: "ts",
+            map: { labelCol: "year", seriesCol: "provider", valueCol: "pct" }, opts: { fmt: "raw" } } },
+          { id: "m1", title: "m", span: "full", chart: { type: "choropleth", da: "geo",
+            map: { idCol: "fips", valueCol: "pct" }, opts: { scale: "county", fmt: "raw" } } }
+        ],
+        kpis: [], filters: [], cda: { connections: [], dataAccesses: [
+          { id: "ts", kind: "sql", columns: ["year", "provider", "pct"] },
+          { id: "geo", kind: "sql", columns: ["fips", "pct"] }] } };
+      await window.__studioEnsureGeoAssets(spec);
+      var html = Studio.buildHtml(spec, window.__STUDIO_STATE.assets, { preview: true,
+        mock: {
+          ts: { cols: ["year", "provider", "pct"], rows: [["2019", "DTN", 12], ["2021", "DTN", 14], ["2019", "Regrow", 18], ["2021", "Regrow", 20]] },
+          geo: { cols: ["fips", "pct"], rows: [["17031", 25], ["19153", 40]] }
+        } });
+      return await new Promise(function (resolve) {
+        var ifr = document.createElement("iframe");
+        ifr.style.cssText = "position:fixed;left:-2200px;top:0;width:1100px;height:900px";
+        document.body.appendChild(ifr);
+        ifr.srcdoc = html;
+        var t0 = Date.now();
+        (function poll() {
+          var doc = null; try { doc = ifr.contentDocument; } catch (e) {}
+          var med = doc ? doc.querySelectorAll('[data-ens="median"]') : [];
+          var mapPaths = doc ? doc.querySelectorAll("path[data-geo-id]") : [];
+          if (med.length && mapPaths.length > 3000) {
+            // Intercept anchor.click() INSIDE the iframe's own realm (the CSV
+            // helper lives in studio-charts.js, inlined per-export) so the test
+            // captures the Blob text instead of triggering a real OS download.
+            var win = ifr.contentWindow;
+            win.HTMLAnchorElement.prototype.click = function () {
+              var self = this;
+              win.__csvCap = win.fetch(self.href).then(function (r) { return r.text(); })
+                .then(function (t) { return { name: self.download, text: t }; });
+            };
+            function grab(sel) { doc.querySelector(sel).click(); return win.__csvCap; }
+            Promise.all([grab(".pdc-ens-legend [data-csv-dl]"), grab(".pdc-geo-legend [data-csv-dl]")])
+              .then(function (r) {
+                var ensBefore = r[0], mapCsv = r[1];
+                doc.querySelector('[data-ens-toggle="DTN"]').click(); // re-renders the ensemble legend
+                grab(".pdc-ens-legend [data-csv-dl]").then(function (ensAfter) {
+                  ifr.remove();
+                  resolve({ ensBefore: ensBefore, mapCsv: mapCsv, ensAfter: ensAfter });
+                });
+              });
+          } else if (Date.now() - t0 > 15000) { ifr.remove(); resolve({ timeout: true }); }
+          else setTimeout(poll, 200);
+        })();
+      });
+    });
+    ok("V9 CSV: the ensemble chart's Download-CSV control exports the CURRENT SELECTION long-format (label/series/value, both providers + the common estimate)",
+      csvTest.ensBefore && csvTest.ensBefore.name === "ensemble-data.csv" && /^Label,Series,Value/.test(csvTest.ensBefore.text) &&
+      csvTest.ensBefore.text.indexOf("DTN") >= 0 && csvTest.ensBefore.text.indexOf("Regrow") >= 0 &&
+      csvTest.ensBefore.text.indexOf("Common estimate") >= 0, JSON.stringify(csvTest.ensBefore));
+    ok("V9 CSV: the choropleth's Download-CSV control exports region id/name/value for what's currently shown",
+      csvTest.mapCsv && csvTest.mapCsv.name === "map-data.csv" && /^Region ID,Region,Value/.test(csvTest.mapCsv.text) &&
+      csvTest.mapCsv.text.indexOf("17031") >= 0 && csvTest.mapCsv.text.indexOf("19153") >= 0, JSON.stringify(csvTest.mapCsv));
+    ok("V9 CSV: toggling a provider off and re-downloading reflects the NEW selection — DTN drops out, Regrow and the common estimate remain",
+      csvTest.ensAfter && csvTest.ensAfter.text.indexOf("DTN") < 0 && csvTest.ensAfter.text.indexOf("Regrow") >= 0 &&
+      csvTest.ensAfter.text.indexOf("Common estimate") >= 0, JSON.stringify(csvTest.ensAfter));
+
     // ---- GL MAP (Viridis V4): opt-in MapLibre renderer behind the same API ----
     console.log("\n• GL MAP: opt-in MapLibre renderer (Viridis V4)");
     (function () {
@@ -18561,7 +18626,7 @@ function serve() {
     // are fetched during install too (from the index we just cached), so a first-ever offline
     // visit still has a full library/gallery, not just a blank shell.
     const pwaDataPrecached = await pwaPage.evaluate(async function () {
-      const cache = await caches.open("studio-shell-v21");
+      const cache = await caches.open("studio-shell-v22");
       const keys = (await cache.keys()).map((r) => new URL(r.url).pathname.replace(/^\//, ""));
       const exIndex = await fetch("data/examples/index.json").then((r) => r.json());
       const missingExamples = exIndex.filter((ex) => keys.indexOf("data/examples/" + ex.file) < 0);
