@@ -5490,6 +5490,30 @@
         else if (act === "tour") { setTimeout(function () { if (window.StudioTutorial) StudioTutorial.open(); }, 60); }
       };
     });
+    // Drag a Datasets-catalog row straight onto "Blank dashboard" to start one
+    // seeded with it (post-overhaul backlog item 6) — same {wsDataset} drop
+    // contract the Studio canvas already accepts.
+    var blankCard = $('.home-card[data-home="blank"]', sec);
+    if (blankCard) {
+      ["dragenter", "dragover"].forEach(function (ev) {
+        blankCard.addEventListener(ev, function (e) { e.preventDefault(); blankCard.classList.add("dragover"); e.dataTransfer.dropEffect = "copy"; });
+      });
+      ["dragleave", "drop"].forEach(function (ev) {
+        blankCard.addEventListener(ev, function (e) { if (ev === "dragleave" && e.target !== blankCard && blankCard.contains(e.relatedTarget)) return; blankCard.classList.remove("dragover"); });
+      });
+      blankCard.addEventListener("drop", function (e) {
+        e.preventDefault(); blankCard.classList.remove("dragover");
+        try {
+          var d = JSON.parse(e.dataTransfer.getData("text/plain"));
+          if (d && d.wsDataset && Studio.Workspace.get("datasets", d.wsDataset)) {
+            if (window.__studioShellSetSection) window.__studioShellSetSection("studio");
+            S.spec = applyDashboardDefaults(Studio.emptySpec()); S.selection = null; syncHeader();
+            bumpDashMilestone();
+            addFromWorkspaceDataset(d.wsDataset, "bars");
+          }
+        } catch (x) {}
+      });
+    }
     var tipNext = $(".home-tip-next", sec);
     if (tipNext) tipNext.onclick = function () { _homeTipIdx = (_homeTipIdx + 1) % HOME_TIPS.length; renderHome(); };
     $$("[data-home-analysis]", sec).forEach(function (btn) {
@@ -6240,7 +6264,7 @@
         ? '<span class="cx-badge cx-lineage" title="Used in: ' + esc(lineage.map(function (r) { return r.title || r.name || "Untitled"; }).join(", ")) + '">↪ ' +
           lineage.length + " dashboard" + (lineage.length !== 1 ? "s" : "") + '</span>'
         : "";
-      return '<div class="cx-row" data-dsx-id="' + esc(d.id) + '" tabindex="0" role="button" aria-label="Edit dataset ' + esc(d.name) + '">' +
+      return '<div class="cx-row" draggable="true" data-dsx-id="' + esc(d.id) + '" tabindex="0" role="button" aria-label="Edit dataset ' + esc(d.name) + '">' +
         dot +
         '<span class="cx-ic" style="color:' + esc((src && src.accent) || "var(--faint)") + '"></span>' +
         '<span class="cx-name"><b>' + esc(d.name) + '</b><small>' + esc(conn ? conn.name : "no connection") + (src ? " · " + src.label : "") + (d.owner ? " · " + esc(d.owner) : "") + '</small></span>' +
@@ -6329,6 +6353,13 @@
       });
       row.addEventListener("keydown", function (e) {
         if ((e.key === "Enter" || e.key === " ") && e.target === row) { e.preventDefault(); openDatasetEditor(d); }
+      });
+      // Drag onto Home's "Blank dashboard" tile to start a new dashboard seeded
+      // with this dataset — same {wsDataset} payload the Studio library/canvas
+      // drop already understands (post-overhaul backlog item 6).
+      row.addEventListener("dragstart", function (e) {
+        e.dataTransfer.setData("text/plain", JSON.stringify({ wsDataset: row.getAttribute("data-dsx-id") }));
+        e.dataTransfer.effectAllowed = "copy";
       });
     });
     $$("[data-dsx-run]", results).forEach(function (btn) {

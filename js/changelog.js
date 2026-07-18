@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 384,
+    title: 'Drag a dataset onto Home to start a dashboard',
+    kind: 'feature',
+    ts: '2026-07-18T08:55:15.000Z',
+    items: [
+      'A Datasets-catalog row can now be dragged straight onto Home\'s "Blank dashboard" tile (post-overhaul backlog item 6, "drag a dataset card straight onto Home to start a dashboard"): it opens a fresh dashboard in the Studio, already seeded with a bar chart bound to that dataset -- the same {wsDataset} drop contract the Studio canvas already accepted, so the underlying import logic (linked, self-contained data access; sample-data fallback if no live run has taught it columns yet) is unchanged and shared.',
+      'The tile shows a dashed highlight while a dataset is dragged over it, matching the existing canvas drop-zone treatment.',
+    ],
+  },
+  {
     v: 383,
     title: 'The DA inspector\'s Cache fields now actually cache',
     kind: 'fix',

@@ -1469,9 +1469,14 @@
 >    (2026-07-18, steward PR):** `connLoadViews`/`connSaveViews`/`connApplyView` in
 >    `app/studio.js`, identical chip UX, one axis narrower (adapter pill only — connections
 >    aren't tagged); own `connectionViews` key in the same Workspace SETTINGS bag. 5 new
->    regression checks; suite 1560/1560. Still open: drag a dataset card straight onto Home to
->    start a dashboard. (Palette entries for the new sections landed with the 2026-07-14 UX
->    sprint.)
+>    regression checks; suite 1560/1560. ✓ **Drag a dataset card straight onto Home to start a
+>    dashboard shipped (2026-07-18, steward PR):** a Datasets-catalog row is now `draggable`,
+>    carrying the same `{wsDataset}` payload the Studio canvas drop already accepts; dropping it
+>    on Home's "Blank dashboard" tile opens a fresh dashboard seeded with a bar chart bound to
+>    that dataset (reuses `addFromWorkspaceDataset` — same linked/self-contained-DA behavior as
+>    the canvas and library-chip paths). Dashed drag-over highlight matches the canvas drop zone.
+>    SW cache → v33. 2 new regression checks. (Palette entries for the new sections landed with
+>    the 2026-07-14 UX sprint.)
 > 7. **Organization at scale (user, 2026-07-14):** dashboards/datasets/connections "will start to
 >    become very long lists" — needs favorites/pinning everywhere, grouping (maybe folders, maybe
 >    tags — user unsure a tree is right), and cross-cutting views: see datasets by connection, by
