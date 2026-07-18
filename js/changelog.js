@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 388,
+    title: 'Schema browser for warehouse connections',
+    kind: 'feature',
+    ts: '2026-07-18T21:32:00.000Z',
+    items: [
+      'Post-overhaul backlog item 5 ("dataset delight") gains the schema-browser half: a "Browse schema" button in the Connections wizard for Snowflake, Databricks and Amazon Redshift connections lists every table and its columns via a new, optional adapter.listSchema() capability -- an ANSI information_schema.columns query run through the same engine.query() bridge queryData already uses, grouped into a filterable, per-table-expandable tree.',
+      'BigQuery (needs a dataset-qualified INFORMATION_SCHEMA path) and the remaining adapters (generic SQL/HTTP, DuckDB, SQLite, PostgREST -- each with a different introspection story) are follow-ups; adapters without the capability simply hide the button.',
+    ],
+  },
+  {
     v: 387,
     title: 'Amazon Redshift data source',
     kind: 'feature',

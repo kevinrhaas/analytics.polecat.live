@@ -6058,6 +6058,47 @@
       return r;
     });
   }
+  // Post-overhaul backlog item 5 ("dataset delight" — the schema-browser
+  // half): renders adapter.listSchema()'s {tables:[{schema,name,columns}]}
+  // as a filterable, per-table-expandable tree inside the connection
+  // wizard's schema panel. A pure render function so it's easy to call from
+  // both the fetch-success path and (via renderSchemaPanel(panel, r)) tests.
+  function renderSchemaPanel(panel, r) {
+    panel.innerHTML = "";
+    if (r && r.error) {
+      var err = el("div", "cx-schema-status bad"); err.textContent = "✕ " + r.error; panel.appendChild(err); return;
+    }
+    var tables = (r && r.tables) || [];
+    if (!tables.length) {
+      var empty = el("div", "cx-schema-status"); empty.textContent = "No tables found — check the connection's credentials cover schema-read access.";
+      panel.appendChild(empty); return;
+    }
+    var filterRow = el("div", "cx-schema-filter");
+    var filterInp = el("input"); filterInp.type = "text"; filterInp.placeholder = "Filter tables…"; filterInp.setAttribute("aria-label", "Filter tables");
+    filterRow.appendChild(filterInp); panel.appendChild(filterRow);
+    var list = el("div", "cx-schema-list"); panel.appendChild(list);
+    var rows = tables.map(function (t) {
+      var det = document.createElement("details"); det.className = "cx-schema-table";
+      var summary = document.createElement("summary");
+      var n = (t.columns || []).length;
+      summary.innerHTML = "<b>" + esc(t.name) + "</b>" + (t.schema ? " <small>" + esc(t.schema) + "</small>" : "") +
+        ' <span class="cx-schema-n">' + n + " col" + (n === 1 ? "" : "s") + "</span>";
+      det.appendChild(summary);
+      var colList = el("ul", "cx-schema-cols");
+      (t.columns || []).forEach(function (c) {
+        var li = document.createElement("li");
+        li.innerHTML = '<span class="cx-schema-col">' + esc(c.name) + '</span><span class="cx-schema-type">' + esc(c.type || "") + "</span>";
+        colList.appendChild(li);
+      });
+      det.appendChild(colList);
+      list.appendChild(det);
+      return { el: det, needle: ((t.schema || "") + " " + t.name).toLowerCase() };
+    });
+    filterInp.oninput = function () {
+      var q = filterInp.value.trim().toLowerCase();
+      rows.forEach(function (row) { row.el.hidden = !!q && row.needle.indexOf(q) === -1; });
+    };
+  }
   // The 2-step connect wizard (manager pattern): pick an adapter → name +
   // credential fields (from adapter.fields) with an inline Test. Editing an
   // existing connection opens straight at step 2.
@@ -6099,8 +6140,12 @@
         var result = el("div", "cx-test-result"); b.appendChild(result);
         var foot = el("div", "cx-wiz-foot");
         var testBtn = el("button", "btn"); testBtn.type = "button"; testBtn.textContent = "Test connection";
+        var schemaBtn = null;
+        if (adapter.listSchema) { schemaBtn = el("button", "btn cx-schema-btn"); schemaBtn.type = "button"; schemaBtn.textContent = "Browse schema"; }
         var saveBtn = el("button", "btn primary"); saveBtn.type = "button"; saveBtn.textContent = existing ? "Save changes" : "Add connection";
-        foot.appendChild(testBtn); foot.appendChild(saveBtn); b.appendChild(foot);
+        foot.appendChild(testBtn); if (schemaBtn) foot.appendChild(schemaBtn); foot.appendChild(saveBtn); b.appendChild(foot);
+        var schemaPanel = null;
+        if (schemaBtn) { schemaPanel = el("div", "cx-schema"); schemaPanel.hidden = true; b.appendChild(schemaPanel); }
         function cfg() {
           var o = {};
           Object.keys(inputs).forEach(function (k) { var v = inputs[k].value.trim(); if (v) o[k] = v; });
@@ -6116,6 +6161,15 @@
             lastInlineTest = { ok: !!r.ok, error: r.ok ? "" : (r.error || "failed"), at: Date.now() };
             result.className = "cx-test-result " + (r.ok ? "ok" : "bad");
             result.textContent = r.ok ? "✓ Connection works" : "✕ " + (r.error || "Test failed");
+          });
+        };
+        if (schemaBtn) schemaBtn.onclick = function () {
+          schemaBtn.disabled = true; schemaBtn.textContent = "Loading schema…";
+          schemaPanel.hidden = false;
+          schemaPanel.innerHTML = '<div class="cx-schema-status">Loading…</div>';
+          adapter.listSchema(cfg()).then(function (r) {
+            schemaBtn.disabled = false; schemaBtn.textContent = "Browse schema";
+            renderSchemaPanel(schemaPanel, r);
           });
         };
         saveBtn.onclick = function () {
