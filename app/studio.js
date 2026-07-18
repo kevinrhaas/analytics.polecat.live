@@ -8375,7 +8375,20 @@
     "analytics.workspace.v1", "studio-whatsnew-seen",
     // Viridis V7: the Demo packs install-tracker (app/demopacks.js) — same
     // "new key, forgot Clear local data" gap the notes above already cover.
-    "studio-demopacks-installed"
+    "studio-demopacks-installed",
+    // Track L sweep (orphaned-key lens, round 3): cross-checked every localStorage call across
+    // ALL of app/*.js + app/sources/*.js against this list again (same technique as the v313/v322
+    // sweeps) and found three more UI-preference flags that were written but never wiped —
+    // "studio-show-samples" (the query-library "hide demo content" toggle), "studio-lib-samples-
+    // open" (whether the library's Samples group is expanded), and "studio-dash-view" (the
+    // Dashboards section's tiles/list toggle) — plus two keys in app/sources/sync.js that live
+    // entirely outside app/studio.js: "analytics.datasource.v1" (the saved remote workspace-sync
+    // connection — exactly the "Saved server connections" the Clear-local-data confirm dialog
+    // already promises to remove) and "analytics.datasource.secret.v1" (its cached decryption
+    // passphrase, this browser only — leaving it behind after disconnecting the connection it
+    // belongs to is stale-secret hygiene, not just a missed toggle).
+    "studio-show-samples", "studio-lib-samples-open", "studio-dash-view",
+    "analytics.datasource.v1", "analytics.datasource.secret.v1"
   ];
   window.__studioClearDataKeys = CLEAR_DATA_KEYS; // test hook
 

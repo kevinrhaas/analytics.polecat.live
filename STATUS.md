@@ -2963,6 +2963,18 @@ gets covered over time:
   `Studio.defineChart({type, render, opts, thumb, autoPick})` contract so new types are uniform and testable.
 - **Test health** — coverage per feature, flaky/slow checks, and a fast smoke subset for quick loops.
 > **Findings log (append newest on top; keep short):**
+> - **Fixed shipped v389 (orphaned-key lens, round 3 — same technique as v313/v322):** grepped every
+>   `localStorage.setItem`/`getItem` call across ALL of `app/*.js` + `app/sources/*.js` again and
+>   diffed against `CLEAR_DATA_KEYS`. Found five more real gaps: three UI-preference flags in
+>   `app/studio.js` — `studio-show-samples` (the "hide demo content" library toggle),
+>   `studio-lib-samples-open` (whether the library's Samples group is expanded), and
+>   `studio-dash-view` (the Dashboards section's tiles/list view) — plus two keys that live entirely
+>   in `app/sources/sync.js` (so eyeballing `studio.js` alone would never surface them, the same
+>   lesson the v322 note already drew): `analytics.datasource.v1` (the saved remote workspace-sync
+>   connection — exactly the "Saved server connections" the Clear-local-data confirm dialog already
+>   promises to remove) and `analytics.datasource.secret.v1` (its cached decryption passphrase, this
+>   browser only — stale-secret hygiene once its connection is gone). Added all five to
+>   `CLEAR_DATA_KEYS`. 2 new tests, suite 1595/1595. SW cache → `studio-shell-v39`.
 > - **Fixed shipped v374 (dead-code lens, first use of this specific lens on a fresh audit):**
 >   `setDeployPathPref` (`app/studio.js`) was the write-half of a get/set pair for the "deploy
 >   path" Settings preference — but the Settings import feature (`applySettingsData`) writes
