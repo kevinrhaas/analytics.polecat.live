@@ -2075,6 +2075,63 @@ function serve() {
       cxFilter.pills === 2 && cxFilter.afterPick === 1 && cxFilter.afterBoth === 2 && cxFilter.afterClear === 2 &&
       cxFilter.bySearch === 1 && cxFilter.bySecret === 0, JSON.stringify(cxFilter));
 
+    // saved views (post-overhaul backlog item 6 follow-up, "same treatment for
+    // Connections"): same search + adapter-pill preset contract as the Datasets
+    // section, minus the tag axis (connections aren't tagged).
+    const cxViewsNone = await page.evaluate(function () { return { addBtn: !!document.querySelector("#connViewAddBtn") }; });
+    ok("CX: no '+ Save view' affordance while search + filters are both empty",
+      !cxViewsNone.addBtn, JSON.stringify(cxViewsNone));
+
+    await page.evaluate(function () {
+      var inp = document.querySelector("#connSearch");
+      inp.value = "snowfl"; inp.dispatchEvent(new Event("input"));
+    });
+    await page.waitForTimeout(60);
+    await page.evaluate(function () {
+      document.querySelector("#connViewNameInp").value = "Snowflake conns";
+      document.querySelector("#connViewAddBtn").click();
+    });
+    await page.waitForTimeout(60);
+    const cxViewSaved = await page.evaluate(function () {
+      var views = Studio.Workspace.settings().connectionViews || [];
+      return {
+        count: views.length, name: views[0] && views[0].name, q: views[0] && views[0].q,
+        chip: !!document.querySelector("[data-conn-view]"),
+        chipText: (document.querySelector("[data-conn-view] .wb-chip-label") || {}).textContent
+      };
+    });
+    ok("CX: '+ Save view' persists the current search + adapter filter under a name, and renders a chip",
+      cxViewSaved.count === 1 && cxViewSaved.name === "Snowflake conns" && cxViewSaved.q === "snowfl" &&
+      cxViewSaved.chip && cxViewSaved.chipText === "Snowflake conns", JSON.stringify(cxViewSaved));
+
+    // clear the search box, then applying the saved view restores it
+    await page.evaluate(function () {
+      var inp = document.querySelector("#connSearch");
+      inp.value = ""; inp.dispatchEvent(new Event("input"));
+    });
+    await page.waitForTimeout(60);
+    const cxViewCleared = await page.evaluate(function () { return { q: document.querySelector("#connSearch").value }; });
+    ok("CX: search box actually cleared before applying the saved view", cxViewCleared.q === "", JSON.stringify(cxViewCleared));
+
+    await page.evaluate(function () { document.querySelector("[data-conn-view]").click(); });
+    await page.waitForTimeout(60);
+    const cxViewApplied = await page.evaluate(function () { return { q: document.querySelector("#connSearch").value }; });
+    ok("CX: clicking a saved-view chip restores its search text", cxViewApplied.q === "snowfl", JSON.stringify(cxViewApplied));
+
+    const cxViewDel = await page.evaluate(function () {
+      window.confirm = function () { return true; };
+      document.querySelector("[data-conn-view-del]").click();
+      return { count: (Studio.Workspace.settings().connectionViews || []).length, chip: !!document.querySelector("[data-conn-view]") };
+    });
+    ok("CX: deleting a saved view removes it from settings and the chip row",
+      cxViewDel.count === 0 && !cxViewDel.chip, JSON.stringify(cxViewDel));
+
+    await page.evaluate(function () {
+      var inp = document.querySelector("#connSearch");
+      inp.value = ""; inp.dispatchEvent(new Event("input"));
+    });
+    await page.waitForTimeout(60);
+
     const cxDelete = await page.evaluate(function () {
       window.confirm = function () { return true; };
       var stored = Studio.Workspace.all("connections");

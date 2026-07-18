@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 381,
+    title: 'Saved views for the Connections list',
+    kind: 'feature',
+    ts: '2026-07-18T03:18:45.000Z',
+    items: [
+      'The Connections list gains the same saved-views treatment shipped for Datasets (post-overhaul backlog item 6 follow-up): once a search + adapter pill combination narrows the list, a "+ Save view" box appears to name and keep that combination as a chip -- click it later to instantly restore the same search text and filter. Each chip has a small trash button to delete it.',
+      'Saved views live in Workspace SETTINGS (the same schemaless bag Datasets\' saved views and workbooks already use), so they sync across devices with the rest of the workspace and need no new local-storage key or "Clear local data" entry.',
+    ],
+  },
+  {
     v: 380,
     title: 'Saved views for the Datasets list',
     kind: 'feature',

@@ -5796,6 +5796,18 @@
      status dot from the last Test result. Rows live in Studio.Workspace
      ('connections' table) so a remote workspace backend can mirror them. */
   var _connAdapterFilter = {}; // multi-select: adapterId -> true; empty = all
+  // Post-overhaul backlog item 6 follow-up ("same treatment for the
+  // Connections list"): identical saved-view contract to the Datasets
+  // section's dsxLoadViews/dsxSaveViews/dsxApplyView, just without a tag
+  // axis (connections aren't tagged). Own key in the same Workspace SETTINGS
+  // bag — travels with the workspace, no new "Clear local data" entry needed.
+  function connLoadViews() { return (Studio.Workspace.settings().connectionViews || []).slice(); }
+  function connSaveViews(list) { Studio.Workspace.setSetting("connectionViews", list); }
+  function connApplyView(v) {
+    var inp = $("#connSearch"); if (inp) inp.value = v.q || "";
+    _connAdapterFilter = {}; (v.adapters || []).forEach(function (a) { _connAdapterFilter[a] = true; });
+    renderConnections();
+  }
   function connStatusDot(c) {
     var t = c.lastTest;
     var cls = !t ? "cx-dot" : (t.ok ? "cx-dot ok" : "cx-dot bad");
@@ -5817,6 +5829,19 @@
         '<span class="cx-pill-dot" style="background:' + esc(src.accent || "var(--pentaho)") + '"></span>' +
         '<span class="wb-chip-label">' + esc(src.label) + '</span> <span class="wb-chip-n">' + counts[aid] + '</span></button>';
     }).join("");
+    var connViews = connLoadViews();
+    var pillsV = connViews.map(function (v) {
+      return '<div class="wb-chip-wrap">' +
+        '<button type="button" class="wb-chip" data-conn-view="' + esc(v.id) + '" title="Apply saved view “' + esc(v.name) + '”">' +
+          '<span class="wb-chip-label">' + esc(v.name) + '</span></button>' +
+        '<button type="button" class="wb-chip-del" data-conn-view-del="' + esc(v.id) + '" title="Delete view ' + esc(v.name) + '" aria-label="Delete view ' + esc(v.name) + '"></button>' +
+        '</div>';
+    }).join("");
+    var canSaveConnView = !!(q || anyFilter);
+    var connViewAddHtml = canSaveConnView
+      ? '<span class="wb-add"><input type="text" id="connViewNameInp" class="wb-name-inp" placeholder="Name this view…" aria-label="Name this saved view"/>' +
+        '<button type="button" class="btn" id="connViewAddBtn">+ Save view</button></span>'
+      : "";
     var shown = list.filter(function (c) {
       if (anyFilter && !_connAdapterFilter[c.adapter]) return false;
       if (!q) return true;
@@ -5844,7 +5869,10 @@
         '</span></div>';
     });
     results.innerHTML =
-      (pills ? '<div class="wb-chips cx-pills">' + pills + (anyFilter ? '<button type="button" class="wb-chip" id="connPillClear" title="Show all adapters">Clear</button>' : "") + '</div>' : "") +
+      (pills || pillsV || connViewAddHtml ? '<div class="wb-chips cx-pills">' +
+        pillsV + (pillsV && pills ? '<span class="dsx-pill-sep"></span>' : "") +
+        pills + (anyFilter ? '<button type="button" class="wb-chip" id="connPillClear" title="Show all adapters">Clear</button>' : "") +
+        connViewAddHtml + '</div>' : "") +
       (rows.length ? '<div class="cx-list">' + rows.join("") + '</div>'
         : '<div class="cx-empty">' +
             (q || anyFilter ? "No connections match." :
@@ -5860,6 +5888,39 @@
     });
     var clearBtn = $("#connPillClear", results);
     if (clearBtn) clearBtn.onclick = function () { _connAdapterFilter = {}; renderConnections(); };
+    $$("[data-conn-view]", results).forEach(function (btn) {
+      btn.onclick = function () {
+        var v = connLoadViews().filter(function (x) { return x.id === btn.getAttribute("data-conn-view"); })[0];
+        if (v) connApplyView(v);
+      };
+    });
+    $$("[data-conn-view-del]", results).forEach(function (btn) {
+      btn.appendChild(Studio.icon("trash", 9));
+      btn.onclick = function (e) {
+        e.stopPropagation();
+        var id = btn.getAttribute("data-conn-view-del");
+        var v = connLoadViews().filter(function (x) { return x.id === id; })[0];
+        if (!v) return;
+        if (confirm('Delete saved view "' + v.name + '"?')) {
+          connSaveViews(connLoadViews().filter(function (x) { return x.id !== id; }));
+          renderConnections();
+        }
+      };
+    });
+    var connViewAddBtn = $("#connViewAddBtn", results);
+    if (connViewAddBtn) connViewAddBtn.onclick = function () {
+      var inp = $("#connViewNameInp", results);
+      var name = inp ? inp.value.trim() : "";
+      if (!name) { if (inp) inp.focus(); toast("Type a name in the box first — e.g. “Warehouses”.", true); return; }
+      var list = connLoadViews();
+      var rawQ = (($("#connSearch") || {}).value || "");
+      list.unshift({ id: "connv" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name: name, q: rawQ, adapters: Object.keys(_connAdapterFilter) });
+      connSaveViews(list);
+      toast('View "' + name + '" saved');
+      renderConnections();
+    };
+    var connViewNameInp = $("#connViewNameInp", results);
+    if (connViewNameInp) connViewNameInp.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); connViewAddBtn.click(); } });
     var emptyNew = $("#connEmptyNew", results);
     if (emptyNew) emptyNew.onclick = function () { openConnectionWizard(); };
     // paint adapter icons (inline SVG so theming is free)
