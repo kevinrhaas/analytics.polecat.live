@@ -18461,9 +18461,10 @@ function serve() {
       var b = document.getElementById("mobileNavBtn");
       if (!b) return { present: false };
       var r = b.getBoundingClientRect();
-      return { present: true, disp: getComputedStyle(b).display, onScreen: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.width > 20 };
+      return { present: true, disp: getComputedStyle(b).display, onScreen: r.left >= 0 && r.top >= 0 && r.right <= innerWidth && r.width > 20, w: r.width, h: r.height };
     });
     ok("m-a: hamburger #mobileNavBtn is visible + on-screen at 390px", mHamb.present && mHamb.disp === "flex" && mHamb.onScreen, JSON.stringify(mHamb));
+    ok("UX sweep: hamburger meets the 44x44px thumb-target guideline", mHamb.w >= 44 && mHamb.h >= 44, JSON.stringify(mHamb));
     const mClosed = await mp.evaluate(() => {
       var nav = document.getElementById("railNav"); var r = nav.getBoundingClientRect();
       return { offCanvas: r.right <= 1, notOpen: !nav.classList.contains("mobile-open") };

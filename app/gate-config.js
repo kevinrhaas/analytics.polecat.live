@@ -1,7 +1,8 @@
 /* Access gate config. Empty = open (no gate).
    Accepts ONE SHA-256 hash, or an ARRAY of them so you can issue/revoke several
    access codes (remove a hash + re-publish to revoke that code).
-   Default passcode: "pentaho-studio".
+   No default passcode ships in this file — only the rotated hashes in
+   STUDIO_GATE_SHA256 below work against the live gate.
 
    Generate a code's hash:   node tools/gen-code.js "MY ACCESS CODE"
    then set it below and re-publish (tools/publish-pages.sh).

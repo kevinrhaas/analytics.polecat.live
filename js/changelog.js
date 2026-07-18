@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 379,
+    title: 'Fix: mobile hamburger button undersized, stale gate doc comment',
+    kind: 'fix',
+    ts: '2026-07-18T01:00:43.000Z',
+    items: [
+      'The mobile nav hamburger (#mobileNavBtn) was 40x40px, modestly under the 44x44px thumb-target guideline -- a UX-sweep finding (2026-07-17 #24, item 5). Grown to 44x44 with the topbar\'s left clearance bumped to match, so it still clears the brand wordmark and section headings.',
+      'app/gate-config.js documented a "Default passcode: pentaho-studio" that the live gate has rejected since the access codes were rotated -- a carried-over UX-sweep finding (2026-07-16 #10, 2026-07-17 #24, item 3). Comment corrected to point at the real rotated hashes instead.',
+    ],
+  },
+  {
     v: 378,
     title: 'Fix: 2px horizontal scroll on the mobile Help page',
     kind: 'fix',
