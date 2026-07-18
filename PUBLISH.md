@@ -30,7 +30,8 @@ HTTPS"). Allow a few minutes to an hour for the certificate.
 ## 3. Gating
 
 **Now — passcode (soft gate, already on).** `app/gate-config.js` holds the SHA-256 of the passcode.
-Default passcode: **`pentaho-studio`**. Change it:
+No default passcode ships in the config — only the rotated hashes committed there work against the
+live gate. Set or rotate a code:
 
 ```bash
 node -e 'console.log(require("crypto").createHash("sha256").update("YOUR NEW CODE").digest("hex"))'
