@@ -218,7 +218,7 @@ html[data-app-theme='modern'] #railNav{--rail-bg:#0d1a2e;--rail-bg2:#152540;--ra
    hidden (desktop); the ≤900px media query below flips it to flex. This base rule MUST
    come before that media query so the media override wins at phone/tablet widths.
    z-index below the scrim (35) so an open scrim covers it. */
-#mobileNavBtn{display:none;position:fixed;top:9px;left:8px;width:40px;height:40px;z-index:34;
+#mobileNavBtn{display:none;position:fixed;top:7px;left:8px;width:44px;height:44px;z-index:34;
   align-items:center;justify-content:center;border-radius:10px;border:1px solid rgba(245,233,214,.14);
   background:#2E2A33;color:#F5E9D6;cursor:pointer;-webkit-tap-highlight-color:transparent;
   box-shadow:0 2px 8px rgba(10,8,20,.3)}
@@ -939,11 +939,12 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
    UX sprint 2026-07-14: #btnMore is no longer a mobile-only overflow — it's the app menu
    (Tour, Theme, Present, Sign out…) at every width, so it has no display:none base rule. */
 @media(max-width:900px){
-  /* m-c: 52px left padding clears the fixed #mobileNavBtn hamburger (see the earlier
+  /* m-c: 56px left padding clears the fixed #mobileNavBtn hamburger (see the earlier
      ≤900px block) — this rule used to say `padding:0 12px`, silently overwriting that
      clearance back down to 12px since it's the same selector later in the cascade,
-     which let the hamburger overlap the brand wordmark on phones/tablets. */
-  #topbar{gap:10px;padding:0 12px 0 52px;overflow:hidden}
+     which let the hamburger overlap the brand wordmark on phones/tablets. Bumped from
+     52px to 56px when the hamburger grew 40px→44px (thumb-target guideline). */
+  #topbar{gap:10px;padding:0 12px 0 56px;overflow:hidden}
   .brand-sub{display:none}
   .dash-title-btn{max-width:160px}
   .dash-meta{display:none}

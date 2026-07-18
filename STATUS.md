@@ -1058,6 +1058,14 @@
   No product-code test coverage (static reference page, not exercised by `tests/run.js`) —
   verified via a one-off Playwright scrollWidth/screenshot check instead. Suite 1549/1549
   (unchanged, no new product surface).
+- v379: **Fix: mobile hamburger button undersized, stale gate doc comment** — closes UX sweep
+  finding #5 (2026-07-17 #24, new) and finding #3 (carried across #10 2026-07-16 and #24
+  2026-07-17). `#mobileNavBtn` was 40×40px, under the 44×44px thumb-target guideline; grown to
+  44×44 with `#topbar`'s left clearance bumped 52px→56px to match (m-c's overlap-avoidance
+  pattern, still a single source of truth). `app/gate-config.js`'s "Default passcode:
+  pentaho-studio" comment was stale — the live gate has rejected it since the access codes were
+  rotated — corrected to point at the real rotated hashes in `STUDIO_GATE_SHA256`. SW cache →
+  v29. 1 new regression check (hamburger ≥44×44px at 390px); suite 1550/1550.
 
 ## NEXT (top = do first)
 
