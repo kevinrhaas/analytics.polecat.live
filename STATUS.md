@@ -1066,6 +1066,11 @@
   pentaho-studio" comment was stale — the live gate has rejected it since the access codes were
   rotated — corrected to point at the real rotated hashes in `STUDIO_GATE_SHA256`. SW cache →
   v29. 1 new regression check (hamburger ≥44×44px at 390px); suite 1550/1550.
+- v382: **Fix: stale gate passcode in PUBLISH.md** — closes tech-sweep finding #2 (2026-07-18
+  #40). v379 fixed the identical stale "Default passcode: pentaho-studio" claim inside
+  `app/gate-config.js`'s own comment but missed the published runbook; `PUBLISH.md` now
+  describes the rotated-hash model instead of a specific code. Doc-only, no product surface
+  change; suite unchanged.
 
 ## NEXT (top = do first)
 

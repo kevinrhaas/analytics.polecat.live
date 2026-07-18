@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 382,
+    title: 'Fix: stale gate passcode in the publish runbook',
+    kind: 'fix',
+    ts: '2026-07-18T05:12:06.000Z',
+    items: [
+      'PUBLISH.md still told operators the gate\'s "Default passcode" was `pentaho-studio` -- a tech-sweep finding (2026-07-18 #40, item 2): the live gate has rejected that code since access codes were rotated, and the identical stale claim inside app/gate-config.js\'s own comment was already fixed in v379, but the runbook was missed. Corrected to describe the rotated-hash model instead of a specific code.',
+    ],
+  },
+  {
     v: 381,
     title: 'Saved views for the Connections list',
     kind: 'feature',
