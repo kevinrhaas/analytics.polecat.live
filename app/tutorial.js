@@ -68,7 +68,7 @@
      Z10 follow-up: was fixed hex + dead `body.dark-mode`/`body.dark` override rules —
      this app's dark mode is actually driven by `[data-theme='dark']` on <html>, so those
      selectors never matched anything and the tooltip always rendered light-only regardless
-     of dark mode. Switched to the shared --pentaho/--pdc/--ink/etc custom properties (same
+     of dark mode. Switched to the shared --brand/--pdc/--ink/etc custom properties (same
      ones studio.css defines), which already vary correctly by both light/dark mode AND the
      Classic Blue / Polecat color theme — one themed style instead of a dead branch. */
   function injectStyle() {
@@ -88,7 +88,7 @@
         "pointer-events:all}" +
       "#st-tip h3{margin:0 0 9px;font-size:16px;font-weight:800;color:var(--ink,#0a1c3d)}" +
       "#st-tip .st-h{font-size:13.5px;line-height:1.62;color:var(--ink,#243149);margin:0 0 7px}" +
-      "#st-tip .st-h b{color:var(--pentaho,#005bb5)}" +
+      "#st-tip .st-h b{color:var(--brand,#005bb5)}" +
       "#st-tip .st-sub{font-size:11.5px;color:var(--muted,#6e809a);line-height:1.5;margin:0 0 13px;font-style:italic}" +
       "#st-tip .st-ft{display:flex;align-items:center;gap:8px}" +
       "#st-tip .st-dots{display:flex;gap:5px;margin-right:4px}" +
@@ -98,7 +98,7 @@
       "#st-tip .st-skip:hover{color:var(--ink,#243149)}" +
       "#st-tip .st-sp{flex:1}" +
       "#st-tip button.st-btn{border:1px solid var(--line,#d5dce8);background:var(--field,#f5f8fc);color:var(--ink,#16233b);border-radius:8px;padding:7px 14px;font-size:13px;font-weight:700;cursor:pointer;margin-left:4px}" +
-      "#st-tip button.st-btn:hover{border-color:var(--pentaho,#005bb5);color:var(--pentaho,#005bb5)}" +
+      "#st-tip button.st-btn:hover{border-color:var(--brand,#005bb5);color:var(--brand,#005bb5)}" +
       "#st-tip button.st-btn.pri{background:var(--pdc,#7d3c98);border-color:transparent;color:#fff}" +
       "#st-tip button.st-btn.pri:hover{background:color-mix(in srgb,var(--pdc,#7d3c98) 85%,black)}";
     document.head.appendChild(s);

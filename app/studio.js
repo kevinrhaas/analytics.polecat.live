@@ -1588,7 +1588,7 @@
             typeSel.addEventListener("change", function () { join.type = this.value; });
             var tInp = el("input"); tInp.className = "dsb-sqb-inp"; tInp.value = join.table; tInp.placeholder = "schema.table"; tInp.style.fontFamily = "var(--mono)";
             tInp.addEventListener("input", function () { join.table = this.value; });
-            var lOn = el("span"); lOn.textContent = "ON"; lOn.style.cssText = "font-size:10.5px;font-weight:800;color:var(--pentaho);font-family:var(--mono);flex:0 0 auto";
+            var lOn = el("span"); lOn.textContent = "ON"; lOn.style.cssText = "font-size:10.5px;font-weight:800;color:var(--brand);font-family:var(--mono);flex:0 0 auto";
             var onInp = el("input"); onInp.className = "dsb-sqb-inp"; onInp.value = join.on; onInp.placeholder = "t1.id = t2.id"; onInp.style.fontFamily = "var(--mono)";
             onInp.addEventListener("input", function () { join.on = this.value; });
             var rm = el("button", "rm"); rm.type = "button"; rm.style.color = "var(--bad)"; rm.title = "Remove join"; rm.setAttribute("aria-label", "Remove join");
@@ -1640,7 +1640,7 @@
             fnSel.addEventListener("change", function () { agg.fn = this.value; });
             var cInp = el("input"); cInp.className = "dsb-sqb-inp"; cInp.value = agg.col; cInp.placeholder = "column"; cInp.style.fontFamily = "var(--mono)";
             cInp.addEventListener("input", function () { agg.col = this.value; });
-            var lAs = el("span"); lAs.textContent = "AS"; lAs.style.cssText = "font-size:10.5px;font-weight:800;color:var(--pentaho);font-family:var(--mono);flex:0 0 auto";
+            var lAs = el("span"); lAs.textContent = "AS"; lAs.style.cssText = "font-size:10.5px;font-weight:800;color:var(--brand);font-family:var(--mono);flex:0 0 auto";
             var aInp = el("input"); aInp.className = "dsb-sqb-inp"; aInp.value = agg.alias; aInp.placeholder = "total_revenue"; aInp.style.fontFamily = "var(--mono)";
             aInp.addEventListener("input", function () { agg.alias = this.value; });
             var rm = el("button", "rm"); rm.type = "button"; rm.style.color = "var(--bad)"; rm.title = "Remove aggregate"; rm.setAttribute("aria-label", "Remove aggregate");
@@ -1712,7 +1712,7 @@
           var genBtn = el("button", "btn"); genBtn.type = "button";
           genBtn.className = "btn sqb-gen-btn";
           setIconBtn(genBtn, "play", "Generate SQL");
-          genBtn.style.cssText = "color:var(--pentaho);border-color:color-mix(in srgb,var(--pentaho) 45%,transparent);font-size:12px;padding:5px 14px";
+          genBtn.style.cssText = "color:var(--brand);border-color:color-mix(in srgb,var(--brand) 45%,transparent);font-size:12px;padding:5px 14px";
           genBtn.onclick = buildSQL;
           rGen.appendChild(genBtn); body.appendChild(rGen);
         }
@@ -5904,7 +5904,7 @@
     var pills = Object.keys(counts).sort().map(function (aid) {
       var src = Studio.sourceById(aid) || { label: aid };
       return '<button type="button" class="wb-chip cx-pill' + (_connAdapterFilter[aid] ? " active" : "") + '" data-conn-adapter="' + esc(aid) + '" aria-pressed="' + (_connAdapterFilter[aid] ? "true" : "false") + '">' +
-        '<span class="cx-pill-dot" style="background:' + esc(src.accent || "var(--pentaho)") + '"></span>' +
+        '<span class="cx-pill-dot" style="background:' + esc(src.accent || "var(--brand)") + '"></span>' +
         '<span class="wb-chip-label">' + esc(src.label) + '</span> <span class="wb-chip-n">' + counts[aid] + '</span></button>';
     }).join("");
     var connViews = connLoadViews();
@@ -5936,7 +5936,7 @@
       var metaBadge = src.caps && src.caps.meta ? '<span class="cx-badge" title="Can also host this app\'s workspace (see Settings → Workspace backend)">workspace-capable</span>' : "";
       return '<div class="cx-row" data-conn-id="' + esc(c.id) + '" tabindex="0" role="button" aria-label="Edit connection ' + esc(c.name) + '">' +
         connStatusDot(c) +
-        '<span class="cx-ic" style="color:' + esc(src.accent || "var(--pentaho)") + '"></span>' +
+        '<span class="cx-ic" style="color:' + esc(src.accent || "var(--brand)") + '"></span>' +
         '<span class="cx-name"><b>' + esc(c.name) + '</b><small>' + esc(src.label || c.adapter) + '</small></span>' +
         metaBadge +
         '<span class="cx-when" title="Last edited">' + esc(new Date(c.updatedAt || c.createdAt || Date.now()).toLocaleDateString()) + '</span>' +
@@ -6067,7 +6067,7 @@
       function step2(adapter) {
         b.innerHTML = "";
         var head = el("div", "cx-wiz-head");
-        var ic = el("span", "cx-wiz-ic"); ic.style.color = adapter.accent || "var(--pentaho)"; ic.appendChild(Studio.icon(adapter.icon || "db", 22));
+        var ic = el("span", "cx-wiz-ic"); ic.style.color = adapter.accent || "var(--brand)"; ic.appendChild(Studio.icon(adapter.icon || "db", 22));
         var ttl = el("div", "cx-wiz-ttl");
         ttl.innerHTML = "<b>" + esc(adapter.label) + "</b><small>" + esc(adapter.blurb || "") + "</small>";
         head.appendChild(ic); head.appendChild(ttl); b.appendChild(head);
@@ -6136,7 +6136,7 @@
       var grid = el("div", "cx-src-grid");
       Studio.dataSources().forEach(function (adapter) {
         var card = el("button", "cx-src-card"); card.type = "button";
-        card.style.setProperty("--src-accent", adapter.accent || "var(--pentaho)");
+        card.style.setProperty("--src-accent", adapter.accent || "var(--brand)");
         var ic = el("span", "cx-src-ic"); ic.appendChild(Studio.icon(adapter.icon || "db", 22));
         var txt = el("span", "cx-src-txt");
         txt.innerHTML = "<b>" + esc(adapter.label) + "</b><small>" + esc(adapter.blurb || "") + "</small>" +
@@ -7111,7 +7111,7 @@
       function credsStep(src) {
         b.innerHTML = "";
         var head = el("div", "cx-wiz-head");
-        var ic = el("span", "cx-wiz-ic"); ic.style.color = src.accent || "var(--pentaho)"; ic.appendChild(Studio.icon(src.icon || "db", 22));
+        var ic = el("span", "cx-wiz-ic"); ic.style.color = src.accent || "var(--brand)"; ic.appendChild(Studio.icon(src.icon || "db", 22));
         var ttl = el("div", "cx-wiz-ttl"); ttl.innerHTML = "<b>" + esc(src.label) + "</b><small>" + esc(src.blurb || "") + "</small>";
         head.appendChild(ic); head.appendChild(ttl); b.appendChild(head);
         var form = el("div", "cx-wiz-form");
@@ -7158,7 +7158,7 @@
       var grid = el("div", "cx-src-grid");
       Studio.remoteMetaSources().forEach(function (src) {
         var cardEl = el("button", "cx-src-card"); cardEl.type = "button";
-        cardEl.style.setProperty("--src-accent", src.accent || "var(--pentaho)");
+        cardEl.style.setProperty("--src-accent", src.accent || "var(--brand)");
         var ic = el("span", "cx-src-ic"); ic.appendChild(Studio.icon(src.icon || "db", 22));
         var txt = el("span", "cx-src-txt");
         txt.innerHTML = "<b>" + esc(src.label) + "</b><small>" + esc(src.blurb || "") + "</small>";

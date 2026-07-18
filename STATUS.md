@@ -1435,6 +1435,23 @@
 >    (~40 of the ~252 total refs) is safe to fold into `--brand`; (B) is NOT "zero user impact" busywork,
 >    it's product-critical export theming under RFP deadline pressure — do not attempt without care to
 >    keep the two contexts separate, and ideally with a screenshot-diff of exported dashboards before/after.
+>    ✓ **Chrome call-sites migrated (2026-07-18, steward PR).** Re-investigated (A): it's bigger than the
+>    ~40-ref estimate (`app/studio.css` alone now carries 150 `--pentaho` occurrences) AND `app/studio.js`
+>    interleaves genuine chrome uses (connection-wizard card accents, the visual SQL builder's ON/AS
+>    labels + Generate-SQL button) with (B) export/dashboard-theme uses (`resolveThemeTokens`'s
+>    `tk["--pentaho"]`, the example-thumbnail `exAccent`, the per-dashboard accent override) in the SAME
+>    file — a blind rename of the CSS definitions would silently break whichever context wasn't touched.
+>    Shipped the fully safe slice instead: every unambiguous chrome-only call site (`app/tutorial.js`,
+>    `app/welcome.js`, `app/gate.js`, `app/palette.js`, `app/sources/local.js`'s local-adapter accent,
+>    and the confirmed-chrome lines in `app/studio.js` — connection wizard/card accents + the SQL builder
+>    labels/button) now reads `var(--brand, …)` instead of `var(--pentaho, …)`. Zero risk: `studio.css`
+>    still defines `--pentaho` in every theme block and still bridges `--brand:var(--pentaho)`, so every
+>    touched element resolves to the exact same computed color as before — confirmed via screenshot
+>    (Connections + New-connection wizard, light + dark) and the full suite (1568/1568, unchanged).
+>    `studio.css`'s own ~150 `--pentaho` definitions/usages and the true (B) export-context refs are
+>    UNTOUCHED and stay exactly as scoped above. Next slice, if picked up: fold `studio.css`'s
+>    definitions from `--pentaho` to `--brand` directly (now that no chrome JS depends on the
+>    `--pentaho` name), removing the bridge indirection — still needs the same "leave (B) alone" care.
 > 5. **Dataset delight**: schema browser per connection (list tables/columns via adapter), scheduled
 >    refresh hints. ✓ **Result caching with TTL shipped (2026-07-18, steward PR):** the DA
 >    inspector's "Cache" section (Enabled checkbox + Duration seconds) dated back to the Pentaho
