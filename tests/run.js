@@ -7839,7 +7839,10 @@ function serve() {
         hasNotesKey: keys.indexOf("studio-canvas-notes") >= 0, hasK8Key: keys.indexOf("studio-k8-dismissed") >= 0,
         hasWelcomeKey: keys.indexOf("studio-welcome-seen") >= 0, hasTutorialKey: keys.indexOf("studio-tutorial-done") >= 0,
         hasWorkspaceKey: keys.indexOf("analytics.workspace.v1") >= 0, hasWhatsnewKey: keys.indexOf("studio-whatsnew-seen") >= 0,
-        workspaceStillOnDisk: (function () { try { return !!localStorage.getItem("analytics.workspace.v1"); } catch (x) { return false; } })()
+        workspaceStillOnDisk: (function () { try { return !!localStorage.getItem("analytics.workspace.v1"); } catch (x) { return false; } })(),
+        hasShowSamplesKey: keys.indexOf("studio-show-samples") >= 0, hasLibSamplesOpenKey: keys.indexOf("studio-lib-samples-open") >= 0,
+        hasDashViewKey: keys.indexOf("studio-dash-view") >= 0, hasSyncConnKey: keys.indexOf("analytics.datasource.v1") >= 0,
+        hasSyncSecretKey: keys.indexOf("analytics.datasource.secret.v1") >= 0
       };
     });
     ok("E8: all Studio localStorage keys removed by clear-data logic", e8Clear.keyCount > 20 && e8Clear.remaining.length === 0, JSON.stringify(e8Clear));
@@ -7858,6 +7861,16 @@ function serve() {
     // What's-new seen-version were BOTH missing from the list — the same recurring gap again.
     ok("E8: the real clear-data key list includes analytics.workspace.v1 and studio-whatsnew-seen (★★★-1 sweep)",
       e8Clear.hasWorkspaceKey && e8Clear.hasWhatsnewKey && e8Clear.workspaceStillOnDisk, JSON.stringify(e8Clear));
+    // Track L sweep round 3: three more UI-preference flags (studio-show-samples, studio-lib-
+    // samples-open, studio-dash-view — all in app/studio.js) plus the saved remote workspace-sync
+    // connection + its cached passphrase (analytics.datasource.v1 / analytics.datasource.secret.v1,
+    // both in app/sources/sync.js) were all found written but never wiped by Clear local data — the
+    // same recurring gap, found by re-running the "grep every localStorage call in app/*.js and
+    // app/sources/*.js, diff against this list" technique from the v313/v322 sweeps.
+    ok("E8: the real clear-data key list includes studio-show-samples, studio-lib-samples-open, and studio-dash-view (Track L sweep round 3)",
+      e8Clear.hasShowSamplesKey && e8Clear.hasLibSamplesOpenKey && e8Clear.hasDashViewKey, JSON.stringify(e8Clear));
+    ok("E8: the real clear-data key list includes the sync connection + cached passphrase keys (Track L sweep round 3)",
+      e8Clear.hasSyncConnKey && e8Clear.hasSyncSecretKey, JSON.stringify(e8Clear));
 
     // ---- E3: Dashboard thumbnail ----
     console.log("\n• Dashboard thumbnail (E3)");

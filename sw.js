@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v38"; /* v38: post-overhaul backlog item 5 —
+var CACHE_NAME = "studio-shell-v39"; /* v39: Track L sweep (orphaned-key lens,
+   round 3) — "Clear local data" was missing five real keys: studio-show-
+   samples/studio-lib-samples-open/studio-dash-view (app/studio.js UI-
+   preference flags) and analytics.datasource.v1/analytics.datasource.secret.v1
+   (app/sources/sync.js's saved remote workspace connection + cached passphrase)
+   — app/studio.js content changed, so precached copies need to roll.
+   v38: post-overhaul backlog item 5 —
    the schema-browser half of "dataset delight": a "Browse schema" button in
    the Connections wizard (Snowflake/Databricks/Redshift) lists tables and
    columns via a new adapter.listSchema() capability, an ANSI

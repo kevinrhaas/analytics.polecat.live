@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 389,
+    title: 'Clear local data now wipes five more orphaned keys',
+    kind: 'fix',
+    ts: '2026-07-18T22:36:51.000Z',
+    items: [
+      'A Track L architecture sweep (orphaned-key lens, round 3) found "Clear local data" was missing five real localStorage keys: the show-samples/library-samples-open/dashboard-view UI toggles, and the saved remote workspace-sync connection plus its cached decryption passphrase -- all now wiped, matching the confirm dialog\'s own promise to remove "Saved server connections".',
+    ],
+  },
+  {
     v: 388,
     title: 'Schema browser for warehouse connections',
     kind: 'feature',
