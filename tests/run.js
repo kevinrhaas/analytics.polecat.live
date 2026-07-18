@@ -1893,6 +1893,85 @@ function serve() {
     });
     await page.waitForTimeout(200);
 
+    // ---- JOBS: "scheduled refresh hints" (post-overhaul backlog item 5) ---
+    console.log("\n• JOBS: refresh reminders (post-overhaul backlog item 5)");
+    await page.evaluate(function () {
+      window.__studioShellSetSection("jobs");
+      var conn = Studio.Workspace.put("connections", { name: "jobs-refresh-editor-test", adapter: "file", cfg: {} });
+      var ds = Studio.Workspace.put("datasets", { name: "jobs-refresh-editor-ds", connectionId: conn.id, kind: "file", format: "csv", content: "a,b\n1,2\n" });
+      var job = Studio.Workspace.put("jobs", { name: "refresh-editor-job", sourceDatasetId: ds.id, steps: [] });
+      window.__studioOpenJobEditor(job);
+    });
+    await page.waitForTimeout(150);
+    const refreshEditorUI = await page.evaluate(function () {
+      var selects = Array.prototype.slice.call(document.querySelectorAll(".cx-wiz-form select.cx-sel"));
+      var refreshSel = selects.filter(function (s) { return s.innerHTML.indexOf("Every year") >= 0; })[0];
+      return { found: !!refreshSel, optionCount: refreshSel ? refreshSel.options.length : 0 };
+    });
+    ok("JOBS: the job editor renders a Refresh reminder select with the five cadence options",
+      refreshEditorUI.found && refreshEditorUI.optionCount === 5, JSON.stringify(refreshEditorUI));
+    const refreshSaveUI = await page.evaluate(function () {
+      var selects = Array.prototype.slice.call(document.querySelectorAll(".cx-wiz-form select.cx-sel"));
+      var refreshSel = selects.filter(function (s) { return s.innerHTML.indexOf("Every year") >= 0; })[0];
+      refreshSel.value = "365";
+      document.querySelector(".cx-wiz-foot .btn.primary").click();
+      var job = Studio.Workspace.all("jobs").filter(function (j) { return j.name === "refresh-editor-job"; })[0];
+      return { refreshEveryDays: job && job.refreshEveryDays };
+    });
+    ok("JOBS: picking a cadence and saving persists refreshEveryDays on the job",
+      refreshSaveUI.refreshEveryDays === 365, JSON.stringify(refreshSaveUI));
+    await page.evaluate(function () {
+      Studio.Workspace.all("jobs").filter(function (j) { return j.name === "refresh-editor-job"; }).forEach(function (j) { Studio.Workspace.remove("jobs", j.id, { silent: true }); });
+      Studio.Workspace.all("datasets").filter(function (d) { return d.name === "jobs-refresh-editor-ds"; }).forEach(function (d) { Studio.Workspace.remove("datasets", d.id, { silent: true }); });
+      Studio.Workspace.all("connections").filter(function (c) { return c.name === "jobs-refresh-editor-test"; }).forEach(function (c) { Studio.Workspace.remove("connections", c.id, { silent: true }); });
+      Studio.Workspace.notify("*");
+      window.__studioShellSetSection("studio");
+    });
+    await page.waitForTimeout(200);
+
+    // Jobs list: overdue vs. upcoming vs. no-reminder badges, driven purely off
+    // refreshEveryDays + lastRun (renderJobs' jobRefreshBadge helper) — never-run
+    // + a reminder set counts as due too (nothing to be "on time" against yet).
+    const refreshListUI = await page.evaluate(function () {
+      window.__studioShellSetSection("jobs");
+      var conn = Studio.Workspace.put("connections", { name: "jobs-refresh-list-test", adapter: "file", cfg: {} });
+      var ds = Studio.Workspace.put("datasets", { name: "jobs-refresh-list-ds", connectionId: conn.id, kind: "file", format: "csv", content: "a,b\n1,2\n" });
+      var dueJob = Studio.Workspace.put("jobs", {
+        name: "refresh-due-job", sourceDatasetId: ds.id, steps: [],
+        refreshEveryDays: 30, lastRun: { ok: true, at: Date.now() - 40 * 86400000, rows: 1, error: "" }
+      });
+      var upcomingJob = Studio.Workspace.put("jobs", {
+        name: "refresh-upcoming-job", sourceDatasetId: ds.id, steps: [],
+        refreshEveryDays: 30, lastRun: { ok: true, at: Date.now() - 5 * 86400000, rows: 1, error: "" }
+      });
+      var neverRunJob = Studio.Workspace.put("jobs", { name: "refresh-never-run-job", sourceDatasetId: ds.id, steps: [], refreshEveryDays: 7 });
+      var noReminderJob = Studio.Workspace.put("jobs", { name: "no-reminder-job", sourceDatasetId: ds.id, steps: [] });
+      window.__studioRenderJobs();
+      function badgeFor(name) {
+        var row = Array.prototype.slice.call(document.querySelectorAll("#jobsResults .cx-row"))
+          .filter(function (r) { return r.querySelector(".cx-name b").textContent === name; })[0];
+        if (!row) return "missing";
+        if (row.querySelector(".cx-refresh-due")) return "due";
+        var upcoming = Array.prototype.slice.call(row.querySelectorAll(".cx-badge")).some(function (b) { return /Refreshes in/.test(b.textContent); });
+        return upcoming ? "upcoming" : "none";
+      }
+      var result = {
+        due: badgeFor("refresh-due-job"), upcoming: badgeFor("refresh-upcoming-job"),
+        neverRun: badgeFor("refresh-never-run-job"), noReminder: badgeFor("no-reminder-job")
+      };
+      [dueJob, upcomingJob, neverRunJob, noReminderJob].forEach(function (j) { Studio.Workspace.remove("jobs", j.id, { silent: true }); });
+      Studio.Workspace.remove("datasets", ds.id, { silent: true });
+      Studio.Workspace.remove("connections", conn.id, { silent: true });
+      Studio.Workspace.notify("*");
+      window.__studioShellSetSection("studio");
+      return result;
+    });
+    ok("JOBS: a reminder overdue against lastRun shows the amber ⏰ Refresh due badge, same as a reminder set on a job that's never run",
+      refreshListUI.due === "due" && refreshListUI.neverRun === "due", JSON.stringify(refreshListUI));
+    ok("JOBS: a reminder not yet due shows a quiet 'Refreshes in N days' badge, and a job with no reminder shows neither",
+      refreshListUI.upcoming === "upcoming" && refreshListUI.noReminder === "none", JSON.stringify(refreshListUI));
+    await page.waitForTimeout(200);
+
     const wsStore = await page.evaluate(function () {
       var W = Studio.Workspace, events = [];
       var off = W.on("change", function (p) { events.push(p.table + ":" + (p.removed ? "del" : "put")); });

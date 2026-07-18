@@ -335,6 +335,11 @@
     <li><strong>Custom SQL</strong> runs an arbitrary query against the pipeline's rows so far
     (table <code>t</code>), via an in-browser DuckDB engine loaded the first time a job uses
     it — useful for anything the built-in steps don't cover directly.</li>
+    <li><strong>Refresh reminder</strong> (weekly/monthly/quarterly/yearly, optional) flags a job
+    <strong>⏰ Refresh due</strong> on the Jobs list once it's overdue against its last run — a hint,
+    not real scheduling (there's no server to run a cron; the app is static and client-side), so it
+    only shows up next time the list is open. Handy for the annual-refresh case: set it once and the
+    list tells you when it's time to click Run again.</li>
   </ul>
 
   <h2>The builder</h2>

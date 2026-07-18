@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 386,
+    title: 'Refresh reminders for Jobs',
+    kind: 'feature',
+    ts: '2026-07-18T14:36:15.000Z',
+    items: [
+      'Post-overhaul backlog item 5 ("dataset delight") ships its "scheduled refresh hints" half: a job can now opt into a weekly/monthly/quarterly/yearly reminder, and the Jobs list flags it with an amber "Refresh due" badge once it is overdue against its last run -- otherwise a quiet "Refreshes in N days" note. It is a hint, not real scheduling (the app is static and client-side, with no server to run a cron), so it only updates while the Jobs list is open.',
+      'Handy for the annual-refresh case the prep/rollup jobs were built for: set the reminder once and come back when the badge says it is due, instead of remembering on your own.',
+    ],
+  },
+  {
     v: 385,
     title: 'Pin favorite datasets and connections to the top of their lists',
     kind: 'feature',

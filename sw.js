@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v35"; /* v35: post-overhaul item 4 continued —
+var CACHE_NAME = "studio-shell-v36"; /* v36: post-overhaul backlog item 5 —
+   "scheduled refresh hints" for Jobs (a Refresh reminder field + an overdue/
+   due-in-N-days badge on the Jobs list, computed from lastRun; app/studio.js,
+   app/studio.css changed).
+   v35: post-overhaul item 4 continued —
    studio.css's chrome accent variable renamed from --pentaho to --brand (the
    shell's own canonical name), the bridge alias removed now that the two
    converge; the export/exported-dashboard --pentaho variable (pdc-ui.css,
