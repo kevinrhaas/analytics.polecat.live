@@ -1228,6 +1228,13 @@
 > ── materialized datasets, repeatable loads), V9 scientific-honesty polish. Satisfy    ──
 > ── ALL RFP requirements (bid due 7/31; see the GOAL block above). One slice per run,  ──
 > ── same PR discipline; coordinate via open steward/* PRs.                             ──
+> ── DESIGN BAR (Kevin, 2026-07-16): every Viridis slice (and supporting work) must     ──
+> ── ALSO make the app USEFUL, EASY TO USE, ELEGANT, SIMPLE, and BEAUTIFUL — delight    ──
+> ── is a requirement, not decoration (the platform design bar). Non-expert first:      ──
+> ── plain-English labels, sensible defaults, empty states that teach, both themes,     ──
+> ── mobile as a release gate. Prefer REMOVING complexity over adding controls; polish  ──
+> ── ships IN the slice, never "later". If a slice works but feels clumsy, it isn't    ──
+> ── done.                                                                              ──
 > V6. ✓ **Home = instant analytics (shipped 2026-07-16):** per-dashboard "Feature on Home" flag
 >     (house button on every card; rides the dashboards row like pinned). Home renders featured
 >     dashboards LIVE — the REAL renderer (buildHtml + genMock) in scaled view-only iframes,
