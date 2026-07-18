@@ -6020,6 +6020,21 @@
   var _dsxTagFilter = {};     // multi-select tag -> true; empty = all
   function dsxConnOf(d) { return Studio.Workspace.get("connections", d.connectionId); }
   function dsxAdapterOf(d) { var c = dsxConnOf(d); return c ? Studio.sourceById(c.adapter) : null; }
+  // Post-overhaul backlog item 6 ("saved views for the Datasets/Connections
+  // lists, jobtracker pattern"): a saved view is just a name plus the search
+  // text + adapter/tag pill selection captured at save time. Same home as
+  // workbooks (Workspace SETTINGS, a schemaless key/value bag) rather than a
+  // new localStorage key — travels with the workspace across devices/sync for
+  // free, and needs no new "Clear local data" entry (analytics.workspace.v1
+  // already covers it) or Turso/Supabase schema bump.
+  function dsxLoadViews() { return (Studio.Workspace.settings().datasetViews || []).slice(); }
+  function dsxSaveViews(list) { Studio.Workspace.setSetting("datasetViews", list); }
+  function dsxApplyView(v) {
+    var inp = $("#dsxSearch"); if (inp) inp.value = v.q || "";
+    _dsxAdapterFilter = {}; (v.adapters || []).forEach(function (a) { _dsxAdapterFilter[a] = true; });
+    _dsxTagFilter = {}; (v.tags || []).forEach(function (t) { _dsxTagFilter[t] = true; });
+    renderDatasets();
+  }
   // Dataset lineage (post-overhaul backlog item 5, "blast-radius view"): every
   // dashboard whose spec links a data access back to this dataset (dsToDA
   // stamps da.datasetId = ds.id when a dataset is dropped onto the canvas).
@@ -6093,6 +6108,19 @@
       return '<button type="button" class="wb-chip cx-pill' + (_dsxTagFilter[t] ? " active" : "") + '" data-dsx-tag="' + esc(t) + '" aria-pressed="' + (_dsxTagFilter[t] ? "true" : "false") + '">' +
         '<span class="wb-chip-label">#' + esc(t) + '</span> <span class="wb-chip-n">' + tagCounts[t] + '</span></button>';
     }).join("");
+    var dsxViews = dsxLoadViews();
+    var pillsV = dsxViews.map(function (v) {
+      return '<div class="wb-chip-wrap">' +
+        '<button type="button" class="wb-chip" data-dsx-view="' + esc(v.id) + '" title="Apply saved view “' + esc(v.name) + '”">' +
+          '<span class="wb-chip-label">' + esc(v.name) + '</span></button>' +
+        '<button type="button" class="wb-chip-del" data-dsx-view-del="' + esc(v.id) + '" title="Delete view ' + esc(v.name) + '" aria-label="Delete view ' + esc(v.name) + '"></button>' +
+        '</div>';
+    }).join("");
+    var canSaveView = !!(q || anyA || anyT);
+    var viewAddHtml = canSaveView
+      ? '<span class="wb-add"><input type="text" id="dsxViewNameInp" class="wb-name-inp" placeholder="Name this view…" aria-label="Name this saved view"/>' +
+        '<button type="button" class="btn" id="dsxViewAddBtn">+ Save view</button></span>'
+      : "";
     var shown = list.filter(function (d) {
       var src = dsxAdapterOf(d);
       if (anyA && !_dsxAdapterFilter[src ? src.id : "—"]) return false;
@@ -6129,8 +6157,11 @@
         '</span></div>';
     });
     results.innerHTML =
-      (pillsA || pillsT ? '<div class="wb-chips cx-pills">' + pillsA + (pillsT ? '<span class="dsx-pill-sep"></span>' + pillsT : "") +
-        (anyA || anyT ? '<button type="button" class="wb-chip" id="dsxPillClear" title="Show everything">Clear</button>' : "") + '</div>' : "") +
+      (pillsA || pillsT || pillsV || viewAddHtml ? '<div class="wb-chips cx-pills">' +
+        pillsV + (pillsV && (pillsA || pillsT) ? '<span class="dsx-pill-sep"></span>' : "") +
+        pillsA + (pillsT ? '<span class="dsx-pill-sep"></span>' + pillsT : "") +
+        (anyA || anyT ? '<button type="button" class="wb-chip" id="dsxPillClear" title="Show everything">Clear</button>' : "") +
+        viewAddHtml + '</div>' : "") +
       (rows.length ? '<div class="cx-list">' + rows.join("") + '</div>'
         : '<div class="cx-empty">' +
             (q || anyA || anyT ? "No datasets match." :
@@ -6154,6 +6185,39 @@
     });
     var clearBtn = $("#dsxPillClear", results);
     if (clearBtn) clearBtn.onclick = function () { _dsxAdapterFilter = {}; _dsxTagFilter = {}; renderDatasets(); };
+    $$("[data-dsx-view]", results).forEach(function (btn) {
+      btn.onclick = function () {
+        var v = dsxLoadViews().filter(function (x) { return x.id === btn.getAttribute("data-dsx-view"); })[0];
+        if (v) dsxApplyView(v);
+      };
+    });
+    $$("[data-dsx-view-del]", results).forEach(function (btn) {
+      btn.appendChild(Studio.icon("trash", 9));
+      btn.onclick = function (e) {
+        e.stopPropagation();
+        var id = btn.getAttribute("data-dsx-view-del");
+        var v = dsxLoadViews().filter(function (x) { return x.id === id; })[0];
+        if (!v) return;
+        if (confirm('Delete saved view "' + v.name + '"?')) {
+          dsxSaveViews(dsxLoadViews().filter(function (x) { return x.id !== id; }));
+          renderDatasets();
+        }
+      };
+    });
+    var dsxViewAddBtn = $("#dsxViewAddBtn", results);
+    if (dsxViewAddBtn) dsxViewAddBtn.onclick = function () {
+      var inp = $("#dsxViewNameInp", results);
+      var name = inp ? inp.value.trim() : "";
+      if (!name) { if (inp) inp.focus(); toast("Type a name in the box first — e.g. “Finance sources”.", true); return; }
+      var list = dsxLoadViews();
+      var rawQ = (($("#dsxSearch") || {}).value || "");
+      list.unshift({ id: "dsxv" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name: name, q: rawQ, adapters: Object.keys(_dsxAdapterFilter), tags: Object.keys(_dsxTagFilter) });
+      dsxSaveViews(list);
+      toast('View "' + name + '" saved');
+      renderDatasets();
+    };
+    var dsxViewNameInp = $("#dsxViewNameInp", results);
+    if (dsxViewNameInp) dsxViewNameInp.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); dsxViewAddBtn.click(); } });
     var emptyNew = $("#dsxEmptyNew", results);
     if (emptyNew) emptyNew.onclick = function () { openDatasetEditor(); };
     $$(".cx-row", results).forEach(function (row) {

@@ -5,7 +5,9 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v29"; /* v29: UX sweep fixes — mobile hamburger
+var CACHE_NAME = "studio-shell-v30"; /* v30: Datasets catalog gains saved views —
+   a named, restorable search + adapter/tag pill preset (app/studio.js changed).
+   v29: UX sweep fixes — mobile hamburger
    (#mobileNavBtn) grown 40x40->44x44 to meet the thumb-target guideline, topbar left
    clearance bumped to match (app/studio.css changed); stale "Default passcode:
    pentaho-studio" gate doc comment corrected (app/gate-config.js changed).

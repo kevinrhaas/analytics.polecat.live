@@ -2230,6 +2230,75 @@ function serve() {
     ok("DSX: deleting a dataset in use warns which dashboards reference it, and a cancel keeps it",
       /Sales overview/.test(dsxDelWarn.msg) && /1 dashboard/.test(dsxDelWarn.msg) && dsxDelWarn.stillThere, JSON.stringify(dsxDelWarn));
 
+    // saved views (post-overhaul backlog item 6, "jobtracker pattern"): capture the
+    // current search + adapter/tag pill selection as a named, reusable preset. Lives
+    // in Workspace SETTINGS (same home as workbooks), so it travels with sync and needs
+    // no separate "Clear local data" entry.
+    const dsxViewsNone = await page.evaluate(function () { return { addBtn: !!document.querySelector("#dsxViewAddBtn") }; });
+    ok("DSX: no '+ Save view' affordance while search + filters are both empty",
+      !dsxViewsNone.addBtn, JSON.stringify(dsxViewsNone));
+
+    await page.evaluate(function () {
+      var inp = document.querySelector("#dsxSearch");
+      inp.value = "sales"; inp.dispatchEvent(new Event("input"));
+    });
+    await page.waitForTimeout(60);
+    await page.evaluate(function () { document.querySelector('[data-dsx-tag="finance"]').click(); });
+    await page.waitForTimeout(60);
+    await page.evaluate(function () {
+      document.querySelector("#dsxViewNameInp").value = "Finance sales";
+      document.querySelector("#dsxViewAddBtn").click();
+    });
+    await page.waitForTimeout(60);
+    const dsxViewSaved = await page.evaluate(function () {
+      var views = Studio.Workspace.settings().datasetViews || [];
+      return {
+        count: views.length, name: views[0] && views[0].name, q: views[0] && views[0].q,
+        tags: views[0] && (views[0].tags || []).join(","),
+        chip: !!document.querySelector("[data-dsx-view]"),
+        chipText: (document.querySelector("[data-dsx-view] .wb-chip-label") || {}).textContent
+      };
+    });
+    ok("DSX: '+ Save view' persists the current search + tag filter under a name, and renders a chip",
+      dsxViewSaved.count === 1 && dsxViewSaved.name === "Finance sales" && dsxViewSaved.q === "sales" &&
+      dsxViewSaved.tags === "finance" && dsxViewSaved.chip && dsxViewSaved.chipText === "Finance sales", JSON.stringify(dsxViewSaved));
+
+    // clear both the search box and the pill filter, then applying the saved view restores both
+    await page.evaluate(function () {
+      var inp = document.querySelector("#dsxSearch");
+      inp.value = ""; inp.dispatchEvent(new Event("input"));
+    });
+    await page.waitForTimeout(60);
+    await page.evaluate(function () { document.querySelector("#dsxPillClear").click(); });
+    await page.waitForTimeout(60);
+    const dsxViewCleared = await page.evaluate(function () {
+      return { q: document.querySelector("#dsxSearch").value, tagActive: !!document.querySelector('[data-dsx-tag="finance"].active') };
+    });
+    ok("DSX: search + pill filter actually cleared before applying the saved view",
+      dsxViewCleared.q === "" && !dsxViewCleared.tagActive, JSON.stringify(dsxViewCleared));
+
+    await page.evaluate(function () { document.querySelector("[data-dsx-view]").click(); });
+    await page.waitForTimeout(60);
+    const dsxViewApplied = await page.evaluate(function () {
+      return { q: document.querySelector("#dsxSearch").value, tagActive: !!document.querySelector('[data-dsx-tag="finance"].active') };
+    });
+    ok("DSX: clicking a saved-view chip restores its search text and tag filter",
+      dsxViewApplied.q === "sales" && dsxViewApplied.tagActive, JSON.stringify(dsxViewApplied));
+
+    const dsxViewDel = await page.evaluate(function () {
+      window.confirm = function () { return true; };
+      document.querySelector("[data-dsx-view-del]").click();
+      return { count: (Studio.Workspace.settings().datasetViews || []).length, chip: !!document.querySelector("[data-dsx-view]") };
+    });
+    ok("DSX: deleting a saved view removes it from settings and the chip row",
+      dsxViewDel.count === 0 && !dsxViewDel.chip, JSON.stringify(dsxViewDel));
+
+    await page.evaluate(function () {
+      var inp = document.querySelector("#dsxSearch");
+      inp.value = ""; inp.dispatchEvent(new Event("input"));
+    });
+    await page.waitForTimeout(60);
+
     await page.evaluate(function () { Studio.Workspace.reset(); window.__studioLoad({ title: "post-dsx", panels: [], kpis: [] }); window.__studioShellSetSection("studio"); });
     await page.waitForTimeout(120);
 
