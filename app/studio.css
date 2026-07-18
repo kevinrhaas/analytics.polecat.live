@@ -1543,6 +1543,27 @@ body.simple-mode .da-acts{display:none!important}
 .cx-wiz-foot .btn.primary,#connNewBtn.primary,.cx-empty .btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
 @media(max-width:640px){.cx-when{display:none}.cx-actions{opacity:1}.cx-pin{opacity:1}}
 
+/* ── Connection schema browser (post-overhaul backlog item 5) ── */
+.cx-schema{margin-top:12px;border-top:1px solid var(--line);padding-top:12px}
+.cx-schema-status{font-size:12.5px;color:var(--muted);padding:4px 0}
+.cx-schema-status.bad{color:var(--bad);font-weight:600}
+.cx-schema-filter{margin-bottom:8px}
+.cx-schema-filter input{width:100%;padding:7px 10px;font-size:12.5px;border:1px solid var(--line);border-radius:8px;
+  background:var(--field);color:var(--ink);font-family:var(--font)}
+.cx-schema-filter input:focus{border-color:var(--brand);outline:none}
+.cx-schema-list{max-height:280px;overflow:auto;display:flex;flex-direction:column;gap:4px}
+.cx-schema-table{border:1px solid var(--line);border-radius:8px;padding:2px 10px}
+.cx-schema-table summary{cursor:pointer;padding:6px 0;font-size:12.5px;display:flex;align-items:baseline;gap:6px;list-style:none}
+.cx-schema-table summary::-webkit-details-marker{display:none}
+.cx-schema-table summary b{color:var(--ink)}
+.cx-schema-table summary small{color:var(--faint);font-weight:400}
+.cx-schema-n{margin-left:auto;color:var(--muted);font-size:11px}
+.cx-schema-cols{list-style:none;margin:0 0 6px;padding:0;display:flex;flex-direction:column;gap:2px}
+.cx-schema-cols li{display:flex;justify-content:space-between;gap:10px;padding:3px 0 3px 8px;font-size:12px;
+  border-left:2px solid var(--line)}
+.cx-schema-col{color:var(--ink)}
+.cx-schema-type{color:var(--faint);font-family:var(--mono, monospace)}
+
 /* ── Datasets section (dsx-*) — shares the cx-* list/row/wizard anatomy ── */
 .dsx-pill-sep{width:1px;align-self:stretch;background:color-mix(in srgb, var(--ink) 14%, transparent);margin:0 4px}
 .cx-sel{padding:8px 11px;font-size:13px;border:1px solid var(--line);border-radius:8px;

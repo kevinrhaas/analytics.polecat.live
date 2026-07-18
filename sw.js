@@ -5,7 +5,14 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v37"; /* v37: post-overhaul backlog item 2 —
+var CACHE_NAME = "studio-shell-v38"; /* v38: post-overhaul backlog item 5 —
+   the schema-browser half of "dataset delight": a "Browse schema" button in
+   the Connections wizard (Snowflake/Databricks/Redshift) lists tables and
+   columns via a new adapter.listSchema() capability, an ANSI
+   information_schema.columns query through the same engine.query() bridge
+   queryData already uses (app/sources/data-adapters.js, app/sources/
+   schema.js, app/studio.js, app/studio.css changed).
+   v37: post-overhaul backlog item 2 —
    a new Amazon Redshift data-source connector (Data API, SigV4-signed from the
    browser via the new app/sources/sigv4.js signer) — app/redshift.js and
    app/sources/sigv4.js added to the precache list.

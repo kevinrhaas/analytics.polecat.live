@@ -174,7 +174,7 @@ function handleMockRedshiftData(req, rep) {
     if (/ExecuteStatement$/.test(target)) {
       const id = "stmt-" + (++mockRedshift.seq);
       const sql = json.Sql || "";
-      const st = { sql, status: "FINISHED", err: null, hasResultSet: true, paged: /PAGED/.test(sql) };
+      const st = { sql, status: "FINISHED", err: null, hasResultSet: true, paged: /PAGED/.test(sql), schema: /information_schema\.columns/i.test(sql) };
       if (/FAIL/.test(sql)) { st.status = "FAILED"; st.err = 'syntax error at or near "FAIL"'; }
       else if (/EMPTY/.test(sql)) { st.hasResultSet = false; }
       mockRedshift.statements.set(id, st);
@@ -188,6 +188,15 @@ function handleMockRedshiftData(req, rep) {
     if (/GetStatementResult$/.test(target)) {
       const st = mockRedshift.statements.get(json.Id);
       if (!st) return send(400, { message: "Statement not found" });
+      if (st.schema) {
+        const s = (v) => ({ stringValue: v });
+        const cols = ["table_schema", "table_name", "column_name", "data_type"].map((name) => ({ name }));
+        const records = [
+          ["public", "customers", "id", "integer"], ["public", "customers", "name", "varchar"],
+          ["public", "orders", "id", "integer"], ["public", "orders", "region", "varchar"], ["public", "orders", "total", "numeric"],
+        ].map((r) => r.map(s));
+        return send(200, { ColumnMetadata: cols, Records: records });
+      }
       const cols = [{ name: "region" }, { name: "total" }];
       if (st.paged && !json.NextToken) return send(200, { ColumnMetadata: cols, Records: [[{ stringValue: "EMEA" }, { longValue: 120 }]], NextToken: "p2" });
       if (st.paged) return send(200, { ColumnMetadata: cols, Records: [[{ stringValue: "AMER" }, { longValue: 200 }]] });
@@ -639,6 +648,112 @@ function serve() {
     ok("RS: redshift icon exists and is distinct from the other connector marks",
       !!rsIcon.path && rsIcon.distinctFromSnowflake && rsIcon.distinctFromDatabricks && rsIcon.distinctFromBigquery && rsIcon.distinctFromDb,
       JSON.stringify(rsIcon));
+
+    // ---- Schema browser (post-overhaul backlog item 5, "dataset delight" — the
+    // schema-browser half): listSchema() runs an ANSI information_schema.columns
+    // SELECT through the SAME engine.query() bridge queryData uses, grouped into
+    // a table→columns tree. Wired for Snowflake/Databricks/Redshift; the mock
+    // Data API above now answers an information_schema query with two tables.
+    console.log("\n• Schema browser (post-overhaul item 5)");
+    const rsSchema = await page.evaluate(async function (port) {
+      var rs = Studio.sourceById("redshift");
+      var cfg = { region: "us-east-1", accessKeyId: "AKIDEXAMPLE", secretAccessKey: "secret", database: "dev",
+        workgroupName: "default", endpoint: "http://localhost:" + port + "/__redshift-data" };
+      var ok1 = await rs.listSchema(cfg);
+      var bad = await rs.listSchema({ region: "us-east-1" }); // missing creds -> in-band error
+      return { ok1: ok1, bad: bad };
+    }, PORT);
+    ok("RS: listSchema groups the mock's information_schema.columns rows into a table→columns tree",
+      rsSchema.ok1.tables.length === 2 &&
+      rsSchema.ok1.tables[0].name === "customers" && rsSchema.ok1.tables[0].schema === "public" && rsSchema.ok1.tables[0].columns.length === 2 &&
+      rsSchema.ok1.tables[1].name === "orders" && rsSchema.ok1.tables[1].columns.length === 3 &&
+      rsSchema.ok1.tables[1].columns[0].name === "id" && rsSchema.ok1.tables[1].columns[0].type === "integer",
+      JSON.stringify(rsSchema.ok1));
+    ok("RS: listSchema surfaces a missing-credentials failure in-band, not a throw",
+      rsSchema.bad.tables.length === 0 && !!rsSchema.bad.error, JSON.stringify(rsSchema.bad));
+
+    // Snowflake/Databricks have no configurable endpoint field (unlike Redshift),
+    // so — same reason the rest of this suite's Snowflake/Databricks checks do —
+    // their query() façade is monkey-patched in-page rather than hitting a mock
+    // HTTP server, while still exercising the REAL listSchema()/SQL-building code.
+    const sfSchema = await page.evaluate(async function () {
+      var sf = Studio.sourceById("snowflake");
+      var orig = Studio.Snowflake.query, captured = [];
+      Studio.Snowflake.query = function (cfg, sql) {
+        captured.push(sql);
+        return Promise.resolve({
+          cols: ["TABLE_SCHEMA", "TABLE_NAME", "COLUMN_NAME", "DATA_TYPE"],
+          rows: [["PUBLIC", "ORDERS", "ID", "NUMBER"], ["PUBLIC", "ORDERS", "REGION", "VARCHAR"], ["PUBLIC", "CUSTOMERS", "NAME", "VARCHAR"]]
+        });
+      };
+      var qualified = await sf.listSchema({ account: "xy", token: "t", database: "ANALYTICS" });
+      var unqualified = await sf.listSchema({ account: "xy", token: "t" });
+      Studio.Snowflake.query = orig;
+      return { qualified: qualified, unqualified: unqualified, captured: captured };
+    });
+    ok("SF: listSchema quotes the database when set and groups uppercase-header rows case-insensitively",
+      /^SELECT table_schema, table_name, column_name, data_type FROM "ANALYTICS"\.information_schema\.columns ORDER BY/.test(sfSchema.captured[0]) &&
+      sfSchema.qualified.tables.length === 2 && sfSchema.qualified.tables[0].name === "ORDERS" && sfSchema.qualified.tables[0].columns.length === 2,
+      JSON.stringify(sfSchema.captured[0]) + " / " + JSON.stringify(sfSchema.qualified));
+    ok("SF: listSchema queries an unqualified information_schema.columns when no database is set",
+      /^SELECT table_schema, table_name, column_name, data_type FROM information_schema\.columns ORDER BY/.test(sfSchema.captured[1]) &&
+      sfSchema.unqualified.tables.length === 2, JSON.stringify(sfSchema.captured[1]));
+
+    const dbxSchema = await page.evaluate(async function () {
+      var dbx = Studio.sourceById("databricks");
+      var orig = Studio.Databricks.query, captured = [];
+      Studio.Databricks.query = function (cfg, sql) {
+        captured.push(sql);
+        return Promise.resolve({ cols: ["table_schema", "table_name", "column_name", "data_type"], rows: [["default", "events", "ts", "timestamp"]] });
+      };
+      var r = await dbx.listSchema({ host: "h", token: "t", warehouseId: "w", catalog: "main" });
+      Studio.Databricks.query = orig;
+      return { r: r, sql: captured[0] };
+    });
+    ok("DBX: listSchema backtick-quotes the catalog when set",
+      /^SELECT table_schema, table_name, column_name, data_type FROM `main`\.information_schema\.columns ORDER BY/.test(dbxSchema.sql) &&
+      dbxSchema.r.tables.length === 1 && dbxSchema.r.tables[0].name === "events", JSON.stringify(dbxSchema));
+
+    const noSchemaAdapters = await page.evaluate(function () {
+      return ["bigquery", "duckdb", "sqlite", "httpsql", "postgrest"].map(function (id) { return { id: id, has: typeof (Studio.sourceById(id) || {}).listSchema === "function" }; });
+    });
+    ok("Schema browser: adapters without a safe unqualified/dialect-known query (BigQuery/DuckDB/SQLite/generic-HTTP/PostgREST) don't claim the capability",
+      noSchemaAdapters.every(function (a) { return !a.has; }), JSON.stringify(noSchemaAdapters));
+
+    // ---- CX UI: the "Browse schema" wizard panel (Redshift, against the same mock) ----
+    await page.evaluate(function () { window.__studioShellSetSection("connections"); });
+    await page.waitForTimeout(80);
+    await page.click("#connNewBtn");
+    await page.waitForTimeout(120);
+    await page.evaluate(function () {
+      [].slice.call(document.querySelectorAll(".cx-src-card")).filter(function (c) { return c.querySelector("b").textContent === "Amazon Redshift"; })[0].click();
+    });
+    await page.waitForTimeout(100);
+    const cxSchemaBtnPresent = await page.evaluate(function () { return !!document.querySelector(".cx-schema-btn"); });
+    ok("CX: wizard shows a Browse schema button for a listSchema-capable adapter (Redshift)", cxSchemaBtnPresent);
+    await page.evaluate(function (port) {
+      var f = [].slice.call(document.querySelectorAll(".cx-field input")); // name,region,accessKeyId,secretAccessKey,sessionToken,database,clusterIdentifier,dbUser,workgroupName,endpoint
+      f[1].value = "us-east-1"; f[2].value = "AKIDEXAMPLE"; f[3].value = "secret"; f[5].value = "dev"; f[8].value = "default";
+      f[9].value = "http://localhost:" + port + "/__redshift-data";
+    }, PORT);
+    await page.click(".cx-schema-btn");
+    await page.waitForFunction(() => document.querySelectorAll(".cx-schema-table").length > 0, { timeout: 5000 });
+    const cxSchema = await page.evaluate(function () {
+      var tables = [].slice.call(document.querySelectorAll(".cx-schema-table"));
+      return { count: tables.length, names: tables.map(function (t) { return t.querySelector("summary b").textContent; }).sort().join(","), firstCols: tables[0].querySelectorAll(".cx-schema-cols li").length };
+    });
+    ok("CX: Browse schema renders the mock's tables, each with its columns",
+      cxSchema.count === 2 && cxSchema.names === "customers,orders", JSON.stringify(cxSchema));
+    await page.evaluate(function () {
+      var inp = document.querySelector(".cx-schema-filter input");
+      inp.value = "ord"; inp.dispatchEvent(new Event("input"));
+    });
+    const cxSchemaFiltered = await page.evaluate(function () {
+      return [].slice.call(document.querySelectorAll(".cx-schema-table")).filter(function (t) { return !t.hidden; }).length;
+    });
+    ok("CX: the schema panel's filter narrows the table list", cxSchemaFiltered === 1, "visible=" + cxSchemaFiltered);
+    await page.evaluate(function () { document.querySelector(".modal-ov .x").click(); });
+    await page.waitForTimeout(100);
 
     // ---- PostgREST adapter (★★★-2): end-to-end against a mock PostgREST -----
     console.log("\n• PostgREST data adapter (★★★-2)");

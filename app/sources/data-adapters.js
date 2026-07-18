@@ -33,7 +33,62 @@
       });
     };
   }
-  function dataAdapter(def, engine) {
+
+  // ---- Schema browser (post-overhaul backlog item 5, "dataset delight" —
+  // the schema-browser half) --------------------------------------------------
+  // List tables/columns for a connection via the SAME engine.query() bridge
+  // queryData already uses: a plain ANSI information_schema.columns SELECT,
+  // grouped client-side into a table→columns tree. Only wired for the three
+  // warehouse adapters whose dialect makes an unqualified-or-database/catalog-
+  // qualified information_schema.columns reliable with no extra input beyond
+  // what the connection form already collects (Snowflake, Databricks,
+  // Redshift). BigQuery's INFORMATION_SCHEMA is dataset-qualified (needs its
+  // own query shape) and the remaining adapters (generic SQL/HTTP, DuckDB,
+  // SQLite, PostgREST) each have a different introspection story — follow-ups,
+  // tracked in STATUS.md rather than guessed at here.
+  function groupSchemaRows(cols, rows) {
+    var idx = {};
+    (cols || []).forEach(function (c, i) { idx[String(c).toLowerCase()] = i; });
+    var need = ["table_schema", "table_name", "column_name", "data_type"];
+    var hasAll = need.every(function (k) { return idx[k] != null; });
+    if (!hasAll) return [];
+    var byKey = {}, order = [];
+    (rows || []).forEach(function (r) {
+      var schema = r[idx.table_schema], table = r[idx.table_name];
+      var key = schema + " " + table;
+      if (!byKey[key]) { byKey[key] = { schema: schema, name: table, columns: [] }; order.push(key); }
+      byKey[key].columns.push({ name: r[idx.column_name], type: r[idx.data_type] });
+    });
+    return order.map(function (k) { return byKey[k]; });
+  }
+  function ansiListSchema(engine, sqlFn) {
+    return function (cfg) {
+      return engine.query(cfg, sqlFn(cfg)).then(function (r) {
+        return { tables: groupSchemaRows(r.cols, r.rows) };
+      }).catch(function (e) {
+        return { tables: [], error: (e && e.message) || String(e) };
+      });
+    };
+  }
+  var SCHEMA_ORDER = " ORDER BY table_schema, table_name, ordinal_position";
+  function quoteDouble(s) { return '"' + String(s).replace(/"/g, '""') + '"'; }
+  function quoteBacktick(s) { return "`" + String(s).replace(/`/g, "``") + "`"; }
+  function snowflakeSchemaSql(cfg) {
+    var db = (cfg && cfg.database || "").trim();
+    var scope = (db ? quoteDouble(db) + "." : "") + "information_schema.columns";
+    return "SELECT table_schema, table_name, column_name, data_type FROM " + scope + SCHEMA_ORDER;
+  }
+  function databricksSchemaSql(cfg) {
+    var cat = (cfg && cfg.catalog || "").trim();
+    var scope = (cat ? quoteBacktick(cat) + "." : "") + "information_schema.columns";
+    return "SELECT table_schema, table_name, column_name, data_type FROM " + scope + SCHEMA_ORDER;
+  }
+  function redshiftSchemaSql() {
+    return "SELECT table_schema, table_name, column_name, data_type FROM information_schema.columns" +
+      " WHERE table_schema NOT IN ('pg_catalog', 'information_schema')" + SCHEMA_ORDER;
+  }
+
+  function dataAdapter(def, engine, schemaSql) {
     def.icon = def.icon || "db";
     def.caps = { meta: false, data: true };
     def.browserProvision = false;
@@ -48,6 +103,7 @@
     def.drop = function () { return Promise.resolve({ ok: false, error: "Not a workspace backend" }); };
     def.load = function () { return Promise.resolve(Studio.WS.emptySnapshot()); };
     def.save = function () { return Promise.resolve({ ok: false, error: "Not a workspace backend" }); };
+    if (schemaSql) def.listSchema = ansiListSchema(engine, schemaSql);
     Studio.registerSource(def);
   }
 
@@ -63,7 +119,7 @@
       { key: "role", label: "Role", placeholder: "optional", type: "text" }
     ],
     docsUrl: "https://docs.snowflake.com/en/developer-guide/sql-api/intro"
-  }, Studio.Snowflake);
+  }, Studio.Snowflake, snowflakeSchemaSql);
 
   dataAdapter({
     id: "databricks", label: "Databricks", icon: "databricks", accent: "#FF3621",
@@ -76,7 +132,7 @@
       { key: "schema", label: "Schema", placeholder: "optional", type: "text" }
     ],
     docsUrl: "https://docs.databricks.com/api/workspace/statementexecution"
-  }, Studio.Databricks);
+  }, Studio.Databricks, databricksSchemaSql);
 
   dataAdapter({
     id: "bigquery", label: "BigQuery", icon: "bigquery", accent: "#4285F4",
@@ -105,7 +161,7 @@
       { key: "endpoint", label: "Custom endpoint", placeholder: "optional — VPC PrivateLink URL", type: "text" }
     ],
     docsUrl: "https://docs.aws.amazon.com/redshift-data/latest/APIReference/Welcome.html"
-  }, Studio.Redshift);
+  }, Studio.Redshift, redshiftSchemaSql);
 
   dataAdapter({
     id: "duckdb", label: "DuckDB (remote file)", icon: "duckdb", accent: "#FFDE00",

@@ -1508,9 +1508,28 @@
 >    (re)computes while the Jobs list happens to be open, matching the annual-refresh model V8 was
 >    built for. `jobRefreshBadge()` in `app/studio.js`, no schema bump (`refreshEveryDays` rides the
 >    existing `jobs` row's free-form `data` blob, same as every other job field). SW cache → v36. 4 new
->    tests, suite 1573/1573. This closes out the "scheduled refresh hints" half of item 5 — **still
->    open: the schema-browser half (list tables/columns per connection) remains a separate, bigger
->    lift.**
+>    tests, suite 1573/1573. This closes out the "scheduled refresh hints" half of item 5.
+>    ✓ **Schema browser shipped for the warehouse adapters (2026-07-18, steward PR):** a new,
+>    optional `adapter.listSchema(cfg)` contract method (`app/sources/schema.js`) runs an ANSI
+>    `information_schema.columns` SELECT through the SAME `engine.query()` bridge `queryData`
+>    already uses, grouped client-side into a `{tables:[{schema,name,columns:[{name,type}]}]}`
+>    tree — no new capability surface, just a second query shape (`app/sources/data-adapters.js`).
+>    Wired for the three warehouse adapters where an unqualified-or-database/catalog-qualified
+>    query is reliable with no extra input beyond what the connection form already collects:
+>    Snowflake (`"<database>".information_schema.columns` when a database is set),
+>    Databricks (`` `<catalog>`.information_schema.columns `` when a catalog is set), Redshift
+>    (unqualified, `pg_catalog`/`information_schema` excluded). The Connections wizard
+>    (`app/studio.js`) gains a "Browse schema" button next to Test connection whenever
+>    `adapter.listSchema` exists, opening a filterable, per-table `<details>` tree of columns +
+>    types (`app/studio.css`). BigQuery (its `INFORMATION_SCHEMA` is dataset-qualified — a
+>    different query shape) and the remaining adapters (generic SQL/HTTP, DuckDB single-file,
+>    SQLite, PostgREST — each with its own introspection story, PostgREST's OpenAPI root doc vs.
+>    a raw SQL dialect) are follow-ups; adapters without the capability simply don't show the
+>    button. SW cache → v38. 9 new tests (a real end-to-end pass against the Redshift mock Data
+>    API's new information_schema.columns response, monkey-patched query()-capture checks proving
+>    the exact Snowflake/Databricks SQL text and case-insensitive grouping, and a full wizard UI
+>    pass — button visibility, rendered tree, filter), suite 1593/1593. This closes out
+>    post-overhaul backlog item 5 entirely.
 > 6. **Workspace polish**: ✓ **Saved views for the Datasets list shipped (2026-07-18, steward
 >    PR).** A search + adapter/tag pill combination can be named and kept as a chip
 >    (`dsxLoadViews`/`dsxSaveViews`/`dsxApplyView` in `app/studio.js`) — click the chip later to

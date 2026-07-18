@@ -46,6 +46,13 @@
                        dataset: a dataset definition ({ kind:'sql', sql, … } —
                        kinds vary by adapter); params: {key:value} already
                        applied to the definition via Studio.WS.applyParams.
+
+   listSchema(cfg) → { tables:[{schema,name,columns:[{name,type}]}], error? }
+                       OPTIONAL (post-overhaul backlog item 5, "dataset
+                       delight" — the schema browser half): lists the
+                       connection's tables/columns so the Connections editor
+                       can offer a "Browse schema" panel. Adapters that don't
+                       implement it simply omit it — the UI hides the button.
    ──────────────────────────────────────────────────────────────────────────── */
 (function () {
   "use strict";
