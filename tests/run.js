@@ -151,6 +151,52 @@ function handleMockGviz(req, rep, p) {
     rows: rows } });
 }
 
+// ---- mock Redshift Data API (app/redshift.js + app/sources/sigv4.js end-to-end tests) ---------
+// Enough of the real ExecuteStatement/DescribeStatement/GetStatementResult protocol to exercise
+// the async-poll + pagination logic; does NOT validate the SigV4 signature itself (that's covered
+// by dedicated crypto-vector tests against known HMAC-SHA256/SHA-256 values) — only checks an
+// Authorization header of the right shape showed up, same trust boundary the app has (a genuinely
+// wrong signature would only ever be caught by real AWS, same as every other credential-based
+// connector's mock in this suite).
+const mockRedshift = { statements: new Map(), seq: 0 };
+function handleMockRedshiftData(req, rep) {
+  let body = "";
+  req.on("data", (c) => (body += c));
+  req.on("end", () => {
+    let json = {};
+    try { json = JSON.parse(body || "{}"); } catch (e) {}
+    const send = (code, obj) => {
+      rep.writeHead(code, { "Content-Type": "application/x-amz-json-1.1", "Access-Control-Allow-Origin": "*" });
+      rep.end(JSON.stringify(obj));
+    };
+    if (!/^AWS4-HMAC-SHA256 Credential=/.test(req.headers.authorization || "")) return send(400, { message: "Missing/malformed Authorization header" });
+    const target = req.headers["x-amz-target"] || "";
+    if (/ExecuteStatement$/.test(target)) {
+      const id = "stmt-" + (++mockRedshift.seq);
+      const sql = json.Sql || "";
+      const st = { sql, status: "FINISHED", err: null, hasResultSet: true, paged: /PAGED/.test(sql) };
+      if (/FAIL/.test(sql)) { st.status = "FAILED"; st.err = 'syntax error at or near "FAIL"'; }
+      else if (/EMPTY/.test(sql)) { st.hasResultSet = false; }
+      mockRedshift.statements.set(id, st);
+      return send(200, { Id: id });
+    }
+    if (/DescribeStatement$/.test(target)) {
+      const st = mockRedshift.statements.get(json.Id);
+      if (!st) return send(400, { message: "Statement not found" });
+      return send(200, { Id: json.Id, Status: st.status, HasResultSet: st.hasResultSet, Error: st.err });
+    }
+    if (/GetStatementResult$/.test(target)) {
+      const st = mockRedshift.statements.get(json.Id);
+      if (!st) return send(400, { message: "Statement not found" });
+      const cols = [{ name: "region" }, { name: "total" }];
+      if (st.paged && !json.NextToken) return send(200, { ColumnMetadata: cols, Records: [[{ stringValue: "EMEA" }, { longValue: 120 }]], NextToken: "p2" });
+      if (st.paged) return send(200, { ColumnMetadata: cols, Records: [[{ stringValue: "AMER" }, { longValue: 200 }]] });
+      return send(200, { ColumnMetadata: cols, Records: [[{ stringValue: "EMEA" }, { longValue: 120 }], [{ stringValue: "AMER" }, { longValue: 200 }]] });
+    }
+    return send(400, { message: "Unknown action: " + target });
+  });
+}
+
 function serve() {
   return new Promise((res) => {
     const srv = http.createServer((req, rep) => {
@@ -162,6 +208,7 @@ function serve() {
         return rep.end(JSON.stringify({ message: "JWT required" }));
       }
       if (p === "/__postgrest/" || p.indexOf("/__postgrest/") === 0) return handleMockPostgrest(req, rep, p);
+      if (p === "/__redshift-data") return handleMockRedshiftData(req, rep);
       if (p.indexOf("/__gsheets/") === 0) return handleMockGviz(req, rep, p);
       let fp = path.join(ROOT, p);
       // directory URLs resolve to their index.html (matches GitHub Pages: /app/ → app/index.html)
@@ -469,10 +516,10 @@ function serve() {
         appId: S.WS.APP_ID, tableNames: S.WS.TABLE_NAMES
       };
     });
-    ok("WS: registry carries local/turso/supabase/firebase + the nine data adapters, with caps planes",
-      wsRegistry.ids.join(",") === "local,turso,supabase,firebase,postgrest,file,gsheets,snowflake,databricks,bigquery,duckdb,sqlite,httpsql" &&
+    ok("WS: registry carries local/turso/supabase/firebase + the ten data adapters, with caps planes",
+      wsRegistry.ids.join(",") === "local,turso,supabase,firebase,postgrest,file,gsheets,snowflake,databricks,bigquery,redshift,duckdb,sqlite,httpsql" &&
       wsRegistry.localMetaOnly && wsRegistry.tursoBoth &&
-      wsRegistry.metaCount === 4 && wsRegistry.dataCount === 12 && wsRegistry.byId, JSON.stringify(wsRegistry));
+      wsRegistry.metaCount === 4 && wsRegistry.dataCount === 13 && wsRegistry.byId, JSON.stringify(wsRegistry));
 
     const wsDataAdapters = await page.evaluate(async function () {
       var sf = Studio.sourceById("snowflake");
@@ -493,6 +540,105 @@ function serve() {
       wsDataAdapters.badIsInBand && wsDataAdapters.refuses && wsDataAdapters.noSqlInBand, JSON.stringify(wsDataAdapters));
     ok("WS: workspace schema is analytics-owned (connections/datasets/dashboards/analyses/jobs — v3)",
       wsRegistry.appId === "analytics" && wsRegistry.tableNames.join(",") === "connections,datasets,dashboards,analyses,jobs", JSON.stringify(wsRegistry.tableNames));
+
+    // ---- AWS SigV4 signer (app/sources/sigv4.js) — crypto-primitive correctness ----------------
+    // Verified against independently-known test vectors (RFC 4231 HMAC-SHA256 test case 1; the
+    // well-known SHA-256("") constant), not just "did it return a string" — this is the one piece
+    // of the Redshift connector a mock HTTP server can't validate (a mock doesn't check the
+    // signature is actually correct, only that *a* signature-shaped header showed up).
+    console.log("\n• AWS SigV4 signer (post-overhaul item 2)");
+    const sigv4Vectors = await page.evaluate(async function () {
+      var V = Studio.AwsSigV4;
+      var emptySha = await V.sha256Hex("");
+      var rfc4231 = await V.hmacHex(new Uint8Array(20).fill(0x0b), "Hi There");
+      return { emptySha: emptySha, rfc4231: rfc4231 };
+    });
+    ok("SigV4: sha256Hex('') matches the well-known SHA-256 empty-string digest",
+      sigv4Vectors.emptySha === "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", JSON.stringify(sigv4Vectors));
+    ok("SigV4: hmacHex matches RFC 4231 HMAC-SHA256 test case 1",
+      sigv4Vectors.rfc4231 === "b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7", JSON.stringify(sigv4Vectors));
+
+    const sigv4Sign = await page.evaluate(async function () {
+      var V = Studio.AwsSigV4;
+      var base = { accessKeyId: "AKIDEXAMPLE", secretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+        region: "us-east-1", service: "redshift-data", host: "redshift-data.us-east-1.amazonaws.com",
+        method: "POST", path: "/", query: "", body: '{"Sql":"SELECT 1"}',
+        headers: { "content-type": "application/x-amz-json-1.1", "x-amz-target": "RedshiftData.ExecuteStatement" },
+        date: new Date(Date.UTC(2026, 0, 15, 12, 0, 0)) };
+      var a = await V.sign(base);
+      var b = await V.sign(base); // same inputs -> byte-identical signature (deterministic, no nondeterministic salt)
+      var diffBody = await V.sign(Object.assign({}, base, { body: '{"Sql":"SELECT 2"}' }));
+      var diffKey = await V.sign(Object.assign({}, base, { secretAccessKey: "different-secret-key-value" }));
+      var withToken = await V.sign(Object.assign({}, base, { sessionToken: "a-session-token" }));
+      return {
+        authFormat: /^AWS4-HMAC-SHA256 Credential=AKIDEXAMPLE\/20260115\/us-east-1\/redshift-data\/aws4_request, SignedHeaders=[a-z0-9;-]+, Signature=[0-9a-f]{64}$/.test(a.headers.authorization),
+        noHostHeader: !("host" in a.headers), // browsers forbid setting Host manually — sign() must not emit it
+        deterministic: a.signature === b.signature,
+        bodyAffectsSig: a.signature !== diffBody.signature,
+        keyAffectsSig: a.signature !== diffKey.signature,
+        tokenHeaderPresent: withToken.headers["x-amz-security-token"] === "a-session-token",
+        signedHeadersSorted: a.headers.authorization.indexOf("SignedHeaders=content-type;host;x-amz-date;x-amz-target") !== -1
+      };
+    });
+    ok("SigV4: sign() produces a well-formed, deterministic Authorization header that changes with body/key, never emits a Host header",
+      sigv4Sign.authFormat && sigv4Sign.noHostHeader && sigv4Sign.deterministic && sigv4Sign.bodyAffectsSig &&
+      sigv4Sign.keyAffectsSig && sigv4Sign.tokenHeaderPresent && sigv4Sign.signedHeadersSorted, JSON.stringify(sigv4Sign));
+
+    // ---- Redshift Data API adapter (post-overhaul item 2): end-to-end against a mock ------------
+    console.log("\n• Redshift data adapter (post-overhaul item 2)");
+    const rsShape = await page.evaluate(function () {
+      var rs = Studio.sourceById("redshift");
+      return {
+        registered: !!rs, dataOnly: !!(rs && !rs.caps.meta && rs.caps.data),
+        fieldKeys: rs ? rs.fields.map(function (f) { return f.key; }).join(",") : ""
+      };
+    });
+    ok("RS: redshift adapter registered — data-only, region/key/secret/session/database/cluster/user/workgroup/endpoint fields",
+      rsShape.registered && rsShape.dataOnly &&
+      rsShape.fieldKeys === "region,accessKeyId,secretAccessKey,sessionToken,database,clusterIdentifier,dbUser,workgroupName,endpoint",
+      JSON.stringify(rsShape));
+
+    const rsRun = await page.evaluate(async function (port) {
+      var rs = Studio.sourceById("redshift");
+      var cfg = { region: "us-east-1", accessKeyId: "AKIDEXAMPLE", secretAccessKey: "secret", database: "dev",
+        workgroupName: "default", endpoint: "http://localhost:" + port + "/__redshift-data" };
+      var test = await rs.testData(cfg);
+      var query = await rs.queryData(cfg, { kind: "sql", sql: "SELECT * FROM sales" });
+      var fail = await rs.testData(Object.assign({}, cfg, {}));
+      // re-run testData with a SQL that trips the mock's FAILED path via query(), not testData
+      // (testData always runs a fixed "SELECT 1" — exercise FAILED/EMPTY/paging via queryData)
+      var failed = await rs.queryData(cfg, { kind: "sql", sql: "SELECT FAIL" });
+      var empty = await rs.queryData(cfg, { kind: "sql", sql: "SELECT EMPTY" });
+      var paged = await rs.queryData(cfg, { kind: "sql", sql: "SELECT PAGED" });
+      var noCreds = await rs.testData({ region: "us-east-1" });
+      return { test: test, query: query, failed: failed, empty: empty, paged: paged, noCreds: noCreds };
+    }, PORT);
+    ok("RS: testConnection succeeds against the mock Data API (ExecuteStatement -> poll -> GetStatementResult)",
+      rsRun.test.ok === true, JSON.stringify(rsRun.test));
+    ok("RS: queryData returns the mock's two rows with correctly-decoded string/long fields",
+      rsRun.query.columns.join(",") === "region,total" && rsRun.query.rows.length === 2 &&
+      rsRun.query.rows[0][0] === "EMEA" && rsRun.query.rows[0][1] === 120, JSON.stringify(rsRun.query));
+    ok("RS: a FAILED statement surfaces the mock's error message in-band, not a throw",
+      !!rsRun.failed.error && /syntax error/.test(rsRun.failed.error), JSON.stringify(rsRun.failed));
+    ok("RS: HasResultSet:false (e.g. a DDL statement) resolves an empty result, not an error",
+      !rsRun.empty.error && rsRun.empty.rows.length === 0, JSON.stringify(rsRun.empty));
+    ok("RS: GetStatementResult pagination (NextToken) is followed to completion across pages",
+      rsRun.paged.rows.length === 2 && rsRun.paged.rows[0][0] === "EMEA" && rsRun.paged.rows[1][0] === "AMER", JSON.stringify(rsRun.paged));
+    ok("RS: missing access key/secret is an honest in-band refusal, not a throw",
+      rsRun.noCreds.ok === false && !!rsRun.noCreds.error, JSON.stringify(rsRun.noCreds));
+
+    const rsIcon = await page.evaluate(function () {
+      return {
+        path: Studio._iconPaths.redshift,
+        distinctFromSnowflake: Studio._iconPaths.redshift !== Studio._iconPaths.snowflake,
+        distinctFromDatabricks: Studio._iconPaths.redshift !== Studio._iconPaths.databricks,
+        distinctFromBigquery: Studio._iconPaths.redshift !== Studio._iconPaths.bigquery,
+        distinctFromDb: Studio._iconPaths.redshift !== Studio._iconPaths.db
+      };
+    });
+    ok("RS: redshift icon exists and is distinct from the other connector marks",
+      !!rsIcon.path && rsIcon.distinctFromSnowflake && rsIcon.distinctFromDatabricks && rsIcon.distinctFromBigquery && rsIcon.distinctFromDb,
+      JSON.stringify(rsIcon));
 
     // ---- PostgREST adapter (★★★-2): end-to-end against a mock PostgREST -----
     console.log("\n• PostgREST data adapter (★★★-2)");
@@ -2089,14 +2235,16 @@ function serve() {
     await page.waitForTimeout(120);
     const cxWiz = await page.evaluate(function () {
       var cards = [].slice.call(document.querySelectorAll(".cx-src-card"));
+      var allLabels = cards.map(function (c) { return c.querySelector("b").textContent; });
       return {
         count: cards.length,
         wsCapable: document.querySelectorAll(".cx-src-card .cx-badge").length,
-        labels: cards.map(function (c) { return c.querySelector("b").textContent; }).slice(0, 3).join(",")
+        labels: allLabels.slice(0, 3).join(","),
+        hasRedshift: allLabels.indexOf("Amazon Redshift") !== -1
       };
     });
-    ok("CX: wizard step 1 lists every data-capable adapter with workspace-capable badges",
-      cxWiz.count === 12 && cxWiz.wsCapable === 3, JSON.stringify(cxWiz)); // 12 = the 9 originals + postgrest + file + gsheets (★★★-2)
+    ok("CX: wizard step 1 lists every data-capable adapter with workspace-capable badges, including Amazon Redshift",
+      cxWiz.count === 13 && cxWiz.wsCapable === 3 && cxWiz.hasRedshift, JSON.stringify(cxWiz)); // 13 = the 9 originals + postgrest + file + gsheets (★★★-2) + redshift (post-overhaul item 2)
 
     // pick Turso → step 2 → point it at the mock pipeline → inline Test → Save
     await page.evaluate(function () {

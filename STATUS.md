@@ -1413,9 +1413,23 @@
 >    link-shared sheets: kind:'sheet' datasets (tab + optional tq query, {{params}} flow into
 >    where-clauses), formatted dates, friendly access_denied hint; mock-gviz end-to-end tests.
 >    FOLLOW-UP: private-sheet OAuth via Sheets API v4 + bearer token, the BigQuery pattern).
->    Still to do: AWS Redshift (Data API), Azure SQL / Fabric, MotherDuck. Each = one file
->    implementing the contract in app/sources/schema.js + registerSource + wizard fields +
->    tests against a mock.
+>    ✓ **Amazon Redshift via the Data API (shipped 2026-07-18, steward PR)** — `app/redshift.js`
+>    (ExecuteStatement → poll DescribeStatement → paginated GetStatementResult, cluster or
+>    Serverless workgroup target, optional VPC-PrivateLink `endpoint` override) plus a new reusable
+>    `app/sources/sigv4.js` AWS SigV4 request signer (pure WebCrypto, no dependencies) — unlike
+>    Snowflake/Databricks/BigQuery's bearer tokens, every Redshift Data API call must be
+>    individually signed with an access key/secret (+ optional STS session token), so this adapter
+>    needed its own signing primitive first. Tested against a real mock Data API server (async
+>    poll + NextToken pagination exercised end-to-end) plus dedicated crypto-vector tests (RFC 4231
+>    HMAC-SHA256 test case 1, the well-known SHA-256('') digest) verifying the signer itself is
+>    correct — a mock server can't validate a signature is genuinely right, only that some
+>    signature-shaped header showed up. New `redshift` icon (spectral lines spreading — the
+>    astronomical redshift the name references). SW cache → v37. 11 new tests, suite 1584/1584.
+>    Still to do: Azure SQL / Fabric, MotherDuck (MotherDuck in particular needs a proprietary WASM
+>    client, not a plain REST endpoint like the others — a vendoring-size/license question for
+>    Kevin before attempting it, same class of question as the MapLibre one still open on the
+>    Viridis track above). Each = one file implementing the contract in app/sources/schema.js +
+>    registerSource + wizard fields + tests against a mock.
 > 3. **Exported-runtime support for connection-bound datasets** — bundle the needed adapter engines
 >    into exports (like duckdb/httpvfs already do) so a shipped .html can run live against Turso etc.,
 >    with credentials prompted at open (never embedded).

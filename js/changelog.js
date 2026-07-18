@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 387,
+    title: 'Amazon Redshift data source',
+    kind: 'feature',
+    ts: '2026-07-18T20:35:37.000Z',
+    items: [
+      'Post-overhaul backlog item 2 ("more data adapters") gains Amazon Redshift: connect a provisioned cluster or a Serverless workgroup via the Redshift Data API and build datasets against it, straight from the browser -- no backend or proxy needed.',
+      'Every request is individually signed (AWS SigV4, a new from-scratch WebCrypto signer) since Redshift, unlike Snowflake/Databricks/BigQuery, has no simple bearer-token mode -- an access key and secret (optionally a temporary session token) sign each call themselves.',
+    ],
+  },
+  {
     v: 386,
     title: 'Refresh reminders for Jobs',
     kind: 'feature',

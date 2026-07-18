@@ -62,6 +62,10 @@
     // Z4 slice 4: a globe (meridian + equator lines) for the Generic SQL/HTTP connector — "any
     // JSON API on the web", distinct from every named-provider mark above.
     globe:     '<circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><line x1="3" y1="12" x2="21" y2="12" stroke-linecap="round"/>',
+    // Post-overhaul backlog item 2: a literal "redshift" mark for the Amazon Redshift connector —
+    // a tight pair of spectral lines stretching into a wide pair, the astronomical redshift the
+    // name references — distinct from every other connector mark above.
+    redshift:  '<line x1="2" y1="6" x2="2" y2="16" stroke-linecap="round"/><line x1="5" y1="6" x2="5" y2="16" stroke-linecap="round"/><line x1="8" y1="11" x2="14" y2="11" stroke-linecap="round"/><polyline points="11.5 8.5 14 11 11.5 13.5" stroke-linecap="round" stroke-linejoin="round"/><line x1="17" y1="6" x2="17" y2="16" stroke-linecap="round"/><line x1="23" y1="6" x2="23" y2="16" stroke-linecap="round"/>',
     // Z8 follow-up: tiny inline "what this toggle does" glyphs, shared by the OPT_HINTS map
     // in studio.js — reused across every chart type that exposes the matching option key
     // (sort/legend/smooth/dots families repeat across a dozen+ chart types).

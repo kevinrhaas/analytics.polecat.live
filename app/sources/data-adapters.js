@@ -91,6 +91,23 @@
   }, Studio.BigQuery);
 
   dataAdapter({
+    id: "redshift", label: "Amazon Redshift", icon: "redshift", accent: "#8C4FFF",
+    blurb: "Query a Redshift cluster or Serverless workgroup via the Data API — SigV4-signed requests straight from the browser, no backend/proxy; async statement execution with automatic polling.",
+    fields: [
+      { key: "region", label: "AWS region", placeholder: "us-east-1", type: "text" },
+      { key: "accessKeyId", label: "Access key ID", placeholder: "AKIA…", type: "text" },
+      { key: "secretAccessKey", label: "Secret access key", placeholder: "…", type: "password" },
+      { key: "sessionToken", label: "Session token", placeholder: "optional — for temporary/STS credentials", type: "password" },
+      { key: "database", label: "Database", placeholder: "dev", type: "text" },
+      { key: "clusterIdentifier", label: "Cluster identifier", placeholder: "my-cluster (provisioned clusters)", type: "text" },
+      { key: "dbUser", label: "Database user", placeholder: "awsuser (provisioned clusters, temporary credentials)", type: "text" },
+      { key: "workgroupName", label: "Workgroup name", placeholder: "my-workgroup (Serverless — leave Cluster identifier blank)", type: "text" },
+      { key: "endpoint", label: "Custom endpoint", placeholder: "optional — VPC PrivateLink URL", type: "text" }
+    ],
+    docsUrl: "https://docs.aws.amazon.com/redshift-data/latest/APIReference/Welcome.html"
+  }, Studio.Redshift);
+
+  dataAdapter({
     id: "duckdb", label: "DuckDB (remote file)", icon: "duckdb", accent: "#FFDE00",
     blurb: "Query a Parquet/CSV file straight from S3/HTTP in-browser via DuckDB-Wasm — no backend, no proxy, file needs CORS + Range requests.",
     fields: [
