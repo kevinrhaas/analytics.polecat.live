@@ -349,7 +349,6 @@ function serve() {
         text: cs.getPropertyValue("--text").trim(),
         ink: cs.getPropertyValue("--ink").trim(),
         brand: cs.getPropertyValue("--brand").trim(),
-        pentaho: cs.getPropertyValue("--pentaho").trim(),
         bg: cs.getPropertyValue("--bg").trim()
       };
     });
@@ -359,10 +358,16 @@ function serve() {
       !!shellBridge.palette && shellBridge.palette === shellBridge.appTheme, shellBridge.palette + " vs " + shellBridge.appTheme);
     // Computed custom properties substitute var() (verified in Chromium), so the
     // bridge names must RESOLVE to the exact same values as the Studio's own vars.
-    ok("bridge maps shell canonical tokens onto Studio values (--surface→--pane, --text→--ink, --brand→--pentaho)",
+    ok("bridge maps shell canonical tokens onto Studio values (--surface→--pane, --text→--ink)",
       shellBridge.surface !== "" && shellBridge.surface === shellBridge.pane &&
-      shellBridge.text === shellBridge.ink && shellBridge.brand === shellBridge.pentaho,
+      shellBridge.text === shellBridge.ink,
       JSON.stringify(shellBridge));
+    // --brand converged onto the shell's own canonical name in the 2026-07-18
+    // studio.css fold (formerly bridged from a separate --pentaho variable) —
+    // the default Polecat theme's accent is the concrete regression check now
+    // (same "default polecat light theme" context as the --bg check below).
+    ok("--brand (default Polecat theme) resolves to the Studio's own chrome accent",
+      shellBridge.brand.toUpperCase() === "#C1602C", shellBridge.brand);
     // Regression: the Studio's own look is untouched — its --bg (not the shell's
     // #0a0a0f dark base / #f4f4fb light) must still win in the default polecat light theme.
     ok("studio.css still wins the shared --bg token (Polecat warm cream, not the shell base)",
@@ -2986,7 +2991,7 @@ function serve() {
     ok("Z14 slice 4: the built-in sample-engine SQL source card does NOT carry the badge", connectorBadges.sql === false, JSON.stringify(connectorBadges));
 
     // Z4 follow-up: connector-gallery brand treatment — each third-party provider's icon gets
-    // its own real brand color instead of the app's uniform --pentaho blue.
+    // its own real brand color instead of the app's uniform --brand blue.
     const connectorAccents = await page.evaluate(() => {
       const m = document.querySelector(".modal .dsb"); if (!m) return { err: "modal missing" };
       const colorFor = (label) => {
@@ -5112,7 +5117,7 @@ function serve() {
     ok("⋯ More → Tour reopens the welcome", await gp.evaluate(() => !!document.querySelector("#studio-welcome")));
 
     // Z10 follow-up: the welcome tour was fixed hex (Classic-Blue-only regardless of the
-    // app theme picker) — now themed via the shared --pentaho/--pdc/--pane/etc vars.
+    // app theme picker) — now themed via the shared --brand/--pdc/--pane/etc vars.
     const wThemeBefore = await gp.evaluate(() => ({
       hd: getComputedStyle(document.querySelector("#studio-welcome .sw-hd")).backgroundImage,
       card: getComputedStyle(document.querySelector("#studio-welcome .sw")).backgroundColor
@@ -16587,20 +16592,20 @@ function serve() {
       z10Boot.present && z10Boot.value === "classic" && z10Boot.attr === "classic" && z10Boot.api === "classic",
       JSON.stringify(z10Boot));
 
-    const z10ClassicPentaho = await page.evaluate(function () { return getComputedStyle(document.documentElement).getPropertyValue("--pentaho").trim(); });
+    const z10ClassicBrand = await page.evaluate(function () { return getComputedStyle(document.documentElement).getPropertyValue("--brand").trim(); });
     await page.selectOption("#appThemeSel", "polecat");
     await page.waitForTimeout(80);
     const z10Polecat = await page.evaluate(function () {
       return {
         attr: document.documentElement.getAttribute("data-app-theme"),
         stored: localStorage.getItem("studio-app-theme"),
-        pentaho: getComputedStyle(document.documentElement).getPropertyValue("--pentaho").trim(),
+        brand: getComputedStyle(document.documentElement).getPropertyValue("--brand").trim(),
         bg: getComputedStyle(document.documentElement).getPropertyValue("--bg").trim()
       };
     });
-    ok("Z10: switching to Polecat sets data-app-theme + persists + recolors --pentaho/--bg",
-      z10Polecat.attr === "polecat" && z10Polecat.stored === "polecat" && z10Polecat.pentaho !== z10ClassicPentaho && z10Polecat.bg,
-      JSON.stringify(z10Polecat) + " vs classic " + z10ClassicPentaho);
+    ok("Z10: switching to Polecat sets data-app-theme + persists + recolors --brand/--bg",
+      z10Polecat.attr === "polecat" && z10Polecat.stored === "polecat" && z10Polecat.brand !== z10ClassicBrand && z10Polecat.bg,
+      JSON.stringify(z10Polecat) + " vs classic " + z10ClassicBrand);
 
     // Combines orthogonally with the light/dark mode toggle — Polecat has its own dark variant.
     await page.click('#secSettings input[data-set="dark"]');
@@ -16649,14 +16654,14 @@ function serve() {
       return {
         attr: document.documentElement.getAttribute("data-app-theme"),
         stored: localStorage.getItem("studio-app-theme"),
-        pentaho: getComputedStyle(document.documentElement).getPropertyValue("--pentaho").trim(),
+        brand: getComputedStyle(document.documentElement).getPropertyValue("--brand").trim(),
         rail: getComputedStyle(document.getElementById("railNav")).backgroundColor,
         toast: document.getElementById("toast").textContent
       };
     });
-    ok("Fleet Modern: selecting it sets data-app-theme + persists + recolors --pentaho + the rail",
+    ok("Fleet Modern: selecting it sets data-app-theme + persists + recolors --brand + the rail",
       modernLight.attr === "modern" && modernLight.stored === "modern" &&
-      modernLight.pentaho === "#0071bc" && modernLight.rail !== z10RailClassic && modernLight.rail !== z10RailPolecat,
+      modernLight.brand === "#0071bc" && modernLight.rail !== z10RailClassic && modernLight.rail !== z10RailPolecat,
       JSON.stringify(modernLight));
     ok("Fleet Modern: switching shows a toast naming the theme (not silently applying it)",
       /Fleet Modern theme applied/.test(modernLight.toast), "toast=" + modernLight.toast);
@@ -16665,12 +16670,12 @@ function serve() {
     await page.waitForTimeout(80);
     const modernDark = await page.evaluate(function () {
       return {
-        pentaho: getComputedStyle(document.documentElement).getPropertyValue("--pentaho").trim(),
+        brand: getComputedStyle(document.documentElement).getPropertyValue("--brand").trim(),
         bg: getComputedStyle(document.documentElement).getPropertyValue("--bg").trim()
       };
     });
-    ok("Fleet Modern: has its own dark variant, distinct from its light --pentaho/--bg",
-      modernDark.pentaho === "#5bb3ea" && modernDark.pentaho !== modernLight.pentaho && modernDark.bg !== modernLight.rail && !!modernDark.bg,
+    ok("Fleet Modern: has its own dark variant, distinct from its light --brand/--bg",
+      modernDark.brand === "#5bb3ea" && modernDark.brand !== modernLight.brand && modernDark.bg !== modernLight.rail && !!modernDark.bg,
       JSON.stringify(modernDark) + " vs light " + JSON.stringify(modernLight));
 
     // restore to Classic Blue + Light so subsequent tests see the original baseline
