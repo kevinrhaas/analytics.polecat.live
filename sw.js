@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v36"; /* v36: post-overhaul backlog item 5 —
+var CACHE_NAME = "studio-shell-v37"; /* v37: post-overhaul backlog item 2 —
+   a new Amazon Redshift data-source connector (Data API, SigV4-signed from the
+   browser via the new app/sources/sigv4.js signer) — app/redshift.js and
+   app/sources/sigv4.js added to the precache list.
+   v36: post-overhaul backlog item 5 —
    "scheduled refresh hints" for Jobs (a Refresh reminder field + an overdue/
    due-in-N-days badge on the Jobs list, computed from lastRun; app/studio.js,
    app/studio.css changed).
@@ -87,6 +91,7 @@ var SHELL_FILES = [
   "app/model.js",
   "app/sources/schema.js",
   "app/sources/crypto.js",
+  "app/sources/sigv4.js",
   "app/sources/local.js",
   "app/sources/turso.js",
   "app/sources/supabase.js",
@@ -105,6 +110,7 @@ var SHELL_FILES = [
   "app/snowflake.js",
   "app/databricks.js",
   "app/bigquery.js",
+  "app/redshift.js",
   "app/genericsql.js",
   "app/sources/data-adapters.js",
   "app/exporters.js",
