@@ -2250,6 +2250,49 @@ function serve() {
       dsxImport.das === 1 && dsxImport.panels === 1 && dsxImport.linked && dsxImport.selfContained &&
       dsxImport.cols === "region,total" && dsxImport.panelBound, JSON.stringify(dsxImport));
 
+    // drag a dataset onto Home (post-overhaul backlog item 6): the Datasets
+    // catalog row is draggable and its payload matches what Home's "Blank
+    // dashboard" tile accepts to start a new, seeded dashboard.
+    await page.evaluate(function () { window.__studioShellSetSection("datasets"); });
+    await page.waitForTimeout(120);
+    const dsxDragStart = await page.evaluate(function () {
+      var row = document.querySelector("#dsxResults .cx-row");
+      var payload = null;
+      var fakeEvt = Object.assign(new Event("dragstart", { bubbles: true }), {
+        dataTransfer: { setData: function (type, v) { if (type === "text/plain") payload = v; }, effectAllowed: "" }
+      });
+      row.dispatchEvent(fakeEvt);
+      return { draggable: row.getAttribute("draggable"), payload: payload, dsId: Studio.Workspace.all("datasets")[0].id };
+    });
+    ok("DSX: a dataset row is draggable and carries the {wsDataset} payload the canvas/Home drops understand",
+      dsxDragStart.draggable === "true" && dsxDragStart.payload === JSON.stringify({ wsDataset: dsxDragStart.dsId }),
+      JSON.stringify(dsxDragStart));
+
+    await page.evaluate(function () { window.__studioShellSetSection("home"); });
+    await page.waitForTimeout(150);
+    const dsxHomeDrop = await page.evaluate(function () {
+      var ds = Studio.Workspace.all("datasets")[0];
+      var card = document.querySelector('#secHome .home-card[data-home="blank"]');
+      var dragoverEvt = Object.assign(new Event("dragover", { bubbles: true, cancelable: true }), { dataTransfer: { dropEffect: "" } });
+      card.dispatchEvent(dragoverEvt);
+      var hadClassOnDragover = card.classList.contains("dragover");
+      var dropEvt = Object.assign(new Event("drop", { bubbles: true, cancelable: true }), {
+        dataTransfer: { getData: function () { return JSON.stringify({ wsDataset: ds.id }); } }
+      });
+      card.dispatchEvent(dropEvt);
+      var spec = window.__STUDIO_STATE.spec;
+      var da = spec.cda.dataAccesses[0];
+      return {
+        hadClassOnDragover: hadClassOnDragover,
+        classClearedAfterDrop: !card.classList.contains("dragover"),
+        panels: spec.panels.length,
+        linked: da && da.datasetId === ds.id
+      };
+    });
+    ok("Home: dropping a dataset on “Blank dashboard” starts a new dashboard seeded with it",
+      dsxHomeDrop.hadClassOnDragover && dsxHomeDrop.classClearedAfterDrop && dsxHomeDrop.panels === 1 && dsxHomeDrop.linked,
+      JSON.stringify(dsxHomeDrop));
+
     // dataset lineage (post-overhaul backlog item 5, "blast-radius view"): the
     // Datasets catalog badges each row with the dashboards that reference it,
     // and warns about them before a delete.

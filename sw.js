@@ -5,7 +5,10 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v32"; /* v32: the DA inspector's Cache/Duration
+var CACHE_NAME = "studio-shell-v33"; /* v33: drag a Datasets-catalog row onto
+   Home's "Blank dashboard" tile to start a new dashboard seeded with it
+   (app/studio.js, app/studio.css changed).
+   v32: the DA inspector's Cache/Duration
    fields actually cache the last live result now instead of doing nothing
    (app/studio.js changed).
    v31: Connections list gains the same

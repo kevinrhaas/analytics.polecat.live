@@ -286,6 +286,7 @@ html[data-app-theme='modern'] #mobileNavBtn{background:#0d1a2e;border-color:rgba
   border:1px solid color-mix(in srgb, var(--ink) 12%, transparent);border-radius:12px;padding:14px 16px;color:var(--ink);
   cursor:pointer;font-family:var(--font);transition:transform .12s ease,border-color .12s ease}
 .home-card:hover{border-color:var(--pentaho);transform:translateY(-2px);box-shadow:0 8px 22px -10px color-mix(in srgb, var(--pentaho) 45%, transparent)}
+.home-card.dragover{outline:2px dashed var(--pentaho);outline-offset:2px;border-color:var(--pentaho);background:color-mix(in srgb, var(--pentaho) 8%, var(--field))}
 .home-card-ic{flex:0 0 auto;width:36px;height:36px;border-radius:10px;display:flex;align-items:center;
   justify-content:center;background:color-mix(in srgb, var(--ink) 10%, var(--pane));color:var(--pentaho);transition:transform .15s ease}
 .home-card:hover .home-card-ic{transform:scale(1.1)}
