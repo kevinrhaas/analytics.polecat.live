@@ -1433,7 +1433,16 @@
 >    dataset that's in use now says so in the confirm prompt (which dashboards, and that they fall
 >    back to their own frozen self-contained copy rather than silently going stale — the real
 >    behavior per `runData`'s `da.datasetId`-first resolution). 3 new tests. Test suite 1549/1549.
-> 6. **Workspace polish**: saved views for the Datasets/Connections lists (jobtracker pattern),
+> 6. **Workspace polish**: ✓ **Saved views for the Datasets list shipped (2026-07-18, steward
+>    PR).** A search + adapter/tag pill combination can be named and kept as a chip
+>    (`dsxLoadViews`/`dsxSaveViews`/`dsxApplyView` in `app/studio.js`) — click the chip later to
+>    restore the exact same search text + filters; each chip carries a small trash button
+>    (mirrors the Dashboards section's `.wb-chip-wrap`/`.wb-chip-del` workbook-chip pattern
+>    exactly, including its already mobile-tested CSS — no new styles needed). Storage rides in
+>    Workspace SETTINGS (`datasetViews`, the same schemaless bag `workbooks` already uses), so
+>    views sync with the rest of the workspace and need no new localStorage key or "Clear local
+>    data" entry — sidesteps the exact "new key, forgot Clear local data" gap the Track L sweep
+>    notes above found repeatedly. Still open: the same treatment for the Connections list, and
 >    drag a dataset card straight onto Home to start a dashboard. (Palette entries for the new
 >    sections landed with the 2026-07-14 UX sprint.)
 > 7. **Organization at scale (user, 2026-07-14):** dashboards/datasets/connections "will start to

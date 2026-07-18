@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 380,
+    title: 'Saved views for the Datasets list',
+    kind: 'feature',
+    ts: '2026-07-18T01:50:53.000Z',
+    items: [
+      'The Datasets catalog gains saved views (post-overhaul backlog item 6, the jobtracker pattern): once a search + adapter/tag pill combination narrows the list, a "+ Save view" box appears to name and keep that combination as a chip -- click it later to instantly restore the same search text and filters. Each chip has a small trash button to delete it.',
+      'Saved views live in Workspace SETTINGS (the same schemaless bag workbooks already use), so they sync across devices with the rest of the workspace and need no new local-storage key or "Clear local data" entry.',
+    ],
+  },
+  {
     v: 379,
     title: 'Fix: mobile hamburger button undersized, stale gate doc comment',
     kind: 'fix',
