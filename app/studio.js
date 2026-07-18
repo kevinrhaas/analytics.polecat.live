@@ -6665,6 +6665,26 @@
       });
     });
   }
+  // Post-overhaul backlog item 5 ("scheduled refresh hints"): a job can opt into a periodic
+  // reminder (refreshEveryDays) — this is a HINT, not real scheduling (the app is static/
+  // client-side with no server to run a cron), so it just flags staleness against the job's
+  // own lastRun stamp next time someone has the Jobs list open. Never run + a reminder set
+  // counts as due (nothing to be "on time" against yet).
+  function jobRefreshBadge(j) {
+    if (!j.refreshEveryDays) return "";
+    var everyMs = j.refreshEveryDays * 86400000;
+    var last = j.lastRun && j.lastRun.ok ? j.lastRun.at : null;
+    var dueAt = last != null ? last + everyMs : null;
+    var now = Date.now();
+    if (dueAt == null || dueAt <= now) {
+      var overdueTitle = last != null
+        ? "Last ran " + esc(new Date(last).toLocaleDateString()) + " — overdue for its " + j.refreshEveryDays + "-day reminder"
+        : "Never run — reminder set for every " + j.refreshEveryDays + " days";
+      return '<span class="cx-badge cx-refresh-due" title="' + overdueTitle + '">⏰ Refresh due</span>';
+    }
+    var daysLeft = Math.ceil((dueAt - now) / 86400000);
+    return '<span class="cx-badge" title="Reminder every ' + j.refreshEveryDays + ' days">Refreshes in ' + daysLeft + " day" + (daysLeft === 1 ? "" : "s") + '</span>';
+  }
   function renderJobs() {
     var results = $("#jobsResults"); if (!results) return;
     var list = Studio.Workspace.all("jobs").sort(function (a, b) { return (b.updatedAt || 0) - (a.updatedAt || 0); });
@@ -6680,6 +6700,7 @@
         '<span class="cx-name"><b>' + esc(j.name) + '</b><small>' + (src ? "from " + esc(src.name) : "no source dataset") +
           (out ? " → " + esc(out.name) : "") + '</small></span>' +
         '<span class="cx-badge">' + (j.steps || []).length + " step" + ((j.steps || []).length === 1 ? "" : "s") + '</span>' +
+        jobRefreshBadge(j) +
         '<span class="cx-when">' + esc(new Date(j.updatedAt || Date.now()).toLocaleDateString()) + '</span>' +
         '<span class="cx-actions">' +
           '<button type="button" class="btn" data-job-run="' + esc(j.id) + '">Run</button>' +
@@ -6741,6 +6762,12 @@
       }).join("");
       var outInp = field("Output dataset name", el("input"), "Where the result lands — re-running this job updates the same dataset in place.");
       outInp.type = "text"; outInp.value = j.outputName || "";
+
+      var refreshSel = field("Refresh reminder", el("select"),
+        "Optional — the Jobs list flags this job once it's overdue, so annual (or other periodic) updates don't get forgotten.");
+      refreshSel.className = "cx-sel";
+      refreshSel.innerHTML = [["", "No reminder"], ["7", "Every week"], ["30", "Every month"], ["90", "Every quarter"], ["365", "Every year"]]
+        .map(function (o) { return '<option value="' + o[0] + '"' + (String(j.refreshEveryDays || "") === o[0] ? " selected" : "") + '>' + o[1] + '</option>'; }).join("");
 
       var stepsWrap = el("div", "jobs-steps"); form.appendChild(stepsWrap);
       function operandRow(op) {
@@ -6914,6 +6941,7 @@
         j.name = nameInp.value.trim();
         j.sourceDatasetId = srcSel.value;
         j.outputName = outInp.value.trim();
+        j.refreshEveryDays = refreshSel.value ? Number(refreshSel.value) : null;
         return j;
       }
       runBtn.onclick = function () {

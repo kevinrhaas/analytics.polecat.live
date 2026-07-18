@@ -1476,7 +1476,7 @@
 >    via a new `resolveDsParams()` helper so all 7 live-query branches (connection-bound + duckdb/
 >    sqlite/snowflake/databricks/bigquery/http) write the same cache their mount-time check reads.
 >    Disabling Cache still falls back to sample on reopen. SW cache → v32. 2 new tests, suite
->    1562/1562. Still open: schema browser, scheduled refresh hints. ✓ **Dataset lineage chips
+>    1562/1562. ✓ **Dataset lineage chips
 >    shipped (2026-07-17, steward PR):** each row in
 >    the Datasets catalog now carries a "↪ N dashboards" badge (`dsxLineage()` in `app/studio.js`,
 >    scans every saved workspace dashboard's `spec.cda.dataAccesses` for a matching `datasetId` —
@@ -1485,6 +1485,18 @@
 >    dataset that's in use now says so in the confirm prompt (which dashboards, and that they fall
 >    back to their own frozen self-contained copy rather than silently going stale — the real
 >    behavior per `runData`'s `da.datasetId`-first resolution). 3 new tests. Test suite 1549/1549.
+>    ✓ **Scheduled refresh hints shipped (2026-07-18, steward PR):** a job (Jobs section, Viridis V8)
+>    can now opt into a **Refresh reminder** (weekly/monthly/quarterly/yearly, optional select in the
+>    job editor) — the Jobs list flags it with an amber "⏰ Refresh due" badge once `Date.now()` passes
+>    `lastRun.at + refreshEveryDays` (a job with a reminder that's never been run counts as due too,
+>    same as an overdue one), or a quiet "Refreshes in N days" note otherwise. Deliberately a HINT, not
+>    real scheduling — the app is static/client-side with no server to run a cron, so it only
+>    (re)computes while the Jobs list happens to be open, matching the annual-refresh model V8 was
+>    built for. `jobRefreshBadge()` in `app/studio.js`, no schema bump (`refreshEveryDays` rides the
+>    existing `jobs` row's free-form `data` blob, same as every other job field). SW cache → v36. 4 new
+>    tests, suite 1573/1573. This closes out the "scheduled refresh hints" half of item 5 — **still
+>    open: the schema-browser half (list tables/columns per connection) remains a separate, bigger
+>    lift.**
 > 6. **Workspace polish**: ✓ **Saved views for the Datasets list shipped (2026-07-18, steward
 >    PR).** A search + adapter/tag pill combination can be named and kept as a chip
 >    (`dsxLoadViews`/`dsxSaveViews`/`dsxApplyView` in `app/studio.js`) — click the chip later to

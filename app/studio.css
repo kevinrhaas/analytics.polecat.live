@@ -1490,6 +1490,7 @@ body.simple-mode .da-acts{display:none!important}
 .cx-name small{color:var(--faint);font-size:11.5px}
 .cx-badge{font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);
   border:1px solid color-mix(in srgb, var(--ink) 20%, transparent);border-radius:999px;padding:2px 8px;flex:0 0 auto}
+.cx-badge.cx-refresh-due{color:var(--warn);border-color:color-mix(in srgb, var(--warn) 45%, transparent)}
 .cx-when{color:var(--faint);font-size:11.5px;flex:0 0 auto}
 .cx-actions{display:flex;gap:6px;flex:0 0 auto;opacity:0;transition:opacity .12s ease}
 .cx-row:hover .cx-actions,.cx-row:focus-within .cx-actions{opacity:1}
