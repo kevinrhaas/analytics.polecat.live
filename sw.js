@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v34"; /* v34: pin/favorite toggle on Datasets and
+var CACHE_NAME = "studio-shell-v35"; /* v35: post-overhaul item 4 continued —
+   studio.css's chrome accent variable renamed from --pentaho to --brand (the
+   shell's own canonical name), the bridge alias removed now that the two
+   converge; the export/exported-dashboard --pentaho variable (pdc-ui.css,
+   exporters.js, studio-charts.js, model.js DASHBOARD_THEMES) is untouched
+   (app/studio.css changed).
+   v34: pin/favorite toggle on Datasets and
    Connections catalog rows — pinned rows sort to the top of the list
    (post-overhaul backlog item 7, app/studio.js, app/studio.css changed).
    v33: drag a Datasets-catalog row onto

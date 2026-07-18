@@ -1449,9 +1449,21 @@
 >    touched element resolves to the exact same computed color as before — confirmed via screenshot
 >    (Connections + New-connection wizard, light + dark) and the full suite (1568/1568, unchanged).
 >    `studio.css`'s own ~150 `--pentaho` definitions/usages and the true (B) export-context refs are
->    UNTOUCHED and stay exactly as scoped above. Next slice, if picked up: fold `studio.css`'s
->    definitions from `--pentaho` to `--brand` directly (now that no chrome JS depends on the
->    `--pentaho` name), removing the bridge indirection — still needs the same "leave (B) alone" care.
+>    UNTOUCHED and stay exactly as scoped above.
+>    ✓ **`studio.css`'s definitions folded to `--brand` directly (2026-07-18, steward PR).** All six
+>    theme blocks (Classic/Polecat/Fleet Modern × light/dark) now define `--brand` instead of
+>    `--pentaho`, and every `var(--pentaho…)` usage inside `studio.css` (chrome-only, confirmed —
+>    exports never load this stylesheet, only `vendor/pdc-ui.css`) reads `var(--brand…)` too. The
+>    shell-token-bridge's `--brand:var(--pentaho)` alias is gone — `--brand` IS the shell's canonical
+>    name now, converged with the Studio's own chrome accent, no indirection left. `--pentaho` no
+>    longer exists anywhere in `studio.css`; the true (B) export-context variable (`vendor/pdc-ui.css`/
+>    `.js`, `app/exporters.js`, `app/studio-charts.js`, `app/studio-render.js`, the 5 export-token refs
+>    in `app/studio.js`, `app/model.js`'s `DASHBOARD_THEMES`) is entirely untouched and keeps the
+>    `--pentaho` name forever, exactly as scoped. Updated the handful of test assertions that read the
+>    chrome `--pentaho` custom property directly (the shell-bridge check + the Z10 app-theme-switching
+>    checks) to read `--brand` instead — same computed-color rigor, new name. SW cache → v35. This
+>    closes out post-overhaul backlog item 4's terminology sweep entirely (both the JS call-site slice
+>    and this CSS-definition slice are now shipped). Test suite 1569/1569 (1 new check).
 > 5. **Dataset delight**: schema browser per connection (list tables/columns via adapter), scheduled
 >    refresh hints. ✓ **Result caching with TTL shipped (2026-07-18, steward PR):** the DA
 >    inspector's "Cache" section (Enabled checkbox + Duration seconds) dated back to the Pentaho
