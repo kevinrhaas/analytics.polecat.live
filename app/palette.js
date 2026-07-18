@@ -189,7 +189,7 @@
       '.cmdk-row .cmdk-ic{width:17px;height:17px;flex:0 0 17px;opacity:.72;display:flex;align-items:center;justify-content:center}' +
       '.cmdk-row .cmdk-lbl{flex:1;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}' +
       '.cmdk-row .cmdk-hint{font-size:11px;opacity:.6;padding:2px 7px;border-radius:20px;border:1px solid var(--line,rgba(120,120,140,.3))}' +
-      '.cmdk-row.sel{background:var(--pentaho,#005bb5);color:#fff}' +
+      '.cmdk-row.sel{background:var(--brand,#005bb5);color:#fff}' +
       '.cmdk-row.sel .cmdk-hint{border-color:rgba(255,255,255,.5)}' +
       '.cmdk-row.sel .cmdk-ic{opacity:1}' +
       '.cmdk-empty{padding:22px;text-align:center;opacity:.6;font-size:13px}' +

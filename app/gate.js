@@ -18,7 +18,7 @@
     if (!HASHES.length || sessionStorage.getItem("studio-gate-ok") === "1") { reveal(); return; }
     var a = document.getElementById("app"); if (a) a.style.visibility = "hidden";
     var st = document.createElement("style");
-    // Z10 follow-up: themed via the same --pentaho/--pdc/--ink/etc custom properties as
+    // Z10 follow-up: themed via the same --brand/--pdc/--ink/etc custom properties as
     // studio.css/welcome.js/tutorial.js/palette.js instead of fixed hex, so the passcode
     // screen follows the stored Classic Blue / Polecat + light/dark preference too. Those
     // vars come from studio.css's [data-theme]/[data-app-theme] blocks; gate.js runs before
@@ -35,12 +35,12 @@
     } catch (e) {}
     st.textContent =
       "#studio-gate{position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;" +
-      "background:linear-gradient(125deg,var(--bg,#0a1c3d),var(--pentaho,#163a6e) 55%,var(--pdc,#1c4a86));font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}" +
+      "background:linear-gradient(125deg,var(--bg,#0a1c3d),var(--brand,#163a6e) 55%,var(--pdc,#1c4a86));font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}" +
       "#studio-gate .g-card{background:var(--pane,#fff);border-radius:16px;box-shadow:0 24px 70px rgba(0,0,0,.4);padding:34px 32px;width:min(380px,92vw);text-align:center}" +
-      "#studio-gate .g-logo{width:46px;height:46px;border-radius:12px;margin:0 auto 14px;background:linear-gradient(135deg,var(--pentaho,#005bb5),var(--pdc,#7d3c98));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:22px}" +
+      "#studio-gate .g-logo{width:46px;height:46px;border-radius:12px;margin:0 auto 14px;background:linear-gradient(135deg,var(--brand,#005bb5),var(--pdc,#7d3c98));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:22px}" +
       "#studio-gate h1{font-size:18px;margin:0 0 4px;color:var(--ink,#16233b)}#studio-gate p{font-size:13px;color:var(--muted,#5d6b82);margin:0 0 18px}" +
       "#studio-gate input{width:100%;padding:11px 13px;border:1px solid var(--line,#c8d2df);border-radius:9px;font-size:14px;outline:none;margin-bottom:10px;background:var(--field,#fff);color:var(--ink,#16233b)}" +
-      "#studio-gate input:focus{border-color:var(--pentaho,#005bb5)}" +
+      "#studio-gate input:focus{border-color:var(--brand,#005bb5)}" +
       "#studio-gate button{width:100%;padding:11px;border:0;border-radius:9px;background:var(--pdc,#7d3c98);color:#fff;font-size:14px;font-weight:700;cursor:pointer}" +
       "#studio-gate button:hover{background:color-mix(in srgb,var(--pdc,#7d3c98) 85%,white)}#studio-gate .g-err{color:var(--bad,#d63a5e);font-size:12.5px;height:16px;margin-top:8px}" +
       "#studio-gate .g-note{color:var(--faint,#8a97ab);font-size:11px;margin-top:14px}" +

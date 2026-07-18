@@ -36,7 +36,7 @@
     label: "Local (this browser)",
     blurb: "Data lives in this browser only. Fast, private, no setup — but it doesn't travel to other devices.",
     icon: "db",
-    accent: "var(--pentaho)",
+    accent: "var(--brand)",
     caps: { meta: true, data: false },
     browserProvision: true,
     local: true,
