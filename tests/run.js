@@ -2132,6 +2132,37 @@ function serve() {
     });
     await page.waitForTimeout(60);
 
+    // pin/favorite (post-overhaul backlog item 7, "organization at scale"):
+    // pinning sorts a connection to the top of the list and persists the flag.
+    const cxPin = await page.evaluate(function () {
+      var stored = Studio.Workspace.all("connections");
+      var turso = stored.filter(function (c) { return c.name === "Mock Turso"; })[0];
+      var beforeOrder = [].slice.call(document.querySelectorAll("#connResults .cx-row")).map(function (r) { return r.getAttribute("data-conn-id"); });
+      var btn = document.querySelector('[data-conn-pin="' + turso.id + '"]');
+      var beforeOn = btn.classList.contains("on");
+      btn.click();
+      var afterOrder = [].slice.call(document.querySelectorAll("#connResults .cx-row")).map(function (r) { return r.getAttribute("data-conn-id"); });
+      var afterBtn = document.querySelector('[data-conn-pin="' + turso.id + '"]');
+      return {
+        beforeOrder: beforeOrder, afterOrder: afterOrder, beforeOn: beforeOn,
+        afterOn: afterBtn.classList.contains("on"), ariaAfter: afterBtn.getAttribute("aria-pressed"),
+        stored: !!Studio.Workspace.get("connections", turso.id).pinned
+      };
+    });
+    ok("CX: pinning a connection moves it to the top of the list and persists the flag",
+      !cxPin.beforeOn && cxPin.afterOn && cxPin.ariaAfter === "true" && cxPin.stored &&
+      cxPin.beforeOrder[1] === cxPin.afterOrder[0], JSON.stringify(cxPin));
+
+    const cxUnpin = await page.evaluate(function () {
+      var stored = Studio.Workspace.all("connections");
+      var turso = stored.filter(function (c) { return c.name === "Mock Turso"; })[0];
+      document.querySelector('[data-conn-pin="' + turso.id + '"]').click();
+      var r = Studio.Workspace.get("connections", turso.id);
+      return { pinned: !!r.pinned, pinnedAt: r.pinnedAt };
+    });
+    ok("CX: unpinning a connection clears both pinned and pinnedAt",
+      !cxUnpin.pinned && cxUnpin.pinnedAt === undefined, JSON.stringify(cxUnpin));
+
     const cxDelete = await page.evaluate(function () {
       window.confirm = function () { return true; };
       var stored = Studio.Workspace.all("connections");
@@ -2396,8 +2427,45 @@ function serve() {
     await page.evaluate(function () {
       var inp = document.querySelector("#dsxSearch");
       inp.value = ""; inp.dispatchEvent(new Event("input"));
+      // dsxViewDel above only cleared the search text, not the tag/adapter pill
+      // state the deleted view had applied — clear it explicitly so the next
+      // check isn't hidden behind a stale "finance" tag filter.
+      var clearBtn = document.querySelector("#dsxPillClear");
+      if (clearBtn) clearBtn.click();
     });
     await page.waitForTimeout(60);
+
+    // pin/favorite (post-overhaul backlog item 7, "organization at scale"):
+    // pinning sorts a dataset to the top of the list and persists the flag,
+    // same contract as the CX connection-pinning check above.
+    const dsxPin = await page.evaluate(function () {
+      var existing = Studio.Workspace.all("datasets")[0];
+      Studio.Workspace.put("datasets", { id: "d-second", name: "z_other_dataset", connectionId: existing.connectionId, kind: "sql", sql: "SELECT 1" });
+      window.__studioRenderDatasets();
+      var beforeOrder = [].slice.call(document.querySelectorAll("#dsxResults .cx-row")).map(function (r) { return r.getAttribute("data-dsx-id"); });
+      var btn = document.querySelector('[data-dsx-pin="' + existing.id + '"]');
+      var beforeOn = btn.classList.contains("on");
+      btn.click();
+      var afterOrder = [].slice.call(document.querySelectorAll("#dsxResults .cx-row")).map(function (r) { return r.getAttribute("data-dsx-id"); });
+      var afterBtn = document.querySelector('[data-dsx-pin="' + existing.id + '"]');
+      return {
+        beforeOrder: beforeOrder, afterOrder: afterOrder, beforeOn: beforeOn,
+        afterOn: afterBtn.classList.contains("on"), ariaAfter: afterBtn.getAttribute("aria-pressed"),
+        stored: !!Studio.Workspace.get("datasets", existing.id).pinned, existingId: existing.id
+      };
+    });
+    ok("DSX: pinning a dataset moves it to the top of the list and persists the flag",
+      !dsxPin.beforeOn && dsxPin.afterOn && dsxPin.ariaAfter === "true" && dsxPin.stored &&
+      dsxPin.beforeOrder[1] === dsxPin.existingId && dsxPin.afterOrder[0] === dsxPin.existingId, JSON.stringify(dsxPin));
+
+    const dsxUnpin = await page.evaluate(function () {
+      var existing = Studio.Workspace.all("datasets").filter(function (d) { return d.id !== "d-second"; })[0];
+      document.querySelector('[data-dsx-pin="' + existing.id + '"]').click();
+      var r = Studio.Workspace.get("datasets", existing.id);
+      return { pinned: !!r.pinned, pinnedAt: r.pinnedAt };
+    });
+    ok("DSX: unpinning a dataset clears both pinned and pinnedAt",
+      !dsxUnpin.pinned && dsxUnpin.pinnedAt === undefined, JSON.stringify(dsxUnpin));
 
     await page.evaluate(function () { Studio.Workspace.reset(); window.__studioLoad({ title: "post-dsx", panels: [], kpis: [] }); window.__studioShellSetSection("studio"); });
     await page.waitForTimeout(120);
