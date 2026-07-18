@@ -2973,6 +2973,40 @@ function serve() {
     ok("N-DATA: the DA's freshness timestamp is persisted in localStorage keyed by DA id",
       dkFreshness.storedHasS3Sales, JSON.stringify(dkFreshness));
 
+    // ---- Cache/Duration fields (DA inspector's "Cache" section) — previously stored on the DA
+    // and read by nothing, so toggling them had zero effect. Now wired: reopening a DA within its
+    // cache duration reuses the last live result instead of re-querying and falling back to sample.
+    console.log("\n• Cache/Duration fields now actually cache the last live result");
+    const dkCacheReopen = await page.evaluate(async () => {
+      var sp = window.__STUDIO_STATE.spec;
+      var da = sp.cda.dataAccesses.find((d) => d.id === "s3Sales");
+      if (!da) return { skip: true };
+      da.cache = true; da.cacheDuration = 300;
+      var calls = 0;
+      Studio.DuckDB.query = function () { calls++; return Promise.resolve({ cols: ["region", "revenue"], rows: [["East", 120], ["West", 90]] }); };
+      window.__studioSelect({ kind: "da", id: "s3Sales" }); // re-select = close/reopen the inspector
+      await new Promise((r) => setTimeout(r, 60));
+      const insp = document.getElementById("inspBody");
+      return { status: (insp.querySelector(".daprev-status") || {}).textContent || "", calls: calls };
+    });
+    ok("Cache: reopening a DA within its cache duration shows the cached live result, not a fresh query",
+      !dkCacheReopen.skip && /2 rows? · 2 cols? · cached/.test(dkCacheReopen.status) && dkCacheReopen.calls === 0, JSON.stringify(dkCacheReopen));
+
+    const dkCacheDisabled = await page.evaluate(async () => {
+      var sp = window.__STUDIO_STATE.spec;
+      var da = sp.cda.dataAccesses.find((d) => d.id === "s3Sales");
+      if (!da) return { skip: true };
+      da.cache = false;
+      window.__studioSelect({ kind: "da", id: "s3Sales" });
+      await new Promise((r) => setTimeout(r, 60));
+      const insp = document.getElementById("inspBody");
+      var status = (insp.querySelector(".daprev-status") || {}).textContent || "";
+      da.cache = true; // restore default for any later test that reselects this DA
+      return { status: status };
+    });
+    ok("Cache: disabling Cache on a DA falls back to sample data on reopen instead of a stale cache",
+      !dkCacheDisabled.skip && /sample/.test(dkCacheDisabled.status), JSON.stringify(dkCacheDisabled));
+
     // A DA that has never been queried live shows "Never verified live" instead.
     const dkNeverVerified = await page.evaluate(async () => {
       var sp = window.__STUDIO_STATE.spec;

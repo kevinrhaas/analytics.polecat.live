@@ -4436,6 +4436,25 @@
     return ts ? "Last verified live " + timeAgo(ts) : "Never verified live";
   }
 
+  // Wire up the Cache/Duration fields (above) that were, until now, stored on the DA and read by
+  // nothing — toggling them had zero effect. In-memory only (page-lifetime; no new localStorage
+  // key, so no "Clear local data" gap to create): reopening a DA's inspector within its cache
+  // duration shows the last live result instantly instead of re-hitting the connector, labeled
+  // "cached" (never counted as a fresh freshness-badge verification — see daFreshnessLabel above).
+  // An explicit "Run live" click always queries live and refreshes the cache; the cache only ever
+  // saves an AUTOMATIC re-query on mount, never a user-requested one.
+  var _daLiveCache = {};
+  function daCacheKey(da, paramVals) { return da.id + "|" + JSON.stringify(paramVals || {}); }
+  function daCacheGet(da, paramVals) {
+    if (da.cache === false) return null;
+    var e = _daLiveCache[daCacheKey(da, paramVals)];
+    if (!e || Date.now() - e.ts > (da.cacheDuration || 300) * 1000) return null;
+    return e.result;
+  }
+  function daCacheSet(da, paramVals, result) {
+    _daLiveCache[daCacheKey(da, paramVals)] = { ts: Date.now(), result: result };
+  }
+
   function renderDAPreview(body, da) {
     var PAGE_SIZE = 10;
     var state = { page: 0, result: null, source: "" };
@@ -4549,7 +4568,7 @@
       tbl.appendChild(tbody);
       tableWrap.appendChild(tbl);
 
-      var srcLabel = src === "live" ? " · live" : " · sample";
+      var srcLabel = src === "live" ? " · live" : src === "cached" ? " · cached" : " · sample";
       statusLine.textContent = totalRows + " row" + (totalRows !== 1 ? "s" : "") + " · " + result.cols.length + " col" + (result.cols.length !== 1 ? "s" : "") + srcLabel;
       if (src === "live") {
         markDaFreshness(da.id);
@@ -4580,26 +4599,34 @@
       renderTable(state.result, "sample");
     }
 
+    // Dataset defaults ← dashboard template variables ← the inspector's own param inputs (most
+    // specific wins). Shared by every live-query branch below AND the cache key (mount-time
+    // check + post-run write), so a cached result only ever gets reused under the exact params
+    // it was fetched with.
+    function resolveDsParams() {
+      var dsParams = {};
+      (S.spec.templateVars || []).forEach(function (tv) { if (tv.key) dsParams[tv.key] = tv.value; });
+      (da.params || []).forEach(function (p) { if (paramVals[p.name] != null) dsParams[p.name] = paramVals[p.name]; });
+      return dsParams;
+    }
+
     function runLive() {
       if (!liveBtn) return;
       liveBtn.disabled = true; liveBtn.textContent = "Loading…";
       statusLine.textContent = "Querying…";
+      var dsParams = resolveDsParams();
       // Connection-bound dataset (the connections → datasets model): resolve the
       // workspace dataset fresh when it still exists (edits in the Datasets
       // section flow through), else run the copy embedded at import time. The
       // adapter runs through the referenced Connection's stored credentials.
-      // Params: dataset defaults ← dashboard template variables ← the
-      // inspector's own param inputs (most specific wins).
       if (da.connectionId) {
         var wsd = (da.datasetId && Studio.Workspace.get("datasets", da.datasetId)) ||
           Object.assign({ id: da.datasetId || da.id, name: da.name, connectionId: da.connectionId }, da.dataset || { kind: "sql", sql: da.sql || da.query });
-        var dsParams = {};
-        (S.spec.templateVars || []).forEach(function (tv) { if (tv.key) dsParams[tv.key] = tv.value; });
-        (da.params || []).forEach(function (p) { if (paramVals[p.name] != null) dsParams[p.name] = paramVals[p.name]; });
         window.__studioRunDataset(wsd, dsParams).then(function (r) {
           liveBtn.disabled = false; setIconBtn(liveBtn, "play", "Run live");
           if (r.error) { toast("Dataset query failed — showing sample. (" + r.error + ")", true); runSample(); return; }
           state.result = { cols: r.columns, rows: r.rows }; state.source = "live"; state.page = 0;
+          daCacheSet(da, dsParams, state.result);
           renderTable(state.result, "live");
         });
         return;
@@ -4608,6 +4635,7 @@
         if (!da.fileUrl) { liveBtn.disabled = false; setIconBtn(liveBtn, "play", "Run live"); toast("Set a file URL first.", true); runSample(); return; }
         Studio.DuckDB.query({ fileUrl: da.fileUrl, fileFormat: da.fileFormat }, da.sql || da.query).then(function (result) {
           state.result = result; state.source = "live"; state.page = 0;
+          daCacheSet(da, dsParams, state.result);
           liveBtn.disabled = false; setIconBtn(liveBtn, "play", "Run live");
           renderTable(state.result, "live");
         }).catch(function (e) {
@@ -4621,6 +4649,7 @@
         if (!da.fileUrl) { liveBtn.disabled = false; setIconBtn(liveBtn, "play", "Run live"); toast("Set a file URL first.", true); runSample(); return; }
         Studio.SQLiteHttp.query({ fileUrl: da.fileUrl, tableName: da.tableName }, da.sql || da.query).then(function (result) {
           state.result = result; state.source = "live"; state.page = 0;
+          daCacheSet(da, dsParams, state.result);
           liveBtn.disabled = false; setIconBtn(liveBtn, "play", "Run live");
           renderTable(state.result, "live");
         }).catch(function (e) {
@@ -4634,6 +4663,7 @@
         if (!da.sfAccount || !da.sfToken) { liveBtn.disabled = false; setIconBtn(liveBtn, "play", "Run live"); toast("Set an account identifier and access token first.", true); runSample(); return; }
         Studio.Snowflake.query(sfCfg(da), da.sql || da.query).then(function (result) {
           state.result = result; state.source = "live"; state.page = 0;
+          daCacheSet(da, dsParams, state.result);
           liveBtn.disabled = false; setIconBtn(liveBtn, "play", "Run live");
           renderTable(state.result, "live");
         }).catch(function (e) {
@@ -4647,6 +4677,7 @@
         if (!da.dbxHost || !da.dbxToken || !da.dbxWarehouseId) { liveBtn.disabled = false; setIconBtn(liveBtn, "play", "Run live"); toast("Set a workspace host, access token, and SQL warehouse id first.", true); runSample(); return; }
         Studio.Databricks.query(dbxCfg(da), da.sql || da.query).then(function (result) {
           state.result = result; state.source = "live"; state.page = 0;
+          daCacheSet(da, dsParams, state.result);
           liveBtn.disabled = false; setIconBtn(liveBtn, "play", "Run live");
           renderTable(state.result, "live");
         }).catch(function (e) {
@@ -4660,6 +4691,7 @@
         if (!da.bqProject || !da.bqToken) { liveBtn.disabled = false; setIconBtn(liveBtn, "play", "Run live"); toast("Set a project id and access token first.", true); runSample(); return; }
         Studio.BigQuery.query(bqCfg(da), da.sql || da.query).then(function (result) {
           state.result = result; state.source = "live"; state.page = 0;
+          daCacheSet(da, dsParams, state.result);
           liveBtn.disabled = false; setIconBtn(liveBtn, "play", "Run live");
           renderTable(state.result, "live");
         }).catch(function (e) {
@@ -4673,6 +4705,7 @@
         if (!da.httpUrl) { liveBtn.disabled = false; setIconBtn(liveBtn, "play", "Run live"); toast("Set an endpoint URL first.", true); runSample(); return; }
         Studio.GenericSql.query(httpCfg(da), da.sql || da.query).then(function (result) {
           state.result = result; state.source = "live"; state.page = 0;
+          daCacheSet(da, dsParams, state.result);
           liveBtn.disabled = false; setIconBtn(liveBtn, "play", "Run live");
           renderTable(state.result, "live");
         }).catch(function (e) {
@@ -4702,8 +4735,12 @@
         .catch(function () { toast("Clipboard unavailable.", true); });
     };
 
-    // Auto-run sample on open
-    runSample();
+    // Auto-run on open — unless a still-valid cached live result exists (Cache/Duration fields,
+    // above) for these exact params, in which case show that instead of sample data so reopening
+    // a DA you already ran live moments ago doesn't fall back to sample rows.
+    var openCache = liveBtn ? daCacheGet(da, resolveDsParams()) : null;
+    if (openCache) { state.result = openCache; state.source = "cached"; renderTable(state.result, "cached"); }
+    else runSample();
   }
 
   function renderCompoundDAInspector(body, da) {

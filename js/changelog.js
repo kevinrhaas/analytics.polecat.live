@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 383,
+    title: 'The DA inspector\'s Cache fields now actually cache',
+    kind: 'fix',
+    ts: '2026-07-18T07:03:49.000Z',
+    items: [
+      'The "Cache" section in a data access\'s inspector (Enabled checkbox + Duration in seconds) has existed since the Pentaho-era CDA model but was never read anywhere -- toggling it had zero effect (post-overhaul backlog item 5, "the old cache/cacheDuration fields are still on the rows"). Wired it up: reopening a DA within its cache duration now shows the last successful Run live result instantly instead of falling back to sample data, labeled "cached" (never counted toward the "Last verified live" freshness badge, which still means a real query just ran).',
+      'An explicit "Run live" click always queries live and refreshes the cache -- the cache only ever saves an automatic re-query on reopen, never a user-requested one. Disabling Cache on a DA falls straight back to sample data on reopen, as before this fix.',
+    ],
+  },
+  {
     v: 382,
     title: 'Fix: stale gate passcode in the publish runbook',
     kind: 'fix',

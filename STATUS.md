@@ -1436,8 +1436,19 @@
 >    it's product-critical export theming under RFP deadline pressure — do not attempt without care to
 >    keep the two contexts separate, and ideally with a screenshot-diff of exported dashboards before/after.
 > 5. **Dataset delight**: schema browser per connection (list tables/columns via adapter), scheduled
->    refresh hints, result caching with TTL per dataset (the old cache/cacheDuration fields are
->    still on the rows). ✓ **Dataset lineage chips shipped (2026-07-17, steward PR):** each row in
+>    refresh hints. ✓ **Result caching with TTL shipped (2026-07-18, steward PR):** the DA
+>    inspector's "Cache" section (Enabled checkbox + Duration seconds) dated back to the Pentaho
+>    CDA model and was read by nothing — toggling it had zero effect anywhere. Wired it up in
+>    `app/studio.js`: reopening a DA's inspector within its cache duration now shows the last
+>    successful "Run live" result instantly (labeled "cached", in-memory/page-lifetime only — no
+>    new localStorage key, so no "Clear local data" gap) instead of falling back to sample data;
+>    an explicit "Run live" click always queries fresh and refreshes the cache. Cache key = DA id +
+>    resolved params (dataset defaults ← dashboard template vars ← inspector param inputs), shared
+>    via a new `resolveDsParams()` helper so all 7 live-query branches (connection-bound + duckdb/
+>    sqlite/snowflake/databricks/bigquery/http) write the same cache their mount-time check reads.
+>    Disabling Cache still falls back to sample on reopen. SW cache → v32. 2 new tests, suite
+>    1562/1562. Still open: schema browser, scheduled refresh hints. ✓ **Dataset lineage chips
+>    shipped (2026-07-17, steward PR):** each row in
 >    the Datasets catalog now carries a "↪ N dashboards" badge (`dsxLineage()` in `app/studio.js`,
 >    scans every saved workspace dashboard's `spec.cda.dataAccesses` for a matching `datasetId` —
 >    the same link `dsToDA` stamps when a dataset is dropped onto the canvas) whose hover title
