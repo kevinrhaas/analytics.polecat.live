@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 385,
+    title: 'Pin favorite datasets and connections to the top of their lists',
+    kind: 'feature',
+    ts: '2026-07-18T09:58:01.000Z',
+    items: [
+      'Post-overhaul backlog item 7 ("organization at scale") starts with the piece that needs no design decision yet: a favorite/pin toggle on every Datasets and Connections catalog row, sharing the exact `pinned`/`pinnedAt` shape the Dashboards catalog already uses -- pinned rows sort to the top of the list, ahead of the usual most-recently-updated order.',
+      'The star toggle sits beside each row\'s other actions (Test/Edit/Run/Delete) and stays visible once a row is pinned, even without hovering, so pinned status is always legible in a long list.',
+    ],
+  },
+  {
     v: 384,
     title: 'Drag a dataset onto Home to start a dashboard',
     kind: 'feature',

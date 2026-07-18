@@ -1488,6 +1488,19 @@ body.simple-mode .da-acts{display:none!important}
 .cx-when{color:var(--faint);font-size:11.5px;flex:0 0 auto}
 .cx-actions{display:flex;gap:6px;flex:0 0 auto;opacity:0;transition:opacity .12s ease}
 .cx-row:hover .cx-actions,.cx-row:focus-within .cx-actions{opacity:1}
+/* Favorite/pin toggle (post-overhaul backlog item 7, "organization at scale") —
+   same visual language as .recent-pin (star, --pentaho accent when on) but a
+   normal flex-row member of .cx-row (a sibling of .cx-actions, not nested
+   inside it) so a pinned star stays visible even when the row isn't hovered —
+   nesting it inside .cx-actions would compound its opacity with the group's
+   own hover-only fade and hide pinned status at rest. */
+.cx-pin{display:flex;align-items:center;justify-content:center;width:30px;height:30px;flex:0 0 auto;
+  border-radius:8px;background:transparent;border:1px solid color-mix(in srgb, var(--ink) 18%, transparent);
+  color:var(--faint);cursor:pointer;opacity:0;transition:opacity .12s ease,color .12s ease,border-color .12s ease}
+.cx-row:hover .cx-pin,.cx-row:focus-within .cx-pin,.cx-pin.on,.cx-pin:focus-visible{opacity:1}
+.cx-pin:hover{border-color:var(--pentaho);color:var(--pentaho)}
+.cx-pin.on{color:var(--pentaho);border-color:color-mix(in srgb, var(--pentaho) 50%, transparent)}
+.cx-pin.on svg polygon{fill:currentColor}
 .cx-empty{background:var(--field);border:1px dashed color-mix(in srgb, var(--ink) 20%, transparent);border-radius:12px;padding:34px;
   text-align:center;color:var(--muted);font-size:13.5px;line-height:1.7}
 .cx-empty .btn{margin-top:12px}
@@ -1522,7 +1535,7 @@ body.simple-mode .da-acts{display:none!important}
 .cx-wiz-foot{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
 .cx-wiz-foot .btn{color:var(--ink);background:var(--field);border:1px solid var(--line)}
 .cx-wiz-foot .btn.primary,#connNewBtn.primary,.cx-empty .btn.primary{background:var(--pentaho);border-color:var(--pentaho);color:#fff}
-@media(max-width:640px){.cx-when{display:none}.cx-actions{opacity:1}}
+@media(max-width:640px){.cx-when{display:none}.cx-actions{opacity:1}.cx-pin{opacity:1}}
 
 /* ── Datasets section (dsx-*) — shares the cx-* list/row/wizard anatomy ── */
 .dsx-pill-sep{width:1px;align-self:stretch;background:color-mix(in srgb, var(--ink) 14%, transparent);margin:0 4px}

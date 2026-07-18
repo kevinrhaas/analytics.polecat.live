@@ -5869,6 +5869,19 @@
     _connAdapterFilter = {}; (v.adapters || []).forEach(function (a) { _connAdapterFilter[a] = true; });
     renderConnections();
   }
+  // Post-overhaul backlog item 7 ("organization at scale"): a favorite flag on
+  // the row itself, same additive/syncing shape as the Dashboards `pinned`/
+  // `pinnedAt` fields (togglePin above) — pinned connections sort to the top
+  // of the catalog so a fast-growing list stays navigable without committing
+  // to the still-undecided folders/tags grouping model.
+  function toggleConnPin(id) {
+    var W = Studio.Workspace, r = W.get("connections", id);
+    if (!r) return;
+    if (r.pinned) { delete r.pinned; delete r.pinnedAt; }
+    else { r.pinned = true; r.pinnedAt = new Date().toISOString(); }
+    W.put("connections", r);
+    renderConnections();
+  }
   function connStatusDot(c) {
     var t = c.lastTest;
     var cls = !t ? "cx-dot" : (t.ok ? "cx-dot ok" : "cx-dot bad");
@@ -5878,7 +5891,11 @@
   function renderConnections() {
     var results = $("#connResults"); if (!results) return;
     var q = (($("#connSearch") || {}).value || "").toLowerCase();
-    var list = Studio.Workspace.all("connections").sort(function (a, b) { return (b.updatedAt || 0) - (a.updatedAt || 0); });
+    var list = Studio.Workspace.all("connections").sort(function (a, b) {
+      if (!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1;
+      if (a.pinned) return (b.pinnedAt || "").localeCompare(a.pinnedAt || "");
+      return (b.updatedAt || 0) - (a.updatedAt || 0);
+    });
     // adapter pills: one per adapter present, multi-select (empty selection = all)
     var counts = {};
     list.forEach(function (c) { counts[c.adapter] = (counts[c.adapter] || 0) + 1; });
@@ -5923,6 +5940,7 @@
         '<span class="cx-name"><b>' + esc(c.name) + '</b><small>' + esc(src.label || c.adapter) + '</small></span>' +
         metaBadge +
         '<span class="cx-when" title="Last edited">' + esc(new Date(c.updatedAt || c.createdAt || Date.now()).toLocaleDateString()) + '</span>' +
+        '<button type="button" class="cx-pin' + (c.pinned ? " on" : "") + '" data-conn-pin="' + esc(c.id) + '" title="' + (c.pinned ? "Unpin" : "Pin to top") + '" aria-label="' + (c.pinned ? "Unpin " : "Pin ") + esc(c.name) + '" aria-pressed="' + (c.pinned ? "true" : "false") + '"></button>' +
         '<span class="cx-actions">' +
           '<button type="button" class="btn" data-conn-test="' + esc(c.id) + '">Test</button>' +
           '<button type="button" class="btn" data-conn-edit="' + esc(c.id) + '">Edit</button>' +
@@ -5991,12 +6009,16 @@
       var icEl = row.querySelector(".cx-ic");
       if (icEl && src) icEl.appendChild(Studio.icon(src.icon || "db", 18));
       row.addEventListener("click", function (e) {
-        if (e.target.closest("[data-conn-test],[data-conn-edit],[data-conn-del]")) return;
+        if (e.target.closest("[data-conn-pin],[data-conn-test],[data-conn-edit],[data-conn-del]")) return;
         openConnectionWizard(c);
       });
       row.addEventListener("keydown", function (e) {
         if ((e.key === "Enter" || e.key === " ") && e.target === row) { e.preventDefault(); openConnectionWizard(c); }
       });
+    });
+    $$(".cx-pin", results).forEach(function (btn) {
+      btn.appendChild(Studio.icon("star", 14));
+      btn.onclick = function (e) { e.stopPropagation(); toggleConnPin(btn.getAttribute("data-conn-pin")); };
     });
     $$("[data-conn-test]", results).forEach(function (btn) {
       btn.onclick = function () {
@@ -6157,6 +6179,17 @@
     _dsxTagFilter = {}; (v.tags || []).forEach(function (t) { _dsxTagFilter[t] = true; });
     renderDatasets();
   }
+  // Post-overhaul backlog item 7 ("organization at scale") — same favorite
+  // flag + top-of-list sort as toggleConnPin, kept on the dataset row itself
+  // (additive, syncs with the rest of the workspace).
+  function toggleDsxPin(id) {
+    var W = Studio.Workspace, r = W.get("datasets", id);
+    if (!r) return;
+    if (r.pinned) { delete r.pinned; delete r.pinnedAt; }
+    else { r.pinned = true; r.pinnedAt = new Date().toISOString(); }
+    W.put("datasets", r);
+    renderDatasets();
+  }
   // Dataset lineage (post-overhaul backlog item 5, "blast-radius view"): every
   // dashboard whose spec links a data access back to this dataset (dsToDA
   // stamps da.datasetId = ds.id when a dataset is dropped onto the canvas).
@@ -6209,7 +6242,11 @@
   function renderDatasets() {
     var results = $("#dsxResults"); if (!results) return;
     var q = (($("#dsxSearch") || {}).value || "").toLowerCase();
-    var list = Studio.Workspace.all("datasets").sort(function (a, b) { return (b.updatedAt || 0) - (a.updatedAt || 0); });
+    var list = Studio.Workspace.all("datasets").sort(function (a, b) {
+      if (!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1;
+      if (a.pinned) return (b.pinnedAt || "").localeCompare(a.pinnedAt || "");
+      return (b.updatedAt || 0) - (a.updatedAt || 0);
+    });
     var adapterCounts = {}, tagCounts = {};
     list.forEach(function (d) {
       var src = dsxAdapterOf(d);
@@ -6272,6 +6309,7 @@
         ((d.params || []).length ? '<span class="cx-badge" title="Accepts parameters">' + (d.params || []).length + " param" + ((d.params || []).length > 1 ? "s" : "") + '</span>' : "") +
         lineageBadge +
         '<span class="cx-when">' + esc(new Date(d.updatedAt || Date.now()).toLocaleDateString()) + '</span>' +
+        '<button type="button" class="cx-pin' + (d.pinned ? " on" : "") + '" data-dsx-pin="' + esc(d.id) + '" title="' + (d.pinned ? "Unpin" : "Pin to top") + '" aria-label="' + (d.pinned ? "Unpin " : "Pin ") + esc(d.name) + '" aria-pressed="' + (d.pinned ? "true" : "false") + '"></button>' +
         '<span class="cx-actions">' +
           '<button type="button" class="btn" data-dsx-run="' + esc(d.id) + '">Run</button>' +
           '<button type="button" class="btn" data-dsx-edit="' + esc(d.id) + '">Edit</button>' +
@@ -6348,7 +6386,7 @@
       var icEl = row.querySelector(".cx-ic");
       if (icEl) icEl.appendChild(Studio.icon((src && src.icon) || "db", 18));
       row.addEventListener("click", function (e) {
-        if (e.target.closest("[data-dsx-run],[data-dsx-edit],[data-dsx-del]")) return;
+        if (e.target.closest("[data-dsx-pin],[data-dsx-run],[data-dsx-edit],[data-dsx-del]")) return;
         openDatasetEditor(d);
       });
       row.addEventListener("keydown", function (e) {
@@ -6361,6 +6399,10 @@
         e.dataTransfer.setData("text/plain", JSON.stringify({ wsDataset: row.getAttribute("data-dsx-id") }));
         e.dataTransfer.effectAllowed = "copy";
       });
+    });
+    $$(".cx-pin", results).forEach(function (btn) {
+      btn.appendChild(Studio.icon("star", 14));
+      btn.onclick = function (e) { e.stopPropagation(); toggleDsxPin(btn.getAttribute("data-dsx-pin")); };
     });
     $$("[data-dsx-run]", results).forEach(function (btn) {
       btn.onclick = function () {

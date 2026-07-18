@@ -1482,6 +1482,15 @@
 >    tags — user unsure a tree is right), and cross-cutting views: see datasets by connection, by
 >    adapter, by type; dashboards by group/workbook. Design one organizing model shared by all three
 >    catalogs (the jobtracker pill/multiselect pattern is the seed) rather than three ad-hoc ones.
+>    ✓ **Favorites/pinning shipped for Datasets + Connections (2026-07-18, steward PR):** the piece
+>    of this item that needed no grouping-model decision yet — a `pinned`/`pinnedAt` flag on each
+>    row, the exact shape the Dashboards catalog already uses, so pinned rows sort to the top of
+>    their list ahead of the usual most-recently-updated order. A star toggle (`.cx-pin` in
+>    `app/studio.css`, `toggleConnPin`/`toggleDsxPin` in `app/studio.js`) sits beside each row's
+>    other actions and — unlike those hover-only actions — stays visible once a row is pinned, so
+>    pinned status reads at a glance in a long list without hovering every row. 4 new tests. Test
+>    suite 1568/1568. SW cache → v34. Still open: folders/tags grouping and the cross-cutting
+>    by-connection/by-adapter/by-type views (the still-undecided part of this item).
 >
 > **2026-07-14 UX sprint (interactive session, all landed, v349):** split topbar → slim app bar +
 > dashboard toolbar above the preview; inline title rename (no phantom "Observability" group);
