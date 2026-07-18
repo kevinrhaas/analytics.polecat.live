@@ -5,7 +5,10 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v31"; /* v31: Connections list gains the same
+var CACHE_NAME = "studio-shell-v32"; /* v32: the DA inspector's Cache/Duration
+   fields actually cache the last live result now instead of doing nothing
+   (app/studio.js changed).
+   v31: Connections list gains the same
    saved-views treatment as Datasets — a named, restorable search + adapter
    pill preset (app/studio.js changed).
    v30: Datasets catalog gains saved views —
