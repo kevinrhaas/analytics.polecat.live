@@ -1449,9 +1449,13 @@
 >    Workspace SETTINGS (`datasetViews`, the same schemaless bag `workbooks` already uses), so
 >    views sync with the rest of the workspace and need no new localStorage key or "Clear local
 >    data" entry — sidesteps the exact "new key, forgot Clear local data" gap the Track L sweep
->    notes above found repeatedly. Still open: the same treatment for the Connections list, and
->    drag a dataset card straight onto Home to start a dashboard. (Palette entries for the new
->    sections landed with the 2026-07-14 UX sprint.)
+>    notes above found repeatedly. ✓ **Same treatment for the Connections list shipped
+>    (2026-07-18, steward PR):** `connLoadViews`/`connSaveViews`/`connApplyView` in
+>    `app/studio.js`, identical chip UX, one axis narrower (adapter pill only — connections
+>    aren't tagged); own `connectionViews` key in the same Workspace SETTINGS bag. 5 new
+>    regression checks; suite 1560/1560. Still open: drag a dataset card straight onto Home to
+>    start a dashboard. (Palette entries for the new sections landed with the 2026-07-14 UX
+>    sprint.)
 > 7. **Organization at scale (user, 2026-07-14):** dashboards/datasets/connections "will start to
 >    become very long lists" — needs favorites/pinning everywhere, grouping (maybe folders, maybe
 >    tags — user unsure a tree is right), and cross-cutting views: see datasets by connection, by
