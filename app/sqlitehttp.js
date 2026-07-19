@@ -102,6 +102,30 @@
         var q = (sql && sql.trim()) || ("SELECT * FROM " + quoteIdent((cfg && cfg.tableName) || ""));
         return db.query(q).then(function (rows) { return objectsToResult(rows); });
       });
+    },
+
+    // Post-overhaul backlog item 5's schema-browser follow-up: unlike the single-file DuckDB
+    // connector, a SQLite file can hold many tables, so this lists ALL of them (not just the
+    // one cfg.tableName points at) — sqlite_master for the table list, then PRAGMA table_info
+    // per table, exactly what testConnection() already runs for the chosen table alone. Goes
+    // through query() (not withDb directly) so tests can monkey-patch it the same way the rest
+    // of this connector's tests already do.
+    listSchema: function (cfg) {
+      return Studio.SQLiteHttp.query(cfg, "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").then(function (r) {
+        var nameIdx = (r.cols || []).indexOf("name");
+        var tables = (r.rows || []).map(function (row) { return row[nameIdx]; });
+        return Promise.all(tables.map(function (t) {
+          return Studio.SQLiteHttp.query(cfg, "PRAGMA table_info(" + quoteIdent(t) + ")").then(function (info) {
+            var ci = {}; (info.cols || []).forEach(function (c, i) { ci[c] = i; });
+            var columns = (info.rows || []).map(function (row) {
+              return { name: row[ci.name], type: row[ci.type] || "TEXT" };
+            });
+            return { schema: null, name: t, columns: columns };
+          });
+        })).then(function (defs) { return { tables: defs }; });
+      }).catch(function (e) {
+        return { tables: [], error: (e && e.message) || String(e) };
+      });
     }
   };
 })();

@@ -780,10 +780,62 @@ function serve() {
       /^SELECT table_schema, table_name, column_name, data_type FROM `my-proj`\.`region-us`\.INFORMATION_SCHEMA\.COLUMNS ORDER BY/.test(bqSchema.captured[1]) &&
       bqSchema.withoutDataset.tables.length === 2, JSON.stringify(bqSchema.captured[1]));
 
-    const noSchemaAdapters = await page.evaluate(function () {
-      return ["duckdb", "sqlite", "httpsql"].map(function (id) { return { id: id, has: typeof (Studio.sourceById(id) || {}).listSchema === "function" }; });
+    // DuckDB: a connection is always exactly one registered file, so listSchema() is a single-
+    // table tree (named after the file, not the internal "t" view alias) described via the same
+    // DESCRIBE query testConnection() runs. query() is monkey-patched (same reason as the CDN/
+    // wasm-avoiding Z14 DuckDB tests above) — listSchema() goes through it rather than the private
+    // withView(), so this exercises the real name-derivation + column-mapping logic.
+    const dkSchema = await page.evaluate(async function () {
+      var dk = Studio.sourceById("duckdb");
+      var orig = Studio.DuckDB.query, captured = [];
+      Studio.DuckDB.query = function (cfg, sql) {
+        captured.push(sql);
+        return Promise.resolve({
+          cols: ["column_name", "column_type", "null", "key", "default", "extra"],
+          rows: [["region", "VARCHAR", "YES", null, null, null], ["revenue", "DOUBLE", "YES", null, null, null]]
+        });
+      };
+      var r = await dk.listSchema({ fileUrl: "https://bucket.s3.amazonaws.com/sales.parquet?x=1" });
+      Studio.DuckDB.query = orig;
+      return { r: r, sql: captured[0] };
     });
-    ok("Schema browser: adapters without a safe unqualified/dialect-known query (DuckDB/SQLite/generic-HTTP) don't claim the capability",
+    ok("DK: listSchema DESCRIBEs the registered view and names the single table after the file, not the alias",
+      /^DESCRIBE SELECT \* FROM t$/.test(dkSchema.sql) &&
+      dkSchema.r.tables.length === 1 && dkSchema.r.tables[0].name === "sales.parquet" && dkSchema.r.tables[0].schema === null &&
+      dkSchema.r.tables[0].columns.length === 2 && dkSchema.r.tables[0].columns[0].name === "region" && dkSchema.r.tables[0].columns[0].type === "VARCHAR",
+      JSON.stringify(dkSchema));
+
+    // SQLite: unlike DuckDB's single file, a .sqlite file can hold many tables — listSchema()
+    // lists them all via sqlite_master, then PRAGMA table_info per table (not just the one
+    // cfg.tableName points at). query() is monkey-patched to answer both query shapes in turn.
+    const slSchema = await page.evaluate(async function () {
+      var sl = Studio.sourceById("sqlite");
+      var orig = Studio.SQLiteHttp.query, captured = [];
+      Studio.SQLiteHttp.query = function (cfg, sql) {
+        captured.push(sql);
+        if (/^SELECT name FROM sqlite_master/.test(sql)) {
+          return Promise.resolve({ cols: ["name"], rows: [["customers"], ["orders"]] });
+        }
+        if (/table_info\("customers"\)/.test(sql)) {
+          return Promise.resolve({ cols: ["cid", "name", "type"], rows: [[0, "id", "INTEGER"], [1, "name", "TEXT"]] });
+        }
+        return Promise.resolve({ cols: ["cid", "name", "type"], rows: [[0, "id", "INTEGER"], [1, "region", "TEXT"], [2, "total", "REAL"]] });
+      };
+      var r = await sl.listSchema({ fileUrl: "https://example.com/data.sqlite" });
+      Studio.SQLiteHttp.query = orig;
+      return { r: r, calls: captured };
+    });
+    ok("SL: listSchema lists every table via sqlite_master, then PRAGMA table_info per table",
+      slSchema.calls.length === 3 &&
+      slSchema.r.tables.length === 2 &&
+      slSchema.r.tables[0].name === "customers" && slSchema.r.tables[0].columns.length === 2 && slSchema.r.tables[0].columns[0].name === "id" &&
+      slSchema.r.tables[1].name === "orders" && slSchema.r.tables[1].columns.length === 3,
+      JSON.stringify(slSchema));
+
+    const noSchemaAdapters = await page.evaluate(function () {
+      return ["httpsql"].map(function (id) { return { id: id, has: typeof (Studio.sourceById(id) || {}).listSchema === "function" }; });
+    });
+    ok("Schema browser: generic SQL/HTTP (arbitrary JSON API, no reliable dialect/catalog) doesn't claim the capability",
       noSchemaAdapters.every(function (a) { return !a.has; }), JSON.stringify(noSchemaAdapters));
 
     // ---- CX UI: the "Browse schema" wizard panel (Redshift, against the same mock) ----
