@@ -1541,6 +1541,17 @@
 >    a rejected-request in-band-error case, and a full wizard UI pass proving the same "Browse
 >    schema" panel renders PostgREST's tables too), suite 1599/1599. SW cache → v40. Genuinely
 >    still open: BigQuery and the three remaining adapters (generic SQL/HTTP, DuckDB, SQLite).
+>    ✓ **BigQuery follow-up shipped (2026-07-19, steward PR):** BigQuery's `INFORMATION_SCHEMA.COLUMNS`
+>    is dataset-qualified, unlike the three ANSI-SQL warehouses above, so `bigquerySchemaSql()`
+>    (`app/sources/data-adapters.js`) queries it unqualified when the connection has a default
+>    dataset set (the same `defaultDataset` the live-query path already sends BigQuery, per
+>    `app/bigquery.js`'s `runQuery`), or falls back to the project-and-region-qualified view
+>    (`` `project`.`region-<location>`.INFORMATION_SCHEMA.COLUMNS ``, defaulting to `region-us`)
+>    listing every dataset in that region when no default dataset is configured. 2 new tests
+>    (query() monkey-patched the same way the Snowflake/Databricks checks already do, since
+>    BigQuery has no configurable endpoint field for a mock HTTP server), suite 1601/1601. SW
+>    cache → v41. Genuinely still open: the three remaining adapters (generic SQL/HTTP, DuckDB,
+>    SQLite), each with its own introspection story.
 > 6. **Workspace polish**: ✓ **Saved views for the Datasets list shipped (2026-07-18, steward
 >    PR).** A search + adapter/tag pill combination can be named and kept as a chip
 >    (`dsxLoadViews`/`dsxSaveViews`/`dsxApplyView` in `app/studio.js`) — click the chip later to

@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v40"; /* v40: post-overhaul backlog item 5
+var CACHE_NAME = "studio-shell-v41"; /* v41: post-overhaul backlog item 5
+   follow-up — BigQuery joins Snowflake/Databricks/Redshift/PostgREST's schema
+   browser: listSchema() queries INFORMATION_SCHEMA.COLUMNS unqualified when a
+   default dataset is set, or the project.region-qualified view across every
+   dataset in the region otherwise — app/sources/data-adapters.js changed.
+   v40: post-overhaul backlog item 5
    follow-up — PostgREST joins Snowflake/Databricks/Redshift's schema browser:
    listSchema() reads the table/column list straight out of the OpenAPI
    document PostgREST already answers GET / with (no second query shape

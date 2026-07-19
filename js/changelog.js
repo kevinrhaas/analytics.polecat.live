@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 391,
+    title: 'BigQuery joins the schema browser',
+    kind: 'feature',
+    ts: '2026-07-19T05:20:33.000Z',
+    items: [
+      'Post-overhaul backlog item 5\'s "Browse schema" button (Connections wizard) now also works for BigQuery connections -- BigQuery\'s own INFORMATION_SCHEMA.COLUMNS is dataset-qualified, so it queries unqualified when the connection has a default dataset set (the same defaultDataset the live-query path already sends), or falls back to a project-and-region-qualified view listing every dataset in that region otherwise.',
+      'Same filterable, per-table-expandable tree as Snowflake/Databricks/Redshift/PostgREST -- app/sources/data-adapters.js changed. Still open: the remaining three adapters (generic SQL/HTTP, DuckDB, SQLite), each with its own introspection story.',
+    ],
+  },
+  {
     v: 390,
     title: 'PostgREST joins the schema browser',
     kind: 'feature',
