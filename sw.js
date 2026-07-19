@@ -5,7 +5,17 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v44"; /* v44: N-DESIGN theme studio follow-up —
+var CACHE_NAME = "studio-shell-v45"; /* v45: post-overhaul backlog item 3
+   follow-up — exported/deployed dashboards can now query the four
+   credential-based direct connectors (Snowflake/Databricks/BigQuery/Generic
+   SQL) live, joining DuckDB/SQLite's existing runtime path: exporters.js
+   redacts each DA's secret field before it's ever embedded in the exported
+   HTML, and studio-render.js's PDC.cda dispatch prompts for it at open time
+   (in-memory only, never re-saved) — "credentials prompted at open, never
+   embedded." app/exporters.js, app/model.js, app/studio.js, app/studio-render.js
+   changed; app/snowflake.js/databricks.js/bigquery.js/genericsql.js were
+   already precached but are now also bundled into exports that use them.
+   v44: N-DESIGN theme studio follow-up —
    named custom-theme presets (save/apply/delete an authored custom theme by
    name, reuse across dashboards) — app/studio.js changed.
    v43: N-DESIGN theme studio first cut —

@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 396,
+    title: 'Exported dashboards can query Snowflake/Databricks/BigQuery/Generic SQL live too',
+    kind: 'feature',
+    ts: '2026-07-19T11:44:03.000Z',
+    items: [
+      'Joins DuckDB and SQLite, whose exported .html files already run live: the four credential-based direct connectors now work after export/deployment as well, not just inside the builder.',
+      'Their access token or auth header is never baked into the exported file — it\'s stripped out at export time and prompted for once, in your browser only, the first time an exported dashboard actually needs to run that query.',
+    ],
+  },
+  {
     v: 395,
     title: 'Named custom-theme presets',
     kind: 'feature',

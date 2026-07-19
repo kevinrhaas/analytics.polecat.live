@@ -12453,10 +12453,10 @@ function serve() {
     ok("N-DATA: an orphaned DA isn't also profiled for quality (avoids piling a second, redundant note on top of 'declared but not used')",
       dqWatchdog.orphanedSkipsQualityCheck, JSON.stringify(dqWatchdog));
 
-    // Architecture-gap finding: a dashboard using one of the four credential-based direct-query
-    // connectors gets a warn-level Checks note that it has no live query path once exported/
-    // deployed. DuckDB/SQLite are exempt (Z14 fix, same run as this test update): they now have a
-    // real runtime path via studio-render.js's PDC.cda dispatch, see the dedicated test below.
+    // Architecture-gap finding, now fully closed (post-overhaul backlog item 3 follow-up): all six
+    // direct-query connectors (DuckDB/SQLite/Snowflake/Databricks/BigQuery/Generic SQL) have a real
+    // runtime query path once exported/deployed now, so Studio.validate() no longer warns about any
+    // of them — DIRECT_DA_KINDS and the warning it drove were retired in app/model.js.
     const directConnWarn = await page.evaluate(function () {
       function specWith(kind) {
         return {
@@ -12465,24 +12465,26 @@ function serve() {
         };
       }
       var snowflake = Studio.validate(specWith("snowflake"));
+      var databricks = Studio.validate(specWith("databricks"));
+      var bigquery = Studio.validate(specWith("bigquery"));
+      var http = Studio.validate(specWith("http"));
       var duckdb = Studio.validate(specWith("duckdb"));
       var sample = Studio.validate(specWith("sql"));
-      var orphanedSnowflake = Studio.validate({
-        name: "ok-name", title: "T", panels: [], kpis: [], filters: [],
-        cda: { dataAccesses: [{ id: "d1", name: "sfDa", kind: "snowflake", columns: ["x"] }] }
-      });
       return {
-        snowflakeFlagged: snowflake.some(function (i) { return i.level === "warn" && /“sfDa” \(Snowflake\) has no live query path/.test(i.msg); }),
+        snowflakeNotFlagged: !snowflake.some(function (i) { return /no live query path/.test(i.msg); }),
+        databricksNotFlagged: !databricks.some(function (i) { return /no live query path/.test(i.msg); }),
+        bigqueryNotFlagged: !bigquery.some(function (i) { return /no live query path/.test(i.msg); }),
+        httpNotFlagged: !http.some(function (i) { return /no live query path/.test(i.msg); }),
         duckdbNotFlagged: !duckdb.some(function (i) { return /no live query path/.test(i.msg); }),
-        sampleNotFlagged: !sample.some(function (i) { return /no live query path/.test(i.msg); }),
-        orphanedNotDoubleFlagged: !orphanedSnowflake.some(function (i) { return /no live query path/.test(i.msg); })
+        sampleNotFlagged: !sample.some(function (i) { return /no live query path/.test(i.msg); })
       };
     });
-    ok("N-DATA: a bound Snowflake (or Databricks/BigQuery/Generic SQL) DA gets a warn-level 'no live query path once exported' Checks note",
-      directConnWarn.snowflakeFlagged, JSON.stringify(directConnWarn));
+    ok("Post-overhaul item 3: a bound Snowflake DA is no longer flagged — it has a real runtime query path once exported now", directConnWarn.snowflakeNotFlagged, JSON.stringify(directConnWarn));
+    ok("Post-overhaul item 3: a bound Databricks DA is no longer flagged", directConnWarn.databricksNotFlagged, JSON.stringify(directConnWarn));
+    ok("Post-overhaul item 3: a bound BigQuery DA is no longer flagged", directConnWarn.bigqueryNotFlagged, JSON.stringify(directConnWarn));
+    ok("Post-overhaul item 3: a bound Generic SQL/HTTP DA is no longer flagged", directConnWarn.httpNotFlagged, JSON.stringify(directConnWarn));
     ok("Z14: a bound DuckDB/SQLite DA is NOT flagged — they have a real runtime query path once exported now", directConnWarn.duckdbNotFlagged, JSON.stringify(directConnWarn));
     ok("N-DATA: a plain sample-engine SQL DA is NOT flagged with the direct-connector export warning", directConnWarn.sampleNotFlagged, JSON.stringify(directConnWarn));
-    ok("N-DATA: an orphaned direct-connector DA only gets the 'declared but not used' note, not also the export warning", directConnWarn.orphanedNotDoubleFlagged, JSON.stringify(directConnWarn));
 
     // Z14 architecture-gap FIX (2026-07-04, same run as the test update above): the exported
     // Dashboard Framework now has a real runtime query path for DuckDB/SQLite. Verify (1) lean
@@ -12611,6 +12613,136 @@ function serve() {
     ok("N-DATA: a DA with no calcColumns is unaffected by the new live-runtime calc-column path",
       calcLiveNone.cols.join(",") === "x" && calcLiveNone.rows.length === 1 && calcLiveNone.rows[0][0] === 42,
       JSON.stringify(calcLiveNone));
+
+    // Post-overhaul backlog item 3 follow-up (2026-07-19): the four credential-based direct
+    // connectors (Snowflake/Databricks/BigQuery/Generic SQL) get the same exported-runtime fix
+    // DuckDB/SQLite got above — but they carry a real secret (access token / auth header), so the
+    // fix has two halves: (1) exporters.js must never embed that secret in the output HTML, (2)
+    // studio-render.js's PDC.cda dispatch must still be able to run the live query once someone
+    // supplies it at open time (prompted, kept in-memory only for the page's lifetime).
+    console.log("\n• Post-overhaul item 3 fix: exported dashboards can query the 4 credential connectors live");
+
+    const credRedaction = await page.evaluate(function () {
+      var assets = window.__STUDIO_STATE.assets;
+      var spec = {
+        name: "ok-name", title: "T", panels: [], kpis: [], filters: [],
+        cda: {
+          dataAccesses: [{
+            id: "d1", name: "sfDa", kind: "snowflake", columns: ["x"], sql: "SELECT 1",
+            sfAccount: "xy12345", sfToken: "SUPER-SECRET-TOKEN-123", sfWarehouse: "WH"
+          }]
+        }
+      };
+      var html = Studio.exportCDF(spec, assets, "/x");
+      return {
+        leaksSecret: html.indexOf("SUPER-SECRET-TOKEN-123") >= 0,
+        keepsAccount: html.indexOf("xy12345") >= 0,
+        stampsNeedsSecret: html.indexOf("\"needsSecret\":\"sfToken\"") >= 0
+      };
+    });
+    ok("Post-overhaul item 3: exportCDF never embeds a Snowflake DA's access token in the output HTML",
+      !credRedaction.leaksSecret, JSON.stringify(credRedaction));
+    ok("Post-overhaul item 3: exportCDF keeps the DA's non-secret fields (account) so the connection still resolves",
+      credRedaction.keepsAccount, JSON.stringify(credRedaction));
+    ok("Post-overhaul item 3: the redacted DA is stamped with needsSecret so the runtime knows to prompt for it",
+      credRedaction.stampsNeedsSecret, JSON.stringify(credRedaction));
+
+    const credBundling = await page.evaluate(function () {
+      var assets = window.__STUDIO_STATE.assets;
+      function specWith(kind) {
+        return {
+          name: "ok-name", title: "T", panels: [], kpis: [], filters: [],
+          cda: { dataAccesses: kind ? [{ id: "d1", name: "d1", kind: kind, columns: ["x"] }] : [] }
+        };
+      }
+      var sfHtml = Studio.exportCDF(specWith("snowflake"), assets, "/x");
+      var dbxHtml = Studio.exportCDF(specWith("databricks"), assets, "/x");
+      var bqHtml = Studio.exportCDF(specWith("bigquery"), assets, "/x");
+      var httpHtml = Studio.exportCDF(specWith("http"), assets, "/x");
+      var plainHtml = Studio.exportCDF(specWith(""), assets, "/x");
+      function has(html, name) { return new RegExp("Studio\\." + name + "\\s*=").test(html); }
+      return {
+        sfHasFacade: has(sfHtml, "Snowflake"),
+        sfOmitsOthers: !has(sfHtml, "Databricks") && !has(sfHtml, "BigQuery") && !has(sfHtml, "GenericSql"),
+        dbxHasFacade: has(dbxHtml, "Databricks"),
+        bqHasFacade: has(bqHtml, "BigQuery"),
+        httpHasFacade: has(httpHtml, "GenericSql"),
+        plainOmitsAll: !has(plainHtml, "Snowflake") && !has(plainHtml, "Databricks") && !has(plainHtml, "BigQuery") && !has(plainHtml, "GenericSql")
+      };
+    });
+    ok("Post-overhaul item 3: a snowflake-only export bundles the Snowflake façade but not the others",
+      credBundling.sfHasFacade && credBundling.sfOmitsOthers, JSON.stringify(credBundling));
+    ok("Post-overhaul item 3: a databricks-only export bundles the Databricks façade", credBundling.dbxHasFacade, JSON.stringify(credBundling));
+    ok("Post-overhaul item 3: a bigquery-only export bundles the BigQuery façade", credBundling.bqHasFacade, JSON.stringify(credBundling));
+    ok("Post-overhaul item 3: an http-only export bundles the Generic SQL façade", credBundling.httpHasFacade, JSON.stringify(credBundling));
+    ok("Post-overhaul item 3: a dashboard using none of the four bundles none of their façades (stays lean)", credBundling.plainOmitsAll, JSON.stringify(credBundling));
+
+    // Functional dispatch — load the REAL (redacted) exported HTML into a throwaway iframe, stub
+    // window.prompt (the credential-collection boundary) and each engine's own .query() (the
+    // network boundary, same rationale as the DuckDB/SQLite tests above), then call PDC.cda
+    // directly and confirm it prompts for the missing secret and runs with the freshly-supplied
+    // value — never the original, now-redacted one.
+    const credDispatch = await page.evaluate(async function () {
+      var assets = window.__STUDIO_STATE.assets;
+      var cases = [
+        { kind: "snowflake", engineName: "Snowflake", extra: { sfAccount: "acct1", sfToken: "orig-secret", sfWarehouse: "WH" }, expectCfg: { account: "acct1", warehouse: "WH" }, secretKey: "token" },
+        { kind: "databricks", engineName: "Databricks", extra: { dbxHost: "host1", dbxToken: "orig-secret", dbxWarehouseId: "wid1" }, expectCfg: { host: "host1", warehouseId: "wid1" }, secretKey: "token" },
+        { kind: "bigquery", engineName: "BigQuery", extra: { bqProject: "proj1", bqToken: "orig-secret", bqDataset: "ds1" }, expectCfg: { project: "proj1", dataset: "ds1" }, secretKey: "token" },
+        { kind: "http", engineName: "GenericSql", extra: { httpUrl: "https://x/y", httpAuthHeader: "orig-secret" }, expectCfg: { url: "https://x/y" }, secretKey: "authHeader" }
+      ];
+      var results = [];
+      for (var i = 0; i < cases.length; i++) {
+        var c = cases[i];
+        var da = Object.assign({ id: "d1", name: "d1", kind: c.kind, columns: ["x"], sql: "SELECT 1" }, c.extra);
+        var spec = { name: "ok-name", title: "T", panels: [], kpis: [], filters: [], cda: { dataAccesses: [da] } };
+        var html = Studio.exportCDF(spec, assets, "/x");
+        var ifr = document.createElement("iframe");
+        ifr.style.display = "none";
+        document.body.appendChild(ifr);
+        await new Promise(function (resolve) { ifr.onload = resolve; ifr.srcdoc = html; });
+        var iw = ifr.contentWindow;
+        var seenCfg = null, promptCalls = 0;
+        iw.window.prompt = function () { promptCalls++; return "fresh-prompted-secret"; };
+        iw.Studio[c.engineName].query = function (cfg) { seenCfg = cfg; return Promise.resolve({ cols: ["x"], rows: [[1]] }); };
+        var result = await iw.PDC.cda("d1", {});
+        await iw.PDC.cda("d1", {}); // second call — should reuse the cached secret, not re-prompt
+        document.body.removeChild(ifr);
+        var cfgOk = Object.keys(c.expectCfg).every(function (k) { return seenCfg[k] === c.expectCfg[k]; });
+        results.push({
+          kind: c.kind,
+          gotRows: result.rows.length === 1 && result.rows[0][0] === 1,
+          secretIsFresh: seenCfg[c.secretKey] === "fresh-prompted-secret",
+          promptCalledOnce: promptCalls === 1,
+          cfgOk: cfgOk
+        });
+      }
+      return results;
+    });
+    credDispatch.forEach(function (r) {
+      ok("Post-overhaul item 3: PDC.cda dispatches a " + r.kind + " DA to its live connector with the freshly-prompted (never the original) secret",
+        r.gotRows && r.secretIsFresh && r.cfgOk, JSON.stringify(r));
+      ok("Post-overhaul item 3: PDC.cda caches the prompted secret for " + r.kind + " so a second call doesn't re-prompt",
+        r.promptCalledOnce, JSON.stringify(r));
+    });
+
+    const credPreviewGate = await page.evaluate(async function () {
+      var assets = window.__STUDIO_STATE.assets;
+      var da = { id: "d1", name: "d1", kind: "snowflake", columns: ["x"], sql: "SELECT 1", sfAccount: "acct1", sfToken: "orig-secret" };
+      var spec = { name: "ok-name", title: "T", panels: [], kpis: [], filters: [], cda: { dataAccesses: [da] } };
+      var html = Studio.buildHtml(spec, assets, { preview: true, mock: {} });
+      var ifr = document.createElement("iframe");
+      ifr.style.display = "none";
+      document.body.appendChild(ifr);
+      await new Promise(function (resolve) { ifr.onload = resolve; ifr.srcdoc = html; });
+      var iw = ifr.contentWindow;
+      var promptCalled = false;
+      iw.window.prompt = function () { promptCalled = true; return "x"; };
+      try { await iw.PDC.cda("d1", {}); } catch (e) { /* expected — no CDA endpoint in this test harness */ }
+      document.body.removeChild(ifr);
+      return { promptCalled: promptCalled };
+    });
+    ok("Post-overhaul item 3: the builder's own live-editing preview iframe never prompts for a credential (STUDIO_PREVIEW gate)",
+      !credPreviewGate.promptCalled, JSON.stringify(credPreviewGate));
 
     // ── F18: Bump / ranking chart (v104) ─────────────────────────────────────
     console.log("\n• F18: Bump chart");
