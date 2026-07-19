@@ -2958,6 +2958,62 @@ function serve() {
     ok("DSX: unpinning a dataset clears both pinned and pinnedAt",
       !dsxUnpin.pinned && dsxUnpin.pinnedAt === undefined, JSON.stringify(dsxUnpin));
 
+    // by-connection filter (post-overhaul backlog item 7 follow-up, "organization at
+    // scale" — the still-open "cross-cutting by-connection view" this item called for).
+    // Two connections sharing the SAME adapter (both "turso") get lumped into one
+    // by-adapter pill above; the new by-connection pill narrows to just one of them —
+    // same multi-select/saved-view plumbing as the adapter and tag strips, just keyed
+    // by connectionId.
+    const dsxConnPills = await page.evaluate(function () {
+      Studio.Workspace.put("connections", { id: "conn-mock-2", name: "Mock warehouse 2", adapter: "turso", cfg: { url: "http://x", token: "t" } });
+      Studio.Workspace.put("datasets", { id: "d-third", name: "other_conn_dataset", connectionId: "conn-mock-2", kind: "sql", sql: "SELECT 1" });
+      window.__studioRenderDatasets();
+      var pills = [].slice.call(document.querySelectorAll("[data-dsx-conn]")).map(function (b) {
+        return { id: b.getAttribute("data-dsx-conn"), label: (b.querySelector(".wb-chip-label") || {}).textContent, n: (b.querySelector(".wb-chip-n") || {}).textContent };
+      });
+      return { pills: pills, rows: document.querySelectorAll("#dsxResults .cx-row").length };
+    });
+    ok("DSX: a 'by connection' pill appears per connection (distinct from the by-adapter pill, which lumps same-adapter connections together)",
+      dsxConnPills.rows === 3 && dsxConnPills.pills.length === 2 &&
+      dsxConnPills.pills.some(function (p) { return p.label === "Mock warehouse" && p.n === "2"; }) &&
+      dsxConnPills.pills.some(function (p) { return p.label === "Mock warehouse 2" && p.n === "1"; }),
+      JSON.stringify(dsxConnPills));
+
+    const dsxConnFilter = await page.evaluate(function () {
+      document.querySelector('[data-dsx-conn="conn-mock-2"]').click();
+      var rows = [].slice.call(document.querySelectorAll("#dsxResults .cx-row")).map(function (r) { return r.getAttribute("data-dsx-id"); });
+      var active = document.querySelector('[data-dsx-conn="conn-mock-2"]').classList.contains("active");
+      return { rows: rows, active: active };
+    });
+    ok("DSX: clicking a connection pill filters the list down to just that connection's datasets",
+      dsxConnFilter.active && dsxConnFilter.rows.length === 1 && dsxConnFilter.rows[0] === "d-third", JSON.stringify(dsxConnFilter));
+
+    await page.evaluate(function () {
+      document.querySelector("#dsxViewNameInp").value = "Second warehouse only";
+      document.querySelector("#dsxViewAddBtn").click();
+    });
+    await page.waitForTimeout(60);
+    const dsxConnViewSaved = await page.evaluate(function () {
+      var views = Studio.Workspace.settings().datasetViews || [];
+      return { count: views.length, connections: views[0] && (views[0].connections || []).join(",") };
+    });
+    ok("DSX: saving a view while a connection pill is active captures it in the view's 'connections' list",
+      dsxConnViewSaved.count === 1 && dsxConnViewSaved.connections === "conn-mock-2", JSON.stringify(dsxConnViewSaved));
+
+    await page.evaluate(function () { document.querySelector("#dsxPillClear").click(); });
+    await page.waitForTimeout(60);
+    const dsxConnViewApplied = await page.evaluate(function () {
+      var beforeActive = !!document.querySelector('[data-dsx-conn="conn-mock-2"].active');
+      document.querySelector("[data-dsx-view]").click();
+      var afterActive = !!document.querySelector('[data-dsx-conn="conn-mock-2"].active');
+      var rows = [].slice.call(document.querySelectorAll("#dsxResults .cx-row")).map(function (r) { return r.getAttribute("data-dsx-id"); });
+      return { beforeActive: beforeActive, afterActive: afterActive, rows: rows };
+    });
+    ok("DSX: applying that saved view restores the connection pill filter",
+      !dsxConnViewApplied.beforeActive && dsxConnViewApplied.afterActive &&
+      dsxConnViewApplied.rows.length === 1 && dsxConnViewApplied.rows[0] === "d-third",
+      JSON.stringify(dsxConnViewApplied));
+
     await page.evaluate(function () { Studio.Workspace.reset(); window.__studioLoad({ title: "post-dsx", panels: [], kpis: [] }); window.__studioShellSetSection("studio"); });
     await page.waitForTimeout(120);
 

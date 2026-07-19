@@ -1096,6 +1096,25 @@
   freshly-prompted value, never the original now-redacted one, and that a second call reuses the
   cached secret instead of re-prompting; the preview-iframe gate), suite 1638/1638. This closes
   out post-overhaul backlog item 3 entirely.
+- v384: **Post-overhaul backlog item 7 follow-up (2026-07-19, steward PR): Datasets gain a
+  "by connection" filter pill strip.** Investigated the item's remaining "cross-cutting views" ask
+  ("datasets by connection, by adapter, by type") and found by-adapter and by-tag pills already
+  shipped (2026-07-18) — only by-connection was missing, and it's a real gap: two connections that
+  share the same adapter (e.g. two Postgres DBs, "Prod" and "Staging") were indistinguishable by
+  the adapter pill, only reachable via typing the connection name into search. Added a third
+  multi-select pill strip (`_dsxConnFilter`, `data-dsx-conn`) using the exact same `wb-chip`/
+  `cx-pill` CSS and click/AND-across-strips/OR-within-strip semantics as the adapter and tag
+  strips — zero new CSS. Wired into the existing saved-view contract (`dsxSaveViews`/
+  `dsxApplyView` now also capture/restore a view's `connections` list) and the "Clear" button.
+  Deliberately did NOT touch the item's other still-undecided half (folders vs. tags vs. tree for
+  organizing large catalogs) — that's a real UX design call Kevin flagged himself as unsure about,
+  not a mechanical extension of an established pattern. `docs/index.html` gains a "Filtering
+  datasets and connections" section. SW cache → v46. 4 new tests (pill rendering + counts, click
+  filters the list, saved-view round-trip save/apply); suite 1642/1642. Dashboards-by-workbook and
+  Connections-by-adapter cross-cutting views were already live (Home + Repository workbook chips,
+  Connections adapter chips) — confirmed still present, no changes needed there. Still open:
+  folders/tags grouping and a "by type" (kind: sql/table/file/collection/sheet) facet, if wanted
+  later — parked, not attempted here to keep this one coherent slice.
 
 ## NEXT (top = do first)
 
@@ -1635,8 +1654,17 @@
 >    `app/studio.css`, `toggleConnPin`/`toggleDsxPin` in `app/studio.js`) sits beside each row's
 >    other actions and — unlike those hover-only actions — stays visible once a row is pinned, so
 >    pinned status reads at a glance in a long list without hovering every row. 4 new tests. Test
->    suite 1568/1568. SW cache → v34. Still open: folders/tags grouping and the cross-cutting
->    by-connection/by-adapter/by-type views (the still-undecided part of this item).
+>    suite 1568/1568. SW cache → v34. Still open (at the time): folders/tags grouping and the
+>    cross-cutting by-connection/by-adapter/by-type views.
+>    ✓ **Cross-cutting views confirmed/completed (2026-07-19, steward PR).** By-adapter pills
+>    (Datasets + Connections) and dashboards-by-workbook (Home + Repository chip strips) were
+>    already shipped in earlier slices — confirmed still live. Added the one missing piece:
+>    Datasets gained a **by-connection** filter pill strip (same `wb-chip`/`cx-pill` pattern,
+>    saved-view aware) so two connections sharing one adapter (e.g. two Postgres DBs) can be
+>    narrowed to just one — previously only reachable via search. SW cache → v46; 4 new tests;
+>    suite 1642/1642. Still open: folders/tags grouping (the design-ambiguous part Kevin flagged
+>    as unsure about — a tree vs. tags vs. folders call, not attempted) and an optional "by type"
+>    (kind: sql/table/file/collection/sheet) facet if wanted later.
 >
 > **2026-07-14 UX sprint (interactive session, all landed, v349):** split topbar → slim app bar +
 > dashboard toolbar above the preview; inline title rename (no phantom "Observability" group);
