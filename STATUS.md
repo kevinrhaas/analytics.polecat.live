@@ -1530,6 +1530,17 @@
 >    the exact Snowflake/Databricks SQL text and case-insensitive grouping, and a full wizard UI
 >    pass — button visibility, rendered tree, filter), suite 1593/1593. This closes out
 >    post-overhaul backlog item 5 entirely.
+>    ✓ **PostgREST follow-up shipped (2026-07-19, steward PR):** the "Browse schema" button now
+>    also appears for PostgreSQL (PostgREST) connections — `listSchema()` (`app/sources/
+>    postgrest.js`) needed no `information_schema` query at all: PostgREST already answers `GET /`
+>    with a full OpenAPI document (the same 200 `testData()` already checks for), and each table's
+>    columns live right there at `definitions.<table>.properties.<column>` (a Postgres type name
+>    riding `format`, falling back to the plainer JSON-Schema `type`). The wizard panel
+>    (`renderSchemaPanel` in `app/studio.js`) is fully adapter-agnostic already, so this was a
+>    one-file change. 4 new tests (a real end-to-end pass against a mock PostgREST's OpenAPI doc,
+>    a rejected-request in-band-error case, and a full wizard UI pass proving the same "Browse
+>    schema" panel renders PostgREST's tables too), suite 1599/1599. SW cache → v40. Genuinely
+>    still open: BigQuery and the three remaining adapters (generic SQL/HTTP, DuckDB, SQLite).
 > 6. **Workspace polish**: ✓ **Saved views for the Datasets list shipped (2026-07-18, steward
 >    PR).** A search + adapter/tag pill combination can be named and kept as a chip
 >    (`dsxLoadViews`/`dsxSaveViews`/`dsxApplyView` in `app/studio.js`) — click the chip later to

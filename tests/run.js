@@ -71,15 +71,34 @@ function handleMockTurso(req, rep) {
 }
 
 // ---- mock PostgREST (app/sources/postgrest.js end-to-end tests) ------------
-// Just enough of the real protocol: GET / answers the OpenAPI doc; GET /<table>
-// supports select= (column subset), <col>=eq.<v> filters and limit=; the
-// `secure_orders` table demands `Authorization: Bearer test-token`. CORS open.
+// Just enough of the real protocol: GET / answers the OpenAPI doc (including a
+// `definitions` block per table for the listSchema schema-browser tests);
+// GET /<table> supports select= (column subset), <col>=eq.<v> filters and
+// limit=; the `secure_orders` table demands `Authorization: Bearer
+// test-token`. CORS open.
 const mockPgTables = {
   orders: [
     { region: "EMEA", total: 120, year: 2026 },
     { region: "AMER", total: 200, year: 2026 },
     { region: "APAC", total: 80, year: 2025 },
   ],
+};
+// Real PostgREST shape: OpenAPI 2.0 `definitions.<table>.properties.<col>`,
+// a Postgres type name riding `format` (falls back to plain `type`).
+const mockPgOpenApi = {
+  openapi: "3.0.0",
+  info: { title: "mock PostgREST" },
+  definitions: {
+    orders: { properties: {
+      region: { type: "string", format: "text" },
+      total: { type: "integer", format: "int4" },
+      year: { type: "integer", format: "int4" }
+    } },
+    secure_orders: { properties: {
+      region: { type: "string", format: "text" },
+      total: { type: "integer", format: "int4" }
+    } }
+  }
 };
 function handleMockPostgrest(req, rep, p) {
   const send = (code, body) => {
@@ -88,7 +107,7 @@ function handleMockPostgrest(req, rep, p) {
   };
   if (req.method === "OPTIONS") return send(200, {});
   const rel = p.replace(/^\/__postgrest\/?/, "");
-  if (!rel) return send(200, { openapi: "3.0.0", info: { title: "mock PostgREST" } }); // the root = OpenAPI doc
+  if (!rel) return send(200, mockPgOpenApi); // the root = OpenAPI doc
   const table = decodeURIComponent(rel);
   const needsAuth = table === "secure_orders";
   if (needsAuth && req.headers.authorization !== "Bearer test-token") return send(401, { message: "JWT invalid" });
@@ -714,10 +733,31 @@ function serve() {
       /^SELECT table_schema, table_name, column_name, data_type FROM `main`\.information_schema\.columns ORDER BY/.test(dbxSchema.sql) &&
       dbxSchema.r.tables.length === 1 && dbxSchema.r.tables[0].name === "events", JSON.stringify(dbxSchema));
 
-    const noSchemaAdapters = await page.evaluate(function () {
-      return ["bigquery", "duckdb", "sqlite", "httpsql", "postgrest"].map(function (id) { return { id: id, has: typeof (Studio.sourceById(id) || {}).listSchema === "function" }; });
+    // PostgREST already answers GET / with a full OpenAPI doc (testData() checks
+    // for exactly this 200) — listSchema() reads its `definitions.<table>.properties`
+    // straight from that same document, no second query shape needed unlike the
+    // three ANSI-SQL adapters above. Runs against the real mock HTTP server (PG
+    // has a URL field, unlike Snowflake/Databricks, so no monkey-patch needed).
+    const pgSchema = await page.evaluate(async function () {
+      var pg = Studio.sourceById("postgrest");
+      var ok1 = await pg.listSchema({ url: location.origin + "/__postgrest" });
+      var authed = await pg.listSchema({ url: location.origin + "/__postgrest401" }); // bad token -> in-band error
+      return { ok1: ok1, authed: authed };
     });
-    ok("Schema browser: adapters without a safe unqualified/dialect-known query (BigQuery/DuckDB/SQLite/generic-HTTP/PostgREST) don't claim the capability",
+    ok("PG: listSchema reads the OpenAPI document's definitions into a table→columns tree",
+      pgSchema.ok1.tables.length === 2 &&
+      pgSchema.ok1.tables[0].name === "orders" && pgSchema.ok1.tables[0].schema === "public" &&
+      pgSchema.ok1.tables[0].columns.length === 3 &&
+      pgSchema.ok1.tables[0].columns[0].name === "region" && pgSchema.ok1.tables[0].columns[0].type === "text" &&
+      pgSchema.ok1.tables[1].name === "secure_orders" && pgSchema.ok1.tables[1].columns.length === 2,
+      JSON.stringify(pgSchema.ok1));
+    ok("PG: listSchema surfaces a rejected request as an in-band error, not a throw",
+      pgSchema.authed.tables.length === 0 && !!pgSchema.authed.error, JSON.stringify(pgSchema.authed));
+
+    const noSchemaAdapters = await page.evaluate(function () {
+      return ["bigquery", "duckdb", "sqlite", "httpsql"].map(function (id) { return { id: id, has: typeof (Studio.sourceById(id) || {}).listSchema === "function" }; });
+    });
+    ok("Schema browser: adapters without a safe unqualified/dialect-known query (BigQuery/DuckDB/SQLite/generic-HTTP) don't claim the capability",
       noSchemaAdapters.every(function (a) { return !a.has; }), JSON.stringify(noSchemaAdapters));
 
     // ---- CX UI: the "Browse schema" wizard panel (Redshift, against the same mock) ----
@@ -752,6 +792,32 @@ function serve() {
       return [].slice.call(document.querySelectorAll(".cx-schema-table")).filter(function (t) { return !t.hidden; }).length;
     });
     ok("CX: the schema panel's filter narrows the table list", cxSchemaFiltered === 1, "visible=" + cxSchemaFiltered);
+    await page.evaluate(function () { document.querySelector(".modal-ov .x").click(); });
+    await page.waitForTimeout(100);
+
+    // ---- CX UI: the same "Browse schema" wizard, driven by PostgREST this time
+    // (proves the panel is genuinely adapter-agnostic, not something that only
+    // happens to work for Redshift) ----
+    await page.click("#connNewBtn");
+    await page.waitForTimeout(120);
+    await page.evaluate(function () {
+      [].slice.call(document.querySelectorAll(".cx-src-card")).filter(function (c) { return c.querySelector("b").textContent === "PostgreSQL (PostgREST)"; })[0].click();
+    });
+    await page.waitForTimeout(100);
+    const cxPgSchemaBtnPresent = await page.evaluate(function () { return !!document.querySelector(".cx-schema-btn"); });
+    ok("CX: wizard shows a Browse schema button for PostgREST too", cxPgSchemaBtnPresent);
+    await page.evaluate(function () {
+      var f = [].slice.call(document.querySelectorAll(".cx-field input")); // name,url,token,schema
+      f[1].value = location.origin + "/__postgrest";
+    });
+    await page.click(".cx-schema-btn");
+    await page.waitForFunction(() => document.querySelectorAll(".cx-schema-table").length > 0, { timeout: 5000 });
+    const cxPgSchema = await page.evaluate(function () {
+      var tables = [].slice.call(document.querySelectorAll(".cx-schema-table"));
+      return { count: tables.length, names: tables.map(function (t) { return t.querySelector("summary b").textContent; }).sort().join(",") };
+    });
+    ok("CX: Browse schema renders PostgREST's OpenAPI-derived tables too",
+      cxPgSchema.count === 2 && cxPgSchema.names === "orders,secure_orders", JSON.stringify(cxPgSchema));
     await page.evaluate(function () { document.querySelector(".modal-ov .x").click(); });
     await page.waitForTimeout(100);
 
