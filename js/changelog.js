@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 395,
+    title: 'Named custom-theme presets',
+    kind: 'feature',
+    ts: '2026-07-19T10:52:44.000Z',
+    items: [
+      'Save an authored custom dashboard theme (the theme studio\'s Background/Panel/Text/Brand editor) by name and apply it to any other dashboard in one click, instead of re-picking all 8 colors every time.',
+      'Same save/apply/delete preset pattern as the existing Settings-page style presets and template-variable sets, scoped to the theme editor where custom themes are authored.',
+    ],
+  },
+  {
     v: 394,
     title: 'Track L sweep (duplication lens): shared PostgREST query-data helper',
     kind: 'fix',

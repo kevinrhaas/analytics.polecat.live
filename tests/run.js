@@ -15066,6 +15066,46 @@ function serve() {
     ok("Theme studio: exported HTML carries the edited custom seed color", ctEditOk.htmlHasCustomBg, JSON.stringify(ctEditOk));
     ok("Theme studio: a near-identical text/background pick shows the live contrast warning", ctEditOk.warnShown, JSON.stringify(ctEditOk));
 
+    // N-DESIGN follow-up (STATUS.md, "still open" after the theme-studio first cut): named,
+    // reusable custom-theme presets — save/apply/delete this dashboard's custom theme by name,
+    // same pattern as the Settings-page style presets/template-variable sets.
+    var ctpEmpty = await page.evaluate(function () { return !!document.querySelector(".ct-presets .sp-empty"); });
+    ok("Theme presets: starts empty", ctpEmpty, String(ctpEmpty));
+
+    await page.fill(".ct-presets #ctpNameInp", "Acme");
+    await page.click(".ct-presets #ctpSaveBtn");
+    await page.waitForTimeout(80);
+    var ctpSaved = await page.evaluate(function () {
+      var list = window.__studioCustomThemePresets();
+      var item = document.querySelector('.ct-presets .sp-item[data-id="' + (list[0] && list[0].id) + '"]');
+      return { count: list.length, name: list[0] && list[0].name, bg: list[0] && list[0].light.bg, text: list[0] && list[0].light.text, rendered: !!item };
+    });
+    ok("Theme presets: saving a preset captures the current custom theme colors under the given name",
+      ctpSaved.count === 1 && ctpSaved.name === "Acme" && ctpSaved.bg === "#202020" && ctpSaved.text === "#282828" && ctpSaved.rendered,
+      JSON.stringify(ctpSaved));
+
+    // change the live colors, then re-apply the saved preset to prove it restores the snapshot
+    await page.evaluate(function () {
+      var modes = document.querySelectorAll(".ct-mode");
+      var lightBg = modes[0].querySelectorAll(".ct-field input[type=color]")[0];
+      lightBg.value = "#010101"; lightBg.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await page.click(".ct-presets .sp-apply");
+    await page.waitForTimeout(80);
+    var ctpApplied = await page.evaluate(function () { return window.__STUDIO_STATE.spec.customTheme.light.bg; });
+    ok("Theme presets: Apply on a saved preset restores its colors onto the active dashboard", ctpApplied === "#202020", String(ctpApplied));
+
+    var ctpInKeys = await page.evaluate(function () { return window.__studioImportSettingsKeys.indexOf("studio-customtheme-presets") >= 0; });
+    ok("Theme presets: included in Settings export/import keys", ctpInKeys, String(ctpInKeys));
+
+    await page.click(".ct-presets .sp-del");
+    await page.waitForTimeout(80);
+    var ctpDeleted = await page.evaluate(function () { return { count: window.__studioCustomThemePresets().length, empty: !!document.querySelector(".ct-presets .sp-empty") }; });
+    ok("Theme presets: deleting a preset removes it from storage and the list goes back to empty", ctpDeleted.count === 0 && ctpDeleted.empty, JSON.stringify(ctpDeleted));
+
+    // clean up so later tests (which don't expect any saved presets) aren't affected
+    await page.evaluate(function () { localStorage.removeItem("studio-customtheme-presets"); });
+
     // normalize() round-trip (the exact bug class v193's headerLogo fix + the dashboardTheme
     // check above both guard against): a new scalar/object field silently dropped on reopen
     // because the whitelist in normalize() forgot it.
