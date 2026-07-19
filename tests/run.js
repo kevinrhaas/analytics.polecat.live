@@ -754,10 +754,36 @@ function serve() {
     ok("PG: listSchema surfaces a rejected request as an in-band error, not a throw",
       pgSchema.authed.tables.length === 0 && !!pgSchema.authed.error, JSON.stringify(pgSchema.authed));
 
-    const noSchemaAdapters = await page.evaluate(function () {
-      return ["bigquery", "duckdb", "sqlite", "httpsql"].map(function (id) { return { id: id, has: typeof (Studio.sourceById(id) || {}).listSchema === "function" }; });
+    // BigQuery: a default dataset makes INFORMATION_SCHEMA.COLUMNS reachable unqualified;
+    // with none set, the project.region-qualified view lists every dataset in that region.
+    // No configurable endpoint field (like Snowflake/Databricks), so query() is monkey-patched.
+    const bqSchema = await page.evaluate(async function () {
+      var bq = Studio.sourceById("bigquery");
+      var orig = Studio.BigQuery.query, captured = [];
+      Studio.BigQuery.query = function (cfg, sql) {
+        captured.push(sql);
+        return Promise.resolve({
+          cols: ["table_schema", "table_name", "column_name", "data_type"],
+          rows: [["analytics", "orders", "id", "INTEGER"], ["analytics", "orders", "region", "STRING"], ["analytics", "customers", "name", "STRING"]]
+        });
+      };
+      var withDataset = await bq.listSchema({ project: "my-proj", token: "t", dataset: "analytics" });
+      var withoutDataset = await bq.listSchema({ project: "my-proj", token: "t", location: "US" });
+      Studio.BigQuery.query = orig;
+      return { withDataset: withDataset, withoutDataset: withoutDataset, captured: captured };
     });
-    ok("Schema browser: adapters without a safe unqualified/dialect-known query (BigQuery/DuckDB/SQLite/generic-HTTP) don't claim the capability",
+    ok("BQ: listSchema queries an unqualified INFORMATION_SCHEMA.COLUMNS when a default dataset is set",
+      /^SELECT table_schema, table_name, column_name, data_type FROM INFORMATION_SCHEMA\.COLUMNS ORDER BY/.test(bqSchema.captured[0]) &&
+      bqSchema.withDataset.tables.length === 2 && bqSchema.withDataset.tables[0].name === "orders" && bqSchema.withDataset.tables[0].columns.length === 2,
+      JSON.stringify(bqSchema.captured[0]) + " / " + JSON.stringify(bqSchema.withDataset));
+    ok("BQ: listSchema falls back to the project.region-qualified view when no dataset is set",
+      /^SELECT table_schema, table_name, column_name, data_type FROM `my-proj`\.`region-us`\.INFORMATION_SCHEMA\.COLUMNS ORDER BY/.test(bqSchema.captured[1]) &&
+      bqSchema.withoutDataset.tables.length === 2, JSON.stringify(bqSchema.captured[1]));
+
+    const noSchemaAdapters = await page.evaluate(function () {
+      return ["duckdb", "sqlite", "httpsql"].map(function (id) { return { id: id, has: typeof (Studio.sourceById(id) || {}).listSchema === "function" }; });
+    });
+    ok("Schema browser: adapters without a safe unqualified/dialect-known query (DuckDB/SQLite/generic-HTTP) don't claim the capability",
       noSchemaAdapters.every(function (a) { return !a.has; }), JSON.stringify(noSchemaAdapters));
 
     // ---- CX UI: the "Browse schema" wizard panel (Redshift, against the same mock) ----

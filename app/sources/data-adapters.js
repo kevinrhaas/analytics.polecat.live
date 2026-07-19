@@ -38,13 +38,12 @@
   // the schema-browser half) --------------------------------------------------
   // List tables/columns for a connection via the SAME engine.query() bridge
   // queryData already uses: a plain ANSI information_schema.columns SELECT,
-  // grouped client-side into a table→columns tree. Only wired for the three
-  // warehouse adapters whose dialect makes an unqualified-or-database/catalog-
-  // qualified information_schema.columns reliable with no extra input beyond
-  // what the connection form already collects (Snowflake, Databricks,
-  // Redshift). BigQuery's INFORMATION_SCHEMA is dataset-qualified (needs its
-  // own query shape) and the remaining adapters (generic SQL/HTTP, DuckDB,
-  // SQLite, PostgREST) each have a different introspection story — follow-ups,
+  // grouped client-side into a table→columns tree. Wired for Snowflake,
+  // Databricks, Redshift and PostgREST already; BigQuery joins them here —
+  // its INFORMATION_SCHEMA is dataset-qualified (a default dataset makes it
+  // reachable unqualified; otherwise a project.region-qualified view lists
+  // every dataset in that region). The remaining adapters (generic SQL/HTTP,
+  // DuckDB, SQLite) each have their own introspection story — follow-ups,
   // tracked in STATUS.md rather than guessed at here.
   function groupSchemaRows(cols, rows) {
     var idx = {};
@@ -86,6 +85,20 @@
   function redshiftSchemaSql() {
     return "SELECT table_schema, table_name, column_name, data_type FROM information_schema.columns" +
       " WHERE table_schema NOT IN ('pg_catalog', 'information_schema')" + SCHEMA_ORDER;
+  }
+  // A default dataset makes INFORMATION_SCHEMA.COLUMNS reachable unqualified (runQuery already
+  // sends {defaultDataset} whenever cfg.dataset is set — same trick the query preview relies on).
+  // With no default dataset, fall back to the project.region-qualified view that lists every
+  // dataset in that region: `project`.`region-<location>`.INFORMATION_SCHEMA.COLUMNS.
+  function bigquerySchemaSql(cfg) {
+    var dataset = (cfg && cfg.dataset || "").trim();
+    if (dataset) {
+      return "SELECT table_schema, table_name, column_name, data_type FROM INFORMATION_SCHEMA.COLUMNS" + SCHEMA_ORDER;
+    }
+    var project = (cfg && cfg.project || "").trim();
+    var region = "region-" + ((cfg && cfg.location) || "US").trim().toLowerCase().replace(/\s+/g, "-");
+    var scope = quoteBacktick(project) + "." + quoteBacktick(region) + ".INFORMATION_SCHEMA.COLUMNS";
+    return "SELECT table_schema, table_name, column_name, data_type FROM " + scope + SCHEMA_ORDER;
   }
 
   function dataAdapter(def, engine, schemaSql) {
@@ -144,7 +157,7 @@
       { key: "dataset", label: "Default dataset", placeholder: "optional", type: "text" }
     ],
     docsUrl: "https://cloud.google.com/bigquery/docs/reference/rest/v2/jobs/query"
-  }, Studio.BigQuery);
+  }, Studio.BigQuery, bigquerySchemaSql);
 
   dataAdapter({
     id: "redshift", label: "Amazon Redshift", icon: "redshift", accent: "#8C4FFF",
