@@ -136,6 +136,26 @@
       });
     },
 
+    // Post-overhaul backlog item 5's schema-browser follow-up: unlike the SQL warehouses
+    // (which catalog many tables via information_schema), a DuckDB connection is always
+    // exactly one registered file, so the "tree" is a single table — named after the file,
+    // not the internal "t" view alias — described via the same DESCRIBE query testConnection()
+    // already runs. Goes through query() (not withView directly) so tests can monkey-patch it
+    // the same way the rest of this connector's tests already do.
+    listSchema: function (cfg) {
+      var fileUrl = String((cfg && cfg.fileUrl) || "").trim();
+      var name = fileUrl.split("/").pop().split("?")[0] || VIEW_NAME;
+      return Studio.DuckDB.query(cfg, "DESCRIBE SELECT * FROM " + VIEW_NAME).then(function (r) {
+        var idx = {}; (r.cols || []).forEach(function (c, i) { idx[String(c).toLowerCase()] = i; });
+        var columns = (r.rows || []).map(function (row) {
+          return { name: row[idx.column_name], type: row[idx.column_type] };
+        });
+        return { tables: [{ schema: null, name: name, columns: columns }] };
+      }).catch(function (e) {
+        return { tables: [], error: (e && e.message) || String(e) };
+      });
+    },
+
     // Runs `sql` (defaults to "SELECT * FROM t") against an in-memory table built from
     // `columns`/`rows` (a job pipeline's current state — the {columns, rows} shape every
     // adapter and the jobs engine already share). Rejects on failure, same contract as

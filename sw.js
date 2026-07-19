@@ -5,7 +5,15 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v41"; /* v41: post-overhaul backlog item 5
+var CACHE_NAME = "studio-shell-v42"; /* v42: post-overhaul backlog item 5
+   follow-up — DuckDB and SQLite join the schema browser: DuckDB's listSchema()
+   DESCRIBEs its single registered-file view (named after the file, not the "t"
+   alias); SQLite's lists every table via sqlite_master then PRAGMA table_info
+   per table — app/duckdb.js, app/sqlitehttp.js, app/sources/data-adapters.js
+   changed. Generic SQL/HTTP is the last adapter without the button (no
+   reliable dialect/catalog to introspect at all) — post-overhaul backlog item
+   5 is now closed except for that explicitly-out-of-scope case.
+   v41: post-overhaul backlog item 5
    follow-up — BigQuery joins Snowflake/Databricks/Redshift/PostgREST's schema
    browser: listSchema() queries INFORMATION_SCHEMA.COLUMNS unqualified when a
    default dataset is set, or the project.region-qualified view across every

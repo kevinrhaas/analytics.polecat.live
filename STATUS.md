@@ -1552,6 +1552,22 @@
 >    BigQuery has no configurable endpoint field for a mock HTTP server), suite 1601/1601. SW
 >    cache → v41. Genuinely still open: the three remaining adapters (generic SQL/HTTP, DuckDB,
 >    SQLite), each with its own introspection story.
+>    ✓ **DuckDB + SQLite follow-up shipped (2026-07-19, steward PR):** neither adapter speaks
+>    `information_schema`, so each grew its OWN `listSchema()` instead of an ANSI SQL string.
+>    DuckDB (`app/duckdb.js`) — a connection is always exactly one registered file, so the "tree"
+>    is a single table, named after the file (not the internal `t` view alias), described via the
+>    same `DESCRIBE SELECT * FROM t` query `testConnection()` already runs. SQLite
+>    (`app/sqlitehttp.js`) — a `.sqlite` file can hold many tables, so it lists ALL of them via
+>    `sqlite_master` (not just the one `cfg.tableName` a dataset happens to be bound to), then
+>    `PRAGMA table_info` per table. Both go through their adapter's own `query()` (not the private
+>    `withView`/`withDb` connection helpers) so tests can monkey-patch them the same way the rest
+>    of each connector's suite already does. `app/sources/data-adapters.js`'s `dataAdapter()`
+>    learned to wire an engine's own `listSchema` in directly when no ANSI `schemaSql` is given,
+>    so the two new adapters needed no wizard/render changes — `renderSchemaPanel`/the "Browse
+>    schema" button are adapter-agnostic already. 2 new tests, suite 1603/1603. SW cache → v42.
+>    **This closes out post-overhaul backlog item 5's schema browser entirely** — the only
+>    connector left without the button is Generic SQL/HTTP, which genuinely has no reliable
+>    dialect or catalog to introspect (an arbitrary JSON API, not necessarily even SQL).
 > 6. **Workspace polish**: ✓ **Saved views for the Datasets list shipped (2026-07-18, steward
 >    PR).** A search + adapter/tag pill combination can be named and kept as a chip
 >    (`dsxLoadViews`/`dsxSaveViews`/`dsxApplyView` in `app/studio.js`) — click the chip later to

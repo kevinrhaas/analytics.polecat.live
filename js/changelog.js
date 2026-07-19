@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 392,
+    title: 'DuckDB and SQLite join the schema browser',
+    kind: 'feature',
+    ts: '2026-07-19T07:10:48.000Z',
+    items: [
+      'Post-overhaul backlog item 5\'s "Browse schema" button (Connections wizard) now also works for DuckDB (remote file) and SQLite (remote .sqlite) connections. DuckDB describes the single registered file as one table, named after the file rather than the internal query alias. SQLite lists every table in the file via sqlite_master, then PRAGMA table_info per table -- not just the one table a dataset happens to be bound to.',
+      'This closes out post-overhaul backlog item 5\'s schema browser entirely -- the only connector left without the button is Generic SQL/HTTP, which has no reliable dialect or catalog to introspect at all (an arbitrary JSON API, not necessarily even SQL).',
+    ],
+  },
+  {
     v: 391,
     title: 'BigQuery joins the schema browser',
     kind: 'feature',

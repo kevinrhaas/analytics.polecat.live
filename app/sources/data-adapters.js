@@ -42,9 +42,12 @@
   // Databricks, Redshift and PostgREST already; BigQuery joins them here —
   // its INFORMATION_SCHEMA is dataset-qualified (a default dataset makes it
   // reachable unqualified; otherwise a project.region-qualified view lists
-  // every dataset in that region). The remaining adapters (generic SQL/HTTP,
-  // DuckDB, SQLite) each have their own introspection story — follow-ups,
-  // tracked in STATUS.md rather than guessed at here.
+  // every dataset in that region). DuckDB and SQLite have their OWN listSchema
+  // (app/duckdb.js, app/sqlitehttp.js) — neither speaks information_schema, so
+  // dataAdapter() below wires those in directly instead of building ANSI SQL.
+  // Generic SQL/HTTP has no reliable dialect or catalog to introspect at all
+  // (it's an arbitrary JSON API, not necessarily even SQL) — genuinely no
+  // introspection story, tracked as such in STATUS.md.
   function groupSchemaRows(cols, rows) {
     var idx = {};
     (cols || []).forEach(function (c, i) { idx[String(c).toLowerCase()] = i; });
@@ -117,6 +120,7 @@
     def.load = function () { return Promise.resolve(Studio.WS.emptySnapshot()); };
     def.save = function () { return Promise.resolve({ ok: false, error: "Not a workspace backend" }); };
     if (schemaSql) def.listSchema = ansiListSchema(engine, schemaSql);
+    else if (engine && typeof engine.listSchema === "function") def.listSchema = engine.listSchema;
     Studio.registerSource(def);
   }
 
