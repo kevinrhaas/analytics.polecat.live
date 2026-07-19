@@ -5,7 +5,10 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v43"; /* v43: N-DESIGN theme studio first cut —
+var CACHE_NAME = "studio-shell-v44"; /* v44: N-DESIGN theme studio follow-up —
+   named custom-theme presets (save/apply/delete an authored custom theme by
+   name, reuse across dashboards) — app/studio.js changed.
+   v43: N-DESIGN theme studio first cut —
    a "Custom" dashboard-theme swatch lets the author pick 4 seed colors per
    light/dark mode and Studio.deriveCustomTheme() derives the rest, baked into
    the export exactly like a built-in preset — app/model.js, app/exporters.js,

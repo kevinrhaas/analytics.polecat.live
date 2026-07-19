@@ -2621,6 +2621,49 @@
         ctWrap.appendChild(modeWrap);
       });
       sec.appendChild(field("Custom theme colors", ctWrap, "Everything else (borders, subtle fills, sidebar, series accent) is derived automatically from these 4 colors, the same way each curated preset relates its own tokens."));
+
+      // Theme presets: save this dashboard's custom theme by name, reuse it on any other
+      // dashboard — same sp-list/sp-item UI (and CSS) as the Settings-page style presets.
+      var ctpWrap = el("div"); ctpWrap.className = "ct-presets";
+      var ctpList = el("div"); ctpList.className = "sp-list";
+      var ctpPresetsNow = customThemePresets();
+      if (ctpPresetsNow.length) {
+        ctpPresetsNow.forEach(function (p) {
+          var item = el("div"); item.className = "sp-item"; item.setAttribute("data-id", p.id);
+          var sw = el("span"); sw.className = "sp-swatch"; sw.style.background = p.light.brand || "#005bb5";
+          var name = el("span"); name.className = "sp-name"; name.textContent = p.name;
+          var applyBtn = el("button"); applyBtn.type = "button"; applyBtn.className = "btn sp-apply";
+          applyBtn.textContent = "Apply";
+          applyBtn.onclick = function () {
+            applyCustomThemePreset(p.id, sp); refreshPreview(); renderInspector();
+            toast("Preset “" + p.name + "” applied");
+          };
+          var delBtn = el("button"); delBtn.type = "button"; delBtn.className = "icobtn danger sp-del";
+          delBtn.setAttribute("aria-label", "Delete preset " + p.name);
+          delBtn.appendChild(Studio.icon("trash", 13));
+          delBtn.onclick = function () { deleteCustomThemePreset(p.id); renderInspector(); };
+          item.appendChild(sw); item.appendChild(name); item.appendChild(applyBtn); item.appendChild(delBtn);
+          ctpList.appendChild(item);
+        });
+      } else {
+        var ctpEmpty = el("div"); ctpEmpty.className = "sp-empty"; ctpEmpty.textContent = "No saved theme presets yet.";
+        ctpList.appendChild(ctpEmpty);
+      }
+      ctpWrap.appendChild(ctpList);
+      var ctpAddRow = el("div"); ctpAddRow.className = "sp-add-row";
+      var ctpNameInp = el("input"); ctpNameInp.type = "text"; ctpNameInp.id = "ctpNameInp"; ctpNameInp.className = "set-txt";
+      ctpNameInp.placeholder = "Preset name, e.g. Acme Corp";
+      var ctpSaveBtn = el("button"); ctpSaveBtn.type = "button"; ctpSaveBtn.id = "ctpSaveBtn"; ctpSaveBtn.className = "btn";
+      ctpSaveBtn.textContent = "+ Save as preset";
+      ctpSaveBtn.onclick = function () {
+        var name = (ctpNameInp.value || "").trim(); if (!name) { ctpNameInp.focus(); return; }
+        addCustomThemePreset(name, sp.customTheme); renderInspector();
+        toast("Saved preset “" + name + "”");
+      };
+      ctpNameInp.addEventListener("keydown", function (e) { if (e.key === "Enter") ctpSaveBtn.click(); });
+      ctpAddRow.appendChild(ctpNameInp); ctpAddRow.appendChild(ctpSaveBtn);
+      ctpWrap.appendChild(ctpAddRow);
+      sec.appendChild(field("Theme presets", ctpWrap, "Save this custom theme by name to reuse on other dashboards, or apply/delete a previously saved one."));
     }
 
     // H-track: Dashboard accent color — per-dashboard --pentaho override.
@@ -7458,7 +7501,7 @@
     "studio-insp-collapsed", "studio-shell-section", "studio-shell-expanded", "studio-branding",
     "studio-default-subtitle", "studio-default-accent", "studio-default-logo", "studio-default-headerbg",
     "studio-default-titlesize", "studio-default-subtitlestyle", "studio-default-dashboardtheme", "studio-default-cardskin", "studio-style-presets",
-    "studio-deploy-path", "studio-templatevar-sets"
+    "studio-deploy-path", "studio-templatevar-sets", "studio-customtheme-presets"
   ];
 
   // Z5 follow-up: deploy target config. S.settings.{deployPath,live} used to be in-memory-only
@@ -7587,6 +7630,36 @@
     return true;
   }
   window.__studioTemplateVarSets = templateVarSets; // test hook
+  // N-DESIGN follow-up (theme studio, STATUS.md "still open" after the first-cut ship): named,
+  // reusable custom-theme presets — same save/apply/delete pattern as stylePresets/
+  // templateVarSets above, so an authored custom theme can be saved once and applied to any
+  // other dashboard instead of re-picking 8 colors every time.
+  function customThemePresets() {
+    var v; try { v = localStorage.getItem("studio-customtheme-presets"); } catch (e) {}
+    try { return v ? JSON.parse(v) : []; } catch (e) { return []; }
+  }
+  function saveCustomThemePresetList(list) { try { localStorage.setItem("studio-customtheme-presets", JSON.stringify(list)); } catch (e) {} }
+  function addCustomThemePreset(name, customTheme) {
+    var list = customThemePresets();
+    list.push({
+      id: "ct" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name: name,
+      light: { bg: customTheme.light.bg, panel: customTheme.light.panel, text: customTheme.light.text, brand: customTheme.light.brand },
+      dark: { bg: customTheme.dark.bg, panel: customTheme.dark.panel, text: customTheme.dark.text, brand: customTheme.dark.brand }
+    });
+    saveCustomThemePresetList(list);
+    return list;
+  }
+  function deleteCustomThemePreset(id) { saveCustomThemePresetList(customThemePresets().filter(function (p) { return p.id !== id; })); }
+  function applyCustomThemePreset(id, sp) {
+    var p = customThemePresets().filter(function (x) { return x.id === id; })[0];
+    if (!p) return false;
+    sp.customTheme = {
+      light: { bg: p.light.bg, panel: p.light.panel, text: p.light.text, brand: p.light.brand },
+      dark: { bg: p.dark.bg, panel: p.dark.panel, text: p.dark.text, brand: p.dark.brand }
+    };
+    return true;
+  }
+  window.__studioCustomThemePresets = customThemePresets; // test hook
   function applyDashboardDefaults(spec) {
     var sub = defaultSubtitle(); if (sub && !spec.subtitle) spec.subtitle = sub;
     var acc = defaultAccentColor(); if (acc) spec.themeColor = acc;
@@ -8411,7 +8484,7 @@
     "studio-default-titlesize", "studio-default-subtitlestyle", "studio-default-dashboardtheme", "studio-default-cardskin", "studio-style-presets",
     "studio-cmdk-usage", "studio-first-export-done", "studio-export-count", "studio-dash-count",
     "studio-deploy-path", "studio-templatevar-sets", "studio-da-freshness",
-    "studio-canvas-notes", "studio-health-celebrated",
+    "studio-canvas-notes", "studio-health-celebrated", "studio-customtheme-presets",
     // Track L sweep (dead/orphaned-key lens): "studio-k8-dismissed" (the Simple-mode "What's
     // next?" onboarding card's dismissal flag) was written on dismiss but never wiped here — the
     // exact "new key, forgot Clear local data" gap the v194/v235/v281 notes above already

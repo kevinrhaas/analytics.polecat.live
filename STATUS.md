@@ -3889,6 +3889,20 @@ gets covered over time:
 > multiple dashboards (today it's authored per-dashboard; sharing/exporting one dashboard already
 > carries its custom theme, per above) — a natural follow-up using the same named-preset-collection
 > pattern `studio-style-presets`/`studio-templatevar-sets` already established.
+> ✓ **Named custom-theme presets shipped (2026-07-19, steward PR) — closes the "still open" item
+> above.** `customThemePresets()`/`addCustomThemePreset()`/`deleteCustomThemePreset()`/
+> `applyCustomThemePreset()` in `app/studio.js` — the exact same shape as `stylePresets`/
+> `templateVarSets` (a named array under one `studio-customtheme-presets` localStorage key, add/
+> apply/delete, no server). A new "Theme presets" field sits right below the custom theme color
+> editor (only visible while `dashboardTheme==="custom"`), reusing the Settings-page style-presets'
+> `sp-list`/`sp-item`/`sp-add-row` CSS as-is (no new styles needed — the list/item/add-row look
+> already generalizes). Applying a preset overwrites `spec.customTheme` on the currently open
+> dashboard only — presets themselves aren't part of any dashboard's spec, so saving/sharing/
+> exporting one dashboard still carries only its own authored theme, exactly as before. Added to
+> `SETTINGS_DATA_KEYS` (export/import) and `CLEAR_DATA_KEYS` (the recurring "new key, forgot Clear
+> local data" gap Track L keeps finding — caught proactively here instead). SW cache → v44. 5 new
+> tests (empty state, save captures the live-edited colors, Apply restores them after a subsequent
+> edit, Settings export/import key inclusion, delete-returns-to-empty), suite 1619/1619.
 
 **N-DEV — Power-user & authoring.**
 - **Live JSON spec editor:** ✓ shipped v267, see below.
