@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 394,
+    title: 'Track L sweep (duplication lens): shared PostgREST query-data helper',
+    kind: 'fix',
+    ts: '2026-07-19T09:10:40.000Z',
+    items: [
+      'app/sources/postgrest.js and app/sources/supabase.js each carried a byte-identical private copy of the table+query-string to {columns,rows} conversion their queryData used, since Supabase\'s REST API IS PostgREST -- a future tweak to one could have silently drifted from the other.',
+      'Extracted a shared Studio.WS.postgrestQueryData(restFn, cfg, dataset) helper in app/sources/schema.js; both adapters now call it, passing their own rest() fetch wrapper so each adapter\'s distinct base URL / auth-header / error-message behavior is untouched. Pure refactor, no behavior change -- suite unchanged at 1614/1614.',
+    ],
+  },
+  {
     v: 393,
     title: 'Custom dashboard themes',
     kind: 'feature',

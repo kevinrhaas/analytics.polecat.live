@@ -191,5 +191,30 @@
     });
   };
 
+  // ---- PostgREST-shaped data-plane helper ----------------------------------
+  // Shared by every adapter whose DATA plane literally IS PostgREST
+  // (sources/postgrest.js and sources/supabase.js — Supabase's REST API is
+  // PostgREST) — both had byte-identical copies of this table+query-string →
+  // {columns,rows} conversion (found in a Track L duplication-lens sweep).
+  // `restFn` is the caller's own `rest(cfg, path)` fetch wrapper, so each
+  // adapter's distinct base URL / auth-header / error-message behavior stays
+  // exactly where it was; only the response-shaping tail is shared.
+  // dataset: { kind:'table', table, query? } — `query` a raw PostgREST query
+  // string (e.g. "select=name,total&order=total.desc&limit=200").
+  WS.postgrestQueryData = function (restFn, cfg, dataset) {
+    var table = (dataset && dataset.table || "").trim();
+    if (!table) return Promise.resolve({ columns: [], rows: [], error: "Dataset has no table" });
+    var qs = (dataset.query || "select=*").replace(/^\?/, "");
+    return restFn(cfg, "/" + encodeURIComponent(table) + "?" + qs).then(function (r) {
+      if (!r.ok) return { columns: [], rows: [], error: "HTTP " + r.status };
+      return r.json().then(function (list) {
+        if (!Array.isArray(list) || !list.length) return { columns: [], rows: [] };
+        var columns = Object.keys(list[0]);
+        var rows = list.map(function (o) { return columns.map(function (c) { return o[c]; }); });
+        return { columns: columns, rows: rows };
+      });
+    }).catch(function (e) { return { columns: [], rows: [], error: e.message }; });
+  };
+
   Studio.WS = WS;
 }());

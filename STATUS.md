@@ -3001,6 +3001,21 @@ gets covered over time:
   `Studio.defineChart({type, render, opts, thumb, autoPick})` contract so new types are uniform and testable.
 - **Test health** — coverage per feature, flaky/slow checks, and a fast smoke subset for quick loops.
 > **Findings log (append newest on top; keep short):**
+> - **Fixed shipped v394 (duplication lens, first real pass since v304):** `app/sources/postgrest.js`
+>   and `app/sources/supabase.js` each carried a byte-identical private copy of the table+query-string
+>   → `{columns,rows}` conversion their `queryData` used — unsurprising since Supabase's REST API IS
+>   PostgREST (postgrest.js's own header comment says as much), but the sharing was never actually
+>   wired up. Extracted `Studio.WS.postgrestQueryData(restFn, cfg, dataset)` into `app/sources/schema.js`
+>   (the existing backend-agnostic adapter-helper home, alongside `applyParams` etc.); both adapters now
+>   call it, passing their own `rest()` fetch wrapper so each adapter's distinct base URL / auth-header /
+>   error-message behavior (confirmed genuinely different — Supabase throws on 401/403, PostgREST
+>   doesn't; different base-path suffixing) stays exactly where it was. Pure extraction, no behavior
+>   change — suite unchanged at 1614/1614 (existing PG/Supabase queryData coverage exercises both
+>   call sites through the shared helper already). Audited the rest of `app/sources/*.js` +
+>   `app/{snowflake,databricks,bigquery,redshift,duckdb,sqlitehttp}.js` for the same pattern
+>   (poll-loop scaffolding, header building, error formatting) — the Snowflake/Databricks
+>   `runStatement` poll loops looked structurally parallel but their JSON response shapes and error
+>   paths genuinely differ per vendor API, so left alone rather than forcing an unsafe merge.
 > - **Fixed shipped v389 (orphaned-key lens, round 3 — same technique as v313/v322):** grepped every
 >   `localStorage.setItem`/`getItem` call across ALL of `app/*.js` + `app/sources/*.js` again and
 >   diffed against `CLEAR_DATA_KEYS`. Found five more real gaps: three UI-preference flags in
