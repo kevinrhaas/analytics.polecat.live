@@ -97,18 +97,7 @@
     // query string (e.g. "select=region,total&order=total.desc&limit=200");
     // {{params}} in both are applied upstream by dsxRunnableDef.
     queryData: function (cfg, dataset) {
-      var table = (dataset && dataset.table || "").trim();
-      if (!table) return Promise.resolve({ columns: [], rows: [], error: "Dataset has no table" });
-      var qs = (dataset.query || "select=*").replace(/^\?/, "");
-      return rest(cfg, "/" + encodeURIComponent(table) + "?" + qs).then(function (r) {
-        if (!r.ok) return { columns: [], rows: [], error: "HTTP " + r.status };
-        return r.json().then(function (list) {
-          if (!Array.isArray(list) || !list.length) return { columns: [], rows: [] };
-          var columns = Object.keys(list[0]);
-          var rows = list.map(function (o) { return columns.map(function (c) { return o[c]; }); });
-          return { columns: columns, rows: rows };
-        });
-      }).catch(function (e) { return { columns: [], rows: [], error: e.message }; });
+      return Studio.WS.postgrestQueryData(rest, cfg, dataset);
     },
 
     // ---- meta plane: honest refusals (same shape as data-adapters.js) -------
