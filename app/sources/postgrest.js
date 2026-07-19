@@ -37,6 +37,34 @@
     });
   }
 
+  // Schema browser (post-overhaul backlog item 5 follow-up, "dataset delight" —
+  // the schema-browser half): PostgREST already answers GET / with a full
+  // OpenAPI description of every exposed table/view (the same document
+  // testData() above checks for a 200) — no second query shape needed, unlike
+  // the warehouse adapters' information_schema.columns SELECT
+  // (data-adapters.js). Each table's columns live at
+  // `definitions.<table>.properties.<column>` (OpenAPI 2.0 shape, which is
+  // what PostgREST emits); a Postgres type name rides `format` when present
+  // (e.g. "int4", "text") and falls back to the plainer JSON-Schema `type`.
+  function listSchema(cfg) {
+    var schema = (cfg.schema || "").trim() || "public"; // the single exposed schema (Accept-Profile)
+    return rest(cfg, "/").then(function (r) {
+      if (!r.ok) return { tables: [], error: "HTTP " + r.status + (r.status === 401 || r.status === 403 ? " — check the Bearer token" : "") };
+      return r.json().then(function (doc) {
+        var defs = (doc && doc.definitions) || {};
+        var tables = Object.keys(defs).sort().map(function (name) {
+          var props = (defs[name] && defs[name].properties) || {};
+          var columns = Object.keys(props).map(function (c) {
+            var p = props[c] || {};
+            return { name: c, type: p.format || p.type || "" };
+          });
+          return { schema: schema, name: name, columns: columns };
+        });
+        return { tables: tables };
+      });
+    }).catch(function (e) { return { tables: [], error: e.message }; });
+  }
+
   Studio.registerSource({
     id: "postgrest",
     label: "PostgreSQL (PostgREST)",
@@ -54,6 +82,7 @@
         hint: "Optional — sent as Accept-Profile for multi-schema PostgREST deployments." }
     ],
     docsUrl: "https://postgrest.org/en/stable/references/api.html",
+    listSchema: listSchema,
 
     // ---- data plane ---------------------------------------------------------
     testData: function (cfg) {

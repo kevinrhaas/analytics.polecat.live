@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 390,
+    title: 'PostgREST joins the schema browser',
+    kind: 'feature',
+    ts: '2026-07-19T02:03:21.000Z',
+    items: [
+      'Post-overhaul backlog item 5\'s "Browse schema" button (Connections wizard) now also works for PostgreSQL (PostgREST) connections -- it reads the table/column list straight out of the OpenAPI document PostgREST already answers GET / with (the same one Test connection checks for), so no second credential-hungry query shape was needed the way the three ANSI-SQL warehouse adapters required.',
+      'Same filterable, per-table-expandable tree as Snowflake/Databricks/Redshift -- the wizard panel is fully adapter-agnostic already, so this was a one-file change to app/sources/postgrest.js.',
+    ],
+  },
+  {
     v: 389,
     title: 'Clear local data now wipes five more orphaned keys',
     kind: 'fix',

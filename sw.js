@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v39"; /* v39: Track L sweep (orphaned-key lens,
+var CACHE_NAME = "studio-shell-v40"; /* v40: post-overhaul backlog item 5
+   follow-up — PostgREST joins Snowflake/Databricks/Redshift's schema browser:
+   listSchema() reads the table/column list straight out of the OpenAPI
+   document PostgREST already answers GET / with (no second query shape
+   needed, unlike the ANSI-SQL adapters) — app/sources/postgrest.js changed.
+   v39: Track L sweep (orphaned-key lens,
    round 3) — "Clear local data" was missing five real keys: studio-show-
    samples/studio-lib-samples-open/studio-dash-view (app/studio.js UI-
    preference flags) and analytics.datasource.v1/analytics.datasource.secret.v1
