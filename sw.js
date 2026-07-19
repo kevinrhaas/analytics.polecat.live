@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v45"; /* v45: post-overhaul backlog item 3
+var CACHE_NAME = "studio-shell-v46"; /* v46: post-overhaul backlog item 7
+   follow-up — the Datasets list gains a "by connection" filter pill strip
+   (multi-select, saved-view aware) alongside the existing by-adapter and
+   by-tag strips, so two connections on the same adapter (e.g. two Postgres
+   DBs) can be narrowed to just one. app/studio.js changed.
+   v45: post-overhaul backlog item 3
    follow-up — exported/deployed dashboards can now query the four
    credential-based direct connectors (Snowflake/Databricks/BigQuery/Generic
    SQL) live, joining DuckDB/SQLite's existing runtime path: exporters.js

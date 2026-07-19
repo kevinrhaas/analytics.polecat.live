@@ -6324,9 +6324,10 @@
      ({{key}} placeholders resolve at run time — dashboard template variables
      and per-dataset defaults). Workspace-level and reusable: the Studio
      library lists them for drag-to-canvas, and this view manages the catalog
-     with the fleet's list UX (multi-select pills by adapter AND by tag,
-     search, status dot from the last preview run). */
+     with the fleet's list UX (multi-select pills by adapter, by connection,
+     AND by tag, search, status dot from the last preview run). */
   var _dsxAdapterFilter = {}; // multi-select adapterId -> true; empty = all
+  var _dsxConnFilter = {};    // multi-select connectionId -> true; empty = all (post-overhaul backlog item 7, "by connection")
   var _dsxTagFilter = {};     // multi-select tag -> true; empty = all
   function dsxConnOf(d) { return Studio.Workspace.get("connections", d.connectionId); }
   function dsxAdapterOf(d) { var c = dsxConnOf(d); return c ? Studio.sourceById(c.adapter) : null; }
@@ -6342,6 +6343,7 @@
   function dsxApplyView(v) {
     var inp = $("#dsxSearch"); if (inp) inp.value = v.q || "";
     _dsxAdapterFilter = {}; (v.adapters || []).forEach(function (a) { _dsxAdapterFilter[a] = true; });
+    _dsxConnFilter = {}; (v.connections || []).forEach(function (c) { _dsxConnFilter[c] = true; });
     _dsxTagFilter = {}; (v.tags || []).forEach(function (t) { _dsxTagFilter[t] = true; });
     renderDatasets();
   }
@@ -6413,21 +6415,40 @@
       if (a.pinned) return (b.pinnedAt || "").localeCompare(a.pinnedAt || "");
       return (b.updatedAt || 0) - (a.updatedAt || 0);
     });
-    var adapterCounts = {}, tagCounts = {};
+    var adapterCounts = {}, connCounts = {}, tagCounts = {};
     list.forEach(function (d) {
       var src = dsxAdapterOf(d);
       var aid = src ? src.id : "—";
       adapterCounts[aid] = (adapterCounts[aid] || 0) + 1;
+      var cid = d.connectionId || "—";
+      connCounts[cid] = (connCounts[cid] || 0) + 1;
       (d.tags || []).forEach(function (t) { tagCounts[t] = (tagCounts[t] || 0) + 1; });
     });
     Object.keys(_dsxAdapterFilter).forEach(function (k) { if (!adapterCounts[k]) delete _dsxAdapterFilter[k]; });
+    Object.keys(_dsxConnFilter).forEach(function (k) { if (!connCounts[k]) delete _dsxConnFilter[k]; });
     Object.keys(_dsxTagFilter).forEach(function (k) { if (!tagCounts[k]) delete _dsxTagFilter[k]; });
-    var anyA = Object.keys(_dsxAdapterFilter).length > 0, anyT = Object.keys(_dsxTagFilter).length > 0;
+    var anyA = Object.keys(_dsxAdapterFilter).length > 0, anyC = Object.keys(_dsxConnFilter).length > 0, anyT = Object.keys(_dsxTagFilter).length > 0;
     var pillsA = Object.keys(adapterCounts).sort().map(function (aid) {
       var src = Studio.sourceById(aid) || { label: aid === "—" ? "No connection" : aid };
       return '<button type="button" class="wb-chip cx-pill' + (_dsxAdapterFilter[aid] ? " active" : "") + '" data-dsx-adapter="' + esc(aid) + '" aria-pressed="' + (_dsxAdapterFilter[aid] ? "true" : "false") + '">' +
         '<span class="cx-pill-dot" style="background:' + esc(src.accent || "var(--faint)") + '"></span>' +
         '<span class="wb-chip-label">' + esc(src.label) + '</span> <span class="wb-chip-n">' + adapterCounts[aid] + '</span></button>';
+    }).join("");
+    // Post-overhaul backlog item 7 ("organization at scale") — the by-adapter
+    // pills above group e.g. two different Postgres connections together;
+    // this facet narrows to ONE specific connection (same multi-select /
+    // saved-view plumbing, just keyed by connectionId instead of adapter id).
+    var pillsC = Object.keys(connCounts).sort(function (a, b) {
+      var na = a === "—" ? "No connection" : ((Studio.Workspace.get("connections", a) || {}).name || a);
+      var nb = b === "—" ? "No connection" : ((Studio.Workspace.get("connections", b) || {}).name || b);
+      return na.localeCompare(nb);
+    }).map(function (cid) {
+      var conn = cid === "—" ? null : Studio.Workspace.get("connections", cid);
+      var src = conn ? Studio.sourceById(conn.adapter) : null;
+      var label = conn ? conn.name : "No connection";
+      return '<button type="button" class="wb-chip cx-pill' + (_dsxConnFilter[cid] ? " active" : "") + '" data-dsx-conn="' + esc(cid) + '" aria-pressed="' + (_dsxConnFilter[cid] ? "true" : "false") + '">' +
+        '<span class="cx-pill-dot" style="background:' + esc((src && src.accent) || "var(--faint)") + '"></span>' +
+        '<span class="wb-chip-label">' + esc(label) + '</span> <span class="wb-chip-n">' + connCounts[cid] + '</span></button>';
     }).join("");
     var pillsT = Object.keys(tagCounts).sort().map(function (t) {
       return '<button type="button" class="wb-chip cx-pill' + (_dsxTagFilter[t] ? " active" : "") + '" data-dsx-tag="' + esc(t) + '" aria-pressed="' + (_dsxTagFilter[t] ? "true" : "false") + '">' +
@@ -6441,7 +6462,7 @@
         '<button type="button" class="wb-chip-del" data-dsx-view-del="' + esc(v.id) + '" title="Delete view ' + esc(v.name) + '" aria-label="Delete view ' + esc(v.name) + '"></button>' +
         '</div>';
     }).join("");
-    var canSaveView = !!(q || anyA || anyT);
+    var canSaveView = !!(q || anyA || anyC || anyT);
     var viewAddHtml = canSaveView
       ? '<span class="wb-add"><input type="text" id="dsxViewNameInp" class="wb-name-inp" placeholder="Name this view…" aria-label="Name this saved view"/>' +
         '<button type="button" class="btn" id="dsxViewAddBtn">+ Save view</button></span>'
@@ -6449,6 +6470,7 @@
     var shown = list.filter(function (d) {
       var src = dsxAdapterOf(d);
       if (anyA && !_dsxAdapterFilter[src ? src.id : "—"]) return false;
+      if (anyC && !_dsxConnFilter[d.connectionId || "—"]) return false;
       if (anyT && !(d.tags || []).some(function (t) { return _dsxTagFilter[t]; })) return false;
       if (!q) return true;
       var conn = dsxConnOf(d);
@@ -6483,22 +6505,31 @@
         '</span></div>';
     });
     results.innerHTML =
-      (pillsA || pillsT || pillsV || viewAddHtml ? '<div class="wb-chips cx-pills">' +
-        pillsV + (pillsV && (pillsA || pillsT) ? '<span class="dsx-pill-sep"></span>' : "") +
-        pillsA + (pillsT ? '<span class="dsx-pill-sep"></span>' + pillsT : "") +
-        (anyA || anyT ? '<button type="button" class="wb-chip" id="dsxPillClear" title="Show everything">Clear</button>' : "") +
+      (pillsA || pillsC || pillsT || pillsV || viewAddHtml ? '<div class="wb-chips cx-pills">' +
+        pillsV + (pillsV && (pillsA || pillsC || pillsT) ? '<span class="dsx-pill-sep"></span>' : "") +
+        pillsA + (pillsA && (pillsC || pillsT) ? '<span class="dsx-pill-sep"></span>' : "") +
+        pillsC + (pillsC && pillsT ? '<span class="dsx-pill-sep"></span>' : "") +
+        pillsT +
+        (anyA || anyC || anyT ? '<button type="button" class="wb-chip" id="dsxPillClear" title="Show everything">Clear</button>' : "") +
         viewAddHtml + '</div>' : "") +
       (rows.length ? '<div class="cx-list">' + rows.join("") + '</div>'
         : '<div class="cx-empty">' +
-            (q || anyA || anyT ? "No datasets match." :
+            (q || anyA || anyC || anyT ? "No datasets match." :
               "<b>No datasets yet.</b><br/>A dataset is a named query on top of a connection — SQL for warehouses and files, a table for Supabase, a collection for Firestore — with optional {{parameters}} a dashboard can fill in at run time." +
               (Studio.Workspace.all("connections").length ? "" : "<br/>Start by adding a connection in the Connections section.")) +
-            (q || anyA || anyT || !Studio.Workspace.all("connections").length ? "" : '<br/><button type="button" class="btn primary" id="dsxEmptyNew">+ New dataset</button>') +
+            (q || anyA || anyC || anyT || !Studio.Workspace.all("connections").length ? "" : '<br/><button type="button" class="btn primary" id="dsxEmptyNew">+ New dataset</button>') +
           '</div>');
     $$("[data-dsx-adapter]", results).forEach(function (btn) {
       btn.onclick = function () {
         var k = btn.getAttribute("data-dsx-adapter");
         if (_dsxAdapterFilter[k]) delete _dsxAdapterFilter[k]; else _dsxAdapterFilter[k] = true;
+        renderDatasets();
+      };
+    });
+    $$("[data-dsx-conn]", results).forEach(function (btn) {
+      btn.onclick = function () {
+        var k = btn.getAttribute("data-dsx-conn");
+        if (_dsxConnFilter[k]) delete _dsxConnFilter[k]; else _dsxConnFilter[k] = true;
         renderDatasets();
       };
     });
@@ -6510,7 +6541,7 @@
       };
     });
     var clearBtn = $("#dsxPillClear", results);
-    if (clearBtn) clearBtn.onclick = function () { _dsxAdapterFilter = {}; _dsxTagFilter = {}; renderDatasets(); };
+    if (clearBtn) clearBtn.onclick = function () { _dsxAdapterFilter = {}; _dsxConnFilter = {}; _dsxTagFilter = {}; renderDatasets(); };
     $$("[data-dsx-view]", results).forEach(function (btn) {
       btn.onclick = function () {
         var v = dsxLoadViews().filter(function (x) { return x.id === btn.getAttribute("data-dsx-view"); })[0];
@@ -6537,7 +6568,7 @@
       if (!name) { if (inp) inp.focus(); toast("Type a name in the box first — e.g. “Finance sources”.", true); return; }
       var list = dsxLoadViews();
       var rawQ = (($("#dsxSearch") || {}).value || "");
-      list.unshift({ id: "dsxv" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name: name, q: rawQ, adapters: Object.keys(_dsxAdapterFilter), tags: Object.keys(_dsxTagFilter) });
+      list.unshift({ id: "dsxv" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name: name, q: rawQ, adapters: Object.keys(_dsxAdapterFilter), connections: Object.keys(_dsxConnFilter), tags: Object.keys(_dsxTagFilter) });
       dsxSaveViews(list);
       toast('View "' + name + '" saved');
       renderDatasets();

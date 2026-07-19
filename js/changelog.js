@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 397,
+    title: 'Filter Datasets by connection, not just by adapter',
+    kind: 'feature',
+    ts: '2026-07-19T12:35:21.000Z',
+    items: [
+      'New "by connection" filter chips on the Datasets list, alongside the existing by-adapter and by-tag ones — useful once you have two connections on the same adapter (e.g. a Prod and a Staging Postgres) and want to see just one\'s datasets.',
+      'Works with saved views like the other filters: save a search/filter combo under a name and reapply it in one click.',
+    ],
+  },
+  {
     v: 396,
     title: 'Exported dashboards can query Snowflake/Databricks/BigQuery/Generic SQL live too',
     kind: 'feature',
