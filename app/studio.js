@@ -289,9 +289,20 @@
   // substituting categorical slots would break that read.
   // The accent a dashboard gets when its Accent color is left on "Theme default" —
   // whatever --pentaho its whole-look theme defines (classic → the original blue).
-  function themeDefaultAccent(themeKey) {
-    var tk = Studio.resolveThemeTokens(themeKey || "classic", S.theme === "dark" ? "dark" : "light");
+  function themeDefaultAccent(themeKey, customTheme) {
+    var mode = S.theme === "dark" ? "dark" : "light";
+    if (themeKey === "custom" && customTheme) return Studio.deriveCustomTheme(customTheme)[mode]["--pentaho"];
+    var tk = Studio.resolveThemeTokens(themeKey || "classic", mode);
     return (tk && tk["--pentaho"]) || "#005bb5";
+  }
+  // N-DESIGN theme studio: live "will this read okay?" hint for the Custom theme editor —
+  // no curated, dataviz-skill-validated ramp exists for user-authored colors, so a plain WCAG
+  // contrast-ratio check against the background is the honest substitute (advisory, not blocking:
+  // same posture as the built-in presets' own legal WARN-band contrast slots).
+  function ctContrastHint(seedMode) {
+    var ratio = Studio.contrastRatio(seedMode.text, seedMode.bg);
+    if (ratio >= 4.5) return "";
+    return '<span class="ct-warn">⚠ Text/background contrast is ' + ratio.toFixed(1) + ':1 — below the 4.5:1 WCAG AA minimum for body text.</span>';
   }
   var THEMED_SVG_SKIP = { pareto: 1 };
   function themedChartSvg(svg, type) {
@@ -2559,7 +2570,58 @@
       };
       dtRow.appendChild(sw);
     });
-    sec.appendChild(field("Dashboard theme", dtRow, "Swaps the whole look (background, panels, text, brand + series colors) in one pick — Accent color/Series palette below still layer on top."));
+    // N-DESIGN theme studio ("author custom themes" — still open): a 6th swatch, distinct
+    // gradient so it never reads as just another curated mood, opens the seed-color editor below.
+    var customSw = el("button"); customSw.type = "button"; customSw.className = "dt-swatch dt-swatch-custom";
+    customSw.title = "Custom — author your own theme";
+    customSw.style.background = "conic-gradient(from 45deg,#b8632e,#8a3fa8,#0e8f86,#b8632e)";
+    customSw.setAttribute("data-dashboard-theme", "custom");
+    var customActive = sp.dashboardTheme === "custom";
+    if (customActive) customSw.classList.add("active");
+    customSw.setAttribute("aria-pressed", customActive ? "true" : "false");
+    customSw.onclick = function () {
+      sp.dashboardTheme = "custom";
+      if (!sp.customTheme) sp.customTheme = JSON.parse(JSON.stringify(Studio.DEFAULT_CUSTOM_THEME_SEED));
+      refreshPreview(); renderInspector();
+    };
+    dtRow.appendChild(customSw);
+    sec.appendChild(field("Dashboard theme", dtRow, "Swaps the whole look (background, panels, text, brand + series colors) in one pick — Accent color/Series palette below still layer on top. Custom lets you author your own from 4 seed colors per mode."));
+
+    if (sp.dashboardTheme === "custom") {
+      if (!sp.customTheme) sp.customTheme = JSON.parse(JSON.stringify(Studio.DEFAULT_CUSTOM_THEME_SEED));
+      var ctWrap = el("div"); ctWrap.className = "ct-editor";
+      var CT_FIELDS = [["bg", "Background"], ["panel", "Panel"], ["text", "Text"], ["brand", "Brand"]];
+      ["light", "dark"].forEach(function (mode) {
+        var modeWrap = el("div"); modeWrap.className = "ct-mode";
+        var modeLabel = el("div"); modeLabel.className = "ct-mode-label";
+        modeLabel.textContent = mode === "light" ? "Light mode" : "Dark mode";
+        modeWrap.appendChild(modeLabel);
+        var row = el("div"); row.className = "accent-presets";
+        CT_FIELDS.forEach(function (f) {
+          var key = f[0], label = f[1];
+          var wrap = el("span"); wrap.className = "ct-field";
+          var inp = el("input"); inp.type = "color"; inp.title = label;
+          inp.setAttribute("aria-label", label + " (" + mode + " mode)");
+          inp.value = sp.customTheme[mode][key] || "#000000";
+          inp.oninput = function () {
+            sp.customTheme[mode][key] = this.value;
+            refreshPreview();
+            var ratioEl = $("#ctContrast" + mode, ctWrap);
+            if (ratioEl) ratioEl.innerHTML = ctContrastHint(sp.customTheme[mode]);
+          };
+          wrap.appendChild(inp);
+          var lbl = el("span"); lbl.className = "ct-field-label"; lbl.textContent = label;
+          wrap.appendChild(lbl);
+          row.appendChild(wrap);
+        });
+        modeWrap.appendChild(row);
+        var contrastEl = el("div"); contrastEl.className = "ct-contrast"; contrastEl.id = "ctContrast" + mode;
+        contrastEl.innerHTML = ctContrastHint(sp.customTheme[mode]);
+        modeWrap.appendChild(contrastEl);
+        ctWrap.appendChild(modeWrap);
+      });
+      sec.appendChild(field("Custom theme colors", ctWrap, "Everything else (borders, subtle fills, sidebar, series accent) is derived automatically from these 4 colors, the same way each curated preset relates its own tokens."));
+    }
 
     // H-track: Dashboard accent color — per-dashboard --pentaho override.
     // 6 quick preset swatches + a custom hex picker let the SE team match client branding.
@@ -2568,14 +2630,14 @@
     var accentRow = el("div"); accentRow.className = "accent-presets";
     var accentCustom = el("input"); accentCustom.type = "color"; accentCustom.id = "dashAccentCustom";
     accentCustom.title = "Custom accent color";
-    accentCustom.value = sp.themeColor || themeDefaultAccent(sp.dashboardTheme);
+    accentCustom.value = sp.themeColor || themeDefaultAccent(sp.dashboardTheme, sp.customTheme);
     accentCustom.oninput = function () {
       sp.themeColor = this.value; refreshPreview(); renderInspector();
     };
     THEME_PRESETS.forEach(function (preset) {
       var sw = el("button"); sw.type = "button"; sw.className = "accent-swatch";
       sw.title = preset.label;
-      sw.style.background = preset.color || themeDefaultAccent(sp.dashboardTheme);
+      sw.style.background = preset.color || themeDefaultAccent(sp.dashboardTheme, sp.customTheme);
       var isActiveAccent = sp.themeColor === preset.color;
       if (isActiveAccent) sw.classList.add("active");
       sw.setAttribute("aria-pressed", isActiveAccent ? "true" : "false");
@@ -8218,7 +8280,7 @@
     // Open / restore-banner / example-load / drag-drop-file silently reset a saved dashboard's accent
     // color and series palette back to the default. Keep this list in sync with Studio.emptySpec()'s
     // top-level scalar/optional fields whenever a new one is added (see also headerLogo, Z6).
-    ["schema", "id", "name", "title", "subtitle", "group", "description", "themeColor", "dashboardTheme", "paletteKey", "headerLogo", "headerLink", "headerBg", "titleSize", "subtitleStyle", "cardSkin", "templateVars"].forEach(function (k) { if (spec[k] != null) base[k] = spec[k]; });
+    ["schema", "id", "name", "title", "subtitle", "group", "description", "themeColor", "dashboardTheme", "customTheme", "paletteKey", "headerLogo", "headerLink", "headerBg", "titleSize", "subtitleStyle", "cardSkin", "templateVars"].forEach(function (k) { if (spec[k] != null) base[k] = spec[k]; });
     base.cda = spec.cda || base.cda;
     base.filters = spec.filters || []; base.kpis = spec.kpis || [];
     base.gridCols = spec.gridCols || 3; base.panels = (spec.panels || []).map(function (p) { if (!p.id) p.id = Studio.uid("p"); return p; });

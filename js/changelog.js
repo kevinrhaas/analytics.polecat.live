@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 393,
+    title: 'Custom dashboard themes',
+    kind: 'feature',
+    ts: '2026-07-19T08:20:38.000Z',
+    items: [
+      'The Dashboard theme picker gains a 6th "Custom" option: pick your own Background, Panel, Text, and Brand colors for light and dark mode, and everything else -- borders, subtle fills, sidebar, secondary accent, grid lines -- is derived automatically the same way the curated presets relate their own colors.',
+      'A live warning shows if your text/background pick falls below the WCAG AA contrast minimum. A custom theme is saved, exported, and shared with the dashboard like any other setting.',
+    ],
+  },
+  {
     v: 392,
     title: 'DuckDB and SQLite join the schema browser',
     kind: 'feature',

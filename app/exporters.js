@@ -111,7 +111,11 @@
     // still wins (later declaration, same :root/[data-theme='dark'] specificity).
     var dashboardThemeCss = "";
     if (spec.dashboardTheme && spec.dashboardTheme !== "classic") {
-      var _dt = (Studio.DASHBOARD_THEMES || []).filter(function (t) { return t.key === spec.dashboardTheme; })[0];
+      // Theme studio: "custom" has no Studio.DASHBOARD_THEMES registry entry — its light/dark
+      // token sets are derived from the author's own seed colors (spec.customTheme) instead.
+      var _dt = spec.dashboardTheme === "custom"
+        ? (spec.customTheme && Studio.deriveCustomTheme(spec.customTheme))
+        : (Studio.DASHBOARD_THEMES || []).filter(function (t) { return t.key === spec.dashboardTheme; })[0];
       if (_dt && _dt.light) {
         var _dtLight = Object.keys(_dt.light).map(function (k) { return k + ":" + _dt.light[k]; }).join(";");
         var _dtDark  = Object.keys(_dt.dark).map(function (k) { return k + ":" + _dt.dark[k]; }).join(";");

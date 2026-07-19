@@ -3848,6 +3848,32 @@ gets covered over time:
 > Modern's blue-gray, High Contrast's stark black/white, and Editorial's warm cream. 6 new tests
 > (registry/apply/header-gradient, same pattern as Fleet Modern/High Contrast/Editorial). Suite
 > 1476/1476. **Still open:** true author/share custom themes.
+> ✓ **Theme studio first cut shipped (2026-07-19, steward PR) — closes the "author custom themes"
+> item above.** A 6th "Custom" swatch on the Dashboard theme picker opens a compact editor — 4 seed
+> colors (Background/Panel/Text/Brand) per light/dark mode, 8 fields total — stored as
+> `spec.customTheme`. `Studio.deriveCustomTheme()` (model.js, pure) fills in the other ~13 tokens
+> (borders, subtle/header fills, sidebar, secondary accent, grid/axis lines) with fixed mix ratios
+> reverse-engineered from how the 5 curated presets actually relate their own tokens (`Studio.mixHex`,
+> linear per-channel interpolation), so a custom theme bakes into the export exactly like a built-in
+> preset (`exporters.js`'s `dashboardThemeCss` treats `dashboardTheme==="custom"` as a
+> `deriveCustomTheme(spec.customTheme)` lookup instead of a `DASHBOARD_THEMES` registry hit — same CSS
+> emission code, no export-time runtime dependency). A live `Studio.contrastRatio()` (shared WCAG
+> luminance math with the existing `contrastFg` header-background helper) warns inline when a
+> text/background pick falls below the 4.5:1 AA floor — the honest substitute for the dataviz skill's
+> curated-ramp validator, which has nothing to validate against user-authored colors. "Share" comes
+> free: `encodeSpecToShareString` already serializes the whole spec, so a shared/saved/exported custom
+> theme just rides along, no separate mechanism needed. `customTheme` added to `emptySpec()` +
+> `normalize()`'s whitelist (the exact "new field, forgot the whitelist" bug class the v193 headerLogo
+> fix and the dashboardTheme normalize test both guard against — a matching round-trip test added for
+> this field too) and to `Studio.diffSpecs`/version-history compare. Visually verified (not just DOM-
+> checked): a distinctive teal/navy custom palette screenshotted in both app modes at 1280×800 and
+> 390×844 — derived borders/subtle-fills/KPI accents read as one coherent system, legible in both
+> modes, no overflow on phone. 11 new tests (pure `mixHex`/`contrastRatio`/`deriveCustomTheme` checks,
+> the swatch-click + live-edit + contrast-warning UI flow, the export-bake check, and the normalize()
+> round-trip), suite 1614/1614. **Still open:** save/reuse a custom theme as a named preset across
+> multiple dashboards (today it's authored per-dashboard; sharing/exporting one dashboard already
+> carries its custom theme, per above) — a natural follow-up using the same named-preset-collection
+> pattern `studio-style-presets`/`studio-templatevar-sets` already established.
 
 **N-DEV — Power-user & authoring.**
 - **Live JSON spec editor:** ✓ shipped v267, see below.
