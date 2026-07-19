@@ -17,6 +17,28 @@
   function jsonScript(varName, obj) {
     return varName + " = " + JSON.stringify(obj).replace(/<\//g, "<\\/") + ";";
   }
+
+  // Post-overhaul backlog item 3 ("exported-runtime support for connection-bound datasets"):
+  // the four credential-based direct-query connectors (Snowflake/Databricks/BigQuery/Generic
+  // SQL) store their secret (access token / auth header) directly on the DA object — fine for
+  // the in-builder "Run live" preview, but that same DA object gets JSON.stringify'd whole into
+  // every exported/preview HTML as window.STUDIO_SPEC. Left alone, the real secret would sit in
+  // plaintext inside a static file anyone with the export can view-source. `redactSecrets` (run
+  // against a throwaway deep clone, never the live spec the builder keeps editing) deletes the
+  // secret field whenever it was actually set and stamps `needsSecret` with the field name so
+  // studio-render.js's PDC.cda dispatch (see its CRED_ENGINES map) knows to prompt for it at
+  // open time instead — "credentials prompted at open, never embedded."
+  var SECRET_FIELDS = { snowflake: "sfToken", databricks: "dbxToken", bigquery: "bqToken", http: "httpAuthHeader" };
+  function redactSecrets(spec) {
+    var das = spec && spec.cda && spec.cda.dataAccesses;
+    if (!das || !das.length) return spec;
+    var clone = JSON.parse(JSON.stringify(spec));
+    (clone.cda.dataAccesses || []).forEach(function (da) {
+      var field = SECRET_FIELDS[da.kind];
+      if (field && da[field]) { delete da[field]; da.needsSecret = field; }
+    });
+    return clone;
+  }
   Studio.buildHtml = function (spec, assets, opts) {
     opts = opts || {};
     // N-DEV: dashboard templates/variables — resolve {{key}} tokens in the banner text once, here,
@@ -236,6 +258,13 @@
     ((spec.cda && spec.cda.dataAccesses) || []).forEach(function (d) { if (d.kind) daKinds[d.kind] = 1; });
     var duckdbScript = (daKinds.duckdb && assets.duckdb) ? ("<script>\n" + assets.duckdb + "\n</script>\n") : "";
     var httpvfsScript = (daKinds.httpvfs && assets.httpvfs) ? ("<script>\n" + assets.httpvfs + "\n</script>\n") : "";
+    // Post-overhaul backlog item 3 follow-up: same lean-bundling pattern as duckdb/httpvfs above,
+    // now covering the four credential-based direct connectors (see redactSecrets above + the
+    // studio-render.js PDC.cda dispatch that answers these DA kinds once deployed).
+    var snowflakeScript = (daKinds.snowflake && assets.snowflake) ? ("<script>\n" + assets.snowflake + "\n</script>\n") : "";
+    var databricksScript = (daKinds.databricks && assets.databricks) ? ("<script>\n" + assets.databricks + "\n</script>\n") : "";
+    var bigqueryScript = (daKinds.bigquery && assets.bigquery) ? ("<script>\n" + assets.bigquery + "\n</script>\n") : "";
+    var genericsqlScript = (daKinds.http && assets.genericsql) ? ("<script>\n" + assets.genericsql + "\n</script>\n") : "";
     // Viridis V2: map panels — inline topojson-client (keep its ISC banner: it is
     // redistributed inside the export) + the pre-projected geometry the spec's
     // scales need, as window.STUDIO_GEO. Dashboards without maps carry none of it.
@@ -254,7 +283,8 @@
       geoScript += "<style>\n" + assets.maplibre.css + "\n</style>\n" +
         "<script>\n" + assets.maplibre.js + "\n</script>\n";
     }
-    var boot = "<script>\n" + assets.js + "\n</script>\n" + charts + geoScript + duckdbScript + httpvfsScript + "<script>\n" + assets.render + "\n</script>\n<script>\n" +
+    var boot = "<script>\n" + assets.js + "\n</script>\n" + charts + geoScript + duckdbScript + httpvfsScript +
+      snowflakeScript + databricksScript + bigqueryScript + genericsqlScript + "<script>\n" + assets.render + "\n</script>\n<script>\n" +
       "window.STUDIO_AUTOBOOT=false;\n" +
       "PDC.cdaPath=" + JSON.stringify(cdaPath) + ";\nvar CDAPATH=PDC.cdaPath;\n";
     if (opts.preview) {
@@ -275,7 +305,7 @@
       });
     }
     boot += jsonScript("window.STUDIO_DA_META", daMeta) + "\n";
-    boot += jsonScript("window.STUDIO_SPEC", spec) + "\n" +
+    boot += jsonScript("window.STUDIO_SPEC", redactSecrets(spec)) + "\n" +
       "document.addEventListener('DOMContentLoaded',function(){StudioRender.boot(window.STUDIO_SPEC);});\n</script>\n</body>\n</html>\n";
     return head + body + boot;
   };

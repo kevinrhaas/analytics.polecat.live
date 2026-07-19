@@ -329,11 +329,18 @@
       // Z14 architecture-gap fix: bundled into an export only when that dashboard actually has a
       // duckdb/httpvfs data access (see exporters.js's buildHtml) — fetched once here either way.
       fetchText("app/duckdb.js"), fetchText("app/sqlitehttp.js"),
+      // Post-overhaul backlog item 3 follow-up: same lean-bundling pattern, now covering the four
+      // credential-based direct connectors (their secrets are redacted at export time — see
+      // exporters.js's redactSecrets — and re-collected at open via studio-render.js's PDC.cda).
+      fetchText("app/snowflake.js"), fetchText("app/databricks.js"), fetchText("app/bigquery.js"), fetchText("app/genericsql.js"),
       fetchJSON("data/examples/index.json").catch(function () { return []; })
     ]).then(function (r) {
       S.catalog = r[0];
-      S.assets = { css: r[1], js: r[2], render: r[3], charts: r[4], duckdb: r[5], httpvfs: r[6] };
-      S.examples = r[7] || [];
+      S.assets = {
+        css: r[1], js: r[2], render: r[3], charts: r[4], duckdb: r[5], httpvfs: r[6],
+        snowflake: r[7], databricks: r[8], bigquery: r[9], genericsql: r[10]
+      };
+      S.examples = r[11] || [];
       wireTopbar();
       try { renderFooter(); } catch (e) { /* footer is non-critical chrome */ }
       setupPanes();

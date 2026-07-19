@@ -1071,6 +1071,31 @@
   `app/gate-config.js`'s own comment but missed the published runbook; `PUBLISH.md` now
   describes the rotated-hash model instead of a specific code. Doc-only, no product surface
   change; suite unchanged.
+- v383: **Post-overhaul backlog item 3 shipped (2026-07-19, steward PR): exported dashboards can
+  now query the four credential-based direct connectors live, and their secrets are never
+  embedded.** Closes the "Still genuinely open" half of the v318 Z14 architecture-gap fix (which
+  only covered DuckDB/SQLite) — Snowflake/Databricks/BigQuery/Generic SQL join them now.
+  `app/exporters.js`'s new `redactSecrets()` runs against a throwaway deep clone right before a
+  spec is embedded as `window.STUDIO_SPEC`: it deletes the DA's actual secret field (`sfToken`/
+  `dbxToken`/`bqToken`/`httpAuthHeader`) whenever one was set and stamps `needsSecret` with the
+  field name instead — the live builder's own in-memory spec (and its "Run live" preview) is
+  untouched, only the exported copy is redacted. `app/studio-render.js`'s `PDC.cda` dispatch (the
+  same wrap the v318 fix introduced for duckdb/httpvfs) now also recognizes these four kinds:
+  when `needsSecret` is set it prompts once via `window.prompt()` for just that one value — "This
+  dashboard needs a Snowflake access token to query…, used only in your browser for this session
+  and is never saved" — caches it in memory (page-lifetime only, per DA id) so repeat queries
+  don't re-prompt, and runs the connector's existing `query()` façade with it. Deliberately gated
+  to real deployments only (`!window.STUDIO_PREVIEW`) — the builder's own live-editing preview
+  iframe never pops a browser prompt. `app/exporters.js` bundles each connector's façade file into
+  the export only when a DA of that kind is actually present (same lean-bundling pattern as
+  duckdb/httpvfs); `app/studio.js`'s boot fetch now also loads the four façade files as export
+  assets. `app/model.js`'s `DIRECT_DA_KINDS` "no live query path once exported" warning is retired
+  — it drove exactly this now-closed gap. SW cache → v45. 13 new tests (redaction — the raw
+  secret never appears in the output HTML while the non-secret fields do; lean bundling per kind;
+  a real exported-bundle-iframe functional dispatch per kind proving the query runs with the
+  freshly-prompted value, never the original now-redacted one, and that a second call reuses the
+  cached secret instead of re-prompting; the preview-iframe gate), suite 1638/1638. This closes
+  out post-overhaul backlog item 3 entirely.
 
 ## NEXT (top = do first)
 
@@ -1430,9 +1455,18 @@
 >    Kevin before attempting it, same class of question as the MapLibre one still open on the
 >    Viridis track above). Each = one file implementing the contract in app/sources/schema.js +
 >    registerSource + wizard fields + tests against a mock.
-> 3. **Exported-runtime support for connection-bound datasets** — bundle the needed adapter engines
->    into exports (like duckdb/httpvfs already do) so a shipped .html can run live against Turso etc.,
->    with credentials prompted at open (never embedded).
+> 3. ✓ **Exported-runtime support for the four credential-based direct connectors shipped
+>    (2026-07-19, steward PR).** Snowflake/Databricks/BigQuery/Generic SQL join DuckDB/SQLite's
+>    existing exported-runtime path (v318): `exporters.js` redacts each DA's secret field before
+>    it's ever embedded in the exported HTML (stamping `needsSecret` with the field name), and
+>    `studio-render.js`'s `PDC.cda` dispatch prompts for it once at open — in-memory only, never
+>    saved — exactly the "credentials prompted at open (never embedded)" design this item called
+>    for. `app/model.js`'s now-obsolete "no live query path" warning for these four kinds is
+>    retired. SW cache → v45. 13 new tests. Genuinely still open: this item's other half
+>    (bundling connection-bound *dataset* adapters — Turso, Redshift, etc. — for a shipped .html
+>    to run live against, distinct from the legacy direct-DA-with-embedded-cfg style this slice
+>    covered) remains unaddressed; the connections/datasets model has no exported-runtime story at
+>    all yet, since `Studio.Workspace`/connections don't exist outside the builder.
 > 4. **Terminology sweep**: ✓ "My Data Sources" → "This dashboard's datasets" (already shipped, landed
 >    silently in the 2026-07-14 UX sprint's dataset-first Data panel work) and ✓ sample catalog groups
 >    labeled "Samples" (already shipped, same era) — both confirmed still live in `app/studio.js` as of

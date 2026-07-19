@@ -193,6 +193,49 @@
   // with one bound is actually exported/deployed. Wrap PDC.cda so a matching spec DA of kind
   // "duckdb"/"httpvfs" is answered by querying its file directly over HTTP Range Requests
   // instead — the mock and real-Pentaho-CDA paths (and PDC.cda's contract) are untouched.
+  // Post-overhaul backlog item 3 follow-up: the four credential-based direct connectors
+  // (Snowflake/Databricks/BigQuery/Generic SQL) join duckdb/httpvfs above. exporters.js's
+  // redactSecrets() strips each DA's secret field (token/auth header) before it's ever embedded
+  // in window.STUDIO_SPEC and stamps `da.needsSecret` with the field name; here, at open time, we
+  // prompt for that ONE value (never the non-secret fields already on the DA) and keep it
+  // in-memory only for the rest of the page's lifetime — "credentials prompted at open, never
+  // embedded." Only wired for a real deployment (not the builder's own live-editing preview
+  // iframe, window.STUDIO_PREVIEW) so editing a dashboard never pops a browser prompt.
+  var CRED_ENGINES = {
+    snowflake: {
+      label: "Snowflake access token",
+      engine: function () { return window.Studio && Studio.Snowflake; },
+      cfg: function (da, secret) { return { account: da.sfAccount, token: secret, tokenType: da.sfTokenType, warehouse: da.sfWarehouse, database: da.sfDatabase, schema: da.sfSchema, role: da.sfRole }; }
+    },
+    databricks: {
+      label: "Databricks access token",
+      engine: function () { return window.Studio && Studio.Databricks; },
+      cfg: function (da, secret) { return { host: da.dbxHost, token: secret, warehouseId: da.dbxWarehouseId, catalog: da.dbxCatalog, schema: da.dbxSchema }; }
+    },
+    bigquery: {
+      label: "BigQuery OAuth access token",
+      engine: function () { return window.Studio && Studio.BigQuery; },
+      cfg: function (da, secret) { return { project: da.bqProject, token: secret, location: da.bqLocation, dataset: da.bqDataset }; }
+    },
+    http: {
+      label: "Authorization header value",
+      engine: function () { return window.Studio && Studio.GenericSql; },
+      cfg: function (da, secret) { return { url: da.httpUrl, method: da.httpMethod, authHeader: secret, paramName: da.httpParamName }; }
+    }
+  };
+  var _secretCache = {};
+  function resolveSecret(da) {
+    var field = da.needsSecret;
+    if (!field) return "";
+    var key = da.id + "|" + field;
+    if (Object.prototype.hasOwnProperty.call(_secretCache, key)) return _secretCache[key];
+    var label = (CRED_ENGINES[da.kind] && CRED_ENGINES[da.kind].label) || "credential";
+    var val = window.prompt("This dashboard needs a " + label + " to query “" + (da.name || da.id) +
+      "” live. It's used only in your browser for this session and is never saved.") || "";
+    _secretCache[key] = val;
+    return val;
+  }
+
   (function () {
     var realCda = PDC.cda;
     function wrapResult(r, da) {
@@ -210,6 +253,10 @@
         return Studio.DuckDB.query({ fileUrl: da.fileUrl, fileFormat: da.fileFormat }, da.sql || da.query).then(function (r) { return wrapResult(r, da); });
       if (da && da.kind === "httpvfs" && window.Studio && Studio.SQLiteHttp)
         return Studio.SQLiteHttp.query({ fileUrl: da.fileUrl, tableName: da.tableName }, da.sql || da.query).then(function (r) { return wrapResult(r, da); });
+      var cred = da && !window.STUDIO_PREVIEW && CRED_ENGINES[da.kind];
+      var engine = cred && cred.engine();
+      if (da && cred && engine)
+        return engine.query(cred.cfg(da, resolveSecret(da)), da.sql || da.query).then(function (r) { return wrapResult(r, da); });
       return realCda(dataAccessId, params);
     };
   })();

@@ -2930,16 +2930,12 @@
     // Snowflake/Databricks/BigQuery/Generic SQL) run genuinely live in the builder's own Test
     // connection/Run live flow, but (at the time of this finding) the exported/deployed Dashboard
     // Framework had no runtime query path for any of them — a real deployment would silently show
-    // only the offline sample data these DAs were authored against. **DuckDB/SQLite now have a real
-    // runtime path** (studio-render.js's PDC.cda dispatch + exporters.js bundling their façade only
-    // when used, shipped same run as this comment) — the credential-free half of the gap is closed,
-    // so they're no longer warned about here. The four token-based kinds still need a real design
-    // decision on shipping a live credential inside a static exported file before they can follow.
-    var DIRECT_DA_KINDS = { snowflake: "Snowflake", databricks: "Databricks", bigquery: "BigQuery", http: "Generic SQL/HTTP" };
-    das.forEach(function (da) {
-      if (!usedDaIds[da.id] || !DIRECT_DA_KINDS[da.kind]) return; // an orphaned DA already has its own note above
-      out.push({ level: "warn", msg: "Data access “" + (da.name || da.id) + "” (" + DIRECT_DA_KINDS[da.kind] + ") has no live query path once this dashboard is exported/deployed — outside the builder it will only ever show the sample data it was authored against." });
-    });
+    // only the offline sample data these DAs were authored against. DuckDB/SQLite got a real
+    // runtime path first (studio-render.js's PDC.cda dispatch + exporters.js bundling their façade
+    // only when used). **The four token-based kinds now have one too** (post-overhaul backlog item
+    // 3 follow-up): exporters.js redacts each DA's secret field at export time and studio-render.js
+    // prompts for it at open, in-memory only, never re-embedded — so this finding is fully closed;
+    // DIRECT_DA_KINDS/the warning it drove are retired.
     return out;
   };
 
