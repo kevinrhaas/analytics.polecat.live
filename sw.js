@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v42"; /* v42: post-overhaul backlog item 5
+var CACHE_NAME = "studio-shell-v43"; /* v43: N-DESIGN theme studio first cut —
+   a "Custom" dashboard-theme swatch lets the author pick 4 seed colors per
+   light/dark mode and Studio.deriveCustomTheme() derives the rest, baked into
+   the export exactly like a built-in preset — app/model.js, app/exporters.js,
+   app/studio.js, app/studio.css changed.
+   v42: post-overhaul backlog item 5
    follow-up — DuckDB and SQLite join the schema browser: DuckDB's listSchema()
    DESCRIBEs its single registered-file view (named after the file, not the "t"
    alias); SQLite's lists every table via sqlite_master then PRAGMA table_info

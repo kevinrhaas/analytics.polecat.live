@@ -15000,6 +15000,95 @@ function serve() {
     });
     ok("Dashboard theme: normalize() preserves spec.dashboardTheme through __studioLoad", dtNormalizeOk.val === "fleet-modern", JSON.stringify(dtNormalizeOk));
 
+    // N-DESIGN theme studio ("author custom themes" — STATUS.md, still open until this slice):
+    // a 6th "Custom" dashboard-theme swatch lets the author pick 4 seed colors per mode
+    // (Background/Panel/Text/Brand); everything else is derived by Studio.deriveCustomTheme
+    // with fixed mix ratios, then baked into the export exactly like a built-in preset.
+    var ctPureOk = await page.evaluate(function () {
+      var mid = window.Studio.mixHex("#000000", "#ffffff", 0.5);
+      var full = window.Studio.deriveCustomTheme({
+        light: { bg: "#ffffff", panel: "#f5f5f5", text: "#111111", brand: "#0057b8" },
+        dark:  { bg: "#0a0a0a", panel: "#141414", text: "#eeeeee", brand: "#5599ff" }
+      });
+      var needed = ["--pentaho", "--pdc", "--app-bg", "--panel-bg", "--panel-border", "--text-primary", "--text-muted", "--sidebar-bg", "--header-bg", "--header-bg-2", "--grid-line", "--axis"];
+      var hasAllLight = needed.every(function (k) { return !!full.light[k]; });
+      var hasAllDark = needed.every(function (k) { return !!full.dark[k]; });
+      return {
+        mid: mid,
+        appBgLight: full.light["--app-bg"], appBgDark: full.dark["--app-bg"],
+        brandLight: full.light["--pentaho"], hasAllLight: hasAllLight, hasAllDark: hasAllDark,
+        highContrast: window.Studio.contrastRatio("#000000", "#ffffff"),
+        lowContrast: window.Studio.contrastRatio("#777777", "#888888")
+      };
+    });
+    ok("Theme studio: mixHex(black,white,0.5) lands on a mid-gray", /^#(7|8)[0-9a-f]{5}$/i.test(ctPureOk.mid), JSON.stringify(ctPureOk));
+    ok("Theme studio: deriveCustomTheme carries the seed colors straight through for bg/brand",
+      ctPureOk.appBgLight === "#ffffff" && ctPureOk.appBgDark === "#0a0a0a" && ctPureOk.brandLight === "#0057b8", JSON.stringify(ctPureOk));
+    ok("Theme studio: deriveCustomTheme fills in every supporting token for both modes",
+      ctPureOk.hasAllLight && ctPureOk.hasAllDark, JSON.stringify(ctPureOk));
+    ok("Theme studio: contrastRatio(black,white) is the maximum 21:1", Math.abs(ctPureOk.highContrast - 21) < 0.1, JSON.stringify(ctPureOk));
+    ok("Theme studio: contrastRatio of two similar grays is well below the 4.5:1 AA floor", ctPureOk.lowContrast < 1.3, JSON.stringify(ctPureOk));
+
+    // Click the Custom swatch: seeds spec.customTheme with the default preset and reveals the editor.
+    await page.evaluate(function () {
+      var row = document.getElementById("dashThemeRow");
+      var btn = row && Array.from(row.querySelectorAll("button[data-dashboard-theme]")).find(function (b) {
+        return b.getAttribute("data-dashboard-theme") === "custom";
+      });
+      if (btn) btn.click();
+    });
+    await page.waitForTimeout(300);
+    var ctSeedOk = await page.evaluate(function () {
+      var spec = window.__STUDIO_STATE.spec;
+      var lightInputs = document.querySelectorAll(".ct-mode:nth-of-type(1) .ct-field input[type=color]");
+      return { key: spec.dashboardTheme, hasSeed: !!(spec.customTheme && spec.customTheme.light && spec.customTheme.light.brand), editorFieldCount: lightInputs.length };
+    });
+    ok("Theme studio: clicking Custom sets spec.dashboardTheme='custom' and seeds spec.customTheme", ctSeedOk.key === "custom" && ctSeedOk.hasSeed, JSON.stringify(ctSeedOk));
+    ok("Theme studio: the editor renders 4 color fields for light mode (Background/Panel/Text/Brand)", ctSeedOk.editorFieldCount === 4, JSON.stringify(ctSeedOk));
+
+    // Drive the actual <input type=color> fields (not spec.customTheme directly) so the UI
+    // wiring itself — not just the pure model function — is under test.
+    var ctEditOk = await page.evaluate(function () {
+      var modes = document.querySelectorAll(".ct-mode");
+      var lightBg = modes[0].querySelectorAll(".ct-field input[type=color]")[0];
+      var lightText = modes[0].querySelectorAll(".ct-field input[type=color]")[2];
+      lightBg.value = "#202020"; lightBg.dispatchEvent(new Event("input", { bubbles: true }));
+      lightText.value = "#282828"; lightText.dispatchEvent(new Event("input", { bubbles: true }));
+      var spec = window.__STUDIO_STATE.spec;
+      var html = window.Studio.buildHtml(spec, window.__STUDIO_STATE.assets, { deployPath: "/x", preview: false });
+      return {
+        seedBg: spec.customTheme.light.bg, seedText: spec.customTheme.light.text,
+        htmlHasCustomBg: html.indexOf("--app-bg:#202020") !== -1,
+        warnShown: !!document.querySelector(".ct-warn")
+      };
+    });
+    ok("Theme studio: editing a color input updates spec.customTheme", ctEditOk.seedBg === "#202020" && ctEditOk.seedText === "#282828", JSON.stringify(ctEditOk));
+    ok("Theme studio: exported HTML carries the edited custom seed color", ctEditOk.htmlHasCustomBg, JSON.stringify(ctEditOk));
+    ok("Theme studio: a near-identical text/background pick shows the live contrast warning", ctEditOk.warnShown, JSON.stringify(ctEditOk));
+
+    // normalize() round-trip (the exact bug class v193's headerLogo fix + the dashboardTheme
+    // check above both guard against): a new scalar/object field silently dropped on reopen
+    // because the whitelist in normalize() forgot it.
+    var ctNormalizeOk = await page.evaluate(function () {
+      var raw = window.Studio.emptySpec();
+      raw.dashboardTheme = "custom";
+      raw.customTheme = { light: { bg: "#111111", panel: "#222222", text: "#eeeeee", brand: "#ff6600" }, dark: { bg: "#000000", panel: "#111111", text: "#ffffff", brand: "#ff9955" } };
+      window.__studioLoad(raw);
+      var s = window.__STUDIO_STATE.spec;
+      return { key: s.dashboardTheme, brand: s.customTheme && s.customTheme.light && s.customTheme.light.brand };
+    });
+    ok("Theme studio: normalize() preserves spec.customTheme through __studioLoad", ctNormalizeOk.key === "custom" && ctNormalizeOk.brand === "#ff6600", JSON.stringify(ctNormalizeOk));
+
+    // revert back to classic so later tests (which assume the default look) aren't affected
+    await page.evaluate(function () {
+      var row = document.getElementById("dashThemeRow");
+      var btn = row && Array.from(row.querySelectorAll("button[data-dashboard-theme]")).find(function (b) {
+        return b.getAttribute("data-dashboard-theme") === "classic";
+      });
+      if (btn) btn.click();
+    });
+    await page.waitForTimeout(300);
+
     // Restore a populated example spec — the check above intentionally loaded a bare/empty
     // spec (0 panels) to test normalize() round-tripping, which would otherwise strand later
     // tests that assume "whatever's currently loaded" has panels.

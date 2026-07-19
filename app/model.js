@@ -109,14 +109,79 @@
   // Z6: pick a readable foreground (near-black or near-white) for an arbitrary background hex,
   // via standard WCAG relative luminance. Used by the custom "Header background color" so a light
   // banner pick automatically gets dark text instead of the default white going invisible.
-  Studio.contrastFg = function (hex) {
+  function hex6(hex) {
     var h = (hex || "").replace("#", "");
     if (h.length === 3) h = h.split("").map(function (c) { return c + c; }).join("");
-    if (!/^[0-9a-f]{6}$/i.test(h)) return "#ffffff";
-    var r = parseInt(h.substr(0, 2), 16) / 255, g = parseInt(h.substr(2, 2), 16) / 255, b = parseInt(h.substr(4, 2), 16) / 255;
-    var lin = function (c) { return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
-    var lum = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
-    return lum > 0.42 ? "#12213b" : "#ffffff";
+    return /^[0-9a-f]{6}$/i.test(h) ? h : null;
+  }
+  function rgbOf(hex) {
+    var h = hex6(hex); if (!h) return null;
+    return { r: parseInt(h.substr(0, 2), 16), g: parseInt(h.substr(2, 2), 16), b: parseInt(h.substr(4, 2), 16) };
+  }
+  // WCAG relative luminance (0..1) — shared by contrastFg and contrastRatio below.
+  Studio.relLuminance = function (hex) {
+    var c = rgbOf(hex); if (!c) return 0;
+    var lin = function (v) { v = v / 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+    return 0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b);
+  };
+  Studio.contrastFg = function (hex) {
+    return Studio.relLuminance(hex) > 0.42 ? "#12213b" : "#ffffff";
+  };
+  // Theme studio: WCAG contrast ratio between two colors (1..21) — powers the Custom theme
+  // editor's live "may be hard to read" hint (Studio.deriveCustomTheme below has no curated,
+  // dataviz-skill-validated ramp to fall back on since the colors are user-authored).
+  Studio.contrastRatio = function (hexA, hexB) {
+    var la = Studio.relLuminance(hexA), lb = Studio.relLuminance(hexB);
+    var lighter = Math.max(la, lb), darker = Math.min(la, lb);
+    return (lighter + 0.05) / (darker + 0.05);
+  };
+  // Linear per-channel interpolation between two hex colors, t=0 -> hexA, t=1 -> hexB.
+  // Not perceptual (no LAB/OKLCH) — good enough for the small, consistent mixes
+  // Studio.deriveCustomTheme uses to fill in supporting tokens from 4 seed colors.
+  Studio.mixHex = function (hexA, hexB, t) {
+    var a = rgbOf(hexA), b = rgbOf(hexB);
+    if (!a || !b) return hexA || hexB || "#000000";
+    var ch = function (x, y) { return Math.round(x + (y - x) * t); };
+    var toHex = function (n) { n = Math.max(0, Math.min(255, n)); var s = n.toString(16); return s.length < 2 ? "0" + s : s; };
+    return "#" + toHex(ch(a.r, b.r)) + toHex(ch(a.g, b.g)) + toHex(ch(a.b, b.b));
+  };
+  // Theme studio ("author custom themes" — STATUS.md N-DESIGN, still open): a Custom dashboard
+  // theme is authored from just 4 seed colors per mode (Background/Panel/Text/Brand — the same
+  // count as the existing Accent color + Header background pickers combined), everything else
+  // Studio.DASHBOARD_THEMES' entries define (borders, subtle/header fills, sidebar, series
+  // secondary accent, grid/axis lines) is DERIVED with fixed, consistent mix ratios reverse-
+  // engineered from how the 5 curated presets actually relate their own tokens to each other
+  // (e.g. panel-border ~= panel mixed 16% toward text; header/sidebar stay near-black in both
+  // modes, matching the "dark chrome regardless of app mode" convention Fleet Modern established).
+  // Returns the same {light:{...},dark:{...}} shape as a Studio.DASHBOARD_THEMES entry so
+  // exporters.js's dashboardThemeCss can treat a custom theme identically to a built-in one.
+  Studio.DEFAULT_CUSTOM_THEME_SEED = {
+    light: { bg: "#faf6ef", panel: "#fffcf5", text: "#2b2027", brand: "#b8632e" },
+    dark:  { bg: "#141017", panel: "#1c1721", text: "#f5e9d6", brand: "#e79a5f" }
+  };
+  function deriveCustomMode(seed) {
+    seed = seed || {};
+    var bg = hex6(seed.bg) ? seed.bg : "#ffffff";
+    var panel = hex6(seed.panel) ? seed.panel : bg;
+    var text = hex6(seed.text) ? seed.text : "#1a1a1a";
+    var brand = hex6(seed.brand) ? seed.brand : "#005bb5";
+    var accent2 = Studio.mixHex(brand, text, 0.3);
+    var chrome = Studio.mixHex(text, "#000000", 0.86); // header/sidebar: near-black regardless of mode
+    var faint = Studio.mixHex(text, bg, 0.62);
+    return {
+      "--pentaho": brand, "--pdc": accent2,
+      "--app-bg": bg, "--panel-bg": panel, "--panel-border": Studio.mixHex(panel, text, 0.16),
+      "--panel-subtle-bg": Studio.mixHex(panel, text, 0.06), "--panel-header-bg": Studio.mixHex(panel, text, 0.06),
+      "--panel-header-border": Studio.mixHex(panel, text, 0.16),
+      "--field-bg": panel, "--field-border": Studio.mixHex(panel, text, 0.16),
+      "--text-primary": text, "--text-muted": Studio.mixHex(text, bg, 0.42), "--text-faint": faint,
+      "--sidebar-bg": chrome, "--header-bg": chrome, "--header-bg-2": Studio.mixHex(chrome, brand, 0.25),
+      "--grid-line": Studio.mixHex(panel, text, 0.10), "--axis": faint
+    };
+  }
+  Studio.deriveCustomTheme = function (customTheme) {
+    var ct = customTheme || {};
+    return { light: deriveCustomMode(ct.light), dark: deriveCustomMode(ct.dark) };
   };
 
   /* ---- N-AI: smart chart recommender ----
@@ -2308,7 +2373,8 @@
       kpis: [],
       gridCols: 3,
       themeColor: "", // optional hex color that overrides --pentaho in preview + exported CDF
-      dashboardTheme: "", // optional full look preset key (see Studio.DASHBOARD_THEMES); "" = classic. New blanks/examples are seeded with the Settings default (Polecat out of the box) at create/load time.
+      dashboardTheme: "", // optional full look preset key (see Studio.DASHBOARD_THEMES); "" = classic; "custom" reads customTheme below. New blanks/examples are seeded with the Settings default (Polecat out of the box) at create/load time.
+      customTheme: null, // N-DESIGN theme studio: {light:{bg,panel,text,brand},dark:{...}} seed colors when dashboardTheme==="custom" (see Studio.deriveCustomTheme); null until the author picks Custom
       paletteKey: "", // optional series palette key (see Studio.PALETTE_PRESETS); "" = default
       headerLogo: "", // optional data: URL image that replaces the default "P" mark in the banner
       headerLink: "", // optional URL — wraps the header brand mark+title in a link (opens in a new tab)
@@ -2696,7 +2762,9 @@
     var W = 240, H = 140, dark = theme === "dark";
     // The thumbnail wears the dashboard's own whole-look theme (or the app default for specs
     // that don't set one) so Home cards and the inspector preview match what opens.
-    var tk = Studio.resolveThemeTokens(spec.dashboardTheme || defaultThemeKey, dark ? "dark" : "light");
+    var tk = spec.dashboardTheme === "custom" && spec.customTheme
+      ? Studio.deriveCustomTheme(spec.customTheme)[dark ? "dark" : "light"]
+      : Studio.resolveThemeTokens(spec.dashboardTheme || defaultThemeKey, dark ? "dark" : "light");
     var bg   = tk ? tk["--app-bg"]       : (dark ? "#161c2b" : "#f4f6fb");
     var card = tk ? tk["--panel-bg"]     : (dark ? "#1c2235" : "#ffffff");
     var text = tk ? tk["--text-primary"] : (dark ? "#c8d4e8" : "#1a2742");
@@ -2913,6 +2981,9 @@
     });
     if ((a.headerLogo || "") !== (b.headerLogo || "")) {
       out.fields.push({ key: "headerLogo", label: "Header logo", from: a.headerLogo ? "custom image" : "(none)", to: b.headerLogo ? "custom image" : "(none)" });
+    }
+    if (JSON.stringify(a.customTheme || null) !== JSON.stringify(b.customTheme || null)) {
+      out.fields.push({ key: "customTheme", label: "Custom theme colors", from: a.customTheme ? "customized" : "(none)", to: b.customTheme ? "customized" : "(none)" });
     }
     var aP = a.panels || [], bP = b.panels || [];
     var aPMap = {}; aP.forEach(function (p) { aPMap[p.id] = p; });
