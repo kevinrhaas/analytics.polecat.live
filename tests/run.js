@@ -11635,8 +11635,21 @@ function serve() {
       } catch (e) {}
     }, j4PanelId);
 
-    // ---- J6: Interactive tutorial ----
-    console.log("\n• J6: interactive tutorial");
+    // ---- J6: Interactive tutorials (rebuilt: chooser + two tours) ----------
+    console.log("\n• J6: interactive tutorials (Quick analysis + Build a dashboard)");
+
+    // Freshness ratchet: tours and the welcome tour must never ship retired
+    // product terms again (Kevin, 2026-07-17 — tours move WITH the product).
+    (function () {
+      var tut = fs.readFileSync(path.join(ROOT, "app/tutorial.js"), "utf8");
+      var wel = fs.readFileSync(path.join(ROOT, "app/welcome.js"), "utf8");
+      var stale = /\bCDF\b|\bCDA\b|Pentaho|Dashboard Studio/;
+      ok("J6: tour + welcome copy carries NO retired product terms (CDF/CDA/Pentaho/Dashboard Studio) — the keep-current ratchet",
+        !stale.test(tut) && !stale.test(wel),
+        JSON.stringify({ tut: (tut.match(stale) || [])[0] || null, wel: (wel.match(stale) || [])[0] || null }));
+      ok("J6: the tours teach the current concepts — Explore analysis flow, Ensemble, Home pinning, Jobs prep",
+        /analysis/i.test(tut) && /Ensemble/.test(tut) && /Home/.test(tut) && /Jobs/.test(tut) && /Explore/.test(wel));
+    })();
 
     // J6-1: "Interactive tutorial" entry exists in the ⋯ More menu
     const j6MenuEntry = await page.evaluate(function () {
@@ -11645,42 +11658,43 @@ function serve() {
     });
     ok("J6: 'Interactive tutorial' entry in ⋯ More menu", j6MenuEntry.ok, JSON.stringify(j6MenuEntry));
 
-    // J6-2: StudioTutorial.open() inserts the #st-tip tooltip and spotlight elements
+    // J6-2: open() shows the TOUR CHOOSER — two tour cards, active flag set
     await page.evaluate(function () {
       try { if (window.StudioTutorial) StudioTutorial.open(); } catch (e) {}
     });
-    await page.waitForTimeout(100);
-    const j6Opens = await page.evaluate(function () {
+    await page.waitForTimeout(120);
+    const j6Chooser = await page.evaluate(function () {
       var tip = document.getElementById("st-tip");
+      var choices = document.querySelectorAll("#st-tip .st-choice[data-tour]");
       var active = window.__studioTutorialActive ? window.__studioTutorialActive() : false;
-      return { ok: !!tip && active, tip: !!tip, active: active };
+      return { ok: !!tip && active && choices.length === 2, choices: choices.length,
+        labels: [].map.call(choices, function (c) { return c.querySelector("b").textContent; }).join("|"),
+        quickFirst: choices[0] && choices[0].getAttribute("data-tour") === "quick" };
     });
-    ok("J6: tutorial opens with tooltip visible and active flag set", j6Opens.ok, JSON.stringify(j6Opens));
+    ok("J6: open() presents the tour chooser — Quick analysis first, Build a dashboard second",
+      j6Chooser.ok && j6Chooser.quickFirst && /Quick analysis/.test(j6Chooser.labels), JSON.stringify(j6Chooser));
 
-    // J6-3: step 0 is a centered card (no spotlight, scrim present); Next advances to step 1
+    // J6-3: choosing "Build a dashboard" → step 0 centered card; Next spotlights #library
+    await page.click('#st-tip .st-choice[data-tour="build"]');
+    await page.waitForTimeout(250);
     const j6Step0 = await page.evaluate(function () {
       var scrim = document.getElementById("st-scrim");
-      var ring  = document.getElementById("st-ring");
-      var step  = window.__studioTutorialStep ? window.__studioTutorialStep() : -1;
-      var h3    = (document.querySelector("#st-tip h3") || {}).textContent || "";
-      return { ok: !!scrim && !ring && step === 0, scrim: !!scrim, ring: !!ring, step: step, h3: h3 };
+      var ring = document.getElementById("st-ring");
+      return { ok: !!scrim && !ring && window.__studioTutorialStep() === 0 && window.__studioTutorialTour() === "build",
+        step: window.__studioTutorialStep(), tour: window.__studioTutorialTour() };
     });
-    ok("J6: step 0 is centered card (scrim + no spotlight ring)", j6Step0.ok, JSON.stringify(j6Step0));
-
-    // Advance via Next button
+    ok("J6: build tour step 0 is a centered card (scrim, no spotlight)", j6Step0.ok, JSON.stringify(j6Step0));
     await page.click("#st-tip button.pri");
-    await page.waitForTimeout(80);
+    await page.waitForTimeout(350);
     const j6Step1 = await page.evaluate(function () {
-      var ring  = document.getElementById("st-ring");
-      var dims  = document.querySelectorAll(".st-dim");
-      var step  = window.__studioTutorialStep ? window.__studioTutorialStep() : -1;
-      return { ok: step === 1 && !!ring && dims.length >= 2, step: step, ring: !!ring, dims: dims.length };
+      var ring = document.getElementById("st-ring");
+      var dims = document.querySelectorAll(".st-dim");
+      return { ok: window.__studioTutorialStep() === 1 && !!ring && dims.length >= 2,
+        step: window.__studioTutorialStep(), ring: !!ring, dims: dims.length };
     });
     ok("J6: Next advances to step 1 with spotlight ring and dim panels", j6Step1.ok, JSON.stringify(j6Step1));
 
-    // Z10 follow-up: tutorial spotlight ring + tooltip were fixed hex with dead
-    // body.dark-mode/body.dark override rules (this app's dark mode is [data-theme='dark']
-    // on <html>, so those never matched) — now themed via the shared --pdc/--pane vars.
+    // Z10 follow-up: spotlight ring + tooltip follow the app theme
     const j6ThemeBefore = await page.evaluate(function () {
       return { ring: getComputedStyle(document.getElementById("st-ring")).borderColor, tip: getComputedStyle(document.getElementById("st-tip")).backgroundColor };
     });
@@ -11695,22 +11709,66 @@ function serve() {
       j6ThemeAfter.ring !== j6ThemeBefore.ring && j6ThemeAfter.tip !== j6ThemeBefore.tip,
       JSON.stringify({ before: j6ThemeBefore, after: j6ThemeAfter }));
 
-    // J6-4: Escape closes the tutorial
+    // J6-4: Escape closes
     await page.keyboard.press("Escape");
     await page.waitForTimeout(60);
     const j6Closed = await page.evaluate(function () {
-      var tip  = document.getElementById("st-tip");
-      var ring = document.getElementById("st-ring");
-      var active = window.__studioTutorialActive ? window.__studioTutorialActive() : true;
-      return { ok: !tip && !ring && !active, tip: !!tip, ring: !!ring, active: active };
+      return { ok: !document.getElementById("st-tip") && !document.getElementById("st-ring") && !window.__studioTutorialActive() };
     });
     ok("J6: Escape closes the tutorial (tip, ring, and active flag all cleared)", j6Closed.ok, JSON.stringify(j6Closed));
 
-    // J6-5: StudioTutorial.stepCount() returns the correct number of steps
-    const j6StepCount = await page.evaluate(function () {
-      try { return { ok: StudioTutorial.stepCount() === 6, count: StudioTutorial.stepCount() }; } catch (e) { return { ok: false, err: e.message }; }
+    // J6-5: tour shapes — two tours, quick has 8 steps, build has 6
+    const j6Shape = await page.evaluate(function () {
+      try {
+        return { ok: StudioTutorial.tourKeys().join(",") === "quick,build" &&
+          StudioTutorial.stepCount("quick") === 8 && StudioTutorial.stepCount("build") === 6,
+          keys: StudioTutorial.tourKeys().join(","), q: StudioTutorial.stepCount("quick"), b: StudioTutorial.stepCount("build") };
+      } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("J6: tutorial has exactly 6 steps", j6StepCount.ok, JSON.stringify(j6StepCount));
+    ok("J6: two tours — Quick analysis (8 steps) and Build a dashboard (6 steps)", j6Shape.ok, JSON.stringify(j6Shape));
+
+    // J6-6: the QUICK tour walks the real Explore UI — it switches the section,
+    // seeds a sample dataset, and every spotlighted step finds its live target
+    await page.evaluate(function () { StudioTutorial.openTour("quick"); });
+    await page.waitForTimeout(300);
+    const j6QuickWalk = await page.evaluate(async function () {
+      function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+      async function ringUp(timeout) {
+        var t0 = Date.now();
+        while (Date.now() - t0 < timeout) {
+          if (document.getElementById("st-ring")) return true;
+          await sleep(120);
+        }
+        return false;
+      }
+      var out = { tour: window.__studioTutorialTour(), rings: 0, explore: false };
+      // step 0 (centered) → advance through the 6 spotlighted steps
+      for (var i = 1; i <= 6; i++) {
+        document.querySelector("#st-tip button.pri").click();
+        var up = await ringUp(4000);
+        if (up) out.rings++;
+        if (i === 1) out.explore = !document.getElementById("secExplore").hidden;
+        await sleep(120);
+      }
+      // final centered step → Done!
+      document.querySelector("#st-tip button.pri").click();
+      await sleep(200);
+      var doneBtn = document.querySelector("#st-tip button.pri");
+      out.lastLabel = doneBtn ? doneBtn.textContent : "";
+      doneBtn.click();
+      await sleep(150);
+      out.closed = !document.getElementById("st-tip") && !window.__studioTutorialActive();
+      out.done = StudioTutorial.isDone();
+      try { out.doneQuick = localStorage.getItem("studio-tutorial-done-quick") === "1"; } catch (e) {}
+      return out;
+    });
+    ok("J6: the Quick analysis tour drives the REAL Explore flow — section switched, sample seeded, all 6 spotlighted steps find live targets, Done! completes and records",
+      j6QuickWalk.tour === "quick" && j6QuickWalk.explore && j6QuickWalk.rings === 6 &&
+      /Done/.test(j6QuickWalk.lastLabel) && j6QuickWalk.closed && j6QuickWalk.done && j6QuickWalk.doneQuick,
+      JSON.stringify(j6QuickWalk));
+    // restore studio section for later tests
+    await page.evaluate(function () { window.__studioShellSetSection("studio"); });
+    await page.waitForTimeout(200);
 
     // ── F16: Step / staircase chart ───────────────────────────────────────
     console.log("\n• F16: Step chart");

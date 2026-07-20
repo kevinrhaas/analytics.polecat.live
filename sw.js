@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v46"; /* v46: post-overhaul backlog item 7
+var CACHE_NAME = "studio-shell-v47"; /* v47: the tours grew up — a tour
+   chooser with TWO guided walkthroughs (Quick analysis walks the real Explore
+   flow: dataset -> table -> chart -> saved analysis -> pin/add; Build a
+   dashboard is the modernized Studio loop, retired-term-free), the welcome
+   tour rewritten around Explore/Home/Jobs with a take-the-tour CTA
+   (app/tutorial.js, app/welcome.js, app/studio.js changed).
+   v46: post-overhaul backlog item 7
    follow-up — the Datasets list gains a "by connection" filter pill strip
    (multi-select, saved-view aware) alongside the existing by-adapter and
    by-tag strips, so two connections on the same adapter (e.g. two Postgres

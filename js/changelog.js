@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 398,
+    title: 'The tours grew up -- pick your path, walk the real app',
+    kind: 'feature',
+    ts: '2026-07-20T20:03:59.000Z',
+    items: [
+      'Take the tour now opens a chooser with two guided walkthroughs. Quick analysis walks the real Explore flow -- pick a dataset, see the table, choose a chart (county map and Ensemble included), watch the live preview, save the analysis, pin it to Home. Build a dashboard is the classic Studio loop, rewritten for today\'s app.',
+      'The tours drive the actual interface -- they switch sections for you, pick a sample dataset so every step has something real to point at, and wait for the UI they describe. The welcome tour was rewritten around the same modern concepts (Explore, live Home, Jobs) and now ends with a take-the-tour button.',
+      'Stale references to retired formats are gone from every tour, and a test now guards that tour copy stays current as the app evolves.',
+    ],
+  },
+  {
     v: 397,
     title: 'Filter Datasets by connection, not just by adapter',
     kind: 'feature',
