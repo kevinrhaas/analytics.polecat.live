@@ -16,7 +16,7 @@
 >    `node tools/changelog-normalize.js` to stamp it YOURSELF — nothing stamps after merge;
 >    Manager and the polecat.live launcher parse the file live (`tools/changelog-check.js`
 >    verifies without writing).
-> 5. Update THIS file (DONE/NEXT) in the same PR; update `docs/index.html` in the same slice as
+> 5. Update THIS file (DONE/NEXT) in the same PR; update `docs/index.html` AND the in-app tours (app/welcome.js + app/tutorial.js — the suite greps them for retired terms) in the same slice as
 >    any user-facing feature change; bump the `sw.js` cache name if precached files changed.
 > 6. Open the PR and **merge it yourself when green — merge is ship** (`deploy.yml` publishes on
 >    merge; never hard-gate deploy on CI — see the "CI / deploy" convention below). Guard main

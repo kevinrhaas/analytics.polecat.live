@@ -15,20 +15,20 @@
 
   var STEPS = [
     { t: "Welcome to Analytics", ic: "P",
-      h: "An <b>analytics.polecat.live</b> project — a modern, visual way to build interactive dashboards over your existing data.",
-      s: "Design dashboards from your existing queries, preview them live, and export deployable artifacts." },
-    { t: "Three panes", ic: "▥",
-      h: "<b>Data Source Library</b> (left) lists your queries · <b>Live preview</b> (center) is the real dashboard · <b>Inspector</b> (right) edits whatever you select.",
-      s: "Drag a query onto the canvas, pick a chart from the gallery, and tune it in the inspector." },
-    { t: "Build by direct manipulation", ic: "✥",
-      h: "Drag panels to reorder (across rows), drag the right edge to resize, double-click a title to rename, ⧉ duplicate, Ctrl/Cmd-Z to undo. KPIs, filters and 13 chart types included.",
+      h: "A modern, visual way to turn your data into <b>quick analyses</b> and <b>interactive dashboards</b> — entirely in your browser, local-first, nothing to install.",
+      s: "Your work saves to this device and can mirror to your own backend. Everything also works offline on sample data." },
+    { t: "Explore — answers in a minute", ic: "◈",
+      h: "<b>Explore</b> (left rail) is the fastest path in: pick a dataset, see it as a table, choose a chart — including the <b>US county map</b> and the <b>Ensemble common-estimate</b> chart — and save it as a reusable <b>analysis</b>.",
+      s: "Pin an analysis ★ to Home and it greets you live when you open the app; drop it into any dashboard with one click." },
+    { t: "Studio — full dashboards", ic: "▥",
+      h: "<b>Library</b> (left) lists your analyses, datasets and samples · <b>Live preview</b> (center) is the real dashboard · <b>Inspector</b> (right) edits whatever you select. Drag to reorder, resize, rename; Ctrl/Cmd-Z undoes.",
       s: "Or hit <b>New ▸ Auto-build</b> to scaffold a whole dashboard from a query set in one click." },
-    { t: "Export your dashboard", ic: "⤓",
-      h: "Export a self-contained, interactive <b>.html</b> dashboard you can open or host anywhere — in the browser or via the CLI. The editable source is the <b>.studio.json</b> (Save / Open).",
+    { t: "Export — it runs anywhere", ic: "⤓",
+      h: "Export a self-contained, interactive <b>.html</b> dashboard you can open or host anywhere — no server, no dependencies. The editable source is the <b>.studio.json</b> (Save / Open).",
       s: "The live preview is byte-identical to the exported dashboard." },
-    { t: "Connect your data", ic: "⚙",
-      h: "Add <b>Connections</b> and <b>Datasets</b> from the left rail — DuckDB/SQLite files over HTTP, Snowflake, Databricks, BigQuery, or any SQL/HTTP endpoint — then <b>Run live</b> against the real source.",
-      s: "No connection? Everything works standalone with sample data + file export." }
+    { t: "Bring your data", ic: "⚙",
+      h: "Add <b>Connections</b> and <b>Datasets</b> from the left rail — Postgres, Supabase, Snowflake, Databricks, BigQuery, Redshift, Google Sheets, files and more — then run live against the real source. <b>Jobs</b> preps and rolls data up before charting.",
+      s: "Ready to try it? Take a guided tour — spotlights on the real app, two minutes." }
   ];
 
   function injectStyle() {
@@ -66,9 +66,11 @@
       '<div class="sw-dots">' + STEPS.map(function (_, j) { return '<i class="' + (j === i ? "on" : "") + '"></i>'; }).join("") + "</div></div>" +
       '<div class="sw-ft"><button class="sw-skip">Skip</button><span class="sp"></span>' +
       (i > 0 ? '<button class="b" data-act="back">Back</button>' : "") +
+      (i === STEPS.length - 1 ? '<button class="b" data-act="tour">Take the guided tour</button>' : "") +
       '<button class="b pri" data-act="next">' + (i === STEPS.length - 1 ? "Get started" : "Next") + "</button></div>";
     ov.querySelector(".sw-skip").onclick = close;
     var nx = ov.querySelector('[data-act="next"]'); if (nx) nx.onclick = function () { i === STEPS.length - 1 ? close() : render(i + 1); };
+    var tr = ov.querySelector('[data-act="tour"]'); if (tr) tr.onclick = function () { close(); if (window.StudioTutorial) StudioTutorial.open(); };
     var bk = ov.querySelector('[data-act="back"]'); if (bk) bk.onclick = function () { render(i - 1); };
     // Re-render replaces .sw's innerHTML, dropping whatever had focus — land
     // it back on the primary button so Tab stays inside the trap below

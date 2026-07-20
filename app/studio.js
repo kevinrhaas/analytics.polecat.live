@@ -8535,7 +8535,7 @@
     // list rather than just this file. Without them, "Clear local data" left a device stuck
     // "already onboarded" — the welcome screen and interactive tutorial would never re-offer
     // themselves after a supposedly-full reset.
-    "studio-welcome-seen", "studio-tutorial-done",
+    "studio-welcome-seen", "studio-tutorial-done", "studio-tutorial-done-quick", "studio-tutorial-done-build",
     // N-FUN: "studio-last-viewed" (per-dashboard last-opened timestamps, powers the "N changes
     // since you were last here" Home/Repository card hint) — folded in from the start this time.
     "studio-last-viewed",
