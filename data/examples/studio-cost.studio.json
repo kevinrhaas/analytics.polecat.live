@@ -1,335 +1,335 @@
 {
-  "schema": 1,
-  "id": "flagship-cost",
-  "name": "studio-cost",
-  "title": "Cost Optimization & Sustainability",
-  "subtitle": "cost by source, tiering candidates & carbon \u2014 a CDF showcase",
-  "group": "Storage & Cost",
-  "description": "Flagship example built in Analytics \u2014 KPIs, treemap, donut and a cumulative-spend trend over the cost/sustainability CDA queries.",
-  "cda": {
-    "connection": {
-      "id": "pdc",
-      "jndi": "PDC-BIDB-EXT"
-    },
-    "dataAccesses": [
-      {
-        "id": "kpi",
-        "name": "KPI",
-        "params": [
-          {
-            "name": "ds",
-            "type": "String",
-            "default": "%"
-          },
-          {
-            "name": "sens",
-            "type": "String",
-            "default": "%"
-          }
-        ],
-        "cache": true,
-        "cacheDuration": 120,
-        "sql": "SELECT ROUND(SUM(monthly_cost_usd)::numeric,0) AS monthly, ROUND(SUM(monthly_cost_usd)*12::numeric,0) AS annual, ROUND(SUM(co2e_kg)/1000::numeric,1) AS co2e_tonnes, ROUND(SUM(monthly_cost_usd*dup_savings_bytes/NULLIF(size_bytes,0))::numeric,0) AS reclaimable FROM entity_storage_demo WHERE datasource_type LIKE ${ds} AND COALESCE(NULLIF(sensitivity,''),'Unclassified') LIKE ${sens}",
-        "columns": [
-          "monthly",
-          "annual",
-          "co2e_tonnes",
-          "reclaimable"
-        ]
-      },
-      {
-        "id": "cost_by_source",
-        "name": "CostBySource",
-        "params": [
-          {
-            "name": "ds",
-            "type": "String",
-            "default": "%"
-          },
-          {
-            "name": "sens",
-            "type": "String",
-            "default": "%"
-          }
-        ],
-        "cache": true,
-        "cacheDuration": 120,
-        "sql": "SELECT datasource_type AS src, ROUND(SUM(monthly_cost_usd)::numeric,0) AS cost FROM entity_storage_demo WHERE datasource_type LIKE ${ds} AND COALESCE(NULLIF(sensitivity,''),'Unclassified') LIKE ${sens} GROUP BY 1 ORDER BY 2 DESC",
-        "columns": [
-          "src",
-          "cost"
-        ]
-      },
-      {
-        "id": "cost_by_sens",
-        "name": "CostBySens",
-        "params": [
-          {
-            "name": "ds",
-            "type": "String",
-            "default": "%"
-          }
-        ],
-        "cache": true,
-        "cacheDuration": 120,
-        "sql": "SELECT sensitivity AS sens, ROUND(SUM(monthly_cost_usd)::numeric,0) AS cost FROM entity_storage_demo WHERE datasource_type LIKE ${ds} GROUP BY 1 ORDER BY 2 DESC",
-        "columns": [
-          "sens",
-          "cost"
-        ]
-      },
-      {
-        "id": "co2e_by_source",
-        "name": "Co2eBySource",
-        "params": [
-          {
-            "name": "ds",
-            "type": "String",
-            "default": "%"
-          },
-          {
-            "name": "sens",
-            "type": "String",
-            "default": "%"
-          }
-        ],
-        "cache": true,
-        "cacheDuration": 120,
-        "sql": "SELECT datasource_type AS src, ROUND(SUM(co2e_kg)/1000::numeric,2) AS tonnes FROM entity_storage_demo WHERE datasource_type LIKE ${ds} AND COALESCE(NULLIF(sensitivity,''),'Unclassified') LIKE ${sens} GROUP BY 1 ORDER BY 2 DESC",
-        "columns": [
-          "src",
-          "tonnes"
-        ]
-      },
-      {
-        "id": "reclaimable_by_source",
-        "name": "ReclaimBySource",
-        "params": [
-          {
-            "name": "ds",
-            "type": "String",
-            "default": "%"
-          },
-          {
-            "name": "sens",
-            "type": "String",
-            "default": "%"
-          }
-        ],
-        "cache": true,
-        "cacheDuration": 120,
-        "sql": "SELECT datasource_type AS src, ROUND(SUM(monthly_cost_usd*dup_savings_bytes/NULLIF(size_bytes,0))::numeric,0) AS cost FROM entity_storage_demo WHERE datasource_type LIKE ${ds} AND COALESCE(NULLIF(sensitivity,''),'Unclassified') LIKE ${sens} GROUP BY 1 HAVING SUM(dup_savings_bytes)>0 ORDER BY 2 DESC",
-        "columns": [
-          "src",
-          "cost"
-        ]
-      },
-      {
-        "id": "cost_trend",
-        "name": "CostTrend",
-        "params": [
-          {
-            "name": "ds",
-            "type": "String",
-            "default": "%"
-          },
-          {
-            "name": "sens",
-            "type": "String",
-            "default": "%"
-          }
-        ],
-        "cache": true,
-        "cacheDuration": 180,
-        "sql": "WITH first_scan AS ( SELECT s.entity_key, MIN(d.year_month_number) AS ym, MIN(d.year_month_name) AS ymn FROM fact_entity_snapshot s JOIN dim_date d ON s.scanned_date_key=d.date_key WHERE s.scanned_date_key<>19000101 GROUP BY 1) SELECT fs.ymn AS month, ROUND(SUM(st.monthly_cost_usd)::numeric,0) AS cost, ROUND(SUM(SUM(st.monthly_cost_usd)) OVER (ORDER BY fs.ym)::numeric,0) AS cum_cost FROM entity_storage_demo st JOIN first_scan fs ON st.entity_key=fs.entity_key WHERE st.datasource_type LIKE ${ds} AND COALESCE(NULLIF(st.sensitivity,''),'Unclassified') LIKE ${sens} GROUP BY fs.ym, fs.ymn ORDER BY fs.ym",
-        "columns": [
-          "ym",
-          "ymn",
-          "month",
-          "cost",
-          "cum_cost"
-        ]
-      }
-    ]
+ "schema": 1,
+ "id": "flagship-cost",
+ "name": "studio-cost",
+ "title": "Cost Optimization & Sustainability",
+ "subtitle": "cost by source, tiering candidates & carbon \u2014 a full showcase",
+ "group": "Storage & Cost",
+ "description": "Flagship example built in Analytics \u2014 KPIs, treemap, donut and a cumulative-spend trend over the cost & sustainability sample queries.",
+ "cda": {
+  "connection": {
+   "id": "pdc",
+   "jndi": "PDC-BIDB-EXT"
   },
-  "filters": [],
-  "kpis": [
-    {
-      "da": "kpi",
-      "valueCol": "monthly",
-      "label": "Monthly Cost",
-      "fmt": "money",
-      "state": "purple",
-      "info": "Estimated monthly storage spend across all in-scope objects."
-    },
-    {
-      "da": "kpi",
-      "valueCol": "annual",
-      "label": "Annualized",
-      "fmt": "money",
-      "state": "",
-      "info": "Monthly cost projected over 12 months."
-    },
-    {
-      "da": "kpi",
-      "valueCol": "co2e_tonnes",
-      "label": "CO2e / yr (t)",
-      "fmt": "n",
-      "state": "warn",
-      "info": "Estimated annual carbon footprint of storing this data."
-    },
-    {
-      "da": "kpi",
-      "valueCol": "reclaimable",
-      "label": "Reclaimable / mo",
-      "fmt": "money",
-      "state": "good",
-      "info": "Monthly spend tied up in duplicate copies \u2014 the fastest savings."
-    }
-  ],
-  "gridCols": 3,
-  "panels": [
-    {
-      "id": "p_cost",
-      "title": "Monthly Cost by Data Source",
-      "span": 1,
-      "pill": "$",
-      "sub": "",
-      "info": "Where the storage budget goes, by platform.",
-      "src": "entity_storage_demo",
-      "chart": {
-        "type": "bars",
-        "da": "cost_by_source",
-        "map": {
-          "labelCol": "src",
-          "valueCol": "cost"
-        },
-        "opts": {
-          "horizontal": true,
-          "rotate": false,
-          "fmt": "money",
-          "color": "--pentaho",
-          "height": 300
-        }
-      }
-    },
-    {
-      "id": "p_sens",
-      "title": "Cost by Sensitivity",
-      "span": 1,
-      "pill": "$",
-      "sub": "",
-      "info": "Spend split across sensitivity tiers.",
-      "src": "entity_storage_demo",
-      "chart": {
-        "type": "donut",
-        "da": "cost_by_sens",
-        "map": {
-          "labelCol": "sens",
-          "valueCol": "cost"
-        },
-        "opts": {
-          "centerCap": "$/mo",
-          "fmt": "money",
-          "height": 300
-        }
-      }
-    },
-    {
-      "id": "p_recl",
-      "title": "Reclaimable Spend by Source",
-      "span": 1,
-      "pill": "savings",
-      "sub": "",
-      "info": "Monthly savings from removing duplicate data.",
-      "src": "entity_storage_demo",
-      "chart": {
-        "type": "bars",
-        "da": "reclaimable_by_source",
-        "map": {
-          "labelCol": "src",
-          "valueCol": "cost"
-        },
-        "opts": {
-          "horizontal": true,
-          "rotate": false,
-          "fmt": "money",
-          "color": "--good",
-          "height": 300
-        }
-      }
-    },
-    {
-      "id": "p_tree",
-      "title": "Cost Treemap by Source",
-      "span": 2,
-      "pill": "$",
-      "sub": "area \u221d $/mo",
-      "info": "Per-source spend sized by cost.",
-      "src": "entity_storage_demo",
-      "chart": {
-        "type": "treemap",
-        "da": "cost_by_source",
-        "map": {
-          "labelCol": "src",
-          "valueCol": "cost"
-        },
-        "opts": {
-          "fmt": "money",
-          "height": 300
-        }
-      }
-    },
-    {
-      "id": "p_co2",
-      "title": "Carbon (CO2e) by Source",
-      "span": 1,
-      "pill": "tonnes",
-      "sub": "",
-      "info": "Estimated annual CO2e of each source's footprint.",
-      "src": "entity_storage_demo",
-      "chart": {
-        "type": "bars",
-        "da": "co2e_by_source",
-        "map": {
-          "labelCol": "src",
-          "valueCol": "tonnes"
-        },
-        "opts": {
-          "horizontal": true,
-          "rotate": false,
-          "fmt": "n",
-          "color": "--c3",
-          "height": 300
-        }
-      }
-    },
-    {
-      "id": "p_trend",
-      "title": "Cloud Spend Growth",
-      "span": "full",
-      "pill": "cumulative $",
-      "sub": "",
-      "info": "Cumulative monthly spend over time \u2014 the slope is your cost-growth rate.",
-      "src": "entity_storage_demo + dim_date",
-      "chart": {
-        "type": "line",
-        "da": "cost_trend",
-        "map": {
-          "labelCol": "month",
-          "series": [
-            {
-              "col": "cum_cost",
-              "name": "Cumulative $/mo"
-            }
-          ]
-        },
-        "opts": {
-          "area": true,
-          "fmt": "money",
-          "height": 300
-        }
-      }
-    }
+  "dataAccesses": [
+   {
+    "id": "kpi",
+    "name": "KPI",
+    "params": [
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "sens",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT ROUND(SUM(monthly_cost_usd)::numeric,0) AS monthly, ROUND(SUM(monthly_cost_usd)*12::numeric,0) AS annual, ROUND(SUM(co2e_kg)/1000::numeric,1) AS co2e_tonnes, ROUND(SUM(monthly_cost_usd*dup_savings_bytes/NULLIF(size_bytes,0))::numeric,0) AS reclaimable FROM entity_storage_demo WHERE datasource_type LIKE ${ds} AND COALESCE(NULLIF(sensitivity,''),'Unclassified') LIKE ${sens}",
+    "columns": [
+     "monthly",
+     "annual",
+     "co2e_tonnes",
+     "reclaimable"
+    ]
+   },
+   {
+    "id": "cost_by_source",
+    "name": "CostBySource",
+    "params": [
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "sens",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT datasource_type AS src, ROUND(SUM(monthly_cost_usd)::numeric,0) AS cost FROM entity_storage_demo WHERE datasource_type LIKE ${ds} AND COALESCE(NULLIF(sensitivity,''),'Unclassified') LIKE ${sens} GROUP BY 1 ORDER BY 2 DESC",
+    "columns": [
+     "src",
+     "cost"
+    ]
+   },
+   {
+    "id": "cost_by_sens",
+    "name": "CostBySens",
+    "params": [
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT sensitivity AS sens, ROUND(SUM(monthly_cost_usd)::numeric,0) AS cost FROM entity_storage_demo WHERE datasource_type LIKE ${ds} GROUP BY 1 ORDER BY 2 DESC",
+    "columns": [
+     "sens",
+     "cost"
+    ]
+   },
+   {
+    "id": "co2e_by_source",
+    "name": "Co2eBySource",
+    "params": [
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "sens",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT datasource_type AS src, ROUND(SUM(co2e_kg)/1000::numeric,2) AS tonnes FROM entity_storage_demo WHERE datasource_type LIKE ${ds} AND COALESCE(NULLIF(sensitivity,''),'Unclassified') LIKE ${sens} GROUP BY 1 ORDER BY 2 DESC",
+    "columns": [
+     "src",
+     "tonnes"
+    ]
+   },
+   {
+    "id": "reclaimable_by_source",
+    "name": "ReclaimBySource",
+    "params": [
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "sens",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 120,
+    "sql": "SELECT datasource_type AS src, ROUND(SUM(monthly_cost_usd*dup_savings_bytes/NULLIF(size_bytes,0))::numeric,0) AS cost FROM entity_storage_demo WHERE datasource_type LIKE ${ds} AND COALESCE(NULLIF(sensitivity,''),'Unclassified') LIKE ${sens} GROUP BY 1 HAVING SUM(dup_savings_bytes)>0 ORDER BY 2 DESC",
+    "columns": [
+     "src",
+     "cost"
+    ]
+   },
+   {
+    "id": "cost_trend",
+    "name": "CostTrend",
+    "params": [
+     {
+      "name": "ds",
+      "type": "String",
+      "default": "%"
+     },
+     {
+      "name": "sens",
+      "type": "String",
+      "default": "%"
+     }
+    ],
+    "cache": true,
+    "cacheDuration": 180,
+    "sql": "WITH first_scan AS ( SELECT s.entity_key, MIN(d.year_month_number) AS ym, MIN(d.year_month_name) AS ymn FROM fact_entity_snapshot s JOIN dim_date d ON s.scanned_date_key=d.date_key WHERE s.scanned_date_key<>19000101 GROUP BY 1) SELECT fs.ymn AS month, ROUND(SUM(st.monthly_cost_usd)::numeric,0) AS cost, ROUND(SUM(SUM(st.monthly_cost_usd)) OVER (ORDER BY fs.ym)::numeric,0) AS cum_cost FROM entity_storage_demo st JOIN first_scan fs ON st.entity_key=fs.entity_key WHERE st.datasource_type LIKE ${ds} AND COALESCE(NULLIF(st.sensitivity,''),'Unclassified') LIKE ${sens} GROUP BY fs.ym, fs.ymn ORDER BY fs.ym",
+    "columns": [
+     "ym",
+     "ymn",
+     "month",
+     "cost",
+     "cum_cost"
+    ]
+   }
   ]
+ },
+ "filters": [],
+ "kpis": [
+  {
+   "da": "kpi",
+   "valueCol": "monthly",
+   "label": "Monthly Cost",
+   "fmt": "money",
+   "state": "purple",
+   "info": "Estimated monthly storage spend across all in-scope objects."
+  },
+  {
+   "da": "kpi",
+   "valueCol": "annual",
+   "label": "Annualized",
+   "fmt": "money",
+   "state": "",
+   "info": "Monthly cost projected over 12 months."
+  },
+  {
+   "da": "kpi",
+   "valueCol": "co2e_tonnes",
+   "label": "CO2e / yr (t)",
+   "fmt": "n",
+   "state": "warn",
+   "info": "Estimated annual carbon footprint of storing this data."
+  },
+  {
+   "da": "kpi",
+   "valueCol": "reclaimable",
+   "label": "Reclaimable / mo",
+   "fmt": "money",
+   "state": "good",
+   "info": "Monthly spend tied up in duplicate copies \u2014 the fastest savings."
+  }
+ ],
+ "gridCols": 3,
+ "panels": [
+  {
+   "id": "p_cost",
+   "title": "Monthly Cost by Data Source",
+   "span": 1,
+   "pill": "$",
+   "sub": "",
+   "info": "Where the storage budget goes, by platform.",
+   "src": "entity_storage_demo",
+   "chart": {
+    "type": "bars",
+    "da": "cost_by_source",
+    "map": {
+     "labelCol": "src",
+     "valueCol": "cost"
+    },
+    "opts": {
+     "horizontal": true,
+     "rotate": false,
+     "fmt": "money",
+     "color": "--pentaho",
+     "height": 300
+    }
+   }
+  },
+  {
+   "id": "p_sens",
+   "title": "Cost by Sensitivity",
+   "span": 1,
+   "pill": "$",
+   "sub": "",
+   "info": "Spend split across sensitivity tiers.",
+   "src": "entity_storage_demo",
+   "chart": {
+    "type": "donut",
+    "da": "cost_by_sens",
+    "map": {
+     "labelCol": "sens",
+     "valueCol": "cost"
+    },
+    "opts": {
+     "centerCap": "$/mo",
+     "fmt": "money",
+     "height": 300
+    }
+   }
+  },
+  {
+   "id": "p_recl",
+   "title": "Reclaimable Spend by Source",
+   "span": 1,
+   "pill": "savings",
+   "sub": "",
+   "info": "Monthly savings from removing duplicate data.",
+   "src": "entity_storage_demo",
+   "chart": {
+    "type": "bars",
+    "da": "reclaimable_by_source",
+    "map": {
+     "labelCol": "src",
+     "valueCol": "cost"
+    },
+    "opts": {
+     "horizontal": true,
+     "rotate": false,
+     "fmt": "money",
+     "color": "--good",
+     "height": 300
+    }
+   }
+  },
+  {
+   "id": "p_tree",
+   "title": "Cost Treemap by Source",
+   "span": 2,
+   "pill": "$",
+   "sub": "area \u221d $/mo",
+   "info": "Per-source spend sized by cost.",
+   "src": "entity_storage_demo",
+   "chart": {
+    "type": "treemap",
+    "da": "cost_by_source",
+    "map": {
+     "labelCol": "src",
+     "valueCol": "cost"
+    },
+    "opts": {
+     "fmt": "money",
+     "height": 300
+    }
+   }
+  },
+  {
+   "id": "p_co2",
+   "title": "Carbon (CO2e) by Source",
+   "span": 1,
+   "pill": "tonnes",
+   "sub": "",
+   "info": "Estimated annual CO2e of each source's footprint.",
+   "src": "entity_storage_demo",
+   "chart": {
+    "type": "bars",
+    "da": "co2e_by_source",
+    "map": {
+     "labelCol": "src",
+     "valueCol": "tonnes"
+    },
+    "opts": {
+     "horizontal": true,
+     "rotate": false,
+     "fmt": "n",
+     "color": "--c3",
+     "height": 300
+    }
+   }
+  },
+  {
+   "id": "p_trend",
+   "title": "Cloud Spend Growth",
+   "span": "full",
+   "pill": "cumulative $",
+   "sub": "",
+   "info": "Cumulative monthly spend over time \u2014 the slope is your cost-growth rate.",
+   "src": "entity_storage_demo + dim_date",
+   "chart": {
+    "type": "line",
+    "da": "cost_trend",
+    "map": {
+     "labelCol": "month",
+     "series": [
+      {
+       "col": "cum_cost",
+       "name": "Cumulative $/mo"
+      }
+     ]
+    },
+    "opts": {
+     "area": true,
+     "fmt": "money",
+     "height": 300
+    }
+   }
+  }
+ ]
 }

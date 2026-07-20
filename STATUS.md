@@ -1277,6 +1277,11 @@
 > ── materialized datasets, repeatable loads), V9 scientific-honesty polish. Satisfy    ──
 > ── ALL RFP requirements (bid due 7/31; see the GOAL block above). One slice per run,  ──
 > ── same PR discipline; coordinate via open steward/* PRs.                             ──
+> ── SAMPLES CURATION shipped 2026-07-20 (Kevin): catalog 67 stems/428 DAs → 13/~115,   ──
+> ── geo-first ("field-and-geo" leads: county/state/CRD/HUC8 + provider trends), stems  ──
+> ── renamed (no cde-/cdf-/pdc- anywhere), retired CDF/CDE wording swept from app/Help  ──
+> ── (suite-ratcheted), Explore repaints on hide-samples, geo datasets open as MAPS.    ──
+> ── KEEP THE CATALOG CURATED: new samples must earn their place (distinct + demoable). ──
 > ── DESIGN BAR (Kevin, 2026-07-16): every Viridis slice (and supporting work) must     ──
 > ── ALSO make the app USEFUL, EASY TO USE, ELEGANT, SIMPLE, and BEAUTIFUL — delight    ──
 > ── is a requirement, not decoration (the platform design bar). Non-expert first:      ──

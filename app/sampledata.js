@@ -20,6 +20,12 @@
   // classify()/valueFor() heuristics below and by Studio.crossedRows.
   var PROVIDERS = ["DTN", "Indigo Ag", "Iowa State", "Regrow", "Terra Diagnostics"];
   var PRACTICES = ["Cover crops", "No-till", "Reduced tillage", "Conventional"];
+  var CROPS = ["Corn", "Soybeans", "Wheat", "Hay"];
+  // real Corn Belt HUC8 subbasins / NASS crop-reporting districts / state postals —
+  // so freshly dragged watershed/district/state choropleths render colored regions
+  var HUC8S = ["07080105", "07130001", "10230003", "07100006", "05120201", "07080207", "10240004", "07140101"];
+  var CRDS = ["1710", "1720", "1910", "1930", "1830", "1750", "1940", "1860"];
+  var STATES = ["IA", "IL", "IN", "MN", "NE", "OH", "MO", "WI"];
 
   function classify(name) {
     var c = String(name || "").toLowerCase();
@@ -38,7 +44,12 @@
     if (/month|ymn|^ym$|period|date|day/.test(c)) return "month";
     // Viridis V2: geo-id columns get REAL Corn Belt county FIPS codes so a freshly
     // dragged choropleth panel renders a colored map, not an all-no-data hatch.
-    if (/fips|geoid|county_?(id|code)?$|^huc/.test(c)) return "geoid";
+    if (/^huc/.test(c)) return "huc8";                 // real HUC8 codes, not county FIPS
+    if (/district|^crd/.test(c)) return "crd";          // NASS crop-reporting districts
+    if (/^state$|^state_/.test(c)) return "statecode";  // postal codes → state choropleths
+    if (/^crop/.test(c)) return "crop";
+    if (/acre/.test(c)) return "acres";
+    if (/fips|geoid|county_?(id|code)?$/.test(c)) return "geoid";
     // Viridis V7: ensemble-style columns (provider/practice/year) so a freshly
     // dragged Ensemble or provider-colored choropleth panel reads as a believable
     // multi-provider demo instead of generic "Type A"/random-number placeholders.
@@ -66,6 +77,11 @@
     switch (kind) {
       // real Corn Belt county FIPS (IL/IN/IA) — see the geoid classify note
       case "geoid": return ["17031", "17113", "17167", "19153", "19113", "18097", "18157", "17019"][i % 8];
+      case "huc8": return HUC8S[i % HUC8S.length];
+      case "crd": return CRDS[i % CRDS.length];
+      case "statecode": return STATES[i % STATES.length];
+      case "crop": return CROPS[i % CROPS.length];
+      case "acres": return Math.round(2000 + ((i * 977 + hv) % 38000));
       case "cat": return CATS[i % CATS.length];
       case "sens": return SENS[i % SENS.length];
       case "owner": return OWNERS[i % OWNERS.length];
@@ -101,7 +117,7 @@
     }
   }
 
-  var CATEGORICAL_KINDS = /^(cat|sens|owner|status|app|ext|term|type|month|name|isodate|geoid|provider|practice|year)$/;
+  var CATEGORICAL_KINDS = /^(cat|sens|owner|status|app|ext|term|type|month|name|isodate|geoid|huc8|crd|statecode|crop|provider|practice|year)$/;
 
   // produce {cols, rows} for one data-access definition.
   // valueOnly=true → this DA feeds only KPIs/gauges (its first column IS a value, not an

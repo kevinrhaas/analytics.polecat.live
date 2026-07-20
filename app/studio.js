@@ -552,7 +552,7 @@
     try { localStorage.setItem("studio-show-samples", on ? "1" : "0"); } catch (e) {}
     // Viridis V7: the Demo packs Settings card is also gated on showSamples(),
     // so it needs the same re-render the other three sample-gated surfaces get.
-    buildLibrary(); renderHome(); buildExamplesMenu(); buildNewMenu(); renderSettings();
+    buildLibrary(); renderHome(); buildExamplesMenu(); buildNewMenu(); renderSettings(); renderExplore();
   }
   window.__studioShowSamples = { get: showSamples, set: setShowSamples }; // test hook
   var _samplesOpen = false;
@@ -565,7 +565,7 @@
       // The whole demo catalog nests under ONE collapsible "Samples" group so
       // the pane leads with YOUR datasets instead of ~20 sample folders. A
       // search auto-opens it; the open state persists.
-      var stems = Object.keys(S.catalog).sort();
+      var stems = Object.keys(S.catalog);
       var stemWraps = [];
       stems.forEach(function (stem) {
         var entry = S.catalog[stem];
@@ -798,7 +798,7 @@
       out.push({ kind: "ws", id: d.id, name: d.name || d.id, sub: conn ? conn.name : "no connection", cols: d.columns || [] });
     });
     if (showSamples()) {
-      Object.keys(S.catalog).sort().forEach(function (stem) {
+      Object.keys(S.catalog).forEach(function (stem) {
         (S.catalog[stem].dataAccesses || []).forEach(function (d) {
           out.push({ kind: "sample", id: stem + XP_SEP + d.id, name: d.id, sub: stem + " · sample", cols: d.columns || [] });
         });
@@ -844,6 +844,12 @@
     var cda = xpCatalogDA(parts[0], parts[1]);
     if (!cda) return null;
     return JSON.parse(JSON.stringify(cda));
+  }
+  function xpDefaultType(cols) {
+    var c = (cols || []).join(" ").toLowerCase();
+    if (/fips|geoid|county|huc|district|crd|(^| )state( |$)/.test(c)) return "choropleth";
+    if (/provider/.test(c) && /year|month|date/.test(c)) return "ensembleSeries";
+    return "bars";
   }
   function xpGuessMapping() {
     var cols = (XP.run && XP.run.cols) || [];
@@ -1067,7 +1073,10 @@
         var parts = btn.getAttribute("data-xp-ds").split(XP_SEP);
         XP.kind = parts.shift(); XP.dsId = parts.join(XP_SEP); // sample ids contain the SEP themselves
         XP.analysisId = null; XP.name = "";
-        xpLoadRows().then(function () { xpGuessMapping(); renderExplore(); xpPreview(); });
+        xpLoadRows().then(function () {
+          XP.type = xpDefaultType(XP.run && XP.run.cols); // geo data opens as a map, provider trends as the Ensemble
+          xpGuessMapping(); renderExplore(); xpPreview();
+        });
       };
     });
     $$("[data-xp-type]", body).forEach(function (btn) {
@@ -2764,14 +2773,14 @@
       var dlSec = section(body, "Shareable link", null, null, "exporting");
       var hashStr = sp.filters.map(function (f) { return encodeURIComponent(f.id) + "=" + encodeURIComponent(f.def != null ? f.def : "%"); }).join("&");
       var dlHint = el("div", "hint");
-      dlHint.innerHTML = 'Append <code class="fhash">#' + esc(hashStr) + '</code> to the exported CDF URL to pre-select these filters on load.';
+      dlHint.innerHTML = 'Append <code class="fhash">#' + esc(hashStr) + '</code> to the exported dashboard URL to pre-select these filters on load.';
       dlSec.appendChild(dlHint);
       var dlBtn = el("button", "btn"); dlBtn.style.cssText = "margin-top:6px;width:100%;justify-content:center";
       setIconBtn(dlBtn, "link", "Copy filter hash");
       dlBtn.setAttribute("data-deeplink", hashStr);
       dlBtn.onclick = function () {
         var hash = "#" + hashStr;
-        try { navigator.clipboard.writeText(hash).then(function () { toast("Filter hash copied! Append to your exported CDF URL."); }).catch(function () { toast(hash); }); } catch (e) { toast(hash); }
+        try { navigator.clipboard.writeText(hash).then(function () { toast("Filter hash copied! Append to your exported dashboard's URL."); }).catch(function () { toast(hash); }); } catch (e) { toast(hash); }
       };
       dlSec.appendChild(dlBtn);
     }
@@ -2883,7 +2892,7 @@
     sec.appendChild(field("Sub-label", input(p.sub, function (v) { p.sub = v; refreshPreview(); })));
     sec.appendChild(field("Info tooltip", textarea(p.info, function (v) { p.info = v; refreshPreview(); })));
     sec.appendChild(field("Note (visible)", input(p.note || "", function (v) { p.note = v.trim(); refreshPreview(); }),
-      "Short annotation shown below the panel title in the preview and exported CDF — stakeholder context at a glance"));
+      "Short annotation shown below the panel title in the preview and exported dashboard — stakeholder context at a glance"));
     // N-FUN: a first cut of "story / scrollytelling mode" — an optional narrative line
     // shown ONLY in Slideshow (never in the normal preview/export), distinct from the
     // always-visible panel Note above. Turns Slideshow from "cycle through charts" into
@@ -4464,7 +4473,7 @@
     da.outputOptions = da.outputOptions || { filters: [], sortBy: [], limit: 0 };
     var oo = da.outputOptions;
     var ooSec = advSection(body, "Output options");
-    ooSec.appendChild(hint("Applied after the query: filter rows, sort, or cap the result size. Active rules show in the query preview and are emitted as <OutputOptions> in the CDA export."));
+    ooSec.appendChild(hint("Applied after the query: filter rows, sort, or cap the result size. Active rules show in the query preview and are applied inside the exported dashboard too."));
 
     // Filter rules
     var fSec = section(ooSec, "Filter rules", function () {

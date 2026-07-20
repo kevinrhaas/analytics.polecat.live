@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v47"; /* v47: the tours grew up — a tour
+var CACHE_NAME = "studio-shell-v48"; /* v48: samples curation (per Kevin) —
+   data/cda-catalog.json rebuilt (67 stems/428 DAs -> 13/115, geo-first,
+   no retired prefixes), sampledata.js gains huc8/crd/state/crop/acres kinds,
+   studio.js: Explore repaints on hide-samples + geo datasets default to the
+   map / provider trends to the Ensemble; retired CDF/CDE wording swept from
+   app strings, the flagship example copy, and Help.
+   v47: the tours grew up — a tour
    chooser with TWO guided walkthroughs (Quick analysis walks the real Explore
    flow: dataset -> table -> chart -> saved analysis -> pin/add; Build a
    dashboard is the modernized Studio loop, retired-term-free), the welcome
