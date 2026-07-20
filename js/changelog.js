@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 399,
+    title: 'Samples worth exploring -- fewer, friendlier, and geo-first',
+    ts: '2026-07-20T20:15:51.000Z',
+    items: [
+      'The sample library slimmed from 67 look-alike groups (428 queries) to 13 clearly named families (~115 queries) -- one strong family per topic, no more wall of near-identical governance sets, and no more cryptic prefixes anywhere. Every bundled example dashboard keeps working untouched.',
+      'A new Field and geo family now leads the list, built for the map and Ensemble charts. County cover-crop estimates from five providers, conservation tillage, practice trends, and state / USDA-district / watershed rollups -- every map scale has a ready sample, and picking one opens Explore as a colored map (provider trends open as the Ensemble) instead of a generic bar chart.',
+      'Watershed and district columns now sample REAL HUC8 and district codes so those maps render colored regions. Hide sample content now clears Explore instantly too, and the last of the retired CDF/CDE wording is gone from the app and Help -- with a test that keeps it gone.',
+    ],
+  },
+  {
     v: 398,
     title: 'The tours grew up -- pick your path, walk the real app',
     kind: 'feature',

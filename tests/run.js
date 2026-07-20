@@ -1774,6 +1774,73 @@ function serve() {
     await xpSimple.close();
 
     // ---- HOME LIVE (Viridis V6): featured dashboards + analysis widgets -----
+    // ---- SAMPLES CURATION (Kevin, 2026-07-20): fewer, better, geo-first -----
+    console.log("\n• SAMPLES: curated catalog, geo family, no retired terms");
+    (function () {
+      const cat = JSON.parse(fs.readFileSync(path.join(ROOT, "data/cda-catalog.json"), "utf8"));
+      const stems = Object.keys(cat);
+      const das = stems.reduce((n, k) => n + (cat[k].dataAccesses || []).length, 0);
+      ok("SAMPLES: catalog curated — ≤20 friendly stems (was 67), 90–200 DAs (was 428), NO cde/cdf/pdc prefixes anywhere",
+        stems.length <= 20 && das >= 90 && das <= 200 && stems.every((k) => !/cde|cdf|pdc/.test(k)),
+        JSON.stringify({ stems: stems.length, das: das, bad: stems.filter((k) => /cde|cdf|pdc/.test(k)) }));
+      ok("SAMPLES: the field-and-geo family leads the catalog with ≥8 choropleth/ensemble-ready datasets (county/state/CRD/HUC8 + provider trends)",
+        stems[0] === "field-and-geo" && (cat["field-and-geo"].dataAccesses || []).length >= 8,
+        JSON.stringify({ first: stems[0], geoDAs: (cat["field-and-geo"] || { dataAccesses: [] }).dataAccesses.length }));
+    })();
+    const smpKinds = await page.evaluate(function () {
+      var h = Studio.sampleRows({ id: "t1", columns: ["huc8", "pct"] });
+      var d = Studio.sampleRows({ id: "t2", columns: ["district", "pct"] });
+      var st = Studio.sampleRows({ id: "t3", columns: ["state", "pct"] });
+      return {
+        huc: String(h.rows[0][0]), hucAll8: h.rows.every(function (r) { return /^\d{8}$/.test(String(r[0])); }),
+        crd: String(d.rows[0][0]), crdAll4: d.rows.every(function (r) { return /^\d{4}$/.test(String(r[0])); }),
+        state2: st.rows.every(function (r) { return /^[A-Z]{2}$/.test(String(r[0])); })
+      };
+    });
+    ok("SAMPLES: huc8/district/state columns get REAL codes (8-digit HUC8s, 4-digit CRDs, postal states) — never county FIPS misfits",
+      smpKinds.hucAll8 && smpKinds.crdAll4 && smpKinds.state2, JSON.stringify(smpKinds));
+    // picking a geo sample defaults Explore to the MAP (design bar: instant, obvious)
+    await page.evaluate(function () { window.__studioShellSetSection("explore"); });
+    await page.waitForTimeout(250);
+    await page.evaluate(function () {
+      var btn = [].filter.call(document.querySelectorAll(".xp-ds"), function (b) {
+        return b.getAttribute("data-xp-ds").indexOf("county_cover_crop_pct") >= 0;
+      })[0];
+      btn.click();
+    });
+    await page.waitForTimeout(700);
+    const smpGeoDefault = await page.evaluate(function () {
+      return new Promise(function (resolve) {
+        var t0 = Date.now();
+        (function poll() {
+          var f = document.querySelector(".xp-ifr"), doc = null;
+          try { doc = f && f.contentDocument; } catch (e) {}
+          var paths = doc ? doc.querySelectorAll("path[data-geo-id]").length : 0;
+          if (paths > 3000) resolve({ type: window.__studioExplore.state.type, paths: paths });
+          else if (Date.now() - t0 > 20000) resolve({ type: window.__studioExplore.state.type, paths: paths, timeout: true });
+          else setTimeout(poll, 250);
+        })();
+      });
+    });
+    ok("SAMPLES: picking the county cover-crop sample opens Explore as a CHOROPLETH rendering 3k+ counties — geo data leads with a map, not bars",
+      smpGeoDefault.type === "choropleth" && smpGeoDefault.paths > 3000, JSON.stringify(smpGeoDefault));
+    // hide-samples now repaints Explore immediately (the reported gap)
+    const smpToggle = await page.evaluate(function () {
+      window.__studioShowSamples.set(false);
+      var withOff = [].filter.call(document.querySelectorAll(".xp-ds"), function (b) {
+        return b.getAttribute("data-xp-ds").indexOf("sample") === 0;
+      }).length;
+      window.__studioShowSamples.set(true);
+      var withOn = [].filter.call(document.querySelectorAll(".xp-ds"), function (b) {
+        return b.getAttribute("data-xp-ds").indexOf("sample") === 0;
+      }).length;
+      return { withOff: withOff, withOn: withOn };
+    });
+    ok("SAMPLES: 'Hide sample content' now empties Explore's sample list immediately (and restores on re-enable)",
+      smpToggle.withOff === 0 && smpToggle.withOn > 50, JSON.stringify(smpToggle));
+    await page.evaluate(function () { window.__studioShellSetSection("studio"); });
+    await page.waitForTimeout(200);
+
     console.log("\n• HOME LIVE: featured dashboards render live on Home (Viridis V6)");
     await page.evaluate(function () {
       var sp = window.__STUDIO_STATE.spec;
@@ -3174,12 +3241,12 @@ function serve() {
       newMenu.sets === 10 && newMenu.filter && newMenu.more, JSON.stringify(newMenu));
     await page.evaluate(() => {
       var f = document.getElementById("newMenuFilter");
-      f.value = "pdc-cost"; f.dispatchEvent(new Event("input", { bubbles: true }));
+      f.value = "cost-finops"; f.dispatchEvent(new Event("input", { bubbles: true }));
     });
     await page.waitForTimeout(80);
-    await page.click('#menuNew button[data-set-key="pdc-cost"]'); await page.waitForTimeout(400);
+    await page.click('#menuNew button[data-set-key="cost-finops"]'); await page.waitForTimeout(400);
     const scaf = await page.evaluate(() => ({ panels: window.__STUDIO_STATE.spec.panels.length, kpis: window.__STUDIO_STATE.spec.kpis.length, name: window.__STUDIO_STATE.spec.name }));
-    ok("scaffolding builds panels + KPIs from the query set", scaf.panels >= 3 && scaf.kpis >= 1 && scaf.name === "pdc-cost", JSON.stringify(scaf));
+    ok("scaffolding builds panels + KPIs from the query set", scaf.panels >= 3 && scaf.kpis >= 1 && scaf.name === "cost-finops", JSON.stringify(scaf));
     const scafRender = await page.evaluate(() => document.querySelector("#preview").contentDocument.querySelectorAll("#content svg").length);
     ok("scaffolded dashboard renders", scafRender >= 3, "svgs=" + scafRender);
 
