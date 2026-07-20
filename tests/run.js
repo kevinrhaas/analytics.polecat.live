@@ -3241,12 +3241,12 @@ function serve() {
       newMenu.sets === 10 && newMenu.filter && newMenu.more, JSON.stringify(newMenu));
     await page.evaluate(() => {
       var f = document.getElementById("newMenuFilter");
-      f.value = "pdc-cost"; f.dispatchEvent(new Event("input", { bubbles: true }));
+      f.value = "cost-finops"; f.dispatchEvent(new Event("input", { bubbles: true }));
     });
     await page.waitForTimeout(80);
-    await page.click('#menuNew button[data-set-key="pdc-cost"]'); await page.waitForTimeout(400);
+    await page.click('#menuNew button[data-set-key="cost-finops"]'); await page.waitForTimeout(400);
     const scaf = await page.evaluate(() => ({ panels: window.__STUDIO_STATE.spec.panels.length, kpis: window.__STUDIO_STATE.spec.kpis.length, name: window.__STUDIO_STATE.spec.name }));
-    ok("scaffolding builds panels + KPIs from the query set", scaf.panels >= 3 && scaf.kpis >= 1 && scaf.name === "pdc-cost", JSON.stringify(scaf));
+    ok("scaffolding builds panels + KPIs from the query set", scaf.panels >= 3 && scaf.kpis >= 1 && scaf.name === "cost-finops", JSON.stringify(scaf));
     const scafRender = await page.evaluate(() => document.querySelector("#preview").contentDocument.querySelectorAll("#content svg").length);
     ok("scaffolded dashboard renders", scafRender >= 3, "svgs=" + scafRender);
 

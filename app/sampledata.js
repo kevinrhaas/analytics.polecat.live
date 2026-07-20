@@ -32,6 +32,7 @@
     if (/(^|_)(src|source|datasource|platform|system|conn)/.test(c)) return "cat";
     if (/sens|classification/.test(c)) return "sens";
     if (/owner|steward/.test(c)) return "owner";
+    if (/^state$|^state_(code|abbr|postal)/.test(c)) return "statecode"; // postal codes → state choropleths (before the workflow-status rule)
     if (/status|state|result/.test(c)) return "status";
     if (/app|application|tool|consumer/.test(c)) return "app";
     if (/ext|extension/.test(c)) return "ext";
@@ -46,7 +47,6 @@
     // dragged choropleth panel renders a colored map, not an all-no-data hatch.
     if (/^huc/.test(c)) return "huc8";                 // real HUC8 codes, not county FIPS
     if (/district|^crd/.test(c)) return "crd";          // NASS crop-reporting districts
-    if (/^state$|^state_/.test(c)) return "statecode";  // postal codes → state choropleths
     if (/^crop/.test(c)) return "crop";
     if (/acre/.test(c)) return "acres";
     if (/fips|geoid|county_?(id|code)?$/.test(c)) return "geoid";
