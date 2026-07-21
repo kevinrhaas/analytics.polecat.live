@@ -2692,6 +2692,47 @@
 
   // Apply outputOptions (filters / sortBy / limit) to a {cols, rows} result.
   // Returns a new object with the same cols and a new, filtered/sorted/limited rows array.
+  // Explore rollups (group-by aggregation). Rolls {cols, rows} up by one or two
+  // group-by dimensions, aggregating the value column with sum/avg/median/min/
+  // max/count. The aggregated column KEEPS the value column's name, so a chart's
+  // existing mapping (labelCol → a group-by dim, valueCol → the measure) keeps
+  // working unchanged — the data just arrives pre-rolled-up. Applied via
+  // applyOutputOptions (below) so it runs everywhere a DA resolves: Explore
+  // preview, Home, dashboards and exports alike. count with no value column
+  // counts rows per group.
+  Studio.AGG_FNS = [
+    ["sum", "Sum"], ["avg", "Mean (average)"], ["median", "Median"],
+    ["min", "Min"], ["max", "Max"], ["count", "Count"]
+  ];
+  Studio.aggregateRows = function (cols, rows, spec) {
+    if (!spec || !spec.fn || spec.fn === "none") return { cols: cols, rows: rows };
+    var groupBy = (spec.groupBy || []).filter(function (c) { return c && cols.indexOf(c) >= 0; });
+    var fn = spec.fn, vi = spec.valueCol ? cols.indexOf(spec.valueCol) : -1;
+    var gi = groupBy.map(function (c) { return cols.indexOf(c); });
+    var outValName = (fn === "count" && vi < 0) ? "count" : (spec.valueCol || "count");
+    var outCols = groupBy.concat([outValName]);
+    var groups = {}, order = [];
+    rows.forEach(function (r) {
+      var key = gi.map(function (i) { return String(r[i]); }).join("");
+      if (!groups[key]) { groups[key] = { keyVals: gi.map(function (i) { return r[i]; }), vals: [] }; order.push(key); }
+      groups[key].vals.push(vi >= 0 ? r[vi] : 1);
+    });
+    function num(v) { var n = parseFloat(v); return isNaN(n) ? null : n; }
+    function agg(vals) {
+      if (fn === "count") return vals.length;
+      var nums = vals.map(num).filter(function (n) { return n != null; });
+      if (!nums.length) return null;
+      if (fn === "sum") return nums.reduce(function (a, b) { return a + b; }, 0);
+      if (fn === "avg") return nums.reduce(function (a, b) { return a + b; }, 0) / nums.length;
+      if (fn === "min") return Math.min.apply(null, nums);
+      if (fn === "max") return Math.max.apply(null, nums);
+      if (fn === "median") { var s = nums.slice().sort(function (a, b) { return a - b; }); var m = Math.floor(s.length / 2); return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; }
+      return null;
+    }
+    var outRows = order.map(function (key) { var g = groups[key]; return g.keyVals.concat([agg(g.vals)]); });
+    return { cols: outCols, rows: outRows };
+  };
+
   Studio.applyOutputOptions = function (da, result) {
     if (!da || !da.outputOptions) return result;
     var oo = da.outputOptions;
@@ -2721,6 +2762,13 @@
         }
       });
     });
+
+    // aggregate (group-by rollup) — runs after filters, before sort/limit, so
+    // the sort and limit apply to the rolled-up rows.
+    if (oo.aggregate && oo.aggregate.fn && oo.aggregate.fn !== "none") {
+      var agg = Studio.aggregateRows(cols, rows, oo.aggregate);
+      cols = agg.cols; rows = agg.rows;
+    }
 
     // sort
     var activeSorts = (oo.sortBy || []).filter(function (s) { return s.col; });

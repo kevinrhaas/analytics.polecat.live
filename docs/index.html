@@ -287,6 +287,13 @@
     common-estimate chart with its reference-series option.</li>
     <li><strong>Workspace datasets run live</strong> for the table preview and the chart; if a
     live run fails, Explore falls back to typed sample rows and says so.</li>
+    <li><strong>Rollups (group-by aggregation).</strong> Under the column mapping, the
+    <strong>Rollup</strong> control lets you aggregate the value column with <em>Sum, Mean,
+    Median, Min, Max</em> or <em>Count</em>, grouped by <strong>one or two</strong> dimensions
+    (Group by / Then by) — so a detail dataset becomes a chart of totals or averages without
+    building a Job first. The rollup is saved onto the analysis, so it re-aggregates the same way
+    on Home, in any dashboard, and in the exported HTML. (Geo and Ensemble charts carry their own
+    aggregation, so the control is hidden for those.)</li>
     <li>In <strong>Simple mode</strong>, Explore is the default section on first open.</li>
   </ul>
 
@@ -791,13 +798,6 @@
     <li>Full data-source authoring: author SQL (sample engine) and direct-connector data accesses; create compound joins and unions; manage workspace connections and datasets; configure output options.</li>
     <li>Drill-through, Detail drawer, Cross-filter, Conditional formatting, Color scales, Target lines, Reference bands, and more.</li>
   </ul>
-
-  <div class="tip">
-    <div class="tip-ic">🎯</div>
-    <div class="tip-body">
-      <p><strong>SE demo tip:</strong> start a customer demo in <strong>Simple mode</strong>, toggle <strong>Focus mode</strong> (⋯ More, or the Settings page) to hide all builder chrome and show only the live dashboard, then switch back to Advanced mode to demonstrate the power features in context.</p>
-    </div>
-  </div>
 
   <h3>Dashboard defaults</h3>
   <p>The Settings page has a <strong>Dashboard defaults</strong> card with a <strong>Default subtitle</strong> field, a <strong>Default accent color</strong> picker (the same swatches as the per-dashboard Accent color field), a <strong>Default header logo</strong> upload, a <strong>Default header background color</strong> picker (same flat-fill banner field as the per-dashboard Header background color setting; blank keeps the standard navy gradient), matching <strong>Default title size</strong> / <strong>Default subtitle style</strong> pickers, and a <strong>Default dashboard theme</strong> picker (same whole-look Classic Blue / Polecat / Fleet Modern / High Contrast / Editorial / Neon choice as the per-dashboard Dashboard theme field; Polecat is the out-of-box default). All seven are applied automatically to every brand-new <strong>Blank dashboard</strong> (Home's quick-create card or New ▾ → Blank dashboard) — handy for teams with a house tagline, brand color, logo, banner fill, text formatting, or whole-look theme. Existing dashboards, examples, and imports are never touched. Carried along by Export/Import settings and included in Clear local data.</p>

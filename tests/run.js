@@ -2062,6 +2062,68 @@ function serve() {
     ok("CANVAS: header-off carries into the EXPORTED HTML too — the export inlines the same '.pdc-header{display:none}' rule the preview uses (preview == export)",
       canvas.exportHasHideCss === true, JSON.stringify({ exportHasHideCss: canvas.exportHasHideCss }));
 
+    // ---- ROLLUP: Explore group-by aggregation (sum/mean/median/min/max/count) --
+    console.log("\n• ROLLUP: Explore aggregations — one and two-level group-by");
+    const agg = await page.evaluate(function () {
+      var cols = ["region", "year", "value"];
+      var rows = [["IA", 2020, 10], ["IA", 2021, 30], ["IL", 2020, 5], ["IL", 2021, 15], ["IA", 2020, 20]];
+      function r(spec) { return Studio.aggregateRows(cols, rows, spec); }
+      var sum1 = r({ groupBy: ["region"], fn: "sum", valueCol: "value" });
+      var avg2 = r({ groupBy: ["region", "year"], fn: "avg", valueCol: "value" });
+      var cnt = r({ groupBy: ["region"], fn: "count", valueCol: "value" });
+      var med = r({ groupBy: ["region"], fn: "median", valueCol: "value" });
+      // persisted path: da.outputOptions.aggregate applied by applyOutputOptions
+      var oo = Studio.applyOutputOptions({ id: "d", columns: cols, outputOptions: { aggregate: { groupBy: ["region"], fn: "max", valueCol: "value" } } }, { cols: cols, rows: rows });
+      return { sum1: sum1, avg2: avg2, cnt: cnt, med: med, oo: oo };
+    });
+    ok("ROLLUP: one-level group-by sums the value column correctly and keeps the value column's name (IA=60, IL=20)",
+      JSON.stringify(agg.sum1.cols) === JSON.stringify(["region", "value"]) &&
+      agg.sum1.rows.length === 2 && agg.sum1.rows[0][1] === 60 && agg.sum1.rows[1][1] === 20, JSON.stringify(agg.sum1));
+    ok("ROLLUP: two-level group-by (region, year) averages within each pair (IA-2020=15, IA-2021=30, IL-2020=5, IL-2021=15)",
+      agg.avg2.cols.length === 3 && agg.avg2.rows.length === 4 && agg.avg2.rows[0][2] === 15 && agg.avg2.rows[1][2] === 30, JSON.stringify(agg.avg2));
+    ok("ROLLUP: count, median, and the persisted da.outputOptions.aggregate path (max) all compute correctly",
+      agg.cnt.rows[0][1] === 3 && agg.cnt.rows[1][1] === 2 && agg.med.rows[0][1] === 20 && agg.med.rows[1][1] === 10 &&
+      agg.oo.rows[0][1] === 30 && agg.oo.rows[1][1] === 15, JSON.stringify({ cnt: agg.cnt, med: agg.med, oo: agg.oo }));
+    // UI: the aggregate control shows for a bar chart, hides for a choropleth, and a saved
+    // analysis persists the rollup onto its da so it re-aggregates when rendered elsewhere.
+    await page.evaluate(function () { window.__studioShellSetSection("explore"); });
+    await page.waitForTimeout(300);
+    const aggUi = await page.evaluate(function () {
+      var ds = document.querySelector("[data-xp-ds]"); if (ds) ds.click();
+      return new Promise(function (res) {
+        setTimeout(function () {
+          var barBtn = document.querySelector('[data-xp-type="bars"]'); if (barBtn) barBtn.click();
+          setTimeout(function () {
+            var hasForBars = !!document.querySelector('[data-xp-agg="fn"]');
+            var fnSel = document.querySelector('[data-xp-agg="fn"]');
+            if (fnSel) { fnSel.value = "sum"; fnSel.dispatchEvent(new Event("change", { bubbles: true })); }
+            setTimeout(function () {
+              var showsGroupBy = !!document.querySelector('[data-xp-agg="g0"]') && !!document.querySelector('[data-xp-agg="g1"]');
+              var g0 = document.querySelector('[data-xp-agg="g0"]');
+              var chosen = null;
+              if (g0) { var opt = [].slice.call(g0.options).filter(function (o) { return o.value; })[0]; if (opt) { chosen = opt.value; g0.value = opt.value; g0.dispatchEvent(new Event("change", { bubbles: true })); } }
+              var nm = document.querySelector("#xpName"); if (nm) nm.value = "Rollup ratchet";
+              var save = document.querySelector("#xpSaveBtn"); if (save) save.click();
+              var a = Studio.Workspace.all("analyses").filter(function (x) { return x.name === "Rollup ratchet"; })[0];
+              var savedAgg = a && a.da && a.da.outputOptions && a.da.outputOptions.aggregate;
+              // switch to a choropleth: the aggregate control should disappear
+              var geoBtn = document.querySelector('[data-xp-type="choropleth"]'); if (geoBtn) geoBtn.click();
+              setTimeout(function () {
+                res({ hasForBars: hasForBars, showsGroupBy: showsGroupBy, savedAgg: savedAgg, chosen: chosen,
+                  hiddenForGeo: !document.querySelector('[data-xp-agg="fn"]') });
+              }, 200);
+            }, 200);
+          }, 400);
+        }, 400);
+      });
+    });
+    ok("ROLLUP: the Explore aggregate control shows for category/measure charts, reveals both group-by levels, and hides for geo charts (which carry their own aggregation)",
+      aggUi.hasForBars && aggUi.showsGroupBy && aggUi.hiddenForGeo, JSON.stringify(aggUi));
+    ok("ROLLUP: saving an Explore analysis persists the rollup onto its data source (da.outputOptions.aggregate) so it re-aggregates on Home / in dashboards / on export",
+      !!aggUi.savedAgg && aggUi.savedAgg.fn === "sum" && (aggUi.savedAgg.groupBy || []).length >= 1, JSON.stringify(aggUi.savedAgg));
+    await page.evaluate(function () { window.__studioShellSetSection("studio"); });
+    await page.waitForTimeout(150);
+
     console.log("\n• HOME LIVE: featured dashboards render live on Home (Viridis V6)");
     await page.evaluate(function () {
       var sp = window.__STUDIO_STATE.spec;

@@ -1718,6 +1718,7 @@ body.simple-mode .da-acts{display:none!important}
 .xp-map-row{display:flex;flex-direction:column;gap:4px;font-size:11.5px;color:var(--muted)}
 .xp-map-row select{border:1px solid var(--line);border-radius:8px;background:var(--field);
   color:var(--ink);padding:7px 8px;font-size:12.5px}
+.xp-map-sub{grid-column:1/-1;font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--faint);margin:2px 0 -2px;padding-top:6px;border-top:1px dashed var(--line)}
 .xp-preview{min-height:120px}
 .xp-ifr{width:100%;height:430px;border:1px solid var(--line);border-radius:10px;background:var(--pane)}
 .xp-savebar{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap}

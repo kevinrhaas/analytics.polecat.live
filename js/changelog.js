@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 407,
+    title: 'Explore can roll up your data now — group by one or two columns and aggregate',
+    kind: 'feature',
+    ts: '2026-07-21T17:49:44.000Z',
+    items: [
+      'Explore has a new Rollup control under the column mapping. Aggregate the value column with Sum, Mean, Median, Min, Max or Count, grouped by one or two dimensions (Group by / Then by) — so a row-level dataset becomes a chart of totals or averages right in Explore, with no Job to build first.',
+      'The rollup is saved onto the analysis, so it aggregates the same way everywhere the analysis renders — the Explore preview, Home, any dashboard, and the exported HTML. Geo and Ensemble charts keep their own built-in aggregation, so the control is hidden for those.',
+      'Also: dropped the internal "SE demo tip" from the in-app Help.',
+    ],
+  },
+  {
     v: 406,
     title: 'Consistent delete buttons, and a header-off mode for embedding dashboards',
     kind: 'feature',

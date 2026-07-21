@@ -1162,11 +1162,15 @@
 >     delete affordances across the canvas.
 >   • New "Show dashboard header" toggle (dashboard inspector) hides the title banner + description
 >     bar in preview AND export via injected CSS — embed-ready "just KPIs + widgets" HTML.
->   NEXT from the same review (queued): in-Explore rollups (sum/mean/max/median/count); Explore-side
->   New-dataset; dataset organization at scale (folders, reuse repo-mgmt); multiple toggleable demo
->   packs (Conservation + Governance) running off file CSV/JSON sources; tour that defines every term
->   (adapter/connection/dataset/job/workbook/dashboard/widget/filter); rail IA (Workspace/Build/Manage,
->   Jobs under Manage) + an Admin section (users, connections, shared setup) split from personal Settings.
+>   • Explore ROLLUPS: a group-by aggregation control (Sum/Mean/Median/Min/Max/Count over one or two
+>     dimensions) via Studio.aggregateRows in applyOutputOptions — persists on the analysis so it
+>     re-aggregates on Home/dashboards/export. Dropped the internal "SE demo tip" from Help.
+>   NEXT from the same review (queued): Explore-side New-dataset + dataset organization at scale
+>   (folders, reuse repo-mgmt); a hard "start fresh" reset (clear local data + bust SW cache + reload
+>   as a first-time visitor); fix the choropleth hover highlight that sticks (HUC8 map); multiple
+>   toggleable demo packs (Conservation + Governance) off file CSV/JSON sources; tour that defines
+>   every term (adapter/connection/dataset/job/workbook/dashboard/widget/filter); rail IA
+>   (Workspace/Build/Manage, Jobs under Manage) + an Admin section split from personal Settings.
 > > M3. **Auth foundation (phased, UX-level first):** replace the single-passcode gate with a
 >     user/password LOGIN. First screen: demo credentials shown on-screen + local demo mode, OR
 >     connect to a backend repo (Turso/Supabase/Firebase) — show which backend is connected and
