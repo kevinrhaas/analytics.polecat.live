@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v58"; /* v58: FIX — faint secondary buttons on the
+var CACHE_NAME = "studio-shell-v59"; /* v59: FIX — the Explore rollup was applied
+   to scatter/heatmap (multi-measure) charts and collapsed their data to one dot;
+   the control is now limited to single-measure category charts (bar/line/donut/
+   treemap/table). app/studio.js changed.
+   v58: FIX — faint secondary buttons on the
    light content sections (Dashboards/Explore/Datasets/Jobs/Connections toolbars)
    were white-on-translucent (the dark-rail base .btn) and hard to read; now
    dark-on-light inside .app-sec. app/studio.css changed.

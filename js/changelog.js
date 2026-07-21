@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 410,
+    title: 'Fix: scatter / bubble charts no longer break when a rollup is set',
+    kind: 'fix',
+    ts: '2026-07-21T18:19:00.000Z',
+    items: [
+      'The new Explore rollup was offered on scatter/bubble and heatmap charts, but those carry two (or pivoted) measures — so a single-measure group-by collapsed the data and drew one dot in the corner. The rollup control now appears only on the single-measure category charts (bar, line, donut, treemap, table); scatter, bubble and heatmap render their raw rows correctly.',
+    ],
+  },
+  {
     v: 409,
     title: 'Fix: faint, hard-to-read toolbar buttons on the light screens',
     kind: 'fix',
