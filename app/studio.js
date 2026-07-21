@@ -773,9 +773,13 @@
     kind: null, dsId: null,          // 'ws' (workspace dataset) | 'sample' (catalog stem/da)
     run: null,                       // { cols, rows, live, error? }
     type: "bars", map: {}, opts: {},
+    agg: { fn: "none", groupBy: [] }, // Explore rollups: group-by + aggregate the value column
     analysisId: null, name: "",
     q: ""                            // dataset search
   };
+  // Aggregation makes sense for the everyday category/measure charts; geo and the
+  // ensemble view carry their own aggregation semantics, so hide the control there.
+  var XP_AGG_TYPES = ["bars", "line", "donut", "treemap", "scatter", "heatmap", "table"];
   // The chart types Explore offers — the everyday set plus the Viridis pair.
   // (Deep option tuning stays in the Studio inspector; Explore keeps the two
   // options non-experts actually need: map scale and the reference series.)
@@ -881,7 +885,13 @@
       var spec = xpSpec();
       if (!spec || !XP.run) { box.innerHTML = ""; return; }
       var mock = {};
-      mock[spec.cda.dataAccesses[0].id] = { cols: XP.run.cols, rows: XP.run.rows };
+      // Apply the rollup to the preview rows (same helper the saved analysis uses
+      // at render time via applyOutputOptions), so the preview matches exactly.
+      var pv = { cols: XP.run.cols, rows: XP.run.rows };
+      if (XP.agg && XP.agg.fn && XP.agg.fn !== "none" && XP_AGG_TYPES.indexOf(XP.type) >= 0) {
+        pv = Studio.aggregateRows(XP.run.cols, XP.run.rows, { groupBy: XP.agg.groupBy || [], fn: XP.agg.fn, valueCol: XP.map.valueCol });
+      }
+      mock[spec.cda.dataAccesses[0].id] = { cols: pv.cols, rows: pv.rows };
       var build = function () {
         var html = Studio.buildHtml(spec, S.assets, { preview: true, mock: mock, launcher: false });
         var ifr = box.querySelector("iframe");
@@ -903,6 +913,14 @@
     if (!XP.name) { toast("Give the analysis a name first", true); if (nameInp) nameInp.focus(); return; }
     var da = xpDA();
     if (!da || !XP.run) { toast("Pick a dataset first", true); return; }
+    // Persist the rollup onto the da's outputOptions so it applies at render time
+    // everywhere (Home, dashboards, exports) via Studio.applyOutputOptions.
+    if (XP.agg && XP.agg.fn && XP.agg.fn !== "none" && XP_AGG_TYPES.indexOf(XP.type) >= 0) {
+      da.outputOptions = da.outputOptions || {};
+      da.outputOptions.aggregate = { fn: XP.agg.fn, groupBy: (XP.agg.groupBy || []).filter(Boolean), valueCol: XP.map.valueCol || "" };
+    } else if (da.outputOptions) {
+      delete da.outputOptions.aggregate;
+    }
     var prev = XP.analysisId ? Studio.Workspace.get("analyses", XP.analysisId) : null;
     var row = {
       id: XP.analysisId || undefined,
@@ -928,6 +946,9 @@
     XP.type = (a.chart && a.chart.type) || a.chartType || "bars";
     XP.map = JSON.parse(JSON.stringify((a.chart && a.chart.map) || {}));
     XP.opts = JSON.parse(JSON.stringify((a.chart && a.chart.opts) || {}));
+    // restore the saved rollup (da.outputOptions.aggregate) into the Explore control
+    var savedAgg = a.da && a.da.outputOptions && a.da.outputOptions.aggregate;
+    XP.agg = savedAgg ? { fn: savedAgg.fn || "none", groupBy: (savedAgg.groupBy || []).slice() } : { fn: "none", groupBy: [] };
     // dataset may be gone (analyses are self-contained) — fall back to the
     // embedded da's columns through the sample engine
     var haveDs = XP.kind === "ws" ? !!Studio.Workspace.get("datasets", XP.dsId)
@@ -998,6 +1019,25 @@
         '<option value="">—</option>' + Object.keys(series).sort().map(function (s2) {
           return '<option value="' + esc(s2) + '"' + (XP.opts.refSeries === s2 ? " selected" : "") + ">" + esc(s2) + "</option>";
         }).join("") + "</select></label>");
+    }
+    // Rollups: group by one or two dimensions and aggregate the value column.
+    if (XP_AGG_TYPES.indexOf(XP.type) >= 0) {
+      var ag = XP.agg || (XP.agg = { fn: "none", groupBy: [] });
+      var dimOpts = function (cur) {
+        return '<option value="">—</option>' + cols.map(function (c) {
+          return '<option value="' + esc(c) + '"' + (cur === c ? " selected" : "") + ">" + esc(c) + "</option>";
+        }).join("");
+      };
+      var fnOpts = '<option value="none"' + (!ag.fn || ag.fn === "none" ? " selected" : "") + ">No aggregation (raw rows)</option>" +
+        (Studio.AGG_FNS || []).map(function (f) {
+          return '<option value="' + f[0] + '"' + (ag.fn === f[0] ? " selected" : "") + ">" + esc(f[1]) + "</option>";
+        }).join("");
+      rows.push('<div class="xp-map-sub">Rollup</div>');
+      rows.push('<label class="xp-map-row"><span>Aggregate</span><select data-xp-agg="fn">' + fnOpts + "</select></label>");
+      if (ag.fn && ag.fn !== "none") {
+        rows.push('<label class="xp-map-row"><span>Group by</span><select data-xp-agg="g0">' + dimOpts((ag.groupBy || [])[0] || "") + "</select></label>");
+        rows.push('<label class="xp-map-row"><span>Then by (optional)</span><select data-xp-agg="g1">' + dimOpts((ag.groupBy || [])[1] || "") + "</select></label>");
+      }
     }
     return rows.join("");
   }
@@ -1092,6 +1132,18 @@
     });
     $$("[data-xp-opt]", body).forEach(function (sel) {
       sel.onchange = function () { XP.opts[sel.getAttribute("data-xp-opt")] = sel.value; xpPreview(); };
+    });
+    $$("[data-xp-agg]", body).forEach(function (sel) {
+      sel.onchange = function () {
+        var k = sel.getAttribute("data-xp-agg");
+        if (!XP.agg) XP.agg = { fn: "none", groupBy: [] };
+        if (k === "fn") { XP.agg.fn = sel.value; renderExplore(); xpPreview(); return; } // re-render to show/hide group-by rows
+        var gb = (XP.agg.groupBy || []).slice();
+        var idx = k === "g0" ? 0 : 1;
+        gb[idx] = sel.value;
+        XP.agg.groupBy = gb.filter(function (c, i) { return c || i < idx; }); // keep positions, drop trailing empties
+        xpPreview();
+      };
     });
     var saveBtn = $("#xpSaveBtn", body); if (saveBtn) saveBtn.onclick = xpSave;
     var saveAs = $("#xpSaveAsBtn", body); if (saveAs) saveAs.onclick = function () { XP.analysisId = null; xpSave(); };

@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v55"; /* v55: canvas consistency + header-off. The
+var CACHE_NAME = "studio-shell-v56"; /* v56: Explore rollups. A group-by
+   aggregation control in Explore (Sum/Mean/Median/Min/Max/Count over one or two
+   group-by dimensions), applied via Studio.aggregateRows in applyOutputOptions so
+   a saved analysis re-aggregates everywhere (Home/dashboards/export). Dropped the
+   internal SE demo tip from Help. app/model.js, app/studio.js, app/studio.css,
+   docs/index.html changed.
+   v55: canvas consistency + header-off. The
    KPI delete ✕ now uses the same rounded, hover-red control as widgets (was an
    always-on red circle); a new "Show dashboard header" toggle (dashboard
    inspector) hides the whole title banner + description bar in preview AND export
