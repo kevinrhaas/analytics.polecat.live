@@ -2046,6 +2046,19 @@ function serve() {
     const uxJob = await btnSolid("#jobsNewBtn");
     ok("UXFIX: the '+ New dataset' and '+ New job' primary buttons render as a solid, visible fill (not white-on-transparent, which read as no button)",
       uxDs.ok && uxJob.ok, JSON.stringify({ dataset: uxDs, job: uxJob }));
+    // SECONDARY buttons on a light content section (Dashboards toolbar) must be
+    // dark-on-light readable, not the faint white-on-translucent dark-rail base.
+    await page.evaluate(function () { window.__studioShellSetSection("dashboards"); });
+    await page.waitForTimeout(200);
+    const uxSecondary = await page.evaluate(function () {
+      function lum(c) { var m = c.match(/rgba?\(([^)]+)\)/); if (!m) return 0; var p = m[1].split(",").map(parseFloat); return 0.2126 * p[0] + 0.7152 * p[1] + 0.0722 * p[2]; }
+      var btns = [].slice.call(document.querySelectorAll("#secDashboards .repo-io .btn:not(.primary)"));
+      var worst = 999;
+      btns.forEach(function (b) { var cs = getComputedStyle(b); worst = Math.min(worst, Math.abs(lum(cs.color) - lum(cs.backgroundColor))); });
+      return { count: btns.length, worstContrast: worst };
+    });
+    ok("UXFIX: secondary toolbar buttons on the light content screens (Dashboards List/Compare/Export/Import) are dark-on-light readable, not faint white-on-transparent",
+      uxSecondary.count >= 3 && uxSecondary.worstContrast > 80, JSON.stringify(uxSecondary));
     await page.evaluate(function () { window.__studioShellSetSection("studio"); });
     await page.waitForTimeout(150);
 

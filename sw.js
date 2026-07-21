@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v57"; /* v57: FIX — choropleth hover highlights
+var CACHE_NAME = "studio-shell-v58"; /* v58: FIX — faint secondary buttons on the
+   light content sections (Dashboards/Explore/Datasets/Jobs/Connections toolbars)
+   were white-on-translucent (the dark-rail base .btn) and hard to read; now
+   dark-on-light inside .app-sec. app/studio.css changed.
+   v57: FIX — choropleth hover highlights
    stuck/accumulated on dense maps (HUC8 watersheds). Bringing the hovered region
    to the front reorders the DOM and can swallow its own mouseleave; now a single
    tracked highlight clears the previous region on every mouseenter and on map

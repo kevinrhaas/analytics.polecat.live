@@ -521,6 +521,14 @@ textarea:focus-visible,[tabindex]:focus-visible,.row-item:focus-visible{
 .btn:hover{background:rgba(255,255,255,.22)}
 .btn:active{transform:translateY(1px)}
 .btn:disabled{opacity:.4;cursor:default;transform:none}
+/* The base .btn is white-on-translucent — correct on the dark rail/topbar, but
+   unreadable (faint white on cream) on the LIGHT content sections (Home,
+   Dashboards, Explore, Datasets, Jobs, Connections, Settings toolbars). Give
+   every secondary button inside a content section dark-on-light contrast; the
+   primary CTA keeps its solid brand fill. This is the counterpart to the global
+   .btn.primary fix — no secondary button should be faint on a light screen. */
+.app-sec .btn:not(.primary):not(.btn-primary){background:var(--field);border:1px solid var(--line);color:var(--ink)}
+.app-sec .btn:not(.primary):not(.btn-primary):hover{background:var(--field);border-color:var(--brand);color:var(--brand)}
 .btn.btn-primary{background:var(--pdc);border-color:transparent;box-shadow:0 2px 10px rgba(125,60,152,.5)}
 .btn.btn-primary:hover{background:#8e49ab}
 .btn.icon{padding:8px 11px}
