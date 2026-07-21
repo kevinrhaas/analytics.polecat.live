@@ -153,9 +153,19 @@
   function timeSeriesDA(id, practice) {
     return { id: id, name: "Conservation Insight — " + practice.label + " ensemble (demo)", kind: "sql", columns: ["year", "provider", "pct"], authored: true };
   }
-  function geoDA(id) {
-    return { id: id, name: "Conservation Insight — county snapshot (demo)", kind: "sql", columns: ["fips", "provider", "pct"], authored: true };
+  // A geo data access for a given region column (fips / huc8 / statecode) — the
+  // sample engine crosses it against the provider domain, so the choropleth's
+  // median-across-providers "common estimate" convention colors every region.
+  function geoDA(id, idCol, label) {
+    return { id: id, name: "Conservation Insight — " + label + " (demo)", kind: "sql", columns: [idCol, "provider", "pct"], authored: true };
   }
+  function choroplethChart(daId, idCol, scale) {
+    return { type: "choropleth", da: daId,
+      map: { idCol: idCol, valueCol: "pct", seriesCol: "provider" },
+      opts: { scale: scale, fmt: "pct", agg: "median" } };
+  }
+  function kpiDA(id, col) { return { id: id, name: id, kind: "sql", columns: [col], authored: true }; }
+  function providerDA(id) { return { id: id, name: "Conservation Insight — adoption by provider (demo)", kind: "sql", columns: ["provider", "pct"], authored: true }; }
   function ensembleChart(daId) {
     return { type: "ensembleSeries", da: daId,
       map: { labelCol: "year", seriesCol: "provider", valueCol: "pct" },
@@ -172,26 +182,51 @@
     };
   }
 
+  // The featured demo dashboard — a best-practice conservation story, top-down:
+  //   KPIs (the headline adoption numbers) → CHOROPLETHS AT THREE SCALES (county
+  //   hero, then watershed + state) so the maps lead and land in the thumbnail →
+  //   the provider ENSEMBLE trends (consensus vs each provider) → a by-provider
+  //   breakdown. Styled with the CTIC-derived Conservation theme.
   function dashboardSpec() {
-    var das = [], panels = [];
+    var das = [], panels = [], kpis = [];
+
+    // ── Headline KPIs: the common-estimate adoption rate for each practice ──
     PRACTICES.forEach(function (p) {
-      var da = timeSeriesDA("vv_" + p.key, p);
-      das.push(da);
-      panels.push({ id: "p_" + p.key, title: p.label, span: 2, chart: ensembleChart(da.id) });
+      var col = p.key + "_pct";
+      var kda = kpiDA("vk_" + p.key, col); das.push(kda);
+      kpis.push({ da: kda.id, valueCol: col, label: p.label, fmt: "pct", agg: "median",
+        subtitle: "common estimate", state: "", info: "" });
     });
-    var geoDa = geoDA("vv_geo");
-    das.push(geoDa);
-    panels.push({
-      id: "p_map", title: "County snapshot — common estimate across practices", span: "full",
-      chart: { type: "choropleth", da: geoDa.id,
-        map: { idCol: "fips", valueCol: "pct", seriesCol: "provider" },
-        opts: { scale: "county", fmt: "pct", agg: "median" } }
+
+    // ── Maps at three scales — the hero row (right under the KPIs) ──
+    var countyDa = geoDA("vv_county", "fips", "cover-crop adoption by county");
+    var hucDa = geoDA("vv_huc8", "huc8", "adoption by watershed");
+    var stateDa = geoDA("vv_state", "state", "state rollup");
+    das.push(countyDa, hucDa, stateDa);
+    panels.push({ id: "p_county", section: "Where adoption stands — a common estimate across 5 providers",
+      title: "Cover-crop adoption by county", span: "full", chart: choroplethChart(countyDa.id, "fips", "county") });
+    panels.push({ id: "p_huc8", title: "By watershed (HUC8)", span: 2, chart: choroplethChart(hucDa.id, "huc8", "huc8") });
+    panels.push({ id: "p_state", title: "State rollup (acreage-weighted)", span: 2, chart: choroplethChart(stateDa.id, "state", "state") });
+
+    // ── Ensemble trends — the provider consensus over time, per practice ──
+    PRACTICES.forEach(function (p, i) {
+      var da = timeSeriesDA("vv_" + p.key, p); das.push(da);
+      var panel = { id: "p_" + p.key, title: p.label + " over time", span: 2, chart: ensembleChart(da.id) };
+      if (i === 0) panel.section = "How it's trending — the provider ensemble vs the common estimate";
+      panels.push(panel);
     });
+
+    // ── By provider — the five providers side by side (cover crops) ──
+    var provDa = providerDA("vv_prov"); das.push(provDa);
+    panels.push({ id: "p_prov", section: "Provider comparison", title: "Cover-crop adoption by provider", span: "full",
+      chart: { type: "bars", da: provDa.id, map: { labelCol: "provider", valueCol: "pct" }, opts: { fmt: "pct", height: 240 } } });
+
     return {
       id: "conservation-insight-demo", name: "conservation-insight-demo",
-      title: "Conservation Insight — cover crop & tillage adoption (illustrative demo)",
-      subtitle: "Synthetic Corn Belt sample data — a common estimate across DTN, Indigo Ag, Iowa State, Regrow & Terra Diagnostics",
-      panels: panels, kpis: [], filters: [],
+      title: "Conservation Insight — cover crop & tillage adoption",
+      subtitle: "Illustrative Corn Belt sample — a common estimate across DTN, Indigo Ag, Iowa State, Regrow & Terra Diagnostics",
+      dashboardTheme: "conservation",
+      panels: panels, kpis: kpis, filters: [],
       cda: { connections: [], dataAccesses: das }
     };
   }

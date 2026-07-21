@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 415,
+    title: 'The Conservation Insight demo dashboard is rebuilt maps-first',
+    kind: 'feature',
+    ts: '2026-07-21T19:58:55.000Z',
+    items: [
+      'The featured Conservation Insight sample dashboard now leads with the maps: four headline adoption KPIs, then choropleths at three geographic scales — a full-width county map, an HUC8 watershed map, and a state rollup — right at the top, so the maps are what you (and the dashboard thumbnail) see first.',
+      'Below the maps it tells the rest of the story: the provider-ensemble trend for each practice (the common estimate vs each of the five providers over time) and a by-provider adoption comparison. The whole board wears the Conservation theme.',
+      'It is a worked example of good practice — the same geography shown at county, watershed and state scale so you can read adoption at whatever grain a conversation needs.',
+    ],
+  },
+  {
     v: 414,
     title: 'New “Conservation” dashboard theme, styled after CTIC',
     kind: 'feature',
