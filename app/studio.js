@@ -4011,7 +4011,7 @@
           r.appendChild(rm);
           box.appendChild(r);
           var cr = el("div", "field");
-          var csel = select2pairs([["", "Auto (palette)"]].concat(Studio.COLOR_TOKENS.map(function (t) { return [t, t]; })), s.color || "", function (v) { if (v) s.color = v; else delete s.color; refreshPreview(); });
+          var csel = select2pairs([["", "Auto (palette)"]].concat(Studio.COLOR_TOKENS.map(function (t) { return [t, Studio.colorTokenLabel(t)]; })), s.color || "", function (v) { if (v) s.color = v; else delete s.color; refreshPreview(); });
           cr.appendChild(labelEl("Series " + (i + 1) + " color")); cr.appendChild(csel);
           box.appendChild(cr);
         });
@@ -4096,7 +4096,7 @@
     ts.appendChild(field("Delta direction", select2pairs([["up", "▲ Up (good)"], ["down", "▼ Down (bad)"], ["flat", "■ Flat"]], k.deltaDir || "up", function (v) { k.deltaDir = v; refreshPreview(); })));
     ts.appendChild(field("Sparkline column", colPicker(cols, k.sparkCol || "", function (v) { if (v) k.sparkCol = v; else delete k.sparkCol; refreshPreview(); }, true), "a numeric column → a mini trend on the tile"));
     ts.appendChild(field("Sparkline type", select2pairs([["line", "Line"], ["bar", "Bar"], ["area", "Area"]], k.sparkType || "line", function (v) { if (v === "line") delete k.sparkType; else k.sparkType = v; refreshPreview(); })));
-    ts.appendChild(field("Sparkline color", select2pairs([["", "Auto"]].concat(Studio.COLOR_TOKENS.map(function (t) { return [t, t]; })), k.sparkColor || "", function (v) { if (v) k.sparkColor = v; else delete k.sparkColor; refreshPreview(); })));
+    ts.appendChild(field("Sparkline color", select2pairs([["", "Auto"]].concat(Studio.COLOR_TOKENS.map(function (t) { return [t, Studio.colorTokenLabel(t)]; })), k.sparkColor || "", function (v) { if (v) k.sparkColor = v; else delete k.sparkColor; refreshPreview(); })));
 
     // Compare to — auto-computes a delta from a second numeric column in the same DA. Advanced.
     // Ideal for period-over-period comparisons: "Revenue this quarter vs last quarter" in one tile.
@@ -9614,7 +9614,7 @@
       return lab;
     }
     if (od.type === "fmt") return field(od.label, fmtPicker(opts[od.key] || od.def, function (v) { opts[od.key] = v; refreshPreview(); }));
-    if (od.type === "color") return field(od.label, select2(Studio.COLOR_TOKENS, opts[od.key] || od.def, function (v) { opts[od.key] = v; refreshPreview(); }));
+    if (od.type === "color") return field(od.label, select2pairs(Studio.COLOR_TOKENS.map(function (tk) { return [tk, Studio.colorTokenLabel(tk)]; }), opts[od.key] || od.def, function (v) { opts[od.key] = v; refreshPreview(); }));
     if (od.type === "select") return field(od.label, select2pairs(od.choices, opts[od.key] || od.def, function (v) { opts[od.key] = v; refreshPreview(); }));
     if (od.type === "int") { var i = el("input"); i.type = "number"; i.value = opts[od.key] != null ? opts[od.key] : od.def; i.addEventListener("input", function () { opts[od.key] = +i.value || 0; refreshPreview(); }); return field(od.label, i); }
     // N-FUN "live what-if sliders": a drag-to-animate control for numeric knobs that feed

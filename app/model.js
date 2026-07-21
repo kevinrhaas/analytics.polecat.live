@@ -18,11 +18,23 @@
     { id: "bytes", label: "Bytes (KB/MB/GB)" },
     { id: "plain", label: "Plain text" }
   ];
-  /* ---- color tokens offered in the inspector ---- */
+  /* ---- color tokens offered in the inspector ----
+     The token STRINGS are storage/compat identifiers (saved specs carry them;
+     "--pentaho" is the dashboard-theme accent variable the export CSS defines)
+     — the interface NEVER shows them raw: every picker renders the friendly
+     labels below (suite-ratcheted; per Kevin 2026-07-20, no retired product
+     names in the UI). */
   Studio.COLOR_TOKENS = [
     "--pentaho", "--pdc", "--c1", "--c2", "--c3", "--c4", "--c5",
     "--c6", "--c7", "--c8", "--c9", "--c10", "--good", "--warn", "--bad", "--info"
   ];
+  Studio.COLOR_TOKEN_LABELS = {
+    "--pentaho": "Accent (theme)", "--pdc": "Accent 2 (purple)",
+    "--c1": "Series 1", "--c2": "Series 2", "--c3": "Series 3", "--c4": "Series 4", "--c5": "Series 5",
+    "--c6": "Series 6", "--c7": "Series 7", "--c8": "Series 8", "--c9": "Series 9", "--c10": "Series 10",
+    "--good": "Good (green)", "--warn": "Warning (amber)", "--bad": "Bad (red)", "--info": "Info (blue)"
+  };
+  Studio.colorTokenLabel = function (t) { return Studio.COLOR_TOKEN_LABELS[t] || t; };
   Studio.KPI_STATES = [
     { id: "",       label: "Default (blue)" },
     { id: "purple", label: "Purple" },

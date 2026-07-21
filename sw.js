@@ -5,7 +5,10 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v48"; /* v48: samples curation (per Kevin) —
+var CACHE_NAME = "studio-shell-v49"; /* v49: color pickers show friendly
+   labels (Accent/Series/Good...) instead of raw CSS tokens — the last visible
+   "pentaho" is gone from the interface (app/model.js, app/studio.js changed).
+   v48: samples curation (per Kevin) —
    data/cda-catalog.json rebuilt (67 stems/428 DAs -> 13/115, geo-first,
    no retired prefixes), sampledata.js gains huc8/crd/state/crop/acres kinds,
    studio.js: Explore repaints on hide-samples + geo datasets default to the
