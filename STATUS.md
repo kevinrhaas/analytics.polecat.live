@@ -1143,6 +1143,23 @@
 
 ## NEXT (top = do first)
 
+### ✅ DECISIONS LOCKED WITH KEVIN (2026-07-21) — the two former hard-stops are now unblocked
+> These resolve the design/infra forks that previously required Kevin's input. The lane executes
+> them as written; do NOT re-ask.
+> 1. **Object organization at scale (#21 org sub-item) = HYBRID folders + tags.** Each object gets a
+>    single primary **folder** (its home in a tree) PLUS cross-cutting **tags**. REUSE the already-
+>    shipped pill/tag filter strips (`_dsxConnFilter`/`_dsxTagFilter` pattern, `wb-chip`/`cx-pill`
+>    CSS, AND-across-strips/OR-within-strip semantics, saved-view capture) for the tag half; add the
+>    folder tree as the primary-home layer on top. Ship in slices: tags-filter parity first (cheapest,
+>    mostly there), then the folder tree + move/assign, then wire both into the Repository browser (M5).
+> 2. **Backend for enforced per-user security (M7) = SUPABASE (Postgres + GoTrue Auth + RLS).**
+>    Real "private = only I can see it" is DB-enforced via row-level security. M3.2 connect-to-backend
+>    + provisioning targets **Supabase first** (the other adapters keep working, but Supabase is the
+>    reference enforced backend). Turso/Firebase are NOT the enforcement backend.
+> 3. **Privacy rollout = PHASED.** Ship the private/public flag on every saved object as UI-level
+>    hiding in M4 NOW (honest "not cryptographic isolation" until the DB enforces it), then real
+>    RLS enforcement lands in M7. Do not gate the M4 flag on the backend being ready.
+
 ### ★★★★★ CONSERVATION INSIGHT PRODUCT PLATFORM (2026-07-21, user-directed — NOW THE TOP PRIORITY)
 > Kevin's big charter: turn Analytics into a multi-user, permissioned product. Decisions locked
 > with Kevin (2026-07-21): product/demo name = **Conservation Insight** (CTIC / conservation-ag —
