@@ -1996,6 +1996,30 @@ function serve() {
     await page.evaluate(function () { window.__studioShellSetSection("studio"); });
     await page.waitForTimeout(150);
 
+    // ---- UXFIX: primary CTAs must be VISIBLE on the light section screens -----
+    // Regression guard for the white-on-transparent bug (Datasets/Jobs "+ New",
+    // Explore "Save analysis" inherited the dark-rail base .btn and vanished).
+    console.log("\n• UXFIX: primary call-to-action buttons render solid, not invisible");
+    function btnSolid(sel) {
+      return page.evaluate(function (s) {
+        var el = document.querySelector(s); if (!el) return { missing: true };
+        var cs = getComputedStyle(el), m = cs.backgroundColor.match(/rgba?\(([^)]+)\)/);
+        var p = m ? m[1].split(",").map(function (x) { return parseFloat(x); }) : [255, 255, 255, 0];
+        var a = p[3] == null ? 1 : p[3], nearWhite = p[0] > 240 && p[1] > 240 && p[2] > 240;
+        return { bg: cs.backgroundColor, ok: a > 0.5 && !nearWhite };
+      }, sel);
+    }
+    await page.evaluate(function () { window.__studioShellSetSection("datasets"); });
+    await page.waitForTimeout(200);
+    const uxDs = await btnSolid("#dsxNewBtn");
+    await page.evaluate(function () { window.__studioShellSetSection("jobs"); });
+    await page.waitForTimeout(200);
+    const uxJob = await btnSolid("#jobsNewBtn");
+    ok("UXFIX: the '+ New dataset' and '+ New job' primary buttons render as a solid, visible fill (not white-on-transparent, which read as no button)",
+      uxDs.ok && uxJob.ok, JSON.stringify({ dataset: uxDs, job: uxJob }));
+    await page.evaluate(function () { window.__studioShellSetSection("studio"); });
+    await page.waitForTimeout(150);
+
     console.log("\n• HOME LIVE: featured dashboards render live on Home (Viridis V6)");
     await page.evaluate(function () {
       var sp = window.__STUDIO_STATE.spec;
