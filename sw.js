@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v51"; /* v51: an Overview tour (M2) leads the
+var CACHE_NAME = "studio-shell-v52"; /* v52: panel -> widget (M2b) — the
+   dashboard item is called a "widget" in all UI text (inspector title, canvas
+   hints, keyboard help, docs); layout PANES and internal identifiers
+   (spec.panels, data-panel-id, kind:"panel", .panel-* css) unchanged.
+   app/studio.js, app/index.html, docs/index.html changed.
+   v51: an Overview tour (M2) leads the
    tour chooser \u2014 walks the whole app down the rail (Home\u00b7Explore\u00b7Dashboards\u00b7
    Datasets\u00b7Connections\u00b7Jobs\u00b7Studio), introduces "widget", ends on Home
    (app/tutorial.js changed).

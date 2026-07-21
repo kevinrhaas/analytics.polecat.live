@@ -1918,6 +1918,36 @@ function serve() {
       m1Home.count >= 5 && m1Home.hasThumb && m1Home.opensExample, JSON.stringify(m1Home));
     await page.evaluate(function () { window.__studioShellSetSection("studio"); });
     await page.waitForTimeout(200);
+
+    // ---- M2b: the thing inside a dashboard is a "Widget" (was "Panel") ------
+    console.log("\n• M2b: panel → widget terminology (UI text only)");
+    const m2bUi = await page.evaluate(function () {
+      // load the flagship so there's a widget to select
+      var ex = (window.__STUDIO_STATE.examples || [])[0];
+      var out = { dropHint: (document.getElementById("dropHint") || {}).textContent || "",
+        textBtn: (document.getElementById("cesText") || {}).textContent || "" };
+      var sp = window.__STUDIO_STATE.spec;
+      if (sp.panels && sp.panels[0]) {
+        window.__studioSelect({ kind: "panel", id: sp.panels[0].id });
+        out.inspTitle = (document.getElementById("inspTitle") || {}).textContent || "";
+      }
+      // preview status line counts "widgets", not "panels"
+      out.status = (document.getElementById("previewStatus") || {}).textContent || "";
+      return out;
+    });
+    ok("M2b: the dashboard item reads 'Widget' in the interface — inspector title, canvas drop hint, text button, and status line (no 'panel' wording)",
+      m2bUi.inspTitle === "Widget" && /add a widget/i.test(m2bUi.dropHint) && /text widget/i.test(m2bUi.textBtn) &&
+      !/\bpanel/i.test(m2bUi.status), JSON.stringify(m2bUi));
+    (function () {
+      // source ratchet: the layout PANES and internal identifiers keep "panel";
+      // the dashboard-item UI strings do not. Spot-check the two that regressed.
+      var js = fs.readFileSync(path.join(ROOT, "app/studio.js"), "utf8");
+      ok("M2b: internal identifiers preserved (kind:'panel', data-panel-id, spec.panels stay) — rename is UI-text only",
+        /kind === "panel"/.test(js) && /data-panel-id/.test(js) && /spec\.panels/.test(js),
+        "internal panel identifiers intact");
+    })();
+    await page.evaluate(function () { window.__studioSelect(null); });
+    await page.waitForTimeout(100);
     await page.evaluate(function () { window.__studioShellSetSection("studio"); });
     await page.waitForTimeout(200);
 
@@ -4466,7 +4496,7 @@ function serve() {
     const pv = page.frames().find((f) => f !== page.mainFrame());
     await pv.locator("#content .card").first().click();
     await page.waitForTimeout(200);
-    ok("clicking a panel opens the Panel inspector", (await page.$eval("#inspTitle", (e) => e.textContent)) === "Panel");
+    ok("clicking a widget opens the Widget inspector", (await page.$eval("#inspTitle", (e) => e.textContent)) === "Widget");
     const gallery = await page.evaluate(() => {
       var tiles = [].slice.call(document.querySelectorAll("#inspBody .chart-opt"));
       return { tiles: tiles.length, withSvg: tiles.filter(function (t) { return t.querySelector(".ic svg"); }).length };
@@ -5336,7 +5366,7 @@ function serve() {
     });
     await page.evaluate(() => { document.querySelectorAll(".modal-ov").forEach((m) => m.remove()); });
     ok("N-DIST: panel inspector has an 'Export this panel…' action", embedTest.found, JSON.stringify(embedTest));
-    ok("N-DIST: it opens a single-file 'Embed panel' modal for a self-contained .html", embedTest.rowCount === 1 && embedTest.isHtml && /Embed panel/.test(embedTest.modalTitle), JSON.stringify(embedTest));
+    ok("N-DIST: it opens a single-file 'Embed widget' modal for a self-contained .html", embedTest.rowCount === 1 && embedTest.isHtml && /Embed widget/.test(embedTest.modalTitle), JSON.stringify(embedTest));
     ok("N-DIST: the exported single-panel HTML contains only that panel's chart type, no KPIs, and no other panel", embedTest.hasThisPanelType && embedTest.excludesOtherPanel && embedTest.noKpis, JSON.stringify(embedTest));
 
     // ---- N-DIST: client-side PNG export of a chart (first cut of "PNG/PDF export of a whole
@@ -9837,7 +9867,7 @@ function serve() {
         var secs = [].slice.call(document.querySelectorAll("#inspBody .insp-sec"));
         var panelSec = secs.find(function (s) {
           var h = s.querySelector("h4");
-          return h && h.textContent.indexOf("Panel") === 0;
+          return h && h.textContent.indexOf("Widget") === 0;
         });
         if (!panelSec) return { found: false, secTitles: secs.map(function(s){var h=s.querySelector("h4");return h?h.textContent:"";}) };
         var fields = [].slice.call(panelSec.querySelectorAll(".field label"));

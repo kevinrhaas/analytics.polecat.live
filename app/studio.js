@@ -1396,7 +1396,7 @@
     S.spec.panels.push(p);
     select({ kind: "panel", id: p.id });
     refreshPreview();
-    toast("Text panel added — type content in the inspector");
+    toast("Text widget added — type content in the inspector");
   }
 
   /* ---------- data-source builder (author CDA queries) ---------- */
@@ -2213,7 +2213,7 @@
 
     $("#inspBack").hidden = !S.selection;
     if (!S.selection) { $("#inspTitle").textContent = "Dashboard"; renderDashboardInspector(body); }
-    else if (S.selection.kind === "panel") { $("#inspTitle").textContent = "Panel"; renderPanelInspector(body); }
+    else if (S.selection.kind === "panel") { $("#inspTitle").textContent = "Widget"; renderPanelInspector(body); }
     else if (S.selection.kind === "filter") { $("#inspTitle").textContent = "Filter"; renderFilterInspector(body); }
     else if (S.selection.kind === "da") { $("#inspTitle").textContent = "Data Source"; renderDAInspector(body); }
     else { $("#inspTitle").textContent = "KPI tile"; renderKpiInspector(body); }
@@ -2279,7 +2279,7 @@
       cl.appendChild(clStep(true, "Library ready", "Your catalog queries are in the left panel — browse or search for your data."));
       // Step 2 is the primary CTA; the action button focuses the library on desktop
       // or opens the library drawer on phone so the user knows exactly where to go.
-      cl.appendChild(clStep(false, "Add a panel to the canvas", "Drag any query from the library onto the canvas to create your first chart.", "Open library", function () {
+      cl.appendChild(clStep(false, "Add a widget to the canvas", "Drag any query from the library onto the canvas to create your first chart.", "Open library", function () {
         if (window.innerWidth <= 640) {
           var t = document.getElementById("tabLib"); if (t) t.click();
         } else {
@@ -2326,7 +2326,7 @@
       }
 
       k8.appendChild(k8Tip("gear", "Configure your chart",
-        "Click a panel on the canvas to select it, then choose a chart type and bind your data columns in the inspector."));
+        "Click a widget on the canvas to select it, then choose a chart type and bind your data columns in the inspector."));
       k8.appendChild(k8Tip("plus", "Add more panels or KPIs",
         "Drag more queries from the library onto the canvas to expand your dashboard."));
       k8.appendChild(k8Tip("download", "Export when ready",
@@ -2510,7 +2510,7 @@
       renderTvSets();
       tvSec.appendChild(setsWrap);
 
-      tvSec.appendChild(noteEl("info", "Use {{key}} in the dashboard Title/Subtitle above, or in any panel's Title/Note — it's replaced with the matching value here, in both the live preview and every export. A key with no matching variable is left as literal text. Save the rows above as a named set to reuse them on other dashboards."));
+      tvSec.appendChild(noteEl("info", "Use {{key}} in the dashboard Title/Subtitle above, or in any widget's Title/Note — it's replaced with the matching value here, in both the live preview and every export. A key with no matching variable is left as literal text. Save the rows above as a named set to reuse them on other dashboards."));
     })();
 
     // Z6: per-dashboard header logo — replaces the default "P" mark in the banner (preview +
@@ -2606,7 +2606,7 @@
     if (sp.dashboardTheme === "custom") {
       if (!sp.customTheme) sp.customTheme = JSON.parse(JSON.stringify(Studio.DEFAULT_CUSTOM_THEME_SEED));
       var ctWrap = el("div"); ctWrap.className = "ct-editor";
-      var CT_FIELDS = [["bg", "Background"], ["panel", "Panel"], ["text", "Text"], ["brand", "Brand"]];
+      var CT_FIELDS = [["bg", "Background"], ["panel", "Widget"], ["text", "Text"], ["brand", "Brand"]];
       ["light", "dark"].forEach(function (mode) {
         var modeWrap = el("div"); modeWrap.className = "ct-mode";
         var modeLabel = el("div"); modeLabel.className = "ct-mode-label";
@@ -2826,7 +2826,7 @@
     var noteList = (loadCanvasNotes()[sp.id] || []);
     var noteSec = section(body, "Builder notes" + (noteList.length ? " (" + noteList.length + ")" : ""), function () { openNoteEditor(null); }, null, "builder");
     if (!noteList.length) {
-      noteSec.appendChild(hint("Pin a small colored note to a panel, or add a general one — for your own reference or team review while building. Never exported, never leaves this browser."));
+      noteSec.appendChild(hint("Pin a small colored note to a widget, or add a general one — for your own reference or team review while building. Never exported, never leaves this browser."));
     } else {
       noteList.forEach(function (n) {
         var panel = n.panelId ? panelById(n.panelId) : null;
@@ -2859,7 +2859,7 @@
       var ic = (Studio.CHARTS[p.chart.type] || {}).icon || "▭";
       var pTags = p.tags || [];
       var matchesFilter = !_tagFilter || pTags.indexOf(_tagFilter) >= 0;
-      var row = rowItem(ic, p.title || "(panel)", p.chart.type + " · " + p.chart.da + " · span " + p.span,
+      var row = rowItem(ic, p.title || "(widget)", p.chart.type + " · " + p.chart.da + " · span " + p.span,
         function () { select({ kind: "panel", id: p.id }); },
         [moveBtn("↑", function () { swap(sp.panels, i, i - 1); }), moveBtn("↓", function () { swap(sp.panels, i, i + 1); }),
          delBtn(function () { sp.panels.splice(i, 1); selectDashboard(); refreshPreview(); })],
@@ -2884,7 +2884,7 @@
   function renderPanelInspector(body) {
     var p = panelById(S.selection.id); if (!p) { selectDashboard(); return; }
     quickHelp(body, "panel");
-    var sec = section(body, "Panel");
+    var sec = section(body, "Widget");
     sec.appendChild(field("Title", input(p.title, function (v) { p.title = v; refreshPreview(); renderListsOnly(); })));
     var spanSel = select2pairs([["1", "1 column"], ["2", "2 columns"], ["3", "3 columns"], ["full", "Full width"]], String(p.span), function (v) { p.span = v === "full" ? "full" : +v; refreshPreview(); });
     sec.appendChild(field("Width (span)", spanSel, "Keys: ↑/↓ reorder · Shift+←/→ resize"));
@@ -2892,13 +2892,13 @@
     sec.appendChild(field("Sub-label", input(p.sub, function (v) { p.sub = v; refreshPreview(); })));
     sec.appendChild(field("Info tooltip", textarea(p.info, function (v) { p.info = v; refreshPreview(); })));
     sec.appendChild(field("Note (visible)", input(p.note || "", function (v) { p.note = v.trim(); refreshPreview(); }),
-      "Short annotation shown below the panel title in the preview and exported dashboard — stakeholder context at a glance"));
+      "Short annotation shown below the widget title in the preview and exported dashboard — stakeholder context at a glance"));
     // N-FUN: a first cut of "story / scrollytelling mode" — an optional narrative line
     // shown ONLY in Slideshow (never in the normal preview/export), distinct from the
     // always-visible panel Note above. Turns Slideshow from "cycle through charts" into
     // "present findings" — one sentence of context per beat, read aloud or on-screen.
     sec.appendChild(field("Slide caption", textarea(p.slideCaption || "", function (v) { p.slideCaption = v.trim(); }),
-      "Narration shown only in Slideshow mode (⋯ More → Slideshow) — tell the story of this panel, one beat at a time"));
+      "Narration shown only in Slideshow mode (⋯ More → Slideshow) — tell the story of this widget, one beat at a time"));
     // N-FUN: per-step "zoom/highlight" choreography (v272) — a per-panel toggle that plays
     // a brief zoom+glow entrance when this slide appears in Slideshow, so the story can draw
     // the eye to the beat that matters. Slideshow-only, like Slide caption above; the normal
@@ -2912,7 +2912,7 @@
       zoomLbl.appendChild(zoomCb); zoomLbl.appendChild(document.createTextNode("Emphasize this slide"));
       zoomRow.appendChild(zoomLbl);
       sec.appendChild(field("Slide emphasis", zoomRow,
-        "Plays a brief zoom + glow entrance when this panel's slide appears in Slideshow — draws the eye to the moment that matters"));
+        "Plays a brief zoom + glow entrance when this widget's slide appears in Slideshow — draws the eye to the moment that matters"));
       // N-FUN: per-step "pan" (closes the "pan remains open" note from v272) — the zoom's
       // transform-origin defaults to dead center; these two sliders let it anchor toward a
       // specific spot in the chart instead, so the entrance reads as pushing IN on that region
@@ -2975,7 +2975,7 @@
     var embedRow = el("div"); embedRow.style.cssText = "display:flex;gap:8px;margin-top:6px";
     var embedBtn = el("button", "btn-wide"); setIconBtn(embedBtn, "code", "Export this panel…"); embedBtn.onclick = function () { exportPanelEmbed(p); };
     embedRow.appendChild(embedBtn); sec.appendChild(embedRow);
-    sec.appendChild(noteEl("info", "Downloads a tiny, self-contained HTML file with just this one panel — an embeddable widget you can drop anywhere, no server or the rest of the dashboard needed."));
+    sec.appendChild(noteEl("info", "Downloads a tiny, self-contained HTML file with just this one widget — you can drop it anywhere, no server or the rest of the dashboard needed."));
     var pngRow = el("div"); pngRow.style.cssText = "display:flex;gap:8px;margin-top:6px";
     var pngBtn = el("button", "btn-wide"); setIconBtn(pngBtn, "image", "Save chart as PNG"); pngBtn.onclick = function () { exportPanelPng(p); };
     pngRow.appendChild(pngBtn); sec.appendChild(pngRow);
@@ -3795,7 +3795,7 @@
     var span = el("span"); span.textContent = text;
     box.appendChild(span);
     sec.appendChild(box);
-    sec.appendChild(noteEl("info", "Auto-generated from this panel's own sample data (offline, no API) — a quick read on trend, the biggest single move, and any outlier."));
+    sec.appendChild(noteEl("info", "Auto-generated from this widget's own sample data (offline, no API) — a quick read on trend, the biggest single move, and any outlier."));
     // N-AI: "auto-placed callout markers on the notable points" — one click drops the
     // existing Callout arrow overlay (see below) right on the outlier/biggest-move point
     // this narration just called out, instead of the user having to eyeball x%/y% sliders.
@@ -4996,7 +4996,7 @@
       highlightPreview();
       var n = (S.spec.panels || []).length, k = (S.spec.kpis || []).length;
       var dataLabel = S.demoMode ? " · demo LIVE" : " · sample data";
-      $("#previewStatus").textContent = n + " panel" + (n === 1 ? "" : "s") + (k ? " · " + k + " KPI" + (k === 1 ? "" : "s") : "") + dataLabel;
+      $("#previewStatus").textContent = n + " widget" + (n === 1 ? "" : "s") + (k ? " · " + k + " KPI" + (k === 1 ? "" : "s") : "") + dataLabel;
     };
     ifr.srcdoc = html;
     snapshot();
@@ -5314,7 +5314,7 @@
       ta.placeholder = "What do you want to remember or flag here?";
       ta.style.cssText = "width:100%;min-height:70px;resize:vertical;box-sizing:border-box";
       body.appendChild(field("Note", ta));
-      var targetOpts = [["", "General note (not tied to a panel)"]].concat(
+      var targetOpts = [["", "General note (not tied to a widget)"]].concat(
         (S.spec.panels || []).map(function (p) { return [p.id, "Panel: " + (p.title || p.id)]; }));
       body.appendChild(field("Pin to", select2pairs(targetOpts, draft.panelId, function (v) { draft.panelId = v; })));
       var saveBtn = el("button", "btn btn-primary"); saveBtn.style.cssText = "width:100%;justify-content:center;margin-top:8px";
@@ -8123,11 +8123,11 @@
     single.panels = [Studio.clone(p)];
     single.kpis = []; single.filters = [];
     single.title = p.title || S.spec.title; single.description = "";
-    var stem = (p.title || "panel").trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "") || "panel";
+    var stem = (p.title || "widget").trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "") || "widget";
     single.name = stem;
     celebrateFirstExport();
     bumpExportMilestone();
-    bundleModal("Embed panel", [{ name: stem + "-embed.html", body: Studio.exportCDF(single, S.assets, S.settings.deployPath), mime: "text/html" }]);
+    bundleModal("Embed widget", [{ name: stem + "-embed.html", body: Studio.exportCDF(single, S.assets, S.settings.deployPath), mime: "text/html" }]);
   }
   // N-DIST: client-side PNG export of a chart — first cut of "Client-side PNG/PDF export of a whole
   // dashboard" (the SVG-chart half; legend/title/table chart types are a separate follow-up).
@@ -8220,7 +8220,7 @@
 
     // Overlay
     var ov = document.createElement("div"); ov.className = "pz-overlay"; ov.id = "pzOverlay";
-    var ifr = document.createElement("iframe"); ifr.className = "pz-frame"; ifr.title = "Panel zoom: " + (p.title || "Panel");
+    var ifr = document.createElement("iframe"); ifr.className = "pz-frame"; ifr.title = "Widget zoom: " + (p.title || "Widget");
     var closeBtn = document.createElement("button"); closeBtn.className = "pz-close"; closeBtn.setAttribute("aria-label", "Exit zoom (Esc)");
     closeBtn.appendChild(Studio.icon("close", 14)); closeBtn.appendChild(document.createTextNode(" Exit zoom"));
     ov.appendChild(ifr); ov.appendChild(closeBtn); document.body.appendChild(ov);
@@ -8291,7 +8291,7 @@
     function showSlide(idx) {
       var p = _ssPanels[idx]; if (!p) return;
       _ssIdx = idx;
-      titleEl.textContent = p.title || ("Panel " + (idx + 1));
+      titleEl.textContent = p.title || ("Widget " + (idx + 1));
       counter.textContent = (idx + 1) + " / " + _ssPanels.length;
       prevBtn.disabled = (idx === 0);
       nextBtn.disabled = (idx === _ssPanels.length - 1);
@@ -8436,20 +8436,20 @@
         ["Ctrl / ⌘  +  K", "Open the command palette"],
         ["Ctrl / ⌘  +  Z", "Undo"],
         ["Ctrl / ⌘  +  Shift+Z", "Redo"],
-        ["Ctrl / ⌘  +  D", "Duplicate selected panel or KPI"],
+        ["Ctrl / ⌘  +  D", "Duplicate selected widget or KPI"],
         ["Ctrl / ⌘  +  S", "Save to your Dashboards catalog"],
         ["Ctrl / ⌘  +  F", "Focus library search (filter queries)"],
-        ["/", "Focus chart-type gallery search (panel selected)"],
-        ["↑ / ↓   (panel selected)", "Reorder panel up / down"],
-        ["Shift + ← / →   (panel selected)", "Decrease / increase panel span"],
-        ["Delete / Backspace   (panel selected)", "Delete selected panel or KPI"],
-        ["Escape   (panel selected)", "Deselect — return to dashboard inspector"],
+        ["/", "Focus chart-type gallery search (widget selected)"],
+        ["↑ / ↓   (widget selected)", "Reorder widget up / down"],
+        ["Shift + ← / →   (widget selected)", "Decrease / increase widget span"],
+        ["Delete / Backspace   (widget selected)", "Delete selected widget or KPI"],
+        ["Escape   (widget selected)", "Deselect — return to dashboard inspector"],
         ["Escape   (Focus mode)", "Exit Focus mode — return to builder"],
-        ["↗ button on panel", "Zoom panel to full screen (Escape to close)"],
+        ["↗ button on widget", "Zoom widget to full screen (Escape to close)"],
         ["?", "Show this keyboard shortcuts panel"],
         ["Escape", "Close modal or dropdown menu"],
         ["Tab", "Navigate interactive controls"],
-        ["Double-click panel title", "Rename panel inline"]
+        ["Double-click widget title", "Rename widget inline"]
       ];
       var tbl = el("table"); tbl.style.cssText = "border-collapse:collapse;width:100%;font-size:13px";
       rows.forEach(function (r) {
@@ -9368,13 +9368,13 @@
      across selection changes within the same session. */
   var QUICK_HELP = {
     dashboard: [
-      "Drag a query from the library onto the canvas to add a chart panel.",
+      "Drag a query from the library onto the canvas to add a chart widget.",
       "Use New ▾ → Auto-build to scaffold a full starter dashboard instantly.",
       "Export ▾ → CDF .html gives a standalone file you can open in any browser."
     ],
     panel: [
       "Pick a chart type from the gallery, then bind the data columns below.",
-      "Press Shift+←/→ to resize the panel span; ↑/↓ to reorder it on the canvas.",
+      "Press Shift+←/→ to resize the widget span; ↑/↓ to reorder it on the canvas.",
       "Advanced inspector sections (annotations, drill-through, etc.) are just below the options."
     ],
     kpi: [
