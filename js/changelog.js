@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 408,
+    title: 'Fix: map hover highlights no longer stick',
+    kind: 'fix',
+    ts: '2026-07-21T18:00:02.000Z',
+    items: [
+      'On the choropleth maps — most noticeably the dense watershed (HUC8) map — moving the mouse across regions could leave earlier regions highlighted, piling up outlines that never cleared. Hover now highlights exactly one region at a time and clears cleanly when you move off the map.',
+    ],
+  },
+  {
     v: 407,
     title: 'Explore can roll up your data now — group by one or two columns and aggregate',
     kind: 'feature',
