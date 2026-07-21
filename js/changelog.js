@@ -6,6 +6,14 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 403,
+    title: 'Say hello to widgets — the things you put on a dashboard',
+    ts: '2026-07-21T15:31:33.000Z',
+    items: [
+      'The item you place on a dashboard — a chart, KPI, map, or block of text — is now called a widget everywhere in the interface (the inspector, the canvas hints, the keyboard-shortcut help, and the docs), instead of the more technical “panel”. Your saved dashboards are unchanged; only the wording moved.',
+    ],
+  },
+  {
     v: 402,
     title: 'A proper welcome — the tour now walks the whole app',
     ts: '2026-07-21T15:21:11.000Z',
