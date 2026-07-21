@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 412,
+    title: 'Sign in to Analytics — a real login replaces the old access passcode',
+    kind: 'feature',
+    ts: '2026-07-21T18:46:26.000Z',
+    items: [
+      'The single shared passcode is gone. The app now opens to a proper sign-in: a username and password, plus an “Explore the demo” button that drops you straight into a ready-made sample workspace. The built-in demo account is username demo, password demo — shown right on the screen.',
+      'Settings gained an Account card showing who you’re signed in as, a Sign out button, and a toggle for the demo content. Signing in with the demo account seeds the sample workspace automatically; you can turn it off any time.',
+      'Under the hood this adds an internal users table to the workspace (so accounts can live in your backend later). This first phase is UX-level gating on this device; enforced per-user security against a real backend comes in a later phase.',
+    ],
+  },
+  {
     v: 411,
     title: 'The top bar now shows the section you’re in — matching the rest of the fleet',
     ts: '2026-07-21T18:29:04.000Z',

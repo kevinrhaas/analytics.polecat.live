@@ -1171,6 +1171,14 @@
 >   toggleable demo packs (Conservation + Governance) off file CSV/JSON sources; tour that defines
 >   every term (adapter/connection/dataset/job/workbook/dashboard/widget/filter); rail IA
 >   (Workspace/Build/Manage, Jobs under Manage) + an Admin section split from personal Settings.
+> > M3.1 ✓ **Sign-in (shipped):** the single passcode gate is replaced by a username/password
+>     LOGIN (app/auth.js = PolecatAuth: local user store seeded with admin + demo/demo, SHA-256
+>     hashes, session in analytics.session.v1; honors the historical studio-gate-ok test bypass).
+>     gate.js is now the sign-in screen with an "Explore the demo" button; demo login auto-installs
+>     the sample workspace (initAuthBoot). Settings gained an Account card (identity, Sign out,
+>     demo-content toggle). Schema → v4 with an additive `users` table, mirrored on boot so accounts
+>     ride the backend snapshot. 7 sign-in/M3.1 ratchets. NEXT (M3.2): connect-to-backend from the
+>     login (repo picker, probe → provision blank DB with admin + demo users); then M4 admin/RLS.
 > > M3. **Auth foundation (phased, UX-level first):** replace the single-passcode gate with a
 >     user/password LOGIN. First screen: demo credentials shown on-screen + local demo mode, OR
 >     connect to a backend repo (Turso/Supabase/Firebase) — show which backend is connected and

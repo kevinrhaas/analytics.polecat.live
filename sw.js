@@ -5,7 +5,15 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v60"; /* v60: fleet-standard topbar, step 1 — the
+var CACHE_NAME = "studio-shell-v61"; /* v61: M3.1 — sign-in replaces the passcode.
+   New app/auth.js (PolecatAuth: a local user store seeded with admin + demo,
+   SHA-256 hashes, session in analytics.session.v1); gate.js becomes a
+   username/password sign-in with an "Explore the demo" path; demo login
+   auto-installs the sample workspace; Settings gains an Account card (identity,
+   Sign out, demo-content toggle); schema adds an additive `users` table (v4)
+   mirrored on boot. app/auth.js (new, precached), app/gate.js, app/index.html,
+   app/sources/schema.js, app/studio.js changed.
+   v60: fleet-standard topbar, step 1 — the
    top-left now shows the CURRENT SECTION name (Home/Explore/Dashboards/…), updated
    by shell.js setActive(); the app identity stays in the rail brand. Replaces the
    redundant topbar wordmark. app/index.html, app/shell.js, app/studio.css changed.
@@ -210,6 +218,7 @@ var SHELL_FILES = [
   "app/fleet.js",
   "app/studio.css",
   "app/gate-config.js",
+  "app/auth.js",
   "app/gate.js",
   "app/model.js",
   "app/sources/schema.js",

@@ -1,66 +1,96 @@
-/* gate.js — soft passcode gate for the hosted/gated build. Self-contained
-   (injects its own styles, runs before the app). No gate when STUDIO_GATE_SHA256
-   is empty; bypassed once unlocked this session. Not real security — front the
-   site with Cloudflare Access / Netlify Identity for that (see PUBLISH.md). */
+/* gate.js — the sign-in screen (M3 phase 1). Renders a username/password
+   login over the LOCAL user store (see app/auth.js — window.PolecatAuth) and
+   reveals the app once you're in. Self-contained (injects its own styles, runs
+   before the app). Bypassed for the session once signed in (or when the
+   historical sessionStorage `studio-gate-ok` flag is pre-set — the whole test
+   suite relies on that contract). This is UX-level gating, not real security —
+   real per-user enforcement arrives with Supabase Auth/RLS (M7). */
 (function () {
   "use strict";
-  // accepts a single SHA-256 string OR an array of them (issue/revoke multiple codes)
-  var raw = window.STUDIO_GATE_SHA256;
-  var HASHES = (Array.isArray(raw) ? raw : (raw ? [raw] : []))
-    .map(function (s) { return String(s).trim().toLowerCase(); }).filter(Boolean);
-  async function sha256(s) {
-    var buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
-    return Array.prototype.map.call(new Uint8Array(buf), function (b) { return b.toString(16).padStart(2, "0"); }).join("");
-  }
-  window.__gateSha256 = sha256;   // exposed for tests
+  var Auth = window.PolecatAuth;
   function reveal() { var a = document.getElementById("app"); if (a) a.style.visibility = ""; var g = document.getElementById("studio-gate"); if (g) g.remove(); }
-  function start() {
-    if (!HASHES.length || sessionStorage.getItem("studio-gate-ok") === "1") { reveal(); return; }
+  // The app boots behind this overlay, so its identity-dependent boot steps (user
+  // mirror + demo-content auto-install) ran while nobody was signed in. Re-run
+  // them now that we know who logged in. Harmless if the hook isn't ready yet
+  // (already-authed loads reveal without a login and never call this).
+  function afterLogin() { try { if (window.__studioAuthBoot) window.__studioAuthBoot(); } catch (e) {} reveal(); }
+
+  async function start() {
+    if (!Auth) { reveal(); return; }               // auth.js missing — fail open (dev)
+    await Auth.seedIfEmpty();
+    if (Auth.authed()) { reveal(); return; }
     var a = document.getElementById("app"); if (a) a.style.visibility = "hidden";
-    var st = document.createElement("style");
-    // Z10 follow-up: themed via the same --brand/--pdc/--ink/etc custom properties as
-    // studio.css/welcome.js/tutorial.js/palette.js instead of fixed hex, so the passcode
-    // screen follows the stored Classic Blue / Polecat + light/dark preference too. Those
-    // vars come from studio.css's [data-theme]/[data-app-theme] blocks; gate.js runs before
-    // studio.js applies the saved attributes, so read the same localStorage keys here first
-    // (best-effort — falls back to the :root default if unavailable/blocked).
+
+    // Themed via the same --brand/--pdc/--ink/etc custom properties as the app
+    // (studio.css [data-theme]/[data-app-theme]); gate runs before studio.js
+    // applies the saved attributes, so read the same localStorage keys first
+    // (best-effort — falls back to :root defaults).
     try {
       var savedMode = localStorage.getItem("studio-theme");
       var savedAppTheme = localStorage.getItem("studio-app-theme");
       if (savedMode) document.documentElement.setAttribute("data-theme", savedMode);
-      if (savedAppTheme) document.documentElement.setAttribute("data-app-theme", savedAppTheme);
-      // Mirror onto the Polecat Shell's data-palette axis pre-paint too (same value as
-      // data-app-theme; studio.js keeps them in sync from here on).
-      if (savedAppTheme) document.documentElement.setAttribute("data-palette", savedAppTheme);
+      if (savedAppTheme) { document.documentElement.setAttribute("data-app-theme", savedAppTheme); document.documentElement.setAttribute("data-palette", savedAppTheme); }
     } catch (e) {}
+
+    var st = document.createElement("style");
     st.textContent =
       "#studio-gate{position:fixed;inset:0;z-index:100000;display:flex;align-items:center;justify-content:center;" +
       "background:linear-gradient(125deg,var(--bg,#0a1c3d),var(--brand,#163a6e) 55%,var(--pdc,#1c4a86));font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}" +
-      "#studio-gate .g-card{background:var(--pane,#fff);border-radius:16px;box-shadow:0 24px 70px rgba(0,0,0,.4);padding:34px 32px;width:min(380px,92vw);text-align:center}" +
+      "#studio-gate .g-card{background:var(--pane,#fff);border-radius:16px;box-shadow:0 24px 70px rgba(0,0,0,.4);padding:34px 32px;width:min(390px,92vw);text-align:center}" +
       "#studio-gate .g-logo{width:46px;height:46px;border-radius:12px;margin:0 auto 14px;background:linear-gradient(135deg,var(--brand,#005bb5),var(--pdc,#7d3c98));display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:22px}" +
-      "#studio-gate h1{font-size:18px;margin:0 0 4px;color:var(--ink,#16233b)}#studio-gate p{font-size:13px;color:var(--muted,#5d6b82);margin:0 0 18px}" +
-      "#studio-gate input{width:100%;padding:11px 13px;border:1px solid var(--line,#c8d2df);border-radius:9px;font-size:14px;outline:none;margin-bottom:10px;background:var(--field,#fff);color:var(--ink,#16233b)}" +
+      "#studio-gate h1{font-size:19px;margin:0 0 4px;color:var(--ink,#16233b)}#studio-gate p{font-size:13px;color:var(--muted,#5d6b82);margin:0 0 18px}" +
+      "#studio-gate label{display:block;text-align:left;font-size:11.5px;font-weight:700;color:var(--muted,#5d6b82);margin:0 0 4px}" +
+      "#studio-gate input{width:100%;padding:11px 13px;border:1px solid var(--line,#c8d2df);border-radius:9px;font-size:14px;outline:none;margin-bottom:12px;background:var(--field,#fff);color:var(--ink,#16233b)}" +
       "#studio-gate input:focus{border-color:var(--brand,#005bb5)}" +
       "#studio-gate button{width:100%;padding:11px;border:0;border-radius:9px;background:var(--pdc,#7d3c98);color:#fff;font-size:14px;font-weight:700;cursor:pointer}" +
-      "#studio-gate button:hover{background:color-mix(in srgb,var(--pdc,#7d3c98) 85%,white)}#studio-gate .g-err{color:var(--bad,#d63a5e);font-size:12.5px;height:16px;margin-top:8px}" +
+      "#studio-gate button:hover{background:color-mix(in srgb,var(--pdc,#7d3c98) 85%,white)}" +
+      "#studio-gate .g-demo{margin-top:10px;background:transparent;color:var(--brand,#005bb5);border:1px solid var(--line,#c8d2df)!important}" +
+      "#studio-gate .g-demo:hover{background:color-mix(in srgb,var(--brand,#005bb5) 8%,transparent)}" +
+      "#studio-gate .g-or{font-size:11px;color:var(--faint,#8a97ab);margin:12px 0 2px;text-transform:uppercase;letter-spacing:.06em}" +
+      "#studio-gate .g-hint{margin-top:16px;padding:10px 12px;border-radius:9px;background:color-mix(in srgb,var(--brand,#005bb5) 8%,transparent);border:1px solid var(--line,#c8d2df);font-size:12px;color:var(--muted,#5d6b82);text-align:left}" +
+      "#studio-gate .g-hint b{color:var(--ink,#16233b)}#studio-gate .g-hint code{font-family:ui-monospace,Menlo,monospace;background:var(--field,#fff);padding:1px 5px;border-radius:5px;color:var(--ink,#16233b)}" +
+      "#studio-gate .g-err{color:var(--bad,#d63a5e);font-size:12.5px;height:16px;margin-top:8px}" +
       "#studio-gate .g-note{color:var(--faint,#8a97ab);font-size:11px;margin-top:14px}" +
       "#studio-gate .shake{animation:gshake .4s}@keyframes gshake{0%,100%{transform:translateX(0)}25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}";
     document.head.appendChild(st);
+
     var ov = document.createElement("div"); ov.id = "studio-gate";
-    ov.innerHTML = '<div class="g-card"><div class="g-logo">P</div><h1>Analytics</h1>' +
-      '<p>Gated preview — enter the access passcode.</p><form id="g-form">' +
-      '<input type="password" id="g-pass" placeholder="Passcode" autocomplete="off"/>' +
-      '<button type="submit">Unlock</button></form><div class="g-err" id="g-err"></div>' +
+    ov.innerHTML = '<div class="g-card"><div class="g-logo">P</div><h1>Sign in to Analytics</h1>' +
+      '<p>Your local workspace on analytics.polecat.live.</p>' +
+      '<form id="g-form" autocomplete="off">' +
+      '<label for="g-user">Username</label>' +
+      '<input type="text" id="g-user" placeholder="username" autocomplete="username" autocapitalize="off" spellcheck="false"/>' +
+      '<label for="g-pass">Password</label>' +
+      '<input type="password" id="g-pass" placeholder="password" autocomplete="current-password"/>' +
+      '<button type="submit">Sign in</button></form>' +
+      '<div class="g-or">or</div>' +
+      '<button type="button" class="g-demo" id="g-demo">Explore the demo</button>' +
+      '<div class="g-err" id="g-err"></div>' +
+      '<div class="g-hint">This is a demo build. Sign in with the built-in demo account — <b>username</b> <code>demo</code>, <b>password</b> <code>demo</code> — or just click <b>Explore the demo</b> to jump straight in with a ready-made sample workspace.</div>' +
       '<div class="g-note">analytics.polecat.live</div></div>';
     document.body.appendChild(ov);
-    var inp = document.getElementById("g-pass"); if (inp) inp.focus();
+
+    var userInp = document.getElementById("g-user"); if (userInp) userInp.focus();
+    function fail(msg) {
+      document.getElementById("g-err").textContent = msg || "Incorrect username or password.";
+      var c = ov.querySelector(".g-card"); c.classList.add("shake"); setTimeout(function () { c.classList.remove("shake"); }, 400);
+    }
     document.getElementById("g-form").addEventListener("submit", function (e) {
       e.preventDefault();
-      sha256(document.getElementById("g-pass").value).then(function (h) {
-        if (HASHES.indexOf(h) >= 0) { try { sessionStorage.setItem("studio-gate-ok", "1"); } catch (x) {} reveal(); }
-        else { document.getElementById("g-err").textContent = "Incorrect passcode."; var c = ov.querySelector(".g-card"); c.classList.add("shake"); setTimeout(function () { c.classList.remove("shake"); }, 400); document.getElementById("g-pass").select(); }
+      var u = (document.getElementById("g-user").value || "").trim();
+      var p = document.getElementById("g-pass").value || "";
+      if (!u) { fail("Enter a username."); return; }
+      Auth.verify(u, p).then(function (okAuth) {
+        if (okAuth) { Auth.login(u); afterLogin(); }
+        else { fail(); document.getElementById("g-pass").select(); }
       });
     });
+    document.getElementById("g-demo").addEventListener("click", function () {
+      // The public demo account always exists (seeded); logging in as it triggers
+      // studio.js to auto-install the sample workspace.
+      if (Auth.login("demo")) afterLogin(); else fail("Demo account unavailable.");
+    });
   }
+
   if (document.readyState !== "loading") start(); else document.addEventListener("DOMContentLoaded", start);
 })();
