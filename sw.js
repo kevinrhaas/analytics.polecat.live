@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v54"; /* v54: FIX — primary call-to-action buttons
+var CACHE_NAME = "studio-shell-v55"; /* v55: canvas consistency + header-off. The
+   KPI delete ✕ now uses the same rounded, hover-red control as widgets (was an
+   always-on red circle); a new "Show dashboard header" toggle (dashboard
+   inspector) hides the whole title banner + description bar in preview AND export
+   via injected CSS, for embed-ready "just KPIs + widgets" HTML.
+   app/exporters.js, app/studio.js, docs/index.html changed.
+   v54: FIX — primary call-to-action buttons
    (Datasets/Jobs "+ New", Explore "Save analysis", the dataset/job editors) were
    rendering white-on-transparent on light section backgrounds — invisible, so the
    actions read as missing. `.btn.primary` is now a solid brand fill globally.

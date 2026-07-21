@@ -163,6 +163,12 @@
     // without touching the vendored pdc-ui.css default.
     var titleSizeCss = (spec.titleSize && Studio.TITLE_SIZE_PX[spec.titleSize]) ?
       "\n.pdc-title{font-size:" + Studio.TITLE_SIZE_PX[spec.titleSize] + "}" : "";
+    // Header off (embed mode): hide the whole title banner + the description bar so the
+    // exported HTML shows ONLY the KPIs and widgets — ready to drop inside another page's
+    // chrome. Done via CSS (not by removing the nodes) so the runtime JS that references
+    // #ctrls/#themeBtn/#qInfoBtn never trips, and preview == export stays byte-identical.
+    var hideHeaderCss = spec.hideHeader ?
+      "\n.pdc-header{display:none}\n.pdc-desc-bar{display:none}\n.pdc-wrap{padding-top:16px}" : "";
     // Z6: subtitle style — .pdc-sub defaults to font-weight:500, not italic (vendor pdc-ui.css).
     var subtitleStyleCss = "";
     if (spec.subtitleStyle === "italic") subtitleStyleCss = "\n.pdc-sub{font-style:italic}";
@@ -214,8 +220,8 @@
       ".sr-empty-ic{font-size:42px;color:var(--pentaho);opacity:.55;line-height:1}" +
       ".sr-empty-t{font-size:18px;font-weight:800;margin:14px 0 6px;color:var(--text-primary)}" +
       ".sr-empty-s{font-size:13.5px;color:var(--text-muted);line-height:1.6}.sr-empty-s b{color:var(--pentaho)}" +
-      ".kpi .sr-kpi-del{position:absolute;top:5px;right:6px;width:18px;height:18px;border-radius:50%;border:0;background:var(--bad,#e0395e);color:#fff;font-size:13px;line-height:1;cursor:pointer;opacity:0;transition:opacity .12s;padding:0;display:flex;align-items:center;justify-content:center}" +
-      ".kpi:hover .sr-kpi-del{opacity:.85}.kpi .sr-kpi-del:hover{opacity:1}" +
+      ".kpi .sr-kpi-del{position:absolute;top:6px;right:7px;width:20px;height:20px;border-radius:5px;border:1px solid var(--panel-border);background:var(--panel-bg);color:var(--text-muted);font-size:13px;line-height:1;cursor:pointer;opacity:0;transition:opacity .12s;padding:0;display:flex;align-items:center;justify-content:center}" +
+      ".kpi:hover .sr-kpi-del{opacity:1}.kpi .sr-kpi-del:hover{color:var(--bad,#e0395e);border-color:var(--bad,#e0395e)}" +
       ".sr-card-acts{position:absolute;top:7px;right:11px;display:flex;gap:3px;opacity:0;transition:opacity .12s;z-index:8}" +
       ".card:hover .sr-card-acts{opacity:1}" +
       ".sr-act{width:20px;height:20px;border-radius:5px;border:1px solid var(--panel-border);background:var(--panel-bg);color:var(--text-muted);font-size:13px;line-height:1;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center}" +
@@ -224,7 +230,7 @@
     var head =
       "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\"/>\n" +
       "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/>\n" +
-      "<title>" + xml(titleText) + " — Analytics</title>\n<style>\n" + assets.css + mobileCss + sectionCss + descCss + panelNoteCss + panelAccentCss + targetLineCss + refBandCss + calloutCss + periodHighlightCss + eventMarkerCss + scatterAnnotCss + kpiSubCss + richtextCss + dashboardThemeCss + themeColorCss + headerLogoCss + headerLinkCss + headerBgCss + titleSizeCss + subtitleStyleCss + cardSkinCss + paletteCss + printCss + previewCss + "\n</style>\n</head>\n";
+      "<title>" + xml(titleText) + " — Analytics</title>\n<style>\n" + assets.css + mobileCss + sectionCss + descCss + panelNoteCss + panelAccentCss + targetLineCss + refBandCss + calloutCss + periodHighlightCss + eventMarkerCss + scatterAnnotCss + kpiSubCss + richtextCss + dashboardThemeCss + themeColorCss + headerLogoCss + headerLinkCss + headerBgCss + titleSizeCss + hideHeaderCss + subtitleStyleCss + cardSkinCss + paletteCss + printCss + previewCss + "\n</style>\n</head>\n";
     var logoHtml = spec.headerLogo ?
       "<img class=\"pdc-logo\" src=\"" + xml(spec.headerLogo) + "\" alt=\"\"/>" :
       "<span class=\"pdc-logo\">P</span>";

@@ -1155,6 +1155,18 @@
 >     demoPackId machinery (remove now also sweeps jobs); 4 M2c ratchet tests. NEXT in M3: wire the
 >     demo-login to auto-install this set, a Settings toggle to turn it off, and suppression once you
 >     log in with REAL creds against a real backend repo (real workspace = no demo clutter).
+> REVIEW-FIXES (Kevin live review, 2026-07-21, shipped):
+>   • Primary CTAs (Datasets/Jobs "+ New", Explore "Save analysis") were white-on-transparent on the
+>     light screens — invisible. `.btn.primary` is now a solid brand fill globally (regression guard).
+>   • KPI delete ✕ now matches the widget ✕ (rounded, hover-red — was a red circle); consistent
+>     delete affordances across the canvas.
+>   • New "Show dashboard header" toggle (dashboard inspector) hides the title banner + description
+>     bar in preview AND export via injected CSS — embed-ready "just KPIs + widgets" HTML.
+>   NEXT from the same review (queued): in-Explore rollups (sum/mean/max/median/count); Explore-side
+>   New-dataset; dataset organization at scale (folders, reuse repo-mgmt); multiple toggleable demo
+>   packs (Conservation + Governance) running off file CSV/JSON sources; tour that defines every term
+>   (adapter/connection/dataset/job/workbook/dashboard/widget/filter); rail IA (Workspace/Build/Manage,
+>   Jobs under Manage) + an Admin section (users, connections, shared setup) split from personal Settings.
 > > M3. **Auth foundation (phased, UX-level first):** replace the single-passcode gate with a
 >     user/password LOGIN. First screen: demo credentials shown on-screen + local demo mode, OR
 >     connect to a backend repo (Turso/Supabase/Firebase) — show which backend is connected and
