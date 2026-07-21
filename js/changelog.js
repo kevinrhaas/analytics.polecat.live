@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 409,
+    title: 'Fix: faint, hard-to-read toolbar buttons on the light screens',
+    kind: 'fix',
+    ts: '2026-07-21T18:10:50.000Z',
+    items: [
+      'Secondary buttons on the content screens — the Dashboards toolbar (List view, Compare, Export, Import) and the equivalents on Explore, Datasets, Jobs and Connections — were rendering as pale white-on-cream and were genuinely hard to read. They now use proper dark-on-light contrast everywhere on those screens.',
+    ],
+  },
+  {
     v: 408,
     title: 'Fix: map hover highlights no longer stick',
     kind: 'fix',
