@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 404,
+    title: 'The demo pack now seeds a whole working example — connections, datasets and a job',
+    kind: 'feature',
+    ts: '2026-07-21T15:48:15.000Z',
+    items: [
+      'Installing the Conservation Insight demo pack (from the sample library) now lays down a complete little workspace, not just a dashboard: two connections — a demo file store and an illustrative Supabase repo backend — a raw provider export, a county-level and a watershed (HUC8) adoption dataset that draw real choropleths, plus a prep job that rolls the county numbers up to states by acreage-weighted mean.',
+      'It is the fastest way to see what a lived-in workspace looks like — browse the Datasets, Connections and Jobs sections, open the maps, or run the rollup job — and Remove pack still takes every piece back out in one click.',
+      'All of it is clearly-labelled synthetic sample data, and it is the same set the demo login will greet you with.',
+    ],
+  },
+  {
     v: 403,
     title: 'Say hello to widgets — the things you put on a dashboard',
     ts: '2026-07-21T15:31:33.000Z',

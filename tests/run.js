@@ -1951,6 +1951,51 @@ function serve() {
     await page.evaluate(function () { window.__studioShellSetSection("studio"); });
     await page.waitForTimeout(200);
 
+    // ---- M2c: the demo pack seeds a whole workspace (conns + datasets + job) --
+    console.log("\n• M2c: richer demo workspace — connections, geo datasets, a rollup job");
+    const m2c = await page.evaluate(async function () {
+      window.__studioDemoPacks.remove("conservation");
+      window.__studioDemoPacks.install("conservation");
+      var W = Studio.Workspace;
+      function mine(t) { return W.all(t).filter(function (r) { return r.demoPackId === "conservation"; }); }
+      var conns = mine("connections"), dsets = mine("datasets"), jobs = mine("jobs");
+      var county = dsets.filter(function (d) { return /County cover-crop/.test(d.name); })[0];
+      var stateDs = dsets.filter(function (d) { return /State cover-crop/.test(d.name); })[0];
+      var job = jobs[0];
+      // the county file dataset returns real rows through its (file) adapter
+      var conn = W.get("connections", county.connectionId);
+      var src = Studio.sourceById(conn.adapter);
+      var run = await src.queryData(conn.cfg || {}, { kind: "file", content: county.content, format: "csv" });
+      var geoIdx = (run.columns || []).indexOf("geoid");
+      var allFips = (run.rows || []).every(function (r) { return /^\d{5}$/.test(String(r[geoIdx])); });
+      return {
+        adapters: conns.map(function (c) { return c.adapter; }).sort(),
+        dsetCount: dsets.length,
+        jobStep: job && job.steps && job.steps[0] && job.steps[0].op,
+        wmean: !!(job && (job.steps[0].metrics || []).some(function (m) { return m.fn === "wmean" && m.weightCol === "acres"; })),
+        jobWired: !!(job && job.sourceDatasetId === county.id && job.outputDatasetId === stateDs.id),
+        countyRows: (run.rows || []).length, allFips: allFips, countyErr: run.error || null,
+        stateGeo: stateDs && (stateDs.columns || []).indexOf("statecode") >= 0
+      };
+    });
+    ok("M2c: installing the demo pack seeds ≥2 connections (a file store + a repo backend), 4 datasets and a rollup job — a complete illustrative workspace",
+      m2c.adapters.indexOf("file") >= 0 && m2c.adapters.indexOf("supabase") >= 0 && m2c.dsetCount === 4 && m2c.jobStep === "aggregate", JSON.stringify(m2c));
+    ok("M2c: the county dataset is real, in-geometry data (720 rows, every geoid a 5-digit FIPS) so its choropleth colors live — not a token sample",
+      m2c.countyRows === 720 && m2c.allFips && !m2c.countyErr, JSON.stringify(m2c));
+    ok("M2c: the seeded job is a county→state acreage-weighted-mean rollup wired source→output (the jobs-engine wmean pattern, its output a state-level dataset)",
+      m2c.wmean && m2c.jobWired && m2c.stateGeo, JSON.stringify(m2c));
+    const m2cClean = await page.evaluate(function () {
+      window.__studioDemoPacks.remove("conservation");
+      var W = Studio.Workspace;
+      function mineN(t) { return W.all(t).filter(function (r) { return r.demoPackId === "conservation"; }).length; }
+      return { c: mineN("connections"), d: mineN("datasets"), j: mineN("jobs"), a: mineN("analyses"), db: mineN("dashboards"),
+        installed: Studio.demoPackInstalled("conservation") };
+    });
+    ok("M2c: Remove pack deletes exactly what Install wrote — connections, datasets, job, analyses and dashboard all gone, install flag cleared",
+      m2cClean.c === 0 && m2cClean.d === 0 && m2cClean.j === 0 && m2cClean.a === 0 && m2cClean.db === 0 && !m2cClean.installed, JSON.stringify(m2cClean));
+    await page.evaluate(function () { window.__studioShellSetSection("studio"); });
+    await page.waitForTimeout(150);
+
     console.log("\n• HOME LIVE: featured dashboards render live on Home (Viridis V6)");
     await page.evaluate(function () {
       var sp = window.__STUDIO_STATE.spec;
@@ -2064,21 +2109,22 @@ function serve() {
       var dss = Studio.Workspace.all("datasets").filter(function (r) { return r.demoPackId === "conservation"; });
       var ans = Studio.Workspace.all("analyses").filter(function (r) { return r.demoPackId === "conservation"; });
       var dashes = Studio.Workspace.all("dashboards").filter(function (r) { return r.demoPackId === "conservation"; });
+      var jobs = Studio.Workspace.all("jobs").filter(function (r) { return r.demoPackId === "conservation"; });
       return { installed: window.__studioDemoPacks.installed("conservation"),
-        conns: conns.length, dss: dss.length, ans: ans.length, dashes: dashes.length,
+        conns: conns.length, dss: dss.length, ans: ans.length, dashes: dashes.length, jobs: jobs.length,
         pinned: ans.every(function (a) { return a.pinned; }), featured: dashes[0] && dashes[0].featured,
         panelTypes: dashes[0] && dashes[0].spec.panels.map(function (p) { return p.chart.type; }),
-        dsKind: dss[0] && dss[0].kind, dsFormat: dss[0] && dss[0].format };
+        allFileCsv: dss.every(function (d) { return d.kind === "file" && d.format === "csv"; }) };
     });
-    ok("DP: installDemoPack writes a tagged connection + file dataset (the mapping demo), 4 pinned ensemble analyses, and 1 featured dashboard",
-      dpInstall.installed && dpInstall.conns === 1 && dpInstall.dss === 1 && dpInstall.ans === 4 && dpInstall.dashes === 1 &&
-      dpInstall.pinned && dpInstall.featured && dpInstall.dsKind === "file" && dpInstall.dsFormat === "csv" &&
+    ok("DP: installDemoPack seeds a whole workspace — 2 connections, 4 file datasets, 1 rollup job, 4 pinned ensemble analyses, and 1 featured dashboard",
+      dpInstall.installed && dpInstall.conns === 2 && dpInstall.dss === 4 && dpInstall.ans === 4 && dpInstall.dashes === 1 && dpInstall.jobs === 1 &&
+      dpInstall.pinned && dpInstall.featured && dpInstall.allFileCsv &&
       dpInstall.panelTypes.filter(function (t) { return t === "ensembleSeries"; }).length === 4 &&
       dpInstall.panelTypes.filter(function (t) { return t === "choropleth"; }).length === 1,
       JSON.stringify(dpInstall));
     // the raw file dataset queries LIVE (real CSV parse) — proves the "mapping demo" file is real, not mock
     const dpRaw = await page.evaluate(async function () {
-      var ds = Studio.Workspace.all("datasets").filter(function (r) { return r.demoPackId === "conservation"; })[0];
+      var ds = Studio.Workspace.all("datasets").filter(function (r) { return r.demoPackId === "conservation" && /raw provider export/.test(r.name); })[0];
       var r = await window.__studioRunDataset(ds);
       return { cols: r.columns, rowCount: r.rows.length, error: r.error || null };
     });
@@ -2112,12 +2158,12 @@ function serve() {
     // remove cleans up every tagged row + the install flag
     const dpRemove = await page.evaluate(function () {
       window.__studioDemoPacks.remove("conservation");
-      var left = ["connections", "datasets", "analyses", "dashboards"].reduce(function (n, t) {
+      var left = ["connections", "datasets", "analyses", "dashboards", "jobs"].reduce(function (n, t) {
         return n + Studio.Workspace.all(t).filter(function (r) { return r.demoPackId === "conservation"; }).length;
       }, 0);
       return { installed: window.__studioDemoPacks.installed("conservation"), left: left };
     });
-    ok("DP: removeDemoPack deletes every row it wrote (connection, dataset, analyses, dashboard) and clears the installed flag",
+    ok("DP: removeDemoPack deletes every row it wrote (connections, datasets, job, analyses, dashboard) and clears the installed flag",
       !dpRemove.installed && dpRemove.left === 0, JSON.stringify(dpRemove));
     ok("DP: 'studio-demopacks-installed' is in the Clear-local-data key list (same recurring gap the file's other sweep notes guard against)",
       (await page.evaluate(function () { return window.__studioClearDataKeys; })).indexOf("studio-demopacks-installed") >= 0);
