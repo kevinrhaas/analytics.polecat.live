@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v56"; /* v56: Explore rollups. A group-by
+var CACHE_NAME = "studio-shell-v57"; /* v57: FIX — choropleth hover highlights
+   stuck/accumulated on dense maps (HUC8 watersheds). Bringing the hovered region
+   to the front reorders the DOM and can swallow its own mouseleave; now a single
+   tracked highlight clears the previous region on every mouseenter and on map
+   mouseleave. app/studio-charts.js changed.
+   v56: Explore rollups. A group-by
    aggregation control in Explore (Sum/Mean/Median/Min/Max/Count over one or two
    group-by dimensions), applied via Studio.aggregateRows in applyOutputOptions so
    a saved analysis re-aggregates everywhere (Home/dashboards/export). Dropped the

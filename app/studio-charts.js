@@ -6128,6 +6128,19 @@
       svg.appendChild(defs);
       var gRegions = S("g", {});
       var strokeW = Math.max(0.4, (x1 - x0) / 975 * 0.75);
+      // Hover highlight — track the single highlighted region and always clear the
+      // previous one before highlighting the next (and when the pointer leaves the
+      // map). Bringing the hovered path to the front on mouseenter reorders the DOM,
+      // which on a dense map (e.g. HUC8 watersheds) can swallow that path's own
+      // mouseleave and leave the highlight STUCK/accumulating — this single-source
+      // clear guarantees exactly one region is ever highlighted.
+      var _hoveredGeo = null;
+      function clearGeoHover() {
+        if (!_hoveredGeo) return;
+        _hoveredGeo.setAttribute("stroke", "var(--panel-border, #ccc)");
+        _hoveredGeo.setAttribute("stroke-width", strokeW * 0.5);
+        _hoveredGeo = null;
+      }
       geo.features.forEach(function (feat) {
         var v = values[feat.id];
         var p = S("path", { d: feat.path,
@@ -6135,10 +6148,11 @@
           stroke: "var(--panel-border, #ccc)", "stroke-width": strokeW * 0.5, "data-geo-id": feat.id });
         p.style.cursor = "default";
         _tip(p, "<b>" + feat.name + "</b><br>" + (v == null ? (cfg.noDataLabel || "No data") : f(v)));
-        p.addEventListener("mouseenter", function () { p.setAttribute("stroke", "var(--ink, #333)"); p.setAttribute("stroke-width", strokeW * 1.6); p.parentNode.appendChild(p); });
-        p.addEventListener("mouseleave", function () { p.setAttribute("stroke", "var(--panel-border, #ccc)"); p.setAttribute("stroke-width", strokeW * 0.5); });
+        p.addEventListener("mouseenter", function () { clearGeoHover(); p.setAttribute("stroke", "var(--ink, #333)"); p.setAttribute("stroke-width", strokeW * 1.6); p.parentNode.appendChild(p); _hoveredGeo = p; });
+        p.addEventListener("mouseleave", clearGeoHover);
         gRegions.appendChild(p);
       });
+      gRegions.addEventListener("mouseleave", clearGeoHover);
       svg.appendChild(gRegions);
       if (geo.statesOverlay && cfg.stateLines !== false && scale !== "state") {
         svg.appendChild(S("path", { d: geo.statesOverlay, fill: "none", stroke: "var(--text-muted, #888)", "stroke-width": strokeW * 1.1, "stroke-opacity": "0.55", "pointer-events": "none" }));

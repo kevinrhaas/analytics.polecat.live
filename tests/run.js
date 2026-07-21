@@ -1226,6 +1226,35 @@ function serve() {
     const geoHuc = await geoProbe("huc8", "huc8", [["07080105", 9], ["07130001", 5], ["10230003", 2]]);
     ok("GEO huc8: 500+ Corn Belt watersheds render and color by value",
       geoHuc.regions >= 500 && geoHuc.colored === 3, JSON.stringify({ regions: geoHuc.regions, colored: geoHuc.colored }));
+    // Hover highlight must not STICK: bringing the hovered region to the front reorders
+    // the DOM and can swallow its own mouseleave on a dense map, so highlighting a NEW
+    // region must clear the previous one, and leaving the map must clear everything.
+    const geoHover = await page.evaluate(async function () {
+      var spec = { id: "hv", name: "hv", title: "t", panels: [{ id: "p", title: "p", span: "full", chart: { type: "choropleth", da: "g", map: { idCol: "huc8", valueCol: "v" }, opts: { scale: "huc8" } } }],
+        kpis: [], filters: [], cda: { connections: [], dataAccesses: [{ id: "g", kind: "sql", columns: ["huc8", "v"] }] } };
+      var huc = ["07080106", "05120101", "07100002", "10240003", "07020012"];
+      await window.__studioEnsureGeoAssets(spec);
+      var html = Studio.buildHtml(spec, window.__STUDIO_STATE.assets, { preview: true, mock: { g: { cols: ["huc8", "v"], rows: huc.map(function (h, i) { return [h, (i + 1) * 10]; }) } } });
+      return await new Promise(function (res) {
+        var ifr = document.createElement("iframe"); ifr.style.cssText = "position:fixed;left:-3000px;width:1000px;height:700px";
+        document.body.appendChild(ifr); ifr.srcdoc = html; var t0 = Date.now();
+        (function poll() { var d = null; try { d = ifr.contentDocument; } catch (e) {}
+          var ps = d ? d.querySelectorAll("path[data-geo-id]") : [];
+          if (ps.length > 3) {
+            var HL = "var(--ink, #333)", A = ps[0], B = ps[1], gRegions = A.parentNode;
+            var hi = function (p) { return p.getAttribute("stroke") === HL; };
+            A.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
+            var a1 = hi(A);
+            B.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true })); // A's mouseleave intentionally NOT fired
+            var afterB = { a: hi(A), b: hi(B) };
+            gRegions.dispatchEvent(new MouseEvent("mouseleave", { bubbles: true }));
+            var afterLeave = { a: hi(A), b: hi(B) };
+            ifr.remove(); res({ a1: a1, afterB: afterB, afterLeave: afterLeave });
+          } else if (Date.now() - t0 > 15000) { ifr.remove(); res({ timeout: true }); } else setTimeout(poll, 200); })();
+      });
+    });
+    ok("GEO huc8 hover: highlighting a new region clears the previous one (even if its mouseleave was swallowed by the front-raise), and leaving the map clears all — no stuck highlights",
+      geoHover.a1 === true && geoHover.afterB.a === false && geoHover.afterB.b === true && geoHover.afterLeave.a === false && geoHover.afterLeave.b === false, JSON.stringify(geoHover));
     const geoLean = await page.evaluate(function () {
       var spec = { id: "lean", name: "lean", title: "t", panels: [{ id: "p", title: "p", chart: { type: "bars", da: "g", map: { labelCol: "a", valueCol: "b" } } }],
         kpis: [], filters: [], cda: { connections: [], dataAccesses: [{ id: "g", kind: "sql", columns: ["a", "b"] }] } };
