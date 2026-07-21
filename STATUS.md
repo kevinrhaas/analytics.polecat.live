@@ -116,6 +116,15 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **Conservation Insight demo dashboard rebuilt maps-first (v415, 2026-07-21):** the featured demo
+  dashboard now leads with 4 headline adoption KPIs (median "common estimate" per practice, distinct
+  per-practice sample columns) then choropleths at THREE scales — a full-width county hero, an HUC8
+  watershed map, a state rollup — at the TOP so they land in the Home thumbnail, followed by the four
+  provider-ensemble trends and a by-provider bar. `dashboardTheme: "conservation"`, section headers
+  throughout. app/demopacks.js `dashboardSpec()` rewritten (helpers geoDA/choroplethChart/kpiDA/
+  providerDA); state choropleth keys on a `state` postal column (classifies as statecode). sw v64.
+  DP install ratchet updated (3 choropleths + 4 ensembles + 1 bars) + a new layout ratchet
+  (county/huc8/state scales, 4 KPIs, conservation theme). 1685-check suite green.
 - v1: 3-pane builder (library · live-preview iframe · inspector); 67-CDA library; chart registry
   (bars/donut/line/stacked/treemap/scatter/gauge/heatmap/table/kpi); offline sample-data generator;
   exporters CDF .html / CDE .cdfde+.wcdf / .cda / bundle; 16 v2 CDE boards + flagship as examples;

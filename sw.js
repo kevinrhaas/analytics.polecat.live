@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v63"; /* v63: new "Conservation" dashboard theme,
+var CACHE_NAME = "studio-shell-v64"; /* v64: the Conservation Insight featured
+   demo dashboard is rebuilt as a maps-first story — four headline KPIs, then
+   choropleths at THREE scales (county hero, HUC8 watershed, state rollup) at the
+   TOP so they land in the thumbnail, the provider ensemble trends, and a
+   by-provider bar. Wears the Conservation theme. app/demopacks.js changed.
+   v63: new "Conservation" dashboard theme,
    styled after CTIC (ctic.org) — their field-green #72892b + deep-pine #10432e on
    natural paper-sage surfaces, light + dark, with a CVD-validated 10-color ramp.
    app/model.js (DASHBOARD_THEMES), docs/index.html changed.

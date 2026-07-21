@@ -2330,13 +2330,22 @@ function serve() {
         conns: conns.length, dss: dss.length, ans: ans.length, dashes: dashes.length, jobs: jobs.length,
         pinned: ans.every(function (a) { return a.pinned; }), featured: dashes[0] && dashes[0].featured,
         panelTypes: dashes[0] && dashes[0].spec.panels.map(function (p) { return p.chart.type; }),
+        kpiCount: dashes[0] && (dashes[0].spec.kpis || []).length,
+        dashTheme: dashes[0] && dashes[0].spec.dashboardTheme,
+        choroScales: dashes[0] && dashes[0].spec.panels.filter(function (p) { return p.chart.type === "choropleth"; }).map(function (p) { return p.chart.opts.scale; }),
         allFileCsv: dss.every(function (d) { return d.kind === "file" && d.format === "csv"; }) };
     });
     ok("DP: installDemoPack seeds a whole workspace — 2 connections, 4 file datasets, 1 rollup job, 4 pinned ensemble analyses, and 1 featured dashboard",
       dpInstall.installed && dpInstall.conns === 2 && dpInstall.dss === 4 && dpInstall.ans === 4 && dpInstall.dashes === 1 && dpInstall.jobs === 1 &&
       dpInstall.pinned && dpInstall.featured && dpInstall.allFileCsv &&
       dpInstall.panelTypes.filter(function (t) { return t === "ensembleSeries"; }).length === 4 &&
-      dpInstall.panelTypes.filter(function (t) { return t === "choropleth"; }).length === 1,
+      dpInstall.panelTypes.filter(function (t) { return t === "choropleth"; }).length === 3,
+      JSON.stringify(dpInstall));
+    // the featured dashboard leads with maps at THREE geo scales (county hero, HUC8 watershed, state
+    // rollup), carries the four headline KPIs, and wears the CTIC-derived Conservation theme.
+    ok("DP: the featured dashboard leads with county/HUC8/state choropleths, 4 headline KPIs, and the Conservation theme",
+      JSON.stringify(dpInstall.choroScales) === JSON.stringify(["county", "huc8", "state"]) &&
+      dpInstall.kpiCount === 4 && dpInstall.dashTheme === "conservation",
       JSON.stringify(dpInstall));
     // the raw file dataset queries LIVE (real CSV parse) — proves the "mapping demo" file is real, not mock
     const dpRaw = await page.evaluate(async function () {
