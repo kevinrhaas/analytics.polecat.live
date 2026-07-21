@@ -2328,6 +2328,38 @@
         "--c1": "#1e96e8", "--c2": "#009c58", "--c3": "#c1811f", "--c4": "#9b5fe0", "--c5": "#0da090",
         "--c6": "#f0524a", "--c7": "#e0479c", "--c8": "#d1650c", "--c9": "#3f6fc2", "--c10": "#c0632f"
       }
+    },
+    // "Conservation" — the CTIC look (ctic.org, Conservation Technology Information Center),
+    // built from their published theme colors: the olive/field GREEN #72892b and deep pine
+    // DARK-GREEN #10432e (their --fl-global-ctic-green / --ctic-dark-green), on natural
+    // paper-sage light surfaces (deep-forest chrome) and a deep forest-green dark mode. Made
+    // for the Conservation Insight demo + any conservation-agriculture dashboard. The 10-color
+    // series ramp — field green, sky/water blue, harvest gold, wildflower plum, clay, teal,
+    // soil brown, indigo, leaf green, grape — was validated against the #ffffff (light) /
+    // #12241a (dark) surfaces it uses via the dataviz skill's validate_palette.js: BOTH light
+    // AND dark PASS all six checks outright. (CTIC's signature #FFDD00 CTA yellow is unreadable
+    // as a thin-mark/text token on white, so the ramp carries its readable harvest-gold form.)
+    { key: "conservation", label: "Conservation", swatch: "#72892b",
+      light: {
+        "--pentaho": "#72892b", "--pdc": "#10432e",
+        "--app-bg": "#f3f5ec", "--panel-bg": "#ffffff", "--panel-border": "#dde3d1",
+        "--panel-subtle-bg": "#eaf0e0", "--panel-header-bg": "#eaf0e0", "--panel-header-border": "#dde3d1",
+        "--field-bg": "#ffffff", "--field-border": "#dde3d1",
+        "--text-primary": "#1e2a20", "--text-muted": "#55614c", "--text-faint": "#7b8473",
+        "--sidebar-bg": "#10432e", "--header-bg": "#10432e", "--header-bg-2": "#1a5c40", "--grid-line": "#e6ead9", "--axis": "#7b8473",
+        "--c1": "#72892b", "--c2": "#2479b3", "--c3": "#b5822e", "--c4": "#8a3f6b", "--c5": "#c8632e",
+        "--c6": "#1f9e8a", "--c7": "#9c5a24", "--c8": "#4a5fa8", "--c9": "#4f8f3a", "--c10": "#7a4b8f"
+      },
+      dark: {
+        "--pentaho": "#a3bd52", "--pdc": "#6fb894",
+        "--app-bg": "#0c1a12", "--panel-bg": "#12241a", "--panel-border": "#274434",
+        "--panel-subtle-bg": "#16301f", "--panel-header-bg": "#16301f", "--panel-header-border": "#274434",
+        "--field-bg": "#12241a", "--field-border": "#274434",
+        "--text-primary": "#eaf1df", "--text-muted": "#a3b39a", "--text-faint": "#7e8c76",
+        "--sidebar-bg": "#08130c", "--header-bg": "#08130c", "--header-bg-2": "#10432e", "--grid-line": "#223528", "--axis": "#7e8c76",
+        "--c1": "#7f9a3c", "--c2": "#3f90cf", "--c3": "#b98d2a", "--c4": "#b573c0", "--c5": "#d1703a",
+        "--c6": "#2aa290", "--c7": "#c07c3f", "--c8": "#7089d8", "--c9": "#58a83f", "--c10": "#a074c4"
+      }
     }
   ];
 
