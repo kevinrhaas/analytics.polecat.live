@@ -2122,6 +2122,72 @@ function serve() {
     ok("CANVAS: header-off carries into the EXPORTED HTML too — the export inlines the same '.pdc-header{display:none}' rule the preview uses (preview == export)",
       canvas.exportHasHideCss === true, JSON.stringify({ exportHasHideCss: canvas.exportHasHideCss }));
 
+    // ---- CANVAS-HDR: the header text objects are editable/removable on the canvas -----
+    // Part A (render side): the title, subtitle and description carry the inline-edit
+    // affordance; the description (the free "text object") also has a ✕; double-clicking
+    // and committing an edit, or clicking the ✕, posts the right header-edit message.
+    const hdrEdit = await page.evaluate(async function () {
+      var spec = { id: "he", name: "he", title: "Original Title", subtitle: "Original sub", description: "A removable text object",
+        gridCols: 2, kpis: [], panels: [{ id: "p1", title: "Chart", span: 2, chart: { type: "bars", da: "d1", map: { labelCol: "region", valueCol: "v" }, opts: {} } }],
+        filters: [], cda: { connections: [], dataAccesses: [{ id: "d1", kind: "sql", columns: ["region", "v"] }] } };
+      var html = Studio.buildHtml(spec, window.__STUDIO_STATE.assets, { preview: true, mock: Studio.genMock(spec) });
+      var msgs = [];
+      var onMsg = function (e) { if (e.data && e.data.studio === 1 && e.data.type === "header-edit") msgs.push(e.data); };
+      window.addEventListener("message", onMsg);
+      return await new Promise(function (res) {
+        var ifr = document.createElement("iframe"); ifr.style.cssText = "position:fixed;left:-3000px;width:1000px;height:700px";
+        document.body.appendChild(ifr); ifr.srcdoc = html; var t0 = Date.now();
+        (function poll() { var d = null; try { d = ifr.contentDocument; } catch (e) {}
+          var title = d && d.querySelector(".pdc-title");
+          if (title && d.querySelector(".pdc-desc-bar")) {
+            var sub = d.querySelector(".pdc-sub"), desc = d.querySelector(".pdc-desc-bar"), delBtn = desc.querySelector(".sr-desc-del");
+            var affords = { title: title.classList.contains("sr-head-edit"), sub: sub.classList.contains("sr-head-edit"),
+              desc: desc.classList.contains("sr-desc"), delBtn: !!delBtn };
+            // edit the title inline: dblclick -> input -> new value -> Enter
+            title.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+            var inp = title.parentNode.querySelector(".sr-rename");
+            var editorAppeared = !!inp;
+            if (inp) { inp.value = "Renamed Dashboard"; inp.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })); }
+            // remove the description text object: click its ✕
+            if (delBtn) delBtn.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+            setTimeout(function () {
+              window.removeEventListener("message", onMsg);
+              ifr.remove();
+              res({ affords: affords, editorAppeared: editorAppeared, msgs: msgs });
+            }, 60);
+          } else if (Date.now() - t0 > 12000) { window.removeEventListener("message", onMsg); ifr.remove(); res({ timeout: true }); } else setTimeout(poll, 150); })();
+      });
+    });
+    ok("CANVAS-HDR: the title, subtitle and description are inline-editable on the canvas (sr-head-edit), and the description text object carries a ✕ delete",
+      hdrEdit.affords && hdrEdit.affords.title && hdrEdit.affords.sub && hdrEdit.affords.desc && hdrEdit.affords.delBtn && hdrEdit.editorAppeared, JSON.stringify(hdrEdit));
+    ok("CANVAS-HDR: committing a title edit posts header-edit{field:title}, and the description ✕ posts header-edit{field:description,value:''} (remove)",
+      (hdrEdit.msgs || []).some(function (m) { return m.field === "title" && m.value === "Renamed Dashboard"; }) &&
+      (hdrEdit.msgs || []).some(function (m) { return m.field === "description" && m.value === ""; }), JSON.stringify(hdrEdit.msgs));
+
+    // Part B (builder side): the header-edit message updates the live spec — title/subtitle
+    // set the value, an empty description removes it, and an empty title is ignored (a
+    // dashboard always keeps a name). Dispatched straight at the app window's handler.
+    const hdrApply = await page.evaluate(async function () {
+      // Snapshot the shared builder spec — downstream tests (e.g. V6 Home) reuse
+      // window.__STUDIO_STATE.spec, so we must restore it after mutating it here.
+      var _saved = JSON.parse(JSON.stringify(window.__STUDIO_STATE.spec));
+      window.__studioLoad({ id: "ha", name: "ha", title: "Start", subtitle: "s", description: "desc text",
+        gridCols: 2, kpis: [], panels: [], filters: [], cda: { connections: [], dataAccesses: [] } });
+      function send(field, value) { window.postMessage({ studio: 1, type: "header-edit", field: field, value: value }, "*"); }
+      function wait() { return new Promise(function (r) { setTimeout(r, 30); }); }
+      send("title", "New Name"); await wait();
+      send("subtitle", ""); await wait();
+      send("description", ""); await wait();
+      var afterEdits = { title: window.__STUDIO_STATE.spec.title, subtitle: window.__STUDIO_STATE.spec.subtitle, hasDesc: "description" in window.__STUDIO_STATE.spec };
+      send("title", ""); await wait(); // empty title must be ignored
+      var titleAfterEmpty = window.__STUDIO_STATE.spec.title;
+      window.__studioLoad(_saved); // restore shared state for later tests
+      return { afterEdits: afterEdits, titleAfterEmpty: titleAfterEmpty };
+    });
+    ok("CANVAS-HDR: header-edit applies to the live spec — title set, subtitle cleared, description removed; an empty title is ignored (dashboards keep a name)",
+      hdrApply.afterEdits.title === "New Name" && hdrApply.afterEdits.subtitle === "" && hdrApply.afterEdits.hasDesc === false && hdrApply.titleAfterEmpty === "New Name",
+      JSON.stringify(hdrApply));
+
     // ---- ROLLUP: Explore group-by aggregation (sum/mean/median/min/max/count) --
     console.log("\n• ROLLUP: Explore aggregations — one and two-level group-by");
     const agg = await page.evaluate(function () {

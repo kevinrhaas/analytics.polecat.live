@@ -116,6 +116,15 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **Canvas-editable header text objects (v417, 2026-07-21):** the dashboard title, subtitle and
+  description are now inline-editable on the builder canvas — double-click to edit (Enter commits,
+  Esc cancels), and the description (the free "text object") carries a ✕ delete matching the KPI/
+  widget affordance. Preview-only: injected post-render in studio-render.js `wireHeaderEditing` +
+  `headerEditable`, styled via preview-only CSS in exporters.js, applied by a new `header-edit`
+  postMessage handler in studio.js — so the exported/embedded header stays byte-identical. Empty
+  title is ignored (a dashboard keeps its name); empty subtitle/description clear/remove. 3 CANVAS-HDR
+  ratchets (affordances + posted messages + live-spec apply). Completes task #25 (the KPI-vs-widget ✕
+  unification already shipped + is covered by the CANVAS ratchet). sw v66.
 - **Fix: choropleth hover highlight no longer sticks (v416, 2026-07-21):** the map highlight is now a
   single always-on-top overlay path that re-points its `d` to the hovered region, replacing the old
   per-path `appendChild` front-raise. Raising a data path mid-hover detached + re-inserted it, which
