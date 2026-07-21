@@ -15703,6 +15703,33 @@ function serve() {
     ok("Dashboard theme: exported HTML carries Neon's light token overrides", neAppliedOk.lightVar, JSON.stringify(neAppliedOk));
     ok("Dashboard theme: exported HTML carries Neon's dark token overrides", neAppliedOk.darkVar, JSON.stringify(neAppliedOk));
 
+    // "Conservation" — the CTIC brand look (ctic.org): olive/field green #72892b + deep pine
+    // #10432e chrome, for the Conservation Insight demo. Same registry/apply pattern.
+    var coRegistryOk = await page.evaluate(function () {
+      var dt = window.Studio.DASHBOARD_THEMES;
+      var co = dt && dt.filter(function (t) { return t.key === "conservation"; })[0];
+      var needed = ["--pentaho", "--pdc", "--app-bg", "--panel-bg", "--text-primary", "--c1", "--c10"];
+      var hasAll = co && needed.every(function (k) { return co.light[k] && co.dark[k]; });
+      return { ok: !!co && hasAll, brandLight: co && co.light["--pentaho"], sidebarLight: co && co.light["--sidebar-bg"], label: co && co.label };
+    });
+    ok("Dashboard theme: DASHBOARD_THEMES has a 'conservation' entry (the CTIC look) with full light/dark token sets — CTIC green brand + deep-pine chrome",
+      coRegistryOk.ok && coRegistryOk.brandLight === "#72892b" && coRegistryOk.sidebarLight === "#10432e" && coRegistryOk.label === "Conservation", JSON.stringify(coRegistryOk));
+    await page.evaluate(function () {
+      var row = document.getElementById("dashThemeRow");
+      var btn = row && Array.from(row.querySelectorAll("button[data-dashboard-theme]")).find(function (b) { return b.getAttribute("data-dashboard-theme") === "conservation"; });
+      if (btn) btn.click();
+    });
+    await page.waitForTimeout(300);
+    var coAppliedOk = await page.evaluate(function () {
+      var spec = window.__STUDIO_STATE.spec;
+      var html = window.Studio.buildHtml(spec, window.__STUDIO_STATE.assets, { deployPath: "/x", preview: false });
+      return { specKey: spec.dashboardTheme,
+        lightVar: html.indexOf("--pentaho:#72892b") !== -1 && html.indexOf("--app-bg:#f3f5ec") !== -1,
+        darkVar: html.indexOf("[data-theme='dark']") !== -1 && html.indexOf("--app-bg:#0c1a12") !== -1 };
+    });
+    ok("Dashboard theme: clicking 'Conservation' sets spec.dashboardTheme and the exported HTML carries its CTIC light + dark token overrides",
+      coAppliedOk.specKey === "conservation" && coAppliedOk.lightVar && coAppliedOk.darkVar, JSON.stringify(coAppliedOk));
+
     // Track L follow-up (found while screenshotting Editorial): vendor/pdc-ui.css's .pdc-header
     // banner gradient had its SECOND stop hardcoded (#163a6e) — every non-Classic dashboardTheme
     // recolored only the gradient's start, leaving a stray navy sliver at the other end. Fixed

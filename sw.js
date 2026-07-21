@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v62"; /* v62: Explore polish — clicking a saved
+var CACHE_NAME = "studio-shell-v63"; /* v63: new "Conservation" dashboard theme,
+   styled after CTIC (ctic.org) — their field-green #72892b + deep-pine #10432e on
+   natural paper-sage surfaces, light + dark, with a CVD-validated 10-color ramp.
+   app/model.js (DASHBOARD_THEMES), docs/index.html changed.
+   v62: Explore polish — clicking a saved
    analysis reopens it (the empty-state gate keyed on XP.dsId stranded self-
    contained sample analyses with no dataset id; now keyed on XP.run), and the
    Explore preview drops the dashboard header (hideHeader on the preview spec) to

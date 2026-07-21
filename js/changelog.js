@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 414,
+    title: 'New “Conservation” dashboard theme, styled after CTIC',
+    kind: 'feature',
+    ts: '2026-07-21T19:31:46.000Z',
+    items: [
+      'A new whole-look dashboard theme — Conservation — alongside Classic Blue, Polecat, Fleet Modern, High Contrast, Editorial and Neon. It is built from CTIC’s (ctic.org) own brand colors: their field-green and deep-pine green, on natural paper-sage surfaces, with a light and a dark mode. Pick it in the dashboard’s Dashboard theme field or as the Settings default.',
+      'Its 10-color chart palette (field green, sky/water blue, harvest gold, wildflower, clay, teal, soil brown, indigo, leaf, grape) is colorblind-checked in both light and dark — a natural fit for the conservation and geo work.',
+    ],
+  },
+  {
     v: 413,
     title: 'Explore polish: saved analyses reopen on click, and the builder preview is just the widget',
     ts: '2026-07-21T19:01:50.000Z',
