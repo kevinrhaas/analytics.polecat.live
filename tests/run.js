@@ -2180,8 +2180,37 @@ function serve() {
       aggUi.hasForBars && aggUi.showsGroupBy && aggUi.hiddenForScatter && aggUi.hiddenForGeo, JSON.stringify(aggUi));
     ok("ROLLUP: saving an Explore analysis persists the rollup onto its data source (da.outputOptions.aggregate) so it re-aggregates on Home / in dashboards / on export",
       !!aggUi.savedAgg && aggUi.savedAgg.fn === "sum" && (aggUi.savedAgg.groupBy || []).length >= 1, JSON.stringify(aggUi.savedAgg));
-    await page.evaluate(function () { window.__studioShellSetSection("studio"); });
+
+    // ---- XP-OPEN: clicking a saved analysis opens it (even self-contained ones with NO
+    // dataset id — like the demo pack's), and the Explore preview drops the dashboard header.
+    console.log("\n• XP-OPEN: saved analysis reopens in Explore; preview is a bare widget");
+    const xpOpen = await page.evaluate(function () {
+      // a self-contained analysis with datasetId=null (the case that used to strand on empty)
+      Studio.Workspace.put("analyses", { id: "xpo1", name: "XP open test", chartType: "bars", datasetId: null, sample: null,
+        da: { id: "xd", kind: "sql", columns: ["region", "total"] },
+        chart: { type: "bars", map: { labelCol: "region", valueCol: "total" }, opts: {} } });
+      window.__studioShellSetSection("explore");
+      window.__studioExplore.load("xpo1");
+      return new Promise(function (res) {
+        var t0 = Date.now();
+        (function poll() {
+          var st = window.__studioExplore.state, ifr = document.querySelector(".xp-ifr");
+          var ready = st.analysisId === "xpo1" && st.run && st.run.rows && st.run.rows.length && ifr && ifr.srcdoc;
+          if (ready) res({ loadedId: true, hasRun: true, emptyShown: !!document.querySelector(".xp-empty"),
+            hideCss: /\.pdc-header\{display:none\}/.test(ifr.srcdoc) });
+          else if (Date.now() - t0 > 8000) res({ timeout: true, hasIfr: !!ifr, analysisId: st.analysisId, hasRun: !!(st.run && st.run.rows) });
+          else setTimeout(poll, 150);
+        })();
+      });
+    });
+    ok("XP-OPEN: clicking a saved analysis (incl. self-contained ones with no dataset id) opens its chart in Explore instead of stranding on the 'pick a dataset' empty state",
+      xpOpen.loadedId && xpOpen.hasRun && !xpOpen.emptyShown, JSON.stringify(xpOpen));
+    ok("XP-OPEN: the Explore preview renders just the widget — the exported/preview HTML carries hideHeader (no dashboard banner around a single-widget build)",
+      xpOpen.hideCss === true, JSON.stringify(xpOpen));
+    await page.evaluate(function () { Studio.Workspace.remove("analyses", "xpo1"); window.__studioShellSetSection("studio"); });
     await page.waitForTimeout(150);
+
+    console.log("\n• HOME LIVE: featured dashboards render live on Home (Viridis V6)");
 
     console.log("\n• HOME LIVE: featured dashboards render live on Home (Viridis V6)");
     await page.evaluate(function () {

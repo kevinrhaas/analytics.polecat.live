@@ -773,6 +773,8 @@
   var XP = {
     kind: null, dsId: null,          // 'ws' (workspace dataset) | 'sample' (catalog stem/da)
     run: null,                       // { cols, rows, live, error? }
+    da: null,                        // embedded da of a loaded SELF-CONTAINED analysis (no live
+                                     // dataset/catalog behind it) — used to render its preview
     type: "bars", map: {}, opts: {},
     agg: { fn: "none", groupBy: [] }, // Explore rollups: group-by + aggregate the value column
     analysisId: null, name: "",
@@ -852,8 +854,11 @@
     }
     var parts = String(XP.dsId).split(XP_SEP);
     var cda = xpCatalogDA(parts[0], parts[1]);
-    if (!cda) return null;
-    return JSON.parse(JSON.stringify(cda));
+    if (cda) return JSON.parse(JSON.stringify(cda));
+    // A loaded self-contained analysis (its dataset/catalog entry is gone, or it never
+    // had one — e.g. the demo pack's analyses): render from its embedded da.
+    if (XP.da) return JSON.parse(JSON.stringify(XP.da));
+    return null;
   }
   function xpDefaultType(cols) {
     var c = (cols || []).join(" ").toLowerCase();
@@ -877,6 +882,10 @@
     var title = XP.name || (XP.run ? "Exploring " + (Studio.CHARTS[XP.type] || {}).label : "Analysis");
     return {
       id: "explore-preview", name: "explore-preview", title: title,
+      // Explore builds a single WIDGET — no dashboard header/banner around the preview
+      // (that chrome reads as "too much" for a one-widget build view). hideHeader shows
+      // just the chart, reusing the same flag dashboards use for header-off export.
+      hideHeader: true,
       panels: [{ id: "xp1", title: title, span: "full",
         chart: { type: XP.type, da: da.id, map: JSON.parse(JSON.stringify(XP.map)), opts: JSON.parse(JSON.stringify(XP.opts)) } }],
       kpis: [], filters: [],
@@ -952,6 +961,8 @@
     XP.type = (a.chart && a.chart.type) || a.chartType || "bars";
     XP.map = JSON.parse(JSON.stringify((a.chart && a.chart.map) || {}));
     XP.opts = JSON.parse(JSON.stringify((a.chart && a.chart.opts) || {}));
+    // keep the embedded da so xpDA can render a self-contained analysis (no live dataset)
+    XP.da = a.da ? JSON.parse(JSON.stringify(a.da)) : null;
     // restore the saved rollup (da.outputOptions.aggregate) into the Explore control
     var savedAgg = a.da && a.da.outputOptions && a.da.outputOptions.aggregate;
     XP.agg = savedAgg ? { fn: savedAgg.fn || "none", groupBy: (savedAgg.groupBy || []).slice() } : { fn: "none", groupBy: [] };
@@ -1072,7 +1083,11 @@
         '</span></div>';
     }).join("");
     var main;
-    if (!XP.dsId || !XP.run) {
+    // Show the "pick a dataset" empty state only when there's genuinely nothing to
+    // preview. A saved analysis loaded from the list sets XP.run but can have a null
+    // dataset id (self-contained sample analyses — e.g. the demo pack's), so gating on
+    // XP.dsId here wrongly stranded them on the empty state instead of opening the chart.
+    if (!XP.run) {
       main = '<div class="xp-empty"><h3>Pick a dataset to start</h3>' +
         '<p>Choose one on the left — your workspace datasets first, sample data below them. ' +
         'You’ll see the data as a table, then choose how to chart it.</p></div>';
@@ -1118,7 +1133,7 @@
       btn.onclick = function () {
         var parts = btn.getAttribute("data-xp-ds").split(XP_SEP);
         XP.kind = parts.shift(); XP.dsId = parts.join(XP_SEP); // sample ids contain the SEP themselves
-        XP.analysisId = null; XP.name = "";
+        XP.analysisId = null; XP.name = ""; XP.da = null; // a live dataset is picked — drop any loaded analysis's embedded da
         xpLoadRows().then(function () {
           XP.type = xpDefaultType(XP.run && XP.run.cols); // geo data opens as a map, provider trends as the Ensemble
           xpGuessMapping(); renderExplore(); xpPreview();

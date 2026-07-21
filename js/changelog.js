@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 413,
+    title: 'Explore polish: saved analyses reopen on click, and the builder preview is just the widget',
+    ts: '2026-07-21T19:01:50.000Z',
+    items: [
+      'Clicking a saved analysis in Explore now reopens it in the builder — including the self-contained sample analyses (like the ones in the demo pack) that carry no dataset id, which used to strand you on the “pick a dataset” screen.',
+      'The Explore preview now shows just the widget you’re building — the dashboard title banner around it is gone, since a single-widget build view doesn’t need all that chrome.',
+    ],
+  },
+  {
     v: 412,
     title: 'Sign in to Analytics — a real login replaces the old access passcode',
     kind: 'feature',
