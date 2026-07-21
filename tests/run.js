@@ -1838,6 +1838,27 @@ function serve() {
     });
     ok("SAMPLES: 'Hide sample content' now empties Explore's sample list immediately (and restores on re-enable)",
       smpToggle.withOff === 0 && smpToggle.withOn > 50, JSON.stringify(smpToggle));
+    // ---- color pickers show friendly labels — raw tokens (and the retired
+    // "pentaho" name) never surface in the interface (Kevin, 2026-07-20) ----
+    const tokLabels = await page.evaluate(function () {
+      var bad = Studio.COLOR_TOKENS.filter(function (t) {
+        var l = Studio.colorTokenLabel(t);
+        return !l || /^--/.test(l) || /pentaho/i.test(l);
+      });
+      // a REAL rendered picker: select the flagship's first panel, read its color select
+      var sp = window.__STUDIO_STATE.spec;
+      var panel = (sp.panels || []).filter(function (p2) { return p2.chart && p2.chart.type === "bars"; })[0] || sp.panels[0];
+      window.__studioSelect({ kind: "panel", id: panel.id });
+      var rawOpts = [];
+      [].forEach.call(document.querySelectorAll("#inspector select"), function (sel) {
+        [].forEach.call(sel.options, function (o) {
+          if (/^--/.test(o.textContent.trim()) || /pentaho/i.test(o.textContent)) rawOpts.push(o.textContent.trim());
+        });
+      });
+      return { badLabels: bad, rawOpts: rawOpts.slice(0, 5) };
+    });
+    ok("TOKENS: every color token maps to a friendly label AND no rendered inspector option shows a raw --var or the retired accent name",
+      tokLabels.badLabels.length === 0 && tokLabels.rawOpts.length === 0, JSON.stringify(tokLabels));
     await page.evaluate(function () { window.__studioShellSetSection("studio"); });
     await page.waitForTimeout(200);
 

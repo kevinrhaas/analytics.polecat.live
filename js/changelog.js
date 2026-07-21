@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 400,
+    title: 'Color pickers speak English now',
+    ts: '2026-07-21T02:58:58.000Z',
+    items: [
+      'Every color picker in the inspector -- bar colors, cell colors, sparklines, map ramps -- now shows friendly names like Accent (theme), Series 1-10, and Good / Warning / Bad instead of raw CSS variable names. The last visible trace of the retired platform\'s name went with them.',
+      'Saved dashboards are untouched: the stored values stay the same under the hood, only the labels changed. A test now guards that raw variable names never appear in a picker again.',
+    ],
+  },
+  {
     v: 399,
     title: 'Samples worth exploring -- fewer, friendlier, and geo-first',
     ts: '2026-07-20T20:15:51.000Z',
