@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v49"; /* v49: color pickers show friendly
+var CACHE_NAME = "studio-shell-v50"; /* v50: Conservation Insight quick wins —
+   demo pack renamed Viridis->Conservation Insight (app/demopacks.js), geo
+   sample data now spans 100+ real Corn Belt FIPS + real HUC8/CRD codes so
+   choropleths demo richly (app/sampledata.js), and bundled examples get a
+   first-class Home section (app/studio.js, app/studio.css).
+   v49: color pickers show friendly
    labels (Accent/Series/Good...) instead of raw CSS tokens — the last visible
    "pentaho" is gone from the interface (app/model.js, app/studio.js changed).
    v48: samples curation (per Kevin) —

@@ -1,8 +1,8 @@
 /* Analytics — © 2026 Polecat.live. See LICENSE. */
-/* app/demopacks.js — Demo packs (Viridis V7): a SECOND sample library,
+/* app/demopacks.js — Demo packs (Conservation Insight): a SECOND sample library,
    separate from the CDA catalog, of one-click install/remove workspace
-   content built for a specific pitch (here: the Viridis View geo-analytics
-   RFP). Installing a pack writes ordinary workspace rows (a connection, a
+   content built for a specific pitch (here: the Conservation Insight geo-analytics
+   case). Installing a pack writes ordinary workspace rows (a connection, a
    dataset, analyses, a dashboard) tagged with `demoPackId` so Remove can find
    and delete exactly what Install wrote — everything downstream (Explore,
    the Studio canvas, Home) is the SAME machinery every other workspace row
@@ -23,13 +23,13 @@
   ];
 
   Studio.DEMO_PACKS = {
-    viridis: {
-      id: "viridis",
-      name: "Viridis View — cover crop & tillage adoption",
+    conservation: {
+      id: "conservation",
+      name: "Conservation Insight — cover crop & tillage adoption",
       tagline: "5-provider ensemble + county map · illustrative Corn Belt sample",
       blurb: "Installs a raw provider-file dataset (a mapping walkthrough), four ensemble " +
         "time-series analyses — one per practice, pinned to Home — and a featured multi-panel " +
-        "“Viridis View” dashboard pairing them with a county choropleth. All data is " +
+        "“Conservation Insight” dashboard pairing them with a county choropleth. All data is " +
         "SYNTHETIC, clearly labeled illustrative, for demoing the ensemble/geo-analytics pattern."
     }
   };
@@ -48,7 +48,7 @@
   // Deliberately RAW column names (not the app's labelCol/seriesCol/valueCol
   // vocabulary), so opening it in Explore/Datasets demonstrates mapping a
   // real-world export onto chart roles, exactly like a prospect's own file.
-  function viridisRawCsv() {
+  function conservationRawCsv() {
     var rows = ["State_FIPS,Provider_Name,Practice,Adoption_Pct,Report_Year"];
     var states = { "19": "IA", "17": "IL", "18": "IN" };
     var years = [2019, 2022, 2024];
@@ -68,10 +68,10 @@
   }
 
   function timeSeriesDA(id, practice) {
-    return { id: id, name: "Viridis — " + practice.label + " ensemble (demo)", kind: "sql", columns: ["year", "provider", "pct"], authored: true };
+    return { id: id, name: "Conservation Insight — " + practice.label + " ensemble (demo)", kind: "sql", columns: ["year", "provider", "pct"], authored: true };
   }
   function geoDA(id) {
-    return { id: id, name: "Viridis — county snapshot (demo)", kind: "sql", columns: ["fips", "provider", "pct"], authored: true };
+    return { id: id, name: "Conservation Insight — county snapshot (demo)", kind: "sql", columns: ["fips", "provider", "pct"], authored: true };
   }
   function ensembleChart(daId) {
     return { type: "ensembleSeries", da: daId,
@@ -82,10 +82,10 @@
   function analysisRow(practice) {
     var da = timeSeriesDA("vrd_" + practice.key, practice);
     return {
-      name: "Viridis — " + practice.label + " (illustrative demo)",
+      name: "Conservation Insight — " + practice.label + " (illustrative demo)",
       datasetId: null, sample: null,
       da: da, chart: ensembleChart(da.id), chartType: "ensembleSeries",
-      pinned: true, demoPackId: "viridis"
+      pinned: true, demoPackId: "conservation"
     };
   }
 
@@ -105,8 +105,8 @@
         opts: { scale: "county", fmt: "pct", agg: "median" } }
     });
     return {
-      id: "viridis-view-demo", name: "viridis-view-demo",
-      title: "Viridis View — cover crop & tillage adoption (illustrative demo)",
+      id: "conservation-insight-demo", name: "conservation-insight-demo",
+      title: "Conservation Insight — cover crop & tillage adoption (illustrative demo)",
       subtitle: "Synthetic Corn Belt sample data — a common estimate across DTN, Indigo Ag, Iowa State, Regrow & Terra Diagnostics",
       panels: panels, kpis: [], filters: [],
       cda: { connections: [], dataAccesses: das }
@@ -114,18 +114,18 @@
   }
 
   Studio.installDemoPack = function (id) {
-    if (id !== "viridis" || Studio.demoPackInstalled(id)) return;
+    if (id !== "conservation" || Studio.demoPackInstalled(id)) return;
     var W = Studio.Workspace;
-    var conn = W.put("connections", { name: "Viridis demo file", adapter: "file", cfg: {}, demoPackId: id });
+    var conn = W.put("connections", { name: "Conservation Insight demo file", adapter: "file", cfg: {}, demoPackId: id });
     W.put("datasets", {
-      name: "Viridis — raw provider export (demo)", connectionId: conn.id,
-      kind: "file", format: "csv", fileName: "viridis-provider-export-demo.csv",
-      content: viridisRawCsv(), demoPackId: id, tags: ["demo", "viridis"]
+      name: "Conservation Insight — raw provider export (demo)", connectionId: conn.id,
+      kind: "file", format: "csv", fileName: "conservation-insight-provider-export-demo.csv",
+      content: conservationRawCsv(), demoPackId: id, tags: ["demo", "conservation"]
     });
     PRACTICES.forEach(function (p) { W.put("analyses", analysisRow(p)); });
     W.put("dashboards", {
-      name: "viridis-view-demo",
-      title: "Viridis View — cover crop & tillage adoption (illustrative demo)",
+      name: "conservation-insight-demo",
+      title: "Conservation Insight — cover crop & tillage adoption (illustrative demo)",
       ts: new Date().toISOString(), spec: dashboardSpec(),
       featured: true, featuredAt: new Date().toISOString(), demoPackId: id
     });

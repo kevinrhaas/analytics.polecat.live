@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 401,
+    title: 'Conservation Insight demo pack + richer maps, and examples come Home',
+    kind: 'feature',
+    ts: '2026-07-21T15:09:53.000Z',
+    items: [
+      'The geo-analytics demo is now the Conservation Insight pack — a common estimate across five providers for cover-crop and conservation-tillage adoption, with a county map and four pinned trend analyses. One-click install from Settings, all synthetic and clearly labelled.',
+      'Maps demo far better: dragging a county, watershed, or district dataset now colors HUNDREDS of real regions instead of a token handful — the sample data carries a full Corn Belt spread of genuine FIPS, HUC8, and district codes.',
+      'The bundled example dashboards get their own section on Home with live thumbnails — click one to open it in the builder. They used to hide inside the Studio Examples menu.',
+    ],
+  },
+  {
     v: 400,
     title: 'Color pickers speak English now',
     ts: '2026-07-21T02:58:58.000Z',

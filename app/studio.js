@@ -5589,6 +5589,22 @@
               '<button type="button" class="home-feat-open" data-home-analysis="' + esc(a.id) + '" aria-label="Open analysis ' + esc(a.name || "") + '"></button></div>';
           }).join("") + "</div>";
       })() +
+      // Conservation Insight (M1): the bundled example dashboards get a first-class
+      // Home section (they used to hide inside the Studio Examples menu). Each card
+      // is the real layout thumbnail; click loads it into the builder.
+      (function () {
+        if (!showSamples() || !(S.examples || []).length) return "";
+        return '<h2 class="home-sub">Examples <small class="home-sub-hint">sample dashboards \u00b7 click to open in the builder</small></h2>' +
+          '<div class="home-examples">' + S.examples.slice(0, 8).map(function (e) {
+            var types = (e.types || []).slice(0, 3).map(function (t) { return '<span class="ex-chip">' + esc(t) + '</span>'; }).join("");
+            return '<button type="button" class="home-ex-card" data-home-example="' + esc(e.file) + '">' +
+              '<div class="home-ex-thumb" aria-hidden="true">' + exLayoutSvg(e) + '</div>' +
+              '<div class="home-ex-title">' + esc(e.title || e.file) + '</div>' +
+              (types ? '<div class="home-ex-types">' + types + '</div>' : '') +
+              '</button>';
+          }).join("") + '</div>' +
+          (S.examples.length > 8 ? '<div class="home-feat-more">+ ' + (S.examples.length - 8) + ' more \u2014 New \u25b8 Examples</div>' : '');
+      })() +
       (pinnedList.length ? '<h2 class="home-sub">Pinned</h2><div class="home-recents">' +
         pinnedList.map(function (r) { return recentCardHtml(r, true); }).join("") + '</div>' : "") +
       (unpinnedList.length ? '<h2 class="home-sub">Recent dashboards</h2><div class="home-recents">' +
@@ -5637,6 +5653,12 @@
     }
     var tipNext = $(".home-tip-next", sec);
     if (tipNext) tipNext.onclick = function () { _homeTipIdx = (_homeTipIdx + 1) % HOME_TIPS.length; renderHome(); };
+    $$("[data-home-example]", sec).forEach(function (btn) {
+      btn.onclick = function () {
+        if (window.__studioShellSetSection) window.__studioShellSetSection("studio");
+        loadExample(btn.getAttribute("data-home-example"));
+      };
+    });
     $$("[data-home-analysis]", sec).forEach(function (btn) {
       btn.onclick = function () {
         if (window.__studioShellSetSection) __studioShellSetSection("explore");
@@ -8653,71 +8675,73 @@
   // examples menu — E5: visual card gallery. Rebuilt whenever sample visibility
   // flips: the gallery IS the sample-dashboard showcase (internal demo database),
   // so hiding samples leaves just the Import-from-URL entry.
+  // hoisted (Conservation Insight M1): the example-thumbnail SVG is reused by
+  // both the Examples menu and the Home Examples strip.
+  function exLayoutSvg(e) {
+    var cols = e.gridCols || 3, kpis = e.kpis || 0;
+    // per-panel [type, span] — prefer the exact dashboard layout so each thumbnail is a
+    // faithful mini-map of the real panels & grid; fall back to the deduped types[].
+    var layout = (e.layout && e.layout.length) ? e.layout
+      : (e.types || []).slice(0, 6).map(function (t) { return [t, 1]; });
+    layout = layout.slice(0, 8);
+    var W = 80, H = 46;
+    // Example cards preview the HOUSE look (the default dashboard theme every example
+    // adopts at load) — series accents and the header strip come from its ramp.
+    var extk = Studio.resolveThemeTokens(defaultDashboardTheme() || "classic", S.theme === "dark" ? "dark" : "light");
+    var pal = extk ? [extk["--c1"], extk["--c3"], extk["--c5"], extk["--c2"], extk["--c4"]]
+                   : ["#005bb5","#7d3c98","#2e8bd0","#00a39a","#e67e22"];
+    var exAccent = extk ? extk["--pentaho"] : "#005bb5";
+    var p = ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + W + ' ' + H + '">'];
+    p.push('<rect width="' + W + '" height="' + H + '" fill="var(--field,#f4f6fb)"/>');
+    p.push('<rect width="' + W + '" height="7" fill="var(--bg,#fff)"/>');
+    p.push('<rect width="2" height="7" fill="' + exAccent + '"/>');
+    var y = 9;
+    if (kpis) {
+      var kCount = Math.min(kpis, 4), kw = (W - 4 - (kCount - 1) * 3) / kCount;
+      for (var ki = 0; ki < kCount; ki++) {
+        var kx = 2 + ki * (kw + 3);
+        p.push('<rect x="' + kx + '" y="' + y + '" width="' + kw + '" height="6" rx="1" fill="var(--bg,#fff)"/>');
+        p.push('<rect x="' + kx + '" y="' + y + '" width="2" height="6" fill="' + pal[ki % 5] + '"/>');
+      }
+      y += 8;
+    }
+    // pack panels into grid rows honouring each panel's column span ("full" → full width)
+    var cells = [], colUsed = 0, row = 0;
+    layout.forEach(function (it) {
+      var raw = (it[1] === "full") ? cols : (it[1] || 1);
+      var s = Math.max(1, Math.min(cols, raw));
+      if (colUsed + s > cols) { row++; colUsed = 0; }
+      cells.push({ type: it[0], span: s, row: row, col: colUsed });
+      colUsed += s;
+      if (colUsed >= cols) { row++; colUsed = 0; }
+    });
+    var rows = Math.max(1, row + (colUsed > 0 ? 1 : 0));
+    var unit = (W - 4 - (cols - 1) * 2) / cols;
+    var ph = Math.min((H - y - 2 - (rows - 1) * 2) / rows, 15);
+    cells.forEach(function (cel, pi) {
+      var px = 2 + cel.col * (unit + 2);
+      var pw = cel.span * unit + (cel.span - 1) * 2;
+      var py = y + cel.row * (ph + 2);
+      // white panel card, then the REAL chart-type mini SVG scaled into it — so each card
+      // previews the actual charts (and their spans) in the dashboard, not a generic mockup.
+      p.push('<rect x="' + px + '" y="' + py + '" width="' + pw + '" height="' + ph + '" rx="1.5" fill="var(--bg,#fff)"/>');
+      var mini = themedChartSvg(CHART_SVG[cel.type], cel.type);
+      if (mini) {
+        var pad = 1.3;
+        p.push(mini.replace('<svg ', '<svg x="' + (px + pad).toFixed(2) + '" y="' + (py + pad).toFixed(2) + '" width="' + (pw - 2 * pad).toFixed(2) + '" height="' + (ph - 2 * pad).toFixed(2) + '" preserveAspectRatio="xMidYMid meet" '));
+      } else {
+        p.push('<rect x="' + px + '" y="' + py + '" width="' + pw + '" height="2" fill="' + pal[pi % 5] + '"/>');
+      }
+    });
+    p.push('</svg>');
+    return p.join("");
+  }
   function buildExamplesMenu() {
     var em = $("#menuExamples");
     em.classList.add("ex-grid");
     // one grid, ordered by index.json — most spectacular first (no single "hero" card)
     // E3: mini layout thumbnail for each example card — synthesised from index.json metadata
     // (types[], panels count, kpis count) without needing to load the full spec file.
-    function exLayoutSvg(e) {
-      var cols = e.gridCols || 3, kpis = e.kpis || 0;
-      // per-panel [type, span] — prefer the exact dashboard layout so each thumbnail is a
-      // faithful mini-map of the real panels & grid; fall back to the deduped types[].
-      var layout = (e.layout && e.layout.length) ? e.layout
-        : (e.types || []).slice(0, 6).map(function (t) { return [t, 1]; });
-      layout = layout.slice(0, 8);
-      var W = 80, H = 46;
-      // Example cards preview the HOUSE look (the default dashboard theme every example
-      // adopts at load) — series accents and the header strip come from its ramp.
-      var extk = Studio.resolveThemeTokens(defaultDashboardTheme() || "classic", S.theme === "dark" ? "dark" : "light");
-      var pal = extk ? [extk["--c1"], extk["--c3"], extk["--c5"], extk["--c2"], extk["--c4"]]
-                     : ["#005bb5","#7d3c98","#2e8bd0","#00a39a","#e67e22"];
-      var exAccent = extk ? extk["--pentaho"] : "#005bb5";
-      var p = ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + W + ' ' + H + '">'];
-      p.push('<rect width="' + W + '" height="' + H + '" fill="var(--field,#f4f6fb)"/>');
-      p.push('<rect width="' + W + '" height="7" fill="var(--bg,#fff)"/>');
-      p.push('<rect width="2" height="7" fill="' + exAccent + '"/>');
-      var y = 9;
-      if (kpis) {
-        var kCount = Math.min(kpis, 4), kw = (W - 4 - (kCount - 1) * 3) / kCount;
-        for (var ki = 0; ki < kCount; ki++) {
-          var kx = 2 + ki * (kw + 3);
-          p.push('<rect x="' + kx + '" y="' + y + '" width="' + kw + '" height="6" rx="1" fill="var(--bg,#fff)"/>');
-          p.push('<rect x="' + kx + '" y="' + y + '" width="2" height="6" fill="' + pal[ki % 5] + '"/>');
-        }
-        y += 8;
-      }
-      // pack panels into grid rows honouring each panel's column span ("full" → full width)
-      var cells = [], colUsed = 0, row = 0;
-      layout.forEach(function (it) {
-        var raw = (it[1] === "full") ? cols : (it[1] || 1);
-        var s = Math.max(1, Math.min(cols, raw));
-        if (colUsed + s > cols) { row++; colUsed = 0; }
-        cells.push({ type: it[0], span: s, row: row, col: colUsed });
-        colUsed += s;
-        if (colUsed >= cols) { row++; colUsed = 0; }
-      });
-      var rows = Math.max(1, row + (colUsed > 0 ? 1 : 0));
-      var unit = (W - 4 - (cols - 1) * 2) / cols;
-      var ph = Math.min((H - y - 2 - (rows - 1) * 2) / rows, 15);
-      cells.forEach(function (cel, pi) {
-        var px = 2 + cel.col * (unit + 2);
-        var pw = cel.span * unit + (cel.span - 1) * 2;
-        var py = y + cel.row * (ph + 2);
-        // white panel card, then the REAL chart-type mini SVG scaled into it — so each card
-        // previews the actual charts (and their spans) in the dashboard, not a generic mockup.
-        p.push('<rect x="' + px + '" y="' + py + '" width="' + pw + '" height="' + ph + '" rx="1.5" fill="var(--bg,#fff)"/>');
-        var mini = themedChartSvg(CHART_SVG[cel.type], cel.type);
-        if (mini) {
-          var pad = 1.3;
-          p.push(mini.replace('<svg ', '<svg x="' + (px + pad).toFixed(2) + '" y="' + (py + pad).toFixed(2) + '" width="' + (pw - 2 * pad).toFixed(2) + '" height="' + (ph - 2 * pad).toFixed(2) + '" preserveAspectRatio="xMidYMid meet" '));
-        } else {
-          p.push('<rect x="' + px + '" y="' + py + '" width="' + pw + '" height="2" fill="' + pal[pi % 5] + '"/>');
-        }
-      });
-      p.push('</svg>');
-      return p.join("");
-    }
     function exCard(e) {
       var types = (e.types || []).slice(0, 4).map(function (t) {
         return '<span class="ex-chip">' + esc(t) + '</span>';

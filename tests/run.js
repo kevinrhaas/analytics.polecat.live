@@ -1859,6 +1859,65 @@ function serve() {
     });
     ok("TOKENS: every color token maps to a friendly label AND no rendered inspector option shows a raw --var or the retired accent name",
       tokLabels.badLabels.length === 0 && tokLabels.rawOpts.length === 0, JSON.stringify(tokLabels));
+
+    // ---- M1 (Conservation Insight): rename + richer geo + Examples on Home ----
+    console.log("\n• M1: Conservation Insight rename, richer geo samples, Examples on Home");
+    (function () {
+      const dp = fs.readFileSync(path.join(ROOT, "app/demopacks.js"), "utf8");
+      ok("M1: the demo pack is renamed to Conservation Insight everywhere user-facing (no 'Viridis' left in demopacks.js)",
+        !/[Vv]iridis/.test(dp) && /Conservation Insight/.test(dp), (dp.match(/[Vv]iridis/) || [])[0] || "clean");
+    })();
+    const m1Pack = await page.evaluate(function () {
+      return { keys: Object.keys(Studio.DEMO_PACKS),
+        name: (Studio.DEMO_PACKS.conservation || {}).name,
+        noViridis: !/[Vv]iridis/.test(JSON.stringify(Studio.DEMO_PACKS)) };
+    });
+    ok("M1: DEMO_PACKS exposes a 'conservation' pack titled Conservation Insight, with no Viridis text",
+      m1Pack.keys.indexOf("conservation") >= 0 && /Conservation Insight/.test(m1Pack.name) && m1Pack.noViridis, JSON.stringify(m1Pack));
+    const m1Geo = await page.evaluate(function () {
+      var county = Studio.sampleRows({ id: "m1c", columns: ["county_fips", "pct"] });
+      var crossed = Studio.crossedRows({ id: "m1x", columns: ["fips", "provider", "pct"] }, "provider");
+      var distinct = {}; crossed.rows.forEach(function (r) { distinct[String(r[0])] = 1; });
+      return { countyRows: county.rows.length,
+        allFips: county.rows.every(function (r) { return /^\d{5}$/.test(String(r[0])); }),
+        distinctCounties: Object.keys(distinct).length,
+        huc: Studio.sampleRows({ id: "m1h", columns: ["huc8", "pct"] }).rows.length,
+        crd: Studio.sampleRows({ id: "m1d", columns: ["district", "pct"] }).rows.length };
+    });
+    ok("M1: geographic sample columns now yield a row per REGION (100+ real counties, 20+ HUC8/CRD) so choropleths demo richly, not a token 8",
+      m1Geo.countyRows >= 100 && m1Geo.allFips && m1Geo.distinctCounties >= 100 && m1Geo.huc >= 20 && m1Geo.crd >= 20, JSON.stringify(m1Geo));
+    // the demo dashboard's county map colors 100+ counties end-to-end
+    const m1Map = await page.evaluate(async function () {
+      window.__studioDemoPacks.remove("conservation");
+      window.__studioDemoPacks.install("conservation");
+      var dash = Studio.Workspace.all("dashboards").filter(function (r) { return r.demoPackId === "conservation"; })[0];
+      await window.__studioEnsureGeoAssets(dash.spec);
+      var html = Studio.buildHtml(dash.spec, window.__STUDIO_STATE.assets, { preview: true, mock: Studio.genMock(dash.spec) });
+      return await new Promise(function (res) {
+        var ifr = document.createElement("iframe"); ifr.style.cssText = "position:fixed;left:-3000px;width:1100px;height:800px";
+        document.body.appendChild(ifr); ifr.srcdoc = html; var t0 = Date.now();
+        (function poll() { var d = null; try { d = ifr.contentDocument; } catch (e) {}
+          var paths = d ? d.querySelectorAll("path[data-geo-id]") : [];
+          if (paths.length > 3000) { var colored = [].filter.call(paths, function (x) { return !/url\(/.test(x.getAttribute("fill")); }).length;
+            ifr.remove(); res({ colored: colored }); }
+          else if (Date.now() - t0 > 20000) { ifr.remove(); res({ timeout: true }); } else setTimeout(poll, 250); })();
+      });
+    });
+    ok("M1: the Conservation Insight demo dashboard's county choropleth colors 100+ counties (was 8) end-to-end",
+      m1Map.colored >= 100, JSON.stringify(m1Map));
+    await page.evaluate(function () { window.__studioDemoPacks.remove("conservation"); Studio.Workspace.notify("dashboards"); });
+    // Examples surface on Home as their own section
+    await page.evaluate(function () { window.__studioShellSetSection("home"); });
+    await page.waitForTimeout(300);
+    const m1Home = await page.evaluate(function () {
+      var cards = document.querySelectorAll("[data-home-example]");
+      return { count: cards.length, hasThumb: !!(cards[0] && cards[0].querySelector(".home-ex-thumb svg")),
+        opensExample: cards[0] && cards[0].getAttribute("data-home-example").indexOf(".studio.json") > 0 };
+    });
+    ok("M1: bundled examples get a first-class Home section (thumbnail cards that load the example into the builder)",
+      m1Home.count >= 5 && m1Home.hasThumb && m1Home.opensExample, JSON.stringify(m1Home));
+    await page.evaluate(function () { window.__studioShellSetSection("studio"); });
+    await page.waitForTimeout(200);
     await page.evaluate(function () { window.__studioShellSetSection("studio"); });
     await page.waitForTimeout(200);
 
@@ -1970,12 +2029,12 @@ function serve() {
       JSON.stringify(dpUnit.agYears) === JSON.stringify(["2017", "2022"]), JSON.stringify(dpUnit.agYears));
 
     const dpInstall = await page.evaluate(function () {
-      window.__studioDemoPacks.install("viridis");
-      var conns = Studio.Workspace.all("connections").filter(function (r) { return r.demoPackId === "viridis"; });
-      var dss = Studio.Workspace.all("datasets").filter(function (r) { return r.demoPackId === "viridis"; });
-      var ans = Studio.Workspace.all("analyses").filter(function (r) { return r.demoPackId === "viridis"; });
-      var dashes = Studio.Workspace.all("dashboards").filter(function (r) { return r.demoPackId === "viridis"; });
-      return { installed: window.__studioDemoPacks.installed("viridis"),
+      window.__studioDemoPacks.install("conservation");
+      var conns = Studio.Workspace.all("connections").filter(function (r) { return r.demoPackId === "conservation"; });
+      var dss = Studio.Workspace.all("datasets").filter(function (r) { return r.demoPackId === "conservation"; });
+      var ans = Studio.Workspace.all("analyses").filter(function (r) { return r.demoPackId === "conservation"; });
+      var dashes = Studio.Workspace.all("dashboards").filter(function (r) { return r.demoPackId === "conservation"; });
+      return { installed: window.__studioDemoPacks.installed("conservation"),
         conns: conns.length, dss: dss.length, ans: ans.length, dashes: dashes.length,
         pinned: ans.every(function (a) { return a.pinned; }), featured: dashes[0] && dashes[0].featured,
         panelTypes: dashes[0] && dashes[0].spec.panels.map(function (p) { return p.chart.type; }),
@@ -1989,7 +2048,7 @@ function serve() {
       JSON.stringify(dpInstall));
     // the raw file dataset queries LIVE (real CSV parse) — proves the "mapping demo" file is real, not mock
     const dpRaw = await page.evaluate(async function () {
-      var ds = Studio.Workspace.all("datasets").filter(function (r) { return r.demoPackId === "viridis"; })[0];
+      var ds = Studio.Workspace.all("datasets").filter(function (r) { return r.demoPackId === "conservation"; })[0];
       var r = await window.__studioRunDataset(ds);
       return { cols: r.columns, rowCount: r.rows.length, error: r.error || null };
     });
@@ -2000,8 +2059,8 @@ function serve() {
     await page.evaluate(function () { window.__studioShellSetSection("home"); });
     await page.waitForTimeout(300);
     const dpHome = await page.evaluate(function () {
-      var dash = Studio.Workspace.all("dashboards").filter(function (r) { return r.demoPackId === "viridis"; })[0];
-      var ans = Studio.Workspace.all("analyses").filter(function (r) { return r.demoPackId === "viridis"; });
+      var dash = Studio.Workspace.all("dashboards").filter(function (r) { return r.demoPackId === "conservation"; })[0];
+      var ans = Studio.Workspace.all("analyses").filter(function (r) { return r.demoPackId === "conservation"; });
       return { featCard: !!document.querySelector('[data-home-feat="' + dash.id + '"]'),
         widgetCards: ans.filter(function (a) { return !!document.querySelector('[data-analysis-frame="' + a.id + '"]'); }).length };
     });
@@ -2010,11 +2069,11 @@ function serve() {
     // Settings + Library are hide-samples aware (nest under the same toggle as the CDA Samples group)
     await page.evaluate(function () { window.__studioShellSetSection("settings"); });
     await page.waitForTimeout(150);
-    const dpSettingsOn = await page.evaluate(function () { return { hasCard: !!document.querySelector('[data-demopack="viridis"]') }; });
+    const dpSettingsOn = await page.evaluate(function () { return { hasCard: !!document.querySelector('[data-demopack="conservation"]') }; });
     await page.evaluate(function () { window.__studioShowSamples.set(false); });
     await page.waitForTimeout(150);
     const dpHidden = await page.evaluate(function () {
-      return { settingsCard: !!document.querySelector('[data-demopack="viridis"]'), libGroup: !!document.querySelector(".lib-demopacks") };
+      return { settingsCard: !!document.querySelector('[data-demopack="conservation"]'), libGroup: !!document.querySelector(".lib-demopacks") };
     });
     await page.evaluate(function () { window.__studioShowSamples.set(true); });
     await page.waitForTimeout(150);
@@ -2022,11 +2081,11 @@ function serve() {
       dpSettingsOn.hasCard && !dpHidden.settingsCard && !dpHidden.libGroup, JSON.stringify({ on: dpSettingsOn, off: dpHidden }));
     // remove cleans up every tagged row + the install flag
     const dpRemove = await page.evaluate(function () {
-      window.__studioDemoPacks.remove("viridis");
+      window.__studioDemoPacks.remove("conservation");
       var left = ["connections", "datasets", "analyses", "dashboards"].reduce(function (n, t) {
-        return n + Studio.Workspace.all(t).filter(function (r) { return r.demoPackId === "viridis"; }).length;
+        return n + Studio.Workspace.all(t).filter(function (r) { return r.demoPackId === "conservation"; }).length;
       }, 0);
-      return { installed: window.__studioDemoPacks.installed("viridis"), left: left };
+      return { installed: window.__studioDemoPacks.installed("conservation"), left: left };
     });
     ok("DP: removeDemoPack deletes every row it wrote (connection, dataset, analyses, dashboard) and clears the installed flag",
       !dpRemove.installed && dpRemove.left === 0, JSON.stringify(dpRemove));
