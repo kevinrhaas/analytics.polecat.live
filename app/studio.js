@@ -779,7 +779,12 @@
   };
   // Aggregation makes sense for the everyday category/measure charts; geo and the
   // ensemble view carry their own aggregation semantics, so hide the control there.
-  var XP_AGG_TYPES = ["bars", "line", "donut", "treemap", "scatter", "heatmap", "table"];
+  // Rollup aggregates ONE measure by category, so it only applies to the
+  // single-measure category charts. Scatter (two measures: x + y) and heatmap
+  // (a row×column pivot) carry multiple/positional measures — a single-measure
+  // group-by would collapse their data (every point to the origin), so the
+  // control is hidden for them and they render their raw rows.
+  var XP_AGG_TYPES = ["bars", "line", "donut", "treemap", "table"];
   // The chart types Explore offers — the everyday set plus the Viridis pair.
   // (Deep option tuning stays in the Studio inspector; Explore keeps the two
   // options non-experts actually need: map scale and the reference series.)

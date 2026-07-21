@@ -2148,19 +2148,25 @@ function serve() {
               var save = document.querySelector("#xpSaveBtn"); if (save) save.click();
               var a = Studio.Workspace.all("analyses").filter(function (x) { return x.name === "Rollup ratchet"; })[0];
               var savedAgg = a && a.da && a.da.outputOptions && a.da.outputOptions.aggregate;
-              // switch to a choropleth: the aggregate control should disappear
-              var geoBtn = document.querySelector('[data-xp-type="choropleth"]'); if (geoBtn) geoBtn.click();
+              // switch to a scatter (two measures) then a choropleth: the aggregate
+              // control must disappear for both — a single-measure rollup would
+              // collapse a scatter's x/y data (every point to the origin).
+              var scBtn = document.querySelector('[data-xp-type="scatter"]'); if (scBtn) scBtn.click();
               setTimeout(function () {
-                res({ hasForBars: hasForBars, showsGroupBy: showsGroupBy, savedAgg: savedAgg, chosen: chosen,
-                  hiddenForGeo: !document.querySelector('[data-xp-agg="fn"]') });
+                var hiddenForScatter = !document.querySelector('[data-xp-agg="fn"]');
+                var geoBtn = document.querySelector('[data-xp-type="choropleth"]'); if (geoBtn) geoBtn.click();
+                setTimeout(function () {
+                  res({ hasForBars: hasForBars, showsGroupBy: showsGroupBy, savedAgg: savedAgg, chosen: chosen,
+                    hiddenForScatter: hiddenForScatter, hiddenForGeo: !document.querySelector('[data-xp-agg="fn"]') });
+                }, 200);
               }, 200);
             }, 200);
           }, 400);
         }, 400);
       });
     });
-    ok("ROLLUP: the Explore aggregate control shows for category/measure charts, reveals both group-by levels, and hides for geo charts (which carry their own aggregation)",
-      aggUi.hasForBars && aggUi.showsGroupBy && aggUi.hiddenForGeo, JSON.stringify(aggUi));
+    ok("ROLLUP: the aggregate control shows for single-measure category charts, reveals both group-by levels, and is hidden for scatter (two measures) and geo charts (which would be collapsed/have their own aggregation)",
+      aggUi.hasForBars && aggUi.showsGroupBy && aggUi.hiddenForScatter && aggUi.hiddenForGeo, JSON.stringify(aggUi));
     ok("ROLLUP: saving an Explore analysis persists the rollup onto its data source (da.outputOptions.aggregate) so it re-aggregates on Home / in dashboards / on export",
       !!aggUi.savedAgg && aggUi.savedAgg.fn === "sum" && (aggUi.savedAgg.groupBy || []).length >= 1, JSON.stringify(aggUi.savedAgg));
     await page.evaluate(function () { window.__studioShellSetSection("studio"); });
