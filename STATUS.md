@@ -116,6 +116,13 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **Fix: choropleth hover highlight no longer sticks (v416, 2026-07-21):** the map highlight is now a
+  single always-on-top overlay path that re-points its `d` to the hovered region, replacing the old
+  per-path `appendChild` front-raise. Raising a data path mid-hover detached + re-inserted it, which
+  swallowed its own `mouseleave` on dense maps (HUC8) and left the outline stuck/accumulating. Now
+  exactly one outline can ever show. app/studio-charts.js `_choropleth`. sw v65. The GEO huc8 hover
+  ratchet rewritten to assert the overlay (one `[data-geo-hi]` element, tracks the hovered region,
+  hides on map-leave) — the synthetic-event version passed even while the real bug persisted.
 - **Conservation Insight demo dashboard rebuilt maps-first (v415, 2026-07-21):** the featured demo
   dashboard now leads with 4 headline adoption KPIs (median "common estimate" per practice, distinct
   per-practice sample columns) then choropleths at THREE scales — a full-width county hero, an HUC8

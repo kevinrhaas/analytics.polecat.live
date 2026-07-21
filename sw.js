@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v64"; /* v64: the Conservation Insight featured
+var CACHE_NAME = "studio-shell-v65"; /* v65: choropleth hover no longer sticks —
+   the highlight is now a single always-on-top overlay path that re-points to the
+   hovered region, instead of raising the hovered data path with appendChild (which
+   detached the path mid-hover and swallowed its own mouseleave on dense maps like
+   HUC8). Exactly one outline can ever show. app/studio-charts.js changed.
+   v64: the Conservation Insight featured
    demo dashboard is rebuilt as a maps-first story — four headline KPIs, then
    choropleths at THREE scales (county hero, HUC8 watershed, state rollup) at the
    TOP so they land in the thumbnail, the provider ensemble trends, and a
