@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v61"; /* v61: M3.1 — sign-in replaces the passcode.
+var CACHE_NAME = "studio-shell-v62"; /* v62: Explore polish — clicking a saved
+   analysis reopens it (the empty-state gate keyed on XP.dsId stranded self-
+   contained sample analyses with no dataset id; now keyed on XP.run), and the
+   Explore preview drops the dashboard header (hideHeader on the preview spec) to
+   show just the widget. app/studio.js changed.
+   v61: M3.1 — sign-in replaces the passcode.
    New app/auth.js (PolecatAuth: a local user store seeded with admin + demo,
    SHA-256 hashes, session in analytics.session.v1); gate.js becomes a
    username/password sign-in with an "Explore the demo" path; demo login
