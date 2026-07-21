@@ -31,6 +31,11 @@
   var CRDS = ["0110", "0498", "0650", "1050", "1380", "1730", "1880", "2030", "2210", "2420", "2690", "2840", "2990", "3170", "3530", "3720", "3880", "4030", "4220", "4550", "4730", "4881", "5150", "5498"];
   var STATES = ["IA", "IL", "IN", "MN", "NE", "OH", "MO", "WI", "KS", "SD", "ND", "MI"];
 
+  // Exposed so other modules (e.g. the demo pack in app/demopacks.js) can seed
+  // real, in-geometry region ids without duplicating these lists. Read-only by
+  // convention — mutating them would skew the sample engine's geo output.
+  Studio.SAMPLE_GEO = { fips: CORN_BELT_FIPS, huc8: HUC8S, crd: CRDS, states: STATES };
+
   function classify(name) {
     var c = String(name || "").toLowerCase();
     if (/(^|_)(src|source|datasource|platform|system|conn)/.test(c)) return "cat";

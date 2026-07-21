@@ -1145,13 +1145,16 @@
 >     library) alone — those are "panes", not widgets — and keep internal identifiers (spec.panels,
 >     data-panel-id, kind:"panel", newPanel, .panel-* CSS) unchanged; UI text only. Update the tour
 >     ratchet to also assert no stale "panel" wording for dashboard items.
-> M2c. **Richer demo workspace (Kevin, 2026-07-21):** the Conservation Insight demo pack seeds
->     sample CONNECTIONS, DATASETS, and JOBS too — not just analyses + a dashboard — so those
->     sections show representative content and the whole app feels alive. Same install/remove-by-
->     demoPackId machinery, hide-samples aware. TIES INTO M3 AUTH: logging in with the DEMO creds
->     auto-installs this demo set; it can be turned off in Settings; and it is HIDDEN once you log
->     in with REAL creds against a real backend repo (real workspace = no demo clutter). Ship the
->     richer pack now; wire the demo-login auto-install + real-login suppression in M3.
+> M2c. ✓ **Richer demo workspace (shipped 2026-07-21):** the Conservation Insight demo pack now
+>     seeds a whole workspace — TWO connections (a demo file store + an illustrative Supabase repo
+>     backend), FOUR datasets (raw provider export + a real county-FIPS adoption set + a HUC8
+>     watershed set + a state-rollup output, all in-geometry so their choropleths color live), and a
+>     county→state acreage-weighted-mean JOB (the jobs-engine wmean pattern, wired source→output and
+>     pre-materialized so the state map renders before Run) — alongside the four pinned analyses +
+>     featured dashboard. sampledata exposes Studio.SAMPLE_GEO for reuse. Same install/remove-by-
+>     demoPackId machinery (remove now also sweeps jobs); 4 M2c ratchet tests. NEXT in M3: wire the
+>     demo-login to auto-install this set, a Settings toggle to turn it off, and suppression once you
+>     log in with REAL creds against a real backend repo (real workspace = no demo clutter).
 > > M3. **Auth foundation (phased, UX-level first):** replace the single-passcode gate with a
 >     user/password LOGIN. First screen: demo credentials shown on-screen + local demo mode, OR
 >     connect to a backend repo (Turso/Supabase/Firebase) — show which backend is connected and

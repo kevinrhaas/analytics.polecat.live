@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v52"; /* v52: panel -> widget (M2b) — the
+var CACHE_NAME = "studio-shell-v53"; /* v53: M2c — richer demo workspace. The
+   Conservation Insight demo pack now seeds two connections (a file store + an
+   illustrative Supabase repo backend), four datasets (raw export + real county /
+   HUC8 / state-rollup geo data), and a county->state acreage-weighted-mean job,
+   alongside the four analyses + featured dashboard; sampledata exposes
+   Studio.SAMPLE_GEO for reuse. app/demopacks.js, app/sampledata.js changed.
+   v52: panel -> widget (M2b) — the
    dashboard item is called a "widget" in all UI text (inspector title, canvas
    hints, keyboard help, docs); layout PANES and internal identifiers
    (spec.panels, data-panel-id, kind:"panel", .panel-* css) unchanged.
