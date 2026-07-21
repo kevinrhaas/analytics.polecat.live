@@ -1237,9 +1237,11 @@ function serve() {
     const geoHuc = await geoProbe("huc8", "huc8", [["07080105", 9], ["07130001", 5], ["10230003", 2]]);
     ok("GEO huc8: 500+ Corn Belt watersheds render and color by value",
       geoHuc.regions >= 500 && geoHuc.colored === 3, JSON.stringify({ regions: geoHuc.regions, colored: geoHuc.colored }));
-    // Hover highlight must not STICK: bringing the hovered region to the front reorders
-    // the DOM and can swallow its own mouseleave on a dense map, so highlighting a NEW
-    // region must clear the previous one, and leaving the map must clear everything.
+    // Hover highlight must not STICK: the highlight is a single always-on-top overlay
+    // path that re-points to the hovered region — the data paths are NEVER re-ordered
+    // (an appendChild raise on mouseenter detaches the path and swallows its own
+    // mouseleave on a dense map like HUC8, the original root cause). So exactly one
+    // outline can ever show, switching regions moves it, and leaving the map hides it.
     const geoHover = await page.evaluate(async function () {
       var spec = { id: "hv", name: "hv", title: "t", panels: [{ id: "p", title: "p", span: "full", chart: { type: "choropleth", da: "g", map: { idCol: "huc8", valueCol: "v" }, opts: { scale: "huc8" } } }],
         kpis: [], filters: [], cda: { connections: [], dataAccesses: [{ id: "g", kind: "sql", columns: ["huc8", "v"] }] } };
@@ -1252,20 +1254,25 @@ function serve() {
         (function poll() { var d = null; try { d = ifr.contentDocument; } catch (e) {}
           var ps = d ? d.querySelectorAll("path[data-geo-id]") : [];
           if (ps.length > 3) {
-            var HL = "var(--ink, #333)", A = ps[0], B = ps[1], gRegions = A.parentNode;
-            var hi = function (p) { return p.getAttribute("stroke") === HL; };
+            var A = ps[0], B = ps[1], gRegions = A.parentNode;
+            // exactly ONE highlight overlay exists — accumulation is structurally impossible
+            var overlays = d.querySelectorAll("[data-geo-hi]");
+            var hi = overlays[0];
+            var shown = function () { return hi.style.display !== "none"; };
+            var initHidden = overlays.length === 1 && !shown();
             A.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
-            var a1 = hi(A);
+            var afterA = { shown: shown(), onA: hi.getAttribute("d") === A.getAttribute("d") };
             B.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true })); // A's mouseleave intentionally NOT fired
-            var afterB = { a: hi(A), b: hi(B) };
+            var afterB = { shown: shown(), onB: hi.getAttribute("d") === B.getAttribute("d"), stillA: hi.getAttribute("d") === A.getAttribute("d") };
             gRegions.dispatchEvent(new MouseEvent("mouseleave", { bubbles: true }));
-            var afterLeave = { a: hi(A), b: hi(B) };
-            ifr.remove(); res({ a1: a1, afterB: afterB, afterLeave: afterLeave });
+            var afterLeave = { shown: shown() };
+            ifr.remove(); res({ count: overlays.length, initHidden: initHidden, afterA: afterA, afterB: afterB, afterLeave: afterLeave });
           } else if (Date.now() - t0 > 15000) { ifr.remove(); res({ timeout: true }); } else setTimeout(poll, 200); })();
       });
     });
-    ok("GEO huc8 hover: highlighting a new region clears the previous one (even if its mouseleave was swallowed by the front-raise), and leaving the map clears all — no stuck highlights",
-      geoHover.a1 === true && geoHover.afterB.a === false && geoHover.afterB.b === true && geoHover.afterLeave.a === false && geoHover.afterLeave.b === false, JSON.stringify(geoHover));
+    ok("GEO huc8 hover: one overlay highlight tracks the hovered region (data paths never re-ordered, so no swallowed mouseleave); switching regions moves it, leaving the map hides it — no stuck highlights",
+      geoHover.count === 1 && geoHover.initHidden && geoHover.afterA.shown && geoHover.afterA.onA &&
+      geoHover.afterB.shown && geoHover.afterB.onB && !geoHover.afterB.stillA && !geoHover.afterLeave.shown, JSON.stringify(geoHover));
     const geoLean = await page.evaluate(function () {
       var spec = { id: "lean", name: "lean", title: "t", panels: [{ id: "p", title: "p", chart: { type: "bars", da: "g", map: { labelCol: "a", valueCol: "b" } } }],
         kpis: [], filters: [], cda: { connections: [], dataAccesses: [{ id: "g", kind: "sql", columns: ["a", "b"] }] } };

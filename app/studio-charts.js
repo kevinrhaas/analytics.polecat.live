@@ -6134,13 +6134,18 @@
       // which on a dense map (e.g. HUC8 watersheds) can swallow that path's own
       // mouseleave and leave the highlight STUCK/accumulating — this single-source
       // clear guarantees exactly one region is ever highlighted.
-      var _hoveredGeo = null;
-      function clearGeoHover() {
-        if (!_hoveredGeo) return;
-        _hoveredGeo.setAttribute("stroke", "var(--panel-border, #ccc)");
-        _hoveredGeo.setAttribute("stroke-width", strokeW * 0.5);
-        _hoveredGeo = null;
-      }
+      // A single, always-on-top highlight outline. We deliberately do NOT raise
+      // the hovered data path with appendChild — detaching + re-inserting a path
+      // mid-hover swallows its own pending mouseleave on a dense map (HUC8), which
+      // was the root cause of the stuck/accumulating highlight. Instead one
+      // dedicated overlay path re-points its `d` to the hovered region, so exactly
+      // ONE outline can ever show (accumulation is structurally impossible) and it
+      // clears reliably when the pointer leaves the map.
+      var hiPath = S("path", { d: "", fill: "none", stroke: "var(--ink, #333)",
+        "stroke-width": strokeW * 1.6, "stroke-linejoin": "round",
+        "pointer-events": "none", "data-geo-hi": "1" });
+      hiPath.style.display = "none";
+      function clearGeoHover() { hiPath.style.display = "none"; }
       geo.features.forEach(function (feat) {
         var v = values[feat.id];
         var p = S("path", { d: feat.path,
@@ -6148,10 +6153,10 @@
           stroke: "var(--panel-border, #ccc)", "stroke-width": strokeW * 0.5, "data-geo-id": feat.id });
         p.style.cursor = "default";
         _tip(p, "<b>" + feat.name + "</b><br>" + (v == null ? (cfg.noDataLabel || "No data") : f(v)));
-        p.addEventListener("mouseenter", function () { clearGeoHover(); p.setAttribute("stroke", "var(--ink, #333)"); p.setAttribute("stroke-width", strokeW * 1.6); p.parentNode.appendChild(p); _hoveredGeo = p; });
-        p.addEventListener("mouseleave", clearGeoHover);
+        p.addEventListener("mouseenter", function () { hiPath.setAttribute("d", feat.path); hiPath.style.display = ""; });
         gRegions.appendChild(p);
       });
+      gRegions.appendChild(hiPath); // last child → always drawn on top
       gRegions.addEventListener("mouseleave", clearGeoHover);
       svg.appendChild(gRegions);
       if (geo.statesOverlay && cfg.stateLines !== false && scale !== "state") {

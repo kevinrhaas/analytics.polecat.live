@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 416,
+    title: 'Fix: map hover highlight no longer sticks',
+    kind: 'fix',
+    ts: '2026-07-21T20:14:09.000Z',
+    items: [
+      'On the maps, hovering a region now highlights exactly that region and clears cleanly when you move away — the outline used to get stuck (and pile up) on dense maps like the watershed (HUC8) view.',
+      'Under the hood the highlight is now a single overlay outline that follows your cursor, instead of lifting each hovered shape to the front — the lift was quietly eating the “mouse left” signal on tightly-packed maps.',
+    ],
+  },
+  {
     v: 415,
     title: 'The Conservation Insight demo dashboard is rebuilt maps-first',
     kind: 'feature',
