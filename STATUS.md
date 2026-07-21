@@ -1160,6 +1160,76 @@
 >    hiding in M4 NOW (honest "not cryptographic isolation" until the DB enforces it), then real
 >    RLS enforcement lands in M7. Do not gate the M4 flag on the backend being ready.
 
+### 🔁 QUALITY TRACKS — interleave with the feature backlog (Kevin, 2026-07-21)
+> Kevin asked for a code-organization sweep AND a UI/UX best-practices sweep, folded INTO the loop
+> as sliced work (not one big-bang PR). **Interleave policy: after each feature/product slice, do ONE
+> quality slice** — alternate the two tracks below (a UX slice, then a refactor slice, repeating) so
+> features and quality both advance and no giant refactor ever races the lane. Each slice is ONE
+> coherent PR, suite-gated, self-merged on green. Sourced from three read-only surveys (studio.js
+> structure · cross-file duplication · UX/design audit). Both surveys found the code MATURE — no dead
+> functions, strong a11y/mobile/motion already — so these are refinements, ranked by value/effort.
+>
+> **✨ UX-POLISH track** (ranked delight-per-effort; ★ = do first):
+> UX1. ★ **A11y quick wins:** give `#toast` `role="status" aria-live="polite"` (every confirmation/
+>      error/celebration is currently silent to screen readers); add a `prefers-reduced-motion` guard
+>      to `.demo-badge`'s infinite pulse; audit that every icon-only control has an `aria-label`
+>      (pane-rail `‹`/`›` have none). Tiny diff, real correctness. (index.html, studio.css)
+> UX2. ★ **Dead-token sweep:** `--sans`(23×) / `--fg`(7×) / `--canvas` / `--green` are never defined —
+>      route to real bridge tokens (`--font`/`--ink`/`--field`/`--good`). Fixes a real bug: the
+>      changelog search input (`.cl-search`, `--canvas`) renders transparent. (studio.css)
+> UX3. **Theme the toast + one-off hexes:** toast is hardcoded `#10233f`/`.err #7a1730` (dark navy in
+>      every theme incl. light/neon); same for `.demo-badge #d32f2f` etc. Route through palette tokens
+>      / `color-mix` so they respect the active theme×mode. (studio.css)
+> UX4. **Entrance & celebration motion (reduced-motion gated):** staggered fade-up on card grids
+>      (`.recent-card`/`.repo-ds-card`); a distinct celebratory toast variant (brand gradient + trophy
+>      glyph) so milestones feel earned; scale-in on `.modal`/welcome overlay to match the waffle/
+>      right-panel. (studio.css, welcome.js, studio.js)
+> UX5. **Type & spacing scale tokens** (`--fs-xs…2xl`, 4px spacing base): migrate the 19 ad-hoc
+>      font-sizes (incl. 8.5/9.5/11.5/… half-steps) and one-off paddings. Biggest single coherence
+>      lever; larger diff — do as its own slice. (studio.css)
+> UX6. **currentColor icon migration:** replace chrome glyphs (`⋯ ↶ ↷ ＋ ▾ ☰ ⇄ 📋 ● ‹ ›`) and the
+>      welcome-step letter icons with `Studio.icon()` SVGs — directly satisfies the fleet
+>      "single-color currentColor icons" bar (the `📋` emoji is full-color = a direct miss). Larger,
+>      many call sites. (index.html, welcome.js, studio.js)
+> UX7. **Mobile 44px touch targets** across the full ≤640px band (today the 400–640px band yields
+>      ~30–32px `.btn`; `.da-act`/`.chip` 36–40px). Mobile is a release gate. (studio.css)
+> UX8. **Tooltip primitive** — a themed, focusable, touch-visible tooltip generalizing `.opt-hint-pop`,
+>      replacing native `title=` guidance strings (slow, unstyleable, invisible on touch/keyboard). Larger.
+> UX9. **Modal `.btn` contrast fallback** (SAFE): bare `.btn` is white-on-`rgba(255,255,255,.1)` — correct
+>      on the dark topbar but near-invisible on light modal/popover surfaces appended to `<body>`
+>      (compare/export-bundle/theme modals). Add a `.modal .btn` fallback. ⚠️ The broader geometry/font
+>      shell-alignment (adopt the fleet's Inter face + 14/20px radius scale vs keep the current
+>      system-font/11px divergence) is a **visual-identity call — PAUSE for Kevin**, don't auto-change it.
+> UX10. **Empty-state polish:** replace the bare `<p>Loading…</p>` in `secHome`/`secSettings` with a
+>       skeleton or the branded `.sec-empty-ic` treatment (first thing seen on a cold load). (index.html, studio.css)
+> Verify live across all 6 theme×mode combos: F11 (which modals use bare `.btn`) and F15
+> (`--faint`/`--text-3` micro-copy at 9–10.5px may be sub-4.5:1 on light surfaces).
+>
+> **🧹 TECH-DEBT / REFACTOR track** (behavior-preserving, suite-gated; dedup FIRST — it shrinks the
+> surface and cuts future merge conflict — then module extraction):
+> R1. ★ **`lsGet(key,fallback)` / `lsSet(key,val)` helpers** — collapse ~11 copy-pasted
+>     `try{JSON.parse(localStorage…)}catch{}` load blocks + matching setters. (studio.js)
+> R2. **Dedup onto canonical `Studio.*`:** `postThemeOnLoad(ifr)` (4 identical envelopes → 1);
+>     `singlePanelHtml(p)` (zoom + slideshow share the pipeline per their own comment); sweep the 15
+>     raw `JSON.parse(JSON.stringify)` → `Studio.clone`; promote `Studio.escapeHtml` and reuse in
+>     exporters `xml` + studio `esc` **ONLY** — ⚠️ do NOT touch studio-render.js `he` or model.js
+>     `svgEsc` (they run in the sandboxed export iframe where model.js is NOT inlined; merging breaks
+>     the self-contained-export invariant); `Studio.SAMPLE_PROVIDERS` shared by sampledata/demopacks
+>     (mirror the existing `SAMPLE_GEO` pattern, KEEP the standalone-test fallback). Split across ~2 slices.
+> R3. **Factory the config layer:** table-drive the 8 `default*` getter/setter pairs; a
+>     `makePresetStore(key)` factory for the 3 identical list-CRUD triplets (stylePresets /
+>     templateVarSets / customThemePresets). (studio.js)
+> R4. **Merge the view-pin machinery** duplicated between Connections (`conn*Views`/`toggleConnPin`)
+>     and Datasets (`dsx*Views`/`toggleDsxPin`) into one shared helper (their own comment flags the mirror).
+> R5+. **studio.js (9,899 lines) module extraction — safety order, ONE subsystem per slice, full suite
+>      each:** ① chart-thumbnail SVGs (pure, ~200 lines — use this slice to ESTABLISH the module pattern:
+>      ES-module `app/*.js` sharing a small internal namespace, matching the rest of app/) → ② branding/
+>      defaults/presets config layer → ③ celebrations/milestones → ④ versions/notes/diff modals →
+>      ⑤ the Explore `XP` subsystem (own namespace; preserve the analysis→spec add + `homeLiveFrame`
+>      reuse seams) → ⑥ the data-plane panels LAST (Jobs → Connections → Datasets; Datasets last because
+>      `runDataset`/`window.__studioRunDataset` bridges back into the builder preview). These are
+>      lane-hot files — schedule each when the feature lane isn't mid-slice in that area.
+
 ### ★★★★★ CONSERVATION INSIGHT PRODUCT PLATFORM (2026-07-21, user-directed — NOW THE TOP PRIORITY)
 > Kevin's big charter: turn Analytics into a multi-user, permissioned product. Decisions locked
 > with Kevin (2026-07-21): product/demo name = **Conservation Insight** (CTIC / conservation-ag —
