@@ -2020,6 +2020,48 @@ function serve() {
     await page.evaluate(function () { window.__studioShellSetSection("studio"); });
     await page.waitForTimeout(150);
 
+    // ---- CANVAS: consistent delete affordance + header-off (embed mode) -------
+    console.log("\n• CANVAS: KPI ✕ matches the widget ✕, and the dashboard header can be turned off");
+    const canvas = await page.evaluate(async function () {
+      var spec = { id: "cvt", name: "cvt", title: "My Dashboard", subtitle: "sub", description: "A description text object",
+        gridCols: 2, kpis: [{ title: "Total", valueCol: "v", da: "d1" }],
+        panels: [{ id: "p1", title: "Chart", span: 2, chart: { type: "bars", da: "d1", map: { labelCol: "region", valueCol: "v" }, opts: {} } }],
+        filters: [], cda: { connections: [], dataAccesses: [{ id: "d1", kind: "sql", columns: ["region", "v"] }] } };
+      function renderTo(sp, preview) {
+        var html = Studio.buildHtml(sp, window.__STUDIO_STATE.assets, { preview: preview, mock: Studio.genMock(sp) });
+        return new Promise(function (res) {
+          var ifr = document.createElement("iframe"); ifr.style.cssText = "position:fixed;left:-3000px;width:1000px;height:700px";
+          document.body.appendChild(ifr); ifr.srcdoc = html; var t0 = Date.now();
+          (function poll() { var d = null; try { d = ifr.contentDocument; } catch (e) {}
+            if (d && d.querySelector(".pdc-kpis") && (!preview || d.querySelector(".sr-kpi-del")) && d.querySelector(".sr-card-acts .sr-act[data-act=del]")) {
+              var out = { hasHideCss: /\.pdc-header\{display:none\}/.test(html) };
+              if (preview) {
+                var kdel = d.querySelector(".sr-kpi-del"), pdel = d.querySelector(".sr-card-acts .sr-act[data-act=del]");
+                var kc = d.defaultView.getComputedStyle(kdel), pc = d.defaultView.getComputedStyle(pdel);
+                out.kpiRadius = kc.borderRadius; out.panelRadius = pc.borderRadius;
+                out.kpiBorder = kc.borderStyle; out.panelBorder = pc.borderStyle;
+                var hdr = d.querySelector(".pdc-header"), desc = d.querySelector(".pdc-desc-bar");
+                out.hdrDisplay = hdr ? d.defaultView.getComputedStyle(hdr).display : "gone";
+                out.descDisplay = desc ? d.defaultView.getComputedStyle(desc).display : "gone";
+              }
+              ifr.remove(); res(out);
+            } else if (Date.now() - t0 > 12000) { ifr.remove(); res({ timeout: true }); } else setTimeout(poll, 150); })();
+        });
+      }
+      // Export parity is a pure string check — no iframe (export mode has no edit
+      // affordances to poll for, and would try a live data fetch for the mock DA).
+      var exportHtml = Studio.buildHtml(Object.assign({}, spec, { hideHeader: true }), window.__STUDIO_STATE.assets, { preview: false });
+      return { on: await renderTo(spec, true),
+        off: await renderTo(Object.assign({}, spec, { hideHeader: true }), true),
+        exportHasHideCss: /\.pdc-header\{display:none\}/.test(exportHtml) };
+    });
+    ok("CANVAS: the KPI delete ✕ matches the widget delete ✕ — same rounded-square, bordered control (not a red circle), so canvas delete affordances are consistent",
+      canvas.on.kpiRadius === canvas.on.panelRadius && canvas.on.kpiBorder === "solid" && canvas.on.panelBorder === "solid" && canvas.on.kpiRadius !== "50%", JSON.stringify(canvas.on));
+    ok("CANVAS: 'Show dashboard header' off hides the title banner AND the description bar in the live preview (embed mode = just KPIs + widgets)",
+      canvas.on.hdrDisplay === "flex" && canvas.on.descDisplay === "block" && canvas.off.hdrDisplay === "none" && canvas.off.descDisplay === "none", JSON.stringify({ on: canvas.on, off: canvas.off }));
+    ok("CANVAS: header-off carries into the EXPORTED HTML too — the export inlines the same '.pdc-header{display:none}' rule the preview uses (preview == export)",
+      canvas.exportHasHideCss === true, JSON.stringify({ exportHasHideCss: canvas.exportHasHideCss }));
+
     console.log("\n• HOME LIVE: featured dashboards render live on Home (Viridis V6)");
     await page.evaluate(function () {
       var sp = window.__STUDIO_STATE.spec;

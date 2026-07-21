@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 406,
+    title: 'Consistent delete buttons, and a header-off mode for embedding dashboards',
+    kind: 'feature',
+    ts: '2026-07-21T16:51:26.000Z',
+    items: [
+      'The ✕ delete control on a KPI now matches the one on every other widget — the same subtle rounded button that turns red on hover, instead of the old always-on red circle. Delete affordances read the same everywhere on the canvas.',
+      'New “Show dashboard header” toggle in the dashboard inspector (Header). Turn it off and the whole title banner and description bar disappear from both the live preview and the exported HTML — so you get a clean, header-free dashboard of just KPIs and widgets that you can drop straight into your own page. The title, subtitle and description remain fully editable in the inspector whenever the header is on.',
+    ],
+  },
+  {
     v: 405,
     title: 'Fix: the “New dataset”, “New job” and “Save analysis” buttons were invisible',
     kind: 'fix',

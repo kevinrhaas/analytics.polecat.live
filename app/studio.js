@@ -2544,6 +2544,14 @@
     // Z6: header link — wraps the brand mark+title in an <a>, e.g. back to a company site or portal.
     sec.appendChild(field("Header link URL", input(sp.headerLink || "", function (v) { sp.headerLink = v.trim(); refreshPreview(); }, "https://…"),
       "Makes the logo + title in the banner clickable (opens in a new tab). Leave blank for plain text."));
+    // Header off (embed mode): hide the whole title banner + description so the export is
+    // just KPIs + widgets — ready to wrap inside another site.
+    var hdrCb = el("input"); hdrCb.type = "checkbox"; hdrCb.id = "hideHeaderCb"; hdrCb.checked = !sp.hideHeader;
+    var hdrLbl = el("label", "check"); hdrLbl.htmlFor = hdrCb.id; hdrLbl.style.cssText = "gap:6px;font-size:12px";
+    hdrLbl.appendChild(hdrCb); hdrLbl.appendChild(document.createTextNode("Show dashboard header"));
+    hdrCb.onchange = function () { if (hdrCb.checked) delete sp.hideHeader; else sp.hideHeader = true; refreshPreview(); };
+    sec.appendChild(field("Header", hdrLbl,
+      "Turn off to hide the whole title banner and description — the live preview and the exported HTML then show only the KPIs and widgets, ready to embed in your own page."));
 
     var grpSel = select2(["Observability", "Governance & Privacy", "Storage & Cost", "Usage & People", "Data Integration", "Executive"], sp.group, function (v) { sp.group = v; syncHeader(); });
     sec.appendChild(field("Group", grpSel));
@@ -8422,7 +8430,7 @@
     // Open / restore-banner / example-load / drag-drop-file silently reset a saved dashboard's accent
     // color and series palette back to the default. Keep this list in sync with Studio.emptySpec()'s
     // top-level scalar/optional fields whenever a new one is added (see also headerLogo, Z6).
-    ["schema", "id", "name", "title", "subtitle", "group", "description", "themeColor", "dashboardTheme", "customTheme", "paletteKey", "headerLogo", "headerLink", "headerBg", "titleSize", "subtitleStyle", "cardSkin", "templateVars"].forEach(function (k) { if (spec[k] != null) base[k] = spec[k]; });
+    ["schema", "id", "name", "title", "subtitle", "group", "description", "themeColor", "dashboardTheme", "customTheme", "paletteKey", "headerLogo", "headerLink", "headerBg", "titleSize", "subtitleStyle", "cardSkin", "hideHeader", "templateVars"].forEach(function (k) { if (spec[k] != null) base[k] = spec[k]; });
     base.cda = spec.cda || base.cda;
     base.filters = spec.filters || []; base.kpis = spec.kpis || [];
     base.gridCols = spec.gridCols || 3; base.panels = (spec.panels || []).map(function (p) { if (!p.id) p.id = Studio.uid("p"); return p; });
