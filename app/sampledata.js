@@ -23,9 +23,13 @@
   var CROPS = ["Corn", "Soybeans", "Wheat", "Hay"];
   // real Corn Belt HUC8 subbasins / NASS crop-reporting districts / state postals —
   // so freshly dragged watershed/district/state choropleths render colored regions
-  var HUC8S = ["07080105", "07130001", "10230003", "07100006", "05120201", "07080207", "10240004", "07140101"];
-  var CRDS = ["1710", "1720", "1910", "1930", "1830", "1750", "1940", "1860"];
-  var STATES = ["IA", "IL", "IN", "MN", "NE", "OH", "MO", "WI"];
+  // Conservation Insight: broad, REAL Corn Belt code sets so freshly dragged
+  // choropleths color HUNDREDS of regions, not a token handful. Every code below
+  // exists in the vendored geometry (extracted from it), so none render no-data.
+  var CORN_BELT_FIPS = ["17001", "17017", "17033", "17049", "17065", "17081", "17097", "17113", "17129", "17145", "17161", "17177", "18001", "18015", "18029", "18043", "18057", "18071", "18085", "18099", "18113", "18127", "18141", "18155", "19001", "19017", "19033", "19049", "19065", "19081", "19097", "19113", "19129", "19145", "19161", "19177", "20001", "20017", "20033", "20049", "20065", "20081", "20097", "20113", "20129", "20145", "20161", "20177", "26001", "26013", "26025", "26037", "26049", "26061", "26073", "26085", "26097", "26109", "26121", "26133", "27001", "27015", "27029", "27043", "27057", "27071", "27085", "27099", "27113", "27127", "27141", "27155", "29001", "29019", "29037", "29055", "29073", "29091", "29109", "29127", "29145", "29163", "29181", "29201", "31001", "31015", "31029", "31043", "31057", "31071", "31085", "31099", "31113", "31127", "31141", "31155", "38001", "38009", "38017", "38025", "38033", "38041", "38049", "38057", "38065", "38073", "38081", "38089", "39001", "39015", "39029", "39043", "39057", "39071", "39085", "39099", "39113", "39127", "39141", "39155", "46003", "46013", "46023", "46033", "46043", "46053", "46063", "46073", "46083", "46093", "46102", "46111", "55001", "55013", "55025", "55037", "55049", "55061", "55073", "55083", "55095", "55107", "55119", "55131"];
+  var HUC8S = ["04010101", "04030106", "04050004", "04080202", "04100011", "05030202", "05120101", "05120205", "07010108", "07020012", "07050006", "07080106", "07100002", "07120003", "07140103", "09010005", "09020302", "09030007", "10120111", "10130302", "10150007", "10180009", "10210005", "10240003", "10250009", "10260011", "10280201", "10300103", "11030007", "11050001"];
+  var CRDS = ["0110", "0498", "0650", "1050", "1380", "1730", "1880", "2030", "2210", "2420", "2690", "2840", "2990", "3170", "3530", "3720", "3880", "4030", "4220", "4550", "4730", "4881", "5150", "5498"];
+  var STATES = ["IA", "IL", "IN", "MN", "NE", "OH", "MO", "WI", "KS", "SD", "ND", "MI"];
 
   function classify(name) {
     var c = String(name || "").toLowerCase();
@@ -76,7 +80,7 @@
     var hv = seed(col);
     switch (kind) {
       // real Corn Belt county FIPS (IL/IN/IA) — see the geoid classify note
-      case "geoid": return ["17031", "17113", "17167", "19153", "19113", "18097", "18157", "17019"][i % 8];
+      case "geoid": return CORN_BELT_FIPS[i % CORN_BELT_FIPS.length];
       case "huc8": return HUC8S[i % HUC8S.length];
       case "crd": return CRDS[i % CRDS.length];
       case "statecode": return STATES[i % STATES.length];
@@ -156,7 +160,10 @@
     }
 
     // if the row is a per-record detail (has a name col) keep names; otherwise distinct categories
-    var n = 8;
+    // Conservation Insight: geographic first-columns get a row per REGION (not a
+    // token 8), so a freshly dragged choropleth colors the whole Corn Belt.
+    var GEO_N = { geoid: CORN_BELT_FIPS.length, huc8: HUC8S.length, crd: CRDS.length, statecode: STATES.length };
+    var n = GEO_N[kinds[0]] || 8;
     var rows = [];
     for (var i = 0; i < n; i++) {
       rows.push(cols.map(function (c, j) { return valueFor(kinds[j], i, n, j === 0, c); }));
@@ -182,7 +189,10 @@
     if (!CATEGORICAL_KINDS.test(kinds[0])) kinds[0] = "cat";
     var labelKind = kinds[0];
     var labels = labelKind === "year" ? ["2015", "2016", "2017", "2018", "2019", "2020", "2021", "2022", "2023", "2024", "2025"]
-      : labelKind === "geoid" ? ["17031", "17113", "17167", "19153", "19113", "18097", "18157", "17019"]
+      : labelKind === "geoid" ? CORN_BELT_FIPS
+      : labelKind === "huc8" ? HUC8S
+      : labelKind === "crd" ? CRDS
+      : labelKind === "statecode" ? STATES
       : (function () { var out = []; for (var i = 0; i < 8; i++) out.push(valueFor(labelKind, i, 8, true, cols[0])); return out; })();
     var rows = [];
     labels.forEach(function (lab, li) {

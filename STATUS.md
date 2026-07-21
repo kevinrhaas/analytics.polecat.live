@@ -1118,6 +1118,54 @@
 
 ## NEXT (top = do first)
 
+### ★★★★★ CONSERVATION INSIGHT PRODUCT PLATFORM (2026-07-21, user-directed — NOW THE TOP PRIORITY)
+> Kevin's big charter: turn Analytics into a multi-user, permissioned product. Decisions locked
+> with Kevin (2026-07-21): product/demo name = **Conservation Insight** (CTIC / conservation-ag —
+> Viridis is retired from the app); auth = **phased** (UX-level multi-user login now, real
+> Supabase-Auth+RLS enforcement layered on later); first pillar after quick wins = **Auth
+> foundation**. Item-inside-a-dashboard is being renamed **panel → widget** (Kevin's lean; do in
+> the tours/terminology slice). DESIGN BAR applies to every slice (useful/easy/elegant/simple/
+> beautiful, non-expert-first). One coherent slice per PR, suite-gated, self-merge on green.
+>
+> **The slices, in order:**
+> M1. ✓ **Quick wins (shipped 2026-07-21):** demo pack renamed Viridis→Conservation Insight
+>     (app/demopacks.js, ids + all display strings; coupled tests updated); geo sample data now
+>     spans 100+ REAL Corn Belt county FIPS + real HUC8/CRD/state codes (extracted from the
+>     vendored geometry so every code colors) with geo-aware row counts, so a dragged choropleth
+>     colors the whole Corn Belt (144 counties end-to-end, was 8); bundled examples get a
+>     first-class Home section with live thumbnails (exLayoutSvg hoisted to module scope).
+> M2. **Overview tour + panel→widget terminology (NEXT):** add an Overview tour as the FIRST-RUN
+>     default that walks the rail parts (Home · Explore · Dashboards · Datasets · Connections ·
+>     Jobs), explains the object model, and ENDS ON HOME for getting-started (Kevin). Keep Quick
+>     analysis + Build a dashboard as the deeper task tours in the chooser. Rename "panel" →
+>     "widget" across the Inspector, tours, docs, and help (the thing inside a dashboard that
+>     shows a chart/KPI/map/text). Keep the tour keep-current ratchet green.
+> M3. **Auth foundation (phased, UX-level first):** replace the single-passcode gate with a
+>     user/password LOGIN. First screen: demo credentials shown on-screen + local demo mode, OR
+>     connect to a backend repo (Turso/Supabase/Firebase) — show which backend is connected and
+>     let you point at a different repo right from the login. First-run against a backend: probe →
+>     if it's a Polecat analysis repo, log in; if BLANK, offer to create the Polecat schema +
+>     an admin user + a few limited demo users. New workspace `users` table (SCHEMA_VERSION bump,
+>     additive; client-side password hashing = UX-gating, honest "not cryptographic isolation"
+>     with a shared key — the real enforcement comes in the later Supabase-RLS slice).
+> M4. **Admin + permissions:** admin area to manage users and grant per-section (left-rail) rights;
+>     left-rail items become permissioned. Private/public flag on every saved object (dashboards,
+>     datasets, analyses, connections, jobs) — private HIDES from other users in the UI now, with
+>     DB-enforced privacy arriving in the Supabase-RLS slice.
+> M5. **Repository browser:** new left-rail section — a tree/folder view of ALL objects (dashboards,
+>     datasets, connections, analyses, jobs) with find/open/edit and a right-panel editor for
+>     simple objects; deep-links to the full editors for complex ones.
+> M6. **Customizable Home:** movable/rearrangeable sections; a whole dashboard (or objects) can
+>     occupy Home real estate as a hero (consensus chart / choropleth for instant value —
+>     drillable/editable/explorable); favorites-with-thumbnails; the Examples section (M1) becomes
+>     one of the movable sections; keep the getting-started tiles (new connection/dataset).
+> M7. **Real per-user security (Supabase Auth + RLS):** the phased second half — private is
+>     ENFORCED by the database for Supabase deployments (GoTrue + row-level security); other
+>     backends keep the UX-level behavior. This is what makes "private = only I can see it" true.
+> Also: add MORE crop/geo sample sets as the demo matures (Kevin). "Eventually polecat overall"
+> for the auth/user model — keep the users/permissions design app-neutral where cheap.
+
+
 ### ⬢ PLATFORM MIGRATION (2026-07-15, assigned — runs ALONGSIDE the product backlog, one slice per PR)
 > The staged plan for bringing the Studio onto the Polecat platform (docs/MIGRATION.md #6 in
 > kevinrhaas/polecat-platform). Product work (★ blocks below) continues between slices — the app
