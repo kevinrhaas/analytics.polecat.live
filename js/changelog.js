@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 417,
+    title: 'Edit the dashboard title, subtitle and description right on the canvas',
+    kind: 'feature',
+    ts: '2026-07-21T20:54:15.000Z',
+    items: [
+      'The dashboard header is now editable in place: double-click the title, the subtitle, or the description text and type — no trip to the inspector needed. Press Enter to save, Escape to cancel.',
+      'The description (a free text object) also gets a ✕ to remove it, right where it sits — the same delete affordance the KPI and widget tiles already use. This matches how the sample dashboards work, so anything on the canvas is directly configurable.',
+      'These are builder-only conveniences: the exported and embedded HTML header is unchanged.',
+    ],
+  },
+  {
     v: 416,
     title: 'Fix: map hover highlight no longer sticks',
     kind: 'fix',

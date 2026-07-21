@@ -1637,7 +1637,64 @@
         renderPanel(spec, p, data, card.body);
       });
     });
-    if (isPreview()) { wireSelection(); wireEditing(spec); }
+    if (isPreview()) { wireSelection(); wireEditing(spec); wireHeaderEditing(spec); }
+  }
+
+  // builder-only: make the dashboard header text objects directly editable on the
+  // canvas — double-click the title, subtitle, or description to edit inline, and
+  // give the description (the free "text object") a ✕ to remove it. All preview-only:
+  // the exported header stays byte-identical (these affordances never render in export).
+  function wireHeaderEditing(spec) {
+    var titleEl = document.querySelector(".pdc-header .pdc-title");
+    if (titleEl) headerEditable(titleEl, "title", { placeholder: "Dashboard title" });
+    var subEl = document.querySelector(".pdc-header .pdc-sub");
+    if (subEl) headerEditable(subEl, "subtitle", { placeholder: "Subtitle (optional)", allowEmpty: true });
+    var descEl = document.querySelector(".pdc-desc-bar");
+    if (descEl) {
+      descEl.classList.add("sr-desc");
+      headerEditable(descEl, "description", { placeholder: "Description text…", allowEmpty: true, multiline: true });
+      var del = document.createElement("button");
+      del.className = "sr-desc-del"; del.type = "button"; del.innerHTML = I_CLOSE; del.title = "Remove this text object";
+      del.addEventListener("click", function (e) { e.stopPropagation(); post({ type: "header-edit", field: "description", value: "" }); });
+      del.addEventListener("dblclick", function (e) { e.stopPropagation(); });
+      descEl.appendChild(del);
+    }
+  }
+  // Generic inline editor for a header text object: double-click swaps the element for
+  // an input/textarea; Enter (or blur) commits, Esc cancels. Commit posts a header-edit
+  // message the builder applies to the spec. An empty commit is allowed only when
+  // opts.allowEmpty (clears the subtitle / removes the description); the title never
+  // clears to empty (a dashboard needs a name in the store).
+  function headerEditable(el, field, opts) {
+    opts = opts || {};
+    el.classList.add("sr-head-edit");
+    el.title = "Double-click to edit";
+    el.addEventListener("dblclick", function (e) {
+      e.preventDefault(); e.stopPropagation();
+      if (el.querySelector(".sr-rename")) return;
+      var cur = el.textContent.trim();
+      var inp = document.createElement(opts.multiline ? "textarea" : "input");
+      inp.className = "sr-rename"; inp.value = cur; if (opts.placeholder) inp.placeholder = opts.placeholder;
+      if (opts.multiline) { inp.rows = 2; inp.style.minWidth = "260px"; inp.style.resize = "vertical"; }
+      var prev = el.style.display; el.style.display = "none";
+      el.parentNode.insertBefore(inp, el.nextSibling); inp.focus(); inp.select();
+      var done = false;
+      function commit(save) {
+        if (done) return; done = true; inp.remove(); el.style.display = prev;
+        var v = inp.value.trim();
+        if (!save) return;
+        if (v === cur) return;
+        if (!v && !opts.allowEmpty) return;
+        post({ type: "header-edit", field: field, value: v });
+      }
+      inp.addEventListener("keydown", function (ev) {
+        if (ev.key === "Enter" && !(opts.multiline && ev.shiftKey)) { ev.preventDefault(); commit(true); }
+        else if (ev.key === "Escape") { ev.preventDefault(); commit(false); }
+      });
+      inp.addEventListener("blur", function () { commit(true); });
+      inp.addEventListener("pointerdown", function (ev) { ev.stopPropagation(); });
+      inp.addEventListener("click", function (ev) { ev.stopPropagation(); });
+    });
   }
 
   // collect every dataAccess id the dashboard needs

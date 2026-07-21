@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v65"; /* v65: choropleth hover no longer sticks —
+var CACHE_NAME = "studio-shell-v66"; /* v66: the dashboard header text objects are
+   editable on the canvas — double-click the title, subtitle or description to edit
+   inline, and the description (the free text object) carries a ✕ to remove it.
+   Preview-only affordances (export header stays byte-identical). app/studio-render.js,
+   app/studio.js, app/exporters.js changed.
+   v65: choropleth hover no longer sticks —
    the highlight is now a single always-on-top overlay path that re-points to the
    hovered region, instead of raising the hovered data path with appendChild (which
    detached the path mid-hover and swallowed its own mouseleave on dense maps like

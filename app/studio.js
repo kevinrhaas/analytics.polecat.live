@@ -8242,6 +8242,16 @@
       deletePanel(d.id);
     } else if (d.type === "zoom") {
       openPanelZoom(d.panelId);
+    } else if (d.type === "header-edit") {
+      // Inline canvas edit of a header text object (title · subtitle · description).
+      // Mirrors the dashboard inspector's own field wiring so both stay in sync.
+      if (d.field === "title") { if (!d.value) return; S.spec.title = d.value; syncHeader(); }
+      else if (d.field === "subtitle") S.spec.subtitle = d.value;
+      else if (d.field === "description") { if (d.value) S.spec.description = d.value; else delete S.spec.description; }
+      else return;
+      if (!S.selection) renderInspector(); // null selection = dashboard inspector is showing
+      refreshPreview();
+      toast(d.field === "description" && !d.value ? "Text object removed" : "Updated " + d.field);
     }
   });
   function panelIndex(id) { var i = -1; S.spec.panels.forEach(function (p, ix) { if (p.id === id) i = ix; }); return i; }
