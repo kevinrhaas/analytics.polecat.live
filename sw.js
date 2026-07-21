@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v50"; /* v50: Conservation Insight quick wins —
+var CACHE_NAME = "studio-shell-v51"; /* v51: an Overview tour (M2) leads the
+   tour chooser \u2014 walks the whole app down the rail (Home\u00b7Explore\u00b7Dashboards\u00b7
+   Datasets\u00b7Connections\u00b7Jobs\u00b7Studio), introduces "widget", ends on Home
+   (app/tutorial.js changed).
+   v50: Conservation Insight quick wins —
    demo pack renamed Viridis->Conservation Insight (app/demopacks.js), geo
    sample data now spans 100+ real Corn Belt FIPS + real HUC8/CRD codes so
    choropleths demo richly (app/sampledata.js), and bundled examples get a

@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 402,
+    title: 'A proper welcome — the tour now walks the whole app',
+    ts: '2026-07-21T15:21:11.000Z',
+    items: [
+      'Take the tour now opens with an Overview walkthrough that spotlights every part of the app down the left rail — Home, Explore, Dashboards, Datasets, Connections, Jobs, and Studio — explains how it fits together, and leaves you on Home, ready to start. It is the recommended first tour.',
+      'The two hands-on tours (Quick analysis and Build a dashboard) are still there in the chooser for when you want to do rather than look.',
+    ],
+  },
+  {
     v: 401,
     title: 'Conservation Insight demo pack + richer maps, and examples come Home',
     kind: 'feature',

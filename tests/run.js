@@ -11814,12 +11814,12 @@ function serve() {
       var tip = document.getElementById("st-tip");
       var choices = document.querySelectorAll("#st-tip .st-choice[data-tour]");
       var active = window.__studioTutorialActive ? window.__studioTutorialActive() : false;
-      return { ok: !!tip && active && choices.length === 2, choices: choices.length,
+      return { ok: !!tip && active && choices.length === 3, choices: choices.length,
         labels: [].map.call(choices, function (c) { return c.querySelector("b").textContent; }).join("|"),
-        quickFirst: choices[0] && choices[0].getAttribute("data-tour") === "quick" };
+        overviewFirst: choices[0] && choices[0].getAttribute("data-tour") === "overview" };
     });
-    ok("J6: open() presents the tour chooser — Quick analysis first, Build a dashboard second",
-      j6Chooser.ok && j6Chooser.quickFirst && /Quick analysis/.test(j6Chooser.labels), JSON.stringify(j6Chooser));
+    ok("J6: open() presents the tour chooser — Overview first, then Quick analysis + Build a dashboard",
+      j6Chooser.ok && j6Chooser.overviewFirst && /Quick analysis/.test(j6Chooser.labels) && /Take the tour/.test(j6Chooser.labels), JSON.stringify(j6Chooser));
 
     // J6-3: choosing "Build a dashboard" → step 0 centered card; Next spotlights #library
     await page.click('#st-tip .st-choice[data-tour="build"]');
@@ -11864,15 +11864,15 @@ function serve() {
     });
     ok("J6: Escape closes the tutorial (tip, ring, and active flag all cleared)", j6Closed.ok, JSON.stringify(j6Closed));
 
-    // J6-5: tour shapes — two tours, quick has 8 steps, build has 6
+    // J6-5: tour shapes — three tours (overview leads), quick has 8 steps, build has 6
     const j6Shape = await page.evaluate(function () {
       try {
-        return { ok: StudioTutorial.tourKeys().join(",") === "quick,build" &&
-          StudioTutorial.stepCount("quick") === 8 && StudioTutorial.stepCount("build") === 6,
+        return { ok: StudioTutorial.tourKeys().join(",") === "overview,quick,build" &&
+          StudioTutorial.stepCount("overview") === 9 && StudioTutorial.stepCount("quick") === 8 && StudioTutorial.stepCount("build") === 6,
           keys: StudioTutorial.tourKeys().join(","), q: StudioTutorial.stepCount("quick"), b: StudioTutorial.stepCount("build") };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("J6: two tours — Quick analysis (8 steps) and Build a dashboard (6 steps)", j6Shape.ok, JSON.stringify(j6Shape));
+    ok("J6: three tours — Overview (9 steps, leads), Quick analysis (8), Build a dashboard (6)", j6Shape.ok, JSON.stringify(j6Shape));
 
     // J6-6: the QUICK tour walks the real Explore UI — it switches the section,
     // seeds a sample dataset, and every spotlighted step finds its live target
@@ -11913,6 +11913,45 @@ function serve() {
       j6QuickWalk.tour === "quick" && j6QuickWalk.explore && j6QuickWalk.rings === 6 &&
       /Done/.test(j6QuickWalk.lastLabel) && j6QuickWalk.closed && j6QuickWalk.done && j6QuickWalk.doneQuick,
       JSON.stringify(j6QuickWalk));
+
+    // J6-7 (M2): the OVERVIEW tour walks the whole app down the rail and ENDS on Home
+    await page.evaluate(function () { StudioTutorial.openTour("overview"); });
+    await page.waitForTimeout(250);
+    const j6Overview = await page.evaluate(async function () {
+      function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+      async function ringFor(sel, timeout) {
+        var t0 = Date.now();
+        while (Date.now() - t0 < timeout) {
+          var ring = document.getElementById("st-ring");
+          if (ring && sel) { // ring covers the target's box — compare centers loosely
+            var tgt = document.querySelector(sel);
+            if (tgt) { var rr = ring.getBoundingClientRect(), tr = tgt.getBoundingClientRect();
+              if (Math.abs((rr.left + rr.right) / 2 - (tr.left + tr.right) / 2) < 30) return true; }
+          }
+          await sleep(120);
+        }
+        return false;
+      }
+      var railSecs = ["home", "explore", "dashboards", "datasets", "connections", "jobs", "studio"];
+      var hits = 0;
+      for (var i = 0; i < railSecs.length; i++) {
+        document.querySelector("#st-tip button.pri").click();
+        if (await ringFor('.rail-item[data-sec="' + railSecs[i] + '"]', 4000)) hits++;
+        await sleep(100);
+      }
+      // final centered step → should land on Home, then Done!
+      document.querySelector("#st-tip button.pri").click();
+      await sleep(250);
+      var onHome = !document.getElementById("secHome").hidden;
+      var lastLabel = (document.querySelector("#st-tip button.pri") || {}).textContent || "";
+      document.querySelector("#st-tip button.pri").click();
+      await sleep(150);
+      return { tour: "overview", railHits: hits, onHome: onHome, lastLabel: lastLabel,
+        closed: !document.getElementById("st-tip") && !window.__studioTutorialActive() };
+    });
+    ok("J6: the Overview tour spotlights all 7 rail sections in order and ENDS on Home (getting-started), then completes",
+      j6Overview.railHits === 7 && j6Overview.onHome && /Done/.test(j6Overview.lastLabel) && j6Overview.closed,
+      JSON.stringify(j6Overview));
     // restore studio section for later tests
     await page.evaluate(function () { window.__studioShellSetSection("studio"); });
     await page.waitForTimeout(200);

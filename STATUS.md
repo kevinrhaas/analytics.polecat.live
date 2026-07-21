@@ -1134,12 +1134,17 @@
 >     vendored geometry so every code colors) with geo-aware row counts, so a dragged choropleth
 >     colors the whole Corn Belt (144 counties end-to-end, was 8); bundled examples get a
 >     first-class Home section with live thumbnails (exLayoutSvg hoisted to module scope).
-> M2. **Overview tour + panel→widget terminology (NEXT):** add an Overview tour as the FIRST-RUN
->     default that walks the rail parts (Home · Explore · Dashboards · Datasets · Connections ·
->     Jobs), explains the object model, and ENDS ON HOME for getting-started (Kevin). Keep Quick
->     analysis + Build a dashboard as the deeper task tours in the chooser. Rename "panel" →
->     "widget" across the Inspector, tours, docs, and help (the thing inside a dashboard that
->     shows a chart/KPI/map/text). Keep the tour keep-current ratchet green.
+> M2. ✓ **Overview tour (shipped 2026-07-21):** an Overview tour as
+>     the FIRST/recommended tour that walks the rail parts (Home · Explore · Dashboards · Datasets ·
+>     Connections · Jobs · Studio), explains the object model, and ENDS ON HOME for getting-started
+>     (Kevin). Keep Quick analysis + Build a dashboard as the deeper task tours in the chooser.
+>     Introduces "widget" as the forward term for the thing inside a dashboard.
+> M2b. **panel → widget terminology:** rename the USER-FACING word "panel"→"widget" (Inspector
+>     title, add/text-widget buttons, hints, empty states, tours, docs, help) for the thing inside
+>     a dashboard that shows a chart/KPI/map/text. CAREFUL: leave the layout PANES (Data/Inspector
+>     library) alone — those are "panes", not widgets — and keep internal identifiers (spec.panels,
+>     data-panel-id, kind:"panel", newPanel, .panel-* CSS) unchanged; UI text only. Update the tour
+>     ratchet to also assert no stale "panel" wording for dashboard items.
 > M3. **Auth foundation (phased, UX-level first):** replace the single-passcode gate with a
 >     user/password LOGIN. First screen: demo credentials shown on-screen + local demo mode, OR
 >     connect to a backend repo (Turso/Supabase/Firebase) — show which backend is connected and

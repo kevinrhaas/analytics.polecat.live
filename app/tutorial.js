@@ -1,8 +1,10 @@
 /* tutorial.js — Analytics interactive tutorials.
-   J6 (rebuilt for the Viridis-era app): TWO guided, spotlighted walkthroughs
-   behind a chooser —
+   J6 (rebuilt): THREE guided, spotlighted walkthroughs behind a chooser —
+     · "Take the tour" (overview) — walks the whole app down the rail
+       (Home · Explore · Dashboards · Datasets · Connections · Jobs · Studio)
+       and ends on Home. The first-run / recommended tour.
      · "Quick analysis"  — the Explore flow: dataset → table → chart → saved
-       analysis → pin/add. The fastest data-to-chart path; the headline tour.
+       analysis → pin/add. The fastest data-to-chart path.
      · "Build a dashboard" — the Studio loop: library → canvas → inspector →
        export a self-contained .html.
    Distinct from the welcome tour (welcome.js), which is informational.
@@ -15,7 +17,7 @@
    in the SAME slice — the suite greps this file for retired product terms.
 
    window.StudioTutorial.open()        — tour chooser (or restart)
-   window.StudioTutorial.openTour(key) — start a specific tour ("quick"|"build")
+   window.StudioTutorial.openTour(key) — start a specific tour ("overview"|"quick"|"build")
    window.StudioTutorial.isDone()      — true once any tour was completed.
    © 2026 Polecat.live. See LICENSE. */
 (function () {
@@ -47,6 +49,70 @@
      before: optional fn run before the step renders (section switch / seeding)
      last:   true on the final step — shows "Done!" instead of "Next" */
   var TOURS = {
+    overview: {
+      label: "Take the tour",
+      blurb: "A two-minute walk through the whole app — what each part is for. Start here.",
+      steps: [
+        {
+          t: "Welcome — here's the whole app",
+          h: "Analytics turns your data into quick analyses and full dashboards, right in your browser. This two-minute tour walks the parts down the left rail, then leaves you on Home, ready to start.",
+          sub: "You can reopen any tour from ⋯ More → Interactive tutorial, or Home → Take the tour.",
+          target: null,
+          before: function () { goSection("home"); }
+        },
+        {
+          t: "Home — where you land",
+          h: "Every time you open Analytics you arrive here: your featured dashboards render live, pinned analyses greet you, examples are one click away, and getting-started shortcuts sit up top.",
+          target: '.rail-item[data-sec="home"]',
+          pos: "right"
+        },
+        {
+          t: "Explore — the fast path to a chart",
+          h: "Start from a dataset, see it as a table, pick a chart, and save the result as a reusable <b>analysis</b>. The quickest way from data to insight — there's a dedicated tour for it.",
+          target: '.rail-item[data-sec="explore"]',
+          pos: "right"
+        },
+        {
+          t: "Dashboards — the finished thing",
+          h: "A dashboard is built from <b>widgets</b> — each widget shows one chart, KPI, map, or block of text. Arrange several into a page, feature it on Home, and export it as a self-contained file.",
+          sub: "A saved Explore analysis drops straight onto a dashboard as a widget.",
+          target: '.rail-item[data-sec="dashboards"]',
+          pos: "right"
+        },
+        {
+          t: "Datasets — your reusable queries",
+          h: "A dataset is a named, parameterizable query on top of a connection — the building block every chart and dashboard draws from. Define it once, use it everywhere.",
+          target: '.rail-item[data-sec="datasets"]',
+          pos: "right"
+        },
+        {
+          t: "Connections — where your data lives",
+          h: "Point at Postgres, Supabase, Snowflake, BigQuery, Google Sheets, a dropped CSV, and more — or work entirely on the built-in sample data. Credentials stay in your browser.",
+          target: '.rail-item[data-sec="connections"]',
+          pos: "right"
+        },
+        {
+          t: "Jobs — prep &amp; roll up",
+          h: "Clean and reshape data before it's charted: rename, filter, and aggregate (including an acreage-weighted mean for honest state / district / watershed roll-ups). A job's output lands back in Datasets.",
+          target: '.rail-item[data-sec="jobs"]',
+          pos: "right"
+        },
+        {
+          t: "Studio — the builder",
+          h: "Where you assemble a dashboard: drag data in, tune each widget in the inspector, and watch the real dashboard render live. Export a file that runs anywhere when you're done.",
+          target: '.rail-item[data-sec="studio"]',
+          pos: "right"
+        },
+        {
+          t: "You're set — start on Home",
+          h: "That's the whole app: <b>Connections</b> → <b>Datasets</b> → (Jobs to prep) → <b>Explore</b> or <b>Studio</b> to build → <b>Home</b> to see it all. Take the <b>Quick analysis</b> tour next for a hands-on run, or open an example below.",
+          sub: "You'll always land here on Home — pick up a recent dashboard, or start something new.",
+          target: null,
+          last: true,
+          before: function () { goSection("home"); }
+        }
+      ]
+    },
     quick: {
       label: "Quick analysis",
       blurb: "From a dataset to a saved, reusable chart in about a minute — the fastest way in.",
@@ -155,7 +221,7 @@
       ]
     }
   };
-  var TOUR_ORDER = ["quick", "build"];
+  var TOUR_ORDER = ["overview", "quick", "build"];
 
   var _tour = null;   // active tour key, null while the chooser is up
   var _cur = 0;
@@ -370,7 +436,7 @@
   }
 
   function startTour(key) {
-    if (!TOURS[key]) key = "quick";
+    if (!TOURS[key]) key = "overview";
     _tour = key;
     _cur = 0;
     render(0);
@@ -400,7 +466,7 @@
   T.currentStep = function () { return _cur; };
   T.currentTour = function () { return _tour; };
   T.tourKeys = function () { return TOUR_ORDER.slice(); };
-  T.stepCount = function (key) { return TOURS[key || _tour || "build"].steps.length; };
+  T.stepCount = function (key) { return TOURS[key || _tour || "overview"].steps.length; };
   window.__studioTutorialActive = function () { return _active; };
   window.__studioTutorialStep = function () { return _cur; };
   window.__studioTutorialTour = function () { return _tour; };
