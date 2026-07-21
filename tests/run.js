@@ -306,8 +306,19 @@ function serve() {
     const libCount = await page.$eval("#libCount", (e) => e.textContent);
     ok("query library populated", /\d+ queries/.test(libCount) && parseInt(libCount) > 100, libCount);
     ok("examples menu has entries", (await page.$$("#menuExamples button")).length >= 6);
-    ok("brand reads “Analytics” — the old Dashboard Studio name is gone from the topbar (renamed per Kevin 2026-07-16)",
-      await page.$eval("#topbar .brand-title", (e) => e.textContent.trim() === "Analytics"));
+    ok("app identity reads “Analytics” in the rail brand (the old Dashboard Studio name is gone)",
+      await page.$eval("#railBrand .rail-brand-txt", (e) => e.textContent.trim() === "Analytics"));
+    // Fleet-standard topbar: the top-left shows the CURRENT SECTION name, and it updates on nav.
+    await page.evaluate(() => window.__studioShellSetSection("dashboards"));
+    await page.waitForTimeout(150);
+    const tbSecDash = await page.$eval("#topbarSection", (e) => e.textContent.trim());
+    await page.evaluate(() => window.__studioShellSetSection("explore"));
+    await page.waitForTimeout(150);
+    const tbSecExplore = await page.$eval("#topbarSection", (e) => e.textContent.trim());
+    await page.evaluate(() => window.__studioShellSetSection("studio"));
+    await page.waitForTimeout(150);
+    ok("TOPBAR: the top-left shows the current section name (fleet standard) and updates as you navigate",
+      tbSecDash === "Dashboards" && tbSecExplore === "Explore", JSON.stringify({ tbSecDash, tbSecExplore }));
 
     // ---- fleet-manager changelog parse guard ----
     // js/changelog.js is synced by manager.polecat.live, which does NOT run the file — it
@@ -7324,7 +7335,7 @@ function serve() {
 
     const phoneTopbar = await phonePage.evaluate(() => {
       var tb = document.getElementById("topbar");
-      var brand = document.querySelector(".brand-title");
+      var brand = document.getElementById("topbarSection");
       var btnMore = document.getElementById("btnMore");
       var btnAbout = document.getElementById("btnAbout");
       var btnConn = document.getElementById("btnConn");
@@ -7344,7 +7355,7 @@ function serve() {
       };
     });
     ok("phone viewport: topbar fits the viewport (no horizontal overflow)", !phoneTopbar.tbScrollOverflow && phoneTopbar.tbWidth <= phoneTopbar.vpWidth + 1, JSON.stringify(phoneTopbar));
-    ok("phone viewport: brand title remains visible", phoneTopbar.brandVisible && /Analytics/.test(phoneTopbar.brandText), JSON.stringify(phoneTopbar));
+    ok("phone viewport: the topbar section title remains visible", phoneTopbar.brandVisible && phoneTopbar.brandText.length > 0, JSON.stringify(phoneTopbar));
     ok("phone viewport: ⋯ More button is visible", phoneTopbar.btnMoreVisible, JSON.stringify(phoneTopbar));
     ok("phone viewport: secondary buttons are hidden (collapse into More)", phoneTopbar.btnAboutHidden && phoneTopbar.btnConnHidden, JSON.stringify(phoneTopbar));
 
@@ -17793,11 +17804,11 @@ function serve() {
         noTopbarLogoSquare: !topbarLogo,
         railBrandExists: !!railBrand,
         railBrandHasMark: !!(railBrand && railBrand.querySelector(".rail-brand-mark")),
-        wordmarkIntact: !!document.querySelector("#topbar .brand-title")
+        sectionTitle: !!document.querySelector("#topbarSection")
       };
     });
-    ok("Z12: redundant topbar 'P' logo square removed; wordmark is the content-header identity",
-      z12Brand.noTopbarLogoSquare && z12Brand.wordmarkIntact, JSON.stringify(z12Brand));
+    ok("Z12: no redundant topbar logo square; the topbar's left is the current-section title (fleet standard), identity lives in the rail",
+      z12Brand.noTopbarLogoSquare && z12Brand.sectionTitle, JSON.stringify(z12Brand));
     ok("Z12: rail carries a persistent brand mark at the top", z12Brand.railBrandExists && z12Brand.railBrandHasMark, JSON.stringify(z12Brand));
 
     // Z12: clicking the rail brand mark navigates Home (identity anchor doubles as a Home link)
@@ -20165,11 +20176,11 @@ function serve() {
     await mp2.waitForTimeout(500);
     const mcOverlap = await mp2.evaluate(() => {
       var h = document.getElementById("mobileNavBtn").getBoundingClientRect();
-      var b = document.querySelector(".brand").getBoundingClientRect();
+      var b = document.getElementById("topbarSection").getBoundingClientRect();
       var overlaps = !(b.left >= h.right || b.right <= h.left || b.top >= h.bottom || b.bottom <= h.top);
       return { hambRight: Math.round(h.right), brandLeft: Math.round(b.left), overlaps: overlaps };
     });
-    ok("m-c: brand wordmark clears the fixed hamburger button (no overlap) at 390px",
+    ok("m-c: the topbar section title clears the fixed hamburger button (no overlap) at 390px",
       !mcOverlap.overlaps && mcOverlap.brandLeft >= mcOverlap.hambRight - 1, JSON.stringify(mcOverlap));
     const mcMore = await mp2.evaluate(() => {
       var r = document.getElementById("btnMore").getBoundingClientRect();
