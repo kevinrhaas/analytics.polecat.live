@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 405,
+    title: 'Fix: the “New dataset”, “New job” and “Save analysis” buttons were invisible',
+    kind: 'fix',
+    ts: '2026-07-21T16:23:23.000Z',
+    items: [
+      'The primary action buttons on the Datasets and Jobs screens (“+ New dataset”, “+ New job”) and the “Save analysis” button in Explore were rendering as white text on a transparent background over those light screens — effectively invisible, so it looked like there was no way to create or save anything. They now show as solid, high-contrast buttons everywhere they appear.',
+    ],
+  },
+  {
     v: 404,
     title: 'The demo pack now seeds a whole working example — connections, datasets and a job',
     kind: 'feature',

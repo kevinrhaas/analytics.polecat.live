@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v53"; /* v53: M2c — richer demo workspace. The
+var CACHE_NAME = "studio-shell-v54"; /* v54: FIX — primary call-to-action buttons
+   (Datasets/Jobs "+ New", Explore "Save analysis", the dataset/job editors) were
+   rendering white-on-transparent on light section backgrounds — invisible, so the
+   actions read as missing. `.btn.primary` is now a solid brand fill globally.
+   app/studio.css changed.
+   v53: M2c — richer demo workspace. The
    Conservation Insight demo pack now seeds two connections (a file store + an
    illustrative Supabase repo backend), four datasets (raw export + real county /
    HUC8 / state-rollup geo data), and a county->state acreage-weighted-mean job,

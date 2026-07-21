@@ -1550,7 +1550,16 @@ body.simple-mode .da-acts{display:none!important}
 .cx-test-result.bad{color:var(--bad)}
 .cx-wiz-foot{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
 .cx-wiz-foot .btn{color:var(--ink);background:var(--field);border:1px solid var(--line)}
-.cx-wiz-foot .btn.primary,#connNewBtn.primary,.cx-empty .btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+/* A `.btn.primary` is the call-to-action everywhere it appears. The base `.btn`
+   is white-on-translucent (built for the dark rail); a primary that landed on a
+   LIGHT surface (Datasets/Jobs "+ New", Explore "Save analysis", dataset/job
+   editors) inherited that and rendered white-on-transparent — invisible, so the
+   whole action read as "missing". Make primary a solid, high-contrast brand fill
+   GLOBALLY so no CTA can ever disappear again (was an ID/context allow-list that
+   silently missed dsxNewBtn / jobsNewBtn / xpSaveBtn). */
+.btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+.btn.primary:hover{background:color-mix(in srgb,var(--brand) 88%,#000);border-color:color-mix(in srgb,var(--brand) 88%,#000)}
+.cx-wiz-foot .btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
 @media(max-width:640px){.cx-when{display:none}.cx-actions{opacity:1}.cx-pin{opacity:1}}
 
 /* ── Connection schema browser (post-overhaul backlog item 5) ── */
