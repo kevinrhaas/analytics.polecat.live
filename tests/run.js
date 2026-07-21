@@ -577,8 +577,8 @@ function serve() {
     ok("WS: data adapters are data-only bridges over the proven engines (in-band errors, meta-plane refusals)",
       wsDataAdapters.dataOnly && wsDataAdapters.fieldKeys === "account,token,warehouse,database,schema,role" &&
       wsDataAdapters.badIsInBand && wsDataAdapters.refuses && wsDataAdapters.noSqlInBand, JSON.stringify(wsDataAdapters));
-    ok("WS: workspace schema is analytics-owned (connections/datasets/dashboards/analyses/jobs — v3)",
-      wsRegistry.appId === "analytics" && wsRegistry.tableNames.join(",") === "connections,datasets,dashboards,analyses,jobs", JSON.stringify(wsRegistry.tableNames));
+    ok("WS: workspace schema is analytics-owned (connections/datasets/dashboards/analyses/jobs/users — v4)",
+      wsRegistry.appId === "analytics" && wsRegistry.tableNames.join(",") === "connections,datasets,dashboards,analyses,jobs,users", JSON.stringify(wsRegistry.tableNames));
 
     // ---- AWS SigV4 signer (app/sources/sigv4.js) — crypto-primitive correctness ----------------
     // Verified against independently-known test vectors (RFC 4231 HMAC-SHA256 test case 1; the
@@ -1677,8 +1677,8 @@ function serve() {
         ddl: Studio.WS.provisionDDL().join(";"),
         delta: Studio.WS.provisionDeltaSQL() };
     });
-    ok("XP: workspace schema (now v3) still carries the analyses table (v2) — provisionDDL creates it, provisionDeltaSQL carries the paste-me upgrade",
-      xpSchema.v === 3 && xpSchema.hasTable && /CREATE TABLE IF NOT EXISTS "analyses"/.test(xpSchema.ddl) &&
+    ok("XP: workspace schema (now v4) still carries the analyses table (v2) — provisionDDL creates it, provisionDeltaSQL carries the paste-me upgrade",
+      xpSchema.v === 4 && xpSchema.hasTable && /CREATE TABLE IF NOT EXISTS "analyses"/.test(xpSchema.ddl) &&
       /CREATE TABLE IF NOT EXISTS "analyses"/.test(xpSchema.delta), JSON.stringify({ v: xpSchema.v, hasTable: xpSchema.hasTable }));
     // v1 → v2 self-heal on Turso: drop the analyses table (simulating a workspace
     // provisioned before it existed), save, and the ensure-DDL recreates it.
@@ -2538,8 +2538,8 @@ function serve() {
       return { v: Studio.WS.SCHEMA_VERSION, hasTable: Studio.WS.TABLE_NAMES.indexOf("jobs") >= 0,
         ddl: Studio.WS.provisionDDL().join(";"), delta: Studio.WS.provisionDeltaSQL() };
     });
-    ok("JOBS: workspace schema v3 adds the jobs table — provisionDDL creates it, provisionDeltaSQL carries the paste-me upgrade",
-      jobsSchema.v === 3 && jobsSchema.hasTable && /CREATE TABLE IF NOT EXISTS "jobs"/.test(jobsSchema.ddl) &&
+    ok("JOBS: workspace schema (now v4) carries the jobs table (v3) — provisionDDL creates it, provisionDeltaSQL carries the paste-me upgrade",
+      jobsSchema.v === 4 && jobsSchema.hasTable && /CREATE TABLE IF NOT EXISTS "jobs"/.test(jobsSchema.ddl) &&
       /CREATE TABLE IF NOT EXISTS "jobs"/.test(jobsSchema.delta), JSON.stringify(jobsSchema));
 
     // end-to-end: a real source dataset (file adapter, live parse) -> run a job -> a materialized dataset
@@ -2874,7 +2874,7 @@ function serve() {
     }, PORT);
     ok("WS: turso adapter end-to-end — probe(empty)→provision→probe(ours, app=analytics)",
       wsTurso.test.ok && wsTurso.probeEmpty === "empty" && wsTurso.provision.ok &&
-      wsTurso.probeState === "polecat" && wsTurso.probeApp === "analytics" && wsTurso.probeVer === 3, JSON.stringify(wsTurso));
+      wsTurso.probeState === "polecat" && wsTurso.probeApp === "analytics" && wsTurso.probeVer === 4, JSON.stringify(wsTurso));
     ok("WS: turso adapter round-trips a full workspace snapshot (save → load)",
       wsTurso.save.ok && wsTurso.loadedConn === "warehouse" && wsTurso.loadedDs === "SELECT * FROM orders" && wsTurso.loadedSetting === "polecat", JSON.stringify(wsTurso));
     ok("WS: turso data plane answers queryData and drop() resets to empty",
@@ -6037,23 +6037,23 @@ function serve() {
     const genHash = cp.execFileSync("node", [path.join(ROOT, "tools", "gen-code.js"), "pentaho-studio"]).toString().trim().split("\n")[0];
     ok("gen-code.js hashes an access code (matches the default gate hash)", genHash === "a0b4ac228aecdf5dfdffd338c5b9d0b10b945860712a14259fa95bb7be3bf279", genHash.slice(0, 16));
 
-    // ---- passcode gate + welcome tour (fresh context, no bypass) ----
-    console.log("\n• gate + welcome");
+    // ---- sign-in (M3) + welcome tour (fresh context, no bypass) ----
+    console.log("\n• sign-in + welcome");
     const gp = await browser.newPage({ viewport: { width: 1200, height: 900 } });
     gp.on("pageerror", (e) => errors.push("gate page: " + e.message));
-    // decouple from the deployed code: stub gate-config.js with a known test hash
-    const TEST_CODE = "studio-test-code";
-    const TEST_HASH = require("crypto").createHash("sha256").update(TEST_CODE).digest("hex");
-    await gp.route("**/app/gate-config.js", (route) => route.fulfill({ contentType: "text/javascript", body: 'window.STUDIO_GATE_SHA256=["' + TEST_HASH + '"];' }));
     await gp.goto(`http://localhost:${PORT}/app/`, { waitUntil: "domcontentloaded" });
-    await gp.waitForTimeout(400);
-    const gated = await gp.evaluate(() => ({ overlay: !!document.querySelector("#studio-gate"), appHidden: document.getElementById("app").style.visibility === "hidden" }));
-    ok("passcode gate blocks the app on first load", gated.overlay && gated.appHidden, JSON.stringify(gated));
-    await gp.fill("#g-pass", "wrong"); await gp.click("#g-form button"); await gp.waitForTimeout(150);
-    ok("wrong passcode is rejected", await gp.evaluate(() => !!document.querySelector("#studio-gate")));
-    await gp.fill("#g-pass", TEST_CODE); await gp.click("#g-form button"); await gp.waitForTimeout(300);
-    const unlocked = await gp.evaluate(() => ({ gone: !document.querySelector("#studio-gate"), appVisible: document.getElementById("app").style.visibility !== "hidden" }));
-    ok("correct passcode unlocks the app", unlocked.gone && unlocked.appVisible, JSON.stringify(unlocked));
+    await gp.waitForTimeout(500);
+    const gated = await gp.evaluate(() => ({ overlay: !!document.querySelector("#studio-gate"),
+      hasUser: !!document.querySelector("#g-user"), hasDemo: !!document.querySelector("#g-demo"),
+      appHidden: document.getElementById("app").style.visibility === "hidden" }));
+    ok("sign-in blocks the app on first load — a username/password login with an 'Explore the demo' path",
+      gated.overlay && gated.hasUser && gated.hasDemo && gated.appHidden, JSON.stringify(gated));
+    await gp.fill("#g-user", "demo"); await gp.fill("#g-pass", "wrong"); await gp.click("#g-form button[type=submit]"); await gp.waitForTimeout(200);
+    ok("wrong password is rejected", await gp.evaluate(() => !!document.querySelector("#studio-gate")));
+    await gp.fill("#g-pass", "demo"); await gp.click("#g-form button[type=submit]"); await gp.waitForTimeout(400);
+    const unlocked = await gp.evaluate(() => ({ gone: !document.querySelector("#studio-gate"),
+      appVisible: document.getElementById("app").style.visibility !== "hidden", who: (window.PolecatAuth.current() || {}).u }));
+    ok("correct demo credentials (demo/demo) sign in and reveal the app", unlocked.gone && unlocked.appVisible && unlocked.who === "demo", JSON.stringify(unlocked));
     // welcome tour appears once unlocked (first run), and is dismissable / reopenable
     await gp.waitForTimeout(500);
     const wShown = await gp.evaluate(() => !!document.querySelector("#studio-welcome"));
@@ -6110,13 +6110,11 @@ function serve() {
       await gp.evaluate(() => document.activeElement && document.activeElement.id === "btnMore"));
     await gp.close();
 
-    // Z10 follow-up: the passcode gate itself (gate.js) was still 100% fixed hex — the one
-    // surface the earlier v181 welcome/tutorial/palette theming pass missed, since it renders
-    // before studio.js applies the saved data-theme/data-app-theme attributes. gate.js now
-    // reads the same studio-theme/studio-app-theme localStorage keys itself before first paint.
+    // Z10 follow-up: the sign-in screen (gate.js) reads the saved theme before first paint —
+    // it renders before studio.js applies the saved data-theme/data-app-theme attributes, so
+    // it reads the same studio-theme/studio-app-theme localStorage keys itself.
     const gp2 = await browser.newPage({ viewport: { width: 1200, height: 900 } });
     gp2.on("pageerror", (e) => errors.push("gate theme page: " + e.message));
-    await gp2.route("**/app/gate-config.js", (route) => route.fulfill({ contentType: "text/javascript", body: 'window.STUDIO_GATE_SHA256=["' + TEST_HASH + '"];' }));
     await gp2.addInitScript(() => { try { localStorage.setItem("studio-theme", "dark"); localStorage.setItem("studio-app-theme", "polecat"); } catch (e) {} });
     await gp2.goto(`http://localhost:${PORT}/app/`, { waitUntil: "domcontentloaded" });
     await gp2.waitForTimeout(400);
@@ -6124,9 +6122,50 @@ function serve() {
       attr: document.documentElement.getAttribute("data-app-theme") + "/" + document.documentElement.getAttribute("data-theme"),
       card: getComputedStyle(document.querySelector("#studio-gate .g-card")).backgroundColor
     }));
-    ok("Z10: passcode gate reads the saved theme before first paint (Polecat dark card, not white Classic-Blue)",
+    ok("Z10: the sign-in reads the saved theme before first paint (Polecat dark card, not white Classic-Blue)",
       gateThemed.attr === "polecat/dark" && gateThemed.card === "rgb(33, 27, 38)", JSON.stringify(gateThemed));
     await gp2.close();
+
+    // ---- M3.1: the auth store (PolecatAuth) + users table + Account card ----
+    console.log("\n• M3.1: sign-in store, users table, Account card");
+    const authStore = await page.evaluate(async function () {
+      var A = window.PolecatAuth;
+      await A.seedIfEmpty();
+      return {
+        seeded: (A.list() || []).map(function (u) { return u.u + ":" + u.role + (u.demo ? ":demo" : ""); }).sort(),
+        okDemo: await A.verify("demo", "demo"),
+        badDemo: await A.verify("demo", "nope"),
+        okAdmin: await A.verify("admin", "admin"),
+        schemaV: Studio.WS.SCHEMA_VERSION,
+        hasUsersTable: Studio.WS.TABLE_NAMES.indexOf("users") >= 0,
+        usersDelta: /CREATE TABLE IF NOT EXISTS "users"/.test(Studio.WS.provisionDeltaSQL())
+      };
+    });
+    ok("M3.1: the local user store seeds an admin + a public demo account, each with a SHA-256 hash; verify() accepts the right password and rejects the wrong one",
+      authStore.seeded.indexOf("admin:admin") >= 0 && authStore.seeded.indexOf("demo:viewer:demo") >= 0 &&
+      authStore.okDemo === true && authStore.badDemo === false && authStore.okAdmin === true, JSON.stringify(authStore));
+    ok("M3.1: the workspace schema is v4 with an additive users table (provisionDeltaSQL carries the paste-me upgrade) — the internal user store rides the backend snapshot",
+      authStore.schemaV === 4 && authStore.hasUsersTable && authStore.usersDelta, JSON.stringify(authStore));
+    // the users are mirrored into the workspace `users` table by initAuthBoot. (On the
+    // test's gate-ok bypass path, gate.js reveals early and never seeds — so seed above,
+    // then run the mirror hook explicitly, exactly as afterLogin() does on a real sign-in.)
+    const authMirror = await page.evaluate(function () {
+      if (window.__studioAuthBoot) window.__studioAuthBoot();
+      var rows = Studio.Workspace.all("users");
+      return { count: rows.length, hasAdmin: rows.some(function (r) { return r.u === "admin" && r.hash; }), hasDemo: rows.some(function (r) { return r.u === "demo" && r.hash; }) };
+    });
+    ok("M3.1: the local users are mirrored into the workspace users table on boot (so they sync with the workspace), password hash included",
+      authMirror.count >= 2 && authMirror.hasAdmin && authMirror.hasDemo, JSON.stringify(authMirror));
+    // the Settings Account card shows who you are, a Sign out, and the demo-content toggle
+    await page.evaluate(function () { window.__studioShellSetSection("settings"); });
+    await page.waitForTimeout(250);
+    const acctCard = await page.evaluate(function () {
+      return { card: !!document.querySelector("#accountCard"), signOut: !!document.querySelector("#setSignOutBtn"), demoToggle: !!document.querySelector("#setDemoContent") };
+    });
+    ok("M3.1: Settings has an Account card with the signed-in identity, a Sign out button, and a demo-content toggle",
+      acctCard.card && acctCard.signOut && acctCard.demoToggle, JSON.stringify(acctCard));
+    await page.evaluate(function () { window.__studioShellSetSection("studio"); });
+    await page.waitForTimeout(150);
 
     // ---- CDA data source CRUD (My Data Sources library section) ----
     console.log("\n• CDA data-source CRUD");
@@ -17832,7 +17871,7 @@ function serve() {
       var switches = Array.prototype.map.call(sec.querySelectorAll("input[data-set]"), function (cb) { return cb.getAttribute("data-set"); });
       return {
         visible: sec.hidden === false,
-        hasCards: sec.querySelectorAll(".settings-card").length === 8, // Workspace backend + 3 toggle groups + Branding (Z12) + Demo packs (Viridis V7) + Dashboard defaults + Data
+        hasCards: sec.querySelectorAll(".settings-card").length === 9, // Account (M3) + Workspace backend + 3 toggle groups + Branding (Z12) + Demo packs (Viridis V7) + Dashboard defaults + Data
         switchIds: switches.join(","),
         darkChecked: sec.querySelector('input[data-set="dark"]').checked,
         simpleChecked: sec.querySelector('input[data-set="simple"]').checked,
@@ -18080,7 +18119,7 @@ function serve() {
       };
     });
     ok("Z5: Settings page has a Data card with Export/Import buttons",
-      z5Data.cardCount === 8 && z5Data.hasExportBtn && z5Data.hasImportBtn, JSON.stringify(z5Data));
+      z5Data.cardCount === 9 && z5Data.hasExportBtn && z5Data.hasImportBtn, JSON.stringify(z5Data));
 
     const [z5Dl] = await Promise.all([page.waitForEvent("download"), page.click("#setExportBtn")]);
     const z5DlName = z5Dl.suggestedFilename();

@@ -348,6 +348,7 @@
       try { setTheme(localStorage.getItem("studio-theme") || "light"); } catch (e) { setTheme("light"); }
       try { setAppTheme(localStorage.getItem("studio-app-theme") || "polecat"); } catch (e) {}
       try { if (localStorage.getItem("studio-simple-mode") === "1") { S.simpleMode = true; document.body.classList.add("simple-mode"); } } catch (e) {}
+      initAuthBoot();
       // Viridis V5/V6: in Simple mode, with no section chosen yet, boot to the
       // FEATURED CONTENT when there is any (Home renders it live — instant
       // analytics before any machinery), otherwise to the dataset-first
@@ -7856,6 +7857,51 @@
   window.__studioApplySettingsData = applySettingsData; // test hook (bypasses file-picker + confirm)
   window.__studioImportSettingsKeys = SETTINGS_DATA_KEYS; // test hook
 
+  // M3 (auth): run once at boot after the workspace is ready. (1) Mirror the
+  // local user store into the workspace `users` table so the internal user list
+  // rides the backend snapshot (the data blob carries the pw hash — UX-level, not
+  // RLS). (2) If you signed in with the DEMO account, seed the sample workspace
+  // once so a demo login lands on something alive.
+  function initAuthBoot() {
+    var Auth = window.PolecatAuth; if (!Auth || !Studio.Workspace) return;
+    try {
+      var W = Studio.Workspace;
+      (Auth.exportForStore() || []).forEach(function (u) {
+        var existing = W.all("users").filter(function (r) { return r.u === u.u; })[0];
+        var row = existing || { id: "user_" + u.u };
+        row.u = u.u; row.name = u.name; row.role = u.role; row.demo = u.demo; row.hash = u.hash;
+        W.put("users", row, { silent: true });
+      });
+    } catch (e) {}
+    try {
+      if (Auth.isDemo() && Studio.DEMO_PACKS && Studio.DEMO_PACKS.conservation &&
+          !Studio.demoPackInstalled("conservation")) {
+        Studio.installDemoPack("conservation");
+      }
+    } catch (e) {}
+  }
+  // The app boots (behind the sign-in overlay) BEFORE you actually sign in, so
+  // gate.js calls this after a successful login to run the identity-dependent
+  // boot steps (user mirror + demo auto-install) against the now-known account.
+  window.__studioAuthBoot = initAuthBoot;
+
+  // M3 (auth): who you're signed in as, a sign-out, and the demo-content toggle.
+  // Demo content = the Conservation Insight sample workspace (demopacks.js) — on
+  // for the demo account, removable any time, and cleared on a real-backend login.
+  function accountCardHtml() {
+    var Auth = window.PolecatAuth; if (!Auth) return "";
+    var u = Auth.current() || { name: "Local", role: "admin", demo: false };
+    var demoOn = !!(Studio.demoPackInstalled && Studio.demoPackInstalled("conservation"));
+    return '<div class="settings-card" id="accountCard"><h2>Account</h2>' +
+      '<div class="set-row"><span class="set-row-ic" data-ic="key"></span>' +
+        '<div class="set-row-txt"><b>' + esc(u.name || u.u || "Signed in") + '</b><small>Signed in' +
+          (u.role ? " · " + esc(u.role) : "") + (u.demo ? " · demo account" : "") + '</small></div>' +
+        '<button type="button" class="btn" id="setSignOutBtn">Sign out</button></div>' +
+      '<div class="set-row"><span class="set-row-ic" data-ic="globe"></span>' +
+        '<div class="set-row-txt"><b>Demo content</b><small>A ready-made sample workspace — connections, datasets, a rollup job, analyses and a featured dashboard. On by default for the demo account; turn it off any time.</small></div>' +
+        '<label class="set-sw"><input type="checkbox" id="setDemoContent"' + (demoOn ? " checked" : "") + '/><span class="set-sw-track"></span></label></div>' +
+    '</div>';
+  }
   function renderSettings() {
     var sec = $("#secSettings"); if (!sec) return;
     var groups = [];
@@ -7863,6 +7909,7 @@
     var APP_THEME_LABELS = { classic: "Classic Blue", polecat: "Polecat", modern: "Fleet Modern" };
     var html = '<div class="settings-wrap"><div class="settings-hero"><h1>Settings</h1>' +
       '<p>App-wide preferences, saved locally on this device.</p></div>' +
+      accountCardHtml() +
       '<div class="settings-card" id="wsBackendCard"></div>' +
       groups.map(function (g) {
         var themeRow = g === "Appearance" ?
@@ -7996,6 +8043,18 @@
       var t = SETTINGS_TOGGLES.filter(function (x) { return x.id === cb.getAttribute("data-set"); })[0];
       if (t) cb.addEventListener("change", t.set);
     });
+    // M3: Account card — sign out + demo-content toggle.
+    var signOutBtn = $("#setSignOutBtn", sec);
+    if (signOutBtn) signOutBtn.onclick = function () {
+      if (window.PolecatAuth) window.PolecatAuth.logout();
+      location.reload();
+    };
+    var demoContentCb = $("#setDemoContent", sec);
+    if (demoContentCb) demoContentCb.onchange = function () {
+      if (demoContentCb.checked) { Studio.installDemoPack("conservation"); toast("Demo content added to your workspace"); }
+      else { Studio.removeDemoPack("conservation"); toast("Demo content removed"); }
+      renderSettings();
+    };
     var appThemeSel = $("#appThemeSel", sec);
     if (appThemeSel) appThemeSel.onchange = function () { setAppTheme(appThemeSel.value); toast(APP_THEME_LABELS[appThemeSel.value] + " theme applied"); };
     var defSubInp = $("#setDefaultSubtitleInp", sec);

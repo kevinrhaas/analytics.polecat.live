@@ -62,11 +62,14 @@
   // Bump when the shape below changes in a way an older client couldn't read.
   // v2 (Viridis V5): + analyses table — saved Explore analyses (a dataset +
   // one chart mapping). v3 (Viridis V8): + jobs table — prep/rollup jobs that
-  // materialize their output as an ordinary workspace dataset. Both bumps are
+  // materialize their output as an ordinary workspace dataset. v4 (M3 auth): +
+  // users table — the internal user store the sign-in verifies against (mirrored
+  // from the local user store so it rides the backend snapshot; the `data` blob
+  // carries the SHA-256 password hash — UX-level gating, not RLS). Every bump is
   // ADDITIVE: an older workspace loads fine (the local store fills missing
   // tables; SQL adapters ensure-create on save; Supabase needs the provision
   // delta run once — see provisionDeltaSQL below).
-  WS.SCHEMA_VERSION = 3;
+  WS.SCHEMA_VERSION = 4;
 
   // The app that owns a workspace. probe() uses it to tell "my repo" from
   // "another Polecat app's repo" (manager, relay, …) from "a foreign database".
@@ -86,7 +89,8 @@
     { name: "datasets",    columns: ["name", "connectionId", "kind", "updatedAt"] },
     { name: "dashboards",  columns: ["name", "title", "updatedAt"] },
     { name: "analyses",    columns: ["name", "datasetId", "chartType", "updatedAt"] }, // v2 — Explore
-    { name: "jobs",        columns: ["name", "sourceDatasetId", "updatedAt"] } // v3 — prep/rollup jobs
+    { name: "jobs",        columns: ["name", "sourceDatasetId", "updatedAt"] }, // v3 — prep/rollup jobs
+    { name: "users",       columns: ["name", "role", "updatedAt"] } // v4 — auth (M3); data blob carries the pw hash
   ];
   WS.TABLE_NAMES = WS.WORKSPACE_TABLES.map(function (t) { return t.name; });
 
@@ -122,8 +126,8 @@
   // the ensure-DDL). Cumulative and idempotent (CREATE TABLE IF NOT EXISTS),
   // so it's safe to run against a v1 OR v2 workspace, and safe to run twice.
   WS.provisionDeltaSQL = function () {
-    return "-- Analytics workspace delta — adds the analyses (v2) and jobs (v3) tables. Safe to run twice.\n" +
-      WS.tableDDL("analyses") + ";\n" + WS.tableDDL("jobs") + ";";
+    return "-- Analytics workspace delta — adds the analyses (v2), jobs (v3) and users (v4) tables. Safe to run twice.\n" +
+      WS.tableDDL("analyses") + ";\n" + WS.tableDDL("jobs") + ";\n" + WS.tableDDL("users") + ";";
   };
 
   // The rows written into polecat_meta at provision time — workspace identity
