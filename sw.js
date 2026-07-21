@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v59"; /* v59: FIX — the Explore rollup was applied
+var CACHE_NAME = "studio-shell-v60"; /* v60: fleet-standard topbar, step 1 — the
+   top-left now shows the CURRENT SECTION name (Home/Explore/Dashboards/…), updated
+   by shell.js setActive(); the app identity stays in the rail brand. Replaces the
+   redundant topbar wordmark. app/index.html, app/shell.js, app/studio.css changed.
+   v59: FIX — the Explore rollup was applied
    to scatter/heatmap (multi-measure) charts and collapsed their data to one dot;
    the control is now limited to single-measure category charts (bar/line/donut/
    treemap/table). app/studio.js changed.

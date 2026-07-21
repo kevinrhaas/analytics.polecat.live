@@ -486,6 +486,9 @@ textarea:focus-visible,[tabindex]:focus-visible,.row-item:focus-visible{
 .brand{display:flex;align-items:center;gap:11px}
 .brand-title{font-weight:800;font-size:15.5px;letter-spacing:.2px;line-height:1.1}
 .brand-sub{font-size:11px;color:color-mix(in srgb,var(--topbar-ink,#fff) 62%,transparent);font-weight:500}
+/* Fleet-standard topbar: the current section name at the top-left (matches
+   JobTracker/AutoSelector; the app identity lives in the rail brand). */
+.tb-section{font-weight:800;font-size:16px;letter-spacing:.2px;line-height:1.1;color:var(--topbar-ink,#fff);white-space:nowrap;flex:0 0 auto}
 .dash-id{display:flex;flex-direction:column;gap:2px;min-width:200px}
 /* Z6 naming model: the topbar no longer edits the title inline — it's a button that jumps
    to the Dashboard inspector's Title field (the single source of truth for renaming). */
@@ -964,6 +967,8 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
   .dash-meta{display:none}
   .top-actions{gap:5px;flex-shrink:1;min-width:0;overflow:hidden}
   .brand{flex-shrink:0;min-width:0}
+  /* let the section title shrink + ellipsis on narrow phones instead of overflowing */
+  .tb-section{min-width:0;flex:0 1 auto;overflow:hidden;text-overflow:ellipsis;font-size:15px}
   .btn-secondary{display:none}
   #workspace{overflow-x:auto}
   /* Z9 fix: #topbar/.top-actions need overflow:hidden here to stop the button row

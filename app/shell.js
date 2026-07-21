@@ -9,6 +9,12 @@
   var LS_SECTION = "studio-shell-section";
   var LS_EXPANDED = "studio-shell-expanded";
   var SECTIONS = ["home", "explore", "dashboards", "datasets", "jobs", "connections", "studio", "settings"];
+  // Fleet-standard topbar shows the current section name (top-left). "studio" is the
+  // dashboard builder — its human label.
+  var SECTION_LABELS = {
+    home: "Home", explore: "Explore", dashboards: "Dashboards", datasets: "Datasets",
+    jobs: "Jobs", connections: "Connections", studio: "Studio", settings: "Settings"
+  };
 
   var nav = document.getElementById("railNav");
   var appMain = document.getElementById("appMain");
@@ -40,6 +46,8 @@
       var el = sectionEl(s);
       if (el) el.hidden = s !== sec;
     });
+    var tbSec = document.getElementById("topbarSection");
+    if (tbSec) tbSec.textContent = SECTION_LABELS[sec] || sec;
     items.forEach(function (btn) {
       var on = btn.getAttribute("data-sec") === sec;
       btn.classList.toggle("active", on);

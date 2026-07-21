@@ -125,10 +125,10 @@
 
   <div id="appMain">
   <header id="topbar">
-    <div class="brand">
-      <div class="brand-txt"><div class="brand-title">Analytics</div>
-        <div class="brand-sub">build interactive dashboards from your data</div></div>
-    </div>
+    <!-- Fleet-standard topbar: the CURRENT SECTION name sits at the top-left (the app's
+         own identity lives in the left-rail brand, like JobTracker/AutoSelector). Updated
+         by app/shell.js setActive(). -->
+    <div class="tb-section" id="topbarSection" aria-live="polite">Studio</div>
     <!-- H-track: auto-save state indicator — flashes "Saved ✓" for 2s after each auto-save -->
     <span id="saveState" class="save-state" aria-live="polite" aria-atomic="true"></span>
     <div class="spacer"></div>

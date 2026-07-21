@@ -6,6 +6,14 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 411,
+    title: 'The top bar now shows the section you’re in — matching the rest of the fleet',
+    ts: '2026-07-21T18:29:04.000Z',
+    items: [
+      'The top-left of the app bar now shows the name of the section you’re on — Home, Explore, Dashboards, Datasets, Jobs, Connections, Studio, Settings — and updates as you navigate, the same way JobTracker and AutoSelector work. The app’s own name still lives on the left rail. This is the first step of bringing Analytics onto the shared fleet app-frame; more of the standard top-bar (a common set of actions on the right) follows.',
+    ],
+  },
+  {
     v: 410,
     title: 'Fix: scatter / bubble charts no longer break when a rollup is set',
     kind: 'fix',
