@@ -6170,6 +6170,24 @@
     W.put("connections", r);
     renderConnections();
   }
+  // M4.2 slice 2 (per-section rights + object privacy — connections): same
+  // `private`/`owner` shape + `isVisibleToMe` helper as dashboards (slice 1).
+  // A connection often carries credentials, so hiding it from other accounts'
+  // catalogs (and the connection-picker in the dataset editor) matters even
+  // more here than for dashboards.
+  function toggleConnPrivate(id) {
+    var W = Studio.Workspace, r = W.get("connections", id);
+    if (!r) return;
+    if (r.private) { delete r.private; }
+    else {
+      r.private = true;
+      if (!r.owner) { var uid = currentUserId(); if (uid) r.owner = uid; }
+    }
+    W.put("connections", r);
+    toast(r.private ? "Private — only you can see this" : "Public — visible to everyone");
+    renderConnections();
+  }
+  window.__studioToggleConnPrivate = toggleConnPrivate; // test hook
   function connStatusDot(c) {
     var t = c.lastTest;
     var cls = !t ? "cx-dot" : (t.ok ? "cx-dot ok" : "cx-dot bad");
@@ -6179,7 +6197,7 @@
   function renderConnections() {
     var results = $("#connResults"); if (!results) return;
     var q = (($("#connSearch") || {}).value || "").toLowerCase();
-    var list = Studio.Workspace.all("connections").sort(function (a, b) {
+    var list = Studio.Workspace.all("connections").filter(isVisibleToMe).sort(function (a, b) {
       if (!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1;
       if (a.pinned) return (b.pinnedAt || "").localeCompare(a.pinnedAt || "");
       return (b.updatedAt || 0) - (a.updatedAt || 0);
@@ -6228,6 +6246,7 @@
         '<span class="cx-name"><b>' + esc(c.name) + '</b><small>' + esc(src.label || c.adapter) + '</small></span>' +
         metaBadge +
         '<span class="cx-when" title="Last edited">' + esc(new Date(c.updatedAt || c.createdAt || Date.now()).toLocaleDateString()) + '</span>' +
+        '<button type="button" class="cx-private' + (c.private ? " private" : "") + '" data-conn-private="' + esc(c.id) + '" title="' + (c.private ? "Private — only you can see this" : "Make private") + '" aria-label="' + (c.private ? "Make " + esc(c.name) + " public" : "Make " + esc(c.name) + " private") + '" aria-pressed="' + (c.private ? "true" : "false") + '"></button>' +
         '<button type="button" class="cx-pin' + (c.pinned ? " on" : "") + '" data-conn-pin="' + esc(c.id) + '" title="' + (c.pinned ? "Unpin" : "Pin to top") + '" aria-label="' + (c.pinned ? "Unpin " : "Pin ") + esc(c.name) + '" aria-pressed="' + (c.pinned ? "true" : "false") + '"></button>' +
         '<span class="cx-actions">' +
           '<button type="button" class="btn" data-conn-test="' + esc(c.id) + '">Test</button>' +
@@ -6297,7 +6316,7 @@
       var icEl = row.querySelector(".cx-ic");
       if (icEl && src) icEl.appendChild(Studio.icon(src.icon || "db", 18));
       row.addEventListener("click", function (e) {
-        if (e.target.closest("[data-conn-pin],[data-conn-test],[data-conn-edit],[data-conn-del]")) return;
+        if (e.target.closest("[data-conn-pin],[data-conn-private],[data-conn-test],[data-conn-edit],[data-conn-del]")) return;
         openConnectionWizard(c);
       });
       row.addEventListener("keydown", function (e) {
@@ -6307,6 +6326,10 @@
     $$(".cx-pin", results).forEach(function (btn) {
       btn.appendChild(Studio.icon("star", 14));
       btn.onclick = function (e) { e.stopPropagation(); toggleConnPin(btn.getAttribute("data-conn-pin")); };
+    });
+    $$(".cx-private", results).forEach(function (btn) {
+      btn.appendChild(Studio.icon("lock", 14));
+      btn.onclick = function (e) { e.stopPropagation(); toggleConnPrivate(btn.getAttribute("data-conn-private")); };
     });
     $$("[data-conn-test]", results).forEach(function (btn) {
       btn.onclick = function () {
@@ -6466,6 +6489,7 @@
           var row = existing || { id: Studio.Workspace.uid("conn") };
           row.name = name; row.adapter = adapter.id; row.cfg = cfg();
           if (lastInlineTest) row.lastTest = lastInlineTest;
+          if (!existing) { var newUid = currentUserId(); if (newUid) row.owner = newUid; }
           Studio.Workspace.put("connections", row);
           toast(existing ? "Saved " + name : "Added " + name);
           document.querySelector(".modal-ov .x").click();
@@ -6807,7 +6831,7 @@
     });
   }
   function openDatasetEditor(existing) {
-    var conns = Studio.Workspace.all("connections");
+    var conns = Studio.Workspace.all("connections").filter(isVisibleToMe);
     modal(existing ? "Edit dataset" : "New dataset", function (b) {
       var d = existing ? JSON.parse(JSON.stringify(existing)) : { id: Studio.Workspace.uid("ds"), name: "", params: [], tags: [] };
       var form = el("div", "cx-wiz-form");

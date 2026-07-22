@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v70"; /* v70: M4.2 slice 1 — a private/public toggle
+var CACHE_NAME = "studio-shell-v71"; /* v71: M4.2 slice 2 — the same private/public
+   lock toggle now on connections rows too, hides another account's private
+   connections from the Connections catalog and the dataset editor's connection
+   picker. app/studio.js, app/studio.css changed.
+   v70: M4.2 slice 1 — a private/public toggle
    (lock icon) on dashboards rows, hides another account's private dashboards from
    Home/Dashboards/pickers. app/studio.js, app/studio.css, app/icons.js changed.
    v69: M4 admin — a rail area (admins only)
