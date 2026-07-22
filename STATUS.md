@@ -1312,6 +1312,16 @@
 >      conservation examples (#38/LF2). Show both plain filters and linked cross-filtering so the demos
 >      read as a full showcase. The app already supports both (filterDef/cascadeFilters + the linked
 >      channel) — the demos just don't use them. app/demopacks.js.
+> LF8. **BUG — panel-zoom "Exit zoom" can trap the user.** In the widget zoom overlay (openPanelZoom,
+>      studio.js ~8687), after interacting with the chart ("zoom out twice") the Exit pill + Esc stop
+>      working — reload is the only escape. Likely: focus lands inside the chart IFRAME so the PARENT
+>      keydown-Escape never fires. Make exit bulletproof — the ✕ click always closes, forward Esc from
+>      inside the iframe via postMessage, and (see LF9) let browser Back close it. Add a regression test.
+> LF9. **Browser Back/Forward = in-app navigation (SPA history).** Back must NOT leave the app — it
+>      should return to the last section/tab/item. Push history entries on section changes
+>      (shell.js setActive / __studioShellSetSection) and on opening overlays (panel-zoom, modals,
+>      dataset/job editors, Explore analysis), and handle `popstate` to navigate back instead of
+>      unloading. Closing an overlay via Back also fixes the LF8 zoom trap. app/shell.js, app/studio.js.
 
 ### 🔁 QUALITY TRACKS — interleave with the feature backlog (Kevin, 2026-07-21)
 > Kevin asked for a code-organization sweep AND a UI/UX best-practices sweep, folded INTO the loop
