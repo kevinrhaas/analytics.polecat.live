@@ -1562,6 +1562,19 @@
 >           Closes the loop with #29 (widgets as first-class objects) — Studio can both USE library widgets and
 >           CONTRIBUTE to it. app/studio.js (Inspector actions + panel toolbar), app/studio-render.js (on-panel
 >           button render + the byte-identical export path), app/exporters.js, tests per part.
+> LF26. **Save-as + overwrite protection in Studio — never clobber sample content (Kevin, live).** Add a "Save as…"
+>       button NEXT TO Save (btnSaveSpec, index.html; saveToCatalog studio.js ~9665) that saves the working spec as a
+>       NEW dashboard (fresh id, prompt/confirm a name) rather than overwriting. And make plain SAVE overwrite-safe:
+>       do NOT silently clobber — ESPECIALLY never overwrite SAMPLE/DEMO content. Sample dashboards carry
+>       `demoPackId` (app/demopacks.js; e.g. the Conservation pack sets demoPackId:"conservation"); saving edits to
+>       one must ROUTE TO SAVE-AS (a new user-owned copy), never write back over the pack row — so a Remove-pack /
+>       re-install always restores pristine samples and the user's edits live in their own dashboard. General rule:
+>       Save writes back only to a dashboard the current user OWNS and that isn't protected (not demoPackId); anything
+>       else (a sample, or — with LF23 — someone else's dashboard a viewer opened) becomes Save-as-a-copy (reuse the
+>       acctOwner ownership + the LF23 "save a copy" path). Confirm-before-overwrite for the owner's own existing
+>       dashboard is a nice touch but the HARD guardrail is: sample/demo content is read-only, edits fork. app/studio.js
+>       (saveToCatalog + a saveAsNew, the Save/Save-as buttons), app/index.html (button), test (saving over a
+>       demoPackId dashboard forks instead of overwriting; Save-as mints a new id).
 > LF19. **Left + right panel IA/redesign — make the builder calm, clear & elegant (Kevin, live).** First
 >       pass shipped (v433: compact dataset cards, kind icons, hover actions, hairline sections, compound
 >       builder removed). The DEEPER work Kevin asked for: the whole left Data panel still opens "scary/
