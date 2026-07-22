@@ -26,3 +26,17 @@ INSERT INTO "polecat_meta"(key, value) VALUES ('app', 'analytics')
   ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
 INSERT INTO "polecat_meta"(key, value) VALUES ('schema_version', '4')
   ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
+
+-- Grants: tables created over a DIRECT psql connection do NOT inherit the
+-- anon/authenticated privileges that Supabase's SQL-editor path auto-applies,
+-- so the browser's publishable (anon) key would see the tables but none of
+-- their rows ("app: unknown"). Grant the API roles access explicitly. NOTE:
+-- this is the no-RLS posture (the publishable key can read AND write these
+-- tables) — fine for demo data; real per-user RLS is the M7 slice.
+GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO anon, authenticated, service_role;
+
+-- Tell PostgREST to reload its schema cache so the new tables + grants are
+-- picked up immediately (otherwise the REST API can lag behind the DDL).
+NOTIFY pgrst, 'reload schema';

@@ -56,3 +56,27 @@ jobs:
           echo "== polecat_meta =="
           psql -v ON_ERROR_STOP=1 -c "SELECT key, value FROM polecat_meta ORDER BY key;"
           echo "== Provisioned OK =="
+
+      - name: Diagnostic — what the browser's anon key sees over PostgREST
+        env:
+          SUPABASE_URL: https://lnngiprrrcxtsawamqei.supabase.co
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          set -uo pipefail
+          if [ -z "${SUPABASE_ANON_KEY:-}" ]; then
+            echo "SUPABASE_ANON_KEY not set — skipping REST diagnostic"; exit 0
+          fi
+          echo "== GET /rest/v1/polecat_meta (as the publishable/anon key does) =="
+          code=$(curl -s -o /tmp/meta.json -w '%{http_code}' \
+            "$SUPABASE_URL/rest/v1/polecat_meta?select=key,value" \
+            -H "apikey: $SUPABASE_ANON_KEY" -H "Authorization: Bearer $SUPABASE_ANON_KEY" || true)
+          echo "HTTP $code"; echo "body: $(cat /tmp/meta.json)"
+          echo "== GET /rest/v1/dashboards?select=id&limit=1 =="
+          code2=$(curl -s -o /tmp/d.json -w '%{http_code}' \
+            "$SUPABASE_URL/rest/v1/dashboards?select=id&limit=1" \
+            -H "apikey: $SUPABASE_ANON_KEY" -H "Authorization: Bearer $SUPABASE_ANON_KEY" || true)
+          echo "HTTP $code2"; echo "body: $(cat /tmp/d.json)"
+          case "$(cat /tmp/meta.json)" in
+            *'"app"'*'analytics'*) echo "== anon key CAN read the app marker — probe should classify as ours ==" ;;
+            *) echo "::warning::anon key did NOT get app=analytics back — grants/RLS/cache still blocking the REST read" ;;
+          esac
