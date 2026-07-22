@@ -1350,6 +1350,10 @@
 >       OUTPUT rows, and a small visual DIAGRAM of the operation (rollup/join/stack) with the picked
 >       columns shown, so you can see what you're building. app/studio.js (openJobEditor),
 >       app/sources/jobs-engine.js, app/studio.css.
+> LF14. ★ **Job editor contrast (quick, part of LF13 but do first).** The "✕ Remove step" and the
+>       per-metric "✕" controls in the job step editor are near-invisible (faint-on-light, same class
+>       of issue as the v58 secondary-button fix). Bump them to a readable dark-on-light / hover-red
+>       treatment. app/studio.css (+ app/studio.js if the markup needs a class).
 
 ### 🔁 QUALITY TRACKS — interleave with the feature backlog (Kevin, 2026-07-21)
 > Kevin asked for a code-organization sweep AND a UI/UX best-practices sweep, folded INTO the loop
