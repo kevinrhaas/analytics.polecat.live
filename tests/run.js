@@ -16105,6 +16105,31 @@ function serve() {
     });
     ok("F27: PDC.candlestick renders SVG with candle body rects in preview iframe", f27Render.ok, JSON.stringify(f27Render));
 
+    // F27-4 / F24-5 (bugfix): candlestick's upColor/downColor and divergingBar's negColor default
+    // to REAL theme tokens (--good/--bad), not the retired --green/--pdc-bad. Neither of those old
+    // tokens is defined anywhere in vendor/pdc-ui.css, and PDC.cssvar() falls back to a flat grey
+    // (#888) for any undefined custom property — so by default, bull and bear candles (and the
+    // diverging-bar negative segment) silently rendered the SAME grey instead of green/red.
+    var colorDefaultsFix = await page.evaluate(function () {
+      try {
+        var byKey = function (arr, k) { return arr.filter(function (o) { return o.key === k; })[0]; };
+        var cs = window.Studio.CHARTS.candlestick.opts;
+        var db = window.Studio.CHARTS.divergingBar.opts;
+        var up = byKey(cs, "upColor"), down = byKey(cs, "downColor"), neg = byKey(db, "negColor");
+        var PDC = document.querySelector("#preview").contentWindow.PDC;
+        var undefinedTok = PDC.cssvar("--this-token-does-not-exist-anywhere-zz");
+        var upResolved = PDC.cssvar(up.def), downResolved = PDC.cssvar(down.def), negResolved = PDC.cssvar(neg.def);
+        return {
+          ok: up.def === "--good" && down.def === "--bad" && neg.def === "--bad" &&
+              upResolved !== undefinedTok && downResolved !== undefinedTok && negResolved !== undefinedTok &&
+              upResolved !== downResolved,
+          upDef: up.def, downDef: down.def, negDef: neg.def,
+          upResolved: upResolved, downResolved: downResolved, undefinedTok: undefinedTok
+        };
+      } catch (e) { return { ok: false, err: e.message }; }
+    });
+    ok("F27/F24: candlestick + divergingBar default color tokens (--good/--bad) resolve to real, distinct colors — not the undefined-var grey fallback both --green/--pdc-bad silently shared", colorDefaultsFix.ok, JSON.stringify(colorDefaultsFix));
+
     // ---- H-track v117: Demo mode ----
     console.log("\n• H-track v117: Demo mode");
 

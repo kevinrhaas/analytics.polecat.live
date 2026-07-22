@@ -1562,7 +1562,7 @@
       }()),
       opts: [
         { key: "posColor", label: "Positive color",  type: "color", def: "--pentaho" },
-        { key: "negColor", label: "Negative color",  type: "color", def: "--pdc-bad" },
+        { key: "negColor", label: "Negative color",  type: "color", def: "--bad" },
         { key: "fmt",      label: "Value format",    type: "fmt",   def: "abbr" },
         { key: "height",   label: "Height (px)",     type: "int",   def: 300 }
       ],
@@ -1610,8 +1610,8 @@
           items.join("") + '</svg>';
       }()),
       opts: [
-        { key: "upColor",   label: "Up (close≥open) color",  type: "color", def: "--green" },
-        { key: "downColor", label: "Down (close<open) color", type: "color", def: "--pdc-bad" },
+        { key: "upColor",   label: "Up (close≥open) color",  type: "color", def: "--good" },
+        { key: "downColor", label: "Down (close<open) color", type: "color", def: "--bad" },
         { key: "fmt",       label: "Value format",            type: "fmt",   def: "abbr" },
         { key: "height",    label: "Height (px)",             type: "int",   def: 320 }
       ],

@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 450,
+    title: 'FIX: candlestick + diverging-bar chart default colors',
+    kind: 'fix',
+    ts: '2026-07-22T23:15:10.000Z',
+    items: [
+      'Candlestick\'s default "Up"/"Down" colors and the diverging-bar\'s default "Negative" color pointed at two theme tokens (--green, --pdc-bad) that were never actually defined anywhere — so by default a candlestick\'s bullish and bearish candles rendered as the SAME flat grey instead of green/red, and a diverging bar\'s negative segment rendered grey instead of red.',
+      'Those defaults now point at the real --good/--bad theme tokens, so new candlestick and diverging-bar charts get correct colors out of the box; anyone who explicitly picked a color from the dropdown was unaffected.',
+    ],
+  },
+  {
     v: 449,
     title: 'FIX: Parallel Coords no longer offers a series color picker that did nothing',
     kind: 'fix',

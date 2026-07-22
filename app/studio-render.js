@@ -973,7 +973,7 @@
           PDC.divergingBar(body, {
             rows:     dRows,
             posColor: o.posColor || "--pentaho",
-            negColor: o.negColor || "--pdc-bad",
+            negColor: o.negColor || "--bad",
             fmt:      f,
             height:   o.height || 300
           });
@@ -1003,8 +1003,8 @@
           }).filter(function (d) { return d.label; });
           PDC.candlestick(body, {
             rows:      csRows,
-            upColor:   o.upColor   || "--green",
-            downColor: o.downColor || "--pdc-bad",
+            upColor:   o.upColor   || "--good",
+            downColor: o.downColor || "--bad",
             fmt:       f,
             height:    o.height || 320
           });
