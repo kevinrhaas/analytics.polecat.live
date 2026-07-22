@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 430,
+    title: 'Fix: signing in as an admin now opens the Admin area',
+    kind: 'fix',
+    ts: '2026-07-22T14:31:48.000Z',
+    items: [
+      'After signing in as an administrator, the Admin section could stay stuck on its “this area is for administrators only” message even though you were an admin. The page was drawn once at startup — before you’d signed in — and wasn’t redrawn afterward. It now refreshes the Admin area (and the Settings account card) as soon as you sign in.',
+    ],
+  },
+  {
     v: 429,
     title: 'Connections can now be tagged, same as Datasets',
     kind: 'feature',

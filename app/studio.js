@@ -8103,6 +8103,15 @@
         Studio.installDemoPack("conservation");
       }
     } catch (e) {}
+    // Re-render the identity-dependent sections now that an account is known.
+    // The app boots BEHIND the sign-in overlay (before any identity exists), so
+    // the Admin section rendered once as not-signed-in and kept its stale
+    // "administrators only" state even after an admin logged in — this repaints
+    // it (and the Settings account card) against the now-authenticated user, and
+    // re-applies rail role-gating so the Admin item shows/hides correctly.
+    try { renderSettings(); } catch (e) {}
+    try { renderAdmin(); } catch (e) {}
+    try { if (window.__studioShellApplyRoleGating) window.__studioShellApplyRoleGating(); } catch (e) {}
   }
   // The app boots (behind the sign-in overlay) BEFORE you actually sign in, so
   // gate.js calls this after a successful login to run the identity-dependent

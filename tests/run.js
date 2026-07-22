@@ -6498,6 +6498,31 @@ function serve() {
     });
     await page.waitForTimeout(150);
 
+    // Regression: the Admin section renders once at boot (behind the sign-in
+    // overlay, before an identity exists). After a viewer→admin login it MUST be
+    // re-rendered — the post-login auth-boot hook does this now; otherwise an
+    // admin who just signed in kept seeing the stale "administrators only" screen
+    // even though the account card + rail item said admin (Kevin, 2026-07-22).
+    const adminRerender = await page.evaluate(function () {
+      var sec = document.getElementById("secAdmin");
+      window.PolecatAuth.login("demo");           // viewer
+      window.__studioRenderAdmin();
+      var gatedAsViewer = /administrators only/i.test(sec.textContent);
+      window.PolecatAuth.login("admin");          // admin
+      window.__studioAuthBoot();                  // ONLY the post-login hook — no explicit renderAdmin
+      return { gatedAsViewer: gatedAsViewer,
+        stillGated: /administrators only/i.test(sec.textContent),
+        hasUserList: !!sec.querySelector(".cx-row") };
+    });
+    ok("M4: the post-login auth-boot hook re-renders the Admin section — an admin who just signed in sees the user list, not the stale 'administrators only' screen",
+      adminRerender.gatedAsViewer && !adminRerender.stillGated && adminRerender.hasUserList, JSON.stringify(adminRerender));
+    await page.evaluate(function () {
+      window.PolecatAuth.logout();
+      sessionStorage.setItem("studio-gate-ok", "1");
+      window.__studioShellApplyRoleGating();
+      window.__studioShellSetSection("studio");
+    });
+
     // ---- M4.2 slice 1: object privacy — dashboards ----
     console.log("\n• M4.2: object privacy — dashboards (slice 1)");
     const privacySetup = await page.evaluate(function () {
