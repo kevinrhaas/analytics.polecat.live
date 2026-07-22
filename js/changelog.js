@@ -6,15 +6,6 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
-    v: 0,
-    title: 'Two new Conservation Insight showcase dashboards',
-    kind: 'feature',
-    ts: '',
-    items: [
-      'Installing the Conservation Insight demo pack now also unlocks two new showcase dashboards in the Examples ▾ gallery: a Practice Adoption Scorecard (adoption gauge, acreage mix, provider comparison, a practice×provider agreement heatmap, and adoption vs. target) and a Crop & Practice Flow view (a crop-to-practice acreage Sankey, an adoption trend, a crop-mix waffle, and a Pareto of enrolled acreage). Both stay hidden from the gallery until the pack is installed, so they don’t clutter the Examples menu for everyone else — same pattern the pack already uses for its Home content.',
-    ],
-  },
-  {
     v: 440,
     title: 'Fix: widget zoom "Exit zoom" could get stuck open',
     kind: 'fix',

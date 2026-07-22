@@ -586,14 +586,6 @@
     buildLibrary(); renderHome(); buildExamplesMenu(); buildNewMenu(); renderSettings(); renderExplore();
   }
   window.__studioShowSamples = { get: showSamples, set: setShowSamples }; // test hook
-  // LF2: an example may declare demoPackId (data/examples/index.json) to stay hidden until
-  // that demo pack is installed — so pack-specific showcases (Conservation Insight) don't
-  // clutter the gallery/Home for everyone, only for workspaces that installed the pack.
-  function visibleExamples() {
-    return (S.examples || []).filter(function (e) {
-      return !e.demoPackId || (Studio.demoPackInstalled && Studio.demoPackInstalled(e.demoPackId));
-    });
-  }
   var _samplesOpen = false;
   try { _samplesOpen = localStorage.getItem("studio-lib-samples-open") === "1"; } catch (e) {}
   function buildLibrary() {
@@ -705,7 +697,7 @@
       Studio.installDemoPack(id);
       toast("Demo pack installed — see Home, Explore, and Datasets");
     }
-    buildLibrary(); renderSettings(); renderHome(); buildExamplesMenu();
+    buildLibrary(); renderSettings();
   }
   window.__studioToggleDemoPack = toggleDemoPack; // test hook
 
@@ -5821,10 +5813,9 @@
       // Home section (they used to hide inside the Studio Examples menu). Each card
       // is the real layout thumbnail; click loads it into the builder.
       (function () {
-        var vis = visibleExamples();
-        if (!showSamples() || !vis.length) return "";
+        if (!showSamples() || !(S.examples || []).length) return "";
         return '<h2 class="home-sub">Examples <small class="home-sub-hint">sample dashboards \u00b7 click to open in the builder</small></h2>' +
-          '<div class="home-examples">' + vis.slice(0, 8).map(function (e) {
+          '<div class="home-examples">' + S.examples.slice(0, 8).map(function (e) {
             var types = (e.types || []).slice(0, 3).map(function (t) { return '<span class="ex-chip">' + esc(t) + '</span>'; }).join("");
             return '<button type="button" class="home-ex-card" data-home-example="' + esc(e.file) + '">' +
               '<div class="home-ex-thumb" aria-hidden="true">' + exLayoutSvg(e) + '</div>' +
@@ -5832,7 +5823,7 @@
               (types ? '<div class="home-ex-types">' + types + '</div>' : '') +
               '</button>';
           }).join("") + '</div>' +
-          (vis.length > 8 ? '<div class="home-feat-more">+ ' + (vis.length - 8) + ' more \u2014 New \u25b8 Examples</div>' : '');
+          (S.examples.length > 8 ? '<div class="home-feat-more">+ ' + (S.examples.length - 8) + ' more \u2014 New \u25b8 Examples</div>' : '');
       })() +
       (pinnedList.length ? '<h2 class="home-sub">Pinned</h2><div class="home-recents">' +
         pinnedList.map(function (r) { return recentCardHtml(r, true); }).join("") + '</div>' : "") +
@@ -9323,14 +9314,13 @@
         '</button>';
     }
     em.innerHTML = (showSamples()
-        ? '<div class="grp">Examples <span class="ex-demo-note" title="Sample dashboards running on the built-in demo database — they show the app\'s full feature breadth.">demo db</span></div><div class="ex-cards">' + visibleExamples().map(exCard).join("") + '</div>'
+        ? '<div class="grp">Examples <span class="ex-demo-note" title="Sample dashboards running on the built-in demo database — they show the app\'s full feature breadth.">demo db</span></div><div class="ex-cards">' + S.examples.map(exCard).join("") + '</div>'
         : '<div class="grp">Examples</div><div class="ex-hidden-note">Sample dashboards are hidden — turn “Sample content” back on in Settings to browse them.</div>') +
       '<button type="button" class="btn ex-url-btn" id="btnImportUrl">＋ Import from URL…</button>';
     $$("button.ex-card", em).forEach(function (b) { b.onclick = function () { loadExample(b.getAttribute("data-f")); closeMenus(); }; });
     var importUrlBtn = $("#btnImportUrl", em);
     if (importUrlBtn) importUrlBtn.onclick = function () { closeMenus(); openImportUrlModal(); };
   }
-  window.__studioBuildExamplesMenu = buildExamplesMenu; // test hook — rebuild after a raw (non-UI) demo-pack install/remove
 
   function wireTopbar() {
     // UX sprint 2026-07-14: the dashbar title renames IN PLACE — click swaps it for an

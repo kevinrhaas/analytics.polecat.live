@@ -106,25 +106,5 @@
     "gridCols": 3,
     "types": ["bars", "donut", "treemap", "line"],
     "layout": [["bars", 1], ["donut", 1], ["bars", 1], ["treemap", 2], ["bars", 1], ["line", "full"]]
-  },
-  {
-    "file": "conservation-scorecard.studio.json",
-    "title": "Conservation Practice Adoption Scorecard",
-    "demoPackId": "conservation",
-    "panels": 5,
-    "kpis": 4,
-    "gridCols": 3,
-    "types": ["gauge", "donut", "bars", "heatmap", "bullet"],
-    "layout": [["gauge", 1], ["donut", 1], ["bars", 1], ["heatmap", 2], ["bullet", 1]]
-  },
-  {
-    "file": "conservation-flow.studio.json",
-    "title": "Conservation Insight — Crop & Practice Flow",
-    "demoPackId": "conservation",
-    "panels": 4,
-    "kpis": 4,
-    "gridCols": 3,
-    "types": ["sankey", "line", "waffle", "pareto"],
-    "layout": [["sankey", "full"], ["line", 2], ["waffle", 1], ["pareto", 2]]
   }
 ]

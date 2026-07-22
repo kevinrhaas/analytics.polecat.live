@@ -116,25 +116,6 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
-- **Conservation Insight showcase examples + demo-pack-gated examples (v441, 2026-07-22, steward,
-  LF2 parts a/b):** two new example dashboards — **Conservation Practice Adoption Scorecard**
-  (gauge/donut/bars/heatmap/bullet) and **Conservation Insight — Crop & Practice Flow**
-  (sankey/line/waffle/pareto) — join the Examples ▾ gallery, both wearing the `conservation`
-  dashboard theme and built on the offline sample engine's existing `practice`/`provider`/`crop`/
-  `acres`/`pct` column vocabulary (no new sample-data code needed). New: an example entry in
-  `data/examples/index.json` can declare `demoPackId` to stay hidden from the gallery AND Home's
-  Examples section until that demo pack is installed (`visibleExamples()` in app/studio.js, used by
-  `buildExamplesMenu`/`renderHome`; `toggleDemoPack` now also calls `renderHome`/`buildExamplesMenu`
-  so the gallery updates live) — these two ship gated to `conservation`. 4 new Playwright checks
-  (cards appear once installed, disappear once removed, both specs load with their real panel
-  counts). sw v86. (data/examples/conservation-scorecard.studio.json,
-  data/examples/conservation-flow.studio.json, data/examples/index.json, app/studio.js,
-  tests/run.js, docs/index.html — also fixed 2 stale "Viridis View" doc mentions to "Conservation
-  Insight", the M1 rename from 2026-07-21) NEXT in LF2: part (c), moving the 12 EXISTING generic
-  examples into a new toggleable "Data Management" demo pack, is a bigger restructure (those
-  examples are static templates today, not installed/removed workspace rows like a demo pack) —
-  deferred and folded into LF16's identical ask (merge demo content into sample packs) rather than
-  building two parallel mechanisms; do LF16 and LF2(c) together as one slice.
 - **FIX: widget zoom "Exit zoom" could trap the user (v440, 2026-07-22, steward, LF8):** in the
   widget zoom overlay (openPanelZoom), interacting with the zoomed chart (e.g. a map's zoom
   controls) could move focus into the chart's own iframe document — whose keydown events never
@@ -191,7 +172,8 @@
   narrowed from `hv%32` to `hv%12-6` (±6) so it no longer swamps the signal. Also added the upper
   clamp the original LF1 ask called for (`Math.min(100,…)` — only the lower bound existed before).
   1 new LF1 ratchet (5 distinct providers, avg-level spread ≥10, values stay in [2,100]). (app/
-  sampledata.js, tests/run.js) NEXT in the live-feedback queue: LF2 (shipped above).
+  sampledata.js, tests/run.js) NEXT in the live-feedback queue: LF2 (conservation examples +
+  demo-pack restructure).
 - **Theme the toast + demo-badge (v435, 2026-07-22, steward, fourth quality-track slice, UX3):**
   `.toast` was hardcoded `#10233f`/`.err #7a1730` — a fixed dark navy regardless of the active app
   theme (Classic Blue/Polecat/Fleet Modern) or light/dark mode. It now uses `--topbar-bg`/
@@ -1393,22 +1375,14 @@
 >      added the upper clamp the spec called for (`Math.min(100, …)` — only the lower `Math.max(2,…)`
 >      existed before). 1 new LF1 ratchet (5 providers, avg-level spread ≥10, values stay in [2,100]).
 >      (app/sampledata.js, tests/run.js) NEXT: LF2 (conservation examples + demo-pack restructure).
-> LF2. **Conservation examples + demo-pack restructure.** (a) ✓ Add ~8 CONSERVATION/CTIC examples (like
+> LF2. **Conservation examples + demo-pack restructure.** (a) Add ~8 CONSERVATION/CTIC examples (like
 >      the existing 8 generic ones) attached to the CONSERVATION demo pack (install/remove with it). (b)
->      ✓ The conservation example dashboards + pinned analyses must wear the **Conservation** dashboard
+>      The conservation example dashboards + pinned analyses must wear the **Conservation** dashboard
 >      theme/palette (or whatever theme is saved) — every conservation-pack object uses the conservation
->      palette, not the default. — **2 of ~8 shipped 2026-07-22 (steward, see DONE): Conservation Practice
->      Adoption Scorecard + Crop & Practice Flow, gated via new `demoPackId` support on examples/index.json
->      entries (visibleExamples() in app/studio.js). NEXT: ~6 more CONSERVATION/CTIC examples in the same
->      gated pattern (candidate topics: provider trust/agreement over time, watershed-scale adoption,
->      program cost-share ROI, county-level outlier detection, year-over-year practice switching, a
->      richtext-led narrative overview like feature-showcase.studio.json).** (c) Move the EXISTING generic
->      examples (Data Governance, Data Platform Ops, Product Delivery, Finance, Marketing, Incident
->      Response, Sensitivity/Compliance, Interactive Feature Showcase) AND their backing connections/
->      datasets/dashboards/widgets into a NEW **Data Management** demo pack, toggleable just like
->      Conservation. **Deferred — this is the same ask as LF16 (fold demo content into sample packs); do
->      them together as one slice rather than building two parallel mechanisms for the same restructure.**
->      (demopacks.js, examples index, studio.js)
+>      palette, not the default. (c) Move the EXISTING generic examples (Data Governance, Data Platform
+>      Ops, Product Delivery, Finance, Marketing, Incident Response, Sensitivity/Compliance, Interactive
+>      Feature Showcase) AND their backing connections/datasets/dashboards/widgets into a NEW **Data
+>      Management** demo pack, toggleable just like Conservation. (demopacks.js, examples index, studio.js)
 > LF3. **Conservation as an app Color theme** — see UX11 in the UX-polish track below (Settings →
 >      Appearance, alongside Classic Blue / Polecat / Fleet Modern).
 > LF4. **Choropleth map controls + renderer parity/persistence.** (a) The GL renderer ("Interactive
