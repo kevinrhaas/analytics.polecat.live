@@ -1767,6 +1767,15 @@ body.simple-mode .da-acts{display:none!important}
 .recent-card:hover .recent-feature,.recent-feature.featured{opacity:1}
 .recent-feature:hover{background:var(--field);color:var(--ink)}
 .recent-feature.featured{color:var(--brand)}
+/* M4.2 (object privacy): third corner toggle, same tiling as pin/feature above. */
+.recent-private{position:absolute;top:8px;right:60px;z-index:2;width:24px;height:24px;display:grid;place-items:center;
+  border:none;border-radius:7px;background:none;cursor:pointer;color:var(--faint);opacity:0;transition:opacity .12s}
+.recent-card:hover .recent-private,.recent-private.private{opacity:1}
+.recent-private:hover{background:var(--field);color:var(--ink)}
+.recent-private.private{color:var(--warning,#c9832f)}
+.cx-list-private{position:static;width:22px;height:22px;color:var(--muted);opacity:.7}
+.cx-list-private:hover{opacity:1;color:var(--ink)}
+.cx-list-private.private{opacity:1;color:var(--warning,#c9832f)}
 
 /* ── Examples on Home (Conservation Insight M1) ─────────────────────────── */
 .home-examples{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px;margin-bottom:8px}

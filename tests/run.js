@@ -6447,6 +6447,56 @@ function serve() {
     });
     await page.waitForTimeout(150);
 
+    // ---- M4.2 slice 1: object privacy — dashboards ----
+    console.log("\n• M4.2: object privacy — dashboards (slice 1)");
+    const privacySetup = await page.evaluate(function () {
+      var sp = window.__STUDIO_STATE.spec;
+      function row(id, title, owner) {
+        var s = JSON.parse(JSON.stringify(sp)); s.id = id; s.title = title;
+        var r = { id: id, ts: new Date().toISOString(), spec: s, title: title, name: title };
+        if (owner) r.owner = owner;
+        Studio.Workspace.put("dashboards", r);
+      }
+      row("m42-a", "M4.2 mine (goes private)", "demo");
+      row("m42-b", "M4.2 someone else's (goes private)", "otherUser");
+      row("m42-c", "M4.2 public");
+      window.__studioTogglePrivate("m42-a");
+      window.__studioTogglePrivate("m42-b");
+      var a = Studio.Workspace.get("dashboards", "m42-a"), b = Studio.Workspace.get("dashboards", "m42-b");
+      return { aPrivate: !!a.private, aOwner: a.owner, bPrivate: !!b.private, bOwner: b.owner };
+    });
+    ok("M4.2: togglePrivate flips the private flag and stamps/preserves an owner",
+      privacySetup.aPrivate && privacySetup.aOwner === "demo" && privacySetup.bPrivate && privacySetup.bOwner === "otherUser",
+      JSON.stringify(privacySetup));
+
+    const asDemoPriv = await page.evaluate(function () {
+      window.PolecatAuth.login("demo"); // seeded viewer account
+      window.__studioShellSetSection("dashboards");
+      window.__studioRenderDashboards();
+      var ids = Array.prototype.map.call(document.querySelectorAll("#repoResults [data-recent]"), function (el) { return el.getAttribute("data-recent"); });
+      return { seesOwn: ids.indexOf("m42-a") >= 0, seesOthers: ids.indexOf("m42-b") >= 0, seesPublic: ids.indexOf("m42-c") >= 0 };
+    });
+    ok("M4.2: signed in as the owner (viewer role), Dashboards shows their own private dashboard and every public one, but hides another account's private one",
+      asDemoPriv.seesOwn && !asDemoPriv.seesOthers && asDemoPriv.seesPublic, JSON.stringify(asDemoPriv));
+
+    const asAdminPriv = await page.evaluate(function () {
+      window.PolecatAuth.login("admin"); // seeded admin account — sees every private dashboard, matching shell.js's admin-sees-all
+      window.__studioRenderDashboards();
+      var ids = Array.prototype.map.call(document.querySelectorAll("#repoResults [data-recent]"), function (el) { return el.getAttribute("data-recent"); });
+      return { seesA: ids.indexOf("m42-a") >= 0, seesB: ids.indexOf("m42-b") >= 0, seesC: ids.indexOf("m42-c") >= 0 };
+    });
+    ok("M4.2: an admin account sees every dashboard regardless of its private flag/owner",
+      asAdminPriv.seesA && asAdminPriv.seesB && asAdminPriv.seesC, JSON.stringify(asAdminPriv));
+
+    await page.evaluate(function () {
+      window.PolecatAuth.logout();
+      sessionStorage.setItem("studio-gate-ok", "1");
+      window.__studioShellApplyRoleGating();
+      ["m42-a", "m42-b", "m42-c"].forEach(function (id) { Studio.Workspace.remove("dashboards", id); });
+      window.__studioShellSetSection("studio");
+    });
+    await page.waitForTimeout(150);
+
     // ---- CDA data source CRUD (My Data Sources library section) ----
     console.log("\n• CDA data-source CRUD");
     await page.evaluate(async () => { const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json()); window.__studioLoad(spec); });

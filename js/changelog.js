@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 422,
+    title: 'Dashboards: mark a dashboard private',
+    kind: 'feature',
+    ts: '2026-07-22T05:20:30.000Z',
+    items: [
+      'New lock toggle on a dashboard card (grid and list view) marks it private -- hidden from every other account, still visible to you and to admins.',
+      'First slice of the private/public flag on saved objects; datasets, analyses, connections, and jobs get the same toggle next.',
+    ],
+  },
+  {
     v: 421,
     title: 'Admin: manage who can sign in and their role',
     kind: 'feature',
