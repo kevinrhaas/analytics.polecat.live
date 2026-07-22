@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v83"; /* v83: UX3 — the toast and demo-mode
+var CACHE_NAME = "studio-shell-v84"; /* v84: LF1 — the 5 ensemble providers'
+   sample pct values now carry distinct offsets/slopes (a small per-provider
+   offset used to be swamped by random jitter, so the lines bunched); the
+   middle provider still tracks the plain baseline so the median reads as the
+   consensus. app/sampledata.js changed.
+   v83: UX3 — the toast and demo-mode
    badge no longer wear a hardcoded dark-navy/red regardless of theme; toast
    now uses --topbar-bg/--topbar-ink (matches the active app theme's rail
    surface) and both toast.err + .demo-badge darken --bad via color-mix so the
