@@ -6299,6 +6299,75 @@ function serve() {
     await page.evaluate(function () { window.__studioShellSetSection("studio"); });
     await page.waitForTimeout(150);
 
+    // ---- M3.2: connect to a workspace backend from the sign-in screen ----
+    // Fresh, isolated page (no studio-gate-ok bypass) so the real gate renders.
+    console.log("\n• M3.2: connect-to-backend from sign-in");
+    const gp3 = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+    gp3.on("pageerror", (e) => errors.push("gate connect page: " + e.message));
+    await gp3.goto(`http://localhost:${PORT}/app/`, { waitUntil: "domcontentloaded" });
+    await gp3.waitForTimeout(500);
+    const g3Gate = await gp3.evaluate(() => ({ hasConnect: !!document.getElementById("g-connect"), overlay: !!document.querySelector("#studio-gate") }));
+    ok("M3.2: the sign-in screen offers a 'Connect to your workspace' entry point before any login",
+      g3Gate.overlay && g3Gate.hasConnect, JSON.stringify(g3Gate));
+    const importGuard = await gp3.evaluate(function () {
+      var before = window.PolecatAuth.list().map(function (u) { return u.u; }).sort();
+      window.PolecatAuth.importFromStore([]);
+      window.PolecatAuth.importFromStore(null);
+      var afterNoop = window.PolecatAuth.list().map(function (u) { return u.u; }).sort();
+      return { before: before, sameAfterNoop: JSON.stringify(before) === JSON.stringify(afterNoop) };
+    });
+    ok("M3.2: PolecatAuth.importFromStore no-ops on an empty/missing list (never locks the browser out mid-provision)",
+      importGuard.sameAfterNoop && importGuard.before.indexOf("admin") >= 0 && importGuard.before.indexOf("demo") >= 0, JSON.stringify(importGuard));
+    await gp3.click("#g-connect");
+    await gp3.waitForFunction(() => !!document.querySelector(".modal-ov .modal-h"), { timeout: 5000 });
+    const wizStack = await gp3.evaluate(function () {
+      var gateZ = getComputedStyle(document.getElementById("studio-gate")).zIndex;
+      var modalZ = getComputedStyle(document.querySelector(".modal-ov")).zIndex;
+      return { title: document.querySelector(".modal-h").textContent, gateZ: +gateZ, modalZ: +modalZ };
+    });
+    ok("M3.2: it opens the SAME backend-connect wizard Settings uses, stacked ABOVE the gate overlay instead of trapped behind it",
+      wizStack.title === "Connect a workspace backend" && wizStack.modalZ > wizStack.gateZ, JSON.stringify(wizStack));
+    await gp3.evaluate(function () {
+      [].slice.call(document.querySelectorAll(".cx-src-card")).filter(function (c) { return c.querySelector("b").textContent === "Turso"; })[0].click();
+    });
+    await gp3.waitForTimeout(100);
+    await gp3.evaluate(function (port) {
+      var fields = [].slice.call(document.querySelectorAll(".cx-field input"));
+      fields[0].value = "http://localhost:" + port + "/__turso"; // url
+      fields[1].value = "tok";                                   // token
+    }, PORT);
+    await gp3.evaluate(function () {
+      [].slice.call(document.querySelectorAll(".cx-wiz-foot .btn")).filter(function (b) { return /Check database/.test(b.textContent); })[0].click();
+    });
+    await gp3.waitForFunction(() => [].slice.call(document.querySelectorAll(".cx-wiz-foot .btn")).some((b) => /Set up & connect/.test(b.textContent)), { timeout: 8000 });
+    const preConnectUsers = await gp3.evaluate(function () { return window.PolecatAuth.list().map(function (u) { return u.u; }).sort(); });
+    ok("M3.2: before provisioning, connecting mirrors the locally-seeded admin/demo pair up so an empty backend doesn't get an empty users table",
+      preConnectUsers.indexOf("admin") >= 0 && preConnectUsers.indexOf("demo") >= 0, preConnectUsers.join(","));
+    await gp3.evaluate(function () {
+      [].slice.call(document.querySelectorAll(".cx-wiz-foot .btn")).filter(function (b) { return /Set up & connect/.test(b.textContent); })[0].click();
+    });
+    await gp3.waitForFunction(() => !document.querySelector(".modal-ov"), { timeout: 8000 });
+    const afterConnect = await gp3.evaluate(function () {
+      return { hint: document.getElementById("g-hint").textContent, err: document.getElementById("g-err").textContent };
+    });
+    ok("M3.2: after connecting, the sign-in screen tells you to sign in against the now-connected workspace",
+      /Connected/.test(afterConnect.hint) && afterConnect.err === "", JSON.stringify(afterConnect));
+    await gp3.fill("#g-user", "admin"); await gp3.fill("#g-pass", "admin");
+    await gp3.click("#g-form button[type=submit]");
+    await gp3.waitForTimeout(400);
+    const signedIntoBackend = await gp3.evaluate(function () {
+      return { gone: !document.querySelector("#studio-gate"), who: (window.PolecatAuth.current() || {}).u, remoteLabel: Studio.Sync.syncState().label };
+    });
+    ok("M3.2: signing in afterward authenticates against the connected workspace's own accounts (round-tripped through provision → users table → local store)",
+      signedIntoBackend.gone && signedIntoBackend.who === "admin" && /Turso/.test(signedIntoBackend.remoteLabel), JSON.stringify(signedIntoBackend));
+    // cleanup: drop the mock backend's tables so a later reuse of /__turso starts empty
+    await gp3.evaluate(async function (port) {
+      var cfg = { url: "http://localhost:" + port + "/__turso", token: "tok" };
+      Studio.Sync.disconnect();
+      await Studio.tursoSource.drop(cfg);
+    }, PORT);
+    await gp3.close();
+
     // ---- CDA data source CRUD (My Data Sources library section) ----
     console.log("\n• CDA data-source CRUD");
     await page.evaluate(async () => { const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json()); window.__studioLoad(spec); });

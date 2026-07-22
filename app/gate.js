@@ -4,7 +4,14 @@
    before the app). Bypassed for the session once signed in (or when the
    historical sessionStorage `studio-gate-ok` flag is pre-set — the whole test
    suite relies on that contract). This is UX-level gating, not real security —
-   real per-user enforcement arrives with Supabase Auth/RLS (M7). */
+   real per-user enforcement arrives with Supabase Auth/RLS (M7).
+   M3.2: "Connect to your workspace" reuses studio.js's existing backend-connect
+   wizard (window.__studioOpenBackendWizard — the same one Settings uses) so a
+   first-run visitor can point at their own Turso/Supabase/Firebase workspace
+   BEFORE signing in — probe classifies it as empty (offer to provision + seed
+   an admin/demo pair) or an existing Studio workspace (adopt it), then the
+   wizard mirrors whichever `users` table won into the local sign-in store so
+   the form below authenticates against THAT workspace's accounts. */
 (function () {
   "use strict";
   var Auth = window.PolecatAuth;
@@ -51,7 +58,13 @@
       "#studio-gate .g-hint b{color:var(--ink,#16233b)}#studio-gate .g-hint code{font-family:ui-monospace,Menlo,monospace;background:var(--field,#fff);padding:1px 5px;border-radius:5px;color:var(--ink,#16233b)}" +
       "#studio-gate .g-err{color:var(--bad,#d63a5e);font-size:12.5px;height:16px;margin-top:8px}" +
       "#studio-gate .g-note{color:var(--faint,#8a97ab);font-size:11px;margin-top:14px}" +
-      "#studio-gate .shake{animation:gshake .4s}@keyframes gshake{0%,100%{transform:translateX(0)}25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}";
+      "#studio-gate .g-connect{margin-top:10px;background:transparent;border:0;color:var(--faint,#8a97ab);font-size:12px;text-decoration:underline;cursor:pointer;padding:4px}" +
+      "#studio-gate .g-connect:hover{color:var(--brand,#005bb5)}" +
+      "#studio-gate .shake{animation:gshake .4s}@keyframes gshake{0%,100%{transform:translateX(0)}25%{transform:translateX(-7px)}75%{transform:translateX(7px)}}" +
+      // the backend-connect wizard is a shared studio.js modal (.modal-ov, z-index 80) —
+      // bump it above the gate's own overlay only while the gate is still up, so opening
+      // it from the sign-in screen doesn't render (and trap clicks) behind the gate card.
+      "#studio-gate ~ .modal-ov{z-index:100001}";
     document.head.appendChild(st);
 
     var ov = document.createElement("div"); ov.id = "studio-gate";
@@ -66,7 +79,8 @@
       '<div class="g-or">or</div>' +
       '<button type="button" class="g-demo" id="g-demo">Explore the demo</button>' +
       '<div class="g-err" id="g-err"></div>' +
-      '<div class="g-hint">This is a demo build. Sign in with the built-in demo account — <b>username</b> <code>demo</code>, <b>password</b> <code>demo</code> — or just click <b>Explore the demo</b> to jump straight in with a ready-made sample workspace.</div>' +
+      '<div class="g-hint" id="g-hint">This is a demo build. Sign in with the built-in demo account — <b>username</b> <code>demo</code>, <b>password</b> <code>demo</code> — or just click <b>Explore the demo</b> to jump straight in with a ready-made sample workspace.</div>' +
+      '<button type="button" class="g-connect" id="g-connect">Connect to your workspace…</button>' +
       '<div class="g-note">analytics.polecat.live</div></div>';
     document.body.appendChild(ov);
 
@@ -89,6 +103,21 @@
       // The public demo account always exists (seeded); logging in as it triggers
       // studio.js to auto-install the sample workspace.
       if (Auth.login("demo")) afterLogin(); else fail("Demo account unavailable.");
+    });
+    var connectBtn = document.getElementById("g-connect");
+    if (connectBtn) connectBtn.addEventListener("click", function () {
+      if (!window.__studioOpenBackendWizard) { fail("Still loading — try again in a moment."); return; }
+      // The seeded local admin/demo pair only lives in PolecatAuth's own store until
+      // someone signs in (studio.js normally mirrors it into the workspace `users`
+      // table via __studioAuthBoot AFTER login). Run that mirror now so a database
+      // provisioned from THIS screen — before anyone has signed in — still carries
+      // real accounts, not an empty users table.
+      try { if (window.__studioAuthBoot) window.__studioAuthBoot(); } catch (e) {}
+      window.__studioOpenBackendWizard(null, null, function () {
+        var hint = document.getElementById("g-hint");
+        if (hint) hint.innerHTML = "Connected. Sign in with an account from that workspace below.";
+        document.getElementById("g-err").textContent = "";
+      });
     });
   }
 

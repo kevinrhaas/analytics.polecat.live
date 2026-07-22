@@ -7364,7 +7364,10 @@
   // The 3-step connect wizard: pick a meta-capable backend → credentials →
   // probe + classify (empty → provision & push up; ours → adopt or reset;
   // another app's / foreign → refuse, with an explicit destructive escape).
-  function openBackendWizard(presetSrc, presetCfg) {
+  // onConnected (optional, M3.2): fired after a successful connect, in addition
+  // to the toast — the sign-in screen uses it to know when to stop showing its
+  // own "connecting…" state (see gate.js's "Connect to your workspace").
+  function openBackendWizard(presetSrc, presetCfg, onConnected) {
     modal(presetSrc ? "Edit backend connection" : "Connect a workspace backend", function (b) {
       function classifyStep(src, cfg) {
         b.innerHTML = '<p class="cx-wiz-intro">Checking what\'s in that database…</p>';
@@ -7380,8 +7383,13 @@
             btn.onclick = function () {
               btn.disabled = true; result.className = "cx-test-result"; result.textContent = "Working…";
               fn().then(function () {
+                // Mirror whatever the connect just settled on into the LOCAL sign-in
+                // store: adopting an existing workspace means signing in against ITS
+                // accounts, not the ones this browser seeded before connecting.
+                try { if (window.PolecatAuth && Studio.Workspace) window.PolecatAuth.importFromStore(Studio.Workspace.all("users")); } catch (e2) {}
                 toast("Workspace backend connected");
                 document.querySelector(".modal-ov .x").click();
+                if (typeof onConnected === "function") onConnected();
               }, function (e) {
                 btn.disabled = false;
                 result.className = "cx-test-result bad"; result.textContent = "✕ " + ((e && e.message) || e);

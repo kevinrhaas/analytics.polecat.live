@@ -83,6 +83,18 @@
     try { sessionStorage.removeItem(GATE_OK); } catch (e) {}
   }
 
+  // Replaces the local user list wholesale with rows pulled from a connected
+  // workspace backend's `users` table (see studio.js openBackendWizard) — the
+  // browser's sign-in now authenticates against THAT workspace's accounts
+  // instead of whatever was seeded locally. No-op on an empty/missing list so a
+  // still-provisioning backend never locks the current browser out.
+  function importFromStore(rows) {
+    if (!Array.isArray(rows) || !rows.length) return;
+    saveRaw(rows.map(function (r) {
+      return { u: r.u, name: r.name || r.u, role: r.role || "viewer", demo: !!r.demo, hash: r.hash || "" };
+    }));
+  }
+
   // Adds/updates a user (admin flows in M4). pass is optional on update.
   async function upsert(u, opts) {
     opts = opts || {};
@@ -102,7 +114,7 @@
     sha256: sha256, seedIfEmpty: seedIfEmpty, verify: verify,
     list: function () { return raw().map(pub); }, find: function (u) { return pub(find(u)); },
     current: current, authed: authed, login: login, logout: logout,
-    isDemo: function () { var c = current(); return !!(c && c.demo); }, upsert: upsert,
+    isDemo: function () { var c = current(); return !!(c && c.demo); }, upsert: upsert, importFromStore: importFromStore,
     // Full rows INCLUDING the pw hash — for mirroring into the workspace `users`
     // table (that table is meant to BE the backend user store). Not for display.
     exportForStore: function () { return raw().map(function (x) { return { u: x.u, name: x.name || x.u, role: x.role || "viewer", demo: !!x.demo, hash: x.hash || "" }; }); }
