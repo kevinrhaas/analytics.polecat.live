@@ -55,8 +55,8 @@
     fields: [
       { key: "url", label: "Project URL", placeholder: "https://YOUR-REF.supabase.co", type: "text",
         hint: "Settings → API → Project URL." },
-      { key: "key", label: "anon public key", placeholder: "eyJ… (anon public)", type: "password",
-        hint: "Settings → API → Project API keys → anon public. Row-Level Security governs what it can touch." }
+      { key: "key", label: "anon / publishable key", placeholder: "sb_publishable_… or eyJ… (anon)", type: "password",
+        hint: "Settings → API → Project API keys → publishable key (new projects) or anon public (legacy JWT format). Row-Level Security governs what it can touch." }
     ],
     docsUrl: "https://supabase.com/docs/guides/api",
 
@@ -190,10 +190,15 @@
 
     // ---- data plane ---------------------------------------------------------
     testData: function (cfg) {
-      // A data connection is valid even without our workspace tables — hit the
-      // REST root, which answers 200 with the OpenAPI doc for any valid key.
-      return rest(cfg, "/").then(function (r) {
-        return r.ok ? { ok: true } : { ok: false, error: "HTTP " + r.status };
+      // A data connection is valid even without our workspace tables — but we
+      // can't hit the REST root to prove it: Supabase's new-format publishable
+      // keys get a 401 "Secret API key required" there (only the secret key can
+      // fetch the OpenAPI/introspection doc now; the legacy eyJ… anon key could).
+      // Querying a table that can't exist sidesteps introspection entirely —
+      // PostgREST answers 404 (relation not found) for ANY valid key and 401
+      // only for a genuinely bad one, which rest() already turns into a rejection.
+      return rest(cfg, "/_polecat_key_probe?select=1&limit=1").then(function (r) {
+        return (r.ok || r.status === 404) ? { ok: true } : { ok: false, error: "HTTP " + r.status };
       }).catch(function (e) { return { ok: false, error: e.message }; });
     },
 

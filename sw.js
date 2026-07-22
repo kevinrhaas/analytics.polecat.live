@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v75"; /* v75: M4.2 slice 5 (last object type) — the
+var CACHE_NAME = "studio-shell-v76"; /* v76: fixed the Supabase adapter's
+   testData() connection test, which was misreporting valid new-format
+   publishable keys as rejected (Supabase's REST root now demands a secret
+   key for introspection). app/sources/supabase.js changed.
+   v75: M4.2 slice 5 (last object type) — the
    same private/public lock toggle now on Jobs too (owner rides on the plain
    `owner` field, no collision), hides another account's private jobs from the
    Jobs list; also closed a related leak in the job editor's source/join/union
