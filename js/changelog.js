@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 451,
+    title: 'Color pickers show a live swatch, not just a label',
+    kind: 'polish',
+    ts: '2026-07-22T23:49:59.000Z',
+    items: [
+      'Every "Series 7" / "Accent" / "Good (green)" style color picker now shows a small live swatch of the actual resolved color, and each option in the dropdown is tinted with its own color too — no more guessing which token is which.',
+      'The map (choropleth) panel\'s "Ramp color" option additionally shows a light-to-dark gradient preview of the color ramp it produces.',
+    ],
+  },
+  {
     v: 450,
     title: 'FIX: candlestick + diverging-bar chart default colors',
     kind: 'fix',

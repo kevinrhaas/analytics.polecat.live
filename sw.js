@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v94"; /* v94: FIX — candlestick + diverging-bar
+var CACHE_NAME = "studio-shell-v95"; /* v95: LF5(b) — color-token pickers gain a
+   live resolved-color swatch + per-option tinting, and the choropleth Ramp
+   color option gains a gradient preview (app/studio.js, app/studio.css
+   content changed, so precached copies need to roll).
+   v94: FIX — candlestick + diverging-bar
    default colors pointed at undefined CSS tokens, silently rendering grey
    instead of green/red (app/model.js, app/studio-render.js, app/
    studio-charts.js content changed, so precached copies need to roll).

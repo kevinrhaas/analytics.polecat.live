@@ -116,6 +116,26 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF5(b) — color-token pickers gain a live resolved-color swatch + per-option tinting; the
+  choropleth Ramp color gains a gradient preview (v451, 2026-07-22, steward):** every color-token
+  `<select>` in the Inspector (a chart's per-series color, a KPI's sparkline color, and the generic
+  chart-options `type:"color"` field, e.g. gauge/waterfall/pareto reference colors) used to show
+  only text labels ("Series 7", "Accent (theme)") with no visual cue for what each option actually
+  painted. New `colorTokenSelect()` helper wraps the existing `<select>` (so all prior event/test
+  wiring is unchanged) with a small live swatch that updates on every change, plus tints each
+  `<option>`'s background with its own resolved color. Colors are resolved via
+  `resolveTokenColor()`, which reads the REAL value off the `#preview` iframe's computed style —
+  the exact document the Inspector already keeps synced to the active dashboard theme + light/dark
+  mode — rather than guessing at a static palette, so the swatch is always WYSIWYG-accurate. The
+  choropleth's "Ramp color" option (`app/model.js`'s `choropleth.opts` `color` field) additionally
+  renders a `.ct-ramp` gradient strip (light → base color → dark) approximating the per-region ramp
+  `studio-charts.js`'s `geoRamp()` computes at render time — a lighter-weight visual approximation
+  computed in the Inspector's own document, not a byte-identical reuse (that function lives inside
+  the preview-iframe-only PDC closure and needs a panel-bg to mix against). An `.ct-swatch-auto`
+  dashed state marks the "Auto (palette)" / unset options, which carry no token to resolve. 2 new
+  LF5(b) regression tests (ramp swatch+options+gradient update together on change; series-color
+  Auto-vs-explicit-token swatch states). sw v95. (app/studio.js, app/studio.css, tests/run.js)
+  **LF5 is now fully shipped** — see NEXT.
 - **FIX: candlestick + diverging-bar default colors pointed at undefined CSS tokens (v450,
   2026-07-22, steward, found while auditing LF5's color-picker family):** `PDC.cssvar()` falls
   back to a flat grey (`#888`) for any custom property that isn't actually defined. Candlestick's
@@ -1519,10 +1539,15 @@
 >      Coords was the one outlier (colors by ENTITY/row, not by axis) where the picker was dead UI —
 >      now hidden there via a new `seriesColor:false` chart flag. No other "does nothing" case found in
 >      that specific dropdown family; if Kevin's report was about a different control, re-open with a
->      repro. (b) UX — options are TEXT-ONLY ("Series 7"); add a color SWATCH beside each option
->      (resolved color), and for the choropleth RAMP color a small gradient/swatch preview, since it's
->      hard to tell what each is. Still open. app/studio.js (colPicker/fmtPicker + color-apply handler),
->      app/studio.css.
+>      repro. (b) ✓ **UX — swatches shipped (v451, 2026-07-22, steward):** options were TEXT-ONLY
+>      ("Series 7"); every color-token picker (series color, KPI sparkline color, and the generic
+>      chart-options `type:"color"` field) now shows a live swatch of the RESOLVED color next to the
+>      select (reads the real value off the `#preview` iframe, so it always matches the active
+>      dashboard theme + light/dark), and each `<option>` in the dropdown is tinted with its own
+>      color too. The choropleth's "Ramp color" option additionally renders a light→base→dark
+>      gradient strip preview. **LF5 is now fully shipped.** app/studio.js (new `colorTokenSelect`/
+>      `resolveTokenColor`/`rampGradientCss` helpers), app/studio.css (`.ct-*` rules), 2 new tests.
+>      sw v95.
 > LF6. **Per-widget download (image + data), on by default, toggleable off.** On ANY widget/panel,
 >      expose "Download image" (PNG etc.) and "Download data" (CSV etc.) right in the panel chrome —
 >      ON by default, with a per-panel toggle in the inspector to turn it off. Generalize what exists
