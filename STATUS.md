@@ -1304,6 +1304,14 @@
 >      across all chart types, in BOTH the builder preview AND the exported/embedded HTML (respect the
 >      export==preview invariant). app/studio-render.js (panel chrome), app/exporters.js (export
 >      controls), app/studio.js (inspector "allow downloads" toggle, default on).
+> LF7. **Conservation demos must show FILTERS + INTERACTIVE filters.** The demo dashboards/examples
+>      should demonstrate the app's full capability — but the featured Conservation Insight dashboard
+>      ships `filters:[]`. Wire real filters (practice selector, year-range, provider multi-select,
+>      geo-scale switch) AND interactive/linked cross-filtering (the provider-toggle channel that
+>      live-updates the ensembleSeries + choropleth together) into the featured dashboard and the new
+>      conservation examples (#38/LF2). Show both plain filters and linked cross-filtering so the demos
+>      read as a full showcase. The app already supports both (filterDef/cascadeFilters + the linked
+>      channel) — the demos just don't use them. app/demopacks.js.
 
 ### 🔁 QUALITY TRACKS — interleave with the feature backlog (Kevin, 2026-07-21)
 > Kevin asked for a code-organization sweep AND a UI/UX best-practices sweep, folded INTO the loop
