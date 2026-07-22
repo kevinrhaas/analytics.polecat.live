@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 438,
+    title: 'Tech-debt sweep: de-duplicated widget-preview and clone code',
+    kind: 'polish',
+    ts: '2026-07-22T18:44:59.000Z',
+    items: [
+      'Panel zoom and Slideshow built their own copy of the same one-widget preview spec; both now share one helper, singlePanelHtml(p), in app/studio.js.',
+      'The four places that tell a preview iframe to match the app theme once it loads (Compare dashboards, Home’s live mini-render, Panel zoom, Slideshow) now share one helper, postThemeOnLoad(ifr).',
+      'Swept the remaining hand-written JSON.parse(JSON.stringify(...)) deep-clones onto the shared Studio.clone helper.',
+      'Pure refactor, no behavior change -- suite unchanged at 1730/1730.',
+    ],
+  },
+  {
     v: 437,
     title: 'New “Developer” role for people who build dashboards',
     kind: 'feature',
