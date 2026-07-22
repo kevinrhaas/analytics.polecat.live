@@ -1284,6 +1284,19 @@
 >      Management** demo pack, toggleable just like Conservation. (demopacks.js, examples index, studio.js)
 > LF3. **Conservation as an app Color theme** — see UX11 in the UX-polish track below (Settings →
 >      Appearance, alongside Classic Blue / Polecat / Fleet Modern).
+> LF4. **Choropleth map controls + renderer parity/persistence.** (a) The GL renderer ("Interactive
+>      GL (pan & zoom)") has ZOOM buttons — ADD PAN buttons too (up/down/left/right nudge), same
+>      control style. (b) The renderer / pan-zoom / interactive choice is NOT persisted with the
+>      panel — it doesn't round-trip through save/export/reopen; persist the renderer opt (+ a sensible
+>      default view) on the panel spec. (c) BUG — the **"State border overlay"** toggle works on ONE
+>      renderer but not the other (parity gap); make both the SVG and GL renderers honor it.
+>      app/studio-charts.js (choropleth SVG + GL), app/studio.js (panel inspector + spec persistence).
+> LF5. **Chart color picker — swatches + fix apply.** (a) BUG — the color dropdown (Series 1–10 /
+>      Accent / Good/Warning/Bad/Info) "does not seem to work": picking an option doesn't recolor the
+>      chart/series. Trace the color-pick handler → spec write → render read and fix. (b) UX — options
+>      are TEXT-ONLY ("Series 7"); add a color SWATCH beside each option (resolved color), and for the
+>      choropleth RAMP color a small gradient/swatch preview, since it's hard to tell what each is.
+>      app/studio.js (colPicker/fmtPicker + color-apply handler), app/studio.css.
 
 ### 🔁 QUALITY TRACKS — interleave with the feature backlog (Kevin, 2026-07-21)
 > Kevin asked for a code-organization sweep AND a UI/UX best-practices sweep, folded INTO the loop
