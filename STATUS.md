@@ -116,6 +116,20 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **Tech-debt sweep: de-duplicated widget-preview + clone code (v438, 2026-07-22, steward,
+  R2 slice 1 of the refactor track):** three dedups onto canonical helpers, all behavior-preserving.
+  (1) `postThemeOnLoad(ifr)` replaces 4 identical "tell the preview iframe the app theme once it
+  loads" envelopes (Compare dashboards, Home's live mini-render, Panel zoom, Slideshow) — kept the
+  `ifr.onload = ...` assignment form rather than `addEventListener` so Slideshow, which reuses the
+  SAME iframe across slides, keeps exactly one handler per load instead of accumulating one per
+  slide change (an early draft used `addEventListener` and would have regressed this). (2)
+  `singlePanelHtml(p)` replaces the identical full-width/no-KPI/no-filter one-panel spec + mock
+  build duplicated between Panel zoom and Slideshow (their own code comments already flagged the
+  shared pipeline). (3) All 19 raw `JSON.parse(JSON.stringify(...))` deep-clones in app/studio.js
+  now call the existing `Studio.clone` helper instead. No visible change; suite unchanged at
+  1730/1730. sw unchanged (no precached files touched). (app/studio.js) NEXT in this track: R2
+  slice 2 — `Studio.escapeHtml` promotion (exporters `xml` + studio `esc` only — do NOT touch
+  studio-render.js `he` or model.js `svgEsc`) + `Studio.SAMPLE_PROVIDERS` sharing.
 - **Developer role — LF23 role model locked + foundation shipped (v437, 2026-07-22, Kevin live):** Kevin
   locked the viewer-mode role decision: add a THIRD role, **developer**, with admin as a **superset** of it
   ("give that to the admin user as well"). PolecatAuth now exposes `ROLES`/`ROLE_LABELS` + capability helpers
@@ -1616,7 +1630,7 @@
 >     load blocks + matching setters (inspector collapse state, DA freshness map, export history,
 >     last-viewed, version history, canvas notes, branding, style/template-var/custom-theme
 >     presets, health-celebration) onto the two shared helpers. Pure refactor — suite unchanged at
->     1696/1696. (app/studio.js) NEXT in this track: R2 (dedup onto canonical `Studio.*`).
+>     1696/1696. (app/studio.js) NEXT in this track: R2 (dedup onto canonical `Studio.*`) — slice 1 shipped, see below.
 > R2. **Dedup onto canonical `Studio.*`:** `postThemeOnLoad(ifr)` (4 identical envelopes → 1);
 >     `singlePanelHtml(p)` (zoom + slideshow share the pipeline per their own comment); sweep the 15
 >     raw `JSON.parse(JSON.stringify)` → `Studio.clone`; promote `Studio.escapeHtml` and reuse in
@@ -1624,6 +1638,15 @@
 >     `svgEsc` (they run in the sandboxed export iframe where model.js is NOT inlined; merging breaks
 >     the self-contained-export invariant); `Studio.SAMPLE_PROVIDERS` shared by sampledata/demopacks
 >     (mirror the existing `SAMPLE_GEO` pattern, KEEP the standalone-test fallback). Split across ~2 slices.
+>     ↳ **Slice 1 (shipped 2026-07-22, steward):** `postThemeOnLoad(ifr)` now backs all 4 call sites
+>     (compare-dashboards preview, Home's live mini-render, Panel zoom, Slideshow) — kept the
+>     `ifr.onload =` assignment form (not `addEventListener`) so Slideshow's repeated re-renders of
+>     the SAME iframe still replace the handler instead of piling up a new listener per slide change.
+>     `singlePanelHtml(p)` now backs Panel zoom + Slideshow's identical one-panel-spec-and-mock build.
+>     All 19 raw `JSON.parse(JSON.stringify(...))` call sites in app/studio.js now call `Studio.clone`
+>     instead. Pure refactor, no behavior change — suite unchanged at 1730/1730. (app/studio.js)
+>     NEXT in this track: slice 2 — `Studio.escapeHtml` promotion (exporters `xml` + studio `esc`
+>     only) + `Studio.SAMPLE_PROVIDERS` sharing.
 > R3. **Factory the config layer:** table-drive the 8 `default*` getter/setter pairs; a
 >     `makePresetStore(key)` factory for the 3 identical list-CRUD triplets (stylePresets /
 >     templateVarSets / customThemePresets). (studio.js)
