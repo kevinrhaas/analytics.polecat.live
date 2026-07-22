@@ -1466,6 +1466,32 @@
 >           into a real user-facing feature.
 >       app/studio-charts.js (GEO_FILES + geoFeatures/geoFeaturesGL scale branches), tools/build-geo.mjs, vendor/geo/,
 >       + a GEO test per new scale (renders colored, hover overlay tracks, exports carry only the geometry used).
+> LF23. ★ **VIEWER MODE — open dashboards read-only, as their own page/tab, with role-gated Studio access (Kevin, live).**
+>       Most people should OPEN a dashboard to READ it, not land in the full builder. From the Repository (Dashboards
+>       list) AND Home, a dashboard row/card gets "Open in viewer" → a full-page, URL-addressable, READ-ONLY render
+>       (its own route, openable in a NEW TAB), plus the existing "Open in Studio" for editors. Viewer mode shows the
+>       live dashboard, FULLY INTERACTIVE (real renderer — change filters, toggle providers, cross-filter, adjust view
+>       settings) but shows NONE of the build chrome and CANNOT modify the original dashboard.
+>       CRUCIAL (Kevin): a viewer CAN "Save a copy" to the repo — snapshotting their current filters/settings as a NEW
+>       dashboard they own ("save my view") — WITHOUT touching the shared original. Only a Studio editor/developer/admin
+>       can modify the ORIGINAL (edit-in-place + save over it). Permission split: INTERACT = everyone; SAVE-A-COPY (a
+>       new owned dashboard) = everyone incl. viewers; EDIT-THE-ORIGINAL = editor role only. Reuse the existing
+>       duplicate / save-as path + object ownership (acctOwner) so a saved copy lands under the current user and respects
+>       the private/public model.
+>       Building blocks already exist — assemble them, don't start from zero:
+>         • `S.simpleMode` / `body.simple-mode` (studio.js ~21/361; studio.css) already strips the editing affordances
+>           (mine-add, da-mine-acts, DS builder) → the seed of viewer chrome.
+>         • `#share=<encoded>` deep links (studio.js ~419/2934) already encode a whole spec into a URL → the seed of an
+>           addressable per-dashboard route (prefer a stable `?dash=<id>&mode=view` for saved dashboards, + keep #share
+>           for ad-hoc). Pairs with #44/LF9 (SPA history) so a viewer route is real navigation + shareable.
+>         • Home already renders live, view-only iframes (studio.js ~5762) — "click to open" should route to VIEWER, not builder.
+>       ROLE MODEL (open decision — LOCK when the slice starts): viewers open viewer-mode ONLY; who can reach Studio? Three
+>       options Kevin floated — (a) admin-only, (b) a NEW "developer" role, (c) an admin capability flag. Roles today are
+>       just admin/viewer (auth.js). From viewer mode, a developer/admin sees a one-click "Edit in Studio" that jumps
+>       straight into the builder for that dashboard (edit + save). Ties to #22 (Admin/roles/rail gating), #29 (widgets as
+>       first-class view/edit/standalone objects), #24 (header-off embed export). app/auth.js, app/shell.js (rail + role
+>       gating), app/studio.js (mode routing + simpleMode), app/studio-render.js. Slice it: (1) viewer route + read-only
+>       render + Open-in-viewer/new-tab from Repository+Home; (2) role gating + Edit-in-Studio handoff.
 > LF19. **Left + right panel IA/redesign — make the builder calm, clear & elegant (Kevin, live).** First
 >       pass shipped (v433: compact dataset cards, kind icons, hover actions, hairline sections, compound
 >       builder removed). The DEEPER work Kevin asked for: the whole left Data panel still opens "scary/
