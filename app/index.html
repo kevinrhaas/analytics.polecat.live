@@ -173,8 +173,8 @@
   <main id="workspace">
     <!-- LEFT: query library -->
     <aside id="library" class="pane">
-      <div class="pane-rail" data-pane="library" title="Expand Data panel"><button class="rail-btn">›</button><span class="rail-label">Data</span></div>
-      <div class="pane-h"><button class="pane-collapse" data-pane="library" title="Collapse panel">‹</button><span>Data</span>
+      <div class="pane-rail" data-pane="library" title="Expand Data panel"><button class="rail-btn" aria-label="Expand Data panel">›</button><span class="rail-label">Data</span></div>
+      <div class="pane-h"><button class="pane-collapse" data-pane="library" title="Collapse panel" aria-label="Collapse Data panel">‹</button><span>Data</span>
         <div class="menu-wrap"><button class="pane-add" id="btnNewDS" title="Add a dataset, connection, or dashboard-only query">＋ New ▾</button>
           <div class="menu" id="menuNewData">
             <button id="ndWorkspaceDataset">Dataset (workspace)…</button>
@@ -241,11 +241,11 @@
 
     <!-- RIGHT: inspector -->
     <aside id="inspector" class="pane">
-      <div class="pane-rail" data-pane="inspector" title="Expand Inspector"><button class="rail-btn">‹</button><span class="rail-label">Inspector</span></div>
+      <div class="pane-rail" data-pane="inspector" title="Expand Inspector"><button class="rail-btn" aria-label="Expand Inspector">‹</button><span class="rail-label">Inspector</span></div>
       <div class="pane-h"><span id="inspTitle">Dashboard</span>
         <a id="inspHelpLink" class="insp-help-link" href="docs/index.html#builder" target="_blank" rel="noopener noreferrer" title="Open help docs" aria-label="Open help documentation">?</a>
         <button class="link" id="inspBack" hidden>‹ Dashboard</button>
-        <button class="pane-collapse" data-pane="inspector" title="Collapse panel">›</button></div>
+        <button class="pane-collapse" data-pane="inspector" title="Collapse panel" aria-label="Collapse Inspector">›</button></div>
       <div class="insp-scroll" id="inspBody"></div>
     </aside>
   </main>
@@ -268,7 +268,7 @@
 </div>
 <div id="mobile-scrim" aria-hidden="true"></div>
 
-<div id="toast" class="toast"></div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
 
 <script src="app/model.js"></script>
 <script src="app/sources/schema.js"></script>

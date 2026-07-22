@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v66"; /* v66: the dashboard header text objects are
+var CACHE_NAME = "studio-shell-v67"; /* v67: UX1 a11y quick wins — #toast now
+   announces to screen readers (role=status, aria-live=polite), the pulsing demo-mode
+   badge respects prefers-reduced-motion, and the pane-rail expand/collapse icon
+   buttons (Data/Inspector) carry aria-label. app/index.html, app/studio.css changed.
+   v66: the dashboard header text objects are
    editable on the canvas — double-click the title, subtitle or description to edit
    inline, and the description (the free text object) carries a ✕ to remove it.
    Preview-only affordances (export header stays byte-identical). app/studio-render.js,

@@ -320,6 +320,27 @@ function serve() {
     ok("TOPBAR: the top-left shows the current section name (fleet standard) and updates as you navigate",
       tbSecDash === "Dashboards" && tbSecExplore === "Explore", JSON.stringify({ tbSecDash, tbSecExplore }));
 
+    // ---- UX1: a11y quick wins (2026-07-22) ----
+    console.log("\n• UX1: a11y quick wins");
+    const ux1Toast = await page.evaluate(function () {
+      var t = document.getElementById("toast");
+      return { role: t.getAttribute("role"), ariaLive: t.getAttribute("aria-live") };
+    });
+    ok("UX1: #toast announces to screen readers (role=status, aria-live=polite)",
+      ux1Toast.role === "status" && ux1Toast.ariaLive === "polite", JSON.stringify(ux1Toast));
+    const ux1PaneRail = await page.evaluate(function () {
+      function label(sel) { var el = document.querySelector(sel); return el ? el.getAttribute("aria-label") : null; }
+      return {
+        libraryExpand: label('.pane-rail[data-pane="library"] .rail-btn'),
+        libraryCollapse: label('.pane-collapse[data-pane="library"]'),
+        inspectorExpand: label('.pane-rail[data-pane="inspector"] .rail-btn'),
+        inspectorCollapse: label('.pane-collapse[data-pane="inspector"]')
+      };
+    });
+    ok("UX1: pane-rail expand/collapse icon buttons all carry an aria-label",
+      !!ux1PaneRail.libraryExpand && !!ux1PaneRail.libraryCollapse && !!ux1PaneRail.inspectorExpand && !!ux1PaneRail.inspectorCollapse,
+      JSON.stringify(ux1PaneRail));
+
     // ---- fleet-manager changelog parse guard ----
     // js/changelog.js is synced by manager.polecat.live, which does NOT run the file — it
     // text-extracts the CHANGELOG array and normalizes single-quoted JS to JSON (see its
@@ -15230,6 +15251,15 @@ function serve() {
       return { exists: true, display: disp, ariaLive: badge.getAttribute("aria-live") };
     });
     ok("H117: #demoBadge visible when demo mode on (display flex/inline-flex)", h117Badge.exists && h117Badge.display !== "none", JSON.stringify(h117Badge));
+
+    // UX1 a11y quick win: the pulsing "● LIVE" badge respects prefers-reduced-motion
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    const h117BadgeRM = await page.evaluate(function () {
+      var badge = document.getElementById("demoBadge");
+      return badge ? getComputedStyle(badge).animationName : "";
+    });
+    await page.emulateMedia({ reducedMotion: "no-preference" });
+    ok("UX1: #demoBadge pulse animation is disabled under prefers-reduced-motion", h117BadgeRM === "none", "animationName=" + h117BadgeRM);
 
     // 5. Second click disables demo mode (body.demo-mode removed, badge hidden)
     const h117Disable = await page.evaluate(function () {

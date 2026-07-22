@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 418,
+    title: 'A11y quick wins: toast announcements, reduced motion, panel button labels',
+    kind: 'polish',
+    ts: '2026-07-22T00:32:02.000Z',
+    items: [
+      'Confirmation and error toasts are now announced to screen readers instead of appearing silently.',
+      'The pulsing "LIVE" demo-mode badge now respects your system\'s reduced-motion setting.',
+      'The Data and Inspector panel expand/collapse buttons now have proper labels for screen readers.',
+    ],
+  },
+  {
     v: 417,
     title: 'Edit the dashboard title, subtitle and description right on the canvas',
     kind: 'feature',

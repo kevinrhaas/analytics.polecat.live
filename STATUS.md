@@ -116,6 +116,15 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **A11y quick wins (v418, 2026-07-22, steward — first slice of the interleaved quality track,
+  UX1):** `#toast` now carries `role="status" aria-live="polite"` so confirmation/error/celebration
+  toasts announce to screen readers instead of appearing silently; `.demo-badge`'s infinite pulse
+  animation gets a `prefers-reduced-motion` guard (matching the app's existing convention elsewhere
+  in studio.css); the pane-rail expand (`.rail-btn`) and collapse (`.pane-collapse`) icon buttons for
+  both the Data and Inspector panels now carry `aria-label` (previously the accessible name came from
+  a `title` on the wrapper div, or nothing at all). 2 new UX1 ratchets (toast role/aria-live + all
+  four pane-rail buttons labeled) plus the existing H117 demo-badge test now also asserts the
+  animation is `none` under reduced motion. sw v67.
 - **Canvas-editable header text objects (v417, 2026-07-21):** the dashboard title, subtitle and
   description are now inline-editable on the builder canvas — double-click to edit (Enter commits,
   Esc cancels), and the description (the free "text object") carries a ✕ delete matching the KPI/
@@ -1170,10 +1179,14 @@
 > functions, strong a11y/mobile/motion already — so these are refinements, ranked by value/effort.
 >
 > **✨ UX-POLISH track** (ranked delight-per-effort; ★ = do first):
-> UX1. ★ **A11y quick wins:** give `#toast` `role="status" aria-live="polite"` (every confirmation/
->      error/celebration is currently silent to screen readers); add a `prefers-reduced-motion` guard
->      to `.demo-badge`'s infinite pulse; audit that every icon-only control has an `aria-label`
->      (pane-rail `‹`/`›` have none). Tiny diff, real correctness. (index.html, studio.css)
+> UX1. ✓ **A11y quick wins (shipped 2026-07-22, steward, first quality-track slice):** `#toast` now
+>      carries `role="status" aria-live="polite"` (every confirmation/error/celebration used to be
+>      silent to screen readers); `.demo-badge`'s infinite pulse gets a `prefers-reduced-motion` guard
+>      matching the app's existing convention; the pane-rail expand (`.rail-btn`) and collapse
+>      (`.pane-collapse`) icon buttons for both Data and Inspector now carry `aria-label` (previously
+>      relied on a `title` on the wrapper div or nothing at all). 2 new ratchets (toast role/aria-live,
+>      all four pane-rail buttons labeled) + the existing demo-mode test now also asserts the
+>      reduced-motion animation-name. sw v67. (app/index.html, app/studio.css)
 > UX2. ★ **Dead-token sweep:** `--sans`(23×) / `--fg`(7×) / `--canvas` / `--green` are never defined —
 >      route to real bridge tokens (`--font`/`--ink`/`--field`/`--good`). Fixes a real bug: the
 >      changelog search input (`.cl-search`, `--canvas`) renders transparent. (studio.css)
