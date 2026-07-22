@@ -37,6 +37,25 @@ GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO anon, authenticated, service_role;
 
--- Tell PostgREST to reload its schema cache so the new tables + grants are
--- picked up immediately (otherwise the REST API can lag behind the DDL).
+-- RLS + a permissive policy. Grants alone weren't enough: the publishable key
+-- got HTTP 200 but ZERO rows back. Supabase's NEW API keys (sb_publishable_…)
+-- are designed to be used WITH Row-Level Security — a table with no RLS policy
+-- comes back EMPTY over the Data API. So enable RLS and add an allow-all policy
+-- for the API roles, which makes the browser reads/writes work regardless of
+-- whether RLS was already on. THIS IS THE DEMO POSTURE — "allow all" = no real
+-- per-user isolation yet (the publishable key can read+write everything); real
+-- per-user RLS (scoped to the signed-in GoTrue user) is the M7 slice. Idempotent
+-- (DROP POLICY IF EXISTS before CREATE), so it is safe to re-run.
+DO $$
+DECLARE t text;
+BEGIN
+  FOREACH t IN ARRAY ARRAY['polecat_meta','connections','datasets','dashboards','analyses','jobs','users'] LOOP
+    EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);
+    EXECUTE format('DROP POLICY IF EXISTS polecat_anon_all ON %I', t);
+    EXECUTE format('CREATE POLICY polecat_anon_all ON %I FOR ALL TO anon, authenticated USING (true) WITH CHECK (true)', t);
+  END LOOP;
+END $$;
+
+-- Tell PostgREST to reload its schema cache so the new tables + grants + policies
+-- are picked up immediately (otherwise the REST API can lag behind the DDL).
 NOTIFY pgrst, 'reload schema';
