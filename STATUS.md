@@ -1222,6 +1222,16 @@
 >    `sb_publishable_…` key, updating it to accept the new format is a first-class slice. Never echo
 >    `SUPABASE_PASSWORD` or `SUPABASE_ANON_KEY` into commits/PRs/issues/logs; the `sb_secret_…` key is
 >    server-only and is NOT provided to the lane.
+>    ↳ **Round-trip tested + testData() key-format bug fixed (2026-07-22, steward):** curled the live
+>    project directly with `SUPABASE_ANON_KEY` — the data plane (per-table PostgREST reads) authenticates
+>    fine with the new `sb_publishable_…` key, but the REST root (`GET /rest/v1/`, which `testData()` used
+>    to hit to prove a "data connection" key is valid without needing a real table) now 401s even a fully
+>    valid publishable key with "Secret API key required" — only the secret key can hit that introspection
+>    endpoint under the new format. Fixed `testData()` to probe a table that can't exist instead (PostgREST
+>    still 404s there for a valid key, 401 only for a genuinely bad one) — verified against the live
+>    project. Field copy on the `key` field now mentions both formats. (app/sources/supabase.js, sw v76)
+>    NEXT: the meta/probe/load/save paths already avoided the root and were unaffected; no further
+>    key-format work known.
 > 3. **Privacy rollout = PHASED.** Ship the private/public flag on every saved object as UI-level
 >    hiding in M4 NOW (honest "not cryptographic isolation" until the DB enforces it), then real
 >    RLS enforcement lands in M7. Do not gate the M4 flag on the backend being ready.

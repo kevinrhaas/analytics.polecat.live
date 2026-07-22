@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 428,
+    title: 'Fix: Supabase connection test rejected valid new-format API keys',
+    kind: 'fix',
+    ts: '2026-07-22T12:57:23.000Z',
+    items: [
+      'Supabase\'s newer publishable/secret key split blocks the REST introspection endpoint (the one "Test connection" used to check) even for a fully valid publishable key -- it now demands the secret key there, so every real project on the new key format saw its connection reported as rejected.',
+      'The test now probes a table that can never exist instead: PostgREST still answers "not found" for a valid key and "unauthorized" only for a genuinely bad one, so it proves the key without needing introspection. Field copy also now mentions the new publishable-key format alongside the legacy eyJ... anon JWT.',
+    ],
+  },
+  {
     v: 427,
     title: 'Jobs: mark a job private',
     kind: 'feature',

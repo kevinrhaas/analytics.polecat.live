@@ -130,6 +130,25 @@ function handleMockPostgrest(req, rep, p) {
   return send(200, rows);
 }
 
+// ---- mock Supabase PostgREST endpoint (app/sources/supabase.js testData) ---
+// Reproduces the specific 2026 Supabase behavior that broke testData(): the
+// REST root (OpenAPI/introspection doc) now answers 401 "Secret API key
+// required" even for an otherwise-VALID new-format publishable key — only a
+// per-table query still works with it (404 relation-missing, not 401). A
+// genuinely wrong key gets 401 "Invalid API key" everywhere, root or table.
+function handleMockSupabase(req, rep, p) {
+  const send = (code, body) => {
+    rep.writeHead(code, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "*" });
+    rep.end(JSON.stringify(body));
+  };
+  if (req.method === "OPTIONS") return send(200, {});
+  const key = req.headers.apikey || "";
+  if (key !== "sb_publishable_valid") return send(401, { message: "Invalid API key" });
+  const rel = p.replace(/^\/__supabase\/?/, "");
+  if (!rel) return send(401, { message: "Secret API key required", hint: "Only secret API keys can be used for this endpoint." });
+  return send(404, { code: "PGRST205", message: "Could not find the table 'public." + decodeURIComponent(rel.split("?")[0]) + "' in the schema cache" });
+}
+
 // ---- mock Google Sheets gviz endpoint (app/sources/gsheets.js tests) --------
 // Real shape: /__gsheets/spreadsheets/d/<ID>/gviz/tq?sheet=…&tq=… answering the
 // `google.visualization.Query.setResponse({...})` wrapper. TESTSHEET has two
@@ -236,6 +255,7 @@ function serve() {
         return rep.end(JSON.stringify({ message: "JWT required" }));
       }
       if (p === "/__postgrest/" || p.indexOf("/__postgrest/") === 0) return handleMockPostgrest(req, rep, p);
+      if (p === "/__supabase/" || p.indexOf("/__supabase/") === 0) return handleMockSupabase(req, rep, p);
       if (p === "/__redshift-data") return handleMockRedshiftData(req, rep);
       if (p.indexOf("/__gsheets/") === 0) return handleMockGviz(req, rep, p);
       let fp = path.join(ROOT, p);
@@ -294,6 +314,7 @@ function serve() {
     // every other console error still fails the no-uncaught-errors check.
     const loc = (m.location() || {}).url || "";
     if (/\/__postgrest(401)?\//.test(loc)) return;
+    if (/\/__supabase\//.test(loc)) return;
     errors.push("console: " + m.text());
   });
 
@@ -3018,6 +3039,22 @@ function serve() {
     });
     ok("WS: supabase provision hands back a paste-me SQL bootstrap (no browser DDL pretence)",
       wsSupabase.manual && wsSupabase.hasDDL && wsSupabase.hasApp, JSON.stringify(wsSupabase));
+
+    // ---- Supabase testData: survives the 2026 new-key-format REST-root lockdown ----
+    // Supabase's new publishable/secret key split made the REST root (OpenAPI
+    // introspection) answer 401 "Secret API key required" even for a fully valid
+    // publishable key — testData() used to hit that root and would misreport a
+    // good key as rejected. Fixed to probe a definitely-missing table instead
+    // (PostgREST still answers 404 there for a valid key, 401 only for a bad one).
+    const wsSupabaseKeyFmt = await page.evaluate(async function () {
+      var sb = Studio.supabaseSource;
+      var base = location.origin + "/__supabase";
+      var good = await sb.testData({ url: base, key: "sb_publishable_valid" });
+      var bad = await sb.testData({ url: base, key: "sb_publishable_wrong" });
+      return { goodOk: good.ok === true, badOk: bad.ok, badErr: bad.error || "" };
+    });
+    ok("SUPABASE: testData validates a new-format publishable key past the REST root's 'Secret API key required' lockdown, and still rejects a genuinely bad key",
+      wsSupabaseKeyFmt.goodOk && wsSupabaseKeyFmt.badOk === false && /401/.test(wsSupabaseKeyFmt.badErr), JSON.stringify(wsSupabaseKeyFmt));
 
     // ---- CX: Connections section (list, pills, wizard) ----
     console.log("\n• CX: Connections section");
