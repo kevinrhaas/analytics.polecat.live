@@ -1303,6 +1303,7 @@ body.simple-mode .simple-badge{display:inline-flex}
   white-space:nowrap;pointer-events:none;user-select:none;margin-right:4px;font-family:var(--sans);
   animation:pulse-live 1.8s ease-in-out infinite}
 body.demo-mode .demo-badge{display:inline-flex}
+@media(prefers-reduced-motion:reduce){.demo-badge{animation:none}}
 /* K3 v92 — Streamlined library in Simple mode: hide data-source authoring controls.
    The library becomes read-only — users browse and drag; the DS builder is hidden. */
 body.simple-mode #btnNewDS,
