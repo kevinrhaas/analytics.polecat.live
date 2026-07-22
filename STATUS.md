@@ -1402,6 +1402,20 @@
 >     owner, owner sees their own private dashboard, a non-owner viewer doesn't, admin sees
 >     everything). sw v70. NEXT: datasets/analyses/connections/jobs get the same toggle (same
 >     `isVisibleToMe` shape, different table); the per-section-rights half is still open.
+>     ↳ **Slice 2 (connections, shipped 2026-07-22, steward):** the same lock toggle + `isVisibleToMe`
+>     filtering, now on the Connections catalog — a connection often carries live credentials, so
+>     hiding a private one from other accounts matters even more here than for dashboards. `owner` is
+>     stamped from `PolecatAuth.current().u` the first time a connection is created, or the first time
+>     a pre-existing one goes private. NOTE: connections already had an unrelated free-text `owner`
+>     field on datasets ("who to ask about this dataset") — the auth-identity `owner` added here is a
+>     distinct field on the CONNECTIONS row, same name as dashboards' but a different table, so there is
+>     no collision; datasets keep their own `owner` meaning unchanged and will need a differently-named
+>     field (e.g. `acctOwner`) when their turn comes. The dataset editor's connection-picker dropdown
+>     also filters through `isVisibleToMe`, so a private connection disappears from other accounts'
+>     "pick a connection" list when they author a dataset, not just the Connections catalog itself.
+>     3 new M4.2 ratchets (toggle stamps/preserves owner, owner sees their own private connection, a
+>     non-owner viewer doesn't, admin sees everything). sw v71. NEXT: datasets/analyses/jobs get the
+>     same toggle; the per-section-rights half is still open.
 > M5. **Repository browser:** new left-rail section — a tree/folder view of ALL objects (dashboards,
 >     datasets, connections, analyses, jobs) with find/open/edit and a right-panel editor for
 >     simple objects; deep-links to the full editors for complex ones.

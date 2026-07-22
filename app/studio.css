@@ -1532,6 +1532,14 @@ body.simple-mode .da-acts{display:none!important}
 .cx-pin:hover{border-color:var(--brand);color:var(--brand)}
 .cx-pin.on{color:var(--brand);border-color:color-mix(in srgb, var(--brand) 50%, transparent)}
 .cx-pin.on svg polygon{fill:currentColor}
+/* M4.2 slice 2 (object privacy — connections): same tiling/shape as .cx-pin,
+   warning-colored when private to match the dashboards lock toggle. */
+.cx-private{display:flex;align-items:center;justify-content:center;width:30px;height:30px;flex:0 0 auto;
+  border-radius:8px;background:transparent;border:1px solid color-mix(in srgb, var(--ink) 18%, transparent);
+  color:var(--faint);cursor:pointer;opacity:0;transition:opacity .12s ease,color .12s ease,border-color .12s ease}
+.cx-row:hover .cx-private,.cx-row:focus-within .cx-private,.cx-private.private,.cx-private:focus-visible{opacity:1}
+.cx-private:hover{border-color:var(--warning,#c9832f);color:var(--warning,#c9832f)}
+.cx-private.private{color:var(--warning,#c9832f);border-color:color-mix(in srgb, var(--warning,#c9832f) 50%, transparent)}
 .cx-empty{background:var(--field);border:1px dashed color-mix(in srgb, var(--ink) 20%, transparent);border-radius:12px;padding:34px;
   text-align:center;color:var(--muted);font-size:13.5px;line-height:1.7}
 .cx-empty .btn{margin-top:12px}
@@ -1575,7 +1583,7 @@ body.simple-mode .da-acts{display:none!important}
 .btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
 .btn.primary:hover{background:color-mix(in srgb,var(--brand) 88%,#000);border-color:color-mix(in srgb,var(--brand) 88%,#000)}
 .cx-wiz-foot .btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
-@media(max-width:640px){.cx-when{display:none}.cx-actions{opacity:1}.cx-pin{opacity:1}}
+@media(max-width:640px){.cx-when{display:none}.cx-actions{opacity:1}.cx-pin{opacity:1}.cx-private{opacity:1}}
 
 /* ── Connection schema browser (post-overhaul backlog item 5) ── */
 .cx-schema{margin-top:12px;border-top:1px solid var(--line);padding-top:12px}

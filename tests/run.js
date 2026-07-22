@@ -6497,6 +6497,54 @@ function serve() {
     });
     await page.waitForTimeout(150);
 
+    // ---- M4.2 slice 2: object privacy — connections ----
+    console.log("\n• M4.2: object privacy — connections (slice 2)");
+    const connPrivacySetup = await page.evaluate(function () {
+      function row(id, name, owner) {
+        var r = { id: id, name: name, adapter: "local", cfg: {}, updatedAt: Date.now() };
+        if (owner) r.owner = owner;
+        Studio.Workspace.put("connections", r);
+      }
+      row("m42c-a", "M4.2 conn mine (goes private)", "demo");
+      row("m42c-b", "M4.2 conn someone else's (goes private)", "otherUser");
+      row("m42c-c", "M4.2 conn public");
+      window.__studioToggleConnPrivate("m42c-a");
+      window.__studioToggleConnPrivate("m42c-b");
+      var a = Studio.Workspace.get("connections", "m42c-a"), b = Studio.Workspace.get("connections", "m42c-b");
+      return { aPrivate: !!a.private, aOwner: a.owner, bPrivate: !!b.private, bOwner: b.owner };
+    });
+    ok("M4.2: connections togglePrivate flips the private flag and stamps/preserves an owner",
+      connPrivacySetup.aPrivate && connPrivacySetup.aOwner === "demo" && connPrivacySetup.bPrivate && connPrivacySetup.bOwner === "otherUser",
+      JSON.stringify(connPrivacySetup));
+
+    const asDemoConnPriv = await page.evaluate(function () {
+      window.PolecatAuth.login("demo"); // seeded viewer account
+      window.__studioShellSetSection("connections");
+      window.__studioRenderConnections();
+      var ids = Array.prototype.map.call(document.querySelectorAll("#connResults [data-conn-id]"), function (el) { return el.getAttribute("data-conn-id"); });
+      return { seesOwn: ids.indexOf("m42c-a") >= 0, seesOthers: ids.indexOf("m42c-b") >= 0, seesPublic: ids.indexOf("m42c-c") >= 0 };
+    });
+    ok("M4.2: signed in as the owner (viewer role), Connections shows their own private connection and every public one, but hides another account's private one",
+      asDemoConnPriv.seesOwn && !asDemoConnPriv.seesOthers && asDemoConnPriv.seesPublic, JSON.stringify(asDemoConnPriv));
+
+    const asAdminConnPriv = await page.evaluate(function () {
+      window.PolecatAuth.login("admin"); // seeded admin account — sees every private connection, matching shell.js's admin-sees-all
+      window.__studioRenderConnections();
+      var ids = Array.prototype.map.call(document.querySelectorAll("#connResults [data-conn-id]"), function (el) { return el.getAttribute("data-conn-id"); });
+      return { seesA: ids.indexOf("m42c-a") >= 0, seesB: ids.indexOf("m42c-b") >= 0, seesC: ids.indexOf("m42c-c") >= 0 };
+    });
+    ok("M4.2: an admin account sees every connection regardless of its private flag/owner",
+      asAdminConnPriv.seesA && asAdminConnPriv.seesB && asAdminConnPriv.seesC, JSON.stringify(asAdminConnPriv));
+
+    await page.evaluate(function () {
+      window.PolecatAuth.logout();
+      sessionStorage.setItem("studio-gate-ok", "1");
+      window.__studioShellApplyRoleGating();
+      ["m42c-a", "m42c-b", "m42c-c"].forEach(function (id) { Studio.Workspace.remove("connections", id); });
+      window.__studioShellSetSection("studio");
+    });
+    await page.waitForTimeout(150);
+
     // ---- CDA data source CRUD (My Data Sources library section) ----
     console.log("\n• CDA data-source CRUD");
     await page.evaluate(async () => { const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json()); window.__studioLoad(spec); });
