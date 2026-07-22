@@ -1524,6 +1524,25 @@
 >       creativity setting), tests (profiler classifies columns; top-N guardrail; generated spec validates + renders
 >       zero-pageerror). Slice it: (1) drop → profile → dataset(s); (2) auto-build engine + guardrails at the
 >       conservative default; (3) creativity dial + the "fun" chart tier.
+>       SMART SEMANTIC INFERENCE (the brain — "be very smart here", Kevin): don't just profile types, infer INTENT
+>       from column NAMES + VALUES and let that drive the chart AND the aggregation:
+>         • GEO → MAP. Recognize a geographic dimension by name (state, st, county, fips, huc/huc8, watershed, zip/
+>           zcta, district, crd, region) AND by value shape (2-letter postal codes, 2-digit state FIPS, 5-digit
+>           county FIPS, 8-digit HUC codes, state names). Match it to the right geo scale (state/county/crd/huc8/
+>           zcta — see LF22), AGGREGATE a numeric measure to that level (median/sum), and render a CHOROPLETH. Pick
+>           the metric that varies meaningfully across regions (good coverage + spread), not an id.
+>         • TIME → LINE, binned to a sensible grain. Recognize a temporal column by name (date, time, timestamp,
+>           year, month, ym, day, week, quarter) AND by parseable values (ISO dates, YYYY-MM, epoch). Put the
+>           measure on a line/area over time, and AUTO-BIN the grain to the span so it reads neatly — years of daily
+>           rows roll up to month/quarter, a few months to weeks, a single day to hours — target ~8–40 points, never
+>           3,000 raw ticks; sort chronologically; sum/mean per bin as fits the measure.
+>         • CATEGORY → BAR/DONUT with top-N + Other (low-cardinality → donut share; higher → ranked bar top-10).
+>         • MEASURE PICKING: prefer numeric columns with high non-null coverage and real spread; EXCLUDE id/key-like
+>           columns (near-unique integers), constants, and codes used as the geo/time key itself.
+>         • RELATIONSHIP → FORM: dimension×measure → bar; time×measure → line; geo×measure → map; two measures →
+>           scatter; a single headline measure → KPI/stat tile. (Straight out of the dataviz form heuristic.)
+>       The engine should read like a smart analyst's first pass: name+value signals → the right scale, aggregation,
+>       grain, and chart — then the creativity dial decides how adventurous to get on top of that sensible base.
 > LF19. **Left + right panel IA/redesign — make the builder calm, clear & elegant (Kevin, live).** First
 >       pass shipped (v433: compact dataset cards, kind icons, hover actions, hairline sections, compound
 >       builder removed). The DEEPER work Kevin asked for: the whole left Data panel still opens "scary/
