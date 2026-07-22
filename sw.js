@@ -5,7 +5,7 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v85"; /* v85: new "developer" role — a third
+var CACHE_NAME = "studio-shell-v86"; /* v86: polecat-shell v0.5.2 (shell.css touch targets + site-chrome) */
    role between viewer and admin (viewer-mode groundwork). PolecatAuth gains
    ROLES/ROLE_LABELS + isAdmin()/canDevelop() capability helpers (canDevelop =
    admin OR developer, admin is a superset); the Admin user editor offers
