@@ -1190,9 +1190,15 @@
 >    against live `public` tables.** The BROWSER app never uses this password: `app/sources/supabase.js`
 >    connects via PostgREST + the **anon public key** entered in the Connect wizard, and it is
 >    `browserProvision:false` (provisioning is a paste-into-SQL-editor script the adapter generates —
->    the lane should generate/verify that SQL, not assume browser DDL). Full browser-round-trip CI
->    (PostgREST + anon key + RLS) still needs `SUPABASE_URL` + `SUPABASE_ANON_KEY` CI secrets — not added
->    yet; ask Kevin before assuming them. Never echo `SUPABASE_PASSWORD` into commits/PRs/issues/logs.
+>    the lane should generate/verify that SQL, not assume browser DDL). **Browser round-trip is now
+>    wired too (platform PR #71):** `SUPABASE_URL` (= `https://lnngiprrrcxtsawamqei.supabase.co`, public)
+>    + `SUPABASE_ANON_KEY` (the browser-safe **publishable** key `sb_publishable_…` — Kevin's project is
+>    on Supabase's NEW key format, not the old `eyJ…` JWT) are in the steward env, so a focused run can
+>    test the real connect → sign-in → RLS path via PostgREST. If the adapter (`app/sources/supabase.js`,
+>    whose field copy still says "anon public key (eyJ…)") doesn't authenticate cleanly with the new
+>    `sb_publishable_…` key, updating it to accept the new format is a first-class slice. Never echo
+>    `SUPABASE_PASSWORD` or `SUPABASE_ANON_KEY` into commits/PRs/issues/logs; the `sb_secret_…` key is
+>    server-only and is NOT provided to the lane.
 > 3. **Privacy rollout = PHASED.** Ship the private/public flag on every saved object as UI-level
 >    hiding in M4 NOW (honest "not cryptographic isolation" until the DB enforces it), then real
 >    RLS enforcement lands in M7. Do not gate the M4 flag on the backend being ready.
