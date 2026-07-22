@@ -28,16 +28,27 @@
   var _demoInterval = null;
   var _demoTick = 0;
 
+  // R1 (tech-debt sweep): shared load/save helpers for the many small JSON blobs this file
+  // keeps in localStorage (collapsed-section state, freshness maps, notes, presets, …) — each
+  // used to hand-roll its own try/JSON.parse/catch pair. A missing key, a quota error, and
+  // corrupt JSON all resolve the same way: fall back to `fallback` (returned as-is, no clone).
+  function lsGet(key, fallback) {
+    var v;
+    try { v = localStorage.getItem(key); } catch (e) { return fallback; }
+    if (v == null) return fallback;
+    try { var parsed = JSON.parse(v); return parsed == null ? fallback : parsed; } catch (e) { return fallback; }
+  }
+  function lsSet(key, val) {
+    try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) { /* quota or private-mode */ }
+  }
+
   // inspector section collapse state — keyed by normalized title.
   // Persists across renderInspector() re-renders AND across page reloads (localStorage).
   // This means the user's preferred section layout is remembered between sessions.
   var _LS_COLLAPSED = "studio-insp-collapsed";
-  var _collapsedSects = (function () {
-    try { return JSON.parse(localStorage.getItem(_LS_COLLAPSED) || "{}"); }
-    catch (e) { return {}; }
-  }());
+  var _collapsedSects = lsGet(_LS_COLLAPSED, {});
   function _saveCollapsedSects() {
-    try { localStorage.setItem(_LS_COLLAPSED, JSON.stringify(_collapsedSects)); } catch (e) { /* quota or private-mode */ }
+    lsSet(_LS_COLLAPSED, _collapsedSects);
   }
 
   // inspector search — persists the current query across renderInspector() re-renders
@@ -4625,13 +4636,11 @@
   // source (DESCRIBE/PRAGMA/sample query) — just as strong a liveness signal — so its six
   // per-connector success handlers (below) now call markDaFreshness() too.
   function daFreshnessMap() {
-    try { return JSON.parse(localStorage.getItem("studio-da-freshness") || "{}"); } catch (e) { return {}; }
+    return lsGet("studio-da-freshness", {});
   }
   function markDaFreshness(daId) {
-    try {
-      var m = daFreshnessMap(); m[daId] = new Date().toISOString();
-      localStorage.setItem("studio-da-freshness", JSON.stringify(m));
-    } catch (e) {}
+    var m = daFreshnessMap(); m[daId] = new Date().toISOString();
+    lsSet("studio-da-freshness", m);
   }
   function daFreshnessLabel(daId) {
     var ts = daFreshnessMap()[daId];
@@ -5121,12 +5130,12 @@
 
   /* ---------- export history (last 5; persisted in localStorage) ---------- */
   function loadExportHistory() {
-    try { _exportHistory = JSON.parse(localStorage.getItem("studio-export-history") || "[]"); } catch (e) { _exportHistory = []; }
+    _exportHistory = lsGet("studio-export-history", []);
   }
   function recordExport(kind, name) {
     _exportHistory.unshift({ kind: kind, name: name, ts: new Date().toISOString() });
     _exportHistory = _exportHistory.slice(0, 5);
-    try { localStorage.setItem("studio-export-history", JSON.stringify(_exportHistory)); } catch (e) {}
+    lsSet("studio-export-history", _exportHistory);
     renderExportHistory();
   }
   function timeAgo(ts) {
@@ -5289,10 +5298,10 @@
      OPENED it (not merely saw its card) — updated only by markLastViewed()/openRecent() so the
      window it measures is "since you last had this open," not "since the page last re-rendered." */
   var _LS_LASTVIEW = "studio-last-viewed";
-  function loadLastViewed() { try { return JSON.parse(localStorage.getItem(_LS_LASTVIEW) || "{}"); } catch (e) { return {}; } }
+  function loadLastViewed() { return lsGet(_LS_LASTVIEW, {}); }
   function markLastViewed(id) {
     var m = loadLastViewed(); m[id] = new Date().toISOString();
-    try { localStorage.setItem(_LS_LASTVIEW, JSON.stringify(m)); } catch (e) { /* quota or private-mode */ }
+    lsSet(_LS_LASTVIEW, m);
   }
   // Finds the version-history checkpoint at-or-before `ts` (the dashboard's state as it stood the
   // last time you opened it) and diffs it against the CURRENT spec. Returns null when there's
@@ -5316,8 +5325,8 @@
      only dashboards still tracked in studio-recents so this can't grow unbounded once a
      dashboard falls off Home/Repository. */
   var _LS_VERSIONS = "studio-versions";
-  function loadVersions() { try { return JSON.parse(localStorage.getItem(_LS_VERSIONS) || "{}"); } catch (e) { return {}; } }
-  function saveVersions(v) { try { localStorage.setItem(_LS_VERSIONS, JSON.stringify(v)); } catch (e) { /* quota or private-mode */ } }
+  function loadVersions() { return lsGet(_LS_VERSIONS, {}); }
+  function saveVersions(v) { lsSet(_LS_VERSIONS, v); }
   function snapshotVersion() {
     if (!S.spec || !S.spec.id) return;
     var versions = loadVersions();
@@ -5354,8 +5363,8 @@
      a future slice once KPIs gain a stable id. */
   var _LS_NOTES = "studio-canvas-notes";
   var NOTE_COLORS = ["#ffd76a", "#7dd3c0", "#f4a6a6", "#8fb8f6", "#c9a4f2"];
-  function loadCanvasNotes() { try { return JSON.parse(localStorage.getItem(_LS_NOTES) || "{}"); } catch (e) { return {}; } }
-  function saveCanvasNotes(n) { try { localStorage.setItem(_LS_NOTES, JSON.stringify(n)); } catch (e) { /* quota or private-mode */ } }
+  function loadCanvasNotes() { return lsGet(_LS_NOTES, {}); }
+  function saveCanvasNotes(n) { lsSet(_LS_NOTES, n); }
   function saveCanvasNote(note) {
     if (!S.spec || !S.spec.id) return;
     var all = loadCanvasNotes();
@@ -7632,11 +7641,10 @@
      not an asset host) so it survives reload with zero backend. */
   var BRAND_MAX_BYTES = 200 * 1024; // ~200KB — plenty for an icon-sized logo, keeps localStorage sane
   function getBranding() {
-    try { return JSON.parse(localStorage.getItem("studio-branding") || "null") || { mode: "default" }; }
-    catch (e) { return { mode: "default" }; }
+    return lsGet("studio-branding", { mode: "default" });
   }
   function setBranding(b) {
-    try { localStorage.setItem("studio-branding", JSON.stringify(b)); } catch (e) {}
+    lsSet("studio-branding", b);
     applyBranding();
   }
   function applyBranding() {
@@ -7737,10 +7745,9 @@
   // fields above under a name, so a team can save several house styles (e.g. per client
   // or per event) and switch the active default with one click instead of re-typing it.
   function stylePresets() {
-    var v; try { v = localStorage.getItem("studio-style-presets"); } catch (e) {}
-    try { return v ? JSON.parse(v) : []; } catch (e) { return []; }
+    return lsGet("studio-style-presets", []);
   }
-  function saveStylePresetList(list) { try { localStorage.setItem("studio-style-presets", JSON.stringify(list)); } catch (e) {} }
+  function saveStylePresetList(list) { lsSet("studio-style-presets", list); }
   function addStylePreset(name) {
     var list = stylePresets();
     list.push({
@@ -7767,10 +7774,9 @@
   // {{key}}→value set in one click — e.g. save an "APAC" set and an "EMEA" set once, then apply
   // whichever fits to any dashboard built from the same {{region}}-templated spec.
   function templateVarSets() {
-    var v; try { v = localStorage.getItem("studio-templatevar-sets"); } catch (e) {}
-    try { return v ? JSON.parse(v) : []; } catch (e) { return []; }
+    return lsGet("studio-templatevar-sets", []);
   }
-  function saveTemplateVarSetList(list) { try { localStorage.setItem("studio-templatevar-sets", JSON.stringify(list)); } catch (e) {} }
+  function saveTemplateVarSetList(list) { lsSet("studio-templatevar-sets", list); }
   function addTemplateVarSet(name, vars) {
     var list = templateVarSets();
     list.push({
@@ -7793,10 +7799,9 @@
   // templateVarSets above, so an authored custom theme can be saved once and applied to any
   // other dashboard instead of re-picking 8 colors every time.
   function customThemePresets() {
-    var v; try { v = localStorage.getItem("studio-customtheme-presets"); } catch (e) {}
-    try { return v ? JSON.parse(v) : []; } catch (e) { return []; }
+    return lsGet("studio-customtheme-presets", []);
   }
-  function saveCustomThemePresetList(list) { try { localStorage.setItem("studio-customtheme-presets", JSON.stringify(list)); } catch (e) {} }
+  function saveCustomThemePresetList(list) { lsSet("studio-customtheme-presets", list); }
   function addCustomThemePreset(name, customTheme) {
     var list = customThemePresets();
     list.push({
@@ -9378,11 +9383,10 @@
   // repeats for the same dashboard (same "once, keyed, never again" convention as celebrateFirstExport).
   function celebrateHealthZero(sp) {
     if (!sp || !sp.id) return;
-    var done;
-    try { done = JSON.parse(localStorage.getItem("studio-health-celebrated") || "{}"); } catch (e) { done = {}; }
+    var done = lsGet("studio-health-celebrated", {});
     if (done[sp.id]) return;
     done[sp.id] = 1;
-    try { localStorage.setItem("studio-health-celebrated", JSON.stringify(done)); } catch (e) { return; }
+    lsSet("studio-health-celebrated", done);
     toast("All clear — this dashboard has zero warnings. Nicely built.");
     sparkBurst();
   }

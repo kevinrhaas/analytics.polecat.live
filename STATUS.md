@@ -116,6 +116,13 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **Tech-debt sweep: `lsGet`/`lsSet` localStorage helpers (v420, 2026-07-22, steward, second
+  quality-track slice, R1):** collapsed 11 copy-pasted `try{JSON.parse(localStorage…)}catch{}`
+  load blocks + matching setters — inspector collapse state, DA freshness map, export history,
+  last-viewed, version history, canvas notes, branding, the three preset lists (style/template-var/
+  custom-theme), and health-celebration — onto two shared helpers, `lsGet(key,fallback)`/
+  `lsSet(key,val)`, defined once near the top of app/studio.js. Pure refactor, no behavior change —
+  suite unchanged at 1696/1696. No sw.js bump (no precached files touched).
 - **Connect-to-backend from sign-in (v419, 2026-07-22, steward, M3.2 — Conservation Insight
   platform, feature slice):** the sign-in screen gets a "Connect to your workspace…" link that opens
   the same backend-connect wizard as Settings (`window.__studioOpenBackendWizard`), now stacked above
@@ -1230,8 +1237,12 @@
 >
 > **🧹 TECH-DEBT / REFACTOR track** (behavior-preserving, suite-gated; dedup FIRST — it shrinks the
 > surface and cuts future merge conflict — then module extraction):
-> R1. ★ **`lsGet(key,fallback)` / `lsSet(key,val)` helpers** — collapse ~11 copy-pasted
->     `try{JSON.parse(localStorage…)}catch{}` load blocks + matching setters. (studio.js)
+> R1. ✓ **`lsGet(key,fallback)` / `lsSet(key,val)` helpers (shipped 2026-07-22, steward, second
+>     quality-track slice):** collapsed the 11 copy-pasted `try{JSON.parse(localStorage…)}catch{}`
+>     load blocks + matching setters (inspector collapse state, DA freshness map, export history,
+>     last-viewed, version history, canvas notes, branding, style/template-var/custom-theme
+>     presets, health-celebration) onto the two shared helpers. Pure refactor — suite unchanged at
+>     1696/1696. (app/studio.js) NEXT in this track: R2 (dedup onto canonical `Studio.*`).
 > R2. **Dedup onto canonical `Studio.*`:** `postThemeOnLoad(ifr)` (4 identical envelopes → 1);
 >     `singlePanelHtml(p)` (zoom + slideshow share the pipeline per their own comment); sweep the 15
 >     raw `JSON.parse(JSON.stringify)` → `Studio.clone`; promote `Studio.escapeHtml` and reuse in

@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 420,
+    title: 'Tech-debt sweep: shared lsGet/lsSet localStorage helpers',
+    kind: 'polish',
+    ts: '2026-07-22T01:52:28.000Z',
+    items: [
+      'Collapsed 11 copy-pasted try/JSON.parse/catch localStorage load-save pairs (inspector collapse state, freshness map, export history, last-viewed, versions, canvas notes, branding, style/template-var/custom-theme presets, health-celebration) onto two shared helpers, lsGet(key,fallback)/lsSet(key,val), in app/studio.js.',
+      'Pure refactor, no behavior change -- suite unchanged at 1696/1696.',
+    ],
+  },
+  {
     v: 419,
     title: 'Connect to your workspace backend right from sign-in',
     kind: 'feature',
