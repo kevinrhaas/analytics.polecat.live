@@ -1439,6 +1439,15 @@
 >     its original meaning unchanged. 3 new M4.2 ratchets (toggle stamps/preserves acctOwner, owner sees
 >     their own private dataset, a non-owner viewer doesn't, admin sees everything). sw v72. NEXT:
 >     analyses/jobs get the same toggle; the per-section-rights half is still open.
+>     ↳ **Slice 4 (analyses, shipped 2026-07-22, steward):** the same lock toggle, now on every
+>     saved analysis in Explore's list, filtered through the plain shared `isVisibleToMe` (no field
+>     collision like datasets' — analyses had no pre-existing `owner` field). `owner` is stamped from
+>     `PolecatAuth.current().u` the first time an analysis is saved, or the first time a pre-existing
+>     one goes private. Explore's saved-analyses list, the Studio library's drag-in Analyses group
+>     (`buildAnalysesLib`), and Home's pinned-analyses section all filter through the same helper —
+>     one place to keep consistent. 3 new M4.2 ratchets (toggle stamps/preserves owner, owner sees
+>     their own private analysis, a non-owner viewer doesn't, admin sees everything). sw v74. NEXT:
+>     jobs get the same toggle; the per-section-rights half is still open.
 > M5. **Repository browser:** new left-rail section — a tree/folder view of ALL objects (dashboards,
 >     datasets, connections, analyses, jobs) with find/open/edit and a right-panel editor for
 >     simple objects; deep-links to the full editors for complex ones.

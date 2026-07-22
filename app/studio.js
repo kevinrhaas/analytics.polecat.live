@@ -367,8 +367,8 @@
       try {
         if (S.simpleMode && !localStorage.getItem("studio-shell-section") && window.__studioShellSetSection) {
           var W6 = Studio.Workspace;
-          var hasFeatured = W6.all("dashboards").some(function (r) { return r.featured; }) ||
-            W6.all("analyses").some(function (a) { return a.pinned; });
+          var hasFeatured = W6.all("dashboards").filter(isVisibleToMe).some(function (r) { return r.featured; }) ||
+            W6.all("analyses").filter(isVisibleToMe).some(function (a) { return a.pinned; });
           __studioShellSetSection(hasFeatured ? "home" : "explore");
         }
       } catch (e) {}
@@ -1025,6 +1025,23 @@
     Studio.Workspace.put("analyses", a);
     toast(a.pinned ? "Pinned to Home" : "Unpinned");
   }
+  // M4.2 slice 4 (per-section rights + object privacy — analyses): same
+  // `private`/`owner` shape + isVisibleToMe helper as dashboards/connections.
+  // No field-name collision here (unlike datasets' acctOwner) — analyses have
+  // no pre-existing `owner` field, so the plain shared shape applies as-is.
+  function toggleAnalysisPrivate(id) {
+    var W = Studio.Workspace, a = W.get("analyses", id);
+    if (!a) return;
+    if (a.private) { delete a.private; }
+    else {
+      a.private = true;
+      if (!a.owner) { var uid = currentUserId(); if (uid) a.owner = uid; }
+    }
+    W.put("analyses", a);
+    toast(a.private ? "Private — only you can see this" : "Public — visible to everyone");
+    renderExplore();
+  }
+  window.__studioToggleAnalysisPrivate = toggleAnalysisPrivate; // test hook
   function xpMapEditorHtml() {
     var def = Studio.CHARTS[XP.type] || {}; var cols = (XP.run && XP.run.cols) || [];
     var fields = (def.fields || []).filter(function (f) { return f !== "cols"; });
@@ -1077,7 +1094,7 @@
     var shown = dss.filter(function (d) {
       return !q || (d.name + " " + d.sub + " " + d.cols.join(" ")).toLowerCase().indexOf(q) >= 0;
     });
-    var analyses = Studio.Workspace.all("analyses").sort(function (a, b) { return (b.updatedAt || 0) - (a.updatedAt || 0); });
+    var analyses = Studio.Workspace.all("analyses").filter(isVisibleToMe).sort(function (a, b) { return (b.updatedAt || 0) - (a.updatedAt || 0); });
     var dsRows = shown.slice(0, 60).map(function (d) {
       var on = XP.kind === d.kind && XP.dsId === d.id;
       return '<button type="button" class="xp-ds' + (on ? " active" : "") + '" data-xp-ds="' + esc(d.kind) + XP_SEP + esc(d.id) + '">' +
@@ -1089,6 +1106,7 @@
         '<button type="button" class="xp-saved-open" data-xp-open="' + esc(a.id) + '" title="Open in Explore"><b>' + esc(a.name) + '</b>' +
         '<small>' + esc((Studio.CHARTS[a.chartType] || {}).label || a.chartType) + '</small></button>' +
         '<span class="xp-saved-acts">' +
+        '<button type="button" class="xp-act' + (a.private ? " private" : "") + '" data-xp-private="' + esc(a.id) + '" title="' + (a.private ? "Private — only you can see this" : "Make private") + '" aria-label="' + (a.private ? "Make " + esc(a.name) + " public" : "Make " + esc(a.name) + " private") + '" aria-pressed="' + (a.private ? "true" : "false") + '"></button>' +
         '<button type="button" class="xp-act' + (a.pinned ? " on" : "") + '" data-xp-pin="' + esc(a.id) + '" title="' + (a.pinned ? "Unpin from Home" : "Pin to Home") + '" aria-pressed="' + (a.pinned ? "true" : "false") + '">★</button>' +
         '<button type="button" class="xp-act" data-xp-dash="' + esc(a.id) + '" title="Add to the current dashboard">▦</button>' +
         '<button type="button" class="xp-act" data-xp-del="' + esc(a.id) + '" title="Delete analysis">✕</button>' +
@@ -1192,6 +1210,10 @@
     var nameInp2 = $("#xpName", body);
     if (nameInp2) nameInp2.addEventListener("input", function () { XP.name = nameInp2.value; });
     $$("[data-xp-open]", body).forEach(function (btn) { btn.onclick = function () { xpLoadAnalysis(btn.getAttribute("data-xp-open")); }; });
+    $$("[data-xp-private]", body).forEach(function (btn) {
+      btn.appendChild(Studio.icon("lock", 12));
+      btn.onclick = function (e) { e.stopPropagation(); toggleAnalysisPrivate(btn.getAttribute("data-xp-private")); };
+    });
     $$("[data-xp-pin]", body).forEach(function (btn) { btn.onclick = function () { xpTogglePin(btn.getAttribute("data-xp-pin")); }; });
     $$("[data-xp-dash]", body).forEach(function (btn) { btn.onclick = function () { xpAddAnalysisToSpec(btn.getAttribute("data-xp-dash")); }; });
     $$("[data-xp-del]", body).forEach(function (btn) {
@@ -1205,9 +1227,10 @@
     });
     if (XP.dsId && XP.run) xpPreview();
   }
+  window.__studioRenderExplore = renderExplore; // test hook
   // Analyses in the Studio library — saved Explore results as drag-in objects.
   function buildAnalysesLib(list, q) {
-    var all = (Studio.Workspace ? Studio.Workspace.all("analyses") : []);
+    var all = (Studio.Workspace ? Studio.Workspace.all("analyses").filter(isVisibleToMe) : []);
     var shown = all.filter(function (a) {
       if (!q) return true;
       return ((a.name || "") + " " + (a.chartType || "")).toLowerCase().indexOf(q) >= 0;
@@ -5726,7 +5749,7 @@
       // Viridis V5/V6: analyses pinned in Explore render as LIVE widgets — the
       // quickest path from "open the app" to "see my chart". Click opens Explore.
       (function () {
-        var pinnedA = (Studio.Workspace ? Studio.Workspace.all("analyses") : []).filter(function (a) { return a.pinned; })
+        var pinnedA = (Studio.Workspace ? Studio.Workspace.all("analyses") : []).filter(isVisibleToMe).filter(function (a) { return a.pinned; })
           .sort(function (a, b) { return (b.updatedAt || 0) - (a.updatedAt || 0); });
         if (!pinnedA.length) return "";
         return '<h2 class="home-sub">Pinned analyses</h2><div class="home-analyses">' +
