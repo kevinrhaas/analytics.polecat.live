@@ -1365,6 +1365,31 @@
 >       button slightly overlaps/crowds the "Preset name" input (spacing/layout glitch). Tidy the row
 >       spacing. Likely the same input+button row pattern used elsewhere; check for other instances.
 >       app/studio.css (+ app/studio.js markup if needed).
+> LF16. **Merge "Demo content" into the sample packs + rename demo → "sample content".** The standalone
+>       "Demo content" toggle and the DEMO PACKS section are two surfaces for the same concept — fold the
+>       toggle into the packs UI and reword everything user-facing from "demo" to "sample content" (reads
+>       as curated sample data, not a throwaway demo). Also relevant: ALL the data-management/governance
+>       example content (connections, datasets, jobs, dashboards) should be shipped as sample packs the
+>       same way the Conservation Insight pack is — a governance/data-management sample pack. app/demopacks.js,
+>       Settings UI in app/studio.js, showSamples()/showDemo gating, help copy. Keep the changelog + a test.
+> LF17. **Color-theme picker → palette-image cards (AutoSelector-style).** The Settings "Color theme"
+>       control is a text-only dropdown; replace it with visual palette cards like AutoSelector's Theme
+>       picker — each option shows a gradient/swatch strip of that palette's actual colors plus its name
+>       (Polecat Dark/Light/System + the app palettes incl. the conservation palette). Organize it cleanly
+>       (grouped, not a messy wall). Reference screenshots: AutoSelector's gradient-slider + swatch cards.
+>       app/studio.js (Settings render) + app/studio.css. Keep it token-driven so it tracks live palettes.
+> LF18. **Home ("Welcome back") overhaul — richer entry points, default featured, tour chooser.** The Home
+>       landing should orient a returning user with descriptive quick-actions, not three bare cards:
+>       (a) QUICK-ACTIONS reworded to concrete jobs — "Explore curated datasets", "Build a dashboard from
+>       scratch" (blank), "Create a connection" (connect data), "Build datasets from an existing connection",
+>       etc. — each with a one-line description. (b) TOUR CHOOSER — there are multiple tours (overview +
+>       per-feature: Explore, Jobs, Connections/Datasets, Dashboards); Home's "Take the tour" should open a
+>       chooser (a short overview tour + deeper per-feature tours), not a single tour. (See task #17/#23.)
+>       (c) FEATURED is MISSING — Kevin expects one or two default featured dashboards on Home out of the
+>       box; the Conservation pack sets `featured:true` (demopacks.js) but Home shows none. Investigate why
+>       (pack not installed? featured flag not surfaced?) and ensure a fresh install shows a default featured
+>       dashboard. (d) Keep FAVORITES (pinned) + RECENTS + EXAMPLES, and make clear the examples are drawn
+>       from whatever sample pack(s) are loaded. app/studio.js renderHome(), app/demopacks.js, tour modules.
 
 ### 🔁 QUALITY TRACKS — interleave with the feature backlog (Kevin, 2026-07-21)
 > Kevin asked for a code-organization sweep AND a UI/UX best-practices sweep, folded INTO the loop
