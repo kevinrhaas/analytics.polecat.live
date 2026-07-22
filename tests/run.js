@@ -2904,6 +2904,39 @@ function serve() {
     });
     await page.waitForTimeout(200);
 
+    // LF14: the job-step "Remove step" button and per-metric "✕" were near-invisible
+    // (faint white-on-light — the editor modal sits on --pane, not the dark rail the
+    // base .btn assumes). Both now carry .btn.danger for dark-on-light + hover-red.
+    await page.evaluate(function () {
+      window.__studioShellSetSection("jobs");
+      var conn = Studio.Workspace.put("connections", { name: "jobs-contrast-editor-test", adapter: "file", cfg: {} });
+      var ds = Studio.Workspace.put("datasets", { name: "jobs-contrast-editor-ds", connectionId: conn.id, kind: "file", format: "csv", content: "a,b\n1,2\n" });
+      var job = Studio.Workspace.put("jobs", { name: "contrast-editor-job", sourceDatasetId: ds.id,
+        steps: [{ op: "aggregate", groupBy: ["a"], metrics: [{ col: "b", fn: "sum", as: "b_sum" }] }] });
+      window.__studioOpenJobEditor(job);
+    });
+    await page.waitForTimeout(150);
+    const jobsDangerUI = await page.evaluate(function () {
+      function lum(c) { var m = c.match(/rgba?\(([^)]+)\)/); if (!m) return 0; var p = m[1].split(",").map(parseFloat); return 0.2126 * p[0] + 0.7152 * p[1] + 0.0722 * p[2]; }
+      var removeStep = document.querySelector(".jobs-step-head .btn.danger");
+      var removeMetric = document.querySelector(".jobs-metric-row .btn.danger");
+      function contrast(b) { if (!b) return -1; var cs = getComputedStyle(b); return Math.abs(lum(cs.color) - lum(cs.backgroundColor)); }
+      return { hasRemoveStep: !!removeStep, hasRemoveMetric: !!removeMetric,
+        stepContrast: contrast(removeStep), metricContrast: contrast(removeMetric) };
+    });
+    ok("LF14: job editor 'Remove step' and per-metric '✕' are dark-on-light readable (.btn.danger), not faint white-on-transparent",
+      jobsDangerUI.hasRemoveStep && jobsDangerUI.hasRemoveMetric &&
+      jobsDangerUI.stepContrast > 80 && jobsDangerUI.metricContrast > 80, JSON.stringify(jobsDangerUI));
+    await page.evaluate(function () {
+      document.querySelector(".modal-ov .x").click();
+      Studio.Workspace.all("jobs").filter(function (j) { return j.name === "contrast-editor-job"; }).forEach(function (j) { Studio.Workspace.remove("jobs", j.id, { silent: true }); });
+      Studio.Workspace.all("datasets").filter(function (d) { return d.name === "jobs-contrast-editor-ds"; }).forEach(function (d) { Studio.Workspace.remove("datasets", d.id, { silent: true }); });
+      Studio.Workspace.all("connections").filter(function (c) { return c.name === "jobs-contrast-editor-test"; }).forEach(function (c) { Studio.Workspace.remove("connections", c.id, { silent: true }); });
+      Studio.Workspace.notify("*");
+      window.__studioShellSetSection("studio");
+    });
+    await page.waitForTimeout(200);
+
     // Jobs list: overdue vs. upcoming vs. no-reminder badges, driven purely off
     // refreshEveryDays + lastRun (renderJobs' jobRefreshBadge helper) — never-run
     // + a reminder set counts as due too (nothing to be "on time" against yet).

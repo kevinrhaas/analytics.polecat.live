@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 434,
+    title: 'Fix: job editor “Remove step” and “✕” controls were hard to see',
+    kind: 'fix',
+    ts: '2026-07-22T16:05:26.000Z',
+    items: [
+      'In the job editor, the “✕ Remove step” button and the per-metric/mapping “✕” buttons were faint white-on-light and easy to miss. They now render dark-on-light with a red hover state, matching the rest of the app’s destructive-action styling.',
+    ],
+  },
+  {
     v: 433,
     title: 'A calmer, easier-to-scan Data panel in the builder',
     ts: '2026-07-22T15:45:57.000Z',

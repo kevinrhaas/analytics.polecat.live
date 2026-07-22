@@ -7348,7 +7348,7 @@
               w.oninput = function () { m.weightCol = w.value; };
               row.appendChild(w);
             }
-            var del = el("button", "btn"); del.type = "button"; del.textContent = "✕"; del.setAttribute("aria-label", "Remove metric");
+            var del = el("button", "btn danger"); del.type = "button"; del.textContent = "✕"; del.setAttribute("aria-label", "Remove metric");
             del.onclick = function () { step.metrics.splice(i, 1); draw(); };
             row.appendChild(del);
             wrap.appendChild(row);
@@ -7371,7 +7371,7 @@
             var from = el("input"); from.type = "text"; from.placeholder = "column in the other dataset"; from.value = m.from || "";
             from.oninput = function () { m.from = from.value; };
             row.appendChild(to); row.appendChild(from);
-            var del = el("button", "btn"); del.type = "button"; del.textContent = "✕"; del.setAttribute("aria-label", "Remove mapping");
+            var del = el("button", "btn danger"); del.type = "button"; del.textContent = "✕"; del.setAttribute("aria-label", "Remove mapping");
             del.onclick = function () { step.columnMap.splice(i, 1); draw(); };
             row.appendChild(del);
             wrap.appendChild(row);
@@ -7460,7 +7460,8 @@
           up.disabled = i === 0; up.onclick = function () { var t = j.steps[i - 1]; j.steps[i - 1] = j.steps[i]; j.steps[i] = t; renderSteps(); };
           var down = el("button", "btn"); down.type = "button"; down.textContent = "↓"; down.setAttribute("aria-label", "Move step down");
           down.disabled = i === j.steps.length - 1; down.onclick = function () { var t = j.steps[i + 1]; j.steps[i + 1] = j.steps[i]; j.steps[i] = t; renderSteps(); };
-          var del = el("button", "btn"); del.type = "button"; del.textContent = "✕ Remove step";
+          var del = el("button", "btn danger"); del.type = "button"; del.textContent = "✕ Remove step";
+          del.setAttribute("aria-label", "Remove step");
           del.onclick = function () { j.steps.splice(i, 1); renderSteps(); };
           head.appendChild(up); head.appendChild(down); head.appendChild(del);
           card.appendChild(head);

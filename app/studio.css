@@ -536,6 +536,13 @@ textarea:focus-visible,[tabindex]:focus-visible,.row-item:focus-visible{
 .btn.btn-primary:hover{background:#8e49ab}
 .btn.icon{padding:8px 11px}
 .btn.live-on{background:#1f9d57;border-color:transparent}
+/* LF14: destructive .btn actions inside MODALS (job-step "Remove step", per-metric/
+   mapping "✕") sit on the light --pane surface, not the dark rail/topbar the base
+   .btn assumes — same faint white-on-light bug the .app-sec rule above fixes for
+   content sections, but modals aren't inside .app-sec. Dark-on-light by default,
+   red on hover so the destructive intent reads clearly. */
+.btn.danger{background:var(--field);border:1px solid var(--line);color:var(--ink)}
+.btn.danger:hover{background:var(--field);border-color:var(--bad);color:var(--bad)}
 .menu-wrap{position:relative}
 /* Z9 tablet/desktop motion polish: dropdown menus used to hard-cut in/out via display:none/block
    (not animatable). A short fade + slight rise/scale reads as more modern and "alive" — matches
