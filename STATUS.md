@@ -1589,6 +1589,39 @@
 >       dashboard is a nice touch but the HARD guardrail is: sample/demo content is read-only, edits fork. app/studio.js
 >       (saveToCatalog + a saveAsNew, the Save/Save-as buttons), app/index.html (button), test (saving over a
 >       demoPackId dashboard forks instead of overwriting; Save-as mints a new id).
+> LF27. ★★ **Navigation model — Studio is an EDITOR you enter & leave; land on Home; a sexy Dashboards browser (Kevin, live).**
+>       Reframe the app so the builder isn't a scary dead-end. Today the rail has both `dashboards` (secDashboards, a
+>       list w/ a repo-hero) AND `studio` (the editor) as peer rail items, and the app BOOTS with `studio` active
+>       (index.html rail-item active + aria-current on studio) — that's the "opens into the scary builder" problem.
+>       (a) DON'T LAND IN STUDIO. Default the boot section to HOME (or Dashboards), not Studio — first-time especially.
+>           And the TOUR must START on the HOME page as the backdrop, never inside the builder. (Ties LF18, tours #17/#23.)
+>           This is the smallest, highest-value slice — do it first (mind the many tests that assume studio-on-boot;
+>           update them, don't weaken them).
+>       (b) CLOSE + RETURN-TO-ORIGIN. Studio gets a "Close" (next to Save/Save-as — pairs with LF26) that leaves the
+>           editor and returns to WHERE YOU OPENED FROM (the Dashboards/Repository list). Track the origin section;
+>           wire it through SPA history (LF9/#44) so browser Back also closes the editor. The natural loop: open a
+>           dashboard → edit → Save/Save-as → Close → back to the list → open another.
+>       (c) A "COOL & SEXY" DASHBOARDS BROWSER (the simple tier). The `dashboards` rail section becomes a friendly
+>           collection view: your dashboards + the public ones, as PREVIEW TILES (reuse Home's live/thumbnail tile
+>           rendering, renderHome ~5684 home-featured/home-recents/home-examples) OR a list, with search + a
+>           tree/folder nav (reuse Workbooks). Click a tile → open in Studio; Close → back here. This is largely
+>           elements already on Home — integrate/fold them so Home ↔ Dashboards ↔ Studio feel like one flow.
+>       (d) TWO TIERS: keep REPOSITORY as the ADVANCED/expert cross-object manager (dashboards+datasets+connections+
+>           jobs+analyses — #29), and let the Dashboards browser be the SIMPLE, tile-first "just my dashboards + public"
+>           view. Studio may still exist on the rail (for a blank build) but the PRIMARY path is open-from-list, not
+>           "start in the builder." Big, structural — slice carefully: (a) land-on-Home + tour-on-Home FIRST, then
+>           (b) Close/return, then (c) the tile browser, then (d) the Repository/Dashboards split. app/index.html (rail +
+>           boot section), app/shell.js (section routing + origin tracking), app/studio.js (Close, renderHome tiles,
+>           secDashboards render), app/tutorial.js (start on Home). Ties: LF18, LF23, #22, #29, LF9/#44, #17/#23.
+> LF28. **BUG — map zoom/pan viewport isn't saved with the map widget (Kevin, live).** The choropleth's current
+>       zoom LEVEL and PAN position (center/translate) don't persist on the panel/analysis object — reopen or export
+>       and the map resets to its default view. Persist the viewport (zoom + pan center, and the renderer choice per
+>       LF25b) onto the widget's cfg so it survives save, reload, AND export (both the built-in renderer and the GL/
+>       MapLibre renderer). Must work in BOTH surfaces: building a widget in EXPLORE and editing a panel in DASHBOARD
+>       STUDIO. Wire the renderer's zoom/pan state back into cfg on change (debounced), read it on render, and include
+>       it in the byte-identical export. This is the concrete "last zoom/pan not saved" half of #39 (choropleth
+>       pan/zoom + persist). app/studio-charts.js (choropleth + GL viewport state ⇄ cfg), app/studio.js (Explore +
+>       panel inspector), app/exporters.js; test: set zoom/pan → serialize → reload → viewport restored.
 > LF19. **Left + right panel IA/redesign — make the builder calm, clear & elegant (Kevin, live).** First
 >       pass shipped (v433: compact dataset cards, kind icons, hover actions, hairline sections, compound
 >       builder removed). The DEEPER work Kevin asked for: the whole left Data panel still opens "scary/
