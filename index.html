@@ -13,6 +13,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png"/>
 <meta name="theme-color" content="#231e28"/>
 <link rel="stylesheet" href="css/landing.css"/>
+<link rel="stylesheet" href="vendor/polecat-shell/site-chrome.css"/>
 <script>
 /* Deep links minted before the app moved to /app/ (share codes, saved views) landed on
    the root with a meaningful hash — forward them into the app so old links keep working.
@@ -25,19 +26,8 @@
 </head>
 <body>
 
-<header class="nav">
-  <a class="brand" href="/">
-    <img src="favicon.svg" width="30" height="30" alt=""/>
-    <span>Analytics<b>polecat.live</b></span>
-  </a>
-  <nav class="nav-links">
-    <a href="#features">Features</a>
-    <a href="#sources">Data sources</a>
-    <a href="docs/">Docs</a>
-    <a href="https://polecat.live" class="fleet-link">polecat.live</a>
-    <a href="app/" class="btn-cta small">Open Analytics</a>
-  </nav>
-</header>
+<!-- Shared fleet header (site-chrome.js) — see polecat-platform docs/BRAND.md -->
+<header id="siteHeader"></header>
 
 <main>
   <section class="hero">
@@ -157,10 +147,21 @@
 }());
 </script>
 
-<footer class="foot">
-  <span>Analytics · part of the <a href="https://polecat.live">polecat.live</a> suite</span>
-  <span class="foot-links"><a href="docs/">Docs</a> · <a href="app/">App</a> · <a href="THIRD-PARTY-NOTICES.md">Third-party notices</a> · © 2026 Polecat.live</span>
-</footer>
+<!-- Shared fleet footer (site-chrome.js) — see polecat-platform docs/BRAND.md -->
+<footer id="siteFooter"></footer>
 
+<!-- Mount the shared header + footer -->
+<script type="module">
+  import { siteHeader, siteFooter } from './vendor/polecat-shell/site-chrome.js';
+  siteHeader('#siteHeader', {
+    app: 'analytics',
+    nav: [
+      { href: '#features', label: 'Features' },
+      { href: '#sources', label: 'Data sources' },
+    ],
+    cta: { href: 'app/', label: 'Open Analytics' },
+  });
+  siteFooter('#siteFooter', { app: 'analytics', docs: 'docs/', appUrl: 'app/', notices: 'THIRD-PARTY-NOTICES.md' });
+</script>
 </body>
 </html>

@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 438,
+    title: 'The landing page now wears the shared fleet header & footer',
+    kind: 'polish',
+    ts: '2026-07-22T18:48:27.000Z',
+    items: [
+      'The Analytics front door adopts the suite-wide header and footer, so it matches every Polecat app — the same brand tile, a consistent “Polecat” link back to the suite, and the standard footer.',
+      'Built on Polecat Shell v0.5.2 (the shared site-chrome plus the ~44px mobile touch targets).',
+    ],
+  },
+  {
     v: 437,
     title: 'New “Developer” role for people who build dashboards',
     kind: 'feature',
