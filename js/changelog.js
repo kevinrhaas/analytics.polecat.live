@@ -6,6 +6,14 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 443,
+    title: 'A refreshed marketing homepage carousel — dashboards first, in Polecat dark',
+    ts: '2026-07-22T20:37:55.000Z',
+    items: [
+      'The public homepage now leads with the finished product — a polished, interactive dashboard rendered in the Polecat brand dark theme — instead of the builder, which now trails at the end. The carousel gained a proper survey of the app: the Home tiles (featured dashboards + reusable widgets), the Explore designer, the Datasets workspace, a county choropleth, a HUC8 watershed map showing custom geographies, the chart-showcase and the Ensemble chart — all rendered dark and consistent. Every image is a real, freshly-captured screenshot of the live app (tools/gen-shots.mjs), not a mockup.',
+    ],
+  },
+  {
     v: 442,
     title: 'A quiet link back to the polecat.live suite in the rail',
     kind: 'polish',
