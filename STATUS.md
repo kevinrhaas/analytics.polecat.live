@@ -116,6 +116,22 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **Datasets gain a Folder field — folder-tree pilot slice 1 (v447, 2026-07-22, steward, #21 org
+  sub-item):** per the 2026-07-21 DECISIONS LOCKED plan (hybrid folders + tags — tags-filter parity
+  first, then the folder tree), tags-filter parity was judged good enough at Datasets+Connections
+  (both already had `workbookId`-style single-parent precedent to beat, unlike dashboards/analyses/
+  jobs), so this slice starts the folder layer instead of extending tags further. Datasets carry a
+  new flat `d.folder` string (single value, unlike multi-value `tags`) — the dataset editor gains a
+  "Folder" text field with a `<datalist>` of existing folder names (filtered through
+  `isDatasetVisibleToMe` so a private dataset's folder name never leaks to another account's
+  suggestions), the Datasets list gains a single-select chip facet (`_dsxFolderFilter`: All
+  folders/each folder/Unfiled — hidden until at least one dataset is filed, same "no empty facet"
+  convention as the adapter/conn/tag pills) that narrows the list and folds into the existing
+  saved-view capture, and each filed row gets a folder badge. Deliberately flat (one level), not a
+  tree yet — the honest first step before M5's real nested Repository browser. 6 new DSX-folder
+  ratchets (no facet while unfiled, editor field + datalist wiring, save persists + renders
+  chip/badge, chip filters the list, Unfiled excludes a filed dataset, Clear resets it). sw v91.
+  (app/studio.js, app/studio.css, tests/run.js) NEXT: the same field + facet on Connections.
 - **FIX: a widget's dataset caption opened EVERY dataset, not just that one (v444, 2026-07-22, Kevin live):**
   clicking the per-panel "◴ <dataset>" provenance caption called `PDC.queryModal(opts.query)` but studio-render
   never passed `query` to `PDC.card` — so focusId was undefined and the Datasets modal showed all datasets with
@@ -1355,8 +1371,23 @@
 >    mostly there), then the folder tree + move/assign, then wire both into the Repository browser (M5).
 >    ↳ **Slice 1 (Connections gain tags, shipped 2026-07-22, steward):** Connections now carry the
 >    same Tags field + tag filter pills/badges/saved-views as Datasets (`_connTagFilter`) — see DONE.
->    sw v77. NEXT: decide whether dashboards/analyses/jobs also get a tag axis before moving on to
->    the folder tree, or whether Datasets+Connections is parity enough to start folders now.
+>    sw v77.
+>    ↳ **Decision (2026-07-22, steward): Datasets+Connections is parity enough — moving on to the
+>    folder tree step**, rather than extending the tag axis to dashboards/analyses/jobs first (those
+>    already have their own single-parent grouping precedent — Dashboards' `workbookId` — so tags
+>    would be a smaller marginal win there than starting the folder layer).
+>    ↳ **Folder pilot slice 1 (Datasets, shipped 2026-07-22, steward):** Datasets gain a single flat
+>    `d.folder` string field (the editor's new "Folder" text input + a `<datalist>` of existing
+>    names, filtered through `isDatasetVisibleToMe` so a private dataset's folder name doesn't leak
+>    to other accounts), a single-select chip facet (All folders/each folder/Unfiled — only shown
+>    once something's been filed, same "no empty facet" convention as the adapter/conn/tag pills)
+>    that filters the list and folds into the saved-view capture, and a row badge naming the folder.
+>    This is deliberately FLAT (one level), not yet a tree — the honest MVP step before nesting.
+>    6 new DSX-folder ratchets (no facet while unfiled, editor field + datalist wiring, save
+>    persists + renders chip/badge, chip filters the list, Unfiled excludes a filed dataset, Clear
+>    resets it). sw v91. NEXT: the same single-folder field + chip facet on Connections (next
+>    object type, mirroring how tags rolled out object-by-object), then Datasets+Connections
+>    folders wire into the Repository browser (M5) alongside a real nested tree.
 > 2. **Backend for enforced per-user security (M7) = SUPABASE (Postgres + GoTrue Auth + RLS).**
 >    Real "private = only I can see it" is DB-enforced via row-level security. M3.2 connect-to-backend
 >    + provisioning targets **Supabase first** (the other adapters keep working, but Supabase is the
@@ -2006,7 +2037,9 @@
 >     rail's own bounce already relies on). 4 new M4.2 ratchets (default-empty/no-op, admin hides a
 >     section live while still seeing it themselves, a parked viewer gets bounced to Home, unhiding
 >     restores it and the checkbox reflects it). sw v79. **M4.2 (object privacy + per-section rights)
->     is now fully done.** NEXT: M5 Repository browser.
+>     is now fully done.** NEXT: M5 Repository browser (the "folder tree + move/assign" groundwork —
+>     the flat per-object `folder` field + chip facet, currently rolling out object-by-object per
+>     the DECISIONS LOCKED note above — feeds into it; see that note for the live status).
 > M5. **Repository browser:** new left-rail section — a tree/folder view of ALL objects (dashboards,
 >     datasets, connections, analyses, jobs) with find/open/edit and a right-panel editor for
 >     simple objects; deep-links to the full editors for complex ones.

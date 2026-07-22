@@ -3680,6 +3680,76 @@ function serve() {
       dsxConnPills.pills.some(function (p) { return p.label === "Mock warehouse 2" && p.n === "1"; }),
       JSON.stringify(dsxConnPills));
 
+    // Folder pilot slice (#21 org sub-item, "folder tree" step 2 — a single flat
+    // d.folder string alongside the existing multi-value tags): no facet row while
+    // nothing has been filed, an Edit-modal "Folder" field (with a <datalist> of
+    // existing names) files one in, a chip strip appears, filters the list, and
+    // shows the folder as a badge on the row.
+    const dsxFolderNone = await page.evaluate(function () { return { chip: !!document.querySelector("[data-dsx-folder]") }; });
+    ok("DSX: no folder facet row while no dataset has been filed into one",
+      !dsxFolderNone.chip, JSON.stringify(dsxFolderNone));
+
+    await page.evaluate(function () { document.querySelector('[data-dsx-edit="d-second"]').click(); });
+    await page.waitForTimeout(120);
+    const dsxFolderField = await page.evaluate(function () {
+      var fields = [].slice.call(document.querySelectorAll(".modal .cx-field"));
+      var row = fields.filter(function (f) { return /^Folder/.test(f.textContent); })[0];
+      var inp = row && row.querySelector("input");
+      var datalist = row && row.querySelector("datalist");
+      return { found: !!inp, hasDatalist: !!datalist, listAttr: inp && inp.getAttribute("list") };
+    });
+    ok("DSX: the dataset editor has a Folder field wired to a <datalist> of existing folder names",
+      dsxFolderField.found && dsxFolderField.hasDatalist && dsxFolderField.listAttr === "dsxFolderOptions", JSON.stringify(dsxFolderField));
+
+    await page.evaluate(function () {
+      var fields = [].slice.call(document.querySelectorAll(".modal .cx-field"));
+      var folderInp = fields.filter(function (f) { return /^Folder/.test(f.textContent); })[0].querySelector("input");
+      folderInp.value = "Regional";
+    });
+    await page.evaluate(function () {
+      [].slice.call(document.querySelectorAll(".modal .cx-wiz-foot .btn")).filter(function (b) { return /Save changes/.test(b.textContent); })[0].click();
+    });
+    await page.waitForTimeout(150);
+    const dsxFolderSaved = await page.evaluate(function () {
+      var r = Studio.Workspace.get("datasets", "d-second");
+      var chip = document.querySelector('[data-dsx-folder="Regional"]');
+      return {
+        folder: r.folder,
+        chip: !!chip, chipLabel: chip && (chip.querySelector(".wb-chip-label") || {}).textContent,
+        chipN: chip && (chip.querySelector(".wb-chip-n") || {}).textContent,
+        badge: !!document.querySelector('.cx-row[data-dsx-id="d-second"] .cx-folder'),
+        badgeText: (document.querySelector('.cx-row[data-dsx-id="d-second"] .cx-folder') || {}).textContent
+      };
+    });
+    ok("DSX: saving the Folder field persists d.folder, renders a chip, and badges the row",
+      dsxFolderSaved.folder === "Regional" && dsxFolderSaved.chip && dsxFolderSaved.chipLabel === "Regional" &&
+      dsxFolderSaved.chipN === "1" && dsxFolderSaved.badge && dsxFolderSaved.badgeText === "Regional",
+      JSON.stringify(dsxFolderSaved));
+
+    const dsxFolderFilter = await page.evaluate(function () {
+      document.querySelector('[data-dsx-folder="Regional"]').click();
+      var rows = [].slice.call(document.querySelectorAll("#dsxResults .cx-row")).map(function (r) { return r.getAttribute("data-dsx-id"); });
+      return { rows: rows };
+    });
+    ok("DSX: clicking a folder chip narrows the list to just that folder",
+      dsxFolderFilter.rows.length === 1 && dsxFolderFilter.rows[0] === "d-second", JSON.stringify(dsxFolderFilter));
+
+    const dsxFolderUnfiled = await page.evaluate(function () {
+      document.querySelector('[data-dsx-folder="__unfiled"]').click();
+      var rows = [].slice.call(document.querySelectorAll("#dsxResults .cx-row")).map(function (r) { return r.getAttribute("data-dsx-id"); });
+      return { rows: rows, unfiledN: (document.querySelector('[data-dsx-folder="__unfiled"] .wb-chip-n') || {}).textContent };
+    });
+    ok("DSX: the Unfiled folder chip excludes the dataset that's been filed",
+      dsxFolderUnfiled.rows.indexOf("d-second") < 0 && dsxFolderUnfiled.unfiledN === "2", JSON.stringify(dsxFolderUnfiled));
+
+    await page.evaluate(function () { document.querySelector("#dsxPillClear").click(); });
+    await page.waitForTimeout(60);
+    const dsxFolderCleared = await page.evaluate(function () {
+      return { rows: document.querySelectorAll("#dsxResults .cx-row").length, activeChip: !!document.querySelector("[data-dsx-folder].active[data-dsx-folder='Regional']") };
+    });
+    ok("DSX: Clear resets the folder filter back to all datasets",
+      dsxFolderCleared.rows === 3 && !dsxFolderCleared.activeChip, JSON.stringify(dsxFolderCleared));
+
     const dsxConnFilter = await page.evaluate(function () {
       document.querySelector('[data-dsx-conn="conn-mock-2"]').click();
       var rows = [].slice.call(document.querySelectorAll("#dsxResults .cx-row")).map(function (r) { return r.getAttribute("data-dsx-id"); });

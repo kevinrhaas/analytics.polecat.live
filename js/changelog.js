@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 447,
+    title: 'Datasets can now be filed into a Folder',
+    ts: '2026-07-22T22:37:32.000Z',
+    items: [
+      'The dataset editor has a new "Folder" field — a single home for a dataset (e.g. "Finance"), separate from Tags (which can be many). Pick an existing folder from the suggestions or type a new one.',
+      'The Datasets list gains a folder chip strip (All folders / each folder / Unfiled) once at least one dataset has been filed, and a small badge on the row shows which folder it lives in.',
+    ],
+  },
+  {
     v: 446,
     title: 'Clearer wording on the widget dataset caption',
     kind: 'polish',

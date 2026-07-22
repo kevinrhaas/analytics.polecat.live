@@ -1552,6 +1552,7 @@ body.simple-mode .da-acts{display:none!important}
 .cx-badge.cx-refresh-due{color:var(--warn);border-color:color-mix(in srgb, var(--warn) 45%, transparent)}
 .cx-badge.admin{color:var(--brand);border-color:color-mix(in srgb, var(--brand) 45%, transparent)}
 .cx-badge.developer{color:var(--accent);border-color:color-mix(in srgb, var(--accent) 45%, transparent)}
+.cx-badge.cx-folder{color:var(--ink);background:color-mix(in srgb, var(--ink) 8%, transparent);text-transform:none;letter-spacing:0;font-weight:600}
 .cx-when{color:var(--faint);font-size:11.5px;flex:0 0 auto}
 .cx-actions{display:flex;gap:6px;flex:0 0 auto;opacity:0;transition:opacity .12s ease}
 .cx-row:hover .cx-actions,.cx-row:focus-within .cx-actions{opacity:1}

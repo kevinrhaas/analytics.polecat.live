@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v90"; /* v90: reword the per-panel dataset
+var CACHE_NAME = "studio-shell-v91"; /* v91: Datasets folder pilot (#21 org
+   sub-item, "folder tree" step 2) — a single d.folder field, editor field +
+   datalist, chip filter, row badge (app/studio.js, app/studio.css content
+   changed, so precached copies need to roll).
+   v90: reword the per-panel dataset
    caption's tooltip from the jargon "View the CDA queries behind this
    dashboard" -> "View the dataset behind this widget" (vendor/pdc-ui.js — a
    user-facing string, inlined identically into preview + export).
