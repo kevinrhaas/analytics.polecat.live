@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v80"; /* v80: FIX — updatedAt is now typed BIGINT in
+var CACHE_NAME = "studio-shell-v81"; /* v81: Calmer Data panel — the compound
+   (join/union) data-access CREATE button is retired from the Studio pane (joins
+   belong in the Datasets area); dataset cards are now a compact ~2-row layout
+   (kind icon + id + badge, hover-reveal actions, capped column chips) and the
+   section outlines are a light hairline instead of a loud brand box. studio.js
+   + studio.css changed.
+   v80: FIX — updatedAt is now typed BIGINT in
    the workspace provisioning DDL. It holds epoch-MILLISECONDS (~1.78e12), which
    overflows Postgres INTEGER (int4, ~2.1e9), so a Supabase "Overwrite with mine"
    push failed with "value … is out of range for type integer" (22003). BIGINT

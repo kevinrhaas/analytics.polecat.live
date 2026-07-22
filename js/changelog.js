@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 433,
+    title: 'A calmer, easier-to-scan Data panel in the builder',
+    ts: '2026-07-22T15:45:57.000Z',
+    items: [
+      'The builder’s left Data panel felt busy — every dataset was a tall, heavily outlined card and the sections were boxed in a loud accent border. Datasets are now compact two-line cards with a small icon showing what each one is (SQL, a spreadsheet, a warehouse, a join…), a quiet name and usage line, and duplicate/delete buttons that appear when you hover. Long column lists fold into a “+N” chip, and the section outlines are now a light hairline. Nothing changed about your data — just a cleaner, less overwhelming layout.',
+      'The compound “join/union” data-source builder has been removed from the builder panel — combining datasets belongs in the Datasets area, so the extra button that opened it here is gone. Any existing dashboard that already uses a join still works.',
+    ],
+  },
+  {
     v: 432,
     title: 'Fix: pushing your workspace to a Supabase backend no longer errors',
     kind: 'fix',
