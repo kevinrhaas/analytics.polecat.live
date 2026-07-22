@@ -5177,6 +5177,27 @@
      `studio-recents`/`studio-pins`/`studio-workbooks` are migrated once at
      boot (see migrateDashboardCatalog) and left behind untouched as a frozen
      local backup — never wiped. */
+  // M4.2 (per-section rights + object privacy, slice 1 — dashboards): a `private`
+  // flag + `owner` (the account id that created it) ride on the dashboards row like
+  // `pinned` does. UX-level gating only (matching auth.js/shell.js's own honesty
+  // about not being cryptographic enforcement — real DB-enforced privacy is the
+  // later Supabase-RLS slice, M7): hides another account's private dashboards from
+  // Home/Dashboards, nothing more. No PolecatAuth loaded (local/no-auth mode) or an
+  // admin account both see everything, matching shell.js's applyRoleGating fallback.
+  function currentUserId() {
+    var Auth = window.PolecatAuth, me = Auth && Auth.current();
+    return me ? me.u : null;
+  }
+  function currentUserIsAdmin() {
+    var Auth = window.PolecatAuth, me = Auth && Auth.current();
+    return !Auth || !me || me.role === "admin";
+  }
+  function isVisibleToMe(r) {
+    if (!r.private) return true;
+    if (currentUserIsAdmin()) return true;
+    var uid = currentUserId();
+    return !!uid && r.owner === uid;
+  }
   var _recentTimer = null;
   function scheduleNoteRecent() { clearTimeout(_recentTimer); _recentTimer = setTimeout(noteRecent, 800); }
   function loadRecents() {
@@ -5224,6 +5245,23 @@
     renderDashboards();
   }
   window.__studioToggleFeature = toggleFeature; // test hook
+  // M4.2 slice 1: the private/public toggle. Owner is stamped the first time a
+  // dashboard goes private (covers rows created before this slice, which have no
+  // owner yet) so it always has someone to stay visible to once it's flipped.
+  function togglePrivate(id) {
+    var W = Studio.Workspace, r = W.get("dashboards", id);
+    if (!r) return;
+    if (r.private) { delete r.private; }
+    else {
+      r.private = true;
+      if (!r.owner) { var uid = currentUserId(); if (uid) r.owner = uid; }
+    }
+    W.put("dashboards", r);
+    toast(r.private ? "Private — only you can see this" : "Public — visible to everyone");
+    renderHome();
+    renderDashboards();
+  }
+  window.__studioTogglePrivate = togglePrivate; // test hook
   function noteRecent() {
     if (!S.spec || !S.spec.id) return;
     var W = Studio.Workspace;
@@ -5237,6 +5275,11 @@
       if (prior.workbookId) entry.workbookId = prior.workbookId;
       if (prior.pinned) { entry.pinned = true; entry.pinnedAt = prior.pinnedAt; }
       if (prior.createdAt) entry.createdAt = prior.createdAt;
+      if (prior.owner) entry.owner = prior.owner;
+      if (prior.private) entry.private = true;
+    } else {
+      var newUid = currentUserId();
+      if (newUid) entry.owner = newUid;
     }
     entry.title = entry.spec.title || "";
     entry.name = entry.spec.name || "";
@@ -5490,7 +5533,7 @@
   // and (2) a plain-English diff, reusing Studio.diffSpecs/diffSummary verbatim (the same engine
   // the version-history diff already established).
   function openCompareDashboards() {
-    var list = loadRecents();
+    var list = loadRecents().filter(isVisibleToMe);
     if (list.length < 2) { toast("Save at least two dashboards to compare them", true); return; }
     modal("Compare dashboards", function (body) {
       body.appendChild(hint("Pick any two saved dashboards to see a live side-by-side preview and a plain-English summary of what differs between them."));
@@ -5577,6 +5620,8 @@
         'title="' + (pinned ? "Unpin" : "Pin") + '" aria-label="' + (pinned ? "Unpin " : "Pin ") + esc(title) + '" aria-pressed="' + (pinned ? "true" : "false") + '"></button>' +
       '<button class="recent-feature' + (r.featured ? " featured" : "") + '" data-feature="' + esc(r.id) + '" ' +
         'title="' + (r.featured ? "Remove from Home" : "Feature on Home (live preview)") + '" aria-label="' + (r.featured ? "Remove " : "Feature ") + esc(title) + (r.featured ? " from Home" : " on Home") + '" aria-pressed="' + (r.featured ? "true" : "false") + '"></button>' +
+      '<button class="recent-private' + (r.private ? " private" : "") + '" data-private="' + esc(r.id) + '" ' +
+        'title="' + (r.private ? "Private — only you can see this" : "Make private") + '" aria-label="' + (r.private ? "Make " + esc(title) + " public" : "Make " + esc(title) + " private") + '" aria-pressed="' + (r.private ? "true" : "false") + '"></button>' +
       '<div class="recent-thumb">' + thumb + '</div>' +
       '<div class="recent-meta"><b>' + esc(title) + '</b><small>' + timeAgo(r.ts) + ' · ' + meta + '</small>' + changeHint + colHint + wbSelect + '</div></div>';
   }
@@ -5602,7 +5647,7 @@
   window.__studioHomeWbFilter = function () { return _homeWbFilter; }; // test hook
   function renderHome() {
     var sec = $("#secHome"); if (!sec) return;
-    var list = loadRecents(), pins = loadPins();
+    var list = loadRecents().filter(isVisibleToMe), pins = loadPins();
     // Z2 follow-up (folders/organization): Repository already lets you file dashboards into
     // Workbooks (Z3); Home only ever showed one flat Recent/Pinned split with no way to narrow
     // by workbook. Reuses the exact same storage/helpers, just a lighter chip strip (no rename/
@@ -5765,6 +5810,10 @@
       btn.appendChild(Studio.icon("home", 14));
       btn.onclick = function (e) { e.stopPropagation(); toggleFeature(btn.getAttribute("data-feature")); };
     });
+    $$(".recent-private", sec).forEach(function (btn) {
+      btn.appendChild(Studio.icon("lock", 13));
+      btn.onclick = function (e) { e.stopPropagation(); togglePrivate(btn.getAttribute("data-private")); };
+    });
     // V6: hydrate the live frames AFTER the html lands (each is the real
     // renderer in a scaled, view-only iframe; geometry inlined when needed)
     $$("[data-feat-frame]", sec).forEach(function (box) {
@@ -5921,7 +5970,7 @@
   function renderDashboards() {
     var results = $("#repoResults"); if (!results) return;
     var q = (($("#repoSearch") || {}).value || "").toLowerCase();
-    var list = loadRecents(), pins = loadPins(), workbooks = loadWorkbooks();
+    var list = loadRecents().filter(isVisibleToMe), pins = loadPins(), workbooks = loadWorkbooks();
     var validWbIds = {}; workbooks.forEach(function (w) { validWbIds[w.id] = true; });
     var wbCounts = { all: list.length, unfiled: 0, byId: {} };
     list.forEach(function (r) {
@@ -6055,9 +6104,13 @@
       btn.appendChild(Studio.icon("home", 14));
       btn.onclick = function (e) { e.stopPropagation(); toggleFeature(btn.getAttribute("data-feature")); };
     });
+    $$(".recent-private", results).forEach(function (btn) {
+      btn.appendChild(Studio.icon("lock", 13));
+      btn.onclick = function (e) { e.stopPropagation(); togglePrivate(btn.getAttribute("data-private")); };
+    });
     $$(".dash-li", results).forEach(function (row) {
       row.addEventListener("click", function (e) {
-        if (e.target.closest(".recent-pin,.recent-wb-sel")) return;
+        if (e.target.closest(".recent-pin,.recent-private,.recent-wb-sel")) return;
         openRecent(row.getAttribute("data-recent"));
       });
       row.addEventListener("keydown", function (e) {
@@ -6078,7 +6131,8 @@
         (matchedCol ? ' · matches column “' + esc(matchedCol) + '”' : "") + '</small></span>' +
       (sp.dashboardTheme ? '<span class="cx-badge">' + esc(sp.dashboardTheme) + '</span>' : "") +
       '<span class="cx-when">' + esc(when) + '</span>' +
-      '<span class="cx-actions"><button type="button" class="recent-pin' + (pinned ? " pinned" : "") + '" data-pin="' + esc(r.id) + '" title="' + (pinned ? "Unpin" : "Pin to Home") + '" aria-pressed="' + (pinned ? "true" : "false") + '"></button></span>' +
+      '<span class="cx-actions"><button type="button" class="recent-pin' + (pinned ? " pinned" : "") + '" data-pin="' + esc(r.id) + '" title="' + (pinned ? "Unpin" : "Pin to Home") + '" aria-pressed="' + (pinned ? "true" : "false") + '"></button>' +
+      '<button type="button" class="recent-private cx-list-private' + (r.private ? " private" : "") + '" data-private="' + esc(r.id) + '" title="' + (r.private ? "Private — only you can see this" : "Make private") + '" aria-label="' + (r.private ? "Make " + esc(title) + " public" : "Make " + esc(title) + " private") + '" aria-pressed="' + (r.private ? "true" : "false") + '"></button></span>' +
       '</div>';
   }
   window.__studioRenderDashboards = renderDashboards; // test hook
@@ -9410,7 +9464,7 @@
       var listWrap = el("div", "odp-list"); b.appendChild(listWrap);
       function paint() {
         var q = (search.value || "").toLowerCase();
-        var list = loadRecents().filter(function (r) {
+        var list = loadRecents().filter(isVisibleToMe).filter(function (r) {
           if (!q) return true;
           var sp = r.spec || {};
           return ((sp.title || "") + " " + (sp.name || "")).toLowerCase().indexOf(q) >= 0;

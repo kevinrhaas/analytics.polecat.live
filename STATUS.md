@@ -1391,6 +1391,17 @@
 >     items become permissioned per role; private/public flag on every saved object (dashboards,
 >     datasets, analyses, connections, jobs) — private HIDES from other users in the UI now, with
 >     DB-enforced privacy arriving in the Supabase-RLS slice.
+>     ↳ **Slice 1 (dashboards, shipped 2026-07-22, steward):** a private/public toggle (lock icon,
+>     third corner button beside pin/feature on the card, and beside pin in the compact list row)
+>     on every dashboards row. `owner` is stamped from `PolecatAuth.current().u` the first time a
+>     dashboard is either created or goes private (covers pre-existing rows with no owner yet); an
+>     admin account always sees everything (same convention as shell.js's rail gating), no
+>     PolecatAuth loaded (local/no-auth mode) also sees everything. Home, Dashboards, the Compare-
+>     dashboards picker, and the ⌘K "Open a dashboard" picker all filter through the same
+>     `isVisibleToMe` — one place to keep consistent. 4 new M4.2 ratchets (toggle stamps/preserves
+>     owner, owner sees their own private dashboard, a non-owner viewer doesn't, admin sees
+>     everything). sw v70. NEXT: datasets/analyses/connections/jobs get the same toggle (same
+>     `isVisibleToMe` shape, different table); the per-section-rights half is still open.
 > M5. **Repository browser:** new left-rail section — a tree/folder view of ALL objects (dashboards,
 >     datasets, connections, analyses, jobs) with find/open/edit and a right-panel editor for
 >     simple objects; deep-links to the full editors for complex ones.
