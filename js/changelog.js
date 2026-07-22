@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 429,
+    title: 'Connections can now be tagged, same as Datasets',
+    kind: 'feature',
+    ts: '2026-07-22T13:58:18.000Z',
+    items: [
+      'The connection wizard gained a Tags field, and the Connections list gained a tag filter pill strip -- same multi-select, saved-view-aware behavior the Datasets list already had. Connections could already be filtered by adapter but had no cross-cutting tag axis.',
+      'Search now matches connection tags too. First slice of "tags-filter parity" ahead of the planned folder tree + Repository browser.',
+    ],
+  },
+  {
     v: 428,
     title: 'Fix: Supabase connection test rejected valid new-format API keys',
     kind: 'fix',

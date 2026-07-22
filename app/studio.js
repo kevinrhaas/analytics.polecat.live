@@ -6181,16 +6181,19 @@
      status dot from the last Test result. Rows live in Studio.Workspace
      ('connections' table) so a remote workspace backend can mirror them. */
   var _connAdapterFilter = {}; // multi-select: adapterId -> true; empty = all
+  var _connTagFilter = {};     // multi-select tag -> true; empty = all (tags-filter parity slice 1, #21 org sub-item)
   // Post-overhaul backlog item 6 follow-up ("same treatment for the
   // Connections list"): identical saved-view contract to the Datasets
-  // section's dsxLoadViews/dsxSaveViews/dsxApplyView, just without a tag
-  // axis (connections aren't tagged). Own key in the same Workspace SETTINGS
-  // bag — travels with the workspace, no new "Clear local data" entry needed.
+  // section's dsxLoadViews/dsxSaveViews/dsxApplyView, now including the tag
+  // axis too (see _connTagFilter above). Own key in the same Workspace
+  // SETTINGS bag — travels with the workspace, no new "Clear local data"
+  // entry needed.
   function connLoadViews() { return (Studio.Workspace.settings().connectionViews || []).slice(); }
   function connSaveViews(list) { Studio.Workspace.setSetting("connectionViews", list); }
   function connApplyView(v) {
     var inp = $("#connSearch"); if (inp) inp.value = v.q || "";
     _connAdapterFilter = {}; (v.adapters || []).forEach(function (a) { _connAdapterFilter[a] = true; });
+    _connTagFilter = {}; (v.tags || []).forEach(function (t) { _connTagFilter[t] = true; });
     renderConnections();
   }
   // Post-overhaul backlog item 7 ("organization at scale"): a favorite flag on
@@ -6239,15 +6242,24 @@
       return (b.updatedAt || 0) - (a.updatedAt || 0);
     });
     // adapter pills: one per adapter present, multi-select (empty selection = all)
-    var counts = {};
-    list.forEach(function (c) { counts[c.adapter] = (counts[c.adapter] || 0) + 1; });
+    var counts = {}, tagCounts = {};
+    list.forEach(function (c) {
+      counts[c.adapter] = (counts[c.adapter] || 0) + 1;
+      (c.tags || []).forEach(function (t) { tagCounts[t] = (tagCounts[t] || 0) + 1; });
+    });
     Object.keys(_connAdapterFilter).forEach(function (k) { if (!counts[k]) delete _connAdapterFilter[k]; });
+    Object.keys(_connTagFilter).forEach(function (k) { if (!tagCounts[k]) delete _connTagFilter[k]; });
     var anyFilter = Object.keys(_connAdapterFilter).length > 0;
+    var anyTag = Object.keys(_connTagFilter).length > 0;
     var pills = Object.keys(counts).sort().map(function (aid) {
       var src = Studio.sourceById(aid) || { label: aid };
       return '<button type="button" class="wb-chip cx-pill' + (_connAdapterFilter[aid] ? " active" : "") + '" data-conn-adapter="' + esc(aid) + '" aria-pressed="' + (_connAdapterFilter[aid] ? "true" : "false") + '">' +
         '<span class="cx-pill-dot" style="background:' + esc(src.accent || "var(--brand)") + '"></span>' +
         '<span class="wb-chip-label">' + esc(src.label) + '</span> <span class="wb-chip-n">' + counts[aid] + '</span></button>';
+    }).join("");
+    var pillsT = Object.keys(tagCounts).sort().map(function (t) {
+      return '<button type="button" class="wb-chip cx-pill' + (_connTagFilter[t] ? " active" : "") + '" data-conn-tag="' + esc(t) + '" aria-pressed="' + (_connTagFilter[t] ? "true" : "false") + '">' +
+        '<span class="wb-chip-label">#' + esc(t) + '</span> <span class="wb-chip-n">' + tagCounts[t] + '</span></button>';
     }).join("");
     var connViews = connLoadViews();
     var pillsV = connViews.map(function (v) {
@@ -6257,13 +6269,14 @@
         '<button type="button" class="wb-chip-del" data-conn-view-del="' + esc(v.id) + '" title="Delete view ' + esc(v.name) + '" aria-label="Delete view ' + esc(v.name) + '"></button>' +
         '</div>';
     }).join("");
-    var canSaveConnView = !!(q || anyFilter);
+    var canSaveConnView = !!(q || anyFilter || anyTag);
     var connViewAddHtml = canSaveConnView
       ? '<span class="wb-add"><input type="text" id="connViewNameInp" class="wb-name-inp" placeholder="Name this view…" aria-label="Name this saved view"/>' +
         '<button type="button" class="btn" id="connViewAddBtn">+ Save view</button></span>'
       : "";
     var shown = list.filter(function (c) {
       if (anyFilter && !_connAdapterFilter[c.adapter]) return false;
+      if (anyTag && !(c.tags || []).some(function (t) { return _connTagFilter[t]; })) return false;
       if (!q) return true;
       var src = Studio.sourceById(c.adapter) || {};
       var cfgHay = Object.keys(c.cfg || {}).map(function (k) {
@@ -6271,16 +6284,18 @@
         var f = (src.fields || []).filter(function (x) { return x.key === k; })[0];
         return f && f.type === "password" ? "" : String(c.cfg[k] || "");
       }).join(" ");
-      return (c.name + " " + (src.label || c.adapter) + " " + cfgHay).toLowerCase().indexOf(q) >= 0;
+      return (c.name + " " + (src.label || c.adapter) + " " + cfgHay + " " + (c.tags || []).join(" ")).toLowerCase().indexOf(q) >= 0;
     });
     var rows = shown.map(function (c) {
       var src = Studio.sourceById(c.adapter) || { label: c.adapter, icon: "db" };
       var metaBadge = src.caps && src.caps.meta ? '<span class="cx-badge" title="Can also host this app\'s workspace (see Settings → Workspace backend)">workspace-capable</span>' : "";
+      var tagBadges = (c.tags || []).map(function (t) { return '<span class="cx-badge">#' + esc(t) + '</span>'; }).join("");
       return '<div class="cx-row" data-conn-id="' + esc(c.id) + '" tabindex="0" role="button" aria-label="Edit connection ' + esc(c.name) + '">' +
         connStatusDot(c) +
         '<span class="cx-ic" style="color:' + esc(src.accent || "var(--brand)") + '"></span>' +
         '<span class="cx-name"><b>' + esc(c.name) + '</b><small>' + esc(src.label || c.adapter) + '</small></span>' +
         metaBadge +
+        tagBadges +
         '<span class="cx-when" title="Last edited">' + esc(new Date(c.updatedAt || c.createdAt || Date.now()).toLocaleDateString()) + '</span>' +
         '<button type="button" class="cx-private' + (c.private ? " private" : "") + '" data-conn-private="' + esc(c.id) + '" title="' + (c.private ? "Private — only you can see this" : "Make private") + '" aria-label="' + (c.private ? "Make " + esc(c.name) + " public" : "Make " + esc(c.name) + " private") + '" aria-pressed="' + (c.private ? "true" : "false") + '"></button>' +
         '<button type="button" class="cx-pin' + (c.pinned ? " on" : "") + '" data-conn-pin="' + esc(c.id) + '" title="' + (c.pinned ? "Unpin" : "Pin to top") + '" aria-label="' + (c.pinned ? "Unpin " : "Pin ") + esc(c.name) + '" aria-pressed="' + (c.pinned ? "true" : "false") + '"></button>' +
@@ -6291,15 +6306,17 @@
         '</span></div>';
     });
     results.innerHTML =
-      (pills || pillsV || connViewAddHtml ? '<div class="wb-chips cx-pills">' +
-        pillsV + (pillsV && pills ? '<span class="dsx-pill-sep"></span>' : "") +
-        pills + (anyFilter ? '<button type="button" class="wb-chip" id="connPillClear" title="Show all adapters">Clear</button>' : "") +
+      (pills || pillsT || pillsV || connViewAddHtml ? '<div class="wb-chips cx-pills">' +
+        pillsV + (pillsV && (pills || pillsT) ? '<span class="dsx-pill-sep"></span>' : "") +
+        pills + (pills && pillsT ? '<span class="dsx-pill-sep"></span>' : "") +
+        pillsT +
+        ((anyFilter || anyTag) ? '<button type="button" class="wb-chip" id="connPillClear" title="Show all connections">Clear</button>' : "") +
         connViewAddHtml + '</div>' : "") +
       (rows.length ? '<div class="cx-list">' + rows.join("") + '</div>'
         : '<div class="cx-empty">' +
-            (q || anyFilter ? "No connections match." :
+            (q || anyFilter || anyTag ? "No connections match." :
               "<b>No connections yet.</b><br/>A connection points at where your data lives — a warehouse, a file over HTTP, an API — using one of the built-in adapters. Datasets are then defined on top of a connection and feed your dashboards.") +
-            (q || anyFilter ? "" : '<br/><button type="button" class="btn primary" id="connEmptyNew">+ New connection</button>') +
+            (q || anyFilter || anyTag ? "" : '<br/><button type="button" class="btn primary" id="connEmptyNew">+ New connection</button>') +
           '</div>');
     $$("[data-conn-adapter]", results).forEach(function (btn) {
       btn.onclick = function () {
@@ -6308,8 +6325,15 @@
         renderConnections();
       };
     });
+    $$("[data-conn-tag]", results).forEach(function (btn) {
+      btn.onclick = function () {
+        var k = btn.getAttribute("data-conn-tag");
+        if (_connTagFilter[k]) delete _connTagFilter[k]; else _connTagFilter[k] = true;
+        renderConnections();
+      };
+    });
     var clearBtn = $("#connPillClear", results);
-    if (clearBtn) clearBtn.onclick = function () { _connAdapterFilter = {}; renderConnections(); };
+    if (clearBtn) clearBtn.onclick = function () { _connAdapterFilter = {}; _connTagFilter = {}; renderConnections(); };
     $$("[data-conn-view]", results).forEach(function (btn) {
       btn.onclick = function () {
         var v = connLoadViews().filter(function (x) { return x.id === btn.getAttribute("data-conn-view"); })[0];
@@ -6336,7 +6360,7 @@
       if (!name) { if (inp) inp.focus(); toast("Type a name in the box first — e.g. “Warehouses”.", true); return; }
       var list = connLoadViews();
       var rawQ = (($("#connSearch") || {}).value || "");
-      list.unshift({ id: "connv" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name: name, q: rawQ, adapters: Object.keys(_connAdapterFilter) });
+      list.unshift({ id: "connv" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name: name, q: rawQ, adapters: Object.keys(_connAdapterFilter), tags: Object.keys(_connTagFilter) });
       connSaveViews(list);
       toast('View "' + name + '" saved');
       renderConnections();
@@ -6478,6 +6502,14 @@
           if (f.hint) { var h = el("small", "cx-hint"); h.textContent = f.hint; row.appendChild(h); }
           form.appendChild(row); inputs[f.key] = inp;
         });
+        var tagsRow = el("label", "cx-field");
+        tagsRow.innerHTML = "<span>Tags</span>";
+        var tagsInp = el("input"); tagsInp.type = "text"; tagsInp.placeholder = "finance, demo";
+        tagsInp.value = (existing && existing.tags || []).join(", ");
+        tagsRow.appendChild(tagsInp);
+        var tagsHint = el("small", "cx-hint"); tagsHint.textContent = "Comma-separated groups for filtering (e.g. finance, demo). Anyone can slice the list by these.";
+        tagsRow.appendChild(tagsHint);
+        form.appendChild(tagsRow);
         b.appendChild(form);
         if (adapter.docsUrl) {
           var docs = el("div", "cx-docs");
@@ -6524,6 +6556,7 @@
           if (!name) { nameInp.focus(); result.className = "cx-test-result bad"; result.textContent = "Give the connection a name first."; return; }
           var row = existing || { id: Studio.Workspace.uid("conn") };
           row.name = name; row.adapter = adapter.id; row.cfg = cfg();
+          row.tags = tagsInp.value.split(",").map(function (t) { return t.trim().toLowerCase(); }).filter(Boolean);
           if (lastInlineTest) row.lastTest = lastInlineTest;
           if (!existing) { var newUid = currentUserId(); if (newUid) row.owner = newUid; }
           Studio.Workspace.put("connections", row);
