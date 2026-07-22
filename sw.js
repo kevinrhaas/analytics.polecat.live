@@ -5,7 +5,9 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v86"; /* v86: LF2 — 2 new Conservation-themed example
+var CACHE_NAME = "studio-shell-v87"; /* v87: faint polecat.live suite link in the rail
+   (app/index.html + app/studio.css touched).
+   v86: LF2 — 2 new Conservation-themed example
    dashboards (conservation-scorecard.studio.json, conservation-flow.studio.json), gated
    behind the Conservation demo pack (demoPackId in data/examples/index.json); the SW's
    dynamic example precache picks up both new files automatically from the updated index.

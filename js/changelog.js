@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 442,
+    title: 'A quiet link back to the polecat.live suite in the rail',
+    kind: 'polish',
+    ts: '2026-07-22T20:24:30.000Z',
+    items: [
+      'The left rail now carries a barely-there polecat.live link just under the Analytics name — a soft way back to the rest of the suite, matching the other Polecat apps. It brightens on hover and tucks away when the rail collapses.',
+    ],
+  },
+  {
     v: 441,
     title: 'Two new Conservation Insight showcase dashboards',
     kind: 'feature',

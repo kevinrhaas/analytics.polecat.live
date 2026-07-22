@@ -174,10 +174,16 @@ html[data-app-theme='modern'] #railNav{--rail-bg:#0d1a2e;--rail-bg2:#152540;--ra
 #railNav.expanded{width:184px}
 /* Z12: persistent brand mark anchored at the top of the rail — the app's identity
    lives here (not a redundant letter-box in the content header); click returns Home. */
-#railNav .rail-brand{display:flex;align-items:center;gap:11px;padding:16px 18px 14px;background:none;
-  border:0;border-bottom:1px solid var(--rail-line);color:var(--rail-ink);cursor:pointer;
+#railNav .rail-brand-wrap{display:flex;flex-direction:column;border-bottom:1px solid var(--rail-line)}
+#railNav .rail-brand{display:flex;align-items:center;gap:11px;padding:16px 18px 3px;background:none;
+  border:0;color:var(--rail-ink);cursor:pointer;
   white-space:nowrap;text-align:left;font-family:var(--font)}
 #railNav .rail-brand:hover{opacity:.85}
+/* barely-there link back to the suite — aligned under the app name (past the
+   26px mark + 11px gap) and hidden with the labels when the rail collapses */
+#railNav .rail-suite{font-size:10px;line-height:1;letter-spacing:.2px;color:var(--rail-ink);opacity:.4;
+  text-decoration:none;padding:0 18px 13px;margin-left:37px;transition:opacity .15s}
+#railNav .rail-suite:hover,#railNav .rail-suite:focus-visible{opacity:.8;text-decoration:underline;outline:none}
 #railNav .rail-brand-mark{flex:0 0 auto;border-radius:7px;display:block}
 #railNav .rail-brand-txt{font-weight:800;font-size:13px;letter-spacing:.2px;overflow:hidden;text-overflow:ellipsis}
 #railNav .rail-item{display:flex;align-items:center;gap:12px;padding:12px 18px;background:none;border:0;
