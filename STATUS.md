@@ -116,6 +116,16 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **Connect-to-backend from sign-in (v419, 2026-07-22, steward, M3.2 — Conservation Insight
+  platform, feature slice):** the sign-in screen gets a "Connect to your workspace…" link that opens
+  the same backend-connect wizard as Settings (`window.__studioOpenBackendWizard`), now stacked above
+  the gate overlay (`#studio-gate ~ .modal-ov` z-index rule). Before opening it, the gate force-runs
+  `__studioAuthBoot` so a blank backend provisioned from this screen still gets the seeded admin/demo
+  pair instead of an empty `users` table. New `Auth.importFromStore(rows)` (app/auth.js) mirrors
+  whichever `users` table wins — provisioned up or adopted down — back into the local sign-in store,
+  so the form immediately authenticates against that workspace's own accounts (also fixes the same
+  gap for Settings' "Adopt backend copy", which never updated local sign-in before). 6 new M3.2
+  ratchets, including a full connect + sign-in round-trip against a mocked Turso backend. sw v68.
 - **A11y quick wins (v418, 2026-07-22, steward — first slice of the interleaved quality track,
   UX1):** `#toast` now carries `role="status" aria-live="polite"` so confirmation/error/celebration
   toasts announce to screen readers instead of appearing silently; `.demo-badge`'s infinite pulse
@@ -1302,8 +1312,20 @@
 >     gate.js is now the sign-in screen with an "Explore the demo" button; demo login auto-installs
 >     the sample workspace (initAuthBoot). Settings gained an Account card (identity, Sign out,
 >     demo-content toggle). Schema → v4 with an additive `users` table, mirrored on boot so accounts
->     ride the backend snapshot. 7 sign-in/M3.1 ratchets. NEXT (M3.2): connect-to-backend from the
->     login (repo picker, probe → provision blank DB with admin + demo users); then M4 admin/RLS.
+>     ride the backend snapshot. 7 sign-in/M3.1 ratchets.
+> > M3.2 ✓ **Connect-to-backend from sign-in (shipped 2026-07-22, steward):** the sign-in screen
+>     gained a "Connect to your workspace…" link that opens the SAME 3-step backend-connect wizard
+>     Settings uses (`openBackendWizard`, now stacked above the gate overlay via a scoped
+>     `#studio-gate ~ .modal-ov{z-index}` rule) — no login required first. Before opening it, the
+>     gate force-runs the user→workspace mirror (`__studioAuthBoot`) so a BLANK backend provisioned
+>     from this screen still gets a real admin/demo pair instead of an empty `users` table (the repo-
+>     picker + probe/provision machinery was already M3.1's; this slice is the entry point + the
+>     missing reverse leg). New `PolecatAuth.importFromStore(rows)` mirrors whichever `users` table
+>     wins (provisioned-up or adopted-down) back into the local sign-in store, so the form
+>     immediately authenticates against that workspace's own accounts — closes a gap where Settings'
+>     "Adopt backend copy" never updated who could sign in on this browser either. 6 new M3.2
+>     ratchets (entry point, z-stack, pre-provision mirror, importFromStore no-op guard, connect +
+>     sign-in round-trip against a mocked Turso backend). sw v68. NEXT: M4 admin/RLS.
 > > M3. **Auth foundation (phased, UX-level first):** replace the single-passcode gate with a
 >     user/password LOGIN. First screen: demo credentials shown on-screen + local demo mode, OR
 >     connect to a backend repo (Turso/Supabase/Firebase) — show which backend is connected and

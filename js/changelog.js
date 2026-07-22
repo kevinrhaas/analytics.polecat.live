@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 419,
+    title: 'Connect to your workspace backend right from sign-in',
+    kind: 'feature',
+    ts: '2026-07-22T00:59:25.000Z',
+    items: [
+      'The sign-in screen now has a "Connect to your workspace…" link, opening the same backend-connect wizard as Settings — no need to sign in first.',
+      'Pointing it at a blank database offers to set up the Polecat schema with a real admin + demo account; pointing it at an existing workspace adopts it.',
+      'Either way, the sign-in form below authenticates against that workspace\'s own accounts once connected.',
+    ],
+  },
+  {
     v: 418,
     title: 'A11y quick wins: toast announcements, reduced motion, panel button labels',
     kind: 'polish',

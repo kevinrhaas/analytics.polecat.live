@@ -5,7 +5,14 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v67"; /* v67: UX1 a11y quick wins — #toast now
+var CACHE_NAME = "studio-shell-v68"; /* v68: M3.2 connect-to-backend from
+   sign-in — the sign-in screen gets a "Connect to your workspace…" entry point
+   that opens the same backend-connect wizard Settings uses (stacked above the
+   gate overlay), mirrors the connected/adopted workspace's users table into the
+   local sign-in store (PolecatAuth.importFromStore), and mirrors the local
+   seed up first so provisioning a blank backend from this screen still carries
+   real admin/demo accounts. app/gate.js, app/auth.js, app/studio.js changed.
+   v67: UX1 a11y quick wins — #toast now
    announces to screen readers (role=status, aria-live=polite), the pulsing demo-mode
    badge respects prefers-reduced-motion, and the pane-rail expand/collapse icon
    buttons (Data/Inspector) carry aria-label. app/index.html, app/studio.css changed.
