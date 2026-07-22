@@ -1713,6 +1713,10 @@ body.simple-mode .da-acts{display:none!important}
   border-radius:6px;padding:4px 5px}
 .xp-act:hover{background:var(--field);color:var(--ink)}
 .xp-act.on{color:var(--brand)}
+/* M4.2 slice 4 (object privacy — analyses): same warning-colored lock as the
+   dashboards/connections/datasets toggle, sized for this compact action row. */
+.xp-act.private{color:var(--warning,#c9832f)}
+.xp-act.private:hover{color:var(--warning,#c9832f)}
 .xp-main{min-width:0;display:flex;flex-direction:column;gap:14px}
 .xp-empty{border:1.5px dashed var(--line);border-radius:14px;padding:44px 24px;text-align:center;color:var(--muted)}
 .xp-empty h3{margin:0 0 8px;color:var(--ink)}

@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v73"; /* v73: UX2 dead-token sweep — --fg/--sans/
+var CACHE_NAME = "studio-shell-v74"; /* v74: M4.2 slice 4 — the same private/public
+   lock toggle now on Explore's saved analyses too (owner rides on the plain
+   `owner` field, no collision like datasets' acctOwner), hides another
+   account's private analyses from Explore's saved list, the Studio library,
+   and Home's pinned-analyses section. app/studio.js, app/studio.css changed.
+   v73: UX2 dead-token sweep — --fg/--sans/
    --canvas/--green were referenced but never defined; routed to the real
    bridge tokens --ink/--font/--field/--good (fixes the transparent changelog
    search box). app/studio.css changed.

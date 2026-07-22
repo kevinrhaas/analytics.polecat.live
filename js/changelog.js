@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 426,
+    title: 'Explore: mark a saved analysis private',
+    kind: 'feature',
+    ts: '2026-07-22T10:54:22.000Z',
+    items: [
+      'The same lock toggle from dashboards, connections, and datasets is now on every saved analysis in Explore -- mark one private and only you (and admins) can see it in the saved-analyses list, the Studio library, and Home\'s pinned-analyses section.',
+      'Fourth slice of the private/public flag on saved objects; jobs get the same toggle next.',
+    ],
+  },
+  {
     v: 425,
     title: 'Fix: dead CSS tokens made the changelog search box transparent',
     kind: 'fix',

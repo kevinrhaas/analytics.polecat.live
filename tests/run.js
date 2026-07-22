@@ -6593,6 +6593,54 @@ function serve() {
     });
     await page.waitForTimeout(150);
 
+    // ---- M4.2 slice 4: object privacy — analyses ----
+    console.log("\n• M4.2: object privacy — analyses (slice 4)");
+    const analysisPrivacySetup = await page.evaluate(function () {
+      function row(id, name, owner) {
+        var r = { id: id, name: name, chartType: "bars", updatedAt: Date.now() };
+        if (owner) r.owner = owner;
+        Studio.Workspace.put("analyses", r);
+      }
+      row("m42a-a", "M4.2 analysis mine (goes private)", "demo");
+      row("m42a-b", "M4.2 analysis someone else's (goes private)", "otherUser");
+      row("m42a-c", "M4.2 analysis public");
+      window.__studioToggleAnalysisPrivate("m42a-a");
+      window.__studioToggleAnalysisPrivate("m42a-b");
+      var a = Studio.Workspace.get("analyses", "m42a-a"), b = Studio.Workspace.get("analyses", "m42a-b");
+      return { aPrivate: !!a.private, aOwner: a.owner, bPrivate: !!b.private, bOwner: b.owner };
+    });
+    ok("M4.2: analyses togglePrivate flips the private flag and stamps/preserves an owner",
+      analysisPrivacySetup.aPrivate && analysisPrivacySetup.aOwner === "demo" && analysisPrivacySetup.bPrivate && analysisPrivacySetup.bOwner === "otherUser",
+      JSON.stringify(analysisPrivacySetup));
+
+    const asDemoAnalysisPriv = await page.evaluate(function () {
+      window.PolecatAuth.login("demo"); // seeded viewer account
+      window.__studioShellSetSection("explore");
+      window.__studioRenderExplore();
+      var ids = Array.prototype.map.call(document.querySelectorAll("#xpBody [data-xp-a]"), function (el) { return el.getAttribute("data-xp-a"); });
+      return { seesOwn: ids.indexOf("m42a-a") >= 0, seesOthers: ids.indexOf("m42a-b") >= 0, seesPublic: ids.indexOf("m42a-c") >= 0 };
+    });
+    ok("M4.2: signed in as the owner (viewer role), Explore's saved-analyses list shows their own private analysis and every public one, but hides another account's private one",
+      asDemoAnalysisPriv.seesOwn && !asDemoAnalysisPriv.seesOthers && asDemoAnalysisPriv.seesPublic, JSON.stringify(asDemoAnalysisPriv));
+
+    const asAdminAnalysisPriv = await page.evaluate(function () {
+      window.PolecatAuth.login("admin"); // seeded admin account — sees every private analysis, matching shell.js's admin-sees-all
+      window.__studioRenderExplore();
+      var ids = Array.prototype.map.call(document.querySelectorAll("#xpBody [data-xp-a]"), function (el) { return el.getAttribute("data-xp-a"); });
+      return { seesA: ids.indexOf("m42a-a") >= 0, seesB: ids.indexOf("m42a-b") >= 0, seesC: ids.indexOf("m42a-c") >= 0 };
+    });
+    ok("M4.2: an admin account sees every analysis regardless of its private flag/owner",
+      asAdminAnalysisPriv.seesA && asAdminAnalysisPriv.seesB && asAdminAnalysisPriv.seesC, JSON.stringify(asAdminAnalysisPriv));
+
+    await page.evaluate(function () {
+      window.PolecatAuth.logout();
+      sessionStorage.setItem("studio-gate-ok", "1");
+      window.__studioShellApplyRoleGating();
+      ["m42a-a", "m42a-b", "m42a-c"].forEach(function (id) { Studio.Workspace.remove("analyses", id); });
+      window.__studioShellSetSection("studio");
+    });
+    await page.waitForTimeout(150);
+
     // ---- CDA data source CRUD (My Data Sources library section) ----
     console.log("\n• CDA data-source CRUD");
     await page.evaluate(async () => { const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json()); window.__studioLoad(spec); });
