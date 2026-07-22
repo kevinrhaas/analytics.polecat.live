@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 439,
+    title: 'Fix: Style-preset name field crowded the Save button on phones',
+    kind: 'fix',
+    ts: '2026-07-22T19:20:46.000Z',
+    items: [
+      'In Settings, the "Preset name" field (Style presets and Custom theme presets) sat squeezed right up against the "+ Save as preset" button on phone-width screens. The two now stack, full width, on narrow screens; desktop is unchanged.',
+    ],
+  },
+  {
     v: 438,
     title: 'Tech-debt sweep: de-duplicated widget-preview and clone code',
     kind: 'polish',

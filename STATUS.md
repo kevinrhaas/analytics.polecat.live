@@ -116,6 +116,19 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **FIX: style-preset name field crowded the Save button on phones (v439, 2026-07-22, steward,
+  LF15):** `.sp-add-row` (the "Preset name" input + "+ Save as preset" button row, shared by
+  Settings' Style presets AND the Custom template preset row — `ctpAddRow` in
+  `renderDashboardThemeControls`) stayed a side-by-side flex row at every width. The app already
+  had a `@media(max-width:640px){.set-txt{width:100%}}` rule meant to make text inputs go
+  full-width on phones, but it never actually applied here: `.sp-add-row .set-txt{width:auto}`
+  (two classes) is more specific than the single-class mobile rule, so specificity — not the
+  media query — decided, and the override won regardless of viewport. Root cause found by
+  measuring the rendered bounding boxes (no visual overlap, but the input was clipped/truncated
+  and butted right up against the button on a 390px screen). Fixed by stacking the row
+  (`flex-direction:column`, full-width input) inside the existing ≤640px breakpoint; desktop
+  layout is byte-for-byte unchanged. 1 new LF15 ratchet (390px: row is column-stacked, no
+  overlap, input renders full width). Suite 1731/1731. (app/studio.css, tests/run.js)
 - **Tech-debt sweep: de-duplicated widget-preview + clone code (v438, 2026-07-22, steward,
   R2 slice 1 of the refactor track):** three dedups onto canonical helpers, all behavior-preserving.
   (1) `postThemeOnLoad(ifr)` replaces 4 identical "tell the preview iframe the app theme once it
@@ -1430,10 +1443,9 @@
 >       app/sources/jobs-engine.js, app/studio.css.
 > LF14. ✓ **Job editor contrast — DONE, see DONE (v434, 2026-07-22, steward).** New `.btn.danger`
 >       class (dark-on-light, red on hover) applied to "✕ Remove step" + the per-metric/mapping "✕".
-> LF15. **Settings: button/input style overlap.** In Settings → Style presets, the "＋ Save as preset"
->       button slightly overlaps/crowds the "Preset name" input (spacing/layout glitch). Tidy the row
->       spacing. Likely the same input+button row pattern used elsewhere; check for other instances.
->       app/studio.css (+ app/studio.js markup if needed).
+> LF15. ✓ **Settings: button/input style overlap — DONE, see DONE (v439, 2026-07-22, steward).**
+>       `.sp-add-row` (shared by Style presets AND Custom template presets — the "other instance")
+>       now stacks full-width on ≤640px instead of crowding the name field against the button.
 > LF16. **Merge "Demo content" into the sample packs + rename demo → "sample content".** The standalone
 >       "Demo content" toggle and the DEMO PACKS section are two surfaces for the same concept — fold the
 >       toggle into the packs UI and reword everything user-facing from "demo" to "sample content" (reads

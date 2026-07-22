@@ -19018,6 +19018,25 @@ function serve() {
       spSaved.count === 1 && spSaved.name === "Acme" && spSaved.subtitle === "Acme house style" && spSaved.accent === "#1a7a4a" && spSaved.rendered,
       JSON.stringify(spSaved));
 
+    // LF15: the "Preset name" input + "+ Save as preset" button (.sp-add-row) sat side by
+    // side even at phone width -- the intended `.set-txt{width:100%}` mobile rule was always
+    // shadowed by the more-specific `.sp-add-row .set-txt{width:auto}`, so the name field stayed
+    // narrow and crowded right up against the button. Now the row stacks on ≤640px.
+    const spAddRowPhone = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    await spAddRowPhone.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); } catch (e) {} });
+    await spAddRowPhone.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
+    await spAddRowPhone.evaluate(function () { window.__studioShellSetSection("settings"); });
+    await spAddRowPhone.waitForTimeout(200);
+    const spAddRowLayout = await spAddRowPhone.evaluate(function () {
+      var row = document.querySelector(".sp-add-row");
+      var inp = document.getElementById("spNameInp"), btn = document.getElementById("spSaveBtn");
+      var ir = inp.getBoundingClientRect(), br = btn.getBoundingClientRect();
+      return { stacked: getComputedStyle(row).flexDirection === "column", noOverlap: br.top >= ir.bottom, inputFullWidth: ir.width > 300 };
+    });
+    ok("LF15: at 390px the style-preset name field stacks above the Save button (no side-by-side crowding)",
+      spAddRowLayout.stacked && spAddRowLayout.noOverlap && spAddRowLayout.inputFullWidth, JSON.stringify(spAddRowLayout));
+    await spAddRowPhone.close();
+
     // change the active default, then re-apply the saved preset to prove it restores the snapshot
     await page.fill("#setDefaultSubtitleInp", "Something else");
     await page.evaluate(function () { document.getElementById("setDefaultSubtitleInp").dispatchEvent(new Event("change")); });
