@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v89"; /* v89: polecat-shell v0.5.4 — brand-color
+var CACHE_NAME = "studio-shell-v90"; /* v90: reword the per-panel dataset
+   caption's tooltip from the jargon "View the CDA queries behind this
+   dashboard" -> "View the dataset behind this widget" (vendor/pdc-ui.js — a
+   user-facing string, inlined identically into preview + export).
+   v89: polecat-shell v0.5.4 — brand-color
    app-switcher tiles (vendored catalog + shell + site-chrome changed).
    v88: FIX — clicking a panel's dataset
    caption (the "◴ <dataset>" footer) now opens the Datasets view FOCUSED on
