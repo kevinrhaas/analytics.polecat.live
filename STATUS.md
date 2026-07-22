@@ -116,6 +116,15 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **Developer role — LF23 role model locked + foundation shipped (v437, 2026-07-22, Kevin live):** Kevin
+  locked the viewer-mode role decision: add a THIRD role, **developer**, with admin as a **superset** of it
+  ("give that to the admin user as well"). PolecatAuth now exposes `ROLES`/`ROLE_LABELS` + capability helpers
+  `isAdmin()` and `canDevelop()` (true for admin OR developer; viewer false); the Admin user editor offers
+  **Developer** in its role picker with a distinct badge. Role is assignable now; `canDevelop()` is the gate
+  LF23 will use for Studio / edit-the-original access (viewers get interact + save-a-copy only). 2 ratchets
+  (canDevelop = admin|developer not viewer, developer≠admin; picker offers Developer). sw v85. app/auth.js,
+  app/studio.js, app/studio.css. NEXT: LF23 slice 1 (viewer route + read-only interactive render +
+  Open-in-viewer/new-tab + Save-a-copy), then slice 2 (gate edit on `canDevelop` + Edit-in-Studio handoff).
 - **Demo data: more provider-line variation (v436, 2026-07-22, steward, LF1):** the 5 ensemble
   providers' `pct` formula in `Studio.crossedRows` was `58 + jitter(0-31) - pi*1.5 + li*0.7` — the
   ±1.5-per-provider offset was swamped by ±31 of random jitter, so the 5 lines bunched together and

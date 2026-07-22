@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v84"; /* v84: LF1 — the 5 ensemble providers'
+var CACHE_NAME = "studio-shell-v85"; /* v85: new "developer" role — a third
+   role between viewer and admin (viewer-mode groundwork). PolecatAuth gains
+   ROLES/ROLE_LABELS + isAdmin()/canDevelop() capability helpers (canDevelop =
+   admin OR developer, admin is a superset); the Admin user editor offers
+   Developer in its role picker with a distinct badge. app/auth.js, app/studio.js,
+   app/studio.css changed.
+   v84: LF1 — the 5 ensemble providers'
    sample pct values now carry distinct offsets/slopes (a small per-provider
    offset used to be swamped by random jitter, so the lines bunched); the
    middle provider still tracks the plain baseline so the median reads as the
