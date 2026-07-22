@@ -1340,6 +1340,16 @@
 >       saved analysis/widget (extends LF4 renderer-persistence to the Explore builder — today the
 >       renderer opt isn't offered in Explore and doesn't save). app/studio.js (Explore map options),
 >       app/studio-charts.js.
+> LF13. **Job editor overhaul (Edit-job modal).** Multiple asks: (a) COLUMN DROPDOWNS — the group-by +
+>       metric column fields are free-text; populate from the SOURCE dataset's real columns (introspect
+>       via runDataset/sampleRows) — for group-by, metric source col, and join/union keys. (b) MULTIPLE
+>       group-by columns + multiple aggregates (metric "+ " exists; extend grouping beyond one +
+>       "then by"). (c) UNIQUE-KEY option — generate a uuid/stable id per output row (verify whether
+>       jobs-engine already emits row ids; expose the toggle). (d) UX — it's "wonky and boring": add a
+>       source FIELD LIST (type icons/colors), a PREVIEW of source rows AND a dummy preview of the
+>       OUTPUT rows, and a small visual DIAGRAM of the operation (rollup/join/stack) with the picked
+>       columns shown, so you can see what you're building. app/studio.js (openJobEditor),
+>       app/sources/jobs-engine.js, app/studio.css.
 
 ### 🔁 QUALITY TRACKS — interleave with the feature backlog (Kevin, 2026-07-21)
 > Kevin asked for a code-organization sweep AND a UI/UX best-practices sweep, folded INTO the loop
