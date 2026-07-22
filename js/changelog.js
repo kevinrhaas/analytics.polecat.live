@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 449,
+    title: 'FIX: Parallel Coords no longer offers a series color picker that did nothing',
+    kind: 'fix',
+    ts: '2026-07-22T23:07:07.000Z',
+    items: [
+      'Parallel Coordinates colors each line by ENTITY (one polyline per row), not by axis/series — but the panel Inspector still showed a "Series N color" picker for it, and picking a color silently did nothing.',
+      'The Inspector now hides that picker for Parallel Coords; every other series-based chart (Line, Stacked, Radar, Bump, Grouped bars, ...) is unaffected and still shows it.',
+    ],
+  },
+  {
     v: 448,
     title: 'Connections can now be filed into a Folder',
     ts: '2026-07-22T22:48:25.000Z',

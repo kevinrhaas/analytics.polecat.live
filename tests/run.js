@@ -15992,6 +15992,40 @@ function serve() {
     });
     ok("F26: PDC.parallelCoords renders SVG polylines in preview iframe", f26Render.ok, JSON.stringify(f26Render));
 
+    // F26-4 (LF5 bugfix): the panel inspector hides the per-series color picker for
+    // parallelCoords (lines are colored per ENTITY, not per series/axis — the picker did
+    // nothing there, matching Kevin's "picking an option doesn't recolor the chart" report),
+    // but still shows it for a normal series chart like line — regression guard so the fix
+    // doesn't silently spread to charts that DO honor series[i].color.
+    var f26Color = await page.evaluate(function () {
+      try {
+        var spec = window.__STUDIO_STATE.spec;
+        var p = spec.panels[0];
+        var prevChart = JSON.parse(JSON.stringify(p.chart));
+        var cols = window.Studio.columnsOf(spec, p.chart.da);
+        var seriesCol = cols[1] || cols[0];
+
+        p.chart.type = "parallelCoords";
+        p.chart.map = { labelCol: cols[0], series: [{ col: seriesCol, name: "S1" }] };
+        window.__studioSelect({ kind: "panel", id: p.id });
+        var pcText = (document.getElementById("inspBody") || {}).textContent || "";
+        var pcHasColumn = pcText.indexOf("Series 1 column") >= 0;
+        var pcHasColor = pcText.indexOf("Series 1 color") >= 0;
+
+        p.chart.type = "line";
+        p.chart.map = { labelCol: cols[0], series: [{ col: seriesCol, name: "S1" }] };
+        window.__studioSelect({ kind: "panel", id: p.id });
+        var lineText = (document.getElementById("inspBody") || {}).textContent || "";
+        var lineHasColor = lineText.indexOf("Series 1 color") >= 0;
+
+        p.chart = prevChart;
+        window.__studioSelect(null);
+        window.__studioRenderInspector();
+        return { ok: pcHasColumn && !pcHasColor && lineHasColor, pcHasColumn: pcHasColumn, pcHasColor: pcHasColor, lineHasColor: lineHasColor };
+      } catch (e) { return { ok: false, err: e.message }; }
+    });
+    ok("F26: parallelCoords inspector hides the inert per-series color picker; line chart still shows it", f26Color.ok, JSON.stringify(f26Color));
+
     // ── H114: KPI subtitle text ──────────────────────────────────────────────
     console.log("\n• H114: KPI subtitle text");
 

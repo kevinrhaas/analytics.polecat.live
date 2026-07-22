@@ -4171,6 +4171,10 @@
     fields.forEach(function (fn) {
       if (fn === "series") {
         var box = el("div");
+        // parallelCoords (and any future chart that colors by entity, not by series)
+        // opts out via seriesColor:false — showing the picker there would do nothing,
+        // since the renderer never reads series[i].color for that chart type.
+        var showSeriesColor = (Studio.CHARTS[t] || {}).seriesColor !== false;
         (m.series || []).forEach(function (s, i) {
           var r = el("div", "field row");
           var sc = colPicker(cols, s.col, function (v) { s.col = v; refreshPreview(); });
@@ -4182,10 +4186,12 @@
           rm.onclick = function () { m.series.splice(i, 1); renderInspector(); refreshPreview(); };
           r.appendChild(rm);
           box.appendChild(r);
-          var cr = el("div", "field");
-          var csel = select2pairs([["", "Auto (palette)"]].concat(Studio.COLOR_TOKENS.map(function (t) { return [t, Studio.colorTokenLabel(t)]; })), s.color || "", function (v) { if (v) s.color = v; else delete s.color; refreshPreview(); });
-          cr.appendChild(labelEl("Series " + (i + 1) + " color")); cr.appendChild(csel);
-          box.appendChild(cr);
+          if (showSeriesColor) {
+            var cr = el("div", "field");
+            var csel = select2pairs([["", "Auto (palette)"]].concat(Studio.COLOR_TOKENS.map(function (t) { return [t, Studio.colorTokenLabel(t)]; })), s.color || "", function (v) { if (v) s.color = v; else delete s.color; refreshPreview(); });
+            cr.appendChild(labelEl("Series " + (i + 1) + " color")); cr.appendChild(csel);
+            box.appendChild(cr);
+          }
         });
         var add = el("button", "btn-wide"); add.textContent = "＋ Add series";
         add.onclick = function () { (m.series = m.series || []).push({ col: cols[1] || cols[0] || "" }); renderInspector(); refreshPreview(); };
