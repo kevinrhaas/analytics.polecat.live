@@ -116,6 +116,23 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **FIX: candlestick + diverging-bar default colors pointed at undefined CSS tokens (v450,
+  2026-07-22, steward, found while auditing LF5's color-picker family):** `PDC.cssvar()` falls
+  back to a flat grey (`#888`) for any custom property that isn't actually defined. Candlestick's
+  `upColor`/`downColor` and diverging-bar's `negColor` defaulted to `--green`/`--pdc-bad` — neither
+  token is defined anywhere in `vendor/pdc-ui.css` (only `--good`/`--warn`/`--bad`/`--pentaho`/
+  `--pdc`/`--c1..10` are), so a brand-new candlestick chart rendered bullish AND bearish candles as
+  the identical grey (losing the entire point of the chart), and a diverging bar's negative segment
+  rendered grey instead of red. Neither retired token was even a selectable option in the color
+  dropdown (`Studio.COLOR_TOKENS`), so the mismatch was invisible until you inspected the raw spec.
+  Defaults now point at the real `--good`/`--bad` tokens in all three layers that referenced them
+  (the chart definition's `opts[].def` in app/model.js, the render-time `||` fallback in
+  app/studio-render.js, and PDC.divergingBar's own internal fallback in app/studio-charts.js);
+  anyone who'd already picked an explicit color from the dropdown is unaffected. 1 new regression
+  ratchet (F27/F24: the resolved default colors are real and distinct, not the undefined-var grey
+  both retired tokens silently shared). sw v94. (app/model.js, app/studio-render.js,
+  app/studio-charts.js, tests/run.js) NEXT: no further defaults in this family are known broken —
+  LF5(b)'s color-swatch UX polish is still the next open item in that track.
 - **FIX: Parallel Coords showed a per-series color picker that silently did nothing (v449,
   2026-07-22, steward, LF5a):** Kevin reported "the color dropdown does not seem to work" —
   auditing every chart type with `fields:["...","series"]`, all of line/stacked/areaStacked/

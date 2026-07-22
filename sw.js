@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v93"; /* v93: FIX — Parallel Coords no longer
+var CACHE_NAME = "studio-shell-v94"; /* v94: FIX — candlestick + diverging-bar
+   default colors pointed at undefined CSS tokens, silently rendering grey
+   instead of green/red (app/model.js, app/studio-render.js, app/
+   studio-charts.js content changed, so precached copies need to roll).
+   v93: FIX — Parallel Coords no longer
    shows an inert per-series color picker in the Inspector (app/model.js,
    app/studio.js content changed, so precached copies need to roll).
    v92: Connections folder pilot (#21 org

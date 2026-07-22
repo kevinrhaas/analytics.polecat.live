@@ -2569,7 +2569,7 @@
      opts: {
        rows:     [{ label: string, value: number }]  — one row per bar
        posColor: CSS color for positive bars          (default: --pentaho)
-       negColor: CSS color for negative bars          (default: --pdc-bad / #c0392b)
+       negColor: CSS color for negative bars          (default: --bad / #c0392b)
        fmt:      format id or function
        height:   SVG height px
      }
@@ -2581,7 +2581,7 @@
 
     var fmtFn   = typeof opts.fmt === "function" ? opts.fmt : PDC.fmt(opts.fmt || "abbr");
     var posClr  = PDC.cssvar(opts.posColor || "--pentaho") || "#005bb5";
-    var negClr  = PDC.cssvar(opts.negColor || "--pdc-bad") || "#c0392b";
+    var negClr  = PDC.cssvar(opts.negColor || "--bad") || "#c0392b";
     var height  = opts.height || 300;
 
     var svgW  = W(body);
