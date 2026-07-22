@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v77"; /* v77: tags-filter parity slice 1 (#21
+var CACHE_NAME = "studio-shell-v78"; /* v78: FIX — an admin who just signed in
+   was stuck on the Admin section's "administrators only" screen. The section
+   renders once at boot (behind the sign-in overlay, before any identity), and
+   the post-login hook re-applied rail gating but never RE-RENDERED the section;
+   initAuthBoot now repaints Settings + Admin (and re-gates) after login.
+   app/studio.js changed.
+   v77: tags-filter parity slice 1 (#21
    org sub-item) — Connections now carry the same Tags field + tag filter
    pills/badges/saved-views as Datasets (adapter pill parity already existed;
    the tag axis was the missing piece). app/studio.js changed.

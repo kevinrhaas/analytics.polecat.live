@@ -116,6 +116,16 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **FIX: admin sign-in couldn't reach the Admin section (v430, 2026-07-22, Kevin live):** an admin
+  who signed in stayed on the Admin section's "administrators only" screen. `#secAdmin` renders once
+  at boot — BEHIND the sign-in overlay, before any identity — and the post-login path re-applied rail
+  role-gating but never RE-RENDERED the section (the account card looked right because it repaints
+  separately). `initAuthBoot()` (gate.js's post-login hook) now also calls `renderSettings()` +
+  `renderAdmin()` + `applyRoleGating()`, so both repaint against the authenticated identity. 1 M4
+  regression ratchet (viewer→admin login re-renders the section, not the stale gate). app/studio.js.
+  sw v78. NOTE for the M4/M7 lane: on the live app `current()` was returning the synthetic
+  `{u:"local",role:"admin"}` fallback (auth.js) rather than the real `admin` row — worth checking
+  whether a backend adopt/mirror can drop the local `admin` user from `analytics.users.v1`.
 - **Tags-filter parity slice 1: Connections gain tags (v429, 2026-07-22, steward, #21 org
   sub-item, decision 1):** Connections already had by-adapter pills matching Datasets; the tag
   axis was the one piece missing (a code comment even said "connections aren't tagged"). The
@@ -1257,6 +1267,24 @@
 >    hiding in M4 NOW (honest "not cryptographic isolation" until the DB enforces it), then real
 >    RLS enforcement lands in M7. Do not gate the M4 flag on the backend being ready.
 
+### ★ LIVE-FEEDBACK QUEUE (Kevin, 2026-07-22) — fold into the interleave
+> Product/demo asks from a live session; treat as first-class feature slices.
+> LF1. **Demo data — more provider-line variation.** In the ensemble sample data the 5 providers
+>      (DTN/Indigo Ag/Iowa State/Regrow/Terra Diagnostics) track too closely — their lines bunch and
+>      you can't tell them apart. Widen per-provider variation in `Studio.crossedRows` (app/sampledata.js):
+>      distinct per-provider offsets/slopes so each line is visibly separable, while the median "common
+>      estimate" still reads as the consensus. Keep values believable (clamp 2–100%).
+> LF2. **Conservation examples + demo-pack restructure.** (a) Add ~8 CONSERVATION/CTIC examples (like
+>      the existing 8 generic ones) attached to the CONSERVATION demo pack (install/remove with it). (b)
+>      The conservation example dashboards + pinned analyses must wear the **Conservation** dashboard
+>      theme/palette (or whatever theme is saved) — every conservation-pack object uses the conservation
+>      palette, not the default. (c) Move the EXISTING generic examples (Data Governance, Data Platform
+>      Ops, Product Delivery, Finance, Marketing, Incident Response, Sensitivity/Compliance, Interactive
+>      Feature Showcase) AND their backing connections/datasets/dashboards/widgets into a NEW **Data
+>      Management** demo pack, toggleable just like Conservation. (demopacks.js, examples index, studio.js)
+> LF3. **Conservation as an app Color theme** — see UX11 in the UX-polish track below (Settings →
+>      Appearance, alongside Classic Blue / Polecat / Fleet Modern).
+
 ### 🔁 QUALITY TRACKS — interleave with the feature backlog (Kevin, 2026-07-21)
 > Kevin asked for a code-organization sweep AND a UI/UX best-practices sweep, folded INTO the loop
 > as sliced work (not one big-bang PR). **Interleave policy: after each feature/product slice, do ONE
@@ -1304,6 +1332,13 @@
 >      system-font/11px divergence) is a **visual-identity call — PAUSE for Kevin**, don't auto-change it.
 > UX10. **Empty-state polish:** replace the bare `<p>Loading…</p>` in `secHome`/`secSettings` with a
 >       skeleton or the branded `.sec-empty-ic` treatment (first thing seen on a cold load). (index.html, studio.css)
+> UX11. ★ **Conservation as an app Color theme (Kevin, 2026-07-22).** The Conservation theme exists in
+>       the DASHBOARD theme picker (`DASHBOARD_THEMES`, PR #78) but NOT in the app's **Color theme**
+>       picker (Settings → Appearance: Classic Blue / Polecat / Fleet Modern — these skin the BUILDER
+>       chrome via `data-app-theme` / `setAppTheme`, a separate system from dashboard themes). Add a
+>       **Conservation** app Color theme so the whole builder UI can wear the CTIC field-green/deep-pine
+>       look, reusing the palette from the dashboard Conservation theme. Wire it into the app-theme list +
+>       the `data-app-theme` CSS the same way Polecat/Fleet Modern are defined. (app/studio.js, app/studio.css)
 > Verify live across all 6 theme×mode combos: F11 (which modals use bare `.btn`) and F15
 > (`--faint`/`--text-3` micro-copy at 9–10.5px may be sub-4.5:1 on light surfaces).
 >
