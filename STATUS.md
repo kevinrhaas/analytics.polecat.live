@@ -1690,6 +1690,20 @@
 >           show fully). AND review the meta line below it (`.dash-meta code` = the dashboard's internal name/slug):
 >           confirm it's sensible/useful there or trim it. app/studio.css (font-family audit + title width), app/index.html
 >           if markup needs it.
+> LF30. **Marketing: a chart-type GALLERY on the homepage — tiles of every chart, a little click library (Kevin, live).**
+>       Show the breadth: a compact, FILTERABLE tile grid of ALL ~40 chart types on the public site (index.html), each
+>       tile = the REAL mini SVG glyph + name (+ short desc on hover/tap), grouped by the app's own categories
+>       (Comparison, Composition, Trend, Flow, Single value, Distribution, Maps, Detail, Content) with category filter
+>       chips like the in-app picker. "A little click library" — clicking filters/expands; keep it BOUNDED (don't run
+>       for pages — category chips + a capped/scrollable grid, maybe a "show all" expand). MOBILE-FIRST: responsive grid,
+>       thumb-sized tap targets, no horizontal scroll at 390px (a release gate). DATA: the faithful source is the app's
+>       registry — `Studio.CHARTS` (label/group/desc, model.js ~651) + the `CHART_SVG` glyph map + `themedChartSvg`
+>       (studio.js ~87/337) — but the marketing index.html does NOT load the app, so DUMP it to a static asset: add a
+>       tiny in-app hook (e.g. `window.__studioChartCatalog()` returning [{type,label,group,desc,svg}]) + a build tool
+>       (`tools/gen-chart-gallery.mjs`, mirrors gen-shots' boot) that writes `site/chart-gallery.js`
+>       (`window.CHART_GALLERY=[…]`); the homepage renders the grid from it. index.html + css/landing.css + the new tool
+>       + the one-line app hook. TEST: gallery renders ≥30 tiles, category chips filter, zero pageerrors + no horizontal
+>       scroll at 390px AND desktop. Regenerate when chart types change (like gen-shots).
 > LF19. **Left + right panel IA/redesign — make the builder calm, clear & elegant (Kevin, live).** First
 >       pass shipped (v433: compact dataset cards, kind icons, hover actions, hairline sections, compound
 >       builder removed). The DEEPER work Kevin asked for: the whole left Data panel still opens "scary/
