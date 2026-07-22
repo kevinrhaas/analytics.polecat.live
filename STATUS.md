@@ -1501,6 +1501,29 @@
 >       first-class view/edit/standalone objects), #24 (header-off embed export). app/auth.js, app/shell.js (rail + role
 >       gating), app/studio.js (mode routing + simpleMode), app/studio-render.js. Slice it: (1) viewer route + read-only
 >       render + Open-in-viewer/new-tab from Repository+Home; (2) role gating + Edit-in-Studio handoff.
+> LF24. ★★ **QUICK MODE — drop a CSV/JSON, auto-build datasets + an excellent dashboard (Kevin, live; ROADMAP).**
+>       A "just show me a dashboard" flow: drop a CSV/JSON onto a canvas/drop-zone → infer dataset(s) from the data →
+>       auto-generate a strong dashboard: a KPI row + 4-6 STRAIGHTFORWARD widgets (bar / donut / line / table) PLUS a
+>       few tasteful "fun" ones mixed in (map / ensemble / treemap / slope). ENTRY POINT: likely on the HOME page (a
+>       "drop a file to auto-build" zone — ties into LF18 Home overhaul) and/or the builder / New menu / Explore —
+>       wherever fits; expose it in more than one place if natural.
+>       CREATIVITY DIAL (a Settings default + a live tuner in the builder): LOW = conservative basics (bars, donuts,
+>       lines, KPIs, tables); HIGH = diverse & ambitious (the special charts, maps, more variety and layout risk).
+>       DATA-QUALITY GUARDRAILS ARE CORE (the feature is only as good as this): PROFILE every column first — type
+>       (dimension / measure / temporal / categorical / geo), cardinality, null %, uniqueness, numeric/date parseability
+>       — then only build charts the data actually supports AND cap them so nothing looks bad:
+>         • high-cardinality categorical → TOP-N + "Other" for bar/donut (never 200 bars); the dataviz skill's
+>           "≤ ~8 series, else fold to Other / facet" rule.
+>         • aggregate duplicates (sum / median) before charting; require a real TEMPORAL column for any time series;
+>           skip all-null / all-unique / constant columns; sane number+date coercion; guard divide-by-zero in KPIs.
+>       Follow the dataviz method for form choice (magnitude→bar, share→donut/treemap, change-over-time→line, single
+>       number→KPI/stat tile, polarity→diverging) + the validated palette + categorical order. Build on what exists:
+>       the CSV/JSON file-drop adapter (PR7), Explore (dataset→analysis), the Studio.CHARTS registry, and the
+>       auto-arrange layout helper. New: a column-profiler + an auto-build engine (spec generator) driven by the
+>       creativity level. app/sources/* (ingest + profile), a new auto-build module, app/studio.js (Quick-mode entry +
+>       creativity setting), tests (profiler classifies columns; top-N guardrail; generated spec validates + renders
+>       zero-pageerror). Slice it: (1) drop → profile → dataset(s); (2) auto-build engine + guardrails at the
+>       conservative default; (3) creativity dial + the "fun" chart tier.
 > LF19. **Left + right panel IA/redesign — make the builder calm, clear & elegant (Kevin, live).** First
 >       pass shipped (v433: compact dataset cards, kind icons, hover actions, hairline sections, compound
 >       builder removed). The DEEPER work Kevin asked for: the whole left Data panel still opens "scary/
