@@ -1543,6 +1543,25 @@
 >           scatter; a single headline measure → KPI/stat tile. (Straight out of the dataviz form heuristic.)
 >       The engine should read like a smart analyst's first pass: name+value signals → the right scale, aggregation,
 >       grain, and chart — then the creativity dial decides how adventurous to get on top of that sensible base.
+> LF25. **Per-panel export buttons + Explore↔Studio parity (Kevin, live).** PRINCIPLE: everything you can do in
+>       Explore, you should be able to do in Studio too. Three parts:
+>       (a) ON-PANEL EXPORT BUTTONS + per-panel visibility config. Today "Download CSV" is a little button ON the
+>           panel (rendered by the toolkit), but "Export this panel…" (HTML) and "Save chart as PNG" live only in the
+>           Inspector (studio.js exportPanelEmbed ~3122/8663, exportPanelPng ~3126/8694). Make PNG + HTML on-panel
+>           controls too — small ICON buttons beside Download-CSV (or a single "export ▾" dropdown) — AND add a
+>           per-panel CONFIG (Inspector toggles) for WHICH of CSV / PNG / HTML show on the panel (on by default,
+>           each toggleable off). Ties to #41 (per-widget download). INVARIANT: the exported .html stays
+>           byte-identical to preview — so decide deliberately whether on-panel export buttons render INTO the
+>           exported artifact or are builder/preview-only (config-driven), and keep preview==export.
+>       (b) RENDERER SWITCH (GL pan/zoom) IN STUDIO. UPDATE (Kevin found it): the Studio Inspector DOES expose the
+>           renderer switch — so this narrows to VERIFY parity with Explore (both offer built-in ⇄ GL pan/zoom),
+>           confirm the choice PERSISTS on the panel + rides the save/export, and improve DISCOVERABILITY if it read
+>           as missing at first glance (labeling/placement). cfg.renderer='gl' / Studio.usesGLMap. Ties LF12/#39/#46.
+>       (c) SAVE THE ACTIVE STUDIO WIDGET TO THE WIDGET LIBRARY. From a selected panel in Studio, a "Save to widget
+>           library" action that snapshots it as a reusable saved analysis/widget (the same library Explore feeds).
+>           Closes the loop with #29 (widgets as first-class objects) — Studio can both USE library widgets and
+>           CONTRIBUTE to it. app/studio.js (Inspector actions + panel toolbar), app/studio-render.js (on-panel
+>           button render + the byte-identical export path), app/exporters.js, tests per part.
 > LF19. **Left + right panel IA/redesign — make the builder calm, clear & elegant (Kevin, live).** First
 >       pass shipped (v433: compact dataset cards, kind icons, hover actions, hairline sections, compound
 >       builder removed). The DEEPER work Kevin asked for: the whole left Data panel still opens "scary/
