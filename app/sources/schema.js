@@ -95,7 +95,11 @@
   WS.TABLE_NAMES = WS.WORKSPACE_TABLES.map(function (t) { return t.name; });
 
   function sqlType(col) {
-    return col === "updatedAt" ? "INTEGER" : "TEXT";
+    // updatedAt holds epoch-MILLISECONDS (~1.78e12), which overflows Postgres
+    // INTEGER (int4, max ~2.1e9) — Supabase writes fail with "value … is out of
+    // range for type integer" (22003). BIGINT holds it; SQLite/Turso accept
+    // BIGINT too (integer affinity), so this is safe for every adapter.
+    return col === "updatedAt" ? "BIGINT" : "TEXT";
   }
 
   // A promoted column's value, normalised for a scalar SQL cell. updatedAt is
