@@ -6,6 +6,14 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 435,
+    title: 'The notification toast and “live demo” badge now follow the app theme',
+    ts: '2026-07-22T16:41:34.000Z',
+    items: [
+      'The pop-up toast and the pulsing “live” badge shown during demo playback used a fixed dark-navy/red regardless of your chosen Color theme. Both now pick up the active theme’s own accent colors, so Polecat and Fleet Modern feel consistent end to end.',
+    ],
+  },
+  {
     v: 434,
     title: 'Fix: job editor “Remove step” and “✕” controls were hard to see',
     kind: 'fix',

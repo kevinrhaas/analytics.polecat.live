@@ -116,6 +116,17 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **Theme the toast + demo-badge (v435, 2026-07-22, steward, fourth quality-track slice, UX3):**
+  `.toast` was hardcoded `#10233f`/`.err #7a1730` — a fixed dark navy regardless of the active app
+  theme (Classic Blue/Polecat/Fleet Modern) or light/dark mode. It now uses `--topbar-bg`/
+  `--topbar-ink`, the per-theme dark-surface pair the topbar itself already carries, so the toast
+  reads as part of the current theme's own rail instead of a foreign navy box. `.toast.err` and
+  `.demo-badge` (previously `#7a1730` / `#d32f2f`) both darken the theme's own `--bad` token via
+  `color-mix(in srgb,var(--bad) 55%,#000)` — using `--bad` directly would be too light against
+  white toast text in dark mode (e.g. `#ff5c7a`), so the mix keeps a consistently dark backdrop
+  while the hue now tracks the theme. No behavior change, suite unchanged. sw v83. (app/studio.css,
+  sw.js) NEXT in this track: UX4. `.note.info/warn/err/ok` are a similar still-fixed-hex family
+  worth a future pass.
 - **FIX: job editor "Remove step"/"✕" contrast (v434, 2026-07-22, steward, LF14):** the "✕ Remove
   step" button and the per-metric/mapping "✕" buttons in the job editor modal were near-invisible
   (faint white-on-translucent) — the modal sits on the light `--pane` surface, not the dark rail/
@@ -1462,9 +1473,14 @@
 >      `--fg`/`--canvas`/`--green` were never defined — routed every reference to the real bridge
 >      tokens `--font`/`--ink`/`--field`/`--good`. Fixed the changelog search input (`.cl-search`)
 >      rendering transparent. (app/studio.css) NEXT in this track: UX3 (theme the toast + one-off hexes).
-> UX3. **Theme the toast + one-off hexes:** toast is hardcoded `#10233f`/`.err #7a1730` (dark navy in
->      every theme incl. light/neon); same for `.demo-badge #d32f2f` etc. Route through palette tokens
->      / `color-mix` so they respect the active theme×mode. (studio.css)
+> UX3. ✓ **Theme the toast + demo-badge (shipped 2026-07-22, steward, fourth quality-track slice):**
+>      `.toast` was hardcoded `#10233f`/`.err #7a1730` (dark navy in every app theme incl. Polecat/
+>      Fleet Modern); now `background:var(--topbar-bg);color:var(--topbar-ink,#fff)` so it wears the
+>      active theme's own rail-matching dark surface, with `.toast.err` darkening `--bad` via
+>      `color-mix(in srgb,var(--bad) 55%,#000)` (flat `var(--bad)` alone is too light against white
+>      text in dark mode). `.demo-badge` (`#d32f2f`) gets the same `--bad` color-mix treatment. sw v83.
+>      (app/studio.css, sw.js) NEXT in this track: UX4 (entrance/celebration motion) — `.note.info/warn/
+>      err/ok` (studio.css ~857) are a similar still-untouched fixed-hex family worth a future pass.
 > UX4. **Entrance & celebration motion (reduced-motion gated):** staggered fade-up on card grids
 >      (`.recent-card`/`.repo-ds-card`); a distinct celebratory toast variant (brand gradient + trophy
 >      glyph) so milestones feel earned; scale-in on `.modal`/welcome overlay to match the waffle/

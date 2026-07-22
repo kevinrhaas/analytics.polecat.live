@@ -864,11 +864,14 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
 .btn-wide:hover{border-color:var(--brand);color:var(--brand);background:var(--pane)}
 
 /* ── toast ── */
-.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);background:#10233f;color:#fff;
+/* UX3: was a hardcoded #10233f/#7a1730 (dark navy in every theme, incl. light/neon) —
+   route through --topbar-bg/--topbar-ink so the toast wears the active app theme's own
+   dark surface (matches the rail in Polecat/Fleet Modern) instead of a fixed navy. */
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--topbar-bg);color:var(--topbar-ink,#fff);
   padding:11px 18px;border-radius:10px;font-size:13px;font-weight:600;box-shadow:var(--shadow-lg);opacity:0;
   transition:opacity .2s,transform .2s;pointer-events:none;z-index:90;max-width:80vw;display:flex;align-items:center;gap:7px}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-.toast.err{background:#7a1730}
+.toast.err{background:color-mix(in srgb,var(--bad) 55%,#000)}
 
 /* ── N-FUN: first-export delight moment ── a small, rare, tasteful burst — never repeats
    (see celebrateFirstExport() in studio.js), skipped entirely under prefers-reduced-motion. */
@@ -1318,7 +1321,9 @@ body.simple-mode #moreSimple{color:var(--brand);font-weight:700}
 body.simple-mode .simple-badge{display:inline-flex}
 /* H-track v117: Demo mode badge — pulsing red "● LIVE" pill shown while demo simulation runs */
 @keyframes pulse-live{0%,100%{opacity:1}50%{opacity:.55}}
-.demo-badge{display:none;align-items:center;background:#d32f2f;color:#fff;font-size:10px;
+/* UX3: was a hardcoded #d32f2f in every theme — darkened --bad so the hue tracks the active
+   app theme/mode while staying dark enough for white text contrast. */
+.demo-badge{display:none;align-items:center;background:color-mix(in srgb,var(--bad) 55%,#000);color:#fff;font-size:10px;
   font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 8px;border-radius:20px;
   white-space:nowrap;pointer-events:none;user-select:none;margin-right:4px;font-family:var(--font);
   animation:pulse-live 1.8s ease-in-out infinite}
