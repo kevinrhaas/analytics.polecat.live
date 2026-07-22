@@ -1446,6 +1446,26 @@
 >       selected. Note task #24 already added a header-OFF option and #25 unified delete affordances — this is the
 >       "make the header itself a proper editable object" follow-up Kevin still finds missing. app/studio-render.js
 >       (header render + selection), app/studio.js (inspector for the header object), app/studio.css.
+> LF22. ★ **Expand the geography library — grow map coverage (Kevin, live; PRIORITIZE nationwide watersheds).**
+>       Today the map scales are county | state | crd (USDA crop-reporting districts, derived by merging counties)
+>       | huc8 (Corn Belt ONLY). The pipeline: `tools/build-geo.mjs` downloads gov boundaries → generalizes/
+>       quantizes → PRE-PROJECTS onto the d3 AlbersUsa 975×610 plane → commits a TopoJSON into vendor/geo/; at
+>       runtime topojson-client turns topology→paths (no projection lib ships). ONE file serves BOTH renderers:
+>       the SVG renderer draws the plane directly; the GL (MapLibre) renderer converts each coord via planeToLL()
+>       (the plane treated as fake-mercator) so it reprojects to the identical shape — so every new geography
+>       benefits both engines from one asset, no per-engine work. Add, in priority order:
+>       (1) ★ NATIONWIDE watersheds — extend HUC8 to all 50 states (and/or add HUC4/6/10 levels) from the USGS WBD;
+>           watch file size (huc8 Corn Belt is already ~530KB) — simplify harder and/or lazy-load per region.
+>       (2) Congressional districts — a NEW Census cartographic-boundary file (districts split counties, so not a
+>           county-merge; national, ~county-sized). Key by district GEOID.
+>       (3) 5-digit ZIP → ZCTA — a NEW Census file, ~33k polygons, multi-MB → aggressive simplify + per-state
+>           lazy load so exports stay lean. (ZIP+4 has NO polygon — it's point granularity; support later as a
+>           POINT/graduated-symbol map, not a choropleth.)
+>       (4) counties→custom-region MAPPING IMPORTER — cheap: any "these counties = this territory" grouping renders
+>           via topojson.mergeArcs exactly like CRD, from just a lookup table (no new geometry). Turns "custom geos"
+>           into a real user-facing feature.
+>       app/studio-charts.js (GEO_FILES + geoFeatures/geoFeaturesGL scale branches), tools/build-geo.mjs, vendor/geo/,
+>       + a GEO test per new scale (renders colored, hover overlay tracks, exports carry only the geometry used).
 > LF19. **Left + right panel IA/redesign — make the builder calm, clear & elegant (Kevin, live).** First
 >       pass shipped (v433: compact dataset cards, kind icons, hover actions, hairline sections, compound
 >       builder removed). The DEEPER work Kevin asked for: the whole left Data panel still opens "scary/
