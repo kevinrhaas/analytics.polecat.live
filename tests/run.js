@@ -2485,6 +2485,41 @@ function serve() {
       dpInstall.panelTypes.filter(function (t) { return t === "ensembleSeries"; }).length === 4 &&
       dpInstall.panelTypes.filter(function (t) { return t === "choropleth"; }).length === 3,
       JSON.stringify(dpInstall));
+    // LF2: pack-gated examples — the 2 Conservation showcase dashboards (data/examples/index.json
+    // demoPackId) only surface in the gallery once their pack is installed. The install above went
+    // through the raw test hook (not the Settings UI), so force the same menu rebuild toggleDemoPack
+    // would have triggered.
+    await page.evaluate(function () { window.__studioBuildExamplesMenu(); window.__studioShellSetSection("studio"); });
+    await page.waitForTimeout(150);
+    await page.click("#btnExamples");
+    await page.waitForTimeout(150);
+    const lf2On = await page.evaluate(function () {
+      var em = document.getElementById("menuExamples");
+      var files = Array.prototype.map.call(em.querySelectorAll("button.ex-card"), function (b) { return b.getAttribute("data-f"); });
+      return { hasScorecard: files.indexOf("conservation-scorecard.studio.json") >= 0, hasFlow: files.indexOf("conservation-flow.studio.json") >= 0 };
+    });
+    ok("LF2: Conservation example cards appear in the gallery once the pack is installed",
+      lf2On.hasScorecard && lf2On.hasFlow, JSON.stringify(lf2On));
+    // both new example specs actually load (title + full panel count) — catches a bad file
+    // reference or malformed JSON that a card would otherwise fail silently on. The menu from the
+    // check above is still open (loadExample's own closeMenus() closes it after the click below).
+    await page.click('#menuExamples button.ex-card[data-f="conservation-scorecard.studio.json"]');
+    await page.waitForTimeout(300);
+    const lf2Scorecard = await page.evaluate(function () {
+      var S = window.__STUDIO_STATE;
+      return { title: S && S.spec ? S.spec.title : "", panels: S && S.spec ? S.spec.panels.length : 0 };
+    });
+    ok("LF2: Conservation Practice Adoption Scorecard example loads with its 5 panels",
+      lf2Scorecard.title === "Conservation Practice Adoption Scorecard" && lf2Scorecard.panels === 5, JSON.stringify(lf2Scorecard));
+    await page.click("#btnExamples"); await page.waitForTimeout(150);
+    await page.click('#menuExamples button.ex-card[data-f="conservation-flow.studio.json"]');
+    await page.waitForTimeout(300);
+    const lf2Flow = await page.evaluate(function () {
+      var S = window.__STUDIO_STATE;
+      return { title: S && S.spec ? S.spec.title : "", panels: S && S.spec ? S.spec.panels.length : 0 };
+    });
+    ok("LF2: Conservation Insight — Crop & Practice Flow example loads with its 4 panels",
+      lf2Flow.title === "Conservation Insight — Crop & Practice Flow" && lf2Flow.panels === 4, JSON.stringify(lf2Flow));
     // the featured dashboard leads with maps at THREE geo scales (county hero, HUC8 watershed, state
     // rollup), carries the four headline KPIs, and wears the CTIC-derived Conservation theme.
     ok("DP: the featured dashboard leads with county/HUC8/state choropleths, 4 headline KPIs, and the Conservation theme",
@@ -2536,8 +2571,19 @@ function serve() {
       !dpRemove.installed && dpRemove.left === 0, JSON.stringify(dpRemove));
     ok("DP: 'studio-demopacks-installed' is in the Clear-local-data key list (same recurring gap the file's other sweep notes guard against)",
       (await page.evaluate(function () { return window.__studioClearDataKeys; })).indexOf("studio-demopacks-installed") >= 0);
-    await page.evaluate(function () { window.__studioShellSetSection("studio"); });
+    await page.evaluate(function () { window.__studioBuildExamplesMenu(); window.__studioShellSetSection("studio"); });
     await page.waitForTimeout(200);
+    // LF2: the same 2 Conservation cards disappear once the pack is removed again.
+    await page.click("#btnExamples");
+    await page.waitForTimeout(150);
+    const lf2Off = await page.evaluate(function () {
+      var em = document.getElementById("menuExamples");
+      var files = Array.prototype.map.call(em.querySelectorAll("button.ex-card"), function (b) { return b.getAttribute("data-f"); });
+      return { hasScorecard: files.indexOf("conservation-scorecard.studio.json") >= 0, hasFlow: files.indexOf("conservation-flow.studio.json") >= 0 };
+    });
+    await page.click("body", { position: { x: 5, y: 5 } }); // close the menu (clicking a card auto-closes; this check-only path doesn't)
+    ok("LF2: Conservation example cards disappear from the gallery once the pack is removed",
+      !lf2Off.hasScorecard && !lf2Off.hasFlow, JSON.stringify(lf2Off));
 
     // ---- JOBS (Viridis V8 slice 1): prep/rollup engine + materialize --------
     console.log("\n• JOBS: prep/rollup engine (Viridis V8 slice 1)");

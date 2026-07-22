@@ -1,0 +1,80 @@
+{
+  "schema": 1,
+  "id": "showcase-conservation-scorecard",
+  "name": "conservation-scorecard",
+  "title": "Conservation Practice Adoption Scorecard",
+  "subtitle": "adoption rate, practice mix & provider agreement",
+  "group": "Conservation",
+  "demoPackId": "conservation",
+  "description": "A conservation-insight showcase — overall adoption gauge, acreage mix by practice, adoption by provider, a practice×provider agreement heatmap, and adoption vs target by practice.",
+  "cda": {
+    "connection": { "id": "pdc", "jndi": "PDC-BIDB-EXT" },
+    "dataAccesses": [
+      {
+        "id": "kpi", "name": "AdoptionKPI", "params": [], "cache": true, "cacheDuration": 120,
+        "sql": "SELECT ROUND(AVG(pct),1) AS adoption_pct, SUM(acres) AS enrolled_acres, COUNT(DISTINCT practice) AS practices, COUNT(DISTINCT provider) AS providers FROM v_practice_adoption",
+        "columns": ["adoption_pct", "enrolled_acres", "practices", "providers"]
+      },
+      {
+        "id": "overall", "name": "OverallAdoption", "params": [], "cache": true, "cacheDuration": 120,
+        "sql": "SELECT ROUND(AVG(pct),1) AS adoption_pct FROM v_practice_adoption",
+        "columns": ["adoption_pct"]
+      },
+      {
+        "id": "mix", "name": "AcresByPractice", "params": [], "cache": true, "cacheDuration": 180,
+        "sql": "SELECT practice, SUM(acres) AS acres FROM v_practice_adoption GROUP BY 1",
+        "columns": ["practice", "acres"]
+      },
+      {
+        "id": "by_provider", "name": "AdoptionByProvider", "params": [], "cache": true, "cacheDuration": 120,
+        "sql": "SELECT provider, ROUND(AVG(pct),1) AS pct FROM v_practice_adoption GROUP BY 1 ORDER BY 2 DESC",
+        "columns": ["provider", "pct"]
+      },
+      {
+        "id": "grid", "name": "PracticeProviderGrid", "params": [], "cache": true, "cacheDuration": 180,
+        "sql": "SELECT practice, provider, ROUND(AVG(pct),0) AS pct FROM v_practice_adoption GROUP BY 1,2",
+        "columns": ["practice", "provider", "pct"]
+      },
+      {
+        "id": "targets", "name": "AdoptionVsTarget", "params": [], "cache": true, "cacheDuration": 180,
+        "sql": "SELECT practice, ROUND(AVG(pct),0) AS pct, ROUND(AVG(target_pct),0) AS target_pct FROM v_practice_targets GROUP BY 1",
+        "columns": ["practice", "pct", "target_pct"]
+      }
+    ]
+  },
+  "filters": [],
+  "kpis": [
+    { "da": "kpi", "valueCol": "adoption_pct", "label": "Adoption Rate", "fmt": "pct", "state": "good", "info": "Common-estimate adoption rate across all practices and providers." },
+    { "da": "kpi", "valueCol": "enrolled_acres", "label": "Enrolled Acres", "fmt": "n", "state": "purple", "info": "Total acreage covered by a tracked conservation practice." },
+    { "da": "kpi", "valueCol": "practices", "label": "Practices Tracked", "fmt": "n", "state": "", "info": "Distinct conservation practices in the dataset." },
+    { "da": "kpi", "valueCol": "providers", "label": "Reporting Providers", "fmt": "n", "state": "", "info": "Independent data providers contributing estimates." }
+  ],
+  "gridCols": 3,
+  "panels": [
+    {
+      "id": "p_gauge", "title": "Overall Adoption", "span": 1, "pill": "%", "sub": "common estimate",
+      "info": "Blended adoption rate across every practice and provider.", "src": "v_practice_adoption",
+      "chart": { "type": "gauge", "da": "overall", "map": { "valueCol": "adoption_pct" }, "opts": { "max": 100, "fmt": "pct", "height": 300 } }
+    },
+    {
+      "id": "p_mix", "title": "Enrolled Acres by Practice", "span": 1, "pill": "acres", "sub": "",
+      "info": "Where enrolled acreage sits across the four tracked practices.", "src": "v_practice_adoption",
+      "chart": { "type": "donut", "da": "mix", "map": { "labelCol": "practice", "valueCol": "acres" }, "opts": { "centerCap": "acres", "fmt": "n", "height": 300 } }
+    },
+    {
+      "id": "p_provider", "title": "Adoption by Provider", "span": 1, "pill": "%", "sub": "",
+      "info": "Each provider's own estimate of the overall adoption rate.", "src": "v_practice_adoption",
+      "chart": { "type": "bars", "da": "by_provider", "map": { "labelCol": "provider", "valueCol": "pct" }, "opts": { "horizontal": true, "fmt": "pct", "color": "--c3", "height": 300 } }
+    },
+    {
+      "id": "p_grid", "title": "Practice × Provider Agreement", "span": 2, "pill": "%", "sub": "practice × provider",
+      "info": "Where providers agree on adoption — and where estimates diverge.", "src": "v_practice_adoption",
+      "chart": { "type": "heatmap", "da": "grid", "map": { "rowCol": "practice", "colCol": "provider", "valueCol": "pct" }, "opts": { "fmt": "pct", "height": 320 } }
+    },
+    {
+      "id": "p_targets", "title": "Adoption vs Target", "span": 1, "pill": "%", "sub": "actual vs target",
+      "info": "Each practice's adoption rate against its program target.", "src": "v_practice_targets",
+      "chart": { "type": "bullet", "da": "targets", "map": { "labelCol": "practice", "valueCol": "pct", "targetCol": "target_pct" }, "opts": { "fmt": "pct", "height": 320 } }
+    }
+  ]
+}
