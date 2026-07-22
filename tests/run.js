@@ -15964,6 +15964,29 @@ function serve() {
     });
     ok("H118: Escape closes the zoom overlay (overlay removed, __panelZoomActive=false)", h118Close.overlayGone && h118Close.active === false, JSON.stringify(h118Close));
 
+    // 6. LF8 regression — Escape typed while focus/the event lands INSIDE the zoomed iframe
+    // (e.g. after clicking a chart control) must still close the overlay, not just Escape
+    // dispatched on the parent document.
+    const h118IframeEsc = await page.evaluate(async function () {
+      var state = window.__STUDIO_STATE;
+      var panels = state && state.spec && state.spec.panels;
+      if (!panels || !panels.length) return { ok: false, reason: "no panels in spec" };
+      window.__panelZoomOpen(panels[0].id);
+      await new Promise(function (r) { setTimeout(r, 80); });
+      var ov = document.getElementById("pzOverlay");
+      var ifr = ov && ov.querySelector(".pz-frame");
+      if (!ifr) return { ok: false, reason: "no .pz-frame" };
+      await new Promise(function (r) {
+        if (ifr.contentDocument && ifr.contentDocument.readyState === "complete") return r();
+        ifr.addEventListener("load", r, { once: true });
+      });
+      var idoc = ifr.contentWindow.document;
+      idoc.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+      await new Promise(function (r) { setTimeout(r, 80); });
+      return { ok: true, overlayGone: !document.getElementById("pzOverlay"), active: window.__panelZoomActive };
+    });
+    ok("LF8: Escape dispatched inside the zoomed iframe still closes the overlay (focus-trap fix)", h118IframeEsc.ok && h118IframeEsc.overlayGone && h118IframeEsc.active === false, JSON.stringify(h118IframeEsc));
+
     // ---- F28: Waffle chart ----
     console.log("\n• F28: Waffle chart");
 

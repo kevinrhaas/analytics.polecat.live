@@ -116,6 +116,16 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **FIX: widget zoom "Exit zoom" could trap the user (v440, 2026-07-22, steward, LF8):** in the
+  widget zoom overlay (openPanelZoom), interacting with the zoomed chart (e.g. a map's zoom
+  controls) could move focus into the chart's own iframe document — whose keydown events never
+  reach the parent document's Escape listener — so both Esc and (intermittently) the Exit-zoom
+  button stopped responding, leaving reload as the only way out. Slideshow already had a partial
+  workaround (focusing its close button on open); Panel zoom didn't. Fixed by doing the same
+  (focus the Exit-zoom button on open) PLUS attaching a second Escape listener directly on the
+  iframe's `contentDocument` once it loads — safe because it's a `srcdoc` iframe with no `sandbox`
+  attribute, so it's same-origin. 1 new regression test simulates Escape dispatched from inside
+  the iframe and asserts the overlay closes. Suite green. (app/studio.js, tests/run.js)
 - **FIX: style-preset name field crowded the Save button on phones (v439, 2026-07-22, steward,
   LF15):** `.sp-add-row` (the "Preset name" input + "+ Save as preset" button row, shared by
   Settings' Style presets AND the Custom template preset row — `ctpAddRow` in
@@ -1403,11 +1413,15 @@
 >      conservation examples (#38/LF2). Show both plain filters and linked cross-filtering so the demos
 >      read as a full showcase. The app already supports both (filterDef/cascadeFilters + the linked
 >      channel) — the demos just don't use them. app/demopacks.js.
-> LF8. **BUG — panel-zoom "Exit zoom" can trap the user.** In the widget zoom overlay (openPanelZoom,
->      studio.js ~8687), after interacting with the chart ("zoom out twice") the Exit pill + Esc stop
->      working — reload is the only escape. Likely: focus lands inside the chart IFRAME so the PARENT
->      keydown-Escape never fires. Make exit bulletproof — the ✕ click always closes, forward Esc from
->      inside the iframe via postMessage, and (see LF9) let browser Back close it. Add a regression test.
+> LF8. ✓ **BUG — panel-zoom "Exit zoom" can trap the user (shipped, steward).** Root cause confirmed:
+>      Slideshow already worked around the same issue by focusing its close button on open; Panel zoom
+>      didn't. Fixed by (a) focusing the Exit-zoom button when the overlay opens, and (b) attaching a
+>      second Escape listener directly on the iframe's contentDocument once it loads (it's a srcdoc
+>      iframe with no sandbox attribute, so same-origin access works) — so Escape closes the overlay
+>      even after focus has moved into the chart (e.g. after using a map's zoom controls). 1 new
+>      regression test (Escape dispatched from inside the iframe closes the overlay). app/studio.js
+>      (openPanelZoom), tests/run.js. NEXT: LF9 (SPA history / Back-button closes overlays) is still
+>      open as a separate, larger track.
 > LF9. **Browser Back/Forward = in-app navigation (SPA history).** Back must NOT leave the app — it
 >      should return to the last section/tab/item. Push history entries on section changes
 >      (shell.js setActive / __studioShellSetSection) and on opening overlays (panel-zoom, modals,

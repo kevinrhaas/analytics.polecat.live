@@ -8793,6 +8793,16 @@
     closeBtn.onclick = close;
     ov.addEventListener("click", function (e) { if (e.target === ov) close(); });
     document.addEventListener("keydown", onKey);
+    // LF8: interacting with the chart (e.g. the GL map's zoom controls) can move focus INTO the
+    // iframe's own document, whose keydown events never reach this document's listener above —
+    // Esc then silently does nothing. The iframe is srcdoc without a sandbox attribute, so it's
+    // same-origin: attach a second Escape listener directly on its contentDocument once loaded
+    // (mirrors the fix Slideshow already applies by focusing its close button on open).
+    ifr.addEventListener("load", function () {
+      try { ifr.contentWindow.document.addEventListener("keydown", onKey); } catch (e) {}
+    });
+    // Start focus on the close button so a bare Esc (no chart interaction yet) already works.
+    closeBtn.focus();
   }
   // Test hooks — exercised by Playwright suite
   window.__panelZoomOpen = openPanelZoom;
