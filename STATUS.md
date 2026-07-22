@@ -1331,6 +1331,15 @@
 >       overrode the dashboard theme); make the Explore preview inherit the app's light/dark mode too.
 >       Pairs with UX11 (Conservation app theme). app/studio.js (xpSpec default + defaultDashboardTheme),
 >       app/model.js (app-theme→dashboard-theme map).
+> LF11. **Explore: clarify "Add to dashboard" (new vs existing) + tighten the action row.** The Explore
+>       result buttons are [Update analysis] [Save as new] [Add to dashboard]; "Add to dashboard" is
+>       ambiguous — split into "Add to NEW dashboard" and "Add to EXISTING dashboard" (with a picker for
+>       which one). Tidy the button row. Reuse xpAddAnalysisToSpec / openDashboardPicker. app/studio.js.
+> LF12. **Explore: expose the advanced (GL) renderer + save it.** When building a MAP widget in Explore,
+>       let the user turn on the "Interactive GL (pan & zoom)" renderer and have it PERSIST with the
+>       saved analysis/widget (extends LF4 renderer-persistence to the Explore builder — today the
+>       renderer opt isn't offered in Explore and doesn't save). app/studio.js (Explore map options),
+>       app/studio-charts.js.
 
 ### 🔁 QUALITY TRACKS — interleave with the feature backlog (Kevin, 2026-07-21)
 > Kevin asked for a code-organization sweep AND a UI/UX best-practices sweep, folded INTO the loop
