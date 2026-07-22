@@ -1574,6 +1574,18 @@
 >     private job, a non-owner viewer doesn't, admin sees everything). sw v75. Dashboards, connections,
 >     datasets, analyses, and jobs all now carry the private/public flag; the per-section-rights half
 >     of M4.2 (permissioned left-rail items) is still open.
+>     ↳ **Per-section rights (shipped 2026-07-22, steward — M4.2 is now fully COMPLETE):** a new
+>     "Section access" card on the Admin page lists Explore/Dashboards/Datasets/Jobs/Connections/
+>     Studio with a toggle each — unchecking one hides that rail item from the viewer role (admins
+>     always see everything, same convention as every other M4/M4.2 gate). Storage: `studio-hidden-
+>     sections` (default `[]`, so adopting the feature changes nothing until an admin opts in).
+>     shell.js's `applyRoleGating` reads the list live (the checkbox's change handler calls it
+>     directly, no save step) and bounces a viewer off a section an admin just hid to Home — Home
+>     itself is deliberately NOT offered as hideable (it's the same safe-landing section the Admin
+>     rail's own bounce already relies on). 4 new M4.2 ratchets (default-empty/no-op, admin hides a
+>     section live while still seeing it themselves, a parked viewer gets bounced to Home, unhiding
+>     restores it and the checkbox reflects it). sw v79. **M4.2 (object privacy + per-section rights)
+>     is now fully done.** NEXT: M5 Repository browser.
 > M5. **Repository browser:** new left-rail section — a tree/folder view of ALL objects (dashboards,
 >     datasets, connections, analyses, jobs) with find/open/edit and a right-panel editor for
 >     simple objects; deep-links to the full editors for complex ones.

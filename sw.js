@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v78"; /* v78: FIX — an admin who just signed in
+var CACHE_NAME = "studio-shell-v79"; /* v79: M4.2 per-section rights (the second
+   half of M4.2, now complete) — an Admin "Section access" card can hide
+   Explore/Dashboards/Datasets/Jobs/Connections/Studio from the viewer role;
+   Home stays always-on as the safe landing section. shell.js's role gating
+   reads the new list and bounces a viewer off a section an admin just hid.
+   app/studio.js + app/shell.js changed.
+   v78: FIX — an admin who just signed in
    was stuck on the Admin section's "administrators only" screen. The section
    renders once at boot (behind the sign-in overlay, before any identity), and
    the post-login hook re-applied rail gating but never RE-RENDERED the section;

@@ -6765,6 +6765,61 @@ function serve() {
     });
     await page.waitForTimeout(150);
 
+    // ---- M4.2: per-section rights (rail permissions) — the second half of M4.2 ----
+    console.log("\n• M4.2: per-section rights (rail permissions)");
+    const rightsDefault = await page.evaluate(function () {
+      window.PolecatAuth.login("demo"); // seeded viewer account
+      window.__studioShellApplyRoleGating();
+      var jobsBtn = document.querySelector('.rail-item[data-sec="jobs"]');
+      return { hiddenList: window.__studioSectionRights.get(), jobsVisible: jobsBtn && !jobsBtn.hidden };
+    });
+    ok("M4.2: by default no section is hidden from viewers — adopting the feature changes nothing until an admin opts in",
+      rightsDefault.hiddenList.length === 0 && rightsDefault.jobsVisible, JSON.stringify(rightsDefault));
+
+    const adminHidesJobs = await page.evaluate(function () {
+      window.PolecatAuth.login("admin");
+      window.__studioRenderAdmin();
+      var cb = document.querySelector('#secAdmin [data-sec-right="jobs"]');
+      cb.checked = false;
+      cb.dispatchEvent(new Event("change"));
+      var jobsBtnAsAdmin = document.querySelector('.rail-item[data-sec="jobs"]');
+      return { hiddenList: window.__studioSectionRights.get(), adminStillSeesJobs: jobsBtnAsAdmin && !jobsBtnAsAdmin.hidden };
+    });
+    ok("M4.2: unchecking a section in the Admin page's Section access card hides it for viewers, but an admin still sees it — the checkbox's own change handler re-applies gating live, no save button needed",
+      adminHidesJobs.hiddenList.indexOf("jobs") >= 0 && adminHidesJobs.adminStillSeesJobs, JSON.stringify(adminHidesJobs));
+
+    const viewerLosesJobs = await page.evaluate(function () {
+      window.PolecatAuth.login("demo"); // viewer
+      window.__studioShellSetSection("jobs"); // park there directly, bypassing the (now-hidden) rail button
+      window.__studioShellApplyRoleGating();
+      var jobsBtn = document.querySelector('.rail-item[data-sec="jobs"]');
+      var homeBtn = document.querySelector('.rail-item[data-sec="home"]');
+      return { jobsHidden: jobsBtn && jobsBtn.hidden, bouncedToHome: homeBtn.classList.contains("active"), homeStillVisible: homeBtn && !homeBtn.hidden };
+    });
+    ok("M4.2: a viewer parked on a section an admin just hid is bounced to Home (same convention as the Admin rail's own bounce) — Home itself is never offered as a hideable section",
+      viewerLosesJobs.jobsHidden && viewerLosesJobs.bouncedToHome && viewerLosesJobs.homeStillVisible, JSON.stringify(viewerLosesJobs));
+
+    const adminRestoresJobs = await page.evaluate(function () {
+      window.PolecatAuth.login("admin");
+      window.__studioSectionRights.set("jobs", false); // re-check the box programmatically
+      window.__studioRenderAdmin();
+      var cb = document.querySelector('#secAdmin [data-sec-right="jobs"]');
+      window.PolecatAuth.login("demo");
+      window.__studioShellApplyRoleGating();
+      var jobsBtn = document.querySelector('.rail-item[data-sec="jobs"]');
+      return { cbChecked: cb && cb.checked, jobsVisibleAgain: jobsBtn && !jobsBtn.hidden };
+    });
+    ok("M4.2: unhiding a section restores it for viewers, and the Admin page's checkbox reflects the restored state",
+      adminRestoresJobs.cbChecked && adminRestoresJobs.jobsVisibleAgain, JSON.stringify(adminRestoresJobs));
+
+    await page.evaluate(function () {
+      window.PolecatAuth.logout();
+      sessionStorage.setItem("studio-gate-ok", "1");
+      window.__studioShellApplyRoleGating();
+      window.__studioShellSetSection("studio");
+    });
+    await page.waitForTimeout(150);
+
     // ---- CDA data source CRUD (My Data Sources library section) ----
     console.log("\n• CDA data-source CRUD");
     await page.evaluate(async () => { const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json()); window.__studioLoad(spec); });

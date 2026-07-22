@@ -154,12 +154,24 @@
   // shell.js runs BEFORE gate.js's login handler (script order, see index.html), so
   // a fresh sign-in re-runs this itself via the exposed hook below.
   var adminOnlyItems = items.filter(function (btn) { return btn.hasAttribute("data-admin-only"); });
+  // M4.2 (per-section rights half): admins can additionally hide ordinary sections
+  // from the viewer role (Studio.__studioSectionRights, defined in studio.js —
+  // may not exist yet on the very first call, since shell.js runs before studio.js;
+  // the `|| []` fallback leaves every section visible until studio.js's own boot
+  // re-applies gating with the real list, so nothing is ever wrongly hidden).
+  var rightsItems = items.filter(function (btn) { return !btn.hasAttribute("data-admin-only"); });
   function applyRoleGating() {
     var Auth = window.PolecatAuth;
     var me = Auth && Auth.current();
     var isAdmin = !Auth || !me || me.role === "admin";
     adminOnlyItems.forEach(function (btn) { btn.hidden = !isAdmin; });
+    var hidden = (window.__studioSectionRights && window.__studioSectionRights.get()) || [];
+    rightsItems.forEach(function (btn) {
+      var sec = btn.getAttribute("data-sec");
+      btn.hidden = !isAdmin && hidden.indexOf(sec) >= 0;
+    });
     if (!isAdmin && desiredSection === "admin") setActive("home");
+    if (!isAdmin && hidden.indexOf(desiredSection) >= 0) setActive("home");
   }
   applyRoleGating();
   window.__studioShellApplyRoleGating = applyRoleGating;
