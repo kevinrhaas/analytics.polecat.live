@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 427,
+    title: 'Jobs: mark a job private',
+    kind: 'feature',
+    ts: '2026-07-22T11:44:08.000Z',
+    items: [
+      'The same lock toggle from dashboards, connections, datasets, and analyses is now on every job -- mark one private and only you (and admins) can see it in the Jobs list.',
+      'Last of the five object types to get the private/public flag; also fixed the job editor\'s source-dataset picker so it stops showing other accounts\' private datasets.',
+    ],
+  },
+  {
     v: 426,
     title: 'Explore: mark a saved analysis private',
     kind: 'feature',
