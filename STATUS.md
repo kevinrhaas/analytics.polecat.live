@@ -116,6 +116,14 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **FIX: job editor "Remove step"/"✕" contrast (v434, 2026-07-22, steward, LF14):** the "✕ Remove
+  step" button and the per-metric/mapping "✕" buttons in the job editor modal were near-invisible
+  (faint white-on-translucent) — the modal sits on the light `--pane` surface, not the dark rail/
+  topbar the base `.btn` assumes (same root cause as the earlier `.app-sec` secondary-button fix,
+  which doesn't reach modals). New `.btn.danger` class gives them dark-on-light contrast with a red
+  hover state. 1 new LF14 ratchet (contrast check on both buttons inside the job editor). sw v82.
+  (app/studio.js, app/studio.css) NEXT in LF13: the rest of the job-editor overhaul (column
+  dropdowns, multi-group-by, unique-key option, field list/preview/diagram).
 - **UX: calmer, scannable Data panel + retire the compound-DA builder (v433, 2026-07-22, Kevin live):**
   Kevin flagged the builder's left Data panel as "daunting/overwhelming" and asked to remove the
   compound (join/union) "New compound data access" entry ("anything we need should be done in the
@@ -1368,10 +1376,8 @@
 >       OUTPUT rows, and a small visual DIAGRAM of the operation (rollup/join/stack) with the picked
 >       columns shown, so you can see what you're building. app/studio.js (openJobEditor),
 >       app/sources/jobs-engine.js, app/studio.css.
-> LF14. ★ **Job editor contrast (quick, part of LF13 but do first).** The "✕ Remove step" and the
->       per-metric "✕" controls in the job step editor are near-invisible (faint-on-light, same class
->       of issue as the v58 secondary-button fix). Bump them to a readable dark-on-light / hover-red
->       treatment. app/studio.css (+ app/studio.js if the markup needs a class).
+> LF14. ✓ **Job editor contrast — DONE, see DONE (v434, 2026-07-22, steward).** New `.btn.danger`
+>       class (dark-on-light, red on hover) applied to "✕ Remove step" + the per-metric/mapping "✕".
 > LF15. **Settings: button/input style overlap.** In Settings → Style presets, the "＋ Save as preset"
 >       button slightly overlaps/crowds the "Preset name" input (spacing/layout glitch). Tidy the row
 >       spacing. Likely the same input+button row pattern used elsewhere; check for other instances.
