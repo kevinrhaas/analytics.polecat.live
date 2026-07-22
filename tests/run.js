@@ -3267,6 +3267,73 @@ function serve() {
       cxFilter.afterTag === 1 && cxFilter.afterTagClear === 2 &&
       cxFilter.bySearch === 1 && cxFilter.bySecret === 0 && cxFilter.byTagSearch === 1, JSON.stringify(cxFilter));
 
+    // Folder pilot slice 2 (#21 org sub-item — same flat single-value `folder`
+    // field + single-select chip facet as Datasets' slice 1).
+    const cxFolderNone = await page.evaluate(function () { return { chip: !!document.querySelector("[data-conn-folder]") }; });
+    ok("CX: no folder facet row while no connection has been filed into one",
+      !cxFolderNone.chip, JSON.stringify(cxFolderNone));
+
+    await page.evaluate(function () {
+      var sf = Studio.Workspace.all("connections").filter(function (c) { return c.name === "Prod snowflake"; })[0];
+      document.querySelector('[data-conn-edit="' + sf.id + '"]').click();
+    });
+    await page.waitForTimeout(120);
+    const cxFolderField = await page.evaluate(function () {
+      var fields = [].slice.call(document.querySelectorAll(".modal .cx-field"));
+      var row = fields.filter(function (f) { return /^Folder/.test(f.textContent); })[0];
+      var inp = row && row.querySelector("input");
+      var datalist = row && row.querySelector("datalist");
+      return { found: !!inp, hasDatalist: !!datalist, listAttr: inp && inp.getAttribute("list") };
+    });
+    ok("CX: the connection wizard has a Folder field wired to a <datalist> of existing folder names",
+      cxFolderField.found && cxFolderField.hasDatalist && cxFolderField.listAttr === "connFolderOptions", JSON.stringify(cxFolderField));
+
+    await page.evaluate(function () {
+      var fields = [].slice.call(document.querySelectorAll(".modal .cx-field"));
+      var folderInp = fields.filter(function (f) { return /^Folder/.test(f.textContent); })[0].querySelector("input");
+      folderInp.value = "Regional";
+    });
+    await page.evaluate(function () {
+      [].slice.call(document.querySelectorAll(".modal .cx-wiz-foot .btn")).filter(function (b) { return /Save changes/.test(b.textContent); })[0].click();
+    });
+    await page.waitForTimeout(150);
+    const cxFolderSaved = await page.evaluate(function () {
+      var sf = Studio.Workspace.all("connections").filter(function (c) { return c.name === "Prod snowflake"; })[0];
+      var chip = document.querySelector('[data-conn-folder="Regional"]');
+      return {
+        folder: sf.folder,
+        chip: !!chip, chipLabel: chip && (chip.querySelector(".wb-chip-label") || {}).textContent,
+        chipN: chip && (chip.querySelector(".wb-chip-n") || {}).textContent,
+        badge: !!document.querySelector('.cx-row[data-conn-id="' + sf.id + '"] .cx-folder'),
+        badgeText: (document.querySelector('.cx-row[data-conn-id="' + sf.id + '"] .cx-folder') || {}).textContent
+      };
+    });
+    ok("CX: saving the Folder field persists .folder, renders a chip, and badges the row",
+      cxFolderSaved.folder === "Regional" && cxFolderSaved.chip && cxFolderSaved.chipLabel === "Regional" &&
+      cxFolderSaved.chipN === "1" && cxFolderSaved.badge && cxFolderSaved.badgeText === "Regional",
+      JSON.stringify(cxFolderSaved));
+
+    const cxFolderFilter = await page.evaluate(function () {
+      document.querySelector('[data-conn-folder="Regional"]').click();
+      return { rows: document.querySelectorAll("#connResults .cx-row").length };
+    });
+    ok("CX: clicking a folder chip narrows the list to just that folder", cxFolderFilter.rows === 1, JSON.stringify(cxFolderFilter));
+
+    const cxFolderUnfiled = await page.evaluate(function () {
+      document.querySelector('[data-conn-folder="__unfiled"]').click();
+      return { rows: document.querySelectorAll("#connResults .cx-row").length, unfiledN: (document.querySelector('[data-conn-folder="__unfiled"] .wb-chip-n') || {}).textContent };
+    });
+    ok("CX: the Unfiled folder chip excludes the connection that's been filed",
+      cxFolderUnfiled.rows === 1 && cxFolderUnfiled.unfiledN === "1", JSON.stringify(cxFolderUnfiled));
+
+    await page.evaluate(function () { document.querySelector("#connPillClear").click(); });
+    await page.waitForTimeout(60);
+    const cxFolderCleared = await page.evaluate(function () {
+      return { rows: document.querySelectorAll("#connResults .cx-row").length, activeChip: !!document.querySelector("[data-conn-folder='Regional'].active") };
+    });
+    ok("CX: Clear resets the folder filter back to all connections",
+      cxFolderCleared.rows === 2 && !cxFolderCleared.activeChip, JSON.stringify(cxFolderCleared));
+
     // saved views (post-overhaul backlog item 6 follow-up, "same treatment for
     // Connections"): same search + adapter/tag-pill preset contract as the
     // Datasets section (tags-filter parity, #21 org sub-item).

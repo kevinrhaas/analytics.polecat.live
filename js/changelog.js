@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 448,
+    title: 'Connections can now be filed into a Folder',
+    ts: '2026-07-22T22:48:25.000Z',
+    items: [
+      'The connection wizard has a new "Folder" field, the same single-home organization Datasets got recently — pick an existing folder from the suggestions or type a new one.',
+      'The Connections list gains a folder chip strip (All folders / each folder / Unfiled) once at least one connection has been filed, and a small badge on the row shows which folder it lives in.',
+    ],
+  },
+  {
     v: 447,
     title: 'Datasets can now be filed into a Folder',
     ts: '2026-07-22T22:37:32.000Z',
