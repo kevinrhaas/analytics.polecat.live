@@ -16130,6 +16130,94 @@ function serve() {
     });
     ok("F27/F24: candlestick + divergingBar default color tokens (--good/--bad) resolve to real, distinct colors — not the undefined-var grey fallback both --green/--pdc-bad silently shared", colorDefaultsFix.ok, JSON.stringify(colorDefaultsFix));
 
+    // ── LF5(b): color-token pickers gain a live swatch + per-option tinting; the
+    // choropleth Ramp color option additionally gets a light->dark gradient preview ──
+    console.log("\n• LF5(b): color-token picker swatches + choropleth ramp gradient");
+
+    // LF5b-1: choropleth "Ramp color" — swatch + options tint from the REAL resolved
+    // token color (read off the same #preview iframe PDC.cssvar() already uses), and
+    // both the swatch and the gradient strip update live when the selection changes.
+    var lf5bRamp = await page.evaluate(function () {
+      try {
+        var spec = window.__STUDIO_STATE.spec;
+        var p = spec.panels[0];
+        var prevChart = JSON.parse(JSON.stringify(p.chart));
+        var cols = window.Studio.columnsOf(spec, p.chart.da);
+        p.chart.type = "choropleth";
+        p.chart.map = { idCol: cols[0], valueCol: cols[1] || cols[0] };
+        p.chart.opts = { color: "--c3" };
+        window.__studioSelect({ kind: "panel", id: p.id });
+
+        var rampField = [].slice.call(document.querySelectorAll("#inspBody .field")).filter(function (f) {
+          var lab = f.querySelector("label"); return lab && lab.textContent === "Ramp color";
+        })[0];
+        if (!rampField) return { ok: false, err: "Ramp color field not found" };
+        var picker = rampField.querySelector(".ct-picker");
+        var sw = picker && picker.querySelector(".ct-swatch");
+        var sel = picker && picker.querySelector("select");
+        var ramp = rampField.querySelector(".ct-ramp");
+        var optsColored = sel && [].slice.call(sel.options).every(function (o) { return !!o.style.backgroundColor; });
+
+        var swBg0 = sw ? getComputedStyle(sw).backgroundColor : "";
+        var rampBg0 = ramp ? getComputedStyle(ramp).backgroundImage : "";
+
+        sel.value = "--c7"; sel.dispatchEvent(new Event("change"));
+        var swBg1 = getComputedStyle(sw).backgroundColor;
+        var rampBg1 = getComputedStyle(ramp).backgroundImage;
+
+        p.chart = prevChart;
+        window.__studioSelect(null);
+        window.__studioRenderInspector();
+
+        return {
+          ok: !!sw && !!sel && !!ramp && optsColored &&
+              rampBg0.indexOf("linear-gradient") >= 0 && rampBg1.indexOf("linear-gradient") >= 0 &&
+              swBg0 !== "" && swBg0 !== swBg1 && rampBg0 !== rampBg1,
+          swBg0: swBg0, swBg1: swBg1, optsColored: optsColored
+        };
+      } catch (e) { return { ok: false, err: e.message }; }
+    });
+    ok("LF5(b): choropleth Ramp color picker shows a live resolved-color swatch + tinted options + a gradient ramp preview, both updating on change", lf5bRamp.ok, JSON.stringify(lf5bRamp));
+
+    // LF5b-2: a plain series color picker (line chart) — "Auto (palette)" shows the
+    // dashed/no-fill swatch state, and picking an explicit token paints a real color
+    // matching that token's PDC.cssvar() resolution (not a placeholder/guess).
+    var lf5bSeries = await page.evaluate(function () {
+      try {
+        var spec = window.__STUDIO_STATE.spec;
+        var p = spec.panels[0];
+        var prevChart = JSON.parse(JSON.stringify(p.chart));
+        var cols = window.Studio.columnsOf(spec, p.chart.da);
+        p.chart.type = "line";
+        p.chart.map = { labelCol: cols[0], series: [{ col: cols[1] || cols[0], name: "S1" }] };
+        window.__studioSelect({ kind: "panel", id: p.id });
+
+        var colorField = [].slice.call(document.querySelectorAll("#inspBody .field")).filter(function (f) {
+          var lab = f.querySelector("label"); return lab && /Series 1 color/.test(lab.textContent);
+        })[0];
+        if (!colorField) return { ok: false, err: "Series 1 color field not found" };
+        var sw = colorField.querySelector(".ct-swatch");
+        var sel = colorField.querySelector("select");
+        var autoIsDashed = sw.classList.contains("ct-swatch-auto");
+
+        sel.value = "--good"; sel.dispatchEvent(new Event("change"));
+        var swBgGood = getComputedStyle(sw).backgroundColor;
+        var noLongerDashed = !sw.classList.contains("ct-swatch-auto");
+        var PDC = document.querySelector("#preview").contentWindow.PDC;
+        var goodHex = PDC.cssvar("--good");
+        // normalize both to the browser's own rgb() parsing for a like-for-like compare
+        var probe = document.createElement("span"); probe.style.background = goodHex; document.body.appendChild(probe);
+        var goodRgb = getComputedStyle(probe).backgroundColor; probe.remove();
+
+        p.chart = prevChart;
+        window.__studioSelect(null);
+        window.__studioRenderInspector();
+
+        return { ok: autoIsDashed && noLongerDashed && swBgGood === goodRgb, autoIsDashed: autoIsDashed, swBgGood: swBgGood, goodRgb: goodRgb };
+      } catch (e) { return { ok: false, err: e.message }; }
+    });
+    ok("LF5(b): series color picker — 'Auto' shows the dashed no-fill swatch, an explicit token paints the swatch with its real resolved color", lf5bSeries.ok, JSON.stringify(lf5bSeries));
+
     // ---- H-track v117: Demo mode ----
     console.log("\n• H-track v117: Demo mode");
 

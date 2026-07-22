@@ -3330,7 +3330,7 @@
     var optDefs = (Studio.CHARTS[p.chart.type] || {}).opts || [];
     if (optDefs.length) {
       var os = section(body, "Options");
-      optDefs.forEach(function (od) { os.appendChild(optField(p.chart.opts, od)); });
+      optDefs.forEach(function (od) { os.appendChild(optField(p.chart.opts, od, p.chart.type)); });
     }
     // Drill-through: click a chart element to navigate to another dashboard.
     // Z8: only shown for chart types the renderer actually wires cfg.drill into (see ANNOT_CAPS).
@@ -4188,7 +4188,7 @@
           box.appendChild(r);
           if (showSeriesColor) {
             var cr = el("div", "field");
-            var csel = select2pairs([["", "Auto (palette)"]].concat(Studio.COLOR_TOKENS.map(function (t) { return [t, Studio.colorTokenLabel(t)]; })), s.color || "", function (v) { if (v) s.color = v; else delete s.color; refreshPreview(); });
+            var csel = colorTokenSelect([["", "Auto (palette)"]].concat(Studio.COLOR_TOKENS.map(function (t) { return [t, Studio.colorTokenLabel(t)]; })), s.color || "", function (v) { if (v) s.color = v; else delete s.color; refreshPreview(); });
             cr.appendChild(labelEl("Series " + (i + 1) + " color")); cr.appendChild(csel);
             box.appendChild(cr);
           }
@@ -4274,7 +4274,7 @@
     ts.appendChild(field("Delta direction", select2pairs([["up", "▲ Up (good)"], ["down", "▼ Down (bad)"], ["flat", "■ Flat"]], k.deltaDir || "up", function (v) { k.deltaDir = v; refreshPreview(); })));
     ts.appendChild(field("Sparkline column", colPicker(cols, k.sparkCol || "", function (v) { if (v) k.sparkCol = v; else delete k.sparkCol; refreshPreview(); }, true), "a numeric column → a mini trend on the tile"));
     ts.appendChild(field("Sparkline type", select2pairs([["line", "Line"], ["bar", "Bar"], ["area", "Area"]], k.sparkType || "line", function (v) { if (v === "line") delete k.sparkType; else k.sparkType = v; refreshPreview(); })));
-    ts.appendChild(field("Sparkline color", select2pairs([["", "Auto"]].concat(Studio.COLOR_TOKENS.map(function (t) { return [t, Studio.colorTokenLabel(t)]; })), k.sparkColor || "", function (v) { if (v) k.sparkColor = v; else delete k.sparkColor; refreshPreview(); })));
+    ts.appendChild(field("Sparkline color", colorTokenSelect([["", "Auto"]].concat(Studio.COLOR_TOKENS.map(function (t) { return [t, Studio.colorTokenLabel(t)]; })), k.sparkColor || "", function (v) { if (v) k.sparkColor = v; else delete k.sparkColor; refreshPreview(); })));
 
     // Compare to — auto-computes a delta from a second numeric column in the same DA. Advanced.
     // Ideal for period-over-period comparisons: "Revenue this quarter vs last quarter" in one tile.
@@ -10170,6 +10170,74 @@
     return select2pairs((allowEmpty ? [["", "(none)"]] : []).concat(pairs), val || "", onChange);
   }
   function fmtPicker(val, onChange) { return select2pairs(Studio.FORMATS.map(function (f) { return [f.id, f.label]; }), val, onChange); }
+  // LF5(b): color-token pickers ("Series 7", "Accent (theme)"...) were text-only, so it was
+  // hard to tell what a given option actually painted. resolveTokenColor reads the token's
+  // REAL resolved value from the #preview iframe's document — the same document the rest of
+  // the Inspector already keeps live-synced to the current spec's theme + light/dark mode —
+  // rather than guessing at a static palette, so the swatch always matches what the option
+  // will actually render.
+  function resolveTokenColor(token) {
+    try {
+      var ifr = $("#preview"), doc = ifr && ifr.contentDocument;
+      if (doc && doc.documentElement) {
+        var v = getComputedStyle(doc.documentElement).getPropertyValue(token).trim();
+        if (v) return v;
+      }
+    } catch (e) {}
+    return "";
+  }
+  function hexToRgb(c) {
+    if (!c) return null;
+    var m = /^#([0-9a-f]{6})$/i.exec(c.trim());
+    if (m) { var n = parseInt(m[1], 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
+    var m2 = /^rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)/i.exec(c);
+    return m2 ? [+m2[1], +m2[2], +m2[3]] : null;
+  }
+  function mixColor(a, b, t) {
+    var pa = hexToRgb(a), pb = hexToRgb(b);
+    if (!pa || !pb) return a || b || "";
+    return "rgb(" + Math.round(pa[0] + (pb[0] - pa[0]) * t) + "," + Math.round(pa[1] + (pb[1] - pa[1]) * t) + "," + Math.round(pa[2] + (pb[2] - pa[2]) * t) + ")";
+  }
+  function contrastText(color) {
+    var rgb = hexToRgb(color);
+    return rgb && (0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]) / 255 > 0.6 ? "#111" : "#fff";
+  }
+  // A small live swatch beside the <select> (updates on every change) plus per-<option>
+  // background tinting, so both the closed control and the open list show real color, not
+  // just a label. onColorChange (optional) lets a caller layer extra UI (the choropleth ramp
+  // preview below) on top of the same resolved color without re-deriving it.
+  function colorTokenSelect(pairs, val, onChange, onColorChange) {
+    var wrap = el("span", "ct-picker");
+    var resolved = {};
+    pairs.forEach(function (p) { if (p[0]) resolved[p[0]] = resolveTokenColor(p[0]); });
+    var sw = el("span", "ct-swatch"); sw.setAttribute("aria-hidden", "true");
+    function paintSwatch(v) {
+      var c = resolved[v] || "";
+      sw.style.background = c;
+      sw.classList.toggle("ct-swatch-auto", !c);
+    }
+    paintSwatch(val);
+    var sel = select2pairs(pairs, val, function (v) {
+      paintSwatch(v);
+      onChange(v);
+      if (onColorChange) onColorChange(v, resolved[v] || "");
+    });
+    [].slice.call(sel.options).forEach(function (o) {
+      var c = resolved[o.value];
+      if (c) { o.style.backgroundColor = c; o.style.color = contrastText(c); }
+    });
+    wrap.appendChild(sw); wrap.appendChild(sel);
+    return wrap;
+  }
+  // LF5(b): "for the choropleth RAMP color a small gradient/swatch preview" — a light->base->dark
+  // strip approximating the actual per-region ramp studio-charts.js's geoRamp() computes at
+  // render time (that function lives inside the preview-iframe-only PDC closure and needs a
+  // panel-bg to mix against, so this is a lighter-weight visual approximation, not a byte-for-
+  // byte reuse — good enough for "which ramp am I picking," not a copy of the render pipeline).
+  function rampGradientCss(token) {
+    var base = resolveTokenColor(token) || "#2f8f52";
+    return "linear-gradient(to right," + mixColor("#ffffff", base, 0.55) + "," + base + "," + mixColor(base, "#141414", 0.5) + ")";
+  }
   // Z8 follow-up: "true before/after thumbnails" — the glyph+tooltip hints below explain
   // an option in words; for the two families where a picture beats a sentence (reordering
   // bars, straight-vs-curved lines) a hover/focus popover shows an actual tiny Off/On SVG
@@ -10281,7 +10349,7 @@
     for (var i = 0; i < OPT_HINTS.length; i++) if (OPT_HINTS[i].test.test(key)) return OPT_HINTS[i];
     return null;
   }
-  function optField(opts, od) {
+  function optField(opts, od, chartType) {
     if (od.type === "bool") {
       var lab = el("label", "check"); var cb = el("input"); cb.type = "checkbox"; cb.checked = !!opts[od.key]; cb.onchange = function () { opts[od.key] = cb.checked; refreshPreview(); }; lab.appendChild(cb); lab.appendChild(document.createTextNode(od.label));
       var oh = optHint(od.key);
@@ -10303,7 +10371,18 @@
       return lab;
     }
     if (od.type === "fmt") return field(od.label, fmtPicker(opts[od.key] || od.def, function (v) { opts[od.key] = v; refreshPreview(); }));
-    if (od.type === "color") return field(od.label, select2pairs(Studio.COLOR_TOKENS.map(function (tk) { return [tk, Studio.colorTokenLabel(tk)]; }), opts[od.key] || od.def, function (v) { opts[od.key] = v; refreshPreview(); }));
+    if (od.type === "color") {
+      var colVal = opts[od.key] || od.def;
+      var colPairs = Studio.COLOR_TOKENS.map(function (tk) { return [tk, Studio.colorTokenLabel(tk)]; });
+      if (chartType === "choropleth" && od.key === "color") {
+        var rampBox = el("div", "ct-ramp"); rampBox.style.background = rampGradientCss(colVal);
+        var rampWrap = el("div", "ct-color-with-ramp");
+        rampWrap.appendChild(colorTokenSelect(colPairs, colVal, function (v) { opts[od.key] = v; refreshPreview(); }, function (v) { rampBox.style.background = rampGradientCss(v); }));
+        rampWrap.appendChild(rampBox);
+        return field(od.label, rampWrap, "The ramp runs light → this color → dark across the region's value range.");
+      }
+      return field(od.label, colorTokenSelect(colPairs, colVal, function (v) { opts[od.key] = v; refreshPreview(); }));
+    }
     if (od.type === "select") return field(od.label, select2pairs(od.choices, opts[od.key] || od.def, function (v) { opts[od.key] = v; refreshPreview(); }));
     if (od.type === "int") { var i = el("input"); i.type = "number"; i.value = opts[od.key] != null ? opts[od.key] : od.def; i.addEventListener("input", function () { opts[od.key] = +i.value || 0; refreshPreview(); }); return field(od.label, i); }
     // N-FUN "live what-if sliders": a drag-to-animate control for numeric knobs that feed

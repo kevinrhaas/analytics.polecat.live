@@ -775,6 +775,15 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
 .field textarea{resize:vertical;min-height:46px;line-height:1.4}
 .field.row{display:flex;gap:8px}.field.row>div{flex:1}
 .field .hint{font-size:10.5px;color:var(--faint);margin-top:3px}
+/* LF5(b): color-token pickers gain a resolved-color swatch (live, updates with the
+   selection) plus per-option tinting, so "Series 7" isn't just a guessing game; the
+   choropleth's Ramp color option additionally shows a light->dark gradient preview. */
+.ct-picker{display:flex;align-items:center;gap:7px;width:100%}
+.ct-picker select{flex:1;width:auto}
+.ct-swatch{width:15px;height:15px;border-radius:4px;border:1px solid var(--line);flex-shrink:0}
+.ct-swatch-auto{background:repeating-linear-gradient(45deg,var(--field) 0 3px,var(--line-2) 3px 6px)}
+.ct-color-with-ramp{display:flex;flex-direction:column;gap:6px}
+.ct-ramp{height:14px;border-radius:4px;border:1px solid var(--line)}
 .check{display:flex;align-items:center;gap:7px;font-size:12.5px;color:var(--ink);font-weight:600;cursor:pointer;margin-bottom:9px}
 .check input{width:15px;height:15px;accent-color:var(--brand)}
 /* Z8 follow-up: inline visual setting hint — small glyph after the label explaining a toggle */
