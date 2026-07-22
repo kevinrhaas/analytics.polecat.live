@@ -5284,6 +5284,46 @@ function serve() {
     ok("I4: exported CDF themeBtn has aria-label", !!i4.themeBtnAriaLabel && i4.themeBtnAriaLabel.length > 5, JSON.stringify(i4));
     ok("I4: exported CDF theme button uses SVG icon (not unicode)", i4.themeBtnHasSvg, JSON.stringify(i4));
 
+    // LF31: clicking a panel's dataset caption opens the Datasets view FOCUSED on
+    // THAT panel's dataset (used to pass no focusId, so it showed every dataset
+    // with nothing highlighted). studio-render now passes query: p.chart.da.
+    const provFocus = await page.evaluate(async () => {
+      const S = window.__STUDIO_STATE;
+      const spec = { name: "prov-test", title: "Prov test", kpis: [], filters: [],
+        cda: { connections: [], dataAccesses: [
+          { id: "alpha_ds", kind: "sql", columns: ["a", "b"], sql: "select a,b from alpha" },
+          { id: "beta_ds", kind: "sql", columns: ["a", "b"], sql: "select a,b from beta" }
+        ] },
+        panels: [
+          { id: "p1", title: "Alpha panel", span: "half", src: "alpha_ds", chart: { type: "bars", da: "alpha_ds", map: { labelCol: "a", valueCol: "b" } } },
+          { id: "p2", title: "Beta panel", span: "half", src: "beta_ds", chart: { type: "bars", da: "beta_ds", map: { labelCol: "a", valueCol: "b" } } }
+        ] };
+      const mock = { alpha_ds: { cols: ["a", "b"], rows: [["x", 1], ["y", 2]] }, beta_ds: { cols: ["a", "b"], rows: [["x", 3], ["y", 4]] } };
+      const html = Studio.buildHtml(spec, S.assets, { preview: false });
+      const injected = html.replace("</body>", "<script>window.PDC_MOCK=" + JSON.stringify(mock) + ";<\/script></body>");
+      const ifr = document.createElement("iframe");
+      ifr.style.cssText = "position:fixed;left:-9999px;width:1200px;height:900px";
+      document.body.appendChild(ifr);
+      await new Promise((res) => { ifr.onload = res; ifr.srcdoc = injected; });
+      await new Promise((r) => setTimeout(r, 700));
+      const d = ifr.contentDocument;
+      const srcs = [].slice.call(d.querySelectorAll(".card .src"));
+      const betaSrc = srcs.filter((s) => /beta_ds/.test(s.textContent))[0];
+      let hotId = null, modalOpen = false;
+      if (betaSrc) {
+        betaSrc.click();
+        await new Promise((r) => setTimeout(r, 250));
+        const modal = d.getElementById("pdc-qm");
+        modalOpen = !!modal;
+        const hot = modal ? modal.querySelector(".pdc-q.hot") : null;
+        hotId = hot ? hot.getAttribute("data-id") : null;
+      }
+      ifr.remove();
+      return { srcCount: srcs.length, modalOpen, hotId };
+    });
+    ok("LF31: a panel's dataset caption opens the Datasets view focused on THAT panel's dataset",
+      provFocus.modalOpen && provFocus.hotId === "beta_ds", JSON.stringify(provFocus));
+
     // ---- every example loads + previews without error ----
     console.log("\n• all examples preview");
     const examples = await page.evaluate(() => window.__STUDIO_STATE.examples.map((e) => e.file));

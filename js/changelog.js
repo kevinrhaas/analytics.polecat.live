@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 444,
+    title: 'Fix: a widget’s dataset caption now opens just that widget’s dataset',
+    kind: 'fix',
+    ts: '2026-07-22T21:05:11.000Z',
+    items: [
+      'Clicking the little “◴ dataset” caption in the corner of a widget used to open the Datasets view showing every dataset on the dashboard, with nothing highlighted. It now opens focused on that widget’s own dataset — scrolled to and highlighted — so you go straight to the query behind the chart you clicked. Also reworded the header info button’s tooltip from the jargon “CDA queries” to “datasets”.',
+    ],
+  },
+  {
     v: 443,
     title: 'A refreshed marketing homepage carousel — dashboards first, in Polecat dark',
     ts: '2026-07-22T20:37:55.000Z',
