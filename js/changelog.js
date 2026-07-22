@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 445,
+    title: 'Consistent brand colors across the app switcher and the suite',
+    kind: 'polish',
+    ts: '2026-07-22T20:56:54.000Z',
+    items: [
+      'The app-switcher tiles now show each Polecat app in its own brand color, matching the polecat.live launcher — and Analytics’ own terracotta mark is consistent from the launcher through to the rail.',
+      'Built on Polecat Shell v0.5.4.',
+    ],
+  },
+  {
     v: 444,
     title: 'Fix: a widget’s dataset caption now opens just that widget’s dataset',
     kind: 'fix',
