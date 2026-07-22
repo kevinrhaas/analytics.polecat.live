@@ -1389,6 +1389,28 @@
 >       (Polecat Dark/Light/System + the app palettes incl. the conservation palette). Organize it cleanly
 >       (grouped, not a messy wall). Reference screenshots: AutoSelector's gradient-slider + swatch cards.
 >       app/studio.js (Settings render) + app/studio.css. Keep it token-driven so it tracks live palettes.
+> LF20. **Builder top bar (canvas-bar) declutter — icons, consolidate, keep chrome off-screen (Kevin, live).**
+>       The builder's canvas top bar reads noisy: `title ✎ · id badge · Storage&Cost · undo · redo · Examples ▾ ·
+>       Open · Save · Export ▾ · ◑ Dark`. Make it MUCH simpler/elegant: turn secondary actions into icon
+>       buttons (undo/redo already are; Open/Save/Export could be icon+menu), group them, and push rarely-used
+>       actions into a menu / off-screen. TWO light/dark controls exist and confuse: (1) `#btnTheme` in the
+>       canvas-bar = the whole app UI + live-preview theme (`S.theme`/`data-theme`, `setTheme`); (2) a Light/Dark
+>       toggle rendered INSIDE the dashboard header = the DASHBOARD's own render mode (exported). Consolidate to
+>       ONE visible theme control and move the dashboard's light/dark into a per-dashboard *option* (Inspector →
+>       Appearance), off both the top bar and the dashboard header. (Ties into task #30 standard topbar.) DECISION
+>       LOCKED (Kevin, 2026-07-22): **App toggle stays; dashboard render-mode → Inspector.** Keep ONE light/dark
+>       control in the top bar for the whole app + preview; MOVE the dashboard's own light/dark into a per-dashboard
+>       Inspector → Appearance option and REMOVE the in-header toggle button (preserves export-a-dark-dashboard).
+>       app/studio.js canvas-bar wiring + renderInspector Appearance, studio-render.js dashboard header, app/studio.css.
+> LF21. **Dashboard title header = a first-class widget (inline edit / delete / configure) (Kevin, live).**
+>       The dashboard-FILE title at the very top is inline-editable, but the title HEADER BAR inside the dashboard
+>       (logo + title + subtitle + info + theme toggle) is NOT editable like an object — you can't click-to-edit
+>       the title/subtitle in place, and it isn't deletable/configurable the way widgets and text objects are.
+>       Make the header behave like every other canvas object: inline-edit the title + subtitle on click, a delete
+>       (✕) affordance, and configure (align, show/hide subtitle, logo, theme toggle) via the Inspector when it's
+>       selected. Note task #24 already added a header-OFF option and #25 unified delete affordances — this is the
+>       "make the header itself a proper editable object" follow-up Kevin still finds missing. app/studio-render.js
+>       (header render + selection), app/studio.js (inspector for the header object), app/studio.css.
 > LF19. **Left + right panel IA/redesign — make the builder calm, clear & elegant (Kevin, live).** First
 >       pass shipped (v433: compact dataset cards, kind icons, hover actions, hairline sections, compound
 >       builder removed). The DEEPER work Kevin asked for: the whole left Data panel still opens "scary/
