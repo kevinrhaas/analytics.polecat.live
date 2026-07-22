@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v87"; /* v87: faint polecat.live suite link in the rail
+var CACHE_NAME = "studio-shell-v88"; /* v88: FIX — clicking a panel's dataset
+   caption (the "◴ <dataset>" footer) now opens the Datasets view FOCUSED on
+   that panel's dataset instead of showing every dataset with nothing
+   highlighted (studio-render passed no `query`/focusId to PDC.card). Also
+   reworded the header info button's jargon "CDA queries" -> "datasets".
+   app/studio-render.js + app/exporters.js.
+   v87: faint polecat.live suite link in the rail
    (app/index.html + app/studio.css touched).
    v86: LF2 — 2 new Conservation-themed example
    dashboards (conservation-scorecard.studio.json, conservation-flow.studio.json), gated

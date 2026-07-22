@@ -116,6 +116,16 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **FIX: a widget's dataset caption opened EVERY dataset, not just that one (v444, 2026-07-22, Kevin live):**
+  clicking the per-panel "◴ <dataset>" provenance caption called `PDC.queryModal(opts.query)` but studio-render
+  never passed `query` to `PDC.card` — so focusId was undefined and the Datasets modal showed all datasets with
+  nothing highlighted. studio-render.js now passes `query: p.chart.da`, so the caption opens the Datasets view
+  FOCUSED (scroll + `.hot` highlight) on that panel's own dataset. Also reworded the header ⓘ tooltip from the
+  jargon "CDA queries" → "datasets" (exporters.js). 1 regression test (2 panels on distinct DAs → clicking beta's
+  caption highlights `.pdc-q[data-id="beta_ds"]`). sw v88. RESIDUAL (needs the pristine pdc-ui.js toolkit, so
+  deferred/upstream): the per-panel caption's own `title` tooltip still says "CDA queries" (pdc-ui.js:625), and the
+  modal still LISTS all datasets (focused, not filtered to only the one) — if Kevin wants strictly "only that
+  dataset", that's a pdc-ui.queryModal change.
 - **Conservation Insight showcase examples + demo-pack-gated examples (v441, 2026-07-22, steward,
   LF2 parts a/b):** two new example dashboards — **Conservation Practice Adoption Scorecard**
   (gauge/donut/bars/heatmap/bullet) and **Conservation Insight — Crop & Practice Flow**

@@ -1594,7 +1594,7 @@
         var titleText = applyTemplateVars(p.title || "", spec.templateVars);
         var noteText = applyTemplateVars(p.note || "", spec.templateVars);
         var card = PDC.card(titleText, { pill: p.pill || "", sub: p.sub || "", info: p.info || "",
-          src: p.src || "", span: spanClass });
+          src: p.src || "", query: (p.chart && p.chart.da) || "", span: spanClass });
         // Panel note: visible annotation line shown below the card header, above the chart.
         // Gives stakeholders quick context without needing to hover over the info dot.
         if (noteText) {

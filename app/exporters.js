@@ -253,7 +253,7 @@
       "  " + brandHtml + "\n" +
       "  <div class=\"pdc-sub\">" + xml(subtitleText || "") + "</div>\n  <div class=\"spacer\"></div>\n" +
       "  <div class=\"pdc-ctrls\" id=\"ctrls\"></div>\n" +
-      "  <button class=\"pdc-iconbtn\" id=\"qInfoBtn\" title=\"View the CDA queries behind this dashboard\" aria-label=\"View the CDA queries behind this dashboard\" onclick=\"PDC.queryModal()\">&#9432;</button>\n" +
+      "  <button class=\"pdc-iconbtn\" id=\"qInfoBtn\" title=\"View the datasets behind this dashboard\" aria-label=\"View the datasets behind this dashboard\" onclick=\"PDC.queryModal()\">&#9432;</button>\n" +
       "  <button class=\"pdc-iconbtn\" id=\"themeBtn\" aria-label=\"Toggle dark/light mode\" onclick=\"PDC.toggleTheme()\">&#9790; Dark</button>\n" +
       (!opts.preview ? "  <button class=\"pdc-iconbtn\" id=\"printBtn\" title=\"Print / save as PDF\" aria-label=\"Print or save as PDF\" onclick=\"window.print()\"><svg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><rect x='6' y='9' width='12' height='9' rx='1'/><path d='M7 9V5a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v4'/><path d='M7 17v2a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-2'/><circle cx='9' cy='13.5' r='1' fill='currentColor' stroke='none'/></svg></button>\n" : "") +
       "  " + launcher + "\n</header>\n" +
