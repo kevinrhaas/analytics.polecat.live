@@ -6237,6 +6237,9 @@
      ('connections' table) so a remote workspace backend can mirror them. */
   var _connAdapterFilter = {}; // multi-select: adapterId -> true; empty = all
   var _connTagFilter = {};     // multi-select tag -> true; empty = all (tags-filter parity slice 1, #21 org sub-item)
+  // Folder pilot slice 2 (#21 org sub-item — same flat single-value `folder`
+  // string + single-select chip facet as Datasets' `_dsxFolderFilter`).
+  var _connFolderFilter = ""; // "" = All, "__unfiled" = no folder, else a folder name
   // Post-overhaul backlog item 6 follow-up ("same treatment for the
   // Connections list"): identical saved-view contract to the Datasets
   // section's dsxLoadViews/dsxSaveViews/dsxApplyView, now including the tag
@@ -6249,6 +6252,7 @@
     var inp = $("#connSearch"); if (inp) inp.value = v.q || "";
     _connAdapterFilter = {}; (v.adapters || []).forEach(function (a) { _connAdapterFilter[a] = true; });
     _connTagFilter = {}; (v.tags || []).forEach(function (t) { _connTagFilter[t] = true; });
+    _connFolderFilter = v.folder || "";
     renderConnections();
   }
   // Post-overhaul backlog item 7 ("organization at scale"): a favorite flag on
@@ -6297,15 +6301,18 @@
       return (b.updatedAt || 0) - (a.updatedAt || 0);
     });
     // adapter pills: one per adapter present, multi-select (empty selection = all)
-    var counts = {}, tagCounts = {};
+    var counts = {}, tagCounts = {}, folderCounts = {}, folderUnfiled = 0;
     list.forEach(function (c) {
       counts[c.adapter] = (counts[c.adapter] || 0) + 1;
       (c.tags || []).forEach(function (t) { tagCounts[t] = (tagCounts[t] || 0) + 1; });
+      if (c.folder) folderCounts[c.folder] = (folderCounts[c.folder] || 0) + 1; else folderUnfiled++;
     });
     Object.keys(_connAdapterFilter).forEach(function (k) { if (!counts[k]) delete _connAdapterFilter[k]; });
     Object.keys(_connTagFilter).forEach(function (k) { if (!tagCounts[k]) delete _connTagFilter[k]; });
+    if (_connFolderFilter && _connFolderFilter !== "__unfiled" && !folderCounts[_connFolderFilter]) _connFolderFilter = "";
     var anyFilter = Object.keys(_connAdapterFilter).length > 0;
     var anyTag = Object.keys(_connTagFilter).length > 0;
+    var anyConnFolder = !!_connFolderFilter;
     var pills = Object.keys(counts).sort().map(function (aid) {
       var src = Studio.sourceById(aid) || { label: aid };
       return '<button type="button" class="wb-chip cx-pill' + (_connAdapterFilter[aid] ? " active" : "") + '" data-conn-adapter="' + esc(aid) + '" aria-pressed="' + (_connAdapterFilter[aid] ? "true" : "false") + '">' +
@@ -6316,6 +6323,19 @@
       return '<button type="button" class="wb-chip cx-pill' + (_connTagFilter[t] ? " active" : "") + '" data-conn-tag="' + esc(t) + '" aria-pressed="' + (_connTagFilter[t] ? "true" : "false") + '">' +
         '<span class="wb-chip-label">#' + esc(t) + '</span> <span class="wb-chip-n">' + tagCounts[t] + '</span></button>';
     }).join("");
+    // Folder facet (single-select, mirrors Datasets' pillsF): only appears
+    // once at least one connection has been filed.
+    var pillsFConn = Object.keys(folderCounts).length
+      ? ['<button type="button" class="wb-chip cx-pill' + (!_connFolderFilter ? " active" : "") + '" data-conn-folder="" aria-pressed="' + (!_connFolderFilter ? "true" : "false") + '">' +
+          '<span class="wb-chip-label">All folders</span> <span class="wb-chip-n">' + list.length + '</span></button>']
+        .concat(Object.keys(folderCounts).sort().map(function (f) {
+          return '<button type="button" class="wb-chip cx-pill' + (_connFolderFilter === f ? " active" : "") + '" data-conn-folder="' + esc(f) + '" aria-pressed="' + (_connFolderFilter === f ? "true" : "false") + '">' +
+            '<span class="wb-chip-label">' + esc(f) + '</span> <span class="wb-chip-n">' + folderCounts[f] + '</span></button>';
+        }))
+        .concat(['<button type="button" class="wb-chip cx-pill' + (_connFolderFilter === "__unfiled" ? " active" : "") + '" data-conn-folder="__unfiled" aria-pressed="' + (_connFolderFilter === "__unfiled" ? "true" : "false") + '">' +
+          '<span class="wb-chip-label">Unfiled</span> <span class="wb-chip-n">' + folderUnfiled + '</span></button>'])
+        .join("")
+      : "";
     var connViews = connLoadViews();
     var pillsV = connViews.map(function (v) {
       return '<div class="wb-chip-wrap">' +
@@ -6324,7 +6344,7 @@
         '<button type="button" class="wb-chip-del" data-conn-view-del="' + esc(v.id) + '" title="Delete view ' + esc(v.name) + '" aria-label="Delete view ' + esc(v.name) + '"></button>' +
         '</div>';
     }).join("");
-    var canSaveConnView = !!(q || anyFilter || anyTag);
+    var canSaveConnView = !!(q || anyFilter || anyTag || anyConnFolder);
     var connViewAddHtml = canSaveConnView
       ? '<span class="wb-add"><input type="text" id="connViewNameInp" class="wb-name-inp" placeholder="Name this view…" aria-label="Name this saved view"/>' +
         '<button type="button" class="btn" id="connViewAddBtn">+ Save view</button></span>'
@@ -6332,6 +6352,8 @@
     var shown = list.filter(function (c) {
       if (anyFilter && !_connAdapterFilter[c.adapter]) return false;
       if (anyTag && !(c.tags || []).some(function (t) { return _connTagFilter[t]; })) return false;
+      if (_connFolderFilter === "__unfiled") { if (c.folder) return false; }
+      else if (_connFolderFilter) { if (c.folder !== _connFolderFilter) return false; }
       if (!q) return true;
       var src = Studio.sourceById(c.adapter) || {};
       var cfgHay = Object.keys(c.cfg || {}).map(function (k) {
@@ -6339,17 +6361,19 @@
         var f = (src.fields || []).filter(function (x) { return x.key === k; })[0];
         return f && f.type === "password" ? "" : String(c.cfg[k] || "");
       }).join(" ");
-      return (c.name + " " + (src.label || c.adapter) + " " + cfgHay + " " + (c.tags || []).join(" ")).toLowerCase().indexOf(q) >= 0;
+      return (c.name + " " + (src.label || c.adapter) + " " + cfgHay + " " + (c.tags || []).join(" ") + " " + (c.folder || "")).toLowerCase().indexOf(q) >= 0;
     });
     var rows = shown.map(function (c) {
       var src = Studio.sourceById(c.adapter) || { label: c.adapter, icon: "db" };
       var metaBadge = src.caps && src.caps.meta ? '<span class="cx-badge" title="Can also host this app\'s workspace (see Settings → Workspace backend)">workspace-capable</span>' : "";
       var tagBadges = (c.tags || []).map(function (t) { return '<span class="cx-badge">#' + esc(t) + '</span>'; }).join("");
+      var folderBadge = c.folder ? '<span class="cx-badge cx-folder" title="Folder: ' + esc(c.folder) + '">' + esc(c.folder) + '</span>' : "";
       return '<div class="cx-row" data-conn-id="' + esc(c.id) + '" tabindex="0" role="button" aria-label="Edit connection ' + esc(c.name) + '">' +
         connStatusDot(c) +
         '<span class="cx-ic" style="color:' + esc(src.accent || "var(--brand)") + '"></span>' +
         '<span class="cx-name"><b>' + esc(c.name) + '</b><small>' + esc(src.label || c.adapter) + '</small></span>' +
         metaBadge +
+        folderBadge +
         tagBadges +
         '<span class="cx-when" title="Last edited">' + esc(new Date(c.updatedAt || c.createdAt || Date.now()).toLocaleDateString()) + '</span>' +
         '<button type="button" class="cx-private' + (c.private ? " private" : "") + '" data-conn-private="' + esc(c.id) + '" title="' + (c.private ? "Private — only you can see this" : "Make private") + '" aria-label="' + (c.private ? "Make " + esc(c.name) + " public" : "Make " + esc(c.name) + " private") + '" aria-pressed="' + (c.private ? "true" : "false") + '"></button>' +
@@ -6361,17 +6385,18 @@
         '</span></div>';
     });
     results.innerHTML =
+      (pillsFConn ? '<div class="wb-chips">' + pillsFConn + '</div>' : "") +
       (pills || pillsT || pillsV || connViewAddHtml ? '<div class="wb-chips cx-pills">' +
         pillsV + (pillsV && (pills || pillsT) ? '<span class="dsx-pill-sep"></span>' : "") +
         pills + (pills && pillsT ? '<span class="dsx-pill-sep"></span>' : "") +
         pillsT +
-        ((anyFilter || anyTag) ? '<button type="button" class="wb-chip" id="connPillClear" title="Show all connections">Clear</button>' : "") +
+        ((anyFilter || anyTag || anyConnFolder) ? '<button type="button" class="wb-chip" id="connPillClear" title="Show all connections">Clear</button>' : "") +
         connViewAddHtml + '</div>' : "") +
       (rows.length ? '<div class="cx-list">' + rows.join("") + '</div>'
         : '<div class="cx-empty">' +
-            (q || anyFilter || anyTag ? "No connections match." :
+            (q || anyFilter || anyTag || anyConnFolder ? "No connections match." :
               "<b>No connections yet.</b><br/>A connection points at where your data lives — a warehouse, a file over HTTP, an API — using one of the built-in adapters. Datasets are then defined on top of a connection and feed your dashboards.") +
-            (q || anyFilter || anyTag ? "" : '<br/><button type="button" class="btn primary" id="connEmptyNew">+ New connection</button>') +
+            (q || anyFilter || anyTag || anyConnFolder ? "" : '<br/><button type="button" class="btn primary" id="connEmptyNew">+ New connection</button>') +
           '</div>');
     $$("[data-conn-adapter]", results).forEach(function (btn) {
       btn.onclick = function () {
@@ -6387,8 +6412,11 @@
         renderConnections();
       };
     });
+    $$("[data-conn-folder]", results).forEach(function (btn) {
+      btn.onclick = function () { _connFolderFilter = btn.getAttribute("data-conn-folder"); renderConnections(); };
+    });
     var clearBtn = $("#connPillClear", results);
-    if (clearBtn) clearBtn.onclick = function () { _connAdapterFilter = {}; _connTagFilter = {}; renderConnections(); };
+    if (clearBtn) clearBtn.onclick = function () { _connAdapterFilter = {}; _connTagFilter = {}; _connFolderFilter = ""; renderConnections(); };
     $$("[data-conn-view]", results).forEach(function (btn) {
       btn.onclick = function () {
         var v = connLoadViews().filter(function (x) { return x.id === btn.getAttribute("data-conn-view"); })[0];
@@ -6415,7 +6443,7 @@
       if (!name) { if (inp) inp.focus(); toast("Type a name in the box first — e.g. “Warehouses”.", true); return; }
       var list = connLoadViews();
       var rawQ = (($("#connSearch") || {}).value || "");
-      list.unshift({ id: "connv" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name: name, q: rawQ, adapters: Object.keys(_connAdapterFilter), tags: Object.keys(_connTagFilter) });
+      list.unshift({ id: "connv" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name: name, q: rawQ, adapters: Object.keys(_connAdapterFilter), tags: Object.keys(_connTagFilter), folder: _connFolderFilter });
       connSaveViews(list);
       toast('View "' + name + '" saved');
       renderConnections();
@@ -6565,6 +6593,24 @@
         var tagsHint = el("small", "cx-hint"); tagsHint.textContent = "Comma-separated groups for filtering (e.g. finance, demo). Anyone can slice the list by these.";
         tagsRow.appendChild(tagsHint);
         form.appendChild(tagsRow);
+        // Folder pilot slice 2 (#21 org sub-item): same single-value "home"
+        // field as Datasets, with a <datalist> of folders already in use
+        // (filtered through isVisibleToMe so a private connection's folder
+        // name doesn't leak into another account's suggestions).
+        var folderRow = el("label", "cx-field");
+        folderRow.innerHTML = "<span>Folder</span>";
+        var folderInp = el("input"); folderInp.type = "text"; folderInp.placeholder = "e.g. Finance";
+        folderInp.value = (existing && existing.folder) || "";
+        folderRow.appendChild(folderInp);
+        var folderHint = el("small", "cx-hint"); folderHint.textContent = "Optional — a single home for this connection (e.g. Finance). Pick an existing one or type a new name.";
+        folderRow.appendChild(folderHint);
+        var connFolderNames = {};
+        Studio.Workspace.all("connections").filter(isVisibleToMe).forEach(function (x) { if (x.folder) connFolderNames[x.folder] = true; });
+        var connFolderList = el("datalist"); connFolderList.id = "connFolderOptions";
+        Object.keys(connFolderNames).sort().forEach(function (f) { var o = el("option"); o.value = f; connFolderList.appendChild(o); });
+        folderInp.setAttribute("list", "connFolderOptions");
+        folderRow.appendChild(connFolderList);
+        form.appendChild(folderRow);
         b.appendChild(form);
         if (adapter.docsUrl) {
           var docs = el("div", "cx-docs");
@@ -6612,6 +6658,8 @@
           var row = existing || { id: Studio.Workspace.uid("conn") };
           row.name = name; row.adapter = adapter.id; row.cfg = cfg();
           row.tags = tagsInp.value.split(",").map(function (t) { return t.trim().toLowerCase(); }).filter(Boolean);
+          var connFolderVal = folderInp.value.trim();
+          if (connFolderVal) row.folder = connFolderVal; else delete row.folder;
           if (lastInlineTest) row.lastTest = lastInlineTest;
           if (!existing) { var newUid = currentUserId(); if (newUid) row.owner = newUid; }
           Studio.Workspace.put("connections", row);

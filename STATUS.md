@@ -116,6 +116,17 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **Connections gain a Folder field — folder-tree pilot slice 2 (v448, 2026-07-22, steward, #21
+  org sub-item):** the identical single-value `folder` string + single-select chip facet as
+  Datasets' slice 1 (v447), now on Connections — no field-name collision to work around here
+  (connections had no pre-existing `folder` field, unlike M4.2's datasets/`acctOwner` case). The
+  connection wizard gains the same "Folder" text field + `<datalist>` of existing names (filtered
+  through `isVisibleToMe`), the Connections list gains the same single-select chip facet
+  (`_connFolderFilter`) that narrows the list and folds into the existing saved-view capture, and
+  each filed row gets a folder badge. 6 new CX-folder ratchets (mirroring the DSX-folder set:
+  no facet while unfiled, wizard field + datalist wiring, save persists + renders chip/badge, chip
+  filters the list, Unfiled excludes a filed connection, Clear resets it). sw v92. (app/studio.js,
+  tests/run.js) NEXT: wire Datasets+Connections folders into the Repository browser (M5).
 - **Datasets gain a Folder field — folder-tree pilot slice 1 (v447, 2026-07-22, steward, #21 org
   sub-item):** per the 2026-07-21 DECISIONS LOCKED plan (hybrid folders + tags — tags-filter parity
   first, then the folder tree), tags-filter parity was judged good enough at Datasets+Connections
@@ -1385,9 +1396,16 @@
 >    This is deliberately FLAT (one level), not yet a tree — the honest MVP step before nesting.
 >    6 new DSX-folder ratchets (no facet while unfiled, editor field + datalist wiring, save
 >    persists + renders chip/badge, chip filters the list, Unfiled excludes a filed dataset, Clear
->    resets it). sw v91. NEXT: the same single-folder field + chip facet on Connections (next
->    object type, mirroring how tags rolled out object-by-object), then Datasets+Connections
->    folders wire into the Repository browser (M5) alongside a real nested tree.
+>    resets it). sw v91.
+>    ↳ **Folder pilot slice 2 (Connections, shipped 2026-07-22, steward):** the identical `folder`
+>    field + `_connFolderFilter` chip facet, now on Connections (no field-name collision to work
+>    around, unlike M4.2's datasets/`acctOwner` case — connections had no pre-existing `folder`
+>    field). Wizard gains the same "Folder" text input + `<datalist>` (filtered through
+>    `isVisibleToMe`), the list gains the same single-select chip facet + saved-view capture, and
+>    the row gets the same badge. 6 new CX-folder ratchets (mirroring the DSX-folder set). sw v92.
+>    NEXT: Datasets+Connections folders wire into the Repository browser (M5) alongside a real
+>    nested tree; extending the same field to dashboards/analyses/jobs is a further option but not
+>    required before M5 (they already have their own single-parent grouping precedent).
 > 2. **Backend for enforced per-user security (M7) = SUPABASE (Postgres + GoTrue Auth + RLS).**
 >    Real "private = only I can see it" is DB-enforced via row-level security. M3.2 connect-to-backend
 >    + provisioning targets **Supabase first** (the other adapters keep working, but Supabase is the
