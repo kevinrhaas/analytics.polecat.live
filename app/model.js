@@ -841,6 +841,10 @@
       group: "Comparison",
       desc: "Multi-dimensional entity profiles across parallel axes",
       fields: ["labelCol", "series"],
+      // Lines are colored per ENTITY (one polyline per row, via the palette in draw
+      // order) — there is no per-axis/series color concept here, unlike every other
+      // "series" chart. Tell the inspector to skip the (inert) per-series color picker.
+      seriesColor: false,
       thumb: (function () {
         // Gallery thumbnail: 4 vertical axis lines + 3 colored polylines crossing them
         var W = 120, H = 56;

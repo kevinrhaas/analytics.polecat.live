@@ -116,6 +116,20 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **FIX: Parallel Coords showed a per-series color picker that silently did nothing (v449,
+  2026-07-22, steward, LF5a):** Kevin reported "the color dropdown does not seem to work" —
+  auditing every chart type with `fields:["...","series"]`, all of line/stacked/areaStacked/
+  streamgraph/radar/step/bump/groupedBars/barNorm correctly resolve `series[i].color` through
+  studio-render.js's `color()` token helper. Parallel Coords was the one outlier: it colors each
+  polyline by ENTITY (row), not by axis/series (`_pc` in studio-charts.js never reads a per-axis
+  color), so the "Series N color" picker the Inspector showed for it was inert — matches the
+  report exactly. New `seriesColor:false` flag on the parallelCoords chart definition
+  (app/model.js); the Inspector's series-field renderer (app/studio.js) now skips the color
+  picker when a chart opts out, leaving every other series chart unaffected. 1 new F26 regression
+  ratchet (parallelCoords hides "Series 1 color" while still showing "Series 1 column"; line
+  still shows both). sw v93. (app/model.js, app/studio.js, tests/run.js) NEXT in LF5: (b) the
+  color-swatch UX polish is still open; if Kevin's report covers a different control than this
+  one, it needs a fresh repro.
 - **Connections gain a Folder field — folder-tree pilot slice 2 (v448, 2026-07-22, steward, #21
   org sub-item):** the identical single-value `folder` string + single-select chip facet as
   Datasets' slice 1 (v447), now on Connections — no field-name collision to work around here
@@ -1481,10 +1495,17 @@
 >      app/studio-charts.js (choropleth SVG + GL), app/studio.js (panel inspector + spec persistence).
 > LF5. **Chart color picker — swatches + fix apply.** (a) BUG — the color dropdown (Series 1–10 /
 >      Accent / Good/Warning/Bad/Info) "does not seem to work": picking an option doesn't recolor the
->      chart/series. Trace the color-pick handler → spec write → render read and fix. (b) UX — options
->      are TEXT-ONLY ("Series 7"); add a color SWATCH beside each option (resolved color), and for the
->      choropleth RAMP color a small gradient/swatch preview, since it's hard to tell what each is.
->      app/studio.js (colPicker/fmtPicker + color-apply handler), app/studio.css.
+>      chart/series. Trace the color-pick handler → spec write → render read and fix. ✓ **ONE confirmed
+>      instance fixed (v449, 2026-07-22, steward): Parallel Coords** — see DONE. Traced every "series"-
+>      field chart's render path (line/stacked/areaStacked/streamgraph/radar/step/bump/groupedBars/
+>      barNorm all correctly resolve `series[i].color` via studio-render.js's `color()` helper); Parallel
+>      Coords was the one outlier (colors by ENTITY/row, not by axis) where the picker was dead UI —
+>      now hidden there via a new `seriesColor:false` chart flag. No other "does nothing" case found in
+>      that specific dropdown family; if Kevin's report was about a different control, re-open with a
+>      repro. (b) UX — options are TEXT-ONLY ("Series 7"); add a color SWATCH beside each option
+>      (resolved color), and for the choropleth RAMP color a small gradient/swatch preview, since it's
+>      hard to tell what each is. Still open. app/studio.js (colPicker/fmtPicker + color-apply handler),
+>      app/studio.css.
 > LF6. **Per-widget download (image + data), on by default, toggleable off.** On ANY widget/panel,
 >      expose "Download image" (PNG etc.) and "Download data" (CSV etc.) right in the panel chrome —
 >      ON by default, with a per-panel toggle in the inspector to turn it off. Generalize what exists
