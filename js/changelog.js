@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 437,
+    title: 'New “Developer” role for people who build dashboards',
+    kind: 'feature',
+    ts: '2026-07-22T18:13:14.000Z',
+    items: [
+      'User roles now have three levels instead of two: Viewer (browse and explore), the new Developer (build and edit dashboards), and Admin (everything a developer can do, plus managing users and access). Admins keep full access — a Developer has the same editing power without the user-management keys. Assign the Developer role to anyone from the Admin area’s user editor. This is the groundwork for an upcoming read-only viewer mode, where most people open a dashboard to read and interact with it, and only developers/admins can edit the original.',
+    ],
+  },
+  {
     v: 436,
     title: 'Sample ensemble data: the 5 demo providers are easier to tell apart',
     ts: '2026-07-22T16:53:41.000Z',

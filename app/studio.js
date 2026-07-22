@@ -8441,7 +8441,7 @@
       return '<div class="cx-row" data-usr-id="' + esc(u.u) + '">' +
         '<span class="cx-ic" data-usr-ic></span>' +
         '<span class="cx-name"><b>' + esc(u.name || u.u) + '</b><small>' + esc(u.u) + '</small></span>' +
-        '<span class="cx-badge' + (u.role === "admin" ? " admin" : "") + '">' + esc(u.role) + '</span>' +
+        '<span class="cx-badge' + (u.role === "admin" ? " admin" : u.role === "developer" ? " developer" : "") + '">' + esc(u.role) + '</span>' +
         (u.demo ? '<span class="cx-badge">demo</span>' : "") +
         (me.u === u.u ? '<span class="cx-badge">you</span>' : "") +
         '<span class="cx-actions">' +
@@ -8503,7 +8503,7 @@
       nRow.appendChild(nInp); form.appendChild(nRow);
       var rRow = el("label", "cx-field"); rRow.innerHTML = "<span>Role</span>";
       var rSel = el("select");
-      [["admin", "Admin — full access"], ["viewer", "Viewer — browse & explore"]].forEach(function (r) {
+      [["admin", "Admin — full access"], ["developer", "Developer — build & edit dashboards"], ["viewer", "Viewer — browse & explore"]].forEach(function (r) {
         var o = el("option"); o.value = r[0]; o.textContent = r[1];
         if ((existing ? existing.role : "viewer") === r[0]) o.selected = true;
         rSel.appendChild(o);

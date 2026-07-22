@@ -121,8 +121,24 @@
     return { ok: true };
   }
 
+  // Role model (M4 → viewer-mode groundwork): three roles, an ascending
+  // capability ladder — viewer (read-only: browse, interact, save a COPY) <
+  // developer (build & edit dashboards in Studio) < admin (developer PLUS user
+  // management / section access). admin is a strict SUPERSET of developer, so
+  // canDevelop() is true for BOTH admin and developer. Roles are plain strings
+  // in the store (no enum enforcement — upsert accepts any), but these are the
+  // canonical set the UI offers and the capability helpers below key off.
+  var ROLES = ["admin", "developer", "viewer"];
+  var ROLE_LABELS = { admin: "Admin", developer: "Developer", viewer: "Viewer" };
+  function roleOf(u) { u = (u === undefined) ? current() : u; return (u && u.role) || "viewer"; }
+  function isAdmin(u) { return roleOf(u) === "admin"; }
+  // The editor capability that gates Studio / edit-the-original (admin ⊇ developer).
+  function canDevelop(u) { var r = roleOf(u); return r === "admin" || r === "developer"; }
+
   window.PolecatAuth = {
     USERS_KEY: USERS_KEY, SESSION_KEY: SESSION_KEY,
+    ROLES: ROLES, ROLE_LABELS: ROLE_LABELS,
+    isAdmin: isAdmin, canDevelop: canDevelop,
     sha256: sha256, seedIfEmpty: seedIfEmpty, verify: verify,
     list: function () { return raw().map(pub); }, find: function (u) { return pub(find(u)); },
     current: current, authed: authed, login: login, logout: logout,

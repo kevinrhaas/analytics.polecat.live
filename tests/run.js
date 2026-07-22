@@ -6551,6 +6551,26 @@ function serve() {
     });
     ok("M4: a signed-in viewer (demo account) never sees the Admin rail item, and role gating bounces them off the Admin section",
       asViewer.railHidden && asViewer.bouncedOff, JSON.stringify(asViewer));
+
+    // Developer role (viewer-mode groundwork): a third role between viewer and
+    // admin. canDevelop() is the editor capability — TRUE for admin AND developer
+    // (admin is a superset), FALSE for viewer; isAdmin() still distinguishes admin
+    // from developer (a developer must NOT get user management).
+    const devRole = await page.evaluate(function () {
+      var A = window.PolecatAuth;
+      return {
+        rolesHasDev: Array.isArray(A.ROLES) && A.ROLES.indexOf("developer") >= 0,
+        devCanDevelop: A.canDevelop({ role: "developer" }),
+        adminCanDevelop: A.canDevelop({ role: "admin" }),
+        viewerCannotDevelop: !A.canDevelop({ role: "viewer" }),
+        devIsNotAdmin: !A.isAdmin({ role: "developer" }),
+        adminIsAdmin: A.isAdmin({ role: "admin" })
+      };
+    });
+    ok("M4: developer role exists; canDevelop() = admin OR developer (not viewer); developer is not an admin",
+      devRole.rolesHasDev && devRole.devCanDevelop && devRole.adminCanDevelop && devRole.viewerCannotDevelop && devRole.devIsNotAdmin && devRole.adminIsAdmin,
+      JSON.stringify(devRole));
+
     // restore the admin identity the rest of the suite expects
     await page.evaluate(function () {
       window.PolecatAuth.logout();
@@ -6559,6 +6579,18 @@ function serve() {
       window.__studioShellSetSection("studio");
     });
     await page.waitForTimeout(150);
+
+    // The Admin user editor offers the new Developer role in its role picker.
+    const devRoleOption = await page.evaluate(function () {
+      window.__studioOpenUserEditor();
+      var sel = [].slice.call(document.querySelectorAll(".cx-field select, .modal-ov select")).filter(function (s) {
+        return [].slice.call(s.options).some(function (o) { return o.value === "developer"; });
+      })[0];
+      var has = !!sel;
+      var ov = document.querySelector(".modal-ov"); if (ov) ov.remove();
+      return has;
+    });
+    ok("M4: the Admin user editor offers the Developer role in its role picker", devRoleOption, JSON.stringify({ devRoleOption }));
 
     // Regression: the Admin section renders once at boot (behind the sign-in
     // overlay, before an identity exists). After a viewer→admin login it MUST be
