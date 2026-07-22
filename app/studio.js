@@ -1271,10 +1271,10 @@
     addBtn.title = "Create a new data source"; addBtn.type = "button";
     addBtn.onclick = function (e) { e.stopPropagation(); addNewDA(); };
     h.appendChild(addBtn);
-    var joinBtn = el("button", "mine-add"); setIconBtn(joinBtn, "join", "Join", 12);
-    joinBtn.title = "Create a compound (join/union) data access"; joinBtn.type = "button";
-    joinBtn.onclick = function (e) { e.stopPropagation(); openCompoundDABuilder(null); };
-    h.appendChild(joinBtn);
+    // NOTE: the compound (join/union) data-access builder is intentionally NOT wired
+    // into the Studio pane — joins/unions belong in the Datasets area (jobs), not here.
+    // openCompoundDABuilder() + the compound model are kept intact so any dashboard that
+    // already has a compound DA still renders/edits; only the "＋ New compound" entry is gone.
     h.onclick = function (e) { if (e.target.closest(".mine-add")) return; wrap.classList.toggle("open"); };
     wrap.appendChild(h);
     var box = el("div", "lib-das");
@@ -1288,22 +1288,68 @@
     list.insertBefore(wrap, list.firstChild);
   }
 
+  // Which glyph represents a dataset's backend, so the pane is scannable at a
+  // glance ("more icons showing what things are") instead of a wall of text.
+  function daKindIcon(da) {
+    if (Studio.isCompoundDA(da)) return da.compoundType === "union" ? "layers" : "join";
+    var k = (da.kind || "sql").split(".")[0];
+    var map = { sql: "code", duckdb: "duckdb", snowflake: "snowflake", sheets: "sheets",
+                sqlite: "sqlite", redshift: "redshift", databricks: "databricks", sage: "sage" };
+    return map[k] || "db";
+  }
+
+  // A calm, ~2-row dataset card: [kind icon] id [badge] with duplicate/delete
+  // revealed on hover; a quiet name·usage line; column chips capped so a wide
+  // table folds into "+N" instead of stretching the card into a wall.
   function myDACard(da) {
     var c = el("div", "da da-mine");
     var isCompound = Studio.isCompoundDA(da);
     var shortKind = isCompound ? (da.compoundType === "union" ? "UNION" : "JOIN") : ((da.kind || "sql").split(".")[0]).toUpperCase();
-    var cols = isCompound
-      ? (da.compoundType === "union" ? (da.unionDas || []).map(function (id) { return '<span class="col">' + esc(id) + "</span>"; }).join("") :
-         '<span class="col">' + esc(da.leftId || "?") + "</span> ⧈ <span class=\"col\">" + esc(da.rightId || "?") + "</span>")
-      : (da.columns || []).map(function (x) { return '<span class="col">' + esc(x) + "</span>"; }).join("");
+
+    var top = el("div", "da-mine-top");
     var idDiv = el("div", "da-id");
-    var idNm = el("span", "da-id-nm"); idNm.textContent = da.id;
-    var badge = el("span", "kind-badge"); badge.textContent = shortKind;
-    idDiv.appendChild(idNm); idDiv.appendChild(badge);
+    var ic = el("span", "da-mine-ic"); ic.appendChild(Studio.icon(daKindIcon(da), 13)); idDiv.appendChild(ic);
+    var idNm = el("span", "da-id-nm"); idNm.textContent = da.id; idDiv.appendChild(idNm);
+    var badge = el("span", "kind-badge"); badge.textContent = shortKind; idDiv.appendChild(badge);
     idDiv.onclick = function (e) { e.stopPropagation(); select({ kind: "da", id: da.id }); };
-    c.appendChild(idDiv);
-    if (da.name) { var nm = el("div", "da-name"); nm.textContent = da.name; c.appendChild(nm); }
-    if (cols) { var cd = el("div", "da-cols"); cd.innerHTML = cols; c.appendChild(cd); }
+    top.appendChild(idDiv);
+    var acts = el("div", "da-mine-acts");
+    var dup = el("button", "icobtn"); dup.appendChild(Studio.icon("duplicate", 13)); dup.title = "Duplicate";
+    dup.onclick = function (e) { e.stopPropagation(); duplicateDA(da.id); };
+    var del = el("button", "icobtn danger"); del.appendChild(Studio.icon("trash", 13)); del.title = "Delete";
+    del.onclick = function (e) { e.stopPropagation(); deleteDA(da.id); };
+    acts.appendChild(dup); acts.appendChild(del); top.appendChild(acts);
+    c.appendChild(top);
+
+    // name + usage share one muted line
+    var usage = daUsageCount(da.id);
+    var metaBits = [];
+    if (da.name) metaBits.push('<span class="da-name-txt">' + esc(da.name) + "</span>");
+    if (usage.total > 0) {
+      var up = [];
+      if (usage.panels) up.push(usage.panels + " panel" + (usage.panels !== 1 ? "s" : ""));
+      if (usage.kpis) up.push(usage.kpis + " KPI" + (usage.kpis !== 1 ? "s" : ""));
+      metaBits.push('<span class="da-usage-inline">↪ ' + up.join(" \xB7 ") + "</span>");
+    }
+    if (metaBits.length) {
+      var mrow = el("div", "da-mine-meta");
+      mrow.innerHTML = metaBits.join('<span class="da-meta-sep">·</span>');
+      c.appendChild(mrow);
+    }
+
+    // columns, capped
+    var colHtml;
+    if (isCompound) {
+      colHtml = da.compoundType === "union"
+        ? (da.unionDas || []).map(function (id) { return '<span class="col">' + esc(id) + "</span>"; }).join("")
+        : '<span class="col">' + esc(da.leftId || "?") + "</span> ⧈ <span class=\"col\">" + esc(da.rightId || "?") + "</span>";
+    } else {
+      var colsArr = da.columns || [];
+      colHtml = colsArr.slice(0, 4).map(function (x) { return '<span class="col">' + esc(x) + "</span>"; }).join("");
+      if (colsArr.length > 4) colHtml += '<span class="col col-more">+' + (colsArr.length - 4) + "</span>";
+    }
+    if (colHtml) { var cd = el("div", "da-cols"); cd.innerHTML = colHtml; c.appendChild(cd); }
+
     // N-DATA freshness badge (v301/v302) follow-up: closes the "library pane" gap from the
     // "still open" note — same REPO_LIVE_KINDS scoping as the Repository card (only the
     // connector kinds that are ALWAYS live-capable, so plain sample-engine DAs stay badge-free).
@@ -1311,23 +1357,7 @@
       var freshEl = el("div", "da-mine-fresh"); freshEl.textContent = daFreshnessLabel(da.id);
       c.appendChild(freshEl);
     }
-    var acts = el("div", "da-mine-acts");
-    var dup = el("button", "icobtn"); dup.appendChild(Studio.icon("duplicate", 14)); dup.title = "Duplicate";
-    dup.onclick = function (e) { e.stopPropagation(); duplicateDA(da.id); };
-    var del = el("button", "icobtn danger"); del.appendChild(Studio.icon("trash", 14)); del.title = "Delete";
-    del.onclick = function (e) { e.stopPropagation(); deleteDA(da.id); };
-    acts.appendChild(dup); acts.appendChild(del); c.appendChild(acts);
     if (S.selection && S.selection.kind === "da" && S.selection.id === da.id) c.classList.add("da-mine-sel");
-    // usage badge: panels + KPIs that reference this DA
-    var usage = daUsageCount(da.id);
-    if (usage.total > 0) {
-      var ub = el("div", "da-usage");
-      var parts = [];
-      if (usage.panels) parts.push(usage.panels + " panel" + (usage.panels !== 1 ? "s" : ""));
-      if (usage.kpis) parts.push(usage.kpis + " KPI" + (usage.kpis !== 1 ? "s" : ""));
-      ub.textContent = "↪ " + parts.join(" \xB7 ");
-      c.appendChild(ub);
-    }
     return c;
   }
 

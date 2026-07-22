@@ -6835,6 +6835,28 @@ function serve() {
     // "My Data Sources" section is present in the library
     ok("library shows a 'My Data Sources' section", await page.evaluate(() => !!document.querySelector(".lib-mine")));
 
+    // Calmer Data panel: the compound (join/union) create button is retired from
+    // the Studio pane (joins/unions belong in the Datasets area), so the header
+    // carries exactly one action — "+ New" — and no compound-DA entry.
+    const dataPanelChrome = await page.evaluate(() => {
+      var mine = [].slice.call(document.querySelectorAll(".lib-mine")).filter(function (m) {
+        var nm = m.querySelector(".h .nm"); return nm && /dashboard.s datasets/i.test(nm.textContent);
+      })[0];
+      if (!mine) return { found: false };
+      var adds = [].slice.call(mine.querySelectorAll(".h .mine-add"));
+      var joinBtn = adds.some(function (b) { return /join/i.test(b.title || "") || /join/i.test(b.textContent); });
+      var card = mine.querySelector(".da-mine");
+      return { found: true, addCount: adds.length, joinBtn: joinBtn,
+               hasIcon: card ? !!card.querySelector(".da-mine-ic svg") : null,
+               hasTopRow: card ? !!card.querySelector(".da-mine-top") : null };
+    });
+    ok("Data panel: compound-DA 'Join' create button is removed (one '+ New' action, no join entry)",
+      dataPanelChrome.found && dataPanelChrome.addCount === 1 && dataPanelChrome.joinBtn === false,
+      JSON.stringify(dataPanelChrome));
+    ok("Data panel: dataset cards are compact with a kind icon + single top row",
+      dataPanelChrome.hasIcon === true && dataPanelChrome.hasTopRow === true,
+      JSON.stringify(dataPanelChrome));
+
     // + New creates a DA
     const daBefore = await page.evaluate(() => window.__STUDIO_STATE.spec.cda.dataAccesses.length);
     const newDAClicked = await page.evaluate(() => { var btn = document.querySelector(".lib-mine .mine-add"); if (btn) { btn.click(); return true; } return false; });
@@ -7276,28 +7298,21 @@ function serve() {
     ok("Studio.isCompoundDA correctly identifies compound vs normal DAs", isCompound.yes && !isCompound.noSql && !isCompound.noNull, JSON.stringify(isCompound));
 
 
-    // UI: ⧈ Join button appears in the library header
-    const joinBtnExists = await page.evaluate(() => {
+    // UI: the compound (join/union) CREATE button is retired from the Studio pane
+    // (joins/unions belong in the Datasets area). The compound model + builder are
+    // KEPT so any dashboard that already has a compound DA still renders/edits —
+    // only the "＋ New compound" entry point is gone from the library header.
+    const joinBtnGone = await page.evaluate(() => {
       var btns = [].slice.call(document.querySelectorAll(".lib-mine .mine-add"));
-      return btns.some(function (b) { return b.textContent.indexOf("Join") >= 0 || b.textContent.indexOf("⧈") >= 0; });
+      return !btns.some(function (b) { return b.textContent.indexOf("Join") >= 0 || b.textContent.indexOf("⧈") >= 0 || /join/i.test(b.title || ""); });
     });
-    ok("Library header has a '⧈ Join' button for compound DAs", joinBtnExists);
+    ok("Compound-DA 'Join' create button is retired from the library header", joinBtnGone);
 
-    // UI: clicking ⧈ Join opens the compound DA builder modal
-    await page.evaluate(() => {
-      var btns = [].slice.call(document.querySelectorAll(".lib-mine .mine-add"));
-      var joinBtn = btns.filter(function (b) { return b.textContent.indexOf("Join") >= 0 || b.textContent.indexOf("⧈") >= 0; })[0];
-      if (joinBtn) joinBtn.click();
+    // The compound builder + model are still present (existing compound DAs keep working)
+    const compoundApiKept = await page.evaluate(() => {
+      return typeof Studio.newCompoundDA === "function" && typeof Studio.isCompoundDA === "function";
     });
-    await page.waitForTimeout(200);
-    const compoundModalOpen = await page.evaluate(() => {
-      var ov = document.querySelector(".modal-ov");
-      return ov && ov.textContent.indexOf("compound") >= 0;
-    });
-    ok("Clicking '⧈ Join' opens the compound DA builder modal", compoundModalOpen);
-
-    // close the modal
-    await page.evaluate(() => { var ov = document.querySelector(".modal-ov"); if (ov) ov.remove(); });
+    ok("Compound-DA model/builder API is preserved for existing joins", compoundApiKept);
 
 
     // ---- Icon registry (v37) ----

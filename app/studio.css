@@ -636,26 +636,38 @@ mark.hl{background:#ffe14d;color:#1a2847;border-radius:2px;padding:0 1px;font-st
 html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
 .skbd{background:var(--field);border:1px solid var(--line);border-radius:5px;padding:2px 7px;font-family:var(--mono);font-size:11.5px;color:var(--ink)}
 .lib-empty{padding:20px 14px;color:var(--faint);font-size:12.5px;text-align:center}
-/* ── My Data Sources section ── */
-.lib-mine{margin:0 0 6px;border:1.5px solid var(--brand);border-radius:9px;overflow:hidden}
-.lib-mine>.h{display:flex;align-items:center;gap:7px;padding:7px 8px;cursor:pointer;font-size:12.5px;font-weight:700;color:var(--brand);background:color-mix(in srgb,var(--brand) 6%,transparent)}
-.lib-mine>.h:hover{background:color-mix(in srgb,var(--brand) 10%,transparent)}
+/* ── My Data Sources section ──
+   Calm outline: a light hairline border (not the old loud 1.5px brand box that
+   made a stack of sections look "scary"); the caret + title carry the brand
+   colour for identity, and only a thin brand top-accent hints the group. */
+.lib-mine{margin:0 0 6px;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:var(--pane)}
+.lib-mine>.h{display:flex;align-items:center;gap:7px;padding:7px 9px;cursor:pointer;font-size:12px;font-weight:700;color:var(--brand);background:color-mix(in srgb,var(--brand) 4%,transparent);border-bottom:1px solid transparent}
+.lib-mine.open>.h{border-bottom-color:var(--line-2)}
+.lib-mine>.h:hover{background:color-mix(in srgb,var(--brand) 8%,transparent)}
 .lib-mine>.h .car{font-size:9px;color:var(--brand);width:10px;transition:transform .12s}
 .lib-mine.open>.h .car{transform:rotate(90deg)}
 .lib-mine>.h .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .lib-mine>.h .badge{font-size:10px;color:var(--faint);background:var(--field);border:1px solid var(--line);border-radius:10px;padding:1px 7px;font-weight:700}
-.lib-mine>.h .mine-add{font-size:10.5px;font-weight:800;background:var(--brand);color:#fff;border:none;border-radius:6px;padding:2px 9px;cursor:pointer;margin-left:4px;line-height:1.5;flex-shrink:0}
+.lib-mine>.h .mine-add{display:inline-flex;align-items:center;gap:3px;font-size:10.5px;font-weight:800;background:var(--brand);color:#fff;border:none;border-radius:6px;padding:2px 9px;cursor:pointer;margin-left:4px;line-height:1.5;flex-shrink:0}
 .lib-mine>.h .mine-add:hover{opacity:.85}
-.lib-mine .lib-das{display:none;padding:4px 8px 6px}
+.lib-mine .lib-das{display:none;padding:5px 8px 7px}
 .lib-mine.open .lib-das{display:block}
-.da-mine{cursor:default}
-.da-mine .da-id{display:flex;align-items:center;gap:6px;cursor:pointer}
-.da-mine .da-id .da-id-nm{font-family:var(--mono);font-size:11.5px;font-weight:700;color:var(--brand)}
-.da-mine .da-id .da-id-nm:hover{text-decoration:underline}
+.da-mine{cursor:default;padding:7px 8px;margin:4px 0}
+.da-mine .da-mine-top{display:flex;align-items:center;gap:6px}
+.da-mine .da-id{flex:1;min-width:0;display:flex;align-items:center;gap:6px;cursor:pointer}
+.da-mine .da-mine-ic{flex-shrink:0;color:var(--brand);display:inline-flex;opacity:.85}
+.da-mine .da-id .da-id-nm{font-family:var(--mono);font-size:11.5px;font-weight:700;color:var(--brand);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.da-mine .da-id:hover .da-id-nm{text-decoration:underline}
 .da-mine .kind-badge{font-size:9px;font-weight:800;letter-spacing:.4px;padding:1px 6px;border-radius:8px;background:var(--field);border:1px solid var(--line);color:var(--muted);text-transform:uppercase;flex-shrink:0}
-.da-mine .da-name{font-size:11px;color:var(--muted);margin:2px 0 3px}
+.da-mine .da-mine-meta{font-size:11px;color:var(--muted);margin:3px 0 0;display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.da-mine .da-name-txt{overflow:hidden;text-overflow:ellipsis}
+.da-mine .da-meta-sep{color:var(--line-2)}
+.da-mine .da-usage-inline{color:var(--faint);font-size:10.5px}
 .da-mine-fresh{display:block;margin-top:4px;font-size:9.5px;color:var(--faint);font-style:italic}
-.da-mine .da-mine-acts{display:flex;gap:4px;margin-top:5px}
+/* actions reveal on hover so a resting card is quiet, not a row of buttons */
+.da-mine .da-mine-acts{display:flex;gap:2px;flex-shrink:0;opacity:0;transition:opacity .12s}
+.da-mine:hover .da-mine-acts,.da-mine.da-mine-sel .da-mine-acts,.da-mine:focus-within .da-mine-acts{opacity:1}
+.da-mine .col-more{color:var(--faint);font-weight:700}
 .da-mine-sel{border-color:var(--pdc) !important;box-shadow:0 0 0 2px color-mix(in srgb,var(--pdc) 18%,transparent)}
 
 /* ── canvas ── */
@@ -1100,6 +1112,7 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
   .chip{min-height:40px;padding:10px 12px;font-size:12px}
   /* always show da-acts on touch/mobile (no hover to reveal) */
   .da .da-acts{opacity:1}
+  .da-mine .da-mine-acts{opacity:1}
 }
 
 /* ── mobile modals + builder (M4) ── */

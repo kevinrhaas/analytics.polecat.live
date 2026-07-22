@@ -116,6 +116,17 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **UX: calmer, scannable Data panel + retire the compound-DA builder (v433, 2026-07-22, Kevin live):**
+  Kevin flagged the builder's left Data panel as "daunting/overwhelming" and asked to remove the
+  compound (join/union) "New compound data access" entry ("anything we need should be done in the
+  datasets area"). Removed the `＋ Join` button from the "This dashboard's datasets" header (the compound
+  model + `openCompoundDABuilder` are kept intact so existing compound DAs still render/edit — only the
+  create entry is gone). Redesigned `myDACard` into a compact ~2-row card: a kind icon (SQL/warehouse/
+  sheet/join glyph via `daKindIcon`), id + kind badge on one row with duplicate/delete revealed on hover,
+  a quiet name·usage line, and column chips capped at 4 with "+N". Softened `.lib-mine` section outlines
+  from a loud 1.5px brand box to a light hairline. 2 ratchets (Join button removed / one "+ New" action;
+  cards have kind icon + single top row). sw v81. app/studio.js, app/studio.css. NEXT (LF19, tracked):
+  the deeper left+right panel IA/redesign — progressive disclosure, section grouping, Inspector polish.
 - **FIX: updatedAt overflowed Postgres INTEGER on a Supabase push (v432, 2026-07-22, Kevin live):**
   connecting a Supabase backend + "Overwrite with mine" failed with `value "1784668053877" is out of
   range for type integer` (22003). `updatedAt` holds epoch-MILLISECONDS (~1.78e12); the provisioning
@@ -1378,6 +1389,16 @@
 >       (Polecat Dark/Light/System + the app palettes incl. the conservation palette). Organize it cleanly
 >       (grouped, not a messy wall). Reference screenshots: AutoSelector's gradient-slider + swatch cards.
 >       app/studio.js (Settings render) + app/studio.css. Keep it token-driven so it tracks live palettes.
+> LF19. **Left + right panel IA/redesign — make the builder calm, clear & elegant (Kevin, live).** First
+>       pass shipped (v433: compact dataset cards, kind icons, hover actions, hairline sections, compound
+>       builder removed). The DEEPER work Kevin asked for: the whole left Data panel still opens "scary/
+>       overwhelming." Continue — progressive disclosure (collapse "This dashboard's datasets" + Demo packs
+>       by default when there are many; remember state), clearer section grouping/ordering with icons + short
+>       labels ("what things are"), tidy the search + New affordances, and reduce chrome density overall.
+>       Then give the RIGHT panel (Inspector) the same organize-and-simplify pass — group/label sections,
+>       add icons, sensible collapse, consistent spacing — "understandable, elegant, clean, simple." Slice
+>       it (don't big-bang): one coherent panel-polish PR at a time, suite-gated. app/studio.js renderInspector()
+>       + buildLibrary()/section builders, app/studio.css.
 > LF18. **Home ("Welcome back") overhaul — richer entry points, default featured, tour chooser.** The Home
 >       landing should orient a returning user with descriptive quick-actions, not three bare cards:
 >       (a) QUICK-ACTIONS reworded to concrete jobs — "Explore curated datasets", "Build a dashboard from
