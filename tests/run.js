@@ -3094,6 +3094,7 @@ function serve() {
       fields[0].value = "Mock Turso";                                  // name
       fields[1].value = "http://localhost:" + port + "/__turso";       // url
       fields[2].value = "tok";                                          // token
+      fields[3].value = "finance, demo";                               // tags
     }, PORT);
     await page.evaluate(function () {
       var btns = [].slice.call(document.querySelectorAll(".cx-wiz-foot .btn"));
@@ -3113,16 +3114,21 @@ function serve() {
       return {
         rows: rows.length, stored: stored.length,
         name: stored[0] && stored[0].name, adapter: stored[0] && stored[0].adapter,
+        tags: stored[0] && (stored[0].tags || []).join(","),
         dotOk: !!document.querySelector("#connResults .cx-dot.ok"),
-        modalGone: !document.querySelector(".modal-ov")
+        modalGone: !document.querySelector(".modal-ov"),
+        tagPill: !!document.querySelector('[data-conn-tag="finance"]'),
+        tagBadge: !!document.querySelector("#connResults .cx-badge") && /#finance/.test(document.querySelector("#connResults .cx-row").textContent)
       };
     });
-    ok("CX: saving the wizard persists the connection and the list shows a green status dot",
-      cxSaved.rows === 1 && cxSaved.stored === 1 && cxSaved.name === "Mock Turso" && cxSaved.adapter === "turso" && cxSaved.dotOk && cxSaved.modalGone, JSON.stringify(cxSaved));
+    ok("CX: saving the wizard persists the connection (with tags) and the list shows a green status dot + tag pill/badge",
+      cxSaved.rows === 1 && cxSaved.stored === 1 && cxSaved.name === "Mock Turso" && cxSaved.adapter === "turso" &&
+      cxSaved.tags === "finance,demo" && cxSaved.dotOk && cxSaved.modalGone && cxSaved.tagPill && cxSaved.tagBadge, JSON.stringify(cxSaved));
 
-    // multi-select adapter pills + search that never matches secrets
+    // multi-select adapter + tag pills, and search that never matches secrets
+    // (tags-filter parity, #21 org sub-item — connections now match Datasets' shape)
     const cxFilter = await page.evaluate(function () {
-      Studio.Workspace.put("connections", { name: "Prod snowflake", adapter: "snowflake", cfg: { account: "xy", token: "SECRETVALUE" } });
+      Studio.Workspace.put("connections", { name: "Prod snowflake", adapter: "snowflake", cfg: { account: "xy", token: "SECRETVALUE" }, tags: ["ops"] });
       window.__studioRenderConnections();
       var out = { pills: document.querySelectorAll("#connResults .cx-pill").length };
       var sfPill = [].slice.call(document.querySelectorAll("[data-conn-adapter]")).filter(function (b) { return b.getAttribute("data-conn-adapter") === "snowflake"; })[0];
@@ -3133,21 +3139,29 @@ function serve() {
       out.afterBoth = document.querySelectorAll("#connResults .cx-row").length;
       document.getElementById("connPillClear").click();
       out.afterClear = document.querySelectorAll("#connResults .cx-row").length;
+      var opsPill = [].slice.call(document.querySelectorAll("[data-conn-tag]")).filter(function (b) { return b.getAttribute("data-conn-tag") === "ops"; })[0];
+      opsPill.click();
+      out.afterTag = document.querySelectorAll("#connResults .cx-row").length;
+      document.getElementById("connPillClear").click();
+      out.afterTagClear = document.querySelectorAll("#connResults .cx-row").length;
       var search = document.getElementById("connSearch");
       search.value = "snowfl"; window.__studioRenderConnections();
       out.bySearch = document.querySelectorAll("#connResults .cx-row").length;
       search.value = "SECRETVALUE"; window.__studioRenderConnections();
       out.bySecret = document.querySelectorAll("#connResults .cx-row").length;
+      search.value = "demo"; window.__studioRenderConnections();
+      out.byTagSearch = document.querySelectorAll("#connResults .cx-row").length;
       search.value = ""; window.__studioRenderConnections();
       return out;
     });
-    ok("CX: adapter pills multi-select (1 → 2 adapters → clear) and search skips password values",
-      cxFilter.pills === 2 && cxFilter.afterPick === 1 && cxFilter.afterBoth === 2 && cxFilter.afterClear === 2 &&
-      cxFilter.bySearch === 1 && cxFilter.bySecret === 0, JSON.stringify(cxFilter));
+    ok("CX: adapter pills multi-select (1 → 2 adapters → clear), a tag pill filters to one connection, and search matches tags too but skips password values",
+      cxFilter.pills === 5 && cxFilter.afterPick === 1 && cxFilter.afterBoth === 2 && cxFilter.afterClear === 2 &&
+      cxFilter.afterTag === 1 && cxFilter.afterTagClear === 2 &&
+      cxFilter.bySearch === 1 && cxFilter.bySecret === 0 && cxFilter.byTagSearch === 1, JSON.stringify(cxFilter));
 
     // saved views (post-overhaul backlog item 6 follow-up, "same treatment for
-    // Connections"): same search + adapter-pill preset contract as the Datasets
-    // section, minus the tag axis (connections aren't tagged).
+    // Connections"): same search + adapter/tag-pill preset contract as the
+    // Datasets section (tags-filter parity, #21 org sub-item).
     const cxViewsNone = await page.evaluate(function () { return { addBtn: !!document.querySelector("#connViewAddBtn") }; });
     ok("CX: no '+ Save view' affordance while search + filters are both empty",
       !cxViewsNone.addBtn, JSON.stringify(cxViewsNone));

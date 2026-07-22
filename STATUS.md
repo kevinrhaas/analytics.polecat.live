@@ -116,6 +116,23 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **Tags-filter parity slice 1: Connections gain tags (v429, 2026-07-22, steward, #21 org
+  sub-item, decision 1):** Connections already had by-adapter pills matching Datasets; the tag
+  axis was the one piece missing (a code comment even said "connections aren't tagged"). The
+  connection wizard now has the same **Tags** field as the dataset editor (comma-separated,
+  lowercased on save), `renderConnections()` gained a tag pill strip (`_connTagFilter`,
+  `data-conn-tag`, identical `wb-chip cx-pill` markup/AND-across-strips/OR-within-strip
+  semantics as the adapter and Datasets' tag strips) plus `#tag` badges on each row, search now
+  matches tags too, and the saved-view contract (`connLoadViews`/`connSaveViews`/`connApplyView`)
+  captures/restores the tag selection alongside adapters. This is slice 1 of the "Object
+  organization at scale" decision (hybrid folders + tags): tags-filter parity first, then the
+  folder tree + move/assign, then wire both into the Repository browser (M5). 3 new CX ratchets
+  (tags persist + render a filter pill + a row badge; tag pill multi-select narrows the list and
+  "Clear" resets it too; search matches tag text). `docs/index.html`'s "Filtering datasets and
+  connections" section updated. sw v77. (app/studio.js, sw.js, docs/index.html) NEXT in this
+  decision: still open whether other object types (dashboards/analyses/jobs) get a tag axis too,
+  or whether tags-filter parity is considered complete at Datasets+Connections before starting
+  the folder tree.
 - **Dead-token sweep (v425, 2026-07-22, steward, third quality-track slice, UX2):** four CSS
   custom properties — `--fg`, `--sans`, `--canvas`, `--green` — were referenced across
   `app/studio.css` but never defined anywhere, silently falling back to the browser default;
@@ -1201,6 +1218,10 @@
 >    CSS, AND-across-strips/OR-within-strip semantics, saved-view capture) for the tag half; add the
 >    folder tree as the primary-home layer on top. Ship in slices: tags-filter parity first (cheapest,
 >    mostly there), then the folder tree + move/assign, then wire both into the Repository browser (M5).
+>    ↳ **Slice 1 (Connections gain tags, shipped 2026-07-22, steward):** Connections now carry the
+>    same Tags field + tag filter pills/badges/saved-views as Datasets (`_connTagFilter`) — see DONE.
+>    sw v77. NEXT: decide whether dashboards/analyses/jobs also get a tag axis before moving on to
+>    the folder tree, or whether Datasets+Connections is parity enough to start folders now.
 > 2. **Backend for enforced per-user security (M7) = SUPABASE (Postgres + GoTrue Auth + RLS).**
 >    Real "private = only I can see it" is DB-enforced via row-level security. M3.2 connect-to-backend
 >    + provisioning targets **Supabase first** (the other adapters keep working, but Supabase is the
