@@ -1622,6 +1622,22 @@
 >       it in the byte-identical export. This is the concrete "last zoom/pan not saved" half of #39 (choropleth
 >       pan/zoom + persist). app/studio-charts.js (choropleth + GL viewport state ⇄ cfg), app/studio.js (Explore +
 >       panel inspector), app/exporters.js; test: set zoom/pan → serialize → reload → viewport restored.
+> LF29. **Typography consistency + wider dashboard title (Kevin, live) — elegance polish.** Two things:
+>       (a) FONT CONSISTENCY. The monospace `--mono` face (studio.css:17, ui-monospace/Menlo/Consolas) is applied to
+>           human-facing OBJECT NAMES/IDS — the Data-panel dataset ids (`.da .da-id`, `.da-mine .da-id-nm` ~635/666),
+>           the dashboard id chip (`.dash-meta code` ~503), dataset-list names (`.dl-row .nm`), connection sublabels
+>           (`.conn-row .cn span`) — and it reads as a technical typewriter/"serif" face that clashes with the elegant
+>           sans UI (Kevin: "too technical, be elegant"). Move human-readable names/ids to the sans UI `--font` (keep
+>           them distinguishable by weight/color/size, not by a code face), and RESERVE `--mono` for genuine code:
+>           SQL editors (`.dsb-query`, `.qpeek-sql`, `.rt-ta`), the SQL-builder labels/preview headers, file hashes
+>           (`.fhash`), the changelog version chip. Headers vs body can differ — the ask is consistency + elegance,
+>           not one single font. (Fits the UX-polish track / LF19.)
+>       (b) WIDER DASHBOARD TITLE. The dashbar title button truncates early — `.dash-id{min-width:200px}` +
+>           `.dash-title-btn` (studio.css ~492/495; mobile cap `.dash-title-btn{max-width:160px}` ~988). Let the title
+>           grow to use available topbar width on desktop before ellipsis (it's the dashboard OBJECT name — good to
+>           show fully). AND review the meta line below it (`.dash-meta code` = the dashboard's internal name/slug):
+>           confirm it's sensible/useful there or trim it. app/studio.css (font-family audit + title width), app/index.html
+>           if markup needs it.
 > LF19. **Left + right panel IA/redesign — make the builder calm, clear & elegant (Kevin, live).** First
 >       pass shipped (v433: compact dataset cards, kind icons, hover actions, hairline sections, compound
 >       builder removed). The DEEPER work Kevin asked for: the whole left Data panel still opens "scary/
