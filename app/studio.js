@@ -42,6 +42,24 @@
     try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) { /* quota or private-mode */ }
   }
 
+  // R2 (tech-debt sweep): the 4 identical "tell the preview iframe the app theme once it
+  // loads" envelopes (compare-dashboards preview, Home's live mini-render, Panel zoom,
+  // Slideshow) collapsed onto one helper.
+  function postThemeOnLoad(ifr) {
+    ifr.onload = function () {
+      try { ifr.contentWindow.postMessage({ studio: 1, type: "theme", value: S.theme }, "*"); } catch (e) {}
+    };
+  }
+
+  // R2 (tech-debt sweep): Panel zoom and Slideshow both build a full-width, KPI/filter-free
+  // one-panel spec + its mock render the same way (their own comments said so) — one helper.
+  function singlePanelHtml(p) {
+    var zp = Studio.clone(p); zp.span = 12;
+    var zSpec = Studio.clone(S.spec);
+    zSpec.panels = [zp]; zSpec.kpis = []; zSpec.filters = [];
+    return Studio.buildHtml(zSpec, S.assets, { deployPath: S.settings.deployPath, preview: true, mock: Studio.genMock(zSpec), launcher: false });
+  }
+
   // inspector section collapse state — keyed by normalized title.
   // Persists across renderInspector() re-renders AND across page reloads (localStorage).
   // This means the user's preferred section layout is remembered between sessions.
@@ -866,10 +884,10 @@
     }
     var parts = String(XP.dsId).split(XP_SEP);
     var cda = xpCatalogDA(parts[0], parts[1]);
-    if (cda) return JSON.parse(JSON.stringify(cda));
+    if (cda) return Studio.clone(cda);
     // A loaded self-contained analysis (its dataset/catalog entry is gone, or it never
     // had one — e.g. the demo pack's analyses): render from its embedded da.
-    if (XP.da) return JSON.parse(JSON.stringify(XP.da));
+    if (XP.da) return Studio.clone(XP.da);
     return null;
   }
   function xpDefaultType(cols) {
@@ -899,7 +917,7 @@
       // just the chart, reusing the same flag dashboards use for header-off export.
       hideHeader: true,
       panels: [{ id: "xp1", title: title, span: "full",
-        chart: { type: XP.type, da: da.id, map: JSON.parse(JSON.stringify(XP.map)), opts: JSON.parse(JSON.stringify(XP.opts)) } }],
+        chart: { type: XP.type, da: da.id, map: Studio.clone(XP.map), opts: Studio.clone(XP.opts) } }],
       kpis: [], filters: [],
       cda: { connections: [], dataAccesses: [da] }
     };
@@ -955,7 +973,7 @@
       datasetId: XP.kind === "ws" ? XP.dsId : null,
       sample: XP.kind === "sample" ? XP.dsId : null,
       da: da,
-      chart: { type: XP.type, map: JSON.parse(JSON.stringify(XP.map)), opts: JSON.parse(JSON.stringify(XP.opts)) },
+      chart: { type: XP.type, map: Studio.clone(XP.map), opts: Studio.clone(XP.opts) },
       chartType: XP.type,
       pinned: prev ? !!prev.pinned : false,
       createdAt: prev ? prev.createdAt : undefined
@@ -971,10 +989,10 @@
     XP.kind = a.datasetId ? "ws" : "sample";
     XP.dsId = a.datasetId || a.sample;
     XP.type = (a.chart && a.chart.type) || a.chartType || "bars";
-    XP.map = JSON.parse(JSON.stringify((a.chart && a.chart.map) || {}));
-    XP.opts = JSON.parse(JSON.stringify((a.chart && a.chart.opts) || {}));
+    XP.map = Studio.clone((a.chart && a.chart.map) || {});
+    XP.opts = Studio.clone((a.chart && a.chart.opts) || {});
     // keep the embedded da so xpDA can render a self-contained analysis (no live dataset)
-    XP.da = a.da ? JSON.parse(JSON.stringify(a.da)) : null;
+    XP.da = a.da ? Studio.clone(a.da) : null;
     // restore the saved rollup (da.outputOptions.aggregate) into the Explore control
     var savedAgg = a.da && a.da.outputOptions && a.da.outputOptions.aggregate;
     XP.agg = savedAgg ? { fn: savedAgg.fn || "none", groupBy: (savedAgg.groupBy || []).slice() } : { fn: "none", groupBy: [] };
@@ -989,11 +1007,11 @@
   // A standalone one-panel spec for a saved analysis — used by Home's live
   // widgets (and anything else that needs to render an analysis outside Explore).
   function analysisSpec(a) {
-    var da = JSON.parse(JSON.stringify(a.da || {}));
+    var da = Studio.clone(a.da || {});
     return {
       id: "analysis-" + a.id, name: "analysis-" + a.id, title: a.name || "Analysis",
       panels: [{ id: "a1", title: a.name || "Analysis", span: "full",
-        chart: { type: a.chart.type, da: da.id, map: JSON.parse(JSON.stringify(a.chart.map || {})), opts: JSON.parse(JSON.stringify(a.chart.opts || {})) } }],
+        chart: { type: a.chart.type, da: da.id, map: Studio.clone(a.chart.map || {}), opts: Studio.clone(a.chart.opts || {}) } }],
       kpis: [], filters: [],
       cda: { connections: [], dataAccesses: [da] }
     };
@@ -1006,13 +1024,13 @@
     if (a.datasetId) da = (S.spec.cda.dataAccesses || []).filter(function (x) { return x.datasetId === a.datasetId; })[0];
     if (!da) da = (S.spec.cda.dataAccesses || []).filter(function (x) { return JSON.stringify(x) === JSON.stringify(a.da); })[0];
     if (!da) {
-      da = JSON.parse(JSON.stringify(a.da));
+      da = Studio.clone(a.da);
       var base = da.id, n = 2;
       while (Studio.daById(S.spec, da.id)) da.id = base + "_" + (n++);
       S.spec.cda.dataAccesses.push(da);
     }
     var p = { id: Studio.uid("p"), title: a.name || "Analysis", span: Studio.WIDE_CHART_TYPES.indexOf(a.chart.type) >= 0 ? "full" : 1,
-      chart: { type: a.chart.type, da: da.id, map: JSON.parse(JSON.stringify(a.chart.map || {})), opts: JSON.parse(JSON.stringify(a.chart.opts || {})) } };
+      chart: { type: a.chart.type, da: da.id, map: Studio.clone(a.chart.map || {}), opts: Studio.clone(a.chart.opts || {}) } };
     S.spec.panels.push(p);
     select({ kind: "panel", id: p.id });
     if (window.__studioShellSetSection) __studioShellSetSection("studio");
@@ -2743,14 +2761,14 @@
     customSw.setAttribute("aria-pressed", customActive ? "true" : "false");
     customSw.onclick = function () {
       sp.dashboardTheme = "custom";
-      if (!sp.customTheme) sp.customTheme = JSON.parse(JSON.stringify(Studio.DEFAULT_CUSTOM_THEME_SEED));
+      if (!sp.customTheme) sp.customTheme = Studio.clone(Studio.DEFAULT_CUSTOM_THEME_SEED);
       refreshPreview(); renderInspector();
     };
     dtRow.appendChild(customSw);
     sec.appendChild(field("Dashboard theme", dtRow, "Swaps the whole look (background, panels, text, brand + series colors) in one pick — Accent color/Series palette below still layer on top. Custom lets you author your own from 4 seed colors per mode."));
 
     if (sp.dashboardTheme === "custom") {
-      if (!sp.customTheme) sp.customTheme = JSON.parse(JSON.stringify(Studio.DEFAULT_CUSTOM_THEME_SEED));
+      if (!sp.customTheme) sp.customTheme = Studio.clone(Studio.DEFAULT_CUSTOM_THEME_SEED);
       var ctWrap = el("div"); ctWrap.className = "ct-editor";
       var CT_FIELDS = [["bg", "Background"], ["panel", "Widget"], ["text", "Text"], ["brand", "Brand"]];
       ["light", "dark"].forEach(function (mode) {
@@ -5635,7 +5653,7 @@
         pv.h.textContent = sp.title || sp.name || "Untitled";
         pv.fr.title = "Live preview: " + (sp.title || sp.name || "Untitled");
         pv.fr.srcdoc = Studio.buildHtml(sp, S.assets, { preview: true, mock: Studio.genMock(sp), launcher: false });
-        pv.fr.onload = function () { try { pv.fr.contentWindow.postMessage({ studio: 1, type: "theme", value: S.theme }, "*"); } catch (e) {} };
+        postThemeOnLoad(pv.fr);
       }
       function renderAll() {
         var a = list.filter(function (r) { return r.id === selA.value; })[0];
@@ -5923,9 +5941,7 @@
       fit();
       // the mini render follows the app's light/dark theme (same message the
       // builder preview uses)
-      ifr.addEventListener("load", function () {
-        try { ifr.contentWindow.postMessage({ studio: 1, type: "theme", value: S.theme }, "*"); } catch (e) {}
-      });
+      postThemeOnLoad(ifr);
       ifr.srcdoc = html;
       if (window.ResizeObserver) { box._ro = new ResizeObserver(fit); box._ro.observe(box); }
     };
@@ -6956,7 +6972,7 @@
   function openDatasetEditor(existing) {
     var conns = Studio.Workspace.all("connections").filter(isVisibleToMe);
     modal(existing ? "Edit dataset" : "New dataset", function (b) {
-      var d = existing ? JSON.parse(JSON.stringify(existing)) : { id: Studio.Workspace.uid("ds"), name: "", params: [], tags: [] };
+      var d = existing ? Studio.clone(existing) : { id: Studio.Workspace.uid("ds"), name: "", params: [], tags: [] };
       var form = el("div", "cx-wiz-form");
       function field(lbl, input, hint) {
         var row = el("label", "cx-field");
@@ -7286,7 +7302,7 @@
   function openJobEditor(existing) {
     var dsets = Studio.Workspace.all("datasets").filter(isDatasetVisibleToMe).filter(function (d) { return (d.tags || []).indexOf("job-output") < 0 || (existing && d.id === existing.outputDatasetId); });
     modal(existing ? "Edit job" : "New job", function (b) {
-      var j = existing ? JSON.parse(JSON.stringify(existing)) : { id: Studio.Workspace.uid("job"), name: "", steps: [] };
+      var j = existing ? Studio.clone(existing) : { id: Studio.Workspace.uid("job"), name: "", steps: [] };
       var form = el("div", "cx-wiz-form");
       function field(lbl, input, hint) {
         var row = el("label", "cx-field");
@@ -8754,11 +8770,7 @@
   function openPanelZoom(panelId) {
     var p = panelById(panelId); if (!p) return;
     // Build a single-panel spec (no KPIs, no filters, panel at full width)
-    var zp = Studio.clone(p); zp.span = 12;
-    var zSpec = Studio.clone(S.spec);
-    zSpec.panels = [zp]; zSpec.kpis = []; zSpec.filters = [];
-    var mockData = Studio.genMock(zSpec);
-    var html = Studio.buildHtml(zSpec, S.assets, { deployPath: S.settings.deployPath, preview: true, mock: mockData, launcher: false });
+    var html = singlePanelHtml(p);
 
     // Overlay
     var ov = document.createElement("div"); ov.className = "pz-overlay"; ov.id = "pzOverlay";
@@ -8769,9 +8781,7 @@
     _pzOverlay = ov;
     window.__panelZoomActive = true;
 
-    ifr.onload = function () {
-      try { ifr.contentWindow.postMessage({ studio: 1, type: "theme", value: S.theme }, "*"); } catch (e) {}
-    };
+    postThemeOnLoad(ifr);
     ifr.srcdoc = html;
 
     function close() {
@@ -8853,15 +8863,8 @@
       }
       // Build a single-panel spec (full-width, no KPIs/filters) via the same
       // pipeline as Panel zoom and the CDF exporter — charts render identically.
-      var zp = Studio.clone(p); zp.span = 12;
-      var zSpec = Studio.clone(S.spec);
-      zSpec.panels = [zp]; zSpec.kpis = []; zSpec.filters = [];
-      var mockData = Studio.genMock(zSpec);
-      var html = Studio.buildHtml(zSpec, S.assets,
-        { deployPath: S.settings.deployPath, preview: true, mock: mockData, launcher: false });
-      ifr.onload = function () {
-        try { ifr.contentWindow.postMessage({ studio: 1, type: "theme", value: S.theme }, "*"); } catch (e) {}
-      };
+      var html = singlePanelHtml(p);
+      postThemeOnLoad(ifr);
       ifr.srcdoc = html;
     }
 

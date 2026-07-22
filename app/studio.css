@@ -383,6 +383,10 @@ html[data-app-theme='modern'] #mobileNavBtn{background:#0d1a2e;border-color:rgba
 .sp-apply{flex:0 0 auto;font-size:11px;padding:3px 10px;min-width:0;height:auto;line-height:1.5}
 .sp-add-row{display:flex;gap:8px;margin-top:10px}
 .sp-add-row .set-txt{flex:1;width:auto}
+/* LF15: the mobile `.set-txt{width:100%}` rule (above) never won here -- `.sp-add-row
+   .set-txt` is more specific and applies regardless of viewport, so the name field stayed
+   a squeezed fixed-ish width right against the button on phones. Stack instead. */
+@media(max-width:640px){.sp-add-row{flex-direction:column;align-items:stretch}.sp-add-row .set-txt{width:100%}}
 .brand-preview{margin-top:6px}
 .brand-preview img{width:26px;height:26px;border-radius:6px;background:color-mix(in srgb, var(--ink) 10%, var(--pane));object-fit:contain;padding:2px}
 /* m-c: same hamburger-clearance fix as .home-wrap above — keep padding-top:60px. */

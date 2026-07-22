@@ -6,13 +6,34 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
-    v: 438,
+    v: 440,
     title: 'The landing page now wears the shared fleet header & footer',
     kind: 'polish',
     ts: '2026-07-22T18:48:27.000Z',
     items: [
       'The Analytics front door adopts the suite-wide header and footer, so it matches every Polecat app — the same brand tile, a consistent “Polecat” link back to the suite, and the standard footer.',
       'Built on Polecat Shell v0.5.2 (the shared site-chrome plus the ~44px mobile touch targets).',
+    ],
+  },
+  {
+    v: 439,
+    title: 'Fix: Style-preset name field crowded the Save button on phones',
+    kind: 'fix',
+    ts: '2026-07-22T19:20:46.000Z',
+    items: [
+      'In Settings, the "Preset name" field (Style presets and Custom theme presets) sat squeezed right up against the "+ Save as preset" button on phone-width screens. The two now stack, full width, on narrow screens; desktop is unchanged.',
+    ],
+  },
+  {
+    v: 438,
+    title: 'Tech-debt sweep: de-duplicated widget-preview and clone code',
+    kind: 'polish',
+    ts: '2026-07-22T18:44:59.000Z',
+    items: [
+      'Panel zoom and Slideshow built their own copy of the same one-widget preview spec; both now share one helper, singlePanelHtml(p), in app/studio.js.',
+      'The four places that tell a preview iframe to match the app theme once it loads (Compare dashboards, Home’s live mini-render, Panel zoom, Slideshow) now share one helper, postThemeOnLoad(ifr).',
+      'Swept the remaining hand-written JSON.parse(JSON.stringify(...)) deep-clones onto the shared Studio.clone helper.',
+      'Pure refactor, no behavior change -- suite unchanged at 1730/1730.',
     ],
   },
   {

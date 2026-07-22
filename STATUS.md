@@ -116,6 +116,33 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **FIX: style-preset name field crowded the Save button on phones (v439, 2026-07-22, steward,
+  LF15):** `.sp-add-row` (the "Preset name" input + "+ Save as preset" button row, shared by
+  Settings' Style presets AND the Custom template preset row — `ctpAddRow` in
+  `renderDashboardThemeControls`) stayed a side-by-side flex row at every width. The app already
+  had a `@media(max-width:640px){.set-txt{width:100%}}` rule meant to make text inputs go
+  full-width on phones, but it never actually applied here: `.sp-add-row .set-txt{width:auto}`
+  (two classes) is more specific than the single-class mobile rule, so specificity — not the
+  media query — decided, and the override won regardless of viewport. Root cause found by
+  measuring the rendered bounding boxes (no visual overlap, but the input was clipped/truncated
+  and butted right up against the button on a 390px screen). Fixed by stacking the row
+  (`flex-direction:column`, full-width input) inside the existing ≤640px breakpoint; desktop
+  layout is byte-for-byte unchanged. 1 new LF15 ratchet (390px: row is column-stacked, no
+  overlap, input renders full width). Suite 1731/1731. (app/studio.css, tests/run.js)
+- **Tech-debt sweep: de-duplicated widget-preview + clone code (v438, 2026-07-22, steward,
+  R2 slice 1 of the refactor track):** three dedups onto canonical helpers, all behavior-preserving.
+  (1) `postThemeOnLoad(ifr)` replaces 4 identical "tell the preview iframe the app theme once it
+  loads" envelopes (Compare dashboards, Home's live mini-render, Panel zoom, Slideshow) — kept the
+  `ifr.onload = ...` assignment form rather than `addEventListener` so Slideshow, which reuses the
+  SAME iframe across slides, keeps exactly one handler per load instead of accumulating one per
+  slide change (an early draft used `addEventListener` and would have regressed this). (2)
+  `singlePanelHtml(p)` replaces the identical full-width/no-KPI/no-filter one-panel spec + mock
+  build duplicated between Panel zoom and Slideshow (their own code comments already flagged the
+  shared pipeline). (3) All 19 raw `JSON.parse(JSON.stringify(...))` deep-clones in app/studio.js
+  now call the existing `Studio.clone` helper instead. No visible change; suite unchanged at
+  1730/1730. sw unchanged (no precached files touched). (app/studio.js) NEXT in this track: R2
+  slice 2 — `Studio.escapeHtml` promotion (exporters `xml` + studio `esc` only — do NOT touch
+  studio-render.js `he` or model.js `svgEsc`) + `Studio.SAMPLE_PROVIDERS` sharing.
 - **Developer role — LF23 role model locked + foundation shipped (v437, 2026-07-22, Kevin live):** Kevin
   locked the viewer-mode role decision: add a THIRD role, **developer**, with admin as a **superset** of it
   ("give that to the admin user as well"). PolecatAuth now exposes `ROLES`/`ROLE_LABELS` + capability helpers
@@ -1416,10 +1443,9 @@
 >       app/sources/jobs-engine.js, app/studio.css.
 > LF14. ✓ **Job editor contrast — DONE, see DONE (v434, 2026-07-22, steward).** New `.btn.danger`
 >       class (dark-on-light, red on hover) applied to "✕ Remove step" + the per-metric/mapping "✕".
-> LF15. **Settings: button/input style overlap.** In Settings → Style presets, the "＋ Save as preset"
->       button slightly overlaps/crowds the "Preset name" input (spacing/layout glitch). Tidy the row
->       spacing. Likely the same input+button row pattern used elsewhere; check for other instances.
->       app/studio.css (+ app/studio.js markup if needed).
+> LF15. ✓ **Settings: button/input style overlap — DONE, see DONE (v439, 2026-07-22, steward).**
+>       `.sp-add-row` (shared by Style presets AND Custom template presets — the "other instance")
+>       now stacks full-width on ≤640px instead of crowding the name field against the button.
 > LF16. **Merge "Demo content" into the sample packs + rename demo → "sample content".** The standalone
 >       "Demo content" toggle and the DEMO PACKS section are two surfaces for the same concept — fold the
 >       toggle into the packs UI and reword everything user-facing from "demo" to "sample content" (reads
@@ -1524,6 +1550,106 @@
 >       creativity setting), tests (profiler classifies columns; top-N guardrail; generated spec validates + renders
 >       zero-pageerror). Slice it: (1) drop → profile → dataset(s); (2) auto-build engine + guardrails at the
 >       conservative default; (3) creativity dial + the "fun" chart tier.
+>       SMART SEMANTIC INFERENCE (the brain — "be very smart here", Kevin): don't just profile types, infer INTENT
+>       from column NAMES + VALUES and let that drive the chart AND the aggregation:
+>         • GEO → MAP. Recognize a geographic dimension by name (state, st, county, fips, huc/huc8, watershed, zip/
+>           zcta, district, crd, region) AND by value shape (2-letter postal codes, 2-digit state FIPS, 5-digit
+>           county FIPS, 8-digit HUC codes, state names). Match it to the right geo scale (state/county/crd/huc8/
+>           zcta — see LF22), AGGREGATE a numeric measure to that level (median/sum), and render a CHOROPLETH. Pick
+>           the metric that varies meaningfully across regions (good coverage + spread), not an id.
+>         • TIME → LINE, binned to a sensible grain. Recognize a temporal column by name (date, time, timestamp,
+>           year, month, ym, day, week, quarter) AND by parseable values (ISO dates, YYYY-MM, epoch). Put the
+>           measure on a line/area over time, and AUTO-BIN the grain to the span so it reads neatly — years of daily
+>           rows roll up to month/quarter, a few months to weeks, a single day to hours — target ~8–40 points, never
+>           3,000 raw ticks; sort chronologically; sum/mean per bin as fits the measure.
+>         • CATEGORY → BAR/DONUT with top-N + Other (low-cardinality → donut share; higher → ranked bar top-10).
+>         • MEASURE PICKING: prefer numeric columns with high non-null coverage and real spread; EXCLUDE id/key-like
+>           columns (near-unique integers), constants, and codes used as the geo/time key itself.
+>         • RELATIONSHIP → FORM: dimension×measure → bar; time×measure → line; geo×measure → map; two measures →
+>           scatter; a single headline measure → KPI/stat tile. (Straight out of the dataviz form heuristic.)
+>       The engine should read like a smart analyst's first pass: name+value signals → the right scale, aggregation,
+>       grain, and chart — then the creativity dial decides how adventurous to get on top of that sensible base.
+> LF25. **Per-panel export buttons + Explore↔Studio parity (Kevin, live).** PRINCIPLE: everything you can do in
+>       Explore, you should be able to do in Studio too. Three parts:
+>       (a) ON-PANEL EXPORT BUTTONS + per-panel visibility config. Today "Download CSV" is a little button ON the
+>           panel (rendered by the toolkit), but "Export this panel…" (HTML) and "Save chart as PNG" live only in the
+>           Inspector (studio.js exportPanelEmbed ~3122/8663, exportPanelPng ~3126/8694). Make PNG + HTML on-panel
+>           controls too — small ICON buttons beside Download-CSV (or a single "export ▾" dropdown) — AND add a
+>           per-panel CONFIG (Inspector toggles) for WHICH of CSV / PNG / HTML show on the panel (on by default,
+>           each toggleable off). Ties to #41 (per-widget download). INVARIANT: the exported .html stays
+>           byte-identical to preview — so decide deliberately whether on-panel export buttons render INTO the
+>           exported artifact or are builder/preview-only (config-driven), and keep preview==export.
+>       (b) RENDERER SWITCH (GL pan/zoom) IN STUDIO. UPDATE (Kevin found it): the Studio Inspector DOES expose the
+>           renderer switch — so this narrows to VERIFY parity with Explore (both offer built-in ⇄ GL pan/zoom),
+>           confirm the choice PERSISTS on the panel + rides the save/export, and improve DISCOVERABILITY if it read
+>           as missing at first glance (labeling/placement). cfg.renderer='gl' / Studio.usesGLMap. Ties LF12/#39/#46.
+>       (c) SAVE THE ACTIVE STUDIO WIDGET TO THE WIDGET LIBRARY. From a selected panel in Studio, a "Save to widget
+>           library" action that snapshots it as a reusable saved analysis/widget (the same library Explore feeds).
+>           Closes the loop with #29 (widgets as first-class objects) — Studio can both USE library widgets and
+>           CONTRIBUTE to it. app/studio.js (Inspector actions + panel toolbar), app/studio-render.js (on-panel
+>           button render + the byte-identical export path), app/exporters.js, tests per part.
+> LF26. **Save-as + overwrite protection in Studio — never clobber sample content (Kevin, live).** Add a "Save as…"
+>       button NEXT TO Save (btnSaveSpec, index.html; saveToCatalog studio.js ~9665) that saves the working spec as a
+>       NEW dashboard (fresh id, prompt/confirm a name) rather than overwriting. And make plain SAVE overwrite-safe:
+>       do NOT silently clobber — ESPECIALLY never overwrite SAMPLE/DEMO content. Sample dashboards carry
+>       `demoPackId` (app/demopacks.js; e.g. the Conservation pack sets demoPackId:"conservation"); saving edits to
+>       one must ROUTE TO SAVE-AS (a new user-owned copy), never write back over the pack row — so a Remove-pack /
+>       re-install always restores pristine samples and the user's edits live in their own dashboard. General rule:
+>       Save writes back only to a dashboard the current user OWNS and that isn't protected (not demoPackId); anything
+>       else (a sample, or — with LF23 — someone else's dashboard a viewer opened) becomes Save-as-a-copy (reuse the
+>       acctOwner ownership + the LF23 "save a copy" path). Confirm-before-overwrite for the owner's own existing
+>       dashboard is a nice touch but the HARD guardrail is: sample/demo content is read-only, edits fork. app/studio.js
+>       (saveToCatalog + a saveAsNew, the Save/Save-as buttons), app/index.html (button), test (saving over a
+>       demoPackId dashboard forks instead of overwriting; Save-as mints a new id).
+> LF27. ★★ **Navigation model — Studio is an EDITOR you enter & leave; land on Home; a sexy Dashboards browser (Kevin, live).**
+>       Reframe the app so the builder isn't a scary dead-end. Today the rail has both `dashboards` (secDashboards, a
+>       list w/ a repo-hero) AND `studio` (the editor) as peer rail items, and the app BOOTS with `studio` active
+>       (index.html rail-item active + aria-current on studio) — that's the "opens into the scary builder" problem.
+>       (a) DON'T LAND IN STUDIO. Default the boot section to HOME (or Dashboards), not Studio — first-time especially.
+>           And the TOUR must START on the HOME page as the backdrop, never inside the builder. (Ties LF18, tours #17/#23.)
+>           This is the smallest, highest-value slice — do it first (mind the many tests that assume studio-on-boot;
+>           update them, don't weaken them).
+>       (b) CLOSE + RETURN-TO-ORIGIN. Studio gets a "Close" (next to Save/Save-as — pairs with LF26) that leaves the
+>           editor and returns to WHERE YOU OPENED FROM (the Dashboards/Repository list). Track the origin section;
+>           wire it through SPA history (LF9/#44) so browser Back also closes the editor. The natural loop: open a
+>           dashboard → edit → Save/Save-as → Close → back to the list → open another.
+>       (c) A "COOL & SEXY" DASHBOARDS BROWSER (the simple tier). The `dashboards` rail section becomes a friendly
+>           collection view: your dashboards + the public ones, as PREVIEW TILES (reuse Home's live/thumbnail tile
+>           rendering, renderHome ~5684 home-featured/home-recents/home-examples) OR a list, with search + a
+>           tree/folder nav (reuse Workbooks). Click a tile → open in Studio; Close → back here. This is largely
+>           elements already on Home — integrate/fold them so Home ↔ Dashboards ↔ Studio feel like one flow.
+>       (d) TWO TIERS: keep REPOSITORY as the ADVANCED/expert cross-object manager (dashboards+datasets+connections+
+>           jobs+analyses — #29), and let the Dashboards browser be the SIMPLE, tile-first "just my dashboards + public"
+>           view. Studio may still exist on the rail (for a blank build) but the PRIMARY path is open-from-list, not
+>           "start in the builder." Big, structural — slice carefully: (a) land-on-Home + tour-on-Home FIRST, then
+>           (b) Close/return, then (c) the tile browser, then (d) the Repository/Dashboards split. app/index.html (rail +
+>           boot section), app/shell.js (section routing + origin tracking), app/studio.js (Close, renderHome tiles,
+>           secDashboards render), app/tutorial.js (start on Home). Ties: LF18, LF23, #22, #29, LF9/#44, #17/#23.
+> LF28. **BUG — map zoom/pan viewport isn't saved with the map widget (Kevin, live).** The choropleth's current
+>       zoom LEVEL and PAN position (center/translate) don't persist on the panel/analysis object — reopen or export
+>       and the map resets to its default view. Persist the viewport (zoom + pan center, and the renderer choice per
+>       LF25b) onto the widget's cfg so it survives save, reload, AND export (both the built-in renderer and the GL/
+>       MapLibre renderer). Must work in BOTH surfaces: building a widget in EXPLORE and editing a panel in DASHBOARD
+>       STUDIO. Wire the renderer's zoom/pan state back into cfg on change (debounced), read it on render, and include
+>       it in the byte-identical export. This is the concrete "last zoom/pan not saved" half of #39 (choropleth
+>       pan/zoom + persist). app/studio-charts.js (choropleth + GL viewport state ⇄ cfg), app/studio.js (Explore +
+>       panel inspector), app/exporters.js; test: set zoom/pan → serialize → reload → viewport restored.
+> LF29. **Typography consistency + wider dashboard title (Kevin, live) — elegance polish.** Two things:
+>       (a) FONT CONSISTENCY. The monospace `--mono` face (studio.css:17, ui-monospace/Menlo/Consolas) is applied to
+>           human-facing OBJECT NAMES/IDS — the Data-panel dataset ids (`.da .da-id`, `.da-mine .da-id-nm` ~635/666),
+>           the dashboard id chip (`.dash-meta code` ~503), dataset-list names (`.dl-row .nm`), connection sublabels
+>           (`.conn-row .cn span`) — and it reads as a technical typewriter/"serif" face that clashes with the elegant
+>           sans UI (Kevin: "too technical, be elegant"). Move human-readable names/ids to the sans UI `--font` (keep
+>           them distinguishable by weight/color/size, not by a code face), and RESERVE `--mono` for genuine code:
+>           SQL editors (`.dsb-query`, `.qpeek-sql`, `.rt-ta`), the SQL-builder labels/preview headers, file hashes
+>           (`.fhash`), the changelog version chip. Headers vs body can differ — the ask is consistency + elegance,
+>           not one single font. (Fits the UX-polish track / LF19.)
+>       (b) WIDER DASHBOARD TITLE. The dashbar title button truncates early — `.dash-id{min-width:200px}` +
+>           `.dash-title-btn` (studio.css ~492/495; mobile cap `.dash-title-btn{max-width:160px}` ~988). Let the title
+>           grow to use available topbar width on desktop before ellipsis (it's the dashboard OBJECT name — good to
+>           show fully). AND review the meta line below it (`.dash-meta code` = the dashboard's internal name/slug):
+>           confirm it's sensible/useful there or trim it. app/studio.css (font-family audit + title width), app/index.html
+>           if markup needs it.
 > LF19. **Left + right panel IA/redesign — make the builder calm, clear & elegant (Kevin, live).** First
 >       pass shipped (v433: compact dataset cards, kind icons, hover actions, hairline sections, compound
 >       builder removed). The DEEPER work Kevin asked for: the whole left Data panel still opens "scary/
@@ -1616,7 +1742,7 @@
 >     load blocks + matching setters (inspector collapse state, DA freshness map, export history,
 >     last-viewed, version history, canvas notes, branding, style/template-var/custom-theme
 >     presets, health-celebration) onto the two shared helpers. Pure refactor — suite unchanged at
->     1696/1696. (app/studio.js) NEXT in this track: R2 (dedup onto canonical `Studio.*`).
+>     1696/1696. (app/studio.js) NEXT in this track: R2 (dedup onto canonical `Studio.*`) — slice 1 shipped, see below.
 > R2. **Dedup onto canonical `Studio.*`:** `postThemeOnLoad(ifr)` (4 identical envelopes → 1);
 >     `singlePanelHtml(p)` (zoom + slideshow share the pipeline per their own comment); sweep the 15
 >     raw `JSON.parse(JSON.stringify)` → `Studio.clone`; promote `Studio.escapeHtml` and reuse in
@@ -1624,6 +1750,15 @@
 >     `svgEsc` (they run in the sandboxed export iframe where model.js is NOT inlined; merging breaks
 >     the self-contained-export invariant); `Studio.SAMPLE_PROVIDERS` shared by sampledata/demopacks
 >     (mirror the existing `SAMPLE_GEO` pattern, KEEP the standalone-test fallback). Split across ~2 slices.
+>     ↳ **Slice 1 (shipped 2026-07-22, steward):** `postThemeOnLoad(ifr)` now backs all 4 call sites
+>     (compare-dashboards preview, Home's live mini-render, Panel zoom, Slideshow) — kept the
+>     `ifr.onload =` assignment form (not `addEventListener`) so Slideshow's repeated re-renders of
+>     the SAME iframe still replace the handler instead of piling up a new listener per slide change.
+>     `singlePanelHtml(p)` now backs Panel zoom + Slideshow's identical one-panel-spec-and-mock build.
+>     All 19 raw `JSON.parse(JSON.stringify(...))` call sites in app/studio.js now call `Studio.clone`
+>     instead. Pure refactor, no behavior change — suite unchanged at 1730/1730. (app/studio.js)
+>     NEXT in this track: slice 2 — `Studio.escapeHtml` promotion (exporters `xml` + studio `esc`
+>     only) + `Studio.SAMPLE_PROVIDERS` sharing.
 > R3. **Factory the config layer:** table-drive the 8 `default*` getter/setter pairs; a
 >     `makePresetStore(key)` factory for the 3 identical list-CRUD triplets (stylePresets /
 >     templateVarSets / customThemePresets). (studio.js)
