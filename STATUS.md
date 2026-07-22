@@ -116,6 +116,13 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **FIX: updatedAt overflowed Postgres INTEGER on a Supabase push (v432, 2026-07-22, Kevin live):**
+  connecting a Supabase backend + "Overwrite with mine" failed with `value "1784668053877" is out of
+  range for type integer` (22003). `updatedAt` holds epoch-MILLISECONDS (~1.78e12); the provisioning
+  DDL typed it `INTEGER` (int4, max ~2.1e9). Now `BIGINT` (schema.js sqlType) — SQLite/Turso accept
+  BIGINT too. tools/supabase-bootstrap.sql migrates the already-created columns in place
+  (`ALTER … TYPE BIGINT`, idempotent); re-run the provision workflow to widen the live DB. 1 WS
+  ratchet (DDL types updatedAt BIGINT, never INTEGER). sw v80. app/sources/schema.js.
 - **FIX: admin sign-in couldn't reach the Admin section (v430, 2026-07-22, Kevin live):** an admin
   who signed in stayed on the Admin section's "administrators only" screen. `#secAdmin` renders once
   at boot — BEHIND the sign-in overlay, before any identity — and the post-login path re-applied rail
@@ -1354,6 +1361,10 @@
 >       per-metric "✕" controls in the job step editor are near-invisible (faint-on-light, same class
 >       of issue as the v58 secondary-button fix). Bump them to a readable dark-on-light / hover-red
 >       treatment. app/studio.css (+ app/studio.js if the markup needs a class).
+> LF15. **Settings: button/input style overlap.** In Settings → Style presets, the "＋ Save as preset"
+>       button slightly overlaps/crowds the "Preset name" input (spacing/layout glitch). Tidy the row
+>       spacing. Likely the same input+button row pattern used elsewhere; check for other instances.
+>       app/studio.css (+ app/studio.js markup if needed).
 
 ### 🔁 QUALITY TRACKS — interleave with the feature backlog (Kevin, 2026-07-21)
 > Kevin asked for a code-organization sweep AND a UI/UX best-practices sweep, folded INTO the loop

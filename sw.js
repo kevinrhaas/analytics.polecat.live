@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v79"; /* v79: M4.2 per-section rights (the second
+var CACHE_NAME = "studio-shell-v80"; /* v80: FIX — updatedAt is now typed BIGINT in
+   the workspace provisioning DDL. It holds epoch-MILLISECONDS (~1.78e12), which
+   overflows Postgres INTEGER (int4, ~2.1e9), so a Supabase "Overwrite with mine"
+   push failed with "value … is out of range for type integer" (22003). BIGINT
+   holds it; SQLite/Turso accept BIGINT too. app/sources/schema.js changed.
+   v79: M4.2 per-section rights (the second
    half of M4.2, now complete) — an Admin "Section access" card can hide
    Explore/Dashboards/Datasets/Jobs/Connections/Studio from the viewer role;
    Home stays always-on as the safe landing section. shell.js's role gating

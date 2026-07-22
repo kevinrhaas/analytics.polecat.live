@@ -15,12 +15,24 @@
 -- demo / non-sensitive data here.
 
 CREATE TABLE IF NOT EXISTS "polecat_meta" (key TEXT PRIMARY KEY, value TEXT);
-CREATE TABLE IF NOT EXISTS "connections" (id TEXT PRIMARY KEY, "name" TEXT, "adapter" TEXT, "updatedAt" INTEGER, data TEXT);
-CREATE TABLE IF NOT EXISTS "datasets" (id TEXT PRIMARY KEY, "name" TEXT, "connectionId" TEXT, "kind" TEXT, "updatedAt" INTEGER, data TEXT);
-CREATE TABLE IF NOT EXISTS "dashboards" (id TEXT PRIMARY KEY, "name" TEXT, "title" TEXT, "updatedAt" INTEGER, data TEXT);
-CREATE TABLE IF NOT EXISTS "analyses" (id TEXT PRIMARY KEY, "name" TEXT, "datasetId" TEXT, "chartType" TEXT, "updatedAt" INTEGER, data TEXT);
-CREATE TABLE IF NOT EXISTS "jobs" (id TEXT PRIMARY KEY, "name" TEXT, "sourceDatasetId" TEXT, "updatedAt" INTEGER, data TEXT);
-CREATE TABLE IF NOT EXISTS "users" (id TEXT PRIMARY KEY, "name" TEXT, "role" TEXT, "updatedAt" INTEGER, data TEXT);
+CREATE TABLE IF NOT EXISTS "connections" (id TEXT PRIMARY KEY, "name" TEXT, "adapter" TEXT, "updatedAt" BIGINT, data TEXT);
+CREATE TABLE IF NOT EXISTS "datasets" (id TEXT PRIMARY KEY, "name" TEXT, "connectionId" TEXT, "kind" TEXT, "updatedAt" BIGINT, data TEXT);
+CREATE TABLE IF NOT EXISTS "dashboards" (id TEXT PRIMARY KEY, "name" TEXT, "title" TEXT, "updatedAt" BIGINT, data TEXT);
+CREATE TABLE IF NOT EXISTS "analyses" (id TEXT PRIMARY KEY, "name" TEXT, "datasetId" TEXT, "chartType" TEXT, "updatedAt" BIGINT, data TEXT);
+CREATE TABLE IF NOT EXISTS "jobs" (id TEXT PRIMARY KEY, "name" TEXT, "sourceDatasetId" TEXT, "updatedAt" BIGINT, data TEXT);
+CREATE TABLE IF NOT EXISTS "users" (id TEXT PRIMARY KEY, "name" TEXT, "role" TEXT, "updatedAt" BIGINT, data TEXT);
+
+-- Migrate already-provisioned tables: the first bootstrap created updatedAt as
+-- INTEGER (int4), which OVERFLOWS on write — updatedAt holds epoch-milliseconds
+-- (~1.78e12) and int4 maxes at ~2.1e9, so a push failed with "value … is out of
+-- range for type integer" (22003). CREATE TABLE IF NOT EXISTS won't alter an
+-- existing column, so widen it explicitly. Idempotent (int8→int8 is a no-op).
+ALTER TABLE "connections" ALTER COLUMN "updatedAt" TYPE BIGINT;
+ALTER TABLE "datasets"    ALTER COLUMN "updatedAt" TYPE BIGINT;
+ALTER TABLE "dashboards"  ALTER COLUMN "updatedAt" TYPE BIGINT;
+ALTER TABLE "analyses"    ALTER COLUMN "updatedAt" TYPE BIGINT;
+ALTER TABLE "jobs"        ALTER COLUMN "updatedAt" TYPE BIGINT;
+ALTER TABLE "users"       ALTER COLUMN "updatedAt" TYPE BIGINT;
 
 INSERT INTO "polecat_meta"(key, value) VALUES ('app', 'analytics')
   ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;

@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 432,
+    title: 'Fix: pushing your workspace to a Supabase backend no longer errors',
+    kind: 'fix',
+    ts: '2026-07-22T15:26:30.000Z',
+    items: [
+      'Connecting a Supabase backend and choosing “Overwrite with mine” could fail with a database error about a value being “out of range for type integer”. The workspace tables store a last-updated timestamp in milliseconds, which is too large for a 32-bit integer column in Postgres — the column is now created as a 64-bit BIGINT (SQLite/Turso backends are unaffected). Existing Supabase workspaces are widened in place the next time they’re provisioned.',
+    ],
+  },
+  {
     v: 431,
     title: 'Admins can now hide sections from viewers',
     kind: 'feature',

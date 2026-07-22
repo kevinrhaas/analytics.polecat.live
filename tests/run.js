@@ -1729,6 +1729,13 @@ function serve() {
     ok("XP: workspace schema (now v4) still carries the analyses table (v2) — provisionDDL creates it, provisionDeltaSQL carries the paste-me upgrade",
       xpSchema.v === 4 && xpSchema.hasTable && /CREATE TABLE IF NOT EXISTS "analyses"/.test(xpSchema.ddl) &&
       /CREATE TABLE IF NOT EXISTS "analyses"/.test(xpSchema.delta), JSON.stringify({ v: xpSchema.v, hasTable: xpSchema.hasTable }));
+    // updatedAt holds epoch-MILLISECONDS, which overflows Postgres INTEGER (int4) on a
+    // Supabase push ("value … is out of range for type integer", 22003). The DDL must
+    // type it BIGINT (SQLite/Turso accept BIGINT too), never INTEGER.
+    ok("WS: updatedAt is typed BIGINT in the provisioning DDL (epoch-ms overflows Postgres INTEGER) — never INTEGER",
+      /"updatedAt" BIGINT/.test(xpSchema.ddl) && !/"updatedAt" INTEGER/.test(xpSchema.ddl) &&
+      /"updatedAt" BIGINT/.test(xpSchema.delta) && !/"updatedAt" INTEGER/.test(xpSchema.delta),
+      JSON.stringify({ ddlHasBigint: /"updatedAt" BIGINT/.test(xpSchema.ddl) }));
     // v1 → v2 self-heal on Turso: drop the analyses table (simulating a workspace
     // provisioned before it existed), save, and the ensure-DDL recreates it.
     const xpHeal = await page.evaluate(async function () {
