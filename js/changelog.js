@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 425,
+    title: 'Fix: dead CSS tokens made the changelog search box transparent',
+    kind: 'fix',
+    ts: '2026-07-22T10:05:49.000Z',
+    items: [
+      'Four undefined tokens (--fg, --sans, --canvas, --green) were referenced across studio.css but never defined anywhere -- they silently fell back to the browser default, which made the changelog search input (.cl-search) render with a transparent background.',
+      'Routed every reference to the real bridge tokens: --fg -> --ink, --sans -> --font, --canvas -> --field, --green -> --good. No visual change except the now-fixed search box; pure coherence cleanup elsewhere.',
+    ],
+  },
+  {
     v: 424,
     title: 'Datasets: mark a dataset private',
     kind: 'feature',

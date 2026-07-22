@@ -116,6 +116,16 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **Dead-token sweep (v425, 2026-07-22, steward, third quality-track slice, UX2):** four CSS
+  custom properties — `--fg`, `--sans`, `--canvas`, `--green` — were referenced across
+  `app/studio.css` but never defined anywhere, silently falling back to the browser default;
+  routed every reference to the real bridge tokens (`--fg`→`--ink`, `--sans`→`--font`,
+  `--canvas`→`--field`, `--green`→`--good`). Fixes a real bug: the changelog search input
+  (`.cl-search`, was `background:var(--canvas)`) rendered with a transparent background in
+  every theme. `docs/index.html`'s own `--fg` is a separate, locally-defined token (untouched);
+  the one `var(--green, …)` string in `js/changelog.js` is historical entry text, not live CSS
+  (left as-is). Pure token-routing, no visible change besides the fixed search box — suite
+  unchanged at 1711/1711. sw v73. (app/studio.css, sw.js)
 - **Admin: manage users (v421, 2026-07-22, steward, M4.1 — Conservation Insight platform, first
   "Admin + permissions" slice):** a new Admin rail item, visible to admin accounts only (hidden
   for viewers by `shell.js`'s `applyRoleGating`, which re-runs after every sign-in since shell.js
@@ -1234,9 +1244,10 @@
 >      relied on a `title` on the wrapper div or nothing at all). 2 new ratchets (toast role/aria-live,
 >      all four pane-rail buttons labeled) + the existing demo-mode test now also asserts the
 >      reduced-motion animation-name. sw v67. (app/index.html, app/studio.css)
-> UX2. ★ **Dead-token sweep:** `--sans`(23×) / `--fg`(7×) / `--canvas` / `--green` are never defined —
->      route to real bridge tokens (`--font`/`--ink`/`--field`/`--good`). Fixes a real bug: the
->      changelog search input (`.cl-search`, `--canvas`) renders transparent. (studio.css)
+> UX2. ✓ **Dead-token sweep (shipped 2026-07-22, steward, third quality-track slice):** `--sans`/
+>      `--fg`/`--canvas`/`--green` were never defined — routed every reference to the real bridge
+>      tokens `--font`/`--ink`/`--field`/`--good`. Fixed the changelog search input (`.cl-search`)
+>      rendering transparent. (app/studio.css) NEXT in this track: UX3 (theme the toast + one-off hexes).
 > UX3. **Theme the toast + one-off hexes:** toast is hardcoded `#10233f`/`.err #7a1730` (dark navy in
 >      every theme incl. light/neon); same for `.demo-badge #d32f2f` etc. Route through palette tokens
 >      / `color-mix` so they respect the active theme×mode. (studio.css)

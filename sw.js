@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v72"; /* v72: M4.2 slice 3 — the same private/public
+var CACHE_NAME = "studio-shell-v73"; /* v73: UX2 dead-token sweep — --fg/--sans/
+   --canvas/--green were referenced but never defined; routed to the real
+   bridge tokens --ink/--font/--field/--good (fixes the transparent changelog
+   search box). app/studio.css changed.
+   v72: M4.2 slice 3 — the same private/public
    lock toggle now on datasets rows too (owner rides on a new `acctOwner` field,
    since datasets already had an unrelated free-text `owner` field), hides
    another account's private datasets from the Datasets catalog. app/studio.js
