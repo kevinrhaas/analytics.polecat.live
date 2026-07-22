@@ -122,10 +122,12 @@
   nothing highlighted. studio-render.js now passes `query: p.chart.da`, so the caption opens the Datasets view
   FOCUSED (scroll + `.hot` highlight) on that panel's own dataset. Also reworded the header ⓘ tooltip from the
   jargon "CDA queries" → "datasets" (exporters.js). 1 regression test (2 panels on distinct DAs → clicking beta's
-  caption highlights `.pdc-q[data-id="beta_ds"]`). sw v88. RESIDUAL (needs the pristine pdc-ui.js toolkit, so
-  deferred/upstream): the per-panel caption's own `title` tooltip still says "CDA queries" (pdc-ui.js:625), and the
-  modal still LISTS all datasets (focused, not filtered to only the one) — if Kevin wants strictly "only that
-  dataset", that's a pdc-ui.queryModal change.
+  caption highlights `.pdc-q[data-id="beta_ds"]`). sw v88.
+  FOLLOW-UP (v446, Kevin live): reworded the per-panel caption tooltip from the jargon "View the CDA queries behind
+  this dashboard" → "View the dataset behind this widget" (vendor/pdc-ui.js:625 — a user-facing string, edited at
+  Kevin's explicit direction; pdc-ui.js has NO sha256/sync gate, unlike polecat-shell, and inlines identically into
+  preview + export so byte-identity holds). sw v90. RESIDUAL: the Datasets modal still LISTS all datasets (focused,
+  not filtered to only the one) — if strictly "only that dataset" is ever wanted, that's a further pdc-ui.queryModal change.
 - **Conservation Insight showcase examples + demo-pack-gated examples (v441, 2026-07-22, steward,
   LF2 parts a/b):** two new example dashboards — **Conservation Practice Adoption Scorecard**
   (gauge/donut/bars/heatmap/bullet) and **Conservation Insight — Crop & Practice Flow**

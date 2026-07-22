@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 446,
+    title: 'Clearer wording on the widget dataset caption',
+    kind: 'polish',
+    ts: '2026-07-22T21:23:45.000Z',
+    items: [
+      'The little “◴ dataset” caption in a widget’s corner used to have the jargon tooltip “View the CDA queries behind this dashboard”. It now reads “View the dataset behind this widget” — plain language that matches what actually happens when you click it.',
+    ],
+  },
+  {
     v: 445,
     title: 'Consistent brand colors across the app switcher and the suite',
     kind: 'polish',

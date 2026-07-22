@@ -622,7 +622,7 @@ PDC.card=function(title,opts){opts=opts||{};var c=document.createElement("div");
   if(opts.info)c.querySelector(".pdc-h-t").appendChild(PDC.infoDot(opts.info));
   var b=document.createElement("div");b.className="body";if(opts.h)b.style.minHeight=opts.h+"px";
   c.appendChild(b);
-  if(opts.src){var sp=document.createElement("div");sp.className="src";sp.title="View the CDA queries behind this dashboard";sp.textContent="◴ "+opts.src;
+  if(opts.src){var sp=document.createElement("div");sp.className="src";sp.title="View the dataset behind this widget";sp.textContent="◴ "+opts.src;
     sp.style.cursor="pointer";sp.addEventListener("click",function(){PDC.queryModal(opts.query);});c.appendChild(sp);}
   if(opts.linkTo){var a=document.createElement("a");a.href=PDC.dashUrl(opts.linkTo);a.innerHTML=(opts.linkLabel||"open")+" &rarr;";
     a.title="Open the "+opts.linkTo+" dashboard";
