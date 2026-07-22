@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 424,
+    title: 'Datasets: mark a dataset private',
+    kind: 'feature',
+    ts: '2026-07-22T09:04:47.000Z',
+    items: [
+      'The same lock toggle from dashboards and connections is now on every dataset row -- mark a dataset private and only you (and admins) can see it in the Datasets catalog.',
+      'Third slice of the private/public flag on saved objects; saved analyses and jobs get the same toggle next.',
+    ],
+  },
+  {
     v: 423,
     title: 'Connections: mark a connection private',
     kind: 'feature',

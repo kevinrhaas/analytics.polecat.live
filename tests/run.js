@@ -6545,6 +6545,54 @@ function serve() {
     });
     await page.waitForTimeout(150);
 
+    // ---- M4.2 slice 3: object privacy — datasets ----
+    console.log("\n• M4.2: object privacy — datasets (slice 3)");
+    const dsPrivacySetup = await page.evaluate(function () {
+      function row(id, name, acctOwner) {
+        var r = { id: id, name: name, kind: "file", content: "a,b\n1,2", format: "csv", updatedAt: Date.now() };
+        if (acctOwner) r.acctOwner = acctOwner;
+        Studio.Workspace.put("datasets", r);
+      }
+      row("m42d-a", "M4.2 dataset mine (goes private)", "demo");
+      row("m42d-b", "M4.2 dataset someone else's (goes private)", "otherUser");
+      row("m42d-c", "M4.2 dataset public");
+      window.__studioToggleDsxPrivate("m42d-a");
+      window.__studioToggleDsxPrivate("m42d-b");
+      var a = Studio.Workspace.get("datasets", "m42d-a"), b = Studio.Workspace.get("datasets", "m42d-b");
+      return { aPrivate: !!a.private, aOwner: a.acctOwner, bPrivate: !!b.private, bOwner: b.acctOwner };
+    });
+    ok("M4.2: datasets togglePrivate flips the private flag and stamps/preserves an acctOwner",
+      dsPrivacySetup.aPrivate && dsPrivacySetup.aOwner === "demo" && dsPrivacySetup.bPrivate && dsPrivacySetup.bOwner === "otherUser",
+      JSON.stringify(dsPrivacySetup));
+
+    const asDemoDsPriv = await page.evaluate(function () {
+      window.PolecatAuth.login("demo"); // seeded viewer account
+      window.__studioShellSetSection("datasets");
+      window.__studioRenderDatasets();
+      var ids = Array.prototype.map.call(document.querySelectorAll("#dsxResults [data-dsx-id]"), function (el) { return el.getAttribute("data-dsx-id"); });
+      return { seesOwn: ids.indexOf("m42d-a") >= 0, seesOthers: ids.indexOf("m42d-b") >= 0, seesPublic: ids.indexOf("m42d-c") >= 0 };
+    });
+    ok("M4.2: signed in as the owner (viewer role), Datasets shows their own private dataset and every public one, but hides another account's private one",
+      asDemoDsPriv.seesOwn && !asDemoDsPriv.seesOthers && asDemoDsPriv.seesPublic, JSON.stringify(asDemoDsPriv));
+
+    const asAdminDsPriv = await page.evaluate(function () {
+      window.PolecatAuth.login("admin"); // seeded admin account — sees every private dataset, matching shell.js's admin-sees-all
+      window.__studioRenderDatasets();
+      var ids = Array.prototype.map.call(document.querySelectorAll("#dsxResults [data-dsx-id]"), function (el) { return el.getAttribute("data-dsx-id"); });
+      return { seesA: ids.indexOf("m42d-a") >= 0, seesB: ids.indexOf("m42d-b") >= 0, seesC: ids.indexOf("m42d-c") >= 0 };
+    });
+    ok("M4.2: an admin account sees every dataset regardless of its private flag/acctOwner",
+      asAdminDsPriv.seesA && asAdminDsPriv.seesB && asAdminDsPriv.seesC, JSON.stringify(asAdminDsPriv));
+
+    await page.evaluate(function () {
+      window.PolecatAuth.logout();
+      sessionStorage.setItem("studio-gate-ok", "1");
+      window.__studioShellApplyRoleGating();
+      ["m42d-a", "m42d-b", "m42d-c"].forEach(function (id) { Studio.Workspace.remove("datasets", id); });
+      window.__studioShellSetSection("studio");
+    });
+    await page.waitForTimeout(150);
+
     // ---- CDA data source CRUD (My Data Sources library section) ----
     console.log("\n• CDA data-source CRUD");
     await page.evaluate(async () => { const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json()); window.__studioLoad(spec); });

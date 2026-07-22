@@ -5198,6 +5198,19 @@
     var uid = currentUserId();
     return !!uid && r.owner === uid;
   }
+  // M4.2 slice 3 (datasets): same rule, but the account-identity owner rides on
+  // `acctOwner` since datasets already have an unrelated free-text `owner` field.
+  // A distinct named function (rather than a second isVisibleToMe param) because
+  // isVisibleToMe is passed BY REFERENCE straight into .filter() at several call
+  // sites — Array#filter invokes its callback with (value, index, array), so a
+  // second parameter there would silently receive the array index, not a field
+  // name override.
+  function isDatasetVisibleToMe(r) {
+    if (!r.private) return true;
+    if (currentUserIsAdmin()) return true;
+    var uid = currentUserId();
+    return !!uid && r.acctOwner === uid;
+  }
   var _recentTimer = null;
   function scheduleNoteRecent() { clearTimeout(_recentTimer); _recentTimer = setTimeout(noteRecent, 800); }
   function loadRecents() {
@@ -6558,6 +6571,25 @@
     W.put("datasets", r);
     renderDatasets();
   }
+  // M4.2 slice 3 (per-section rights + object privacy — datasets): same
+  // `private`/`isVisibleToMe` shape as dashboards/connections, but the
+  // account-identity owner rides on `acctOwner` — datasets already have a
+  // free-text `owner` field ("who to ask about this dataset") that predates
+  // this slice, so the auth owner needs a different name to avoid colliding
+  // with it.
+  function toggleDsxPrivate(id) {
+    var W = Studio.Workspace, r = W.get("datasets", id);
+    if (!r) return;
+    if (r.private) { delete r.private; }
+    else {
+      r.private = true;
+      if (!r.acctOwner) { var uid = currentUserId(); if (uid) r.acctOwner = uid; }
+    }
+    W.put("datasets", r);
+    toast(r.private ? "Private — only you can see this" : "Public — visible to everyone");
+    renderDatasets();
+  }
+  window.__studioToggleDsxPrivate = toggleDsxPrivate; // test hook
   // Dataset lineage (post-overhaul backlog item 5, "blast-radius view"): every
   // dashboard whose spec links a data access back to this dataset (dsToDA
   // stamps da.datasetId = ds.id when a dataset is dropped onto the canvas).
@@ -6610,7 +6642,7 @@
   function renderDatasets() {
     var results = $("#dsxResults"); if (!results) return;
     var q = (($("#dsxSearch") || {}).value || "").toLowerCase();
-    var list = Studio.Workspace.all("datasets").sort(function (a, b) {
+    var list = Studio.Workspace.all("datasets").filter(isDatasetVisibleToMe).sort(function (a, b) {
       if (!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1;
       if (a.pinned) return (b.pinnedAt || "").localeCompare(a.pinnedAt || "");
       return (b.updatedAt || 0) - (a.updatedAt || 0);
@@ -6697,6 +6729,7 @@
         ((d.params || []).length ? '<span class="cx-badge" title="Accepts parameters">' + (d.params || []).length + " param" + ((d.params || []).length > 1 ? "s" : "") + '</span>' : "") +
         lineageBadge +
         '<span class="cx-when">' + esc(new Date(d.updatedAt || Date.now()).toLocaleDateString()) + '</span>' +
+        '<button type="button" class="cx-private' + (d.private ? " private" : "") + '" data-dsx-private="' + esc(d.id) + '" title="' + (d.private ? "Private — only you can see this" : "Make private") + '" aria-label="' + (d.private ? "Make " + esc(d.name) + " public" : "Make " + esc(d.name) + " private") + '" aria-pressed="' + (d.private ? "true" : "false") + '"></button>' +
         '<button type="button" class="cx-pin' + (d.pinned ? " on" : "") + '" data-dsx-pin="' + esc(d.id) + '" title="' + (d.pinned ? "Unpin" : "Pin to top") + '" aria-label="' + (d.pinned ? "Unpin " : "Pin ") + esc(d.name) + '" aria-pressed="' + (d.pinned ? "true" : "false") + '"></button>' +
         '<span class="cx-actions">' +
           '<button type="button" class="btn" data-dsx-run="' + esc(d.id) + '">Run</button>' +
@@ -6783,7 +6816,7 @@
       var icEl = row.querySelector(".cx-ic");
       if (icEl) icEl.appendChild(Studio.icon((src && src.icon) || "db", 18));
       row.addEventListener("click", function (e) {
-        if (e.target.closest("[data-dsx-pin],[data-dsx-run],[data-dsx-edit],[data-dsx-del]")) return;
+        if (e.target.closest("[data-dsx-pin],[data-dsx-private],[data-dsx-run],[data-dsx-edit],[data-dsx-del]")) return;
         openDatasetEditor(d);
       });
       row.addEventListener("keydown", function (e) {
@@ -6800,6 +6833,10 @@
     $$(".cx-pin", results).forEach(function (btn) {
       btn.appendChild(Studio.icon("star", 14));
       btn.onclick = function (e) { e.stopPropagation(); toggleDsxPin(btn.getAttribute("data-dsx-pin")); };
+    });
+    $$(".cx-private", results).forEach(function (btn) {
+      btn.appendChild(Studio.icon("lock", 14));
+      btn.onclick = function (e) { e.stopPropagation(); toggleDsxPrivate(btn.getAttribute("data-dsx-private")); };
     });
     $$("[data-dsx-run]", results).forEach(function (btn) {
       btn.onclick = function () {
@@ -6976,6 +7013,7 @@
         collect();
         if (!d.name) { nameInp.focus(); result.className = "cx-test-result bad"; result.textContent = "Give the dataset a name first."; return; }
         if (!d.connectionId) { connSel.focus(); result.className = "cx-test-result bad"; result.textContent = "Pick the connection this dataset runs against."; return; }
+        if (!existing) { var newUid = currentUserId(); if (newUid) d.acctOwner = newUid; }
         Studio.Workspace.put("datasets", d);
         toast(existing ? "Saved " + d.name : "Added " + d.name);
         document.querySelector(".modal-ov .x").click();

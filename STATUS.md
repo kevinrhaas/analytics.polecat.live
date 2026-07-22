@@ -1416,6 +1416,18 @@
 >     3 new M4.2 ratchets (toggle stamps/preserves owner, owner sees their own private connection, a
 >     non-owner viewer doesn't, admin sees everything). sw v71. NEXT: datasets/analyses/jobs get the
 >     same toggle; the per-section-rights half is still open.
+>     ↳ **Slice 3 (datasets, shipped 2026-07-22, steward):** the same lock toggle, now on the Datasets
+>     catalog, filtered by a new sibling `isDatasetVisibleToMe` (NOT a second parameter on the shared
+>     `isVisibleToMe` — that helper is passed BY REFERENCE straight into `.filter()` at several call
+>     sites, and `Array#filter` invokes its callback with `(value, index, array)`, so a second parameter
+>     there would silently receive the array index instead of an override — caught by a dashboards
+>     ratchet regression during this slice, fixed before shipping). Datasets already carry an unrelated
+>     free-text `owner` field ("who to ask about this dataset"), so the auth-identity owner rides on a
+>     NEW `acctOwner` field instead (stamped from `PolecatAuth.current().u` the first time a dataset is
+>     created, or the first time a pre-existing one goes private) — no collision, free-text field keeps
+>     its original meaning unchanged. 3 new M4.2 ratchets (toggle stamps/preserves acctOwner, owner sees
+>     their own private dataset, a non-owner viewer doesn't, admin sees everything). sw v72. NEXT:
+>     analyses/jobs get the same toggle; the per-section-rights half is still open.
 > M5. **Repository browser:** new left-rail section — a tree/folder view of ALL objects (dashboards,
 >     datasets, connections, analyses, jobs) with find/open/edit and a right-panel editor for
 >     simple objects; deep-links to the full editors for complex ones.
