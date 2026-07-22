@@ -100,7 +100,11 @@
     mic: '<rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0" stroke-linecap="round" stroke-linejoin="round"/><line x1="12" y1="17" x2="12" y2="22" stroke-linecap="round"/><line x1="8" y1="22" x2="16" y2="22" stroke-linecap="round"/>',
     // N-DIST: "Save chart as PNG" panel action — a picture frame with a peak, distinct
     // from "download" (which implies a file, not specifically an image).
-    image: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21" stroke-linecap="round" stroke-linejoin="round"/>'
+    image: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21" stroke-linecap="round" stroke-linejoin="round"/>',
+    // M4 (admin): a shield for the Admin nav item — distinct from "gear" (Settings,
+    // your own preferences) since Admin manages OTHER people's access.
+    shield: '<path d="M12 3l7 3v6c0 4.5-3 8-7 9-4-1-7-4.5-7-9V6z" stroke-linecap="round" stroke-linejoin="round"/>',
+    user: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6" stroke-linecap="round" stroke-linejoin="round"/>'
   };
 
   Studio.icon = function (name, size) {

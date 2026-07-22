@@ -109,12 +109,24 @@
     return pub(row);
   }
 
+  // Removes a user (admin flow, M4). Refuses to drop the workspace's last admin —
+  // that would lock every remaining account out of user management for good.
+  function remove(u) {
+    var list = raw(), key = String(u || "").trim().toLowerCase();
+    var row = list.filter(function (x) { return String(x.u).toLowerCase() === key; })[0];
+    if (!row) return { ok: false, error: "not-found" };
+    var admins = list.filter(function (x) { return x.role === "admin"; });
+    if (row.role === "admin" && admins.length <= 1) return { ok: false, error: "last-admin" };
+    saveRaw(list.filter(function (x) { return x !== row; }));
+    return { ok: true };
+  }
+
   window.PolecatAuth = {
     USERS_KEY: USERS_KEY, SESSION_KEY: SESSION_KEY,
     sha256: sha256, seedIfEmpty: seedIfEmpty, verify: verify,
     list: function () { return raw().map(pub); }, find: function (u) { return pub(find(u)); },
     current: current, authed: authed, login: login, logout: logout,
-    isDemo: function () { var c = current(); return !!(c && c.demo); }, upsert: upsert, importFromStore: importFromStore,
+    isDemo: function () { var c = current(); return !!(c && c.demo); }, upsert: upsert, remove: remove, importFromStore: importFromStore,
     // Full rows INCLUDING the pw hash — for mirroring into the workspace `users`
     // table (that table is meant to BE the backend user store). Not for display.
     exportForStore: function () { return raw().map(function (x) { return { u: x.u, name: x.name || x.u, role: x.role || "viewer", demo: !!x.demo, hash: x.hash || "" }; }); }

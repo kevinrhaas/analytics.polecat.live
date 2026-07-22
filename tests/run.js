@@ -6368,6 +6368,85 @@ function serve() {
     }, PORT);
     await gp3.close();
 
+    // ---- M4: Admin — manage users (first slice of "Admin + permissions") ----
+    console.log("\n• M4: admin — manage users");
+    // The main `page` carries the historical studio-gate-ok bypass with no stored
+    // session, so PolecatAuth.current() falls back to the local/admin identity —
+    // exactly the case the Admin rail item should show for.
+    await page.evaluate(function () { window.__studioShellSetSection("admin"); });
+    await page.waitForTimeout(200);
+    const adminAsAdmin = await page.evaluate(function () {
+      var railBtn = document.querySelector('.rail-item[data-sec="admin"]');
+      var sec = document.getElementById("secAdmin");
+      return {
+        railVisible: railBtn && !railBtn.hidden,
+        hasAddBtn: !!sec.querySelector("#usrNewBtn"),
+        rowCount: sec.querySelectorAll(".cx-row").length,
+        hasAdminBadge: !!sec.querySelector(".cx-badge.admin")
+      };
+    });
+    ok("M4: signed in as an admin, the Admin rail item is visible and the page lists every user with a role badge + Add user button",
+      adminAsAdmin.railVisible && adminAsAdmin.hasAddBtn && adminAsAdmin.rowCount >= 2 && adminAsAdmin.hasAdminBadge, JSON.stringify(adminAsAdmin));
+
+    // Add a user, then edit their role, then remove them.
+    const addUser = await page.evaluate(function () {
+      return window.PolecatAuth.upsert("m4test", { name: "M4 Test", role: "viewer", pass: "pw12345" }).then(function () {
+        window.__studioRenderAdmin();
+        var row = document.querySelector('.cx-row[data-usr-id="m4test"]');
+        return { found: !!row, badge: row ? row.querySelector(".cx-badge").textContent : "" };
+      });
+    });
+    ok("M4: adding a user via PolecatAuth.upsert shows up in the Admin list with its role badge",
+      addUser.found && addUser.badge === "viewer", JSON.stringify(addUser));
+    const promoted = await page.evaluate(function () {
+      return window.PolecatAuth.upsert("m4test", { role: "admin" }).then(function () {
+        window.__studioRenderAdmin();
+        var row = document.querySelector('.cx-row[data-usr-id="m4test"]');
+        return row.querySelector(".cx-badge").className;
+      });
+    });
+    ok("M4: editing a user's role (upsert) updates their badge in the list", / admin/.test(promoted), promoted);
+    const removed = await page.evaluate(function () {
+      var r = window.PolecatAuth.remove("m4test");
+      window.__studioRenderAdmin();
+      return { ok: r.ok, gone: !document.querySelector('.cx-row[data-usr-id="m4test"]') };
+    });
+    ok("M4: PolecatAuth.remove deletes the user and the list drops their row", removed.ok && removed.gone, JSON.stringify(removed));
+
+    // Guard rail: refuse to remove the workspace's last admin.
+    const lastAdminGuard = await page.evaluate(function () {
+      var admins = window.PolecatAuth.list().filter(function (u) { return u.role === "admin"; });
+      admins.slice(1).forEach(function (u) { window.PolecatAuth.remove(u.u); }); // leave exactly one admin
+      var onlyAdmin = window.PolecatAuth.list().filter(function (u) { return u.role === "admin"; })[0];
+      var r = window.PolecatAuth.remove(onlyAdmin.u);
+      window.__studioRenderAdmin();
+      var row = document.querySelector('.cx-row[data-usr-id="' + onlyAdmin.u + '"] [data-usr-del]');
+      return { refused: r.ok === false && r.error === "last-admin", stillListed: !!document.querySelector('.cx-row[data-usr-id="' + onlyAdmin.u + '"]'), delDisabled: row && row.disabled };
+    });
+    ok("M4: PolecatAuth.remove refuses to drop the last admin, and the Admin page disables that row's ✕",
+      lastAdminGuard.refused && lastAdminGuard.stillListed && lastAdminGuard.delDisabled, JSON.stringify(lastAdminGuard));
+
+    // A signed-in viewer never sees the Admin rail item. Simulate the real trigger
+    // path (gate.js's afterLogin re-runs role gating post-login) while already
+    // parked on the Admin section (the previous assertion left it there) — gating
+    // itself must bounce a non-admin off, without any explicit re-navigation.
+    const asViewer = await page.evaluate(function () {
+      window.PolecatAuth.login("demo"); // demo account seeds as role: viewer
+      window.__studioShellApplyRoleGating();
+      var railBtn = document.querySelector('.rail-item[data-sec="admin"]');
+      return { railHidden: railBtn.hidden, bouncedOff: document.getElementById("secAdmin").hidden };
+    });
+    ok("M4: a signed-in viewer (demo account) never sees the Admin rail item, and role gating bounces them off the Admin section",
+      asViewer.railHidden && asViewer.bouncedOff, JSON.stringify(asViewer));
+    // restore the admin identity the rest of the suite expects
+    await page.evaluate(function () {
+      window.PolecatAuth.logout();
+      sessionStorage.setItem("studio-gate-ok", "1");
+      window.__studioShellApplyRoleGating();
+      window.__studioShellSetSection("studio");
+    });
+    await page.waitForTimeout(150);
+
     // ---- CDA data source CRUD (My Data Sources library section) ----
     console.log("\n• CDA data-source CRUD");
     await page.evaluate(async () => { const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json()); window.__studioLoad(spec); });
@@ -16812,20 +16891,20 @@ function serve() {
       var items = nav ? Array.prototype.slice.call(nav.querySelectorAll(".rail-item[data-sec]")) : [];
       var studioBtn = nav && nav.querySelector('.rail-item[data-sec="studio"]');
       return {
-        ok: !!nav && items.length === 8 && !!studioBtn && studioBtn.classList.contains("active")
+        ok: !!nav && items.length === 9 && !!studioBtn && studioBtn.classList.contains("active")
           && studioBtn.getAttribute("aria-current") === "page",
         secs: items.map(function (b) { return b.getAttribute("data-sec"); }),
         appMainHidden: document.getElementById("appMain").hidden,
         collapseBtn: !!document.getElementById("railCollapse")
       };
     });
-    ok("Z1: rail has Home/Explore/Dashboards/Datasets/Jobs/Connections/Studio/Settings + Studio active by default", z1Boot.ok, JSON.stringify(z1Boot));
+    ok("Z1: rail has Home/Explore/Dashboards/Datasets/Jobs/Connections/Studio/Admin/Settings + Studio active by default", z1Boot.ok, JSON.stringify(z1Boot));
     ok("Z1: #appMain (the builder) is visible by default", z1Boot.appMainHidden === false, JSON.stringify(z1Boot));
 
     // Z1-2: rail icons are real inline SVGs (Studio.icon(), theme-aware — no emoji/unicode glyphs)
     const z1Icons = await page.evaluate(function () {
       var svgs = document.querySelectorAll("#railNav .rail-ic svg");
-      return { ok: svgs.length === 11, count: svgs.length }; // 8 sections + Search/⌘K (Track N) + Help (Z11) + collapse toggle
+      return { ok: svgs.length === 12, count: svgs.length }; // 9 sections (incl. Admin, M4) + Search/⌘K (Track N) + Help (Z11) + collapse toggle
     });
     ok("Z1: rail buttons render inline SVG icons (Studio.icon helper)", z1Icons.ok, JSON.stringify(z1Icons));
 

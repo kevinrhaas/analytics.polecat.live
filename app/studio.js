@@ -413,6 +413,7 @@
       Studio.Sync.initSync();
       window.addEventListener("pagehide", function () { try { Studio.Sync.pushNow(); } catch (e) {} });
       renderSettings();
+      renderAdmin();
       if (window.StudioWelcome) { var ab = $("#btnAbout"); if (ab) ab.onclick = function () { StudioWelcome.open(); }; setTimeout(function () { StudioWelcome.maybeShow(); }, 300); }
       buildLibrary();
       // N-DIST: a #share=<encoded> link (see the Dashboard inspector's "Share this dashboard"
@@ -7396,6 +7397,7 @@
                 // store: adopting an existing workspace means signing in against ITS
                 // accounts, not the ones this browser seeded before connecting.
                 try { if (window.PolecatAuth && Studio.Workspace) window.PolecatAuth.importFromStore(Studio.Workspace.all("users")); } catch (e2) {}
+                try { renderAdmin(); if (window.__studioShellApplyRoleGating) window.__studioShellApplyRoleGating(); } catch (e2) {}
                 toast("Workspace backend connected");
                 document.querySelector(".modal-ov .x").click();
                 if (typeof onConnected === "function") onConnected();
@@ -8157,6 +8159,114 @@
     syncRailQuick();
   }
   window.__studioRenderSettings = renderSettings; // test hook
+
+  // M4 (admin, first slice — "Admin + permissions" per STATUS.md): a rail area, visible
+  // only to admins, that lists every account and lets you add/edit/remove one. Roles
+  // are UX-level gating today (client-side, one shared local store) — real per-user
+  // enforcement is the later Supabase-RLS slice (M7); per-section rights beyond
+  // admin/viewer, and the private/public object flag, are follow-up slices of M4.
+  function renderAdmin() {
+    var sec = $("#secAdmin"); if (!sec) return;
+    var Auth = window.PolecatAuth;
+    var me = Auth ? Auth.current() : null;
+    var isAdmin = !!(me && me.role === "admin");
+    if (!Auth || !isAdmin) {
+      sec.classList.remove("has-content");
+      sec.innerHTML = '<div class="sec-empty"><div class="sec-empty-ic" data-ic="shield"></div><h2>Admin</h2>' +
+        '<p>This area is for administrators only.</p></div>';
+      $$(".sec-empty-ic[data-ic]", sec).forEach(function (span) { span.appendChild(Studio.icon(span.getAttribute("data-ic"), 26)); });
+      return;
+    }
+    var users = Auth.list().sort(function (a, b) { return (a.name || a.u).localeCompare(b.name || b.u); });
+    var adminCount = users.filter(function (u) { return u.role === "admin"; }).length;
+    var rows = users.map(function (u) {
+      var lastAdmin = u.role === "admin" && adminCount <= 1;
+      return '<div class="cx-row" data-usr-id="' + esc(u.u) + '">' +
+        '<span class="cx-ic" data-usr-ic></span>' +
+        '<span class="cx-name"><b>' + esc(u.name || u.u) + '</b><small>' + esc(u.u) + '</small></span>' +
+        '<span class="cx-badge' + (u.role === "admin" ? " admin" : "") + '">' + esc(u.role) + '</span>' +
+        (u.demo ? '<span class="cx-badge">demo</span>' : "") +
+        (me.u === u.u ? '<span class="cx-badge">you</span>' : "") +
+        '<span class="cx-actions">' +
+          '<button type="button" class="btn" data-usr-edit="' + esc(u.u) + '">Edit</button>' +
+          '<button type="button" class="btn" data-usr-del="' + esc(u.u) + '"' + (lastAdmin ? ' disabled title="The workspace needs at least one admin"' : "") + ' aria-label="Remove ' + esc(u.name || u.u) + '">✕</button>' +
+        '</span></div>';
+    }).join("");
+    sec.classList.add("has-content");
+    sec.innerHTML = '<div class="repo-wrap"><div class="repo-hero"><h1>Admin</h1>' +
+      '<p>Manage who can sign in to this workspace. <b>Admin</b> has full access; <b>viewer</b> can browse and explore but not edit. This is UX-level access control today — per-object privacy and DB-enforced roles arrive with the Supabase-RLS slice.</p>' +
+      '<div class="repo-io"><button type="button" class="btn primary" id="usrNewBtn">+ Add user</button></div></div>' +
+      (rows ? '<div class="cx-list">' + rows + '</div>' : '<div class="cx-empty">No users yet.</div>') +
+    '</div>';
+    $$("[data-usr-ic]", sec).forEach(function (span) { span.appendChild(Studio.icon("user", 18)); });
+    var newBtn = $("#usrNewBtn", sec); if (newBtn) newBtn.onclick = function () { openUserEditor(); };
+    $$("[data-usr-edit]", sec).forEach(function (btn) {
+      btn.onclick = function () { var u = Auth.find(btn.getAttribute("data-usr-edit")); if (u) openUserEditor(u); };
+    });
+    $$("[data-usr-del]", sec).forEach(function (btn) {
+      btn.onclick = function () {
+        if (btn.disabled) return;
+        var uid = btn.getAttribute("data-usr-del");
+        var u = Auth.find(uid); if (!u) return;
+        if (uid === me.u) { toast("You can't remove your own signed-in account.", true); return; }
+        if (!confirm('Remove user "' + (u.name || u.u) + '"? They will no longer be able to sign in.')) return;
+        var r = Auth.remove(uid);
+        if (!r.ok) { toast(r.error === "last-admin" ? "Can't remove the last admin." : "Couldn't remove that user.", true); return; }
+        try { Studio.Workspace.remove("users", "user_" + uid, { silent: true }); } catch (e) {}
+        toast("Removed " + (u.name || u.u));
+        renderAdmin();
+      };
+    });
+  }
+  window.__studioRenderAdmin = renderAdmin; // test hook
+
+  function openUserEditor(existing) {
+    modal(existing ? "Edit user" : "Add user", function (b) {
+      var form = el("div", "cx-wiz-form");
+      var uRow = el("label", "cx-field"); uRow.innerHTML = "<span>Username</span>";
+      var uInp = el("input"); uInp.type = "text"; uInp.autocomplete = "off"; uInp.placeholder = "e.g. jsmith";
+      uInp.value = existing ? existing.u : ""; uInp.disabled = !!existing;
+      uRow.appendChild(uInp); form.appendChild(uRow);
+      var nRow = el("label", "cx-field"); nRow.innerHTML = "<span>Display name</span>";
+      var nInp = el("input"); nInp.type = "text"; nInp.placeholder = "e.g. Jamie Smith";
+      nInp.value = existing ? (existing.name || "") : "";
+      nRow.appendChild(nInp); form.appendChild(nRow);
+      var rRow = el("label", "cx-field"); rRow.innerHTML = "<span>Role</span>";
+      var rSel = el("select");
+      [["admin", "Admin — full access"], ["viewer", "Viewer — browse & explore"]].forEach(function (r) {
+        var o = el("option"); o.value = r[0]; o.textContent = r[1];
+        if ((existing ? existing.role : "viewer") === r[0]) o.selected = true;
+        rSel.appendChild(o);
+      });
+      rRow.appendChild(rSel); form.appendChild(rRow);
+      var pRow = el("label", "cx-field");
+      pRow.innerHTML = "<span>" + (existing ? "New password (optional)" : "Password") + "</span>";
+      var pInp = el("input"); pInp.type = "password"; pInp.autocomplete = "new-password";
+      pInp.placeholder = existing ? "Leave blank to keep the current password" : "";
+      pRow.appendChild(pInp); form.appendChild(pRow);
+      b.appendChild(form);
+      var result = el("div", "cx-test-result"); b.appendChild(result);
+      var foot = el("div", "cx-wiz-foot");
+      var saveBtn = el("button", "btn primary"); saveBtn.type = "button"; saveBtn.textContent = existing ? "Save changes" : "Add user";
+      foot.appendChild(saveBtn); b.appendChild(foot);
+      saveBtn.onclick = function () {
+        var u = uInp.value.trim();
+        if (!u) { uInp.focus(); result.className = "cx-test-result bad"; result.textContent = "Give the user a username first."; return; }
+        if (!existing && window.PolecatAuth.find(u)) { result.className = "cx-test-result bad"; result.textContent = "That username is already taken."; return; }
+        if (!existing && !pInp.value) { pInp.focus(); result.className = "cx-test-result bad"; result.textContent = "Set a password."; return; }
+        var opts = { name: nInp.value.trim() || u, role: rSel.value };
+        if (pInp.value) opts.pass = pInp.value;
+        window.PolecatAuth.upsert(u, opts).then(function () {
+          try { if (window.__studioAuthBoot) window.__studioAuthBoot(); } catch (e) {}
+          try { if (window.__studioShellApplyRoleGating) window.__studioShellApplyRoleGating(); } catch (e) {}
+          toast(existing ? "Saved " + opts.name : "Added " + opts.name);
+          renderAdmin();
+          document.querySelector(".modal-ov .x").click();
+        });
+      };
+    });
+  }
+  window.__studioOpenUserEditor = openUserEditor; // test hook
 
   // Keeps the mobile-drawer "quick settings" checkboxes (#railQuick) in sync with the real
   // state after every mutation path that already calls renderSettings() (Settings page itself,

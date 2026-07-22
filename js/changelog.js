@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 421,
+    title: 'Admin: manage who can sign in and their role',
+    kind: 'feature',
+    ts: '2026-07-22T03:33:43.000Z',
+    items: [
+      'New Admin area (rail item, admins only) lists every account with its role and lets you add a user, edit their name/role/password, or remove them.',
+      'Roles are admin (full access) or viewer (browse and explore); this is UX-level gating today, same honesty as the rest of sign-in -- database-enforced roles arrive with the later Supabase-RLS slice.',
+      'Refuses to remove the workspace\'s last admin so nobody locks everyone out by accident.',
+      'First slice of the Admin + permissions milestone; per-section rights and the private/public flag on saved objects are next.',
+    ],
+  },
+  {
     v: 420,
     title: 'Tech-debt sweep: shared lsGet/lsSet localStorage helpers',
     kind: 'polish',

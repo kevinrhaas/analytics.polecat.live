@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v68"; /* v68: M3.2 connect-to-backend from
+var CACHE_NAME = "studio-shell-v69"; /* v69: M4 admin — a rail area (admins only)
+   to list every account, add/edit/remove one, and set their role (admin/viewer);
+   PolecatAuth.remove() refuses to drop the workspace's last admin. app/index.html,
+   app/shell.js, app/gate.js, app/auth.js, app/icons.js, app/studio.js, app/studio.css
+   changed.
+   v68: M3.2 connect-to-backend from
    sign-in — the sign-in screen gets a "Connect to your workspace…" entry point
    that opens the same backend-connect wizard Settings uses (stacked above the
    gate overlay), mirrors the connected/adopted workspace's users table into the
