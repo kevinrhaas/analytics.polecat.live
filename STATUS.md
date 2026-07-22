@@ -1182,6 +1182,17 @@
 >    Real "private = only I can see it" is DB-enforced via row-level security. M3.2 connect-to-backend
 >    + provisioning targets **Supabase first** (the other adapters keep working, but Supabase is the
 >    reference enforced backend). Turso/Firebase are NOT the enforcement backend.
+>    **↳ LIVE PROJECT (Kevin provisioned it, 2026-07-22):** Supabase project ref `lnngiprrrcxtsawamqei`
+>    (host `db.lnngiprrrcxtsawamqei.supabase.co`). The DB password is the CI secret **`SUPABASE_PASSWORD`**
+>    (in polecat-platform + analytics; wired into steward-improve.yml by platform PR #70) — use it for
+>    SERVER-SIDE work only: provision/verify the schema + RLS SQL and run `psql` DB integration tests.
+>    ⚠️ **SAFETY: scope ALL DB work to a throwaway `steward_test` schema — NEVER CREATE/DROP/ALTER/DELETE
+>    against live `public` tables.** The BROWSER app never uses this password: `app/sources/supabase.js`
+>    connects via PostgREST + the **anon public key** entered in the Connect wizard, and it is
+>    `browserProvision:false` (provisioning is a paste-into-SQL-editor script the adapter generates —
+>    the lane should generate/verify that SQL, not assume browser DDL). Full browser-round-trip CI
+>    (PostgREST + anon key + RLS) still needs `SUPABASE_URL` + `SUPABASE_ANON_KEY` CI secrets — not added
+>    yet; ask Kevin before assuming them. Never echo `SUPABASE_PASSWORD` into commits/PRs/issues/logs.
 > 3. **Privacy rollout = PHASED.** Ship the private/public flag on every saved object as UI-level
 >    hiding in M4 NOW (honest "not cryptographic isolation" until the DB enforces it), then real
 >    RLS enforcement lands in M7. Do not gate the M4 flag on the backend being ready.
