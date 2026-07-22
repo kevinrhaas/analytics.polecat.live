@@ -19,6 +19,14 @@
   // Viridis V7: the ensemble demo's provider/practice vocabulary — shared by the
   // classify()/valueFor() heuristics below and by Studio.crossedRows.
   var PROVIDERS = ["DTN", "Indigo Ag", "Iowa State", "Regrow", "Terra Diagnostics"];
+  // LF1: distinct per-provider offset + slope (symmetric around 0, so the middle
+  // provider tracks the plain baseline and the set's median still reads as the
+  // "common estimate") — without these the small ±1.5/label jitter used to be
+  // swamped by the ±16 random noise below, so the 5 provider lines bunched and
+  // were impossible to tell apart. Growing separation over the label axis (larger
+  // slopes at the extremes) reads as believable provider divergence, not noise.
+  var PROVIDER_OFFSET = [-10, -5, 0, 5, 10];
+  var PROVIDER_SLOPE = [-0.6, -0.3, 0, 0.3, 0.6];
   var PRACTICES = ["Cover crops", "No-till", "Reduced tillage", "Conventional"];
   var CROPS = ["Corn", "Soybeans", "Wheat", "Hay"];
   // real Corn Belt HUC8 subbasins / NASS crop-reporting districts / state postals —
@@ -205,7 +213,7 @@
         rows.push(cols.map(function (c, ci) {
           if (ci === 0) return lab;
           if (ci === si) return prov;
-          if (kinds[ci] === "pct") { var hv = seed(c + "_" + li + "_" + pi); return Math.max(2, Math.round((58 + (hv % 32) - pi * 1.5 + li * 0.7) * 10) / 10); }
+          if (kinds[ci] === "pct") { var hv = seed(c + "_" + li + "_" + pi); return Math.min(100, Math.max(2, Math.round((58 + (hv % 12) - 6 + li * 0.7 + PROVIDER_OFFSET[pi] + PROVIDER_SLOPE[pi] * li) * 10) / 10)); }
           return valueFor(kinds[ci], li * PROVIDERS.length + pi, labels.length * PROVIDERS.length, false, c);
         }));
       });

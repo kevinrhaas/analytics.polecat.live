@@ -2441,6 +2441,28 @@ function serve() {
     ok("DP: AgCensus reference rows land only on real AgCensus years (2017, 2022) — sparse like the real release cadence",
       JSON.stringify(dpUnit.agYears) === JSON.stringify(["2017", "2022"]), JSON.stringify(dpUnit.agYears));
 
+    // LF1: the 5 ensemble providers used to bunch together (a small ±1.5 per-provider
+    // offset swamped by ±16 random noise) — each provider now carries a distinct enough
+    // average level to read as a separate line, while values stay clamped 2-100.
+    const lf1 = await page.evaluate(function () {
+      var crossed = Studio.crossedRows({ id: "lf1", columns: ["year", "provider", "pct"] }, "provider");
+      var byProvider = {}, allVals = [];
+      crossed.rows.forEach(function (r) {
+        if (r[1] === "AgCensus") return;
+        (byProvider[r[1]] = byProvider[r[1]] || []).push(r[2]);
+        allVals.push(r[2]);
+      });
+      var avgs = Object.keys(byProvider).map(function (p) {
+        var vals = byProvider[p];
+        return vals.reduce(function (a, b) { return a + b; }, 0) / vals.length;
+      });
+      return { providerCount: Object.keys(byProvider).length,
+        avgSpread: Math.max.apply(null, avgs) - Math.min.apply(null, avgs),
+        minVal: Math.min.apply(null, allVals), maxVal: Math.max.apply(null, allVals) };
+    });
+    ok("LF1: ensemble providers carry distinct average pct levels (visibly separable lines, not bunched noise), still clamped 2-100",
+      lf1.providerCount === 5 && lf1.avgSpread >= 10 && lf1.minVal >= 2 && lf1.maxVal <= 100, JSON.stringify(lf1));
+
     const dpInstall = await page.evaluate(function () {
       window.__studioDemoPacks.install("conservation");
       var conns = Studio.Workspace.all("connections").filter(function (r) { return r.demoPackId === "conservation"; });

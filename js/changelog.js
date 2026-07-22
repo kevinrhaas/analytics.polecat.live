@@ -6,6 +6,14 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 436,
+    title: 'Sample ensemble data: the 5 demo providers are easier to tell apart',
+    ts: '2026-07-22T16:53:41.000Z',
+    items: [
+      'In the Conservation ensemble sample data, the 5 provider lines (DTN, Indigo Ag, Iowa State, Regrow, Terra Diagnostics) used to bunch together and were hard to distinguish. Each provider now carries its own distinct level and trend, so the lines read as clearly separate in the demo — while the group’s overall shape still reads as one consensus estimate.',
+    ],
+  },
+  {
     v: 435,
     title: 'The notification toast and “live demo” badge now follow the app theme',
     ts: '2026-07-22T16:41:34.000Z',

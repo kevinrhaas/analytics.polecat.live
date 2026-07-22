@@ -116,6 +116,18 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **Demo data: more provider-line variation (v436, 2026-07-22, steward, LF1):** the 5 ensemble
+  providers' `pct` formula in `Studio.crossedRows` was `58 + jitter(0-31) - pi*1.5 + li*0.7` — the
+  ±1.5-per-provider offset was swamped by ±31 of random jitter, so the 5 lines bunched together and
+  were hard to tell apart. New `PROVIDER_OFFSET`/`PROVIDER_SLOPE` arrays (symmetric around zero:
+  `[-10,-5,0,5,10]` / `[-0.6,-0.3,0,0.3,0.6]`) give each provider its own level AND trend slope so
+  separation grows over the year axis; the middle provider (Iowa State, offset/slope 0) keeps
+  tracking the plain baseline so the group's median still reads as the consensus estimate. Jitter
+  narrowed from `hv%32` to `hv%12-6` (±6) so it no longer swamps the signal. Also added the upper
+  clamp the original LF1 ask called for (`Math.min(100,…)` — only the lower bound existed before).
+  1 new LF1 ratchet (5 distinct providers, avg-level spread ≥10, values stay in [2,100]). (app/
+  sampledata.js, tests/run.js) NEXT in the live-feedback queue: LF2 (conservation examples +
+  demo-pack restructure).
 - **Theme the toast + demo-badge (v435, 2026-07-22, steward, fourth quality-track slice, UX3):**
   `.toast` was hardcoded `#10233f`/`.err #7a1730` — a fixed dark navy regardless of the active app
   theme (Classic Blue/Polecat/Fleet Modern) or light/dark mode. It now uses `--topbar-bg`/
@@ -1306,11 +1318,17 @@
 
 ### ★ LIVE-FEEDBACK QUEUE (Kevin, 2026-07-22) — fold into the interleave
 > Product/demo asks from a live session; treat as first-class feature slices.
-> LF1. **Demo data — more provider-line variation.** In the ensemble sample data the 5 providers
->      (DTN/Indigo Ag/Iowa State/Regrow/Terra Diagnostics) track too closely — their lines bunch and
->      you can't tell them apart. Widen per-provider variation in `Studio.crossedRows` (app/sampledata.js):
->      distinct per-provider offsets/slopes so each line is visibly separable, while the median "common
->      estimate" still reads as the consensus. Keep values believable (clamp 2–100%).
+> LF1. ✓ **Demo data — more provider-line variation (shipped 2026-07-22, steward):** the 5 ensemble
+>      providers' `pct` values used to be `58 + jitter(0-31) - pi*1.5 + li*0.7` — a ±1.5-per-provider
+>      offset swamped by ±31 of random noise, so the lines bunched. New symmetric-around-zero
+>      `PROVIDER_OFFSET`/`PROVIDER_SLOPE` arrays (`[-10,-5,0,5,10]` / `[-0.6,-0.3,0,0.3,0.6]`, keyed by
+>      provider index) give each provider a distinct level AND a distinct trend slope, so separation
+>      grows over the year axis instead of reading as flat noise; Iowa State (the middle provider, offset/
+>      slope 0) keeps tracking the plain baseline so the group's median still reads as the consensus.
+>      Jitter narrowed from `hv%32` to `hv%12-6` (±6) so it no longer swamps the provider signal. Also
+>      added the upper clamp the spec called for (`Math.min(100, …)` — only the lower `Math.max(2,…)`
+>      existed before). 1 new LF1 ratchet (5 providers, avg-level spread ≥10, values stay in [2,100]).
+>      (app/sampledata.js, tests/run.js) NEXT: LF2 (conservation examples + demo-pack restructure).
 > LF2. **Conservation examples + demo-pack restructure.** (a) Add ~8 CONSERVATION/CTIC examples (like
 >      the existing 8 generic ones) attached to the CONSERVATION demo pack (install/remove with it). (b)
 >      The conservation example dashboards + pinned analyses must wear the **Conservation** dashboard
