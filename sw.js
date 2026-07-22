@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v82"; /* v82: FIX — the job editor's "Remove
+var CACHE_NAME = "studio-shell-v83"; /* v83: UX3 — the toast and demo-mode
+   badge no longer wear a hardcoded dark-navy/red regardless of theme; toast
+   now uses --topbar-bg/--topbar-ink (matches the active app theme's rail
+   surface) and both toast.err + .demo-badge darken --bad via color-mix so the
+   hue tracks the theme while staying readable with white text. app/studio.css
+   changed.
+   v82: FIX — the job editor's "Remove
    step" and per-metric/mapping "✕" buttons were near-invisible (faint
    white-on-light) inside the modal, which sits on the light --pane surface
    rather than the dark rail/topbar the base .btn assumes (LF14). New
