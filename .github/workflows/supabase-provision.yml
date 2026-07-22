@@ -1,0 +1,58 @@
+name: Supabase provision (analytics workspace)
+
+# One-shot, manually-dispatched admin task: create the Polecat "analytics"
+# workspace schema in the connected Supabase Postgres and seed its meta rows.
+# Idempotent (tools/supabase-bootstrap.sql is all CREATE TABLE IF NOT EXISTS /
+# upsert), so re-running is safe. Uses the SUPABASE_PASSWORD repo secret via
+# psql — SERVER-SIDE only; the browser app never uses this password.
+#
+# Network note: GitHub-hosted runners are IPv4-only. Supabase's DIRECT db host
+# (db.<ref>.supabase.co) is IPv6-only, so if the direct connection can't be
+# reached, set host/user to the project's IPv4 "Session pooler" values
+# (Dashboard -> Connect -> Session pooler: aws-0-<region>.pooler.supabase.com,
+# user postgres.<ref>) via the inputs below.
+
+on:
+  workflow_dispatch:
+    inputs:
+      host:
+        description: 'DB host (direct: db.<ref>.supabase.co, or the Session-pooler host for IPv4)'
+        required: false
+        default: 'db.lnngiprrrcxtsawamqei.supabase.co'
+      user:
+        description: 'DB user (direct: postgres, or postgres.<ref> for the pooler)'
+        required: false
+        default: 'postgres'
+      port:
+        description: 'DB port (5432 direct or session pooler)'
+        required: false
+        default: '5432'
+
+jobs:
+  provision:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install psql client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Apply bootstrap + verify
+        env:
+          PGPASSWORD: ${{ secrets.SUPABASE_PASSWORD }}
+          PGSSLMODE: require
+          PGHOST: ${{ github.event.inputs.host }}
+          PGPORT: ${{ github.event.inputs.port }}
+          PGUSER: ${{ github.event.inputs.user }}
+          PGDATABASE: postgres
+          PGCONNECT_TIMEOUT: '15'
+        run: |
+          set -euo pipefail
+          if [ -z "${PGPASSWORD:-}" ]; then
+            echo "::error::SUPABASE_PASSWORD secret is missing"; exit 1
+          fi
+          echo "== Applying tools/supabase-bootstrap.sql to $PGHOST:$PGPORT as $PGUSER =="
+          psql -v ON_ERROR_STOP=1 -f tools/supabase-bootstrap.sql
+          echo "== Tables =="
+          psql -v ON_ERROR_STOP=1 -c "\dt public.*"
+          echo "== polecat_meta =="
+          psql -v ON_ERROR_STOP=1 -c "SELECT key, value FROM polecat_meta ORDER BY key;"
+          echo "== Provisioned OK =="
