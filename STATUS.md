@@ -116,6 +116,19 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **Admin: manage users (v421, 2026-07-22, steward, M4.1 — Conservation Insight platform, first
+  "Admin + permissions" slice):** a new Admin rail item, visible to admin accounts only (hidden
+  for viewers by `shell.js`'s `applyRoleGating`, which re-runs after every sign-in since shell.js
+  itself boots before gate.js's login handler runs), lists every account with its role and lets an
+  admin add, edit (name/role/password), or remove one via a small modal (`openUserEditor` in
+  app/studio.js). New `PolecatAuth.remove(u)` (app/auth.js) refuses to drop the workspace's last
+  admin (that row's ✕ is disabled too); you also can't remove your own signed-in account. Roles
+  are UX-level gating today, same honesty as the rest of sign-in — DB-enforced roles arrive with
+  the later Supabase-RLS slice. 6 new M4 ratchets (list + role badges, add/edit/remove round-trip,
+  last-admin guard, viewer never sees the rail item, role-gating bounces a viewer off the section).
+  sw v69. (app/index.html, app/shell.js, app/gate.js, app/auth.js, app/icons.js, app/studio.js,
+  app/studio.css) NEXT in M4: per-section (left-rail) rights beyond admin/viewer, and the private/
+  public flag on every saved object.
 - **Tech-debt sweep: `lsGet`/`lsSet` localStorage helpers (v420, 2026-07-22, steward, second
   quality-track slice, R1):** collapsed 11 copy-pasted `try{JSON.parse(localStorage…)}catch{}`
   load blocks + matching setters — inspector collapse state, DA freshness map, export history,
@@ -1354,6 +1367,7 @@
 >     "Adopt backend copy" never updated who could sign in on this browser either. 6 new M3.2
 >     ratchets (entry point, z-stack, pre-provision mirror, importFromStore no-op guard, connect +
 >     sign-in round-trip against a mocked Turso backend). sw v68. NEXT: M4 admin/RLS.
+>     ↳ M4.1 (admin: manage users) shipped 2026-07-22 — see below.
 > > M3. **Auth foundation (phased, UX-level first):** replace the single-passcode gate with a
 >     user/password LOGIN. First screen: demo credentials shown on-screen + local demo mode, OR
 >     connect to a backend repo (Turso/Supabase/Firebase) — show which backend is connected and
@@ -1362,8 +1376,19 @@
 >     an admin user + a few limited demo users. New workspace `users` table (SCHEMA_VERSION bump,
 >     additive; client-side password hashing = UX-gating, honest "not cryptographic isolation"
 >     with a shared key — the real enforcement comes in the later Supabase-RLS slice).
-> M4. **Admin + permissions:** admin area to manage users and grant per-section (left-rail) rights;
->     left-rail items become permissioned. Private/public flag on every saved object (dashboards,
+> M4.1 ✓ **Admin: manage users (shipped 2026-07-22, steward, first M4 slice):** a new Admin rail
+>     item (admin accounts only — hidden for viewers by `shell.js`'s `applyRoleGating`, re-run after
+>     every sign-in since shell.js itself boots before gate.js's login handler) lists every account
+>     with its role, and an "+ Add user" / per-row Edit/✕ let an admin add, edit (name/role/
+>     password), or remove one. New `PolecatAuth.remove(u)` refuses to drop the workspace's last
+>     admin (and the row's ✕ is disabled for it); you also can't remove your own signed-in account.
+>     6 new M4 ratchets (list renders with role badges, add/edit/remove round-trip, last-admin
+>     guard, viewer never sees the rail item and role-gating bounces a demoted/logged-in-as-viewer
+>     session off the section). sw v69. NEXT in M4: per-section (left-rail) rights beyond admin/
+>     viewer, and the private/public flag on every saved object (dashboards, datasets, analyses,
+>     connections, jobs).
+> M4.2. **Per-section rights + object privacy:** grant per-section (left-rail) rights so left-rail
+>     items become permissioned per role; private/public flag on every saved object (dashboards,
 >     datasets, analyses, connections, jobs) — private HIDES from other users in the UI now, with
 >     DB-enforced privacy arriving in the Supabase-RLS slice.
 > M5. **Repository browser:** new left-rail section — a tree/folder view of ALL objects (dashboards,

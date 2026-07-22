@@ -20,7 +20,13 @@
   // mirror + demo-content auto-install) ran while nobody was signed in. Re-run
   // them now that we know who logged in. Harmless if the hook isn't ready yet
   // (already-authed loads reveal without a login and never call this).
-  function afterLogin() { try { if (window.__studioAuthBoot) window.__studioAuthBoot(); } catch (e) {} reveal(); }
+  function afterLogin() {
+    try { if (window.__studioAuthBoot) window.__studioAuthBoot(); } catch (e) {}
+    // shell.js already ran (and gated the Admin rail item) before anyone signed in —
+    // refresh it now that PolecatAuth.current() actually reflects who logged in.
+    try { if (window.__studioShellApplyRoleGating) window.__studioShellApplyRoleGating(); } catch (e) {}
+    reveal();
+  }
 
   async function start() {
     if (!Auth) { reveal(); return; }               // auth.js missing — fail open (dev)

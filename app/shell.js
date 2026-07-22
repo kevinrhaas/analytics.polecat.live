@@ -8,12 +8,12 @@
   "use strict";
   var LS_SECTION = "studio-shell-section";
   var LS_EXPANDED = "studio-shell-expanded";
-  var SECTIONS = ["home", "explore", "dashboards", "datasets", "jobs", "connections", "studio", "settings"];
+  var SECTIONS = ["home", "explore", "dashboards", "datasets", "jobs", "connections", "studio", "admin", "settings"];
   // Fleet-standard topbar shows the current section name (top-left). "studio" is the
   // dashboard builder — its human label.
   var SECTION_LABELS = {
     home: "Home", explore: "Explore", dashboards: "Dashboards", datasets: "Datasets",
-    jobs: "Jobs", connections: "Connections", studio: "Studio", settings: "Settings"
+    jobs: "Jobs", connections: "Connections", studio: "Studio", admin: "Admin", settings: "Settings"
   };
 
   var nav = document.getElementById("railNav");
@@ -145,6 +145,24 @@
   if (savedSection === "repository") savedSection = "dashboards"; // Repository retired → Dashboards
   setActive(savedSection, false);
   setExpanded(savedExpanded, false);
+
+  // M4 (admin): rail items marked data-admin-only (today: just Admin) hide for
+  // non-admin accounts — UI-level gating, matching auth.js's own honesty about not
+  // being cryptographic enforcement (that's the later Supabase-RLS slice, M7).
+  // PolecatAuth.current() is synchronous (localStorage-only, no crypto), so this
+  // reads correctly even on the very first paint of an already-signed-in reload.
+  // shell.js runs BEFORE gate.js's login handler (script order, see index.html), so
+  // a fresh sign-in re-runs this itself via the exposed hook below.
+  var adminOnlyItems = items.filter(function (btn) { return btn.hasAttribute("data-admin-only"); });
+  function applyRoleGating() {
+    var Auth = window.PolecatAuth;
+    var me = Auth && Auth.current();
+    var isAdmin = !Auth || !me || me.role === "admin";
+    adminOnlyItems.forEach(function (btn) { btn.hidden = !isAdmin; });
+    if (!isAdmin && desiredSection === "admin") setActive("home");
+  }
+  applyRoleGating();
+  window.__studioShellApplyRoleGating = applyRoleGating;
 
   window.__studioShellSetSection = setActive; // test hook
 })();
