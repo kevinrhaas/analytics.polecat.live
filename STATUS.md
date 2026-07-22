@@ -1322,6 +1322,15 @@
 >      (shell.js setActive / __studioShellSetSection) and on opening overlays (panel-zoom, modals,
 >      dataset/job editors, Explore analysis), and handle `popstate` to navigate back instead of
 >      unloading. Closing an overlay via Back also fixes the LF8 zoom trap. app/shell.js, app/studio.js.
+> LF10. **Chart palette should default to the active app theme.** In Explore the preview chart defaults
+>       to a fixed dark-blue palette (Fleet/Classic Blue) instead of following the app's current Color
+>       theme. The DEFAULT chart palette (and light/dark) for the Explore preview AND newly created
+>       dashboards/widgets should match the app Color theme — Polecat app theme → Polecat ramp,
+>       Conservation → conservation ramp, Classic Blue → blue, etc. Map each app Color theme (data-app-
+>       theme) → its matching DASHBOARD_THEMES entry and use it as the default (unless the user
+>       overrode the dashboard theme); make the Explore preview inherit the app's light/dark mode too.
+>       Pairs with UX11 (Conservation app theme). app/studio.js (xpSpec default + defaultDashboardTheme),
+>       app/model.js (app-theme→dashboard-theme map).
 
 ### 🔁 QUALITY TRACKS — interleave with the feature backlog (Kevin, 2026-07-21)
 > Kevin asked for a code-organization sweep AND a UI/UX best-practices sweep, folded INTO the loop
