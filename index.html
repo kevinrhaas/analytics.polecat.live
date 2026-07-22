@@ -8,7 +8,7 @@
 <meta property="og:title" content="Analytics"/>
 <meta property="og:description" content="Connect your data, build beautiful dashboards, share them anywhere. Local-first, in your browser."/>
 <meta property="og:url" content="https://analytics.polecat.live/"/>
-<meta property="og:image" content="https://analytics.polecat.live/site/shots/studio.png"/>
+<meta property="og:image" content="https://analytics.polecat.live/site/shots/dashboard-dark.png"/>
 <link rel="icon" type="image/svg+xml" href="favicon.svg"/>
 <link rel="apple-touch-icon" href="apple-touch-icon.png"/>
 <meta name="theme-color" content="#231e28"/>
@@ -52,12 +52,15 @@
     <!-- hero: auto-playing carousel of real app screenshots -->
     <div class="hero-carousel" id="showcase">
       <div class="hc-frame" aria-roledescription="carousel" aria-label="Analytics screenshots">
-        <img class="hc-img on" data-i="0" src="site/shots/studio.png"         width="2160" height="1350" alt="The Analytics builder with the flagship cost dashboard, light theme"/>
-        <img class="hc-img"    data-i="1" src="site/shots/dashboard-dark.png" width="2160" height="1350" loading="lazy" alt="An exported dashboard in dark mode — KPIs, donut, treemap and bars"/>
-        <img class="hc-img"    data-i="2" src="site/shots/showcase.png"       width="2160" height="1350" loading="lazy" alt="The chart showcase dashboard — ribbons, slopes and funnel views"/>
-        <img class="hc-img"    data-i="3" src="site/shots/map.png"            width="2160" height="1350" loading="lazy" alt="A US county choropleth map of the Corn Belt"/>
-        <img class="hc-img"    data-i="4" src="site/shots/ensemble.png"       width="2160" height="1350" loading="lazy" alt="The Ensemble chart — a bold median line over muted provider estimates"/>
-        <img class="hc-img"    data-i="5" src="site/shots/studio-dark.png"    width="2160" height="1350" loading="lazy" alt="The Analytics builder in dark theme with a finance dashboard"/>
+        <img class="hc-img on" data-i="0" src="site/shots/dashboard-dark.png" width="2160" height="1350" alt="A finished dashboard in Polecat dark — KPIs, bars, a donut and a treemap"/>
+        <img class="hc-img"    data-i="1" src="site/shots/map.png"            width="2160" height="1350" loading="lazy" alt="A US county choropleth of the Corn Belt in dark mode"/>
+        <img class="hc-img"    data-i="2" src="site/shots/watershed.png"      width="2160" height="1350" loading="lazy" alt="A HUC8 watershed choropleth — a custom geography, in dark mode"/>
+        <img class="hc-img"    data-i="3" src="site/shots/home-dark.png"      width="2160" height="1350" loading="lazy" alt="The Home screen — featured dashboards and pinned analysis widgets as live tiles"/>
+        <img class="hc-img"    data-i="4" src="site/shots/explore-dark.png"   width="2160" height="1350" loading="lazy" alt="The Explore designer — a dataset table, a chart-type picker and a live result"/>
+        <img class="hc-img"    data-i="5" src="site/shots/datasets-dark.png"  width="2160" height="1350" loading="lazy" alt="The Datasets workspace — reusable, tagged queries built on your connections"/>
+        <img class="hc-img"    data-i="6" src="site/shots/showcase.png"       width="2160" height="1350" loading="lazy" alt="A chart-showcase dashboard in dark — flowing ribbons, before/after slopes and a marimekko"/>
+        <img class="hc-img"    data-i="7" src="site/shots/ensemble.png"       width="2160" height="1350" loading="lazy" alt="The Ensemble chart — a common-estimate line over muted provider estimates"/>
+        <img class="hc-img"    data-i="8" src="site/shots/studio-dark.png"    width="2160" height="1350" loading="lazy" alt="The Analytics builder in dark theme with the data and inspector panels"/>
         <button class="hc-arrow prev" id="hcPrev" type="button" aria-label="Previous screenshot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button>
         <button class="hc-arrow next" id="hcNext" type="button" aria-label="Next screenshot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
       </div>
@@ -120,12 +123,15 @@
   var dotsWrap = document.getElementById("hcDots");
   if (!frame || !imgs.length) return;
   var CAPS = [
-    "<b>The builder.</b> Drag datasets onto the canvas, tune every chart in the inspector, and watch the real dashboard render live — on sample data before you ever connect anything.",
-    "<b>The finished product.</b> Every dashboard exports as one self-contained .html file — byte-identical to the live preview, light and dark, no server required.",
-    "<b>25+ chart types.</b> Flowing ribbons, before/after slopes, treemaps, radials, Marimekkos — a full visual vocabulary, not just bars and lines.",
-    "<b>Map your data, anywhere.</b> Color-code US maps at state, county, USDA-district or watershed scale — pan, zoom, choose your color ramp, and bring your own custom geographies. Lots of ways to color and explore data on a map.",
-    "<b>Special charts, built in.</b> Custom chart types you won’t find in a spreadsheet — like the Ensemble chart, which brings together data from many sources into one common estimate, with the underlying evidence still visible behind it.",
-    "<b>Dark, light &amp; delightful.</b> Warm themes, a keyboard palette, guided tour and version history — Analytics feels like a creative tool."
+    "<b>The finished product.</b> A polished, interactive dashboard — KPIs, bars, a donut and a treemap — that exports as one self-contained .html file, no server required. This is what you ship.",
+    "<b>Map your data.</b> Color-code US maps down to the county — state, county and USDA-district scales built in. Pan, zoom and pick your color ramp.",
+    "<b>Custom geographies, too.</b> Not just states and counties — bring your own boundaries, like these USGS HUC8 watersheds. Any region you can draw, you can map.",
+    "<b>Everything in one place.</b> Home gathers your featured dashboards and reusable analysis widgets as live tiles — open one, edit it, or drop it into any dashboard.",
+    "<b>Build a widget in seconds.</b> Explore: start from a dataset, see it as a table, pick a chart, map the fields, and save it as a reusable analysis.",
+    "<b>A real data workspace.</b> Connections and reusable, tagged datasets — the building blocks every dashboard is made of, all in your browser.",
+    "<b>25+ chart types.</b> Flowing ribbons, before/after slopes, treemaps, Marimekkos, packed bubbles — a full visual vocabulary, not just bars and lines.",
+    "<b>Special charts, built in.</b> Custom chart types you won’t find in a spreadsheet — like the Ensemble chart, which blends many sources into one common estimate with the evidence still visible.",
+    "<b>The builder — light or dark.</b> Drag datasets onto the canvas, tune every chart in the inspector, and watch it render live. Warm themes, a keyboard palette, a guided tour and version history. (Shown in Polecat dark; a light mode ships too.)"
   ];
   var dots = imgs.map(function (_, i) {
     var d = document.createElement("button");
