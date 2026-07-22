@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 431,
+    title: 'Admins can now hide sections from viewers',
+    kind: 'feature',
+    ts: '2026-07-22T14:52:35.000Z',
+    items: [
+      'The Admin area gained a Section access card: an admin can toggle Explore, Dashboards, Datasets, Jobs, Connections, and Studio off for the viewer role, and they disappear from that role\'s left rail immediately. Home always stays on so there\'s always a safe place to land. This is the per-section-rights half of M4.2 -- object-level privacy (dashboards/connections/datasets/analyses/jobs) shipped earlier; this closes out the remaining "permissioned left-rail items" follow-up.',
+    ],
+  },
+  {
     v: 430,
     title: 'Fix: signing in as an admin now opens the Admin area',
     kind: 'fix',

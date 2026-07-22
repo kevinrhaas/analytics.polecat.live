@@ -7853,6 +7853,29 @@
   }
   window.__studioBranding = { get: getBranding, set: setBranding, apply: applyBranding }; // test hook
 
+  /* ---------- M4.2 (per-section rights half): which rail sections a viewer may
+     see. Admin-only sections (Admin itself) already have their own gating; these
+     are the ordinary sections an admin can additionally hide from the viewer
+     role. Default is the empty list — every section stays visible until an admin
+     opts to narrow it, so adopting this feature changes nothing for existing
+     workspaces. Home is deliberately NOT offered here — it's the fallback
+     landing section a bounced viewer is sent to (same convention as the Admin
+     rail's own bounce), so it must always stay reachable. */
+  var CONFIGURABLE_SECTIONS = [
+    ["explore", "Explore"], ["dashboards", "Dashboards"],
+    ["datasets", "Datasets"], ["jobs", "Jobs"], ["connections", "Connections"], ["studio", "Studio"]
+  ];
+  function getHiddenSections() { return lsGet("studio-hidden-sections", []); }
+  function setSectionHidden(sec, hidden) {
+    var list = getHiddenSections().slice();
+    var i = list.indexOf(sec);
+    if (hidden && i < 0) list.push(sec);
+    else if (!hidden && i >= 0) list.splice(i, 1);
+    lsSet("studio-hidden-sections", list);
+    try { if (window.__studioShellApplyRoleGating) window.__studioShellApplyRoleGating(); } catch (e) {}
+  }
+  window.__studioSectionRights = { get: getHiddenSections, set: setSectionHidden, CONFIGURABLE: CONFIGURABLE_SECTIONS }; // test hook
+
   // Z5 follow-up: export/import Settings as JSON — the keys below are app-wide
   // *preferences* (theme, mode, layout, connections), never dashboard content —
   // that's already covered by Save/Open. Lets a user carry their setup to another
@@ -7863,7 +7886,7 @@
     "studio-insp-collapsed", "studio-shell-section", "studio-shell-expanded", "studio-branding",
     "studio-default-subtitle", "studio-default-accent", "studio-default-logo", "studio-default-headerbg",
     "studio-default-titlesize", "studio-default-subtitlestyle", "studio-default-dashboardtheme", "studio-default-cardskin", "studio-style-presets",
-    "studio-deploy-path", "studio-templatevar-sets", "studio-customtheme-presets"
+    "studio-deploy-path", "studio-templatevar-sets", "studio-customtheme-presets", "studio-hidden-sections"
   ];
 
   // Z5 follow-up: deploy target config. S.settings.{deployPath,live} used to be in-memory-only
@@ -8395,13 +8418,26 @@
           '<button type="button" class="btn" data-usr-del="' + esc(u.u) + '"' + (lastAdmin ? ' disabled title="The workspace needs at least one admin"' : "") + ' aria-label="Remove ' + esc(u.name || u.u) + '">✕</button>' +
         '</span></div>';
     }).join("");
+    var hiddenSections = getHiddenSections();
+    var sectionRows = CONFIGURABLE_SECTIONS.map(function (s) {
+      var hidden = hiddenSections.indexOf(s[0]) >= 0;
+      return '<div class="set-row"><div class="set-row-txt"><b>' + esc(s[1]) + '</b></div>' +
+        '<label class="set-sw"><input type="checkbox" data-sec-right="' + esc(s[0]) + '"' + (hidden ? "" : " checked") + '/><span class="set-sw-track"></span></label></div>';
+    }).join("");
     sec.classList.add("has-content");
     sec.innerHTML = '<div class="repo-wrap"><div class="repo-hero"><h1>Admin</h1>' +
       '<p>Manage who can sign in to this workspace. <b>Admin</b> has full access; <b>viewer</b> can browse and explore but not edit. This is UX-level access control today — per-object privacy and DB-enforced roles arrive with the Supabase-RLS slice.</p>' +
       '<div class="repo-io"><button type="button" class="btn primary" id="usrNewBtn">+ Add user</button></div></div>' +
       (rows ? '<div class="cx-list">' + rows + '</div>' : '<div class="cx-empty">No users yet.</div>') +
+      '<div class="settings-card"><h2>Section access</h2>' +
+      '<p class="ws-card-intro">Turn a section off for the <b>viewer</b> role — it disappears from their rail. Admins always see every section.</p>' +
+      sectionRows +
+      '</div>' +
     '</div>';
     $$("[data-usr-ic]", sec).forEach(function (span) { span.appendChild(Studio.icon("user", 18)); });
+    $$("[data-sec-right]", sec).forEach(function (cb) {
+      cb.addEventListener("change", function () { setSectionHidden(cb.getAttribute("data-sec-right"), !cb.checked); });
+    });
     var newBtn = $("#usrNewBtn", sec); if (newBtn) newBtn.onclick = function () { openUserEditor(); };
     $$("[data-usr-edit]", sec).forEach(function (btn) {
       btn.onclick = function () { var u = Auth.find(btn.getAttribute("data-usr-edit")); if (u) openUserEditor(u); };
