@@ -19303,6 +19303,67 @@ function serve() {
       window.__studioRenderSettings();
     }); // restore defaults for later tests
 
+    // ── LF10: default chart palette follows the app's own Color theme ──
+    console.log("\n• LF10: default palette follows the app Color theme");
+    const lf10Unit = await page.evaluate(function () {
+      var api = window.__studioAppTheme;
+      var orig = api.get();
+      var out = {};
+      api.set("classic"); out.classic = window.__studioDefaultDashboardTheme();
+      api.set("polecat"); out.polecat = window.__studioDefaultDashboardTheme();
+      api.set("modern"); out.modern = window.__studioDefaultDashboardTheme();
+      api.set(orig);
+      return out;
+    });
+    ok("LF10: with no explicit override, the default dashboard theme tracks the app Color theme (classic→blank, polecat→polecat, modern→fleet-modern)",
+      lf10Unit.classic === "" && lf10Unit.polecat === "polecat" && lf10Unit.modern === "fleet-modern", JSON.stringify(lf10Unit));
+
+    const lf10Override = await page.evaluate(function () {
+      window.__studioAppTheme.set("modern");
+      localStorage.setItem("studio-default-dashboardtheme", "classic");
+      var v = window.__studioDefaultDashboardTheme();
+      localStorage.removeItem("studio-default-dashboardtheme");
+      window.__studioAppTheme.set("classic");
+      return v;
+    });
+    ok("LF10: an explicit Settings default-dashboard-theme override still wins over the app Color theme",
+      lf10Override === "", String(lf10Override));
+
+    // End-to-end: the Explore preview seeds from the same default, AND now inherits the app's
+    // light/dark mode (previously the preview iframe never got a theme postMessage, so it always
+    // rendered light regardless of the app's mode).
+    await page.evaluate(function () { window.__studioAppTheme.set("modern"); });
+    await page.click('#secSettings input[data-set="dark"]'); // → dark
+    await page.waitForTimeout(80);
+    await page.click('#railNav .rail-item[data-sec="explore"]'); await page.waitForTimeout(200);
+    await page.evaluate(function () {
+      var btn = [].filter.call(document.querySelectorAll(".xp-ds"), function (b) {
+        return b.getAttribute("data-xp-ds").indexOf("sample") === 0;
+      })[0];
+      btn.click();
+    });
+    const lf10XpModernDark = await page.evaluate(function () {
+      return new Promise(function (resolve) {
+        var t0 = Date.now();
+        (function poll() {
+          var f = document.querySelector(".xp-ifr"), w = null;
+          try { w = f && f.contentWindow; } catch (e) {}
+          if (w && w.STUDIO_SPEC) resolve({ dashboardTheme: w.STUDIO_SPEC.dashboardTheme, dataTheme: w.document.documentElement.getAttribute("data-theme") });
+          else if (Date.now() - t0 > 10000) resolve(null);
+          else setTimeout(poll, 120);
+        })();
+      });
+    });
+    ok("LF10: the Explore preview's default palette follows Fleet Modern AND inherits dark mode (was always light before)",
+      !!lf10XpModernDark && lf10XpModernDark.dashboardTheme === "fleet-modern" && lf10XpModernDark.dataTheme === "dark",
+      JSON.stringify(lf10XpModernDark));
+
+    // restore baseline (Classic Blue + Light) for subsequent tests
+    await page.click('#railNav .rail-item[data-sec="settings"]'); await page.waitForTimeout(80);
+    await page.click('#secSettings input[data-set="dark"]');
+    await page.evaluate(function () { window.__studioAppTheme.set("classic"); });
+    await page.waitForTimeout(80);
+
     // ── Z12: Branding as a Settings option (default / custom logo / none) ──
     console.log("\n• Z12: Branding Settings card");
     const z12Api = await page.evaluate(function () {

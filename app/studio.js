@@ -916,6 +916,10 @@
       // (that chrome reads as "too much" for a one-widget build view). hideHeader shows
       // just the chart, reusing the same flag dashboards use for header-off export.
       hideHeader: true,
+      // LF10: default the preview's palette to the app's current Color theme (same helper
+      // newly created dashboards seed from), so Explore doesn't always show a fixed
+      // Classic-Blue-ish look regardless of which theme the rest of the app is wearing.
+      dashboardTheme: defaultDashboardTheme(),
       panels: [{ id: "xp1", title: title, span: "full",
         chart: { type: XP.type, da: da.id, map: Studio.clone(XP.map), opts: Studio.clone(XP.opts) } }],
       kpis: [], filters: [],
@@ -946,6 +950,10 @@
           ifr.className = "xp-ifr"; ifr.title = "Analysis preview"; ifr.setAttribute("aria-label", "Analysis preview");
           box.appendChild(ifr);
         }
+        // LF10: tell the preview which light/dark mode to use, same as every other
+        // preview surface (Panel zoom, Slideshow, Home, Compare dashboards) — without
+        // this the Explore preview always rendered light regardless of the app's mode.
+        postThemeOnLoad(ifr);
         ifr.srcdoc = html;
       };
       // map panels need geometry (and MapLibre for GL) inlined first
@@ -7983,12 +7991,22 @@
   // style defaults, for the whole-look Studio.DASHBOARD_THEMES picker (v281). Lets a team make
   // Fleet Modern (or any future preset) the house look for brand-new dashboards without touching
   // existing ones, without hardcoding a new global default ahead of a user look-see.
+  // LF10: the default chart/dashboard palette should follow the app's own Color theme
+  // (Settings → Appearance) rather than always defaulting to Polecat regardless of what
+  // theme the rest of the chrome is wearing. appTheme() values are "classic"/"polecat"/
+  // "modern" (see APP_THEME_LABELS); DASHBOARD_THEMES keys are "classic"/"polecat"/
+  // "fleet-modern" — map between the two naming schemes here.
+  function appThemeToDashboardTheme(t) {
+    if (t === "modern") return "fleet-modern";
+    if (t === "classic") return "";
+    return "polecat";
+  }
   function defaultDashboardTheme() {
     var v; try { v = localStorage.getItem("studio-default-dashboardtheme"); } catch (e) {}
-    // Never-set → Polecat, the house default. A stored "" is a LEGACY explicit Classic pick
-    // (the old Settings select stored classic as empty), and "classic" is the new explicit
+    // Never-set → follow the app's own Color theme. A stored "" is a LEGACY explicit Classic
+    // pick (the old Settings select stored classic as empty), and "classic" is the new explicit
     // form — both resolve to "" because a blank key means classic everywhere downstream.
-    if (v === null || v === undefined) return "polecat";
+    if (v === null || v === undefined) return appThemeToDashboardTheme(appTheme());
     return v === "classic" ? "" : v;
   }
   function setDefaultDashboardTheme(v) { try { localStorage.setItem("studio-default-dashboardtheme", v || ""); } catch (e) {} }

@@ -116,6 +116,17 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **Default chart palette now follows the app's Color theme (v441, 2026-07-22, steward, LF10):**
+  `defaultDashboardTheme()` used to always fall back to "polecat" regardless of which app Color
+  theme (Settings → Appearance) was active. A new `appThemeToDashboardTheme()` maps
+  classic/polecat/modern → the matching `Studio.DASHBOARD_THEMES` entry (blank/polecat/
+  fleet-modern) and that's now the fallback — still overridden by an explicit Settings default
+  (`studio-default-dashboardtheme`) when one is set. New dashboards/widgets already seed from
+  `defaultDashboardTheme()`, so they inherit this automatically. `xpSpec()` (Explore's live
+  preview) now seeds `dashboardTheme` the same way, and `xpPreview()` now calls `postThemeOnLoad`
+  (every other preview surface — Panel zoom, Slideshow, Home, Compare dashboards — already did;
+  Explore's own preview never had it) so it also inherits the app's light/dark mode instead of
+  always rendering light. 3 new regression checks. Suite green. (app/studio.js, tests/run.js)
 - **FIX: widget zoom "Exit zoom" could trap the user (v440, 2026-07-22, steward, LF8):** in the
   widget zoom overlay (openPanelZoom), interacting with the zoomed chart (e.g. a map's zoom
   controls) could move focus into the chart's own iframe document — whose keydown events never
@@ -1427,15 +1438,21 @@
 >      (shell.js setActive / __studioShellSetSection) and on opening overlays (panel-zoom, modals,
 >      dataset/job editors, Explore analysis), and handle `popstate` to navigate back instead of
 >      unloading. Closing an overlay via Back also fixes the LF8 zoom trap. app/shell.js, app/studio.js.
-> LF10. **Chart palette should default to the active app theme.** In Explore the preview chart defaults
->       to a fixed dark-blue palette (Fleet/Classic Blue) instead of following the app's current Color
->       theme. The DEFAULT chart palette (and light/dark) for the Explore preview AND newly created
->       dashboards/widgets should match the app Color theme — Polecat app theme → Polecat ramp,
->       Conservation → conservation ramp, Classic Blue → blue, etc. Map each app Color theme (data-app-
->       theme) → its matching DASHBOARD_THEMES entry and use it as the default (unless the user
->       overrode the dashboard theme); make the Explore preview inherit the app's light/dark mode too.
->       Pairs with UX11 (Conservation app theme). app/studio.js (xpSpec default + defaultDashboardTheme),
->       app/model.js (app-theme→dashboard-theme map).
+> LF10. ✓ **Chart palette should default to the active app theme (shipped, steward).** `defaultDashboardTheme()`
+>       no longer hardcodes "polecat" as its fallback — a new `appThemeToDashboardTheme()` maps the
+>       app's Color theme (classic/polecat/modern) to its matching `Studio.DASHBOARD_THEMES` entry
+>       (blank/polecat/fleet-modern) and that becomes the default whenever the user hasn't set an
+>       explicit Settings override (`studio-default-dashboardtheme`), which still wins as before. New
+>       dashboards/widgets already seeded from `defaultDashboardTheme()`, so they pick this up for
+>       free. `xpSpec()` (Explore's live preview) now seeds `dashboardTheme` from the same helper, and
+>       `xpPreview()` calls `postThemeOnLoad(ifr)` (previously skipped) so the preview also inherits
+>       the app's light/dark mode — before this it always rendered light regardless. Only 3 app Color
+>       themes exist today (classic/polecat/modern), so the Conservation-ramp case from UX11 (Conservation
+>       as an app Color theme, not yet built) isn't reachable yet; `appThemeToDashboardTheme()`'s
+>       default-to-"polecat" fallback will need a "conservation" branch when that theme is added. 3 new
+>       regression checks (app-theme→dashboard-theme mapping for all 3 themes, explicit override still
+>       wins, Explore preview end-to-end picks up Fleet Modern + dark mode). app/studio.js
+>       (defaultDashboardTheme, appThemeToDashboardTheme, xpSpec, xpPreview), tests/run.js.
 > LF11. **Explore: clarify "Add to dashboard" (new vs existing) + tighten the action row.** The Explore
 >       result buttons are [Update analysis] [Save as new] [Add to dashboard]; "Add to dashboard" is
 >       ambiguous — split into "Add to NEW dashboard" and "Add to EXISTING dashboard" (with a picker for

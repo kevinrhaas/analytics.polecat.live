@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 441,
+    title: 'Explore preview now matches your app theme and light/dark mode',
+    kind: 'fix',
+    ts: '2026-07-22T19:47:02.000Z',
+    items: [
+      'The chart preview in Explore always used a fixed blue palette and light background, no matter which Color theme or light/dark mode you had set. It now defaults to your app\'s Color theme (and follows dark mode too) — the same default new dashboards already use.',
+    ],
+  },
+  {
     v: 440,
     title: 'Fix: widget zoom "Exit zoom" could get stuck open',
     kind: 'fix',
