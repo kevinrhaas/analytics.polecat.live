@@ -1448,6 +1448,19 @@
 >     one place to keep consistent. 3 new M4.2 ratchets (toggle stamps/preserves owner, owner sees
 >     their own private analysis, a non-owner viewer doesn't, admin sees everything). sw v74. NEXT:
 >     jobs get the same toggle; the per-section-rights half is still open.
+>     ↳ **Slice 5 (jobs, shipped 2026-07-22, steward — LAST object type, M4.2's privacy half is now
+>     COMPLETE):** the same lock toggle, now on every row in the Jobs list, filtered through the
+>     plain shared `isVisibleToMe` (no field collision — jobs had no pre-existing `owner` field, same
+>     shape as analyses). `owner` is stamped from `PolecatAuth.current().u` the first time a job is
+>     saved, or the first time a pre-existing one goes private. Also closed a related leak found while
+>     building this slice: the job editor's source-dataset picker (and, since it shares the same
+>     `dsets` list, the join/union step pickers too) wasn't filtering through `isDatasetVisibleToMe`,
+>     so another account's private datasets were selectable there even though they're hidden from the
+>     Datasets catalog itself — now filtered the same way slice 2 filtered the dataset editor's
+>     connection picker. 3 new M4.2 ratchets (toggle stamps/preserves owner, owner sees their own
+>     private job, a non-owner viewer doesn't, admin sees everything). sw v75. Dashboards, connections,
+>     datasets, analyses, and jobs all now carry the private/public flag; the per-section-rights half
+>     of M4.2 (permissioned left-rail items) is still open.
 > M5. **Repository browser:** new left-rail section — a tree/folder view of ALL objects (dashboards,
 >     datasets, connections, analyses, jobs) with find/open/edit and a right-panel editor for
 >     simple objects; deep-links to the full editors for complex ones.

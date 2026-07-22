@@ -6641,6 +6641,54 @@ function serve() {
     });
     await page.waitForTimeout(150);
 
+    // ---- M4.2 slice 5: object privacy — jobs (last object type) ----
+    console.log("\n• M4.2: object privacy — jobs (slice 5)");
+    const jobPrivacySetup = await page.evaluate(function () {
+      function row(id, name, owner) {
+        var r = { id: id, name: name, steps: [], updatedAt: Date.now() };
+        if (owner) r.owner = owner;
+        Studio.Workspace.put("jobs", r);
+      }
+      row("m42j-a", "M4.2 job mine (goes private)", "demo");
+      row("m42j-b", "M4.2 job someone else's (goes private)", "otherUser");
+      row("m42j-c", "M4.2 job public");
+      window.__studioToggleJobPrivate("m42j-a");
+      window.__studioToggleJobPrivate("m42j-b");
+      var a = Studio.Workspace.get("jobs", "m42j-a"), b = Studio.Workspace.get("jobs", "m42j-b");
+      return { aPrivate: !!a.private, aOwner: a.owner, bPrivate: !!b.private, bOwner: b.owner };
+    });
+    ok("M4.2: jobs togglePrivate flips the private flag and stamps/preserves an owner",
+      jobPrivacySetup.aPrivate && jobPrivacySetup.aOwner === "demo" && jobPrivacySetup.bPrivate && jobPrivacySetup.bOwner === "otherUser",
+      JSON.stringify(jobPrivacySetup));
+
+    const asDemoJobPriv = await page.evaluate(function () {
+      window.PolecatAuth.login("demo"); // seeded viewer account
+      window.__studioShellSetSection("jobs");
+      window.__studioRenderJobs();
+      var ids = Array.prototype.map.call(document.querySelectorAll("#jobsResults [data-job-id]"), function (el) { return el.getAttribute("data-job-id"); });
+      return { seesOwn: ids.indexOf("m42j-a") >= 0, seesOthers: ids.indexOf("m42j-b") >= 0, seesPublic: ids.indexOf("m42j-c") >= 0 };
+    });
+    ok("M4.2: signed in as the owner (viewer role), Jobs shows their own private job and every public one, but hides another account's private one",
+      asDemoJobPriv.seesOwn && !asDemoJobPriv.seesOthers && asDemoJobPriv.seesPublic, JSON.stringify(asDemoJobPriv));
+
+    const asAdminJobPriv = await page.evaluate(function () {
+      window.PolecatAuth.login("admin"); // seeded admin account — sees every private job, matching shell.js's admin-sees-all
+      window.__studioRenderJobs();
+      var ids = Array.prototype.map.call(document.querySelectorAll("#jobsResults [data-job-id]"), function (el) { return el.getAttribute("data-job-id"); });
+      return { seesA: ids.indexOf("m42j-a") >= 0, seesB: ids.indexOf("m42j-b") >= 0, seesC: ids.indexOf("m42j-c") >= 0 };
+    });
+    ok("M4.2: an admin account sees every job regardless of its private flag/owner",
+      asAdminJobPriv.seesA && asAdminJobPriv.seesB && asAdminJobPriv.seesC, JSON.stringify(asAdminJobPriv));
+
+    await page.evaluate(function () {
+      window.PolecatAuth.logout();
+      sessionStorage.setItem("studio-gate-ok", "1");
+      window.__studioShellApplyRoleGating();
+      ["m42j-a", "m42j-b", "m42j-c"].forEach(function (id) { Studio.Workspace.remove("jobs", id); });
+      window.__studioShellSetSection("studio");
+    });
+    await page.waitForTimeout(150);
+
     // ---- CDA data source CRUD (My Data Sources library section) ----
     console.log("\n• CDA data-source CRUD");
     await page.evaluate(async () => { const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json()); window.__studioLoad(spec); });

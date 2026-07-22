@@ -7143,9 +7143,25 @@
     var daysLeft = Math.ceil((dueAt - now) / 86400000);
     return '<span class="cx-badge" title="Reminder every ' + j.refreshEveryDays + ' days">Refreshes in ' + daysLeft + " day" + (daysLeft === 1 ? "" : "s") + '</span>';
   }
+  // M4.2 slice 5 (per-section rights + object privacy — jobs, the last object type):
+  // same `private`/`owner` shape + plain `isVisibleToMe` helper as analyses — jobs
+  // have no pre-existing `owner` field, so no acctOwner-style rename is needed here.
+  function toggleJobPrivate(id) {
+    var W = Studio.Workspace, j = W.get("jobs", id);
+    if (!j) return;
+    if (j.private) { delete j.private; }
+    else {
+      j.private = true;
+      if (!j.owner) { var uid = currentUserId(); if (uid) j.owner = uid; }
+    }
+    W.put("jobs", j);
+    toast(j.private ? "Private — only you can see this" : "Public — visible to everyone");
+    renderJobs();
+  }
+  window.__studioToggleJobPrivate = toggleJobPrivate; // test hook
   function renderJobs() {
     var results = $("#jobsResults"); if (!results) return;
-    var list = Studio.Workspace.all("jobs").sort(function (a, b) { return (b.updatedAt || 0) - (a.updatedAt || 0); });
+    var list = Studio.Workspace.all("jobs").filter(isVisibleToMe).sort(function (a, b) { return (b.updatedAt || 0) - (a.updatedAt || 0); });
     var rows = list.map(function (j) {
       var src = Studio.Workspace.get("datasets", j.sourceDatasetId);
       var out = j.outputDatasetId && Studio.Workspace.get("datasets", j.outputDatasetId);
@@ -7160,6 +7176,7 @@
         '<span class="cx-badge">' + (j.steps || []).length + " step" + ((j.steps || []).length === 1 ? "" : "s") + '</span>' +
         jobRefreshBadge(j) +
         '<span class="cx-when">' + esc(new Date(j.updatedAt || Date.now()).toLocaleDateString()) + '</span>' +
+        '<button type="button" class="cx-private' + (j.private ? " private" : "") + '" data-job-private="' + esc(j.id) + '" title="' + (j.private ? "Private — only you can see this" : "Make private") + '" aria-label="' + (j.private ? "Make " + esc(j.name) + " public" : "Make " + esc(j.name) + " private") + '" aria-pressed="' + (j.private ? "true" : "false") + '"></button>' +
         '<span class="cx-actions">' +
           '<button type="button" class="btn" data-job-run="' + esc(j.id) + '">Run</button>' +
           '<button type="button" class="btn" data-job-edit="' + esc(j.id) + '">Edit</button>' +
@@ -7174,8 +7191,12 @@
     $$(".cx-row", results).forEach(function (row) {
       var j = Studio.Workspace.get("jobs", row.getAttribute("data-job-id"));
       var icEl = row.querySelector(".cx-ic"); if (icEl && Studio.icon) icEl.appendChild(Studio.icon("sliders", 18));
-      row.addEventListener("click", function (e) { if (e.target.closest("[data-job-run],[data-job-edit],[data-job-del]")) return; openJobEditor(j); });
+      row.addEventListener("click", function (e) { if (e.target.closest("[data-job-run],[data-job-private],[data-job-edit],[data-job-del]")) return; openJobEditor(j); });
       row.addEventListener("keydown", function (e) { if ((e.key === "Enter" || e.key === " ") && e.target === row) { e.preventDefault(); openJobEditor(j); } });
+    });
+    $$(".cx-private", results).forEach(function (btn) {
+      btn.appendChild(Studio.icon("lock", 14));
+      btn.onclick = function (e) { e.stopPropagation(); toggleJobPrivate(btn.getAttribute("data-job-private")); };
     });
     $$("[data-job-run]", results).forEach(function (btn) {
       btn.onclick = function () {
@@ -7200,7 +7221,7 @@
     });
   }
   function openJobEditor(existing) {
-    var dsets = Studio.Workspace.all("datasets").filter(function (d) { return (d.tags || []).indexOf("job-output") < 0 || (existing && d.id === existing.outputDatasetId); });
+    var dsets = Studio.Workspace.all("datasets").filter(isDatasetVisibleToMe).filter(function (d) { return (d.tags || []).indexOf("job-output") < 0 || (existing && d.id === existing.outputDatasetId); });
     modal(existing ? "Edit job" : "New job", function (b) {
       var j = existing ? JSON.parse(JSON.stringify(existing)) : { id: Studio.Workspace.uid("job"), name: "", steps: [] };
       var form = el("div", "cx-wiz-form");
@@ -7429,6 +7450,7 @@
         if (!j.name) { nameInp.focus(); result.className = "cx-test-result bad"; result.textContent = "Give the job a name first."; return; }
         if (!j.sourceDatasetId) { srcSel.focus(); result.className = "cx-test-result bad"; result.textContent = "Pick the source dataset this job preps."; return; }
         if (!j.outputName) j.outputName = j.name + " (job output)";
+        if (!existing) { var newUid = currentUserId(); if (newUid) j.owner = newUid; }
         Studio.Workspace.put("jobs", j);
         toast(existing ? "Saved " + j.name : "Added " + j.name);
         document.querySelector(".modal-ov .x").click();

@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v74"; /* v74: M4.2 slice 4 — the same private/public
+var CACHE_NAME = "studio-shell-v75"; /* v75: M4.2 slice 5 (last object type) — the
+   same private/public lock toggle now on Jobs too (owner rides on the plain
+   `owner` field, no collision), hides another account's private jobs from the
+   Jobs list; also closed a related leak in the job editor's source/join/union
+   dataset pickers, which weren't yet filtering out other accounts' private
+   datasets. app/studio.js changed.
+   v74: M4.2 slice 4 — the same private/public
    lock toggle now on Explore's saved analyses too (owner rides on the plain
    `owner` field, no collision like datasets' acctOwner), hides another
    account's private analyses from Explore's saved list, the Studio library,
