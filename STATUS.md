@@ -4888,6 +4888,27 @@ gets covered over time:
 > (`localStorage["studio-templatevar-sets"]`), travels with Settings export/import, wiped by Clear
 > local data. 5 new tests, suite 1285/1285.
 
+### ◇ LATER — shell v2: converge the left rail onto the shared `initShell` (do NOT jump the queue)
+
+> Architectural convergence, not a feature — tackle when the fleet does its shell-v2 pass (Viridis/
+> Supabase priorities come first). Today Analytics runs a **bespoke** rail (`#railNav` in
+> `app/index.html` + `app/shell.js`): 9 sections, the pinned workspace-backend indicator
+> (`#railSource`), command palette, Help link, admin role-gating, its own `Studio.icon` set, mobile
+> drawer + collapse. It only borrows `appSwitcher` + `rightPanel` from the vendored shell. The other
+> four apps (manager/relay/jobtracker/autoselector) now share the platform's `initShell` rail (Polecat
+> Shell v0.5.3), so future rail features land there once instead of being re-solved here.
+> **Level A (DONE, brand consistency):** the rail already wears the terracotta chart mark (matching the
+> launcher tile + marketing header) and carries the faint `polecat.live` back-link — the visible
+> standard, without touching the frame.
+> **Level B (this item):** re-home onto `initShell({ sections, onNav, isAdmin, uiMode, rail, topbar })`
+> and re-plumb what the bespoke rail does that the shell doesn't: section switching → `onNav(key)`;
+> the `#railSource` backend indicator pinned as rail furniture (cf. Manager's `.rail-source`); the
+> command palette + Help into topbar/rail slots; admin gating via `admin`/`minMode` instead of
+> `data-admin-only`; reconcile `Studio.icon` with the shell's `icons.js`; re-skin `app/studio.css`
+> from `.rail-*` onto the shell's `.ps-*`. Multi-day, real regression surface on primary navigation —
+> its own PR, not folded into anything else. Keep the studio spec/export invariants untouched. Cross-ref
+> polecat-platform `docs/MIGRATION.md` (row 6, "the Studio three-pane workspace still waits for shell v2").
+
 ## Quality bar
 Every iteration: builds, `tests/run.js` green, UI cohesive, README/STATUS updated, commit + push.
 Prefer several small, well-tested, shippable improvements over one big risky one.
