@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 440,
+    title: 'Fix: widget zoom "Exit zoom" could get stuck open',
+    kind: 'fix',
+    ts: '2026-07-22T19:32:33.000Z',
+    items: [
+      'After interacting with a zoomed-in widget (for example, using a map\'s zoom controls), the Exit-zoom button and the Esc key could stop responding, leaving reload as the only way out. The zoom overlay now also listens for Esc from inside the widget itself, and starts with keyboard focus on the Exit button, so escaping always works.',
+    ],
+  },
+  {
     v: 439,
     title: 'Fix: Style-preset name field crowded the Save button on phones',
     kind: 'fix',
