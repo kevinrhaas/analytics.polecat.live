@@ -1297,6 +1297,13 @@
 >      are TEXT-ONLY ("Series 7"); add a color SWATCH beside each option (resolved color), and for the
 >      choropleth RAMP color a small gradient/swatch preview, since it's hard to tell what each is.
 >      app/studio.js (colPicker/fmtPicker + color-apply handler), app/studio.css.
+> LF6. **Per-widget download (image + data), on by default, toggleable off.** On ANY widget/panel,
+>      expose "Download image" (PNG etc.) and "Download data" (CSV etc.) right in the panel chrome —
+>      ON by default, with a per-panel toggle in the inspector to turn it off. Generalize what exists
+>      (exportPanelPng for SVG charts; choropleth's "Download CSV") into one consistent affordance
+>      across all chart types, in BOTH the builder preview AND the exported/embedded HTML (respect the
+>      export==preview invariant). app/studio-render.js (panel chrome), app/exporters.js (export
+>      controls), app/studio.js (inspector "allow downloads" toggle, default on).
 
 ### 🔁 QUALITY TRACKS — interleave with the feature backlog (Kevin, 2026-07-21)
 > Kevin asked for a code-organization sweep AND a UI/UX best-practices sweep, folded INTO the loop
