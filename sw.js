@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v128"; /* v128: LF32 — a job-output rollup's "statecode"
+var CACHE_NAME = "studio-shell-v129"; /* v129: LF27(a) — a fresh boot (no saved section)
+   now lands on Home instead of the Studio builder; Studio stays one click away on the
+   rail, and a user's own last-visited section still wins. app/index.html, app/shell.js
+   changed, so precached copies need to roll.
+   v128: LF32 — a job-output rollup's "statecode"
    group-by column (no underscore) was misclassified by the offline sample engine as a
    workflow-status column, so the Inspector Query Preview and the Studio canvas preview
    showed Success/Failed/Aborted/Running instead of postal state codes, and a state-level

@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 487,
+    title: 'Fresh visits now land on Home, not the Studio builder',
+    kind: 'polish',
+    ts: '2026-07-23T18:25:54.000Z',
+    items: [
+      'Opening Analytics for the first time (or with no section chosen yet) used to drop you straight into the Studio builder — a lot of machinery before you\'ve seen anything. It now opens on Home instead, with Studio one click away on the rail; your own last-visited section, once you have one, still wins.',
+    ],
+  },
+  {
     v: 486,
     title: 'Fixed: a state-level rollup dataset previewed as workflow statuses instead of states',
     kind: 'fix',

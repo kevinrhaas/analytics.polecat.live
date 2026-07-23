@@ -34,14 +34,14 @@
       <a class="rail-suite rail-lbl" href="https://polecat.live" target="_blank" rel="noopener" title="Back to polecat.live">polecat.live</a>
     </div>
     <div class="rail-group-lbl rail-lbl" aria-hidden="true">Workspace</div>
-    <button class="rail-item" data-sec="home" title="Home" aria-label="Home"><span class="rail-ic" data-ic="home"></span><span class="rail-lbl">Home</span></button>
+    <button class="rail-item active" data-sec="home" title="Home" aria-label="Home" aria-current="page"><span class="rail-ic" data-ic="home"></span><span class="rail-lbl">Home</span></button>
     <button class="rail-item" data-sec="explore" title="Explore" aria-label="Explore"><span class="rail-ic" data-ic="trend-up"></span><span class="rail-lbl">Explore</span></button>
     <button class="rail-item" data-sec="dashboards" title="Dashboards" aria-label="Dashboards"><span class="rail-ic" data-ic="layers"></span><span class="rail-lbl">Dashboards</span></button>
     <button class="rail-item" data-sec="datasets" title="Datasets" aria-label="Datasets"><span class="rail-ic" data-ic="db"></span><span class="rail-lbl">Datasets</span></button>
     <button class="rail-item" data-sec="connections" title="Connections" aria-label="Connections"><span class="rail-ic" data-ic="link"></span><span class="rail-lbl">Connections</span></button>
     <button class="rail-item" data-sec="repository" title="Repository" aria-label="Repository"><span class="rail-ic" data-ic="folder"></span><span class="rail-lbl">Repository</span></button>
     <div class="rail-group-lbl rail-lbl" aria-hidden="true">Build</div>
-    <button class="rail-item active" data-sec="studio" title="Studio" aria-label="Studio" aria-current="page"><span class="rail-ic" data-ic="grid"></span><span class="rail-lbl">Studio</span></button>
+    <button class="rail-item" data-sec="studio" title="Studio" aria-label="Studio"><span class="rail-ic" data-ic="grid"></span><span class="rail-lbl">Studio</span></button>
     <div class="rail-group-lbl rail-lbl" aria-hidden="true">Manage</div>
     <button class="rail-item" data-sec="jobs" title="Jobs" aria-label="Jobs"><span class="rail-ic" data-ic="sliders"></span><span class="rail-lbl">Jobs</span></button>
     <!-- M4: admin-only — hidden for non-admin accounts by shell.js's role gating -->
@@ -58,7 +58,7 @@
     <button id="railCollapse" class="rail-item rail-toggle" title="Collapse navigation" aria-label="Collapse navigation" aria-expanded="true"><span class="rail-ic" data-ic="chevron-left"></span><span class="rail-lbl">Collapse</span></button>
   </nav>
 
-  <section id="secHome" class="app-sec" hidden>
+  <section id="secHome" class="app-sec">
     <div class="sec-empty">
       <div class="sec-empty-ic" data-ic="home"></div>
       <h2>Home</h2>
@@ -154,12 +154,12 @@
     </div>
   </section>
 
-  <div id="appMain">
+  <div id="appMain" hidden>
   <header id="topbar">
     <!-- Fleet-standard topbar: the CURRENT SECTION name sits at the top-left (the app's
          own identity lives in the left-rail brand, like JobTracker/AutoSelector). Updated
          by app/shell.js setActive(). -->
-    <div class="tb-section" id="topbarSection" aria-live="polite">Studio</div>
+    <div class="tb-section" id="topbarSection" aria-live="polite">Home</div>
     <!-- H-track: auto-save state indicator — flashes "Saved ✓" for 2s after each auto-save -->
     <span id="saveState" class="save-state" aria-live="polite" aria-atomic="true"></span>
     <div class="spacer"></div>
