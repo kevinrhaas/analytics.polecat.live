@@ -6,6 +6,14 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 481,
+    title: 'Left rail: Jobs and Admin now live under a “Manage” group',
+    ts: '2026-07-23T15:30:22.000Z',
+    items: [
+      'The left rail gained a third group, “Manage”, below Build — Jobs and Admin now sit there together, instead of Jobs living up in Workspace and Admin floating near the bottom. Workspace stays for the things you browse and build from (Home, Explore, Dashboards, Datasets, Connections, Repository); Build is the Studio editor; Manage is for running jobs and administering the workspace.',
+    ],
+  },
+  {
     v: 480,
     title: 'Explore: create a new dataset without leaving',
     kind: 'feature',
