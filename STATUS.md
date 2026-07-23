@@ -116,6 +116,26 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF11 — Explore: "Add to dashboard" is no longer ambiguous (v458, 2026-07-23, steward):**
+  the LIVE-FEEDBACK QUEUE item calling the old single button ambiguous about WHICH dashboard it
+  targeted ("always whatever's currently open in Studio," not obvious from the button text). The
+  result panel's savebar now has two explicit buttons instead: **"+ New dashboard"** creates a
+  brand-new blank dashboard (same defaults as the Studio "＋ Blank dashboard" action) with the
+  chart as its first panel; **"Existing dashboard…"** opens a picker of every saved dashboard
+  (reusing the same list/search UI as "Open a dashboard") and adds the chart to whichever one you
+  pick — loading it via the normal `openRecent` path (no separate unsaved-changes prompt, same as
+  every other way of opening a dashboard) before appending the panel. Either path saves the
+  analysis first under a default name if it wasn't already saved, same silent-save behavior the
+  old button had. Both funnel into the existing `xpAddAnalysisToSpec`, so panel/data-access wiring
+  is unchanged — only the ambiguity about the TARGET dashboard is fixed. Scope: the savebar's main
+  action row only; the per-row "+ Add to dashboard" quick-add chips in the Studio library and the
+  saved-analyses sidebar (which already unambiguously mean "the one open right now") are
+  unchanged. 4 new LF11 ratchets (both buttons render in place of the old one; "+ New dashboard"
+  lands the analysis in a fresh spec and switches to Studio; "Existing dashboard…" opens the
+  picker; picking a row loads THAT dashboard and appends the panel, keeping its existing ones).
+  docs/index.html's Explore section updated. sw v102. (app/studio.js, docs/index.html,
+  tests/run.js) NEXT from the same LF queue: LF9 (Back/Forward = in-app navigation), LF13 (job
+  editor overhaul), LF16 (demo→sample-content rename + fold into sample packs).
 - **M5 — Repository's folder groups become a real nested TREE (v457, 2026-07-23, steward):**
   the documented NEXT after the quick-edit right panel shipped — "a real nested folder TREE
   (today's folder facets are still one flat level per kind)." A `folder` value may now contain
@@ -1714,10 +1734,9 @@
 >       overrode the dashboard theme); make the Explore preview inherit the app's light/dark mode too.
 >       Pairs with UX11 (Conservation app theme). app/studio.js (xpSpec default + defaultDashboardTheme),
 >       app/model.js (app-theme→dashboard-theme map).
-> LF11. **Explore: clarify "Add to dashboard" (new vs existing) + tighten the action row.** The Explore
->       result buttons are [Update analysis] [Save as new] [Add to dashboard]; "Add to dashboard" is
->       ambiguous — split into "Add to NEW dashboard" and "Add to EXISTING dashboard" (with a picker for
->       which one). Tidy the button row. Reuse xpAddAnalysisToSpec / openDashboardPicker. app/studio.js.
+> LF11. ✓ **Explore: "Add to dashboard" clarified — DONE, see DONE (v458, 2026-07-23, steward).**
+>       Split into "+ New dashboard" and "Existing dashboard…" (with a picker), reusing
+>       xpAddAnalysisToSpec + the same list/search UI as "Open a dashboard."
 > LF12. **Explore: expose the advanced (GL) renderer + save it.** When building a MAP widget in Explore,
 >       let the user turn on the "Interactive GL (pan & zoom)" renderer and have it PERSIST with the
 >       saved analysis/widget (extends LF4 renderer-persistence to the Explore builder — today the

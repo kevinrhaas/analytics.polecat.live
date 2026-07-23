@@ -22175,6 +22175,86 @@ function serve() {
 
     await repoPage.close();
 
+    // ---- LF11: Explore's "Add to dashboard" is unambiguous (new vs existing) ----
+    console.log("\n• Explore: unambiguous Add-to-dashboard (new vs existing) (LF11)");
+    const lf11Page = await browser.newPage();
+    await lf11Page.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); } catch (e) {} });
+    await lf11Page.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
+    await lf11Page.waitForFunction(() => window.__STUDIO_STATE && window.Studio && Studio.Workspace, { timeout: 10000 });
+    await lf11Page.evaluate(function () {
+      Studio.Workspace.put("analyses", {
+        id: "lf11-an", name: "LF11 Source Analysis", datasetId: null, sample: null,
+        da: { id: "lf11-da", columns: ["x", "y"] },
+        chart: { type: "bars", map: {}, opts: {} }, chartType: "bars", updatedAt: 1
+      });
+      Studio.Workspace.put("dashboards", {
+        id: "lf11-dash-existing", ts: new Date(2000).toISOString(), title: "LF11 Existing Dash", name: "lf11-existing-dash",
+        spec: { id: "lf11-dash-existing", title: "LF11 Existing Dash", name: "lf11-existing-dash",
+          panels: [{ id: "p0", title: "Old Panel", span: 1, chart: { type: "kpi", da: "d0", map: {}, opts: {} } }], kpis: [], filters: [] }
+      });
+      window.__studioShellSetSection("explore");
+      window.__studioExplore.load("lf11-an");
+    });
+    await lf11Page.waitForTimeout(250);
+
+    const lf11Buttons = await lf11Page.evaluate(function () {
+      return {
+        hasNew: !!document.getElementById("xpToNewDashBtn"),
+        hasExisting: !!document.getElementById("xpToExistDashBtn"),
+        hasOldAmbiguous: !!document.getElementById("xpToDashBtn")
+      };
+    });
+    ok("LF11: the savebar's old single ambiguous 'Add to dashboard' button is replaced by two explicit buttons — + New dashboard / Existing dashboard…",
+      lf11Buttons.hasNew && lf11Buttons.hasExisting && !lf11Buttons.hasOldAmbiguous, JSON.stringify(lf11Buttons));
+
+    const lf11New = await lf11Page.evaluate(function () {
+      document.getElementById("xpToNewDashBtn").click();
+      var sp = window.__STUDIO_STATE.spec;
+      return {
+        studioVisible: !document.getElementById("appMain").hidden,
+        exploreHidden: document.getElementById("secExplore").hidden,
+        isFresh: sp.id !== "lf11-dash-existing",
+        panelCount: sp.panels.length,
+        panelType: sp.panels[0] && sp.panels[0].chart.type,
+        panelTitle: sp.panels[0] && sp.panels[0].title
+      };
+    });
+    ok("LF11: '+ New dashboard' drops the analysis into a brand-new blank dashboard (not whatever was previously open) and switches to Studio",
+      lf11New.studioVisible && lf11New.exploreHidden && lf11New.isFresh && lf11New.panelCount === 1 &&
+      lf11New.panelType === "bars" && lf11New.panelTitle === "LF11 Source Analysis", JSON.stringify(lf11New));
+
+    await lf11Page.evaluate(function () { window.__studioShellSetSection("explore"); window.__studioExplore.load("lf11-an"); });
+    await lf11Page.waitForTimeout(150);
+    await lf11Page.evaluate(function () { document.getElementById("xpToExistDashBtn").click(); });
+    await lf11Page.waitForTimeout(150);
+    const lf11PickerOpen = await lf11Page.evaluate(function () {
+      var rows = [].slice.call(document.querySelectorAll(".modal .odp-row"));
+      return { title: (document.querySelector(".modal-h") || {}).textContent,
+        rowLabels: rows.map(function (r) { return r.querySelector("b").textContent; }) };
+    });
+    ok("LF11: 'Existing dashboard…' opens a picker listing saved dashboards",
+      lf11PickerOpen.title === "Add to which dashboard?" && lf11PickerOpen.rowLabels.indexOf("LF11 Existing Dash") >= 0,
+      JSON.stringify(lf11PickerOpen));
+
+    const lf11Existing = await lf11Page.evaluate(function () {
+      var rows = [].slice.call(document.querySelectorAll(".modal .odp-row"));
+      var row = rows.filter(function (r) { return r.querySelector("b").textContent === "LF11 Existing Dash"; })[0];
+      row.click();
+      var sp = window.__STUDIO_STATE.spec;
+      return {
+        modalClosed: !document.querySelector(".modal-ov"),
+        specId: sp.id, panelCount: sp.panels.length,
+        panelTypes: sp.panels.map(function (p) { return p.chart.type; }),
+        studioVisible: !document.getElementById("appMain").hidden
+      };
+    });
+    ok("LF11: picking a dashboard from the 'Existing dashboard…' picker loads THAT dashboard and appends the analysis to it (old panel kept, new one added)",
+      lf11Existing.modalClosed && lf11Existing.specId === "lf11-dash-existing" && lf11Existing.panelCount === 2 &&
+      lf11Existing.panelTypes.indexOf("kpi") >= 0 && lf11Existing.panelTypes.indexOf("bars") >= 0 && lf11Existing.studioVisible,
+      JSON.stringify(lf11Existing));
+
+    await lf11Page.close();
+
     // ---- ★★★-1: dashboards live in the WORKSPACE store (mirror to remote backends) ----
     console.log("\n• dashboards in the workspace store (★★★-1)");
     // (a) MIGRATION: a profile with the legacy studio-recents/pins/workbooks keys boots

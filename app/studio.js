@@ -1059,6 +1059,52 @@
     toast("Added analysis “" + (a.name || "Analysis") + "” to “" + S.spec.title + "”");
     refreshPreview(); buildLibrary();
   }
+  // LF11: "Add to NEW dashboard" — same blank-spec defaults as the Studio
+  // "＋ Blank dashboard" action (New ▾ menu), then drop the analysis in as its
+  // first panel via the normal current-spec path. Like any other new/blank
+  // dashboard, it isn't written to the Dashboards catalog until Save.
+  function xpAddAnalysisToNewDashboard(id) {
+    S.spec = applyDashboardDefaults(Studio.emptySpec());
+    S.selection = null;
+    xpAddAnalysisToSpec(id);
+  }
+  window.__studioAddAnalysisToNewDashboard = xpAddAnalysisToNewDashboard; // test hook
+  // LF11: "Add to EXISTING dashboard…" — a lightweight picker over the same
+  // saved-dashboards list "Open a dashboard" uses (openDashboardPicker).
+  // Picking a row loads it via openRecent (identical to any other "open a
+  // dashboard" entry point — no separate unsaved-changes prompt) and then
+  // appends the analysis, same as the single-dashboard path.
+  function openAddToExistingDashboardPicker(analysisId) {
+    modal("Add to which dashboard?", function (b) {
+      var search = el("input", "search"); search.type = "search"; search.placeholder = "Search your dashboards…";
+      search.setAttribute("aria-label", "Search dashboards");
+      b.appendChild(search);
+      var listWrap = el("div", "odp-list"); b.appendChild(listWrap);
+      function paint() {
+        var q = (search.value || "").toLowerCase();
+        var list = loadRecents().filter(isVisibleToMe).filter(function (r) {
+          if (!q) return true;
+          var sp = r.spec || {};
+          return ((sp.title || "") + " " + (sp.name || "")).toLowerCase().indexOf(q) >= 0;
+        });
+        listWrap.innerHTML = list.length ? "" : '<div class="odp-empty">' + (q ? "No dashboards match." : "Nothing saved yet — save a dashboard first, or add to a new one instead.") + '</div>';
+        list.forEach(function (r) {
+          var sp = r.spec || {};
+          var row = el("button", "odp-row"); row.type = "button";
+          var panels = (sp.panels || []).length;
+          row.innerHTML = '<b>' + esc(sp.title || sp.name || "Untitled") + '</b>' +
+            '<small>' + esc(sp.name || "") + " · " + panels + " panel" + (panels === 1 ? "" : "s") +
+            (r.ts ? " · " + new Date(r.ts).toLocaleDateString() : "") + '</small>';
+          row.onclick = function () { closeAllModals(); openRecent(r.id); xpAddAnalysisToSpec(analysisId); };
+          listWrap.appendChild(row);
+        });
+      }
+      search.addEventListener("input", paint);
+      paint();
+      search.focus();
+    });
+  }
+  window.__studioOpenAddToExistingDashboardPicker = openAddToExistingDashboardPicker; // test hook
   function xpTogglePin(id) {
     var a = Studio.Workspace.get("analyses", id); if (!a) return;
     a.pinned = !a.pinned;
@@ -1211,7 +1257,8 @@
             '<datalist id="xpFolderOptions">' + Object.keys(xpFolderCounts).sort().map(function (f) { return '<option value="' + esc(f) + '">'; }).join("") + '</datalist>' +
             '<button type="button" class="btn primary" id="xpSaveBtn">' + (XP.analysisId ? "Update analysis" : "Save analysis") + "</button>" +
             (XP.analysisId ? '<button type="button" class="btn" id="xpSaveAsBtn">Save as new</button>' : "") +
-            '<button type="button" class="btn" id="xpToDashBtn" title="Add this chart to the current dashboard">Add to dashboard</button>' +
+            '<button type="button" class="btn" id="xpToNewDashBtn" title="Add this chart to a brand-new dashboard">+ New dashboard</button>' +
+            '<button type="button" class="btn" id="xpToExistDashBtn" title="Pick an existing dashboard to add this chart to">Existing dashboard…</button>' +
           "</div></div>";
     }
     body.innerHTML =
@@ -1265,15 +1312,23 @@
     });
     var saveBtn = $("#xpSaveBtn", body); if (saveBtn) saveBtn.onclick = xpSave;
     var saveAs = $("#xpSaveAsBtn", body); if (saveAs) saveAs.onclick = function () { XP.analysisId = null; xpSave(); };
-    var toDash = $("#xpToDashBtn", body);
-    if (toDash) toDash.onclick = function () {
-      if (XP.analysisId) { xpAddAnalysisToSpec(XP.analysisId); return; }
-      // unsaved → save silently under a default name, then add
+    // LF11: the old single "Add to dashboard" button was ambiguous about WHICH
+    // dashboard it meant (always "whatever's currently open in Studio," which
+    // isn't obvious from the button text) — split into an explicit new-vs-
+    // existing choice, both funneling into xpAddAnalysisToSpec once a target
+    // spec is in place.
+    function xpEnsureSavedAnalysis(cb) {
+      if (XP.analysisId) { cb(XP.analysisId); return; }
+      // unsaved → save silently under a default name, then proceed
       var nameInp = $("#xpName", body);
       if (nameInp && !nameInp.value.trim()) nameInp.value = "Exploration " + new Date().toLocaleDateString();
       xpSave();
-      if (XP.analysisId) xpAddAnalysisToSpec(XP.analysisId);
-    };
+      if (XP.analysisId) cb(XP.analysisId);
+    }
+    var toNewDash = $("#xpToNewDashBtn", body);
+    if (toNewDash) toNewDash.onclick = function () { xpEnsureSavedAnalysis(xpAddAnalysisToNewDashboard); };
+    var toExistDash = $("#xpToExistDashBtn", body);
+    if (toExistDash) toExistDash.onclick = function () { xpEnsureSavedAnalysis(openAddToExistingDashboardPicker); };
     var nameInp2 = $("#xpName", body);
     if (nameInp2) nameInp2.addEventListener("input", function () { XP.name = nameInp2.value; });
     var folderInp2 = $("#xpFolder", body);
