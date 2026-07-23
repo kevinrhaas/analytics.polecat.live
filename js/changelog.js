@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 463,
+    title: 'Choropleth GL renderer: pan buttons (LF4a)',
+    kind: 'feature',
+    ts: '2026-07-23T07:23:18.000Z',
+    items: [
+      'The GL choropleth ("Interactive GL (pan & zoom)") now has a pan nudge-pad — up/down/left/right buttons next to the zoom +/- control, in the same button style, for nudging the map without a mouse drag.',
+    ],
+  },
+  {
     v: 462,
     title: 'Chart palette now follows your app Color theme (LF10)',
     kind: 'fix',

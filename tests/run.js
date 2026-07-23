@@ -1720,10 +1720,22 @@ function serve() {
           var canvas = doc ? doc.querySelector("[data-geo-gl] canvas.maplibregl-canvas") : null;
           var legend = doc ? doc.querySelector(".pdc-geo-legend") : null;
           if (canvas && legend) {
+            var wrap = doc.querySelector("[data-geo-gl]");
+            var map = wrap && wrap.parentNode && wrap.parentNode._glMap;
+            var before = map ? map.getCenter() : null;
+            var upBtn = doc.querySelector('.pdc-geo-pan button[data-pan="up"]');
+            if (upBtn) upBtn.click();
             var out = { canvas: true, legend: legend.textContent,
               nav: doc.querySelectorAll(".maplibregl-ctrl-zoom-in").length,
-              svgPaths: doc.querySelectorAll("path[data-geo-id]").length };
-            ifr.remove(); resolve(out);
+              svgPaths: doc.querySelectorAll("path[data-geo-id]").length,
+              panButtons: doc.querySelectorAll(".pdc-geo-pan button[data-pan]").length,
+              panDirs: Array.prototype.map.call(doc.querySelectorAll(".pdc-geo-pan button[data-pan]"), function (b) { return b.getAttribute("data-pan"); }).sort().join(","),
+              before: before, upClicked: !!upBtn };
+            // panBy() animates — give it a beat, then read the camera again
+            setTimeout(function () {
+              out.after = map ? map.getCenter() : null;
+              ifr.remove(); resolve(out);
+            }, 400);
           } else if (Date.now() - t0 > 25000) { ifr.remove(); resolve({ timeout: true }); }
           else setTimeout(poll, 250);
         })();
@@ -1732,6 +1744,11 @@ function serve() {
     ok("GL: the GL renderer boots for real inside the export — MapLibre canvas + zoom control + the shared legend (4→9), no SVG paths",
       glLive.canvas === true && glLive.nav === 1 && /^4/.test(glLive.legend || "") && (glLive.legend || "").indexOf("9") > 0 && glLive.svgPaths === 0,
       JSON.stringify(glLive));
+    ok("GL: the pan nudge-pad ships 4 buttons (up/down/left/right) in the same maplibregl-ctrl-group styling as the zoom control",
+      glLive.panButtons === 4 && glLive.panDirs === "down,left,right,up", JSON.stringify(glLive));
+    ok("GL: clicking the pan control's ‘up’ button calls panBy() and actually moves the camera (lat changes)",
+      glLive.upClicked && !!glLive.before && !!glLive.after &&
+      Math.abs(glLive.after.lat - glLive.before.lat) > 0.001, JSON.stringify({ before: glLive.before, after: glLive.after }));
 
     // ---- EXPLORE (Viridis V5): dataset-first designer → saved analyses ------
     console.log("\n• EXPLORE: dataset-first analysis designer (Viridis V5)");

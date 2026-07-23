@@ -5907,6 +5907,52 @@
     var c = hexParse(PDC.cssvar(token));
     return c ? rgbStr(c) : fallback;
   }
+  // Pan nudge-pad: a custom MapLibre IControl sitting under the built-in
+  // NavigationControl (same "maplibregl-ctrl maplibregl-ctrl-group" styling,
+  // same 29x29 flat icon buttons) with four arrow buttons that panBy() a fixed
+  // pixel amount — mouse-drag pan already works, this is the click/keyboard
+  // affordance the GL renderer was missing next to its zoom +/-.
+  var GL_PAN_PX = 80;
+  function _glPanIcon(d) {
+    return "url(\"data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='29' height='29' fill='%23333' viewBox='0 0 29 29'%3E%3Cpath d='" + d + "'/%3E%3C/svg%3E\")";
+  }
+  var GL_PAN_ARROWS = {
+    up:    { dx: 0, dy: -GL_PAN_PX, area: "1 / 2 / 2 / 3", d: "M14.5 9L20 19H9z" },
+    left:  { dx: -GL_PAN_PX, dy: 0, area: "2 / 1 / 3 / 2", d: "M9 14.5L19 9v10z" },
+    right: { dx: GL_PAN_PX, dy: 0, area: "2 / 3 / 3 / 4", d: "M20 14.5L10 20V9z" },
+    down:  { dx: 0, dy: GL_PAN_PX, area: "3 / 2 / 4 / 3", d: "M14.5 20L9 10h11z" }
+  };
+  function _glPanControl() {
+    var map, el;
+    return {
+      onAdd: function (m) {
+        map = m;
+        el = document.createElement("div");
+        el.className = "maplibregl-ctrl maplibregl-ctrl-group pdc-geo-pan";
+        el.style.cssText = "display:grid;grid-template-columns:29px 29px 29px;grid-template-rows:29px 29px 29px";
+        Object.keys(GL_PAN_ARROWS).forEach(function (dir) {
+          var a = GL_PAN_ARROWS[dir];
+          var btn = document.createElement("button");
+          btn.type = "button";
+          btn.style.cssText = "grid-area:" + a.area + ";border-top:none";
+          btn.setAttribute("aria-label", "Pan " + dir);
+          btn.setAttribute("data-pan", dir);
+          btn.title = "Pan " + dir;
+          var icon = document.createElement("span");
+          icon.className = "maplibregl-ctrl-icon";
+          icon.style.backgroundImage = _glPanIcon(a.d);
+          btn.appendChild(icon);
+          btn.addEventListener("click", function () { map.panBy([a.dx, a.dy], { duration: 300 }); });
+          el.appendChild(btn);
+        });
+        return el;
+      },
+      onRemove: function () {
+        if (el && el.parentNode) el.parentNode.removeChild(el);
+        map = undefined;
+      }
+    };
+  }
   function _choroplethGL(el, cfg, C) {
     geoFeaturesGL(C.scale).then(function (geo) {
       // camera carries over across re-renders of the same panel+scale so
@@ -5957,6 +6003,7 @@
         }
       });
       map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+      map.addControl(_glPanControl(), "top-right");
       if (prevCam) map.jumpTo(prevCam);
       el._glMap = map; el._glScale = C.scale;
       // floating hover tooltip — GL surfaces features via events, not DOM nodes,
