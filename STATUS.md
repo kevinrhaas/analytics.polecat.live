@@ -1671,13 +1671,18 @@
 >      (demopacks.js, examples index, studio.js)
 > LF3. **Conservation as an app Color theme** — see UX11 in the UX-polish track below (Settings →
 >      Appearance, alongside Classic Blue / Polecat / Fleet Modern).
-> LF4. **Choropleth map controls + renderer parity/persistence.** (a) The GL renderer ("Interactive
->      GL (pan & zoom)") has ZOOM buttons — ADD PAN buttons too (up/down/left/right nudge), same
->      control style. (b) The renderer / pan-zoom / interactive choice is NOT persisted with the
->      panel — it doesn't round-trip through save/export/reopen; persist the renderer opt (+ a sensible
->      default view) on the panel spec. (c) BUG — the **"State border overlay"** toggle works on ONE
->      renderer but not the other (parity gap); make both the SVG and GL renderers honor it.
->      app/studio-charts.js (choropleth SVG + GL), app/studio.js (panel inspector + spec persistence).
+> LF4. **Choropleth map controls + renderer parity/persistence.** (a) ✓ **Pan nudge-pad shipped
+>      2026-07-23, steward:** the GL renderer ("Interactive GL (pan & zoom)") had ZOOM buttons only —
+>      added a 4-button up/down/left/right pan nudge-pad (custom MapLibre `IControl`, `map.panBy()`
+>      an 80px nudge per click), stacked under the zoom control via the SAME `maplibregl-ctrl
+>      maplibregl-ctrl-group`/`maplibregl-ctrl-icon` styling (no new visual language), working in both
+>      the live preview and the exported HTML. 2 new tests (4 buttons render; clicking one actually
+>      moves the camera). sw v107. (app/studio-charts.js). NEXT in LF4: (b) The renderer / pan-zoom /
+>      interactive choice is still NOT persisted with the panel — it doesn't round-trip through
+>      save/export/reopen; persist the renderer opt (+ a sensible default view) on the panel spec. (c)
+>      BUG — the **"State border overlay"** toggle works on ONE renderer but not the other (parity gap);
+>      make both the SVG and GL renderers honor it. app/studio-charts.js (choropleth SVG + GL),
+>      app/studio.js (panel inspector + spec persistence).
 > LF5. **Chart color picker — swatches + fix apply.** (a) BUG — the color dropdown (Series 1–10 /
 >      Accent / Good/Warning/Bad/Info) "does not seem to work": picking an option doesn't recolor the
 >      chart/series. Trace the color-pick handler → spec write → render read and fix. ✓ **ONE confirmed
