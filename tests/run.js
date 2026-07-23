@@ -5939,6 +5939,18 @@ function serve() {
       return { rows: rows.length, copy: copy };
     });
     ok("export modal lists both artifacts (.html + .studio.json) with copy buttons", modalInfo.rows === 2 && modalInfo.copy, JSON.stringify(modalInfo));
+    // UX9: bare .btn (Copy) inside a modal used to inherit the dark-topbar white-on-
+    // translucent look, near-invisible on the modal's light --pane surface -- same bug
+    // LF14 fixed for .btn.danger, now covered for every other bare .btn via .modal .btn.
+    const exportBtnContrast = await page.evaluate(() => {
+      function lum(c) { var m = c.match(/rgba?\(([^)]+)\)/); if (!m) return 0; var p = m[1].split(",").map(parseFloat); return 0.2126 * p[0] + 0.7152 * p[1] + 0.0722 * p[2]; }
+      var copyBtn = [].slice.call(document.querySelectorAll(".modal .dl-row button")).filter(function (b) { return /copy/i.test(b.textContent); })[0];
+      if (!copyBtn) return { has: false };
+      var cs = getComputedStyle(copyBtn);
+      return { has: true, contrast: Math.abs(lum(cs.color) - lum(cs.backgroundColor)) };
+    });
+    ok("UX9: the export bundle modal's 'Copy' button is dark-on-light readable, not faint white-on-transparent",
+      exportBtnContrast.has && exportBtnContrast.contrast > 80, JSON.stringify(exportBtnContrast));
     await page.evaluate(() => { var x = document.querySelector(".modal-h .x"); if (x) x.click(); });
 
     // ---- per-series color picker (line/stacked) ----

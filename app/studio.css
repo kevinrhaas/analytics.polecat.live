@@ -563,6 +563,12 @@ textarea:focus-visible,[tabindex]:focus-visible,.row-item:focus-visible{
    .btn.primary fix — no secondary button should be faint on a light screen. */
 .app-sec .btn:not(.primary):not(.btn-primary){background:var(--field);border:1px solid var(--line);color:var(--ink)}
 .app-sec .btn:not(.primary):not(.btn-primary):hover{background:var(--field);border-color:var(--brand);color:var(--brand)}
+/* UX9: modals (compare/export-bundle/theme, etc.) sit on the light --pane surface too, but
+   live outside .app-sec (appended straight to <body>) so the fix above never reached them —
+   same faint white-on-light bug, just a different container. .danger is excluded; it already
+   gets its own dark-on-light + red-hover treatment right below (LF14). */
+.modal .btn:not(.primary):not(.btn-primary):not(.danger){background:var(--field);border:1px solid var(--line);color:var(--ink)}
+.modal .btn:not(.primary):not(.btn-primary):not(.danger):hover{background:var(--field);border-color:var(--brand);color:var(--brand)}
 .btn.btn-primary{background:var(--pdc);border-color:transparent;box-shadow:0 2px 10px rgba(125,60,152,.5)}
 .btn.btn-primary:hover{background:#8e49ab}
 .btn.icon{padding:8px 11px}

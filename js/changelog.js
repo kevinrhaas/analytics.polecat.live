@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 468,
+    title: 'Fix: buttons inside modals (Copy, etc.) were near-invisible on light surfaces (UX9)',
+    kind: 'fix',
+    ts: '2026-07-23T09:20:19.000Z',
+    items: [
+      'Secondary buttons inside dialogs like the export bundle modal now read clearly (dark text on a light field) instead of faint white-on-transparent -- the same fix already shipped for the job editor\'s red delete buttons now covers every other plain button in a modal.',
+    ],
+  },
+  {
     v: 467,
     title: 'Typography polish: object names read as text, not code (LF29a); wider dashboard title',
     kind: 'polish',
