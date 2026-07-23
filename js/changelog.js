@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 474,
+    title: 'Clear local data now truly resets you to a first-time visitor',
+    kind: 'fix',
+    ts: '2026-07-23T11:08:47.000Z',
+    items: [
+      'Clear local data (the More menu) now also signs you out and drops the historical sign-in bypass flag, so the reload lands you back on the sign-in screen instead of silently keeping you logged in.',
+      'It also resets per-section rail visibility (Admin > Section access) and Home\'s section order back to their defaults, matching everything else the reset already promised to clear.',
+    ],
+  },
+  {
     v: 473,
     title: 'A fourth Color theme: Conservation, the CTIC olive/pine look (UX11)',
     kind: 'feature',

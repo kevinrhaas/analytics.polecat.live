@@ -9702,7 +9702,9 @@ function serve() {
         workspaceStillOnDisk: (function () { try { return !!localStorage.getItem("analytics.workspace.v1"); } catch (x) { return false; } })(),
         hasShowSamplesKey: keys.indexOf("studio-show-samples") >= 0, hasLibSamplesOpenKey: keys.indexOf("studio-lib-samples-open") >= 0,
         hasDashViewKey: keys.indexOf("studio-dash-view") >= 0, hasSyncConnKey: keys.indexOf("analytics.datasource.v1") >= 0,
-        hasSyncSecretKey: keys.indexOf("analytics.datasource.secret.v1") >= 0
+        hasSyncSecretKey: keys.indexOf("analytics.datasource.secret.v1") >= 0,
+        hasSessionKey: keys.indexOf("analytics.session.v1") >= 0, hasHiddenSectionsKey: keys.indexOf("studio-hidden-sections") >= 0,
+        hasHomeOrderKey: keys.indexOf("studio-home-section-order") >= 0
       };
     });
     ok("E8: all Studio localStorage keys removed by clear-data logic", e8Clear.keyCount > 20 && e8Clear.remaining.length === 0, JSON.stringify(e8Clear));
@@ -9731,6 +9733,31 @@ function serve() {
       e8Clear.hasShowSamplesKey && e8Clear.hasLibSamplesOpenKey && e8Clear.hasDashViewKey, JSON.stringify(e8Clear));
     ok("E8: the real clear-data key list includes the sync connection + cached passphrase keys (Track L sweep round 3)",
       e8Clear.hasSyncConnKey && e8Clear.hasSyncSecretKey, JSON.stringify(e8Clear));
+    // Track L sweep round 4: three more slices (M3 auth, M4.2 per-section rights, M6 Home reorder)
+    // each added a new key without updating this list — the same recurring gap. analytics.session.v1
+    // is the sharpest of the three: without it, "Clear local data" left you signed in, so a reload
+    // did NOT land you back as a first-time visitor (the REVIEW-FIXES queue's ask for this feature).
+    ok("E8: the real clear-data key list includes analytics.session.v1, studio-hidden-sections, and studio-home-section-order (Track L sweep round 4)",
+      e8Clear.hasSessionKey && e8Clear.hasHiddenSectionsKey && e8Clear.hasHomeOrderKey, JSON.stringify(e8Clear));
+
+    // Clear-data's session wipe must ALSO drop the studio-gate-ok sessionStorage bypass (not part
+    // of CLEAR_DATA_KEYS, which only ever touches localStorage) — otherwise PolecatAuth.current()'s
+    // "authed via the historical bypass with no stored identity" fallback would silently re-admin
+    // you even with analytics.session.v1 gone. Exercises the exact two-step (localStorage +
+    // sessionStorage) the real handler performs, then restores the admin session so later tests
+    // that assume an authed admin are unaffected — same "re-persist after the destructive probe"
+    // convention the workspace-blob check above already uses.
+    const e8SignOut = await page.evaluate(() => {
+      window.PolecatAuth.login("admin");
+      var beforeUser = (window.PolecatAuth.current() || {}).u;
+      try { localStorage.removeItem("analytics.session.v1"); } catch (e) {}
+      try { sessionStorage.removeItem("studio-gate-ok"); } catch (e) {}
+      var afterUser = window.PolecatAuth.current();
+      window.PolecatAuth.login("admin"); // restore for the rest of the suite
+      return { beforeUser: beforeUser, afterUser: afterUser };
+    });
+    ok("E8: clearing the session key + studio-gate-ok together sign you fully out (PolecatAuth.current() is null)",
+      e8SignOut.beforeUser === "admin" && e8SignOut.afterUser === null, JSON.stringify(e8SignOut));
 
     // ---- E3: Dashboard thumbnail ----
     console.log("\n• Dashboard thumbnail (E3)");
