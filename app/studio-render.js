@@ -559,6 +559,11 @@
             renderer: o.renderer || "svg",
             legend: o.showLegend !== false, fmt: f, height: o.height || 380,
             lastUpdated: daLastUpdated(ch.da) };
+          // LF28: the GL renderer's last interactive pan/zoom (cfg.viewport = {center,zoom})
+          // round-trips on the panel spec — restored on load instead of re-fitting bounds, and
+          // (builder-only) written back live via onViewport as the user pans/zooms.
+          choroCfg.viewport = o.viewport || null;
+          if (isPreview()) choroCfg.onViewport = function (vp) { post({ type: "viewport", id: p.id, viewport: vp }); };
           if (m.seriesCol && res.col(m.seriesCol) >= 0) {
             var cli = res.col(m.idCol), csi = res.col(m.seriesCol), cvi = res.col(m.valueCol);
             choroCfg.rowsSV = res.rows.map(function (r) { return { label: String(r[cli]), series: String(r[csi]), value: +r[cvi] }; });

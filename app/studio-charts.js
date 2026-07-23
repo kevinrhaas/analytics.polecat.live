@@ -5979,9 +5979,14 @@
       wrap.style.cssText = "position:relative;width:100%;height:" + C.h + "px;border-radius:6px;overflow:hidden";
       el.appendChild(wrap);
       var sw = planeToLL(C.bbox[0] - 8, C.bbox[3] + 8), ne = planeToLL(C.bbox[2] + 8, C.bbox[1] - 8);
-      var map = new maplibregl.Map({
+      // LF28: a re-render of the same panel+scale carries its live camera over (prevCam,
+      // above); a fresh render (new panel, or this one after a save/reload/export) instead
+      // restores the last camera the user left it at, saved on the panel spec (cfg.viewport)
+      // — only a panel that has never been panned/zoomed falls back to fitting bounds.
+      var savedCam = prevCam || (cfg.viewport && cfg.viewport.center ? cfg.viewport : null);
+      var mapOpts = {
         container: wrap, attributionControl: false, dragRotate: false, pitchWithRotate: false,
-        renderWorldCopies: false, fadeDuration: 0, bounds: [sw, ne], fitBoundsOptions: { padding: 12 },
+        renderWorldCopies: false, fadeDuration: 0,
         style: { version: 8,
           sources: {
             regions: { type: "geojson", data: { type: "FeatureCollection", features: feats } },
@@ -6001,11 +6006,28 @@
             { id: "states", source: "states", type: "line",
               paint: { "line-color": stateCol, "line-width": 1, "line-opacity": 0.55 } }] : [])
         }
-      });
+      };
+      if (savedCam) { mapOpts.center = savedCam.center; mapOpts.zoom = savedCam.zoom; }
+      else { mapOpts.bounds = [sw, ne]; mapOpts.fitBoundsOptions = { padding: 12 }; }
+      var map = new maplibregl.Map(mapOpts);
       map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
       map.addControl(_glPanControl(), "top-right");
-      if (prevCam) map.jumpTo(prevCam);
       el._glMap = map; el._glScale = C.scale;
+      // LF28: persist the camera (debounced) so the NEXT render of this panel — after a save,
+      // reload, or export — restores exactly where the user left it, instead of re-fitting.
+      // Builder-only (cfg.onViewport is only wired in Studio/Explore preview, never in a
+      // deployed dashboard); a same-panel re-render (theme flip, ensemble toggle) already
+      // carries the live camera via prevCam above without round-tripping through the spec.
+      if (cfg.onViewport) {
+        var vpTimer = null;
+        map.on("moveend", function () {
+          clearTimeout(vpTimer);
+          vpTimer = setTimeout(function () {
+            var c = map.getCenter();
+            cfg.onViewport({ center: { lng: c.lng, lat: c.lat }, zoom: map.getZoom() });
+          }, 500);
+        });
+      }
       // floating hover tooltip — GL surfaces features via events, not DOM nodes,
       // so the shared _tip (element-bound) doesn't apply here
       var tip = document.createElement("div");
