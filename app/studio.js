@@ -8855,14 +8855,22 @@
       accountCardHtml() +
       '<div class="settings-card" id="wsBackendCard"></div>' +
       groups.map(function (g) {
+        // LF17: visual palette cards (AutoSelector-style) replace the old text-only dropdown —
+        // each card shows a light|dark swatch strip built from the SAME Studio.DASHBOARD_THEMES
+        // tokens the matching dashboard theme uses (LF10 already maps app theme → dashboard
+        // theme key), so the picker previews roughly what the app will actually look like.
         var themeRow = g === "Appearance" ?
-          '<div class="set-row"><span class="set-row-ic" data-ic="palette"></span>' +
+          '<div class="set-row set-row-col"><span class="set-row-ic" data-ic="palette"></span>' +
             '<div class="set-row-txt"><b>Color theme</b><small>Classic Blue is the original built-in chrome; Polecat recolors the builder in the warm terracotta/plum look the left rail already uses; Fleet Modern applies the same jobtracker.polecat.live tokens as the Fleet Modern dashboard theme.</small></div>' +
-            '<select id="appThemeSel" class="set-sel">' +
+            '<div class="appthm-row" id="appThemeRow" role="radiogroup" aria-label="Color theme">' +
               APP_THEME_KEYS.map(function (m) {
-                return '<option value="' + m + '"' + (appTheme() === m ? " selected" : "") + '>' + APP_THEME_LABELS[m] + '</option>';
+                var active = appTheme() === m;
+                return '<button type="button" class="appthm-card' + (active ? " active" : "") + '" data-app-theme="' + m + '" role="radio" aria-checked="' + (active ? "true" : "false") + '" title="' + esc(APP_THEME_LABELS[m]) + '">' +
+                  '<span class="appthm-swatch" style="background:' + appThemeSwatchCss(m) + '"></span>' +
+                  '<span class="appthm-lbl">' + esc(APP_THEME_LABELS[m]) + '</span>' +
+                '</button>';
               }).join("") +
-            '</select></div>' : "";
+            '</div></div>' : "";
         // Tour lives with the other guided/presentation affordances (moved out of the
         // topbar per user feedback — it's a once-in-a-while action, not daily chrome).
         var tourRow = g === "Presentation" ?
@@ -8998,8 +9006,15 @@
       else { Studio.removeDemoPack("conservation"); toast("Demo content removed"); }
       renderSettings();
     };
-    var appThemeSel = $("#appThemeSel", sec);
-    if (appThemeSel) appThemeSel.onchange = function () { setAppTheme(appThemeSel.value); toast(APP_THEME_LABELS[appThemeSel.value] + " theme applied"); };
+    // LF17: palette cards replace the old <select> — a plain click handler per card (same
+    // convention as the dt-swatch dashboard-theme swatches), re-rendering Settings so the
+    // `active` state moves to the clicked card.
+    $$(".appthm-card", sec).forEach(function (card) {
+      card.onclick = function () {
+        var m = card.getAttribute("data-app-theme");
+        setAppTheme(m); toast(APP_THEME_LABELS[m] + " theme applied"); renderSettings();
+      };
+    });
     var defSubInp = $("#setDefaultSubtitleInp", sec);
     if (defSubInp) defSubInp.addEventListener("change", function () { setDefaultSubtitle(defSubInp.value); toast("Default subtitle saved"); });
     var defAccentCustom = $("#setDefaultAccentCustom", sec);
@@ -9263,6 +9278,21 @@
   var APP_THEME_TO_DASHBOARD_THEME = { classic: "", polecat: "polecat", modern: "fleet-modern" };
   function appThemeToDashboardTheme(t) {
     return APP_THEME_TO_DASHBOARD_THEME[t] !== undefined ? APP_THEME_TO_DASHBOARD_THEME[t] : "polecat";
+  }
+  // LF17: a light|dark swatch strip for the Settings Color-theme cards, built from the matching
+  // Studio.DASHBOARD_THEMES entry's OWN concrete token hexes (not a live DOM read — these cards
+  // must render correctly for every option even though only one theme is ever active at a time).
+  // Classic has no light/dark token map (light:null/dark:null means "leave pdc-ui.css untouched"),
+  // so it falls back to its flat swatch color like the per-dashboard theme swatches already do.
+  function appThemeSwatchCss(appThemeKey) {
+    var dtKey = appThemeToDashboardTheme(appThemeKey) || "classic";
+    var preset = (Studio.DASHBOARD_THEMES || []).filter(function (p) { return p.key === dtKey; })[0];
+    if (preset && preset.light && preset.dark) {
+      // light bg → brand hue → dark bg, so the card actually reads as "this palette's colors"
+      // instead of a generic light-to-dark grayscale fade.
+      return "linear-gradient(115deg," + preset.light["--app-bg"] + " 0 32%," + preset.light["--pentaho"] + " 40% 60%," + preset.dark["--app-bg"] + " 68% 100%)";
+    }
+    return (preset && preset.swatch) || "#005bb5";
   }
   var APP_THEME_KEYS = ["classic", "polecat", "modern"];
   function setAppTheme(t) {

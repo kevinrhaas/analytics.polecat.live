@@ -19309,10 +19309,11 @@ function serve() {
     await page.click('#railNav .rail-item[data-sec="settings"]');
     await page.waitForTimeout(80);
     const z10Boot = await page.evaluate(function () {
-      var sel = document.getElementById("appThemeSel");
+      var row = document.getElementById("appThemeRow");
+      var active = row && row.querySelector(".appthm-card.active");
       return {
-        present: !!sel,
-        value: sel ? sel.value : "",
+        present: !!row,
+        value: active ? active.getAttribute("data-app-theme") : "",
         attr: document.documentElement.getAttribute("data-app-theme"),
         api: window.__studioAppTheme && window.__studioAppTheme.get()
       };
@@ -19322,7 +19323,7 @@ function serve() {
       JSON.stringify(z10Boot));
 
     const z10ClassicBrand = await page.evaluate(function () { return getComputedStyle(document.documentElement).getPropertyValue("--brand").trim(); });
-    await page.selectOption("#appThemeSel", "polecat");
+    await page.click('.appthm-card[data-app-theme="polecat"]');
     await page.waitForTimeout(80);
     const z10Polecat = await page.evaluate(function () {
       return {
@@ -19360,7 +19361,7 @@ function serve() {
     await page.click('#secSettings input[data-set="dark"]'); // back to light mode; still Polecat theme here
     await page.waitForTimeout(80);
     const z10RailPolecat = await page.evaluate(function () { return getComputedStyle(document.getElementById("railNav")).backgroundColor; });
-    await page.selectOption("#appThemeSel", "classic");
+    await page.click('.appthm-card[data-app-theme="classic"]');
     await page.waitForTimeout(80);
     const z10RailClassic = await page.evaluate(function () { return getComputedStyle(document.getElementById("railNav")).backgroundColor; });
     ok("Z10: the left rail recolors too — Classic Blue's rail is a distinct cool navy, not the Polecat plum",
@@ -19371,13 +19372,12 @@ function serve() {
     // ── Visual refresh (A) follow-up: "Fleet Modern" app-chrome theme, third option ──
     console.log("\n• Visual refresh (A) follow-up: Fleet Modern app-chrome theme");
     const modernOpts = await page.evaluate(function () {
-      var sel = document.getElementById("appThemeSel");
-      return Array.prototype.map.call(sel.options, function (o) { return o.value; });
+      return Array.prototype.map.call(document.querySelectorAll("#appThemeRow .appthm-card"), function (b) { return b.getAttribute("data-app-theme"); });
     });
     ok("Fleet Modern: the Color theme picker offers a third 'modern' option alongside classic/polecat",
       modernOpts.length === 3 && modernOpts.indexOf("modern") >= 0, JSON.stringify(modernOpts));
 
-    await page.selectOption("#appThemeSel", "modern");
+    await page.click('.appthm-card[data-app-theme="modern"]');
     await page.waitForTimeout(80);
     const modernLight = await page.evaluate(function () {
       return {
@@ -19409,7 +19409,7 @@ function serve() {
 
     // restore to Classic Blue + Light so subsequent tests see the original baseline
     await page.click('#secSettings input[data-set="dark"]');
-    await page.selectOption("#appThemeSel", "classic");
+    await page.click('.appthm-card[data-app-theme="classic"]');
     await page.waitForTimeout(80);
 
     // ── Z11: Help/docs — a persistent, discoverable rail entry (not buried in ⋯ More) ──

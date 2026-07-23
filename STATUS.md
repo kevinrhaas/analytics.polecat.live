@@ -1771,12 +1771,25 @@
 >       example content (connections, datasets, jobs, dashboards) should be shipped as sample packs the
 >       same way the Conservation Insight pack is — a governance/data-management sample pack. app/demopacks.js,
 >       Settings UI in app/studio.js, showSamples()/showDemo gating, help copy. Keep the changelog + a test.
-> LF17. **Color-theme picker → palette-image cards (AutoSelector-style).** The Settings "Color theme"
->       control is a text-only dropdown; replace it with visual palette cards like AutoSelector's Theme
->       picker — each option shows a gradient/swatch strip of that palette's actual colors plus its name
->       (Polecat Dark/Light/System + the app palettes incl. the conservation palette). Organize it cleanly
->       (grouped, not a messy wall). Reference screenshots: AutoSelector's gradient-slider + swatch cards.
->       app/studio.js (Settings render) + app/studio.css. Keep it token-driven so it tracks live palettes.
+> LF17. ✓ **Color-theme picker → palette-image cards (shipped 2026-07-23, steward).** Settings'
+>       "Color theme" `<select>` is now a row of visual cards (`.appthm-row`/`.appthm-card`), one per
+>       `APP_THEME_KEYS` entry (Classic Blue/Polecat/Fleet Modern) — each card's swatch strip is a
+>       CSS gradient built from that theme's OWN concrete token hexes (via the LF10
+>       `appThemeToDashboardTheme()` mapping into `Studio.DASHBOARD_THEMES`): light bg → brand hue →
+>       dark bg, so it reads as that palette's actual colors, not a generic light/dark fade; Classic
+>       (no light/dark token map — it means "leave pdc-ui.css untouched") falls back to its flat
+>       `swatch` hex, same convention the per-dashboard `.dt-swatch` picker already uses. Clicking a
+>       card calls the same `setAppTheme()` + toast as the old dropdown, then re-renders Settings so
+>       `active`/`aria-checked` move with it. Reuses the existing `.set-row-col` full-width-child
+>       layout convention (same as the style-presets list) rather than a new wrapper class. All 5
+>       existing Z10/Fleet-Modern tests that drove the old `<select>` via `page.selectOption` were
+>       rewired to click the new cards instead (same assertions, no coverage lost); visually verified
+>       (not just DOM-checked) in both themes/modes and at 390px — 3 cards fit without wrapping. sw
+>       v107. **Still open:** the original ask's "Polecat Dark/Light/System" grouping and a
+>       Conservation card — there's no Conservation app Color theme yet (that's LF3/UX11); once it
+>       exists, add its key to `APP_THEME_KEYS`/`APP_THEME_TO_DASHBOARD_THEME` and it gets a card for
+>       free. With only 3 options today a "messy wall" never came up — revisit grouping if the list
+>       grows.
 > LF20. **Builder top bar (canvas-bar) declutter — icons, consolidate, keep chrome off-screen (Kevin, live).**
 >       The builder's canvas top bar reads noisy: `title ✎ · id badge · Storage&Cost · undo · redo · Examples ▾ ·
 >       Open · Save · Export ▾ · ◑ Dark`. Make it MUCH simpler/elegant: turn secondary actions into icon

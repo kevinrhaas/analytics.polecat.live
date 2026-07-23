@@ -5,7 +5,10 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v106"; /* v106: LF10 — chart palette now follows the
+var CACHE_NAME = "studio-shell-v107"; /* v107: LF17 — Settings' Color theme picker becomes
+   visual palette cards (swatch strip + label) instead of a plain <select>. app/studio.js
+   and app/studio.css changed, so precached copies need to roll.
+   v106: LF10 — chart palette now follows the
    app's Color theme (new dashboards/widgets + Explore's live preview default to the
    matching Studio.DASHBOARD_THEMES entry unless a Settings default is set explicitly);
    Explore's preview also now follows the app's light/dark mode. app/studio.js changed,

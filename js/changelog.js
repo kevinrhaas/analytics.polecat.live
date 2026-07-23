@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 463,
+    title: 'Color theme picker is now visual palette cards (LF17)',
+    kind: 'polish',
+    ts: '2026-07-23T06:40:52.000Z',
+    items: [
+      'Settings → Appearance → Color theme is now a row of visual cards (Classic Blue / Polecat / Fleet Modern), each with a swatch strip previewing that theme\'s own colors, instead of a plain text dropdown.',
+    ],
+  },
+  {
     v: 462,
     title: 'Chart palette now follows your app Color theme (LF10)',
     kind: 'fix',
