@@ -7814,6 +7814,29 @@
   // flat list): which folder GROUPS are collapsed, session-only (in-memory, not
   // persisted) — default expanded, keyed by folder name or "__unfiled".
   var _repoCollapsedGroups = {};
+  // M5 NEXT ("subfolder create/move affordances beyond typing `/`"): a folder only
+  // ever existed as a byproduct of some row's `folder` field, so there was no way to
+  // set up an empty folder ahead of filing anything into it. `repoFolderSeeds` is a
+  // small persisted list of folder PATHS (same "/" nesting convention as every
+  // folder field) that Repository's tree always includes even with zero rows —
+  // purely a presence marker, same shape as Workbooks' own named-collection list.
+  // Filing a real object into a seeded path doesn't remove the seed (harmless: the
+  // path is now backed by real rows too, and unseeding it later just stops
+  // guaranteeing it survives to zero rows again). Deleting a seed only removes the
+  // marker — it never touches rows, since a seed never owns any.
+  function repoLoadFolderSeeds() { return (Studio.Workspace.settings().repoFolderSeeds || []).slice(); }
+  function repoSaveFolderSeeds(list) { Studio.Workspace.setSetting("repoFolderSeeds", list); }
+  function repoAddFolderSeed(path) {
+    path = (path || "").split("/").map(function (s) { return s.trim(); }).filter(Boolean).join("/");
+    if (!path) return null;
+    var list = repoLoadFolderSeeds();
+    if (list.indexOf(path) < 0) { list.push(path); repoSaveFolderSeeds(list); }
+    return path;
+  }
+  function repoRemoveFolderSeed(path) { repoSaveFolderSeeds(repoLoadFolderSeeds().filter(function (p) { return p !== path; })); }
+  window.__studioRepoFolderSeeds = repoLoadFolderSeeds; // test hook
+  window.__studioRepoAddFolderSeed = repoAddFolderSeed; // test hook
+  window.__studioRepoRemoveFolderSeed = repoRemoveFolderSeed; // test hook
   var REPO_TYPES = [
     { key: "dashboard", label: "Dashboards", singular: "Dashboard", ic: "layers" },
     { key: "dataset", label: "Datasets", singular: "Dataset", ic: "db" },
@@ -7906,15 +7929,28 @@
       return n;
     }
     var repoTreeRoot = repoNewNode("", "");
-    filtered.forEach(function (r) {
-      var segs = repoFolderSegs(r.folder), node = repoTreeRoot, path = "";
-      segs.forEach(function (seg) {
-        path = path ? path + "/" + seg : seg;
-        if (!node.children[seg]) { node.children[seg] = repoNewNode(path, seg); node.order.push(seg); }
+    function repoWalkPath(path) {
+      var node = repoTreeRoot, cur = "";
+      repoFolderSegs(path).forEach(function (seg) {
+        cur = cur ? cur + "/" + seg : seg;
+        if (!node.children[seg]) { node.children[seg] = repoNewNode(cur, seg); node.order.push(seg); }
         node = node.children[seg];
       });
-      node.rows.push(r); // unfiled rows (no segments) stay on the root node itself
-    });
+      return node;
+    }
+    filtered.forEach(function (r) { repoWalkPath(r.folder).rows.push(r); }); // unfiled rows (no segments) stay on the root node itself
+    // M5 NEXT ("a New subfolder action"): seeded folders always appear in the tree
+    // even with zero rows, so you can create the home for something before filing
+    // anything into it — but only in the plain, unfiltered browsing view (a search
+    // or type-chip narrows to what actually matches, and an empty seed never
+    // "matches" anything).
+    var repoSeededNodes = {};
+    if (!q && !_repoAllType) {
+      repoLoadFolderSeeds().forEach(function (path) {
+        var node = repoWalkPath(path);
+        if (node) repoSeededNodes[node.path] = true;
+      });
+    }
     function repoRowHtml(r) {
       var td = repoTypeDef(r.type);
       // Quick edit (M5 NEXT: "a right-panel editor for simple objects instead of
@@ -7931,7 +7967,7 @@
         (canQuickEdit ? '<span class="cx-actions"><button type="button" class="repo-edit" data-repo-edit-type="' + esc(r.type) + '" data-repo-edit-id="' + esc(r.id) + '" title="Quick edit" aria-label="Quick edit ' + esc(r.title) + '"></button></span>' : "") +
         '</div>';
     }
-    function repoGroupHtml(key, label, depth, count, contentsHtml) {
+    function repoGroupHtml(key, label, depth, count, contentsHtml, canDelete) {
       var collapsed = !!_repoCollapsedGroups[key];
       return '<div class="cx-group' + (collapsed ? " collapsed" : "") + '" data-repo-group="' + esc(key) + '" data-repo-depth="' + depth + '" style="--repo-depth:' + depth + '">' +
         '<button type="button" class="cx-group-hd" data-repo-group-toggle="' + esc(key) + '" aria-expanded="' + (collapsed ? "false" : "true") + '">' +
@@ -7939,30 +7975,42 @@
           '<span class="cx-group-label">' + esc(label) + '</span>' +
           '<span class="cx-group-n">' + count + '</span>' +
         '</button>' +
+        (canDelete ? '<button type="button" class="cx-group-del" data-repo-group-del="' + esc(key) + '" title="Remove empty folder ' + esc(label) + '" aria-label="Remove empty folder ' + esc(label) + '"></button>' : "") +
         '<div class="cx-list">' + contentsHtml + '</div>' +
       '</div>';
     }
     // Non-root nodes render their own subgroups (sorted A→Z) followed by any
     // rows filed exactly at that path — no separate "Unfiled" wrapper is needed
     // below the root, since a row directly in a folder isn't unfiled, it's just
-    // not filed any DEEPER.
+    // not filed any DEEPER. A seeded folder (M5 NEXT: "New subfolder") only offers
+    // its delete (✕) affordance while it's still genuinely empty (own rows AND
+    // everything nested inside it) — once real data lands there it's a real
+    // folder, same as any other, and the seed marker becomes moot.
     function repoNodeHtml(node, depth) {
       var childKeys = node.order.slice().sort();
       var childrenHtml = childKeys.map(function (k) {
         var child = node.children[k];
-        return repoGroupHtml(child.path, child.label, depth, repoNodeCount(child), repoNodeHtml(child, depth + 1));
+        var childCount = repoNodeCount(child);
+        return repoGroupHtml(child.path, child.label, depth, childCount, repoNodeHtml(child, depth + 1),
+          !!repoSeededNodes[child.path] && childCount === 0);
       }).join("");
       return childrenHtml + node.rows.map(repoRowHtml).join("");
     }
     var topKeys = repoTreeRoot.order.slice().sort();
     var groupsHtml = topKeys.map(function (k) {
       var child = repoTreeRoot.children[k];
-      return repoGroupHtml(child.path, child.label, 0, repoNodeCount(child), repoNodeHtml(child, 1));
+      var childCount = repoNodeCount(child);
+      return repoGroupHtml(child.path, child.label, 0, childCount, repoNodeHtml(child, 1),
+        !!repoSeededNodes[child.path] && childCount === 0);
     }).join("") + (repoTreeRoot.rows.length
       ? repoGroupHtml("__unfiled", "Unfiled", 0, repoTreeRoot.rows.length, repoTreeRoot.rows.map(repoRowHtml).join(""))
       : "");
-    results.innerHTML = chipsHtml +
-      (filtered.length ? '<div class="cx-groups">' + groupsHtml + '</div>'
+    var newFolderHtml = (!q && !_repoAllType)
+      ? '<div class="wb-add repo-folder-add"><input type="text" id="repoNewFolderInp" class="wb-name-inp" placeholder="New folder… (e.g. Finance or Finance/2024)" aria-label="New folder name"/>' +
+        '<button type="button" class="btn" id="repoNewFolderBtn">+ New folder</button></div>'
+      : "";
+    results.innerHTML = chipsHtml + newFolderHtml +
+      ((topKeys.length || repoTreeRoot.rows.length) ? '<div class="cx-groups">' + groupsHtml + '</div>'
         : '<div class="home-empty-hint">' + (q || _repoAllType ? "Nothing matches." :
             "Your workspace is empty — dashboards, datasets, connections, analyses and jobs will all show up here once you create them.") + '</div>');
     $$("[data-repo-type-filter]", results).forEach(function (btn) {
@@ -7987,6 +8035,26 @@
       btn.onclick = function (e) {
         e.stopPropagation();
         openRepoQuickEdit(btn.getAttribute("data-repo-edit-type"), btn.getAttribute("data-repo-edit-id"));
+      };
+    });
+    var newFolderBtn = $("#repoNewFolderBtn", results);
+    if (newFolderBtn) newFolderBtn.onclick = function () {
+      var inp = $("#repoNewFolderInp", results);
+      var raw = inp ? inp.value.trim() : "";
+      if (!raw) { if (inp) inp.focus(); toast("Type a folder name first — e.g. “Finance” or “Finance/2024”.", true); return; }
+      var path = repoAddFolderSeed(raw);
+      if (!path) { if (inp) inp.focus(); toast("Type a folder name first — e.g. “Finance” or “Finance/2024”.", true); return; }
+      toast("Folder “" + path + "” created");
+      renderRepository();
+    };
+    var newFolderInp = $("#repoNewFolderInp", results);
+    if (newFolderInp) newFolderInp.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); newFolderBtn.click(); } });
+    $$("[data-repo-group-del]", results).forEach(function (btn) {
+      if (Studio.icon) btn.appendChild(Studio.icon("trash", 9));
+      btn.onclick = function (e) {
+        e.stopPropagation();
+        repoRemoveFolderSeed(btn.getAttribute("data-repo-group-del"));
+        renderRepository();
       };
     });
   }

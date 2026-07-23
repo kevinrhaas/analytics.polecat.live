@@ -2317,6 +2317,25 @@
 >     touching its title). sw v103. **The folder rollout (Repository's organizing field across
 >     all five object kinds) is now fully done.** NEXT in M5: subfolder create/move affordances
 >     beyond typing `/` (drag-to-file, a "New subfolder" action).
+>     ↳ **"New subfolder" action (shipped 2026-07-23, steward):** a "+ New folder" box in
+>     Repository (only shown in the plain, unfiltered browsing view — a search/type filter narrows
+>     to what actually matches, and an empty seed never "matches" anything) creates a folder —
+>     even a nested one via the same `/` convention as every folder field, e.g. "Finance/2024" —
+>     with zero rows, so it's ready to receive items instead of only ever existing as a byproduct
+>     of some row's `folder` value. Backed by a new persisted `repoFolderSeeds` Workspace setting
+>     (a flat list of paths, same shape as Workbooks' own named-collection list) — a seed is purely
+>     a presence marker and never owns rows, so deleting one (the small ✕ that appears on an
+>     empty seeded folder's header on hover) never touches data. The ✕ disappears the moment
+>     something real is filed into that folder (it's an ordinary folder at that point, same as
+>     any other); an auto-created intermediate ancestor (e.g. "Finance" when you seed "Finance/
+>     2024") is never itself deletable, only the exact leaf you seeded. 7 new M5 ratchets (blank-
+>     input no-op, nested seed creates parent+child with delete only on the leaf, filing a real
+>     object into a seeded folder retires its delete affordance, standalone empty-folder create/
+>     delete round-trip, the control only renders unfiltered). sw v104. NEXT in M5: drag-to-file
+>     (dragging a row onto a folder's header to refile it) — the last of the two originally
+>     documented subfolder affordances; typing a folder name (with autocomplete) remains the
+>     primary, fully mobile-capable way to file something, so this NEXT item is a desktop-only
+>     convenience layered on top, not a dependency for anyone to organize their workspace.
 > M5. **Repository browser:** new left-rail section — a tree/folder view of ALL objects (dashboards,
 >     datasets, connections, analyses, jobs) with find/open/edit and a right-panel editor for
 >     simple objects; deep-links to the full editors for complex ones.
