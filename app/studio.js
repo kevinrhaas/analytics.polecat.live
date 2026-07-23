@@ -55,6 +55,31 @@
     return store;
   }
 
+  // R4 (tech-debt sweep): Connections' connLoadViews/connSaveViews and Datasets'
+  // dsxLoadViews/dsxSaveViews were identical shape, differing only in which Workspace
+  // SETTINGS key they read/write — one factory backs both; each section keeps its own
+  // applyView (the filter fields it resets genuinely differ per kind).
+  function makeViewsStore(settingsKey) {
+    return {
+      load: function () { return (Studio.Workspace.settings()[settingsKey] || []).slice(); },
+      save: function (list) { Studio.Workspace.setSetting(settingsKey, list); }
+    };
+  }
+
+  // R4 (tech-debt sweep): toggleConnPin/toggleDsxPin were identical logic (stamp/clear
+  // pinned+pinnedAt, save, re-render), differing only in the Workspace table + which
+  // render function to call after — one factory backs both.
+  function makePinToggle(table, rerender) {
+    return function (id) {
+      var W = Studio.Workspace, r = W.get(table, id);
+      if (!r) return;
+      if (r.pinned) { delete r.pinned; delete r.pinnedAt; }
+      else { r.pinned = true; r.pinnedAt = new Date().toISOString(); }
+      W.put(table, r);
+      rerender();
+    };
+  }
+
   // R2 (tech-debt sweep): the 4 identical "tell the preview iframe the app theme once it
   // loads" envelopes (compare-dashboards preview, Home's live mini-render, Panel zoom,
   // Slideshow) collapsed onto one helper.
@@ -6457,8 +6482,9 @@
   // axis too (see _connTagFilter above). Own key in the same Workspace
   // SETTINGS bag — travels with the workspace, no new "Clear local data"
   // entry needed.
-  function connLoadViews() { return (Studio.Workspace.settings().connectionViews || []).slice(); }
-  function connSaveViews(list) { Studio.Workspace.setSetting("connectionViews", list); }
+  var _connViewsStore = makeViewsStore("connectionViews");
+  function connLoadViews() { return _connViewsStore.load(); }
+  function connSaveViews(list) { _connViewsStore.save(list); }
   function connApplyView(v) {
     var inp = $("#connSearch"); if (inp) inp.value = v.q || "";
     _connAdapterFilter = {}; (v.adapters || []).forEach(function (a) { _connAdapterFilter[a] = true; });
@@ -6471,14 +6497,7 @@
   // `pinnedAt` fields (togglePin above) — pinned connections sort to the top
   // of the catalog so a fast-growing list stays navigable without committing
   // to the still-undecided folders/tags grouping model.
-  function toggleConnPin(id) {
-    var W = Studio.Workspace, r = W.get("connections", id);
-    if (!r) return;
-    if (r.pinned) { delete r.pinned; delete r.pinnedAt; }
-    else { r.pinned = true; r.pinnedAt = new Date().toISOString(); }
-    W.put("connections", r);
-    renderConnections();
-  }
+  var toggleConnPin = makePinToggle("connections", function () { renderConnections(); });
   // M4.2 slice 2 (per-section rights + object privacy — connections): same
   // `private`/`owner` shape + `isVisibleToMe` helper as dashboards (slice 1).
   // A connection often carries credentials, so hiding it from other accounts'
@@ -6928,8 +6947,9 @@
   // new localStorage key — travels with the workspace across devices/sync for
   // free, and needs no new "Clear local data" entry (analytics.workspace.v1
   // already covers it) or Turso/Supabase schema bump.
-  function dsxLoadViews() { return (Studio.Workspace.settings().datasetViews || []).slice(); }
-  function dsxSaveViews(list) { Studio.Workspace.setSetting("datasetViews", list); }
+  var _dsxViewsStore = makeViewsStore("datasetViews");
+  function dsxLoadViews() { return _dsxViewsStore.load(); }
+  function dsxSaveViews(list) { _dsxViewsStore.save(list); }
   function dsxApplyView(v) {
     var inp = $("#dsxSearch"); if (inp) inp.value = v.q || "";
     _dsxAdapterFilter = {}; (v.adapters || []).forEach(function (a) { _dsxAdapterFilter[a] = true; });
@@ -6941,14 +6961,7 @@
   // Post-overhaul backlog item 7 ("organization at scale") — same favorite
   // flag + top-of-list sort as toggleConnPin, kept on the dataset row itself
   // (additive, syncs with the rest of the workspace).
-  function toggleDsxPin(id) {
-    var W = Studio.Workspace, r = W.get("datasets", id);
-    if (!r) return;
-    if (r.pinned) { delete r.pinned; delete r.pinnedAt; }
-    else { r.pinned = true; r.pinnedAt = new Date().toISOString(); }
-    W.put("datasets", r);
-    renderDatasets();
-  }
+  var toggleDsxPin = makePinToggle("datasets", function () { renderDatasets(); });
   // M4.2 slice 3 (per-section rights + object privacy — datasets): same
   // `private`/`isVisibleToMe` shape as dashboards/connections, but the
   // account-identity owner rides on `acctOwner` — datasets already have a

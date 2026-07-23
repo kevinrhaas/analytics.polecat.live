@@ -116,6 +116,19 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **R4 — merge the Connections/Datasets view-pin machinery (v476, 2026-07-23, steward,
+  R4 now fully shipped):** `connLoadViews`/`connSaveViews` and `dsxLoadViews`/`dsxSaveViews`
+  hand-rolled the identical read-slice/write-through-`Workspace.setSetting` pair, differing
+  only in the settings key (`connectionViews` vs `datasetViews`); `toggleConnPin`/
+  `toggleDsxPin` hand-rolled the identical stamp/clear-`pinned`+`pinnedAt`-then-save-then-
+  rerender logic, differing only in the Workspace table + which render fn to call after.
+  New `makeViewsStore(settingsKey)` and `makePinToggle(table, rerender)` factories (next to
+  R3's `makePresetStore`, top of file) back both pairs; `connApplyView`/`dsxApplyView` stay
+  separate (the filter fields each resets genuinely differ — datasets also resets a
+  connection filter connections doesn't have). Every exported function keeps its original
+  name/signature, so no call site anywhere in the file changed — pure refactor, no behavior
+  change, suite unchanged at 1821/1821. sw v118. (app/studio.js, sw.js) NEXT in the tech-debt
+  track: R5+ (studio.js module extraction).
 - **M4.2 follow-up — Explore respects dataset privacy too (v475, 2026-07-23, steward):** found
   while looking at the REVIEW-FIXES queue's "Explore-side New-dataset" item — Explore's own
   `xpDatasets()` picker was the one remaining consumer of the datasets table that never filtered
@@ -2246,8 +2259,11 @@
 >     steward):** table-drove the 8 `default*` getter/setter pairs (slice 1, v469) and
 >     factored the 3 identical list-CRUD triplets (stylePresets/templateVarSets/
 >     customThemePresets) onto one `makePresetStore(key)` (slice 2, v472). (studio.js)
-> R4. **Merge the view-pin machinery** duplicated between Connections (`conn*Views`/`toggleConnPin`)
->     and Datasets (`dsx*Views`/`toggleDsxPin`) into one shared helper (their own comment flags the mirror).
+> R4. ✓ **Merge the view-pin machinery — DONE, see DONE (v476, 2026-07-23, steward):**
+>     `makeViewsStore(settingsKey)` backs `connLoadViews`/`connSaveViews` and
+>     `dsxLoadViews`/`dsxSaveViews`; `makePinToggle(table, rerender)` backs
+>     `toggleConnPin`/`toggleDsxPin`. `connApplyView`/`dsxApplyView` stay separate
+>     (the filter fields each resets genuinely differ). sw v118.
 > R5+. **studio.js (9,899 lines) module extraction — safety order, ONE subsystem per slice, full suite
 >      each:** ① chart-thumbnail SVGs (pure, ~200 lines — use this slice to ESTABLISH the module pattern:
 >      ES-module `app/*.js` sharing a small internal namespace, matching the rest of app/) → ② branding/
