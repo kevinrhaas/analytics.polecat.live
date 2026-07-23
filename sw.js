@@ -5,7 +5,14 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v135"; /* v135: LF6 — per-panel download chrome (image + data),
+var CACHE_NAME = "studio-shell-v136"; /* v136: LF6 slice 2 — folded the choropleth/ensemble-
+   specific "Download CSV" legend buttons into the generic per-panel download chrome from v135
+   instead of leaving both live side by side. The charts now register a "current selection" rows
+   fn (PDC._panelCsvRows, keyed by panel id) that the chrome's Download-data button prefers over
+   the raw bound query when present — still respects live provider-toggle state, just one control
+   per panel instead of two. app/studio-charts.js, app/studio-render.js, docs/index.html changed,
+   so precached copies need to roll.
+   v135: LF6 — per-panel download chrome (image + data),
    on by default with a per-panel "Allow downloads" Inspector toggle. Lives in app/studio-render.js
    (not studio.js) so the SAME code renders it in the live preview iframe AND the exported/embedded
    HTML — verified against a real standalone bundle, not just the builder. app/studio-render.js,

@@ -116,6 +116,27 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF6 slice 2 — folded the choropleth/ensemble legend CSV buttons into the generic panel
+  chrome (v494, 2026-07-23, steward — LF6 is now fully done):** slice 1's own NEXT pointer named
+  this as the follow-up. The map's and Ensemble chart's own "Download CSV" legend/footer button
+  (V9, Viridis scientific-honesty polish) is gone — instead of drawing a second control, `_choropleth`'s
+  `geoLegend` and `PDC.ensembleSeries`'s footer now register a "current selection" rows fn into a
+  shared `PDC._panelCsvRows` registry keyed by panel id (app/studio-charts.js), and the panel
+  chrome's generic Download-data button (app/studio-render.js's `downloadPanelData`) prefers that
+  override over the raw bound query rows when present — read LAZILY at click time (not at chrome-
+  creation time), which sidesteps the choropleth's async geometry load racing the chrome's
+  synchronous creation. The override still reflects live selection state: geoLegend/the ensemble
+  footer re-register on every redraw (a provider toggle re-renders both), and `renderAll` resets
+  the whole registry at the top of every full render so a panel whose chart type just changed away
+  from choropleth/ensembleSeries can't keep a stale rows fn. docs/index.html's chart-card copy for
+  both chart types updated to point at the on-canvas button instead of a legend link; the 3 V9 CSV
+  download tests now drive `__downloadPanelDataRows` (the same test hook LF6 slice 1 added) against
+  panel ids instead of clicking legend-embedded buttons — same assertions (current-selection
+  content, live-updates on provider toggle), no coverage lost. SW cache → v136.
+  (app/studio-charts.js, app/studio-render.js, docs/index.html, sw.js, tests/run.js) NEXT in the
+  LIVE-FEEDBACK QUEUE: several items remain open (LF9 SPA history, LF13 job editor overhaul, LF16
+  demo-content merge, LF18-21 Home/IA redesign, the ★-marked LF22-24, LF25/26/29/30) — pick the
+  next-most-scoped one.
 - **LF6 slice 1 — per-widget download chrome, on by default (v493, 2026-07-23, steward):** the
   most recent DONE entry's own NEXT pointer named LF6 as the next-most-scoped live-feedback item.
   Every widget now shows a small "Download image" (PNG) / "Download data" (CSV) button pair on
@@ -2078,9 +2099,11 @@
 > LF6. ✓ **Slice 1 shipped (v493, 2026-07-23, steward) — see DONE.** Every widget shows a
 >      "Download image" (PNG) / "Download data" (CSV) button pair on hover, on by default, in
 >      BOTH the builder preview and a real exported/embedded dashboard (same code path in
->      app/studio-render.js). Per-panel "Allow downloads" toggle in the inspector. NEXT: fold the
->      pre-existing choropleth/ensemble-specific "Download CSV" legend buttons into this same
->      generic affordance instead of leaving both live side by side.
+>      app/studio-render.js). Per-panel "Allow downloads" toggle in the inspector.
+>      ✓ **Slice 2 shipped (v494, 2026-07-23, steward — LF6 is now fully done) — see DONE.** Folded
+>      the pre-existing choropleth/ensemble-specific "Download CSV" legend buttons into this same
+>      generic affordance instead of leaving both live side by side — one download control per
+>      panel, still respecting live provider-toggle state.
 > LF7. ✓ **Conservation demos now show both plain FILTERS and INTERACTIVE cross-filtering (shipped
 >      2026-07-23, steward) — see DONE.** The featured Conservation Insight dashboard and both gated
 >      examples went from `filters:[]` to real filterDef filters wired to actual panel params, plus

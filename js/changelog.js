@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 494,
+    title: 'One download button per chart, not two',
+    kind: 'polish',
+    ts: '2026-07-23T22:37:05.000Z',
+    items: [
+      'The map and ensemble charts\' own "Download CSV" legend link is gone — their data now comes out through the same Download-data button every other widget already has, right on the panel. It still exports exactly what\'s currently shown (respecting any provider toggles you\'ve made), just from one control instead of two redundant ones.',
+    ],
+  },
+  {
     v: 493,
     title: 'Download a widget\'s image or data right from the canvas',
     kind: 'feature',
