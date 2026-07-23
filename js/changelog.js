@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 469,
+    title: 'Tech-debt sweep: table-drive the dashboard-default config getters (R3 slice 1)',
+    kind: 'polish',
+    ts: '2026-07-23T09:38:45.000Z',
+    items: [
+      'The 8 default-style fields (subtitle, accent color, header background, title size, subtitle style, dashboard theme, card skin, logo) now share one small pair of storage helpers instead of each repeating the same load/save code.',
+      'Pure internal refactor -- no behavior change, suite unchanged at 1809/1809.',
+    ],
+  },
+  {
     v: 468,
     title: 'Fix: buttons inside modals (Copy, etc.) were near-invisible on light surfaces (UX9)',
     kind: 'fix',

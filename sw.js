@@ -5,7 +5,10 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v110"; /* v110: UX9 — bare .btn buttons inside modals (e.g.
+var CACHE_NAME = "studio-shell-v111"; /* v111: R3 slice 1 — the 8 default-style config
+   getter/setter pairs now share strDefault/setStrDefault; pure refactor, no behavior
+   change. app/studio.js changed, so precached copies need to roll.
+   v110: UX9 — bare .btn buttons inside modals (e.g.
    the export bundle modal's Copy button) get dark-on-light contrast instead of the
    faint white-on-translucent default. app/studio.css changed, so precached copies
    need to roll.
