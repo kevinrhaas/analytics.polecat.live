@@ -116,6 +116,28 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF26 — Save-as + overwrite protection: sample content can no longer be silently clobbered
+  (v495, 2026-07-23, steward):** two parts. (1) A new **Save as…** button sits next to Save in
+  the dashbar (and its phone More-menu twin, `moreSaveAsSpec`) — it always forks the working
+  spec into a brand-new dashboard (fresh id via `Studio.uid("dash")`), prompting for a title in
+  a small modal (prefilled `"<title> (copy)"`). (2) Plain **Save** is now overwrite-safe: a new
+  `isDashboardMine(row)` check (app/studio.js) runs before `noteRecent()`'s upsert — a dashboard
+  tagged `demoPackId` (any installed sample/demo pack) is ALWAYS treated as not-mine regardless
+  of auth state, and (for when real multi-user auth lands) a `private` row owned by someone else
+  is too. `saveToCatalog()` now opens the SAME Save-as modal instead of overwriting whenever the
+  catalog row for `S.spec.id` fails that check — so hitting Ctrl/⌘+S on a sample dashboard forks
+  a copy (reason-specific hint text: "sample content" vs "you don't own this") rather than
+  silently overwriting the shared original; the working spec then points at the new fork, so
+  further edits/saves target it, not the sample. Re-saving an already-owned, non-sample
+  dashboard is unchanged (still a plain in-place overwrite). 6 new tests (Save-as prompt opens
+  instead of overwriting a demoPackId row; committing it forks a new row and leaves the sample's
+  title/demoPackId untouched; the working spec re-points at the fork; re-saving the fork
+  overwrites in place with no further prompt; the explicit Save-as button always forks even for
+  an owned dashboard; the phone More-menu twin exists). docs/index.html's "Saving and loading
+  your work" section documents both. SW cache → v137. (app/index.html, app/studio.js,
+  docs/index.html, sw.js, tests/run.js) NEXT in the LIVE-FEEDBACK QUEUE: several items remain
+  open (LF9 SPA history, LF13 job editor overhaul, LF16 demo-content merge, LF20/21 topbar/header
+  polish, the ★-marked LF22-24, LF25) — pick the next-most-scoped one.
 - **LF6 slice 2 — folded the choropleth/ensemble legend CSV buttons into the generic panel
   chrome (v494, 2026-07-23, steward — LF6 is now fully done):** slice 1's own NEXT pointer named
   this as the follow-up. The map's and Ensemble chart's own "Download CSV" legend/footer button
@@ -2333,19 +2355,12 @@
 >           Closes the loop with #29 (widgets as first-class objects) — Studio can both USE library widgets and
 >           CONTRIBUTE to it. app/studio.js (Inspector actions + panel toolbar), app/studio-render.js (on-panel
 >           button render + the byte-identical export path), app/exporters.js, tests per part.
-> LF26. **Save-as + overwrite protection in Studio — never clobber sample content (Kevin, live).** Add a "Save as…"
->       button NEXT TO Save (btnSaveSpec, index.html; saveToCatalog studio.js ~9665) that saves the working spec as a
->       NEW dashboard (fresh id, prompt/confirm a name) rather than overwriting. And make plain SAVE overwrite-safe:
->       do NOT silently clobber — ESPECIALLY never overwrite SAMPLE/DEMO content. Sample dashboards carry
->       `demoPackId` (app/demopacks.js; e.g. the Conservation pack sets demoPackId:"conservation"); saving edits to
->       one must ROUTE TO SAVE-AS (a new user-owned copy), never write back over the pack row — so a Remove-pack /
->       re-install always restores pristine samples and the user's edits live in their own dashboard. General rule:
->       Save writes back only to a dashboard the current user OWNS and that isn't protected (not demoPackId); anything
->       else (a sample, or — with LF23 — someone else's dashboard a viewer opened) becomes Save-as-a-copy (reuse the
->       acctOwner ownership + the LF23 "save a copy" path). Confirm-before-overwrite for the owner's own existing
->       dashboard is a nice touch but the HARD guardrail is: sample/demo content is read-only, edits fork. app/studio.js
->       (saveToCatalog + a saveAsNew, the Save/Save-as buttons), app/index.html (button), test (saving over a
->       demoPackId dashboard forks instead of overwriting; Save-as mints a new id).
+> LF26. ✓ **Save-as + overwrite protection — shipped (v495, 2026-07-23, steward), see DONE.** A "Save as…"
+>       button next to Save always forks the working spec into a new dashboard; plain Save on a `demoPackId`
+>       sample (or, later, someone else's dashboard) now routes to that same Save-as prompt instead of
+>       overwriting. The ownership half of the general rule (LF23's ungated viewer case) is implemented in
+>       `isDashboardMine()` but untested beyond demoPackId, since real multi-user auth doesn't exist yet —
+>       revisit alongside LF23.
 > LF27. ★★ **Navigation model — Studio is an EDITOR you enter & leave; land on Home; a sexy Dashboards browser (Kevin, live).**
 >       Reframe the app so the builder isn't a scary dead-end. Today the rail has both `dashboards` (secDashboards, a
 >       list w/ a repo-hero) AND `studio` (the editor) as peer rail items, and the app BOOTS with `studio` active

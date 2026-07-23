@@ -23504,6 +23504,89 @@ function serve() {
       wsDashPull.cardShows && wsDashPull.inStore, JSON.stringify(wsDashPull));
     await wsDashPage.close();
 
+    // ---- LF26: Save-as + overwrite protection — sample content forks instead of clobbering ----
+    console.log("\n• LF26: Save-as + overwrite protection (sample content is read-only)");
+    const lf26Page = await browser.newPage();
+    await lf26Page.addInitScript(() => {
+      try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); localStorage.setItem("studio-shell-section", "studio"); } catch (e) {}
+    });
+    await lf26Page.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
+    await lf26Page.waitForFunction(() => window.__STUDIO_STATE && window.Studio && Studio.Workspace, { timeout: 10000 });
+    // (a) plain Save on a sample/demo dashboard must not overwrite it — it opens the Save-as prompt instead
+    const lf26Before = await lf26Page.evaluate(function () {
+      var sampleId = "lf26-sample-dash";
+      Studio.Workspace.put("dashboards", {
+        id: sampleId, ts: new Date().toISOString(), demoPackId: "conservation", title: "LF26 Sample", name: "lf26-sample",
+        spec: { id: sampleId, title: "LF26 Sample", name: "lf26-sample", panels: [], kpis: [], filters: [], cda: { connections: [], dataAccesses: [] } }
+      });
+      window.__studioOpenRecent(sampleId);
+      window.__STUDIO_STATE.spec.title = "LF26 Sample — edited";
+      return { countBefore: Studio.Workspace.all("dashboards").length };
+    });
+    await lf26Page.evaluate(function () { window.__studioSaveToCatalog(); });
+    await lf26Page.waitForTimeout(150);
+    const lf26ModalUp = await lf26Page.evaluate(function () {
+      return { modalOpen: !!document.getElementById("saveAsTitleInput"), inputValue: document.getElementById("saveAsTitleInput").value };
+    });
+    ok("LF26: Save on a sample/demo dashboard opens the Save-as prompt instead of silently overwriting it",
+      lf26ModalUp.modalOpen && lf26ModalUp.inputValue === "LF26 Sample — edited (copy)", JSON.stringify(lf26ModalUp));
+    await lf26Page.fill("#saveAsTitleInput", "LF26 Sample — my copy");
+    await lf26Page.click("#saveAsCommit");
+    await lf26Page.waitForTimeout(150);
+    const lf26After = await lf26Page.evaluate(function () {
+      var sampleRow = Studio.Workspace.get("dashboards", "lf26-sample-dash");
+      return {
+        countAfter: Studio.Workspace.all("dashboards").length,
+        sampleUntouched: !!sampleRow && sampleRow.title === "LF26 Sample" && sampleRow.demoPackId === "conservation",
+        forkedId: window.__STUDIO_STATE.spec.id,
+        forkedTitle: window.__STUDIO_STATE.spec.title
+      };
+    });
+    ok("LF26: committing the Save-as prompt forks a NEW dashboard row, leaving the sample's title + demoPackId untouched",
+      lf26After.countAfter === lf26Before.countBefore + 1 && lf26After.sampleUntouched, JSON.stringify(lf26After));
+    ok("LF26: the working spec now points at the new forked dashboard, not the sample (further Saves target the fork)",
+      lf26After.forkedId !== "lf26-sample-dash" && lf26After.forkedTitle === "LF26 Sample — my copy", JSON.stringify(lf26After));
+    // saving the fork again now overwrites the fork itself (it's a plain, unprotected, owned row)
+    await lf26Page.evaluate(function () { window.__studioSaveToCatalog(); });
+    await lf26Page.waitForTimeout(150);
+    const lf26ForkResave = await lf26Page.evaluate(function () {
+      return { modalOpen: !!document.getElementById("saveAsTitleInput"), count: Studio.Workspace.all("dashboards").length };
+    });
+    ok("LF26: re-saving the forked (non-sample) dashboard overwrites it in place — no Save-as prompt, no new row",
+      !lf26ForkResave.modalOpen && lf26ForkResave.count === lf26After.countAfter, JSON.stringify(lf26ForkResave));
+
+    // (b) the explicit "Save as…" button always forks, even for a dashboard the user already owns
+    const lf26OwnSetup = await lf26Page.evaluate(function () {
+      var ownId = "lf26-own-dash";
+      Studio.Workspace.put("dashboards", {
+        id: ownId, ts: new Date().toISOString(), title: "LF26 Own", name: "lf26-own",
+        spec: { id: ownId, title: "LF26 Own", name: "lf26-own", panels: [], kpis: [], filters: [], cda: { connections: [], dataAccesses: [] } }
+      });
+      window.__studioOpenRecent(ownId);
+      return { countBefore: Studio.Workspace.all("dashboards").length };
+    });
+    await lf26Page.click("#btnSaveAsSpec");
+    await lf26Page.waitForTimeout(150);
+    await lf26Page.fill("#saveAsTitleInput", "LF26 Own — a copy");
+    await lf26Page.click("#saveAsCommit");
+    await lf26Page.waitForTimeout(150);
+    const lf26OwnAfter = await lf26Page.evaluate(function () {
+      var ownRow = Studio.Workspace.get("dashboards", "lf26-own-dash");
+      return {
+        countAfter: Studio.Workspace.all("dashboards").length,
+        ownedRowUntouched: !!ownRow && ownRow.title === "LF26 Own",
+        forkedId: window.__STUDIO_STATE.spec.id,
+        forkedTitle: window.__STUDIO_STATE.spec.title
+      };
+    });
+    ok("LF26: the explicit 'Save as…' button always creates a new dashboard (fresh id), even for one you own",
+      lf26OwnAfter.countAfter === lf26OwnSetup.countBefore + 1 && lf26OwnAfter.ownedRowUntouched &&
+      lf26OwnAfter.forkedId !== "lf26-own-dash" && lf26OwnAfter.forkedTitle === "LF26 Own — a copy", JSON.stringify(lf26OwnAfter));
+    // "Save as…" sits in the phone More-menu too (M7 phone-only convention)
+    const lf26MoreBtn = await lf26Page.evaluate(function () { return !!document.getElementById("moreSaveAsSpec"); });
+    ok("LF26: 'Save as…' also has a phone More-menu twin (moreSaveAsSpec)", lf26MoreBtn, "moreSaveAsSpec missing");
+    await lf26Page.close();
+
   } catch (e) {
     failed++; console.error("FATAL", e);
   } finally {

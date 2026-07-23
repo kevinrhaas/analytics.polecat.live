@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 495,
+    title: 'Save as… + sample content is now overwrite-safe',
+    kind: 'feature',
+    ts: '2026-07-23T22:52:25.000Z',
+    items: [
+      'New "Save as…" button next to Save saves the working dashboard as a brand-new one (you name it) instead of overwriting the one you opened.',
+      'Sample/demo dashboards are read-only: hitting plain Save on one now automatically opens the Save-as prompt instead of silently clobbering the shared sample, so removing or reinstalling a sample pack never loses your edits.',
+    ],
+  },
+  {
     v: 494,
     title: 'One download button per chart, not two',
     kind: 'polish',

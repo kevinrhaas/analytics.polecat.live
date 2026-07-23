@@ -10122,6 +10122,8 @@
 
     $("#btnImport").onclick = openDashboardPicker;
     $("#btnSaveSpec").onclick = saveToCatalog;
+    var btnSaveAsSpec = $("#btnSaveAsSpec");
+    if (btnSaveAsSpec) btnSaveAsSpec.onclick = function () { openSaveAsModal("manual"); };
     $("#btnCloseStudio").onclick = closeStudio;
 
     // ? key → shortcuts modal (when not in a text field)
@@ -10208,6 +10210,8 @@
     if (moreImport) moreImport.onclick = function () { closeMenus(); openDashboardPicker(); };
     var moreSaveSpec = $("#moreSaveSpec");
     if (moreSaveSpec) moreSaveSpec.onclick = function () { closeMenus(); saveToCatalog(); };
+    var moreSaveAsSpec = $("#moreSaveAsSpec");
+    if (moreSaveAsSpec) moreSaveAsSpec.onclick = function () { closeMenus(); openSaveAsModal("manual"); };
     var moreCloseStudio = $("#moreCloseStudio");
     if (moreCloseStudio) moreCloseStudio.onclick = function () { closeMenus(); closeStudio(); };
 
@@ -10372,16 +10376,83 @@
      The .studio.json file is still the complete, portable dashboard — it just
      moved to Export ▸ Editable spec. Day-to-day Save/Open work against the
      Dashboards catalog instead of the Downloads folder. */
+  // LF26: sample/demo content (and, once real multi-user auth lands, someone else's
+  // dashboard) is read-only — plain Save on one of those must fork into a new,
+  // user-owned dashboard rather than silently overwriting the shared original.
+  function isDashboardMine(row) {
+    if (!row) return true;             // not in the catalog yet — a normal create, not an overwrite
+    if (row.demoPackId) return false;  // sample/demo content is always read-only
+    if (currentUserIsAdmin()) return true;
+    if (!row.owner) return true;       // legacy row nobody has claimed
+    return row.owner === currentUserId();
+  }
+  window.__studioIsDashboardMine = isDashboardMine; // test hook
+
+  function markSaved(msg) {
+    var ss = $("#saveState");
+    if (ss) { ss.textContent = "Saved ✓"; ss.classList.add("show"); setTimeout(function () { ss.classList.remove("show"); }, 2000); }
+    toast(msg);
+  }
+
   function saveToCatalog() {
+    var prior = S.spec && S.spec.id ? Studio.Workspace.get("dashboards", S.spec.id) : null;
+    if (prior && !isDashboardMine(prior)) { openSaveAsModal(prior.demoPackId ? "protected" : "shared"); return; }
     clearAutosave();
     snapshotVersion();          // version-history checkpoint (restorable)
     noteRecent();               // upsert into the Dashboards catalog
     renderHome(); renderDashboards();
-    var ss = $("#saveState");
-    if (ss) { ss.textContent = "Saved ✓"; ss.classList.add("show"); setTimeout(function () { ss.classList.remove("show"); }, 2000); }
-    toast("Saved “" + (S.spec.title || S.spec.name) + "” to Dashboards");
+    markSaved("Saved “" + (S.spec.title || S.spec.name) + "” to Dashboards");
   }
   window.__studioSaveToCatalog = saveToCatalog; // test hook
+
+  // Fork the working spec into a brand-new dashboard (fresh id) instead of overwriting
+  // whatever S.spec.id currently points at — the guardrail above routes here automatically,
+  // and the explicit "Save as…" button routes here too (via openSaveAsModal).
+  function forkSpecAs(name) {
+    S.spec = Studio.clone(S.spec);
+    S.spec.id = Studio.uid("dash");
+    S.spec.title = name;
+    S.spec.name = (S.spec.name || "untitled").replace(/(-copy)+$/, "") + "-copy";
+    S.selection = null;
+    syncHeader(); renderInspector(); refreshPreview();
+    clearAutosave();
+    snapshotVersion();
+    noteRecent();
+    renderHome(); renderDashboards();
+    markSaved("Saved as a new dashboard “" + name + "”");
+  }
+  window.__studioSaveAsNew = forkSpecAs; // test hook — bypasses the name-prompt modal
+
+  function openSaveAsModal(reason) {
+    modal("Save as…", function (b) {
+      var hint = el("p"); hint.style.cssText = "font-size:12.5px;color:var(--faint);margin:0 0 10px;line-height:1.5";
+      hint.textContent = reason === "protected"
+        ? "This dashboard is sample content and can't be overwritten — save your changes as your own new dashboard."
+        : reason === "shared"
+        ? "You don't own this dashboard, so Save can't overwrite it — save your changes as your own new dashboard."
+        : "Save the current dashboard as a new, separate dashboard.";
+      b.appendChild(hint);
+      var inp = el("input"); inp.type = "text"; inp.id = "saveAsTitleInput";
+      inp.value = (S.spec.title || "Untitled dashboard") + " (copy)";
+      inp.setAttribute("aria-label", "New dashboard title");
+      b.appendChild(field("Title", inp));
+      var foot = el("div"); foot.style.cssText = "display:flex;justify-content:flex-end;gap:8px;margin-top:14px";
+      var cancelBtn = el("button"); cancelBtn.type = "button"; cancelBtn.className = "btn"; cancelBtn.id = "saveAsCancel"; cancelBtn.textContent = "Cancel";
+      var saveBtn = el("button"); saveBtn.type = "button"; saveBtn.className = "btn btn-primary"; saveBtn.id = "saveAsCommit"; saveBtn.textContent = "Save as new";
+      foot.appendChild(cancelBtn); foot.appendChild(saveBtn); b.appendChild(foot);
+      function commit() {
+        var name = inp.value.trim();
+        if (!name) return;
+        var ov = saveBtn.closest(".modal-ov"); if (ov) ov.remove();
+        forkSpecAs(name);
+      }
+      cancelBtn.onclick = function () { var ov = cancelBtn.closest(".modal-ov"); if (ov) ov.remove(); };
+      saveBtn.onclick = commit;
+      inp.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); commit(); } });
+      requestAnimationFrame(function () { inp.focus(); inp.select(); });
+    });
+  }
+  window.__studioOpenSaveAsModal = openSaveAsModal; // test hook
   function openDashboardPicker() {
     modal("Open a dashboard", function (b) {
       var search = el("input", "search"); search.type = "search"; search.placeholder = "Search your dashboards…";
