@@ -5,7 +5,14 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v118"; /* v118 (R4, tech-debt sweep): Connections'
+var CACHE_NAME = "studio-shell-v119"; /* v119 (R5+ slice 1, tech-debt sweep): the
+   ~225-line CHART_SVG gallery-thumbnail table moved out of app/studio.js into its
+   own module, app/chart-thumbnails.js (Studio.CHART_SVG) — the first ES-module
+   app/*.js extraction off studio.js, establishing the pattern R5+'s later slices
+   follow. Pure refactor, no behavior change. New precached file added (app/
+   chart-thumbnails.js) and app/studio.js content changed, so precached copies
+   need to roll.
+   v118 (R4, tech-debt sweep): Connections'
    toggleConnPin/connLoadViews/connSaveViews and Datasets' toggleDsxPin/dsxLoadViews/
    dsxSaveViews were duplicated logic differing only in which Workspace table/settings
    key they touch — now backed by two shared factories (makePinToggle/makeViewsStore).
@@ -519,6 +526,7 @@ var SHELL_FILES = [
   "app/tutorial.js",
   "js/changelog.js",
   "app/shell.js",
+  "app/chart-thumbnails.js",
   "app/studio.js",
   "app/palette.js",
   "app/studio-render.js",
