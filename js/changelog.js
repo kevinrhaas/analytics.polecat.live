@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 467,
+    title: 'Typography polish: object names read as text, not code (LF29a); wider dashboard title',
+    kind: 'polish',
+    ts: '2026-07-23T09:08:23.000Z',
+    items: [
+      'Dataset/connection names, saved-source ids, and the dashboard id chip now render in the app\'s normal sans-serif type instead of a monospace code face -- the mono font is reserved for actual code (SQL editors, file hashes, the changelog version chip).',
+      'The dashboard title in the toolbar can now grow wider on desktop before truncating, so more of a long title stays visible.',
+    ],
+  },
+  {
     v: 466,
     title: 'Explore: pick the Interactive GL map renderer, and it saves (LF12)',
     kind: 'feature',
