@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v114"; /* v114: R3 — the stylePresets/templateVarSets/
+var CACHE_NAME = "studio-shell-v115"; /* v115: UX11 — a fourth app Color theme,
+   Conservation (CTIC olive/pine, reusing the dashboard Conservation theme's palette).
+   app/studio.js + app/studio.css + docs/index.html changed, so precached copies need
+   to roll.
+   v114: R3 — the stylePresets/templateVarSets/
    customThemePresets list-CRUD triplets now share one makePresetStore(key) factory;
    pure refactor, no behavior change. app/studio.js changed, so precached copies need
    to roll.

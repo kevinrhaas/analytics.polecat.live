@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 473,
+    title: 'A fourth Color theme: Conservation, the CTIC olive/pine look (UX11)',
+    kind: 'feature',
+    ts: '2026-07-23T10:53:25.000Z',
+    items: [
+      'Settings -> Appearance -> Color theme now offers Conservation alongside Classic Blue, Polecat, and Fleet Modern -- the same olive-green and deep-pine palette as the Conservation dashboard theme, with its own light and dark variant.',
+      'Picking Conservation as your app theme also makes it the default theme new dashboards seed with, so the whole app and a brand-new dashboard match without an extra pick.',
+    ],
+  },
+  {
     v: 472,
     title: 'Tech-debt sweep: one shared preset-store factory backs style/template-var/custom-theme presets (R3 slice 2)',
     kind: 'polish',

@@ -68,6 +68,30 @@ html[data-app-theme='modern'][data-theme='dark']{
   --good:#22a35f; --warn:#b8811f; --bad:#e2685f;
   --shadow:0 1px 3px rgba(0,0,0,.4); --shadow-lg:0 16px 46px rgba(0,0,0,.55);
 }
+/* UX11: a fourth app theme, "Conservation" -- the CTIC olive/field-green + deep-pine
+   look, built for the Conservation Insight demo (Kevin, 2026-07-22). Values are lifted
+   verbatim from Studio.DASHBOARD_THEMES' own "conservation" entry (app/model.js) so the
+   builder chrome and the dashboard theme read as one coherent system when both are set
+   to Conservation -- same convention Fleet Modern already established for the chrome/
+   dashboard pairing. --good/--warn reuse two of the ramp's non-brand colors (leaf green,
+   harvest gold) so they stay legible against the brand's own olive; --bad has no ramp
+   analog (the ramp deliberately avoids red as a data color) so it's a plain earthy brick-
+   red picked to match the rest of the palette's warmth. */
+html[data-app-theme='conservation']{
+  --brand:#72892b; --pdc:#10432e;
+  --topbar-bg:linear-gradient(100deg,#0c2419,#10432e 58%,#1a5c40); --topbar-ink:#eaf1df; /* deep pine, matches the rail */
+  --ink:#1e2a20; --muted:#55614c; --faint:#7b8473;
+  --bg:#f3f5ec; --pane:#ffffff; --line:#dde3d1; --line-2:#eaf0e0; --field:#ffffff;
+  --good:#4f8f3a; --warn:#b5822e; --bad:#b23b3b;
+  --shadow:0 1px 3px rgba(16,67,46,.09); --shadow-lg:0 12px 40px rgba(16,67,46,.18);
+}
+html[data-app-theme='conservation'][data-theme='dark']{
+  --brand:#a3bd52; --pdc:#6fb894;
+  --ink:#eaf1df; --muted:#a3b39a; --faint:#7e8c76;
+  --bg:#0c1a12; --pane:#12241a; --line:#274434; --line-2:#16301f; --field:#12241a;
+  --good:#58a83f; --warn:#b98d2a; --bad:#c25a5a;
+  --shadow:0 1px 3px rgba(0,0,0,.4); --shadow-lg:0 16px 46px rgba(0,0,0,.55);
+}
 /* ── Polecat Shell token bridge ──────────────────────────────────────────────
    vendor/polecat-shell/tokens.css (loaded BEFORE this file) defines the fleet's
    canonical token vocabulary; this block re-expresses those canonical names in
@@ -171,6 +195,10 @@ html[data-app-theme='polecat'] #railNav{--rail-bg:#2E2A33;--rail-bg2:#3A2F3A;--r
    plum, so the rail visually matches an exported/previewed Fleet Modern dashboard. */
 html[data-app-theme='modern'] #railNav{--rail-bg:#0d1a2e;--rail-bg2:#152540;--rail-ink:#e9eff8;
   --rail-line:rgba(233,239,248,.12)}
+/* UX11: Conservation's rail reuses the CTIC deep-pine sidebar/header-bg pair from
+   Studio.DASHBOARD_THEMES' "conservation" entry, same pairing convention as Fleet Modern's rail above. */
+html[data-app-theme='conservation'] #railNav{--rail-bg:#10432e;--rail-bg2:#1a5c40;--rail-ink:#eaf1df;
+  --rail-line:rgba(234,241,223,.12)}
 #railNav.expanded{width:184px}
 /* Z12: persistent brand mark anchored at the top of the rail — the app's identity
    lives here (not a redundant letter-box in the content header); click returns Home. */
@@ -237,6 +265,7 @@ html[data-app-theme='modern'] #railNav{--rail-bg:#0d1a2e;--rail-bg2:#152540;--ra
    match the rail's own palette rather than staying permanently Polecat-plum. */
 html[data-app-theme='classic'] #mobileNavBtn{background:#0f1c33;border-color:rgba(234,241,251,.16);color:#eaf1fb}
 html[data-app-theme='modern'] #mobileNavBtn{background:#0d1a2e;border-color:rgba(233,239,248,.16);color:#e9eff8}
+html[data-app-theme='conservation'] #mobileNavBtn{background:#10432e;border-color:rgba(234,241,223,.16);color:#eaf1df}
 #mobileNavBtn:active{opacity:.85}
 @media(max-width:900px){
   #railNav{position:fixed;top:0;bottom:0;left:0;width:min(82vw,272px);
