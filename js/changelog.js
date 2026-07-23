@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 462,
+    title: 'Chart palette now follows your app Color theme (LF10)',
+    kind: 'fix',
+    ts: '2026-07-23T06:15:15.000Z',
+    items: [
+      'New dashboards/widgets and Explore\'s live preview default to whichever app Color theme is active (Polecat, Classic Blue, Fleet Modern) instead of always defaulting to Polecat, unless you\'ve set an explicit default in Settings.',
+      'Explore\'s live preview also now follows the app\'s light/dark mode — it used to render a fixed light look no matter what.',
+    ],
+  },
+  {
     v: 461,
     title: 'Repository: drag a row onto a folder to file it there',
     kind: 'feature',

@@ -1725,15 +1725,22 @@
 >      (shell.js setActive / __studioShellSetSection) and on opening overlays (panel-zoom, modals,
 >      dataset/job editors, Explore analysis), and handle `popstate` to navigate back instead of
 >      unloading. Closing an overlay via Back also fixes the LF8 zoom trap. app/shell.js, app/studio.js.
-> LF10. **Chart palette should default to the active app theme.** In Explore the preview chart defaults
->       to a fixed dark-blue palette (Fleet/Classic Blue) instead of following the app's current Color
->       theme. The DEFAULT chart palette (and light/dark) for the Explore preview AND newly created
->       dashboards/widgets should match the app Color theme — Polecat app theme → Polecat ramp,
->       Conservation → conservation ramp, Classic Blue → blue, etc. Map each app Color theme (data-app-
->       theme) → its matching DASHBOARD_THEMES entry and use it as the default (unless the user
->       overrode the dashboard theme); make the Explore preview inherit the app's light/dark mode too.
->       Pairs with UX11 (Conservation app theme). app/studio.js (xpSpec default + defaultDashboardTheme),
->       app/model.js (app-theme→dashboard-theme map).
+> LF10. ✓ **Chart palette now defaults to the active app theme (shipped 2026-07-23, steward).** New
+>       `appThemeToDashboardTheme()` (app/studio.js) maps the app Color theme → its matching
+>       `Studio.DASHBOARD_THEMES` key (classic→"", polecat→"polecat", modern→"fleet-modern");
+>       `defaultDashboardTheme()` now falls back to that mapping instead of a hardcoded "polecat"
+>       whenever no EXPLICIT Settings default is stored (an explicit pick, incl. the legacy empty-string
+>       Classic value, still wins — unchanged). New dashboards/widgets already seeded from
+>       `defaultDashboardTheme()`, so they pick this up automatically; `xpSpec()` (Explore's live
+>       preview) now seeds `dashboardTheme` from the same helper, and `xpPreview()` now calls the
+>       existing `postThemeOnLoad(ifr)` helper (every other preview surface already did) so the preview
+>       also follows the app's light/dark MODE — it used to never send its iframe a theme postMessage
+>       at all, so it silently stayed on a fixed light look regardless of app theme or mode. 2 new
+>       regression checks (the mapping for all three app themes with no override; Explore's preview
+>       actually renders dark after toggling dark mode). sw v106. **Still open:** the "Conservation →
+>       conservation ramp" leg of the original ask — there is no Conservation app Color theme yet
+>       (that's LF3/UX11, not yet built); once it exists, add its key to
+>       `APP_THEME_TO_DASHBOARD_THEME` alongside classic/polecat/modern.
 > LF11. ✓ **Explore: "Add to dashboard" clarified — DONE, see DONE (v458, 2026-07-23, steward).**
 >       Split into "+ New dashboard" and "Existing dashboard…" (with a picker), reusing
 >       xpAddAnalysisToSpec + the same list/search UI as "Open a dashboard."

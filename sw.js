@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v105"; /* v105: M5 NEXT — "drag-to-file", the last of
+var CACHE_NAME = "studio-shell-v106"; /* v106: LF10 — chart palette now follows the
+   app's Color theme (new dashboards/widgets + Explore's live preview default to the
+   matching Studio.DASHBOARD_THEMES entry unless a Settings default is set explicitly);
+   Explore's preview also now follows the app's light/dark mode. app/studio.js changed,
+   so precached copies need to roll.
+   v105: M5 NEXT — "drag-to-file", the last of
    the two documented subfolder affordances: dragging a Repository row onto a folder
    group's header refiles it there (drop on Unfiled to clear its folder), a desktop-
    mouse-only convenience on top of the folder text field, which stays the primary,
