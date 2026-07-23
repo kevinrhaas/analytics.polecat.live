@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 471,
+    title: 'Home: your most-recently-featured dashboard renders as a full-width hero (M6 slice 2)',
+    kind: 'feature',
+    ts: '2026-07-23T10:33:50.000Z',
+    items: [
+      'The newest dashboard you feature now gets a bigger, full-width live preview at the top of the Featured section on Home, with the rest of your featured dashboards in the grid below -- instant value the moment you land on Home.',
+      'Featuring a different dashboard promotes it to hero and moves the previous one back into the grid; nothing else changes about how featuring works.',
+    ],
+  },
+  {
     v: 470,
     title: 'Home: reorder the Featured, Pinned analyses, Examples and Dashboards sections (M6 slice 1)',
     kind: 'feature',

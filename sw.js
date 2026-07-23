@@ -5,7 +5,10 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v112"; /* v112: M6 slice 1 — Home's Featured/Pinned
+var CACHE_NAME = "studio-shell-v113"; /* v113: M6 slice 2 — the most-recently-featured
+   dashboard on Home renders as a full-width hero card. app/studio.js + app/studio.css
+   + docs/index.html changed, so precached copies need to roll.
+   v112: M6 slice 1 — Home's Featured/Pinned
    analyses/Examples/Dashboards sections gain move-up/down reorder controls, order
    persisted. app/studio.js + app/studio.css + docs/index.html changed, so precached
    copies need to roll.

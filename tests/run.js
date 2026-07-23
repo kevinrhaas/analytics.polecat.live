@@ -2437,7 +2437,7 @@ function serve() {
     console.log("\n• HOME LIVE: featured dashboards render live on Home (Viridis V6)");
     await page.evaluate(function () {
       var sp = window.__STUDIO_STATE.spec;
-      Studio.Workspace.put("dashboards", { id: "v6-feat", ts: Date.now(), spec: JSON.parse(JSON.stringify(sp)), title: sp.title, name: sp.name });
+      Studio.Workspace.put("dashboards", { id: "v6-feat", ts: new Date().toISOString(), spec: JSON.parse(JSON.stringify(sp)), title: sp.title, name: sp.name });
       Studio.Workspace.put("analyses", { id: "v6-an", name: "V6 widget", chartType: "bars", pinned: true,
         da: { id: "v6w", kind: "sql", columns: ["region", "total"] },
         chart: { type: "bars", map: { labelCol: "region", valueCol: "total" }, opts: {} } });
@@ -2453,6 +2453,25 @@ function serve() {
     });
     ok("V6: Feature-on-Home flags the dashboard row and Home gains its featured card + the pinned-analysis widget (feature toggles on every card)",
       v6Cards.flag && v6Cards.featCard && v6Cards.widgetCard && v6Cards.featureBtns > 0, JSON.stringify(v6Cards));
+
+    // M6: the most-recently-featured dashboard renders as a full-width Home hero card.
+    const heroSolo = await page.evaluate(function () {
+      var el = document.querySelector('[data-home-feat="v6-feat"]');
+      return { isHero: !!(el && el.classList.contains("home-feat-hero")), hasBadge: !!(el && el.querySelector(".home-hero-badge")) };
+    });
+    ok("M6: the only featured dashboard renders as the Home hero card (badge + hero class)",
+      heroSolo.isHero && heroSolo.hasBadge, JSON.stringify(heroSolo));
+    const heroPromote = await page.evaluate(function () {
+      var sp = window.__STUDIO_STATE.spec;
+      Studio.Workspace.put("dashboards", { id: "v6-feat-2", ts: new Date().toISOString(), spec: JSON.parse(JSON.stringify(sp)), title: "Second feature", name: "Second feature" });
+      window.__studioToggleFeature("v6-feat-2"); // stamps a LATER featuredAt than v6-feat's
+      var heroEls = document.querySelectorAll(".home-feat-hero");
+      var oldCard = document.querySelector('[data-home-feat="v6-feat"]');
+      return { heroCount: heroEls.length, newHeroId: heroEls[0] && heroEls[0].getAttribute("data-home-feat"), oldIsHero: !!(oldCard && oldCard.classList.contains("home-feat-hero")) };
+    });
+    ok("M6: featuring a newer dashboard promotes IT to hero and demotes the previous hero back into the grid — exactly one hero card ever",
+      heroPromote.heroCount === 1 && heroPromote.newHeroId === "v6-feat-2" && heroPromote.oldIsHero === false, JSON.stringify(heroPromote));
+    await page.evaluate(function () { window.__studioToggleFeature("v6-feat-2"); Studio.Workspace.remove("dashboards", "v6-feat-2"); });
     // the featured frame hydrates LAZILY (only when visible) with the REAL renderer,
     // correctly scaled, and follows the app theme
     const v6Live = await page.evaluate(function () {

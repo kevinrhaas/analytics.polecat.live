@@ -1890,6 +1890,14 @@ body.simple-mode .da-acts{display:none!important}
 .home-feat-h b{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink)}
 .home-feat-h span{font-size:11px;color:var(--faint);white-space:nowrap}
 .home-feat-frame{height:230px;overflow:hidden;position:relative;background:var(--field)}
+/* M6: the most-recently-featured dashboard renders as a full-width Home hero card. */
+.home-feat-h .home-feat-title{display:flex;align-items:baseline;gap:6px;min-width:0;overflow:hidden}
+.home-feat-h .home-hero-badge{flex:0 0 auto;font-size:9.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;
+  color:#fff;background:var(--brand);border-radius:5px;padding:2px 6px;white-space:nowrap}
+.home-feat-hero{grid-column:1/-1}
+.home-feat-hero .home-feat-frame{height:340px}
+.home-feat-hero .home-feat-h b{font-size:15px}
+@media(max-width:640px){.home-feat-hero .home-feat-frame{height:220px}}
 .home-analyses{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;margin-bottom:8px}
 .home-analysis-frame{height:170px;overflow:hidden;position:relative;background:var(--field)}
 .home-live-ifr{border:0;transform-origin:top left;pointer-events:none;display:block;background:transparent;position:absolute;left:0}
