@@ -2287,8 +2287,29 @@
 >      ⑤ the Explore `XP` subsystem (own namespace; preserve the analysis→spec add + `homeLiveFrame`
 >      reuse seams) → ⑥ the data-plane panels LAST (Jobs → Connections → Datasets; Datasets last because
 >      `runDataset`/`window.__studioRunDataset` bridges back into the builder preview). These are
->      lane-hot files — schedule each when the feature lane isn't mid-slice in that area. NEXT: ②
->      branding/defaults/presets config layer.
+>      lane-hot files — schedule each when the feature lane isn't mid-slice in that area.
+>      ↳ **② branding/defaults/presets config layer — code WRITTEN, PR held on a test-infra
+>      snag (steward, 2026-07-23):** the 8 `default*`/`setDefault*` field pairs + the 3 preset-CRUD
+>      stores (style/template-var/custom-theme) moved to a new `app/branding-defaults.js`
+>      (`Studio.defaultSubtitle` etc.), `Studio.lsGet`/`Studio.lsSet` promoted to model.js
+>      alongside `Studio.clone`/`escapeHtml` so the module and studio.js's local alias share one
+>      implementation, and `defaultDashboardTheme`'s one bit of live-editor-state coupling
+>      (falls back to the app's own Color theme, `S.appTheme`) wired in via a new
+>      `Studio.configureBrandingDefaults()` injector so the module needs nothing else from
+>      studio.js. Code review + isolated checks say this is behavior-preserving, but **the full
+>      `tests/run.js` run couldn't be verified green in this session**: on three separate
+>      attempts (including one on unmodified main) the suite deterministically hung at the exact
+>      same point — the N-DIST offline/service-worker section, right after the icon-512.png
+>      check — with the browser process going fully idle (near-zero CPU) for 20-30+ minutes, no
+>      further progress. Isolated repro with the suite's own server/port/MIME logic and a single
+>      fresh page resolved `navigator.serviceWorker.ready` in under a second every time, so the
+>      SW mechanism itself is fine here — the hang only appears after ~2400 lines / ~30 min of
+>      sustained prior test load in the same long-lived browser process, and reproduces
+>      identically with NO code changes at all. This matches the class of flake the "CI / deploy"
+>      convention above already warns about (the ~21h needs:test freeze). PR left `hold` with
+>      this write-up rather than merged unverified or force-merged past a real gate — a session
+>      with more time/a fresh runner should re-run `tests/run.js` end to end (or bisect which
+>      earlier test leaves the browser in the bad state) before merging.
 
 ### ★★★★★ CONSERVATION INSIGHT PRODUCT PLATFORM (2026-07-21, user-directed — NOW THE TOP PRIORITY)
 > Kevin's big charter: turn Analytics into a multi-user, permissioned product. Decisions locked

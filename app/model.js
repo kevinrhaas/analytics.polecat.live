@@ -2619,6 +2619,20 @@
 
   Studio.clone = function (o) { return JSON.parse(JSON.stringify(o)); };
 
+  // R5+ slice 2 (tech-debt sweep): promoted alongside Studio.clone/escapeHtml so
+  // app/branding-defaults.js (which loads before studio.js) can share the same
+  // JSON-blob load/save pair studio.js's own local lsGet/lsSet alias back onto —
+  // one implementation, not two copies drifting apart.
+  Studio.lsGet = function (key, fallback) {
+    var v;
+    try { v = localStorage.getItem(key); } catch (e) { return fallback; }
+    if (v == null) return fallback;
+    try { var parsed = JSON.parse(v); return parsed == null ? fallback : parsed; } catch (e) { return fallback; }
+  };
+  Studio.lsSet = function (key, val) {
+    try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) { /* quota or private-mode */ }
+  };
+
   // Shared HTML-escape for plain text nodes/attributes (NOT the sandboxed export
   // iframe's own escapers — studio-render.js's `he` and model.js's own `svgEsc`
   // below stay standalone on purpose, since model.js is not inlined into an
