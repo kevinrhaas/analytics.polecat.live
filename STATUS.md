@@ -116,6 +116,27 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **UX4 — the rest of it: staggered card fade-up + celebratory toast variant (v489,
+  2026-07-23, steward, quality-track slice, UX4 now fully shipped):** the two pieces
+  UX4's first slice (v482) left open. (1) STAGGERED FADE-UP: `.recent-card` (Home's
+  Pinned/Recent dashboards AND the Dashboards section, which reuses the same component —
+  see Z3), `.home-fav` (favorites), and `.home-ex-card` (examples) now play a shared
+  `card-fade-up` keyframe on mount, staggered by position (`:nth-child` delays capped at 6
+  steps so a big grid doesn't keep animating long after it's visible). `.repo-ds-card`
+  from UX4's original wording is DEAD CSS — the Datasets/Repository views moved to the
+  `.cx-row` list layout during the since-shipped "Repository retired" (Z3) pass, and a
+  suite check already asserts that class never renders — so the real, currently-live card
+  grids were targeted instead. (2) CELEBRATORY TOAST: new `trophy` glyph (`app/icons.js`,
+  monoline to match the icon registry) and a `toast(msg, isErr, celebrate)` third param —
+  `celebrate` swaps the check icon for the trophy and adds `.toast.celebrate` (the same
+  brand gradient the changelog's "latest" badge already uses) instead of the plain
+  navy/gradient-less toast. Wired into all four existing one-time/milestone moments
+  (first export, export milestones, dashboard-count milestones, zero-warnings health
+  celebration) — ordinary action toasts (rename, resize, etc.) are unaffected. Both new
+  motions are `prefers-reduced-motion` gated, same convention as every other entrance
+  animation in the app. 4 new ratchets (cards carry the fade-up keyframe + a real stagger
+  between positions + reduced-motion disables it; the first-export toast carries the
+  `celebrate` class). sw v131. (app/studio.css, app/icons.js, app/studio.js, tests/run.js)
 - **LF27(b) — Studio gains a Close button that returns to where you opened it from (v488,
   2026-07-23, steward):** every "open the builder" call site (Home's recents/featured/blank/
   examples/drag-drop cards, the Dashboards/Repository catalog rows and dashboard picker modal,
@@ -2367,13 +2388,12 @@
 >      text in dark mode). `.demo-badge` (`#d32f2f`) gets the same `--bad` color-mix treatment. sw v83.
 >      (app/studio.css, sw.js) NEXT in this track: UX4 (entrance/celebration motion) — `.note.info/warn/
 >      err/ok` (studio.css ~857) are a similar still-untouched fixed-hex family worth a future pass.
-> UX4. **Entrance & celebration motion (reduced-motion gated):** staggered fade-up on card grids
->      (`.recent-card`/`.repo-ds-card`); a distinct celebratory toast variant (brand gradient + trophy
->      glyph) so milestones feel earned; ✓ scale-in on `.modal`/welcome overlay to match the waffle/
->      right-panel (shipped 2026-07-23, steward, see DONE) — `modal-scale-in` (studio.css) / the
->      self-contained `sw-scale-in` (welcome.js), both reduced-motion gated. sw v124. NEXT in this
->      track: the staggered card-grid fade-up and the celebratory toast variant are still open.
->      (studio.css, welcome.js, studio.js)
+> UX4. ✓ **Entrance & celebration motion — DONE, see DONE (v482 + v489, 2026-07-23, steward).**
+>      `.modal`/welcome-overlay scale-in (v482); staggered fade-up on the real card grids
+>      (`.recent-card`/`.home-fav`/`.home-ex-card` — `.repo-ds-card` from the original wording
+>      turned out to be dead CSS, see the v489 DONE note) + a celebratory toast variant (trophy
+>      glyph + brand gradient) for milestone moments (v489). All reduced-motion gated. **UX4 is
+>      now fully shipped.** NEXT in this track: UX5 (type/spacing scale tokens).
 > UX5. **Type & spacing scale tokens** (`--fs-xs…2xl`, 4px spacing base): migrate the 19 ad-hoc
 >      font-sizes (incl. 8.5/9.5/11.5/… half-steps) and one-off paddings. Biggest single coherence
 >      lever; larger diff — do as its own slice. (studio.css)

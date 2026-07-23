@@ -405,6 +405,20 @@ html[data-app-theme='conservation'] #mobileNavBtn{background:#10432e;border-colo
 .recent-changed{color:#8fb8c9!important;font-weight:500!important}
 .home-empty-hint{font-size:12.5px;color:var(--muted)}
 @media(prefers-reduced-motion:reduce){.home-card,.recent-card,.recent-pin,.home-card-ic,.recent-thumb svg,.home-tip-next{transition:none}}
+/* UX4 (quality track, remainder): a subtle staggered fade-up on the app's card grids
+   (Home's recents/pinned/featured, the Dashboards section which reuses the same
+   .recent-card, plus favorites/examples) so a section landing reads as arriving, not
+   just appearing — same reduced-motion convention as modal-scale-in/sw-scale-in. Capped
+   at 6 steps so a big grid doesn't keep animating long after it's visible. */
+.recent-card,.home-fav,.home-ex-card{animation:card-fade-up .3s ease-out both}
+@keyframes card-fade-up{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.recent-card:nth-child(2),.home-fav:nth-child(2),.home-ex-card:nth-child(2){animation-delay:.03s}
+.recent-card:nth-child(3),.home-fav:nth-child(3),.home-ex-card:nth-child(3){animation-delay:.06s}
+.recent-card:nth-child(4),.home-fav:nth-child(4),.home-ex-card:nth-child(4){animation-delay:.09s}
+.recent-card:nth-child(5),.home-fav:nth-child(5),.home-ex-card:nth-child(5){animation-delay:.12s}
+.recent-card:nth-child(6),.home-fav:nth-child(6),.home-ex-card:nth-child(6){animation-delay:.15s}
+.recent-card:nth-child(n+7),.home-fav:nth-child(n+7),.home-ex-card:nth-child(n+7){animation-delay:.18s}
+@media(prefers-reduced-motion:reduce){.recent-card,.home-fav,.home-ex-card{animation:none}}
 /* m-c: keep the 60px top clearance the hamburger needs (set for ≤900px above) — this rule
    used to say `padding:28px 16px 40px`, resetting padding-top back down to 28px and letting
    the fixed hamburger cover the "Home" heading on phones (same equal-specificity/later-wins
@@ -985,6 +999,10 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
   transition:opacity .2s,transform .2s;pointer-events:none;z-index:90;max-width:80vw;display:flex;align-items:center;gap:7px}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 .toast.err{background:color-mix(in srgb,var(--bad) 55%,#000)}
+/* UX4 (quality track, remainder): the celebratory toast variant (first export, round-number
+   milestones, dashboard health) — the same brand gradient the changelog's "latest" badge and
+   version chip already use, so a milestone reads as earned rather than a plain confirmation. */
+.toast.celebrate{background:linear-gradient(135deg,var(--brand),var(--pdc));color:#fff}
 
 /* ── N-FUN: first-export delight moment ── a small, rare, tasteful burst — never repeats
    (see celebrateFirstExport() in studio.js), skipped entirely under prefers-reduced-motion. */

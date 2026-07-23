@@ -10417,7 +10417,7 @@
       if (localStorage.getItem("studio-first-export-done")) return;
       localStorage.setItem("studio-first-export-done", "1");
     } catch (e) { return; }
-    toast("First export! Nice work — your dashboard is ready to share.");
+    toast("First export! Nice work — your dashboard is ready to share.", false, true);
     sparkBurst();
   }
   // N-FUN: export milestones — a light "you're on a roll" nudge at round totals, counted across every
@@ -10427,7 +10427,7 @@
   function bumpExportMilestone() {
     var n = 0;
     try { n = (parseInt(localStorage.getItem("studio-export-count"), 10) || 0) + 1; localStorage.setItem("studio-export-count", String(n)); } catch (e) { return; }
-    if (EXPORT_MILESTONES[n]) { toast(EXPORT_MILESTONES[n] + " Keep it up."); sparkBurst(); }
+    if (EXPORT_MILESTONES[n]) { toast(EXPORT_MILESTONES[n] + " Keep it up.", false, true); sparkBurst(); }
   }
   // N-FUN: another "more milestone moments" slice — celebrate round totals of brand-new blank
   // dashboards started (Home's Blank quick-create card + New ▾ → Blank dashboard; NOT Open/Import/
@@ -10437,7 +10437,7 @@
   function bumpDashMilestone() {
     var n = 0;
     try { n = (parseInt(localStorage.getItem("studio-dash-count"), 10) || 0) + 1; localStorage.setItem("studio-dash-count", String(n)); } catch (e) { return; }
-    if (DASH_MILESTONES[n]) { toast(DASH_MILESTONES[n]); sparkBurst(); }
+    if (DASH_MILESTONES[n]) { toast(DASH_MILESTONES[n], false, true); sparkBurst(); }
   }
   // N-FUN "dashboard health celebration" (innovation idea added 2026-07-04): the Checks section
   // above only ever shows a neutral "ready to export" line, even the first time a dashboard reaches
@@ -10449,7 +10449,7 @@
     if (done[sp.id]) return;
     done[sp.id] = 1;
     lsSet("studio-health-celebrated", done);
-    toast("All clear — this dashboard has zero warnings. Nicely built.");
+    toast("All clear — this dashboard has zero warnings. Nicely built.", false, true);
     sparkBurst();
   }
 
@@ -11013,7 +11013,11 @@
     try { if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(function () { flashBtn(btn, "Copied"); }, fallback); else fallback(); } catch (e) { fallback(); }
   }
   var _toastT;
-  function toast(msg, isErr) { var t = $("#toast"); t.innerHTML = ""; t.appendChild(Studio.icon(isErr ? "warn" : "check", 13)); t.appendChild(document.createTextNode(" " + msg)); t.className = "toast show" + (isErr ? " err" : ""); clearTimeout(_toastT); _toastT = setTimeout(function () { t.className = "toast"; }, 2600); }
+  // UX4 (quality track, remainder): `celebrate` swaps in the trophy icon + brand-gradient
+  // toast variant for the rare, one-time milestone moments (first export, round-number
+  // export/dashboard counts, zero-warnings) so they read as earned, not just confirmed —
+  // distinct from the plain check/warn toast every ordinary action already uses.
+  function toast(msg, isErr, celebrate) { var t = $("#toast"); t.innerHTML = ""; t.appendChild(Studio.icon(isErr ? "warn" : (celebrate ? "trophy" : "check"), 13)); t.appendChild(document.createTextNode(" " + msg)); t.className = "toast show" + (isErr ? " err" : (celebrate ? " celebrate" : "")); clearTimeout(_toastT); _toastT = setTimeout(function () { t.className = "toast"; }, 2600); }
 
   // canvas drag-drop
   function wireCanvas() {
