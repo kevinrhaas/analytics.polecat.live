@@ -126,5 +126,15 @@
     "gridCols": 3,
     "types": ["sankey", "line", "waffle", "pareto"],
     "layout": [["sankey", "full"], ["line", 2], ["waffle", 1], ["pareto", 2]]
+  },
+  {
+    "file": "conservation-watershed.studio.json",
+    "title": "Conservation Insight — Watershed-Scale Adoption",
+    "demoPackId": "conservation",
+    "panels": 4,
+    "kpis": 4,
+    "gridCols": 3,
+    "types": ["choropleth", "ensembleSeries", "gauge", "bars"],
+    "layout": [["choropleth", "full"], ["ensembleSeries", 2], ["gauge", 1], ["bars", 1]]
   }
 ]

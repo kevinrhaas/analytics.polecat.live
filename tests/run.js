@@ -2820,7 +2820,7 @@ function serve() {
       dpInstall.panelTypes.filter(function (t) { return t === "ensembleSeries"; }).length === 4 &&
       dpInstall.panelTypes.filter(function (t) { return t === "choropleth"; }).length === 3,
       JSON.stringify(dpInstall));
-    // LF2: pack-gated examples — the 2 Conservation showcase dashboards (data/examples/index.json
+    // LF2: pack-gated examples — the 3 Conservation showcase dashboards (data/examples/index.json
     // demoPackId) only surface in the gallery once their pack is installed. The install above went
     // through the raw test hook (not the Settings UI), so force the same menu rebuild toggleDemoPack
     // would have triggered.
@@ -2831,10 +2831,11 @@ function serve() {
     const lf2On = await page.evaluate(function () {
       var em = document.getElementById("menuExamples");
       var files = Array.prototype.map.call(em.querySelectorAll("button.ex-card"), function (b) { return b.getAttribute("data-f"); });
-      return { hasScorecard: files.indexOf("conservation-scorecard.studio.json") >= 0, hasFlow: files.indexOf("conservation-flow.studio.json") >= 0 };
+      return { hasScorecard: files.indexOf("conservation-scorecard.studio.json") >= 0, hasFlow: files.indexOf("conservation-flow.studio.json") >= 0,
+        hasWatershed: files.indexOf("conservation-watershed.studio.json") >= 0 };
     });
     ok("LF2: Conservation example cards appear in the gallery once the pack is installed",
-      lf2On.hasScorecard && lf2On.hasFlow, JSON.stringify(lf2On));
+      lf2On.hasScorecard && lf2On.hasFlow && lf2On.hasWatershed, JSON.stringify(lf2On));
     // both new example specs actually load (title + full panel count) — catches a bad file
     // reference or malformed JSON that a card would otherwise fail silently on. The menu from the
     // check above is still open (loadExample's own closeMenus() closes it after the click below).
@@ -2863,6 +2864,24 @@ function serve() {
     // LF7: this example now carries a real Crop filter (was filters:[]).
     ok("LF7: the Crop & Practice Flow example carries a real 'Crop' filter (was filters:[])",
       JSON.stringify(lf2Flow.filterIds) === JSON.stringify(["crop"]), JSON.stringify(lf2Flow));
+    // LF2: the 3rd conservation example — watershed-scale adoption, one of the ~6 candidate topics
+    // named in the LF2 handoff note — loads with its HUC8 choropleth + ensemble trend + gauge + bars
+    // panels and a real Since-year filter (not decorative filters:[]).
+    await page.click("#btnExamples"); await page.waitForTimeout(150);
+    await page.click('#menuExamples button.ex-card[data-f="conservation-watershed.studio.json"]');
+    await page.waitForTimeout(300);
+    const lf2Watershed = await page.evaluate(function () {
+      var S = window.__STUDIO_STATE;
+      return { title: S && S.spec ? S.spec.title : "", panels: S && S.spec ? S.spec.panels.length : 0,
+        filterIds: S && S.spec ? (S.spec.filters || []).map(function (f) { return f.id; }) : [],
+        types: S && S.spec ? S.spec.panels.map(function (p) { return p.chart.type; }) : [] };
+    });
+    ok("LF2: Conservation Insight — Watershed-Scale Adoption example loads with its 4 panels",
+      lf2Watershed.title === "Conservation Insight — Watershed-Scale Adoption" && lf2Watershed.panels === 4, JSON.stringify(lf2Watershed));
+    ok("LF2: the Watershed example carries a real 'Since year' filter (was filters:[])",
+      JSON.stringify(lf2Watershed.filterIds) === JSON.stringify(["sinceYear"]), JSON.stringify(lf2Watershed));
+    ok("LF2: the Watershed example leads with a HUC8 choropleth alongside an ensemble trend, gauge, and bars",
+      JSON.stringify(lf2Watershed.types) === JSON.stringify(["choropleth", "ensembleSeries", "gauge", "bars"]), JSON.stringify(lf2Watershed));
     // the featured dashboard leads with maps at THREE geo scales (county hero, HUC8 watershed, state
     // rollup), carries the four headline KPIs, and wears the CTIC-derived Conservation theme.
     ok("DP: the featured dashboard leads with county/HUC8/state choropleths, 4 headline KPIs, and the Conservation theme",
@@ -2975,17 +2994,18 @@ function serve() {
       (await page.evaluate(function () { return window.__studioClearDataKeys; })).indexOf("studio-demopacks-installed") >= 0);
     await page.evaluate(function () { window.__studioBuildExamplesMenu(); window.__studioShellSetSection("studio"); });
     await page.waitForTimeout(200);
-    // LF2: the same 2 Conservation cards disappear once the pack is removed again.
+    // LF2: the same 3 Conservation cards disappear once the pack is removed again.
     await page.click("#btnExamples");
     await page.waitForTimeout(150);
     const lf2Off = await page.evaluate(function () {
       var em = document.getElementById("menuExamples");
       var files = Array.prototype.map.call(em.querySelectorAll("button.ex-card"), function (b) { return b.getAttribute("data-f"); });
-      return { hasScorecard: files.indexOf("conservation-scorecard.studio.json") >= 0, hasFlow: files.indexOf("conservation-flow.studio.json") >= 0 };
+      return { hasScorecard: files.indexOf("conservation-scorecard.studio.json") >= 0, hasFlow: files.indexOf("conservation-flow.studio.json") >= 0,
+        hasWatershed: files.indexOf("conservation-watershed.studio.json") >= 0 };
     });
     await page.click("body", { position: { x: 5, y: 5 } }); // close the menu (clicking a card auto-closes; this check-only path doesn't)
     ok("LF2: Conservation example cards disappear from the gallery once the pack is removed",
-      !lf2Off.hasScorecard && !lf2Off.hasFlow, JSON.stringify(lf2Off));
+      !lf2Off.hasScorecard && !lf2Off.hasFlow && !lf2Off.hasWatershed, JSON.stringify(lf2Off));
 
     // ---- JOBS (Viridis V8 slice 1): prep/rollup engine + materialize --------
     console.log("\n• JOBS: prep/rollup engine (Viridis V8 slice 1)");

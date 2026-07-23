@@ -1,0 +1,77 @@
+{
+  "schema": 1,
+  "id": "showcase-conservation-watershed",
+  "name": "conservation-watershed",
+  "title": "Conservation Insight — Watershed-Scale Adoption",
+  "subtitle": "cover-crop adoption trends across Corn Belt HUC8 watersheds",
+  "group": "Conservation",
+  "demoPackId": "conservation",
+  "description": "A conservation-insight showcase at the watershed scale — a HUC8 choropleth colored by the provider common estimate, the ensemble trend behind it, an overall adoption gauge, and a by-provider comparison.",
+  "cda": {
+    "connection": { "id": "pdc", "jndi": "PDC-BIDB-EXT" },
+    "dataAccesses": [
+      {
+        "id": "kpi", "name": "WatershedKPI", "params": [], "cache": true, "cacheDuration": 120,
+        "sql": "SELECT ROUND(AVG(pct),1) AS adoption_pct, COUNT(DISTINCT huc8) AS watershed_count, COUNT(DISTINCT statecode) AS region_count, SUM(acres) AS acres_total FROM v_watershed_adoption",
+        "columns": ["adoption_pct", "watershed_count", "region_count", "acres_total"]
+      },
+      {
+        "id": "overall", "name": "OverallWatershedAdoption", "params": [], "cache": true, "cacheDuration": 120,
+        "sql": "SELECT ROUND(AVG(pct),1) AS adoption_pct FROM v_watershed_adoption",
+        "columns": ["adoption_pct"]
+      },
+      {
+        "id": "huc8_map", "name": "WatershedAdoptionByHUC8", "params": [], "cache": true, "cacheDuration": 180,
+        "sql": "SELECT huc8, provider, ROUND(AVG(pct),0) AS pct FROM v_watershed_adoption GROUP BY 1,2",
+        "columns": ["huc8", "provider", "pct"]
+      },
+      {
+        "id": "trend", "name": "WatershedAdoptionTrend", "params": [{ "name": "sinceYear", "type": "String", "default": "%" }], "cache": true, "cacheDuration": 120,
+        "sql": "SELECT year, provider, ROUND(AVG(pct),1) AS pct FROM v_watershed_trend WHERE ${sinceYear} = '%' OR year >= ${sinceYear} GROUP BY 1,2 ORDER BY 1",
+        "columns": ["year", "provider", "pct"]
+      },
+      {
+        "id": "yr_filter", "name": "WatershedYears", "params": [], "cache": true, "cacheDuration": 300,
+        "sql": "SELECT DISTINCT year FROM v_watershed_trend ORDER BY 1",
+        "columns": ["year"]
+      },
+      {
+        "id": "by_provider", "name": "AdoptionByProviderWatershed", "params": [], "cache": true, "cacheDuration": 120,
+        "sql": "SELECT provider, ROUND(AVG(pct),1) AS pct FROM v_watershed_adoption GROUP BY 1 ORDER BY 2 DESC",
+        "columns": ["provider", "pct"]
+      }
+    ]
+  },
+  "filters": [
+    { "id": "sinceYear", "da": "yr_filter", "label": "Since year", "valueCol": "year", "textCol": "year", "allLabel": "All years", "def": "%" }
+  ],
+  "kpis": [
+    { "da": "kpi", "valueCol": "adoption_pct", "label": "Watershed Adoption Rate", "fmt": "pct", "state": "good", "info": "Common-estimate adoption rate across all watersheds and providers." },
+    { "da": "kpi", "valueCol": "watershed_count", "label": "Watersheds Covered", "fmt": "n", "state": "purple", "info": "Distinct HUC8 subbasins represented in the sample." },
+    { "da": "kpi", "valueCol": "region_count", "label": "States Represented", "fmt": "n", "state": "", "info": "Corn Belt states with at least one reporting watershed." },
+    { "da": "kpi", "valueCol": "acres_total", "label": "Enrolled Acres", "fmt": "n", "state": "", "info": "Total acreage covered across every tracked watershed." }
+  ],
+  "gridCols": 3,
+  "panels": [
+    {
+      "id": "p_map", "title": "Cover-crop Adoption by Watershed (HUC8)", "span": "full", "pill": "%", "sub": "common estimate across 5 providers",
+      "info": "Median adoption rate across the selected providers, at the HUC8 watershed scale.", "src": "v_watershed_adoption",
+      "chart": { "type": "choropleth", "da": "huc8_map", "map": { "idCol": "huc8", "valueCol": "pct", "seriesCol": "provider" }, "opts": { "scale": "huc8", "fmt": "pct", "agg": "median", "channel": "providers" } }
+    },
+    {
+      "id": "p_trend", "title": "Adoption Trend by Provider", "span": 2, "pill": "%", "sub": "responds to the Since-year filter above",
+      "info": "Each provider's trend against the common estimate, 2015–2025.", "src": "v_watershed_trend",
+      "chart": { "type": "ensembleSeries", "da": "trend", "map": { "labelCol": "year", "seriesCol": "provider", "valueCol": "pct" }, "opts": { "refSeries": "AgCensus", "fmt": "pct", "medianLabel": "Common estimate", "height": 260, "channel": "providers" } }
+    },
+    {
+      "id": "p_gauge", "title": "Overall Watershed Adoption", "span": 1, "pill": "%", "sub": "common estimate",
+      "info": "Blended adoption rate across every watershed and provider.", "src": "v_watershed_adoption",
+      "chart": { "type": "gauge", "da": "overall", "map": { "valueCol": "adoption_pct" }, "opts": { "max": 100, "fmt": "pct", "height": 260 } }
+    },
+    {
+      "id": "p_provider", "title": "Adoption by Provider", "span": 1, "pill": "%", "sub": "",
+      "info": "Each provider's own estimate of the overall watershed adoption rate.", "src": "v_watershed_adoption",
+      "chart": { "type": "bars", "da": "by_provider", "map": { "labelCol": "provider", "valueCol": "pct" }, "opts": { "horizontal": true, "fmt": "pct", "color": "--c4", "height": 260 } }
+    }
+  ]
+}

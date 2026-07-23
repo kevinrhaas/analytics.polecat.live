@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v137"; /* v137: LF26 — "Save as…" + overwrite protection: a
+var CACHE_NAME = "studio-shell-v138"; /* v138: LF2 — a 3rd Conservation example, "Watershed-Scale
+   Adoption" (data/examples/conservation-watershed.studio.json, index.json entry): a HUC8
+   choropleth colored by the provider common estimate, the ensemble trend behind it, an overall
+   adoption gauge, and a by-provider bar, with a real "Since year" filter. data/examples/index.json
+   and the new example file changed, so precached copies need to roll (same convention as v133's
+   new example additions).
+   v137: LF26 — "Save as…" + overwrite protection: a
    new Save-as button forks the working spec into a brand-new dashboard, and plain Save on a
    sample/demo dashboard (or, later, one you don't own) now opens that same Save-as prompt
    instead of silently overwriting the shared original. app/index.html, app/studio.js,
