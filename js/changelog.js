@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 483,
+    title: 'Polish: modals and the welcome tour ease into view',
+    kind: 'polish',
+    ts: '2026-07-23T16:09:40.000Z',
+    items: [
+      'Opening a modal (or the first-run welcome tour) used to snap into place instantly -- it now scales and fades in smoothly, like every other bit of feedback motion in the app. Respects "reduce motion" system settings as always.',
+    ],
+  },
+  {
     v: 482,
     title: 'Datasets: fixed a job-output row that rendered as a broken vertical column',
     kind: 'fix',

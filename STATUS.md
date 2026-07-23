@@ -116,6 +116,19 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **UX4 — modal + welcome-overlay scale-in (v482, 2026-07-23, steward, quality-track
+  slice):** modals (`.modal`, e.g. the export bundle / dataset editor) and the first-run
+  welcome tour used to snap into view instantly; both now scale+fade in on open
+  (`modal-scale-in` in app/studio.css, a self-contained `sw-scale-in` keyframe in
+  welcome.js's own injected `<style>` since that module is deliberately decoupled from
+  studio.css). Both respect `prefers-reduced-motion:reduce` (animation disabled), same
+  convention as UX1's demo badge and UX10's skeleton pulse. 3 new UX4 ratchets (a modal's
+  computed `animationName` is `modal-scale-in` on open, `none` under reduced motion; the
+  welcome overlay's own `sw-scale-in` runs the same way). Scoped to just the entrance
+  animation — the card-grid stagger and celebratory-toast-variant parts of UX4's original
+  ask are still open. sw v124. (app/studio.css, app/welcome.js, tests/run.js) NEXT in this
+  track: the rest of UX4 (staggered fade-up on card grids, a celebratory toast variant) or
+  UX5 (type/spacing scale tokens).
 - **REVIEW-FIXES follow-up — "+ New" dataset without leaving Explore (v480, 2026-07-23,
   steward):** the last open half of the 2026-07-21 review's "Explore-side New-dataset +
   dataset organization at scale" item (the "organization at scale" half was since fully
@@ -2256,8 +2269,11 @@
 >      err/ok` (studio.css ~857) are a similar still-untouched fixed-hex family worth a future pass.
 > UX4. **Entrance & celebration motion (reduced-motion gated):** staggered fade-up on card grids
 >      (`.recent-card`/`.repo-ds-card`); a distinct celebratory toast variant (brand gradient + trophy
->      glyph) so milestones feel earned; scale-in on `.modal`/welcome overlay to match the waffle/
->      right-panel. (studio.css, welcome.js, studio.js)
+>      glyph) so milestones feel earned; ✓ scale-in on `.modal`/welcome overlay to match the waffle/
+>      right-panel (shipped 2026-07-23, steward, see DONE) — `modal-scale-in` (studio.css) / the
+>      self-contained `sw-scale-in` (welcome.js), both reduced-motion gated. sw v124. NEXT in this
+>      track: the staggered card-grid fade-up and the celebratory toast variant are still open.
+>      (studio.css, welcome.js, studio.js)
 > UX5. **Type & spacing scale tokens** (`--fs-xs…2xl`, 4px spacing base): migrate the 19 ad-hoc
 >      font-sizes (incl. 8.5/9.5/11.5/… half-steps) and one-off paddings. Biggest single coherence
 >      lever; larger diff — do as its own slice. (studio.css)

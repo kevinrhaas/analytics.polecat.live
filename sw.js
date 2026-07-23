@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v124"; /* v124: Datasets list row fix — a heavily
+var CACHE_NAME = "studio-shell-v125"; /* v125 (UX4, quality track): modals and the
+   first-run welcome overlay now scale+fade in on open instead of snapping into view,
+   disabled under prefers-reduced-motion. app/studio.css, app/welcome.js changed, so
+   precached copies need to roll.
+   v124: Datasets list row fix — a heavily
    tagged dataset (e.g. a job-output row with #demo #conservation #geo #job-output)
    no longer explodes vertically; the name subtitle ellipsizes instead of wrapping
    one character per line. app/studio.css changed, so precached copies need to roll.
