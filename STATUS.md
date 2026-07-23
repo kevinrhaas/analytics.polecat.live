@@ -116,6 +116,18 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **UX10 — cold-load skeleton for Home/Settings/Admin (v479, 2026-07-23, steward,
+  quality-track slice):** the boot placeholder shown for the beat between DOM parse and
+  `boot()`'s `Promise.all` resolving (before `renderHome`/`renderSettings`/`renderAdmin`
+  replace it with real content) was a bare `<p>Loading…</p>` — the first thing a
+  first-time visitor on a slow connection ever sees. New `.sec-skel` (three pulsing bars,
+  reusing the existing `pulse-live` keyframe UX1's demo badge already established) replaces
+  it in all three sections' static HTML; `role="status" aria-label="Loading"` keeps it
+  announced to screen readers without a visible string. `prefers-reduced-motion` disables
+  the pulse (existing convention). 2 new UX10 ratchets (a route-delayed boot proves the
+  skeleton actually renders pre-content, not just in markup; reduced-motion disables the
+  animation). sw v121. (app/index.html, app/studio.css, sw.js, tests/run.js) NEXT in this
+  track: UX4 (entrance/celebration motion) or UX5 (type/spacing scale tokens).
 - **M6 slice 3 — favorites-with-thumbnails (v478, 2026-07-23, steward, M6 now fully
   shipped):** Datasets and Connections already carried the same star-shaped `pinned`/
   `pinnedAt` flag as Dashboards/Analyses (their own catalog-row "Pin to top" toggle); a new

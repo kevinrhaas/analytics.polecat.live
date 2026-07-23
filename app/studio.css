@@ -315,6 +315,17 @@ html[data-app-theme='conservation'] #mobileNavBtn{background:#10432e;border-colo
 .sec-empty-ic svg{width:26px;height:26px}
 .sec-empty h2{margin:0 0 8px;font-size:20px;font-weight:800}
 .sec-empty p{margin:0;font-size:13.5px;line-height:1.55;color:var(--muted)}
+/* UX10: the cold-load placeholder (visible for a beat before boot()'s fetches resolve and
+   renderHome/renderSettings/renderAdmin replace it) was a bare "Loading…" paragraph — the
+   first thing a first-time visitor on a slow connection ever sees. Skeleton bars read as
+   "content is coming" instead of a stalled page; role=status/aria-label keeps it announced
+   to screen readers without a visible "Loading…" string. */
+.sec-skel{display:flex;flex-direction:column;align-items:center;gap:8px;margin-top:4px}
+.sec-skel-bar{display:block;width:200px;height:10px;border-radius:6px;
+  background:color-mix(in srgb, var(--ink) 10%, var(--pane));animation:pulse-live 1.4s ease-in-out infinite}
+.sec-skel-bar:nth-child(2){width:170px;animation-delay:.15s}
+.sec-skel-bar-short{width:120px;animation-delay:.3s}
+@media(prefers-reduced-motion:reduce){.sec-skel-bar{animation:none}}
 
 /* ── Z2: Home landing section — recents + quick-create, warm-dark "game-like" look ── */
 .app-sec.has-content:not([hidden]){align-items:flex-start;justify-content:flex-start;overflow-y:auto;display:block}

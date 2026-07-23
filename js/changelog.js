@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 479,
+    title: 'Polish: a friendlier cold-load screen',
+    kind: 'polish',
+    ts: '2026-07-23T15:03:53.000Z',
+    items: [
+      'Home, Settings and Admin briefly showed a plain "Loading..." message on a fresh page load -- it now shows a small pulsing placeholder instead, so the app feels alive from the very first frame.',
+    ],
+  },
+  {
     v: 478,
     title: 'Home: Favorite datasets & connections',
     kind: 'feature',

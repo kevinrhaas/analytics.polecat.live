@@ -6012,6 +6012,36 @@ function serve() {
       exportBtnContrast.has && exportBtnContrast.contrast > 80, JSON.stringify(exportBtnContrast));
     await page.evaluate(() => { var x = document.querySelector(".modal-h .x"); if (x) x.click(); });
 
+    // UX10: cold-load skeleton — Home/Settings/Admin's boot placeholder was a bare
+    // "Loading…" paragraph, the first thing a first-time visitor on a slow connection
+    // ever sees (it's visible for the beat between DOM parse and boot()'s Promise.all
+    // resolving, before renderHome/renderSettings/renderAdmin replace it with real
+    // content). Delay one of boot's own fetches so we can inspect that pre-render state
+    // directly instead of racing it.
+    console.log("\n• UX10: cold-load skeleton");
+    {
+      const skelPage = await browser.newPage();
+      let releaseGate;
+      const gate = new Promise((res) => { releaseGate = res; });
+      await skelPage.route("**/data/cda-catalog.json", async (route) => { await gate; route.continue(); });
+      await skelPage.goto(`http://localhost:${PORT}/app/`, { waitUntil: "domcontentloaded" });
+      const preBoot = await skelPage.evaluate(function () {
+        function bars(id) { var sec = document.getElementById(id); return sec ? sec.querySelectorAll(".sec-skel .sec-skel-bar").length : 0; }
+        var home = document.getElementById("secHome");
+        return { homeHasContent: home.classList.contains("has-content"), homeBars: bars("secHome"), settingsBars: bars("secSettings"), adminBars: bars("secAdmin") };
+      });
+      ok("UX10: Home/Settings/Admin show pulsing skeleton bars (not bare 'Loading…') before boot's fetches resolve",
+        !preBoot.homeHasContent && preBoot.homeBars === 3 && preBoot.settingsBars === 3 && preBoot.adminBars === 3, JSON.stringify(preBoot));
+      await skelPage.emulateMedia({ reducedMotion: "reduce" });
+      const skelRM = await skelPage.evaluate(function () {
+        var bar = document.querySelector("#secHome .sec-skel-bar");
+        return bar ? getComputedStyle(bar).animationName : "";
+      });
+      ok("UX10: the skeleton pulse is disabled under prefers-reduced-motion", skelRM === "none", "animationName=" + skelRM);
+      releaseGate();
+      await skelPage.close();
+    }
+
     // ---- per-series color picker (line/stacked) ----
     console.log("\n• per-series color");
     await page.evaluate(async () => { const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json()); window.__studioLoad(spec); });
