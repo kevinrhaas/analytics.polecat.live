@@ -312,6 +312,14 @@ html[data-app-theme='modern'] #mobileNavBtn{background:#0d1a2e;border-color:rgba
 .home-tip-next:hover,.home-tip-next:focus-visible{border-color:var(--brand);color:var(--ink)}
 .home-sub{font-size:13.5px;font-weight:700;color:var(--ink);margin:0 0 14px;text-transform:uppercase;letter-spacing:.03em}
 .home-recents+.home-sub{margin-top:28px} /* gap before "Recent dashboards" when a "Pinned" grid precedes it */
+/* M6 slice 1: each Home content section (Featured/Pinned analyses/Examples/Dashboards) is wrapped
+   in a .home-block with a reorder header — the section's own .home-sub keeps its normal look, the
+   row just adds move-up/down controls flush right. */
+.home-sub-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 14px}
+.home-sub-row .home-sub{margin:0}
+.home-sub-move{display:flex;gap:2px;flex:0 0 auto}
+.home-sub-move .icobtn{padding:5px}
+.home-sub-nested{margin:0 0 14px} /* "Pinned"/"Recent dashboards" inside the Dashboards block keep their own heading, unmoved */
 .home-recents{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px}
 .recent-card{position:relative;background:var(--field);border:1px solid color-mix(in srgb, var(--ink) 12%, transparent);border-radius:12px;
   overflow:hidden;text-align:left;padding:0;color:var(--ink);font-family:var(--font);
