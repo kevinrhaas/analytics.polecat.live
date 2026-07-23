@@ -7959,7 +7959,14 @@
       // grouping in the Dashboards section) — a dashboard's quick edit is folder-only
       // (its title still lives in Studio's own dashboard settings, not duplicated here).
       var canQuickEdit = REPO_EDIT_TABLE.hasOwnProperty(r.type);
-      return '<div class="cx-row" data-repo-id="' + esc(r.id) + '" data-repo-type="' + esc(r.type) + '" tabindex="0" role="button" aria-label="Open ' + esc(r.title) + '">' +
+      // M5 NEXT ("drag-to-file", the last documented affordance in this track): a row
+      // that carries a folder field is draggable onto any folder group's header to
+      // refile it there — canQuickEdit already tracks exactly "this type carries a
+      // folder field," so it doubles as the drag eligibility check. Dragging is a
+      // desktop-mouse-only convenience layered on TOP of the folder text field (with
+      // its autocomplete), which stays the primary, fully mobile-capable way to file
+      // something — no touch/keyboard equivalent is offered here on purpose.
+      return '<div class="cx-row" data-repo-id="' + esc(r.id) + '" data-repo-type="' + esc(r.type) + '"' + (canQuickEdit ? ' draggable="true"' : '') + ' tabindex="0" role="button" aria-label="Open ' + esc(r.title) + '">' +
         '<span class="cx-ic" style="color:var(--faint)"></span>' +
         '<span class="cx-name"><b>' + esc(r.title) + '</b><small>' + esc((td ? td.singular : r.type) + " · " + r.meta) + '</small></span>' +
         (r.folder ? '<span class="cx-badge cx-folder" title="Folder: ' + esc(r.folder) + '">' + esc(r.folder) + '</span>' : "") +
@@ -8022,6 +8029,25 @@
         _repoCollapsedGroups[key] = !_repoCollapsedGroups[key];
         renderRepository();
       };
+      // M5 NEXT ("drag-to-file"): a folder's own header is the drop target — dropping
+      // a dragged row here refiles it to exactly this group's path ("__unfiled" clears
+      // the folder field entirely, same as typing a blank Folder field would).
+      var group = btn.closest(".cx-group");
+      btn.addEventListener("dragover", function (e) { e.preventDefault(); if (group) group.classList.add("drag-over"); });
+      btn.addEventListener("dragleave", function () { if (group) group.classList.remove("drag-over"); });
+      btn.addEventListener("drop", function (e) {
+        e.preventDefault();
+        if (group) group.classList.remove("drag-over");
+        var data;
+        try { data = JSON.parse(e.dataTransfer.getData("text/plain")); } catch (err) { return; }
+        if (!data || !data.type || !data.id) return;
+        var key = btn.getAttribute("data-repo-group-toggle");
+        var folder = key === "__unfiled" ? "" : key;
+        if (repoSetObjectFolder(data.type, data.id, folder)) {
+          toast(folder ? "Filed into “" + folder + "”" : "Removed from its folder");
+          renderRepository();
+        }
+      });
     });
     $$(".cx-row[data-repo-id]", results).forEach(function (row) {
       var td = repoTypeDef(row.getAttribute("data-repo-type"));
@@ -8029,6 +8055,14 @@
       var open = function () { repoOpenRow(row.getAttribute("data-repo-type"), row.getAttribute("data-repo-id")); };
       row.addEventListener("click", open);
       row.addEventListener("keydown", function (e) { if ((e.key === "Enter" || e.key === " ") && e.target === row) { e.preventDefault(); open(); } });
+      if (row.getAttribute("draggable") === "true") {
+        row.addEventListener("dragstart", function (e) {
+          e.dataTransfer.setData("text/plain", JSON.stringify({ type: row.getAttribute("data-repo-type"), id: row.getAttribute("data-repo-id") }));
+          e.dataTransfer.effectAllowed = "move";
+          row.classList.add("dragging");
+        });
+        row.addEventListener("dragend", function () { row.classList.remove("dragging"); });
+      }
     });
     $$(".repo-edit", results).forEach(function (btn) {
       if (Studio.icon) btn.appendChild(Studio.icon("edit", 14));
@@ -8069,6 +8103,17 @@
   // catalog row shares. "Open full editor" hands off to the same repoOpenRow
   // paths a normal row click already uses.
   var REPO_EDIT_TABLE = { dataset: "datasets", connection: "connections", job: "jobs", analysis: "analyses", dashboard: "dashboards" };
+  // M5 NEXT ("drag-to-file"): the write side of a drag-drop refile, shared with any
+  // future caller that just needs to move one object between folders by id — a no-op
+  // (returns false, no toast/re-render) when it's already exactly there.
+  function repoSetObjectFolder(type, id, folder) {
+    var table = REPO_EDIT_TABLE[type]; if (!table) return false;
+    var obj = Studio.Workspace.get(table, id); if (!obj) return false;
+    if ((obj.folder || "") === (folder || "")) return false;
+    if (folder) obj.folder = folder; else delete obj.folder;
+    Studio.Workspace.put(table, obj);
+    return true;
+  }
   // Dashboards carry no top-level `.name` (their title lives at `spec.title`, edited in
   // Studio's own dashboard settings) — quick edit is folder-only for this one kind, so it
   // doesn't duplicate title-editing UI outside Studio.

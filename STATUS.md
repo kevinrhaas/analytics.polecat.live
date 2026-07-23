@@ -2336,6 +2336,25 @@
 >     documented subfolder affordances; typing a folder name (with autocomplete) remains the
 >     primary, fully mobile-capable way to file something, so this NEXT item is a desktop-only
 >     convenience layered on top, not a dependency for anyone to organize their workspace.
+>     ↳ **Drag-to-file (shipped 2026-07-23, steward — LAST of the two documented subfolder
+>     affordances, M5's "subfolder create/move" NEXT item is now COMPLETE):** any row that carries
+>     a folder field (all five kinds) is draggable onto a folder group's header — dropping refiles
+>     it there (drop onto Unfiled to clear its folder entirely). A dragged row dims (`.dragging`)
+>     and the hovered folder group gets a dashed brand outline (`.drag-over`) so the valid drop
+>     target reads clearly. Deliberately desktop-mouse-only: no touch or keyboard equivalent is
+>     offered, since typing a folder name (with autocomplete) already covers mobile/keyboard users
+>     fully — drag is a shortcut layered on top of that, not a replacement. Shares one write path
+>     (`repoSetObjectFolder`) with a genuine no-op guard (dropping a row back onto the folder it's
+>     already in never calls `Workspace.put`, so no spurious `updatedAt` bump). 4 new M5 ratchets
+>     (drag-drop-refile with the dragging/drag-over classes verified, drag-to-Unfiled clears the
+>     folder, dropping onto the same folder is a true no-op). sw v105. **M5's "subfolder create/
+>     move affordances" is now fully done — every documented item in this entire Repository/folder
+>     track (M5 slices 1-2, the folder pilot across all five kinds, the nested tree, quick edit,
+>     New subfolder, and now drag-to-file) is shipped.** NEXT in M5: the still-open "in-place
+>     right-panel editor" ideas beyond quick edit (per M5's original scope: "a right-panel editor
+>     for simple objects; deep-links to the full editors for complex ones" — quick edit already
+>     covers the simple-object case) are effectively done too; what remains for M5 as a whole is
+>     just the section itself continuing to absorb any new object kind the app grows.
 > M5. **Repository browser:** new left-rail section — a tree/folder view of ALL objects (dashboards,
 >     datasets, connections, analyses, jobs) with find/open/edit and a right-panel editor for
 >     simple objects; deep-links to the full editors for complex ones.

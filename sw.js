@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v104"; /* v104: M5 NEXT — Repository gains a "+ New
+var CACHE_NAME = "studio-shell-v105"; /* v105: M5 NEXT — "drag-to-file", the last of
+   the two documented subfolder affordances: dragging a Repository row onto a folder
+   group's header refiles it there (drop on Unfiled to clear its folder), a desktop-
+   mouse-only convenience on top of the folder text field, which stays the primary,
+   mobile-capable way to file something. app/studio.js, app/studio.css content
+   changed, so precached copies need to roll.
+   v104: M5 NEXT — Repository gains a "+ New
    folder" action so an empty (even nested) folder can be created ahead of filing
    anything into it, with a small delete (✕) affordance while it stays empty —
    filing something real into it just makes it an ordinary folder. app/studio.js,

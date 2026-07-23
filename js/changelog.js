@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 461,
+    title: 'Repository: drag a row onto a folder to file it there',
+    kind: 'feature',
+    ts: '2026-07-23T05:52:36.000Z',
+    items: [
+      'On a mouse, drag any Repository row onto a folder\'s header to file it there instantly — drag onto Unfiled to clear its folder.',
+      'Typing a folder name (with autocomplete) is still the primary, fully mobile-capable way to file something; drag is a desktop shortcut layered on top.',
+    ],
+  },
+  {
     v: 460,
     title: 'Repository: create an empty folder ahead of filing anything into it',
     kind: 'feature',
