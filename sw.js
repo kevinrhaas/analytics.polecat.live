@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v125"; /* v125 (UX4, quality track): modals and the
+var CACHE_NAME = "studio-shell-v126"; /* v126: ensemble chart contrast fix — the
+   "common estimate" line + legend now use the dashboard theme's --text-primary ink
+   instead of the un-themed --ink, so they stay readable on dark themed panels
+   (the Conservation-dark invisibility bug). app/studio-charts.js changed.
+   v125 (UX4, quality track): modals and the
    first-run welcome overlay now scale+fade in on open instead of snapping into view,
    disabled under prefers-reduced-motion. app/studio.css, app/welcome.js changed, so
    precached copies need to roll.

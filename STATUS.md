@@ -1842,6 +1842,38 @@
 
 ### ★ LIVE-FEEDBACK QUEUE (Kevin, 2026-07-22) — fold into the interleave
 > Product/demo asks from a live session; treat as first-class feature slices.
+> LF31. ✓ **FIXED (v483, 2026-07-23, steward) — ensemble "common estimate" line + legend now readable on
+>       dark themed panels.** ROOT CAUSE: the ensemble widget painted the median line + its legend with
+>       `var(--ink,#16233b)`, but the dashboard THEMES define `--text-primary` (not `--ink`) — so on a dark
+>       themed panel `--ink` fell back to the light-mode navy `#16233b` and vanished into `--panel-bg`
+>       (#12241a in Conservation dark). Fix in the WIDGET (app/studio-charts.js): the 4 `--ink` refs (median
+>       stroke, median dots, legend text + swatch) now resolve `var(--text-primary,var(--ink,#16233b))`, so
+>       they pick up the theme's readable primary ink (#eaf1df in Conservation dark) and fall back cleanly
+>       otherwise. Provider series already used the theme palette (`--c1..--c10`) correctly — Kevin's "series
+>       colors wrong" read was the invisible common-estimate line. New ratchet asserts the median line +
+>       legend resolve to a light/readable colour on the Conservation-dark panel (luminance > 120). Export
+>       stays byte-identical (same string inlined into preview + export). NEXT (if more surfaces regress the
+>       same way): audit other charts for raw `--ink`/`--bad` vs. the themed `--text-primary`/danger tokens.
+> LF32. **BUG — Query Preview shows fabricated sample rows that don't match the real run; an Explore-built
+>       dashboard didn't render its dataset (Kevin, live 2026-07-23, screenshot).** On a job-output dataset
+>       (State cover-crop rollup) the Inspector's QUERY PREVIEW showed mock rows (statecode = Success/Failed/
+>       Aborted, i.e. genMock categorical fill) tagged "sample rows (offline)" — but the REAL data is
+>       different, and the State map rendered "No data" because those mock region ids match no US state. Two
+>       problems to separate: (a) the offline mock preview is too convincing — it should either run the real
+>       query when the dataset is loadable, or clearly signal "SAMPLE — not your data" so it isn't mistaken
+>       for the real result; (b) a dashboard built from Explore didn't carry/render the real dataset rows
+>       (the map stayed empty). Investigate genMock vs. a real dataset load in the Inspector preview + the
+>       Explore→dashboard data path. (The zoom/pan-lost half of the same report is already tracked as LF28.)
+> LF33. **Rail brand lockup ("Analytics / polecat.live") is a little janky / mis-aligned (Kevin, live
+>       2026-07-23, screenshots).** The app-switcher/brand block at the top of the left rail — orange logo +
+>       "Analytics" + "polecat.live" — reads slightly misaligned (baseline / vertical centering / spacing
+>       between the mark and the two text lines). Tidy the lockup so the logo and the two-line label align
+>       cleanly. App-side skin only (the shell itself is READ-ONLY) — likely css/styles or the rail-brand
+>       markup in app/index.html / app/studio.js. Small polish slice.
+> NOTE (Kevin, live 2026-07-23): consolidation of the loose sample content into TWO toggleable sample/demo
+>       packs — "Conservation" and "Data Management / Governance" — each a COMPLETE workspace (connections +
+>       datasets + dashboards + widgets/analyses) is re-confirmed; this is the SAME restructure as LF2(c) +
+>       LF16(#48). Do them as ONE slice; don't build two parallel mechanisms.
 > LF1. ✓ **Demo data — more provider-line variation (shipped 2026-07-22, steward):** the 5 ensemble
 >      providers' `pct` values used to be `58 + jitter(0-31) - pi*1.5 + li*0.7` — a ±1.5-per-provider
 >      offset swamped by ±31 of random noise, so the lines bunched. New symmetric-around-zero
