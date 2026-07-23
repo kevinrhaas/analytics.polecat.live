@@ -116,6 +116,26 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **UX11 — Conservation as an app Color theme (v473, 2026-07-23, steward):** the
+  Conservation theme existed in the DASHBOARD theme picker (`DASHBOARD_THEMES`, PR #78)
+  but not the app's own **Color theme** picker (Settings → Appearance). Settings now
+  offers a fourth `apptheme-card` — Conservation — alongside Classic Blue/Polecat/Fleet
+  Modern, with its own light + dark variant. Every value (`--brand`/`--pdc`/`--ink`/`--bg`/
+  etc, the rail's `--rail-bg`/`--rail-bg2`, `#mobileNavBtn`) is lifted verbatim from
+  `Studio.DASHBOARD_THEMES`' own `conservation` entry (app/model.js) — same "chrome and
+  dashboard theme share one palette" convention Fleet Modern already established —
+  except `--good`/`--warn`, which reuse two of the ramp's non-brand colors (leaf green,
+  harvest gold) so they read distinctly against the brand's own olive, and `--bad`, which
+  has no ramp analog (the ramp deliberately avoids red as a data color) so it's a plain
+  earthy brick-red picked to match the palette's warmth. `APP_THEME_TO_DASHBOARD_THEME`
+  gains `conservation: "conservation"` (LF10's mapping, now covering all four app
+  themes), so picking the Conservation app theme also makes it the default a brand-new
+  dashboard seeds with. 6 new UX11 ratchets (4-card picker + distinguishable swatches,
+  keyboard-focusable card, selecting it recolors brand/rail + toasts, its own dark
+  variant, the LF10 dashboard-theme mapping) plus the existing Z10/LF17/Fleet-Modern
+  card-count assertions updated from 3→4 cards. docs/index.html's Color theme section
+  updated. sw v115. (app/studio.js, app/studio.css, docs/index.html, tests/run.js)
+  **This also closes LF3** ("Conservation as an app Color theme").
 - **R3 slice 2 — `makePresetStore(key)` factory for the 3 list-CRUD triplets (v472,
   2026-07-23, steward, R3 now fully shipped):** `stylePresets`/`templateVarSets`/
   `customThemePresets` each hand-rolled the identical `list()` (read+parse via `lsGet`),
@@ -1731,8 +1751,9 @@
 >      Conservation. **Deferred — this is the same ask as LF16 (fold demo content into sample packs); do
 >      them together as one slice rather than building two parallel mechanisms for the same restructure.**
 >      (demopacks.js, examples index, studio.js)
-> LF3. **Conservation as an app Color theme** — see UX11 in the UX-polish track below (Settings →
->      Appearance, alongside Classic Blue / Polecat / Fleet Modern).
+> LF3. ✓ **Conservation as an app Color theme — DONE, see DONE (v473, 2026-07-23, steward,
+>      see UX11 in the UX-polish track below).** Settings → Appearance now offers it as a
+>      fourth Color theme card alongside Classic Blue / Polecat / Fleet Modern.
 > LF4. **Choropleth map controls + renderer parity/persistence.** (a) ✓ **Pan nudge-pad shipped
 >      2026-07-23, steward:** the GL renderer ("Interactive GL (pan & zoom)") had ZOOM buttons only —
 >      added a 4-button up/down/left/right pan nudge-pad (custom MapLibre `IControl`, `map.panBy()`
@@ -1804,10 +1825,10 @@
 >       also follows the app's light/dark MODE — it used to never send its iframe a theme postMessage
 >       at all, so it silently stayed on a fixed light look regardless of app theme or mode. 2 new
 >       regression checks (the mapping for all three app themes with no override; Explore's preview
->       actually renders dark after toggling dark mode). sw v106. **Still open:** the "Conservation →
->       conservation ramp" leg of the original ask — there is no Conservation app Color theme yet
->       (that's LF3/UX11, not yet built); once it exists, add its key to
->       `APP_THEME_TO_DASHBOARD_THEME` alongside classic/polecat/modern.
+>       actually renders dark after toggling dark mode). sw v106. **The "Conservation → conservation
+>       ramp" leg is now done too (v473, 2026-07-23, steward, see LF3/UX11 in DONE):**
+>       `APP_THEME_TO_DASHBOARD_THEME` now maps `conservation: "conservation"` alongside
+>       classic/polecat/modern.
 > LF11. ✓ **Explore: "Add to dashboard" clarified — DONE, see DONE (v458, 2026-07-23, steward).**
 >       Split into "+ New dashboard" and "Existing dashboard…" (with a picker), reusing
 >       xpAddAnalysisToSpec + the same list/search UI as "Open a dashboard."
@@ -1870,10 +1891,9 @@
 >       before; the active theme's card alone shows the selected state; Tab+Enter keyboard activation)
 >       plus every existing Z10/Fleet-Modern app-theme test updated to drive the new cards instead of
 >       `page.selectOption`. app/studio.js (`resolveAppThemeTokens`, `appThemeCardsHtml`, `renderSettings`),
->       app/studio.css, docs/index.html, tests/run.js. sw v108. **Still open:** the LF17 ask's own
->       parenthetical mentioned a Conservation card — there is no Conservation app Color theme yet
->       (that's LF3/UX11, not yet built, same still-open note LF10 left); once it ships, add a 4th card
->       here, same convention.
+>       app/studio.css, docs/index.html, tests/run.js. sw v108. **The LF17 ask's own parenthetical
+>       Conservation card is now shipped too (v473, 2026-07-23, steward, see LF3/UX11 in DONE)** —
+>       the picker is a 4-card row now, same convention.
 > LF20. **Builder top bar (canvas-bar) declutter — icons, consolidate, keep chrome off-screen (Kevin, live).**
 >       The builder's canvas top bar reads noisy: `title ✎ · id badge · Storage&Cost · undo · redo · Examples ▾ ·
 >       Open · Save · Export ▾ · ◑ Dark`. Make it MUCH simpler/elegant: turn secondary actions into icon
@@ -2151,13 +2171,10 @@
 >      identity call — PAUSE for Kevin**, untouched here.
 > UX10. **Empty-state polish:** replace the bare `<p>Loading…</p>` in `secHome`/`secSettings` with a
 >       skeleton or the branded `.sec-empty-ic` treatment (first thing seen on a cold load). (index.html, studio.css)
-> UX11. ★ **Conservation as an app Color theme (Kevin, 2026-07-22).** The Conservation theme exists in
->       the DASHBOARD theme picker (`DASHBOARD_THEMES`, PR #78) but NOT in the app's **Color theme**
->       picker (Settings → Appearance: Classic Blue / Polecat / Fleet Modern — these skin the BUILDER
->       chrome via `data-app-theme` / `setAppTheme`, a separate system from dashboard themes). Add a
->       **Conservation** app Color theme so the whole builder UI can wear the CTIC field-green/deep-pine
->       look, reusing the palette from the dashboard Conservation theme. Wire it into the app-theme list +
->       the `data-app-theme` CSS the same way Polecat/Fleet Modern are defined. (app/studio.js, app/studio.css)
+> UX11. ✓ **Conservation as an app Color theme — DONE, see DONE (v473, 2026-07-23, steward).**
+>       Settings → Appearance's Color theme picker gained a fourth card, Conservation, wearing the
+>       CTIC field-green/deep-pine look — same palette as the dashboard Conservation theme, wired
+>       into `data-app-theme` the same way Polecat/Fleet Modern are. Closes LF3 too.
 > Verify live across all 6 theme×mode combos: F11 (which modals use bare `.btn`) and F15
 > (`--faint`/`--text-3` micro-copy at 9–10.5px may be sub-4.5:1 on light surfaces).
 >

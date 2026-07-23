@@ -520,10 +520,12 @@ function serve() {
       window.__studioAppTheme.set("modern"); out.modern = window.__studioDefaultDashboardTheme();
       window.__studioAppTheme.set("classic"); out.classic = window.__studioDefaultDashboardTheme();
       window.__studioAppTheme.set("polecat"); out.polecat = window.__studioDefaultDashboardTheme();
+      window.__studioAppTheme.set("conservation"); out.conservation = window.__studioDefaultDashboardTheme();
       return out;
     });
-    ok("LF10: with no explicit Settings default, defaultDashboardTheme() tracks the app Color theme (modern→fleet-modern, classic→'', polecat→polecat)",
-      lf10DefaultFollowsAppTheme.modern === "fleet-modern" && lf10DefaultFollowsAppTheme.classic === "" && lf10DefaultFollowsAppTheme.polecat === "polecat",
+    ok("LF10: with no explicit Settings default, defaultDashboardTheme() tracks the app Color theme (modern→fleet-modern, classic→'', polecat→polecat, conservation→conservation)",
+      lf10DefaultFollowsAppTheme.modern === "fleet-modern" && lf10DefaultFollowsAppTheme.classic === "" && lf10DefaultFollowsAppTheme.polecat === "polecat" &&
+      lf10DefaultFollowsAppTheme.conservation === "conservation",
       JSON.stringify(lf10DefaultFollowsAppTheme));
 
     // ---- fleet app-switcher (vendored appSwitcher via app/fleet.js) ----
@@ -19402,14 +19404,14 @@ function serve() {
         api: window.__studioAppTheme && window.__studioAppTheme.get()
       };
     });
-    ok("Z10 / LF17: Settings' Appearance card has a Color theme picker (3 palette cards, radiogroup), defaulting to Classic Blue",
-      z10Boot.present && z10Boot.cardCount === 3 && z10Boot.role === "radiogroup" &&
+    ok("Z10 / LF17: Settings' Appearance card has a Color theme picker (4 palette cards, radiogroup), defaulting to Classic Blue",
+      z10Boot.present && z10Boot.cardCount === 4 && z10Boot.role === "radiogroup" &&
       z10Boot.activeKey === "classic" && z10Boot.activeAriaChecked === "true" &&
       z10Boot.attr === "classic" && z10Boot.api === "classic",
       JSON.stringify(z10Boot));
 
     // LF17: each card must actually preview its OWN real colors — the whole point of replacing
-    // the text-only <select> — so the 3 cards' banner/chip colors must all be distinguishable,
+    // the text-only <select> — so the 4 cards' banner/chip colors must all be distinguishable,
     // not copies of one another.
     const cardSwatches = await page.evaluate(function () {
       return Array.prototype.map.call(document.querySelectorAll("#appThemeCards .apptheme-card"), function (b) {
@@ -19424,10 +19426,10 @@ function serve() {
       });
     });
     const swatchSignatures = cardSwatches.map(function (c) { return c.banner + "|" + c.chip0 + "|" + c.chip1 + "|" + c.chip2; });
-    ok("LF17: all 3 Color theme cards render distinguishable, non-empty swatch previews",
-      cardSwatches.length === 3 &&
+    ok("LF17: all 4 Color theme cards render distinguishable, non-empty swatch previews",
+      cardSwatches.length === 4 &&
       cardSwatches.every(function (c) { return c.banner && c.chip0 && c.chip1 && c.chip2; }) &&
-      new Set(swatchSignatures).size === 3,
+      new Set(swatchSignatures).size === 4,
       JSON.stringify(cardSwatches));
 
     const z10ClassicBrand = await page.evaluate(function () { return getComputedStyle(document.documentElement).getPropertyValue("--brand").trim(); });
@@ -19493,8 +19495,8 @@ function serve() {
     const modernOpts = await page.evaluate(function () {
       return Array.prototype.map.call(document.querySelectorAll("#appThemeCards .apptheme-card"), function (b) { return b.getAttribute("data-app-theme-card"); });
     });
-    ok("Fleet Modern: the Color theme picker offers a third 'modern' card alongside classic/polecat",
-      modernOpts.length === 3 && modernOpts.indexOf("modern") >= 0, JSON.stringify(modernOpts));
+    ok("Fleet Modern: the Color theme picker offers a 'modern' card alongside classic/polecat/conservation",
+      modernOpts.length === 4 && modernOpts.indexOf("modern") >= 0, JSON.stringify(modernOpts));
 
     // LF17: keyboard operability — a real <button> gives Tab focus + Enter/Space activation for
     // free; assert that actually holds instead of just assuming it (script-focus the card, since
@@ -19531,6 +19533,45 @@ function serve() {
     ok("Fleet Modern: has its own dark variant, distinct from its light --brand/--bg",
       modernDark.brand === "#5bb3ea" && modernDark.brand !== modernLight.brand && modernDark.bg !== modernLight.rail && !!modernDark.bg,
       JSON.stringify(modernDark) + " vs light " + JSON.stringify(modernLight));
+
+    // back to light mode before the Conservation block below
+    await page.click('#secSettings input[data-set="dark"]');
+    await page.waitForTimeout(80);
+
+    // ── UX11: "Conservation" app-chrome theme, the fourth option — CTIC olive/pine look ──
+    console.log("\n• UX11: Conservation app Color theme");
+    await page.evaluate(function () { document.querySelector('.apptheme-card[data-app-theme-card="conservation"]').focus(); });
+    const conservFocused = await page.evaluate(function () { return document.activeElement.getAttribute("data-app-theme-card"); });
+    ok("UX11: the Conservation card is focusable via keyboard (Tab)", conservFocused === "conservation", "focused=" + conservFocused);
+    await page.keyboard.press("Enter");
+    await page.waitForTimeout(80);
+    const conservLight = await page.evaluate(function () {
+      return {
+        attr: document.documentElement.getAttribute("data-app-theme"),
+        stored: localStorage.getItem("studio-app-theme"),
+        brand: getComputedStyle(document.documentElement).getPropertyValue("--brand").trim(),
+        rail: getComputedStyle(document.getElementById("railNav")).backgroundColor,
+        toast: document.getElementById("toast").textContent
+      };
+    });
+    ok("UX11: selecting Conservation sets data-app-theme + persists + recolors --brand + the rail (the CTIC olive-green, not the modern blue)",
+      conservLight.attr === "conservation" && conservLight.stored === "conservation" &&
+      conservLight.brand === "#72892b" && conservLight.rail !== z10RailClassic && conservLight.rail !== z10RailPolecat,
+      JSON.stringify(conservLight));
+    ok("UX11: switching shows a toast naming the theme (not silently applying it)",
+      /Conservation theme applied/.test(conservLight.toast), "toast=" + conservLight.toast);
+
+    await page.click('#secSettings input[data-set="dark"]');
+    await page.waitForTimeout(80);
+    const conservDark = await page.evaluate(function () {
+      return {
+        brand: getComputedStyle(document.documentElement).getPropertyValue("--brand").trim(),
+        bg: getComputedStyle(document.documentElement).getPropertyValue("--bg").trim()
+      };
+    });
+    ok("UX11: Conservation has its own dark variant, distinct from its light --brand/--bg",
+      conservDark.brand === "#a3bd52" && conservDark.brand !== conservLight.brand && !!conservDark.bg,
+      JSON.stringify(conservDark) + " vs light " + JSON.stringify(conservLight));
 
     // restore to Classic Blue + Light so subsequent tests see the original baseline
     await page.click('#secSettings input[data-set="dark"]');

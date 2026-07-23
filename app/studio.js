@@ -9333,12 +9333,15 @@
   // key, so "which dashboard theme is the house default" tracks "which app theme is active"
   // instead of the two ever disagreeing. Kept as a plain table (not derived from
   // DASHBOARD_THEMES) since the two enums are curated independently and don't share keys 1:1.
-  var APP_THEME_TO_DASHBOARD_THEME = { classic: "", polecat: "polecat", modern: "fleet-modern" };
+  // UX11: "conservation" completes the LF10 mapping now that the Conservation app
+  // Color theme exists (it reuses Studio.DASHBOARD_THEMES' own "conservation" key
+  // verbatim, unlike classic/polecat/modern which don't share names 1:1).
+  var APP_THEME_TO_DASHBOARD_THEME = { classic: "", polecat: "polecat", modern: "fleet-modern", conservation: "conservation" };
   function appThemeToDashboardTheme(t) {
     return APP_THEME_TO_DASHBOARD_THEME[t] !== undefined ? APP_THEME_TO_DASHBOARD_THEME[t] : "polecat";
   }
-  var APP_THEME_KEYS = ["classic", "polecat", "modern"];
-  var APP_THEME_LABELS = { classic: "Classic Blue", polecat: "Polecat", modern: "Fleet Modern" };
+  var APP_THEME_KEYS = ["classic", "polecat", "modern", "conservation"];
+  var APP_THEME_LABELS = { classic: "Classic Blue", polecat: "Polecat", modern: "Fleet Modern", conservation: "Conservation" };
   function setAppTheme(t) {
     t = APP_THEME_KEYS.indexOf(t) >= 0 ? t : "polecat";
     S.appTheme = t; document.documentElement.setAttribute("data-app-theme", t);
