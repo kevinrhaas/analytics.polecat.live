@@ -511,6 +511,21 @@ function serve() {
       shellBridgeToggle.palette === "modern" && shellBridgeToggle.appTheme === "modern" && shellBridgeToggle.stored === "modern",
       JSON.stringify(shellBridgeToggle));
 
+    // LF10: the default dashboard theme (new dashboards/widgets, Explore's preview) now
+    // follows whichever app Color theme is active whenever no EXPLICIT Settings default is
+    // stored — it no longer always falls back to a hardcoded "polecat".
+    const lf10DefaultFollowsAppTheme = await page.evaluate(function () {
+      localStorage.removeItem("studio-default-dashboardtheme"); // explicit override unset
+      var out = {};
+      window.__studioAppTheme.set("modern"); out.modern = window.__studioDefaultDashboardTheme();
+      window.__studioAppTheme.set("classic"); out.classic = window.__studioDefaultDashboardTheme();
+      window.__studioAppTheme.set("polecat"); out.polecat = window.__studioDefaultDashboardTheme();
+      return out;
+    });
+    ok("LF10: with no explicit Settings default, defaultDashboardTheme() tracks the app Color theme (modern→fleet-modern, classic→'', polecat→polecat)",
+      lf10DefaultFollowsAppTheme.modern === "fleet-modern" && lf10DefaultFollowsAppTheme.classic === "" && lf10DefaultFollowsAppTheme.polecat === "polecat",
+      JSON.stringify(lf10DefaultFollowsAppTheme));
+
     // ---- fleet app-switcher (vendored appSwitcher via app/fleet.js) ----
     console.log("\n• fleet app-switcher (waffle)");
     await page.waitForSelector("#topbar .top-app .ps-waffle-btn", { timeout: 5000 });
@@ -1794,9 +1809,31 @@ function serve() {
       });
     });
     ok("XP: the live preview renders the actual chart (Studio.buildHtml in an iframe, fed the previewed rows)", xpPrev.rendered);
+    // LF10: toggle dark mode by dispatching the Settings "Dark mode" switch's own change event
+    // directly (its handler flips S.theme regardless of the checkbox's own state; #btnTheme lives
+    // in the Studio-only canvas-bar and the rail's quick-settings are a mobile-only drawer, so
+    // neither is reachable/visible from Explore at this desktop viewport) — the Settings section
+    // is pre-rendered at boot (renderSettings() in the initial boot sequence) so its listener is
+    // wired even while #secSettings itself stays hidden. Proves the NEXT preview rebuild (the
+    // type switch right below) now follows the app's light/dark mode — previously xpPreview()
+    // never told its iframe the theme at all, so it silently stayed on a fixed light look.
+    await page.evaluate(function () {
+      document.querySelector('#secSettings input[data-set="dark"]').dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await page.waitForTimeout(150);
     // switch type → save → the analysis lands in the workspace store
     await page.click('[data-xp-type="donut"]');
     await page.waitForTimeout(400);
+    const xpDarkPreview = await page.evaluate(function () {
+      var f = document.querySelector(".xp-ifr"), doc = null;
+      try { doc = f && f.contentDocument; } catch (e) {}
+      return doc && doc.documentElement.getAttribute("data-theme");
+    });
+    ok("XP: Explore's live preview follows the app's dark mode (LF10)", xpDarkPreview === "dark", String(xpDarkPreview));
+    await page.evaluate(function () {
+      document.querySelector('#secSettings input[data-set="dark"]').dispatchEvent(new Event("change", { bubbles: true }));
+    }); // back to light for the rest of the suite
+    await page.waitForTimeout(150);
     await page.fill("#xpName", "Suite analysis");
     await page.click("#xpSaveBtn");
     await page.waitForTimeout(350);

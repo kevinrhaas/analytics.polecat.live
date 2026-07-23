@@ -935,6 +935,10 @@
       // (that chrome reads as "too much" for a one-widget build view). hideHeader shows
       // just the chart, reusing the same flag dashboards use for header-off export.
       hideHeader: true,
+      // LF10: seed the preview with the same dashboard theme a brand-new dashboard would get
+      // (house default, or the app Color theme when no explicit default is set), so Explore's
+      // preview reads as one system with the rest of the app instead of a fixed blue look.
+      dashboardTheme: defaultDashboardTheme(),
       panels: [{ id: "xp1", title: title, span: "full",
         chart: { type: XP.type, da: da.id, map: Studio.clone(XP.map), opts: Studio.clone(XP.opts) } }],
       kpis: [], filters: [],
@@ -965,6 +969,10 @@
           ifr.className = "xp-ifr"; ifr.title = "Analysis preview"; ifr.setAttribute("aria-label", "Analysis preview");
           box.appendChild(ifr);
         }
+        // LF10: this preview never told its iframe the app's light/dark MODE (distinct from
+        // the dashboardTheme baked into `html` above) — every other preview surface already
+        // does this via postThemeOnLoad.
+        postThemeOnLoad(ifr);
         ifr.srcdoc = html;
       };
       // map panels need geometry (and MapLibre for GL) inlined first
@@ -8614,10 +8622,13 @@
   // existing ones, without hardcoding a new global default ahead of a user look-see.
   function defaultDashboardTheme() {
     var v; try { v = localStorage.getItem("studio-default-dashboardtheme"); } catch (e) {}
-    // Never-set → Polecat, the house default. A stored "" is a LEGACY explicit Classic pick
-    // (the old Settings select stored classic as empty), and "classic" is the new explicit
-    // form — both resolve to "" because a blank key means classic everywhere downstream.
-    if (v === null || v === undefined) return "polecat";
+    // Never-set → follow the app's own Color theme (LF10), so a brand-new dashboard/widget
+    // (and Explore's live preview) reads as one system with the chrome around it instead of
+    // always defaulting to Polecat regardless of what Color theme is active. A stored "" is a
+    // LEGACY explicit Classic pick (the old Settings select stored classic as empty), and
+    // "classic" is the new explicit form — both resolve to "" because a blank key means
+    // classic everywhere downstream.
+    if (v === null || v === undefined) return appThemeToDashboardTheme(appTheme());
     return v === "classic" ? "" : v;
   }
   function setDefaultDashboardTheme(v) { try { localStorage.setItem("studio-default-dashboardtheme", v || ""); } catch (e) {} }
@@ -9245,6 +9256,14 @@
      deliberately untouched by this app-chrome setting — this only sets a data attribute the
      studio.css variables key off of; pdc-ui.css (the export/preview toolkit) never reads it. */
   function appTheme() { return S.appTheme || "polecat"; }
+  // LF10: map the app Color theme (chrome-only) onto its matching Studio.DASHBOARD_THEMES
+  // key, so "which dashboard theme is the house default" tracks "which app theme is active"
+  // instead of the two ever disagreeing. Kept as a plain table (not derived from
+  // DASHBOARD_THEMES) since the two enums are curated independently and don't share keys 1:1.
+  var APP_THEME_TO_DASHBOARD_THEME = { classic: "", polecat: "polecat", modern: "fleet-modern" };
+  function appThemeToDashboardTheme(t) {
+    return APP_THEME_TO_DASHBOARD_THEME[t] !== undefined ? APP_THEME_TO_DASHBOARD_THEME[t] : "polecat";
+  }
   var APP_THEME_KEYS = ["classic", "polecat", "modern"];
   function setAppTheme(t) {
     t = APP_THEME_KEYS.indexOf(t) >= 0 ? t : "polecat";
