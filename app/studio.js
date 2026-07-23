@@ -822,8 +822,13 @@
     type: "bars", map: {}, opts: {},
     agg: { fn: "none", groupBy: [] }, // Explore rollups: group-by + aggregate the value column
     analysisId: null, name: "",
+    folder: "",                      // M5 folder pilot (analyses): same flat single-value
+                                     // "home" field as Datasets/Connections/Jobs
     q: ""                            // dataset search
   };
+  // M5 folder pilot (analyses): which folder GROUP the saved-analyses sidebar
+  // list is narrowed to — "" = All, "__unfiled" = no folder, else a folder name.
+  var _xpFolderFilter = "";
   // Aggregation makes sense for the everyday category/measure charts; geo and the
   // ensemble view carry their own aggregation semantics, so hide the control there.
   // Rollup aggregates ONE measure by category, so it only applies to the
@@ -980,6 +985,8 @@
     } else if (da.outputOptions) {
       delete da.outputOptions.aggregate;
     }
+    var folderInp = $("#xpFolder");
+    XP.folder = ((folderInp && folderInp.value) || XP.folder || "").trim();
     var prev = XP.analysisId ? Studio.Workspace.get("analyses", XP.analysisId) : null;
     var row = {
       id: XP.analysisId || undefined,
@@ -992,6 +999,7 @@
       pinned: prev ? !!prev.pinned : false,
       createdAt: prev ? prev.createdAt : undefined
     };
+    if (XP.folder) row.folder = XP.folder; else delete row.folder;
     var saved = Studio.Workspace.put("analyses", row);
     XP.analysisId = saved.id;
     toast(prev ? "Analysis updated" : "Analysis saved — pin it to Home or add it to a dashboard");
@@ -999,7 +1007,7 @@
   }
   function xpLoadAnalysis(id) {
     var a = Studio.Workspace.get("analyses", id); if (!a) return;
-    XP.analysisId = a.id; XP.name = a.name || "";
+    XP.analysisId = a.id; XP.name = a.name || ""; XP.folder = a.folder || "";
     XP.kind = a.datasetId ? "ws" : "sample";
     XP.dsId = a.datasetId || a.sample;
     XP.type = (a.chart && a.chart.type) || a.chartType || "bars";
@@ -1132,11 +1140,35 @@
       return '<button type="button" class="xp-ds' + (on ? " active" : "") + '" data-xp-ds="' + esc(d.kind) + XP_SEP + esc(d.id) + '">' +
         '<b>' + esc(d.name) + '</b><small>' + esc(d.sub) + '</small></button>';
     }).join("");
-    var savedRows = analyses.map(function (a) {
+    // M5 folder pilot (analyses): same single-select facet shape as Datasets'/
+    // Connections'/Jobs' `_dsxFolderFilter`/`_connFolderFilter`/`_jobsFolderFilter`
+    // — only shown once at least one analysis has been filed.
+    var xpFolderCounts = {}, xpFolderUnfiled = 0;
+    analyses.forEach(function (a) { if (a.folder) xpFolderCounts[a.folder] = (xpFolderCounts[a.folder] || 0) + 1; else xpFolderUnfiled++; });
+    if (_xpFolderFilter && _xpFolderFilter !== "__unfiled" && !xpFolderCounts[_xpFolderFilter]) _xpFolderFilter = "";
+    var pillsFXp = Object.keys(xpFolderCounts).length
+      ? ['<button type="button" class="wb-chip cx-pill' + (!_xpFolderFilter ? " active" : "") + '" data-xp-folder="" aria-pressed="' + (!_xpFolderFilter ? "true" : "false") + '">' +
+          '<span class="wb-chip-label">All folders</span> <span class="wb-chip-n">' + analyses.length + '</span></button>']
+        .concat(Object.keys(xpFolderCounts).sort().map(function (f) {
+          return '<button type="button" class="wb-chip cx-pill' + (_xpFolderFilter === f ? " active" : "") + '" data-xp-folder="' + esc(f) + '" aria-pressed="' + (_xpFolderFilter === f ? "true" : "false") + '">' +
+            '<span class="wb-chip-label">' + esc(f) + '</span> <span class="wb-chip-n">' + xpFolderCounts[f] + '</span></button>';
+        }))
+        .concat(['<button type="button" class="wb-chip cx-pill' + (_xpFolderFilter === "__unfiled" ? " active" : "") + '" data-xp-folder="__unfiled" aria-pressed="' + (_xpFolderFilter === "__unfiled" ? "true" : "false") + '">' +
+          '<span class="wb-chip-label">Unfiled</span> <span class="wb-chip-n">' + xpFolderUnfiled + '</span></button>'])
+        .join("")
+      : "";
+    var shownAnalyses = analyses.filter(function (a) {
+      if (_xpFolderFilter === "__unfiled") return !a.folder;
+      if (_xpFolderFilter) return a.folder === _xpFolderFilter;
+      return true;
+    });
+    var savedRows = shownAnalyses.map(function (a) {
       var on = XP.analysisId === a.id;
+      var folderBadge = a.folder ? '<span class="cx-badge cx-folder" title="Folder: ' + esc(a.folder) + '">' + esc(a.folder) + '</span>' : "";
       return '<div class="xp-saved-row' + (on ? " active" : "") + '" data-xp-a="' + esc(a.id) + '">' +
         '<button type="button" class="xp-saved-open" data-xp-open="' + esc(a.id) + '" title="Open in Explore"><b>' + esc(a.name) + '</b>' +
         '<small>' + esc((Studio.CHARTS[a.chartType] || {}).label || a.chartType) + '</small></button>' +
+        folderBadge +
         '<span class="xp-saved-acts">' +
         '<button type="button" class="xp-act' + (a.private ? " private" : "") + '" data-xp-private="' + esc(a.id) + '" title="' + (a.private ? "Private — only you can see this" : "Make private") + '" aria-label="' + (a.private ? "Make " + esc(a.name) + " public" : "Make " + esc(a.name) + " private") + '" aria-pressed="' + (a.private ? "true" : "false") + '"></button>' +
         '<button type="button" class="xp-act' + (a.pinned ? " on" : "") + '" data-xp-pin="' + esc(a.id) + '" title="' + (a.pinned ? "Unpin from Home" : "Pin to Home") + '" aria-pressed="' + (a.pinned ? "true" : "false") + '">★</button>' +
@@ -1175,6 +1207,8 @@
         '<div class="xp-step"><div class="xp-step-h">4 · The result</div><div id="xpPreview" class="xp-preview"></div>' +
           '<div class="xp-savebar">' +
             '<input id="xpName" type="text" placeholder="Name this analysis…" value="' + esc(XP.name) + '" aria-label="Analysis name"/>' +
+            '<input id="xpFolder" type="text" placeholder="Folder (optional)" value="' + esc(XP.folder || "") + '" aria-label="Folder" list="xpFolderOptions"/>' +
+            '<datalist id="xpFolderOptions">' + Object.keys(xpFolderCounts).sort().map(function (f) { return '<option value="' + esc(f) + '">'; }).join("") + '</datalist>' +
             '<button type="button" class="btn primary" id="xpSaveBtn">' + (XP.analysisId ? "Update analysis" : "Save analysis") + "</button>" +
             (XP.analysisId ? '<button type="button" class="btn" id="xpSaveAsBtn">Save as new</button>' : "") +
             '<button type="button" class="btn" id="xpToDashBtn" title="Add this chart to the current dashboard">Add to dashboard</button>' +
@@ -1185,7 +1219,8 @@
         '<input id="xpSearch" class="repo-search" type="search" placeholder="Search datasets…" aria-label="Search datasets" value="' + esc(XP.q) + '"/>' +
         '<div class="xp-list">' + (dsRows || '<div class="xp-none">No datasets' + (showSamples() ? "" : " (samples are hidden in Settings)") + ".</div>") + "</div>" +
         '<div class="xp-saved"><div class="xp-saved-h">Saved analyses <span class="badge">' + analyses.length + "</span></div>" +
-          (savedRows || '<div class="xp-none">Nothing saved yet.</div>') + "</div>" +
+          (pillsFXp ? '<div class="wb-chips">' + pillsFXp + '</div>' : "") +
+          (savedRows || '<div class="xp-none">' + (_xpFolderFilter ? "No analyses in this folder." : "Nothing saved yet.") + '</div>') + "</div>" +
       "</aside>" +
       '<div class="xp-main">' + main + "</div>";
     // wire
@@ -1195,7 +1230,7 @@
       btn.onclick = function () {
         var parts = btn.getAttribute("data-xp-ds").split(XP_SEP);
         XP.kind = parts.shift(); XP.dsId = parts.join(XP_SEP); // sample ids contain the SEP themselves
-        XP.analysisId = null; XP.name = ""; XP.da = null; // a live dataset is picked — drop any loaded analysis's embedded da
+        XP.analysisId = null; XP.name = ""; XP.folder = ""; XP.da = null; // a live dataset is picked — drop any loaded analysis's embedded da
         xpLoadRows().then(function () {
           XP.type = xpDefaultType(XP.run && XP.run.cols); // geo data opens as a map, provider trends as the Ensemble
           xpGuessMapping(); renderExplore(); xpPreview();
@@ -1241,6 +1276,11 @@
     };
     var nameInp2 = $("#xpName", body);
     if (nameInp2) nameInp2.addEventListener("input", function () { XP.name = nameInp2.value; });
+    var folderInp2 = $("#xpFolder", body);
+    if (folderInp2) folderInp2.addEventListener("input", function () { XP.folder = folderInp2.value; });
+    $$("[data-xp-folder]", body).forEach(function (btn) {
+      btn.onclick = function () { _xpFolderFilter = btn.getAttribute("data-xp-folder"); renderExplore(); };
+    });
     $$("[data-xp-open]", body).forEach(function (btn) { btn.onclick = function () { xpLoadAnalysis(btn.getAttribute("data-xp-open")); }; });
     $$("[data-xp-private]", body).forEach(function (btn) {
       btn.appendChild(Studio.icon("lock", 12));
@@ -7746,7 +7786,7 @@
     });
     Studio.Workspace.all("analyses").filter(isVisibleToMe).forEach(function (a) {
       rows.push({ type: "analysis", id: a.id, title: a.name || "Untitled",
-        meta: (Studio.CHARTS[a.chartType] || {}).label || a.chartType || "chart", folder: "", ts: a.updatedAt || 0 });
+        meta: (Studio.CHARTS[a.chartType] || {}).label || a.chartType || "chart", folder: a.folder || "", ts: a.updatedAt || 0 });
     });
     Studio.Workspace.all("jobs").filter(isVisibleToMe).forEach(function (j) {
       var n = (j.steps || []).length;
@@ -7788,10 +7828,10 @@
         '<span class="wb-chip-label">' + esc(c.name) + '</span> <span class="wb-chip-n">' + c.n + '</span></button>';
     }).join("") + '</div>';
     // Real nested-by-folder grouping (M5 slice 2): the flat sorted list from
-    // slice 1 is now GROUPED under a collapsible header per folder name. Only
-    // Datasets/Connections carry a `folder` today (the other three kinds always
-    // pass folder:"" from repoAllRows) so everything else lands in one shared
-    // "Unfiled" group until their own folder pilot ships (documented NEXT).
+    // slice 1 is now GROUPED under a collapsible header per folder name.
+    // Datasets/Connections/Jobs/Analyses all carry a `folder` today (dashboards
+    // still always pass folder:"" from repoAllRows) so everything else lands in
+    // one shared "Unfiled" group until dashboards get their own folder pilot.
     // Groups sort A→Z with Unfiled LAST, same convention as the Datasets/
     // Connections folder chip strips (`_dsxFolderFilter`/`_connFolderFilter`).
     var groupOrder = [], rowsByGroup = {};

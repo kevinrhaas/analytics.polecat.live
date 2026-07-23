@@ -1525,9 +1525,13 @@
 >    field). Wizard gains the same "Folder" text input + `<datalist>` (filtered through
 >    `isVisibleToMe`), the list gains the same single-select chip facet + saved-view capture, and
 >    the row gets the same badge. 6 new CX-folder ratchets (mirroring the DSX-folder set). sw v92.
->    NEXT: Datasets+Connections folders wire into the Repository browser (M5) alongside a real
->    nested tree; extending the same field to dashboards/analyses/jobs is a further option but not
->    required before M5 (they already have their own single-parent grouping precedent).
+>    ↳ **The same flat `folder` field then shipped on Jobs (sw v98) and Analyses (sw v99, 2026-07-23,
+>    steward — see the ★★★★★ Conservation Insight M5 block's slice 3/4 for detail), so all four
+>    "filed" object kinds are now folder-pilot-complete.** Dashboards are the only object type left
+>    with no folder field (their pre-existing `workbookId` is their own single-parent grouping
+>    precedent). NEXT: Datasets/Connections/Jobs/Analyses folders wire into the Repository browser
+>    (M5) alongside a real nested tree — the flat single-level facets are the honest MVP step before
+>    nesting.
 > 2. **Backend for enforced per-user security (M7) = SUPABASE (Postgres + GoTrue Auth + RLS).**
 >    Real "private = only I can see it" is DB-enforced via row-level security. M3.2 connect-to-backend
 >    + provisioning targets **Supabase first** (the other adapters keep working, but Supabase is the
@@ -2201,9 +2205,19 @@
 >     ↳ **Folder pilot slice 3 (jobs, shipped 2026-07-23, steward — see DONE):** the same flat
 >     `folder` field + chip facet + editor field as Datasets/Connections, now on Jobs (which also
 >     gained its own first search box in the process). A filed job now lands in its own real
->     Repository group instead of Unfiled. NEXT in M5: the same `folder` field on analyses (the
->     cleaner next target — no pre-existing grouping mechanism, unlike dashboards' `workbookId`),
->     and an in-place right-panel editor for simple objects.
+>     Repository group instead of Unfiled.
+>     ↳ **Folder pilot slice 4 (analyses, shipped 2026-07-23, steward — LAST object type, folder
+>     rollout is now COMPLETE):** the same flat `folder` field, now on Explore's saved-analyses
+>     sidebar list — a Folder input (with a `<datalist>` of names already in use) sits next to the
+>     analysis-name field in the savebar, a chip facet (All folders/each folder/Unfiled, same shape
+>     as Datasets/Connections/Jobs) narrows the saved list, and a filed row gets a folder badge.
+>     `repoAllRows` picks up `a.folder` too, so a filed analysis lands in its own real Repository
+>     group instead of Unfiled. Dashboards remain the only object with no folder field (they already
+>     have `workbookId` as their own single-parent grouping precedent). 5 new ratchets (no facet
+>     while unfiled, savebar field persists on save + renders chip/badge, chip narrows the list,
+>     Unfiled excludes a filed analysis, All resets it). sw v99. NEXT in M5: an in-place right-panel
+>     editor for simple objects, and/or a real nested folder TREE (the flat single-level facets across
+>     all four filed kinds are the honest MVP step before nesting).
 > M5. **Repository browser:** new left-rail section — a tree/folder view of ALL objects (dashboards,
 >     datasets, connections, analyses, jobs) with find/open/edit and a right-panel editor for
 >     simple objects; deep-links to the full editors for complex ones.
