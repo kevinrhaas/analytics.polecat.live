@@ -1546,6 +1546,16 @@ body.simple-mode .da-acts{display:none!important}
 .cx-pills{margin-bottom:16px}
 .cx-pill-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px;flex:0 0 auto}
 .cx-list{display:flex;flex-direction:column;gap:8px}
+/* M5 slice 2 — Repository's real nested-by-folder grouping: a collapsible header
+   per folder (Unfiled last) wrapping that folder's own .cx-list, same row anatomy. */
+.cx-groups{display:flex;flex-direction:column;gap:18px}
+.cx-group-hd{display:flex;align-items:center;gap:8px;width:100%;background:none;border:none;padding:4px 2px 8px;
+  cursor:pointer;color:var(--ink);font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.03em}
+.cx-group-hd:hover,.cx-group-hd:focus-visible{color:var(--brand)}
+.cx-group-chev{display:inline-flex;color:var(--faint);flex:0 0 auto}
+.cx-group-label{flex:0 0 auto}
+.cx-group-n{color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0}
+.cx-group.collapsed .cx-list{display:none}
 .cx-row{display:flex;align-items:center;gap:12px;background:var(--field);border:1px solid color-mix(in srgb, var(--ink) 12%, transparent);
   border-radius:12px;padding:12px 16px;cursor:pointer;transition:transform .12s ease,border-color .12s ease}
 .cx-row:hover,.cx-row:focus-visible{border-color:var(--brand);transform:translateY(-1px)}

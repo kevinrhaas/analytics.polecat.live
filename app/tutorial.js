@@ -99,7 +99,7 @@
         },
         {
           t: "Repository — find anything",
-          h: "One flat, searchable list of every dashboard, dataset, connection, analysis and job in your workspace. Pick a kind or search by name — a row opens straight into that object's own editor.",
+          h: "A searchable, folder-grouped view of every dashboard, dataset, connection, analysis and job in your workspace. Pick a kind or search by name — a row opens straight into that object's own editor.",
           target: '.rail-item[data-sec="repository"]',
           pos: "right"
         },

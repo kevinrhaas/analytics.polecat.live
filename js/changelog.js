@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 453,
+    title: 'Repository now groups your workspace by folder',
+    kind: 'feature',
+    ts: '2026-07-23T01:12:34.000Z',
+    items: [
+      'The Repository list is no longer one flat list — rows now group under a collapsible header per folder, sorted alphabetically with an "Unfiled" group last.',
+      'Click a folder header to collapse or expand just that group; datasets and connections already carry folders today, everything else lands in Unfiled until their own folder pilot ships.',
+    ],
+  },
+  {
     v: 452,
     title: 'New Repository section — search your whole workspace at once',
     kind: 'feature',
