@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v120"; /* v120 (M6 "favorites-with-thumbnails"): pinned
+var CACHE_NAME = "studio-shell-v121"; /* v121 (UX10, quality track): the cold-load
+   "Loading…" paragraph in Home/Settings/Admin's boot placeholder is now a small pulsing
+   skeleton (role=status/aria-label keeps it announced without a visible string),
+   prefers-reduced-motion disables the pulse. app/index.html, app/studio.css changed, so
+   precached copies need to roll.
+   v120 (M6 "favorites-with-thumbnails"): pinned
    Datasets/Connections (the existing catalog-row ★ toggle) now surface as cards in a new
    Home section, reusing the pinnedAnalyses card treatment. app/studio.js, app/studio.css
    and docs/index.html content changed, so precached copies need to roll.
