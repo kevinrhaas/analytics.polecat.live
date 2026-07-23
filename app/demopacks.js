@@ -21,7 +21,10 @@
   "use strict";
   var Studio = window.Studio = window.Studio || {};
 
-  var PROVIDERS = ["DTN", "Indigo Ag", "Iowa State", "Regrow", "Terra Diagnostics"];
+  // See app/sampledata.js Studio.SAMPLE_PROVIDERS. Fall back to a hard-coded copy
+  // if sampledata hasn't defined it (defensive — same file, but keeps this module
+  // self-standing for tests that load it alone), same convention as geo() below.
+  var PROVIDERS = Studio.SAMPLE_PROVIDERS || ["DTN", "Indigo Ag", "Iowa State", "Regrow", "Terra Diagnostics"];
   var PRACTICES = [
     { key: "coverCrops", label: "Cover crops" },
     { key: "noTill", label: "No-till" },

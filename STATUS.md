@@ -2113,6 +2113,16 @@
 >     instead. Pure refactor, no behavior change — suite unchanged at 1730/1730. (app/studio.js)
 >     NEXT in this track: slice 2 — `Studio.escapeHtml` promotion (exporters `xml` + studio `esc`
 >     only) + `Studio.SAMPLE_PROVIDERS` sharing.
+>     ↳ **Slice 2 (shipped 2026-07-23, steward): `Studio.escapeHtml` promoted (model.js, next to
+>     `Studio.clone`) — exporters.js's `xml()` and studio.js's `esc()` now both delegate to it
+>     instead of carrying their own identical char-map replace; `svgEsc` (model.js) and `he`
+>     (studio-render.js) deliberately left untouched (sandboxed export iframe, self-contained-export
+>     invariant).** `Studio.SAMPLE_PROVIDERS` (the 5-provider list) is now exposed by sampledata.js
+>     next to `Studio.SAMPLE_GEO`; demopacks.js reads it with the same `|| [...]` hard-coded fallback
+>     `geo()` already uses, so it stays self-standing for tests that load it alone. Pure refactor, no
+>     behavior change — suite unchanged at 1805/1805. **R2 is now fully shipped.** (app/model.js,
+>     app/exporters.js, app/studio.js, app/sampledata.js, app/demopacks.js) NEXT in this track: R3
+>     (factory the config layer) or R4 (merge the view-pin machinery).
 > R3. **Factory the config layer:** table-drive the 8 `default*` getter/setter pairs; a
 >     `makePresetStore(key)` factory for the 3 identical list-CRUD triplets (stylePresets /
 >     templateVarSets / customThemePresets). (studio.js)

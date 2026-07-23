@@ -2619,6 +2619,16 @@
 
   Studio.clone = function (o) { return JSON.parse(JSON.stringify(o)); };
 
+  // Shared HTML-escape for plain text nodes/attributes (NOT the sandboxed export
+  // iframe's own escapers — studio-render.js's `he` and model.js's own `svgEsc`
+  // below stay standalone on purpose, since model.js is not inlined into an
+  // export and merging would break that self-contained-export invariant).
+  Studio.escapeHtml = function (s) {
+    return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+    });
+  };
+
   // N-DIST: shareable state links — encode a whole dashboard spec into a URL-safe string so it
   // can travel as a `#share=...` link with no server/file needed (extends the existing E4
   // per-filter `#hash` deep-link, which only ever carried filter *defaults* for exported CDF,

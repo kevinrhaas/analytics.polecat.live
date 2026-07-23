@@ -7,8 +7,7 @@
   var Studio = window.Studio = window.Studio || {};
 
   function xml(s) {
-    return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    return Studio.escapeHtml(s);
   }
 
   /* ---------- CDF (.html) + preview ----------

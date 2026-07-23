@@ -473,7 +473,7 @@
   function fetchText(u) { return fetch(u).then(function (r) { if (!r.ok) throw new Error(u + " " + r.status); return r.text(); }); }
 
   /* ---------- status-bar footer + changelog ---------- */
-  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  function esc(s) { return Studio.escapeHtml(s); }
   function hlq(text, q) {
     var s = esc(String(text == null ? "" : text));
     if (!q) return s;
