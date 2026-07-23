@@ -865,7 +865,11 @@
   }
   function xpDatasets() {
     var out = [];
-    (Studio.Workspace ? Studio.Workspace.all("datasets") : []).sort(function (a, b) {
+    // M4.2 follow-up leak (same class the job editor's source-picker had in slice 5): Explore's
+    // own dataset picker was the one remaining consumer of Workspace's "datasets" table that never
+    // filtered through isDatasetVisibleToMe — a viewer could pick, preview, AND run another
+    // account's private dataset here even though it's hidden from the Datasets catalog itself.
+    (Studio.Workspace ? Studio.Workspace.all("datasets").filter(isDatasetVisibleToMe) : []).sort(function (a, b) {
       return (b.updatedAt || 0) - (a.updatedAt || 0);
     }).forEach(function (d) {
       var conn = Studio.Workspace.get("connections", d.connectionId);
@@ -909,7 +913,10 @@
   function xpDA(takenId) {
     if (XP.kind === "ws") {
       var ds = Studio.Workspace.get("datasets", XP.dsId);
-      if (!ds) return null;
+      // Treat a dataset that's gone PRIVATE on you the same as one that's gone entirely —
+      // same leak class as the xpDatasets()/haveDs fixes above, this time in the path that
+      // builds the embeddable da (chart preview + what gets persisted into the analysis row).
+      if (!ds || !isDatasetVisibleToMe(ds)) return null;
       var da = dsToDA(ds, takenId);
       if (!da.columns.length && XP.run) da.columns = (XP.run.cols || []).slice();
       return da;
@@ -1040,8 +1047,12 @@
     var savedAgg = a.da && a.da.outputOptions && a.da.outputOptions.aggregate;
     XP.agg = savedAgg ? { fn: savedAgg.fn || "none", groupBy: (savedAgg.groupBy || []).slice() } : { fn: "none", groupBy: [] };
     // dataset may be gone (analyses are self-contained) — fall back to the
-    // embedded da's columns through the sample engine
-    var haveDs = XP.kind === "ws" ? !!Studio.Workspace.get("datasets", XP.dsId)
+    // embedded da's columns through the sample engine. Same fallback also covers a dataset
+    // that's still there but gone PRIVATE on you since this analysis was saved (a public
+    // analysis can outlive its source dataset's visibility just like it outlives deletion) —
+    // isDatasetVisibleToMe closes the same leak class M4.2 slice 5 fixed in the job editor.
+    var wsDs = XP.kind === "ws" ? Studio.Workspace.get("datasets", XP.dsId) : null;
+    var haveDs = XP.kind === "ws" ? (!!wsDs && isDatasetVisibleToMe(wsDs))
       : !!xpCatalogDA(String(XP.dsId).split(XP_SEP)[0], String(XP.dsId).split(XP_SEP)[1]);
     var load = haveDs ? xpLoadRows() : Promise.resolve(
       XP.run = (function () { var sd = Studio.sampleRows(a.da || { columns: [] }); return { cols: sd.cols, rows: sd.rows, live: false, orphan: !haveDs }; })());

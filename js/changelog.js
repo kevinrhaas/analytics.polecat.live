@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 475,
+    title: 'Fix: Explore respects a dataset\'s privacy too',
+    kind: 'fix',
+    ts: '2026-07-23T11:20:38.000Z',
+    items: [
+      'Explore\'s own dataset picker no longer lists another account\'s private dataset -- it already stayed hidden from the Datasets catalog, and now Explore matches.',
+      'Reopening a saved public analysis whose dataset has since gone private falls back to sample data instead of quietly loading the private rows, and re-saving it is blocked instead of copying the private dataset into the analysis.',
+    ],
+  },
+  {
     v: 474,
     title: 'Clear local data now truly resets you to a first-time visitor',
     kind: 'fix',
