@@ -5958,14 +5958,20 @@
           .sort(function (a, b) { return (b.featuredAt || "").localeCompare(a.featuredAt || ""); });
         if (!feat.length) return "";
         var shownF = feat.slice(0, 6);
-        return '<div class="home-featured">' + shownF.map(function (r) {
+        // M6: the most-recently-featured dashboard renders as a HERO \u2014 full-width, taller live
+        // preview \u2014 so it occupies real Home estate the way a single at-a-glance chart should;
+        // the rest of the featured set stays a normal grid below it. Same click-to-open (drills
+        // into the real Studio editor) as every other featured card, just given top billing.
+        function featCard(r, isHero) {
           var sp = r.spec, title = sp.title || sp.name || "Untitled";
-          return '<div class="home-feat" data-home-feat="' + esc(r.id) + '">' +
-            '<div class="home-feat-h"><b>' + esc(title) + '</b>' +
+          return '<div class="home-feat' + (isHero ? " home-feat-hero" : "") + '" data-home-feat="' + esc(r.id) + '">' +
+            '<div class="home-feat-h"><span class="home-feat-title">' + (isHero ? '<span class="home-hero-badge">Hero</span>' : "") + '<b>' + esc(title) + '</b></span>' +
             '<span>' + (sp.panels || []).length + " panels" + ((sp.kpis || []).length ? " \u00b7 " + sp.kpis.length + " KPIs" : "") + "</span></div>" +
             '<div class="home-feat-frame" data-feat-frame="' + esc(r.id) + '"></div>' +
             '<button type="button" class="home-feat-open" data-feat-open="' + esc(r.id) + '" aria-label="Open ' + esc(title) + '"></button></div>';
-        }).join("") + "</div>" +
+        }
+        return '<div class="home-featured">' + featCard(shownF[0], true) +
+          shownF.slice(1).map(function (r) { return featCard(r, false); }).join("") + "</div>" +
           (feat.length > 6 ? '<div class="home-feat-more">+ ' + (feat.length - 6) + " more featured \u2014 see Dashboards</div>" : "");
       },
       // Viridis V5/V6: analyses pinned in Explore render as LIVE widgets — the

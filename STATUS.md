@@ -2473,6 +2473,16 @@
 >     (hidden) section never blocks a reorder click. Examples is thus already "one of the movable
 >     sections" per this milestone's own scope note. NEXT in M6: the Home hero (a featured dashboard/
 >     object occupying top real estate) and favorites-with-thumbnails.
+>     ↳ **Slice 2 (shipped 2026-07-23, steward — the Home hero):** the most-recently-featured
+>     dashboard (by `featuredAt`) now renders as a full-width hero card at the top of the Featured
+>     section — a taller live preview (340px vs 230px) with a small "Hero" badge — while the rest of
+>     the featured set stays a normal grid below it. Reuses the EXISTING `featured`/`featuredAt` flag
+>     and live-preview machinery (no new data model): featuring a newer dashboard automatically
+>     promotes it to hero and demotes the previous one back into the grid. Click-to-open (drills into
+>     the real Studio editor) is unchanged. 2 new M6 ratchets (solo featured dashboard is the hero;
+>     featuring a second, newer one promotes it and demotes the first — exactly one hero ever). NEXT
+>     in M6: favorites-with-thumbnails (a lighter-weight favorite than "featured," likely reusing the
+>     Pinned-analyses card treatment for non-dashboard objects).
 > M7. **Real per-user security (Supabase Auth + RLS):** the phased second half — private is
 >     ENFORCED by the database for Supabase deployments (GoTrue + row-level security); other
 >     backends keep the UX-level behavior. This is what makes "private = only I can see it" true.
