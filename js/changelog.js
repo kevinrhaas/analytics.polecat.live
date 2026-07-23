@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 492,
+    title: 'Buttons and chips are properly thumb-sized on phone now',
+    kind: 'polish',
+    ts: '2026-07-23T21:28:53.000Z',
+    items: [
+      'On phones in the 400-640px range, toolbar buttons rendered as small as ~28px tall — well under the accepted 44px touch-target minimum. Buttons, icon buttons, row actions, and chips across the app now meet 44px on every phone width, not just the narrowest ones.',
+    ],
+  },
+  {
     v: 491,
     title: 'The Conservation Insight demo now shows off real filters',
     kind: 'feature',

@@ -9268,21 +9268,33 @@ function serve() {
       // .resizer should have touch-action:none
       var rez = document.querySelector(".resizer");
       var rezTA = rez ? window.getComputedStyle(rez).touchAction : "n/a";
-      // .da-act buttons should be ≥36px tall (≤640px rule)
+      // .da-act buttons should be ≥44px tall (≤640px rule, UX7)
       var daActs = [].slice.call(document.querySelectorAll(".da-act"));
       var daActMinH = daActs.length ? parseFloat(window.getComputedStyle(daActs[0]).minHeight) : 0;
-      // .chip should be ≥40px tall
+      // .chip should be ≥44px tall (UX7)
       var chips = [].slice.call(document.querySelectorAll(".chip"));
       var chipMinH = chips.length ? parseFloat(window.getComputedStyle(chips[0]).minHeight) : 0;
       // .da .da-acts should be visible on mobile (opacity:1 via ≤640px rule)
       var daActsGroup = document.querySelector(".da .da-acts");
       var daActsOpacity = daActsGroup ? parseFloat(window.getComputedStyle(daActsGroup).opacity) : 0;
-      return { rezTA, daActMinH, chipMinH, daActsOpacity, daActCount: daActs.length, chipCount: chips.length };
+      // UX7: the actually-RENDERED size of a topbar .btn ("+ New") and .btn.icon ("More")
+      // on phone — a bounding-rect check, not just the declared CSS, since .chip/.da-act
+      // above showed min-height on a non-flex box can be inert.
+      var btnNewRect = document.getElementById("btnNew") ? document.getElementById("btnNew").getBoundingClientRect() : null;
+      var btnMoreRect = document.getElementById("btnMore") ? document.getElementById("btnMore").getBoundingClientRect() : null;
+      return {
+        rezTA, daActMinH, chipMinH, daActsOpacity, daActCount: daActs.length, chipCount: chips.length,
+        btnNewH: btnNewRect ? btnNewRect.height : 0,
+        btnMoreH: btnMoreRect ? btnMoreRect.height : 0,
+        btnMoreW: btnMoreRect ? btnMoreRect.width : 0
+      };
     });
     ok("M3: .resizer has touch-action:none", touchTargets.rezTA === "none", JSON.stringify(touchTargets));
-    ok("M3: .da-act has min-height ≥36px on phone", touchTargets.daActMinH >= 36, JSON.stringify(touchTargets));
-    ok("M3: .chip has min-height ≥40px on phone", touchTargets.chipMinH >= 40, JSON.stringify(touchTargets));
+    ok("M3: .da-act has min-height ≥44px on phone (UX7)", touchTargets.daActMinH >= 44, JSON.stringify(touchTargets));
+    ok("M3: .chip has min-height ≥44px on phone (UX7)", touchTargets.chipMinH >= 44, JSON.stringify(touchTargets));
     ok("M3: .da-acts is always visible on phone (opacity:1)", touchTargets.daActsOpacity >= 1, JSON.stringify(touchTargets));
+    ok("UX7: topbar .btn (+ New) renders ≥44px tall on phone", touchTargets.btnNewH >= 44, JSON.stringify(touchTargets));
+    ok("UX7: topbar .btn.icon (More) renders ≥44x44px on phone", touchTargets.btnMoreH >= 44 && touchTargets.btnMoreW >= 44, JSON.stringify(touchTargets));
     // Close Library drawer before continuing
     await phonePage.evaluate(() => { var s = document.getElementById("mobile-scrim"); if (s) s.click(); });
     await phonePage.waitForTimeout(200);
