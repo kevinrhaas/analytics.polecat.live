@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v101"; /* v101: M5 — Repository's folder groups
+var CACHE_NAME = "studio-shell-v102"; /* v102: LF11 — Explore's ambiguous single
+   "Add to dashboard" button is now two explicit buttons, "+ New dashboard" and
+   "Existing dashboard…" (the latter opens a picker of saved dashboards). Docs
+   updated to describe the split. app/studio.js, docs/index.html content
+   changed, so precached copies need to roll.
+   v101: M5 — Repository's folder groups
    become a real nested TREE: a "/" in any folder value (e.g. "Finance/2024")
    now nests a child group inside its parent instead of being treated as one
    flat name, with each folder's header count rolling up its subfolders. The

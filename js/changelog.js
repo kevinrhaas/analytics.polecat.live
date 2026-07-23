@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 458,
+    title: 'Explore: adding a chart to a dashboard is no longer ambiguous',
+    kind: 'polish',
+    ts: '2026-07-23T04:18:08.000Z',
+    items: [
+      'The "Add to dashboard" button in Explore\'s result panel is now two explicit buttons: "+ New dashboard" and "Existing dashboard…".',
+      '"Existing dashboard…" opens a picker of your saved dashboards so you can choose exactly which one gets the new chart.',
+    ],
+  },
+  {
     v: 457,
     title: 'Repository folders are now a real nested tree',
     kind: 'feature',
