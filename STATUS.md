@@ -116,6 +116,23 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF27(b) — Studio gains a Close button that returns to where you opened it from (v488,
+  2026-07-23, steward):** every "open the builder" call site (Home's recents/featured/blank/
+  examples/drag-drop cards, the Dashboards/Repository catalog rows and dashboard picker modal,
+  Explore's "drop analysis onto dashboard," a shared `#share=` link, Settings' Focus mode and
+  tour buttons, and importing a `.studio.json` from a URL) now routes through one `enterStudio()`
+  helper that records which section you were actually on (via a new `__studioShellGetSection`
+  hook on shell.js) into `S.studioOrigin` — but only when arriving FROM a different section, so
+  re-entering Studio while already inside it (swapping examples, dropping another dataset) never
+  clobbers the section you originally opened it from. A new **Close** button next to Save (and
+  mirrored in the phone `⋯ More` menu, alongside the existing Open/Save mirrors) calls
+  `closeStudio()`, which switches back to that recorded origin (falling back to Dashboards if
+  none was captured). No SPA/browser-history wiring yet — that's LF9's separate, larger track;
+  this slice is just the origin-tracking + button. 3 new regression tests (origin capture from
+  Home, Close returns there, origin follows a DIFFERENT entry point — the Dashboards catalog —
+  rather than defaulting to Home every time). sw v130. Full suite green (1838/1838). (app/shell.js,
+  app/studio.js, app/index.html, app/studio.css, tests/run.js) NEXT in LF27: (c) a "cool & sexy"
+  tile-first Dashboards browser.
 - **LF33 — rail brand lockup centering fix (v485, 2026-07-23, steward):** the left rail's
   brand mark (`.rail-brand-mark`) used to center only against its own flex row (icon +
   "Analytics"), landing ~9px above the true vertical center of the combined "Analytics" /
@@ -2243,10 +2260,12 @@
 >           `#secHome` visible, `#appMain` hidden, the Home rail item `.active`/`aria-current=page`, the
 >           Studio rail item not active, topbar reads "Home". Full suite green (1835/1835).
 >           app/shell.js, app/index.html, tests/run.js. NEXT in LF27: (b) Close + return-to-origin.
->       (b) CLOSE + RETURN-TO-ORIGIN. Studio gets a "Close" (next to Save/Save-as — pairs with LF26) that leaves the
->           editor and returns to WHERE YOU OPENED FROM (the Dashboards/Repository list). Track the origin section;
->           wire it through SPA history (LF9/#44) so browser Back also closes the editor. The natural loop: open a
->           dashboard → edit → Save/Save-as → Close → back to the list → open another.
+>       (b) ✓ **CLOSE + RETURN-TO-ORIGIN (shipped 2026-07-23, steward) — see DONE.** Studio gains a "Close"
+>           button next to Save (mirrored in the phone More menu) that returns to whichever section it was
+>           actually opened from (`enterStudio()`/`S.studioOrigin`, captured across every entry point).
+>           SPA/browser-history integration (Back also closing the editor) is deliberately deferred to LF9,
+>           which already tracks that as its own larger piece — not duplicated here. NEXT in LF27: (c) the
+>           tile-first Dashboards browser.
 >       (c) A "COOL & SEXY" DASHBOARDS BROWSER (the simple tier). The `dashboards` rail section becomes a friendly
 >           collection view: your dashboards + the public ones, as PREVIEW TILES (reuse Home's live/thumbnail tile
 >           rendering, renderHome ~5684 home-featured/home-recents/home-examples) OR a list, with search + a

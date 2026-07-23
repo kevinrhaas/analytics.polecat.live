@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v129"; /* v129: LF27(a) — a fresh boot (no saved section)
+var CACHE_NAME = "studio-shell-v130"; /* v130: LF27(b) — Studio gains a Close button
+   (next to Save, mirrored in the phone More menu) that returns you to whichever section
+   you opened the builder from, instead of leaving you stuck on the rail's Studio item.
+   app/index.html, app/shell.js, app/studio.js, app/studio.css changed, so precached
+   copies need to roll.
+   v129: LF27(a) — a fresh boot (no saved section)
    now lands on Home instead of the Studio builder; Studio stays one click away on the
    rail, and a user's own last-visited section still wins. app/index.html, app/shell.js
    changed, so precached copies need to roll.

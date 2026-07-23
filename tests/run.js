@@ -355,6 +355,54 @@ function serve() {
     ok("TOPBAR: the top-left shows the current section name (fleet standard) and updates as you navigate",
       tbSecDash === "Dashboards" && tbSecExplore === "Explore", JSON.stringify({ tbSecDash, tbSecExplore }));
 
+    // ---- LF27(b): Studio gains a Close button that returns you to where you opened it from ----
+    console.log("\n• LF27(b): Close returns Studio to its origin section");
+    await page.evaluate(() => window.__studioShellSetSection("home"));
+    await page.waitForTimeout(150);
+    await page.click('.home-card[data-home="blank"]');
+    await page.waitForTimeout(150);
+    const lf27bEntered = await page.evaluate(() => ({
+      origin: window.__STUDIO_STATE.studioOrigin,
+      studioActive: document.querySelector('.rail-item[data-sec="studio"]').classList.contains("active"),
+      appMainHidden: document.getElementById("appMain").hidden
+    }));
+    ok("LF27(b): opening a blank dashboard from Home captures Home as the Studio origin",
+      lf27bEntered.origin === "home" && lf27bEntered.studioActive && !lf27bEntered.appMainHidden,
+      JSON.stringify(lf27bEntered));
+    await page.click("#btnCloseStudio");
+    await page.waitForTimeout(150);
+    const lf27bClosed = await page.evaluate(() => ({
+      homeActive: document.querySelector('.rail-item[data-sec="home"]').classList.contains("active"),
+      homeHidden: document.getElementById("secHome").hidden,
+      appMainHidden: document.getElementById("appMain").hidden
+    }));
+    ok("LF27(b): Close returns to Home, the section Studio was opened from",
+      lf27bClosed.homeActive && !lf27bClosed.homeHidden && lf27bClosed.appMainHidden,
+      JSON.stringify(lf27bClosed));
+    // Save so a real catalog row exists, then reopen it FROM the Dashboards section —
+    // proves origin tracks whichever section Studio was actually entered from, not just Home.
+    await page.click('.home-card[data-home="blank"]');
+    await page.waitForTimeout(150);
+    await page.click("#btnSaveSpec");
+    await page.waitForTimeout(150);
+    await page.click("#btnCloseStudio");
+    await page.waitForTimeout(150);
+    await page.evaluate(() => window.__studioShellSetSection("dashboards"));
+    await page.waitForTimeout(150);
+    await page.click("#repoResults .recent-open");
+    await page.waitForTimeout(150);
+    const lf27bDashOrigin = await page.evaluate(() => window.__STUDIO_STATE.studioOrigin);
+    ok("LF27(b): origin tracks whichever section Studio was actually entered from (Dashboards, not just Home)",
+      lf27bDashOrigin === "dashboards", lf27bDashOrigin);
+    // the rest of this suite runs on Studio being active with the flagship example loaded
+    // (boot's own default) — this block swapped in blank dashboards, so restore both.
+    await page.evaluate(() => window.__studioShellSetSection("studio"));
+    await page.waitForTimeout(150);
+    await page.click("#btnExamples");
+    await page.waitForTimeout(150);
+    await page.click('.ex-card[data-f="studio-cost.studio.json"]');
+    await page.waitForTimeout(300);
+
     // ---- UX1: a11y quick wins (2026-07-22) ----
     console.log("\n• UX1: a11y quick wins");
     const ux1Toast = await page.evaluate(function () {

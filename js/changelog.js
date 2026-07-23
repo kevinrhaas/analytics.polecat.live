@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 488,
+    title: 'Studio gains a Close button that returns you to where you opened it from',
+    kind: 'feature',
+    ts: '2026-07-23T18:51:42.000Z',
+    items: [
+      'Opening a dashboard from Home, the Dashboards list, or Explore always dropped you into the Studio builder with no way back except the rail — you had to remember which section you came from. A new Close button next to Save (and in the phone More menu) now takes you straight back to that section.',
+    ],
+  },
+  {
     v: 487,
     title: 'Fresh visits now land on Home, not the Studio builder',
     kind: 'polish',
