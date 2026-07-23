@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 452,
+    title: 'New Repository section — search your whole workspace at once',
+    kind: 'feature',
+    ts: '2026-07-23T00:36:08.000Z',
+    items: [
+      'A new Repository item in the left rail lists every dashboard, dataset, connection, analysis and job in one place — search across all of them or narrow to just one kind with a chip strip.',
+      'Opening a row takes you straight into that object\'s own editor: a dataset or connection opens its edit form, a job opens its editor, and a dashboard or analysis switches you into Studio or Explore with it loaded.',
+      'Rows show the same Folder badge as the Datasets and Connections lists, and the Overview tour now walks it too.',
+    ],
+  },
+  {
     v: 451,
     title: 'Color pickers show a live swatch, not just a label',
     kind: 'polish',

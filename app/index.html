@@ -40,6 +40,7 @@
     <button class="rail-item" data-sec="datasets" title="Datasets" aria-label="Datasets"><span class="rail-ic" data-ic="db"></span><span class="rail-lbl">Datasets</span></button>
     <button class="rail-item" data-sec="jobs" title="Jobs" aria-label="Jobs"><span class="rail-ic" data-ic="sliders"></span><span class="rail-lbl">Jobs</span></button>
     <button class="rail-item" data-sec="connections" title="Connections" aria-label="Connections"><span class="rail-ic" data-ic="link"></span><span class="rail-lbl">Connections</span></button>
+    <button class="rail-item" data-sec="repository" title="Repository" aria-label="Repository"><span class="rail-ic" data-ic="folder"></span><span class="rail-lbl">Repository</span></button>
     <div class="rail-group-lbl rail-lbl" aria-hidden="true">Build</div>
     <button class="rail-item active" data-sec="studio" title="Studio" aria-label="Studio" aria-current="page"><span class="rail-ic" data-ic="grid"></span><span class="rail-lbl">Studio</span></button>
     <div class="rail-spacer"></div>
@@ -119,6 +120,15 @@
         </div>
       </div>
       <div id="connResults"></div>
+    </div>
+  </section>
+  <section id="secRepository" class="app-sec has-content" hidden>
+    <div class="repo-wrap">
+      <div class="repo-hero"><h1>Repository</h1>
+        <p>Every object in your workspace — dashboards, datasets, connections, analyses and jobs — in one searchable, filterable place. Pick a kind below, or search across all of them; opening a row takes you straight to that object's own editor.</p>
+        <input id="repoAllSearch" class="repo-search" type="search" placeholder="Search the whole workspace…" aria-label="Search the whole workspace"/>
+      </div>
+      <div id="repoAllResults"></div>
     </div>
   </section>
   <section id="secSettings" class="app-sec" hidden>

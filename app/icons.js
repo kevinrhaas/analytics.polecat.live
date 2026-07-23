@@ -107,7 +107,12 @@
     // M4 (admin): a shield for the Admin nav item — distinct from "gear" (Settings,
     // your own preferences) since Admin manages OTHER people's access.
     shield: '<path d="M12 3l7 3v6c0 4.5-3 8-7 9-4-1-7-4.5-7-9V6z" stroke-linecap="round" stroke-linejoin="round"/>',
-    user: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6" stroke-linecap="round" stroke-linejoin="round"/>'
+    user: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6" stroke-linecap="round" stroke-linejoin="round"/>',
+    // M5 slice 1 (Repository rail item): a plain manila folder, monoline to match the
+    // registry (also fills a latent gap — the Jobs rail item/row referenced "sliders",
+    // which had never actually been registered here and silently fell back to "info").
+    folder: '<path stroke-linecap="round" stroke-linejoin="round" d="M3 6.5A1.5 1.5 0 0 1 4.5 5H9l2 2.5h8.5A1.5 1.5 0 0 1 21 9v9.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5z"/>',
+    sliders: '<line x1="4" y1="6" x2="20" y2="6" stroke-linecap="round"/><circle cx="9" cy="6" r="2" fill="currentColor" stroke="none"/><line x1="4" y1="12" x2="20" y2="12" stroke-linecap="round"/><circle cx="15" cy="12" r="2" fill="currentColor" stroke="none"/><line x1="4" y1="18" x2="20" y2="18" stroke-linecap="round"/><circle cx="11" cy="18" r="2" fill="currentColor" stroke="none"/>'
   };
 
   Studio.icon = function (name, size) {

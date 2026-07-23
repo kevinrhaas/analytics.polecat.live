@@ -399,6 +399,7 @@
       renderDatasets();
       renderJobs();
       renderExplore();
+      renderRepository();
       Studio.Workspace.on("change", function (p) {
         if (p.table === "connections" || p.table === "*") renderConnections();
         if (p.table === "datasets" || p.table === "connections" || p.table === "*") { renderDatasets(); buildLibrary(); }
@@ -411,12 +412,16 @@
         // DASHBOARD deserves the same live-on-Home guarantee.
         if (p.table === "analyses" || p.table === "dashboards" || p.table === "*") { buildLibrary(); renderHome(); }
         if (p.table === "dashboards" || p.table === "*") renderDashboards();
+        // M5 slice 1: Repository spans all five object tables, so any of them
+        // mutating repaints it.
+        if (["connections", "datasets", "dashboards", "analyses", "jobs", "*"].indexOf(p.table) >= 0) renderRepository();
       });
       var connSearchInp = $("#connSearch"); if (connSearchInp) connSearchInp.addEventListener("input", renderConnections);
       var connNewBtn = $("#connNewBtn"); if (connNewBtn) connNewBtn.onclick = function () { openConnectionWizard(); };
       var dsxSearchInp = $("#dsxSearch"); if (dsxSearchInp) dsxSearchInp.addEventListener("input", renderDatasets);
       var dsxNewBtn = $("#dsxNewBtn"); if (dsxNewBtn) dsxNewBtn.onclick = function () { openDatasetEditor(); };
       var jobsNewBtn = $("#jobsNewBtn"); if (jobsNewBtn) jobsNewBtn.onclick = function () { openJobEditor(); };
+      var repoAllSearchInp = $("#repoAllSearch"); if (repoAllSearchInp) repoAllSearchInp.addEventListener("input", renderRepository);
       // workspace-backend sync: restore a saved remote, keep the rail dot +
       // Settings card live, and flush any pending mirror write on page close
       Studio.Sync.onSync(function (st) {
@@ -7652,6 +7657,109 @@
   window.__studioOpenJobEditor = openJobEditor; // test hook
   window.__studioRunJob = runJob; // test hook
 
+  /* ---------- Repository (M5 slice 1, STATUS.md's Conservation Insight track) ----------
+     A flat, cross-type search/browse view over every workspace object (dashboards,
+     datasets, connections, analyses, jobs) in one place — the "find" half of M5's
+     tree/folder browser. Deliberately flat and deep-link-only for this first slice
+     (same "honest MVP before nesting" convention as the folder pilot on Datasets/
+     Connections): no new editing UI here, a row just opens that object's own
+     existing editor. Grouping by folder into a real nested tree is the documented
+     NEXT step once this foundation is in place. */
+  var _repoAllType = ""; // "" = All, else a REPO_TYPES key
+  var REPO_TYPES = [
+    { key: "dashboard", label: "Dashboards", singular: "Dashboard", ic: "layers" },
+    { key: "dataset", label: "Datasets", singular: "Dataset", ic: "db" },
+    { key: "connection", label: "Connections", singular: "Connection", ic: "link" },
+    { key: "analysis", label: "Analyses", singular: "Analysis", ic: "trend-up" },
+    { key: "job", label: "Jobs", singular: "Job", ic: "sliders" }
+  ];
+  function repoTypeDef(k) { for (var i = 0; i < REPO_TYPES.length; i++) if (REPO_TYPES[i].key === k) return REPO_TYPES[i]; return null; }
+  function repoAllRows() {
+    var rows = [];
+    Studio.Workspace.all("dashboards").filter(isVisibleToMe).forEach(function (r) {
+      var sp = r.spec || {}, n = (sp.panels || []).length;
+      rows.push({ type: "dashboard", id: r.id, title: sp.title || sp.name || "Untitled",
+        meta: n + " panel" + (n === 1 ? "" : "s"), folder: "", ts: r.ts ? (Date.parse(r.ts) || 0) : 0 });
+    });
+    Studio.Workspace.all("datasets").filter(isDatasetVisibleToMe).forEach(function (d) {
+      var src = dsxAdapterOf(d);
+      rows.push({ type: "dataset", id: d.id, title: d.name || "Untitled",
+        meta: src ? src.label : "no connection", folder: d.folder || "", ts: d.updatedAt || 0 });
+    });
+    Studio.Workspace.all("connections").filter(isVisibleToMe).forEach(function (c) {
+      var src = Studio.sourceById(c.adapter);
+      rows.push({ type: "connection", id: c.id, title: c.name || "Untitled",
+        meta: src ? src.label : "connection", folder: c.folder || "", ts: c.updatedAt || 0 });
+    });
+    Studio.Workspace.all("analyses").filter(isVisibleToMe).forEach(function (a) {
+      rows.push({ type: "analysis", id: a.id, title: a.name || "Untitled",
+        meta: (Studio.CHARTS[a.chartType] || {}).label || a.chartType || "chart", folder: "", ts: a.updatedAt || 0 });
+    });
+    Studio.Workspace.all("jobs").filter(isVisibleToMe).forEach(function (j) {
+      var n = (j.steps || []).length;
+      rows.push({ type: "job", id: j.id, title: j.name || "Untitled",
+        meta: n + " step" + (n === 1 ? "" : "s"), folder: "", ts: j.updatedAt || 0 });
+    });
+    return rows;
+  }
+  // Deep-links to each type's OWN existing editor rather than duplicating any
+  // editing UI here — dashboards/analyses switch section (their "editor" is a
+  // whole workspace, not a modal); datasets/connections/jobs open their modal
+  // straight from wherever Repository happens to be, same as the command palette.
+  function repoOpenRow(type, id) {
+    if (type === "dashboard") { openRecent(id); return; }
+    if (type === "dataset") { openDatasetEditor(Studio.Workspace.get("datasets", id)); return; }
+    if (type === "connection") { openConnectionWizard(Studio.Workspace.get("connections", id)); return; }
+    if (type === "job") { openJobEditor(Studio.Workspace.get("jobs", id)); return; }
+    if (type === "analysis") {
+      if (window.__studioShellSetSection) window.__studioShellSetSection("explore");
+      xpLoadAnalysis(id);
+    }
+  }
+  function renderRepository() {
+    var results = $("#repoAllResults"); if (!results) return;
+    var q = (($("#repoAllSearch") || {}).value || "").toLowerCase();
+    var all = repoAllRows();
+    var counts = { all: all.length };
+    all.forEach(function (r) { counts[r.type] = (counts[r.type] || 0) + 1; });
+    if (_repoAllType && !counts[_repoAllType]) _repoAllType = "";
+    var filtered = all.filter(function (r) {
+      if (_repoAllType && r.type !== _repoAllType) return false;
+      if (!q) return true;
+      return (r.title + " " + r.meta + " " + r.folder).toLowerCase().indexOf(q) >= 0;
+    }).sort(function (a, b) { return b.ts - a.ts; });
+    var chipDefs = [{ id: "", name: "All", n: counts.all }]
+      .concat(REPO_TYPES.map(function (t) { return { id: t.key, name: t.label, n: counts[t.key] || 0 }; }));
+    var chipsHtml = '<div class="wb-chips">' + chipDefs.map(function (c) {
+      return '<button type="button" class="wb-chip' + (_repoAllType === c.id ? " active" : "") + '" data-repo-type-filter="' + esc(c.id) + '" aria-pressed="' + (_repoAllType === c.id ? "true" : "false") + '">' +
+        '<span class="wb-chip-label">' + esc(c.name) + '</span> <span class="wb-chip-n">' + c.n + '</span></button>';
+    }).join("") + '</div>';
+    var rowsHtml = filtered.map(function (r) {
+      var td = repoTypeDef(r.type);
+      return '<div class="cx-row" data-repo-id="' + esc(r.id) + '" data-repo-type="' + esc(r.type) + '" tabindex="0" role="button" aria-label="Open ' + esc(r.title) + '">' +
+        '<span class="cx-ic" style="color:var(--faint)"></span>' +
+        '<span class="cx-name"><b>' + esc(r.title) + '</b><small>' + esc((td ? td.singular : r.type) + " · " + r.meta) + '</small></span>' +
+        (r.folder ? '<span class="cx-badge cx-folder" title="Folder: ' + esc(r.folder) + '">' + esc(r.folder) + '</span>' : "") +
+        '<span class="cx-when">' + (r.ts ? esc(new Date(r.ts).toLocaleDateString()) : "") + '</span>' +
+        '</div>';
+    }).join("");
+    results.innerHTML = chipsHtml +
+      (filtered.length ? '<div class="cx-list">' + rowsHtml + '</div>'
+        : '<div class="home-empty-hint">' + (q || _repoAllType ? "Nothing matches." :
+            "Your workspace is empty — dashboards, datasets, connections, analyses and jobs will all show up here once you create them.") + '</div>');
+    $$("[data-repo-type-filter]", results).forEach(function (btn) {
+      btn.onclick = function () { _repoAllType = btn.getAttribute("data-repo-type-filter"); renderRepository(); };
+    });
+    $$(".cx-row[data-repo-id]", results).forEach(function (row) {
+      var td = repoTypeDef(row.getAttribute("data-repo-type"));
+      var icEl = row.querySelector(".cx-ic"); if (icEl && Studio.icon && td) icEl.appendChild(Studio.icon(td.ic, 18));
+      var open = function () { repoOpenRow(row.getAttribute("data-repo-type"), row.getAttribute("data-repo-id")); };
+      row.addEventListener("click", open);
+      row.addEventListener("keydown", function (e) { if ((e.key === "Enter" || e.key === " ") && e.target === row) { e.preventDefault(); open(); } });
+    });
+  }
+  window.__studioRenderRepository = renderRepository; // test hook
+
   /* ---------- Workspace backend (Settings card + rail indicator) ----------
      Manager's data-source pattern: the app's own catalog (dashboards/datasets/
      connections) is local-first, and a meta-capable source (Turso/Supabase/
@@ -8020,7 +8128,8 @@
      rail's own bounce), so it must always stay reachable. */
   var CONFIGURABLE_SECTIONS = [
     ["explore", "Explore"], ["dashboards", "Dashboards"],
-    ["datasets", "Datasets"], ["jobs", "Jobs"], ["connections", "Connections"], ["studio", "Studio"]
+    ["datasets", "Datasets"], ["jobs", "Jobs"], ["connections", "Connections"],
+    ["repository", "Repository"], ["studio", "Studio"]
   ];
   function getHiddenSections() { return lsGet("studio-hidden-sections", []); }
   function setSectionHidden(sec, hidden) {
