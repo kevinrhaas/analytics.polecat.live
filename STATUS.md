@@ -1776,12 +1776,29 @@
 >       example content (connections, datasets, jobs, dashboards) should be shipped as sample packs the
 >       same way the Conservation Insight pack is — a governance/data-management sample pack. app/demopacks.js,
 >       Settings UI in app/studio.js, showSamples()/showDemo gating, help copy. Keep the changelog + a test.
-> LF17. **Color-theme picker → palette-image cards (AutoSelector-style).** The Settings "Color theme"
->       control is a text-only dropdown; replace it with visual palette cards like AutoSelector's Theme
->       picker — each option shows a gradient/swatch strip of that palette's actual colors plus its name
->       (Polecat Dark/Light/System + the app palettes incl. the conservation palette). Organize it cleanly
->       (grouped, not a messy wall). Reference screenshots: AutoSelector's gradient-slider + swatch cards.
->       app/studio.js (Settings render) + app/studio.css. Keep it token-driven so it tracks live palettes.
+> LF17. ✓ **Color-theme picker → palette cards (shipped 2026-07-23, steward).** The Settings →
+>       Appearance "Color theme" `<select>` is now a small keyboard-operable radiogroup of 3 cards
+>       (Classic Blue / Polecat / Fleet Modern) — each card shows a preview banner (that theme's real
+>       `--topbar-bg` gradient) plus 3 color dots (`--brand`/`--pdc`/`--bg`) and its name, so you pick by
+>       looking, not by reading a label. New `resolveAppThemeTokens()` reads the colors LIVE off `<html>`
+>       (briefly flips `[data-app-theme]` to the candidate key, reads `getComputedStyle`, restores the
+>       real one — synchronous, no visible flash) instead of hand-copying studio.css's hex values into a
+>       second, easily-stale JS table, so the cards can't drift from the actual theme blocks — same "read
+>       the live token, don't guess at a static palette" reasoning as the Inspector's
+>       `resolveTokenColor`/`rampGradientCss` color pickers (those read the `#preview` iframe instead,
+>       since dashboard theming lives there; app-chrome theming lives on `<html>` itself). The active
+>       card shows a border ring (matches this app's existing swatch "active" convention) plus a
+>       checkmark; native `<button>` elements give Tab focus + Enter/Space activation for free. Clicking
+>       a card calls the same `setAppTheme()` + toast the old `<select>`'s `onchange` did — behavior is
+>       unchanged, only the widget changed. 4 new regression checks (all 3 cards render with
+>       distinguishable, non-empty swatch previews; clicking a card changes `data-app-theme` same as
+>       before; the active theme's card alone shows the selected state; Tab+Enter keyboard activation)
+>       plus every existing Z10/Fleet-Modern app-theme test updated to drive the new cards instead of
+>       `page.selectOption`. app/studio.js (`resolveAppThemeTokens`, `appThemeCardsHtml`, `renderSettings`),
+>       app/studio.css, docs/index.html, tests/run.js. sw v108. **Still open:** the LF17 ask's own
+>       parenthetical mentioned a Conservation card — there is no Conservation app Color theme yet
+>       (that's LF3/UX11, not yet built, same still-open note LF10 left); once it ships, add a 4th card
+>       here, same convention.
 > LF20. **Builder top bar (canvas-bar) declutter — icons, consolidate, keep chrome off-screen (Kevin, live).**
 >       The builder's canvas top bar reads noisy: `title ✎ · id badge · Storage&Cost · undo · redo · Examples ▾ ·
 >       Open · Save · Export ▾ · ◑ Dark`. Make it MUCH simpler/elegant: turn secondary actions into icon

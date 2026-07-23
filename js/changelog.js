@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 464,
+    title: 'Color theme picker is now palette cards, not a dropdown (LF17)',
+    kind: 'feature',
+    ts: '2026-07-23T07:35:07.000Z',
+    items: [
+      'Settings → Appearance\'s Color theme control is now three clickable palette cards — Classic Blue, Polecat, Fleet Modern — each showing a preview banner and color dots of its own real chrome colors instead of a text-only option, so you pick by looking, not by reading.',
+      'The active theme\'s card shows a checkmark; keyboard users can Tab to a card and press Enter/Space to pick it, same as before.',
+    ],
+  },
+  {
     v: 463,
     title: 'Choropleth GL renderer: pan buttons (LF4a)',
     kind: 'feature',

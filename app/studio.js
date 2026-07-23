@@ -8849,20 +8849,16 @@
     var sec = $("#secSettings"); if (!sec) return;
     var groups = [];
     SETTINGS_TOGGLES.forEach(function (t) { if (groups.indexOf(t.grp) < 0) groups.push(t.grp); });
-    var APP_THEME_LABELS = { classic: "Classic Blue", polecat: "Polecat", modern: "Fleet Modern" };
     var html = '<div class="settings-wrap"><div class="settings-hero"><h1>Settings</h1>' +
       '<p>App-wide preferences, saved locally on this device.</p></div>' +
       accountCardHtml() +
       '<div class="settings-card" id="wsBackendCard"></div>' +
       groups.map(function (g) {
         var themeRow = g === "Appearance" ?
-          '<div class="set-row"><span class="set-row-ic" data-ic="palette"></span>' +
-            '<div class="set-row-txt"><b>Color theme</b><small>Classic Blue is the original built-in chrome; Polecat recolors the builder in the warm terracotta/plum look the left rail already uses; Fleet Modern applies the same jobtracker.polecat.live tokens as the Fleet Modern dashboard theme.</small></div>' +
-            '<select id="appThemeSel" class="set-sel">' +
-              APP_THEME_KEYS.map(function (m) {
-                return '<option value="' + m + '"' + (appTheme() === m ? " selected" : "") + '>' + APP_THEME_LABELS[m] + '</option>';
-              }).join("") +
-            '</select></div>' : "";
+          '<div class="set-row set-row-col"><span class="set-row-ic" data-ic="palette"></span>' +
+            '<div class="set-row-txt"><b>Color theme</b><small>Classic Blue is the original built-in chrome; Polecat recolors the builder in the warm terracotta/plum look the left rail already uses; Fleet Modern applies the same jobtracker.polecat.live tokens as the Fleet Modern dashboard theme. Each card previews its own real colors.</small></div>' +
+            appThemeCardsHtml() +
+          '</div>' : "";
         // Tour lives with the other guided/presentation affordances (moved out of the
         // topbar per user feedback — it's a once-in-a-while action, not daily chrome).
         var tourRow = g === "Presentation" ?
@@ -8982,6 +8978,7 @@
     sec.innerHTML = html;
     renderWorkspaceBackendCard();
     $$(".set-row-ic[data-ic]", sec).forEach(function (span) { span.appendChild(Studio.icon(span.getAttribute("data-ic"), 18)); });
+    $$(".apptheme-check[data-ic]", sec).forEach(function (span) { span.appendChild(Studio.icon(span.getAttribute("data-ic"), 11)); });
     $$("input[data-set]", sec).forEach(function (cb) {
       var t = SETTINGS_TOGGLES.filter(function (x) { return x.id === cb.getAttribute("data-set"); })[0];
       if (t) cb.addEventListener("change", t.set);
@@ -8998,8 +8995,14 @@
       else { Studio.removeDemoPack("conservation"); toast("Demo content removed"); }
       renderSettings();
     };
-    var appThemeSel = $("#appThemeSel", sec);
-    if (appThemeSel) appThemeSel.onchange = function () { setAppTheme(appThemeSel.value); toast(APP_THEME_LABELS[appThemeSel.value] + " theme applied"); };
+    $$("#appThemeCards .apptheme-card", sec).forEach(function (card) {
+      card.onclick = function () {
+        var k = card.getAttribute("data-app-theme-card");
+        setAppTheme(k);
+        toast(APP_THEME_LABELS[k] + " theme applied");
+        renderSettings();
+      };
+    });
     var defSubInp = $("#setDefaultSubtitleInp", sec);
     if (defSubInp) defSubInp.addEventListener("change", function () { setDefaultSubtitle(defSubInp.value); toast("Default subtitle saved"); });
     var defAccentCustom = $("#setDefaultAccentCustom", sec);
@@ -9265,6 +9268,7 @@
     return APP_THEME_TO_DASHBOARD_THEME[t] !== undefined ? APP_THEME_TO_DASHBOARD_THEME[t] : "polecat";
   }
   var APP_THEME_KEYS = ["classic", "polecat", "modern"];
+  var APP_THEME_LABELS = { classic: "Classic Blue", polecat: "Polecat", modern: "Fleet Modern" };
   function setAppTheme(t) {
     t = APP_THEME_KEYS.indexOf(t) >= 0 ? t : "polecat";
     S.appTheme = t; document.documentElement.setAttribute("data-app-theme", t);
@@ -9275,6 +9279,54 @@
     try { localStorage.setItem("studio-app-theme", t); } catch (e) {}
   }
   window.__studioAppTheme = { get: appTheme, set: setAppTheme }; // test hook
+  // LF17: the Settings "Color theme" picker shows each option as a real preview instead of a
+  // text-only <option>, so pick-by-looking replaces pick-by-reading. Rather than hand-copying
+  // studio.css's per-theme hex values into a second, easily-stale JS table, this briefly flips
+  // <html>'s [data-app-theme] to the candidate key, reads its ACTUAL resolved tokens back via
+  // getComputedStyle, then restores the real active theme — same "read the live token, don't
+  // guess at a static palette" reasoning the Inspector's resolveTokenColor/rampGradientCss color
+  // pickers already use (those read the #preview iframe's document instead, since dashboard
+  // theming lives there; app-chrome theming lives on <html> itself, so this reads that directly).
+  // The flip+restore is synchronous with no yield to the event loop in between, so the browser
+  // never actually paints the intermediate candidate theme — no visible flash.
+  function resolveAppThemeTokens(themeKey) {
+    var de = document.documentElement;
+    var saved = de.getAttribute("data-app-theme");
+    var flip = saved !== themeKey;
+    if (flip) de.setAttribute("data-app-theme", themeKey);
+    var cs = getComputedStyle(de);
+    var tokens = {
+      brand: cs.getPropertyValue("--brand").trim(),
+      pdc: cs.getPropertyValue("--pdc").trim(),
+      bg: cs.getPropertyValue("--bg").trim(),
+      topbarBg: cs.getPropertyValue("--topbar-bg").trim()
+    };
+    if (flip) de.setAttribute("data-app-theme", saved || "polecat");
+    return tokens;
+  }
+  // Renders the Color theme picker as a small, cleanly-grouped row of clickable cards (an
+  // AutoSelector-style radiogroup) instead of a plain <select> — each card's banner is the
+  // theme's own --topbar-bg gradient, the three dots below it its --brand/--pdc/--bg, so the
+  // card IS the theme, not a caption describing it. Native <button> elements already give Tab
+  // focus + Enter/Space activation for free, so no extra keyboard wiring is needed.
+  function appThemeCardsHtml() {
+    var active = appTheme();
+    return '<div class="apptheme-picker" role="radiogroup" aria-label="Color theme" id="appThemeCards">' +
+      APP_THEME_KEYS.map(function (k) {
+        var isActive = active === k, t = resolveAppThemeTokens(k);
+        return '<button type="button" class="apptheme-card' + (isActive ? " active" : "") + '" data-app-theme-card="' + k + '" role="radio" aria-checked="' + (isActive ? "true" : "false") + '" aria-label="' + esc(APP_THEME_LABELS[k]) + ' color theme">' +
+          '<span class="apptheme-banner" style="background:' + esc(t.topbarBg) + '" aria-hidden="true"></span>' +
+          '<span class="apptheme-chips" aria-hidden="true">' +
+            '<span class="apptheme-chip" style="background:' + esc(t.brand) + '" title="Brand"></span>' +
+            '<span class="apptheme-chip" style="background:' + esc(t.pdc) + '" title="Accent"></span>' +
+            '<span class="apptheme-chip" style="background:' + esc(t.bg) + '" title="Background"></span>' +
+          '</span>' +
+          '<span class="apptheme-name">' + esc(APP_THEME_LABELS[k]) + '</span>' +
+          (isActive ? '<span class="apptheme-check" data-ic="check" aria-hidden="true"></span>' : '') +
+        '</button>';
+      }).join("") +
+    '</div>';
+  }
   function highlightPreview() {
     if (!S.selection) { postToPreview({ type: "highlight" }); return; }
     if (S.selection.kind === "kpi") postToPreview({ type: "highlight", kind: "kpi", index: S.selection.index });
