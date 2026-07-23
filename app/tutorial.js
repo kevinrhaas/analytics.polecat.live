@@ -1,8 +1,8 @@
 /* tutorial.js — Analytics interactive tutorials.
    J6 (rebuilt): THREE guided, spotlighted walkthroughs behind a chooser —
      · "Take the tour" (overview) — walks the whole app down the rail
-       (Home · Explore · Dashboards · Datasets · Connections · Jobs · Studio)
-       and ends on Home. The first-run / recommended tour.
+       (Home · Explore · Dashboards · Datasets · Connections · Jobs ·
+       Repository · Studio) and ends on Home. The first-run / recommended tour.
      · "Quick analysis"  — the Explore flow: dataset → table → chart → saved
        analysis → pin/add. The fastest data-to-chart path.
      · "Build a dashboard" — the Studio loop: library → canvas → inspector →
@@ -95,6 +95,12 @@
           t: "Jobs — prep &amp; roll up",
           h: "Clean and reshape data before it's charted: rename, filter, and aggregate (including an acreage-weighted mean for honest state / district / watershed roll-ups). A job's output lands back in Datasets.",
           target: '.rail-item[data-sec="jobs"]',
+          pos: "right"
+        },
+        {
+          t: "Repository — find anything",
+          h: "One flat, searchable list of every dashboard, dataset, connection, analysis and job in your workspace. Pick a kind or search by name — a row opens straight into that object's own editor.",
+          target: '.rail-item[data-sec="repository"]',
           pos: "right"
         },
         {

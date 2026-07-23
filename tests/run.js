@@ -13155,11 +13155,11 @@ function serve() {
     const j6Shape = await page.evaluate(function () {
       try {
         return { ok: StudioTutorial.tourKeys().join(",") === "overview,quick,build" &&
-          StudioTutorial.stepCount("overview") === 9 && StudioTutorial.stepCount("quick") === 8 && StudioTutorial.stepCount("build") === 6,
+          StudioTutorial.stepCount("overview") === 10 && StudioTutorial.stepCount("quick") === 8 && StudioTutorial.stepCount("build") === 6,
           keys: StudioTutorial.tourKeys().join(","), q: StudioTutorial.stepCount("quick"), b: StudioTutorial.stepCount("build") };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("J6: three tours — Overview (9 steps, leads), Quick analysis (8), Build a dashboard (6)", j6Shape.ok, JSON.stringify(j6Shape));
+    ok("J6: three tours — Overview (10 steps, leads — M5's Repository joined the rail walk), Quick analysis (8), Build a dashboard (6)", j6Shape.ok, JSON.stringify(j6Shape));
 
     // J6-6: the QUICK tour walks the real Explore UI — it switches the section,
     // seeds a sample dataset, and every spotlighted step finds its live target
@@ -13219,7 +13219,7 @@ function serve() {
         }
         return false;
       }
-      var railSecs = ["home", "explore", "dashboards", "datasets", "connections", "jobs", "studio"];
+      var railSecs = ["home", "explore", "dashboards", "datasets", "connections", "jobs", "repository", "studio"];
       var hits = 0;
       for (var i = 0; i < railSecs.length; i++) {
         document.querySelector("#st-tip button.pri").click();
@@ -13236,8 +13236,8 @@ function serve() {
       return { tour: "overview", railHits: hits, onHome: onHome, lastLabel: lastLabel,
         closed: !document.getElementById("st-tip") && !window.__studioTutorialActive() };
     });
-    ok("J6: the Overview tour spotlights all 7 rail sections in order and ENDS on Home (getting-started), then completes",
-      j6Overview.railHits === 7 && j6Overview.onHome && /Done/.test(j6Overview.lastLabel) && j6Overview.closed,
+    ok("J6: the Overview tour spotlights all 8 rail sections in order and ENDS on Home (getting-started), then completes",
+      j6Overview.railHits === 8 && j6Overview.onHome && /Done/.test(j6Overview.lastLabel) && j6Overview.closed,
       JSON.stringify(j6Overview));
     // restore studio section for later tests
     await page.evaluate(function () { window.__studioShellSetSection("studio"); });
@@ -17766,20 +17766,20 @@ function serve() {
       var items = nav ? Array.prototype.slice.call(nav.querySelectorAll(".rail-item[data-sec]")) : [];
       var studioBtn = nav && nav.querySelector('.rail-item[data-sec="studio"]');
       return {
-        ok: !!nav && items.length === 9 && !!studioBtn && studioBtn.classList.contains("active")
+        ok: !!nav && items.length === 10 && !!studioBtn && studioBtn.classList.contains("active")
           && studioBtn.getAttribute("aria-current") === "page",
         secs: items.map(function (b) { return b.getAttribute("data-sec"); }),
         appMainHidden: document.getElementById("appMain").hidden,
         collapseBtn: !!document.getElementById("railCollapse")
       };
     });
-    ok("Z1: rail has Home/Explore/Dashboards/Datasets/Jobs/Connections/Studio/Admin/Settings + Studio active by default", z1Boot.ok, JSON.stringify(z1Boot));
+    ok("Z1: rail has Home/Explore/Dashboards/Datasets/Jobs/Connections/Repository/Studio/Admin/Settings + Studio active by default", z1Boot.ok, JSON.stringify(z1Boot));
     ok("Z1: #appMain (the builder) is visible by default", z1Boot.appMainHidden === false, JSON.stringify(z1Boot));
 
     // Z1-2: rail icons are real inline SVGs (Studio.icon(), theme-aware — no emoji/unicode glyphs)
     const z1Icons = await page.evaluate(function () {
       var svgs = document.querySelectorAll("#railNav .rail-ic svg");
-      return { ok: svgs.length === 12, count: svgs.length }; // 9 sections (incl. Admin, M4) + Search/⌘K (Track N) + Help (Z11) + collapse toggle
+      return { ok: svgs.length === 13, count: svgs.length }; // 10 sections (incl. Admin M4, Repository M5) + Search/⌘K (Track N) + Help (Z11) + collapse toggle
     });
     ok("Z1: rail buttons render inline SVG icons (Studio.icon helper)", z1Icons.ok, JSON.stringify(z1Icons));
 
@@ -21732,6 +21732,126 @@ function serve() {
     ok("N-DIST: Home's Recent dashboards grid (localStorage-backed) renders correctly with the network fully offline",
       pwaOfflineHome.hasRecentCard, JSON.stringify(pwaOfflineHome));
     await pwaPage.close();
+
+    // ---- M5 slice 1: Repository — cross-object search/browse ----
+    console.log("\n• Repository — cross-object search/browse (M5 slice 1)");
+    const repoPage = await browser.newPage();
+    await repoPage.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); } catch (e) {} });
+    await repoPage.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
+    await repoPage.waitForFunction(() => window.__STUDIO_STATE && window.Studio && Studio.Workspace, { timeout: 10000 });
+    await repoPage.evaluate(function () {
+      Studio.Workspace.put("connections", { id: "repo-conn", name: "Repo Test Warehouse", adapter: "turso", cfg: { url: "http://x", token: "t" }, folder: "Ops", updatedAt: 5 });
+      Studio.Workspace.put("datasets", { id: "repo-ds", name: "repo_test_dataset", connectionId: "repo-conn", kind: "sql", sql: "SELECT 1", folder: "Ops", updatedAt: 4 });
+      Studio.Workspace.put("jobs", { id: "repo-job", name: "Repo Test Job", sourceDatasetId: "repo-ds", steps: [{ op: "rename", from: "a", to: "b" }], updatedAt: 3 });
+      Studio.Workspace.put("analyses", { id: "repo-an", name: "Repo Test Analysis", chartType: "bars", datasetId: "repo-ds", updatedAt: 2, da: { columns: [] } });
+      Studio.Workspace.put("dashboards", { id: "repo-dash", ts: new Date(1000).toISOString(), title: "Repo Test Dashboard", name: "repo-test-dashboard",
+        spec: { id: "repo-dash", title: "Repo Test Dashboard", panels: [], kpis: [], filters: [] } });
+      window.__studioRenderRepository();
+    });
+    await repoPage.click('#railNav .rail-item[data-sec="repository"]');
+    await repoPage.waitForTimeout(120);
+
+    const repoAll = await repoPage.evaluate(function () {
+      var chips = [].slice.call(document.querySelectorAll("#repoAllResults [data-repo-type-filter]")).map(function (b) {
+        return { id: b.getAttribute("data-repo-type-filter"), n: (b.querySelector(".wb-chip-n") || {}).textContent };
+      });
+      var rows = [].slice.call(document.querySelectorAll("#repoAllResults .cx-row")).map(function (r) { return r.getAttribute("data-repo-type") + ":" + r.getAttribute("data-repo-id"); });
+      return { secVisible: !document.getElementById("secRepository").hidden, chips: chips, rows: rows };
+    });
+    ok("Repository: the rail nav switches to the new section and it renders one row per object across all five tables",
+      repoAll.secVisible && repoAll.rows.length === 5 &&
+      ["dashboard:repo-dash", "dataset:repo-ds", "connection:repo-conn", "analysis:repo-an", "job:repo-job"].every(function (k) { return repoAll.rows.indexOf(k) >= 0; }),
+      JSON.stringify(repoAll));
+    ok("Repository: the type chips carry an accurate count per kind, plus an All chip totaling every row",
+      repoAll.chips.length === 6 &&
+      repoAll.chips.filter(function (c) { return c.id === ""; })[0].n === "5" &&
+      ["dashboard", "dataset", "connection", "analysis", "job"].every(function (k) {
+        return repoAll.chips.some(function (c) { return c.id === k && c.n === "1"; });
+      }), JSON.stringify(repoAll.chips));
+
+    const repoSlidersIcon = await repoPage.evaluate(function () {
+      return { path: Studio._iconPaths.sliders, distinctFromInfo: Studio._iconPaths.sliders !== Studio._iconPaths.info };
+    });
+    ok("Repository follow-up fix: the Jobs rail item's long-referenced 'sliders' icon is now actually registered (was silently falling back to the info circle)",
+      !!repoSlidersIcon.path && repoSlidersIcon.distinctFromInfo, JSON.stringify(repoSlidersIcon));
+
+    const repoFolderBadge = await repoPage.evaluate(function () {
+      return {
+        ds: !!document.querySelector('.cx-row[data-repo-id="repo-ds"] .cx-folder'),
+        dsText: (document.querySelector('.cx-row[data-repo-id="repo-ds"] .cx-folder') || {}).textContent,
+        dash: !!document.querySelector('.cx-row[data-repo-id="repo-dash"] .cx-folder')
+      };
+    });
+    ok("Repository: rows carry over the folder badge from Datasets/Connections' folder pilot, and types without a folder concept show none",
+      repoFolderBadge.ds && repoFolderBadge.dsText === "Ops" && !repoFolderBadge.dash, JSON.stringify(repoFolderBadge));
+
+    const repoSearch = await repoPage.evaluate(function () {
+      var inp = document.getElementById("repoAllSearch");
+      inp.value = "repo_test_dataset"; inp.dispatchEvent(new Event("input"));
+      return [].slice.call(document.querySelectorAll("#repoAllResults .cx-row")).map(function (r) { return r.getAttribute("data-repo-id"); });
+    });
+    ok("Repository: the search box matches across every object kind by title, not just one section's own field set",
+      repoSearch.length === 1 && repoSearch[0] === "repo-ds", JSON.stringify(repoSearch));
+
+    const repoTypeFilter = await repoPage.evaluate(function () {
+      document.getElementById("repoAllSearch").value = ""; document.getElementById("repoAllSearch").dispatchEvent(new Event("input"));
+      document.querySelector('[data-repo-type-filter="job"]').click();
+      var rows = [].slice.call(document.querySelectorAll("#repoAllResults .cx-row")).map(function (r) { return r.getAttribute("data-repo-id"); });
+      var active = document.querySelector('[data-repo-type-filter="job"]').classList.contains("active");
+      return { rows: rows, active: active };
+    });
+    ok("Repository: clicking a type chip narrows the list to just that kind",
+      repoTypeFilter.active && repoTypeFilter.rows.length === 1 && repoTypeFilter.rows[0] === "repo-job", JSON.stringify(repoTypeFilter));
+
+    await repoPage.evaluate(function () { document.querySelector('[data-repo-type-filter=""]').click(); });
+    await repoPage.waitForTimeout(60);
+
+    // Each row deep-links to that object's OWN existing editor rather than a new one —
+    // datasets/connections/jobs open their edit modal in place; dashboards/analyses
+    // switch section and load into Studio/Explore, same as every other entry point.
+    const repoOpenDataset = await repoPage.evaluate(function () {
+      document.querySelector('.cx-row[data-repo-id="repo-ds"]').click();
+      return { title: (document.querySelector(".modal-h") || {}).textContent, name: (document.querySelector(".modal .cx-field input") || {}).value };
+    });
+    ok("Repository: opening a dataset row launches the real dataset editor, pre-filled",
+      repoOpenDataset.title === "Edit dataset" && repoOpenDataset.name === "repo_test_dataset", JSON.stringify(repoOpenDataset));
+    await repoPage.evaluate(function () { document.querySelector(".modal-ov .x").click(); });
+    await repoPage.waitForTimeout(60);
+
+    const repoOpenConn = await repoPage.evaluate(function () {
+      document.querySelector('.cx-row[data-repo-id="repo-conn"]').click();
+      return { title: (document.querySelector(".modal-h") || {}).textContent, name: (document.querySelector(".modal .cx-field input") || {}).value };
+    });
+    ok("Repository: opening a connection row launches the real connection wizard at step 2, pre-filled",
+      repoOpenConn.title === "Edit connection" && repoOpenConn.name === "Repo Test Warehouse", JSON.stringify(repoOpenConn));
+    await repoPage.evaluate(function () { document.querySelector(".modal-ov .x").click(); });
+    await repoPage.waitForTimeout(60);
+
+    const repoOpenJob = await repoPage.evaluate(function () {
+      document.querySelector('.cx-row[data-repo-id="repo-job"]').click();
+      return { title: (document.querySelector(".modal-h") || {}).textContent };
+    });
+    ok("Repository: opening a job row launches the real job editor", repoOpenJob.title === "Edit job", JSON.stringify(repoOpenJob));
+    await repoPage.evaluate(function () { document.querySelector(".modal-ov .x").click(); });
+    await repoPage.waitForTimeout(60);
+
+    const repoOpenDash = await repoPage.evaluate(function () {
+      document.querySelector('.cx-row[data-repo-id="repo-dash"]').click();
+      return { specId: window.__STUDIO_STATE.spec && window.__STUDIO_STATE.spec.id,
+        studioVisible: !document.getElementById("appMain").hidden, repoHidden: document.getElementById("secRepository").hidden };
+    });
+    ok("Repository: opening a dashboard row loads it into Studio and switches section there",
+      repoOpenDash.specId === "repo-dash" && repoOpenDash.studioVisible && repoOpenDash.repoHidden, JSON.stringify(repoOpenDash));
+
+    await repoPage.click('#railNav .rail-item[data-sec="repository"]');
+    await repoPage.waitForTimeout(100);
+    const repoOpenAnalysis = await repoPage.evaluate(function () {
+      document.querySelector('.cx-row[data-repo-id="repo-an"]').click();
+      return { analysisId: window.__studioExplore.state.analysisId, exploreVisible: !document.getElementById("secExplore").hidden };
+    });
+    ok("Repository: opening an analysis row loads it into Explore and switches section there",
+      repoOpenAnalysis.analysisId === "repo-an" && repoOpenAnalysis.exploreVisible, JSON.stringify(repoOpenAnalysis));
+    await repoPage.close();
 
     // ---- ★★★-1: dashboards live in the WORKSPACE store (mirror to remote backends) ----
     console.log("\n• dashboards in the workspace store (★★★-1)");

@@ -116,6 +116,36 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **M5 slice 1 — Repository section: a flat, cross-object search/browse view (v452, 2026-07-23,
+  steward):** the "find" half of M5's tree/folder browser. A new **Repository** rail item (after
+  Connections, folder icon) opens a section listing EVERY workspace object — dashboards, datasets,
+  connections, analyses, jobs — in one flat list, sorted by recency, with a search box that matches
+  across every kind's title (not just one section's own field set) and a single-select type-chip
+  strip (All + one chip per kind, each with a live count) to narrow to just one. Rows carry the
+  Datasets/Connections folder-pilot badge when present; other kinds show none yet (a real nested
+  folder tree, and extending the folder field to the other three kinds, stays the documented NEXT
+  step — this slice is deliberately flat, same "honest MVP before nesting" convention as the folder
+  pilot itself). Opening a row does NOT duplicate any editing UI: it deep-links straight into that
+  object's own existing editor — datasets/connections/jobs open their real edit modal in place,
+  dashboards load into Studio and switch section there, analyses load into Explore and switch
+  section there (same wiring the command palette already uses for dashboards). Also: (1) fixed a
+  latent bug found while touching the icon registry — the Jobs rail item and row icon have
+  referenced `Studio.icon("sliders", …)` since Jobs shipped, but "sliders" was never actually
+  registered in `app/icons.js`, so both silently fell back to the ⓘ info-circle glyph; now a real
+  3-slider icon. (2) removed the stale `savedSection === "repository" → "dashboards"` remap in
+  shell.js (a leftover from when "Repository" was the OLD name for today's Dashboards section,
+  retired well before this slice — see docs/MIGRATION.md's Z3 history) and fixed one stale doc
+  reference to that old meaning (docs/index.html's Data-source-freshness section said "the
+  Repository" when it meant Dashboards). The Overview tour (M2) gains a Repository step between
+  Jobs and Studio, matching its rail position; `CONFIGURABLE_SECTIONS` (M4.2 per-section rights)
+  gains it too, so admins can hide it from viewers like any other ordinary section. 9 new ratchets
+  (row count/kinds, chip counts, folder badge present/absent, cross-kind search, type-chip filter,
+  each of the 5 open-paths, the sliders-icon fix) + 2 existing ratchets updated for the new rail
+  item (Z1 rail count/icon count) and the Overview tour (8 rail stops, was 7). sw v96. (app/
+  index.html, app/shell.js, app/studio.js, app/icons.js, app/tutorial.js, docs/index.html,
+  tests/run.js) NEXT in M5: a real nested folder tree (grouping Repository's rows, not just listing
+  them), extending the `folder` field to dashboards/analyses/jobs so every kind can be filed, and a
+  right-panel editor for simple objects instead of always deep-linking out.
 - **LF5(b) — color-token pickers gain a live resolved-color swatch + per-option tinting; the
   choropleth Ramp color gains a gradient preview (v451, 2026-07-22, steward):** every color-token
   `<select>` in the Inspector (a chart's per-series color, a KPI's sparkline color, and the generic
@@ -2121,6 +2151,10 @@
 >     is now fully done.** NEXT: M5 Repository browser (the "folder tree + move/assign" groundwork —
 >     the flat per-object `folder` field + chip facet, currently rolling out object-by-object per
 >     the DECISIONS LOCKED note above — feeds into it; see that note for the live status).
+>     ↳ **Slice 1 (shipped 2026-07-23, steward — see DONE):** the new Repository rail section itself,
+>     as a flat cross-object search/browse list with deep-links out to each kind's own editor — the
+>     "find" half of M5. NEXT in M5: a real nested folder tree (grouping these rows), the `folder`
+>     field on dashboards/analyses/jobs, and an in-place right-panel editor for simple objects.
 > M5. **Repository browser:** new left-rail section — a tree/folder view of ALL objects (dashboards,
 >     datasets, connections, analyses, jobs) with find/open/edit and a right-panel editor for
 >     simple objects; deep-links to the full editors for complex ones.

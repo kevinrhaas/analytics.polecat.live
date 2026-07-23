@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v95"; /* v95: LF5(b) — color-token pickers gain a
+var CACHE_NAME = "studio-shell-v96"; /* v96: M5 slice 1 — new Repository section
+   (flat cross-object search/browse over dashboards/datasets/connections/
+   analyses/jobs, deep-linking into each object's own editor). app/index.html,
+   app/shell.js, app/studio.js, app/icons.js, app/tutorial.js content changed,
+   so precached copies need to roll.
+   v95: LF5(b) — color-token pickers gain a
    live resolved-color swatch + per-option tinting, and the choropleth Ramp
    color option gains a gradient preview (app/studio.js, app/studio.css
    content changed, so precached copies need to roll).
