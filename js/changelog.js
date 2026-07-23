@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 456,
+    title: 'Repository rows gain a quick-edit panel',
+    kind: 'feature',
+    ts: '2026-07-23T03:20:27.000Z',
+    items: [
+      'A pencil button on a dataset, connection, job or analysis row in Repository opens a right-panel editor to rename it or change its folder, without leaving Repository.',
+      'An "Open full editor" link in that panel hands off to the object\'s real editor when you need more than a rename or refile.',
+    ],
+  },
+  {
     v: 455,
     title: 'Analyses can now be filed into folders too',
     kind: 'feature',

@@ -116,6 +116,35 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **M5 NEXT — Repository rows gain a quick-edit right panel (v456, 2026-07-23, steward):**
+  the documented NEXT after the folder-field rollout completed (slice 4/analyses) — "an
+  in-place right-panel editor for simple objects instead of always deep-linking out." A new
+  pencil button (`.repo-edit`, in the existing hover-reveal `.cx-actions` slot) appears on
+  Repository rows for the four kinds that already carry a flat `folder` field — dataset,
+  connection, job, analysis (dashboards excluded, same as the folder pilot: no folder field
+  yet, `workbookId` is their own grouping). Clicking it opens the vendored shell's
+  `rightPanel` with just Name + Folder (the latter with the same `<datalist>` of existing
+  names pattern as each type's full editor), a Save button that persists via
+  `Studio.Workspace.put` (the existing "change" event repaints Repository + that object's own
+  list live, same as any other mutation), and an "Open full editor →" link that closes the
+  panel and falls through to the same `repoOpenRow` a row click already uses — this is a fast
+  path for the two properties every catalog row shares, NOT a replacement for each kind's real
+  editor (SQL, credentials, steps, chart config still need their own full UI). 4 new ratchets
+  (button present on the 4 folder-bearing kinds, absent on dashboards; panel opens pre-filled
+  without touching the full editor or leaving Repository; Save renames + refiles live in the
+  row and in the store; "Open full editor" hands off correctly). Also HARDENED a latent race
+  in the M5 slice 1 Repository fixture: the default boot-time example schedules a debounced
+  "note as recent" write into `Workspace.dashboards` ~800ms after boot (`scheduleNoteRecent`,
+  Home's recently-viewed tracking) independent of anything the test does — on a slow enough
+  machine it could land mid-test and inflate the Repository row/count assertions with an
+  unexpected extra "flagship-cost" row (found while verifying this slice; reproduces
+  identically on unmodified main, so it predates this change). The fixture now waits past that
+  window and clears `Workspace.dashboards` before seeding its own controlled set.
+  docs/index.html's Repository section updated. sw v100. (app/studio.js, app/studio.css,
+  docs/index.html, tests/run.js)
+  NEXT in M5: a real nested folder TREE (today's folder facets are still one flat level per
+  kind); the same quick-edit panel could eventually cover dashboards too once they grow a
+  folder field of their own.
 - **M5 folder pilot, slice 3 — Jobs gain a Folder field (v454, 2026-07-23, steward):**
   the documented NEXT after slice 2's Repository grouping — extends the flat single-value
   `folder` string (same shape as the Datasets/Connections folder pilot) to Jobs, the next
@@ -2218,6 +2247,11 @@
 >     Unfiled excludes a filed analysis, All resets it). sw v99. NEXT in M5: an in-place right-panel
 >     editor for simple objects, and/or a real nested folder TREE (the flat single-level facets across
 >     all four filed kinds are the honest MVP step before nesting).
+>     ↳ **Quick-edit right panel (shipped 2026-07-23, steward — see DONE):** a pencil button on
+>     dataset/connection/job/analysis Repository rows opens a right-panel Name+Folder editor
+>     without leaving Repository or opening the full editor; an "Open full editor →" link falls
+>     through to the same deep-link every row click already used. sw v100. NEXT in M5: a real
+>     nested folder TREE (today's facets are still one flat level per kind).
 > M5. **Repository browser:** new left-rail section — a tree/folder view of ALL objects (dashboards,
 >     datasets, connections, analyses, jobs) with find/open/edit and a right-panel editor for
 >     simple objects; deep-links to the full editors for complex ones.

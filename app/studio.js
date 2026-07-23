@@ -7848,11 +7848,18 @@
     });
     function repoRowHtml(r) {
       var td = repoTypeDef(r.type);
+      // Quick edit (M5 NEXT: "a right-panel editor for simple objects instead of
+      // always deep-linking out") is offered for the four kinds that already carry
+      // a flat `folder` field (dataset/connection/job/analysis) — dashboards have
+      // no folder field yet (they use workbookId as their own grouping) so keep
+      // deep-linking straight to Studio for those, same as before.
+      var canQuickEdit = REPO_EDIT_TABLE.hasOwnProperty(r.type);
       return '<div class="cx-row" data-repo-id="' + esc(r.id) + '" data-repo-type="' + esc(r.type) + '" tabindex="0" role="button" aria-label="Open ' + esc(r.title) + '">' +
         '<span class="cx-ic" style="color:var(--faint)"></span>' +
         '<span class="cx-name"><b>' + esc(r.title) + '</b><small>' + esc((td ? td.singular : r.type) + " · " + r.meta) + '</small></span>' +
         (r.folder ? '<span class="cx-badge cx-folder" title="Folder: ' + esc(r.folder) + '">' + esc(r.folder) + '</span>' : "") +
         '<span class="cx-when">' + (r.ts ? esc(new Date(r.ts).toLocaleDateString()) : "") + '</span>' +
+        (canQuickEdit ? '<span class="cx-actions"><button type="button" class="repo-edit" data-repo-edit-type="' + esc(r.type) + '" data-repo-edit-id="' + esc(r.id) + '" title="Quick edit" aria-label="Quick edit ' + esc(r.title) + '"></button></span>' : "") +
         '</div>';
     }
     var groupsHtml = groupOrder.map(function (g) {
@@ -7888,8 +7895,71 @@
       row.addEventListener("click", open);
       row.addEventListener("keydown", function (e) { if ((e.key === "Enter" || e.key === " ") && e.target === row) { e.preventDefault(); open(); } });
     });
+    $$(".repo-edit", results).forEach(function (btn) {
+      if (Studio.icon) btn.appendChild(Studio.icon("edit", 14));
+      btn.onclick = function (e) {
+        e.stopPropagation();
+        openRepoQuickEdit(btn.getAttribute("data-repo-edit-type"), btn.getAttribute("data-repo-edit-id"));
+      };
+    });
   }
   window.__studioRenderRepository = renderRepository; // test hook
+
+  // M5 NEXT (right-panel editor for simple objects): the four kinds that already
+  // carry a flat `folder` field get a quick name+folder edit in the shell's
+  // rightPanel, without leaving Repository or opening the full editor. This is
+  // deliberately NOT a replacement for each kind's real editor (dataset SQL,
+  // connection credentials, job steps, analysis chart config all still need
+  // their own full UI) — it's the fast path for the two properties every
+  // catalog row shares. "Open full editor" hands off to the same repoOpenRow
+  // paths a normal row click already uses.
+  var REPO_EDIT_TABLE = { dataset: "datasets", connection: "connections", job: "jobs", analysis: "analyses" };
+  function openRepoQuickEdit(type, id) {
+    var PS = window.PolecatShell; if (!PS) return; // fleet.js module not loaded yet (sub-second boot window)
+    var table = REPO_EDIT_TABLE[type]; if (!table) return;
+    var obj = Studio.Workspace.get(table, id); if (!obj) return;
+    var td = repoTypeDef(type);
+    var kind = td ? td.singular.toLowerCase() : type;
+    var body = el("div", "cx-wiz-form");
+    function qeField(lbl, input, hint) {
+      var row = el("label", "cx-field");
+      row.innerHTML = "<span>" + esc(lbl) + "</span>";
+      row.appendChild(input);
+      if (hint) { var h = el("small", "cx-hint"); h.textContent = hint; row.appendChild(h); }
+      body.appendChild(row);
+      return input;
+    }
+    var nameInp = qeField(td ? td.singular + " name" : "Name", el("input"));
+    nameInp.type = "text"; nameInp.value = obj.name || "";
+    var folderInp = qeField("Folder", el("input"), "Optional — a single home for this " + kind + " (e.g. Finance). Pick an existing one or type a new name.");
+    folderInp.type = "text"; folderInp.value = obj.folder || ""; folderInp.placeholder = "e.g. Finance";
+    var folderNames = {};
+    var visFn = type === "dataset" ? isDatasetVisibleToMe : isVisibleToMe;
+    Studio.Workspace.all(table).filter(visFn).forEach(function (x) { if (x.folder) folderNames[x.folder] = true; });
+    var folderList = el("datalist"); folderList.id = "repoQeFolderOptions";
+    Object.keys(folderNames).sort().forEach(function (f) { var o = el("option"); o.value = f; folderList.appendChild(o); });
+    folderInp.setAttribute("list", "repoQeFolderOptions");
+    folderInp.parentNode.appendChild(folderList);
+    var msg = el("div", "cx-test-result"); body.appendChild(msg);
+    var foot = el("div", "cx-wiz-foot");
+    var openBtn = el("button", "btn"); openBtn.type = "button"; openBtn.textContent = "Open full editor →";
+    var saveBtn = el("button", "btn primary"); saveBtn.type = "button"; saveBtn.textContent = "Save";
+    foot.appendChild(openBtn); foot.appendChild(saveBtn);
+    var panel = PS.rightPanel({ title: "Edit " + kind, body: [body, foot] });
+    openBtn.onclick = function () { panel.close(); repoOpenRow(type, id); };
+    saveBtn.onclick = function () {
+      var name = nameInp.value.trim();
+      if (!name) { nameInp.focus(); msg.className = "cx-test-result bad"; msg.textContent = "Give it a name first."; return; }
+      obj.name = name;
+      var folderVal = folderInp.value.trim();
+      if (folderVal) obj.folder = folderVal; else delete obj.folder;
+      Studio.Workspace.put(table, obj);
+      toast("Saved " + name);
+      panel.close();
+    };
+    nameInp.focus();
+  }
+  window.__studioOpenRepoQuickEdit = openRepoQuickEdit; // test hook
 
   /* ---------- Workspace backend (Settings card + rail indicator) ----------
      Manager's data-source pattern: the app's own catalog (dashboards/datasets/
