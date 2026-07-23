@@ -7827,7 +7827,7 @@
     Studio.Workspace.all("dashboards").filter(isVisibleToMe).forEach(function (r) {
       var sp = r.spec || {}, n = (sp.panels || []).length;
       rows.push({ type: "dashboard", id: r.id, title: sp.title || sp.name || "Untitled",
-        meta: n + " panel" + (n === 1 ? "" : "s"), folder: "", ts: r.ts ? (Date.parse(r.ts) || 0) : 0 });
+        meta: n + " panel" + (n === 1 ? "" : "s"), folder: r.folder || "", ts: r.ts ? (Date.parse(r.ts) || 0) : 0 });
     });
     Studio.Workspace.all("datasets").filter(isDatasetVisibleToMe).forEach(function (d) {
       var src = dsxAdapterOf(d);
@@ -7918,10 +7918,10 @@
     function repoRowHtml(r) {
       var td = repoTypeDef(r.type);
       // Quick edit (M5 NEXT: "a right-panel editor for simple objects instead of
-      // always deep-linking out") is offered for the four kinds that already carry
-      // a flat `folder` field (dataset/connection/job/analysis) — dashboards have
-      // no folder field yet (they use workbookId as their own grouping) so keep
-      // deep-linking straight to Studio for those, same as before.
+      // always deep-linking out") is offered for all five kinds now that dashboards
+      // carry their own flat `folder` field too (alongside the pre-existing workbookId
+      // grouping in the Dashboards section) — a dashboard's quick edit is folder-only
+      // (its title still lives in Studio's own dashboard settings, not duplicated here).
       var canQuickEdit = REPO_EDIT_TABLE.hasOwnProperty(r.type);
       return '<div class="cx-row" data-repo-id="' + esc(r.id) + '" data-repo-type="' + esc(r.type) + '" tabindex="0" role="button" aria-label="Open ' + esc(r.title) + '">' +
         '<span class="cx-ic" style="color:var(--faint)"></span>' +
@@ -8000,13 +8000,17 @@
   // their own full UI) — it's the fast path for the two properties every
   // catalog row shares. "Open full editor" hands off to the same repoOpenRow
   // paths a normal row click already uses.
-  var REPO_EDIT_TABLE = { dataset: "datasets", connection: "connections", job: "jobs", analysis: "analyses" };
+  var REPO_EDIT_TABLE = { dataset: "datasets", connection: "connections", job: "jobs", analysis: "analyses", dashboard: "dashboards" };
+  // Dashboards carry no top-level `.name` (their title lives at `spec.title`, edited in
+  // Studio's own dashboard settings) — quick edit is folder-only for this one kind, so it
+  // doesn't duplicate title-editing UI outside Studio.
   function openRepoQuickEdit(type, id) {
     var PS = window.PolecatShell; if (!PS) return; // fleet.js module not loaded yet (sub-second boot window)
     var table = REPO_EDIT_TABLE[type]; if (!table) return;
     var obj = Studio.Workspace.get(table, id); if (!obj) return;
     var td = repoTypeDef(type);
     var kind = td ? td.singular.toLowerCase() : type;
+    var isDash = type === "dashboard";
     var body = el("div", "cx-wiz-form");
     function qeField(lbl, input, hint) {
       var row = el("label", "cx-field");
@@ -8016,8 +8020,11 @@
       body.appendChild(row);
       return input;
     }
-    var nameInp = qeField(td ? td.singular + " name" : "Name", el("input"));
-    nameInp.type = "text"; nameInp.value = obj.name || "";
+    var nameInp = null;
+    if (!isDash) {
+      nameInp = qeField(td ? td.singular + " name" : "Name", el("input"));
+      nameInp.type = "text"; nameInp.value = obj.name || "";
+    }
     var folderInp = qeField("Folder", el("input"), "Optional — a home for this " + kind + " (e.g. Finance, or Finance/2024 to nest). Pick an existing one or type a new name.");
     folderInp.type = "text"; folderInp.value = obj.folder || ""; folderInp.placeholder = "e.g. Finance";
     var folderNames = {};
@@ -8035,16 +8042,18 @@
     var panel = PS.rightPanel({ title: "Edit " + kind, body: [body, foot] });
     openBtn.onclick = function () { panel.close(); repoOpenRow(type, id); };
     saveBtn.onclick = function () {
-      var name = nameInp.value.trim();
-      if (!name) { nameInp.focus(); msg.className = "cx-test-result bad"; msg.textContent = "Give it a name first."; return; }
-      obj.name = name;
+      if (nameInp) {
+        var name = nameInp.value.trim();
+        if (!name) { nameInp.focus(); msg.className = "cx-test-result bad"; msg.textContent = "Give it a name first."; return; }
+        obj.name = name;
+      }
       var folderVal = folderInp.value.trim();
       if (folderVal) obj.folder = folderVal; else delete obj.folder;
       Studio.Workspace.put(table, obj);
-      toast("Saved " + name);
+      toast(nameInp ? "Saved " + obj.name : "Saved");
       panel.close();
     };
-    nameInp.focus();
+    (nameInp || folderInp).focus();
   }
   window.__studioOpenRepoQuickEdit = openRepoQuickEdit; // test hook
 
