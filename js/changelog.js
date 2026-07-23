@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 486,
+    title: 'Fixed: a state-level rollup dataset previewed as workflow statuses instead of states',
+    kind: 'fix',
+    ts: '2026-07-23T17:56:52.000Z',
+    items: [
+      'A job that groups by a "statecode" column (no underscore, as our own state-rollup jobs produce) had its offline preview rows misread as a workflow-status field, so the Inspector\'s Query Preview showed "Success/Failed/Aborted" and a state choropleth built from it looked empty. State-code columns are now recognized in that unseparated form too, so previews show real postal state codes and the map colors in.',
+    ],
+  },
+  {
     v: 485,
     title: 'Left rail: the Analytics / polecat.live brand lockup now centers cleanly',
     kind: 'polish',

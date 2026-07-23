@@ -5,7 +5,14 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v127"; /* v127: LF33 — the left rail's brand mark now
+var CACHE_NAME = "studio-shell-v128"; /* v128: LF32 — a job-output rollup's "statecode"
+   group-by column (no underscore) was misclassified by the offline sample engine as a
+   workflow-status column, so the Inspector Query Preview and the Studio canvas preview
+   showed Success/Failed/Aborted/Running instead of postal state codes, and a state-level
+   choropleth preview read as all no-data. classify()'s state-code regex now also matches
+   the unseparated form. app/sampledata.js, tests/run.js changed, so precached copies need
+   to roll.
+   v127: LF33 — the left rail's brand mark now
    centers against the whole "Analytics / polecat.live" lockup instead of just the
    top line, in the expanded rail, collapsed rail, and mobile drawer alike.
    app/studio.css changed, so precached copies need to roll.

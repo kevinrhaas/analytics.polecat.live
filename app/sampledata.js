@@ -52,7 +52,7 @@
     if (/(^|_)(src|source|datasource|platform|system|conn)/.test(c)) return "cat";
     if (/sens|classification/.test(c)) return "sens";
     if (/owner|steward/.test(c)) return "owner";
-    if (/^state$|^state_(code|abbr|postal)/.test(c)) return "statecode"; // postal codes → state choropleths (before the workflow-status rule)
+    if (/^state$|^state_?(code|abbr|postal)/.test(c)) return "statecode"; // postal codes → state choropleths (before the workflow-status rule; `_?` also catches the unseparated "statecode" job-output column name — LF32)
     if (/status|state|result/.test(c)) return "status";
     if (/app|application|tool|consumer/.test(c)) return "app";
     if (/ext|extension/.test(c)) return "ext";
