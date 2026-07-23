@@ -153,8 +153,12 @@
     return rows.join("\n");
   }
 
+  // LF7: the trend DA takes an optional "sinceYear" query param (wired to the
+  // featured dashboard's "Since year" filter below) — demonstrates a plain
+  // filterDef/paramsFor round-trip on a real panel, not just decoration.
   function timeSeriesDA(id, practice) {
-    return { id: id, name: "Conservation Insight — " + practice.label + " ensemble (demo)", kind: "sql", columns: ["year", "provider", "pct"], authored: true };
+    return { id: id, name: "Conservation Insight — " + practice.label + " ensemble (demo)", kind: "sql", columns: ["year", "provider", "pct"], authored: true,
+      params: [{ name: "sinceYear", type: "String", default: "%" }] };
   }
   // A geo data access for a given region column (fips / huc8 / statecode) — the
   // sample engine crosses it against the provider domain, so the choropleth's
@@ -162,17 +166,34 @@
   function geoDA(id, idCol, label) {
     return { id: id, name: "Conservation Insight — " + label + " (demo)", kind: "sql", columns: [idCol, "provider", "pct"], authored: true };
   }
+  // LF7: `channel` names the ensemble bus this choropleth listens on — shared
+  // with ensembleChart() below so a provider toggle on any ensemble trend
+  // panel live-recolors every map on the same channel (see
+  // PDC.ensembleBus/providersChannel in app/studio-charts.js). Was previously
+  // relying on studio-render.js's own `o.channel || "providers"` fallback —
+  // now explicit on the spec so the linkage is documented, not accidental.
   function choroplethChart(daId, idCol, scale) {
     return { type: "choropleth", da: daId,
       map: { idCol: idCol, valueCol: "pct", seriesCol: "provider" },
-      opts: { scale: scale, fmt: "pct", agg: "median" } };
+      opts: { scale: scale, fmt: "pct", agg: "median", channel: "providers" } };
   }
   function kpiDA(id, col) { return { id: id, name: id, kind: "sql", columns: [col], authored: true }; }
-  function providerDA(id) { return { id: id, name: "Conservation Insight — adoption by provider (demo)", kind: "sql", columns: ["provider", "pct"], authored: true }; }
+  // LF7: takes an optional "practice" param (wired to the featured dashboard's
+  // "Practice" filter below) so the provider-comparison bar responds to it.
+  function providerDA(id) {
+    return { id: id, name: "Conservation Insight — adoption by provider (demo)", kind: "sql", columns: ["provider", "pct"], authored: true,
+      params: [{ name: "practice", type: "String", default: "%" }] };
+  }
+  // Filter-options DAs (LF7): no real backing query (see the module header —
+  // this pack's DAs never carry literal `sql:` text, same as every other DA in
+  // this file), just enough shape (id + columns) for filterDef's option list
+  // to render real practice/year values via the sample engine's classify().
+  function practiceFilterDA(id) { return { id: id, name: "Conservation Insight — practice filter options (demo)", kind: "sql", columns: ["practice"], authored: true }; }
+  function yearFilterDA(id) { return { id: id, name: "Conservation Insight — year filter options (demo)", kind: "sql", columns: ["year"], authored: true }; }
   function ensembleChart(daId) {
     return { type: "ensembleSeries", da: daId,
       map: { labelCol: "year", seriesCol: "provider", valueCol: "pct" },
-      opts: { refSeries: "AgCensus", fmt: "pct", medianLabel: "Common estimate", height: 260 } };
+      opts: { refSeries: "AgCensus", fmt: "pct", medianLabel: "Common estimate", height: 260, channel: "providers" } };
   }
 
   function analysisRow(practice) {
@@ -192,6 +213,21 @@
   //   breakdown. Styled with the CTIC-derived Conservation theme.
   function dashboardSpec() {
     var das = [], panels = [], kpis = [];
+
+    // ── LF7: real filterDef filters, wired to actual panel params (not just
+    // decoration — see the sinceYear/practice params added to the DA builders
+    // above). "Practice" narrows the provider-comparison bar; "Since year"
+    // narrows every ensemble trend panel. The provider-toggle CROSS-filter
+    // (click a provider on any ensemble legend → every map on the "providers"
+    // channel re-colors together) is the separate, already-live "interactive
+    // filtering" half of this ask — see the explicit `channel:"providers"` on
+    // choroplethChart()/ensembleChart() above.
+    var practiceFilterDa = practiceFilterDA("vf_practice"); das.push(practiceFilterDa);
+    var yearFilterDa = yearFilterDA("vf_year"); das.push(yearFilterDa);
+    var filters = [
+      { id: "practice", da: practiceFilterDa.id, label: "Practice", valueCol: "practice", textCol: "practice", allLabel: "All practices", def: "%" },
+      { id: "sinceYear", da: yearFilterDa.id, label: "Since year", valueCol: "year", textCol: "year", allLabel: "All years", def: "%" }
+    ];
 
     // ── Headline KPIs: the common-estimate adoption rate for each practice ──
     PRACTICES.forEach(function (p) {
@@ -219,9 +255,10 @@
       panels.push(panel);
     });
 
-    // ── By provider — the five providers side by side (cover crops) ──
+    // ── By provider — the five providers side by side, filterable by practice ──
     var provDa = providerDA("vv_prov"); das.push(provDa);
-    panels.push({ id: "p_prov", section: "Provider comparison", title: "Cover-crop adoption by provider", span: "full",
+    panels.push({ id: "p_prov", section: "Provider comparison", title: "Adoption by provider", span: "full",
+      sub: "responds to the Practice filter above", info: "Defaults to every practice blended — pick one above to focus the comparison.",
       chart: { type: "bars", da: provDa.id, map: { labelCol: "provider", valueCol: "pct" }, opts: { fmt: "pct", height: 240 } } });
 
     return {
@@ -229,7 +266,7 @@
       title: "Conservation Insight — cover crop & tillage adoption",
       subtitle: "Illustrative Corn Belt sample — a common estimate across DTN, Indigo Ag, Iowa State, Regrow & Terra Diagnostics",
       dashboardTheme: "conservation",
-      panels: panels, kpis: kpis, filters: [],
+      panels: panels, kpis: kpis, filters: filters,
       cda: { connections: [], dataAccesses: das }
     };
   }

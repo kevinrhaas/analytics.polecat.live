@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 491,
+    title: 'The Conservation Insight demo now shows off real filters',
+    kind: 'feature',
+    ts: '2026-07-23T20:58:12.000Z',
+    items: [
+      'The featured Conservation Insight dashboard, and its two example dashboards in the gallery, used to ship with no filters at all. They now carry real ones: a Practice filter and a Since-year filter on the featured dashboard, and a matching one on each example — each wired to an actual chart, not just decoration.',
+      'Toggling a provider on any adoption-trend chart’s legend already live-updates every map on the same dashboard together — that linked behavior is now explicit and documented in the dashboard itself.',
+    ],
+  },
+  {
     v: 490,
     title: 'Map widgets now remember where you left them',
     kind: 'fix',

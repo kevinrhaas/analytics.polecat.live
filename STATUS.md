@@ -116,6 +116,48 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF27(c)/(d) verified already-shipped + LF7 — Conservation demos gain real filters +
+  documented cross-filtering (v491, 2026-07-23, steward, LF27 now fully done):** started this
+  slice on LF27(c) (the "cool & sexy" tile-first Dashboards browser), since the two most recent
+  DONE entries both pointed there next. Before writing any code, did a real side-by-side check of
+  the live app (served, not file://) against every sub-ask in LF27(c)/(d)'s text — and found it
+  ALREADY fully satisfied by code that predates LF27's own write-up (the 2026-07-13 "Repository
+  becomes Dashboards" commit): `#secDashboards`'s `renderDashboards()`/`recentCardHtml()`
+  (app/studio.js) already give tile/list toggle (`#dashViewToggle`/`_dashViewMode`), search
+  (`#repoSearch`, title+desc+dataset-column matching), a folder-ish tree nav (Workbooks —
+  literally what LF27(c)'s own text says to reuse), "your dashboards + the public ones"
+  (`isVisibleToMe()` shows every non-private row regardless of owner — no separate "other
+  users" concept needed), and the EXACT SAME thumbnail-card renderer Home's own Featured/
+  Recents/Examples cards call (so Home ↔ Dashboards already render identically — LF27(c)'s
+  "integrate/fold" ask). Click-a-tile-opens-Studio + Close-returns-here was already confirmed by
+  LF27(b) (v488) with its own regression test. `#secRepository` remains the separate advanced/
+  cross-object manager — the two-tier split LF27(d) asks for. Screenshotted tiles, list view, and
+  the full open→Studio→Close flow to confirm live, not just by reading code. Updated LF27's NEXT
+  entry to mark it **fully done** with this evidence, so nobody re-does it — see the LIVE-FEEDBACK
+  QUEUE section. **Pivoted the actual unit of work to LF7** (next-most-scoped item in the same
+  queue): the featured Conservation Insight dashboard (app/demopacks.js) and its two gated
+  examples (data/examples/conservation-scorecard.studio.json, conservation-flow.studio.json)
+  shipped with `filters:[]` despite the app fully supporting filterDef/cascadeFilters elsewhere
+  (e.g. the built-in feature-showcase example). Added a **Practice** filter (parametrizes the
+  provider-comparison bar's DA with a `practice` param) and a **Since year** filter (parametrizes
+  all 4 ensemble-trend DAs with a `sinceYear` param) to the featured dashboard, and one matching
+  filter each to the two examples (Practice → the provider bar; Crop → the crop→practice Sankey).
+  Confirmed live that toggling a filter round-trips through `paramsFor()`/`PDC.load()` with zero
+  console errors (the offline sample engine — `Studio.genMock`/`classify()` — is purely column-
+  name-driven and doesn't vary output by param value, same known limitation every other filtered
+  example in the app already has; not something this slice could or needed to fix). Also made the
+  ensemble↔choropleth **cross-filter channel** explicit (`opts.channel:"providers"` on both
+  chart builders) instead of relying on studio-render.js's undocumented `o.channel||"providers"`
+  fallback — confirmed LIVE end-to-end (not just config) that clicking a provider off in an
+  ensemble panel's legend actually re-colors the county choropleth's rendered SVG fills, proving
+  the "interactive/linked cross-filtering" half of LF7 was already functionally wired, just
+  undocumented. 5 new regression tests (featured dashboard's filter shape + DA params, its
+  explicit channels, a real click-a-provider-legend-chip → a DIFFERENT panel's fills change
+  end-to-end test, and each example carrying its new filter). docs/index.html's Demo packs section updated to
+  describe the new filters. sw v133. Full suite green (1851/1851). (app/demopacks.js, data/
+  examples/conservation-scorecard.studio.json, data/examples/conservation-flow.studio.json,
+  docs/index.html, sw.js, tests/run.js) NEXT in the LIVE-FEEDBACK QUEUE: LF6 (per-widget
+  download image+data) or LF21 (dashboard title header as a first-class widget).
 - **UX4 — the rest of it: staggered card fade-up + celebratory toast variant (v489,
   2026-07-23, steward, quality-track slice, UX4 now fully shipped):** the two pieces
   UX4's first slice (v482) left open. (1) STAGGERED FADE-UP: `.recent-card` (Home's
@@ -2012,14 +2054,11 @@
 >      across all chart types, in BOTH the builder preview AND the exported/embedded HTML (respect the
 >      export==preview invariant). app/studio-render.js (panel chrome), app/exporters.js (export
 >      controls), app/studio.js (inspector "allow downloads" toggle, default on).
-> LF7. **Conservation demos must show FILTERS + INTERACTIVE filters.** The demo dashboards/examples
->      should demonstrate the app's full capability — but the featured Conservation Insight dashboard
->      ships `filters:[]`. Wire real filters (practice selector, year-range, provider multi-select,
->      geo-scale switch) AND interactive/linked cross-filtering (the provider-toggle channel that
->      live-updates the ensembleSeries + choropleth together) into the featured dashboard and the new
->      conservation examples (#38/LF2). Show both plain filters and linked cross-filtering so the demos
->      read as a full showcase. The app already supports both (filterDef/cascadeFilters + the linked
->      channel) — the demos just don't use them. app/demopacks.js.
+> LF7. ✓ **Conservation demos now show both plain FILTERS and INTERACTIVE cross-filtering (shipped
+>      2026-07-23, steward) — see DONE.** The featured Conservation Insight dashboard and both gated
+>      examples went from `filters:[]` to real filterDef filters wired to actual panel params, plus
+>      an explicit shared ensemble/choropleth cross-filter channel. app/demopacks.js, data/examples/
+>      conservation-scorecard.studio.json, data/examples/conservation-flow.studio.json.
 > LF8. ✓ **BUG — panel-zoom "Exit zoom" can trap the user (shipped, steward).** Root cause confirmed:
 >      Slideshow already worked around the same issue by focusing its close button on open; Panel zoom
 >      didn't. Fixed by (a) focusing the Exit-zoom button when the overlay opens, and (b) attaching a
@@ -2290,18 +2329,35 @@
 >           SPA/browser-history integration (Back also closing the editor) is deliberately deferred to LF9,
 >           which already tracks that as its own larger piece — not duplicated here. NEXT in LF27: (c) the
 >           tile-first Dashboards browser.
->       (c) A "COOL & SEXY" DASHBOARDS BROWSER (the simple tier). The `dashboards` rail section becomes a friendly
->           collection view: your dashboards + the public ones, as PREVIEW TILES (reuse Home's live/thumbnail tile
->           rendering, renderHome ~5684 home-featured/home-recents/home-examples) OR a list, with search + a
->           tree/folder nav (reuse Workbooks). Click a tile → open in Studio; Close → back here. This is largely
->           elements already on Home — integrate/fold them so Home ↔ Dashboards ↔ Studio feel like one flow.
->       (d) TWO TIERS: keep REPOSITORY as the ADVANCED/expert cross-object manager (dashboards+datasets+connections+
->           jobs+analyses — #29), and let the Dashboards browser be the SIMPLE, tile-first "just my dashboards + public"
->           view. Studio may still exist on the rail (for a blank build) but the PRIMARY path is open-from-list, not
->           "start in the builder." Big, structural — slice carefully: (a) land-on-Home + tour-on-Home FIRST, then
->           (b) Close/return, then (c) the tile browser, then (d) the Repository/Dashboards split. app/index.html (rail +
->           boot section), app/shell.js (section routing + origin tracking), app/studio.js (Close, renderHome tiles,
->           secDashboards render), app/tutorial.js (start on Home). Ties: LF18, LF23, #22, #29, LF9/#44, #17/#23.
+>       (c)+(d) ✓ **ALREADY FULLY SATISFIED — verified 2026-07-23, steward, by a real side-by-side
+>           check against the live app (served, not file://), no code change needed.** Before
+>           picking a next LF27 slice, checked whether `renderDashboards()` (app/studio.js ~6149)
+>           and `recentCardHtml()` (~5676) — flagged as likely-already-there in this item's own
+>           write-up — actually cover every (c)/(d) sub-ask, one by one: **tile/list toggle** — yes,
+>           `#dashViewToggle` + `_dashViewMode` (default "tiles"), tested (tests/run.js greps
+>           `dashViewToggle`/`_dashViewMode`). **Search** — yes, `#repoSearch` matches title/desc AND
+>           dataset column names (`matchedColumnName`), tested. **"Your dashboards + the public
+>           ones"** — yes: `isVisibleToMe()` (app/studio.js ~5245) returns true for every NON-private
+>           row regardless of owner, so the pool shown is exactly "mine + everyone else's public
+>           ones" — the same privacy rule the rest of the workspace uses; there's no separate
+>           "other users" concept to build. **Tree/folder nav** — yes, via Workbooks (`wb-chips`),
+>           which is literally what this item's own text says to reuse — not a gap. **Reuses Home's
+>           tile rendering** — yes, `recentCardHtml()` is the EXACT SAME function Home's
+>           Featured/Recents/Examples cards call (live thumbnail via `Studio.makeThumbnail`), so
+>           Home ↔ Dashboards already render identically — the "integrate/fold" ask is satisfied by
+>           sharing one component, not two similar ones. **Click a tile → open in Studio; Close →
+>           back here** — yes, confirmed live: clicking a tile's `.recent-open` opens Studio, and
+>           LF27(b)'s `enterStudio()`/`closeStudio()` (shipped v488) already has a dedicated
+>           regression test proving Close returns to the DASHBOARDS catalog specifically (not just
+>           Home) as its origin. **Two tiers** — yes, `#secDashboards` (simple, tile-first, just
+>           dashboards) and `#secRepository` (advanced, cross-object: dashboards+datasets+
+>           connections+jobs+analyses, #29) are two distinct rail sections/DOM sections today, exactly
+>           the split this item asks for. Screenshotted tiles, list view, and the open→Studio→Close
+>           flow at 1280×800 against a demo-seeded workspace to confirm, not just read the code.
+>           **Verdict: LF27 is now FULLY DONE** ((a) v487, (b) v488, (c)/(d) pre-existing/verified
+>           here) — nothing further to build under this item. This slice's actual unit of work
+>           pivoted to LF7 instead (see DONE) once this was confirmed complete. Ties: LF18, LF23,
+>           #22, #29, LF9/#44, #17/#23.
 > LF28. ✓ **BUG — map zoom/pan viewport now persists with the map widget (shipped 2026-07-23, steward).**
 >       SCOPE CHECK FIRST: only the GL/MapLibre renderer has interactive pan/zoom at all — the built-in SVG
 >       renderer is a static viewBox fit to the data's bbox with no drag/scroll interaction, so there is no

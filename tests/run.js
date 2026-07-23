@@ -2848,25 +2848,92 @@ function serve() {
     await page.waitForTimeout(300);
     const lf2Scorecard = await page.evaluate(function () {
       var S = window.__STUDIO_STATE;
-      return { title: S && S.spec ? S.spec.title : "", panels: S && S.spec ? S.spec.panels.length : 0 };
+      return { title: S && S.spec ? S.spec.title : "", panels: S && S.spec ? S.spec.panels.length : 0,
+        filterIds: S && S.spec ? (S.spec.filters || []).map(function (f) { return f.id; }) : [] };
     });
     ok("LF2: Conservation Practice Adoption Scorecard example loads with its 5 panels",
       lf2Scorecard.title === "Conservation Practice Adoption Scorecard" && lf2Scorecard.panels === 5, JSON.stringify(lf2Scorecard));
+    // LF7: this example now carries a real Practice filter (was filters:[]).
+    ok("LF7: the Scorecard example carries a real 'Practice' filter (was filters:[])",
+      JSON.stringify(lf2Scorecard.filterIds) === JSON.stringify(["practice"]), JSON.stringify(lf2Scorecard));
     await page.click("#btnExamples"); await page.waitForTimeout(150);
     await page.click('#menuExamples button.ex-card[data-f="conservation-flow.studio.json"]');
     await page.waitForTimeout(300);
     const lf2Flow = await page.evaluate(function () {
       var S = window.__STUDIO_STATE;
-      return { title: S && S.spec ? S.spec.title : "", panels: S && S.spec ? S.spec.panels.length : 0 };
+      return { title: S && S.spec ? S.spec.title : "", panels: S && S.spec ? S.spec.panels.length : 0,
+        filterIds: S && S.spec ? (S.spec.filters || []).map(function (f) { return f.id; }) : [] };
     });
     ok("LF2: Conservation Insight — Crop & Practice Flow example loads with its 4 panels",
       lf2Flow.title === "Conservation Insight — Crop & Practice Flow" && lf2Flow.panels === 4, JSON.stringify(lf2Flow));
+    // LF7: this example now carries a real Crop filter (was filters:[]).
+    ok("LF7: the Crop & Practice Flow example carries a real 'Crop' filter (was filters:[])",
+      JSON.stringify(lf2Flow.filterIds) === JSON.stringify(["crop"]), JSON.stringify(lf2Flow));
     // the featured dashboard leads with maps at THREE geo scales (county hero, HUC8 watershed, state
     // rollup), carries the four headline KPIs, and wears the CTIC-derived Conservation theme.
     ok("DP: the featured dashboard leads with county/HUC8/state choropleths, 4 headline KPIs, and the Conservation theme",
       JSON.stringify(dpInstall.choroScales) === JSON.stringify(["county", "huc8", "state"]) &&
       dpInstall.kpiCount === 4 && dpInstall.dashTheme === "conservation",
       JSON.stringify(dpInstall));
+    // LF7: the featured dashboard now carries real filterDef filters (Practice/Since year), each
+    // wired to an actual panel param (not decoration) — and the ensemble/choropleth panels share an
+    // explicit "providers" cross-filter channel (the OTHER, already-live half of the ask).
+    const lf7Featured = await page.evaluate(function () {
+      var dash = Studio.Workspace.all("dashboards").filter(function (r) { return r.demoPackId === "conservation"; })[0];
+      var sp = dash.spec, das = sp.cda.dataAccesses;
+      var provDa = das.filter(function (d) { return d.id === "vv_prov"; })[0];
+      var trendDas = das.filter(function (d) { return /^vv_(coverCrops|noTill|reducedTill|conventional)$/.test(d.id); });
+      var choroPanels = sp.panels.filter(function (p) { return p.chart.type === "choropleth"; });
+      var ensPanels = sp.panels.filter(function (p) { return p.chart.type === "ensembleSeries"; });
+      return {
+        filterIds: (sp.filters || []).map(function (f) { return f.id; }),
+        filterCount: (sp.filters || []).length,
+        provHasPracticeParam: !!(provDa && provDa.params && provDa.params.some(function (p) { return p.name === "practice"; })),
+        trendDasHaveYearParam: trendDas.length === 4 && trendDas.every(function (d) { return d.params && d.params.some(function (p) { return p.name === "sinceYear"; }); }),
+        choroChannels: choroPanels.map(function (p) { return p.chart.opts.channel; }),
+        ensChannels: ensPanels.map(function (p) { return p.chart.opts.channel; })
+      };
+    });
+    ok("LF7: featured dashboard's Practice filter parametrizes the provider-comparison bar, and Since-year parametrizes all 4 ensemble trend DAs",
+      JSON.stringify(lf7Featured.filterIds) === JSON.stringify(["practice", "sinceYear"]) &&
+      lf7Featured.provHasPracticeParam && lf7Featured.trendDasHaveYearParam,
+      JSON.stringify(lf7Featured));
+    ok("LF7: every choropleth + ensemble panel on the featured dashboard explicitly shares the 'providers' cross-filter channel",
+      lf7Featured.choroChannels.length === 3 && lf7Featured.choroChannels.every(function (c) { return c === "providers"; }) &&
+      lf7Featured.ensChannels.length === 4 && lf7Featured.ensChannels.every(function (c) { return c === "providers"; }),
+      JSON.stringify(lf7Featured));
+    // LF7 end-to-end: open the featured dashboard for real and prove the provider-toggle legend on
+    // an ensemble panel actually re-colors a DIFFERENT panel (the county choropleth) — the "linked,
+    // interactive" half of the ask, not just matching config values.
+    await page.evaluate(function () { window.__studioShellSetSection("dashboards"); });
+    await page.waitForTimeout(200);
+    await page.evaluate(function () {
+      var dash = Studio.Workspace.all("dashboards").filter(function (r) { return r.demoPackId === "conservation"; })[0];
+      window.__studioOpenRecent ? window.__studioOpenRecent(dash.id) : null;
+    });
+    await page.waitForTimeout(700);
+    const lf7Before = await page.evaluate(function () {
+      var fr = document.getElementById("preview"), doc = fr && fr.contentDocument;
+      var panel = doc && Array.prototype.filter.call(doc.querySelectorAll("[data-panel-id]"), function (p) { return p.getAttribute("data-panel-id") === "p_county"; })[0];
+      var paths = panel ? panel.querySelectorAll("svg path") : [];
+      return { fills: Array.prototype.map.call(paths, function (p) { return p.getAttribute("fill"); }).join("|"),
+        hasToggle: !!(doc && doc.querySelector("[data-ens-toggle]")) };
+    });
+    await page.evaluate(function () {
+      var fr = document.getElementById("preview"), doc = fr.contentDocument;
+      var btn = doc.querySelector("[data-ens-toggle]"); // toggle OFF the first provider chip
+      if (btn) btn.click();
+    });
+    await page.waitForTimeout(400);
+    const lf7After = await page.evaluate(function () {
+      var fr = document.getElementById("preview"), doc = fr.contentDocument;
+      var panel = Array.prototype.filter.call(doc.querySelectorAll("[data-panel-id]"), function (p) { return p.getAttribute("data-panel-id") === "p_county"; })[0];
+      var paths = panel ? panel.querySelectorAll("svg path") : [];
+      return { fills: Array.prototype.map.call(paths, function (p) { return p.getAttribute("fill"); }).join("|") };
+    });
+    ok("LF7: clicking a provider off in an ensemble trend panel's legend live-recolors the county choropleth on the same channel (real cross-filter, not just config)",
+      lf7Before.hasToggle && lf7Before.fills.length > 0 && lf7Before.fills !== lf7After.fills,
+      JSON.stringify({ before: lf7Before, after: lf7After }));
     // the raw file dataset queries LIVE (real CSV parse) — proves the "mapping demo" file is real, not mock
     const dpRaw = await page.evaluate(async function () {
       var ds = Studio.Workspace.all("datasets").filter(function (r) { return r.demoPackId === "conservation" && /raw provider export/.test(r.name); })[0];

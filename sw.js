@@ -5,7 +5,14 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v132"; /* v132: LF28 — the GL choropleth's interactive pan/zoom
+var CACHE_NAME = "studio-shell-v133"; /* v133: LF7 — the featured Conservation Insight dashboard
+   (app/demopacks.js) and its two gated examples (data/examples/conservation-scorecard.studio.json,
+   conservation-flow.studio.json) gained real filterDef filters (Practice/Since year/Practice/Crop)
+   wired to actual panel query params, plus an explicit "providers" ensemble/choropleth cross-filter
+   channel. app/demopacks.js changed (precached directly); the two example JSON files are re-fetched
+   network-first regardless, but the content changed materially so the cache rolls with everything
+   else in this slice.
+   v132: LF28 — the GL choropleth's interactive pan/zoom
    now persists onto the panel spec (debounced, builder-only): reopening a dashboard, saving,
    or exporting restores the exact camera the user left the map at instead of re-fitting bounds
    to the data every time. Works in both Dashboard Studio and Explore's live preview.

@@ -16,9 +16,14 @@
         "columns": ["tracked_acres", "crop_count", "avg_pct", "practices"]
       },
       {
-        "id": "flow", "name": "CropToPractice", "params": [], "cache": true, "cacheDuration": 180,
-        "sql": "SELECT crop, practice, SUM(acres) AS acres FROM v_crop_practice GROUP BY 1,2",
+        "id": "flow", "name": "CropToPractice", "params": [{ "name": "crop", "type": "String", "default": "%" }], "cache": true, "cacheDuration": 180,
+        "sql": "SELECT crop, practice, SUM(acres) AS acres FROM v_crop_practice WHERE crop LIKE ${crop} GROUP BY 1,2",
         "columns": ["crop", "practice", "acres"]
+      },
+      {
+        "id": "crop_filter", "name": "CropOptions", "params": [], "cache": true, "cacheDuration": 300,
+        "sql": "SELECT DISTINCT crop FROM v_crop_practice ORDER BY 1",
+        "columns": ["crop"]
       },
       {
         "id": "trend", "name": "PracticeTrend", "params": [], "cache": true, "cacheDuration": 180,
@@ -37,7 +42,9 @@
       }
     ]
   },
-  "filters": [],
+  "filters": [
+    { "id": "crop", "da": "crop_filter", "label": "Crop", "valueCol": "crop", "textCol": "crop", "allLabel": "All crops", "def": "%" }
+  ],
   "kpis": [
     { "da": "kpi", "valueCol": "tracked_acres", "label": "Tracked Acres", "fmt": "n", "state": "purple", "info": "Total acreage covered across every crop and practice." },
     { "da": "kpi", "valueCol": "crop_count", "label": "Crops Tracked", "fmt": "n", "state": "", "info": "Distinct crops represented in the dataset." },
@@ -47,8 +54,8 @@
   "gridCols": 3,
   "panels": [
     {
-      "id": "p_flow", "title": "Acreage Flow — Crop to Practice", "span": "full", "pill": "acres", "sub": "crop → practice",
-      "info": "Which crops are enrolled under which conservation practice.", "src": "v_crop_practice",
+      "id": "p_flow", "title": "Acreage Flow — Crop to Practice", "span": "full", "pill": "acres", "sub": "crop → practice · responds to the Crop filter above",
+      "info": "Which crops are enrolled under which conservation practice — pick a crop above to isolate it.", "src": "v_crop_practice",
       "chart": { "type": "sankey", "da": "flow", "map": { "sourceCol": "crop", "targetCol": "practice", "valueCol": "acres" }, "opts": { "srcCap": "Crop", "dstCap": "Practice", "fmt": "n", "height": 320 } }
     },
     {
