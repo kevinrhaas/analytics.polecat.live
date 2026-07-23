@@ -116,6 +116,29 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **M6 slice 3 — favorites-with-thumbnails (v478, 2026-07-23, steward, M6 now fully
+  shipped):** Datasets and Connections already carried the same star-shaped `pinned`/
+  `pinnedAt` flag as Dashboards/Analyses (their own catalog-row "Pin to top" toggle); a new
+  Home section, "Favorite datasets & connections," reuses that existing flag — no new
+  data-model concept — to surface pinned datasets/connections as cards, the same treatment
+  `pinnedAnalyses` already gives pinned analyses, minus the live iframe (not chart-shaped):
+  instead a compact card with the adapter's own icon/accent plus a one-line stat (column
+  count for datasets, adapter label for connections). Click opens the same editor modal the
+  catalog row's Edit button does. New `HOME_SECTION_KEYS` entry (additive-safe — existing
+  saved section orders just append it); new `.home-fav*` CSS reusing `.home-feat`'s card
+  shell. **Bug fixed along the way:** the `Workspace.on("change", ...)` listener that keeps
+  Home live never included `"datasets"`/`"connections"` in its `renderHome()` trigger (only
+  `"analyses"`/`"dashboards"` did) — so without this fix, pinning a dataset/connection would
+  never actually repaint the new section until some unrelated change happened to trigger a
+  resync; now it's wired in. Also swapped the dataset half of the filter from `isVisibleToMe`
+  to the dataset-specific `isDatasetVisibleToMe` (datasets carry an unrelated free-text
+  `owner` field — see the M4.2 slice 3 comment on that function — so the generic check was
+  silently the wrong privacy rule for a private dataset, same collision class M4.2 already
+  guards everywhere else). 2 new M6 ratchets (pinning a dataset + a connection surfaces both
+  as Home cards; clicking a favorite card opens its editor). sw v120. (app/studio.js,
+  app/studio.css, docs/index.html) NEXT product priority: M7 (Supabase RLS enforcement) or
+  the still-open "Explore-side New-dataset + dataset organization at scale" follow-up from
+  the 2026-07-21 review (see REVIEW-FIXES above).
 - **R5+ slice 1 — chart-thumbnail SVGs extracted to their own module (v477, 2026-07-23,
   steward):** the ~225-line `CHART_SVG` table (gallery/picker thumbnail SVGs, one per chart
   type — pure data, no dependency on app state) moved out of `app/studio.js` into a new
@@ -2575,6 +2598,22 @@
 >     featuring a second, newer one promotes it and demotes the first — exactly one hero ever). NEXT
 >     in M6: favorites-with-thumbnails (a lighter-weight favorite than "featured," likely reusing the
 >     Pinned-analyses card treatment for non-dashboard objects).
+>     ↳ **Slice 3 (shipped 2026-07-23, steward — favorites-with-thumbnails):** turned out Datasets
+>     and Connections already carry the exact same star-shaped `pinned`/`pinnedAt` "favorite" flag
+>     as Dashboards/Analyses (their own catalog-row "Pin to top" toggle — see the R4 comment in
+>     app/studio.js) — it just never surfaced past their own lists. New Home section "Favorite
+>     datasets & connections" reuses that EXISTING flag (no new data-model concept) and gives
+>     pinned datasets/connections the same card treatment `pinnedAnalyses` already gives pinned
+>     analyses, minus the live iframe (they aren't chart-shaped) — instead a compact card with the
+>     adapter's own icon/accent plus a one-line stat (column count for datasets, adapter label for
+>     connections); click opens the same editor modal the catalog row's Edit button does. New
+>     `HOME_SECTION_KEYS` entry (additive-safe, so existing saved section orders just append it),
+>     new `.home-fav*` CSS reusing `.home-feat`'s card shell. 2 new M6 ratchets (pinning a dataset
+>     + a connection surfaces both as Home cards; clicking a favorite card opens its editor). sw
+>     v120. (app/studio.js, app/studio.css, docs/index.html) **M6 is now fully shipped** (reorder,
+>     hero, favorites) — NEXT product priority: M7 (Supabase RLS enforcement) or M4.2's still-open
+>     "Explore-side New-dataset + dataset organization at scale" follow-up from the 2026-07-21
+>     review (see REVIEW-FIXES above).
 > M7. **Real per-user security (Supabase Auth + RLS):** the phased second half — private is
 >     ENFORCED by the database for Supabase deployments (GoTrue + row-level security); other
 >     backends keep the UX-level behavior. This is what makes "private = only I can see it" true.
