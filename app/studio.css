@@ -214,6 +214,17 @@ html[data-app-theme='conservation'] #railNav{--rail-bg:#10432e;--rail-bg2:#1a5c4
 #railNav .rail-suite:hover,#railNav .rail-suite:focus-visible{opacity:.8;text-decoration:underline;outline:none}
 #railNav .rail-brand-mark{flex:0 0 auto;border-radius:7px;display:block}
 #railNav .rail-brand-txt{font-weight:800;font-size:13px;letter-spacing:.2px;overflow:hidden;text-overflow:ellipsis}
+/* LF33: expanded-only lockup fix — the mark used to center against just the
+   icon+"Analytics" row (its own flex row), landing visibly high of the combined
+   "Analytics" / "polecat.live" two-line block. Take the mark out of flow and
+   center it against the WHOLE wrap instead, so it reads as one balanced lockup
+   (standard app-switcher convention). Collapsed (icon-only) rail is untouched —
+   the base rules above still govern it. */
+#railNav.expanded .rail-brand-wrap{position:relative;padding:14px 0 12px}
+#railNav.expanded .rail-brand{padding:0 18px}
+#railNav.expanded .rail-brand-mark{position:absolute;left:18px;top:50%;transform:translateY(-50%)}
+#railNav.expanded .rail-brand-txt{display:block;margin-left:37px}
+#railNav.expanded .rail-suite{display:block;padding:0 18px;margin:2px 0 0 37px}
 #railNav .rail-item{display:flex;align-items:center;gap:12px;padding:12px 18px;background:none;border:0;
   color:var(--rail-ink);opacity:.72;cursor:pointer;white-space:nowrap;font-size:12.5px;font-weight:600;
   font-family:var(--font);text-align:left;text-decoration:none}
@@ -274,6 +285,14 @@ html[data-app-theme='conservation'] #mobileNavBtn{background:#10432e;border-colo
   #railNav.mobile-open{transform:translateX(0)}
   /* always full-width labels in the drawer (override the collapsed icon-only clip) */
   #railNav .rail-lbl{position:static!important;width:auto!important;height:auto!important;clip:auto!important}
+  /* LF33: the drawer always shows labels regardless of the desktop .expanded state,
+     so it needs the same mark-centers-on-the-whole-lockup fix as #railNav.expanded
+     (see the base rules above) — the drawer just isn't a `.expanded` rail. */
+  #railNav .rail-brand-wrap{position:relative;padding:14px 0 12px}
+  #railNav .rail-brand{padding:0 18px}
+  #railNav .rail-brand-mark{position:absolute;left:18px;top:50%;transform:translateY(-50%)}
+  #railNav .rail-brand-txt{display:block;margin-left:37px}
+  #railNav .rail-suite{display:block;padding:0 18px;margin:2px 0 0 37px}
   #railNav .rail-toggle{display:none}
   #mobileNavBtn{display:flex}
   .rail-quick{display:flex;flex-direction:column;gap:2px;padding:10px 18px;

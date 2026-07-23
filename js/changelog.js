@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 485,
+    title: 'Left rail: the Analytics / polecat.live brand lockup now centers cleanly',
+    kind: 'polish',
+    ts: '2026-07-23T16:59:38.000Z',
+    items: [
+      'The orange app mark at the top of the left rail used to center itself against just the "Analytics" line, landing visibly high above the two-line "Analytics / polecat.live" label. It now centers against the whole lockup, in the expanded rail, the collapsed icon-only rail, and the mobile drawer alike.',
+    ],
+  },
+  {
     v: 484,
     title: 'Ensemble chart: the “common estimate” line and legend are readable again on dark themed dashboards',
     kind: 'fix',

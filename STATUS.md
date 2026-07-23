@@ -116,6 +116,19 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF33 — rail brand lockup centering fix (v485, 2026-07-23, steward):** the left rail's
+  brand mark (`.rail-brand-mark`) used to center only against its own flex row (icon +
+  "Analytics"), landing ~9px above the true vertical center of the combined "Analytics" /
+  "polecat.live" two-line block, since "polecat.live" lives in a separate sibling `<a>`
+  below that row. Fix is CSS-only (app/studio.css): whenever the rail actually shows both
+  label lines (`#railNav.expanded`, and the mobile drawer, where labels always show
+  regardless of `.expanded`), the wrap becomes `position:relative` and the mark is taken
+  out of flow and centered (`top:50%`/`translateY(-50%)`) against the WHOLE wrap instead of
+  just the button's row — now within ~1px of true center. Collapsed icon-only rail keeps the
+  original flex-centered rule untouched. No DOM/JS changes, so the existing Z12 brand-mark
+  structure/click-to-Home tests still hold as-is. Verified visually across expanded/collapsed
+  desktop, the mobile drawer, and dark/light. sw v127. Full suite green (1833/1833). NEXT:
+  LF32 (Query Preview fabricated-sample-rows bug).
 - **UX4 — modal + welcome-overlay scale-in (v482, 2026-07-23, steward, quality-track
   slice):** modals (`.modal`, e.g. the export bundle / dataset editor) and the first-run
   welcome tour used to snap into view instantly; both now scale+fade in on open
@@ -1864,12 +1877,18 @@
 >       for the real result; (b) a dashboard built from Explore didn't carry/render the real dataset rows
 >       (the map stayed empty). Investigate genMock vs. a real dataset load in the Inspector preview + the
 >       Explore→dashboard data path. (The zoom/pan-lost half of the same report is already tracked as LF28.)
-> LF33. **Rail brand lockup ("Analytics / polecat.live") is a little janky / mis-aligned (Kevin, live
->       2026-07-23, screenshots).** The app-switcher/brand block at the top of the left rail — orange logo +
->       "Analytics" + "polecat.live" — reads slightly misaligned (baseline / vertical centering / spacing
->       between the mark and the two text lines). Tidy the lockup so the logo and the two-line label align
->       cleanly. App-side skin only (the shell itself is READ-ONLY) — likely css/styles or the rail-brand
->       markup in app/index.html / app/studio.js. Small polish slice.
+> LF33. ✓ **Rail brand lockup fixed (shipped 2026-07-23, steward).** ROOT CAUSE: the mark
+>       (`.rail-brand-mark`) only ever centered against its own flex row (icon + "Analytics"),
+>       landing ~9px above the true center of the combined "Analytics" / "polecat.live" two-line
+>       block — "polecat.live" lived in a separate sibling `<a>` below, outside that row entirely.
+>       Fix (app/studio.css, CSS-only — the DOM structure and click/nav behavior are unchanged, so
+>       the existing Z12 brand-mark tests still hold): once the rail shows both label lines
+>       (`#railNav.expanded`, and the mobile drawer where labels always show regardless of the
+>       `.expanded` state), the wrap becomes `position:relative` and the mark is taken out of flow
+>       and absolutely centered (`top:50%`/`translateY(-50%)`) against the WHOLE wrap instead of
+>       just the button's row — now within ~1px of true center. The collapsed icon-only rail is
+>       untouched (still the original flex-centered rule). Verified across expanded/collapsed
+>       desktop rail, the mobile drawer, and dark/light — sw v127. Full suite green (1833/1833).
 > NOTE (Kevin, live 2026-07-23): consolidation of the loose sample content into TWO toggleable sample/demo
 >       packs — "Conservation" and "Data Management / Governance" — each a COMPLETE workspace (connections +
 >       datasets + dashboards + widgets/analyses) is re-confirmed; this is the SAME restructure as LF2(c) +
