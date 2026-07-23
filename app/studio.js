@@ -8596,36 +8596,29 @@
   // ask — a single default subtitle + accent color applied to every brand-new blank dashboard,
   // so a team's house style doesn't need re-entering by hand each time. Existing dashboards
   // (Open/Import/examples) are never touched — this only seeds Studio.emptySpec() output.
-  function defaultSubtitle() {
-    var v; try { v = localStorage.getItem("studio-default-subtitle"); } catch (e) {}
+  // R3 (tech-debt sweep): these default* getter/setter pairs store a PLAIN string, not JSON
+  // (lsGet/lsSet above are JSON-shaped and would mis-parse/re-quote what's already saved), so
+  // they share this pair of tiny helpers instead — same load/save boilerplate, one place.
+  function strDefault(key) {
+    var v; try { v = localStorage.getItem(key); } catch (e) {}
     return v || "";
   }
-  function setDefaultSubtitle(v) { try { localStorage.setItem("studio-default-subtitle", v || ""); } catch (e) {} }
-  function defaultAccentColor() {
-    var v; try { v = localStorage.getItem("studio-default-accent"); } catch (e) {}
-    return v || "";
-  }
-  function setDefaultAccentColor(v) { try { localStorage.setItem("studio-default-accent", v || ""); } catch (e) {} }
+  function setStrDefault(key, v) { try { localStorage.setItem(key, v || ""); } catch (e) {} }
+  function defaultSubtitle() { return strDefault("studio-default-subtitle"); }
+  function setDefaultSubtitle(v) { setStrDefault("studio-default-subtitle", v); }
+  function defaultAccentColor() { return strDefault("studio-default-accent"); }
+  function setDefaultAccentColor(v) { setStrDefault("studio-default-accent", v); }
   // Z6 follow-up: default header background color — same seeding pattern as subtitle/accent,
   // for the per-dashboard "Header background color" field (flat banner fill, distinct from
   // Accent color which only tints the border/chart accents).
-  function defaultHeaderBg() {
-    var v; try { v = localStorage.getItem("studio-default-headerbg"); } catch (e) {}
-    return v || "";
-  }
-  function setDefaultHeaderBg(v) { try { localStorage.setItem("studio-default-headerbg", v || ""); } catch (e) {} }
+  function defaultHeaderBg() { return strDefault("studio-default-headerbg"); }
+  function setDefaultHeaderBg(v) { setStrDefault("studio-default-headerbg", v); }
   // Z6 follow-up: default title size + subtitle style — same seeding pattern, for the
   // per-dashboard "Title size"/"Subtitle style" fields added after the preset collection shipped.
-  function defaultTitleSize() {
-    var v; try { v = localStorage.getItem("studio-default-titlesize"); } catch (e) {}
-    return v || "";
-  }
-  function setDefaultTitleSize(v) { try { localStorage.setItem("studio-default-titlesize", v || ""); } catch (e) {} }
-  function defaultSubtitleStyle() {
-    var v; try { v = localStorage.getItem("studio-default-subtitlestyle"); } catch (e) {}
-    return v || "";
-  }
-  function setDefaultSubtitleStyle(v) { try { localStorage.setItem("studio-default-subtitlestyle", v || ""); } catch (e) {} }
+  function defaultTitleSize() { return strDefault("studio-default-titlesize"); }
+  function setDefaultTitleSize(v) { setStrDefault("studio-default-titlesize", v); }
+  function defaultSubtitleStyle() { return strDefault("studio-default-subtitlestyle"); }
+  function setDefaultSubtitleStyle(v) { setStrDefault("studio-default-subtitlestyle", v); }
   // Visual refresh (A) follow-up: default Dashboard theme — same seeding pattern as the other
   // style defaults, for the whole-look Studio.DASHBOARD_THEMES picker (v281). Lets a team make
   // Fleet Modern (or any future preset) the house look for brand-new dashboards without touching
@@ -8641,22 +8634,16 @@
     if (v === null || v === undefined) return appThemeToDashboardTheme(appTheme());
     return v === "classic" ? "" : v;
   }
-  function setDefaultDashboardTheme(v) { try { localStorage.setItem("studio-default-dashboardtheme", v || ""); } catch (e) {} }
+  function setDefaultDashboardTheme(v) { setStrDefault("studio-default-dashboardtheme", v); }
   // N-DESIGN follow-up: default card style — same seeding pattern, for the per-dashboard
   // "Card style" (Raised/Flat chart skin) field added right after the picker itself shipped.
-  function defaultCardSkin() {
-    var v; try { v = localStorage.getItem("studio-default-cardskin"); } catch (e) {}
-    return v || "";
-  }
-  function setDefaultCardSkin(v) { try { localStorage.setItem("studio-default-cardskin", v || ""); } catch (e) {} }
+  function defaultCardSkin() { return strDefault("studio-default-cardskin"); }
+  function setDefaultCardSkin(v) { setStrDefault("studio-default-cardskin", v); }
   // Z6 follow-up: default header logo — the last "still open" item under the style-preset
   // collection ask. Same data-URL-in-localStorage approach as per-dashboard headerLogo/app
   // Branding, just seeded onto brand-new blank dashboards like subtitle/accent already are.
-  function defaultLogo() {
-    var v; try { v = localStorage.getItem("studio-default-logo"); } catch (e) {}
-    return v || "";
-  }
-  function setDefaultLogo(v) { try { localStorage.setItem("studio-default-logo", v || ""); } catch (e) {} }
+  function defaultLogo() { return strDefault("studio-default-logo"); }
+  function setDefaultLogo(v) { setStrDefault("studio-default-logo", v); }
   // Z6 follow-up: named style-preset collection. Each preset snapshots the default
   // fields above under a name, so a team can save several house styles (e.g. per client
   // or per event) and switch the active default with one click instead of re-typing it.

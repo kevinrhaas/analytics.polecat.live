@@ -116,6 +116,18 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **R3 slice 1 — table-drive the `default*` config getters (v469, 2026-07-23, steward):**
+  the 8 `default*`/`setDefault*` pairs (subtitle, accent color, header background, title size,
+  subtitle style, dashboard theme, card skin, logo) each hand-rolled the same
+  `try{localStorage.getItem}catch{}` load + `try{localStorage.setItem}catch{}` save boilerplate.
+  New `strDefault(key)`/`setStrDefault(key,v)` pair (a plain-STRING counterpart to R1's JSON-
+  shaped `lsGet`/`lsSet` — these fields store raw strings, not JSON, so reusing `lsGet`/`lsSet`
+  would have re-quoted/mis-parsed whatever a user already has saved) backs all 7 simple pairs;
+  `defaultDashboardTheme`'s bespoke fallback-to-app-theme/legacy-"classic" logic is unchanged,
+  only its setter now delegates too. Every function keeps its original name/signature, so no
+  call site anywhere in the file changed — pure refactor, no behavior change, suite unchanged
+  at 1809/1809. (app/studio.js) NEXT in this track: the `makePresetStore(key)` factory for the
+  3 identical list-CRUD triplets (stylePresets/templateVarSets/customThemePresets) is still open.
 - **UX9 — modal `.btn` contrast fallback (v468, 2026-07-23, steward):** bare `.btn` buttons
   (e.g. the export bundle modal's "Copy" button) were white-on-`rgba(255,255,255,.1)` — correct
   on the dark rail/topbar the base `.btn` assumes, near-invisible on the light `--pane` modal
@@ -2173,6 +2185,9 @@
 > R3. **Factory the config layer:** table-drive the 8 `default*` getter/setter pairs; a
 >     `makePresetStore(key)` factory for the 3 identical list-CRUD triplets (stylePresets /
 >     templateVarSets / customThemePresets). (studio.js)
+>     ↳ **Slice 1 (shipped 2026-07-23, steward, see DONE):** the 8 `default*`/`setDefault*`
+>     pairs now share `strDefault`/`setStrDefault`. NEXT in R3: the `makePresetStore` factory
+>     for the 3 list-CRUD triplets.
 > R4. **Merge the view-pin machinery** duplicated between Connections (`conn*Views`/`toggleConnPin`)
 >     and Datasets (`dsx*Views`/`toggleDsxPin`) into one shared helper (their own comment flags the mirror).
 > R5+. **studio.js (9,899 lines) module extraction — safety order, ONE subsystem per slice, full suite
