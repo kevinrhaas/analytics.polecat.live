@@ -1596,6 +1596,13 @@ body.simple-mode .da-acts{display:none!important}
 .cx-row:hover .cx-private,.cx-row:focus-within .cx-private,.cx-private.private,.cx-private:focus-visible{opacity:1}
 .cx-private:hover{border-color:var(--warning,#c9832f);color:var(--warning,#c9832f)}
 .cx-private.private{color:var(--warning,#c9832f);border-color:color-mix(in srgb, var(--warning,#c9832f) 50%, transparent)}
+/* M5 quick-edit action (Repository row) — same tile as .cx-pin/.cx-private but a
+   plain action button (no on/off state); opens a right-panel name+folder editor
+   without leaving Repository (M5 NEXT: "a right-panel editor for simple objects"). */
+.repo-edit{display:flex;align-items:center;justify-content:center;width:30px;height:30px;flex:0 0 auto;
+  border-radius:8px;background:transparent;border:1px solid color-mix(in srgb, var(--ink) 18%, transparent);
+  color:var(--faint);cursor:pointer}
+.repo-edit:hover,.repo-edit:focus-visible{border-color:var(--brand);color:var(--brand)}
 .cx-empty{background:var(--field);border:1px dashed color-mix(in srgb, var(--ink) 20%, transparent);border-radius:12px;padding:34px;
   text-align:center;color:var(--muted);font-size:13.5px;line-height:1.7}
 .cx-empty .btn{margin-top:12px}

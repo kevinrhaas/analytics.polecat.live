@@ -21878,7 +21878,15 @@ function serve() {
     await repoPage.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); } catch (e) {} });
     await repoPage.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
     await repoPage.waitForFunction(() => window.__STUDIO_STATE && window.Studio && Studio.Workspace, { timeout: 10000 });
+    // The default boot-time example (studio.js: "open the cost flagship example by
+    // default") schedules a debounced write into Workspace.dashboards ~800ms after
+    // boot (scheduleNoteRecent — Home's "recently viewed" tracking), independent of
+    // anything this test does. Wait past that window and clear whatever it wrote
+    // before seeding this test's own controlled fixture set, so the row counts
+    // below are deterministic regardless of how fast this machine boots.
+    await repoPage.waitForTimeout(900);
     await repoPage.evaluate(function () {
+      Studio.Workspace.all("dashboards").forEach(function (d) { Studio.Workspace.remove("dashboards", d.id, { silent: true }); });
       Studio.Workspace.put("connections", { id: "repo-conn", name: "Repo Test Warehouse", adapter: "turso", cfg: { url: "http://x", token: "t" }, folder: "Ops", updatedAt: 5 });
       Studio.Workspace.put("datasets", { id: "repo-ds", name: "repo_test_dataset", connectionId: "repo-conn", kind: "sql", sql: "SELECT 1", folder: "Ops", updatedAt: 4 });
       Studio.Workspace.put("jobs", { id: "repo-job", name: "Repo Test Job", sourceDatasetId: "repo-ds", steps: [{ op: "rename", from: "a", to: "b" }], updatedAt: 3 });
@@ -22039,6 +22047,84 @@ function serve() {
     });
     ok("Repository: opening an analysis row loads it into Explore and switches section there",
       repoOpenAnalysis.analysisId === "repo-an" && repoOpenAnalysis.exploreVisible, JSON.stringify(repoOpenAnalysis));
+
+    // ---- M5 NEXT: "a right-panel editor for simple objects instead of always
+    // deep-linking out" — a quick-edit (pencil) button on dataset/connection/job/
+    // analysis rows opens a lightweight name+folder editor in the shell's
+    // rightPanel, without leaving Repository or opening the full editor. ----
+    await repoPage.click('#railNav .rail-item[data-sec="repository"]');
+    await repoPage.waitForTimeout(100);
+
+    const repoEditButtons = await repoPage.evaluate(function () {
+      return {
+        ds: !!document.querySelector('.cx-row[data-repo-id="repo-ds"] .repo-edit'),
+        conn: !!document.querySelector('.cx-row[data-repo-id="repo-conn"] .repo-edit'),
+        job: !!document.querySelector('.cx-row[data-repo-id="repo-job"] .repo-edit'),
+        an: !!document.querySelector('.cx-row[data-repo-id="repo-an"] .repo-edit'),
+        dash: !!document.querySelector('.cx-row[data-repo-id="repo-dash"] .repo-edit')
+      };
+    });
+    ok("Repository: a quick-edit (pencil) button appears on dataset/connection/job/analysis rows (the four kinds that carry a folder field) but not on dashboards (no folder field yet)",
+      repoEditButtons.ds && repoEditButtons.conn && repoEditButtons.job && repoEditButtons.an && !repoEditButtons.dash,
+      JSON.stringify(repoEditButtons));
+
+    const repoQuickEditOpen = await repoPage.evaluate(function () {
+      document.querySelector('.cx-row[data-repo-id="repo-job"] .repo-edit').click();
+      var panel = document.querySelector(".ps-rpanel");
+      var inputs = panel ? [].slice.call(panel.querySelectorAll(".cx-field input")) : [];
+      return {
+        title: panel ? panel.querySelector(".ps-rpanel-head h2").textContent : null,
+        name: inputs[0] ? inputs[0].value : null,
+        folder: inputs[1] ? inputs[1].value : null,
+        modalOpen: !!document.querySelector(".modal-ov"),
+        repoStillVisible: !document.getElementById("secRepository").hidden
+      };
+    });
+    ok("Repository: clicking a row's quick-edit button opens a right-panel editor pre-filled with the object's name and folder, without opening its full editor or leaving Repository",
+      repoQuickEditOpen.title === "Edit job" && repoQuickEditOpen.name === "Repo Test Job" && repoQuickEditOpen.folder === "" &&
+      !repoQuickEditOpen.modalOpen && repoQuickEditOpen.repoStillVisible, JSON.stringify(repoQuickEditOpen));
+
+    await repoPage.evaluate(function () {
+      var panel = document.querySelector(".ps-rpanel");
+      var inputs = panel.querySelectorAll(".cx-field input");
+      inputs[0].value = "Renamed Job"; inputs[0].dispatchEvent(new Event("input"));
+      inputs[1].value = "Finance"; inputs[1].dispatchEvent(new Event("input"));
+      [].slice.call(panel.querySelectorAll("button")).filter(function (b) { return b.textContent === "Save"; })[0].click();
+    });
+    // rightPanel's close() removes the DOM after its 240ms slide-out transition
+    // (back.classList.remove('in') then a setTimeout) — give it time before asserting gone.
+    await repoPage.waitForTimeout(320);
+    const repoQuickEditSave = await repoPage.evaluate(function () {
+      var row = document.querySelector('.cx-row[data-repo-id="repo-job"]');
+      return {
+        panelClosed: !document.querySelector(".ps-rpanel"),
+        title: row.querySelector(".cx-name b").textContent,
+        folderBadge: (row.querySelector(".cx-folder") || {}).textContent,
+        stored: Studio.Workspace.get("jobs", "repo-job").name,
+        storedFolder: Studio.Workspace.get("jobs", "repo-job").folder
+      };
+    });
+    ok("Repository: saving the quick-edit panel renames the object and files it into the new folder, live in the Repository row, with no full-page navigation",
+      repoQuickEditSave.panelClosed && repoQuickEditSave.title === "Renamed Job" && repoQuickEditSave.folderBadge === "Finance" &&
+      repoQuickEditSave.stored === "Renamed Job" && repoQuickEditSave.storedFolder === "Finance", JSON.stringify(repoQuickEditSave));
+
+    await repoPage.evaluate(function () {
+      document.querySelector('.cx-row[data-repo-id="repo-an"] .repo-edit').click();
+      var panel = document.querySelector(".ps-rpanel");
+      [].slice.call(panel.querySelectorAll("button")).filter(function (b) { return /Open full editor/.test(b.textContent); })[0].click();
+    });
+    await repoPage.waitForTimeout(320);
+    const repoQuickEditOpenFull = await repoPage.evaluate(function () {
+      return {
+        panelClosed: !document.querySelector(".ps-rpanel"),
+        exploreVisible: !document.getElementById("secExplore").hidden,
+        analysisId: window.__studioExplore.state.analysisId
+      };
+    });
+    ok("Repository: the quick-edit panel's \"Open full editor →\" hands off to the object's real editor, same as clicking the row itself",
+      repoQuickEditOpenFull.panelClosed && repoQuickEditOpenFull.exploreVisible && repoQuickEditOpenFull.analysisId === "repo-an",
+      JSON.stringify(repoQuickEditOpenFull));
+
     await repoPage.close();
 
     // ---- ★★★-1: dashboards live in the WORKSPACE store (mirror to remote backends) ----
