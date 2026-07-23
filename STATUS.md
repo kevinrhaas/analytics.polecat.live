@@ -116,6 +116,20 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF12 — Explore's map builder gains a Renderer control (svg/gl), and it saves (v466,
+  2026-07-23, steward):** the persistence half of this ask was already done — `renderer` has been
+  a normal schema-driven choropleth option (`Studio.CHARTS.choropleth.opts`) since V4, so it
+  already rides `xpSpec()`'s panel opts and round-trips through save/reopen/export like `scale`
+  does. The real gap was that Explore's own map editor (`xpMapEditorHtml`, a hand-picked subset of
+  fields) never surfaced a control for it. Added a **Renderer** dropdown next to Region scale for
+  choropleth analyses, reading its label/choices straight off `Studio.CHARTS.choropleth.opts`
+  instead of a second hardcoded list, wired through the same generic `data-xp-opt` change handler
+  every other Explore option already uses — no new save-path code needed. `Studio.usesGLMap` +
+  `ensureGeoAssets` (already shared by every render path) lazy-load MapLibre for Explore's preview
+  the same way the Studio canvas does. 3 new tests (control renders with the right default/
+  choices; picking GL actually boots a live MapLibre map in Explore, not a relabeled SVG one;
+  save + reopen restores the GL choice). docs/index.html's Explore section updated. (app/studio.js,
+  docs/index.html, tests/run.js)
 - **LF11 — Explore: "Add to dashboard" is no longer ambiguous (v458, 2026-07-23, steward):**
   the LIVE-FEEDBACK QUEUE item calling the old single button ambiguous about WHICH dashboard it
   targeted ("always whatever's currently open in Studio," not obvious from the button text). The
@@ -1749,11 +1763,24 @@
 > LF11. ✓ **Explore: "Add to dashboard" clarified — DONE, see DONE (v458, 2026-07-23, steward).**
 >       Split into "+ New dashboard" and "Existing dashboard…" (with a picker), reusing
 >       xpAddAnalysisToSpec + the same list/search UI as "Open a dashboard."
-> LF12. **Explore: expose the advanced (GL) renderer + save it.** When building a MAP widget in Explore,
->       let the user turn on the "Interactive GL (pan & zoom)" renderer and have it PERSIST with the
->       saved analysis/widget (extends LF4 renderer-persistence to the Explore builder — today the
->       renderer opt isn't offered in Explore and doesn't save). app/studio.js (Explore map options),
->       app/studio-charts.js.
+> LF12. ✓ **Explore: expose the advanced (GL) renderer + save it (shipped 2026-07-23, steward).**
+>       Turns out the renderer choice already round-trips through save/export/reopen — it's a
+>       normal schema-driven option (`Studio.CHARTS.choropleth.opts`, added with V4) like `scale`/
+>       `agg`/`color`, so any panel that carries it (Studio Inspector, a saved analysis) already
+>       persisted it; the actual gap was narrower than the ask reads — Explore's own map editor
+>       (`xpMapEditorHtml`, a hand-picked subset of fields, not the generic opts table) simply never
+>       offered a control for it. Added a **Renderer** `<select>` next to the existing Region scale
+>       row for choropleth analyses, reusing `Studio.CHARTS.choropleth.opts`'s own `renderer` entry
+>       (label + choices) instead of a second hardcoded svg/gl list — same dedup-first instinct as
+>       the R2 quality-track slice just before this one. Wired through the SAME generic
+>       `data-xp-opt` change handler every other Explore option already uses, so no new save-path
+>       code was needed: `XP.opts.renderer` flows into `xpSpec()`'s panel opts exactly like `scale`
+>       does, and `Studio.usesGLMap`/`ensureGeoAssets` (already shared by every render path) lazy-
+>       loads MapLibre for Explore's own live preview automatically. 3 new tests (the control
+>       renders with the right default/choices; picking GL actually boots a live MapLibre map in
+>       Explore's preview, not just a relabeled SVG one; saving + reopening the analysis restores
+>       the GL choice). docs/index.html's Explore section updated. (app/studio.js, docs/index.html,
+>       tests/run.js)
 > LF13. **Job editor overhaul (Edit-job modal).** Multiple asks: (a) COLUMN DROPDOWNS — the group-by +
 >       metric column fields are free-text; populate from the SOURCE dataset's real columns (introspect
 >       via runDataset/sampleRows) — for group-by, metric source col, and join/union keys. (b) MULTIPLE

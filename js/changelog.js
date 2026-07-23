@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 466,
+    title: 'Explore: pick the Interactive GL map renderer, and it saves (LF12)',
+    kind: 'feature',
+    ts: '2026-07-23T08:49:04.000Z',
+    items: [
+      'Building a map analysis in Explore now shows a Renderer choice (Built-in vs Interactive GL - pan & zoom) right next to the region scale, same as the full Studio builder already offers.',
+      'The choice is saved with the analysis and restored the next time you open it.',
+    ],
+  },
+  {
     v: 465,
     title: 'Tech-debt sweep: shared HTML-escape + provider list (R2 complete)',
     kind: 'polish',

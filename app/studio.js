@@ -1150,6 +1150,16 @@
         [["county", "Counties (FIPS)"], ["state", "States"], ["crd", "USDA districts (CRD)"], ["huc8", "Watersheds (HUC8)"]].map(function (o) {
           return '<option value="' + o[0] + '"' + ((XP.opts.scale || "county") === o[0] ? " selected" : "") + ">" + o[1] + "</option>";
         }).join("") + "</select></label>");
+      // LF12: reuse the canonical renderer opt (model.js Studio.CHARTS.choropleth)
+      // instead of a second hardcoded svg/gl choice list — same source the
+      // Studio Inspector's generic options table already renders from.
+      var rendererOpt = (def.opts || []).filter(function (o) { return o.key === "renderer"; })[0];
+      if (rendererOpt) {
+        rows.push('<label class="xp-map-row"><span>' + esc(rendererOpt.label) + '</span><select data-xp-opt="renderer">' +
+          rendererOpt.choices.map(function (o) {
+            return '<option value="' + o[0] + '"' + ((XP.opts.renderer || rendererOpt.def) === o[0] ? " selected" : "") + ">" + o[1] + "</option>";
+          }).join("") + "</select></label>");
+      }
     }
     if (XP.type === "ensembleSeries") {
       var series = {};
