@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 472,
+    title: 'Tech-debt sweep: one shared preset-store factory backs style/template-var/custom-theme presets (R3 slice 2)',
+    kind: 'polish',
+    ts: '2026-07-23T10:48:42.000Z',
+    items: [
+      'Internal cleanup only, no visible change: the three saved-preset lists (style presets, template-variable sets, custom theme presets) used to each hand-roll the same save/load/delete boilerplate -- they now share one small helper.',
+    ],
+  },
+  {
     v: 471,
     title: 'Home: your most-recently-featured dashboard renders as a full-width hero (M6 slice 2)',
     kind: 'feature',

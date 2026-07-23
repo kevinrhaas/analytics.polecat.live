@@ -42,6 +42,19 @@
     try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) { /* quota or private-mode */ }
   }
 
+  // R3 (tech-debt sweep): stylePresets/templateVarSets/customThemePresets each hand-rolled the
+  // same list()/saveList()/delete(id) triplet over lsGet/lsSet, differing only in the storage
+  // key — this factory backs all three; each still keeps its own add()/apply() (the fields
+  // saved/restored genuinely differ per preset kind).
+  function makePresetStore(key) {
+    var store = {
+      list: function () { return lsGet(key, []); },
+      saveList: function (list) { lsSet(key, list); },
+      remove: function (id) { store.saveList(store.list().filter(function (p) { return p.id !== id; })); }
+    };
+    return store;
+  }
+
   // R2 (tech-debt sweep): the 4 identical "tell the preview iframe the app theme once it
   // loads" envelopes (compare-dashboards preview, Home's live mini-render, Panel zoom,
   // Slideshow) collapsed onto one helper.
@@ -8710,10 +8723,9 @@
   // Z6 follow-up: named style-preset collection. Each preset snapshots the default
   // fields above under a name, so a team can save several house styles (e.g. per client
   // or per event) and switch the active default with one click instead of re-typing it.
-  function stylePresets() {
-    return lsGet("studio-style-presets", []);
-  }
-  function saveStylePresetList(list) { lsSet("studio-style-presets", list); }
+  var _stylePresetStore = makePresetStore("studio-style-presets");
+  function stylePresets() { return _stylePresetStore.list(); }
+  function saveStylePresetList(list) { _stylePresetStore.saveList(list); }
   function addStylePreset(name) {
     var list = stylePresets();
     list.push({
@@ -8725,7 +8737,7 @@
     saveStylePresetList(list);
     return list;
   }
-  function deleteStylePreset(id) { saveStylePresetList(stylePresets().filter(function (p) { return p.id !== id; })); }
+  function deleteStylePreset(id) { _stylePresetStore.remove(id); }
   function applyStylePreset(id) {
     var p = stylePresets().filter(function (x) { return x.id === id; })[0];
     if (!p) return false;
@@ -8739,10 +8751,9 @@
   // dashboards with default look fields; this instead lets ANY dashboard grab a previously-saved
   // {{key}}→value set in one click — e.g. save an "APAC" set and an "EMEA" set once, then apply
   // whichever fits to any dashboard built from the same {{region}}-templated spec.
-  function templateVarSets() {
-    return lsGet("studio-templatevar-sets", []);
-  }
-  function saveTemplateVarSetList(list) { lsSet("studio-templatevar-sets", list); }
+  var _templateVarSetStore = makePresetStore("studio-templatevar-sets");
+  function templateVarSets() { return _templateVarSetStore.list(); }
+  function saveTemplateVarSetList(list) { _templateVarSetStore.saveList(list); }
   function addTemplateVarSet(name, vars) {
     var list = templateVarSets();
     list.push({
@@ -8752,7 +8763,7 @@
     saveTemplateVarSetList(list);
     return list;
   }
-  function deleteTemplateVarSet(id) { saveTemplateVarSetList(templateVarSets().filter(function (p) { return p.id !== id; })); }
+  function deleteTemplateVarSet(id) { _templateVarSetStore.remove(id); }
   function applyTemplateVarSet(id, sp) {
     var p = templateVarSets().filter(function (x) { return x.id === id; })[0];
     if (!p) return false;
@@ -8764,10 +8775,9 @@
   // reusable custom-theme presets — same save/apply/delete pattern as stylePresets/
   // templateVarSets above, so an authored custom theme can be saved once and applied to any
   // other dashboard instead of re-picking 8 colors every time.
-  function customThemePresets() {
-    return lsGet("studio-customtheme-presets", []);
-  }
-  function saveCustomThemePresetList(list) { lsSet("studio-customtheme-presets", list); }
+  var _customThemePresetStore = makePresetStore("studio-customtheme-presets");
+  function customThemePresets() { return _customThemePresetStore.list(); }
+  function saveCustomThemePresetList(list) { _customThemePresetStore.saveList(list); }
   function addCustomThemePreset(name, customTheme) {
     var list = customThemePresets();
     list.push({
@@ -8778,7 +8788,7 @@
     saveCustomThemePresetList(list);
     return list;
   }
-  function deleteCustomThemePreset(id) { saveCustomThemePresetList(customThemePresets().filter(function (p) { return p.id !== id; })); }
+  function deleteCustomThemePreset(id) { _customThemePresetStore.remove(id); }
   function applyCustomThemePreset(id, sp) {
     var p = customThemePresets().filter(function (x) { return x.id === id; })[0];
     if (!p) return false;
