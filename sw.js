@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v123"; /* v123: left-rail regroup — Jobs + Admin
+var CACHE_NAME = "studio-shell-v124"; /* v124: Datasets list row fix — a heavily
+   tagged dataset (e.g. a job-output row with #demo #conservation #geo #job-output)
+   no longer explodes vertically; the name subtitle ellipsizes instead of wrapping
+   one character per line. app/studio.css changed, so precached copies need to roll.
+   v123: left-rail regroup — Jobs + Admin
    now sit under a new "Manage" group below Build (Jobs moved out of Workspace).
    app/index.html rail markup changed, so precached copies need to roll.
    v122 (REVIEW-FIXES follow-up): a "+ New" button

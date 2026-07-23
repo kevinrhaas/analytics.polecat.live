@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 482,
+    title: 'Datasets: fixed a job-output row that rendered as a broken vertical column',
+    kind: 'fix',
+    ts: '2026-07-23T15:52:01.000Z',
+    items: [
+      'A dataset carrying several tags at once — most often a job-output row with #demo, #conservation, #geo and #job-output plus a "used in" badge — used to squeeze its name so hard that the subtitle wrapped one letter per line and blew the row up into a tall, jumbled column. Dataset rows now stay a single tidy line: the name and its connection subtitle shorten with an ellipsis, just like every other row.',
+    ],
+  },
+  {
     v: 481,
     title: 'Left rail: Jobs and Admin now live under a “Manage” group',
     ts: '2026-07-23T15:30:22.000Z',
