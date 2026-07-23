@@ -3931,6 +3931,44 @@ function serve() {
       !dsxPin.beforeOn && dsxPin.afterOn && dsxPin.ariaAfter === "true" && dsxPin.stored &&
       dsxPin.beforeOrder[1] === dsxPin.existingId && dsxPin.afterOrder[0] === dsxPin.existingId, JSON.stringify(dsxPin));
 
+    // M6 "favorites-with-thumbnails": pinning a dataset AND a connection surfaces both as
+    // cards in a new Home section (reusing the pinnedAnalyses card treatment), each opening
+    // its own editor on click — same pattern as the analysis-pin → Home-card → Explore check above.
+    const homeFav = await page.evaluate(function (existingId) {
+      window.__studioShellSetSection("connections");
+      var connBtn = document.querySelector('[data-conn-pin="conn-mock"]');
+      var connBeforeOn = connBtn ? connBtn.classList.contains("on") : null;
+      if (connBtn) connBtn.click();
+      window.__studioShellSetSection("home");
+      var dsCard = document.querySelector('[data-home-fav="' + existingId + '"]');
+      var cxCard = document.querySelector('[data-home-fav="conn-mock"]');
+      return {
+        hadConnBtn: !!connBtn, connBeforeOn: connBeforeOn,
+        dsCardFound: !!dsCard, cxCardFound: !!cxCard,
+        dsLabel: dsCard ? dsCard.querySelector(".home-feat-h span").textContent : null,
+        cxLabel: cxCard ? cxCard.querySelector(".home-feat-h span").textContent : null
+      };
+    }, dsxPin.existingId);
+    ok("M6 favorites: pinning a dataset and a connection surfaces both as cards on Home",
+      homeFav.hadConnBtn && !homeFav.connBeforeOn && homeFav.dsCardFound && homeFav.cxCardFound &&
+      homeFav.dsLabel === "Dataset" && homeFav.cxLabel === "Connection", JSON.stringify(homeFav));
+
+    const homeFavOpen = await page.evaluate(function (id) {
+      document.querySelector('[data-home-fav-dataset="' + id + '"]').click();
+      var modalTitle = (document.querySelector(".modal-h") || {}).textContent || "";
+      document.querySelector(".modal-h .x").click();
+      return { modalTitle: modalTitle, modalGone: !document.querySelector(".modal-ov") };
+    }, dsxPin.existingId);
+    ok("M6 favorites: clicking a favorite dataset's card opens its editor",
+      homeFavOpen.modalTitle === "Edit dataset" && homeFavOpen.modalGone, JSON.stringify(homeFavOpen));
+
+    await page.evaluate(function () {
+      window.__studioShellSetSection("connections");
+      var btn = document.querySelector('[data-conn-pin="conn-mock"]');
+      if (btn) btn.click(); // restore: unpin the connection so it doesn't affect later checks
+      window.__studioShellSetSection("datasets");
+    });
+
     const dsxUnpin = await page.evaluate(function () {
       var existing = Studio.Workspace.all("datasets").filter(function (d) { return d.id !== "d-second"; })[0];
       document.querySelector('[data-dsx-pin="' + existing.id + '"]').click();

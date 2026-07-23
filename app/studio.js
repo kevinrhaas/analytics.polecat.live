@@ -227,7 +227,10 @@
         // card stale until some OTHER path (toggleFeature, a "*" resync) happened
         // to repaint it. Pinned analyses already triggered a repaint; a featured
         // DASHBOARD deserves the same live-on-Home guarantee.
-        if (p.table === "analyses" || p.table === "dashboards" || p.table === "*") { buildLibrary(); renderHome(); }
+        // M6 favorites-with-thumbnails: "datasets"/"connections" joined the same
+        // guarantee — pinning either from its own catalog row now live-updates the
+        // new Home favorites section instead of waiting for an unrelated repaint.
+        if (p.table === "analyses" || p.table === "dashboards" || p.table === "datasets" || p.table === "connections" || p.table === "*") { buildLibrary(); renderHome(); }
         if (p.table === "dashboards" || p.table === "*") renderDashboards();
         // M5 slice 1: Repository spans all five object tables, so any of them
         // mutating repaints it.
@@ -5696,9 +5699,14 @@
   // reordered with per-section move-up/down controls, persisted so the layout sticks. The stored
   // order is additive-safe: unknown keys are dropped, missing known keys are appended at the end,
   // so a future new section slots in without disturbing anyone's saved arrangement.
-  var HOME_SECTION_KEYS = ["featured", "pinnedAnalyses", "examples", "dashboards"];
-  var HOME_SECTION_LABELS = { featured: "Featured", pinnedAnalyses: "Pinned analyses", examples: "Examples", dashboards: "Dashboards" };
-  var HOME_SECTION_HINTS = { featured: "live previews · click to open", examples: "sample dashboards · click to open in the builder" };
+  // M6 "favorites-with-thumbnails": Datasets/Connections already carry the same star-shaped
+  // `pinned`/`pinnedAt` flag as Dashboards/Analyses (the CX-pin "favorite" toggle, see the R4
+  // comment above) — it just never surfaced past their own catalog lists. This section reuses
+  // that EXISTING flag (no new data-model concept) and gives pinned datasets/connections the
+  // same card-with-thumbnail treatment `pinnedAnalyses` already gives pinned analyses.
+  var HOME_SECTION_KEYS = ["featured", "pinnedAnalyses", "favorites", "examples", "dashboards"];
+  var HOME_SECTION_LABELS = { featured: "Featured", pinnedAnalyses: "Pinned analyses", favorites: "Favorite datasets & connections", examples: "Examples", dashboards: "Dashboards" };
+  var HOME_SECTION_HINTS = { featured: "live previews · click to open", favorites: "pinned in Datasets/Connections · click to open", examples: "sample dashboards · click to open in the builder" };
   function getHomeSectionOrder() {
     var order = (lsGet("studio-home-section-order", []) || []).filter(function (k) { return HOME_SECTION_KEYS.indexOf(k) >= 0; });
     HOME_SECTION_KEYS.forEach(function (k) { if (order.indexOf(k) < 0) order.push(k); });
@@ -5816,6 +5824,34 @@
             '<button type="button" class="home-feat-open" data-home-analysis="' + esc(a.id) + '" aria-label="Open analysis ' + esc(a.name || "") + '"></button></div>';
         }).join("") + "</div>";
       },
+      // M6 "favorites-with-thumbnails": pinned Datasets/Connections (the same star toggle
+      // their own catalog rows already carry) get a lightweight card here — a "thumbnail"
+      // is the adapter's own icon/accent plus a one-line stat, not a live chart iframe (these
+      // objects aren't chart-shaped). Click opens the same editor the catalog row's Edit does.
+      favorites: function () {
+        var pinnedDs = (Studio.Workspace ? Studio.Workspace.all("datasets") : []).filter(isDatasetVisibleToMe).filter(function (d) { return d.pinned; });
+        var pinnedCx = (Studio.Workspace ? Studio.Workspace.all("connections") : []).filter(isVisibleToMe).filter(function (c) { return c.pinned; });
+        var favs = pinnedDs.map(function (d) { return { kind: "dataset", r: d }; })
+          .concat(pinnedCx.map(function (c) { return { kind: "connection", r: c }; }))
+          .sort(function (a, b) { return (b.r.pinnedAt || "").localeCompare(a.r.pinnedAt || ""); });
+        if (!favs.length) return "";
+        function favCard(it) {
+          var r = it.r, isDs = it.kind === "dataset";
+          var src = isDs ? dsxAdapterOf(r) : Studio.sourceById(r.adapter);
+          var icon = (src && src.icon) || "db", accent = (src && src.accent) || "var(--brand)";
+          var stat = isDs
+            ? ((r.columns || []).length ? (r.columns.length + " column" + (r.columns.length !== 1 ? "s" : "")) : "Not run yet")
+            : (src ? src.label : r.adapter);
+          var attr = isDs ? "data-home-fav-dataset" : "data-home-fav-connection";
+          return '<div class="home-fav" data-home-fav="' + esc(r.id) + '">' +
+            '<div class="home-feat-h"><b>' + esc(r.name) + '</b><span>' + (isDs ? "Dataset" : "Connection") + '</span></div>' +
+            '<div class="home-fav-body"><span class="home-fav-ic" style="color:' + esc(accent) + '" data-home-fav-ic="' + esc(icon) + '"></span>' +
+            '<span class="home-fav-stat">' + esc(stat) + '</span></div>' +
+            '<button type="button" class="home-feat-open" ' + attr + '="' + esc(r.id) + '" aria-label="Open ' + (isDs ? "dataset " : "connection ") + esc(r.name) + '"></button></div>';
+        }
+        return '<div class="home-favorites">' + favs.slice(0, 8).map(favCard).join("") + "</div>" +
+          (favs.length > 8 ? '<div class="home-feat-more">+ ' + (favs.length - 8) + " more favorites — see Datasets/Connections</div>" : "");
+      },
       // Conservation Insight (M1): the bundled example dashboards get a first-class
       // Home section (they used to hide inside the Studio Examples menu). Each card
       // is the real layout thumbnail; click loads it into the builder.
@@ -5909,6 +5945,13 @@
         xpLoadAnalysis(btn.getAttribute("data-home-analysis"));
       };
     });
+    $$("[data-home-fav-dataset]", sec).forEach(function (btn) {
+      btn.onclick = function () { openDatasetEditor(Studio.Workspace.get("datasets", btn.getAttribute("data-home-fav-dataset"))); };
+    });
+    $$("[data-home-fav-connection]", sec).forEach(function (btn) {
+      btn.onclick = function () { openConnectionWizard(Studio.Workspace.get("connections", btn.getAttribute("data-home-fav-connection"))); };
+    });
+    $$(".home-fav-ic", sec).forEach(function (span) { span.appendChild(Studio.icon(span.getAttribute("data-home-fav-ic"), 20)); });
     $$(".recent-open", sec).forEach(function (btn) { btn.onclick = function () { openRecent(btn.getAttribute("data-recent")); }; });
     $$(".recent-pin", sec).forEach(function (btn) {
       btn.appendChild(Studio.icon("star", 14));

@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 478,
+    title: 'Home: Favorite datasets & connections',
+    kind: 'feature',
+    ts: '2026-07-23T13:56:22.000Z',
+    items: [
+      'Datasets and connections you star (pin to the top of their own list) now also show up as cards on Home, under a new "Favorite datasets & connections" section -- click one to jump straight into its editor, just like pinned analyses already do.',
+    ],
+  },
+  {
     v: 477,
     title: 'Tech debt: chart gallery thumbnails move to their own module',
     kind: 'polish',
