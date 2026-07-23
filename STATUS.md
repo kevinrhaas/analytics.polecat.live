@@ -116,6 +116,34 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF6 slice 1 — per-widget download chrome, on by default (v493, 2026-07-23, steward):** the
+  most recent DONE entry's own NEXT pointer named LF6 as the next-most-scoped live-feedback item.
+  Every widget now shows a small "Download image" (PNG) / "Download data" (CSV) button pair on
+  hover, right on the panel chrome — not just buried in the inspector. The KEY MOVE: this lives in
+  app/studio-render.js (not the builder-only app/studio.js), the one file this app's own header
+  comment calls out as running "INSIDE the dashboard (preview iframe AND exported CDF html)" — so
+  the exact same code produces the chrome in the live builder canvas AND a real published/embedded
+  dashboard, satisfying the export==preview invariant for free instead of needing two
+  implementations. PNG export is a self-contained port of the existing (builder-only, iframe-
+  reaching) exportPanelPng — the port reads straight off the local `card`/`svg` already in scope,
+  no iframe reach-through, so it works standalone too. CSV export is new and deliberately generic
+  (dumps the widget's own bound query — header row + all data rows — rather than a per-chart-type
+  transform), which is what makes it "one consistent affordance across all chart types" instead of
+  the ad hoc choropleth/ensemble-only CSV buttons that predate this (left untouched — see NEXT).
+  New `p.allowDownloads` per-panel flag (default on) with an inspector "Allow downloads" toggle
+  (Downloads section, next to Animation). Image button hidden for non-SVG chart types (Table,
+  Richtext); data button hidden when no query is bound. 6 new LF6 ratchets: both buttons present
+  by default on a bound bars panel, the image button produces a real PNG data URL, the data button
+  hands back header+rows, a Table panel (no `<svg>`) shows only the data button, the Inspector
+  toggle is present/on-by-default and switching it off removes the chrome entirely, and — the
+  actual export==preview evidence — a REAL standalone exported bundle (not just the preview
+  iframe) renders both buttons and produces a real PNG, zero console/page errors. sw v135.
+  (app/studio-render.js, app/studio.js, app/exporters.js, docs/index.html, sw.js, tests/run.js)
+  NEXT in LF6: fold the existing choropleth/ensemble-specific "Download CSV" legend buttons into
+  this same generic affordance instead of leaving both live side by side (minor redundancy on
+  those two chart types only); consider removing the now-partially-redundant Inspector-only "Save
+  chart as PNG" button once the on-canvas one has been live a while. NEXT in the LIVE-FEEDBACK
+  QUEUE: LF21 (dashboard title header as a first-class widget).
 - **LF27(c)/(d) verified already-shipped + LF7 — Conservation demos gain real filters +
   documented cross-filtering (v491, 2026-07-23, steward, LF27 now fully done):** started this
   slice on LF27(c) (the "cool & sexy" tile-first Dashboards browser), since the two most recent
@@ -2047,13 +2075,12 @@
 >      gradient strip preview. **LF5 is now fully shipped.** app/studio.js (new `colorTokenSelect`/
 >      `resolveTokenColor`/`rampGradientCss` helpers), app/studio.css (`.ct-*` rules), 2 new tests.
 >      sw v95.
-> LF6. **Per-widget download (image + data), on by default, toggleable off.** On ANY widget/panel,
->      expose "Download image" (PNG etc.) and "Download data" (CSV etc.) right in the panel chrome —
->      ON by default, with a per-panel toggle in the inspector to turn it off. Generalize what exists
->      (exportPanelPng for SVG charts; choropleth's "Download CSV") into one consistent affordance
->      across all chart types, in BOTH the builder preview AND the exported/embedded HTML (respect the
->      export==preview invariant). app/studio-render.js (panel chrome), app/exporters.js (export
->      controls), app/studio.js (inspector "allow downloads" toggle, default on).
+> LF6. ✓ **Slice 1 shipped (v493, 2026-07-23, steward) — see DONE.** Every widget shows a
+>      "Download image" (PNG) / "Download data" (CSV) button pair on hover, on by default, in
+>      BOTH the builder preview and a real exported/embedded dashboard (same code path in
+>      app/studio-render.js). Per-panel "Allow downloads" toggle in the inspector. NEXT: fold the
+>      pre-existing choropleth/ensemble-specific "Download CSV" legend buttons into this same
+>      generic affordance instead of leaving both live side by side.
 > LF7. ✓ **Conservation demos now show both plain FILTERS and INTERACTIVE cross-filtering (shipped
 >      2026-07-23, steward) — see DONE.** The featured Conservation Insight dashboard and both gated
 >      examples went from `filters:[]` to real filterDef filters wired to actual panel params, plus

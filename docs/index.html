@@ -783,6 +783,9 @@
 
   <h3>Saving a chart as an image</h3>
   <p>Select any widget and click <strong>Save chart as PNG</strong> in its inspector to download the chart itself as a PNG image — handy for dropping into a slide deck or a doc. This covers chart types that render as SVG (the vast majority); Table and Richtext widgets don't support it yet. The image is the chart only — for donut/gauge-style charts whose legend is drawn inside the chart it's included, but a legend rendered as a separate element next to the chart is not.</p>
+
+  <h3>Downloading a widget's image or data, right on the canvas</h3>
+  <p>Hover any widget — in the builder <em>or</em> a published/embedded dashboard — and two small buttons appear in its top-right corner: <strong>Download image</strong> (a PNG of the chart, same as the inspector's Save-as-PNG above) and <strong>Download data</strong> (a CSV of the widget's own query result, header row included). This is on by default for every widget; turn it off per widget with the <strong>Allow downloads</strong> toggle in its inspector, under <strong>Downloads</strong> — useful for a widget you don't want viewers exporting from a published dashboard. The image button only shows for SVG-rendered chart types (not Table/Richtext); the data button shows for any widget with a bound query.</p>
 </section>
 
 <!-- ── Keyboard shortcuts ─────────────────────────────────────── -->
