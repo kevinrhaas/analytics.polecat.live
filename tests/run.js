@@ -22215,6 +22215,79 @@ function serve() {
       repoQuickEditDashSave.folderBadge === "Reports" && repoQuickEditDashSave.stored === "Reports",
       JSON.stringify(repoQuickEditDashSave));
 
+    // ---- M5 NEXT: "a New subfolder action" — create an empty, named folder in
+    // Repository ahead of filing anything into it (previously a folder only ever
+    // existed as a byproduct of some row's `folder` field). ----
+    const repoNewFolderEmpty = await repoPage.evaluate(function () {
+      var inp = document.getElementById("repoNewFolderInp");
+      inp.value = "   "; inp.dispatchEvent(new Event("input"));
+      document.getElementById("repoNewFolderBtn").click();
+      return { seeds: window.__studioRepoFolderSeeds() };
+    });
+    ok("Repository: clicking + New folder with a blank/whitespace-only name no-ops (no seed created)",
+      repoNewFolderEmpty.seeds.length === 0, JSON.stringify(repoNewFolderEmpty));
+
+    const repoNewFolder = await repoPage.evaluate(function () {
+      var inp = document.getElementById("repoNewFolderInp");
+      inp.value = "Marketing/Q3"; inp.dispatchEvent(new Event("input"));
+      document.getElementById("repoNewFolderBtn").click();
+      var parent = document.querySelector('.cx-group[data-repo-group="Marketing"]');
+      var child = document.querySelector('.cx-group[data-repo-group="Marketing/Q3"]');
+      return {
+        seeds: window.__studioRepoFolderSeeds(),
+        parentExists: !!parent, parentCount: parent ? (parent.querySelector(".cx-group-n") || {}).textContent : null,
+        childExists: !!child, childLabel: child ? (child.querySelector(".cx-group-label") || {}).textContent : null,
+        childDelBtn: !!(child && child.querySelector(":scope > .cx-group-del")),
+        parentDelBtn: !!(parent && parent.querySelector(":scope > .cx-group-del")),
+        inputCleared: document.getElementById("repoNewFolderInp").value === ""
+      };
+    });
+    ok("Repository: + New folder creates an empty, nested group immediately (same '/' nesting convention as the folder field), offering delete only on the exact leaf seeded, not its auto-created parent",
+      repoNewFolder.seeds.join(",") === "Marketing/Q3" && repoNewFolder.parentExists && repoNewFolder.parentCount === "0" &&
+      repoNewFolder.childExists && repoNewFolder.childLabel === "Q3" && repoNewFolder.childDelBtn && !repoNewFolder.parentDelBtn &&
+      repoNewFolder.inputCleared, JSON.stringify(repoNewFolder));
+
+    const repoSeedFileReal = await repoPage.evaluate(function () {
+      Studio.Workspace.put("jobs", { id: "repo-job", name: "Renamed Job", sourceDatasetId: "repo-ds", steps: [{ op: "rename", from: "a", to: "b" }], folder: "Marketing/Q3", updatedAt: 3 });
+      window.__studioRenderRepository();
+      var child = document.querySelector('.cx-group[data-repo-group="Marketing/Q3"]');
+      return {
+        count: child ? (child.querySelector(".cx-group-n") || {}).textContent : null,
+        delBtnGone: !(child && child.querySelector(".cx-group-del")),
+        rowInside: !!(child && child.querySelector('.cx-row[data-repo-id="repo-job"]'))
+      };
+    });
+    ok("Repository: once a real object is filed into a seeded folder, its delete affordance disappears — it's a real folder now, not an empty placeholder",
+      repoSeedFileReal.count === "1" && repoSeedFileReal.delBtnGone && repoSeedFileReal.rowInside, JSON.stringify(repoSeedFileReal));
+
+    const repoArchiveCreate = await repoPage.evaluate(function () {
+      var inp = document.getElementById("repoNewFolderInp");
+      inp.value = "Archive"; inp.dispatchEvent(new Event("input"));
+      document.getElementById("repoNewFolderBtn").click();
+      var group = document.querySelector('.cx-group[data-repo-group="Archive"]');
+      return { exists: !!group, hasDel: !!(group && group.querySelector(".cx-group-del")) };
+    });
+    ok("Repository: a freshly created empty folder offers its own delete affordance",
+      repoArchiveCreate.exists && repoArchiveCreate.hasDel, JSON.stringify(repoArchiveCreate));
+
+    const repoArchiveDelete = await repoPage.evaluate(function () {
+      document.querySelector('.cx-group[data-repo-group="Archive"] [data-repo-group-del]').click();
+      return { seeds: window.__studioRepoFolderSeeds(), gone: !document.querySelector('.cx-group[data-repo-group="Archive"]') };
+    });
+    ok("Repository: clicking an empty folder's delete removes just the seed marker — the folder disappears from the tree, no rows are touched",
+      repoArchiveDelete.seeds.indexOf("Archive") < 0 && repoArchiveDelete.gone, JSON.stringify(repoArchiveDelete));
+
+    const repoNewFolderHiddenWhileFiltered = await repoPage.evaluate(function () {
+      document.querySelector('[data-repo-type-filter="job"]').click();
+      var hiddenDuringFilter = !document.getElementById("repoNewFolderBtn");
+      document.querySelector('[data-repo-type-filter=""]').click();
+      var visibleAgain = !!document.getElementById("repoNewFolderBtn");
+      return { hiddenDuringFilter: hiddenDuringFilter, visibleAgain: visibleAgain };
+    });
+    ok("Repository: the + New folder control only appears in the plain, unfiltered browsing view — a seed can't meaningfully be 'created' inside a type/search filter",
+      repoNewFolderHiddenWhileFiltered.hiddenDuringFilter && repoNewFolderHiddenWhileFiltered.visibleAgain,
+      JSON.stringify(repoNewFolderHiddenWhileFiltered));
+
     await repoPage.close();
 
     // ---- LF11: Explore's "Add to dashboard" is unambiguous (new vs existing) ----

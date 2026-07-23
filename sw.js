@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v103"; /* v103: M5 NEXT — dashboards gain the same
+var CACHE_NAME = "studio-shell-v104"; /* v104: M5 NEXT — Repository gains a "+ New
+   folder" action so an empty (even nested) folder can be created ahead of filing
+   anything into it, with a small delete (✕) affordance while it stays empty —
+   filing something real into it just makes it an ordinary folder. app/studio.js,
+   app/studio.css content changed, so precached copies need to roll.
+   v103: M5 NEXT — dashboards gain the same
    flat `folder` field as datasets/connections/jobs/analyses, so they group into
    Repository's folder tree too instead of always landing in Unfiled. Quick edit
    (the Repository row pencil button) now covers dashboards as well, folder-only

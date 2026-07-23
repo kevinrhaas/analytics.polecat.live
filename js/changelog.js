@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 460,
+    title: 'Repository: create an empty folder ahead of filing anything into it',
+    kind: 'feature',
+    ts: '2026-07-23T05:38:43.000Z',
+    items: [
+      'A "+ New folder" box in Repository (shown while browsing with no search or type filter) lets you create a folder — even a nested one like "Finance/2024" — before anything is filed into it.',
+      'An empty folder you created this way shows a small ✕ on hover to remove it again; the ✕ disappears once something real is actually filed there.',
+    ],
+  },
+  {
     v: 459,
     title: 'Dashboards can now be filed into folders too',
     kind: 'feature',

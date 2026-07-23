@@ -1553,7 +1553,7 @@ body.simple-mode .da-acts{display:none!important}
    deep it actually sits — rows inherit the same indent for free since they're
    descendants of that indented box. */
 .cx-groups{display:flex;flex-direction:column;gap:18px}
-.cx-group{margin-left:calc(var(--repo-depth, 0) * 18px)}
+.cx-group{margin-left:calc(var(--repo-depth, 0) * 18px);position:relative}
 .cx-group-hd{display:flex;align-items:center;gap:8px;width:100%;background:none;border:none;padding:4px 2px 8px;
   cursor:pointer;color:var(--ink);font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.03em}
 .cx-group-hd:hover,.cx-group-hd:focus-visible{color:var(--brand)}
@@ -1561,6 +1561,18 @@ body.simple-mode .da-acts{display:none!important}
 .cx-group-label{flex:0 0 auto}
 .cx-group-n{color:var(--faint);font-weight:400;text-transform:none;letter-spacing:0}
 .cx-group.collapsed .cx-list{display:none}
+/* M5 NEXT ("New subfolder" action): a seeded, still-empty folder's delete (✕) —
+   same hover-reveal/always-on-touch convention as the Workbook chips' own
+   .wb-chip-del, just repositioned to sit in the header's own empty right edge
+   instead of floating outside a pill. */
+.cx-group-del{position:absolute;top:2px;right:2px;width:20px;height:20px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;background:none;border:1px solid transparent;
+  color:var(--faint);opacity:0;transition:opacity .12s ease,border-color .12s ease,color .12s ease;cursor:pointer}
+.cx-group-del svg{width:11px;height:11px}
+.cx-group:hover .cx-group-del,.cx-group-del:focus-visible{opacity:1}
+.cx-group-del:hover{border-color:#f55036;color:#f55036}
+@media(pointer:coarse){.cx-group-del{opacity:1}}
+@media(prefers-reduced-motion:reduce){.cx-group-del{transition:none}}
 .cx-row{display:flex;align-items:center;gap:12px;background:var(--field);border:1px solid color-mix(in srgb, var(--ink) 12%, transparent);
   border-radius:12px;padding:12px 16px;cursor:pointer;transition:transform .12s ease,border-color .12s ease}
 .cx-row:hover,.cx-row:focus-visible{border-color:var(--brand);transform:translateY(-1px)}
