@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 480,
+    title: 'Explore: create a new dataset without leaving',
+    kind: 'feature',
+    ts: '2026-07-23T15:16:14.000Z',
+    items: [
+      'Explore\'s dataset picker gained a "+ New" button -- add a dataset right there and it\'s selected immediately, no trip to the Datasets section and back.',
+    ],
+  },
+  {
     v: 479,
     title: 'Polish: a friendlier cold-load screen',
     kind: 'polish',

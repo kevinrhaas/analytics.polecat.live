@@ -116,6 +116,19 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **REVIEW-FIXES follow-up — "+ New" dataset without leaving Explore (v480, 2026-07-23,
+  steward):** the last open half of the 2026-07-21 review's "Explore-side New-dataset +
+  dataset organization at scale" item (the "organization at scale" half was since fully
+  delivered by M5's folder rollout across all five object kinds). A **+ New** button now
+  sits next to Explore's dataset search — opens the SAME `openDatasetEditor` modal the
+  Datasets section uses; saving it selects the new dataset immediately in Explore (no
+  round-trip to the Datasets section and back). `openDatasetEditor` gained an optional
+  `onSaved(d)` callback (only Explore passes one; the Datasets section's own call site is
+  unchanged); the pick-a-dataset logic used by both the picker click handler and the new
+  callback is now one shared `xpSelectDataset(kind, dsId)` helper (was duplicated inline).
+  2 new ratchets (the button renders; saving a brand-new file-backed dataset through it
+  closes the modal, shows up in the picker as selected, and `XP.kind`/`XP.dsId` point at
+  it). (app/studio.js, app/studio.css, docs/index.html, tests/run.js) sw v122.
 - **UX10 — cold-load skeleton for Home/Settings/Admin (v479, 2026-07-23, steward,
   quality-track slice):** the boot placeholder shown for the beat between DOM parse and
   `boot()`'s `Promise.all` resolving (before `renderHome`/`renderSettings`/`renderAdmin`
@@ -148,9 +161,9 @@
   silently the wrong privacy rule for a private dataset, same collision class M4.2 already
   guards everywhere else). 2 new M6 ratchets (pinning a dataset + a connection surfaces both
   as Home cards; clicking a favorite card opens its editor). sw v120. (app/studio.js,
-  app/studio.css, docs/index.html) NEXT product priority: M7 (Supabase RLS enforcement) or
-  the still-open "Explore-side New-dataset + dataset organization at scale" follow-up from
-  the 2026-07-21 review (see REVIEW-FIXES above).
+  app/studio.css, docs/index.html) NEXT product priority: M7 (Supabase RLS enforcement) —
+  the "Explore-side New-dataset + dataset organization at scale" follow-up is now fully
+  done (see DONE, v480).
 - **R5+ slice 1 — chart-thumbnail SVGs extracted to their own module (v477, 2026-07-23,
   steward):** the ~225-line `CHART_SVG` table (gallery/picker thumbnail SVGs, one per chart
   type — pure data, no dependency on app state) moved out of `app/studio.js` into a new
@@ -2372,8 +2385,9 @@
 >   • Explore ROLLUPS: a group-by aggregation control (Sum/Mean/Median/Min/Max/Count over one or two
 >     dimensions) via Studio.aggregateRows in applyOutputOptions — persists on the analysis so it
 >     re-aggregates on Home/dashboards/export. Dropped the internal "SE demo tip" from Help.
->   NEXT from the same review (queued): Explore-side New-dataset + dataset organization at scale
->   (folders, reuse repo-mgmt); the "start fresh" reset is now ✓ done (see DONE — Clear local data
+>   NEXT from the same review (queued): Explore-side New-dataset is now ✓ done (see DONE, v480) and
+>   dataset organization at scale (folders, reuse repo-mgmt) was fully delivered by M5's folder
+>   rollout; the "start fresh" reset is now ✓ done (see DONE — Clear local data
 >   already busted the SW cache, but left you signed in until this slice added the session key +
 >   sessionStorage bypass); fix the choropleth hover highlight that sticks (HUC8 map); multiple
 >   toggleable demo packs (Conservation + Governance) off file CSV/JSON sources; tour that defines
@@ -2623,9 +2637,9 @@
 >     new `.home-fav*` CSS reusing `.home-feat`'s card shell. 2 new M6 ratchets (pinning a dataset
 >     + a connection surfaces both as Home cards; clicking a favorite card opens its editor). sw
 >     v120. (app/studio.js, app/studio.css, docs/index.html) **M6 is now fully shipped** (reorder,
->     hero, favorites) — NEXT product priority: M7 (Supabase RLS enforcement) or M4.2's still-open
->     "Explore-side New-dataset + dataset organization at scale" follow-up from the 2026-07-21
->     review (see REVIEW-FIXES above).
+>     hero, favorites) — NEXT product priority: M7 (Supabase RLS enforcement); the
+>     "Explore-side New-dataset + dataset organization at scale" follow-up is now fully done
+>     (see DONE, v480).
 > M7. **Real per-user security (Supabase Auth + RLS):** the phased second half — private is
 >     ENFORCED by the database for Supabase deployments (GoTrue + row-level security); other
 >     backends keep the UX-level behavior. This is what makes "private = only I can see it" true.
