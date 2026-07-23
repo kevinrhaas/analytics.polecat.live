@@ -525,13 +525,13 @@ textarea:focus-visible,[tabindex]:focus-visible,.row-item:focus-visible{
    to the Dashboard inspector's Title field (the single source of truth for renaming). */
 .dash-title-btn{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.08);
   border:1px solid rgba(255,255,255,.16);color:#fff;font:inherit;font-size:14px;font-weight:700;
-  padding:6px 11px;border-radius:8px;outline:none;max-width:320px;min-width:0;cursor:pointer;text-align:left}
+  padding:6px 11px;border-radius:8px;outline:none;max-width:min(45vw,480px);min-width:0;cursor:pointer;text-align:left}
 .dash-title-btn:hover,.dash-title-btn:focus-visible{border-color:color-mix(in srgb,var(--topbar-ink,#fff) 48%,transparent);background:rgba(255,255,255,.14)}
 .dash-title-txt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
 .dash-title-btn svg{opacity:.55;flex-shrink:0}
 .dash-title-btn:hover svg,.dash-title-btn:focus-visible svg{opacity:.9}
 .dash-meta{font-size:11px;color:color-mix(in srgb,var(--topbar-ink,#fff) 60%,transparent);padding-left:2px}
-.dash-meta code{color:var(--topbar-ink,#fff);background:rgba(255,255,255,.1);padding:1px 6px;border-radius:5px}
+.dash-meta code{font-family:var(--font);color:var(--topbar-ink,#fff);background:rgba(255,255,255,.1);padding:1px 6px;border-radius:5px}
 .top-actions{display:flex;align-items:center;gap:8px}
 /* UX sprint 2026-07-14: the dashboard toolbar — dashboard-scoped actions sit ABOVE the
    preview they act on; the app topbar keeps only brand + ＋New + ⋯More (manager-style).
@@ -663,7 +663,7 @@ textarea:focus-visible,[tabindex]:focus-visible,.row-item:focus-visible{
 .lib-cda.open .lib-das{display:block}
 .da{border:1px solid var(--line);border-radius:8px;padding:8px 9px;margin:5px 4px 5px 0;background:var(--pane);cursor:grab}
 .da:hover{border-color:var(--brand);box-shadow:var(--shadow)}
-.da .da-id{font-family:var(--mono);font-size:11.5px;font-weight:700;color:var(--brand);word-break:break-all}
+.da .da-id{font-family:var(--font);font-size:11.5px;font-weight:700;color:var(--brand);word-break:break-all}
 .da .da-cols{margin-top:4px;display:flex;flex-wrap:wrap;gap:3px}
 .da .col{font-size:10px;background:var(--field);border:1px solid var(--line-2);border-radius:5px;padding:1px 6px;color:var(--muted)}
 .da .col.param{background:color-mix(in srgb,var(--pdc) 14%,transparent);border-color:transparent;color:var(--pdc)}
@@ -694,7 +694,7 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
 .da-mine .da-mine-top{display:flex;align-items:center;gap:6px}
 .da-mine .da-id{flex:1;min-width:0;display:flex;align-items:center;gap:6px;cursor:pointer}
 .da-mine .da-mine-ic{flex-shrink:0;color:var(--brand);display:inline-flex;opacity:.85}
-.da-mine .da-id .da-id-nm{font-family:var(--mono);font-size:11.5px;font-weight:700;color:var(--brand);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.da-mine .da-id .da-id-nm{font-family:var(--font);font-size:11.5px;font-weight:700;color:var(--brand);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .da-mine .da-id:hover .da-id-nm{text-decoration:underline}
 .da-mine .kind-badge{font-size:9px;font-weight:800;letter-spacing:.4px;padding:1px 6px;border-radius:8px;background:var(--field);border:1px solid var(--line);color:var(--muted);text-transform:uppercase;flex-shrink:0}
 .da-mine .da-mine-meta{font-size:11px;color:var(--muted);margin:3px 0 0;display:flex;align-items:center;gap:5px;flex-wrap:wrap}
@@ -1003,11 +1003,11 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
 .conn-row{display:flex;align-items:center;gap:10px;padding:10px 11px;border:1px solid var(--line);border-radius:9px;margin-bottom:7px;flex-wrap:wrap}
 .conn-row.active{border-color:var(--pdc);box-shadow:0 0 0 2px color-mix(in srgb,var(--pdc) 15%,transparent)}
 .conn-row .cn{display:flex;flex-direction:column;min-width:160px;flex:1}
-.conn-row .cn b{font-size:13px}.conn-row .cn span{font-size:11px;color:var(--faint);font-family:var(--mono)}
+.conn-row .cn b{font-size:13px}.conn-row .cn span{font-size:11px;color:var(--faint);font-family:var(--font)}
 .conn-row .conn-acts{display:flex;gap:5px;flex-wrap:wrap}
 .conn-row .conn-acts .btn{background:var(--field);border:1px solid var(--line);color:var(--ink);padding:5px 10px;font-size:12px}
 .conn-row .conn-acts .btn:hover{border-color:var(--brand);color:var(--brand)}
-.dl-row .nm{font-family:var(--mono);font-size:12.5px;font-weight:700}
+.dl-row .nm{font-family:var(--font);font-size:12.5px;font-weight:700}
 .dl-row .sz{font-size:11px;color:var(--faint);margin-left:auto}
 .dl-row .btn{background:var(--field);border:1px solid var(--line);color:var(--ink);padding:6px 12px;font-size:12.5px}
 .dl-row .btn:hover{border-color:var(--brand);color:var(--brand)}

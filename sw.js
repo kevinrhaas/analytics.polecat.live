@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v108"; /* v108: LF17 — Color theme picker is now palette
+var CACHE_NAME = "studio-shell-v109"; /* v109: LF29a typography polish — object names/ids
+   (dataset+connection lists, saved-source cards, dashboard id chip) move off the
+   monospace face onto the app's sans font; dashboard title can grow wider on desktop.
+   app/studio.css changed, so precached copies need to roll.
+   v108: LF17 — Color theme picker is now palette
    cards, not a dropdown (Settings → Appearance). app/studio.js and app/studio.css
    changed, so precached copies need to roll.
    v107: LF4a — choropleth GL renderer gains a

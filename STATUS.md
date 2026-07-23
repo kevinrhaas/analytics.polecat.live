@@ -116,6 +116,17 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF29(a)/(b) — typography consistency + wider dashboard title (v467, 2026-07-23,
+  steward):** the mono/code face (`--mono`) was applied to human-readable object names/ids
+  that aren't code — the Data-panel dataset ids (`.da .da-id`, `.da-mine .da-id-nm`), the
+  dashboard id chip (`.dash-meta code`), dataset-list names (`.dl-row .nm`), and connection
+  sublabels (`.conn-row .cn span`) — all now render in the app's sans `--font` instead,
+  matching the rest of the UI; `--mono` stays reserved for genuine code (SQL editors, file
+  hashes, the changelog version chip), which were untouched. Also widened `.dash-title-btn`'s
+  desktop cap from a fixed 320px to `min(45vw,480px)` so a long dashboard title has more room
+  before it ellipsizes (mobile's 160px cap is unchanged). Pure CSS, no markup/behavior change;
+  full suite re-run green (1808/1808). sw v109. (app/studio.css) NEXT in LF29: (b)'s other half
+  — review whether the `.dash-meta` slug line below the title is worth keeping or trimming.
 - **LF12 — Explore's map builder gains a Renderer control (svg/gl), and it saves (v466,
   2026-07-23, steward):** the persistence half of this ask was already done — `renderer` has been
   a normal schema-driven choropleth option (`Studio.CHARTS.choropleth.opts`) since V4, so it
@@ -2002,15 +2013,12 @@
 >       pan/zoom + persist). app/studio-charts.js (choropleth + GL viewport state ⇄ cfg), app/studio.js (Explore +
 >       panel inspector), app/exporters.js; test: set zoom/pan → serialize → reload → viewport restored.
 > LF29. **Typography consistency + wider dashboard title (Kevin, live) — elegance polish.** Two things:
->       (a) FONT CONSISTENCY. The monospace `--mono` face (studio.css:17, ui-monospace/Menlo/Consolas) is applied to
->           human-facing OBJECT NAMES/IDS — the Data-panel dataset ids (`.da .da-id`, `.da-mine .da-id-nm` ~635/666),
->           the dashboard id chip (`.dash-meta code` ~503), dataset-list names (`.dl-row .nm`), connection sublabels
->           (`.conn-row .cn span`) — and it reads as a technical typewriter/"serif" face that clashes with the elegant
->           sans UI (Kevin: "too technical, be elegant"). Move human-readable names/ids to the sans UI `--font` (keep
->           them distinguishable by weight/color/size, not by a code face), and RESERVE `--mono` for genuine code:
->           SQL editors (`.dsb-query`, `.qpeek-sql`, `.rt-ta`), the SQL-builder labels/preview headers, file hashes
->           (`.fhash`), the changelog version chip. Headers vs body can differ — the ask is consistency + elegance,
->           not one single font. (Fits the UX-polish track / LF19.)
+>       (a) ✓ **FONT CONSISTENCY (shipped 2026-07-23, steward, see DONE).** The Data-panel dataset ids, the
+>           dashboard id chip, dataset-list names, and connection sublabels now render in the sans `--font`
+>           instead of `--mono`; SQL editors/file hashes/the changelog version chip keep `--mono`.
+>       (b) ✓ **Wider dashboard title (shipped 2026-07-23, steward, see DONE).** `.dash-title-btn`'s desktop
+>           cap grew from a fixed 320px to `min(45vw,480px)`. Still open: whether the `.dash-meta` slug line
+>           below the title is worth keeping or trimming.
 >       (b) WIDER DASHBOARD TITLE. The dashbar title button truncates early — `.dash-id{min-width:200px}` +
 >           `.dash-title-btn` (studio.css ~492/495; mobile cap `.dash-title-btn{max-width:160px}` ~988). Let the title
 >           grow to use available topbar width on desktop before ellipsis (it's the dashboard OBJECT name — good to
