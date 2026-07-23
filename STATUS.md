@@ -2463,6 +2463,16 @@
 >     occupy Home real estate as a hero (consensus chart / choropleth for instant value —
 >     drillable/editable/explorable); favorites-with-thumbnails; the Examples section (M1) becomes
 >     one of the movable sections; keep the getting-started tiles (new connection/dataset).
+>     ↳ **Slice 1 (shipped 2026-07-23, steward — reorderable sections):** the four content sections
+>     below the fixed getting-started tiles — Featured, Pinned analyses, Examples, Dashboards (the
+>     Pinned/Recent dashboard grids travel together as one unit) — each gained a move-up/move-down
+>     control in their heading (`app/studio.js` `homeSectionHeader`/`moveHomeSection`). Order persists
+>     in `studio-home-section-order` (additive-safe: unknown keys dropped, new known keys appended,
+>     so a future new section slots in without disturbing anyone's saved layout) and rides Export/
+>     Import settings. A move always targets the nearest section CURRENTLY ON SCREEN, so an empty
+>     (hidden) section never blocks a reorder click. Examples is thus already "one of the movable
+>     sections" per this milestone's own scope note. NEXT in M6: the Home hero (a featured dashboard/
+>     object occupying top real estate) and favorites-with-thumbnails.
 > M7. **Real per-user security (Supabase Auth + RLS):** the phased second half — private is
 >     ENFORCED by the database for Supabase deployments (GoTrue + row-level security); other
 >     backends keep the UX-level behavior. This is what makes "private = only I can see it" true.

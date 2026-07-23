@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 470,
+    title: 'Home: reorder the Featured, Pinned analyses, Examples and Dashboards sections (M6 slice 1)',
+    kind: 'feature',
+    ts: '2026-07-23T09:56:27.000Z',
+    items: [
+      'Each Home section below the getting-started tiles now has move up/down buttons, so you can put the sections you care about most at the top -- the order is saved and sticks between visits.',
+      'First step of the Customizable Home milestone (M6): rearrangeable sections.',
+    ],
+  },
+  {
     v: 469,
     title: 'Tech-debt sweep: table-drive the dashboard-default config getters (R3 slice 1)',
     kind: 'polish',

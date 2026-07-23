@@ -5862,6 +5862,45 @@
   window.__studioHomeTipsCount = function () { return HOME_TIPS.length; }; // test hook
   var _homeWbFilter = ""; // Z2 follow-up (folders/organization): "" = All, "__unfiled", else a workbook id
   window.__studioHomeWbFilter = function () { return _homeWbFilter; }; // test hook
+
+  // M6 (Customizable Home, slice 1): the getting-started tiles stay fixed at the top, but the
+  // content sections below them (Featured, Pinned analyses, Examples, Dashboards) can be
+  // reordered with per-section move-up/down controls, persisted so the layout sticks. The stored
+  // order is additive-safe: unknown keys are dropped, missing known keys are appended at the end,
+  // so a future new section slots in without disturbing anyone's saved arrangement.
+  var HOME_SECTION_KEYS = ["featured", "pinnedAnalyses", "examples", "dashboards"];
+  var HOME_SECTION_LABELS = { featured: "Featured", pinnedAnalyses: "Pinned analyses", examples: "Examples", dashboards: "Dashboards" };
+  var HOME_SECTION_HINTS = { featured: "live previews · click to open", examples: "sample dashboards · click to open in the builder" };
+  function getHomeSectionOrder() {
+    var order = (lsGet("studio-home-section-order", []) || []).filter(function (k) { return HOME_SECTION_KEYS.indexOf(k) >= 0; });
+    HOME_SECTION_KEYS.forEach(function (k) { if (order.indexOf(k) < 0) order.push(k); });
+    return order;
+  }
+  function setHomeSectionOrder(order) { lsSet("studio-home-section-order", order); }
+  // Sections that were actually ON SCREEN in the last render — moving a section swaps it with its
+  // nearest VISIBLE neighbor, so an empty (currently hidden) section never blocks a reorder click.
+  var _homeVisibleSectionKeys = HOME_SECTION_KEYS.slice();
+  function moveHomeSection(key, dir) {
+    var i = _homeVisibleSectionKeys.indexOf(key), j = i + dir;
+    if (i < 0 || j < 0 || j >= _homeVisibleSectionKeys.length) return;
+    var other = _homeVisibleSectionKeys[j];
+    var order = getHomeSectionOrder();
+    var oi = order.indexOf(key), oj = order.indexOf(other);
+    if (oi < 0 || oj < 0) return;
+    var t = order[oi]; order[oi] = order[oj]; order[oj] = t;
+    setHomeSectionOrder(order);
+    renderHome();
+  }
+  function homeSectionHeader(key) {
+    var label = HOME_SECTION_LABELS[key], hint = HOME_SECTION_HINTS[key];
+    return '<div class="home-sub-row"><h2 class="home-sub">' + esc(label) +
+      (hint ? ' <small class="home-sub-hint">' + hint + '</small>' : '') + '</h2>' +
+      '<div class="home-sub-move">' +
+      '<button type="button" class="icobtn" data-home-move="' + key + '" data-dir="-1" title="Move ' + esc(label) + ' up" aria-label="Move ' + esc(label) + ' up"><span data-ic="chevron-up"></span></button>' +
+      '<button type="button" class="icobtn" data-home-move="' + key + '" data-dir="1" title="Move ' + esc(label) + ' down" aria-label="Move ' + esc(label) + ' down"><span data-ic="chevron-down"></span></button>' +
+      '</div></div>';
+  }
+  window.__studioHomeSectionOrder = { get: getHomeSectionOrder, set: setHomeSectionOrder, visible: function () { return _homeVisibleSectionKeys.slice(); } }; // test hook
   function renderHome() {
     var sec = $("#secHome"); if (!sec) return;
     var list = loadRecents().filter(isVisibleToMe), pins = loadPins();
@@ -5908,70 +5947,87 @@
       '<p class="home-tip-txt">' + esc(HOME_TIPS[_homeTipIdx]) + '</p>' +
       '<button type="button" class="home-tip-next" title="Next tip" aria-label="Next tip">' +
       '<span data-ic="chevron-right"></span></button></div>' +
-      wbChipsHtml +
+      wbChipsHtml;
+    // M6 slice 1: the four content sections below the getting-started tiles are independently
+    // reorderable (move-up/down per section, order persisted) — see HOME_SECTION_KEYS above.
+    var homeSectionBodies = {
       // Viridis V6: featured dashboards render LIVE on Home — real preview
       // iframes (the actual renderer on sample data), view-only, click to open.
-      (function () {
+      featured: function () {
         var feat = list.filter(function (r) { return r.featured && r.spec; })
           .sort(function (a, b) { return (b.featuredAt || "").localeCompare(a.featuredAt || ""); });
         if (!feat.length) return "";
         var shownF = feat.slice(0, 6);
-        return '<h2 class="home-sub">Featured <small class="home-sub-hint">live previews · click to open</small></h2>' +
-          '<div class="home-featured">' + shownF.map(function (r) {
-            var sp = r.spec, title = sp.title || sp.name || "Untitled";
-            return '<div class="home-feat" data-home-feat="' + esc(r.id) + '">' +
-              '<div class="home-feat-h"><b>' + esc(title) + '</b>' +
-              '<span>' + (sp.panels || []).length + " panels" + ((sp.kpis || []).length ? " · " + sp.kpis.length + " KPIs" : "") + "</span></div>" +
-              '<div class="home-feat-frame" data-feat-frame="' + esc(r.id) + '"></div>' +
-              '<button type="button" class="home-feat-open" data-feat-open="' + esc(r.id) + '" aria-label="Open ' + esc(title) + '"></button></div>';
-          }).join("") + "</div>" +
-          (feat.length > 6 ? '<div class="home-feat-more">+ ' + (feat.length - 6) + " more featured — see Dashboards</div>" : "");
-      })() +
+        return '<div class="home-featured">' + shownF.map(function (r) {
+          var sp = r.spec, title = sp.title || sp.name || "Untitled";
+          return '<div class="home-feat" data-home-feat="' + esc(r.id) + '">' +
+            '<div class="home-feat-h"><b>' + esc(title) + '</b>' +
+            '<span>' + (sp.panels || []).length + " panels" + ((sp.kpis || []).length ? " \u00b7 " + sp.kpis.length + " KPIs" : "") + "</span></div>" +
+            '<div class="home-feat-frame" data-feat-frame="' + esc(r.id) + '"></div>' +
+            '<button type="button" class="home-feat-open" data-feat-open="' + esc(r.id) + '" aria-label="Open ' + esc(title) + '"></button></div>';
+        }).join("") + "</div>" +
+          (feat.length > 6 ? '<div class="home-feat-more">+ ' + (feat.length - 6) + " more featured \u2014 see Dashboards</div>" : "");
+      },
       // Viridis V5/V6: analyses pinned in Explore render as LIVE widgets — the
       // quickest path from "open the app" to "see my chart". Click opens Explore.
-      (function () {
+      pinnedAnalyses: function () {
         var pinnedA = (Studio.Workspace ? Studio.Workspace.all("analyses") : []).filter(isVisibleToMe).filter(function (a) { return a.pinned; })
           .sort(function (a, b) { return (b.updatedAt || 0) - (a.updatedAt || 0); });
         if (!pinnedA.length) return "";
-        return '<h2 class="home-sub">Pinned analyses</h2><div class="home-analyses">' +
-          pinnedA.slice(0, 8).map(function (a) {
-            return '<div class="home-analysis" data-home-analysis-card="' + esc(a.id) + '">' +
-              '<div class="home-feat-h"><b>' + esc(a.name || "Analysis") + '</b>' +
-              '<span>' + esc((Studio.CHARTS[a.chartType] || {}).label || a.chartType) + "</span></div>" +
-              '<div class="home-analysis-frame" data-analysis-frame="' + esc(a.id) + '"></div>' +
-              '<button type="button" class="home-feat-open" data-home-analysis="' + esc(a.id) + '" aria-label="Open analysis ' + esc(a.name || "") + '"></button></div>';
-          }).join("") + "</div>";
-      })() +
+        return '<div class="home-analyses">' + pinnedA.slice(0, 8).map(function (a) {
+          return '<div class="home-analysis" data-home-analysis-card="' + esc(a.id) + '">' +
+            '<div class="home-feat-h"><b>' + esc(a.name || "Analysis") + '</b>' +
+            '<span>' + esc((Studio.CHARTS[a.chartType] || {}).label || a.chartType) + "</span></div>" +
+            '<div class="home-analysis-frame" data-analysis-frame="' + esc(a.id) + '"></div>' +
+            '<button type="button" class="home-feat-open" data-home-analysis="' + esc(a.id) + '" aria-label="Open analysis ' + esc(a.name || "") + '"></button></div>';
+        }).join("") + "</div>";
+      },
       // Conservation Insight (M1): the bundled example dashboards get a first-class
       // Home section (they used to hide inside the Studio Examples menu). Each card
       // is the real layout thumbnail; click loads it into the builder.
-      (function () {
+      examples: function () {
         var vis = visibleExamples();
         if (!showSamples() || !vis.length) return "";
-        return '<h2 class="home-sub">Examples <small class="home-sub-hint">sample dashboards \u00b7 click to open in the builder</small></h2>' +
-          '<div class="home-examples">' + vis.slice(0, 8).map(function (e) {
-            var types = (e.types || []).slice(0, 3).map(function (t) { return '<span class="ex-chip">' + esc(t) + '</span>'; }).join("");
-            return '<button type="button" class="home-ex-card" data-home-example="' + esc(e.file) + '">' +
-              '<div class="home-ex-thumb" aria-hidden="true">' + exLayoutSvg(e) + '</div>' +
-              '<div class="home-ex-title">' + esc(e.title || e.file) + '</div>' +
-              (types ? '<div class="home-ex-types">' + types + '</div>' : '') +
-              '</button>';
-          }).join("") + '</div>' +
+        return '<div class="home-examples">' + vis.slice(0, 8).map(function (e) {
+          var types = (e.types || []).slice(0, 3).map(function (t) { return '<span class="ex-chip">' + esc(t) + '</span>'; }).join("");
+          return '<button type="button" class="home-ex-card" data-home-example="' + esc(e.file) + '">' +
+            '<div class="home-ex-thumb" aria-hidden="true">' + exLayoutSvg(e) + '</div>' +
+            '<div class="home-ex-title">' + esc(e.title || e.file) + '</div>' +
+            (types ? '<div class="home-ex-types">' + types + '</div>' : '') +
+            '</button>';
+        }).join("") + '</div>' +
           (vis.length > 8 ? '<div class="home-feat-more">+ ' + (vis.length - 8) + ' more \u2014 New \u25b8 Examples</div>' : '');
-      })() +
-      (pinnedList.length ? '<h2 class="home-sub">Pinned</h2><div class="home-recents">' +
-        pinnedList.map(function (r) { return recentCardHtml(r, true); }).join("") + '</div>' : "") +
-      (unpinnedList.length ? '<h2 class="home-sub">Recent dashboards</h2><div class="home-recents">' +
-        unpinnedList.map(function (r) { return recentCardHtml(r, false); }).join("") + '</div>'
-        : (pinnedList.length ? "" : '<div class="home-empty-hint">' +
-          (_homeWbFilter ? "No dashboards in this workbook yet." : "No recent dashboards yet — start one above and it will show up here.") +
-          '</div>'));
+      },
+      dashboards: function () {
+        // Always renders SOMETHING (grids or the friendly empty hint) — never hidden — so it
+        // anchors the reorderable stack even on a brand-new workspace with nothing pinned/featured.
+        return (pinnedList.length ? '<h2 class="home-sub home-sub-nested">Pinned</h2><div class="home-recents">' +
+          pinnedList.map(function (r) { return recentCardHtml(r, true); }).join("") + '</div>' : "") +
+          (unpinnedList.length ? '<h2 class="home-sub home-sub-nested">Recent dashboards</h2><div class="home-recents">' +
+            unpinnedList.map(function (r) { return recentCardHtml(r, false); }).join("") + '</div>'
+            : (pinnedList.length ? "" : '<div class="home-empty-hint">' +
+              (_homeWbFilter ? "No dashboards in this workbook yet." : "No recent dashboards yet \u2014 start one above and it will show up here.") +
+              '</div>'));
+      }
+    };
+    var homeOrder = getHomeSectionOrder();
+    var homeVisible = [];
+    html += homeOrder.map(function (key) {
+      var body = homeSectionBodies[key]();
+      if (!body) return "";
+      homeVisible.push(key);
+      return '<div class="home-block" data-home-sec="' + key + '">' + homeSectionHeader(key) + body + '</div>';
+    }).join("");
+    _homeVisibleSectionKeys = homeVisible;
     sec.classList.add("has-content");
     sec.innerHTML = html;
     $$("[data-home-wb-filter]", sec).forEach(function (btn) {
       btn.onclick = function () { _homeWbFilter = btn.getAttribute("data-home-wb-filter"); renderHome(); };
     });
     $$("[data-ic]", sec).forEach(function (span) { span.appendChild(Studio.icon(span.getAttribute("data-ic"), span.classList.contains("home-card-ic") ? 18 : 14)); });
+    $$("[data-home-move]", sec).forEach(function (btn) {
+      btn.onclick = function () { moveHomeSection(btn.getAttribute("data-home-move"), +btn.getAttribute("data-dir")); };
+    });
     $$(".home-card", sec).forEach(function (btn) {
       btn.onclick = function () {
         var act = btn.getAttribute("data-home");
@@ -8580,7 +8636,8 @@
     "studio-insp-collapsed", "studio-shell-section", "studio-shell-expanded", "studio-branding",
     "studio-default-subtitle", "studio-default-accent", "studio-default-logo", "studio-default-headerbg",
     "studio-default-titlesize", "studio-default-subtitlestyle", "studio-default-dashboardtheme", "studio-default-cardskin", "studio-style-presets",
-    "studio-deploy-path", "studio-templatevar-sets", "studio-customtheme-presets", "studio-hidden-sections"
+    "studio-deploy-path", "studio-templatevar-sets", "studio-customtheme-presets", "studio-hidden-sections",
+    "studio-home-section-order"
   ];
 
   // Z5 follow-up: deploy target config. S.settings.{deployPath,live} used to be in-memory-only

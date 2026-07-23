@@ -18354,6 +18354,39 @@ function serve() {
     }, homeWbSetup);
     await page.waitForTimeout(80);
 
+    // ── M6 slice 1: Home's content sections (Featured/Pinned analyses/Examples/Dashboards) ──
+    // are independently reorderable via move-up/down controls in their heading.
+    console.log("\n• M6 slice 1: Home section reordering");
+    const homeReorder = await page.evaluate(function () {
+      if (window.__studioShellSetSection) window.__studioShellSetSection("home");
+      var visible0 = window.__studioHomeSectionOrder.visible();
+      if (visible0.length < 2) return { skip: true, visible0: visible0 };
+      var first = visible0[0], second = visible0[1];
+      var stored0 = window.__studioHomeSectionOrder.get();
+      document.querySelector('[data-home-move="' + first + '"][data-dir="1"]').click();
+      var visible1 = window.__studioHomeSectionOrder.visible();
+      var dom1 = [].slice.call(document.querySelectorAll("#secHome .home-block")).map(function (b) { return b.getAttribute("data-home-sec"); });
+      var stored1 = window.__studioHomeSectionOrder.get();
+      // force a fresh render (not just the in-memory DOM) to confirm the order actually persisted
+      window.__studioRenderHome();
+      var dom2 = [].slice.call(document.querySelectorAll("#secHome .home-block")).map(function (b) { return b.getAttribute("data-home-sec"); });
+      // restore the original order so later tests aren't affected by this one — 'first' now
+      // sits one slot after 'second', so move IT back up (moving 'second' up would be a no-op,
+      // since the earlier swap already put it at the front).
+      document.querySelector('[data-home-move="' + first + '"][data-dir="-1"]').click();
+      var visibleRestored = window.__studioHomeSectionOrder.visible();
+      return { skip: false, first: first, second: second, visible0: visible0, visible1: visible1, dom1: dom1, stored0: stored0, stored1: stored1, dom2: dom2, visibleRestored: visibleRestored };
+    });
+    ok("M6 slice 1: clicking a Home section's move-down control swaps it with the next section, in the DOM, in the persisted order, and after a fresh render",
+      homeReorder.skip || (
+        homeReorder.visible1[0] === homeReorder.second && homeReorder.visible1[1] === homeReorder.first &&
+        homeReorder.dom1[0] === homeReorder.second && homeReorder.dom1[1] === homeReorder.first &&
+        homeReorder.stored0.indexOf(homeReorder.first) < homeReorder.stored0.indexOf(homeReorder.second) &&
+        homeReorder.stored1.indexOf(homeReorder.second) < homeReorder.stored1.indexOf(homeReorder.first) &&
+        homeReorder.dom2[0] === homeReorder.second && homeReorder.dom2[1] === homeReorder.first &&
+        homeReorder.visibleRestored[0] === homeReorder.first
+      ), JSON.stringify(homeReorder));
+
     // ── Z3: Dashboards section (Repository retired — data sources live in Datasets/Connections) ──
     console.log("\n• Z3: Dashboards section");
     await page.click('#railNav .rail-item[data-sec="dashboards"]');
