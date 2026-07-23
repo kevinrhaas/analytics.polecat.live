@@ -116,6 +116,80 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF33 — rail brand lockup centering fix (v485, 2026-07-23, steward):** the left rail's
+  brand mark (`.rail-brand-mark`) used to center only against its own flex row (icon +
+  "Analytics"), landing ~9px above the true vertical center of the combined "Analytics" /
+  "polecat.live" two-line block, since "polecat.live" lives in a separate sibling `<a>`
+  below that row. Fix is CSS-only (app/studio.css): whenever the rail actually shows both
+  label lines (`#railNav.expanded`, and the mobile drawer, where labels always show
+  regardless of `.expanded`), the wrap becomes `position:relative` and the mark is taken
+  out of flow and centered (`top:50%`/`translateY(-50%)`) against the WHOLE wrap instead of
+  just the button's row — now within ~1px of true center. Collapsed icon-only rail keeps the
+  original flex-centered rule untouched. No DOM/JS changes, so the existing Z12 brand-mark
+  structure/click-to-Home tests still hold as-is. Verified visually across expanded/collapsed
+  desktop, the mobile drawer, and dark/light. sw v127. Full suite green (1833/1833). NEXT:
+  LF32 (Query Preview fabricated-sample-rows bug).
+- **UX4 — modal + welcome-overlay scale-in (v482, 2026-07-23, steward, quality-track
+  slice):** modals (`.modal`, e.g. the export bundle / dataset editor) and the first-run
+  welcome tour used to snap into view instantly; both now scale+fade in on open
+  (`modal-scale-in` in app/studio.css, a self-contained `sw-scale-in` keyframe in
+  welcome.js's own injected `<style>` since that module is deliberately decoupled from
+  studio.css). Both respect `prefers-reduced-motion:reduce` (animation disabled), same
+  convention as UX1's demo badge and UX10's skeleton pulse. 3 new UX4 ratchets (a modal's
+  computed `animationName` is `modal-scale-in` on open, `none` under reduced motion; the
+  welcome overlay's own `sw-scale-in` runs the same way). Scoped to just the entrance
+  animation — the card-grid stagger and celebratory-toast-variant parts of UX4's original
+  ask are still open. sw v124. (app/studio.css, app/welcome.js, tests/run.js) NEXT in this
+  track: the rest of UX4 (staggered fade-up on card grids, a celebratory toast variant) or
+  UX5 (type/spacing scale tokens).
+- **REVIEW-FIXES follow-up — "+ New" dataset without leaving Explore (v480, 2026-07-23,
+  steward):** the last open half of the 2026-07-21 review's "Explore-side New-dataset +
+  dataset organization at scale" item (the "organization at scale" half was since fully
+  delivered by M5's folder rollout across all five object kinds). A **+ New** button now
+  sits next to Explore's dataset search — opens the SAME `openDatasetEditor` modal the
+  Datasets section uses; saving it selects the new dataset immediately in Explore (no
+  round-trip to the Datasets section and back). `openDatasetEditor` gained an optional
+  `onSaved(d)` callback (only Explore passes one; the Datasets section's own call site is
+  unchanged); the pick-a-dataset logic used by both the picker click handler and the new
+  callback is now one shared `xpSelectDataset(kind, dsId)` helper (was duplicated inline).
+  2 new ratchets (the button renders; saving a brand-new file-backed dataset through it
+  closes the modal, shows up in the picker as selected, and `XP.kind`/`XP.dsId` point at
+  it). (app/studio.js, app/studio.css, docs/index.html, tests/run.js) sw v122.
+- **UX10 — cold-load skeleton for Home/Settings/Admin (v479, 2026-07-23, steward,
+  quality-track slice):** the boot placeholder shown for the beat between DOM parse and
+  `boot()`'s `Promise.all` resolving (before `renderHome`/`renderSettings`/`renderAdmin`
+  replace it with real content) was a bare `<p>Loading…</p>` — the first thing a
+  first-time visitor on a slow connection ever sees. New `.sec-skel` (three pulsing bars,
+  reusing the existing `pulse-live` keyframe UX1's demo badge already established) replaces
+  it in all three sections' static HTML; `role="status" aria-label="Loading"` keeps it
+  announced to screen readers without a visible string. `prefers-reduced-motion` disables
+  the pulse (existing convention). 2 new UX10 ratchets (a route-delayed boot proves the
+  skeleton actually renders pre-content, not just in markup; reduced-motion disables the
+  animation). sw v121. (app/index.html, app/studio.css, sw.js, tests/run.js) NEXT in this
+  track: UX4 (entrance/celebration motion) or UX5 (type/spacing scale tokens).
+- **M6 slice 3 — favorites-with-thumbnails (v478, 2026-07-23, steward, M6 now fully
+  shipped):** Datasets and Connections already carried the same star-shaped `pinned`/
+  `pinnedAt` flag as Dashboards/Analyses (their own catalog-row "Pin to top" toggle); a new
+  Home section, "Favorite datasets & connections," reuses that existing flag — no new
+  data-model concept — to surface pinned datasets/connections as cards, the same treatment
+  `pinnedAnalyses` already gives pinned analyses, minus the live iframe (not chart-shaped):
+  instead a compact card with the adapter's own icon/accent plus a one-line stat (column
+  count for datasets, adapter label for connections). Click opens the same editor modal the
+  catalog row's Edit button does. New `HOME_SECTION_KEYS` entry (additive-safe — existing
+  saved section orders just append it); new `.home-fav*` CSS reusing `.home-feat`'s card
+  shell. **Bug fixed along the way:** the `Workspace.on("change", ...)` listener that keeps
+  Home live never included `"datasets"`/`"connections"` in its `renderHome()` trigger (only
+  `"analyses"`/`"dashboards"` did) — so without this fix, pinning a dataset/connection would
+  never actually repaint the new section until some unrelated change happened to trigger a
+  resync; now it's wired in. Also swapped the dataset half of the filter from `isVisibleToMe`
+  to the dataset-specific `isDatasetVisibleToMe` (datasets carry an unrelated free-text
+  `owner` field — see the M4.2 slice 3 comment on that function — so the generic check was
+  silently the wrong privacy rule for a private dataset, same collision class M4.2 already
+  guards everywhere else). 2 new M6 ratchets (pinning a dataset + a connection surfaces both
+  as Home cards; clicking a favorite card opens its editor). sw v120. (app/studio.js,
+  app/studio.css, docs/index.html) NEXT product priority: M7 (Supabase RLS enforcement) —
+  the "Explore-side New-dataset + dataset organization at scale" follow-up is now fully
+  done (see DONE, v480).
 - **R5+ slice 1 — chart-thumbnail SVGs extracted to their own module (v477, 2026-07-23,
   steward):** the ~225-line `CHART_SVG` table (gallery/picker thumbnail SVGs, one per chart
   type — pure data, no dependency on app state) moved out of `app/studio.js` into a new
@@ -1781,6 +1855,44 @@
 
 ### ★ LIVE-FEEDBACK QUEUE (Kevin, 2026-07-22) — fold into the interleave
 > Product/demo asks from a live session; treat as first-class feature slices.
+> LF31. ✓ **FIXED (v483, 2026-07-23, steward) — ensemble "common estimate" line + legend now readable on
+>       dark themed panels.** ROOT CAUSE: the ensemble widget painted the median line + its legend with
+>       `var(--ink,#16233b)`, but the dashboard THEMES define `--text-primary` (not `--ink`) — so on a dark
+>       themed panel `--ink` fell back to the light-mode navy `#16233b` and vanished into `--panel-bg`
+>       (#12241a in Conservation dark). Fix in the WIDGET (app/studio-charts.js): the 4 `--ink` refs (median
+>       stroke, median dots, legend text + swatch) now resolve `var(--text-primary,var(--ink,#16233b))`, so
+>       they pick up the theme's readable primary ink (#eaf1df in Conservation dark) and fall back cleanly
+>       otherwise. Provider series already used the theme palette (`--c1..--c10`) correctly — Kevin's "series
+>       colors wrong" read was the invisible common-estimate line. New ratchet asserts the median line +
+>       legend resolve to a light/readable colour on the Conservation-dark panel (luminance > 120). Export
+>       stays byte-identical (same string inlined into preview + export). NEXT (if more surfaces regress the
+>       same way): audit other charts for raw `--ink`/`--bad` vs. the themed `--text-primary`/danger tokens.
+> LF32. **BUG — Query Preview shows fabricated sample rows that don't match the real run; an Explore-built
+>       dashboard didn't render its dataset (Kevin, live 2026-07-23, screenshot).** On a job-output dataset
+>       (State cover-crop rollup) the Inspector's QUERY PREVIEW showed mock rows (statecode = Success/Failed/
+>       Aborted, i.e. genMock categorical fill) tagged "sample rows (offline)" — but the REAL data is
+>       different, and the State map rendered "No data" because those mock region ids match no US state. Two
+>       problems to separate: (a) the offline mock preview is too convincing — it should either run the real
+>       query when the dataset is loadable, or clearly signal "SAMPLE — not your data" so it isn't mistaken
+>       for the real result; (b) a dashboard built from Explore didn't carry/render the real dataset rows
+>       (the map stayed empty). Investigate genMock vs. a real dataset load in the Inspector preview + the
+>       Explore→dashboard data path. (The zoom/pan-lost half of the same report is already tracked as LF28.)
+> LF33. ✓ **Rail brand lockup fixed (shipped 2026-07-23, steward).** ROOT CAUSE: the mark
+>       (`.rail-brand-mark`) only ever centered against its own flex row (icon + "Analytics"),
+>       landing ~9px above the true center of the combined "Analytics" / "polecat.live" two-line
+>       block — "polecat.live" lived in a separate sibling `<a>` below, outside that row entirely.
+>       Fix (app/studio.css, CSS-only — the DOM structure and click/nav behavior are unchanged, so
+>       the existing Z12 brand-mark tests still hold): once the rail shows both label lines
+>       (`#railNav.expanded`, and the mobile drawer where labels always show regardless of the
+>       `.expanded` state), the wrap becomes `position:relative` and the mark is taken out of flow
+>       and absolutely centered (`top:50%`/`translateY(-50%)`) against the WHOLE wrap instead of
+>       just the button's row — now within ~1px of true center. The collapsed icon-only rail is
+>       untouched (still the original flex-centered rule). Verified across expanded/collapsed
+>       desktop rail, the mobile drawer, and dark/light — sw v127. Full suite green (1833/1833).
+> NOTE (Kevin, live 2026-07-23): consolidation of the loose sample content into TWO toggleable sample/demo
+>       packs — "Conservation" and "Data Management / Governance" — each a COMPLETE workspace (connections +
+>       datasets + dashboards + widgets/analyses) is re-confirmed; this is the SAME restructure as LF2(c) +
+>       LF16(#48). Do them as ONE slice; don't build two parallel mechanisms.
 > LF1. ✓ **Demo data — more provider-line variation (shipped 2026-07-22, steward):** the 5 ensemble
 >      providers' `pct` values used to be `58 + jitter(0-31) - pi*1.5 + li*0.7` — a ±1.5-per-provider
 >      offset swamped by ±31 of random noise, so the lines bunched. New symmetric-around-zero
@@ -2208,8 +2320,11 @@
 >      err/ok` (studio.css ~857) are a similar still-untouched fixed-hex family worth a future pass.
 > UX4. **Entrance & celebration motion (reduced-motion gated):** staggered fade-up on card grids
 >      (`.recent-card`/`.repo-ds-card`); a distinct celebratory toast variant (brand gradient + trophy
->      glyph) so milestones feel earned; scale-in on `.modal`/welcome overlay to match the waffle/
->      right-panel. (studio.css, welcome.js, studio.js)
+>      glyph) so milestones feel earned; ✓ scale-in on `.modal`/welcome overlay to match the waffle/
+>      right-panel (shipped 2026-07-23, steward, see DONE) — `modal-scale-in` (studio.css) / the
+>      self-contained `sw-scale-in` (welcome.js), both reduced-motion gated. sw v124. NEXT in this
+>      track: the staggered card-grid fade-up and the celebratory toast variant are still open.
+>      (studio.css, welcome.js, studio.js)
 > UX5. **Type & spacing scale tokens** (`--fs-xs…2xl`, 4px spacing base): migrate the 19 ad-hoc
 >      font-sizes (incl. 8.5/9.5/11.5/… half-steps) and one-off paddings. Biggest single coherence
 >      lever; larger diff — do as its own slice. (studio.css)
@@ -2358,8 +2473,9 @@
 >   • Explore ROLLUPS: a group-by aggregation control (Sum/Mean/Median/Min/Max/Count over one or two
 >     dimensions) via Studio.aggregateRows in applyOutputOptions — persists on the analysis so it
 >     re-aggregates on Home/dashboards/export. Dropped the internal "SE demo tip" from Help.
->   NEXT from the same review (queued): Explore-side New-dataset + dataset organization at scale
->   (folders, reuse repo-mgmt); the "start fresh" reset is now ✓ done (see DONE — Clear local data
+>   NEXT from the same review (queued): Explore-side New-dataset is now ✓ done (see DONE, v480) and
+>   dataset organization at scale (folders, reuse repo-mgmt) was fully delivered by M5's folder
+>   rollout; the "start fresh" reset is now ✓ done (see DONE — Clear local data
 >   already busted the SW cache, but left you signed in until this slice added the session key +
 >   sessionStorage bypass); fix the choropleth hover highlight that sticks (HUC8 map); multiple
 >   toggleable demo packs (Conservation + Governance) off file CSV/JSON sources; tour that defines
@@ -2596,6 +2712,22 @@
 >     featuring a second, newer one promotes it and demotes the first — exactly one hero ever). NEXT
 >     in M6: favorites-with-thumbnails (a lighter-weight favorite than "featured," likely reusing the
 >     Pinned-analyses card treatment for non-dashboard objects).
+>     ↳ **Slice 3 (shipped 2026-07-23, steward — favorites-with-thumbnails):** turned out Datasets
+>     and Connections already carry the exact same star-shaped `pinned`/`pinnedAt` "favorite" flag
+>     as Dashboards/Analyses (their own catalog-row "Pin to top" toggle — see the R4 comment in
+>     app/studio.js) — it just never surfaced past their own lists. New Home section "Favorite
+>     datasets & connections" reuses that EXISTING flag (no new data-model concept) and gives
+>     pinned datasets/connections the same card treatment `pinnedAnalyses` already gives pinned
+>     analyses, minus the live iframe (they aren't chart-shaped) — instead a compact card with the
+>     adapter's own icon/accent plus a one-line stat (column count for datasets, adapter label for
+>     connections); click opens the same editor modal the catalog row's Edit button does. New
+>     `HOME_SECTION_KEYS` entry (additive-safe, so existing saved section orders just append it),
+>     new `.home-fav*` CSS reusing `.home-feat`'s card shell. 2 new M6 ratchets (pinning a dataset
+>     + a connection surfaces both as Home cards; clicking a favorite card opens its editor). sw
+>     v120. (app/studio.js, app/studio.css, docs/index.html) **M6 is now fully shipped** (reorder,
+>     hero, favorites) — NEXT product priority: M7 (Supabase RLS enforcement); the
+>     "Explore-side New-dataset + dataset organization at scale" follow-up is now fully done
+>     (see DONE, v480).
 > M7. **Real per-user security (Supabase Auth + RLS):** the phased second half — private is
 >     ENFORCED by the database for Supabase deployments (GoTrue + row-level security); other
 >     backends keep the UX-level behavior. This is what makes "private = only I can see it" true.

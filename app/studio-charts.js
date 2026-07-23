@@ -6382,10 +6382,10 @@
     }
     // 3. THE COMMON ESTIMATE — bold, first-class, always on top
     var medPts = linePts(function (x) { return median[x]; });
-    var medLine = polyline(medPts, { stroke: "var(--ink,#16233b)", "stroke-width": 3, "stroke-linejoin": "round", "stroke-linecap": "round", "data-ens": "median" });
+    var medLine = polyline(medPts, { stroke: "var(--text-primary,var(--ink,#16233b))", "stroke-width": 3, "stroke-linejoin": "round", "stroke-linecap": "round", "data-ens": "median" });
     if (medLine) s.appendChild(medLine);
     medPts.forEach(function (p) {
-      var dot = S("circle", { cx: p[0], cy: p[1], r: 3.2, fill: "var(--ink,#16233b)", "data-ens": "mdot" });
+      var dot = S("circle", { cx: p[0], cy: p[1], r: 3.2, fill: "var(--text-primary,var(--ink,#16233b))", "data-ens": "mdot" });
       _tip(dot, "<b>" + (cfg.medianLabel || "Common estimate") + "</b> · " + p[3] + "<br>" + f(p[2]) +
         (on.length ? '<br><span style="opacity:.7">Median of ' + on.length + " selected provider" + (on.length === 1 ? "" : "s") + "</span>" : ""));
       s.appendChild(dot);
@@ -6404,8 +6404,8 @@
     foot.className = "pdc-ens-legend";
     foot.style.cssText = "display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:10.5px;color:var(--text-muted,#6b7a99);padding:6px 4px 0";
     var med = document.createElement("span");
-    med.style.cssText = "display:inline-flex;align-items:center;gap:5px;font-weight:700;color:var(--ink,#16233b)";
-    med.innerHTML = '<i style="width:18px;height:3px;background:var(--ink,#16233b);border-radius:2px"></i>' + (cfg.medianLabel || "Common estimate");
+    med.style.cssText = "display:inline-flex;align-items:center;gap:5px;font-weight:700;color:var(--text-primary,var(--ink,#16233b))";
+    med.innerHTML = '<i style="width:18px;height:3px;background:var(--text-primary,var(--ink,#16233b));border-radius:2px"></i>' + (cfg.medianLabel || "Common estimate");
     foot.appendChild(med);
     if (refName && refRows.length) {
       var refLg = document.createElement("span");

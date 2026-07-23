@@ -1,5 +1,9 @@
 tests/node_modules/
 tests/package-lock.json
+# Runtime file-upload drop targets written by tests/run.js (fs.writeFileSync) and
+# never cleaned up — throwaway artifacts, not committed fixtures (those live in
+# tests/fixtures/). Keeps `git status` clean after a suite run.
+tests/fixture-*.csv
 *.log
 .DS_Store
 

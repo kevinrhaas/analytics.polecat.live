@@ -5,7 +5,7 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v120"; /* v120 (R5+ slice 2, tech-debt sweep): the
+var CACHE_NAME = "studio-shell-v128"; /* v128 (R5+ slice 2, tech-debt sweep): the
    "seed a brand-new dashboard with our house style" config layer — the 8 default*/
    setDefault* field pairs (subtitle/accent/logo/header background/title size/
    subtitle style/dashboard theme/card skin) and the 3 named-preset collections
@@ -19,6 +19,39 @@ var CACHE_NAME = "studio-shell-v120"; /* v120 (R5+ slice 2, tech-debt sweep): th
    injects it once via Studio.configureBrandingDefaults() instead. Pure refactor,
    no behavior change. New precached file added (app/branding-defaults.js) and
    app/model.js + app/studio.js content changed, so precached copies need to roll.
+   v127: LF33 — the left rail's brand mark now
+   centers against the whole "Analytics / polecat.live" lockup instead of just the
+   top line, in the expanded rail, collapsed rail, and mobile drawer alike.
+   app/studio.css changed, so precached copies need to roll.
+   v126: ensemble chart contrast fix — the
+   "common estimate" line + legend now use the dashboard theme's --text-primary ink
+   instead of the un-themed --ink, so they stay readable on dark themed panels
+   (the Conservation-dark invisibility bug). app/studio-charts.js changed.
+   v125 (UX4, quality track): modals and the
+   first-run welcome overlay now scale+fade in on open instead of snapping into view,
+   disabled under prefers-reduced-motion. app/studio.css, app/welcome.js changed, so
+   precached copies need to roll.
+   v124: Datasets list row fix — a heavily
+   tagged dataset (e.g. a job-output row with #demo #conservation #geo #job-output)
+   no longer explodes vertically; the name subtitle ellipsizes instead of wrapping
+   one character per line. app/studio.css changed, so precached copies need to roll.
+   v123: left-rail regroup — Jobs + Admin
+   now sit under a new "Manage" group below Build (Jobs moved out of Workspace).
+   app/index.html rail markup changed, so precached copies need to roll.
+   v122 (REVIEW-FIXES follow-up): a "+ New" button
+   next to Explore's dataset search opens the same dataset editor the Datasets section
+   uses; saving selects the new dataset immediately, no round-trip to Datasets and back.
+   app/studio.js, app/studio.css, docs/index.html changed, so precached copies need to
+   roll.
+   v121 (UX10, quality track): the cold-load
+   "Loading…" paragraph in Home/Settings/Admin's boot placeholder is now a small pulsing
+   skeleton (role=status/aria-label keeps it announced without a visible string),
+   prefers-reduced-motion disables the pulse. app/index.html, app/studio.css changed, so
+   precached copies need to roll.
+   v120 (M6 "favorites-with-thumbnails"): pinned
+   Datasets/Connections (the existing catalog-row ★ toggle) now surface as cards in a new
+   Home section, reusing the pinnedAnalyses card treatment. app/studio.js, app/studio.css
+   and docs/index.html content changed, so precached copies need to roll.
    v119 (R5+ slice 1, tech-debt sweep): the
    ~225-line CHART_SVG gallery-thumbnail table moved out of app/studio.js into its
    own module, app/chart-thumbnails.js (Studio.CHART_SVG) — the first ES-module

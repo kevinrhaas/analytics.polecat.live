@@ -38,15 +38,16 @@
     <button class="rail-item" data-sec="explore" title="Explore" aria-label="Explore"><span class="rail-ic" data-ic="trend-up"></span><span class="rail-lbl">Explore</span></button>
     <button class="rail-item" data-sec="dashboards" title="Dashboards" aria-label="Dashboards"><span class="rail-ic" data-ic="layers"></span><span class="rail-lbl">Dashboards</span></button>
     <button class="rail-item" data-sec="datasets" title="Datasets" aria-label="Datasets"><span class="rail-ic" data-ic="db"></span><span class="rail-lbl">Datasets</span></button>
-    <button class="rail-item" data-sec="jobs" title="Jobs" aria-label="Jobs"><span class="rail-ic" data-ic="sliders"></span><span class="rail-lbl">Jobs</span></button>
     <button class="rail-item" data-sec="connections" title="Connections" aria-label="Connections"><span class="rail-ic" data-ic="link"></span><span class="rail-lbl">Connections</span></button>
     <button class="rail-item" data-sec="repository" title="Repository" aria-label="Repository"><span class="rail-ic" data-ic="folder"></span><span class="rail-lbl">Repository</span></button>
     <div class="rail-group-lbl rail-lbl" aria-hidden="true">Build</div>
     <button class="rail-item active" data-sec="studio" title="Studio" aria-label="Studio" aria-current="page"><span class="rail-ic" data-ic="grid"></span><span class="rail-lbl">Studio</span></button>
-    <div class="rail-spacer"></div>
-    <button id="railSource" class="rail-item rail-source" title="Workspace backend — Local" aria-label="Workspace backend status"><span class="rail-ic"><span class="cx-dot" id="railSourceDot"></span></span><span class="rail-lbl" id="railSourceLbl">Local</span></button>
+    <div class="rail-group-lbl rail-lbl" aria-hidden="true">Manage</div>
+    <button class="rail-item" data-sec="jobs" title="Jobs" aria-label="Jobs"><span class="rail-ic" data-ic="sliders"></span><span class="rail-lbl">Jobs</span></button>
     <!-- M4: admin-only — hidden for non-admin accounts by shell.js's role gating -->
     <button class="rail-item" data-sec="admin" data-admin-only title="Admin" aria-label="Admin"><span class="rail-ic" data-ic="shield"></span><span class="rail-lbl">Admin</span></button>
+    <div class="rail-spacer"></div>
+    <button id="railSource" class="rail-item rail-source" title="Workspace backend — Local" aria-label="Workspace backend status"><span class="rail-ic"><span class="cx-dot" id="railSourceDot"></span></span><span class="rail-lbl" id="railSourceLbl">Local</span></button>
     <button class="rail-item" data-sec="settings" title="Settings" aria-label="Settings"><span class="rail-ic" data-ic="gear"></span><span class="rail-lbl">Settings</span></button>
     <button id="railCmdk" class="rail-item" type="button" title="Command palette (⌘K / Ctrl-K)" aria-label="Open command palette"><span class="rail-ic" data-ic="search"></span><span class="rail-lbl">Search <kbd class="rail-kbd">⌘K</kbd></span></button>
     <a id="railHelp" class="rail-item" href="docs/index.html" target="_blank" rel="noopener noreferrer" title="Help &amp; docs (opens in new tab)" aria-label="Help and documentation, opens in a new tab"><span class="rail-ic" data-ic="info"></span><span class="rail-lbl">Help</span></a>
@@ -61,7 +62,9 @@
     <div class="sec-empty">
       <div class="sec-empty-ic" data-ic="home"></div>
       <h2>Home</h2>
-      <p>Loading…</p>
+      <div class="sec-skel" role="status" aria-label="Loading">
+        <span class="sec-skel-bar"></span><span class="sec-skel-bar"></span><span class="sec-skel-bar sec-skel-bar-short"></span>
+      </div>
     </div>
   </section>
   <section id="secDashboards" class="app-sec has-content" hidden>
@@ -136,14 +139,18 @@
     <div class="sec-empty">
       <div class="sec-empty-ic" data-ic="gear"></div>
       <h2>Settings</h2>
-      <p>Loading…</p>
+      <div class="sec-skel" role="status" aria-label="Loading">
+        <span class="sec-skel-bar"></span><span class="sec-skel-bar"></span><span class="sec-skel-bar sec-skel-bar-short"></span>
+      </div>
     </div>
   </section>
   <section id="secAdmin" class="app-sec" hidden>
     <div class="sec-empty">
       <div class="sec-empty-ic" data-ic="shield"></div>
       <h2>Admin</h2>
-      <p>Loading…</p>
+      <div class="sec-skel" role="status" aria-label="Loading">
+        <span class="sec-skel-bar"></span><span class="sec-skel-bar"></span><span class="sec-skel-bar sec-skel-bar-short"></span>
+      </div>
     </div>
   </section>
 

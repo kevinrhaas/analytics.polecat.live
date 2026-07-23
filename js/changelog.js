@@ -6,6 +6,77 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 485,
+    title: 'Left rail: the Analytics / polecat.live brand lockup now centers cleanly',
+    kind: 'polish',
+    ts: '2026-07-23T16:59:38.000Z',
+    items: [
+      'The orange app mark at the top of the left rail used to center itself against just the "Analytics" line, landing visibly high above the two-line "Analytics / polecat.live" label. It now centers against the whole lockup, in the expanded rail, the collapsed icon-only rail, and the mobile drawer alike.',
+    ],
+  },
+  {
+    v: 484,
+    title: 'Ensemble chart: the “common estimate” line and legend are readable again on dark themed dashboards',
+    kind: 'fix',
+    ts: '2026-07-23T16:24:23.000Z',
+    items: [
+      'On a dark dashboard theme (most visibly Conservation in dark mode) the ensemble chart’s bold “common estimate” line and its bottom-left legend label were painted with an un-themed ink colour and faded almost completely into the dark panel. They now use the dashboard theme’s own primary text colour, so the headline estimate and its label stay crisp and legible in every theme, light or dark — while the individual provider lines keep the theme’s series palette.',
+    ],
+  },
+  {
+    v: 483,
+    title: 'Polish: modals and the welcome tour ease into view',
+    kind: 'polish',
+    ts: '2026-07-23T16:09:40.000Z',
+    items: [
+      'Opening a modal (or the first-run welcome tour) used to snap into place instantly -- it now scales and fades in smoothly, like every other bit of feedback motion in the app. Respects "reduce motion" system settings as always.',
+    ],
+  },
+  {
+    v: 482,
+    title: 'Datasets: fixed a job-output row that rendered as a broken vertical column',
+    kind: 'fix',
+    ts: '2026-07-23T15:52:01.000Z',
+    items: [
+      'A dataset carrying several tags at once — most often a job-output row with #demo, #conservation, #geo and #job-output plus a "used in" badge — used to squeeze its name so hard that the subtitle wrapped one letter per line and blew the row up into a tall, jumbled column. Dataset rows now stay a single tidy line: the name and its connection subtitle shorten with an ellipsis, just like every other row.',
+    ],
+  },
+  {
+    v: 481,
+    title: 'Left rail: Jobs and Admin now live under a “Manage” group',
+    ts: '2026-07-23T15:30:22.000Z',
+    items: [
+      'The left rail gained a third group, “Manage”, below Build — Jobs and Admin now sit there together, instead of Jobs living up in Workspace and Admin floating near the bottom. Workspace stays for the things you browse and build from (Home, Explore, Dashboards, Datasets, Connections, Repository); Build is the Studio editor; Manage is for running jobs and administering the workspace.',
+    ],
+  },
+  {
+    v: 480,
+    title: 'Explore: create a new dataset without leaving',
+    kind: 'feature',
+    ts: '2026-07-23T15:16:14.000Z',
+    items: [
+      'Explore\'s dataset picker gained a "+ New" button -- add a dataset right there and it\'s selected immediately, no trip to the Datasets section and back.',
+    ],
+  },
+  {
+    v: 479,
+    title: 'Polish: a friendlier cold-load screen',
+    kind: 'polish',
+    ts: '2026-07-23T15:03:53.000Z',
+    items: [
+      'Home, Settings and Admin briefly showed a plain "Loading..." message on a fresh page load -- it now shows a small pulsing placeholder instead, so the app feels alive from the very first frame.',
+    ],
+  },
+  {
+    v: 478,
+    title: 'Home: Favorite datasets & connections',
+    kind: 'feature',
+    ts: '2026-07-23T13:56:22.000Z',
+    items: [
+      'Datasets and connections you star (pin to the top of their own list) now also show up as cards on Home, under a new "Favorite datasets & connections" section -- click one to jump straight into its editor, just like pinned analyses already do.',
+    ],
+  },
+  {
     v: 477,
     title: 'Tech debt: chart gallery thumbnails move to their own module',
     kind: 'polish',
