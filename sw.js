@@ -5,21 +5,7 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v128"; /* v128 (R5+ slice 2, tech-debt sweep): the
-   "seed a brand-new dashboard with our house style" config layer — the 8 default*/
-   setDefault* field pairs (subtitle/accent/logo/header background/title size/
-   subtitle style/dashboard theme/card skin) and the 3 named-preset collections
-   (style presets, template-var sets, custom-theme presets) built on them — moved
-   out of app/studio.js into a new module, app/branding-defaults.js
-   (Studio.defaultSubtitle etc.), the second ES-module app/*.js extraction off
-   studio.js. Studio.lsGet/Studio.lsSet (model.js) were promoted alongside
-   Studio.clone/escapeHtml so the new module and studio.js's own local lsGet/lsSet
-   alias share one implementation. defaultDashboardTheme's fallback to the app's
-   live Color theme (S.appTheme) is the one piece that couldn't move — studio.js
-   injects it once via Studio.configureBrandingDefaults() instead. Pure refactor,
-   no behavior change. New precached file added (app/branding-defaults.js) and
-   app/model.js + app/studio.js content changed, so precached copies need to roll.
-   v127: LF33 — the left rail's brand mark now
+var CACHE_NAME = "studio-shell-v127"; /* v127: LF33 — the left rail's brand mark now
    centers against the whole "Analytics / polecat.live" lockup instead of just the
    top line, in the expanded rail, collapsed rail, and mobile drawer alike.
    app/studio.css changed, so precached copies need to roll.
@@ -574,7 +560,6 @@ var SHELL_FILES = [
   "js/changelog.js",
   "app/shell.js",
   "app/chart-thumbnails.js",
-  "app/branding-defaults.js",
   "app/studio.js",
   "app/palette.js",
   "app/studio-render.js",
