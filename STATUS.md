@@ -1867,16 +1867,27 @@
 >       legend resolve to a light/readable colour on the Conservation-dark panel (luminance > 120). Export
 >       stays byte-identical (same string inlined into preview + export). NEXT (if more surfaces regress the
 >       same way): audit other charts for raw `--ink`/`--bad` vs. the themed `--text-primary`/danger tokens.
-> LF32. **BUG — Query Preview shows fabricated sample rows that don't match the real run; an Explore-built
->       dashboard didn't render its dataset (Kevin, live 2026-07-23, screenshot).** On a job-output dataset
->       (State cover-crop rollup) the Inspector's QUERY PREVIEW showed mock rows (statecode = Success/Failed/
->       Aborted, i.e. genMock categorical fill) tagged "sample rows (offline)" — but the REAL data is
->       different, and the State map rendered "No data" because those mock region ids match no US state. Two
->       problems to separate: (a) the offline mock preview is too convincing — it should either run the real
->       query when the dataset is loadable, or clearly signal "SAMPLE — not your data" so it isn't mistaken
->       for the real result; (b) a dashboard built from Explore didn't carry/render the real dataset rows
->       (the map stayed empty). Investigate genMock vs. a real dataset load in the Inspector preview + the
->       Explore→dashboard data path. (The zoom/pan-lost half of the same report is already tracked as LF28.)
+> LF32. ✓ **Root cause found + fixed (shipped 2026-07-23, steward): the "statecode = Success/Failed/Aborted"
+>       half.** BUG — Query Preview shows fabricated sample rows that don't match the real run; an
+>       Explore-built dashboard didn't render its dataset (Kevin, live 2026-07-23, screenshot). On a
+>       job-output dataset (State cover-crop rollup) the Inspector's QUERY PREVIEW showed mock rows
+>       (statecode = Success/Failed/Aborted, i.e. genMock categorical fill) tagged "sample rows (offline)" —
+>       and the State map rendered "No data" because those SAME mock region ids match no US state. ROOT
+>       CAUSE (one bug behind both symptoms): our own state-rollup jobs (see M2c, app/demopacks.js) name
+>       their group-by column literally `statecode` (no underscore/separator), but `classify()`
+>       (app/sampledata.js) only matched the separated forms `state_code`/`state_abbr`/`state_postal` — so
+>       `statecode` fell through to the generic `/status|state|result/` rule and generated workflow-status
+>       words instead of postal state codes, which is exactly what made the mock choropleth preview read as
+>       all-no-data. Fixed: the regex now also matches the unseparated form (`state_?(code|abbr|postal)`).
+>       1 new SAMPLES ratchet (an unseparated "statecode" column samples as postal codes, not status words).
+>       sw v128. Two follow-ups from the original report remain open, now smaller: (a) the offline mock
+>       preview is still fundamentally a stand-in for the real run — it should eventually either run the
+>       real query when the dataset is loadable, or clearly signal "SAMPLE — not your data" so it can never
+>       be mistaken for a real result again, even for a column this fix didn't anticipate; (b) confirm
+>       whether a dashboard built from Explore over a REAL (non-mock) job-output dataset renders correctly
+>       end to end, now that the specific reported symptom is explained — no repro of a live-data failure
+>       distinct from the mock-preview misclassification has been found yet. (The zoom/pan-lost half of the
+>       same report is already tracked as LF28.)
 > LF33. ✓ **Rail brand lockup fixed (shipped 2026-07-23, steward).** ROOT CAUSE: the mark
 >       (`.rail-brand-mark`) only ever centered against its own flex row (icon + "Analytics"),
 >       landing ~9px above the true center of the combined "Analytics" / "polecat.live" two-line

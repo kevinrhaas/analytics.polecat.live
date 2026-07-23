@@ -1989,14 +1989,22 @@ function serve() {
       var h = Studio.sampleRows({ id: "t1", columns: ["huc8", "pct"] });
       var d = Studio.sampleRows({ id: "t2", columns: ["district", "pct"] });
       var st = Studio.sampleRows({ id: "t3", columns: ["state", "pct"] });
+      // LF32 regression: a job-output rollup names its group-by column "statecode"
+      // (no underscore) — classify() used to only match "state_code" and fell through
+      // to the workflow-status rule, so a state-rollup preview showed Success/Failed/
+      // Aborted instead of postal codes and the choropleth read as all no-data.
+      var stc = Studio.sampleRows({ id: "t4", columns: ["statecode", "pct"] });
       return {
         huc: String(h.rows[0][0]), hucAll8: h.rows.every(function (r) { return /^\d{8}$/.test(String(r[0])); }),
         crd: String(d.rows[0][0]), crdAll4: d.rows.every(function (r) { return /^\d{4}$/.test(String(r[0])); }),
-        state2: st.rows.every(function (r) { return /^[A-Z]{2}$/.test(String(r[0])); })
+        state2: st.rows.every(function (r) { return /^[A-Z]{2}$/.test(String(r[0])); }),
+        statecode2: stc.rows.every(function (r) { return /^[A-Z]{2}$/.test(String(r[0])); })
       };
     });
     ok("SAMPLES: huc8/district/state columns get REAL codes (8-digit HUC8s, 4-digit CRDs, postal states) — never county FIPS misfits",
       smpKinds.hucAll8 && smpKinds.crdAll4 && smpKinds.state2, JSON.stringify(smpKinds));
+    ok("LF32: an unseparated \"statecode\" job-output column also gets postal state codes, not workflow-status words (Success/Failed/Aborted)",
+      smpKinds.statecode2, JSON.stringify(smpKinds));
     // picking a geo sample defaults Explore to the MAP (design bar: instant, obvious)
     await page.evaluate(function () { window.__studioShellSetSection("explore"); });
     await page.waitForTimeout(250);
