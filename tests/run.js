@@ -2260,6 +2260,53 @@ function serve() {
     ok("UXFIX: a heavily-tagged job-output dataset row stays single-line — the name subtitle ellipsizes (nowrap) instead of wrapping character-by-character and exploding the row height",
       uxRowSqueeze.found && uxRowSqueeze.smallWhiteSpace === "nowrap" && uxRowSqueeze.smallOverflow === "ellipsis" &&
       uxRowSqueeze.rowHeight < 70 && uxRowSqueeze.smallScrollH <= uxRowSqueeze.smallClientH + 2, JSON.stringify(uxRowSqueeze));
+    // The ensemble chart's "common estimate" line + legend used to be painted with
+    // var(--ink) — which the dashboard THEMES don't define (they set --text-primary),
+    // so on a dark themed panel --ink fell back to the light-mode navy #16233b and the
+    // line/legend went nearly invisible (the Conservation-dark bug Kevin reported).
+    // Render a real ensemble panel under the Conservation theme, force dark, and assert
+    // the median line + legend resolve to the theme's readable primary ink.
+    const ensContrast = await page.evaluate(async function () {
+      var chartRows = [];
+      ["2018", "2019", "2020"].forEach(function (y, i) {
+        ["DTN", "Regrow"].forEach(function (p, pi) { chartRows.push([y, p, 30 + i * 5 + pi * 8]); });
+      });
+      var spec = { id: "ens-c", name: "ens-c", title: "t", dashboardTheme: "conservation",
+        panels: [{ id: "c1", title: "c", span: "full", chart: { type: "ensembleSeries", da: "ts",
+          map: { labelCol: "year", seriesCol: "provider", valueCol: "pct" }, opts: { fmt: "raw", medianLabel: "Common estimate" } } }],
+        kpis: [], filters: [], cda: { connections: [], dataAccesses: [{ id: "ts", kind: "sql", columns: ["year", "provider", "pct"] }] } };
+      var html = Studio.buildHtml(spec, window.__STUDIO_STATE.assets, { preview: true,
+        mock: { ts: { cols: ["year", "provider", "pct"], rows: chartRows } } });
+      return await new Promise(function (resolve) {
+        var ifr = document.createElement("iframe");
+        ifr.style.cssText = "position:fixed;left:-2200px;top:0;width:900px;height:600px";
+        document.body.appendChild(ifr);
+        ifr.srcdoc = html;
+        var t0 = Date.now();
+        (function poll() {
+          var doc = null; try { doc = ifr.contentDocument; } catch (e) {}
+          var medLine = doc ? doc.querySelector('[data-ens="median"]') : null;
+          if (medLine) {
+            doc.documentElement.setAttribute("data-theme", "dark"); // activate the conservation DARK tokens
+            setTimeout(function () {
+              function lum(c) { var m = c.match(/rgba?\(([^)]+)\)/); if (!m) return -1; var p = m[1].split(",").map(parseFloat); return 0.2126 * p[0] + 0.7152 * p[1] + 0.0722 * p[2]; }
+              var view = ifr.contentWindow;
+              var legendMed = doc.querySelector(".pdc-ens-legend span"); // first span = the "Common estimate" label
+              var out = {
+                strokeAttr: medLine.getAttribute("stroke"),
+                lineLum: lum(view.getComputedStyle(medLine).stroke),
+                legendLum: legendMed ? lum(view.getComputedStyle(legendMed).color) : -1,
+                legendText: legendMed ? legendMed.textContent : ""
+              };
+              ifr.remove(); resolve(out);
+            }, 60);
+          } else if (Date.now() - t0 > 12000) { ifr.remove(); resolve({ timeout: true }); } else setTimeout(poll, 150);
+        })();
+      });
+    });
+    ok("UXFIX: the ensemble 'common estimate' line + legend use the dashboard theme's primary-ink token (not raw --ink), so they stay readable on a dark themed panel (Conservation dark: light ink #eaf1df, not the invisible light-mode navy)",
+      ensContrast.strokeAttr && ensContrast.strokeAttr.indexOf("text-primary") >= 0 && ensContrast.lineLum > 120 && ensContrast.legendLum > 120 &&
+      /Common estimate/.test(ensContrast.legendText || ""), JSON.stringify(ensContrast));
     await page.evaluate(function () { window.__studioShellSetSection("studio"); });
     await page.waitForTimeout(150);
 

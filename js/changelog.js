@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 484,
+    title: 'Ensemble chart: the “common estimate” line and legend are readable again on dark themed dashboards',
+    kind: 'fix',
+    ts: '2026-07-23T16:24:23.000Z',
+    items: [
+      'On a dark dashboard theme (most visibly Conservation in dark mode) the ensemble chart’s bold “common estimate” line and its bottom-left legend label were painted with an un-themed ink colour and faded almost completely into the dark panel. They now use the dashboard theme’s own primary text colour, so the headline estimate and its label stay crisp and legible in every theme, light or dark — while the individual provider lines keep the theme’s series palette.',
+    ],
+  },
+  {
     v: 483,
     title: 'Polish: modals and the welcome tour ease into view',
     kind: 'polish',
