@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v115"; /* v115: UX11 — a fourth app Color theme,
+var CACHE_NAME = "studio-shell-v116"; /* v116: "Clear local data" now also signs you out
+   (analytics.session.v1 + the studio-gate-ok bypass) and resets per-section rail rights +
+   Home's section order — closing the REVIEW-FIXES "start fresh" reset gap (Track L sweep
+   round 4: three keys that three separate recent slices added but never wired into Clear-local-data).
+   app/studio.js + tests/run.js changed, so precached copies need to roll.
+   v115: UX11 — a fourth app Color theme,
    Conservation (CTIC olive/pine, reusing the dashboard Conservation theme's palette).
    app/studio.js + app/studio.css + docs/index.html changed, so precached copies need
    to roll.

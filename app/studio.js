@@ -9920,7 +9920,17 @@
     // passphrase, this browser only — leaving it behind after disconnecting the connection it
     // belongs to is stale-secret hygiene, not just a missed toggle).
     "studio-show-samples", "studio-lib-samples-open", "studio-dash-view",
-    "analytics.datasource.v1", "analytics.datasource.secret.v1"
+    "analytics.datasource.v1", "analytics.datasource.secret.v1",
+    // Track L sweep (orphaned-key lens, round 4): the auth (M3), per-section-rights (M4.2) and
+    // Home-reorder (M6) slices each added a new key but none of them updated this list — the same
+    // recurring gap, this time with a sharper edge: "analytics.session.v1" (app/auth.js's signed-
+    // in user) being left behind meant "Clear local data" did NOT reload you as a first-time
+    // visitor as the REVIEW-FIXES queue asked — you stayed signed in. "studio-hidden-sections"
+    // (M4.2's per-section rail visibility) and "studio-home-section-order" (M6's Home reorder)
+    // are the same missed-Settings-key gap for two more recent features (both already listed in
+    // SETTINGS_DATA_KEYS above, so Export/Import already carried them — only Clear-local-data was
+    // behind).
+    "analytics.session.v1", "studio-hidden-sections", "studio-home-section-order"
   ];
   window.__studioClearDataKeys = CLEAR_DATA_KEYS; // test hook
 
@@ -10309,10 +10319,16 @@
         "  • Unsaved spec draft (autosave)\n" +
         "  • Export history\n" +
         "  • Saved server connections\n" +
-        "  • Theme, pane widths & layout\n\n" +
-        "The page will reload.";
+        "  • Theme, pane widths & layout\n" +
+        "  • Your signed-in session (you'll land back on the sign-in screen)\n\n" +
+        "The page will reload as if you were visiting for the first time.";
       if (!confirm(msg)) return;
       try { keys.forEach(function (k) { localStorage.removeItem(k); }); } catch (e) {}
+      // REVIEW-FIXES: a "start fresh" reset must also drop the auth bypass flag (sessionStorage,
+      // untouched by the localStorage sweep above) — same flag Sign-out clears — so a reload
+      // truly lands on the sign-in screen instead of silently re-authing via the historical
+      // studio-gate-ok bypass (see auth.js's current()).
+      try { sessionStorage.removeItem("studio-gate-ok"); } catch (e) {}
       // N-DIST: also drop the offline-shell service worker cache so a clean reload can't
       // still be served a stale cached copy of the app.
       try {

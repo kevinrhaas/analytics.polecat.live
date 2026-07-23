@@ -116,6 +116,20 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **REVIEW-FIXES: "Clear local data" now truly resets to a first-time visitor (v474,
+  2026-07-23, steward):** closes the queued "hard 'start fresh' reset" item — the existing
+  Clear-local-data feature (E8) already wiped Studio preferences and busted the SW cache, but
+  left you signed in, since `analytics.session.v1` (M3's auth session) predates E8 and was never
+  added to `CLEAR_DATA_KEYS`. The click handler now also drops `sessionStorage`'s `studio-gate-ok`
+  bypass flag (the same one Sign-out clears) — without it, `PolecatAuth.current()`'s "authed via
+  the historical bypass with no stored identity" fallback would silently re-admin you even with
+  the session key gone. Same Track-L "new key, forgot Clear local data" sweep also caught two more
+  recent additions missing from the list: `studio-hidden-sections` (M4.2 per-section rail rights)
+  and `studio-home-section-order` (M6's Home reorder) — both already rode Export/Import via
+  `SETTINGS_DATA_KEYS`, only Clear-local-data was behind. Confirm-dialog copy updated to say so. 2
+  new E8 ratchets (the three keys are in the real list; wiping the session key + bypass flag
+  together actually signs `PolecatAuth.current()` out). sw v116. (app/studio.js, sw.js,
+  tests/run.js)
 - **UX11 — Conservation as an app Color theme (v473, 2026-07-23, steward):** the
   Conservation theme existed in the DASHBOARD theme picker (`DASHBOARD_THEMES`, PR #78)
   but not the app's own **Color theme** picker (Settings → Appearance). Settings now
@@ -2275,8 +2289,9 @@
 >     dimensions) via Studio.aggregateRows in applyOutputOptions — persists on the analysis so it
 >     re-aggregates on Home/dashboards/export. Dropped the internal "SE demo tip" from Help.
 >   NEXT from the same review (queued): Explore-side New-dataset + dataset organization at scale
->   (folders, reuse repo-mgmt); a hard "start fresh" reset (clear local data + bust SW cache + reload
->   as a first-time visitor); fix the choropleth hover highlight that sticks (HUC8 map); multiple
+>   (folders, reuse repo-mgmt); the "start fresh" reset is now ✓ done (see DONE — Clear local data
+>   already busted the SW cache, but left you signed in until this slice added the session key +
+>   sessionStorage bypass); fix the choropleth hover highlight that sticks (HUC8 map); multiple
 >   toggleable demo packs (Conservation + Governance) off file CSV/JSON sources; tour that defines
 >   every term (adapter/connection/dataset/job/workbook/dashboard/widget/filter); rail IA
 >   (Workspace/Build/Manage, Jobs under Manage) + an Admin section split from personal Settings.
