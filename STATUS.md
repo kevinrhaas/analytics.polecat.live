@@ -116,6 +116,18 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **UX9 — modal `.btn` contrast fallback (v468, 2026-07-23, steward):** bare `.btn` buttons
+  (e.g. the export bundle modal's "Copy" button) were white-on-`rgba(255,255,255,.1)` — correct
+  on the dark rail/topbar the base `.btn` assumes, near-invisible on the light `--pane` modal
+  surface (compare/export-bundle/theme modals all use plain `.modal`, none is inside `.app-sec`,
+  so the earlier `.app-sec .btn` contrast fix never reached them). New `.modal .btn:not(.primary)
+  :not(.btn-primary):not(.danger)` rule gives every plain modal button the same dark-on-light
+  fallback the `.app-sec` sections and `.btn.danger` (LF14) already have; `.danger` buttons are
+  excluded so they keep their own hover-red treatment. 1 new regression check (the export bundle
+  modal's Copy button has real light/dark contrast, not the faint default). Pure CSS + one test;
+  full suite re-run green. sw v110. (app/studio.css, tests/run.js) UX9's own broader visual-
+  identity call (adopting the fleet's Inter face / radius scale) is still explicitly PAUSED for
+  Kevin, per the note that shipped this item — untouched here.
 - **LF29(a)/(b) — typography consistency + wider dashboard title (v467, 2026-07-23,
   steward):** the mono/code face (`--mono`) was applied to human-readable object names/ids
   that aren't code — the Data-panel dataset ids (`.da .da-id`, `.da-mine .da-id-nm`), the
@@ -2107,11 +2119,11 @@
 >      ~30–32px `.btn`; `.da-act`/`.chip` 36–40px). Mobile is a release gate. (studio.css)
 > UX8. **Tooltip primitive** — a themed, focusable, touch-visible tooltip generalizing `.opt-hint-pop`,
 >      replacing native `title=` guidance strings (slow, unstyleable, invisible on touch/keyboard). Larger.
-> UX9. **Modal `.btn` contrast fallback** (SAFE): bare `.btn` is white-on-`rgba(255,255,255,.1)` — correct
->      on the dark topbar but near-invisible on light modal/popover surfaces appended to `<body>`
->      (compare/export-bundle/theme modals). Add a `.modal .btn` fallback. ⚠️ The broader geometry/font
->      shell-alignment (adopt the fleet's Inter face + 14/20px radius scale vs keep the current
->      system-font/11px divergence) is a **visual-identity call — PAUSE for Kevin**, don't auto-change it.
+> UX9. ✓ **Modal `.btn` contrast fallback (shipped 2026-07-23, steward, see DONE).** New
+>      `.modal .btn` fallback (dark-on-light, same convention as `.app-sec`/`.btn.danger`).
+>      ⚠️ The broader geometry/font shell-alignment (adopt the fleet's Inter face + 14/20px
+>      radius scale vs keep the current system-font/11px divergence) is still a **visual-
+>      identity call — PAUSE for Kevin**, untouched here.
 > UX10. **Empty-state polish:** replace the bare `<p>Loading…</p>` in `secHome`/`secSettings` with a
 >       skeleton or the branded `.sec-empty-ic` treatment (first thing seen on a cold load). (index.html, studio.css)
 > UX11. ★ **Conservation as an app Color theme (Kevin, 2026-07-22).** The Conservation theme exists in

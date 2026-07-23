@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v109"; /* v109: LF29a typography polish — object names/ids
+var CACHE_NAME = "studio-shell-v110"; /* v110: UX9 — bare .btn buttons inside modals (e.g.
+   the export bundle modal's Copy button) get dark-on-light contrast instead of the
+   faint white-on-translucent default. app/studio.css changed, so precached copies
+   need to roll.
+   v109: LF29a typography polish — object names/ids
    (dataset+connection lists, saved-source cards, dashboard id chip) move off the
    monospace face onto the app's sans font; dashboard title can grow wider on desktop.
    app/studio.css changed, so precached copies need to roll.
