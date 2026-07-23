@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 454,
+    title: 'Jobs can now be filed into folders, and searched',
+    kind: 'feature',
+    ts: '2026-07-23T01:32:54.000Z',
+    items: [
+      'The job editor gained a Folder field (with suggestions from folders already in use), matching Datasets and Connections.',
+      'The Jobs list gained its own search box and a folder chip strip (All folders / each folder / Unfiled), plus a folder badge on filed rows.',
+      'A filed job now shows up in its own group in Repository instead of the shared Unfiled bucket.',
+    ],
+  },
+  {
     v: 453,
     title: 'Repository now groups your workspace by folder',
     kind: 'feature',
