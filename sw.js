@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v116"; /* v116: "Clear local data" now also signs you out
+var CACHE_NAME = "studio-shell-v117"; /* v117: Explore's own dataset picker, its saved-analysis
+   reload path, and its save path (xpDatasets/xpLoadAnalysis's haveDs check/xpDA) now all respect
+   dataset privacy — closing an M4.2-class leak Explore was the last consumer left uncovered by
+   (a viewer could pick, preview, and even re-persist another account's private dataset through
+   Explore even though it was already hidden from the Datasets catalog itself).
+   app/studio.js + tests/run.js changed, so precached copies need to roll.
+   v116: "Clear local data" now also signs you out
    (analytics.session.v1 + the studio-gate-ok bypass) and resets per-section rail rights +
    Home's section order — closing the REVIEW-FIXES "start fresh" reset gap (Track L sweep
    round 4: three keys that three separate recent slices added but never wired into Clear-local-data).

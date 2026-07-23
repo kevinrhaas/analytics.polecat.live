@@ -116,6 +116,22 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **M4.2 follow-up — Explore respects dataset privacy too (v475, 2026-07-23, steward):** found
+  while looking at the REVIEW-FIXES queue's "Explore-side New-dataset" item — Explore's own
+  `xpDatasets()` picker was the one remaining consumer of the datasets table that never filtered
+  through `isDatasetVisibleToMe`, the same leak class M4.2 slice 5 fixed in the job editor's
+  source-dataset picker. A viewer could pick, preview, and even re-save another account's private
+  dataset straight from Explore even though it already stayed hidden from the Datasets catalog.
+  Three fixes, one path each: (1) `xpDatasets()` now filters the picker list; (2)
+  `xpLoadAnalysis()`'s `haveDs` check now treats an invisible dataset the same as a genuinely
+  DELETED one — reopening a public analysis whose dataset has since gone private falls back to
+  the existing "orphan" sample-engine display instead of loading the private live rows; (3)
+  `xpDA()` now returns `null` for an invisible dataset too, so `xpSave()`'s existing "pick a
+  dataset first" guard blocks re-saving instead of silently re-embedding the private dataset's
+  connection/query into a (possibly public) analysis row. 3 new ratchets (picker hides the
+  private dataset from a non-owner viewer but an admin still sees it; reopening a public analysis
+  over a now-private dataset falls back to sample data and blocks the re-save). sw v117.
+  (app/studio.js, tests/run.js)
 - **REVIEW-FIXES: "Clear local data" now truly resets to a first-time visitor (v474,
   2026-07-23, steward):** closes the queued "hard 'start fresh' reset" item — the existing
   Clear-local-data feature (E8) already wiped Studio preferences and busted the SW cache, but

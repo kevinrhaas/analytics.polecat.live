@@ -7203,11 +7203,71 @@ function serve() {
     ok("M4.2: an admin account sees every dataset regardless of its private flag/acctOwner",
       asAdminDsPriv.seesA && asAdminDsPriv.seesB && asAdminDsPriv.seesC, JSON.stringify(asAdminDsPriv));
 
+    // ---- M4.2 follow-up: the SAME dataset-privacy leak in Explore's own picker + analysis
+    // reload path (found while working on a REVIEW-FIXES item — Explore's xpDatasets() was the
+    // one remaining consumer of the datasets table that never filtered through
+    // isDatasetVisibleToMe, same class of gap M4.2 slice 5 fixed in the job editor).
+    console.log("\n• M4.2 follow-up: Explore's dataset picker + reload path respect dataset privacy");
+    await page.evaluate(function () {
+      window.PolecatAuth.login("admin");
+      Studio.Workspace.put("datasets", { id: "m42xp-pub", name: "M4.2xp dataset public", kind: "file", content: "a,b\n1,2", format: "csv", updatedAt: Date.now() });
+      Studio.Workspace.put("datasets", { id: "m42xp-priv", name: "M4.2xp dataset private", kind: "file", content: "a,b\n3,4", format: "csv", updatedAt: Date.now(), acctOwner: "otherUser" });
+      window.__studioToggleDsxPrivate("m42xp-priv");
+    });
+    const xpPickerLeak = await page.evaluate(function () {
+      window.PolecatAuth.login("demo"); // viewer, not the private dataset's owner
+      window.__studioShellSetSection("explore");
+      window.__studioExplore.render();
+      var ids = Array.prototype.map.call(document.querySelectorAll("#xpBody [data-xp-ds]"), function (el) { return el.getAttribute("data-xp-ds"); });
+      return { seesPublic: ids.some(function (id) { return id.indexOf("m42xp-pub") >= 0; }), seesPrivate: ids.some(function (id) { return id.indexOf("m42xp-priv") >= 0; }) };
+    });
+    ok("M4.2 follow-up: Explore's dataset picker lists a public dataset but hides another account's private one",
+      xpPickerLeak.seesPublic && !xpPickerLeak.seesPrivate, JSON.stringify(xpPickerLeak));
+    const xpPickerAdmin = await page.evaluate(function () {
+      window.PolecatAuth.login("admin");
+      window.__studioExplore.render();
+      var ids = Array.prototype.map.call(document.querySelectorAll("#xpBody [data-xp-ds]"), function (el) { return el.getAttribute("data-xp-ds"); });
+      return { seesPrivate: ids.some(function (id) { return id.indexOf("m42xp-priv") >= 0; }) };
+    });
+    ok("M4.2 follow-up: an admin still sees the private dataset in Explore's picker",
+      xpPickerAdmin.seesPrivate, JSON.stringify(xpPickerAdmin));
+
+    // The deeper half of the same leak: a PUBLIC analysis that references a dataset which has
+    // since gone private on another account. Reopening it must fall back to the same "orphan"
+    // sample-engine treatment already built for a genuinely DELETED dataset, not quietly re-fetch
+    // the now-private live rows — and re-saving it must be blocked ("pick a dataset first"),
+    // not silently re-embed the private dataset's live connection/query into a public analysis row.
+    await page.evaluate(function () {
+      window.PolecatAuth.login("admin");
+      Studio.Workspace.put("analyses", {
+        id: "m42xp-a-open", name: "M4.2xp analysis over a since-privatized dataset",
+        datasetId: "m42xp-priv", chartType: "bars", chart: { type: "bars", map: {}, opts: {} },
+        da: { id: "xp-orphan-da", columns: ["a", "b"] }, updatedAt: Date.now()
+      });
+    });
+    const xpAnalysisLeak = await page.evaluate(function () {
+      window.PolecatAuth.login("demo"); // viewer, not the dataset's owner — but the ANALYSIS itself is public
+      return new Promise(function (resolve) {
+        window.__studioExplore.load("m42xp-a-open");
+        setTimeout(function () {
+          var t = document.getElementById("toast");
+          t.textContent = ""; t.className = "toast"; // clear any stale toast before the save attempt below
+          window.__studioExplore.save();
+          resolve({ runIsOrphanSample: !!(window.__studioExplore.state.run && window.__studioExplore.state.run.orphan === true) || !window.__studioExplore.state.run.live,
+            saveToastBlocked: document.getElementById("toast").textContent.indexOf("Pick a dataset first") >= 0,
+            analysisUnchanged: !Studio.Workspace.get("analyses", "m42xp-a-open").da || Studio.Workspace.get("analyses", "m42xp-a-open").da.id === "xp-orphan-da" });
+        }, 200);
+      });
+    });
+    ok("M4.2 follow-up: reopening a public analysis over a now-private dataset never re-fetches its live rows, and re-saving is blocked instead of leaking it into the analysis row",
+      xpAnalysisLeak.runIsOrphanSample && xpAnalysisLeak.saveToastBlocked && xpAnalysisLeak.analysisUnchanged, JSON.stringify(xpAnalysisLeak));
+
     await page.evaluate(function () {
       window.PolecatAuth.logout();
       sessionStorage.setItem("studio-gate-ok", "1");
       window.__studioShellApplyRoleGating();
-      ["m42d-a", "m42d-b", "m42d-c"].forEach(function (id) { Studio.Workspace.remove("datasets", id); });
+      ["m42d-a", "m42d-b", "m42d-c", "m42xp-pub", "m42xp-priv"].forEach(function (id) { Studio.Workspace.remove("datasets", id); });
+      Studio.Workspace.remove("analyses", "m42xp-a-open");
       window.__studioShellSetSection("studio");
     });
     await page.waitForTimeout(150);
