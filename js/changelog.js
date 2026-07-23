@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 477,
+    title: 'Tech debt: chart gallery thumbnails move to their own module',
+    kind: 'polish',
+    ts: '2026-07-23T12:16:37.000Z',
+    items: [
+      'Behind-the-scenes cleanup only -- the chart-type gallery thumbnail SVGs now live in their own file instead of inside the main app controller. No visible change.',
+    ],
+  },
+  {
     v: 476,
     title: 'Tech debt: shared factories for Connections/Datasets pin + saved views',
     kind: 'polish',

@@ -116,6 +116,20 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **R5+ slice 1 — chart-thumbnail SVGs extracted to their own module (v477, 2026-07-23,
+  steward):** the ~225-line `CHART_SVG` table (gallery/picker thumbnail SVGs, one per chart
+  type — pure data, no dependency on app state) moved out of `app/studio.js` into a new
+  `app/chart-thumbnails.js`, exposing `Studio.CHART_SVG` — the first ES-module `app/*.js`
+  extraction off studio.js, establishing the module pattern (`(function(){"use strict";var
+  Studio=window.Studio=window.Studio||{};Studio.X=...;}())`) the rest of the R5+ track
+  follows. `studio.js` now just does `var CHART_SVG = Studio.CHART_SVG;` where the table used
+  to live — every one of the 5 call sites (`CHART_SVG[t]`/`CHART_SVG[type]`) is unchanged, so
+  no other code moved. `themedChartSvg`'s live-theme recoloring stays in studio.js (it reads
+  `S.theme`/`Studio.resolveThemeTokens`, not pure). New script tag in app/index.html (loads
+  right before studio.js) and a new sw.js precache entry; CLI export (tools/export.js) doesn't
+  load studio.js at all, so it's untouched. Pure refactor, no behavior change, suite unchanged
+  at 1821/1821. sw v119. (app/chart-thumbnails.js new, app/studio.js, app/index.html, sw.js)
+  NEXT in R5+: ② branding/defaults/presets config layer.
 - **R4 — merge the Connections/Datasets view-pin machinery (v476, 2026-07-23, steward,
   R4 now fully shipped):** `connLoadViews`/`connSaveViews` and `dsxLoadViews`/`dsxSaveViews`
   hand-rolled the identical read-slice/write-through-`Workspace.setSetting` pair, differing
@@ -2265,13 +2279,16 @@
 >     `toggleConnPin`/`toggleDsxPin`. `connApplyView`/`dsxApplyView` stay separate
 >     (the filter fields each resets genuinely differ). sw v118.
 > R5+. **studio.js (9,899 lines) module extraction — safety order, ONE subsystem per slice, full suite
->      each:** ① chart-thumbnail SVGs (pure, ~200 lines — use this slice to ESTABLISH the module pattern:
->      ES-module `app/*.js` sharing a small internal namespace, matching the rest of app/) → ② branding/
+>      each:** ① ✓ chart-thumbnail SVGs — DONE, see DONE (v477, 2026-07-23, steward): the ~225-line
+>      `CHART_SVG` table now lives in `app/chart-thumbnails.js` (`Studio.CHART_SVG`), the first
+>      ES-module `app/*.js` extraction off studio.js, establishing the module pattern the rest of
+>      this track follows — sw v119. → ② branding/
 >      defaults/presets config layer → ③ celebrations/milestones → ④ versions/notes/diff modals →
 >      ⑤ the Explore `XP` subsystem (own namespace; preserve the analysis→spec add + `homeLiveFrame`
 >      reuse seams) → ⑥ the data-plane panels LAST (Jobs → Connections → Datasets; Datasets last because
 >      `runDataset`/`window.__studioRunDataset` bridges back into the builder preview). These are
->      lane-hot files — schedule each when the feature lane isn't mid-slice in that area.
+>      lane-hot files — schedule each when the feature lane isn't mid-slice in that area. NEXT: ②
+>      branding/defaults/presets config layer.
 
 ### ★★★★★ CONSERVATION INSIGHT PRODUCT PLATFORM (2026-07-21, user-directed — NOW THE TOP PRIORITY)
 > Kevin's big charter: turn Analytics into a multi-user, permissioned product. Decisions locked
