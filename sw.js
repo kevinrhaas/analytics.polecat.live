@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v117"; /* v117: Explore's own dataset picker, its saved-analysis
+var CACHE_NAME = "studio-shell-v118"; /* v118 (R4, tech-debt sweep): Connections'
+   toggleConnPin/connLoadViews/connSaveViews and Datasets' toggleDsxPin/dsxLoadViews/
+   dsxSaveViews were duplicated logic differing only in which Workspace table/settings
+   key they touch — now backed by two shared factories (makePinToggle/makeViewsStore).
+   Pure refactor, no behavior change. app/studio.js content changed, so precached
+   copies need to roll.
+   v117: Explore's own dataset picker, its saved-analysis
    reload path, and its save path (xpDatasets/xpLoadAnalysis's haveDs check/xpDA) now all respect
    dataset privacy — closing an M4.2-class leak Explore was the last consumer left uncovered by
    (a viewer could pick, preview, and even re-persist another account's private dataset through

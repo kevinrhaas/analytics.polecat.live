@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 476,
+    title: 'Tech debt: shared factories for Connections/Datasets pin + saved views',
+    kind: 'polish',
+    ts: '2026-07-23T11:56:05.000Z',
+    items: [
+      'Behind-the-scenes cleanup only -- Connections and Datasets pinning and saved-view storage now share one implementation instead of two near-identical copies. No visible change.',
+    ],
+  },
+  {
     v: 475,
     title: 'Fix: Explore respects a dataset\'s privacy too',
     kind: 'fix',
