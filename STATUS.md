@@ -116,6 +116,25 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **R5+ slice 2 — branding-defaults/presets config layer extracted to its own module
+  (v486, 2026-07-23, steward, R5+ ② now shipped):** the 8 `default*`/`setDefault*` field
+  pairs (subtitle/accent color/header background/title size/subtitle style/dashboard
+  theme/card skin/logo) and the 3 named-preset CRUD stores built on them (style presets,
+  template-var sets, custom-theme presets) moved out of `app/studio.js` into a new
+  `app/branding-defaults.js` (`Studio.defaultSubtitle` etc.) — the second ES-module
+  `app/*.js` extraction off studio.js, following slice 1's pattern. `Studio.lsGet`/
+  `Studio.lsSet` are promoted to `model.js` alongside `Studio.clone`/`escapeHtml` so the
+  new module and studio.js's own local `lsGet`/`lsSet` alias share one implementation
+  instead of two copies. `defaultDashboardTheme`'s one bit of live-editor-state coupling
+  (its never-set fallback follows the app's own Color theme, `S.appTheme`) is wired in
+  once via a new `Studio.configureBrandingDefaults()` injector, so the extracted module
+  needs no other dependency on studio.js. Pure refactor, no behavior change. **Held one
+  cycle on a test-infra snag** (the N-DIST offline/service-worker check was
+  deterministically hanging the whole suite on unmodified main too, not this diff) —
+  unblocked by #181's fix (service-worker check now skips gracefully instead of hanging)
+  and reverified this run: full suite green, 1829/1829 (0 failed). sw v128. (app/
+  branding-defaults.js new, app/model.js, app/studio.js, app/index.html, sw.js) NEXT in
+  R5+: ③ celebrations/milestones.
 - **LF33 — rail brand lockup centering fix (v485, 2026-07-23, steward):** the left rail's
   brand mark (`.rail-brand-mark`) used to center only against its own flex row (icon +
   "Analytics"), landing ~9px above the true vertical center of the combined "Analytics" /
@@ -2402,8 +2421,15 @@
 >      ⑤ the Explore `XP` subsystem (own namespace; preserve the analysis→spec add + `homeLiveFrame`
 >      reuse seams) → ⑥ the data-plane panels LAST (Jobs → Connections → Datasets; Datasets last because
 >      `runDataset`/`window.__studioRunDataset` bridges back into the builder preview). These are
->      lane-hot files — schedule each when the feature lane isn't mid-slice in that area. NEXT: ②
->      branding/defaults/presets config layer.
+>      lane-hot files — schedule each when the feature lane isn't mid-slice in that area.
+>      ② ✓ branding/defaults/presets config layer — DONE, see DONE (v486, 2026-07-23,
+>      steward): `app/branding-defaults.js` (`Studio.defaultSubtitle` etc.), `Studio.lsGet`/
+>      `Studio.lsSet` promoted to model.js. Held one cycle on a test-infra snag (#181 fixed
+>      it), reverified green this run — sw v128. → ③ celebrations/milestones → ④
+>      versions/notes/diff modals → ⑤ the Explore `XP` subsystem (own namespace; preserve the
+>      analysis→spec add + `homeLiveFrame` reuse seams) → ⑥ the data-plane panels LAST (Jobs →
+>      Connections → Datasets; Datasets last because `runDataset`/`window.__studioRunDataset`
+>      bridges back into the builder preview).
 
 ### ★★★★★ CONSERVATION INSIGHT PRODUCT PLATFORM (2026-07-21, user-directed — NOW THE TOP PRIORITY)
 > Kevin's big charter: turn Analytics into a multi-user, permissioned product. Decisions locked
