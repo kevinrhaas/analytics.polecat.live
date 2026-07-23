@@ -421,6 +421,7 @@
       var dsxSearchInp = $("#dsxSearch"); if (dsxSearchInp) dsxSearchInp.addEventListener("input", renderDatasets);
       var dsxNewBtn = $("#dsxNewBtn"); if (dsxNewBtn) dsxNewBtn.onclick = function () { openDatasetEditor(); };
       var jobsNewBtn = $("#jobsNewBtn"); if (jobsNewBtn) jobsNewBtn.onclick = function () { openJobEditor(); };
+      var jobsSearchInp = $("#jobsSearch"); if (jobsSearchInp) jobsSearchInp.addEventListener("input", renderJobs);
       var repoAllSearchInp = $("#repoAllSearch"); if (repoAllSearchInp) repoAllSearchInp.addEventListener("input", renderRepository);
       // workspace-backend sync: restore a saved remote, keep the rail dot +
       // Settings card live, and flush any pending mirror write on page close
@@ -7353,20 +7354,49 @@
     renderJobs();
   }
   window.__studioToggleJobPrivate = toggleJobPrivate; // test hook
+  // M5 folder pilot, slice 3 (jobs): same single-select facet shape as
+  // Datasets'/Connections' `_dsxFolderFilter`/`_connFolderFilter` — Jobs had no
+  // search/filter UI of its own before this, so this also introduces the
+  // section's first search box (title/source/output/folder text match).
+  var _jobsFolderFilter = ""; // "" = All, "__unfiled" = no folder, else a folder name
   function renderJobs() {
     var results = $("#jobsResults"); if (!results) return;
+    var q = (($("#jobsSearch") || {}).value || "").toLowerCase();
     var list = Studio.Workspace.all("jobs").filter(isVisibleToMe).sort(function (a, b) { return (b.updatedAt || 0) - (a.updatedAt || 0); });
-    var rows = list.map(function (j) {
+    var folderCounts = {}, folderUnfiled = 0;
+    list.forEach(function (j) { if (j.folder) folderCounts[j.folder] = (folderCounts[j.folder] || 0) + 1; else folderUnfiled++; });
+    if (_jobsFolderFilter && _jobsFolderFilter !== "__unfiled" && !folderCounts[_jobsFolderFilter]) _jobsFolderFilter = "";
+    var pillsFJobs = Object.keys(folderCounts).length
+      ? ['<button type="button" class="wb-chip cx-pill' + (!_jobsFolderFilter ? " active" : "") + '" data-jobs-folder="" aria-pressed="' + (!_jobsFolderFilter ? "true" : "false") + '">' +
+          '<span class="wb-chip-label">All folders</span> <span class="wb-chip-n">' + list.length + '</span></button>']
+        .concat(Object.keys(folderCounts).sort().map(function (f) {
+          return '<button type="button" class="wb-chip cx-pill' + (_jobsFolderFilter === f ? " active" : "") + '" data-jobs-folder="' + esc(f) + '" aria-pressed="' + (_jobsFolderFilter === f ? "true" : "false") + '">' +
+            '<span class="wb-chip-label">' + esc(f) + '</span> <span class="wb-chip-n">' + folderCounts[f] + '</span></button>';
+        }))
+        .concat(['<button type="button" class="wb-chip cx-pill' + (_jobsFolderFilter === "__unfiled" ? " active" : "") + '" data-jobs-folder="__unfiled" aria-pressed="' + (_jobsFolderFilter === "__unfiled" ? "true" : "false") + '">' +
+          '<span class="wb-chip-label">Unfiled</span> <span class="wb-chip-n">' + folderUnfiled + '</span></button>'])
+        .join("")
+      : "";
+    var shown = list.filter(function (j) {
+      if (_jobsFolderFilter === "__unfiled") { if (j.folder) return false; }
+      else if (_jobsFolderFilter) { if (j.folder !== _jobsFolderFilter) return false; }
+      if (!q) return true;
+      var src = Studio.Workspace.get("datasets", j.sourceDatasetId);
+      return (j.name + " " + (src ? src.name : "") + " " + (j.outputName || "") + " " + (j.folder || "")).toLowerCase().indexOf(q) >= 0;
+    });
+    var rows = shown.map(function (j) {
       var src = Studio.Workspace.get("datasets", j.sourceDatasetId);
       var out = j.outputDatasetId && Studio.Workspace.get("datasets", j.outputDatasetId);
       var dot = !j.lastRun ? '<span class="cx-dot" title="Never run"></span>'
         : (j.lastRun.ok ? '<span class="cx-dot ok" title="Last run OK · ' + esc(new Date(j.lastRun.at).toLocaleString()) + ' · ' + j.lastRun.rows + ' rows"></span>'
           : '<span class="cx-dot bad" title="Last run failed: ' + esc(j.lastRun.error) + '"></span>');
+      var folderBadge = j.folder ? '<span class="cx-badge cx-folder" title="Folder: ' + esc(j.folder) + '">' + esc(j.folder) + '</span>' : "";
       return '<div class="cx-row" data-job-id="' + esc(j.id) + '" tabindex="0" role="button" aria-label="Edit job ' + esc(j.name) + '">' +
         dot +
         '<span class="cx-ic" style="color:var(--faint)"></span>' +
         '<span class="cx-name"><b>' + esc(j.name) + '</b><small>' + (src ? "from " + esc(src.name) : "no source dataset") +
           (out ? " → " + esc(out.name) : "") + '</small></span>' +
+        folderBadge +
         '<span class="cx-badge">' + (j.steps || []).length + " step" + ((j.steps || []).length === 1 ? "" : "s") + '</span>' +
         jobRefreshBadge(j) +
         '<span class="cx-when">' + esc(new Date(j.updatedAt || Date.now()).toLocaleDateString()) + '</span>' +
@@ -7377,11 +7407,17 @@
           '<button type="button" class="btn" data-job-del="' + esc(j.id) + '" aria-label="Delete ' + esc(j.name) + '">✕</button>' +
         '</span></div>';
     });
-    results.innerHTML = rows.length ? '<div class="cx-list">' + rows.join("") + '</div>'
-      : '<div class="cx-empty"><b>No jobs yet.</b><br/>A job preps one dataset — rename/cast/derive columns, filter rows, roll up ' +
+    results.innerHTML =
+      (pillsFJobs ? '<div class="wb-chips">' + pillsFJobs + '</div>' : "") +
+      (rows.length ? '<div class="cx-list">' + rows.join("") + '</div>'
+      : '<div class="cx-empty"><b>' + (q || _jobsFolderFilter ? "No jobs match." : "No jobs yet.") + '</b><br/>' +
+        (q || _jobsFolderFilter ? "" : 'A job preps one dataset — rename/cast/derive columns, filter rows, roll up ' +
         'with sum/avg/count/median or an acreage-weighted mean, and join or union in another dataset — then saves the result as ' +
         'a new dataset you can chart.' +
-        (Studio.Workspace.all("datasets").length ? "" : "<br/>Add a dataset first, in the Datasets section.") + '</div>';
+        (Studio.Workspace.all("datasets").length ? "" : "<br/>Add a dataset first, in the Datasets section.")) + '</div>');
+    $$("[data-jobs-folder]", results).forEach(function (btn) {
+      btn.onclick = function () { _jobsFolderFilter = btn.getAttribute("data-jobs-folder"); renderJobs(); };
+    });
     $$(".cx-row", results).forEach(function (row) {
       var j = Studio.Workspace.get("jobs", row.getAttribute("data-job-id"));
       var icEl = row.querySelector(".cx-ic"); if (icEl && Studio.icon) icEl.appendChild(Studio.icon("sliders", 18));
@@ -7441,6 +7477,17 @@
       refreshSel.className = "cx-sel";
       refreshSel.innerHTML = [["", "No reminder"], ["7", "Every week"], ["30", "Every month"], ["90", "Every quarter"], ["365", "Every year"]]
         .map(function (o) { return '<option value="' + o[0] + '"' + (String(j.refreshEveryDays || "") === o[0] ? " selected" : "") + '>' + o[1] + '</option>'; }).join("");
+
+      // M5 folder pilot, slice 3 (jobs — same flat single-value "home" field as
+      // Datasets/Connections, with a <datalist> of names already in use).
+      var folderInp = field("Folder", el("input"), "Optional — a single home for this job (e.g. Finance). Pick an existing one or type a new name.");
+      folderInp.type = "text"; folderInp.value = j.folder || ""; folderInp.placeholder = "e.g. Finance";
+      var jobFolderNames = {};
+      Studio.Workspace.all("jobs").filter(isVisibleToMe).forEach(function (x) { if (x.folder) jobFolderNames[x.folder] = true; });
+      var jobFolderList = el("datalist"); jobFolderList.id = "jobFolderOptions";
+      Object.keys(jobFolderNames).sort().forEach(function (f) { var o = el("option"); o.value = f; jobFolderList.appendChild(o); });
+      folderInp.setAttribute("list", "jobFolderOptions");
+      folderInp.parentNode.appendChild(jobFolderList);
 
       var stepsWrap = el("div", "jobs-steps"); form.appendChild(stepsWrap);
       function operandRow(op) {
@@ -7616,6 +7663,8 @@
         j.sourceDatasetId = srcSel.value;
         j.outputName = outInp.value.trim();
         j.refreshEveryDays = refreshSel.value ? Number(refreshSel.value) : null;
+        var jobFolderVal = folderInp.value.trim();
+        if (jobFolderVal) j.folder = jobFolderVal; else delete j.folder;
         return j;
       }
       runBtn.onclick = function () {
@@ -7702,7 +7751,7 @@
     Studio.Workspace.all("jobs").filter(isVisibleToMe).forEach(function (j) {
       var n = (j.steps || []).length;
       rows.push({ type: "job", id: j.id, title: j.name || "Untitled",
-        meta: n + " step" + (n === 1 ? "" : "s"), folder: "", ts: j.updatedAt || 0 });
+        meta: n + " step" + (n === 1 ? "" : "s"), folder: j.folder || "", ts: j.updatedAt || 0 });
     });
     return rows;
   }

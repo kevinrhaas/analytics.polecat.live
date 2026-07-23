@@ -3048,6 +3048,99 @@ function serve() {
       refreshListUI.upcoming === "upcoming" && refreshListUI.noReminder === "none", JSON.stringify(refreshListUI));
     await page.waitForTimeout(200);
 
+    // M5 folder pilot, slice 3 (jobs) — same shape as the Datasets/Connections folder
+    // pilot: an editor "Folder" field + datalist, a single-select chip facet (All
+    // folders / each folder / Unfiled) once at least one job is filed, a search box
+    // (new for Jobs — it had none before), and a row badge naming the folder.
+    const jobsFolderSetup = await page.evaluate(function () {
+      window.__studioShellSetSection("jobs");
+      var conn = Studio.Workspace.put("connections", { name: "jobs-folder-test", adapter: "file", cfg: {} });
+      var ds = Studio.Workspace.put("datasets", { name: "jobs-folder-ds", connectionId: conn.id, kind: "file", format: "csv", content: "a,b\n1,2\n" });
+      var filed = Studio.Workspace.put("jobs", { name: "filed-job", sourceDatasetId: ds.id, steps: [], folder: "Finance" });
+      var unfiled = Studio.Workspace.put("jobs", { name: "unfiled-job", sourceDatasetId: ds.id, steps: [] });
+      window.__studioRenderJobs();
+      return { connId: conn.id, dsId: ds.id, filedId: filed.id, unfiledId: unfiled.id };
+    });
+    const jobsFolderList = await page.evaluate(function (filedId) {
+      var chips = [].slice.call(document.querySelectorAll("#jobsResults [data-jobs-folder]")).map(function (b) {
+        return { key: b.getAttribute("data-jobs-folder"), label: (b.querySelector(".wb-chip-label") || {}).textContent, n: (b.querySelector(".wb-chip-n") || {}).textContent };
+      });
+      var filedRow = document.querySelector('.cx-row[data-job-id="' + filedId + '"]');
+      return {
+        hasSearch: !!document.getElementById("jobsSearch"),
+        chips: chips,
+        filedBadge: filedRow ? (filedRow.querySelector(".cx-folder") || {}).textContent : null
+      };
+    }, jobsFolderSetup.filedId);
+    ok("JOBS: once a job is filed, the list gains a search box (new for Jobs) and a folder chip facet (All folders/Finance/Unfiled) with accurate counts",
+      jobsFolderList.hasSearch && jobsFolderList.chips.length === 3 &&
+      jobsFolderList.chips[0].key === "" && jobsFolderList.chips[0].n === "2" &&
+      jobsFolderList.chips.some(function (c) { return c.key === "Finance" && c.n === "1"; }) &&
+      jobsFolderList.chips.some(function (c) { return c.key === "__unfiled" && c.n === "1"; }),
+      JSON.stringify(jobsFolderList));
+    ok("JOBS: a filed job's row carries a Folder badge naming it",
+      jobsFolderList.filedBadge === "Finance", JSON.stringify(jobsFolderList));
+
+    const jobsFolderFilterResult = await page.evaluate(function () {
+      document.querySelector('[data-jobs-folder="Finance"]').click();
+      var rows = [].slice.call(document.querySelectorAll("#jobsResults .cx-row")).map(function (r) { return r.getAttribute("data-job-id"); });
+      var active = document.querySelector('[data-jobs-folder="Finance"]').classList.contains("active");
+      document.querySelector('[data-jobs-folder=""]').click(); // reset for later tests
+      return { rows: rows, active: active };
+    });
+    ok("JOBS: clicking the Finance folder chip narrows the list to just that job",
+      jobsFolderFilterResult.active && jobsFolderFilterResult.rows.length === 1 && jobsFolderFilterResult.rows[0] === jobsFolderSetup.filedId,
+      JSON.stringify(jobsFolderFilterResult));
+
+    // the job's folder also flows into Repository (M5) — a real group, not just Unfiled
+    const jobsInRepository = await page.evaluate(function (filedId) {
+      window.__studioShellSetSection("repository");
+      window.__studioRenderRepository();
+      var group = document.querySelector('.cx-group[data-repo-group="Finance"]');
+      var row = document.querySelector('.cx-row[data-repo-id="' + filedId + '"]');
+      window.__studioShellSetSection("jobs");
+      return { hasFinanceGroup: !!group, badge: row ? (row.querySelector(".cx-folder") || {}).textContent : null };
+    }, jobsFolderSetup.filedId);
+    ok("JOBS: a filed job's folder flows into Repository — its own real group (not the shared Unfiled bucket) and folder badge on its row",
+      jobsInRepository.hasFinanceGroup && jobsInRepository.badge === "Finance", JSON.stringify(jobsInRepository));
+
+    const jobsFolderEditorUI = await page.evaluate(function (filedId) {
+      window.__studioOpenJobEditor(Studio.Workspace.get("jobs", filedId));
+      var labels = [].slice.call(document.querySelectorAll(".modal .cx-field span")).map(function (s) { return s.textContent; });
+      var folderRow = [].slice.call(document.querySelectorAll(".modal .cx-field")).filter(function (r) { return (r.querySelector("span") || {}).textContent === "Folder"; })[0];
+      var folderInp = folderRow ? folderRow.querySelector("input") : null;
+      return {
+        hasFolderLabel: labels.indexOf("Folder") >= 0,
+        folderValue: folderInp ? folderInp.value : null,
+        hasDatalist: folderInp ? !!document.getElementById(folderInp.getAttribute("list")) : false,
+        datalistHasFinance: folderInp ? [].slice.call(document.querySelectorAll("#" + folderInp.getAttribute("list") + " option")).some(function (o) { return o.value === "Finance"; }) : false
+      };
+    }, jobsFolderSetup.filedId);
+    ok("JOBS: the job editor shows a Folder field (pre-filled 'Finance') with a datalist of folders already in use",
+      jobsFolderEditorUI.hasFolderLabel && jobsFolderEditorUI.folderValue === "Finance" &&
+      jobsFolderEditorUI.hasDatalist && jobsFolderEditorUI.datalistHasFinance, JSON.stringify(jobsFolderEditorUI));
+
+    const jobsFolderSaveResult = await page.evaluate(function () {
+      var folderRow = [].slice.call(document.querySelectorAll(".modal .cx-field")).filter(function (r) { return (r.querySelector("span") || {}).textContent === "Folder"; })[0];
+      var folderInp = folderRow.querySelector("input");
+      folderInp.value = "";
+      document.querySelector(".modal .btn.primary").click();
+      var job = Studio.Workspace.all("jobs").filter(function (j) { return j.name === "filed-job"; })[0];
+      return { folder: job ? job.folder : "still has field" };
+    });
+    ok("JOBS: clearing the Folder field and saving removes the job's folder (goes back to Unfiled)",
+      jobsFolderSaveResult.folder === undefined, JSON.stringify(jobsFolderSaveResult));
+
+    await page.evaluate(function (ids) {
+      Studio.Workspace.remove("jobs", ids.filedId, { silent: true });
+      Studio.Workspace.remove("jobs", ids.unfiledId, { silent: true });
+      Studio.Workspace.remove("datasets", ids.dsId, { silent: true });
+      Studio.Workspace.remove("connections", ids.connId, { silent: true });
+      Studio.Workspace.notify("*");
+      window.__studioShellSetSection("studio");
+    }, jobsFolderSetup);
+    await page.waitForTimeout(200);
+
     const wsStore = await page.evaluate(function () {
       var W = Studio.Workspace, events = [];
       var off = W.on("change", function (p) { events.push(p.table + ":" + (p.removed ? "del" : "put")); });

@@ -116,6 +116,26 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **M5 folder pilot, slice 3 — Jobs gain a Folder field (v454, 2026-07-23, steward):**
+  the documented NEXT after slice 2's Repository grouping — extends the flat single-value
+  `folder` string (same shape as the Datasets/Connections folder pilot) to Jobs, the next
+  object kind in line. The job editor gains a **Folder** text input + `<datalist>` of names
+  already in use (filtered through `isVisibleToMe`, mirroring Connections' pattern exactly).
+  The Jobs list gains its OWN search box (`#jobsSearch` — Jobs had no search/filter UI of any
+  kind before this) plus a single-select folder chip facet (All folders / each folder /
+  Unfiled, only shown once something's filed) that narrows the list, and a row badge naming
+  the folder. `repoAllRows()` now reads the job's real `folder` instead of a hardcoded `""`,
+  so a filed job lands in its own real Repository group (M5 slice 2's grouping) instead of
+  the shared Unfiled bucket. 6 new ratchets (search box + chip facet + counts appear once
+  filed, row badge, chip-click narrows the list, the folder flows into its own Repository
+  group, the editor field pre-fills with a working datalist, clearing the field on save
+  removes the folder). docs/index.html's folder-filing section updated to cover Jobs. sw
+  v98. (app/index.html, app/studio.js, docs/index.html, tests/run.js) NEXT in M5: the same
+  `folder` field on dashboards/analyses (dashboards already have `workbookId` as their own
+  single-parent grouping precedent, so worth revisiting whether they need a SEPARATE flat
+  folder too, or whether Repository should just group dashboards by workbook instead —
+  analyses have no existing grouping mechanism, so are the cleaner next target), and a
+  right-panel editor for simple objects instead of always deep-linking out.
 - **M5 slice 2 — Repository's rows now GROUP by folder, a real nested tree step (v453,
   2026-07-23, steward):** the documented first NEXT item after slice 1's flat list. Filtered
   Repository rows now render under a collapsible header per folder — sorted A→Z with an
@@ -2177,9 +2197,13 @@
 >     "find" half of M5.
 >     ↳ **Slice 2 (shipped 2026-07-23, steward — see DONE):** rows now GROUP under a collapsible
 >     header per folder (Unfiled last) instead of one flat list — the first "real nested folder
->     tree" step. NEXT in M5: the `folder` field itself on dashboards/analyses/jobs (so every kind
->     can actually be filed instead of defaulting to Unfiled), and an in-place right-panel editor
->     for simple objects.
+>     tree" step.
+>     ↳ **Folder pilot slice 3 (jobs, shipped 2026-07-23, steward — see DONE):** the same flat
+>     `folder` field + chip facet + editor field as Datasets/Connections, now on Jobs (which also
+>     gained its own first search box in the process). A filed job now lands in its own real
+>     Repository group instead of Unfiled. NEXT in M5: the same `folder` field on analyses (the
+>     cleaner next target — no pre-existing grouping mechanism, unlike dashboards' `workbookId`),
+>     and an in-place right-panel editor for simple objects.
 > M5. **Repository browser:** new left-rail section — a tree/folder view of ALL objects (dashboards,
 >     datasets, connections, analyses, jobs) with find/open/edit and a right-panel editor for
 >     simple objects; deep-links to the full editors for complex ones.
