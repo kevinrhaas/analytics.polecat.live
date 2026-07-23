@@ -6074,6 +6074,47 @@ function serve() {
       await skelPage.close();
     }
 
+    // UX4: entrance motion — a modal (and the first-run welcome overlay) used to just
+    // snap into view with no transition; both now scale+fade in on open, gated the same
+    // way as every other motion in the app (UX1's demo badge, UX10's skeleton pulse).
+    console.log("\n• UX4: modal + welcome overlay scale-in");
+    {
+      const ux4Page = await browser.newPage();
+      await ux4Page.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); } catch (e) {} });
+      await ux4Page.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
+      await ux4Page.evaluate(function () { window.__studioShellSetSection("datasets"); });
+      await ux4Page.waitForTimeout(100);
+      await ux4Page.click("#dsxNewBtn");
+      await ux4Page.waitForSelector(".modal-ov .modal", { timeout: 5000 });
+      const modalAnim = await ux4Page.evaluate(() => getComputedStyle(document.querySelector(".modal")).animationName);
+      ok("UX4: opening a modal scales/fades it in", modalAnim === "modal-scale-in", "animationName=" + modalAnim);
+      await ux4Page.evaluate(() => { var x = document.querySelector(".modal-ov .x"); if (x) x.click(); });
+      await ux4Page.waitForTimeout(100);
+
+      await ux4Page.emulateMedia({ reducedMotion: "reduce" });
+      await ux4Page.click("#dsxNewBtn");
+      await ux4Page.waitForSelector(".modal-ov .modal", { timeout: 5000 });
+      const modalAnimRM = await ux4Page.evaluate(() => getComputedStyle(document.querySelector(".modal")).animationName);
+      ok("UX4: modal scale-in is disabled under prefers-reduced-motion", modalAnimRM === "none", "animationName=" + modalAnimRM);
+      await ux4Page.evaluate(() => { var x = document.querySelector(".modal-ov .x"); if (x) x.click(); });
+
+      // First-run welcome overlay: same scale-in treatment, its own self-contained keyframe.
+      const welcomeAnim = await ux4Page.evaluate(() => {
+        window.StudioWelcome.open();
+        return getComputedStyle(document.querySelector("#studio-welcome .sw")).animationName;
+      });
+      ok("UX4: the first-run welcome overlay scales/fades in too, under reduced-motion it's disabled",
+        welcomeAnim === "none", "animationName=" + welcomeAnim);
+      await ux4Page.emulateMedia({ reducedMotion: "no-preference" });
+      const welcomeAnimNoPref = await ux4Page.evaluate(() => {
+        document.getElementById("studio-welcome").remove();
+        window.StudioWelcome.open();
+        return getComputedStyle(document.querySelector("#studio-welcome .sw")).animationName;
+      });
+      ok("UX4: the welcome overlay's scale-in runs when motion isn't reduced", welcomeAnimNoPref === "sw-scale-in", "animationName=" + welcomeAnimNoPref);
+      await ux4Page.close();
+    }
+
     // ---- per-series color picker (line/stacked) ----
     console.log("\n• per-series color");
     await page.evaluate(async () => { const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json()); window.__studioLoad(spec); });

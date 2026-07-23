@@ -40,7 +40,9 @@
     // Polecat color theme instead of always rendering Classic-Blue-only.
     st.textContent =
       "#studio-welcome{position:fixed;inset:0;z-index:95;display:flex;align-items:center;justify-content:center;background:rgba(10,10,15,.55);backdrop-filter:blur(3px);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}" +
-      "#studio-welcome .sw{background:var(--pane,#fff);border-radius:16px;box-shadow:0 28px 80px rgba(8,20,45,.5);width:min(560px,94vw);overflow:hidden}" +
+      "#studio-welcome .sw{background:var(--pane,#fff);border-radius:16px;box-shadow:0 28px 80px rgba(8,20,45,.5);width:min(560px,94vw);overflow:hidden;animation:sw-scale-in .16s ease-out}" +
+      "@keyframes sw-scale-in{from{opacity:0;transform:scale(.96) translateY(6px)}to{opacity:1;transform:none}}" +
+      "@media(prefers-reduced-motion:reduce){#studio-welcome .sw{animation:none}}" +
       "#studio-welcome .sw-hd{background:linear-gradient(120deg,var(--brand,#005bb5),var(--pdc,#7d3c98));color:#fff;padding:26px 28px;display:flex;gap:16px;align-items:center}" +
       "#studio-welcome .sw-ic{width:52px;height:52px;border-radius:13px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:800;flex:0 0 auto}" +
       "#studio-welcome .sw-hd h1{margin:0;font-size:19px;font-weight:800}" +
