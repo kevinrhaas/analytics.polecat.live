@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 496,
+    title: 'A third Conservation example: watershed-scale adoption',
+    kind: 'feature',
+    ts: '2026-07-23T23:33:52.000Z',
+    items: [
+      'New "Conservation Insight — Watershed-Scale Adoption" example (Studio gallery, once the Conservation demo pack is installed): a HUC8 choropleth colored by the provider common estimate, the ensemble trend behind it, an overall adoption gauge, and a by-provider comparison — with a real "Since year" filter.',
+    ],
+  },
+  {
     v: 495,
     title: 'Save as… + sample content is now overwrite-safe',
     kind: 'feature',

@@ -116,6 +116,23 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF2 — a 3rd Conservation example: "Watershed-Scale Adoption" (v496, 2026-07-23, steward):**
+  `data/examples/conservation-watershed.studio.json` + a new `index.json` entry (`demoPackId:
+  "conservation"`, same pack-gating as the existing 2). Leads with a full-width HUC8 choropleth
+  (`map.seriesCol: "provider"`, `opts.agg: "median"`) colored by the provider common estimate —
+  `Studio.genMock`'s existing CROSS_TYPES/`crossedRows` machinery (Viridis V7) already crosses any
+  choropleth/ensembleSeries panel with a `seriesCol` against the 5-provider domain, so this static
+  gallery example gets a believable multi-provider map/trend for free, no new sample-engine code.
+  Below the map: an `ensembleSeries` trend panel (same "Common estimate" bold-median convention as
+  the featured demo dashboard, `refSeries: "AgCensus"`), an overall-adoption gauge, and a by-provider
+  bars panel. Carries a real "Since year" filter (LF7's wired-not-decorative convention) on the
+  trend DA. 5 new tests: the card appears in the gated gallery once the Conservation pack installs
+  and disappears once it's removed (extended the existing LF2 gate checks to a 3rd file), the spec
+  loads with its title/4 panels, the filter is real (`filterIds === ["sinceYear"]`), and the panel
+  chart-type order matches (`choropleth, ensembleSeries, gauge, bars`) — plus the pack-agnostic
+  "every example renders every panel with no error" loop (tests/run.js) picks it up automatically
+  via `window.__STUDIO_STATE.examples`. SW cache → v138. NEXT: ~5 more CONSERVATION/CTIC examples
+  remain (see the LF2 LIVE-FEEDBACK QUEUE entry for the candidate topic list).
 - **LF26 — Save-as + overwrite protection: sample content can no longer be silently clobbered
   (v495, 2026-07-23, steward):** two parts. (1) A new **Save as…** button sits next to Save in
   the dashbar (and its phone More-menu twin, `moreSaveAsSpec`) — it always forks the working
@@ -2070,12 +2087,15 @@
 >      the existing 8 generic ones) attached to the CONSERVATION demo pack (install/remove with it). (b)
 >      ✓ The conservation example dashboards + pinned analyses must wear the **Conservation** dashboard
 >      theme/palette (or whatever theme is saved) — every conservation-pack object uses the conservation
->      palette, not the default. — **2 of ~8 shipped 2026-07-22 (steward, see DONE): Conservation Practice
->      Adoption Scorecard + Crop & Practice Flow, gated via new `demoPackId` support on examples/index.json
->      entries (visibleExamples() in app/studio.js). NEXT: ~6 more CONSERVATION/CTIC examples in the same
->      gated pattern (candidate topics: provider trust/agreement over time, watershed-scale adoption,
->      program cost-share ROI, county-level outlier detection, year-over-year practice switching, a
->      richtext-led narrative overview like feature-showcase.studio.json).** (c) Move the EXISTING generic
+>      palette, not the default. — **3 of ~8 shipped: Conservation Practice Adoption Scorecard + Crop &
+>      Practice Flow (2026-07-22, steward, see DONE), Watershed-Scale Adoption (2026-07-23, steward) —
+>      a HUC8 choropleth (median-across-providers common estimate) + the ensemble trend behind it + an
+>      overall gauge + a by-provider bar, with a real "Since year" filter — gated via the same
+>      `demoPackId` support on examples/index.json entries (visibleExamples() in app/studio.js). NEXT: ~5
+>      more CONSERVATION/CTIC examples in the same gated pattern (candidate topics: provider trust/
+>      agreement over time, program cost-share ROI, county-level outlier detection, year-over-year
+>      practice switching, a richtext-led narrative overview like feature-showcase.studio.json).**
+>      (c) Move the EXISTING generic
 >      examples (Data Governance, Data Platform Ops, Product Delivery, Finance, Marketing, Incident
 >      Response, Sensitivity/Compliance, Interactive Feature Showcase) AND their backing connections/
 >      datasets/dashboards/widgets into a NEW **Data Management** demo pack, toggleable just like
