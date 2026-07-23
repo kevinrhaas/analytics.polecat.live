@@ -2228,6 +2228,38 @@ function serve() {
     });
     ok("UXFIX: secondary toolbar buttons on the light content screens (Dashboards List/Compare/Export/Import) are dark-on-light readable, not faint white-on-transparent",
       uxSecondary.count >= 3 && uxSecondary.worstContrast > 80, JSON.stringify(uxSecondary));
+    // A heavily-tagged dataset row (e.g. a job-output dataset carrying
+    // #demo #conservation #geo #job-output + a lineage badge) squeezes the
+    // flexible name column hard. The row must stay ONE line high — the name's
+    // <small> subtitle must ellipsize, not wrap character-by-character and blow
+    // the row up vertically (the reported job-output layout bug).
+    const uxRowSqueeze = await page.evaluate(async function () {
+      var W = Studio.Workspace;
+      var conn = W.put("connections", { name: "Conservation Insight — demo files", adapter: "file", cfg: {} }, { silent: true });
+      var ds = W.put("datasets", {
+        name: "State cover-crop adoption — rollup (job output)", connectionId: conn.id,
+        kind: "file", format: "csv", content: "state,pct\nIA,10\n",
+        tags: ["demo", "conservation", "geo", "job-output"]
+      }, { silent: true });
+      window.__studioShellSetSection("datasets");
+      window.__studioRenderDatasets();
+      await new Promise(function (r) { setTimeout(r, 150); });
+      var row = document.querySelector('.cx-row[data-dsx-id="' + ds.id + '"]');
+      var small = row && row.querySelector(".cx-name small");
+      var cs = small ? getComputedStyle(small) : {};
+      var out = {
+        found: !!row,
+        rowHeight: row ? row.getBoundingClientRect().height : 0,
+        smallWhiteSpace: cs.whiteSpace, smallOverflow: cs.textOverflow,
+        smallScrollH: small ? small.scrollHeight : 0, smallClientH: small ? small.clientHeight : 0
+      };
+      W.remove("datasets", ds.id, { silent: true });
+      W.remove("connections", conn.id, { silent: true });
+      return out;
+    });
+    ok("UXFIX: a heavily-tagged job-output dataset row stays single-line — the name subtitle ellipsizes (nowrap) instead of wrapping character-by-character and exploding the row height",
+      uxRowSqueeze.found && uxRowSqueeze.smallWhiteSpace === "nowrap" && uxRowSqueeze.smallOverflow === "ellipsis" &&
+      uxRowSqueeze.rowHeight < 70 && uxRowSqueeze.smallScrollH <= uxRowSqueeze.smallClientH + 2, JSON.stringify(uxRowSqueeze));
     await page.evaluate(function () { window.__studioShellSetSection("studio"); });
     await page.waitForTimeout(150);
 
