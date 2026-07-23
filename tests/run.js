@@ -22288,6 +22288,68 @@ function serve() {
       repoNewFolderHiddenWhileFiltered.hiddenDuringFilter && repoNewFolderHiddenWhileFiltered.visibleAgain,
       JSON.stringify(repoNewFolderHiddenWhileFiltered));
 
+    // ---- M5 NEXT: "drag-to-file" — dragging a row onto a folder group's header
+    // refiles it there, the last of the two documented subfolder affordances. ----
+    const repoDragToFile = await repoPage.evaluate(function () {
+      function fire(dt, type, el) { el.dispatchEvent(new DragEvent(type, { bubbles: true, cancelable: true, dataTransfer: dt })); }
+      var dt = new DataTransfer();
+      var row = document.querySelector('.cx-row[data-repo-id="repo-ds"]'); // repo_test_dataset, folder "Ops"
+      var marketingHd = document.querySelector('.cx-group[data-repo-group="Marketing"] > [data-repo-group-toggle]');
+      fire(dt, "dragstart", row);
+      var draggingClass = row.classList.contains("dragging");
+      fire(dt, "dragover", marketingHd);
+      var dragOverClass = !!document.querySelector('.cx-group[data-repo-group="Marketing"].drag-over');
+      fire(dt, "drop", marketingHd);
+      fire(dt, "dragend", row);
+      return {
+        draggingClass: draggingClass,
+        dragOverClass: dragOverClass,
+        draggingClassGoneAfter: !row.classList.contains("dragging"),
+        storedFolder: Studio.Workspace.get("datasets", "repo-ds").folder,
+        badge: (document.querySelector('.cx-row[data-repo-id="repo-ds"] .cx-folder') || {}).textContent,
+        underMarketingDirectly: !!document.querySelector('.cx-group[data-repo-group="Marketing"] > .cx-list > .cx-row[data-repo-id="repo-ds"]')
+      };
+    });
+    ok("Repository: dragging a row onto a folder group's header refiles it there live — dragging state classed while in-flight, dashed drag-over outline on the target, folder written on drop",
+      repoDragToFile.draggingClass && repoDragToFile.dragOverClass && repoDragToFile.draggingClassGoneAfter &&
+      repoDragToFile.storedFolder === "Marketing" && repoDragToFile.badge === "Marketing" && repoDragToFile.underMarketingDirectly,
+      JSON.stringify(repoDragToFile));
+
+    const repoDragToUnfiled = await repoPage.evaluate(function () {
+      function fire(dt, type, el) { el.dispatchEvent(new DragEvent(type, { bubbles: true, cancelable: true, dataTransfer: dt })); }
+      var dt = new DataTransfer();
+      var row = document.querySelector('.cx-row[data-repo-id="repo-ds"]'); // just filed into "Marketing" above
+      var unfiledHd = document.querySelector('.cx-group[data-repo-group="__unfiled"] > [data-repo-group-toggle]');
+      fire(dt, "dragstart", row);
+      fire(dt, "dragover", unfiledHd);
+      fire(dt, "drop", unfiledHd);
+      fire(dt, "dragend", row);
+      return {
+        storedFolder: Studio.Workspace.get("datasets", "repo-ds").folder || "",
+        badgeGone: !document.querySelector('.cx-row[data-repo-id="repo-ds"] .cx-folder'),
+        underUnfiled: !!document.querySelector('.cx-group[data-repo-group="__unfiled"] .cx-row[data-repo-id="repo-ds"]')
+      };
+    });
+    ok("Repository: dragging a row onto the Unfiled group's header clears its folder entirely, same as typing a blank Folder field would",
+      repoDragToUnfiled.storedFolder === "" && repoDragToUnfiled.badgeGone && repoDragToUnfiled.underUnfiled,
+      JSON.stringify(repoDragToUnfiled));
+
+    const repoDragNoopSameFolder = await repoPage.evaluate(function () {
+      Studio.Workspace.put("datasets", { id: "repo-ds", name: "repo_test_dataset", connectionId: "repo-conn", kind: "sql", sql: "SELECT 1", folder: "Ops", updatedAt: 4 });
+      window.__studioRenderRepository();
+      function fire(dt, type, el) { el.dispatchEvent(new DragEvent(type, { bubbles: true, cancelable: true, dataTransfer: dt })); }
+      var dt = new DataTransfer();
+      var row = document.querySelector('.cx-row[data-repo-id="repo-ds"]');
+      var opsHd = document.querySelector('.cx-group[data-repo-group="Ops"] > [data-repo-group-toggle]');
+      var updatedBefore = Studio.Workspace.get("datasets", "repo-ds").updatedAt;
+      fire(dt, "dragstart", row);
+      fire(dt, "drop", opsHd);
+      fire(dt, "dragend", row);
+      return { updatedBefore: updatedBefore, updatedAfter: Studio.Workspace.get("datasets", "repo-ds").updatedAt };
+    });
+    ok("Repository: dropping a row back onto the folder group it's already in is a genuine no-op (no redundant write)",
+      repoDragNoopSameFolder.updatedAfter === repoDragNoopSameFolder.updatedBefore, JSON.stringify(repoDragNoopSameFolder));
+
     await repoPage.close();
 
     // ---- LF11: Explore's "Add to dashboard" is unambiguous (new vs existing) ----

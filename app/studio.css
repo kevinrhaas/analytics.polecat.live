@@ -1574,8 +1574,15 @@ body.simple-mode .da-acts{display:none!important}
 @media(pointer:coarse){.cx-group-del{opacity:1}}
 @media(prefers-reduced-motion:reduce){.cx-group-del{transition:none}}
 .cx-row{display:flex;align-items:center;gap:12px;background:var(--field);border:1px solid color-mix(in srgb, var(--ink) 12%, transparent);
-  border-radius:12px;padding:12px 16px;cursor:pointer;transition:transform .12s ease,border-color .12s ease}
+  border-radius:12px;padding:12px 16px;cursor:pointer;transition:transform .12s ease,border-color .12s ease,opacity .12s ease}
 .cx-row:hover,.cx-row:focus-visible{border-color:var(--brand);transform:translateY(-1px)}
+/* M5 NEXT ("drag-to-file"): a desktop-mouse-only convenience layered on the folder
+   text field (still the primary, mobile-capable way to file something) — a row
+   being dragged dims, and a folder group being dragged over gets a dashed brand
+   outline to read as a valid drop target. */
+.cx-row[draggable="true"]{cursor:grab}
+.cx-row.dragging{opacity:.45}
+.cx-group.drag-over{outline:2px dashed var(--brand);outline-offset:2px;border-radius:8px}
 .cx-dot{width:9px;height:9px;border-radius:50%;background:#6b5f52;flex:0 0 auto}
 .cx-dot.ok{background:#4cde8c;box-shadow:0 0 6px rgba(76,222,140,.5)}
 .cx-dot.bad{background:#ff5c7a;box-shadow:0 0 6px rgba(255,92,122,.5)}
