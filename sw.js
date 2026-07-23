@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v98"; /* v98: M5 folder pilot slice 3 — Jobs gain
+var CACHE_NAME = "studio-shell-v99"; /* v99: M5 folder pilot slice 4 — Analyses
+   gain the same flat Folder field (Explore savebar input + datalist), a
+   folder chip facet above the saved-analyses list, and a row badge, same
+   shape as the Datasets/Connections/Jobs folder pilot; Repository's rows
+   pick up analyses' real folder too. app/studio.js, app/studio.css content
+   changed, so precached copies need to roll.
+   v98: M5 folder pilot slice 3 — Jobs gain
    a Folder field (editor input + datalist), the section's first search box,
    a folder chip facet, and a row badge, same shape as the Datasets/
    Connections folder pilot. app/index.html, app/studio.js, docs/index.html

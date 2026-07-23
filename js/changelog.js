@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 455,
+    title: 'Analyses can now be filed into folders too',
+    kind: 'feature',
+    ts: '2026-07-23T02:01:10.000Z',
+    items: [
+      'Explore gained a Folder field next to the analysis name (with suggestions from folders already in use), matching Datasets, Connections and Jobs.',
+      'The saved-analyses list gained a folder chip strip (All folders / each folder / Unfiled), plus a folder badge on filed rows.',
+      'A filed analysis now shows up in its own group in Repository instead of the shared Unfiled bucket.',
+    ],
+  },
+  {
     v: 454,
     title: 'Jobs can now be filed into folders, and searched',
     kind: 'feature',

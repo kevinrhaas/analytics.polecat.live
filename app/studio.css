@@ -1807,6 +1807,7 @@ body.simple-mode .da-acts{display:none!important}
 .xp-savebar{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap}
 .xp-savebar input{flex:1;min-width:180px;border:1px solid var(--line);border-radius:9px;
   background:var(--field);color:var(--ink);padding:9px 11px;font-size:13px}
+.xp-savebar input#xpFolder{flex:.6;min-width:140px}
 @media (max-width:900px){
   .xp-body{grid-template-columns:1fr}
   .xp-side{position:static}

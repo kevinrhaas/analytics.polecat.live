@@ -1841,6 +1841,52 @@ function serve() {
     ok("XP: pinning surfaces the analysis on Home; its card opens Explore with that analysis loaded",
       xpPin.hadCard && xpPinState.section && xpPinState.loaded === "Suite analysis",
       JSON.stringify({ hadCard: xpPin.hadCard, section: xpPinState.section, loaded: xpPinState.loaded }));
+    // M5 folder pilot (analyses): same flat single-value `folder` field + chip facet
+    // shape as Datasets/Connections/Jobs, now on Explore's saved-analyses sidebar list.
+    const xpFolderNone = await page.evaluate(function () { return { chip: !!document.querySelector("[data-xp-folder]") }; });
+    ok("XP: no folder facet row while no saved analysis has been filed into one",
+      !xpFolderNone.chip, JSON.stringify(xpFolderNone));
+    await page.fill("#xpFolder", "Regional");
+    await page.click("#xpSaveBtn");
+    await page.waitForTimeout(350);
+    const xpFolderSaved = await page.evaluate(function () {
+      var a = Studio.Workspace.all("analyses").filter(function (x) { return x.name === "Suite analysis"; })[0];
+      var chip = document.querySelector('[data-xp-folder="Regional"]');
+      var row = document.querySelector('.xp-saved-row[data-xp-a="' + a.id + '"]');
+      return {
+        folder: a.folder, chip: !!chip,
+        chipLabel: chip ? (chip.querySelector(".wb-chip-label") || {}).textContent : null,
+        badge: row ? !!row.querySelector(".cx-folder") : false,
+        badgeText: row ? (row.querySelector(".cx-folder") || {}).textContent : null
+      };
+    });
+    ok("XP: saving the Folder field persists a.folder, renders a chip, and badges the saved-analyses row",
+      xpFolderSaved.folder === "Regional" && xpFolderSaved.chip && xpFolderSaved.chipLabel === "Regional" &&
+      xpFolderSaved.badge && xpFolderSaved.badgeText === "Regional", JSON.stringify(xpFolderSaved));
+    // a second, unfiled analysis to make the Unfiled chip meaningful
+    await page.evaluate(function () {
+      var a = Studio.Workspace.all("analyses").filter(function (x) { return x.name === "Suite analysis"; })[0];
+      Studio.Workspace.put("analyses", { name: "Unfiled analysis", datasetId: a.datasetId, sample: a.sample, da: a.da, chart: a.chart, chartType: a.chartType });
+      window.__studioRenderExplore();
+    });
+    const xpFolderFilter = await page.evaluate(function () {
+      document.querySelector('[data-xp-folder="Regional"]').click();
+      return { rows: document.querySelectorAll(".xp-saved-row").length };
+    });
+    ok("XP: clicking the Regional folder chip narrows the saved-analyses list to just that folder",
+      xpFolderFilter.rows === 1, JSON.stringify(xpFolderFilter));
+    const xpFolderUnfiled = await page.evaluate(function () {
+      document.querySelector('[data-xp-folder="__unfiled"]').click();
+      return { rows: document.querySelectorAll(".xp-saved-row").length, unfiledN: (document.querySelector('[data-xp-folder="__unfiled"] .wb-chip-n') || {}).textContent };
+    });
+    ok("XP: the Unfiled folder chip excludes the analysis that's been filed",
+      xpFolderUnfiled.rows === 1 && xpFolderUnfiled.unfiledN === "1", JSON.stringify(xpFolderUnfiled));
+    const xpFolderAll = await page.evaluate(function () {
+      document.querySelector('[data-xp-folder=""]').click();
+      return { rows: document.querySelectorAll(".xp-saved-row").length, activeChip: !!document.querySelector('[data-xp-folder=""].active') };
+    });
+    ok("XP: the All folders chip resets the saved-analyses list back to both analyses",
+      xpFolderAll.rows === 2 && xpFolderAll.activeChip, JSON.stringify(xpFolderAll));
     // cleanup + restore studio section for later tests
     await page.evaluate(function () {
       Studio.Workspace.all("analyses").forEach(function (a) { Studio.Workspace.remove("analyses", a.id, { silent: true }); });
@@ -21875,12 +21921,14 @@ function serve() {
         dash: !!document.querySelector('.cx-row[data-repo-id="repo-dash"] .cx-folder')
       };
     });
-    ok("Repository: rows carry over the folder badge from Datasets/Connections' folder pilot, and types without a folder concept show none",
+    ok("Repository: rows carry over the folder badge from Datasets/Connections' folder pilot, and types without a folder set show none",
       repoFolderBadge.ds && repoFolderBadge.dsText === "Ops" && !repoFolderBadge.dash, JSON.stringify(repoFolderBadge));
 
     // M5 slice 2: the flat list is now GROUPED under a collapsible header per folder
-    // (Unfiled last) — repo-ds/repo-conn (folder "Ops") land in one group, the other
-    // three (no folder concept yet) land in a shared "Unfiled" group.
+    // (Unfiled last) — repo-ds/repo-conn (folder "Ops") land in one group; repo-an/
+    // repo-job/repo-dash land in the shared "Unfiled" group here because this fixture
+    // doesn't file them (repo-an/repo-job DO carry a `folder` field since their own
+    // folder pilots shipped — dashboards are the only type still with no folder concept).
     const repoGroups = await repoPage.evaluate(function () {
       var groups = [].slice.call(document.querySelectorAll("#repoAllResults .cx-group")).map(function (g) {
         return {
