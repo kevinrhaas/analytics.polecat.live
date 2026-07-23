@@ -19326,20 +19326,48 @@ function serve() {
     await page.click('#railNav .rail-item[data-sec="settings"]');
     await page.waitForTimeout(80);
     const z10Boot = await page.evaluate(function () {
-      var sel = document.getElementById("appThemeSel");
+      var group = document.getElementById("appThemeCards");
+      var active = group && group.querySelector(".apptheme-card.active");
       return {
-        present: !!sel,
-        value: sel ? sel.value : "",
+        present: !!group,
+        cardCount: group ? group.querySelectorAll(".apptheme-card").length : 0,
+        role: group && group.getAttribute("role"),
+        activeKey: active ? active.getAttribute("data-app-theme-card") : "",
+        activeAriaChecked: active ? active.getAttribute("aria-checked") : "",
         attr: document.documentElement.getAttribute("data-app-theme"),
         api: window.__studioAppTheme && window.__studioAppTheme.get()
       };
     });
-    ok("Z10: Settings' Appearance card has a Color theme picker, defaulting to Classic Blue",
-      z10Boot.present && z10Boot.value === "classic" && z10Boot.attr === "classic" && z10Boot.api === "classic",
+    ok("Z10 / LF17: Settings' Appearance card has a Color theme picker (3 palette cards, radiogroup), defaulting to Classic Blue",
+      z10Boot.present && z10Boot.cardCount === 3 && z10Boot.role === "radiogroup" &&
+      z10Boot.activeKey === "classic" && z10Boot.activeAriaChecked === "true" &&
+      z10Boot.attr === "classic" && z10Boot.api === "classic",
       JSON.stringify(z10Boot));
 
+    // LF17: each card must actually preview its OWN real colors — the whole point of replacing
+    // the text-only <select> — so the 3 cards' banner/chip colors must all be distinguishable,
+    // not copies of one another.
+    const cardSwatches = await page.evaluate(function () {
+      return Array.prototype.map.call(document.querySelectorAll("#appThemeCards .apptheme-card"), function (b) {
+        var banner = b.querySelector(".apptheme-banner"), chips = b.querySelectorAll(".apptheme-chip");
+        return {
+          key: b.getAttribute("data-app-theme-card"),
+          banner: banner ? getComputedStyle(banner).backgroundImage : "",
+          chip0: chips[0] ? getComputedStyle(chips[0]).backgroundColor : "",
+          chip1: chips[1] ? getComputedStyle(chips[1]).backgroundColor : "",
+          chip2: chips[2] ? getComputedStyle(chips[2]).backgroundColor : ""
+        };
+      });
+    });
+    const swatchSignatures = cardSwatches.map(function (c) { return c.banner + "|" + c.chip0 + "|" + c.chip1 + "|" + c.chip2; });
+    ok("LF17: all 3 Color theme cards render distinguishable, non-empty swatch previews",
+      cardSwatches.length === 3 &&
+      cardSwatches.every(function (c) { return c.banner && c.chip0 && c.chip1 && c.chip2; }) &&
+      new Set(swatchSignatures).size === 3,
+      JSON.stringify(cardSwatches));
+
     const z10ClassicBrand = await page.evaluate(function () { return getComputedStyle(document.documentElement).getPropertyValue("--brand").trim(); });
-    await page.selectOption("#appThemeSel", "polecat");
+    await page.click('.apptheme-card[data-app-theme-card="polecat"]');
     await page.waitForTimeout(80);
     const z10Polecat = await page.evaluate(function () {
       return {
@@ -19352,6 +19380,17 @@ function serve() {
     ok("Z10: switching to Polecat sets data-app-theme + persists + recolors --brand/--bg",
       z10Polecat.attr === "polecat" && z10Polecat.stored === "polecat" && z10Polecat.brand !== z10ClassicBrand && z10Polecat.bg,
       JSON.stringify(z10Polecat) + " vs classic " + z10ClassicBrand);
+
+    // LF17: after picking Polecat, ITS card (and only its card) shows the selected state.
+    const polecatCardState = await page.evaluate(function () {
+      return Array.prototype.map.call(document.querySelectorAll("#appThemeCards .apptheme-card"), function (b) {
+        return { key: b.getAttribute("data-app-theme-card"), active: b.classList.contains("active"), ariaChecked: b.getAttribute("aria-checked") };
+      });
+    });
+    ok("LF17: the currently-active theme's card (Polecat) shows the selected state; the other two don't",
+      polecatCardState.filter(function (c) { return c.active && c.ariaChecked === "true"; }).length === 1 &&
+      polecatCardState.filter(function (c) { return c.key === "polecat"; })[0].active,
+      JSON.stringify(polecatCardState));
 
     // Combines orthogonally with the light/dark mode toggle — Polecat has its own dark variant.
     await page.click('#secSettings input[data-set="dark"]');
@@ -19377,7 +19416,7 @@ function serve() {
     await page.click('#secSettings input[data-set="dark"]'); // back to light mode; still Polecat theme here
     await page.waitForTimeout(80);
     const z10RailPolecat = await page.evaluate(function () { return getComputedStyle(document.getElementById("railNav")).backgroundColor; });
-    await page.selectOption("#appThemeSel", "classic");
+    await page.click('.apptheme-card[data-app-theme-card="classic"]');
     await page.waitForTimeout(80);
     const z10RailClassic = await page.evaluate(function () { return getComputedStyle(document.getElementById("railNav")).backgroundColor; });
     ok("Z10: the left rail recolors too — Classic Blue's rail is a distinct cool navy, not the Polecat plum",
@@ -19388,13 +19427,18 @@ function serve() {
     // ── Visual refresh (A) follow-up: "Fleet Modern" app-chrome theme, third option ──
     console.log("\n• Visual refresh (A) follow-up: Fleet Modern app-chrome theme");
     const modernOpts = await page.evaluate(function () {
-      var sel = document.getElementById("appThemeSel");
-      return Array.prototype.map.call(sel.options, function (o) { return o.value; });
+      return Array.prototype.map.call(document.querySelectorAll("#appThemeCards .apptheme-card"), function (b) { return b.getAttribute("data-app-theme-card"); });
     });
-    ok("Fleet Modern: the Color theme picker offers a third 'modern' option alongside classic/polecat",
+    ok("Fleet Modern: the Color theme picker offers a third 'modern' card alongside classic/polecat",
       modernOpts.length === 3 && modernOpts.indexOf("modern") >= 0, JSON.stringify(modernOpts));
 
-    await page.selectOption("#appThemeSel", "modern");
+    // LF17: keyboard operability — a real <button> gives Tab focus + Enter/Space activation for
+    // free; assert that actually holds instead of just assuming it (script-focus the card, since
+    // Playwright's own Tab-walk-the-whole-page would be a much longer, more brittle path to it).
+    await page.evaluate(function () { document.querySelector('.apptheme-card[data-app-theme-card="modern"]').focus(); });
+    const modernFocused = await page.evaluate(function () { return document.activeElement.getAttribute("data-app-theme-card"); });
+    ok("LF17: the Fleet Modern card is focusable via keyboard (Tab)", modernFocused === "modern", "focused=" + modernFocused);
+    await page.keyboard.press("Enter");
     await page.waitForTimeout(80);
     const modernLight = await page.evaluate(function () {
       return {
@@ -19426,7 +19470,7 @@ function serve() {
 
     // restore to Classic Blue + Light so subsequent tests see the original baseline
     await page.click('#secSettings input[data-set="dark"]');
-    await page.selectOption("#appThemeSel", "classic");
+    await page.click('.apptheme-card[data-app-theme-card="classic"]');
     await page.waitForTimeout(80);
 
     // ── Z11: Help/docs — a persistent, discoverable rail entry (not buried in ⋯ More) ──

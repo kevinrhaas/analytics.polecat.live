@@ -378,8 +378,29 @@ html[data-app-theme='modern'] #mobileNavBtn{background:#0d1a2e;border-color:rgba
 @media(max-width:640px){.set-txt{width:100%}}
 /* Z6 follow-up: named style-preset collection */
 .set-row-col{flex-wrap:wrap}
-.set-row-col .sp-list,.set-row-col .sp-add-row{flex:0 0 100%;margin-left:44px}
-@media(max-width:640px){.set-row-col .sp-list,.set-row-col .sp-add-row{margin-left:0}}
+.set-row-col .sp-list,.set-row-col .sp-add-row,.set-row-col .apptheme-picker{flex:0 0 100%;margin-left:44px}
+@media(max-width:640px){.set-row-col .sp-list,.set-row-col .sp-add-row,.set-row-col .apptheme-picker{margin-left:0}}
+/* LF17: Color theme picker — palette-image cards (AutoSelector-style) replacing the old
+   text-only <select>. Each card's banner is that theme's own --topbar-bg gradient and its
+   three dots are --brand/--pdc/--bg, resolved live per theme (studio.js resolveAppThemeTokens)
+   rather than a second hardcoded copy of studio.css's theme colors, so the cards can't drift
+   from the actual [data-app-theme] blocks above. Active-state ring matches this file's other
+   "active" swatch convention (border-color:var(--brand)) rather than inventing a new one. */
+.apptheme-picker{display:flex;flex-wrap:wrap;gap:10px}
+.apptheme-card{position:relative;display:flex;flex-direction:column;gap:6px;width:118px;padding:8px;
+  border-radius:var(--radius-sm);border:2px solid transparent;background:var(--field);cursor:pointer;
+  font:inherit;color:var(--ink);text-align:left;transition:border-color .12s,transform .1s,box-shadow .12s}
+.apptheme-card:hover{transform:translateY(-1px);box-shadow:var(--shadow)}
+.apptheme-card:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+.apptheme-card.active{border-color:var(--brand)}
+.apptheme-banner{display:block;height:34px;border-radius:7px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.08)}
+.apptheme-chips{display:flex;gap:5px;padding:0 1px}
+.apptheme-chip{width:13px;height:13px;border-radius:50%;box-shadow:0 0 0 1px rgba(0,0,0,.12)}
+.apptheme-name{font-size:12.5px;font-weight:700}
+.apptheme-check{position:absolute;top:6px;right:6px;width:17px;height:17px;border-radius:50%;
+  background:var(--brand);color:#fff;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 1px 3px rgba(0,0,0,.25)}
+@media(max-width:640px){.apptheme-card{width:104px}}
 .sp-list{display:flex;flex-direction:column;gap:6px;margin-top:10px}
 .sp-empty{font-size:11.5px;color:var(--muted);font-style:italic}
 .sp-item{display:flex;align-items:center;gap:8px;background:color-mix(in srgb, var(--ink) 10%, var(--pane));border-radius:8px;padding:6px 8px}
