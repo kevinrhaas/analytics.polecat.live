@@ -1133,7 +1133,7 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
   .btn.icon{padding:7px 9px}
   /* M10: hide secondary topbar buttons at ALL phone widths; they are accessible via ⋯ More.
      Previously only hidden at ≤400px, leaving mid-size phones (400-640px) with a clipped topbar. */
-  #btnExamples,#btnImport,#btnSaveSpec{display:none!important}
+  #btnExamples,#btnImport,#btnSaveSpec,#btnCloseStudio{display:none!important}
   .more-phone-only{display:block}
   /* M11: restore-banner dismiss button gets a full-row tap-friendly layout on phone */
   .restore-banner .rb-acts .btn{min-height:44px;flex:1;display:flex;align-items:center;justify-content:center}

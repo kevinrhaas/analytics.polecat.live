@@ -176,4 +176,5 @@
   window.__studioShellApplyRoleGating = applyRoleGating;
 
   window.__studioShellSetSection = setActive; // test hook
+  window.__studioShellGetSection = function () { return desiredSection; }; // LF27(b): lets studio.js capture the section Studio was entered from
 })();

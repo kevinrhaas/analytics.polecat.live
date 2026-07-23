@@ -19,7 +19,8 @@
     connections: [], activeConn: null,
     theme: "light",
     simpleMode: false,
-    demoMode: false
+    demoMode: false,
+    studioOrigin: "dashboards"             // LF27(b): section Close returns to; captured by enterStudio()
   };
   window.__STUDIO_STATE = S;               // exposed for tests
   window.__demoMode = false;               // test hook — mirrors S.demoMode
@@ -269,7 +270,7 @@
       if (sharedSpec) {
         try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
         S.spec = normalize(sharedSpec); S.selection = null;
-        if (window.__studioShellSetSection) window.__studioShellSetSection("studio");
+        enterStudio();
         syncHeader(); renderInspector(); refreshPreview(); buildLibrary();
         toast("Loaded shared dashboard: " + (sharedSpec.title || sharedSpec.name || "Untitled"));
       } else {
@@ -905,7 +906,7 @@
       chart: { type: a.chart.type, da: da.id, map: Studio.clone(a.chart.map || {}), opts: Studio.clone(a.chart.opts || {}) } };
     S.spec.panels.push(p);
     select({ kind: "panel", id: p.id });
-    if (window.__studioShellSetSection) __studioShellSetSection("studio");
+    enterStudio();
     toast("Added analysis “" + (a.name || "Analysis") + "” to “" + S.spec.title + "”");
     refreshPreview(); buildLibrary();
   }
@@ -5386,11 +5387,26 @@
   // Remote pulls (workspace backend Refresh / connect-adopt) replace the whole
   // store — repaint the dashboard surfaces when rows arrive from elsewhere.
   Studio.Workspace.on("replaced", function () { renderHome(); renderDashboards(); });
+  // LF27(b): every "open the builder" call site routes through here so Close (below)
+  // always knows where to return to. Only overwrite studioOrigin when arriving FROM some
+  // other section — re-entering Studio while already there (e.g. Examples ▾ swapping the
+  // spec, or the Home-card drop handlers firing mid-session) must not clobber the section
+  // you originally opened it from.
+  function enterStudio() {
+    if (window.__studioShellGetSection) {
+      var cur = window.__studioShellGetSection();
+      if (cur && cur !== "studio") S.studioOrigin = cur;
+    }
+    if (window.__studioShellSetSection) window.__studioShellSetSection("studio");
+  }
+  function closeStudio() {
+    if (window.__studioShellSetSection) window.__studioShellSetSection(S.studioOrigin || "dashboards");
+  }
   function openRecent(id) {
     var r = loadRecents().filter(function (x) { return x.id === id; })[0];
     if (!r) return;
     S.spec = normalize(r.spec); S.selection = null; syncHeader(); renderInspector(); refreshPreview(); buildLibrary();
-    if (window.__studioShellSetSection) window.__studioShellSetSection("studio");
+    enterStudio();
     markLastViewed(id); // "since you were last here" resets the clock the moment you actually open it
   }
 
@@ -5914,7 +5930,7 @@
     $$(".home-card", sec).forEach(function (btn) {
       btn.onclick = function () {
         var act = btn.getAttribute("data-home");
-        if (window.__studioShellSetSection) window.__studioShellSetSection("studio");
+        enterStudio();
         if (act === "blank") { S.spec = applyDashboardDefaults(Studio.emptySpec()); S.selection = null; syncHeader(); renderInspector(); refreshPreview(); buildLibrary(); bumpDashMilestone(); }
         else if (act === "examples") { setTimeout(function () { var b = $("#btnExamples"); if (b) b.click(); }, 60); }
         else if (act === "tour") { setTimeout(function () { if (window.StudioTutorial) StudioTutorial.open(); }, 60); }
@@ -5936,7 +5952,7 @@
         try {
           var d = JSON.parse(e.dataTransfer.getData("text/plain"));
           if (d && d.wsDataset && Studio.Workspace.get("datasets", d.wsDataset)) {
-            if (window.__studioShellSetSection) window.__studioShellSetSection("studio");
+            enterStudio();
             S.spec = applyDashboardDefaults(Studio.emptySpec()); S.selection = null; syncHeader();
             bumpDashMilestone();
             addFromWorkspaceDataset(d.wsDataset, "bars");
@@ -5948,7 +5964,7 @@
     if (tipNext) tipNext.onclick = function () { _homeTipIdx = (_homeTipIdx + 1) % HOME_TIPS.length; renderHome(); };
     $$("[data-home-example]", sec).forEach(function (btn) {
       btn.onclick = function () {
-        if (window.__studioShellSetSection) window.__studioShellSetSection("studio");
+        enterStudio();
         loadExample(btn.getAttribute("data-home-example"));
       };
     });
@@ -8455,7 +8471,7 @@
       on: function () { return document.body.classList.contains("focus-mode"); },
       set: function () {
         if (document.body.classList.contains("focus-mode")) { exitFocusMode(); }
-        else { if (window.__studioShellSetSection) window.__studioShellSetSection("studio"); enterFocusMode(); }
+        else { enterStudio(); enterFocusMode(); }
       } }
   ];
 
@@ -8977,7 +8993,7 @@
     });
     var setTourBtn = $("#setTourBtn", sec);
     if (setTourBtn) setTourBtn.onclick = function () {
-      if (window.__studioShellSetSection) window.__studioShellSetSection("studio");
+      enterStudio();
       if (window.StudioWelcome) StudioWelcome.open();
     };
     $$("[data-demopack]", sec).forEach(function (btn) {
@@ -10078,6 +10094,7 @@
 
     $("#btnImport").onclick = openDashboardPicker;
     $("#btnSaveSpec").onclick = saveToCatalog;
+    $("#btnCloseStudio").onclick = closeStudio;
 
     // ? key → shortcuts modal (when not in a text field)
     document.addEventListener("keydown", function (e) {
@@ -10163,6 +10180,8 @@
     if (moreImport) moreImport.onclick = function () { closeMenus(); openDashboardPicker(); };
     var moreSaveSpec = $("#moreSaveSpec");
     if (moreSaveSpec) moreSaveSpec.onclick = function () { closeMenus(); saveToCatalog(); };
+    var moreCloseStudio = $("#moreCloseStudio");
+    if (moreCloseStudio) moreCloseStudio.onclick = function () { closeMenus(); closeStudio(); };
 
     // E8 — Sign out: clear gate session flag and reload so the passcode is required again
     var moreSignOut = $("#moreSignOut"); if (moreSignOut) moreSignOut.onclick = function () {
@@ -10514,7 +10533,7 @@
           throw new Error("that doesn't look like a dashboard spec (.studio.json)");
         }
         S.spec = normalize(spec); S.selection = null; clearAutosave();
-        if (window.__studioShellSetSection) window.__studioShellSetSection("studio");
+        enterStudio();
         syncHeader(); renderInspector(); refreshPreview(); buildLibrary();
         toast("Imported dashboard from URL: " + (spec.title || spec.name || fallbackName || "Untitled"));
         var ov = goBtn.closest(".modal-ov"); if (ov) ov.remove();
