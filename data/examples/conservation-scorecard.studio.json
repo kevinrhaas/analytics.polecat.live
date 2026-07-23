@@ -26,9 +26,14 @@
         "columns": ["practice", "acres"]
       },
       {
-        "id": "by_provider", "name": "AdoptionByProvider", "params": [], "cache": true, "cacheDuration": 120,
-        "sql": "SELECT provider, ROUND(AVG(pct),1) AS pct FROM v_practice_adoption GROUP BY 1 ORDER BY 2 DESC",
+        "id": "by_provider", "name": "AdoptionByProvider", "params": [{ "name": "practice", "type": "String", "default": "%" }], "cache": true, "cacheDuration": 120,
+        "sql": "SELECT provider, ROUND(AVG(pct),1) AS pct FROM v_practice_adoption WHERE practice LIKE ${practice} GROUP BY 1 ORDER BY 2 DESC",
         "columns": ["provider", "pct"]
+      },
+      {
+        "id": "practice_filter", "name": "PracticeOptions", "params": [], "cache": true, "cacheDuration": 300,
+        "sql": "SELECT DISTINCT practice FROM v_practice_adoption ORDER BY 1",
+        "columns": ["practice"]
       },
       {
         "id": "grid", "name": "PracticeProviderGrid", "params": [], "cache": true, "cacheDuration": 180,
@@ -42,7 +47,9 @@
       }
     ]
   },
-  "filters": [],
+  "filters": [
+    { "id": "practice", "da": "practice_filter", "label": "Practice", "valueCol": "practice", "textCol": "practice", "allLabel": "All practices", "def": "%" }
+  ],
   "kpis": [
     { "da": "kpi", "valueCol": "adoption_pct", "label": "Adoption Rate", "fmt": "pct", "state": "good", "info": "Common-estimate adoption rate across all practices and providers." },
     { "da": "kpi", "valueCol": "enrolled_acres", "label": "Enrolled Acres", "fmt": "n", "state": "purple", "info": "Total acreage covered by a tracked conservation practice." },
@@ -62,8 +69,8 @@
       "chart": { "type": "donut", "da": "mix", "map": { "labelCol": "practice", "valueCol": "acres" }, "opts": { "centerCap": "acres", "fmt": "n", "height": 300 } }
     },
     {
-      "id": "p_provider", "title": "Adoption by Provider", "span": 1, "pill": "%", "sub": "",
-      "info": "Each provider's own estimate of the overall adoption rate.", "src": "v_practice_adoption",
+      "id": "p_provider", "title": "Adoption by Provider", "span": 1, "pill": "%", "sub": "responds to the Practice filter above",
+      "info": "Each provider's own estimate of the overall adoption rate — pick a practice above to focus it.", "src": "v_practice_adoption",
       "chart": { "type": "bars", "da": "by_provider", "map": { "labelCol": "provider", "valueCol": "pct" }, "opts": { "horizontal": true, "fmt": "pct", "color": "--c3", "height": 300 } }
     },
     {
