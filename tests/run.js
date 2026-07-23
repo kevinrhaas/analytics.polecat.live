@@ -22530,6 +22530,66 @@ function serve() {
 
     await lf11Page.close();
 
+    // ---- LF12: Explore exposes + persists the choropleth GL renderer choice ----
+    console.log("\n• Explore: GL renderer opt-in + persistence (LF12)");
+    const lf12Page = await browser.newPage();
+    await lf12Page.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); } catch (e) {} });
+    await lf12Page.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
+    await lf12Page.waitForFunction(() => window.__STUDIO_STATE && window.Studio && Studio.Workspace, { timeout: 10000 });
+    await lf12Page.evaluate(function () {
+      Studio.Workspace.put("analyses", {
+        id: "lf12-an", name: "LF12 Map Analysis", datasetId: null, sample: null,
+        da: { id: "lf12-da", columns: ["fips", "value"] },
+        chart: { type: "choropleth", map: { idCol: "fips", valueCol: "value" }, opts: {} },
+        chartType: "choropleth", updatedAt: 1
+      });
+      window.__studioShellSetSection("explore");
+      window.__studioExplore.load("lf12-an");
+    });
+    await lf12Page.waitForTimeout(400);
+    const lf12Select = await lf12Page.evaluate(function () {
+      var sel = document.querySelector('select[data-xp-opt="renderer"]');
+      return sel ? { present: true, value: sel.value, optionCount: sel.options.length,
+        labels: [].map.call(sel.options, function (o) { return o.textContent; }) } : { present: false };
+    });
+    ok("LF12: Explore's map editor now offers a Renderer control for choropleth (reusing the Studio Inspector's own svg/gl schema, not a second hardcoded list)",
+      lf12Select.present && lf12Select.value === "svg" && lf12Select.optionCount === 2, JSON.stringify(lf12Select));
+    // switching to GL must actually re-render the live preview via MapLibre (SwiftShader WebGL
+    // in CI/headless), not just relabel the same SVG map — same real-boot bar the GL MAP block above holds to.
+    const lf12Gl = await lf12Page.evaluate(function () {
+      return new Promise(function (resolve) {
+        var sel = document.querySelector('select[data-xp-opt="renderer"]');
+        sel.value = "gl";
+        sel.dispatchEvent(new Event("change", { bubbles: true }));
+        var t0 = Date.now();
+        (function poll() {
+          var f = document.querySelector(".xp-ifr"), doc = null;
+          try { doc = f && f.contentDocument; } catch (e) {}
+          var glMarker = doc ? doc.querySelector("[data-geo-gl]") : null;
+          if (glMarker) resolve({ opt: window.__studioExplore.state.opts.renderer, gl: true });
+          else if (Date.now() - t0 > 15000) resolve({ opt: window.__studioExplore.state.opts.renderer, gl: false, timeout: true });
+          else setTimeout(poll, 200);
+        })();
+      });
+    });
+    ok("LF12: picking GL in Explore's Renderer control flips XP.opts.renderer and the live preview actually boots the MapLibre GL renderer",
+      lf12Gl.opt === "gl" && lf12Gl.gl, JSON.stringify(lf12Gl));
+    // save → reopen fresh: the GL choice must round-trip (this is the LF12 ask itself —
+    // "have it PERSIST with the saved analysis/widget")
+    await lf12Page.fill("#xpName", "LF12 Map Analysis");
+    await lf12Page.click("#xpSaveBtn");
+    await lf12Page.waitForTimeout(350);
+    await lf12Page.evaluate(function () { window.__studioExplore.load("lf12-an"); });
+    await lf12Page.waitForTimeout(400);
+    const lf12Reload = await lf12Page.evaluate(function () {
+      var a = Studio.Workspace.all("analyses").filter(function (x) { return x.name === "LF12 Map Analysis"; })[0];
+      var sel = document.querySelector('select[data-xp-opt="renderer"]');
+      return { savedRenderer: a && a.chart && a.chart.opts && a.chart.opts.renderer, selectValue: sel && sel.value };
+    });
+    ok("LF12: the GL renderer choice is saved onto the analysis and its Renderer control shows GL again after reopening",
+      lf12Reload.savedRenderer === "gl" && lf12Reload.selectValue === "gl", JSON.stringify(lf12Reload));
+    await lf12Page.close();
+
     // ---- ★★★-1: dashboards live in the WORKSPACE store (mirror to remote backends) ----
     console.log("\n• dashboards in the workspace store (★★★-1)");
     // (a) MIGRATION: a profile with the legacy studio-recents/pins/workbooks keys boots
