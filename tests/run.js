@@ -1494,8 +1494,10 @@ function serve() {
       ens.before.legendMin0 === "4.1" && ens.after.legendMin1 === "3.8",
       JSON.stringify({ before: ens.before.legendMin0, after: ens.after.legendMin1 }));
 
-    // ---- CSV DOWNLOAD (Viridis V9): "the current selection" as a real file --
-    console.log("\n• V9: CSV download of the current selection — ensemble + choropleth");
+    // ---- CSV DOWNLOAD (Viridis V9 + LF6 slice 2): "the current selection" as a real file, via
+    // the generic per-panel download chrome (the chart-specific legend buttons were folded into
+    // it — see PDC._panelCsvRows in app/studio-charts.js / app/studio-render.js) ----
+    console.log("\n• V9/LF6: CSV download of the current selection — ensemble + choropleth");
     const csvTest = await page.evaluate(async function () {
       var spec = { id: "csv-t", name: "csv-t", title: "t",
         panels: [
@@ -1524,40 +1526,32 @@ function serve() {
           var med = doc ? doc.querySelectorAll('[data-ens="median"]') : [];
           var mapPaths = doc ? doc.querySelectorAll("path[data-geo-id]") : [];
           if (med.length && mapPaths.length > 3000) {
-            // Intercept anchor.click() INSIDE the iframe's own realm (the CSV
-            // helper lives in studio-charts.js, inlined per-export) so the test
-            // captures the Blob text instead of triggering a real OS download.
             var win = ifr.contentWindow;
-            win.HTMLAnchorElement.prototype.click = function () {
-              var self = this;
-              win.__csvCap = win.fetch(self.href).then(function (r) { return r.text(); })
-                .then(function (t) { return { name: self.download, text: t }; });
-            };
-            function grab(sel) { doc.querySelector(sel).click(); return win.__csvCap; }
-            Promise.all([grab(".pdc-ens-legend [data-csv-dl]"), grab(".pdc-geo-legend [data-csv-dl]")])
-              .then(function (r) {
-                var ensBefore = r[0], mapCsv = r[1];
-                doc.querySelector('[data-ens-toggle="DTN"]').click(); // re-renders the ensemble legend
-                grab(".pdc-ens-legend [data-csv-dl]").then(function (ensAfter) {
-                  ifr.remove();
-                  resolve({ ensBefore: ensBefore, mapCsv: mapCsv, ensAfter: ensAfter });
-                });
+            function grab(panelId) { return new Promise(function (res) { win.__downloadPanelDataRows(panelId, res); }); }
+            Promise.all([grab("c1"), grab("m1")]).then(function (r) {
+              var ensBefore = r[0], mapRows = r[1];
+              doc.querySelector('[data-ens-toggle="DTN"]').click(); // re-renders the ensemble legend
+              grab("c1").then(function (ensAfter) {
+                ifr.remove();
+                resolve({ ensBefore: ensBefore, mapRows: mapRows, ensAfter: ensAfter });
               });
+            });
           } else if (Date.now() - t0 > 15000) { ifr.remove(); resolve({ timeout: true }); }
           else setTimeout(poll, 200);
         })();
       });
     });
-    ok("V9 CSV: the ensemble chart's Download-CSV control exports the CURRENT SELECTION long-format (label/series/value, both providers + the common estimate)",
-      csvTest.ensBefore && csvTest.ensBefore.name === "ensemble-data.csv" && /^Label,Series,Value/.test(csvTest.ensBefore.text) &&
-      csvTest.ensBefore.text.indexOf("DTN") >= 0 && csvTest.ensBefore.text.indexOf("Regrow") >= 0 &&
-      csvTest.ensBefore.text.indexOf("Common estimate") >= 0, JSON.stringify(csvTest.ensBefore));
-    ok("V9 CSV: the choropleth's Download-CSV control exports region id/name/value for what's currently shown",
-      csvTest.mapCsv && csvTest.mapCsv.name === "map-data.csv" && /^Region ID,Region,Value/.test(csvTest.mapCsv.text) &&
-      csvTest.mapCsv.text.indexOf("17031") >= 0 && csvTest.mapCsv.text.indexOf("19153") >= 0, JSON.stringify(csvTest.mapCsv));
-    ok("V9 CSV: toggling a provider off and re-downloading reflects the NEW selection — DTN drops out, Regrow and the common estimate remain",
-      csvTest.ensAfter && csvTest.ensAfter.text.indexOf("DTN") < 0 && csvTest.ensAfter.text.indexOf("Regrow") >= 0 &&
-      csvTest.ensAfter.text.indexOf("Common estimate") >= 0, JSON.stringify(csvTest.ensAfter));
+    function rowsText(rows) { return (rows || []).map(function (r) { return r.join(","); }).join("\n"); }
+    ok("V9/LF6 CSV: the ensemble panel's download-data chrome exports the CURRENT SELECTION long-format (label/series/value, both providers + the common estimate)",
+      csvTest.ensBefore && csvTest.ensBefore[0].join(",") === "Label,Series,Value" &&
+      rowsText(csvTest.ensBefore).indexOf("DTN") >= 0 && rowsText(csvTest.ensBefore).indexOf("Regrow") >= 0 &&
+      rowsText(csvTest.ensBefore).indexOf("Common estimate") >= 0, JSON.stringify(csvTest.ensBefore));
+    ok("V9/LF6 CSV: the choropleth panel's download-data chrome exports region id/name/value for what's currently shown",
+      csvTest.mapRows && csvTest.mapRows[0].join(",") === "Region ID,Region,Value" &&
+      rowsText(csvTest.mapRows).indexOf("17031") >= 0 && rowsText(csvTest.mapRows).indexOf("19153") >= 0, JSON.stringify(csvTest.mapRows));
+    ok("V9/LF6 CSV: toggling a provider off and re-downloading reflects the NEW selection — DTN drops out, Regrow and the common estimate remain",
+      csvTest.ensAfter && rowsText(csvTest.ensAfter).indexOf("DTN") < 0 && rowsText(csvTest.ensAfter).indexOf("Regrow") >= 0 &&
+      rowsText(csvTest.ensAfter).indexOf("Common estimate") >= 0, JSON.stringify(csvTest.ensAfter));
 
     // ---- PROVENANCE (Viridis V9): "Sources" popover — which providers, how ----
     // much coverage — on both the ensemble chart and its linked choropleth.

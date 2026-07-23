@@ -577,8 +577,13 @@
   }
   // `onRows` is test-only, same convention as downloadPanelPng's onDataUrl above.
   function downloadPanelData(p, res, onRows) {
-    if (!res || !res.rows || !res.rows.length) { if (onRows) onRows(null); return; }
-    var rows = [res.cols].concat(res.rows);
+    // LF6 slice 2: choropleth/ensemble panels register a "current selection" rows fn (studio-
+    // charts.js's PDC._panelCsvRows, keyed by panel id) that respects live filter/toggle state —
+    // prefer it over the raw bound query rows when present. Read lazily here (not at chrome-
+    // creation time) so it's immune to the choropleth's async geometry load.
+    var override = PDC._panelCsvRows && PDC._panelCsvRows[p.id];
+    var rows = override ? override() : ((res && res.rows && res.rows.length) ? [res.cols].concat(res.rows) : null);
+    if (!rows) { if (onRows) onRows(null); return; }
     if (onRows) { onRows(rows); return; }
     var csv = rows.map(function (r) { return r.map(csvCell).join(","); }).join("\r\n");
     var a = document.createElement("a");
@@ -664,7 +669,10 @@
             fit: o.fit || "data", stateLines: o.stateLines !== false,
             renderer: o.renderer || "svg",
             legend: o.showLegend !== false, fmt: f, height: o.height || 380,
-            lastUpdated: daLastUpdated(ch.da) };
+            lastUpdated: daLastUpdated(ch.da),
+            // LF6 slice 2: lets studio-charts.js register a "current selection" CSV rows fn for
+            // this panel's download chrome instead of drawing its own redundant legend button.
+            panelId: p.id };
           // LF28: the GL renderer's last interactive pan/zoom (cfg.viewport = {center,zoom})
           // round-trips on the panel spec — restored on load instead of re-fitting bounds, and
           // (builder-only) written back live via onViewport as the user pans/zooms.
@@ -688,7 +696,9 @@
             agg: o.agg || "median", medianLabel: o.medianLabel || "Common estimate",
             showBand: o.showBand !== false, showProviders: o.showProviders !== false,
             showToggles: o.showToggles !== false, fmt: f, height: o.height || 320,
-            lastUpdated: daLastUpdated(ch.da) });
+            lastUpdated: daLastUpdated(ch.da),
+            // LF6 slice 2: see the matching choropleth comment above.
+            panelId: p.id });
           break;
         case "treemap":
           PDC.treemap(body, { fmt: f, height: o.height || 300,
@@ -1580,6 +1590,9 @@
     // without threading `data` through a whole extra parameter (a real click handler already
     // closes over it directly — see the per-panel loop below).
     window.__lastRenderData = data;
+    // LF6 slice 2: reset the per-panel CSV-override registry every full render so a panel whose
+    // chart type just changed away from choropleth/ensembleSeries can't keep a stale rows fn.
+    PDC._panelCsvRows = {};
     // KPIs
     var kEl = PDC.el("kpis");
     if (kEl) {

@@ -53,35 +53,16 @@
     node.addEventListener("mousemove", function (e) { PDC.showTip(e, html); });
     node.addEventListener("mouseout", PDC.hideTip);
   }
-  // V9 (Viridis scientific-honesty polish): a self-contained CSV download the
-  // geo/ensemble charts trigger for "the current selection" — no dependency on
-  // the app shell's own download() helper, since this module ships standalone
-  // inside every export/preview iframe.
-  function csvCell(v) {
-    var s = v == null ? "" : String(v);
-    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
-  }
-  function csvDownload(filename, rows) {
-    var csv = rows.map(function (r) { return r.map(csvCell).join(","); }).join("\r\n");
-    var blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-    var a = document.createElement("a");
-    a.href = URL.createObjectURL(blob); a.download = filename; a.style.display = "none";
-    document.body.appendChild(a); a.click();
-    setTimeout(function () { document.body.removeChild(a); URL.revokeObjectURL(a.href); }, 0);
-  }
-  function csvDownloadBtn(filename, rowsFn, label) {
-    var btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "pdc-csv-dl";
-    btn.setAttribute("data-csv-dl", "1");
-    btn.style.cssText = "display:inline-flex;align-items:center;gap:4px;border:1px solid var(--panel-border,#dfe4ee);" +
-      "border-radius:999px;padding:2px 9px;background:none;cursor:pointer;font:inherit;font-size:10.5px;" +
-      "color:var(--text-secondary,#3a4560);margin-left:auto";
-    btn.textContent = "⬇ " + (label || "Download CSV");
-    btn.title = "Download the data currently shown (respects the active provider selection) as CSV.";
-    btn.onclick = function (e) { e.stopPropagation(); csvDownload(filename, rowsFn()); };
-    return btn;
-  }
+  // V9 (Viridis scientific-honesty polish) originally gave the geo/ensemble charts their own
+  // legend-embedded "Download CSV" button. LF6 slice 2 folds that into the generic per-panel
+  // download chrome (app/studio-render.js): instead of rendering a button here, these charts
+  // register a rows-fn for "the current selection" into this shared registry, keyed by panel id,
+  // and studio-render.js's downloadPanelData() prefers it over the raw bound query rows when
+  // present — so there's exactly one download affordance per panel, and it still respects live
+  // selection state (provider toggles etc.) since the registered fn is re-registered on every
+  // redraw. Read lazily at click time, so it's immune to the choropleth's async geometry load
+  // racing the chrome's synchronous creation.
+  PDC._panelCsvRows = PDC._panelCsvRows || {};
   // V9 (Viridis scientific-honesty polish): a click-to-open "Sources" popover —
   // which providers contributed and how much coverage they have. Unlike _tip's
   // hover-only tooltip, this PERSISTS while read (closes on outside click, its
@@ -6285,10 +6266,12 @@
     if (cfg.provenance !== false && coverage) {
       lg.appendChild(provenanceBtn(function () { return mapProvenanceHtml(cfg.scale || "county", coverage, cfg.lastUpdated); }));
     }
-    if (cfg.csvDownload !== false && csvRows) {
-      lg.appendChild(csvDownloadBtn("map-data.csv", function () {
+    // LF6 slice 2: register the current-selection rows for the panel chrome's generic download
+    // button instead of rendering a second, redundant CSV control here (see the registry note above).
+    if (cfg.csvDownload !== false && csvRows && cfg.panelId) {
+      PDC._panelCsvRows[cfg.panelId] = function () {
         return [["Region ID", "Region", "Value"]].concat(csvRows);
-      }));
+      };
     }
   }
 
@@ -6479,11 +6462,12 @@
         return html + lastUpdatedHtml(cfg.lastUpdated);
       }));
     }
-    // V9: CSV download of the CURRENT SELECTION — exactly the providers left
-    // toggled on, plus the common estimate and any reference series, long-format
-    // so it stays honest about what's median vs. per-provider vs. reference.
-    if (cfg.csvDownload !== false) {
-      foot.appendChild(csvDownloadBtn("ensemble-data.csv", function () {
+    // V9: CSV export of the CURRENT SELECTION — exactly the providers left toggled on, plus the
+    // common estimate and any reference series, long-format so it stays honest about what's
+    // median vs. per-provider vs. reference. LF6 slice 2: registered for the panel chrome's
+    // generic download button (see the registry note above) instead of a second CSV control here.
+    if (cfg.csvDownload !== false && cfg.panelId) {
+      PDC._panelCsvRows[cfg.panelId] = function () {
         var rows = [["Label", "Series", "Value"]];
         xOrder.forEach(function (x) {
           on.forEach(function (name) { var v = byProv[name][x]; if (v != null) rows.push([x, name, v]); });
@@ -6491,7 +6475,7 @@
         });
         if (refName) refRows.forEach(function (r) { if (r.value != null && !isNaN(+r.value)) rows.push([r.label, refName, +r.value]); });
         return rows;
-      }));
+      };
     }
     el.appendChild(foot);
   }
