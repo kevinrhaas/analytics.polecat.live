@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v131"; /* v131: UX4 (quality track, remainder) — a
+var CACHE_NAME = "studio-shell-v132"; /* v132: LF28 — the GL choropleth's interactive pan/zoom
+   now persists onto the panel spec (debounced, builder-only): reopening a dashboard, saving,
+   or exporting restores the exact camera the user left the map at instead of re-fitting bounds
+   to the data every time. Works in both Dashboard Studio and Explore's live preview.
+   app/studio-render.js, app/studio-charts.js, app/studio.js changed, so precached copies need
+   to roll.
+   v131: UX4 (quality track, remainder) — a
    staggered fade-up entrance on the recent/dashboard/favorite/example card grids, and a
    distinct celebratory toast variant (trophy icon + brand gradient) for milestone moments
    (first export, round-number export/dashboard counts, zero-warnings). Both reduced-motion

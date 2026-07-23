@@ -1978,12 +1978,15 @@
 >      an 80px nudge per click), stacked under the zoom control via the SAME `maplibregl-ctrl
 >      maplibregl-ctrl-group`/`maplibregl-ctrl-icon` styling (no new visual language), working in both
 >      the live preview and the exported HTML. 2 new tests (4 buttons render; clicking one actually
->      moves the camera). sw v107. (app/studio-charts.js). NEXT in LF4: (b) The renderer / pan-zoom /
->      interactive choice is still NOT persisted with the panel — it doesn't round-trip through
->      save/export/reopen; persist the renderer opt (+ a sensible default view) on the panel spec. (c)
->      BUG — the **"State border overlay"** toggle works on ONE renderer but not the other (parity gap);
->      make both the SVG and GL renderers honor it. app/studio-charts.js (choropleth SVG + GL),
->      app/studio.js (panel inspector + spec persistence).
+>      moves the camera). sw v107. (app/studio-charts.js). (b) ✓ **Renderer choice + pan/zoom now
+>      persist (LF12 shipped the renderer opt; LF28 shipped the pan/zoom camera, both 2026-07-23,
+>      steward) — see those entries.** NEXT in LF4: (c) BUG — the **"State border overlay"** toggle
+>      works on ONE renderer but not the other (parity gap); make both the SVG and GL renderers honor
+>      it. Re-check this is still real before spending a slice on it — a read of both renderers during
+>      the LF28 slice found both already gate the state-lines layer on the identical
+>      `cfg.stateLines !== false && scale !== "state"` condition, so the parity gap Kevin reported may
+>      already be closed as a side effect of an earlier slice; repro against the live app first.
+>      app/studio-charts.js (choropleth SVG + GL), app/studio.js (panel inspector + spec persistence).
 > LF5. **Chart color picker — swatches + fix apply.** (a) BUG — the color dropdown (Series 1–10 /
 >      Accent / Good/Warning/Bad/Info) "does not seem to work": picking an option doesn't recolor the
 >      chart/series. Trace the color-pick handler → spec write → render read and fix. ✓ **ONE confirmed
@@ -2299,15 +2302,29 @@
 >           (b) Close/return, then (c) the tile browser, then (d) the Repository/Dashboards split. app/index.html (rail +
 >           boot section), app/shell.js (section routing + origin tracking), app/studio.js (Close, renderHome tiles,
 >           secDashboards render), app/tutorial.js (start on Home). Ties: LF18, LF23, #22, #29, LF9/#44, #17/#23.
-> LF28. **BUG — map zoom/pan viewport isn't saved with the map widget (Kevin, live).** The choropleth's current
->       zoom LEVEL and PAN position (center/translate) don't persist on the panel/analysis object — reopen or export
->       and the map resets to its default view. Persist the viewport (zoom + pan center, and the renderer choice per
->       LF25b) onto the widget's cfg so it survives save, reload, AND export (both the built-in renderer and the GL/
->       MapLibre renderer). Must work in BOTH surfaces: building a widget in EXPLORE and editing a panel in DASHBOARD
->       STUDIO. Wire the renderer's zoom/pan state back into cfg on change (debounced), read it on render, and include
->       it in the byte-identical export. This is the concrete "last zoom/pan not saved" half of #39 (choropleth
->       pan/zoom + persist). app/studio-charts.js (choropleth + GL viewport state ⇄ cfg), app/studio.js (Explore +
->       panel inspector), app/exporters.js; test: set zoom/pan → serialize → reload → viewport restored.
+> LF28. ✓ **BUG — map zoom/pan viewport now persists with the map widget (shipped 2026-07-23, steward).**
+>       SCOPE CHECK FIRST: only the GL/MapLibre renderer has interactive pan/zoom at all — the built-in SVG
+>       renderer is a static viewBox fit to the data's bbox with no drag/scroll interaction, so there is no
+>       SVG-side viewport to lose or persist (nothing to fix there); the renderer CHOICE itself already
+>       round-tripped through save/export/reopen as of LF12 (a normal schema-driven opt), so this slice is
+>       purely the GL camera. Fix: the panel's `chart.opts.viewport` ({center:{lng,lat}, zoom}, an internal
+>       field alongside the schema-driven opts, same convention as richtext's `chart.opts.content`) now
+>       round-trips through the spec. `_choroplethGL` (app/studio-charts.js) restores it as the map's INITIAL
+>       camera (skipping the fitBounds-to-data pass) whenever present, and — builder-only, via a new
+>       `cfg.onViewport` callback wired by `renderPanel` in app/studio-render.js only when `isPreview()` — posts
+>       a debounced (500ms) `{type:"viewport", id, viewport}` message on every `moveend` (pan, zoom, or the
+>       nudge-pad). Studio's message listener (app/studio.js) writes it straight onto
+>       `panel.chart.opts.viewport` and calls `scheduleNoteRecent()` — deliberately NOT `refreshPreview()`,
+>       so persisting doesn't reload the iframe and yank the camera the user is actively mid-pan on; the next
+>       real save/export just reads it off the already-mutated spec. Explore's single-panel preview carries
+>       the fixed id `"xp1"` (never a real dashboard panel id), so the SAME message falls through to a new
+>       `XP.opts.viewport` branch instead, closing the "both surfaces" requirement — `xpSave()` already clones
+>       `XP.opts` wholesale into the saved analysis. A same-panel re-render (theme flip, ensemble toggle)
+>       still carries the LIVE camera across via the pre-existing `prevCam` in-memory carry-over, unaffected.
+>       4 new ratchets (saved viewport restores the initial camera instead of fitBounds; panning posts a
+>       debounced viewport message with the panel id + updated center/zoom; the viewport message persists
+>       onto a dashboard panel's chart.opts; the same message with Explore's `xp1` id updates `XP.opts`
+>       instead). app/studio-charts.js, app/studio-render.js, app/studio.js, tests/run.js. sw v132.
 > LF29. **Typography consistency + wider dashboard title (Kevin, live) — elegance polish.** Two things:
 >       (a) ✓ **FONT CONSISTENCY (shipped 2026-07-23, steward, see DONE).** The Data-panel dataset ids, the
 >           dashboard id chip, dataset-list names, and connection sublabels now render in the sans `--font`

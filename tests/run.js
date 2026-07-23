@@ -1816,6 +1816,75 @@ function serve() {
       glLive.upClicked && !!glLive.before && !!glLive.after &&
       Math.abs(glLive.after.lat - glLive.before.lat) > 0.001, JSON.stringify({ before: glLive.before, after: glLive.after }));
 
+    // LF28: a saved viewport (panel.chart.opts.viewport, e.g. round-tripped from a prior
+    // save/export) restores the camera on load instead of re-fitting bounds to the data —
+    // the mock rows are all Iowa/Illinois counties (fitBounds would land near lng -93/-94),
+    // so a far-west saved camera is an unambiguous signal the restore path was taken.
+    const glSavedViewSpec = glSpecSrc("gl");
+    glSavedViewSpec.panels[0].chart.opts.viewport = { center: { lng: -120, lat: 45 }, zoom: 3 };
+    const glSavedView = await page.evaluate(async function (spec) {
+      var html = Studio.buildHtml(spec, window.__STUDIO_STATE.assets, { preview: true,
+        mock: { g: { cols: ["fips", "v"], rows: [["17031", 4], ["17113", 7], ["19153", 9], ["18097", 6]] } } });
+      return await new Promise(function (resolve) {
+        var ifr = document.createElement("iframe");
+        ifr.style.cssText = "position:fixed;left:-2800px;top:0;width:900px;height:600px";
+        document.body.appendChild(ifr);
+        ifr.srcdoc = html;
+        var t0 = Date.now();
+        (function poll() {
+          var doc = null; try { doc = ifr.contentDocument; } catch (e) {}
+          var wrap = doc && doc.querySelector("[data-geo-gl]");
+          var map = wrap && wrap.parentNode && wrap.parentNode._glMap;
+          if (map) {
+            var c = map.getCenter();
+            ifr.remove();
+            resolve({ lng: c.lng, lat: c.lat, zoom: map.getZoom() });
+          } else if (Date.now() - t0 > 20000) { ifr.remove(); resolve({ timeout: true }); }
+          else setTimeout(poll, 200);
+        })();
+      });
+    }, glSavedViewSpec);
+    ok("GL: a saved cfg.viewport restores the camera on load instead of fitting bounds to the data",
+      Math.abs(glSavedView.lng - (-120)) < 1 && Math.abs(glSavedView.lat - 45) < 1 && Math.abs(glSavedView.zoom - 3) < 0.5,
+      JSON.stringify(glSavedView));
+
+    // LF28: panning/zooming posts a debounced "viewport" message (builder-only) with the
+    // updated camera, so the parent (Studio/Explore) can persist it back onto the spec
+    const glViewportMsg = await page.evaluate(async function (spec) {
+      var msgs = [];
+      var origPost = window.postMessage;
+      window.postMessage = function (data, origin) { if (data && data.studio === 1) msgs.push(data); return origPost.call(window, data, origin); };
+      var html = Studio.buildHtml(spec, window.__STUDIO_STATE.assets, { preview: true,
+        mock: { g: { cols: ["fips", "v"], rows: [["17031", 4], ["17113", 7], ["19153", 9], ["18097", 6]] } } });
+      return await new Promise(function (resolve) {
+        var ifr = document.createElement("iframe");
+        ifr.style.cssText = "position:fixed;left:-3000px;top:0;width:900px;height:600px";
+        document.body.appendChild(ifr);
+        ifr.srcdoc = html;
+        var t0 = Date.now();
+        (function poll() {
+          var doc = null; try { doc = ifr.contentDocument; } catch (e) {}
+          var wrap = doc && doc.querySelector("[data-geo-gl]");
+          var map = wrap && wrap.parentNode && wrap.parentNode._glMap;
+          if (map) {
+            map.panBy([150, 0], { duration: 0 });
+            setTimeout(function () {
+              window.postMessage = origPost;
+              var vp = msgs.filter(function (m) { return m.type === "viewport"; });
+              ifr.remove();
+              resolve({ count: vp.length, last: vp[vp.length - 1] });
+            }, 900); // past the 500ms debounce
+          } else if (Date.now() - t0 > 20000) { window.postMessage = origPost; ifr.remove(); resolve({ timeout: true }); }
+          else setTimeout(poll, 200);
+        })();
+      });
+    }, glSpecSrc("gl"));
+    ok("GL: panning posts a debounced viewport message carrying the panel id + updated center/zoom",
+      glViewportMsg.count >= 1 && glViewportMsg.last && glViewportMsg.last.id === "m1" &&
+      glViewportMsg.last.viewport && typeof glViewportMsg.last.viewport.zoom === "number" &&
+      typeof glViewportMsg.last.viewport.center.lng === "number",
+      JSON.stringify(glViewportMsg));
+
     // ---- EXPLORE (Viridis V5): dataset-first designer → saved analyses ------
     console.log("\n• EXPLORE: dataset-first analysis designer (Viridis V5)");
     const xpSchema = await page.evaluate(function () {
@@ -5609,6 +5678,25 @@ function serve() {
     await page.waitForTimeout(150);
     const span = await page.evaluate((id) => (window.__STUDIO_STATE.spec.panels.find((p) => p.id === id) || {}).span, orderBefore[1]);
     ok("resize message updates panel span", span === "full", "span=" + span);
+
+    // LF28: simulate the GL choropleth's viewport message — persists onto the panel's
+    // chart.opts silently (no toast/refresh, unlike resize/rename above)
+    const vpResult = await page.evaluate((id) => {
+      window.postMessage({ studio: 1, type: "viewport", id: id, viewport: { center: { lng: -93.5, lat: 42.1 }, zoom: 5.5 } }, "*");
+      return new Promise((resolve) => setTimeout(() => {
+        const p = window.__STUDIO_STATE.spec.panels.find((p) => p.id === id);
+        resolve((p && p.chart.opts && p.chart.opts.viewport) || null);
+      }, 150));
+    }, orderBefore[1]);
+    ok("viewport message persists center+zoom onto the panel's chart.opts", vpResult && vpResult.center.lng === -93.5 && vpResult.center.lat === 42.1 && vpResult.zoom === 5.5, JSON.stringify(vpResult));
+
+    // LF28: the same message with Explore's fixed "xp1" id (no matching dashboard panel)
+    // falls through to XP.opts instead, so it round-trips through "Save analysis" too
+    const xpVp = await page.evaluate(() => {
+      window.postMessage({ studio: 1, type: "viewport", id: "xp1", viewport: { center: { lng: -100.2, lat: 40 }, zoom: 4 } }, "*");
+      return new Promise((resolve) => setTimeout(() => resolve((window.__STUDIO_XP.opts || {}).viewport || null), 150));
+    });
+    ok("viewport message for Explore's xp1 id updates XP.opts instead of a dashboard panel", xpVp && xpVp.center.lng === -100.2 && xpVp.zoom === 4, JSON.stringify(xpVp));
 
     // real pointer drag on the resize handle (integration) — fresh flagship so panel[0] is span 1
     await page.evaluate(async () => { const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json()); window.__studioLoad(spec); });

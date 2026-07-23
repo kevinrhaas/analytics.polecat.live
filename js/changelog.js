@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 490,
+    title: 'Map widgets now remember where you left them',
+    kind: 'fix',
+    ts: '2026-07-23T20:07:17.000Z',
+    items: [
+      'The interactive map (Interactive GL renderer)\'s pan and zoom used to reset every time you reopened a dashboard, saved, or exported it. It now remembers exactly where you left it, in both the Dashboard Studio builder and Explore.',
+    ],
+  },
+  {
     v: 489,
     title: 'A little more delight: card grids fade in, milestones get a celebratory toast',
     kind: 'polish',

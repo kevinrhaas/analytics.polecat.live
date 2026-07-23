@@ -647,6 +647,7 @@
                                      // "home" field as Datasets/Connections/Jobs
     q: ""                            // dataset search
   };
+  window.__STUDIO_XP = XP; // exposed for tests
   // M5 folder pilot (analyses): which folder GROUP the saved-analyses sidebar
   // list is narrowed to — "" = All, "__unfiled" = no folder, else a folder name.
   var _xpFolderFilter = "";
@@ -9300,6 +9301,15 @@
       deletePanel(d.id);
     } else if (d.type === "zoom") {
       openPanelZoom(d.panelId);
+    } else if (d.type === "viewport") {
+      // LF28: the GL choropleth's last pan/zoom, written back live (debounced) as the user
+      // interacts with it — no refreshPreview()/toast, a silent background persist so panning
+      // doesn't visibly reload the iframe; the NEXT explicit save/export just picks it up off
+      // the already-mutated spec/XP.opts. Explore's single-panel preview carries the fixed id
+      // "xp1" (never a real dashboard panel id), so it falls through to the XP branch.
+      var vpanel = panelById(d.id);
+      if (vpanel) { vpanel.chart.opts = vpanel.chart.opts || {}; vpanel.chart.opts.viewport = d.viewport; scheduleNoteRecent(); }
+      else if (d.id === "xp1") { XP.opts = XP.opts || {}; XP.opts.viewport = d.viewport; }
     } else if (d.type === "header-edit") {
       // Inline canvas edit of a header text object (title · subtitle · description).
       // Mirrors the dashboard inspector's own field wiring so both stay in sync.
