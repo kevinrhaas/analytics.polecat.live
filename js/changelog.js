@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 459,
+    title: 'Dashboards can now be filed into folders too',
+    kind: 'feature',
+    ts: '2026-07-23T05:17:12.000Z',
+    items: [
+      'Dashboards gain the same Folder field as Datasets, Connections, Jobs and Analyses, via the Repository quick-edit (pencil) button — so a filed dashboard shows up in its own Repository folder group instead of always landing in Unfiled.',
+      'This is separate from Workbooks (the Dashboards section\'s own named collections) — Folder is purely how Repository organizes and nests items, the same as the other four kinds.',
+    ],
+  },
+  {
     v: 458,
     title: 'Explore: adding a chart to a dashboard is no longer ambiguous',
     kind: 'polish',

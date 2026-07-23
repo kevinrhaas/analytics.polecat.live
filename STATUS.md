@@ -2301,6 +2301,22 @@
 >     display change, the flat per-type chip facets and the stored `folder` field are unchanged.
 >     sw v101. NEXT in M5: subfolder create/move affordances beyond typing `/` (drag-to-file, a
 >     "New subfolder" action), and a folder field for dashboards (still `workbookId`-only).
+>     ↳ **A folder field for dashboards (shipped 2026-07-23, steward — LAST object type, folder
+>     rollout across all five kinds is now COMPLETE):** dashboards gain the same flat `folder`
+>     string field as datasets/connections/jobs/analyses (`repoAllRows` no longer hardcodes ""),
+>     so a filed dashboard lands in its own real Repository group instead of always Unfiled — same
+>     nesting-via-`/` behavior as the other four. Deliberately a SIBLING to the pre-existing
+>     `workbookId` grouping (the Dashboards section's own workbook chips/filter), not a
+>     replacement — workbooks stay that section's own named-collection concept, `folder` is
+>     purely the Repository tree's organizing field, same convention datasets already use
+>     alongside their own unrelated free-text `owner`/description fields. Repository's quick-edit
+>     (pencil) button now appears on dashboard rows too, but is folder-ONLY (no name field) since a
+>     dashboard's title lives in Studio's own dashboard settings and isn't duplicated here — the
+>     shared `openRepoQuickEdit` skips rendering/validating the name input when editing a
+>     dashboard. 2 new M5 ratchets (folder-only panel shape, save files the dashboard without
+>     touching its title). sw v103. **The folder rollout (Repository's organizing field across
+>     all five object kinds) is now fully done.** NEXT in M5: subfolder create/move affordances
+>     beyond typing `/` (drag-to-file, a "New subfolder" action).
 > M5. **Repository browser:** new left-rail section — a tree/folder view of ALL objects (dashboards,
 >     datasets, connections, analyses, jobs) with find/open/edit and a right-panel editor for
 >     simple objects; deep-links to the full editors for complex ones.

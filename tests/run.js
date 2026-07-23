@@ -21934,9 +21934,8 @@ function serve() {
 
     // M5 slice 2: the flat list is now GROUPED under a collapsible header per folder
     // (Unfiled last) — repo-ds/repo-conn (folder "Ops") land in one group; repo-an/
-    // repo-job/repo-dash land in the shared "Unfiled" group here because this fixture
-    // doesn't file them (repo-an/repo-job DO carry a `folder` field since their own
-    // folder pilots shipped — dashboards are the only type still with no folder concept).
+    // repo-job/repo-dash land in the shared "Unfiled" group here simply because this
+    // fixture doesn't file them (all five kinds now carry a `folder` field).
     const repoGroups = await repoPage.evaluate(function () {
       var groups = [].slice.call(document.querySelectorAll("#repoAllResults .cx-group")).map(function (g) {
         return {
@@ -22112,8 +22111,8 @@ function serve() {
         dash: !!document.querySelector('.cx-row[data-repo-id="repo-dash"] .repo-edit')
       };
     });
-    ok("Repository: a quick-edit (pencil) button appears on dataset/connection/job/analysis rows (the four kinds that carry a folder field) but not on dashboards (no folder field yet)",
-      repoEditButtons.ds && repoEditButtons.conn && repoEditButtons.job && repoEditButtons.an && !repoEditButtons.dash,
+    ok("Repository: a quick-edit (pencil) button appears on all five kinds now that dashboards carry a folder field too",
+      repoEditButtons.ds && repoEditButtons.conn && repoEditButtons.job && repoEditButtons.an && repoEditButtons.dash,
       JSON.stringify(repoEditButtons));
 
     const repoQuickEditOpen = await repoPage.evaluate(function () {
@@ -22172,6 +22171,49 @@ function serve() {
     ok("Repository: the quick-edit panel's \"Open full editor →\" hands off to the object's real editor, same as clicking the row itself",
       repoQuickEditOpenFull.panelClosed && repoQuickEditOpenFull.exploreVisible && repoQuickEditOpenFull.analysisId === "repo-an",
       JSON.stringify(repoQuickEditOpenFull));
+
+    // M5 NEXT: "a folder field for dashboards (still workbookId-only)" — dashboards
+    // now carry the same flat `folder` field as the other four kinds, so they group
+    // into Repository's folder tree too. Quick edit is folder-ONLY for this one kind
+    // (no name field — a dashboard's title stays Studio's own settings' job, not
+    // duplicated here), unlike the name+folder panel the other four kinds get.
+    await repoPage.click('#railNav .rail-item[data-sec="repository"]');
+    await repoPage.waitForTimeout(100);
+    const repoQuickEditDashOpen = await repoPage.evaluate(function () {
+      document.querySelector('.cx-row[data-repo-id="repo-dash"] .repo-edit').click();
+      var panel = document.querySelector(".ps-rpanel");
+      var inputs = panel ? [].slice.call(panel.querySelectorAll(".cx-field input")) : [];
+      return {
+        title: panel ? panel.querySelector(".ps-rpanel-head h2").textContent : null,
+        fieldCount: inputs.length,
+        folder: inputs[0] ? inputs[0].value : null,
+        repoStillVisible: !document.getElementById("secRepository").hidden
+      };
+    });
+    ok("Repository: a dashboard's quick-edit panel is folder-only (no name field — dashboard titles stay in Studio's own settings)",
+      repoQuickEditDashOpen.title === "Edit dashboard" && repoQuickEditDashOpen.fieldCount === 1 && repoQuickEditDashOpen.folder === "" &&
+      repoQuickEditDashOpen.repoStillVisible, JSON.stringify(repoQuickEditDashOpen));
+
+    await repoPage.evaluate(function () {
+      var panel = document.querySelector(".ps-rpanel");
+      var inp = panel.querySelector(".cx-field input");
+      inp.value = "Reports"; inp.dispatchEvent(new Event("input"));
+      [].slice.call(panel.querySelectorAll("button")).filter(function (b) { return b.textContent === "Save"; })[0].click();
+    });
+    await repoPage.waitForTimeout(320);
+    const repoQuickEditDashSave = await repoPage.evaluate(function () {
+      var row = document.querySelector('.cx-row[data-repo-id="repo-dash"]');
+      return {
+        panelClosed: !document.querySelector(".ps-rpanel"),
+        title: (row.querySelector(".cx-name b") || {}).textContent,
+        folderBadge: (row.querySelector(".cx-folder") || {}).textContent,
+        stored: Studio.Workspace.get("dashboards", "repo-dash").folder
+      };
+    });
+    ok("Repository: saving a dashboard's quick-edit folder files it into that folder, live in the row, without touching its title",
+      repoQuickEditDashSave.panelClosed && repoQuickEditDashSave.title === "Repo Test Dashboard" &&
+      repoQuickEditDashSave.folderBadge === "Reports" && repoQuickEditDashSave.stored === "Reports",
+      JSON.stringify(repoQuickEditDashSave));
 
     await repoPage.close();
 
