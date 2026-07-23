@@ -2474,8 +2474,17 @@
 >      welcome-step letter icons with `Studio.icon()` SVGs — directly satisfies the fleet
 >      "single-color currentColor icons" bar (the `📋` emoji is full-color = a direct miss). Larger,
 >      many call sites. (index.html, welcome.js, studio.js)
-> UX7. **Mobile 44px touch targets** across the full ≤640px band (today the 400–640px band yields
->      ~30–32px `.btn`; `.da-act`/`.chip` 36–40px). Mobile is a release gate. (studio.css)
+> UX7. ✓ **Mobile 44px touch targets — DONE (shipped 2026-07-23, steward).** The 400–640px band
+>      rendered `.btn` at ~28–32px (font-size 12px + 7px padding, no `min-height` at all — 44px
+>      only existed for `#topbar`/`#dashbar .btn` at ≤400px specifically); `.da-act`/`.chip` sat at
+>      36px/40px. `.btn` (and `.btn.icon`) now carry `min-height:44px` via inline-flex centering
+>      (matching the pre-existing `rb-acts .btn` convention) across the WHOLE ≤640px band, so the
+>      narrower ≤400px-only rule is now redundant and removed. `.da-act`/`.chip` bumped to 44px
+>      too — `.chip` is a bare `<span>` (`display:inline` by default), so `min-height` alone was
+>      inert there; added the same inline-flex centering so the floor actually renders, not just
+>      declares. 2 new regression checks (a real topbar `.btn`'s and `.btn.icon`'s rendered
+>      bounding-box height/width on phone, not just the declared CSS) + the existing `.da-act`/
+>      `.chip` ratchets raised from 36/40 to 44. sw v134. (app/studio.css, tests/run.js)
 > UX8. **Tooltip primitive** — a themed, focusable, touch-visible tooltip generalizing `.opt-hint-pop`,
 >      replacing native `title=` guidance strings (slow, unstyleable, invisible on touch/keyboard). Larger.
 > UX9. ✓ **Modal `.btn` contrast fallback (shipped 2026-07-23, steward, see DONE).** New

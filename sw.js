@@ -5,7 +5,16 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v133"; /* v133: LF7 — the featured Conservation Insight dashboard
+var CACHE_NAME = "studio-shell-v134"; /* v134: UX7 (quality track) — mobile 44px touch targets
+   across the whole ≤640px band. The 400-640px phone band rendered .btn at ~28-32px (font-size
+   12px + 7px padding, no min-height at all — the 44px rule only existed for #topbar/#dashbar
+   .btn at ≤400px); .da-act/.chip sat at 36px/40px. .btn (and .btn.icon) now carry min-height:44px
+   via inline-flex centering (matching the existing rb-acts .btn convention) across the whole
+   ≤640px band, so the narrower ≤400px-only rule is now redundant and removed. .da-act/.chip
+   bumped to 44px too; .chip is a bare <span> (display:inline by default) so min-height alone was
+   inert there — added inline-flex centering so the floor actually renders, not just declares.
+   app/studio.css changed, so the precached copy needs to roll.
+   v133: LF7 — the featured Conservation Insight dashboard
    (app/demopacks.js) and its two gated examples (data/examples/conservation-scorecard.studio.json,
    conservation-flow.studio.json) gained real filterDef filters (Practice/Since year/Practice/Crop)
    wired to actual panel query params, plus an explicit "providers" ensemble/choropleth cross-filter

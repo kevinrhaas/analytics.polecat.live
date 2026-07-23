@@ -1147,8 +1147,11 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
   :root{--mob-tabs-h:52px}
   .brand-title{font-size:13.5px;letter-spacing:0}
   .dash-id{display:none}
-  .btn{font-size:12px;padding:7px 10px}
-  .btn.icon{padding:7px 9px}
+  /* UX7: 44px touch targets across the whole ≤640px band — the 400-640px band used to render
+     .btn at ~28-32px (font-size 12px + 7px padding, no min-height), well under the mobile
+     release-gate minimum; inline-flex centering matches the existing rb-acts .btn convention below. */
+  .btn{font-size:12px;padding:7px 10px;min-height:44px;display:inline-flex;align-items:center;justify-content:center}
+  .btn.icon{padding:7px 9px;min-width:44px}
   /* M10: hide secondary topbar buttons at ALL phone widths; they are accessible via ⋯ More.
      Previously only hidden at ≤400px, leaving mid-size phones (400-640px) with a clipped topbar. */
   #btnExamples,#btnImport,#btnSaveSpec,#btnCloseStudio{display:none!important}
@@ -1196,10 +1199,9 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
   #statusbar{font-size:10.5px;gap:6px;padding:5px 8px calc(5px + env(safe-area-inset-bottom));flex:0 0 auto}
   .sb-stamp{display:none}
 }
-/* M7: Narrow phones (≤400px) — 44px tap targets and brand shrinkage */
+/* M7: Narrow phones (≤400px) — brand shrinkage (44px tap targets are now the general
+   ≤640px .btn rule above, UX7) */
 @media(max-width:400px){
-  /* ensure all topbar buttons meet the 44px touch-target minimum */
-  #topbar .btn,#dashbar .btn{min-height:44px}
   /* brand can yield a little space so buttons don't overflow */
   .brand{flex-shrink:1;min-width:40px}
   .brand-title{font-size:12px}
@@ -1252,8 +1254,10 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
 .resizer{touch-action:none}
 /* On coarse-pointer (touch) devices OR narrow screens: bigger tap targets, always-visible actions */
 @media(pointer:coarse),(max-width:640px){
-  .da-act{min-width:36px;min-height:36px;padding:4px 6px}
-  .chip{min-height:40px;padding:10px 12px;font-size:12px}
+  .da-act{min-width:44px;min-height:44px;padding:4px 6px}
+  /* UX7: .chip is a bare <span> (display:inline by default), so min-height alone is inert here —
+     add inline-flex centering so the 44px floor actually renders, not just declares. */
+  .chip{min-height:44px;padding:10px 12px;font-size:12px;display:inline-flex;align-items:center;justify-content:center}
   /* always show da-acts on touch/mobile (no hover to reveal) */
   .da .da-acts{opacity:1}
   .da-mine .da-mine-acts{opacity:1}
