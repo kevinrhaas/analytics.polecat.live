@@ -7666,6 +7666,10 @@
      existing editor. Grouping by folder into a real nested tree is the documented
      NEXT step once this foundation is in place. */
   var _repoAllType = ""; // "" = All, else a REPO_TYPES key
+  // M5 slice 2 (STATUS.md's Conservation Insight track — "NEXT in M5" after slice 1's
+  // flat list): which folder GROUPS are collapsed, session-only (in-memory, not
+  // persisted) — default expanded, keyed by folder name or "__unfiled".
+  var _repoCollapsedGroups = {};
   var REPO_TYPES = [
     { key: "dashboard", label: "Dashboards", singular: "Dashboard", ic: "layers" },
     { key: "dataset", label: "Datasets", singular: "Dataset", ic: "db" },
@@ -7734,7 +7738,26 @@
       return '<button type="button" class="wb-chip' + (_repoAllType === c.id ? " active" : "") + '" data-repo-type-filter="' + esc(c.id) + '" aria-pressed="' + (_repoAllType === c.id ? "true" : "false") + '">' +
         '<span class="wb-chip-label">' + esc(c.name) + '</span> <span class="wb-chip-n">' + c.n + '</span></button>';
     }).join("") + '</div>';
-    var rowsHtml = filtered.map(function (r) {
+    // Real nested-by-folder grouping (M5 slice 2): the flat sorted list from
+    // slice 1 is now GROUPED under a collapsible header per folder name. Only
+    // Datasets/Connections carry a `folder` today (the other three kinds always
+    // pass folder:"" from repoAllRows) so everything else lands in one shared
+    // "Unfiled" group until their own folder pilot ships (documented NEXT).
+    // Groups sort A→Z with Unfiled LAST, same convention as the Datasets/
+    // Connections folder chip strips (`_dsxFolderFilter`/`_connFolderFilter`).
+    var groupOrder = [], rowsByGroup = {};
+    filtered.forEach(function (r) {
+      var g = r.folder || "";
+      if (!rowsByGroup[g]) { rowsByGroup[g] = []; groupOrder.push(g); }
+      rowsByGroup[g].push(r);
+    });
+    groupOrder.sort(function (a, b) {
+      if (a === b) return 0;
+      if (a === "") return 1; // Unfiled always last
+      if (b === "") return -1;
+      return a < b ? -1 : 1;
+    });
+    function repoRowHtml(r) {
       var td = repoTypeDef(r.type);
       return '<div class="cx-row" data-repo-id="' + esc(r.id) + '" data-repo-type="' + esc(r.type) + '" tabindex="0" role="button" aria-label="Open ' + esc(r.title) + '">' +
         '<span class="cx-ic" style="color:var(--faint)"></span>' +
@@ -7742,13 +7765,32 @@
         (r.folder ? '<span class="cx-badge cx-folder" title="Folder: ' + esc(r.folder) + '">' + esc(r.folder) + '</span>' : "") +
         '<span class="cx-when">' + (r.ts ? esc(new Date(r.ts).toLocaleDateString()) : "") + '</span>' +
         '</div>';
+    }
+    var groupsHtml = groupOrder.map(function (g) {
+      var key = g || "__unfiled", label = g || "Unfiled", rows = rowsByGroup[g];
+      var collapsed = !!_repoCollapsedGroups[key];
+      return '<div class="cx-group' + (collapsed ? " collapsed" : "") + '" data-repo-group="' + esc(key) + '">' +
+        '<button type="button" class="cx-group-hd" data-repo-group-toggle="' + esc(key) + '" aria-expanded="' + (collapsed ? "false" : "true") + '">' +
+          '<span class="cx-group-chev">' + Studio.icon(collapsed ? "chevron-right" : "chevron-down", 12).outerHTML + '</span>' +
+          '<span class="cx-group-label">' + esc(label) + '</span>' +
+          '<span class="cx-group-n">' + rows.length + '</span>' +
+        '</button>' +
+        '<div class="cx-list">' + rows.map(repoRowHtml).join("") + '</div>' +
+      '</div>';
     }).join("");
     results.innerHTML = chipsHtml +
-      (filtered.length ? '<div class="cx-list">' + rowsHtml + '</div>'
+      (filtered.length ? '<div class="cx-groups">' + groupsHtml + '</div>'
         : '<div class="home-empty-hint">' + (q || _repoAllType ? "Nothing matches." :
             "Your workspace is empty — dashboards, datasets, connections, analyses and jobs will all show up here once you create them.") + '</div>');
     $$("[data-repo-type-filter]", results).forEach(function (btn) {
       btn.onclick = function () { _repoAllType = btn.getAttribute("data-repo-type-filter"); renderRepository(); };
+    });
+    $$("[data-repo-group-toggle]", results).forEach(function (btn) {
+      btn.onclick = function () {
+        var key = btn.getAttribute("data-repo-group-toggle");
+        _repoCollapsedGroups[key] = !_repoCollapsedGroups[key];
+        renderRepository();
+      };
     });
     $$(".cx-row[data-repo-id]", results).forEach(function (row) {
       var td = repoTypeDef(row.getAttribute("data-repo-type"));

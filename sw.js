@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v96"; /* v96: M5 slice 1 — new Repository section
+var CACHE_NAME = "studio-shell-v97"; /* v97: M5 slice 2 — Repository's rows are
+   now GROUPED under a collapsible header per folder (Unfiled last), the
+   documented "real nested folder tree" step after slice 1's flat list.
+   app/studio.js, app/studio.css, app/tutorial.js, docs/index.html content
+   changed, so precached copies need to roll.
+   v96: M5 slice 1 — new Repository section
    (flat cross-object search/browse over dashboards/datasets/connections/
    analyses/jobs, deep-linking into each object's own editor). app/index.html,
    app/shell.js, app/studio.js, app/icons.js, app/tutorial.js content changed,

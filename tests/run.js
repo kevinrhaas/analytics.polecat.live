@@ -21785,6 +21785,53 @@ function serve() {
     ok("Repository: rows carry over the folder badge from Datasets/Connections' folder pilot, and types without a folder concept show none",
       repoFolderBadge.ds && repoFolderBadge.dsText === "Ops" && !repoFolderBadge.dash, JSON.stringify(repoFolderBadge));
 
+    // M5 slice 2: the flat list is now GROUPED under a collapsible header per folder
+    // (Unfiled last) — repo-ds/repo-conn (folder "Ops") land in one group, the other
+    // three (no folder concept yet) land in a shared "Unfiled" group.
+    const repoGroups = await repoPage.evaluate(function () {
+      var groups = [].slice.call(document.querySelectorAll("#repoAllResults .cx-group")).map(function (g) {
+        return {
+          key: g.getAttribute("data-repo-group"),
+          label: (g.querySelector(".cx-group-label") || {}).textContent,
+          n: (g.querySelector(".cx-group-n") || {}).textContent,
+          rows: [].slice.call(g.querySelectorAll(".cx-row")).map(function (r) { return r.getAttribute("data-repo-id"); })
+        };
+      });
+      return { groups: groups };
+    });
+    ok("Repository: rows GROUP by folder (a collapsible header per folder, Unfiled last) — Ops first with its 2 filed rows, Unfiled last with the 3 folder-less rows",
+      repoGroups.groups.length === 2 &&
+      repoGroups.groups[0].key === "Ops" && repoGroups.groups[0].label === "Ops" && repoGroups.groups[0].n === "2" &&
+      repoGroups.groups[0].rows.sort().join(",") === ["repo-conn", "repo-ds"].join(",") &&
+      repoGroups.groups[1].key === "__unfiled" && repoGroups.groups[1].label === "Unfiled" && repoGroups.groups[1].n === "3" &&
+      repoGroups.groups[1].rows.sort().join(",") === ["repo-an", "repo-dash", "repo-job"].join(","),
+      JSON.stringify(repoGroups));
+
+    const repoCollapse = await repoPage.evaluate(function () {
+      document.querySelector('.cx-group[data-repo-group="Ops"] [data-repo-group-toggle]').click();
+      var group = document.querySelector('.cx-group[data-repo-group="Ops"]');
+      var opsRowVisible = getComputedStyle(document.querySelector('.cx-row[data-repo-id="repo-ds"]')).display !== "none" &&
+        getComputedStyle(group.querySelector(".cx-list")).display !== "none";
+      var collapsedNow = { collapsedClass: group.classList.contains("collapsed"),
+        ariaExpanded: group.querySelector("[data-repo-group-toggle]").getAttribute("aria-expanded"),
+        listHidden: getComputedStyle(group.querySelector(".cx-list")).display === "none",
+        unfiledStillVisible: getComputedStyle(document.querySelector('.cx-group[data-repo-group="__unfiled"] .cx-list')).display !== "none" };
+      // toggle back so later tests see the default expanded state — re-query after
+      // clicking: renderRepository() replaces results.innerHTML wholesale on every
+      // toggle, so the earlier `group` reference is now a detached, stale element.
+      document.querySelector('.cx-group[data-repo-group="Ops"] [data-repo-group-toggle]').click();
+      var group2 = document.querySelector('.cx-group[data-repo-group="Ops"]');
+      var reExpanded = { collapsedClass: group2.classList.contains("collapsed"),
+        ariaExpanded: group2.querySelector("[data-repo-group-toggle]").getAttribute("aria-expanded"),
+        listVisible: getComputedStyle(group2.querySelector(".cx-list")).display !== "none" };
+      return { collapsedNow: collapsedNow, reExpanded: reExpanded };
+    });
+    ok("Repository: clicking a group's header collapses just that group (hides its rows, aria-expanded=false) while other groups stay visible, and clicking again re-expands it",
+      repoCollapse.collapsedNow.collapsedClass && repoCollapse.collapsedNow.ariaExpanded === "false" &&
+      repoCollapse.collapsedNow.listHidden && repoCollapse.collapsedNow.unfiledStillVisible &&
+      !repoCollapse.reExpanded.collapsedClass && repoCollapse.reExpanded.ariaExpanded === "true" && repoCollapse.reExpanded.listVisible,
+      JSON.stringify(repoCollapse));
+
     const repoSearch = await repoPage.evaluate(function () {
       var inp = document.getElementById("repoAllSearch");
       inp.value = "repo_test_dataset"; inp.dispatchEvent(new Event("input"));

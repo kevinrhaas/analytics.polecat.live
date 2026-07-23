@@ -116,6 +116,27 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **M5 slice 2 — Repository's rows now GROUP by folder, a real nested tree step (v453,
+  2026-07-23, steward):** the documented first NEXT item after slice 1's flat list. Filtered
+  Repository rows now render under a collapsible header per folder — sorted A→Z with an
+  "Unfiled" group always last, same ordering convention as the Datasets/Connections folder chip
+  strips — instead of one undifferentiated list. Only Datasets/Connections carry a `folder`
+  value today (the other three kinds always pass `folder:""` from `repoAllRows`), so every
+  dashboard/analysis/job lands in the shared Unfiled group until their own folder pilot ships
+  (still the documented NEXT, alongside a right-panel editor for simple objects). Clicking a
+  group's header (new `.cx-group-hd` button, chevron + label + count) collapses just that
+  group (`.cx-group.collapsed .cx-list{display:none}`, `aria-expanded` flips) while others stay
+  untouched; collapse state is in-memory/session-only (`_repoCollapsedGroups`), not persisted.
+  Search and the type-chip filter both apply BEFORE grouping, so a search still narrows across
+  every kind and groups just re-derive from whatever's left. 2 new M5 ratchets (group
+  header/order/counts render correctly across a filed + an unfiled bucket; clicking a header
+  toggles just that group's visibility and re-expands cleanly) on top of the 13 existing
+  Repository ratchets, all still green. docs/index.html and the Overview tour's Repository step
+  wording updated (no longer "flat"). sw v97. (app/studio.js, app/studio.css, app/tutorial.js,
+  docs/index.html, tests/run.js) NEXT in M5: extend the `folder` field itself to
+  dashboards/analyses/jobs (one object kind per slice, same shape as the Datasets/Connections
+  folder pilot and the M4.2 privacy rollout) so every kind can actually be filed into a group
+  instead of defaulting to Unfiled, then a right-panel editor for simple objects.
 - **M5 slice 1 — Repository section: a flat, cross-object search/browse view (v452, 2026-07-23,
   steward):** the "find" half of M5's tree/folder browser. A new **Repository** rail item (after
   Connections, folder icon) opens a section listing EVERY workspace object — dashboards, datasets,
@@ -2153,8 +2174,12 @@
 >     the DECISIONS LOCKED note above — feeds into it; see that note for the live status).
 >     ↳ **Slice 1 (shipped 2026-07-23, steward — see DONE):** the new Repository rail section itself,
 >     as a flat cross-object search/browse list with deep-links out to each kind's own editor — the
->     "find" half of M5. NEXT in M5: a real nested folder tree (grouping these rows), the `folder`
->     field on dashboards/analyses/jobs, and an in-place right-panel editor for simple objects.
+>     "find" half of M5.
+>     ↳ **Slice 2 (shipped 2026-07-23, steward — see DONE):** rows now GROUP under a collapsible
+>     header per folder (Unfiled last) instead of one flat list — the first "real nested folder
+>     tree" step. NEXT in M5: the `folder` field itself on dashboards/analyses/jobs (so every kind
+>     can actually be filed instead of defaulting to Unfiled), and an in-place right-panel editor
+>     for simple objects.
 > M5. **Repository browser:** new left-rail section — a tree/folder view of ALL objects (dashboards,
 >     datasets, connections, analyses, jobs) with find/open/edit and a right-panel editor for
 >     simple objects; deep-links to the full editors for complex ones.
