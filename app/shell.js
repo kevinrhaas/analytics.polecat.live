@@ -33,10 +33,10 @@
     return document.getElementById("sec" + sec.charAt(0).toUpperCase() + sec.slice(1));
   }
 
-  var desiredSection = "studio";
+  var desiredSection = "home";
 
   function setActive(sec, persist) {
-    if (SECTIONS.indexOf(sec) < 0) sec = "studio";
+    if (SECTIONS.indexOf(sec) < 0) sec = "home";
     var changed = sec !== desiredSection;
     desiredSection = sec;
     if (persist !== false) { try { localStorage.setItem(LS_SECTION, sec); } catch (e) {} }
@@ -140,8 +140,8 @@
     focusable[next].focus();
   });
 
-  var savedSection = "studio", savedExpanded = false;
-  try { savedSection = localStorage.getItem(LS_SECTION) || "studio"; savedExpanded = localStorage.getItem(LS_EXPANDED) === "1"; } catch (e) {}
+  var savedSection = "home", savedExpanded = false;
+  try { savedSection = localStorage.getItem(LS_SECTION) || "home"; savedExpanded = localStorage.getItem(LS_EXPANDED) === "1"; } catch (e) {}
   setActive(savedSection, false);
   setExpanded(savedExpanded, false);
 

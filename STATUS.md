@@ -2220,10 +2220,29 @@
 >       Reframe the app so the builder isn't a scary dead-end. Today the rail has both `dashboards` (secDashboards, a
 >       list w/ a repo-hero) AND `studio` (the editor) as peer rail items, and the app BOOTS with `studio` active
 >       (index.html rail-item active + aria-current on studio) — that's the "opens into the scary builder" problem.
->       (a) DON'T LAND IN STUDIO. Default the boot section to HOME (or Dashboards), not Studio — first-time especially.
->           And the TOUR must START on the HOME page as the backdrop, never inside the builder. (Ties LF18, tours #17/#23.)
->           This is the smallest, highest-value slice — do it first (mind the many tests that assume studio-on-boot;
->           update them, don't weaken them).
+>       (a) ✓ **DON'T LAND IN STUDIO — shipped 2026-07-23, steward.** shell.js's default/fallback landing
+>           section (no saved `studio-shell-section` yet, or an invalid value) is now `"home"` instead of
+>           `"studio"` (3 call sites: the initial `desiredSection`, the invalid-section fallback, and the
+>           unsaved-localStorage fallback) — a user's own last-visited section, once they have one, still
+>           wins (unchanged `setActive(sec, persist)` mechanism). index.html's static pre-JS markup
+>           swapped to match (Home rail item starts `.active`/`aria-current`, `#secHome` starts unhidden,
+>           `#appMain` starts `hidden`, `#topbarSection` starts "Home") so there's no flash of the old
+>           default before shell.js's synchronous boot script runs. The tour half of this ask turned out
+>           to already be done: the Overview tour (M2, shipped 2026-07-21) already opens and closes on
+>           Home via its own `before: goSection("home")` hooks, independent of the app's boot default.
+>           TEST FALLOUT (exactly the caveat this item warned about): the suite runs almost entirely on
+>           one long-lived main `page`, which already re-navigates to "studio" explicitly right after the
+>           boot checks (unaffected) — but 6 secondary fresh-context Playwright pages assumed Studio was
+>           the default landing section for their own assertions (topbar/waffle/New/More/Export chrome,
+>           all of which live inside `#appMain` and are therefore exclusive to the Studio section):
+>           `wafflePhone`, `gp` (sign-in + welcome-tour flow), `phonePage`, `tabletPage`, `narrowPage`,
+>           `mp2`. Each now pins `localStorage.studio-shell-section = "studio"` in its own `addInitScript`
+>           (the same explicit-override mechanism `z1Phone` already used for its own deterministic
+>           section) so they keep testing exactly what they tested before, independent of the new
+>           default. New regression test asserts a truly fresh boot (no saved section) lands on Home:
+>           `#secHome` visible, `#appMain` hidden, the Home rail item `.active`/`aria-current=page`, the
+>           Studio rail item not active, topbar reads "Home". Full suite green (1835/1835).
+>           app/shell.js, app/index.html, tests/run.js. NEXT in LF27: (b) Close + return-to-origin.
 >       (b) CLOSE + RETURN-TO-ORIGIN. Studio gets a "Close" (next to Save/Save-as — pairs with LF26) that leaves the
 >           editor and returns to WHERE YOU OPENED FROM (the Dashboards/Repository list). Track the origin section;
 >           wire it through SPA history (LF9/#44) so browser Back also closes the editor. The natural loop: open a

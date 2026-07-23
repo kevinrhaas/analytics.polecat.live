@@ -329,6 +329,20 @@ function serve() {
     ok("examples menu has entries", (await page.$$("#menuExamples button")).length >= 6);
     ok("app identity reads “Analytics” in the rail brand (the old Dashboard Studio name is gone)",
       await page.$eval("#railBrand .rail-brand-txt", (e) => e.textContent.trim() === "Analytics"));
+    // LF27(a): a fresh boot (no saved section) lands on Home, not the Studio builder —
+    // "the builder isn't a scary dead-end." Studio remains reachable via its own rail item.
+    const bootLanding = await page.evaluate(() => ({
+      homeHidden: document.getElementById("secHome").hidden,
+      studioHidden: document.getElementById("appMain").hidden,
+      homeActive: document.querySelector('.rail-item[data-sec="home"]').classList.contains("active"),
+      homeAriaCurrent: document.querySelector('.rail-item[data-sec="home"]').getAttribute("aria-current"),
+      studioActive: document.querySelector('.rail-item[data-sec="studio"]').classList.contains("active"),
+      topbarText: document.getElementById("topbarSection").textContent.trim()
+    }));
+    ok("LF27(a): a fresh boot with no saved section lands on Home (Studio is opt-in, not the default landing page)",
+      !bootLanding.homeHidden && bootLanding.studioHidden && bootLanding.homeActive &&
+      bootLanding.homeAriaCurrent === "page" && !bootLanding.studioActive && bootLanding.topbarText === "Home",
+      JSON.stringify(bootLanding));
     // Fleet-standard topbar: the top-left shows the CURRENT SECTION name, and it updates on nav.
     await page.evaluate(() => window.__studioShellSetSection("dashboards"));
     await page.waitForTimeout(150);
@@ -577,7 +591,9 @@ function serve() {
     // Mobile is a release gate: the waffle must be reachable AND the phone topbar must
     // not regress (the m-c overflow lesson — every essential stays on-screen at 390px).
     const wafflePhone = await browser.newPage({ viewport: { width: 390, height: 844 } });
-    await wafflePhone.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); } catch (e) {} });
+    // LF27(a): fresh boot now lands on Home, but this test exercises Studio's own mobile
+    // topbar/waffle chrome — pin the section explicitly instead of relying on the old default.
+    await wafflePhone.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); localStorage.setItem("studio-shell-section", "studio"); } catch (e) {} });
     await wafflePhone.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
     await wafflePhone.waitForSelector(".ps-waffle-btn", { timeout: 5000 });
     const wafflePhoneState = await wafflePhone.evaluate(function () {
@@ -6931,6 +6947,9 @@ function serve() {
     console.log("\n• sign-in + welcome");
     const gp = await browser.newPage({ viewport: { width: 1200, height: 900 } });
     gp.on("pageerror", (e) => errors.push("gate page: " + e.message));
+    // LF27(a): once signed in, this block drives Studio's own topbar (⋯ More → Tour) and
+    // focus-restore against #btnMore — pin the post-sign-in section explicitly.
+    await gp.addInitScript(() => { try { localStorage.setItem("studio-shell-section", "studio"); } catch (e) {} });
     await gp.goto(`http://localhost:${PORT}/app/`, { waitUntil: "domcontentloaded" });
     await gp.waitForTimeout(500);
     const gated = await gp.evaluate(() => ({ overlay: !!document.querySelector("#studio-gate"),
@@ -8835,7 +8854,9 @@ function serve() {
     // ---- M1: Responsive shell (phone viewport 390×844) ----
     console.log("\n• Responsive shell (phone 390×844)");
     const phonePage = await browser.newPage({ viewport: { width: 390, height: 844 } });
-    await phonePage.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); } catch (e) {} });
+    // LF27(a): this whole block (through the mobile-drawers section below) exercises Studio's
+    // own builder chrome (topbar/library/inspector/canvas) — pin the section explicitly.
+    await phonePage.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); localStorage.setItem("studio-shell-section", "studio"); } catch (e) {} });
     await phonePage.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
     await phonePage.waitForTimeout(500);
 
@@ -8885,7 +8906,8 @@ function serve() {
     // item is actually the thing under its own pixels (tablet viewport 800×1024).
     console.log("\n• Tablet dropdown reachability (Z9) 800×1024");
     const tabletPage = await browser.newPage({ viewport: { width: 800, height: 1024 } });
-    await tabletPage.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); } catch (e) {} });
+    // LF27(a): tests Studio's own New/Export/More topbar menus — pin the section explicitly.
+    await tabletPage.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); localStorage.setItem("studio-shell-section", "studio"); } catch (e) {} });
     await tabletPage.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
     await tabletPage.waitForTimeout(500);
 
@@ -9184,7 +9206,8 @@ function serve() {
     // ---- M7: narrow phone topbar (360px viewport) ----
     console.log("\n• M7: narrow phone topbar (360×780)");
     const narrowPage = await browser.newPage({ viewport: { width: 360, height: 780 } });
-    await narrowPage.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); } catch (e) {} });
+    // LF27(a): tests Studio's own narrow-phone topbar — pin the section explicitly.
+    await narrowPage.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); localStorage.setItem("studio-shell-section", "studio"); } catch (e) {} });
     await narrowPage.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
     await narrowPage.waitForTimeout(500);
 
@@ -22045,7 +22068,8 @@ function serve() {
     // action) scrolled fully off-canvas with zero on-screen hint it existed.
     console.log("\n• m-c: topbar hamburger/brand overlap + ⋯ More reachability");
     const mp2 = await browser.newPage({ viewport: { width: 390, height: 844 } });
-    await mp2.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); } catch (e) {} });
+    // LF27(a): checks Studio's own topbar (title clears the hamburger, ⋯ More on-screen) — pin the section.
+    await mp2.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); localStorage.setItem("studio-shell-section", "studio"); } catch (e) {} });
     await mp2.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
     await mp2.waitForTimeout(500);
     const mcOverlap = await mp2.evaluate(() => {
