@@ -21981,6 +21981,54 @@ function serve() {
       !repoCollapse.reExpanded.collapsedClass && repoCollapse.reExpanded.ariaExpanded === "true" && repoCollapse.reExpanded.listVisible,
       JSON.stringify(repoCollapse));
 
+    // M5 — Repository's folder groups become a real NESTED TREE: a "/" in a
+    // folder value (e.g. "Ops/Team A") creates a parent/child group pair
+    // instead of one flat "Ops/Team A"-named group, and a folder's header
+    // count rolls up everything nested inside it, not just its own rows.
+    const repoTree = await repoPage.evaluate(function () {
+      Studio.Workspace.put("connections", { id: "repo-conn2", name: "Repo Nested Conn", adapter: "turso", cfg: { url: "http://x", token: "t" }, folder: "Ops/Team A", updatedAt: 6 });
+      window.__studioRenderRepository();
+      var ops = document.querySelector('.cx-group[data-repo-group="Ops"]');
+      var teamA = document.querySelector('.cx-group[data-repo-group="Ops/Team A"]');
+      return {
+        opsDepth: ops ? ops.getAttribute("data-repo-depth") : null,
+        opsCount: ops ? (ops.querySelector(".cx-group-n") || {}).textContent : null,
+        opsOwnRows: ops ? [].slice.call(ops.querySelectorAll(":scope > .cx-list > .cx-row")).map(function (r) { return r.getAttribute("data-repo-id"); }).sort() : null,
+        teamADepth: teamA ? teamA.getAttribute("data-repo-depth") : null,
+        teamALabel: teamA ? (teamA.querySelector(".cx-group-label") || {}).textContent : null,
+        teamACount: teamA ? (teamA.querySelector(".cx-group-n") || {}).textContent : null,
+        teamAInsideOps: !!(ops && teamA && ops.contains(teamA)),
+        teamARows: teamA ? [].slice.call(teamA.querySelectorAll(".cx-row")).map(function (r) { return r.getAttribute("data-repo-id"); }) : null
+      };
+    });
+    ok("Repository folder TREE: a '/' in a folder value nests a child group inside its parent (Ops/Team A sits inside Ops, depth 1 vs Ops's depth 0), and the parent's count rolls up its subfolder",
+      repoTree.opsDepth === "0" && repoTree.opsCount === "3" && repoTree.opsOwnRows.join(",") === ["repo-conn", "repo-ds"].join(",") &&
+      repoTree.teamADepth === "1" && repoTree.teamALabel === "Team A" && repoTree.teamACount === "1" &&
+      repoTree.teamAInsideOps && repoTree.teamARows.join(",") === "repo-conn2",
+      JSON.stringify(repoTree));
+
+    const repoTreeCollapse = await repoPage.evaluate(function () {
+      document.querySelector('.cx-group[data-repo-group="Ops/Team A"] [data-repo-group-toggle]').click();
+      var teamA = document.querySelector('.cx-group[data-repo-group="Ops/Team A"]');
+      var ops = document.querySelector('.cx-group[data-repo-group="Ops"]');
+      var result = {
+        teamAListHidden: getComputedStyle(teamA.querySelector(".cx-list")).display === "none",
+        opsOwnRowVisible: getComputedStyle(document.querySelector('.cx-row[data-repo-id="repo-ds"]')).display !== "none",
+        opsListStillVisible: getComputedStyle(ops.querySelector(".cx-list")).display !== "none"
+      };
+      // toggle back so later assertions see the default expanded state
+      document.querySelector('.cx-group[data-repo-group="Ops/Team A"] [data-repo-group-toggle]').click();
+      return result;
+    });
+    ok("Repository folder TREE: collapsing a nested subfolder hides only its own rows, leaving its parent folder's own rows and the parent group itself visible",
+      repoTreeCollapse.teamAListHidden && repoTreeCollapse.opsOwnRowVisible && repoTreeCollapse.opsListStillVisible,
+      JSON.stringify(repoTreeCollapse));
+
+    await repoPage.evaluate(function () {
+      Studio.Workspace.remove("connections", "repo-conn2", { silent: true });
+      window.__studioRenderRepository();
+    });
+
     const repoSearch = await repoPage.evaluate(function () {
       var inp = document.getElementById("repoAllSearch");
       inp.value = "repo_test_dataset"; inp.dispatchEvent(new Event("input"));

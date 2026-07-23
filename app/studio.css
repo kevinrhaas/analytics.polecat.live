@@ -1546,9 +1546,14 @@ body.simple-mode .da-acts{display:none!important}
 .cx-pills{margin-bottom:16px}
 .cx-pill-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px;flex:0 0 auto}
 .cx-list{display:flex;flex-direction:column;gap:8px}
-/* M5 slice 2 — Repository's real nested-by-folder grouping: a collapsible header
-   per folder (Unfiled last) wrapping that folder's own .cx-list, same row anatomy. */
+/* M5 — Repository's real nested-by-folder TREE: a collapsible header per folder
+   segment (Unfiled last at the root) wrapping that folder's own .cx-list, same
+   row anatomy. Each group stamps its own --repo-depth (0 = top-level), so a
+   group nested inside another folder's .cx-list indents proportionally to how
+   deep it actually sits — rows inherit the same indent for free since they're
+   descendants of that indented box. */
 .cx-groups{display:flex;flex-direction:column;gap:18px}
+.cx-group{margin-left:calc(var(--repo-depth, 0) * 18px)}
 .cx-group-hd{display:flex;align-items:center;gap:8px;width:100%;background:none;border:none;padding:4px 2px 8px;
   cursor:pointer;color:var(--ink);font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.03em}
 .cx-group-hd:hover,.cx-group-hd:focus-visible{color:var(--brand)}

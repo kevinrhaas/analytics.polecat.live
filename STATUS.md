@@ -116,6 +116,30 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **M5 — Repository's folder groups become a real nested TREE (v457, 2026-07-23, steward):**
+  the documented NEXT after the quick-edit right panel shipped — "a real nested folder TREE
+  (today's folder facets are still one flat level per kind)." A `folder` value may now contain
+  `/` as a path separator (e.g. `"Finance/2024"`), so Repository's grouping treats every segment
+  as its own collapsible level instead of the whole string as one flat group name — `"Finance"`
+  becomes a group containing a nested `"2024"` group, with rows filed exactly `"Finance"` (no
+  deeper segment) sitting alongside that subgroup, same as a file explorer. Each group's header
+  count now rolls up everything nested inside it (subfolders included), not just its own direct
+  rows. This is purely a DISPLAY change in Repository: the stored `folder` field itself, each
+  object's own folder text field, and the flat per-type chip facets on Datasets/Connections/Jobs/
+  Analyses are all UNCHANGED — they still match the whole string, so `"Finance/2024"` is a single
+  facet value there, not two. The folder-field hint text on the dataset/connection/job editors,
+  Explore's savebar, and the Repository quick-edit panel now mention the `/` nesting shortcut.
+  Nested groups stamp their own depth (`--repo-depth`, a plain CSS custom property, not a
+  cumulative one) so indentation is correct regardless of how deep a group actually sits, and
+  rows inherit the same indent for free as descendants of their group's own indented box. 2 new
+  M5 ratchets (a `/`-separated folder value renders as parent+child groups with correct depth,
+  label and rolled-up count; collapsing a nested subfolder hides only its own rows while its
+  parent's own rows and the parent group stay visible). docs/index.html's folder-filing and
+  Repository sections updated. sw v101. (app/studio.js, app/studio.css, docs/index.html,
+  tests/run.js) NEXT in M5: subfolder CREATE/MOVE affordances beyond just typing `/` into the
+  folder text field (e.g. drag a row onto a folder header, a "New subfolder" action on a group),
+  and folders for dashboards (still the only object type with no folder field of its own —
+  `workbookId` remains their separate single-parent grouping precedent).
 - **M5 NEXT — Repository rows gain a quick-edit right panel (v456, 2026-07-23, steward):**
   the documented NEXT after the folder-field rollout completed (slice 4/analyses) — "an
   in-place right-panel editor for simple objects instead of always deep-linking out." A new
@@ -2252,6 +2276,12 @@
 >     without leaving Repository or opening the full editor; an "Open full editor →" link falls
 >     through to the same deep-link every row click already used. sw v100. NEXT in M5: a real
 >     nested folder TREE (today's facets are still one flat level per kind).
+>     ↳ **Real nested folder TREE (shipped 2026-07-23, steward — see DONE):** a `/` in a folder
+>     value (e.g. "Finance/2024") now nests a child group inside its parent in Repository's
+>     grouping, with each folder's header count rolling up its subfolders — purely a Repository
+>     display change, the flat per-type chip facets and the stored `folder` field are unchanged.
+>     sw v101. NEXT in M5: subfolder create/move affordances beyond typing `/` (drag-to-file, a
+>     "New subfolder" action), and a folder field for dashboards (still `workbookId`-only).
 > M5. **Repository browser:** new left-rail section — a tree/folder view of ALL objects (dashboards,
 >     datasets, connections, analyses, jobs) with find/open/edit and a right-panel editor for
 >     simple objects; deep-links to the full editors for complex ones.
