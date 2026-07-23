@@ -1207,7 +1207,7 @@
         '<div class="xp-step"><div class="xp-step-h">4 · The result</div><div id="xpPreview" class="xp-preview"></div>' +
           '<div class="xp-savebar">' +
             '<input id="xpName" type="text" placeholder="Name this analysis…" value="' + esc(XP.name) + '" aria-label="Analysis name"/>' +
-            '<input id="xpFolder" type="text" placeholder="Folder (optional)" value="' + esc(XP.folder || "") + '" aria-label="Folder" list="xpFolderOptions"/>' +
+            '<input id="xpFolder" type="text" placeholder="Folder (optional)" title="Optional — use / to nest, e.g. Finance/2024" value="' + esc(XP.folder || "") + '" aria-label="Folder" list="xpFolderOptions"/>' +
             '<datalist id="xpFolderOptions">' + Object.keys(xpFolderCounts).sort().map(function (f) { return '<option value="' + esc(f) + '">'; }).join("") + '</datalist>' +
             '<button type="button" class="btn primary" id="xpSaveBtn">' + (XP.analysisId ? "Update analysis" : "Save analysis") + "</button>" +
             (XP.analysisId ? '<button type="button" class="btn" id="xpSaveAsBtn">Save as new</button>' : "") +
@@ -6654,7 +6654,7 @@
         var folderInp = el("input"); folderInp.type = "text"; folderInp.placeholder = "e.g. Finance";
         folderInp.value = (existing && existing.folder) || "";
         folderRow.appendChild(folderInp);
-        var folderHint = el("small", "cx-hint"); folderHint.textContent = "Optional — a single home for this connection (e.g. Finance). Pick an existing one or type a new name.";
+        var folderHint = el("small", "cx-hint"); folderHint.textContent = "Optional — a home for this connection (e.g. Finance, or Finance/2024 to nest). Pick an existing one or type a new name.";
         folderRow.appendChild(folderHint);
         var connFolderNames = {};
         Studio.Workspace.all("connections").filter(isVisibleToMe).forEach(function (x) { if (x.folder) connFolderNames[x.folder] = true; });
@@ -7223,7 +7223,7 @@
       // dataset, distinct from tags (cross-cutting, multi-value). Free text
       // with a <datalist> of folders already in use so a name reuses instead
       // of forking into a near-duplicate.
-      var folderInp = field("Folder", el("input"), "Optional — a single home for this dataset (e.g. Finance). Pick an existing one or type a new name.");
+      var folderInp = field("Folder", el("input"), "Optional — a home for this dataset (e.g. Finance, or Finance/2024 to nest). Pick an existing one or type a new name.");
       folderInp.type = "text"; folderInp.value = d.folder || ""; folderInp.placeholder = "e.g. Finance";
       var folderNames = {};
       Studio.Workspace.all("datasets").filter(isDatasetVisibleToMe).forEach(function (x) { if (x.folder) folderNames[x.folder] = true; });
@@ -7520,7 +7520,7 @@
 
       // M5 folder pilot, slice 3 (jobs — same flat single-value "home" field as
       // Datasets/Connections, with a <datalist> of names already in use).
-      var folderInp = field("Folder", el("input"), "Optional — a single home for this job (e.g. Finance). Pick an existing one or type a new name.");
+      var folderInp = field("Folder", el("input"), "Optional — a home for this job (e.g. Finance, or Finance/2024 to nest). Pick an existing one or type a new name.");
       folderInp.type = "text"; folderInp.value = j.folder || ""; folderInp.placeholder = "e.g. Finance";
       var jobFolderNames = {};
       Studio.Workspace.all("jobs").filter(isVisibleToMe).forEach(function (x) { if (x.folder) jobFolderNames[x.folder] = true; });
@@ -7827,24 +7827,38 @@
       return '<button type="button" class="wb-chip' + (_repoAllType === c.id ? " active" : "") + '" data-repo-type-filter="' + esc(c.id) + '" aria-pressed="' + (_repoAllType === c.id ? "true" : "false") + '">' +
         '<span class="wb-chip-label">' + esc(c.name) + '</span> <span class="wb-chip-n">' + c.n + '</span></button>';
     }).join("") + '</div>';
-    // Real nested-by-folder grouping (M5 slice 2): the flat sorted list from
-    // slice 1 is now GROUPED under a collapsible header per folder name.
-    // Datasets/Connections/Jobs/Analyses all carry a `folder` today (dashboards
-    // still always pass folder:"" from repoAllRows) so everything else lands in
-    // one shared "Unfiled" group until dashboards get their own folder pilot.
-    // Groups sort A→Z with Unfiled LAST, same convention as the Datasets/
-    // Connections folder chip strips (`_dsxFolderFilter`/`_connFolderFilter`).
-    var groupOrder = [], rowsByGroup = {};
+    // Real nested-by-folder TREE (M5 — the documented NEXT after slice 2's flat
+    // per-folder grouping): a folder value may now contain "/" as a path
+    // separator (e.g. "Corn Belt/2024"), so Repository groups by EVERY segment,
+    // not just the whole string — "Corn Belt" becomes a collapsible group that
+    // itself contains a nested "2024" group, with rows filed exactly "Corn Belt"
+    // (no deeper segment) sitting alongside that subgroup, same as a file
+    // explorer. This is purely a DISPLAY grouping: the stored `folder` field,
+    // each object's own folder text field, and the flat per-type chip facets
+    // (Datasets/Connections/Jobs/Analyses) are all unchanged — they still match
+    // the whole string. Rows with no folder at all land in a root-level
+    // "Unfiled" group, sorted after every real top-level folder, same
+    // convention slice 2 established. `filtered` is already sorted newest-first,
+    // so insertion order into the tree preserves that ordering without a
+    // separate per-node sort.
+    function repoFolderSegs(folder) {
+      return (folder || "").split("/").map(function (s) { return s.trim(); }).filter(Boolean);
+    }
+    function repoNewNode(path, label) { return { path: path, label: label, rows: [], order: [], children: {} }; }
+    function repoNodeCount(node) {
+      var n = node.rows.length;
+      node.order.forEach(function (k) { n += repoNodeCount(node.children[k]); });
+      return n;
+    }
+    var repoTreeRoot = repoNewNode("", "");
     filtered.forEach(function (r) {
-      var g = r.folder || "";
-      if (!rowsByGroup[g]) { rowsByGroup[g] = []; groupOrder.push(g); }
-      rowsByGroup[g].push(r);
-    });
-    groupOrder.sort(function (a, b) {
-      if (a === b) return 0;
-      if (a === "") return 1; // Unfiled always last
-      if (b === "") return -1;
-      return a < b ? -1 : 1;
+      var segs = repoFolderSegs(r.folder), node = repoTreeRoot, path = "";
+      segs.forEach(function (seg) {
+        path = path ? path + "/" + seg : seg;
+        if (!node.children[seg]) { node.children[seg] = repoNewNode(path, seg); node.order.push(seg); }
+        node = node.children[seg];
+      });
+      node.rows.push(r); // unfiled rows (no segments) stay on the root node itself
     });
     function repoRowHtml(r) {
       var td = repoTypeDef(r.type);
@@ -7862,18 +7876,36 @@
         (canQuickEdit ? '<span class="cx-actions"><button type="button" class="repo-edit" data-repo-edit-type="' + esc(r.type) + '" data-repo-edit-id="' + esc(r.id) + '" title="Quick edit" aria-label="Quick edit ' + esc(r.title) + '"></button></span>' : "") +
         '</div>';
     }
-    var groupsHtml = groupOrder.map(function (g) {
-      var key = g || "__unfiled", label = g || "Unfiled", rows = rowsByGroup[g];
+    function repoGroupHtml(key, label, depth, count, contentsHtml) {
       var collapsed = !!_repoCollapsedGroups[key];
-      return '<div class="cx-group' + (collapsed ? " collapsed" : "") + '" data-repo-group="' + esc(key) + '">' +
+      return '<div class="cx-group' + (collapsed ? " collapsed" : "") + '" data-repo-group="' + esc(key) + '" data-repo-depth="' + depth + '" style="--repo-depth:' + depth + '">' +
         '<button type="button" class="cx-group-hd" data-repo-group-toggle="' + esc(key) + '" aria-expanded="' + (collapsed ? "false" : "true") + '">' +
           '<span class="cx-group-chev">' + Studio.icon(collapsed ? "chevron-right" : "chevron-down", 12).outerHTML + '</span>' +
           '<span class="cx-group-label">' + esc(label) + '</span>' +
-          '<span class="cx-group-n">' + rows.length + '</span>' +
+          '<span class="cx-group-n">' + count + '</span>' +
         '</button>' +
-        '<div class="cx-list">' + rows.map(repoRowHtml).join("") + '</div>' +
+        '<div class="cx-list">' + contentsHtml + '</div>' +
       '</div>';
-    }).join("");
+    }
+    // Non-root nodes render their own subgroups (sorted A→Z) followed by any
+    // rows filed exactly at that path — no separate "Unfiled" wrapper is needed
+    // below the root, since a row directly in a folder isn't unfiled, it's just
+    // not filed any DEEPER.
+    function repoNodeHtml(node, depth) {
+      var childKeys = node.order.slice().sort();
+      var childrenHtml = childKeys.map(function (k) {
+        var child = node.children[k];
+        return repoGroupHtml(child.path, child.label, depth, repoNodeCount(child), repoNodeHtml(child, depth + 1));
+      }).join("");
+      return childrenHtml + node.rows.map(repoRowHtml).join("");
+    }
+    var topKeys = repoTreeRoot.order.slice().sort();
+    var groupsHtml = topKeys.map(function (k) {
+      var child = repoTreeRoot.children[k];
+      return repoGroupHtml(child.path, child.label, 0, repoNodeCount(child), repoNodeHtml(child, 1));
+    }).join("") + (repoTreeRoot.rows.length
+      ? repoGroupHtml("__unfiled", "Unfiled", 0, repoTreeRoot.rows.length, repoTreeRoot.rows.map(repoRowHtml).join(""))
+      : "");
     results.innerHTML = chipsHtml +
       (filtered.length ? '<div class="cx-groups">' + groupsHtml + '</div>'
         : '<div class="home-empty-hint">' + (q || _repoAllType ? "Nothing matches." :
@@ -7931,7 +7963,7 @@
     }
     var nameInp = qeField(td ? td.singular + " name" : "Name", el("input"));
     nameInp.type = "text"; nameInp.value = obj.name || "";
-    var folderInp = qeField("Folder", el("input"), "Optional — a single home for this " + kind + " (e.g. Finance). Pick an existing one or type a new name.");
+    var folderInp = qeField("Folder", el("input"), "Optional — a home for this " + kind + " (e.g. Finance, or Finance/2024 to nest). Pick an existing one or type a new name.");
     folderInp.type = "text"; folderInp.value = obj.folder || ""; folderInp.placeholder = "e.g. Finance";
     var folderNames = {};
     var visFn = type === "dataset" ? isDatasetVisibleToMe : isVisibleToMe;

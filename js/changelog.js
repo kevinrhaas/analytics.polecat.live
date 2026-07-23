@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 457,
+    title: 'Repository folders are now a real nested tree',
+    kind: 'feature',
+    ts: '2026-07-23T04:01:55.000Z',
+    items: [
+      'A "/" in any Folder field (e.g. "Finance/2024") now nests a child folder inside its parent in the Repository view, instead of being treated as one flat folder name.',
+      'A folder\'s row count now includes everything filed inside its subfolders, not just its own items.',
+      'The Folder field hints across Datasets, Connections, Jobs, Analyses and the quick-edit panel now mention the "/" nesting shortcut.',
+    ],
+  },
+  {
     v: 456,
     title: 'Repository rows gain a quick-edit panel',
     kind: 'feature',
