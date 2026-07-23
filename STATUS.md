@@ -116,6 +116,19 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **R3 slice 2 — `makePresetStore(key)` factory for the 3 list-CRUD triplets (v472,
+  2026-07-23, steward, R3 now fully shipped):** `stylePresets`/`templateVarSets`/
+  `customThemePresets` each hand-rolled the identical `list()` (read+parse via `lsGet`),
+  `saveList()` (`lsSet`), and `delete(id)` (filter-then-save) triplet, differing only in
+  their storage key. New `makePresetStore(key)` backs all three (`_stylePresetStore`/
+  `_templateVarSetStore`/`_customThemePresetStore`); each preset kind keeps its own
+  `add*`/`apply*` functions untouched (the fields they snapshot/restore genuinely
+  differ per kind). Every exported function keeps its original name/signature, so no
+  call site anywhere in the file changed — pure refactor, no behavior change, suite
+  unchanged at 1812/1812. sw v114. (app/studio.js, sw.js) **R3 (factory the config
+  layer) is now fully shipped** — both slices (the 8 `default*` pairs, and this
+  3-triplet factory) are done. NEXT in the tech-debt track: R4 (merge the
+  Connections/Datasets view-pin machinery) or R5+ (studio.js module extraction).
 - **R3 slice 1 — table-drive the `default*` config getters (v469, 2026-07-23, steward):**
   the 8 `default*`/`setDefault*` pairs (subtitle, accent color, header background, title size,
   subtitle style, dashboard theme, card skin, logo) each hand-rolled the same
@@ -2182,12 +2195,10 @@
 >     behavior change — suite unchanged at 1805/1805. **R2 is now fully shipped.** (app/model.js,
 >     app/exporters.js, app/studio.js, app/sampledata.js, app/demopacks.js) NEXT in this track: R3
 >     (factory the config layer) or R4 (merge the view-pin machinery).
-> R3. **Factory the config layer:** table-drive the 8 `default*` getter/setter pairs; a
->     `makePresetStore(key)` factory for the 3 identical list-CRUD triplets (stylePresets /
->     templateVarSets / customThemePresets). (studio.js)
->     ↳ **Slice 1 (shipped 2026-07-23, steward, see DONE):** the 8 `default*`/`setDefault*`
->     pairs now share `strDefault`/`setStrDefault`. NEXT in R3: the `makePresetStore` factory
->     for the 3 list-CRUD triplets.
+> R3. ✓ **Factory the config layer — DONE, see DONE (both slices shipped 2026-07-23,
+>     steward):** table-drove the 8 `default*` getter/setter pairs (slice 1, v469) and
+>     factored the 3 identical list-CRUD triplets (stylePresets/templateVarSets/
+>     customThemePresets) onto one `makePresetStore(key)` (slice 2, v472). (studio.js)
 > R4. **Merge the view-pin machinery** duplicated between Connections (`conn*Views`/`toggleConnPin`)
 >     and Datasets (`dsx*Views`/`toggleDsxPin`) into one shared helper (their own comment flags the mirror).
 > R5+. **studio.js (9,899 lines) module extraction — safety order, ONE subsystem per slice, full suite
