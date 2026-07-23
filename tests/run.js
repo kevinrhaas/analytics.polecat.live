@@ -22790,6 +22790,53 @@ function serve() {
 
     await lf11Page.close();
 
+    // ---- REVIEW-FIXES follow-up: "+ New" dataset without leaving Explore ----
+    console.log("\n• Explore: '+ New' dataset (REVIEW-FIXES follow-up)");
+    const xpNewDsPage = await browser.newPage();
+    await xpNewDsPage.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); } catch (e) {} });
+    await xpNewDsPage.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
+    await xpNewDsPage.waitForFunction(() => window.__STUDIO_STATE && window.Studio && Studio.Workspace, { timeout: 10000 });
+    await xpNewDsPage.evaluate(function () {
+      Studio.Workspace.put("connections", { id: "cx-xpnew-test", name: "My files", adapter: "file", cfg: {} }, { silent: true });
+      window.__studioShellSetSection("explore");
+    });
+    const xpNewDsBtnState = await xpNewDsPage.evaluate(function () {
+      var btn = document.getElementById("xpNewDsBtn");
+      return { present: !!btn, label: btn ? btn.textContent : "" };
+    });
+    ok("Explore: a '+ New' dataset button sits next to the dataset search", xpNewDsBtnState.present && /New/.test(xpNewDsBtnState.label), JSON.stringify(xpNewDsBtnState));
+    await xpNewDsPage.click("#xpNewDsBtn");
+    await xpNewDsPage.waitForTimeout(120);
+    await xpNewDsPage.evaluate(function () {
+      document.querySelector(".modal .cx-field input").value = "xp-new-dataset"; // name
+      var sel = document.querySelector(".modal select.cx-sel");
+      sel.value = "cx-xpnew-test"; sel.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await xpNewDsPage.waitForTimeout(100);
+    const xpNewFixture = path.join(__dirname, "fixture-xpnew.csv");
+    fs.writeFileSync(xpNewFixture, "region,total\nEMEA,120\nAMER,200\n");
+    await xpNewDsPage.setInputFiles(".modal .dsx-drop-input", xpNewFixture);
+    await xpNewDsPage.waitForTimeout(250);
+    await xpNewDsPage.evaluate(function () {
+      document.querySelector(".modal .cx-wiz-foot .btn.primary").click(); // "Add dataset"
+    });
+    await xpNewDsPage.waitForTimeout(400);
+    const xpNewDsResult = await xpNewDsPage.evaluate(function () {
+      var ds = Studio.Workspace.all("datasets").filter(function (d) { return d.name === "xp-new-dataset"; })[0];
+      var activeBtn = document.querySelector('.xp-ds.active');
+      return {
+        modalClosed: !document.querySelector(".modal-ov"),
+        datasetSaved: !!ds,
+        selectedInPicker: !!activeBtn && /xp-new-dataset/.test(activeBtn.textContent),
+        xpKind: window.__studioExplore ? window.__studioExplore.state.kind : null,
+        xpDsId: ds && window.__studioExplore ? window.__studioExplore.state.dsId === ds.id : false
+      };
+    });
+    ok("Explore: saving a brand-new dataset via '+ New' closes the modal and selects it immediately, no trip to the Datasets section",
+      xpNewDsResult.modalClosed && xpNewDsResult.datasetSaved && xpNewDsResult.selectedInPicker &&
+      xpNewDsResult.xpKind === "ws" && xpNewDsResult.xpDsId, JSON.stringify(xpNewDsResult));
+    await xpNewDsPage.close();
+
     // ---- LF12: Explore exposes + persists the choropleth GL renderer choice ----
     console.log("\n• Explore: GL renderer opt-in + persistence (LF12)");
     const lf12Page = await browser.newPage();

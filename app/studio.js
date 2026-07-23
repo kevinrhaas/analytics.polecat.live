@@ -691,6 +691,17 @@
     }
     return out;
   }
+  // REVIEW-FIXES follow-up: picking a dataset (from the list or right after creating
+  // a brand-new one via "+ New dataset") does the same handful of steps — shared here
+  // so both call sites stay in lockstep.
+  function xpSelectDataset(kind, dsId) {
+    XP.kind = kind; XP.dsId = dsId;
+    XP.analysisId = null; XP.name = ""; XP.folder = ""; XP.da = null; // a live dataset is picked — drop any loaded analysis's embedded da
+    return xpLoadRows().then(function () {
+      XP.type = xpDefaultType(XP.run && XP.run.cols); // geo data opens as a map, provider trends as the Ensemble
+      xpGuessMapping(); renderExplore(); xpPreview();
+    });
+  }
   // Resolve the picked dataset to preview rows. Workspace datasets run LIVE
   // through their adapter (falling back to typed sample rows when the run
   // fails or columns are unknown); catalog samples use the sample engine.
@@ -1112,7 +1123,10 @@
     }
     body.innerHTML =
       '<aside class="xp-side">' +
-        '<input id="xpSearch" class="repo-search" type="search" placeholder="Search datasets…" aria-label="Search datasets" value="' + esc(XP.q) + '"/>' +
+        '<div class="xp-side-search-row">' +
+          '<input id="xpSearch" class="repo-search" type="search" placeholder="Search datasets…" aria-label="Search datasets" value="' + esc(XP.q) + '"/>' +
+          '<button type="button" class="btn primary" id="xpNewDsBtn" title="Create a new dataset without leaving Explore">+ New</button>' +
+        "</div>" +
         '<div class="xp-list">' + (dsRows || '<div class="xp-none">No datasets' + (showSamples() ? "" : " (samples are hidden in Settings)") + ".</div>") + "</div>" +
         '<div class="xp-saved"><div class="xp-saved-h">Saved analyses <span class="badge">' + analyses.length + "</span></div>" +
           (pillsFXp ? '<div class="wb-chips">' + pillsFXp + '</div>' : "") +
@@ -1125,14 +1139,13 @@
     $$("[data-xp-ds]", body).forEach(function (btn) {
       btn.onclick = function () {
         var parts = btn.getAttribute("data-xp-ds").split(XP_SEP);
-        XP.kind = parts.shift(); XP.dsId = parts.join(XP_SEP); // sample ids contain the SEP themselves
-        XP.analysisId = null; XP.name = ""; XP.folder = ""; XP.da = null; // a live dataset is picked — drop any loaded analysis's embedded da
-        xpLoadRows().then(function () {
-          XP.type = xpDefaultType(XP.run && XP.run.cols); // geo data opens as a map, provider trends as the Ensemble
-          xpGuessMapping(); renderExplore(); xpPreview();
-        });
+        xpSelectDataset(parts.shift(), parts.join(XP_SEP)); // sample ids contain the SEP themselves
       };
     });
+    var xpNewDsBtn = $("#xpNewDsBtn", body);
+    if (xpNewDsBtn) xpNewDsBtn.onclick = function () {
+      openDatasetEditor(null, function (d) { xpSelectDataset("ws", d.id); });
+    };
     $$("[data-xp-type]", body).forEach(function (btn) {
       btn.onclick = function () { XP.type = btn.getAttribute("data-xp-type"); xpGuessMapping(); renderExplore(); xpPreview(); };
     });
@@ -7105,7 +7118,7 @@
       };
     });
   }
-  function openDatasetEditor(existing) {
+  function openDatasetEditor(existing, onSaved) {
     var conns = Studio.Workspace.all("connections").filter(isVisibleToMe);
     modal(existing ? "Edit dataset" : "New dataset", function (b) {
       var d = existing ? Studio.clone(existing) : { id: Studio.Workspace.uid("ds"), name: "", params: [], tags: [] };
@@ -7269,6 +7282,7 @@
         Studio.Workspace.put("datasets", d);
         toast(existing ? "Saved " + d.name : "Added " + d.name);
         document.querySelector(".modal-ov .x").click();
+        if (onSaved) onSaved(d);
       };
       nameInp.focus();
     }, function () { renderDatasets(); }, true);

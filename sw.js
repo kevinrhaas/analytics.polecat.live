@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v121"; /* v121 (UX10, quality track): the cold-load
+var CACHE_NAME = "studio-shell-v122"; /* v122 (REVIEW-FIXES follow-up): a "+ New" button
+   next to Explore's dataset search opens the same dataset editor the Datasets section
+   uses; saving selects the new dataset immediately, no round-trip to Datasets and back.
+   app/studio.js, app/studio.css, docs/index.html changed, so precached copies need to
+   roll.
+   v121 (UX10, quality track): the cold-load
    "Loading…" paragraph in Home/Settings/Admin's boot placeholder is now a small pulsing
    skeleton (role=status/aria-label keeps it announced without a visible string),
    prefers-reduced-motion disables the pulse. app/index.html, app/studio.css changed, so
