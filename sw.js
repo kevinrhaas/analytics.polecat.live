@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v130"; /* v130: LF27(b) — Studio gains a Close button
+var CACHE_NAME = "studio-shell-v131"; /* v131: UX4 (quality track, remainder) — a
+   staggered fade-up entrance on the recent/dashboard/favorite/example card grids, and a
+   distinct celebratory toast variant (trophy icon + brand gradient) for milestone moments
+   (first export, round-number export/dashboard counts, zero-warnings). Both reduced-motion
+   gated. app/studio.css, app/studio.js, app/icons.js changed, so precached copies need to
+   roll.
+   v130: LF27(b) — Studio gains a Close button
    (next to Save, mirrored in the phone More menu) that returns you to whichever section
    you opened the builder from, instead of leaving you stuck on the rail's Studio item.
    app/index.html, app/shell.js, app/studio.js, app/studio.css changed, so precached

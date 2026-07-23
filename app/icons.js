@@ -112,7 +112,11 @@
     // registry (also fills a latent gap — the Jobs rail item/row referenced "sliders",
     // which had never actually been registered here and silently fell back to "info").
     folder: '<path stroke-linecap="round" stroke-linejoin="round" d="M3 6.5A1.5 1.5 0 0 1 4.5 5H9l2 2.5h8.5A1.5 1.5 0 0 1 21 9v9.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5z"/>',
-    sliders: '<line x1="4" y1="6" x2="20" y2="6" stroke-linecap="round"/><circle cx="9" cy="6" r="2" fill="currentColor" stroke="none"/><line x1="4" y1="12" x2="20" y2="12" stroke-linecap="round"/><circle cx="15" cy="12" r="2" fill="currentColor" stroke="none"/><line x1="4" y1="18" x2="20" y2="18" stroke-linecap="round"/><circle cx="11" cy="18" r="2" fill="currentColor" stroke="none"/>'
+    sliders: '<line x1="4" y1="6" x2="20" y2="6" stroke-linecap="round"/><circle cx="9" cy="6" r="2" fill="currentColor" stroke="none"/><line x1="4" y1="12" x2="20" y2="12" stroke-linecap="round"/><circle cx="15" cy="12" r="2" fill="currentColor" stroke="none"/><line x1="4" y1="18" x2="20" y2="18" stroke-linecap="round"/><circle cx="11" cy="18" r="2" fill="currentColor" stroke="none"/>',
+    // UX4 (quality track, remainder): a monoline trophy for the celebratory toast variant
+    // (first export / round-number milestones) — distinct from the plain "check" icon the
+    // toast otherwise uses, so a milestone moment reads as earned, not just confirmed.
+    trophy: '<path stroke-linecap="round" stroke-linejoin="round" d="M7 4h10v6a5 5 0 0 1-10 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M7 5H4a1 1 0 0 0-1 1 5 5 0 0 0 4.5 5M17 5h3a1 1 0 0 1 1 1 5 5 0 0 1-4.5 5"/><line x1="12" y1="15" x2="12" y2="19" stroke-linecap="round"/><line x1="8" y1="21" x2="16" y2="21" stroke-linecap="round"/><line x1="9.5" y1="19" x2="14.5" y2="19" stroke-linecap="round"/>'
   };
 
   Studio.icon = function (name, size) {

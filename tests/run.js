@@ -8780,6 +8780,7 @@ function serve() {
       return {
         flagSet: localStorage.getItem("studio-first-export-done") === "1",
         toastText: (document.getElementById("toast") || {}).textContent || "",
+        toastClass: (document.getElementById("toast") || {}).className || "",
         sparkPresent: document.querySelectorAll(".spark-host .spark-p").length > 0
       };
     });
@@ -8787,6 +8788,10 @@ function serve() {
     ok("N-FUN: first-ever export sets the one-time localStorage flag", firstExp1.flagSet, JSON.stringify(firstExp1));
     ok("N-FUN: first-ever export shows a celebratory toast", /first export/i.test(firstExp1.toastText), JSON.stringify(firstExp1));
     ok("N-FUN: first-ever export shows a spark burst (motion allowed)", firstExp1.sparkPresent, JSON.stringify(firstExp1));
+    // UX4 (quality track, remainder): milestone toasts wear the distinct celebratory
+    // variant (trophy icon + brand-gradient background) instead of the plain check toast.
+    ok("UX4: the first-export toast wears the celebratory (trophy/gradient) variant, not the plain check toast",
+      firstExp1.toastClass.split(" ").indexOf("celebrate") >= 0, "toastClass=" + firstExp1.toastClass);
 
     const firstExp2 = await page.evaluate(() => {
       const before = document.querySelectorAll(".spark-host").length;
@@ -18784,6 +18789,28 @@ function serve() {
       return { recentsLen: recents.length, cards: cards };
     });
     ok("Z3: Dashboards lists the same dashboards Home's recents track", z3Dash.recentsLen > 0 && z3Dash.cards === z3Dash.recentsLen, JSON.stringify(z3Dash));
+
+    // UX4 (quality track, remainder): the tile cards fade up on entrance, staggered by
+    // position — this grid reliably has multiple .recent-card tiles (see Z3-2 above), so
+    // it's a good spot to check the shared card-fade-up keyframe + its reduced-motion gate.
+    const cardStagger = await page.evaluate(function () {
+      var cards = [].slice.call(document.querySelectorAll("#repoResults .recent-card"));
+      return cards.slice(0, 3).map(function (c) {
+        var cs = getComputedStyle(c);
+        return { name: cs.animationName, delay: parseFloat(cs.animationDelay) || 0 };
+      });
+    });
+    ok("UX4: dashboard tile cards fade up on entrance (card-fade-up keyframe)",
+      cardStagger.length > 0 && cardStagger.every(function (c) { return c.name === "card-fade-up"; }), JSON.stringify(cardStagger));
+    ok("UX4: later cards in the grid animate in with a longer delay (staggered, not simultaneous)",
+      cardStagger.length < 2 || cardStagger[cardStagger.length - 1].delay > cardStagger[0].delay, JSON.stringify(cardStagger));
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    const cardStaggerRM = await page.evaluate(function () {
+      var c = document.querySelector("#repoResults .recent-card");
+      return c ? getComputedStyle(c).animationName : "";
+    });
+    ok("UX4: the card fade-up is disabled under prefers-reduced-motion", cardStaggerRM === "none", "animationName=" + cardStaggerRM);
+    await page.emulateMedia({ reducedMotion: "no-preference" });
 
     // Z3-3: searching filters dashboard cards without losing focus
     const z3FirstTitle = await page.evaluate(function () {

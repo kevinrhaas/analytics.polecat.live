@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 489,
+    title: 'A little more delight: card grids fade in, milestones get a celebratory toast',
+    kind: 'polish',
+    ts: '2026-07-23T19:46:56.000Z',
+    items: [
+      'Dashboard, favorite, and example cards on Home (and the Dashboards list) now fade up into place, staggered so a section reads as arriving instead of just appearing.',
+      'Milestone moments (your first export, round-number export/dashboard counts, a dashboard with zero warnings) now show a distinct celebratory toast with a trophy icon and a brand-gradient background, instead of the same plain toast as every other action.',
+      'Both are automatically skipped if you have reduced motion turned on.',
+    ],
+  },
+  {
     v: 488,
     title: 'Studio gains a Close button that returns you to where you opened it from',
     kind: 'feature',
