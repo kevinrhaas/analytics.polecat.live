@@ -43,6 +43,9 @@
   // real, in-geometry region ids without duplicating these lists. Read-only by
   // convention — mutating them would skew the sample engine's geo output.
   Studio.SAMPLE_GEO = { fips: CORN_BELT_FIPS, huc8: HUC8S, crd: CRDS, states: STATES };
+  // Same sharing convention for the provider vocabulary — app/demopacks.js used
+  // to keep its own identical copy of this list.
+  Studio.SAMPLE_PROVIDERS = PROVIDERS;
 
   function classify(name) {
     var c = String(name || "").toLowerCase();

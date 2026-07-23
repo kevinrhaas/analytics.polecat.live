@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 465,
+    title: 'Tech-debt sweep: shared HTML-escape + provider list (R2 complete)',
+    kind: 'polish',
+    ts: '2026-07-23T08:31:49.000Z',
+    items: [
+      'The two identical HTML-escaping helpers in exporters.js and studio.js now both call one shared Studio.escapeHtml, in model.js.',
+      'The 5-provider demo vocabulary (DTN, Indigo Ag, Iowa State, Regrow, Terra Diagnostics) is defined once in sampledata.js and shared with demopacks.js, instead of being copy-pasted.',
+      'Pure refactor, no behavior change -- suite unchanged at 1805/1805.',
+    ],
+  },
+  {
     v: 464,
     title: 'Color theme picker is now palette cards, not a dropdown (LF17)',
     kind: 'feature',
