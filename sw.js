@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v136"; /* v136: LF6 slice 2 — folded the choropleth/ensemble-
+var CACHE_NAME = "studio-shell-v137"; /* v137: LF26 — "Save as…" + overwrite protection: a
+   new Save-as button forks the working spec into a brand-new dashboard, and plain Save on a
+   sample/demo dashboard (or, later, one you don't own) now opens that same Save-as prompt
+   instead of silently overwriting the shared original. app/index.html, app/studio.js,
+   docs/index.html changed, so precached copies need to roll.
+   v136: LF6 slice 2 — folded the choropleth/ensemble-
    specific "Download CSV" legend buttons into the generic per-panel download chrome from v135
    instead of leaving both live side by side. The charts now register a "current selection" rows
    fn (PDC._panelCsvRows, keyed by panel id) that the chrome's Download-data button prefers over
