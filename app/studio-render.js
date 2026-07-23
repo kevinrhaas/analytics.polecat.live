@@ -22,6 +22,9 @@
   var I_DUP   = iSvg('<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>', 13);
   var I_CLOSE = iSvg('<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>', 12);
   var I_MAXIMIZE = iSvg('<path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>', 13);
+  // LF6: per-panel download chrome icons (image / tabular data).
+  var I_IMG = iSvg('<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>', 13);
+  var I_TABLE = iSvg('<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/>', 13);
 
   // N-DEV: {{key}} template-var substitution for panel titles/notes. Studio.applyTemplateVars
   // (app/model.js) is NOT available here — model.js is a builder-only module, never inlined into
@@ -517,6 +520,109 @@
         : (p.default != null ? p.default : "%");
     });
     return out;
+  }
+
+  // LF6: per-panel download chrome (image + data), on by default, per-panel toggleable off
+  // (p.allowDownloads) via the Inspector. Lives here — not in the builder-only app/studio.js —
+  // so the SAME code renders it in the live preview iframe AND the exported/embedded HTML (the
+  // export==preview invariant this file's header describes). Self-contained: reads straight off
+  // the local `card`/`res` already in scope, no reach-through to a builder `#preview` iframe.
+  var SVG_STYLE_PROPS = ["fill", "stroke", "stroke-width", "stroke-dasharray", "stroke-linecap",
+    "stroke-linejoin", "stroke-opacity", "fill-opacity", "opacity", "font-family", "font-size",
+    "font-weight", "font-style", "text-anchor", "dominant-baseline", "letter-spacing"];
+  function inlineSvgComputedStyle(srcEl, destEl, win) {
+    var cs = win.getComputedStyle(srcEl), css = "";
+    SVG_STYLE_PROPS.forEach(function (k) { var v = cs.getPropertyValue(k); if (v) css += k + ":" + v + ";"; });
+    if (css) destEl.setAttribute("style", css);
+    for (var i = 0; i < srcEl.children.length; i++) inlineSvgComputedStyle(srcEl.children[i], destEl.children[i], win);
+  }
+  function slug(s) { return (s || "chart").trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "") || "chart"; }
+  // `onDataUrl` is test-only (Playwright drives the rasterization path directly since a real
+  // click/download isn't observable headlessly); the real UI click path never passes it.
+  function downloadPanelPng(card, p, onDataUrl) {
+    var svg = card.body.querySelector("svg");
+    if (!svg) { if (onDataUrl) onDataUrl(null); return; }
+    var win = (card.el.ownerDocument && card.el.ownerDocument.defaultView) || window;
+    var rect = svg.getBoundingClientRect();
+    var w = Math.max(1, Math.round(rect.width)), h = Math.max(1, Math.round(rect.height));
+    var clone = svg.cloneNode(true);
+    inlineSvgComputedStyle(svg, clone, win);
+    clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    clone.setAttribute("width", w); clone.setAttribute("height", h);
+    var bg = win.getComputedStyle(card.body).backgroundColor;
+    var xml = new XMLSerializer().serializeToString(clone);
+    var blobUrl = URL.createObjectURL(new Blob([xml], { type: "image/svg+xml;charset=utf-8" }));
+    var img = new Image();
+    img.onload = function () {
+      var scale = 2; // export at 2x for a crisp, slide/doc-ready image
+      var canvas = document.createElement("canvas");
+      canvas.width = w * scale; canvas.height = h * scale;
+      var ctx = canvas.getContext("2d");
+      ctx.scale(scale, scale);
+      if (bg && bg !== "rgba(0, 0, 0, 0)") { ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h); }
+      ctx.drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(blobUrl);
+      var dataUrl = canvas.toDataURL("image/png");
+      if (onDataUrl) { onDataUrl(dataUrl); return; }
+      var a = document.createElement("a");
+      a.download = slug(p.title) + ".png"; a.href = dataUrl;
+      document.body.appendChild(a); a.click(); a.remove();
+    };
+    img.onerror = function () { URL.revokeObjectURL(blobUrl); if (onDataUrl) onDataUrl(null); };
+    img.src = blobUrl;
+  }
+  function csvCell(v) {
+    var s = v == null ? "" : String(v);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+  // `onRows` is test-only, same convention as downloadPanelPng's onDataUrl above.
+  function downloadPanelData(p, res, onRows) {
+    if (!res || !res.rows || !res.rows.length) { if (onRows) onRows(null); return; }
+    var rows = [res.cols].concat(res.rows);
+    if (onRows) { onRows(rows); return; }
+    var csv = rows.map(function (r) { return r.map(csvCell).join(","); }).join("\r\n");
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    a.download = slug(p.title) + ".csv"; a.style.display = "none";
+    document.body.appendChild(a); a.click();
+    setTimeout(function () { document.body.removeChild(a); URL.revokeObjectURL(a.href); }, 0);
+  }
+  // Test hooks — exercised by Playwright (identical in the preview iframe and the exported page):
+  // a real click/download isn't observable headlessly, so these drive the same functions the
+  // click handlers call and hand the result back directly.
+  window.__downloadPanelPngDataUrl = function (panelId, cb) {
+    var el = document.querySelector('[data-panel-id="' + panelId + '"]');
+    var body = el && el.querySelector(".body");
+    if (!el || !body) { cb(null); return; }
+    var spec = window.STUDIO_SPEC || {};
+    var p = (spec.panels || []).filter(function (x) { return x.id === panelId; })[0] || {};
+    downloadPanelPng({ el: el, body: body }, p, cb);
+  };
+  window.__downloadPanelDataRows = function (panelId, cb) {
+    var spec = window.STUDIO_SPEC || {};
+    var p = (spec.panels || []).filter(function (x) { return x.id === panelId; })[0];
+    if (!p) { cb(null); return; }
+    var res = (window.__lastRenderData || {})[p.chart.da];
+    downloadPanelData(p, res, cb);
+  };
+  function addDownloadChrome(container, card, p, res) {
+    var svg = card.body.querySelector("svg");
+    var canImg = !!svg, canData = !!(res && res.rows && res.rows.length);
+    if (!canImg && !canData) return;
+    if (canImg) {
+      var imgBtn = document.createElement("button");
+      imgBtn.type = "button"; imgBtn.className = "pdc-dl-act"; imgBtn.title = "Download chart as PNG image";
+      imgBtn.innerHTML = I_IMG;
+      imgBtn.addEventListener("click", function (e) { e.stopPropagation(); downloadPanelPng(card, p); });
+      container.appendChild(imgBtn);
+    }
+    if (canData) {
+      var dataBtn = document.createElement("button");
+      dataBtn.type = "button"; dataBtn.className = "pdc-dl-act"; dataBtn.title = "Download data as CSV";
+      dataBtn.innerHTML = I_TABLE;
+      dataBtn.addEventListener("click", function (e) { e.stopPropagation(); downloadPanelData(p, res); });
+      container.appendChild(dataBtn);
+    }
   }
 
   /* ---- one panel ---- */
@@ -1470,6 +1576,10 @@
 
   /* ---- whole dashboard ---- */
   function renderAll(spec, data) {
+    // Test-only: lets __downloadPanelDataRows look up a panel's bound query result by da id
+    // without threading `data` through a whole extra parameter (a real click handler already
+    // closes over it directly — see the per-panel loop below).
+    window.__lastRenderData = data;
     // KPIs
     var kEl = PDC.el("kpis");
     if (kEl) {
@@ -1615,8 +1725,12 @@
           card.el.classList.add("pdc-accent-panel");
           card.el.style.setProperty("--pap-color", p.accentColor);
         }
+        // data-panel-id is set unconditionally (not just in preview) so the download chrome's
+        // test hooks (and anything else keying off it) can find the right panel in an exported
+        // page too, not only the builder's preview iframe.
+        card.el.setAttribute("data-panel-id", p.id);
         if (isPreview()) {
-          card.el.setAttribute("data-panel-id", p.id); card.el.classList.add("sr-sel");
+          card.el.classList.add("sr-sel");
           var h3 = card.el.querySelector("h3");
           if (h3) { var grip = document.createElement("span"); grip.className = "sr-grip"; grip.textContent = "⠿"; grip.title = "Drag to reorder"; h3.insertBefore(grip, h3.firstChild); }
           var titleEl = card.el.querySelector(".pdc-h-t");
@@ -1640,6 +1754,20 @@
         }
         g.appendChild(card.el);
         renderPanel(spec, p, data, card.body);
+        // LF6: download chrome, on by default (p.allowDownloads !== false). In preview it joins
+        // the existing .sr-card-acts row (builder-only, styled by previewCss in exporters.js) so
+        // zoom/dup/del/download sit together; in export (no .sr-card-acts there) it gets its own
+        // .pdc-dl-acts container at the same top-right spot — .pdc-dl-act is styled unconditionally
+        // (exporters.js's dlActsCss) so it looks identical either way.
+        if (p.allowDownloads !== false) {
+          if (isPreview()) {
+            addDownloadChrome(acts, card, p, data[p.chart.da]);
+          } else {
+            var dlActs = document.createElement("div"); dlActs.className = "pdc-dl-acts";
+            addDownloadChrome(dlActs, card, p, data[p.chart.da]);
+            if (dlActs.children.length) card.el.appendChild(dlActs);
+          }
+        }
       });
     });
     if (isPreview()) { wireSelection(); wireEditing(spec); wireHeaderEditing(spec); }

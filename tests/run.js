@@ -6756,6 +6756,125 @@ function serve() {
     await page.evaluate(() => { window.__studioLoad(window.__STUDIO_STATE.spec); });
     await page.waitForTimeout(150);
 
+    // ---- LF6: on-panel download chrome (image + data), on by default, per-panel toggleable off.
+    // The buttons live in app/studio-render.js (not studio.js) so the SAME code renders them in
+    // the builder's preview iframe AND a real exported/embedded page — verified both ways below. ----
+    console.log("\n• LF6: panel download chrome");
+    const dlBars = await page.evaluate(function () {
+      return new Promise(function (resolve) {
+        var sp = window.__STUDIO_STATE.spec;
+        var p = sp.panels[0];
+        p.chart.type = "bars"; p.allowDownloads = undefined;
+        p.chart.map = { labelCol: sp.cda.dataAccesses[0].columns[0], valueCol: sp.cda.dataAccesses[0].columns[1] };
+        window.__studioLoad(sp);
+        setTimeout(function () { resolve({ id: p.id }); }, 500);
+      });
+    });
+    const pvDl = page.frames().find((f) => f !== page.mainFrame());
+    const dlBtns = await pvDl.evaluate(function (panelId) {
+      var card = document.querySelector('[data-panel-id="' + panelId + '"]');
+      var btns = card ? [].slice.call(card.querySelectorAll(".pdc-dl-act")) : [];
+      return { count: btns.length, titles: btns.map(function (b) { return b.title; }) };
+    }, dlBars.id);
+    ok("LF6: a bars panel gets both a 'Download image' and 'Download data' chrome button, on by default",
+      dlBtns.count === 2 && /PNG/.test(dlBtns.titles.join()) && /CSV/.test(dlBtns.titles.join()), JSON.stringify(dlBtns));
+    const dlPng = await pvDl.evaluate(function (panelId) {
+      return new Promise(function (resolve) { window.__downloadPanelPngDataUrl(panelId, resolve); });
+    }, dlBars.id);
+    ok("LF6: the chrome's image button produces a real PNG data URL",
+      !!dlPng && dlPng.indexOf("data:image/png;base64,") === 0 && dlPng.length > 1000,
+      JSON.stringify({ prefix: (dlPng || "").slice(0, 30) }));
+    const dlRows = await pvDl.evaluate(function (panelId) {
+      return new Promise(function (resolve) { window.__downloadPanelDataRows(panelId, resolve); });
+    }, dlBars.id);
+    ok("LF6: the chrome's data button hands back a header row + the bound query's data rows",
+      Array.isArray(dlRows) && dlRows.length > 1 && Array.isArray(dlRows[0]), JSON.stringify({ rows: (dlRows || []).length }));
+
+    // Table panel: no <svg>, so no image button — but the data button still shows (rows are bound).
+    const dlTableChrome = await page.evaluate(function () {
+      return new Promise(function (resolve) {
+        var sp = window.__STUDIO_STATE.spec;
+        var p = sp.panels[0];
+        p.chart.type = "table";
+        p.chart.map = { cols: [{ col: sp.cda.dataAccesses[0].columns[0] }, { col: sp.cda.dataAccesses[0].columns[1] }] };
+        window.__studioLoad(sp);
+        setTimeout(function () { resolve({ id: p.id }); }, 500);
+      });
+    });
+    const pvDl2 = page.frames().find((f) => f !== page.mainFrame());
+    const dlTableBtns = await pvDl2.evaluate(function (panelId) {
+      var card = document.querySelector('[data-panel-id="' + panelId + '"]');
+      var btns = card ? [].slice.call(card.querySelectorAll(".pdc-dl-act")) : [];
+      return { count: btns.length, hasImg: btns.some(function (b) { return /image/.test(b.title); }), hasData: btns.some(function (b) { return /CSV/.test(b.title); }) };
+    }, dlTableChrome.id);
+    ok("LF6: a Table panel (no <svg>) shows only the data-download chrome button, not image",
+      dlTableBtns.count === 1 && !dlTableBtns.hasImg && dlTableBtns.hasData, JSON.stringify(dlTableBtns));
+
+    // Inspector: "Allow downloads" toggle is present, on by default, and turning it off removes
+    // the chrome for that panel entirely (both buttons, not just one).
+    const dlInspector = await page.evaluate(function () {
+      var sp = window.__STUDIO_STATE.spec;
+      var p = sp.panels[0]; p.chart.type = "bars"; p.allowDownloads = undefined;
+      window.__studioLoad(sp);
+      window.__studioSelect({ kind: "panel", id: p.id });
+      var insp = document.getElementById("inspBody") || document.getElementById("inspector");
+      var cb = [].slice.call(insp.querySelectorAll("input[type=checkbox]")).filter(function (c) {
+        return c.parentNode && /Allow downloads/.test(c.parentNode.textContent);
+      })[0];
+      return { id: p.id, present: !!cb, checkedByDefault: cb ? cb.checked : null };
+    });
+    ok("LF6: the Inspector's 'Allow downloads' toggle is present and on by default",
+      dlInspector.present && dlInspector.checkedByDefault === true, JSON.stringify(dlInspector));
+    await page.evaluate(function () {
+      var sp = window.__STUDIO_STATE.spec;
+      sp.panels[0].allowDownloads = false;
+      window.__studioLoad(sp);
+    });
+    await page.waitForTimeout(300);
+    const pvDl3 = page.frames().find((f) => f !== page.mainFrame());
+    const dlOffCount = await pvDl3.evaluate(function (panelId) {
+      var card = document.querySelector('[data-panel-id="' + panelId + '"]');
+      return card ? card.querySelectorAll(".pdc-dl-act").length : -1;
+    }, dlInspector.id);
+    ok("LF6: p.allowDownloads:false (the Inspector toggle, switched off) removes the chrome entirely",
+      dlOffCount === 0, JSON.stringify({ dlOffCount }));
+
+    // Regression: the chrome must render in a REAL exported/standalone bundle too, not just the
+    // builder's preview iframe — studio-render.js is the ONLY shared code path (see this file's
+    // header), so proving it live here is the actual "export==preview invariant" evidence.
+    const dlBundleHtml = await page.evaluate(async function () {
+      var spec = await fetch("data/examples/studio-cost.studio.json").then(function (r) { return r.json(); });
+      var p = spec.panels[0];
+      p.chart.type = "bars";
+      p.chart.map = { labelCol: spec.cda.dataAccesses[0].columns[0], valueCol: spec.cda.dataAccesses[0].columns[1] };
+      return { html: Studio.buildHtml(spec, window.__STUDIO_STATE.assets, { preview: true, mock: Studio.genMock(spec), launcher: false }), panelId: p.id };
+    });
+    const dlBundlePage = await browser.newPage();
+    const dlBundleErrors = [];
+    dlBundlePage.on("console", (m) => { if (m.type() === "error") dlBundleErrors.push(m.text()); });
+    dlBundlePage.on("pageerror", (e) => dlBundleErrors.push(e.message));
+    await dlBundlePage.route("**/__test_lf6_bundle__.html", (route) => route.fulfill({ contentType: "text/html", body: dlBundleHtml.html }));
+    await dlBundlePage.goto(`http://localhost:${PORT}/__test_lf6_bundle__.html`, { waitUntil: "load" });
+    await dlBundlePage.waitForTimeout(500);
+    const dlBundleChrome = await dlBundlePage.evaluate(function (panelId) {
+      return new Promise(function (resolve) {
+        var card = document.querySelector('[data-panel-id="' + panelId + '"]');
+        var btns = card ? [].slice.call(card.querySelectorAll(".pdc-dl-act")) : [];
+        window.__downloadPanelPngDataUrl(panelId, function (dataUrl) {
+          resolve({ count: btns.length, dataUrl: dataUrl });
+        });
+      });
+    }, dlBundleHtml.panelId);
+    await dlBundlePage.close();
+    ok("LF6: a real exported/standalone bundle (not just the builder's preview iframe) also renders both download chrome buttons and produces a real PNG, zero console/page errors",
+      dlBundleErrors.length === 0 && dlBundleChrome.count === 2 &&
+      !!dlBundleChrome.dataUrl && dlBundleChrome.dataUrl.indexOf("data:image/png;base64,") === 0,
+      JSON.stringify({ errors: dlBundleErrors, chrome: dlBundleChrome && { count: dlBundleChrome.count } }));
+
+    // Restore the panel + reload so later tests aren't affected by this block's mutations.
+    await page.evaluate(() => { var sp = window.__STUDIO_STATE.spec; sp.panels.forEach(function (p) { delete p.allowDownloads; }); window.__studioLoad(sp); });
+    await page.waitForTimeout(150);
+
     // ---- KPI extras: delta + sparkline + delete-from-canvas ----
     console.log("\n• KPI delta / sparkline / canvas delete");
     await page.evaluate(async () => { const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json()); window.__studioLoad(spec); });

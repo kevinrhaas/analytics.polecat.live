@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v134"; /* v134: UX7 (quality track) — mobile 44px touch targets
+var CACHE_NAME = "studio-shell-v135"; /* v135: LF6 — per-panel download chrome (image + data),
+   on by default with a per-panel "Allow downloads" Inspector toggle. Lives in app/studio-render.js
+   (not studio.js) so the SAME code renders it in the live preview iframe AND the exported/embedded
+   HTML — verified against a real standalone bundle, not just the builder. app/studio-render.js,
+   app/studio.js, app/exporters.js, docs/index.html changed, so precached copies need to roll.
+   v134: UX7 (quality track) — mobile 44px touch targets
    across the whole ≤640px band. The 400-640px phone band rendered .btn at ~28-32px (font-size
    12px + 7px padding, no min-height at all — the 44px rule only existed for #topbar/#dashbar
    .btn at ≤400px); .da-act/.chip sat at 36px/40px. .btn (and .btn.icon) now carry min-height:44px

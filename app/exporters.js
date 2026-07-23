@@ -78,6 +78,18 @@
     // .pdc-accent-panel + --pap-color CSS variable are set by studio-render.js when p.accentColor is set.
     var panelAccentCss =
       ".pdc-accent-panel{border-left:3px solid var(--pap-color,#005bb5)!important}";
+    // LF6: per-panel download chrome (image + data). Unconditional (unlike previewCss below) so
+    // it renders identically in the live preview iframe AND the exported/embedded HTML — the
+    // preview-only .sr-card-acts row (zoom/dup/del) reuses .pdc-dl-act for a matching look when
+    // studio-render.js appends these buttons into that same row; export gets its own top-right
+    // .pdc-dl-acts container at the same spot since .sr-card-acts isn't there to share.
+    var dlActsCss =
+      ".pdc-dl-act{width:20px;height:20px;border-radius:5px;border:1px solid var(--panel-border);background:var(--panel-bg);" +
+      "color:var(--text-muted);font-size:13px;line-height:1;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center}" +
+      ".pdc-dl-act:hover{color:var(--pentaho);border-color:var(--pentaho)}" +
+      ".pdc-dl-acts{position:absolute;top:7px;right:11px;display:flex;gap:3px;opacity:0;transition:opacity .12s;z-index:8}" +
+      ".card:hover .pdc-dl-acts{opacity:1}" +
+      "@media(pointer:coarse){.pdc-dl-acts{opacity:.85!important}.pdc-dl-act{width:32px;height:32px}}";
     // Richtext panel styles — included in every exported CDF and in the preview iframe.
     // Target line — horizontal dashed reference overlay (target, budget, threshold, etc.)
     // Positioned absolutely within the chart body (card.body gets position:relative via JS).
@@ -237,7 +249,7 @@
     var head =
       "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\"/>\n" +
       "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/>\n" +
-      "<title>" + xml(titleText) + " — Analytics</title>\n<style>\n" + assets.css + mobileCss + sectionCss + descCss + panelNoteCss + panelAccentCss + targetLineCss + refBandCss + calloutCss + periodHighlightCss + eventMarkerCss + scatterAnnotCss + kpiSubCss + richtextCss + dashboardThemeCss + themeColorCss + headerLogoCss + headerLinkCss + headerBgCss + titleSizeCss + hideHeaderCss + subtitleStyleCss + cardSkinCss + paletteCss + printCss + previewCss + "\n</style>\n</head>\n";
+      "<title>" + xml(titleText) + " — Analytics</title>\n<style>\n" + assets.css + mobileCss + sectionCss + descCss + panelNoteCss + panelAccentCss + dlActsCss + targetLineCss + refBandCss + calloutCss + periodHighlightCss + eventMarkerCss + scatterAnnotCss + kpiSubCss + richtextCss + dashboardThemeCss + themeColorCss + headerLogoCss + headerLinkCss + headerBgCss + titleSizeCss + hideHeaderCss + subtitleStyleCss + cardSkinCss + paletteCss + printCss + previewCss + "\n</style>\n</head>\n";
     var logoHtml = spec.headerLogo ?
       "<img class=\"pdc-logo\" src=\"" + xml(spec.headerLogo) + "\" alt=\"\"/>" :
       "<span class=\"pdc-logo\">P</span>";

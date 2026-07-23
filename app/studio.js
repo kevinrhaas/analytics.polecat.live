@@ -3407,6 +3407,24 @@
     });
     durSlider.addEventListener("change", function () { refreshPreview(); });
 
+    // Downloads (LF6): on-panel "Download image"/"Download data" chrome, on by default. The
+    // buttons themselves live in app/studio-render.js (not here) so the SAME code renders them in
+    // both the preview iframe and the exported/embedded HTML — this is just the per-panel toggle.
+    var dlSec = section(body, "Downloads");
+    var dlRow = el("div"); dlRow.style.cssText = "display:flex;align-items:center;gap:6px";
+    var dlCb = el("input"); dlCb.type = "checkbox"; dlCb.id = "dlCb_" + p.id;
+    dlCb.checked = p.allowDownloads !== false;
+    var dlLbl = el("label"); dlLbl.htmlFor = dlCb.id;
+    dlLbl.className = "check"; dlLbl.style.cssText = "gap:6px;font-size:12px";
+    dlLbl.appendChild(dlCb); dlLbl.appendChild(document.createTextNode("Allow downloads"));
+    dlRow.appendChild(dlLbl);
+    dlSec.appendChild(dlRow);
+    dlSec.appendChild(noteEl("info", "Shows a small download-image / download-data affordance on the panel itself (on hover), in both the builder and the published dashboard. Turn off for panels that shouldn't be exportable."));
+    dlCb.addEventListener("change", function () {
+      p.allowDownloads = dlCb.checked ? undefined : false;
+      refreshPreview();
+    });
+
     // Target line: horizontal dashed reference marker overlaid on any chart.
     // Positioned as a % from the top of the chart body (0=top, 100=bottom).
     // Useful for Budget, Target, Threshold, Limit — works regardless of chart type.

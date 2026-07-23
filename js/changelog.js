@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 493,
+    title: 'Download a widget\'s image or data right from the canvas',
+    kind: 'feature',
+    ts: '2026-07-23T21:55:05.000Z',
+    items: [
+      'Every widget now shows a small Download image / Download data pair of buttons on hover, in both the builder and a published dashboard — no need to open the inspector first. Download image saves the chart as a PNG; Download data saves its query result as a CSV. On by default; turn it off per widget with the new "Allow downloads" toggle in its inspector.',
+    ],
+  },
+  {
     v: 492,
     title: 'Buttons and chips are properly thumb-sized on phone now',
     kind: 'polish',
