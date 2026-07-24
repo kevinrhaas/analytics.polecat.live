@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 500,
+    title: 'M7 groundwork: real per-user database security, designed and proven (not yet live)',
+    kind: 'polish',
+    ts: '2026-07-24T03:22:59.000Z',
+    items: [
+      'No app change -- this is backend groundwork for the Supabase real-security milestone (M7). The real Row-Level Security policy design (a private row is visible only to its owner) was written and verified against the live database inside a throwaway, fully-cleaned-up test schema: an anonymous session only ever saw public rows, and each of two simulated signed-in users saw public rows plus only their own private ones -- never the other person\'s, and could not sneak a write past the policy either.',
+      'Found the reason it can\'t go live yet: enforcement needs a real signed-in identity (Supabase Auth), which the app doesn\'t use yet -- today every saved item\'s "owner" is just today\'s local username, not the kind of value the database\'s real security check needs. That sign-in step is next.',
+    ],
+  },
+  {
     v: 499,
     title: 'Tech debt: app branding settings move to their own module',
     kind: 'polish',

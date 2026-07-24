@@ -2990,6 +2990,34 @@
 > M7. **Real per-user security (Supabase Auth + RLS):** the phased second half — private is
 >     ENFORCED by the database for Supabase deployments (GoTrue + row-level security); other
 >     backends keep the UX-level behavior. This is what makes "private = only I can see it" true.
+>     ↳ **Slice 1 (RLS design proven, shipped 2026-07-24, steward — no app or production-DB
+>     change): the real per-row policy design (public-or-owner-matches-auth.uid(), owner-only
+>     writes) was written and verified against the LIVE Supabase project, entirely inside a
+>     throwaway `steward_test` schema (mirrored one workspace table's shape, applied the
+>     policies, exercised them as anon / as two distinct `authenticated` uids via
+>     `SET LOCAL request.jwt.claims`, then dropped the schema — never touched `public`).**
+>     Confirmed: anon sees only public rows; each authenticated uid sees public rows + only
+>     its own private rows; an UPDATE against another uid's private row affects 0 rows; an
+>     INSERT spoofing another uid as owner is rejected by `WITH CHECK`. **Key finding that
+>     blocks going live:** `auth.uid()` is typed `uuid`, but every row's `owner`/`acctOwner`
+>     field today holds the PolecatAuth USERNAME string (`"owner":"admin"`, confirmed live via
+>     `SELECT data FROM public.dashboards`) — not a GoTrue UUID — because the app has never
+>     signed in with real Supabase Auth (it only ever uses the static anon/publishable key).
+>     Applying real RLS today would silently hide every existing private row from everyone
+>     (auth.uid() is NULL for an all-anon app), which is a regression, not the enforcement this
+>     slice is for. The proven policy set is ready to go in `tools/supabase-rls-real.sql`
+>     (per-table, using `acctOwner` for datasets same as M4.2 — see that file's header for the
+>     full non-negotiable prerequisite list) but is DELIBERATELY NOT applied to `public` and NOT
+>     wired into any auto-run path — `tools/supabase-bootstrap.sql`'s "allow all" policy stays
+>     the live posture. NEXT in M7: **slice 2 is GoTrue sign-in** — wire real Supabase Auth
+>     (email/password via `/auth/v1/token`) into the Supabase backend-connect flow so a request
+>     actually carries a JWT with a real `auth.uid()`, storing the resulting UUID on the
+>     PolecatAuth user record (a new field, e.g. `gotrueId`) without disturbing local/Turso/
+>     Firebase backends' existing sign-in at all; slice 3 is the data migration (re-stamp
+>     existing rows' owner/acctOwner from username → that uuid) that has to land before
+>     `tools/supabase-rls-real.sql` can safely go live. `users` (password hashes) is
+>     deliberately excluded from the shared owner/private shape here and needs its own
+>     stricter (service-role/admin-only) policy — open question, not assumed solved.
 > Also: add MORE crop/geo sample sets as the demo matures (Kevin). "Eventually polecat overall"
 > for the auth/user model — keep the users/permissions design app-neutral where cheap.
 
