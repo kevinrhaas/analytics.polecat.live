@@ -5,7 +5,14 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v150"; /* v150: LF9 slice 3 — Back also closes Explore's dataset/
+var CACHE_NAME = "studio-shell-v151"; /* v151: R5+ slice 4 (tech-debt track) — the N-FUN
+   celebrations/milestones subsystem (sparkBurst, first-export toast, export/dashboard
+   milestone counters, dashboard-health-zero celebration) extracted from studio.js into its
+   own module, app/celebrations.js (Studio.Celebrations), following the chart-thumbnails.js/
+   branding.js/defaults.js extraction precedent (①/②/③). Pure refactor, no behavior change.
+   New precached file (app/celebrations.js) and app/studio.js content changed, so precached
+   copies need refreshing. */
+/* v150: LF9 slice 3 — Back also closes Explore's dataset/
    analysis editor back to the "pick a dataset" picker, staying in the Explore section. Explore
    swaps content in place (no overlay DOM to just re-show), so it reuses shell.js's existing
    pushOverlay/popOverlay stack from its own close path (xpCloseToList) instead of a new
@@ -713,6 +720,7 @@ var SHELL_FILES = [
   "app/chart-thumbnails.js",
   "app/branding.js",
   "app/defaults.js",
+  "app/celebrations.js",
   "app/studio.js",
   "app/palette.js",
   "app/studio-render.js",

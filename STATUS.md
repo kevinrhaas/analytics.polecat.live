@@ -116,6 +116,24 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **R5+ slice 4 — celebrations/milestones module extraction (v510, sw v151, 2026-07-24, steward —
+  R5+'s own NEXT pointer, the quality-track slice due after several feature slices in a row per
+  the interleave policy):** the N-FUN "delight moments" subsystem (`sparkBurst`,
+  `celebrateFirstExport`, `bumpExportMilestone`/`bumpDashMilestone` + their milestone tables,
+  `celebrateHealthZero`) moves from studio.js into its own `app/celebrations.js`
+  (`Studio.Celebrations`), following the chart-thumbnails.js/branding.js/defaults.js extraction
+  precedent (①/②/③). Same one wrinkle R5+ slice 3 hit: every one of these functions shows a
+  `toast(...)`, which is studio.js's own private helper (its `_toastT` timer lives in studio.js's
+  closure) — rather than reach into that private state or duplicate the toast widget, studio.js
+  injects the function via a new `Studio.Celebrations.configureToast(toast)` call at init
+  (`toast` is a hoisted function declaration, so the reference is valid regardless of source
+  order). studio.js keeps thin local aliases (`var sparkBurst = Studio.Celebrations.sparkBurst`,
+  etc.) so every call site (Inspector Checks-zero, blank-dashboard creation ×3, panel/PNG/embed
+  export ×3) is unchanged. `el()` calls in `sparkBurst` became plain `document.createElement`
+  since the module has no access to studio.js's private `el()` helper. Pure refactor, no behavior
+  change — suite green (unchanged pass count, no assertions altered). sw v151 (new precached file
+  `app/celebrations.js`). (app/celebrations.js, app/studio.js, app/index.html, sw.js) NEXT in
+  R5+: ⑤ versions/notes/diff modals.
 - **LF9 slice 3 — Explore's dataset/analysis editor closes back to the picker on Back (v509,
   sw v150, 2026-07-24, steward — LF9's own NEXT pointer, LF9 now feature-complete):** the one
   remaining gap slice 2's own NEXT pointer called out — picking a dataset or opening a saved
@@ -2918,13 +2936,14 @@
 >      ES-module `app/*.js` extraction off studio.js, establishing the module pattern the rest of
 >      this track follows — sw v119. ② ✓ branding — DONE, see DONE (v499, sw v141, 2026-07-24,
 >      steward): `app/branding.js` (`Studio.Branding`). ③ ✓ defaults/presets config layer — DONE,
->      see DONE (v501, sw v142, 2026-07-24, steward): `app/defaults.js` (`Studio.Defaults`). → ④
->      celebrations/milestones → ⑤ versions/notes/diff modals →
+>      see DONE (v501, sw v142, 2026-07-24, steward): `app/defaults.js` (`Studio.Defaults`). ④ ✓
+>      celebrations/milestones — DONE, see DONE (v510, sw v151, 2026-07-24, steward):
+>      `app/celebrations.js` (`Studio.Celebrations`). → ⑤ versions/notes/diff modals →
 >      ⑥ the Explore `XP` subsystem (own namespace; preserve the analysis→spec add + `homeLiveFrame`
 >      reuse seams) → ⑦ the data-plane panels LAST (Jobs → Connections → Datasets; Datasets last because
 >      `runDataset`/`window.__studioRunDataset` bridges back into the builder preview). These are
->      lane-hot files — schedule each when the feature lane isn't mid-slice in that area. NEXT: ④
->      celebrations/milestones.
+>      lane-hot files — schedule each when the feature lane isn't mid-slice in that area. NEXT: ⑤
+>      versions/notes/diff modals.
 
 ### ★★★★★ CONSERVATION INSIGHT PRODUCT PLATFORM (2026-07-21, user-directed — NOW THE TOP PRIORITY)
 > Kevin's big charter: turn Analytics into a multi-user, permissioned product. Decisions locked

@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 510,
+    title: 'Tech debt: celebration/milestone toasts move to their own module',
+    kind: 'polish',
+    ts: '2026-07-24T11:24:03.000Z',
+    items: [
+      'Behind-the-scenes cleanup only -- the "nice work" milestone toasts and spark-burst effect (first export, round-number export/dashboard counts, a dashboard with zero warnings) now live in their own file instead of inside the main app controller. No visible change.',
+    ],
+  },
+  {
     v: 509,
     title: 'Explore gains a Back to datasets button, and the Back button now works there too',
     kind: 'polish',
