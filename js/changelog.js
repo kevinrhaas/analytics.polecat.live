@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 512,
+    title: 'M7: the users table\'s own database security rule, designed and proven (not yet live)',
+    kind: 'polish',
+    ts: '2026-07-24T12:48:51.000Z',
+    items: [
+      'No app change -- more backend groundwork for the Supabase real-security milestone (M7). The account list holds every login\'s password hash, so it needs a stricter rule than the private/public sharing every other saved item uses. The new rule -- you can see and edit your own account, an administrator can see and edit every account, and only an administrator can add or remove one -- was written and verified against the live database inside a throwaway, fully-cleaned-up test schema.',
+      'Found one more thing that has to change in the app before this rule is safe to turn on: today, everyone\'s device quietly re-saves every account it knows about (not just its own) each time the app starts, and the new rule would silently drop that for anyone who isn\'t an administrator. That\'s next.',
+    ],
+  },
+  {
     v: 511,
     title: 'A 7th Conservation showcase example: Year-over-Year Practice Switching',
     kind: 'feature',
