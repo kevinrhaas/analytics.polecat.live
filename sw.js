@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v154"; /* v154: Branding is now an app-wide ADMIN card
+var CACHE_NAME = "studio-shell-v155"; /* v155: QA-01 — connection credential inputs get a stable
+   connector-specific id/name + autocomplete=new-password, and a brand-new connection's secret
+   field renders empty/readonly until focus (blocks unrelated password-manager autofill). No new
+   precached files, but app/studio.js content changed, so precached copies need to roll.
+   v154: Branding is now an app-wide ADMIN card
    (moved out of personal Settings). It gained a customizable/hideable rail suite-name
    (default "polecat.live"), clearer square-icon guidance on the App mark, and a custom
    logo now also becomes the browser-tab favicon. app/branding.js, app/studio.js,

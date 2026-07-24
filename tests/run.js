@@ -1089,6 +1089,63 @@ function serve() {
     await page.evaluate(function () { document.querySelector(".modal-ov .x").click(); });
     await page.waitForTimeout(100);
 
+    // ---- QA-01 (2026-07-24 frontend QA): a fresh credentialed connection form must never
+    // arrive pre-filled (the reported bug: an unrelated password-manager entry silently
+    // populated a brand-new BigQuery token field) and must carry a stable, connector-specific
+    // id/name + autocomplete="new-password" instead of the old autocomplete="off" (widely
+    // ignored by password managers on password-typed fields). ----
+    await page.click("#connNewBtn");
+    await page.waitForTimeout(120);
+    await page.evaluate(function () {
+      [].slice.call(document.querySelectorAll(".cx-src-card")).filter(function (c) { return c.querySelector("b").textContent === "BigQuery"; })[0].click();
+    });
+    await page.waitForTimeout(100);
+    const cxFreshSecret = await page.evaluate(function () {
+      var f = [].slice.call(document.querySelectorAll(".cx-field input")); // name,project,token,location,dataset
+      var tok = f[2];
+      return {
+        empty: tok.value === "",
+        readOnly: tok.readOnly,
+        autocomplete: tok.autocomplete,
+        idHasAdapterAndKey: /bigquery/.test(tok.id) && /token/.test(tok.id),
+        nameMatchesId: tok.name === tok.id,
+        projectNotReadOnly: !f[1].readOnly // a plain text field is unaffected
+      };
+    });
+    ok("QA-01: a brand-new credentialed connection's secret field renders empty, readonly, with a stable connector-specific id/name and autocomplete=new-password",
+      cxFreshSecret.empty && cxFreshSecret.readOnly && cxFreshSecret.autocomplete === "new-password" &&
+      cxFreshSecret.idHasAdapterAndKey && cxFreshSecret.nameMatchesId && cxFreshSecret.projectNotReadOnly,
+      JSON.stringify(cxFreshSecret));
+    const cxSecretUnlocks = await page.evaluate(function () {
+      var tok = [].slice.call(document.querySelectorAll(".cx-field input"))[2];
+      tok.dispatchEvent(new Event("focus"));
+      var stillReadOnlyAfterFocus = tok.readOnly;
+      tok.value = "ya29.usertyped";
+      return { stillReadOnlyAfterFocus: stillReadOnlyAfterFocus, value: tok.value };
+    });
+    ok("QA-01: focusing the secret field lifts readonly so the user can type a real credential",
+      cxSecretUnlocks.stillReadOnlyAfterFocus === false && cxSecretUnlocks.value === "ya29.usertyped",
+      JSON.stringify(cxSecretUnlocks));
+    await page.evaluate(function () { document.querySelector(".modal-ov .x").click(); });
+    await page.waitForTimeout(100);
+
+    // Editing an EXISTING connection is unaffected: its already-saved secret still prefills
+    // (this is intentional reveal of the user's own stored credential, not autofill).
+    const cxEditPrefill = await page.evaluate(function () {
+      var row = { id: "qa01-edit-test", name: "QA01 BigQuery", adapter: "bigquery", cfg: { project: "p1", token: "SAVEDSECRET" } };
+      Studio.Workspace.put("connections", row, { silent: true });
+      window.__studioOpenConnectionWizard(row);
+      var f = [].slice.call(document.querySelectorAll(".cx-field input"));
+      var tok = f[2];
+      return { value: tok.value, readOnly: tok.readOnly, autocomplete: tok.autocomplete };
+    });
+    ok("QA-01: editing an existing connection still prefills its saved secret (not readonly)",
+      cxEditPrefill.value === "SAVEDSECRET" && !cxEditPrefill.readOnly && cxEditPrefill.autocomplete === "new-password",
+      JSON.stringify(cxEditPrefill));
+    await page.evaluate(function () { document.querySelector(".modal-ov .x").click(); });
+    await page.waitForTimeout(100);
+    await page.evaluate(function () { Studio.Workspace.remove("connections", "qa01-edit-test", { silent: true }); });
+
     // ---- PostgREST adapter (★★★-2): end-to-end against a mock PostgREST -----
     console.log("\n• PostgREST data adapter (★★★-2)");
     const pgShape = await page.evaluate(async function () {
@@ -7722,6 +7779,16 @@ function serve() {
       [].slice.call(document.querySelectorAll(".cx-src-card")).filter(function (c) { return c.querySelector("b").textContent === "Turso"; })[0].click();
     });
     await gp3.waitForTimeout(100);
+    // QA-01: the workspace-backend wizard shares the exact same credential-input bug
+    // (no id/name, autocomplete=off) as the data-adapter connection wizard — verify the
+    // same fix (empty/readonly/stable-id/new-password) applies here too.
+    const backendFreshSecret = await gp3.evaluate(function () {
+      var tok = [].slice.call(document.querySelectorAll(".cx-field input"))[1];
+      return { empty: tok.value === "", readOnly: tok.readOnly, autocomplete: tok.autocomplete, idHasKey: /turso/.test(tok.id) && /token/.test(tok.id) };
+    });
+    ok("QA-01: the workspace-backend connect wizard's fresh secret field is also empty/readonly/new-password with a stable id",
+      backendFreshSecret.empty && backendFreshSecret.readOnly && backendFreshSecret.autocomplete === "new-password" && backendFreshSecret.idHasKey,
+      JSON.stringify(backendFreshSecret));
     await gp3.evaluate(function (port) {
       var fields = [].slice.call(document.querySelectorAll(".cx-field input"));
       fields[0].value = "http://localhost:" + port + "/__turso"; // url

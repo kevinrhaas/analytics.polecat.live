@@ -68,6 +68,33 @@
     };
   }
 
+  // QA-01 (2026-07-24 frontend QA pass): connector credential inputs had no id/name and
+  // autocomplete="off" (widely ignored by password managers on password-typed fields), so
+  // opening a fresh connection form could get silently filled with an UNRELATED saved
+  // credential before the user typed anything. Every credential field now gets a stable,
+  // connector-specific id/name (managers key off these, not just type=password) plus
+  // autocomplete="new-password" (the correct signal for "don't offer a saved login here").
+  // For a BRAND-NEW connection the field also renders empty + readonly; readonly is lifted
+  // only on a real user `focus` event, which blocks the passive autofill-on-render browsers
+  // do (they don't autofill readonly fields) without blocking a user who deliberately clicks
+  // in and picks a suggestion afterward. Editing an existing connection is unaffected — its
+  // already-saved secret still prefills as before.
+  function credentialFieldInput(idPrefix, f, savedValue, isNew) {
+    var inp = el("input");
+    inp.type = f.type === "password" ? "password" : "text";
+    inp.placeholder = f.placeholder || "";
+    inp.id = inp.name = idPrefix + "-" + f.key;
+    inp.autocomplete = f.type === "password" ? "new-password" : "off";
+    if (f.type === "password" && isNew) {
+      inp.value = "";
+      inp.readOnly = true;
+      inp.addEventListener("focus", function () { inp.readOnly = false; }, { once: true });
+    } else {
+      inp.value = savedValue || "";
+    }
+    return inp;
+  }
+
   // R2 (tech-debt sweep): the 4 identical "tell the preview iframe the app theme once it
   // loads" envelopes (compare-dashboards preview, Home's live mini-render, Panel zoom,
   // Slideshow) collapsed onto one helper.
@@ -6755,11 +6782,8 @@
         (adapter.fields || []).forEach(function (f) {
           var row = el("label", "cx-field");
           row.innerHTML = "<span>" + esc(f.label) + "</span>";
-          var inp = el("input");
-          inp.type = f.type === "password" ? "password" : "text";
-          inp.placeholder = f.placeholder || "";
-          inp.autocomplete = "off";
-          inp.value = (existing && existing.cfg && existing.cfg[f.key]) || "";
+          var savedValue = existing && existing.cfg && existing.cfg[f.key];
+          var inp = credentialFieldInput("cx-cred-" + adapter.id, f, savedValue, !existing);
           row.appendChild(inp);
           if (f.hint) { var h = el("small", "cx-hint"); h.textContent = f.hint; row.appendChild(h); }
           form.appendChild(row); inputs[f.key] = inp;
@@ -8431,10 +8455,8 @@
         (src.fields || []).forEach(function (f) {
           var row = el("label", "cx-field");
           row.innerHTML = "<span>" + esc(f.label) + "</span>";
-          var inp = el("input");
-          inp.type = f.type === "password" ? "password" : "text";
-          inp.placeholder = f.placeholder || ""; inp.autocomplete = "off";
-          inp.value = (presetCfg && presetCfg[f.key]) || "";
+          var savedValue = presetCfg && presetCfg[f.key];
+          var inp = credentialFieldInput("cx-backend-cred-" + src.id, f, savedValue, !presetCfg);
           row.appendChild(inp);
           if (f.hint) { var h = el("small", "cx-hint"); h.textContent = f.hint; row.appendChild(h); }
           form.appendChild(row); inputs[f.key] = inp;
