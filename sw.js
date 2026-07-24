@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v145"; /* v145: LF2 — a 4th Conservation example, "Program
+var CACHE_NAME = "studio-shell-v146"; /* v146: LF2 — a 5th Conservation example, "Provider
+   Agreement Over Time" (data/examples/conservation-agreement.studio.json, index.json entry): an
+   ensemble trend against the common estimate, a year × provider agreement heatmap, a yearly-spread
+   line, and a per-provider average-deviation bars ranking. New example file + updated index.json
+   need to roll into the precache. docs/index.html changed too (names all 5 showcase dashboards).
+   v145: LF2 — a 4th Conservation example, "Program
    Cost-Share ROI" (data/examples/conservation-costshare.studio.json, index.json entry): a
    cost-efficiency scatter (spend vs. adoption, bubble = acres), a cost-share-by-practice donut,
    a cost-per-acre trend responding to the same Since-year filter convention, and a return-score

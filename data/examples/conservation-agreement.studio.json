@@ -1,0 +1,77 @@
+{
+  "schema": 1,
+  "id": "showcase-conservation-agreement",
+  "name": "conservation-agreement",
+  "title": "Conservation Insight — Provider Agreement Over Time",
+  "subtitle": "how closely the five providers track the common estimate, year by year",
+  "group": "Conservation",
+  "demoPackId": "conservation",
+  "description": "A conservation-insight showcase focused on cross-provider agreement — the ensemble trend against the common estimate, a year-by-provider agreement heatmap, the yearly spread between the highest and lowest provider estimate, and each provider's average deviation from the common estimate.",
+  "cda": {
+    "connection": { "id": "pdc", "jndi": "PDC-BIDB-EXT" },
+    "dataAccesses": [
+      {
+        "id": "kpi", "name": "AgreementKPI", "params": [], "cache": true, "cacheDuration": 120,
+        "sql": "SELECT ROUND(AVG(pct),1) AS agreement_pct, COUNT(DISTINCT year) AS year_count, COUNT(DISTINCT provider) AS providers, ROUND(MAX(spread_pct),1) AS widest_gap_pct FROM v_provider_agreement",
+        "columns": ["agreement_pct", "year_count", "providers", "widest_gap_pct"]
+      },
+      {
+        "id": "trend", "name": "AgreementTrend", "params": [{ "name": "sinceYear", "type": "String", "default": "%" }], "cache": true, "cacheDuration": 120,
+        "sql": "SELECT year, provider, ROUND(AVG(pct),1) AS pct FROM v_provider_agreement WHERE ${sinceYear} = '%' OR year >= ${sinceYear} GROUP BY 1,2 ORDER BY 1",
+        "columns": ["year", "provider", "pct"]
+      },
+      {
+        "id": "yr_filter", "name": "AgreementYears", "params": [], "cache": true, "cacheDuration": 300,
+        "sql": "SELECT DISTINCT year FROM v_provider_agreement ORDER BY 1",
+        "columns": ["year"]
+      },
+      {
+        "id": "grid", "name": "AgreementGrid", "params": [], "cache": true, "cacheDuration": 180,
+        "sql": "SELECT year, provider, ROUND(AVG(pct),0) AS pct FROM v_provider_agreement GROUP BY 1,2",
+        "columns": ["year", "provider", "pct"]
+      },
+      {
+        "id": "spread", "name": "AgreementSpreadByYear", "params": [], "cache": true, "cacheDuration": 180,
+        "sql": "SELECT year, ROUND(MAX(pct) - MIN(pct),1) AS spread_pct FROM v_provider_agreement GROUP BY 1 ORDER BY 1",
+        "columns": ["year", "spread_pct"]
+      },
+      {
+        "id": "deviation", "name": "AvgDeviationByProvider", "params": [], "cache": true, "cacheDuration": 180,
+        "sql": "SELECT provider, ROUND(AVG(ABS(pct - median_pct)),1) AS avg_deviation_pct FROM v_provider_deviation GROUP BY 1 ORDER BY 2 DESC",
+        "columns": ["provider", "avg_deviation_pct"]
+      }
+    ]
+  },
+  "filters": [
+    { "id": "sinceYear", "da": "yr_filter", "label": "Since year", "valueCol": "year", "textCol": "year", "allLabel": "All years", "def": "%" }
+  ],
+  "kpis": [
+    { "da": "kpi", "valueCol": "agreement_pct", "label": "Provider Agreement", "fmt": "pct", "state": "good", "info": "Common-estimate agreement across all years and providers — higher means tighter alignment." },
+    { "da": "kpi", "valueCol": "year_count", "label": "Years Tracked", "fmt": "n", "state": "purple", "info": "Distinct report years covered by the ensemble." },
+    { "da": "kpi", "valueCol": "providers", "label": "Providers Compared", "fmt": "n", "state": "", "info": "Independent data providers contributing an adoption estimate." },
+    { "da": "kpi", "valueCol": "widest_gap_pct", "label": "Widest Yearly Gap", "fmt": "pct", "state": "warn", "info": "The largest spread between the highest and lowest provider estimate in a single year." }
+  ],
+  "gridCols": 3,
+  "panels": [
+    {
+      "id": "p_trend", "title": "Provider Trend vs. Common Estimate", "span": "full", "pill": "%", "sub": "responds to the Since-year filter above",
+      "info": "Each provider's yearly estimate against the bold common-estimate median, 2015–2025.", "src": "v_provider_agreement",
+      "chart": { "type": "ensembleSeries", "da": "trend", "map": { "labelCol": "year", "seriesCol": "provider", "valueCol": "pct" }, "opts": { "refSeries": "AgCensus", "fmt": "pct", "medianLabel": "Common estimate", "height": 280, "channel": "providers" } }
+    },
+    {
+      "id": "p_grid", "title": "Year × Provider Agreement", "span": 2, "pill": "%", "sub": "year × provider",
+      "info": "Where providers agree year over year — and where estimates diverge.", "src": "v_provider_agreement",
+      "chart": { "type": "heatmap", "da": "grid", "map": { "rowCol": "year", "colCol": "provider", "valueCol": "pct" }, "opts": { "fmt": "pct", "height": 300 } }
+    },
+    {
+      "id": "p_spread", "title": "Yearly Spread Between Providers", "span": 1, "pill": "%", "sub": "max − min estimate each year",
+      "info": "How far apart the highest and lowest provider estimate landed, year by year.", "src": "v_provider_agreement",
+      "chart": { "type": "line", "da": "spread", "map": { "labelCol": "year", "series": [ { "col": "spread_pct", "name": "Spread" } ] }, "opts": { "area": false, "fmt": "pct", "height": 300 } }
+    },
+    {
+      "id": "p_dev", "title": "Average Deviation by Provider", "span": 1, "pill": "%", "sub": "distance from the common estimate",
+      "info": "Each provider's average distance from the common estimate across every tracked year.", "src": "v_provider_deviation",
+      "chart": { "type": "bars", "da": "deviation", "map": { "labelCol": "provider", "valueCol": "avg_deviation_pct" }, "opts": { "horizontal": true, "fmt": "pct", "color": "--c2", "height": 300 } }
+    }
+  ]
+}

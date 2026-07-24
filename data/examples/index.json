@@ -146,5 +146,15 @@
     "gridCols": 3,
     "types": ["scatter", "donut", "line", "bars"],
     "layout": [["scatter", 2], ["donut", 1], ["line", 2], ["bars", 1]]
+  },
+  {
+    "file": "conservation-agreement.studio.json",
+    "title": "Conservation Insight — Provider Agreement Over Time",
+    "demoPackId": "conservation",
+    "panels": 4,
+    "kpis": 4,
+    "gridCols": 3,
+    "types": ["ensembleSeries", "heatmap", "line", "bars"],
+    "layout": [["ensembleSeries", "full"], ["heatmap", 2], ["line", 1], ["bars", 1]]
   }
 ]
