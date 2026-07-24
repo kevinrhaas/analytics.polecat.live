@@ -3297,13 +3297,34 @@
 >     an account's `gotrueId` over its username once one's been stamped, and a new
 >     `migrateOwnerToGotrueId()` re-stamps that account's own existing rows (connections/
 >     dashboards/analyses/jobs `owner`, datasets `acctOwner`) from username to gotrueId — run at
->     boot and again right after a fresh sign-in. See DONE for the full writeup. **This was the
->     data-model half of M7 — genuinely still open before `tools/supabase-rls-real.sql` can go
->     live against the real project:** the `users` table's own policy (service-role/admin-only
->     reads, not the shared owner/private shape — flagged in slice 1) still needs designing, and
->     actually flipping the live project's policy from `supabase-bootstrap.sql`'s "allow all" to
->     the real one is its own careful, deliberate action — do that only with Kevin's awareness
->     given it changes live production security posture.
+>     boot and again right after a fresh sign-in. See DONE for the full writeup.
+>     ↳ **Slice 4 (`users` table policy designed + proven, shipped 2026-07-24, steward — no app or
+>     production-DB change): the `users` table's own policy (flagged as an open question in slice 1 —
+>     it holds every account's password hash and can't share the other five tables' owner/private
+>     shape) is now designed and proven the same way slice 1 proved the others: entirely inside a
+>     throwaway `steward_test` schema against the LIVE Supabase project, dropped after. Shape: a
+>     plain account sees/edits only its own row (matched via `gotrueId`, not the `id` column, which
+>     stays `user_<username>` — never a uuid); an admin sees/edits every row; INSERT/DELETE are
+>     admin-only (self-signup can't satisfy an owner check on a row that doesn't exist yet).**
+>     Confirmed live: anon sees 0 rows; a viewer sees only their own row, not a co-worker's; an
+>     admin sees all three seeded rows; a viewer's UPDATE/DELETE against another account affects 0
+>     rows and a spoofed INSERT is rejected, while an admin's INSERT/UPDATE/DELETE against any row
+>     succeeds. **Key technique:** a naive self-referencing `EXISTS` admin check inside the policy
+>     itself hits Postgres' "infinite recursion detected in policy" (the subquery re-applies the
+>     same policy it's part of) — fixed with a `SECURITY DEFINER` helper function owned by the table
+>     owner, which Postgres doesn't RLS-restrict by default, so the internal lookup bypasses the
+>     policy instead of recursing into it. **Still open, found while designing this slice:**
+>     `initAuthBoot` (app/studio.js) mirrors EVERY locally-known account into the workspace `users`
+>     table on every boot, not just the caller's own row — a self-row-only write policy would
+>     silently drop a non-admin's writes to rows it doesn't own (RLS filters them, PostgREST reports
+>     0 rows patched, no error). Scoping that mirror to the caller's own row is its own app-side
+>     slice, needed before this policy is safe to flip live — see the new block's header comment in
+>     `tools/supabase-rls-real.sql` for the full writeup. **`tools/supabase-rls-real.sql` now has a
+>     complete, proven design for all six tables — genuinely nothing else to design.** What remains
+>     for M7 to go live is the `initAuthBoot` scoping fix above, then actually flipping
+>     `supabase-bootstrap.sql`'s live "allow all" policy to the real one — its own careful,
+>     deliberate action, do that only with Kevin's awareness given it changes live production
+>     security posture.
 > Also: add MORE crop/geo sample sets as the demo matures (Kevin). "Eventually polecat overall"
 > for the auth/user model — keep the users/permissions design app-neutral where cheap.
 
