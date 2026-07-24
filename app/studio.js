@@ -8728,21 +8728,35 @@
   window.__studioApplySettingsData = applySettingsData; // test hook (bypasses file-picker + confirm)
   window.__studioImportSettingsKeys = SETTINGS_DATA_KEYS; // test hook
 
-  // M3 (auth): run once at boot after the workspace is ready. (1) Mirror the
-  // local user store into the workspace `users` table so the internal user list
-  // rides the backend snapshot (the data blob carries the pw hash — UX-level, not
-  // RLS). (2) If you signed in with the DEMO account, seed the sample workspace
-  // once so a demo login lands on something alive.
+  // Mirrors one account's row into the workspace `users` table (the data blob
+  // carries the pw hash — UX-level, not RLS). Shared by initAuthBoot (the
+  // signed-in account's own row) and the admin add/edit flow (an explicitly
+  // chosen OTHER account's row) — see the two call sites for why the mirror
+  // target differs between them.
+  function mirrorUserRow(u) {
+    if (!u || !Studio.Workspace) return;
+    var W = Studio.Workspace;
+    var existing = W.all("users").filter(function (r) { return r.u === u.u; })[0];
+    var row = existing || { id: "user_" + u.u };
+    row.u = u.u; row.name = u.name; row.role = u.role; row.demo = u.demo; row.hash = u.hash;
+    W.put("users", row, { silent: true });
+  }
+  // M3 (auth): run once at boot after the workspace is ready, and again after every
+  // sign-in. (1) Mirror the SIGNED-IN account's own row into the workspace `users`
+  // table — never every locally-known account (M7 slice 4's proven RLS design
+  // grants a plain account a self-row-only write; mirroring someone else's row
+  // here would just be a silent no-op once that policy is live, since PostgREST
+  // reports 0 rows patched rather than an error). The admin add/edit flow
+  // (openUserEditor below) mirrors another account's row explicitly instead —
+  // that write is an admin action, which the proven policy separately grants.
+  // (2) If you signed in with the DEMO account, seed the sample workspace once
+  // so a demo login lands on something alive.
   function initAuthBoot() {
     var Auth = window.PolecatAuth; if (!Auth || !Studio.Workspace) return;
     try {
-      var W = Studio.Workspace;
-      (Auth.exportForStore() || []).forEach(function (u) {
-        var existing = W.all("users").filter(function (r) { return r.u === u.u; })[0];
-        var row = existing || { id: "user_" + u.u };
-        row.u = u.u; row.name = u.name; row.role = u.role; row.demo = u.demo; row.hash = u.hash;
-        W.put("users", row, { silent: true });
-      });
+      var me = Auth.current();
+      var mine = me && (Auth.exportForStore() || []).filter(function (u) { return u.u === me.u; })[0];
+      if (mine) mirrorUserRow(mine);
     } catch (e) {}
     try {
       if (Auth.isDemo() && Studio.DEMO_PACKS && Studio.DEMO_PACKS.conservation &&
@@ -9122,7 +9136,11 @@
         if (!existing && !pInp.value) { pInp.focus(); result.className = "cx-test-result bad"; result.textContent = "Set a password."; return; }
         var opts = { name: nInp.value.trim() || u, role: rSel.value };
         if (pInp.value) opts.pass = pInp.value;
-        window.PolecatAuth.upsert(u, opts).then(function () {
+        window.PolecatAuth.upsert(u, opts).then(function (saved) {
+          try {
+            var row = (window.PolecatAuth.exportForStore() || []).filter(function (x) { return x.u === saved.u; })[0];
+            mirrorUserRow(row);
+          } catch (e) {}
           try { if (window.__studioAuthBoot) window.__studioAuthBoot(); } catch (e) {}
           try { if (window.__studioShellApplyRoleGating) window.__studioShellApplyRoleGating(); } catch (e) {}
           toast(existing ? "Saved " + opts.name : "Added " + opts.name);

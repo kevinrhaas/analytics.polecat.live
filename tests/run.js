@@ -7627,16 +7627,39 @@ function serve() {
       authStore.okDemo === true && authStore.badDemo === false && authStore.okAdmin === true, JSON.stringify(authStore));
     ok("M3.1: the workspace schema is v4 with an additive users table (provisionDeltaSQL carries the paste-me upgrade) — the internal user store rides the backend snapshot",
       authStore.schemaV === 4 && authStore.hasUsersTable && authStore.usersDelta, JSON.stringify(authStore));
-    // the users are mirrored into the workspace `users` table by initAuthBoot. (On the
-    // test's gate-ok bypass path, gate.js reveals early and never seeds — so seed above,
-    // then run the mirror hook explicitly, exactly as afterLogin() does on a real sign-in.)
+    // the SIGNED-IN account's own row is mirrored into the workspace `users` table by
+    // initAuthBoot — never every locally-known account (M7 slice 4's scoping fix: a
+    // real-RLS self-row-only write policy would silently drop a non-admin's writes to
+    // rows it doesn't own, so boot only ever mirrors "me"). Log in as admin and run the
+    // mirror hook (exactly as afterLogin() does on a real sign-in): only admin's row
+    // lands, with its hash — demo's row stays un-mirrored until demo itself signs in.
     const authMirror = await page.evaluate(function () {
+      window.PolecatAuth.login("admin");
       if (window.__studioAuthBoot) window.__studioAuthBoot();
-      var rows = Studio.Workspace.all("users");
-      return { count: rows.length, hasAdmin: rows.some(function (r) { return r.u === "admin" && r.hash; }), hasDemo: rows.some(function (r) { return r.u === "demo" && r.hash; }) };
+      var afterAdmin = Studio.Workspace.all("users");
+      var adminBoot = {
+        count: afterAdmin.length,
+        hasAdmin: afterAdmin.some(function (r) { return r.u === "admin" && r.hash; }),
+        hasDemo: afterAdmin.some(function (r) { return r.u === "demo"; })
+      };
+      window.PolecatAuth.login("demo");
+      if (window.__studioAuthBoot) window.__studioAuthBoot();
+      var afterDemo = Studio.Workspace.all("users");
+      var demoBoot = {
+        hasAdmin: afterDemo.some(function (r) { return r.u === "admin"; }),
+        hasDemo: afterDemo.some(function (r) { return r.u === "demo" && r.hash; })
+      };
+      // logging in as demo re-triggers initAuthBoot's OWN demo-pack auto-install (it was
+      // already exercised + removed earlier in the suite) — undo that side effect so later
+      // tests see the same empty workspace they would have without this probe.
+      try { if (Studio.demoPackInstalled && Studio.demoPackInstalled("conservation")) Studio.removeDemoPack("conservation"); } catch (e) {}
+      window.PolecatAuth.login("admin"); // restore admin for the rest of this page's tests
+      if (window.__studioAuthBoot) window.__studioAuthBoot();
+      return { adminBoot: adminBoot, demoBoot: demoBoot };
     });
-    ok("M3.1: the local users are mirrored into the workspace users table on boot (so they sync with the workspace), password hash included",
-      authMirror.count >= 2 && authMirror.hasAdmin && authMirror.hasDemo, JSON.stringify(authMirror));
+    ok("M3.1/M7: initAuthBoot mirrors only the SIGNED-IN account's own row into the workspace users table (never every locally-known account), password hash included",
+      authMirror.adminBoot.count === 1 && authMirror.adminBoot.hasAdmin && !authMirror.adminBoot.hasDemo &&
+      authMirror.demoBoot.hasAdmin && authMirror.demoBoot.hasDemo, JSON.stringify(authMirror));
     // the Settings Account card shows who you are, a Sign out, and the demo-content toggle
     await page.evaluate(function () { window.__studioShellSetSection("settings"); });
     await page.waitForTimeout(250);
