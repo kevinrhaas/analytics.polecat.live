@@ -2926,10 +2926,10 @@ function serve() {
       var files = Array.prototype.map.call(em.querySelectorAll("button.ex-card"), function (b) { return b.getAttribute("data-f"); });
       return { hasScorecard: files.indexOf("conservation-scorecard.studio.json") >= 0, hasFlow: files.indexOf("conservation-flow.studio.json") >= 0,
         hasWatershed: files.indexOf("conservation-watershed.studio.json") >= 0, hasCostshare: files.indexOf("conservation-costshare.studio.json") >= 0,
-        hasAgreement: files.indexOf("conservation-agreement.studio.json") >= 0 };
+        hasAgreement: files.indexOf("conservation-agreement.studio.json") >= 0, hasOutliers: files.indexOf("conservation-outliers.studio.json") >= 0 };
     });
     ok("LF2: Conservation example cards appear in the gallery once the pack is installed",
-      lf2On.hasScorecard && lf2On.hasFlow && lf2On.hasWatershed && lf2On.hasCostshare && lf2On.hasAgreement, JSON.stringify(lf2On));
+      lf2On.hasScorecard && lf2On.hasFlow && lf2On.hasWatershed && lf2On.hasCostshare && lf2On.hasAgreement && lf2On.hasOutliers, JSON.stringify(lf2On));
     // both new example specs actually load (title + full panel count) — catches a bad file
     // reference or malformed JSON that a card would otherwise fail silently on. The menu from the
     // check above is still open (loadExample's own closeMenus() closes it after the click below).
@@ -3012,6 +3012,25 @@ function serve() {
       JSON.stringify(lf2Agreement.filterIds) === JSON.stringify(["sinceYear"]), JSON.stringify(lf2Agreement));
     ok("LF2: the Provider Agreement example leads with an ensemble trend alongside a heatmap, line, and bars",
       JSON.stringify(lf2Agreement.types) === JSON.stringify(["ensembleSeries", "heatmap", "line", "bars"]), JSON.stringify(lf2Agreement));
+    // LF2: the 6th conservation example — county-level outlier detection, the last of the candidate
+    // topics named in the LF2 handoff note — loads with its county choropleth + district-level
+    // diverging-bar deviation ranking + county-deviation histogram + outlier-share gauge panels and
+    // a real Practice filter.
+    await page.click("#btnExamples"); await page.waitForTimeout(150);
+    await page.click('#menuExamples button.ex-card[data-f="conservation-outliers.studio.json"]');
+    await page.waitForTimeout(300);
+    const lf2Outliers = await page.evaluate(function () {
+      var S = window.__STUDIO_STATE;
+      return { title: S && S.spec ? S.spec.title : "", panels: S && S.spec ? S.spec.panels.length : 0,
+        filterIds: S && S.spec ? (S.spec.filters || []).map(function (f) { return f.id; }) : [],
+        types: S && S.spec ? S.spec.panels.map(function (p) { return p.chart.type; }) : [] };
+    });
+    ok("LF2: Conservation Insight — County-Level Outlier Detection example loads with its 4 panels",
+      lf2Outliers.title === "Conservation Insight — County-Level Outlier Detection" && lf2Outliers.panels === 4, JSON.stringify(lf2Outliers));
+    ok("LF2: the County-Level Outlier Detection example carries a real 'Practice' filter (was filters:[])",
+      JSON.stringify(lf2Outliers.filterIds) === JSON.stringify(["practice"]), JSON.stringify(lf2Outliers));
+    ok("LF2: the County-Level Outlier Detection example leads with a choropleth alongside a diverging bar, histogram, and gauge",
+      JSON.stringify(lf2Outliers.types) === JSON.stringify(["choropleth", "divergingBar", "histogram", "gauge"]), JSON.stringify(lf2Outliers));
     // the featured dashboard leads with maps at THREE geo scales (county hero, HUC8 watershed, state
     // rollup), carries the four headline KPIs, and wears the CTIC-derived Conservation theme.
     ok("DP: the featured dashboard leads with county/HUC8/state choropleths, 4 headline KPIs, and the Conservation theme",
@@ -3132,11 +3151,11 @@ function serve() {
       var files = Array.prototype.map.call(em.querySelectorAll("button.ex-card"), function (b) { return b.getAttribute("data-f"); });
       return { hasScorecard: files.indexOf("conservation-scorecard.studio.json") >= 0, hasFlow: files.indexOf("conservation-flow.studio.json") >= 0,
         hasWatershed: files.indexOf("conservation-watershed.studio.json") >= 0, hasCostshare: files.indexOf("conservation-costshare.studio.json") >= 0,
-        hasAgreement: files.indexOf("conservation-agreement.studio.json") >= 0 };
+        hasAgreement: files.indexOf("conservation-agreement.studio.json") >= 0, hasOutliers: files.indexOf("conservation-outliers.studio.json") >= 0 };
     });
     await page.click("body", { position: { x: 5, y: 5 } }); // close the menu (clicking a card auto-closes; this check-only path doesn't)
     ok("LF2: Conservation example cards disappear from the gallery once the pack is removed",
-      !lf2Off.hasScorecard && !lf2Off.hasFlow && !lf2Off.hasWatershed && !lf2Off.hasCostshare && !lf2Off.hasAgreement, JSON.stringify(lf2Off));
+      !lf2Off.hasScorecard && !lf2Off.hasFlow && !lf2Off.hasWatershed && !lf2Off.hasCostshare && !lf2Off.hasAgreement && !lf2Off.hasOutliers, JSON.stringify(lf2Off));
 
     // ---- JOBS (Viridis V8 slice 1): prep/rollup engine + materialize --------
     console.log("\n• JOBS: prep/rollup engine (Viridis V8 slice 1)");

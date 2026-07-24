@@ -1,0 +1,77 @@
+{
+  "schema": 1,
+  "id": "showcase-conservation-outliers",
+  "name": "conservation-outliers",
+  "title": "Conservation Insight — County-Level Outlier Detection",
+  "subtitle": "which counties and districts diverge furthest from the regional common estimate",
+  "group": "Conservation",
+  "demoPackId": "conservation",
+  "description": "A conservation-insight showcase focused on finding outliers — a county-level choropleth of the common estimate, a district-level ranking of adoption deviation from the regional baseline, a histogram showing how deviation is distributed across every county, and the overall share of counties flagged as outliers.",
+  "cda": {
+    "connection": { "id": "pdc", "jndi": "PDC-BIDB-EXT" },
+    "dataAccesses": [
+      {
+        "id": "kpi", "name": "OutlierKPI", "params": [], "cache": true, "cacheDuration": 120,
+        "sql": "SELECT ROUND(AVG(pct),1) AS adoption_pct, COUNT(DISTINCT geoid) AS county_count, COUNT(DISTINCT crd) AS district_count, ROUND(MAX(ABS(adoption_diff_pct)),1) AS biggest_outlier_pct FROM v_county_outliers",
+        "columns": ["adoption_pct", "county_count", "district_count", "biggest_outlier_pct"]
+      },
+      {
+        "id": "county_map", "name": "CountyAdoptionByFIPS", "params": [], "cache": true, "cacheDuration": 180,
+        "sql": "SELECT fips AS geoid, provider, ROUND(AVG(pct),0) AS pct FROM v_county_adoption GROUP BY 1,2",
+        "columns": ["geoid", "provider", "pct"]
+      },
+      {
+        "id": "district_dev", "name": "DistrictDeviation", "params": [{ "name": "practice", "type": "String", "default": "%" }], "cache": true, "cacheDuration": 180,
+        "sql": "SELECT crd, ROUND(AVG(pct) - (SELECT AVG(pct) FROM v_county_adoption),1) AS adoption_diff_pct FROM v_district_adoption WHERE practice LIKE ${practice} GROUP BY 1 ORDER BY 2 DESC",
+        "columns": ["crd", "adoption_diff_pct"]
+      },
+      {
+        "id": "practice_filter", "name": "PracticeOptions", "params": [], "cache": true, "cacheDuration": 300,
+        "sql": "SELECT DISTINCT practice FROM v_district_adoption ORDER BY 1",
+        "columns": ["practice"]
+      },
+      {
+        "id": "county_dev", "name": "CountyDeviationDistribution", "params": [], "cache": true, "cacheDuration": 180,
+        "sql": "SELECT fips AS geoid, ROUND(pct - (SELECT AVG(pct) FROM v_county_adoption),1) AS adoption_diff_pct FROM v_county_outliers",
+        "columns": ["geoid", "adoption_diff_pct"]
+      },
+      {
+        "id": "outlier_share", "name": "OutlierSharePct", "params": [], "cache": true, "cacheDuration": 180,
+        "sql": "SELECT ROUND(100.0 * COUNT(*) FILTER (WHERE ABS(adoption_diff_pct) >= 10) / COUNT(*),1) AS outlier_share_pct FROM v_county_outliers",
+        "columns": ["outlier_share_pct"]
+      }
+    ]
+  },
+  "filters": [
+    { "id": "practice", "da": "practice_filter", "label": "Practice", "valueCol": "practice", "textCol": "practice", "allLabel": "All practices", "def": "%" }
+  ],
+  "kpis": [
+    { "da": "kpi", "valueCol": "adoption_pct", "label": "Regional Adoption Rate", "fmt": "pct", "state": "good", "info": "Common-estimate adoption rate across every county, the baseline outliers are measured against." },
+    { "da": "kpi", "valueCol": "county_count", "label": "Counties Compared", "fmt": "n", "state": "purple", "info": "Distinct Corn Belt counties represented in the sample." },
+    { "da": "kpi", "valueCol": "district_count", "label": "Crop Reporting Districts", "fmt": "n", "state": "", "info": "Distinct NASS crop-reporting districts the county-level rows roll up into." },
+    { "da": "kpi", "valueCol": "biggest_outlier_pct", "label": "Largest County Deviation", "fmt": "pct", "state": "warn", "info": "The single largest gap between a county's estimate and the regional common estimate." }
+  ],
+  "gridCols": 3,
+  "panels": [
+    {
+      "id": "p_map", "title": "Cover-crop Adoption by County (FIPS)", "span": "full", "pill": "%", "sub": "common estimate across 5 providers",
+      "info": "Median adoption rate across the selected providers, at the county scale — the base map outliers are spotted against.", "src": "v_county_adoption",
+      "chart": { "type": "choropleth", "da": "county_map", "map": { "idCol": "geoid", "valueCol": "pct", "seriesCol": "provider" }, "opts": { "scale": "county", "fmt": "pct", "agg": "median", "channel": "providers" } }
+    },
+    {
+      "id": "p_dev", "title": "Adoption Deviation by District", "span": 2, "pill": "%", "sub": "responds to the Practice filter above",
+      "info": "Each crop-reporting district's adoption estimate minus the regional common estimate — furthest bars are the sharpest outliers.", "src": "v_district_adoption",
+      "chart": { "type": "divergingBar", "da": "district_dev", "map": { "labelCol": "crd", "valueCol": "adoption_diff_pct" }, "opts": { "fmt": "pct", "height": 300 } }
+    },
+    {
+      "id": "p_hist", "title": "Distribution of County Deviations", "span": 1, "pill": "%", "sub": "",
+      "info": "How every county's deviation from the regional common estimate is spread — a tight spike near zero with a thin tail of true outliers.", "src": "v_county_outliers",
+      "chart": { "type": "histogram", "da": "county_dev", "map": { "valueCol": "adoption_diff_pct" }, "opts": { "bins": 12, "fmt": "pct", "height": 300 } }
+    },
+    {
+      "id": "p_gauge", "title": "Counties Flagged as Outliers", "span": 1, "pill": "%", "sub": "≥10pt from the common estimate",
+      "info": "Share of counties whose adoption estimate deviates 10 percentage points or more from the regional common estimate.", "src": "v_county_outliers",
+      "chart": { "type": "gauge", "da": "outlier_share", "map": { "valueCol": "outlier_share_pct" }, "opts": { "max": 100, "fmt": "pct", "height": 300 } }
+    }
+  ]
+}

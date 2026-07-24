@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 506,
+    title: 'A 6th Conservation showcase example: County-Level Outlier Detection',
+    kind: 'feature',
+    ts: '2026-07-24T09:10:29.000Z',
+    items: [
+      'The Examples gallery\'s Conservation demo pack gains a 6th showcase dashboard -- a county-scale choropleth of the common estimate, a district-level diverging-bar ranking of adoption deviation from the regional baseline (with a real Practice filter), a histogram of the county-level deviation distribution, and a gauge for the share of counties flagged as outliers -- alongside the existing scorecard, crop/practice flow, watershed-scale, cost-share ROI, and provider-agreement views.',
+    ],
+  },
+  {
     v: 505,
     title: 'A 5th Conservation showcase example: Provider Agreement Over Time',
     kind: 'feature',
