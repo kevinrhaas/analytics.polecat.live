@@ -1,0 +1,77 @@
+{
+  "schema": 1,
+  "id": "showcase-conservation-costshare",
+  "name": "conservation-costshare",
+  "title": "Conservation Insight — Program Cost-Share ROI",
+  "subtitle": "cost-share dollars, enrolled acres & adoption return by practice",
+  "group": "Conservation",
+  "demoPackId": "conservation",
+  "description": "A conservation-insight financial showcase — cost-share efficiency (spend vs. adoption), cost-per-acre trend over time, cost-share dollars by practice, and a return-score ranking by practice.",
+  "cda": {
+    "connection": { "id": "pdc", "jndi": "PDC-BIDB-EXT" },
+    "dataAccesses": [
+      {
+        "id": "kpi", "name": "CostShareKPI", "params": [], "cache": true, "cacheDuration": 120,
+        "sql": "SELECT SUM(cost_share_usd) AS cost_share_total, SUM(acres) AS acres_enrolled, ROUND(SUM(cost_share_usd)/NULLIF(SUM(acres),0),0) AS avg_cost_per_acre, ROUND(AVG(pct)/(SUM(cost_share_usd)/100000),1) AS return_score FROM v_cost_share_roi",
+        "columns": ["cost_share_total", "acres_enrolled", "avg_cost_per_acre", "return_score"]
+      },
+      {
+        "id": "scatter", "name": "CostShareEfficiency", "params": [], "cache": true, "cacheDuration": 180,
+        "sql": "SELECT practice, ROUND(SUM(cost_share_usd)/NULLIF(SUM(acres),0),0) AS cost_per_acre, ROUND(AVG(pct),1) AS adoption_pct, SUM(acres) AS acres FROM v_cost_share_roi GROUP BY 1",
+        "columns": ["practice", "cost_per_acre", "adoption_pct", "acres"]
+      },
+      {
+        "id": "cost_mix", "name": "CostShareByPractice", "params": [], "cache": true, "cacheDuration": 180,
+        "sql": "SELECT practice, SUM(cost_share_usd) AS cost_share FROM v_cost_share_roi GROUP BY 1",
+        "columns": ["practice", "cost_share"]
+      },
+      {
+        "id": "trend", "name": "CostPerAcreTrend", "params": [{ "name": "sinceYear", "type": "String", "default": "%" }], "cache": true, "cacheDuration": 120,
+        "sql": "SELECT year, ROUND(AVG(CASE WHEN practice='Cover crops' THEN cost_per_acre END),0) AS coverCrops_cost, ROUND(AVG(CASE WHEN practice='No-till' THEN cost_per_acre END),0) AS noTill_cost FROM v_cost_share_trend WHERE ${sinceYear} = '%' OR year >= ${sinceYear} GROUP BY 1 ORDER BY 1",
+        "columns": ["year", "coverCrops_cost", "noTill_cost"]
+      },
+      {
+        "id": "yr_filter", "name": "CostShareYears", "params": [], "cache": true, "cacheDuration": 300,
+        "sql": "SELECT DISTINCT year FROM v_cost_share_trend ORDER BY 1",
+        "columns": ["year"]
+      },
+      {
+        "id": "roi", "name": "ReturnScoreByPractice", "params": [], "cache": true, "cacheDuration": 180,
+        "sql": "SELECT practice, ROUND(AVG(pct) / NULLIF(SUM(cost_share_usd)/100000,0),1) AS return_score FROM v_cost_share_roi GROUP BY 1 ORDER BY 2 DESC",
+        "columns": ["practice", "return_score"]
+      }
+    ]
+  },
+  "filters": [
+    { "id": "sinceYear", "da": "yr_filter", "label": "Since year", "valueCol": "year", "textCol": "year", "allLabel": "All years", "def": "%" }
+  ],
+  "kpis": [
+    { "da": "kpi", "valueCol": "cost_share_total", "label": "Total Cost-Share Paid", "fmt": "money", "state": "purple", "info": "Total cost-share dollars disbursed across all tracked practices." },
+    { "da": "kpi", "valueCol": "acres_enrolled", "label": "Enrolled Acres", "fmt": "n", "state": "", "info": "Total acreage enrolled under a cost-share agreement." },
+    { "da": "kpi", "valueCol": "avg_cost_per_acre", "label": "Avg Cost per Acre", "fmt": "money", "state": "", "info": "Blended cost-share dollars per enrolled acre." },
+    { "da": "kpi", "valueCol": "return_score", "label": "Return Score", "fmt": "n", "state": "good", "info": "Adoption points achieved per $100K of cost-share spend -- a rough return-on-spend indicator." }
+  ],
+  "gridCols": 3,
+  "panels": [
+    {
+      "id": "p_scatter", "title": "Cost-Share Efficiency: Spend vs. Adoption", "span": 2, "pill": "$/acre", "sub": "bubble size = enrolled acres",
+      "info": "Each practice's cost-share spend per acre against the adoption rate it bought.", "src": "v_cost_share_roi",
+      "chart": { "type": "scatter", "da": "scatter", "map": { "xCol": "cost_per_acre", "yCol": "adoption_pct", "rCol": "acres", "labelCol": "practice" }, "opts": { "fmt": "n", "height": 300 } }
+    },
+    {
+      "id": "p_cost_mix", "title": "Cost-Share Dollars by Practice", "span": 1, "pill": "$", "sub": "",
+      "info": "Where cost-share dollars are disbursed across the four tracked practices.", "src": "v_cost_share_roi",
+      "chart": { "type": "donut", "da": "cost_mix", "map": { "labelCol": "practice", "valueCol": "cost_share" }, "opts": { "centerCap": "cost", "fmt": "money", "height": 300 } }
+    },
+    {
+      "id": "p_trend", "title": "Cost per Acre Trend", "span": 2, "pill": "$", "sub": "responds to the Since-year filter above",
+      "info": "Cost-share dollars per acre over time for the two leading practices.", "src": "v_cost_share_trend",
+      "chart": { "type": "line", "da": "trend", "map": { "labelCol": "year", "series": [ { "col": "coverCrops_cost", "name": "Cover crops" }, { "col": "noTill_cost", "name": "No-till" } ] }, "opts": { "area": false, "fmt": "money", "height": 300 } }
+    },
+    {
+      "id": "p_roi", "title": "Return Score by Practice", "span": 1, "pill": "score", "sub": "",
+      "info": "Adoption points achieved per $100K of cost-share spend, ranked by practice.", "src": "v_cost_share_roi",
+      "chart": { "type": "bars", "da": "roi", "map": { "labelCol": "practice", "valueCol": "return_score" }, "opts": { "horizontal": true, "fmt": "n", "color": "--c5", "height": 300 } }
+    }
+  ]
+}

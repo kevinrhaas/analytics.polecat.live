@@ -116,6 +116,24 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF2 — a 4th Conservation example: "Program Cost-Share ROI" (v504, sw v145, 2026-07-24,
+  steward):** `data/examples/conservation-costshare.studio.json` + a new `index.json` entry
+  (`demoPackId: "conservation"`, same pack-gating as the existing 3). Leads with a cost-efficiency
+  scatter (`xCol: cost_per_acre`, `yCol: adoption_pct`, `rCol: acres`, `labelCol: practice`) — spend
+  per acre against the adoption rate it bought, bubble-sized by enrolled acres. Below it: a
+  cost-share-dollars-by-practice donut, a cost-per-acre trend line (same "Since year" filter
+  convention as the Watershed example, `WHERE ${sinceYear} = '%' OR year >= ${sinceYear}`), and a
+  return-score bars ranking (adoption points per $100K spend). First conservation example to use
+  the `money` fmt/classify() convention (`cost_share_usd`, `cost_per_acre` columns) and the first to
+  use the `scatter` chart type in this pack. 3 new tests (the card appears in the gated gallery once
+  the Conservation pack installs and disappears once it's removed — extended the existing LF2 gate
+  checks to a 4th file — the spec loads with its title/4 panels, the filter is real
+  (`filterIds === ["sinceYear"]`), and the panel chart-type order matches
+  (`scatter, donut, line, bars`)) — plus the pack-agnostic "every example renders every panel with no
+  error" loop (tests/run.js) picks it up automatically via `window.__STUDIO_STATE.examples`. SW cache
+  → v145. docs/index.html's Conservation Insight section updated to name all 4 showcase dashboards
+  (was stale at "two"). NEXT: ~4 more CONSERVATION/CTIC examples remain (see the LF2 LIVE-FEEDBACK
+  QUEUE entry for the candidate topic list).
 - **M7 slice 3 — owner/acctOwner data migration from username to gotrueId (v503, sw v144,
   2026-07-24, steward — M7's own NEXT pointer):** the prerequisite slice 2's own NEXT called
   out — `tools/supabase-rls-real.sql` compares `auth.uid()` (a UUID) against each row's
@@ -2155,14 +2173,17 @@
 >      the existing 8 generic ones) attached to the CONSERVATION demo pack (install/remove with it). (b)
 >      ✓ The conservation example dashboards + pinned analyses must wear the **Conservation** dashboard
 >      theme/palette (or whatever theme is saved) — every conservation-pack object uses the conservation
->      palette, not the default. — **3 of ~8 shipped: Conservation Practice Adoption Scorecard + Crop &
+>      palette, not the default. — **4 of ~8 shipped: Conservation Practice Adoption Scorecard + Crop &
 >      Practice Flow (2026-07-22, steward, see DONE), Watershed-Scale Adoption (2026-07-23, steward) —
 >      a HUC8 choropleth (median-across-providers common estimate) + the ensemble trend behind it + an
->      overall gauge + a by-provider bar, with a real "Since year" filter — gated via the same
->      `demoPackId` support on examples/index.json entries (visibleExamples() in app/studio.js). NEXT: ~5
->      more CONSERVATION/CTIC examples in the same gated pattern (candidate topics: provider trust/
->      agreement over time, program cost-share ROI, county-level outlier detection, year-over-year
->      practice switching, a richtext-led narrative overview like feature-showcase.studio.json).**
+>      overall gauge + a by-provider bar, with a real "Since year" filter, Program Cost-Share ROI
+>      (2026-07-24, steward) — a cost-efficiency scatter (spend vs. adoption, bubble = acres), a
+>      cost-share-by-practice donut, a cost-per-acre trend (same "Since year" filter convention), and
+>      a return-score bars ranking — gated via the same `demoPackId` support on examples/index.json
+>      entries (visibleExamples() in app/studio.js). NEXT: ~4 more CONSERVATION/CTIC examples in the
+>      same gated pattern (candidate topics: provider trust/agreement over time, county-level outlier
+>      detection, year-over-year practice switching, a richtext-led narrative overview like
+>      feature-showcase.studio.json).**
 >      (c) Move the EXISTING generic
 >      examples (Data Governance, Data Platform Ops, Product Delivery, Finance, Marketing, Incident
 >      Response, Sensitivity/Compliance, Interactive Feature Showcase) AND their backing connections/
