@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 520,
+    title: 'Icon-only action buttons now name what they act on, for screen readers',
+    kind: 'fix',
+    ts: '2026-07-24T21:44:03.000Z',
+    items: [
+      'Explore\'s saved-analysis pin/add-to-dashboard/delete buttons, the Studio data rail\'s per-source Duplicate/Delete buttons, and the Compare dashboards pickers exposed only a symbol or a bare verb to assistive tech, so every row in a list sounded identical. Each now carries an object-specific accessible name (e.g. "Delete cost_by_source", "Pin State Map to Home"), and the two Compare pickers are labelled Left/Right dashboard.',
+    ],
+  },
+  {
     v: 519,
     title: 'New dashboards never share a title with one already in your catalog',
     kind: 'fix',

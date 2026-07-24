@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v158"; /* v158: QA-04 — brand-new blank/duplicated dashboards no
+var CACHE_NAME = "studio-shell-v159"; /* v159: QA-05 — icon-only action buttons (Explore's saved-
+   analysis row, the Studio data rail's Duplicate/Delete, the Compare dashboards pickers) now carry
+   object-specific accessible names instead of a bare symbol/verb. No new precached files, but
+   app/studio.js content changed, so precached copies need to roll.
+   v158: QA-04 — brand-new blank/duplicated dashboards no
    longer collide with a title already in the catalog ("two Untitled Dashboard entries" was the
    frontend QA report's concrete repro). New uniqueDashboardTitle()/newBlankSpec() helpers in
    app/studio.js suffix " 2", " 3", ... against the live catalog at creation time; "Duplicate

@@ -1134,9 +1134,9 @@
         folderBadge +
         '<span class="xp-saved-acts">' +
         '<button type="button" class="xp-act' + (a.private ? " private" : "") + '" data-xp-private="' + esc(a.id) + '" title="' + (a.private ? "Private — only you can see this" : "Make private") + '" aria-label="' + (a.private ? "Make " + esc(a.name) + " public" : "Make " + esc(a.name) + " private") + '" aria-pressed="' + (a.private ? "true" : "false") + '"></button>' +
-        '<button type="button" class="xp-act' + (a.pinned ? " on" : "") + '" data-xp-pin="' + esc(a.id) + '" title="' + (a.pinned ? "Unpin from Home" : "Pin to Home") + '" aria-pressed="' + (a.pinned ? "true" : "false") + '">★</button>' +
-        '<button type="button" class="xp-act" data-xp-dash="' + esc(a.id) + '" title="Add to the current dashboard">▦</button>' +
-        '<button type="button" class="xp-act" data-xp-del="' + esc(a.id) + '" title="Delete analysis">✕</button>' +
+        '<button type="button" class="xp-act' + (a.pinned ? " on" : "") + '" data-xp-pin="' + esc(a.id) + '" title="' + (a.pinned ? "Unpin from Home" : "Pin to Home") + '" aria-label="' + (a.pinned ? "Unpin " + esc(a.name) + " from Home" : "Pin " + esc(a.name) + " to Home") + '" aria-pressed="' + (a.pinned ? "true" : "false") + '">★</button>' +
+        '<button type="button" class="xp-act" data-xp-dash="' + esc(a.id) + '" title="Add to the current dashboard" aria-label="Add ' + esc(a.name) + ' to the current dashboard">▦</button>' +
+        '<button type="button" class="xp-act" data-xp-del="' + esc(a.id) + '" title="Delete analysis" aria-label="Delete ' + esc(a.name) + '">✕</button>' +
         '</span></div>';
     }).join("");
     var main;
@@ -1364,8 +1364,10 @@
     top.appendChild(idDiv);
     var acts = el("div", "da-mine-acts");
     var dup = el("button", "icobtn"); dup.appendChild(Studio.icon("duplicate", 13)); dup.title = "Duplicate";
+    dup.setAttribute("aria-label", "Duplicate " + da.id);
     dup.onclick = function (e) { e.stopPropagation(); duplicateDA(da.id); };
     var del = el("button", "icobtn danger"); del.appendChild(Studio.icon("trash", 13)); del.title = "Delete";
+    del.setAttribute("aria-label", "Delete " + da.id);
     del.onclick = function (e) { e.stopPropagation(); deleteDA(da.id); };
     acts.appendChild(dup); acts.appendChild(del); top.appendChild(acts);
     c.appendChild(top);
@@ -5769,8 +5771,9 @@
     modal("Compare dashboards", function (body) {
       body.appendChild(hint("Pick any two saved dashboards to see a live side-by-side preview and a plain-English summary of what differs between them."));
       var row = el("div", "cmp-pick-row");
-      function pickerFor(defaultIdx) {
+      function pickerFor(defaultIdx, label) {
         var sel = document.createElement("select"); sel.className = "cmp-pick";
+        sel.setAttribute("aria-label", label);
         list.forEach(function (r, i) {
           var opt = document.createElement("option");
           opt.value = r.id; opt.textContent = (r.spec && (r.spec.title || r.spec.name)) || r.id;
@@ -5779,7 +5782,7 @@
         });
         return sel;
       }
-      var selA = pickerFor(0), selB = pickerFor(1);
+      var selA = pickerFor(0, "Left dashboard"), selB = pickerFor(1, "Right dashboard");
       var arrow = el("span", "cmp-arrow"); arrow.textContent = "⇄";
       row.appendChild(selA); row.appendChild(arrow); row.appendChild(selB);
       body.appendChild(row);
