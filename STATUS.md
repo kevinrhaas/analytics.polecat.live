@@ -116,6 +116,40 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **QA-04 — duplicate names are now distinguishable in pickers, Repository, and Compare
+  (v519, sw v158, 2026-07-24, steward, FRONTEND_QA_REPORT_2026-07-24.md):** the report's next
+  P2 finding — the workspace can end up with two "Untitled Dashboard" entries, two
+  identically-titled dashboards, or two same-named saved analyses ("State Map" x2 in the
+  report), and every picker/list showed only the bare name, so a user couldn't tell which
+  object a choice would open or compare. Two-part fix. (1) **Prevention:** a new
+  `Studio.uniqueDashboardTitle(base)` helper (`app/model.js`) checks the saved catalog
+  (`Studio.Workspace.all("dashboards")`) and bumps a fresh blank dashboard's default title
+  to "Untitled Dashboard 2", "3", etc. instead of colliding — `Studio.emptySpec()` calls it
+  lazily (evaluated at creation time, well after Workspace has loaded, so every blank-create
+  call site gets it for free with no call-site changes needed); the onboarding-checklist
+  "gave it a title" check (`Studio.dashboardCompleteness`) now matches the whole
+  `/^Untitled Dashboard( \d+)?$/` family instead of one literal, so a numbered default still
+  reads as "not yet named." (2) **Disambiguation where a real collision already exists:**
+  three call sites — Repository's row list (`repoRowHtml`), the Compare-dashboards picker's
+  `<option>` text, and Explore's saved-analyses sidebar rows — each compute a same-type
+  title-count map and, ONLY when two entries genuinely share a name (title+type+meta all
+  identical was the report's exact "two State Map analyses" case), fold in an
+  updated-time + a new guaranteed-unique `Studio.shortId(id)` suffix (last 6 chars of the
+  id); a uniquely-named row is left untouched, no suffix noise. The Compare picker's two
+  `<select>`s also gained "Left dashboard"/"Right dashboard" `aria-label`s (they had none).
+  8 new regression tests: uniquification skips past numbers already taken but leaves an
+  unrelated base title alone; Repository shows a differing, guaranteed-unique suffix on two
+  colliding rows and none on a solo one; the Compare picker's two same-titled options get
+  distinguishable text (a unique one doesn't) and the two selects carry the right
+  accessible names; Explore's saved-analyses sidebar does the same for two same-named
+  analyses. Also fixed a pre-existing Z2 test that hard-asserted the literal
+  "Untitled Dashboard" — now matches the naming family, since later suite state can
+  legitimately push it to "…2". Suite green (1928/1928). sw v158 (no new precached files;
+  app/model.js + app/studio.js content changed). (app/model.js, app/studio.js, sw.js,
+  js/changelog.js, docs/index.html, tests/run.js) NEXT: QA-05 (P2, several icon/action
+  controls — Explore's ★/▦/✕ buttons, the Studio data rail's per-query Duplicate/Delete,
+  the compare dialog's two native selects — lack object-specific accessible names) is the
+  next item in the same report.
 - **QA-03 — Explore's featured county demo now opens with a populated choropleth (v518,
   sw v157, 2026-07-24, steward, FRONTEND_QA_REPORT_2026-07-24.md):** the report's P1 BUG,
   a broken first-run path in the primary Explore workflow. Root cause confirmed exactly as

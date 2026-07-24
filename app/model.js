@@ -2412,7 +2412,7 @@
       schema: 1,
       id: Studio.uid("dash"),
       name: "untitled",
-      title: "Untitled Dashboard",
+      title: Studio.uniqueDashboardTitle(),
       subtitle: "",
       group: "", // no category until the author sets one — a blank dashboard shouldn't claim "Observability"
       description: "",
@@ -2434,6 +2434,31 @@
       templateVars: [], // N-DEV: [{key,value}] — {{key}} tokens in dashboard title/subtitle AND panel title/note get substituted at render time
       panels: []
     };
+  };
+
+  // QA-04 (FRONTEND_QA_REPORT_2026-07-24.md): a second blank dashboard used to collide
+  // on the literal "Untitled Dashboard", making pickers/Repository/compare show two
+  // indistinguishable entries. Read lazily (called at emptySpec() call time, well after
+  // Workspace has loaded) so a fresh blank always gets a name that's unique against the
+  // saved catalog right now — "Untitled Dashboard", then "Untitled Dashboard 2", "3", ...
+  Studio.uniqueDashboardTitle = function (base) {
+    base = base || "Untitled Dashboard";
+    var taken = {};
+    (Studio.Workspace ? Studio.Workspace.all("dashboards") : []).forEach(function (r) {
+      var t = (r.spec && (r.spec.title || r.spec.name)) || r.title || r.name;
+      if (t) taken[t] = true;
+    });
+    if (!taken[base]) return base;
+    var n = 2;
+    while (taken[base + " " + n]) n++;
+    return base + " " + n;
+  };
+
+  // QA-04: a short, stable, guaranteed-unique fallback disambiguator for pickers/
+  // Repository rows when two objects share a display name (updated-time can still
+  // collide; the id never does).
+  Studio.shortId = function (id) {
+    return String(id || "").slice(-6);
   };
 
   // N-DEV: dashboard templates/variables — replace every {{key}} token in `str` with the matching
@@ -3070,7 +3095,7 @@
   // celebrating "you added one" is the fun, encouraging framing the north star asks for.
   Studio.dashboardCompleteness = function (spec) {
     var items = [
-      { key: "title",  label: "Give it a title",        done: !!(spec.title && spec.title.trim() && spec.title !== "Untitled Dashboard") },
+      { key: "title",  label: "Give it a title",        done: !!(spec.title && spec.title.trim() && !/^Untitled Dashboard( \d+)?$/.test(spec.title)) },
       { key: "panel",  label: "Add a panel",             done: (spec.panels || []).length > 0 },
       { key: "kpi",    label: "Add a KPI tile",          done: (spec.kpis || []).length > 0 },
       { key: "filter", label: "Add a filter",            done: (spec.filters || []).length > 0 },

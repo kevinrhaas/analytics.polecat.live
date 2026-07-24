@@ -5,7 +5,15 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v157"; /* v157: QA-03 — Explore's featured county demo now opens
+var CACHE_NAME = "studio-shell-v158"; /* v158: QA-04 — duplicate names (two blank dashboards,
+   two same-titled dashboards, two same-named saved analyses) are now distinguishable without
+   opening them: a new blank dashboard's default title is uniquified against the saved catalog
+   (Studio.uniqueDashboardTitle, app/model.js), and Repository rows / the Compare-dashboards
+   picker / Explore's saved-analyses sidebar fold in an updated-time + short-id suffix only
+   when two entries actually share a title. Compare's two <select>s also gain "Left dashboard"/
+   "Right dashboard" accessible names. No new precached files, but app/model.js, app/studio.js
+   content changed, so precached copies need to roll.
+   v157: QA-03 — Explore's featured county demo now opens
    with a populated choropleth (was auto-mapping Value to the text `statecode` column instead of
    the numeric `pct` column). Fix lives in a new shared Studio.guessChoroplethCols() helper (app/
    model.js) used by both Studio.newPanel's choropleth default and studio.js's autoPickCols

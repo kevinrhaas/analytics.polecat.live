@@ -2248,6 +2248,22 @@ function serve() {
     });
     ok("XP: the All folders chip resets the saved-analyses list back to both analyses",
       xpFolderAll.rows === 2 && xpFolderAll.activeChip, JSON.stringify(xpFolderAll));
+    // QA-04 — two saved analyses sharing a name were indistinguishable in Explore's
+    // saved-analyses sidebar (the report's literal "two State Map analyses" case; P2,
+    // FRONTEND_QA_REPORT_2026-07-24.md).
+    const xpDupNames = await page.evaluate(function () {
+      var base = Studio.Workspace.all("analyses")[0];
+      Studio.Workspace.put("analyses", { id: "xp-dup-1", name: "State Map", datasetId: base.datasetId, sample: base.sample, da: base.da, chart: base.chart, chartType: "bars", updatedAt: 1000 });
+      Studio.Workspace.put("analyses", { id: "xp-dup-2", name: "State Map", datasetId: base.datasetId, sample: base.sample, da: base.da, chart: base.chart, chartType: "bars", updatedAt: 2000 });
+      window.__studioRenderExplore();
+      function smallOf(id) { var row = document.querySelector('.xp-saved-row[data-xp-a="' + id + '"]'); return row ? (row.querySelector("small") || {}).textContent : null; }
+      return { a: smallOf("xp-dup-1"), b: smallOf("xp-dup-2"), unique: smallOf(base.id) };
+    });
+    ok("QA-04: two saved analyses sharing a name get a distinguishing time+id suffix in Explore's sidebar, and it differs between them",
+      !!xpDupNames.a && !!xpDupNames.b && xpDupNames.a.indexOf("#") >= 0 && xpDupNames.b.indexOf("#") >= 0 && xpDupNames.a !== xpDupNames.b,
+      JSON.stringify(xpDupNames));
+    ok("QA-04: a uniquely-named saved analysis is left untouched (no id-suffix noise)",
+      xpDupNames.unique !== null && xpDupNames.unique.indexOf("#") === -1, JSON.stringify(xpDupNames));
     // cleanup + restore studio section for later tests
     await page.evaluate(function () {
       Studio.Workspace.all("analyses").forEach(function (a) { Studio.Workspace.remove("analyses", a.id, { silent: true }); });
@@ -19632,8 +19648,28 @@ function serve() {
       var s = window.__STUDIO_STATE.spec;
       return { panels: s.panels.length, title: s.title, homeHidden: document.getElementById("secHome").hidden };
     });
+    // QA-04: a blank dashboard's title is uniquified against the saved catalog (see
+    // Studio.uniqueDashboardTitle in app/model.js), so by this point in the suite it may
+    // already be "Untitled Dashboard 2" etc. — assert the naming scheme, not one literal.
     ok("Z2: 'Blank dashboard' quick-create starts a fresh spec and returns to Studio",
-      z2Blank.panels === 0 && z2Blank.title === "Untitled Dashboard" && z2Blank.homeHidden === true, JSON.stringify(z2Blank));
+      z2Blank.panels === 0 && /^Untitled Dashboard( \d+)?$/.test(z2Blank.title) && z2Blank.homeHidden === true, JSON.stringify(z2Blank));
+
+    // QA-04 — two blank dashboards used to both land on the literal "Untitled Dashboard",
+    // indistinguishable in every picker (P2, FRONTEND_QA_REPORT_2026-07-24.md).
+    // Studio.uniqueDashboardTitle() skips past whatever numbers are already taken.
+    const qa4Unique = await page.evaluate(function () {
+      window.__studioSeedDashboards([
+        { id: "qa4-a", ts: new Date(1000).toISOString(), spec: { id: "qa4-a", title: "Untitled Dashboard", panels: [] } },
+        { id: "qa4-b", ts: new Date(2000).toISOString(), spec: { id: "qa4-b", title: "Untitled Dashboard 2", panels: [] } }
+      ]);
+      var r = { next: Studio.uniqueDashboardTitle(), other: Studio.uniqueDashboardTitle("Something Else"), fresh: Studio.emptySpec().title };
+      window.__studioSeedDashboards([]);
+      return r;
+    });
+    ok("QA-04: a new blank dashboard's default title is uniquified against the saved catalog, skipping past numbers already taken",
+      qa4Unique.next === "Untitled Dashboard 3" && qa4Unique.fresh === "Untitled Dashboard 3", JSON.stringify(qa4Unique));
+    ok("QA-04: uniquification only kicks in for an actual collision — an unrelated base title is left alone",
+      qa4Unique.other === "Something Else", JSON.stringify(qa4Unique));
 
     // Z2-5: recents list stays capped at 8 entries (newest-first) — the catalog now
     // lives in the Workspace `dashboards` table (★★★-1), seeded via the test hook.
@@ -20612,6 +20648,34 @@ function serve() {
     });
     ok("N-DATA: with fewer than two saved dashboards, Compare shows a toast instead of an unusable empty modal",
       !cmpTooFew.hadModal && cmpTooFew.toastMentionsTwo, JSON.stringify(cmpTooFew));
+
+    // QA-04 — Compare dashboards: duplicate titles were indistinguishable in the picker,
+    // and neither <select> had an accessible name (P2, FRONTEND_QA_REPORT_2026-07-24.md).
+    const cmpDup = await page.evaluate(function () {
+      window.__studioSeedDashboards([
+        { id: "cmp-dup-a", ts: new Date(1000).toISOString(), spec: { id: "cmp-dup-a", title: "Compare Dup", panels: [], cda: { dataAccesses: [] } } },
+        { id: "cmp-dup-b", ts: new Date(2000).toISOString(), spec: { id: "cmp-dup-b", title: "Compare Dup", panels: [], cda: { dataAccesses: [] } } },
+        { id: "cmp-solo",  ts: new Date(3000).toISOString(), spec: { id: "cmp-solo",  title: "Compare Solo", panels: [], cda: { dataAccesses: [] } } }
+      ]);
+      window.__studioOpenCompareDashboards();
+      var modal = document.querySelector(".modal-ov .modal");
+      var sels = modal.querySelectorAll(".cmp-pick");
+      function optsOf(sel) { return Array.from(sel.querySelectorAll("option")).map(function (o) { return { value: o.value, text: o.textContent }; }); }
+      var opts = optsOf(sels[0]);
+      var optA = opts.filter(function (o) { return o.value === "cmp-dup-a"; })[0];
+      var optB = opts.filter(function (o) { return o.value === "cmp-dup-b"; })[0];
+      var optSolo = opts.filter(function (o) { return o.value === "cmp-solo"; })[0];
+      return {
+        ariaA: sels[0].getAttribute("aria-label"), ariaB: sels[1].getAttribute("aria-label"),
+        dupTextsDiffer: optA.text !== optB.text && optA.text.indexOf("Compare Dup") === 0 && optB.text.indexOf("Compare Dup") === 0,
+        soloUnchanged: optSolo.text === "Compare Solo"
+      };
+    });
+    ok("QA-04: the two Compare-dashboards selects have distinct accessible names (Left/Right dashboard)",
+      cmpDup.ariaA === "Left dashboard" && cmpDup.ariaB === "Right dashboard", JSON.stringify(cmpDup));
+    ok("QA-04: two same-titled dashboards get distinguishable option text in the Compare picker; a uniquely-titled one is left untouched",
+      cmpDup.dupTextsDiffer && cmpDup.soloUnchanged, JSON.stringify(cmpDup));
+    await page.evaluate(function () { var ov = document.querySelector(".modal-ov"); if (ov) ov.remove(); window.__studioSeedDashboards([]); });
 
     // ── N-DEV: live JSON spec editor ──
     console.log("\n• N-DEV: live JSON spec editor");
@@ -24022,6 +24086,31 @@ function serve() {
     });
     ok("Repository: dropping a row back onto the folder group it's already in is a genuine no-op (no redundant write)",
       repoDragNoopSameFolder.updatedAfter === repoDragNoopSameFolder.updatedBefore, JSON.stringify(repoDragNoopSameFolder));
+
+    // QA-04 — duplicate names are indistinguishable in Repository (P2,
+    // FRONTEND_QA_REPORT_2026-07-24.md): two same-type rows with the identical title AND
+    // meta (here: same panel count, so the pre-existing columns can't tell them apart
+    // either) must still be distinguishable without opening either one.
+    const repoDup = await repoPage.evaluate(function () {
+      Studio.Workspace.all("dashboards").forEach(function (d) { Studio.Workspace.remove("dashboards", d.id, { silent: true }); });
+      Studio.Workspace.put("dashboards", { id: "repo-dup-a", ts: new Date(1000).toISOString(), title: "Duplicate Dash", name: "duplicate-dash",
+        spec: { id: "repo-dup-a", title: "Duplicate Dash", panels: [], kpis: [], filters: [] } });
+      Studio.Workspace.put("dashboards", { id: "repo-dup-b", ts: new Date(2000).toISOString(), title: "Duplicate Dash", name: "duplicate-dash-2",
+        spec: { id: "repo-dup-b", title: "Duplicate Dash", panels: [], kpis: [], filters: [] } });
+      Studio.Workspace.put("dashboards", { id: "repo-solo", ts: new Date(3000).toISOString(), title: "Solo Dash", name: "solo-dash",
+        spec: { id: "repo-solo", title: "Solo Dash", panels: [], kpis: [], filters: [] } });
+      window.__studioRenderRepository();
+      function rowInfo(id) {
+        var row = document.querySelector('.cx-row[data-repo-id="' + id + '"]');
+        return { small: (row.querySelector(".cx-name small") || {}).textContent, aria: row.getAttribute("aria-label") };
+      }
+      return { a: rowInfo("repo-dup-a"), b: rowInfo("repo-dup-b"), solo: rowInfo("repo-solo") };
+    });
+    ok("QA-04: two Repository rows sharing a title, type, AND meta get a distinguishing id suffix, and it actually differs between them",
+      repoDup.a.small.indexOf("#") >= 0 && repoDup.b.small.indexOf("#") >= 0 && repoDup.a.small !== repoDup.b.small && repoDup.a.aria !== repoDup.b.aria,
+      JSON.stringify(repoDup));
+    ok("QA-04: a uniquely-titled Repository row is left alone (no id-suffix noise when there's nothing to disambiguate)",
+      repoDup.solo.small.indexOf("#") === -1, JSON.stringify(repoDup));
 
     await repoPage.close();
 

@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 519,
+    title: 'Duplicate names are now distinguishable in pickers, Repository, and Compare',
+    kind: 'fix',
+    ts: '2026-07-24T19:31:35.000Z',
+    items: [
+      'A new blank dashboard no longer collides on the literal "Untitled Dashboard" — its default title is checked against your saved catalog and bumped to "Untitled Dashboard 2", "3", etc.',
+      'Two objects that share a name (two same-titled dashboards, two saved analyses both called "State Map") now show a distinguishing updated-time and short id in Repository, Explore\'s saved-analyses list, and the Compare-dashboards picker — but only when there\'s an actual collision to disambiguate.',
+      'The Compare-dashboards picker\'s two selects now have "Left dashboard" / "Right dashboard" accessible names.',
+    ],
+  },
+  {
     v: 518,
     title: 'Explore\'s featured county demo now opens with a populated map, not an empty one',
     kind: 'fix',

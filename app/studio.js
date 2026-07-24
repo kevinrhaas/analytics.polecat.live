@@ -1125,12 +1125,19 @@
       if (_xpFolderFilter) return a.folder === _xpFolderFilter;
       return true;
     });
+    // QA-04: two saved analyses can share a name (e.g. "State Map" x2) with no other
+    // visible field to tell them apart — xpNameCounts flags that so the row can fold in
+    // an updated-time + short id disambiguator only where it's actually ambiguous.
+    var xpNameCounts = {};
+    analyses.forEach(function (a) { xpNameCounts[a.name] = (xpNameCounts[a.name] || 0) + 1; });
     var savedRows = shownAnalyses.map(function (a) {
       var on = XP.analysisId === a.id;
       var folderBadge = a.folder ? '<span class="cx-badge cx-folder" title="Folder: ' + esc(a.folder) + '">' + esc(a.folder) + '</span>' : "";
+      var xpDup = xpNameCounts[a.name] > 1;
+      var xpDupTag = xpDup ? " · " + timeAgo(a.updatedAt) + " · #" + esc(Studio.shortId(a.id)) : "";
       return '<div class="xp-saved-row' + (on ? " active" : "") + '" data-xp-a="' + esc(a.id) + '">' +
         '<button type="button" class="xp-saved-open" data-xp-open="' + esc(a.id) + '" title="Open in Explore"><b>' + esc(a.name) + '</b>' +
-        '<small>' + esc((Studio.CHARTS[a.chartType] || {}).label || a.chartType) + '</small></button>' +
+        '<small>' + esc((Studio.CHARTS[a.chartType] || {}).label || a.chartType) + xpDupTag + '</small></button>' +
         folderBadge +
         '<span class="xp-saved-acts">' +
         '<button type="button" class="xp-act' + (a.private ? " private" : "") + '" data-xp-private="' + esc(a.id) + '" title="' + (a.private ? "Private — only you can see this" : "Make private") + '" aria-label="' + (a.private ? "Make " + esc(a.name) + " public" : "Make " + esc(a.name) + " private") + '" aria-pressed="' + (a.private ? "true" : "false") + '"></button>' +
@@ -5748,17 +5755,30 @@
     modal("Compare dashboards", function (body) {
       body.appendChild(hint("Pick any two saved dashboards to see a live side-by-side preview and a plain-English summary of what differs between them."));
       var row = el("div", "cmp-pick-row");
-      function pickerFor(defaultIdx) {
-        var sel = document.createElement("select"); sel.className = "cmp-pick";
+      // QA-04/QA-05: two dashboards can share a title (option text was title-only, and
+      // neither select had an accessible name) — cmpTitleCounts flags duplicates so the
+      // option text folds in an updated-time + short id disambiguator only where two
+      // titles actually collide, and each select now names which side it picks.
+      var cmpTitleCounts = {};
+      list.forEach(function (r) {
+        var t = (r.spec && (r.spec.title || r.spec.name)) || r.id;
+        cmpTitleCounts[t] = (cmpTitleCounts[t] || 0) + 1;
+      });
+      function pickerFor(defaultIdx, label) {
+        var sel = document.createElement("select"); sel.className = "cmp-pick"; sel.setAttribute("aria-label", label);
         list.forEach(function (r, i) {
           var opt = document.createElement("option");
-          opt.value = r.id; opt.textContent = (r.spec && (r.spec.title || r.spec.name)) || r.id;
+          var title = (r.spec && (r.spec.title || r.spec.name)) || r.id;
+          opt.value = r.id;
+          opt.textContent = cmpTitleCounts[title] > 1
+            ? title + " (" + timeAgo(r.ts) + " · #" + Studio.shortId(r.id) + ")"
+            : title;
           if (i === defaultIdx) opt.selected = true;
           sel.appendChild(opt);
         });
         return sel;
       }
-      var selA = pickerFor(0), selB = pickerFor(1);
+      var selA = pickerFor(0, "Left dashboard"), selB = pickerFor(1, "Right dashboard");
       var arrow = el("span", "cmp-arrow"); arrow.textContent = "⇄";
       row.appendChild(selA); row.appendChild(arrow); row.appendChild(selB);
       body.appendChild(row);
@@ -8010,6 +8030,12 @@
     var all = repoAllRows();
     var counts = { all: all.length };
     all.forEach(function (r) { counts[r.type] = (counts[r.type] || 0) + 1; });
+    // QA-04: two same-type rows sharing a title look identical (title + type + meta all
+    // match) — repoDupKey flags that case so repoRowHtml() can append a stable
+    // disambiguator (updated time + short id) only where it's actually needed.
+    var repoTitleCounts = {};
+    all.forEach(function (r) { var k = r.type + " " + r.title; repoTitleCounts[k] = (repoTitleCounts[k] || 0) + 1; });
+    function repoDup(r) { return repoTitleCounts[r.type + " " + r.title] > 1; }
     if (_repoAllType && !counts[_repoAllType]) _repoAllType = "";
     var filtered = all.filter(function (r) {
       if (_repoAllType && r.type !== _repoAllType) return false;
@@ -8083,11 +8109,18 @@
       // desktop-mouse-only convenience layered on TOP of the folder text field (with
       // its autocomplete), which stays the primary, fully mobile-capable way to file
       // something — no touch/keyboard equivalent is offered here on purpose.
-      return '<div class="cx-row" data-repo-id="' + esc(r.id) + '" data-repo-type="' + esc(r.type) + '"' + (canQuickEdit ? ' draggable="true"' : '') + ' tabindex="0" role="button" aria-label="Open ' + esc(r.title) + '">' +
+      // QA-04: when another row of the same type shares this exact title, a bare title +
+      // type + meta can be identical (e.g. two "State Map" analyses) — fold in the
+      // updated time and a short, guaranteed-unique id suffix so the row is
+      // distinguishable without opening it.
+      var dup = repoDup(r);
+      var dupTag = dup ? " · #" + esc(Studio.shortId(r.id)) : "";
+      var openLabel = "Open " + r.title + (dup && r.ts ? " (updated " + new Date(r.ts).toLocaleString() + ", #" + Studio.shortId(r.id) + ")" : "");
+      return '<div class="cx-row" data-repo-id="' + esc(r.id) + '" data-repo-type="' + esc(r.type) + '"' + (canQuickEdit ? ' draggable="true"' : '') + ' tabindex="0" role="button" aria-label="' + esc(openLabel) + '">' +
         '<span class="cx-ic" style="color:var(--faint)"></span>' +
-        '<span class="cx-name"><b>' + esc(r.title) + '</b><small>' + esc((td ? td.singular : r.type) + " · " + r.meta) + '</small></span>' +
+        '<span class="cx-name"><b>' + esc(r.title) + '</b><small>' + esc((td ? td.singular : r.type) + " · " + r.meta) + dupTag + '</small></span>' +
         (r.folder ? '<span class="cx-badge cx-folder" title="Folder: ' + esc(r.folder) + '">' + esc(r.folder) + '</span>' : "") +
-        '<span class="cx-when">' + (r.ts ? esc(new Date(r.ts).toLocaleDateString()) : "") + '</span>' +
+        '<span class="cx-when"' + (dup && r.ts ? ' title="' + esc(new Date(r.ts).toLocaleString()) + '"' : "") + '>' + (r.ts ? esc(new Date(r.ts).toLocaleDateString()) : "") + '</span>' +
         (canQuickEdit ? '<span class="cx-actions"><button type="button" class="repo-edit" data-repo-edit-type="' + esc(r.type) + '" data-repo-edit-id="' + esc(r.id) + '" title="Quick edit" aria-label="Quick edit ' + esc(r.title) + '"></button></span>' : "") +
         '</div>';
     }
