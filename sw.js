@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v157"; /* v157: QA-03 — Explore's featured county demo now opens
+var CACHE_NAME = "studio-shell-v158"; /* v158: QA-04 — brand-new blank/duplicated dashboards no
+   longer collide with a title already in the catalog ("two Untitled Dashboard entries" was the
+   frontend QA report's concrete repro). New uniqueDashboardTitle()/newBlankSpec() helpers in
+   app/studio.js suffix " 2", " 3", ... against the live catalog at creation time; "Duplicate
+   current"'s "(copy)" title goes through the same helper. No new precached files, but
+   app/studio.js content changed, so precached copies need to roll.
+   v157: QA-03 — Explore's featured county demo now opens
    with a populated choropleth (was auto-mapping Value to the text `statecode` column instead of
    the numeric `pct` column). Fix lives in a new shared Studio.guessChoroplethCols() helper (app/
    model.js) used by both Studio.newPanel's choropleth default and studio.js's autoPickCols

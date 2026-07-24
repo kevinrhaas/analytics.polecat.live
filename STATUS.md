@@ -2335,6 +2335,22 @@
 >       count, source dataset, or short id); warn on save when same type+name+scope already exists;
 >       default new blanks to a unique name (`Untitled Dashboard 2`); compare selects labelled “Left/
 >       Right dashboard”. Ties into #29 (widgets/repository) + LF27c (Dashboards browser).
+>       ✓ **Slice 1 shipped (2026-07-24, v519, steward): unique titles at dashboard-creation time.**
+>       Every "brand-new blank dashboard" entry point (Home's Blank-dashboard card, its drag-a-
+>       dataset-onto-it variant, the New ▾ menu's Blank dashboard, Explore's "+ New dashboard") now
+>       routes through a new `newBlankSpec()` (`app/studio.js`), which suffixes `spec.title` (" 2",
+>       " 3", ...) against every title already in the `dashboards` catalog via a new
+>       `uniqueDashboardTitle()` helper — so a second/third "Untitled Dashboard" is never written to
+>       the catalog in the first place, closing this finding's "Newly created untitled objects
+>       receive unique display names" acceptance criterion. "Duplicate current" (New ▾ menu) goes
+>       through the same helper for its `" (copy)"` suffix, so duplicating the same dashboard twice
+>       no longer produces two identical `"X (copy)"` rows either. SW cache → v158. 2 new regression
+>       tests (blank-dashboard uniquify across two seeded collisions; duplicate-current uniquify).
+>       Still open (this finding's OTHER acceptance criterion, a bigger UI lift — tracked as slice
+>       2): "every duplicate option is distinguishable without opening it" — stable disambiguators
+>       (folder/owner/updated time/panel count/short id) in the compare dialog, Repository, and the
+>       Dashboard catalog picker for names a user typed themselves (analyses are always user-named,
+>       never auto-defaulted, so this slice's create-time fix doesn't reach them).
 > QA-05. P2 A11Y — **icon/action controls lack object-specific accessible names.** Explore saved-
 >       analysis buttons expose only `★`/`▦`/`✕`; Studio data-rail repeats bare “Duplicate”/“Delete”;
 >       compare selects are unlabelled. FIX: object-specific `aria-label` (“Pin State Map to Home”,

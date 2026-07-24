@@ -971,7 +971,7 @@
   // first panel via the normal current-spec path. Like any other new/blank
   // dashboard, it isn't written to the Dashboards catalog until Save.
   function xpAddAnalysisToNewDashboard(id) {
-    S.spec = applyDashboardDefaults(Studio.emptySpec());
+    S.spec = newBlankSpec();
     S.selection = null;
     xpAddAnalysisToSpec(id);
   }
@@ -5391,6 +5391,27 @@
     return Studio.Workspace.all("dashboards")
       .sort(function (a, b) { return (b.ts || "").localeCompare(a.ts || ""); });
   }
+  // QA-04: a brand-new blank dashboard's title never collides with one already in the
+  // catalog — "Untitled Dashboard" repeated across sessions is exactly the two-identical-
+  // rows confusion the frontend QA report flagged in pickers/Repository. Suffixing at
+  // CREATION time (rather than trying to disambiguate every picker after the fact) means
+  // the catalog never grows a second exact-duplicate title in the first place.
+  function uniqueDashboardTitle(base) {
+    var used = {};
+    loadRecents().forEach(function (r) {
+      var t = (r.spec && r.spec.title) || r.title || "";
+      if (t) used[t] = true;
+    });
+    if (!used[base]) return base;
+    var n = 2;
+    while (used[base + " " + n]) n++;
+    return base + " " + n;
+  }
+  function newBlankSpec() {
+    var spec = applyDashboardDefaults(Studio.emptySpec());
+    spec.title = uniqueDashboardTitle(spec.title);
+    return spec;
+  }
   // Pins are derived from row flags (newest pin first — the historical
   // `pins.unshift` ordering, preserved via pinnedAt).
   function loadPins() {
@@ -6064,7 +6085,7 @@
       btn.onclick = function () {
         var act = btn.getAttribute("data-home");
         enterStudio();
-        if (act === "blank") { S.spec = applyDashboardDefaults(Studio.emptySpec()); S.selection = null; syncHeader(); renderInspector(); refreshPreview(); buildLibrary(); bumpDashMilestone(); }
+        if (act === "blank") { S.spec = newBlankSpec(); S.selection = null; syncHeader(); renderInspector(); refreshPreview(); buildLibrary(); bumpDashMilestone(); }
         else if (act === "examples") { setTimeout(function () { var b = $("#btnExamples"); if (b) b.click(); }, 60); }
         else if (act === "tour") { setTimeout(function () { if (window.StudioTutorial) StudioTutorial.open(); }, 60); }
       };
@@ -6086,7 +6107,7 @@
           var d = JSON.parse(e.dataTransfer.getData("text/plain"));
           if (d && d.wsDataset && Studio.Workspace.get("datasets", d.wsDataset)) {
             enterStudio();
-            S.spec = applyDashboardDefaults(Studio.emptySpec()); S.selection = null; syncHeader();
+            S.spec = newBlankSpec(); S.selection = null; syncHeader();
             bumpDashMilestone();
             addFromWorkspaceDataset(d.wsDataset, "bars");
           }
@@ -9971,11 +9992,11 @@
       b.onclick = function () {
         var action = b.getAttribute("data-new");
         if (action === "blank") {
-          S.spec = applyDashboardDefaults(Studio.emptySpec()); S.selection = null; syncHeader(); renderInspector(); refreshPreview(); bumpDashMilestone();
+          S.spec = newBlankSpec(); S.selection = null; syncHeader(); renderInspector(); refreshPreview(); bumpDashMilestone();
         } else if (action === "dup") {
           var dup = Studio.clone(S.spec);
           dup.id    = Studio.uid("dash");
-          dup.title = (dup.title || "Untitled Dashboard") + " (copy)";
+          dup.title = uniqueDashboardTitle((dup.title || "Untitled Dashboard") + " (copy)");
           dup.name  = (dup.name  || "untitled").replace(/(-copy)+$/, "") + "-copy";
           S.spec    = dup;
           S.selection = null;
