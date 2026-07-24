@@ -8505,27 +8505,13 @@
       } }
   ];
 
-  /* ---------- Z12: Branding — app mark as a Settings option -----------------
-     Default / custom-logo / none, so the rail identity isn't hardcoded. A custom
-     logo is stored as a data: URL in localStorage (capped small — this is an icon,
-     not an asset host) so it survives reload with zero backend. */
-  var BRAND_MAX_BYTES = 200 * 1024; // ~200KB — plenty for an icon-sized logo, keeps localStorage sane
-  function getBranding() {
-    return lsGet("studio-branding", { mode: "default" });
-  }
-  function setBranding(b) {
-    lsSet("studio-branding", b);
-    applyBranding();
-  }
-  function applyBranding() {
-    var b = getBranding();
-    var mark = document.querySelector(".rail-brand-mark");
-    if (!mark) return;
-    if (b.mode === "custom" && b.dataUrl) { mark.src = b.dataUrl; mark.style.display = ""; }
-    else if (b.mode === "none") { mark.style.display = "none"; }
-    else { mark.src = "favicon.svg"; mark.style.display = ""; }
-  }
-  window.__studioBranding = { get: getBranding, set: setBranding, apply: applyBranding }; // test hook
+  /* ---------- Z12: Branding — extracted to app/branding.js (R5+ slice 2,
+     tech-debt module-extraction track). Aliased locally so every call site
+     below is untouched; window.__studioBranding now lives in that module. */
+  var BRAND_MAX_BYTES = Studio.Branding.MAX_BYTES;
+  var getBranding = Studio.Branding.get;
+  var setBranding = Studio.Branding.set;
+  var applyBranding = Studio.Branding.apply;
 
   /* ---------- M4.2 (per-section rights half): which rail sections a viewer may
      see. Admin-only sections (Admin itself) already have their own gating; these
