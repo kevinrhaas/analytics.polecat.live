@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 503,
+    title: 'M7: existing dashboards/connections/datasets/analyses/jobs catch up to real Supabase sign-in',
+    kind: 'polish',
+    ts: '2026-07-24T07:10:56.000Z',
+    items: [
+      'Behind-the-scenes groundwork only -- once an account signs in for real (the previous release), anything it already owned quietly gets tagged with that same real identity instead of its old plain username, so the upcoming enforced-privacy milestone won\'t accidentally hide any of it. No visible change.',
+    ],
+  },
+  {
     v: 502,
     title: 'M7: optional real Supabase Auth sign-in for the Supabase workspace backend',
     kind: 'feature',

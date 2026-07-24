@@ -116,6 +116,32 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **M7 slice 3 — owner/acctOwner data migration from username to gotrueId (v503, sw v144,
+  2026-07-24, steward — M7's own NEXT pointer):** the prerequisite slice 2's own NEXT called
+  out — `tools/supabase-rls-real.sql` compares `auth.uid()` (a UUID) against each row's
+  owner/acctOwner, but every row stamped before an account ever signed in via GoTrue still
+  holds the plain PolecatAuth username there. `currentUserId()` (`app/studio.js`) now prefers
+  an account's `gotrueId` over its username once slice 2's sign-in has stamped one, so every
+  freshly-created row already carries the right id. A new `migrateOwnerToGotrueId(username,
+  gotrueId)` walks connections/dashboards/analyses/jobs (`owner`) and datasets (`acctOwner`,
+  never the dataset's own unrelated free-text `owner` field — see the M4.2 note on why that
+  collision exists) and re-stamps any of THIS account's own rows still holding the username —
+  it never touches another account's rows, since this account has no way to know their
+  gotrueId. Runs at boot (catching up rows a sync pull brought in from a device that hadn't
+  signed in with GoTrue yet) and again right after a fresh sign-in stamps a new gotrueId.
+  Deliberately has no meta-guard: a migrated row's field no longer equals the username, so
+  re-running is already a self-limiting no-op scan over whatever's left — a meta stamp would
+  have permanently blocked catching up rows synced in later. 4 new tests (re-stamps this
+  account's own rows across all 5 tables; leaves datasets' free-text `owner` and other
+  accounts' rows untouched; a stray row synced in after the first run still gets caught up;
+  a fresh row created afterward stamps the gotrueId directly). Suite green. (app/studio.js,
+  sw.js, tests/run.js) **This was the data-model half of M7.** Still open before
+  `tools/supabase-rls-real.sql` can go live against the real project: the `users` table's own
+  policy (service-role/admin-only reads, not the shared owner/private shape — flagged in
+  slice 1) still needs designing, and actually flipping the live project's policy from
+  `supabase-bootstrap.sql`'s "allow all" to the real one is its own careful, deliberate action
+  (not bundled into this slice) — do that only with Kevin's awareness given it changes live
+  production security posture.
 - **M7 slice 2 — optional Supabase Auth (GoTrue) sign-in (v502, sw v143, 2026-07-24, steward
   — M7's own NEXT pointer):** see the ★★★★★ CONSERVATION INSIGHT PRODUCT PLATFORM block's M7
   section below for the full writeup — `app/sources/supabase.js` gains optional
@@ -3054,12 +3080,18 @@
 >     the URL/anon key), so a bad Supabase Auth password can never silently proceed to
 >     connect/adopt with the wrong (or no) identity. 4 new M7 ratchets (no-op without the auth
 >     fields, successful sign-in returns the real uuid, a wrong password fails loudly, a
->     JWT-gated table rejects the anon key before sign-in and accepts the JWT after). NEXT in
->     M7: **slice 3 is the data migration** (re-stamp existing rows' owner/acctOwner from
->     username → the now-available gotrueId) that has to land before `tools/supabase-rls-real.sql`
->     can safely go live — plus the open question from slice 1 for `users` itself (password
->     hashes need their own stricter, service-role/admin-only policy, not the shared owner/
->     private shape).
+>     JWT-gated table rejects the anon key before sign-in and accepts the JWT after).
+>     ↳ **Slice 3 (data migration shipped, 2026-07-24, steward):** `currentUserId()` now prefers
+>     an account's `gotrueId` over its username once one's been stamped, and a new
+>     `migrateOwnerToGotrueId()` re-stamps that account's own existing rows (connections/
+>     dashboards/analyses/jobs `owner`, datasets `acctOwner`) from username to gotrueId — run at
+>     boot and again right after a fresh sign-in. See DONE for the full writeup. **This was the
+>     data-model half of M7 — genuinely still open before `tools/supabase-rls-real.sql` can go
+>     live against the real project:** the `users` table's own policy (service-role/admin-only
+>     reads, not the shared owner/private shape — flagged in slice 1) still needs designing, and
+>     actually flipping the live project's policy from `supabase-bootstrap.sql`'s "allow all" to
+>     the real one is its own careful, deliberate action — do that only with Kevin's awareness
+>     given it changes live production security posture.
 > Also: add MORE crop/geo sample sets as the demo matures (Kevin). "Eventually polecat overall"
 > for the auth/user model — keep the users/permissions design app-neutral where cheap.
 
