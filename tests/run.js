@@ -17599,6 +17599,72 @@ function serve() {
     await page.evaluate(function () { window.__studioShellSetSection("studio"); });
     await page.waitForTimeout(120);
 
+    // ---- LF9 slice 3: Back closes Explore's picker↔editor swap (no DOM to re-show,
+    // unlike modal/panel-zoom/slideshow — its own design, same overlayStack mechanism) ----
+    console.log("\n• LF9 slice 3: overlay history for Explore's dataset/analysis editor");
+    await page.evaluate(function () { window.__studioShellSetSection("explore"); });
+    await page.waitForTimeout(150);
+    const lf9XpOpen = await page.evaluate(function () {
+      var ds = document.querySelector("[data-xp-ds]"); if (!ds) return { ok: false, reason: "no dataset to pick" };
+      ds.click();
+      return new Promise(function (res) {
+        var t0 = Date.now();
+        (function poll() {
+          var hasRun = !!(window.__studioExplore.state.run), editorShown = !document.querySelector(".xp-empty");
+          if (hasRun && editorShown) res({ ok: true, section: window.__studioShellGetSection() });
+          else if (Date.now() - t0 > 6000) res({ ok: false, hasRun: hasRun, editorShown: editorShown });
+          else setTimeout(poll, 150);
+        })();
+      });
+    });
+    // xpEnterEditor defers its history push by one tick (see its own comment) — give it a
+    // moment to land before testing Back against it.
+    await page.waitForTimeout(120);
+    await page.goBack();
+    await page.waitForTimeout(200);
+    const lf9XpAfterBack = await page.evaluate(function () {
+      return { emptyShown: !!document.querySelector(".xp-empty"), hasRun: !!window.__studioExplore.state.run, section: window.__studioShellGetSection() };
+    });
+    ok("LF9 slice 3: Back closes an open Explore dataset/analysis back to the picker empty state, staying in the Explore section (not leaving it, and not requiring a pushOverlay call site since there's no overlay DOM here)",
+      lf9XpOpen.ok && lf9XpAfterBack.emptyShown && !lf9XpAfterBack.hasRun && lf9XpAfterBack.section === "explore",
+      JSON.stringify({ lf9XpOpen, lf9XpAfterBack }));
+
+    // A manual close (the "Back to datasets" button, not browser Back) must also sync the
+    // history entry pushOverlay added — same class of bug LF9 slice 2 caught in modal()'s
+    // X button. Self-contained section sequence (jobs → explore) so the expectation doesn't
+    // depend on whatever history the rest of the suite happened to build up.
+    await page.evaluate(function () { window.__studioShellSetSection("jobs"); });
+    await page.waitForTimeout(120);
+    await page.evaluate(function () { window.__studioShellSetSection("explore"); });
+    await page.waitForTimeout(120);
+    const lf9XpOpen2 = await page.evaluate(function () {
+      var ds = document.querySelector("[data-xp-ds]"); if (!ds) return { ok: false, reason: "no dataset to pick" };
+      ds.click();
+      return new Promise(function (res) {
+        var t0 = Date.now();
+        (function poll() {
+          if (window.__studioExplore.state.run) res({ ok: true });
+          else if (Date.now() - t0 > 6000) res({ ok: false });
+          else setTimeout(poll, 150);
+        })();
+      });
+    });
+    await page.waitForTimeout(120);
+    await page.evaluate(function () { var b = document.getElementById("xpBackBtn"); if (b) b.click(); });
+    await page.waitForTimeout(150);
+    const lf9XpAfterBtn = await page.evaluate(function () {
+      return { emptyShown: !!document.querySelector(".xp-empty"), section: window.__studioShellGetSection() };
+    });
+    await page.goBack();
+    await page.waitForTimeout(150);
+    const lf9XpRealBackAfterBtn = await page.evaluate(function () { return { section: window.__studioShellGetSection() }; });
+    ok("LF9 slice 3: clicking 'Back to datasets' syncs history (no dangling overlay entry) — a later real Back still walks to the prior section (jobs), not a no-op",
+      lf9XpOpen2.ok && lf9XpAfterBtn.emptyShown && lf9XpAfterBtn.section === "explore" && lf9XpRealBackAfterBtn.section === "jobs",
+      JSON.stringify({ lf9XpOpen2, lf9XpAfterBtn, lf9XpRealBackAfterBtn }));
+    // restore — the rest of the suite expects to be on Studio.
+    await page.evaluate(function () { window.__studioShellSetSection("studio"); });
+    await page.waitForTimeout(120);
+
     // ---- F28: Waffle chart ----
     console.log("\n• F28: Waffle chart");
 

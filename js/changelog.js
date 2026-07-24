@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 509,
+    title: 'Explore gains a Back to datasets button, and the Back button now works there too',
+    kind: 'polish',
+    ts: '2026-07-24T10:58:10.000Z',
+    items: [
+      'Picking a dataset or opening a saved analysis in Explore now pushes browser history too, so the Back button (or a new "Back to datasets" button) returns you to the dataset picker instead of leaving the Explore section -- completing the Back/Forward work so every screen in the app participates.',
+    ],
+  },
+  {
     v: 508,
     title: 'Back now closes an open modal, panel zoom, or slideshow instead of leaving the section',
     kind: 'polish',

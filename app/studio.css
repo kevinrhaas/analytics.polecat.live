@@ -1930,6 +1930,10 @@ body.simple-mode .da-acts{display:none!important}
 .xp-act.private{color:var(--warning,#c9832f)}
 .xp-act.private:hover{color:var(--warning,#c9832f)}
 .xp-main{min-width:0;display:flex;flex-direction:column;gap:14px}
+/* LF9 slice 3: the Back-to-datasets affordance sits above the 4 editor steps, never
+   inside them, so it reads as "leave this analysis" rather than a step action. */
+.xp-editor-bar{display:flex;margin:-2px 0 -6px}
+.xp-back-btn{font-size:12px;padding:6px 12px}
 .xp-empty{border:1.5px dashed var(--line);border-radius:14px;padding:44px 24px;text-align:center;color:var(--muted)}
 .xp-empty h3{margin:0 0 8px;color:var(--ink)}
 .xp-step{border:1px solid var(--line);border-radius:14px;background:var(--pane);padding:12px 14px}

@@ -5,7 +5,14 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v149"; /* v149: LF9 slice 2 — Back now closes an open overlay
+var CACHE_NAME = "studio-shell-v150"; /* v150: LF9 slice 3 — Back also closes Explore's dataset/
+   analysis editor back to the "pick a dataset" picker, staying in the Explore section. Explore
+   swaps content in place (no overlay DOM to just re-show), so it reuses shell.js's existing
+   pushOverlay/popOverlay stack from its own close path (xpCloseToList) instead of a new
+   mechanism. Adds a "Back to datasets" button for the same manual-close path. LF9 is now
+   feature-complete: every navigable state change in the app (sections, overlays, this swap)
+   participates in Back/Forward. app/studio.js, app/studio.css changed. */
+/* v149: LF9 slice 2 — Back now closes an open overlay
    (modal, panel-zoom, slideshow) instead of navigating sections, generalizing the LF8 zoom-trap
    fix to every overlay type. shell.js gains a small overlay-history stack (pushOverlay/popOverlay)
    that each overlay's open/close path wires into. app/shell.js, app/studio.js changed. */
