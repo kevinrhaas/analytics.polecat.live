@@ -12,7 +12,10 @@
 -- Security policies — the app currently connects anonymously with the publishable
 -- (anon) key, so real per-user enforcement waits for the M7 slice (GoTrue auth +
 -- RLS). Until then the publishable key has full access to these tables; keep only
--- demo / non-sensitive data here.
+-- demo / non-sensitive data here. See tools/supabase-rls-real.sql for the real
+-- per-user policy set — proven against an isolated test schema but NOT yet safe
+-- to run here (needs GoTrue sign-in + an owner-field data migration first; see
+-- that file's header).
 
 CREATE TABLE IF NOT EXISTS "polecat_meta" (key TEXT PRIMARY KEY, value TEXT);
 CREATE TABLE IF NOT EXISTS "connections" (id TEXT PRIMARY KEY, "name" TEXT, "adapter" TEXT, "updatedAt" BIGINT, data TEXT);
