@@ -36,7 +36,8 @@ Open <http://localhost:8000/>. It boots on the **★ Cost & Sustainability** sho
   files, SQLite over HTTP, generic SQL-over-HTTP (data plane). Adding a backend is one file +
   `Studio.registerSource`.
 - **Connections** (rail section) — saved, credentialed instances of an adapter. Credentials stay in
-  this browser; tests run inline; multi-select adapter pills + search.
+  this browser by default; a connected workspace backend mirrors them too (plaintext unless the
+  optional zero-knowledge encryption below is on). Tests run inline; multi-select adapter pills + search.
 - **Datasets** (rail section) — named queries on a connection (SQL for warehouses/files, a table for
   Supabase, a collection for Firestore) with `{{param}}` placeholders, defaults, tags and owner.
   Preview runs live through the adapter and learns the real column list. The Studio library pins a

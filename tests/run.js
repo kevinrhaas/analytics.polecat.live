@@ -4794,6 +4794,81 @@ function serve() {
     ok("SYNC: the Settings card + rail indicator read Local with a Connect backend action",
       syncCard.title === "Workspace backend" && /Local/.test(syncCard.label) && /Connect backend/.test(syncCard.connectBtn) &&
       syncCard.noSecretsRowWhenLocal && syncCard.railLbl === "Local", JSON.stringify(syncCard));
+
+    // ---- QA-02: state-aware credential-storage copy (Connections header + Settings card) ----
+    // "Credentials stay in this browser" used to be shown unconditionally even
+    // once a workspace backend mirrored connection rows there — verify both
+    // surfaces track live sync/encryption state instead, via the Sync.onSync wiring.
+    console.log("\n• QA-02: state-aware credential-storage copy");
+    const credCopyFlow = await page.evaluate(async function (port) {
+      window.__studioShellSetSection("connections");
+      var out = {};
+      out.local = document.getElementById("connCredNote").textContent;
+      out.localWarn = document.getElementById("connCredNote").classList.contains("cx-cred-warn");
+      var cfg = { url: "http://localhost:" + port + "/__turso", token: "tok-qa02" };
+      var t = Studio.tursoSource;
+      await t.provision(cfg, Studio.WS.emptySnapshot());
+      await Studio.Sync.connectPush("turso", cfg); // no encryption yet — plaintext sync
+      out.remotePlain = document.getElementById("connCredNote").textContent;
+      out.remotePlainWarn = document.getElementById("connCredNote").classList.contains("cx-cred-warn");
+      window.__studioShellSetSection("settings"); window.__studioRenderWorkspaceBackendCard();
+      out.cardPlain = (document.getElementById("wsBackendCard").querySelector(".ws-card-intro") || {}).textContent;
+      await Studio.Sync.enableSecrets("qa02pass");
+      out.remoteEnc = document.getElementById("connCredNote").textContent;
+      out.remoteEncWarn = document.getElementById("connCredNote").classList.contains("cx-cred-warn");
+      window.__studioRenderWorkspaceBackendCard();
+      out.cardEnc = (document.getElementById("wsBackendCard").querySelector(".ws-card-intro") || {}).textContent;
+      Studio.Sync.disconnect();
+      out.afterDisconnect = document.getElementById("connCredNote").textContent;
+      await t.drop(cfg);
+      Studio.Workspace.reset();
+      try { localStorage.removeItem("analytics.datasource.secret.v1"); } catch (e) {}
+      return out;
+    }, PORT);
+    ok("QA-02: Connections header note is state-aware — local, then warns of plaintext sync once remote+unencrypted",
+      /stay in this browser/.test(credCopyFlow.local) && !credCopyFlow.localWarn &&
+      /PLAINTEXT/.test(credCopyFlow.remotePlain) && credCopyFlow.remotePlainWarn, JSON.stringify(credCopyFlow));
+    ok("QA-02: Connections header note switches to 'encrypted ciphertext' once secrets are enabled, and back to local after disconnect",
+      /encrypted ciphertext/.test(credCopyFlow.remoteEnc) && !credCopyFlow.remoteEncWarn &&
+      /stay in this browser/.test(credCopyFlow.afterDisconnect), JSON.stringify(credCopyFlow));
+    ok("QA-02: the Settings 'Workspace backend' card intro no longer claims browser-only storage once remote, and reflects encryption state",
+      /PLAINTEXT/.test(credCopyFlow.cardPlain) && !/stored in this browser only/.test(credCopyFlow.cardPlain) &&
+      /encrypted ciphertext/.test(credCopyFlow.cardEnc), JSON.stringify(credCopyFlow));
+
+    // the connect wizard itself warns before the FIRST plaintext secret sync,
+    // naming the backend, and a Cancel aborts the connect entirely
+    await page.evaluate(function () { window.__studioOpenBackendWizard(); });
+    await page.waitForTimeout(120);
+    await page.evaluate(function () {
+      [].slice.call(document.querySelectorAll(".cx-src-card")).filter(function (c) { return c.querySelector("b").textContent === "Turso"; })[0].click();
+    });
+    await page.waitForTimeout(100);
+    const wizConfirm = await page.evaluate(async function (port) {
+      var msgs = [];
+      window.confirm = function (m) { msgs.push(m); return false; }; // cancel — never actually connect
+      var fields = [].slice.call(document.querySelectorAll(".cx-wiz-form input"));
+      fields[0].value = "http://localhost:" + port + "/__turso"; // url
+      fields[1].value = "tok-qa02-wiz"; // token
+      var testBtn = [].slice.call(document.querySelectorAll(".cx-wiz-foot .btn")).filter(function (b) { return /Check database/.test(b.textContent); })[0];
+      testBtn.click();
+      var setupBtn;
+      for (var i = 0; i < 30 && !setupBtn; i++) { // poll for the async test→probe→classify chain
+        await new Promise(function (r) { setTimeout(r, 100); });
+        setupBtn = [].slice.call(document.querySelectorAll(".cx-wiz-foot .btn")).filter(function (b) { return /Set up & connect/.test(b.textContent); })[0];
+      }
+      var found = !!setupBtn;
+      if (setupBtn) setupBtn.click();
+      await new Promise(function (r) { setTimeout(r, 100); });
+      return { found: found, msgs: msgs, status: Studio.Sync.syncState().status };
+    }, PORT);
+    await page.evaluate(function () { var x = document.querySelector(".modal-ov .x"); if (x) x.click(); });
+    await page.waitForTimeout(100);
+    ok("QA-02: connecting a fresh workspace backend without encryption warns about plaintext credential sync before pushing, naming the backend",
+      wizConfirm.found && wizConfirm.msgs.length === 1 && /PLAINTEXT/.test(wizConfirm.msgs[0]) && /Turso/.test(wizConfirm.msgs[0]),
+      JSON.stringify(wizConfirm));
+    ok("QA-02: cancelling that warning aborts the connect — the workspace stays local",
+      wizConfirm.status === "local", JSON.stringify(wizConfirm));
+
     await page.evaluate(function () { window.__studioShellSetSection("studio"); });
     await page.waitForTimeout(100);
 
@@ -7802,6 +7877,7 @@ function serve() {
     ok("M3.2: before provisioning, connecting mirrors the locally-seeded admin/demo pair up so an empty backend doesn't get an empty users table",
       preConnectUsers.indexOf("admin") >= 0 && preConnectUsers.indexOf("demo") >= 0, preConnectUsers.join(","));
     await gp3.evaluate(function () {
+      window.confirm = function () { return true; }; // QA-02: accept the plaintext-sync warning
       [].slice.call(document.querySelectorAll(".cx-wiz-foot .btn")).filter(function (b) { return /Set up & connect/.test(b.textContent); })[0].click();
     });
     await gp3.waitForFunction(() => !document.querySelector(".modal-ov"), { timeout: 8000 });

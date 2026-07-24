@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v155"; /* v155: QA-01 — connection credential inputs get a stable
+var CACHE_NAME = "studio-shell-v156"; /* v156: QA-02 — credential-storage copy is now state-aware
+   (Connections header, Settings "Workspace backend" card, tutorial) instead of unconditionally
+   claiming browser-only storage; the connect wizard warns before a first plaintext credential
+   sync. No new precached files, but app/studio.js, app/studio.css, app/index.html and
+   app/tutorial.js content all changed, so precached copies need to roll.
+   v155: QA-01 — connection credential inputs get a stable
    connector-specific id/name + autocomplete=new-password, and a brand-new connection's secret
    field renders empty/readonly until focus (blocks unrelated password-manager autofill). No new
    precached files, but app/studio.js content changed, so precached copies need to roll.
