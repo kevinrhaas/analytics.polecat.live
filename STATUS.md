@@ -116,6 +116,27 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF9 slice 1 — Back/Forward walks section navigation instead of leaving the app (v507, sw v148,
+  2026-07-24, steward — LF9's own NEXT pointer):** `setActive(sec, persist, fromHistory)`
+  (app/shell.js) now pushes `{studioSection: sec}` via `history.pushState` on every real section
+  change (persist !== false, section actually changed), skipping the initial boot restore
+  (persist === false — that entry instead gets a `history.replaceState({studioSection:
+  savedSection}, "", location.href)` right after boot, so even the FIRST Back still resolves a
+  section rather than reading a null `e.state`) and any call already driven by a `popstate` (the
+  new `fromHistory` flag, so Back/Forward itself never pushes a duplicate entry). A new `popstate`
+  listener reads `e.state.studioSection` (falling back to "home") and re-drives
+  `setActive(sec, true, true)`. Every pushState/replaceState carries `location.hash` through
+  unchanged, so this can never collide with the pre-existing `#share=` deep-link mechanism
+  (studio.js reads and clears that hash independently, later in boot, on its own schedule). 2 new
+  tests (tests/run.js): Back/Forward correctly walks the dashboards→explore→studio sequence the
+  existing TOPBAR test already drives, and a Back navigation actually re-renders the DOM — topbar
+  text, active rail item, section `hidden` — not just the internal `desiredSection` variable.
+  docs/index.html's rail-navigation paragraph now mentions Back/Forward. (app/shell.js,
+  tests/run.js, docs/index.html, sw.js) NEXT in LF9: slice 2 — the larger remaining piece —
+  pushing history entries when an overlay opens (panel-zoom, modals, dataset/job editors, Explore
+  analysis) and closing the topmost one on Back instead of navigating sections, which also fixes
+  the LF8 zoom-trap pattern generically for every overlay type, not just panel-zoom (LF8 itself
+  only patched the one instance).
 - **LF2 — a 6th Conservation example: "County-Level Outlier Detection" (v506, sw v147, 2026-07-24,
   steward):** `data/examples/conservation-outliers.studio.json` + a new `index.json` entry
   (`demoPackId: "conservation"`, same pack-gating as the existing 5). Leads with a county-scale
@@ -2313,6 +2334,23 @@
 >      (shell.js setActive / __studioShellSetSection) and on opening overlays (panel-zoom, modals,
 >      dataset/job editors, Explore analysis), and handle `popstate` to navigate back instead of
 >      unloading. Closing an overlay via Back also fixes the LF8 zoom trap. app/shell.js, app/studio.js.
+>      ✓ **Slice 1 shipped (v507, sw v148, 2026-07-24, steward) — section-level history.**
+>      `setActive(sec, persist, fromHistory)` now pushes `{studioSection: sec}` on every real
+>      navigation (persist !== false) that actually changes section, skipping the initial boot
+>      restore (persist === false, replaced with a `history.replaceState` instead so the boot
+>      entry still carries a resolvable state object) and any call already driven BY a popstate
+>      (`fromHistory`, so Back/Forward never pushes a duplicate entry or loops). A new `popstate`
+>      listener reads `e.state.studioSection` (falls back to "home" for the pre-existing boot
+>      entry) and re-drives `setActive(sec, true, true)`. Preserves `location.hash` verbatim on
+>      every pushState/replaceState so LF9 never collides with the existing `#share=` deep-link
+>      mechanism (studio.js reads/clears that hash independently, later in boot). 2 new tests
+>      (Back/Forward actually walks the dashboards→explore→studio sequence the existing TOPBAR
+>      test already drives; a Back navigation re-renders the DOM — topbar text, active rail item,
+>      section visibility — not just internal state). sw v148. (app/shell.js, tests/run.js,
+>      docs/index.html) NEXT in LF9: slice 2, the larger piece — pushing history entries when an
+>      overlay opens (panel-zoom, modals, dataset/job editors, Explore analysis) and closing the
+>      topmost one on Back instead of navigating sections, which also fixes the LF8 zoom-trap
+>      pattern generically for every overlay type, not just panel-zoom.
 > LF10. ✓ **Chart palette now defaults to the active app theme (shipped 2026-07-23, steward).** New
 >       `appThemeToDashboardTheme()` (app/studio.js) maps the app Color theme → its matching
 >       `Studio.DASHBOARD_THEMES` key (classic→"", polecat→"polecat", modern→"fleet-modern");
