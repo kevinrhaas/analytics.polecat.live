@@ -20552,7 +20552,7 @@ function serve() {
       var switches = Array.prototype.map.call(sec.querySelectorAll("input[data-set]"), function (cb) { return cb.getAttribute("data-set"); });
       return {
         visible: sec.hidden === false,
-        hasCards: sec.querySelectorAll(".settings-card").length === 9, // Account (M3) + Workspace backend + 3 toggle groups + Branding (Z12) + Demo packs (Viridis V7) + Dashboard defaults + Data
+        hasCards: sec.querySelectorAll(".settings-card").length === 8, // Account (M3) + Workspace backend + 3 toggle groups + Demo packs (Viridis V7) + Dashboard defaults + Data (Branding moved to Admin)
         switchIds: switches.join(","),
         darkChecked: sec.querySelector('input[data-set="dark"]').checked,
         simpleChecked: sec.querySelector('input[data-set="simple"]').checked,
@@ -20883,7 +20883,7 @@ function serve() {
       };
     });
     ok("Z5: Settings page has a Data card with Export/Import buttons",
-      z5Data.cardCount === 9 && z5Data.hasExportBtn && z5Data.hasImportBtn, JSON.stringify(z5Data));
+      z5Data.cardCount === 8 && z5Data.hasExportBtn && z5Data.hasImportBtn, JSON.stringify(z5Data));
 
     const [z5Dl] = await Promise.all([page.waitForEvent("download"), page.click("#setExportBtn")]);
     const z5DlName = z5Dl.suggestedFilename();
@@ -21246,26 +21246,45 @@ function serve() {
       window.__studioRenderSettings();
     }); // restore defaults for later tests
 
-    // ── Z12: Branding as a Settings option (default / custom logo / none) ──
-    console.log("\n• Z12: Branding Settings card");
+    // ── Z12: Branding is now an APP-WIDE ADMIN card (default / custom logo / none,
+    //    a favicon that follows the custom logo, and a hide/customize rail suite-name) ──
+    console.log("\n• Z12: Branding — app-wide Admin card");
     const z12Api = await page.evaluate(function () {
       var b = window.__studioBranding;
-      return { hasApi: !!(b && typeof b.get === "function" && typeof b.set === "function" && typeof b.apply === "function") };
+      return { hasApi: !!(b && typeof b.get === "function" && typeof b.set === "function" && typeof b.apply === "function" && typeof b.suiteLabel === "function") };
     });
-    ok("Z12: window.__studioBranding exposes get()/set()/apply()", z12Api.hasApi, JSON.stringify(z12Api));
+    ok("Z12: window.__studioBranding exposes get()/set()/apply()/suiteLabel()", z12Api.hasApi, JSON.stringify(z12Api));
+
+    // The Branding card lives in the (admin-only) Admin section now, NOT Settings.
+    await page.evaluate(function () {
+      window.PolecatAuth.login("admin"); if (window.__studioAuthBoot) window.__studioAuthBoot();
+      window.__studioBranding.set({ mode: "default" });
+      window.__studioShellSetSection("admin"); window.__studioRenderAdmin();
+    });
+    await page.waitForTimeout(80);
+    const z12NotInSettings = await page.evaluate(function () {
+      window.__studioRenderSettings();
+      return { inSettings: !!document.getElementById("secSettings").querySelector("#brandModeSel") };
+    });
+    ok("Z12: the Branding controls are NOT in Settings anymore (moved to Admin)", z12NotInSettings.inSettings === false, JSON.stringify(z12NotInSettings));
 
     const z12Card = await page.evaluate(function () {
-      var sec = document.getElementById("secSettings");
+      window.__studioShellSetSection("admin"); window.__studioRenderAdmin();
+      var sec = document.getElementById("secAdmin");
       var sel = sec.querySelector("#brandModeSel");
       var opts = sel ? Array.prototype.map.call(sel.options, function (o) { return o.value; }) : [];
       var uploadRow = sec.querySelector("#brandUploadRow");
+      var suiteSel = sec.querySelector("#brandSuiteSel");
+      var suiteOpts = suiteSel ? Array.prototype.map.call(suiteSel.options, function (o) { return o.value; }) : [];
       return {
         hasSelect: !!sel, opts: opts.join(","), selValue: sel ? sel.value : "",
-        uploadRowHidden: uploadRow ? getComputedStyle(uploadRow).display === "none" : null
+        uploadRowHidden: uploadRow ? getComputedStyle(uploadRow).display === "none" : null,
+        hasSuiteSel: !!suiteSel, suiteOpts: suiteOpts.join(",")
       };
     });
-    ok("Z12: Branding card shows a mode select with default/custom/none options", z12Card.hasSelect && z12Card.opts === "default,custom,none", JSON.stringify(z12Card));
+    ok("Z12: Admin Branding card shows a mode select with default/custom/none options", z12Card.hasSelect && z12Card.opts === "default,custom,none", JSON.stringify(z12Card));
     ok("Z12: defaults to 'default' mode with the upload row hidden", z12Card.selValue === "default" && z12Card.uploadRowHidden === true, JSON.stringify(z12Card));
+    ok("Z12: Admin Branding card also carries a Suite-name control (default/custom/hidden)", z12Card.hasSuiteSel && z12Card.suiteOpts === "default,custom,hidden", JSON.stringify(z12Card));
 
     const z12None = await page.evaluate(function () {
       window.__studioBranding.set({ mode: "none" });
@@ -21277,40 +21296,54 @@ function serve() {
     const z12Default = await page.evaluate(function () {
       window.__studioBranding.set({ mode: "default" });
       var mark = document.querySelector(".rail-brand-mark");
-      return { display: mark ? getComputedStyle(mark).display : "", src: mark ? mark.getAttribute("src") : "" };
+      var icon = document.querySelector('link[rel="icon"]');
+      return { display: mark ? getComputedStyle(mark).display : "", src: mark ? mark.getAttribute("src") : "", iconHref: icon ? icon.getAttribute("href") : "" };
     });
-    ok("Z12: 'Default' mode restores favicon.svg and visibility", z12Default.display !== "none" && /favicon\.svg$/.test(z12Default.src), JSON.stringify(z12Default));
+    ok("Z12: 'Default' mode restores favicon.svg on both the rail mark and the tab favicon", z12Default.display !== "none" && /favicon\.svg$/.test(z12Default.src) && /favicon\.svg$/.test(z12Default.iconHref), JSON.stringify(z12Default));
 
-    // Upload a small real file through the actual <input type=file> (setInputFiles works even
-    // though the input is display:none — it drives the browser's file-selection machinery
-    // directly rather than requiring a visible, clickable element).
-    await page.evaluate(function () { window.__studioRenderSettings(); }); // fresh render, mode=default
+    // Upload a small real file through the actual <input type=file> in the Admin card.
+    await page.evaluate(function () { window.__studioShellSetSection("admin"); window.__studioRenderAdmin(); });
     const tinyPng = Buffer.from("89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000a4944415478da6360000002000155a2d4370000000049454e44ae426082", "hex");
     await page.setInputFiles("#brandFileInp", { name: "logo.png", mimeType: "image/png", buffer: tinyPng });
     await page.waitForTimeout(80);
     const z12Custom = await page.evaluate(function () {
       var b = window.__studioBranding.get();
       var mark = document.querySelector(".rail-brand-mark");
-      return { mode: b.mode, hasDataUrl: /^data:image\/png/.test(b.dataUrl || ""), markSrc: mark ? mark.getAttribute("src") : "" };
+      var icon = document.querySelector('link[rel="icon"]');
+      return { mode: b.mode, hasDataUrl: /^data:image\/png/.test(b.dataUrl || ""),
+        markMatches: mark && mark.getAttribute("src") === b.dataUrl,
+        faviconMatches: icon && icon.getAttribute("href") === b.dataUrl };
     });
     ok("Z12: uploading a logo sets mode=custom with a data: URL, applied to the rail mark",
-      z12Custom.mode === "custom" && z12Custom.hasDataUrl, JSON.stringify(z12Custom));
-    const z12CustomMark = await page.evaluate(function () {
-      var b = window.__studioBranding.get(), mark = document.querySelector(".rail-brand-mark");
-      return { matches: mark && mark.getAttribute("src") === b.dataUrl };
-    });
-    ok("Z12: rail brand mark src matches the uploaded logo's data URL", z12CustomMark.matches, JSON.stringify(z12CustomMark));
+      z12Custom.mode === "custom" && z12Custom.hasDataUrl && z12Custom.markMatches, JSON.stringify(z12Custom));
+    ok("Z12: a custom logo also becomes the browser-tab favicon (link[rel=icon] href follows it)", z12Custom.faviconMatches, JSON.stringify(z12Custom));
 
-    await page.evaluate(function () { window.__studioBranding.set({ mode: "default" }); }); // reset before the oversize attempt
+    // Suite-name: hidden removes the rail label; custom text replaces it (capped, trimmed).
+    const z12Suite = await page.evaluate(function () {
+      var suite = document.querySelector(".rail-suite");
+      window.__studioBranding.set({ mode: "default", suite: "hidden" });
+      var hiddenDisp = suite ? getComputedStyle(suite).display : "";
+      window.__studioBranding.set({ mode: "default", suite: "custom", suiteText: "Acme Analytics" });
+      var customTxt = suite ? suite.textContent : "";
+      var customDisp = suite ? getComputedStyle(suite).display : "";
+      var longLabel = window.__studioBranding.suiteLabel({ suite: "custom", suiteText: "abcdefghijklmnopqrstuvwxyz0123456789" });
+      window.__studioBranding.set({ mode: "default", suite: "default" });
+      var defTxt = suite ? suite.textContent : "";
+      return { hiddenDisp: hiddenDisp, customTxt: customTxt, customDisp: customDisp, longLen: longLabel.length, defTxt: defTxt };
+    });
+    ok("Z12: Suite-name 'Hidden' removes the rail label; 'Custom' shows the given text; 'Default' restores polecat.live",
+      z12Suite.hiddenDisp === "none" && z12Suite.customTxt === "Acme Analytics" && z12Suite.customDisp !== "none" && z12Suite.defTxt === "polecat.live", JSON.stringify(z12Suite));
+    ok("Z12: a custom suite name is capped at 24 chars so the rail lockup stays tidy", z12Suite.longLen === 24, JSON.stringify(z12Suite));
+
+    await page.evaluate(function () { window.__studioShellSetSection("admin"); window.__studioRenderAdmin(); });
     const bigBuf = Buffer.alloc(210 * 1024, 1);
-    await page.evaluate(function () { window.__studioRenderSettings(); });
     await page.setInputFiles("#brandFileInp", { name: "huge.png", mimeType: "image/png", buffer: bigBuf });
     await page.waitForTimeout(80);
     const z12Rejected = await page.evaluate(function () { return window.__studioBranding.get(); });
     ok("Z12: an oversized logo (>200KB) is rejected, mode stays unchanged", z12Rejected.mode === "default", JSON.stringify(z12Rejected));
 
     const z12Clean = await page.evaluate(function () {
-      window.__studioBranding.set({ mode: "default" });
+      window.__studioBranding.set({ mode: "default", suite: "default", suiteText: "" });
       return { keys: window.__studioImportSettingsKeys.indexOf("studio-branding") >= 0 };
     });
     ok("Z12: studio-branding is included in Settings export/import keys", z12Clean.keys, JSON.stringify(z12Clean));

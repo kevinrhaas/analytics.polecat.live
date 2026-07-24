@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v153"; /* v153: LF2 — an 8th Conservation example, "The Story So
+var CACHE_NAME = "studio-shell-v154"; /* v154: Branding is now an app-wide ADMIN card
+   (moved out of personal Settings). It gained a customizable/hideable rail suite-name
+   (default "polecat.live"), clearer square-icon guidance on the App mark, and a custom
+   logo now also becomes the browser-tab favicon. app/branding.js, app/studio.js,
+   docs/index.html changed, so precached copies need to roll.
+   v153: LF2 — an 8th Conservation example, "The Story So
    Far" (data/examples/conservation-overview.studio.json, index.json entry): a richtext-led
    narrative rollup tying the other six Conservation showcases together, with a practice-mix trend
    line plus overall-adoption/enrolled-acres/return-score/provider-agreement rollup panels. New
