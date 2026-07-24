@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 521,
+    title: 'The restore-unsaved-work banner no longer covers other sections\' controls',
+    kind: 'fix',
+    ts: '2026-07-24T23:06:26.000Z',
+    items: [
+      'The fixed bottom banner offering to restore unsaved Studio work used to float on top of whatever else was on screen -- Explore\'s saved-analysis list, its analysis editor controls, Studio\'s library/inspector panes -- blocking them until you answered Restore or No thanks. It now reserves its own space instead of overlaying: every scrollable section/pane shrinks to leave the banner\'s real footprint clear while it\'s up.',
+    ],
+  },
+  {
     v: 520,
     title: 'Icon-only action buttons now name what they act on, for screen readers',
     kind: 'fix',

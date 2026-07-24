@@ -9308,8 +9308,24 @@
     var no = el("button", "btn"); no.textContent = "No thanks"; acts.appendChild(no);
     banner.appendChild(msg); banner.appendChild(acts);
     document.body.appendChild(banner);
-    yes.onclick = function () { S.spec = normalize(saved); S.selection = null; syncHeader(); renderInspector(); refreshPreview(); buildLibrary(); clearAutosave(); banner.remove(); toast("Restored: " + (saved.title || saved.name)); };
-    no.onclick = function () { clearAutosave(); banner.remove(); };
+    // QA-06: the banner is fixed/bottom-center, so left alone it can float on top of active
+    // controls in whichever section happens to be open (Explore's saved-analysis rows, the
+    // Studio library/inspector lists, etc). Reserve real space for it instead: measure its
+    // rendered height and feed that into --restore-banner-h (studio.css turns that into
+    // bottom padding on the scrollable panes), resyncing on resize since the banner's own
+    // layout — and height — changes at the ≤640px breakpoint.
+    function syncBannerSpace() { document.documentElement.style.setProperty("--restore-banner-h", (banner.offsetHeight + 16) + "px"); }
+    syncBannerSpace();
+    window.addEventListener("resize", syncBannerSpace);
+    document.body.classList.add("has-restore-banner");
+    function dismissBanner() {
+      window.removeEventListener("resize", syncBannerSpace);
+      document.body.classList.remove("has-restore-banner");
+      document.documentElement.style.removeProperty("--restore-banner-h");
+      banner.remove();
+    }
+    yes.onclick = function () { S.spec = normalize(saved); S.selection = null; syncHeader(); renderInspector(); refreshPreview(); buildLibrary(); clearAutosave(); dismissBanner(); toast("Restored: " + (saved.title || saved.name)); };
+    no.onclick = function () { clearAutosave(); dismissBanner(); };
   }
   function applyHistory(json) {
     S.spec = JSON.parse(json); _lastSnap = json;
