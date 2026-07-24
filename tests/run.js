@@ -2954,10 +2954,11 @@ function serve() {
       var files = Array.prototype.map.call(em.querySelectorAll("button.ex-card"), function (b) { return b.getAttribute("data-f"); });
       return { hasScorecard: files.indexOf("conservation-scorecard.studio.json") >= 0, hasFlow: files.indexOf("conservation-flow.studio.json") >= 0,
         hasWatershed: files.indexOf("conservation-watershed.studio.json") >= 0, hasCostshare: files.indexOf("conservation-costshare.studio.json") >= 0,
-        hasAgreement: files.indexOf("conservation-agreement.studio.json") >= 0, hasOutliers: files.indexOf("conservation-outliers.studio.json") >= 0 };
+        hasAgreement: files.indexOf("conservation-agreement.studio.json") >= 0, hasOutliers: files.indexOf("conservation-outliers.studio.json") >= 0,
+        hasSwitching: files.indexOf("conservation-switching.studio.json") >= 0 };
     });
     ok("LF2: Conservation example cards appear in the gallery once the pack is installed",
-      lf2On.hasScorecard && lf2On.hasFlow && lf2On.hasWatershed && lf2On.hasCostshare && lf2On.hasAgreement && lf2On.hasOutliers, JSON.stringify(lf2On));
+      lf2On.hasScorecard && lf2On.hasFlow && lf2On.hasWatershed && lf2On.hasCostshare && lf2On.hasAgreement && lf2On.hasOutliers && lf2On.hasSwitching, JSON.stringify(lf2On));
     // both new example specs actually load (title + full panel count) — catches a bad file
     // reference or malformed JSON that a card would otherwise fail silently on. The menu from the
     // check above is still open (loadExample's own closeMenus() closes it after the click below).
@@ -3059,6 +3060,25 @@ function serve() {
       JSON.stringify(lf2Outliers.filterIds) === JSON.stringify(["practice"]), JSON.stringify(lf2Outliers));
     ok("LF2: the County-Level Outlier Detection example leads with a choropleth alongside a diverging bar, histogram, and gauge",
       JSON.stringify(lf2Outliers.types) === JSON.stringify(["choropleth", "divergingBar", "histogram", "gauge"]), JSON.stringify(lf2Outliers));
+    // LF2: the 7th conservation example — year-over-year practice switching, the last of the
+    // candidate topics named in the LF2 handoff note — loads with its practice-mix stacked area +
+    // adoption-share bump ranking + before/after slope + switched-acres gauge panels and a real
+    // Crop filter. LF2 is now feature-complete (all ~8 candidate topics covered).
+    await page.click("#btnExamples"); await page.waitForTimeout(150);
+    await page.click('#menuExamples button.ex-card[data-f="conservation-switching.studio.json"]');
+    await page.waitForTimeout(300);
+    const lf2Switching = await page.evaluate(function () {
+      var S = window.__STUDIO_STATE;
+      return { title: S && S.spec ? S.spec.title : "", panels: S && S.spec ? S.spec.panels.length : 0,
+        filterIds: S && S.spec ? (S.spec.filters || []).map(function (f) { return f.id; }) : [],
+        types: S && S.spec ? S.spec.panels.map(function (p) { return p.chart.type; }) : [] };
+    });
+    ok("LF2: Conservation Insight — Year-over-Year Practice Switching example loads with its 4 panels",
+      lf2Switching.title === "Conservation Insight — Year-over-Year Practice Switching" && lf2Switching.panels === 4, JSON.stringify(lf2Switching));
+    ok("LF2: the Practice Switching example carries a real 'Crop' filter (was filters:[])",
+      JSON.stringify(lf2Switching.filterIds) === JSON.stringify(["crop"]), JSON.stringify(lf2Switching));
+    ok("LF2: the Practice Switching example leads with a stacked area alongside a bump ranking, a slope, and a gauge",
+      JSON.stringify(lf2Switching.types) === JSON.stringify(["areaStacked", "bump", "slope", "gauge"]), JSON.stringify(lf2Switching));
     // the featured dashboard leads with maps at THREE geo scales (county hero, HUC8 watershed, state
     // rollup), carries the four headline KPIs, and wears the CTIC-derived Conservation theme.
     ok("DP: the featured dashboard leads with county/HUC8/state choropleths, 4 headline KPIs, and the Conservation theme",
@@ -3179,11 +3199,12 @@ function serve() {
       var files = Array.prototype.map.call(em.querySelectorAll("button.ex-card"), function (b) { return b.getAttribute("data-f"); });
       return { hasScorecard: files.indexOf("conservation-scorecard.studio.json") >= 0, hasFlow: files.indexOf("conservation-flow.studio.json") >= 0,
         hasWatershed: files.indexOf("conservation-watershed.studio.json") >= 0, hasCostshare: files.indexOf("conservation-costshare.studio.json") >= 0,
-        hasAgreement: files.indexOf("conservation-agreement.studio.json") >= 0, hasOutliers: files.indexOf("conservation-outliers.studio.json") >= 0 };
+        hasAgreement: files.indexOf("conservation-agreement.studio.json") >= 0, hasOutliers: files.indexOf("conservation-outliers.studio.json") >= 0,
+        hasSwitching: files.indexOf("conservation-switching.studio.json") >= 0 };
     });
     await page.click("body", { position: { x: 5, y: 5 } }); // close the menu (clicking a card auto-closes; this check-only path doesn't)
     ok("LF2: Conservation example cards disappear from the gallery once the pack is removed",
-      !lf2Off.hasScorecard && !lf2Off.hasFlow && !lf2Off.hasWatershed && !lf2Off.hasCostshare && !lf2Off.hasAgreement && !lf2Off.hasOutliers, JSON.stringify(lf2Off));
+      !lf2Off.hasScorecard && !lf2Off.hasFlow && !lf2Off.hasWatershed && !lf2Off.hasCostshare && !lf2Off.hasAgreement && !lf2Off.hasOutliers && !lf2Off.hasSwitching, JSON.stringify(lf2Off));
 
     // ---- JOBS (Viridis V8 slice 1): prep/rollup engine + materialize --------
     console.log("\n• JOBS: prep/rollup engine (Viridis V8 slice 1)");

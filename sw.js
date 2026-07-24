@@ -5,7 +5,15 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v151"; /* v151: R5+ slice 4 (tech-debt track) — the N-FUN
+var CACHE_NAME = "studio-shell-v152"; /* v152: LF2 — a 7th Conservation example, "Year-over-
+   Year Practice Switching" (data/examples/conservation-switching.studio.json, index.json entry):
+   a stacked-area view of the practice mix by year, a bump-chart ranking of adoption share (who
+   rose, who fell), a 2015-vs-2025 slope per practice, and a switched-acres gauge, gated by a real
+   Crop filter — first use of the areaStacked/bump/slope chart types in the Conservation set. New
+   example file + updated index.json need to roll into the precache (the SW reads index.json at
+   install and caches each listed example file, so no separate precache-list entry is needed).
+   docs/index.html changed too (names all 7 showcase dashboards).
+   v151: R5+ slice 4 (tech-debt track) — the N-FUN
    celebrations/milestones subsystem (sparkBurst, first-export toast, export/dashboard
    milestone counters, dashboard-health-zero celebration) extracted from studio.js into its
    own module, app/celebrations.js (Studio.Celebrations), following the chart-thumbnails.js/
