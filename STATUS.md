@@ -116,6 +116,24 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF2 — a 5th Conservation example: "Provider Agreement Over Time" (v505, sw v146, 2026-07-24,
+  steward):** `data/examples/conservation-agreement.studio.json` + a new `index.json` entry
+  (`demoPackId: "conservation"`, same pack-gating as the existing 4). Leads with an ensemble trend
+  (`ensembleSeries`, `seriesCol: provider`, `valueCol: pct`, `refSeries: AgCensus`) showing each
+  provider's yearly estimate against the bold common-estimate median — the direct "how well do the
+  five providers agree" visualization the RFP framing calls for. Below it: a year × provider
+  agreement heatmap (reuses the same `heatmap` map shape as the Scorecard's practice × provider
+  grid, just swapping the row axis to year), a yearly-spread line (max − min provider estimate per
+  year, `spread_pct`), and a per-provider average-deviation bars ranking (`avg_deviation_pct`,
+  horizontal bars) — same "Since year" filter convention as Watershed/Cost-Share ROI
+  (`${sinceYear} = '%' OR year >= ${sinceYear}`). 3 new LF2 ratchets (tests/run.js) mirroring the
+  Cost-Share ROI block: card visible once the pack installs / hidden once removed, the spec loads
+  with title/4 panels, the filter is real (`filterIds === ["sinceYear"]`), and the panel chart-type
+  order matches (`ensembleSeries, heatmap, line, bars`) — plus the pack-agnostic "every example
+  renders every panel with no error" loop (tests/run.js) picks it up automatically via
+  `window.__STUDIO_STATE.examples`. SW cache → v146. docs/index.html's Conservation Insight section
+  updated to name all 5 showcase dashboards (was stale at "four"). NEXT: ~3 more CONSERVATION/CTIC
+  examples remain (see the LF2 LIVE-FEEDBACK QUEUE entry for the candidate topic list).
 - **LF2 — a 4th Conservation example: "Program Cost-Share ROI" (v504, sw v145, 2026-07-24,
   steward):** `data/examples/conservation-costshare.studio.json` + a new `index.json` entry
   (`demoPackId: "conservation"`, same pack-gating as the existing 3). Leads with a cost-efficiency
@@ -2173,17 +2191,19 @@
 >      the existing 8 generic ones) attached to the CONSERVATION demo pack (install/remove with it). (b)
 >      ✓ The conservation example dashboards + pinned analyses must wear the **Conservation** dashboard
 >      theme/palette (or whatever theme is saved) — every conservation-pack object uses the conservation
->      palette, not the default. — **4 of ~8 shipped: Conservation Practice Adoption Scorecard + Crop &
+>      palette, not the default. — **5 of ~8 shipped: Conservation Practice Adoption Scorecard + Crop &
 >      Practice Flow (2026-07-22, steward, see DONE), Watershed-Scale Adoption (2026-07-23, steward) —
 >      a HUC8 choropleth (median-across-providers common estimate) + the ensemble trend behind it + an
 >      overall gauge + a by-provider bar, with a real "Since year" filter, Program Cost-Share ROI
 >      (2026-07-24, steward) — a cost-efficiency scatter (spend vs. adoption, bubble = acres), a
 >      cost-share-by-practice donut, a cost-per-acre trend (same "Since year" filter convention), and
->      a return-score bars ranking — gated via the same `demoPackId` support on examples/index.json
->      entries (visibleExamples() in app/studio.js). NEXT: ~4 more CONSERVATION/CTIC examples in the
->      same gated pattern (candidate topics: provider trust/agreement over time, county-level outlier
->      detection, year-over-year practice switching, a richtext-led narrative overview like
->      feature-showcase.studio.json).**
+>      a return-score bars ranking, Provider Agreement Over Time (2026-07-24, steward) — an ensemble
+>      trend against the common estimate, a year×provider agreement heatmap, a yearly-spread line (max
+>      − min provider estimate per year), and a per-provider average-deviation bars ranking, same
+>      "Since year" filter convention — gated via the same `demoPackId` support on examples/index.json
+>      entries (visibleExamples() in app/studio.js). NEXT: ~3 more CONSERVATION/CTIC examples in the
+>      same gated pattern (candidate topics: county-level outlier detection, year-over-year practice
+>      switching, a richtext-led narrative overview like feature-showcase.studio.json).**
 >      (c) Move the EXISTING generic
 >      examples (Data Governance, Data Platform Ops, Product Delivery, Finance, Marketing, Incident
 >      Response, Sensitivity/Compliance, Interactive Feature Showcase) AND their backing connections/

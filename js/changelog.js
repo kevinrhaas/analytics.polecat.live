@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 505,
+    title: 'A 5th Conservation showcase example: Provider Agreement Over Time',
+    kind: 'feature',
+    ts: '2026-07-24T07:52:41.000Z',
+    items: [
+      'The Examples gallery\'s Conservation demo pack gains a 5th showcase dashboard -- an ensemble trend against the common estimate, a year-by-provider agreement heatmap, a yearly spread line (max minus min provider estimate), and a per-provider average-deviation ranking -- alongside the existing scorecard, crop/practice flow, watershed-scale, and cost-share ROI views.',
+    ],
+  },
+  {
     v: 504,
     title: 'A 4th Conservation showcase example: Program Cost-Share ROI',
     kind: 'feature',
