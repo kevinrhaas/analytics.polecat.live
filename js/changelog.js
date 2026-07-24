@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 519,
+    title: 'New dashboards never share a title with one already in your catalog',
+    kind: 'fix',
+    ts: '2026-07-24T20:42:22.000Z',
+    items: [
+      'Starting a blank dashboard, or duplicating one, could quietly land on a title already in use elsewhere in your workspace -- "Untitled Dashboard" twice, or "My Dashboard (copy)" twice -- leaving pickers, Repository, and compare with indistinguishable entries. New dashboards now pick the first free "Untitled Dashboard N" (or "... (copy) N") automatically.',
+    ],
+  },
+  {
     v: 518,
     title: 'Explore\'s featured county demo now opens with a populated map, not an empty one',
     kind: 'fix',

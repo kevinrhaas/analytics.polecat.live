@@ -19633,7 +19633,54 @@ function serve() {
       return { panels: s.panels.length, title: s.title, homeHidden: document.getElementById("secHome").hidden };
     });
     ok("Z2: 'Blank dashboard' quick-create starts a fresh spec and returns to Studio",
-      z2Blank.panels === 0 && z2Blank.title === "Untitled Dashboard" && z2Blank.homeHidden === true, JSON.stringify(z2Blank));
+      // QA-04: title is uniquified against the catalog (a plain "Untitled Dashboard" from
+      // earlier in this same run may already be saved), so accept the numbered variant too.
+      z2Blank.panels === 0 && /^Untitled Dashboard( \d+)?$/.test(z2Blank.title) && z2Blank.homeHidden === true, JSON.stringify(z2Blank));
+
+    // QA-04: a brand-new blank dashboard's title never collides with one already in the
+    // catalog — the frontend QA report's concrete repro was two "Untitled Dashboard" rows
+    // indistinguishable in pickers/Repository. Seed one, then two, and confirm the next
+    // blank dashboard always lands on the first free "Untitled Dashboard N".
+    await page.evaluate(function () {
+      window.__studioSeedDashboards([
+        { id: "qa4-a", ts: new Date().toISOString(), spec: { id: "qa4-a", title: "Untitled Dashboard", panels: [], kpis: [] } }
+      ]);
+    });
+    await page.click('#railNav .rail-item[data-sec="home"]');
+    await page.waitForTimeout(120);
+    await page.click('#secHome .home-card[data-home="blank"]');
+    await page.waitForTimeout(150);
+    const qa4First = await page.evaluate(function () { return window.__STUDIO_STATE.spec.title; });
+    await page.evaluate(function () {
+      window.__studioSeedDashboards([
+        { id: "qa4-a", ts: new Date().toISOString(), spec: { id: "qa4-a", title: "Untitled Dashboard", panels: [], kpis: [] } },
+        { id: "qa4-b", ts: new Date().toISOString(), spec: { id: "qa4-b", title: "Untitled Dashboard 2", panels: [], kpis: [] } }
+      ]);
+    });
+    await page.click('#railNav .rail-item[data-sec="home"]');
+    await page.waitForTimeout(120);
+    await page.click('#secHome .home-card[data-home="blank"]');
+    await page.waitForTimeout(150);
+    const qa4Second = await page.evaluate(function () { return window.__STUDIO_STATE.spec.title; });
+    ok("QA-04: a brand-new blank dashboard's title is uniquified against the catalog",
+      qa4First === "Untitled Dashboard 2" && qa4Second === "Untitled Dashboard 3",
+      JSON.stringify({ qa4First: qa4First, qa4Second: qa4Second }));
+
+    // QA-04: "Duplicate current" (New ▾ menu) uniquifies the " (copy)" title the same way.
+    await page.evaluate(function () {
+      window.__studioSeedDashboards([
+        { id: "qa4-c", ts: new Date().toISOString(), spec: { id: "qa4-c", title: "Foo (copy)", panels: [], kpis: [] } }
+      ]);
+      var spec = JSON.parse(JSON.stringify(window.__STUDIO_STATE.spec));
+      spec.title = "Foo";
+      window.__studioLoad(spec);
+    });
+    await page.waitForTimeout(150);
+    await page.click("#btnNew"); await page.waitForTimeout(80);
+    await page.click('#menuNew button[data-new="dup"]'); await page.waitForTimeout(150);
+    const qa4Dup = await page.evaluate(function () { return window.__STUDIO_STATE.spec.title; });
+    ok("QA-04: 'Duplicate current' uniquifies the '(copy)' title against the catalog too",
+      qa4Dup === "Foo (copy) 2", "title=" + qa4Dup);
 
     // Z2-5: recents list stays capped at 8 entries (newest-first) — the catalog now
     // lives in the Workspace `dashboards` table (★★★-1), seeded via the test hook.
