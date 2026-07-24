@@ -5,7 +5,16 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v142"; /* v142: R5+ slice 3 (tech-debt module-extraction track) —
+var CACHE_NAME = "studio-shell-v143"; /* v143: M7 slice 2 — optional Supabase Auth (GoTrue)
+   sign-in. app/sources/supabase.js gains two optional connect-wizard fields (authEmail,
+   authPassword); when set, every REST call signs in via the auth token endpoint first and
+   sends that session's JWT instead of the anon key, so auth.uid() resolves to a real user.
+   Leaving the fields blank keeps every existing connection anon-key-only, unchanged. A new
+   signIn(cfg) adapter method reports the resulting user id; the connect wizard stamps it onto
+   the signed-in local identity as a new PolecatAuth gotrueId field (app/auth.js). app/index.html
+   already precaches app/auth.js and app/sources/supabase.js; app/studio.js and docs/index.html
+   content changed too, so precached copies need to roll.
+   v142: R5+ slice 3 (tech-debt module-extraction track) —
    the dashboard-defaults + preset-collection subsystem (the 8 default*() / setDefault*() pairs
    plus stylePresets/templateVarSets/customThemePresets) moved out of studio.js into its own
    app/defaults.js, following the branding.js (②) extraction precedent — pure config over

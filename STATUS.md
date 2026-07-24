@@ -116,6 +116,16 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **M7 slice 2 — optional Supabase Auth (GoTrue) sign-in (v502, sw v143, 2026-07-24, steward
+  — M7's own NEXT pointer):** see the ★★★★★ CONSERVATION INSIGHT PRODUCT PLATFORM block's M7
+  section below for the full writeup — `app/sources/supabase.js` gains optional
+  `authEmail`/`authPassword` connect-wizard fields; when set, every REST call exchanges them for
+  a real GoTrue JWT and sends it instead of the anon key, so `auth.uid()` resolves to a real
+  user; a new `signIn(cfg)` reports the resulting id, and the connect wizard stamps it onto the
+  signed-in local identity as a new `PolecatAuth.gotrueId` field. Leaving the fields blank keeps
+  every existing connection (and every other backend) exactly as it was. 4 new ratchets. NEXT in
+  M7: slice 3, the data migration that re-stamps existing rows' owner/acctOwner from username to
+  the now-available gotrueId, which has to land before `tools/supabase-rls-real.sql` goes live.
 - **R5+ slice 3 — defaults/presets config layer extracted to its own module (v501, sw v142,
   2026-07-24, steward — R5+'s own NEXT pointer):** the dashboard "house style" defaults (the 8
   `default*`/`setDefault*` getter/setter pairs — subtitle/accentColor/headerBg/titleSize/
@@ -3026,15 +3036,30 @@
 >     (per-table, using `acctOwner` for datasets same as M4.2 — see that file's header for the
 >     full non-negotiable prerequisite list) but is DELIBERATELY NOT applied to `public` and NOT
 >     wired into any auto-run path — `tools/supabase-bootstrap.sql`'s "allow all" policy stays
->     the live posture. NEXT in M7: **slice 2 is GoTrue sign-in** — wire real Supabase Auth
->     (email/password via `/auth/v1/token`) into the Supabase backend-connect flow so a request
->     actually carries a JWT with a real `auth.uid()`, storing the resulting UUID on the
->     PolecatAuth user record (a new field, e.g. `gotrueId`) without disturbing local/Turso/
->     Firebase backends' existing sign-in at all; slice 3 is the data migration (re-stamp
->     existing rows' owner/acctOwner from username → that uuid) that has to land before
->     `tools/supabase-rls-real.sql` can safely go live. `users` (password hashes) is
->     deliberately excluded from the shared owner/private shape here and needs its own
->     stricter (service-role/admin-only) policy — open question, not assumed solved.
+>     the live posture.
+>     ↳ **Slice 2 (GoTrue sign-in, shipped 2026-07-24, steward):** `app/sources/supabase.js`
+>     gains two OPTIONAL connect-wizard fields, `authEmail`/`authPassword` — leaving them blank
+>     keeps every existing Supabase connection exactly anon-key-only, unchanged (Turso/Firebase
+>     untouched entirely, different adapters). When set, every REST call (test/probe/load/save/
+>     queryData) first exchanges them for a real Supabase Auth (GoTrue) session via
+>     `/auth/v1/token?grant_type=password` (a sibling of `/rest/v1` under the same project URL,
+>     cached per url+email until near-expiry) and sends that JWT as the Bearer token instead of
+>     the plain anon key, so `auth.uid()` resolves to a real user. A new `signIn(cfg)` adapter
+>     method reports the resulting `auth.uid()` (or `userId:null` when the fields aren't set);
+>     the connect wizard calls it right after a successful connect and stamps the id onto the
+>     CURRENTLY SIGNED-IN local identity via a new `PolecatAuth.upsert(..., {gotrueId})` (new
+>     field, threaded through `pub()`/`importFromStore`/`exportForStore` too so it rides the
+>     workspace mirror the same as every other account field). A wrong password fails clearly
+>     at the wizard's existing "Check database →" test gate (same gate that already validates
+>     the URL/anon key), so a bad Supabase Auth password can never silently proceed to
+>     connect/adopt with the wrong (or no) identity. 4 new M7 ratchets (no-op without the auth
+>     fields, successful sign-in returns the real uuid, a wrong password fails loudly, a
+>     JWT-gated table rejects the anon key before sign-in and accepts the JWT after). NEXT in
+>     M7: **slice 3 is the data migration** (re-stamp existing rows' owner/acctOwner from
+>     username → the now-available gotrueId) that has to land before `tools/supabase-rls-real.sql`
+>     can safely go live — plus the open question from slice 1 for `users` itself (password
+>     hashes need their own stricter, service-role/admin-only policy, not the shared owner/
+>     private shape).
 > Also: add MORE crop/geo sample sets as the demo matures (Kevin). "Eventually polecat overall"
 > for the auth/user model — keep the users/permissions design app-neutral where cheap.
 

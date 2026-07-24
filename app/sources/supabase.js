@@ -15,28 +15,70 @@
   "use strict";
   var WS = Studio.WS;
 
-  function restBase(cfg) {
+  function projectBase(cfg) {
     var u = (cfg.url || "").trim().replace(/\/+$/, "");
     if (!u) throw new Error("Project URL is required");
     if (!/^https?:\/\//i.test(u)) u = "https://" + u;
-    return u + "/rest/v1";
+    return u;
   }
-  function headers(cfg, extra) {
+  function restBase(cfg) { return projectBase(cfg) + "/rest/v1"; }
+  function headers(cfg, extra, bearer) {
     var key = (cfg.key || "").trim();
-    var h = { apikey: key, Authorization: "Bearer " + key, "Content-Type": "application/json" };
+    var h = { apikey: key, Authorization: "Bearer " + (bearer || key), "Content-Type": "application/json" };
     if (extra) Object.keys(extra).forEach(function (k) { h[k] = extra[k]; });
     return h;
   }
+
+  // ---- optional Supabase Auth (GoTrue) sign-in (M7 slice 2) ------------------
+  // cfg.authEmail/authPassword are OPTIONAL fields on this adapter only — when
+  // both are set, every REST call below exchanges them for a real GoTrue JWT
+  // (via /auth/v1/token, a sibling of /rest/v1 under the same project URL) and
+  // sends it as the Bearer token instead of the plain anon key, so Postgres'
+  // auth.uid() resolves to a real user for RLS. Omitting them keeps the exact
+  // pre-existing anon-key-only behavior — nothing else about this adapter, or
+  // any other backend (Turso/Firebase), changes.
+  var _sessions = {}; // "url|email" -> { accessToken, userId, expiresAt }
+  function sessionKey(cfg) { return (cfg.url || "") + "|" + (cfg.authEmail || ""); }
+  function gotrueSignIn(cfg) {
+    var base;
+    try { base = projectBase(cfg); } catch (e) { return Promise.reject(e); }
+    return fetch(base + "/auth/v1/token?grant_type=password", {
+      method: "POST",
+      headers: { apikey: (cfg.key || "").trim(), "Content-Type": "application/json" },
+      body: JSON.stringify({ email: cfg.authEmail, password: cfg.authPassword })
+    }).catch(function (e) {
+      throw new Error("Could not reach Supabase Auth (network or CORS): " + e.message);
+    }).then(function (res) {
+      return res.json().catch(function () { return {}; }).then(function (data) {
+        if (!res.ok || !data.access_token) throw new Error("Supabase Auth sign-in failed: " + (data.error_description || data.msg || data.error || ("HTTP " + res.status)));
+        return data;
+      });
+    });
+  }
+  function ensureSession(cfg) {
+    if (!cfg.authEmail || !cfg.authPassword) return Promise.resolve(null);
+    var key = sessionKey(cfg);
+    var cached = _sessions[key];
+    if (cached && cached.expiresAt > Date.now() + 5000) return Promise.resolve(cached);
+    return gotrueSignIn(cfg).then(function (data) {
+      var session = { accessToken: data.access_token, userId: (data.user && data.user.id) || null, expiresAt: Date.now() + ((data.expires_in || 3600) * 1000) };
+      _sessions[key] = session;
+      return session;
+    });
+  }
+
   function rest(cfg, path, opts) {
     opts = opts || {};
     var base;
     try { base = restBase(cfg); } catch (e) { return Promise.reject(e); }
-    return fetch(base + path, {
-      method: opts.method || "GET",
-      headers: headers(cfg, opts.headers),
-      body: opts.body
-    }).catch(function (e) {
-      throw new Error("Could not reach Supabase (network or CORS): " + e.message);
+    return ensureSession(cfg).then(function (session) {
+      return fetch(base + path, {
+        method: opts.method || "GET",
+        headers: headers(cfg, opts.headers, session && session.accessToken),
+        body: opts.body
+      }).catch(function (e) {
+        throw new Error("Could not reach Supabase (network or CORS): " + e.message);
+      });
     }).then(function (res) {
       if (res.status === 401 || res.status === 403) throw new Error("Supabase rejected the API key (401/403)");
       return res;
@@ -56,9 +98,23 @@
       { key: "url", label: "Project URL", placeholder: "https://YOUR-REF.supabase.co", type: "text",
         hint: "Settings → API → Project URL." },
       { key: "key", label: "anon / publishable key", placeholder: "sb_publishable_… or eyJ… (anon)", type: "password",
-        hint: "Settings → API → Project API keys → publishable key (new projects) or anon public (legacy JWT format). Row-Level Security governs what it can touch." }
+        hint: "Settings → API → Project API keys → publishable key (new projects) or anon public (legacy JWT format). Row-Level Security governs what it can touch." },
+      { key: "authEmail", label: "Supabase Auth email (optional)", placeholder: "you@example.com", type: "text",
+        hint: "Sign in with a real Supabase Auth (GoTrue) account so requests carry your identity — Postgres' auth.uid() resolves to a real user instead of NULL. Only needed for enforced per-user privacy (Row-Level Security); leave blank to keep using the shared anon key as before." },
+      { key: "authPassword", label: "Supabase Auth password (optional)", placeholder: "", type: "password",
+        hint: "Paired with the email above. Only ever sent to this project's own /auth/v1/token endpoint." }
     ],
     docsUrl: "https://supabase.com/docs/guides/api",
+
+    // Optional: exchanges authEmail/authPassword for a session and reports the
+    // resulting auth.uid() (or userId:null when those fields aren't set) — the
+    // connect wizard uses this to stamp the id onto the signed-in local
+    // identity. Every rest() call above already establishes this session on
+    // its own, so this is mostly a way to read the id back out.
+    signIn: function (cfg) {
+      return ensureSession(cfg).then(function (s) { return { ok: true, userId: s ? s.userId : null }; })
+        .catch(function (e) { return { ok: false, error: e.message }; });
+    },
 
     test: function (cfg) {
       return rest(cfg, "/" + WS.META_TABLE + "?select=key&limit=1")

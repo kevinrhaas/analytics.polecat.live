@@ -8252,6 +8252,20 @@
                 // store: adopting an existing workspace means signing in against ITS
                 // accounts, not the ones this browser seeded before connecting.
                 try { if (window.PolecatAuth && Studio.Workspace) window.PolecatAuth.importFromStore(Studio.Workspace.all("users")); } catch (e2) {}
+                // M7 slice 2: if this connection also carries Supabase Auth (GoTrue)
+                // credentials, stamp the resulting auth.uid() onto the currently
+                // signed-in local identity — fire-and-forget, never blocks the
+                // connect flow (only supabaseSource implements signIn; every other
+                // backend is untouched).
+                try {
+                  if (typeof src.signIn === "function") {
+                    src.signIn(cfg).then(function (r) {
+                      if (r.ok && r.userId && window.PolecatAuth && window.PolecatAuth.authed()) {
+                        window.PolecatAuth.upsert(window.PolecatAuth.current().u, { gotrueId: r.userId });
+                      }
+                    }).catch(function () {});
+                  }
+                } catch (e2) {}
                 try { renderAdmin(); if (window.__studioShellApplyRoleGating) window.__studioShellApplyRoleGating(); } catch (e2) {}
                 toast("Workspace backend connected");
                 document.querySelector(".modal-ov .x").click();
