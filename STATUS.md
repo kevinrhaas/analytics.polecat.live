@@ -116,32 +116,6 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
-- **R5+ slice 3 — dashboard-defaults config layer extracted to its own module (v501, sw v142,
-  2026-07-24, steward, R5+ now fully done):** the previous slice's own NEXT pointer named this as
-  the rest of the original ② scope. The 8 `default*` getter/setter pairs (subtitle, accent color,
-  header logo, header background, title size, subtitle style, dashboard theme, card skin) plus the
-  three named-preset collections built on them (style presets, template-variable sets, custom-theme
-  presets) and the `applyDashboardDefaults(spec)` seeder moved out of `app/studio.js` into a new
-  `app/defaults.js`, exposing `Studio.Defaults = {subtitle,setSubtitle,...,stylePresets,
-  addStylePreset,...,applyDashboardDefaults}` — following the same module pattern R5+ slices 1/2
-  established. The one wrinkle branding/chart-thumbnails didn't have: `dashboardTheme()`'s
-  never-set fallback needs the live app Color theme, which lives on studio.js's own state (`S`) —
-  resolved by reading the existing `window.__studioAppTheme` test hook (which gained a
-  `toDashboardTheme` entry alongside its existing `get`/`set`) LAZILY at call time, since by the
-  time any Settings/dashboard-creation code actually calls `dashboardTheme()`, studio.js has
-  already finished its boot-time setup even though `defaults.js` loads first. `studio.js` now just
-  aliases `var defaultSubtitle = Studio.Defaults.subtitle` etc. where the functions used to live —
-  every one of the ~45 existing call sites (Settings rendering, blank-dashboard seeding, the preset
-  Apply/Delete/Save button handlers) is unchanged, so no other code moved. The `makePresetStore`
-  factory (previously shared, only used by these three preset stores) moved into the new module
-  too rather than leaving it dead in studio.js. `window.__studioStylePresets`/
-  `__studioTemplateVarSets`/`__studioCustomThemePresets`/`__studioDefault*` test hooks now live in
-  the new module. New script tag in app/index.html (loads right after branding.js, before
-  studio.js) and a new sw.js precache entry. Pure refactor, no behavior change — suite unchanged.
-  (app/defaults.js new, app/studio.js, app/index.html, sw.js) **R5+ (tech-debt module-extraction
-  track) is now fully done** — chart-thumbnails.js (①), branding.js (②), defaults.js (③) are all
-  extracted; no further slices queued in this track. NEXT: pick the next-most-scoped item from the
-  LIVE-FEEDBACK QUEUE or the quality tracks below.
 - **R5+ slice 2 — branding subsystem extracted to its own module (v499, sw v141, 2026-07-24,
   steward):** the Z12 branding subsystem (`BRAND_MAX_BYTES`/`getBranding`/`setBranding`/
   `applyBranding` — app-mark default/custom-logo/none, a small data: URL in localStorage) moved

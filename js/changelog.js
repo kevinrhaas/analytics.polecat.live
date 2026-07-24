@@ -6,15 +6,6 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
-    v: 501,
-    title: 'Tech debt: dashboard-defaults settings move to their own module',
-    kind: 'polish',
-    ts: '2026-07-24T03:38:32.000Z',
-    items: [
-      'Behind-the-scenes cleanup only -- the Settings page\'s dashboard-defaults fields (default subtitle/accent/logo/header background/title size/subtitle style/dashboard theme/card style) and the saved style-preset/template-variable-set/custom-theme-preset lists now live in their own file instead of inside the main app controller. No visible change.',
-    ],
-  },
-  {
     v: 500,
     title: 'M7 groundwork: real per-user database security, designed and proven (not yet live)',
     kind: 'polish',
