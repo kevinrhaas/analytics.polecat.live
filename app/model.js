@@ -2471,6 +2471,26 @@
     return cols;
   };
 
+  // QA-03: canonical column-typing for a choropleth's idCol/valueCol/seriesCol, shared by
+  // Studio.newPanel (Explore's first-load default + any fresh panel) and studio.js's
+  // autoPickCols (the inspector's "Auto-pick columns" button) so both name-guess the same
+  // way instead of drifting. Root cause of the original bug: valueCol fell back to "the
+  // first column that isn't the id/series column" with no regard for whether it actually
+  // looked like a value — so a second id-shaped column (e.g. a state postal code alongside
+  // a county fips id) silently won over the real numeric column and rendered an empty map.
+  Studio.guessChoroplethCols = function (cols) {
+    cols = cols || [];
+    var idCol = cols.filter(function (c) { return /fips|county|state|region|huc|district|geo/i.test(c); })[0] || cols[0] || "";
+    var seriesCol = cols.filter(function (c) { return /provider|series|source|method/i.test(c) && c !== idCol; })[0] || "";
+    var candidates = cols.filter(function (c) { return c !== idCol && c !== seriesCol; });
+    var VALUE_LIKE = /value|total|count|sum|avg|amount|revenue|cost|rate|pct|score|qty|num|metric|acres/i;
+    var ID_LIKE = /fips|county|state|region|huc|district|geo|code|provider|series|source|method|^id$|_id$/i;
+    var valueCol = candidates.filter(function (c) { return VALUE_LIKE.test(c); })[0]
+      || candidates.filter(function (c) { return !ID_LIKE.test(c); })[0]
+      || candidates[0] || cols[1] || "";
+    return { idCol: idCol, valueCol: valueCol, seriesCol: seriesCol };
+  };
+
   // default panel for a chart type bound to a dataAccess (auto column mapping)
   Studio.newPanel = function (type, daDef) {
     var cols = (daDef && daDef.columns) || [];
@@ -2491,12 +2511,10 @@
     } else if (type === "heatmap") {
       map.rowCol = cols[0] || ""; map.colCol = cols[1] || ""; map.valueCol = cols[2] || cols[1] || "";
     } else if (type === "choropleth") {
-      // region id first (fips/county/state/huc-ish names win), value = first other column
-      var geoIdGuess = cols.filter(function (c) { return /fips|county|state|region|huc|district|geo/i.test(c); })[0];
-      map.idCol = geoIdGuess || cols[0] || "";
-      var provGuess = cols.filter(function (c) { return /provider|series|source|method/i.test(c) && c !== map.idCol; })[0];
-      if (provGuess) map.seriesCol = provGuess;
-      map.valueCol = cols.filter(function (c) { return c !== map.idCol && c !== map.seriesCol; })[0] || cols[1] || "";
+      var choroGuess = Studio.guessChoroplethCols(cols);
+      map.idCol = choroGuess.idCol;
+      if (choroGuess.seriesCol) map.seriesCol = choroGuess.seriesCol;
+      map.valueCol = choroGuess.valueCol;
     } else if (type === "ensembleSeries") {
       var provCol = cols.filter(function (c) { return /provider|series|source|method/i.test(c); })[0];
       map.labelCol = cols[0] || "";

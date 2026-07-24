@@ -4153,6 +4153,13 @@
       if (!m.highCol)   m.highCol   = ohlcNum("high|max")   || numCols[1] || numCols[0] || cols[2] || cols[0];
       if (!m.lowCol)    m.lowCol    = ohlcNum("low|min")    || numCols[2] || numCols[0] || cols[3] || cols[0];
       if (!m.closeCol)  m.closeCol  = ohlcNum("close|end")  || numCols[3] || numCols[0] || cols[4] || cols[0];
+    } else if (t === "choropleth") {
+      // QA-03: same canonical id/value/series guess Studio.newPanel uses for a fresh panel,
+      // so Auto-pick and the first-load default never disagree with each other.
+      var choroPick = Studio.guessChoroplethCols(cols);
+      if (!m.idCol) m.idCol = choroPick.idCol;
+      if (!m.seriesCol && choroPick.seriesCol) m.seriesCol = choroPick.seriesCol;
+      if (!m.valueCol) m.valueCol = choroPick.valueCol;
     } else if (t === "timeline") {
       // labelCol = event name (first string); dateCol = period/date (second string, optional)
       if (!m.labelCol) m.labelCol = strCols[0] || labelPick;

@@ -2495,6 +2495,48 @@ function serve() {
       m2c.countyRows === 720 && m2c.allFips && !m2c.countyErr, JSON.stringify(m2c));
     ok("M2c: the seeded job is a county→state acreage-weighted-mean rollup wired source→output (the jobs-engine wmean pattern, its output a state-level dataset)",
       m2c.wmean && m2c.jobWired && m2c.stateGeo, JSON.stringify(m2c));
+    // ---- QA-03 (2026-07-24 frontend QA report): Explore's default choropleth mapping —
+    // the county demo used to auto-map Value to the text `statecode` column instead of the
+    // numeric `pct` column (a second id-shaped column silently beat the real value column),
+    // leaving the map empty ("No region values") until the user fixed it by hand. Exercise
+    // the EXACT workspace demo dataset (not a synthetic geo sample) through the real Explore
+    // selection path, plus the underlying column-guess helper directly.
+    console.log("\n• QA-03: Explore's county demo opens with a populated choropleth mapping");
+    await page.evaluate(function () { window.__studioShellSetSection("explore"); });
+    await page.waitForTimeout(300);
+    const qa03 = await page.evaluate(function () {
+      var county = Studio.Workspace.all("datasets").filter(function (d) {
+        return d.demoPackId === "conservation" && /County cover-crop/.test(d.name);
+      })[0];
+      if (!county) return { missing: true };
+      var btn = document.querySelector('[data-xp-ds$="' + county.id + '"]');
+      if (!btn) return { missing: true, noBtn: true };
+      btn.click();
+      return new Promise(function (res) {
+        var t0 = Date.now();
+        (function poll() {
+          var XP = window.__studioExplore.state;
+          if (XP.run && XP.map && XP.map.idCol) {
+            res({ type: XP.type, map: { idCol: XP.map.idCol, valueCol: XP.map.valueCol, seriesCol: XP.map.seriesCol } });
+          } else if (Date.now() - t0 > 8000) {
+            res({ timeout: true, type: XP.type, map: XP.map });
+          } else setTimeout(poll, 100);
+        })();
+      });
+    });
+    ok("QA-03: selecting 'County cover-crop adoption (demo)' in Explore picks Map (US choropleth) with geoid→Region id, pct→Value, provider→Series",
+      qa03.type === "choropleth" && qa03.map && qa03.map.idCol === "geoid" && qa03.map.valueCol === "pct" && qa03.map.seriesCol === "provider",
+      JSON.stringify(qa03));
+    const qa03Unit = await page.evaluate(function () {
+      var cols = ["geoid", "statecode", "provider", "pct", "acres"];
+      var p = Studio.newPanel("choropleth", { columns: cols });
+      return { map: p.chart.map, guess: Studio.guessChoroplethCols(cols) };
+    });
+    ok("QA-03: Studio.newPanel('choropleth', …) and the shared Studio.guessChoroplethCols() helper agree on the exact demo column list — guards the old positional fallback from regressing",
+      qa03Unit.map.idCol === "geoid" && qa03Unit.map.valueCol === "pct" && qa03Unit.map.seriesCol === "provider" &&
+      qa03Unit.guess.idCol === "geoid" && qa03Unit.guess.valueCol === "pct" && qa03Unit.guess.seriesCol === "provider",
+      JSON.stringify(qa03Unit));
+
     const m2cClean = await page.evaluate(function () {
       window.__studioDemoPacks.remove("conservation");
       var W = Studio.Workspace;

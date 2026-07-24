@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 518,
+    title: 'Explore\'s featured county demo now opens with a populated map, not an empty one',
+    kind: 'fix',
+    ts: '2026-07-24T18:44:01.000Z',
+    items: [
+      'Picking "County cover-crop adoption (demo)" in Explore correctly chose the US choropleth map but auto-mapped Value to a text state-code column instead of the numeric pct column, so the map opened empty until you fixed it by hand. Explore and the Studio inspector\'s Auto-pick button now share one column-guessing routine that prefers a genuinely value-shaped column (never another id/code column) for Value.',
+    ],
+  },
+  {
     v: 517,
     title: 'Connection-credential storage copy is now honest about where a workspace backend keeps them',
     kind: 'fix',
