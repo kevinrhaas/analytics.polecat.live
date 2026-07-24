@@ -17537,6 +17537,68 @@ function serve() {
     });
     ok("LF8: Escape dispatched inside the zoomed iframe still closes the overlay (focus-trap fix)", h118IframeEsc.ok && h118IframeEsc.overlayGone && h118IframeEsc.active === false, JSON.stringify(h118IframeEsc));
 
+    // ---- LF9 slice 2: Back closes an open overlay instead of leaving the section ----
+    console.log("\n• LF9 slice 2: overlay history (panel-zoom, modal)");
+    const lf9PzOpen = await page.evaluate(async function () {
+      var state = window.__STUDIO_STATE;
+      var panels = state && state.spec && state.spec.panels;
+      if (!panels || !panels.length) return { ok: false, reason: "no panels in spec" };
+      window.__panelZoomOpen(panels[0].id);
+      await new Promise(function (r) { setTimeout(r, 80); });
+      return { opened: !!document.getElementById("pzOverlay"), section: window.__studioShellGetSection() };
+    });
+    await page.goBack();
+    await page.waitForTimeout(150);
+    const lf9PzAfter = await page.evaluate(function () {
+      return { overlayGone: !document.getElementById("pzOverlay"), active: window.__panelZoomActive, section: window.__studioShellGetSection() };
+    });
+    ok("LF9 slice 2: Back closes the panel-zoom overlay instead of navigating away from the section (generalizes the LF8 zoom-trap fix)",
+      lf9PzOpen.opened && lf9PzAfter.overlayGone && lf9PzAfter.active === false && lf9PzAfter.section === lf9PzOpen.section,
+      JSON.stringify({ lf9PzOpen, lf9PzAfter }));
+
+    // Modals (e.g. the dataset editor) get the same treatment via the same shell.js stack.
+    const lf9ModalOpen = await page.evaluate(function () {
+      window.__studioOpenDatasetEditor();
+      return { opened: !!document.querySelector(".modal-ov"), section: window.__studioShellGetSection() };
+    });
+    await page.waitForTimeout(120);
+    await page.goBack();
+    await page.waitForTimeout(150);
+    const lf9ModalAfter = await page.evaluate(function () {
+      return { modalGone: !document.querySelector(".modal-ov"), section: window.__studioShellGetSection() };
+    });
+    ok("LF9 slice 2: Back closes an open modal (dataset editor) instead of navigating away from the section",
+      lf9ModalOpen.opened && lf9ModalAfter.modalGone && lf9ModalAfter.section === lf9ModalOpen.section,
+      JSON.stringify({ lf9ModalOpen, lf9ModalAfter }));
+
+    // A manual close (X button, not Back) must also sync the history entry pushOverlay
+    // added — otherwise a later real Back would find a dangling overlay entry in the way.
+    // Self-contained section sequence (jobs → studio) so the expectation doesn't depend on
+    // whatever history the rest of the suite happened to build up before this point.
+    await page.evaluate(function () { window.__studioShellSetSection("jobs"); });
+    await page.waitForTimeout(120);
+    await page.evaluate(function () { window.__studioShellSetSection("studio"); });
+    await page.waitForTimeout(120);
+    await page.evaluate(function () { window.__studioOpenDatasetEditor(); });
+    await page.waitForTimeout(120);
+    await page.evaluate(function () {
+      var x = document.querySelector(".modal-ov .modal .x");
+      if (x) x.click();
+    });
+    await page.waitForTimeout(150);
+    const lf9XClose = await page.evaluate(function () {
+      return { modalGone: !document.querySelector(".modal-ov"), section: window.__studioShellGetSection() };
+    });
+    await page.goBack();
+    await page.waitForTimeout(150);
+    const lf9RealBackAfterXClose = await page.evaluate(function () { return { section: window.__studioShellGetSection() }; });
+    ok("LF9 slice 2: closing a modal via its X button syncs history (no dangling overlay entry) — a later Back still walks to the prior section, not a no-op",
+      lf9XClose.modalGone && lf9XClose.section === "studio" && lf9RealBackAfterXClose.section === "jobs",
+      JSON.stringify({ lf9XClose, lf9RealBackAfterXClose }));
+    // restore — the rest of the suite expects to be on Studio.
+    await page.evaluate(function () { window.__studioShellSetSection("studio"); });
+    await page.waitForTimeout(120);
+
     // ---- F28: Waffle chart ----
     console.log("\n• F28: Waffle chart");
 
@@ -18489,6 +18551,24 @@ function serve() {
       return { ok: !ov, active: window.__slideshowActive };
     });
     ok("H-track: Escape key closes the slideshow overlay", ssClosed.ok, JSON.stringify(ssClosed));
+
+    // LF9 slice 2: Back also closes the slideshow overlay (same shell.js overlay-history stack
+    // panel-zoom/modals use), instead of navigating the app away from the current section.
+    const lf9SsOpen = await page.evaluate(function () {
+      var S = window.__STUDIO_STATE;
+      if (!S || !S.spec || !S.spec.panels || !S.spec.panels.length) return { ok: false, reason: "no panels in spec" };
+      window.__slideshowOpen();
+      return { opened: !!document.querySelector(".ss-overlay"), section: window.__studioShellGetSection() };
+    });
+    await page.waitForTimeout(200);
+    await page.goBack();
+    await page.waitForTimeout(200);
+    const lf9SsAfter = await page.evaluate(function () {
+      return { overlayGone: !document.querySelector(".ss-overlay"), active: window.__slideshowActive, section: window.__studioShellGetSection() };
+    });
+    ok("LF9 slice 2: Back closes the slideshow overlay instead of navigating away from the section",
+      lf9SsOpen.opened && lf9SsAfter.overlayGone && lf9SsAfter.active === false && lf9SsAfter.section === lf9SsOpen.section,
+      JSON.stringify({ lf9SsOpen, lf9SsAfter }));
 
     // ── N-FUN: story-mode slide captions (first cut of "scrollytelling") ─────
     console.log("\n• N-FUN: slideshow story-mode captions");

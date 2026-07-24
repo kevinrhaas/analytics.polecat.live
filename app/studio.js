@@ -9390,10 +9390,15 @@
     postThemeOnLoad(ifr);
     ifr.srcdoc = html;
 
-    function close() {
+    // LF9 slice 2: this generalizes the LF8 zoom-trap fix — Back now closes panel-zoom
+    // like any other overlay (see the shell.js overlay-history stack) instead of leaving
+    // whatever section the user was in. See modal()'s identical viaHistory comment.
+    var overlayId = window.__studioPushOverlay ? window.__studioPushOverlay(function () { close(true); }) : null;
+    function close(viaHistory) {
       if (!_pzOverlay) return;
       _pzOverlay.remove(); _pzOverlay = null; window.__panelZoomActive = false;
       document.removeEventListener("keydown", onKey);
+      if (viaHistory !== true && overlayId && window.__studioPopOverlay) window.__studioPopOverlay(overlayId);
     }
     function onKey(e) { if (e.key === "Escape") { e.stopPropagation(); close(); } }
     closeBtn.onclick = close;
@@ -9449,11 +9454,15 @@
     _ssOverlay = ov;
     window.__slideshowActive = true;
 
-    function close() {
+    // LF9 slice 2: same overlay-history treatment as modal()/panel-zoom — Back exits
+    // the slideshow instead of navigating away from Studio.
+    var overlayId = window.__studioPushOverlay ? window.__studioPushOverlay(function () { close(true); }) : null;
+    function close(viaHistory) {
       if (!_ssOverlay) return;
       _ssOverlay.remove(); _ssOverlay = null;
       window.__slideshowActive = false;
       document.removeEventListener("keydown", onKey);
+      if (viaHistory !== true && overlayId && window.__studioPopOverlay) window.__studioPopOverlay(overlayId);
     }
 
     function showSlide(idx) {
@@ -11012,7 +11021,17 @@
     var h = el("div", "modal-h"); h.textContent = title; var x = el("button", "x"); x.type = "button"; x.setAttribute("aria-label", "Close " + title); x.appendChild(Studio.icon("close", 16)); h.appendChild(x);
     var b = el("div", "modal-b"); m.appendChild(h); m.appendChild(b); ov.appendChild(m); document.body.appendChild(ov);
     build(b);
-    function close() { ov.remove(); document.removeEventListener("keydown", onKey); if (onClose) onClose(); }
+    // LF9 slice 2: every modal pushes an overlay history entry, so Back closes it instead
+    // of navigating sections. `viaHistory` is true only when close() is invoked BY the
+    // popstate stack-unwind (shell.js already moved history back at that point) — any other
+    // close path (X, Escape, outside-click, a Save handler's own onClose) still owns an
+    // untouched history entry and must sync it via popOverlay.
+    var overlayId = window.__studioPushOverlay ? window.__studioPushOverlay(function () { close(true); }) : null;
+    function close(viaHistory) {
+      ov.remove(); document.removeEventListener("keydown", onKey);
+      if (viaHistory !== true && overlayId && window.__studioPopOverlay) window.__studioPopOverlay(overlayId);
+      if (onClose) onClose();
+    }
     var FOCUSQ = 'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
     function focusable() { return [].slice.call(m.querySelectorAll(FOCUSQ)).filter(function (e) { return e.offsetParent !== null; }); }
     function onKey(e) {

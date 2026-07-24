@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v148"; /* v148: LF9 slice 1 — Back/Forward now walks section
+var CACHE_NAME = "studio-shell-v149"; /* v149: LF9 slice 2 — Back now closes an open overlay
+   (modal, panel-zoom, slideshow) instead of navigating sections, generalizing the LF8 zoom-trap
+   fix to every overlay type. shell.js gains a small overlay-history stack (pushOverlay/popOverlay)
+   that each overlay's open/close path wires into. app/shell.js, app/studio.js changed. */
+/* v148: LF9 slice 1 — Back/Forward now walks section
    navigation instead of leaving the app: shell.js pushes a history entry on every real section
    change and a popstate listener re-drives setActive() from it (fromHistory=true skips a
    duplicate push). app/shell.js changed. */
