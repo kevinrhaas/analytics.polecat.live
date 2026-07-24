@@ -8049,6 +8049,86 @@ function serve() {
     });
     await page.waitForTimeout(150);
 
+    // ---- M7 slice 3: owner/acctOwner migration from username to gotrueId ----
+    // tools/supabase-rls-real.sql compares auth.uid() (a UUID) against each row's
+    // owner/acctOwner — existing rows stamped before an account ever signed in via
+    // GoTrue still hold the plain username there, so migrateOwnerToGotrueId() has
+    // to catch this account's own rows up across all 5 owner-bearing tables.
+    console.log("\n• M7 slice 3: owner/acctOwner migration to gotrueId");
+    const ownerMigration = await page.evaluate(async function () {
+      var GOTRUE_ID = "22222222-2222-2222-2222-222222222222";
+      var spec = JSON.parse(JSON.stringify(window.__STUDIO_STATE.spec));
+      spec.id = "m7own-dash-mine"; spec.title = "M7own dashboard";
+      Studio.Workspace.put("connections", { id: "m7own-cx-mine", name: "n1", adapter: "local", cfg: {}, updatedAt: Date.now(), owner: "demo" });
+      Studio.Workspace.put("connections", { id: "m7own-cx-other", name: "n2", adapter: "local", cfg: {}, updatedAt: Date.now(), owner: "otherUser" });
+      Studio.Workspace.put("dashboards", { id: "m7own-dash-mine", ts: new Date().toISOString(), spec: spec, title: spec.title, name: spec.title, owner: "demo" });
+      Studio.Workspace.put("analyses", { id: "m7own-an-mine", name: "a1", chartType: "bars", updatedAt: Date.now(), owner: "demo" });
+      Studio.Workspace.put("jobs", { id: "m7own-job-mine", name: "j1", steps: [], updatedAt: Date.now(), owner: "demo" });
+      Studio.Workspace.put("datasets", { id: "m7own-ds-mine", name: "d1", kind: "file", content: "a,b\n1,2", format: "csv", updatedAt: Date.now(), acctOwner: "demo" });
+      // a dataset also has an unrelated free-text `owner` field (the M4.2 note) —
+      // the migration must never touch it, only acctOwner.
+      Studio.Workspace.put("datasets", { id: "m7own-ds-freetext", name: "d2", kind: "file", content: "a,b\n1,2", format: "csv", updatedAt: Date.now(), owner: "demo" });
+
+      window.PolecatAuth.login("demo"); // seeded viewer account
+      await window.PolecatAuth.upsert("demo", { gotrueId: GOTRUE_ID });
+      window.__studioMigrateOwnerToGotrueId("demo", GOTRUE_ID);
+
+      var after = {
+        cxMine: Studio.Workspace.get("connections", "m7own-cx-mine").owner,
+        cxOther: Studio.Workspace.get("connections", "m7own-cx-other").owner,
+        dash: Studio.Workspace.get("dashboards", "m7own-dash-mine").owner,
+        analysis: Studio.Workspace.get("analyses", "m7own-an-mine").owner,
+        job: Studio.Workspace.get("jobs", "m7own-job-mine").owner,
+        dsAcctOwner: Studio.Workspace.get("datasets", "m7own-ds-mine").acctOwner,
+        dsFreeTextOwner: Studio.Workspace.get("datasets", "m7own-ds-freetext").owner
+      };
+
+      // A row synced in AFTER the first migration ran (e.g. pulled from a device
+      // that hadn't signed in with GoTrue yet) still carries the username — a
+      // later run (the next boot) must catch it up too, proving there's no
+      // meta-guard permanently blocking re-scans.
+      Studio.Workspace.put("jobs", { id: "m7own-job-stray", name: "j2", steps: [], updatedAt: Date.now(), owner: "demo" });
+      window.__studioMigrateOwnerToGotrueId("demo", GOTRUE_ID);
+      var strayAfter = Studio.Workspace.get("jobs", "m7own-job-stray").owner;
+
+      // Going forward, a freshly-created row should stamp the gotrueId directly
+      // (not the username) — proving currentUserId() now prefers gotrueId.
+      Studio.Workspace.put("jobs", { id: "m7own-job-fresh", name: "j3", steps: [], updatedAt: Date.now() });
+      window.__studioToggleJobPrivate("m7own-job-fresh");
+      var freshOwner = Studio.Workspace.get("jobs", "m7own-job-fresh").owner;
+
+      ["m7own-cx-mine", "m7own-cx-other"].forEach(function (id) { Studio.Workspace.remove("connections", id); });
+      Studio.Workspace.remove("dashboards", "m7own-dash-mine");
+      Studio.Workspace.remove("analyses", "m7own-an-mine");
+      ["m7own-job-mine", "m7own-job-stray", "m7own-job-fresh"].forEach(function (id) { Studio.Workspace.remove("jobs", id); });
+      ["m7own-ds-mine", "m7own-ds-freetext"].forEach(function (id) { Studio.Workspace.remove("datasets", id); });
+
+      // Reset the seeded demo account back to pristine (no upsert path clears a
+      // field back to null) so later tests signing in as "demo" see the same
+      // account this suite started with.
+      var users = JSON.parse(localStorage.getItem("analytics.users.v1") || "[]");
+      users.forEach(function (u) { if (u.u === "demo") u.gotrueId = null; });
+      localStorage.setItem("analytics.users.v1", JSON.stringify(users));
+
+      window.PolecatAuth.logout();
+      sessionStorage.setItem("studio-gate-ok", "1");
+      window.__studioShellApplyRoleGating();
+      window.__studioShellSetSection("studio");
+
+      return Object.assign({}, after, { strayAfter: strayAfter, freshOwner: freshOwner, GOTRUE_ID: GOTRUE_ID });
+    });
+    ok("M7 slice 3: migrateOwnerToGotrueId re-stamps this account's own rows from username to gotrueId across connections/dashboards/analyses/jobs",
+      ownerMigration.cxMine === ownerMigration.GOTRUE_ID && ownerMigration.dash === ownerMigration.GOTRUE_ID &&
+      ownerMigration.analysis === ownerMigration.GOTRUE_ID && ownerMigration.job === ownerMigration.GOTRUE_ID,
+      JSON.stringify(ownerMigration));
+    ok("M7 slice 3: migrates datasets' acctOwner (not the unrelated free-text owner field), and never touches another account's rows",
+      ownerMigration.dsAcctOwner === ownerMigration.GOTRUE_ID && ownerMigration.dsFreeTextOwner === "demo" && ownerMigration.cxOther === "otherUser",
+      JSON.stringify(ownerMigration));
+    ok("M7 slice 3: no meta-guard blocks a later run — a row synced in afterwards with the old username still gets caught up",
+      ownerMigration.strayAfter === ownerMigration.GOTRUE_ID, JSON.stringify(ownerMigration));
+    ok("M7 slice 3: currentUserId() prefers the gotrueId once set, so a freshly-created row stamps it directly instead of the username",
+      ownerMigration.freshOwner === ownerMigration.GOTRUE_ID, JSON.stringify(ownerMigration));
+
     // ---- M4.2: per-section rights (rail permissions) — the second half of M4.2 ----
     console.log("\n• M4.2: per-section rights (rail permissions)");
     const rightsDefault = await page.evaluate(function () {

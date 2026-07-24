@@ -5252,7 +5252,12 @@
   // admin account both see everything, matching shell.js's applyRoleGating fallback.
   function currentUserId() {
     var Auth = window.PolecatAuth, me = Auth && Auth.current();
-    return me ? me.u : null;
+    // M7 slice 3: once this account has signed in via Supabase Auth (GoTrue),
+    // stamp/compare against its real auth.uid() instead of the username — that's
+    // the id RLS's policies check, and the boot/sign-in migration below keeps
+    // this account's existing rows in sync with it. No gotrueId yet (local/no-
+    // auth/demo accounts, or a backend that isn't Supabase) → unchanged behavior.
+    return me ? (me.gotrueId || me.u) : null;
   }
   function currentUserIsAdmin() {
     var Auth = window.PolecatAuth, me = Auth && Auth.current();
@@ -5277,6 +5282,31 @@
     var uid = currentUserId();
     return !!uid && r.acctOwner === uid;
   }
+  // M7 slice 3: the data migration `tools/supabase-rls-real.sql` needs before it can
+  // safely go live (see that file's header + STATUS.md's M7 writeup). Every owner/
+  // acctOwner-bearing row was stamped by currentUserId() at creation time — before
+  // this slice, that was always the PolecatAuth USERNAME string. RLS compares
+  // auth.uid() (a UUID) against that same field, so once an account has a gotrueId,
+  // its OWN pre-existing rows need re-stamping to it or RLS would hide them from
+  // their own owner. Only ever touches rows whose owner/acctOwner equals the
+  // username being migrated — never another account's rows, since this account has
+  // no way to know their gotrueId. No meta guard needed: a migrated row's field no
+  // longer equals the username, so re-running (every boot, catching up rows a sync
+  // pull brought in from a device that hadn't signed in with GoTrue yet) is already
+  // a self-limiting no-op scan over whatever's left.
+  var OWNER_FIELD_BY_TABLE = { connections: "owner", dashboards: "owner", analyses: "owner", jobs: "owner", datasets: "acctOwner" };
+  function migrateOwnerToGotrueId(username, gotrueId) {
+    if (!username || !gotrueId || username === gotrueId) return;
+    var W = Studio.Workspace;
+    Object.keys(OWNER_FIELD_BY_TABLE).forEach(function (table) {
+      var field = OWNER_FIELD_BY_TABLE[table], touched = false;
+      W.all(table).forEach(function (r) {
+        if (r[field] === username) { r[field] = gotrueId; W.put(table, r, { silent: true }); touched = true; }
+      });
+      if (touched) W.notify(table);
+    });
+  }
+  window.__studioMigrateOwnerToGotrueId = migrateOwnerToGotrueId; // test hook
   var _recentTimer = null;
   function scheduleNoteRecent() { clearTimeout(_recentTimer); _recentTimer = setTimeout(noteRecent, 800); }
   function loadRecents() {
@@ -5401,6 +5431,14 @@
     W.setMeta("dashboardsMigratedAt", new Date().toISOString());
   }
   migrateDashboardCatalog();
+  // M7 slice 3: catch up an already-signed-in account's rows on every boot too —
+  // not just right after a fresh GoTrue sign-in (below) — e.g. a returning
+  // session whose gotrueId was stamped last time but rows synced in from
+  // elsewhere meanwhile still carry the username. Cheap no-op once caught up.
+  (function () {
+    var me = window.PolecatAuth && window.PolecatAuth.authed() && window.PolecatAuth.current();
+    if (me && me.gotrueId) migrateOwnerToGotrueId(me.u, me.gotrueId);
+  })();
   // Remote pulls (workspace backend Refresh / connect-adopt) replace the whole
   // store — repaint the dashboard surfaces when rows arrive from elsewhere.
   Studio.Workspace.on("replaced", function () { renderHome(); renderDashboards(); });
@@ -8261,7 +8299,13 @@
                   if (typeof src.signIn === "function") {
                     src.signIn(cfg).then(function (r) {
                       if (r.ok && r.userId && window.PolecatAuth && window.PolecatAuth.authed()) {
-                        window.PolecatAuth.upsert(window.PolecatAuth.current().u, { gotrueId: r.userId });
+                        var username = window.PolecatAuth.current().u;
+                        // M7 slice 3: once this account has a real auth.uid(), catch up
+                        // any of ITS rows still stamped with the old username (created
+                        // before this sign-in ever happened) — see migrateOwnerToGotrueId.
+                        window.PolecatAuth.upsert(username, { gotrueId: r.userId }).then(function () {
+                          migrateOwnerToGotrueId(username, r.userId);
+                        });
                       }
                     }).catch(function () {});
                   }

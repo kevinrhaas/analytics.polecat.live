@@ -5,7 +5,18 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v143"; /* v143: M7 slice 2 — optional Supabase Auth (GoTrue)
+var CACHE_NAME = "studio-shell-v144"; /* v144: M7 slice 3 — the data migration RLS needs before
+   tools/supabase-rls-real.sql can safely go live. currentUserId() (app/studio.js) now prefers an
+   account's gotrueId over its username once Supabase Auth sign-in has stamped one (M7 slice 2),
+   so freshly-created rows already carry the id auth.uid() will compare against. A new
+   migrateOwnerToGotrueId() walks connections/dashboards/analyses/jobs (owner) and datasets
+   (acctOwner) and re-stamps any of THIS account's own rows still holding the old username —
+   run once at boot (catching up rows a sync pull brought in from a device that hadn't signed in
+   yet) and again right after a fresh GoTrue sign-in stamps a new gotrueId. Never touches another
+   account's rows (this account has no way to know their gotrueId), and datasets' unrelated
+   free-text `owner` field is left alone — only acctOwner is the identity field there. No new
+   precached files, but app/studio.js content changed, so precached copies need to roll.
+   v143: M7 slice 2 — optional Supabase Auth (GoTrue)
    sign-in. app/sources/supabase.js gains two optional connect-wizard fields (authEmail,
    authPassword); when set, every REST call signs in via the auth token endpoint first and
    sends that session's JWT instead of the anon key, so auth.uid() resolves to a real user.
