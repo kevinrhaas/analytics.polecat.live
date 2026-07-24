@@ -2169,6 +2169,21 @@ function serve() {
     });
     ok("XP: Save writes a self-contained analysis row (embedded data access + chart mapping) that rides the workspace snapshot",
       xpSaved.n === 1 && xpSaved.type === "donut" && xpSaved.hasDa && xpSaved.inSnapshot, JSON.stringify(xpSaved));
+    // QA-05 (Frontend QA report 2026-07-24): the saved-analyses row's pin/add/delete buttons
+    // exposed only ★/▦/✕ to assistive tech (title is not an accessible name) — every action
+    // must name its target object, not just the verb.
+    const xpRowA11y = await page.evaluate(function () {
+      var a = Studio.Workspace.all("analyses").filter(function (x) { return x.name === "Suite analysis"; })[0];
+      var row = document.querySelector('.xp-saved-row[data-xp-a="' + a.id + '"]');
+      return {
+        pin: row && row.querySelector("[data-xp-pin]").getAttribute("aria-label"),
+        dash: row && row.querySelector("[data-xp-dash]").getAttribute("aria-label"),
+        del: row && row.querySelector("[data-xp-del]").getAttribute("aria-label")
+      };
+    });
+    ok("QA-05: saved-analysis row's pin/add-to-dashboard/delete buttons each name the analysis, not just the verb",
+      xpRowA11y.pin === "Pin Suite analysis to Home" && xpRowA11y.dash === "Add Suite analysis to the current dashboard" &&
+      xpRowA11y.del === "Delete Suite analysis", JSON.stringify(xpRowA11y));
     // saved analyses are drag-in objects in the Studio library + addable panels
     const xpLib = await page.evaluate(function () {
       window.__studioShellSetSection("studio");
@@ -11222,6 +11237,20 @@ function serve() {
       ok("H: DA usage badge (.da-usage) appears on myDACard when DA is referenced by panels/KPIs", hUsageResult.ok, JSON.stringify(hUsageResult));
       ok("H: DA usage badge text includes panel or KPI count", hUsageResult.ok && /\d+ (panel|KPI)/.test(hUsageResult.text || ""), JSON.stringify(hUsageResult));
     }
+
+    // QA-05 (Frontend QA report 2026-07-24): myDACard's Duplicate/Delete buttons repeated the
+    // same bare "Duplicate"/"Delete" accessible name for every data source card in the rail —
+    // a screen-reader user with several DAs couldn't tell them apart.
+    const daA11y = await page.evaluate(function () {
+      var sp = window.__STUDIO_STATE.spec;
+      sp.cda.dataAccesses.push({ id: "qa05LibDa", name: "qa05LibDa", kind: "sql", connectionId: "sqlConn", sql: "SELECT 1 AS x FROM t", columns: ["x"], params: [], calcColumns: [], cache: true, cacheDuration: 300 });
+      window.__studioBuildLibrary();
+      var card = [].slice.call(document.querySelectorAll("#libList .da-mine")).find(function (c) { return (c.querySelector(".da-id-nm") || {}).textContent === "qa05LibDa"; });
+      var acts = card ? card.querySelectorAll(".da-mine-acts button") : [];
+      return { found: !!card, dupLabel: acts[0] && acts[0].getAttribute("aria-label"), delLabel: acts[1] && acts[1].getAttribute("aria-label") };
+    });
+    ok("QA-05: myDACard's Duplicate/Delete buttons name the data source, not just the verb",
+      daA11y.found && daA11y.dupLabel === "Duplicate qa05LibDa" && daA11y.delLabel === "Delete qa05LibDa", JSON.stringify(daA11y));
 
     // ---- F9: Network / topology chart ----
     console.log("\n• Network / topology chart (F9)");
@@ -20634,6 +20663,15 @@ function serve() {
       };
     }, { a: cmpIdA, b: cmpIdB });
     ok("N-DATA: 'Compare dashboards' modal opens wide with two dashboard pickers", cmpUI.hasModal && cmpUI.pickerCount === 2 && cmpUI.isWide, JSON.stringify(cmpUI));
+    // QA-05 (Frontend QA report 2026-07-24): the two native <select> pickers had no accessible
+    // label at all — a screen-reader user couldn't tell which picker was which.
+    const cmpPickA11y = await page.evaluate(function () {
+      var modal = document.querySelector(".modal-ov .modal");
+      var sels = modal ? modal.querySelectorAll(".cmp-pick") : [];
+      return { a: sels[0] && sels[0].getAttribute("aria-label"), b: sels[1] && sels[1].getAttribute("aria-label") };
+    });
+    ok("QA-05: Compare dashboards' two pickers are labelled 'Left dashboard' / 'Right dashboard'",
+      cmpPickA11y.a === "Left dashboard" && cmpPickA11y.b === "Right dashboard", JSON.stringify(cmpPickA11y));
     ok("N-DATA: picking two different saved dashboards shows a real diff (title + added panel)",
       cmpUI.rowCount > 0 && cmpUI.mentionsTitle && cmpUI.mentionsPanelAdded, JSON.stringify(cmpUI));
     ok("N-DATA follow-up: a genuine live side-by-side preview renders both dashboards (Studio.buildHtml output, not a static thumbnail) labeled by title",

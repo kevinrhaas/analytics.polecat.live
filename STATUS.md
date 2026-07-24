@@ -116,6 +116,21 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **QA-05 — icon-only action controls now name their target object for assistive tech (v520,
+  sw v159, 2026-07-24, steward, FRONTEND_QA_REPORT_2026-07-24.md):** the report's P2 A11Y
+  finding. Three spots exposed only a symbol or a bare, repeated verb as their accessible
+  name — Explore's saved-analysis row (`★`/`▦`/`✕` — pin/add-to-dashboard/delete), the Studio
+  data rail's per-source card (`myDACard()` in `app/studio.js`, "Duplicate"/"Delete" repeated
+  identically on every card), and the Compare dashboards modal's two native `<select>` pickers
+  (no label at all). `title` doesn't count as an accessible name (unavailable to touch/keyboard
+  users and many screen readers). Fix: every button now gets an object-specific `aria-label`
+  built from the row's own name/id (e.g. `Pin State Map to Home`, `Delete cost_by_source`), and
+  the two compare pickers get `aria-label="Left dashboard"` / `"Right dashboard"`. 3 new
+  regression tests (the saved-analysis row's three action buttons name "Suite analysis"; a
+  fresh `myDACard` names its own id on both Duplicate and Delete; the compare modal's two
+  pickers carry the Left/Right labels). Suite green (1925/1925). sw v159 (no new precached
+  files, app/studio.js content changed). (app/studio.js, tests/run.js, sw.js) NEXT: QA-06
+  (restore-banner overlay) is the next item in the same report.
 - **QA-03 — Explore's featured county demo now opens with a populated choropleth (v518,
   sw v157, 2026-07-24, steward, FRONTEND_QA_REPORT_2026-07-24.md):** the report's P1 BUG,
   a broken first-run path in the primary Explore workflow. Root cause confirmed exactly as
@@ -2351,11 +2366,11 @@
 >       (folder/owner/updated time/panel count/short id) in the compare dialog, Repository, and the
 >       Dashboard catalog picker for names a user typed themselves (analyses are always user-named,
 >       never auto-defaulted, so this slice's create-time fix doesn't reach them).
-> QA-05. P2 A11Y — **icon/action controls lack object-specific accessible names.** Explore saved-
->       analysis buttons expose only `★`/`▦`/`✕`; Studio data-rail repeats bare “Duplicate”/“Delete”;
->       compare selects are unlabelled. FIX: object-specific `aria-label` (“Pin State Map to Home”,
->       “Delete State Map”, “Duplicate cost_by_source”), labelled compare selects; extend the a11y
->       regression checks to these dynamic lists/dialogs. (`title` is not an accessible name.)
+> QA-05. ✓ P2 A11Y — **icon/action controls lack object-specific accessible names (shipped v520,
+>       sw v159, 2026-07-24, steward)** — see DONE for the full writeup. Explore's saved-analysis
+>       pin/add-to-dashboard/delete buttons, the Studio data rail's Duplicate/Delete buttons, and
+>       the Compare dashboards pickers all gained object-specific `aria-label`s. 3 new regression
+>       tests.
 > QA-06. P2 — **restore-unsaved-work banner overlays active controls across unrelated sections**
 >       (covers Explore save/add controls + lower Studio content at desktop width). FIX: reserve
 >       layout space or use a non-blocking notification area; collapse to a compact notice once you
