@@ -5,7 +5,14 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v146"; /* v146: LF2 — a 5th Conservation example, "Provider
+var CACHE_NAME = "studio-shell-v147"; /* v147: LF2 — a 6th Conservation example, "County-Level
+   Outlier Detection" (data/examples/conservation-outliers.studio.json, index.json entry): a
+   county-scale (FIPS) choropleth of the common estimate, a district-level diverging-bar ranking
+   of adoption deviation from the regional baseline (with a real Practice filter), a histogram of
+   the county-level deviation distribution, and a gauge for the share of counties flagged as
+   outliers. New example file + updated index.json need to roll into the precache. docs/index.html
+   changed too (names all 6 showcase dashboards).
+   v146: LF2 — a 5th Conservation example, "Provider
    Agreement Over Time" (data/examples/conservation-agreement.studio.json, index.json entry): an
    ensemble trend against the common estimate, a year × provider agreement heatmap, a yearly-spread
    line, and a per-provider average-deviation bars ranking. New example file + updated index.json

@@ -116,6 +116,33 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF2 — a 6th Conservation example: "County-Level Outlier Detection" (v506, sw v147, 2026-07-24,
+  steward):** `data/examples/conservation-outliers.studio.json` + a new `index.json` entry
+  (`demoPackId: "conservation"`, same pack-gating as the existing 5). Leads with a county-scale
+  (FIPS) choropleth of the provider common estimate (`choropleth`, `seriesCol: provider`, same
+  `crossedRows` crossing as Watershed's HUC8 map — a plain geoid+value DA would decay to a flat
+  tail on the offline mock engine's linear per-row falloff at 132 rows, exactly why the featured
+  demo-pack dashboard's own county map always crosses by provider too). Below it: a district-level
+  (NASS CRD) diverging-bar ranking of adoption deviation from the regional common estimate
+  (`divergingBar`, `adoption_diff_pct` — column name deliberately matches the sampledata.js
+  `variance|delta|diff|change` classify() rule so the offline mock generates real alternating-sign
+  values, not flat zeros), gated by a real Practice filter reusing the Scorecard's exact
+  `WHERE practice LIKE ${practice}` shape (practice is a param only, never an output column — same
+  convention as Scorecard's `by_provider` DA). A histogram of the county-level deviation
+  distribution (`histogram`, 12 bins) and a gauge for the share of counties flagged as outliers
+  (`≥10pt` from the common estimate) round it out — first use of both `histogram` and `divergingBar`
+  chart types across the Conservation showcase set (was: choropleth/ensembleSeries/gauge/bars,
+  scatter/donut/line/bars, ensembleSeries/heatmap/line/bars, gauge/donut/bars/heatmap/bullet,
+  sankey/line/waffle/pareto). 3 new LF2 ratchets (tests/run.js) mirroring the Provider Agreement
+  block: card visible once the pack installs / hidden once removed, the spec loads with title/4
+  panels, the filter is real (`filterIds === ["practice"]`), and the panel chart-type order matches
+  (`choropleth, divergingBar, histogram, gauge`) — plus the pack-agnostic "every example renders
+  every panel with no error" loop (tests/run.js) picks it up automatically via
+  `window.__STUDIO_STATE.examples`. SW cache → v147. docs/index.html's Conservation Insight section
+  updated to name all 6 showcase dashboards (was stale at "five"). NEXT: the LF2 candidate-topic
+  list handed off on 2026-07-22 is now fully worked (scorecard, flow, watershed, cost-share ROI,
+  provider agreement, county outliers) — LF2(c), the generic-examples→"Data Management" demo pack
+  restructure, is the only sub-item left open (deferred, folds into LF16).
 - **LF2 — a 5th Conservation example: "Provider Agreement Over Time" (v505, sw v146, 2026-07-24,
   steward):** `data/examples/conservation-agreement.studio.json` + a new `index.json` entry
   (`demoPackId: "conservation"`, same pack-gating as the existing 4). Leads with an ensemble trend
@@ -2191,7 +2218,7 @@
 >      the existing 8 generic ones) attached to the CONSERVATION demo pack (install/remove with it). (b)
 >      ✓ The conservation example dashboards + pinned analyses must wear the **Conservation** dashboard
 >      theme/palette (or whatever theme is saved) — every conservation-pack object uses the conservation
->      palette, not the default. — **5 of ~8 shipped: Conservation Practice Adoption Scorecard + Crop &
+>      palette, not the default. — **6 of ~8 shipped: Conservation Practice Adoption Scorecard + Crop &
 >      Practice Flow (2026-07-22, steward, see DONE), Watershed-Scale Adoption (2026-07-23, steward) —
 >      a HUC8 choropleth (median-across-providers common estimate) + the ensemble trend behind it + an
 >      overall gauge + a by-provider bar, with a real "Since year" filter, Program Cost-Share ROI
@@ -2200,10 +2227,13 @@
 >      a return-score bars ranking, Provider Agreement Over Time (2026-07-24, steward) — an ensemble
 >      trend against the common estimate, a year×provider agreement heatmap, a yearly-spread line (max
 >      − min provider estimate per year), and a per-provider average-deviation bars ranking, same
->      "Since year" filter convention — gated via the same `demoPackId` support on examples/index.json
->      entries (visibleExamples() in app/studio.js). NEXT: ~3 more CONSERVATION/CTIC examples in the
->      same gated pattern (candidate topics: county-level outlier detection, year-over-year practice
->      switching, a richtext-led narrative overview like feature-showcase.studio.json).**
+>      "Since year" filter convention, County-Level Outlier Detection (2026-07-24, steward) — a
+>      county-scale (FIPS) choropleth of the common estimate, a district-level (CRD) diverging-bar
+>      deviation ranking gated by a real Practice filter, a county-deviation histogram, and an
+>      outlier-share gauge — gated via the same `demoPackId` support on examples/index.json entries
+>      (visibleExamples() in app/studio.js). The originally-named candidate-topic list (county-level
+>      outlier detection, year-over-year practice switching, a richtext-led narrative overview) is now
+>      down to the last 2; NEXT: pick either — or a fresh 8th topic — for the final ~1-2 of the ~8.**
 >      (c) Move the EXISTING generic
 >      examples (Data Governance, Data Platform Ops, Product Delivery, Finance, Marketing, Incident
 >      Response, Sensitivity/Compliance, Interactive Feature Showcase) AND their backing connections/
