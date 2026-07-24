@@ -116,6 +116,32 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **QA-03 — Explore's featured county demo now opens with a populated choropleth (v518,
+  sw v157, 2026-07-24, steward, FRONTEND_QA_REPORT_2026-07-24.md):** the report's P1 BUG,
+  a broken first-run path in the primary Explore workflow. Root cause confirmed exactly as
+  diagnosed: `Studio.newPanel()`'s choropleth branch picked `valueCol` as "the first column
+  that isn't idCol/seriesCol" with no regard for whether it actually looked like a value —
+  for the county demo's `geoid, statecode, provider, pct, acres` columns that landed on
+  `statecode` (a second id-shaped text column) instead of `pct`, so the map opened on
+  "No region values" until the user fixed it by hand. Fix: a new canonical
+  `Studio.guessChoroplethCols(cols)` helper (`app/model.js`) — same idCol/seriesCol regex
+  heuristics as before, but `valueCol` now prefers a value-like name (`value/total/count/
+  sum/avg/amount/revenue/cost/rate/pct/score/qty/num/metric/acres`) among the remaining
+  columns and, failing that, rejects other id/code-shaped names outright rather than just
+  taking the next column in position. `Studio.newPanel`'s choropleth branch and
+  `autoPickCols`'s (`app/studio.js`, the inspector's "Auto-pick columns" button, which had
+  no choropleth branch at all before this and fell through to the wrong labelCol/valueCol
+  fields) now both call the one shared helper, so Explore's default and the manual
+  Auto-pick button can never disagree again — the exact "one canonical routine" the report
+  recommended. 2 new regression tests: an end-to-end one that installs the real demo pack,
+  selects "County cover-crop adoption (demo)" through Explore's actual dataset picker, and
+  asserts the resulting map (`geoid`→Region id, `pct`→Value, `provider`→Series); a unit-
+  level one pinning `Studio.newPanel`/`Studio.guessChoroplethCols` against the dataset's
+  exact literal column list so the old positional fallback can't quietly come back. Suite
+  green (1920/1920). sw v157 (no new precached files; app/model.js + app/studio.js content
+  changed). (app/model.js, app/studio.js, tests/run.js, sw.js) NEXT: QA-04 (duplicate
+  names indistinguishable in pickers/Repository/compare) is the next item in the same
+  report.
 - **QA-02 — credential-storage copy is now state-aware (v517, 2026-07-24, steward,
   FRONTEND_QA_REPORT_2026-07-24.md):** the second P1 SECURITY/TRUST finding. Connections'
   header and the app tour both said "Credentials stay in this browser" unconditionally —
@@ -2296,18 +2322,13 @@
 >       encryption was considered but left as a follow-up (not required by the acceptance
 >       criteria); no change needed to app/sources/sync.js itself — the fix is entirely in how its
 >       state is surfaced. 5 new regression tests.
-> QA-03. ★ P1 BUG — **featured County dataset opens with an invalid choropleth value mapping**
->       (folds with LF32). Explore → “County cover-crop adoption (demo)” correctly picks Map (US
->       choropleth) but auto-maps Value=`statecode` (a text column) instead of `pct`, so the map is
->       EMPTY until the user changes Value to `pct`. ROOT CAUSE: `xpGuessMapping()` delegates to
->       `Studio.newPanel()`’s positional default (2nd column = valueCol) instead of the name+numeric
->       heuristic in `autoPickCols()`. FIX: one canonical column-typing/selection routine shared by
->       Explore defaults AND Studio Auto-pick; prefer numeric-by-sampled-values; for choropleths
->       prefer value-like names (`value/pct/rate/amount/count/acres`) and REJECT columns whose sampled
->       values are non-numeric. Test: selecting that exact demo renders a populated county map with
->       geoid→id, pct→Value, provider→Series (add the real workspace demo dataset, not just a
->       catalog-generated geo sample). This is the precise diagnosis behind LF32’s “Explore-built
->       dashboard didn’t render” half.
+> QA-03. ✓ P1 BUG — **featured County dataset opens with an invalid choropleth value mapping
+>       (shipped v518, 2026-07-24, steward)** — see DONE for the full writeup. A shared
+>       `Studio.guessChoroplethCols()` helper now drives both `Studio.newPanel`'s choropleth
+>       default and `autoPickCols`'s Auto-pick button; Value prefers a value-like column name
+>       and rejects other id/code-shaped columns instead of taking the next one positionally.
+>       2 new regression tests (real demo pack through Explore's picker, plus a unit pin on
+>       the exact column list).
 > QA-04. P2 — **duplicate names are indistinguishable in pickers/Repository/compare** (two “Untitled
 >       Dashboard”, two identically-named Conservation dashboards, two “State Map” analyses). FIX:
 >       every object picker gets a stable disambiguator (workbook/folder, owner, updated time, panel
