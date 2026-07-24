@@ -116,6 +116,21 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **R5+ slice 2 — branding subsystem extracted to its own module (v499, sw v141, 2026-07-24,
+  steward):** the Z12 branding subsystem (`BRAND_MAX_BYTES`/`getBranding`/`setBranding`/
+  `applyBranding` — app-mark default/custom-logo/none, a small data: URL in localStorage) moved
+  out of `app/studio.js` into a new `app/branding.js`, exposing `Studio.Branding = {get,set,apply,
+  MAX_BYTES}`, following the exact module pattern R5+ slice 1's `chart-thumbnails.js` established.
+  `studio.js` now just aliases `var getBranding = Studio.Branding.get` etc. where the functions
+  used to live — every one of the 6 call sites plus the boot-time `applyBranding()` call is
+  unchanged, so no other code moved. `window.__studioBranding` (the Z12 test hook) now lives in
+  the new module instead of studio.js. New script tag in app/index.html (loads right after
+  chart-thumbnails.js, before studio.js) and a new sw.js precache entry. Pure refactor, no
+  behavior change — suite unchanged. (app/branding.js new, app/studio.js, app/index.html, sw.js)
+  NEXT in R5+: ③ defaults/presets config layer (the 8 `default*` getter/setter pairs +
+  stylePresets/templateVarSets/customThemePresets) is the rest of the original ② scope — split
+  off as its own slice since it has far more call sites across studio.js's Settings rendering
+  than branding did.
 - **LF2 — a 3rd Conservation example: "Watershed-Scale Adoption" (v496, 2026-07-23, steward):**
   `data/examples/conservation-watershed.studio.json` + a new `index.json` entry (`demoPackId:
   "conservation"`, same pack-gating as the existing 2). Leads with a full-width HUC8 choropleth
@@ -2602,8 +2617,10 @@
 >      ⚠️ The broader geometry/font shell-alignment (adopt the fleet's Inter face + 14/20px
 >      radius scale vs keep the current system-font/11px divergence) is still a **visual-
 >      identity call — PAUSE for Kevin**, untouched here.
-> UX10. **Empty-state polish:** replace the bare `<p>Loading…</p>` in `secHome`/`secSettings` with a
->       skeleton or the branded `.sec-empty-ic` treatment (first thing seen on a cold load). (index.html, studio.css)
+> UX10. ✓ **Empty-state polish — DONE (shipped, PR #174, "cold-load skeleton for Home/Settings/
+>       Admin").** `secHome`/`secSettings`/`secAdmin` show the branded `.sec-empty-ic` + a
+>       `.sec-skel` shimmer skeleton on cold load instead of bare text. (Correcting this entry's
+>       checkbox 2026-07-24, steward — the work had already shipped but wasn't marked here.)
 > UX11. ✓ **Conservation as an app Color theme — DONE, see DONE (v473, 2026-07-23, steward).**
 >       Settings → Appearance's Color theme picker gained a fourth card, Conservation, wearing the
 >       CTIC field-green/deep-pine look — same palette as the dashboard Conservation theme, wired
@@ -2658,13 +2675,15 @@
 >      each:** ① ✓ chart-thumbnail SVGs — DONE, see DONE (v477, 2026-07-23, steward): the ~225-line
 >      `CHART_SVG` table now lives in `app/chart-thumbnails.js` (`Studio.CHART_SVG`), the first
 >      ES-module `app/*.js` extraction off studio.js, establishing the module pattern the rest of
->      this track follows — sw v119. → ② branding/
->      defaults/presets config layer → ③ celebrations/milestones → ④ versions/notes/diff modals →
->      ⑤ the Explore `XP` subsystem (own namespace; preserve the analysis→spec add + `homeLiveFrame`
->      reuse seams) → ⑥ the data-plane panels LAST (Jobs → Connections → Datasets; Datasets last because
+>      this track follows — sw v119. ② ✓ branding — DONE, see DONE (v499, sw v141, 2026-07-24,
+>      steward): `app/branding.js` (`Studio.Branding`). → ③ defaults/presets config layer (split off
+>      the rest of the original ② scope — more call sites across Settings rendering) → ④
+>      celebrations/milestones → ⑤ versions/notes/diff modals →
+>      ⑥ the Explore `XP` subsystem (own namespace; preserve the analysis→spec add + `homeLiveFrame`
+>      reuse seams) → ⑦ the data-plane panels LAST (Jobs → Connections → Datasets; Datasets last because
 >      `runDataset`/`window.__studioRunDataset` bridges back into the builder preview). These are
->      lane-hot files — schedule each when the feature lane isn't mid-slice in that area. NEXT: ②
->      branding/defaults/presets config layer.
+>      lane-hot files — schedule each when the feature lane isn't mid-slice in that area. NEXT: ③
+>      defaults/presets config layer.
 
 ### ★★★★★ CONSERVATION INSIGHT PRODUCT PLATFORM (2026-07-21, user-directed — NOW THE TOP PRIORITY)
 > Kevin's big charter: turn Analytics into a multi-user, permissioned product. Decisions locked

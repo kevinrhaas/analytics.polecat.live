@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 499,
+    title: 'Tech debt: app branding settings move to their own module',
+    kind: 'polish',
+    ts: '2026-07-24T02:01:06.000Z',
+    items: [
+      'Behind-the-scenes cleanup only -- the app-mark branding settings (Settings > Branding) now live in their own file instead of inside the main app controller. No visible change.',
+    ],
+  },
+  {
     v: 498,
     title: 'Fixed: choropleth maps in Studio now show state borders, matching the interactive map',
     kind: 'fix',

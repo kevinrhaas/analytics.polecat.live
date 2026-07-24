@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v140"; /* v140: LF4(c) — the SVG choropleth renderer's "State
+var CACHE_NAME = "studio-shell-v141"; /* v141: R5+ slice 2 (tech-debt module-extraction track) —
+   the Z12 branding subsystem (BRAND_MAX_BYTES/getBranding/setBranding/applyBranding) moved out of
+   studio.js into its own app/branding.js, following the chart-thumbnails.js (①) extraction
+   precedent — pure config + one DOM write, no dependency on builder state. studio.js's call sites
+   are unchanged (aliased locally to Studio.Branding.*); window.__studioBranding now lives in the
+   new module. app/index.html gained the new script tag, so precached copies need to roll.
+   v140: LF4(c) — the SVG choropleth renderer's "State
    border overlay" toggle never actually drew anything: geom2path() (app/studio-charts.js) only
    handled Polygon/MultiPolygon geometry, but topojson.mesh() (used to build the state-line
    overlay, and the GL renderer's own border layer) returns LineString/MultiLineString — an
@@ -643,6 +649,7 @@ var SHELL_FILES = [
   "js/changelog.js",
   "app/shell.js",
   "app/chart-thumbnails.js",
+  "app/branding.js",
   "app/studio.js",
   "app/palette.js",
   "app/studio-render.js",
