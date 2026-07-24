@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 516,
+    title: 'Connection credential fields no longer risk an unrelated autofilled secret',
+    kind: 'fix',
+    ts: '2026-07-24T17:07:56.000Z',
+    items: [
+      'Opening a brand-new connection (a data source like BigQuery, or a workspace backend like Turso/Supabase) could have its secret field silently filled by an unrelated saved password from your browser -- the field had no stable id/name and told the browser "autocomplete=off", which most password managers ignore on password-typed fields. Every credential field now gets a stable, connector-specific id/name plus the correct "new-password" signal, and a brand-new connection\'s secret field always renders empty and stays read-only until you deliberately click into it. Editing an existing connection is unaffected -- its own saved secret still shows as before.',
+    ],
+  },
+  {
     v: 515,
     title: 'Branding is now an app-wide Admin setting — with a customizable rail name and a matching favicon',
     kind: 'feature',

@@ -116,6 +116,31 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **QA-01 — connection credential inputs can no longer be silently filled by an unrelated
+  password-manager entry (v516, sw v155, 2026-07-24, steward, FRONTEND_QA_REPORT_2026-07-24.md):**
+  the report's top-priority P1 security finding. Root cause: every credential input (BigQuery OAuth
+  token, Turso/Supabase/Firebase secrets, etc.) rendered with `type=password autocomplete=off` and
+  no `id`/`name` — most password managers ignore `autocomplete=off` on password-typed fields, and
+  with no distinguishing id/name to key off of they can match ANY saved password, so opening a
+  brand-new connection form could arrive pre-filled with a credential the user never entered. Two
+  near-identical code paths shared this bug: `openConnectionWizard`'s `step2()` (data-adapter
+  connections — Connections → New connection) and `openBackendWizard`'s `credsStep()` (the
+  workspace-backend connect wizard, reachable from Settings AND the sign-in screen's "Connect to
+  your workspace" link) — both now go through one new shared helper, `credentialFieldInput()`. Every
+  secret field gets a stable, connector-specific `id`/`name` (e.g. `cx-cred-bigquery-token`) and
+  `autocomplete="new-password"` (the correct signal for "this is not a login to autofill"). For a
+  BRAND-NEW connection the secret field additionally renders empty and `readOnly`, lifted only by a
+  real `focus` event — browsers don't passively autofill a readonly field on render, so this blocks
+  the exact bug reported without blocking a user who deliberately clicks in and picks a suggestion
+  afterward. Editing an EXISTING connection is unaffected — its already-saved secret still prefills,
+  since that's an intentional reveal of the user's own stored credential, not autofill. 4 new
+  regression tests (fresh BigQuery connection's token field is empty/readonly/new-password with a
+  connector-specific id; focusing it lifts readonly so the user can type; editing an existing
+  connection still prefills its saved secret unaffected; the workspace-backend wizard's Turso token
+  field gets the identical treatment). Suite green (1909/1909). sw v155 (app/studio.js content
+  changed, no new precached files). (app/studio.js, tests/run.js, sw.js) NEXT: QA-02 (state-aware
+  "where are my credentials stored" copy) is the next P1 SECURITY item in the same report, followed
+  by QA-03 (P1 BUG, Explore's choropleth value-mapping default).
 - **Branding is now an app-wide ADMIN setting + rail suite-name + favicon sync (v515, sw v154,
   2026-07-24, steward, Kevin live):** the app-mark branding card moved OUT of personal Settings
   INTO the Admin section (admin-only) — it changes what every visitor sees, so it's app-wide, not
@@ -2231,16 +2256,14 @@
 > production testing on top of a green suite. Work these as normal steward slices; the two
 > P1 SECURITY items (QA-01/QA-02) and the broken-first-run QA-03 lead. Each finding names its
 > own acceptance criteria + a regression test to add — honor both; never weaken assertions.
-> QA-01. ★ P1 SECURITY — **credential inputs accept unrelated password-manager autofill.** New
->       credentialed adapter forms (e.g. BigQuery OAuth token) render with a secret pre-filled by
->       the browser password manager: the field is `type=password autocomplete=off` with no `id`/
->       `name`, so managers ignore `off` and inject an unrelated secret — a user could save/test a
->       connection with the wrong credential, which could then sync to the backend. FIX: stable
->       connector-specific `id`+`name` on every secret input; `autocomplete="new-password"` not
->       `off`; render secrets empty (consider readonly-until-focus); never treat an autofilled value
->       as user-confirmed — require explicit interaction before Test/Add when a secret is present on
->       first render. Area: app/studio.js `credsStep()`, app/sources/data-adapters.js. Test: a
->       pre-populated secret input cannot be silently persisted.
+> QA-01. ✓ P1 SECURITY — **credential inputs accept unrelated password-manager autofill (shipped
+>       v516, 2026-07-24, steward)** — see DONE for the full writeup. Fixed in BOTH credential
+>       wizards (the data-adapter connection wizard's `step2()` AND the workspace-backend wizard's
+>       `credsStep()`, same bug shape in each): every secret input now gets a stable connector-
+>       specific id/name + `autocomplete="new-password"`, and a brand-new connection's secret field
+>       renders empty and stays `readOnly` until a real `focus` event lifts it (blocks passive
+>       autofill-on-render without blocking a user who deliberately clicks in). Editing an existing
+>       connection is unchanged. 4 new regression tests.
 > QA-02. ★ P1 SECURITY/TRUST — **“Credentials stay in this browser” copy conflicts with backend
 >       sync.** Connections + tutorial say credentials stay local, but workspace sync mirrors
 >       connection rows to the selected backend, and with encryption OFF the secret values are
