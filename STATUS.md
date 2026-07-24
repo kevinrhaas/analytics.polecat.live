@@ -3313,18 +3313,24 @@
 >     itself hits Postgres' "infinite recursion detected in policy" (the subquery re-applies the
 >     same policy it's part of) — fixed with a `SECURITY DEFINER` helper function owned by the table
 >     owner, which Postgres doesn't RLS-restrict by default, so the internal lookup bypasses the
->     policy instead of recursing into it. **Still open, found while designing this slice:**
->     `initAuthBoot` (app/studio.js) mirrors EVERY locally-known account into the workspace `users`
->     table on every boot, not just the caller's own row — a self-row-only write policy would
->     silently drop a non-admin's writes to rows it doesn't own (RLS filters them, PostgREST reports
->     0 rows patched, no error). Scoping that mirror to the caller's own row is its own app-side
->     slice, needed before this policy is safe to flip live — see the new block's header comment in
->     `tools/supabase-rls-real.sql` for the full writeup. **`tools/supabase-rls-real.sql` now has a
->     complete, proven design for all six tables — genuinely nothing else to design.** What remains
->     for M7 to go live is the `initAuthBoot` scoping fix above, then actually flipping
->     `supabase-bootstrap.sql`'s live "allow all" policy to the real one — its own careful,
->     deliberate action, do that only with Kevin's awareness given it changes live production
->     security posture.
+>     policy instead of recursing into it. **Open item found while designing this slice, now fixed
+>     (see Slice 5 below):** `initAuthBoot` (app/studio.js) mirrored EVERY locally-known account into
+>     the workspace `users` table on every boot, not just the caller's own row — a self-row-only
+>     write policy would silently drop a non-admin's writes to rows it doesn't own (RLS filters them,
+>     PostgREST reports 0 rows patched, no error). **`tools/supabase-rls-real.sql` now has a complete,
+>     proven design for all six tables — genuinely nothing else to design.**
+>     ↳ **Slice 5 (`initAuthBoot` scoped to the caller's own row, shipped 2026-07-24, steward — the
+>     last app-side M7 prerequisite):** boot (and post-sign-in) now mirrors only the signed-in
+>     account's own row into the workspace `users` table via a new shared `mirrorUserRow(u)` helper,
+>     instead of re-upserting every locally-known account. The Admin console's add/edit flow
+>     (`openUserEditor`) still explicitly mirrors the affected OTHER account's row after
+>     `PolecatAuth.upsert` — that write is a real admin action, which the proven policy separately
+>     grants (admin sees/edits every row), so it stays safe once the policy goes live. 2 updated M3.1
+>     ratchets (logging in as admin then demo now shows each boot mirrors only that one account's row,
+>     hash included; admin's row never appears from a demo boot and vice versa until that account
+>     itself signs in). **What remains for M7 to go live is only flipping
+>     `supabase-bootstrap.sql`'s live "allow all" policy to the real one — its own careful, deliberate
+>     action, do that only with Kevin's awareness given it changes live production security posture.**
 > Also: add MORE crop/geo sample sets as the demo matures (Kevin). "Eventually polecat overall"
 > for the auth/user model — keep the users/permissions design app-neutral where cheap.
 

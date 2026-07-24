@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 513,
+    title: 'M7: closed the last gap before the account-list security rule can go live',
+    kind: 'polish',
+    ts: '2026-07-24T14:33:09.000Z',
+    items: [
+      'No app change you\'ll see -- more backend groundwork for the Supabase real-security milestone (M7). Previously, every device quietly re-saved every account it knew about (not just its own) each time the app started, which would have silently broken for anyone who isn\'t an administrator once the new account-list security rule (shipped last update) goes live. Now each device only ever re-saves its own account on startup; an administrator adding or editing someone else\'s account from the Admin page still works exactly as before.',
+    ],
+  },
+  {
     v: 512,
     title: 'M7: the users table\'s own database security rule, designed and proven (not yet live)',
     kind: 'polish',

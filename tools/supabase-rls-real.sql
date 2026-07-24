@@ -19,12 +19,12 @@
 --      a UUID; a plain-text stored owner value never gets that far). ✓
 --      shipped M7 slice 3 (migrateOwnerToGotrueId, runs at boot + post-sign-in).
 -- What's STILL open before this can go live: the `users` table needs its own
--- policy (added at the bottom of this file, 2026-07-24) plus an app-side fix
--- to `initAuthBoot` documented in that block's header, and — regardless of
--- app readiness — actually flipping `supabase-bootstrap.sql`'s live "allow
--- all" policy to any of the real ones below is its own careful, deliberate
--- action: do that only with Kevin's awareness, given it changes live
--- production security posture.
+-- policy (added at the bottom of this file, 2026-07-24) — its app-side
+-- `initAuthBoot` prerequisite has since SHIPPED (see that block's header) —
+-- and, regardless of app readiness, actually flipping
+-- `supabase-bootstrap.sql`'s live "allow all" policy to any of the real ones
+-- below is its own careful, deliberate action: do that only with Kevin's
+-- awareness, given it changes live production security posture.
 --
 -- Design proven empirically against the real project 2026-07-24 (steward
 -- run) in an isolated `steward_test` schema — mirrored one workspace table,
@@ -89,20 +89,18 @@ NOTIFY pgrst, 'reload schema';
 -- DO NOT RUN THIS AGAINST THE LIVE PROJECT YET EITHER. Same two prerequisites
 -- as the rest of this file (GoTrue sign-in wired in — shipped M7 slice 2 —
 -- and rows carrying a real gotrueId — shipped M7 slice 3 for the OTHER five
--- tables' owner/acctOwner fields) PLUS a third, `users`-specific one that is
--- still open: today `initAuthBoot` (app/studio.js) mirrors EVERY locally-known
--- account into the workspace `users` table on every boot (not just the
--- signed-in user's own row) — an ordinary viewer's client currently UPSERTs
--- rows it doesn't own. The self-row-only write policy below would silently
--- drop those foreign-row upserts (RLS just filters them, PostgREST returns
--- 0 rows patched, no error), so an admin's edits made through the Admin
--- console (which also writes any account's row) would appear to succeed
--- client-side while the database quietly rejects a non-admin's copy of the
--- same write. Fixing that is its own app-side slice (scope initAuthBoot's
--- mirror to the caller's own row only; keep the Admin console's cross-user
--- writes, since real admins pass the policy's admin branch) — do that BEFORE
--- flipping this one live, and only actually apply any of this with Kevin's
--- awareness given it changes live production security posture.
+-- tables' owner/acctOwner fields) PLUS a third, `users`-specific one, now also
+-- shipped (2026-07-24, steward): `initAuthBoot` (app/studio.js) used to mirror
+-- EVERY locally-known account into the workspace `users` table on every boot
+-- (not just the signed-in user's own row) — an ordinary viewer's client would
+-- have UPSERTed rows it doesn't own. The self-row-only write policy below
+-- would have silently dropped those foreign-row upserts (RLS just filters
+-- them, PostgREST returns 0 rows patched, no error). `initAuthBoot` now
+-- mirrors only the caller's own row on boot; the Admin console's cross-user
+-- add/edit still explicitly mirrors the affected OTHER account's row (a real
+-- admin passes the policy's admin branch, so that write is safe once this is
+-- live). Only actually apply any of this with Kevin's awareness given it
+-- changes live production security posture.
 --
 -- Design proven empirically against the real project 2026-07-24 (steward run,
 -- same throwaway-schema method as above): an anonymous session saw zero rows;
