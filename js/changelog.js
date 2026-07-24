@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 502,
+    title: 'M7: optional real Supabase Auth sign-in for the Supabase workspace backend',
+    kind: 'feature',
+    ts: '2026-07-24T05:52:54.000Z',
+    items: [
+      'The Supabase connect wizard gained two optional fields, an email and password for a real Supabase Auth account -- leave them blank and nothing changes; fill them in and Studio signs in for real, so the database can tell who you are instead of treating every request as anonymous. This is groundwork for the upcoming enforced per-user privacy milestone, not a visible change on its own.',
+    ],
+  },
+  {
     v: 501,
     title: 'Tech debt: dashboard style defaults and preset collections move to their own module',
     kind: 'polish',

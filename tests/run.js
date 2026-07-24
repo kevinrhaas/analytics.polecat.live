@@ -136,15 +136,43 @@ function handleMockPostgrest(req, rep, p) {
 // required" even for an otherwise-VALID new-format publishable key — only a
 // per-table query still works with it (404 relation-missing, not 401). A
 // genuinely wrong key gets 401 "Invalid API key" everywhere, root or table.
+// mock GoTrue password sign-in (app/sources/supabase.js ensureSession/signIn):
+// a fixed email/password pair succeeds with an access_token + a real-shaped
+// user.id (what auth.uid() resolves to); anything else fails like a real
+// wrong-credentials response. "secure_check" is a fake protected table that
+// only accepts that exact access_token as its Bearer — proves a signed-in
+// adapter call actually swaps the anon key for the JWT, not just requests it.
+const MOCK_GOTRUE_EMAIL = "owner@example.com";
+const MOCK_GOTRUE_PASSWORD = "secret123";
+const MOCK_GOTRUE_TOKEN = "mock-gotrue-access-token";
+const MOCK_GOTRUE_USER_ID = "11111111-1111-1111-1111-111111111111";
 function handleMockSupabase(req, rep, p) {
   const send = (code, body) => {
     rep.writeHead(code, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "*" });
     rep.end(JSON.stringify(body));
   };
   if (req.method === "OPTIONS") return send(200, {});
+  const rel = p.replace(/^\/__supabase\/?/, "");
+  if (rel === "auth/v1/token") {
+    const key = req.headers.apikey || "";
+    if (key !== "sb_publishable_valid") return send(401, { error: "invalid api key" });
+    let body = "";
+    req.on("data", (c) => (body += c));
+    return req.on("end", () => {
+      let creds = {};
+      try { creds = JSON.parse(body || "{}"); } catch (e) {}
+      if (creds.email === MOCK_GOTRUE_EMAIL && creds.password === MOCK_GOTRUE_PASSWORD) {
+        return send(200, { access_token: MOCK_GOTRUE_TOKEN, token_type: "bearer", expires_in: 3600, refresh_token: "mock-refresh", user: { id: MOCK_GOTRUE_USER_ID, email: creds.email } });
+      }
+      return send(400, { error: "invalid_grant", error_description: "Invalid login credentials" });
+    });
+  }
   const key = req.headers.apikey || "";
   if (key !== "sb_publishable_valid") return send(401, { message: "Invalid API key" });
-  const rel = p.replace(/^\/__supabase\/?/, "");
+  if (rel === "rest/v1/secure_check") {
+    if (req.headers.authorization !== "Bearer " + MOCK_GOTRUE_TOKEN) return send(401, { message: "JWT invalid" });
+    return send(200, [{ ok: true }]);
+  }
   if (!rel) return send(401, { message: "Secret API key required", hint: "Only secret API keys can be used for this endpoint." });
   return send(404, { code: "PGRST205", message: "Could not find the table 'public." + decodeURIComponent(rel.split("?")[0]) + "' in the schema cache" });
 }
@@ -3743,6 +3771,44 @@ function serve() {
     });
     ok("SUPABASE: testData validates a new-format publishable key past the REST root's 'Secret API key required' lockdown, and still rejects a genuinely bad key",
       wsSupabaseKeyFmt.goodOk && wsSupabaseKeyFmt.badOk === false && /401/.test(wsSupabaseKeyFmt.badErr), JSON.stringify(wsSupabaseKeyFmt));
+
+    // ---- SUPABASE: optional Supabase Auth (GoTrue) sign-in (M7 slice 2) ----
+    // authEmail/authPassword are new OPTIONAL cfg fields — omitting them keeps
+    // every existing call anon-key-only (no regression); setting them signs in
+    // via /auth/v1/token and swaps the Bearer token on every REST call after.
+    const wsSupabaseAuth = await page.evaluate(async function () {
+      var sb = Studio.supabaseSource;
+      var base = location.origin + "/__supabase";
+      var noAuthCfg = { url: base, key: "sb_publishable_valid" };
+      var noAuth = await sb.signIn(noAuthCfg);
+      // Before signing in, a table read against the JWT-gated table is rejected
+      // (still using the plain anon key).
+      var beforeSignIn = await sb.queryData(noAuthCfg, { kind: "table", table: "secure_check" });
+      // Wrong password, checked BEFORE any successful sign-in for this email is
+      // cached, so it genuinely round-trips to the mock rather than reusing a
+      // cached session.
+      var badCfg = { url: base, key: "sb_publishable_valid", authEmail: "owner@example.com", authPassword: "wrong" };
+      var bad = await sb.signIn(badCfg);
+      var goodCfg = { url: base, key: "sb_publishable_valid", authEmail: "owner@example.com", authPassword: "secret123" };
+      var good = await sb.signIn(goodCfg);
+      // Same call as above, now signed in — rest() picks up the cached session
+      // and sends the JWT instead of the anon key, so it succeeds this time.
+      var afterSignIn = await sb.queryData(goodCfg, { kind: "table", table: "secure_check" });
+      return {
+        noAuthOk: noAuth.ok, noAuthUserId: noAuth.userId,
+        goodOk: good.ok, goodUserId: good.userId,
+        badOk: bad.ok, badErr: bad.error || "",
+        beforeErr: beforeSignIn.error || "", afterCols: afterSignIn.columns, afterRows: afterSignIn.rows
+      };
+    });
+    ok("SUPABASE AUTH: signIn is a no-op (ok, userId:null) when authEmail/authPassword aren't set — existing anon-key-only connections are unaffected",
+      wsSupabaseAuth.noAuthOk === true && wsSupabaseAuth.noAuthUserId === null, JSON.stringify(wsSupabaseAuth));
+    ok("SUPABASE AUTH: signIn exchanges valid authEmail/authPassword for a real auth.uid()",
+      wsSupabaseAuth.goodOk === true && wsSupabaseAuth.goodUserId === "11111111-1111-1111-1111-111111111111", JSON.stringify(wsSupabaseAuth));
+    ok("SUPABASE AUTH: a wrong password fails clearly instead of silently falling back to the anon key",
+      wsSupabaseAuth.badOk === false && /sign-in failed/i.test(wsSupabaseAuth.badErr), JSON.stringify(wsSupabaseAuth));
+    ok("SUPABASE AUTH: a JWT-gated table rejects the plain anon key before sign-in, and succeeds once signed in — proving rest() actually swaps the Bearer token",
+      /401/.test(wsSupabaseAuth.beforeErr) && wsSupabaseAuth.afterCols.length === 1 && wsSupabaseAuth.afterRows[0][0] === true, JSON.stringify(wsSupabaseAuth));
 
     // ---- CX: Connections section (list, pills, wizard) ----
     console.log("\n• CX: Connections section");
