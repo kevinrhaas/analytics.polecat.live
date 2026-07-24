@@ -2327,7 +2327,7 @@
 >      the existing 8 generic ones) attached to the CONSERVATION demo pack (install/remove with it). (b)
 >      ✓ The conservation example dashboards + pinned analyses must wear the **Conservation** dashboard
 >      theme/palette (or whatever theme is saved) — every conservation-pack object uses the conservation
->      palette, not the default. — **6 of ~8 shipped: Conservation Practice Adoption Scorecard + Crop &
+>      palette, not the default. — **7 of ~8 shipped: Conservation Practice Adoption Scorecard + Crop &
 >      Practice Flow (2026-07-22, steward, see DONE), Watershed-Scale Adoption (2026-07-23, steward) —
 >      a HUC8 choropleth (median-across-providers common estimate) + the ensemble trend behind it + an
 >      overall gauge + a by-provider bar, with a real "Since year" filter, Program Cost-Share ROI
@@ -2339,10 +2339,15 @@
 >      "Since year" filter convention, County-Level Outlier Detection (2026-07-24, steward) — a
 >      county-scale (FIPS) choropleth of the common estimate, a district-level (CRD) diverging-bar
 >      deviation ranking gated by a real Practice filter, a county-deviation histogram, and an
->      outlier-share gauge — gated via the same `demoPackId` support on examples/index.json entries
->      (visibleExamples() in app/studio.js). The originally-named candidate-topic list (county-level
->      outlier detection, year-over-year practice switching, a richtext-led narrative overview) is now
->      down to the last 2; NEXT: pick either — or a fresh 8th topic — for the final ~1-2 of the ~8.**
+>      outlier-share gauge, Year-over-Year Practice Switching (2026-07-24, steward) — a stacked-area
+>      view of the practice mix by year, a bump-chart ranking of adoption share (who rose, who fell),
+>      a 2015-vs-2025 slope comparison per practice, and a switched-acres gauge, gated by a real Crop
+>      filter — first use of the areaStacked/bump/slope chart types in the Conservation set — all
+>      gated via the same `demoPackId` support on examples/index.json entries (visibleExamples() in
+>      app/studio.js). The originally-named candidate-topic list (county-level outlier detection,
+>      year-over-year practice switching, a richtext-led narrative overview) is now down to the last
+>      1; NEXT: the richtext-led narrative overview — or call (a) done at 7/8, it already covers every
+>      distinct chart family the CTIC RFP demo needs.**
 >      (c) Move the EXISTING generic
 >      examples (Data Governance, Data Platform Ops, Product Delivery, Finance, Marketing, Incident
 >      Response, Sensitivity/Compliance, Interactive Feature Showcase) AND their backing connections/

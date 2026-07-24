@@ -1,0 +1,82 @@
+{
+  "schema": 1,
+  "id": "showcase-conservation-switching",
+  "name": "conservation-switching",
+  "title": "Conservation Insight — Year-over-Year Practice Switching",
+  "subtitle": "how the practice mix shifts from year to year, and which practices are gaining or losing ground",
+  "group": "Conservation",
+  "demoPackId": "conservation",
+  "description": "A conservation-insight showcase focused on practice switching over time — a stacked-area view of the practice mix by year, a ranking of practices by adoption share showing who rose and who fell, a before/after slope comparing each practice's share in 2015 vs 2025, and the overall share of acres that moved to a different practice since the baseline year.",
+  "cda": {
+    "connection": { "id": "pdc", "jndi": "PDC-BIDB-EXT" },
+    "dataAccesses": [
+      {
+        "id": "kpi", "name": "SwitchingKPI", "params": [], "cache": true, "cacheDuration": 120,
+        "sql": "SELECT ROUND(AVG(net_shift_pct),1) AS net_shift_pct, COUNT(DISTINCT practice) AS practice_count, COUNT(DISTINCT year) AS years_tracked_count, ROUND(MAX(gain_pct),1) AS biggest_gain_pct FROM v_practice_mix_by_year",
+        "columns": ["net_shift_pct", "practice_count", "years_tracked_count", "biggest_gain_pct"]
+      },
+      {
+        "id": "mix", "name": "PracticeMixByYear", "params": [{ "name": "crop", "type": "String", "default": "%" }], "cache": true, "cacheDuration": 180,
+        "sql": "SELECT year, ROUND(AVG(covercrop_pct),1) AS covercrop_pct, ROUND(AVG(notill_pct),1) AS notill_pct, ROUND(AVG(reducedtill_pct),1) AS reducedtill_pct, ROUND(AVG(conventional_pct),1) AS conventional_pct FROM v_practice_mix_by_year WHERE crop LIKE ${crop} GROUP BY 1 ORDER BY 1",
+        "columns": ["year", "covercrop_pct", "notill_pct", "reducedtill_pct", "conventional_pct"]
+      },
+      {
+        "id": "crop_filter", "name": "CropOptions", "params": [], "cache": true, "cacheDuration": 300,
+        "sql": "SELECT DISTINCT crop FROM v_practice_mix_by_year ORDER BY 1",
+        "columns": ["crop"]
+      },
+      {
+        "id": "shift", "name": "PracticeShift2015to2025", "params": [{ "name": "crop", "type": "String", "default": "%" }], "cache": true, "cacheDuration": 180,
+        "sql": "SELECT practice, ROUND(AVG(pct_2015),1) AS pct_2015, ROUND(AVG(pct_2025),1) AS pct_2025 FROM v_practice_shift WHERE crop LIKE ${crop} GROUP BY 1",
+        "columns": ["practice", "pct_2015", "pct_2025"]
+      },
+      {
+        "id": "switch_share", "name": "AcresSwitchedSharePct", "params": [], "cache": true, "cacheDuration": 180,
+        "sql": "SELECT ROUND(100.0 * SUM(acres_switched) / SUM(acres_total),1) AS switched_share_pct FROM v_practice_switch_acres",
+        "columns": ["switched_share_pct"]
+      }
+    ]
+  },
+  "filters": [
+    { "id": "crop", "da": "crop_filter", "label": "Crop", "valueCol": "crop", "textCol": "crop", "allLabel": "All crops", "def": "%" }
+  ],
+  "kpis": [
+    { "da": "kpi", "valueCol": "net_shift_pct", "label": "Net Shift to Conservation Practices", "fmt": "pct", "state": "good", "info": "Net percentage-point move toward cover crops and reduced tillage, away from conventional, since the baseline year." },
+    { "da": "kpi", "valueCol": "practice_count", "label": "Practices Tracked", "fmt": "n", "state": "purple", "info": "Distinct tillage/cover practices followed across the time series." },
+    { "da": "kpi", "valueCol": "years_tracked_count", "label": "Years Tracked", "fmt": "n", "state": "", "info": "Distinct years represented in the practice-mix series." },
+    { "da": "kpi", "valueCol": "biggest_gain_pct", "label": "Largest Single-Year Gain", "fmt": "pct", "state": "warn", "info": "The single biggest year-over-year gain posted by any one practice." }
+  ],
+  "gridCols": 3,
+  "panels": [
+    {
+      "id": "p_mix", "title": "Practice Mix by Year", "span": "full", "pill": "%", "sub": "responds to the Crop filter above",
+      "info": "Share of acres in each practice, year over year — the widening/narrowing bands show the mix shifting.", "src": "v_practice_mix_by_year",
+      "chart": { "type": "areaStacked", "da": "mix", "map": { "labelCol": "year", "series": [
+        { "col": "covercrop_pct", "name": "Cover crops" },
+        { "col": "notill_pct", "name": "No-till" },
+        { "col": "reducedtill_pct", "name": "Reduced tillage" },
+        { "col": "conventional_pct", "name": "Conventional" }
+      ] }, "opts": { "smooth": false, "showLegend": true, "fmt": "pct", "height": 300 } }
+    },
+    {
+      "id": "p_rank", "title": "Practice Ranking by Adoption Share", "span": 2, "pill": "rank", "sub": "who rose, who fell",
+      "info": "Each practice's rank by adoption share, year over year — crossing lines show a practice overtaking another.", "src": "v_practice_mix_by_year",
+      "chart": { "type": "bump", "da": "mix", "map": { "labelCol": "year", "series": [
+        { "col": "covercrop_pct", "name": "Cover crops" },
+        { "col": "notill_pct", "name": "No-till" },
+        { "col": "reducedtill_pct", "name": "Reduced tillage" },
+        { "col": "conventional_pct", "name": "Conventional" }
+      ] }, "opts": { "showRankNumbers": true, "fmt": "pct", "height": 300 } }
+    },
+    {
+      "id": "p_shift", "title": "Adoption Shift: 2015 vs 2025", "span": 1, "pill": "%", "sub": "responds to the Crop filter above",
+      "info": "Each practice's share of acres in 2015 vs 2025 — the steeper the line, the bigger the swing.", "src": "v_practice_shift",
+      "chart": { "type": "slope", "da": "shift", "map": { "labelCol": "practice", "valueCol1": "pct_2015", "valueCol2": "pct_2025" }, "opts": { "t1": "2015", "t2": "2025", "fmt": "pct", "height": 300 } }
+    },
+    {
+      "id": "p_switchgauge", "title": "Acres That Switched Practices", "span": 1, "pill": "%", "sub": "since 2015",
+      "info": "Share of tracked acres that moved to a different practice at least once since the baseline year.", "src": "v_practice_switch_acres",
+      "chart": { "type": "gauge", "da": "switch_share", "map": { "valueCol": "switched_share_pct" }, "opts": { "max": 100, "fmt": "pct", "height": 300 } }
+    }
+  ]
+}

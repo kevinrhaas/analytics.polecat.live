@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 511,
+    title: 'A 7th Conservation showcase example: Year-over-Year Practice Switching',
+    kind: 'feature',
+    ts: '2026-07-24T11:41:14.000Z',
+    items: [
+      'The Examples gallery\'s Conservation demo pack gains a 7th showcase dashboard -- a stacked-area view of the practice mix by year, a bump-chart ranking of adoption share showing who rose and who fell, a 2015-vs-2025 slope comparing each practice\'s share before and after, and a gauge for the share of acres that switched practices -- alongside the existing scorecard, crop/practice flow, watershed-scale, cost-share ROI, provider-agreement, and outlier-detection views.',
+    ],
+  },
+  {
     v: 510,
     title: 'Tech debt: celebration/milestone toasts move to their own module',
     kind: 'polish',

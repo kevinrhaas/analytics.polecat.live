@@ -166,5 +166,15 @@
     "gridCols": 3,
     "types": ["choropleth", "divergingBar", "histogram", "gauge"],
     "layout": [["choropleth", "full"], ["divergingBar", 2], ["histogram", 1], ["gauge", 1]]
+  },
+  {
+    "file": "conservation-switching.studio.json",
+    "title": "Conservation Insight — Year-over-Year Practice Switching",
+    "demoPackId": "conservation",
+    "panels": 4,
+    "kpis": 4,
+    "gridCols": 3,
+    "types": ["areaStacked", "bump", "slope", "gauge"],
+    "layout": [["areaStacked", "full"], ["bump", 2], ["slope", 1], ["gauge", 1]]
   }
 ]
