@@ -1869,15 +1869,8 @@
   SR.boot = function (spec) {
     spec = spec || window.STUDIO_SPEC;
     if (!spec) return;
-    PDC.initTheme();
-    var tb = PDC.el("themeBtn");
-    if (tb) {
-      var _dark = document.documentElement.getAttribute("data-theme") === "dark";
-      var _moonSvg = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
-      var _sunSvg = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>';
-      tb.innerHTML = (_dark ? _sunSvg : _moonSvg) + " " + (_dark ? "Light" : "Dark");
-      tb.setAttribute("aria-label", _dark ? "Switch to light mode" : "Switch to dark mode");
-    }
+    // LF20: data-theme is now baked onto <html> at build time from spec.renderMode (see
+    // exporters.js) — no runtime toggle button left to wire up here.
     // E4: extend PDC.urlParams to also read location.hash for deep-link filter pre-selection
     (function () { var _up = PDC.urlParams; PDC.urlParams = function () { var o = _up(); try { var h = (window.location.hash || "").replace(/^#/, ""); if (h) h.split("&").forEach(function (kv) { if (!kv) return; var i = kv.indexOf("="); var k = decodeURIComponent(i < 0 ? kv : kv.slice(0, i)); if (k && o[k] == null) o[k] = decodeURIComponent(i < 0 ? "" : kv.slice(i + 1).replace(/\+/g, " ")); }); } catch (e) {} return o; }; })();
     if ((spec.filters || []).length) {

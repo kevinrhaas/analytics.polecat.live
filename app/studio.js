@@ -2682,6 +2682,17 @@
     sec.appendChild(field("Header", hdrLbl,
       "Turn off to hide the whole title banner and description — the live preview and the exported HTML then show only the KPIs and widgets, ready to embed in your own page."));
 
+    // LF20 (decision locked 2026-07-22): the dashboard's own light/dark used to be a live toggle
+    // button INSIDE the exported/preview header — confusing next to the app-level light/dark
+    // control in the canvas-bar. Now a persisted per-dashboard option instead: "" (Light) is the
+    // historical default; picking Dark bakes data-theme="dark" onto every export (see exporters.js).
+    var renderModeSel = select2pairs([["", "Light"], ["dark", "Dark"]], sp.renderMode || "", function (v) {
+      sp.renderMode = v; refreshPreview();
+    });
+    renderModeSel.id = "dashRenderMode";
+    sec.appendChild(field("Appearance", renderModeSel,
+      "Light or dark render for this dashboard's exported HTML — fixed per dashboard, replacing the old in-header toggle button."));
+
     var grpSel = select2(["Observability", "Governance & Privacy", "Storage & Cost", "Usage & People", "Data Integration", "Executive"], sp.group, function (v) { sp.group = v; syncHeader(); });
     sec.appendChild(field("Group", grpSel));
     sec.appendChild(field("Description", textarea(sp.description, function (v) { sp.description = v; refreshPreview(); })));

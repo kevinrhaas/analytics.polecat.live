@@ -208,7 +208,7 @@
     var printCss = !opts.preview ?
       "\n@media print{" +
         ".pdc-header{position:static!important;box-shadow:none!important;border-bottom:1px solid #d0d4da}" +
-        "#qInfoBtn,#themeBtn,#printBtn,#ctrls{display:none!important}" +
+        "#qInfoBtn,#printBtn,#ctrls{display:none!important}" +
         "body{background:#fff!important;color:#000!important}" +
         ".pdc-wrap{padding:12px 16px}" +
         ".pdc-grid{gap:12px}" +
@@ -246,8 +246,13 @@
       ".sr-desc-del{position:absolute;top:50%;right:8px;transform:translateY(-50%);width:20px;height:20px;border-radius:5px;border:1px solid var(--panel-border);background:var(--panel-bg);color:var(--text-muted);font-size:13px;line-height:1;cursor:pointer;opacity:0;transition:opacity .12s;padding:0;display:flex;align-items:center;justify-content:center}" +
       ".sr-desc:hover .sr-desc-del{opacity:1}.sr-desc-del:hover{color:var(--bad,#e0395e);border-color:var(--bad,#e0395e)}" +
       "@media(pointer:coarse){.card>h3{min-height:48px}.sr-card-acts{opacity:1!important}.sr-act{width:36px;height:36px}.sr-kpi-del{opacity:.85!important;width:24px;height:24px}.sr-desc-del{opacity:.85!important;width:26px;height:26px}}" : "";
+    // LF20: the dashboard's own light/dark is now a fixed, persisted per-dashboard Inspector
+    // option (spec.renderMode) instead of a runtime toggle button inside the rendered header —
+    // baked straight onto <html> here so both the export and the live preview open already in
+    // the author's chosen mode, with zero interactive theme control left in the rendered content.
+    var htmlOpenTag = "<html lang=\"en\"" + (spec.renderMode === "dark" ? " data-theme=\"dark\"" : "") + ">";
     var head =
-      "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\"/>\n" +
+      "<!DOCTYPE html>\n" + htmlOpenTag + "\n<head>\n<meta charset=\"utf-8\"/>\n" +
       "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/>\n" +
       "<title>" + xml(titleText) + " — Analytics</title>\n<style>\n" + assets.css + mobileCss + sectionCss + descCss + panelNoteCss + panelAccentCss + dlActsCss + targetLineCss + refBandCss + calloutCss + periodHighlightCss + eventMarkerCss + scatterAnnotCss + kpiSubCss + richtextCss + dashboardThemeCss + themeColorCss + headerLogoCss + headerLinkCss + headerBgCss + titleSizeCss + hideHeaderCss + subtitleStyleCss + cardSkinCss + paletteCss + printCss + previewCss + "\n</style>\n</head>\n";
     var logoHtml = spec.headerLogo ?
@@ -265,7 +270,6 @@
       "  <div class=\"pdc-sub\">" + xml(subtitleText || "") + "</div>\n  <div class=\"spacer\"></div>\n" +
       "  <div class=\"pdc-ctrls\" id=\"ctrls\"></div>\n" +
       "  <button class=\"pdc-iconbtn\" id=\"qInfoBtn\" title=\"View the datasets behind this dashboard\" aria-label=\"View the datasets behind this dashboard\" onclick=\"PDC.queryModal()\">&#9432;</button>\n" +
-      "  <button class=\"pdc-iconbtn\" id=\"themeBtn\" aria-label=\"Toggle dark/light mode\" onclick=\"PDC.toggleTheme()\">&#9790; Dark</button>\n" +
       (!opts.preview ? "  <button class=\"pdc-iconbtn\" id=\"printBtn\" title=\"Print / save as PDF\" aria-label=\"Print or save as PDF\" onclick=\"window.print()\"><svg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><rect x='6' y='9' width='12' height='9' rx='1'/><path d='M7 9V5a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v4'/><path d='M7 17v2a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-2'/><circle cx='9' cy='13.5' r='1' fill='currentColor' stroke='none'/></svg></button>\n" : "") +
       "  " + launcher + "\n</header>\n" +
       "<div class=\"pdc-wrap\">\n  <div class=\"pdc-kpis\" id=\"kpis\"></div>\n" +

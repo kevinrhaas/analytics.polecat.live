@@ -5,7 +5,14 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v138"; /* v138: LF2 — a 3rd Conservation example, "Watershed-Scale
+var CACHE_NAME = "studio-shell-v139"; /* v139: LF20 — the dashboard's own light/dark render mode
+   moves from a live in-header toggle button (confusing next to the app-level light/dark control)
+   to a persisted per-dashboard Inspector "Appearance" option (spec.renderMode). exporters.js bakes
+   data-theme onto <html> at build time instead of studio-render.js wiring up a themeBtn click
+   handler at runtime; the now-dead PDC.initTheme/PDC.toggleTheme are removed from vendor/pdc-ui.js.
+   app/model.js, app/exporters.js, app/studio-render.js, app/studio.js, vendor/pdc-ui.js changed,
+   so precached copies need to roll.
+   v138: LF2 — a 3rd Conservation example, "Watershed-Scale
    Adoption" (data/examples/conservation-watershed.studio.json, index.json entry): a HUC8
    choropleth colored by the provider common estimate, the ensemble trend behind it, an overall
    adoption gauge, and a by-provider bar, with a real "Since year" filter. data/examples/index.json

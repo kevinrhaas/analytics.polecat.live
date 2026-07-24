@@ -52,10 +52,6 @@ PDC.cssvar=function(name){return getComputedStyle(document.documentElement).getP
 PDC.palette=function(){var p=[];for(var i=1;i<=10;i++)p.push(PDC.cssvar("--c"+i));return p;};
 PDC.color=function(i){return PDC.palette()[i%10];};
 PDC.sevColor=function(rank){return PDC.cssvar(rank>=3?"--sev3":rank>=2?"--sev2":"--sev1");};
-PDC.initTheme=function(){var t=localStorage.getItem("pdc-theme")||"light";document.documentElement.setAttribute("data-theme",t);return t;};
-PDC.toggleTheme=function(){var cur=document.documentElement.getAttribute("data-theme")==="dark"?"light":"dark";
-  document.documentElement.setAttribute("data-theme",cur);localStorage.setItem("pdc-theme",cur);PDC.redrawAll();
-  var b=document.getElementById("themeBtn"); if(b) b.textContent=cur==="dark"?"☀ Light":"☾ Dark"; };
 
 /* ---------- redraw registry (resize + theme) ---------- */
 PDC._reg=[];

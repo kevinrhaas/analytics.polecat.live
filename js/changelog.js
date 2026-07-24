@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 497,
+    title: 'Dashboard light/dark is now a fixed Appearance setting, not a header button',
+    kind: 'polish',
+    ts: '2026-07-23T23:56:22.000Z',
+    items: [
+      'The Light/Dark button that used to live inside every dashboard\'s exported header is gone — a dashboard\'s own render mode is now a persisted "Appearance" choice in the dashboard Inspector (Light or Dark), so it always exports and previews in the mode you picked instead of a runtime toggle a viewer of the static file could flip.',
+      'The app\'s own light/dark control (top of the builder) is unchanged — it still switches the whole app UI plus whatever you\'re editing.',
+    ],
+  },
+  {
     v: 496,
     title: 'A third Conservation example: watershed-scale adoption',
     kind: 'feature',

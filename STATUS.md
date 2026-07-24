@@ -2259,6 +2259,22 @@
 >       control in the top bar for the whole app + preview; MOVE the dashboard's own light/dark into a per-dashboard
 >       Inspector → Appearance option and REMOVE the in-header toggle button (preserves export-a-dark-dashboard).
 >       app/studio.js canvas-bar wiring + renderInspector Appearance, studio-render.js dashboard header, app/studio.css.
+>       ✓ **Dashboard render-mode → Inspector half SHIPPED (2026-07-24, steward).** New persisted
+>       `spec.renderMode` field ("" = light, "dark") replaces the old in-header `themeBtn`/
+>       `PDC.toggleTheme()` button entirely — `exporters.js` now bakes `data-theme="dark"` straight
+>       onto `<html>` at build time (both the export and the live preview share the one `buildHtml`
+>       template, so removing the button is one change, not two) instead of `studio-render.js`
+>       wiring up a runtime click handler; the now-dead `PDC.initTheme`/`PDC.toggleTheme` are
+>       removed from `vendor/pdc-ui.js` (nothing else called them). New "Appearance" field
+>       (`#dashRenderMode`, a Light/Dark select) in the dashboard Inspector, next to the existing
+>       Header/Group fields. The app-level `#btnTheme` canvas-bar control is untouched — it still
+>       drives the whole app UI + the live-editing preview via the existing `postMessage` "theme"
+>       mechanism, unchanged. 6 new ratchets (Inspector select present + defaults to Light, picking
+>       Dark sets `spec.renderMode` and bakes the attribute into both export and preview, the old
+>       button is gone from the export regardless of mode, reverting to Light clears the attribute)
+>       + 2 existing a11y tests re-pointed from the removed `themeBtn` to `qInfoBtn`. sw v139. Suite
+>       1873/1873. NEXT in LF20: the broader canvas-bar decluttering (icon+menu for Open/Save/
+>       Export, grouping, push rarely-used actions off-screen) is still open.
 > LF21. **Dashboard title header = a first-class widget (inline edit / delete / configure) (Kevin, live).**
 >       The dashboard-FILE title at the very top is inline-editable, but the title HEADER BAR inside the dashboard
 >       (logo + title + subtitle + info + theme toggle) is NOT editable like an object — you can't click-to-edit
