@@ -116,21 +116,38 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
-- **R5+ slice 2 — branding subsystem extracted to its own module (v499, sw v141, 2026-07-24,
-  steward):** the Z12 branding subsystem (`BRAND_MAX_BYTES`/`getBranding`/`setBranding`/
-  `applyBranding` — app-mark default/custom-logo/none, a small data: URL in localStorage) moved
-  out of `app/studio.js` into a new `app/branding.js`, exposing `Studio.Branding = {get,set,apply,
-  MAX_BYTES}`, following the exact module pattern R5+ slice 1's `chart-thumbnails.js` established.
-  `studio.js` now just aliases `var getBranding = Studio.Branding.get` etc. where the functions
-  used to live — every one of the 6 call sites plus the boot-time `applyBranding()` call is
-  unchanged, so no other code moved. `window.__studioBranding` (the Z12 test hook) now lives in
-  the new module instead of studio.js. New script tag in app/index.html (loads right after
-  chart-thumbnails.js, before studio.js) and a new sw.js precache entry. Pure refactor, no
-  behavior change — suite unchanged. (app/branding.js new, app/studio.js, app/index.html, sw.js)
-  NEXT in R5+: ③ defaults/presets config layer (the 8 `default*` getter/setter pairs +
-  stylePresets/templateVarSets/customThemePresets) is the rest of the original ② scope — split
-  off as its own slice since it has far more call sites across studio.js's Settings rendering
-  than branding did.
+- **R5+ slice 3 — defaults/presets config layer extracted to its own module (v501, sw v142,
+  2026-07-24, steward — R5+'s own NEXT pointer):** the dashboard "house style" defaults (the 8
+  `default*`/`setDefault*` getter/setter pairs — subtitle/accentColor/headerBg/titleSize/
+  subtitleStyle/dashboardTheme/cardSkin/logo) plus the 3 named preset collections (style presets,
+  template-variable sets, custom-theme presets, all built on R3's `makePresetStore(key)` factory)
+  moved out of `app/studio.js` into a new `app/defaults.js`, exposing `Studio.Defaults = {...}`,
+  following the exact module pattern R5+ slices 1-2 established. The one wrinkle noted in the
+  prior NEXT pointer: `defaultDashboardTheme()`'s never-explicitly-set fallback needs the app's
+  ACTIVE Color theme (`appTheme()`/`appThemeToDashboardTheme()`), which is studio.js's own private
+  in-memory state (`S.appTheme`) — rather than the module reaching into that state or duplicating
+  studio.js's theme-mapping table, `studio.js` injects the one resolver it owns via a new
+  `Studio.Defaults.configureDashboardThemeFallback()` call at boot (the module holds a `null`-safe
+  default fallback until then). Every one of the ~90 call sites across studio.js's Settings/Style-
+  presets/Template-vars/Custom-theme rendering is unchanged — `studio.js` now just aliases
+  `var defaultSubtitle = Studio.Defaults.subtitle` etc. where the functions used to live, same
+  alias trick slice 2 used for branding. The now-unused `makePresetStore` factory (only ever
+  backing these three preset stores) was deleted from studio.js instead of left dead. All 8
+  `window.__studioDefault*` + 3 `window.__studio*Presets` test hooks stay in studio.js, unchanged.
+  New script tag in app/index.html (loads right after branding.js, before studio.js) and a new
+  sw.js precache entry. Pure refactor, no behavior change — suite unchanged (1870/1870).
+  (app/defaults.js new, app/studio.js, app/index.html, sw.js) NEXT in R5+: ④
+  celebrations/milestones.
+  ⚠️ **Two prior attempts at this exact slice (#198, #199) were merged then auto-reverted
+  ("failed validation") — root cause found and fixed in this shipment:** both wrote the sw.js
+  CACHE_NAME bump comment as prose containing the literal substring `default*/setDefault*`
+  (documenting the getter/setter naming pattern) — but `*/` inside a `/* ... */` block comment
+  closes it early, so guard-main's `node --check` genuinely failed to parse sw.js on both merges.
+  Confirmed by replaying #199's diff locally and re-running the exact `node --check` guard-main
+  runs; the rest of both prior attempts' logic was correct and is what this slice reuses verbatim.
+  Fixed here by rewording to `default*() / setDefault*()` (space around the slash so `*/` never
+  appears adjacent). Anyone writing a `/* */` comment that documents a `*`-suffixed name pattern
+  next to a `/`-prefixed one should watch for this.
 - **LF2 — a 3rd Conservation example: "Watershed-Scale Adoption" (v496, 2026-07-23, steward):**
   `data/examples/conservation-watershed.studio.json` + a new `index.json` entry (`demoPackId:
   "conservation"`, same pack-gating as the existing 2). Leads with a full-width HUC8 choropleth
@@ -2676,14 +2693,14 @@
 >      `CHART_SVG` table now lives in `app/chart-thumbnails.js` (`Studio.CHART_SVG`), the first
 >      ES-module `app/*.js` extraction off studio.js, establishing the module pattern the rest of
 >      this track follows — sw v119. ② ✓ branding — DONE, see DONE (v499, sw v141, 2026-07-24,
->      steward): `app/branding.js` (`Studio.Branding`). → ③ defaults/presets config layer (split off
->      the rest of the original ② scope — more call sites across Settings rendering) → ④
+>      steward): `app/branding.js` (`Studio.Branding`). ③ ✓ defaults/presets config layer — DONE,
+>      see DONE (v501, sw v142, 2026-07-24, steward): `app/defaults.js` (`Studio.Defaults`). → ④
 >      celebrations/milestones → ⑤ versions/notes/diff modals →
 >      ⑥ the Explore `XP` subsystem (own namespace; preserve the analysis→spec add + `homeLiveFrame`
 >      reuse seams) → ⑦ the data-plane panels LAST (Jobs → Connections → Datasets; Datasets last because
 >      `runDataset`/`window.__studioRunDataset` bridges back into the builder preview). These are
->      lane-hot files — schedule each when the feature lane isn't mid-slice in that area. NEXT: ③
->      defaults/presets config layer.
+>      lane-hot files — schedule each when the feature lane isn't mid-slice in that area. NEXT: ④
+>      celebrations/milestones.
 
 ### ★★★★★ CONSERVATION INSIGHT PRODUCT PLATFORM (2026-07-21, user-directed — NOW THE TOP PRIORITY)
 > Kevin's big charter: turn Analytics into a multi-user, permissioned product. Decisions locked

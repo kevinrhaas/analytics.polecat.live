@@ -5,7 +5,17 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v141"; /* v141: R5+ slice 2 (tech-debt module-extraction track) —
+var CACHE_NAME = "studio-shell-v142"; /* v142: R5+ slice 3 (tech-debt module-extraction track) —
+   the dashboard-defaults + preset-collection subsystem (the 8 default*() / setDefault*() pairs
+   plus stylePresets/templateVarSets/customThemePresets) moved out of studio.js into its own
+   app/defaults.js, following the branding.js (②) extraction precedent — pure config over
+   localStorage, no DOM/spec dependency. defaultDashboardTheme()'s never-set fallback needs
+   studio.js's own active-Color-theme state, so studio.js injects that one resolver via
+   Studio.Defaults.configureDashboardThemeFallback() instead of the module reaching into private
+   state or duplicating studio.js's theme-mapping table. studio.js's call sites are unchanged
+   (aliased locally to Studio.Defaults.*). app/index.html gained the new script tag, so precached
+   copies need to roll.
+   v141: R5+ slice 2 (tech-debt module-extraction track) —
    the Z12 branding subsystem (BRAND_MAX_BYTES/getBranding/setBranding/applyBranding) moved out of
    studio.js into its own app/branding.js, following the chart-thumbnails.js (①) extraction
    precedent — pure config + one DOM write, no dependency on builder state. studio.js's call sites
@@ -650,6 +660,7 @@ var SHELL_FILES = [
   "app/shell.js",
   "app/chart-thumbnails.js",
   "app/branding.js",
+  "app/defaults.js",
   "app/studio.js",
   "app/palette.js",
   "app/studio-render.js",
