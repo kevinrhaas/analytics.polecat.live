@@ -116,6 +116,40 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF9 slice 2 — Back closes an open overlay instead of navigating away (v508, sw v149,
+  2026-07-24, steward — LF9's own NEXT pointer):** generalizes the LF8 zoom-trap fix (which only
+  patched panel-zoom) to every overlay type via one shared mechanism instead of one-off code per
+  overlay. `app/shell.js` gains a small overlay-history stack: `pushOverlay(closeFn)` pushes a
+  `{studioSection, studioOverlay: id}` history entry and records the overlay's close callback;
+  `popOverlay(id)` is called from an overlay's OWN close path (X button, Escape, outside-click) so
+  a manual close also unwinds the entry `pushOverlay` added — otherwise Back/Forward and the
+  visible overlay would drift out of sync. It calls `history.back()` only when `id` is still the
+  topmost entry (closing out of order just drops it from the stack — an overlay opened from
+  within another is rare, and popping history there would incorrectly also discard whatever
+  is stacked above it). The `popstate` listener now closes every overlay above the entry Back
+  landed on before re-driving `setActive`, so multi-step Back/Forward (skipping straight past
+  a stacked overlay) still cleans up correctly, not just a single-step Back. Three call sites
+  wired in (`app/studio.js`): `modal()` — the single shared dialog builder behind ~15 editors
+  (dataset/job/connection/data-source/user/note editors, Save-as, Open/Import dashboard, Compare,
+  Keyboard shortcuts, Add-to-dashboard) — plus `openPanelZoom()` and `openSlideshow()`, each now
+  taking a `viaHistory` flag on their own `close()` so a popstate-driven close skips the redundant
+  `popOverlay` call. 6 new tests (tests/run.js): Back closes panel-zoom, a modal (dataset editor),
+  and slideshow, in each case leaving the current SECTION unchanged (not navigating away); and a
+  dedicated regression — closing a modal via its X button (not Back) still syncs history, so a
+  later real Back walks to the correct prior section instead of getting stuck on a dangling
+  overlay entry. docs/index.html's rail-navigation paragraph now mentions overlay-closing Back.
+  ⚠️ **The X-button regression test above caught a real bug before merge:** all three overlays
+  wired their close buttons as `closeBtn.onclick = close;` — which invokes `close` WITH the click
+  `Event` as its first argument, so a plain truthiness check (`!viaHistory`) treated every manual
+  X/Exit-button close as if it were the popstate-driven kind and skipped the `popOverlay` history
+  sync entirely, leaving a dangling entry after every button close (Escape/outside-click were fine,
+  since those call `close()` with no arguments). Fixed by checking `viaHistory === true` explicitly
+  rather than truthiness, in all three `close()` functions.
+  (app/shell.js, app/studio.js, tests/run.js, docs/index.html, sw.js) NEXT in LF9: slice 3 —
+  Explore's "load a saved analysis" view swap (picker ↔ analysis, inside the Explore section
+  itself) isn't an overlay in this sense — it needs its own design, not another `pushOverlay`
+  call site, since there's no DOM to just re-show on Back. LF9 is otherwise feature-complete:
+  every dialog/full-screen overlay in the app now participates in Back/Forward.
 - **LF9 slice 1 — Back/Forward walks section navigation instead of leaving the app (v507, sw v148,
   2026-07-24, steward — LF9's own NEXT pointer):** `setActive(sec, persist, fromHistory)`
   (app/shell.js) now pushes `{studioSection: sec}` via `history.pushState` on every real section
@@ -2351,6 +2385,13 @@
 >      overlay opens (panel-zoom, modals, dataset/job editors, Explore analysis) and closing the
 >      topmost one on Back instead of navigating sections, which also fixes the LF8 zoom-trap
 >      pattern generically for every overlay type, not just panel-zoom.
+>      ✓ **Slice 2 shipped (v508, sw v149, 2026-07-24, steward) — overlay history.** A shared
+>      `pushOverlay`/`popOverlay` stack (app/shell.js) wired into `modal()` (the ~15 dialogs it
+>      backs), `openPanelZoom()`, and `openSlideshow()` (app/studio.js) — every dialog/full-screen
+>      overlay in the app now closes on Back instead of navigating away, generalizing the LF8 fix.
+>      6 new tests, see DONE. NEXT in LF9: slice 3, Explore's saved-analysis view swap (picker ↔
+>      analysis within the Explore section) — a different pattern with no DOM to just re-show on
+>      Back, needs its own design rather than another `pushOverlay` call site.
 > LF10. ✓ **Chart palette now defaults to the active app theme (shipped 2026-07-23, steward).** New
 >       `appThemeToDashboardTheme()` (app/studio.js) maps the app Color theme → its matching
 >       `Studio.DASHBOARD_THEMES` key (classic→"", polecat→"polecat", modern→"fleet-modern");

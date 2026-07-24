@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 508,
+    title: 'Back now closes an open modal, panel zoom, or slideshow instead of leaving the section',
+    kind: 'polish',
+    ts: '2026-07-24T09:49:45.000Z',
+    items: [
+      'Opening a dataset/job/connection editor, panel zoom, or slideshow now pushes browser history, so the Back button closes that overlay -- generalizing the earlier fix for the panel-zoom "Exit zoom" trap to every overlay in the app.',
+    ],
+  },
+  {
     v: 507,
     title: 'Browser Back/Forward now moves between sections instead of leaving the app',
     kind: 'polish',

@@ -35,6 +35,36 @@
 
   var desiredSection = "home";
 
+  // LF9 slice 2: overlays (modals, panel-zoom, slideshow) push their own history entry
+  // while open, so Back closes the topmost one instead of navigating sections (or
+  // leaving the app, if the overlay was the first thing opened after boot) — the fix
+  // LF8 hand-patched onto panel-zoom alone, generalized to every overlay type via this
+  // one stack. Forward never reopens a closed overlay (there's no DOM to reconstruct);
+  // that's an accepted limit of the pattern, same as most SPA modal+history designs.
+  var overlayStack = []; // [{ id, close }], topmost last
+  var nextOverlayId = 1;
+
+  function pushOverlay(closeFn) {
+    var id = nextOverlayId++;
+    overlayStack.push({ id: id, close: closeFn });
+    try { history.pushState({ studioSection: desiredSection, studioOverlay: id }, "", location.pathname + location.search + location.hash); } catch (e) {}
+    return id;
+  }
+  // Called from an overlay's OWN close path (X button, Escape, outside-click, Save…) so
+  // a manual close also unwinds the history entry pushOverlay added for it — otherwise
+  // Back/Forward and the visible overlay state would drift apart. Only the topmost
+  // overlay owns the current history entry, so history.back() is used to pop it (that
+  // re-enters the popstate handler below, which finds the stack already caught up and
+  // does nothing further). An overlay closing out of order (not topmost — e.g. a modal
+  // opened from within another) is just dropped from the stack instead, since popping
+  // history would incorrectly also discard whatever is stacked above it.
+  function popOverlay(id) {
+    var top = overlayStack[overlayStack.length - 1];
+    if (!top || top.id !== id) { overlayStack = overlayStack.filter(function (o) { return o.id !== id; }); return; }
+    overlayStack.pop();
+    try { history.back(); } catch (e) {}
+  }
+
   // LF9 slice 1: Back/Forward should move between sections instead of leaving the
   // app. Every real navigation (persist !== false) pushes a history entry carrying
   // the section; a popstate re-drives setActive with fromHistory=true so it doesn't
@@ -159,7 +189,15 @@
 
   // LF9 slice 1: Back/Forward walks the section history pushed above. fromHistory=true
   // stops setActive from pushing a fresh entry for a navigation that's already IN history.
+  // LF9 slice 2: first close any open overlay(s) the popstate navigated past — a Back that
+  // skips straight past a stacked overlay's own entry (e.g. Forward/Back jumping >1 step)
+  // still closes every overlay above the entry we land on, not just the topmost.
   window.addEventListener("popstate", function (e) {
+    var overlayId = e.state && e.state.studioOverlay;
+    while (overlayStack.length && overlayStack[overlayStack.length - 1].id !== overlayId) {
+      var o = overlayStack.pop();
+      try { o.close(); } catch (ex) {}
+    }
     var sec = (e.state && e.state.studioSection) || "home";
     setActive(sec, true, true);
     closeRail();
@@ -197,4 +235,8 @@
 
   window.__studioShellSetSection = setActive; // test hook
   window.__studioShellGetSection = function () { return desiredSection; }; // LF27(b): lets studio.js capture the section Studio was entered from
+  // LF9 slice 2: overlay-history hooks — studio.js's modal()/panel-zoom/slideshow call
+  // these so Back closes them instead of navigating away (see the stack above).
+  window.__studioPushOverlay = pushOverlay;
+  window.__studioPopOverlay = popOverlay;
 })();
