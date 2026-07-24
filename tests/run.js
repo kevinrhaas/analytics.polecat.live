@@ -3910,6 +3910,28 @@ function serve() {
       jobsFolderFilterResult.active && jobsFolderFilterResult.rows.length === 1 && jobsFolderFilterResult.rows[0] === jobsFolderSetup.filedId,
       JSON.stringify(jobsFolderFilterResult));
 
+    // QA-07 (FRONTEND_QA_REPORT_2026-07-24.md): same fix as Connections/Datasets — the
+    // row is a plain container (no role="button"/tabindex), and clicking its title
+    // button (the one real <button> in the row) opens the job editor.
+    const jobsRowSemantics = await page.evaluate(function (filedId) {
+      var row = document.querySelector('.cx-row[data-job-id="' + filedId + '"]');
+      var titleBtn = row.querySelector(".cx-name > .cx-title-btn");
+      return {
+        noRoleOrTabindex: !row.hasAttribute("role") && !row.hasAttribute("tabindex"),
+        titleIsButton: !!titleBtn && titleBtn.tagName === "BUTTON",
+        noNestedInteractive: !!titleBtn && !titleBtn.querySelector("button,a,[role=button],[tabindex]")
+      };
+    }, jobsFolderSetup.filedId);
+    ok("QA-07: a job row is a plain container whose title is a real <button> with no nested interactive descendants",
+      jobsRowSemantics.noRoleOrTabindex && jobsRowSemantics.titleIsButton && jobsRowSemantics.noNestedInteractive, JSON.stringify(jobsRowSemantics));
+    const jobsTitleBtnOpens = await page.evaluate(function (filedId) {
+      document.querySelector('.cx-row[data-job-id="' + filedId + '"] .cx-title-btn').click();
+      return { title: (document.querySelector(".modal-h") || {}).textContent };
+    }, jobsFolderSetup.filedId);
+    ok("QA-07: clicking a job row's title button opens its editor", jobsTitleBtnOpens.title === "Edit job", JSON.stringify(jobsTitleBtnOpens));
+    await page.evaluate(function () { document.querySelector(".modal-ov .x").click(); });
+    await page.waitForTimeout(60);
+
     // the job's folder also flows into Repository (M5) — a real group, not just Unfiled
     const jobsInRepository = await page.evaluate(function (filedId) {
       window.__studioShellSetSection("repository");
@@ -4181,6 +4203,28 @@ function serve() {
     ok("CX: saving the wizard persists the connection (with tags) and the list shows a green status dot + tag pill/badge",
       cxSaved.rows === 1 && cxSaved.stored === 1 && cxSaved.name === "Mock Turso" && cxSaved.adapter === "turso" &&
       cxSaved.tags === "finance,demo" && cxSaved.dotOk && cxSaved.modalGone && cxSaved.tagPill && cxSaved.tagBadge, JSON.stringify(cxSaved));
+
+    // QA-07 (FRONTEND_QA_REPORT_2026-07-24.md): the row is a plain container (no
+    // role="button"/tabindex) — its title is the one real <button> carrying the open
+    // action, and clicking it (not just the row background) opens the editor.
+    const cxRowSemantics = await page.evaluate(function () {
+      var row = document.querySelector("#connResults .cx-row");
+      var titleBtn = row.querySelector(".cx-name > .cx-title-btn");
+      return {
+        noRoleOrTabindex: !row.hasAttribute("role") && !row.hasAttribute("tabindex"),
+        titleIsButton: !!titleBtn && titleBtn.tagName === "BUTTON",
+        noNestedInteractive: !!titleBtn && !titleBtn.querySelector("button,a,[role=button],[tabindex]")
+      };
+    });
+    ok("QA-07: a connection row is a plain container whose title is a real <button> with no nested interactive descendants",
+      cxRowSemantics.noRoleOrTabindex && cxRowSemantics.titleIsButton && cxRowSemantics.noNestedInteractive, JSON.stringify(cxRowSemantics));
+    const cxTitleBtnOpens = await page.evaluate(function () {
+      document.querySelector("#connResults .cx-row .cx-title-btn").click();
+      return { title: (document.querySelector(".modal-h") || {}).textContent };
+    });
+    ok("QA-07: clicking a connection row's title button opens its editor", cxTitleBtnOpens.title === "Edit connection", JSON.stringify(cxTitleBtnOpens));
+    await page.evaluate(function () { document.querySelector(".modal-ov .x").click(); });
+    await page.waitForTimeout(60);
 
     // multi-select adapter + tag pills, and search that never matches secrets
     // (tags-filter parity, #21 org sub-item — connections now match Datasets' shape)
@@ -4506,6 +4550,28 @@ function serve() {
     ok("DSX: a dataset row is draggable and carries the {wsDataset} payload the canvas/Home drops understand",
       dsxDragStart.draggable === "true" && dsxDragStart.payload === JSON.stringify({ wsDataset: dsxDragStart.dsId }),
       JSON.stringify(dsxDragStart));
+
+    // QA-07 (FRONTEND_QA_REPORT_2026-07-24.md): same fix as Connections — the row is a
+    // plain container (no role="button"/tabindex), and clicking its title button (the
+    // one real <button> in the row) opens the dataset editor.
+    const dsxRowSemantics = await page.evaluate(function () {
+      var row = document.querySelector("#dsxResults .cx-row");
+      var titleBtn = row.querySelector(".cx-name > .cx-title-btn");
+      return {
+        noRoleOrTabindex: !row.hasAttribute("role") && !row.hasAttribute("tabindex"),
+        titleIsButton: !!titleBtn && titleBtn.tagName === "BUTTON",
+        noNestedInteractive: !!titleBtn && !titleBtn.querySelector("button,a,[role=button],[tabindex]")
+      };
+    });
+    ok("QA-07: a dataset row is a plain container whose title is a real <button> with no nested interactive descendants",
+      dsxRowSemantics.noRoleOrTabindex && dsxRowSemantics.titleIsButton && dsxRowSemantics.noNestedInteractive, JSON.stringify(dsxRowSemantics));
+    const dsxTitleBtnOpens = await page.evaluate(function () {
+      document.querySelector("#dsxResults .cx-row .cx-title-btn").click();
+      return { title: (document.querySelector(".modal-h") || {}).textContent };
+    });
+    ok("QA-07: clicking a dataset row's title button opens its editor", dsxTitleBtnOpens.title === "Edit dataset", JSON.stringify(dsxTitleBtnOpens));
+    await page.evaluate(function () { document.querySelector(".modal-ov .x").click(); });
+    await page.waitForTimeout(60);
 
     await page.evaluate(function () { window.__studioShellSetSection("home"); });
     await page.waitForTimeout(150);
@@ -20073,6 +20139,33 @@ function serve() {
     });
     ok("Z3: List view swaps tiles for compact rows and persists the preference",
       z3List.rows > 0 && z3List.tiles === 0 && z3List.stored === "list" && /Tile view/.test(z3List.btn), JSON.stringify(z3List));
+
+    // QA-07 (FRONTEND_QA_REPORT_2026-07-24.md): same fix as the workspace list rows —
+    // the compact list-mode dashboard row is a plain container (no role="button"/
+    // tabindex), and clicking its title button (the one real <button> in the row)
+    // opens the dashboard, same as clicking the row used to.
+    const dashLiRowSemantics = await page.evaluate(function () {
+      var row = document.querySelector("#repoResults .dash-li");
+      var titleBtn = row.querySelector(".cx-name > .cx-title-btn");
+      return {
+        noRoleOrTabindex: !row.hasAttribute("role") && !row.hasAttribute("tabindex"),
+        titleIsButton: !!titleBtn && titleBtn.tagName === "BUTTON",
+        noNestedInteractive: !!titleBtn && !titleBtn.querySelector("button,a,[role=button],[tabindex]")
+      };
+    });
+    ok("QA-07: a list-mode dashboard row is a plain container whose title is a real <button> with no nested interactive descendants",
+      dashLiRowSemantics.noRoleOrTabindex && dashLiRowSemantics.titleIsButton && dashLiRowSemantics.noNestedInteractive, JSON.stringify(dashLiRowSemantics));
+    const dashLiTitleBtnOpens = await page.evaluate(function () {
+      var row = document.querySelector("#repoResults .dash-li");
+      var id = row.getAttribute("data-recent");
+      row.querySelector(".cx-title-btn").click();
+      return { specId: window.__STUDIO_STATE.spec && window.__STUDIO_STATE.spec.id, matches: window.__STUDIO_STATE.spec && window.__STUDIO_STATE.spec.id === id };
+    });
+    ok("QA-07: clicking a list-mode dashboard row's title button opens that dashboard",
+      dashLiTitleBtnOpens.matches, JSON.stringify(dashLiTitleBtnOpens));
+    await page.evaluate(function () { window.__studioShellSetSection("dashboards"); window.__studioRenderDashboards(); });
+    await page.waitForTimeout(80);
+
     await page.click("#dashViewToggle");
     await page.waitForTimeout(80);
     const z3Tiles = await page.evaluate(function () {
@@ -23970,13 +24063,44 @@ function serve() {
     ok("Repository: opening an analysis row loads it into Explore and switches section there",
       repoOpenAnalysis.analysisId === "repo-an" && repoOpenAnalysis.exploreVisible, JSON.stringify(repoOpenAnalysis));
 
+    await repoPage.click('#railNav .rail-item[data-sec="repository"]');
+    await repoPage.waitForTimeout(100);
+
+    // QA-07 (FRONTEND_QA_REPORT_2026-07-24.md, P2 accessibility): catalog rows used to
+    // expose themselves as role="button" while also containing several real <button>s
+    // (Test/Edit/Delete, pin, privacy, quick-edit) — a nested-interactive pattern that's
+    // fragile for keyboard/AT navigation. Rows are now plain containers; the title is the
+    // one real button carrying the primary (open) action, and the other controls stay
+    // plain siblings, never descendants of it.
+    const repoRowSemantics = await repoPage.evaluate(function () {
+      var rows = [].slice.call(document.querySelectorAll("#repoAllResults .cx-row"));
+      var anyRoleOrTabindex = rows.some(function (r) { return r.hasAttribute("role") || r.hasAttribute("tabindex"); });
+      var titleBtns = rows.map(function (r) { return r.querySelector(".cx-name > .cx-title-btn"); });
+      var allAreRealButtons = titleBtns.length > 0 && titleBtns.every(function (b) { return b && b.tagName === "BUTTON"; });
+      var noNestedInteractive = titleBtns.every(function (b) { return !b.querySelector("button,a,[role=button],[tabindex]"); });
+      return { rowCount: rows.length, anyRoleOrTabindex: anyRoleOrTabindex, allAreRealButtons: allAreRealButtons, noNestedInteractive: noNestedInteractive };
+    });
+    ok("QA-07: Repository rows are plain containers (no role/tabindex) whose title is a real <button> with no nested interactive descendants",
+      repoRowSemantics.rowCount >= 5 && !repoRowSemantics.anyRoleOrTabindex && repoRowSemantics.allAreRealButtons && repoRowSemantics.noNestedInteractive,
+      JSON.stringify(repoRowSemantics));
+
+    await repoPage.evaluate(function () { document.querySelector('.cx-row[data-repo-id="repo-ds"] .cx-title-btn').focus(); });
+    const repoTitleBtnFocused = await repoPage.evaluate(function () { return document.activeElement === document.querySelector('.cx-row[data-repo-id="repo-ds"] .cx-title-btn'); });
+    ok("QA-07: a row's title button is reachable by keyboard focus (real <button>, native Tab stop)", repoTitleBtnFocused, "focused=" + repoTitleBtnFocused);
+    await repoPage.keyboard.press("Enter");
+    await repoPage.waitForTimeout(80);
+    const repoTitleBtnKeyboardOpen = await repoPage.evaluate(function () {
+      return { title: (document.querySelector(".modal-h") || {}).textContent, name: (document.querySelector(".modal .cx-field input") || {}).value };
+    });
+    ok("QA-07: pressing Enter on the focused title button opens that row's editor, same as clicking the row",
+      repoTitleBtnKeyboardOpen.title === "Edit dataset" && repoTitleBtnKeyboardOpen.name === "repo_test_dataset", JSON.stringify(repoTitleBtnKeyboardOpen));
+    await repoPage.evaluate(function () { document.querySelector(".modal-ov .x").click(); });
+    await repoPage.waitForTimeout(60);
+
     // ---- M5 NEXT: "a right-panel editor for simple objects instead of always
     // deep-linking out" — a quick-edit (pencil) button on dataset/connection/job/
     // analysis rows opens a lightweight name+folder editor in the shell's
     // rightPanel, without leaving Repository or opening the full editor. ----
-    await repoPage.click('#railNav .rail-item[data-sec="repository"]');
-    await repoPage.waitForTimeout(100);
-
     const repoEditButtons = await repoPage.evaluate(function () {
       return {
         ds: !!document.querySelector('.cx-row[data-repo-id="repo-ds"] .repo-edit'),
