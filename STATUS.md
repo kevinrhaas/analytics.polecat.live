@@ -2209,6 +2209,82 @@
 
 ## NEXT (top = do first)
 
+### ★★ FRONTEND QA REPORT — 2026-07-24 (Kevin-directed, fold into the interleave)
+> Full report committed at repo root: `FRONTEND_QA_REPORT_2026-07-24.md` (read it for the
+> exact repro steps, acceptance criteria, and per-finding regression tests). Exploratory
+> production testing on top of a green suite. Work these as normal steward slices; the two
+> P1 SECURITY items (QA-01/QA-02) and the broken-first-run QA-03 lead. Each finding names its
+> own acceptance criteria + a regression test to add — honor both; never weaken assertions.
+> QA-01. ★ P1 SECURITY — **credential inputs accept unrelated password-manager autofill.** New
+>       credentialed adapter forms (e.g. BigQuery OAuth token) render with a secret pre-filled by
+>       the browser password manager: the field is `type=password autocomplete=off` with no `id`/
+>       `name`, so managers ignore `off` and inject an unrelated secret — a user could save/test a
+>       connection with the wrong credential, which could then sync to the backend. FIX: stable
+>       connector-specific `id`+`name` on every secret input; `autocomplete="new-password"` not
+>       `off`; render secrets empty (consider readonly-until-focus); never treat an autofilled value
+>       as user-confirmed — require explicit interaction before Test/Add when a secret is present on
+>       first render. Area: app/studio.js `credsStep()`, app/sources/data-adapters.js. Test: a
+>       pre-populated secret input cannot be silently persisted.
+> QA-02. ★ P1 SECURITY/TRUST — **“Credentials stay in this browser” copy conflicts with backend
+>       sync.** Connections + tutorial say credentials stay local, but workspace sync mirrors
+>       connection rows to the selected backend, and with encryption OFF the secret values are
+>       written as PLAINTEXT. FIX: state-aware copy (local-only / remote+encrypted / remote+plaintext-
+>       with-a-prominent-warning + a direct enable-encryption action); surface the current secret-
+>       storage state in Connections (not just Settings); a first-sync confirmation stating exactly
+>       where credentials will be stored; consider making encryption opt-OUT on first secret-bearing
+>       sync. Area: app/index.html, app/tutorial.js, app/sources/sync.js, app/studio.js backend-secrets
+>       card, README.md. Test: no screen claims browser-only when a remote backend is connected; warn
+>       before the first plaintext secret sync.
+> QA-03. ★ P1 BUG — **featured County dataset opens with an invalid choropleth value mapping**
+>       (folds with LF32). Explore → “County cover-crop adoption (demo)” correctly picks Map (US
+>       choropleth) but auto-maps Value=`statecode` (a text column) instead of `pct`, so the map is
+>       EMPTY until the user changes Value to `pct`. ROOT CAUSE: `xpGuessMapping()` delegates to
+>       `Studio.newPanel()`’s positional default (2nd column = valueCol) instead of the name+numeric
+>       heuristic in `autoPickCols()`. FIX: one canonical column-typing/selection routine shared by
+>       Explore defaults AND Studio Auto-pick; prefer numeric-by-sampled-values; for choropleths
+>       prefer value-like names (`value/pct/rate/amount/count/acres`) and REJECT columns whose sampled
+>       values are non-numeric. Test: selecting that exact demo renders a populated county map with
+>       geoid→id, pct→Value, provider→Series (add the real workspace demo dataset, not just a
+>       catalog-generated geo sample). This is the precise diagnosis behind LF32’s “Explore-built
+>       dashboard didn’t render” half.
+> QA-04. P2 — **duplicate names are indistinguishable in pickers/Repository/compare** (two “Untitled
+>       Dashboard”, two identically-named Conservation dashboards, two “State Map” analyses). FIX:
+>       every object picker gets a stable disambiguator (workbook/folder, owner, updated time, panel
+>       count, source dataset, or short id); warn on save when same type+name+scope already exists;
+>       default new blanks to a unique name (`Untitled Dashboard 2`); compare selects labelled “Left/
+>       Right dashboard”. Ties into #29 (widgets/repository) + LF27c (Dashboards browser).
+> QA-05. P2 A11Y — **icon/action controls lack object-specific accessible names.** Explore saved-
+>       analysis buttons expose only `★`/`▦`/`✕`; Studio data-rail repeats bare “Duplicate”/“Delete”;
+>       compare selects are unlabelled. FIX: object-specific `aria-label` (“Pin State Map to Home”,
+>       “Delete State Map”, “Duplicate cost_by_source”), labelled compare selects; extend the a11y
+>       regression checks to these dynamic lists/dialogs. (`title` is not an accessible name.)
+> QA-06. P2 — **restore-unsaved-work banner overlays active controls across unrelated sections**
+>       (covers Explore save/add controls + lower Studio content at desktop width). FIX: reserve
+>       layout space or use a non-blocking notification area; collapse to a compact notice once you
+>       navigate away from Studio; full prompt only in Studio/Home. Test: the banner never overlaps a
+>       focusable control at desktop/tablet/phone. (Relates to the earlier M8 mobile-banner work — this
+>       is the desktop-overlay half.)
+> QA-07. P2 A11Y — **clickable rows contain nested interactive actions.** Catalog rows are
+>       `role="button"` while also holding Test/Edit/Delete/privacy/pin/quick-edit buttons (button-role
+>       containing interactive descendants). Click-bubble guards exist but the semantics stay fragile.
+>       FIX: non-interactive row container; the title becomes the primary open/edit link/button;
+>       secondary actions are sibling buttons in a labelled action group. Area: Datasets/Connections/
+>       Repository rows (the `.cx-row` family). Test: no button-role element contains another
+>       interactive control; predictable Tab + Enter/Space.
+> QA-08. P3 — **New-connection intro text is stale** (“More adapters (Postgres, Redshift, Azure,
+>       files) join this list over time” — Postgres/Redshift/files already listed; Azure isn’t). FIX:
+>       replace with current guidance (“Choose a source below. Some connectors require browser CORS
+>       access or a link-shared file.”). Quick.
+> QA-09. P3 DOCS — **README entry point conflicts with the deployed path** (says the app is at root
+>       `/` + `index.html` + localhost:8000; actually `/app/` + `app/index.html`, root is marketing —
+>       CLAUDE.md is already correct). FIX: update README run/layout to `localhost:8000/app/` + the
+>       root/app split. Quick.
+> QA-10. VERIFY — production footer `v513` was one changelog version behind repo `v514` at test time.
+>       Likely a normal deploy window / SW cache delay, not a defect. Confirm the Pages deploy for the
+>       tested commit, verify a fresh/private browser gets the newer build, and if stale clients
+>       persist, inspect the SW update/activation path + footer build stamping. No code change unless a
+>       real staleness bug is found.
+
 ### ✅ DECISIONS LOCKED WITH KEVIN (2026-07-21) — the two former hard-stops are now unblocked
 > These resolve the design/infra forks that previously required Kevin's input. The lane executes
 > them as written; do NOT re-ask.
