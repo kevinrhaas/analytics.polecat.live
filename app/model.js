@@ -2430,6 +2430,7 @@
       titleSize: "", // optional key into Studio.TITLE_SIZE_PX overriding the banner title's font size; "" = default
       subtitleStyle: "", // optional key into Studio.SUBTITLE_STYLES ("italic"/"bold"/"bold-italic"); "" = default
       cardSkin: "", // N-DESIGN: "flat" drops the raised shadow/hover-lift on chart cards + KPI tiles for an editorial-minimal mood; "" = default raised skin
+      renderMode: "", // LF20: fixed per-dashboard light/dark for the exported HTML ("" = light, "dark" = dark) — replaces the old in-header toggle button; the app-level light/dark control (canvas-bar #btnTheme) is separate and unaffected
       templateVars: [], // N-DEV: [{key,value}] — {{key}} tokens in dashboard title/subtitle AND panel title/note get substituted at render time
       panels: []
     };

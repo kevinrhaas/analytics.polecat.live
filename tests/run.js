@@ -4644,9 +4644,10 @@ function serve() {
     ok("a11y: pdc-ui.css disables every dashboard-chrome transition/animation under prefers-reduced-motion", reducedMotionCoverage);
 
     // Real keyboard-focus behavior: tabbing to a header icon button shows a visible (white) outline.
-    await frame.evaluate(() => { const b = document.getElementById("themeBtn"); if (b) b.focus(); });
+    // (LF20 removed the old in-header themeBtn — qInfoBtn is the remaining header icon button.)
+    await frame.evaluate(() => { const b = document.getElementById("qInfoBtn"); if (b) b.focus(); });
     const themeBtnFocus = await frame.evaluate(() => {
-      const b = document.getElementById("themeBtn");
+      const b = document.getElementById("qInfoBtn");
       const cs = b ? getComputedStyle(b) : null;
       return cs ? { style: cs.outlineStyle, color: cs.outlineColor } : null;
     });
@@ -5982,16 +5983,14 @@ function serve() {
       await new Promise((r) => setTimeout(r, 700));
       const d = ifr.contentDocument;
       const qInfoBtn = d.getElementById("qInfoBtn");
-      const themeBtn = d.getElementById("themeBtn");
+      const themeBtnGone = !d.getElementById("themeBtn");
       const qInfoAriaLabel = qInfoBtn ? qInfoBtn.getAttribute("aria-label") : null;
-      const themeBtnAriaLabel = themeBtn ? themeBtn.getAttribute("aria-label") : null;
-      const themeBtnHasSvg = themeBtn ? themeBtn.querySelectorAll("svg").length > 0 : false;
       ifr.remove();
-      return { qInfoAriaLabel, themeBtnAriaLabel, themeBtnHasSvg };
+      return { qInfoAriaLabel, themeBtnGone };
     });
     ok("I4: exported CDF qInfoBtn has aria-label", !!i4.qInfoAriaLabel && i4.qInfoAriaLabel.length > 5, JSON.stringify(i4));
-    ok("I4: exported CDF themeBtn has aria-label", !!i4.themeBtnAriaLabel && i4.themeBtnAriaLabel.length > 5, JSON.stringify(i4));
-    ok("I4: exported CDF theme button uses SVG icon (not unicode)", i4.themeBtnHasSvg, JSON.stringify(i4));
+    ok("LF20: the old in-header theme toggle button is gone from the exported CDF (render mode is now a fixed per-dashboard Inspector option)",
+      i4.themeBtnGone, JSON.stringify(i4));
 
     // LF31: clicking a panel's dataset caption opens the Datasets view FOCUSED on
     // THAT panel's dataset (used to pass no focusId, so it showed every dataset
@@ -17614,6 +17613,52 @@ function serve() {
     });
     ok("Dashboard theme: reverting to 'Classic' clears dashboardTheme and drops the override CSS",
       dtClassicOk.specKey === "" && !dtClassicOk.hasOverride, JSON.stringify(dtClassicOk));
+
+    // ── LF20: dashboard render mode (light/dark) is now a persisted Inspector option ──────────
+    console.log("\n• LF20: dashboard Appearance (render mode) replaces the in-header toggle");
+    var renderModeRowOk = await page.evaluate(function () {
+      var sel = document.getElementById("dashRenderMode");
+      return { present: !!sel, value: sel && sel.value, optionCount: sel ? sel.options.length : 0 };
+    });
+    ok("LF20: Inspector renders the #dashRenderMode Appearance select, defaulting to Light ('')",
+      renderModeRowOk.present && renderModeRowOk.value === "" && renderModeRowOk.optionCount === 2, JSON.stringify(renderModeRowOk));
+
+    await page.evaluate(function () {
+      var sel = document.getElementById("dashRenderMode");
+      sel.value = "dark";
+      sel.dispatchEvent(new Event("change"));
+    });
+    await page.waitForTimeout(200);
+    var renderModeAppliedOk = await page.evaluate(function () {
+      var spec = window.__STUDIO_STATE.spec;
+      var exportHtml = window.Studio.buildHtml(spec, window.__STUDIO_STATE.assets, { deployPath: "/x", preview: false });
+      var previewHtml = window.Studio.buildHtml(spec, window.__STUDIO_STATE.assets, { deployPath: "/x", preview: true });
+      return {
+        specKey: spec.renderMode,
+        exportHasDarkAttr: /<html lang="en" data-theme="dark">/.test(exportHtml),
+        previewHasDarkAttr: /<html lang="en" data-theme="dark">/.test(previewHtml),
+        noThemeBtnInExport: exportHtml.indexOf('id="themeBtn"') === -1
+      };
+    });
+    ok("LF20: picking Dark sets spec.renderMode = 'dark'", renderModeAppliedOk.specKey === "dark", JSON.stringify(renderModeAppliedOk));
+    ok("LF20: spec.renderMode='dark' bakes data-theme=\"dark\" onto <html> in both the export and the live preview",
+      renderModeAppliedOk.exportHasDarkAttr && renderModeAppliedOk.previewHasDarkAttr, JSON.stringify(renderModeAppliedOk));
+    ok("LF20: the exported HTML never carries the old in-header theme toggle button, dark mode or not",
+      renderModeAppliedOk.noThemeBtnInExport, JSON.stringify(renderModeAppliedOk));
+
+    // Revert to Light so it doesn't leak into subsequent, unrelated checks later in the suite.
+    await page.evaluate(function () {
+      var sel = document.getElementById("dashRenderMode");
+      sel.value = ""; sel.dispatchEvent(new Event("change"));
+    });
+    await page.waitForTimeout(200);
+    var renderModeRevertOk = await page.evaluate(function () {
+      var spec = window.__STUDIO_STATE.spec;
+      var html = window.Studio.buildHtml(spec, window.__STUDIO_STATE.assets, { deployPath: "/x", preview: false });
+      return { specKey: spec.renderMode, hasDarkAttr: /data-theme="dark"/.test(html) };
+    });
+    ok("LF20: reverting to Light clears spec.renderMode and drops the baked data-theme attribute",
+      renderModeRevertOk.specKey === "" && !renderModeRevertOk.hasDarkAttr, JSON.stringify(renderModeRevertOk));
 
     // N-DESIGN "a few stunning presets" — a third dashboard-theme mood, High Contrast (true
     // black/white extremes, its own re-validated series palette). Same registry/apply/aria
