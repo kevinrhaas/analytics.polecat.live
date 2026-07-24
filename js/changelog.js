@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 522,
+    title: 'Catalog rows no longer nest a button inside a button for assistive tech',
+    kind: 'fix',
+    ts: '2026-07-24T23:40:16.000Z',
+    items: [
+      'Rows in Datasets, Connections, Jobs, Repository, and the Dashboards list view exposed themselves as a single clickable button while also containing several real buttons (Test/Edit/Delete, pin, privacy, quick-edit) -- a nested-interactive pattern that confuses keyboard and screen-reader navigation. Each row is now a plain container; its title is a real button that opens the row (native Enter/Space works), and the secondary actions stay as sibling buttons alongside it.',
+    ],
+  },
+  {
     v: 521,
     title: 'The restore-unsaved-work banner no longer covers other sections\' controls',
     kind: 'fix',

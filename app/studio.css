@@ -1713,7 +1713,13 @@ body.simple-mode .da-acts{display:none!important}
 @media(prefers-reduced-motion:reduce){.cx-group-del{transition:none}}
 .cx-row{display:flex;align-items:center;gap:12px;background:var(--field);border:1px solid color-mix(in srgb, var(--ink) 12%, transparent);
   border-radius:12px;padding:12px 16px;cursor:pointer;transition:transform .12s ease,border-color .12s ease,opacity .12s ease}
-.cx-row:hover,.cx-row:focus-visible{border-color:var(--brand);transform:translateY(-1px)}
+/* QA-07 (FRONTEND_QA_REPORT_2026-07-24.md): the row itself is a plain, non-interactive
+   container now (no role="button"/tabindex) — its primary action lives on the real
+   <button class="cx-title-btn"> in .cx-name, so the a11y tree never nests a button-role
+   inside a button-role. :focus-within (not :focus-visible, which the row itself can no
+   longer receive) keeps the same hover-style lift when the title button or any sibling
+   action button is focused. */
+.cx-row:hover,.cx-row:focus-within{border-color:var(--brand);transform:translateY(-1px)}
 /* M5 NEXT ("drag-to-file"): a desktop-mouse-only convenience layered on the folder
    text field (still the primary, mobile-capable way to file something) — a row
    being dragged dims, and a folder group being dragged over gets a dashed brand
@@ -1726,7 +1732,11 @@ body.simple-mode .da-acts{display:none!important}
 .cx-dot.bad{background:#ff5c7a;box-shadow:0 0 6px rgba(255,92,122,.5)}
 .cx-ic{display:flex;align-items:center;flex:0 0 auto}
 .cx-name{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:1px}
-.cx-name b{color:var(--ink);font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* QA-07: the primary action is a real <button> wrapping the title <b> — reset it to
+   read as plain text (no button chrome) while staying a proper focusable control. */
+.cx-title-btn{display:block;width:100%;background:none;border:none;padding:0;margin:0;font:inherit;text-align:left;cursor:pointer}
+.cx-name b{color:var(--ink);font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+.cx-title-btn:hover b,.cx-title-btn:focus-visible b{color:var(--brand)}
 .cx-name small{color:var(--faint);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cx-badge{font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);
   border:1px solid color-mix(in srgb, var(--ink) 20%, transparent);border-radius:999px;padding:2px 8px;flex:0 0 auto}

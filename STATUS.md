@@ -116,6 +116,30 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **QA-07 — catalog rows no longer nest a button inside a button for assistive tech (v522,
+  2026-07-24, steward, FRONTEND_QA_REPORT_2026-07-24.md):** the report's P2 finding — rows in
+  Datasets, Connections, Jobs, Repository, and the Dashboards list view were `role="button"`
+  containers that ALSO held several real `<button>` descendants (Test/Edit/Delete, pin, privacy,
+  quick-edit) — a nested-interactive pattern in the accessibility tree that's fragile for
+  keyboard/AT navigation even though mouse click-guards (`e.target.closest(...)`) mostly papered
+  over it. The report scoped Datasets/Connections/Repository; the identical `role="button"` +
+  nested-`<button>`s markup turned out to live in exactly two more places in `app/studio.js`
+  (Jobs, and the Dashboards section's compact list-view row) — same root cause, so all five were
+  fixed together as one coherent pass rather than leaving the same bug half-fixed. Fix: every row
+  is now a plain container (no `role`/`tabindex`); the title is wrapped in a real
+  `<button class="cx-title-btn">` (native Tab stop, Enter/Space activation for free) that carries
+  the row's former `aria-label`, and the existing mouse click-delegate on the row is unchanged
+  (title-button clicks simply bubble to it, same as clicking anywhere else in the row) — so
+  secondary actions (Test/Edit/Delete/pin/private/quick-edit) stay plain siblings, never
+  descendants, of the primary control. `app/studio.css`: `.cx-row:hover,:focus-visible` became
+  `:hover,:focus-within` (the row itself can no longer receive focus, so the hover-lift now
+  triggers off any focused descendant instead), plus a `.cx-title-btn` reset so the button reads
+  as plain bold text. 11 new regression checks across the five row types assert (a) no row
+  carries `role`/`tabindex` and its title button has no nested interactive descendants, and
+  (b) both click and real keyboard Enter on the title button open the row's editor. Suite green
+  (1943/1943). No sw.js bump (no new precached files; app/studio.js + app/studio.css content
+  changed). (app/studio.js, app/studio.css, tests/run.js) NEXT: QA-08 (stale new-connection
+  intro copy) is the next item in the same report.
 - **QA-06 — the restore-unsaved-work banner now reserves space instead of floating over other
   sections' controls (v521, sw v160, 2026-07-24, steward, FRONTEND_QA_REPORT_2026-07-24.md):**
   the report's P2 finding — the fixed bottom-center "Restore unsaved work?" banner stayed

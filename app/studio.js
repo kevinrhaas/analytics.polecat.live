@@ -6444,12 +6444,13 @@
       btn.onclick = function (e) { e.stopPropagation(); togglePrivate(btn.getAttribute("data-private")); };
     });
     $$(".dash-li", results).forEach(function (row) {
+      // QA-07: the row is a plain container now — the title button (native
+      // Enter/Space activation) is the keyboard path; this click delegate is
+      // purely a mouse convenience so clicking anywhere else on the row still
+      // opens it too.
       row.addEventListener("click", function (e) {
         if (e.target.closest(".recent-pin,.recent-private,.recent-wb-sel")) return;
         openRecent(row.getAttribute("data-recent"));
-      });
-      row.addEventListener("keydown", function (e) {
-        if ((e.key === "Enter" || e.key === " ") && e.target === row) { e.preventDefault(); openRecent(row.getAttribute("data-recent")); }
       });
     });
   }
@@ -6461,8 +6462,8 @@
     var meta = [sp.name || "", panels + " panel" + (panels === 1 ? "" : "s") + (kpis ? " · " + kpis + " KPI" + (kpis === 1 ? "" : "s") : "")]
       .filter(Boolean).join(" · ");
     var when = r.ts ? new Date(r.ts).toLocaleDateString() : "";
-    return '<div class="cx-row dash-li" data-recent="' + esc(r.id) + '" tabindex="0" role="button" aria-label="Open ' + esc(title) + '">' +
-      '<span class="cx-name"><b>' + esc(title) + '</b><small>' + esc(meta) +
+    return '<div class="cx-row dash-li" data-recent="' + esc(r.id) + '">' +
+      '<span class="cx-name"><button type="button" class="cx-title-btn" aria-label="Open ' + esc(title) + '"><b>' + esc(title) + '</b></button><small>' + esc(meta) +
         (matchedCol ? ' · matches column “' + esc(matchedCol) + '”' : "") + '</small></span>' +
       (sp.dashboardTheme ? '<span class="cx-badge">' + esc(sp.dashboardTheme) + '</span>' : "") +
       '<span class="cx-when">' + esc(when) + '</span>' +
@@ -6624,10 +6625,10 @@
       var metaBadge = src.caps && src.caps.meta ? '<span class="cx-badge" title="Can also host this app\'s workspace (see Settings → Workspace backend)">workspace-capable</span>' : "";
       var tagBadges = (c.tags || []).map(function (t) { return '<span class="cx-badge">#' + esc(t) + '</span>'; }).join("");
       var folderBadge = c.folder ? '<span class="cx-badge cx-folder" title="Folder: ' + esc(c.folder) + '">' + esc(c.folder) + '</span>' : "";
-      return '<div class="cx-row" data-conn-id="' + esc(c.id) + '" tabindex="0" role="button" aria-label="Edit connection ' + esc(c.name) + '">' +
+      return '<div class="cx-row" data-conn-id="' + esc(c.id) + '">' +
         connStatusDot(c) +
         '<span class="cx-ic" style="color:' + esc(src.accent || "var(--brand)") + '"></span>' +
-        '<span class="cx-name"><b>' + esc(c.name) + '</b><small>' + esc(src.label || c.adapter) + '</small></span>' +
+        '<span class="cx-name"><button type="button" class="cx-title-btn" aria-label="Edit connection ' + esc(c.name) + '"><b>' + esc(c.name) + '</b></button><small>' + esc(src.label || c.adapter) + '</small></span>' +
         metaBadge +
         folderBadge +
         tagBadges +
@@ -6717,9 +6718,6 @@
       row.addEventListener("click", function (e) {
         if (e.target.closest("[data-conn-pin],[data-conn-private],[data-conn-test],[data-conn-edit],[data-conn-del]")) return;
         openConnectionWizard(c);
-      });
-      row.addEventListener("keydown", function (e) {
-        if ((e.key === "Enter" || e.key === " ") && e.target === row) { e.preventDefault(); openConnectionWizard(c); }
       });
     });
     $$(".cx-pin", results).forEach(function (btn) {
@@ -7155,10 +7153,10 @@
         ? '<span class="cx-badge cx-lineage" title="Used in: ' + esc(lineage.map(function (r) { return r.title || r.name || "Untitled"; }).join(", ")) + '">↪ ' +
           lineage.length + " dashboard" + (lineage.length !== 1 ? "s" : "") + '</span>'
         : "";
-      return '<div class="cx-row" draggable="true" data-dsx-id="' + esc(d.id) + '" tabindex="0" role="button" aria-label="Edit dataset ' + esc(d.name) + '">' +
+      return '<div class="cx-row" draggable="true" data-dsx-id="' + esc(d.id) + '">' +
         dot +
         '<span class="cx-ic" style="color:' + esc((src && src.accent) || "var(--faint)") + '"></span>' +
-        '<span class="cx-name"><b>' + esc(d.name) + '</b><small>' + esc(conn ? conn.name : "no connection") + (src ? " · " + src.label : "") + (d.owner ? " · " + esc(d.owner) : "") + '</small></span>' +
+        '<span class="cx-name"><button type="button" class="cx-title-btn" aria-label="Edit dataset ' + esc(d.name) + '"><b>' + esc(d.name) + '</b></button><small>' + esc(conn ? conn.name : "no connection") + (src ? " · " + src.label : "") + (d.owner ? " · " + esc(d.owner) : "") + '</small></span>' +
         folderBadge +
         tags +
         ((d.params || []).length ? '<span class="cx-badge" title="Accepts parameters">' + (d.params || []).length + " param" + ((d.params || []).length > 1 ? "s" : "") + '</span>' : "") +
@@ -7257,9 +7255,6 @@
       row.addEventListener("click", function (e) {
         if (e.target.closest("[data-dsx-pin],[data-dsx-private],[data-dsx-run],[data-dsx-edit],[data-dsx-del]")) return;
         openDatasetEditor(d);
-      });
-      row.addEventListener("keydown", function (e) {
-        if ((e.key === "Enter" || e.key === " ") && e.target === row) { e.preventDefault(); openDatasetEditor(d); }
       });
       // Drag onto Home's "Blank dashboard" tile to start a new dashboard seeded
       // with this dataset — same {wsDataset} payload the Studio library/canvas
@@ -7627,10 +7622,10 @@
         : (j.lastRun.ok ? '<span class="cx-dot ok" title="Last run OK · ' + esc(new Date(j.lastRun.at).toLocaleString()) + ' · ' + j.lastRun.rows + ' rows"></span>'
           : '<span class="cx-dot bad" title="Last run failed: ' + esc(j.lastRun.error) + '"></span>');
       var folderBadge = j.folder ? '<span class="cx-badge cx-folder" title="Folder: ' + esc(j.folder) + '">' + esc(j.folder) + '</span>' : "";
-      return '<div class="cx-row" data-job-id="' + esc(j.id) + '" tabindex="0" role="button" aria-label="Edit job ' + esc(j.name) + '">' +
+      return '<div class="cx-row" data-job-id="' + esc(j.id) + '">' +
         dot +
         '<span class="cx-ic" style="color:var(--faint)"></span>' +
-        '<span class="cx-name"><b>' + esc(j.name) + '</b><small>' + (src ? "from " + esc(src.name) : "no source dataset") +
+        '<span class="cx-name"><button type="button" class="cx-title-btn" aria-label="Edit job ' + esc(j.name) + '"><b>' + esc(j.name) + '</b></button><small>' + (src ? "from " + esc(src.name) : "no source dataset") +
           (out ? " → " + esc(out.name) : "") + '</small></span>' +
         folderBadge +
         '<span class="cx-badge">' + (j.steps || []).length + " step" + ((j.steps || []).length === 1 ? "" : "s") + '</span>' +
@@ -7658,7 +7653,6 @@
       var j = Studio.Workspace.get("jobs", row.getAttribute("data-job-id"));
       var icEl = row.querySelector(".cx-ic"); if (icEl && Studio.icon) icEl.appendChild(Studio.icon("sliders", 18));
       row.addEventListener("click", function (e) { if (e.target.closest("[data-job-run],[data-job-private],[data-job-edit],[data-job-del]")) return; openJobEditor(j); });
-      row.addEventListener("keydown", function (e) { if ((e.key === "Enter" || e.key === " ") && e.target === row) { e.preventDefault(); openJobEditor(j); } });
     });
     $$(".cx-private", results).forEach(function (btn) {
       btn.appendChild(Studio.icon("lock", 14));
@@ -8107,9 +8101,9 @@
       // desktop-mouse-only convenience layered on TOP of the folder text field (with
       // its autocomplete), which stays the primary, fully mobile-capable way to file
       // something — no touch/keyboard equivalent is offered here on purpose.
-      return '<div class="cx-row" data-repo-id="' + esc(r.id) + '" data-repo-type="' + esc(r.type) + '"' + (canQuickEdit ? ' draggable="true"' : '') + ' tabindex="0" role="button" aria-label="Open ' + esc(r.title) + '">' +
+      return '<div class="cx-row" data-repo-id="' + esc(r.id) + '" data-repo-type="' + esc(r.type) + '"' + (canQuickEdit ? ' draggable="true"' : '') + '>' +
         '<span class="cx-ic" style="color:var(--faint)"></span>' +
-        '<span class="cx-name"><b>' + esc(r.title) + '</b><small>' + esc((td ? td.singular : r.type) + " · " + r.meta) + '</small></span>' +
+        '<span class="cx-name"><button type="button" class="cx-title-btn" aria-label="Open ' + esc(r.title) + '"><b>' + esc(r.title) + '</b></button><small>' + esc((td ? td.singular : r.type) + " · " + r.meta) + '</small></span>' +
         (r.folder ? '<span class="cx-badge cx-folder" title="Folder: ' + esc(r.folder) + '">' + esc(r.folder) + '</span>' : "") +
         '<span class="cx-when">' + (r.ts ? esc(new Date(r.ts).toLocaleDateString()) : "") + '</span>' +
         (canQuickEdit ? '<span class="cx-actions"><button type="button" class="repo-edit" data-repo-edit-type="' + esc(r.type) + '" data-repo-edit-id="' + esc(r.id) + '" title="Quick edit" aria-label="Quick edit ' + esc(r.title) + '"></button></span>' : "") +
@@ -8195,7 +8189,6 @@
       var icEl = row.querySelector(".cx-ic"); if (icEl && Studio.icon && td) icEl.appendChild(Studio.icon(td.ic, 18));
       var open = function () { repoOpenRow(row.getAttribute("data-repo-type"), row.getAttribute("data-repo-id")); };
       row.addEventListener("click", open);
-      row.addEventListener("keydown", function (e) { if ((e.key === "Enter" || e.key === " ") && e.target === row) { e.preventDefault(); open(); } });
       if (row.getAttribute("draggable") === "true") {
         row.addEventListener("dragstart", function (e) {
           e.dataTransfer.setData("text/plain", JSON.stringify({ type: row.getAttribute("data-repo-type"), id: row.getAttribute("data-repo-id") }));
