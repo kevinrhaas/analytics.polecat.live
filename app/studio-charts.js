@@ -5693,8 +5693,26 @@
       for (var i = 1; i < ring.length; i++) d += "L" + ring[i][0] + "," + ring[i][1];
       return d + "Z";
     }
+    // LF4(c): topojson.mesh() (used for the county/huc8 → state-line overlay, and the
+    // unused `borders` mesh) returns LineString/MultiLineString geometry — open
+    // polylines, not closed rings. geom2path only handled Polygon/MultiPolygon, so
+    // every mesh() result silently built an EMPTY path string: the SVG renderer's
+    // "State border overlay" toggle has never actually drawn anything (the GL renderer
+    // never had this gap — MapLibre consumes the raw GeoJSON geometry directly, no
+    // path-string step). line2path mirrors ring2path minus the closing "Z" (a mesh
+    // segment is an open line, not a closed shape).
+    function line2path(line) {
+      if (!line.length) return "";
+      var d = "M" + line[0][0] + "," + line[0][1];
+      for (var i = 1; i < line.length; i++) d += "L" + line[i][0] + "," + line[i][1];
+      return d;
+    }
     function geom2path(geom) {
       if (!geom) return "";
+      if (geom.type === "LineString") return line2path(geom.coordinates);
+      if (geom.type === "MultiLineString") {
+        var dl = ""; geom.coordinates.forEach(function (line) { dl += line2path(line); }); return dl;
+      }
       var polys = geom.type === "Polygon" ? [geom.coordinates] : geom.type === "MultiPolygon" ? geom.coordinates : [];
       var d = "";
       polys.forEach(function (poly) { poly.forEach(function (ring) { d += ring2path(ring); }); });

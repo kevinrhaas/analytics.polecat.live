@@ -5,7 +5,16 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v139"; /* v139: LF20 — the dashboard's own light/dark render mode
+var CACHE_NAME = "studio-shell-v140"; /* v140: LF4(c) — the SVG choropleth renderer's "State
+   border overlay" toggle never actually drew anything: geom2path() (app/studio-charts.js) only
+   handled Polygon/MultiPolygon geometry, but topojson.mesh() (used to build the state-line
+   overlay, and the GL renderer's own border layer) returns LineString/MultiLineString — an
+   unhandled type that silently built an empty path string. Added line2path() (mirrors ring2path
+   minus the closing Z, since a mesh segment is an open polyline, not a closed ring) and routed
+   LineString/MultiLineString through it. The GL renderer was never affected (MapLibre consumes
+   raw GeoJSON, no path-string step) — this closes the SVG/GL parity gap LF4(c) asked about.
+   app/studio-charts.js changed, so the precached copy needs to roll.
+   v139: LF20 — the dashboard's own light/dark render mode
    moves from a live in-header toggle button (confusing next to the app-level light/dark control)
    to a persisted per-dashboard Inspector "Appearance" option (spec.renderMode). exporters.js bakes
    data-theme onto <html> at build time instead of studio-render.js wiring up a themeBtn click
