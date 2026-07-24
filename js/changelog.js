@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 514,
+    title: 'An 8th Conservation showcase example: a narrative rollup of the whole story',
+    kind: 'feature',
+    ts: '2026-07-24T15:43:25.000Z',
+    items: [
+      'The Examples gallery\'s Conservation demo pack gains an 8th showcase dashboard -- a richtext-led narrative rollup tying the other seven showcases together into one read, with a practice-mix trend line plus overall-adoption, enrolled-acres, return-score, and provider-agreement rollup panels. This was the last of the originally-planned topics, so the Conservation showcase set is now complete.',
+    ],
+  },
+  {
     v: 513,
     title: 'M7: closed the last gap before the account-list security rule can go live',
     kind: 'polish',

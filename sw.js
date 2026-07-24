@@ -5,7 +5,14 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v152"; /* v152: LF2 — a 7th Conservation example, "Year-over-
+var CACHE_NAME = "studio-shell-v153"; /* v153: LF2 — an 8th Conservation example, "The Story So
+   Far" (data/examples/conservation-overview.studio.json, index.json entry): a richtext-led
+   narrative rollup tying the other six Conservation showcases together, with a practice-mix trend
+   line plus overall-adoption/enrolled-acres/return-score/provider-agreement rollup panels. New
+   example file needs to roll into the precache (the SW reads index.json at install and caches
+   each listed example file, so no separate precache-list entry is needed). docs/index.html
+   changed too (names all 8 showcase dashboards). LF2(a) is now fully done.
+   v152: LF2 — a 7th Conservation example, "Year-over-
    Year Practice Switching" (data/examples/conservation-switching.studio.json, index.json entry):
    a stacked-area view of the practice mix by year, a bump-chart ranking of adoption share (who
    rose, who fell), a 2015-vs-2025 slope per practice, and a switched-acres gauge, gated by a real

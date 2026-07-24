@@ -176,5 +176,15 @@
     "gridCols": 3,
     "types": ["areaStacked", "bump", "slope", "gauge"],
     "layout": [["areaStacked", "full"], ["bump", 2], ["slope", 1], ["gauge", 1]]
+  },
+  {
+    "file": "conservation-overview.studio.json",
+    "title": "Conservation Insight — The Story So Far",
+    "demoPackId": "conservation",
+    "panels": 6,
+    "kpis": 4,
+    "gridCols": 3,
+    "types": ["richtext", "line", "gauge", "donut", "bars", "gauge"],
+    "layout": [["richtext", "full"], ["line", 2], ["gauge", 1], ["donut", 1], ["bars", 1], ["gauge", 1]]
   }
 ]

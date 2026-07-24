@@ -116,6 +116,28 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF2 — an 8th Conservation showcase example, "The Story So Far" (v514, sw v153, 2026-07-24,
+  steward — LF2's own NEXT pointer, the last of the ~8 originally-named candidate topics, so LF2(a)
+  is now fully done):** a richtext-led narrative dashboard tying the other six Conservation
+  showcases together into one read — the intro panel (full span) walks through adoption, mix,
+  watershed/county scale, cost-share ROI, and provider agreement, cross-referencing each showcase
+  by name, followed by a practice-mix trend line (cover crops + no-till share over time, the
+  headline behind the Net Shift KPI), and four span-1 rollups (overall-adoption gauge, enrolled-
+  acres-by-practice donut, return-score-by-practice bars, provider-agreement gauge) reusing the
+  SAME dataAccess SQL shapes as the Scorecard/Cost-Share/Agreement examples (no new sample-data
+  `classify()` column patterns introduced). Unlike its six siblings this one carries `filters: []`
+  — a summary read over the whole program, not another filterable per-topic view. 4 headline KPIs
+  (Overall Adoption, Total Cost-Share Paid, Provider Agreement, Net Shift to Conservation
+  Practices) roll up via one combined `kpi` dataAccess (subselects against the fictitious
+  per-topic views — the offline sample engine classifies by column name, not real SQL, so this
+  matches every other showcase's "SQL never runs" convention). 3 new LF2 ratchets (card appears in
+  the gated gallery; loads with its title/6-panel-count/panel-type sequence; the richtext intro
+  actually names the rollup and cross-references the Cost-Share ROI showcase) + the existing
+  `hasScorecard…hasSwitching` gallery-gating check grew a `hasOverview` arm. docs/index.html's
+  Conservation pack blurb now names all eight showcases. sw v153 (new precached example file).
+  (data/examples/conservation-overview.studio.json, data/examples/index.json, docs/index.html,
+  tests/run.js, sw.js) NEXT: LF2(c) — the Data Management demo-pack restructure, folded together
+  with LF16 as one slice per Kevin's 2026-07-23 note (don't build two parallel mechanisms).
 - **R5+ slice 4 — celebrations/milestones module extraction (v510, sw v151, 2026-07-24, steward —
   R5+'s own NEXT pointer, the quality-track slice due after several feature slices in a row per
   the interleave policy):** the N-FUN "delight moments" subsystem (`sparkBurst`,
@@ -2342,12 +2364,13 @@
 >      outlier-share gauge, Year-over-Year Practice Switching (2026-07-24, steward) — a stacked-area
 >      view of the practice mix by year, a bump-chart ranking of adoption share (who rose, who fell),
 >      a 2015-vs-2025 slope comparison per practice, and a switched-acres gauge, gated by a real Crop
->      filter — first use of the areaStacked/bump/slope chart types in the Conservation set — all
+>      filter — first use of the areaStacked/bump/slope chart types in the Conservation set — and
+>      The Story So Far (2026-07-24, steward) — a richtext-led narrative rollup tying the other six
+>      showcases together (trend line + gauge/donut/bars/gauge rollups of adoption, mix, cost-share
+>      ROI, and provider agreement), `filters:[]` (a summary read, not another filterable view) — all
 >      gated via the same `demoPackId` support on examples/index.json entries (visibleExamples() in
->      app/studio.js). The originally-named candidate-topic list (county-level outlier detection,
->      year-over-year practice switching, a richtext-led narrative overview) is now down to the last
->      1; NEXT: the richtext-led narrative overview — or call (a) done at 7/8, it already covers every
->      distinct chart family the CTIC RFP demo needs.**
+>      app/studio.js). **LF2(a) is now fully done — all 8 of the originally-named candidate topics
+>      shipped.**
 >      (c) Move the EXISTING generic
 >      examples (Data Governance, Data Platform Ops, Product Delivery, Finance, Marketing, Incident
 >      Response, Sensitivity/Compliance, Interactive Feature Showcase) AND their backing connections/
