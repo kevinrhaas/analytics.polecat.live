@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 504,
+    title: 'A 4th Conservation showcase example: Program Cost-Share ROI',
+    kind: 'feature',
+    ts: '2026-07-24T07:31:33.000Z',
+    items: [
+      'The Examples gallery\'s Conservation demo pack gains a 4th showcase dashboard -- cost-share efficiency (spend vs. adoption), cost-share dollars by practice, a cost-per-acre trend, and a return-score ranking by practice -- alongside the existing scorecard, crop/practice flow, and watershed-scale views.',
+    ],
+  },
+  {
     v: 503,
     title: 'M7: existing dashboards/connections/datasets/analyses/jobs catch up to real Supabase sign-in',
     kind: 'polish',

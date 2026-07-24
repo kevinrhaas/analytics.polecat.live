@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v144"; /* v144: M7 slice 3 — the data migration RLS needs before
+var CACHE_NAME = "studio-shell-v145"; /* v145: LF2 — a 4th Conservation example, "Program
+   Cost-Share ROI" (data/examples/conservation-costshare.studio.json, index.json entry): a
+   cost-efficiency scatter (spend vs. adoption, bubble = acres), a cost-share-by-practice donut,
+   a cost-per-acre trend responding to the same Since-year filter convention, and a return-score
+   bars ranking. New example file + updated index.json need to roll into the precache.
+   v144: M7 slice 3 — the data migration RLS needs before
    tools/supabase-rls-real.sql can safely go live. currentUserId() (app/studio.js) now prefers an
    account's gotrueId over its username once Supabase Auth sign-in has stamped one (M7 slice 2),
    so freshly-created rows already carry the id auth.uid() will compare against. A new

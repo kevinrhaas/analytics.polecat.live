@@ -136,5 +136,15 @@
     "gridCols": 3,
     "types": ["choropleth", "ensembleSeries", "gauge", "bars"],
     "layout": [["choropleth", "full"], ["ensembleSeries", 2], ["gauge", 1], ["bars", 1]]
+  },
+  {
+    "file": "conservation-costshare.studio.json",
+    "title": "Conservation Insight — Program Cost-Share ROI",
+    "demoPackId": "conservation",
+    "panels": 4,
+    "kpis": 4,
+    "gridCols": 3,
+    "types": ["scatter", "donut", "line", "bars"],
+    "layout": [["scatter", 2], ["donut", 1], ["line", 2], ["bars", 1]]
   }
 ]
