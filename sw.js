@@ -5,7 +5,10 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v159"; /* v159: QA-05 — icon-only action buttons (Explore's saved-
+var CACHE_NAME = "studio-shell-v160"; /* v160: QA-06 — the restore-unsaved-work banner now reserves
+   layout space instead of floating over other sections' controls. No new precached files, but
+   app/studio.js and app/studio.css content changed, so precached copies need to roll.
+   v159: QA-05 — icon-only action buttons (Explore's saved-
    analysis row, the Studio data rail's Duplicate/Delete, the Compare dashboards pickers) now carry
    object-specific accessible names instead of a bare symbol/verb. No new precached files, but
    app/studio.js content changed, so precached copies need to roll.

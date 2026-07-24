@@ -15,6 +15,70 @@ const MIME = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css
 let passed = 0, failed = 0;
 function ok(name, cond, extra) { if (cond) { passed++; console.log("  ✓ " + name); } else { failed++; console.error("  ✗ " + name + (extra ? "  — " + extra : "")); } }
 
+// QA-06 regression helper: asserts the restore-autosave banner never PAINTS OVER a visible
+// interactive control anywhere on screen (the acceptance criterion from
+// FRONTEND_QA_REPORT_2026-07-24.md). A control's raw getBoundingClientRect is its full,
+// UN-clipped layout box — a row buried deep inside a scrolled list (e.g. Explore's 60-row
+// dataset picker, clipped to a ~450px window) still reports a rect far below the fold, which
+// would false-positive as "overlapping" the banner even though it's actually invisible,
+// clipped away by its own scrollable ancestor. So first shrink each control's rect to its
+// REAL effective visible area — intersected with every overflow-clipping ancestor plus the
+// viewport — and only hit-test (elementFromPoint) within whatever's left; a control that's
+// fully clipped away has no effective visible area and can't overlap anything.
+async function restoreBannerOverlapCheck(pg) {
+  return pg.evaluate(() => {
+    const banner = document.querySelector(".restore-banner");
+    if (!banner) return { hasBanner: false, overlaps: [] };
+    const br = banner.getBoundingClientRect();
+    const vw = window.innerWidth, vh = window.innerHeight;
+    function effectiveVisibleRect(el) {
+      const rect = el.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return null;
+      let top = rect.top, bottom = rect.bottom, left = rect.left, right = rect.right;
+      let node = el.parentElement;
+      while (node && node !== document.documentElement) {
+        const cs = getComputedStyle(node);
+        const clips = cs.overflowY === "hidden" || cs.overflowY === "auto" || cs.overflowY === "scroll" ||
+          cs.overflowX === "hidden" || cs.overflowX === "auto" || cs.overflowX === "scroll";
+        if (clips) {
+          const cr = node.getBoundingClientRect();
+          top = Math.max(top, cr.top); bottom = Math.min(bottom, cr.bottom);
+          left = Math.max(left, cr.left); right = Math.min(right, cr.right);
+          if (top >= bottom || left >= right) return null;
+        }
+        node = node.parentElement;
+      }
+      top = Math.max(top, 0); bottom = Math.min(bottom, vh);
+      left = Math.max(left, 0); right = Math.min(right, vw);
+      if (top >= bottom || left >= right) return null;
+      return { top, bottom, left, right };
+    }
+    const controls = Array.from(document.querySelectorAll("button, a[href], input, select, textarea, [role=button]"));
+    const overlaps = [];
+    for (const el of controls) {
+      if (banner.contains(el)) continue;
+      const cs = getComputedStyle(el);
+      if (cs.visibility === "hidden" || cs.display === "none") continue;
+      const vr = effectiveVisibleRect(el);
+      if (!vr) continue; // fully clipped or off-screen — not actually visible, can't overlap
+      const points = [
+        [(vr.left + vr.right) / 2, vr.top + 1],
+        [(vr.left + vr.right) / 2, vr.bottom - 1],
+        [vr.left + 1, (vr.top + vr.bottom) / 2],
+        [vr.right - 1, (vr.top + vr.bottom) / 2]
+      ];
+      for (const [x, y] of points) {
+        const hit = document.elementFromPoint(x, y);
+        if (hit && (hit === banner || banner.contains(hit))) {
+          overlaps.push({ tag: el.tagName, id: el.id, cls: el.className, text: (el.textContent || "").trim().slice(0, 40) });
+          break;
+        }
+      }
+    }
+    return { hasBanner: true, bannerRect: { top: br.top, bottom: br.bottom, left: br.left, right: br.right }, overlaps };
+  });
+}
+
 // ---- mock Turso /v2/pipeline (adapter end-to-end tests) --------------------
 // A tiny in-memory emulation of the libSQL HTTP pipeline covering exactly the
 // SQL shapes app/sources/turso.js issues (list tables, DDL, delete+insert
@@ -9570,9 +9634,41 @@ function serve() {
     });
     ok("E1: restore banner appears after reload", e1banner.found, JSON.stringify(e1banner));
     ok("E1: restore banner .rb-sum shows panel/KPI counts", e1banner.found && /panel/i.test(e1banner.sum), JSON.stringify(e1banner));
-    // Dismiss it
-    await page.evaluate(() => { const b = document.querySelector(".restore-banner"); if (b) b.remove(); });
-    await page.evaluate(() => { try { localStorage.removeItem("studio-autosave"); } catch (e) {} });
+
+    // ---- QA-06: restore banner reserves space instead of overlapping controls (desktop) ----
+    // FRONTEND_QA_REPORT_2026-07-24.md P2: the fixed bottom-center banner used to float on
+    // top of Explore's saved-analysis rows, the Explore analysis editor's controls, and lower
+    // Studio content. Exercise exactly those three states with the banner still up.
+    console.log("\n• QA-06: restore banner doesn't overlap controls (desktop)");
+    await page.evaluate(function () {
+      Studio.Workspace.put("analyses", { id: "qa06-an", name: "QA-06 analysis", chartType: "bars", datasetId: null, sample: null,
+        da: { id: "qa06da", kind: "sql", columns: ["region", "total"] },
+        chart: { type: "bars", map: { labelCol: "region", valueCol: "total" }, opts: {} } });
+      window.__studioShellSetSection("explore");
+    });
+    await page.waitForTimeout(300);
+    const qa06ExplorePicker = await restoreBannerOverlapCheck(page);
+    ok("QA-06: restore banner doesn't overlap the Explore saved-analysis list (desktop)", qa06ExplorePicker.hasBanner && qa06ExplorePicker.overlaps.length === 0, JSON.stringify(qa06ExplorePicker));
+
+    await page.evaluate(function () { window.__studioExplore.load("qa06-an"); });
+    await page.waitForTimeout(400);
+    const qa06ExploreEditor = await restoreBannerOverlapCheck(page);
+    ok("QA-06: restore banner doesn't overlap the Explore analysis editor controls (desktop)", qa06ExploreEditor.hasBanner && qa06ExploreEditor.overlaps.length === 0, JSON.stringify(qa06ExploreEditor));
+
+    await page.evaluate(function () { window.__studioShellSetSection("studio"); });
+    await page.waitForTimeout(300);
+    const qa06Studio = await restoreBannerOverlapCheck(page);
+    ok("QA-06: restore banner doesn't overlap Studio controls (desktop)", qa06Studio.hasBanner && qa06Studio.overlaps.length === 0, JSON.stringify(qa06Studio));
+    const qa06HasClassBefore = await page.evaluate(() => document.body.classList.contains("has-restore-banner"));
+    ok("QA-06: body gets has-restore-banner class while the banner is shown", qa06HasClassBefore, JSON.stringify({ qa06HasClassBefore }));
+
+    // Dismiss via the real "No thanks" click path so dismissBanner()'s cleanup is exercised too
+    await page.evaluate(() => { const b = document.querySelector(".restore-banner"); if (b) { const btns = b.querySelectorAll(".rb-acts button"); const noBtn = btns[btns.length - 1]; if (noBtn) noBtn.click(); } });
+    await page.waitForTimeout(100);
+    const qa06HasClassAfter = await page.evaluate(() => document.body.classList.contains("has-restore-banner"));
+    ok("QA-06: has-restore-banner class is removed after dismissing the banner", !qa06HasClassAfter, JSON.stringify({ qa06HasClassAfter }));
+    await page.evaluate(function () { Studio.Workspace.remove("analyses", "qa06-an"); window.__studioShellSetSection("studio"); try { localStorage.removeItem("studio-autosave"); } catch (e) {} });
+    await page.waitForTimeout(150);
 
     // ---- E2: Export history ----
     console.log("\n• Export history (E2 / v49)");
@@ -10181,6 +10277,27 @@ function serve() {
       return { bannerBottom, tabBarTop, vpH, bottomOk: bannerBottom > tabBarTop };
     });
     ok("M8: restore banner positioned above mobile tab bar", m8Banner.bottomOk, JSON.stringify(m8Banner));
+
+    // ---- QA-06: restore banner reserves space instead of overlapping controls (phone, 390px) ----
+    console.log("\n• QA-06: restore banner doesn't overlap controls (phone, 390px)");
+    const qa06Phone = await browser.newPage({ viewport: { width: 390, height: 780 } });
+    await qa06Phone.addInitScript(() => {
+      try {
+        sessionStorage.setItem("studio-gate-ok", "1");
+        localStorage.setItem("studio-welcome-seen", "1");
+        localStorage.setItem("studio-shell-section", "explore");
+        localStorage.setItem("studio-autosave", JSON.stringify({ name: "qa06-phone", title: "QA-06 Phone Test", panels: [{ id: "p1" }, { id: "p2" }], kpis: [{ label: "K1" }], filters: [] }));
+      } catch (e) {}
+    });
+    await qa06Phone.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
+    await qa06Phone.waitForTimeout(1300); // boot + debounce + banner timeout
+    const qa06PhoneExplore = await restoreBannerOverlapCheck(qa06Phone);
+    ok("QA-06: restore banner doesn't overlap Explore controls (phone, 390px)", qa06PhoneExplore.hasBanner && qa06PhoneExplore.overlaps.length === 0, JSON.stringify(qa06PhoneExplore));
+    await qa06Phone.evaluate(() => window.__studioShellSetSection("studio"));
+    await qa06Phone.waitForTimeout(300);
+    const qa06PhoneStudio = await restoreBannerOverlapCheck(qa06Phone);
+    ok("QA-06: restore banner doesn't overlap Studio controls (phone, 390px)", qa06PhoneStudio.hasBanner && qa06PhoneStudio.overlaps.length === 0, JSON.stringify(qa06PhoneStudio));
+    await qa06Phone.close();
 
     // ---- M9: no horizontal overflow / white gutter at phone widths ----
     console.log("\n• M9: horizontal overflow at phone width (390px)");

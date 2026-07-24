@@ -16,6 +16,7 @@
   --font:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;
   --mono:ui-monospace,Menlo,Consolas,monospace;
   --mob-tabs-h:0px; /* M8: updated to 52px at ≤640px so the restore banner stays above the tab bar */
+  --restore-banner-h:0px; /* QA-06: JS-measured height of the restore banner while shown, 0 otherwise */
 }
 html[data-theme='dark']{
   --brand:#4aa3ff; --pdc:#c08af0;            /* brighter accents for contrast on dark */
@@ -1406,6 +1407,24 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
 .restore-banner .rb-msg{margin-right:4px;color:var(--text)}
 .restore-banner .rb-msg strong{color:var(--accent)}
 .restore-banner .rb-sum{color:var(--text2,var(--faint));font-size:11.5px;margin-left:2px}
+/* QA-06: while the restore banner is up, cap every scrollable section/pane's visible height
+   to leave the banner's real footprint clear, instead of letting the fixed banner float on
+   top of whatever controls happen to sit at the bottom of the current section (Explore's
+   saved-analysis rows, Studio's library/inspector lists, etc). A bottom PADDING alone doesn't
+   help here — these panes' content is already positioned/clipped by a fixed box height, so
+   trailing padding just adds unreachable space past the end instead of moving anything already
+   on screen; shrinking the box's own height is what actually pushes any content that would sit
+   under the banner below the (now nearer) scroll fold, reachable by scrolling instead of
+   sitting under an overlay. studio.js toggles this class and sets --restore-banner-h to the
+   banner's real rendered height (it differs at the ≤640px breakpoint below). Most sections are
+   covered by this one rule; anything with its own independent scroll cap (see .xp-list below)
+   needs the same treatment applied directly. */
+body.has-restore-banner .app-sec.has-content:not([hidden]){max-height:calc(100% - var(--restore-banner-h))}
+body.has-restore-banner .lib-scroll,body.has-restore-banner .insp-scroll{max-height:calc(100% - var(--restore-banner-h))}
+/* Explore's dataset-picker sidebar list clips to a VIEWPORT-relative max-height (44vh) of its
+   own, independent of the section-level cap above, so it needs the same reservation applied
+   directly or its own scrolled-but-visible window can still reach down into the banner. */
+body.has-restore-banner .xp-list{max-height:calc(44vh - var(--restore-banner-h))}
 /* M8: on phones the banner becomes full-width above the tab bar and text wraps.
    The status bar can wrap at very narrow widths, so add extra clearance. */
 @media(max-width:640px){

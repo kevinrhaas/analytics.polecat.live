@@ -116,6 +116,32 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **QA-06 — the restore-unsaved-work banner now reserves space instead of floating over other
+  sections' controls (v521, sw v160, 2026-07-24, steward, FRONTEND_QA_REPORT_2026-07-24.md):**
+  the report's P2 finding — the fixed bottom-center "Restore unsaved work?" banner stayed
+  visible across every section (not just Studio, where the unsaved work actually lives) and,
+  left alone, floated on top of whatever else happened to be at the bottom of the screen:
+  Explore's saved-analysis rows, the Explore analysis editor's name/save/add-to-dashboard
+  controls, and lower Studio content. Fix: `maybeShowRestoreBanner()` (`app/studio.js`) now
+  measures the banner's real rendered height once shown and feeds it into a new
+  `--restore-banner-h` CSS custom property (resynced on resize, since the banner's own layout —
+  and height — changes at the ≤640px breakpoint), toggling a `body.has-restore-banner` class for
+  as long as the banner is up. `app/studio.css` uses that to cap the visible height of every
+  scrollable section/pane (`.app-sec.has-content`, `.lib-scroll`/`.insp-scroll`, and Explore's own
+  `.xp-list` dataset-picker sidebar, which clips to its own viewport-relative `44vh` independent
+  of the section around it) — a `max-height` reduction, not padding: padding only adds
+  unreachable trailing space past whatever's already laid out, while shrinking the box's own
+  visible height is what actually pushes anything that would sit under the banner below the
+  (now nearer) scroll fold, reachable by scrolling instead of hidden under an overlay. New
+  `restoreBannerOverlapCheck()` test helper (`tests/run.js`) asserts this geometrically — real
+  hit-testing (`elementFromPoint`) against every visible interactive control's ACTUAL clipped/
+  visible area (not its raw, possibly off-screen `getBoundingClientRect`, which would false-
+  positive on rows buried inside a scrolled list) — exercised across Explore's picker, Explore's
+  analysis editor, and Studio, at both desktop and 390px phone widths, plus a check that the
+  `has-restore-banner` class is added/removed correctly around the banner's lifecycle. Suite
+  green (1932/1932). sw v160 (no new precached files; app/studio.js + app/studio.css content
+  changed). (app/studio.js, app/studio.css, tests/run.js, sw.js) NEXT: QA-07 (nested interactive
+  row semantics) is the next item in the same report.
 - **QA-05 — icon-only action controls now name their target object for assistive tech (v520,
   sw v159, 2026-07-24, steward, FRONTEND_QA_REPORT_2026-07-24.md):** the report's P2 A11Y
   finding. Three spots exposed only a symbol or a bare, repeated verb as their accessible
