@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 507,
+    title: 'Browser Back/Forward now moves between sections instead of leaving the app',
+    kind: 'polish',
+    ts: '2026-07-24T09:28:19.000Z',
+    items: [
+      'Navigating Home, Explore, Dashboards, Datasets, Jobs, Connections, Studio, and Settings now pushes browser history, so the Back button steps back through the sections you visited instead of leaving the app; Forward retraces the same path.',
+    ],
+  },
+  {
     v: 506,
     title: 'A 6th Conservation showcase example: County-Level Outlier Detection',
     kind: 'feature',

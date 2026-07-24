@@ -35,11 +35,20 @@
 
   var desiredSection = "home";
 
-  function setActive(sec, persist) {
+  // LF9 slice 1: Back/Forward should move between sections instead of leaving the
+  // app. Every real navigation (persist !== false) pushes a history entry carrying
+  // the section; a popstate re-drives setActive with fromHistory=true so it doesn't
+  // push a duplicate entry. The initial boot restore (persist === false) never
+  // pushes — it's a replaceState below instead, so the very first Back still exits
+  // to wherever the user came from, not back into the app's own boot state.
+  function setActive(sec, persist, fromHistory) {
     if (SECTIONS.indexOf(sec) < 0) sec = "home";
     var changed = sec !== desiredSection;
     desiredSection = sec;
     if (persist !== false) { try { localStorage.setItem(LS_SECTION, sec); } catch (e) {} }
+    if (changed && persist !== false && !fromHistory) {
+      try { history.pushState({ studioSection: sec }, "", location.pathname + location.search + location.hash); } catch (e) {}
+    }
     // m-a: sections now switch on mobile too (the rail is a reachable drawer there,
     // not hidden) — show the chosen section full-screen at any width.
     SECTIONS.forEach(function (s) {
@@ -144,6 +153,17 @@
   try { savedSection = localStorage.getItem(LS_SECTION) || "home"; savedExpanded = localStorage.getItem(LS_EXPANDED) === "1"; } catch (e) {}
   setActive(savedSection, false);
   setExpanded(savedExpanded, false);
+  // Stamp the boot entry with a state object (same shape pushState uses below) so a
+  // Back that lands on it still resolves a section instead of reading e.state===null.
+  try { history.replaceState({ studioSection: savedSection }, "", location.href); } catch (e) {}
+
+  // LF9 slice 1: Back/Forward walks the section history pushed above. fromHistory=true
+  // stops setActive from pushing a fresh entry for a navigation that's already IN history.
+  window.addEventListener("popstate", function (e) {
+    var sec = (e.state && e.state.studioSection) || "home";
+    setActive(sec, true, true);
+    closeRail();
+  });
 
   // M4 (admin): rail items marked data-admin-only (today: just Admin) hide for
   // non-admin accounts — UI-level gating, matching auth.js's own honesty about not

@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v147"; /* v147: LF2 — a 6th Conservation example, "County-Level
+var CACHE_NAME = "studio-shell-v148"; /* v148: LF9 slice 1 — Back/Forward now walks section
+   navigation instead of leaving the app: shell.js pushes a history entry on every real section
+   change and a popstate listener re-drives setActive() from it (fromHistory=true skips a
+   duplicate push). app/shell.js changed. */
+/* v147: LF2 — a 6th Conservation example, "County-Level
    Outlier Detection" (data/examples/conservation-outliers.studio.json, index.json entry): a
    county-scale (FIPS) choropleth of the common estimate, a district-level diverging-bar ranking
    of adoption deviation from the regional baseline (with a real Practice filter), a histogram of

@@ -383,6 +383,34 @@ function serve() {
     ok("TOPBAR: the top-left shows the current section name (fleet standard) and updates as you navigate",
       tbSecDash === "Dashboards" && tbSecExplore === "Explore", JSON.stringify({ tbSecDash, tbSecExplore }));
 
+    // ---- LF9 slice 1: Back/Forward walks section history instead of leaving the app ----
+    console.log("\n• LF9 slice 1: SPA history for section navigation");
+    // current stack from the block above: [home(boot), dashboards, explore, studio] — currently on studio.
+    await page.goBack();
+    await page.waitForTimeout(150);
+    const lf9Back1 = await page.evaluate(() => window.__studioShellGetSection());
+    await page.goBack();
+    await page.waitForTimeout(150);
+    const lf9Back2 = await page.evaluate(() => window.__studioShellGetSection());
+    await page.goForward();
+    await page.waitForTimeout(150);
+    const lf9Fwd1 = await page.evaluate(() => window.__studioShellGetSection());
+    ok("LF9: Back/Forward walks the dashboards→explore→studio history pushed above (studio →Back→ explore →Back→ dashboards →Forward→ explore)",
+      lf9Back1 === "explore" && lf9Back2 === "dashboards" && lf9Fwd1 === "explore",
+      JSON.stringify({ lf9Back1, lf9Back2, lf9Fwd1 }));
+    const lf9BackDom = await page.evaluate(() => ({
+      topbarText: document.getElementById("topbarSection").textContent.trim(),
+      exploreActive: document.querySelector('.rail-item[data-sec="explore"]').classList.contains("active"),
+      exploreHidden: document.getElementById("secExplore").hidden
+    }));
+    ok("LF9: a Back navigation actually re-renders the section (topbar text + active rail item + visibility), not just internal state",
+      lf9BackDom.topbarText === "Explore" && lf9BackDom.exploreActive && !lf9BackDom.exploreHidden,
+      JSON.stringify(lf9BackDom));
+    // a direct setActive() call (not from history) still pushes its own fresh entry, same as
+    // any other in-app nav click would — restore Studio for the rest of the suite.
+    await page.evaluate(() => window.__studioShellSetSection("studio"));
+    await page.waitForTimeout(150);
+
     // ---- LF27(b): Studio gains a Close button that returns you to where you opened it from ----
     console.log("\n• LF27(b): Close returns Studio to its origin section");
     await page.evaluate(() => window.__studioShellSetSection("home"));
