@@ -2113,13 +2113,22 @@
 >      the live preview and the exported HTML. 2 new tests (4 buttons render; clicking one actually
 >      moves the camera). sw v107. (app/studio-charts.js). (b) ✓ **Renderer choice + pan/zoom now
 >      persist (LF12 shipped the renderer opt; LF28 shipped the pan/zoom camera, both 2026-07-23,
->      steward) — see those entries.** NEXT in LF4: (c) BUG — the **"State border overlay"** toggle
->      works on ONE renderer but not the other (parity gap); make both the SVG and GL renderers honor
->      it. Re-check this is still real before spending a slice on it — a read of both renderers during
->      the LF28 slice found both already gate the state-lines layer on the identical
->      `cfg.stateLines !== false && scale !== "state"` condition, so the parity gap Kevin reported may
->      already be closed as a side effect of an earlier slice; repro against the live app first.
->      app/studio-charts.js (choropleth SVG + GL), app/studio.js (panel inspector + spec persistence).
+>      steward) — see those entries.** (c) ✓ **BUG FOUND AND FIXED (shipped 2026-07-24, steward) —
+>      LF4 is now fully done.** The earlier read of both renderers (during the LF28 slice) that found
+>      them gating on the identical `cfg.stateLines !== false && scale !== "state"` condition was
+>      RIGHT but incomplete — the gate condition matched, but the SVG renderer's `geom2path()` helper
+>      only handled Polygon/MultiPolygon geometry; `topojson.mesh()` (what builds the state-line
+>      overlay, for both the SVG borders var and the GL statesOverlay it feeds) returns a
+>      LineString/MultiLineString — an unhandled type that silently built an EMPTY path string every
+>      time, so the SVG toggle drew nothing regardless of its state, while the GL renderer (MapLibre
+>      consumes raw GeoJSON directly, no path-string step) was unaffected. This is exactly why a pure
+>      code read found "identical gating" and missed the bug — the gate was never the broken part.
+>      Fixed with a new `line2path()` (mirrors the existing `ring2path()` minus the closing `Z`, since
+>      a mesh segment is an open polyline, not a closed ring), routed for LineString/MultiLineString
+>      geometry. 1 new regression test builds both renderers' real exported HTML for the same county
+>      spec with `stateLines` on/off and asserts the overlay's presence/absence is IDENTICAL across
+>      SVG and GL (previously would have caught this on day one). app/studio-charts.js, tests/run.js.
+>      sw v140. Suite 1874/1874.
 > LF5. **Chart color picker — swatches + fix apply.** (a) BUG — the color dropdown (Series 1–10 /
 >      Accent / Good/Warning/Bad/Info) "does not seem to work": picking an option doesn't recolor the
 >      chart/series. Trace the color-pick handler → spec write → render read and fix. ✓ **ONE confirmed

@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 498,
+    title: 'Fixed: choropleth maps in Studio now show state borders, matching the interactive map',
+    kind: 'fix',
+    ts: '2026-07-24T01:16:59.000Z',
+    items: [
+      'The "State border overlay" toggle only ever worked on the interactive (GL) map renderer — the built-in renderer silently drew nothing for it, a parity gap between the two engines. Root cause: a path-building helper only understood region shapes, not the open boundary lines state borders are made of. Both renderers now draw the same state borders when the toggle is on.',
+    ],
+  },
+  {
     v: 497,
     title: 'Dashboard light/dark is now a fixed Appearance setting, not a header button',
     kind: 'polish',

@@ -1879,6 +1879,71 @@ function serve() {
       typeof glViewportMsg.last.viewport.center.lng === "number",
       JSON.stringify(glViewportMsg));
 
+    // LF4(c): the "State border overlay" toggle (cfg.stateLines) was reported as working on
+    // ONE renderer but not the other. Both `_choropleth` (SVG) and `_choroplethGL` gate the
+    // overlay on the identical `cfg.stateLines !== false && scale !== "state"` condition —
+    // this locks that parity in so a future edit to just one renderer regresses visibly.
+    const glStateLinesSpec = function (stateLines) {
+      var s = glSpecSrc("gl");
+      if (stateLines === false) s.panels[0].chart.opts.stateLines = false;
+      return s;
+    };
+    const stateLinesParity = await page.evaluate(async function (specs) {
+      var mock = { g: { cols: ["fips", "v"], rows: [["17031", 4], ["17113", 7], ["19153", 9], ["18097", 6]] } };
+      function renderGL(spec) {
+        var html = Studio.buildHtml(spec, window.__STUDIO_STATE.assets, { preview: true, mock: mock });
+        return new Promise(function (resolve) {
+          var ifr = document.createElement("iframe");
+          ifr.style.cssText = "position:fixed;left:-3400px;top:0;width:900px;height:600px";
+          document.body.appendChild(ifr);
+          ifr.srcdoc = html;
+          var t0 = Date.now();
+          (function poll() {
+            var doc = null; try { doc = ifr.contentDocument; } catch (e) {}
+            var wrap = doc && doc.querySelector("[data-geo-gl]");
+            var map = wrap && wrap.parentNode && wrap.parentNode._glMap;
+            if (map) { var has = !!map.getLayer("states"); ifr.remove(); resolve(has); }
+            else if (Date.now() - t0 > 20000) { ifr.remove(); resolve(null); }
+            else setTimeout(poll, 200);
+          })();
+        });
+      }
+      function renderSVG(spec) {
+        var svgSpec = JSON.parse(JSON.stringify(spec));
+        delete svgSpec.panels[0].chart.opts.renderer;
+        var html = Studio.buildHtml(svgSpec, window.__STUDIO_STATE.assets, { preview: true, mock: mock });
+        return new Promise(function (resolve) {
+          var ifr = document.createElement("iframe");
+          ifr.style.cssText = "position:fixed;left:-3800px;top:0;width:900px;height:600px";
+          document.body.appendChild(ifr);
+          ifr.srcdoc = html;
+          var t0 = Date.now();
+          (function poll() {
+            var doc = null; try { doc = ifr.contentDocument; } catch (e) {}
+            // pick the ONE svg that actually carries geo region paths — the export also
+            // ships unrelated icon <svg>s (header/waffle/download buttons) that querySelector
+            // could otherwise land on first.
+            var svg = doc && [].slice.call(doc.querySelectorAll("svg")).filter(function (s) {
+              return s.querySelector("path[data-geo-id]");
+            })[0];
+            if (svg) {
+              var has = svg.querySelectorAll(":scope > path").length > 0;
+              ifr.remove(); resolve(has);
+            } else if (Date.now() - t0 > 20000) { ifr.remove(); resolve(null); }
+            else setTimeout(poll, 200);
+          })();
+        });
+      }
+      return {
+        glOn: await renderGL(specs.on), glOff: await renderGL(specs.off),
+        svgOn: await renderSVG(specs.on), svgOff: await renderSVG(specs.off)
+      };
+    }, { on: glStateLinesSpec(true), off: glStateLinesSpec(false) });
+    ok("LF4(c): the state-border-overlay toggle is honored IDENTICALLY by both renderers — on by default, off when cfg.stateLines===false",
+      stateLinesParity.glOn === true && stateLinesParity.svgOn === true &&
+      stateLinesParity.glOff === false && stateLinesParity.svgOff === false,
+      JSON.stringify(stateLinesParity));
+
     // ---- EXPLORE (Viridis V5): dataset-first designer → saved analyses ------
     console.log("\n• EXPLORE: dataset-first analysis designer (Viridis V5)");
     const xpSchema = await page.evaluate(function () {
