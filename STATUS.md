@@ -116,6 +116,42 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF9 slice 3 — Explore's dataset/analysis editor closes back to the picker on Back (v509,
+  sw v150, 2026-07-24, steward — LF9's own NEXT pointer, LF9 now feature-complete):** the one
+  remaining gap slice 2's own NEXT pointer called out — picking a dataset or opening a saved
+  analysis in Explore swaps the "pick a dataset" empty state for the full 4-step editor IN
+  PLACE (no overlay DOM to just re-show on Back, unlike modal()/panel-zoom/slideshow's
+  `pushOverlay` call sites), so it needed its own close path back to the picker rather than
+  another `pushOverlay` site. `app/studio.js` gains `xpEnterEditor()` (pushes ONE overlay entry
+  via the existing shell.js stack the first time `XP.run` goes from empty to populated — a
+  no-op if already in the editor, so switching between datasets/analyses while the editor is
+  open never stacks extra history entries) and `xpCloseToList(viaHistory)` (resets `XP` back to
+  its initial picker state and re-renders; pops the overlay entry unless invoked by the
+  popstate stack-unwind, using the same `viaHistory === true` explicit check — not truthiness —
+  LF9 slice 2 found necessary to survive a bare `onclick = close` handler passing a click Event
+  as the first argument). Wired into both entry points (`xpSelectDataset`, `xpLoadAnalysis`).
+  A new "‹ Back to datasets" button (`app/studio.css` `.xp-editor-bar`/`.xp-back-btn`) gives the
+  same close path a manual, discoverable affordance instead of Back being the only way out.
+  ⚠️ **A real ordering bug caught before merge:** the suite's pre-existing "+ New dataset from
+  Explore" test started failing — creating a dataset there closes that modal (which schedules
+  its OWN `history.back()`) and, in the SAME synchronous chain, immediately selected the fresh
+  dataset. `xpEnterEditor()`'s `pushState` was running before the modal's pending `back()`
+  navigation actually fired; `history.back()` resolves against whatever is CURRENT when it
+  fires, not when it was called, so it landed on our brand-new entry instead of the one before
+  the modal ever opened, and the resulting popstate treated our fresh overlay as "navigated
+  past" and closed it immediately (resetting Explore back to the picker right after selecting
+  the dataset). Fixed by deferring `xpEnterEditor`'s push by one tick (`setTimeout(…, 0)`,
+  re-checking its own guard when it fires) so the modal's own pending back-navigation always
+  resolves first — only reachable via that one synchronous close→select chain, so a real user
+  pick is never affected.
+  2 new tests (tests/run.js): Back returns an open dataset/analysis to the empty picker while
+  staying in the Explore section; the manual "Back to datasets" button syncs history the same
+  way the X-button regression test proved for modals, so a later real Back still walks to the
+  prior section instead of hitting a dangling overlay entry. docs/index.html's rail-navigation
+  paragraph now names Explore's picker/editor swap specifically. **LF9 is now feature-complete:
+  every navigable state change in the app (sections, every overlay type, and this swap)
+  participates in Back/Forward.** (app/studio.js, app/studio.css, tests/run.js, docs/index.html,
+  sw.js)
 - **LF9 slice 2 — Back closes an open overlay instead of navigating away (v508, sw v149,
   2026-07-24, steward — LF9's own NEXT pointer):** generalizes the LF8 zoom-trap fix (which only
   patched panel-zoom) to every overlay type via one shared mechanism instead of one-off code per
@@ -2389,9 +2425,11 @@
 >      `pushOverlay`/`popOverlay` stack (app/shell.js) wired into `modal()` (the ~15 dialogs it
 >      backs), `openPanelZoom()`, and `openSlideshow()` (app/studio.js) — every dialog/full-screen
 >      overlay in the app now closes on Back instead of navigating away, generalizing the LF8 fix.
->      6 new tests, see DONE. NEXT in LF9: slice 3, Explore's saved-analysis view swap (picker ↔
->      analysis within the Explore section) — a different pattern with no DOM to just re-show on
->      Back, needs its own design rather than another `pushOverlay` call site.
+>      6 new tests, see DONE.
+>      ✓ **Slice 3 shipped (v509, sw v150, 2026-07-24, steward) — Explore's picker ↔ editor swap
+>      closes on Back too, see DONE. LF9 is now feature-complete:** every navigable state change
+>      in the app (sections, every overlay type, and Explore's in-place swap) participates in
+>      Back/Forward.
 > LF10. ✓ **Chart palette now defaults to the active app theme (shipped 2026-07-23, steward).** New
 >       `appThemeToDashboardTheme()` (app/studio.js) maps the app Color theme → its matching
 >       `Studio.DASHBOARD_THEMES` key (classic→"", polecat→"polecat", modern→"fleet-modern");

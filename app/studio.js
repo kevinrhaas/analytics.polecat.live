@@ -638,6 +638,46 @@
   // M5 folder pilot (analyses): which folder GROUP the saved-analyses sidebar
   // list is narrowed to — "" = All, "__unfiled" = no folder, else a folder name.
   var _xpFolderFilter = "";
+  // LF9 slice 3: opening a dataset or a saved analysis swaps the "pick a dataset" empty
+  // state for the full editor IN PLACE — there's no new DOM node for Back to just re-show
+  // (unlike modal()/openPanelZoom()/openSlideshow()'s pushOverlay call sites), so this swap
+  // needs its own close path back to the picker. Reuses the exact overlayStack mechanism
+  // those use: ONE push per "enter editor" transition (xpEnterEditor is a no-op if already
+  // in the editor), so Back always lands on the empty picker regardless of which dataset/
+  // analysis was open, and switching between datasets while already in the editor never
+  // stacks extra history entries.
+  var _xpOverlayId = null;
+  function xpEnterEditor() {
+    if (_xpOverlayId || !XP.run) return;
+    // Deferred one tick: this can fire synchronously off a callback chained onto ANOTHER
+    // overlay's own close — e.g. Explore's "+ New dataset" modal saves, closes itself (which
+    // schedules its OWN history.back()), and immediately selects the fresh dataset. Pushing a
+    // new history entry before that pending back-navigation actually runs makes the browser's
+    // back() resolve against the wrong (newer) entry once it fires — history.back() targets
+    // whatever is current WHEN it fires, not when it was called. Deferring past that lets the
+    // modal's own back-navigation land first; the re-check inside guards a real user pick
+    // racing with itself (it can't — this is only reachable via the same synchronous chain).
+    setTimeout(function () {
+      if (_xpOverlayId || !XP.run) return;
+      _xpOverlayId = window.__studioPushOverlay ? window.__studioPushOverlay(function () { xpCloseToList(true); }) : null;
+    }, 0);
+  }
+  // `viaHistory` is true ONLY when invoked by shell.js's popstate stack-unwind (history has
+  // already moved back); every other close path (the Back-to-datasets button below) still
+  // owns an untouched history entry and must sync it via popOverlay. Checked with `=== true`,
+  // not truthiness — the exact bug LF9 slice 2 found and fixed in modal()/panel-zoom/
+  // slideshow, where a bare `onclick = close` handler passes the click Event as the first
+  // argument and a truthy check wrongly treated that as the popstate-driven case.
+  function xpCloseToList(viaHistory) {
+    var overlayId = _xpOverlayId;
+    _xpOverlayId = null;
+    XP.kind = null; XP.dsId = null; XP.run = null; XP.da = null;
+    XP.analysisId = null; XP.name = ""; XP.folder = "";
+    XP.type = "bars"; XP.map = {}; XP.opts = {};
+    XP.agg = { fn: "none", groupBy: [] };
+    renderExplore();
+    if (viaHistory !== true && overlayId && window.__studioPopOverlay) window.__studioPopOverlay(overlayId);
+  }
   // Aggregation makes sense for the everyday category/measure charts; geo and the
   // ensemble view carry their own aggregation semantics, so hide the control there.
   // Rollup aggregates ONE measure by category, so it only applies to the
@@ -688,7 +728,7 @@
     XP.analysisId = null; XP.name = ""; XP.folder = ""; XP.da = null; // a live dataset is picked — drop any loaded analysis's embedded da
     return xpLoadRows().then(function () {
       XP.type = xpDefaultType(XP.run && XP.run.cols); // geo data opens as a map, provider trends as the Ensemble
-      xpGuessMapping(); renderExplore(); xpPreview();
+      xpGuessMapping(); xpEnterEditor(); renderExplore(); xpPreview();
     });
   }
   // Resolve the picked dataset to preview rows. Workspace datasets run LIVE
@@ -863,7 +903,7 @@
       : !!xpCatalogDA(String(XP.dsId).split(XP_SEP)[0], String(XP.dsId).split(XP_SEP)[1]);
     var load = haveDs ? xpLoadRows() : Promise.resolve(
       XP.run = (function () { var sd = Studio.sampleRows(a.da || { columns: [] }); return { cols: sd.cols, rows: sd.rows, live: false, orphan: !haveDs }; })());
-    load.then(function () { renderExplore(); xpPreview(); });
+    load.then(function () { xpEnterEditor(); renderExplore(); xpPreview(); });
   }
   // A standalone one-panel spec for a saved analysis — used by Home's live
   // widgets (and anything else that needs to render an analysis outside Explore).
@@ -1092,6 +1132,7 @@
         return "<tr>" + cols.map(function (_, i) { return "<td>" + esc(String(r[i] == null ? "" : r[i])) + "</td>"; }).join("") + "</tr>";
       }).join("");
       main =
+        '<div class="xp-editor-bar"><button type="button" class="btn xp-back-btn" id="xpBackBtn" title="Back to datasets">‹ Back to datasets</button></div>' +
         '<div class="xp-step"><div class="xp-step-h">1 · The data' +
           '<span class="xp-badge' + (XP.run.live ? " live" : "") + '">' + (XP.run.live ? "live rows" : "sample rows") + "</span>" +
           (XP.run.error ? '<span class="xp-badge warn" title="' + esc(XP.run.error) + '">live run failed</span>' : "") +
@@ -1135,6 +1176,8 @@
     if (xpNewDsBtn) xpNewDsBtn.onclick = function () {
       openDatasetEditor(null, function (d) { xpSelectDataset("ws", d.id); });
     };
+    var xpBackBtn = $("#xpBackBtn", body);
+    if (xpBackBtn) xpBackBtn.onclick = function () { xpCloseToList(); };
     $$("[data-xp-type]", body).forEach(function (btn) {
       btn.onclick = function () { XP.type = btn.getAttribute("data-xp-type"); xpGuessMapping(); renderExplore(); xpPreview(); };
     });
