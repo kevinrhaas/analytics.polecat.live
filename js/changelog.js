@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 515,
+    title: 'Branding is now an app-wide Admin setting — with a customizable rail name and a matching favicon',
+    kind: 'feature',
+    ts: '2026-07-24T16:28:49.000Z',
+    items: [
+      'The app-mark branding controls moved out of personal Settings into the Admin section, where they belong: branding is what everyone who opens the workspace sees, so only admins change it.',
+      'New: you can now rename or hide the small “polecat.live” label under the app name in the left rail — set your own short white-label name (up to 24 characters, with on-screen advice to keep it short so the rail lockup stays tidy) or hide it entirely.',
+      'A custom logo now also becomes the browser-tab favicon, so a white-labeled app matches in the tab — and the App-mark help now spells out what makes a good icon (a square, simple, transparent-background image around 64–256px, since it renders small in the rail and tiny in the tab).',
+    ],
+  },
+  {
     v: 514,
     title: 'An 8th Conservation showcase example: a narrative rollup of the whole story',
     kind: 'feature',

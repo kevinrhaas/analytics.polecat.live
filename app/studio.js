@@ -8823,26 +8823,9 @@
               '<label class="set-sw"><input type="checkbox" data-set="' + t.id + '"' + (t.on() ? " checked" : "") + '/><span class="set-sw-track"></span></label></div>';
           }).join("") + themeRow + tourRow + '</div>';
       }).join("") +
-      (function () {
-        var b = getBranding(), mode = b.mode || "default";
-        return '<div class="settings-card"><h2>Branding</h2>' +
-          '<div class="set-row"><span class="set-row-ic" data-ic="upload"></span>' +
-            '<div class="set-row-txt"><b>App mark</b><small>Shown at the top of the left rail. Choose the default mark, a custom logo, or none.</small></div>' +
-            '<select id="brandModeSel" class="set-sel">' +
-              ['default', 'custom', 'none'].map(function (m) {
-                var lbl = m === "default" ? "Default" : m === "custom" ? "Custom logo" : "None";
-                return '<option value="' + m + '"' + (mode === m ? " selected" : "") + '>' + lbl + '</option>';
-              }).join("") +
-            '</select></div>' +
-          '<div class="set-row" id="brandUploadRow"' + (mode === "custom" ? "" : ' style="display:none"') + '>' +
-            '<span class="set-row-ic" data-ic="upload"></span>' +
-            '<div class="set-row-txt"><b>Custom logo</b><small>PNG/JPG/SVG, up to 200KB. Stored locally on this device.</small>' +
-              (mode === "custom" && b.dataUrl ? '<div class="brand-preview"><img src="' + esc(b.dataUrl) + '" alt="Custom logo preview" width="26" height="26"/></div>' : '') +
-            '</div>' +
-            '<input type="file" id="brandFileInp" accept="image/png,image/jpeg,image/svg+xml" style="display:none"/>' +
-            '<button type="button" class="btn" id="brandUploadBtn">Choose file…</button></div>' +
-        '</div>';
-      })() +
+      // Branding (app mark, favicon, rail suite-name) is an APP-WIDE identity
+      // setting — it moved to the Admin section (admin-only) since it changes what
+      // every visitor sees, not a personal preference. See renderAdmin().
       '<div class="settings-card"><h2>Dashboard defaults</h2>' +
         '<div class="set-row"><span class="set-row-ic" data-ic="layers"></span>' +
           '<div class="set-row-txt"><b>Default subtitle</b><small>Pre-fills every new blank dashboard\'s subtitle field with your team\'s house style (e.g. a standard tagline). Blank leaves it empty.</small></div>' +
@@ -9006,23 +8989,7 @@
     });
     var expBtn = $("#setExportBtn", sec); if (expBtn) expBtn.onclick = exportSettingsFile;
     var impBtn = $("#setImportBtn", sec); if (impBtn) impBtn.onclick = importSettingsFile;
-    var brandSel = $("#brandModeSel", sec);
-    if (brandSel) brandSel.onchange = function () {
-      var mode = brandSel.value;
-      if (mode === "custom" && !getBranding().dataUrl) { var fi = $("#brandFileInp", sec); if (fi) { fi.click(); return; } }
-      setBranding({ mode: mode, dataUrl: mode === "custom" ? getBranding().dataUrl : undefined });
-      renderSettings();
-    };
-    var brandUploadBtn = $("#brandUploadBtn", sec);
-    var brandFileInp = $("#brandFileInp", sec);
-    if (brandUploadBtn && brandFileInp) brandUploadBtn.onclick = function () { brandFileInp.click(); };
-    if (brandFileInp) brandFileInp.onchange = function () {
-      var f = brandFileInp.files[0]; if (!f) return;
-      if (f.size > BRAND_MAX_BYTES) { toast("Logo too large — please use an image under 200KB.", true); return; }
-      var reader = new FileReader();
-      reader.onload = function (e) { setBranding({ mode: "custom", dataUrl: e.target.result }); renderSettings(); toast("Logo updated."); };
-      reader.readAsDataURL(f);
-    };
+    // (Branding controls moved to the Admin section — see wireBrandingCard().)
     syncRailQuick();
   }
   window.__studioRenderSettings = renderSettings; // test hook
@@ -9074,7 +9041,9 @@
       '<p class="ws-card-intro">Turn a section off for the <b>viewer</b> role — it disappears from their rail. Admins always see every section.</p>' +
       sectionRows +
       '</div>' +
+      brandingCardHtml() +
     '</div>';
+    $$(".set-row-ic[data-ic]", sec).forEach(function (span) { span.appendChild(Studio.icon(span.getAttribute("data-ic"), 18)); });
     $$("[data-usr-ic]", sec).forEach(function (span) { span.appendChild(Studio.icon("user", 18)); });
     $$("[data-sec-right]", sec).forEach(function (cb) {
       cb.addEventListener("change", function () { setSectionHidden(cb.getAttribute("data-sec-right"), !cb.checked); });
@@ -9097,8 +9066,76 @@
         renderAdmin();
       };
     });
+    wireBrandingCard(sec);
   }
   window.__studioRenderAdmin = renderAdmin; // test hook
+
+  // Branding & app identity (moved out of Settings — it's app-wide, admin-only):
+  // the rail app mark, the browser-tab favicon (follows a custom logo), and the
+  // rail suite-name (default "polecat.live", a short white-label name, or hidden).
+  function brandingCardHtml() {
+    var b = getBranding(), mode = b.mode || "default";
+    var suiteMode = b.suite || "default", suiteText = b.suiteText || "";
+    var DEF = Studio.Branding.DEFAULT_SUITE, MAX = Studio.Branding.SUITE_MAX;
+    return '<div class="settings-card"><h2>Branding &amp; app identity</h2>' +
+      '<p class="ws-card-intro">App-wide — this is what <b>everyone</b> who opens this workspace sees, not a personal preference, so it lives here in Admin.</p>' +
+      '<div class="set-row"><span class="set-row-ic" data-ic="image"></span>' +
+        '<div class="set-row-txt"><b>App mark</b><small>The icon at the top of the left rail — and, when you upload a custom one, the browser-tab favicon too. Choose the default mark, a custom logo, or none.</small></div>' +
+        '<select id="brandModeSel" class="set-sel">' +
+          ['default', 'custom', 'none'].map(function (m) {
+            var lbl = m === "default" ? "Default" : m === "custom" ? "Custom logo" : "None";
+            return '<option value="' + m + '"' + (mode === m ? " selected" : "") + '>' + lbl + '</option>';
+          }).join("") +
+        '</select></div>' +
+      '<div class="set-row" id="brandUploadRow"' + (mode === "custom" ? "" : ' style="display:none"') + '>' +
+        '<span class="set-row-ic" data-ic="upload"></span>' +
+        '<div class="set-row-txt"><b>Custom logo</b><small>A <b>square</b> PNG, JPG, or SVG — ideally a simple, transparent-background icon around 64–256&nbsp;px (it renders at 26&nbsp;px in the rail and tiny in the browser tab, so avoid fine detail or lots of text). Up to 200&nbsp;KB. Becomes both the rail mark and the browser-tab favicon. Stored locally on this device.</small>' +
+          (mode === "custom" && b.dataUrl ? '<div class="brand-preview"><img src="' + esc(b.dataUrl) + '" alt="Custom logo preview" width="26" height="26"/></div>' : '') +
+        '</div>' +
+        '<input type="file" id="brandFileInp" accept="image/png,image/jpeg,image/svg+xml" style="display:none"/>' +
+        '<button type="button" class="btn" id="brandUploadBtn">Choose file…</button></div>' +
+      '<div class="set-row"><span class="set-row-ic" data-ic="tag"></span>' +
+        '<div class="set-row-txt"><b>Suite name</b><small>The small label under the app name in the rail (“' + esc(DEF) + '” by default). Keep it to a word or two — up to ' + MAX + ' characters — so the rail lockup stays tidy; longer or awkward names wrap and look cramped. Set your own, or hide it entirely for a clean white-label look.</small></div>' +
+        '<select id="brandSuiteSel" class="set-sel">' +
+          [['default', 'Default (' + DEF + ')'], ['custom', 'Custom name…'], ['hidden', 'Hidden']].map(function (o) {
+            return '<option value="' + o[0] + '"' + (suiteMode === o[0] ? " selected" : "") + '>' + esc(o[1]) + '</option>';
+          }).join("") +
+        '</select></div>' +
+      '<div class="set-row" id="brandSuiteRow"' + (suiteMode === "custom" ? "" : ' style="display:none"') + '>' +
+        '<span class="set-row-ic" data-ic="tag"></span>' +
+        '<div class="set-row-txt"><b>Custom name</b><small>Shown under the app name in the rail. Short and simple reads best.</small></div>' +
+        '<input type="text" id="brandSuiteInp" class="set-txt" maxlength="' + MAX + '" value="' + esc(suiteText) + '" placeholder="e.g. Acme Analytics"/></div>' +
+    '</div>';
+  }
+
+  function wireBrandingCard(sec) {
+    var brandSel = $("#brandModeSel", sec);
+    if (brandSel) brandSel.onchange = function () {
+      var mode = brandSel.value;
+      if (mode === "custom" && !getBranding().dataUrl) { var fi = $("#brandFileInp", sec); if (fi) { fi.click(); return; } }
+      var b = getBranding(); b.mode = mode; if (mode !== "custom") b.dataUrl = b.dataUrl; // keep the stored logo so toggling back doesn't lose it
+      setBranding(b);
+      renderAdmin();
+    };
+    var brandUploadBtn = $("#brandUploadBtn", sec), brandFileInp = $("#brandFileInp", sec);
+    if (brandUploadBtn && brandFileInp) brandUploadBtn.onclick = function () { brandFileInp.click(); };
+    if (brandFileInp) brandFileInp.onchange = function () {
+      var f = brandFileInp.files[0]; if (!f) return;
+      if (f.size > BRAND_MAX_BYTES) { toast("Logo too large — please use an image under 200KB.", true); return; }
+      var reader = new FileReader();
+      reader.onload = function (e) { var b = getBranding(); b.mode = "custom"; b.dataUrl = e.target.result; setBranding(b); renderAdmin(); toast("Logo updated — it's now the rail mark and the browser-tab favicon."); };
+      reader.readAsDataURL(f);
+    };
+    var suiteSel = $("#brandSuiteSel", sec);
+    if (suiteSel) suiteSel.onchange = function () {
+      var b = getBranding(); b.suite = suiteSel.value; setBranding(b); renderAdmin();
+    };
+    var suiteInp = $("#brandSuiteInp", sec);
+    if (suiteInp) suiteInp.oninput = function () {
+      var b = getBranding(); b.suite = "custom"; b.suiteText = suiteInp.value.slice(0, Studio.Branding.SUITE_MAX); setBranding(b);
+      // live-apply only (don't re-render mid-typing — it would blur the input)
+    };
+  }
 
   function openUserEditor(existing) {
     modal(existing ? "Edit user" : "Add user", function (b) {

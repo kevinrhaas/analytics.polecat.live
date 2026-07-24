@@ -116,6 +116,22 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **Branding is now an app-wide ADMIN setting + rail suite-name + favicon sync (v515, sw v154,
+  2026-07-24, steward, Kevin live):** the app-mark branding card moved OUT of personal Settings
+  INTO the Admin section (admin-only) — it changes what every visitor sees, so it's app-wide, not
+  a preference. Expanded it with (a) clearer App-mark guidance (a square, simple, transparent-bg
+  icon ~64–256px, since it renders small in the rail + tiny in the tab), (b) a new **Suite name**
+  control — rename or hide the "polecat.live" label under the app name, capped at 24 chars with
+  on-screen "keep it short" advice so the rail lockup stays tidy, and (c) a custom logo now also
+  becomes the browser-tab **favicon** (`link[rel=icon]` follows it). branding.js gained
+  suiteLabel()/SUITE_MAX/DEFAULT_SUITE + favicon + suite-label writes in apply(); the card + wiring
+  moved to renderAdmin() (brandingCardHtml/wireBrandingCard). Settings card count 9→8; the Z12 test
+  block re-pointed to Admin + new ratchets (favicon-follows-logo, suite hide/custom, 24-char cap).
+  (app/branding.js, app/studio.js, docs/index.html, tests/run.js) Naturally subsumes the old LF33
+  rail-lockup polish. NEW live-feedback captured this session for the QUEUE (lane to handle): LF34
+  (Style-presets "+ Save as preset" button — small styling/state issue) and LF35 (choropleth map
+  controls — shrink + make a movable/hideable per-panel "expert" control cluster, both renderers,
+  export-parity-safe).
 - **LF2 — an 8th Conservation showcase example, "The Story So Far" (v514, sw v153, 2026-07-24,
   steward — LF2's own NEXT pointer, the last of the ~8 originally-named candidate topics, so LF2(a)
   is now fully done):** a richtext-led narrative dashboard tying the other six Conservation
@@ -2361,6 +2377,32 @@
 
 ### ★ LIVE-FEEDBACK QUEUE (Kevin, 2026-07-22) — fold into the interleave
 > Product/demo asks from a live session; treat as first-class feature slices.
+> LF34. **Style presets "+ Save as preset" button — small UI issue (Kevin, live 2026-07-24, screenshot).**
+>       The "+ Save as preset" control on the Style-presets card (Settings → the "Save the fields above as
+>       a named preset…" card with the "Preset name, e.g. Acme Corp" input) has a small styling/state
+>       issue — likely secondary-button contrast/state or alignment with the input (same class as the QA
+>       button items). Needs a precise repro from Kevin; fix as a small polish slice. Area: renderSettings
+>       Style-presets card + .btn styling.
+> LF35. **Choropleth map controls — shrink + make a movable/hideable per-panel "expert" cluster (Kevin,
+>       live 2026-07-24, screenshot).** Kevin likes the zoom/pan controls but wants them (a) smaller/more
+>       compact, and (b) an OPTIONAL movable or hideable control cluster, configured PER-PANEL when editing
+>       the map widget in Studio (an "expert" toggle): show/hide, compact size, and position. Applies to BOTH
+>       renderers (SVG nudge-pad + the maplibregl-ctrl group) and must round-trip into the exported HTML
+>       byte-identically. Area: app/studio-charts.js (control-cluster render) + a per-panel opts flag in the
+>       Inspector map options (app/studio.js renderInspector). Ties LF25.
+> LF37. **Home Examples "+N more" isn't clickable (Kevin, live 2026-07-24, screenshot).** Home's EXAMPLES
+>       section footer reads "+ 12 more — New ▸ Examples" but nothing happens on click — there's no way to
+>       expand the grid or see the additional examples. Make it an actionable control that expands to show
+>       all examples (or opens the full Examples list). Area: renderHome() examples section (the "+N more"
+>       footer) in app/studio.js.
+> LF36. **Export dashboard to PDF — print-safe (Kevin, live 2026-07-24).** Add "Export to PDF" alongside the
+>       existing HTML/spec/bundle/PNG/CSV exports. MUST handle multi-page dashboards well: widgets/images may
+>       NOT split across a page boundary (`break-inside: avoid` on panels/KPIs/cards/images), handle widows/
+>       orphans for print, and offer sizing/scale (or auto-fit-to-width) + page size/orientation so a LONG
+>       dashboard doesn't come out cramped/ugly. Approach: a print stylesheet (`@media print` / `@page`) baked
+>       into the export + a print-to-PDF path (or a client-side generator), respecting the "export stays
+>       byte-identical to preview" toolkit rule. Area: app/exporters.js (buildHtml print CSS + export-menu
+>       entry) + the export menu (app/index.html / studio.js). Ties LF25.
 > LF31. ✓ **FIXED (v483, 2026-07-23, steward) — ensemble "common estimate" line + legend now readable on
 >       dark themed panels.** ROOT CAUSE: the ensemble widget painted the median line + its legend with
 >       `var(--ink,#16233b)`, but the dashboard THEMES define `--text-primary` (not `--ink`) — so on a dark
