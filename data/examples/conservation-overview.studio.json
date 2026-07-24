@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "id": "showcase-conservation-overview",
+  "name": "conservation-overview",
+  "title": "Conservation Insight — The Story So Far",
+  "subtitle": "a narrative rollup of adoption, mix, cost-share ROI & provider agreement",
+  "group": "Conservation",
+  "demoPackId": "conservation",
+  "description": "A conservation-insight narrative showcase — a richtext walkthrough tying together the other six Conservation examples, with headline rollups for overall adoption, the multi-year practice mix, cost-share return, and provider agreement.",
+  "cda": {
+    "connection": { "id": "pdc", "jndi": "PDC-BIDB-EXT" },
+    "dataAccesses": [
+      {
+        "id": "kpi", "name": "OverviewKPI", "params": [], "cache": true, "cacheDuration": 120,
+        "sql": "SELECT (SELECT ROUND(AVG(pct),1) FROM v_practice_adoption) AS adoption_pct, (SELECT SUM(cost_share_usd) FROM v_cost_share_roi) AS cost_share_total, (SELECT ROUND(AVG(pct),1) FROM v_provider_agreement) AS agreement_pct, (SELECT ROUND(AVG(net_shift_pct),1) FROM v_practice_mix_by_year) AS net_shift_pct",
+        "columns": ["adoption_pct", "cost_share_total", "agreement_pct", "net_shift_pct"]
+      },
+      {
+        "id": "trend", "name": "PracticeMixHeadline", "params": [], "cache": true, "cacheDuration": 180,
+        "sql": "SELECT year, ROUND(AVG(covercrop_pct),1) AS covercrop_pct, ROUND(AVG(notill_pct),1) AS notill_pct FROM v_practice_mix_by_year GROUP BY 1 ORDER BY 1",
+        "columns": ["year", "covercrop_pct", "notill_pct"]
+      },
+      {
+        "id": "overall", "name": "OverallAdoption", "params": [], "cache": true, "cacheDuration": 120,
+        "sql": "SELECT ROUND(AVG(pct),1) AS adoption_pct FROM v_practice_adoption",
+        "columns": ["adoption_pct"]
+      },
+      {
+        "id": "mix", "name": "AcresByPractice", "params": [], "cache": true, "cacheDuration": 180,
+        "sql": "SELECT practice, SUM(acres) AS acres FROM v_practice_adoption GROUP BY 1",
+        "columns": ["practice", "acres"]
+      },
+      {
+        "id": "roi", "name": "ReturnScoreByPractice", "params": [], "cache": true, "cacheDuration": 180,
+        "sql": "SELECT practice, ROUND(AVG(pct) / NULLIF(SUM(cost_share_usd)/100000,0),1) AS return_score FROM v_cost_share_roi GROUP BY 1 ORDER BY 2 DESC",
+        "columns": ["practice", "return_score"]
+      },
+      {
+        "id": "agreement", "name": "OverallAgreement", "params": [], "cache": true, "cacheDuration": 120,
+        "sql": "SELECT ROUND(AVG(pct),1) AS agreement_pct FROM v_provider_agreement",
+        "columns": ["agreement_pct"]
+      }
+    ]
+  },
+  "filters": [],
+  "kpis": [
+    { "da": "kpi", "valueCol": "adoption_pct", "label": "Overall Adoption", "fmt": "pct", "state": "good", "info": "Common-estimate adoption rate across every tracked practice and provider — the same headline as the Practice Adoption Scorecard." },
+    { "da": "kpi", "valueCol": "cost_share_total", "label": "Total Cost-Share Paid", "fmt": "money", "state": "purple", "info": "Total cost-share dollars disbursed across the program — see Program Cost-Share ROI for the full efficiency picture." },
+    { "da": "kpi", "valueCol": "agreement_pct", "label": "Provider Agreement", "fmt": "pct", "state": "", "info": "How closely the independent providers' estimates track each other — see Provider Agreement Over Time for the year-by-year spread." },
+    { "da": "kpi", "valueCol": "net_shift_pct", "label": "Net Shift to Conservation Practices", "fmt": "pct", "state": "warn", "info": "Net percentage-point move toward cover crops and reduced tillage, away from conventional, since the baseline year — see Year-over-Year Practice Switching for the full trend." }
+  ],
+  "gridCols": 3,
+  "panels": [
+    {
+      "id": "p_intro", "title": "The Story So Far", "span": "full", "pill": "", "sub": "a guided rollup of the whole Conservation set",
+      "info": "", "src": "",
+      "chart": { "type": "richtext", "da": "", "map": {},
+        "opts": { "content": "## Conservation Insight — The Story So Far\nSeven showcases, one program: adoption, practice mix, watershed scale, cost-share ROI, provider agreement, county-level outliers, and year-over-year switching. This dashboard pulls the headline number from each thread into a single read.\n\n- **Adoption** is climbing across the tracked acreage — see the *Practice Adoption Scorecard* for the practice × provider breakdown\n- **Mix** — the trend below shows cover crops and no-till both gaining share; *Year-over-Year Practice Switching* has the full stacked-area and rank story\n- **Scale** — the same signal holds down to the watershed and county level, in *Watershed-Scale Adoption* and *County-Level Outlier Detection*\n- **Cost** — the Return Score below ranks practices by adoption bought per cost-share dollar; *Program Cost-Share ROI* has the full spend-vs-adoption picture\n- **Confidence** — provider agreement is holding steady; *Provider Agreement Over Time* has the year-by-year spread\n\nOpen any of the six linked showcases from the Examples ▾ gallery for its own filter bar and detail." }
+      }
+    },
+    {
+      "id": "p_trend", "title": "Practice Mix Trend", "span": 2, "pill": "%", "sub": "cover crops & no-till, year over year",
+      "info": "The two leading conservation practices' share of acreage over time — the headline behind the Net Shift KPI above.", "src": "v_practice_mix_by_year",
+      "chart": { "type": "line", "da": "trend", "map": { "labelCol": "year", "series": [
+        { "col": "covercrop_pct", "name": "Cover crops" },
+        { "col": "notill_pct", "name": "No-till" }
+      ] }, "opts": { "area": true, "fmt": "pct", "height": 300 } }
+    },
+    {
+      "id": "p_gauge", "title": "Overall Adoption", "span": 1, "pill": "%", "sub": "common estimate",
+      "info": "Blended adoption rate across every practice and provider.", "src": "v_practice_adoption",
+      "chart": { "type": "gauge", "da": "overall", "map": { "valueCol": "adoption_pct" }, "opts": { "max": 100, "fmt": "pct", "height": 300 } }
+    },
+    {
+      "id": "p_mix", "title": "Enrolled Acres by Practice", "span": 1, "pill": "acres", "sub": "",
+      "info": "Where enrolled acreage sits across the four tracked practices.", "src": "v_practice_adoption",
+      "chart": { "type": "donut", "da": "mix", "map": { "labelCol": "practice", "valueCol": "acres" }, "opts": { "centerCap": "acres", "fmt": "n", "height": 300 } }
+    },
+    {
+      "id": "p_roi", "title": "Return Score by Practice", "span": 1, "pill": "score", "sub": "",
+      "info": "Adoption points achieved per $100K of cost-share spend, ranked by practice.", "src": "v_cost_share_roi",
+      "chart": { "type": "bars", "da": "roi", "map": { "labelCol": "practice", "valueCol": "return_score" }, "opts": { "horizontal": true, "fmt": "n", "color": "--c5", "height": 300 } }
+    },
+    {
+      "id": "p_agreement", "title": "Provider Agreement", "span": 1, "pill": "%", "sub": "common estimate",
+      "info": "How closely the independent providers' estimates track each other, blended across years.", "src": "v_provider_agreement",
+      "chart": { "type": "gauge", "da": "agreement", "map": { "valueCol": "agreement_pct" }, "opts": { "max": 100, "fmt": "pct", "height": 300 } }
+    }
+  ]
+}
