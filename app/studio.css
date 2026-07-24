@@ -1777,6 +1777,7 @@ body.simple-mode .da-acts{display:none!important}
 .cx-test-result{min-height:18px;margin-top:10px;font-size:12.5px;font-weight:600}
 .cx-test-result.ok{color:var(--good)}
 .cx-test-result.bad{color:var(--bad)}
+.cx-cred-warn{color:var(--warn);font-weight:600}
 .cx-wiz-foot{display:flex;gap:8px;justify-content:flex-end;margin-top:14px}
 .cx-wiz-foot .btn{color:var(--ink);background:var(--field);border:1px solid var(--line)}
 /* A `.btn.primary` is the call-to-action everywhere it appears. The base `.btn`

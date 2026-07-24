@@ -266,6 +266,7 @@
         if (lbl) lbl.textContent = st.sourceId === "local" ? "Local" : st.label;
         if (rs) rs.title = "Workspace backend — " + st.label + (st.lastError ? " · " + st.lastError : "");
         renderWorkspaceBackendCard();
+        renderConnections(); // QA-02: credential-storage note tracks live sync state
       });
       var railSourceBtn = $("#railSource");
       if (railSourceBtn) railSourceBtn.onclick = function () { if (window.__studioShellSetSection) window.__studioShellSetSection("settings"); };
@@ -6498,8 +6499,26 @@
     var tip = !t ? "Never tested" : (t.ok ? "Test OK" : "Test failed: " + (t.error || "")) + " · " + new Date(t.at).toLocaleString();
     return '<span class="' + cls + '" title="' + esc(tip) + '"></span>';
   }
+  // QA-02: the Connections header used to unconditionally claim credentials
+  // "stay in this browser" — false once a workspace backend is connected,
+  // since sync.js mirrors connection rows there (plaintext unless encryption
+  // is on). State-aware copy, shared with the Settings card below.
+  function connCredentialCopy() {
+    var st = Studio.Sync.syncState();
+    if (!st.isRemote) return { text: "Credentials stay in this browser.", warn: false };
+    var sec = Studio.Sync.secretsState();
+    return sec.enabled
+      ? { text: "Credentials sync to " + st.label + " as encrypted ciphertext.", warn: false }
+      : { text: "Credentials sync to " + st.label + " as PLAINTEXT — encryption is off.", warn: true };
+  }
   function renderConnections() {
     var results = $("#connResults"); if (!results) return;
+    var credNote = $("#connCredNote");
+    if (credNote) {
+      var cc = connCredentialCopy();
+      credNote.textContent = cc.text;
+      credNote.classList.toggle("cx-cred-warn", cc.warn);
+    }
     var q = (($("#connSearch") || {}).value || "").toLowerCase();
     var list = Studio.Workspace.all("connections").filter(isVisibleToMe).sort(function (a, b) {
       if (!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1;
@@ -8276,8 +8295,13 @@
       : st.status === "syncing" ? "Syncing…"
       : st.status === "connecting" ? "Connecting…"
       : "Error: " + (st.lastError || "sync failed");
+    // QA-02: this line used to always say "stored in this browser only" even
+    // once a remote backend was connected — state-aware now (see connCredentialCopy).
+    var credLine = !st.isRemote ? "Credentials are stored in this browser only."
+      : sec.enabled ? "Credentials sync to the backend as encrypted ciphertext."
+      : "Credentials sync to the backend as PLAINTEXT unless you turn on encryption below.";
     card.innerHTML = '<h2>Workspace backend</h2>' +
-      '<p class="ws-card-intro">Where this workspace\'s catalog lives — dashboards, datasets and connections. Local by default; connect a database to reach the same workspace from any browser. <b>Credentials are stored in this browser only.</b></p>' +
+      '<p class="ws-card-intro">Where this workspace\'s catalog lives — dashboards, datasets and connections. Local by default; connect a database to reach the same workspace from any browser. <b>' + esc(credLine) + '</b></p>' +
       '<div class="ws-current">' +
         '<span class="cx-dot ' + dot + '"></span>' +
         '<span class="cx-name"><b>' + esc(st.label) + '</b><small>' + esc(statusLine) + '</small></span>' +
@@ -8339,6 +8363,14 @@
   // own "connecting…" state (see gate.js's "Connect to your workspace").
   function openBackendWizard(presetSrc, presetCfg, onConnected) {
     modal(presetSrc ? "Edit backend connection" : "Connect a workspace backend", function (b) {
+      // QA-02: every path below that PUSHES the local workspace (and its
+      // connection credentials) up to a backend for the first time gets a
+      // confirmation naming exactly where they're headed when encryption
+      // isn't on yet — connectAdopt (pull-only) doesn't need this.
+      function confirmPlaintextSync(label) {
+        if (Studio.Sync.secretsState().enabled) return true;
+        return window.confirm("Connection credentials will sync to " + label + " as PLAINTEXT — encryption is currently off. You can turn it on right after connecting (Settings → Workspace backend). Continue?");
+      }
       function classifyStep(src, cfg) {
         b.innerHTML = '<p class="cx-wiz-intro">Checking what\'s in that database…</p>';
         src.probe(cfg).then(function (probe) {
@@ -8393,6 +8425,7 @@
             if (src.browserProvision) {
               result.textContent = "Empty database — Studio will create its tables and copy your current workspace up.";
               act("Set up & connect", true, function () {
+                if (!confirmPlaintextSync(src.label)) return Promise.reject(new Error("cancelled"));
                 return src.provision(cfg, Studio.Workspace.snapshot()).then(function (r) {
                   if (r && r.ok === false) throw new Error(r.error || "provision failed");
                   return Studio.Sync.connectPush(src.id, cfg);
@@ -8405,6 +8438,7 @@
                 var pre = el("textarea", "dsx-sql ws-provision-sql"); pre.readOnly = true; pre.value = r.sql || "";
                 b.insertBefore(pre, foot);
                 act("I've run it — connect", true, function () {
+                  if (!confirmPlaintextSync(src.label)) return Promise.reject(new Error("cancelled"));
                   return src.probe(cfg).then(function (p2) {
                     if (p2.state !== "polecat") throw new Error("Still can't see the workspace tables — did the script run?");
                     return Studio.Sync.connectPush(src.id, cfg);
@@ -8416,7 +8450,9 @@
             result.textContent = "Found an existing Studio workspace (" + Studio.WS.describeContents(probe) + "). Adopt it as your working copy, or overwrite it with this browser's.";
             act("Adopt backend copy", true, function () { return Studio.Sync.connectAdopt(src.id, cfg); });
             act("Overwrite with mine", false, function () {
-              if (!window.confirm("Replace EVERYTHING in the backend with this browser's workspace?")) return Promise.reject(new Error("cancelled"));
+              var msg = "Replace EVERYTHING in the backend with this browser's workspace?";
+              if (!Studio.Sync.secretsState().enabled) msg += " Connection credentials will sync there as PLAINTEXT (encryption is off).";
+              if (!window.confirm(msg)) return Promise.reject(new Error("cancelled"));
               return src.drop(cfg).then(function () {
                 return src.provision(cfg, Studio.Workspace.snapshot());
               }).then(function (r) {
@@ -8431,7 +8467,9 @@
             result.className = "cx-test-result bad";
             result.textContent = "That database already has unrelated tables. Studio won't touch them.";
             act("Wipe it & set up here", false, function () {
-              if (!window.confirm("Drop EVERY table in that database and set up a fresh Studio workspace?")) return Promise.reject(new Error("cancelled"));
+              var msg = "Drop EVERY table in that database and set up a fresh Studio workspace?";
+              if (!Studio.Sync.secretsState().enabled) msg += " Connection credentials will sync there as PLAINTEXT (encryption is off).";
+              if (!window.confirm(msg)) return Promise.reject(new Error("cancelled"));
               return src.drop(cfg).then(function () {
                 return src.provision(cfg, Studio.Workspace.snapshot());
               }).then(function (r) {

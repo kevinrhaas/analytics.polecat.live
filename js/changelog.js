@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 517,
+    title: 'Connection-credential storage copy is now honest about where a workspace backend keeps them',
+    kind: 'fix',
+    ts: '2026-07-24T17:24:05.000Z',
+    items: [
+      'Connections and the app tour both said credentials "stay in this browser" -- true only until you connect a synced workspace backend (Turso/Supabase/Firebase), which mirrors connection rows there, as plaintext unless you turn on encryption. The Connections header and the Settings "Workspace backend" card now say exactly what\'s true right now: local-only, synced as encrypted ciphertext, or synced as plaintext.',
+      'Connecting a fresh backend without encryption on now shows a clear warning naming the backend before the first credential sync happens, so you find out before it happens instead of after.',
+    ],
+  },
+  {
     v: 516,
     title: 'Connection credential fields no longer risk an unrelated autofilled secret',
     kind: 'fix',

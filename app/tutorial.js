@@ -87,7 +87,7 @@
         },
         {
           t: "Connections — where your data lives",
-          h: "Point at Postgres, Supabase, Snowflake, BigQuery, Google Sheets, a dropped CSV, and more — or work entirely on the built-in sample data. Credentials stay in your browser.",
+          h: "Point at Postgres, Supabase, Snowflake, BigQuery, Google Sheets, a dropped CSV, and more — or work entirely on the built-in sample data. Credentials stay in your browser by default; connecting a workspace backend syncs them there too (encrypt them from Settings).",
           target: '.rail-item[data-sec="connections"]',
           pos: "right"
         },

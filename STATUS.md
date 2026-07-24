@@ -116,6 +116,31 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **QA-02 — credential-storage copy is now state-aware (v517, 2026-07-24, steward,
+  FRONTEND_QA_REPORT_2026-07-24.md):** the second P1 SECURITY/TRUST finding. Connections'
+  header and the app tour both said "Credentials stay in this browser" unconditionally —
+  false once a workspace backend (Turso/Supabase/Firebase) is connected, since
+  `app/sources/sync.js`'s write-through mirror pushes connection rows (and their secret
+  fields) there too, as PLAINTEXT unless encryption is on. Fix: a shared
+  `connCredentialCopy()` helper in `app/studio.js` computes the true state off
+  `Studio.Sync.syncState()`/`secretsState()` — "Credentials stay in this browser" (local),
+  "…sync to `<backend>` as encrypted ciphertext" (remote + encrypted), or "…as PLAINTEXT —
+  encryption is off" (remote + unencrypted, styled with a new `.cx-cred-warn` class) — and
+  renders it into a `#connCredNote` span in the Connections header (`app/index.html`), kept
+  live via the existing `Studio.Sync.onSync` hook. The Settings "Workspace backend" card's
+  intro line had the identical false unconditional claim; now state-aware the same way. The
+  connect wizard (`openBackendWizard`) now warns — naming the target backend — before any
+  path that would push local credentials up while encryption is off (fresh provision, manual
+  Supabase-script provision, and the two destructive overwrite/wipe paths merged into their
+  existing confirms); `connectAdopt` (pull-only) is unaffected since it never pushes secrets.
+  Softened the unconditional "stay in your browser" claim in `app/tutorial.js` and
+  `README.md` too. 5 new regression tests (header/card copy across local → remote-plaintext
+  → remote-encrypted → disconnect; the wizard's pre-first-sync warning names the backend and
+  a Cancel keeps the workspace local). Suite green (1918/1918). sw v156 (content changed in
+  four already-precached files, no new ones added — see sw.js's header comment).
+  (app/studio.js, app/studio.css, app/index.html, app/tutorial.js, README.md, sw.js,
+  tests/run.js) NEXT: QA-03 (P1 BUG, Explore's choropleth value-mapping default) is the next
+  item in the same report.
 - **QA-01 — connection credential inputs can no longer be silently filled by an unrelated
   password-manager entry (v516, sw v155, 2026-07-24, steward, FRONTEND_QA_REPORT_2026-07-24.md):**
   the report's top-priority P1 security finding. Root cause: every credential input (BigQuery OAuth
@@ -139,8 +164,7 @@
   connection still prefills its saved secret unaffected; the workspace-backend wizard's Turso token
   field gets the identical treatment). Suite green (1909/1909). sw v155 (app/studio.js content
   changed, no new precached files). (app/studio.js, tests/run.js, sw.js) NEXT: QA-02 (state-aware
-  "where are my credentials stored" copy) is the next P1 SECURITY item in the same report, followed
-  by QA-03 (P1 BUG, Explore's choropleth value-mapping default).
+  "where are my credentials stored" copy) shipped next — see its own DONE entry above.
 - **Branding is now an app-wide ADMIN setting + rail suite-name + favicon sync (v515, sw v154,
   2026-07-24, steward, Kevin live):** the app-mark branding card moved OUT of personal Settings
   INTO the Admin section (admin-only) — it changes what every visitor sees, so it's app-wide, not
@@ -2264,16 +2288,14 @@
 >       renders empty and stays `readOnly` until a real `focus` event lifts it (blocks passive
 >       autofill-on-render without blocking a user who deliberately clicks in). Editing an existing
 >       connection is unchanged. 4 new regression tests.
-> QA-02. ★ P1 SECURITY/TRUST — **“Credentials stay in this browser” copy conflicts with backend
->       sync.** Connections + tutorial say credentials stay local, but workspace sync mirrors
->       connection rows to the selected backend, and with encryption OFF the secret values are
->       written as PLAINTEXT. FIX: state-aware copy (local-only / remote+encrypted / remote+plaintext-
->       with-a-prominent-warning + a direct enable-encryption action); surface the current secret-
->       storage state in Connections (not just Settings); a first-sync confirmation stating exactly
->       where credentials will be stored; consider making encryption opt-OUT on first secret-bearing
->       sync. Area: app/index.html, app/tutorial.js, app/sources/sync.js, app/studio.js backend-secrets
->       card, README.md. Test: no screen claims browser-only when a remote backend is connected; warn
->       before the first plaintext secret sync.
+> QA-02. ✓ P1 SECURITY/TRUST — **“Credentials stay in this browser” copy conflicts with backend
+>       sync (shipped v517, 2026-07-24, steward)** — see DONE for the full writeup. State-aware
+>       copy now lives in the Connections header and the Settings "Workspace backend" card (local
+>       / remote+encrypted / remote+plaintext with a `.cx-cred-warn` style); the connect wizard
+>       warns, naming the backend, before any first plaintext credential sync. Opt-out-by-default
+>       encryption was considered but left as a follow-up (not required by the acceptance
+>       criteria); no change needed to app/sources/sync.js itself — the fix is entirely in how its
+>       state is surfaced. 5 new regression tests.
 > QA-03. ★ P1 BUG — **featured County dataset opens with an invalid choropleth value mapping**
 >       (folds with LF32). Explore → “County cover-crop adoption (demo)” correctly picks Map (US
 >       choropleth) but auto-maps Value=`statecode` (a text column) instead of `pct`, so the map is
