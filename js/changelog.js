@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 542,
+    title: 'Welcome tour icons themed',
+    kind: 'polish',
+    ts: '2026-07-25T14:25:22.000Z',
+    items: [
+      'UX6: the first-run Welcome tour\'s five step tiles used to bake a raw Unicode letter/glyph (a full-color-font miss) into the header -- each now shows a themed single-color icon (Home / Search / Grid / Download / Gear) matching the rest of the chrome icon migration.',
+    ],
+  },
+  {
     v: 541,
     title: 'In-app account provisioning for Supabase workspaces',
     kind: 'feature',
