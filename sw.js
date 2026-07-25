@@ -5,7 +5,18 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v162"; /* v162: LF37 — Home Examples "+N more" footer is now a real
+var CACHE_NAME = "studio-shell-v163"; /* v163: R5+ slice 5 (tech-debt track) — the version-history
+   ("time travel" checkpoints) + canvas-sticky-notes data layer moved out of app/studio.js into its
+   own module, app/versions.js (Studio.Versions / Studio.CanvasNotes), following the chart-
+   thumbnails.js/branding.js/defaults.js/celebrations.js extraction precedent (①/②/③/④). Every
+   function is parameterized (spec/dashboard id passed in) rather than reading studio.js's private
+   `S` state, so — unlike celebrations.js/defaults.js — this needed zero injected callbacks. The
+   modal/render UI half of this subsystem (openNoteEditor, openVersionDiff, openCompareDashboards,
+   the Inspector's Version-history/Builder-notes sections) stays in studio.js for a follow-up slice
+   — it leans on a dozen-plus of studio.js's own private DOM/modal helpers that don't extract as
+   cleanly as this data layer did. Pure refactor, no behavior change. New precached file
+   (app/versions.js) and app/studio.js content changed, so precached copies need to roll. */
+/* v162: LF37 — Home Examples "+N more" footer is now a real
    button (was inert text) that enters Studio and opens the Examples menu, same as the existing
    New ▾ → Examples card. No new precached files, but app/studio.js and app/studio.css content
    changed, so precached copies need to roll. */
@@ -779,6 +790,7 @@ var SHELL_FILES = [
   "app/branding.js",
   "app/defaults.js",
   "app/celebrations.js",
+  "app/versions.js",
   "app/studio.js",
   "app/palette.js",
   "app/studio-render.js",

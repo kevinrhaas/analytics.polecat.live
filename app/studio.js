@@ -5625,23 +5625,14 @@
      dashboard id, newest-first, capped at 10 per dashboard. Version lists are pruned to
      only dashboards still tracked in studio-recents so this can't grow unbounded once a
      dashboard falls off Home/Repository. */
-  var _LS_VERSIONS = "studio-versions";
-  function loadVersions() { return lsGet(_LS_VERSIONS, {}); }
-  function saveVersions(v) { lsSet(_LS_VERSIONS, v); }
-  function snapshotVersion() {
-    if (!S.spec || !S.spec.id) return;
-    var versions = loadVersions();
-    var list = versions[S.spec.id] || [];
-    list.unshift({ ts: new Date().toISOString(), spec: Studio.clone(S.spec) });
-    if (list.length > 10) list = list.slice(0, 10);
-    versions[S.spec.id] = list;
-    saveVersions(versions);
-  }
-  function pruneVersions(keepIds) {
-    var versions = loadVersions(), changed = false;
-    Object.keys(versions).forEach(function (id) { if (keepIds.indexOf(id) < 0) { delete versions[id]; changed = true; } });
-    if (changed) saveVersions(versions);
-  }
+  // R5+ slice 5 (studio.js module extraction, tech-debt track): the data layer
+  // (load/save/snapshot/prune) now lives in app/versions.js (Studio.Versions) —
+  // these stay as thin delegates so every call site + the window.__studio* test
+  // hooks below are untouched. Part 2 (the modal/render UI below) stays local.
+  function loadVersions() { return Studio.Versions.load(); }
+  function saveVersions(v) { Studio.Versions.save(v); }
+  function snapshotVersion() { Studio.Versions.snapshot(S.spec); }
+  function pruneVersions(keepIds) { Studio.Versions.prune(keepIds); }
   function restoreVersion(vTs) {
     if (!S.spec || !S.spec.id) return;
     var list = loadVersions()[S.spec.id] || [];
@@ -5662,25 +5653,18 @@
      no stable id yet (diffSpecs already notes this: they're compared positionally), so pinning to
      one would silently drift onto the wrong tile the moment a KPI is reordered or deleted; left for
      a future slice once KPIs gain a stable id. */
-  var _LS_NOTES = "studio-canvas-notes";
-  var NOTE_COLORS = ["#ffd76a", "#7dd3c0", "#f4a6a6", "#8fb8f6", "#c9a4f2"];
-  function loadCanvasNotes() { return lsGet(_LS_NOTES, {}); }
-  function saveCanvasNotes(n) { lsSet(_LS_NOTES, n); }
+  // R5+ slice 5: same delegation as the version-history block above — the data
+  // layer now lives in app/versions.js (Studio.CanvasNotes).
+  var NOTE_COLORS = Studio.CanvasNotes.COLORS;
+  function loadCanvasNotes() { return Studio.CanvasNotes.load(); }
+  function saveCanvasNotes(n) { Studio.CanvasNotes.save(n); }
   function saveCanvasNote(note) {
     if (!S.spec || !S.spec.id) return;
-    var all = loadCanvasNotes();
-    var list = all[S.spec.id] || [];
-    var existing = list.filter(function (n) { return n.id === note.id; })[0];
-    if (existing) { existing.color = note.color; existing.text = note.text.trim(); existing.panelId = note.panelId; existing.ts = new Date().toISOString(); }
-    else { list.push({ id: note.id, color: note.color, text: note.text.trim(), panelId: note.panelId, ts: new Date().toISOString() }); }
-    all[S.spec.id] = list;
-    saveCanvasNotes(all);
+    Studio.CanvasNotes.put(S.spec.id, note);
   }
   function deleteCanvasNote(id) {
     if (!S.spec || !S.spec.id) return;
-    var all = loadCanvasNotes();
-    all[S.spec.id] = (all[S.spec.id] || []).filter(function (n) { return n.id !== id; });
-    saveCanvasNotes(all);
+    Studio.CanvasNotes.remove(S.spec.id, id);
     renderInspector();
   }
   function openNoteEditor(existing) {

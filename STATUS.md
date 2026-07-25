@@ -3298,12 +3298,26 @@
 >      steward): `app/branding.js` (`Studio.Branding`). ③ ✓ defaults/presets config layer — DONE,
 >      see DONE (v501, sw v142, 2026-07-24, steward): `app/defaults.js` (`Studio.Defaults`). ④ ✓
 >      celebrations/milestones — DONE, see DONE (v510, sw v151, 2026-07-24, steward):
->      `app/celebrations.js` (`Studio.Celebrations`). → ⑤ versions/notes/diff modals →
->      ⑥ the Explore `XP` subsystem (own namespace; preserve the analysis→spec add + `homeLiveFrame`
->      reuse seams) → ⑦ the data-plane panels LAST (Jobs → Connections → Datasets; Datasets last because
->      `runDataset`/`window.__studioRunDataset` bridges back into the builder preview). These are
->      lane-hot files — schedule each when the feature lane isn't mid-slice in that area. NEXT: ⑤
->      versions/notes/diff modals.
+>      `app/celebrations.js` (`Studio.Celebrations`). ⑤ **versions/notes data layer — slice 1 shipped
+>      (v526, sw v163, 2026-07-25, steward):** unlike ①-④ (each one clean exception aside), the FULL
+>      versions/notes/diff subsystem doesn't extract cleanly in one piece — the modal/render half
+>      (`openNoteEditor`, `openJsonEditor`, `openVersionDiff`, `openCompareDashboards`, the Inspector's
+>      Version-history/Builder-notes sections) leans on a dozen-plus of studio.js's own private DOM/
+>      modal helpers (`modal`, `el`, `hint`, `textarea`, `setIconBtn`, `section`, `rowItem`, …), unlike
+>      the ONE injected callback each prior slice needed. Split it instead: this slice moved just the
+>      pure DATA layer — `loadVersions`/`saveVersions`/`snapshotVersion`/`pruneVersions` and
+>      `loadCanvasNotes`/`saveCanvasNotes`/`saveCanvasNote`/`deleteCanvasNote` — into a new
+>      `app/versions.js` (`Studio.Versions`/`Studio.CanvasNotes`), reworked to take the dashboard
+>      spec/id as an explicit param instead of reading studio.js's private `S` state, so this module
+>      needed ZERO injected callbacks (cleaner than even ①-④). studio.js's own copies became thin
+>      delegates with identical signatures, so every call site, the `studio-versions`/`studio-
+>      canvas-notes` storage keys, and every `window.__studio*` test hook are byte-for-byte unchanged
+>      — pure refactor, suite unchanged at 1951/1951. NEXT: ⑤ part 2, the modal/render UI half (a
+>      separately-scoped follow-up given the DOM-helper coupling above) → ⑥ the Explore `XP` subsystem
+>      (own namespace; preserve the analysis→spec add + `homeLiveFrame` reuse seams) → ⑦ the data-plane
+>      panels LAST (Jobs → Connections → Datasets; Datasets last because `runDataset`/
+>      `window.__studioRunDataset` bridges back into the builder preview). These are lane-hot files —
+>      schedule each when the feature lane isn't mid-slice in that area.
 
 ### ★★★★★ CONSERVATION INSIGHT PRODUCT PLATFORM (2026-07-21, user-directed — NOW THE TOP PRIORITY)
 > Kevin's big charter: turn Analytics into a multi-user, permissioned product. Decisions locked
