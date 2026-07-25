@@ -364,6 +364,11 @@
     columns are picked from each dataset's real, known columns rather than typed by hand. A
     dataset that hasn't been queried yet is probed live in the background the moment you open the
     job editor, and the dropdowns fill in as soon as its columns are known.</li>
+    <li><strong>Multiple rollup levels</strong> — add a second (or third) aggregate step to roll up
+    an already-aggregated result again (e.g. sum acres by county+year, then average that across
+    years for a county-only figure); each aggregate step's group-by/metric dropdowns show the
+    columns as they exist at that point in the pipeline (the previous step's output), not the
+    original source dataset's columns.</li>
     <li><strong>Rollup metrics</strong> include sum, average, count, median, and a
     <strong>weighted mean</strong> — the honest way to aggregate a percent metric from county up
     to State, USDA Crop Reporting District, or HUC8 watershed: a flat average of percentages

@@ -116,6 +116,36 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF13(b) — job editor's chained aggregate steps now see the right columns (v538, sw v175,
+  2026-07-25, steward):** LF13's "multiple aggregate passes/levels" sub-ask turned out to be
+  narrower than it read — `Studio.runJobSteps` (`app/sources/jobs-engine.js`) already chains a
+  second `aggregate` step over the first one's output correctly, since steps just apply in order
+  over whatever columns/rows the previous step produced; verified this directly with a new
+  jobs-engine-only regression test before touching any UI. The actual gap was the EDITOR: every
+  aggregate step's group-by pills and metric-column `<select>` (and the weighted-mean weight
+  column) always read `colsCache.bySrc` — the raw SOURCE dataset's columns — regardless of which
+  step was being edited, so a second aggregate step meant to roll up an already-aggregated result
+  (e.g. sum acres by county+year, then average that across years for a county-only figure) showed
+  the wrong column list (the original raw columns, not the first step's output columns like
+  `acres_sum`) and was effectively unbuildable through the UI. Fixed with a new schema-only
+  pipeline simulator (`simulateStepCols`/`colsBeforeStep`, `app/studio.js`, `openJobEditor`) that
+  mirrors jobs-engine.js's own column-shape rules for rename/derive/aggregate/join/uniqueKey
+  (cast/filter/union/sql are schema-preserving or data-dependent, so treated as no-ops) WITHOUT
+  running any actual data — so it can't drift from the real engine's shape logic by construction,
+  and stays synchronous/cheap even for a job with many steps. Each step's `stepFields` call now
+  receives its own index and computes the columns available at that exact point in the pipeline
+  (`colsBeforeStep(i)`), passed into both the group-by chip list and `metricsEditor`; a later
+  aggregate step's "Group by" hint also relabels to "Group by (this step's incoming columns):" so
+  it reads as distinct from the source dataset. Step 0 (or any job with only one aggregate step)
+  is byte-for-byte unaffected — `colsBeforeStep(0)` is exactly `colsCache.bySrc`, matching every
+  pre-existing LF13(a) test. 5 new regression tests (a second aggregate step's pills/metric-select
+  reflect the FIRST step's output columns and exclude the raw-only source columns; the relabeled
+  hint text; saving round-trips both chained steps; the jobs-engine itself already chains two
+  aggregate steps correctly end to end, pinning the "no engine change needed" finding). docs/
+  index.html's Jobs section gained a matching bullet. **LF13(b) is now fully done** — LF13(a),
+  (b), (c) are all shipped; (d), the larger UX pass (field list / preview / operation diagram), is
+  the only sub-ask still open. (app/studio.js, docs/index.html, sw.js, js/changelog.js,
+  tests/run.js)
 - **UX6 slice 4 — demo-mode badge gets a themed icon (v537, sw v174, 2026-07-25, steward):**
   the pulsing "● LIVE" badge (`#demoBadge`, shown while `toggleDemoMode()`'s 4-second simulation
   runs) led with a raw Unicode "●" glyph — the app-chrome equivalent of the footer's old 📋 emoji
@@ -3077,17 +3107,23 @@
 > LF13. **Job editor overhaul (Edit-job modal).** Multiple asks: (a) ✓ **COLUMN DROPDOWNS — shipped
 >       (v535, sw v172, 2026-07-25, steward) — see DONE.** The group-by/metric/weight/join+union-key
 >       fields are real dropdowns (a pill picker for group-by's multi-select) populated from each
->       dataset's real columns, instead of free-text. (b) MULTIPLE group-by columns + multiple
->       aggregates (metric "+ " exists; extend grouping beyond one + "then by" — note group-by is now
->       ALREADY multi-select via (a)'s pill picker, so this sub-ask narrows to multiple AGGREGATE
->       passes/levels, not multiple group-by columns, which already works). (c) ✓ **UNIQUE-KEY
+>       dataset's real columns, instead of free-text. (b) ✓ **MULTIPLE AGGREGATE PASSES/LEVELS —
+>       shipped (v538, sw v175, 2026-07-25, steward) — see DONE.** The jobs-engine pipeline already
+>       chained a second aggregate step correctly end to end (steps just apply in order); the real
+>       gap was the EDITOR — every aggregate step's group-by/metric pickers always read the raw
+>       SOURCE dataset's columns, so a second aggregate step rolling up an already-aggregated result
+>       showed the wrong columns and was effectively unbuildable through the UI. Fixed with a
+>       schema-only pipeline simulator so each step's pickers show exactly the columns available AT
+>       that point in the pipeline. (c) ✓ **UNIQUE-KEY
 >       option — shipped (v536, sw v173, 2026-07-25, steward) — see DONE.** jobs-engine had no
 >       row-id concept; a new `uniqueKey` step stamps a stable id per row, placeable anywhere in the
 >       pipeline (recommended after join/union/aggregate so it keys the final row grain). (d) UX —
 >       it's "wonky and boring": add a source FIELD LIST (type icons/colors), a PREVIEW of source
 >       rows AND a dummy preview of the OUTPUT rows, and a small visual DIAGRAM of the operation
 >       (rollup/join/stack) with the picked columns shown, so you can see what you're building.
->       app/studio.js (openJobEditor), app/sources/jobs-engine.js, app/studio.css.
+>       app/studio.js (openJobEditor), app/sources/jobs-engine.js, app/studio.css. NEXT in LF13: (d),
+>       the remaining UX-polish ask (field list / source+output preview / operation diagram) — the
+>       largest remaining piece, deliberately not attempted in this slice.
 > LF14. ✓ **Job editor contrast — DONE, see DONE (v434, 2026-07-22, steward).** New `.btn.danger`
 >       class (dark-on-light, red on hover) applied to "✕ Remove step" + the per-metric/mapping "✕".
 > LF15. ✓ **Settings: button/input style overlap — DONE, see DONE (v439, 2026-07-22, steward).**
