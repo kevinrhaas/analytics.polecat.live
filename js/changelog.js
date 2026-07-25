@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 525,
+    title: 'Home Examples "+N more" footer is now clickable',
+    kind: 'fix',
+    ts: '2026-07-25T02:53:17.000Z',
+    items: [
+      'The "+ N more -- New > Examples" footer under Home\'s Examples strip was inert text -- clicking it did nothing. It\'s now a real button that opens the same Examples menu, showing every example instead of just the first 8.',
+    ],
+  },
+  {
     v: 524,
     title: 'Duplicate-named dashboards, analyses, datasets, connections, and jobs are now distinguishable in pickers',
     kind: 'fix',

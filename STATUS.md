@@ -116,6 +116,21 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF37 — Home Examples "+N more" footer is now clickable (v525, sw v162, 2026-07-25,
+  steward, Kevin live-feedback 2026-07-24):** Home's Examples strip caps at 8 cards and showed
+  a "+ N more — New ▸ Examples" footer, but it was a plain `<div>` — nothing happened on click.
+  It's now a real `<button data-home-examples-more>` wired the same way the pre-existing "New ▾
+  → Examples" card already worked (`enterStudio()` then click `#btnExamples`), so it opens the
+  SAME Examples ▾ menu (`buildExamplesMenu`), which already renders every `visibleExamples()`
+  entry uncapped — no new UI to build, just making the existing full-list menu reachable from
+  here too. New `.home-feat-more-btn` CSS (hover underline + `:focus-visible` ring, matching the
+  fleet's existing button-reset pattern) styles it without disturbing the two sibling
+  `.home-feat-more` footers (Featured/Favorites overflow), which stay plain text — Kevin's
+  report named only the Examples one, so those are left as-is pending their own reports. 2 new
+  regression tests (renders as a real `<button>`; clicking it enters Studio and opens the
+  Examples menu with more cards than Home's 8-card cap — the default 12-example catalog already
+  overflows, so no demo-pack install is needed to exercise it). (app/studio.js, app/studio.css,
+  tests/run.js) NEXT: LF34/LF35/LF36 remain open in the LIVE-FEEDBACK QUEUE.
 - **QA-10 — verified production footer is caught up with repo main, no staleness bug
   (2026-07-25, steward, FRONTEND_QA_REPORT_2026-07-24.md):** the report observed a
   fresh-fetch of production's `js/changelog.js` returning `v513` while the tested
@@ -2591,11 +2606,9 @@
 >       renderers (SVG nudge-pad + the maplibregl-ctrl group) and must round-trip into the exported HTML
 >       byte-identically. Area: app/studio-charts.js (control-cluster render) + a per-panel opts flag in the
 >       Inspector map options (app/studio.js renderInspector). Ties LF25.
-> LF37. **Home Examples "+N more" isn't clickable (Kevin, live 2026-07-24, screenshot).** Home's EXAMPLES
->       section footer reads "+ 12 more — New ▸ Examples" but nothing happens on click — there's no way to
->       expand the grid or see the additional examples. Make it an actionable control that expands to show
->       all examples (or opens the full Examples list). Area: renderHome() examples section (the "+N more"
->       footer) in app/studio.js.
+> LF37. ✓ **Home Examples "+N more" footer is now clickable (shipped v525, sw v162, 2026-07-25,
+>       steward) — see DONE.** The footer is now a real button that opens the Examples ▾ menu
+>       (already renders the full, uncapped example list).
 > LF36. **Export dashboard to PDF — print-safe (Kevin, live 2026-07-24).** Add "Export to PDF" alongside the
 >       existing HTML/spec/bundle/PNG/CSV exports. MUST handle multi-page dashboards well: widgets/images may
 >       NOT split across a page boundary (`break-inside: avoid` on panels/KPIs/cards/images), handle widows/
