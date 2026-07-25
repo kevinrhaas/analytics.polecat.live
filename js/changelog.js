@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 528,
+    title: 'Export a dashboard straight to PDF',
+    kind: 'feature',
+    ts: '2026-07-25T04:11:49.000Z',
+    items: [
+      'Export -> PDF (print) opens the dashboard in a new tab and starts your browser\'s print dialog -- choose "Save as PDF" there for a one-off PDF or hard copy without a separate export step.',
+      'Print output is now page-break aware: widgets and KPI rows never split across a page, page margins are sane by default, and paragraph text avoids stranding a single line at a page break.',
+    ],
+  },
+  {
     v: 527,
     title: 'Map zoom/pan controls can now go compact or hidden',
     kind: 'feature',

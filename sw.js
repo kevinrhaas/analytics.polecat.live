@@ -5,20 +5,17 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v164"; /* v164: LF35 slice 1 — a new per-panel "Zoom/pan controls"
-   option (Show/Compact/Hidden) on the choropleth chart's GL renderer (Kevin: wants the on-map
-   zoom+pan cluster smaller and hideable). "Hidden" skips adding MapLibre's NavigationControl and
-   the LF4 pan nudge-pad entirely; "Compact" keeps both but shrinks them via a CSS transform on
-   MapLibre's own top-right control container (new .pdc-geo-compact rule, exporters.js) rather
-   than reaching into MapLibre's internal control markup — same recipe as every other unconditional
-   small CSS override already in that bundle (cardSkinCss, printCss, …). Undefined (every
-   pre-existing saved dashboard) behaves exactly like "Show" — no change for anyone who hasn't
-   touched the new option. The report's other ask (a movable, repositionable cluster) is a larger,
-   separate follow-up — deliberately not attempted here. Applies to the GL renderer only; the
-   built-in (SVG) renderer has no on-map controls to begin with, so it's untouched. 4 new LF35
-   ratchets (hidden drops both controls, compact shrinks them + tags the wrap, show and unset
-   render identically). app/model.js, app/studio-charts.js, app/exporters.js, docs/index.html,
-   tests/run.js changed, so precached copies need to roll. */
+var CACHE_NAME = "studio-shell-v165"; /* v165: LF36 slice 1 — a new "PDF (print)" entry in the
+   Export ▾ menu opens the same self-contained dashboard export (Studio.exportCDF, byte-identical
+   to the .html export) in a new tab via a blob URL and starts the browser's print dialog there
+   ("Save as PDF") once the tab has loaded — reuses the #printBtn/@media print machinery
+   exporters.js already bakes into every export instead of duplicating it. Print CSS polish: a new
+   @page{margin:12mm} rule for sane print margins, plus orphans/widows:3 on the description bar and
+   richtext panel paragraphs/list items so print/PDF output doesn't strand a single line at a page
+   break. break-inside:avoid on .card/.pdc-kpis (unchanged) already keeps a widget/KPI row from
+   splitting across a page boundary. Sizing/scale + page-size/orientation controls are a
+   deliberately deferred follow-up (STATUS.md LF36). app/index.html, app/studio.js,
+   app/exporters.js, docs/index.html, tests/run.js changed, so precached copies need to roll. */
 /* v163: R5+ slice 5 (tech-debt track) — the version-history
    ("time travel" checkpoints) + canvas-sticky-notes data layer moved out of app/studio.js into its
    own module, app/versions.js (Studio.Versions / Studio.CanvasNotes), following the chart-

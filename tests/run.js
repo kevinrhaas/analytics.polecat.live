@@ -16347,6 +16347,94 @@ function serve() {
     });
     ok("H-print: previewHtml does NOT include the print button", hPrintPreview.ok, JSON.stringify(hPrintPreview));
 
+    // H-print-3: exported CDF's print CSS carries the LF36 slice-1 polish — @page margin +
+    // orphans/widows on text-heavy content — while keeping the pre-existing break-inside:avoid
+    // rules on .card/.pdc-kpis intact (never weaken this assertion).
+    const hPrintPolish = await page.evaluate(function () {
+      try {
+        var spec = window.__STUDIO_STATE && window.__STUDIO_STATE.spec;
+        var html = window.Studio.exportCDF(spec, {
+          css:    "",
+          js:     "var PDC={}; PDC.cda=function(){return Promise.resolve({cols:[],rows:[]});};PDC.boot=function(){};",
+          render: "",
+          charts: ""
+        }, "data.cda");
+        return {
+          hasPageMargin: html.indexOf("@page{margin:12mm}") >= 0,
+          hasOrphansWidows: /orphans:3;widows:3/.test(html),
+          hasCardBreakInside: html.indexOf(".card{break-inside:avoid") >= 0,
+          hasKpiBreakInside: html.indexOf(".pdc-kpis{break-inside:avoid}") >= 0
+        };
+      } catch (e) { return { err: e.message }; }
+    });
+    ok("H-print: exported CDF print CSS sets @page margin", hPrintPolish.hasPageMargin, JSON.stringify(hPrintPolish));
+    ok("H-print: exported CDF print CSS sets orphans/widows:3 for text-heavy content", hPrintPolish.hasOrphansWidows, JSON.stringify(hPrintPolish));
+    ok("H-print: exported CDF print CSS still avoids breaking .card across pages", hPrintPolish.hasCardBreakInside, JSON.stringify(hPrintPolish));
+    ok("H-print: exported CDF print CSS still avoids breaking .pdc-kpis across pages", hPrintPolish.hasKpiBreakInside, JSON.stringify(hPrintPolish));
+
+    // ── LF36 slice 1: "PDF (print)" export menu entry ──────────────────────────
+    console.log("\n• LF36: PDF (print) export menu entry");
+    // LF36-1: the Export ▾ menu has a 4th data-exp="pdf" button alongside cdf/spec/all
+    const lf36Menu = await page.evaluate(function () {
+      var wrap = document.getElementById("menuExport");
+      var btn = wrap && wrap.querySelector('button[data-exp="pdf"]');
+      return { found: !!btn, text: btn ? btn.textContent : "" };
+    });
+    ok("LF36: Export menu has a data-exp=\"pdf\" button", lf36Menu.found, JSON.stringify(lf36Menu));
+    ok("LF36: the PDF menu button is labeled for print/PDF", /pdf/i.test(lf36Menu.text), JSON.stringify(lf36Menu));
+
+    // LF36-2: clicking it opens the byte-identical exported CDF HTML (same printCss as the "cdf"
+    // export) via window.open on a blob URL, and calls .print() on the opened window once it has
+    // "loaded" -- mock window.open to capture the URL + a fake window (with an addEventListener
+    // that immediately fires "load", and a print() spy) since a real popup can't be reliably
+    // asserted on headlessly in this harness.
+    const lf36Open = await page.evaluate(function () {
+      return new Promise(function (resolve) {
+        var captured = { url: null, printed: false, revoked: false };
+        var realOpen = window.open;
+        var realCreateObjectURL = URL.createObjectURL;
+        var realRevokeObjectURL = URL.revokeObjectURL;
+        var fakeWin = {
+          addEventListener: function (type, cb) { if (type === "load") setTimeout(cb, 0); },
+          print: function () { captured.printed = true; }
+        };
+        URL.createObjectURL = function (blob) {
+          var url = "blob:mock-" + Math.random();
+          captured.url = url;
+          captured._blob = blob;
+          return url;
+        };
+        URL.revokeObjectURL = function () { captured.revoked = true; };
+        window.open = function (url) { captured.openedUrl = url; return fakeWin; };
+        try {
+          var btn = document.querySelector('#menuExport button[data-exp="pdf"]');
+          if (btn) btn.click();
+        } catch (e) { captured.err = e.message; }
+        setTimeout(function () {
+          window.open = realOpen;
+          URL.createObjectURL = realCreateObjectURL;
+          URL.revokeObjectURL = realRevokeObjectURL;
+          if (captured._blob) {
+            var reader = new FileReader();
+            reader.onload = function () { captured.blobText = reader.result; resolve(captured); };
+            reader.readAsText(captured._blob);
+          } else resolve(captured);
+        }, 500);
+      });
+    });
+    await page.evaluate(function () { document.querySelectorAll(".modal-ov").forEach(function (m) { m.remove(); }); });
+    ok("LF36: clicking the PDF menu item opens a blob URL via window.open", !!lf36Open.openedUrl && lf36Open.openedUrl === lf36Open.url, JSON.stringify({ openedUrl: lf36Open.openedUrl, url: lf36Open.url, err: lf36Open.err }));
+    ok("LF36: the opened blob is the same exportCDF HTML (contains the print CSS)", !!lf36Open.blobText && lf36Open.blobText.indexOf("@media print") >= 0 && lf36Open.blobText.indexOf("@page{margin:12mm}") >= 0, "hasBlobText=" + !!lf36Open.blobText);
+    ok("LF36: the opened window's print() is called once it \"loads\"", lf36Open.printed, JSON.stringify(lf36Open));
+    ok("LF36: doExport records a \"pdf\" kind in export history", await page.evaluate(function () {
+      try {
+        var raw = localStorage.getItem("studio-export-history");
+        var arr = raw ? JSON.parse(raw) : [];
+        return arr.length > 0 && arr[0].kind === "pdf";
+      } catch (e) { return false; }
+    }));
+    await page.evaluate(function () { try { localStorage.removeItem("studio-export-history"); } catch (e) {} });
+
     // ── F21: Packed bubble chart ──────────────────────────────────────────────
 
     // F21-1: packedBubble registered in Studio.CHARTS (Composition group, labelCol + valueCol)
