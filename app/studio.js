@@ -1390,8 +1390,12 @@
     var h = el("div", "h");
     h.innerHTML = '<span class="car">▶</span><span class="nm">This dashboard\u2019s datasets</span><span class="badge">' + das.length + "</span>";
     libGroupHeaderIcon(h, "cube");
-    var addBtn = el("button", "mine-add"); setIconBtn(addBtn, "plus", "New", 12);
-    addBtn.title = "Create a new data source"; addBtn.type = "button";
+    // LF19 "next" slice: icon-only (no "New" text) so this shortcut never crowds out
+    // the group's own name — the global "+ New ▾" header button already spells "New"
+    // out in full; this one just needs to read as "add" next to a cube full of items.
+    var addBtn = el("button", "mine-add"); addBtn.appendChild(Studio.icon("plus", 13));
+    addBtn.title = "Create a new data source"; addBtn.setAttribute("aria-label", "Create a new data source");
+    addBtn.type = "button";
     addBtn.onclick = function (e) { e.stopPropagation(); addNewDA(); };
     h.appendChild(addBtn);
     // NOTE: the compound (join/union) data-access builder is intentionally NOT wired
