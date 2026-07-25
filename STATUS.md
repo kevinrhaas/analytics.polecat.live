@@ -116,6 +116,31 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF13(a) — job editor group-by/metric/join+union-key fields are now real column dropdowns
+  (v535, sw v172, 2026-07-25, steward):** LF13's overhaul ask has four sub-parts (a)(b)(c)(d);
+  this slice ships (a) only, "COLUMN DROPDOWNS." The aggregate step's group-by (previously a
+  single comma-separated free-text input) is now a row of toggleable pill chips (`.jobs-groupby`,
+  reusing the app's existing `wb-chip`/`cx-pill` filter-pill styling — no new visual language),
+  one per column known on the job's **source** dataset; the metric column and weighted-mean
+  weight column (`metricsEditor`) are now `<select>` dropdowns over the same list. Join's left-key
+  select also reads the source dataset's columns, while its right-key select and union's
+  column-map "from" select read the **picked join/union dataset's** columns instead — two
+  independently-populated lists, since a join's two sides are two different datasets. Columns
+  come from each dataset's `.columns` field (already the app's authoritative known-column list,
+  set at dataset-creation time or cached by `runDataset()`); a dataset that hasn't been queried
+  yet gets a background `runDataset()` probe (the file adapter parses its inline content
+  synchronously, so this resolves almost immediately for the common case) and the editor
+  re-renders once it lands. Every dropdown always keeps the currently-saved value selectable even
+  if it fell out of the introspected list (renamed column, stale cache), so opening the editor on
+  an existing job never silently drops a configured column. 5 new regression tests (pills render
+  + reflect the saved groupBy, metric select is populated + pre-selected, clicking a pill toggles
+  and persists on save, join's left/right selects draw from two independent column lists, a
+  never-run dataset's columns populate live via the background probe). NEXT in LF13: (b) multiple
+  group-by "then by" columns + multiple aggregates (the metrics list already supports multiple
+  metrics; this is about grouping depth), (c) a stable unique-key/row-id option, and (d) the
+  bigger UX pass (source field list, output preview, a visual diagram of the operation) are each
+  their own follow-up slice. (app/studio.js, app/studio.css, docs/index.html, sw.js,
+  js/changelog.js, tests/run.js)
 - **UX6 slice 2 — builder chrome (More/New/list-toggle/compare/pane chevrons) gets themed icons
   (v533, sw v170, 2026-07-25, steward):** continues slice 1's currentColor icon migration. Two new
   registry icons (`app/icons.js`): `more` (a horizontal 3-dot kebab) and `list` (three bulleted
@@ -3015,16 +3040,19 @@
 >       Explore's preview, not just a relabeled SVG one; saving + reopening the analysis restores
 >       the GL choice). docs/index.html's Explore section updated. (app/studio.js, docs/index.html,
 >       tests/run.js)
-> LF13. **Job editor overhaul (Edit-job modal).** Multiple asks: (a) COLUMN DROPDOWNS — the group-by +
->       metric column fields are free-text; populate from the SOURCE dataset's real columns (introspect
->       via runDataset/sampleRows) — for group-by, metric source col, and join/union keys. (b) MULTIPLE
->       group-by columns + multiple aggregates (metric "+ " exists; extend grouping beyond one +
->       "then by"). (c) UNIQUE-KEY option — generate a uuid/stable id per output row (verify whether
->       jobs-engine already emits row ids; expose the toggle). (d) UX — it's "wonky and boring": add a
->       source FIELD LIST (type icons/colors), a PREVIEW of source rows AND a dummy preview of the
->       OUTPUT rows, and a small visual DIAGRAM of the operation (rollup/join/stack) with the picked
->       columns shown, so you can see what you're building. app/studio.js (openJobEditor),
->       app/sources/jobs-engine.js, app/studio.css.
+> LF13. **Job editor overhaul (Edit-job modal).** Multiple asks: (a) ✓ **COLUMN DROPDOWNS — shipped
+>       (v535, sw v172, 2026-07-25, steward) — see DONE.** The group-by/metric/weight/join+union-key
+>       fields are real dropdowns (a pill picker for group-by's multi-select) populated from each
+>       dataset's real columns, instead of free-text. (b) MULTIPLE group-by columns + multiple
+>       aggregates (metric "+ " exists; extend grouping beyond one + "then by" — note group-by is now
+>       ALREADY multi-select via (a)'s pill picker, so this sub-ask narrows to multiple AGGREGATE
+>       passes/levels, not multiple group-by columns, which already works). (c) UNIQUE-KEY option —
+>       generate a uuid/stable id per output row (verify whether jobs-engine already emits row ids;
+>       expose the toggle). (d) UX — it's "wonky and boring": add a source FIELD LIST (type
+>       icons/colors), a PREVIEW of source rows AND a dummy preview of the OUTPUT rows, and a small
+>       visual DIAGRAM of the operation (rollup/join/stack) with the picked columns shown, so you can
+>       see what you're building. app/studio.js (openJobEditor), app/sources/jobs-engine.js,
+>       app/studio.css.
 > LF14. ✓ **Job editor contrast — DONE, see DONE (v434, 2026-07-22, steward).** New `.btn.danger`
 >       class (dark-on-light, red on hover) applied to "✕ Remove step" + the per-metric/mapping "✕".
 > LF15. ✓ **Settings: button/input style overlap — DONE, see DONE (v439, 2026-07-22, steward).**

@@ -3872,6 +3872,117 @@ function serve() {
     });
     await page.waitForTimeout(200);
 
+    // LF13(a): group-by / metric-column / join-and-union-key fields become real dropdowns
+    // of the relevant dataset's known columns, instead of free-text (STATUS.md LIVE-FEEDBACK
+    // QUEUE, LF13 sub-ask (a)). A dataset with columns already declared populates synchronously.
+    await page.evaluate(function () {
+      window.__studioShellSetSection("jobs");
+      var conn = Studio.Workspace.put("connections", { name: "jobs-coldd-editor-test", adapter: "file", cfg: {} });
+      var ds = Studio.Workspace.put("datasets", { name: "jobs-coldd-editor-ds", connectionId: conn.id, kind: "file", format: "csv",
+        content: "region,state,pct\nMidwest,IA,40\n", columns: ["region", "state", "pct"] });
+      var job = Studio.Workspace.put("jobs", { name: "coldd-editor-job", sourceDatasetId: ds.id,
+        steps: [{ op: "aggregate", groupBy: ["region"], metrics: [{ col: "pct", fn: "sum", as: "pct_sum" }] }] });
+      window.__studioOpenJobEditor(job);
+    });
+    await page.waitForTimeout(150);
+    const jobsColDropdownUI = await page.evaluate(function () {
+      var pills = Array.prototype.slice.call(document.querySelectorAll(".jobs-groupby .wb-chip"));
+      var metricSel = document.querySelector(".jobs-metric-row select");
+      return {
+        pillLabels: pills.map(function (p) { return p.textContent; }),
+        regionActive: pills.some(function (p) { return p.textContent === "region" && p.classList.contains("active"); }),
+        metricOptions: metricSel ? Array.prototype.slice.call(metricSel.options).map(function (o) { return o.value; }) : [],
+        metricValue: metricSel ? metricSel.value : null
+      };
+    });
+    ok("LF13(a): aggregate step's group-by renders a pill per known source column, with the saved groupBy pre-toggled active",
+      jobsColDropdownUI.pillLabels.indexOf("region") >= 0 && jobsColDropdownUI.pillLabels.indexOf("state") >= 0 &&
+      jobsColDropdownUI.pillLabels.indexOf("pct") >= 0 && jobsColDropdownUI.regionActive, JSON.stringify(jobsColDropdownUI));
+    ok("LF13(a): the metric column field is a real <select> populated with the source dataset's columns, pre-selected to the saved value",
+      jobsColDropdownUI.metricOptions.indexOf("pct") >= 0 && jobsColDropdownUI.metricValue === "pct", JSON.stringify(jobsColDropdownUI));
+    const jobsColDropdownSave = await page.evaluate(function () {
+      var statePill = Array.prototype.slice.call(document.querySelectorAll(".jobs-groupby .wb-chip")).filter(function (p) { return p.textContent === "state"; })[0];
+      statePill.click();
+      document.querySelector(".cx-wiz-foot .btn.primary").click();
+      var job = Studio.Workspace.all("jobs").filter(function (j) { return j.name === "coldd-editor-job"; })[0];
+      return { groupBy: job && job.steps[0].groupBy };
+    });
+    ok("LF13(a): clicking an inactive group-by pill adds that column, and saving persists it",
+      jobsColDropdownSave.groupBy && jobsColDropdownSave.groupBy.indexOf("region") >= 0 && jobsColDropdownSave.groupBy.indexOf("state") >= 0,
+      JSON.stringify(jobsColDropdownSave));
+    await page.evaluate(function () {
+      Studio.Workspace.all("jobs").filter(function (j) { return j.name === "coldd-editor-job"; }).forEach(function (j) { Studio.Workspace.remove("jobs", j.id, { silent: true }); });
+      Studio.Workspace.all("datasets").filter(function (d) { return d.name === "jobs-coldd-editor-ds"; }).forEach(function (d) { Studio.Workspace.remove("datasets", d.id, { silent: true }); });
+      Studio.Workspace.all("connections").filter(function (c) { return c.name === "jobs-coldd-editor-test"; }).forEach(function (c) { Studio.Workspace.remove("connections", c.id, { silent: true }); });
+      Studio.Workspace.notify("*");
+      window.__studioShellSetSection("studio");
+    });
+    await page.waitForTimeout(200);
+
+    // LF13(a): join's left-key dropdown lists the SOURCE dataset's columns; right-key lists
+    // the PICKED join dataset's columns — two independent lists, not one shared free-text pair.
+    await page.evaluate(function () {
+      window.__studioShellSetSection("jobs");
+      var conn = Studio.Workspace.put("connections", { name: "jobs-joincols-editor-test", adapter: "file", cfg: {} });
+      var left = Studio.Workspace.put("datasets", { name: "jobs-joincols-left", connectionId: conn.id, kind: "file", format: "csv", content: "state,score\nIA,10\n", columns: ["state", "score"] });
+      var right = Studio.Workspace.put("datasets", { name: "jobs-joincols-right", connectionId: conn.id, kind: "file", format: "csv", content: "state_code,pop\nIA,300\n", columns: ["state_code", "pop"] });
+      var job = Studio.Workspace.put("jobs", { name: "joincols-editor-job", sourceDatasetId: left.id,
+        steps: [{ op: "join", datasetId: right.id, leftCol: "state", rightCol: "state_code" }] });
+      window.__studioOpenJobEditor(job);
+    });
+    await page.waitForTimeout(150);
+    const jobsJoinColsUI = await page.evaluate(function () {
+      var selects = Array.prototype.slice.call(document.querySelectorAll(".jobs-step-fields select"));
+      var leftSel = selects.filter(function (s) { return Array.prototype.slice.call(s.options).some(function (o) { return o.value === "state"; }); })[0];
+      var rightSel = selects.filter(function (s) { return Array.prototype.slice.call(s.options).some(function (o) { return o.value === "state_code"; }); })[0];
+      return {
+        leftOptions: leftSel ? Array.prototype.slice.call(leftSel.options).map(function (o) { return o.value; }) : [],
+        leftValue: leftSel ? leftSel.value : null,
+        rightOptions: rightSel ? Array.prototype.slice.call(rightSel.options).map(function (o) { return o.value; }) : [],
+        rightValue: rightSel ? rightSel.value : null
+      };
+    });
+    ok("LF13(a): join step's left-key select lists the source dataset's columns, right-key select lists the picked join dataset's columns (independent lists)",
+      jobsJoinColsUI.leftOptions.indexOf("state") >= 0 && jobsJoinColsUI.leftOptions.indexOf("score") >= 0 && jobsJoinColsUI.leftOptions.indexOf("state_code") < 0 &&
+      jobsJoinColsUI.rightOptions.indexOf("state_code") >= 0 && jobsJoinColsUI.rightOptions.indexOf("pop") >= 0 && jobsJoinColsUI.rightOptions.indexOf("score") < 0 &&
+      jobsJoinColsUI.leftValue === "state" && jobsJoinColsUI.rightValue === "state_code", JSON.stringify(jobsJoinColsUI));
+    await page.evaluate(function () {
+      document.querySelector(".modal-ov .x").click();
+      Studio.Workspace.all("jobs").filter(function (j) { return j.name === "joincols-editor-job"; }).forEach(function (j) { Studio.Workspace.remove("jobs", j.id, { silent: true }); });
+      Studio.Workspace.all("datasets").filter(function (d) { return d.name === "jobs-joincols-left" || d.name === "jobs-joincols-right"; }).forEach(function (d) { Studio.Workspace.remove("datasets", d.id, { silent: true }); });
+      Studio.Workspace.all("connections").filter(function (c) { return c.name === "jobs-joincols-editor-test"; }).forEach(function (c) { Studio.Workspace.remove("connections", c.id, { silent: true }); });
+      Studio.Workspace.notify("*");
+      window.__studioShellSetSection("studio");
+    });
+    await page.waitForTimeout(200);
+
+    // LF13(a): a source dataset with no columns declared/cached yet gets probed live
+    // (runDataset — file-adapter datasets parse their own inline content) and the group-by
+    // pills populate once that resolves, instead of staying permanently empty.
+    await page.evaluate(function () {
+      window.__studioShellSetSection("jobs");
+      var conn = Studio.Workspace.put("connections", { name: "jobs-probe-editor-test", adapter: "file", cfg: {} });
+      var ds = Studio.Workspace.put("datasets", { name: "jobs-probe-editor-ds", connectionId: conn.id, kind: "file", format: "csv", content: "widget,units\nGizmo,7\n" });
+      var job = Studio.Workspace.put("jobs", { name: "probe-editor-job", sourceDatasetId: ds.id, steps: [{ op: "aggregate", groupBy: [], metrics: [] }] });
+      window.__studioOpenJobEditor(job);
+    });
+    await page.waitForTimeout(250);
+    const jobsProbeUI = await page.evaluate(function () {
+      var pills = Array.prototype.slice.call(document.querySelectorAll(".jobs-groupby .wb-chip"));
+      return { pillLabels: pills.map(function (p) { return p.textContent; }) };
+    });
+    ok("LF13(a): a source dataset with no cached columns gets probed live (runDataset) and the group-by pills populate once it resolves",
+      jobsProbeUI.pillLabels.indexOf("widget") >= 0 && jobsProbeUI.pillLabels.indexOf("units") >= 0, JSON.stringify(jobsProbeUI));
+    await page.evaluate(function () {
+      document.querySelector(".modal-ov .x").click();
+      Studio.Workspace.all("jobs").filter(function (j) { return j.name === "probe-editor-job"; }).forEach(function (j) { Studio.Workspace.remove("jobs", j.id, { silent: true }); });
+      Studio.Workspace.all("datasets").filter(function (d) { return d.name === "jobs-probe-editor-ds"; }).forEach(function (d) { Studio.Workspace.remove("datasets", d.id, { silent: true }); });
+      Studio.Workspace.all("connections").filter(function (c) { return c.name === "jobs-probe-editor-test"; }).forEach(function (c) { Studio.Workspace.remove("connections", c.id, { silent: true }); });
+      Studio.Workspace.notify("*");
+      window.__studioShellSetSection("studio");
+    });
+    await page.waitForTimeout(200);
+
     // opening the job editor on a job with a 'sql' step renders the SQL textarea
     await page.evaluate(function () {
       window.__studioShellSetSection("jobs");

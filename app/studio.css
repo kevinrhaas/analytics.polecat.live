@@ -1876,7 +1876,8 @@ body.simple-mode .da-acts{display:none!important}
 .jobs-operand input{width:100px}
 .jobs-metrics{display:flex;flex-direction:column;gap:6px;width:100%}
 .jobs-metric-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-.jobs-metric-row input{flex:1;min-width:90px}
+.jobs-metric-row input,.jobs-metric-row select{flex:1;min-width:90px}
+.jobs-groupby{display:flex;flex-wrap:wrap;gap:6px;align-items:center;width:100%}
 .jobs-sql-box{width:100%;padding:7px 10px;font-size:12.5px;font-family:var(--mono,monospace);
   border:1px solid var(--line);border-radius:8px;background:var(--surface,var(--field));color:var(--ink);resize:vertical}
 

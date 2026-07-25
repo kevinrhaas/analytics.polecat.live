@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 535,
+    title: 'Job editor: group-by and key columns are now real dropdowns, not free text',
+    kind: 'feature',
+    ts: '2026-07-25T09:32:21.000Z',
+    items: [
+      'LF13(a): the job editor\'s aggregate step now shows a "Group by" pill picker and a metric-column dropdown, and its join/union steps show key-column dropdowns — all populated from the relevant dataset\'s real columns instead of hand-typed text. A dataset that hasn\'t been queried yet gets probed live in the background and the dropdowns fill in once its columns are known.',
+    ],
+  },
+  {
     v: 534,
     title: 'Explore\'s back button and the Compare-dashboards arrow now use themed icons',
     kind: 'polish',
