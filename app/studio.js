@@ -6077,7 +6077,7 @@
             (types ? '<div class="home-ex-types">' + types + '</div>' : '') +
             '</button>';
         }).join("") + '</div>' +
-          (vis.length > 8 ? '<div class="home-feat-more">+ ' + (vis.length - 8) + ' more \u2014 New \u25b8 Examples</div>' : '');
+          (vis.length > 8 ? '<button type="button" class="home-feat-more home-feat-more-btn" data-home-examples-more aria-label="Show ' + (vis.length - 8) + ' more examples">+ ' + (vis.length - 8) + ' more \u2014 New \u25b8 Examples</button>' : '');
       },
       dashboards: function () {
         // Always renders SOMETHING (grids or the friendly empty hint) — never hidden — so it
@@ -6150,6 +6150,13 @@
         loadExample(btn.getAttribute("data-home-example"));
       };
     });
+    var examplesMoreBtn = $("[data-home-examples-more]", sec);
+    if (examplesMoreBtn) {
+      examplesMoreBtn.onclick = function () {
+        enterStudio();
+        setTimeout(function () { var b = $("#btnExamples"); if (b) b.click(); }, 60);
+      };
+    }
     $$("[data-home-analysis]", sec).forEach(function (btn) {
       btn.onclick = function () {
         if (window.__studioShellSetSection) __studioShellSetSection("explore");

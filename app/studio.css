@@ -2040,6 +2040,9 @@ body.simple-mode .da-acts{display:none!important}
 .home-feat-open:focus-visible{outline:2px solid var(--brand);outline-offset:-2px;border-radius:14px}
 .home-feat-err{display:grid;place-items:center;height:100%;color:var(--faint);font-size:12px}
 .home-feat-more{color:var(--faint);font-size:12px;margin:-2px 0 8px}
+.home-feat-more-btn{display:block;width:100%;text-align:left;background:none;border:none;padding:0;font:inherit;cursor:pointer;border-radius:4px}
+.home-feat-more-btn:hover{color:var(--muted);text-decoration:underline}
+.home-feat-more-btn:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
 .recent-feature{position:absolute;top:8px;right:34px;z-index:2;width:24px;height:24px;display:grid;place-items:center;
   border:none;border-radius:7px;background:none;cursor:pointer;color:var(--faint);opacity:0;transition:opacity .12s}
 .recent-card:hover .recent-feature,.recent-feature.featured{opacity:1}

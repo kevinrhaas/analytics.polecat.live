@@ -20068,6 +20068,37 @@ function serve() {
         homeReorder.visibleRestored[0] === homeReorder.first
       ), JSON.stringify(homeReorder));
 
+    // ── LF37: Home Examples "+N more" footer is a real control ──
+    // Was a plain non-interactive <div> with dead text ("+ N more — New ▸ Examples"); the
+    // default example catalog ships 12 generic examples (no demoPackId gate), so the Home
+    // strip's 8-card cap always overflows out of the box — no demo-pack install needed to
+    // exercise this. Clicking it should now enter Studio and open the SAME Examples ▾ menu
+    // the "New ▾ → Examples" card already opens, showing the full uncapped example list.
+    console.log("\n• LF37: Home Examples \"+N more\" is clickable");
+    await page.evaluate(function () { if (window.__studioShellSetSection) window.__studioShellSetSection("home"); window.__studioRenderHome(); });
+    await page.waitForTimeout(120);
+    const lf37Before = await page.evaluate(function () {
+      var btn = document.querySelector("#secHome [data-home-examples-more]");
+      return { tag: btn && btn.tagName, text: btn && btn.textContent };
+    });
+    ok("LF37: the Examples \"+N more\" footer renders as a real <button>, not a plain <div>",
+      lf37Before.tag === "BUTTON" && /more/.test(lf37Before.text || ""), JSON.stringify(lf37Before));
+    await page.click("#secHome [data-home-examples-more]");
+    await page.waitForTimeout(200);
+    const lf37After = await page.evaluate(function () {
+      return {
+        inStudio: document.getElementById("appMain").hidden === false,
+        menuOpen: (document.getElementById("menuExamples") || {}).classList && document.getElementById("menuExamples").classList.contains("open"),
+        cardCount: document.querySelectorAll("#menuExamples .ex-card").length,
+        homeCardCount: document.querySelectorAll("#secHome .home-ex-card").length
+      };
+    });
+    ok("LF37: clicking it enters Studio and opens the Examples menu showing the full (uncapped) example list",
+      lf37After.inStudio && lf37After.menuOpen && lf37After.cardCount > lf37After.homeCardCount, JSON.stringify(lf37After));
+    await page.keyboard.press("Escape");
+    await page.click('#railNav .rail-item[data-sec="home"]');
+    await page.waitForTimeout(100);
+
     // ── Z3: Dashboards section (Repository retired — data sources live in Datasets/Connections) ──
     console.log("\n• Z3: Dashboards section");
     await page.click('#railNav .rail-item[data-sec="dashboards"]');
