@@ -17801,6 +17801,42 @@ function serve() {
     });
     ok("Z8T: pageSize paginates rows with a working Page X of Y / Prev-Next bar", z8tPaging.ok, JSON.stringify(z8tPaging));
 
+    // UX6 (icon migration, LAST slice): the pagination bar's raw "‹ Prev"/"Next ›" glyphs are now
+    // themed chevron SVGs — app/icons.js is bundled into every export (exporters.js's buildHtml)
+    // precisely so Studio.icon() resolves inside the preview iframe, same code path as the real
+    // exported CDF html (studio-charts.js's own file header: "Loaded inside the preview iframe /
+    // exported CDF html").
+    var ux6Paging = await page.evaluate(function () {
+      var iframes = document.querySelectorAll("iframe"), w, iframeDoc;
+      for (var i = 0; i < iframes.length; i++) {
+        try { w = iframes[i].contentWindow; if (w && w.PDC && typeof w.PDC.table === "function") { iframeDoc = iframes[i].contentDocument; break; } } catch (e) {}
+      }
+      if (!w || !iframeDoc) return { ok: false, err: "no PDC iframe" };
+      try {
+        var el = iframeDoc.createElement("div");
+        el.style.cssText = "position:absolute;top:-9999px;width:400px";
+        iframeDoc.body.appendChild(el);
+        w.PDC.table(el, { cols: [{ label: "Item" }], rows: [["A"], ["B"], ["C"], ["D"], ["E"]], pageSize: 2 });
+        var prevBtn = el.querySelectorAll(".tbl-page-bar button")[0];
+        var nextBtn = el.querySelectorAll(".tbl-page-bar button")[1];
+        var result = {
+          hasStudioIcon: !!(w.Studio && w.Studio.icon),
+          prevSvg: !!prevBtn.querySelector("svg"), nextSvg: !!nextBtn.querySelector("svg"),
+          prevText: prevBtn.textContent, nextText: nextBtn.textContent,
+          prevAria: prevBtn.getAttribute("aria-label"), nextAria: nextBtn.getAttribute("aria-label")
+        };
+        iframeDoc.body.removeChild(el);
+        return Object.assign({
+          ok: result.hasStudioIcon && result.prevSvg && result.nextSvg &&
+            result.prevText.indexOf("‹") === -1 && result.nextText.indexOf("›") === -1 &&
+            /Prev/.test(result.prevText) && /Next/.test(result.nextText) &&
+            result.prevAria === "Previous page" && result.nextAria === "Next page"
+        }, result);
+      } catch (e) { return { ok: false, err: e.message }; }
+    });
+    ok("UX6: pagination Prev/Next buttons render themed chevron SVGs, no raw ‹/› glyphs, aria-labels set",
+      ux6Paging.ok, JSON.stringify(ux6Paging));
+
     // Z8T-7: cfg.pageSize <= rows.length (or 0) never shows a page bar
     var z8tNoPageBar = await page.evaluate(function () {
       var iframes = document.querySelectorAll("iframe"), w, iframeDoc;

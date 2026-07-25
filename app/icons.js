@@ -4,6 +4,11 @@
    ViewBox is always 0 0 24 24. Default render size is 16px.
    Usage: el.appendChild(Studio.icon("edit")); */
 (function () {
+  // UX6 slice 7: this file used to rely on an earlier builder-only script (e.g. model.js)
+  // having already set window.Studio — fine in app/index.html's script order, but it's now
+  // also bundled unconditionally into every export (see exporters.js's buildHtml), where no
+  // such script runs first. Self-establish the namespace like every other Studio file does.
+  var Studio = window.Studio = window.Studio || {};
   // Each entry is the inner SVG path(s) string.
   var PATHS = {
     edit:      '<path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536M9 11l6.768-6.768a2.5 2.5 0 0 1 3.536 3.536L12.536 14.5 8 16l1.5-4.5z"/>',

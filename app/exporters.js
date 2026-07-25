@@ -11,7 +11,9 @@
   }
 
   /* ---------- CDF (.html) + preview ----------
-     assets = { css, js, render }  (text of vendor/pdc-ui.css, vendor/pdc-ui.js, app/studio-render.js)
+     assets = { css, js, render, icons }  (text of vendor/pdc-ui.css, vendor/pdc-ui.js,
+     app/studio-render.js, app/icons.js — icons is bundled unconditionally, same as charts,
+     since studio-charts.js's paginated tables call Studio.icon() for their Prev/Next buttons)
      opts   = { deployPath, preview, mock, launcher } */
   function jsonScript(varName, obj) {
     return varName + " = " + JSON.stringify(obj).replace(/<\//g, "<\\/") + ";";
@@ -307,6 +309,9 @@
       (spec.description ? "  <div class=\"pdc-desc-bar\">" + xml(spec.description) + "</div>\n" : "") +
       "  <div id=\"content\"><div class=\"loading\">Loading…</div></div>\n" +
       "</div>\n";
+    // UX6: icons.js must load before charts.js so the pagination Prev/Next buttons' Studio.icon()
+    // calls (studio-charts.js) resolve — bundled unconditionally, matching charts' own bundling.
+    var iconsScript = assets.icons ? ("<script>\n" + assets.icons + "\n</script>\n") : "";
     var charts = assets.charts ? ("<script>\n" + assets.charts + "\n</script>\n") : "";
     // Z14 architecture-gap fix: bundle the DuckDB-Wasm / SQLite-WASM-HTTP connector façades into
     // the export ONLY when the dashboard actually has a data access of that kind — their wasm
@@ -343,7 +348,7 @@
       geoScript += "<style>\n" + assets.maplibre.css + "\n</style>\n" +
         "<script>\n" + assets.maplibre.js + "\n</script>\n";
     }
-    var boot = "<script>\n" + assets.js + "\n</script>\n" + charts + geoScript + duckdbScript + httpvfsScript +
+    var boot = "<script>\n" + assets.js + "\n</script>\n" + iconsScript + charts + geoScript + duckdbScript + httpvfsScript +
       snowflakeScript + databricksScript + bigqueryScript + genericsqlScript + "<script>\n" + assets.render + "\n</script>\n<script>\n" +
       "window.STUDIO_AUTOBOOT=false;\n" +
       "PDC.cdaPath=" + JSON.stringify(cdaPath) + ";\nvar CDAPATH=PDC.cdaPath;\n";

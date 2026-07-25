@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 543,
+    title: 'Chart pagination gets themed icons -- UX6 icon migration complete',
+    kind: 'polish',
+    ts: '2026-07-25T15:50:55.000Z',
+    items: [
+      'UX6: the last remaining raw glyphs in the icon migration -- a Table widget\'s paginated "‹ Prev"/"Next ›" buttons -- are now themed chevron SVGs. This required bundling app/icons.js into every exported dashboard (it was builder-chrome-only before), since the pagination bar is built by app/studio-charts.js, which runs inside the preview iframe AND the exported CDF html.',
+      'Fixed a latent bug this surfaced: app/icons.js never established its own window.Studio namespace, silently relying on an earlier builder-only script to have done so -- true in the app shell\'s script order, but false the moment icons.js became the first Studio-namespace file loaded in an export, which broke every exported/preview dashboard with a console error. It now self-establishes the namespace like every other Studio file.',
+      'The full UX6 currentColor icon migration (chrome glyphs + the welcome-tour letter icons) is now done across every call site.',
+    ],
+  },
+  {
     v: 542,
     title: 'Welcome tour icons themed',
     kind: 'polish',

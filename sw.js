@@ -5,7 +5,18 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v179"; /* v179: UX6 icon migration — the first-run Welcome
+var CACHE_NAME = "studio-shell-v180"; /* v180: UX6 icon migration — LAST slice. The chart-
+   pagination "‹ Prev"/"Next ›" buttons (app/studio-charts.js, PDC.table's page bar) are now
+   themed chevron SVGs; app/icons.js is bundled into every export (app/exporters.js's
+   buildHtml, app/studio.js's boot asset fetch) so Studio.icon() resolves inside the preview
+   iframe / exported CDF html too, not just builder chrome. This also surfaced (and fixed) a
+   latent bug in app/icons.js itself: it assumed some earlier builder-only script had already
+   set window.Studio, which held in app/index.html's script order but threw "Studio is not
+   defined" the moment it became the FIRST Studio-namespace file loaded in an exported bundle
+   — it now self-establishes window.Studio like every other Studio file. UX6 is now fully
+   done. app/studio.js, app/studio-charts.js, app/exporters.js, app/icons.js changed, so
+   precached copies need to roll. */
+/* v179: UX6 icon migration — the first-run Welcome
    tour's five step tiles used to bake a raw Unicode letter glyph (P/◈/▥/⤓/⚙, a full-color-
    font miss) into the header; now a themed Studio.icon SVG per step. app/welcome.js changed,
    so precached copies need to roll. */
