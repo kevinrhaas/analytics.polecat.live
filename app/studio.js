@@ -7917,6 +7917,11 @@
           wrap.appendChild(unionDsSel);
           ensureDsCols(step.datasetId);
           wrap.appendChild(unionMapEditor(step));
+        } else if (step.op === "uniqueKey") {
+          mini("output column (default row_id)", step.outCol, function (v) { step.outCol = v; });
+          var ukHint = el("small", "cx-hint");
+          ukHint.textContent = "Stamps a stable, unique id onto every row currently in the pipeline — place it after a join/union/aggregate to key the rows at their final grain.";
+          wrap.appendChild(ukHint);
         } else if (step.op === "sql") {
           var sqlBox = el("textarea"); sqlBox.className = "jobs-sql-box"; sqlBox.rows = 4;
           sqlBox.placeholder = "SELECT * FROM t"; sqlBox.value = step.query || "";

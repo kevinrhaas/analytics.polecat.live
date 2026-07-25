@@ -9,7 +9,9 @@
    (group-by + sum/avg/count/median/wmean — wmean is the acreage-weighted
    mean, the honest way to roll a percent metric up from county to
    State/CRD/HUC8, since a flat average of percentages misrepresents counties
-   of very different size), join, and union.
+   of very different size), join, union, and uniqueKey (LF13(c) — stamps a
+   stable per-row id onto the pipeline's current rows, e.g. after an
+   aggregate collapses rows into a new grain).
 
    join/union pull in a SECOND dataset's already-resolved {columns, rows} —
    the engine stays pure/synchronous, so the caller (studio.js, which has
@@ -218,9 +220,26 @@
     return { columns: columns, objs: objs.concat(mapped) };
   }
 
+  // uniqueKey: {op:'uniqueKey', outCol:'row_id'} — stamps a stable, unique id
+  // onto every row currently in the pipeline (LF13(c): the engine had no row-
+  // id concept at all — join/union/aggregate can all collapse or reorder rows,
+  // so a downstream consumer (an export, a dashboard join key) needs an id
+  // assigned AFTER whichever steps it should be unique across, hence a step
+  // rather than an implicit per-materialization column). Counter+random
+  // (matches workspace.js's own `uid()` shape) rather than crypto.randomUUID,
+  // since this pure engine has no DOM/browser dependency to preserve.
+  function applyUniqueKey(columns, objs, step) {
+    var outCol = (step.outCol || "row_id").trim() || "row_id";
+    var next = columns.indexOf(outCol) >= 0 ? columns : columns.concat([outCol]);
+    objs.forEach(function (o, i) {
+      o[outCol] = i.toString(36) + "-" + Math.random().toString(36).slice(2, 8);
+    });
+    return { columns: next, objs: objs };
+  }
+
   var STEP_HANDLERS = {
     rename: applyRename, cast: applyCast, derive: applyDerive, filter: applyFilter,
-    aggregate: applyAggregate, join: applyJoin, union: applyUnion
+    aggregate: applyAggregate, join: applyJoin, union: applyUnion, uniqueKey: applyUniqueKey
   };
 
   // Studio.runJobSteps({columns, rows}, steps, ctx?) -> {columns, rows, error?}
@@ -304,6 +323,7 @@
     { op: "aggregate", label: "Aggregate / rollup" },
     { op: "join", label: "Join with another dataset" },
     { op: "union", label: "Union / stack another dataset" },
+    { op: "uniqueKey", label: "Add unique row ID" },
     { op: "sql", label: "Custom SQL" }
   ];
   Studio.JOB_AGG_FNS = [
