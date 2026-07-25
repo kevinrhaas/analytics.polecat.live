@@ -878,6 +878,9 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
 .insp-sec h4 .add:hover{background:var(--pane);border-color:var(--brand)}
 .sec-chev{flex-shrink:0;opacity:.45;transition:opacity .12s;display:inline-flex;align-items:center}
 .insp-sec h4:hover .sec-chev{opacity:.8}
+/* LF19 Inspector slice 1 — a small glyph naming each section's kind at a glance,
+   same convention as the left Data panel's .grp-ic. */
+.sec-ic{flex-shrink:0;opacity:.7;display:inline-flex;align-items:center}
 /* H: collapsed section hint — brief value preview (e.g. "3 markers", "'Peak'", "enabled") */
 .sec-hint{font-size:10.5px;font-style:italic;font-weight:400;color:var(--faint);
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:130px;
