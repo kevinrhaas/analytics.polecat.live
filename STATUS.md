@@ -116,6 +116,24 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF34 — Style presets "+ Save as preset" button no longer spills off the Settings card
+  (v551, sw v188, 2026-07-25, steward — LF34 is now fully done):** Kevin's live screenshot
+  flagged "a small styling/state issue — likely secondary-button contrast/state or alignment
+  with the input." Confirmed by screenshotting the real Settings → Dashboard defaults →
+  Style presets card at 1280px and 768px in both themes: the "Preset name" input + Save
+  button visibly spilled past the card's rounded right border. ROOT CAUSE — CSS, not
+  contrast: `.set-row-col .sp-list,.sp-add-row,.apptheme-picker{flex:0 0 100%;margin-left:44px}`
+  (the 44px indents the row under the row's label text, matching the icon+gap width above it)
+  — a flex item's basis doesn't shrink for its own margin, so 100% width PLUS 44px margin
+  overflowed the settings-card by 44px on any viewport wide enough that the `max-width:640px`
+  mobile override (which zeroes the margin) didn't apply. Fixed by changing the basis to
+  `calc(100% - 44px)` so margin + basis sum to exactly 100% (mobile's override now also resets
+  the basis back to 100%, since it no longer inherits a usable one). Contrast itself was
+  already correct (`.app-sec .btn:not(.primary)` gives it dark-on-light/light-on-dark, verified
+  in both themes) — the earlier hypothesis in the ask was a reasonable guess but not the bug.
+  1 new regression test (the input + button's bounding boxes stay within the settings-card's
+  right edge at desktop width; the existing LF15 phone-stacking test is untouched and still
+  passes). (app/studio.css, sw.js, js/changelog.js, tests/run.js)
 - **LF25 part (c) — "Save to widget library" from a selected Studio panel (v549, sw v186,
   2026-07-25, steward — LF25 now only has part (b) left open):** the last piece of LF25
   (Per-panel export buttons + Explore↔Studio parity). Explore could already CONTRIBUTE a saved
@@ -2993,12 +3011,11 @@
 
 ### ★ LIVE-FEEDBACK QUEUE (Kevin, 2026-07-22) — fold into the interleave
 > Product/demo asks from a live session; treat as first-class feature slices.
-> LF34. **Style presets "+ Save as preset" button — small UI issue (Kevin, live 2026-07-24, screenshot).**
->       The "+ Save as preset" control on the Style-presets card (Settings → the "Save the fields above as
->       a named preset…" card with the "Preset name, e.g. Acme Corp" input) has a small styling/state
->       issue — likely secondary-button contrast/state or alignment with the input (same class as the QA
->       button items). Needs a precise repro from Kevin; fix as a small polish slice. Area: renderSettings
->       Style-presets card + .btn styling.
+> LF34. ✓ **Style presets "+ Save as preset" button — small UI issue (shipped v551, sw v188,
+>       2026-07-25, steward) — see DONE.** No repro was needed in the end: screenshotting the
+>       real card at desktop/tablet widths showed the input+button row spilling ~44px past the
+>       card's right edge — an alignment bug (flex-basis + its own margin overflowing), not the
+>       suspected contrast issue. Fixed.
 > LF35. ✓ **Choropleth map controls — shrink + make a movable/hideable per-panel "expert" cluster
 >       (Kevin, live 2026-07-24, screenshot) — fully shipped.** Kevin likes the zoom/pan controls but
 >       wants them (a) smaller/more compact, and (b) an OPTIONAL movable or hideable control cluster,
