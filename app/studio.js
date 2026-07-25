@@ -472,6 +472,24 @@
   }
   var _samplesOpen = false;
   try { _samplesOpen = localStorage.getItem("studio-lib-samples-open") === "1"; } catch (e) {}
+  // LF19 slice 1: progressive disclosure for the Data panel's "This dashboard's
+  // datasets" and "Sample packs" groups — collapse by default once a group gets
+  // long (the panel used to always force both wide open, "scary/overwhelming"
+  // per Kevin's feedback), but never fight an explicit user choice: once they've
+  // toggled a group, that choice persists (localStorage) and wins over the
+  // count-based default on every future render.
+  var LIB_GROUP_MANY = 6;
+  function libGroupOpen(key, count) {
+    var stored = null;
+    try { stored = localStorage.getItem(key); } catch (e) {}
+    if (stored === "1") return true;
+    if (stored === "0") return false;
+    return count <= LIB_GROUP_MANY;
+  }
+  function libGroupPersist(key, isOpen) {
+    try { localStorage.setItem(key, isOpen ? "1" : "0"); } catch (e) {}
+  }
+  window.__studioLibGroupOpen = libGroupOpen; // test hook (LF19 slice 1)
   function buildLibrary() {
     var list = $("#libList"), q = ($("#libSearch").value || "").toLowerCase();
     list.innerHTML = "";
@@ -545,10 +563,14 @@
     var packs = (Studio.DEMO_PACKS || {});
     var keys = Object.keys(packs);
     if (!keys.length) return;
-    var wrap = el("div", "lib-mine lib-demopacks open");
+    var demopacksOpenKey = "studio-lib-demopacks-open";
+    var wrap = el("div", "lib-mine lib-demopacks" + (libGroupOpen(demopacksOpenKey, keys.length) ? " open" : ""));
     var h = el("div", "h");
     h.innerHTML = '<span class="car">▶</span><span class="nm">Sample packs</span><span class="badge">' + keys.length + "</span>";
-    h.onclick = function () { wrap.classList.toggle("open"); };
+    h.onclick = function () {
+      wrap.classList.toggle("open");
+      libGroupPersist(demopacksOpenKey, wrap.classList.contains("open"));
+    };
     wrap.appendChild(h);
     var box = el("div", "lib-das");
     keys.forEach(function (id) { box.appendChild(demoPackCard(id, packs[id])); });
@@ -1349,7 +1371,8 @@
   /* ---------- This dashboard's datasets (spec-owned query definitions) ---------- */
   function buildMyDataSources(list) {
     var das = S.spec.cda.dataAccesses || [];
-    var wrap = el("div", "lib-mine open");
+    var mineOpenKey = "studio-lib-mine-open";
+    var wrap = el("div", "lib-mine" + (libGroupOpen(mineOpenKey, das.length) ? " open" : ""));
     var h = el("div", "h");
     h.innerHTML = '<span class="car">▶</span><span class="nm">This dashboard\u2019s datasets</span><span class="badge">' + das.length + "</span>";
     var addBtn = el("button", "mine-add"); setIconBtn(addBtn, "plus", "New", 12);
@@ -1360,7 +1383,11 @@
     // into the Studio pane — joins/unions belong in the Datasets area (jobs), not here.
     // openCompoundDABuilder() + the compound model are kept intact so any dashboard that
     // already has a compound DA still renders/edits; only the "＋ New compound" entry is gone.
-    h.onclick = function (e) { if (e.target.closest(".mine-add")) return; wrap.classList.toggle("open"); };
+    h.onclick = function (e) {
+      if (e.target.closest(".mine-add")) return;
+      wrap.classList.toggle("open");
+      libGroupPersist(mineOpenKey, wrap.classList.contains("open"));
+    };
     wrap.appendChild(h);
     var box = el("div", "lib-das");
     if (!das.length) {

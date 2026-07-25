@@ -9621,6 +9621,46 @@ function serve() {
     // "My Data Sources" section is present in the library
     ok("library shows a 'My Data Sources' section", await page.evaluate(() => !!document.querySelector(".lib-mine")));
 
+    // LF19 slice 1: progressive disclosure — "This dashboard's datasets" and "Sample
+    // packs" collapse by default once a group gets long, but an explicit user choice
+    // (toggling the header) always wins over that count-based default afterward.
+    const lf19 = await page.evaluate(async () => {
+      localStorage.removeItem("studio-lib-mine-open");
+      localStorage.removeItem("studio-lib-demopacks-open");
+      const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json());
+      window.__studioLoad(spec); // 6 DAs — at the "not many" boundary
+      const smallOpen = document.querySelector(".lib-mine").classList.contains("open");
+      const bigSpec = JSON.parse(JSON.stringify(spec));
+      for (let i = 0; i < 3; i++) {
+        const clone = JSON.parse(JSON.stringify(bigSpec.cda.dataAccesses[0]));
+        clone.id = clone.id + "_lf19extra" + i;
+        bigSpec.cda.dataAccesses.push(clone);
+      }
+      window.__studioLoad(bigSpec); // 9 DAs — over threshold, no stored preference yet
+      const bigCollapsed = !document.querySelector(".lib-mine").classList.contains("open");
+      document.querySelector(".lib-mine .h").click(); // explicit open
+      const openedAfterClick = document.querySelector(".lib-mine").classList.contains("open");
+      window.__studioLoad(bigSpec); // re-render (fresh DOM) with the same many-DA spec
+      const stillOpenAfterReload = document.querySelector(".lib-mine").classList.contains("open");
+
+      const demoBefore = document.querySelector(".lib-demopacks").classList.contains("open");
+      document.querySelector(".lib-demopacks .h").click();
+      const demoAfterToggle = document.querySelector(".lib-demopacks").classList.contains("open");
+      window.__studioLoad(bigSpec);
+      const demoAfterReload = document.querySelector(".lib-demopacks").classList.contains("open");
+      if (demoAfterReload !== demoBefore) document.querySelector(".lib-demopacks .h").click(); // restore
+      localStorage.removeItem("studio-lib-mine-open");
+      localStorage.removeItem("studio-lib-demopacks-open");
+      window.__studioLoad(spec); // leave the workspace back on the small, unmodified spec
+      return { smallOpen, bigCollapsed, openedAfterClick, stillOpenAfterReload, demoBefore, demoAfterToggle, demoAfterReload };
+    });
+    ok("LF19: 'This dashboard's datasets' defaults OPEN with a handful of datasets (<= 6)", lf19.smallOpen, JSON.stringify(lf19));
+    ok("LF19: it defaults COLLAPSED once there are many (> 6) with no explicit preference stored", lf19.bigCollapsed, JSON.stringify(lf19));
+    ok("LF19: clicking the header opens a collapsed group", lf19.openedAfterClick, JSON.stringify(lf19));
+    ok("LF19: an explicit open choice persists across a reload, overriding the many-items default", lf19.stillOpenAfterReload, JSON.stringify(lf19));
+    ok("LF19: toggling 'Sample packs' persists across a reload too (same remember-the-choice mechanism)",
+      lf19.demoAfterToggle !== lf19.demoBefore && lf19.demoAfterReload === lf19.demoAfterToggle, JSON.stringify(lf19));
+
     // Calmer Data panel: the compound (join/union) create button is retired from
     // the Studio pane (joins/unions belong in the Datasets area), so the header
     // carries exactly one action — "+ New" — and no compound-DA entry.

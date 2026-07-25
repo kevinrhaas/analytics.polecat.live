@@ -116,6 +116,23 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF19 slice 1 — Data panel groups collapse once they get long (v552, sw v189, 2026-07-25,
+  steward):** the Studio library's "This dashboard's datasets" and "Sample packs" groups used to
+  hardcode the `open` CSS class, so they always rendered wide open regardless of how many cards
+  they held — part of why Kevin called the left Data panel "scary/overwhelming" (LF19). New shared
+  `libGroupOpen(key, count)`/`libGroupPersist(key, isOpen)` helpers (mirroring the existing
+  `_samplesOpen` pattern the CDA "Samples" group already used) default a group to collapsed once it
+  holds more than 6 cards, but never fight an explicit choice: once a user has toggled a group,
+  that choice is remembered (localStorage) and wins over the count-based default on every future
+  render. Applied to `buildMyDataSources` and `buildDemoPacksLib`; the "Workspace datasets" and
+  "Analyses" groups are untouched (not named in this ask). 5 new LF19 regression tests (defaults
+  open at the 6-item boundary, defaults collapsed past it with no stored preference, clicking the
+  header opens it, an explicit open choice survives a reload/re-render, the same mechanism holds
+  for the Sample packs group). `docs/index.html` updated. sw cache → v189. NEXT in LF19: the
+  deeper Data-panel/Inspector reorganization (clearer section grouping/icons, tidied search/New
+  affordances, then the same organize-and-simplify pass on the right Inspector panel) remains open
+  — this slice covers only the progressive-disclosure piece. (app/studio.js, docs/index.html, sw.js,
+  js/changelog.js, tests/run.js)
 - **LF34 — Style presets "+ Save as preset" button no longer spills off the Settings card
   (v551, sw v188, 2026-07-25, steward — LF34 is now fully done):** Kevin's live screenshot
   flagged "a small styling/state issue — likely secondary-button contrast/state or alignment
@@ -3735,6 +3752,14 @@
 >       add icons, sensible collapse, consistent spacing — "understandable, elegant, clean, simple." Slice
 >       it (don't big-bang): one coherent panel-polish PR at a time, suite-gated. app/studio.js renderInspector()
 >       + buildLibrary()/section builders, app/studio.css.
+>       ✓ **Slice 1 shipped (v552, sw v189, 2026-07-25, steward): progressive disclosure for "This
+>       dashboard's datasets" + "Sample packs."** Both groups now default to collapsed once they hold
+>       more than 6 cards (shared `libGroupOpen`/`libGroupPersist` helpers, same remember-the-choice
+>       pattern the CDA "Samples" group already used) instead of always forcing wide open; an explicit
+>       toggle always wins over that default from then on. NEXT in LF19: clearer section
+>       grouping/ordering with icons + short labels, tidying the search + New affordances, reducing
+>       chrome density overall, then the same organize-and-simplify pass on the right Inspector panel
+>       — all still open, still to be sliced one coherent PR at a time.
 > LF18. **Home ("Welcome back") overhaul — richer entry points, default featured, tour chooser.** The Home
 >       landing should orient a returning user with descriptive quick-actions, not three bare cards:
 >       (a) QUICK-ACTIONS reworded to concrete jobs — "Explore curated datasets", "Build a dashboard from
