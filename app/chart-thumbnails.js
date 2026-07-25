@@ -235,4 +235,19 @@
       return '<svg viewBox="0 0 44 30">' + out + '</svg>';
     }())
   };
+
+  // LF30 (marketing chart gallery): a static, unthemed dump of the real chart registry
+  // for tools/gen-chart-gallery.mjs to read at build time — the marketing site
+  // (index.html) never loads the app, so it can't call Studio.CHARTS/CHART_SVG live.
+  // Raw classic-hue SVGs (no themedChartSvg recolor — that reads live app theme state
+  // studio.js owns, unavailable here) since the gallery is a fixed marketing asset, not
+  // a live app surface. Runs after model.js (Studio.CHARTS) has loaded.
+  Studio.chartCatalog = function () {
+    var charts = Studio.CHARTS || {};
+    return Object.keys(charts).map(function (type) {
+      var c = charts[type];
+      return { type: type, label: c.label, group: c.group, desc: c.desc || "", svg: Studio.CHART_SVG[type] || "" };
+    });
+  };
+  window.__studioChartCatalog = Studio.chartCatalog;
 }());

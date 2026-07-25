@@ -3636,20 +3636,26 @@
 >           show fully). AND review the meta line below it (`.dash-meta code` = the dashboard's internal name/slug):
 >           confirm it's sensible/useful there or trim it. app/studio.css (font-family audit + title width), app/index.html
 >           if markup needs it.
-> LF30. **Marketing: a chart-type GALLERY on the homepage — tiles of every chart, a little click library (Kevin, live).**
->       Show the breadth: a compact, FILTERABLE tile grid of ALL ~40 chart types on the public site (index.html), each
->       tile = the REAL mini SVG glyph + name (+ short desc on hover/tap), grouped by the app's own categories
->       (Comparison, Composition, Trend, Flow, Single value, Distribution, Maps, Detail, Content) with category filter
->       chips like the in-app picker. "A little click library" — clicking filters/expands; keep it BOUNDED (don't run
->       for pages — category chips + a capped/scrollable grid, maybe a "show all" expand). MOBILE-FIRST: responsive grid,
->       thumb-sized tap targets, no horizontal scroll at 390px (a release gate). DATA: the faithful source is the app's
->       registry — `Studio.CHARTS` (label/group/desc, model.js ~651) + the `CHART_SVG` glyph map + `themedChartSvg`
->       (studio.js ~87/337) — but the marketing index.html does NOT load the app, so DUMP it to a static asset: add a
->       tiny in-app hook (e.g. `window.__studioChartCatalog()` returning [{type,label,group,desc,svg}]) + a build tool
->       (`tools/gen-chart-gallery.mjs`, mirrors gen-shots' boot) that writes `site/chart-gallery.js`
->       (`window.CHART_GALLERY=[…]`); the homepage renders the grid from it. index.html + css/landing.css + the new tool
->       + the one-line app hook. TEST: gallery renders ≥30 tiles, category chips filter, zero pageerrors + no horizontal
->       scroll at 390px AND desktop. Regenerate when chart types change (like gen-shots).
+> LF30. ✓ **Marketing chart-type gallery shipped (v547, sw v184, 2026-07-25, steward).** A compact,
+>       filterable tile grid of all 53 chart types now sits on the public site (index.html, new
+>       `#charts` section between Features and Data sources, + a nav link). Each tile is the REAL
+>       mini SVG glyph + label + short desc, exactly as the source data: `app/chart-thumbnails.js`
+>       gained `Studio.chartCatalog()`/`window.__studioChartCatalog()` (pure, no live-theme
+>       recolor — the marketing page never loads the app or its theme state) reading straight off
+>       `Studio.CHARTS`/`Studio.CHART_SVG`. New `tools/gen-chart-gallery.mjs` (mirrors gen-shots.mjs's
+>       headless-boot pattern) boots the real app and dumps the catalog to a committed
+>       `site/chart-gallery.js` (`window.CHART_GALLERY=[…]`, same "static asset built from the real
+>       app, like site/shots/*.png" convention) — regenerate it whenever chart types change. Category
+>       chips (All + the 9 real `Studio.CHARTS` groups: Comparison/Composition/Trend/Flow/Single
+>       value/Distribution/Maps/Detail/Content) filter the grid; the default All view is capped at 18
+>       tiles with a "Show all" button (kept BOUNDED per spec — a category filter always shows its
+>       full set since the largest group is 15). Responsive `auto-fill` grid needs no phone-specific
+>       CSS to stay overflow-free at 390px. 4 new V1-block tests (chip/All-default render, catalog
+>       ≥30 types, capped-default + Show-all reveals every tile, a category chip filters to exactly
+>       that group's count) plus the existing V1 zero-pageerrors/no-horizontal-scroll-at-390px checks
+>       now cover the new section for free (same page load). sw cache → v184 (index.html,
+>       css/landing.css precache content changed). (app/chart-thumbnails.js, tools/gen-chart-gallery.mjs,
+>       site/chart-gallery.js, index.html, css/landing.css, sw.js, js/changelog.js, tests/run.js)
 > LF19. **Left + right panel IA/redesign — make the builder calm, clear & elegant (Kevin, live).** First
 >       pass shipped (v433: compact dataset cards, kind icons, hover actions, hairline sections, compound
 >       builder removed). The DEEPER work Kevin asked for: the whole left Data panel still opens "scary/

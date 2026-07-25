@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 547,
+    title: 'A chart-type gallery on the homepage',
+    kind: 'feature',
+    ts: '2026-07-25T18:30:57.000Z',
+    items: [
+      'LF30: the marketing site now shows a filterable tile grid of every real chart type Analytics can draw -- 25+ types, grouped by Comparison/Composition/Trend/Flow/Maps and more, click a category chip to filter.',
+      'Each tile is the actual mini chart glyph the in-app chart picker uses, sourced straight from the app\'s own chart registry (tools/gen-chart-gallery.mjs), so it never drifts as chart types are added.',
+    ],
+  },
+  {
     v: 546,
     title: 'The dashboard header is now a selectable, deletable object',
     kind: 'feature',

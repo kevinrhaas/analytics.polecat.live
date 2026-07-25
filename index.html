@@ -32,6 +32,7 @@
   </a>
   <nav class="nav-links">
     <a href="#features">Features</a>
+    <a href="#charts">Chart types</a>
     <a href="#sources">Data sources</a>
     <a href="docs/">Docs</a>
     <a href="https://polecat.live" class="fleet-link">polecat.live</a>
@@ -92,6 +93,14 @@
         <p>Warm themes, light and dark, keyboard palette, guided tour, version history with visual
         compare — analytics that feels like a creative tool, not a chore.</p></div>
     </div>
+  </section>
+
+  <section id="charts" class="gallery-sec">
+    <h2>25+ chart types, built in</h2>
+    <p class="gallery-sub">Every chart Analytics can draw — click a category to filter, click a tile for details.</p>
+    <div class="gallery-chips" id="galChips" role="tablist" aria-label="Chart categories"></div>
+    <div class="gallery-grid" id="galGrid"></div>
+    <button class="gallery-more" id="galMore" type="button" hidden>Show all chart types</button>
   </section>
 
   <section id="sources" class="strip">
@@ -160,6 +169,54 @@
     new IntersectionObserver(function (es) { es[0].isIntersecting ? play() : stop(); }, { threshold: 0.15 }).observe(frame);
   } else { play(); }
   show(0);
+}());
+</script>
+
+<script src="site/chart-gallery.js"></script>
+<script>
+// Marketing chart-type gallery (LF30): a filterable tile grid of every real chart
+// type Studio supports, sourced from site/chart-gallery.js (built by
+// tools/gen-chart-gallery.mjs from the app's own Studio.CHARTS/CHART_SVG registry —
+// this page never loads the app itself, so the data has to be dumped ahead of time).
+// Bounded by default (a capped grid, "Show all" expands) so 50+ tiles don't run the
+// page long; a category filter always shows its full set since no category is large.
+(function () {
+  var DATA = window.CHART_GALLERY || [];
+  var chipsWrap = document.getElementById("galChips");
+  var grid = document.getElementById("galGrid");
+  var moreBtn = document.getElementById("galMore");
+  if (!DATA.length || !chipsWrap || !grid) return;
+  var CAP = 18;
+  var groups = [];
+  DATA.forEach(function (c) { if (groups.indexOf(c.group) === -1) groups.push(c.group); });
+  var cats = ["All"].concat(groups);
+  var active = "All", expanded = false;
+
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+
+  function render() {
+    var list = active === "All" ? DATA : DATA.filter(function (c) { return c.group === active; });
+    var capped = active === "All" && !expanded && list.length > CAP;
+    var shown = capped ? list.slice(0, CAP) : list;
+    grid.innerHTML = shown.map(function (c) {
+      return '<div class="gal-tile"><span class="gal-ic">' + c.svg + '</span><b>' + esc(c.label) + "</b><p>" + esc(c.desc) + "</p></div>";
+    }).join("");
+    moreBtn.hidden = !capped;
+  }
+  cats.forEach(function (cat) {
+    var b = document.createElement("button");
+    b.type = "button"; b.className = "gal-chip" + (cat === active ? " on" : "");
+    b.setAttribute("role", "tab"); b.setAttribute("aria-selected", cat === active);
+    b.textContent = cat;
+    b.addEventListener("click", function () {
+      active = cat; expanded = false;
+      [].slice.call(chipsWrap.children).forEach(function (el) { el.classList.toggle("on", el === b); el.setAttribute("aria-selected", el === b); });
+      render();
+    });
+    chipsWrap.appendChild(b);
+  });
+  moreBtn.addEventListener("click", function () { expanded = true; render(); });
+  render();
 }());
 </script>
 
