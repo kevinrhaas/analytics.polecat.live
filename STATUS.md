@@ -116,6 +116,34 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF25 slice 1 — on-panel "Export as HTML" + split per-type download toggles (v548, sw v185,
+  2026-07-25, steward):** part (a) of LF25 (Per-panel export buttons + Explore↔Studio parity).
+  PNG and CSV were already on-panel chrome (LF6); the remaining gap was the HTML embed export
+  (`exportPanelEmbed`, `app/studio.js`) living ONLY in the Inspector's "Export this panel…" button.
+  Added a third on-panel icon (`app/studio-render.js`'s `addDownloadChrome`, new `I_CODE` glyph)
+  that posts a new `panel-export-embed` message to the parent — handled by `studio.js`'s existing
+  postMessage listener, which just calls the same `exportPanelEmbed(p)` the Inspector button
+  already used, so it's one mechanism reached from two places, not a new export path. SCOPED:
+  `exportPanelEmbed` needs the builder's full spec + asset bundle (`Studio.exportCDF`), which only
+  exists in the parent window — so, like the existing zoom/duplicate/delete acts it joins, the
+  button is gated on `isPreview()` and never renders into a real published/exported dashboard
+  (verified: a `preview:false` export's boot script never sets `window.STUDIO_PREVIEW`, the only
+  signal the gate reads). The old single "Allow downloads" toggle is now three independent
+  per-panel switches — `p.dlPng`/`p.dlCsv`/`p.dlEmbed`, each default-on — via a new `dlTypeShown()`
+  helper that falls back to the legacy `p.allowDownloads` when a per-type key is unset, so every
+  dashboard saved before this slice keeps its exact old on/off behavior for PNG+CSV (and gets the
+  new HTML button on by default, matching "on by default" for every new download-family
+  affordance). Inspector's Downloads section (`app/studio.js`) now renders the three checkboxes
+  instead of one. 8 new/updated LF25a regression tests (preview shows all 3 buttons by default;
+  clicking the on-panel embed button opens the same "Embed widget" modal as the Inspector's
+  action; a Table panel — no `<svg>` — still gets data+embed but not image; the Inspector shows
+  all three independent toggles, on by default; a legacy `allowDownloads:false` with no per-type
+  keys still hides all three; an explicit `dlCsv:true` overrides that legacy false, showing ONLY
+  CSV; a real exported/standalone bundle renders all three plus a working PNG; a `preview:false`
+  export's boot script never carries `STUDIO_PREVIEW`). `docs/index.html` updated. NEXT in LF25:
+  part (b) (verify/improve discoverability of the Studio Inspector's existing renderer-switch
+  parity with Explore) and part (c) (save the active Studio widget to the widget library) remain
+  open. (app/studio-render.js, app/studio.js, docs/index.html, sw.js, js/changelog.js, tests/run.js)
 - **LF21 slice 1 — the dashboard header becomes a selectable/deletable canvas object, with its
   own Inspector view (v546, sw v183, 2026-07-25, steward):** the header bar (logo + title +
   subtitle + info/print/waffle controls) behaved like plain chrome — you could double-click the
@@ -3515,14 +3543,12 @@
 >       grain, and chart — then the creativity dial decides how adventurous to get on top of that sensible base.
 > LF25. **Per-panel export buttons + Explore↔Studio parity (Kevin, live).** PRINCIPLE: everything you can do in
 >       Explore, you should be able to do in Studio too. Three parts:
->       (a) ON-PANEL EXPORT BUTTONS + per-panel visibility config. Today "Download CSV" is a little button ON the
->           panel (rendered by the toolkit), but "Export this panel…" (HTML) and "Save chart as PNG" live only in the
->           Inspector (studio.js exportPanelEmbed ~3122/8663, exportPanelPng ~3126/8694). Make PNG + HTML on-panel
->           controls too — small ICON buttons beside Download-CSV (or a single "export ▾" dropdown) — AND add a
->           per-panel CONFIG (Inspector toggles) for WHICH of CSV / PNG / HTML show on the panel (on by default,
->           each toggleable off). Ties to #41 (per-widget download). INVARIANT: the exported .html stays
->           byte-identical to preview — so decide deliberately whether on-panel export buttons render INTO the
->           exported artifact or are builder/preview-only (config-driven), and keep preview==export.
+>       (a) ✓ **On-panel export buttons + per-panel visibility config — shipped (v548, sw v185,
+>           2026-07-25, steward), see DONE.** PNG + CSV were already on-panel (LF6); the gap was the
+>           HTML embed export, now a third on-panel icon that posts to the parent (builder/preview-
+>           only — a real published export has no builder to build the embed file from). The single
+>           "Allow downloads" toggle is now three independent per-panel switches (PNG/CSV/HTML),
+>           each default-on, with legacy-safe fallback for dashboards saved before this slice.
 >       (b) RENDERER SWITCH (GL pan/zoom) IN STUDIO. UPDATE (Kevin found it): the Studio Inspector DOES expose the
 >           renderer switch — so this narrows to VERIFY parity with Explore (both offer built-in ⇄ GL pan/zoom),
 >           confirm the choice PERSISTS on the panel + rides the save/export, and improve DISCOVERABILITY if it read

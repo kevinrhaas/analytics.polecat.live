@@ -25,6 +25,8 @@
   // LF6: per-panel download chrome icons (image / tabular data).
   var I_IMG = iSvg('<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/>', 13);
   var I_TABLE = iSvg('<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/>', 13);
+  // LF25(a): on-panel "export this panel as HTML" icon (builder/preview only — see addDownloadChrome).
+  var I_CODE = iSvg('<polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>', 13);
 
   // N-DEV: {{key}} template-var substitution for panel titles/notes. Studio.applyTemplateVars
   // (app/model.js) is NOT available here — model.js is a builder-only module, never inlined into
@@ -610,10 +612,23 @@
     var res = (window.__lastRenderData || {})[p.chart.da];
     downloadPanelData(p, res, cb);
   };
+  // LF25(a): each download/export affordance is independently toggleable
+  // (p.dlPng / p.dlCsv / p.dlEmbed, each default-on). A panel saved before this
+  // slice existed carries none of those keys, so they fall back to the old
+  // single p.allowDownloads switch (undefined/true = show, false = hide) —
+  // old dashboards keep behaving exactly as before.
+  function dlTypeShown(p, key) {
+    return p[key] === false ? false : (p[key] === true ? true : p.allowDownloads !== false);
+  }
   function addDownloadChrome(container, card, p, res) {
     var svg = card.body.querySelector("svg");
-    var canImg = !!svg, canData = !!(res && res.rows && res.rows.length);
-    if (!canImg && !canData) return;
+    var canImg = !!svg && dlTypeShown(p, "dlPng");
+    var canData = !!(res && res.rows && res.rows.length) && dlTypeShown(p, "dlCsv");
+    // Export-as-HTML needs the builder's full spec + asset bundle (Studio.exportCDF),
+    // which only exists in the parent window — so it's builder/preview-only, like the
+    // zoom/duplicate/delete acts it joins, never rendered into a real static export.
+    var canEmbed = isPreview() && dlTypeShown(p, "dlEmbed");
+    if (!canImg && !canData && !canEmbed) return;
     if (canImg) {
       var imgBtn = document.createElement("button");
       imgBtn.type = "button"; imgBtn.className = "pdc-dl-act"; imgBtn.title = "Download chart as PNG image";
@@ -627,6 +642,13 @@
       dataBtn.innerHTML = I_TABLE;
       dataBtn.addEventListener("click", function (e) { e.stopPropagation(); downloadPanelData(p, res); });
       container.appendChild(dataBtn);
+    }
+    if (canEmbed) {
+      var embedBtn = document.createElement("button");
+      embedBtn.type = "button"; embedBtn.className = "pdc-dl-act"; embedBtn.title = "Export this panel as a standalone HTML file";
+      embedBtn.innerHTML = I_CODE;
+      embedBtn.addEventListener("click", function (e) { e.stopPropagation(); post({ type: "panel-export-embed", id: p.id }); });
+      container.appendChild(embedBtn);
     }
   }
 
@@ -1771,12 +1793,14 @@
         }
         g.appendChild(card.el);
         renderPanel(spec, p, data, card.body);
-        // LF6: download chrome, on by default (p.allowDownloads !== false). In preview it joins
-        // the existing .sr-card-acts row (builder-only, styled by previewCss in exporters.js) so
-        // zoom/dup/del/download sit together; in export (no .sr-card-acts there) it gets its own
-        // .pdc-dl-acts container at the same top-right spot — .pdc-dl-act is styled unconditionally
-        // (exporters.js's dlActsCss) so it looks identical either way.
-        if (p.allowDownloads !== false) {
+        // LF6/LF25(a): download+export chrome, on by default, each of PNG/CSV/HTML-embed
+        // independently toggleable (dlTypeShown) — addDownloadChrome no-ops if every type is
+        // off for this panel. In preview it joins the existing .sr-card-acts row (builder-only,
+        // styled by previewCss in exporters.js) so zoom/dup/del/download sit together; in export
+        // (no .sr-card-acts there) it gets its own .pdc-dl-acts container at the same top-right
+        // spot — .pdc-dl-act is styled unconditionally (exporters.js's dlActsCss) so it looks
+        // identical either way.
+        {
           if (isPreview()) {
             addDownloadChrome(acts, card, p, data[p.chart.da]);
           } else {

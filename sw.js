@@ -5,7 +5,14 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v184"; /* v184: LF30 — a marketing chart-type gallery on the
+var CACHE_NAME = "studio-shell-v185"; /* v185: LF25(a) — every widget can export itself as a
+   standalone HTML file right from the canvas (app/studio-render.js's addDownloadChrome grows a
+   third "Export as HTML" icon beside Download image/data, preview/builder-only, posting
+   panel-export-embed to the parent's existing exportPanelEmbed). Download image/data/Export-as-
+   HTML are now three independent per-panel toggles (app/studio.js's Downloads inspector section)
+   instead of one combined "Allow downloads" switch. app/studio.js, app/studio-render.js,
+   docs/index.html changed, so precached copies need to roll. */
+/* v184: LF30 — a marketing chart-type gallery on the
    homepage (index.html): a filterable tile grid of every real chart type Studio draws, sourced
    from site/chart-gallery.js (new, built by the new tools/gen-chart-gallery.mjs from the app's
    own Studio.CHARTS/CHART_SVG registry via a new Studio.chartCatalog()/window.__studioChartCatalog
