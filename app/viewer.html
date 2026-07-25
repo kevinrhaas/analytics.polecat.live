@@ -27,6 +27,14 @@
     </a>
     <div class="viewer-title" id="viewerTitle"></div>
     <span class="viewer-badge">Viewer — read-only</span>
+    <!-- LF23 slice 2: both hidden until boot() confirms the dashboard loaded (and, for
+         Edit, that this account can develop) — see app/viewer.js. -->
+    <button id="viewerSaveCopy" class="viewer-savecopy-btn" type="button" hidden>
+      <span data-ic="copy"></span> Save a copy
+    </button>
+    <a id="viewerEditLink" class="viewer-edit-link" href="#" hidden>
+      <span data-ic="edit"></span> Edit in Studio
+    </a>
   </div>
   <div id="viewerStage">
     <iframe id="viewerFrame" title="Dashboard viewer"></iframe>

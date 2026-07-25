@@ -5,7 +5,20 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v181"; /* v181: LF23 slice 1 — Viewer mode. A new standalone
+var CACHE_NAME = "studio-shell-v182"; /* v182: LF23 slice 2 — role gating + Edit-in-Studio +
+   Save-a-copy. Studio's rail item (app/index.html) now carries data-develop-only, hidden for
+   the viewer role by shell.js's applyRoleGating (a canDevelop() check mirroring the existing
+   admin-only pattern); opening a dashboard card/row as a viewer (app/studio.js openRecent) now
+   routes to the read-only viewer route instead of Studio, and a viewer landing on the "studio"
+   section by any other means (stale history, a hand-edited hash) bounces to Home the same way
+   the admin-only redirect already does. app/viewer.html gained two actions: "Save a copy"
+   (everyone, including viewers — forks the dashboard's saved spec into a new dashboard the
+   account owns) and "Edit in Studio" (developer/admin accounts only — hands off to
+   app/index.html's new ?edit=<id> boot handling, app/studio.js, which re-checks canDevelop()/
+   isVisibleToMe() itself). docs/index.html updated. app/index.html, app/shell.js, app/studio.js,
+   app/studio.css, app/viewer.html, app/viewer.js, docs/index.html changed, so precached copies
+   need to roll. */
+/* v181: LF23 slice 1 — Viewer mode. A new standalone
    route, app/viewer.html (+ app/viewer.js), opens ONE saved dashboard read-only, full-page, in
    a new tab: Studio.buildHtml(spec, assets, {preview:false}) — the exact renderer a real export
    uses, so it's genuinely interactive (filters/cross-filter/provider toggles) and shows the

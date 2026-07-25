@@ -211,23 +211,32 @@
   // shell.js runs BEFORE gate.js's login handler (script order, see index.html), so
   // a fresh sign-in re-runs this itself via the exposed hook below.
   var adminOnlyItems = items.filter(function (btn) { return btn.hasAttribute("data-admin-only"); });
+  // LF23 slice 2: rail items marked data-develop-only (today: just Studio) hide for
+  // the viewer role — the role model Kevin locked (v437, STATUS.md) makes
+  // PolecatAuth.canDevelop() true for admin OR developer, false for viewer. Same
+  // UI-level-gating honesty as the admin-only rule above; a viewer's own path to a
+  // dashboard is the read-only app/viewer.html route (LF23 slice 1), not Studio.
+  var developOnlyItems = items.filter(function (btn) { return btn.hasAttribute("data-develop-only"); });
   // M4.2 (per-section rights half): admins can additionally hide ordinary sections
   // from the viewer role (Studio.__studioSectionRights, defined in studio.js —
   // may not exist yet on the very first call, since shell.js runs before studio.js;
   // the `|| []` fallback leaves every section visible until studio.js's own boot
   // re-applies gating with the real list, so nothing is ever wrongly hidden).
-  var rightsItems = items.filter(function (btn) { return !btn.hasAttribute("data-admin-only"); });
+  var rightsItems = items.filter(function (btn) { return !btn.hasAttribute("data-admin-only") && !btn.hasAttribute("data-develop-only"); });
   function applyRoleGating() {
     var Auth = window.PolecatAuth;
     var me = Auth && Auth.current();
     var isAdmin = !Auth || !me || me.role === "admin";
+    var canDevelop = !Auth || !me || Auth.canDevelop(me);
     adminOnlyItems.forEach(function (btn) { btn.hidden = !isAdmin; });
+    developOnlyItems.forEach(function (btn) { btn.hidden = !canDevelop; });
     var hidden = (window.__studioSectionRights && window.__studioSectionRights.get()) || [];
     rightsItems.forEach(function (btn) {
       var sec = btn.getAttribute("data-sec");
       btn.hidden = !isAdmin && hidden.indexOf(sec) >= 0;
     });
     if (!isAdmin && desiredSection === "admin") setActive("home");
+    if (!canDevelop && desiredSection === "studio") setActive("home");
     if (!isAdmin && hidden.indexOf(desiredSection) >= 0) setActive("home");
   }
   applyRoleGating();

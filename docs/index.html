@@ -186,9 +186,13 @@
   straight to it in the Studio library, or click a dashboard to reopen
   it; hover a data-source card to reveal ✎ edit / 🗑 delete actions — the same data-source builder
   and delete used by the Studio library, so both views always agree), <strong>Studio</strong> (the
-  builder described below), <strong>Settings</strong> (app-wide preferences), and — for admin
-  accounts only — <strong>Admin</strong> (manage who can sign in to this workspace and whether
-  they're an admin or a viewer). Collapse the rail to icons-only with the toggle at its bottom.
+  builder described below — visible to <strong>developer</strong> and <strong>admin</strong>
+  accounts only; a <strong>viewer</strong> account never sees this rail item, and opens dashboards
+  through the read-only viewer route instead, described just below), <strong>Settings</strong>
+  (app-wide preferences), and — for admin accounts only — <strong>Admin</strong> (manage who can
+  sign in to this workspace and whether they're an admin, a developer, or a viewer — a developer
+  gets everything a viewer does plus Studio access; admin is a superset of developer). Collapse the
+  rail to icons-only with the toggle at its bottom.
   Your browser's <strong>Back</strong>/<strong>Forward</strong> buttons step through the sections
   you've visited instead of leaving the app; Back also closes an open editor, panel zoom, or
   slideshow first, before it steps back through sections — and in Explore, Back (or its own
@@ -288,7 +292,14 @@
   the same live, interactive renderer (filters, cross-filter, provider toggles all work), with none
   of the builder chrome and no way to change the original. Handy for sharing a link to someone who
   should read a dashboard, not edit it. A private dashboard's viewer link only works for its owner
-  (or an admin) — same rule as everywhere else it's private.</p>
+  (or an admin) — same rule as everywhere else it's private. A <strong>viewer</strong> account
+  clicking a dashboard card or row lands here directly (Studio isn't open to them at all — see
+  above); the viewer page's top bar offers <strong>Save a copy</strong> to everyone, viewers
+  included — it forks the dashboard's saved configuration into a brand-new dashboard you own,
+  without touching the original, so you can make it your own starting point. A
+  <strong>developer</strong> or <strong>admin</strong> viewing the same page additionally gets an
+  <strong>Edit in Studio</strong> button that jumps straight into the builder, editing that exact
+  dashboard.</p>
 
   <h2>Explore — dataset-first analyses</h2>
   <p><strong>Explore</strong> (left rail) is the fastest path from data to chart, built for

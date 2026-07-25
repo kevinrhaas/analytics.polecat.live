@@ -8438,7 +8438,12 @@ function serve() {
     await gp.evaluate(() => { var b = document.querySelector('#studio-welcome [data-act="next"]'); }); // ensure present
     await gp.evaluate(() => document.querySelector("#studio-welcome .sw-skip").click()); await gp.waitForTimeout(120);
     ok("welcome tour dismisses + persists", await gp.evaluate(() => !document.querySelector("#studio-welcome") && localStorage.getItem("studio-welcome-seen") === "1"));
-    // Tour moved out of the topbar (user feedback) — reachable via ⋯ More → Tour and Settings
+    // Tour moved out of the topbar (user feedback) — reachable via ⋯ More → Tour and Settings.
+    // That topbar lives inside Studio, which the viewer role no longer reaches at all
+    // (LF23 slice 2) — switch to the admin identity for this part; the demo/demo
+    // "Explore the demo" sign-in flow above already covers the real advertised viewer path.
+    await gp.evaluate(() => { window.PolecatAuth.login("admin"); window.__studioShellApplyRoleGating(); window.__studioShellSetSection("studio"); });
+    await gp.waitForTimeout(150);
     await gp.click("#btnMore"); await gp.waitForTimeout(80);
     await gp.click("#moreAbout"); await gp.waitForTimeout(120);
     ok("⋯ More → Tour reopens the welcome", await gp.evaluate(() => !!document.querySelector("#studio-welcome")));
@@ -25794,6 +25799,148 @@ function serve() {
     await viewerContext.close();
     await page.evaluate(function () {
       ["lf23-pub", "lf23-priv"].forEach(function (id) { Studio.Workspace.remove("dashboards", id); });
+      window.__studioShellSetSection("studio");
+    });
+
+    // ---- LF23 slice 2: role gating + Edit-in-Studio handoff + Save-a-copy ----
+    console.log("\n• LF23 slice 2: role gating + Edit-in-Studio + Save-a-copy");
+    await page.evaluate(function () {
+      var spec = {
+        schema: 1, id: "lf23s2-dash", name: "lf23s2-dash", title: "LF23 Slice2 Dash", subtitle: "", group: "", description: "",
+        cda: { connections: [], dataAccesses: [] }, filters: [], kpis: [], gridCols: 1,
+        panels: [{ id: "p1", title: "Notes", span: 1, chart: { type: "richtext", opts: { content: "LF23S2_MARKER" } } }]
+      };
+      Studio.Workspace.put("dashboards", { id: "lf23s2-dash", ts: new Date().toISOString(), spec: spec, title: spec.title, name: spec.name, owner: "admin" });
+      window.PolecatAuth.upsert("lf23s2dev", { role: "developer", pass: "lf23s2dev" });
+    });
+
+    // Rail + section gating: a signed-in viewer never sees the Studio rail item, and
+    // role gating bounces them off the "studio" section (#appMain) the same way M4's
+    // admin-only gating already does for #secAdmin — desiredSection is left on
+    // "studio" (the default boot state) so this exercises the real stale-state case.
+    const studioRailAsViewer = await page.evaluate(function () {
+      window.__studioShellSetSection("studio");
+      window.PolecatAuth.login("demo"); // seeded viewer account
+      window.__studioShellApplyRoleGating();
+      var railBtn = document.querySelector('.rail-item[data-sec="studio"]');
+      return {
+        railHidden: railBtn.hidden,
+        bouncedOffStudio: document.getElementById("appMain").hidden,
+        landedHome: !document.getElementById("secHome").hidden
+      };
+    });
+    ok("LF23 slice 2: a signed-in viewer never sees the Studio rail item, and role gating bounces them off the 'studio' section to Home",
+      studioRailAsViewer.railHidden && studioRailAsViewer.bouncedOffStudio && studioRailAsViewer.landedHome, JSON.stringify(studioRailAsViewer));
+    await page.evaluate(function () {
+      window.PolecatAuth.logout();
+      sessionStorage.setItem("studio-gate-ok", "1");
+      window.__studioShellApplyRoleGating();
+      window.__studioShellSetSection("studio");
+    });
+
+    // A separate context/page (storageState snapshot, same pattern LF23 slice 1's own
+    // tests use) signed in as the seeded viewer — proves openRecent() (every "open
+    // this dashboard" call site: Home/Dashboards cards+rows, the picker) routes a
+    // viewer to the real read-only viewer route via an ACTUAL navigation, not just
+    // that Studio state stayed untouched.
+    const lf23s2ViewerState = await page.context().storageState();
+    const lf23s2ViewerCtx = await browser.newContext({ storageState: lf23s2ViewerState });
+    const lf23s2ViewerPage = await lf23s2ViewerCtx.newPage();
+    lf23s2ViewerPage.on("pageerror", (e) => errors.push("lf23s2 viewer-role page: " + e.message));
+    await lf23s2ViewerPage.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); } catch (e) {} });
+    await lf23s2ViewerPage.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
+    await lf23s2ViewerPage.waitForFunction(() => window.__STUDIO_STATE && window.__STUDIO_STATE.assets.js.length > 0, { timeout: 10000 });
+    await lf23s2ViewerPage.evaluate(function () { window.PolecatAuth.login("demo"); window.__studioShellApplyRoleGating(); });
+
+    await lf23s2ViewerPage.evaluate(function (id) { window.__studioOpenRecent(id); }, "lf23s2-dash");
+    await lf23s2ViewerPage.waitForURL(/viewer\.html\?dash=lf23s2-dash/, { timeout: 5000 }).catch(function () {});
+    ok("LF23 slice 2: a viewer's openRecent() (every 'open this dashboard' call site) navigates to the read-only viewer route instead of Studio",
+      /viewer\.html\?dash=lf23s2-dash/.test(lf23s2ViewerPage.url()), lf23s2ViewerPage.url());
+
+    await lf23s2ViewerPage.waitForTimeout(300);
+    const viewerActionsAsViewer = await lf23s2ViewerPage.evaluate(function () {
+      var editEl = document.getElementById("viewerEditLink"), copyEl = document.getElementById("viewerSaveCopy");
+      return { editHidden: !!(editEl && editEl.hidden), copyVisible: !!(copyEl && !copyEl.hidden) };
+    });
+    ok("LF23 slice 2: on the viewer route, a viewer sees 'Save a copy' but NOT 'Edit in Studio'",
+      viewerActionsAsViewer.editHidden && viewerActionsAsViewer.copyVisible, JSON.stringify(viewerActionsAsViewer));
+
+    // Defense in depth: a viewer hitting ?edit=<id> directly (not through the UI,
+    // which never offers them the link) is still blocked from Studio — the boot-time
+    // gate in app/studio.js, not just the hidden rail item / viewer-page link.
+    await lf23s2ViewerPage.goto(`http://localhost:${PORT}/app/?edit=lf23s2-dash`, { waitUntil: "networkidle" });
+    await lf23s2ViewerPage.waitForFunction(() => window.__STUDIO_STATE && window.__STUDIO_STATE.assets.js.length > 0, { timeout: 10000 }).catch(function () {});
+    await lf23s2ViewerPage.waitForTimeout(400);
+    const editParamAsViewer = await lf23s2ViewerPage.evaluate(function () {
+      return { onStudio: window.__studioShellGetSection ? window.__studioShellGetSection() === "studio" : null };
+    });
+    ok("LF23 slice 2: a viewer hitting ?edit=<id> directly is still blocked from Studio (boot-time gate, not just UI)",
+      editParamAsViewer.onStudio === false, JSON.stringify(editParamAsViewer));
+
+    // Save a copy (offered to everyone, viewers included): forks the SAVED spec into
+    // a brand-new dashboard this account owns, navigating to ITS OWN viewer route,
+    // leaving the original completely untouched.
+    await lf23s2ViewerPage.goto(`http://localhost:${PORT}/app/viewer.html?dash=lf23s2-dash`, { waitUntil: "networkidle" });
+    await lf23s2ViewerPage.waitForTimeout(300);
+    const urlBeforeCopy = lf23s2ViewerPage.url();
+    await lf23s2ViewerPage.evaluate(function () { document.getElementById("viewerSaveCopy").click(); });
+    await lf23s2ViewerPage.waitForFunction(function (prev) { return location.href !== prev; }, urlBeforeCopy, { timeout: 5000 }).catch(function () {});
+    await lf23s2ViewerPage.waitForTimeout(300);
+    const saveCopyResult = await lf23s2ViewerPage.evaluate(function () {
+      var newId = new URL(location.href).searchParams.get("dash");
+      var row = newId ? Studio.Workspace.get("dashboards", newId) : null;
+      var orig = Studio.Workspace.get("dashboards", "lf23s2-dash");
+      return {
+        newId: newId,
+        isDifferentDash: newId !== "lf23s2-dash",
+        ownedByViewer: !!(row && row.owner === "demo"),
+        titleHasCopySuffix: !!(row && /\(copy\)$/.test(row.spec.title || "")),
+        originalUntouched: !!(orig && orig.spec.title === "LF23 Slice2 Dash" && orig.owner === "admin")
+      };
+    });
+    ok("LF23 slice 2: 'Save a copy' forks the dashboard into a new one the viewer owns, without touching the original",
+      saveCopyResult.isDifferentDash && saveCopyResult.ownedByViewer && saveCopyResult.titleHasCopySuffix && saveCopyResult.originalUntouched,
+      JSON.stringify(saveCopyResult));
+    await lf23s2ViewerCtx.close();
+
+    // A developer-role account (deliberately NOT admin, to prove canDevelop() — not
+    // just isAdmin() — is the gate) sees "Edit in Studio" on the viewer route, and it
+    // hands off into Studio with that exact dashboard loaded via app/index.html's new
+    // ?edit=<id> boot path.
+    const lf23s2DevState = await page.context().storageState();
+    const lf23s2DevCtx = await browser.newContext({ storageState: lf23s2DevState });
+    const lf23s2DevPage = await lf23s2DevCtx.newPage();
+    lf23s2DevPage.on("pageerror", (e) => errors.push("lf23s2 dev-role page: " + e.message));
+    await lf23s2DevPage.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); } catch (e) {} });
+    await lf23s2DevPage.goto(`http://localhost:${PORT}/app/viewer.html?dash=lf23s2-dash`, { waitUntil: "networkidle" });
+    await lf23s2DevPage.evaluate(function () { window.PolecatAuth.login("lf23s2dev"); });
+    await lf23s2DevPage.reload({ waitUntil: "networkidle" });
+    await lf23s2DevPage.waitForTimeout(300);
+    const editLinkAsDev = await lf23s2DevPage.evaluate(function () {
+      var editEl = document.getElementById("viewerEditLink");
+      return { visible: !!(editEl && !editEl.hidden), href: editEl ? editEl.getAttribute("href") : null };
+    });
+    ok("LF23 slice 2: a developer-role account (not admin) sees 'Edit in Studio' on the viewer route, linking to ?edit=<id>",
+      editLinkAsDev.visible && editLinkAsDev.href === "app/?edit=lf23s2-dash", JSON.stringify(editLinkAsDev));
+
+    await lf23s2DevPage.evaluate(function () { document.getElementById("viewerEditLink").click(); });
+    await lf23s2DevPage.waitForFunction(function () {
+      return window.__STUDIO_STATE && window.__STUDIO_STATE.spec && window.__STUDIO_STATE.spec.id === "lf23s2-dash";
+    }, { timeout: 8000 }).catch(function () {});
+    const editHandoff = await lf23s2DevPage.evaluate(function () {
+      return {
+        specId: window.__STUDIO_STATE && window.__STUDIO_STATE.spec ? window.__STUDIO_STATE.spec.id : null,
+        inStudio: window.__studioShellGetSection ? window.__studioShellGetSection() === "studio" : null,
+        editParamStripped: !/[?&]edit=/.test(location.search)
+      };
+    });
+    ok("LF23 slice 2: 'Edit in Studio' hands off to app/index.html's ?edit=<id> boot path, landing in Studio with the exact dashboard loaded, param stripped",
+      editHandoff.specId === "lf23s2-dash" && editHandoff.inStudio && editHandoff.editParamStripped, JSON.stringify(editHandoff));
+    await lf23s2DevCtx.close();
+
+    await page.evaluate(function () {
+      Studio.Workspace.remove("dashboards", "lf23s2-dash");
+      window.PolecatAuth.remove("lf23s2dev");
       window.__studioShellSetSection("studio");
     });
 

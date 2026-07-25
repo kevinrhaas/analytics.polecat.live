@@ -23,6 +23,13 @@
     var Auth = window.PolecatAuth, me = Auth && Auth.current();
     return !Auth || !me || me.role === "admin";
   }
+  // LF23 slice 2: mirrors studio.js's own currentUserCanDevelop() duplicate-in-
+  // miniature, same reason as the other mirrored helpers above — studio.js is
+  // never loaded on this standalone page. Gates the "Edit in Studio" handoff link.
+  function currentUserCanDevelop() {
+    var Auth = window.PolecatAuth, me = Auth && Auth.current();
+    return !Auth || !me || Auth.canDevelop(me);
+  }
   function isVisibleToMe(r) {
     if (!r.private) return true;
     if (currentUserIsAdmin()) return true;
@@ -64,6 +71,47 @@
     });
   }
 
+  // LF23 slice 2: forks the dashboard's SAVED spec into a brand-new dashboard this
+  // account owns — the same shape Studio's own "Save as…" (forkSpecAs, app/studio.js)
+  // writes, just without Studio loaded to call that function from this standalone
+  // page. NOTE: this is the saved spec, not the iframe's live in-session filter/
+  // cross-filter clicks — studio-render.js's postMessage protocol only reports EDIT
+  // actions today (select/reorder/resize/…), not filter state, so capturing "exactly
+  // what you're looking at right now" is a follow-up (would need a new wire format
+  // there); saving the dashboard as-configured is still a real, useful copy meanwhile.
+  function saveCopy(row) {
+    var spec = Studio.clone(row.spec);
+    spec.id = Studio.uid("dash");
+    spec.title = (spec.title || spec.name || "Untitled") + " (copy)";
+    var entry = { id: spec.id, ts: new Date().toISOString(), spec: spec, title: spec.title, name: spec.name || "" };
+    var uid = currentUserId();
+    if (uid) entry.owner = uid;
+    Studio.Workspace.put("dashboards", entry);
+    return entry.id;
+  }
+
+  // Edit-in-Studio (canDevelop() accounts only) hands off to app/index.html's own
+  // ?edit=<id> boot handling (app/studio.js), which re-checks canDevelop()/
+  // isVisibleToMe() itself rather than trusting this link. Save-a-copy is offered to
+  // EVERYONE, including viewers — "interact + save-a-copy" is exactly what the
+  // viewer role is FOR (STATUS.md's LF23 role model).
+  function wireActions(row, id) {
+    var editLink = $("#viewerEditLink");
+    if (editLink && currentUserCanDevelop()) {
+      editLink.href = "app/?edit=" + encodeURIComponent(id);
+      editLink.hidden = false;
+    }
+    var copyBtn = $("#viewerSaveCopy");
+    if (copyBtn) {
+      copyBtn.hidden = false;
+      copyBtn.onclick = function () {
+        copyBtn.disabled = true;
+        var newId = saveCopy(row);
+        location.href = "app/viewer.html?dash=" + encodeURIComponent(newId);
+      };
+    }
+  }
+
   function boot() {
     hydrateIcons();
     var id = new URLSearchParams(location.search).get("dash");
@@ -72,6 +120,7 @@
     var spec = row.spec, title = spec.title || spec.name || "Untitled";
     document.title = title + " · Analytics";
     var titleEl = $("#viewerTitle"); if (titleEl) titleEl.textContent = title;
+    wireActions(row, id);
     Promise.all([
       fetchText("vendor/pdc-ui.css"), fetchText("vendor/pdc-ui.js"), fetchText("app/studio-render.js"),
       fetchText("app/studio-charts.js"), fetchText("app/duckdb.js"), fetchText("app/sqlitehttp.js"),

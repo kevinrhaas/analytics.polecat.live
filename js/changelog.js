@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 545,
+    title: 'Viewer mode -- role gating, Edit in Studio, and Save a copy',
+    kind: 'feature',
+    ts: '2026-07-25T17:40:12.000Z',
+    items: [
+      'LF23 slice 2: Studio is now only reachable by developer and admin accounts -- a viewer account no longer sees the Studio rail item, and opening a dashboard card or row takes them straight to the read-only viewer page instead.',
+      'The viewer page gets two new actions: "Save a copy" (offered to everyone, including viewers) forks the dashboard into a brand-new one you own, without touching the original; "Edit in Studio" (developer and admin accounts only) jumps straight into the builder with that exact dashboard loaded.',
+    ],
+  },
+  {
     v: 544,
     title: 'Viewer mode -- open a dashboard read-only in a new tab',
     kind: 'feature',

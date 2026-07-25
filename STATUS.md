@@ -116,6 +116,42 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF23 slice 2 — role gating + Edit-in-Studio handoff + Save-a-copy (v545, sw v182,
+  2026-07-25, steward):** the second half of Viewer mode (slice 1 shipped v544, above).
+  **Role gating:** Studio's rail item (`app/index.html`) now carries `data-develop-only`,
+  hidden for the viewer role by `shell.js`'s `applyRoleGating` (a `canDevelop()` check
+  mirroring the existing `data-admin-only` pattern, extended with the same "bounce off
+  the section if landed there anyway" rule the admin-only gate already has for
+  `#secAdmin`, now covering `#appMain`/"studio" too). `app/studio.js`'s `openRecent(id)`
+  — the ONE function every "open this dashboard" call site funnels through (Home/
+  Dashboards cards+rows, the picker, `xpAddAnalysisToSpec`) — now routes a viewer
+  (`!currentUserCanDevelop()`, a new helper mirroring the existing `currentUserIsAdmin()`)
+  to the read-only viewer route via a real same-tab navigation instead of entering
+  Studio, a single choke point rather than gating every call site individually.
+  **Edit in Studio:** `app/viewer.html` gained a button, visible to developer/admin
+  accounts only, linking to `app/?edit=<id>` — a new boot-time branch in `app/studio.js`
+  (alongside the existing `#share=` handling) that re-checks `canDevelop()` AND
+  `isVisibleToMe()` itself (never trusts the query string), then calls `openRecent(id)`
+  to land in Studio with that exact dashboard loaded, param stripped via replaceState.
+  **Save a copy:** offered to EVERYONE on the viewer route, viewers included — forks
+  the dashboard's SAVED spec (same shape Studio's own "Save as…"/`forkSpecAs` writes)
+  into a brand-new dashboard the current account owns, then navigates to ITS OWN viewer
+  route. NOTE — scoped deliberately: this forks the saved spec, not the iframe's LIVE
+  in-session filter/cross-filter state; `studio-render.js`'s postMessage protocol only
+  reports EDIT actions today (select/reorder/resize/…), not filter state, so capturing
+  "exactly what you're looking at right now" would need a new wire format there —
+  tracked as a follow-up, not attempted this slice. `docs/index.html` updated (Studio's
+  role gating, the viewer page's two new actions). 6 new regression tests (rail hidden +
+  section bounce for a viewer; openRecent real-navigates a viewer to the viewer route;
+  the viewer route shows Save-a-copy but not Edit-in-Studio to a viewer; `?edit=` is
+  still blocked for a viewer even hit directly; Save-a-copy forks correctly (new owner,
+  "(copy)" suffix, original untouched); a DEVELOPER (not admin) sees Edit-in-Studio and
+  it hands off into Studio with the right dashboard loaded). **LF23 is now fully done.**
+  (app/index.html, app/shell.js, app/studio.js, app/studio.css, app/viewer.html,
+  app/viewer.js, docs/index.html, js/changelog.js, sw.js, tests/run.js) NEXT: LF24
+  (Quick mode) remains explicitly deprioritized to the end of the backlog (Kevin,
+  2026-07-24) — the next-most-scoped open LIVE-FEEDBACK QUEUE item other than LF24
+  should be picked instead; see that block below.
 - **UX6 slice 7 — chart-pagination Prev/Next buttons get themed icons (v543, sw v180,
   2026-07-25, steward — UX6 is now FULLY done):** the last remaining UX6 call site, the
   Table widget's paginated "‹ Prev"/"Next ›" buttons (`app/studio-charts.js`'s `PDC.table`
@@ -3373,10 +3409,18 @@
 >       route with no builder chrome present; a nonexistent id shows "not found"; a private dashboard 404s for a
 >       signed-in non-owner/non-admin viewer and renders for the owner and for an admin; the eye-icon link's href is
 >       correct on both the tile card and the list row). (app/viewer.html, app/viewer.js, app/studio.js, app/studio.css,
->       docs/index.html, js/changelog.js, sw.js, tests/run.js) NEXT in LF23: slice 2 — role gating (admin-only vs. a
->       new "developer" role vs. an admin capability flag — Kevin's three floated options, still an open decision to
->       lock when that slice starts), "Edit in Studio" handoff from viewer mode, and "Save a copy" (fork the current
->       filter/view state into a new owned dashboard without touching the original).
+>       docs/index.html, js/changelog.js, sw.js, tests/run.js)
+>       ✓ **Slice 2 shipped (v545, sw v182, 2026-07-25, steward): role gating + Edit-in-Studio + Save-a-copy — LF23
+>       is now fully done.** The role decision was already locked before this slice started (v437, 2026-07-22, Kevin
+>       live — the "developer" role + `canDevelop()`, see the DONE entry above), so this slice just wired the gate up:
+>       Studio's rail item hides for the viewer role (`shell.js`), `openRecent()` routes a viewer to the read-only
+>       viewer page instead (the one function every "open this dashboard" call site funnels through), the viewer page
+>       gained "Edit in Studio" (developer/admin only, hands off via a new `?edit=<id>` boot branch) and "Save a copy"
+>       (everyone, including viewers — forks the SAVED spec into a new owned dashboard; capturing the iframe's LIVE
+>       filter/cross-filter state instead is a follow-up, since `studio-render.js`'s postMessage protocol doesn't
+>       report filter state today). Full writeup in the DONE entry at the top of this file. (app/index.html,
+>       app/shell.js, app/studio.js, app/studio.css, app/viewer.html, app/viewer.js, docs/index.html, js/changelog.js,
+>       sw.js, tests/run.js)
 > LF24. ★★ **QUICK MODE — drop a CSV/JSON, auto-build datasets + an excellent dashboard (Kevin, live; ROADMAP).**
 >       **DEPRIORITIZED TO THE END (Kevin, 2026-07-24): do LF24 (Quick mode) LAST — after every other open LF/QA/M/#
 >       item is done. It is the lowest-priority item in the backlog; do not start it while anything else remains.**
