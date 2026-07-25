@@ -116,6 +116,22 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **QA-10 — verified production footer is caught up with repo main, no staleness bug
+  (2026-07-25, steward, FRONTEND_QA_REPORT_2026-07-24.md):** the report observed a
+  fresh-fetch of production's `js/changelog.js` returning `v513` while the tested
+  commit's repo copy was already at `v514` — flagged as VERIFY-only since it looked
+  like a normal deploy-window gap rather than a defect. Re-checked against the current
+  repo HEAD (`v524`, QA-04 slice 2): a direct `curl` of `https://analytics.polecat.live/
+  js/changelog.js` (bypasses any browser cache, equivalent to the report's "fresh/private
+  browser" check) returns `v524` too, matching exactly — confirming the deploy pipeline
+  (`deploy.yml` on merge → Pages) has kept production current across all ten intervening
+  QA-driven releases (v515-v524) and the original v513/v514 gap was exactly the suspected
+  deploy-window/cache timing artifact, not a real SW update/activation or footer-stamping
+  bug. No code change (matches the precedent set by QA-09's docs-only close — a verify
+  finding with no reproducible defect doesn't need a changelog/sw.js entry). **This closes
+  out FRONTEND_QA_REPORT_2026-07-24.md entirely — all ten findings (QA-01 through QA-10)
+  are now resolved.** (STATUS.md) NEXT: the FRONTEND QA REPORT block is fully done; move to
+  the next section in the interleave (★★★★★ Conservation Insight product platform backlog).
 - **QA-04 slice 2 — duplicate-named objects are now distinguishable in pickers/Repository
   without opening them (v524, sw v161, 2026-07-25, steward, FRONTEND_QA_REPORT_2026-07-24.md):**
   slice 1 (v519) stopped NEW dashboard titles from colliding at creation time, but every object
@@ -2482,11 +2498,9 @@
 > QA-09. ✓ P3 DOCS — **README entry point conflicts with the deployed path (shipped 2026-07-25,
 >       steward)** — see DONE for the full writeup. Run/layout sections now point to
 >       `localhost:8000/app/` and the root/app split. Docs-only, no regression test.
-> QA-10. VERIFY — production footer `v513` was one changelog version behind repo `v514` at test time.
->       Likely a normal deploy window / SW cache delay, not a defect. Confirm the Pages deploy for the
->       tested commit, verify a fresh/private browser gets the newer build, and if stale clients
->       persist, inspect the SW update/activation path + footer build stamping. No code change unless a
->       real staleness bug is found.
+> QA-10. ✓ VERIFY — **production footer confirmed caught up, no staleness bug (2026-07-25, steward)**
+>       — see DONE for the full writeup. **FRONTEND_QA_REPORT_2026-07-24.md is now fully closed
+>       (QA-01 through QA-10 all resolved).**
 
 ### ✅ DECISIONS LOCKED WITH KEVIN (2026-07-21) — the two former hard-stops are now unblocked
 > These resolve the design/infra forks that previously required Kevin's input. The lane executes
