@@ -116,6 +116,21 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **UX6 slice 6 — welcome-tour step tiles get themed icons (v542, sw v179, 2026-07-25,
+  steward):** the first-run Welcome tour's five step tiles (`app/welcome.js` `STEPS`)
+  each baked a raw Unicode "letter" glyph into the header tile (P / ◈ / ▥ / ⤓ / ⚙) — a
+  full-color-font miss, same class of bug as the footer's old 📋 emoji. `ic` now names a
+  `Studio.icon()` registry icon (home/search/grid/download/gear, chosen to match each
+  step's original glyph's intent) instead of a literal character; `render()` emits a
+  `<div class="sw-ic" data-ic="...">` placeholder and hydrates it with `Studio.icon(step.ic,
+  26)` the same way other chrome call sites in this migration do. `.sw-ic`'s now-unused
+  `font-size`/`font-weight` rules were dropped from the injected `<style>`. Pure builder
+  chrome (never bundled into an export). 2 new regression checks (step 1's tile renders an
+  SVG with no leftover text; stepping to step 2 swaps in a genuinely different icon, not
+  the same one reused). **UX6 is now fully done except the chart-pagination `‹ Prev`/
+  `Next ›` buttons**, which still need `app/icons.js` added to the export asset bundle
+  first since those ARE bundled into exports (app/studio-charts.js). (app/welcome.js,
+  sw.js, js/changelog.js, tests/run.js)
 - **LF16 (demo-content half) — the Account card's standalone "Demo content" toggle is
   gone; "Demo packs" relabeled "Sample packs" (v540, sw v177, 2026-07-25, steward):**
   the Settings Account card had its OWN hardcoded toggle (`#setDemoContent`) that only
@@ -3601,6 +3616,10 @@
 >      buttons (studio-charts.js — still needs `app/icons.js` added to the export asset
 >      bundle first, untouched by this slice) and the welcome-step letter icons, each their
 >      own follow-up slice.
+>      ↳ **Slice 6 shipped (v542, sw v179, 2026-07-25, steward): the welcome-tour step
+>      icons.** See DONE. **UX6 is now fully done except the chart pagination `‹ Prev`/
+>      `Next ›` buttons**, which need `app/icons.js` added to the export asset bundle first
+>      (they're bundled into exports, unlike every other UX6 call site so far).
 > UX7. ✓ **Mobile 44px touch targets — DONE (shipped 2026-07-23, steward).** The 400–640px band
 >      rendered `.btn` at ~28–32px (font-size 12px + 7px padding, no `min-height` at all — 44px
 >      only existed for `#topbar`/`#dashbar .btn` at ≤400px specifically); `.da-act`/`.chip` sat at

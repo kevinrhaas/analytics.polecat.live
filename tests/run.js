@@ -8419,6 +8419,22 @@ function serve() {
     ok("welcome tour shows on first run", wShown);
     const steps = await gp.evaluate(() => document.querySelectorAll("#studio-welcome .sw-dots i").length);
     ok("welcome tour has multiple steps", steps >= 4, "steps=" + steps);
+    // UX6 (icon migration): each step tile used to bake a raw Unicode letter glyph
+    // (P/◈/▥/⤓/⚙, a full-color-font miss) into the header -- now a themed Studio.icon SVG,
+    // and it swaps per step (not the same icon stuck on every tile).
+    const wIconStep0 = await gp.evaluate(() => {
+      var ic = document.querySelector("#studio-welcome .sw-ic");
+      var svg = ic.querySelector("svg");
+      return { hasSvg: !!svg, text: ic.textContent, svgHtml: svg ? svg.innerHTML : "" };
+    });
+    ok("welcome step 1 tile shows a themed SVG icon, no raw letter glyph", wIconStep0.hasSvg && wIconStep0.text === "", JSON.stringify(wIconStep0));
+    await gp.click('#studio-welcome [data-act="next"]'); await gp.waitForTimeout(120);
+    const wIconStep1 = await gp.evaluate(() => {
+      var svg = document.querySelector("#studio-welcome .sw-ic svg");
+      return svg ? svg.innerHTML : "";
+    });
+    ok("welcome step 2 tile shows a DIFFERENT SVG icon than step 1 (icon swaps per step)", wIconStep1 && wIconStep1 !== wIconStep0.svgHtml);
+    await gp.click('#studio-welcome [data-act="back"]'); await gp.waitForTimeout(120);
     await gp.evaluate(() => { var b = document.querySelector('#studio-welcome [data-act="next"]'); }); // ensure present
     await gp.evaluate(() => document.querySelector("#studio-welcome .sw-skip").click()); await gp.waitForTimeout(120);
     ok("welcome tour dismisses + persists", await gp.evaluate(() => !document.querySelector("#studio-welcome") && localStorage.getItem("studio-welcome-seen") === "1"));

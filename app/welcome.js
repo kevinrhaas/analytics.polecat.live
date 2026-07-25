@@ -13,20 +13,24 @@
   var FOCUSABLE = 'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])';
   var trigger = null;
 
+  // UX6 (icon migration): each step's tile used to bake a raw Unicode "letter"
+  // glyph (P / ◈ / ▥ / ⤓ / ⚙) into the header text — full-color-font glyphs,
+  // the same fleet "single-color currentColor icons" miss the rest of UX6 has
+  // been closing elsewhere. `ic` now names a Studio.icon() registry icon instead.
   var STEPS = [
-    { t: "Welcome to Analytics", ic: "P",
+    { t: "Welcome to Analytics", ic: "home",
       h: "A modern, visual way to turn your data into <b>quick analyses</b> and <b>interactive dashboards</b> — entirely in your browser, local-first, nothing to install.",
       s: "Your work saves to this device and can mirror to your own backend. Everything also works offline on sample data." },
-    { t: "Explore — answers in a minute", ic: "◈",
+    { t: "Explore — answers in a minute", ic: "search",
       h: "<b>Explore</b> (left rail) is the fastest path in: pick a dataset, see it as a table, choose a chart — including the <b>US county map</b> and the <b>Ensemble common-estimate</b> chart — and save it as a reusable <b>analysis</b>.",
       s: "Pin an analysis ★ to Home and it greets you live when you open the app; drop it into any dashboard with one click." },
-    { t: "Studio — full dashboards", ic: "▥",
+    { t: "Studio — full dashboards", ic: "grid",
       h: "<b>Library</b> (left) lists your analyses, datasets and samples · <b>Live preview</b> (center) is the real dashboard · <b>Inspector</b> (right) edits whatever you select. Drag to reorder, resize, rename; Ctrl/Cmd-Z undoes.",
       s: "Or hit <b>New ▸ Auto-build</b> to scaffold a whole dashboard from a query set in one click." },
-    { t: "Export — it runs anywhere", ic: "⤓",
+    { t: "Export — it runs anywhere", ic: "download",
       h: "Export a self-contained, interactive <b>.html</b> dashboard you can open or host anywhere — no server, no dependencies. The editable source is the <b>.studio.json</b> (Save / Open).",
       s: "The live preview is byte-identical to the exported dashboard." },
-    { t: "Bring your data", ic: "⚙",
+    { t: "Bring your data", ic: "gear",
       h: "Add <b>Connections</b> and <b>Datasets</b> from the left rail — Postgres, Supabase, Snowflake, Databricks, BigQuery, Redshift, Google Sheets, files and more — then run live against the real source. <b>Jobs</b> preps and rolls data up before charting.",
       s: "Ready to try it? Take a guided tour — spotlights on the real app, two minutes." }
   ];
@@ -44,7 +48,7 @@
       "@keyframes sw-scale-in{from{opacity:0;transform:scale(.96) translateY(6px)}to{opacity:1;transform:none}}" +
       "@media(prefers-reduced-motion:reduce){#studio-welcome .sw{animation:none}}" +
       "#studio-welcome .sw-hd{background:linear-gradient(120deg,var(--brand,#005bb5),var(--pdc,#7d3c98));color:#fff;padding:26px 28px;display:flex;gap:16px;align-items:center}" +
-      "#studio-welcome .sw-ic{width:52px;height:52px;border-radius:13px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:800;flex:0 0 auto}" +
+      "#studio-welcome .sw-ic{width:52px;height:52px;border-radius:13px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;flex:0 0 auto}" +
       "#studio-welcome .sw-hd h1{margin:0;font-size:19px;font-weight:800}" +
       "#studio-welcome .sw-bd{padding:20px 28px 8px;color:var(--ink,#243149);font-size:14px;line-height:1.6}#studio-welcome .sw-bd b{color:var(--brand,#005bb5)}" +
       "#studio-welcome .sw-sub{color:var(--muted,#5d6b82);font-size:13px;margin-top:10px;line-height:1.55}" +
@@ -63,13 +67,14 @@
     var ov = document.getElementById("studio-welcome"); if (!ov) return;
     var step = STEPS[i];
     ov.querySelector(".sw").innerHTML =
-      '<div class="sw-hd"><div class="sw-ic">' + step.ic + '</div><h1>' + step.t + "</h1></div>" +
+      '<div class="sw-hd"><div class="sw-ic" data-ic="' + step.ic + '"></div><h1>' + step.t + "</h1></div>" +
       '<div class="sw-bd">' + step.h + '<div class="sw-sub">' + step.s + "</div>" +
       '<div class="sw-dots">' + STEPS.map(function (_, j) { return '<i class="' + (j === i ? "on" : "") + '"></i>'; }).join("") + "</div></div>" +
       '<div class="sw-ft"><button class="sw-skip">Skip</button><span class="sp"></span>' +
       (i > 0 ? '<button class="b" data-act="back">Back</button>' : "") +
       (i === STEPS.length - 1 ? '<button class="b" data-act="tour">Take the guided tour</button>' : "") +
       '<button class="b pri" data-act="next">' + (i === STEPS.length - 1 ? "Get started" : "Next") + "</button></div>";
+    ov.querySelector(".sw-ic").appendChild(Studio.icon(step.ic, 26));
     ov.querySelector(".sw-skip").onclick = close;
     var nx = ov.querySelector('[data-act="next"]'); if (nx) nx.onclick = function () { i === STEPS.length - 1 ? close() : render(i + 1); };
     var tr = ov.querySelector('[data-act="tour"]'); if (tr) tr.onclick = function () { close(); if (window.StudioTutorial) StudioTutorial.open(); };

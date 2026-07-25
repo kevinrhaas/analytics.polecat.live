@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v178"; /* v178: M7 slice 6 — in-app account provisioning.
+var CACHE_NAME = "studio-shell-v179"; /* v179: UX6 icon migration — the first-run Welcome
+   tour's five step tiles used to bake a raw Unicode letter glyph (P/◈/▥/⤓/⚙, a full-color-
+   font miss) into the header; now a themed Studio.icon SVG per step. app/welcome.js changed,
+   so precached copies need to roll. */
+/* v178: M7 slice 6 — in-app account provisioning.
    When the workspace backend is Supabase, Admin's "+ Add user" form gains an Email field
    and self-signs-up a real Supabase Auth (GoTrue) account via the public signup endpoint,
    stamping the returned id as gotrueId — no dashboard visit needed for any user after the
