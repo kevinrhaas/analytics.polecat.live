@@ -4110,6 +4110,22 @@
 >     independently of the RLS flip (signup works under allow-all too) and makes go-live smoother.
 >     Tests: mock the signup endpoint; assert Add-user calls signup, stamps `gotrueId` onto the
 >     `users` row, and surfaces the "signups disabled / confirmation on" error clearly.
+>     ↳ **OPTION — Slice 7: IN-APP PROVISIONING & RLS GO-LIVE via the Supabase Management API (Kevin's
+>     idea, 2026-07-24).** Run the prep/go-live SQL FROM the interface, not the SQL editor. The anon-key
+>     PostgREST connection can't DDL (why `provision()` today only GENERATES paste-able SQL), but the
+>     Supabase Management API — `POST https://api.supabase.com/v1/projects/{ref}/database/query` with
+>     `Authorization: Bearer <personal-access-token>` — runs arbitrary SQL over HTTPS (`{ref}` derives
+>     from the connection URL). Extend `provision()` (app/sources/supabase.js) with an execute path so
+>     an Admin "Enable per-user security / Go live" button runs the whole runbook in order: bootstrap
+>     DDL (if needed) → truncate (clean install) → seed the admin `users` row → apply
+>     `supabase-rls-real.sql` → verify. Combined with Slice 6, this means ZERO SQL-editor visits ever —
+>     the one-time exception shrinks to "paste a PAT once." **SECURITY (critical): a PAT is
+>     account-level powerful — DO NOT persist it. Enter-run-DISCARD (take it in the modal, run, forget;
+>     never localStorage), with a clear warning — which also sidesteps QA-02.** Keep the manual runbook
+>     (`tools/M7-RLS-GOLIVE-RUNBOOK.md`) as the fallback for admins who won't handle a PAT. DECISION
+>     OPEN: make this the PRIMARY go-live path vs. the manual runbook — confirm with Kevin. Tests: mock
+>     the Management API; assert the button runs the ordered steps, handles bad-PAT/network errors, and
+>     never writes the PAT to storage.
 > Also: add MORE crop/geo sample sets as the demo matures (Kevin). "Eventually polecat overall"
 > for the auth/user model — keep the users/permissions design app-neutral where cheap.
 
