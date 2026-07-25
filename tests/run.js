@@ -25669,6 +25669,134 @@ function serve() {
     ok("LF26: 'Save as…' also has a phone More-menu twin (moreSaveAsSpec)", lf26MoreBtn, "moreSaveAsSpec missing");
     await lf26Page.close();
 
+    // ---- LF23 slice 1: Viewer mode (read-only, ?dash=<id>, opens in a new tab) ----
+    console.log("\n• LF23: Viewer mode");
+    const lf23Setup = await page.evaluate(function () {
+      // richtext panels carry no DA (app/studio-render.js) — this content renders
+      // identically whether or not any connection/adapter is reachable, so it's a
+      // clean, deterministic way to prove the VIEWER actually rendered the real spec
+      // (not a mock, not a blank shell) without depending on live-query plumbing.
+      function mkSpec(id, title) {
+        return {
+          schema: 1, id: id, name: id, title: title, subtitle: "", group: "", description: "",
+          cda: { connections: [], dataAccesses: [] }, filters: [], kpis: [], gridCols: 1,
+          panels: [{ id: "p1", title: "Notes", span: 1, chart: { type: "richtext", opts: { content: "LF23_VIEWER_MARKER_TEXT" } } }]
+        };
+      }
+      var pub = mkSpec("lf23-pub", "LF23 Viewer Public");
+      Studio.Workspace.put("dashboards", { id: "lf23-pub", ts: new Date().toISOString(), spec: pub, title: pub.title, name: pub.name });
+      var priv = mkSpec("lf23-priv", "LF23 Viewer Private");
+      Studio.Workspace.put("dashboards", { id: "lf23-priv", ts: new Date().toISOString(), spec: priv, title: priv.title, name: priv.name, private: true, owner: "otherUser" });
+      window.__studioShellSetSection("dashboards");
+      window.__studioRenderDashboards();
+      var tileHref = (document.querySelector('#repoResults [data-viewer="lf23-pub"]') || {}).getAttribute && document.querySelector('#repoResults [data-viewer="lf23-pub"]').getAttribute("href");
+      var toggle = document.getElementById("dashViewToggle");
+      if (toggle) toggle.click(); // switch to list view
+      var listHref = (document.querySelector('#repoResults [data-viewer="lf23-pub"]') || {}).getAttribute && document.querySelector('#repoResults [data-viewer="lf23-pub"]').getAttribute("href");
+      if (toggle) toggle.click(); // back to tiles, tidy for later tests
+      return { tileHref: tileHref, listHref: listHref };
+    });
+    ok("LF23: a Dashboards TILE row's eye-icon 'Open in viewer' link points at app/viewer.html?dash=<id>",
+      lf23Setup.tileHref === "app/viewer.html?dash=lf23-pub", JSON.stringify(lf23Setup));
+    ok("LF23: the same dashboard's LIST-view row carries the identical viewer link",
+      lf23Setup.listHref === "app/viewer.html?dash=lf23-pub", JSON.stringify(lf23Setup));
+
+    // Home's cards reuse the exact same recentCardHtml() as the Dashboards tile view —
+    // spot-check the link rides along there too (pin it so it's deterministically present).
+    const lf23Home = await page.evaluate(function () {
+      window.__studioTogglePin("lf23-pub");
+      window.__studioShellSetSection("home");
+      window.__studioRenderHome();
+      var link = document.querySelector('#secHome [data-viewer="lf23-pub"]');
+      var href = link ? link.getAttribute("href") : null;
+      window.__studioTogglePin("lf23-pub"); // unpin, tidy
+      window.__studioShellSetSection("studio");
+      return { href: href };
+    });
+    ok("LF23: Home's dashboard card also carries the 'Open in viewer' link",
+      lf23Home.href === "app/viewer.html?dash=lf23-pub", JSON.stringify(lf23Home));
+
+    // A fresh page seeded with a SNAPSHOT of the main page's storage (localStorage carries the
+    // Workspace + auth session) — the same starting point a real "open in new tab" click gives
+    // you. `page`'s own context is the browser's implicit default one, which Playwright refuses
+    // a second newPage() on ("Please use browser.newContext()") — so open a proper new context
+    // instead, seeded via storageState() rather than sharing the context object itself.
+    const viewerStorageState = await page.context().storageState();
+    const viewerContext = await browser.newContext({ storageState: viewerStorageState });
+    const viewerPage = await viewerContext.newPage();
+    viewerPage.on("pageerror", (e) => errors.push("viewer page: " + e.message));
+    await viewerPage.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); } catch (e) {} });
+
+    await viewerPage.goto(`http://localhost:${PORT}/app/viewer.html?dash=lf23-pub`, { waitUntil: "networkidle" });
+    await viewerPage.waitForFunction(function () {
+      var f = document.querySelector("#viewerFrame");
+      return !!(f && f.contentDocument && /LF23_VIEWER_MARKER_TEXT/.test(f.contentDocument.body.textContent || ""));
+    }, { timeout: 8000 }).catch(function () {});
+    const lf23Pub = await viewerPage.evaluate(function () {
+      var f = document.querySelector("#viewerFrame");
+      var frameText = f && f.contentDocument ? f.contentDocument.body.textContent : "";
+      var back = document.getElementById("viewerBack");
+      return {
+        titleBarText: (document.getElementById("viewerTitle") || {}).textContent,
+        hasMarker: /LF23_VIEWER_MARKER_TEXT/.test(frameText || ""),
+        noTopbar: !document.getElementById("topbar"),
+        noDashbar: !document.getElementById("dashbar"),
+        noSaveBtn: !document.getElementById("btnSaveSpec"),
+        noLibrary: !document.getElementById("library"),
+        backHref: back && back.getAttribute("href")
+      };
+    });
+    ok("LF23: the viewer route renders the dashboard's real content (a richtext panel's text) inside the frame — not a mock",
+      lf23Pub.hasMarker, JSON.stringify(lf23Pub));
+    ok("LF23: the viewer route shows the dashboard's title and NONE of the builder chrome (no topbar/dashbar/Save/data panel)",
+      lf23Pub.titleBarText === "LF23 Viewer Public" && lf23Pub.noTopbar && lf23Pub.noDashbar && lf23Pub.noSaveBtn && lf23Pub.noLibrary,
+      JSON.stringify(lf23Pub));
+    ok("LF23: the viewer route's back link returns to the app", lf23Pub.backHref === "app/", JSON.stringify(lf23Pub));
+
+    // an unknown id shows a friendly "not found" instead of a blank/broken page
+    await viewerPage.goto(`http://localhost:${PORT}/app/viewer.html?dash=does-not-exist`, { waitUntil: "networkidle" });
+    await viewerPage.waitForTimeout(300);
+    const lf23Missing = await viewerPage.evaluate(function () {
+      return { notFound: document.getElementById("viewerStage").classList.contains("viewer-empty-active") };
+    });
+    ok("LF23: an unknown dashboard id shows the 'not found' state", lf23Missing.notFound, JSON.stringify(lf23Missing));
+
+    // M4.2-style privacy, explicit at every step (the shared context's session may already
+    // hold whatever identity an earlier test left behind, so don't rely on ambient state):
+    // signed in as the seeded ADMIN account, a private dashboard is visible regardless of owner…
+    await viewerPage.evaluate(function () { window.PolecatAuth.login("admin"); });
+    await viewerPage.goto(`http://localhost:${PORT}/app/viewer.html?dash=lf23-priv`, { waitUntil: "networkidle" });
+    await viewerPage.waitForTimeout(300);
+    const lf23PrivAsAdmin = await viewerPage.evaluate(function () {
+      return { notFound: document.getElementById("viewerStage").classList.contains("viewer-empty-active") };
+    });
+    ok("LF23: an admin identity can open a private dashboard's viewer link (sees it, not 'not found')",
+      !lf23PrivAsAdmin.notFound, JSON.stringify(lf23PrivAsAdmin));
+    // …signed in as the SEEDED viewer account (not the owner "otherUser"), it's hidden…
+    await viewerPage.evaluate(function () { window.PolecatAuth.login("demo"); });
+    await viewerPage.goto(`http://localhost:${PORT}/app/viewer.html?dash=lf23-priv`, { waitUntil: "networkidle" });
+    await viewerPage.waitForTimeout(300);
+    const lf23PrivAsDemo = await viewerPage.evaluate(function () {
+      return { notFound: document.getElementById("viewerStage").classList.contains("viewer-empty-active") };
+    });
+    ok("LF23: a signed-in non-owner, non-admin viewer sees 'not found' for a private dashboard, not a leak",
+      lf23PrivAsDemo.notFound, JSON.stringify(lf23PrivAsDemo));
+    // …and back to admin, it's visible again (M4.2's admin-sees-all rule holds here too).
+    await viewerPage.evaluate(function () { window.PolecatAuth.login("admin"); });
+    await viewerPage.goto(`http://localhost:${PORT}/app/viewer.html?dash=lf23-priv`, { waitUntil: "networkidle" });
+    await viewerPage.waitForTimeout(300);
+    const lf23PrivAsAdmin2 = await viewerPage.evaluate(function () {
+      return { notFound: document.getElementById("viewerStage").classList.contains("viewer-empty-active") };
+    });
+    ok("LF23: signing back in as the seeded admin account restores visibility of the same private dashboard",
+      !lf23PrivAsAdmin2.notFound, JSON.stringify(lf23PrivAsAdmin2));
+
+    await viewerContext.close();
+    await page.evaluate(function () {
+      ["lf23-pub", "lf23-priv"].forEach(function (id) { Studio.Workspace.remove("dashboards", id); });
+      window.__studioShellSetSection("studio");
+    });
+
   } catch (e) {
     failed++; console.error("FATAL", e);
   } finally {

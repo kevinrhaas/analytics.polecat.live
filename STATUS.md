@@ -3336,6 +3336,47 @@
 >       first-class view/edit/standalone objects), #24 (header-off embed export). app/auth.js, app/shell.js (rail + role
 >       gating), app/studio.js (mode routing + simpleMode), app/studio-render.js. Slice it: (1) viewer route + read-only
 >       render + Open-in-viewer/new-tab from Repository+Home; (2) role gating + Edit-in-Studio handoff.
+>       ✓ **Slice 1 shipped (v544, sw v181, 2026-07-25, steward): viewer route + read-only render + entry points.**
+>       CORRECTION found while scoping: `S.simpleMode`/`#share=` turned out to be the wrong building blocks (both dead-
+>       end into the full Studio builder — `S.simpleMode` only thins the Inspector/Library inside Studio, it doesn't
+>       remove the topbar/dashbar/Save/Export; `#share=` decodes straight into `enterStudio()`), and Home's live cards
+>       are click-through-to-Studio by design (`pointer-events` disabled, an invisible full-card open button on top) —
+>       none of the three is "chrome-free and interactive" on its own. What IS real and reusable: `Studio.buildHtml`
+>       (app/exporters.js) is already builder-independent — given just `(spec, assets, {preview:false})` it's the exact
+>       function a real "Export dashboard (.html)" calls, fully interactive (filters/cross-filter/provider-toggles are
+>       unconditional render logic, never gated on builder state) and rendering the dashboard's REAL saved data (no
+>       mock — confirmed `Studio.exportCDF` never passes a `mock` opt, unlike the builder's own live-editing preview or
+>       Home's featured cards, which intentionally use sample data for resilience). So instead of a mode flag bolted
+>       onto `app/index.html` (which would carry 300+ lines of dead rail/topbar/canvas DOM plus `app/shell.js` +
+>       studio.js's 11.5k lines of builder wiring, with constant risk of a missed selector leaking an edit affordance),
+>       this slice is a genuinely separate, tiny static page: **`app/viewer.html` + `app/viewer.js`** (new files), which
+>       load only the six scripts `Studio.buildHtml` actually needs (model.js, sources/schema.js, sources/workspace.js,
+>       exporters.js, icons.js) plus the same sign-in gate every page gets (gate-config/auth/gate.js — Auth's session
+>       lives in localStorage, so a new tab opened from an already-signed-in session passes through with no repeat
+>       login). Boot: read `?dash=<id>` → `Studio.Workspace.get("dashboards", id)` (the same local-first store Home/
+>       Dashboards already read synchronously) → fetch the same toolkit-text asset bundle `app/studio.js`'s own boot()
+>       fetches (vendor/pdc-ui.css/js, studio-render.js, studio-charts.js, the four credentialed-SQL engines, icons.js)
+>       → lazy-load geo/MapLibre assets only if the spec uses them (a small duplicated `ensureGeoAssets`, since
+>       studio.js's own copy closes over the builder's private state) → `Studio.buildHtml(spec, assets, {preview:false,
+>       launcher:false})` into a full-bleed iframe below a minimal top bar (back link + title + a "Viewer — read-only"
+>       badge). PRIVACY: a small duplicated `isVisibleToMe` (mirrors studio.js's M4.2 rule byte-for-byte — three lines,
+>       not worth loading all of studio.js for) hides a private dashboard's viewer link from anyone but its owner or an
+>       admin, showing a friendly "not found" instead of leaking existence. ENTRY POINTS: a new eye-icon `.recent-viewer`
+>       link (plain `<a target="_blank">`, no JS routing needed) sits alongside the existing pin/feature/private corner
+>       toggles in `recentCardHtml()` (shared by Home's Recent/Pinned grid AND the Dashboards/Repository tile view) and
+>       `dashListRowHtml()` (Dashboards list view) — covers both entry points the ask named. NOT built this slice
+>       (explicitly slice 2, per this item's own breakdown): role gating (who can reach Studio) and the "Edit in
+>       Studio" handoff from viewer mode, AND the "Save a copy" action Kevin flagged crucial — deferred with it since
+>       it's the same slice-2 permission model (save-a-copy = viewer-role-allowed, edit-original = editor-role-only;
+>       building the copy action before the role split exists would mean redoing its gating next slice anyway). 5 new
+>       LF23 regression tests (a seeded dashboard renders its real content — title + KPI value — through the viewer
+>       route with no builder chrome present; a nonexistent id shows "not found"; a private dashboard 404s for a
+>       signed-in non-owner/non-admin viewer and renders for the owner and for an admin; the eye-icon link's href is
+>       correct on both the tile card and the list row). (app/viewer.html, app/viewer.js, app/studio.js, app/studio.css,
+>       docs/index.html, js/changelog.js, sw.js, tests/run.js) NEXT in LF23: slice 2 — role gating (admin-only vs. a
+>       new "developer" role vs. an admin capability flag — Kevin's three floated options, still an open decision to
+>       lock when that slice starts), "Edit in Studio" handoff from viewer mode, and "Save a copy" (fork the current
+>       filter/view state into a new owned dashboard without touching the original).
 > LF24. ★★ **QUICK MODE — drop a CSV/JSON, auto-build datasets + an excellent dashboard (Kevin, live; ROADMAP).**
 >       **DEPRIORITIZED TO THE END (Kevin, 2026-07-24): do LF24 (Quick mode) LAST — after every other open LF/QA/M/#
 >       item is done. It is the lowest-priority item in the backlog; do not start it while anything else remains.**

@@ -314,6 +314,11 @@
 
   /* ---------- status-bar footer + changelog ---------- */
   function esc(s) { return Studio.escapeHtml(s); }
+  // LF23 slice 1: every "open in viewer" link (Home + Dashboards tile/list rows)
+  // points here — a standalone read-only route (app/viewer.html) that never
+  // loads this file at all, so a plain <a target="_blank"> is enough; no JS
+  // routing needed.
+  function viewerUrl(id) { return "app/viewer.html?dash=" + encodeURIComponent(id); }
   function hlq(text, q) {
     var s = esc(String(text == null ? "" : text));
     if (!q) return s;
@@ -5881,6 +5886,8 @@
         'title="' + (r.featured ? "Remove from Home" : "Feature on Home (live preview)") + '" aria-label="' + (r.featured ? "Remove " : "Feature ") + esc(title) + (r.featured ? " from Home" : " on Home") + '" aria-pressed="' + (r.featured ? "true" : "false") + '"></button>' +
       '<button class="recent-private' + (r.private ? " private" : "") + '" data-private="' + esc(r.id) + '" ' +
         'title="' + (r.private ? "Private — only you can see this" : "Make private") + '" aria-label="' + (r.private ? "Make " + esc(title) + " public" : "Make " + esc(title) + " private") + '" aria-pressed="' + (r.private ? "true" : "false") + '"></button>' +
+      '<a class="recent-viewer" data-viewer="' + esc(r.id) + '" href="' + esc(viewerUrl(r.id)) + '" target="_blank" rel="noopener" ' +
+        'title="Open in viewer (read-only, new tab)" aria-label="Open ' + esc(title) + ' in viewer, read-only, opens in a new tab" onclick="event.stopPropagation()"></a>' +
       '<div class="recent-thumb">' + thumb + '</div>' +
       '<div class="recent-meta"><b>' + esc(title) + '</b><small>' + timeAgo(r.ts) + ' · ' + meta + '</small>' + changeHint + colHint + wbSelect + '</div></div>';
   }
@@ -6183,6 +6190,7 @@
       btn.appendChild(Studio.icon("lock", 13));
       btn.onclick = function (e) { e.stopPropagation(); togglePrivate(btn.getAttribute("data-private")); };
     });
+    $$(".recent-viewer", sec).forEach(function (a) { a.appendChild(Studio.icon("eye", 13)); });
     // V6: hydrate the live frames AFTER the html lands (each is the real
     // renderer in a scaled, view-only iframe; geometry inlined when needed)
     $$("[data-feat-frame]", sec).forEach(function (box) {
@@ -6475,13 +6483,14 @@
       btn.appendChild(Studio.icon("lock", 13));
       btn.onclick = function (e) { e.stopPropagation(); togglePrivate(btn.getAttribute("data-private")); };
     });
+    $$(".recent-viewer", results).forEach(function (a) { a.appendChild(Studio.icon("eye", 13)); });
     $$(".dash-li", results).forEach(function (row) {
       // QA-07: the row is a plain container now — the title button (native
       // Enter/Space activation) is the keyboard path; this click delegate is
       // purely a mouse convenience so clicking anywhere else on the row still
       // opens it too.
       row.addEventListener("click", function (e) {
-        if (e.target.closest(".recent-pin,.recent-private,.recent-wb-sel")) return;
+        if (e.target.closest(".recent-pin,.recent-private,.recent-wb-sel,.recent-viewer")) return;
         openRecent(row.getAttribute("data-recent"));
       });
     });
@@ -6500,7 +6509,9 @@
       (sp.dashboardTheme ? '<span class="cx-badge">' + esc(sp.dashboardTheme) + '</span>' : "") +
       '<span class="cx-when">' + esc(when) + '</span>' +
       '<span class="cx-actions"><button type="button" class="recent-pin' + (pinned ? " pinned" : "") + '" data-pin="' + esc(r.id) + '" title="' + (pinned ? "Unpin" : "Pin to Home") + '" aria-pressed="' + (pinned ? "true" : "false") + '"></button>' +
-      '<button type="button" class="recent-private cx-list-private' + (r.private ? " private" : "") + '" data-private="' + esc(r.id) + '" title="' + (r.private ? "Private — only you can see this" : "Make private") + '" aria-label="' + (r.private ? "Make " + esc(title) + " public" : "Make " + esc(title) + " private") + '" aria-pressed="' + (r.private ? "true" : "false") + '"></button></span>' +
+      '<button type="button" class="recent-private cx-list-private' + (r.private ? " private" : "") + '" data-private="' + esc(r.id) + '" title="' + (r.private ? "Private — only you can see this" : "Make private") + '" aria-label="' + (r.private ? "Make " + esc(title) + " public" : "Make " + esc(title) + " private") + '" aria-pressed="' + (r.private ? "true" : "false") + '"></button>' +
+      '<a class="recent-viewer cx-list-viewer" data-viewer="' + esc(r.id) + '" href="' + esc(viewerUrl(r.id)) + '" target="_blank" rel="noopener" ' +
+        'title="Open in viewer (read-only, new tab)" aria-label="Open ' + esc(title) + ' in viewer, read-only, opens in a new tab" onclick="event.stopPropagation()"></a></span>' +
       '</div>';
   }
   window.__studioRenderDashboards = renderDashboards; // test hook

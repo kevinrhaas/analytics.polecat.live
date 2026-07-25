@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<!-- LF23 slice 1: a standalone, read-only route for ONE saved dashboard
+     (?dash=<id>) — openable in a new tab from the Dashboards list/Home,
+     with no Studio builder chrome. base=/ matches app/index.html's own
+     convention so every relative reference below resolves from the repo
+     root the same way. -->
+<base href="/"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<title>Analytics — Viewer</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg"/>
+<link rel="apple-touch-icon" href="apple-touch-icon.png"/>
+<meta name="theme-color" content="#d4773b"/>
+<link rel="stylesheet" href="vendor/polecat-shell/tokens.css"/>
+<link rel="stylesheet" href="app/studio.css"/>
+<script src="app/gate-config.js"></script>
+<script src="app/auth.js"></script>
+<script src="app/gate.js"></script>
+</head>
+<body class="viewer-body">
+<div id="app">
+  <div id="viewerBar">
+    <a id="viewerBack" class="viewer-back" href="app/" title="Back to Analytics" aria-label="Back to Analytics">
+      <span data-ic="chevron-left"></span> Analytics
+    </a>
+    <div class="viewer-title" id="viewerTitle"></div>
+    <span class="viewer-badge">Viewer — read-only</span>
+  </div>
+  <div id="viewerStage">
+    <iframe id="viewerFrame" title="Dashboard viewer"></iframe>
+    <div class="viewer-empty" id="viewerEmpty">
+      <div class="ces-ic" data-ic="layers"></div>
+      <div class="ces-title">Dashboard not found</div>
+      <div class="ces-desc">It may have been removed, or you don't have access to view it.</div>
+      <a class="ces-btn" href="app/">Back to Analytics</a>
+    </div>
+  </div>
+</div>
+<script src="app/model.js"></script>
+<script src="app/sources/schema.js"></script>
+<script src="app/sources/workspace.js"></script>
+<script src="app/exporters.js"></script>
+<script src="app/icons.js"></script>
+<script src="app/viewer.js"></script>
+</body>
+</html>
