@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 533,
+    title: 'More builder chrome buttons now use themed icons instead of raw glyphs',
+    kind: 'polish',
+    ts: '2026-07-25T08:21:50.000Z',
+    items: [
+      'UX6 (icon migration, slice 2): the builder\'s "More actions", "New", "List view"/"Tile view", "Compare dashboards…", and the inspector\'s "Dashboard" back-link, plus the pane expand/collapse chevrons, used to lead with raw Unicode glyphs (⋯ ＋ ☰ ▦ ⇄ ‹ ›). They now show themed SVG icons that match every other icon in the app, in both themes.',
+    ],
+  },
+  {
     v: 532,
     title: 'Changelog button now uses a themed icon instead of an emoji',
     kind: 'polish',
