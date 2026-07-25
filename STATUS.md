@@ -4061,6 +4061,33 @@
 >     itself signs in). **What remains for M7 to go live is only flipping
 >     `supabase-bootstrap.sql`'s live "allow all" policy to the real one — its own careful, deliberate
 >     action, do that only with Kevin's awareness given it changes live production security posture.**
+>     ↳ **Go-live procedure written (`tools/M7-RLS-GOLIVE-RUNBOOK.md`, 2026-07-24).** Kevin's call:
+>     CLEAN INSTALL (existing backend rows are disposable — the Supabase backend is only an optional
+>     sync target; browser localStorage + the reinstallable demo pack are untouched), so NO data
+>     migration. Path A: create the first admin GoTrue account, `truncate` the six workspace tables,
+>     sign in as admin to seed the admin `users` row (with `gotrueId`) WHILE still allow-all, THEN
+>     apply `supabase-rls-real.sql`. The seed-before-RLS ordering avoids the `users` admin-bootstrap
+>     lockout (INSERT is admin-only, and "admin" is decided by an existing admin row). Gated on Kevin
+>     running it in the Supabase SQL editor (the lane/session don't hold live admin creds).
+>     ↳ **★ NEXT — Slice 6: IN-APP ACCOUNT PROVISIONING (browser self-signup, DECIDED WITH KEVIN
+>     2026-07-24).** GOAL Kevin stated: create/manage accounts entirely from the Polecat Admin
+>     console — never visit Supabase per-user; only the FIRST admin needs a one-time dashboard
+>     bootstrap. APPROACH (Kevin chose): browser self-signup, NO backend/edge function. Add
+>     `signUp(cfg,{email,password})` to `app/sources/supabase.js` calling GoTrue's public signup
+>     endpoint (`POST {url}/auth/v1/signup` with the anon/publishable key); wire the Admin "Add user"
+>     flow (`openUserEditor`/`renderAdmin`) to call it and, on success, write the local PolecatAuth
+>     user + the `users` row stamped with the returned GoTrue uid (`gotrueId`) + role so RLS +
+>     `polecat_is_admin()` work immediately. ONE-TIME Supabase project setting required: enable
+>     signups + DISABLE email confirmation (else accounts sit unconfirmed) — detect the blocked case
+>     and show the admin a clear one-time "flip this setting" message; document it in the runbook.
+>     TRADE-OFF (accepted): open signup means the anon key can self-register — gate the signup UI to
+>     admins in-app and keep the adapter method pluggable so a later switch to an Edge Function
+>     (service key, closed signup) is cheap. LIMITATION: fully deleting a GoTrue auth record needs the
+>     admin API (service key), so console "remove" drops the app-side user + `users` row (revoking
+>     access via RLS) while the auth record may linger until dashboard cleanup. Buildable
+>     independently of the RLS flip (signup works under allow-all too) and makes go-live smoother.
+>     Tests: mock the signup endpoint; assert Add-user calls signup, stamps `gotrueId` onto the
+>     `users` row, and surfaces the "signups disabled / confirmation on" error clearly.
 > Also: add MORE crop/geo sample sets as the demo matures (Kevin). "Eventually polecat overall"
 > for the auth/user model — keep the users/permissions design app-neutral where cheap.
 
