@@ -1086,6 +1086,12 @@
         { key: "mapControls", type: "select", label: "Zoom/pan controls", def: "show",
           choices: [["show", "Show"], ["compact", "Compact"], ["hidden", "Hidden"]],
           hint: "GL renderer only — the built-in renderer has no on-map controls." },
+        // LF35 slice 2: the movable half of the original ask — which corner the GL cluster
+        // docks in. No effect when "Zoom/pan controls" above is Hidden, or on the built-in
+        // renderer (same "GL only" scope as mapControls).
+        { key: "mapControlsPos", type: "select", label: "Controls position", def: "top-right",
+          choices: [["top-right", "Top right"], ["top-left", "Top left"], ["bottom-right", "Bottom right"], ["bottom-left", "Bottom left"]],
+          hint: "GL renderer only; has no effect when Zoom/pan controls above is Hidden." },
         { key: "channel", type: "text", label: "Ensemble channel", def: "providers",
           hint: "Panels sharing a channel stay linked: an Ensemble chart's provider toggles re-color this map live." },
         { key: "agg",     type: "select", label: "Combine duplicate rows by", def: "median",

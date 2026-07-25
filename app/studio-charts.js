@@ -6018,9 +6018,13 @@
       var map = new maplibregl.Map(mapOpts);
       // LF35 slice 1: "hidden" skips the cluster entirely (a bare interactive map — mouse
       // drag/scroll pan+zoom still work, only the click/keyboard affordance is gone).
+      // LF35 slice 2: mapControlsPos docks the cluster in any of MapLibre's four corners
+      // (undefined == "top-right", the original fixed position, so every panel saved before
+      // this slice renders identically).
       if (cfg.mapControls !== "hidden") {
-        map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
-        map.addControl(_glPanControl(), "top-right");
+        var ctrlPos = cfg.mapControlsPos || "top-right";
+        map.addControl(new maplibregl.NavigationControl({ showCompass: false }), ctrlPos);
+        map.addControl(_glPanControl(), ctrlPos);
       }
       el._glMap = map; el._glScale = C.scale;
       // LF28: persist the camera (debounced) so the NEXT render of this panel — after a save,

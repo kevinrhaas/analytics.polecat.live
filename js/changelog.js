@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 529,
+    title: 'Map zoom/pan controls can now dock in any corner',
+    kind: 'feature',
+    ts: '2026-07-25T05:24:34.000Z',
+    items: [
+      'The Interactive GL map renderer\'s zoom + pan control cluster now has a per-panel "Controls position" option -- top right (the previous fixed spot), top left, bottom right, or bottom left. Works together with the existing Compact size and Hidden options.',
+    ],
+  },
+  {
     v: 528,
     title: 'Export a dashboard straight to PDF',
     kind: 'feature',

@@ -2640,13 +2640,11 @@
 >       issue — likely secondary-button contrast/state or alignment with the input (same class as the QA
 >       button items). Needs a precise repro from Kevin; fix as a small polish slice. Area: renderSettings
 >       Style-presets card + .btn styling.
-> LF35. **Choropleth map controls — shrink + make a movable/hideable per-panel "expert" cluster (Kevin,
->       live 2026-07-24, screenshot).** Kevin likes the zoom/pan controls but wants them (a) smaller/more
->       compact, and (b) an OPTIONAL movable or hideable control cluster, configured PER-PANEL when editing
->       the map widget in Studio (an "expert" toggle): show/hide, compact size, and position. Applies to BOTH
->       renderers (SVG nudge-pad + the maplibregl-ctrl group) and must round-trip into the exported HTML
->       byte-identically. Area: app/studio-charts.js (control-cluster render) + a per-panel opts flag in the
->       Inspector map options (app/studio.js renderInspector). Ties LF25.
+> LF35. ✓ **Choropleth map controls — shrink + make a movable/hideable per-panel "expert" cluster
+>       (Kevin, live 2026-07-24, screenshot) — fully shipped.** Kevin likes the zoom/pan controls but
+>       wants them (a) smaller/more compact, and (b) an OPTIONAL movable or hideable control cluster,
+>       configured PER-PANEL when editing the map widget in Studio (an "expert" toggle): show/hide,
+>       compact size, and position. Ties LF25.
 >       ✓ **Slice 1 shipped (2026-07-25, v527, sw v164, steward): show/hide + compact, GL renderer.**
 >       CORRECTION found while scoping this: the "SVG nudge-pad" half of the original ask doesn't
 >       exist — only the GL renderer ever grew a control cluster (LF4); the built-in SVG renderer has
@@ -2661,9 +2659,19 @@
 >       markup — preview and export share the exact same renderer code path, so byte-identical export
 >       holds automatically. Undefined (every dashboard saved before this slice) renders identically to
 >       "Show". 4 new LF35 ratchets (hidden drops both controls; compact shrinks them + tags the wrap;
->       show and unset render identically). NEXT: the movable/repositioned-cluster half of the original
->       ask is a larger, separate follow-up, deliberately not attempted here. (app/model.js,
->       app/studio-charts.js, app/exporters.js, docs/index.html, tests/run.js)
+>       show and unset render identically).
+>       ✓ **Slice 2 shipped (2026-07-25, v529, sw v166, steward — LAST piece, LF35 is now fully done):
+>       the movable half.** A new per-panel `mapControlsPos` Inspector option ("Top right"/"Top left"/
+>       "Bottom right"/"Bottom left", def "top-right", same schema-driven auto-render as `mapControls`,
+>       `app/model.js`) is passed straight through as MapLibre's own `addControl` position argument for
+>       both the NavigationControl and the LF4 pan nudge-pad (`app/studio-charts.js`) — undefined stays
+>       "top-right", so every map saved before this option existed docks exactly where it always did.
+>       The Compact CSS (`app/exporters.js`) generalizes from a single top-right rule to one rule per
+>       corner (matching `transform-origin`), so Compact still shrinks the cluster wherever Position
+>       docks it — the two options compose freely. 3 new LF35 ratchets (unset defaults to top-right and
+>       nowhere else; top-left docks there and nowhere else; bottom-right + compact docks AND shrinks
+>       at bottom-right). (app/model.js, app/studio-charts.js, app/exporters.js, docs/index.html,
+>       tests/run.js)
 > LF37. ✓ **Home Examples "+N more" footer is now clickable (shipped v525, sw v162, 2026-07-25,
 >       steward) — see DONE.** The footer is now a real button that opens the Examples ▾ menu
 >       (already renders the full, uncapped example list).
