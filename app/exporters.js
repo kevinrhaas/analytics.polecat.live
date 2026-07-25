@@ -205,10 +205,16 @@
     }
     // LF35 slice 1: choropleth GL panels set cfg.mapControls "compact" per-panel (studio-charts.js
     // adds the .pdc-geo-compact class to that panel's map wrap only) — a transform-scale on
-    // MapLibre's own top-right control container shrinks the zoom+pan cluster uniformly without
-    // touching its internal markup/CSS. Always included (inert unless a panel opts in), same as
-    // every other unconditional small CSS rule in this bundle.
-    var geoCtrlCss = "\n.pdc-geo-compact .maplibregl-ctrl-top-right{transform:scale(.72);transform-origin:top right}";
+    // MapLibre's own control container shrinks the zoom+pan cluster uniformly without touching
+    // its internal markup/CSS. Always included (inert unless a panel opts in), same as every
+    // other unconditional small CSS rule in this bundle.
+    // LF35 slice 2: mapControlsPos (studio-charts.js) can dock that same cluster in any of
+    // MapLibre's four corner containers, so the compact scale needs a rule (with a matching
+    // transform-origin, so it shrinks toward its own corner) per corner, not just top-right.
+    var geoCtrlCss = "\n.pdc-geo-compact .maplibregl-ctrl-top-right{transform:scale(.72);transform-origin:top right}" +
+      "\n.pdc-geo-compact .maplibregl-ctrl-top-left{transform:scale(.72);transform-origin:top left}" +
+      "\n.pdc-geo-compact .maplibregl-ctrl-bottom-right{transform:scale(.72);transform-origin:bottom right}" +
+      "\n.pdc-geo-compact .maplibregl-ctrl-bottom-left{transform:scale(.72);transform-origin:bottom left}";
     // Print / PDF layout: static header, hide interactive controls, avoid card page breaks.
     // Applied only in exported CDF (not the in-builder preview where printing makes no sense).
     // LF36 slice 1: @page sets sane print margins (browsers default to ~0 or huge depending on

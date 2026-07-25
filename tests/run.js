@@ -2190,6 +2190,72 @@ function serve() {
       mapControlsResult.unset.wrapClass.indexOf("pdc-geo-compact") < 0,
       JSON.stringify({ show: mapControlsResult.show, unset: mapControlsResult.unset }));
 
+    // LF35 slice 2: cfg.mapControlsPos docks the same cluster in any of MapLibre's four
+    // corners ("top-right"/undefined stay the original fixed position). Compact's CSS
+    // transform-origin must follow the cluster to whichever corner it's docked in.
+    const glMapControlsPosSpec = function (pos, compact) {
+      var s = glSpecSrc("gl");
+      if (pos !== undefined) s.panels[0].chart.opts.mapControlsPos = pos;
+      if (compact) s.panels[0].chart.opts.mapControls = "compact";
+      return s;
+    };
+    const mapControlsPosResult = await page.evaluate(async function (specs) {
+      var mock = { g: { cols: ["fips", "v"], rows: [["17031", 4], ["17113", 7], ["19153", 9], ["18097", 6]] } };
+      function render(spec, left) {
+        var html = Studio.buildHtml(spec, window.__STUDIO_STATE.assets, { preview: true, mock: mock });
+        return new Promise(function (resolve) {
+          var ifr = document.createElement("iframe");
+          ifr.style.cssText = "position:fixed;left:" + left + "px;top:0;width:900px;height:600px";
+          document.body.appendChild(ifr);
+          ifr.srcdoc = html;
+          var t0 = Date.now();
+          (function poll() {
+            var doc = null; try { doc = ifr.contentDocument; } catch (e) {}
+            var wrap = doc && doc.querySelector("[data-geo-gl]");
+            var map = wrap && wrap.parentNode && wrap.parentNode._glMap;
+            if (map) {
+              function corner(cls) {
+                var c = doc.querySelector("." + cls);
+                return { nav: c ? c.querySelectorAll(".maplibregl-ctrl-zoom-in").length : 0,
+                  panButtons: c ? c.querySelectorAll(".pdc-geo-pan button[data-pan]").length : 0,
+                  transform: c ? doc.defaultView.getComputedStyle(c).transform : null };
+              }
+              var out = {
+                topRight: corner("maplibregl-ctrl-top-right"),
+                topLeft: corner("maplibregl-ctrl-top-left"),
+                bottomRight: corner("maplibregl-ctrl-bottom-right"),
+                bottomLeft: corner("maplibregl-ctrl-bottom-left")
+              };
+              ifr.remove(); resolve(out);
+            } else if (Date.now() - t0 > 20000) { ifr.remove(); resolve({ timeout: true }); }
+            else setTimeout(poll, 200);
+          })();
+        });
+      }
+      return {
+        unset: await render(specs.unset, -5800),
+        topLeft: await render(specs.topLeft, -6200),
+        bottomRightCompact: await render(specs.bottomRightCompact, -6600)
+      };
+    }, {
+      unset: glMapControlsPosSpec(undefined, false),
+      topLeft: glMapControlsPosSpec("top-left", false),
+      bottomRightCompact: glMapControlsPosSpec("bottom-right", true)
+    });
+    ok("LF35 slice 2: mapControlsPos unset docks the cluster at top-right, same as before this slice",
+      mapControlsPosResult.unset.topRight.nav === 1 && mapControlsPosResult.unset.topRight.panButtons === 4 &&
+      mapControlsPosResult.unset.topLeft.nav === 0 && mapControlsPosResult.unset.bottomRight.nav === 0 && mapControlsPosResult.unset.bottomLeft.nav === 0,
+      JSON.stringify(mapControlsPosResult.unset));
+    ok("LF35 slice 2: mapControlsPos='top-left' docks the cluster there instead, nowhere else",
+      mapControlsPosResult.topLeft.topLeft.nav === 1 && mapControlsPosResult.topLeft.topLeft.panButtons === 4 &&
+      mapControlsPosResult.topLeft.topRight.nav === 0 && mapControlsPosResult.topLeft.bottomRight.nav === 0 && mapControlsPosResult.topLeft.bottomLeft.nav === 0,
+      JSON.stringify(mapControlsPosResult.topLeft));
+    ok("LF35 slice 2: mapControlsPos='bottom-right' + mapControls='compact' docks AND shrinks the cluster at bottom-right",
+      mapControlsPosResult.bottomRightCompact.bottomRight.nav === 1 && mapControlsPosResult.bottomRightCompact.bottomRight.panButtons === 4 &&
+      !!mapControlsPosResult.bottomRightCompact.bottomRight.transform && mapControlsPosResult.bottomRightCompact.bottomRight.transform !== "none" &&
+      mapControlsPosResult.bottomRightCompact.topRight.nav === 0,
+      JSON.stringify(mapControlsPosResult.bottomRightCompact));
+
     // ---- EXPLORE (Viridis V5): dataset-first designer → saved analyses ------
     console.log("\n• EXPLORE: dataset-first analysis designer (Viridis V5)");
     const xpSchema = await page.evaluate(function () {

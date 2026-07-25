@@ -5,7 +5,16 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v165"; /* v165: LF36 slice 1 — a new "PDF (print)" entry in the
+var CACHE_NAME = "studio-shell-v166"; /* v166: LF35 slice 2 — the movable half of the choropleth
+   GL map controls ask: a new per-panel "Controls position" option (app/model.js) docks the
+   zoom+pan cluster in any of the four map corners instead of a fixed top-right (mapControlsPos,
+   studio-charts.js addControl position arg; undefined stays top-right, so every map saved before
+   this option existed renders identically). The Compact CSS (exporters.js) now scales+origins per
+   corner instead of only top-right, so "Compact" still shrinks the cluster wherever it's docked.
+   LF35's originally-scoped "movable/hideable... cluster" ask is now fully shipped (slice 1 was
+   show/hide/compact). No new precached files, but app/model.js, app/studio-charts.js, and
+   app/exporters.js content changed, so precached copies need to roll. */
+/* v165: LF36 slice 1 — a new "PDF (print)" entry in the
    Export ▾ menu opens the same self-contained dashboard export (Studio.exportCDF, byte-identical
    to the .html export) in a new tab via a blob URL and starts the browser's print dialog there
    ("Save as PDF") once the tab has loaded — reuses the #printBtn/@media print machinery
