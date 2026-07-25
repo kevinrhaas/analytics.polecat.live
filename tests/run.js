@@ -1160,6 +1160,13 @@ function serve() {
     // ignored by password managers on password-typed fields). ----
     await page.click("#connNewBtn");
     await page.waitForTimeout(120);
+    const cxWizIntro = await page.evaluate(function () {
+      var intro = document.querySelector(".cx-wiz-intro");
+      return intro ? intro.textContent : null;
+    });
+    ok("QA-08: new-connection intro no longer promises a stale, mismatched adapter roadmap",
+      !!cxWizIntro && !/join this list over time/i.test(cxWizIntro) && !/azure/i.test(cxWizIntro),
+      JSON.stringify(cxWizIntro));
     await page.evaluate(function () {
       [].slice.call(document.querySelectorAll(".cx-src-card")).filter(function (c) { return c.querySelector("b").textContent === "BigQuery"; })[0].click();
     });

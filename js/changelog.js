@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 523,
+    title: 'New-connection intro copy no longer promises a stale adapter roadmap',
+    kind: 'fix',
+    ts: '2026-07-25T00:04:44.000Z',
+    items: [
+      'The New connection chooser said "More adapters (Postgres, Redshift, Azure, files) join this list over time" -- but Postgres, Redshift, and files were already in the list, and Azure was never an adapter at all. It now says "Choose a source below. Some connectors require browser CORS access or a link-shared file."',
+    ],
+  },
+  {
     v: 522,
     title: 'Catalog rows no longer nest a button inside a button for assistive tech',
     kind: 'fix',

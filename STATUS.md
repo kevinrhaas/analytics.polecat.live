@@ -116,6 +116,17 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **QA-08 — new-connection intro copy no longer promises a stale adapter roadmap (v523,
+  2026-07-25, steward, FRONTEND_QA_REPORT_2026-07-24.md):** the report's P3 finding — the New
+  connection chooser's intro line said "More adapters (Postgres, Redshift, Azure, files) join
+  this list over time," but Postgres, Redshift, and files were already in the adapter grid above
+  it, and Azure was never an adapter at all. Fix: swapped the stale roadmap sentence for the
+  report's suggested current-guidance copy, "Choose a source below. Some connectors require
+  browser CORS access or a link-shared file." (`app/studio.js`, the wizard's `.cx-wiz-intro`
+  paragraph). 1 new regression test asserting the intro text no longer contains "join this list
+  over time" or "azure". Suite green (1944/1944). No sw.js bump (no new precached files, text-only
+  change in an already-precached file). (app/studio.js, tests/run.js) NEXT: QA-09 (README entry
+  point conflicts with the deployed app path) is the next item in the same report.
 - **QA-07 — catalog rows no longer nest a button inside a button for assistive tech (v522,
   2026-07-24, steward, FRONTEND_QA_REPORT_2026-07-24.md):** the report's P2 finding — rows in
   Datasets, Connections, Jobs, Repository, and the Dashboards list view were `role="button"`
@@ -2434,10 +2445,9 @@
 >       secondary actions are sibling buttons in a labelled action group. Area: Datasets/Connections/
 >       Repository rows (the `.cx-row` family). Test: no button-role element contains another
 >       interactive control; predictable Tab + Enter/Space.
-> QA-08. P3 — **New-connection intro text is stale** (“More adapters (Postgres, Redshift, Azure,
->       files) join this list over time” — Postgres/Redshift/files already listed; Azure isn’t). FIX:
->       replace with current guidance (“Choose a source below. Some connectors require browser CORS
->       access or a link-shared file.”). Quick.
+> QA-08. ✓ P3 — **New-connection intro text is stale (shipped v523, 2026-07-25, steward)** — see
+>       DONE for the full writeup. Replaced with the report's suggested current guidance. 1 new
+>       regression test.
 > QA-09. P3 DOCS — **README entry point conflicts with the deployed path** (says the app is at root
 >       `/` + `index.html` + localhost:8000; actually `/app/` + `app/index.html`, root is marketing —
 >       CLAUDE.md is already correct). FIX: update README run/layout to `localhost:8000/app/` + the
