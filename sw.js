@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v168"; /* v168: LF20 — the builder toolbar's Open/Save as/Close
+var CACHE_NAME = "studio-shell-v169"; /* v169: UX6 (currentColor icon migration, first slice) —
+   the footer "Changelog" button used to lead with the raw 📋 emoji (full-color, a direct miss on
+   the fleet's single-color currentColor-icon bar); it now renders a themed Studio.icon("clock")
+   SVG instead. No new precached files, but app/index.html and app/studio.js content changed, so
+   precached copies need to roll. */
+/* v168: LF20 — the builder toolbar's Open/Save as/Close
    buttons are now icon-only (title/aria-label carry the meaning), Save/Export keep an icon +
    label; a new "save" glyph was added to app/icons.js. app/index.html, app/icons.js, app/studio.js
    changed, so precached copies need to roll. */

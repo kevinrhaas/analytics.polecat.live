@@ -116,6 +116,18 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **UX6 slice 1 — footer Changelog button gets a themed icon instead of an emoji (v532, sw v169,
+  2026-07-25, steward):** the quality-track's currentColor icon migration ask named the footer
+  `📋 Changelog` button as "a direct miss" (full-color emoji vs. the fleet's single-color
+  currentColor-icon bar). `app/index.html`'s button now leads with a `<span class="sb-ic"
+  data-ic="clock">` placeholder instead of the literal emoji character; `renderFooter()`
+  (`app/studio.js`) hydrates it with `Studio.icon("clock", 14)` the same way other `[data-ic]`
+  spans are painted elsewhere in the app (rail items, settings rows). "Clock" was chosen over a
+  generic list/clipboard glyph (none exists in the registry) because it matches the button's own
+  title, "What changed recently." 1 new regression check (`#btnChangelog` renders an `<svg>` and
+  no longer contains the raw emoji in its text). Suite green. NEXT in this track: the remaining
+  chrome glyphs (`⋯ ↶ ↷ ＋ ▾ ☰ ⇄ ● ‹ ›`) and the welcome-step letter icons — each its own slice,
+  many call sites. (app/index.html, app/studio.js, sw.js, js/changelog.js, tests/run.js)
 - **LF20 — builder toolbar declutter: Open/Save as…/Close become icon-only buttons (v531,
   sw v168, 2026-07-25, steward):** LF20's canvas-bar cluster (`Examples ▾ Open Save Save as…
   Close Export ▾`) read as a wall of plain-text buttons — the ask was "turn secondary actions
@@ -3361,6 +3373,13 @@
 >      welcome-step letter icons with `Studio.icon()` SVGs — directly satisfies the fleet
 >      "single-color currentColor icons" bar (the `📋` emoji is full-color = a direct miss). Larger,
 >      many call sites. (index.html, welcome.js, studio.js)
+>      ↳ **Slice 1 shipped (v532, sw v169, 2026-07-25, steward): footer Changelog button.** The
+>      `📋 Changelog` footer button (`#btnChangelog`) now leads with a themed `Studio.icon("clock")`
+>      SVG instead of the raw emoji — `app/index.html` gained a `<span class="sb-ic" data-ic="clock">`
+>      placeholder, hydrated in `renderFooter()` (`app/studio.js`) the same way other `[data-ic]`
+>      spans already are elsewhere in the app. 1 new regression check (button renders an svg, no
+>      literal 📋 in its text). NEXT in this track: the remaining glyphs (`⋯ ↶ ↷ ＋ ▾ ☰ ⇄ ● ‹ ›`) and
+>      the welcome-step letter icons, each its own slice given the many call sites.
 > UX7. ✓ **Mobile 44px touch targets — DONE (shipped 2026-07-23, steward).** The 400–640px band
 >      rendered `.btn` at ~28–32px (font-size 12px + 7px padding, no `min-height` at all — 44px
 >      only existed for `#topbar`/`#dashbar .btn` at ≤400px specifically); `.da-act`/`.chip` sat at

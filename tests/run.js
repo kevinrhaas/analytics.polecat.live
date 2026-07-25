@@ -5222,6 +5222,13 @@ function serve() {
     ok("What's-new panel starts closed", footer.panelClosed === true);
     // Fresh profile (no studio-whatsnew-seen key) → the footer button carries the unseen dot.
     ok("unseen-updates dot lights the Changelog button on a fresh profile (shell seen-version contract)", footer.hasUnseenDot);
+    // UX6: the Changelog button used to lead with the raw 📋 emoji (full-color, misses the
+    // fleet's single-color currentColor-icon bar) -- now a themed Studio.icon SVG.
+    const clIcon = await page.evaluate(() => {
+      var b = document.getElementById("btnChangelog");
+      return { hasSvg: !!b.querySelector("svg"), hasEmoji: b.textContent.indexOf("📋") >= 0 };
+    });
+    ok("Changelog button uses a themed SVG icon, not the 📋 emoji", clIcon.hasSvg && !clIcon.hasEmoji, JSON.stringify(clIcon));
     await page.click("#btnChangelog");
     await page.waitForTimeout(300);
     const cl = await page.evaluate(() => {
