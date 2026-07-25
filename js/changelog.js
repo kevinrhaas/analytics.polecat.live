@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 526,
+    title: 'Tech-debt: version history + canvas notes moved to their own module',
+    kind: 'polish',
+    ts: '2026-07-25T03:18:39.000Z',
+    items: [
+      'The local version-history ("time travel" checkpoints) and canvas-sticky-notes storage logic moved out of app/studio.js into a new app/versions.js module, continuing the ongoing studio.js module-extraction cleanup (chart thumbnails, branding, defaults, celebrations already moved the same way).',
+      'Pure internal refactor -- every call site, storage key, and behavior is unchanged; the full test suite is green.',
+    ],
+  },
+  {
     v: 525,
     title: 'Home Examples "+N more" footer is now clickable',
     kind: 'fix',
