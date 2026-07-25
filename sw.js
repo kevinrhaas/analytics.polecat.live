@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v191"; /* v191: LF19 next slice — the "+ New" shortcut on
+var CACHE_NAME = "studio-shell-v192"; /* v192: LF19 next slice — the Data panel's search
+   field no longer sits in its own fully-bordered "card" row that echoed the group boxes
+   below it; at rest it's a plain filled field (border returns on focus). app/studio.css,
+   tests/run.js changed, so precached copies need to roll.
+   v191: LF19 next slice — the "+ New" shortcut on
    "This dashboard's datasets" is icon-only now (title/aria-label carry the accessible name),
    which stopped it crowding the group's own name into an ellipsis at the panel's default
    width. app/studio.js, app/studio.css changed, so precached copies need to roll.

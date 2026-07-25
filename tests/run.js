@@ -9714,6 +9714,24 @@ function serve() {
     ok("LF19: 'This dashboard's datasets' no longer truncates into an ellipsis at the panel's default width",
       mineAddTidy.nameNotTruncated, JSON.stringify(mineAddTidy));
 
+    // LF19 "next" slice — the search field no longer sits in its own fully-bordered
+    // "card" row (same border/radius/background as .lib-mine group boxes below it,
+    // reading as a 4th group rather than a header tool). At rest it's a plain filled
+    // field with no visible border; focus still shows one, so the affordance holds.
+    const libSearchChrome = await page.evaluate(() => {
+      const el = document.getElementById("libSearch");
+      const restColor = getComputedStyle(el).borderColor;
+      el.focus();
+      const focusColor = getComputedStyle(el).borderColor;
+      el.blur();
+      return { restColor: restColor, focusColor: focusColor };
+    });
+    ok("LF19: the Data panel search field has no visible border at rest (no longer a 4th group-card)",
+      /rgba\(0,\s*0,\s*0,\s*0\)|transparent/.test(libSearchChrome.restColor), JSON.stringify(libSearchChrome));
+    ok("LF19: the search field still gains a visible border on focus (affordance preserved)",
+      libSearchChrome.focusColor !== libSearchChrome.restColor && !/rgba\(0,\s*0,\s*0,\s*0\)/.test(libSearchChrome.focusColor),
+      JSON.stringify(libSearchChrome));
+
     // Calmer Data panel: the compound (join/union) create button is retired from
     // the Studio pane (joins/unions belong in the Datasets area), so the header
     // carries exactly one action — "+ New" — and no compound-DA entry.
