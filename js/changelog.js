@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 532,
+    title: 'Changelog button now uses a themed icon instead of an emoji',
+    kind: 'polish',
+    ts: '2026-07-25T08:03:20.000Z',
+    items: [
+      'UX6 (icon migration, first slice): the footer "Changelog" button led with a full-color 📋 emoji, which misses the fleet\'s single-color currentColor-icon standard. It now shows a themed clock icon that matches every other icon in the app.',
+    ],
+  },
+  {
     v: 531,
     title: 'Builder toolbar decluttered — Open/Save as/Close are now icon buttons',
     kind: 'polish',

@@ -393,6 +393,12 @@
     }
     var btn = $("#btnChangelog");
     if (btn) {
+      // UX6 (currentColor icon migration): the footer button used to lead with the
+      // raw 📋 emoji -- full-color, which misses the fleet's single-color
+      // currentColor icon bar. A themed SVG (Studio.icon) reads correctly in both
+      // themes and matches every other icon in the app.
+      var clIcSpan = btn.querySelector("[data-ic]");
+      if (clIcSpan && Studio.icon) clIcSpan.appendChild(Studio.icon(clIcSpan.getAttribute("data-ic"), 14));
       var openPanel = null;
       btn.onclick = function () {
         var PS = window.PolecatShell;
