@@ -28,6 +28,11 @@
   // studio-render.js's PDC.cda dispatch (see its CRED_ENGINES map) knows to prompt for it at
   // open time instead — "credentials prompted at open, never embedded."
   var SECRET_FIELDS = { snowflake: "sfToken", databricks: "dbxToken", bigquery: "bqToken", http: "httpAuthHeader" };
+  // LF36 slice 2: PDF export page-size options — CSS @page `size` keyword + physical inches
+  // (letter/A4/legal, US-common set; matches what the export dialog in studio.js offers).
+  var PDF_PAGE_SIZE_KEYWORDS = { letter: "letter", a4: "A4", legal: "legal" };
+  var PDF_PAGE_DIMS_IN = { letter: [8.5, 11], a4: [8.27, 11.69], legal: [8.5, 14] };
+  var PDF_PAGE_MARGIN_IN = 12 / 25.4; // matches the @page{margin:12mm} rule below
   function redactSecrets(spec) {
     var das = spec && spec.cda && spec.cda.dataAccesses;
     if (!das || !das.length) return spec;
@@ -222,11 +227,16 @@
     // richtext panel's paragraphs/list items — .sr-richtext is the same class the builder preview
     // uses, see richtextCss above) from stranding a single line at a page break. break-inside:avoid
     // on .card/.pdc-kpis (unchanged) is what actually keeps a widget/KPI row from splitting across
-    // a page boundary. Sizing/scale + page-size/orientation controls are a deliberately deferred
-    // follow-up (STATUS.md LF36).
+    // a page boundary.
+    // LF36 slice 2: page size + orientation ride the standard CSS @page `size` keyword (opts.
+    // pdfPageSize/pdfOrientation, set by the PDF export dialog in studio.js's doExport — the plain
+    // "cdf"/"spec"/"all" exports never pass these, so their @page rule (and everything else here)
+    // stays byte-identical to before this slice.
+    var pageSizeCss = opts.pdfPageSize ?
+      ";size:" + (PDF_PAGE_SIZE_KEYWORDS[opts.pdfPageSize] || "letter") + (opts.pdfOrientation === "landscape" ? " landscape" : " portrait") : "";
     var printCss = !opts.preview ?
       "\n@media print{" +
-        "@page{margin:12mm}" +
+        "@page{margin:12mm" + pageSizeCss + "}" +
         ".pdc-header{position:static!important;box-shadow:none!important;border-bottom:1px solid #d0d4da}" +
         "#qInfoBtn,#printBtn,#ctrls{display:none!important}" +
         "body{background:#fff!important;color:#000!important}" +
@@ -355,6 +365,29 @@
       });
     }
     boot += jsonScript("window.STUDIO_DA_META", daMeta) + "\n";
+    // LF36 slice 2: "fit to page width" — the @page size above sets the PRINT SUBSTRATE, but a
+    // wide grid (many columns, a wide table/map) can still overflow it and get cropped. Rather
+    // than guess a static scale at build time (layout depends on the live browser + actual
+    // content), measure the real overflow at print time: on `beforeprint` (fired once the print
+    // media query — and this file's own @media print rules above — have already taken effect,
+    // per spec/major-engine behavior) compare .pdc-wrap's rendered scrollWidth against the page's
+    // printable width in CSS px (96px/in is the standard CSS-to-physical mapping browsers use for
+    // print layout) and, only if it overflows, scale the whole wrap down uniformly so nothing
+    // gets clipped at the page edge. `afterprint` restores it in case the tab is used again.
+    var printAutoFitScript = "";
+    if (opts.pdfAutoFit) {
+      var pdfDims = PDF_PAGE_DIMS_IN[opts.pdfPageSize] || PDF_PAGE_DIMS_IN.letter;
+      var printableIn = (opts.pdfOrientation === "landscape" ? pdfDims[1] : pdfDims[0]) - 2 * PDF_PAGE_MARGIN_IN;
+      var printableWidthPx = Math.round(printableIn * 96);
+      printAutoFitScript = "(function(){var W=" + printableWidthPx + ";" +
+        "function reset(w){w.style.transform='';w.style.width='';}" +
+        "function fit(){var w=document.querySelector('.pdc-wrap');if(!w)return;reset(w);var sw=w.scrollWidth;" +
+          "if(sw>W){var s=W/sw;w.style.transform='scale('+s+')';w.style.transformOrigin='top left';w.style.width=(100/s)+'%';}}" +
+        "window.addEventListener('beforeprint',fit);" +
+        "window.addEventListener('afterprint',function(){var w=document.querySelector('.pdc-wrap');if(w)reset(w);});" +
+        "})();\n";
+    }
+    boot += printAutoFitScript;
     boot += jsonScript("window.STUDIO_SPEC", redactSecrets(spec)) + "\n" +
       "document.addEventListener('DOMContentLoaded',function(){StudioRender.boot(window.STUDIO_SPEC);});\n</script>\n</body>\n</html>\n";
     return head + body + boot;

@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 530,
+    title: 'PDF export: choose page size, orientation, and fit',
+    kind: 'feature',
+    ts: '2026-07-25T06:40:17.000Z',
+    items: [
+      'Export -> PDF (print) now opens a small dialog first: page size (Letter, A4, or Legal), orientation, and a "Fit to page width" scale option (on by default) that shrinks a wide dashboard down uniformly so nothing gets cropped at the page edge.',
+    ],
+  },
+  {
     v: 529,
     title: 'Map zoom/pan controls can now dock in any corner',
     kind: 'feature',

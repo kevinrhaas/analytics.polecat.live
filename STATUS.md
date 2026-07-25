@@ -116,6 +116,25 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF36 slice 2 — PDF export gains page size, orientation, and fit-to-width (v530, sw v167,
+  2026-07-25, steward — LF36 is now fully done):** slice 1 shipped the "PDF (print)" menu entry
+  itself and deferred the original ask's sizing/scale + page-size/orientation controls; this slice
+  closes that gap. Choosing "PDF (print)" now opens a small options dialog first
+  (`openPdfExportModal`, `app/studio.js` — page size Letter/A4/Legal, orientation, and a "Fit to
+  page width" (default) / "Actual size" scale choice, the same Cancel/primary-action modal shape as
+  "Save as…"; the last choice is remembered in localStorage) instead of exporting immediately. The
+  choices thread into `Studio.buildHtml` (`app/exporters.js`) as new
+  `opts.pdfPageSize`/`pdfOrientation`/`pdfAutoFit` — the `@page` rule gets a matching CSS `size:`
+  keyword, and "Fit to page width" adds a small `beforeprint`-triggered script that measures the
+  rendered dashboard's width against the printable page width (96px/in, minus the existing 12mm
+  margin) and, only if it overflows, scales `.pdc-wrap` down uniformly (`afterprint` restores it) —
+  no static build-time guess, since actual overflow depends on the live browser + content. The
+  plain "cdf"/"spec"/"all" exports (`Studio.exportCDF`) never pass these opts, so their output
+  stays byte-identical to before this slice — the toolkit invariant slice 1 called out holds.
+  8 new LF36 regression tests (dialog offers the 3 controls with the right defaults, confirming
+  emits the matching `@page` size + auto-fit script, choosing A4/Landscape/Actual-size changes
+  both, Cancel exports nothing). (app/studio.js, app/exporters.js, docs/index.html, sw.js,
+  tests/run.js)
 - **LF36 slice 1 — "Export to PDF" menu entry + print CSS polish (v528, sw v165, 2026-07-25,
   steward, Kevin live-feedback 2026-07-24):** Kevin asked for an "Export to PDF" option that
   handles long/multi-page dashboards well. Scoped a first slice: a new "PDF (print)" entry
@@ -133,9 +152,8 @@
   across a page boundary and was left as-is. New regression tests assert the menu button exists
   and (mocking `window.open`/`URL.createObjectURL`, since a real popup can't be asserted on
   headlessly) that selecting it opens the print-ready HTML and calls `.print()`. (app/index.html,
-  app/studio.js, app/exporters.js, docs/index.html, tests/run.js) NEXT: the sizing/scale (or
-  auto-fit-to-width) + page size/orientation control from the original ask is a larger, separate
-  follow-up, deliberately not attempted here — LF36 stays open in the LIVE-FEEDBACK QUEUE.
+  app/studio.js, app/exporters.js, docs/index.html, tests/run.js) NEXT (closed by slice 2 above):
+  the sizing/scale (or auto-fit-to-width) + page size/orientation control from the original ask.
 - **LF35 slice 1 — GL map zoom/pan controls can go Compact or Hidden per panel (v527, sw v164,
   2026-07-25, steward, Kevin live-feedback 2026-07-24):** Kevin liked the choropleth's zoom/pan
   cluster but wanted it smaller and hideable. While scoping this, found the original ask's premise
@@ -2698,6 +2716,25 @@
 >       popup in the headless harness. NEXT: the sizing/scale (or auto-fit-to-width) + page size/
 >       orientation control from the original ask is a larger, separate follow-up, deliberately not
 >       attempted here. (app/index.html, app/studio.js, app/exporters.js, docs/index.html, tests/run.js)
+>       ✓ **Slice 2 shipped (v530, sw v167, 2026-07-25, steward — LF36 is now fully done): page size,
+>       orientation, and fit-to-width.** Choosing "PDF (print)" now opens a small options dialog first
+>       (`openPdfExportModal`, app/studio.js — page size Letter/A4/Legal, orientation, and a "Fit to
+>       page width" / "Actual size" scale choice, same Cancel/primary-action modal shape as "Save
+>       as…"; the last choice is remembered in localStorage for the next export) instead of exporting
+>       immediately. The choices thread into `Studio.buildHtml` (exporters.js) as new
+>       `opts.pdfPageSize`/`pdfOrientation`/`pdfAutoFit` — the `@page` rule gets a matching CSS `size:`
+>       keyword, and "Fit to page width" (the default) adds a small `beforeprint`-triggered script
+>       that measures the rendered dashboard's width against the printable page width (96px/in, minus
+>       the existing 12mm margin) and, only if it overflows, scales the whole `.pdc-wrap` down
+>       uniformly (`afterprint` restores it) so nothing gets clipped at the page edge — no static
+>       build-time guess, since actual overflow depends on the live browser + content. The plain
+>       "cdf"/"spec"/"all" exports (`Studio.exportCDF`) never pass these opts, so their output stays
+>       byte-identical to before this slice (the invariant the original ask called out). 8 new LF36
+>       regression tests (dialog offers the 3 controls with the right defaults, confirming emits the
+>       matching `@page` size + auto-fit script, choosing A4/Landscape/Actual-size changes both,
+>       Cancel exports nothing). **The full LF36 "Export to PDF" ask (menu entry, print-safe page
+>       breaks, page size/orientation, and fit-to-width) is now complete.** (app/studio.js,
+>       app/exporters.js, docs/index.html, sw.js, tests/run.js)
 > LF31. ✓ **FIXED (v483, 2026-07-23, steward) — ensemble "common estimate" line + legend now readable on
 >       dark themed panels.** ROOT CAUSE: the ensemble widget painted the median line + its legend with
 >       `var(--ink,#16233b)`, but the dashboard THEMES define `--text-primary` (not `--ink`) — so on a dark

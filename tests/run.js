@@ -16449,48 +16449,68 @@ function serve() {
     ok("LF36: Export menu has a data-exp=\"pdf\" button", lf36Menu.found, JSON.stringify(lf36Menu));
     ok("LF36: the PDF menu button is labeled for print/PDF", /pdf/i.test(lf36Menu.text), JSON.stringify(lf36Menu));
 
-    // LF36-2: clicking it opens the byte-identical exported CDF HTML (same printCss as the "cdf"
-    // export) via window.open on a blob URL, and calls .print() on the opened window once it has
-    // "loaded" -- mock window.open to capture the URL + a fake window (with an addEventListener
-    // that immediately fires "load", and a print() spy) since a real popup can't be reliably
-    // asserted on headlessly in this harness.
-    const lf36Open = await page.evaluate(function () {
-      return new Promise(function (resolve) {
-        var captured = { url: null, printed: false, revoked: false };
-        var realOpen = window.open;
-        var realCreateObjectURL = URL.createObjectURL;
-        var realRevokeObjectURL = URL.revokeObjectURL;
-        var fakeWin = {
-          addEventListener: function (type, cb) { if (type === "load") setTimeout(cb, 0); },
-          print: function () { captured.printed = true; }
-        };
-        URL.createObjectURL = function (blob) {
-          var url = "blob:mock-" + Math.random();
-          captured.url = url;
-          captured._blob = blob;
-          return url;
-        };
-        URL.revokeObjectURL = function () { captured.revoked = true; };
-        window.open = function (url) { captured.openedUrl = url; return fakeWin; };
-        try {
-          var btn = document.querySelector('#menuExport button[data-exp="pdf"]');
-          if (btn) btn.click();
-        } catch (e) { captured.err = e.message; }
-        setTimeout(function () {
-          window.open = realOpen;
-          URL.createObjectURL = realCreateObjectURL;
-          URL.revokeObjectURL = realRevokeObjectURL;
-          if (captured._blob) {
-            var reader = new FileReader();
-            reader.onload = function () { captured.blobText = reader.result; resolve(captured); };
-            reader.readAsText(captured._blob);
-          } else resolve(captured);
-        }, 500);
-      });
-    });
+    // LF36 slice 2: clicking the PDF menu entry no longer exports immediately — it opens an
+    // options dialog (page size / orientation / fit-to-width) first; export only fires once
+    // that dialog's "Export" button is clicked. Helper drives one full round-trip: click the
+    // menu button, optionally tweak the dialog's selects, click Export, and capture the
+    // window.open/blob/print calls the same way slice 1's test did.
+    async function runPdfExport(selectValues) {
+      return page.evaluate(function (selectValues) {
+        return new Promise(function (resolve) {
+          var captured = { url: null, printed: false, revoked: false };
+          var realOpen = window.open;
+          var realCreateObjectURL = URL.createObjectURL;
+          var realRevokeObjectURL = URL.revokeObjectURL;
+          var fakeWin = {
+            addEventListener: function (type, cb) { if (type === "load") setTimeout(cb, 0); },
+            print: function () { captured.printed = true; }
+          };
+          URL.createObjectURL = function (blob) {
+            var url = "blob:mock-" + Math.random();
+            captured.url = url;
+            captured._blob = blob;
+            return url;
+          };
+          URL.revokeObjectURL = function () { captured.revoked = true; };
+          window.open = function (url) { captured.openedUrl = url; return fakeWin; };
+          try {
+            var menuBtn = document.querySelector('#menuExport button[data-exp="pdf"]');
+            if (menuBtn) menuBtn.click();
+            var selects = document.querySelectorAll('.modal-ov .modal-b select');
+            captured.selectCount = selects.length;
+            captured.defaults = Array.prototype.map.call(selects, function (s) { return s.value; });
+            if (selectValues) {
+              selects.forEach(function (s, i) {
+                if (selectValues[i] != null) { s.value = selectValues[i]; s.dispatchEvent(new Event("change")); }
+              });
+            }
+            var goBtn = Array.prototype.filter.call(document.querySelectorAll('.modal-ov .modal-b button'), function (b) { return b.textContent === "Export"; })[0];
+            if (goBtn) goBtn.click(); else captured.err = "no Export button found";
+          } catch (e) { captured.err = e.message; }
+          setTimeout(function () {
+            window.open = realOpen;
+            URL.createObjectURL = realCreateObjectURL;
+            URL.revokeObjectURL = realRevokeObjectURL;
+            if (captured._blob) {
+              var reader = new FileReader();
+              reader.onload = function () { captured.blobText = reader.result; resolve(captured); };
+              reader.readAsText(captured._blob);
+            } else resolve(captured);
+          }, 500);
+        });
+      }, selectValues);
+    }
+
+    // LF36-2: confirming the dialog with its defaults (Letter/Portrait/Fit-to-width) opens the
+    // exported dashboard via window.open on a blob URL and calls .print() once it "loads" — same
+    // flow as slice 1, now carrying the default page-size CSS + the fit-to-width script.
+    const lf36Open = await runPdfExport(null);
     await page.evaluate(function () { document.querySelectorAll(".modal-ov").forEach(function (m) { m.remove(); }); });
-    ok("LF36: clicking the PDF menu item opens a blob URL via window.open", !!lf36Open.openedUrl && lf36Open.openedUrl === lf36Open.url, JSON.stringify({ openedUrl: lf36Open.openedUrl, url: lf36Open.url, err: lf36Open.err }));
-    ok("LF36: the opened blob is the same exportCDF HTML (contains the print CSS)", !!lf36Open.blobText && lf36Open.blobText.indexOf("@media print") >= 0 && lf36Open.blobText.indexOf("@page{margin:12mm}") >= 0, "hasBlobText=" + !!lf36Open.blobText);
+    ok("LF36: clicking PDF opens an options dialog with page size / orientation / fit controls", lf36Open.selectCount === 3, JSON.stringify(lf36Open));
+    ok("LF36: the dialog defaults to Letter / Portrait / Fit to page width", JSON.stringify(lf36Open.defaults) === JSON.stringify(["letter", "portrait", "fit"]), JSON.stringify(lf36Open));
+    ok("LF36: confirming the dialog opens a blob URL via window.open", !!lf36Open.openedUrl && lf36Open.openedUrl === lf36Open.url, JSON.stringify({ openedUrl: lf36Open.openedUrl, url: lf36Open.url, err: lf36Open.err }));
+    ok("LF36: the opened blob carries the print CSS + default @page size", !!lf36Open.blobText && lf36Open.blobText.indexOf("@media print") >= 0 && lf36Open.blobText.indexOf("@page{margin:12mm;size:letter portrait}") >= 0, "hasBlobText=" + !!lf36Open.blobText);
+    ok("LF36: fit-to-width is on by default, so the beforeprint auto-fit script is included", !!lf36Open.blobText && lf36Open.blobText.indexOf("beforeprint") >= 0, "hasBlobText=" + !!lf36Open.blobText);
     ok("LF36: the opened window's print() is called once it \"loads\"", lf36Open.printed, JSON.stringify(lf36Open));
     ok("LF36: doExport records a \"pdf\" kind in export history", await page.evaluate(function () {
       try {
@@ -16499,6 +16519,34 @@ function serve() {
         return arr.length > 0 && arr[0].kind === "pdf";
       } catch (e) { return false; }
     }));
+    await page.evaluate(function () { try { localStorage.removeItem("studio-export-history"); } catch (e) {} });
+
+    // LF36-3: picking A4 / Landscape / Actual size changes the emitted @page CSS and drops the
+    // auto-fit script (only "Fit to page width" injects it) — proves the dialog's choices really
+    // reach Studio.buildHtml, not just cosmetic controls.
+    const lf36A4 = await runPdfExport(["a4", "landscape", "actual"]);
+    await page.evaluate(function () { document.querySelectorAll(".modal-ov").forEach(function (m) { m.remove(); }); });
+    ok("LF36: choosing A4 + Landscape emits the matching @page size", !!lf36A4.blobText && lf36A4.blobText.indexOf("@page{margin:12mm;size:A4 landscape}") >= 0, "hasBlobText=" + !!lf36A4.blobText);
+    ok("LF36: choosing Actual size omits the auto-fit script", !!lf36A4.blobText && lf36A4.blobText.indexOf("beforeprint") === -1, "hasBlobText=" + !!lf36A4.blobText);
+    await page.evaluate(function () { try { localStorage.removeItem("studio-export-history"); localStorage.removeItem("studio-pdf-export-opts"); } catch (e) {} });
+
+    // LF36-4: Cancel closes the dialog without exporting anything.
+    const lf36Cancel = await page.evaluate(function () {
+      return new Promise(function (resolve) {
+        var opened = false;
+        var realOpen = window.open;
+        window.open = function () { opened = true; return null; };
+        var menuBtn = document.querySelector('#menuExport button[data-exp="pdf"]');
+        if (menuBtn) menuBtn.click();
+        var cancelBtn = Array.prototype.filter.call(document.querySelectorAll('.modal-ov .modal-b button'), function (b) { return b.textContent === "Cancel"; })[0];
+        if (cancelBtn) cancelBtn.click();
+        setTimeout(function () {
+          window.open = realOpen;
+          resolve({ opened: opened, modalGone: !document.querySelector(".modal-ov") });
+        }, 100);
+      });
+    });
+    ok("LF36: Cancel closes the dialog without opening a print tab", lf36Cancel.modalGone && !lf36Cancel.opened, JSON.stringify(lf36Cancel));
     await page.evaluate(function () { try { localStorage.removeItem("studio-export-history"); } catch (e) {} });
 
     // ── F21: Packed bubble chart ──────────────────────────────────────────────
