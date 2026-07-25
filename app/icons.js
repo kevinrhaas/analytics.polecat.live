@@ -116,7 +116,10 @@
     // UX4 (quality track, remainder): a monoline trophy for the celebratory toast variant
     // (first export / round-number milestones) — distinct from the plain "check" icon the
     // toast otherwise uses, so a milestone moment reads as earned, not just confirmed.
-    trophy: '<path stroke-linecap="round" stroke-linejoin="round" d="M7 4h10v6a5 5 0 0 1-10 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M7 5H4a1 1 0 0 0-1 1 5 5 0 0 0 4.5 5M17 5h3a1 1 0 0 1 1 1 5 5 0 0 1-4.5 5"/><line x1="12" y1="15" x2="12" y2="19" stroke-linecap="round"/><line x1="8" y1="21" x2="16" y2="21" stroke-linecap="round"/><line x1="9.5" y1="19" x2="14.5" y2="19" stroke-linecap="round"/>'
+    trophy: '<path stroke-linecap="round" stroke-linejoin="round" d="M7 4h10v6a5 5 0 0 1-10 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M7 5H4a1 1 0 0 0-1 1 5 5 0 0 0 4.5 5M17 5h3a1 1 0 0 1 1 1 5 5 0 0 1-4.5 5"/><line x1="12" y1="15" x2="12" y2="19" stroke-linecap="round"/><line x1="8" y1="21" x2="16" y2="21" stroke-linecap="round"/><line x1="9.5" y1="19" x2="14.5" y2="19" stroke-linecap="round"/>',
+    // LF20 (dashbar declutter): a plain floppy disk, monoline to match the registry —
+    // the dashbar's "Save" button had no icon of its own (undo/redo/+New already do).
+    save: '<path stroke-linecap="round" stroke-linejoin="round" d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path stroke-linecap="round" stroke-linejoin="round" d="M17 21v-8H7v8"/><path stroke-linecap="round" stroke-linejoin="round" d="M7 3v5h8"/>'
   };
 
   Studio.icon = function (name, size) {

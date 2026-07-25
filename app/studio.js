@@ -10273,16 +10273,28 @@
     menuToggle($("#btnExamples"), $("#menuExamples"));
 
     // export menu
-    menuToggle($("#btnExport"), $("#menuExport"));
+    var btnExportEl = $("#btnExport"); setIconBtn(btnExportEl, "download", "Export ▾", 14);
+    menuToggle(btnExportEl, $("#menuExport"));
     $$("#menuExport button").forEach(function (b) { b.onclick = function () { doExport(b.getAttribute("data-exp")); closeMenus(); }; });
     var histWrap = el("div"); histWrap.id = "exportHistWrap"; $("#menuExport").appendChild(histWrap);
     loadExportHistory(); renderExportHistory();
 
-    $("#btnImport").onclick = openDashboardPicker;
-    $("#btnSaveSpec").onclick = saveToCatalog;
+    // LF20 (dashbar declutter): Open/Save as…/Close are the least-frequently-reached
+    // actions in this row (you set them up once per session, not every edit) — drop
+    // them to icon-only (title/aria-label carry the meaning, same convention as
+    // Undo/Redo/Theme) so they read as a compact glyph instead of competing with Save/
+    // Export for attention. Save keeps its label (the single most-used action here).
+    var btnImportEl = $("#btnImport"); btnImportEl.textContent = ""; btnImportEl.appendChild(Studio.icon("folder", 16));
+    btnImportEl.onclick = openDashboardPicker;
+    var btnSaveSpecEl = $("#btnSaveSpec"); setIconBtn(btnSaveSpecEl, "save", "Save", 14);
+    btnSaveSpecEl.onclick = saveToCatalog;
     var btnSaveAsSpec = $("#btnSaveAsSpec");
-    if (btnSaveAsSpec) btnSaveAsSpec.onclick = function () { openSaveAsModal("manual"); };
-    $("#btnCloseStudio").onclick = closeStudio;
+    if (btnSaveAsSpec) {
+      btnSaveAsSpec.textContent = ""; btnSaveAsSpec.appendChild(Studio.icon("duplicate", 16));
+      btnSaveAsSpec.onclick = function () { openSaveAsModal("manual"); };
+    }
+    var btnCloseStudioEl = $("#btnCloseStudio"); btnCloseStudioEl.textContent = ""; btnCloseStudioEl.appendChild(Studio.icon("close", 16));
+    btnCloseStudioEl.onclick = closeStudio;
 
     // ? key → shortcuts modal (when not in a text field)
     document.addEventListener("keydown", function (e) {

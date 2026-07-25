@@ -7006,6 +7006,36 @@ function serve() {
     await page.evaluate(async () => { const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json()); window.__studioLoad(spec); });
     await page.waitForTimeout(200);
 
+    // ---- LF20: dashbar declutter — icon-only vs icon+label buttons, no wrap/overlap ----
+    console.log("\n• LF20: dashbar declutter (icon buttons, single-row layout)");
+    const lf20Btns = await page.evaluate(() => {
+      function info(id) {
+        var b = document.getElementById(id);
+        if (!b) return null;
+        var clone = b.cloneNode(true);
+        var svg = clone.querySelector("svg"); if (svg) svg.remove();
+        return { hasSvg: !!b.querySelector("svg"), visibleText: clone.textContent.trim(), hasAccessibleName: !!(b.getAttribute("title") || b.getAttribute("aria-label")) };
+      }
+      return { open: info("btnImport"), saveAs: info("btnSaveAsSpec"), close: info("btnCloseStudio"), save: info("btnSaveSpec"), exportBtn: info("btnExport") };
+    });
+    ok("LF20: Open is icon-only (no visible label text) with an accessible name", lf20Btns.open.hasSvg && lf20Btns.open.visibleText === "" && lf20Btns.open.hasAccessibleName, JSON.stringify(lf20Btns.open));
+    ok("LF20: Save as… is icon-only (no visible label text) with an accessible name", lf20Btns.saveAs.hasSvg && lf20Btns.saveAs.visibleText === "" && lf20Btns.saveAs.hasAccessibleName, JSON.stringify(lf20Btns.saveAs));
+    ok("LF20: Close is icon-only (no visible label text) with an accessible name", lf20Btns.close.hasSvg && lf20Btns.close.visibleText === "" && lf20Btns.close.hasAccessibleName, JSON.stringify(lf20Btns.close));
+    ok("LF20: Save keeps its icon + visible label (the most-used dashbar action)", lf20Btns.save.hasSvg && lf20Btns.save.visibleText === "Save", JSON.stringify(lf20Btns.save));
+    ok("LF20: Export ▾ keeps its icon + visible label (the dropdown needs the ▾ affordance)", lf20Btns.exportBtn.hasSvg && lf20Btns.exportBtn.visibleText === "Export ▾", JSON.stringify(lf20Btns.exportBtn));
+    // regression guard for a bug caught while building this slice: giving every dashbar
+    // button an icon+label (instead of icon-only for the rare ones) overflowed the row at
+    // 1500px, wrapping the title and pushing the inspector's search field over #btnTheme —
+    // a real click-blocking overlap, not cosmetic. #dash-id can still wrap onto two lines in
+    // this exact flow (pre-existing, unrelated to this slice) without ever blocking the click.
+    const lf20Layout = await page.evaluate(() => {
+      var btn = document.getElementById("btnTheme");
+      var btnR = btn.getBoundingClientRect();
+      var topEl = document.elementFromPoint(btnR.x + btnR.width / 2, btnR.y + btnR.height / 2);
+      return { themeReachable: !!(topEl && (topEl === btn || btn.contains(topEl))) };
+    });
+    ok("LF20: #btnTheme is not covered by the inspector — genuinely clickable, not just present in the DOM", lf20Layout.themeReachable, JSON.stringify(lf20Layout));
+
     // ---- builder dark mode (themes app + preview) ----
     console.log("\n• dark mode + export modal");
     await page.click("#btnTheme"); await page.waitForTimeout(250);
