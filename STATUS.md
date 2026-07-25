@@ -3414,6 +3414,19 @@
 >      call sites (`▾` dropdown carets, Explore's `‹ Back`/`⇄` compare arrow, the pagination
 >      `‹ Prev`/`Next ›` buttons, the demo-mode `● LIVE` badge, and the welcome-step letter icons)
 >      are each their own follow-up slice.
+>      ↳ **Slice 3 shipped (v534, sw v171, steward): Explore's back button + the Compare-
+>      dashboards arrow.** `#xpBackBtn` ("‹ Back to datasets") now hydrates via the existing
+>      `setIconBtn()` helper with the `chevron-left` icon (same pattern as `#inspBack`). The
+>      "Compare dashboards" modal's `.cmp-arrow` between the Left/Right dashboard pickers gets a
+>      new `swap` registry icon (two opposing horizontal arrows — distinct from `repoCompareBtn`'s
+>      `diff` icon, which only OPENS this picker) plus `aria-hidden="true"` (the two `<select>`s
+>      already carry their own `aria-label`s, so the glyph was purely decorative). Both call
+>      sites are builder-only chrome — neither touches `app/studio-charts.js` or anything bundled
+>      into an exported dashboard, so the export byte-identity invariant is untouched. 2 new
+>      regression checks. NEXT in this track: `▾` dropdown carets, the pagination `‹ Prev`/
+>      `Next ›` buttons (studio-charts.js — note these ARE bundled into exports, so that slice
+>      also needs `app/icons.js` added to the export asset bundle first), the demo-mode
+>      `● LIVE` badge, and the welcome-step letter icons are each their own follow-up slice.
 > UX7. ✓ **Mobile 44px touch targets — DONE (shipped 2026-07-23, steward).** The 400–640px band
 >      rendered `.btn` at ~28–32px (font-size 12px + 7px padding, no `min-height` at all — 44px
 >      only existed for `#topbar`/`#dashbar .btn` at ≤400px specifically); `.da-act`/`.chip` sat at

@@ -2317,6 +2317,14 @@ function serve() {
     });
     ok("XP: picking a dataset shows its rows as a table, the chart-type chips (incl. map + ensemble), and guessed column mappings",
       xpPicked.tableRows > 0 && xpPicked.cols > 0 && xpPicked.chips === 9 && xpPicked.mapSelects > 0, JSON.stringify(xpPicked));
+    // UX6 (icon migration, slice 3): the Explore editor's "‹ Back to datasets" button used to
+    // lead with a raw "‹" glyph -- now a themed Studio.icon SVG (chevron-left).
+    const xpBackIcon = await page.evaluate(function () {
+      var b = document.getElementById("xpBackBtn");
+      return b ? { hasSvg: !!b.querySelector("svg"), text: b.textContent } : { hasSvg: false, text: null };
+    });
+    ok("XP: 'Back to datasets' button uses a themed SVG icon, not the raw ‹ glyph",
+      xpBackIcon.hasSvg && xpBackIcon.text.indexOf("‹") === -1, JSON.stringify(xpBackIcon));
     // live preview = the REAL renderer in an iframe
     const xpPrev = await page.evaluate(function () {
       return new Promise(function (resolve) {
@@ -21244,6 +21252,15 @@ function serve() {
       };
     }, { a: cmpIdA, b: cmpIdB });
     ok("N-DATA: 'Compare dashboards' modal opens wide with two dashboard pickers", cmpUI.hasModal && cmpUI.pickerCount === 2 && cmpUI.isWide, JSON.stringify(cmpUI));
+    // UX6 (icon migration, slice 3): the picker row's "⇄" between Left/Right dashboard used to
+    // be a raw glyph -- now a themed Studio.icon SVG ("swap"), hidden from assistive tech since
+    // the two <select>s already carry their own aria-labels.
+    const cmpArrowIcon = await page.evaluate(function () {
+      var arrow = document.querySelector(".modal-ov .modal .cmp-arrow");
+      return arrow ? { hasSvg: !!arrow.querySelector("svg"), ariaHidden: arrow.getAttribute("aria-hidden"), text: arrow.textContent } : { hasSvg: false };
+    });
+    ok("N-DATA: Compare dashboards' picker-row arrow uses a themed SVG icon, not the raw ⇄ glyph",
+      cmpArrowIcon.hasSvg && cmpArrowIcon.ariaHidden === "true" && cmpArrowIcon.text.indexOf("⇄") === -1, JSON.stringify(cmpArrowIcon));
     // QA-05 (Frontend QA report 2026-07-24): the two native <select> pickers had no accessible
     // label at all — a screen-reader user couldn't tell which picker was which.
     const cmpPickA11y = await page.evaluate(function () {

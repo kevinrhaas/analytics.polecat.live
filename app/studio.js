@@ -1168,7 +1168,7 @@
         return "<tr>" + cols.map(function (_, i) { return "<td>" + esc(String(r[i] == null ? "" : r[i])) + "</td>"; }).join("") + "</tr>";
       }).join("");
       main =
-        '<div class="xp-editor-bar"><button type="button" class="btn xp-back-btn" id="xpBackBtn" title="Back to datasets">‹ Back to datasets</button></div>' +
+        '<div class="xp-editor-bar"><button type="button" class="btn xp-back-btn" id="xpBackBtn" title="Back to datasets"></button></div>' +
         '<div class="xp-step"><div class="xp-step-h">1 · The data' +
           '<span class="xp-badge' + (XP.run.live ? " live" : "") + '">' + (XP.run.live ? "live rows" : "sample rows") + "</span>" +
           (XP.run.error ? '<span class="xp-badge warn" title="' + esc(XP.run.error) + '">live run failed</span>' : "") +
@@ -1213,7 +1213,7 @@
       openDatasetEditor(null, function (d) { xpSelectDataset("ws", d.id); });
     };
     var xpBackBtn = $("#xpBackBtn", body);
-    if (xpBackBtn) xpBackBtn.onclick = function () { xpCloseToList(); };
+    if (xpBackBtn) { setIconBtn(xpBackBtn, "chevron-left", "Back to datasets"); xpBackBtn.onclick = function () { xpCloseToList(); }; }
     $$("[data-xp-type]", body).forEach(function (btn) {
       btn.onclick = function () { XP.type = btn.getAttribute("data-xp-type"); xpGuessMapping(); renderExplore(); xpPreview(); };
     });
@@ -5798,7 +5798,7 @@
         return sel;
       }
       var selA = pickerFor(0, "Left dashboard"), selB = pickerFor(1, "Right dashboard");
-      var arrow = el("span", "cmp-arrow"); arrow.textContent = "⇄";
+      var arrow = el("span", "cmp-arrow"); arrow.setAttribute("aria-hidden", "true"); arrow.appendChild(Studio.icon("swap", 16));
       row.appendChild(selA); row.appendChild(arrow); row.appendChild(selB);
       body.appendChild(row);
       var pvRow = el("div", "cmp-preview-row");

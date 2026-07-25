@@ -125,7 +125,10 @@
     more: '<circle cx="5" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.6" fill="currentColor" stroke="none"/>',
     // UX6 (icon migration, slice 2): stacked rows for "List view" — pairs with the
     // existing "grid" icon (four squares) for "Tile view" on the same toggle button.
-    list: '<circle cx="4" cy="6" r="1.3" fill="currentColor" stroke="none"/><line x1="8" y1="6" x2="21" y2="6" stroke-linecap="round"/><circle cx="4" cy="12" r="1.3" fill="currentColor" stroke="none"/><line x1="8" y1="12" x2="21" y2="12" stroke-linecap="round"/><circle cx="4" cy="18" r="1.3" fill="currentColor" stroke="none"/><line x1="8" y1="18" x2="21" y2="18" stroke-linecap="round"/>'
+    list: '<circle cx="4" cy="6" r="1.3" fill="currentColor" stroke="none"/><line x1="8" y1="6" x2="21" y2="6" stroke-linecap="round"/><circle cx="4" cy="12" r="1.3" fill="currentColor" stroke="none"/><line x1="8" y1="12" x2="21" y2="12" stroke-linecap="round"/><circle cx="4" cy="18" r="1.3" fill="currentColor" stroke="none"/><line x1="8" y1="18" x2="21" y2="18" stroke-linecap="round"/>',
+    // UX6 (icon migration, slice 3): two opposing horizontal arrows for "compare A ⇄ B" —
+    // distinct from "diff"'s two-page stack (repoCompareBtn, which OPENS this picker).
+    swap: '<polyline points="7 4 3 8 7 12" stroke-linecap="round" stroke-linejoin="round"/><line x1="3" y1="8" x2="21" y2="8" stroke-linecap="round"/><polyline points="17 12 21 16 17 20" stroke-linecap="round" stroke-linejoin="round"/><line x1="21" y1="16" x2="3" y2="16" stroke-linecap="round"/>'
   };
 
   Studio.icon = function (name, size) {
