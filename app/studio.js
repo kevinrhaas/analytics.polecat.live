@@ -3515,23 +3515,29 @@
     });
     durSlider.addEventListener("change", function () { refreshPreview(); });
 
-    // Downloads (LF6): on-panel "Download image"/"Download data" chrome, on by default. The
-    // buttons themselves live in app/studio-render.js (not here) so the SAME code renders them in
-    // both the preview iframe and the exported/embedded HTML — this is just the per-panel toggle.
+    // Downloads (LF6, LF25a): on-panel "Download image"/"Download data"/"Export HTML" chrome,
+    // on by default, independently toggleable per type. The buttons themselves live in
+    // app/studio-render.js (not here) so the SAME code renders them in both the preview iframe
+    // and the exported/embedded HTML — this is just the per-panel toggles. A panel saved before
+    // LF25a carries only the old p.allowDownloads switch; dlTypeShown() in studio-render.js falls
+    // back to it when a per-type key is unset, so existing dashboards keep their old behavior.
     var dlSec = section(body, "Downloads");
-    var dlRow = el("div"); dlRow.style.cssText = "display:flex;align-items:center;gap:6px";
-    var dlCb = el("input"); dlCb.type = "checkbox"; dlCb.id = "dlCb_" + p.id;
-    dlCb.checked = p.allowDownloads !== false;
-    var dlLbl = el("label"); dlLbl.htmlFor = dlCb.id;
-    dlLbl.className = "check"; dlLbl.style.cssText = "gap:6px;font-size:12px";
-    dlLbl.appendChild(dlCb); dlLbl.appendChild(document.createTextNode("Allow downloads"));
-    dlRow.appendChild(dlLbl);
-    dlSec.appendChild(dlRow);
-    dlSec.appendChild(noteEl("info", "Shows a small download-image / download-data affordance on the panel itself (on hover), in both the builder and the published dashboard. Turn off for panels that shouldn't be exportable."));
-    dlCb.addEventListener("change", function () {
-      p.allowDownloads = dlCb.checked ? undefined : false;
-      refreshPreview();
+    [["dlPng", "Download PNG"], ["dlCsv", "Download CSV"], ["dlEmbed", "Export as HTML"]].forEach(function (dt) {
+      var key = dt[0], label = dt[1];
+      var dlRow = el("div"); dlRow.style.cssText = "display:flex;align-items:center;gap:6px";
+      var dlCb = el("input"); dlCb.type = "checkbox"; dlCb.id = "dlCb_" + key + "_" + p.id;
+      dlCb.checked = p[key] === false ? false : (p[key] === true ? true : p.allowDownloads !== false);
+      var dlLbl = el("label"); dlLbl.htmlFor = dlCb.id;
+      dlLbl.className = "check"; dlLbl.style.cssText = "gap:6px;font-size:12px";
+      dlLbl.appendChild(dlCb); dlLbl.appendChild(document.createTextNode(label));
+      dlRow.appendChild(dlLbl);
+      dlSec.appendChild(dlRow);
+      dlCb.addEventListener("change", function () {
+        p[key] = dlCb.checked ? true : false;
+        refreshPreview();
+      });
     });
+    dlSec.appendChild(noteEl("info", "Shows a small download-image / download-data / export-as-HTML affordance on the panel itself (on hover). Export-as-HTML is builder-only (never appears in the published dashboard itself). Turn any off for panels that shouldn't be exportable that way."));
 
     // Target line: horizontal dashed reference marker overlaid on any chart.
     // Positioned as a % from the top of the chart body (0=top, 100=bottom).
@@ -9680,6 +9686,8 @@
       duplicatePanel(d.id);
     } else if (d.type === "panel-delete") {
       deletePanel(d.id);
+    } else if (d.type === "panel-export-embed") {
+      var epPanel = panelById(d.id); if (epPanel) exportPanelEmbed(epPanel);
     } else if (d.type === "zoom") {
       openPanelZoom(d.panelId);
     } else if (d.type === "viewport") {

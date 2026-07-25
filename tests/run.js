@@ -7967,8 +7967,27 @@ function serve() {
       var btns = card ? [].slice.call(card.querySelectorAll(".pdc-dl-act")) : [];
       return { count: btns.length, titles: btns.map(function (b) { return b.title; }) };
     }, dlBars.id);
-    ok("LF6: a bars panel gets both a 'Download image' and 'Download data' chrome button, on by default",
-      dlBtns.count === 2 && /PNG/.test(dlBtns.titles.join()) && /CSV/.test(dlBtns.titles.join()), JSON.stringify(dlBtns));
+    ok("LF6/LF25a: a bars panel in the preview gets 'Download image', 'Download data', AND 'Export as HTML' chrome buttons, all on by default",
+      dlBtns.count === 3 && /PNG/.test(dlBtns.titles.join()) && /CSV/.test(dlBtns.titles.join()) && /standalone HTML/.test(dlBtns.titles.join()),
+      JSON.stringify(dlBtns));
+
+    // LF25a: the on-panel "Export as HTML" button is preview/builder-only chrome — clicking it
+    // posts panel-export-embed to the parent, which opens the SAME "Embed widget" modal as the
+    // Inspector's own "Export this panel…" action (one mechanism, two entry points).
+    const dlEmbedClick = await pvDl.evaluate(function (panelId) {
+      var card = document.querySelector('[data-panel-id="' + panelId + '"]');
+      var btn = card ? [].slice.call(card.querySelectorAll(".pdc-dl-act")).filter(function (b) { return /standalone HTML/.test(b.title); })[0] : null;
+      if (!btn) return { found: false };
+      btn.click();
+      return { found: true };
+    }, dlBars.id);
+    await page.waitForTimeout(250);
+    const dlEmbedModal = await page.evaluate(function () {
+      return { title: document.querySelector(".modal-h") ? document.querySelector(".modal-h").textContent : "" };
+    });
+    await page.evaluate(() => { document.querySelectorAll(".modal-ov").forEach((m) => m.remove()); });
+    ok("LF25a: clicking the on-panel 'Export as HTML' button opens the 'Embed widget' modal",
+      dlEmbedClick.found && /Embed widget/.test(dlEmbedModal.title), JSON.stringify({ dlEmbedClick, dlEmbedModal }));
     const dlPng = await pvDl.evaluate(function (panelId) {
       return new Promise(function (resolve) { window.__downloadPanelPngDataUrl(panelId, resolve); });
     }, dlBars.id);
@@ -7996,26 +8015,33 @@ function serve() {
     const dlTableBtns = await pvDl2.evaluate(function (panelId) {
       var card = document.querySelector('[data-panel-id="' + panelId + '"]');
       var btns = card ? [].slice.call(card.querySelectorAll(".pdc-dl-act")) : [];
-      return { count: btns.length, hasImg: btns.some(function (b) { return /image/.test(b.title); }), hasData: btns.some(function (b) { return /CSV/.test(b.title); }) };
+      return { count: btns.length, hasImg: btns.some(function (b) { return /image/.test(b.title); }), hasData: btns.some(function (b) { return /CSV/.test(b.title); }), hasEmbed: btns.some(function (b) { return /standalone HTML/.test(b.title); }) };
     }, dlTableChrome.id);
-    ok("LF6: a Table panel (no <svg>) shows only the data-download chrome button, not image",
-      dlTableBtns.count === 1 && !dlTableBtns.hasImg && dlTableBtns.hasData, JSON.stringify(dlTableBtns));
+    ok("LF6/LF25a: a Table panel (no <svg>) shows the data-download + export-as-HTML chrome buttons, not image",
+      dlTableBtns.count === 2 && !dlTableBtns.hasImg && dlTableBtns.hasData && dlTableBtns.hasEmbed, JSON.stringify(dlTableBtns));
 
-    // Inspector: "Allow downloads" toggle is present, on by default, and turning it off removes
-    // the chrome for that panel entirely (both buttons, not just one).
+    // Inspector: independent Download PNG / Download CSV / Export as HTML toggles (LF25a split the
+    // old single "Allow downloads" switch into three), all present + on by default.
     const dlInspector = await page.evaluate(function () {
       var sp = window.__STUDIO_STATE.spec;
       var p = sp.panels[0]; p.chart.type = "bars"; p.allowDownloads = undefined;
+      delete p.dlPng; delete p.dlCsv; delete p.dlEmbed;
       window.__studioLoad(sp);
       window.__studioSelect({ kind: "panel", id: p.id });
       var insp = document.getElementById("inspBody") || document.getElementById("inspector");
-      var cb = [].slice.call(insp.querySelectorAll("input[type=checkbox]")).filter(function (c) {
-        return c.parentNode && /Allow downloads/.test(c.parentNode.textContent);
-      })[0];
-      return { id: p.id, present: !!cb, checkedByDefault: cb ? cb.checked : null };
+      var cbs = [].slice.call(insp.querySelectorAll("input[type=checkbox]"));
+      function find(label) { return cbs.filter(function (c) { return c.parentNode && new RegExp(label).test(c.parentNode.textContent); })[0]; }
+      var png = find("Download PNG"), csv = find("Download CSV"), embed = find("Export as HTML");
+      return {
+        id: p.id, present: !!png && !!csv && !!embed,
+        allChecked: !!(png && png.checked && csv && csv.checked && embed && embed.checked)
+      };
     });
-    ok("LF6: the Inspector's 'Allow downloads' toggle is present and on by default",
-      dlInspector.present && dlInspector.checkedByDefault === true, JSON.stringify(dlInspector));
+    ok("LF25a: the Inspector shows independent Download PNG / Download CSV / Export as HTML toggles, all on by default",
+      dlInspector.present && dlInspector.allChecked, JSON.stringify(dlInspector));
+
+    // Legacy back-compat: a panel saved before LF25a only ever carried p.allowDownloads — turning
+    // that off (with no per-type keys set) must still remove ALL THREE chrome buttons.
     await page.evaluate(function () {
       var sp = window.__STUDIO_STATE.spec;
       sp.panels[0].allowDownloads = false;
@@ -8027,12 +8053,34 @@ function serve() {
       var card = document.querySelector('[data-panel-id="' + panelId + '"]');
       return card ? card.querySelectorAll(".pdc-dl-act").length : -1;
     }, dlInspector.id);
-    ok("LF6: p.allowDownloads:false (the Inspector toggle, switched off) removes the chrome entirely",
+    ok("LF6: legacy p.allowDownloads:false (no per-type keys) removes the chrome entirely",
       dlOffCount === 0, JSON.stringify({ dlOffCount }));
+
+    // LF25a: an explicit per-type override wins over the legacy allowDownloads:false fallback —
+    // proves the new granular toggles actually decouple the three affordances.
+    await page.evaluate(function () {
+      var sp = window.__STUDIO_STATE.spec;
+      sp.panels[0].dlCsv = true;
+      window.__studioLoad(sp);
+    });
+    await page.waitForTimeout(300);
+    const pvDl4 = page.frames().find((f) => f !== page.mainFrame());
+    const dlOverride = await pvDl4.evaluate(function (panelId) {
+      var card = document.querySelector('[data-panel-id="' + panelId + '"]');
+      var btns = card ? [].slice.call(card.querySelectorAll(".pdc-dl-act")) : [];
+      return { count: btns.length, hasData: btns.some(function (b) { return /CSV/.test(b.title); }) };
+    }, dlInspector.id);
+    ok("LF25a: p.dlCsv:true overrides a legacy allowDownloads:false, showing ONLY the CSV button",
+      dlOverride.count === 1 && dlOverride.hasData, JSON.stringify(dlOverride));
+    // Restore before the shared exported-bundle check below.
+    await page.evaluate(function () { delete window.__STUDIO_STATE.spec.panels[0].dlCsv; });
 
     // Regression: the chrome must render in a REAL exported/standalone bundle too, not just the
     // builder's preview iframe — studio-render.js is the ONLY shared code path (see this file's
-    // header), so proving it live here is the actual "export==preview invariant" evidence.
+    // header), so proving it live here is the actual "export==preview invariant" evidence. Built
+    // with preview:true (same convention as the Z7AGG bundle regression above — a bare preview:
+    // false export has no mock feed to answer the data queries), so the embed button is expected
+    // here too (it's gated on isPreview(), which preview:true bundles carry).
     const dlBundleHtml = await page.evaluate(async function () {
       var spec = await fetch("data/examples/studio-cost.studio.json").then(function (r) { return r.json(); });
       var p = spec.panels[0];
@@ -8052,18 +8100,29 @@ function serve() {
         var card = document.querySelector('[data-panel-id="' + panelId + '"]');
         var btns = card ? [].slice.call(card.querySelectorAll(".pdc-dl-act")) : [];
         window.__downloadPanelPngDataUrl(panelId, function (dataUrl) {
-          resolve({ count: btns.length, dataUrl: dataUrl });
+          resolve({ count: btns.length, hasEmbed: btns.some(function (b) { return /standalone HTML/.test(b.title); }), dataUrl: dataUrl });
         });
       });
     }, dlBundleHtml.panelId);
     await dlBundlePage.close();
-    ok("LF6: a real exported/standalone bundle (not just the builder's preview iframe) also renders both download chrome buttons and produces a real PNG, zero console/page errors",
-      dlBundleErrors.length === 0 && dlBundleChrome.count === 2 &&
+    ok("LF6/LF25a: a real exported/standalone (preview:true) bundle also renders all three chrome buttons and produces a real PNG, zero console/page errors",
+      dlBundleErrors.length === 0 && dlBundleChrome.count === 3 && dlBundleChrome.hasEmbed &&
       !!dlBundleChrome.dataUrl && dlBundleChrome.dataUrl.indexOf("data:image/png;base64,") === 0,
       JSON.stringify({ errors: dlBundleErrors, chrome: dlBundleChrome && { count: dlBundleChrome.count } }));
 
+    // LF25a: a GENUINELY published dashboard (preview:false, the real "download .html"/deploy
+    // path) must never carry window.STUDIO_PREVIEW — the only signal addDownloadChrome's
+    // isPreview() gate reads — so the builder-only "Export as HTML" button can never leak into
+    // a real published/embedded dashboard, only PNG/CSV do.
+    const realExportBoot = await page.evaluate(function () {
+      var sp = window.__STUDIO_STATE.spec;
+      return Studio.buildHtml(sp, window.__STUDIO_STATE.assets, { preview: false });
+    });
+    ok("LF25a: a real (preview:false) export's boot script never sets window.STUDIO_PREVIEW=true (only the shared isPreview() function DEFINITION, always inlined, mentions the name)",
+      realExportBoot.indexOf("STUDIO_PREVIEW=true") < 0, JSON.stringify({ len: realExportBoot.length }));
+
     // Restore the panel + reload so later tests aren't affected by this block's mutations.
-    await page.evaluate(() => { var sp = window.__STUDIO_STATE.spec; sp.panels.forEach(function (p) { delete p.allowDownloads; }); window.__studioLoad(sp); });
+    await page.evaluate(() => { var sp = window.__STUDIO_STATE.spec; sp.panels.forEach(function (p) { delete p.allowDownloads; delete p.dlPng; delete p.dlCsv; delete p.dlEmbed; }); window.__studioLoad(sp); });
     await page.waitForTimeout(150);
 
     // ---- KPI extras: delta + sparkline + delete-from-canvas ----

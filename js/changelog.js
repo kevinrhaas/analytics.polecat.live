@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 548,
+    title: 'Export a widget as HTML, right on the canvas',
+    kind: 'feature',
+    ts: '2026-07-25T19:39:33.000Z',
+    items: [
+      'LF25: every widget can now export itself as a standalone HTML file straight from the canvas -- hover a widget in the builder and a new icon joins the Download image / Download data buttons, opening the same self-contained "Embed widget" file the inspector\'s "Export this panel..." action already made.',
+      'Download image, Download data, and Export as HTML are now three independent per-widget toggles in the inspector\'s Downloads section (previously one combined "Allow downloads" switch) -- turn any off on its own.',
+    ],
+  },
+  {
     v: 547,
     title: 'A chart-type gallery on the homepage',
     kind: 'feature',
