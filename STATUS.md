@@ -116,6 +116,23 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF19 slice 2 — every Data-panel group header gains its own glyph (v553, sw v190, 2026-07-25,
+  steward):** continuing LF19's "clearer section grouping/ordering with icons + short labels" ask.
+  The 5 top-level library groups (This dashboard's datasets, Workspace datasets, Analyses, Sample
+  packs, Samples) all rendered the same bare `▶ Name (count)` header, so the panel read as five
+  same-looking text rows with no visual cue for "what kind of thing is this." New shared
+  `libGroupHeaderIcon(h, name)` helper inserts a 13px `Studio.icon()` glyph into a header right
+  before its `.nm` name span (car, then icon, then name — the header's existing flex gap does the
+  spacing, no new layout code): a cube for This dashboard's own datasets, a database cylinder for
+  the shared Workspace catalog, a trend line for saved Analyses, stacked layers for Sample packs,
+  and a code bracket for the built-in Samples. Every glyph renders via `stroke:currentColor`, so it
+  automatically matches that header's own ink color (brand/faint/muted) in both themes, with no new
+  color tokens. New `.grp-ic{opacity:.8}` CSS rule (`app/studio.css`). 3 new regression tests (all
+  5 groups render a distinct glyph, each glyph sits immediately before its group's name span, the 5
+  glyphs are visually distinct SVGs rather than one icon repeated). `docs/index.html` updated. sw
+  cache → v190. NEXT in LF19: tidying the search + New affordances, reducing chrome density overall,
+  then the same organize-and-simplify pass on the right Inspector panel. (app/studio.js,
+  app/studio.css, docs/index.html, sw.js, js/changelog.js, tests/run.js)
 - **LF19 slice 1 — Data panel groups collapse once they get long (v552, sw v189, 2026-07-25,
   steward):** the Studio library's "This dashboard's datasets" and "Sample packs" groups used to
   hardcode the `open` CSS class, so they always rendered wide open regardless of how many cards
@@ -3756,10 +3773,11 @@
 >       dashboard's datasets" + "Sample packs."** Both groups now default to collapsed once they hold
 >       more than 6 cards (shared `libGroupOpen`/`libGroupPersist` helpers, same remember-the-choice
 >       pattern the CDA "Samples" group already used) instead of always forcing wide open; an explicit
->       toggle always wins over that default from then on. NEXT in LF19: clearer section
->       grouping/ordering with icons + short labels, tidying the search + New affordances, reducing
->       chrome density overall, then the same organize-and-simplify pass on the right Inspector panel
->       — all still open, still to be sliced one coherent PR at a time.
+>       toggle always wins over that default from then on.
+>       ✓ **Slice 2 shipped (v553, sw v190, 2026-07-25, steward): header glyphs for every top-level
+>       group.** See DONE for the full writeup. NEXT in LF19: tidying the search + New affordances,
+>       reducing chrome density overall, then the same organize-and-simplify pass on the right
+>       Inspector panel — all still open, still to be sliced one coherent PR at a time.
 > LF18. **Home ("Welcome back") overhaul — richer entry points, default featured, tour chooser.** The Home
 >       landing should orient a returning user with descriptive quick-actions, not three bare cards:
 >       (a) QUICK-ACTIONS reworded to concrete jobs — "Explore curated datasets", "Build a dashboard from
