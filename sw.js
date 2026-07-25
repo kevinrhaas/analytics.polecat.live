@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v160"; /* v160: QA-06 — the restore-unsaved-work banner now reserves
+var CACHE_NAME = "studio-shell-v161"; /* v161: QA-04 slice 2 — duplicate-named dashboards/analyses/
+   datasets/connections/jobs are now distinguishable in the Compare dashboards pickers, the "Open a
+   dashboard"/"Add to which dashboard?" pickers, and Repository without opening each one — a shared
+   disambiguateLabels() helper in app/studio.js appends a short id suffix only to rows whose visible
+   label still collides with another row's. No new precached files, but app/studio.js content
+   changed, so precached copies need to roll.
+   v160: QA-06 — the restore-unsaved-work banner now reserves
    layout space instead of floating over other sections' controls. No new precached files, but
    app/studio.js and app/studio.css content changed, so precached copies need to roll.
    v159: QA-05 — icon-only action buttons (Explore's saved-

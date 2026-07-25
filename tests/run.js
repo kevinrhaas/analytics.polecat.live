@@ -20905,6 +20905,34 @@ function serve() {
       /different dashboards/.test(cmpSameDash.note), JSON.stringify(cmpSameDash));
     await page.evaluate(function () { var ov = document.querySelector(".modal-ov"); if (ov) ov.remove(); });
 
+    // QA-04 slice 2 (FRONTEND_QA_REPORT_2026-07-24.md): a third dashboard sharing
+    // Compare Dash A's exact title used to render an indistinguishable duplicate
+    // <option> in both pickers.
+    const cmpDup = await page.evaluate(function (ids) {
+      Studio.Workspace.put("dashboards", { id: ids.c, ts: new Date().toISOString(),
+        spec: { id: ids.c, title: "Compare Dash A", panels: [], kpis: [], filters: [], cda: { connections: [], dataAccesses: [] } } });
+      window.__studioOpenCompareDashboards();
+      var sel = document.querySelector(".modal-ov .modal .cmp-pick");
+      var opts = Array.from(sel.options).map(function (o) { return o.textContent; }).filter(function (t) { return /^Compare Dash A/.test(t); });
+      return { opts: opts, unique: opts.length === new Set(opts).size };
+    }, { c: "cmp-test-c" });
+    ok("QA-04 slice 2: two dashboards sharing the same title get distinguishable options in the Compare dashboards pickers",
+      cmpDup.opts.length === 2 && cmpDup.unique && cmpDup.opts.every(function (t) { return /^Compare Dash A( · #\S+)?$/.test(t); }),
+      JSON.stringify(cmpDup));
+    await page.evaluate(function () { var ov = document.querySelector(".modal-ov"); if (ov) ov.remove(); });
+
+    // Same collision, same fix, in the global "Open a dashboard" picker (btnImport / New ▾ "Open…").
+    const odpDup = await page.evaluate(function () {
+      window.__studioOpenDashboardPicker();
+      var rows = [].slice.call(document.querySelectorAll(".modal .odp-row"));
+      var labels = rows.map(function (r) { return r.querySelector("b").textContent; }).filter(function (t) { return /^Compare Dash A/.test(t); });
+      return { labels: labels, unique: labels.length === new Set(labels).size };
+    });
+    ok("QA-04 slice 2: two dashboards sharing the same title get distinguishable rows in the 'Open a dashboard' picker",
+      odpDup.labels.length === 2 && odpDup.unique && odpDup.labels.every(function (t) { return /^Compare Dash A( · #\S+)?$/.test(t); }),
+      JSON.stringify(odpDup));
+    await page.evaluate(function () { var ov = document.querySelector(".modal-ov"); if (ov) ov.remove(); Studio.Workspace.remove("dashboards", "cmp-test-c", { silent: true }); });
+
     const cmpTooFew = await page.evaluate(function () {
       window.__studioSeedDashboards([]);
       window.__studioOpenCompareDashboards();
@@ -24356,6 +24384,34 @@ function serve() {
     ok("Repository: dropping a row back onto the folder group it's already in is a genuine no-op (no redundant write)",
       repoDragNoopSameFolder.updatedAfter === repoDragNoopSameFolder.updatedBefore, JSON.stringify(repoDragNoopSameFolder));
 
+    // QA-04 slice 2 (FRONTEND_QA_REPORT_2026-07-24.md): two objects of the SAME
+    // type sharing the same visible title — the report's concrete repro was two
+    // "State Map" analyses — were indistinguishable in Repository. A second
+    // analysis named exactly like the existing "Repo Test Analysis" row should
+    // now render with a distinguishing suffix on both, while an unrelated
+    // dataset that happens to share the SAME string as a differently-typed row
+    // is left alone (title collisions only matter within the same type).
+    const repoDupTitles = await repoPage.evaluate(function () {
+      Studio.Workspace.put("analyses", { id: "repo-an2", name: "Repo Test Analysis", chartType: "bars", datasetId: "repo-ds", updatedAt: 7, da: { columns: [] } });
+      window.__studioRenderRepository();
+      var an1 = document.querySelector('.cx-row[data-repo-id="repo-an"] .cx-title-btn b');
+      var an2 = document.querySelector('.cx-row[data-repo-id="repo-an2"] .cx-title-btn b');
+      return { an1: an1 ? an1.textContent : null, an2: an2 ? an2.textContent : null };
+    });
+    ok("QA-04 slice 2: two analyses sharing the same name get distinguishable titles in Repository",
+      repoDupTitles.an1 && repoDupTitles.an2 && repoDupTitles.an1 !== repoDupTitles.an2 &&
+      /^Repo Test Analysis( · #\S+)?$/.test(repoDupTitles.an1) && /^Repo Test Analysis( · #\S+)?$/.test(repoDupTitles.an2),
+      JSON.stringify(repoDupTitles));
+
+    const repoNoFalseDup = await repoPage.evaluate(function () {
+      var ds = document.querySelector('.cx-row[data-repo-id="repo-ds"] .cx-title-btn b');
+      return { dsTitle: ds ? ds.textContent : null };
+    });
+    ok("QA-04 slice 2: an object of a DIFFERENT type is never suffixed just because a same-string title exists elsewhere",
+      repoNoFalseDup.dsTitle === "repo_test_dataset", JSON.stringify(repoNoFalseDup));
+
+    await repoPage.evaluate(function () { Studio.Workspace.remove("analyses", "repo-an2", { silent: true }); window.__studioRenderRepository(); });
+
     await repoPage.close();
 
     // ---- LF11: Explore's "Add to dashboard" is unambiguous (new vs existing) ----
@@ -24435,6 +24491,24 @@ function serve() {
       lf11Existing.modalClosed && lf11Existing.specId === "lf11-dash-existing" && lf11Existing.panelCount === 2 &&
       lf11Existing.panelTypes.indexOf("kpi") >= 0 && lf11Existing.panelTypes.indexOf("bars") >= 0 && lf11Existing.studioVisible,
       JSON.stringify(lf11Existing));
+
+    // QA-04 slice 2 (FRONTEND_QA_REPORT_2026-07-24.md): a second dashboard sharing
+    // "LF11 Existing Dash"'s exact title used to render an indistinguishable
+    // duplicate row in this same picker.
+    const lf11Dup = await lf11Page.evaluate(function () {
+      Studio.Workspace.put("dashboards", {
+        id: "lf11-dash-existing-dup", ts: new Date(4000).toISOString(), title: "LF11 Existing Dash", name: "lf11-existing-dash-dup",
+        spec: { id: "lf11-dash-existing-dup", title: "LF11 Existing Dash", name: "lf11-existing-dash-dup", panels: [], kpis: [], filters: [] }
+      });
+      window.__studioOpenAddToExistingDashboardPicker("lf11-an");
+      var rows = [].slice.call(document.querySelectorAll(".modal .odp-row"));
+      var labels = rows.map(function (r) { return r.querySelector("b").textContent; }).filter(function (t) { return /^LF11 Existing Dash/.test(t); });
+      return { labels: labels, unique: labels.length === new Set(labels).size };
+    });
+    ok("QA-04 slice 2: two dashboards sharing the same title get distinguishable rows in the 'Add to which dashboard?' picker",
+      lf11Dup.labels.length === 2 && lf11Dup.unique && lf11Dup.labels.every(function (t) { return /^LF11 Existing Dash( · #\S+)?$/.test(t); }),
+      JSON.stringify(lf11Dup));
+    await lf11Page.evaluate(function () { var ov = document.querySelector(".modal-ov"); if (ov) ov.remove(); });
 
     await lf11Page.close();
 

@@ -995,11 +995,13 @@
           return ((sp.title || "") + " " + (sp.name || "")).toLowerCase().indexOf(q) >= 0;
         });
         listWrap.innerHTML = list.length ? "" : '<div class="odp-empty">' + (q ? "No dashboards match." : "Nothing saved yet — save a dashboard first, or add to a new one instead.") + '</div>';
+        var titleOf = function (r) { var sp = r.spec || {}; return sp.title || sp.name || "Untitled"; };
+        var labels = disambiguateLabels(list, titleOf);
         list.forEach(function (r) {
           var sp = r.spec || {};
           var row = el("button", "odp-row"); row.type = "button";
           var panels = (sp.panels || []).length;
-          row.innerHTML = '<b>' + esc(sp.title || sp.name || "Untitled") + '</b>' +
+          row.innerHTML = '<b>' + esc(labels[r.id]) + '</b>' +
             '<small>' + esc(sp.name || "") + " · " + panels + " panel" + (panels === 1 ? "" : "s") +
             (r.ts ? " · " + new Date(r.ts).toLocaleDateString() : "") + '</small>';
           row.onclick = function () { closeAllModals(); openRecent(r.id); xpAddAnalysisToSpec(analysisId); };
@@ -5414,6 +5416,28 @@
     spec.title = uniqueDashboardTitle(spec.title);
     return spec;
   }
+  // QA-04 slice 2: slice 1 stops NEW duplicate titles from being written, but every
+  // object type is still user-named (and dashboards saved before that slice already
+  // exist), so a picker can still show two rows with the identical visible label —
+  // the frontend QA report's concrete cases were two "Untitled Dashboard" entries and
+  // two "State Map" analyses. Rather than give every picker its own bespoke collision
+  // check, callers hand over the full list plus the same key/display text they'd
+  // already render; only rows whose KEY actually collides within THIS list get a
+  // short, stable id suffix appended to their DISPLAY text, so the common (no
+  // duplicate) case renders exactly as before. `id` doubles as both the map key and
+  // the source of the suffix, so every row type this is used on (dashboards,
+  // analyses, datasets, connections, jobs) just needs a stable `.id`.
+  function disambiguateLabels(rows, keyFn, displayFn) {
+    displayFn = displayFn || keyFn;
+    var keys = rows.map(keyFn), counts = {};
+    keys.forEach(function (k) { counts[k] = (counts[k] || 0) + 1; });
+    var out = {};
+    rows.forEach(function (r, i) {
+      var d = displayFn(r);
+      out[r.id] = counts[keys[i]] > 1 ? (d + " · #" + String(r.id).slice(-6)) : d;
+    });
+    return out;
+  }
   // Pins are derived from row flags (newest pin first — the historical
   // `pins.unshift` ordering, preserved via pinnedAt).
   function loadPins() {
@@ -5771,12 +5795,13 @@
     modal("Compare dashboards", function (body) {
       body.appendChild(hint("Pick any two saved dashboards to see a live side-by-side preview and a plain-English summary of what differs between them."));
       var row = el("div", "cmp-pick-row");
+      var cmpLabels = disambiguateLabels(list, function (r) { return (r.spec && (r.spec.title || r.spec.name)) || r.id; });
       function pickerFor(defaultIdx, label) {
         var sel = document.createElement("select"); sel.className = "cmp-pick";
         sel.setAttribute("aria-label", label);
         list.forEach(function (r, i) {
           var opt = document.createElement("option");
-          opt.value = r.id; opt.textContent = (r.spec && (r.spec.title || r.spec.name)) || r.id;
+          opt.value = r.id; opt.textContent = cmpLabels[r.id];
           if (i === defaultIdx) opt.selected = true;
           sel.appendChild(opt);
         });
@@ -8034,6 +8059,11 @@
       if (!q) return true;
       return (r.title + " " + r.meta + " " + r.folder).toLowerCase().indexOf(q) >= 0;
     }).sort(function (a, b) { return b.ts - a.ts; });
+    // QA-04 slice 2: two rows of the SAME type sharing a title (the report's concrete
+    // case was two "State Map" analyses) are indistinguishable at a glance — collide
+    // on type+title (a same-named dataset and analysis aren't the reported ambiguity,
+    // and their meta text already differs), disambiguate the displayed title itself.
+    var repoLabels = disambiguateLabels(filtered, function (r) { return r.type + " " + r.title; }, function (r) { return r.title; });
     var chipDefs = [{ id: "", name: "All", n: counts.all }]
       .concat(REPO_TYPES.map(function (t) { return { id: t.key, name: t.label, n: counts[t.key] || 0 }; }));
     var chipsHtml = '<div class="wb-chips">' + chipDefs.map(function (c) {
@@ -8101,12 +8131,13 @@
       // desktop-mouse-only convenience layered on TOP of the folder text field (with
       // its autocomplete), which stays the primary, fully mobile-capable way to file
       // something — no touch/keyboard equivalent is offered here on purpose.
+      var label = repoLabels[r.id];
       return '<div class="cx-row" data-repo-id="' + esc(r.id) + '" data-repo-type="' + esc(r.type) + '"' + (canQuickEdit ? ' draggable="true"' : '') + '>' +
         '<span class="cx-ic" style="color:var(--faint)"></span>' +
-        '<span class="cx-name"><button type="button" class="cx-title-btn" aria-label="Open ' + esc(r.title) + '"><b>' + esc(r.title) + '</b></button><small>' + esc((td ? td.singular : r.type) + " · " + r.meta) + '</small></span>' +
+        '<span class="cx-name"><button type="button" class="cx-title-btn" aria-label="Open ' + esc(label) + '"><b>' + esc(label) + '</b></button><small>' + esc((td ? td.singular : r.type) + " · " + r.meta) + '</small></span>' +
         (r.folder ? '<span class="cx-badge cx-folder" title="Folder: ' + esc(r.folder) + '">' + esc(r.folder) + '</span>' : "") +
         '<span class="cx-when">' + (r.ts ? esc(new Date(r.ts).toLocaleDateString()) : "") + '</span>' +
-        (canQuickEdit ? '<span class="cx-actions"><button type="button" class="repo-edit" data-repo-edit-type="' + esc(r.type) + '" data-repo-edit-id="' + esc(r.id) + '" title="Quick edit" aria-label="Quick edit ' + esc(r.title) + '"></button></span>' : "") +
+        (canQuickEdit ? '<span class="cx-actions"><button type="button" class="repo-edit" data-repo-edit-type="' + esc(r.type) + '" data-repo-edit-id="' + esc(r.id) + '" title="Quick edit" aria-label="Quick edit ' + esc(label) + '"></button></span>' : "") +
         '</div>';
     }
     function repoGroupHtml(key, label, depth, count, contentsHtml, canDelete) {
@@ -10603,11 +10634,13 @@
           return ((sp.title || "") + " " + (sp.name || "")).toLowerCase().indexOf(q) >= 0;
         });
         listWrap.innerHTML = list.length ? "" : '<div class="odp-empty">' + (q ? "No dashboards match." : "Nothing saved yet — Save adds the current dashboard here.") + '</div>';
+        var titleOf = function (r) { var sp = r.spec || {}; return sp.title || sp.name || "Untitled"; };
+        var labels = disambiguateLabels(list, titleOf);
         list.forEach(function (r) {
           var sp = r.spec || {};
           var row = el("button", "odp-row"); row.type = "button";
           var panels = (sp.panels || []).length;
-          row.innerHTML = '<b>' + esc(sp.title || sp.name || "Untitled") + '</b>' +
+          row.innerHTML = '<b>' + esc(labels[r.id]) + '</b>' +
             '<small>' + esc(sp.name || "") + " · " + panels + " panel" + (panels === 1 ? "" : "s") +
             (r.ts ? " · " + new Date(r.ts).toLocaleDateString() : "") + '</small>';
           row.onclick = function () { closeAllModals(); openRecent(r.id); };
