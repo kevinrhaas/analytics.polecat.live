@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 534,
+    title: 'Explore\'s back button and the Compare-dashboards arrow now use themed icons',
+    kind: 'polish',
+    ts: '2026-07-25T08:54:06.000Z',
+    items: [
+      'UX6 (icon migration, slice 3): the Explore editor\'s "‹ Back to datasets" button and the "Compare dashboards" picker\'s "⇄" arrow used to show raw Unicode glyphs. They now show themed SVG icons that match every other icon in the app, in both themes.',
+    ],
+  },
+  {
     v: 533,
     title: 'More builder chrome buttons now use themed icons instead of raw glyphs',
     kind: 'polish',

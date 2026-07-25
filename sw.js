@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v170"; /* v170: UX6 (currentColor icon migration, slice 2) —
+var CACHE_NAME = "studio-shell-v171"; /* v171: UX6 (currentColor icon migration, slice 3) —
+   Explore's "‹ Back to datasets" button and the Compare-dashboards picker's "⇄" arrow used to
+   be raw Unicode glyphs; they now render themed Studio.icon SVGs. No new precached files, but
+   app/studio.js and app/icons.js content changed, so precached copies need to roll. */
+/* v170: UX6 (currentColor icon migration, slice 2) —
    the builder chrome's "⋯ More", "＋ New ▾", "☰ List view"/"▦ Tile view", "⇄ Compare dashboards…",
    the inspector's "‹ Dashboard" back-link, and the pane-rail expand/collapse chevrons ("‹"/"›")
    all used to be raw Unicode glyphs; they now render themed Studio.icon SVGs. No new precached
