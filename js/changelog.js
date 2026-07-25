@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 524,
+    title: 'Duplicate-named dashboards, analyses, datasets, connections, and jobs are now distinguishable in pickers',
+    kind: 'fix',
+    ts: '2026-07-25T01:47:36.000Z',
+    items: [
+      'Two saved objects sharing a visible name -- two "Untitled Dashboard" entries, two "State Map" analyses -- looked identical in the Compare dashboards pickers, the "Open a dashboard" / "Add to which dashboard?" pickers, and Repository, so there was no way to tell which one you were about to open or compare without opening it. Any row whose label still collides with another row\'s in the same list now gets a short, stable id suffix appended, while everyone else\'s label is unchanged.',
+    ],
+  },
+  {
     v: 523,
     title: 'New-connection intro copy no longer promises a stale adapter roadmap',
     kind: 'fix',

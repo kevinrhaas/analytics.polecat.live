@@ -116,6 +116,24 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **QA-04 slice 2 — duplicate-named objects are now distinguishable in pickers/Repository
+  without opening them (v524, sw v161, 2026-07-25, steward, FRONTEND_QA_REPORT_2026-07-24.md):**
+  slice 1 (v519) stopped NEW dashboard titles from colliding at creation time, but every object
+  type is still user-named and dashboards saved before that slice already exist, so the report's
+  other acceptance criterion — "every duplicate option is distinguishable without opening it" —
+  was still open. Fix: a shared `disambiguateLabels(rows, keyFn, displayFn)` helper (`app/
+  studio.js`) computes the visible label each row would already render, and appends a short,
+  stable `· #<id suffix>` ONLY to rows whose label still collides with another row's in that same
+  list — the common (no duplicate) case renders exactly as before. Wired into the four places the
+  report named: the Compare dashboards pickers (both `<select>`s), the global "Open a dashboard"
+  picker, Explore's "Add to which dashboard?" picker (all three keyed on title), and Repository
+  (keyed on type+title, so a same-named dataset and analysis aren't falsely flagged — their meta
+  text already differs). 5 new regression tests (Compare pickers, Open-a-dashboard, Add-to-
+  existing-dashboard, Repository same-type collision, Repository cross-type non-collision). No new
+  precached files; app/studio.js content changed so sw.js CACHE_NAME rolled to v161. **QA-04 is
+  now fully done** (slice 1: create-time uniquify; slice 2: existing-object disambiguation).
+  (app/studio.js, sw.js, js/changelog.js, tests/run.js) NEXT: QA-10 (verify the production footer
+  version-lag, no code change expected) is the only item left open in the same report.
 - **QA-09 — README's run instructions and layout diagram now match the deployed root/app
   split (2026-07-25, steward, FRONTEND_QA_REPORT_2026-07-24.md):** the report's P3 DOCS
   finding — README said the Studio app "lives at the repo root," told readers to run
@@ -2437,11 +2455,11 @@
 >       through the same helper for its `" (copy)"` suffix, so duplicating the same dashboard twice
 >       no longer produces two identical `"X (copy)"` rows either. SW cache → v158. 2 new regression
 >       tests (blank-dashboard uniquify across two seeded collisions; duplicate-current uniquify).
->       Still open (this finding's OTHER acceptance criterion, a bigger UI lift — tracked as slice
->       2): "every duplicate option is distinguishable without opening it" — stable disambiguators
->       (folder/owner/updated time/panel count/short id) in the compare dialog, Repository, and the
->       Dashboard catalog picker for names a user typed themselves (analyses are always user-named,
->       never auto-defaulted, so this slice's create-time fix doesn't reach them).
+>       ✓ **Slice 2 shipped (2026-07-25, v524, sw v161, steward — QA-04 is now fully done): existing-
+>       object disambiguation.** See DONE for the full writeup — a shared `disambiguateLabels()`
+>       helper appends a short id suffix only to rows whose displayed label still collides with
+>       another row's, wired into the Compare dashboards pickers, the global "Open a dashboard"
+>       picker, Explore's "Add to which dashboard?" picker, and Repository.
 > QA-05. ✓ P2 A11Y — **icon/action controls lack object-specific accessible names (shipped v520,
 >       sw v159, 2026-07-24, steward)** — see DONE for the full writeup. Explore's saved-analysis
 >       pin/add-to-dashboard/delete buttons, the Studio data rail's Duplicate/Delete buttons, and
