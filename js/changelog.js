@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 540,
+    title: 'Demo content folded into Sample packs',
+    kind: 'polish',
+    ts: '2026-07-25T13:42:17.000Z',
+    items: [
+      'LF16: the Settings Account card\'s own standalone "Demo content" toggle (which only ever covered the Conservation pack) is gone -- installing or removing sample workspace content now has ONE surface, the Sample packs card and Studio-library group, which already listed every pack. Both are relabeled "Sample packs" (from "Demo packs") to match the app\'s existing "Sample content" language.',
+    ],
+  },
+  {
     v: 539,
     title: 'Remaining dropdown carets get themed icons',
     kind: 'polish',

@@ -116,6 +116,26 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF16 (demo-content half) — the Account card's standalone "Demo content" toggle is
+  gone; "Demo packs" relabeled "Sample packs" (v540, sw v177, 2026-07-25, steward):**
+  the Settings Account card had its OWN hardcoded toggle (`#setDemoContent`) that only
+  ever installed/removed the "conservation" pack by name — a second surface for exactly
+  what the already-existing "Demo packs" Settings card (and the Studio library's left-
+  rail group) did generically for every `Studio.DEMO_PACKS` entry. Removed the
+  duplicate row + its wiring from `accountCardHtml()`/`renderSettings()`
+  (`app/studio.js`); installing/removing sample workspace content now has ONE surface.
+  Renamed the remaining surfaces from "Demo packs" to "Sample packs" (Settings card
+  `<h2>`, the Studio library's `.lib-demopacks` group label, `docs/index.html`) to match
+  the app's existing "Sample content" wording (the Mode toggle, the CDA "Samples"
+  library group) — "Demo mode" (the live-refreshing-data simulation, unrelated feature)
+  is untouched. Install/remove confirm + toast copy also reworded ("sample pack" not
+  "demo pack"). Internal identifiers (`DEMO_PACKS`, `demoPackId`, `installDemoPack`)
+  are unchanged — this is a user-facing rename, not a data-model rename. 4 new/updated
+  regression checks (Account card's old toggle is confirmed gone; the Settings card and
+  the Studio-library group are both confirmed labelled "Sample packs", not "Demo
+  packs"). sw v177. NEXT in LF16: folding the standalone generic-examples "Demo
+  content" concept into a Data Management sample pack (the LF2(c) half) remains
+  deferred, as before. (app/studio.js, docs/index.html, sw.js, tests/run.js)
 - **UX6 carets slice — remaining dropdown-trigger "▾" glyphs + the footer's "▴" expand
   indicator get themed icons (v539, sw v176, 2026-07-25, steward):** the four dropdown-
   trigger buttons still baking a raw "▾" into their button TEXT (`#btnNew`/`#btnExport`
@@ -3154,13 +3174,15 @@
 > LF15. ✓ **Settings: button/input style overlap — DONE, see DONE (v439, 2026-07-22, steward).**
 >       `.sp-add-row` (shared by Style presets AND Custom template presets — the "other instance")
 >       now stacks full-width on ≤640px instead of crowding the name field against the button.
-> LF16. **Merge "Demo content" into the sample packs + rename demo → "sample content".** The standalone
->       "Demo content" toggle and the DEMO PACKS section are two surfaces for the same concept — fold the
->       toggle into the packs UI and reword everything user-facing from "demo" to "sample content" (reads
->       as curated sample data, not a throwaway demo). Also relevant: ALL the data-management/governance
->       example content (connections, datasets, jobs, dashboards) should be shipped as sample packs the
->       same way the Conservation Insight pack is — a governance/data-management sample pack. app/demopacks.js,
->       Settings UI in app/studio.js, showSamples()/showDemo gating, help copy. Keep the changelog + a test.
+> LF16. **Merge "Demo content" into the sample packs + rename demo → "sample content".**
+>       ✓ **Fold + rename half shipped (v540, sw v177, 2026-07-25, steward) — see DONE.** The
+>       standalone "Demo content" toggle (Account card) is gone — folded into the already-generic
+>       "Demo packs" Settings card / library group, both renamed "Sample packs". NEXT in LF16: the
+>       remaining, larger ask — ALL the data-management/governance example content (connections,
+>       datasets, jobs, dashboards) should ALSO ship as a sample pack the same way Conservation
+>       Insight does (a governance/data-management sample pack) — is deliberately deferred, same as
+>       LF2(c) (the identical ask); do them together as one slice. app/demopacks.js, examples index,
+>       Settings UI in app/studio.js.
 > LF17. ✓ **Color-theme picker → palette cards (shipped 2026-07-23, steward).** The Settings →
 >       Appearance "Color theme" `<select>` is now a small keyboard-operable radiogroup of 3 cards
 >       (Classic Blue / Polecat / Fleet Modern) — each card shows a preview banner (that theme's real

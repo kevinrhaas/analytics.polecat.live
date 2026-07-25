@@ -3507,7 +3507,19 @@ function serve() {
     // Settings + Library are hide-samples aware (nest under the same toggle as the CDA Samples group)
     await page.evaluate(function () { window.__studioShellSetSection("settings"); });
     await page.waitForTimeout(150);
-    const dpSettingsOn = await page.evaluate(function () { return { hasCard: !!document.querySelector('[data-demopack="conservation"]') }; });
+    const dpSettingsOn = await page.evaluate(function () {
+      var card = document.querySelector('[data-demopack="conservation"]');
+      var cardH2 = card ? card.closest(".settings-card").querySelector("h2") : null;
+      return { hasCard: !!card, cardTitle: cardH2 ? cardH2.textContent : "" };
+    });
+    ok("LF16: the Settings sample-pack card is titled 'Sample packs', not 'Demo packs'",
+      dpSettingsOn.cardTitle === "Sample packs", dpSettingsOn.cardTitle);
+    const dpLibLabel = await page.evaluate(function () {
+      var nm = document.querySelector(".lib-demopacks .nm");
+      return nm ? nm.textContent : "";
+    });
+    ok("LF16: the Studio library's demo-packs group is also labelled 'Sample packs'",
+      dpLibLabel === "Sample packs", dpLibLabel);
     await page.evaluate(function () { window.__studioShowSamples.set(false); });
     await page.waitForTimeout(150);
     const dpHidden = await page.evaluate(function () {
@@ -3515,7 +3527,7 @@ function serve() {
     });
     await page.evaluate(function () { window.__studioShowSamples.set(true); });
     await page.waitForTimeout(150);
-    ok("DP: the Demo packs Settings card and Library group are hide-samples aware — visible with samples on, gone with samples off",
+    ok("DP: the Sample packs Settings card and Library group are hide-samples aware — visible with samples on, gone with samples off",
       dpSettingsOn.hasCard && !dpHidden.settingsCard && !dpHidden.libGroup, JSON.stringify({ on: dpSettingsOn, off: dpHidden }));
     // remove cleans up every tagged row + the install flag
     const dpRemove = await page.evaluate(function () {
@@ -8476,14 +8488,18 @@ function serve() {
     ok("M3.1/M7: initAuthBoot mirrors only the SIGNED-IN account's own row into the workspace users table (never every locally-known account), password hash included",
       authMirror.adminBoot.count === 1 && authMirror.adminBoot.hasAdmin && !authMirror.adminBoot.hasDemo &&
       authMirror.demoBoot.hasAdmin && authMirror.demoBoot.hasDemo, JSON.stringify(authMirror));
-    // the Settings Account card shows who you are, a Sign out, and the demo-content toggle
+    // the Settings Account card shows who you are and a Sign out button — LF16 removed its
+    // own hardcoded "Demo content" toggle (redundant with the Sample packs card below it,
+    // which already covers every Studio.DEMO_PACKS entry, not just Conservation).
     await page.evaluate(function () { window.__studioShellSetSection("settings"); });
     await page.waitForTimeout(250);
     const acctCard = await page.evaluate(function () {
       return { card: !!document.querySelector("#accountCard"), signOut: !!document.querySelector("#setSignOutBtn"), demoToggle: !!document.querySelector("#setDemoContent") };
     });
-    ok("M3.1: Settings has an Account card with the signed-in identity, a Sign out button, and a demo-content toggle",
-      acctCard.card && acctCard.signOut && acctCard.demoToggle, JSON.stringify(acctCard));
+    ok("M3.1: Settings has an Account card with the signed-in identity and a Sign out button",
+      acctCard.card && acctCard.signOut, JSON.stringify(acctCard));
+    ok("LF16: the Account card's old standalone demo-content toggle (#setDemoContent) is gone — folded into the Sample packs card",
+      !acctCard.demoToggle, JSON.stringify(acctCard));
     await page.evaluate(function () { window.__studioShellSetSection("studio"); });
     await page.waitForTimeout(150);
 
@@ -21736,7 +21752,7 @@ function serve() {
       var switches = Array.prototype.map.call(sec.querySelectorAll("input[data-set]"), function (cb) { return cb.getAttribute("data-set"); });
       return {
         visible: sec.hidden === false,
-        hasCards: sec.querySelectorAll(".settings-card").length === 8, // Account (M3) + Workspace backend + 3 toggle groups + Demo packs (Viridis V7) + Dashboard defaults + Data (Branding moved to Admin)
+        hasCards: sec.querySelectorAll(".settings-card").length === 8, // Account (M3) + Workspace backend + 3 toggle groups + Sample packs (Viridis V7, LF16) + Dashboard defaults + Data (Branding moved to Admin)
         switchIds: switches.join(","),
         darkChecked: sec.querySelector('input[data-set="dark"]').checked,
         simpleChecked: sec.querySelector('input[data-set="simple"]').checked,
