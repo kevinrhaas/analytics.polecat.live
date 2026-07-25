@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v188"; /* v188: LF34 — the Settings "Style presets" name field +
+var CACHE_NAME = "studio-shell-v189"; /* v189: LF19 slice 1 — the Studio library's "This
+   dashboard's datasets" and "Sample packs" groups now collapse by default once they hold more
+   than a handful of cards (progressive disclosure), remembering an explicit open/close choice
+   from then on. app/studio.js, docs/index.html changed, so precached copies need to roll.
+   v188: LF34 — the Settings "Style presets" name field +
    Save button (.sp-add-row) overflowed the card by 44px on desktop/tablet (a flex-basis/margin
    interaction, not the suspected contrast issue); fixed the sizing so the row stays flush inside
    the card. app/studio.css changed, so the precached copy needs to roll.

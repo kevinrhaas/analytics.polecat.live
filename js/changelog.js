@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 552,
+    title: 'Data panel groups collapse once they get long',
+    kind: 'polish',
+    ts: '2026-07-25T21:54:25.000Z',
+    items: [
+      'LF19: the Studio library\'s "This dashboard\'s datasets" and "Sample packs" groups now default to collapsed once they hold more than a handful of cards, instead of always forcing the panel wide open.',
+      'Click a group\'s header to expand or collapse it any time -- your choice is remembered and always wins over the default from then on.',
+    ],
+  },
+  {
     v: 551,
     title: 'Style presets Save button no longer spills off the card',
     kind: 'fix',
