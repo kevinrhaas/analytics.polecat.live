@@ -5,7 +5,19 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v180"; /* v180: UX6 icon migration — LAST slice. The chart-
+var CACHE_NAME = "studio-shell-v181"; /* v181: LF23 slice 1 — Viewer mode. A new standalone
+   route, app/viewer.html (+ app/viewer.js), opens ONE saved dashboard read-only, full-page, in
+   a new tab: Studio.buildHtml(spec, assets, {preview:false}) — the exact renderer a real export
+   uses, so it's genuinely interactive (filters/cross-filter/provider toggles) and shows the
+   dashboard's real saved data, no mock. No builder chrome ships (the page never loads
+   app/studio.js/app/shell.js). A small eye-icon "Open in viewer" link was added to every
+   dashboard card/row (Home's recentCardHtml, the Dashboards tile+list rows) alongside the
+   existing pin/feature/private toggles; a private dashboard's link 404s (shows "not found") for
+   anyone but its owner/an admin, mirroring the M4.2 privacy rule. app/viewer.html/app/viewer.js
+   are deliberately NOT added to SHELL_FILES below (same "don't precache a rarely-visited page"
+   convention as docs/index.html — the runtime fetch handler caches it after a first visit).
+   app/studio.js, app/studio.css, docs/index.html changed, so precached copies need to roll. */
+/* v180: UX6 icon migration — LAST slice. The chart-
    pagination "‹ Prev"/"Next ›" buttons (app/studio-charts.js, PDC.table's page bar) are now
    themed chevron SVGs; app/icons.js is bundled into every export (app/exporters.js's
    buildHtml, app/studio.js's boot asset fetch) so Studio.icon() resolves inside the preview

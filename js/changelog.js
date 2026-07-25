@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 544,
+    title: 'Viewer mode -- open a dashboard read-only in a new tab',
+    kind: 'feature',
+    ts: '2026-07-25T16:14:57.000Z',
+    items: [
+      'LF23 slice 1: every dashboard card and row (on Home and in the Dashboards section) gets a new eye-icon "Open in viewer" link alongside the existing pin/feature/private toggles. It opens the dashboard read-only, full-page, in a new tab -- the real interactive renderer (filters, cross-filter, provider toggles all work), with none of the builder chrome and no way to edit the original.',
+      'The viewer shows the dashboard\'s actual saved data (the same renderer a real "Export dashboard (.html)" uses), not a mock preview.',
+      'A private dashboard\'s viewer link only works for its owner or an admin -- the same rule Dashboards/Repository already enforce -- anyone else sees a friendly "not found".',
+    ],
+  },
+  {
     v: 543,
     title: 'Chart pagination gets themed icons -- UX6 icon migration complete',
     kind: 'polish',
