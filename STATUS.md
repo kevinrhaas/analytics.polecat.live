@@ -2447,19 +2447,17 @@
 >       pin/add-to-dashboard/delete buttons, the Studio data rail's Duplicate/Delete buttons, and
 >       the Compare dashboards pickers all gained object-specific `aria-label`s. 3 new regression
 >       tests.
-> QA-06. P2 — **restore-unsaved-work banner overlays active controls across unrelated sections**
->       (covers Explore save/add controls + lower Studio content at desktop width). FIX: reserve
->       layout space or use a non-blocking notification area; collapse to a compact notice once you
->       navigate away from Studio; full prompt only in Studio/Home. Test: the banner never overlaps a
->       focusable control at desktop/tablet/phone. (Relates to the earlier M8 mobile-banner work — this
->       is the desktop-overlay half.)
-> QA-07. P2 A11Y — **clickable rows contain nested interactive actions.** Catalog rows are
->       `role="button"` while also holding Test/Edit/Delete/privacy/pin/quick-edit buttons (button-role
->       containing interactive descendants). Click-bubble guards exist but the semantics stay fragile.
->       FIX: non-interactive row container; the title becomes the primary open/edit link/button;
->       secondary actions are sibling buttons in a labelled action group. Area: Datasets/Connections/
->       Repository rows (the `.cx-row` family). Test: no button-role element contains another
->       interactive control; predictable Tab + Enter/Space.
+> QA-06. ✓ P2 — **restore-unsaved-work banner no longer overlays active controls (shipped v521,
+>       sw v160, 2026-07-24, steward)** — see DONE for the full writeup. `maybeShowRestoreBanner()`
+>       now measures its own rendered height into a `--restore-banner-h` custom property that caps
+>       scrollable sections' `max-height` instead of floating on top of them. Geometric hit-test
+>       regression coverage across Explore/Studio at desktop and 390px.
+> QA-07. ✓ P2 A11Y — **clickable rows no longer nest a button inside a button (shipped v522,
+>       2026-07-24, steward)** — see DONE for the full writeup. Every catalog row (Datasets,
+>       Connections, Jobs, Repository, Dashboards list view) is now a plain, non-interactive
+>       container; the title is a real `<button class="cx-title-btn">` carrying the row's former
+>       aria-label, with Test/Edit/Delete/pin/private/quick-edit as plain sibling buttons. 11 new
+>       regression checks.
 > QA-08. ✓ P3 — **New-connection intro text is stale (shipped v523, 2026-07-25, steward)** — see
 >       DONE for the full writeup. Replaced with the report's suggested current guidance. 1 new
 >       regression test.
