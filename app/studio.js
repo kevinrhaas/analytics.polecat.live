@@ -10683,19 +10683,29 @@
     // (see exporters.js printCss). A blob URL keeps this a pure client-side flow (no upload/
     // server round trip); the short delay after "load" gives the dashboard's own async render
     // (postMessage/data fetch) a beat to paint before the print snapshot is taken.
+    // LF36 slice 2: page size / orientation / fit-to-width are picked in a small options dialog
+    // first (openPdfExportModal) instead of always taking the browser's print default — those
+    // choices thread into Studio.buildHtml (not the plain byte-identical Studio.exportCDF helper)
+    // as opts.pdfPageSize/pdfOrientation/pdfAutoFit, so only the PDF path's HTML changes; the
+    // "cdf"/"spec"/"all" exports above are untouched.
     if (kind === "pdf") {
-      var pdfHtml = Studio.exportCDF(sp, S.assets, dp);
-      var pdfBlob = new Blob([pdfHtml], { type: "text/html;charset=utf-8" });
-      var pdfUrl = URL.createObjectURL(pdfBlob);
-      var pdfWin = window.open(pdfUrl, "_blank");
-      if (pdfWin) {
-        pdfWin.addEventListener("load", function () {
-          setTimeout(function () { try { pdfWin.print(); } catch (e) {} }, 400);
+      openPdfExportModal(function (pdfOpts) {
+        var pdfHtml = Studio.buildHtml(sp, S.assets, {
+          deployPath: dp, preview: false,
+          pdfPageSize: pdfOpts.pageSize, pdfOrientation: pdfOpts.orientation, pdfAutoFit: pdfOpts.fit === "fit"
         });
-      } else {
-        toast("Pop-up blocked — allow pop-ups for this site to export as PDF", true);
-      }
-      setTimeout(function () { URL.revokeObjectURL(pdfUrl); }, 30000);
+        var pdfBlob = new Blob([pdfHtml], { type: "text/html;charset=utf-8" });
+        var pdfUrl = URL.createObjectURL(pdfBlob);
+        var pdfWin = window.open(pdfUrl, "_blank");
+        if (pdfWin) {
+          pdfWin.addEventListener("load", function () {
+            setTimeout(function () { try { pdfWin.print(); } catch (e) {} }, 400);
+          });
+        } else {
+          toast("Pop-up blocked — allow pop-ups for this site to export as PDF", true);
+        }
+        setTimeout(function () { URL.revokeObjectURL(pdfUrl); }, 30000);
+      });
       return;
     }
     if (kind === "all") {
@@ -10704,6 +10714,44 @@
         { name: sp.name + ".studio.json", body: JSON.stringify(sp, null, 2), mime: "application/json" }
       ]);
     }
+  }
+
+  // LF36 slice 2: page size / orientation / fit-to-width picker for the PDF export path — same
+  // small-form-modal shape as openSaveAsModal (Cancel/primary-action foot row). Remembers the
+  // last choice in localStorage (PDF_OPTS_KEY) so a repeat export doesn't reset to the defaults.
+  var PDF_OPTS_KEY = "studio-pdf-export-opts";
+  var PDF_PAGE_SIZES = [["letter", "Letter (8.5 × 11 in)"], ["a4", "A4 (210 × 297 mm)"], ["legal", "Legal (8.5 × 14 in)"]];
+  var PDF_ORIENTATIONS = [["portrait", "Portrait"], ["landscape", "Landscape"]];
+  var PDF_FITS = [["fit", "Fit to page width (recommended for wide dashboards)"], ["actual", "Actual size (no scaling)"]];
+  function loadPdfOpts() {
+    var d = { pageSize: "letter", orientation: "portrait", fit: "fit" };
+    try {
+      var saved = JSON.parse(localStorage.getItem(PDF_OPTS_KEY) || "{}");
+      if (saved.pageSize) d.pageSize = saved.pageSize;
+      if (saved.orientation) d.orientation = saved.orientation;
+      if (saved.fit) d.fit = saved.fit;
+    } catch (e) {}
+    return d;
+  }
+  function openPdfExportModal(onConfirm) {
+    var chosen = loadPdfOpts();
+    modal("Export to PDF", function (b) {
+      b.appendChild(field("Page size", select2pairs(PDF_PAGE_SIZES, chosen.pageSize, function (v) { chosen.pageSize = v; })));
+      b.appendChild(field("Orientation", select2pairs(PDF_ORIENTATIONS, chosen.orientation, function (v) { chosen.orientation = v; })));
+      b.appendChild(field("Scale", select2pairs(PDF_FITS, chosen.fit, function (v) { chosen.fit = v; }),
+        "A long or wide dashboard is scaled down uniformly to fit the page width — nothing gets cropped."));
+      var foot = el("div"); foot.style.cssText = "display:flex;justify-content:flex-end;gap:8px;margin-top:14px";
+      var cancelBtn = el("button"); cancelBtn.type = "button"; cancelBtn.className = "btn"; cancelBtn.textContent = "Cancel";
+      var goBtn = el("button"); goBtn.type = "button"; goBtn.className = "btn btn-primary"; goBtn.textContent = "Export";
+      foot.appendChild(cancelBtn); foot.appendChild(goBtn); b.appendChild(foot);
+      cancelBtn.onclick = function () { var ov = cancelBtn.closest(".modal-ov"); if (ov) ov.remove(); };
+      goBtn.onclick = function () {
+        var ov = goBtn.closest(".modal-ov"); if (ov) ov.remove();
+        try { localStorage.setItem(PDF_OPTS_KEY, JSON.stringify(chosen)); } catch (e) {}
+        onConfirm(chosen);
+      };
+      requestAnimationFrame(function () { goBtn.focus(); });
+    });
   }
 
   function bundleModal(title, files) {

@@ -5,7 +5,17 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v166"; /* v166: LF35 slice 2 — the movable half of the choropleth
+var CACHE_NAME = "studio-shell-v167"; /* v167: LF36 slice 2 — the PDF export's deferred "sizing/
+   scale + page-size/orientation" follow-up. Choosing "PDF (print)" in the Export menu now opens a
+   small options dialog (page size Letter/A4/Legal, orientation, and a Fit-to-page-width/Actual-
+   size scale choice, app/studio.js openPdfExportModal) before the print tab opens; the choices
+   thread into Studio.buildHtml (exporters.js) as opts.pdfPageSize/pdfOrientation/pdfAutoFit — the
+   @page CSS gets a matching `size:` keyword, and "Fit to page width" adds a small beforeprint
+   script that scales a dashboard wider than the printable area down uniformly so nothing gets
+   cropped. The plain "cdf"/"spec"/"all" exports (Studio.exportCDF) never pass these opts, so their
+   output stays byte-identical to before. app/studio.js, app/exporters.js, docs/index.html,
+   tests/run.js changed, so precached copies need to roll. */
+/* v166: LF35 slice 2 — the movable half of the choropleth
    GL map controls ask: a new per-panel "Controls position" option (app/model.js) docks the
    zoom+pan cluster in any of the four map corners instead of a fixed top-right (mapControlsPos,
    studio-charts.js addControl position arg; undefined stays top-right, so every map saved before
