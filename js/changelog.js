@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 538,
+    title: 'Job editor: chained aggregate steps now see the right columns',
+    kind: 'feature',
+    ts: '2026-07-25T11:08:27.000Z',
+    items: [
+      'LF13(b): a second (or third) "aggregate" step\'s group-by pills and metric-column dropdown now show the columns as they exist at THAT point in the pipeline (the previous step\'s output), instead of always showing the raw source dataset\'s columns — so a real two-level rollup (e.g. sum acres by county+year, then average that across years for a county-only figure) is actually buildable through the UI.',
+    ],
+  },
+  {
     v: 537,
     title: 'Demo mode badge gets a themed icon instead of a raw glyph',
     kind: 'polish',

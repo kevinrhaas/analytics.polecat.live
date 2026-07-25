@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v174"; /* v174: UX6 (currentColor icon migration, slice 4) —
+var CACHE_NAME = "studio-shell-v175"; /* v175: LF13(b) — a second (or third) "aggregate" job
+   step now shows group-by pills / metric-column dropdowns built from the PREVIOUS step's output
+   columns (a schema-only pipeline simulation), not just the raw source dataset, so a real
+   multi-level rollup is actually buildable through the UI. No new precached files, but
+   app/studio.js, docs/index.html and js/changelog.js content changed, so precached copies need
+   to roll. */
+/* v174: UX6 (currentColor icon migration, slice 4) —
    the demo-mode "● LIVE" badge used to lead with a raw Unicode "●" glyph; it now renders a
    themed Studio.icon SVG dot (the badge's own pulse animation still provides the "blinking"
    motion). No new precached files, but app/index.html, app/icons.js and app/studio.js content

@@ -4020,6 +4020,72 @@ function serve() {
     });
     await page.waitForTimeout(200);
 
+    // LF13(b): multiple aggregate PASSES/LEVELS — a second aggregate step's group-by pills
+    // and metric-column dropdown must reflect the FIRST aggregate step's OUTPUT columns
+    // (the pipeline's schema at that point), not the raw source dataset's columns, so a
+    // real two-level rollup (e.g. county+year sum, then a further county-only average
+    // across years) is actually buildable through the UI.
+    await page.evaluate(function () {
+      window.__studioShellSetSection("jobs");
+      var conn = Studio.Workspace.put("connections", { name: "jobs-multiagg-editor-test", adapter: "file", cfg: {} });
+      var ds = Studio.Workspace.put("datasets", { name: "jobs-multiagg-editor-ds", connectionId: conn.id, kind: "file", format: "csv",
+        content: "county,year,acres_raw,extra_col\nStory,2020,100,x\n", columns: ["county", "year", "acres_raw", "extra_col"] });
+      var job = Studio.Workspace.put("jobs", { name: "multiagg-editor-job", sourceDatasetId: ds.id,
+        steps: [
+          { op: "aggregate", groupBy: ["county", "year"], metrics: [{ col: "acres_raw", fn: "sum", as: "acres_sum" }] },
+          { op: "aggregate", groupBy: ["county"], metrics: [{ col: "acres_sum", fn: "avg", as: "acres_avg" }] }
+        ] });
+      window.__studioOpenJobEditor(job);
+    });
+    await page.waitForTimeout(150);
+    const jobsMultiAggUI = await page.evaluate(function () {
+      var cards = Array.prototype.slice.call(document.querySelectorAll(".jobs-step-card"));
+      var secondCard = cards[1];
+      var pills = Array.prototype.slice.call(secondCard.querySelectorAll(".jobs-groupby .wb-chip"));
+      var metricSel = secondCard.querySelector(".jobs-metric-row select");
+      return {
+        pillLabels: pills.map(function (p) { return p.textContent; }),
+        countyActive: pills.some(function (p) { return p.textContent === "county" && p.classList.contains("active"); }),
+        metricOptions: metricSel ? Array.prototype.slice.call(metricSel.options).map(function (o) { return o.value; }) : [],
+        metricValue: metricSel ? metricSel.value : null,
+        hint: secondCard.querySelector(".jobs-groupby .cx-hint").textContent
+      };
+    });
+    ok("LF13(b): a second aggregate step's group-by pills reflect the FIRST aggregate's output columns (county/year/acres_sum), not the raw source columns",
+      jobsMultiAggUI.pillLabels.indexOf("county") >= 0 && jobsMultiAggUI.pillLabels.indexOf("year") >= 0 && jobsMultiAggUI.pillLabels.indexOf("acres_sum") >= 0 &&
+      jobsMultiAggUI.pillLabels.indexOf("extra_col") < 0 && jobsMultiAggUI.pillLabels.indexOf("acres_raw") < 0 && jobsMultiAggUI.countyActive,
+      JSON.stringify(jobsMultiAggUI));
+    ok("LF13(b): the second aggregate step's metric-column select is populated from the first step's output columns too, pre-selected to the saved value",
+      jobsMultiAggUI.metricOptions.indexOf("acres_sum") >= 0 && jobsMultiAggUI.metricOptions.indexOf("extra_col") < 0 && jobsMultiAggUI.metricValue === "acres_sum",
+      JSON.stringify(jobsMultiAggUI));
+    ok("LF13(b): a later aggregate step's group-by hint text calls out that it shows this step's INCOMING columns, disambiguating it from the source dataset",
+      jobsMultiAggUI.hint.indexOf("incoming columns") >= 0, JSON.stringify(jobsMultiAggUI));
+    const jobsMultiAggSave = await page.evaluate(function () {
+      document.querySelector(".cx-wiz-foot .btn.primary").click();
+      var job = Studio.Workspace.all("jobs").filter(function (j) { return j.name === "multiagg-editor-job"; })[0];
+      return job && job.steps;
+    });
+    ok("LF13(b): saving a job with two chained aggregate steps round-trips both steps unchanged",
+      jobsMultiAggSave && jobsMultiAggSave.length === 2 && jobsMultiAggSave[1].groupBy.indexOf("county") >= 0 && jobsMultiAggSave[1].metrics[0].as === "acres_avg",
+      JSON.stringify(jobsMultiAggSave));
+    const jobsMultiAggRun = await page.evaluate(function () {
+      var job = Studio.Workspace.all("jobs").filter(function (j) { return j.name === "multiagg-editor-job"; })[0];
+      var ds = Studio.Workspace.all("datasets").filter(function (d) { return d.name === "jobs-multiagg-editor-ds"; })[0];
+      var input = { columns: ["county", "year", "acres_raw", "extra_col"], rows: [["Story", "2020", 100, "x"], ["Story", "2021", 200, "x"], ["Polk", "2020", 50, "y"]] };
+      return Studio.runJobSteps(input, job.steps, {});
+    });
+    ok("LF13(b): the jobs-engine itself already chains two aggregate steps correctly end to end (Story county avg of 100/200 = 150)",
+      jobsMultiAggRun.columns.indexOf("acres_avg") >= 0 && jobsMultiAggRun.rows.some(function (r) { return r[jobsMultiAggRun.columns.indexOf("county")] === "Story" && r[jobsMultiAggRun.columns.indexOf("acres_avg")] === 150; }),
+      JSON.stringify(jobsMultiAggRun));
+    await page.evaluate(function () {
+      Studio.Workspace.all("jobs").filter(function (j) { return j.name === "multiagg-editor-job"; }).forEach(function (j) { Studio.Workspace.remove("jobs", j.id, { silent: true }); });
+      Studio.Workspace.all("datasets").filter(function (d) { return d.name === "jobs-multiagg-editor-ds"; }).forEach(function (d) { Studio.Workspace.remove("datasets", d.id, { silent: true }); });
+      Studio.Workspace.all("connections").filter(function (c) { return c.name === "jobs-multiagg-editor-test"; }).forEach(function (c) { Studio.Workspace.remove("connections", c.id, { silent: true }); });
+      Studio.Workspace.notify("*");
+      window.__studioShellSetSection("studio");
+    });
+    await page.waitForTimeout(200);
+
     // opening the job editor on a job with a 'sql' step renders the SQL textarea
     await page.evaluate(function () {
       window.__studioShellSetSection("jobs");

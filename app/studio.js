@@ -7727,6 +7727,49 @@
         if ((d.columns || []).length) { colsCache.byDs[dsId] = d.columns.slice(); return; }
         runDataset(d).then(function () { colsCache.byDs[dsId] = (d.columns || []).slice(); renderSteps(); });
       }
+      // LF13(b): multiple aggregate PASSES/LEVELS — a second (or third) "aggregate" step
+      // rolling up an EARLIER aggregate's output (e.g. county+year sum, then a further
+      // county-only average across years) needs its group-by/metric pickers to reflect the
+      // PIPELINE'S columns at that point, not just the raw source dataset — schema-only
+      // (no data) simulation of the same shape changes runJobSteps' handlers apply, so it
+      // stays in sync with jobs-engine.js by construction rather than duplicating a second
+      // guess at it. 'sql'/'cast'/'filter'/'union' don't change the column list (sql's real
+      // effect is data-dependent and unknowable without running it — best-effort no-op).
+      function simulateStepCols(cols, step) {
+        if (step.op === "rename") {
+          if (step.from && step.to && cols.indexOf(step.from) >= 0) return cols.map(function (c) { return c === step.from ? step.to : c; });
+          return cols;
+        }
+        if (step.op === "derive") {
+          return (step.outCol && cols.indexOf(step.outCol) < 0) ? cols.concat([step.outCol]) : cols;
+        }
+        if (step.op === "aggregate") {
+          var groupBy = (step.groupBy || []).filter(function (c) { return cols.indexOf(c) >= 0; });
+          return groupBy.concat((step.metrics || []).map(function (m) { return m.as || (m.fn + "_" + m.col); }));
+        }
+        if (step.op === "join") {
+          var rightCols = colsCache.byDs[step.datasetId] || [];
+          var addCols = rightCols.filter(function (c) { return c !== step.rightCol; });
+          var outNames = addCols.map(function (c) {
+            var name = (step.prefix || "") + c;
+            while (cols.indexOf(name) >= 0) name += "_2";
+            return name;
+          });
+          return cols.concat(outNames);
+        }
+        if (step.op === "uniqueKey") {
+          var outCol = (step.outCol || "row_id").trim() || "row_id";
+          return cols.indexOf(outCol) >= 0 ? cols : cols.concat([outCol]);
+        }
+        return cols; // cast, filter, union, sql: schema unchanged (or unknowable) at this point
+      }
+      // the pipeline's column list right BEFORE step index `idx` runs — every step before it
+      // applied in order, starting from the source dataset's own columns.
+      function colsBeforeStep(idx) {
+        var cols = colsCache.bySrc.slice();
+        for (var k = 0; k < idx; k++) cols = simulateStepCols(cols, (j.steps || [])[k] || {});
+        return cols;
+      }
       // a plain <select> of known column names; always keeps the current value selectable
       // even if it fell out of the introspected list (renamed column, stale cache, ...).
       function colSelect(list, current, onChange) {
@@ -7793,13 +7836,13 @@
         wrap.appendChild(kindSel); wrap.appendChild(valInp);
         return wrap;
       }
-      function metricsEditor(step) {
+      function metricsEditor(step, cols) {
         var wrap = el("div", "jobs-metrics");
         function draw() {
           wrap.innerHTML = "";
           (step.metrics = step.metrics || []).forEach(function (m, i) {
             var row = el("div", "jobs-metric-row");
-            var col = colSelect(colsCache.bySrc, m.col, function (v) { m.col = v; });
+            var col = colSelect(cols, m.col, function (v) { m.col = v; });
             var fnSel = el("select");
             fnSel.innerHTML = Studio.JOB_AGG_FNS.map(function (f) { return '<option value="' + f.fn + '"' + (m.fn === f.fn ? " selected" : "") + '>' + esc(f.label) + '</option>'; }).join("");
             fnSel.onchange = function () { m.fn = fnSel.value; draw(); };
@@ -7807,7 +7850,7 @@
             asInp.oninput = function () { m.as = asInp.value; };
             row.appendChild(col); row.appendChild(fnSel); row.appendChild(asInp);
             if (fnSel.value === "wmean") {
-              var w = colSelect(colsCache.bySrc, m.weightCol, function (v) { m.weightCol = v; });
+              var w = colSelect(cols, m.weightCol, function (v) { m.weightCol = v; });
               row.appendChild(w);
             }
             var del = el("button", "btn danger"); del.type = "button"; del.textContent = "✕"; del.setAttribute("aria-label", "Remove metric");
@@ -7846,7 +7889,7 @@
         draw();
         return wrap;
       }
-      function stepFields(step) {
+      function stepFields(step, stepIdx) {
         var wrap = el("div", "jobs-step-fields");
         function mini(ph, val, onChange) {
           var i = el("input"); i.type = "text"; i.placeholder = ph; i.value = val || ""; i.oninput = function () { onChange(i.value); };
@@ -7872,10 +7915,12 @@
           step.cmp = step.cmp || "eq"; cmpSel.value = step.cmp; cmpSel.onchange = function () { step.cmp = cmpSel.value; }; wrap.appendChild(cmpSel);
           mini("value", step.value, function (v) { step.value = v; });
         } else if (step.op === "aggregate") {
+          var stepCols = colsBeforeStep(stepIdx);
           var gbWrap = el("div", "jobs-groupby");
-          var gbLabel = el("small", "cx-hint"); gbLabel.textContent = "Group by:";
+          var gbLabel = el("small", "cx-hint");
+          gbLabel.textContent = stepIdx > 0 ? "Group by (this step's incoming columns):" : "Group by:";
           gbWrap.appendChild(gbLabel);
-          var gbCols = colsCache.bySrc.slice();
+          var gbCols = stepCols.slice();
           (step.groupBy || []).forEach(function (c) { if (gbCols.indexOf(c) < 0) gbCols.push(c); });
           if (!gbCols.length) { var gbHint = el("small", "cx-hint"); gbHint.textContent = "No columns detected yet — pick a source dataset (or run Preview) to populate this list."; gbWrap.appendChild(gbHint); }
           gbCols.forEach(function (c) {
@@ -7891,7 +7936,7 @@
             gbWrap.appendChild(chip);
           });
           wrap.appendChild(gbWrap);
-          wrap.appendChild(metricsEditor(step));
+          wrap.appendChild(metricsEditor(step, stepCols));
         } else if (step.op === "join") {
           var joinDsSel = el("select");
           joinDsSel.innerHTML = '<option value="">— pick dataset —</option>' + dsets.map(function (d) {
@@ -7951,7 +7996,7 @@
           del.onclick = function () { j.steps.splice(i, 1); renderSteps(); };
           head.appendChild(up); head.appendChild(down); head.appendChild(del);
           card.appendChild(head);
-          card.appendChild(stepFields(step));
+          card.appendChild(stepFields(step, i));
           stepsWrap.appendChild(card);
         });
         var addStep = el("button", "btn"); addStep.type = "button"; addStep.textContent = "+ Step";
