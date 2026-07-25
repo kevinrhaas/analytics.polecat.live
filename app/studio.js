@@ -6935,7 +6935,7 @@
         grid.appendChild(card);
       });
       var intro = el("p", "cx-wiz-intro");
-      intro.textContent = "Pick where the data lives. More adapters (Postgres, Redshift, Azure, files) join this list over time.";
+      intro.textContent = "Choose a source below. Some connectors require browser CORS access or a link-shared file.";
       b.appendChild(intro); b.appendChild(grid);
     }, function () { renderConnections(); }, true);
   }
