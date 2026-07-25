@@ -116,6 +116,32 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **UX6 slice 7 — chart-pagination Prev/Next buttons get themed icons (v543, sw v180,
+  2026-07-25, steward — UX6 is now FULLY done):** the last remaining UX6 call site, the
+  Table widget's paginated "‹ Prev"/"Next ›" buttons (`app/studio-charts.js`'s `PDC.table`
+  override, page bar). Unlike every other UX6 call site, this one runs INSIDE the preview
+  iframe / exported CDF html (studio-charts.js's own file header), where `Studio.icon()`
+  was never available before — `app/icons.js` was builder-chrome-only (loaded via a plain
+  `<script>` tag in `app/index.html`, never fetched/inlined by the export pipeline). Fixed
+  by bundling it unconditionally into every export, same as `studio-charts.js` itself:
+  `app/studio.js`'s boot fetches `app/icons.js` text into `S.assets.icons`; `app/exporters.js`'s
+  `buildHtml` inlines it as `<script>` right before the charts script (so `Studio.icon` is
+  defined before any chart renders) and documents the new `assets.icons` shape in its header
+  comment. Bundling it unconditionally surfaced a latent bug IN `app/icons.js` itself: it never
+  self-established `window.Studio`, silently relying on an earlier builder-only script (e.g.
+  `model.js`) having already done so — true in `app/index.html`'s script order, but false the
+  moment it became the first Studio-namespace file loaded in an export, throwing "Studio is
+  not defined" on every single exported/preview dashboard. Fixed with the same one-line guard
+  every other Studio file already carries (`var Studio = window.Studio = window.Studio || {};`).
+  The buttons themselves now render a `chevron-left`/`chevron-right` SVG (already in
+  the icon registry, no new icon needed) + a plain "Prev"/"Next" text node, plus an
+  object-specific `aria-label` ("Previous page"/"Next page") neither button had before.
+  `.tbl-page-bar button` CSS gained `display:inline-flex;align-items:center;gap:3px` so the
+  icon and label line up cleanly at the bar's small 11px scale. 1 new regression check
+  (inside the SAME preview-iframe harness Z8T-6 uses — proof this is the real bundled path,
+  not a separate mock: `Studio.icon` resolves in iframe scope, both buttons render an svg,
+  no raw ‹/› left in text, both aria-labels present). (app/studio.js, app/exporters.js,
+  app/studio-charts.js, app/icons.js, sw.js, js/changelog.js, tests/run.js)
 - **UX6 slice 6 — welcome-tour step tiles get themed icons (v542, sw v179, 2026-07-25,
   steward):** the first-run Welcome tour's five step tiles (`app/welcome.js` `STEPS`)
   each baked a raw Unicode "letter" glyph into the header tile (P / ◈ / ▥ / ⤓ / ⚙) — a
@@ -3617,9 +3643,13 @@
 >      bundle first, untouched by this slice) and the welcome-step letter icons, each their
 >      own follow-up slice.
 >      ↳ **Slice 6 shipped (v542, sw v179, 2026-07-25, steward): the welcome-tour step
->      icons.** See DONE. **UX6 is now fully done except the chart pagination `‹ Prev`/
->      `Next ›` buttons**, which need `app/icons.js` added to the export asset bundle first
->      (they're bundled into exports, unlike every other UX6 call site so far).
+>      icons.** See DONE.
+>      ↳ **Slice 7 shipped (v543, sw v180, 2026-07-25, steward — UX6 IS NOW FULLY DONE): the
+>      chart-pagination Prev/Next buttons.** See DONE for the full writeup. `app/icons.js` is
+>      now bundled into every export (`app/studio.js`/`app/exporters.js`), which is what
+>      unblocked this last call site — every chrome glyph named in the original UX6 ask, plus
+>      the welcome-step letters and the pagination chevrons found along the way, now has a
+>      themed SVG.
 > UX7. ✓ **Mobile 44px touch targets — DONE (shipped 2026-07-23, steward).** The 400–640px band
 >      rendered `.btn` at ~28–32px (font-size 12px + 7px padding, no `min-height` at all — 44px
 >      only existed for `#topbar`/`#dashbar .btn` at ≤400px specifically); `.da-act`/`.chip` sat at

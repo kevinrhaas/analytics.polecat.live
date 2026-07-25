@@ -2847,7 +2847,7 @@
       ".tbl-wrap.compact .tbl th{padding:4px 10px}" +
       ".tbl-wrap.compact .tbl td{padding:3px 10px;font-size:11.5px}" +
       ".tbl-page-bar{display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:6px 10px 2px;font-size:11px;color:var(--text-muted)}" +
-      ".tbl-page-bar button{font:inherit;font-size:11px;border:1px solid var(--panel-border);border-radius:5px;background:var(--field,#f5f7fc);color:var(--text-primary,#1a1a2e);padding:2px 9px;cursor:pointer}" +
+      ".tbl-page-bar button{font:inherit;font-size:11px;border:1px solid var(--panel-border);border-radius:5px;background:var(--field,#f5f7fc);color:var(--text-primary,#1a1a2e);padding:2px 9px;cursor:pointer;display:inline-flex;align-items:center;gap:3px}" +
       ".tbl-page-bar button:disabled{opacity:.4;cursor:default}" +
       ".tbl-page-bar button:hover:not(:disabled){border-color:var(--pentaho,#005bb5);color:var(--pentaho,#005bb5)}";
     (document.head || document.body || document.documentElement).appendChild(_tblStyle);
@@ -3031,13 +3031,22 @@
       if (pageSize > 0 && totalPages > 1) {
         var pbar = document.createElement("div");
         pbar.className = "tbl-page-bar";
+        // UX6 (icon migration): the raw ‹ › glyphs are now themed chevron SVGs — app/icons.js is
+        // bundled into every export (see exporters.js's buildHtml) precisely so Studio.icon() is
+        // available here, inside the preview iframe / exported CDF html, not just builder chrome.
         var prev = document.createElement("button");
-        prev.type = "button"; prev.textContent = "‹ Prev"; prev.disabled = page === 0;
+        prev.type = "button"; prev.disabled = page === 0;
+        prev.setAttribute("aria-label", "Previous page");
+        if (window.Studio && window.Studio.icon) prev.appendChild(window.Studio.icon("chevron-left", 12));
+        prev.appendChild(document.createTextNode("Prev"));
         prev.addEventListener("click", function () { page--; render(); });
         var lbl = document.createElement("span");
         lbl.textContent = "Page " + (page + 1) + " of " + totalPages;
         var next = document.createElement("button");
-        next.type = "button"; next.textContent = "Next ›"; next.disabled = page >= totalPages - 1;
+        next.type = "button"; next.disabled = page >= totalPages - 1;
+        next.setAttribute("aria-label", "Next page");
+        next.appendChild(document.createTextNode("Next"));
+        if (window.Studio && window.Studio.icon) next.appendChild(window.Studio.icon("chevron-right", 12));
         next.addEventListener("click", function () { page++; render(); });
         pbar.appendChild(prev); pbar.appendChild(lbl); pbar.appendChild(next);
         el.appendChild(pbar);
