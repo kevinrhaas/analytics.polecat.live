@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v171"; /* v171: UX6 (currentColor icon migration, slice 3) —
+var CACHE_NAME = "studio-shell-v172"; /* v172: LF13(a) — the job editor's group-by/metric/
+   join+union-key fields are now dropdowns of the dataset's real columns instead of free text.
+   No new precached files, but app/studio.js, app/studio.css and js/changelog.js content
+   changed, so precached copies need to roll. */
+/* v171: UX6 (currentColor icon migration, slice 3) —
    Explore's "‹ Back to datasets" button and the Compare-dashboards picker's "⇄" arrow used to
    be raw Unicode glyphs; they now render themed Studio.icon SVGs. No new precached files, but
    app/studio.js and app/icons.js content changed, so precached copies need to roll. */

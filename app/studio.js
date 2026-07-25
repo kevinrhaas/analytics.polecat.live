@@ -7707,6 +7707,38 @@
     modal(existing ? "Edit job" : "New job", function (b) {
       var j = existing ? Studio.clone(existing) : { id: Studio.Workspace.uid("job"), name: "", steps: [] };
       var form = el("div", "cx-wiz-form");
+      // LF13(a): column dropdowns for group-by / metric / join+union keys, sourced from
+      // each dataset's known `.columns` (declared in the dataset editor, or cached from the
+      // last live run — see runDataset()). Falls back to a background runDataset() probe
+      // when a dataset has never been run, then re-renders once it resolves.
+      var colsCache = { bySrc: [], byDs: {} };
+      function ensureSrcCols() {
+        var id = j.sourceDatasetId;
+        if (!id) { colsCache.bySrc = []; return; }
+        var d = Studio.Workspace.get("datasets", id);
+        if (!d) return;
+        if ((d.columns || []).length) { colsCache.bySrc = d.columns.slice(); return; }
+        runDataset(d).then(function () { colsCache.bySrc = (d.columns || []).slice(); renderSteps(); });
+      }
+      function ensureDsCols(dsId) {
+        if (!dsId || (colsCache.byDs[dsId] || []).length) return;
+        var d = Studio.Workspace.get("datasets", dsId);
+        if (!d) return;
+        if ((d.columns || []).length) { colsCache.byDs[dsId] = d.columns.slice(); return; }
+        runDataset(d).then(function () { colsCache.byDs[dsId] = (d.columns || []).slice(); renderSteps(); });
+      }
+      // a plain <select> of known column names; always keeps the current value selectable
+      // even if it fell out of the introspected list (renamed column, stale cache, ...).
+      function colSelect(list, current, onChange) {
+        var sel = el("select");
+        var opts = (list || []).slice();
+        if (current && opts.indexOf(current) < 0) opts.unshift(current);
+        sel.innerHTML = '<option value="">— column —</option>' + opts.map(function (c) {
+          return '<option value="' + esc(c) + '"' + (c === current ? " selected" : "") + '>' + esc(c) + "</option>";
+        }).join("");
+        sel.onchange = function () { onChange(sel.value); };
+        return sel;
+      }
       function field(lbl, input, hint) {
         var row = el("label", "cx-field");
         row.innerHTML = "<span>" + esc(lbl) + "</span>";
@@ -7721,6 +7753,8 @@
       srcSel.innerHTML = '<option value="">— pick a dataset —</option>' + dsets.map(function (d) {
         return '<option value="' + esc(d.id) + '"' + (j.sourceDatasetId === d.id ? " selected" : "") + '>' + esc(d.name) + "</option>";
       }).join("");
+      srcSel.onchange = function () { j.sourceDatasetId = srcSel.value; colsCache.bySrc = []; ensureSrcCols(); renderSteps(); };
+      ensureSrcCols();
       var outInp = field("Output dataset name", el("input"), "Where the result lands — re-running this job updates the same dataset in place.");
       outInp.type = "text"; outInp.value = j.outputName || "";
 
@@ -7765,8 +7799,7 @@
           wrap.innerHTML = "";
           (step.metrics = step.metrics || []).forEach(function (m, i) {
             var row = el("div", "jobs-metric-row");
-            var col = el("input"); col.type = "text"; col.placeholder = "column"; col.value = m.col || "";
-            col.oninput = function () { m.col = col.value; };
+            var col = colSelect(colsCache.bySrc, m.col, function (v) { m.col = v; });
             var fnSel = el("select");
             fnSel.innerHTML = Studio.JOB_AGG_FNS.map(function (f) { return '<option value="' + f.fn + '"' + (m.fn === f.fn ? " selected" : "") + '>' + esc(f.label) + '</option>'; }).join("");
             fnSel.onchange = function () { m.fn = fnSel.value; draw(); };
@@ -7774,8 +7807,7 @@
             asInp.oninput = function () { m.as = asInp.value; };
             row.appendChild(col); row.appendChild(fnSel); row.appendChild(asInp);
             if (fnSel.value === "wmean") {
-              var w = el("input"); w.type = "text"; w.placeholder = "weight column (e.g. acres)"; w.value = m.weightCol || "";
-              w.oninput = function () { m.weightCol = w.value; };
+              var w = colSelect(colsCache.bySrc, m.weightCol, function (v) { m.weightCol = v; });
               row.appendChild(w);
             }
             var del = el("button", "btn danger"); del.type = "button"; del.textContent = "✕"; del.setAttribute("aria-label", "Remove metric");
@@ -7798,8 +7830,7 @@
             var row = el("div", "jobs-metric-row");
             var to = el("input"); to.type = "text"; to.placeholder = "output column"; to.value = m.to || "";
             to.oninput = function () { m.to = to.value; };
-            var from = el("input"); from.type = "text"; from.placeholder = "column in the other dataset"; from.value = m.from || "";
-            from.oninput = function () { m.from = from.value; };
+            var from = colSelect(colsCache.byDs[step.datasetId] || [], m.from, function (v) { m.from = v; });
             row.appendChild(to); row.appendChild(from);
             var del = el("button", "btn danger"); del.type = "button"; del.textContent = "✕"; del.setAttribute("aria-label", "Remove mapping");
             del.onclick = function () { step.columnMap.splice(i, 1); draw(); };
@@ -7841,17 +7872,36 @@
           step.cmp = step.cmp || "eq"; cmpSel.value = step.cmp; cmpSel.onchange = function () { step.cmp = cmpSel.value; }; wrap.appendChild(cmpSel);
           mini("value", step.value, function (v) { step.value = v; });
         } else if (step.op === "aggregate") {
-          mini("group by (comma-separated columns)", (step.groupBy || []).join(", "), function (v) { step.groupBy = v.split(",").map(function (s) { return s.trim(); }).filter(Boolean); });
+          var gbWrap = el("div", "jobs-groupby");
+          var gbLabel = el("small", "cx-hint"); gbLabel.textContent = "Group by:";
+          gbWrap.appendChild(gbLabel);
+          var gbCols = colsCache.bySrc.slice();
+          (step.groupBy || []).forEach(function (c) { if (gbCols.indexOf(c) < 0) gbCols.push(c); });
+          if (!gbCols.length) { var gbHint = el("small", "cx-hint"); gbHint.textContent = "No columns detected yet — pick a source dataset (or run Preview) to populate this list."; gbWrap.appendChild(gbHint); }
+          gbCols.forEach(function (c) {
+            var active = (step.groupBy || []).indexOf(c) >= 0;
+            var chip = el("button", "wb-chip cx-pill" + (active ? " active" : ""));
+            chip.type = "button"; chip.textContent = c; chip.setAttribute("aria-pressed", active ? "true" : "false");
+            chip.onclick = function () {
+              step.groupBy = step.groupBy || [];
+              var idx = step.groupBy.indexOf(c);
+              if (idx >= 0) step.groupBy.splice(idx, 1); else step.groupBy.push(c);
+              renderSteps();
+            };
+            gbWrap.appendChild(chip);
+          });
+          wrap.appendChild(gbWrap);
           wrap.appendChild(metricsEditor(step));
         } else if (step.op === "join") {
           var joinDsSel = el("select");
           joinDsSel.innerHTML = '<option value="">— pick dataset —</option>' + dsets.map(function (d) {
             return '<option value="' + esc(d.id) + '"' + (step.datasetId === d.id ? " selected" : "") + '>' + esc(d.name) + "</option>";
           }).join("");
-          joinDsSel.onchange = function () { step.datasetId = joinDsSel.value; };
+          joinDsSel.onchange = function () { step.datasetId = joinDsSel.value; ensureDsCols(step.datasetId); renderSteps(); };
           wrap.appendChild(joinDsSel);
-          mini("left key column", step.leftCol, function (v) { step.leftCol = v; });
-          mini("right key column", step.rightCol, function (v) { step.rightCol = v; });
+          ensureDsCols(step.datasetId);
+          wrap.appendChild(colSelect(colsCache.bySrc, step.leftCol, function (v) { step.leftCol = v; }));
+          wrap.appendChild(colSelect(colsCache.byDs[step.datasetId] || [], step.rightCol, function (v) { step.rightCol = v; }));
           var joinTypeSel = el("select");
           joinTypeSel.innerHTML = '<option value="inner">inner join</option><option value="left">left join (keep unmatched)</option>';
           step.type = step.type || "inner"; joinTypeSel.value = step.type;
@@ -7863,8 +7913,9 @@
           unionDsSel.innerHTML = '<option value="">— pick dataset —</option>' + dsets.map(function (d) {
             return '<option value="' + esc(d.id) + '"' + (step.datasetId === d.id ? " selected" : "") + '>' + esc(d.name) + "</option>";
           }).join("");
-          unionDsSel.onchange = function () { step.datasetId = unionDsSel.value; };
+          unionDsSel.onchange = function () { step.datasetId = unionDsSel.value; ensureDsCols(step.datasetId); renderSteps(); };
           wrap.appendChild(unionDsSel);
+          ensureDsCols(step.datasetId);
           wrap.appendChild(unionMapEditor(step));
         } else if (step.op === "sql") {
           var sqlBox = el("textarea"); sqlBox.className = "jobs-sql-box"; sqlBox.rows = 4;
