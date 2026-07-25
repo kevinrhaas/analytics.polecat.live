@@ -1,253 +1,136 @@
 # M7 — Supabase RLS go-live runbook
 
-A step-by-step procedure to flip the live Supabase workspace backend from the
-current **demo "allow all"** posture to **real per-user Row-Level Security**.
+Flip the live Supabase workspace backend from the demo **"allow all"** posture to
+real per-user **Row-Level Security** (`tools/supabase-rls-real.sql`, already
+designed + proven against an isolated `steward_test` schema).
 
-- **What runs the flip:** `tools/supabase-rls-real.sql` (already designed + proven
-  against an isolated `steward_test` schema — see its header).
-- **What it replaces:** the `polecat_anon_all` allow-all policies created by
-  `tools/supabase-bootstrap.sql`.
-- **Who runs it:** an admin with Supabase dashboard access (SQL editor). The
+- **Who runs it:** an admin with Supabase dashboard (SQL editor) access. The
   autonomous lane cannot and will not run this — it changes live production
   security posture.
-- **Time:** ~15 minutes. **Rollback:** one command, instant (Step 6).
+- **Rollback:** one command, instant (see the end).
 
-> Do every step in the **Supabase SQL editor** for the analytics project. Paste
-> back only the **counts/booleans** these queries return — never a secret
-> (anon key, service key, DB password) and never full row `data`.
+> Do every step in the **Supabase SQL editor**. Paste back only the
+> counts/booleans these queries return — never a secret (anon key, service key,
+> DB password) and never full row `data`.
 
----
-
-## What the flip actually changes
-
-After the flip, on all five workspace tables (`connections`, `datasets`,
-`dashboards`, `analyses`, `jobs`) plus `users`:
-
-- A row is **readable** if it is **not private**, OR its `owner`
-  (`acctOwner` for `datasets`; `gotrueId` for `users`) equals the caller's
-  `auth.uid()`.
-- A row is **writable** only by its owner (admins may write any `users` row).
-- `auth.uid()` is **NULL for the anon key**, so anonymous / demo-key access
-  degrades to **public rows only** and cannot write.
-- `polecat_meta` keeps its allow-all policy (the app reads it before auth).
-
-**The two ways this can bite — both handled in pre-flight below:**
-
-1. **A user with no GoTrue identity** (still using the plain anon key) will,
-   after the flip, see only public rows and be unable to save. Every real
-   read/write user must sign in via **Supabase Auth (GoTrue)** first.
-2. **A private row whose `owner` is still a username** (`"admin"`, `"demo"`)
-   instead of a GoTrue UUID becomes **invisible to everyone** (no UUID will
-   ever equal `"admin"`). Public rows are unaffected.
+There are two paths. **Path A (clean install)** is the recommended one and the
+rest of this document — it assumes the existing backend rows are disposable.
+**Path B (in-place migration)** is the appendix, for if you ever need to preserve
+existing data instead.
 
 ---
 
-## Step 0 — Precondition: everyone who needs write access has signed in via GoTrue
+## Path A — Clean install (recommended)
 
-The app added GoTrue sign-in in M7 slice 2. Before flipping:
+**Assumption:** it's OK to permanently delete every row currently in the Supabase
+workspace backend (`connections`, `datasets`, `dashboards`, `analyses`, `jobs`,
+`users`). This is safe because:
 
-1. In the app: **Settings → Workspace backend**, set the connection's
-   **Auth email / Auth password** (GoTrue credentials) for the workspace, and
-   **sign in** at least once as **each real user** — most importantly the
-   **admin**. Signing in stamps that account's `gotrueId` locally and runs
-   `migrateOwnerToGotrueId`, which re-stamps that user's own rows from username
-   → their GoTrue UUID and mirrors their own `users` row.
-2. Confirm GoTrue accounts exist:
+- it does **not** touch anyone's **browser localStorage** — the app is
+  local-first; the Supabase backend is only an *optional* sync target;
+- the in-app **demo/sample pack is reinstallable** anytime (Settings → sample
+  content), so illustrative dashboards come back with one click;
+- starting empty means every new row is created by a **signed-in GoTrue user**
+  and is born with a real UUID owner — so **none of the migration/backfill work
+  is needed**.
+
+### A0 — Create the GoTrue (Supabase Auth) accounts
+
+Supabase dashboard → **Authentication → Users → Add user** — create an
+email/password account for the **admin** (and each real user). **Note the
+admin's UUID.**
+
+### A1 — Wipe the workspace tables (keep `polecat_meta`)
+
+RLS is still allow-all here, and `truncate` runs as the table owner regardless:
 
 ```sql
-select id, email, created_at from auth.users order by created_at;
+truncate table public.connections, public.datasets, public.dashboards,
+  public.analyses, public.jobs, public.users;
 ```
 
-You should see one `auth.users` row per real user. Note the **admin's UUID** —
-you'll use it in verification (Step 5).
+(`polecat_meta` — the `app`/`schema_version` markers the app reads before auth —
+is intentionally left alone.)
 
----
+### A2 — Seed the admin row by signing in (DO THIS BEFORE RLS)
 
-## Step 1 — Snapshot (cheap insurance)
+In the app: **Settings → Workspace backend**, set the connection's **Auth email /
+Auth password** to the admin GoTrue account from A0 and **sign in**. While the
+backend is still allow-all, the app upserts the admin's own `users` row stamped
+with its `gotrueId` and `role: "admin"`.
 
-Supabase keeps automatic backups, but take a quick logical snapshot of row
-counts so you can prove nothing was lost:
+Confirm the admin row exists and carries the right UUID:
 
 ```sql
-select 'connections' t, count(*) from public.connections
-union all select 'datasets',   count(*) from public.datasets
-union all select 'dashboards', count(*) from public.dashboards
-union all select 'analyses',   count(*) from public.analyses
-union all select 'jobs',       count(*) from public.jobs
-union all select 'users',      count(*) from public.users
-order by 1;
+select id, "role", (data::jsonb->>'gotrueId') gotrue_id from public.users;
 ```
 
-Save the output. (Optional stronger backup: Supabase dashboard → Database →
-Backups → download, or `pg_dump` the six tables.)
+You must see a row with `role = admin` and `gotrue_id =` the admin UUID from A0.
+**Do not proceed until this is true** — it's what makes `polecat_is_admin()`
+work, and without it the RLS `users` policy locks everyone out of user
+management.
 
----
+### A3 — Apply the real RLS policies
 
-## Step 2 — Pre-flight A: find "orphaned private" rows (owner not a UUID)
+Paste the **entire contents of `tools/supabase-rls-real.sql`** into the SQL editor
+and run it. It drops the allow-all policies, creates the per-user
+`select/insert/update/delete` policies on the five data tables + `users`, creates
+the `polecat_is_admin()` helper, and reloads PostgREST. Idempotent.
 
-These are the rows that would vanish after the flip. `owner` for four tables,
-`acctOwner` for `datasets`:
+### A4 — Verify
 
-```sql
-with u as (select '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' rx)
-select 'connections' tbl,
-       count(*) filter (where (data::jsonb->>'private')::boolean is true
-         and coalesce(data::jsonb->>'owner','') !~* (select rx from u)) orphan_private
-from public.connections
-union all select 'dashboards',
-       count(*) filter (where (data::jsonb->>'private')::boolean is true
-         and coalesce(data::jsonb->>'owner','') !~* (select rx from u))
-from public.dashboards
-union all select 'analyses',
-       count(*) filter (where (data::jsonb->>'private')::boolean is true
-         and coalesce(data::jsonb->>'owner','') !~* (select rx from u))
-from public.analyses
-union all select 'jobs',
-       count(*) filter (where (data::jsonb->>'private')::boolean is true
-         and coalesce(data::jsonb->>'owner','') !~* (select rx from u))
-from public.jobs
-union all select 'datasets',
-       count(*) filter (where (data::jsonb->>'private')::boolean is true
-         and coalesce(data::jsonb->>'acctOwner','') !~* (select rx from u))
-from public.datasets
-order by 1;
-```
-
-- **All zero →** great, skip Step 3, go to Step 4.
-- **Non-zero →** those private rows have username owners. Decide in Step 3.
-
----
-
-## Step 3 — (Only if Step 2 found orphans) Remediate
-
-Pick ONE per orphaned set. Two safe options:
-
-**Option A — make them public** (nothing disappears; they just lose privacy):
-
-```sql
--- example for dashboards; repeat per table (acctOwner for datasets)
-update public.dashboards
-set data = jsonb_set(data::jsonb, '{private}', 'false')::text
-where (data::jsonb->>'private')::boolean is true
-  and coalesce(data::jsonb->>'owner','') !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$';
-```
-
-**Option B — reassign to the admin's UUID** (they stay private, owned by admin).
-Replace `ADMIN_UUID` with the admin's `auth.users.id` from Step 0:
-
-```sql
-update public.dashboards
-set data = jsonb_set(data::jsonb, '{owner}', to_jsonb('ADMIN_UUID'::text))::text
-where (data::jsonb->>'private')::boolean is true
-  and coalesce(data::jsonb->>'owner','') !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$';
-```
-
-Re-run Step 2 until it's all zero.
-
----
-
-## Step 2b — Pre-flight B: the admin's `users` row carries its `gotrueId`
-
-`polecat_is_admin()` matches `users.data->>'gotrueId'` to `auth.uid()`. If the
-admin's row has no `gotrueId`, they lose admin DB powers after the flip.
-
-```sql
-select id, "role", (data::jsonb->>'gotrueId') gotrue_id
-from public.users order by "role", id;
-```
-
-Every account that needs DB access should show a `gotrue_id` that matches its
-`auth.users.id` from Step 0 — **the admin especially**. If a row is missing it,
-have that user sign in via GoTrue once (Step 0) and re-check, or set it directly:
-
-```sql
--- only if a needed row is missing its gotrueId
-update public.users
-set data = jsonb_set(data::jsonb, '{gotrueId}', to_jsonb('THAT_USERS_UUID'::text))::text
-where id = 'user_<username>';
-```
-
----
-
-## Step 4 — Flip (apply the real policies)
-
-Paste the **entire contents of `tools/supabase-rls-real.sql`** into the SQL
-editor and run it. It:
-
-- drops `polecat_anon_all` on the five data tables + `users`,
-- creates per-user `select/insert/update/delete` policies (owner/private shape),
-- creates the `polecat_is_admin()` SECURITY DEFINER helper + the `users`
-  self-row/admin policies,
-- `NOTIFY pgrst, 'reload schema'` so the REST API picks it up immediately.
-
-It is idempotent (each `CREATE POLICY` is preceded by `DROP POLICY IF EXISTS`).
-
----
-
-## Step 5 — Verify
-
-Run each block. Use the **admin UUID** from Step 0 for the authenticated tests.
-
-**(a) Anonymous sees public rows only:**
+**(a) Anonymous sees public rows only (and no private leak):**
 
 ```sql
 begin;
   set local role anon;
   select count(*) total_visible,
          count(*) filter (where (data::jsonb->>'private')::boolean is true) private_leaked
-  from public.dashboards;   -- expect private_leaked = 0
+  from public.dashboards;   -- private_leaked must be 0
 rollback;
 ```
 
-**(b) An authenticated user sees public + their own private, and can't see
-another user's private:**
+**(b) The admin sees their own content (replace `ADMIN_UUID`):**
 
 ```sql
 begin;
   set local role authenticated;
   set local request.jwt.claims = '{"sub":"ADMIN_UUID"}';
-  select count(*) visible_to_admin,
-         count(*) filter (where (data::jsonb->>'private')::boolean is true) own_or_public_private
-  from public.dashboards;
+  select count(*) visible_to_admin from public.dashboards;
 rollback;
 ```
 
-Compare (a) vs (b): the authenticated count should be **≥** the anon count
-(public + that user's own private).
-
-**(c) `users` visibility — a plain viewer sees only itself; admin sees all:**
+**(c) `users` table — admin sees all, a viewer sees only itself:**
 
 ```sql
--- as the admin (sees all)
 begin;
   set local role authenticated;
   set local request.jwt.claims = '{"sub":"ADMIN_UUID"}';
-  select count(*) users_visible_to_admin from public.users;   -- expect = total users
+  select count(*) users_visible_to_admin from public.users;   -- = total users
 rollback;
-
--- as a non-admin viewer (replace VIEWER_UUID) — sees only their own row
-begin;
-  set local role authenticated;
-  set local request.jwt.claims = '{"sub":"VIEWER_UUID"}';
-  select count(*) users_visible_to_viewer from public.users;  -- expect 1
-rollback;
+-- with a non-admin VIEWER_UUID this returns 1 (their own row only)
 ```
 
-**(d) Live app smoke:** open `https://analytics.polecat.live/app/`, sign in via
-GoTrue, confirm you can read your dashboards and save an edit. Then open a
-private/incognito window (anon, no sign-in) and confirm you see only public
-content and cannot save.
+**(d) Live-app smoke:** open `https://analytics.polecat.live/app/`, sign in via
+GoTrue as the admin, confirm you can create/save a dashboard (owned by your
+UUID now). Then open a private/incognito window (anon, not signed in) and confirm
+you see only public content and cannot save.
 
-If all four look right, **you're done** — RLS is live and M7 is complete.
+If all four look right, **RLS is live and M7 is complete.** Reinstall the sample
+pack in-app if you want demo dashboards back (they'll be owned by whoever
+installs them; leave them non-private so anonymous visitors can see them).
 
----
+### A5 — Post go-live
 
-## Step 6 — Rollback (instant, if anything looks wrong)
+- Each additional user needs a **GoTrue account** (A0) and signs in once; their
+  synced content is then owned by their UUID.
+- The Admin console's cross-user add/edit works because a real admin passes the
+  `polecat_is_admin()` branch.
+- Update `STATUS.md` M7 → DONE with the go-live date.
 
-Re-running the bootstrap restores the demo allow-all posture on every table:
+### Rollback (instant) — restores the demo allow-all posture
 
 ```sql
--- paste the entire tools/supabase-bootstrap.sql and run it, OR the minimal form:
 do $$
 declare t text;
 begin
@@ -263,19 +146,48 @@ end $$;
 notify pgrst, 'reload schema';
 ```
 
-(`public.polecat_is_admin()` can be left in place — it's harmless when unused —
-or `drop function public.polecat_is_admin();`.)
-
-No data is modified by the flip or the rollback (Step 3 remediation is the only
-data write, and only if you chose to run it).
+(Or just re-run `tools/supabase-bootstrap.sql`, which is idempotent and does the
+same. `public.polecat_is_admin()` can be left in place — harmless — or dropped.)
 
 ---
 
-## Post-go-live notes
+## Appendix B — In-place migration (only if you must preserve existing data)
 
-- Every new user must be given a **GoTrue account** and sign in with it to get
-  read/write access — the anon key is now public-read-only.
-- The Admin console's cross-user add/edit works because a real admin passes the
-  `polecat_is_admin()` branch; `initAuthBoot` now mirrors only the caller's own
-  row (M7 #212), so a viewer's boot no longer tries foreign-row writes.
-- Update `STATUS.md` M7 to DONE and note the go-live date once verified.
+Skip this entirely if you took Path A. This is the longer path that keeps the
+current rows, at the cost of a data migration. The two failure modes it guards:
+
+1. **A user with no GoTrue identity** would, after the flip, see only public rows
+   and be unable to save. Everyone who needs write access must sign in via GoTrue
+   first (as in A0/A2).
+2. **A private row whose `owner` is still a username** (`"admin"`, `"demo"`)
+   instead of a UUID becomes invisible to everyone.
+
+Procedure:
+
+1. **Snapshot** row counts (proof nothing's lost):
+   ```sql
+   select 'dashboards' t, count(*) from public.dashboards
+   union all select 'datasets', count(*) from public.datasets
+   union all select 'connections', count(*) from public.connections
+   union all select 'analyses', count(*) from public.analyses
+   union all select 'jobs', count(*) from public.jobs
+   union all select 'users', count(*) from public.users order by 1;
+   ```
+2. **Pre-flight A — find orphaned private rows** (private, owner not a UUID;
+   `acctOwner` for `datasets`):
+   ```sql
+   with u as (select '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' rx)
+   select 'dashboards' tbl, count(*) filter (where (data::jsonb->>'private')::boolean is true
+     and coalesce(data::jsonb->>'owner','') !~* (select rx from u)) orphan_private
+   from public.dashboards
+   -- repeat UNION ALL for connections, analyses, jobs (owner) and datasets (acctOwner)
+   ;
+   ```
+3. **Remediate** any orphans — either make them public
+   (`jsonb_set(data::jsonb,'{private}','false')`) or reassign `owner` to the
+   admin's UUID (`jsonb_set(data::jsonb,'{owner}', to_jsonb('ADMIN_UUID'::text))`).
+   Re-run step 2 until zero.
+4. **Pre-flight B** — confirm the admin's `users` row has its `gotrueId`
+   (`select id, role, data::jsonb->>'gotrueId' from public.users;`).
+5. **Apply** `tools/supabase-rls-real.sql`, then **verify** with the same blocks
+   as A4, and **roll back** the same way if needed.
