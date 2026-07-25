@@ -7,8 +7,9 @@ the inspector, watch the live preview — then **export** a fully self-contained
 that runs anywhere.
 
 > This repository is the standalone home of Dashboard Studio. The **Studio app lives at
-> the repo root**; the legacy suite that seeded it is preserved under
-> [`reference/`](reference/) and [`provisioning/`](provisioning/) for lineage.
+> `/app/`** (the repo root itself serves a public marketing page); the legacy suite that
+> seeded it is preserved under [`reference/`](reference/) and [`provisioning/`](provisioning/)
+> for lineage.
 
 ```
 ┌──────────────┬───────────────────────────────┬───────────────┐
@@ -26,7 +27,7 @@ The Studio loads JSON + the toolkit over HTTP, so serve the folder (don't open v
 ./serve.sh            # → http://localhost:8000   (python3 -m http.server)
 ```
 
-Open <http://localhost:8000/>. It boots on the **★ Cost & Sustainability** showcase.
+Open <http://localhost:8000/app/>. It boots on the **★ Cost & Sustainability** showcase.
 
 ## The data model
 
@@ -63,9 +64,10 @@ One **dashboard spec** (`.studio.json`, see `SPEC.md`) drives every output:
 ## Layout
 
 ```
-analytics.polecat.live/          ← the Studio app (served by GitHub Pages at the root)
-├── index.html                   ← the app shell (rail: Home · Dashboards · Datasets · Connections · Studio)
+analytics.polecat.live/          ← served by GitHub Pages at the root
+├── index.html                   ← public marketing page (css/landing.css; no shell)
 ├── app/
+│   ├── index.html                ← the app shell (rail: Home · Dashboards · Datasets · Connections · Studio)
 │   ├── studio.js                 ← controller (sections · library · canvas · inspector · export)
 │   ├── studio.css                ← builder chrome (Polecat house theme + Classic/Fleet Modern)
 │   ├── model.js                  ← chart registry + spec helpers (shared by exporters)
