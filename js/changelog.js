@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 555,
+    title: 'Calmer search field in the Data panel',
+    kind: 'polish',
+    ts: '2026-07-25T23:03:17.000Z',
+    items: [
+      'LF19: the Data panel\'s search box used to sit in its own fully bordered "card" row, echoing the group boxes below it -- now it\'s a plain filled field, so it reads as a header tool, not a fourth group.',
+      'Click into it and it still shows a clear focus outline.',
+    ],
+  },
+  {
     v: 554,
     title: 'Tidied the "+ New" shortcut on This dashboard\'s datasets',
     kind: 'polish',

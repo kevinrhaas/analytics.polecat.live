@@ -116,6 +116,23 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF19 slice 4 — the Data panel search field is no longer a fourth "group-card" (v555,
+  sw v192, 2026-07-25, steward):** continuing LF19's "reduce chrome density overall" ask —
+  specifically the note left in slice 3's writeup ("the search input still sits in its own
+  fully-padded row below the header — worth a look"). Screenshotted the real Data panel: `.search`
+  (`#libSearch`) carried `border:1px solid var(--line); border-radius:8px; background:var(--field)`
+  — the exact same border/radius/background weight as the `.lib-mine` group boxes rendered right
+  below it ("This dashboard's datasets", "Sample packs") — so the panel read as one header row
+  followed by FOUR identically-weighted bordered cards (search + 3 groups) instead of a header with
+  a lightweight filter tool above its content groups. Fix (`app/studio.css` `.search`): the resting
+  border is now `1px solid transparent` (no visible border at rest — still a filled field, so the
+  affordance isn't lost, just the redundant card outline), margin tightened from `10px 12px` to
+  `8px 12px` and padding from `8px 11px` to `7px 10px` (a slightly smaller footprint), and the
+  existing `:focus` rule still swaps in `var(--brand)` so clicking/tabbing in still shows a clear
+  border. 2 new regression tests (no visible border at rest; a different, visible border on focus).
+  (app/studio.css, sw.js, js/changelog.js, tests/run.js) NEXT in LF19: the same organize-and-
+  simplify pass on the right Inspector panel (group/label sections, icons, sensible collapse,
+  consistent spacing) is still the last piece of LF19 — not yet started.
 - **LF19 slice 3 — the "+ New" shortcut on "This dashboard's datasets" is icon-only now (v554,
   sw v191, 2026-07-25, steward):** continuing LF19's "tidy the search + New affordances, reduce
   chrome density overall" ask. Screenshotted the real Data panel at its default 300px width: the
@@ -3798,10 +3815,13 @@
 >       group.** See DONE for the full writeup.
 >       ✓ **Slice 3 shipped (v554, sw v191, 2026-07-25, steward): the "This dashboard's datasets"
 >       "+ New" button is icon-only now,** so it no longer crowds the group's own name into an
->       ellipsis at the panel's default width. See DONE for the full writeup. NEXT in LF19: "reduce
->       chrome density overall" has more to give (the search input still sits in its own fully-padded
->       row below the header), then the same organize-and-simplify pass on the right Inspector panel
->       — both still open, still to be sliced one coherent PR at a time.
+>       ellipsis at the panel's default width. See DONE for the full writeup.
+>       ✓ **Slice 4 shipped (v555, sw v192, 2026-07-25, steward): the search field is no longer a
+>       fourth "group-card."** See DONE for the full writeup — it no longer carries the same
+>       border/radius/background as the `.lib-mine` group boxes below it. NEXT in LF19: the same
+>       organize-and-simplify pass on the right Inspector panel (group/label sections, icons,
+>       sensible collapse, consistent spacing) is the last piece — still open, still to be sliced
+>       one coherent PR at a time.
 > LF18. **Home ("Welcome back") overhaul — richer entry points, default featured, tour chooser.** The Home
 >       landing should orient a returning user with descriptive quick-actions, not three bare cards:
 >       (a) QUICK-ACTIONS reworded to concrete jobs — "Explore curated datasets", "Build a dashboard from

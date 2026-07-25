@@ -742,7 +742,10 @@ textarea:focus-visible,[tabindex]:focus-visible,.row-item:focus-visible{
 .insp-sec h4:hover .sec-help,.sec-help:focus{opacity:1;background:var(--brand);color:#fff}
 
 /* ── library ── */
-.search{margin:10px 12px;padding:8px 11px;border:1px solid var(--line);border-radius:8px;background:var(--field);
+/* LF19 slice 4: no resting border — a bordered+padded box here reads as a 4th group-card
+   stacked under the header (same border/radius/background as .lib-mine); a plain filled
+   field keeps the affordance without the extra chrome layer. Border returns on focus only. */
+.search{margin:8px 12px;padding:7px 10px;border:1px solid transparent;border-radius:7px;background:var(--field);
   font-size:13px;outline:none;color:var(--ink)}
 .search:focus{border-color:var(--brand);background:var(--pane)}
 .lib-scroll,.insp-scroll{overflow:auto;flex:1;min-height:0;padding:4px 8px 24px}
