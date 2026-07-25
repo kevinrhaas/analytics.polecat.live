@@ -116,6 +116,21 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **QA-09 — README's run instructions and layout diagram now match the deployed root/app
+  split (2026-07-25, steward, FRONTEND_QA_REPORT_2026-07-24.md):** the report's P3 DOCS
+  finding — README said the Studio app "lives at the repo root," told readers to run
+  `./serve.sh` and open `http://localhost:8000/`, and its Layout diagram labelled root
+  `index.html` as "the app shell." All three are stale: root `index.html` is the public
+  marketing page (`css/landing.css`, no shell) and the actual app shell is `app/index.html`
+  at `/app/` — CLAUDE.md already had this right (its own Layout section), only README had
+  drifted. Fix: the intro blurb now says the Studio "lives at `/app/`" (repo root serves
+  marketing), the Run section's URL is `http://localhost:8000/app/`, and the Layout diagram's
+  root `index.html` line now reads "public marketing page" with a new `app/index.html` line
+  above `app/studio.js` naming it as the app shell. Docs-only, no behavior change, no
+  changelog/sw.js entry (matches the precedent of prior STATUS-only doc commits — this is a
+  repo-dev doc, not in-app user-facing content). (README.md) NEXT: QA-10 (verify the
+  production footer wasn't genuinely stale, no code change expected) is the next item in the
+  same report.
 - **QA-08 — new-connection intro copy no longer promises a stale adapter roadmap (v523,
   2026-07-25, steward, FRONTEND_QA_REPORT_2026-07-24.md):** the report's P3 finding — the New
   connection chooser's intro line said "More adapters (Postgres, Redshift, Azure, files) join
@@ -2448,10 +2463,9 @@
 > QA-08. ✓ P3 — **New-connection intro text is stale (shipped v523, 2026-07-25, steward)** — see
 >       DONE for the full writeup. Replaced with the report's suggested current guidance. 1 new
 >       regression test.
-> QA-09. P3 DOCS — **README entry point conflicts with the deployed path** (says the app is at root
->       `/` + `index.html` + localhost:8000; actually `/app/` + `app/index.html`, root is marketing —
->       CLAUDE.md is already correct). FIX: update README run/layout to `localhost:8000/app/` + the
->       root/app split. Quick.
+> QA-09. ✓ P3 DOCS — **README entry point conflicts with the deployed path (shipped 2026-07-25,
+>       steward)** — see DONE for the full writeup. Run/layout sections now point to
+>       `localhost:8000/app/` and the root/app split. Docs-only, no regression test.
 > QA-10. VERIFY — production footer `v513` was one changelog version behind repo `v514` at test time.
 >       Likely a normal deploy window / SW cache delay, not a defect. Confirm the Pages deploy for the
 >       tested commit, verify a fresh/private browser gets the newer build, and if stale clients
