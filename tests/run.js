@@ -9661,6 +9661,37 @@ function serve() {
     ok("LF19: toggling 'Sample packs' persists across a reload too (same remember-the-choice mechanism)",
       lf19.demoAfterToggle !== lf19.demoBefore && lf19.demoAfterReload === lf19.demoAfterToggle, JSON.stringify(lf19));
 
+    // LF19 "next" slice — every top-level Data-panel group header carries its own
+    // glyph (car, then icon, then name) so the panel reads as "what kind of thing
+    // is this" at a glance instead of five same-looking text rows.
+    const grpIcons = await page.evaluate(async () => {
+      const W = window.Studio.Workspace;
+      const ds = W.put("datasets", { name: "GrpIconTestDS", columns: ["a"], sql: "select 1 a" });
+      const an = W.put("analyses", { name: "GrpIconTestAnalysis", chartType: "bars",
+        da: { id: "grpicon_da", columns: ["a"] }, chart: { type: "bars", map: {}, opts: {} } });
+      const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json());
+      window.__studioLoad(spec); // force buildLibrary() to re-run with the new rows present
+      function svgOf(sel) { var h = document.querySelector(sel); return h && h.querySelector(".grp-ic"); }
+      const mine = svgOf(".lib-mine:not(.lib-wsds):not(.lib-analyses):not(.lib-demopacks) .h");
+      const wsds = svgOf(".lib-wsds .h");
+      const analyses = svgOf(".lib-analyses .h");
+      const demopacks = svgOf(".lib-demopacks .h");
+      const samples = svgOf(".lib-samples .h");
+      const svgs = [mine, wsds, analyses, demopacks, samples];
+      const result = {
+        allPresent: svgs.every(Boolean),
+        allBeforeName: svgs.every((s) => s && s.nextElementSibling && s.nextElementSibling.classList.contains("nm")),
+        distinctPaths: new Set(svgs.map((s) => s && s.innerHTML)).size === svgs.length
+      };
+      W.remove("datasets", ds.id); W.remove("analyses", an.id); // leave the workspace as this test found it
+      window.__studioLoad(spec);
+      return result;
+    });
+    ok("LF19 group icons: every top-level Data-panel group (This dashboard's datasets, Workspace datasets, " +
+      "Analyses, Sample packs, Samples) shows its own header glyph", grpIcons.allPresent, JSON.stringify(grpIcons));
+    ok("LF19 group icons: each glyph sits right before the group's name span", grpIcons.allBeforeName, JSON.stringify(grpIcons));
+    ok("LF19 group icons: the 5 groups use 5 visually distinct glyphs, not one repeated icon", grpIcons.distinctPaths, JSON.stringify(grpIcons));
+
     // Calmer Data panel: the compound (join/union) create button is retired from
     // the Studio pane (joins/unions belong in the Datasets area), so the header
     // carries exactly one action — "+ New" — and no compound-DA entry.

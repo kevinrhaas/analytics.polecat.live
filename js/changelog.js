@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 553,
+    title: 'Data panel groups gain their own header icons',
+    kind: 'polish',
+    ts: '2026-07-25T22:11:30.000Z',
+    items: [
+      'LF19: every top-level Data-panel group -- This dashboard\'s datasets, Workspace datasets, Analyses, Sample packs, and Samples -- now shows its own small glyph next to its name.',
+      'Makes the panel scannable by "what kind of thing is this" at a glance, instead of five same-looking text rows.',
+    ],
+  },
+  {
     v: 552,
     title: 'Data panel groups collapse once they get long',
     kind: 'polish',

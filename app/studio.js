@@ -490,6 +490,16 @@
     try { localStorage.setItem(key, isOpen ? "1" : "0"); } catch (e) {}
   }
   window.__studioLibGroupOpen = libGroupOpen; // test hook (LF19 slice 1)
+  // LF19 "next" slice — clearer section grouping: each top-level Data-panel group
+  // gets its own glyph next to its name (car, then icon, then name — same flex row,
+  // .h's existing 7px gap does the spacing), so the panel is scannable by "what
+  // kind of thing is this" at a glance instead of five same-looking text rows.
+  function libGroupHeaderIcon(h, name) {
+    var ic = Studio.icon(name, 13);
+    ic.classList.add("grp-ic");
+    var nm = h.querySelector(".nm");
+    if (nm) h.insertBefore(ic, nm); else h.appendChild(ic);
+  }
   function buildLibrary() {
     var list = $("#libList"), q = ($("#libSearch").value || "").toLowerCase();
     list.innerHTML = "";
@@ -523,6 +533,7 @@
         var sh = el("div", "h lib-samples-h");
         sh.innerHTML = '<span class="car">▶</span><span class="nm">Samples</span><span class="badge">' + shownDA + '</span>' +
           '<span class="lib-samples-hint" title="Demo queries against the built-in sample database — every dashboard stays demoable offline. Hide them in Settings if you want a clean workspace.">demo db</span>';
+        libGroupHeaderIcon(sh, "code");
         sh.onclick = function () {
           sWrap.classList.toggle("open");
           _samplesOpen = sWrap.classList.contains("open");
@@ -567,6 +578,7 @@
     var wrap = el("div", "lib-mine lib-demopacks" + (libGroupOpen(demopacksOpenKey, keys.length) ? " open" : ""));
     var h = el("div", "h");
     h.innerHTML = '<span class="car">▶</span><span class="nm">Sample packs</span><span class="badge">' + keys.length + "</span>";
+    libGroupHeaderIcon(h, "layers");
     h.onclick = function () {
       wrap.classList.toggle("open");
       libGroupPersist(demopacksOpenKey, wrap.classList.contains("open"));
@@ -619,6 +631,7 @@
     var wrap = el("div", "lib-mine lib-wsds open");
     var h = el("div", "h");
     h.innerHTML = '<span class="car">▶</span><span class="nm">Workspace datasets</span><span class="badge">' + dss.length + "</span>";
+    libGroupHeaderIcon(h, "db");
     h.onclick = function () { wrap.classList.toggle("open"); };
     wrap.appendChild(h);
     var box = el("div", "lib-das");
@@ -1346,6 +1359,7 @@
     var wrap = el("div", "lib-mine lib-analyses open");
     var h = el("div", "h");
     h.innerHTML = '<span class="car">▶</span><span class="nm">Analyses</span><span class="badge">' + shown.length + "</span>";
+    libGroupHeaderIcon(h, "trend-up");
     h.onclick = function () { wrap.classList.toggle("open"); };
     wrap.appendChild(h);
     var box = el("div", "lib-das");
@@ -1375,6 +1389,7 @@
     var wrap = el("div", "lib-mine" + (libGroupOpen(mineOpenKey, das.length) ? " open" : ""));
     var h = el("div", "h");
     h.innerHTML = '<span class="car">▶</span><span class="nm">This dashboard\u2019s datasets</span><span class="badge">' + das.length + "</span>";
+    libGroupHeaderIcon(h, "cube");
     var addBtn = el("button", "mine-add"); setIconBtn(addBtn, "plus", "New", 12);
     addBtn.title = "Create a new data source"; addBtn.type = "button";
     addBtn.onclick = function (e) { e.stopPropagation(); addNewDA(); };
