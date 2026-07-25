@@ -3247,6 +3247,7 @@
 >       app/studio-charts.js (GEO_FILES + geoFeatures/geoFeaturesGL scale branches), tools/build-geo.mjs, vendor/geo/,
 >       + a GEO test per new scale (renders colored, hover overlay tracks, exports carry only the geometry used).
 > LF23. ★ **VIEWER MODE — open dashboards read-only, as their own page/tab, with role-gated Studio access (Kevin, live).**
+>       **PRIORITY (Kevin, 2026-07-24): do LF23 BEFORE LF24 (Quick mode) — start viewer mode first.**
 >       Most people should OPEN a dashboard to READ it, not land in the full builder. From the Repository (Dashboards
 >       list) AND Home, a dashboard row/card gets "Open in viewer" → a full-page, URL-addressable, READ-ONLY render
 >       (its own route, openable in a NEW TAB), plus the existing "Open in Studio" for editors. Viewer mode shows the
@@ -3273,6 +3274,7 @@
 >       gating), app/studio.js (mode routing + simpleMode), app/studio-render.js. Slice it: (1) viewer route + read-only
 >       render + Open-in-viewer/new-tab from Repository+Home; (2) role gating + Edit-in-Studio handoff.
 > LF24. ★★ **QUICK MODE — drop a CSV/JSON, auto-build datasets + an excellent dashboard (Kevin, live; ROADMAP).**
+>       **SEQUENCING (Kevin, 2026-07-24): do LF23 (Viewer mode) BEFORE this — Quick mode waits until viewer mode is done.**
 >       A "just show me a dashboard" flow: drop a CSV/JSON onto a canvas/drop-zone → infer dataset(s) from the data →
 >       auto-generate a strong dashboard: a KPI row + 4-6 STRAIGHTFORWARD widgets (bar / donut / line / table) PLUS a
 >       few tasteful "fun" ones mixed in (map / ensemble / treemap / slope). ENTRY POINT: likely on the HOME page (a
