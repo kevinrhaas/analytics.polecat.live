@@ -4130,20 +4130,38 @@
 >     `app.supabase.com` and `analytics.polecat.live` get NO ACAO, so a browser blocks the request before
 >     sending it. A PAT wouldn't help — preflight is unauthenticated. **Do NOT build the direct
 >     browser→Management-API call; it would be dead on arrival in production.** Two viable ways to still
->     run go-live "from the interface" (DECISION for Kevin):
->       **(A) One-time Edge Function relay.** Deploy a tiny Supabase Edge Function ONCE (holds the
->       service-role key, or accepts a PAT); it runs the SQL against Postgres directly (edge functions
->       reach the DB) or forwards to the Management API server-side (no CORS from a server); the app
->       calls the function (you control ITS CORS). After the one-time deploy, the whole go-live + all
->       future provisioning run from an in-app button — and the same relay powers the more-secure
->       user-provisioning path (Slice 6 Option B). Small backend, but one-time + reusable.
->       **(B) Keep only the DDL/RLS flip manual (one-time SQL-editor paste, per the runbook); do
->       everything ELSE in-app.** User creation via GoTrue signup (Slice 6 — no DDL) and the clean-install
->       data wipe via REST DELETE (`drop()` already does this) are both browser-reachable TODAY. Only
->       `CREATE POLICY`/`ALTER`/table-create genuinely need the editor, and only once. This gets ~90% of
->       "never touch Supabase" with zero backend.
->     Tests (whichever path): mock the relay/endpoint; assert ordered steps, error handling, and (for the
->     PAT variant) that the token is never written to storage.
+>     run go-live "from the interface". **KEVIN CHOSE OPTION A (2026-07-24): the one-time Edge Function
+>     relay. Build it as the primary in-app go-live + provisioning path.**
+>     ── SPEC (Slice 7 = ★ NEXT once the higher-priority backlog clears; buildable independently of the
+>     flip) ──
+>     - **The function** (`supabase/functions/polecat-admin/index.ts`, Deno — source lives in THIS repo
+>       but is NOT part of the static Pages deploy; the admin deploys it with the Supabase CLI). It has
+>       the service-role key auto-injected (`SUPABASE_SERVICE_ROLE_KEY`) and opens a DIRECT Postgres
+>       connection (Deno `postgres` client via the pooler / `SUPABASE_DB_URL`) — PostgREST still can't DDL
+>       even with the service key, but a direct PG connection CAN, so this is what runs the DDL/RLS.
+>     - **NAMED, FIXED actions only — never a raw-SQL relay.** The canonical bootstrap DDL + the contents
+>       of `tools/supabase-rls-real.sql` live INSIDE the function; the client sends an action name +
+>       params, never SQL. Actions: `provision` (bootstrap DDL), `go-live` (truncate → seed admin `users`
+>       row → apply RLS → run the verification queries, returns the results), `create-user` (admin-create
+>       a GoTrue user via the Auth admin API + insert its `users` row — the SECURE user-provisioning path,
+>       supersedes Slice 6's open-signup for deployments that run the relay), `reset-data`.
+>     - **CORS:** the function sets `Access-Control-Allow-Origin` for the app origin (you control it), so
+>       the browser CAN call it — this is the whole point vs. the CORS-blocked Management API.
+>     - **AUTH:** `provision`/`go-live` are gated by a one-time `PROVISION_SECRET` env var (set at deploy,
+>       entered in the app enter-run-DISCARD, never persisted). Post-go-live ops (`create-user`) verify the
+>       caller's GoTrue admin JWT (function checks the `users` table via the service role). Service-role key
+>       NEVER leaves the function.
+>     - **The app side:** an Admin "Enable per-user security / Go live" button + the "Add user" flow call
+>       the function; connection config gains the function URL. Graceful errors (function not deployed / bad
+>       secret / network).
+>     - **ONE-TIME SETUP (the only Supabase touch, ever):** `supabase functions deploy polecat-admin` +
+>       set `PROVISION_SECRET` (+ allow the app origin). Documented in `tools/M7-RLS-GOLIVE-RUNBOOK.md`
+>       (Path C). After that, go-live + all user provisioning are in-app buttons — zero SQL-editor visits.
+>     - The manual SQL runbook (Path A/B) stays as the no-backend fallback.
+>     Tests: mock the function endpoint; assert the Admin buttons POST the right action + params, thread the
+>     go-live results into the UI, handle not-deployed/bad-secret/network errors, and NEVER write the
+>     provision secret to storage. The Deno function itself: a small standalone test or a documented manual
+>     verify (it's out of the Playwright app suite's reach).
 > Also: add MORE crop/geo sample sets as the demo matures (Kevin). "Eventually polecat overall"
 > for the auth/user model — keep the users/permissions design app-neutral where cheap.
 
