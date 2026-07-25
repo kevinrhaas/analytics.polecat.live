@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v176"; /* v176: UX6 (icon migration, carets slice) — the
+var CACHE_NAME = "studio-shell-v177"; /* v177: LF16 — the Settings Account card's own
+   standalone "Demo content" toggle is gone (folded into the Sample packs card, which already
+   covered every pack); "Demo packs" relabeled "Sample packs" throughout. No new precached
+   files, but app/studio.js, docs/index.html and js/changelog.js content changed, so precached
+   copies need to roll. */
+/* v176: UX6 (icon migration, carets slice) — the
    remaining "▾" dropdown-trigger carets (New/Export/Examples/+New) and the footer Changelog
    button's "▴" expand indicator are now themed chevron SVGs instead of raw text glyphs. No
    new precached files, but app/index.html and app/studio.js content changed, so precached

@@ -525,7 +525,7 @@
     if (!keys.length) return;
     var wrap = el("div", "lib-mine lib-demopacks open");
     var h = el("div", "h");
-    h.innerHTML = '<span class="car">▶</span><span class="nm">Demo packs</span><span class="badge">' + keys.length + "</span>";
+    h.innerHTML = '<span class="car">▶</span><span class="nm">Sample packs</span><span class="badge">' + keys.length + "</span>";
     h.onclick = function () { wrap.classList.toggle("open"); };
     wrap.appendChild(h);
     var box = el("div", "lib-das");
@@ -538,7 +538,7 @@
     var c = el("div", "da");
     c.innerHTML = '<div class="da-top"><div class="da-id">' + esc(p.name) + '</div></div>' +
       '<div class="da-name">' + esc(p.tagline) + '</div>' +
-      '<div class="da-add"><span class="chip" data-lib-demopack="' + esc(id) + '">' + (on ? "Remove pack" : "+ Install pack") + '</span>' +
+      '<div class="da-add"><span class="chip" data-lib-demopack="' + esc(id) + '">' + (on ? "Remove pack" : "+ Install sample pack") + '</span>' +
       (on ? '<span class="chip" data-lib-demopack-open="' + esc(id) + '">Open dashboard</span>' : "") + '</div>';
     var installChip = c.querySelector("[data-lib-demopack]");
     installChip.onclick = function (e) { e.stopPropagation(); toggleDemoPack(id, p); };
@@ -552,12 +552,12 @@
   }
   function toggleDemoPack(id, p) {
     if (Studio.demoPackInstalled(id)) {
-      if (!window.confirm("Remove the “" + (p && p.name || id) + "” demo pack? This deletes its dataset, analyses, and dashboard.")) return;
+      if (!window.confirm("Remove the “" + (p && p.name || id) + "” sample pack? This deletes its dataset, analyses, and dashboard.")) return;
       Studio.removeDemoPack(id);
-      toast("Demo pack removed");
+      toast("Sample pack removed");
     } else {
       Studio.installDemoPack(id);
-      toast("Demo pack installed — see Home, Explore, and Datasets");
+      toast("Sample pack installed — see Home, Explore, and Datasets");
     }
     buildLibrary(); renderSettings(); renderHome(); buildExamplesMenu();
   }
@@ -8998,21 +8998,19 @@
   // boot steps (user mirror + demo auto-install) against the now-known account.
   window.__studioAuthBoot = initAuthBoot;
 
-  // M3 (auth): who you're signed in as, a sign-out, and the demo-content toggle.
-  // Demo content = the Conservation Insight sample workspace (demopacks.js) — on
-  // for the demo account, removable any time, and cleared on a real-backend login.
+  // M3 (auth): who you're signed in as, and a sign-out. The account card used to
+  // ALSO carry its own hardcoded "Demo content" toggle for the Conservation pack —
+  // LF16: that was a second surface for exactly what the "Sample packs" card below
+  // (any Studio.DEMO_PACKS entry, not just Conservation) already does, so it's
+  // gone; installing/removing sample content now has ONE surface, not two.
   function accountCardHtml() {
     var Auth = window.PolecatAuth; if (!Auth) return "";
     var u = Auth.current() || { name: "Local", role: "admin", demo: false };
-    var demoOn = !!(Studio.demoPackInstalled && Studio.demoPackInstalled("conservation"));
     return '<div class="settings-card" id="accountCard"><h2>Account</h2>' +
       '<div class="set-row"><span class="set-row-ic" data-ic="key"></span>' +
         '<div class="set-row-txt"><b>' + esc(u.name || u.u || "Signed in") + '</b><small>Signed in' +
           (u.role ? " · " + esc(u.role) : "") + (u.demo ? " · demo account" : "") + '</small></div>' +
         '<button type="button" class="btn" id="setSignOutBtn">Sign out</button></div>' +
-      '<div class="set-row"><span class="set-row-ic" data-ic="globe"></span>' +
-        '<div class="set-row-txt"><b>Demo content</b><small>A ready-made sample workspace — connections, datasets, a rollup job, analyses and a featured dashboard. On by default for the demo account; turn it off any time.</small></div>' +
-        '<label class="set-sw"><input type="checkbox" id="setDemoContent"' + (demoOn ? " checked" : "") + '/><span class="set-sw-track"></span></label></div>' +
     '</div>';
   }
   function renderSettings() {
@@ -9109,7 +9107,7 @@
         '</div>' +
       '</div>' +
       (showSamples() && Object.keys(Studio.DEMO_PACKS || {}).length ?
-        '<div class="settings-card"><h2>Demo packs</h2>' +
+        '<div class="settings-card"><h2>Sample packs</h2>' +
           '<p class="ws-card-intro">A second, opt-in sample library for pitch-specific demos — installs as ordinary workspace content (a dataset, analyses, a dashboard), tagged so Remove cleans up exactly what Install wrote.</p>' +
           Object.keys(Studio.DEMO_PACKS).map(function (id) {
             var p = Studio.DEMO_PACKS[id], on = Studio.demoPackInstalled(id);
@@ -9136,17 +9134,11 @@
       var t = SETTINGS_TOGGLES.filter(function (x) { return x.id === cb.getAttribute("data-set"); })[0];
       if (t) cb.addEventListener("change", t.set);
     });
-    // M3: Account card — sign out + demo-content toggle.
+    // M3: Account card — sign out.
     var signOutBtn = $("#setSignOutBtn", sec);
     if (signOutBtn) signOutBtn.onclick = function () {
       if (window.PolecatAuth) window.PolecatAuth.logout();
       location.reload();
-    };
-    var demoContentCb = $("#setDemoContent", sec);
-    if (demoContentCb) demoContentCb.onchange = function () {
-      if (demoContentCb.checked) { Studio.installDemoPack("conservation"); toast("Demo content added to your workspace"); }
-      else { Studio.removeDemoPack("conservation"); toast("Demo content removed"); }
-      renderSettings();
     };
     $$("#appThemeCards .apptheme-card", sec).forEach(function (card) {
       card.onclick = function () {
