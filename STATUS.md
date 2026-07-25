@@ -4091,25 +4091,32 @@
 >     apply `supabase-rls-real.sql`. The seed-before-RLS ordering avoids the `users` admin-bootstrap
 >     lockout (INSERT is admin-only, and "admin" is decided by an existing admin row). Gated on Kevin
 >     running it in the Supabase SQL editor (the lane/session don't hold live admin creds).
->     ↳ **★ NEXT — Slice 6: IN-APP ACCOUNT PROVISIONING (browser self-signup, DECIDED WITH KEVIN
->     2026-07-24).** GOAL Kevin stated: create/manage accounts entirely from the Polecat Admin
->     console — never visit Supabase per-user; only the FIRST admin needs a one-time dashboard
->     bootstrap. APPROACH (Kevin chose): browser self-signup, NO backend/edge function. Add
->     `signUp(cfg,{email,password})` to `app/sources/supabase.js` calling GoTrue's public signup
->     endpoint (`POST {url}/auth/v1/signup` with the anon/publishable key); wire the Admin "Add user"
->     flow (`openUserEditor`/`renderAdmin`) to call it and, on success, write the local PolecatAuth
->     user + the `users` row stamped with the returned GoTrue uid (`gotrueId`) + role so RLS +
->     `polecat_is_admin()` work immediately. ONE-TIME Supabase project setting required: enable
->     signups + DISABLE email confirmation (else accounts sit unconfirmed) — detect the blocked case
->     and show the admin a clear one-time "flip this setting" message; document it in the runbook.
->     TRADE-OFF (accepted): open signup means the anon key can self-register — gate the signup UI to
->     admins in-app and keep the adapter method pluggable so a later switch to an Edge Function
->     (service key, closed signup) is cheap. LIMITATION: fully deleting a GoTrue auth record needs the
->     admin API (service key), so console "remove" drops the app-side user + `users` row (revoking
->     access via RLS) while the auth record may linger until dashboard cleanup. Buildable
->     independently of the RLS flip (signup works under allow-all too) and makes go-live smoother.
->     Tests: mock the signup endpoint; assert Add-user calls signup, stamps `gotrueId` onto the
->     `users` row, and surfaces the "signups disabled / confirmation on" error clearly.
+>     ↳ **Slice 6 shipped (2026-07-25, v541, sw v178, steward — IN-APP ACCOUNT PROVISIONING, browser
+>     self-signup, DECIDED WITH KEVIN 2026-07-24):** `signUp(cfg,{email,password})` added to
+>     `app/sources/supabase.js`, calling GoTrue's public signup endpoint (`POST {url}/auth/v1/signup`
+>     with the anon/publishable key, no service key). Admin's "+ Add user" flow (`openUserEditor`) now
+>     shows an Email field whenever the connected workspace backend is Supabase (`Studio.Sync.syncState
+>     ().sourceId === "supabase"`, new-user path only — editing an existing account never re-signs-up);
+>     on success it writes the local PolecatAuth user AND stamps the returned GoTrue uid as `gotrueId`
+>     (mirrored into the `users` row the same way M7 slice 2/3 already do) so RLS recognizes the account
+>     immediately. The two "stuck" cases each get their own clear, actionable message instead of a bare
+>     error — sign-ups turned off project-wide (`disabled:true`), or the account was created but this
+>     project still requires email confirmation before it can sign in (`needsConfirmation:true`) — in
+>     both cases the local account is deliberately NOT created, so the admin can fix the one-time
+>     Supabase setting and try again rather than being left with a half-provisioned user. `signUp()`
+>     resolves (never rejects) with a uniform `{ok,userId?,error?,disabled?,needsConfirmation?}` shape,
+>     matching `signIn()`'s existing call convention. 8 new M7 ratchets: 3 adapter-level (success,
+>     needs-confirmation, signups-disabled, each asserting the RIGHT distinguishing flag/message) + 5
+>     UI-level on a dedicated page connected to a mocked Supabase backend (no Email field when not
+>     connected to Supabase; Email field appears once connected; successful signup stamps gotrueId onto
+>     the new local account; the confirmation-required and signups-disabled cases each surface their own
+>     message and leave no local account behind). TRADE-OFF (accepted, per the decision): the signup UI
+>     is admin-gated in-app (only reachable from the Admin console), and the adapter method stays
+>     pluggable for a later closed-signup Edge Function if that's ever needed. Docs: new "Adding users
+>     when connected to Supabase" section in `docs/index.html`. (app/sources/supabase.js, app/studio.js,
+>     docs/index.html, sw.js, tests/run.js) NEXT in M7: Slice 7 (Management-API-driven provisioning + RLS
+>     go-live) remains an OPEN OPTION pending Kevin's call on primary-vs-fallback go-live path; the manual
+>     runbook (`tools/M7-RLS-GOLIVE-RUNBOOK.md`) stays the go-live path in the meantime.
 >     ↳ **OPTION — Slice 7: IN-APP PROVISIONING & RLS GO-LIVE via the Supabase Management API (Kevin's
 >     idea, 2026-07-24).** Run the prep/go-live SQL FROM the interface, not the SQL editor. The anon-key
 >     PostgREST connection can't DDL (why `provision()` today only GENERATES paste-able SQL), but the

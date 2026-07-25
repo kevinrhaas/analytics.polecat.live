@@ -210,6 +210,15 @@ const MOCK_GOTRUE_EMAIL = "owner@example.com";
 const MOCK_GOTRUE_PASSWORD = "secret123";
 const MOCK_GOTRUE_TOKEN = "mock-gotrue-access-token";
 const MOCK_GOTRUE_USER_ID = "11111111-1111-1111-1111-111111111111";
+// M7 slice 6: mock GoTrue self-signup (app/sources/supabase.js signUp) — a
+// normal email auto-confirms (returns a session, like a real project with
+// email confirmation OFF); MOCK_GOTRUE_CONFIRM_EMAIL simulates a project that
+// still requires confirmation (account created, no session back yet); the
+// dedicated "sb_publishable_signupsdisabled" key simulates a project with
+// sign-ups turned off entirely, regardless of email.
+const MOCK_GOTRUE_SIGNUP_USER_ID = "22222222-2222-2222-2222-222222222222";
+const MOCK_GOTRUE_CONFIRM_EMAIL = "needsconfirm@example.com";
+const MOCK_GOTRUE_CONFIRM_USER_ID = "33333333-3333-3333-3333-333333333333";
 function handleMockSupabase(req, rep, p) {
   const send = (code, body) => {
     rep.writeHead(code, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "*" });
@@ -229,6 +238,19 @@ function handleMockSupabase(req, rep, p) {
         return send(200, { access_token: MOCK_GOTRUE_TOKEN, token_type: "bearer", expires_in: 3600, refresh_token: "mock-refresh", user: { id: MOCK_GOTRUE_USER_ID, email: creds.email } });
       }
       return send(400, { error: "invalid_grant", error_description: "Invalid login credentials" });
+    });
+  }
+  if (rel === "auth/v1/signup") {
+    const key = req.headers.apikey || "";
+    if (key !== "sb_publishable_valid" && key !== "sb_publishable_signupsdisabled") return send(401, { error: "invalid api key" });
+    let body = "";
+    req.on("data", (c) => (body += c));
+    return req.on("end", () => {
+      let creds = {};
+      try { creds = JSON.parse(body || "{}"); } catch (e) {}
+      if (key === "sb_publishable_signupsdisabled") return send(422, { error_code: "signup_disabled", msg: "Signups not allowed for this instance" });
+      if (creds.email === MOCK_GOTRUE_CONFIRM_EMAIL) return send(200, { id: MOCK_GOTRUE_CONFIRM_USER_ID, email: creds.email, confirmation_sent_at: "2026-07-25T00:00:00Z" });
+      return send(200, { access_token: MOCK_GOTRUE_TOKEN, token_type: "bearer", expires_in: 3600, user: { id: MOCK_GOTRUE_SIGNUP_USER_ID, email: creds.email } });
     });
   }
   const key = req.headers.apikey || "";
@@ -4545,6 +4567,34 @@ function serve() {
     ok("SUPABASE AUTH: a JWT-gated table rejects the plain anon key before sign-in, and succeeds once signed in — proving rest() actually swaps the Bearer token",
       /401/.test(wsSupabaseAuth.beforeErr) && wsSupabaseAuth.afterCols.length === 1 && wsSupabaseAuth.afterRows[0][0] === true, JSON.stringify(wsSupabaseAuth));
 
+    // ---- SUPABASE: browser self-signup (M7 slice 6) ----
+    // signUp(cfg, {email,password}) hits GoTrue's public /auth/v1/signup
+    // endpoint (anon key only, no service key) — proves the three shapes the
+    // Admin "+ Add user" flow needs to distinguish: a normal success (returns
+    // the new auth.uid()), a project that still requires email confirmation
+    // (account created but can't sign in yet — distinct, actionable error),
+    // and a project with sign-ups turned off entirely (also distinct).
+    const wsSupabaseSignup = await page.evaluate(async function () {
+      var sb = Studio.supabaseSource;
+      var base = location.origin + "/__supabase";
+      var okCfg = { url: base, key: "sb_publishable_valid" };
+      var success = await sb.signUp(okCfg, { email: "newadmin@example.com", password: "pw123456" });
+      var confirm = await sb.signUp(okCfg, { email: "needsconfirm@example.com", password: "pw123456" });
+      var disabledCfg = { url: base, key: "sb_publishable_signupsdisabled" };
+      var disabled = await sb.signUp(disabledCfg, { email: "anyone@example.com", password: "pw123456" });
+      return {
+        successOk: success.ok, successUserId: success.userId,
+        confirmOk: confirm.ok, confirmNeedsConfirmation: !!confirm.needsConfirmation, confirmErr: confirm.error || "",
+        disabledOk: disabled.ok, disabledFlag: !!disabled.disabled, disabledErr: disabled.error || ""
+      };
+    });
+    ok("SUPABASE: signUp succeeds and returns the new account's real auth.uid()",
+      wsSupabaseSignup.successOk === true && wsSupabaseSignup.successUserId === "22222222-2222-2222-2222-222222222222", JSON.stringify(wsSupabaseSignup));
+    ok("SUPABASE: signUp reports needsConfirmation clearly (not a bare error) when the project still requires email confirmation",
+      wsSupabaseSignup.confirmOk === false && wsSupabaseSignup.confirmNeedsConfirmation && /email confirmation/i.test(wsSupabaseSignup.confirmErr), JSON.stringify(wsSupabaseSignup));
+    ok("SUPABASE: signUp reports the disabled-signups case clearly (not a bare error) when the project has sign-ups turned off",
+      wsSupabaseSignup.disabledOk === false && wsSupabaseSignup.disabledFlag && /sign-ups are turned off/i.test(wsSupabaseSignup.disabledErr), JSON.stringify(wsSupabaseSignup));
+
     // ---- CX: Connections section (list, pills, wizard) ----
     console.log("\n• CX: Connections section");
     await page.evaluate(function () { window.__studioShellSetSection("connections"); });
@@ -8718,6 +8768,106 @@ function serve() {
       window.__studioShellApplyRoleGating();
       window.__studioShellSetSection("studio");
     });
+
+    // ---- M7 slice 6: in-app account provisioning (browser self-signup) ----
+    // A separate page/context so connecting it to a (mocked) Supabase backend
+    // never disturbs the main page's local-only workspace the rest of the
+    // suite relies on.
+    console.log("\n• M7 slice 6: in-app account provisioning (Supabase self-signup)");
+    const gp4 = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+    await gp4.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); } catch (e) {} });
+    await gp4.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
+    await gp4.waitForFunction(() => window.__STUDIO_STATE && window.__STUDIO_STATE.assets.js.length > 0, { timeout: 10000 });
+    await gp4.waitForTimeout(300);
+
+    // Not connected to Supabase: Add user has no Email field, plain local upsert.
+    const m7NoBackend = await gp4.evaluate(function () {
+      window.__studioShellSetSection("admin"); window.__studioRenderAdmin();
+      window.__studioOpenUserEditor();
+      var hasEmail = !!document.getElementById("usrEditEmail");
+      document.querySelector(".modal-ov .x").click();
+      return { sourceId: Studio.Sync.syncState().sourceId, hasEmail: hasEmail };
+    });
+    ok("M7 slice 6: with no workspace backend connected, Add user has no Email field (plain local account, unchanged behavior)",
+      m7NoBackend.sourceId === "local" && !m7NoBackend.hasEmail, JSON.stringify(m7NoBackend));
+
+    // Connect to the mocked Supabase backend directly (bypassing the connect
+    // wizard's own UI, already covered by earlier tests) so Add user's
+    // Supabase-aware branch is live.
+    await gp4.evaluate(function (port) {
+      var base = "http://localhost:" + port + "/__supabase";
+      return Studio.Sync.connectAdopt("supabase", { url: base, key: "sb_publishable_valid" });
+    }, PORT);
+
+    const m7Success = await gp4.evaluate(function () {
+      window.__studioRenderAdmin();
+      window.__studioOpenUserEditor();
+      var hasEmail = !!document.getElementById("usrEditEmail");
+      document.getElementById("usrEditUser").value = "newadmin";
+      document.getElementById("usrEditEmail").value = "newadmin@example.com";
+      document.getElementById("usrEditPass").value = "pw123456";
+      document.querySelector(".cx-wiz-foot .btn.primary").click();
+      return { hasEmail: hasEmail };
+    });
+    await gp4.waitForFunction(() => !document.querySelector(".modal-ov"), { timeout: 8000 });
+    const m7SuccessResult = await gp4.evaluate(function () {
+      var u = window.PolecatAuth.find("newadmin");
+      return { found: !!u, gotrueId: u && u.gotrueId };
+    });
+    ok("M7 slice 6: connected to Supabase, Add user shows an Email field and offers self-signup",
+      m7Success.hasEmail, JSON.stringify(m7Success));
+    ok("M7 slice 6: on success, the new local account is created AND stamped with the real Supabase Auth id the mock signup endpoint returned",
+      m7SuccessResult.found && m7SuccessResult.gotrueId === "22222222-2222-2222-2222-222222222222", JSON.stringify(m7SuccessResult));
+
+    // Needs-email-confirmation case: the account is NOT created locally, and the
+    // modal stays open with a clear, specific explanation (not a bare error).
+    const m7Confirm = await gp4.evaluate(function () {
+      window.__studioOpenUserEditor();
+      document.getElementById("usrEditUser").value = "needsconfirmuser";
+      document.getElementById("usrEditEmail").value = "needsconfirm@example.com";
+      document.getElementById("usrEditPass").value = "pw123456";
+      document.querySelector(".cx-wiz-foot .btn.primary").click();
+      return true;
+    });
+    await gp4.waitForTimeout(400);
+    const m7ConfirmResult = await gp4.evaluate(function () {
+      var result = document.querySelector(".modal-ov .cx-test-result");
+      var stillOpen = !!document.querySelector(".modal-ov");
+      var created = !!window.PolecatAuth.find("needsconfirmuser");
+      var msg = result ? result.textContent : "";
+      if (stillOpen) document.querySelector(".modal-ov .x").click();
+      return { stillOpen: stillOpen, created: created, msg: msg };
+    });
+    ok("M7 slice 6: when the project still requires email confirmation, Add user surfaces that specific explanation and does NOT create the local account",
+      m7ConfirmResult.stillOpen && !m7ConfirmResult.created && /email confirmation/i.test(m7ConfirmResult.msg), JSON.stringify(m7ConfirmResult));
+
+    // Signups-disabled case: reconnect with the key the mock treats as a project
+    // with sign-ups turned off; Add user surfaces THAT specific explanation.
+    await gp4.evaluate(function (port) {
+      var base = "http://localhost:" + port + "/__supabase";
+      return Studio.Sync.connectAdopt("supabase", { url: base, key: "sb_publishable_signupsdisabled" });
+    }, PORT);
+    const m7Disabled = await gp4.evaluate(function () {
+      window.__studioOpenUserEditor();
+      document.getElementById("usrEditUser").value = "anyoneuser";
+      document.getElementById("usrEditEmail").value = "anyone@example.com";
+      document.getElementById("usrEditPass").value = "pw123456";
+      document.querySelector(".cx-wiz-foot .btn.primary").click();
+      return true;
+    });
+    await gp4.waitForTimeout(400);
+    const m7DisabledResult = await gp4.evaluate(function () {
+      var result = document.querySelector(".modal-ov .cx-test-result");
+      var stillOpen = !!document.querySelector(".modal-ov");
+      var created = !!window.PolecatAuth.find("anyoneuser");
+      var msg = result ? result.textContent : "";
+      if (stillOpen) document.querySelector(".modal-ov .x").click();
+      return { stillOpen: stillOpen, created: created, msg: msg };
+    });
+    ok("M7 slice 6: when the Supabase project has sign-ups turned off, Add user surfaces THAT specific explanation and does NOT create the local account",
+      m7DisabledResult.stillOpen && !m7DisabledResult.created && /sign-ups are turned off/i.test(m7DisabledResult.msg), JSON.stringify(m7DisabledResult));
+
+    await gp4.close();
 
     // ---- M4.2 slice 1: object privacy — dashboards ----
     console.log("\n• M4.2: object privacy — dashboards (slice 1)");

@@ -5,7 +5,14 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v177"; /* v177: LF16 — the Settings Account card's own
+var CACHE_NAME = "studio-shell-v178"; /* v178: M7 slice 6 — in-app account provisioning.
+   When the workspace backend is Supabase, Admin's "+ Add user" form gains an Email field
+   and self-signs-up a real Supabase Auth (GoTrue) account via the public signup endpoint,
+   stamping the returned id as gotrueId — no dashboard visit needed for any user after the
+   first admin. Surfaces "signups disabled" and "still needs email confirmation" clearly.
+   app/sources/supabase.js, app/studio.js, docs/index.html changed, so precached copies
+   need to roll. */
+/* v177: LF16 — the Settings Account card's own
    standalone "Demo content" toggle is gone (folded into the Sample packs card, which already
    covered every pack); "Demo packs" relabeled "Sample packs" throughout. No new precached
    files, but app/studio.js, docs/index.html and js/changelog.js content changed, so precached

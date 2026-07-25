@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 541,
+    title: 'In-app account provisioning for Supabase workspaces',
+    kind: 'feature',
+    ts: '2026-07-25T14:16:22.000Z',
+    items: [
+      'M7 slice 6: when a workspace is connected to Supabase, Admin\'s "+ Add user" form gains an Email field and creates a real Supabase Auth account for the new user via the public self-signup endpoint -- no Supabase dashboard visit or service-key credential needed after the very first admin. The returned account id is stamped onto the user so per-user security recognizes them immediately.',
+      'Two stuck cases are surfaced with a clear, specific explanation instead of a bare error: the Supabase project has sign-ups turned off, or it still requires email confirmation before the new account can sign in.',
+    ],
+  },
+  {
     v: 540,
     title: 'Demo content folded into Sample packs',
     kind: 'polish',

@@ -9349,18 +9349,35 @@
   }
 
   function openUserEditor(existing) {
+    // M7 slice 6: when this workspace is connected to Supabase and we're ADDING
+    // a brand-new user (not editing one), the form also self-signs-up a real
+    // Supabase Auth (GoTrue) account — no admin API / service key / dashboard
+    // visit required. Editing an existing user never touches Supabase Auth
+    // (that account, if any, was already created when they were first added).
+    var syncState = Studio.Sync.syncState();
+    var supabaseSignup = !existing && syncState && syncState.sourceId === "supabase";
     modal(existing ? "Edit user" : "Add user", function (b) {
       var form = el("div", "cx-wiz-form");
       var uRow = el("label", "cx-field"); uRow.innerHTML = "<span>Username</span>";
-      var uInp = el("input"); uInp.type = "text"; uInp.autocomplete = "off"; uInp.placeholder = "e.g. jsmith";
+      var uInp = el("input"); uInp.id = "usrEditUser"; uInp.type = "text"; uInp.autocomplete = "off"; uInp.placeholder = "e.g. jsmith";
       uInp.value = existing ? existing.u : ""; uInp.disabled = !!existing;
       uRow.appendChild(uInp); form.appendChild(uRow);
+      var eInp = null;
+      if (supabaseSignup) {
+        var eRow = el("label", "cx-field"); eRow.innerHTML = "<span>Email</span>";
+        eInp = el("input"); eInp.id = "usrEditEmail"; eInp.type = "email"; eInp.autocomplete = "off"; eInp.placeholder = "jsmith@example.com";
+        eRow.appendChild(eInp);
+        var eHint = el("small", "cx-hint");
+        eHint.textContent = "This workspace is connected to Supabase — adding a user creates a real Supabase Auth account for them too, so per-user security recognizes them right away.";
+        eRow.appendChild(eHint);
+        form.appendChild(eRow);
+      }
       var nRow = el("label", "cx-field"); nRow.innerHTML = "<span>Display name</span>";
-      var nInp = el("input"); nInp.type = "text"; nInp.placeholder = "e.g. Jamie Smith";
+      var nInp = el("input"); nInp.id = "usrEditName"; nInp.type = "text"; nInp.placeholder = "e.g. Jamie Smith";
       nInp.value = existing ? (existing.name || "") : "";
       nRow.appendChild(nInp); form.appendChild(nRow);
       var rRow = el("label", "cx-field"); rRow.innerHTML = "<span>Role</span>";
-      var rSel = el("select");
+      var rSel = el("select"); rSel.id = "usrEditRole";
       [["admin", "Admin — full access"], ["developer", "Developer — build & edit dashboards"], ["viewer", "Viewer — browse & explore"]].forEach(function (r) {
         var o = el("option"); o.value = r[0]; o.textContent = r[1];
         if ((existing ? existing.role : "viewer") === r[0]) o.selected = true;
@@ -9369,7 +9386,7 @@
       rRow.appendChild(rSel); form.appendChild(rRow);
       var pRow = el("label", "cx-field");
       pRow.innerHTML = "<span>" + (existing ? "New password (optional)" : "Password") + "</span>";
-      var pInp = el("input"); pInp.type = "password"; pInp.autocomplete = "new-password";
+      var pInp = el("input"); pInp.id = "usrEditPass"; pInp.type = "password"; pInp.autocomplete = "new-password";
       pInp.placeholder = existing ? "Leave blank to keep the current password" : "";
       pRow.appendChild(pInp); form.appendChild(pRow);
       b.appendChild(form);
@@ -9382,18 +9399,33 @@
         if (!u) { uInp.focus(); result.className = "cx-test-result bad"; result.textContent = "Give the user a username first."; return; }
         if (!existing && window.PolecatAuth.find(u)) { result.className = "cx-test-result bad"; result.textContent = "That username is already taken."; return; }
         if (!existing && !pInp.value) { pInp.focus(); result.className = "cx-test-result bad"; result.textContent = "Set a password."; return; }
+        if (supabaseSignup && !eInp.value.trim()) { eInp.focus(); result.className = "cx-test-result bad"; result.textContent = "Give the account an email address for Supabase Auth."; return; }
         var opts = { name: nInp.value.trim() || u, role: rSel.value };
         if (pInp.value) opts.pass = pInp.value;
-        window.PolecatAuth.upsert(u, opts).then(function (saved) {
-          try {
-            var row = (window.PolecatAuth.exportForStore() || []).filter(function (x) { return x.u === saved.u; })[0];
-            mirrorUserRow(row);
-          } catch (e) {}
-          try { if (window.__studioAuthBoot) window.__studioAuthBoot(); } catch (e) {}
-          try { if (window.__studioShellApplyRoleGating) window.__studioShellApplyRoleGating(); } catch (e) {}
-          toast(existing ? "Saved " + opts.name : "Added " + opts.name);
-          renderAdmin();
-          document.querySelector(".modal-ov .x").click();
+        function finishSave() {
+          window.PolecatAuth.upsert(u, opts).then(function (saved) {
+            try {
+              var row = (window.PolecatAuth.exportForStore() || []).filter(function (x) { return x.u === saved.u; })[0];
+              mirrorUserRow(row);
+            } catch (e) {}
+            try { if (window.__studioAuthBoot) window.__studioAuthBoot(); } catch (e) {}
+            try { if (window.__studioShellApplyRoleGating) window.__studioShellApplyRoleGating(); } catch (e) {}
+            toast(existing ? "Saved " + opts.name : "Added " + opts.name);
+            renderAdmin();
+            document.querySelector(".modal-ov .x").click();
+          });
+        }
+        if (!supabaseSignup) { finishSave(); return; }
+        saveBtn.disabled = true; result.className = "cx-test-result"; result.textContent = "Creating the Supabase Auth account…";
+        var src = Studio.sourceById("supabase"), cfg = Studio.Sync.currentConfig();
+        src.signUp(cfg, { email: eInp.value.trim(), password: pInp.value }).then(function (r) {
+          if (!r.ok) {
+            saveBtn.disabled = false;
+            result.className = "cx-test-result bad"; result.textContent = "✕ " + r.error;
+            return;
+          }
+          opts.gotrueId = r.userId;
+          finishSave();
         });
       };
     });
