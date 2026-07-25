@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v185"; /* v185: LF25(a) — every widget can export itself as a
+var CACHE_NAME = "studio-shell-v186"; /* v186: LF25(c) — a selected Studio panel gains a "Save to
+   widget library" Inspector action that snapshots its chart config + resolved dataAccess into the
+   same "analyses" workspace table Explore's Save writes (Studio.Workspace, app/studio.js's new
+   saveWidgetToLibrary), closing the loop so the library feeds both directions (Explore → Studio
+   already existed via xpAddAnalysisToSpec). app/studio.js, docs/index.html changed. */
+/* v185: LF25(a) — every widget can export itself as a
    standalone HTML file right from the canvas (app/studio-render.js's addDownloadChrome grows a
    third "Export as HTML" icon beside Download image/data, preview/builder-only, posting
    panel-export-embed to the parent's existing exportPanelEmbed). Download image/data/Export-as-

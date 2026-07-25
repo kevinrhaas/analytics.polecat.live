@@ -3225,6 +3225,17 @@
     var pngBtn = el("button", "btn-wide"); setIconBtn(pngBtn, "image", "Save chart as PNG"); pngBtn.onclick = function () { exportPanelPng(p); };
     pngRow.appendChild(pngBtn); sec.appendChild(pngRow);
     sec.appendChild(noteEl("info", "Downloads the chart itself as a PNG image — great for slides/docs. SVG-rendered chart types only (not Table/Richtext); legend and title aren't included, just the chart."));
+    // LF25(c): close the loop with Explore's "analyses" library — a widget built directly on the
+    // canvas can now be contributed back to the SAME library Explore saves into (buildAnalysesLib),
+    // not just consume from it (xpAddAnalysisToSpec is the reverse direction). Richtext/annotation
+    // panels have no bound query, so there's nothing self-contained to snapshot — same p.chart.da
+    // guard the smart-recommender strip above already uses.
+    if (p.chart.da && p.chart.type !== "richtext") {
+      var libRow = el("div"); libRow.style.cssText = "display:flex;gap:8px;margin-top:6px";
+      var libBtn = el("button", "btn-wide"); setIconBtn(libBtn, "save", "Save to widget library"); libBtn.onclick = function () { saveWidgetToLibrary(p); };
+      libRow.appendChild(libBtn); sec.appendChild(libRow);
+      sec.appendChild(noteEl("info", "Saves a self-contained snapshot of this widget as a reusable analysis in the library — drag it into any dashboard from the rail's Analyses group, or open it from Explore."));
+    }
 
     // chart type picker — grouped by c.group for scannability (Content group = richtext/annotation)
     var cs = section(body, "Chart type", null, null, "chart-types");
@@ -9726,6 +9737,31 @@
   function deletePanel(id) {
     var i = panelIndex(id); if (i < 0) return;
     S.spec.panels.splice(i, 1); selectDashboard(); refreshPreview(); toast("Panel removed");
+  }
+  // LF25(c): snapshot a Studio panel into the same "analyses" workspace table Explore's
+  // xpSave writes — the library then feeds BOTH directions (Explore → Studio via
+  // xpAddAnalysisToSpec, and now Studio → library here). Self-contained like every saved
+  // analysis: clones the panel's resolved dataAccess so the library row survives this
+  // dashboard being edited or deleted later.
+  function saveWidgetToLibrary(p) {
+    var da = Studio.daById(S.spec, p.chart.da);
+    if (!da) { toast("This widget has no data to save", true); return; }
+    var name = window.prompt("Save to widget library as:", p.title || "Untitled widget");
+    if (name === null) return;
+    name = name.trim();
+    if (!name) { toast("Give the widget a name first", true); return; }
+    var row = {
+      name: name,
+      datasetId: da.datasetId || null,
+      sample: null,
+      da: Studio.clone(da),
+      chart: { type: p.chart.type, map: Studio.clone(p.chart.map || {}), opts: Studio.clone(p.chart.opts || {}) },
+      chartType: p.chart.type,
+      pinned: false
+    };
+    Studio.Workspace.put("analyses", row);
+    toast("Saved “" + name + "” to the widget library");
+    buildLibrary();
   }
   // N-DIST: embeddable single-chart widget — reuses the full CDF exporter on a spec pared
   // down to just this one panel, so it stays byte-for-byte the same self-contained toolkit as

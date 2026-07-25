@@ -116,6 +116,28 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF25 part (c) — "Save to widget library" from a selected Studio panel (v549, sw v186,
+  2026-07-25, steward — LF25 now only has part (b) left open):** the last piece of LF25
+  (Per-panel export buttons + Explore↔Studio parity). Explore could already CONTRIBUTE a saved
+  chart into the shared "analyses" library (`xpSave`) and Studio could already CONSUME from it
+  (`xpAddAnalysisToSpec`, drag-drop, the rail's Analyses group) — but there was no way to go the
+  other direction: build a widget directly on the canvas and add IT to the library. Fixed with a
+  new `saveWidgetToLibrary(p)` (`app/studio.js`), wired as a new "Save to widget library" button
+  in the panel Inspector (next to Duplicate/Delete/Export/PNG, gated on `p.chart.da && p.chart.type
+  !== "richtext"` — richtext/annotation widgets have no bound query to snapshot, same guard the
+  existing chart-recommender strip uses). Prompts for a name (`window.prompt`, matching this file's
+  existing passphrase-prompt convention rather than a new modal), then writes a row into
+  `Studio.Workspace`'s `"analyses"` table shaped exactly like `xpSave`'s (`da: Studio.clone(da)`
+  — the panel's resolved `dataAccess`, so the library row is self-contained and survives the
+  source dashboard being edited or deleted later — plus `chart: {type, map, opts}`). Calls
+  `buildLibrary()` afterward so the new entry shows up immediately in the open rail without a
+  reload. `docs/index.html` gained a new "Saving a widget to the library" section. 5 new
+  regression tests (the button is absent on a richtext panel; present + saves a real row for a
+  bars panel bound to a query, with the right name/chart type/cloned da; the new row is
+  independently editable from the source panel afterward — mutating the panel's own da/map
+  doesn't touch the saved copy; a blank/whitespace-only name is rejected with a toast and no row
+  written; canceling the prompt writes nothing). (app/studio.js, docs/index.html, sw.js,
+  js/changelog.js, tests/run.js)
 - **LF25 slice 1 — on-panel "Export as HTML" + split per-type download toggles (v548, sw v185,
   2026-07-25, steward):** part (a) of LF25 (Per-panel export buttons + Explore↔Studio parity).
   PNG and CSV were already on-panel chrome (LF6); the remaining gap was the HTML embed export
@@ -3553,11 +3575,11 @@
 >           renderer switch — so this narrows to VERIFY parity with Explore (both offer built-in ⇄ GL pan/zoom),
 >           confirm the choice PERSISTS on the panel + rides the save/export, and improve DISCOVERABILITY if it read
 >           as missing at first glance (labeling/placement). cfg.renderer='gl' / Studio.usesGLMap. Ties LF12/#39/#46.
->       (c) SAVE THE ACTIVE STUDIO WIDGET TO THE WIDGET LIBRARY. From a selected panel in Studio, a "Save to widget
->           library" action that snapshots it as a reusable saved analysis/widget (the same library Explore feeds).
->           Closes the loop with #29 (widgets as first-class objects) — Studio can both USE library widgets and
->           CONTRIBUTE to it. app/studio.js (Inspector actions + panel toolbar), app/studio-render.js (on-panel
->           button render + the byte-identical export path), app/exporters.js, tests per part.
+>       (c) ✓ **Save the active Studio widget to the widget library — shipped (v549, sw v186,
+>           2026-07-25, steward), see DONE.** A selected panel's Inspector gains a "Save to widget
+>           library" action, closing the loop with #29 — Studio can now both USE library widgets
+>           (xpAddAnalysisToSpec) and CONTRIBUTE to it. NEXT in LF25: only part (b) (renderer-switch
+>           discoverability verify) remains open.
 > LF26. ✓ **Save-as + overwrite protection — shipped (v495, 2026-07-23, steward), see DONE.** A "Save as…"
 >       button next to Save always forks the working spec into a new dashboard; plain Save on a `demoPackId`
 >       sample (or, later, someone else's dashboard) now routes to that same Save-as prompt instead of
