@@ -280,13 +280,26 @@
       renderAdmin();
       if (window.StudioWelcome) { var ab = $("#btnAbout"); if (ab) ab.onclick = function () { StudioWelcome.open(); }; setTimeout(function () { StudioWelcome.maybeShow(); }, 300); }
       buildLibrary();
+      // LF23 slice 2: the viewer route's "Edit in Studio" handoff (app/viewer.html,
+      // canDevelop() accounts only) links here as ?edit=<id> — jump straight into
+      // Studio with that dashboard loaded, the same way #share= below jumps to an
+      // exact spec. Re-checks canDevelop()/isVisibleToMe() itself (never trust the
+      // query string alone): a viewer who somehow reaches this URL, or a stale link
+      // to a since-privatized dashboard, just falls through to the normal boot below.
+      var editId = null;
+      try { editId = new URLSearchParams(location.search).get("edit"); } catch (e) {}
+      var editRow = editId ? loadRecents().filter(function (x) { return x.id === editId; })[0] : null;
+      if (editRow && (!currentUserCanDevelop() || !isVisibleToMe(editRow))) editRow = null;
       // N-DIST: a #share=<encoded> link (see the Dashboard inspector's "Share this dashboard"
       // section) takes priority over the normal boot flow — it names an exact dashboard to
       // open, the same way a direct file Open would. Cleared via replaceState so a reload or
       // the E4 CDF filter-hash convention never collide with it.
       var sharedSpec = null;
       if (location.hash.indexOf("#share=") === 0) sharedSpec = Studio.decodeSpecFromShareString(location.hash.slice(7));
-      if (sharedSpec) {
+      if (editRow) {
+        try { history.replaceState(null, "", location.pathname + location.hash); } catch (e) {}
+        openRecent(editRow.id);
+      } else if (sharedSpec) {
         try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
         S.spec = normalize(sharedSpec); S.selection = null;
         enterStudio();
@@ -5366,6 +5379,14 @@
     var Auth = window.PolecatAuth, me = Auth && Auth.current();
     return !Auth || !me || me.role === "admin";
   }
+  // LF23 slice 2: the canDevelop() gate — same "no auth loaded / no signed-in
+  // account defaults permissive" convention as currentUserIsAdmin above. Backs
+  // both the Studio rail item's role gating (shell.js) and openRecent()'s
+  // viewer-vs-Studio routing below.
+  function currentUserCanDevelop() {
+    var Auth = window.PolecatAuth, me = Auth && Auth.current();
+    return !Auth || !me || Auth.canDevelop(me);
+  }
   function isVisibleToMe(r) {
     if (!r.private) return true;
     if (currentUserIsAdmin()) return true;
@@ -5594,6 +5615,16 @@
   // spec, or the Home-card drop handlers firing mid-session) must not clobber the section
   // you originally opened it from.
   function enterStudio() {
+    // LF23 slice 2: the central choke point for "enter the builder" — every call
+    // site routes through here (New dashboard, examples, forkSpecAs/Save-as,
+    // #share= deep links, Settings' "Take the tour"), not just openRecent (which
+    // has its own friendlier viewer-route redirect above it). A viewer-role
+    // account never enters Studio, full stop; shell.js's rail hiding + section
+    // bounce cover the common paths, but this is the one place that can't be
+    // bypassed by a stray call site shell.js doesn't know about (e.g. Settings'
+    // "Take the tour" button calls this before opening the tour overlay, which
+    // still opens fine layered over whatever section is already showing).
+    if (!currentUserCanDevelop()) return;
     if (window.__studioShellGetSection) {
       var cur = window.__studioShellGetSection();
       if (cur && cur !== "studio") S.studioOrigin = cur;
@@ -5606,6 +5637,12 @@
   function openRecent(id) {
     var r = loadRecents().filter(function (x) { return x.id === id; })[0];
     if (!r) return;
+    // LF23 slice 2: a viewer-role account (canDevelop() false) never lands in
+    // Studio — every "open this dashboard" call site (Home/Dashboards cards +
+    // rows, the picker, xpAddAnalysisToSpec) funnels through here, so gating
+    // this one function routes them ALL to the read-only viewer route instead,
+    // same-tab, in one place rather than re-checking the role at each call site.
+    if (!currentUserCanDevelop()) { location.href = viewerUrl(id); return; }
     S.spec = normalize(r.spec); S.selection = null; syncHeader(); renderInspector(); refreshPreview(); buildLibrary();
     enterStudio();
     markLastViewed(id); // "since you were last here" resets the clock the moment you actually open it

@@ -41,7 +41,9 @@
     <button class="rail-item" data-sec="connections" title="Connections" aria-label="Connections"><span class="rail-ic" data-ic="link"></span><span class="rail-lbl">Connections</span></button>
     <button class="rail-item" data-sec="repository" title="Repository" aria-label="Repository"><span class="rail-ic" data-ic="folder"></span><span class="rail-lbl">Repository</span></button>
     <div class="rail-group-lbl rail-lbl" aria-hidden="true">Build</div>
-    <button class="rail-item" data-sec="studio" title="Studio" aria-label="Studio"><span class="rail-ic" data-ic="grid"></span><span class="rail-lbl">Studio</span></button>
+    <!-- LF23 slice 2: developer-only — hidden for the viewer role by shell.js's role gating
+         (a viewer's own read-only path is app/viewer.html, opened from a dashboard's eye icon) -->
+    <button class="rail-item" data-sec="studio" data-develop-only title="Studio" aria-label="Studio"><span class="rail-ic" data-ic="grid"></span><span class="rail-lbl">Studio</span></button>
     <div class="rail-group-lbl rail-lbl" aria-hidden="true">Manage</div>
     <button class="rail-item" data-sec="jobs" title="Jobs" aria-label="Jobs"><span class="rail-ic" data-ic="sliders"></span><span class="rail-lbl">Jobs</span></button>
     <!-- M4: admin-only — hidden for non-admin accounts by shell.js's role gating -->
