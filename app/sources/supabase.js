@@ -116,6 +116,48 @@
         .catch(function (e) { return { ok: false, error: e.message }; });
     },
 
+    // ---- browser self-signup (M7 slice 6) ----------------------------------
+    // Creates a real Supabase Auth (GoTrue) account via its PUBLIC signup
+    // endpoint (no service key needed) so the Admin console can provision
+    // accounts without ever visiting the Supabase dashboard. `creds` is
+    // {email, password} — deliberately separate from cfg.authEmail/
+    // authPassword above (those sign the CALLER in; this creates a NEW user).
+    // Resolves (never rejects) with a uniform {ok, userId?, error?, ...} shape
+    // so callers never need a .catch — the two known "stuck" cases each get a
+    // clear, distinct explanation instead of a bare error string:
+    //   - the project has signups turned off entirely (`disabled:true`), or
+    //   - the account WAS created but this project still requires email
+    //     confirmation (`needsConfirmation:true`) — the account can't sign in
+    //     until an admin flips that one-time Supabase setting.
+    signUp: function (cfg, creds) {
+      var base;
+      try { base = projectBase(cfg); } catch (e) { return Promise.resolve({ ok: false, error: e.message }); }
+      return fetch(base + "/auth/v1/signup", {
+        method: "POST",
+        headers: { apikey: (cfg.key || "").trim(), "Content-Type": "application/json" },
+        body: JSON.stringify({ email: creds.email, password: creds.password })
+      }).then(function (res) {
+        return res.json().catch(function () { return {}; }).then(function (data) { return { res: res, data: data }; });
+      }, function (e) {
+        return { networkError: "Could not reach Supabase Auth (network or CORS): " + e.message };
+      }).then(function (r) {
+        if (r.networkError) return { ok: false, error: r.networkError };
+        var res = r.res, data = r.data;
+        if (!res.ok) {
+          var msg = data.msg || data.error_description || data.error || ("HTTP " + res.status);
+          if (data.error_code === "signup_disabled" || /signups? (is |are )?(not allowed|disabled)/i.test(msg)) {
+            return { ok: false, disabled: true, error: "Sign-ups are turned off on this Supabase project — enable them in Authentication → Providers → Email, then try again." };
+          }
+          return { ok: false, error: "Supabase sign-up failed: " + msg };
+        }
+        var userId = (data.user && data.user.id) || data.id || null;
+        if (!data.access_token) {
+          return { ok: false, needsConfirmation: true, userId: userId, error: "Account created, but this Supabase project still requires email confirmation before it can sign in — turn off “Confirm email” in Authentication → Providers → Email (one-time setting), then try again." };
+        }
+        return { ok: true, userId: userId };
+      });
+    },
+
     test: function (cfg) {
       return rest(cfg, "/" + WS.META_TABLE + "?select=key&limit=1")
         .then(function () { return { ok: true }; })
