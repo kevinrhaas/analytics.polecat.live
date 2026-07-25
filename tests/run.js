@@ -9692,6 +9692,38 @@ function serve() {
     ok("LF19 group icons: each glyph sits right before the group's name span", grpIcons.allBeforeName, JSON.stringify(grpIcons));
     ok("LF19 group icons: the 5 groups use 5 visually distinct glyphs, not one repeated icon", grpIcons.distinctPaths, JSON.stringify(grpIcons));
 
+    // LF19 Inspector slice 1 — the right panel gets the same treatment: every
+    // top-level Dashboard-inspector section now carries its own header glyph
+    // (section()'s new optional iconName argument), same "what kind of thing is
+    // this" scannability as the left panel's group icons above.
+    const inspSecIcons = await page.evaluate(() => {
+      function h4Of(title) {
+        return [].slice.call(document.querySelectorAll("#inspBody .insp-sec h4")).filter(function (h) {
+          return h.textContent.replace(/\s*\(\d+\)\s*$/, "").trim() === title;
+        })[0];
+      }
+      var titles = ["Checks", "Dashboard", "Template variables", "KPI tiles", "Filters",
+        "Share this dashboard", "Version history", "Builder notes", "Panels"];
+      var hs = titles.map(h4Of);
+      var svgs = hs.map(function (h) { return h && h.querySelector(".sec-ic svg"); });
+      return {
+        allFound: hs.every(Boolean),
+        allPresent: svgs.every(Boolean),
+        distinctPaths: new Set(svgs.map(function (s) { return s && s.innerHTML; })).size === svgs.length,
+        // h4.textContent must still equal the plain title — the icon (like the
+        // chevron) must never leak text into it.
+        textUnchanged: hs.every(function (h, i) { return h.textContent.replace(/\s*\(\d+\)\s*$/, "").trim() === titles[i]; })
+      };
+    });
+    ok("LF19 Inspector slice 1: every top-level Dashboard-inspector section (Checks, Dashboard, Template " +
+      "variables, KPI tiles, Filters, Share this dashboard, Version history, Builder notes, Panels) is found",
+      inspSecIcons.allFound, JSON.stringify(inspSecIcons));
+    ok("LF19 Inspector slice 1: each of those sections shows its own header glyph", inspSecIcons.allPresent, JSON.stringify(inspSecIcons));
+    ok("LF19 Inspector slice 1: the 9 sections use 9 visually distinct glyphs, not one repeated icon",
+      inspSecIcons.distinctPaths, JSON.stringify(inspSecIcons));
+    ok("LF19 Inspector slice 1: the glyph never leaks text into h4.textContent (title stays exact)",
+      inspSecIcons.textUnchanged, JSON.stringify(inspSecIcons));
+
     // LF19 "next" slice — tidy the "+ New" affordance on "This dashboard's datasets":
     // it used to spell out "New" next to the group's own count badge, which crowded the
     // group name into an ellipsis ("This dashboard's da…") at the panel's default width.

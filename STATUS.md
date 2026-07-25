@@ -116,6 +116,35 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF19 slice 5 — the right Inspector panel's turn starts: header glyphs on the Dashboard
+  Inspector's top-level sections (v556, sw v193, 2026-07-25, steward):** LF19's left-panel
+  organize-and-simplify pass (slices 1-4) is done; this is the first slice of the matching
+  "give the RIGHT panel the same pass" ask. `section()` — the one shared collapsible-section
+  helper every Inspector renderer (Dashboard/Widget/Filter/Header/KPI/Data Source) already
+  calls — gains an optional 6th `iconName` argument, rendered the exact same way as its
+  existing chevron (an `Studio.icon()` SVG with empty textContent, inserted into the `h4`
+  before the title text node, so `h4.textContent` keeps returning the plain title — the
+  invariant the code comment already called out for the chevron). Wired for the 10 sections in
+  `renderDashboardInspector` — the default view shown when nothing is selected, i.e. the
+  Inspector's own "home" screen, the same scope level as the left panel's "5 top-level groups"
+  slice 2: Checks (`check`), Dashboard (`gear`), Template variables (`tag`), KPI tiles
+  (`grid`), Filters (`sliders`), Shareable link (`link`), Share this dashboard (`link`),
+  Version history (`clock`), Builder notes (`edit`), Panels (`layers`). Icon choices reuse a
+  name already meaningful elsewhere in the app wherever one existed — e.g. `link` matches the
+  existing "Copy shareable link"/"Copy filter hash" button icons on those same two sections —
+  rather than inventing a second vocabulary. New `.sec-ic{opacity:.7;flex-shrink:0}` CSS rule
+  mirrors the left panel's `.grp-ic` convention; the `h4`'s existing `gap:7px` handles spacing
+  for free, no new layout code. `section()` lives entirely in app/studio.js (builder-only
+  chrome, never bundled into an exported dashboard), so the export byte-identity invariant is
+  untouched. 4 new regression tests (all 10 sections found; each shows its own glyph; the 9
+  unconditional ones — Shareable link only renders when the dashboard has filters — use 9
+  visually distinct SVGs, not one icon repeated; `h4.textContent` stays exactly the plain
+  title). No docs change (purely decorative — no user-facing behavior or claim changed, same
+  as slices 3/4). Suite 2078/2078. (app/studio.js, app/studio.css, sw.js, js/changelog.js,
+  tests/run.js) NEXT in LF19: the same icon treatment for the other Inspector renderers
+  (Widget/Panel, Filter, Header, KPI tile, Data Source — roughly 30 more `section()` call sites
+  across those kinds, each its own follow-up slice), then sensible collapse defaults +
+  consistent spacing on the right panel generally.
 - **LF19 slice 4 — the Data panel search field is no longer a fourth "group-card" (v555,
   sw v192, 2026-07-25, steward):** continuing LF19's "reduce chrome density overall" ask —
   specifically the note left in slice 3's writeup ("the search input still sits in its own
@@ -3818,10 +3847,29 @@
 >       ellipsis at the panel's default width. See DONE for the full writeup.
 >       ✓ **Slice 4 shipped (v555, sw v192, 2026-07-25, steward): the search field is no longer a
 >       fourth "group-card."** See DONE for the full writeup — it no longer carries the same
->       border/radius/background as the `.lib-mine` group boxes below it. NEXT in LF19: the same
->       organize-and-simplify pass on the right Inspector panel (group/label sections, icons,
->       sensible collapse, consistent spacing) is the last piece — still open, still to be sliced
->       one coherent PR at a time.
+>       border/radius/background as the `.lib-mine` group boxes below it.
+>       ✓ **Slice 5 shipped (v556, sw v193, 2026-07-25, steward): header glyphs for the Dashboard
+>       Inspector's top-level sections — the right panel's turn starts.** `section()` (the shared
+>       collapsible-section helper every Inspector renderer uses) gains an optional 6th `iconName`
+>       argument, rendered the same way as the chevron (an SVG with empty textContent, so
+>       `h4.textContent` still returns the plain title — same invariant the chevron already
+>       preserved). Wired for the 10 sections in `renderDashboardInspector` (the default view when
+>       nothing is selected — the Inspector's own "home"): Checks (`check`), Dashboard (`gear`),
+>       Template variables (`tag`), KPI tiles (`grid`), Filters (`sliders`), Shareable link (`link`),
+>       Share this dashboard (`link`), Version history (`clock`), Builder notes (`edit`), Panels
+>       (`layers`) — icon choices reuse names already meaningful elsewhere in the app where one
+>       existed (e.g. `link` matches the existing "Copy shareable link" button icon on those same
+>       two sections) rather than inventing a parallel vocabulary. New `.sec-ic` CSS rule mirrors
+>       the left panel's `.grp-ic` (opacity .7, flex-shrink:0 — the `h4` row's existing `gap:7px`
+>       handles spacing for free). Builder-only chrome (`section()` lives in app/studio.js, never
+>       bundled into an export), so the export byte-identity invariant is untouched. 4 new
+>       regression checks (every section found + icon present, 9 distinct glyphs not one repeated
+>       icon, `h4.textContent` still exact). Suite 2078/2078. (app/studio.js, app/studio.css,
+>       tests/run.js) NEXT in LF19: the same icon treatment for the other Inspector renderers
+>       (Widget/Panel, Filter, Header, KPI tile, Data Source — each its own follow-up slice, ~30
+>       more `section()` call sites across those kinds), then sensible collapse defaults +
+>       consistent spacing on the right panel generally — still open, still to be sliced one
+>       coherent PR at a time.
 > LF18. **Home ("Welcome back") overhaul — richer entry points, default featured, tour chooser.** The Home
 >       landing should orient a returning user with descriptive quick-actions, not three bare cards:
 >       (a) QUICK-ACTIONS reworded to concrete jobs — "Explore curated datasets", "Build a dashboard from

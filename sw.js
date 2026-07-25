@@ -5,7 +5,14 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v192"; /* v192: LF19 next slice — the Data panel's search
+var CACHE_NAME = "studio-shell-v193"; /* v193: LF19 Inspector slice 1 — the right Inspector
+   panel starts its own organize-and-simplify pass: every top-level Dashboard-inspector
+   section (Checks, Dashboard, Template variables, KPI tiles, Filters, Shareable link, Share
+   this dashboard, Version history, Builder notes, Panels) now carries its own header glyph,
+   same "what kind of thing is this" scannability as the left Data panel's group icons.
+   section() gains an optional iconName argument. app/studio.js, app/studio.css, tests/run.js
+   changed, so precached copies need to roll.
+   v192: LF19 next slice — the Data panel's search
    field no longer sits in its own fully-bordered "card" row that echoed the group boxes
    below it; at rest it's a plain filled field (border returns on focus). app/studio.css,
    tests/run.js changed, so precached copies need to roll.

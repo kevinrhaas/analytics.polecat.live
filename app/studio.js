@@ -2652,11 +2652,11 @@
 
     // ── checks (live validation) ──
     var issues = Studio.validate(sp);
-    var vs = section(body, "Checks");
+    var vs = section(body, "Checks", null, null, null, "check");
     if (!issues.length) { vs.appendChild(iconNote("ok", "check", "Looks good — ready to export.")); celebrateHealthZero(sp); }
     else issues.forEach(function (x) { vs.appendChild(iconNote(x.level === "error" ? "err" : x.level === "warn" ? "warn" : "info", x.level === "error" ? "close" : x.level === "warn" ? "warn" : "info", x.msg)); });
 
-    var sec = section(body, "Dashboard", null, null, "builder");
+    var sec = section(body, "Dashboard", null, null, "builder", "gear");
     var titleInput = input(sp.title, function (v) { sp.title = v; syncHeader(); refreshPreview(); });
     titleInput.id = "dashTitleField"; // Z6: the topbar's "rename" button focuses this field
     sec.appendChild(field("Title", titleInput));
@@ -2688,7 +2688,7 @@
       var tvSec = section(body, "Template variables", null, function () {
         var n = sp.templateVars && sp.templateVars.length;
         return n ? n + (n === 1 ? " variable" : " variables") : "";
-      });
+      }, null, "tag");
       var tvList = el("div"); tvList.style.cssText = "display:flex;flex-direction:column;gap:5px;margin-bottom:6px";
       tvSec.appendChild(tvList);
 
@@ -3040,7 +3040,7 @@
     sec.appendChild(field("Series palette", palRow, "Swap the chart series color palette (all panels)"));
 
     // KPIs
-    var ks = section(body, "KPI tiles", function () { addFromCurrentOrPrompt("kpi"); }, null, "builder");
+    var ks = section(body, "KPI tiles", function () { addFromCurrentOrPrompt("kpi"); }, null, "builder", "grid");
     if (!sp.kpis.length) ks.appendChild(hint("No KPI tiles. Add one from a query in the library, or click ＋."));
     sp.kpis.forEach(function (k, i) {
       ks.appendChild(rowItem("◧", k.label || "(metric)", k.da + " · " + k.valueCol,
@@ -3051,7 +3051,7 @@
     });
 
     // Filters
-    var fs = section(body, "Filters", function () { addFilter(); }, null, "builder");
+    var fs = section(body, "Filters", function () { addFilter(); }, null, "builder", "sliders");
     if (!sp.filters.length) fs.appendChild(hint("Optional cascading header selects (e.g. Data Source)."));
     sp.filters.forEach(function (f, i) {
       fs.appendChild(rowItem("⛃", f.label, f.da + " · " + f.valueCol, function () { select({ kind: "filter", index: i }); },
@@ -3061,7 +3061,7 @@
 
     // E4: Shareable deeplink (only when the dashboard has filters)
     if (sp.filters.length) {
-      var dlSec = section(body, "Shareable link", null, null, "exporting");
+      var dlSec = section(body, "Shareable link", null, null, "exporting", "link");
       var hashStr = sp.filters.map(function (f) { return encodeURIComponent(f.id) + "=" + encodeURIComponent(f.def != null ? f.def : "%"); }).join("&");
       var dlHint = el("div", "hint");
       dlHint.innerHTML = 'Append <code class="fhash">#' + esc(hashStr) + '</code> to the exported dashboard URL to pre-select these filters on load.';
@@ -3080,7 +3080,7 @@
     // that reopens the exact same dashboard in the Studio builder itself (no file, no
     // server). Distinct from the E4 block above, which only ever carries filter *defaults*
     // for an exported CDF's own runtime — this one is a builder-to-builder handoff.
-    var shSec = section(body, "Share this dashboard", null, null, "exporting");
+    var shSec = section(body, "Share this dashboard", null, null, "exporting", "link");
     var shHint = el("div", "hint");
     shHint.textContent = "Copies a link that reopens this exact dashboard (panels, KPIs, filters, style) in the Studio builder — handy for handing off a work-in-progress with no file attachment.";
     shSec.appendChild(shHint);
@@ -3099,7 +3099,7 @@
     // explicit Save (see snapshotVersion()), distinct from in-session undo (lost on reload)
     // and studio-autosave (a single draft). Click a version to restore it as "time travel."
     var vhList = (loadVersions()[sp.id] || []);
-    var vhSec = section(body, "Version history" + (vhList.length ? " (" + vhList.length + ")" : ""), null, null, "exporting");
+    var vhSec = section(body, "Version history" + (vhList.length ? " (" + vhList.length + ")" : ""), null, null, "exporting", "clock");
     if (!vhList.length) {
       vhSec.appendChild(hint("Every time you Save, a restorable checkpoint of this dashboard is kept here (last 10)."));
     } else {
@@ -3115,7 +3115,7 @@
     // Track N innovation idea: canvas sticky notes — small colored, builder-only notes for
     // team brainstorming/review while a dashboard is in progress. Never exported.
     var noteList = (loadCanvasNotes()[sp.id] || []);
-    var noteSec = section(body, "Builder notes" + (noteList.length ? " (" + noteList.length + ")" : ""), function () { openNoteEditor(null); }, null, "builder");
+    var noteSec = section(body, "Builder notes" + (noteList.length ? " (" + noteList.length + ")" : ""), function () { openNoteEditor(null); }, null, "builder", "edit");
     if (!noteList.length) {
       noteSec.appendChild(hint("Pin a small colored note to a widget, or add a general one — for your own reference or team review while building. Never exported, never leaves this browser."));
     } else {
@@ -3131,7 +3131,7 @@
     // Panels (reorderable) with tag-based filter bar
     // _tagFilter holds the currently-active tag (string) or null (show all panels).
     var allTags = Studio.allTags(sp);
-    var ps = section(body, "Panels (" + sp.panels.length + ")");
+    var ps = section(body, "Panels (" + sp.panels.length + ")", null, null, null, "layers");
     // Tag filter bar — only shown when at least one panel has tags
     if (allTags.length) {
       var tfBar = el("div"); tfBar.className = "tag-filter-bar";
@@ -11273,7 +11273,7 @@
 
   function el(t, c) { var e = document.createElement(t); if (c) e.className = c; return e; }
   function labelEl(t) { var l = el("label"); l.textContent = t; return l; }
-  function section(parent, title, onAdd, summaryFn, helpAnchor) {
+  function section(parent, title, onAdd, summaryFn, helpAnchor, iconName) {
     /* Collapsible inspector section. Returns the body div so callers do
        body.appendChild(field(…)) and content hides/shows with the header.
        State is stored in _collapsedSects keyed by normalized title so it
@@ -11281,7 +11281,10 @@
        summaryFn (optional): zero-arg function returning a short string shown
        inline in the collapsed header — e.g. "3 markers", "'Peak'", "enabled".
        helpAnchor (optional): docs/index.html anchor to link from a ? badge on the header.
-       NOTE: The chevron uses an SVG icon (not a text character) so that
+       iconName (optional, LF19 Inspector slice 1): a Studio.icon() name shown
+       before the title, same "glyph names the section's kind at a glance"
+       convention as the left Data panel's libGroupHeaderIcon.
+       NOTE: The chevron (and this icon) use SVGs, not text characters, so
        h4.textContent keeps returning the plain section title — backward
        compatible with any code or test that reads it. */
     var key = title.replace(/\s*\(\d+\)\s*$/, ""); // strip "(N)" from dynamic titles
@@ -11292,6 +11295,11 @@
     var chev = el("span", "sec-chev");
     chev.appendChild(Studio.icon(isCollapsed ? "chevron-right" : "chevron-down", 9));
     h.appendChild(chev);
+    if (iconName) {
+      var secIc = el("span", "sec-ic");
+      secIc.appendChild(Studio.icon(iconName, 12));
+      h.appendChild(secIc);
+    }
     h.appendChild(document.createTextNode(title));
     // J2: contextual help badge — SVG icon link deep-linking into docs/index.html.
     // Uses Studio.icon() (SVG, empty textContent) so h4.textContent stays == title.

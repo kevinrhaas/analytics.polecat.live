@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 556,
+    title: 'Inspector panel starts gaining header icons too',
+    kind: 'polish',
+    ts: '2026-07-25T23:49:17.000Z',
+    items: [
+      'LF19: the right Inspector panel gets the same treatment the left Data panel already has -- every top-level Dashboard section (Checks, Dashboard, Filters, Panels, and more) now shows its own small icon next to the name.',
+      'Purely visual; nothing about how any of those sections work has changed.',
+    ],
+  },
+  {
     v: 555,
     title: 'Calmer search field in the Data panel',
     kind: 'polish',
