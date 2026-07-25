@@ -116,6 +116,31 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **UX6 carets slice — remaining dropdown-trigger "▾" glyphs + the footer's "▴" expand
+  indicator get themed icons (v539, sw v176, 2026-07-25, steward):** the four dropdown-
+  trigger buttons still baking a raw "▾" into their button TEXT (`#btnNew`/`#btnExport`
+  from UX6 slice 2's `setIconBtn`, plus `#btnExamples` and `#btnNewDS` which had never
+  been touched — `#btnNewDS` in particular had its original "＋ New ▾" caret silently
+  DROPPED entirely when slice 2 hydrated it via `setIconBtn(ndsBtn,"plus","New",12)`,
+  losing the dropdown affordance) now use a new `setIconBtnCaret()` helper
+  (`app/studio.js`, next to `setIconBtn`): optional leading icon + label + a trailing
+  `chevron-down` SVG, restoring the affordance on `#btnNewDS` and replacing literal "▾"
+  text on the other three. `#btnExamples` had no icon wiring at all before this (static
+  HTML text only) — now hydrated the same way. Also caught the footer Changelog button's
+  `.sb-caret` span, which UX6 slice 1 missed: it still held a raw "▴" glyph (rotated
+  180deg via CSS when the panel is open) — now a `chevron-up` SVG registry icon, same
+  rotate-on-expand behavior. The hydration loop for `#btnChangelog` (`app/studio.js`)
+  now walks every `[data-ic]` placeholder in the button instead of just the first (the
+  clock icon), sizing the caret smaller (11px) to match its old 9px glyph. 3 new
+  regression checks (New/Export/+New each render 2 SVGs — leading icon + trailing caret —
+  with no raw ▾/▴ in text; Examples renders 1 caret SVG; Changelog's caret is an SVG not
+  "▴") plus the pre-existing LF20 Export-button check updated for the new DOM shape
+  (visible text is now "Export", not "Export ▾", since the caret moved from text to SVG).
+  Every chrome glyph named in the original UX6 ask (`⋯ ↶ ↷ ＋ ▾ ☰ ⇄ 📋 ● ‹ ›`) plus the ▴
+  caret found along the way now has a themed SVG. NEXT in UX6: the chart pagination
+  `‹ Prev`/`Next ›` buttons (bundled into exports, needs `app/icons.js` added to the export
+  asset bundle first) and the welcome-step letter icons, each their own follow-up slice.
+  (app/index.html, app/studio.js, sw.js, js/changelog.js, tests/run.js)
 - **LF13(b) — job editor's chained aggregate steps now see the right columns (v538, sw v175,
   2026-07-25, steward):** LF13's "multiple aggregate passes/levels" sub-ask turned out to be
   narrower than it read — `Studio.runJobSteps` (`app/sources/jobs-engine.js`) already chains a
@@ -3535,6 +3560,22 @@
 >      (studio-charts.js — these ARE bundled into exports, so needs `app/icons.js` added to the
 >      export asset bundle first), and the welcome-step letter icons are each their own
 >      follow-up slice.
+>      ↳ **Slice 5 shipped (v539, sw v176, 2026-07-25, steward): the remaining dropdown
+>      carets.** `#btnNew`/`#btnExport` (raw "▾" baked into slice 2's `setIconBtn` text),
+>      `#btnExamples` (never touched — static HTML only), and `#btnNewDS` (slice 2's
+>      `setIconBtn(ndsBtn,"plus","New",12)` had silently DROPPED its original "＋ New ▾"
+>      caret entirely, losing the affordance) now share a new `setIconBtnCaret()` helper —
+>      leading icon (optional) + label + a trailing `chevron-down` SVG. Also caught along
+>      the way: the footer Changelog button's `.sb-caret` span (`▴`, rotated 180deg via CSS
+>      when the feed is open) — missed by slice 1 — is now a `chevron-up` registry icon;
+>      `#btnChangelog`'s hydration now walks every `[data-ic]` placeholder instead of just
+>      the first. 3 new regression checks (svg-count + no-raw-glyph assertions on the four
+>      dropdown triggers and the Changelog caret); the pre-existing LF20 Export-button check
+>      updated for the new DOM shape (label reads "Export", not "Export ▾", since the caret
+>      moved from text to SVG). NEXT in this track: the chart pagination `‹ Prev`/`Next ›`
+>      buttons (studio-charts.js — still needs `app/icons.js` added to the export asset
+>      bundle first, untouched by this slice) and the welcome-step letter icons, each their
+>      own follow-up slice.
 > UX7. ✓ **Mobile 44px touch targets — DONE (shipped 2026-07-23, steward).** The 400–640px band
 >      rendered `.btn` at ~28–32px (font-size 12px + 7px padding, no `min-height` at all — 44px
 >      only existed for `#topbar`/`#dashbar .btn` at ≤400px specifically); `.da-act`/`.chip` sat at

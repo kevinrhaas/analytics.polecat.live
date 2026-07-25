@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v175"; /* v175: LF13(b) — a second (or third) "aggregate" job
+var CACHE_NAME = "studio-shell-v176"; /* v176: UX6 (icon migration, carets slice) — the
+   remaining "▾" dropdown-trigger carets (New/Export/Examples/+New) and the footer Changelog
+   button's "▴" expand indicator are now themed chevron SVGs instead of raw text glyphs. No
+   new precached files, but app/index.html and app/studio.js content changed, so precached
+   copies need to roll. */
+/* v175: LF13(b) — a second (or third) "aggregate" job
    step now shows group-by pills / metric-column dropdowns built from the PREVIOUS step's output
    columns (a schema-only pipeline simulation), not just the raw source dataset, so a real
    multi-level rollup is actually buildable through the UI. No new precached files, but
