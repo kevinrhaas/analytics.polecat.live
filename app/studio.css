@@ -460,8 +460,14 @@ html[data-app-theme='conservation'] #mobileNavBtn{background:#10432e;border-colo
 @media(max-width:640px){.set-txt{width:100%}}
 /* Z6 follow-up: named style-preset collection */
 .set-row-col{flex-wrap:wrap}
-.set-row-col .sp-list,.set-row-col .sp-add-row,.set-row-col .apptheme-picker{flex:0 0 100%;margin-left:44px}
-@media(max-width:640px){.set-row-col .sp-list,.set-row-col .sp-add-row,.set-row-col .apptheme-picker{margin-left:0}}
+/* LF34: flex-basis was 100% of the row's full width PLUS a 44px margin-left (to
+   indent under the label, aligning with .set-row-txt above) -- a flex item's
+   basis doesn't shrink for its own margin, so the two together overflowed the
+   card by 44px on desktop/tablet, spilling "+ Save as preset" past the card's
+   right edge. Subtracting the indent from the basis keeps the same alignment
+   without the overflow. */
+.set-row-col .sp-list,.set-row-col .sp-add-row,.set-row-col .apptheme-picker{flex:0 0 calc(100% - 44px);margin-left:44px}
+@media(max-width:640px){.set-row-col .sp-list,.set-row-col .sp-add-row,.set-row-col .apptheme-picker{flex-basis:100%;margin-left:0}}
 /* LF17: Color theme picker — palette-image cards (AutoSelector-style) replacing the old
    text-only <select>. Each card's banner is that theme's own --topbar-bg gradient and its
    three dots are --brand/--pdc/--bg, resolved live per theme (studio.js resolveAppThemeTokens)

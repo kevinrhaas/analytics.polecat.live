@@ -22696,6 +22696,19 @@ function serve() {
       spAddRowLayout.stacked && spAddRowLayout.noOverlap && spAddRowLayout.inputFullWidth, JSON.stringify(spAddRowLayout));
     await spAddRowPhone.close();
 
+    // LF34: on desktop/tablet (>640px) the row's flex-basis was 100% of the row PLUS its own
+    // 44px indenting margin-left -- a flex item's basis doesn't shrink for its own margin, so
+    // the two together overflowed the settings-card by 44px, spilling "+ Save as preset" past
+    // the card's right edge (Kevin, live screenshot).
+    const spAddRowOverflow = await page.evaluate(function () {
+      var card = document.querySelector("#spList").closest(".settings-card");
+      var row = document.querySelector(".sp-add-row");
+      var cr = card.getBoundingClientRect(), rr = row.getBoundingClientRect(), br = document.getElementById("spSaveBtn").getBoundingClientRect();
+      return { rowFits: rr.right <= cr.right + 0.5, btnFits: br.right <= cr.right + 0.5, cardRight: cr.right, btnRight: br.right };
+    });
+    ok("LF34: the style-preset name field + Save button stay inside the settings card on desktop (no right-edge overflow)",
+      spAddRowOverflow.rowFits && spAddRowOverflow.btnFits, JSON.stringify(spAddRowOverflow));
+
     // change the active default, then re-apply the saved preset to prove it restores the snapshot
     await page.fill("#setDefaultSubtitleInp", "Something else");
     await page.evaluate(function () { document.getElementById("setDefaultSubtitleInp").dispatchEvent(new Event("change")); });

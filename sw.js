@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v187"; /* v187: LF25(b) — the Inspector's generic select-type chart
+var CACHE_NAME = "studio-shell-v188"; /* v188: LF34 — the Settings "Style presets" name field +
+   Save button (.sp-add-row) overflowed the card by 44px on desktop/tablet (a flex-basis/margin
+   interaction, not the suspected contrast issue); fixed the sizing so the row stays flush inside
+   the card. app/studio.css changed, so the precached copy needs to roll.
+   v187: LF25(b) — the Inspector's generic select-type chart
    option renderer (optField) was silently dropping od.hint, so the choropleth Renderer/Zoom-pan-
    controls/Controls-position dropdowns never showed the explanatory text already authored in
    model.js — threaded od.hint through to field()'s existing hint-div support. No behavior change

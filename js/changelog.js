@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 551,
+    title: 'Style presets Save button no longer spills off the card',
+    kind: 'fix',
+    ts: '2026-07-25T21:30:54.000Z',
+    items: [
+      'LF34: on desktop/tablet the Preset name field + "+ Save as preset" button overflowed the Settings card by up to 44px, spilling the button past the card\'s right edge -- a flex-basis/margin interaction, not a contrast issue.',
+      'Fixed the sizing so the row sits flush inside the card at every width; the phone-width stacked layout (LF15) is unchanged.',
+    ],
+  },
+  {
     v: 550,
     title: 'Choropleth Renderer control now explains itself',
     kind: 'polish',
