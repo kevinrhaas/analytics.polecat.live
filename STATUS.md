@@ -116,6 +116,26 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF35 slice 1 — GL map zoom/pan controls can go Compact or Hidden per panel (v527, sw v164,
+  2026-07-25, steward, Kevin live-feedback 2026-07-24):** Kevin liked the choropleth's zoom/pan
+  cluster but wanted it smaller and hideable. While scoping this, found the original ask's premise
+  was half-wrong: it described the fix as applying to "the SVG nudge-pad + the maplibregl-ctrl
+  group," but the built-in SVG renderer has never had any on-map controls (LF4 only ever added the
+  pan nudge-pad to the GL renderer) — so there's nothing to shrink there. Scoped the slice to what's
+  real: a new `mapControls` Inspector option on the choropleth chart type (`app/model.js`, "Show" /
+  "Compact" / "Hidden", auto-rendered by the existing schema-driven option system — no new Inspector
+  UI code needed). "Hidden" skips adding MapLibre's `NavigationControl` + the pan nudge-pad
+  entirely in `_choroplethGL` (`app/studio-charts.js`) — drag-to-pan and scroll-to-zoom keep
+  working, only the button affordance goes away. "Compact" keeps both but shrinks them via a new
+  `.pdc-geo-compact{transform:scale(.72)}` rule targeting MapLibre's own `.maplibregl-ctrl-top-right`
+  container (`app/exporters.js`, same always-included small-CSS-override pattern as `cardSkinCss`/
+  `printCss`) instead of touching MapLibre's internal control markup. Preview and export share the
+  identical renderer code path, so byte-identical export holds with no special-casing. Every
+  dashboard saved before this slice has no `mapControls` value and renders exactly like "Show" — no
+  behavior change for existing dashboards. 4 new LF35 ratchets (hidden drops both controls; compact
+  shrinks them + tags the wrap with the CSS class; show and unset render identically). (app/model.js,
+  app/studio-charts.js, app/exporters.js, docs/index.html, tests/run.js) NEXT: the movable/
+  repositioned-cluster half of the original ask is a larger, separate follow-up.
 - **LF37 — Home Examples "+N more" footer is now clickable (v525, sw v162, 2026-07-25,
   steward, Kevin live-feedback 2026-07-24):** Home's Examples strip caps at 8 cards and showed
   a "+ N more — New ▸ Examples" footer, but it was a plain `<div>` — nothing happened on click.
@@ -130,7 +150,8 @@
   regression tests (renders as a real `<button>`; clicking it enters Studio and opens the
   Examples menu with more cards than Home's 8-card cap — the default 12-example catalog already
   overflows, so no demo-pack install is needed to exercise it). (app/studio.js, app/studio.css,
-  tests/run.js) NEXT: LF34/LF35/LF36 remain open in the LIVE-FEEDBACK QUEUE.
+  tests/run.js) NEXT: LF34/LF36 remain open, and LF35 got a slice 1 (see above) with more to do,
+  in the LIVE-FEEDBACK QUEUE.
 - **QA-10 — verified production footer is caught up with repo main, no staleness bug
   (2026-07-25, steward, FRONTEND_QA_REPORT_2026-07-24.md):** the report observed a
   fresh-fetch of production's `js/changelog.js` returning `v513` while the tested
@@ -2606,6 +2627,23 @@
 >       renderers (SVG nudge-pad + the maplibregl-ctrl group) and must round-trip into the exported HTML
 >       byte-identically. Area: app/studio-charts.js (control-cluster render) + a per-panel opts flag in the
 >       Inspector map options (app/studio.js renderInspector). Ties LF25.
+>       ✓ **Slice 1 shipped (2026-07-25, v527, sw v164, steward): show/hide + compact, GL renderer.**
+>       CORRECTION found while scoping this: the "SVG nudge-pad" half of the original ask doesn't
+>       exist — only the GL renderer ever grew a control cluster (LF4); the built-in SVG renderer has
+>       no on-map controls of any kind, so there's nothing there to shrink or hide. Scoped this slice
+>       to what's real: a new per-panel `mapControls` Inspector option ("Show"/"Compact"/"Hidden",
+>       def "Show", auto-rendered by the existing schema-driven option system, `app/model.js`).
+>       "Hidden" skips adding MapLibre's NavigationControl + the LF4 pan nudge-pad entirely (mouse
+>       drag/scroll-zoom keep working — only the click/keyboard affordance goes away). "Compact" keeps
+>       both but shrinks them via a `transform:scale(.72)` on MapLibre's own `.maplibregl-ctrl-top-right`
+>       container (new `.pdc-geo-compact` rule, `app/exporters.js`, same "small unconditional CSS
+>       override" pattern as `cardSkinCss`/`printCss`) rather than fighting MapLibre's internal control
+>       markup — preview and export share the exact same renderer code path, so byte-identical export
+>       holds automatically. Undefined (every dashboard saved before this slice) renders identically to
+>       "Show". 4 new LF35 ratchets (hidden drops both controls; compact shrinks them + tags the wrap;
+>       show and unset render identically). NEXT: the movable/repositioned-cluster half of the original
+>       ask is a larger, separate follow-up, deliberately not attempted here. (app/model.js,
+>       app/studio-charts.js, app/exporters.js, docs/index.html, tests/run.js)
 > LF37. ✓ **Home Examples "+N more" footer is now clickable (shipped v525, sw v162, 2026-07-25,
 >       steward) — see DONE.** The footer is now a real button that opens the Examples ▾ menu
 >       (already renders the full, uncapped example list).

@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 527,
+    title: 'Map zoom/pan controls can now go compact or hidden',
+    kind: 'feature',
+    ts: '2026-07-25T03:36:16.000Z',
+    items: [
+      'The Interactive GL map renderer\'s zoom + pan control cluster is a lot to look at on a dense dashboard. A new per-panel "Zoom/pan controls" option (Show / Compact / Hidden) shrinks it or removes it entirely -- dragging and scroll-to-zoom keep working either way, since only the on-screen buttons are affected.',
+    ],
+  },
+  {
     v: 526,
     title: 'Tech-debt: version history + canvas notes moved to their own module',
     kind: 'polish',

@@ -5,7 +5,21 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v163"; /* v163: R5+ slice 5 (tech-debt track) — the version-history
+var CACHE_NAME = "studio-shell-v164"; /* v164: LF35 slice 1 — a new per-panel "Zoom/pan controls"
+   option (Show/Compact/Hidden) on the choropleth chart's GL renderer (Kevin: wants the on-map
+   zoom+pan cluster smaller and hideable). "Hidden" skips adding MapLibre's NavigationControl and
+   the LF4 pan nudge-pad entirely; "Compact" keeps both but shrinks them via a CSS transform on
+   MapLibre's own top-right control container (new .pdc-geo-compact rule, exporters.js) rather
+   than reaching into MapLibre's internal control markup — same recipe as every other unconditional
+   small CSS override already in that bundle (cardSkinCss, printCss, …). Undefined (every
+   pre-existing saved dashboard) behaves exactly like "Show" — no change for anyone who hasn't
+   touched the new option. The report's other ask (a movable, repositionable cluster) is a larger,
+   separate follow-up — deliberately not attempted here. Applies to the GL renderer only; the
+   built-in (SVG) renderer has no on-map controls to begin with, so it's untouched. 4 new LF35
+   ratchets (hidden drops both controls, compact shrinks them + tags the wrap, show and unset
+   render identically). app/model.js, app/studio-charts.js, app/exporters.js, docs/index.html,
+   tests/run.js changed, so precached copies need to roll. */
+/* v163: R5+ slice 5 (tech-debt track) — the version-history
    ("time travel" checkpoints) + canvas-sticky-notes data layer moved out of app/studio.js into its
    own module, app/versions.js (Studio.Versions / Studio.CanvasNotes), following the chart-
    thumbnails.js/branding.js/defaults.js/celebrations.js extraction precedent (①/②/③/④). Every

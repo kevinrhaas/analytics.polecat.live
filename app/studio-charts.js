@@ -5973,6 +5973,13 @@
           fill: v == null ? muteCol : C.colorOf(v) } };
       });
       el.innerHTML = "";
+      // LF35 slice 1: cfg.mapControls ("show"/"compact"/"hidden", undefined == "show" for
+      // pre-existing panels) — "compact" shrinks the zoom+pan cluster via a CSS transform
+      // (pdc-geo-compact, exporters.js) rather than fighting MapLibre's own control markup.
+      // The class goes on `el` (the panel's own container), NOT `wrap`: MapLibre's Map
+      // constructor unconditionally overwrites its container's className to "maplibregl-map",
+      // which would silently wipe out a class set on wrap itself before/after construction.
+      el.classList.toggle("pdc-geo-compact", cfg.mapControls === "compact");
       var wrap = document.createElement("div");
       wrap.setAttribute("data-geo-gl", "1");
       wrap.style.cssText = "position:relative;width:100%;height:" + C.h + "px;border-radius:6px;overflow:hidden";
@@ -6009,8 +6016,12 @@
       if (savedCam) { mapOpts.center = savedCam.center; mapOpts.zoom = savedCam.zoom; }
       else { mapOpts.bounds = [sw, ne]; mapOpts.fitBoundsOptions = { padding: 12 }; }
       var map = new maplibregl.Map(mapOpts);
-      map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
-      map.addControl(_glPanControl(), "top-right");
+      // LF35 slice 1: "hidden" skips the cluster entirely (a bare interactive map — mouse
+      // drag/scroll pan+zoom still work, only the click/keyboard affordance is gone).
+      if (cfg.mapControls !== "hidden") {
+        map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+        map.addControl(_glPanControl(), "top-right");
+      }
       el._glMap = map; el._glScale = C.scale;
       // LF28: persist the camera (debounced) so the NEXT render of this panel — after a save,
       // reload, or export — restores exactly where the user left it, instead of re-fitting.

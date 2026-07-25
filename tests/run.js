@@ -2128,6 +2128,68 @@ function serve() {
       stateLinesParity.glOff === false && stateLinesParity.svgOff === false,
       JSON.stringify(stateLinesParity));
 
+    // LF35 slice 1: per-panel cfg.mapControls ("show"/"compact"/"hidden") on the GL renderer's
+    // zoom+pan cluster (Kevin: wants the controls smaller, and hideable). "hidden" drops both
+    // the built-in NavigationControl and the LF4 pan nudge-pad entirely; "compact" keeps both
+    // but shrinks them via a CSS transform on MapLibre's own top-right control container
+    // (pdc-geo-compact, exporters.js) instead of reaching into MapLibre's internal markup;
+    // undefined (pre-existing panels/specs saved before this slice) behaves exactly like "show".
+    const glMapControlsSpec = function (mapControls) {
+      var s = glSpecSrc("gl");
+      if (mapControls !== undefined) s.panels[0].chart.opts.mapControls = mapControls;
+      return s;
+    };
+    const mapControlsResult = await page.evaluate(async function (specs) {
+      var mock = { g: { cols: ["fips", "v"], rows: [["17031", 4], ["17113", 7], ["19153", 9], ["18097", 6]] } };
+      function render(spec, left) {
+        var html = Studio.buildHtml(spec, window.__STUDIO_STATE.assets, { preview: true, mock: mock });
+        return new Promise(function (resolve) {
+          var ifr = document.createElement("iframe");
+          ifr.style.cssText = "position:fixed;left:" + left + "px;top:0;width:900px;height:600px";
+          document.body.appendChild(ifr);
+          ifr.srcdoc = html;
+          var t0 = Date.now();
+          (function poll() {
+            var doc = null; try { doc = ifr.contentDocument; } catch (e) {}
+            var wrap = doc && doc.querySelector("[data-geo-gl]");
+            var map = wrap && wrap.parentNode && wrap.parentNode._glMap;
+            if (map) {
+              var topRight = doc.querySelector(".maplibregl-ctrl-top-right");
+              var out = {
+                nav: doc.querySelectorAll(".maplibregl-ctrl-zoom-in").length,
+                panButtons: doc.querySelectorAll(".pdc-geo-pan button[data-pan]").length,
+                // the compact class lands on the map's PARENT (wrap.parentNode), not wrap
+                // itself — MapLibre's own Map constructor overwrites wrap.className unconditionally
+                wrapClass: wrap.parentNode.className,
+                transform: topRight ? doc.defaultView.getComputedStyle(topRight).transform : null
+              };
+              ifr.remove(); resolve(out);
+            } else if (Date.now() - t0 > 20000) { ifr.remove(); resolve({ timeout: true }); }
+            else setTimeout(poll, 200);
+          })();
+        });
+      }
+      return {
+        hidden: await render(specs.hidden, -4200),
+        compact: await render(specs.compact, -4600),
+        show: await render(specs.show, -5000),
+        unset: await render(specs.unset, -5400)
+      };
+    }, { hidden: glMapControlsSpec("hidden"), compact: glMapControlsSpec("compact"), show: glMapControlsSpec("show"), unset: glMapControlsSpec(undefined) });
+    ok("LF35: mapControls='hidden' drops both the zoom buttons and the pan nudge-pad entirely",
+      mapControlsResult.hidden.nav === 0 && mapControlsResult.hidden.panButtons === 0, JSON.stringify(mapControlsResult.hidden));
+    ok("LF35: mapControls='compact' keeps both controls but shrinks them (the panel body gains pdc-geo-compact, top-right container is CSS-scaled)",
+      mapControlsResult.compact.nav === 1 && mapControlsResult.compact.panButtons === 4 &&
+      (" " + mapControlsResult.compact.wrapClass + " ").indexOf(" pdc-geo-compact ") >= 0 &&
+      !!mapControlsResult.compact.transform && mapControlsResult.compact.transform !== "none",
+      JSON.stringify(mapControlsResult.compact));
+    ok("LF35: mapControls='show' and a panel with no mapControls set at all (pre-existing specs) render IDENTICALLY — full-size controls, no compact class",
+      mapControlsResult.show.nav === 1 && mapControlsResult.show.panButtons === 4 &&
+      mapControlsResult.show.wrapClass.indexOf("pdc-geo-compact") < 0 &&
+      mapControlsResult.unset.nav === 1 && mapControlsResult.unset.panButtons === 4 &&
+      mapControlsResult.unset.wrapClass.indexOf("pdc-geo-compact") < 0,
+      JSON.stringify({ show: mapControlsResult.show, unset: mapControlsResult.unset }));
+
     // ---- EXPLORE (Viridis V5): dataset-first designer → saved analyses ------
     console.log("\n• EXPLORE: dataset-first analysis designer (Viridis V5)");
     const xpSchema = await page.evaluate(function () {

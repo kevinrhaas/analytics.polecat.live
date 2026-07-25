@@ -203,6 +203,12 @@
         paletteCss = "\n:root{" + _lv + "}\n[data-theme='dark']{" + _dv + "}";
       }
     }
+    // LF35 slice 1: choropleth GL panels set cfg.mapControls "compact" per-panel (studio-charts.js
+    // adds the .pdc-geo-compact class to that panel's map wrap only) — a transform-scale on
+    // MapLibre's own top-right control container shrinks the zoom+pan cluster uniformly without
+    // touching its internal markup/CSS. Always included (inert unless a panel opts in), same as
+    // every other unconditional small CSS rule in this bundle.
+    var geoCtrlCss = "\n.pdc-geo-compact .maplibregl-ctrl-top-right{transform:scale(.72);transform-origin:top right}";
     // Print / PDF layout: static header, hide interactive controls, avoid card page breaks.
     // Applied only in exported CDF (not the in-builder preview where printing makes no sense).
     var printCss = !opts.preview ?
@@ -254,7 +260,7 @@
     var head =
       "<!DOCTYPE html>\n" + htmlOpenTag + "\n<head>\n<meta charset=\"utf-8\"/>\n" +
       "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"/>\n" +
-      "<title>" + xml(titleText) + " — Analytics</title>\n<style>\n" + assets.css + mobileCss + sectionCss + descCss + panelNoteCss + panelAccentCss + dlActsCss + targetLineCss + refBandCss + calloutCss + periodHighlightCss + eventMarkerCss + scatterAnnotCss + kpiSubCss + richtextCss + dashboardThemeCss + themeColorCss + headerLogoCss + headerLinkCss + headerBgCss + titleSizeCss + hideHeaderCss + subtitleStyleCss + cardSkinCss + paletteCss + printCss + previewCss + "\n</style>\n</head>\n";
+      "<title>" + xml(titleText) + " — Analytics</title>\n<style>\n" + assets.css + mobileCss + sectionCss + descCss + panelNoteCss + panelAccentCss + dlActsCss + targetLineCss + refBandCss + calloutCss + periodHighlightCss + eventMarkerCss + scatterAnnotCss + kpiSubCss + richtextCss + dashboardThemeCss + themeColorCss + headerLogoCss + headerLinkCss + headerBgCss + titleSizeCss + hideHeaderCss + subtitleStyleCss + cardSkinCss + paletteCss + geoCtrlCss + printCss + previewCss + "\n</style>\n</head>\n";
     var logoHtml = spec.headerLogo ?
       "<img class=\"pdc-logo\" src=\"" + xml(spec.headerLogo) + "\" alt=\"\"/>" :
       "<span class=\"pdc-logo\">P</span>";

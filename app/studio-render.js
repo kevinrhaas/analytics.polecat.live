@@ -668,6 +668,8 @@
             classes: o.classes || 5, colorToken: o.color || "--good",
             fit: o.fit || "data", stateLines: o.stateLines !== false,
             renderer: o.renderer || "svg",
+            // LF35 slice 1: GL-renderer-only zoom/pan control cluster size (show/compact/hidden).
+            mapControls: o.mapControls || "show",
             legend: o.showLegend !== false, fmt: f, height: o.height || 380,
             lastUpdated: daLastUpdated(ch.da),
             // LF6 slice 2: lets studio-charts.js register a "current selection" CSV rows fn for

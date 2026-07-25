@@ -1079,6 +1079,13 @@
         { key: "renderer", type: "select", label: "Renderer", def: "svg",
           choices: [["svg", "Built-in (light — smallest export)"], ["gl", "Interactive GL (pan & zoom, ~1MB heavier export)"]],
           hint: "GL mode pans and zooms smoothly at any polygon count; it inlines MapLibre into the export. Falls back to the built-in renderer where WebGL is unavailable." },
+        // LF35 slice 1: the zoom/pan control cluster (built-in zoom buttons + the LF4 pan
+        // nudge-pad) only exists on the GL renderer — the built-in renderer has no
+        // interactive controls to show/hide/shrink. One field covers both asks from the
+        // report (smaller, and hideable); a movable/repositioned cluster is a follow-up.
+        { key: "mapControls", type: "select", label: "Zoom/pan controls", def: "show",
+          choices: [["show", "Show"], ["compact", "Compact"], ["hidden", "Hidden"]],
+          hint: "GL renderer only — the built-in renderer has no on-map controls." },
         { key: "channel", type: "text", label: "Ensemble channel", def: "providers",
           hint: "Panels sharing a channel stay linked: an Ensemble chart's provider toggles re-color this map live." },
         { key: "agg",     type: "select", label: "Combine duplicate rows by", def: "median",
