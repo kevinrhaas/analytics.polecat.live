@@ -86,6 +86,25 @@ a:hover{text-decoration:underline}
 .card b{display:block;font-size:15.5px;margin-bottom:6px}
 .card p{margin:0;font-size:13.5px;color:var(--muted)}
 
+/* ── chart-type gallery ── */
+.gallery-sec{max-width:1020px;margin:0 auto;padding:26px 22px 64px}
+.gallery-sec h2{font-size:clamp(22px,3.4vw,30px);text-align:center;margin:0 0 10px;font-weight:800}
+.gallery-sub{text-align:center;color:var(--muted);font-size:14px;margin:0 0 22px}
+.gallery-chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:22px}
+.gal-chip{background:var(--pane);border:1px solid var(--line);border-radius:999px;padding:7px 14px;
+  font-size:12.5px;font-weight:600;color:var(--ink);cursor:pointer;transition:border-color .15s}
+.gal-chip:hover{border-color:var(--brand)}
+.gal-chip.on{background:linear-gradient(135deg,var(--brand),var(--brand-2));color:#fff!important;border-color:transparent}
+.gallery-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}
+.gal-tile{background:var(--pane);border:1px solid var(--line);border-radius:14px;padding:14px 12px;text-align:center}
+.gal-ic{display:block;width:56px;height:38px;margin:0 auto 8px}
+.gal-ic svg{width:100%;height:100%;display:block}
+.gal-tile b{display:block;font-size:12.5px;margin-bottom:4px}
+.gal-tile p{margin:0;font-size:11px;color:var(--muted);line-height:1.35}
+.gallery-more{display:block;margin:22px auto 0;background:var(--pane);border:1px solid var(--line);
+  border-radius:999px;padding:9px 20px;font-size:13px;font-weight:600;color:var(--ink);cursor:pointer}
+.gallery-more:hover{border-color:var(--brand)}
+
 /* ── sources strip ── */
 .strip{max-width:860px;margin:0 auto;padding:44px 22px;text-align:center}
 .strip-sub{color:var(--muted);font-size:14.5px;max-width:640px;margin:0 auto 24px}

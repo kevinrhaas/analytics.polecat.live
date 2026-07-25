@@ -24699,6 +24699,52 @@ function serve() {
     ok("CAR: the next arrow advances slide + dot + caption together, and clicking a dot jumps back",
       carNext.on === 1 && carNext.dotOn === 1 && carNext.cap.length > 20 && carDot === 0,
       JSON.stringify({ next: carNext.on, dot: carNext.dotOn, back: carDot }));
+    // ---- LF30: chart-type gallery — a filterable tile grid of every real chart type ----
+    console.log("\n• LF30: marketing chart-type gallery");
+    const galInit = await mkt.evaluate(function () {
+      var chips = [].slice.call(document.querySelectorAll(".gal-chip"));
+      var tiles = [].slice.call(document.querySelectorAll(".gal-tile"));
+      return {
+        chipCount: chips.length,
+        chipLabels: chips.map(function (c) { return c.textContent; }),
+        allActive: chips[0] && chips[0].classList.contains("on"),
+        initialTiles: tiles.length,
+        catalogLen: (window.CHART_GALLERY || []).length,
+        moreVisible: !document.getElementById("galMore").hidden
+      };
+    });
+    ok("LF30: gallery renders a category chip per group + All, defaulting to All",
+      galInit.chipCount >= 6 && galInit.chipLabels[0] === "All" && galInit.allActive, JSON.stringify(galInit.chipLabels));
+    ok("LF30: the source catalog (site/chart-gallery.js) carries ≥30 real chart types",
+      galInit.catalogLen >= 30, galInit.catalogLen);
+    ok("LF30: the default All view is capped with a visible Show-all button (not all 30+ tiles at once)",
+      galInit.initialTiles > 0 && galInit.initialTiles < galInit.catalogLen && galInit.moreVisible, JSON.stringify(galInit));
+    await mkt.click("#galMore");
+    await mkt.waitForTimeout(150);
+    const galExpanded = await mkt.evaluate(function () {
+      return { tiles: document.querySelectorAll(".gal-tile").length, moreVisible: !document.getElementById("galMore").hidden };
+    });
+    ok("LF30: Show-all reveals every chart type and hides itself",
+      galExpanded.tiles === galInit.catalogLen && !galExpanded.moreVisible, JSON.stringify(galExpanded));
+    const galChip1 = await mkt.evaluate(function () { return document.querySelectorAll(".gal-chip")[1].textContent; });
+    await mkt.click('.gal-chip:nth-child(2)');
+    await mkt.waitForTimeout(150);
+    const galFiltered = await mkt.evaluate(function (cat) {
+      var chips = [].slice.call(document.querySelectorAll(".gal-chip"));
+      var tiles = [].slice.call(document.querySelectorAll(".gal-tile"));
+      var expect = (window.CHART_GALLERY || []).filter(function (c) { return c.group === cat; }).length;
+      return {
+        activeIdx: chips.findIndex(function (c) { return c.classList.contains("on"); }),
+        tiles: tiles.length, expect: expect,
+        moreVisible: !document.getElementById("galMore").hidden
+      };
+    }, galChip1);
+    ok("LF30: clicking a category chip filters the grid to exactly that category's tiles",
+      galFiltered.activeIdx === 1 && galFiltered.tiles === galFiltered.expect && galFiltered.tiles > 0 && !galFiltered.moreVisible,
+      JSON.stringify(galFiltered));
+    await mkt.click(".gal-chip:first-child"); // back to All for anything appended after this block
+    await mkt.waitForTimeout(150);
+
     // Old pre-move deep links carried app hashes on the ROOT — they must forward into /app/.
     // (about:blank first: navigating "/" → "/#share=…" would be a SAME-DOCUMENT hash change
     // that never re-runs the head script; real legacy links arrive as fresh navigations.)

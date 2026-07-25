@@ -5,7 +5,15 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v183"; /* v183: LF21 — the dashboard title/header banner becomes
+var CACHE_NAME = "studio-shell-v184"; /* v184: LF30 — a marketing chart-type gallery on the
+   homepage (index.html): a filterable tile grid of every real chart type Studio draws, sourced
+   from site/chart-gallery.js (new, built by the new tools/gen-chart-gallery.mjs from the app's
+   own Studio.CHARTS/CHART_SVG registry via a new Studio.chartCatalog()/window.__studioChartCatalog
+   hook in app/chart-thumbnails.js — index.html never loads the app, so the data is dumped ahead
+   of time and committed like site/shots/*.png). A capped 18-tile default view with a "Show all"
+   expand, category chips (All + the 9 chart groups) that filter the grid. index.html,
+   css/landing.css changed, so precached copies need to roll. */
+/* v183: LF21 — the dashboard title/header banner becomes
    a first-class selectable/deletable canvas object, like a widget or KPI tile. Clicking the
    header in the live preview (studio-render.js's wireHeaderEditing) now posts select{kind:header}
    (guarded so a click on any of the header's own buttons/links doesn't also select it), and a new
