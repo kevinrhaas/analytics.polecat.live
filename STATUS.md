@@ -116,6 +116,24 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF13(c) — job editor gains a unique-key/row-id step (v536, sw v173, 2026-07-25, steward):**
+  the jobs-engine had NO row-id concept before this — join/union/aggregate steps can all
+  collapse or reorder rows, so nothing downstream (an export, a dashboard join key) could
+  reliably key an output row. New `uniqueKey` step (`app/sources/jobs-engine.js`,
+  `applyUniqueKey`): stamps a stable per-row id (counter+random, matching `workspace.js`'s own
+  `uid()` shape — the engine stays DOM/crypto-free on purpose) onto `step.outCol` (default
+  `row_id`) for every row currently in the pipeline; an existing column of that name is
+  re-stamped in place rather than duplicated. Added to `Studio.JOB_STEP_KINDS` ("Add unique row
+  ID") and `STEP_HANDLERS`. `openJobEditor`'s `stepFields` gained a branch for the new op — an
+  output-column text field (defaulting to `row_id`) plus a hint recommending placement after a
+  join/union/aggregate so the id keys the FINAL row grain, not the pre-collapse source rows.
+  docs/index.html's job-editor section gained a matching bullet. 7 new regression tests (default
+  outCol, custom outCol, placed-after-aggregate keys the collapsed rows not the source rows,
+  re-stamping an existing column doesn't duplicate it, JOB_STEP_KINDS lists it, the editor
+  renders + persists the saved outCol). NEXT in LF13: (b) multiple aggregate passes/levels and
+  (d) the bigger UX pass (field list, output preview, operation diagram) are each their own
+  follow-up slice. (app/sources/jobs-engine.js, app/studio.js, docs/index.html, sw.js,
+  js/changelog.js, tests/run.js)
 - **LF13(a) — job editor group-by/metric/join+union-key fields are now real column dropdowns
   (v535, sw v172, 2026-07-25, steward):** LF13's overhaul ask has four sub-parts (a)(b)(c)(d);
   this slice ships (a) only, "COLUMN DROPDOWNS." The aggregate step's group-by (previously a
@@ -3046,13 +3064,14 @@
 >       dataset's real columns, instead of free-text. (b) MULTIPLE group-by columns + multiple
 >       aggregates (metric "+ " exists; extend grouping beyond one + "then by" — note group-by is now
 >       ALREADY multi-select via (a)'s pill picker, so this sub-ask narrows to multiple AGGREGATE
->       passes/levels, not multiple group-by columns, which already works). (c) UNIQUE-KEY option —
->       generate a uuid/stable id per output row (verify whether jobs-engine already emits row ids;
->       expose the toggle). (d) UX — it's "wonky and boring": add a source FIELD LIST (type
->       icons/colors), a PREVIEW of source rows AND a dummy preview of the OUTPUT rows, and a small
->       visual DIAGRAM of the operation (rollup/join/stack) with the picked columns shown, so you can
->       see what you're building. app/studio.js (openJobEditor), app/sources/jobs-engine.js,
->       app/studio.css.
+>       passes/levels, not multiple group-by columns, which already works). (c) ✓ **UNIQUE-KEY
+>       option — shipped (v536, sw v173, 2026-07-25, steward) — see DONE.** jobs-engine had no
+>       row-id concept; a new `uniqueKey` step stamps a stable id per row, placeable anywhere in the
+>       pipeline (recommended after join/union/aggregate so it keys the final row grain). (d) UX —
+>       it's "wonky and boring": add a source FIELD LIST (type icons/colors), a PREVIEW of source
+>       rows AND a dummy preview of the OUTPUT rows, and a small visual DIAGRAM of the operation
+>       (rollup/join/stack) with the picked columns shown, so you can see what you're building.
+>       app/studio.js (openJobEditor), app/sources/jobs-engine.js, app/studio.css.
 > LF14. ✓ **Job editor contrast — DONE, see DONE (v434, 2026-07-22, steward).** New `.btn.danger`
 >       class (dark-on-light, red on hover) applied to "✕ Remove step" + the per-metric/mapping "✕".
 > LF15. ✓ **Settings: button/input style overlap — DONE, see DONE (v439, 2026-07-22, steward).**

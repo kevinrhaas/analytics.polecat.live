@@ -3651,6 +3651,43 @@ function serve() {
       joinUnionEngine.datasetIds.length === 2 && joinUnionEngine.datasetIds.indexOf("R") >= 0 && joinUnionEngine.datasetIds.indexOf("A") >= 0,
       JSON.stringify(joinUnionEngine.datasetIds));
 
+    // ---- JOBS: uniqueKey step (STATUS.md LF13(c) — the engine had no row-id
+    // concept before this) -----------------------------------------------
+    console.log("\n• JOBS: uniqueKey step (LF13c)");
+    const uniqueKeyEngine = await page.evaluate(function () {
+      var input = { columns: ["state", "score"], rows: [["IA", "10"], ["IL", "20"], ["MO", "5"]] };
+      var defaulted = Studio.runJobSteps(input, [{ op: "uniqueKey" }]);
+      var named = Studio.runJobSteps(input, [{ op: "uniqueKey", outCol: "uid" }]);
+      var afterAggregate = Studio.runJobSteps(
+        { columns: ["state", "score"], rows: [["IA", "10"], ["IA", "20"], ["IL", "5"]] },
+        [{ op: "aggregate", groupBy: ["state"], metrics: [{ col: "score", fn: "sum", as: "total" }] }, { op: "uniqueKey", outCol: "row_id" }]
+      );
+      var overwritten = Studio.runJobSteps({ columns: ["state", "row_id"], rows: [["IA", "keep-me"]] }, [{ op: "uniqueKey" }]);
+      return {
+        defaultCols: defaulted.columns, defaultIds: defaulted.rows.map(function (r) { return r[2]; }),
+        namedCols: named.columns, namedIds: named.rows.map(function (r) { return r[2]; }),
+        aggCols: afterAggregate.columns, aggIds: afterAggregate.rows.map(function (r) { return r[2]; }),
+        overwrittenCols: overwritten.columns, overwrittenVal: overwritten.rows[0][1],
+        stepKinds: Studio.JOB_STEP_KINDS.map(function (k) { return k.op; })
+      };
+    });
+    ok("JOBS: uniqueKey with no outCol adds a 'row_id' column with a distinct id per row",
+      uniqueKeyEngine.defaultCols.join(",") === "state,score,row_id" &&
+      uniqueKeyEngine.defaultIds.length === 3 && new Set(uniqueKeyEngine.defaultIds).size === 3,
+      JSON.stringify(uniqueKeyEngine.defaultCols) + " " + JSON.stringify(uniqueKeyEngine.defaultIds));
+    ok("JOBS: uniqueKey honors a custom outCol name",
+      uniqueKeyEngine.namedCols.indexOf("uid") >= 0 && uniqueKeyEngine.namedIds.every(function (v) { return v != null; }),
+      JSON.stringify(uniqueKeyEngine.namedCols));
+    ok("JOBS: uniqueKey placed after aggregate keys the COLLAPSED rows (one id per group, not per source row)",
+      uniqueKeyEngine.aggCols.join(",") === "state,total,row_id" &&
+      uniqueKeyEngine.aggIds.length === 2 && new Set(uniqueKeyEngine.aggIds).size === 2,
+      JSON.stringify(uniqueKeyEngine.aggCols) + " " + JSON.stringify(uniqueKeyEngine.aggIds));
+    ok("JOBS: uniqueKey re-stamps an existing outCol in place rather than duplicating the column",
+      uniqueKeyEngine.overwrittenCols.join(",") === "state,row_id" && uniqueKeyEngine.overwrittenVal !== "keep-me",
+      JSON.stringify(uniqueKeyEngine.overwrittenCols) + " " + uniqueKeyEngine.overwrittenVal);
+    ok("JOBS: JOB_STEP_KINDS now includes uniqueKey",
+      uniqueKeyEngine.stepKinds.indexOf("uniqueKey") >= 0, JSON.stringify(uniqueKeyEngine.stepKinds));
+
     // ---- JOBS: Custom SQL step (Viridis V8 slice 3) -----------------------
     console.log("\n• JOBS: Custom SQL step (Viridis V8 slice 3)");
     const jobsSqlEngine = await page.evaluate(async function () {
@@ -4003,6 +4040,47 @@ function serve() {
       Studio.Workspace.all("jobs").filter(function (j) { return j.name === "ui-sql-job"; }).forEach(function (j) { Studio.Workspace.remove("jobs", j.id, { silent: true }); });
       Studio.Workspace.all("datasets").filter(function (d) { return d.name === "jobs-sql-editor-ui-ds"; }).forEach(function (d) { Studio.Workspace.remove("datasets", d.id, { silent: true }); });
       Studio.Workspace.all("connections").filter(function (c) { return c.name === "jobs-sql-editor-ui-test"; }).forEach(function (c) { Studio.Workspace.remove("connections", c.id, { silent: true }); });
+      Studio.Workspace.notify("*");
+      window.__studioShellSetSection("studio");
+    });
+    await page.waitForTimeout(200);
+
+    // LF13(c): opening the editor on a uniqueKey step renders the output-column field with
+    // its saved value, the step-kind picker offers "Add unique row ID", and saving persists
+    // an edited outCol.
+    await page.evaluate(function () {
+      window.__studioShellSetSection("jobs");
+      var conn = Studio.Workspace.put("connections", { name: "jobs-uk-editor-ui-test", adapter: "file", cfg: {} });
+      var ds = Studio.Workspace.put("datasets", { name: "jobs-uk-editor-ui-ds", connectionId: conn.id, kind: "file", format: "csv", content: "a,b\n1,2\n" });
+      var job = Studio.Workspace.put("jobs", { name: "ui-uk-job", sourceDatasetId: ds.id, steps: [{ op: "uniqueKey", outCol: "uid" }] });
+      window.__studioOpenJobEditor(job);
+    });
+    await page.waitForTimeout(150);
+    const ukEditorUI = await page.evaluate(function () {
+      var input = document.querySelector(".jobs-step-fields input");
+      var opSel = document.querySelector(".jobs-step-card select");
+      return {
+        value: input && input.value,
+        stepKindOptions: opSel ? Array.prototype.slice.call(opSel.options).map(function (o) { return o.value; }) : [],
+        stepKindValue: opSel ? opSel.value : null
+      };
+    });
+    ok("JOBS: opening the editor on a uniqueKey step renders its saved output-column name, and the step-kind picker offers uniqueKey",
+      ukEditorUI.value === "uid" && ukEditorUI.stepKindValue === "uniqueKey" && ukEditorUI.stepKindOptions.indexOf("uniqueKey") >= 0,
+      JSON.stringify(ukEditorUI));
+    const ukEditorSave = await page.evaluate(function () {
+      var input = document.querySelector(".jobs-step-fields input");
+      input.value = "record_id"; input.dispatchEvent(new Event("input"));
+      document.querySelector(".cx-wiz-foot .btn.primary").click();
+      var job = Studio.Workspace.all("jobs").filter(function (j) { return j.name === "ui-uk-job"; })[0];
+      return { outCol: job && job.steps[0].outCol };
+    });
+    ok("JOBS: editing the uniqueKey output-column field and saving persists the new name",
+      ukEditorSave.outCol === "record_id", JSON.stringify(ukEditorSave));
+    await page.evaluate(function () {
+      Studio.Workspace.all("jobs").filter(function (j) { return j.name === "ui-uk-job"; }).forEach(function (j) { Studio.Workspace.remove("jobs", j.id, { silent: true }); });
+      Studio.Workspace.all("datasets").filter(function (d) { return d.name === "jobs-uk-editor-ui-ds"; }).forEach(function (d) { Studio.Workspace.remove("datasets", d.id, { silent: true }); });
+      Studio.Workspace.all("connections").filter(function (c) { return c.name === "jobs-uk-editor-ui-test"; }).forEach(function (c) { Studio.Workspace.remove("connections", c.id, { silent: true }); });
       Studio.Workspace.notify("*");
       window.__studioShellSetSection("studio");
     });

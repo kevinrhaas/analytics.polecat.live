@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v172"; /* v172: LF13(a) — the job editor's group-by/metric/
+var CACHE_NAME = "studio-shell-v173"; /* v173: LF13(c) — the job editor gains a "uniqueKey" step
+   that stamps a stable row-id onto the pipeline's rows. No new precached files, but
+   app/studio.js, app/sources/jobs-engine.js, docs/index.html and js/changelog.js content
+   changed, so precached copies need to roll. */
+/* v172: LF13(a) — the job editor's group-by/metric/
    join+union-key fields are now dropdowns of the dataset's real columns instead of free text.
    No new precached files, but app/studio.js, app/studio.css and js/changelog.js content
    changed, so precached copies need to roll. */

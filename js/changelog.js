@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 536,
+    title: 'Jobs gain an "Add unique row ID" step',
+    kind: 'feature',
+    ts: '2026-07-25T10:00:39.000Z',
+    items: [
+      'LF13(c): a new job step stamps a stable, unique id onto every row currently in the pipeline — place it after a join, union, or aggregate step to key your rows at their final shape, ready to use as a dashboard join key or export id.',
+    ],
+  },
+  {
     v: 535,
     title: 'Job editor: group-by and key columns are now real dropdowns, not free text',
     kind: 'feature',
