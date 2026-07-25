@@ -9692,6 +9692,28 @@ function serve() {
     ok("LF19 group icons: each glyph sits right before the group's name span", grpIcons.allBeforeName, JSON.stringify(grpIcons));
     ok("LF19 group icons: the 5 groups use 5 visually distinct glyphs, not one repeated icon", grpIcons.distinctPaths, JSON.stringify(grpIcons));
 
+    // LF19 "next" slice — tidy the "+ New" affordance on "This dashboard's datasets":
+    // it used to spell out "New" next to the group's own count badge, which crowded the
+    // group name into an ellipsis ("This dashboard's da…") at the panel's default width.
+    // Now it's icon-only (title/aria-label carry the accessible name), so the full name fits.
+    const mineAddTidy = await page.evaluate(() => {
+      const h = document.querySelector(".lib-mine:not(.lib-wsds):not(.lib-analyses):not(.lib-demopacks) .h");
+      const addBtn = h.querySelector(".mine-add");
+      const nm = h.querySelector(".nm");
+      return {
+        addBtnHasNoVisibleText: addBtn.textContent.trim() === "",
+        addBtnHasIcon: !!addBtn.querySelector("svg"),
+        addBtnAccessibleName: addBtn.getAttribute("aria-label") || addBtn.title || "",
+        nameNotTruncated: nm.scrollWidth <= nm.clientWidth + 1 // +1: sub-pixel rounding slack
+      };
+    });
+    ok("LF19: the group-level '+ New' button on 'This dashboard's datasets' is icon-only now (no 'New' text)",
+      mineAddTidy.addBtnHasNoVisibleText && mineAddTidy.addBtnHasIcon, JSON.stringify(mineAddTidy));
+    ok("LF19: the icon-only button still carries an accessible name via title/aria-label",
+      /create a new data source/i.test(mineAddTidy.addBtnAccessibleName), JSON.stringify(mineAddTidy));
+    ok("LF19: 'This dashboard's datasets' no longer truncates into an ellipsis at the panel's default width",
+      mineAddTidy.nameNotTruncated, JSON.stringify(mineAddTidy));
+
     // Calmer Data panel: the compound (join/union) create button is retired from
     // the Studio pane (joins/unions belong in the Datasets area), so the header
     // carries exactly one action — "+ New" — and no compound-DA entry.

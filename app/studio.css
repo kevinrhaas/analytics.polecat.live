@@ -783,7 +783,7 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
 .lib-mine.open>.h .car{transform:rotate(90deg)}
 .lib-mine>.h .nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .lib-mine>.h .badge{font-size:10px;color:var(--faint);background:var(--field);border:1px solid var(--line);border-radius:10px;padding:1px 7px;font-weight:700}
-.lib-mine>.h .mine-add{display:inline-flex;align-items:center;gap:3px;font-size:10.5px;font-weight:800;background:var(--brand);color:#fff;border:none;border-radius:6px;padding:2px 9px;cursor:pointer;margin-left:4px;line-height:1.5;flex-shrink:0}
+.lib-mine>.h .mine-add{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;background:var(--brand);color:#fff;border:none;border-radius:6px;padding:0;cursor:pointer;margin-left:4px;flex-shrink:0}
 .lib-mine>.h .mine-add:hover{opacity:.85}
 .lib-mine .lib-das{display:none;padding:5px 8px 7px}
 .lib-mine.open .lib-das{display:block}

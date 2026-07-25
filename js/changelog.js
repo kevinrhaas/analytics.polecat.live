@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 554,
+    title: 'Tidied the "+ New" shortcut on This dashboard\'s datasets',
+    kind: 'polish',
+    ts: '2026-07-25T22:33:16.000Z',
+    items: [
+      'LF19: the group-level "+ New" button was crowding "This dashboard\'s datasets" into an ellipsis at the panel\'s default width -- it\'s icon-only now, so the full name always fits.',
+      'Still does the same thing (creates a new data source); hover or a screen reader still gets the full "Create a new data source" label.',
+    ],
+  },
+  {
     v: 553,
     title: 'Data panel groups gain their own header icons',
     kind: 'polish',

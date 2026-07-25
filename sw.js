@@ -5,11 +5,10 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v190"; /* v190: LF19 next slice — every top-level Data-panel
-   group header (This dashboard's datasets, Workspace datasets, Analyses, Sample packs, Samples)
-   now carries its own small glyph next to its name, so the panel is scannable by "what kind of
-   thing is this" at a glance instead of five same-looking text rows. app/studio.js, app/studio.css,
-   docs/index.html changed, so precached copies need to roll.
+var CACHE_NAME = "studio-shell-v191"; /* v191: LF19 next slice — the "+ New" shortcut on
+   "This dashboard's datasets" is icon-only now (title/aria-label carry the accessible name),
+   which stopped it crowding the group's own name into an ellipsis at the panel's default
+   width. app/studio.js, app/studio.css changed, so precached copies need to roll.
    v189: LF19 slice 1 — the Studio library's "This
    dashboard's datasets" and "Sample packs" groups now collapse by default once they hold more
    than a handful of cards (progressive disclosure), remembering an explicit open/close choice

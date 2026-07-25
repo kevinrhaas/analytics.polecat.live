@@ -116,6 +116,26 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF19 slice 3 — the "+ New" shortcut on "This dashboard's datasets" is icon-only now (v554,
+  sw v191, 2026-07-25, steward):** continuing LF19's "tidy the search + New affordances, reduce
+  chrome density overall" ask. Screenshotted the real Data panel at its default 300px width: the
+  per-group `.mine-add` "+ New" button (icon + the word "New", a filled brand pill) sat right next
+  to the group's count badge, and together they left so little room for `.h .nm` (`flex:1;
+  text-overflow:ellipsis`) that the group's own name rendered as "This dashboard's da…" — the
+  panel's very first, always-visible row was clipped by its own action button. Fix: the button
+  drops its text label (`setIconBtn(...,"New",12)` → a bare `Studio.icon("plus",13)`) and shrinks
+  from a `padding:2px 9px` pill to a 20×20px square icon button (`app/studio.css` `.mine-add`) —
+  same brand-filled affordance, same click handler (still creates a new data source), just without
+  spelling out "New" next to a header that already reads as an "add" action once icon-only (and
+  the panel's own top-level "+ New ▾" button, one row up, already spells the word out in full). The
+  accessible name isn't lost: `title` + a new explicit `aria-label="Create a new data source"`
+  both carry it for hover/screen-reader users. 3 new regression tests (button has no visible text
+  but still has an SVG icon and the right accessible name; the group name no longer truncates —
+  `scrollWidth <= clientWidth` — at the panel's default width). No docs change (the button's
+  behavior is unchanged, only its label). (app/studio.js, app/studio.css, sw.js, js/changelog.js,
+  tests/run.js) NEXT in LF19: "reduce chrome density overall" has more to give (the search input
+  still sits in its own fully-padded row below the header — worth a look), then the same
+  organize-and-simplify pass on the right Inspector panel.
 - **LF19 slice 2 — every Data-panel group header gains its own glyph (v553, sw v190, 2026-07-25,
   steward):** continuing LF19's "clearer section grouping/ordering with icons + short labels" ask.
   The 5 top-level library groups (This dashboard's datasets, Workspace datasets, Analyses, Sample
@@ -3775,9 +3795,13 @@
 >       pattern the CDA "Samples" group already used) instead of always forcing wide open; an explicit
 >       toggle always wins over that default from then on.
 >       ✓ **Slice 2 shipped (v553, sw v190, 2026-07-25, steward): header glyphs for every top-level
->       group.** See DONE for the full writeup. NEXT in LF19: tidying the search + New affordances,
->       reducing chrome density overall, then the same organize-and-simplify pass on the right
->       Inspector panel — all still open, still to be sliced one coherent PR at a time.
+>       group.** See DONE for the full writeup.
+>       ✓ **Slice 3 shipped (v554, sw v191, 2026-07-25, steward): the "This dashboard's datasets"
+>       "+ New" button is icon-only now,** so it no longer crowds the group's own name into an
+>       ellipsis at the panel's default width. See DONE for the full writeup. NEXT in LF19: "reduce
+>       chrome density overall" has more to give (the search input still sits in its own fully-padded
+>       row below the header), then the same organize-and-simplify pass on the right Inspector panel
+>       — both still open, still to be sliced one coherent PR at a time.
 > LF18. **Home ("Welcome back") overhaul — richer entry points, default featured, tour chooser.** The Home
 >       landing should orient a returning user with descriptive quick-actions, not three bare cards:
 >       (a) QUICK-ACTIONS reworded to concrete jobs — "Explore curated datasets", "Build a dashboard from
