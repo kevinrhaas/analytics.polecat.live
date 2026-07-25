@@ -18417,6 +18417,16 @@ function serve() {
     });
     ok("H117: #demoBadge visible when demo mode on (display flex/inline-flex)", h117Badge.exists && h117Badge.display !== "none", JSON.stringify(h117Badge));
 
+    // UX6 (icon migration, slice 4): the badge's raw "●" glyph is now a themed SVG dot icon.
+    const h117BadgeIcon = await page.evaluate(function () {
+      var badge = document.getElementById("demoBadge");
+      if (!badge) return { exists: false };
+      return { exists: true, hasSvg: !!badge.querySelector("svg"), text: badge.textContent };
+    });
+    ok("UX6: #demoBadge renders a themed SVG dot, no raw ● glyph, text still says LIVE",
+      h117BadgeIcon.exists && h117BadgeIcon.hasSvg && h117BadgeIcon.text.indexOf("●") === -1 && /LIVE/.test(h117BadgeIcon.text),
+      JSON.stringify(h117BadgeIcon));
+
     // UX1 a11y quick win: the pulsing "● LIVE" badge respects prefers-reduced-motion
     await page.emulateMedia({ reducedMotion: "reduce" });
     const h117BadgeRM = await page.evaluate(function () {

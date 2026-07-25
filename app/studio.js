@@ -10258,6 +10258,9 @@
     });
     var uBtn = $("#btnUndo"); uBtn.onclick = undoAct; uBtn.textContent = ""; uBtn.appendChild(Studio.icon("undo", 16));
     var rBtn = $("#btnRedo"); rBtn.onclick = redoAct; rBtn.textContent = ""; rBtn.appendChild(Studio.icon("redo", 16));
+    // UX6 (icon migration, slice 4): the demo-mode badge's raw "●" glyph becomes a themed SVG.
+    var dbIc = $("#demoBadge [data-ic]");
+    if (dbIc && Studio.icon) dbIc.appendChild(Studio.icon(dbIc.getAttribute("data-ic"), 10));
     document.addEventListener("keydown", function (e) {
       if (!(e.metaKey || e.ctrlKey)) return;
       var inEdit = /^(input|textarea|select)$/i.test(e.target.tagName || "") || e.target.isContentEditable;
