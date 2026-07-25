@@ -10677,6 +10677,27 @@
     recordExport(kind, sp.title || sp.name);
     if (kind === "spec") return bundleModal("Editable spec", [{ name: sp.name + ".studio.json", body: JSON.stringify(sp, null, 2), mime: "application/json" }]);
     if (kind === "cdf") return bundleModal("Dashboard", [{ name: sp.name + ".html", body: Studio.exportCDF(sp, S.assets, dp), mime: "text/html" }]);
+    // LF36 slice 1: "PDF (print)" opens the exported dashboard in its own tab and starts the
+    // browser's print dialog there — no new print/PDF logic to maintain, it just reuses the
+    // @media print CSS + #printBtn wiring that Studio.exportCDF already bakes into every export
+    // (see exporters.js printCss). A blob URL keeps this a pure client-side flow (no upload/
+    // server round trip); the short delay after "load" gives the dashboard's own async render
+    // (postMessage/data fetch) a beat to paint before the print snapshot is taken.
+    if (kind === "pdf") {
+      var pdfHtml = Studio.exportCDF(sp, S.assets, dp);
+      var pdfBlob = new Blob([pdfHtml], { type: "text/html;charset=utf-8" });
+      var pdfUrl = URL.createObjectURL(pdfBlob);
+      var pdfWin = window.open(pdfUrl, "_blank");
+      if (pdfWin) {
+        pdfWin.addEventListener("load", function () {
+          setTimeout(function () { try { pdfWin.print(); } catch (e) {} }, 400);
+        });
+      } else {
+        toast("Pop-up blocked — allow pop-ups for this site to export as PDF", true);
+      }
+      setTimeout(function () { URL.revokeObjectURL(pdfUrl); }, 30000);
+      return;
+    }
     if (kind === "all") {
       bundleModal("All artifacts", [
         { name: sp.name + ".html", body: Studio.exportCDF(sp, S.assets, dp), mime: "text/html" },

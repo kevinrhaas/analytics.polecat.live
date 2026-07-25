@@ -211,8 +211,16 @@
     var geoCtrlCss = "\n.pdc-geo-compact .maplibregl-ctrl-top-right{transform:scale(.72);transform-origin:top right}";
     // Print / PDF layout: static header, hide interactive controls, avoid card page breaks.
     // Applied only in exported CDF (not the in-builder preview where printing makes no sense).
+    // LF36 slice 1: @page sets sane print margins (browsers default to ~0 or huge depending on
+    // engine) and orphans/widows keeps text-heavy panels (the dashboard description bar + any
+    // richtext panel's paragraphs/list items — .sr-richtext is the same class the builder preview
+    // uses, see richtextCss above) from stranding a single line at a page break. break-inside:avoid
+    // on .card/.pdc-kpis (unchanged) is what actually keeps a widget/KPI row from splitting across
+    // a page boundary. Sizing/scale + page-size/orientation controls are a deliberately deferred
+    // follow-up (STATUS.md LF36).
     var printCss = !opts.preview ?
       "\n@media print{" +
+        "@page{margin:12mm}" +
         ".pdc-header{position:static!important;box-shadow:none!important;border-bottom:1px solid #d0d4da}" +
         "#qInfoBtn,#printBtn,#ctrls{display:none!important}" +
         "body{background:#fff!important;color:#000!important}" +
@@ -220,6 +228,7 @@
         ".pdc-grid{gap:12px}" +
         ".card{break-inside:avoid;box-shadow:none;border:1px solid #d0d4da}" +
         ".pdc-kpis{break-inside:avoid}" +
+        ".pdc-desc-bar,.sr-richtext p,.sr-richtext li{orphans:3;widows:3}" +
         "}" : "";
     var previewCss = opts.preview ?
       "\n.sr-sel{cursor:pointer}.sr-sel:hover{outline:2px dashed var(--pentaho);outline-offset:2px}" +

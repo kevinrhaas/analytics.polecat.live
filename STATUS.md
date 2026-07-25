@@ -116,6 +116,26 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF36 slice 1 — "Export to PDF" menu entry + print CSS polish (v528, sw v165, 2026-07-25,
+  steward, Kevin live-feedback 2026-07-24):** Kevin asked for an "Export to PDF" option that
+  handles long/multi-page dashboards well. Scoped a first slice: a new "PDF (print)" entry
+  alongside the existing Dashboard/spec/bundle items in the Export ▾ menu (`app/index.html`),
+  wired in `doExport()` (`app/studio.js`) to open the same `Studio.exportCDF` output — byte-
+  identical to the plain HTML export, the toolkit invariant holds untouched — in a new tab via
+  a blob URL, then call `.print()` on that window once it reports loaded (plus a short settle
+  delay for the dashboard's own async data render). This deliberately reuses the `#printBtn` /
+  `@media print` wiring `exporters.js` already bakes into every export rather than growing a
+  second print-triggering code path. Print CSS polish in the existing `printCss` block
+  (`app/exporters.js`): `@page{margin:12mm}` for sane default print margins, and
+  `orphans:3;widows:3` on the description bar and richtext-panel paragraphs/list items so
+  print/PDF output doesn't strand a single line at a page break. The pre-existing
+  `break-inside:avoid` on `.card`/`.pdc-kpis` already prevents a widget or KPI row splitting
+  across a page boundary and was left as-is. New regression tests assert the menu button exists
+  and (mocking `window.open`/`URL.createObjectURL`, since a real popup can't be asserted on
+  headlessly) that selecting it opens the print-ready HTML and calls `.print()`. (app/index.html,
+  app/studio.js, app/exporters.js, docs/index.html, tests/run.js) NEXT: the sizing/scale (or
+  auto-fit-to-width) + page size/orientation control from the original ask is a larger, separate
+  follow-up, deliberately not attempted here — LF36 stays open in the LIVE-FEEDBACK QUEUE.
 - **LF35 slice 1 — GL map zoom/pan controls can go Compact or Hidden per panel (v527, sw v164,
   2026-07-25, steward, Kevin live-feedback 2026-07-24):** Kevin liked the choropleth's zoom/pan
   cluster but wanted it smaller and hideable. While scoping this, found the original ask's premise
@@ -2655,6 +2675,21 @@
 >       into the export + a print-to-PDF path (or a client-side generator), respecting the "export stays
 >       byte-identical to preview" toolkit rule. Area: app/exporters.js (buildHtml print CSS + export-menu
 >       entry) + the export menu (app/index.html / studio.js). Ties LF25.
+>       ✓ **Slice 1 shipped (2026-07-25, v528, sw v165, steward): "PDF (print)" menu entry + print CSS
+>       polish.** A new 4th `data-exp="pdf"` button in the Export ▾ menu (`app/index.html`) opens the
+>       same byte-identical exported dashboard (`Studio.exportCDF`, unchanged) in a new tab via a blob
+>       URL and starts the browser's print dialog there once the tab has loaded — reuses the
+>       `#printBtn`/`@media print` machinery `exporters.js` already baked into every export (LF-era
+>       work, predates this slice) instead of duplicating any print-triggering logic (`app/studio.js`
+>       `doExport`). Print CSS polish in the existing `printCss` block (`app/exporters.js`): a new
+>       `@page{margin:12mm}` rule for sane print margins, plus `orphans:3;widows:3` on the description
+>       bar and richtext-panel paragraphs/list items so a page break doesn't strand a single line. The
+>       pre-existing `break-inside:avoid` on `.card`/`.pdc-kpis` (LF-era, unchanged) already keeps a
+>       widget/KPI row from splitting across a page boundary — kept, not touched. New regression tests
+>       mock `window.open`/`URL.createObjectURL` to assert the PDF menu path without depending on a real
+>       popup in the headless harness. NEXT: the sizing/scale (or auto-fit-to-width) + page size/
+>       orientation control from the original ask is a larger, separate follow-up, deliberately not
+>       attempted here. (app/index.html, app/studio.js, app/exporters.js, docs/index.html, tests/run.js)
 > LF31. ✓ **FIXED (v483, 2026-07-23, steward) — ensemble "common estimate" line + legend now readable on
 >       dark themed panels.** ROOT CAUSE: the ensemble widget painted the median line + its legend with
 >       `var(--ink,#16233b)`, but the dashboard THEMES define `--text-primary` (not `--ink`) — so on a dark
