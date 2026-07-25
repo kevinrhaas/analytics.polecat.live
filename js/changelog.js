@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 549,
+    title: 'Save any widget straight to the widget library',
+    kind: 'feature',
+    ts: '2026-07-25T20:08:30.000Z',
+    items: [
+      'LF25: a selected widget in Studio now offers "Save to widget library" in its inspector -- snapshots the widget as a reusable analysis, the same library Explore saves into.',
+      'The saved widget shows up in the builder\'s own Analyses rail group and in Explore\'s saved-analysis list, ready to drag into any dashboard -- closing the loop between building on the canvas and the shared widget library.',
+    ],
+  },
+  {
     v: 548,
     title: 'Export a widget as HTML, right on the canvas',
     kind: 'feature',

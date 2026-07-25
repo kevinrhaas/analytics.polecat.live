@@ -8125,6 +8125,101 @@ function serve() {
     await page.evaluate(() => { var sp = window.__STUDIO_STATE.spec; sp.panels.forEach(function (p) { delete p.allowDownloads; delete p.dlPng; delete p.dlCsv; delete p.dlEmbed; }); window.__studioLoad(sp); });
     await page.waitForTimeout(150);
 
+    // ---- LF25(c): "Save to widget library" from a selected Studio panel ----
+    console.log("\n• LF25(c): Save to widget library");
+    // Richtext has no bound query — the button must not appear at all.
+    const libRichtext = await page.evaluate(function () {
+      var sp = window.__STUDIO_STATE.spec;
+      var p = sp.panels[0]; p.chart = { type: "richtext", opts: { text: "hi" } };
+      window.__studioLoad(sp);
+      window.__studioSelect({ kind: "panel", id: p.id });
+      var btn = [].slice.call(document.querySelectorAll("#inspBody .btn-wide")).filter(function (b) { return /Save to widget library/.test(b.textContent); })[0];
+      return { found: !!btn };
+    });
+    ok("LF25(c): a richtext (no bound query) panel has no 'Save to widget library' action", !libRichtext.found, JSON.stringify(libRichtext));
+
+    // A real bars widget: the button is present, and clicking it (with window.prompt stubbed)
+    // writes a new self-contained "analyses" row via the same Studio.Workspace table Explore's
+    // Save uses.
+    const libSave = await page.evaluate(function () {
+      var sp = window.__STUDIO_STATE.spec;
+      var p = sp.panels[0];
+      var da = sp.cda.dataAccesses[0];
+      p.chart = { type: "bars", da: da.id, map: { labelCol: da.columns[0], valueCol: da.columns[1] }, opts: {} };
+      window.__studioLoad(sp);
+      window.__studioSelect({ kind: "panel", id: p.id });
+      var before = Studio.Workspace.all("analyses").length;
+      window.prompt = function () { return "  LF25c widget  "; };
+      var btn = [].slice.call(document.querySelectorAll("#inspBody .btn-wide")).filter(function (b) { return /Save to widget library/.test(b.textContent); })[0];
+      if (!btn) return { found: false };
+      btn.click();
+      var rows = Studio.Workspace.all("analyses").filter(function (a) { return a.name === "LF25c widget"; });
+      var toastText = (document.getElementById("toast") || {}).textContent || "";
+      return {
+        found: true, afterCount: Studio.Workspace.all("analyses").length, before: before,
+        row: rows[0] ? { name: rows[0].name, chartType: rows[0].chartType, daId: rows[0].da && rows[0].da.id, sameDaRef: rows[0].da === da } : null,
+        toastText: toastText
+      };
+    });
+    ok("LF25(c): panel inspector has a 'Save to widget library' action for a data-bound widget", libSave.found, JSON.stringify(libSave));
+    ok("LF25(c): clicking it writes exactly one new 'analyses' row, name trimmed, chart type carried, and da is an independent clone (not the same reference)",
+      libSave.afterCount === libSave.before + 1 && !!libSave.row && libSave.row.name === "LF25c widget" &&
+      libSave.row.chartType === "bars" && libSave.row.sameDaRef === false, JSON.stringify(libSave));
+    ok("LF25(c): a confirmation toast names the saved widget", /LF25c widget/.test(libSave.toastText), JSON.stringify(libSave));
+
+    // The saved copy is truly independent — mutating the source panel's map/da afterward must
+    // not change the already-saved library row.
+    const libIndependence = await page.evaluate(function () {
+      var sp = window.__STUDIO_STATE.spec;
+      var p = sp.panels[0];
+      var savedBefore = Studio.Workspace.all("analyses").filter(function (a) { return a.name === "LF25c widget"; })[0];
+      var mapColBefore = savedBefore.da.columns.slice();
+      p.chart.map.valueCol = "mutated-after-save";
+      var da = Studio.daById(sp, p.chart.da);
+      da.columns.push("mutated-column");
+      window.__studioLoad(sp);
+      var savedAfter = Studio.Workspace.all("analyses").filter(function (a) { return a.name === "LF25c widget"; })[0];
+      return { mapColBefore: mapColBefore, columnsUnchanged: JSON.stringify(savedAfter.da.columns) === JSON.stringify(mapColBefore), savedValueCol: savedAfter.chart.map.valueCol };
+    });
+    ok("LF25(c): the saved widget is a self-contained snapshot — editing the source panel's data/mapping afterward doesn't touch it",
+      libIndependence.columnsUnchanged && libIndependence.savedValueCol !== "mutated-after-save", JSON.stringify(libIndependence));
+
+    // A blank/whitespace-only name is rejected: a warning toast fires and no row is written.
+    const libBlankName = await page.evaluate(function () {
+      var sp = window.__STUDIO_STATE.spec;
+      var p = sp.panels[0];
+      window.__studioSelect({ kind: "panel", id: p.id });
+      var before = Studio.Workspace.all("analyses").length;
+      window.prompt = function () { return "   "; };
+      var btn = [].slice.call(document.querySelectorAll("#inspBody .btn-wide")).filter(function (b) { return /Save to widget library/.test(b.textContent); })[0];
+      btn.click();
+      return { unchanged: Studio.Workspace.all("analyses").length === before, toastText: (document.getElementById("toast") || {}).textContent || "" };
+    });
+    ok("LF25(c): a blank name is rejected — no row written, and a toast asks for a name",
+      libBlankName.unchanged && /name/i.test(libBlankName.toastText), JSON.stringify(libBlankName));
+
+    // Cancelling the prompt (window.prompt returns null) writes nothing either.
+    const libCancelled = await page.evaluate(function () {
+      var sp = window.__STUDIO_STATE.spec;
+      var p = sp.panels[0];
+      window.__studioSelect({ kind: "panel", id: p.id });
+      var before = Studio.Workspace.all("analyses").length;
+      window.prompt = function () { return null; };
+      var btn = [].slice.call(document.querySelectorAll("#inspBody .btn-wide")).filter(function (b) { return /Save to widget library/.test(b.textContent); })[0];
+      btn.click();
+      return { unchanged: Studio.Workspace.all("analyses").length === before };
+    });
+    ok("LF25(c): cancelling the name prompt writes nothing", libCancelled.unchanged, JSON.stringify(libCancelled));
+
+    // Clean up the analyses this block created + restore panel/selection so later tests aren't affected.
+    await page.evaluate(function () {
+      Studio.Workspace.all("analyses").filter(function (a) { return a.name === "LF25c widget"; })
+        .forEach(function (a) { Studio.Workspace.remove("analyses", a.id, { silent: true }); });
+      window.__studioSelectDashboard();
+      window.__studioLoad(window.__STUDIO_STATE.spec);
+    });
+    await page.waitForTimeout(150);
+
     // ---- KPI extras: delta + sparkline + delete-from-canvas ----
     console.log("\n• KPI delta / sparkline / canvas delete");
     await page.evaluate(async () => { const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json()); window.__studioLoad(spec); });
