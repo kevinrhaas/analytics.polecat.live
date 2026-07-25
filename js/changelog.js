@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 546,
+    title: 'The dashboard header is now a selectable, deletable object',
+    kind: 'feature',
+    ts: '2026-07-25T18:06:01.000Z',
+    items: [
+      'LF21: click the title banner in the live preview (not one of its buttons) to select it, the same way clicking a widget or KPI tile does -- the Inspector switches to a dedicated "Header" view with quick Title/Subtitle fields.',
+      'The header gets its own ✕ button that hides the whole banner (the same effect as the existing "Show dashboard header" toggle) -- consistent with how every other canvas object is deleted.',
+      'Double-clicking the title or subtitle text directly still edits it in place without selecting first.',
+    ],
+  },
+  {
     v: 545,
     title: 'Viewer mode -- role gating, Edit in Studio, and Save a copy',
     kind: 'feature',

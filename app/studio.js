@@ -2441,10 +2441,11 @@
     else if (S.selection.kind === "panel") { $("#inspTitle").textContent = "Widget"; renderPanelInspector(body); }
     else if (S.selection.kind === "filter") { $("#inspTitle").textContent = "Filter"; renderFilterInspector(body); }
     else if (S.selection.kind === "da") { $("#inspTitle").textContent = "Data Source"; renderDAInspector(body); }
+    else if (S.selection.kind === "header") { $("#inspTitle").textContent = "Header"; renderHeaderInspector(body); }
     else { $("#inspTitle").textContent = "KPI tile"; renderKpiInspector(body); }
 
     // J2: update the top-level contextual help link to point at the most relevant docs section
-    var _hlAnchors = { "panel": "chart-types", "filter": "builder", "da": "data-sources", "kpi": "chart-types" };
+    var _hlAnchors = { "panel": "chart-types", "filter": "builder", "da": "data-sources", "kpi": "chart-types", "header": "builder" };
     var _hlEl = document.getElementById("inspHelpLink");
     if (_hlEl) _hlEl.href = "docs/index.html#" + (_hlAnchors[(S.selection || {}).kind] || "builder");
 
@@ -4406,6 +4407,28 @@
       k.drill.param = v.trim();
     })));
     kd.appendChild(noteEl("info", "Click the tile to navigate to the target URL with ?{param}={value}. Uses PDC.drill — carries all active filter values. Leave URL empty to disable."));
+  }
+
+  // LF21: the dashboard title/logo/subtitle banner, made a first-class selectable canvas
+  // object — click it in the preview (studio-render.js's wireHeaderEditing) to land here,
+  // same as clicking a panel or KPI tile. Title/Subtitle mirror the canvas double-click-to-edit
+  // fields (and the Dashboard panel's own copies — all three stay in sync via the same spec
+  // keys). Logo/link/light-dark stay on the Dashboard panel for now — consolidating every
+  // header-related field into this view is a reasonable follow-up, not attempted this slice.
+  function renderHeaderInspector(body) {
+    var sp = S.spec;
+    quickHelp(body, "header");
+    var sec = section(body, "Header", null, null, "builder");
+    sec.appendChild(field("Title", input(sp.title, function (v) { sp.title = v; syncHeader(); refreshPreview(); })));
+    sec.appendChild(field("Subtitle", input(sp.subtitle || "", function (v) { sp.subtitle = v; refreshPreview(); }, "Optional")));
+    var delBtn = el("button", "btn-wide"); delBtn.style.color = "var(--bad)";
+    setIconBtn(delBtn, "trash", "Hide header");
+    delBtn.onclick = function () {
+      sp.hideHeader = true; selectDashboard(); refreshPreview();
+      toast("Header hidden — re-enable it from Dashboard → Header.");
+    };
+    sec.appendChild(delBtn);
+    sec.appendChild(noteEl("info", "Logo, link, and light/dark are configured from the Dashboard panel (click '‹ Dashboard' above)."));
   }
 
   /* ---------- chart-type change / rebind ---------- */
@@ -9636,12 +9659,14 @@
   function highlightPreview() {
     if (!S.selection) { postToPreview({ type: "highlight" }); return; }
     if (S.selection.kind === "kpi") postToPreview({ type: "highlight", kind: "kpi", index: S.selection.index });
+    else if (S.selection.kind === "header") postToPreview({ type: "highlight", kind: "header" });
     else postToPreview({ type: "highlight", id: S.selection.id });
   }
   window.addEventListener("message", function (e) {
     var d = e.data || {}; if (d.studio !== 1) return;
     if (d.type === "select") {
       if (d.kind === "kpi") select({ kind: "kpi", index: d.index });
+      else if (d.kind === "header") select({ kind: "header" });
       else select({ kind: "panel", id: d.id });
     } else if (d.type === "reorder") {
       reorderPanels(d.order);
@@ -9676,6 +9701,12 @@
       if (!S.selection) renderInspector(); // null selection = dashboard inspector is showing
       refreshPreview();
       toast(d.field === "description" && !d.value ? "Text object removed" : "Updated " + d.field);
+    } else if (d.type === "header-delete") {
+      // LF21: the header's own ✕ affordance — same hideHeader field the Dashboard
+      // inspector's "Show dashboard header" checkbox already flips, just reached from
+      // the canvas object itself, mirroring how a panel/KPI delete works.
+      S.spec.hideHeader = true; selectDashboard(); refreshPreview();
+      toast("Header hidden — re-enable it from Dashboard → Header.");
     }
   });
   function panelIndex(id) { var i = -1; S.spec.panels.forEach(function (p, ix) { if (p.id === id) i = ix; }); return i; }
@@ -11130,6 +11161,11 @@
       "Use the SQL Builder accordion to compose SELECT queries visually.",
       "Click 'Detect from query' to extract column aliases automatically.",
       "Output options let you add filter rules, sort order, and row limits."
+    ],
+    header: [
+      "Click the title/subtitle text directly on the canvas to edit it in place.",
+      "The ✕ on the header hides the whole banner — handy for embedding just the widgets.",
+      "Logo, link, and light/dark are set from the Dashboard panel (click '‹ Dashboard' above)."
     ]
   };
   function quickHelp(parent, type) {

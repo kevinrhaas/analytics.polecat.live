@@ -5,7 +5,19 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v182"; /* v182: LF23 slice 2 — role gating + Edit-in-Studio +
+var CACHE_NAME = "studio-shell-v183"; /* v183: LF21 — the dashboard title/header banner becomes
+   a first-class selectable/deletable canvas object, like a widget or KPI tile. Clicking the
+   header in the live preview (studio-render.js's wireHeaderEditing) now posts select{kind:header}
+   (guarded so a click on any of the header's own buttons/links doesn't also select it), and a new
+   ✕ (.sr-head-del) on the header posts header-delete — both preview-only, so the exported header
+   markup stays byte-identical. studio.js's message handler and renderInspector() gained a
+   "header" branch: a new Header inspector view (quick Title/Subtitle fields mirroring the
+   existing canvas double-click-edit, and a Hide header button that sets the same hideHeader flag
+   the Dashboard panel's "Show dashboard header" checkbox already used). Logo/link/light-dark stay
+   on the Dashboard panel for now (a reasonable follow-up, not this slice). docs/index.html
+   updated. app/studio-render.js, app/studio.js, app/exporters.js, docs/index.html, js/changelog.js,
+   tests/run.js changed, so precached copies need to roll. */
+/* v182: LF23 slice 2 — role gating + Edit-in-Studio +
    Save-a-copy. Studio's rail item (app/index.html) now carries data-develop-only, hidden for
    the viewer role by shell.js's applyRoleGating (a canDevelop() check mirroring the existing
    admin-only pattern); opening a dashboard card/row as a viewer (app/studio.js openRecent) now

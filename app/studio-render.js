@@ -1809,6 +1809,22 @@
       del.addEventListener("dblclick", function (e) { e.stopPropagation(); });
       descEl.appendChild(del);
     }
+    // LF21: make the header bar itself a selectable/deletable canvas object, same as a
+    // panel or KPI tile — click anywhere on it (that isn't already its own control) tells
+    // the builder to select it, so the Inspector can show a dedicated "Header" view.
+    var headerEl = document.querySelector(".pdc-header");
+    if (headerEl) {
+      headerEl.classList.add("sr-header-sel");
+      headerEl.addEventListener("click", function (e) {
+        if (e.target.closest("button") || e.target.closest("a") || e.target.closest(".sr-rename")) return;
+        post({ type: "select", kind: "header" });
+      });
+      var hdel = document.createElement("button");
+      hdel.className = "sr-head-del"; hdel.type = "button"; hdel.innerHTML = I_CLOSE;
+      hdel.title = "Hide dashboard header"; hdel.setAttribute("aria-label", "Hide dashboard header");
+      hdel.addEventListener("click", function (e) { e.stopPropagation(); post({ type: "header-delete" }); });
+      headerEl.appendChild(hdel);
+    }
   }
   // Generic inline editor for a header text object: double-click swaps the element for
   // an input/textarea; Enter (or blur) commits, Esc cancels. Commit posts a header-edit
@@ -2060,6 +2076,7 @@
       if (d.type === "highlight") {
         document.querySelectorAll(".sr-active").forEach(function (el) { el.classList.remove("sr-active"); });
         var sel = d.kind === "kpi" ? document.querySelector('[data-kpi-index="' + d.index + '"]')
+                                   : d.kind === "header" ? document.querySelector(".pdc-header")
                                    : document.querySelector('[data-panel-id="' + d.id + '"]');
         if (sel) { sel.classList.add("sr-active"); sel.scrollIntoView({ block: "nearest", behavior: "smooth" }); }
       } else if (d.type === "theme") {
