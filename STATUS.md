@@ -116,6 +116,34 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF21 slice 1 — the dashboard header becomes a selectable/deletable canvas object, with its
+  own Inspector view (v546, sw v183, 2026-07-25, steward):** the header bar (logo + title +
+  subtitle + info/print/waffle controls) behaved like plain chrome — you could double-click the
+  title/subtitle to edit them in place (shipped earlier), but there was no way to click-to-*select*
+  the header as an object the way a widget or KPI tile can, and no whole-header delete affordance.
+  Fixed: `app/studio-render.js`'s `wireHeaderEditing` now wires a click listener on `.pdc-header`
+  (skipping clicks on any button/link/the active rename input) that posts `select{kind:header}`,
+  mirroring the existing panel/KPI `wireSelection` pattern, plus a new `.sr-head-del` ✕ button
+  (styled like the KPI-tile/description-object ✕s already on the canvas) that posts
+  `header-delete`. `app/studio.js`'s message handler and `renderInspector()` gained a `"header"`
+  branch: a new `renderHeaderInspector` shows a "Header" Inspector title with quick Title/Subtitle
+  fields (same spec keys the canvas double-click-edit and the Dashboard panel's own copies use —
+  all three stay in sync) and a "Hide header" button that sets `spec.hideHeader = true` — the
+  SAME flag the Dashboard panel's pre-existing "Show dashboard header" checkbox already flips, a
+  second way to reach one mechanism rather than a new one. Both the click-to-select wiring and the
+  ✕ button are created only in `isPreview()`, so the exported header markup is untouched (export
+  stays byte-identical). Scoped down from the original ask: Alignment wasn't implemented (the
+  header's single flex-row layout — brand, subtitle, spacer, then info/print/waffle buttons —
+  doesn't map cleanly onto left/center/right without real restructuring) and Logo/Link/light-dark
+  stay on the Dashboard panel rather than moving into the new Header view (would have required
+  rewriting ~15 existing Z6 tests that assert those fields live in the no-selection Dashboard
+  inspector). 5 new regression tests (header carries the selection class + ✕ in preview; clicking
+  the header posts exactly one `select{kind:header}`; clicking the ✕ posts `header-delete` without
+  also re-selecting; selecting the header shows the Header Inspector with Title/Subtitle fields +
+  Hide button; clicking Hide sets `spec.hideHeader` and bounces back to the Dashboard inspector).
+  `docs/index.html` updated. NEXT: alignment + folding Logo/Link/theme-toggle into the Header
+  inspector remain open follow-ups if the full original scope is still wanted. (app/studio-render.js,
+  app/studio.js, app/exporters.js, docs/index.html, sw.js, js/changelog.js, tests/run.js)
 - **LF23 slice 2 — role gating + Edit-in-Studio handoff + Save-a-copy (v545, sw v182,
   2026-07-25, steward):** the second half of Viewer mode (slice 1 shipped v544, above).
   **Role gating:** Studio's rail item (`app/index.html`) now carries `data-develop-only`,
@@ -3316,15 +3344,35 @@
 >       on every button made the row WIDER, not narrower). Save/Export keep icon+label; Open/Save
 >       as…/Close drop to icon-only. The row's History | File | Connect grouping already existed
 >       from an earlier H-track slice, so this closes the remaining gap.
-> LF21. **Dashboard title header = a first-class widget (inline edit / delete / configure) (Kevin, live).**
->       The dashboard-FILE title at the very top is inline-editable, but the title HEADER BAR inside the dashboard
->       (logo + title + subtitle + info + theme toggle) is NOT editable like an object — you can't click-to-edit
->       the title/subtitle in place, and it isn't deletable/configurable the way widgets and text objects are.
->       Make the header behave like every other canvas object: inline-edit the title + subtitle on click, a delete
->       (✕) affordance, and configure (align, show/hide subtitle, logo, theme toggle) via the Inspector when it's
->       selected. Note task #24 already added a header-OFF option and #25 unified delete affordances — this is the
->       "make the header itself a proper editable object" follow-up Kevin still finds missing. app/studio-render.js
->       (header render + selection), app/studio.js (inspector for the header object), app/studio.css.
+> LF21. ✓ **Slice 1 shipped (v546, sw v183, 2026-07-25, steward): the header is now click-to-select
+>       + deletable, with its own Inspector view.** Clicking the title banner in the live preview
+>       (anywhere that isn't one of its own buttons/links) now posts `select{kind:header}`
+>       (`app/studio-render.js`'s `wireHeaderEditing`, mirroring the existing panel/KPI
+>       `wireSelection` pattern) and switches the Inspector to a dedicated "Header" view
+>       (`app/studio.js`'s `renderHeaderInspector`) with quick Title/Subtitle fields (the same
+>       spec keys the canvas double-click-edit and the Dashboard panel's own copies already use —
+>       all three stay in sync) and a "Hide header" button. The header also gained its own ✕
+>       (`.sr-head-del`, styled like the KPI-tile/description-object ✕ already on the canvas) that
+>       posts `header-delete`, setting the same `hideHeader` flag the Dashboard panel's "Show
+>       dashboard header" checkbox already flips — one mechanism, reached from a second place,
+>       not a new one. Both the click-to-select and the ✕ are preview-only DOM additions (only
+>       created when `isPreview()`), so the exported header markup stays byte-identical. Scoped
+>       DOWN from the full original ask: Alignment isn't implemented (the header's flex-row
+>       structure — brand, subtitle, spacer, info/print/waffle buttons — doesn't map cleanly onto
+>       a simple left/center/right toggle without real restructuring; deferred rather than forced),
+>       and Logo/Link/light-dark stay on the Dashboard panel rather than being moved into the new
+>       Header view (moving them would've required rewriting ~15 existing Z6 regression tests that
+>       assert those fields live in the no-selection Dashboard inspector — duplicating them was
+>       judged messier than leaving them put for one slice). 5 new regression tests (header carries
+>       the selection class + ✕ in preview; clicking the header posts exactly one
+>       `select{kind:header}`; clicking the ✕ posts `header-delete` without also re-selecting;
+>       selecting the header shows the "Header" Inspector title with Title/Subtitle fields + Hide
+>       button; clicking Hide sets `spec.hideHeader` and bounces back to the Dashboard inspector).
+>       `docs/index.html` updated (Inspector bullet + a new "The header as an object" paragraph).
+>       NEXT: alignment, and folding Logo/Link/theme-toggle into the Header inspector, remain
+>       reasonable follow-ups if Kevin still wants the full original scope.
+>       (app/studio-render.js, app/studio.js, app/exporters.js, docs/index.html, sw.js,
+>       js/changelog.js, tests/run.js)
 > LF22. ★ **Expand the geography library — grow map coverage (Kevin, live; PRIORITIZE nationwide watersheds).**
 >       Today the map scales are county | state | crd (USDA crop-reporting districts, derived by merging counties)
 >       | huc8 (Corn Belt ONLY). The pipeline: `tools/build-geo.mjs` downloads gov boundaries → generalizes/

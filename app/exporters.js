@@ -278,6 +278,12 @@
       ".pdc-desc-bar.sr-desc{position:relative;padding-right:34px}" +
       ".sr-desc-del{position:absolute;top:50%;right:8px;transform:translateY(-50%);width:20px;height:20px;border-radius:5px;border:1px solid var(--panel-border);background:var(--panel-bg);color:var(--text-muted);font-size:13px;line-height:1;cursor:pointer;opacity:0;transition:opacity .12s;padding:0;display:flex;align-items:center;justify-content:center}" +
       ".sr-desc:hover .sr-desc-del{opacity:1}.sr-desc-del:hover{color:var(--bad,#e0395e);border-color:var(--bad,#e0395e)}" +
+      // LF21: the header bar itself is now a selectable canvas object (click it → Inspector's
+      // "Header" view) with its own ✕ affordance, mirroring the KPI tile / description patterns
+      // above — preview-only, so the exported header markup is unaffected (byte-identical).
+      ".pdc-header.sr-header-sel{cursor:pointer}" +
+      ".sr-head-del{width:22px;height:22px;border-radius:5px;border:1px solid var(--panel-border);background:var(--panel-bg);color:var(--text-muted);font-size:13px;line-height:1;cursor:pointer;padding:0;flex-shrink:0;display:flex;align-items:center;justify-content:center}" +
+      ".sr-head-del:hover{color:var(--bad,#e0395e);border-color:var(--bad,#e0395e)}" +
       "@media(pointer:coarse){.card>h3{min-height:48px}.sr-card-acts{opacity:1!important}.sr-act{width:36px;height:36px}.sr-kpi-del{opacity:.85!important;width:24px;height:24px}.sr-desc-del{opacity:.85!important;width:26px;height:26px}}" : "";
     // LF20: the dashboard's own light/dark is now a fixed, persisted per-dashboard Inspector
     // option (spec.renderMode) instead of a runtime toggle button inside the rendered header —

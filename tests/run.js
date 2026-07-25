@@ -2993,6 +2993,69 @@ function serve() {
       (hdrEdit.msgs || []).some(function (m) { return m.field === "title" && m.value === "Renamed Dashboard"; }) &&
       (hdrEdit.msgs || []).some(function (m) { return m.field === "description" && m.value === ""; }), JSON.stringify(hdrEdit.msgs));
 
+    // ---- LF21: the header bar itself is now a selectable/deletable canvas object -----
+    console.log("\n• LF21: the header is a selectable canvas object, with its own ✕ affordance");
+    const lf21Render = await page.evaluate(async function () {
+      var spec = { id: "hdrsel", name: "hdrsel", title: "Selectable Header", subtitle: "sub",
+        gridCols: 2, kpis: [], panels: [{ id: "p1", title: "Chart", span: 2, chart: { type: "bars", da: "d1", map: { labelCol: "region", valueCol: "v" }, opts: {} } }],
+        filters: [], cda: { connections: [], dataAccesses: [{ id: "d1", kind: "sql", columns: ["region", "v"] }] } };
+      var html = Studio.buildHtml(spec, window.__STUDIO_STATE.assets, { preview: true, mock: Studio.genMock(spec) });
+      var msgs = [];
+      var onMsg = function (e) { if (e.data && e.data.studio === 1) msgs.push(e.data); };
+      window.addEventListener("message", onMsg);
+      return await new Promise(function (res) {
+        var ifr = document.createElement("iframe"); ifr.style.cssText = "position:fixed;left:-3000px;width:1000px;height:700px";
+        document.body.appendChild(ifr); ifr.srcdoc = html; var t0 = Date.now();
+        (function poll() { var d = null; try { d = ifr.contentDocument; } catch (e) {}
+          var hdr = d && d.querySelector(".pdc-header");
+          if (hdr) {
+            var hasSelClass = hdr.classList.contains("sr-header-sel");
+            var delBtn = hdr.querySelector(".sr-head-del");
+            var brand = hdr.querySelector(".pdc-brand");
+            brand.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+            setTimeout(function () {
+              if (delBtn) delBtn.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+              setTimeout(function () {
+                window.removeEventListener("message", onMsg);
+                ifr.remove();
+                res({ hasSelClass: hasSelClass, hasDelBtn: !!delBtn, msgs: msgs.slice() });
+              }, 80);
+            }, 80);
+          } else if (Date.now() - t0 > 12000) { window.removeEventListener("message", onMsg); ifr.remove(); res({ timeout: true }); } else setTimeout(poll, 150); })();
+      });
+    });
+    ok("LF21: the header carries the sr-header-sel class and a ✕ (sr-head-del) affordance in preview",
+      lf21Render.hasSelClass && lf21Render.hasDelBtn, JSON.stringify(lf21Render));
+    const lf21SelectMsgs = (lf21Render.msgs || []).filter(function (m) { return m.type === "select"; });
+    const lf21DeleteMsgs = (lf21Render.msgs || []).filter(function (m) { return m.type === "header-delete"; });
+    ok("LF21: clicking the header (not one of its buttons) posts exactly one select{kind:header} message",
+      lf21SelectMsgs.length === 1 && lf21SelectMsgs[0].kind === "header", JSON.stringify(lf21Render.msgs));
+    ok("LF21: clicking the header's ✕ posts header-delete, and stopPropagation keeps it from also re-triggering select",
+      lf21DeleteMsgs.length === 1 && lf21SelectMsgs.length === 1, JSON.stringify(lf21Render.msgs));
+
+    // ---- LF21b: selecting the header shows a dedicated Header inspector view ---------
+    console.log("\n• LF21b: the Header inspector — quick Title/Subtitle edit + Hide header");
+    const lf21Insp = await page.evaluate(function () {
+      window.__studioSelect({ kind: "header" });
+      var fields = [].slice.call(document.querySelectorAll("#inspBody .field"));
+      var titleField = fields.filter(function (f) { var lb = f.querySelector("label"); return lb && lb.textContent === "Title"; })[0];
+      var subField = fields.filter(function (f) { var lb = f.querySelector("label"); return lb && lb.textContent === "Subtitle"; })[0];
+      var hideBtn = [].slice.call(document.querySelectorAll("#inspBody button")).filter(function (b) { return /Hide header/.test(b.textContent); })[0];
+      return { inspTitle: document.getElementById("inspTitle").textContent, hasTitleField: !!titleField, hasSubField: !!subField, hasHideBtn: !!hideBtn };
+    });
+    ok("LF21: selecting the header (click-to-select) switches the Inspector to a 'Header' view with Title/Subtitle fields and a Hide header button",
+      lf21Insp.inspTitle === "Header" && lf21Insp.hasTitleField && lf21Insp.hasSubField && lf21Insp.hasHideBtn, JSON.stringify(lf21Insp));
+
+    const lf21Hide = await page.evaluate(function () {
+      window.__studioSelect({ kind: "header" });
+      var hideBtn = [].slice.call(document.querySelectorAll("#inspBody button")).filter(function (b) { return /Hide header/.test(b.textContent); })[0];
+      hideBtn.click();
+      return { hideHeader: window.__STUDIO_STATE.spec.hideHeader, inspTitle: document.getElementById("inspTitle").textContent };
+    });
+    ok("LF21: the Header inspector's 'Hide header' button sets spec.hideHeader = true and bounces back to the Dashboard inspector (same as the KPI/panel delete bounce)",
+      lf21Hide.hideHeader === true && lf21Hide.inspTitle === "Dashboard", JSON.stringify(lf21Hide));
+    await page.evaluate(function () { delete window.__STUDIO_STATE.spec.hideHeader; window.__studioSelectDashboard(); });
+
     // Part B (builder side): the header-edit message updates the live spec — title/subtitle
     // set the value, an empty description removes it, and an empty title is ignored (a
     // dashboard always keeps a name). Dispatched straight at the app window's handler.
