@@ -396,9 +396,15 @@
       // UX6 (currentColor icon migration): the footer button used to lead with the
       // raw 📋 emoji -- full-color, which misses the fleet's single-color
       // currentColor icon bar. A themed SVG (Studio.icon) reads correctly in both
-      // themes and matches every other icon in the app.
-      var clIcSpan = btn.querySelector("[data-ic]");
-      if (clIcSpan && Studio.icon) clIcSpan.appendChild(Studio.icon(clIcSpan.getAttribute("data-ic"), 14));
+      // themes and matches every other icon in the app. (carets slice: the trailing
+      // "▴" expand/collapse indicator got the same treatment, so hydrate every
+      // [data-ic] placeholder in the button, not just the first — the caret stays
+      // smaller than the leading clock icon, matching its old 9px glyph size.)
+      if (Studio.icon) {
+        $$("[data-ic]", btn).forEach(function (s) {
+          s.appendChild(Studio.icon(s.getAttribute("data-ic"), s.classList.contains("sb-caret") ? 11 : 14));
+        });
+      }
       var openPanel = null;
       btn.onclick = function () {
         var PS = window.PolecatShell;
@@ -10369,7 +10375,10 @@
     // Data pane "+ New ▾": dataset-first creation. Workspace datasets and
     // connections are the primary path; a dashboard-only query (the sample-
     // engine builder) remains for quick demo authoring.
-    var ndsBtn = $("#btnNewDS"); setIconBtn(ndsBtn, "plus", "New", 12);
+    // UX6 (icon migration, carets slice): was setIconBtn (dropped the original "＋ New ▾"
+    // static HTML's trailing caret entirely) — setIconBtnCaret restores the dropdown
+    // affordance as a themed chevron instead of the raw glyph.
+    var ndsBtn = $("#btnNewDS"); setIconBtnCaret(ndsBtn, "plus", "New", 12);
     menuToggle(ndsBtn, $("#menuNewData"));
     var ndWs = $("#ndWorkspaceDataset");
     if (ndWs) ndWs.onclick = function () { closeMenus(); openDatasetEditor(); };
@@ -10383,15 +10392,20 @@
     inspBackBtn.textContent = ""; inspBackBtn.appendChild(Studio.icon("chevron-left", 14)); inspBackBtn.appendChild(document.createTextNode(" Dashboard"));
 
     buildNewMenu();
-    // UX6 (icon migration, slice 2): was a raw "＋ New ▾" glyph.
-    setIconBtn($("#btnNew"), "plus", "New ▾", 14);
+    // UX6 (icon migration, carets slice): was a raw "＋ New ▾" glyph, then slice 2's
+    // setIconBtn kept "▾" as literal text — now a themed trailing chevron.
+    setIconBtnCaret($("#btnNew"), "plus", "New", 14);
     menuToggle($("#btnNew"), $("#menuNew"));
 
     buildExamplesMenu();
+    // UX6 (icon migration, carets slice): "Examples ▾" was static HTML text with no icon
+    // wiring at all — hydrate it the same way the other dropdown triggers are.
+    setIconBtnCaret($("#btnExamples"), null, "Examples", 14);
     menuToggle($("#btnExamples"), $("#menuExamples"));
 
     // export menu
-    var btnExportEl = $("#btnExport"); setIconBtn(btnExportEl, "download", "Export ▾", 14);
+    // UX6 (icon migration, carets slice): was setIconBtn with "▾" as literal text.
+    var btnExportEl = $("#btnExport"); setIconBtnCaret(btnExportEl, "download", "Export", 14);
     menuToggle(btnExportEl, $("#menuExport"));
     $$("#menuExport button").forEach(function (b) { b.onclick = function () { doExport(b.getAttribute("data-exp")); closeMenus(); }; });
     var histWrap = el("div"); histWrap.id = "exportHistWrap"; $("#menuExport").appendChild(histWrap);
@@ -11398,6 +11412,14 @@
   function compareBtn(fn) { var b = el("button", "icobtn"); b.appendChild(Studio.icon("diff", 14)); b.title = "Compare to current"; b.setAttribute("aria-label", "Compare to current"); b.onclick = function (e) { e.stopPropagation(); fn(); }; return b; }
   function moveBtn(t, fn) { var b = el("button", "icobtn"); b.appendChild(Studio.icon(t === "↑" ? "chevron-up" : "chevron-down", 13)); b.title = t === "↑" ? "Move up" : "Move down"; b.onclick = function (e) { e.stopPropagation(); fn(); }; return b; }
   function setIconBtn(btn, iconName, text, sz) { btn.innerHTML = ""; btn.appendChild(Studio.icon(iconName, sz || 14)); btn.appendChild(document.createTextNode(" " + text)); }
+  // UX6 (icon migration): dropdown-trigger buttons — leading icon (optional) + label +
+  // a trailing chevron-down replacing the raw "▾" glyph that used to be baked into the text.
+  function setIconBtnCaret(btn, iconName, text, sz) {
+    btn.innerHTML = "";
+    if (iconName) btn.appendChild(Studio.icon(iconName, sz || 14));
+    btn.appendChild(document.createTextNode((iconName ? " " : "") + text + " "));
+    btn.appendChild(Studio.icon("chevron-down", 11));
+  }
   function hint(t) { var h = el("div"); h.style.cssText = "font-size:12px;color:var(--faint);line-height:1.5"; h.textContent = t; return h; }
   function noteEl(cls, t) { var n = el("div", "note " + cls); n.textContent = t; return n; }
   function iconNote(cls, iconName, t) { var n = el("div", "note " + cls); n.style.cssText = "display:flex;align-items:flex-start;gap:6px"; var ic = el("span"); ic.style.flexShrink = "0"; ic.appendChild(Studio.icon(iconName, 14)); n.appendChild(ic); var tx = el("span"); tx.textContent = t; n.appendChild(tx); return n; }

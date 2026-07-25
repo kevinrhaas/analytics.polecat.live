@@ -5512,6 +5512,26 @@ function serve() {
     });
     ok("Builder chrome (More/New/inspector-back/pane chevrons) use themed SVG icons, not raw glyphs",
       chromeIconsOk, JSON.stringify(chromeIcons));
+    // UX6 (icon migration, carets slice): the dropdown-trigger buttons (New ▾/Export ▾/
+    // Examples ▾/+New ▾) and the footer Changelog button's "▴" expand indicator used to
+    // bake the caret into raw text -- now a themed trailing chevron-down/chevron-up SVG.
+    const caretIcons = await page.evaluate(() => {
+      function check(sel) {
+        var b = document.querySelector(sel);
+        if (!b) return null;
+        return { svgCount: b.querySelectorAll("svg").length, text: b.textContent };
+      }
+      return { newBtn: check("#btnNew"), exportBtn: check("#btnExport"), examplesBtn: check("#btnExamples"), newDS: check("#btnNewDS"), changelog: check("#btnChangelog") };
+    });
+    const caretGlyphs = ["▾", "▴"];
+    ok("New ▾/Export ▾/+New ▾ dropdown triggers each show 2 SVGs (leading icon + trailing caret), no raw glyph",
+      caretIcons.newBtn.svgCount === 2 && caretIcons.exportBtn.svgCount === 2 && caretIcons.newDS.svgCount === 2 &&
+      !caretGlyphs.some((g) => caretIcons.newBtn.text.indexOf(g) >= 0 || caretIcons.exportBtn.text.indexOf(g) >= 0 || caretIcons.newDS.text.indexOf(g) >= 0),
+      JSON.stringify(caretIcons));
+    ok("Examples ▾ (icon-less label) shows 1 trailing caret SVG, no raw glyph",
+      caretIcons.examplesBtn.svgCount === 1 && !caretGlyphs.some((g) => caretIcons.examplesBtn.text.indexOf(g) >= 0), JSON.stringify(caretIcons.examplesBtn));
+    ok("Changelog footer button's expand indicator is a themed SVG, not a raw ▴ glyph",
+      caretIcons.changelog.svgCount === 2 && !caretGlyphs.some((g) => caretIcons.changelog.text.indexOf(g) >= 0), JSON.stringify(caretIcons.changelog));
     await page.click("#btnChangelog");
     await page.waitForTimeout(300);
     const cl = await page.evaluate(() => {
@@ -7303,8 +7323,8 @@ function serve() {
         var b = document.getElementById(id);
         if (!b) return null;
         var clone = b.cloneNode(true);
-        var svg = clone.querySelector("svg"); if (svg) svg.remove();
-        return { hasSvg: !!b.querySelector("svg"), visibleText: clone.textContent.trim(), hasAccessibleName: !!(b.getAttribute("title") || b.getAttribute("aria-label")) };
+        clone.querySelectorAll("svg").forEach(function (svg) { svg.remove(); });
+        return { hasSvg: !!b.querySelector("svg"), svgCount: b.querySelectorAll("svg").length, visibleText: clone.textContent.trim(), hasAccessibleName: !!(b.getAttribute("title") || b.getAttribute("aria-label")) };
       }
       return { open: info("btnImport"), saveAs: info("btnSaveAsSpec"), close: info("btnCloseStudio"), save: info("btnSaveSpec"), exportBtn: info("btnExport") };
     });
@@ -7312,7 +7332,10 @@ function serve() {
     ok("LF20: Save as… is icon-only (no visible label text) with an accessible name", lf20Btns.saveAs.hasSvg && lf20Btns.saveAs.visibleText === "" && lf20Btns.saveAs.hasAccessibleName, JSON.stringify(lf20Btns.saveAs));
     ok("LF20: Close is icon-only (no visible label text) with an accessible name", lf20Btns.close.hasSvg && lf20Btns.close.visibleText === "" && lf20Btns.close.hasAccessibleName, JSON.stringify(lf20Btns.close));
     ok("LF20: Save keeps its icon + visible label (the most-used dashbar action)", lf20Btns.save.hasSvg && lf20Btns.save.visibleText === "Save", JSON.stringify(lf20Btns.save));
-    ok("LF20: Export ▾ keeps its icon + visible label (the dropdown needs the ▾ affordance)", lf20Btns.exportBtn.hasSvg && lf20Btns.exportBtn.visibleText === "Export ▾", JSON.stringify(lf20Btns.exportBtn));
+    // UX6 (icon migration, carets slice): the "▾" affordance is now a themed trailing
+    // chevron SVG instead of literal text, so the label reads "Export" plus 2 svgs
+    // (leading download icon + trailing caret) instead of one svg + "Export ▾" text.
+    ok("LF20: Export ▾ keeps its icon + visible label + a themed caret (the dropdown needs the ▾ affordance)", lf20Btns.exportBtn.svgCount === 2 && lf20Btns.exportBtn.visibleText === "Export", JSON.stringify(lf20Btns.exportBtn));
     // regression guard for a bug caught while building this slice: giving every dashbar
     // button an icon+label (instead of icon-only for the rare ones) overflowed the row at
     // 1500px, wrapping the title and pushing the inspector's search field over #btnTheme —

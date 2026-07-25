@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 539,
+    title: 'Remaining dropdown carets get themed icons',
+    kind: 'polish',
+    ts: '2026-07-25T11:29:06.000Z',
+    items: [
+      'UX6: the New / Export / Examples / +New dropdown-trigger buttons and the footer Changelog button\'s expand indicator used to bake their "▾"/"▴" affordance into raw text -- each now shows a themed chevron icon instead, matching the rest of the app\'s single-color icon set.',
+    ],
+  },
+  {
     v: 538,
     title: 'Job editor: chained aggregate steps now see the right columns',
     kind: 'feature',
