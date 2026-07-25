@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v167"; /* v167: LF36 slice 2 — the PDF export's deferred "sizing/
+var CACHE_NAME = "studio-shell-v168"; /* v168: LF20 — the builder toolbar's Open/Save as/Close
+   buttons are now icon-only (title/aria-label carry the meaning), Save/Export keep an icon +
+   label; a new "save" glyph was added to app/icons.js. app/index.html, app/icons.js, app/studio.js
+   changed, so precached copies need to roll. */
+/* v167: LF36 slice 2 — the PDF export's deferred "sizing/
    scale + page-size/orientation" follow-up. Choosing "PDF (print)" in the Export menu now opens a
    small options dialog (page size Letter/A4/Legal, orientation, and a Fit-to-page-width/Actual-
    size scale choice, app/studio.js openPdfExportModal) before the print tab opens; the choices

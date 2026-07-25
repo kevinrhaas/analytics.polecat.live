@@ -116,6 +116,26 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF20 — builder toolbar declutter: Open/Save as…/Close become icon-only buttons (v531,
+  sw v168, 2026-07-25, steward):** LF20's canvas-bar cluster (`Examples ▾ Open Save Save as…
+  Close Export ▾`) read as a wall of plain-text buttons — the ask was "turn secondary actions
+  into icon buttons (undo/redo already are; Open/Save/Export could be icon+menu)". First attempt
+  gave every one of the five buttons an icon+label (matching Undo/Redo/+New's existing
+  `setIconBtn` pattern) — but that made the row WIDER, not narrower, and at the 1500px desktop
+  test viewport it overflowed enough to wrap the dashboard title and push the Inspector's search
+  field over `#btnTheme`, a real click-blocking regression (caught by the full suite, not by
+  eye). Corrected: only **Save** and **Export ▾** — the two most-used actions here — keep an
+  icon + label (`setIconBtn`, a new `save` floppy-disk glyph added to `app/icons.js`); **Open**,
+  **Save as…**, and **Close** (set up once per session, not every edit) drop to icon-only
+  (`folder`/`duplicate`/`close`), same convention as Undo/Redo/Theme, with `title` + a new
+  `aria-label` carrying the meaning since there's no visible text. Net effect: a narrower,
+  calmer row instead of a wider one. 6 new LF20 regression tests (icon-only buttons carry no
+  visible text but do carry an accessible name; Save/Export keep their label; `#btnTheme` stays
+  genuinely clickable — not just present in the DOM — after the dashboard-inspector-then-reload
+  flow that exposed the original bug). Suite green (1979/1979). NEXT in LF20: the broader
+  grouping ask is materially done (the row already had History | File | Connect dividers from an
+  earlier H-track slice); no further LF20 work is scoped. (app/index.html, app/icons.js,
+  app/studio.js, js/changelog.js, sw.js, tests/run.js)
 - **LF36 slice 2 — PDF export gains page size, orientation, and fit-to-width (v530, sw v167,
   2026-07-25, steward — LF36 is now fully done):** slice 1 shipped the "PDF (print)" menu entry
   itself and deferred the original ask's sizing/scale + page-size/orientation controls; this slice
@@ -3036,6 +3056,11 @@
 >       + 2 existing a11y tests re-pointed from the removed `themeBtn` to `qInfoBtn`. sw v139. Suite
 >       1873/1873. NEXT in LF20: the broader canvas-bar decluttering (icon+menu for Open/Save/
 >       Export, grouping, push rarely-used actions off-screen) is still open.
+>       ✓ **Icon declutter shipped (v531, sw v168, 2026-07-25, steward — LF20 is now fully done):**
+>       see DONE for the full writeup (incl. a first-attempt regression the suite caught: icon+label
+>       on every button made the row WIDER, not narrower). Save/Export keep icon+label; Open/Save
+>       as…/Close drop to icon-only. The row's History | File | Connect grouping already existed
+>       from an earlier H-track slice, so this closes the remaining gap.
 > LF21. **Dashboard title header = a first-class widget (inline edit / delete / configure) (Kevin, live).**
 >       The dashboard-FILE title at the very top is inline-editable, but the title HEADER BAR inside the dashboard
 >       (logo + title + subtitle + info + theme toggle) is NOT editable like an object — you can't click-to-edit

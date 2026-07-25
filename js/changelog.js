@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 531,
+    title: 'Builder toolbar decluttered — Open/Save as/Close are now icon buttons',
+    kind: 'polish',
+    ts: '2026-07-25T07:54:12.000Z',
+    items: [
+      'LF20: the builder\'s top toolbar read as a wall of text buttons (Open, Save, Save as, Close, Export). Open, Save as, and Close now show as compact icon buttons (tooltips still explain each one); Save and Export keep their labels since they\'re the two most-used actions.',
+    ],
+  },
+  {
     v: 530,
     title: 'PDF export: choose page size, orientation, and fit',
     kind: 'feature',
