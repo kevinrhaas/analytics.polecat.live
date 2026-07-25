@@ -119,7 +119,13 @@
     trophy: '<path stroke-linecap="round" stroke-linejoin="round" d="M7 4h10v6a5 5 0 0 1-10 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M7 5H4a1 1 0 0 0-1 1 5 5 0 0 0 4.5 5M17 5h3a1 1 0 0 1 1 1 5 5 0 0 1-4.5 5"/><line x1="12" y1="15" x2="12" y2="19" stroke-linecap="round"/><line x1="8" y1="21" x2="16" y2="21" stroke-linecap="round"/><line x1="9.5" y1="19" x2="14.5" y2="19" stroke-linecap="round"/>',
     // LF20 (dashbar declutter): a plain floppy disk, monoline to match the registry —
     // the dashbar's "Save" button had no icon of its own (undo/redo/+New already do).
-    save: '<path stroke-linecap="round" stroke-linejoin="round" d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path stroke-linecap="round" stroke-linejoin="round" d="M17 21v-8H7v8"/><path stroke-linecap="round" stroke-linejoin="round" d="M7 3v5h8"/>'
+    save: '<path stroke-linecap="round" stroke-linejoin="round" d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path stroke-linecap="round" stroke-linejoin="round" d="M17 21v-8H7v8"/><path stroke-linecap="round" stroke-linejoin="round" d="M7 3v5h8"/>',
+    // UX6 (icon migration, slice 2): a horizontal kebab (three dots) for the topbar's
+    // "More actions" overflow menu — distinct from "grip"'s 2x3 drag-handle dot grid.
+    more: '<circle cx="5" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.6" fill="currentColor" stroke="none"/>',
+    // UX6 (icon migration, slice 2): stacked rows for "List view" — pairs with the
+    // existing "grid" icon (four squares) for "Tile view" on the same toggle button.
+    list: '<circle cx="4" cy="6" r="1.3" fill="currentColor" stroke="none"/><line x1="8" y1="6" x2="21" y2="6" stroke-linecap="round"/><circle cx="4" cy="12" r="1.3" fill="currentColor" stroke="none"/><line x1="8" y1="12" x2="21" y2="12" stroke-linecap="round"/><circle cx="4" cy="18" r="1.3" fill="currentColor" stroke="none"/><line x1="8" y1="18" x2="21" y2="18" stroke-linecap="round"/>'
   };
 
   Studio.icon = function (name, size) {

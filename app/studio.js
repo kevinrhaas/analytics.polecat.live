@@ -10244,9 +10244,10 @@
     var repoSearchInp = $("#repoSearch"); if (repoSearchInp) repoSearchInp.addEventListener("input", renderDashboards);
     var dashViewToggle = $("#dashViewToggle");
     if (dashViewToggle) {
+      // UX6 (icon migration, slice 2): was raw "☰ List view"/"▦ Tile view" glyph+label.
       var syncDashToggle = function () {
         var isList = _dashViewMode === "list";
-        dashViewToggle.textContent = isList ? "▦ Tile view" : "☰ List view";
+        setIconBtn(dashViewToggle, isList ? "grid" : "list", isList ? "Tile view" : "List view", 14);
         dashViewToggle.setAttribute("aria-pressed", isList ? "true" : "false");
       };
       syncDashToggle();
@@ -10258,7 +10259,9 @@
     }
     var repoExpBtn = $("#repoExportBtn"); if (repoExpBtn) repoExpBtn.onclick = exportRepositoryFile;
     var repoImpBtn = $("#repoImportBtn"); if (repoImpBtn) repoImpBtn.onclick = importRepositoryFile;
-    var repoCompareBtn = $("#repoCompareBtn"); if (repoCompareBtn) repoCompareBtn.onclick = openCompareDashboards;
+    // UX6 (icon migration, slice 2): was a raw "⇄ Compare dashboards…" glyph.
+    var repoCompareBtn = $("#repoCompareBtn");
+    if (repoCompareBtn) { setIconBtn(repoCompareBtn, "diff", "Compare dashboards…", 14); repoCompareBtn.onclick = openCompareDashboards; }
     // Data pane "+ New ▾": dataset-first creation. Workspace datasets and
     // connections are the primary path; a dashboard-only query (the sample-
     // engine builder) remains for quick demo authoring.
@@ -10270,9 +10273,14 @@
     if (ndConn) ndConn.onclick = function () { closeMenus(); openConnectionWizard(); };
     var ndDash = $("#ndDashQuery");
     if (ndDash) ndDash.onclick = function () { closeMenus(); dataSourceBuilder(null); };
-    $("#inspBack").onclick = selectDashboard;
+    var inspBackBtn = $("#inspBack");
+    inspBackBtn.onclick = selectDashboard;
+    // UX6 (icon migration, slice 2): was a raw "‹ Dashboard" glyph+label.
+    inspBackBtn.textContent = ""; inspBackBtn.appendChild(Studio.icon("chevron-left", 14)); inspBackBtn.appendChild(document.createTextNode(" Dashboard"));
 
     buildNewMenu();
+    // UX6 (icon migration, slice 2): was a raw "＋ New ▾" glyph.
+    setIconBtn($("#btnNew"), "plus", "New ▾", 14);
     menuToggle($("#btnNew"), $("#menuNew"));
 
     buildExamplesMenu();
@@ -10351,8 +10359,10 @@
       }
     });
 
-    // responsive "⋯ More" menu — mirrors the .btn-secondary actions hidden at ≤900px
-    menuToggle($("#btnMore"), $("#menuMore"));
+    // responsive "More" menu — mirrors the .btn-secondary actions hidden at ≤900px
+    // UX6 (icon migration, slice 2): was a raw "⋯" glyph.
+    var btnMoreEl = $("#btnMore"); btnMoreEl.textContent = ""; btnMoreEl.appendChild(Studio.icon("more", 16));
+    menuToggle(btnMoreEl, $("#menuMore"));
     var moreAboutBtn = $("#moreAbout");
     if (moreAboutBtn) moreAboutBtn.onclick = function () { closeMenus(); if (window.StudioWelcome) StudioWelcome.open(); };
     [["moreTheme","btnTheme"]].forEach(function(pair) {
@@ -10438,8 +10448,18 @@
     } catch (e) {}
     wireResizer($("#resizeL"), "--lw", 1);
     wireResizer($("#resizeR"), "--rw", -1);
-    $$(".pane-collapse").forEach(function (b) { b.onclick = function (e) { e.stopPropagation(); collapsePane(b.getAttribute("data-pane")); }; });
-    $$(".pane-rail").forEach(function (r) { r.onclick = function () { collapsePane(r.getAttribute("data-pane"), false); }; });
+    // UX6 (icon migration, slice 2): the collapse/expand chevrons were raw "‹"/"›" glyphs.
+    // Library sits at the left edge (collapses toward it, expands away from it); Inspector
+    // sits at the right edge, so its chevrons point the opposite way.
+    $$(".pane-collapse").forEach(function (b) {
+      b.onclick = function (e) { e.stopPropagation(); collapsePane(b.getAttribute("data-pane")); };
+      b.textContent = ""; b.appendChild(Studio.icon(b.getAttribute("data-pane") === "inspector" ? "chevron-right" : "chevron-left", 14));
+    });
+    $$(".pane-rail").forEach(function (r) {
+      r.onclick = function () { collapsePane(r.getAttribute("data-pane"), false); };
+      var railBtn = r.querySelector(".rail-btn");
+      if (railBtn) { railBtn.textContent = ""; railBtn.appendChild(Studio.icon(r.getAttribute("data-pane") === "inspector" ? "chevron-left" : "chevron-right", 14)); }
+    });
     try {
       if (localStorage.getItem("studio-collapse-library") === "1") collapsePane("library", true, true);
       if (localStorage.getItem("studio-collapse-inspector") === "1") collapsePane("inspector", true, true);

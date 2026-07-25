@@ -5229,6 +5229,26 @@ function serve() {
       return { hasSvg: !!b.querySelector("svg"), hasEmoji: b.textContent.indexOf("📋") >= 0 };
     });
     ok("Changelog button uses a themed SVG icon, not the 📋 emoji", clIcon.hasSvg && !clIcon.hasEmoji, JSON.stringify(clIcon));
+    // UX6 (icon migration, slice 2): the builder chrome's "⋯ More", "＋ New ▾", inspector
+    // "‹ Dashboard" back-link, and the pane-rail expand/collapse chevrons used to be raw
+    // Unicode glyphs -- now themed Studio.icon SVGs.
+    const chromeIcons = await page.evaluate(() => {
+      function check(sel) { var b = document.querySelector(sel); return b ? { hasSvg: !!b.querySelector("svg"), text: b.textContent } : { hasSvg: false, text: null }; }
+      return {
+        more: check("#btnMore"), newBtn: check("#btnNew"), inspBack: check("#inspBack"),
+        libExpand: check('.pane-rail[data-pane="library"] .rail-btn'),
+        libCollapse: check('.pane-collapse[data-pane="library"]'),
+        inspExpand: check('.pane-rail[data-pane="inspector"] .rail-btn'),
+        inspCollapse: check('.pane-collapse[data-pane="inspector"]')
+      };
+    });
+    const glyphs = ["⋯", "＋", "‹", "›"];
+    const chromeIconsOk = Object.keys(chromeIcons).every((k) => {
+      var c = chromeIcons[k];
+      return c.hasSvg && !glyphs.some((g) => c.text.indexOf(g) >= 0);
+    });
+    ok("Builder chrome (More/New/inspector-back/pane chevrons) use themed SVG icons, not raw glyphs",
+      chromeIconsOk, JSON.stringify(chromeIcons));
     await page.click("#btnChangelog");
     await page.waitForTimeout(300);
     const cl = await page.evaluate(() => {
@@ -20464,6 +20484,18 @@ function serve() {
       z3Search.allMatch && z3Search.focusStillOnSearch, JSON.stringify(z3Search));
     await page.fill("#repoSearch", "");
     await page.waitForTimeout(80);
+
+    // UX6 (icon migration, slice 2): "☰ List view"/"⇄ Compare dashboards…" used to be raw
+    // Unicode glyphs -- now themed Studio.icon SVGs (List view swaps to "grid" once toggled).
+    const dashChromeIcons = await page.evaluate(() => {
+      function check(sel) { var b = document.querySelector(sel); return b ? { hasSvg: !!b.querySelector("svg"), text: b.textContent } : { hasSvg: false, text: null }; }
+      return { viewToggle: check("#dashViewToggle"), compare: check("#repoCompareBtn") };
+    });
+    const dashGlyphs = ["☰", "▦", "⇄"];
+    ok("Dashboards toolbar (List view / Compare dashboards) use themed SVG icons, not raw glyphs",
+      dashChromeIcons.viewToggle.hasSvg && dashChromeIcons.compare.hasSvg &&
+      !dashGlyphs.some((g) => dashChromeIcons.viewToggle.text.indexOf(g) >= 0 || dashChromeIcons.compare.text.indexOf(g) >= 0),
+      JSON.stringify(dashChromeIcons));
 
     // Z3-4: tiles ⇄ list toggle — the list mode reuses the workspace row anatomy and persists
     await page.click("#dashViewToggle");

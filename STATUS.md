@@ -116,6 +116,26 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **UX6 slice 2 — builder chrome (More/New/list-toggle/compare/pane chevrons) gets themed icons
+  (v533, sw v170, 2026-07-25, steward):** continues slice 1's currentColor icon migration. Two new
+  registry icons (`app/icons.js`): `more` (a horizontal 3-dot kebab) and `list` (three bulleted
+  rows, pairs with the existing `grid` icon for a Tile/List toggle). Migrated via the shared
+  `setIconBtn()` helper where a label stays next to the icon, or the bare `Studio.icon()` +
+  `textContent = ""` pattern (Undo/Redo's precedent) where it's icon-only: `#btnMore` (⋯ → kebab),
+  `#btnNew` (＋ New ▾ → plus + "New ▾"), `#dashViewToggle` (☰/▦ → list/grid, swapping per state),
+  `#repoCompareBtn` (⇄ → the existing `diff` icon, already built for exactly this "compare"
+  purpose), `#inspBack` (‹ Dashboard → chevron-left + text), and the 4 pane-rail
+  expand/`.pane-collapse` chevrons (‹/›, direction-aware by `data-pane` since Library sits at the
+  left edge — expands right, collapses left — and Inspector at the right does the reverse).
+  Undo/Redo were already wired to `Studio.icon()` at runtime (their static HTML glyphs are
+  immediately overwritten at boot; only the checked-in placeholder text was stale) so were left
+  untouched. 2 new regression checks (the builder-chrome buttons and the Dashboards-toolbar
+  buttons all render an `<svg>` with no leftover glyph character in `textContent`). Suite green.
+  NEXT in this track: the remaining call sites — `▾` dropdown carets, Explore's own `‹ Back to
+  datasets` button and `⇄` compare arrow, the chart pagination `‹ Prev`/`Next ›` buttons, the
+  demo-mode `● LIVE` badge, and the welcome-step letter icons — are each their own follow-up
+  slice, per the original "many call sites" scoping note. (app/index.html, app/studio.js,
+  app/icons.js, sw.js, js/changelog.js, tests/run.js)
 - **UX6 slice 1 — footer Changelog button gets a themed icon instead of an emoji (v532, sw v169,
   2026-07-25, steward):** the quality-track's currentColor icon migration ask named the footer
   `📋 Changelog` button as "a direct miss" (full-color emoji vs. the fleet's single-color
@@ -3380,6 +3400,20 @@
 >      spans already are elsewhere in the app. 1 new regression check (button renders an svg, no
 >      literal 📋 in its text). NEXT in this track: the remaining glyphs (`⋯ ↶ ↷ ＋ ▾ ☰ ⇄ ● ‹ ›`) and
 >      the welcome-step letter icons, each its own slice given the many call sites.
+>      ↳ **Slice 2 shipped (v533, sw v170, 2026-07-25, steward): builder chrome.** Two new registry
+>      icons (`more` — a horizontal 3-dot kebab; `list` — three bulleted rows, pairs with the
+>      existing `grid` for the tile/list toggle). Migrated to `Studio.icon()`, reusing the shared
+>      `setIconBtn()` helper where a label stays alongside the icon: `#btnMore` (⋯), `#btnNew`
+>      (＋ New ▾), `#dashViewToggle` (☰/▦ Tile/List toggle), `#repoCompareBtn` (⇄, reuses the
+>      existing `diff` icon), `#inspBack` (‹ Dashboard), and the 4 pane-rail expand/`.pane-collapse`
+>      chevrons (‹/›, direction-aware by `data-pane` since Library sits at the left edge and
+>      Inspector at the right). Undo/Redo were already wired to `Studio.icon()` at runtime (only
+>      their static HTML placeholders still showed the raw glyph pre-hydration) so were left as-is.
+>      2 new regression checks (builder-chrome buttons + Dashboards-toolbar buttons all render an
+>      svg with no leftover glyph in textContent). sw v170. NEXT in this track: the remaining
+>      call sites (`▾` dropdown carets, Explore's `‹ Back`/`⇄` compare arrow, the pagination
+>      `‹ Prev`/`Next ›` buttons, the demo-mode `● LIVE` badge, and the welcome-step letter icons)
+>      are each their own follow-up slice.
 > UX7. ✓ **Mobile 44px touch targets — DONE (shipped 2026-07-23, steward).** The 400–640px band
 >      rendered `.btn` at ~28–32px (font-size 12px + 7px padding, no `min-height` at all — 44px
 >      only existed for `#topbar`/`#dashbar .btn` at ≤400px specifically); `.da-act`/`.chip` sat at
