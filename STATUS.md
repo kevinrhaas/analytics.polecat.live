@@ -4122,10 +4122,28 @@
 >     the one-time exception shrinks to "paste a PAT once." **SECURITY (critical): a PAT is
 >     account-level powerful — DO NOT persist it. Enter-run-DISCARD (take it in the modal, run, forget;
 >     never localStorage), with a clear warning — which also sidesteps QA-02.** Keep the manual runbook
->     (`tools/M7-RLS-GOLIVE-RUNBOOK.md`) as the fallback for admins who won't handle a PAT. DECISION
->     OPEN: make this the PRIMARY go-live path vs. the manual runbook — confirm with Kevin. Tests: mock
->     the Management API; assert the button runs the ordered steps, handles bad-PAT/network errors, and
->     never writes the PAT to storage.
+>     (`tools/M7-RLS-GOLIVE-RUNBOOK.md`) as the fallback for admins who won't handle a PAT.
+>     ⛔ **BLOCKED — the pure client-only version is NOT buildable: the Supabase Management API does not
+>     allow third-party browser CORS.** Verified 2026-07-24 (`OPTIONS
+>     https://api.supabase.com/v1/projects/{ref}/database/query`): the preflight echoes
+>     `access-control-allow-origin` ONLY for `https://supabase.com` (Supabase's own dashboard);
+>     `app.supabase.com` and `analytics.polecat.live` get NO ACAO, so a browser blocks the request before
+>     sending it. A PAT wouldn't help — preflight is unauthenticated. **Do NOT build the direct
+>     browser→Management-API call; it would be dead on arrival in production.** Two viable ways to still
+>     run go-live "from the interface" (DECISION for Kevin):
+>       **(A) One-time Edge Function relay.** Deploy a tiny Supabase Edge Function ONCE (holds the
+>       service-role key, or accepts a PAT); it runs the SQL against Postgres directly (edge functions
+>       reach the DB) or forwards to the Management API server-side (no CORS from a server); the app
+>       calls the function (you control ITS CORS). After the one-time deploy, the whole go-live + all
+>       future provisioning run from an in-app button — and the same relay powers the more-secure
+>       user-provisioning path (Slice 6 Option B). Small backend, but one-time + reusable.
+>       **(B) Keep only the DDL/RLS flip manual (one-time SQL-editor paste, per the runbook); do
+>       everything ELSE in-app.** User creation via GoTrue signup (Slice 6 — no DDL) and the clean-install
+>       data wipe via REST DELETE (`drop()` already does this) are both browser-reachable TODAY. Only
+>       `CREATE POLICY`/`ALTER`/table-create genuinely need the editor, and only once. This gets ~90% of
+>       "never touch Supabase" with zero backend.
+>     Tests (whichever path): mock the relay/endpoint; assert ordered steps, error handling, and (for the
+>     PAT variant) that the token is never written to storage.
 > Also: add MORE crop/geo sample sets as the demo matures (Kevin). "Eventually polecat overall"
 > for the auth/user model — keep the users/permissions design app-neutral where cheap.
 
