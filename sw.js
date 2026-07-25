@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v173"; /* v173: LF13(c) — the job editor gains a "uniqueKey" step
+var CACHE_NAME = "studio-shell-v174"; /* v174: UX6 (currentColor icon migration, slice 4) —
+   the demo-mode "● LIVE" badge used to lead with a raw Unicode "●" glyph; it now renders a
+   themed Studio.icon SVG dot (the badge's own pulse animation still provides the "blinking"
+   motion). No new precached files, but app/index.html, app/icons.js and app/studio.js content
+   changed, so precached copies need to roll. */
+/* v173: LF13(c) — the job editor gains a "uniqueKey" step
    that stamps a stable row-id onto the pipeline's rows. No new precached files, but
    app/studio.js, app/sources/jobs-engine.js, docs/index.html and js/changelog.js content
    changed, so precached copies need to roll. */

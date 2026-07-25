@@ -116,6 +116,22 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **UX6 slice 4 — demo-mode badge gets a themed icon (v537, sw v174, 2026-07-25, steward):**
+  the pulsing "● LIVE" badge (`#demoBadge`, shown while `toggleDemoMode()`'s 4-second simulation
+  runs) led with a raw Unicode "●" glyph — the app-chrome equivalent of the footer's old 📋 emoji
+  miss. `app/index.html` now wraps it in a `<span class="sb-ic" data-ic="dot">` placeholder
+  (same convention as the footer Changelog button's clock icon), hydrated once in `wireTopbar()`
+  (`app/studio.js`, alongside the Undo/Redo icon wiring already there) with a new `dot` registry
+  icon (`app/icons.js`) — a plain filled circle; the badge's own `pulse-live` CSS animation
+  already supplies the "blinking" motion, so no broadcast/radio glyph was needed. This call site
+  is pure builder chrome (`#topbar`, never bundled into an exported dashboard — confirmed no
+  reference in `app/exporters.js`), so the export byte-identity invariant is untouched. 1 new
+  regression check (badge renders an `<svg>`, no raw "●" in its textContent, text still reads
+  "LIVE"). sw v174. NEXT in UX6: `▾` dropdown carets and the chart pagination `‹ Prev`/`Next ›`
+  buttons (`app/studio-charts.js` — these ARE bundled into exports, so that slice needs
+  `app/icons.js` added to the export asset bundle first) and the welcome-step letter icons are
+  each their own follow-up slice. (app/index.html, app/icons.js, app/studio.js, sw.js,
+  js/changelog.js, tests/run.js)
 - **LF13(c) — job editor gains a unique-key/row-id step (v536, sw v173, 2026-07-25, steward):**
   the jobs-engine had NO row-id concept before this — join/union/aggregate steps can all
   collapse or reorder rows, so nothing downstream (an export, a dashboard join key) could
@@ -3474,6 +3490,15 @@
 >      `Next ›` buttons (studio-charts.js — note these ARE bundled into exports, so that slice
 >      also needs `app/icons.js` added to the export asset bundle first), the demo-mode
 >      `● LIVE` badge, and the welcome-step letter icons are each their own follow-up slice.
+>      ↳ **Slice 4 shipped (v537, sw v174, 2026-07-25, steward): the demo-mode badge.**
+>      `#demoBadge`'s raw "●" glyph is now a themed `dot` registry icon (a plain filled circle —
+>      the badge's own `pulse-live` CSS animation already supplies the blinking motion, so no
+>      broadcast/radio glyph was needed), hydrated once in `wireTopbar()` alongside the existing
+>      Undo/Redo icon wiring. Pure builder chrome, never bundled into an export. 1 new regression
+>      check. NEXT in this track: `▾` dropdown carets, the pagination `‹ Prev`/`Next ›` buttons
+>      (studio-charts.js — these ARE bundled into exports, so needs `app/icons.js` added to the
+>      export asset bundle first), and the welcome-step letter icons are each their own
+>      follow-up slice.
 > UX7. ✓ **Mobile 44px touch targets — DONE (shipped 2026-07-23, steward).** The 400–640px band
 >      rendered `.btn` at ~28–32px (font-size 12px + 7px padding, no `min-height` at all — 44px
 >      only existed for `#topbar`/`#dashbar .btn` at ≤400px specifically); `.da-act`/`.chip` sat at

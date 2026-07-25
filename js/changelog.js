@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 537,
+    title: 'Demo mode badge gets a themed icon instead of a raw glyph',
+    kind: 'polish',
+    ts: '2026-07-25T10:41:01.000Z',
+    items: [
+      'UX6 (icon migration, slice 4): the pulsing "LIVE" badge shown during demo mode used to lead with a raw Unicode "●" character. It now shows a themed SVG dot that matches every other icon in the app, in both themes.',
+    ],
+  },
+  {
     v: 536,
     title: 'Jobs gain an "Add unique row ID" step',
     kind: 'feature',
