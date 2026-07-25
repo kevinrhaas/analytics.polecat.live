@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 550,
+    title: 'Choropleth Renderer control now explains itself',
+    kind: 'polish',
+    ts: '2026-07-25T20:46:32.000Z',
+    items: [
+      'LF25(b): the Inspector\'s Renderer, Zoom/pan controls, and Controls position dropdowns (choropleth widgets) now show the explanatory hint text underneath, matching every other option -- the GL vs. built-in choice was easy to miss without it.',
+      'Verified the renderer choice still persists on the widget and survives a save/reload, same guarantee Explore\'s copy of this control already had.',
+    ],
+  },
+  {
     v: 549,
     title: 'Save any widget straight to the widget library',
     kind: 'feature',

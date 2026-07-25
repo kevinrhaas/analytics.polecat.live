@@ -11537,7 +11537,10 @@
       }
       return field(od.label, colorTokenSelect(colPairs, colVal, function (v) { opts[od.key] = v; refreshPreview(); }));
     }
-    if (od.type === "select") return field(od.label, select2pairs(od.choices, opts[od.key] || od.def, function (v) { opts[od.key] = v; refreshPreview(); }));
+    // LF25(b): od.hint (already authored in model.js for renderer/mapControls/mapControlsPos)
+    // was silently dropped here — a select-type option had no way to show it, unlike bool/color
+    // options above. field()'s third arg already renders a hint div; just wire it through.
+    if (od.type === "select") return field(od.label, select2pairs(od.choices, opts[od.key] || od.def, function (v) { opts[od.key] = v; refreshPreview(); }), od.hint);
     if (od.type === "int") { var i = el("input"); i.type = "number"; i.value = opts[od.key] != null ? opts[od.key] : od.def; i.addEventListener("input", function () { opts[od.key] = +i.value || 0; refreshPreview(); }); return field(od.label, i); }
     // N-FUN "live what-if sliders": a drag-to-animate control for numeric knobs that feed
     // derived series/forecasts (Holt-Winters alpha/beta/gamma, MA window, forecast periods…).

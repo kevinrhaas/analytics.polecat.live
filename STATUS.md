@@ -3571,15 +3571,19 @@
 >           only — a real published export has no builder to build the embed file from). The single
 >           "Allow downloads" toggle is now three independent per-panel switches (PNG/CSV/HTML),
 >           each default-on, with legacy-safe fallback for dashboards saved before this slice.
->       (b) RENDERER SWITCH (GL pan/zoom) IN STUDIO. UPDATE (Kevin found it): the Studio Inspector DOES expose the
->           renderer switch — so this narrows to VERIFY parity with Explore (both offer built-in ⇄ GL pan/zoom),
->           confirm the choice PERSISTS on the panel + rides the save/export, and improve DISCOVERABILITY if it read
->           as missing at first glance (labeling/placement). cfg.renderer='gl' / Studio.usesGLMap. Ties LF12/#39/#46.
+>       (b) ✓ **RENDERER SWITCH discoverability + persistence — shipped (2026-07-25, steward), see
+>           DONE.** Root cause: `optField()`'s generic "select" branch (every dropdown chart-option
+>           in the Inspector) silently dropped `od.hint`, so the explanatory text already authored in
+>           model.js for renderer/mapControls/mapControlsPos never reached the UI — the control
+>           wasn't missing, it just read as a bare unexplained dropdown. Threaded `od.hint` through
+>           to `field()`'s existing hint-div support (one line). Verified parity with Explore (same
+>           schema-driven control) and that the choice persists on the panel + rides a Workspace
+>           save/reload (drives `Studio.usesGLMap` for export), matching LF12's guarantee. LF25 is
+>           now fully done (parts a, b, c all shipped).
 >       (c) ✓ **Save the active Studio widget to the widget library — shipped (v549, sw v186,
 >           2026-07-25, steward), see DONE.** A selected panel's Inspector gains a "Save to widget
 >           library" action, closing the loop with #29 — Studio can now both USE library widgets
->           (xpAddAnalysisToSpec) and CONTRIBUTE to it. NEXT in LF25: only part (b) (renderer-switch
->           discoverability verify) remains open.
+>           (xpAddAnalysisToSpec) and CONTRIBUTE to it.
 > LF26. ✓ **Save-as + overwrite protection — shipped (v495, 2026-07-23, steward), see DONE.** A "Save as…"
 >       button next to Save always forks the working spec into a new dashboard; plain Save on a `demoPackId`
 >       sample (or, later, someone else's dashboard) now routes to that same Save-as prompt instead of

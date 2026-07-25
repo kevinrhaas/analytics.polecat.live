@@ -8125,6 +8125,75 @@ function serve() {
     await page.evaluate(() => { var sp = window.__STUDIO_STATE.spec; sp.panels.forEach(function (p) { delete p.allowDownloads; delete p.dlPng; delete p.dlCsv; delete p.dlEmbed; }); window.__studioLoad(sp); });
     await page.waitForTimeout(150);
 
+    // ---- LF25(b): Studio Inspector's choropleth Renderer control — discoverability + persistence ----
+    // Kevin read the control as "missing" at first glance even though the Inspector already shows
+    // it (LF12 gave Explore the same schema-driven control) — root cause: optField()'s "select"
+    // branch (the generic renderer for every dropdown option) dropped od.hint entirely, so the
+    // explanatory text already authored in model.js for renderer/mapControls/mapControlsPos never
+    // reached the UI. Fixed by threading od.hint through to field()'s existing hint-div support.
+    console.log("\n• LF25(b): Renderer control discoverability + persistence");
+    const lf25bInspector = await page.evaluate(function () {
+      var sp = window.__STUDIO_STATE.spec;
+      var p = sp.panels[0];
+      p.chart = { type: "choropleth", da: sp.cda.dataAccesses[0].id,
+        map: { idCol: sp.cda.dataAccesses[0].columns[0], valueCol: sp.cda.dataAccesses[0].columns[1] }, opts: {} };
+      window.__studioLoad(sp);
+      window.__studioSelect({ kind: "panel", id: p.id });
+      var insp = document.getElementById("inspBody") || document.getElementById("inspector");
+      function fieldByLabel(label) {
+        return [].slice.call(insp.querySelectorAll(".field")).filter(function (f) {
+          return (f.querySelector("label") || {}).textContent === label;
+        })[0];
+      }
+      var rendererField = fieldByLabel("Renderer");
+      var hint = rendererField ? rendererField.querySelector(".hint") : null;
+      var sel = rendererField ? rendererField.querySelector("select") : null;
+      function hintFor(label) { var f = fieldByLabel(label); var h = f ? f.querySelector(".hint") : null; return h ? h.textContent : null; }
+      return {
+        panelId: p.id, hasHint: !!hint, hintText: hint ? hint.textContent : "", selectValue: sel ? sel.value : null,
+        mapControlsHint: hintFor("Zoom/pan controls"), mapControlsPosHint: hintFor("Controls position")
+      };
+    });
+    ok("LF25(b): the Studio Inspector's choropleth Renderer field now shows the same explanatory hint authored in model.js (od.hint was previously dropped for select-type options)",
+      lf25bInspector.hasHint && /GL mode pans and zooms smoothly/.test(lf25bInspector.hintText), JSON.stringify(lf25bInspector));
+    ok("LF25(b): the Renderer control defaults to the built-in (svg) renderer", lf25bInspector.selectValue === "svg", JSON.stringify(lf25bInspector));
+    ok("LF25(b): the fix is generic, not special-cased — Zoom/pan controls + Controls position (the other two hinted select opts) also gained their hints",
+      /GL renderer only/.test(lf25bInspector.mapControlsHint || "") && /GL renderer only/.test(lf25bInspector.mapControlsPosHint || ""),
+      JSON.stringify(lf25bInspector));
+
+    // Persistence: pick GL via the Inspector's own <select> (not a direct opts mutation), save the
+    // dashboard to the Workspace store, read it back fresh, and confirm the choice rides both the
+    // saved spec AND usesGLMap (the export/asset-loader gate) — the same guarantee LF12 proved for
+    // Explore's copy of this control.
+    const lf25bPersist = await page.evaluate(function () {
+      var sp = window.__STUDIO_STATE.spec;
+      var p = sp.panels[0];
+      var insp = document.getElementById("inspBody") || document.getElementById("inspector");
+      var rendererField = [].slice.call(insp.querySelectorAll(".field")).filter(function (f) {
+        return (f.querySelector("label") || {}).textContent === "Renderer";
+      })[0];
+      var sel = rendererField.querySelector("select");
+      sel.value = "gl";
+      sel.dispatchEvent(new Event("change", { bubbles: true }));
+      var savedOpt = p.chart.opts.renderer;
+      Studio.Workspace.put("dashboards", { id: "lf25b-dash", ts: new Date().toISOString(), spec: JSON.parse(JSON.stringify(sp)), title: sp.title, name: sp.name });
+      var row = Studio.Workspace.all("dashboards").filter(function (r) { return r.id === "lf25b-dash"; })[0];
+      var reloadedOpt = row.spec.panels[0].chart.opts.renderer;
+      return { savedOpt: savedOpt, reloadedOpt: reloadedOpt, usesGL: Studio.usesGLMap(row.spec) };
+    });
+    ok("LF25(b): picking GL via the Studio Inspector's Renderer control updates p.chart.opts.renderer, and the choice rides a Workspace save/reload + drives usesGLMap for export",
+      lf25bPersist.savedOpt === "gl" && lf25bPersist.reloadedOpt === "gl" && lf25bPersist.usesGL === true,
+      JSON.stringify(lf25bPersist));
+
+    // Restore the panel + reload so later tests aren't affected by this block's mutations.
+    await page.evaluate(function () {
+      Studio.Workspace.remove("dashboards", "lf25b-dash", { silent: true });
+      var sp = window.__STUDIO_STATE.spec;
+      sp.panels[0].chart = { type: "bars", opts: {} };
+      window.__studioLoad(sp);
+    });
+    await page.waitForTimeout(150);
+
     // ---- LF25(c): "Save to widget library" from a selected Studio panel ----
     console.log("\n• LF25(c): Save to widget library");
     // Richtext has no bound query — the button must not appear at all.
