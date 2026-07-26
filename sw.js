@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v210"; /* v210: LF18(b) — a fourth guided tour, "Prep data (Jobs)",
+var CACHE_NAME = "studio-shell-v211"; /* v211: LF18(b) — a fifth guided tour, "Connections &
+   Datasets", walks the real Connections section (list, + New connection, search/folders) then
+   switches to the real Datasets section (list, + New dataset, search/folders) — joins the tour
+   chooser alongside Overview/Quick analysis/Build a dashboard/Prep data (Jobs); the Overview
+   tour's own Connections step now points at it. LF18(b)'s "deeper per-feature tours" scope is
+   now fully done. app/tutorial.js, tests/run.js changed, so the precached copy needs to roll.
+   v210: LF18(b) — a fourth guided tour, "Prep data (Jobs)",
    walks the real Jobs section (the list, the + New job pipeline builder, and search/folders) and
    joins the tour chooser alongside Overview/Quick analysis/Build a dashboard; the Overview tour's
    own Jobs step now points at it. LF18's remaining scope ("deeper per-feature tours for Jobs and
