@@ -205,6 +205,9 @@
       fetchText("app/sources/supabase.js"),
       // Same treatment, now for the connection-bound Google Sheets façade.
       fetchText("app/sources/gsheets.js"),
+      // Same treatment, now for the (connection-bound-in-name-only, no auth) local-file façade —
+      // Redshift is the only exported-runtime adapter left after this one.
+      fetchText("app/sources/localfile.js"),
       // UX6 (icon migration): the chart-pagination Prev/Next buttons (studio-charts.js) now call
       // Studio.icon() — bundled unconditionally (like studio-charts.js itself) so every export's
       // paginated table keeps its themed chevrons, not just the live builder.
@@ -214,9 +217,9 @@
       S.catalog = r[0];
       S.assets = {
         css: r[1], js: r[2], render: r[3], charts: r[4], duckdb: r[5], httpvfs: r[6],
-        snowflake: r[7], databricks: r[8], bigquery: r[9], genericsql: r[10], turso: r[11], postgrest: r[12], supabase: r[13], gsheets: r[14], icons: r[15]
+        snowflake: r[7], databricks: r[8], bigquery: r[9], genericsql: r[10], turso: r[11], postgrest: r[12], supabase: r[13], gsheets: r[14], file: r[15], icons: r[16]
       };
-      S.examples = r[16] || [];
+      S.examples = r[17] || [];
       wireTopbar();
       try { renderFooter(); } catch (e) { /* footer is non-critical chrome */ }
       setupPanes();
@@ -726,7 +729,10 @@
     da.params = (ds.params || []).map(function (p) { return { name: p.key, default: p.value || "" }; });
     da.datasetId = ds.id;
     da.connectionId = ds.connectionId;
-    da.dataset = { kind: ds.kind || "sql", sql: ds.sql, table: ds.table, sheet: ds.sheet, query: ds.query, collection: ds.collection, params: ds.params };
+    // fileName/format/content ride along for a kind:'file' dataset — its content IS the data
+    // (post-overhaul backlog item 3: local files' exported-runtime path needs them on da.dataset,
+    // the only place they survive redactSecrets' clone once exported — see exporters.js/studio-render.js).
+    da.dataset = { kind: ds.kind || "sql", sql: ds.sql, table: ds.table, sheet: ds.sheet, query: ds.query, collection: ds.collection, params: ds.params, fileName: ds.fileName, format: ds.format, content: ds.content };
     da.authored = true;
     return da;
   }

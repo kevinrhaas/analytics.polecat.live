@@ -235,8 +235,8 @@
   // (which registered source the Workspace connection used) + a redacted da.connCfg (its non-secret
   // fields) onto the DA at export time; this dispatches on THAT field instead, same
   // prompt-once/never-embed contract as CRED_ENGINES. Turso shipped first; PostgREST is the
-  // second; Supabase is the third; Google Sheets is the fourth — Redshift/local files still
-  // have no exported-runtime path. `dataset(da)` shapes the def each adapter's own queryData(cfg,
+  // second; Supabase is the third; Google Sheets is the fourth; local files are the fifth —
+  // Redshift still has no exported-runtime path. `dataset(da)` shapes the def each adapter's own queryData(cfg,
   // dataset) expects — Turso's speaks raw SQL (da.sql/da.query, same as every other kind:"sql"
   // DA), but a table-kind connection (PostgREST/Supabase, same protocol) has no da.table/
   // da.query of its own: dsToDA (app/studio.js) always sets da.kind:"sql" and clobbers da.query
@@ -271,6 +271,17 @@
       engine: function () { return window.Studio && Studio.gsheetsSource; },
       cfg: function (da) { return Object.assign({}, da.connCfg); },
       dataset: function (da) { return { sheet: da.dataset && da.dataset.sheet, query: da.dataset && da.dataset.query }; }
+    },
+    // Local files: the fifth adapter, and — like Google Sheets — no secret and no cfg at all
+    // (its "connection" is a bare grouping row; see exporters.js's CONN_ADAPTER_CFG_FIELDS). The
+    // file's own text already rides on da.dataset (dsToDA, app/studio.js), so dataset(da) just
+    // passes that whole object straight through to Studio.fileSource.queryData, no reshaping
+    // needed — unlike the table/sheet adapters above, whose real def lives under nested keys.
+    file: {
+      label: "",
+      engine: function () { return window.Studio && Studio.fileSource; },
+      cfg: function () { return {}; },
+      dataset: function (da) { return da.dataset || {}; }
     }
   };
   var _secretCache = {};

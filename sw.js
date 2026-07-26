@@ -5,7 +5,28 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v230"; /* v230: Post-overhaul backlog item 3, other
+var CACHE_NAME = "studio-shell-v231"; /* v231: Post-overhaul backlog item 3, other
+   half, local-files slice — the same connection-bound exported-runtime treatment
+   v226/v227/v229/v230 gave Turso/PostgREST/Supabase/Google Sheets, now for a dropped
+   CSV/JSON file — the fifth adapter, and (like Google Sheets) the second with no
+   secret field, but also the first with no cfg at all: a file dataset's "connection"
+   is a bare grouping row (adapter:"file", cfg:{}); the real data (fileName/format/
+   content) was already on the Workspace dataset row but dsToDA (app/studio.js) never
+   threaded it onto da.dataset, so an exported file-backed dashboard had no way to
+   reconstruct it post-export — fixed by adding those three fields to da.dataset's
+   existing shape. exporters.js's CONN_ADAPTER_CFG_FIELDS gained a file:[] entry
+   (empty cfg, still gates the connAdapter stamp same as gsheets); studio-render.js's
+   CONN_ENGINES gained a file entry dispatching to Studio.fileSource.queryData with
+   da.dataset passed straight through (no reshaping — unlike table/sheet-kind
+   adapters, a file's def already IS the shape queryData expects). app/sources/
+   localfile.js's top-level Studio.registerSource call is now guarded (same "never
+   loads registry.js" fix already applied to postgrest.js/supabase.js/gsheets.js) and
+   self-stamps Studio.fileSource. app/studio.js and app/viewer.js now also fetch
+   app/sources/localfile.js as an export asset, bundled into the exported HTML only
+   when a dashboard actually has a connAdapter:"file" DA. app/sources/localfile.js,
+   app/exporters.js, app/studio-render.js, app/studio.js, app/viewer.js,
+   docs/index.html changed, so the precached copies need to roll.
+   v230: Post-overhaul backlog item 3, other
    half, Google Sheets slice — the same connection-bound exported-runtime treatment
    v226/v227/v229 gave Turso/PostgREST/Supabase, now for Google Sheets connections —
    the first of these with no secret field at all (link-shared sheets need no auth),

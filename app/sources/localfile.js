@@ -104,7 +104,7 @@
     return head === "[" || head === "{" ? "json" : "csv";
   }
 
-  Studio.registerSource({
+  var SOURCE = {
     id: "file",
     label: "CSV / JSON file",
     blurb: "Drop a local file and chart it — the data rides inside the dataset, so it works offline and travels with your workspace.",
@@ -143,5 +143,12 @@
     drop: function () { return Promise.resolve({ ok: false, error: "Not a workspace backend" }); },
     load: function () { return Promise.resolve(Studio.WS.emptySnapshot()); },
     save: function () { return Promise.resolve({ ok: false, error: "Not a workspace backend" }); }
-  });
+  };
+  // Post-overhaul backlog item 3: this file now also bundles standalone into exported dashboards
+  // (see exporters.js/studio-render.js's CONN_ENGINES), which never load registry.js — an
+  // unguarded Studio.registerSource call would throw there, same fix already applied to
+  // postgrest.js/gsheets.js/supabase.js. Studio.fileSource is the self-stamped global
+  // studio-render.js's CONN_ENGINES.file.engine() reads at dispatch time.
+  if (Studio.registerSource) Studio.registerSource(SOURCE);
+  Studio.fileSource = SOURCE;
 }());

@@ -48,10 +48,14 @@
   // needsSecret treatment in practice, same mechanism as Turso. Google Sheets is the fourth — the
   // FIRST of these adapters with no secret field at all (link-shared sheets need no auth), which
   // is why the gating check below keys off CONN_ADAPTER_CFG_FIELDS (always present for a wired
-  // adapter) rather than CONN_ADAPTER_SECRET_FIELD (absent here on purpose). Redshift/local files
-  // still have no exported-runtime path and need this same treatment, one at a time.
+  // adapter) rather than CONN_ADAPTER_SECRET_FIELD (absent here on purpose). Local files are the
+  // fifth adapter and the second (after Google Sheets) with no secret field — a dropped file has
+  // nothing to authenticate, and (unlike every adapter above) no connCfg either: its "connection"
+  // is a bare grouping row (adapter:"file", cfg:{}) with nothing worth carrying, since the actual
+  // data — fileName/format/content — already rides on da.dataset (dsToDA, app/studio.js) rather
+  // than on the connection's cfg. Redshift still has no exported-runtime path.
   var CONN_ADAPTER_SECRET_FIELD = { turso: "token", postgrest: "token", supabase: "key" };
-  var CONN_ADAPTER_CFG_FIELDS = { turso: ["url"], postgrest: ["url", "schema"], supabase: ["url"], gsheets: ["url"] };
+  var CONN_ADAPTER_CFG_FIELDS = { turso: ["url"], postgrest: ["url", "schema"], supabase: ["url"], gsheets: ["url"], file: [] };
   // LF36 slice 2: PDF export page-size options — CSS @page `size` keyword + physical inches
   // (letter/A4/legal, US-common set; matches what the export dialog in studio.js offers).
   var PDF_PAGE_SIZE_KEYWORDS = { letter: "letter", a4: "A4", legal: "legal" };
@@ -386,6 +390,8 @@
     var supabaseScript = (connAdapters.supabase && assets.supabase) ? ("<script>\n" + assets.supabase + "\n</script>\n") : "";
     // Same lean-bundling pattern, now for a connAdapter:"gsheets" DA.
     var gsheetsScript = (connAdapters.gsheets && assets.gsheets) ? ("<script>\n" + assets.gsheets + "\n</script>\n") : "";
+    // Same lean-bundling pattern, now for a connAdapter:"file" DA (a dropped local file).
+    var fileScript = (connAdapters.file && assets.file) ? ("<script>\n" + assets.file + "\n</script>\n") : "";
     // Viridis V2: map panels — inline topojson-client (keep its ISC banner: it is
     // redistributed inside the export) + the pre-projected geometry the spec's
     // scales need, as window.STUDIO_GEO. Dashboards without maps carry none of it.
@@ -405,7 +411,7 @@
         "<script>\n" + assets.maplibre.js + "\n</script>\n";
     }
     var boot = "<script>\n" + assets.js + "\n</script>\n" + iconsScript + charts + geoScript + duckdbScript + httpvfsScript +
-      snowflakeScript + databricksScript + bigqueryScript + genericsqlScript + tursoScript + postgrestScript + supabaseScript + gsheetsScript + "<script>\n" + assets.render + "\n</script>\n<script>\n" +
+      snowflakeScript + databricksScript + bigqueryScript + genericsqlScript + tursoScript + postgrestScript + supabaseScript + gsheetsScript + fileScript + "<script>\n" + assets.render + "\n</script>\n<script>\n" +
       "window.STUDIO_AUTOBOOT=false;\n" +
       "PDC.cdaPath=" + JSON.stringify(cdaPath) + ";\nvar CDAPATH=PDC.cdaPath;\n";
     if (opts.preview) {
