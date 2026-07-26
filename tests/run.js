@@ -10320,6 +10320,51 @@ function serve() {
     ok("LF19 Inspector slice 9: that explicit open choice persists across a re-render, overriding the default",
       advCollapse.drillStillOpen, JSON.stringify(advCollapse));
 
+    // LF19 Inspector slice 10 — "consistent spacing on the right panel generally" (closes
+    // LF19: every documented item in this track is now shipped). .insp-sec-body carries no
+    // padding of its own, so a section's bottom gap used to be its LAST CHILD's own
+    // margin-bottom stacked on top of .insp-sec's 13px padding — 24px after a .field, 22px
+    // after a .note, 20px after a .row-item, 14px after a plain element, depending purely on
+    // which content type happened to render last. `.insp-sec-body>*:last-child{margin-bottom:0}`
+    // zeroes that stacked margin so every section's bottom gap is exactly .insp-sec's own
+    // padding, regardless of what kind of content it ends on.
+    const inspSpacing = await page.evaluate(() => {
+      var sp = window.__STUDIO_STATE.spec;
+      var p = sp.panels.filter(function (x) { return x.id === "p_cost"; })[0];
+      // Measures each section WITHOUT leaving a lasting mark on the shared, session-wide
+      // _collapsedSects state (that state is only module-local, so a bulk "Expand all"
+      // here would otherwise leak into every later test in this same page session — a
+      // collapsed section is opened just long enough to measure, then re-collapsed).
+      function expandAllAndMeasure() {
+        return [].slice.call(document.querySelectorAll("#inspBody .insp-sec")).map(function (s) {
+          var h4 = s.querySelector("h4");
+          var wasCollapsed = s.classList.contains("sec-collapsed");
+          if (wasCollapsed) h4.click();
+          var bodyEl = s.querySelector(".insp-sec-body");
+          var last = bodyEl && bodyEl.lastElementChild;
+          var gap = last ? Math.round((s.getBoundingClientRect().bottom - last.getBoundingClientRect().bottom) * 100) / 100 : null;
+          if (wasCollapsed) h4.click(); // restore original collapsed state
+          return gap;
+        }).filter(function (g) { return g !== null; });
+      }
+      window.__studioSelect(null); // Dashboard-level inspector: Checks/Dashboard/Template
+                                    // variables/KPI tiles/Filters/etc.
+      var dashGaps = expandAllAndMeasure();
+      window.__studioSelect({ kind: "panel", id: p.id }); // Widget inspector: different section family
+      var panelGaps = expandAllAndMeasure();
+      return { dashGaps: dashGaps, panelGaps: panelGaps, all: dashGaps.concat(panelGaps) };
+    });
+    ok("LF19 Inspector slice 10: every expanded Dashboard-inspector section ends with the exact same " +
+      "bottom gap, regardless of whether its last child is a .field/.note/.row-item/plain element",
+      inspSpacing.dashGaps.length > 3 && inspSpacing.dashGaps.every(function (g) { return g === inspSpacing.dashGaps[0]; }),
+      JSON.stringify(inspSpacing.dashGaps));
+    ok("LF19 Inspector slice 10: the Widget/Panel inspector's sections share that same one gap value too",
+      inspSpacing.panelGaps.length > 3 && inspSpacing.panelGaps.every(function (g) { return g === inspSpacing.panelGaps[0]; }),
+      JSON.stringify(inspSpacing.panelGaps));
+    ok("LF19 Inspector slice 10: the shared gap is exactly .insp-sec's own 13px padding (~14px rendered), " +
+      "not inflated by a trailing child margin",
+      inspSpacing.all.every(function (g) { return g >= 13 && g <= 15; }), JSON.stringify(inspSpacing.all));
+
     // LF19 "next" slice — tidy the "+ New" affordance on "This dashboard's datasets":
     // it used to spell out "New" next to the group's own count badge, which crowded the
     // group name into an ellipsis ("This dashboard's da…") at the panel's default width.

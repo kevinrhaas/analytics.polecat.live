@@ -116,6 +116,29 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF19 slice 10 — right-panel sections now end on a consistent bottom gap (v565, sw v202,
+  2026-07-26, steward — LF19 is now fully DONE):** the last remaining piece of LF19's "give the
+  right panel the same organize-and-simplify pass" ask. `.insp-sec-body` (the div `section()`
+  renders each Inspector section's content into) carries no padding of its own, so a section's
+  bottom gap used to be whatever margin-bottom its LAST rendered child happened to carry, stacked
+  on top of `.insp-sec`'s own 13px padding: measured live, a section ending on a `.field` left
+  24px below it, a `.note` left 22px, a `.row-item` left 20px, while a section ending on a plain
+  element (a button, a bare div) correctly left 13-14px — four different gaps for the exact same
+  visual role, purely a function of which content type happened to render last. New rule
+  `.insp-sec-body>*:last-child{margin-bottom:0}` zeroes that stacked trailing margin so every
+  section's bottom gap is now exactly `.insp-sec`'s own padding regardless of content type —
+  verified live across the Dashboard inspector (Quick help/Checks/Dashboard/Template variables/
+  KPI tiles/Filters/Share/Version history/Builder notes/Panels) and the Widget/Panel inspector, all
+  landing on the identical ~14px gap. Purely a bottom-margin reset scoped to `.insp-sec-body`'s own
+  direct children, so it can't affect spacing anywhere else in the app (Settings cards, the left
+  Data panel, modals, etc. use their own containers, not this class). 3 new regression tests (every
+  expanded Dashboard-inspector section shares one gap value, the Widget inspector's sections share
+  one gap value too, that shared gap sits in the expected 13-15px band rather than an inflated one).
+  No docs change (internal visual-consistency fix, no new user-facing control). Suite green,
+  2125/2125. (app/studio.css, sw.js, js/changelog.js, tests/run.js) **LF19 (the whole "left + right
+  panel IA/redesign" track Kevin asked for live) is now fully done** — every documented item across
+  10 slices (progressive disclosure, header glyphs on all 5 Inspector renderers, sensible collapse
+  defaults, and now consistent spacing) has shipped.
 - **LF19 slice 9 — Advanced-mode inspector sections start collapsed by default (v564, sw v201,
   2026-07-26, steward):** the "sensible collapse defaults" half of LF19's last remaining scope
   (the icon pass across slices 5-8 is done; "consistent spacing on the right panel generally" is
@@ -4073,6 +4096,12 @@
 >       See DONE for the full writeup — every Advanced-mode section (`advSection()`) now starts
 >       collapsed the first time, with an explicit toggle winning from then on. NEXT in LF19:
 >       consistent spacing on the right panel generally is the one remaining piece.
+>       ✓ **Slice 10 shipped (v565, sw v202, 2026-07-26, steward — LF19 is now fully DONE):**
+>       consistent spacing. See DONE for the full writeup — `.insp-sec-body>*:last-child{margin-
+>       bottom:0}` closes a trailing-margin-stacking bug so every section's bottom gap is
+>       exactly `.insp-sec`'s own padding, no longer varying by what content type happened to
+>       render last. **Every documented item in LF19 (the left Data panel pass, the five
+>       Inspector renderers' icon pass, collapse defaults, and now spacing) is shipped.**
 > LF18. **Home ("Welcome back") overhaul — richer entry points, default featured, tour chooser.** The Home
 >       landing should orient a returning user with descriptive quick-actions, not three bare cards:
 >       (a) QUICK-ACTIONS reworded to concrete jobs — "Explore curated datasets", "Build a dashboard from
