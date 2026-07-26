@@ -116,6 +116,32 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF22 slice 2 — congressional districts, a new map scale (v567, sw v204, 2026-07-26,
+  steward):** the second item of LF22's geography-expansion list ("(2) Congressional
+  districts"). Unlike CRD (derived by merging county polygons per NASS district), congressional
+  districts SPLIT counties, so they need their own vendored geometry rather than a merge —
+  `tools/build-geo.mjs` gained a 4th fetch step querying Census TIGERweb's `Legislative/
+  MapServer` layer 0 (119th Congressional Districts) for the same 50-states-+-DC extent as the
+  HUC8 fetch, reprojecting onto the identical AlbersUsa 975×610 plane and committing
+  `vendor/geo/us-cd-albers.json` (436 districts, ~333KB — excludes 3 Census "not defined" filler
+  districts, GEOID suffix "ZZ", that cover large water bodies like Lake Michigan with no real
+  district assignment). New `cd` scale wired through every place that already special-cased
+  `huc8`: `geoFeatures`/`geoFeaturesGL`/`geoNormalizeId`/`scaleNoun` (`app/studio-charts.js`),
+  `Studio.geoAssetKeys` + the Region-scale dropdown (`app/model.js`), and the GEO_FILES lookup
+  tables duplicated in `app/studio.js`'s `ensureGeoAssets`, `app/viewer.js`, and the CLI
+  export's own copy (`tools/lib.js`). Region ids are 4-digit GEOID (state FIPS + district
+  number, e.g. "1903" = Iowa's 3rd district) — the same shape `geoNormalizeId` already gives CRD
+  ids, so `geoNormalizeId` merges the `crd`/`cd` branches. docs/index.html's choropleth
+  description and "every scale of chart" copy updated; THIRD-PARTY-NOTICES.md gained a TIGERweb
+  row. 5 new regression tests (topology parses with 400+ features; ids are unique 4-digit
+  strings; `geoAssetKeys` maps the `cd` scale to exactly `cd,state`; a full-pipeline probe with
+  real Iowa GEOIDs (1901-1903) renders colored regions through the real exported iframe; the
+  THIRD-PARTY-NOTICES assertion covers TIGERweb too). Sample-data heuristics (`app/sampledata.js`)
+  and the demo packs were deliberately NOT touched — out of scope for wiring a new scale, same as
+  slice 1. Suite green, 2127/2127. (tools/build-geo.mjs, vendor/geo/us-cd-albers.json,
+  app/studio-charts.js, app/studio.js, app/model.js, app/viewer.js, tools/lib.js,
+  docs/index.html, THIRD-PARTY-NOTICES.md, sw.js, js/changelog.js, tests/run.js) NEXT in LF22:
+  (3) 5-digit ZIP→ZCTA, (4) the counties→custom-region mapping importer.
 - **LF22 slice 1 — watershed maps go nationwide (v566, sw v203, 2026-07-26, steward):** the
   first, highest-priority item of LF22's geography-expansion list ("(1) ★ NATIONWIDE
   watersheds"). `tools/build-geo.mjs`'s HUC8 fetch queried the USGS WBD MapServer for a
@@ -3791,8 +3817,11 @@
 >       ✓ **Slice 1 shipped (v566, sw v203, 2026-07-26, steward): (1) NATIONWIDE watersheds.** See DONE for
 >       the full writeup. `us-huc8-albers.json` now covers all 50 states + DC (2,292 watersheds, 1.26MB) instead
 >       of just the 12-state Corn Belt (571 watersheds, 533KB) — simplified a bit harder to keep the size
->       reasonable; lazy-load-per-region wasn't needed at this size. NEXT in LF22: (2) Congressional districts,
->       (3) 5-digit ZIP→ZCTA, (4) the counties→custom-region mapping importer.
+>       reasonable; lazy-load-per-region wasn't needed at this size.
+>       ✓ **Slice 2 shipped (v567, sw v204, 2026-07-26, steward): (2) Congressional districts.** See DONE for
+>       the full writeup. New `cd` scale, own vendored geometry from Census TIGERweb (districts split counties,
+>       so they can't be derived by merging like CRD) — 436 districts nationwide, all 50 states + DC. NEXT in
+>       LF22: (3) 5-digit ZIP→ZCTA, (4) the counties→custom-region mapping importer.
 > LF23. ★ **VIEWER MODE — open dashboards read-only, as their own page/tab, with role-gated Studio access (Kevin, live).**
 >       **PRIORITY (Kevin, 2026-07-24): start Viewer mode early — it's a near-term ★ priority.**
 >       Most people should OPEN a dashboard to READ it, not land in the full builder. From the Repository (Dashboards

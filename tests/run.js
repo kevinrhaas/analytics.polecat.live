@@ -1487,28 +1487,34 @@ function serve() {
       const states = JSON.parse(fs.readFileSync(path.join(V, "states-albers-10m.json"), "utf8"));
       const huc8 = JSON.parse(fs.readFileSync(path.join(V, "us-huc8-albers.json"), "utf8"));
       const crd = JSON.parse(fs.readFileSync(path.join(V, "us-crd-counties.json"), "utf8"));
-      ok("GEO: county/state/HUC8 topologies parse with expected feature counts (3k+ counties, 50+ states, 2k+ nationwide HUC8 watersheds)",
+      const cd = JSON.parse(fs.readFileSync(path.join(V, "us-cd-albers.json"), "utf8"));
+      ok("GEO: county/state/HUC8/CD topologies parse with expected feature counts (3k+ counties, 50+ states, 2k+ nationwide HUC8 watersheds, 400+ nationwide congressional districts)",
         counties.objects.counties.geometries.length > 3000 && states.objects.states.geometries.length >= 50 &&
-        huc8.objects.huc8.geometries.length >= 2000,
-        JSON.stringify({ counties: counties.objects.counties.geometries.length, states: states.objects.states.geometries.length, huc8: huc8.objects.huc8.geometries.length }));
+        huc8.objects.huc8.geometries.length >= 2000 && cd.objects.cd.geometries.length >= 400,
+        JSON.stringify({ counties: counties.objects.counties.geometries.length, states: states.objects.states.geometries.length, huc8: huc8.objects.huc8.geometries.length, cd: cd.objects.cd.geometries.length }));
       ok("GEO: NASS county→CRD mapping covers 3k+ counties across 300+ districts",
         Object.keys(crd.counties).length > 3000 && new Set(Object.values(crd.counties)).size > 300,
         Object.keys(crd.counties).length + " counties");
+      ok("GEO: congressional district ids are unique 4-digit GEOIDs (state FIPS + district number)",
+        cd.objects.cd.geometries.every(function (g) { return /^\d{4}$/.test(g.id); }) &&
+        new Set(cd.objects.cd.geometries.map(function (g) { return g.id; })).size === cd.objects.cd.geometries.length);
       const notices = fs.readFileSync(path.join(ROOT, "THIRD-PARTY-NOTICES.md"), "utf8");
-      ok("GEO: THIRD-PARTY-NOTICES.md records topojson-client, us-atlas, and the public-domain USGS/NASS data",
-        /topojson-client/.test(notices) && /us-atlas/.test(notices) && /Watershed Boundary/.test(notices) && /NASS/.test(notices));
+      ok("GEO: THIRD-PARTY-NOTICES.md records topojson-client, us-atlas, and the public-domain USGS/NASS/TIGERweb data",
+        /topojson-client/.test(notices) && /us-atlas/.test(notices) && /Watershed Boundary/.test(notices) && /NASS/.test(notices) && /TIGERweb/.test(notices));
     })();
     const geoKeysUnit = await page.evaluate(function () {
       return {
         none: Studio.geoAssetKeys({ panels: [{ chart: { type: "bars" } }] }).join(","),
         county: Studio.geoAssetKeys({ panels: [{ chart: { type: "choropleth", opts: {} } }] }).sort().join(","),
         crd: Studio.geoAssetKeys({ panels: [{ chart: { type: "choropleth", opts: { scale: "crd" } } }] }).sort().join(","),
-        huc8: Studio.geoAssetKeys({ panels: [{ chart: { type: "choropleth", opts: { scale: "huc8" } } }] }).sort().join(",")
+        huc8: Studio.geoAssetKeys({ panels: [{ chart: { type: "choropleth", opts: { scale: "huc8" } } }] }).sort().join(","),
+        cd: Studio.geoAssetKeys({ panels: [{ chart: { type: "choropleth", opts: { scale: "cd" } } }] }).sort().join(",")
       };
     });
-    ok("GEO: geoAssetKeys() maps specs to exactly the geometry they need (none without maps; CRD pulls county+mapping)",
+    ok("GEO: geoAssetKeys() maps specs to exactly the geometry they need (none without maps; CRD pulls county+mapping; CD pulls its own geometry)",
       geoKeysUnit.none === "" && geoKeysUnit.county === "county,state" &&
-      geoKeysUnit.crd === "county,crdMap,state" && geoKeysUnit.huc8 === "huc8,state", JSON.stringify(geoKeysUnit));
+      geoKeysUnit.crd === "county,crdMap,state" && geoKeysUnit.huc8 === "huc8,state" &&
+      geoKeysUnit.cd === "cd,state", JSON.stringify(geoKeysUnit));
     const geoSample = await page.evaluate(function () {
       var r = Studio.sampleRows({ columns: ["county_fips", "pct"] });
       return { firstId: String(r.rows[0][0]), allFips: r.rows.every(function (row) { return /^\d{5}$/.test(String(row[0])); }) };
@@ -1566,6 +1572,9 @@ function serve() {
     const geoHuc = await geoProbe("huc8", "huc8", [["07080105", 9], ["07130001", 5], ["10230003", 2]]);
     ok("GEO huc8: 2k+ nationwide watersheds render and color by value",
       geoHuc.regions >= 2000 && geoHuc.colored === 3, JSON.stringify({ regions: geoHuc.regions, colored: geoHuc.colored }));
+    const geoCd = await geoProbe("cd", "district", [["1901", 8], ["1902", 5], ["1903", 3]]);
+    ok("GEO cd: 400+ nationwide congressional districts (their own geometry, not merged from counties) render and color by value",
+      geoCd.regions >= 400 && geoCd.colored === 3, JSON.stringify({ regions: geoCd.regions, colored: geoCd.colored }));
     // Hover highlight must not STICK: the highlight is a single always-on-top overlay
     // path that re-points to the hovered region — the data paths are NEVER re-ordered
     // (an appendChild raise on mouseenter detaches the path and swallows its own
