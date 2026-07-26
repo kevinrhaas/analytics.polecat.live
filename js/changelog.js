@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 578,
+    title: 'Tech debt: Connections moves to its own module',
+    kind: 'polish',
+    ts: '2026-07-26T13:49:20.000Z',
+    items: [
+      'Behind-the-scenes cleanup only -- the Connections subsystem now lives in its own file instead of inside the main app controller. No visible change.',
+    ],
+  },
+  {
     v: 577,
     title: 'Tech debt: a named type scale for the builder',
     kind: 'polish',

@@ -5,7 +5,19 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v214"; /* v214: UX5 slice 1 (quality track) — a named
+var CACHE_NAME = "studio-shell-v215"; /* v215: R5+ slice 8 (studio.js module extraction,
+   tech-debt track) — the Connections subsystem (workspace-level connections to external
+   sources, the first plane of the connections → datasets → dashboards model) moves out
+   of app/studio.js into its own module, app/connections.js (Studio.Connections), following
+   the chart-thumbnails.js/branding.js/defaults.js/celebrations.js/versions.js/explore.js/
+   jobs.js extraction precedent (①-⑦): same ONE-bundled-Studio.Connections.configure(deps)
+   call shape as VersionsUI (⑤), Explore (⑥), and Jobs (⑦), since this subsystem is just as
+   entangled with studio.js's private DOM/modal + visibility/user + credential-field helpers.
+   Pure refactor, no behavior change. New precached file (app/connections.js) and
+   app/studio.js/app/index.html content changed, so precached copies need to roll. NEXT in
+   this track: Datasets (last — runDataset/window.__studioRunDataset bridges back into the
+   builder preview, so it stays in studio.js and is only ever injected as a dependency).
+   v214: UX5 slice 1 (quality track) — a named
    type-scale (--fs-8..--fs-25, 19 steps) now lives in app/studio.css's token bridge
    block; every font-size declaration in the file (300+ call sites, previously raw
    px values with no shared vocabulary) now reads var(--fs-*) instead. Pure aliasing,
@@ -1139,6 +1151,7 @@ var SHELL_FILES = [
   "app/versions.js",
   "app/explore.js",
   "app/jobs.js",
+  "app/connections.js",
   "app/studio.js",
   "app/palette.js",
   "app/studio-render.js",
