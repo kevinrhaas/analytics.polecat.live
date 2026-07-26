@@ -116,6 +116,24 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **UX5 slice 3 — spacing tokens, the pure-alias half (v581, sw v218, 2026-07-26,
+  steward):** the documented follow-up to slice 2 (the last open UX5 item). A read-only
+  pass found 30 distinct raw px values across every `padding`/`padding-(top|right|
+  bottom|left)` declaration in `app/studio.css` (285 call sites, 0 to 60px, most NOT
+  on a clean 4px grid — 7/9/11/13/14/17/22/26/34px etc.). A new `--sp-0`..`--sp-60`
+  custom-property scale (one named step per distinct value already in use) now lives
+  in the file's existing token-bridge `:root` block, and every one of the 285 call
+  sites now reads `var(--sp-*)` instead of a literal. Deliberately a pure aliasing
+  pass, same move as UX5 slice 1's type scale — every token's value is copied
+  byte-for-byte from what it replaced, so nothing renders differently (full suite
+  green, unchanged at 2139/2139). This is the honest MVP step before the real
+  coherence win: rounding the odd values onto a clean 4px-base grid (7→8, 9→8,
+  11→12, 13→12, …) is a follow-up slice, deliberately not attempted here — unlike
+  slice 2's ≤0.5px font rounding, a padding rounding shifts real layout (1-4px) and
+  needs actual visual re-verification across all 6 theme×mode combos, not just a
+  green suite. (app/studio.css, sw.js, js/changelog.js) **NEXT in this track: the
+  4px-base rounding pass for spacing (needs visual re-verification)** — or UX8
+  (Tooltip primitive), the next unstarted item in the UX-POLISH track.
 - **UX5 slice 2 — half-step consolidation (v580, sw v217, 2026-07-26, steward):** the
   documented follow-up to slice 1's type-scale token pass. The 7 near-duplicate
   half-step tokens (`--fs-8-5`/`9-5`/`10-5`/`11-5`/`12-5`/`13-5`/`15-5`) each round UP
@@ -4579,8 +4597,13 @@
 >      ✓ **Slice 2 shipped (v580, sw v217, 2026-07-26, steward): the half-step consolidation.** See
 >      DONE for the full writeup — the 7 half-step tokens round up to their nearest whole step (142
 >      call sites repointed, half-step custom properties removed), a mechanical ≤0.5px-per-element
->      change needing no visual-identity call. NEXT in this track: the spacing half (4px-base tokens
->      for the file's one-off paddings) is the only open UX5 item left.
+>      change needing no visual-identity call.
+>      ✓ **Slice 3 shipped (v581, sw v218, 2026-07-26, steward): the spacing half, pure-alias step.**
+>      See DONE for the full writeup — a new `--sp-0`..`--sp-60` scale (30 named steps) now backs
+>      every padding declaration (285 call sites), values copied byte-for-byte so nothing renders
+>      differently. NEXT in this track: the actual 4px-base rounding pass for spacing (needs real
+>      visual re-verification across all 6 theme×mode combos — the one open UX5 item left) — or UX8
+>      (Tooltip primitive), the next unstarted item in the UX-POLISH track.
 > UX6. **currentColor icon migration:** replace chrome glyphs (`⋯ ↶ ↷ ＋ ▾ ☰ ⇄ 📋 ● ‹ ›`) and the
 >      welcome-step letter icons with `Studio.icon()` SVGs — directly satisfies the fleet
 >      "single-color currentColor icons" bar (the `📋` emoji is full-color = a direct miss). Larger,

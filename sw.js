@@ -5,7 +5,16 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v217"; /* v217: UX5 slice 2 (quality track) — the 7
+var CACHE_NAME = "studio-shell-v218"; /* v218: UX5 slice 3 (quality track) — a
+   `--sp-*` spacing scale (30 named steps, one per distinct padding px value already
+   in use, from 0 to 60px) now lives in studio.css's token-bridge :root block, and
+   every `padding`/`padding-(top|right|bottom|left)` declaration in the file (285
+   call sites) reads `var(--sp-*)` instead of a raw literal — same pure-aliasing
+   move as UX5 slice 1's type scale, so nothing renders differently. Rounding the
+   odd values onto a clean 4px grid is a follow-up slice (needs real visual
+   re-verification, not just a green suite). app/studio.css content changed, so the
+   precached copy needs to roll.
+   v217: UX5 slice 2 (quality track) — the 7
    half-step type-scale tokens (--fs-8-5/9-5/10-5/11-5/12-5/13-5/15-5) each round UP
    to their nearest whole step (--fs-9/10/11/12/13/14/16) and every call site (142
    references) repoints there, so the scale is now 12 real steps instead of 19
