@@ -5,7 +5,23 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v204"; /* v204: LF22 slice 2 — a new Congressional districts
+var CACHE_NAME = "studio-shell-v205"; /* v205: LF22 slice 3 — a new 5-digit ZIP (ZCTA) choropleth
+   scale, the third geography-expansion item: tools/build-geo.mjs fetches all ~33.8k ZIP Code
+   Tabulation Areas nationwide from Census TIGERweb (tigerWMS_Current/MapServer layer 2, which
+   carries no STATE attribute, so territories are dropped via the existing null-projection filter
+   instead of a server-side state clause), simplifies aggressively (maxAllowableOffset 0.08 — size
+   plateaus past that point since the floor is polygon COUNT, not vertex detail) and commits
+   vendor/geo/us-zcta-albers.json (33,642 features, ~4.4MB — not precached, same as the other
+   vendor/geo assets, but meaningfully bigger than huc8/cd; per-state lazy load remains a real
+   follow-up if export size becomes a problem — see STATUS.md NEXT). New "zcta" scale wired through
+   geoFeatures/geoFeaturesGL/geoNormalizeId/scaleNoun (app/studio-charts.js), Studio.geoAssetKeys +
+   the Region-scale dropdown (app/model.js) + Explore's own map-editor scale list (app/studio.js,
+   which had also been missing "cd" since slice 2 — fixed here too), and the three duplicated
+   GEO_FILES lookup tables (app/studio.js's ensureGeoAssets, app/viewer.js, tools/lib.js) — every
+   place that already special-cases cd gained a twin zcta branch. app/studio-charts.js,
+   app/studio.js, app/model.js, app/viewer.js, docs/index.html changed, so precached copies need
+   to roll.
+   v204: LF22 slice 2 — a new Congressional districts
    (119th Congress) choropleth scale, the second geography-expansion item after slice 1's
    nationwide watersheds: tools/build-geo.mjs fetches district boundaries from Census TIGERweb
    (Legislative/MapServer), reprojects onto the same AlbersUsa plane, and commits

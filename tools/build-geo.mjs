@@ -13,6 +13,10 @@
              vendor/geo/us-cd-albers.json          (Census TIGERweb 119th Congressional
                                                      Districts → reprojected, nationwide:
                                                      all 50 states + DC, LF22 item 2)
+             vendor/geo/us-zcta-albers.json        (Census TIGERweb 2020 ZIP Code
+                                                     Tabulation Areas → reprojected,
+                                                     nationwide: all 50 states + DC,
+                                                     LF22 item 3)
 
    All redistribution licensing is recorded in THIRD-PARTY-NOTICES.md and
    vendor/geo/README.md. Sources: npm registry (topojson-client, us-atlas, and the
@@ -211,4 +215,48 @@ const cdTopo = topology({ cd: { type: "FeatureCollection", features: cdProjected
 delete cdTopo.bbox;
 writeFileSync(path.join(OUT, "us-cd-albers.json"), JSON.stringify(cdTopo));
 console.log("CD:", cdProjected.length, "features →", JSON.stringify(cdTopo).length, "bytes");
+
+// ── 5. ZCTA (5-digit ZIP Code Tabulation Areas) nationwide: fetch, reproject, quantize (LF22 item 3) ──
+// Unlike HUC8/CD, this layer carries no STATE attribute (a ZCTA is a Census
+// tabulation shape, not a state-scoped feature), so there's no server-side
+// state filter to apply — fetch everything and let projRing's null-projection
+// drop territories (PR/VI/GU/AS/MP) exactly the way the state-filtered fetches
+// already do, just at the projection step instead of the query step. ~33.8k
+// ZCTAs nationwide (vs 436 CDs) is a much bigger pull, so simplify more
+// aggressively (maxAllowableOffset 0.08 — tested 0.02/0.03/0.05/0.08/0.1/0.15/0.2
+// during scoping; size plateaus past ~0.08 because the floor is polygon COUNT,
+// not per-ring vertex detail, so pushing the offset further buys negligible
+// extra savings for a real loss of shape fidelity).
+let zOffset = 0, zFeats = [];
+for (;;) {
+  const qs = new URLSearchParams({
+    where: "1=1", outFields: "ZCTA5,GEOID", f: "geojson",
+    maxAllowableOffset: "0.08", geometryPrecision: "4",
+    resultOffset: String(zOffset), resultRecordCount: "1000", returnGeometry: "true",
+  });
+  const j = await (await fetch(
+    "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/tigerWMS_Current/MapServer/2/query?" + qs,
+    { signal: AbortSignal.timeout(180000) }
+  )).json();
+  if (j.error) throw new Error(JSON.stringify(j.error));
+  zFeats = zFeats.concat(j.features || []);
+  console.log("ZCTA batch @", zOffset, "→ total", zFeats.length);
+  if (!(j.features || []).length || !j.exceededTransferLimit) break;
+  zOffset += j.features.length;
+}
+const zProjected = [];
+for (const f of zFeats) {
+  const g = f.geometry; if (!g) continue;
+  const polys = (g.type === "Polygon" ? [g.coordinates] : g.type === "MultiPolygon" ? g.coordinates : [])
+    .map((poly) => poly.map(projRing).filter(Boolean)).filter((p) => p.length);
+  if (!polys.length) continue; // drops territories (PR/VI/GU/AS/MP) — outside AlbersUsa's plane
+  // id = 5-digit ZCTA code (e.g. "50010" = Ames, IA); name = "ZIP <code>" since
+  // TIGERweb's ZCTA layer carries no place name, unlike CD's own NAME field.
+  zProjected.push({ type: "Feature", id: f.properties.ZCTA5, properties: { name: "ZIP " + f.properties.ZCTA5 },
+    geometry: polys.length === 1 ? { type: "Polygon", coordinates: polys[0] } : { type: "MultiPolygon", coordinates: polys } });
+}
+const zTopo = topology({ zcta: { type: "FeatureCollection", features: zProjected } }, 1e4);
+delete zTopo.bbox;
+writeFileSync(path.join(OUT, "us-zcta-albers.json"), JSON.stringify(zTopo));
+console.log("ZCTA:", zProjected.length, "features →", JSON.stringify(zTopo).length, "bytes");
 console.log("build-geo: DONE");

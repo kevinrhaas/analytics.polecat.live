@@ -1138,7 +1138,7 @@
     });
     if (XP.type === "choropleth") {
       rows.push('<label class="xp-map-row"><span>Region scale</span><select data-xp-opt="scale">' +
-        [["county", "Counties (FIPS)"], ["state", "States"], ["crd", "USDA districts (CRD)"], ["huc8", "Watersheds (HUC8)"]].map(function (o) {
+        [["county", "Counties (FIPS)"], ["state", "States"], ["crd", "USDA districts (CRD)"], ["huc8", "Watersheds (HUC8)"], ["cd", "Congressional districts"], ["zcta", "ZIP codes (ZCTA)"]].map(function (o) {
           return '<option value="' + o[0] + '"' + ((XP.opts.scale || "county") === o[0] ? " selected" : "") + ">" + o[1] + "</option>";
         }).join("") + "</select></label>");
       // LF12: reuse the canonical renderer opt (model.js Studio.CHARTS.choropleth)
@@ -5333,7 +5333,7 @@
     if (!missing.length && !needGL && (S.assets.topojson || !keys.length)) return Promise.resolve(false);
     var FILES = { county: "vendor/geo/counties-albers-10m.json", state: "vendor/geo/states-albers-10m.json",
       huc8: "vendor/geo/us-huc8-albers.json", cd: "vendor/geo/us-cd-albers.json",
-      crdMap: "vendor/geo/us-crd-counties.json" };
+      zcta: "vendor/geo/us-zcta-albers.json", crdMap: "vendor/geo/us-crd-counties.json" };
     var jobs = missing.map(function (k) {
       return fetch(FILES[k]).then(function (r) { return r.text(); }).then(function (t) { S.assets.geo[k] = t; });
     });

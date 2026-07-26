@@ -116,6 +116,49 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF22 slice 3 — 5-digit ZIP codes (ZCTA), a new map scale (v568, sw v205, 2026-07-26,
+  steward):** the third item of LF22's geography-expansion list ("(3) 5-digit ZIP → ZCTA").
+  `tools/build-geo.mjs` gained a 5th fetch step querying Census TIGERweb's `tigerWMS_Current/
+  MapServer` layer 2 ("2020 Census ZIP Code Tabulation Areas") — unlike HUC8/CD this layer
+  carries no STATE attribute, so there's no server-side state filter; territories (PR/VI/GU/
+  AS/MP) drop out via the same null-projection filter the state-filtered fetches already use,
+  just at the projection step instead of the query step. ~33.8k ZCTAs nationwide (vs 436 CDs)
+  is a much bigger pull than any prior LF22 slice, so simplification is more aggressive
+  (`maxAllowableOffset` 0.08 vs CD's 0.01/HUC8's 0.02) — tested 0.02 through 0.2 during
+  scoping and confirmed the size floor is set by polygon COUNT (33.6k distinct small regions),
+  not per-ring vertex detail, so pushing the offset past ~0.08 buys negligible extra savings
+  for a real loss of shape fidelity. Committed `vendor/geo/us-zcta-albers.json` (33,642
+  features, ~4.4MB) — meaningfully bigger than every other vendor/geo asset (huc8 is the next
+  largest at 1.26MB). **Size tradeoff, flagged honestly rather than hidden:** LF22's own spec
+  text called for "aggressive simplify + per-state lazy load so exports stay lean" for this
+  exact scale; this slice ships the aggressive-simplify half only (the same judgment call
+  slice 1 made for HUC8 — ship without lazy load if the result is workable, defer lazy load
+  as a real follow-up). At 4.4MB a ZCTA choropleth's exported single-file HTML is genuinely
+  heavier than the app's other maps (vendor/geo/* is never precached, so this doesn't tax the
+  app-shell install, but exporters.js DOES inline the whole scale's geometry into any dashboard
+  export that uses it — see exporters.js's `geoScript` inliner). Building real per-state lazy
+  load would need a way to bucket ~33.6k features by state (TIGERweb's ZCTA layer has no STATE
+  field to key on) plus export-time scoping logic that still honors the V9 "show full expected
+  geography, not just present ids" no-data convention — a genuinely separate architecture
+  project, not a same-slice extension. **NEXT in LF22: per-state lazy load for the ZCTA asset
+  remains open if export size becomes a real problem, then (4) the counties→custom-region
+  mapping importer.** New `zcta` scale wired through every place that already special-cased
+  `cd`: `geoFeatures`/`geoFeaturesGL`/`geoNormalizeId`/`scaleNoun` (`app/studio-charts.js`),
+  `Studio.geoAssetKeys` + the Region-scale dropdown (`app/model.js`), and the GEO_FILES lookup
+  tables duplicated in `app/studio.js`'s `ensureGeoAssets`, `app/viewer.js`, and the CLI
+  export's own copy (`tools/lib.js`). Incidental fix found while wiring: Explore's own
+  map-editor scale picker (`app/studio.js`'s `xpMapEditorHtml`) had been missing `cd` since
+  slice 2 — added both `cd` and `zcta` there so the two scale pickers stay in sync. Region ids
+  are 5-digit ZIP codes (zero-padded, e.g. "02134"). docs/index.html's choropleth description
+  and "every scale of chart" copy updated; THIRD-PARTY-NOTICES.md gained a TIGERweb ZCTA row.
+  4 new regression tests (topology parses with 33k+ features; ids are unique 5-digit strings;
+  `geoAssetKeys` maps the `zcta` scale to exactly `state,zcta`; a full-pipeline probe with real
+  ZIP codes (50010/10001/94102) renders colored regions through the real exported iframe).
+  Sample-data heuristics (`app/sampledata.js`) and the demo packs were deliberately NOT touched
+  — out of scope for wiring a new scale, same as slices 1-2. Suite green, 2129/2129.
+  (tools/build-geo.mjs, vendor/geo/us-zcta-albers.json, app/studio-charts.js, app/studio.js,
+  app/model.js, app/viewer.js, tools/lib.js, docs/index.html, THIRD-PARTY-NOTICES.md, sw.js,
+  js/changelog.js, tests/run.js)
 - **LF22 slice 2 — congressional districts, a new map scale (v567, sw v204, 2026-07-26,
   steward):** the second item of LF22's geography-expansion list ("(2) Congressional
   districts"). Unlike CRD (derived by merging county polygons per NASS district), congressional
@@ -3820,8 +3863,13 @@
 >       reasonable; lazy-load-per-region wasn't needed at this size.
 >       ✓ **Slice 2 shipped (v567, sw v204, 2026-07-26, steward): (2) Congressional districts.** See DONE for
 >       the full writeup. New `cd` scale, own vendored geometry from Census TIGERweb (districts split counties,
->       so they can't be derived by merging like CRD) — 436 districts nationwide, all 50 states + DC. NEXT in
->       LF22: (3) 5-digit ZIP→ZCTA, (4) the counties→custom-region mapping importer.
+>       so they can't be derived by merging like CRD) — 436 districts nationwide, all 50 states + DC.
+>       ✓ **Slice 3 shipped (v568, sw v205, 2026-07-26, steward): (3) 5-digit ZIP → ZCTA.** See DONE for the
+>       full writeup. New `zcta` scale, own vendored geometry from Census TIGERweb — 33,642 ZCTAs nationwide,
+>       all 50 states + DC, ~4.4MB (aggressive-simplify only; per-state lazy load is a real open follow-up,
+>       flagged in DONE, since this asset is markedly bigger than huc8/cd and gets inlined whole into any
+>       export that uses it). NEXT in LF22: per-state lazy load for the ZCTA asset (if export size becomes a
+>       real problem), then (4) the counties→custom-region mapping importer.
 > LF23. ★ **VIEWER MODE — open dashboards read-only, as their own page/tab, with role-gated Studio access (Kevin, live).**
 >       **PRIORITY (Kevin, 2026-07-24): start Viewer mode early — it's a near-term ★ priority.**
 >       Most people should OPEN a dashboard to READ it, not land in the full builder. From the Repository (Dashboards

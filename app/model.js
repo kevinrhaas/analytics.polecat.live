@@ -1071,11 +1071,11 @@
     // topojson-client — inlined into any export that contains a map panel.
     choropleth: {
       label: "Map (US choropleth)", icon: "⬢", group: "Maps",
-      desc: "US regions colored by value — county, state, district, watershed, or congressional district",
+      desc: "US regions colored by value — county, state, district, watershed, congressional district, or ZIP code",
       fields: ["idCol", "valueCol", "seriesCol"],
       opts: [
         { key: "scale",   type: "select", label: "Region scale", def: "county",
-          choices: [["county", "Counties (FIPS)"], ["state", "States"], ["crd", "USDA districts (CRD)"], ["huc8", "Watersheds (HUC8)"], ["cd", "Congressional districts"]] },
+          choices: [["county", "Counties (FIPS)"], ["state", "States"], ["crd", "USDA districts (CRD)"], ["huc8", "Watersheds (HUC8)"], ["cd", "Congressional districts"], ["zcta", "ZIP codes (ZCTA)"]] },
         { key: "renderer", type: "select", label: "Renderer", def: "svg",
           choices: [["svg", "Built-in (light — smallest export)"], ["gl", "Interactive GL (pan & zoom, ~1MB heavier export)"]],
           hint: "GL mode pans and zooms smoothly at any polygon count; it inlines MapLibre into the export. Falls back to the built-in renderer where WebGL is unavailable." },
@@ -2732,6 +2732,7 @@
     if (scales.county) { keys.county = 1; keys.state = 1; }           // + state border overlay
     if (scales.huc8) { keys.huc8 = 1; keys.state = 1; }
     if (scales.cd) { keys.cd = 1; keys.state = 1; }
+    if (scales.zcta) { keys.zcta = 1; keys.state = 1; }
     if (scales.crd) { keys.county = 1; keys.crdMap = 1; keys.state = 1; } // CRDs merge county geometry
     if (scales.state) { keys.state = 1; }
     return Object.keys(keys);
