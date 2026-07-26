@@ -963,6 +963,19 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
 .oh-pop-tip{color:var(--faint)}
 @media(prefers-reduced-motion:no-preference){.opt-hint-pop{animation:opthintfade .12s ease-out}}
 @keyframes opthintfade{from{opacity:0;transform:translateY(-2px)}to{opacity:1;transform:translateY(0)}}
+/* UX8 slice 1 (Tooltip primitive, app/tooltip.js): a themed, focusable, touch-
+   visible tooltip for the plain "one line of text" case — generalizes the
+   .opt-hint-pop pattern above without the picture popover. Studio.Tooltip.
+   hydrate() turns any [data-tip] element into one of these; shown on
+   hover/focus (CSS) or tap (.is-open, toggled in JS since touch has no
+   hover state). */
+.ps-tip{position:relative;cursor:help}
+.ps-tip-bub{display:none;position:absolute;left:0;bottom:100%;margin-bottom:6px;z-index:40;max-width:220px;
+  background:var(--pane);border:1px solid var(--line);border-radius:8px;padding:var(--sp-6) var(--sp-8);
+  box-shadow:var(--shadow-lg);color:var(--muted);font-size:var(--fs-11);line-height:1.4;font-weight:400;
+  text-align:left;pointer-events:none}
+.ps-tip:hover .ps-tip-bub,.ps-tip:focus .ps-tip-bub,.ps-tip.is-open .ps-tip-bub{display:block}
+@media(prefers-reduced-motion:no-preference){.ps-tip-bub{animation:opthintfade .12s ease-out}}
 /* N-FUN live what-if slider — a drag-to-animate numeric control (Holt-Winters alpha/beta/
    gamma, MA window, forecast periods…); the value badge tracks the thumb in real time. */
 .opt-range{display:flex;align-items:center;gap:9px}

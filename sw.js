@@ -5,7 +5,18 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v218"; /* v218: UX5 slice 3 (quality track) — a
+var CACHE_NAME = "studio-shell-v219"; /* v219: UX8 slice 1 (UX-POLISH track) — a
+   new Studio.Tooltip.hydrate() primitive (app/tooltip.js) turns any
+   data-tip="..." element into a themed, focusable, touch-visible tooltip
+   (generalizes the .opt-hint-pop pattern for the plain "one line of text"
+   case) — a native title= attribute is mouse-hover only, invisible on touch
+   and unreachable by keyboard. Converts the connection/dataset/job status
+   dots (Never tested/tested OK/failed, Never run/run OK/failed) as the
+   first proof; the many remaining title= call sites are follow-up slices.
+   New precached file (app/tooltip.js) and app/connections.js,
+   app/datasets.js, app/jobs.js, app/studio.css content changed, so
+   precached copies need to roll.
+   v218: UX5 slice 3 (quality track) — a
    `--sp-*` spacing scale (30 named steps, one per distinct padding px value already
    in use, from 0 to 60px) now lives in studio.css's token-bridge :root block, and
    every `padding`/`padding-(top|right|bottom|left)` declaration in the file (285
@@ -1168,6 +1179,7 @@ var SHELL_FILES = [
   "app/sources/data-adapters.js",
   "app/exporters.js",
   "app/icons.js",
+  "app/tooltip.js",
   "app/welcome.js",
   "app/tutorial.js",
   "js/changelog.js",

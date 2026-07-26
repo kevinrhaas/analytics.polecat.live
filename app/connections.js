@@ -100,7 +100,7 @@
     var t = c.lastTest;
     var cls = !t ? "cx-dot" : (t.ok ? "cx-dot ok" : "cx-dot bad");
     var tip = !t ? "Never tested" : (t.ok ? "Test OK" : "Test failed: " + (t.error || "")) + " · " + new Date(t.at).toLocaleString();
-    return '<span class="' + cls + '" title="' + esc(tip) + '"></span>';
+    return '<span class="' + cls + '" data-tip="' + esc(tip) + '"></span>';
   }
   // QA-02: the Connections header used to unconditionally claim credentials
   // "stay in this browser" — false once a workspace backend is connected,
@@ -226,6 +226,7 @@
               "<b>No connections yet.</b><br/>A connection points at where your data lives — a warehouse, a file over HTTP, an API — using one of the built-in adapters. Datasets are then defined on top of a connection and feed your dashboards.") +
             (q || anyFilter || anyTag || anyConnFolder ? "" : '<br/><button type="button" class="btn primary" id="connEmptyNew">+ New connection</button>') +
           '</div>');
+    Studio.Tooltip.hydrate(results);
     $$("[data-conn-adapter]", results).forEach(function (btn) {
       btn.onclick = function () {
         var k = btn.getAttribute("data-conn-adapter");

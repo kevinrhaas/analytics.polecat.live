@@ -239,9 +239,9 @@
     });
     var rows = shown.map(function (d) {
       var conn = dsxConnOf(d), src = dsxAdapterOf(d);
-      var dot = !d.lastRun ? '<span class="cx-dot" title="Never run"></span>'
-        : (d.lastRun.ok ? '<span class="cx-dot ok" title="Last run OK · ' + esc(new Date(d.lastRun.at).toLocaleString()) + ' · ' + d.lastRun.rows + ' rows"></span>'
-          : '<span class="cx-dot bad" title="Last run failed: ' + esc(d.lastRun.error) + '"></span>');
+      var dot = !d.lastRun ? '<span class="cx-dot" data-tip="Never run"></span>'
+        : (d.lastRun.ok ? '<span class="cx-dot ok" data-tip="Last run OK · ' + esc(new Date(d.lastRun.at).toLocaleString()) + ' · ' + d.lastRun.rows + ' rows"></span>'
+          : '<span class="cx-dot bad" data-tip="Last run failed: ' + esc(d.lastRun.error) + '"></span>');
       var tags = (d.tags || []).map(function (t) { return '<span class="cx-badge">#' + esc(t) + '</span>'; }).join("");
       var folderBadge = d.folder ? '<span class="cx-badge cx-folder" title="Folder: ' + esc(d.folder) + '">' + esc(d.folder) + '</span>' : "";
       var lineage = dsxLineage(d.id);
@@ -282,6 +282,7 @@
               (Studio.Workspace.all("connections").length ? "" : "<br/>Start by adding a connection in the Connections section.")) +
             (q || anyA || anyC || anyT || anyF || !Studio.Workspace.all("connections").length ? "" : '<br/><button type="button" class="btn primary" id="dsxEmptyNew">+ New dataset</button>') +
           '</div>');
+    Studio.Tooltip.hydrate(results);
     $$("[data-dsx-adapter]", results).forEach(function (btn) {
       btn.onclick = function () {
         var k = btn.getAttribute("data-dsx-adapter");

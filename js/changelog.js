@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 582,
+    title: 'A tooltip you can actually reach on a phone',
+    kind: 'polish',
+    ts: '2026-07-26T15:21:18.000Z',
+    items: [
+      'Connection, dataset, and job status dots now show their detail (never tested/run, last run OK, or the failure reason) in a themed popup you can tap or keyboard-focus open, not just hover -- the old browser tooltip never worked on touch and was invisible to keyboard users.',
+    ],
+  },
+  {
     v: 581,
     title: 'Tech debt: a named spacing scale for the builder',
     kind: 'polish',

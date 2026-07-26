@@ -116,6 +116,38 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **UX8 slice 1 — a Tooltip primitive, and the status-dot call sites (v582, sw v219,
+  2026-07-26, steward):** the UX-POLISH track's UX8 ask ("a themed, focusable,
+  touch-visible tooltip primitive generalizing `.opt-hint-pop`, replacing native
+  `title=` guidance strings") is large — 99 `title=` call sites across the app — so
+  this slice ships the primitive itself plus one coherent category of call site: the
+  connection/dataset/job status dots (`connStatusDot()` in `app/connections.js`, and
+  the inline dot ternaries in `app/datasets.js`/`app/jobs.js`). A native `title=` is
+  mouse-hover only — invisible on touch, never reachable by keyboard — so these
+  status indicators failed the fleet's mobile-is-a-gate bar outright. The new
+  `app/tooltip.js` (`Studio.Tooltip.hydrate(root)`) follows the same two-step
+  placeholder convention `app/icons.js`'s `[data-ic]` spans already use: markup
+  emits `data-tip="..."` instead of `title="..."`, then `hydrate()` is called on the
+  container right after the `innerHTML` assignment (mirroring `renderJobs()`'s
+  existing `[data-ic]` hydration pass) — it makes the element focusable, sets an
+  aria-label (unless one's already present), and appends a themed `.ps-tip-bub`
+  bubble (new CSS next to `.opt-hint-pop` in `app/studio.css`, reusing its
+  `opthintfade` keyframe) shown on hover/focus via CSS or tap via a single delegated
+  click listener that toggles an `.is-open` class (closed again on an outside click
+  or Escape, since touch has no hover state to fall back on). Deliberately scoped to
+  non-interactive status indicators, not buttons — most buttons' `title=` already
+  duplicates an existing `aria-label`, so converting those is a separate, lower-value
+  follow-up. 5 new regression checks (dot hydration removes `title=`/`data-tip`, adds
+  `.ps-tip` + `tabIndex=0` + a matching `aria-label`, the bubble is hidden until
+  hover/focus/tap then tap-toggles open and closes on outside click, across all three
+  subsystems). Full suite green, 2144/2144 (2139 + 5 new). (app/tooltip.js new,
+  app/connections.js, app/datasets.js, app/jobs.js, app/studio.css, app/index.html,
+  sw.js, js/changelog.js, tests/run.js) **NEXT in this track: the remaining `title=`
+  call sites (folder/tag/lineage/param badges are the next non-button category; every
+  button's `title=` is its own lower-priority follow-up since it's usually already
+  backed by an `aria-label`)** — or UX5's still-open 4px-base spacing-rounding pass
+  (needs real visual re-verification across all 6 theme×mode combos), the other open
+  item in the UX-POLISH track.
 - **UX5 slice 3 — spacing tokens, the pure-alias half (v581, sw v218, 2026-07-26,
   steward):** the documented follow-up to slice 2 (the last open UX5 item). A read-only
   pass found 30 distinct raw px values across every `padding`/`padding-(top|right|
@@ -4602,8 +4634,8 @@
 >      See DONE for the full writeup — a new `--sp-0`..`--sp-60` scale (30 named steps) now backs
 >      every padding declaration (285 call sites), values copied byte-for-byte so nothing renders
 >      differently. NEXT in this track: the actual 4px-base rounding pass for spacing (needs real
->      visual re-verification across all 6 theme×mode combos — the one open UX5 item left) — or UX8
->      (Tooltip primitive), the next unstarted item in the UX-POLISH track.
+>      visual re-verification across all 6 theme×mode combos) — the one open UX5 item left; see UX8
+>      below for the Tooltip primitive, now underway.
 > UX6. **currentColor icon migration:** replace chrome glyphs (`⋯ ↶ ↷ ＋ ▾ ☰ ⇄ 📋 ● ‹ ›`) and the
 >      welcome-step letter icons with `Studio.icon()` SVGs — directly satisfies the fleet
 >      "single-color currentColor icons" bar (the `📋` emoji is full-color = a direct miss). Larger,
@@ -4687,7 +4719,13 @@
 >      bounding-box height/width on phone, not just the declared CSS) + the existing `.da-act`/
 >      `.chip` ratchets raised from 36/40 to 44. sw v134. (app/studio.css, tests/run.js)
 > UX8. **Tooltip primitive** — a themed, focusable, touch-visible tooltip generalizing `.opt-hint-pop`,
->      replacing native `title=` guidance strings (slow, unstyleable, invisible on touch/keyboard). Larger.
+>      replacing native `title=` guidance strings (slow, unstyleable, invisible on touch/keyboard). Larger,
+>      99 call sites — sliced per category.
+>      ✓ **Slice 1 shipped (v582, sw v219, 2026-07-26, steward): the primitive + the status dots.** See
+>      DONE for the full writeup — `app/tooltip.js` (`Studio.Tooltip.hydrate()`) plus the connection/
+>      dataset/job status dots (`data-tip` replacing `title`). NEXT in this track: the folder/tag/
+>      lineage/param badges (non-button call sites) — every button's `title=` is a lower-priority
+>      follow-up since it usually just duplicates an existing `aria-label`.
 > UX9. ✓ **Modal `.btn` contrast fallback (shipped 2026-07-23, steward, see DONE).** New
 >      `.modal .btn` fallback (dark-on-light, same convention as `.app-sec`/`.btn.danger`).
 >      ⚠️ The broader geometry/font shell-alignment (adopt the fleet's Inter face + 14/20px
