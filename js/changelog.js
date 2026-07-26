@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 581,
+    title: 'Tech debt: a named spacing scale for the builder',
+    kind: 'polish',
+    ts: '2026-07-26T14:47:53.000Z',
+    items: [
+      'Every padding value in the builder chrome now draws from one shared spacing scale instead of scattered one-off numbers -- a behind-the-scenes coherence pass, nothing shifts on screen.',
+    ],
+  },
+  {
     v: 580,
     title: 'Type scale: fewer near-duplicate font sizes',
     kind: 'polish',
