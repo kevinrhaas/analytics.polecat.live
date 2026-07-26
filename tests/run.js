@@ -18741,7 +18741,6 @@ function serve() {
     // connection-bound adapter to get this treatment, after Turso, PostgREST, Supabase and Google
     // Sheets — and the simplest of all: a dropped file needs no live query, no secret and no cfg
     // once exported, since its content already rides on da.dataset (dsToDA, app/studio.js fix).
-    // Redshift is the only connection-bound backend left without an exported-runtime path.
     console.log("\n• Post-overhaul item 3 (connection-bound, local files): exported dashboards keep a dropped file's data live");
 
     const flRedaction = await page.evaluate(function () {
@@ -18814,6 +18813,106 @@ function serve() {
       flDispatch.noPromptNeeded, JSON.stringify(flDispatch));
     ok("Post-overhaul item 3 (local files): the real parse returns the dropped CSV's actual rows — NOT sample/mock data",
       flDispatch.cols && flDispatch.cols.join(",") === "region,total" && flDispatch.rows === '[["EMEA",120],["APAC",80]]', JSON.stringify(flDispatch));
+
+    // Post-overhaul backlog item 3, OTHER half — Redshift slice (2026-07-26): the sixth and LAST
+    // connection-bound adapter to get this treatment — CLOSES THE BACKLOG ITEM ENTIRELY. Unlike
+    // every adapter above, Redshift's secret isn't a single field: SigV4 needs accessKeyId +
+    // secretAccessKey (+ optional sessionToken), so CONN_ADAPTER_SECRET_FIELD carries an ARRAY for
+    // redshift and resolveSecret() prompts once per field, returning an object merged onto
+    // da.connCfg. Reuses the suite's existing mock Redshift Data API server (/__redshift-data,
+    // handleMockRedshiftData above — the same one the builder-level "RS:" adapter tests use).
+    console.log("\n• Post-overhaul item 3 (connection-bound, Redshift): exported dashboards can query a Redshift-backed dataset live");
+
+    const rsRedaction = await page.evaluate(function () {
+      var assets = window.__STUDIO_STATE.assets;
+      var conn = Studio.Workspace.put("connections", {
+        name: "rs-export-test", adapter: "redshift",
+        cfg: { region: "us-east-1", accessKeyId: "AKIDEXAMPLE", secretAccessKey: "topsecret", database: "dev", workgroupName: "default" }
+      });
+      var spec = {
+        name: "ok-name", title: "T", panels: [], kpis: [], filters: [],
+        cda: { dataAccesses: [{ id: "d1", name: "rsDa", kind: "sql", columns: ["x"], sql: "SELECT * FROM sales", query: "SELECT * FROM sales", connectionId: conn.id, datasetId: "ds-rs-1" }] }
+      };
+      var html = Studio.exportCDF(spec, assets, "/x");
+      return {
+        keepsRegion: html.indexOf("\"region\":\"us-east-1\"") >= 0,
+        keepsWorkgroup: html.indexOf("\"workgroupName\":\"default\"") >= 0,
+        omitsAccessKey: html.indexOf("AKIDEXAMPLE") < 0,
+        omitsSecret: html.indexOf("topsecret") < 0,
+        stampsConnAdapter: html.indexOf("\"connAdapter\":\"redshift\"") >= 0,
+        needsSecret: (html.match(/"needsSecret":(\[[^\]]*\]|"[^"]*")/) || [])[1]
+      };
+    });
+    ok("Post-overhaul item 3 (Redshift): exportCDF keeps the connection's non-secret cfg fields (region, workgroup) so the dataset still resolves",
+      rsRedaction.keepsRegion && rsRedaction.keepsWorkgroup, JSON.stringify(rsRedaction));
+    ok("Post-overhaul item 3 (Redshift): exportCDF strips both credential fields — the access key ID and secret access key never appear in the exported HTML",
+      rsRedaction.omitsAccessKey && rsRedaction.omitsSecret, JSON.stringify(rsRedaction));
+    ok("Post-overhaul item 3 (Redshift): the redacted DA is stamped with connAdapter:\"redshift\" so the runtime knows which engine to use",
+      rsRedaction.stampsConnAdapter, JSON.stringify(rsRedaction));
+    ok("Post-overhaul item 3 (Redshift): needsSecret is stamped as an ARRAY of just the two fields actually set — accessKeyId and secretAccessKey, NOT sessionToken (never set on this connection)",
+      rsRedaction.needsSecret === '["accessKeyId","secretAccessKey"]', JSON.stringify(rsRedaction));
+
+    const rsBundling = await page.evaluate(function () {
+      var assets = window.__STUDIO_STATE.assets;
+      var conn = Studio.Workspace.put("connections", { name: "rs-bundling-test", adapter: "redshift", cfg: { region: "us-east-1", accessKeyId: "AKID", secretAccessKey: "sk", workgroupName: "default" } });
+      var rsSpec = { name: "ok-name", title: "T", panels: [], kpis: [], filters: [], cda: { dataAccesses: [{ id: "d1", name: "d1", kind: "sql", columns: ["x"], sql: "SELECT 1", query: "SELECT 1", connectionId: conn.id }] } };
+      var plainSpec = { name: "ok-name", title: "T", panels: [], kpis: [], filters: [], cda: { dataAccesses: [{ id: "d1", name: "d1", kind: "sql", columns: ["x"] }] } };
+      var rsHtml = Studio.exportCDF(rsSpec, assets, "/x");
+      var plainHtml = Studio.exportCDF(plainSpec, assets, "/x");
+      function has(html, re) { return re.test(html); }
+      return {
+        rsHasRedshift: has(rsHtml, /Studio\.Redshift\s*=/),
+        rsHasSigV4: has(rsHtml, /Studio\.AwsSigV4\s*=/),
+        plainOmitsRedshift: !has(plainHtml, /Studio\.Redshift\s*=/),
+        plainOmitsSigV4: !has(plainHtml, /Studio\.AwsSigV4\s*=/)
+      };
+    });
+    ok("Post-overhaul item 3 (Redshift): a Redshift-connected export bundles both the Redshift façade and its SigV4 signer",
+      rsBundling.rsHasRedshift && rsBundling.rsHasSigV4, JSON.stringify(rsBundling));
+    ok("Post-overhaul item 3 (Redshift): a plain sql DA with no connection stays lean (no Redshift/SigV4 façades)",
+      rsBundling.plainOmitsRedshift && rsBundling.plainOmitsSigV4, JSON.stringify(rsBundling));
+
+    // Real end-to-end, UNSTUBBED — same regression class v228/v591 caught for postgrest.js/gsheets.js:
+    // proves the actual SigV4-signed request round-trips through an exported dashboard against the
+    // suite's existing mock Redshift Data API server, and that all three prompted credential values
+    // (accessKeyId/secretAccessKey/sessionToken) land in the connector's cfg — not just the first.
+    const rsRealQuery = await page.evaluate(async function (port) {
+      var assets = window.__STUDIO_STATE.assets;
+      var conn = Studio.Workspace.put("connections", {
+        name: "rs-real-query-test", adapter: "redshift",
+        cfg: {
+          region: "us-east-1", accessKeyId: "AKIDEXAMPLE", secretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+          sessionToken: "a-session-token", database: "dev", workgroupName: "default",
+          endpoint: "http://localhost:" + port + "/__redshift-data"
+        }
+      });
+      var da = { id: "d1", name: "d1", kind: "sql", columns: ["region", "total"], sql: "SELECT * FROM sales", query: "SELECT * FROM sales", connectionId: conn.id };
+      var spec = { name: "ok-name", title: "T", panels: [], kpis: [], filters: [], cda: { dataAccesses: [da] } };
+      var html = Studio.exportCDF(spec, assets, "/x");
+      var ifr = document.createElement("iframe");
+      ifr.style.display = "none";
+      document.body.appendChild(ifr);
+      await new Promise(function (resolve) { ifr.onload = resolve; ifr.srcdoc = html; });
+      var iw = ifr.contentWindow;
+      var prompts = [];
+      iw.window.prompt = function (msg) {
+        prompts.push(msg);
+        if (/access key ID/.test(msg)) return "AKIDEXAMPLE";
+        if (/secret access key/.test(msg)) return "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY";
+        if (/session token/.test(msg)) return "a-session-token";
+        return "";
+      };
+      var thrown = null, result = null;
+      try { result = await iw.PDC.cda("d1", {}); } catch (e) { thrown = e.message; }
+      document.body.removeChild(ifr);
+      return { thrown: thrown, cols: result && result.cols, rows: result && JSON.stringify(result.rows), promptCount: prompts.length };
+    }, PORT);
+    ok("Post-overhaul item 3 (Redshift) REGRESSION: an exported dashboard's REAL (unstubbed) SigV4-signed Redshift query runs against a live mock Data API without throwing",
+      !rsRealQuery.thrown, JSON.stringify(rsRealQuery));
+    ok("Post-overhaul item 3 (Redshift) REGRESSION: the real query round-trip returns the mock's actual rows",
+      rsRealQuery.cols && rsRealQuery.cols.join(",") === "region,total" && rsRealQuery.rows === '[["EMEA",120],["AMER",200]]', JSON.stringify(rsRealQuery));
+    ok("Post-overhaul item 3 (Redshift): exactly three prompts fire — one per credential field (accessKeyId, secretAccessKey, sessionToken) — not one combined prompt",
+      rsRealQuery.promptCount === 3, JSON.stringify(rsRealQuery));
 
     // ── F18: Bump / ranking chart (v104) ─────────────────────────────────────
     console.log("\n• F18: Bump chart");

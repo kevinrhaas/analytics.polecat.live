@@ -5,7 +5,27 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v231"; /* v231: Post-overhaul backlog item 3, other
+var CACHE_NAME = "studio-shell-v232"; /* v232: Post-overhaul backlog item 3, OTHER
+   half, Redshift slice — CLOSES this backlog item out entirely: the sixth and last
+   connection-bound adapter to get the exported-runtime treatment (after Turso,
+   PostgREST, Supabase, Google Sheets and local files), and the first whose secret
+   isn't a single field — AWS SigV4 needs an access key ID + secret access key
+   (plus an optional session token for temporary/STS credentials), so
+   exporters.js's CONN_ADAPTER_SECRET_FIELD carries an ARRAY of field names for
+   redshift instead of one string; redactSecrets stamps da.needsSecret with just
+   the subset actually set (sessionToken is optional). studio-render.js's
+   resolveSecret() now handles an array da.needsSecret by prompting once per
+   field and returning an object whose keys already match Studio.Redshift's own
+   cfg shape, so CONN_ENGINES.redshift.cfg() merges it straight onto da.connCfg
+   with no reshaping. app/redshift.js gained a self-contained queryData(cfg,
+   dataset) (data-adapters.js's sqlBridge() bridge, duplicated because
+   data-adapters.js itself is never bundled into an export). app/studio.js and
+   app/viewer.js now also fetch app/sources/sigv4.js + app/redshift.js as export
+   assets, bundled into the exported HTML only when a dashboard actually has a
+   connAdapter:"redshift" DA. app/redshift.js, app/exporters.js,
+   app/studio-render.js, app/studio.js, app/viewer.js, docs/index.html changed,
+   so the precached copies need to roll.
+   v231: Post-overhaul backlog item 3, other
    half, local-files slice — the same connection-bound exported-runtime treatment
    v226/v227/v229/v230 gave Turso/PostgREST/Supabase/Google Sheets, now for a dropped
    CSV/JSON file — the fifth adapter, and (like Google Sheets) the second with no

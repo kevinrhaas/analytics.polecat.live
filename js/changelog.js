@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 595,
+    title: 'Redshift datasets now stay live in exported dashboards too',
+    kind: 'feature',
+    ts: '2026-07-26T23:16:51.000Z',
+    items: [
+      'The same connection-bound live-data support Turso, PostgreSQL (PostgREST), Supabase, Google Sheets and local files got now covers Amazon Redshift: exporting a dashboard built on a Redshift connection keeps it querying live once deployed, instead of falling back to offline sample data. This closes out the whole "connection-bound datasets stay live after export" effort -- all six backends now support it.',
+      'Unlike the other backends, Redshift needs three credential fields to sign requests (an access key ID, a secret access key, and an optional session token) instead of one -- the exported dashboard now prompts once per field the first time it needs to query live, same "used only in your browser, never saved" contract as every other credential prompt.',
+    ],
+  },
+  {
     v: 594,
     title: 'Local file datasets now stay live in exported dashboards too',
     kind: 'feature',

@@ -116,6 +116,41 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **Post-overhaul backlog item 3, OTHER half — Redshift joins Turso, PostgREST, Supabase, Google
+  Sheets and local files with an exported-runtime path (v595, sw v232, 2026-07-26, steward) — THIS
+  CLOSES THE BACKLOG ITEM ENTIRELY, all six connection-bound adapters now covered.** Redshift was
+  flagged as the harder of the two remaining backends (the other, local files, shipped last slice)
+  because AWS SigV4 signing needs THREE credential fields — accessKeyId, secretAccessKey, and an
+  optional sessionToken for temporary/STS credentials — not the single bearer token/key every
+  other adapter's `CONN_ADAPTER_SECRET_FIELD` entry assumed. Extended that shape to accept an
+  ARRAY of field names for an adapter keyed this way: `redactSecrets` (`app/exporters.js`) now
+  stamps `da.needsSecret` with just the SUBSET of the array actually set on the connection (so a
+  connection using permanent IAM-user creds, no session token, is never prompted for one), and
+  `studio-render.js`'s `resolveSecret()` now branches on `Array.isArray(da.needsSecret)` — prompts
+  once per field (friendly labels via a new `SECRET_FIELD_LABELS` map) and returns an OBJECT whose
+  keys already match `Studio.Redshift`'s own cfg field names, so `CONN_ENGINES.redshift.cfg()`
+  merges it straight onto `da.connCfg` with `Object.assign` — no reshaping needed, unlike the
+  single-field adapters' hardcoded `{token: secret}`/`{key: secret}`. `app/redshift.js` gained a
+  self-contained `queryData(cfg, dataset)` bridging `query()`'s `{cols,rows}` into the
+  `{columns,rows}` shape `CONN_ENGINES` expects — the same bridge `data-adapters.js`'s
+  `sqlBridge()` already builds for the BUILDER's registered source, duplicated here (not reused)
+  because `data-adapters.js` itself is never bundled into an export. Speaks raw SQL like Turso (a
+  redshift-backed dataset is always `kind:"sql"`, so `da.sql`/`da.query` already carries the query
+  text — no `dsToDA` changes needed, unlike Google Sheets/local files' nested `da.dataset` fields).
+  `app/studio.js` and `app/viewer.js` now also fetch `app/sources/sigv4.js` + `app/redshift.js` as
+  export assets (sigv4 first — `callAction()` signs every request via `Studio.AwsSigV4`), bundled
+  into the exported HTML only when a dashboard actually has a `connAdapter:"redshift"` DA. SW cache
+  → v232. `docs/index.html`'s "Connection-bound datasets" paragraph now names all six adapters and
+  calls out Redshift's "prompts once per field, not once overall" exception. 9 new tests (redaction
+  keeps the non-secret cfg fields + stamps connAdapter/needsSecret as an array of only the fields
+  actually set — sessionToken omitted when blank; lean bundling both ways; a stubbed dispatch round
+  -trip proving all three prompted values merge into the connector's cfg; and a REAL, unstubbed
+  end-to-end regression against the suite's existing mock Redshift Data API server — the same one
+  the builder-level `RS:` adapter tests already use — proving the actual SigV4-signed request round
+  -trips through an exported dashboard). Full suite green. This is the last item in "post-overhaul
+  backlog item 3, connection-bound dataset adapters" — no further adapters are known to need this
+  treatment. NEXT: continuing the Track L/H/N self-directed rotation, or the M5 Repository-browser
+  folder-tree groundwork flagged in the DECISIONS LOCKED block below, are both good next slices.
 - **Post-overhaul backlog item 3, OTHER half — local files join Turso, PostgREST, Supabase and
   Google Sheets with an exported-runtime path (v594, sw v231, 2026-07-26, steward):** the fifth
   connection-bound adapter to get the treatment, and — like Google Sheets — the second with no
