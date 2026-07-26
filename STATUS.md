@@ -116,6 +116,28 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **REGRESSION FIX — the just-shipped PostgREST connection-bound export path actually threw
+  (v591, sw v228, 2026-07-26, steward):** v590 (below) claimed "PostgreSQL (PostgREST) datasets
+  now run live in exported dashboards too," but `app/sources/postgrest.js`'s `queryData` called
+  `Studio.WS.postgrestQueryData` (`app/sources/schema.js`), and the exported bundle never loads
+  `schema.js` — same "builder-only module, never inlined into the exported bundle" situation
+  `studio-render.js` already documents local copies for (`applyTemplateVars`/`evalFormula`/
+  `withTimeout`). Any real exported/deployed dashboard querying a PostgREST connection threw
+  immediately (`Cannot read properties of undefined (reading 'postgrestQueryData')`) — verified by
+  direct reproduction before fixing. The existing "dispatch" test never caught it because it
+  replaced `Studio.postgrestSource.queryData` with a spy BEFORE calling it, so the real function
+  body never ran. Fix: `postgrest.js` now carries its own self-contained copy of the query-data
+  logic (byte-identical to `schema.js`'s, no `Studio.WS` dependency) — in-app callers (Explore/
+  preview, where `Studio.WS` does exist) are unaffected. Added 2 new regression tests that build a
+  real exported HTML via `Studio.exportCDF`, load it into a real `srcdoc` iframe, and call
+  `PDC.cda` with `queryData` left completely UNSTUBBED against a live mock PostgREST endpoint —
+  proving the real code path both doesn't throw and returns real rows. Full suite green (2194).
+  `Studio.WS.postgrestQueryData` itself is untouched (`app/sources/supabase.js` still calls it —
+  fine, since Supabase has no exported-runtime path yet and always runs in-app where `Studio.WS`
+  exists). NEXT: when Supabase (or any future connection-bound adapter) gets its own
+  exported-runtime path, give it the same self-contained treatment up front rather than reaching
+  for the shared `Studio.WS` helper. (app/sources/postgrest.js, tests/run.js, sw.js,
+  js/changelog.js) SW cache → v228.
 - **Post-overhaul backlog item 3, OTHER half — PostgreSQL (PostgREST) joins Turso with an
   exported-runtime path (v590, sw v227, 2026-07-26, steward):** the second connection-bound
   adapter, same treatment the prior slice built for Turso. Two adapter-shape wrinkles this one

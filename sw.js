@@ -5,7 +5,19 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v227"; /* v227: Post-overhaul backlog item 3, other
+var CACHE_NAME = "studio-shell-v228"; /* v228: REGRESSION FIX — the v227 PostgREST
+   connection-bound exported-runtime feature actually threw in any real exported
+   dashboard: app/sources/postgrest.js's queryData called Studio.WS.postgrestQueryData
+   (app/sources/schema.js), but the exported bundle never loads schema.js (same
+   "builder-only module, never inlined into the exported bundle" situation
+   studio-render.js documents for its own local copies of applyTemplateVars/
+   evalFormula/withTimeout) — masked by a test that stubbed out queryData before
+   calling it, so the dispatch tests passed while the real code path crashed
+   ("Cannot read properties of undefined (reading 'postgrestQueryData')"). Gave
+   postgrest.js its own self-contained copy of the query-data logic (no Studio.WS
+   dependency); added a real, unstubbed end-to-end test driving the actual exported
+   bundle against a live mock PostgREST endpoint. app/sources/postgrest.js changed,
+   so the precached copy needs to roll. v227: Post-overhaul backlog item 3, other
    half, PostgREST slice — the same connection-bound exported-runtime treatment v226
    gave Turso, now for PostgREST connections. exporters.js's redactSecrets learned
    postgrest's secret field (token, OPTIONAL — anonymous PostgREST access never gets
