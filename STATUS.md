@@ -116,6 +116,21 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **UX5 slice 2 — half-step consolidation (v580, sw v217, 2026-07-26, steward):** the
+  documented follow-up to slice 1's type-scale token pass. The 7 near-duplicate
+  half-step tokens (`--fs-8-5`/`9-5`/`10-5`/`11-5`/`12-5`/`13-5`/`15-5`) each round UP
+  to the nearest whole step already in the scale (`--fs-9`/`10`/`11`/`12`/`13`/`14`/`16`);
+  every one of the 142 call sites across `app/studio.css` now points at the whole-step
+  token, and the half-step custom properties are removed from the `:root` token block
+  as unused — the scale is 12 real steps instead of 19. Deliberately the smaller,
+  lower-risk half of UX5: each affected element shifts by at most 0.5px (mechanical
+  rounding, not a redesign), so it needed no new visual-identity call. The 4px-base
+  spacing half (one-off paddings) is untouched and stays the open follow-up — it
+  changes more visible surface and deserves its own slice + re-verification. Full
+  suite green, unchanged at 2139/2139 (no test pins an exact font-size token value).
+  (app/studio.css, sw.js, js/changelog.js) **NEXT in this track: UX5's spacing half**
+  (4px-base tokens for the file's one-off paddings) — or UX8 (Tooltip primitive),
+  the next unstarted item in the UX-POLISH track.
 - **R5+ slice 9 — the Datasets subsystem moves to its own module (v579, sw v216,
   2026-07-26, steward — LAST slice, the entire R5+ studio.js module extraction track is
   now COMPLETE):** the Datasets section (a named, {{param}}-substitutable query on top of
@@ -4561,6 +4576,11 @@
 >      the spacing half (4px-base tokens for the file's one-off paddings) — neither attempted here,
 >      since both require actual visual re-verification across all 6 theme×mode combos rather than a
 >      behavior-preserving refactor. (app/studio.css, sw.js, js/changelog.js)
+>      ✓ **Slice 2 shipped (v580, sw v217, 2026-07-26, steward): the half-step consolidation.** See
+>      DONE for the full writeup — the 7 half-step tokens round up to their nearest whole step (142
+>      call sites repointed, half-step custom properties removed), a mechanical ≤0.5px-per-element
+>      change needing no visual-identity call. NEXT in this track: the spacing half (4px-base tokens
+>      for the file's one-off paddings) is the only open UX5 item left.
 > UX6. **currentColor icon migration:** replace chrome glyphs (`⋯ ↶ ↷ ＋ ▾ ☰ ⇄ 📋 ● ‹ ›`) and the
 >      welcome-step letter icons with `Studio.icon()` SVGs — directly satisfies the fleet
 >      "single-color currentColor icons" bar (the `📋` emoji is full-color = a direct miss). Larger,

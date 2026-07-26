@@ -5,7 +5,15 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v216"; /* v216: R5+ slice 9 (studio.js module extraction,
+var CACHE_NAME = "studio-shell-v217"; /* v217: UX5 slice 2 (quality track) — the 7
+   half-step type-scale tokens (--fs-8-5/9-5/10-5/11-5/12-5/13-5/15-5) each round UP
+   to their nearest whole step (--fs-9/10/11/12/13/14/16) and every call site (142
+   references) repoints there, so the scale is now 12 real steps instead of 19
+   near-duplicates; the half-step custom properties are removed as unused. Every
+   affected element shifts by at most 0.5px. The 4px-base spacing half of UX5 is
+   still a follow-up. app/studio.css content changed, so the precached copy needs
+   to roll.
+   v216: R5+ slice 9 (studio.js module extraction,
    tech-debt track — LAST slice, the whole R5+ track is now COMPLETE) — the Datasets
    subsystem (a named, {{param}}-substitutable query on top of a Connection) moves out
    of app/studio.js into its own module, app/datasets.js (Studio.Datasets), following the

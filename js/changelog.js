@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 580,
+    title: 'Type scale: fewer near-duplicate font sizes',
+    kind: 'polish',
+    ts: '2026-07-26T14:25:22.000Z',
+    items: [
+      'Consolidated 7 near-duplicate half-step font sizes onto the nearest whole step, so the builder chrome now draws from 12 real sizes instead of 19 -- a small, mostly invisible coherence cleanup (nothing shifts by more than half a pixel).',
+    ],
+  },
+  {
     v: 579,
     title: 'Tech debt: Datasets moves to its own module (last of this track)',
     kind: 'polish',
