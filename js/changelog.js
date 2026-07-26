@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 565,
+    title: 'Right-panel sections now end on a consistent gap',
+    kind: 'polish',
+    ts: '2026-07-26T05:24:25.000Z',
+    items: [
+      'Inspector sections in the right panel used to leave a different amount of space below their last field depending on what kind of control happened to render last -- now every section ends on the same gap, closing out the panel-polish track (LF19).',
+    ],
+  },
+  {
     v: 564,
     title: 'Advanced inspector sections start collapsed by default',
     kind: 'polish',

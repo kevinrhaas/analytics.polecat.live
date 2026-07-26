@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v201"; /* v201: LF19 slice 9 — Advanced-mode inspector
+var CACHE_NAME = "studio-shell-v202"; /* v202: LF19 slice 10 — every Inspector section's
+   bottom gap is now the same regardless of what content type rendered last (a trailing-
+   margin-stacking fix), closing out LF19 (the whole left+right panel IA/redesign track)
+   fully done. app/studio.css, tests/run.js changed, so precached copies need to roll.
+   v201: LF19 slice 9 — Advanced-mode inspector
    sections (advSection()) now default to COLLAPSED the first time, the last piece of
    LF19's right-panel pass (consistent spacing is the one remaining follow-up).
    app/studio.js, tests/run.js changed, so precached copies need to roll.

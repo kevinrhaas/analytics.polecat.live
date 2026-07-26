@@ -871,6 +871,12 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
 .insp-sec{border-bottom:1px solid var(--line-2);padding:13px 14px}
 .insp-sec h4{margin:0 0 10px;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--faint);font-weight:800;
   display:flex;align-items:center;gap:7px;user-select:none}
+/* LF19 "consistent spacing" (closes LF19): .insp-sec-body has no padding of its own, so a
+   section's bottom gap used to be its last child's own margin-bottom PLUS .insp-sec's 13px
+   padding — 24/22/20/14px depending on whether the section happened to end on a .field/.note/
+   .row-item/plain element. Zeroing the last child's margin makes every section's bottom gap
+   exactly .insp-sec's own padding, regardless of content type. */
+.insp-sec-body>*:last-child{margin-bottom:0}
 .insp-sec h4:hover{color:var(--ink)}
 .insp-sec.sec-collapsed h4{margin-bottom:0}
 .insp-sec h4 .add{margin-left:auto;background:var(--field);border:1px solid var(--line);color:var(--brand);
