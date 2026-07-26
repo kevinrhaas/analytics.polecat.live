@@ -18365,6 +18365,105 @@ function serve() {
     ok("Post-overhaul item 3 (connection-bound): the builder's own live-editing preview iframe never prompts for a Turso connection's credential (STUDIO_PREVIEW gate)",
       !connPreviewGate.promptCalled, JSON.stringify(connPreviewGate));
 
+    // Post-overhaul backlog item 3, other half — PostgREST slice (2026-07-26): same
+    // connection-bound exported-runtime treatment as Turso above, second adapter. A table-kind
+    // dataset's real {table,query} lives on da.dataset (dsToDA clobbers da.sql/da.query to the
+    // SQL-editor shape regardless of the underlying dataset's kind), so this exercises that the
+    // CONN_ENGINES dispatch reads it from there, and that an OPTIONAL token (anonymous PostgREST
+    // access, unlike Turso's always-required bearer token) never gets stamped needsSecret.
+    console.log("\n• Post-overhaul item 3 (connection-bound, PostgREST): exported dashboards can query a PostgREST-backed dataset live");
+
+    const pgRedactionWithToken = await page.evaluate(function () {
+      var assets = window.__STUDIO_STATE.assets;
+      var conn = Studio.Workspace.put("connections", { name: "pg-export-test", adapter: "postgrest", cfg: { url: "https://pg.example.com", schema: "reporting", token: "SUPER-SECRET-PG-JWT" } });
+      var spec = {
+        name: "ok-name", title: "T", panels: [], kpis: [], filters: [],
+        cda: { dataAccesses: [{ id: "d1", name: "pgDa", kind: "sql", columns: ["x"], connectionId: conn.id, datasetId: "ds-pg-1", dataset: { kind: "table", table: "orders", query: "select=*" } }] }
+      };
+      var html = Studio.exportCDF(spec, assets, "/x");
+      return {
+        leaksSecret: html.indexOf("SUPER-SECRET-PG-JWT") >= 0,
+        keepsUrl: html.indexOf("pg.example.com") >= 0,
+        keepsSchema: html.indexOf("reporting") >= 0,
+        stampsConnAdapter: html.indexOf("\"connAdapter\":\"postgrest\"") >= 0,
+        stampsNeedsSecret: html.indexOf("\"needsSecret\":\"token\"") >= 0
+      };
+    });
+    ok("Post-overhaul item 3 (PostgREST): exportCDF never embeds a PostgREST connection's bearer token in the output HTML",
+      !pgRedactionWithToken.leaksSecret, JSON.stringify(pgRedactionWithToken));
+    ok("Post-overhaul item 3 (PostgREST): exportCDF keeps the connection's non-secret fields (url, schema) so the dataset still resolves",
+      pgRedactionWithToken.keepsUrl && pgRedactionWithToken.keepsSchema, JSON.stringify(pgRedactionWithToken));
+    ok("Post-overhaul item 3 (PostgREST): the redacted DA is stamped with connAdapter:\"postgrest\" so the runtime knows which engine to use",
+      pgRedactionWithToken.stampsConnAdapter, JSON.stringify(pgRedactionWithToken));
+    ok("Post-overhaul item 3 (PostgREST): a connection WITH a token set is stamped needsSecret so the runtime prompts for it",
+      pgRedactionWithToken.stampsNeedsSecret, JSON.stringify(pgRedactionWithToken));
+
+    const pgRedactionAnonymous = await page.evaluate(function () {
+      var assets = window.__STUDIO_STATE.assets;
+      // PostgREST's token field is OPTIONAL (anonymous access is a supported, common config) —
+      // unlike Turso's always-required bearer token, a blank token must never be stamped
+      // needsSecret, else the exported dashboard would pop a pointless credential prompt.
+      var conn = Studio.Workspace.put("connections", { name: "pg-anon-test", adapter: "postgrest", cfg: { url: "https://pg-anon.example.com" } });
+      var spec = {
+        name: "ok-name", title: "T", panels: [], kpis: [], filters: [],
+        cda: { dataAccesses: [{ id: "d1", name: "pgDa", kind: "sql", columns: ["x"], connectionId: conn.id, dataset: { kind: "table", table: "orders", query: "select=*" } }] }
+      };
+      var html = Studio.exportCDF(spec, assets, "/x");
+      return {
+        stampsConnAdapter: html.indexOf("\"connAdapter\":\"postgrest\"") >= 0,
+        stampsNeedsSecret: html.indexOf("\"needsSecret\"") >= 0
+      };
+    });
+    ok("Post-overhaul item 3 (PostgREST): an anonymous connection (no token set) is still stamped connAdapter",
+      pgRedactionAnonymous.stampsConnAdapter, JSON.stringify(pgRedactionAnonymous));
+    ok("Post-overhaul item 3 (PostgREST): an anonymous connection (no token set) never gets a needsSecret prompt stamp",
+      !pgRedactionAnonymous.stampsNeedsSecret, JSON.stringify(pgRedactionAnonymous));
+
+    const pgBundling = await page.evaluate(function () {
+      var assets = window.__STUDIO_STATE.assets;
+      var conn = Studio.Workspace.put("connections", { name: "pg-bundling-test", adapter: "postgrest", cfg: { url: "https://x.example.com" } });
+      var pgSpec = { name: "ok-name", title: "T", panels: [], kpis: [], filters: [], cda: { dataAccesses: [{ id: "d1", name: "d1", kind: "sql", columns: ["x"], connectionId: conn.id, dataset: { kind: "table", table: "t", query: "" } }] } };
+      var plainSpec = { name: "ok-name", title: "T", panels: [], kpis: [], filters: [], cda: { dataAccesses: [{ id: "d1", name: "d1", kind: "sql", columns: ["x"] }] } };
+      var pgHtml = Studio.exportCDF(pgSpec, assets, "/x");
+      var plainHtml = Studio.exportCDF(plainSpec, assets, "/x");
+      function has(html, name) { return new RegExp("Studio\\." + name + "\\s*=").test(html); }
+      return { pgHasFacade: has(pgHtml, "postgrestSource"), plainOmitsFacade: !has(plainHtml, "postgrestSource") };
+    });
+    ok("Post-overhaul item 3 (PostgREST): a PostgREST-connected export bundles the PostgREST façade",
+      pgBundling.pgHasFacade, JSON.stringify(pgBundling));
+    ok("Post-overhaul item 3 (PostgREST): a plain sql DA with no connection stays lean (no PostgREST façade)",
+      pgBundling.plainOmitsFacade, JSON.stringify(pgBundling));
+
+    const pgDispatch = await page.evaluate(async function () {
+      var assets = window.__STUDIO_STATE.assets;
+      var conn = Studio.Workspace.put("connections", { name: "pg-dispatch-test", adapter: "postgrest", cfg: { url: "https://x.example.com", schema: "reporting", token: "orig-secret" } });
+      // dsToDA (app/studio.js) always sets da.kind:"sql" and da.sql/da.query to the SQL-editor
+      // shape ("" for a table-kind dataset) — the real table/query pair rides on da.dataset only.
+      var da = { id: "d1", name: "d1", kind: "sql", columns: ["x"], sql: "", query: "", connectionId: conn.id, dataset: { kind: "table", table: "orders", query: "select=region,total" } };
+      var spec = { name: "ok-name", title: "T", panels: [], kpis: [], filters: [], cda: { dataAccesses: [da] } };
+      var html = Studio.exportCDF(spec, assets, "/x");
+      var ifr = document.createElement("iframe");
+      ifr.style.display = "none";
+      document.body.appendChild(ifr);
+      await new Promise(function (resolve) { ifr.onload = resolve; ifr.srcdoc = html; });
+      var iw = ifr.contentWindow;
+      var seenCfg = null, seenDataset = null;
+      iw.window.prompt = function () { return "fresh-prompted-jwt"; };
+      iw.Studio.postgrestSource.queryData = function (cfg, dataset) { seenCfg = cfg; seenDataset = dataset; return Promise.resolve({ columns: ["region", "total"], rows: [["IA", 1]] }); };
+      var result = await iw.PDC.cda("d1", {});
+      document.body.removeChild(ifr);
+      return {
+        gotRows: result.rows.length === 1 && result.rows[0][0] === "IA",
+        secretIsFresh: seenCfg && seenCfg.token === "fresh-prompted-jwt",
+        schemaCarried: seenCfg && seenCfg.schema === "reporting",
+        gotTableQuery: seenDataset && seenDataset.table === "orders" && seenDataset.query === "select=region,total"
+      };
+    });
+    ok("Post-overhaul item 3 (PostgREST): PDC.cda dispatches a PostgREST-backed DA to Studio.postgrestSource.queryData with the freshly-prompted token + non-secret cfg fields",
+      pgDispatch.gotRows && pgDispatch.secretIsFresh && pgDispatch.schemaCarried, JSON.stringify(pgDispatch));
+    ok("Post-overhaul item 3 (PostgREST): the dispatched dataset def carries da.dataset's {table,query} — NOT da.sql/da.query, which dsToDA always blanks for a table-kind DA",
+      pgDispatch.gotTableQuery, JSON.stringify(pgDispatch));
+
     // ── F18: Bump / ranking chart (v104) ─────────────────────────────────────
     console.log("\n• F18: Bump chart");
 

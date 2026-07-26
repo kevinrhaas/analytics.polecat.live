@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 590,
+    title: 'PostgreSQL (PostgREST) datasets now run live in exported dashboards too',
+    kind: 'feature',
+    ts: '2026-07-26T20:38:00.000Z',
+    items: [
+      'A dashboard using a PostgreSQL (PostgREST) connection now queries it live once exported or deployed, matching the Turso support shipped just before this.',
+      'An optional bearer token is prompted for once when the dashboard is opened and never embedded in the exported file; anonymous PostgREST connections need no prompt at all.',
+    ],
+  },
+  {
     v: 589,
     title: 'Turso-connected datasets now run live in exported dashboards',
     kind: 'feature',

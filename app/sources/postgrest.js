@@ -65,7 +65,7 @@
     }).catch(function (e) { return { tables: [], error: e.message }; });
   }
 
-  Studio.registerSource({
+  var SOURCE = {
     id: "postgrest",
     label: "PostgreSQL (PostgREST)",
     blurb: "Query any Postgres exposed through PostgREST straight from the browser — table + query-string datasets, optional JWT auth.",
@@ -108,5 +108,12 @@
     drop: function () { return Promise.resolve({ ok: false, error: "Not a workspace backend" }); },
     load: function () { return Promise.resolve(Studio.WS.emptySnapshot()); },
     save: function () { return Promise.resolve({ ok: false, error: "Not a workspace backend" }); }
-  });
+  };
+  // Post-overhaul backlog item 3, other half (PostgREST slice): the exported-runtime bundle
+  // (exporters.js/studio-render.js) inlines this file standalone, without registry.js — calling
+  // Studio.registerSource there would throw (Studio.SOURCES doesn't exist outside the builder).
+  // Guard the normal in-app registration and always expose the plain global too, same convention
+  // as Studio.tursoSource, so the exported runtime's CONN_ENGINES dispatch has something to call.
+  if (Studio.registerSource) Studio.registerSource(SOURCE);
+  Studio.postgrestSource = SOURCE;
 }());

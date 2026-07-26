@@ -234,13 +234,26 @@
   // there's nothing on kind to key off. exporters.js's redactSecrets instead stamps da.connAdapter
   // (which registered source the Workspace connection used) + a redacted da.connCfg (its non-secret
   // fields) onto the DA at export time; this dispatches on THAT field instead, same
-  // prompt-once/never-embed contract as CRED_ENGINES. Starting with Turso — every other
-  // connection-bound adapter still has no exported-runtime path.
+  // prompt-once/never-embed contract as CRED_ENGINES. Turso shipped first; PostgREST is the
+  // second — Supabase/Redshift/Google Sheets/local files still have no exported-runtime path.
+  // `dataset(da)` shapes the def each adapter's own queryData(cfg, dataset) expects — Turso's
+  // speaks raw SQL (da.sql/da.query, same as every other kind:"sql" DA), but a table-kind
+  // connection (PostgREST/Supabase-style) has no da.table/da.query of its own: dsToDA (app/
+  // studio.js) always sets da.kind:"sql" and clobbers da.query to alias da.sql regardless of the
+  // underlying dataset's real kind, so the real {table,query} pair only survives on da.dataset
+  // (the original dataset definition, carried through redactSecrets' JSON clone untouched).
   var CONN_ENGINES = {
     turso: {
       label: "Turso auth token",
       engine: function () { return window.Studio && Studio.tursoSource; },
-      cfg: function (da, secret) { return Object.assign({}, da.connCfg, { token: secret }); }
+      cfg: function (da, secret) { return Object.assign({}, da.connCfg, { token: secret }); },
+      dataset: function (da) { return { sql: da.sql || da.query, params: da.params }; }
+    },
+    postgrest: {
+      label: "PostgREST bearer token",
+      engine: function () { return window.Studio && Studio.postgrestSource; },
+      cfg: function (da, secret) { return Object.assign({}, da.connCfg, { token: secret }); },
+      dataset: function (da) { return { table: da.dataset && da.dataset.table, query: da.dataset && da.dataset.query }; }
     }
   };
   var _secretCache = {};
@@ -281,7 +294,7 @@
       var conn = da && !window.STUDIO_PREVIEW && CONN_ENGINES[da.connAdapter];
       var connEngine = conn && conn.engine();
       if (da && conn && connEngine)
-        return connEngine.queryData(conn.cfg(da, resolveSecret(da)), { sql: da.sql || da.query, params: da.params }).then(function (r) {
+        return connEngine.queryData(conn.cfg(da, resolveSecret(da)), conn.dataset(da)).then(function (r) {
           if (r.error) throw new Error(r.error);
           return wrapResult({ cols: r.columns, rows: r.rows }, da);
         });
