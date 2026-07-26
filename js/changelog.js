@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 584,
+    title: 'A tidier, 4px-based spacing scale',
+    kind: 'polish',
+    ts: '2026-07-26T16:39:25.000Z',
+    items: [
+      'Internal spacing tokens now round onto an even/4px grid instead of a scatter of odd pixel values, so paddings across the builder read a touch more consistent -- a few surfaces are a hair tighter or looser by a couple of pixels, but nothing should look different in any meaningful way.',
+    ],
+  },
+  {
     v: 583,
     title: 'More tooltips you can reach on a phone',
     kind: 'polish',

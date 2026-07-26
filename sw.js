@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v220"; /* v220: UX8 slice 2 (UX-POLISH track) —
+var CACHE_NAME = "studio-shell-v221"; /* v221: UX5 slice 4 (the 4px-base spacing
+   rounding pass, TECH-DEBT/quality track) — app/studio.css content changed (every
+   var(--sp-*) call site repointed to a rounded token), so the precached copy
+   needs to roll.
+   v220: UX8 slice 2 (UX-POLISH track) —
    converts the remaining non-button title= call sites in the catalog rows
    (folder/lineage/param badges in Datasets, the folder badge in Connections/
    Jobs/Explore, the workspace-capable + last-edited badges in Connections,
