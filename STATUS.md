@@ -116,6 +116,26 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **UX5 slice 4 — the 4px-base spacing rounding pass (v584, sw v221, 2026-07-26, steward —
+  UX5 is now fully done):** the last open item in the TECH-DEBT track's type/spacing-scale
+  work (slices 1-3 built the `--fs-*`/`--sp-*` token scales as pure aliases + consolidated
+  the font half-steps; this slice does the analogous consolidation for spacing). The 12
+  odd/off-grid `--sp-*` tokens each round UP to the next even or 4-multiple step — 1→2,
+  3→4, 5→6, 7→8, 9→10, 11→12, 13→14, 15→16, 17→18 (mirrors slice 2's font half-step
+  merge: odd values move up onto the nearest real step, teens+low values keep a 2px
+  sub-grid so nothing collapses to 0 and no hairline gap disappears), then 22→24, 26→28,
+  34→36 round the few remaining non-4-multiples above 18 onto a clean 4px grid. The named
+  scale shrinks from 30 steps to 20 (`--sp-28`/`--sp-36` newly added; the 12 merged tokens
+  removed), and every one of the 155 affected `var(--sp-*)` call sites (out of 285 total
+  padding declarations) was repointed by an exact-string replace — verified zero stale
+  references to any removed token afterward. Unlike slices 1-3 (behavior-preserving
+  aliasing), this DOES shift real layout by 1-4px in those 155 spots, so — per this
+  item's own re-verification bar — took Playwright screenshots across all 6 theme×mode
+  combinations (Classic/Polecat/Fleet Modern/Conservation × light/dark, where applicable)
+  at both 390×780 and 1280×800 before shipping: paddings read a hair tighter/looser in a
+  few spots (icon-to-label gaps, chip/badge insets, card padding), nothing reads as broken,
+  misaligned, or touching. Full suite green (no test pins an exact `--sp-*` pixel value).
+  (app/studio.css, sw.js, js/changelog.js, tests/run.js unchanged)
 - **UX8 slice 2 — the folder/lineage/param/meta badges (v583, sw v220, 2026-07-26,
   steward):** the documented follow-up to slice 1 (the status dots). Converts every
   remaining NON-BUTTON `title=` call site in the catalog-row subsystems to the same
@@ -4658,8 +4678,13 @@
 >      See DONE for the full writeup — a new `--sp-0`..`--sp-60` scale (30 named steps) now backs
 >      every padding declaration (285 call sites), values copied byte-for-byte so nothing renders
 >      differently. NEXT in this track: the actual 4px-base rounding pass for spacing (needs real
->      visual re-verification across all 6 theme×mode combos) — the one open UX5 item left; see UX8
->      below for the Tooltip primitive, now underway.
+>      visual re-verification across all 6 theme×mode combos) — the one open UX5 item left.
+>      ✓ **Slice 4 shipped (v584, sw v221, 2026-07-26, steward — UX5 is now fully done): the 4px-base
+>      rounding pass.** See DONE for the full writeup — the 12 odd/off-grid `--sp-*` tokens round UP
+>      onto the next even/4-multiple step (1→2, 3→4, ... 17→18, 22→24, 26→28, 34→36), the scale
+>      shrinks from 30 named steps to 20, and every affected call site (155 of the 285 padding
+>      declarations) was re-pointed. Visually re-verified with Playwright screenshots across all 6
+>      theme×mode combos + both viewports before shipping, per this item's own re-verification bar.
 > UX6. **currentColor icon migration:** replace chrome glyphs (`⋯ ↶ ↷ ＋ ▾ ☰ ⇄ 📋 ● ‹ ›`) and the
 >      welcome-step letter icons with `Studio.icon()` SVGs — directly satisfies the fleet
 >      "single-color currentColor icons" bar (the `📋` emoji is full-color = a direct miss). Larger,
