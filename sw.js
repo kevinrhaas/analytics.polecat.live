@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v198"; /* v198: LF13(d) slice 1 — the job editor gains a
+var CACHE_NAME = "studio-shell-v199"; /* v199: LF13(d) slice 2 — the job editor gains a
+   sample-source-rows table (real values from a small live query) and an approximate
+   output-rows preview computed by running the pure Studio.runJobSteps engine over that
+   cached sample, updating live as steps are edited instead of requiring a "Preview"
+   click or a fresh query on every keystroke. app/studio.js, app/studio.css.
+   v198: LF13(d) slice 1 — the job editor gains a
    source FIELD LIST (type icons/colors) above the step pipeline: a read-only legend of the
    source dataset's columns, each with a best-effort Numeric/Date/String icon guessed from
    the column name, so what's available is visible before building steps. New shared

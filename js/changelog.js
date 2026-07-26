@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 562,
+    title: 'Job editor shows sample rows and an output preview',
+    kind: 'polish',
+    ts: '2026-07-26T03:38:25.000Z',
+    items: [
+      'The job editor now shows a small sample of real source rows, plus an approximate preview of the output rows after the current pipeline steps run -- both update live as you edit steps, no "Preview" click needed.',
+      'The output preview is honest about approximation: join/union steps only know the linked dataset\'s column names here, so their preview rows may not match a real run -- click Preview below for the authoritative result.',
+    ],
+  },
+  {
     v: 561,
     title: 'Job editor gains a source field list',
     kind: 'polish',

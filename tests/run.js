@@ -4380,6 +4380,107 @@ function serve() {
     });
     await page.waitForTimeout(200);
 
+    // LF13(d) slice 2: a small live sample of SOURCE rows (real values, not just column
+    // names) plus an APPROXIMATE preview of the OUTPUT rows, computed by running the
+    // pure Studio.runJobSteps engine over that cached sample — updates live as steps are
+    // edited, without a "Preview" click or a fresh query each time.
+    await page.evaluate(function () {
+      window.__studioShellSetSection("jobs");
+      var conn = Studio.Workspace.put("connections", { name: "jobs-rowprev-editor-test", adapter: "file", cfg: {} });
+      var ds = Studio.Workspace.put("datasets", { name: "jobs-rowprev-editor-ds", connectionId: conn.id, kind: "file", format: "csv",
+        content: "region,acres\nStory,100\nStory,50\nPolk,20\n", columns: ["region", "acres"] });
+      var job = Studio.Workspace.put("jobs", { name: "rowprev-editor-job", sourceDatasetId: ds.id,
+        steps: [{ op: "rename", from: "acres", to: "acres_renamed" }] });
+      window.__studioOpenJobEditor(job);
+    });
+    await page.waitForTimeout(200);
+    const jobsRowPreviewUI = await page.evaluate(function () {
+      function tableRows(table) {
+        if (!table) return null;
+        return Array.prototype.slice.call(table.querySelectorAll("tr")).map(function (tr) {
+          return Array.prototype.slice.call(tr.children).map(function (c) { return c.textContent; });
+        });
+      }
+      var tables = Array.prototype.slice.call(document.querySelectorAll(".jobs-row-preview .dsx-preview table"));
+      return { srcRows: tableRows(tables[0]), outRows: tableRows(tables[1]) };
+    });
+    ok("LF13(d) slice 2: the job editor renders a sample-source-rows table with the real column values",
+      jobsRowPreviewUI.srcRows && jobsRowPreviewUI.srcRows[0].join(",") === "region,acres" &&
+      jobsRowPreviewUI.srcRows.length === 4 && jobsRowPreviewUI.srcRows[1].join(",") === "Story,100", JSON.stringify(jobsRowPreviewUI));
+    ok("LF13(d) slice 2: the approximate output preview reflects the pipeline's rename step (acres -> acres_renamed) on the same sample values",
+      jobsRowPreviewUI.outRows && jobsRowPreviewUI.outRows[0].join(",") === "region,acres_renamed" &&
+      jobsRowPreviewUI.outRows[1].join(",") === "Story,100", JSON.stringify(jobsRowPreviewUI));
+    await page.evaluate(function () {
+      document.querySelector(".modal-ov .x").click();
+      Studio.Workspace.all("jobs").filter(function (j) { return j.name === "rowprev-editor-job"; }).forEach(function (j) { Studio.Workspace.remove("jobs", j.id, { silent: true }); });
+      Studio.Workspace.all("datasets").filter(function (d) { return d.name === "jobs-rowprev-editor-ds"; }).forEach(function (d) { Studio.Workspace.remove("datasets", d.id, { silent: true }); });
+      Studio.Workspace.all("connections").filter(function (c) { return c.name === "jobs-rowprev-editor-test"; }).forEach(function (c) { Studio.Workspace.remove("connections", c.id, { silent: true }); });
+      Studio.Workspace.notify("*");
+      window.__studioShellSetSection("studio");
+    });
+    await page.waitForTimeout(200);
+
+    // LF13(d) slice 2: an aggregate step's approximate output preview actually groups +
+    // sums the cached sample rows (Story's two rows collapse into one, summed) — proves
+    // the preview runs the real engine, not just a schema-only column-name guess.
+    await page.evaluate(function () {
+      window.__studioShellSetSection("jobs");
+      var conn = Studio.Workspace.put("connections", { name: "jobs-rowprev-agg-test", adapter: "file", cfg: {} });
+      var ds = Studio.Workspace.put("datasets", { name: "jobs-rowprev-agg-ds", connectionId: conn.id, kind: "file", format: "csv",
+        content: "region,acres\nStory,100\nStory,50\nPolk,20\n", columns: ["region", "acres"] });
+      var job = Studio.Workspace.put("jobs", { name: "rowprev-agg-job", sourceDatasetId: ds.id,
+        steps: [{ op: "aggregate", groupBy: ["region"], metrics: [{ col: "acres", fn: "sum", as: "acres_sum" }] }] });
+      window.__studioOpenJobEditor(job);
+    });
+    await page.waitForTimeout(200);
+    const jobsRowPreviewAggUI = await page.evaluate(function () {
+      var tables = Array.prototype.slice.call(document.querySelectorAll(".jobs-row-preview .dsx-preview table"));
+      var out = tables[1];
+      if (!out) return null;
+      return Array.prototype.slice.call(out.querySelectorAll("tr")).map(function (tr) {
+        return Array.prototype.slice.call(tr.children).map(function (c) { return c.textContent; });
+      });
+    });
+    ok("LF13(d) slice 2: the aggregate step's output preview groups + sums the sample rows for real (Story: 100+50=150), not just a schema guess",
+      jobsRowPreviewAggUI && jobsRowPreviewAggUI[0].join(",") === "region,acres_sum" &&
+      jobsRowPreviewAggUI.some(function (r) { return r.join(",") === "Story,150"; }) &&
+      jobsRowPreviewAggUI.some(function (r) { return r.join(",") === "Polk,20"; }), JSON.stringify(jobsRowPreviewAggUI));
+    await page.evaluate(function () {
+      document.querySelector(".modal-ov .x").click();
+      Studio.Workspace.all("jobs").filter(function (j) { return j.name === "rowprev-agg-job"; }).forEach(function (j) { Studio.Workspace.remove("jobs", j.id, { silent: true }); });
+      Studio.Workspace.all("datasets").filter(function (d) { return d.name === "jobs-rowprev-agg-ds"; }).forEach(function (d) { Studio.Workspace.remove("datasets", d.id, { silent: true }); });
+      Studio.Workspace.all("connections").filter(function (c) { return c.name === "jobs-rowprev-agg-test"; }).forEach(function (c) { Studio.Workspace.remove("connections", c.id, { silent: true }); });
+      Studio.Workspace.notify("*");
+      window.__studioShellSetSection("studio");
+    });
+    await page.waitForTimeout(200);
+
+    // LF13(d) slice 2: an empty pipeline (no steps yet) still shows the source-rows
+    // sample, but skips the output-preview section entirely (nothing to show yet).
+    await page.evaluate(function () {
+      window.__studioShellSetSection("jobs");
+      var conn = Studio.Workspace.put("connections", { name: "jobs-rowprev-empty-test", adapter: "file", cfg: {} });
+      var ds = Studio.Workspace.put("datasets", { name: "jobs-rowprev-empty-ds", connectionId: conn.id, kind: "file", format: "csv",
+        content: "region,acres\nStory,100\n", columns: ["region", "acres"] });
+      var job = Studio.Workspace.put("jobs", { name: "rowprev-empty-job", sourceDatasetId: ds.id, steps: [] });
+      window.__studioOpenJobEditor(job);
+    });
+    await page.waitForTimeout(200);
+    const jobsRowPreviewEmptyUI = await page.evaluate(function () {
+      return { tableCount: document.querySelectorAll(".jobs-row-preview .dsx-preview table").length };
+    });
+    ok("LF13(d) slice 2: an empty (no-step) pipeline shows just the source-sample table, no output-preview table",
+      jobsRowPreviewEmptyUI.tableCount === 1, JSON.stringify(jobsRowPreviewEmptyUI));
+    await page.evaluate(function () {
+      document.querySelector(".modal-ov .x").click();
+      Studio.Workspace.all("jobs").filter(function (j) { return j.name === "rowprev-empty-job"; }).forEach(function (j) { Studio.Workspace.remove("jobs", j.id, { silent: true }); });
+      Studio.Workspace.all("datasets").filter(function (d) { return d.name === "jobs-rowprev-empty-ds"; }).forEach(function (d) { Studio.Workspace.remove("datasets", d.id, { silent: true }); });
+      Studio.Workspace.all("connections").filter(function (c) { return c.name === "jobs-rowprev-empty-test"; }).forEach(function (c) { Studio.Workspace.remove("connections", c.id, { silent: true }); });
+      Studio.Workspace.notify("*");
+      window.__studioShellSetSection("studio");
+    });
+    await page.waitForTimeout(200);
+
     // ---- JOBS: "scheduled refresh hints" (post-overhaul backlog item 5) ---
     console.log("\n• JOBS: refresh reminders (post-overhaul backlog item 5)");
     await page.evaluate(function () {
