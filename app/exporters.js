@@ -30,6 +30,21 @@
   // studio-render.js's PDC.cda dispatch (see its CRED_ENGINES map) knows to prompt for it at
   // open time instead — "credentials prompted at open, never embedded."
   var SECRET_FIELDS = { snowflake: "sfToken", databricks: "dbxToken", bigquery: "bqToken", http: "httpAuthHeader" };
+  // Post-overhaul backlog item 3, OTHER half ("connection-bound dataset adapters"): a dataset
+  // imported from the connections → datasets model (see GOAL block) always gets da.kind:"sql" —
+  // its actual backend and credentials live on a SEPARATE Workspace connection row (da.connectionId),
+  // not on the DA itself, so SECRET_FIELDS above (keyed by da.kind) can neither redact it nor tell
+  // studio-render.js which engine to dispatch to. Resolving da.connectionId against the live
+  // Workspace only works HERE, in the builder — the exported/preview runtime has no Workspace at
+  // all — so this stamps what the runtime needs onto the redacted DA: da.connAdapter (which
+  // registered source built the connection, e.g. "turso") and a da.connCfg carrying only that
+  // adapter's non-secret fields; the secret field is redacted the same way as SECRET_FIELDS above,
+  // via needsSecret. Starting with Turso (the reference remote adapter — a single bearer token,
+  // no multi-field auth); every other connection-bound adapter (PostgREST/Supabase/Redshift/
+  // Google Sheets/local files/etc.) still has no exported-runtime path and needs this same
+  // treatment, one at a time.
+  var CONN_ADAPTER_SECRET_FIELD = { turso: "token" };
+  var CONN_ADAPTER_CFG_FIELDS = { turso: ["url"] };
   // LF36 slice 2: PDF export page-size options — CSS @page `size` keyword + physical inches
   // (letter/A4/legal, US-common set; matches what the export dialog in studio.js offers).
   var PDF_PAGE_SIZE_KEYWORDS = { letter: "letter", a4: "A4", legal: "legal" };
@@ -42,6 +57,16 @@
     (clone.cda.dataAccesses || []).forEach(function (da) {
       var field = SECRET_FIELDS[da.kind];
       if (field && da[field]) { delete da[field]; da.needsSecret = field; }
+      if (da.connectionId && Studio.Workspace) {
+        var conn = Studio.Workspace.get("connections", da.connectionId);
+        var secretField = conn && CONN_ADAPTER_SECRET_FIELD[conn.adapter];
+        if (conn && secretField) {
+          da.connAdapter = conn.adapter;
+          da.connCfg = {};
+          (CONN_ADAPTER_CFG_FIELDS[conn.adapter] || []).forEach(function (f) { da.connCfg[f] = (conn.cfg || {})[f]; });
+          if ((conn.cfg || {})[secretField]) da.needsSecret = secretField;
+        }
+      }
     });
     return clone;
   }
@@ -325,8 +350,16 @@
     // but there's no reason to add even these small façade files to a dashboard that doesn't use
     // one. This is what lets studio-render.js's PDC.cda dispatch actually answer a duckdb/httpvfs
     // DA once exported/deployed, instead of falling through to a data call that 404s.
-    var daKinds = {};
-    ((spec.cda && spec.cda.dataAccesses) || []).forEach(function (d) { if (d.kind) daKinds[d.kind] = 1; });
+    // Computed once, early: the SAME redacted clone both decides which live-query façades to
+    // bundle below AND is what actually gets embedded as window.STUDIO_SPEC at the bottom of this
+    // function — so the connAdapter/connCfg stamping in redactSecrets and the bundling decision
+    // here never see two different views of the same dashboard.
+    var redacted = redactSecrets(spec);
+    var daKinds = {}, connAdapters = {};
+    ((redacted.cda && redacted.cda.dataAccesses) || []).forEach(function (d) {
+      if (d.kind) daKinds[d.kind] = 1;
+      if (d.connAdapter) connAdapters[d.connAdapter] = 1;
+    });
     var duckdbScript = (daKinds.duckdb && assets.duckdb) ? ("<script>\n" + assets.duckdb + "\n</script>\n") : "";
     var httpvfsScript = (daKinds.httpvfs && assets.httpvfs) ? ("<script>\n" + assets.httpvfs + "\n</script>\n") : "";
     // Post-overhaul backlog item 3 follow-up: same lean-bundling pattern as duckdb/httpvfs above,
@@ -336,6 +369,9 @@
     var databricksScript = (daKinds.databricks && assets.databricks) ? ("<script>\n" + assets.databricks + "\n</script>\n") : "";
     var bigqueryScript = (daKinds.bigquery && assets.bigquery) ? ("<script>\n" + assets.bigquery + "\n</script>\n") : "";
     var genericsqlScript = (daKinds.http && assets.genericsql) ? ("<script>\n" + assets.genericsql + "\n</script>\n") : "";
+    // Post-overhaul backlog item 3, other half: the connection-bound Turso façade, bundled only
+    // when this dashboard actually has a connAdapter:"turso" DA (see redactSecrets above).
+    var tursoScript = (connAdapters.turso && assets.turso) ? ("<script>\n" + assets.turso + "\n</script>\n") : "";
     // Viridis V2: map panels — inline topojson-client (keep its ISC banner: it is
     // redistributed inside the export) + the pre-projected geometry the spec's
     // scales need, as window.STUDIO_GEO. Dashboards without maps carry none of it.
@@ -355,7 +391,7 @@
         "<script>\n" + assets.maplibre.js + "\n</script>\n";
     }
     var boot = "<script>\n" + assets.js + "\n</script>\n" + iconsScript + charts + geoScript + duckdbScript + httpvfsScript +
-      snowflakeScript + databricksScript + bigqueryScript + genericsqlScript + "<script>\n" + assets.render + "\n</script>\n<script>\n" +
+      snowflakeScript + databricksScript + bigqueryScript + genericsqlScript + tursoScript + "<script>\n" + assets.render + "\n</script>\n<script>\n" +
       "window.STUDIO_AUTOBOOT=false;\n" +
       "PDC.cdaPath=" + JSON.stringify(cdaPath) + ";\nvar CDAPATH=PDC.cdaPath;\n";
     if (opts.preview) {
@@ -399,7 +435,7 @@
         "})();\n";
     }
     boot += printAutoFitScript;
-    boot += jsonScript("window.STUDIO_SPEC", redactSecrets(spec)) + "\n" +
+    boot += jsonScript("window.STUDIO_SPEC", redacted) + "\n" +
       "document.addEventListener('DOMContentLoaded',function(){StudioRender.boot(window.STUDIO_SPEC);});\n</script>\n</body>\n</html>\n";
     return head + body + boot;
   };
