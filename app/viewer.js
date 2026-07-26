@@ -49,7 +49,7 @@
   var GEO_FILES = {
     county: "vendor/geo/counties-albers-10m.json", state: "vendor/geo/states-albers-10m.json",
     huc8: "vendor/geo/us-huc8-albers.json", cd: "vendor/geo/us-cd-albers.json",
-    crdMap: "vendor/geo/us-crd-counties.json"
+    zcta: "vendor/geo/us-zcta-albers.json", crdMap: "vendor/geo/us-crd-counties.json"
   };
   function ensureGeoAssets(spec, assets) {
     var keys = Studio.geoAssetKeys(spec);

@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 568,
+    title: 'New map scale: ZIP codes',
+    kind: 'feature',
+    ts: '2026-07-26T07:28:57.000Z',
+    items: [
+      'Choropleth maps gain a new "ZIP codes (ZCTA)" region scale (all 50 states + DC, ~33.6k ZIP Code Tabulation Areas) alongside counties, states, USDA crop-reporting districts, watersheds, and congressional districts -- the third item in the geography-expansion list.',
+    ],
+  },
+  {
     v: 567,
     title: 'New map scale: congressional districts',
     kind: 'feature',

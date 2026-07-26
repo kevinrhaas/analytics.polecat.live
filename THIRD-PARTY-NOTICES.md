@@ -27,6 +27,7 @@ and are not redistributed.)*
 | USDA NASS county list (`county_list.txt`) | `vendor/geo/us-crd-counties.json` — county FIPS → crop reporting district mapping | US government work, public domain |
 | US Census Bureau cartographic boundary files | county/state geometry underlying the us-atlas files above | US government work, public domain |
 | US Census Bureau TIGERweb (119th Congressional Districts, `Legislative/MapServer`) | `vendor/geo/us-cd-albers.json` — nationwide congressional districts (all 50 states + DC), generalized + reprojected by `tools/build-geo.mjs` | US government work, public domain |
+| US Census Bureau TIGERweb (2020 ZIP Code Tabulation Areas, `tigerWMS_Current/MapServer` layer 2) | `vendor/geo/us-zcta-albers.json` — nationwide 5-digit ZCTAs (all 50 states + DC), generalized + reprojected by `tools/build-geo.mjs` | US government work, public domain |
 
 ## Fonts
 
