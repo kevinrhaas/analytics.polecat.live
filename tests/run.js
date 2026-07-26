@@ -1514,13 +1514,28 @@ function serve() {
         crd: Studio.geoAssetKeys({ panels: [{ chart: { type: "choropleth", opts: { scale: "crd" } } }] }).sort().join(","),
         huc8: Studio.geoAssetKeys({ panels: [{ chart: { type: "choropleth", opts: { scale: "huc8" } } }] }).sort().join(","),
         cd: Studio.geoAssetKeys({ panels: [{ chart: { type: "choropleth", opts: { scale: "cd" } } }] }).sort().join(","),
-        zcta: Studio.geoAssetKeys({ panels: [{ chart: { type: "choropleth", opts: { scale: "zcta" } } }] }).sort().join(",")
+        zcta: Studio.geoAssetKeys({ panels: [{ chart: { type: "choropleth", opts: { scale: "zcta" } } }] }).sort().join(","),
+        custom: Studio.geoAssetKeys({ panels: [{ chart: { type: "choropleth", opts: { scale: "custom" } } }] }).sort().join(",")
       };
     });
-    ok("GEO: geoAssetKeys() maps specs to exactly the geometry they need (none without maps; CRD pulls county+mapping; CD/ZCTA pull their own geometry)",
+    ok("GEO: geoAssetKeys() maps specs to exactly the geometry they need (none without maps; CRD pulls county+mapping; CD/ZCTA pull their own geometry; custom regions pull county+state like CRD but no extra mapping asset — the lookup rides in the panel's own opts)",
       geoKeysUnit.none === "" && geoKeysUnit.county === "county,state" &&
       geoKeysUnit.crd === "county,crdMap,state" && geoKeysUnit.huc8 === "huc8,state" &&
-      geoKeysUnit.cd === "cd,state" && geoKeysUnit.zcta === "state,zcta", JSON.stringify(geoKeysUnit));
+      geoKeysUnit.cd === "cd,state" && geoKeysUnit.zcta === "state,zcta" &&
+      geoKeysUnit.custom === "county,state", JSON.stringify(geoKeysUnit));
+    const cgeoParse = await page.evaluate(function () {
+      function tryParse(text) { try { return { ok: true, map: Studio.parseCustomGeoCsv(text) }; } catch (e) { return { ok: false, error: e.message }; } }
+      return {
+        good: tryParse("fips,region\n17031,North\n19153,North\n1001,South\n"),
+        oneCol: tryParse("fips\n17031\n"),
+        empty: tryParse("fips,region\n,\n")
+      };
+    });
+    ok("GEO custom: parseCustomGeoCsv turns a 2-column CSV into a {fips:region} lookup, zero-padding a short FIPS and ignoring blank rows",
+      cgeoParse.good.ok && cgeoParse.good.map["17031"] === "North" && cgeoParse.good.map["19153"] === "North" &&
+      cgeoParse.good.map["01001"] === "South" && Object.keys(cgeoParse.good.map).length === 3, JSON.stringify(cgeoParse.good));
+    ok("GEO custom: parseCustomGeoCsv rejects a CSV without a region column, and one with no valid rows",
+      !cgeoParse.oneCol.ok && !cgeoParse.empty.ok, JSON.stringify(cgeoParse));
     const geoSample = await page.evaluate(function () {
       var r = Studio.sampleRows({ columns: ["county_fips", "pct"] });
       return { firstId: String(r.rows[0][0]), allFips: r.rows.every(function (row) { return /^\d{5}$/.test(String(row[0])); }) };
@@ -1531,11 +1546,13 @@ function serve() {
     // rendered region paths, colored values, no-data hatch, legend. Also proves the
     // MEDIAN aggregation: region 17031 gets rows (2,4,100) → median 4 → must render
     // the SAME fill as region 19153's exact 4.
-    async function geoProbe(scale, idCol, rows) {
+    async function geoProbe(scale, idCol, rows, extraOpts) {
       return await page.evaluate(async function (args) {
+        var opts = { scale: args.scale };
+        if (args.extra) for (var k in args.extra) opts[k] = args.extra[k];
         var spec = { id: "t-" + args.scale, name: "t-" + args.scale, title: "t",
           panels: [{ id: "m1", title: "m", span: "full",
-            chart: { type: "choropleth", da: "g", map: { idCol: args.idCol, valueCol: "v" }, opts: { scale: args.scale } } }],
+            chart: { type: "choropleth", da: "g", map: { idCol: args.idCol, valueCol: "v" }, opts: opts } }],
           kpis: [], filters: [], cda: { connections: [], dataAccesses: [{ id: "g", kind: "sql", columns: [args.idCol, "v"] }] } };
         await window.__studioEnsureGeoAssets(spec);
         var html = Studio.buildHtml(spec, window.__STUDIO_STATE.assets, { preview: true, mock: { g: { cols: [args.idCol, "v"], rows: args.rows } } });
@@ -1561,7 +1578,7 @@ function serve() {
             else setTimeout(poll, 150);
           })();
         });
-      }, { scale: scale, idCol: idCol, rows: rows });
+      }, { scale: scale, idCol: idCol, rows: rows, extra: extraOpts || null });
     }
     const geoCounty = await geoProbe("county", "fips", [["17031", 2], ["17031", 4], ["17031", 100], ["19153", 4], ["18097", 9]]);
     ok("GEO county: 3k+ county paths render; data counties colored, the rest hatched no-data; legend + inlined geometry",
@@ -1584,6 +1601,15 @@ function serve() {
     const geoZcta = await geoProbe("zcta", "zip", [["50010", 8], ["10001", 5], ["94102", 3]]);
     ok("GEO zcta: 33k+ nationwide ZIP codes (their own geometry) render and color by value",
       geoZcta.regions >= 33000 && geoZcta.colored === 3, JSON.stringify({ regions: geoZcta.regions, colored: geoZcta.colored }));
+    // LF22 slice 4: a USER-authored county→region mapping (opts.customMap), not a
+    // vendored table — proves the merge is generic over ANY lookup, same code path
+    // as crd above. Two Iowa/Illinois counties (17031, 19153) fold into one "North"
+    // region; a third (18097) is its own "South" region — the data's id column
+    // holds the REGION NAME, exactly like crd's id column holds the district id.
+    const geoCustom = await geoProbe("custom", "region", [["North", 8], ["South", 3]],
+      { customMap: { 17031: "North", 19153: "North", 18097: "South" } });
+    ok("GEO custom: a user-imported county→region mapping merges county geometry via topojson.merge (no vendored geometry needed) and colors by value",
+      geoCustom.regions === 2 && geoCustom.colored === 2, JSON.stringify(geoCustom));
     // Hover highlight must not STICK: the highlight is a single always-on-top overlay
     // path that re-points to the hovered region — the data paths are NEVER re-ordered
     // (an appendChild raise on mouseenter detaches the path and swallows its own

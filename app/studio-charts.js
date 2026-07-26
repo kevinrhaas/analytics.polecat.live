@@ -5670,7 +5670,10 @@
      nationwide — all 50 states + DC, LF22 slice 2; own geometry, districts
      split counties so they can't be derived by merging like CRD) | zcta
      (5-digit ZIP Code Tabulation Areas, nationwide — all 50 states + DC,
-     LF22 slice 3; own geometry from Census TIGERweb, ~33.6k polygons).
+     LF22 slice 3; own geometry from Census TIGERweb, ~33.6k polygons) | custom
+     (LF22 slice 4: a user-imported county-FIPS→region lookup, merged the same
+     way as crd but from cfg.customMap instead of the vendored NASS table — no
+     new geometry, so it's never cached by scale name alone like the others).
      Duplicate rows per region aggregate via cfg.agg — MEDIAN by default, the
      Viridis "single best common estimate" convention (see STATUS ★★★★ V3).
      ══════════════════════════════════════════════════════════════════════════ */
@@ -5702,8 +5705,12 @@
   // Resolves { features:[{id,name,path}], borders:pathString, states:pathString }
   // in the shared 975×610 plane. Pure string path building from pre-projected
   // arcs — no projection math at runtime.
-  function geoFeatures(scale) {
-    if (_featCache[scale]) return _featCache[scale];
+  function geoFeatures(scale, customMap) {
+    // LF22(4): "custom" isn't cached by scale name (see its branch below) —
+    // different panels can carry different customMap lookups, and re-merging a
+    // user's typically-small county list on every render is cheap (nothing like
+    // huc8/zcta's feature counts).
+    if (scale !== "custom" && _featCache[scale]) return _featCache[scale];
     function ring2path(ring) {
       var d = "M" + ring[0][0] + "," + ring[0][1];
       for (var i = 1; i < ring.length; i++) d += "L" + ring[i][0] + "," + ring[i][1];
@@ -5782,6 +5789,28 @@
         out.statesOverlay = r[1];
         return out;
       });
+    } else if (scale === "custom") {
+      // LF22(4): identical grouping shape to crd below, but the lookup is the
+      // caller's own customMap (a user import) instead of the vendored NASS
+      // table, and the merged region's "id"/"name" is whatever region label the
+      // user gave it (crd instead synthesizes a "ST district NN" name). Bypasses
+      // _featCache entirely — see the early return in geoFeatures() above.
+      return Promise.all([geoJson("county"), statesMesh]).then(function (r) {
+        var topo = r[0], map = customMap || {}, groups = {};
+        (topo.objects.counties.geometries || []).forEach(function (g) {
+          var region = map[String(g.id)];
+          if (region) (groups[region] = groups[region] || []).push(g);
+        });
+        var features = Object.keys(groups).map(function (region) {
+          var merged = topojson.merge(topo, groups[region]);
+          return { id: region, name: region, path: geom2path(merged), bbox: geomBbox(merged) };
+        }).filter(function (f) { return f.path; });
+        var geomList = [];
+        Object.keys(groups).forEach(function (region) { geomList = geomList.concat(groups[region]); });
+        var borders = geom2path(topojson.mesh(topo, { type: "GeometryCollection", geometries: geomList },
+          function (a, b) { return map[String(a.id)] !== map[String(b.id)]; }));
+        return { features: features, borders: borders, statesOverlay: r[1] };
+      });
     } else { // crd — merge county geometry per NASS district
       _featCache.crd = Promise.all([geoJson("county"), geoJson("crdMap"), statesMesh]).then(function (r) {
         var topo = r[0], map = r[1].counties || {}, groups = {};
@@ -5807,7 +5836,9 @@
   // Region-id normalization: counties accept 4/5-digit FIPS; states accept FIPS,
   // postal, or full name; HUC8 accepts 7/8-digit codes; CRDs and CDs accept "SSDD"
   // (state FIPS + 2-digit district number — same 4-digit shape for both); ZCTAs
-  // accept 5-digit ZIP codes (leading zeros preserved, e.g. "02134").
+  // accept 5-digit ZIP codes (leading zeros preserved, e.g. "02134"); custom regions
+  // (LF22 slice 4) fall through to the trimmed-string default below — their data id
+  // is the user's own region label, not a FIPS-shaped code, same as crd's district id.
   function geoNormalizeId(scale, raw, stateNameIdx) {
     var s = String(raw == null ? "" : raw).trim();
     if (scale === "county") return /^\d{4,5}$/.test(s) ? ("00000" + s).slice(-5) : s;
@@ -5879,8 +5910,8 @@
   // GeoJSON (fake-mercator coords) for the GL renderer. Mirrors geoFeatures()'s
   // per-scale assembly; borders use unfiltered meshes so exterior coastlines
   // draw too (the SVG path strokes per-region instead).
-  function geoFeaturesGL(scale) {
-    if (_featCacheGL[scale]) return _featCacheGL[scale];
+  function geoFeaturesGL(scale, customMap) {
+    if (scale !== "custom" && _featCacheGL[scale]) return _featCacheGL[scale]; // LF22(4): see geoFeatures()
     function feat(id, name, geom) { return { type: "Feature", geometry: geomToLL(geom), properties: { gid: String(id), name: name } }; }
     function build(topo, objName, nameOf) {
       var fc = topojson.feature(topo, topo.objects[objName]);
@@ -5923,6 +5954,25 @@
         var out = build(r[0], "zcta", function (f) { return (f.properties && f.properties.name) || f.id; });
         out.statesOverlay = r[1];
         return out;
+      });
+    } else if (scale === "custom") {
+      // LF22(4): same shape as crd below, but grouped by the caller's own customMap
+      // and named after the user's region label instead of a synthesized district
+      // name. Bypasses _featCacheGL entirely — see the early return above.
+      return Promise.all([geoJson("county"), statesMesh]).then(function (r) {
+        var topo = r[0], map = customMap || {}, groups = {};
+        (topo.objects.counties.geometries || []).forEach(function (g) {
+          var region = map[String(g.id)];
+          if (region) (groups[region] = groups[region] || []).push(g);
+        });
+        var features = Object.keys(groups).map(function (region) {
+          return feat(region, region, topojson.merge(topo, groups[region]));
+        });
+        var geomList = [];
+        Object.keys(groups).forEach(function (region) { geomList = geomList.concat(groups[region]); });
+        var borders = geomToLL(topojson.mesh(topo, { type: "GeometryCollection", geometries: geomList },
+          function (a, b) { return a === b || map[String(a.id)] !== map[String(b.id)]; }));
+        return { fc: { type: "FeatureCollection", features: features }, borders: borders, statesOverlay: r[1] };
       });
     } else { // crd — merge county geometry per NASS district (same grouping as SVG)
       _featCacheGL.crd = Promise.all([geoJson("county"), geoJson("crdMap"), statesMesh]).then(function (r) {
@@ -5996,7 +6046,7 @@
     };
   }
   function _choroplethGL(el, cfg, C) {
-    geoFeaturesGL(C.scale).then(function (geo) {
+    geoFeaturesGL(C.scale, cfg.customMap).then(function (geo) {
       // camera carries over across re-renders of the same panel+scale so
       // ensemble toggles / theme flips re-color without yanking pan/zoom away
       var prevCam = null;
@@ -6166,7 +6216,7 @@
   function _choropleth(el, cfg) {
     var scale = cfg.scale || "county";
     el.innerHTML = '<div class="empty" style="padding:24px 8px">Loading geometry…</div>';
-    geoFeatures(scale).then(function (geo) {
+    geoFeatures(scale, cfg.customMap).then(function (geo) {
       // state-name index for friendly state-scale keys
       var nameIdx = null;
       if (scale === "state") {
@@ -6297,7 +6347,8 @@
   }
   function scaleNoun(scale) {
     return scale === "state" ? "states" : scale === "crd" ? "CRDs" : scale === "huc8" ? "HUC8 subbasins" :
-      scale === "cd" ? "congressional districts" : scale === "zcta" ? "ZIP codes" : "counties";
+      scale === "cd" ? "congressional districts" : scale === "zcta" ? "ZIP codes" :
+      scale === "custom" ? "custom regions" : "counties";
   }
   // V9: "Last updated" line shared by both provenance popovers — lastUpdated is an
   // epoch-ms timestamp resolved from the panel's workspace dataset (see

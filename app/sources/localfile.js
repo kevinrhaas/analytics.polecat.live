@@ -88,6 +88,11 @@
     return { columns: columns, rows: rows };
   }
 
+  // Shared with the LF22(4) custom-region-mapping importer (studio.js's choropleth
+  // Inspector) — the same tolerant CSV parser, so a 2-column "fips,region" file
+  // gets the identical delimiter-sniffing/quoting behavior as a file dataset.
+  Studio.parseCSVText = parseCSV;
+
   function resolveFormat(dataset) {
     var f = (dataset.format || "").toLowerCase();
     if (f === "csv" || f === "tsv") return "csv";

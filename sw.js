@@ -5,7 +5,27 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v205"; /* v205: LF22 slice 3 — a new 5-digit ZIP (ZCTA) choropleth
+var CACHE_NAME = "studio-shell-v206"; /* v206: LF22 slice 4 — the counties→custom-region MAPPING
+   IMPORTER, the fourth and last geography-expansion item: a new "custom" choropleth scale lets you
+   Import a 2-column CSV (county FIPS, region name) right in the Inspector and merges the existing
+   county polygons per region via the same topojson.merge grouping the built-in crd scale already
+   uses — no new geometry ships, so unlike slices 1-3 there's no vendor/geo asset or build-geo.mjs
+   change at all, and Studio.geoAssetKeys(custom) needs only county+state (the lookup itself rides
+   inside the panel's own chart.opts.customMap, not a fetched asset — the one structural difference
+   from crd, whose lookup is a vendored file). New pure Studio.parseCustomGeoCsv (app/model.js, backed
+   by a newly-exported Studio.parseCSVText in app/sources/localfile.js) turns the CSV into the
+   {fips:region} lookup; a new "customgeo" opt-field type (app/studio.js's optField) renders the
+   Import/Clear-mapping control, only reachable from the full Studio Inspector (Explore's lighter
+   quick map editor intentionally does NOT gain this scale — it has no room for the import affordance,
+   and offering the option there with no way to fill it would be a dead end, unlike cd/zcta which
+   Explore's picker was simply missing while fully working elsewhere). geoFeatures/geoFeaturesGL
+   (app/studio-charts.js) merge per the CALLER's customMap instead of a cached vendored table — the
+   custom branch is deliberately NOT cached by scale name, since different panels can carry different
+   mappings. scaleNoun gained "custom regions"; geoNormalizeId needed no new branch (region ids are
+   the user's own label, passed through like crd's district id already is).
+   app/model.js, app/studio-charts.js, app/studio-render.js, app/studio.js, app/sources/localfile.js,
+   docs/index.html, tests/run.js changed, so precached copies need to roll.
+   v205: LF22 slice 3 — a new 5-digit ZIP (ZCTA) choropleth
    scale, the third geography-expansion item: tools/build-geo.mjs fetches all ~33.8k ZIP Code
    Tabulation Areas nationwide from Census TIGERweb (tigerWMS_Current/MapServer layer 2, which
    carries no STATE attribute, so territories are dropped via the existing null-projection filter

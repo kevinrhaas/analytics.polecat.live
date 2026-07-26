@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 569,
+    title: 'New map scale: custom regions',
+    kind: 'feature',
+    ts: '2026-07-26T08:22:28.000Z',
+    items: [
+      'Choropleth maps gain a "Custom regions" scale: import a 2-column CSV (county FIPS, region name) right in the Inspector and the map merges the existing county shapes into your own territories -- no new geometry, the last item in the geography-expansion list.',
+    ],
+  },
+  {
     v: 568,
     title: 'New map scale: ZIP codes',
     kind: 'feature',

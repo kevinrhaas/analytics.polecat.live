@@ -116,6 +116,48 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF22 slice 4 — counties→custom-region MAPPING IMPORTER, the fourth and last item (v569,
+  sw v206, 2026-07-26, steward — LF22 is now fully DONE):** "these counties = this territory"
+  as a real user-facing feature, exactly as LF22's spec text called for: a new **Custom regions**
+  choropleth scale whose lookup table is a user-imported 2-column CSV (county FIPS, region name),
+  not vendored data — the one structural difference from slices 1-3, which each shipped a new
+  `vendor/geo/*.json` asset via `tools/build-geo.mjs`. This slice ships **no geometry and no
+  build-tool change at all**: `app/studio-charts.js`'s `geoFeatures`/`geoFeaturesGL` gained a
+  `custom` branch that merges county polygons per region via `topojson.merge` — structurally
+  identical to the existing `crd` branch (which merges per NASS district), just grouped by the
+  caller's own `cfg.customMap` instead of the vendored `us-crd-counties.json`. Threaded through
+  `studio-render.js`'s `choroCfg.customMap` from the panel's own `chart.opts.customMap`, so the
+  lookup rides inside the spec/export like any other opt — `Studio.geoAssetKeys` needs only
+  `county,state` for it (no third fetch key the way `crd` needs `crdMap`). New pure
+  `Studio.parseCustomGeoCsv` (`app/model.js`) turns an imported CSV into the `{fips:region}`
+  lookup, zero-padding short FIPS and rejecting a CSV with no region column or no valid rows;
+  it reuses `parseCSV` from `app/sources/localfile.js`'s file-dataset importer, newly exported
+  as `Studio.parseCSVText` (additive, no behavior change to that module). A new `customgeo`
+  opt-field type (`app/studio.js`'s `optField`) renders the Import-CSV/Clear-mapping control
+  (a small DOM wrapper around the pure parse function, so the parsing itself stays unit-testable
+  without simulating file input DOM events). Because the `custom` branch groups by an arbitrary
+  per-panel lookup rather than one fixed vendored table, it's **deliberately never cached** by
+  scale name the way every other scale is (`_featCache`/`_featCacheGL` would collide across two
+  differently-mapped panels) — re-merging a typically-small user county list on every render is
+  cheap, nothing like huc8/zcta's feature counts. `scaleNoun` gained "custom regions";
+  `geoNormalizeId` needed no new branch (a custom region's data id is the user's own label,
+  passed through raw — same convention CRD's district-id column already uses). **Intentional
+  scope line, flagged rather than hidden:** Explore's own lighter quick map editor
+  (`xpMapEditorHtml`) does NOT gain this scale, unlike the "keep both pickers in sync" fix LF22
+  slice 3 made for `cd`/`zcta` — those were scales that worked everywhere the moment they were
+  selected, just missing from one dropdown by oversight; "custom" has no import affordance in
+  Explore's smaller editor, so offering the option there would be a genuine dead end (always
+  "no mapping yet"), not an oversight to fix. docs/index.html's choropleth description gained a
+  paragraph on the new scale + import flow. 3 new regression tests, plus the existing
+  `geoAssetKeys` unit test extended with a `custom` case (`parseCustomGeoCsv` accepts a good
+  CSV incl. zero-padding a short FIPS and ignoring blank rows and rejects a 1-column CSV/one
+  with no valid rows; a full-pipeline probe — two real Iowa/Illinois county FIPS folding into
+  one "North" region, a third into its own "South" region, both rendering colored through the
+  real exported iframe). Suite green, 2132/2132.
+  (app/model.js, app/studio-charts.js, app/studio-render.js, app/studio.js,
+  app/sources/localfile.js, docs/index.html, sw.js, js/changelog.js, tests/run.js) **LF22 (the
+  whole "expand the geography library" track) is now fully done** — all four items (nationwide
+  watersheds, congressional districts, ZCTA, and now the custom-region importer) have shipped.
 - **LF22 slice 3 — 5-digit ZIP codes (ZCTA), a new map scale (v568, sw v205, 2026-07-26,
   steward):** the third item of LF22's geography-expansion list ("(3) 5-digit ZIP → ZCTA").
   `tools/build-geo.mjs` gained a 5th fetch step querying Census TIGERweb's `tigerWMS_Current/
@@ -3868,8 +3910,13 @@
 >       full writeup. New `zcta` scale, own vendored geometry from Census TIGERweb — 33,642 ZCTAs nationwide,
 >       all 50 states + DC, ~4.4MB (aggressive-simplify only; per-state lazy load is a real open follow-up,
 >       flagged in DONE, since this asset is markedly bigger than huc8/cd and gets inlined whole into any
->       export that uses it). NEXT in LF22: per-state lazy load for the ZCTA asset (if export size becomes a
->       real problem), then (4) the counties→custom-region mapping importer.
+>       export that uses it).
+>       ✓ **Slice 4 shipped (v569, sw v206, 2026-07-26, steward — LF22 is now fully DONE): (4) the
+>       counties→custom-region mapping importer.** See DONE for the full writeup. New `custom` scale
+>       merges county geometry per a user-imported CSV lookup (`chart.opts.customMap`), the same
+>       `topojson.merge` grouping crd already uses — no new geometry, no vendor asset, no build-tool
+>       change. Open follow-up (not this slice, not blocking): per-state lazy load for the ZCTA asset
+>       from slice 3, if export size ever becomes a real problem.
 > LF23. ★ **VIEWER MODE — open dashboards read-only, as their own page/tab, with role-gated Studio access (Kevin, live).**
 >       **PRIORITY (Kevin, 2026-07-24): start Viewer mode early — it's a near-term ★ priority.**
 >       Most people should OPEN a dashboard to READ it, not land in the full builder. From the Repository (Dashboards

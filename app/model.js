@@ -1075,7 +1075,14 @@
       fields: ["idCol", "valueCol", "seriesCol"],
       opts: [
         { key: "scale",   type: "select", label: "Region scale", def: "county",
-          choices: [["county", "Counties (FIPS)"], ["state", "States"], ["crd", "USDA districts (CRD)"], ["huc8", "Watersheds (HUC8)"], ["cd", "Congressional districts"], ["zcta", "ZIP codes (ZCTA)"]] },
+          choices: [["county", "Counties (FIPS)"], ["state", "States"], ["crd", "USDA districts (CRD)"], ["huc8", "Watersheds (HUC8)"], ["cd", "Congressional districts"], ["zcta", "ZIP codes (ZCTA)"], ["custom", "Custom regions"]] },
+        // LF22(4): "these counties = this territory" grouping — no new geometry, just a
+        // user-imported county-FIPS→region lookup that merges county polygons per region
+        // the same way the built-in CRD scale merges them per NASS district. Only read
+        // when scale = "custom"; the data's id column must then hold the REGION NAME
+        // (not a FIPS code) — same convention as CRD, whose id column holds district ids.
+        { key: "customMap", type: "customgeo", label: "County → region mapping", def: null,
+          hint: "Only used when Region scale = Custom regions. Import a 2-column CSV (county FIPS, region name); the map's id column should then use those region names." },
         { key: "renderer", type: "select", label: "Renderer", def: "svg",
           choices: [["svg", "Built-in (light — smallest export)"], ["gl", "Interactive GL (pan & zoom, ~1MB heavier export)"]],
           hint: "GL mode pans and zooms smoothly at any polygon count; it inlines MapLibre into the export. Falls back to the built-in renderer where WebGL is unavailable." },
@@ -2734,8 +2741,32 @@
     if (scales.cd) { keys.cd = 1; keys.state = 1; }
     if (scales.zcta) { keys.zcta = 1; keys.state = 1; }
     if (scales.crd) { keys.county = 1; keys.crdMap = 1; keys.state = 1; } // CRDs merge county geometry
+    // LF22(4): custom regions merge county geometry too, but the lookup table rides
+    // INSIDE the panel's own opts.customMap (a user import, not a vendored asset) — so
+    // unlike CRD there is no extra fetch key, just the same county+state geometry need.
+    if (scales.custom) { keys.county = 1; keys.state = 1; }
     if (scales.state) { keys.state = 1; }
     return Object.keys(keys);
+  };
+  // LF22(4): turn a 2-column "county FIPS, region name" CSV into the {fips:region}
+  // lookup the custom-regions choropleth scale groups counties by (studio-charts.js's
+  // geoFeatures merges county polygons per distinct region value, exactly like the
+  // built-in CRD scale merges them per NASS district — just from a user's own table
+  // instead of the vendored one). A pure function (no DOM) so it's unit-testable and
+  // reusable from both the full Inspector's import button and any future bulk path.
+  Studio.parseCustomGeoCsv = function (text) {
+    var parsed = Studio.parseCSVText(text);
+    if (!parsed.columns || parsed.columns.length < 2) throw new Error("Expected 2 columns: county FIPS, region name");
+    var map = {}, n = 0;
+    parsed.rows.forEach(function (r) {
+      var raw = String(r[0] == null ? "" : r[0]).trim();
+      var region = String(r[1] == null ? "" : r[1]).trim();
+      if (!raw || !region) return;
+      var fips = /^\d{1,5}$/.test(raw) ? ("00000" + raw).slice(-5) : raw;
+      map[fips] = region; n++;
+    });
+    if (!n) throw new Error("No valid county FIPS → region rows found");
+    return map;
   };
   // Viridis V4: true when any map panel opts into the MapLibre GL renderer —
   // the preview/export inliner and the lazy asset loader share this so a GL
