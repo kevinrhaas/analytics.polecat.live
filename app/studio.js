@@ -203,6 +203,8 @@
       fetchText("app/sources/postgrest.js"),
       // Same treatment, now for the connection-bound Supabase façade.
       fetchText("app/sources/supabase.js"),
+      // Same treatment, now for the connection-bound Google Sheets façade.
+      fetchText("app/sources/gsheets.js"),
       // UX6 (icon migration): the chart-pagination Prev/Next buttons (studio-charts.js) now call
       // Studio.icon() — bundled unconditionally (like studio-charts.js itself) so every export's
       // paginated table keeps its themed chevrons, not just the live builder.
@@ -212,9 +214,9 @@
       S.catalog = r[0];
       S.assets = {
         css: r[1], js: r[2], render: r[3], charts: r[4], duckdb: r[5], httpvfs: r[6],
-        snowflake: r[7], databricks: r[8], bigquery: r[9], genericsql: r[10], turso: r[11], postgrest: r[12], supabase: r[13], icons: r[14]
+        snowflake: r[7], databricks: r[8], bigquery: r[9], genericsql: r[10], turso: r[11], postgrest: r[12], supabase: r[13], gsheets: r[14], icons: r[15]
       };
-      S.examples = r[15] || [];
+      S.examples = r[16] || [];
       wireTopbar();
       try { renderFooter(); } catch (e) { /* footer is non-critical chrome */ }
       setupPanes();
@@ -724,7 +726,7 @@
     da.params = (ds.params || []).map(function (p) { return { name: p.key, default: p.value || "" }; });
     da.datasetId = ds.id;
     da.connectionId = ds.connectionId;
-    da.dataset = { kind: ds.kind || "sql", sql: ds.sql, table: ds.table, query: ds.query, collection: ds.collection, params: ds.params };
+    da.dataset = { kind: ds.kind || "sql", sql: ds.sql, table: ds.table, sheet: ds.sheet, query: ds.query, collection: ds.collection, params: ds.params };
     da.authored = true;
     return da;
   }

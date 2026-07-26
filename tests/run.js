@@ -18633,6 +18633,110 @@ function serve() {
     ok("Post-overhaul item 3 (Supabase) REGRESSION: the real query round-trip returns the actual filtered rows from the endpoint",
       sbRealQuery.cols && sbRealQuery.cols.join(",") === "region,total" && sbRealQuery.rows === '[["EMEA",120]]', JSON.stringify(sbRealQuery));
 
+    // Post-overhaul backlog item 3, other half — Google Sheets slice (2026-07-26): fourth
+    // connection-bound adapter to get this treatment, after Turso, PostgREST and Supabase — and
+    // the FIRST with no secret field at all (a link-shared sheet needs no auth). That makes the
+    // redaction gate itself the interesting case here: the prior three adapters always had a
+    // truthy CONN_ADAPTER_SECRET_FIELD entry, so redactSecrets' old `if (conn && secretField)`
+    // gate happened to also be "is this a wired connection-bound adapter" — for gsheets that gate
+    // would have stayed false forever (no needsSecret) and connAdapter would never get stamped,
+    // silently falling through to offline sample data. Fixed by keying the gate off
+    // CONN_ADAPTER_CFG_FIELDS instead (always present for a wired adapter, secret or not).
+    console.log("\n• Post-overhaul item 3 (connection-bound, Google Sheets): exported dashboards can query a Sheets-backed dataset live");
+
+    const gsRedaction = await page.evaluate(function () {
+      var assets = window.__STUDIO_STATE.assets;
+      var conn = Studio.Workspace.put("connections", { name: "gs-export-test", adapter: "gsheets", cfg: { url: "https://docs.google.com/spreadsheets/d/GSXPORTTEST123/edit" } });
+      var spec = {
+        name: "ok-name", title: "T", panels: [], kpis: [], filters: [],
+        cda: { dataAccesses: [{ id: "d1", name: "gsDa", kind: "sql", columns: ["x"], connectionId: conn.id, datasetId: "ds-gs-1", dataset: { kind: "sheet", sheet: "Sales", query: "" } }] }
+      };
+      var html = Studio.exportCDF(spec, assets, "/x");
+      return {
+        keepsUrl: html.indexOf("GSXPORTTEST123") >= 0,
+        stampsConnAdapter: html.indexOf("\"connAdapter\":\"gsheets\"") >= 0,
+        stampsNeedsSecret: html.indexOf("\"needsSecret\"") >= 0
+      };
+    });
+    ok("Post-overhaul item 3 (Google Sheets): exportCDF keeps the connection's non-secret field (url) so the dataset still resolves",
+      gsRedaction.keepsUrl, JSON.stringify(gsRedaction));
+    ok("Post-overhaul item 3 (Google Sheets): the redacted DA is stamped with connAdapter:\"gsheets\" so the runtime knows which engine to use",
+      gsRedaction.stampsConnAdapter, JSON.stringify(gsRedaction));
+    ok("Post-overhaul item 3 (Google Sheets): a link-shared sheet has no secret field at all, so redaction never stamps needsSecret (no open-time prompt)",
+      !gsRedaction.stampsNeedsSecret, JSON.stringify(gsRedaction));
+
+    const gsBundling = await page.evaluate(function () {
+      var assets = window.__STUDIO_STATE.assets;
+      var conn = Studio.Workspace.put("connections", { name: "gs-bundling-test", adapter: "gsheets", cfg: { url: "https://docs.google.com/spreadsheets/d/GSBUNDLETEST1/edit" } });
+      var gsSpec = { name: "ok-name", title: "T", panels: [], kpis: [], filters: [], cda: { dataAccesses: [{ id: "d1", name: "d1", kind: "sql", columns: ["x"], connectionId: conn.id, dataset: { kind: "sheet", sheet: "", query: "" } }] } };
+      var plainSpec = { name: "ok-name", title: "T", panels: [], kpis: [], filters: [], cda: { dataAccesses: [{ id: "d1", name: "d1", kind: "sql", columns: ["x"] }] } };
+      var gsHtml = Studio.exportCDF(gsSpec, assets, "/x");
+      var plainHtml = Studio.exportCDF(plainSpec, assets, "/x");
+      function has(html, name) { return new RegExp("Studio\\." + name + "\\s*=").test(html); }
+      return { gsHasFacade: has(gsHtml, "gsheetsSource"), plainOmitsFacade: !has(plainHtml, "gsheetsSource") };
+    });
+    ok("Post-overhaul item 3 (Google Sheets): a Sheets-connected export bundles the Google Sheets façade",
+      gsBundling.gsHasFacade, JSON.stringify(gsBundling));
+    ok("Post-overhaul item 3 (Google Sheets): a plain sql DA with no connection stays lean (no Google Sheets façade)",
+      gsBundling.plainOmitsFacade, JSON.stringify(gsBundling));
+
+    const gsDispatch = await page.evaluate(async function () {
+      var assets = window.__STUDIO_STATE.assets;
+      var conn = Studio.Workspace.put("connections", { name: "gs-dispatch-test", adapter: "gsheets", cfg: { url: "https://docs.google.com/spreadsheets/d/GSDISPATCHTEST/edit" } });
+      // dsToDA (app/studio.js) always sets da.kind:"sql" and da.sql/da.query to the SQL-editor
+      // shape ("" for a sheet-kind dataset) — the real sheet/query pair rides on da.dataset only.
+      var da = { id: "d1", name: "d1", kind: "sql", columns: ["x"], sql: "", query: "", connectionId: conn.id, dataset: { kind: "sheet", sheet: "Costs", query: "select A, B" } };
+      var spec = { name: "ok-name", title: "T", panels: [], kpis: [], filters: [], cda: { dataAccesses: [da] } };
+      var html = Studio.exportCDF(spec, assets, "/x");
+      var ifr = document.createElement("iframe");
+      ifr.style.display = "none";
+      document.body.appendChild(ifr);
+      await new Promise(function (resolve) { ifr.onload = resolve; ifr.srcdoc = html; });
+      var iw = ifr.contentWindow;
+      var seenCfg = null, seenDataset = null, promptCalled = false;
+      iw.window.prompt = function () { promptCalled = true; return ""; };
+      iw.Studio.gsheetsSource.queryData = function (cfg, dataset) { seenCfg = cfg; seenDataset = dataset; return Promise.resolve({ columns: ["item", "cost"], rows: [["Compute", 900]] }); };
+      var result = await iw.PDC.cda("d1", {});
+      document.body.removeChild(ifr);
+      return {
+        gotRows: result.rows.length === 1 && result.rows[0][0] === "Compute",
+        noPromptNeeded: !promptCalled,
+        gotUrlCfg: seenCfg && seenCfg.url && seenCfg.url.indexOf("GSDISPATCHTEST") >= 0,
+        gotSheetQuery: seenDataset && seenDataset.sheet === "Costs" && seenDataset.query === "select A, B"
+      };
+    });
+    ok("Post-overhaul item 3 (Google Sheets): PDC.cda dispatches a Sheets-backed DA to Studio.gsheetsSource.queryData with the connection's url cfg",
+      gsDispatch.gotRows && gsDispatch.gotUrlCfg, JSON.stringify(gsDispatch));
+    ok("Post-overhaul item 3 (Google Sheets): no credential prompt fires — a link-shared sheet has nothing to prompt for",
+      gsDispatch.noPromptNeeded, JSON.stringify(gsDispatch));
+    ok("Post-overhaul item 3 (Google Sheets): the dispatched dataset def carries da.dataset's {sheet,query} — NOT da.sql/da.query, which dsToDA always blanks for a sheet-kind DA",
+      gsDispatch.gotSheetQuery, JSON.stringify(gsDispatch));
+
+    // Real end-to-end, UNSTUBBED — same regression class v228/v591 caught for postgrest.js and
+    // (pre-emptively) supabase.js: gsheets.js's queryData is self-contained (no Studio.WS
+    // dependency to begin with), but this still proves the real, deployed code path — dispatch,
+    // fetch, gviz parsing — works against a live endpoint once actually exported.
+    const gsRealQuery = await page.evaluate(async function () {
+      var assets = window.__STUDIO_STATE.assets;
+      var conn = Studio.Workspace.put("connections", { name: "gs-real-query-test", adapter: "gsheets", cfg: { url: location.origin + "/__gsheets/spreadsheets/d/TESTSHEET1234x/edit" } });
+      var da = { id: "d1", name: "d1", kind: "sql", columns: ["x"], sql: "", query: "", connectionId: conn.id, dataset: { kind: "sheet", sheet: "", query: "select A, B where A = 'EMEA'" } };
+      var spec = { name: "ok-name", title: "T", panels: [], kpis: [], filters: [], cda: { dataAccesses: [da] } };
+      var html = Studio.exportCDF(spec, assets, "/x");
+      var ifr = document.createElement("iframe");
+      ifr.style.display = "none";
+      document.body.appendChild(ifr);
+      await new Promise(function (resolve) { ifr.onload = resolve; ifr.srcdoc = html; });
+      var iw = ifr.contentWindow;
+      var thrown = null, result = null;
+      try { result = await iw.PDC.cda("d1", {}); } catch (e) { thrown = e.message; }
+      document.body.removeChild(ifr);
+      return { thrown: thrown, cols: result && result.cols, rows: result && JSON.stringify(result.rows) };
+    });
+    ok("Post-overhaul item 3 (Google Sheets) REGRESSION: an exported dashboard's REAL (unstubbed) gsheets.js queryData runs against a live gviz endpoint without throwing",
+      !gsRealQuery.thrown, JSON.stringify(gsRealQuery));
+    ok("Post-overhaul item 3 (Google Sheets) REGRESSION: the real query round-trip returns the actual filtered row from the endpoint",
+      gsRealQuery.cols && gsRealQuery.cols.join(",") === "region,total,C" && gsRealQuery.rows === '[["EMEA",120,"Jan 15, 2026"]]', JSON.stringify(gsRealQuery));
+
     // ── F18: Bump / ranking chart (v104) ─────────────────────────────────────
     console.log("\n• F18: Bump chart");
 

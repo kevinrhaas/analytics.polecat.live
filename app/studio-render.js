@@ -235,8 +235,8 @@
   // (which registered source the Workspace connection used) + a redacted da.connCfg (its non-secret
   // fields) onto the DA at export time; this dispatches on THAT field instead, same
   // prompt-once/never-embed contract as CRED_ENGINES. Turso shipped first; PostgREST is the
-  // second; Supabase is the third — Redshift/Google Sheets/local files still have no
-  // exported-runtime path. `dataset(da)` shapes the def each adapter's own queryData(cfg,
+  // second; Supabase is the third; Google Sheets is the fourth — Redshift/local files still
+  // have no exported-runtime path. `dataset(da)` shapes the def each adapter's own queryData(cfg,
   // dataset) expects — Turso's speaks raw SQL (da.sql/da.query, same as every other kind:"sql"
   // DA), but a table-kind connection (PostgREST/Supabase, same protocol) has no da.table/
   // da.query of its own: dsToDA (app/studio.js) always sets da.kind:"sql" and clobbers da.query
@@ -261,6 +261,16 @@
       engine: function () { return window.Studio && Studio.supabaseSource; },
       cfg: function (da, secret) { return Object.assign({}, da.connCfg, { key: secret }); },
       dataset: function (da) { return { table: da.dataset && da.dataset.table, query: da.dataset && da.dataset.query }; }
+    },
+    // Google Sheets: link-shared sheets need no auth at all, so unlike the three adapters
+    // above, cfg() never merges a secret in (resolveSecret still runs but is a no-op — da.needsSecret
+    // is never stamped for gsheets, see exporters.js's redactSecrets). dataset() carries the
+    // {sheet, query} pair dsToDA (app/studio.js) now threads onto da.dataset for a sheet-kind DA.
+    gsheets: {
+      label: "Google Sheets",
+      engine: function () { return window.Studio && Studio.gsheetsSource; },
+      cfg: function (da) { return Object.assign({}, da.connCfg); },
+      dataset: function (da) { return { sheet: da.dataset && da.dataset.sheet, query: da.dataset && da.dataset.query }; }
     }
   };
   var _secretCache = {};

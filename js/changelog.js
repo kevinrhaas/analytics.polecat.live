@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 593,
+    title: 'Google Sheets datasets now run live in exported dashboards too',
+    kind: 'feature',
+    ts: '2026-07-26T22:43:38.000Z',
+    items: [
+      'The same connection-bound live-query support Turso, PostgreSQL (PostgREST) and Supabase got now covers Google Sheets: exporting a dashboard built on a Sheets connection resolves the sheet URL at export time and queries the live gviz endpoint -- no credential prompt needed, since a link-shared sheet has nothing to authenticate.',
+    ],
+  },
+  {
     v: 592,
     title: 'Supabase datasets now run live in exported dashboards too',
     kind: 'feature',

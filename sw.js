@@ -5,7 +5,21 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v229"; /* v229: Post-overhaul backlog item 3, other
+var CACHE_NAME = "studio-shell-v230"; /* v230: Post-overhaul backlog item 3, other
+   half, Google Sheets slice — the same connection-bound exported-runtime treatment
+   v226/v227/v229 gave Turso/PostgREST/Supabase, now for Google Sheets connections —
+   the first of these with no secret field at all (link-shared sheets need no auth),
+   so exporters.js's redactSecrets gating now keys off CONN_ADAPTER_CFG_FIELDS
+   (always present for a wired adapter) rather than CONN_ADAPTER_SECRET_FIELD (absent
+   on purpose for gsheets). studio-render.js's CONN_ENGINES gained a gsheets entry
+   dispatching to Studio.gsheetsSource.queryData with a {sheet,query} def read from
+   da.dataset — app/studio.js's dsToDA had to start threading ds.sheet onto da.dataset
+   too (it only carried sql/table/query/collection before, never sheet). app/studio.js
+   and app/viewer.js now also fetch app/sources/gsheets.js as an export asset, bundled
+   into the exported HTML only when a dashboard actually has a connAdapter:"gsheets" DA.
+   app/sources/gsheets.js, app/exporters.js, app/studio-render.js, app/studio.js,
+   app/viewer.js, docs/index.html changed, so the precached copies need to roll.
+   v229: Post-overhaul backlog item 3, other
    half, Supabase slice — the same connection-bound exported-runtime treatment v226/
    v227 gave Turso/PostgREST, now for Supabase connections (the third and final
    PostgREST-protocol adapter to get it). app/sources/supabase.js's queryData carried
