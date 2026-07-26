@@ -5,7 +5,22 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v228"; /* v228: REGRESSION FIX — the v227 PostgREST
+var CACHE_NAME = "studio-shell-v229"; /* v229: Post-overhaul backlog item 3, other
+   half, Supabase slice — the same connection-bound exported-runtime treatment v226/
+   v227 gave Turso/PostgREST, now for Supabase connections (the third and final
+   PostgREST-protocol adapter to get it). app/sources/supabase.js's queryData carried
+   the exact same latent bug postgrest.js's did before v228 — it called
+   Studio.WS.postgrestQueryData (app/sources/schema.js), which the exported bundle
+   never loads — so it gained its own self-contained copy up front rather than
+   shipping the bug and fixing it in a follow-up release. exporters.js's redactSecrets
+   learned supabase's secret field (key, the anon/publishable key) + non-secret cfg
+   fields (url); studio-render.js's CONN_ENGINES gained a supabase entry dispatching
+   to Studio.supabaseSource.queryData with a {table,query} def read from da.dataset,
+   same as PostgREST. app/studio.js and app/viewer.js now also fetch
+   app/sources/supabase.js as an export asset, bundled into the exported HTML only
+   when a dashboard actually has a connAdapter:"supabase" DA. app/sources/supabase.js,
+   app/exporters.js, app/studio-render.js, app/studio.js, app/viewer.js, docs/index.html
+   changed, so the precached copies need to roll. v228: REGRESSION FIX — the v227 PostgREST
    connection-bound exported-runtime feature actually threw in any real exported
    dashboard: app/sources/postgrest.js's queryData called Studio.WS.postgrestQueryData
    (app/sources/schema.js), but the exported bundle never loads schema.js (same

@@ -219,6 +219,17 @@ const MOCK_GOTRUE_USER_ID = "11111111-1111-1111-1111-111111111111";
 const MOCK_GOTRUE_SIGNUP_USER_ID = "22222222-2222-2222-2222-222222222222";
 const MOCK_GOTRUE_CONFIRM_EMAIL = "needsconfirm@example.com";
 const MOCK_GOTRUE_CONFIRM_USER_ID = "33333333-3333-3333-3333-333333333333";
+// Post-overhaul backlog item 3, other half — Supabase slice (app/sources/supabase.js
+// queryData): a real data table, same select=/eq. filter subset as mockPgTables above,
+// for the connection-bound exported-runtime REGRESSION test (proves the real,
+// unstubbed adapter round-trips against a live PostgREST-shaped endpoint).
+const mockSupaTables = {
+  orders: [
+    { region: "EMEA", total: 120 },
+    { region: "AMER", total: 200 },
+    { region: "APAC", total: 80 },
+  ],
+};
 function handleMockSupabase(req, rep, p) {
   const send = (code, body) => {
     rep.writeHead(code, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "*" });
@@ -260,7 +271,26 @@ function handleMockSupabase(req, rep, p) {
     return send(200, [{ ok: true }]);
   }
   if (!rel) return send(401, { message: "Secret API key required", hint: "Only secret API keys can be used for this endpoint." });
-  return send(404, { code: "PGRST205", message: "Could not find the table 'public." + decodeURIComponent(rel.split("?")[0]) + "' in the schema cache" });
+  // `p` (and so `rel`) is already query-stripped by the caller's own req.url.split("?")[0] — the
+  // real query string only survives on req.url, same as handleMockPostgrest reads it above.
+  const table = rel.replace(/^rest\/v1\//, "");
+  const tableRows = mockSupaTables[decodeURIComponent(table)];
+  if (tableRows) {
+    const qs = new URLSearchParams(req.url.split("?")[1] || "");
+    let rows = tableRows.slice();
+    for (const [k, v] of qs.entries()) {
+      if (k === "select" || k === "limit" || k === "order") continue;
+      const m = /^eq\.(.*)$/.exec(v);
+      if (m) rows = rows.filter((r) => String(r[k]) === m[1]);
+    }
+    const sel = (qs.get("select") || "*").trim();
+    if (sel && sel !== "*") {
+      const cols = sel.split(",").map((s) => s.trim());
+      rows = rows.map((r) => { const o = {}; cols.forEach((c) => { o[c] = r[c]; }); return o; });
+    }
+    return send(200, rows);
+  }
+  return send(404, { code: "PGRST205", message: "Could not find the table 'public." + decodeURIComponent(table) + "' in the schema cache" });
 }
 
 // ---- mock polecat-admin Edge Function relay (M7 slice 7, app/sources/
@@ -18492,6 +18522,116 @@ function serve() {
       !pgRealQuery.thrown, JSON.stringify(pgRealQuery));
     ok("Post-overhaul item 3 (PostgREST) REGRESSION: the real query round-trip returns the actual filtered rows from the endpoint",
       pgRealQuery.cols && pgRealQuery.cols.join(",") === "region,total" && pgRealQuery.rows === '[["EMEA",120]]', JSON.stringify(pgRealQuery));
+
+    // Post-overhaul backlog item 3, other half — Supabase slice (2026-07-26): third
+    // connection-bound adapter to get this treatment, after Turso and PostgREST. Same
+    // {table,query} dataset shape as PostgREST (Supabase's data plane IS PostgREST), so this
+    // mirrors the PostgREST block above rather than the Turso one. Unlike PostgREST's OPTIONAL
+    // token, Supabase's anon/publishable key is effectively always required — there's no
+    // supported "anonymous, no key at all" mode — so there's no anonymous-connection variant
+    // test here (that asymmetry is the mirror image of PostgREST's own asymmetry vs Turso).
+    console.log("\n• Post-overhaul item 3 (connection-bound, Supabase): exported dashboards can query a Supabase-backed dataset live");
+
+    const sbRedactionWithKey = await page.evaluate(function () {
+      var assets = window.__STUDIO_STATE.assets;
+      var conn = Studio.Workspace.put("connections", { name: "sb-export-test", adapter: "supabase", cfg: { url: "https://sb.example.com", key: "SUPER-SECRET-SB-KEY" } });
+      var spec = {
+        name: "ok-name", title: "T", panels: [], kpis: [], filters: [],
+        cda: { dataAccesses: [{ id: "d1", name: "sbDa", kind: "sql", columns: ["x"], connectionId: conn.id, datasetId: "ds-sb-1", dataset: { kind: "table", table: "orders", query: "select=*" } }] }
+      };
+      var html = Studio.exportCDF(spec, assets, "/x");
+      return {
+        leaksSecret: html.indexOf("SUPER-SECRET-SB-KEY") >= 0,
+        keepsUrl: html.indexOf("sb.example.com") >= 0,
+        stampsConnAdapter: html.indexOf("\"connAdapter\":\"supabase\"") >= 0,
+        stampsNeedsSecret: html.indexOf("\"needsSecret\":\"key\"") >= 0
+      };
+    });
+    ok("Post-overhaul item 3 (Supabase): exportCDF never embeds a Supabase connection's anon key in the output HTML",
+      !sbRedactionWithKey.leaksSecret, JSON.stringify(sbRedactionWithKey));
+    ok("Post-overhaul item 3 (Supabase): exportCDF keeps the connection's non-secret field (url) so the dataset still resolves",
+      sbRedactionWithKey.keepsUrl, JSON.stringify(sbRedactionWithKey));
+    ok("Post-overhaul item 3 (Supabase): the redacted DA is stamped with connAdapter:\"supabase\" so the runtime knows which engine to use",
+      sbRedactionWithKey.stampsConnAdapter, JSON.stringify(sbRedactionWithKey));
+    ok("Post-overhaul item 3 (Supabase): a connection with a key set is stamped needsSecret so the runtime prompts for it",
+      sbRedactionWithKey.stampsNeedsSecret, JSON.stringify(sbRedactionWithKey));
+
+    const sbBundling = await page.evaluate(function () {
+      var assets = window.__STUDIO_STATE.assets;
+      var conn = Studio.Workspace.put("connections", { name: "sb-bundling-test", adapter: "supabase", cfg: { url: "https://x.example.com", key: "k" } });
+      var sbSpec = { name: "ok-name", title: "T", panels: [], kpis: [], filters: [], cda: { dataAccesses: [{ id: "d1", name: "d1", kind: "sql", columns: ["x"], connectionId: conn.id, dataset: { kind: "table", table: "t", query: "" } }] } };
+      var plainSpec = { name: "ok-name", title: "T", panels: [], kpis: [], filters: [], cda: { dataAccesses: [{ id: "d1", name: "d1", kind: "sql", columns: ["x"] }] } };
+      var sbHtml = Studio.exportCDF(sbSpec, assets, "/x");
+      var plainHtml = Studio.exportCDF(plainSpec, assets, "/x");
+      function has(html, name) { return new RegExp("Studio\\." + name + "\\s*=").test(html); }
+      return { sbHasFacade: has(sbHtml, "supabaseSource"), plainOmitsFacade: !has(plainHtml, "supabaseSource") };
+    });
+    ok("Post-overhaul item 3 (Supabase): a Supabase-connected export bundles the Supabase façade",
+      sbBundling.sbHasFacade, JSON.stringify(sbBundling));
+    ok("Post-overhaul item 3 (Supabase): a plain sql DA with no connection stays lean (no Supabase façade)",
+      sbBundling.plainOmitsFacade, JSON.stringify(sbBundling));
+
+    const sbDispatch = await page.evaluate(async function () {
+      var assets = window.__STUDIO_STATE.assets;
+      var conn = Studio.Workspace.put("connections", { name: "sb-dispatch-test", adapter: "supabase", cfg: { url: "https://x.example.com", key: "orig-secret" } });
+      // dsToDA (app/studio.js) always sets da.kind:"sql" and da.sql/da.query to the SQL-editor
+      // shape ("" for a table-kind dataset) — the real table/query pair rides on da.dataset only.
+      var da = { id: "d1", name: "d1", kind: "sql", columns: ["x"], sql: "", query: "", connectionId: conn.id, dataset: { kind: "table", table: "orders", query: "select=region,total" } };
+      var spec = { name: "ok-name", title: "T", panels: [], kpis: [], filters: [], cda: { dataAccesses: [da] } };
+      var html = Studio.exportCDF(spec, assets, "/x");
+      var ifr = document.createElement("iframe");
+      ifr.style.display = "none";
+      document.body.appendChild(ifr);
+      await new Promise(function (resolve) { ifr.onload = resolve; ifr.srcdoc = html; });
+      var iw = ifr.contentWindow;
+      var seenCfg = null, seenDataset = null;
+      iw.window.prompt = function () { return "fresh-prompted-key"; };
+      iw.Studio.supabaseSource.queryData = function (cfg, dataset) { seenCfg = cfg; seenDataset = dataset; return Promise.resolve({ columns: ["region", "total"], rows: [["IA", 1]] }); };
+      var result = await iw.PDC.cda("d1", {});
+      document.body.removeChild(ifr);
+      return {
+        gotRows: result.rows.length === 1 && result.rows[0][0] === "IA",
+        secretIsFresh: seenCfg && seenCfg.key === "fresh-prompted-key",
+        gotTableQuery: seenDataset && seenDataset.table === "orders" && seenDataset.query === "select=region,total"
+      };
+    });
+    ok("Post-overhaul item 3 (Supabase): PDC.cda dispatches a Supabase-backed DA to Studio.supabaseSource.queryData with the freshly-prompted key + non-secret cfg fields",
+      sbDispatch.gotRows && sbDispatch.secretIsFresh, JSON.stringify(sbDispatch));
+    ok("Post-overhaul item 3 (Supabase): the dispatched dataset def carries da.dataset's {table,query} — NOT da.sql/da.query, which dsToDA always blanks for a table-kind DA",
+      sbDispatch.gotTableQuery, JSON.stringify(sbDispatch));
+
+    // Real end-to-end, UNSTUBBED — same regression class v228 fixed for postgrest.js: Supabase's
+    // queryData used to call Studio.WS.postgrestQueryData (app/sources/schema.js), which the
+    // exported bundle never loads, so a real deployed dashboard querying a Supabase connection
+    // live would have thrown immediately ("Cannot read properties of undefined (reading
+    // 'postgrestQueryData')") the moment this dispatch path shipped. Fixed up front (see
+    // app/sources/supabase.js's own pgQueryData) rather than shipping the bug — this drives the
+    // SAME real exported HTML against the real mock Supabase endpoint with queryData untouched.
+    const sbRealQuery = await page.evaluate(async function () {
+      var assets = window.__STUDIO_STATE.assets;
+      var conn = Studio.Workspace.put("connections", { name: "sb-real-query-test", adapter: "supabase", cfg: { url: location.origin + "/__supabase", key: "sb_publishable_valid" } });
+      var da = { id: "d1", name: "d1", kind: "sql", columns: ["x"], sql: "", query: "", connectionId: conn.id, dataset: { kind: "table", table: "orders", query: "select=region,total&region=eq.EMEA" } };
+      var spec = { name: "ok-name", title: "T", panels: [], kpis: [], filters: [], cda: { dataAccesses: [da] } };
+      var html = Studio.exportCDF(spec, assets, "/x");
+      var ifr = document.createElement("iframe");
+      ifr.style.display = "none";
+      document.body.appendChild(ifr);
+      await new Promise(function (resolve) { ifr.onload = resolve; ifr.srcdoc = html; });
+      var iw = ifr.contentWindow;
+      // The connection's key IS set (Supabase's anon key is effectively always required —
+      // see the redaction test above), so needsSecret is stamped and PDC.cda prompts for it
+      // once at open, same as every other CRED_ENGINES/CONN_ENGINES adapter — stub just the
+      // prompt, never queryData itself, so the real (unstubbed) adapter code still runs.
+      iw.window.prompt = function () { return "sb_publishable_valid"; };
+      var thrown = null, result = null;
+      try { result = await iw.PDC.cda("d1", {}); } catch (e) { thrown = e.message; }
+      document.body.removeChild(ifr);
+      return { thrown: thrown, cols: result && result.cols, rows: result && JSON.stringify(result.rows) };
+    });
+    ok("Post-overhaul item 3 (Supabase) REGRESSION: an exported dashboard's REAL (unstubbed) supabase.js queryData runs against a live Supabase endpoint without throwing",
+      !sbRealQuery.thrown, JSON.stringify(sbRealQuery));
+    ok("Post-overhaul item 3 (Supabase) REGRESSION: the real query round-trip returns the actual filtered rows from the endpoint",
+      sbRealQuery.cols && sbRealQuery.cols.join(",") === "region,total" && sbRealQuery.rows === '[["EMEA",120]]', JSON.stringify(sbRealQuery));
 
     // ── F18: Bump / ranking chart (v104) ─────────────────────────────────────
     console.log("\n• F18: Bump chart");

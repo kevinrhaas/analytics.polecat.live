@@ -122,6 +122,30 @@
   }
   function sqlLit(s) { return "'" + String(s).replace(/'/g, "''") + "'"; }
 
+  // Local copy of Studio.WS.postgrestQueryData (app/sources/schema.js) — post-overhaul backlog
+  // item 3's "connection-bound dataset adapters get an exported-runtime path" treatment, third
+  // adapter after Turso and PostgREST. This file is bundled STANDALONE into exported/deployed
+  // dashboards (see exporters.js's redactSecrets + studio-render.js's CONN_ENGINES), and that
+  // bundle never loads schema.js, so `Studio.WS` doesn't exist there — the same "builder-only
+  // module, never inlined into the exported bundle" gap postgrest.js's own copy was written to
+  // close. Kept byte-identical in shape to postgrest.js's version, but calls THIS file's own
+  // `rest()` (apikey + optional GoTrue session bearer) rather than a passed-in restFn — the
+  // in-app callers (Explore/preview, where Studio.WS exists) behave exactly as before.
+  function pgQueryData(cfg, dataset) {
+    var table = (dataset && dataset.table || "").trim();
+    if (!table) return Promise.resolve({ columns: [], rows: [], error: "Dataset has no table" });
+    var qs = (dataset.query || "select=*").replace(/^\?/, "");
+    return rest(cfg, "/" + encodeURIComponent(table) + "?" + qs).then(function (r) {
+      if (!r.ok) return { columns: [], rows: [], error: "HTTP " + r.status };
+      return r.json().then(function (list) {
+        if (!Array.isArray(list) || !list.length) return { columns: [], rows: [] };
+        var columns = Object.keys(list[0]);
+        var rows = list.map(function (o) { return columns.map(function (c) { return o[c]; }); });
+        return { columns: columns, rows: rows };
+      });
+    }).catch(function (e) { return { columns: [], rows: [], error: e.message }; });
+  }
+
   Studio.supabaseSource = {
     id: "supabase",
     label: "Supabase",
@@ -369,7 +393,7 @@
     // dataset: { kind:'table', table, query? } — `query` is a raw PostgREST
     // query string (e.g. "select=name,total&order=total.desc&limit=200").
     queryData: function (cfg, dataset) {
-      return Studio.WS.postgrestQueryData(rest, cfg, dataset);
+      return pgQueryData(cfg, dataset);
     }
   };
 }());
