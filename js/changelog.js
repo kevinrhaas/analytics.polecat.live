@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 576,
+    title: 'Tech debt: Jobs moves to its own module',
+    kind: 'polish',
+    ts: '2026-07-26T13:09:24.000Z',
+    items: [
+      'Behind-the-scenes cleanup only -- the Jobs "prep pipeline" subsystem now lives in its own file instead of inside the main app controller. No visible change.',
+    ],
+  },
+  {
     v: 575,
     title: 'Tech debt: Explore moves to its own module',
     kind: 'polish',

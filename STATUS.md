@@ -116,6 +116,26 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **R5+ slice 7 — the Jobs subsystem moves to its own module (v576, sw v213, 2026-07-26,
+  steward):** the Jobs "data-management-lite" prep-pipeline subsystem (`duckSqlRunner`,
+  `jobOutputConnection`, `resolveJobCtx`, `runJob`, `jobRefreshBadge`, `toggleJobPrivate`,
+  `renderJobs`, `openJobEditor` and all of the job editor's internal helpers) moves out of
+  `app/studio.js` into a new `app/jobs.js` (`Studio.Jobs`), following the chart-thumbnails.js/
+  branding.js/defaults.js/celebrations.js/versions.js/explore.js extraction precedent (①-⑥).
+  Like ⑤/⑥ (versions/notes UI, Explore), this subsystem leans on a handful of studio.js's own
+  private DOM/modal helpers (`$`, `$$`, `el`, `modal`, `toast`) plus its visibility/user-scoping
+  helpers (`isVisibleToMe`, `isDatasetVisibleToMe`, `currentUserId`), the shared live-data
+  fetcher (`runDataset`), and the column-kind guesser also used by the Data Adapter preview
+  table (`guessFieldKind`) — so it takes the same ONE-bundled-`configure(deps)`-call shape (10
+  injected helpers) rather than ①-④'s one-injected-callback-each. `app/jobs.js` added to
+  `app/index.html` (loads after explore.js, before studio.js) and the sw.js precache list; every
+  original call site (`renderJobs`/`openJobEditor`/`runJob`/`toggleJobPrivate`) stays a thin
+  same-named delegate in studio.js, and every `window.__studio*` test hook is byte-for-byte
+  unchanged. Pure refactor, no behavior change — full suite green, unchanged at 2139/2139.
+  (app/jobs.js, app/studio.js, app/index.html, sw.js, js/changelog.js) **NEXT in this track:**
+  ⑧ Connections → Datasets (Datasets last — `runDataset`/`window.__studioRunDataset` bridges
+  back into the builder preview, so it stays in studio.js and is only ever injected as a
+  dependency, never moved).
 - **R5+ slice 6 — the Explore subsystem moves to its own module (v575, sw v212, 2026-07-26,
   steward):** the Explore "pick a dataset → chart → save as an analysis" subsystem (`XP` state,
   every `xp*` function, `renderExplore`, `analysisSpec`, `buildAnalysesLib`) moves out of
@@ -4645,10 +4665,13 @@
 >      `app/explore.js` (`Studio.Explore`). The analysis→spec add (`xpAddAnalysisToSpec`) and
 >      Home's `analysisSpec`/`homeLiveFrame` reuse seams this slice was flagged to preserve both
 >      stayed byte-for-byte call-compatible (thin same-named delegates in studio.js). Pure refactor,
->      suite unchanged at 2139/2139. NEXT in this track: ⑦ the data-plane panels LAST (Jobs →
->      Connections → Datasets; Datasets last because `runDataset`/`window.__studioRunDataset`
->      bridges back into the builder preview). These are lane-hot files — schedule each when the
->      feature lane isn't mid-slice in that area.
+>      suite unchanged at 2139/2139.
+>      ↳ **⑦ the Jobs subsystem (shipped v576, sw v213, 2026-07-26, steward):** see DONE for the
+>      full writeup. Same ONE-bundled-`configure(deps)`-call shape (10 injected helpers) — now
+>      `app/jobs.js` (`Studio.Jobs`). Pure refactor, suite unchanged at 2139/2139. NEXT in this
+>      track: ⑧ the remaining data-plane panels (Connections → Datasets; Datasets last because
+>      `runDataset`/`window.__studioRunDataset` bridges back into the builder preview). These are
+>      lane-hot files — schedule each when the feature lane isn't mid-slice in that area.
 
 ### ★★★★★ CONSERVATION INSIGHT PRODUCT PLATFORM (2026-07-21, user-directed — NOW THE TOP PRIORITY)
 > Kevin's big charter: turn Analytics into a multi-user, permissioned product. Decisions locked
