@@ -116,6 +116,27 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF18 slice 2 — Home's Examples hint now names its source sample pack(s) (v572, sw v209,
+  2026-07-26, steward):** closes LF18(d). Every gallery/Home example carries a `demoPackId`
+  (LF2/LF16 — all 16 current entries are tagged `conservation` or `datamanagement`, no untagged
+  examples exist), so a new `examplesSourceHint()` (`app/studio.js`) reads that same
+  `visibleExamples()` gate, collects the distinct pack ids actually contributing a visible card,
+  and renders their short names (the pack's `DEMO_PACKS[id].name` up to its own " — " separator)
+  into the section hint: `"from Conservation Insight + Data Management & Governance · click to
+  open in the builder"` instead of the old static `"sample dashboards · click to open in the
+  builder"`. Falls back to the old generic copy if somehow nothing is tagged. `homeSectionHeader`
+  special-cases the `examples` key to call this instead of the static `HOME_SECTION_HINTS` map;
+  no new render call needed since `toggleDemoPack`/the Workspace `"change"` listener already
+  repaint Home on every pack install/remove, so the hint updates live. 2 new regression tests
+  (default state — only Data Management & Governance installed — names just that pack; installing
+  Conservation Insight too makes the hint name both). Suite green. (app/studio.js, tests/run.js,
+  sw.js, js/changelog.js) **LF18(d) is now done.** NEXT in LF18: (b) the tour chooser remains
+  open — though note `app/tutorial.js`'s existing 3-tour chooser (`StudioTutorial.open()`,
+  wired to both Home's "Take the tour" card and ⋯ More → Interactive tutorial) already covers
+  the literal "chooser, not a single tour" ask; the real gap left is that its per-feature
+  coverage is Explore ("Quick analysis") and Studio ("Build a dashboard") only — no dedicated
+  Jobs or Connections/Datasets tour yet, which is what LF18(b)'s "deeper per-feature tours"
+  phrase calls for beyond what already ships.
 - **LF18 slice 1 — Home quick-actions reworded to concrete jobs (v571, sw v208, 2026-07-26,
   steward):** Home's 3 quick-create cards grow to 6, each with a one-line description: "New
   dashboard"/"Build a dashboard from scratch" (renamed from "Blank dashboard"/"Start from
@@ -4334,6 +4355,11 @@
 >       on Home" regression test (tests/run.js) already covers exactly this. No code change needed for
 >       (c). NEXT in LF18: (b) the tour chooser and (d) the examples-sourced-from-sample-packs
 >       clarification remain open.
+>       ✓ **Slice 2 shipped (v572, sw v209, 2026-07-26, steward — closes (d)): the Examples
+>       section hint now names its source pack(s)** — see DONE for the full writeup. NEXT in
+>       LF18: (b) the tour chooser is the only open item — see the DONE entry's note that the
+>       existing 3-tour chooser already satisfies the literal "chooser, not a single tour" ask;
+>       what's left is genuinely new per-feature tours for Jobs and Connections/Datasets.
 
 ### 🔁 QUALITY TRACKS — interleave with the feature backlog (Kevin, 2026-07-21)
 > Kevin asked for a code-organization sweep AND a UI/UX best-practices sweep, folded INTO the loop

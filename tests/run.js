@@ -22100,6 +22100,43 @@ function serve() {
     await page.click('#railNav .rail-item[data-sec="home"]');
     await page.waitForTimeout(100);
 
+    // LF18(d): Home's Examples hint should name the sample pack(s) the visible cards
+    // are drawn from, not a generic "sample dashboards" line — reads off the exact
+    // same demoPackId gate the cards themselves use, so it stays truthful as packs
+    // toggle. Data Management & Governance is installed by default; Conservation
+    // Insight isn't (only a "demo" login auto-installs it, and that's exercised +
+    // cleaned up earlier in this suite), so this page starts with just the one pack.
+    console.log("\n• LF18(d): Home Examples hint names the source sample pack(s)");
+    const lf18dDefault = await page.evaluate(function () {
+      var hint = document.querySelector('#secHome [data-home-sec="examples"] .home-sub-hint');
+      return { text: hint ? hint.textContent : "", conservationOn: Studio.demoPackInstalled("conservation") };
+    });
+    ok("LF18(d): with only Data Management & Governance installed (the default), the hint names just that pack",
+      !lf18dDefault.conservationOn && lf18dDefault.text === "from Data Management & Governance · click to open in the builder",
+      JSON.stringify(lf18dDefault));
+
+    await page.evaluate(function () {
+      window.__studioDemoPacks.install("conservation");
+      window.__studioBuildExamplesMenu();
+      window.__studioRenderHome();
+    });
+    await page.waitForTimeout(100);
+    const lf18dBoth = await page.evaluate(function () {
+      var hint = document.querySelector('#secHome [data-home-sec="examples"] .home-sub-hint');
+      return { text: hint ? hint.textContent : "" };
+    });
+    ok("LF18(d): once Conservation Insight is also installed, the hint names both packs",
+      /Data Management & Governance/.test(lf18dBoth.text) && /Conservation Insight/.test(lf18dBoth.text),
+      JSON.stringify(lf18dBoth));
+
+    // clean up: back to the default pack state so later tests see what they expect
+    await page.evaluate(function () {
+      window.__studioDemoPacks.remove("conservation");
+      window.__studioBuildExamplesMenu();
+      window.__studioRenderHome();
+    });
+    await page.waitForTimeout(100);
+
     // ── Z3: Dashboards section (Repository retired — data sources live in Datasets/Connections) ──
     console.log("\n• Z3: Dashboards section");
     await page.click('#railNav .rail-item[data-sec="dashboards"]');

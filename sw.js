@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v208"; /* v208: LF18(a) — Home's quick-action cards reworded to
+var CACHE_NAME = "studio-shell-v209"; /* v209: LF18(d) — Home's Examples section hint now names
+   the sample pack(s) the visible cards are drawn from ("from Conservation Insight + Data
+   Management & Governance · click to open in the builder") instead of a generic "sample
+   dashboards" line, reading off the same demoPackId gate the cards themselves use so it stays
+   truthful as packs toggle. app/studio.js, tests/run.js changed, so the precached copy needs to
+   roll.
+   v208: LF18(a) — Home's quick-action cards reworded to
    concrete jobs: New dashboard/Explore data/New connection/New dataset, each with a one-line
    description; the three new ones (explore/connection/dataset) route straight to their target
    (Explore section, the connection wizard, the dataset editor) with no Studio entry, unlike
