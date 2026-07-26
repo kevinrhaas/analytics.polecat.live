@@ -5,7 +5,15 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v213"; /* v213: R5+ slice 7 (studio.js module extraction,
+var CACHE_NAME = "studio-shell-v214"; /* v214: UX5 slice 1 (quality track) — a named
+   type-scale (--fs-8..--fs-25, 19 steps) now lives in app/studio.css's token bridge
+   block; every font-size declaration in the file (300+ call sites, previously raw
+   px values with no shared vocabulary) now reads var(--fs-*) instead. Pure aliasing,
+   every token's value copied byte-for-byte from what it replaced, so nothing renders
+   differently yet — consolidating the near-duplicate half-steps onto fewer real
+   steps is the follow-up this enables. app/studio.css content changed, so the
+   precached copy needs to roll.
+   v213: R5+ slice 7 (studio.js module extraction,
    tech-debt track) — the Jobs "data-management-lite" subsystem (prep pipelines: rename/cast/
    derive/filter/aggregate/join/union/sql) moves out of app/studio.js into its own module,
    app/jobs.js (Studio.Jobs), following the chart-thumbnails.js/branding.js/defaults.js/

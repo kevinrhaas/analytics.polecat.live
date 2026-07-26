@@ -116,6 +116,18 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **UX5 slice 1 — a named type scale for the builder chrome (v577, sw v214, 2026-07-26,
+  steward):** a read-only audit had found 19 distinct raw-px `font-size` values scattered across
+  `app/studio.css` with no shared vocabulary (half-steps like 8.5/9.5/11.5px included). A new
+  `--fs-8`..`--fs-25` custom-property scale (one named step per distinct value already in use) now
+  lives in the file's existing token-bridge `:root` block, and every `font-size` declaration
+  (300+ call sites) plus the file's one `font:` shorthand now reads `var(--fs-*)` instead of a
+  literal. Deliberately a pure aliasing pass — every token copies its value byte-for-byte from
+  what it replaced, so nothing renders differently (full suite unchanged at 2139/2139). NEXT in
+  this track: consolidating the near-duplicate half-steps onto fewer real steps, and the spacing
+  half (a 4px-base scale for the file's one-off paddings) — both deferred since they change actual
+  rendered values and need real visual re-verification, not just a refactor. (app/studio.css,
+  sw.js, js/changelog.js)
 - **R5+ slice 7 — the Jobs subsystem moves to its own module (v576, sw v213, 2026-07-26,
   steward):** the Jobs "data-management-lite" prep-pipeline subsystem (`duckSqlRunner`,
   `jobOutputConnection`, `resolveJobCtx`, `runJob`, `jobRefreshBadge`, `toggleJobPrivate`,
@@ -4487,6 +4499,18 @@
 > UX5. **Type & spacing scale tokens** (`--fs-xs…2xl`, 4px spacing base): migrate the 19 ad-hoc
 >      font-sizes (incl. 8.5/9.5/11.5/… half-steps) and one-off paddings. Biggest single coherence
 >      lever; larger diff — do as its own slice. (studio.css)
+>      ✓ **Slice 1 shipped (v577, sw v214, 2026-07-26, steward): the type-scale half.** A new
+>      `--fs-8`..`--fs-25` custom-property scale (19 named steps, one per distinct value the file
+>      already used) now lives in `studio.css`'s existing token-bridge `:root` block; every
+>      `font-size` declaration in the file (300+ call sites) and the one `font:` shorthand now reads
+>      `var(--fs-*)` instead of a raw px literal. Deliberately a pure aliasing pass — every token's
+>      value is copied byte-for-byte from what it replaced, so this slice changes nothing visually
+>      (verified: full suite green, unchanged at 2139/2139, since computed styles resolve
+>      identically). This is the honest MVP step before the real coherence win: NEXT in this track
+>      is consolidating the near-duplicate half-steps (e.g. 10.5/11/11.5) onto fewer real steps, plus
+>      the spacing half (4px-base tokens for the file's one-off paddings) — neither attempted here,
+>      since both require actual visual re-verification across all 6 theme×mode combos rather than a
+>      behavior-preserving refactor. (app/studio.css, sw.js, js/changelog.js)
 > UX6. **currentColor icon migration:** replace chrome glyphs (`⋯ ↶ ↷ ＋ ▾ ☰ ⇄ 📋 ● ‹ ›`) and the
 >      welcome-step letter icons with `Studio.icon()` SVGs — directly satisfies the fleet
 >      "single-color currentColor icons" bar (the `📋` emoji is full-color = a direct miss). Larger,
