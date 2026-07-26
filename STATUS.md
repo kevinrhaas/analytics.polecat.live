@@ -116,6 +116,28 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF19 slice 8 — the Data Source inspector gains header icons too, completing the right-panel
+  icon pass (v560, sw v197, 2026-07-26, steward):** the last of the four Inspector renderers slice
+  7 left open. All 15 `section()`/`advSection()` call sites in `renderDAInspector` now carry an
+  `iconName`: the base identity section (`cube`, same "base fields" convention slice 6 used for
+  Widget), the six per-kind query editors — SQL (`db`), DuckDB (`duckdb`), SQLite (`sqlite`),
+  Snowflake (`snowflake`), Databricks (`databricks`), BigQuery (`bigquery`), Generic SQL/HTTP
+  (`globe`) — reusing the EXACT glyphs `Studio.DA_KINDS`' own connector-picker cards already use
+  for each kind (verified against the existing `dsTypeIconNames` regression test's kind→icon
+  table), so a Data Source's inspector header now visually matches the connector card it was
+  created from. The remaining structural sections: Output columns (`list`), Parameters (`tag`,
+  matching Dashboard Inspector's Template variables), Calculated columns (`sigma`, the formula
+  symbol), Output options (`sliders`, matching Filter Inspector's Options preview) with its
+  nested Filter rules (`search`) and Sort (`sort-desc`, an exact pre-existing glyph for this),
+  and Cache (`clock`, time-based freshness). All 15 glyphs are visually distinct — no icon
+  repeated within this inspector. Builder-only chrome (`renderDAInspector` lives entirely in
+  app/studio.js, never bundled into an exported dashboard), so the export byte-identity invariant
+  is untouched. 4 new regression tests (all 15 sections found across a throwaway spec covering
+  all 7 DA kinds; each shows its own glyph; the 15 use 15 visually distinct SVGs; `h4.textContent`
+  stays exactly the plain title). No docs change (purely decorative, same as slices 5-7). Suite
+  green, 2096/2096. (app/studio.js, sw.js, js/changelog.js, tests/run.js) **LF19's whole right-panel
+  Inspector icon pass (slices 5-8) is now fully done** — the remaining LF19 scope is sensible
+  collapse defaults + consistent spacing on the right panel generally, still open.
 - **LF16/LF2(c) — the generic showcase gallery is now a toggleable "Data Management & Governance"
   sample pack (v559, sw v196, 2026-07-26, steward — both LF16 and LF2 are now fully done):** the 8
   pre-existing generic showcase examples (Data Governance Command Center, Data Platform Operations
@@ -3961,6 +3983,19 @@
 >       treatment for the remaining Inspector renderers (Filter, Header, KPI tile, Data Source —
 >       each its own follow-up slice), then sensible collapse defaults + consistent spacing on
 >       the right panel generally.
+>       ✓ **Slice 7 shipped (v558, sw v195, 2026-07-26, steward): Filter, Header, and KPI tile
+>       inspectors.** See DONE for the full writeup — 7 more `section()`/`advSection()` call
+>       sites across `renderFilterInspector`, `renderHeaderInspector`, and `renderKpiInspector`
+>       now carry their own header glyph. NEXT in LF19: the same icon treatment for Data Source
+>       (`renderDAInspector`), the last of the four Inspector renderers.
+>       ✓ **Slice 8 shipped (v560, sw v197, 2026-07-26, steward — LF19's whole Inspector icon
+>       pass is now COMPLETE):** the Data Source inspector. See DONE for the full writeup — all
+>       15 `section()`/`advSection()` call sites in `renderDAInspector` (base identity, the six
+>       per-kind query editors reusing `Studio.DA_KINDS`' own connector-card glyphs, output
+>       columns, parameters, calculated columns, output options + filter rules/sort, cache) now
+>       carry their own header glyph, the last of the five Inspector renderers. NEXT in LF19:
+>       sensible collapse defaults + consistent spacing on the right panel generally — still
+>       open, still to be sliced one coherent PR at a time.
 > LF18. **Home ("Welcome back") overhaul — richer entry points, default featured, tour chooser.** The Home
 >       landing should orient a returning user with descriptive quick-actions, not three bare cards:
 >       (a) QUICK-ACTIONS reworded to concrete jobs — "Explore curated datasets", "Build a dashboard from

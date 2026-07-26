@@ -4535,7 +4535,7 @@
     var da = Studio.daById(S.spec, S.selection.id); if (!da) { selectDashboard(); return; }
     if (Studio.isCompoundDA(da)) { renderCompoundDAInspector(body, da); return; }
     quickHelp(body, "da");
-    var sec = section(body, "Data Source", null, null, "data-sources");
+    var sec = section(body, "Data Source", null, null, "data-sources", "cube");
     sec.appendChild(field("ID", input(da.id, function (v) {
       var oldId = da.id;
       var nid = (v || "").trim().replace(/[^a-zA-Z0-9_-]+/g, "_") || oldId;
@@ -4558,7 +4558,7 @@
     // Per-kind query editor
     var kind = da.kind || "sql";
     if (/^sql/.test(kind)) {
-      var qs = section(body, "SQL Query", null, null, "data-sources");
+      var qs = section(body, "SQL Query", null, null, "data-sources", "db");
       var ta = el("textarea"); ta.style.cssText = "width:100%;min-height:130px;font-family:var(--mono);font-size:11.5px;resize:vertical;box-sizing:border-box";
       ta.value = da.sql || ""; ta.placeholder = "SELECT region AS region, SUM(amt) AS revenue\nFROM sales\nGROUP BY region";
       ta.addEventListener("change", function () {
@@ -4576,7 +4576,7 @@
       };
       qs.appendChild(det);
     } else if (kind === "duckdb") {
-      var qdk = section(body, "DuckDB-Wasm (remote file)", null, null, "data-sources");
+      var qdk = section(body, "DuckDB-Wasm (remote file)", null, null, "data-sources", "duckdb");
       qdk.appendChild(field("File URL", input(da.fileUrl || "", function (v) { da.fileUrl = v.trim(); }, "https://your-bucket.s3.amazonaws.com/data.parquet")));
       qdk.appendChild(field("Format", select2pairs([["auto", "Auto-detect (by extension)"], ["parquet", "Parquet"], ["csv", "CSV"]], da.fileFormat || "auto", function (v) { da.fileFormat = v; })));
       var dkTa2 = el("textarea"); dkTa2.style.cssText = "width:100%;min-height:90px;font-family:var(--mono);font-size:11.5px;resize:vertical;box-sizing:border-box";
@@ -4606,7 +4606,7 @@
       };
       qdk.appendChild(dkTest2);
     } else if (kind === "httpvfs") {
-      var qsl = section(body, "SQLite-WASM (remote file)", null, null, "data-sources");
+      var qsl = section(body, "SQLite-WASM (remote file)", null, null, "data-sources", "sqlite");
       qsl.appendChild(field("File URL", input(da.fileUrl || "", function (v) { da.fileUrl = v.trim(); }, "https://your-bucket.s3.amazonaws.com/data.sqlite")));
       qsl.appendChild(field("Table name (optional — auto-detected if blank)", input(da.tableName || "", function (v) { da.tableName = v.trim(); })));
       var slTa2 = el("textarea"); slTa2.style.cssText = "width:100%;min-height:90px;font-family:var(--mono);font-size:11.5px;resize:vertical;box-sizing:border-box";
@@ -4637,7 +4637,7 @@
       };
       qsl.appendChild(slTest2);
     } else if (kind === "snowflake") {
-      var qsf = section(body, "Snowflake (SQL API)", null, null, "data-sources");
+      var qsf = section(body, "Snowflake (SQL API)", null, null, "data-sources", "snowflake");
       qsf.appendChild(field("Account identifier", input(da.sfAccount || "", function (v) { da.sfAccount = v.trim(); }, "xy12345.us-east-1")));
       qsf.appendChild(field("Access token", input(da.sfToken || "", function (v) { da.sfToken = v.trim(); }, "Programmatic Access Token or OAuth token")));
       qsf.appendChild(field("Token type", select2pairs([["PROGRAMMATIC_ACCESS_TOKEN", "Programmatic Access Token"], ["OAUTH", "OAuth"]], da.sfTokenType || "PROGRAMMATIC_ACCESS_TOKEN", function (v) { da.sfTokenType = v; })));
@@ -4672,7 +4672,7 @@
       };
       qsf.appendChild(sfTest2);
     } else if (kind === "databricks") {
-      var qdx = section(body, "Databricks (Statement Execution API)", null, null, "data-sources");
+      var qdx = section(body, "Databricks (Statement Execution API)", null, null, "data-sources", "databricks");
       qdx.appendChild(field("Workspace host", input(da.dbxHost || "", function (v) { da.dbxHost = v.trim(); }, "dbc-a1b2c3d4-e5f6.cloud.databricks.com")));
       qdx.appendChild(field("Access token", input(da.dbxToken || "", function (v) { da.dbxToken = v.trim(); }, "Personal access token (dapi…)")));
       qdx.appendChild(field("SQL warehouse id", input(da.dbxWarehouseId || "", function (v) { da.dbxWarehouseId = v.trim(); }, "0123456789abcdef")));
@@ -4705,7 +4705,7 @@
       };
       qdx.appendChild(dbxTest2);
     } else if (kind === "bigquery") {
-      var qbq = section(body, "BigQuery (jobs.query API)", null, null, "data-sources");
+      var qbq = section(body, "BigQuery (jobs.query API)", null, null, "data-sources", "bigquery");
       qbq.appendChild(field("Project id", input(da.bqProject || "", function (v) { da.bqProject = v.trim(); }, "my-analytics-project")));
       qbq.appendChild(field("Access token", input(da.bqToken || "", function (v) { da.bqToken = v.trim(); }, "OAuth 2.0 access token")));
       qbq.appendChild(field("Location (optional)", input(da.bqLocation || "", function (v) { da.bqLocation = v.trim(); }, "US")));
@@ -4737,7 +4737,7 @@
       };
       qbq.appendChild(bqTest2);
     } else if (kind === "http") {
-      var qhttp = section(body, "Generic SQL/HTTP", null, null, "data-sources");
+      var qhttp = section(body, "Generic SQL/HTTP", null, null, "data-sources", "globe");
       qhttp.appendChild(field("Endpoint URL", input(da.httpUrl || "", function (v) { da.httpUrl = v.trim(); }, "https://api.example.com/query")));
       var httpRow2 = el("div", "field row");
       httpRow2.appendChild(field("Method", select2pairs([["POST", "POST (JSON body)"], ["GET", "GET (query string)"]], da.httpMethod || "POST", function (v) { da.httpMethod = v; })));
@@ -4775,7 +4775,7 @@
     // Output columns
     var cs = section(body, "Output columns", function () {
       da.columns = da.columns || []; da.columns.push("col" + (da.columns.length + 1)); renderInspector();
-    }, null, "data-sources");
+    }, null, "data-sources", "list");
     if (!da.columns || !da.columns.length) cs.appendChild(hint("Write SQL and click 'Detect columns', or add manually with ＋."));
     (da.columns || []).forEach(function (col, i) {
       var r = el("div", "field row");
@@ -4788,7 +4788,7 @@
     // Parameters
     var ps = section(body, "Parameters", function () {
       da.params = da.params || []; da.params.push({ name: "p" + (da.params.length + 1), type: "String", default: "%" }); renderInspector();
-    });
+    }, null, null, "tag");
     if (!da.params || !da.params.length) ps.appendChild(hint("No parameters. Click ＋ to add. Reference them in SQL as ${paramName}."));
     (da.params || []).forEach(function (p, i) {
       var r = el("div", "field row");
@@ -4807,7 +4807,7 @@
     da.calcColumns = da.calcColumns || [];
     var ccs = advSection(body, "Calculated columns", function () {
       da.calcColumns.push(Studio.newCalcCol()); renderInspector();
-    });
+    }, null, null, "sigma");
     if (!da.calcColumns.length) ccs.appendChild(hint("Add formula-based columns derived from output. Formula syntax: =[col1] + [col2], or =pctChange([col]) / =movingAvg([col], n)"));
     da.calcColumns.forEach(function (cc, i) {
       var r = el("div", "field row");
@@ -4840,7 +4840,7 @@
     // Output options — post-query filter / sort / limit; hidden in Simple mode (K5)
     da.outputOptions = da.outputOptions || { filters: [], sortBy: [], limit: 0 };
     var oo = da.outputOptions;
-    var ooSec = advSection(body, "Output options");
+    var ooSec = advSection(body, "Output options", null, null, null, "sliders");
     ooSec.appendChild(hint("Applied after the query: filter rows, sort, or cap the result size. Active rules show in the query preview and are applied inside the exported dashboard too."));
 
     // Filter rules
@@ -4848,7 +4848,7 @@
       oo.filters = oo.filters || [];
       oo.filters.push(Studio.newOutputFilter());
       renderInspector();
-    });
+    }, null, null, "search");
     var daCols = da.columns || [];
     if (!(oo.filters || []).length) fSec.appendChild(hint("No filters. Click ＋ to add a row filter."));
     (oo.filters || []).forEach(function (f, fi) {
@@ -4870,7 +4870,7 @@
       oo.sortBy = oo.sortBy || [];
       oo.sortBy.push(Studio.newOutputSort());
       renderInspector();
-    });
+    }, null, null, "sort-desc");
     if (!(oo.sortBy || []).length) sSec.appendChild(hint("No sort rules. Click ＋ to sort output rows."));
     (oo.sortBy || []).forEach(function (s, si) {
       var r = el("div", "field row");
@@ -4891,7 +4891,7 @@
     ooSec.appendChild(limRow);
 
     // Cache
-    var cch = section(body, "Cache");
+    var cch = section(body, "Cache", null, null, null, "clock");
     var clab = el("label", "check"); var ccb = el("input"); ccb.type = "checkbox"; ccb.checked = da.cache !== false;
     ccb.onchange = function () { da.cache = ccb.checked; };
     clab.appendChild(ccb); clab.appendChild(document.createTextNode(" Enabled")); cch.appendChild(clab);
