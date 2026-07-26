@@ -116,6 +116,32 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **Track L sweep — dedup the Connections/Datasets/Jobs configure(deps) boilerplate (v587,
+  sw v224, 2026-07-26, steward — duplication lens):** with every ★ backlog (CONSERVATION
+  INSIGHT, VIRIDIS, LIVE-FEEDBACK QUEUE, UX-POLISH, TECH-DEBT/R5+) confirmed fully shipped
+  this run, and the two remaining POST-OVERHAUL BACKLOG items either Kevin-blocked (item 2,
+  more adapters) or too large for one slice (item 3's exported-runtime bundling for
+  connection-bound datasets — flagged for a future dedicated slice, not attempted here), the
+  self-directed sweep rotation (SHIP PROTOCOL's fallback when the findings queue + ★ backlog
+  are thin) picked up Track L, which hadn't run since v394 — well before the R5+ module
+  extraction finished. Found real, current duplication: R5+ slices 7-9 (Jobs/Connections/
+  Datasets) each bundled the SAME 7 one-line passthrough closures (`$`, `$$`, `el`, `modal`,
+  `toast`, `isVisibleToMe`, `currentUserId`) into their own `configure(deps)` call in
+  app/studio.js, copy-pasted byte-for-byte three times. New `coreModuleDeps()` builder
+  returns a fresh object with those 7 closures; each of the three `configure()` calls now
+  does `Studio.X.configure(Object.assign(coreModuleDeps(), {...its own extra deps}))` instead
+  of repeating them. Pure refactor — `coreModuleDeps()` returns a brand-new object on every
+  call (no shared mutable state introduced), so each module still gets its own independent
+  closures exactly as before. Explore's and VersionsUI's own `configure()` calls were left
+  alone — their dep lists don't reduce to a clean shared subset the way the three-way
+  Connections/Datasets/Jobs overlap did (R2's own precedent: only merge where things are
+  genuinely identical, not force a fit). No new tests needed (behavior-preserving, existing
+  coverage of all three subsystems already exercises every closure); full suite green,
+  2170/2170. (app/studio.js, sw.js, js/changelog.js) NEXT: item 3's exported-runtime bundling
+  for connection-bound dataset adapters (Turso/Redshift/etc. running live against a shipped
+  .html) is the next-most-scoped genuinely-open item in the backlog — large enough to want
+  its own dedicated slice (start with one connector), or continue the Track L/H/N
+  self-directed rotation if the findings queue stays thin.
 - **Post-overhaul backlog item 7's optional "by type" facet on Datasets (v586, sw v223,
   2026-07-26, steward — POST-OVERHAUL BACKLOG):** with the FRONTEND QA REPORT, LIVE-FEEDBACK
   QUEUE, QUALITY TRACKS, and the CONSERVATION INSIGHT / VIRIDIS product tracks all fully shipped
@@ -7406,6 +7432,15 @@ gets covered over time:
   `Studio.defineChart({type, render, opts, thumb, autoPick})` contract so new types are uniform and testable.
 - **Test health** — coverage per feature, flaky/slow checks, and a fast smoke subset for quick loops.
 > **Findings log (append newest on top; keep short):**
+> - **Fixed shipped v587 (duplication lens, first pass since v394 — the R5+ module extraction
+>   that finished this run's gap made this findable):** `app/studio.js`'s `configure(deps)`
+>   calls for Connections/Datasets/Jobs (R5+ slices 7-9) each hand-rolled the SAME 7 one-line
+>   passthrough closures (`$`/`$$`/`el`/`modal`/`toast`/`isVisibleToMe`/`currentUserId`),
+>   copy-pasted three times. Extracted a `coreModuleDeps()` builder (fresh object per call, no
+>   shared state) that each `configure()` call now spreads via `Object.assign` before adding
+>   its own extras. Explore/VersionsUI's configure() calls were left alone — checked first,
+>   their dep lists don't reduce to a clean shared subset. Pure refactor, suite unchanged at
+>   2170/2170. See DONE for the full writeup.
 > - **Fixed shipped v394 (duplication lens, first real pass since v304):** `app/sources/postgrest.js`
 >   and `app/sources/supabase.js` each carried a byte-identical private copy of the table+query-string
 >   → `{columns,rows}` conversion their `queryData` used — unsurprising since Supabase's REST API IS

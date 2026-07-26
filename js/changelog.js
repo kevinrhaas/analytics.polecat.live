@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 587,
+    title: 'Tech debt: dedup the shared plumbing behind Connections/Datasets/Jobs',
+    kind: 'polish',
+    ts: '2026-07-26T18:43:20.000Z',
+    items: [
+      'Behind-the-scenes cleanup only -- three subsystems each carried an identical copy of the same small wiring block; now they share one copy. No visible change.',
+    ],
+  },
+  {
     v: 586,
     title: 'Filter datasets by type',
     kind: 'feature',
