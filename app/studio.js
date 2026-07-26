@@ -4408,7 +4408,7 @@
   function renderKpiInspector(body) {
     var k = S.spec.kpis[S.selection.index]; if (!k) { selectDashboard(); return; }
     quickHelp(body, "kpi");
-    var sec = section(body, "KPI tile", null, null, "builder");
+    var sec = section(body, "KPI tile", null, null, "builder", "grid");
     sec.appendChild(field("Label", input(k.label, function (v) { k.label = v; refreshPreview(); renderListsOnly(); })));
     sec.appendChild(field("Query (data access)", daPicker(k.da, function (v) {
       var dd = Studio.daById(S.spec, v); k.da = v; if (dd && dd.columns) k.valueCol = dd.columns[0]; renderInspector(); refreshPreview();
@@ -4429,7 +4429,7 @@
     var kdel = el("button", "btn-wide"); kdel.style.color = "var(--bad)"; setIconBtn(kdel, "trash", "Delete"); kdel.onclick = function () { S.spec.kpis.splice(ki, 1); selectDashboard(); refreshPreview(); };
     kacts.appendChild(kdup); kacts.appendChild(kdel); sec.appendChild(kacts);
 
-    var ts = section(body, "Trend & delta", null, null, "chart-types");
+    var ts = section(body, "Trend & delta", null, null, "chart-types", "trend-up");
     var cols = Studio.columnsOf(S.spec, k.da);
     ts.appendChild(field("Delta text", input(k.deltaText || "", function (v) { k.deltaText = v; refreshPreview(); }, "e.g. 12% vs last quarter")));
     ts.appendChild(field("Delta direction", select2pairs([["up", "▲ Up (good)"], ["down", "▼ Down (bad)"], ["flat", "■ Flat"]], k.deltaDir || "up", function (v) { k.deltaDir = v; refreshPreview(); })));
@@ -4440,7 +4440,7 @@
     // Compare to — auto-computes a delta from a second numeric column in the same DA. Advanced.
     // Ideal for period-over-period comparisons: "Revenue this quarter vs last quarter" in one tile.
     // Takes priority over manual Delta text when a Compare column is selected.
-    var cs = advSection(body, "Compare to", null, function () { return k.compareCol ? ("'" + (k.compareLabel || k.compareCol) + "'") : null; });
+    var cs = advSection(body, "Compare to", null, function () { return k.compareCol ? ("'" + (k.compareLabel || k.compareCol) + "'") : null; }, null, "diff");
     cs.appendChild(field("Compare column", colPicker(cols, k.compareCol || "", function (v) {
       if (v) k.compareCol = v; else { delete k.compareCol; delete k.compareMode; delete k.compareLabel; }
       renderInspector(); refreshPreview();
@@ -4458,7 +4458,7 @@
     // Drill-through (Z8 KPI slice) — same shared PDC.bindDrill helper bars/donut use.
     var kd = advSection(body, "Click-through", null, function () {
       return k.drill && k.drill.url ? k.drill.url.slice(0, 24) : "";
-    });
+    }, null, "link");
     var kDrillCfg = k.drill || {};
     kd.appendChild(field("Target URL", input(kDrillCfg.url || "", function (v) {
       if (!k.drill) k.drill = {};
@@ -4481,7 +4481,7 @@
   function renderHeaderInspector(body) {
     var sp = S.spec;
     quickHelp(body, "header");
-    var sec = section(body, "Header", null, null, "builder");
+    var sec = section(body, "Header", null, null, "builder", "freeze-header");
     sec.appendChild(field("Title", input(sp.title, function (v) { sp.title = v; syncHeader(); refreshPreview(); })));
     sec.appendChild(field("Subtitle", input(sp.subtitle || "", function (v) { sp.subtitle = v; refreshPreview(); }, "Optional")));
     var delBtn = el("button", "btn-wide"); delBtn.style.color = "var(--bad)";
@@ -5272,7 +5272,7 @@
   function renderFilterInspector(body) {
     var f = S.spec.filters[S.selection.index]; if (!f) { selectDashboard(); return; }
     quickHelp(body, "filter");
-    var sec = section(body, "Filter", null, null, "builder");
+    var sec = section(body, "Filter", null, null, "builder", "sliders");
     sec.appendChild(field("Label", input(f.label, function (v) { f.label = v; refreshPreview(); renderListsOnly(); })));
     sec.appendChild(field("Parameter id", input(f.id, function (v) { f.id = v.trim(); refreshPreview(); }), "must match the ${param} in the queries it filters"));
     sec.appendChild(field("Options query", daPicker(f.da, function (v) { f.da = v; var cs = filterCols(v); f.valueCol = cs[0] || ""; f.textCol = f.valueCol; renderInspector(); refreshPreview(); })));
@@ -5281,7 +5281,7 @@
     sec.appendChild(field("Text column", colPicker(cols, f.textCol, function (v) { f.textCol = v; renderInspector(); refreshPreview(); })));
     sec.appendChild(field("‘All’ label", input(f.allLabel, function (v) { f.allLabel = v; refreshPreview(); })));
     sec.appendChild(field("Default value", input(f.def, function (v) { f.def = v; refreshPreview(); }, "value when ‘All’ is selected (usually %)")));
-    var ps = section(body, "Options preview");
+    var ps = section(body, "Options preview", null, null, null, "eye");
     ps.appendChild(optionsPreview(f));
     var dd = Studio.daById(S.spec, f.da);
     if (dd && dd.params && dd.params.length) ps.appendChild(noteEl("info", "Cascading: this options query takes " + dd.params.map(function (p) { return "${" + p.name + "}"; }).join(", ") + " — its choices refresh from the matching upstream filters at runtime."));

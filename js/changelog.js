@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 558,
+    title: 'Filter, Header, and KPI tile inspectors gain header icons too',
+    kind: 'polish',
+    ts: '2026-07-26T00:38:42.000Z',
+    items: [
+      'LF19: the Filter, Header, and KPI tile Inspector views now show a small icon next to each section name, matching the Dashboard and Widget Inspectors.',
+      'Purely visual; nothing about how any of those sections work has changed.',
+    ],
+  },
+  {
     v: 557,
     title: 'Widget inspector gains header icons too',
     kind: 'polish',
