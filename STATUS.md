@@ -3514,7 +3514,7 @@
 >       Explore's preview, not just a relabeled SVG one; saving + reopening the analysis restores
 >       the GL choice). docs/index.html's Explore section updated. (app/studio.js, docs/index.html,
 >       tests/run.js)
-> LF13. **Job editor overhaul (Edit-job modal).** Multiple asks: (a) ✓ **COLUMN DROPDOWNS — shipped
+> LF13. ✓ **Job editor overhaul (Edit-job modal) — LF13 is now fully done.** Multiple asks: (a) ✓ **COLUMN DROPDOWNS — shipped
 >       (v535, sw v172, 2026-07-25, steward) — see DONE.** The group-by/metric/weight/join+union-key
 >       fields are real dropdowns (a pill picker for group-by's multi-select) populated from each
 >       dataset's real columns, instead of free-text. (b) ✓ **MULTIPLE AGGREGATE PASSES/LEVELS —
@@ -3563,9 +3563,26 @@
 >       rows (Story's two rows collapse into one, correctly summed). 4 new regression tests (sample
 >       table renders real values; rename reflected in the output preview; aggregate actually
 >       groups+sums; an empty pipeline shows the source sample but skips the output section).
->       docs/index.html updated. **NEXT in LF13:** (d)'s last remaining piece — the small visual
->       DIAGRAM of the operation (rollup/join/stack) with the picked columns shown — deliberately
->       not attempted in this slice. (app/studio.js, app/studio.css, tests/run.js)
+>       docs/index.html updated. (app/studio.js, app/studio.css, tests/run.js)
+>       ✓ **Slice 3 shipped (v563, sw v200, 2026-07-26, steward — LF13 is now fully done): the
+>       operation DIAGRAM.** A small read-only diagram now renders under each rollup (aggregate),
+>       join, and union (stack) step — the three step kinds that actually reshape the data, and
+>       the ones hardest to picture from form fields alone. Columns-in box → an operation arrow
+>       (⅀ + the group-by columns for a rollup; a join glyph + join type + "on left = right" for a
+>       join; a stack glyph + "stacked with" for a union) → columns-out box. Reuses the existing
+>       `colsBeforeStep`/`colsCache` column data the pickers above already resolve, so the diagram
+>       can never drift from what the pipeline actually does — no new step state. The join
+>       diagram's two boxes ("This pipeline" / the joined dataset) each highlight their own picked
+>       key column; the union diagram shows "This pipeline" stacked with the other dataset's own
+>       columns (union doesn't reshape the schema, so there's no separate output box). Other step
+>       kinds (rename/cast/derive/filter/uniqueKey/sql) render no diagram — their form fields
+>       already read clearly on their own. 12 new regression tests (aggregate: 2 boxes, input
+>       columns, group-by + metric output columns, arrow names the group-by; join: 2 boxes titled
+>       "This pipeline" / the joined dataset with its columns, both key columns highlighted, arrow
+>       names the join type + keys; union: one diagram naming both sides + "stacked with" arrow, a
+>       non-diagram step kind renders none). docs/index.html updated. **LF13's whole "job editor
+>       overhaul" ask (a-d) is now complete.** (app/studio.js, app/studio.css, docs/index.html,
+>       sw.js, js/changelog.js, tests/run.js)
 > LF14. ✓ **Job editor contrast — DONE, see DONE (v434, 2026-07-22, steward).** New `.btn.danger`
 >       class (dark-on-light, red on hover) applied to "✕ Remove step" + the per-metric/mapping "✕".
 > LF15. ✓ **Settings: button/input style overlap — DONE, see DONE (v439, 2026-07-22, steward).**

@@ -4481,6 +4481,135 @@ function serve() {
     });
     await page.waitForTimeout(200);
 
+    // LF13(d) slice 3 (the last piece of the job-editor overhaul ask): a small visual
+    // diagram under a rollup/join/stack step — input columns, the operation, output
+    // columns — so the shape of the operation is visible without reading form fields.
+    await page.evaluate(function () {
+      window.__studioShellSetSection("jobs");
+      var conn = Studio.Workspace.put("connections", { name: "jobs-diag-agg-test", adapter: "file", cfg: {} });
+      var ds = Studio.Workspace.put("datasets", { name: "jobs-diag-agg-ds", connectionId: conn.id, kind: "file", format: "csv",
+        content: "region,acres\nStory,100\n", columns: ["region", "acres"] });
+      var job = Studio.Workspace.put("jobs", { name: "diag-agg-job", sourceDatasetId: ds.id,
+        steps: [{ op: "aggregate", groupBy: ["region"], metrics: [{ col: "acres", fn: "sum", as: "acres_sum" }] }] });
+      window.__studioOpenJobEditor(job);
+    });
+    await page.waitForTimeout(200);
+    const jobsDiagAggUI = await page.evaluate(function () {
+      var diag = document.querySelector(".jobs-step-diagram");
+      if (!diag) return null;
+      var boxes = Array.prototype.slice.call(diag.querySelectorAll(".jobs-diag-box"));
+      return {
+        boxCount: boxes.length,
+        inChips: Array.prototype.slice.call(boxes[0].querySelectorAll(".jobs-diag-chip")).map(function (c) { return c.textContent; }),
+        outChips: Array.prototype.slice.call(boxes[1].querySelectorAll(".jobs-diag-chip")).map(function (c) { return c.textContent; }),
+        arrowText: diag.querySelector(".jobs-diag-arrow span").textContent
+      };
+    });
+    ok("LF13(d) slice 3: an aggregate step renders a 2-box diagram (columns in / rolled-up columns out)",
+      jobsDiagAggUI && jobsDiagAggUI.boxCount === 2, JSON.stringify(jobsDiagAggUI));
+    ok("LF13(d) slice 3: the aggregate diagram's input box lists the source columns",
+      jobsDiagAggUI && jobsDiagAggUI.inChips.join(",") === "region,acres", JSON.stringify(jobsDiagAggUI));
+    ok("LF13(d) slice 3: the aggregate diagram's output box lists the group-by column plus the metric's output name",
+      jobsDiagAggUI && jobsDiagAggUI.outChips.join(",") === "region,acres_sum", JSON.stringify(jobsDiagAggUI));
+    ok("LF13(d) slice 3: the aggregate diagram's arrow names the group-by column",
+      jobsDiagAggUI && jobsDiagAggUI.arrowText.indexOf("region") >= 0, JSON.stringify(jobsDiagAggUI));
+    await page.evaluate(function () {
+      document.querySelector(".modal-ov .x").click();
+      Studio.Workspace.all("jobs").filter(function (j) { return j.name === "diag-agg-job"; }).forEach(function (j) { Studio.Workspace.remove("jobs", j.id, { silent: true }); });
+      Studio.Workspace.all("datasets").filter(function (d) { return d.name === "jobs-diag-agg-ds"; }).forEach(function (d) { Studio.Workspace.remove("datasets", d.id, { silent: true }); });
+      Studio.Workspace.all("connections").filter(function (c) { return c.name === "jobs-diag-agg-test"; }).forEach(function (c) { Studio.Workspace.remove("connections", c.id, { silent: true }); });
+      Studio.Workspace.notify("*");
+      window.__studioShellSetSection("studio");
+    });
+    await page.waitForTimeout(200);
+
+    // LF13(d) slice 3: a join step's diagram shows BOTH datasets' columns (this pipeline
+    // + the joined dataset), each with its own join key highlighted.
+    await page.evaluate(function () {
+      window.__studioShellSetSection("jobs");
+      var conn = Studio.Workspace.put("connections", { name: "jobs-diag-join-test", adapter: "file", cfg: {} });
+      var srcDs = Studio.Workspace.put("datasets", { name: "jobs-diag-join-src", connectionId: conn.id, kind: "file", format: "csv",
+        content: "region,acres\nStory,100\n", columns: ["region", "acres"] });
+      var rightDs = Studio.Workspace.put("datasets", { name: "jobs-diag-join-right", connectionId: conn.id, kind: "file", format: "csv",
+        content: "region,cost\nStory,50\n", columns: ["region", "cost"] });
+      var job = Studio.Workspace.put("jobs", { name: "diag-join-job", sourceDatasetId: srcDs.id,
+        steps: [{ op: "join", datasetId: rightDs.id, leftCol: "region", rightCol: "region", type: "left" }] });
+      window.__studioOpenJobEditor(job);
+    });
+    await page.waitForTimeout(250);
+    const jobsDiagJoinUI = await page.evaluate(function () {
+      var diag = document.querySelector(".jobs-step-diagram");
+      if (!diag) return null;
+      var boxes = Array.prototype.slice.call(diag.querySelectorAll(".jobs-diag-box"));
+      return {
+        boxCount: boxes.length,
+        leftTitle: boxes[0].querySelector(".jobs-diag-box-title").textContent,
+        rightTitle: boxes[1].querySelector(".jobs-diag-box-title").textContent,
+        rightChips: Array.prototype.slice.call(boxes[1].querySelectorAll(".jobs-diag-chip")).map(function (c) { return c.textContent; }),
+        hlCount: diag.querySelectorAll(".jobs-diag-chip.hl").length,
+        arrowText: diag.querySelector(".jobs-diag-arrow span").textContent
+      };
+    });
+    ok("LF13(d) slice 3: a join step renders a 2-box diagram (this pipeline / the joined dataset)",
+      jobsDiagJoinUI && jobsDiagJoinUI.boxCount === 2, JSON.stringify(jobsDiagJoinUI));
+    ok("LF13(d) slice 3: the join diagram's left box is titled \"This pipeline\", right box names the joined dataset and lists its columns",
+      jobsDiagJoinUI && jobsDiagJoinUI.leftTitle === "This pipeline" &&
+      jobsDiagJoinUI.rightTitle === "jobs-diag-join-right" && jobsDiagJoinUI.rightChips.join(",") === "region,cost", JSON.stringify(jobsDiagJoinUI));
+    ok("LF13(d) slice 3: the join diagram highlights the picked key column in each box (2 total)",
+      jobsDiagJoinUI && jobsDiagJoinUI.hlCount === 2, JSON.stringify(jobsDiagJoinUI));
+    ok("LF13(d) slice 3: the join diagram's arrow names the join type and the key columns",
+      jobsDiagJoinUI && jobsDiagJoinUI.arrowText.indexOf("left join") >= 0 && jobsDiagJoinUI.arrowText.indexOf("region") >= 0, JSON.stringify(jobsDiagJoinUI));
+    await page.evaluate(function () {
+      document.querySelector(".modal-ov .x").click();
+      Studio.Workspace.all("jobs").filter(function (j) { return j.name === "diag-join-job"; }).forEach(function (j) { Studio.Workspace.remove("jobs", j.id, { silent: true }); });
+      Studio.Workspace.all("datasets").filter(function (d) { return d.name === "jobs-diag-join-src" || d.name === "jobs-diag-join-right"; }).forEach(function (d) { Studio.Workspace.remove("datasets", d.id, { silent: true }); });
+      Studio.Workspace.all("connections").filter(function (c) { return c.name === "jobs-diag-join-test"; }).forEach(function (c) { Studio.Workspace.remove("connections", c.id, { silent: true }); });
+      Studio.Workspace.notify("*");
+      window.__studioShellSetSection("studio");
+    });
+    await page.waitForTimeout(200);
+
+    // LF13(d) slice 3: a union (stack) step's diagram shows this pipeline's columns
+    // stacked with the other dataset's columns; a step kind NOT in the diagram set
+    // (rename) renders no diagram at all.
+    await page.evaluate(function () {
+      window.__studioShellSetSection("jobs");
+      var conn = Studio.Workspace.put("connections", { name: "jobs-diag-union-test", adapter: "file", cfg: {} });
+      var srcDs = Studio.Workspace.put("datasets", { name: "jobs-diag-union-src", connectionId: conn.id, kind: "file", format: "csv",
+        content: "region,acres\nStory,100\n", columns: ["region", "acres"] });
+      var otherDs = Studio.Workspace.put("datasets", { name: "jobs-diag-union-other", connectionId: conn.id, kind: "file", format: "csv",
+        content: "region,acres\nPolk,20\n", columns: ["region", "acres"] });
+      var job = Studio.Workspace.put("jobs", { name: "diag-union-job", sourceDatasetId: srcDs.id,
+        steps: [{ op: "union", datasetId: otherDs.id, columnMap: [] }, { op: "rename", from: "region", to: "area" }] });
+      window.__studioOpenJobEditor(job);
+    });
+    await page.waitForTimeout(250);
+    const jobsDiagUnionUI = await page.evaluate(function () {
+      var cards = Array.prototype.slice.call(document.querySelectorAll(".jobs-step-card"));
+      return {
+        unionDiagCount: cards[0].querySelectorAll(".jobs-step-diagram").length,
+        unionBoxTitles: Array.prototype.slice.call(cards[0].querySelectorAll(".jobs-diag-box-title")).map(function (h) { return h.textContent; }),
+        arrowText: (cards[0].querySelector(".jobs-diag-arrow span") || {}).textContent,
+        renameDiagCount: cards[1].querySelectorAll(".jobs-step-diagram").length
+      };
+    });
+    ok("LF13(d) slice 3: a union step renders one diagram naming this pipeline and the other dataset",
+      jobsDiagUnionUI && jobsDiagUnionUI.unionDiagCount === 1 &&
+      jobsDiagUnionUI.unionBoxTitles[0] === "This pipeline" && jobsDiagUnionUI.unionBoxTitles[1] === "jobs-diag-union-other", JSON.stringify(jobsDiagUnionUI));
+    ok("LF13(d) slice 3: the union diagram's arrow reads \"stacked with\"",
+      jobsDiagUnionUI && jobsDiagUnionUI.arrowText === "stacked with", JSON.stringify(jobsDiagUnionUI));
+    ok("LF13(d) slice 3: a step kind outside the rollup/join/stack set (rename) renders no diagram",
+      jobsDiagUnionUI && jobsDiagUnionUI.renameDiagCount === 0, JSON.stringify(jobsDiagUnionUI));
+    await page.evaluate(function () {
+      document.querySelector(".modal-ov .x").click();
+      Studio.Workspace.all("jobs").filter(function (j) { return j.name === "diag-union-job"; }).forEach(function (j) { Studio.Workspace.remove("jobs", j.id, { silent: true }); });
+      Studio.Workspace.all("datasets").filter(function (d) { return d.name === "jobs-diag-union-src" || d.name === "jobs-diag-union-other"; }).forEach(function (d) { Studio.Workspace.remove("datasets", d.id, { silent: true }); });
+      Studio.Workspace.all("connections").filter(function (c) { return c.name === "jobs-diag-union-test"; }).forEach(function (c) { Studio.Workspace.remove("connections", c.id, { silent: true }); });
+      Studio.Workspace.notify("*");
+      window.__studioShellSetSection("studio");
+    });
+    await page.waitForTimeout(200);
+
     // ---- JOBS: "scheduled refresh hints" (post-overhaul backlog item 5) ---
     console.log("\n• JOBS: refresh reminders (post-overhaul backlog item 5)");
     await page.evaluate(function () {
