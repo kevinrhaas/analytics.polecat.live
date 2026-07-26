@@ -591,11 +591,14 @@
   }
   function demoPackCard(id, p) {
     var on = Studio.demoPackInstalled(id);
+    // LF16: "examples"-kind packs (datamanagement) only gate gallery entries — there's no
+    // pack-owned dashboard row to jump to, so the "Open dashboard" chip is workspace-kind only.
+    var showOpen = on && p.kind !== "examples";
     var c = el("div", "da");
     c.innerHTML = '<div class="da-top"><div class="da-id">' + esc(p.name) + '</div></div>' +
       '<div class="da-name">' + esc(p.tagline) + '</div>' +
       '<div class="da-add"><span class="chip" data-lib-demopack="' + esc(id) + '">' + (on ? "Remove pack" : "+ Install sample pack") + '</span>' +
-      (on ? '<span class="chip" data-lib-demopack-open="' + esc(id) + '">Open dashboard</span>' : "") + '</div>';
+      (showOpen ? '<span class="chip" data-lib-demopack-open="' + esc(id) + '">Open dashboard</span>' : "") + '</div>';
     var installChip = c.querySelector("[data-lib-demopack]");
     installChip.onclick = function (e) { e.stopPropagation(); toggleDemoPack(id, p); };
     var openChip = c.querySelector("[data-lib-demopack-open]");
@@ -607,13 +610,17 @@
     return c;
   }
   function toggleDemoPack(id, p) {
+    var isExamplesKind = p && p.kind === "examples";
     if (Studio.demoPackInstalled(id)) {
-      if (!window.confirm("Remove the “" + (p && p.name || id) + "” sample pack? This deletes its dataset, analyses, and dashboard.")) return;
+      var removeMsg = isExamplesKind
+        ? "Remove the “" + (p && p.name || id) + "” sample pack? This hides its showcase dashboards from the Examples gallery — nothing is deleted."
+        : "Remove the “" + (p && p.name || id) + "” sample pack? This deletes its dataset, analyses, and dashboard.";
+      if (!window.confirm(removeMsg)) return;
       Studio.removeDemoPack(id);
       toast("Sample pack removed");
     } else {
       Studio.installDemoPack(id);
-      toast("Sample pack installed — see Home, Explore, and Datasets");
+      toast(isExamplesKind ? "Sample pack installed — see the Examples ▾ gallery" : "Sample pack installed — see Home, Explore, and Datasets");
     }
     buildLibrary(); renderSettings(); renderHome(); buildExamplesMenu();
   }
@@ -9246,7 +9253,7 @@
       '</div>' +
       (showSamples() && Object.keys(Studio.DEMO_PACKS || {}).length ?
         '<div class="settings-card"><h2>Sample packs</h2>' +
-          '<p class="ws-card-intro">A second, opt-in sample library for pitch-specific demos — installs as ordinary workspace content (a dataset, analyses, a dashboard), tagged so Remove cleans up exactly what Install wrote.</p>' +
+          '<p class="ws-card-intro">A second, opt-in sample library for pitch-specific demos. Some packs install ordinary workspace content (a dataset, analyses, a dashboard), tagged so Remove cleans up exactly what Install wrote; others just show or hide bundled example dashboards in the gallery.</p>' +
           Object.keys(Studio.DEMO_PACKS).map(function (id) {
             var p = Studio.DEMO_PACKS[id], on = Studio.demoPackInstalled(id);
             return '<div class="set-row"><span class="set-row-ic" data-ic="globe"></span>' +

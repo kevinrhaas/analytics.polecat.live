@@ -35,6 +35,7 @@
   Studio.DEMO_PACKS = {
     conservation: {
       id: "conservation",
+      kind: "workspace",
       name: "Conservation Insight — cover crop & tillage adoption",
       tagline: "2 connections · 4 datasets · a county→state rollup job · 4 analyses · a featured map dashboard",
       blurb: "Seeds a complete illustrative workspace: a demo file connection and a repo-backend " +
@@ -43,13 +44,38 @@
         "acreage-weighted mean; four ensemble time-series analyses (one per practice, pinned to " +
         "Home); and one featured multi-widget “Conservation Insight” dashboard. All data is " +
         "SYNTHETIC, clearly labeled illustrative, for demoing the ensemble/geo-analytics pattern."
+    },
+    // LF2(c)/LF16: the pre-existing generic showcase gallery (governance, platform ops,
+    // delivery, finance, marketing, reliability, compliance, feature tour) folded into a
+    // toggleable pack the same way Conservation Insight is one — kind:"examples" (below)
+    // means Install/Remove only shows/hides gallery entries; no workspace rows are written
+    // or deleted, unlike the "workspace" kind. Gated examples are tagged demoPackId:
+    // "datamanagement" in data/examples/index.json.
+    datamanagement: {
+      id: "datamanagement",
+      kind: "examples",
+      name: "Data Management & Governance — showcase gallery",
+      tagline: "8 generic showcase dashboards: governance, platform ops, delivery, finance, marketing, reliability, compliance, feature tour",
+      blurb: "Toggles the built-in generic showcase dashboards in the Examples ▾ gallery — governance, " +
+        "platform ops, product delivery, finance, marketing, incident response, compliance, and the " +
+        "interactive feature tour. Unlike Conservation Insight, this pack adds no workspace " +
+        "connections, datasets, or jobs — Remove just hides those gallery entries again, nothing is " +
+        "deleted. Installed by default so the gallery looks the same as it always has; turn it off to " +
+        "keep a pitch focused on Conservation Insight alone."
     }
   };
 
   var INSTALLED_KEY = "studio-demopacks-installed";
+  // Packs installed before a user ever opens Settings. "datamanagement" gates content that
+  // used to be unconditional (the generic showcase gallery) — defaulting it to installed
+  // keeps that gallery looking the same as it always has for every existing workspace, while
+  // still making it a real opt-out toggle (see Settings' Sample packs card).
+  var DEFAULT_INSTALLED = ["datamanagement"];
   function installedIds() {
-    var v; try { v = JSON.parse(localStorage.getItem(INSTALLED_KEY) || "[]"); } catch (e) { v = null; }
-    return Array.isArray(v) ? v : [];
+    var raw; try { raw = localStorage.getItem(INSTALLED_KEY); } catch (e) { raw = null; }
+    if (raw == null) return DEFAULT_INSTALLED.slice();
+    var v; try { v = JSON.parse(raw); } catch (e) { v = null; }
+    return Array.isArray(v) ? v : DEFAULT_INSTALLED.slice();
   }
   function setInstalledIds(ids) {
     try { localStorage.setItem(INSTALLED_KEY, JSON.stringify(ids)); } catch (e) {}
@@ -272,7 +298,16 @@
   }
 
   Studio.installDemoPack = function (id) {
-    if (id !== "conservation" || Studio.demoPackInstalled(id)) return;
+    if (!Studio.DEMO_PACKS[id] || Studio.demoPackInstalled(id)) return;
+    // "examples"-kind packs (datamanagement) only gate gallery visibility — the workspace
+    // seeding below is "workspace"-kind (conservation) only; every kind still records the
+    // installed flag at the bottom.
+    if (id === "conservation") installConservationWorkspace();
+    setInstalledIds(installedIds().concat([id]));
+  };
+
+  function installConservationWorkspace() {
+    var id = "conservation";
     var W = Studio.Workspace, now = new Date().toISOString();
 
     // --- connections: the demo file store + an illustrative repo backend ---
@@ -336,8 +371,7 @@
       ts: now, spec: dashboardSpec(),
       featured: true, featuredAt: now, demoPackId: id
     });
-    setInstalledIds(installedIds().concat([id]));
-  };
+  }
 
   Studio.removeDemoPack = function (id) {
     var W = Studio.Workspace;

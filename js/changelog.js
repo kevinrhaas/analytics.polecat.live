@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 559,
+    title: 'Generic showcase gallery is now a toggleable sample pack',
+    kind: 'feature',
+    ts: '2026-07-26T01:11:33.000Z',
+    items: [
+      'The built-in Data Governance, Platform Operations, Product Delivery, Finance, Marketing, Incident Response, Compliance, and Feature Tour showcase dashboards are now a second sample pack, \'Data Management & Governance\', alongside Conservation Insight in Settings and the Studio library.',
+      'Installed by default, so the Examples gallery looks exactly as it always has; turn it off in Settings to declutter the gallery for a pitch focused on Conservation Insight alone.',
+      'Unlike Conservation Insight, this pack adds no connections, datasets, or jobs — Install/Remove only shows or hides those eight gallery entries.',
+    ],
+  },
+  {
     v: 558,
     title: 'Filter, Header, and KPI tile inspectors gain header icons too',
     kind: 'polish',

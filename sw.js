@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v195"; /* v195: LF19 Inspector slice 7 — three more Inspector
+var CACHE_NAME = "studio-shell-v196"; /* v196: LF16/LF2(c) — the generic showcase gallery (8
+   examples: governance, platform ops, delivery, finance, marketing, reliability, compliance,
+   feature tour) folded into a new toggleable "Data Management & Governance" sample pack,
+   installed by default so the gallery is unchanged out of the box; Remove only hides those
+   gallery entries (no workspace rows, unlike Conservation Insight). app/demopacks.js,
+   app/studio.js, data/examples/index.json, docs/index.html, tests/run.js changed.
+   v195: LF19 Inspector slice 7 — three more Inspector
    renderers gain the header-glyph treatment: Filter (Filter, Options preview), Header
    (Header), and KPI tile (KPI tile, Trend & delta, Compare to, Click-through) — 7 more
    section()/advSection() call sites now carry their own icon. Data Source (renderDAInspector,
