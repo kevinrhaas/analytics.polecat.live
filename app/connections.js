@@ -193,9 +193,9 @@
     });
     var rows = shown.map(function (c) {
       var src = Studio.sourceById(c.adapter) || { label: c.adapter, icon: "db" };
-      var metaBadge = src.caps && src.caps.meta ? '<span class="cx-badge" title="Can also host this app\'s workspace (see Settings → Workspace backend)">workspace-capable</span>' : "";
+      var metaBadge = src.caps && src.caps.meta ? '<span class="cx-badge" data-tip="Can also host this app\'s workspace (see Settings → Workspace backend)">workspace-capable</span>' : "";
       var tagBadges = (c.tags || []).map(function (t) { return '<span class="cx-badge">#' + esc(t) + '</span>'; }).join("");
-      var folderBadge = c.folder ? '<span class="cx-badge cx-folder" title="Folder: ' + esc(c.folder) + '">' + esc(c.folder) + '</span>' : "";
+      var folderBadge = c.folder ? '<span class="cx-badge cx-folder" data-tip="Folder: ' + esc(c.folder) + '">' + esc(c.folder) + '</span>' : "";
       return '<div class="cx-row" data-conn-id="' + esc(c.id) + '">' +
         connStatusDot(c) +
         '<span class="cx-ic" style="color:' + esc(src.accent || "var(--brand)") + '"></span>' +
@@ -203,7 +203,7 @@
         metaBadge +
         folderBadge +
         tagBadges +
-        '<span class="cx-when" title="Last edited">' + esc(new Date(c.updatedAt || c.createdAt || Date.now()).toLocaleDateString()) + '</span>' +
+        '<span class="cx-when" data-tip="Last edited">' + esc(new Date(c.updatedAt || c.createdAt || Date.now()).toLocaleDateString()) + '</span>' +
         '<button type="button" class="cx-private' + (c.private ? " private" : "") + '" data-conn-private="' + esc(c.id) + '" title="' + (c.private ? "Private — only you can see this" : "Make private") + '" aria-label="' + (c.private ? "Make " + esc(c.name) + " public" : "Make " + esc(c.name) + " private") + '" aria-pressed="' + (c.private ? "true" : "false") + '"></button>' +
         '<button type="button" class="cx-pin' + (c.pinned ? " on" : "") + '" data-conn-pin="' + esc(c.id) + '" title="' + (c.pinned ? "Unpin" : "Pin to top") + '" aria-label="' + (c.pinned ? "Unpin " : "Pin ") + esc(c.name) + '" aria-pressed="' + (c.pinned ? "true" : "false") + '"></button>' +
         '<span class="cx-actions">' +

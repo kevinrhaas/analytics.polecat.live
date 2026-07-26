@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 583,
+    title: 'More tooltips you can reach on a phone',
+    kind: 'polish',
+    ts: '2026-07-26T15:32:49.000Z',
+    items: [
+      'Folder, lineage, and parameter-count badges across Connections/Datasets/Jobs/Explore now show their detail in the same tap- or keyboard-reachable popup as the recent status-dot update, instead of a hover-only browser tooltip.',
+    ],
+  },
+  {
     v: 582,
     title: 'A tooltip you can actually reach on a phone',
     kind: 'polish',

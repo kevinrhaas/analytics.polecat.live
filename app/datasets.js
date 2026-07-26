@@ -243,10 +243,10 @@
         : (d.lastRun.ok ? '<span class="cx-dot ok" data-tip="Last run OK · ' + esc(new Date(d.lastRun.at).toLocaleString()) + ' · ' + d.lastRun.rows + ' rows"></span>'
           : '<span class="cx-dot bad" data-tip="Last run failed: ' + esc(d.lastRun.error) + '"></span>');
       var tags = (d.tags || []).map(function (t) { return '<span class="cx-badge">#' + esc(t) + '</span>'; }).join("");
-      var folderBadge = d.folder ? '<span class="cx-badge cx-folder" title="Folder: ' + esc(d.folder) + '">' + esc(d.folder) + '</span>' : "";
+      var folderBadge = d.folder ? '<span class="cx-badge cx-folder" data-tip="Folder: ' + esc(d.folder) + '">' + esc(d.folder) + '</span>' : "";
       var lineage = dsxLineage(d.id);
       var lineageBadge = lineage.length
-        ? '<span class="cx-badge cx-lineage" title="Used in: ' + esc(lineage.map(function (r) { return r.title || r.name || "Untitled"; }).join(", ")) + '">↪ ' +
+        ? '<span class="cx-badge cx-lineage" data-tip="Used in: ' + esc(lineage.map(function (r) { return r.title || r.name || "Untitled"; }).join(", ")) + '">↪ ' +
           lineage.length + " dashboard" + (lineage.length !== 1 ? "s" : "") + '</span>'
         : "";
       return '<div class="cx-row" draggable="true" data-dsx-id="' + esc(d.id) + '">' +
@@ -255,7 +255,7 @@
         '<span class="cx-name"><button type="button" class="cx-title-btn" aria-label="Edit dataset ' + esc(d.name) + '"><b>' + esc(d.name) + '</b></button><small>' + esc(conn ? conn.name : "no connection") + (src ? " · " + src.label : "") + (d.owner ? " · " + esc(d.owner) : "") + '</small></span>' +
         folderBadge +
         tags +
-        ((d.params || []).length ? '<span class="cx-badge" title="Accepts parameters">' + (d.params || []).length + " param" + ((d.params || []).length > 1 ? "s" : "") + '</span>' : "") +
+        ((d.params || []).length ? '<span class="cx-badge" data-tip="Accepts parameters">' + (d.params || []).length + " param" + ((d.params || []).length > 1 ? "s" : "") + '</span>' : "") +
         lineageBadge +
         '<span class="cx-when">' + esc(new Date(d.updatedAt || Date.now()).toLocaleDateString()) + '</span>' +
         '<button type="button" class="cx-private' + (d.private ? " private" : "") + '" data-dsx-private="' + esc(d.id) + '" title="' + (d.private ? "Private — only you can see this" : "Make private") + '" aria-label="' + (d.private ? "Make " + esc(d.name) + " public" : "Make " + esc(d.name) + " private") + '" aria-pressed="' + (d.private ? "true" : "false") + '"></button>' +

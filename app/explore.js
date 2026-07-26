@@ -542,7 +542,7 @@
     });
     var savedRows = shownAnalyses.map(function (a) {
       var on = XP.analysisId === a.id;
-      var folderBadge = a.folder ? '<span class="cx-badge cx-folder" title="Folder: ' + esc(a.folder) + '">' + esc(a.folder) + '</span>' : "";
+      var folderBadge = a.folder ? '<span class="cx-badge cx-folder" data-tip="Folder: ' + esc(a.folder) + '">' + esc(a.folder) + '</span>' : "";
       return '<div class="xp-saved-row' + (on ? " active" : "") + '" data-xp-a="' + esc(a.id) + '">' +
         '<button type="button" class="xp-saved-open" data-xp-open="' + esc(a.id) + '" title="Open in Explore"><b>' + esc(a.name) + '</b>' +
         '<small>' + esc((Studio.CHARTS[a.chartType] || {}).label || a.chartType) + '</small></button>' +
@@ -606,6 +606,7 @@
           (savedRows || '<div class="xp-none">' + (_xpFolderFilter ? "No analyses in this folder." : "Nothing saved yet.") + '</div>') + "</div>" +
       "</aside>" +
       '<div class="xp-main">' + main + "</div>";
+    Studio.Tooltip.hydrate(body);
     // wire
     var search = $("#xpSearch", body);
     if (search) search.addEventListener("input", function () { XP.q = search.value || ""; renderExplore(); });

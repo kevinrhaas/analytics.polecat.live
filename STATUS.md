@@ -116,6 +116,30 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **UX8 slice 2 — the folder/lineage/param/meta badges (v583, sw v220, 2026-07-26,
+  steward):** the documented follow-up to slice 1 (the status dots). Converts every
+  remaining NON-BUTTON `title=` call site in the catalog-row subsystems to the same
+  `data-tip=` + `Studio.Tooltip.hydrate()` convention: the folder badge (Connections/
+  Datasets/Jobs/Explore), Datasets' lineage badge (`↪ N dashboards`) and param-count
+  badge, Connections' "workspace-capable" meta badge and "Last edited" timestamp, and
+  Jobs' refresh-due/upcoming-reminder badges. `app/explore.js`'s `renderExplore()` had
+  never called `Studio.Tooltip.hydrate()` before (unlike the other three subsystems,
+  which already hydrate their status dots) — it gains that call in this slice too, so
+  its folder badge (and any future `data-tip` there) actually hydrates. Every button's
+  `title=` remains its own lower-priority follow-up (usually already backed by an
+  `aria-label`). 9 new regression checks (one hydration assertion per converted
+  badge, across all four files) — also fixed 3 EXISTING folder-badge tests whose
+  `.textContent` assertions would otherwise have broken now that the hydrated
+  `.ps-tip-bub` renders as a child of the badge (clone-and-strip-the-bubble before
+  reading the visible label, the same convention LF20's icon-button tests already
+  use for stripping an SVG). Full suite green, 2153/2153 (2144 + 9 new). (app/
+  connections.js, app/datasets.js, app/explore.js, app/jobs.js, sw.js, js/
+  changelog.js, tests/run.js) **UX8 is now fully done** — every documented `title=`
+  category (status dots, folder/tag/lineage/param badges) has been converted;
+  what's left is the per-button follow-up (lower priority, mentioned above) if it's
+  ever picked up. NEXT in the UX-POLISH track: UX5's still-open 4px-base
+  spacing-rounding pass (needs real visual re-verification across all 6
+  theme×mode combos) is the one remaining open item.
 - **UX8 slice 1 — a Tooltip primitive, and the status-dot call sites (v582, sw v219,
   2026-07-26, steward):** the UX-POLISH track's UX8 ask ("a themed, focusable,
   touch-visible tooltip primitive generalizing `.opt-hint-pop`, replacing native
@@ -4718,7 +4742,7 @@
 >      declares. 2 new regression checks (a real topbar `.btn`'s and `.btn.icon`'s rendered
 >      bounding-box height/width on phone, not just the declared CSS) + the existing `.da-act`/
 >      `.chip` ratchets raised from 36/40 to 44. sw v134. (app/studio.css, tests/run.js)
-> UX8. **Tooltip primitive** — a themed, focusable, touch-visible tooltip generalizing `.opt-hint-pop`,
+> UX8. ✓ **Tooltip primitive** — a themed, focusable, touch-visible tooltip generalizing `.opt-hint-pop`,
 >      replacing native `title=` guidance strings (slow, unstyleable, invisible on touch/keyboard). Larger,
 >      99 call sites — sliced per category.
 >      ✓ **Slice 1 shipped (v582, sw v219, 2026-07-26, steward): the primitive + the status dots.** See
@@ -4726,6 +4750,11 @@
 >      dataset/job status dots (`data-tip` replacing `title`). NEXT in this track: the folder/tag/
 >      lineage/param badges (non-button call sites) — every button's `title=` is a lower-priority
 >      follow-up since it usually just duplicates an existing `aria-label`.
+>      ✓ **Slice 2 shipped (v583, sw v220, 2026-07-26, steward — UX8 IS NOW FULLY DONE): the
+>      folder/lineage/param/meta badges.** See DONE for the full writeup — every non-button
+>      badge across Connections/Datasets/Jobs/Explore now carries `data-tip` instead of
+>      `title`, and `renderExplore()` gained its own `Studio.Tooltip.hydrate()` call (it had
+>      none before). Every button's `title=` remains its own lower-priority follow-up.
 > UX9. ✓ **Modal `.btn` contrast fallback (shipped 2026-07-23, steward, see DONE).** New
 >      `.modal .btn` fallback (dark-on-light, same convention as `.app-sec`/`.btn.danger`).
 >      ⚠️ The broader geometry/font shell-alignment (adopt the fleet's Inter face + 14/20px
