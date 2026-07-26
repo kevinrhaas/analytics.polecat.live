@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 588,
+    title: 'Fix: keyboard focus ring restored on the rail\'s "polecat.live" link',
+    kind: 'fix',
+    ts: '2026-07-26T18:57:17.000Z',
+    items: [
+      'Tabbing to the left rail\'s "back to polecat.live" link now shows a visible keyboard focus ring, matching every other focusable control in the app.',
+    ],
+  },
+  {
     v: 587,
     title: 'Tech debt: dedup the shared plumbing behind Connections/Datasets/Jobs',
     kind: 'polish',

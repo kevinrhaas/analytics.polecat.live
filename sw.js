@@ -5,7 +5,15 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v224"; /* v224: Track L dedup — Connections/
+var CACHE_NAME = "studio-shell-v225"; /* v225: Track L accessibility lens —
+   a FOURTH instance of the "outline re-declared inside its own focus rule"
+   bug shape (v286 .repo-search, v299 .dsb-sqb-inp, v333 .opt-hint): the rail's
+   "back to polecat.live" link (#railNav .rail-suite) set outline:none on its
+   combined :hover/:focus-visible rule, at higher specificity than the shared
+   global keyboard-focus ring, so tabbing to it showed no ring at all. Split
+   the rule so :focus-visible keeps its own outline. Pure CSS fix, no behavior
+   change. app/studio.css changed, so the precached copy needs to roll.
+   v224: Track L dedup — Connections/
    Datasets/Jobs's configure(deps) calls each carried an identical copy of
    the same 7 one-line passthrough closures ($, $$, el, modal, toast,
    isVisibleToMe, currentUserId); factored into one coreModuleDeps() builder.
