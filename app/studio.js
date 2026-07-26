@@ -11776,6 +11776,49 @@
     // Fires refreshPreview() on every 'input' tick (not just change), so the chart redraws
     // live as the slider is dragged — the same "analysis as play" idea the N-FUN backlog asks
     // for, reusing the existing live-preview pipeline with zero new wiring.
+    // LF22(4): the custom-regions choropleth scale's county→region lookup — a small
+    // file-import control rather than a generic field type (nothing else in the opts
+    // system authors a lookup TABLE, just scalars). Parsing goes through the pure,
+    // testable Studio.parseCustomGeoCsv (model.js) so this stays a thin DOM wrapper.
+    if (od.type === "customgeo") {
+      var cgWrap = el("div", "cgeo-import");
+      var cgStatus = el("div", "note cgeo-status");
+      function describeCG() {
+        var map = opts[od.key] || null;
+        if (!map || !Object.keys(map).length) {
+          cgStatus.textContent = "No mapping yet — import a 2-column CSV (county FIPS, region name).";
+          return;
+        }
+        var regionSet = {};
+        Object.keys(map).forEach(function (fips) { regionSet[map[fips]] = 1; });
+        cgStatus.textContent = Object.keys(map).length + " counties mapped across " + Object.keys(regionSet).length + " regions.";
+      }
+      describeCG();
+      var cgFile = el("input"); cgFile.type = "file"; cgFile.accept = ".csv,text/csv"; cgFile.style.display = "none";
+      var cgImportBtn = el("button", "btn"); cgImportBtn.type = "button"; cgImportBtn.textContent = "Import CSV…";
+      cgImportBtn.onclick = function () { cgFile.click(); };
+      cgFile.onchange = function () {
+        var f = cgFile.files && cgFile.files[0]; cgFile.value = "";
+        if (!f) return;
+        f.text().then(function (text) {
+          try {
+            opts[od.key] = Studio.parseCustomGeoCsv(text);
+            describeCG(); refreshPreview();
+            toast("Imported " + Object.keys(opts[od.key]).length + " counties");
+          } catch (e) { toast("Could not import mapping: " + e.message, true); }
+        });
+      };
+      var cgRow = el("div"); cgRow.style.cssText = "display:flex;gap:8px;align-items:center;margin-top:6px";
+      cgRow.appendChild(cgImportBtn);
+      if (opts[od.key]) {
+        var cgClearBtn = el("button", "btn"); cgClearBtn.type = "button"; cgClearBtn.textContent = "Clear mapping";
+        cgClearBtn.onclick = function () { opts[od.key] = null; renderInspector(); refreshPreview(); };
+        cgRow.appendChild(cgClearBtn);
+      }
+      cgRow.appendChild(cgFile);
+      cgWrap.appendChild(cgStatus); cgWrap.appendChild(cgRow);
+      return field(od.label, cgWrap, od.hint);
+    }
     if (od.type === "range") {
       var wrap = el("div", "opt-range");
       var rng = el("input"); rng.type = "range";

@@ -690,6 +690,9 @@
             classes: o.classes || 5, colorToken: o.color || "--good",
             fit: o.fit || "data", stateLines: o.stateLines !== false,
             renderer: o.renderer || "svg",
+            // LF22(4): the user's own county-FIPS→region lookup — only consumed when
+            // scale === "custom" (studio-charts.js's geoFeatures/geoFeaturesGL).
+            customMap: o.customMap || null,
             // LF35 slice 1: GL-renderer-only zoom/pan control cluster size (show/compact/hidden).
             mapControls: o.mapControls || "show",
             // LF35 slice 2: GL-renderer-only zoom/pan control cluster corner.
