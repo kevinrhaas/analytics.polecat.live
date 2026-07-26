@@ -116,6 +116,47 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **Post-overhaul backlog item 3, OTHER half — connection-bound dataset adapters get an
+  exported-runtime path, starting with Turso (v589, sw v226, 2026-07-26, steward):** the
+  next-most-scoped genuinely-open item flagged by the last several runs' own NEXT pointers.
+  The four legacy direct connectors (Snowflake/Databricks/BigQuery/Generic SQL) already got a
+  live-after-export path (2026-07-19) because their kind IS their adapter identity (`da.kind:
+  "snowflake"` etc, credentials on the DA itself) — but the connections → datasets model (see
+  GOAL block) always imports a dataset as `da.kind:"sql"` with a `da.connectionId` pointing at a
+  separate Workspace connection row that holds the real adapter + credentials, so there was
+  nothing on `da.kind` to redact or dispatch on, and the exported/preview runtime has no
+  Workspace at all — every connection-bound DA silently fell back to offline sample data
+  forever once actually shipped. Fixed the same way as the direct connectors, one adapter at a
+  time (Turso first — the reference remote adapter, a single bearer token): `exporters.js`'s
+  `redactSecrets` now also resolves `da.connectionId` against the live Workspace (only ever
+  available here, in the builder) and stamps `da.connAdapter` (which registered source built the
+  connection) + a redacted `da.connCfg` (its non-secret fields, e.g. the database URL) onto the
+  DA, keeping the "prompted once at open, never embedded" contract for the secret field.
+  `studio-render.js`'s `PDC.cda` gained a `CONN_ENGINES` map (parallel to the existing
+  `CRED_ENGINES`) dispatching `da.connAdapter`-marked DAs to `Studio.tursoSource.queryData` —
+  bridging its `{columns,rows,error}` in-band-error contract to the rejection-based one every
+  other engine uses, so a live failure still flows through `vendor/pdc-ui.js`'s pristine
+  `.catch(fail)`. The Turso façade (`app/sources/turso.js` — its meta-plane
+  provision/probe/load/save functions are simply never called at runtime, so it bundles as-is
+  with no refactor) is fetched as a new asset and inlined only when a dashboard actually has a
+  Turso-connected DA (same lean-bundling convention as the direct connectors) — fixed in BOTH
+  places that assemble the asset list (`app/studio.js`'s own boot AND `app/viewer.js`'s
+  standalone dashboard viewer, which had drifted out of sync with the direct-connector asset list
+  before this slice and would otherwise have silently lost the new live path). 16 new tests
+  (redaction never leaks the token/keeps the URL/stamps connAdapter+needsSecret, a DA with no
+  connectionId is completely untouched, façade bundled only when actually used, functional
+  dispatch with a freshly-prompted-never-original secret + second-call caching, an in-band query
+  error becomes a real rejection, and the builder's own preview iframe never prompts). Full suite
+  green, 2182/2182 (2166 + 16 new). SW cache → v226. `docs/index.html` gained a "Connection-bound
+  datasets, starting with Turso" paragraph. (app/exporters.js, app/studio-render.js, app/studio.js,
+  app/viewer.js, docs/index.html, sw.js, js/changelog.js, tests/run.js) NEXT: the other
+  connection-bound adapters (PostgreSQL/PostgREST, Supabase, Redshift, Google Sheets, local
+  files) still have no exported-runtime path and need this same treatment, one at a time (each
+  is now a small, well-scoped slice — the CONN_ENGINES/connAdapter plumbing this run built is
+  reusable, just add an entry to CONN_ADAPTER_SECRET_FIELD/CONN_ADAPTER_CFG_FIELDS + CONN_ENGINES
+  and bundle its façade) — or continue the Track L/H/N self-directed rotation (module boundaries,
+  global-state creep, performance budget, chart-extension API formalization) while the findings
+  queue stays thin.
 - **Track L sweep (accessibility lens) — rail "back to polecat.live" link loses its keyboard
   focus ring (v588, sw v225, 2026-07-26, steward):** rotating the Track L lens off duplication
   (just used at v587) onto accessibility found a FOURTH instance of the exact bug shape fixed
@@ -5867,11 +5908,15 @@
 >    `studio-render.js`'s `PDC.cda` dispatch prompts for it once at open — in-memory only, never
 >    saved — exactly the "credentials prompted at open (never embedded)" design this item called
 >    for. `app/model.js`'s now-obsolete "no live query path" warning for these four kinds is
->    retired. SW cache → v45. 13 new tests. Genuinely still open: this item's other half
->    (bundling connection-bound *dataset* adapters — Turso, Redshift, etc. — for a shipped .html
->    to run live against, distinct from the legacy direct-DA-with-embedded-cfg style this slice
->    covered) remains unaddressed; the connections/datasets model has no exported-runtime story at
->    all yet, since `Studio.Workspace`/connections don't exist outside the builder.
+>    retired. SW cache → v45. 13 new tests. This item's other half (bundling connection-bound
+>    *dataset* adapters — Turso, Redshift, etc. — for a shipped .html to run live against,
+>    distinct from the legacy direct-DA-with-embedded-cfg style this slice covered) started
+>    2026-07-26 (v589, steward PR): `redactSecrets` now also resolves `da.connectionId` against
+>    the Workspace connection at export time (only available in the builder) and stamps
+>    `da.connAdapter`/a redacted `da.connCfg`; `PDC.cda` gained a parallel `CONN_ENGINES` dispatch.
+>    **Turso done; PostgreSQL/PostgREST, Supabase, Redshift, Google Sheets, and local files still
+>    have no exported-runtime path** — each needs the same one-adapter-at-a-time treatment (see
+>    STATUS.md's DONE entry for the reusable plumbing this added).
 > 4. **Terminology sweep**: ✓ "My Data Sources" → "This dashboard's datasets" (already shipped, landed
 >    silently in the 2026-07-14 UX sprint's dataset-first Data panel work) and ✓ sample catalog groups
 >    labeled "Samples" (already shipped, same era) — both confirmed still live in `app/studio.js` as of

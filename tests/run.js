@@ -18228,6 +18228,143 @@ function serve() {
     ok("Post-overhaul item 3: the builder's own live-editing preview iframe never prompts for a credential (STUDIO_PREVIEW gate)",
       !credPreviewGate.promptCalled, JSON.stringify(credPreviewGate));
 
+    // Post-overhaul backlog item 3, OTHER half (2026-07-26): the connections → datasets model
+    // (a DA with connectionId, always kind:"sql") had NO exported-runtime path at all — unlike the
+    // four direct connectors above, there's nothing on da.kind to redact/dispatch on, since the
+    // adapter identity and credentials live on a SEPARATE Workspace connection row. Starting with
+    // Turso (the reference remote adapter): exporters.js resolves da.connectionId against the live
+    // Workspace and stamps da.connAdapter/da.connCfg + needsSecret; studio-render.js's PDC.cda
+    // gains a parallel CONN_ENGINES dispatch mirroring CRED_ENGINES exactly.
+    console.log("\n• Post-overhaul item 3 (connection-bound half): exported dashboards can query a Turso-backed dataset live");
+
+    const connRedaction = await page.evaluate(function () {
+      var assets = window.__STUDIO_STATE.assets;
+      var conn = Studio.Workspace.put("connections", { name: "turso-export-test", adapter: "turso", cfg: { url: "https://my-db-org.turso.io", token: "SUPER-SECRET-TURSO-TOKEN" } });
+      var spec = {
+        name: "ok-name", title: "T", panels: [], kpis: [], filters: [],
+        cda: { dataAccesses: [{ id: "d1", name: "tursoDa", kind: "sql", columns: ["x"], sql: "SELECT 1", connectionId: conn.id, datasetId: "ds-turso-1" }] }
+      };
+      var html = Studio.exportCDF(spec, assets, "/x");
+      return {
+        leaksSecret: html.indexOf("SUPER-SECRET-TURSO-TOKEN") >= 0,
+        keepsUrl: html.indexOf("my-db-org.turso.io") >= 0,
+        stampsConnAdapter: html.indexOf("\"connAdapter\":\"turso\"") >= 0,
+        stampsNeedsSecret: html.indexOf("\"needsSecret\":\"token\"") >= 0
+      };
+    });
+    ok("Post-overhaul item 3 (connection-bound): exportCDF never embeds a Turso connection's auth token in the output HTML",
+      !connRedaction.leaksSecret, JSON.stringify(connRedaction));
+    ok("Post-overhaul item 3 (connection-bound): exportCDF keeps the connection's non-secret fields (url) so the dataset still resolves",
+      connRedaction.keepsUrl, JSON.stringify(connRedaction));
+    ok("Post-overhaul item 3 (connection-bound): the redacted DA is stamped with connAdapter so the runtime knows which engine to use",
+      connRedaction.stampsConnAdapter, JSON.stringify(connRedaction));
+    ok("Post-overhaul item 3 (connection-bound): the redacted DA is stamped with needsSecret so the runtime knows to prompt for it",
+      connRedaction.stampsNeedsSecret, JSON.stringify(connRedaction));
+
+    const connNoConnection = await page.evaluate(function () {
+      var assets = window.__STUDIO_STATE.assets;
+      // No connectionId at all — the common case (an offline-sample-only DA) must be completely
+      // unaffected: no connAdapter/connCfg ever appears on a DA that was never connection-bound.
+      var spec = {
+        name: "ok-name", title: "T", panels: [], kpis: [], filters: [],
+        cda: { dataAccesses: [{ id: "d1", name: "plainDa", kind: "sql", columns: ["x"], sql: "SELECT 1" }] }
+      };
+      var html = Studio.exportCDF(spec, assets, "/x");
+      // Quoted JSON-key form only — studio-render.js's own bundled source legitimately mentions
+      // the bare identifiers da.connAdapter/CONN_ENGINES in code/comments on every export.
+      return { touchesConnFields: html.indexOf("\"connAdapter\"") >= 0 || html.indexOf("\"connCfg\"") >= 0 };
+    });
+    ok("Post-overhaul item 3 (connection-bound): a plain DA with no connectionId is completely untouched by the new stamping",
+      !connNoConnection.touchesConnFields, JSON.stringify(connNoConnection));
+
+    const connBundling = await page.evaluate(function () {
+      var assets = window.__STUDIO_STATE.assets;
+      var conn = Studio.Workspace.put("connections", { name: "turso-bundling-test", adapter: "turso", cfg: { url: "https://x.turso.io", token: "t" } });
+      var tursoSpec = { name: "ok-name", title: "T", panels: [], kpis: [], filters: [], cda: { dataAccesses: [{ id: "d1", name: "d1", kind: "sql", columns: ["x"], connectionId: conn.id }] } };
+      var plainSpec = { name: "ok-name", title: "T", panels: [], kpis: [], filters: [], cda: { dataAccesses: [{ id: "d1", name: "d1", kind: "sql", columns: ["x"] }] } };
+      var tursoHtml = Studio.exportCDF(tursoSpec, assets, "/x");
+      var plainHtml = Studio.exportCDF(plainSpec, assets, "/x");
+      function has(html, name) { return new RegExp("Studio\\." + name + "\\s*=").test(html); }
+      return { tursoHasFacade: has(tursoHtml, "tursoSource"), plainOmitsFacade: !has(plainHtml, "tursoSource") };
+    });
+    ok("Post-overhaul item 3 (connection-bound): a Turso-connected export bundles the Turso façade",
+      connBundling.tursoHasFacade, JSON.stringify(connBundling));
+    ok("Post-overhaul item 3 (connection-bound): a plain sql DA with no connection stays lean (no Turso façade)",
+      connBundling.plainOmitsFacade, JSON.stringify(connBundling));
+
+    const connDispatch = await page.evaluate(async function () {
+      var assets = window.__STUDIO_STATE.assets;
+      var conn = Studio.Workspace.put("connections", { name: "turso-dispatch-test", adapter: "turso", cfg: { url: "https://x.turso.io", token: "orig-secret" } });
+      var da = { id: "d1", name: "d1", kind: "sql", columns: ["x"], sql: "SELECT 1", connectionId: conn.id };
+      var spec = { name: "ok-name", title: "T", panels: [], kpis: [], filters: [], cda: { dataAccesses: [da] } };
+      var html = Studio.exportCDF(spec, assets, "/x");
+      var ifr = document.createElement("iframe");
+      ifr.style.display = "none";
+      document.body.appendChild(ifr);
+      await new Promise(function (resolve) { ifr.onload = resolve; ifr.srcdoc = html; });
+      var iw = ifr.contentWindow;
+      var seenCfg = null, promptCalls = 0;
+      iw.window.prompt = function () { promptCalls++; return "fresh-prompted-secret"; };
+      iw.Studio.tursoSource.queryData = function (cfg) { seenCfg = cfg; return Promise.resolve({ columns: ["x"], rows: [[1]] }); };
+      var result = await iw.PDC.cda("d1", {});
+      await iw.PDC.cda("d1", {}); // second call — should reuse the cached secret, not re-prompt
+      document.body.removeChild(ifr);
+      return {
+        gotRows: result.rows.length === 1 && result.rows[0][0] === 1,
+        secretIsFresh: seenCfg && seenCfg.token === "fresh-prompted-secret",
+        urlCarried: seenCfg && seenCfg.url === "https://x.turso.io",
+        promptCalledOnce: promptCalls === 1
+      };
+    });
+    ok("Post-overhaul item 3 (connection-bound): PDC.cda dispatches a Turso-backed DA to Studio.tursoSource.queryData with the freshly-prompted (never the original) token",
+      connDispatch.gotRows && connDispatch.secretIsFresh && connDispatch.urlCarried, JSON.stringify(connDispatch));
+    ok("Post-overhaul item 3 (connection-bound): PDC.cda caches the prompted secret so a second call doesn't re-prompt",
+      connDispatch.promptCalledOnce, JSON.stringify(connDispatch));
+
+    const connErrorPropagates = await page.evaluate(async function () {
+      var assets = window.__STUDIO_STATE.assets;
+      var conn = Studio.Workspace.put("connections", { name: "turso-error-test", adapter: "turso", cfg: { url: "https://x.turso.io", token: "t" } });
+      var da = { id: "d1", name: "d1", kind: "sql", columns: ["x"], sql: "SELECT 1", connectionId: conn.id };
+      var spec = { name: "ok-name", title: "T", panels: [], kpis: [], filters: [], cda: { dataAccesses: [da] } };
+      var html = Studio.exportCDF(spec, assets, "/x");
+      var ifr = document.createElement("iframe");
+      ifr.style.display = "none";
+      document.body.appendChild(ifr);
+      await new Promise(function (resolve) { ifr.onload = resolve; ifr.srcdoc = html; });
+      var iw = ifr.contentWindow;
+      iw.window.prompt = function () { return "t"; };
+      // queryData resolves an in-band {error}, never rejects — PDC.cda must turn that into a
+      // rejection so it flows through the SAME .catch(fail) every other engine's failure does
+      // (vendor/pdc-ui.js's PDC.cda(...).then(paint).catch(fail) — a pristine file, never touched).
+      iw.Studio.tursoSource.queryData = function () { return Promise.resolve({ columns: [], rows: [], error: "Turso rejected the auth token (401/403)" }); };
+      var threw = false, message = "";
+      try { await iw.PDC.cda("d1", {}); } catch (e) { threw = true; message = e.message; }
+      document.body.removeChild(ifr);
+      return { threw: threw, message: message };
+    });
+    ok("Post-overhaul item 3 (connection-bound): an in-band Turso query error becomes a real rejection (matches every other engine's failure contract)",
+      connErrorPropagates.threw && connErrorPropagates.message.indexOf("401/403") >= 0, JSON.stringify(connErrorPropagates));
+
+    const connPreviewGate = await page.evaluate(async function () {
+      var assets = window.__STUDIO_STATE.assets;
+      var conn = Studio.Workspace.put("connections", { name: "turso-preview-gate-test", adapter: "turso", cfg: { url: "https://x.turso.io", token: "t" } });
+      var da = { id: "d1", name: "d1", kind: "sql", columns: ["x"], sql: "SELECT 1", connectionId: conn.id };
+      var spec = { name: "ok-name", title: "T", panels: [], kpis: [], filters: [], cda: { dataAccesses: [da] } };
+      var html = Studio.buildHtml(spec, assets, { preview: true, mock: {} });
+      var ifr = document.createElement("iframe");
+      ifr.style.display = "none";
+      document.body.appendChild(ifr);
+      await new Promise(function (resolve) { ifr.onload = resolve; ifr.srcdoc = html; });
+      var iw = ifr.contentWindow;
+      var promptCalled = false;
+      iw.window.prompt = function () { promptCalled = true; return "x"; };
+      try { await iw.PDC.cda("d1", {}); } catch (e) { /* expected — no CDA endpoint in this test harness */ }
+      document.body.removeChild(ifr);
+      return { promptCalled: promptCalled };
+    });
+    ok("Post-overhaul item 3 (connection-bound): the builder's own live-editing preview iframe never prompts for a Turso connection's credential (STUDIO_PREVIEW gate)",
+      !connPreviewGate.promptCalled, JSON.stringify(connPreviewGate));
+
     // ── F18: Bump / ranking chart (v104) ─────────────────────────────────────
     console.log("\n• F18: Bump chart");
 

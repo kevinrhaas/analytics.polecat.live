@@ -5,7 +5,23 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v225"; /* v225: Track L accessibility lens —
+var CACHE_NAME = "studio-shell-v226"; /* v226: Post-overhaul backlog item 3, other
+   half — connection-bound dataset adapters (the connections → datasets model)
+   had NO exported-runtime path at all: every such DA carries kind:"sql"
+   regardless of its actual backend, so studio-render.js's PDC.cda dispatch
+   had nothing to key off, and a shipped .html with one bound silently fell
+   back to sample data forever. Started with Turso (the reference remote
+   adapter): exporters.js's redactSecrets now also resolves da.connectionId
+   against the live Workspace connection and stamps da.connAdapter/da.connCfg
+   (redacting the one secret field the same way the four legacy direct
+   connectors already are), and studio-render.js's PDC.cda gained a parallel
+   CONN_ENGINES dispatch that prompts for that secret at open (never
+   embedded) and runs the query through Studio.tursoSource.queryData. The
+   Turso façade (app/sources/turso.js — already precached below) is now also
+   bundled into an export, but only when a dashboard actually uses it (same
+   lean-bundling convention as the direct connectors). app/exporters.js,
+   app/studio-render.js, app/studio.js, app/viewer.js changed, so the
+   precached copies need to roll. v225: Track L accessibility lens —
    a FOURTH instance of the "outline re-declared inside its own focus rule"
    bug shape (v286 .repo-search, v299 .dsb-sqb-inp, v333 .opt-hint): the rail's
    "back to polecat.live" link (#railNav .rail-suite) set outline:none on its

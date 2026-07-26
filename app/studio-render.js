@@ -228,13 +228,29 @@
       cfg: function (da, secret) { return { url: da.httpUrl, method: da.httpMethod, authHeader: secret, paramName: da.httpParamName }; }
     }
   };
+  // Post-overhaul backlog item 3, OTHER half ("connection-bound dataset adapters"): CRED_ENGINES
+  // above dispatches on da.kind because the four legacy connectors ARE their own kind — a
+  // connection-bound DA (the connections → datasets model) always carries da.kind:"sql", so
+  // there's nothing on kind to key off. exporters.js's redactSecrets instead stamps da.connAdapter
+  // (which registered source the Workspace connection used) + a redacted da.connCfg (its non-secret
+  // fields) onto the DA at export time; this dispatches on THAT field instead, same
+  // prompt-once/never-embed contract as CRED_ENGINES. Starting with Turso — every other
+  // connection-bound adapter still has no exported-runtime path.
+  var CONN_ENGINES = {
+    turso: {
+      label: "Turso auth token",
+      engine: function () { return window.Studio && Studio.tursoSource; },
+      cfg: function (da, secret) { return Object.assign({}, da.connCfg, { token: secret }); }
+    }
+  };
   var _secretCache = {};
   function resolveSecret(da) {
     var field = da.needsSecret;
     if (!field) return "";
     var key = da.id + "|" + field;
     if (Object.prototype.hasOwnProperty.call(_secretCache, key)) return _secretCache[key];
-    var label = (CRED_ENGINES[da.kind] && CRED_ENGINES[da.kind].label) || "credential";
+    var label = (CRED_ENGINES[da.kind] && CRED_ENGINES[da.kind].label) ||
+      (CONN_ENGINES[da.connAdapter] && CONN_ENGINES[da.connAdapter].label) || "credential";
     var val = window.prompt("This dashboard needs a " + label + " to query “" + (da.name || da.id) +
       "” live. It's used only in your browser for this session and is never saved.") || "";
     _secretCache[key] = val;
@@ -262,6 +278,13 @@
       var engine = cred && cred.engine();
       if (da && cred && engine)
         return engine.query(cred.cfg(da, resolveSecret(da)), da.sql || da.query).then(function (r) { return wrapResult(r, da); });
+      var conn = da && !window.STUDIO_PREVIEW && CONN_ENGINES[da.connAdapter];
+      var connEngine = conn && conn.engine();
+      if (da && conn && connEngine)
+        return connEngine.queryData(conn.cfg(da, resolveSecret(da)), { sql: da.sql || da.query, params: da.params }).then(function (r) {
+          if (r.error) throw new Error(r.error);
+          return wrapResult({ cols: r.columns, rows: r.rows }, da);
+        });
       return realCda(dataAccessId, params);
     };
   })();

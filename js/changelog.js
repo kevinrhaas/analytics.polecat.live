@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 589,
+    title: 'Turso-connected datasets now run live in exported dashboards',
+    kind: 'feature',
+    ts: '2026-07-26T19:33:38.000Z',
+    items: [
+      'A dashboard using a Turso-backed dataset now queries it live once exported or deployed, instead of silently falling back to sample data forever.',
+      'The auth token is never embedded in the exported file -- it\'s prompted for once when the dashboard is opened, kept only in your browser for that session.',
+    ],
+  },
+  {
     v: 588,
     title: 'Fix: keyboard focus ring restored on the rail\'s "polecat.live" link',
     kind: 'fix',

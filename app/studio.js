@@ -194,6 +194,11 @@
       // credential-based direct connectors (their secrets are redacted at export time — see
       // exporters.js's redactSecrets — and re-collected at open via studio-render.js's PDC.cda).
       fetchText("app/snowflake.js"), fetchText("app/databricks.js"), fetchText("app/bigquery.js"), fetchText("app/genericsql.js"),
+      // Post-overhaul backlog item 3, other half: the connection-bound Turso façade (only
+      // Studio.tursoSource's data-plane query() is used at runtime — its meta-plane
+      // provision/probe/load/save functions never get called there, so the file bundles as-is
+      // with no refactor). See exporters.js's redactSecrets + studio-render.js's CONN_ENGINES.
+      fetchText("app/sources/turso.js"),
       // UX6 (icon migration): the chart-pagination Prev/Next buttons (studio-charts.js) now call
       // Studio.icon() — bundled unconditionally (like studio-charts.js itself) so every export's
       // paginated table keeps its themed chevrons, not just the live builder.
@@ -203,9 +208,9 @@
       S.catalog = r[0];
       S.assets = {
         css: r[1], js: r[2], render: r[3], charts: r[4], duckdb: r[5], httpvfs: r[6],
-        snowflake: r[7], databricks: r[8], bigquery: r[9], genericsql: r[10], icons: r[11]
+        snowflake: r[7], databricks: r[8], bigquery: r[9], genericsql: r[10], turso: r[11], icons: r[12]
       };
-      S.examples = r[12] || [];
+      S.examples = r[13] || [];
       wireTopbar();
       try { renderFooter(); } catch (e) { /* footer is non-critical chrome */ }
       setupPanes();

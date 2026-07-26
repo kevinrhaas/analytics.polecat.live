@@ -126,11 +126,11 @@
       fetchText("vendor/pdc-ui.css"), fetchText("vendor/pdc-ui.js"), fetchText("app/studio-render.js"),
       fetchText("app/studio-charts.js"), fetchText("app/duckdb.js"), fetchText("app/sqlitehttp.js"),
       fetchText("app/snowflake.js"), fetchText("app/databricks.js"), fetchText("app/bigquery.js"),
-      fetchText("app/genericsql.js"), fetchText("app/icons.js")
+      fetchText("app/genericsql.js"), fetchText("app/sources/turso.js"), fetchText("app/icons.js")
     ]).then(function (r) {
       var assets = {
         css: r[0], js: r[1], render: r[2], charts: r[3], duckdb: r[4], httpvfs: r[5],
-        snowflake: r[6], databricks: r[7], bigquery: r[8], genericsql: r[9], icons: r[10]
+        snowflake: r[6], databricks: r[7], bigquery: r[8], genericsql: r[9], turso: r[10], icons: r[11]
       };
       return ensureGeoAssets(spec, assets).then(function () { return assets; });
     }).then(function (assets) {
