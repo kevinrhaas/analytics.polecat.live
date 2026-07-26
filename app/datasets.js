@@ -64,6 +64,13 @@
   var _dsxAdapterFilter = {}; // multi-select adapterId -> true; empty = all
   var _dsxConnFilter = {};    // multi-select connectionId -> true; empty = all (post-overhaul backlog item 7, "by connection")
   var _dsxTagFilter = {};     // multi-select tag -> true; empty = all
+  // Post-overhaul backlog item 7's optional "by type" facet (kind:
+  // sql/table/file/collection/sheet) — same multi-select/saved-view shape as
+  // the adapter/connection/tag pills, just keyed by d.kind (defaulting to
+  // "sql" the same way dsxRunnableDef already does).
+  var _dsxKindFilter = {};
+  var DSX_KIND_LABEL = { sql: "SQL query", table: "Table", collection: "Collection", file: "File", sheet: "Sheet" };
+  function dsxKindLabel(k) { return DSX_KIND_LABEL[k] || k; }
   // Folder pilot slice (#21 org sub-item, "folder tree" step 2 — a single flat
   // `d.folder` string, the primary-home layer that sits alongside tags per the
   // 2026-07-21 DECISIONS LOCKED note; a real nested tree arrives with M5's
@@ -88,6 +95,7 @@
     _dsxAdapterFilter = {}; (v.adapters || []).forEach(function (a) { _dsxAdapterFilter[a] = true; });
     _dsxConnFilter = {}; (v.connections || []).forEach(function (c) { _dsxConnFilter[c] = true; });
     _dsxTagFilter = {}; (v.tags || []).forEach(function (t) { _dsxTagFilter[t] = true; });
+    _dsxKindFilter = {}; (v.kinds || []).forEach(function (k) { _dsxKindFilter[k] = true; });
     _dsxFolderFilter = v.folder || "";
     renderDatasets();
   }
@@ -155,7 +163,7 @@
       if (a.pinned) return (b.pinnedAt || "").localeCompare(a.pinnedAt || "");
       return (b.updatedAt || 0) - (a.updatedAt || 0);
     });
-    var adapterCounts = {}, connCounts = {}, tagCounts = {}, folderCounts = {}, folderUnfiled = 0;
+    var adapterCounts = {}, connCounts = {}, tagCounts = {}, kindCounts = {}, folderCounts = {}, folderUnfiled = 0;
     list.forEach(function (d) {
       var src = dsxAdapterOf(d);
       var aid = src ? src.id : "—";
@@ -163,13 +171,17 @@
       var cid = d.connectionId || "—";
       connCounts[cid] = (connCounts[cid] || 0) + 1;
       (d.tags || []).forEach(function (t) { tagCounts[t] = (tagCounts[t] || 0) + 1; });
+      var kind = d.kind || "sql";
+      kindCounts[kind] = (kindCounts[kind] || 0) + 1;
       if (d.folder) folderCounts[d.folder] = (folderCounts[d.folder] || 0) + 1; else folderUnfiled++;
     });
     Object.keys(_dsxAdapterFilter).forEach(function (k) { if (!adapterCounts[k]) delete _dsxAdapterFilter[k]; });
     Object.keys(_dsxConnFilter).forEach(function (k) { if (!connCounts[k]) delete _dsxConnFilter[k]; });
     Object.keys(_dsxTagFilter).forEach(function (k) { if (!tagCounts[k]) delete _dsxTagFilter[k]; });
+    Object.keys(_dsxKindFilter).forEach(function (k) { if (!kindCounts[k]) delete _dsxKindFilter[k]; });
     if (_dsxFolderFilter && _dsxFolderFilter !== "__unfiled" && !folderCounts[_dsxFolderFilter]) _dsxFolderFilter = "";
-    var anyA = Object.keys(_dsxAdapterFilter).length > 0, anyC = Object.keys(_dsxConnFilter).length > 0, anyT = Object.keys(_dsxTagFilter).length > 0;
+    var anyA = Object.keys(_dsxAdapterFilter).length > 0, anyC = Object.keys(_dsxConnFilter).length > 0, anyT = Object.keys(_dsxTagFilter).length > 0,
+      anyK = Object.keys(_dsxKindFilter).length > 0;
     var pillsA = Object.keys(adapterCounts).sort().map(function (aid) {
       var src = Studio.sourceById(aid) || { label: aid === "—" ? "No connection" : aid };
       return '<button type="button" class="wb-chip cx-pill' + (_dsxAdapterFilter[aid] ? " active" : "") + '" data-dsx-adapter="' + esc(aid) + '" aria-pressed="' + (_dsxAdapterFilter[aid] ? "true" : "false") + '">' +
@@ -196,6 +208,14 @@
       return '<button type="button" class="wb-chip cx-pill' + (_dsxTagFilter[t] ? " active" : "") + '" data-dsx-tag="' + esc(t) + '" aria-pressed="' + (_dsxTagFilter[t] ? "true" : "false") + '">' +
         '<span class="wb-chip-label">#' + esc(t) + '</span> <span class="wb-chip-n">' + tagCounts[t] + '</span></button>';
     }).join("");
+    // Post-overhaul backlog item 7's optional "by type" facet — kind is one of
+    // sql/table/file/collection/sheet, driven by the dataset's connection
+    // adapter (dsxKindFor); same always-shown convention as the adapter/tag
+    // pills (every dataset has a kind, even the single-value case).
+    var pillsK = Object.keys(kindCounts).sort().map(function (k) {
+      return '<button type="button" class="wb-chip cx-pill' + (_dsxKindFilter[k] ? " active" : "") + '" data-dsx-kind="' + esc(k) + '" aria-pressed="' + (_dsxKindFilter[k] ? "true" : "false") + '">' +
+        '<span class="wb-chip-label">' + esc(dsxKindLabel(k)) + '</span> <span class="wb-chip-n">' + kindCounts[k] + '</span></button>';
+    }).join("");
     // Folder facet: single-select (unlike the multi-select adapter/conn/tag
     // pills above) — only appears once at least one dataset has been filed,
     // same "don't show an empty facet" convention as the other pills.
@@ -219,7 +239,7 @@
         '</div>';
     }).join("");
     var anyF = !!_dsxFolderFilter;
-    var canSaveView = !!(q || anyA || anyC || anyT || anyF);
+    var canSaveView = !!(q || anyA || anyC || anyT || anyK || anyF);
     var viewAddHtml = canSaveView
       ? '<span class="wb-add"><input type="text" id="dsxViewNameInp" class="wb-name-inp" placeholder="Name this view…" aria-label="Name this saved view"/>' +
         '<button type="button" class="btn" id="dsxViewAddBtn">+ Save view</button></span>'
@@ -229,6 +249,7 @@
       if (anyA && !_dsxAdapterFilter[src ? src.id : "—"]) return false;
       if (anyC && !_dsxConnFilter[d.connectionId || "—"]) return false;
       if (anyT && !(d.tags || []).some(function (t) { return _dsxTagFilter[t]; })) return false;
+      if (anyK && !_dsxKindFilter[d.kind || "sql"]) return false;
       if (_dsxFolderFilter === "__unfiled") { if (d.folder) return false; }
       else if (_dsxFolderFilter) { if (d.folder !== _dsxFolderFilter) return false; }
       if (!q) return true;
@@ -268,19 +289,20 @@
     });
     results.innerHTML =
       (pillsF ? '<div class="wb-chips">' + pillsF + '</div>' : "") +
-      (pillsA || pillsC || pillsT || pillsV || viewAddHtml ? '<div class="wb-chips cx-pills">' +
-        pillsV + (pillsV && (pillsA || pillsC || pillsT) ? '<span class="dsx-pill-sep"></span>' : "") +
-        pillsA + (pillsA && (pillsC || pillsT) ? '<span class="dsx-pill-sep"></span>' : "") +
-        pillsC + (pillsC && pillsT ? '<span class="dsx-pill-sep"></span>' : "") +
+      (pillsA || pillsC || pillsK || pillsT || pillsV || viewAddHtml ? '<div class="wb-chips cx-pills">' +
+        pillsV + (pillsV && (pillsA || pillsC || pillsK || pillsT) ? '<span class="dsx-pill-sep"></span>' : "") +
+        pillsA + (pillsA && (pillsC || pillsK || pillsT) ? '<span class="dsx-pill-sep"></span>' : "") +
+        pillsC + (pillsC && (pillsK || pillsT) ? '<span class="dsx-pill-sep"></span>' : "") +
+        pillsK + (pillsK && pillsT ? '<span class="dsx-pill-sep"></span>' : "") +
         pillsT +
-        (anyA || anyC || anyT || anyF ? '<button type="button" class="wb-chip" id="dsxPillClear" title="Show everything">Clear</button>' : "") +
+        (anyA || anyC || anyT || anyK || anyF ? '<button type="button" class="wb-chip" id="dsxPillClear" title="Show everything">Clear</button>' : "") +
         viewAddHtml + '</div>' : "") +
       (rows.length ? '<div class="cx-list">' + rows.join("") + '</div>'
         : '<div class="cx-empty">' +
-            (q || anyA || anyC || anyT || anyF ? "No datasets match." :
+            (q || anyA || anyC || anyT || anyK || anyF ? "No datasets match." :
               "<b>No datasets yet.</b><br/>A dataset is a named query on top of a connection — SQL for warehouses and files, a table for Supabase, a collection for Firestore — with optional {{parameters}} a dashboard can fill in at run time." +
               (Studio.Workspace.all("connections").length ? "" : "<br/>Start by adding a connection in the Connections section.")) +
-            (q || anyA || anyC || anyT || anyF || !Studio.Workspace.all("connections").length ? "" : '<br/><button type="button" class="btn primary" id="dsxEmptyNew">+ New dataset</button>') +
+            (q || anyA || anyC || anyT || anyK || anyF || !Studio.Workspace.all("connections").length ? "" : '<br/><button type="button" class="btn primary" id="dsxEmptyNew">+ New dataset</button>') +
           '</div>');
     Studio.Tooltip.hydrate(results);
     $$("[data-dsx-adapter]", results).forEach(function (btn) {
@@ -304,11 +326,18 @@
         renderDatasets();
       };
     });
+    $$("[data-dsx-kind]", results).forEach(function (btn) {
+      btn.onclick = function () {
+        var k = btn.getAttribute("data-dsx-kind");
+        if (_dsxKindFilter[k]) delete _dsxKindFilter[k]; else _dsxKindFilter[k] = true;
+        renderDatasets();
+      };
+    });
     $$("[data-dsx-folder]", results).forEach(function (btn) {
       btn.onclick = function () { _dsxFolderFilter = btn.getAttribute("data-dsx-folder"); renderDatasets(); };
     });
     var clearBtn = $("#dsxPillClear", results);
-    if (clearBtn) clearBtn.onclick = function () { _dsxAdapterFilter = {}; _dsxConnFilter = {}; _dsxTagFilter = {}; _dsxFolderFilter = ""; renderDatasets(); };
+    if (clearBtn) clearBtn.onclick = function () { _dsxAdapterFilter = {}; _dsxConnFilter = {}; _dsxTagFilter = {}; _dsxKindFilter = {}; _dsxFolderFilter = ""; renderDatasets(); };
     $$("[data-dsx-view]", results).forEach(function (btn) {
       btn.onclick = function () {
         var v = dsxLoadViews().filter(function (x) { return x.id === btn.getAttribute("data-dsx-view"); })[0];
@@ -335,7 +364,7 @@
       if (!name) { if (inp) inp.focus(); toast("Type a name in the box first — e.g. “Finance sources”.", true); return; }
       var list = dsxLoadViews();
       var rawQ = (($("#dsxSearch") || {}).value || "");
-      list.unshift({ id: "dsxv" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name: name, q: rawQ, adapters: Object.keys(_dsxAdapterFilter), connections: Object.keys(_dsxConnFilter), tags: Object.keys(_dsxTagFilter), folder: _dsxFolderFilter });
+      list.unshift({ id: "dsxv" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), name: name, q: rawQ, adapters: Object.keys(_dsxAdapterFilter), connections: Object.keys(_dsxConnFilter), tags: Object.keys(_dsxTagFilter), kinds: Object.keys(_dsxKindFilter), folder: _dsxFolderFilter });
       dsxSaveViews(list);
       toast('View "' + name + '" saved');
       renderDatasets();

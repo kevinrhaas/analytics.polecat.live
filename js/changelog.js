@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 586,
+    title: 'Filter datasets by type',
+    kind: 'feature',
+    ts: '2026-07-26T18:00:51.000Z',
+    items: [
+      'The Datasets list gains a "by type" filter pill strip (SQL query / Table / Collection / File / Sheet) alongside the existing by-adapter, by-connection, and by-tag filters -- click a pill to narrow the list, and it works with saved views like the others.',
+    ],
+  },
+  {
     v: 585,
     title: 'In-app go-live for real per-user security (Supabase)',
     kind: 'feature',

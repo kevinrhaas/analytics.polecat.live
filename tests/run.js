@@ -6088,6 +6088,68 @@ function serve() {
       dsxConnViewApplied.rows.length === 1 && dsxConnViewApplied.rows[0] === "d-third",
       JSON.stringify(dsxConnViewApplied));
 
+    await page.evaluate(function () { document.querySelector("#dsxPillClear").click(); });
+    await page.waitForTimeout(60);
+
+    // "by type" filter (post-overhaul backlog item 7's optional facet, kind:
+    // sql/table/file/collection/sheet) — same multi-select/saved-view shape as
+    // the adapter/connection/tag pills above, just keyed by d.kind (defaulting
+    // to "sql" the same way dsxRunnableDef already does).
+    const dsxKindBaseline = await page.evaluate(function () {
+      return { rows: document.querySelectorAll("#dsxResults .cx-row").length, sqlN: (document.querySelector('[data-dsx-kind="sql"] .wb-chip-n') || {}).textContent };
+    });
+    const dsxKindPills = await page.evaluate(function () {
+      Studio.Workspace.put("datasets", { id: "d-fourth", name: "kind_test_table", connectionId: "conn-mock-2", kind: "table", table: "orders" });
+      window.__studioRenderDatasets();
+      var pills = [].slice.call(document.querySelectorAll("[data-dsx-kind]")).map(function (b) {
+        return { kind: b.getAttribute("data-dsx-kind"), label: (b.querySelector(".wb-chip-label") || {}).textContent, n: (b.querySelector(".wb-chip-n") || {}).textContent };
+      });
+      return { pills: pills, rows: document.querySelectorAll("#dsxResults .cx-row").length };
+    });
+    ok("DSX: a 'by type' pill appears per dataset kind, with a friendly label, and doesn't disturb the other kinds' counts",
+      dsxKindPills.rows === dsxKindBaseline.rows + 1 &&
+      dsxKindPills.pills.some(function (p) { return p.kind === "sql" && p.label === "SQL query" && p.n === dsxKindBaseline.sqlN; }) &&
+      dsxKindPills.pills.some(function (p) { return p.kind === "table" && p.label === "Table" && p.n === "1"; }),
+      JSON.stringify({ baseline: dsxKindBaseline, after: dsxKindPills }));
+
+    const dsxKindFilter = await page.evaluate(function () {
+      document.querySelector('[data-dsx-kind="table"]').click();
+      var rows = [].slice.call(document.querySelectorAll("#dsxResults .cx-row")).map(function (r) { return r.getAttribute("data-dsx-id"); });
+      var active = document.querySelector('[data-dsx-kind="table"]').classList.contains("active");
+      return { rows: rows, active: active };
+    });
+    ok("DSX: clicking a type pill filters the list down to just that kind",
+      dsxKindFilter.active && dsxKindFilter.rows.length === 1 && dsxKindFilter.rows[0] === "d-fourth", JSON.stringify(dsxKindFilter));
+
+    await page.evaluate(function () {
+      document.querySelector("#dsxViewNameInp").value = "Table datasets only";
+      document.querySelector("#dsxViewAddBtn").click();
+    });
+    await page.waitForTimeout(60);
+    const dsxKindViewSaved = await page.evaluate(function () {
+      var views = Studio.Workspace.settings().datasetViews || [];
+      return { kinds: (views[0] && (views[0].kinds || []).join(",")) || "" };
+    });
+    ok("DSX: saving a view while a type pill is active captures it in the view's 'kinds' list",
+      dsxKindViewSaved.kinds === "table", JSON.stringify(dsxKindViewSaved));
+
+    await page.evaluate(function () { document.querySelector("#dsxPillClear").click(); });
+    await page.waitForTimeout(60);
+    const dsxKindViewApplied = await page.evaluate(function () {
+      var beforeActive = !!document.querySelector('[data-dsx-kind="table"].active');
+      document.querySelector("[data-dsx-view]").click(); // newest saved view (unshift) is first in DOM order
+      var afterActive = !!document.querySelector('[data-dsx-kind="table"].active');
+      var rows = [].slice.call(document.querySelectorAll("#dsxResults .cx-row")).map(function (r) { return r.getAttribute("data-dsx-id"); });
+      return { beforeActive: beforeActive, afterActive: afterActive, rows: rows };
+    });
+    ok("DSX: applying that saved view restores the type pill filter",
+      !dsxKindViewApplied.beforeActive && dsxKindViewApplied.afterActive &&
+      dsxKindViewApplied.rows.length === 1 && dsxKindViewApplied.rows[0] === "d-fourth",
+      JSON.stringify(dsxKindViewApplied));
+
+    await page.evaluate(function () { document.querySelector("#dsxPillClear").click(); });
+    await page.waitForTimeout(60);
+
     await page.evaluate(function () { Studio.Workspace.reset(); window.__studioLoad({ title: "post-dsx", panels: [], kpis: [] }); window.__studioShellSetSection("studio"); });
     await page.waitForTimeout(120);
 
