@@ -4753,6 +4753,24 @@ function serve() {
         due: badgeFor("refresh-due-job"), upcoming: badgeFor("refresh-upcoming-job"),
         neverRun: badgeFor("refresh-never-run-job"), noReminder: badgeFor("no-reminder-job")
       };
+      // UX8 slice 1 (Tooltip primitive): the same hydrated-tooltip treatment as the
+      // Connections/Datasets status dots above — check both the "run OK" and the
+      // "never run" wording, since jobs.js builds the dot inline (not via a shared helper).
+      var dueRow = Array.prototype.slice.call(document.querySelectorAll("#jobsResults .cx-row"))
+        .filter(function (r) { return r.querySelector(".cx-name b").textContent === "refresh-due-job"; })[0];
+      var neverRow = Array.prototype.slice.call(document.querySelectorAll("#jobsResults .cx-row"))
+        .filter(function (r) { return r.querySelector(".cx-name b").textContent === "refresh-never-run-job"; })[0];
+      var okDot = dueRow.querySelector(".cx-dot.ok"), neverDot = neverRow.querySelector(".cx-dot");
+      var okBub = okDot.querySelector(".ps-tip-bub"), neverBub = neverDot.querySelector(".ps-tip-bub");
+      result.tipOkDot = {
+        noNativeTitle: !okDot.hasAttribute("title"), noDataTip: !okDot.hasAttribute("data-tip"),
+        isPsTip: okDot.classList.contains("ps-tip"), focusable: okDot.tabIndex === 0,
+        ariaMatchesBub: !!okBub && okDot.getAttribute("aria-label") === okBub.textContent && /Last run OK/.test(okBub.textContent)
+      };
+      result.tipNeverDot = {
+        noNativeTitle: !neverDot.hasAttribute("title"), isPsTip: neverDot.classList.contains("ps-tip"),
+        bubText: neverBub ? neverBub.textContent : ""
+      };
       [dueJob, upcomingJob, neverRunJob, noReminderJob].forEach(function (j) { Studio.Workspace.remove("jobs", j.id, { silent: true }); });
       Studio.Workspace.remove("datasets", ds.id, { silent: true });
       Studio.Workspace.remove("connections", conn.id, { silent: true });
@@ -4764,6 +4782,12 @@ function serve() {
       refreshListUI.due === "due" && refreshListUI.neverRun === "due", JSON.stringify(refreshListUI));
     ok("JOBS: a reminder not yet due shows a quiet 'Refreshes in N days' badge, and a job with no reminder shows neither",
       refreshListUI.upcoming === "upcoming" && refreshListUI.noReminder === "none", JSON.stringify(refreshListUI));
+    ok("UX8: a job's 'run OK' status dot is hydrated into a focusable, aria-labeled tooltip (no native title=/data-tip left)",
+      refreshListUI.tipOkDot.noNativeTitle && refreshListUI.tipOkDot.noDataTip && refreshListUI.tipOkDot.isPsTip &&
+      refreshListUI.tipOkDot.focusable && refreshListUI.tipOkDot.ariaMatchesBub, JSON.stringify(refreshListUI.tipOkDot));
+    ok("UX8: a job that's never run gets the same hydrated tooltip, worded 'Never run'",
+      refreshListUI.tipNeverDot.noNativeTitle && refreshListUI.tipNeverDot.isPsTip && refreshListUI.tipNeverDot.bubText === "Never run",
+      JSON.stringify(refreshListUI.tipNeverDot));
     await page.waitForTimeout(200);
 
     // M5 folder pilot, slice 3 (jobs) — same shape as the Datasets/Connections folder
@@ -5132,6 +5156,33 @@ function serve() {
       cxSaved.rows === 1 && cxSaved.stored === 1 && cxSaved.name === "Mock Turso" && cxSaved.adapter === "turso" &&
       cxSaved.tags === "finance,demo" && cxSaved.dotOk && cxSaved.modalGone && cxSaved.tagPill && cxSaved.tagBadge, JSON.stringify(cxSaved));
 
+    // UX8 slice 1 (Tooltip primitive, app/tooltip.js): the status dot's data-tip
+    // is hydrated into a focusable, tap-toggleable bubble instead of a native
+    // title= (mouse-hover only, invisible on touch, unreachable by keyboard).
+    const cxTipDot = await page.evaluate(function () {
+      var dot = document.querySelector("#connResults .cx-dot.ok");
+      var bub = dot.querySelector(".ps-tip-bub");
+      var out = {
+        noNativeTitle: !dot.hasAttribute("title"), noDataTip: !dot.hasAttribute("data-tip"),
+        isPsTip: dot.classList.contains("ps-tip"), focusable: dot.tabIndex === 0,
+        ariaLabel: dot.getAttribute("aria-label") || "", bubText: bub ? bub.textContent : "",
+        bubRole: bub ? bub.getAttribute("role") : "", hiddenBeforeTap: bub ? getComputedStyle(bub).display === "none" : false
+      };
+      dot.click();
+      out.openAfterTap = dot.classList.contains("is-open");
+      out.visibleAfterTap = getComputedStyle(bub).display !== "none";
+      document.body.click();
+      out.closedAfterOutsideClick = !dot.classList.contains("is-open");
+      return out;
+    });
+    ok("UX8: the connection status dot's tooltip is a focusable, hydrated .ps-tip (no native title=/data-tip left) with a matching aria-label",
+      cxTipDot.noNativeTitle && cxTipDot.noDataTip && cxTipDot.isPsTip && cxTipDot.focusable &&
+      /Test OK/.test(cxTipDot.ariaLabel) && cxTipDot.ariaLabel === cxTipDot.bubText && cxTipDot.bubRole === "tooltip",
+      JSON.stringify(cxTipDot));
+    ok("UX8: the tooltip bubble is hidden until hover/focus/tap, then tap-toggles open and closes again on an outside click",
+      cxTipDot.hiddenBeforeTap && cxTipDot.openAfterTap && cxTipDot.visibleAfterTap && cxTipDot.closedAfterOutsideClick,
+      JSON.stringify(cxTipDot));
+
     // QA-07 (FRONTEND_QA_REPORT_2026-07-24.md): the row is a plain container (no
     // role="button"/tabindex) — its title is the one real <button> carrying the open
     // action, and clicking it (not just the row background) opens the editor.
@@ -5424,6 +5475,20 @@ function serve() {
       dsxSaved.stored === 1 && dsxSaved.name === "sales_by_region" && dsxSaved.cols === "region,total" &&
       dsxSaved.params === '[{"key":"schema","value":"prod"}]' && dsxSaved.tags === "finance,demo" &&
       dsxSaved.rowShown === 1 && dsxSaved.dotOk && dsxSaved.tagPill, JSON.stringify(dsxSaved));
+
+    // UX8 slice 1 (Tooltip primitive): same hydrated-tooltip treatment as CX's status dot above.
+    const dsxTipDot = await page.evaluate(function () {
+      var dot = document.querySelector("#dsxResults .cx-dot.ok");
+      var bub = dot.querySelector(".ps-tip-bub");
+      return {
+        noNativeTitle: !dot.hasAttribute("title"), noDataTip: !dot.hasAttribute("data-tip"),
+        isPsTip: dot.classList.contains("ps-tip"), focusable: dot.tabIndex === 0,
+        ariaMatchesBub: !!bub && dot.getAttribute("aria-label") === bub.textContent && bub.textContent.length > 0
+      };
+    });
+    ok("UX8: the dataset status dot's tooltip is hydrated the same way (no native title=/data-tip, focusable, aria-label matches the bubble)",
+      dsxTipDot.noNativeTitle && dsxTipDot.noDataTip && dsxTipDot.isPsTip && dsxTipDot.focusable && dsxTipDot.ariaMatchesBub,
+      JSON.stringify(dsxTipDot));
 
     const dsxParams = await page.evaluate(async function () {
       var d = Studio.Workspace.all("datasets")[0];

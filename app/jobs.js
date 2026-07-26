@@ -178,9 +178,9 @@
     var rows = shown.map(function (j) {
       var src = Studio.Workspace.get("datasets", j.sourceDatasetId);
       var out = j.outputDatasetId && Studio.Workspace.get("datasets", j.outputDatasetId);
-      var dot = !j.lastRun ? '<span class="cx-dot" title="Never run"></span>'
-        : (j.lastRun.ok ? '<span class="cx-dot ok" title="Last run OK · ' + esc(new Date(j.lastRun.at).toLocaleString()) + ' · ' + j.lastRun.rows + ' rows"></span>'
-          : '<span class="cx-dot bad" title="Last run failed: ' + esc(j.lastRun.error) + '"></span>');
+      var dot = !j.lastRun ? '<span class="cx-dot" data-tip="Never run"></span>'
+        : (j.lastRun.ok ? '<span class="cx-dot ok" data-tip="Last run OK · ' + esc(new Date(j.lastRun.at).toLocaleString()) + ' · ' + j.lastRun.rows + ' rows"></span>'
+          : '<span class="cx-dot bad" data-tip="Last run failed: ' + esc(j.lastRun.error) + '"></span>');
       var folderBadge = j.folder ? '<span class="cx-badge cx-folder" title="Folder: ' + esc(j.folder) + '">' + esc(j.folder) + '</span>' : "";
       return '<div class="cx-row" data-job-id="' + esc(j.id) + '">' +
         dot +
@@ -206,6 +206,7 @@
         'with sum/avg/count/median or an acreage-weighted mean, and join or union in another dataset — then saves the result as ' +
         'a new dataset you can chart.' +
         (Studio.Workspace.all("datasets").length ? "" : "<br/>Add a dataset first, in the Datasets section.")) + '</div>');
+    Studio.Tooltip.hydrate(results);
     $$("[data-jobs-folder]", results).forEach(function (btn) {
       btn.onclick = function () { _jobsFolderFilter = btn.getAttribute("data-jobs-folder"); renderJobs(); };
     });
