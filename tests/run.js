@@ -9911,6 +9911,71 @@ function serve() {
     ok("LF19 Inspector slice 7: the glyph never leaks text into h4.textContent (title stays exact)",
       smallInspIcons.textUnchanged, JSON.stringify(smallInspIcons));
 
+    // LF19 Inspector slice 8 — the last of the four remaining Inspector renderers, Data
+    // Source (renderDAInspector), gets the same header-glyph treatment: all 15 section()/
+    // advSection() call sites — the base identity fields, the six per-kind query editors
+    // (SQL/DuckDB/SQLite/Snowflake/Databricks/BigQuery/Generic HTTP, only one of which renders
+    // per DA), Output columns, Parameters, Calculated columns, Output options (+ its nested
+    // Filter rules/Sort), and Cache. LF19's whole Inspector icon pass (slices 5-8) is now done
+    // across all five Inspector renderers.
+    const daSecIcons = await page.evaluate(function () {
+      function h4Of(title) {
+        return [].slice.call(document.querySelectorAll("#inspBody .insp-sec h4")).filter(function (h) {
+          return h.textContent.replace(/\s*\(\d+\)\s*$/, "").trim() === title;
+        })[0];
+      }
+      function iconsFor(titles) {
+        var hs = titles.map(h4Of);
+        var svgs = hs.map(function (h) { return h && h.querySelector(".sec-ic svg"); });
+        return { hs: hs, svgs: svgs };
+      }
+      var _saved = JSON.parse(JSON.stringify(window.__STUDIO_STATE.spec));
+
+      var kinds = ["sql", "duckdb", "httpvfs", "snowflake", "databricks", "bigquery", "http"];
+      var das = kinds.map(function (k) { return { id: "ic_" + k, name: k, kind: k, columns: ["a"] }; });
+      window.__studioLoad({
+        title: "DA icon test", panels: [], kpis: [], filters: [],
+        cda: { connections: [], dataAccesses: das }
+      });
+
+      window.__studioSelect({ kind: "da", id: "ic_sql" });
+      var base = iconsFor(["Data Source", "SQL Query", "Output columns", "Parameters",
+        "Calculated columns", "Output options", "Filter rules", "Sort", "Cache"]);
+
+      var kindTitles = {
+        duckdb: "DuckDB-Wasm (remote file)", httpvfs: "SQLite-WASM (remote file)",
+        snowflake: "Snowflake (SQL API)", databricks: "Databricks (Statement Execution API)",
+        bigquery: "BigQuery (jobs.query API)", http: "Generic SQL/HTTP"
+      };
+      var perKindTitles = ["duckdb", "httpvfs", "snowflake", "databricks", "bigquery", "http"].map(function (k) { return kindTitles[k]; });
+      var perKind = ["duckdb", "httpvfs", "snowflake", "databricks", "bigquery", "http"].map(function (k) {
+        window.__studioSelect({ kind: "da", id: "ic_" + k });
+        return iconsFor([kindTitles[k]]);
+      });
+
+      window.__studioLoad(_saved); // restore shared state for later tests
+      window.__studioSelectDashboard();
+
+      var allTitles = base.hs.map(function (_, i) { return ["Data Source", "SQL Query", "Output columns", "Parameters",
+        "Calculated columns", "Output options", "Filter rules", "Sort", "Cache"][i]; }).concat(perKindTitles);
+      var allHs = base.hs.concat(perKind.reduce(function (a, p) { return a.concat(p.hs); }, []));
+      var allSvgs = base.svgs.concat(perKind.reduce(function (a, p) { return a.concat(p.svgs); }, []));
+      return {
+        allFound: allHs.every(Boolean),
+        allPresent: allSvgs.every(Boolean),
+        distinctPaths: new Set(allSvgs.map(function (s) { return s && s.innerHTML; })).size === allSvgs.length,
+        textUnchanged: allHs.every(function (h, i) { return h.textContent.replace(/\s*\(\d+\)\s*$/, "").trim() === allTitles[i]; })
+      };
+    });
+    ok("LF19 Inspector slice 8: all 15 Data Source-inspector sections (base identity, the six per-kind " +
+      "query editors, output columns/parameters/calculated columns/output options/filter rules/sort, " +
+      "and cache) are found", daSecIcons.allFound, JSON.stringify(daSecIcons));
+    ok("LF19 Inspector slice 8: each of those sections shows its own header glyph", daSecIcons.allPresent, JSON.stringify(daSecIcons));
+    ok("LF19 Inspector slice 8: the 15 sections use 15 visually distinct glyphs, not one repeated icon",
+      daSecIcons.distinctPaths, JSON.stringify(daSecIcons));
+    ok("LF19 Inspector slice 8: the glyph never leaks text into h4.textContent (title stays exact)",
+      daSecIcons.textUnchanged, JSON.stringify(daSecIcons));
+
     // LF19 "next" slice — tidy the "+ New" affordance on "This dashboard's datasets":
     // it used to spell out "New" next to the group's own count badge, which crowded the
     // group name into an ellipsis ("This dashboard's da…") at the panel's default width.

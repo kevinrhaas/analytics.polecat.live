@@ -5,7 +5,10 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v196"; /* v196: LF16/LF2(c) — the generic showcase gallery (8
+var CACHE_NAME = "studio-shell-v197"; /* v197: LF19 Inspector slice 8 — the Data Source
+   inspector (renderDAInspector) gets the same header-glyph treatment as the other four
+   Inspector renderers, completing the right-panel icon pass. app/studio.js.
+   v196: LF16/LF2(c) — the generic showcase gallery (8
    examples: governance, platform ops, delivery, finance, marketing, reliability, compliance,
    feature tour) folded into a new toggleable "Data Management & Governance" sample pack,
    installed by default so the gallery is unchanged out of the box; Remove only hides those

@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 560,
+    title: 'Data Source inspector gains header icons (LF19, last of four)',
+    kind: 'polish',
+    ts: '2026-07-26T01:49:00.000Z',
+    items: [
+      'Every section in the right-panel Data Source inspector — identity, the per-connector query editor (SQL/DuckDB/SQLite/Snowflake/Databricks/BigQuery/Generic HTTP), output columns, parameters, calculated columns, output options (filter rules + sort), and cache — now shows its own header glyph, matching the icon treatment already shipped for the Dashboard, Widget/Panel, Filter, Header, and KPI tile inspectors.',
+      'Completes the right-panel icon pass across all five Inspector renderers.',
+    ],
+  },
+  {
     v: 559,
     title: 'Generic showcase gallery is now a toggleable sample pack',
     kind: 'feature',
