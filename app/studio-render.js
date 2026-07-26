@@ -235,13 +235,14 @@
   // (which registered source the Workspace connection used) + a redacted da.connCfg (its non-secret
   // fields) onto the DA at export time; this dispatches on THAT field instead, same
   // prompt-once/never-embed contract as CRED_ENGINES. Turso shipped first; PostgREST is the
-  // second — Supabase/Redshift/Google Sheets/local files still have no exported-runtime path.
-  // `dataset(da)` shapes the def each adapter's own queryData(cfg, dataset) expects — Turso's
-  // speaks raw SQL (da.sql/da.query, same as every other kind:"sql" DA), but a table-kind
-  // connection (PostgREST/Supabase-style) has no da.table/da.query of its own: dsToDA (app/
-  // studio.js) always sets da.kind:"sql" and clobbers da.query to alias da.sql regardless of the
-  // underlying dataset's real kind, so the real {table,query} pair only survives on da.dataset
-  // (the original dataset definition, carried through redactSecrets' JSON clone untouched).
+  // second; Supabase is the third — Redshift/Google Sheets/local files still have no
+  // exported-runtime path. `dataset(da)` shapes the def each adapter's own queryData(cfg,
+  // dataset) expects — Turso's speaks raw SQL (da.sql/da.query, same as every other kind:"sql"
+  // DA), but a table-kind connection (PostgREST/Supabase, same protocol) has no da.table/
+  // da.query of its own: dsToDA (app/studio.js) always sets da.kind:"sql" and clobbers da.query
+  // to alias da.sql regardless of the underlying dataset's real kind, so the real {table,query}
+  // pair only survives on da.dataset (the original dataset definition, carried through
+  // redactSecrets' JSON clone untouched).
   var CONN_ENGINES = {
     turso: {
       label: "Turso auth token",
@@ -253,6 +254,12 @@
       label: "PostgREST bearer token",
       engine: function () { return window.Studio && Studio.postgrestSource; },
       cfg: function (da, secret) { return Object.assign({}, da.connCfg, { token: secret }); },
+      dataset: function (da) { return { table: da.dataset && da.dataset.table, query: da.dataset && da.dataset.query }; }
+    },
+    supabase: {
+      label: "Supabase anon/publishable key",
+      engine: function () { return window.Studio && Studio.supabaseSource; },
+      cfg: function (da, secret) { return Object.assign({}, da.connCfg, { key: secret }); },
       dataset: function (da) { return { table: da.dataset && da.dataset.table, query: da.dataset && da.dataset.query }; }
     }
   };

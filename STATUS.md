@@ -116,6 +116,37 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **Post-overhaul backlog item 3, OTHER half — Supabase joins Turso and PostgREST with an
+  exported-runtime path (v592, sw v229, 2026-07-26, steward):** the third connection-bound
+  adapter to get the treatment, same CONN_ENGINES/connAdapter plumbing the Turso and PostgREST
+  slices built. `app/exporters.js`'s `redactSecrets` learned Supabase's secret field (`key`, the
+  anon/publishable key) and non-secret cfg field (`url`); `studio-render.js`'s `CONN_ENGINES`
+  gained a `supabase` entry dispatching to `Studio.supabaseSource.queryData` with a
+  `{table,query}` def read from `da.dataset` — same shape as PostgREST, since Supabase's data
+  plane IS PostgREST. Caught the exact latent bug the v591 regression fix (below) had already
+  found and fixed once for PostgREST, before it could ship broken: `app/sources/supabase.js`'s
+  `queryData` still called `Studio.WS.postgrestQueryData` (`app/sources/schema.js`), which the
+  exported bundle never loads — so it got its own self-contained `pgQueryData` copy (byte-
+  identical in shape to `postgrest.js`'s own local copy) up front, rather than shipping the throw
+  and needing a second regression-fix release. Unlike PostgREST's OPTIONAL token, Supabase's
+  anon/publishable key is effectively always required (no supported "anonymous, no key"
+  Supabase mode), so there's no anonymous-connection variant of the redaction test here — the
+  mirror image of PostgREST's own asymmetry against Turso's always-required token.
+  `app/studio.js`'s boot and `app/viewer.js`'s standalone viewer now both fetch
+  `app/sources/supabase.js` as a new export asset, bundled into the exported HTML only when a
+  dashboard actually has a `connAdapter:"supabase"` DA (same lean-bundling convention as Turso/
+  PostgREST). 9 new tests (redact-with-key never leaks it/keeps the url, stamps connAdapter,
+  lean bundling both ways, a stubbed dispatch round-trip proving the query goes out with
+  `da.dataset`'s table/query not `da.sql`/`da.query`, and — the same real-endpoint regression
+  discipline the v591 fix established — a real exported HTML driven against a live mock Supabase
+  endpoint with `queryData` completely UNSTUBBED, proving the real code path doesn't throw and
+  returns real rows). Full suite green. SW cache → v229. `docs/index.html`'s "Connection-bound
+  datasets" paragraph now covers all three adapters. (app/sources/supabase.js, app/exporters.js,
+  app/studio-render.js, app/studio.js, app/viewer.js, docs/index.html, sw.js, js/changelog.js,
+  tests/run.js) NEXT: Redshift, Google Sheets, and local files still have no exported-runtime
+  path — each is now a small, well-scoped slice using the same reusable plumbing (add an entry
+  to CONN_ADAPTER_SECRET_FIELD/CONN_ADAPTER_CFG_FIELDS + CONN_ENGINES and bundle its façade) — or
+  continue the Track L/H/N self-directed rotation while the findings queue stays thin.
 - **REGRESSION FIX — the just-shipped PostgREST connection-bound export path actually threw
   (v591, sw v228, 2026-07-26, steward):** v590 (below) claimed "PostgreSQL (PostgREST) datasets
   now run live in exported dashboards too," but `app/sources/postgrest.js`'s `queryData` called
@@ -5987,9 +6018,17 @@
 >    bundling both ways, and a full dispatch round-trip proving the query goes out with
 >    `da.dataset`'s table/query, not `da.sql`/`da.query`). (app/sources/postgrest.js,
 >    app/exporters.js, app/studio-render.js, app/studio.js, app/viewer.js, docs/index.html,
->    js/changelog.js, sw.js, tests/run.js) **Supabase, Redshift, Google Sheets, and local files
->    still have no exported-runtime path** — each needs the same one-adapter-at-a-time treatment
->    (see STATUS.md's DONE entry for the reusable plumbing this and the Turso slice added).
+>    js/changelog.js, sw.js, tests/run.js) ✓ **Supabase done too (shipped 2026-07-26, v592, sw
+>    v229, steward — third connection-bound adapter).** Same `{table,query}` dataset shape as
+>    PostgREST (Supabase's data plane IS PostgREST); its secret field is the anon/publishable
+>    `key`, effectively always required (no supported anonymous-key mode, unlike PostgREST's
+>    optional token). `app/sources/supabase.js`'s `queryData` carried the identical
+>    `Studio.WS.postgrestQueryData` latent bug the v591 regression fix above had just found and
+>    fixed for `postgrest.js` — closed it up front with its own self-contained copy rather than
+>    shipping the throw. See STATUS.md's DONE entry for the full writeup. **Redshift, Google
+>    Sheets, and local files still have no exported-runtime path** — each needs the same
+>    one-adapter-at-a-time treatment (see the DONE entries for the reusable CONN_ENGINES/
+>    connAdapter plumbing Turso/PostgREST/Supabase all added).
 > 4. **Terminology sweep**: ✓ "My Data Sources" → "This dashboard's datasets" (already shipped, landed
 >    silently in the 2026-07-14 UX sprint's dataset-first Data panel work) and ✓ sample catalog groups
 >    labeled "Samples" (already shipped, same era) — both confirmed still live in `app/studio.js` as of

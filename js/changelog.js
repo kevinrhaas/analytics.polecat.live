@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 592,
+    title: 'Supabase datasets now run live in exported dashboards too',
+    kind: 'feature',
+    ts: '2026-07-26T21:19:56.000Z',
+    items: [
+      'The same connection-bound live-query support Turso and PostgreSQL (PostgREST) got now covers Supabase: exporting a dashboard built on a Supabase connection resolves the database URL at export time and prompts once for the anon key when it first needs to query live, never embedding it in the file.',
+    ],
+  },
+  {
     v: 591,
     title: 'Fix: PostgreSQL (PostgREST) live queries actually work in exported dashboards now',
     kind: 'fix',
