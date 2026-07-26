@@ -5,7 +5,20 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v226"; /* v226: Post-overhaul backlog item 3, other
+var CACHE_NAME = "studio-shell-v227"; /* v227: Post-overhaul backlog item 3, other
+   half, PostgREST slice — the same connection-bound exported-runtime treatment v226
+   gave Turso, now for PostgREST connections. exporters.js's redactSecrets learned
+   postgrest's secret field (token, OPTIONAL — anonymous PostgREST access never gets
+   a needsSecret stamp) + non-secret cfg fields (url, schema); studio-render.js's
+   CONN_ENGINES gained a postgrest entry dispatching to Studio.postgrestSource.queryData
+   with a {table,query} def (read from da.dataset, since a table-kind dataset's real
+   PostgREST query string lives there, not on da.sql/da.query — those are always the
+   SQL-editor fields, clobbered blank for a table-kind DA). app/sources/postgrest.js's
+   own top-level Studio.registerSource(...) call is now guarded (it would throw in the
+   exported bundle, which never loads registry.js) and always sets Studio.postgrestSource
+   too, mirroring Studio.tursoSource's convention. app/exporters.js, app/studio-render.js,
+   app/studio.js, app/viewer.js, app/sources/postgrest.js changed, so the precached
+   copies need to roll. v226: Post-overhaul backlog item 3, other
    half — connection-bound dataset adapters (the connections → datasets model)
    had NO exported-runtime path at all: every such DA carries kind:"sql"
    regardless of its actual backend, so studio-render.js's PDC.cda dispatch

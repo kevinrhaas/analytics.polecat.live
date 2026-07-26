@@ -39,12 +39,14 @@
   // all — so this stamps what the runtime needs onto the redacted DA: da.connAdapter (which
   // registered source built the connection, e.g. "turso") and a da.connCfg carrying only that
   // adapter's non-secret fields; the secret field is redacted the same way as SECRET_FIELDS above,
-  // via needsSecret. Starting with Turso (the reference remote adapter — a single bearer token,
-  // no multi-field auth); every other connection-bound adapter (PostgREST/Supabase/Redshift/
-  // Google Sheets/local files/etc.) still has no exported-runtime path and needs this same
+  // via needsSecret. Turso shipped first (the reference remote adapter — a single bearer token,
+  // no multi-field auth); PostgREST is the second (its token is OPTIONAL — anonymous PostgREST
+  // access is a supported, common config — so a connection with no token set never gets stamped
+  // with needsSecret, same as any other adapter here whose secret field is blank). Supabase/
+  // Redshift/Google Sheets/local files still have no exported-runtime path and need this same
   // treatment, one at a time.
-  var CONN_ADAPTER_SECRET_FIELD = { turso: "token" };
-  var CONN_ADAPTER_CFG_FIELDS = { turso: ["url"] };
+  var CONN_ADAPTER_SECRET_FIELD = { turso: "token", postgrest: "token" };
+  var CONN_ADAPTER_CFG_FIELDS = { turso: ["url"], postgrest: ["url", "schema"] };
   // LF36 slice 2: PDF export page-size options — CSS @page `size` keyword + physical inches
   // (letter/A4/legal, US-common set; matches what the export dialog in studio.js offers).
   var PDF_PAGE_SIZE_KEYWORDS = { letter: "letter", a4: "A4", legal: "legal" };
@@ -372,6 +374,8 @@
     // Post-overhaul backlog item 3, other half: the connection-bound Turso façade, bundled only
     // when this dashboard actually has a connAdapter:"turso" DA (see redactSecrets above).
     var tursoScript = (connAdapters.turso && assets.turso) ? ("<script>\n" + assets.turso + "\n</script>\n") : "";
+    // Same lean-bundling pattern, now for a connAdapter:"postgrest" DA.
+    var postgrestScript = (connAdapters.postgrest && assets.postgrest) ? ("<script>\n" + assets.postgrest + "\n</script>\n") : "";
     // Viridis V2: map panels — inline topojson-client (keep its ISC banner: it is
     // redistributed inside the export) + the pre-projected geometry the spec's
     // scales need, as window.STUDIO_GEO. Dashboards without maps carry none of it.
@@ -391,7 +395,7 @@
         "<script>\n" + assets.maplibre.js + "\n</script>\n";
     }
     var boot = "<script>\n" + assets.js + "\n</script>\n" + iconsScript + charts + geoScript + duckdbScript + httpvfsScript +
-      snowflakeScript + databricksScript + bigqueryScript + genericsqlScript + tursoScript + "<script>\n" + assets.render + "\n</script>\n<script>\n" +
+      snowflakeScript + databricksScript + bigqueryScript + genericsqlScript + tursoScript + postgrestScript + "<script>\n" + assets.render + "\n</script>\n<script>\n" +
       "window.STUDIO_AUTOBOOT=false;\n" +
       "PDC.cdaPath=" + JSON.stringify(cdaPath) + ";\nvar CDAPATH=PDC.cdaPath;\n";
     if (opts.preview) {

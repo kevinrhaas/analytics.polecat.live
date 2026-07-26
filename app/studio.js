@@ -199,6 +199,8 @@
       // provision/probe/load/save functions never get called there, so the file bundles as-is
       // with no refactor). See exporters.js's redactSecrets + studio-render.js's CONN_ENGINES.
       fetchText("app/sources/turso.js"),
+      // Same treatment, now for the connection-bound PostgREST façade.
+      fetchText("app/sources/postgrest.js"),
       // UX6 (icon migration): the chart-pagination Prev/Next buttons (studio-charts.js) now call
       // Studio.icon() — bundled unconditionally (like studio-charts.js itself) so every export's
       // paginated table keeps its themed chevrons, not just the live builder.
@@ -208,9 +210,9 @@
       S.catalog = r[0];
       S.assets = {
         css: r[1], js: r[2], render: r[3], charts: r[4], duckdb: r[5], httpvfs: r[6],
-        snowflake: r[7], databricks: r[8], bigquery: r[9], genericsql: r[10], turso: r[11], icons: r[12]
+        snowflake: r[7], databricks: r[8], bigquery: r[9], genericsql: r[10], turso: r[11], postgrest: r[12], icons: r[13]
       };
-      S.examples = r[13] || [];
+      S.examples = r[14] || [];
       wireTopbar();
       try { renderFooter(); } catch (e) { /* footer is non-critical chrome */ }
       setupPanes();

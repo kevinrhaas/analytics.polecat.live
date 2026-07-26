@@ -116,6 +116,37 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **Post-overhaul backlog item 3, OTHER half — PostgreSQL (PostgREST) joins Turso with an
+  exported-runtime path (v590, sw v227, 2026-07-26, steward):** the second connection-bound
+  adapter, same treatment the prior slice built for Turso. Two adapter-shape wrinkles this one
+  surfaced that the next adapter's slice should watch for: (1) PostgREST's token is OPTIONAL
+  (anonymous access is a supported, common config) — `redactSecrets` only stamps `needsSecret`
+  when a connection actually has a token set, so an anonymous connection's exported dashboard
+  never pops a pointless credential prompt (Turso's token is always required, so this branch
+  never exercised before). (2) `dsToDA` (`app/studio.js`) always sets a connection-bound DA's
+  `da.kind:"sql"` and clobbers `da.sql`/`da.query` to the SQL-editor shape regardless of the
+  underlying dataset's real kind — for a `kind:"table"` PostgREST dataset the real `{table,query}`
+  pair only survives on `da.dataset` (the original dataset definition, JSON-cloned along for free
+  by `redactSecrets`), so `CONN_ENGINES` (`studio-render.js`) gained a per-adapter `dataset(da)`
+  shaper (Turso's reads `da.sql`/`da.query`, byte-identical to its old hardcoded behavior;
+  PostgREST's reads `da.dataset.table`/`da.dataset.query`) instead of the old one-shape-fits-all
+  `{sql: da.sql||da.query}` object the dispatch used to build inline. `app/sources/postgrest.js`'s
+  top-level `Studio.registerSource(...)` call is now guarded (it would throw in the exported
+  bundle, which never loads `registry.js` — a load-time crash, not a caught error) and always
+  additionally sets `Studio.postgrestSource`, mirroring `Studio.tursoSource`'s convention; in-app
+  registration behavior (Connections wizard, `Studio.sourceById`, etc.) is completely unchanged.
+  Bundled as a new asset in both `app/studio.js`'s boot AND `app/viewer.js`'s standalone viewer
+  (kept in sync with the Turso slice's own fix for that same drift). 9 new tests (redact-with-
+  token, redact-anonymous — the optional-token case Turso doesn't have, lean bundling both ways,
+  and a full dispatch round-trip through a real iframe proving the query goes out with
+  `da.dataset`'s table/query, never `da.sql`/`da.query`). Full suite green. SW cache → v227.
+  `docs/index.html`'s "Connection-bound datasets" paragraph now covers both adapters. (app/sources/
+  postgrest.js, app/exporters.js, app/studio-render.js, app/studio.js, app/viewer.js,
+  docs/index.html, sw.js, js/changelog.js, tests/run.js) NEXT: Supabase, Redshift, Google Sheets,
+  and local files still have no exported-runtime path — each is now a small, well-scoped slice
+  (add an entry to `CONN_ADAPTER_SECRET_FIELD`/`CONN_ADAPTER_CFG_FIELDS` + a `CONN_ENGINES` entry
+  with its own `dataset(da)` shaper, bundle its façade, guard any top-level `registerSource` call)
+  — or continue the Track L/H/N self-directed rotation while the findings queue stays thin.
 - **Post-overhaul backlog item 3, OTHER half — connection-bound dataset adapters get an
   exported-runtime path, starting with Turso (v589, sw v226, 2026-07-26, steward):** the
   next-most-scoped genuinely-open item flagged by the last several runs' own NEXT pointers.
@@ -5914,9 +5945,29 @@
 >    2026-07-26 (v589, steward PR): `redactSecrets` now also resolves `da.connectionId` against
 >    the Workspace connection at export time (only available in the builder) and stamps
 >    `da.connAdapter`/a redacted `da.connCfg`; `PDC.cda` gained a parallel `CONN_ENGINES` dispatch.
->    **Turso done; PostgreSQL/PostgREST, Supabase, Redshift, Google Sheets, and local files still
->    have no exported-runtime path** — each needs the same one-adapter-at-a-time treatment (see
->    STATUS.md's DONE entry for the reusable plumbing this added).
+>    ✓ **PostgreSQL/PostgREST done too (shipped 2026-07-26, v590, sw v227, steward — second
+>    connection-bound adapter).** Same treatment as Turso, with two adapter-shape wrinkles worth
+>    noting for whoever does the next one: (1) PostgREST's token is OPTIONAL (anonymous access is
+>    a supported, common config), so `redactSecrets` only stamps `needsSecret` when a connection
+>    actually has one set — an anonymous connection's exported dashboard never pops a pointless
+>    credential prompt. (2) `dsToDA` (app/studio.js) always sets a connection-bound DA's
+>    `da.kind:"sql"` and clobbers `da.sql`/`da.query` to the SQL-editor shape regardless of the
+>    underlying dataset's real kind — so for a `kind:"table"` PostgREST dataset, the real
+>    `{table,query}` pair only survives on `da.dataset` (the original dataset def, JSON-cloned
+>    along for free by `redactSecrets`). `CONN_ENGINES` gained a `dataset(da)` shaper per adapter
+>    (Turso's reads `da.sql`/`da.query`, unchanged; PostgREST's reads `da.dataset.table`/
+>    `da.dataset.query`) so the dispatch call passes the right shape to each adapter's own
+>    `queryData(cfg, dataset)` contract. `app/sources/postgrest.js`'s top-level
+>    `Studio.registerSource(...)` call is now guarded (it would throw in the exported bundle,
+>    which never loads `registry.js`) and always sets `Studio.postgrestSource` too, mirroring
+>    `Studio.tursoSource`'s convention — in-app registration behavior is unchanged. 9 new tests
+>    (redact-with-token, redact-anonymous — the optional-token case Turso doesn't have, lean
+>    bundling both ways, and a full dispatch round-trip proving the query goes out with
+>    `da.dataset`'s table/query, not `da.sql`/`da.query`). (app/sources/postgrest.js,
+>    app/exporters.js, app/studio-render.js, app/studio.js, app/viewer.js, docs/index.html,
+>    js/changelog.js, sw.js, tests/run.js) **Supabase, Redshift, Google Sheets, and local files
+>    still have no exported-runtime path** — each needs the same one-adapter-at-a-time treatment
+>    (see STATUS.md's DONE entry for the reusable plumbing this and the Turso slice added).
 > 4. **Terminology sweep**: ✓ "My Data Sources" → "This dashboard's datasets" (already shipped, landed
 >    silently in the 2026-07-14 UX sprint's dataset-first Data panel work) and ✓ sample catalog groups
 >    labeled "Samples" (already shipped, same era) — both confirmed still live in `app/studio.js` as of
