@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 577,
+    title: 'Tech debt: a named type scale for the builder',
+    kind: 'polish',
+    ts: '2026-07-26T13:33:11.000Z',
+    items: [
+      'Behind-the-scenes cleanup only -- every text size in the builder chrome now draws from one shared, named scale instead of one-off pixel values scattered across the file. No visible change.',
+    ],
+  },
+  {
     v: 576,
     title: 'Tech debt: Jobs moves to its own module',
     kind: 'polish',
