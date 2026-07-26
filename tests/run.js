@@ -4323,6 +4323,63 @@ function serve() {
     });
     await page.waitForTimeout(200);
 
+    // LF13(d) slice 1: a source FIELD LIST (type icons) above the step pipeline — a
+    // read-only legend of the source dataset's columns with a best-effort type icon/color
+    // (Numeric/Date/String, guessed from the column name), so what's available is visible
+    // before building steps instead of being discovered one dropdown at a time.
+    await page.evaluate(function () {
+      window.__studioShellSetSection("jobs");
+      var conn = Studio.Workspace.put("connections", { name: "jobs-fields-editor-test", adapter: "file", cfg: {} });
+      var dsA = Studio.Workspace.put("datasets", { name: "jobs-fields-editor-ds-a", connectionId: conn.id, kind: "file", format: "csv",
+        content: "region,acres_sum,report_date\nStory,100,2020-01-01\n", columns: ["region", "acres_sum", "report_date"] });
+      Studio.Workspace.put("datasets", { name: "jobs-fields-editor-ds-b", connectionId: conn.id, kind: "file", format: "csv",
+        content: "widget,units\nGizmo,7\n", columns: ["widget", "units"] });
+      var job = Studio.Workspace.put("jobs", { name: "fields-editor-job", sourceDatasetId: dsA.id, steps: [] });
+      window.__studioOpenJobEditor(job);
+    });
+    await page.waitForTimeout(150);
+    const jobsFieldListUI = await page.evaluate(function () {
+      var chips = Array.prototype.slice.call(document.querySelectorAll(".jobs-field-chip"));
+      var byName = {};
+      chips.forEach(function (c) { byName[c.textContent] = c.getAttribute("data-kind"); });
+      return { count: chips.length, byName: byName, hasSvg: chips.every(function (c) { return !!c.querySelector("svg"); }) };
+    });
+    ok("LF13(d) slice 1: the job editor renders one field chip per source column",
+      jobsFieldListUI.count === 3 && "region" in jobsFieldListUI.byName &&
+      "acres_sum" in jobsFieldListUI.byName && "report_date" in jobsFieldListUI.byName, JSON.stringify(jobsFieldListUI));
+    ok("LF13(d) slice 1: each field chip carries a type icon",
+      jobsFieldListUI.hasSvg, JSON.stringify(jobsFieldListUI));
+    ok("LF13(d) slice 1: a name matching the numeric heuristic (acres_sum) is guessed Numeric",
+      jobsFieldListUI.byName.acres_sum === "Numeric", JSON.stringify(jobsFieldListUI));
+    ok("LF13(d) slice 1: a name matching the date heuristic (report_date) is guessed Date",
+      jobsFieldListUI.byName.report_date === "Date", JSON.stringify(jobsFieldListUI));
+    ok("LF13(d) slice 1: a name matching neither heuristic (region) falls back to String",
+      jobsFieldListUI.byName.region === "String", JSON.stringify(jobsFieldListUI));
+    // switching the source dataset re-renders the field list against the NEW dataset's
+    // columns, not the old one — proves the list stays live, not just a static first-render.
+    const jobsFieldSwitchUI = await page.evaluate(function () {
+      var dsB = Studio.Workspace.all("datasets").filter(function (d) { return d.name === "jobs-fields-editor-ds-b"; })[0];
+      var srcSel = Array.prototype.slice.call(document.querySelectorAll(".cx-wiz-form select")).filter(function (s) {
+        return Array.prototype.slice.call(s.options).some(function (o) { return o.value === dsB.id; });
+      })[0];
+      srcSel.value = dsB.id;
+      srcSel.dispatchEvent(new Event("change"));
+      var chips = Array.prototype.slice.call(document.querySelectorAll(".jobs-field-chip"));
+      return { labels: chips.map(function (c) { return c.textContent; }) };
+    });
+    ok("LF13(d) slice 1: switching the source dataset re-renders the field list against the new dataset's columns",
+      jobsFieldSwitchUI.labels.indexOf("widget") >= 0 && jobsFieldSwitchUI.labels.indexOf("units") >= 0 &&
+      jobsFieldSwitchUI.labels.indexOf("region") < 0, JSON.stringify(jobsFieldSwitchUI));
+    await page.evaluate(function () {
+      document.querySelector(".modal-ov .x").click();
+      Studio.Workspace.all("jobs").filter(function (j) { return j.name === "fields-editor-job"; }).forEach(function (j) { Studio.Workspace.remove("jobs", j.id, { silent: true }); });
+      Studio.Workspace.all("datasets").filter(function (d) { return d.name === "jobs-fields-editor-ds-a" || d.name === "jobs-fields-editor-ds-b"; }).forEach(function (d) { Studio.Workspace.remove("datasets", d.id, { silent: true }); });
+      Studio.Workspace.all("connections").filter(function (c) { return c.name === "jobs-fields-editor-test"; }).forEach(function (c) { Studio.Workspace.remove("connections", c.id, { silent: true }); });
+      Studio.Workspace.notify("*");
+      window.__studioShellSetSection("studio");
+    });
+    await page.waitForTimeout(200);
+
     // ---- JOBS: "scheduled refresh hints" (post-overhaul backlog item 5) ---
     console.log("\n• JOBS: refresh reminders (post-overhaul backlog item 5)");
     await page.evaluate(function () {

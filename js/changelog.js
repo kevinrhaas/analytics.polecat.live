@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 561,
+    title: 'Job editor gains a source field list',
+    kind: 'polish',
+    ts: '2026-07-26T02:07:08.000Z',
+    items: [
+      'The job editor now shows a source field list above the step pipeline: every column on the source dataset, each with a best-effort type icon (Numeric/Date/String) and color, so you can see what\'s available before building steps instead of discovering it one dropdown at a time.',
+      'Updates live if you switch the source dataset.',
+    ],
+  },
+  {
     v: 560,
     title: 'Data Source inspector gains header icons (LF19, last of four)',
     kind: 'polish',

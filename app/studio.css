@@ -1931,6 +1931,17 @@ body.simple-mode .da-acts{display:none!important}
 .jobs-groupby{display:flex;flex-wrap:wrap;gap:6px;align-items:center;width:100%}
 .jobs-sql-box{width:100%;padding:7px 10px;font-size:12.5px;font-family:var(--mono,monospace);
   border:1px solid var(--line);border-radius:8px;background:var(--surface,var(--field));color:var(--ink);resize:vertical}
+/* LF13(d) slice 1: the source field list — a read-only legend of the source
+   dataset's columns above the step pipeline, so you can see what's available
+   before building steps instead of discovering it one dropdown at a time. */
+.jobs-src-fields{display:flex;flex-direction:column;gap:4px;margin:2px 0 8px}
+.jobs-src-fields-chips{display:flex;flex-wrap:wrap;gap:6px}
+.jobs-field-chip{display:inline-flex;align-items:center;gap:5px;padding:3px 9px 3px 7px;
+  border-radius:999px;border:1px solid var(--line);background:var(--field);color:var(--ink);font-size:12px}
+.jobs-field-chip svg{flex:none;opacity:.85}
+.jobs-field-chip[data-kind="Numeric"]{border-color:var(--brand);color:var(--brand)}
+.jobs-field-chip[data-kind="Date"]{border-color:var(--pdc);color:var(--pdc)}
+.jobs-field-chip[data-kind="String"]{border-color:var(--faint);color:var(--muted)}
 
 /* ── Workspace backend (Settings card + rail source indicator) ── */
 .ws-card-intro{margin:0 0 14px;font-size:12.5px;line-height:1.6;color:var(--muted)}

@@ -5,7 +5,14 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v197"; /* v197: LF19 Inspector slice 8 — the Data Source
+var CACHE_NAME = "studio-shell-v198"; /* v198: LF13(d) slice 1 — the job editor gains a
+   source FIELD LIST (type icons/colors) above the step pipeline: a read-only legend of the
+   source dataset's columns, each with a best-effort Numeric/Date/String icon guessed from
+   the column name, so what's available is visible before building steps. New shared
+   guessFieldKind() helper (also now backs the Data Adapter preview table's column-type
+   badges, replacing its own local copy) and two new icons (hash, text). app/studio.js,
+   app/icons.js, app/studio.css.
+   v197: LF19 Inspector slice 8 — the Data Source
    inspector (renderDAInspector) gets the same header-glyph treatment as the other four
    Inspector renderers, completing the right-panel icon pass. app/studio.js.
    v196: LF16/LF2(c) — the generic showcase gallery (8
