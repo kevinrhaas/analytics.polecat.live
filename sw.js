@@ -5,7 +5,20 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v215"; /* v215: R5+ slice 8 (studio.js module extraction,
+var CACHE_NAME = "studio-shell-v216"; /* v216: R5+ slice 9 (studio.js module extraction,
+   tech-debt track — LAST slice, the whole R5+ track is now COMPLETE) — the Datasets
+   subsystem (a named, {{param}}-substitutable query on top of a Connection) moves out
+   of app/studio.js into its own module, app/datasets.js (Studio.Datasets), following the
+   chart-thumbnails.js/branding.js/defaults.js/celebrations.js/versions.js/explore.js/
+   jobs.js/connections.js extraction precedent (①-⑧): same ONE-bundled-
+   Studio.Datasets.configure(deps) call shape as Connections (⑧). ONE exception: runDataset
+   stays in studio.js (the shared live-data bridge the builder preview/Explore/Jobs all call
+   via window.__studioRunDataset) and is injected INTO datasets.js instead, which exposes
+   connOf/adapterOf/runnableDef back OUT as plain methods for studio.js's runDataset (and
+   the Home favorites card + Repository browser's repoAllRows) to call directly. Pure
+   refactor, no behavior change. New precached file (app/datasets.js) and app/studio.js/
+   app/index.html content changed, so precached copies need to roll.
+   v215: R5+ slice 8 (studio.js module extraction,
    tech-debt track) — the Connections subsystem (workspace-level connections to external
    sources, the first plane of the connections → datasets → dashboards model) moves out
    of app/studio.js into its own module, app/connections.js (Studio.Connections), following
@@ -14,9 +27,7 @@ var CACHE_NAME = "studio-shell-v215"; /* v215: R5+ slice 8 (studio.js module ext
    call shape as VersionsUI (⑤), Explore (⑥), and Jobs (⑦), since this subsystem is just as
    entangled with studio.js's private DOM/modal + visibility/user + credential-field helpers.
    Pure refactor, no behavior change. New precached file (app/connections.js) and
-   app/studio.js/app/index.html content changed, so precached copies need to roll. NEXT in
-   this track: Datasets (last — runDataset/window.__studioRunDataset bridges back into the
-   builder preview, so it stays in studio.js and is only ever injected as a dependency).
+   app/studio.js/app/index.html content changed, so precached copies need to roll.
    v214: UX5 slice 1 (quality track) — a named
    type-scale (--fs-8..--fs-25, 19 steps) now lives in app/studio.css's token bridge
    block; every font-size declaration in the file (300+ call sites, previously raw
@@ -1152,6 +1163,7 @@ var SHELL_FILES = [
   "app/explore.js",
   "app/jobs.js",
   "app/connections.js",
+  "app/datasets.js",
   "app/studio.js",
   "app/palette.js",
   "app/studio-render.js",
