@@ -10263,6 +10263,63 @@ function serve() {
     ok("LF19 Inspector slice 8: the glyph never leaks text into h4.textContent (title stays exact)",
       daSecIcons.textUnchanged, JSON.stringify(daSecIcons));
 
+    // LF19 Inspector slice 9 — "sensible collapse defaults" (the last piece of LF19's
+    // right-panel pass): every Advanced-mode section (advSection() — already hidden
+    // entirely in Simple mode) now starts COLLAPSED the first time ever, so a freshly
+    // selected widget's right panel opens on its core fields (Widget/Chart type/Data/
+    // Options), not a wall of annotation/interaction toggles. Same "quiet by default,
+    // remembers an explicit choice" mechanism as quickHelp()'s "Quick help" section and
+    // the left Data panel's progressive disclosure (slice 1).
+    const advCollapse = await page.evaluate(() => {
+      localStorage.removeItem("studio-insp-collapsed");
+      var sp = window.__STUDIO_STATE.spec;
+      var p = sp.panels.filter(function (x) { return x.id === "p_cost"; })[0];
+      p.chart.type = "bars"; // exercises every non-scatter-only Advanced section
+      window.__studioLoad(sp);
+      window.__studioSelect({ kind: "panel", id: p.id });
+      function secFor(title) {
+        return [].slice.call(document.querySelectorAll("#inspBody .insp-sec")).filter(function (s) {
+          var h4 = s.querySelector("h4");
+          return h4 && h4.textContent.replace(/\s*\(\d+\)\s*$/, "").trim() === title;
+        })[0];
+      }
+      var coreTitles = ["Widget", "Chart type", "Data", "Options"];
+      var coreOpen = coreTitles.every(function (t) { var s = secFor(t); return s && !s.classList.contains("sec-collapsed"); });
+      // Only actual advSection() call sites belong here — Animation/Downloads/Insight/Query
+      // preview render via plain section() (not gated behind Advanced/Simple mode at all),
+      // so they correctly keep defaulting open; this list must stay in sync with the
+      // advSection() call sites the "bars" chart type exercises (see LF19 Inspector slice 6).
+      var advTitles = ["Drill-through", "Detail drawer", "Cross-filter",
+        "Target line", "Reference band", "Callout arrow", "Period highlight", "Event markers",
+        "Conditional formatting", "Color scale"];
+      var advCollapsedByDefault = advTitles.every(function (t) { var s = secFor(t); return s && s.classList.contains("sec-collapsed"); });
+      // Sections rendered via plain section() (not advSection()) are NOT "Advanced mode" —
+      // they stay visible in Simple mode too — so they must keep defaulting OPEN, unaffected.
+      var plainTitles = ["Animation", "Downloads", "Insight", "Query preview"];
+      var plainStillOpen = plainTitles.every(function (t) { var s = secFor(t); return s && !s.classList.contains("sec-collapsed"); });
+      // An explicit toggle wins over the default from then on.
+      var drill = secFor("Drill-through");
+      drill.querySelector("h4").click();
+      var drillOpenAfterClick = !drill.classList.contains("sec-collapsed");
+      window.__studioLoad(sp); // fresh DOM, same in-session collapse-state preference
+      window.__studioSelect({ kind: "panel", id: p.id });
+      var drillStillOpen = !secFor("Drill-through").classList.contains("sec-collapsed");
+      localStorage.removeItem("studio-insp-collapsed");
+      return { coreOpen: coreOpen, advCollapsedByDefault: advCollapsedByDefault, plainStillOpen: plainStillOpen, drillOpenAfterClick: drillOpenAfterClick, drillStillOpen: drillStillOpen };
+    });
+    ok("LF19 Inspector slice 9: core Widget/Panel-inspector sections (Widget, Chart type, Data, Options) still default OPEN",
+      advCollapse.coreOpen, JSON.stringify(advCollapse));
+    ok("LF19 Inspector slice 9: every Advanced-mode section (drill/detail/cross-filter/annotations/" +
+      "conditional formatting/color scale) defaults COLLAPSED the first time, with no stored preference",
+      advCollapse.advCollapsedByDefault, JSON.stringify(advCollapse));
+    ok("LF19 Inspector slice 9: non-Advanced sections (Animation, Downloads, Insight, Query preview — plain " +
+      "section(), not advSection(), so visible in Simple mode too) still default OPEN, unaffected",
+      advCollapse.plainStillOpen, JSON.stringify(advCollapse));
+    ok("LF19 Inspector slice 9: clicking a collapsed Advanced section's header opens it",
+      advCollapse.drillOpenAfterClick, JSON.stringify(advCollapse));
+    ok("LF19 Inspector slice 9: that explicit open choice persists across a re-render, overriding the default",
+      advCollapse.drillStillOpen, JSON.stringify(advCollapse));
+
     // LF19 "next" slice — tidy the "+ New" affordance on "This dashboard's datasets":
     // it used to spell out "New" next to the group's own count badge, which crowded the
     // group name into an ellipsis ("This dashboard's da…") at the panel's default width.

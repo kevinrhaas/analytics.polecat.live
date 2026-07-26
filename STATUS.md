@@ -116,6 +116,30 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF19 slice 9 — Advanced-mode inspector sections start collapsed by default (v564, sw v201,
+  2026-07-26, steward):** the "sensible collapse defaults" half of LF19's last remaining scope
+  (the icon pass across slices 5-8 is done; "consistent spacing on the right panel generally" is
+  the one piece still open). Every `advSection()` call site — the 15 across the Panel/KPI/Data
+  Source inspectors already flagged `.adv-sect` and hidden entirely in Simple mode (Drill-through,
+  Detail drawer, Cross-filter, the six annotation sections, Conditional formatting, Color scale,
+  Compare to, Click-through, Calculated columns, Output options) — now defaults to COLLAPSED the
+  first time it's ever rendered (no stored preference yet), the same "quiet by default" pattern
+  `quickHelp()` already uses for its own "Quick help" section: `advSection()` seeds
+  `_collapsedSects[key] = true` before delegating to `section()`, so a freshly selected widget's
+  right panel opens on its core fields (Widget/Chart type/Data/Options, Dashboard/Checks/KPI
+  tiles/etc.) instead of a wall of annotation/interaction toggles below. Sections that render via
+  plain `section()` (Animation, Downloads, Insight, Query preview, and everything in the Filter/
+  Header inspectors) are NOT gated behind Advanced mode at all — they stay visible in Simple mode
+  too — so they correctly keep defaulting open, unchanged. An explicit user toggle (either
+  direction) always wins from then on and persists exactly like every other section, so this only
+  changes what a NEVER-touched section shows. 5 new regression tests (core Panel-inspector
+  sections still default open; the 10 real Advanced sections a bars-type widget exercises default
+  collapsed with no stored preference; the plain-section() ones — Animation/Downloads/Insight/
+  Query preview — stay open, unaffected; clicking a collapsed Advanced section's header opens it;
+  that explicit choice survives a re-render). No docs change (internal-default behavior, no new
+  user-facing control). Suite green, 2122/2122. (app/studio.js, sw.js, js/changelog.js,
+  tests/run.js) NEXT in LF19: consistent spacing on the right panel generally is the one
+  remaining piece — still open, still its own follow-up slice.
 - **LF19 slice 8 — the Data Source inspector gains header icons too, completing the right-panel
   icon pass (v560, sw v197, 2026-07-26, steward):** the last of the four Inspector renderers slice
   7 left open. All 15 `section()`/`advSection()` call sites in `renderDAInspector` now carry an
@@ -4045,6 +4069,10 @@
 >       carry their own header glyph, the last of the five Inspector renderers. NEXT in LF19:
 >       sensible collapse defaults + consistent spacing on the right panel generally — still
 >       open, still to be sliced one coherent PR at a time.
+>       ✓ **Slice 9 shipped (v564, sw v201, 2026-07-26, steward): sensible collapse defaults.**
+>       See DONE for the full writeup — every Advanced-mode section (`advSection()`) now starts
+>       collapsed the first time, with an explicit toggle winning from then on. NEXT in LF19:
+>       consistent spacing on the right panel generally is the one remaining piece.
 > LF18. **Home ("Welcome back") overhaul — richer entry points, default featured, tour chooser.** The Home
 >       landing should orient a returning user with descriptive quick-actions, not three bare cards:
 >       (a) QUICK-ACTIONS reworded to concrete jobs — "Explore curated datasets", "Build a dashboard from
