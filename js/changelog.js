@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 572,
+    title: 'Home Examples names its source pack',
+    kind: 'polish',
+    ts: '2026-07-26T10:07:22.000Z',
+    items: [
+      'Home\'s Examples section now says which sample pack(s) its cards come from -- e.g. "from Conservation Insight + Data Management & Governance" -- instead of a generic "sample dashboards" line, and updates live as you toggle packs in Settings.',
+    ],
+  },
+  {
     v: 571,
     title: 'Richer Home quick actions',
     kind: 'feature',

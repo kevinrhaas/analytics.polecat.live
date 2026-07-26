@@ -484,6 +484,20 @@
       return !e.demoPackId || (Studio.demoPackInstalled && Studio.demoPackInstalled(e.demoPackId));
     });
   }
+  // LF18(d): Home's Examples hint should make clear which sample pack(s) the visible
+  // cards come from, not just "sample dashboards" — every gallery entry carries a
+  // demoPackId (LF2/LF16), so this reads off the SAME visibleExamples() gate and names
+  // whichever pack(s) actually contributed a card, updating live as packs toggle on/off.
+  function examplesSourceHint() {
+    var packs = Studio.DEMO_PACKS || {}, seen = {}, names = [];
+    visibleExamples().forEach(function (e) {
+      var id = e.demoPackId;
+      if (!id || seen[id]) return;
+      seen[id] = true;
+      names.push((packs[id] && packs[id].name.split(" — ")[0]) || id);
+    });
+    return names.length ? "from " + names.join(" + ") + " · click to open in the builder" : "sample dashboards · click to open in the builder";
+  }
   var _samplesOpen = false;
   try { _samplesOpen = localStorage.getItem("studio-lib-samples-open") === "1"; } catch (e) {}
   // LF19 slice 1: progressive disclosure for the Data panel's "This dashboard's
@@ -5882,7 +5896,7 @@
   // same card-with-thumbnail treatment `pinnedAnalyses` already gives pinned analyses.
   var HOME_SECTION_KEYS = ["featured", "pinnedAnalyses", "favorites", "examples", "dashboards"];
   var HOME_SECTION_LABELS = { featured: "Featured", pinnedAnalyses: "Pinned analyses", favorites: "Favorite datasets & connections", examples: "Examples", dashboards: "Dashboards" };
-  var HOME_SECTION_HINTS = { featured: "live previews · click to open", favorites: "pinned in Datasets/Connections · click to open", examples: "sample dashboards · click to open in the builder" };
+  var HOME_SECTION_HINTS = { featured: "live previews · click to open", favorites: "pinned in Datasets/Connections · click to open" };
   function getHomeSectionOrder() {
     var order = (lsGet("studio-home-section-order", []) || []).filter(function (k) { return HOME_SECTION_KEYS.indexOf(k) >= 0; });
     HOME_SECTION_KEYS.forEach(function (k) { if (order.indexOf(k) < 0) order.push(k); });
@@ -5904,7 +5918,7 @@
     renderHome();
   }
   function homeSectionHeader(key) {
-    var label = HOME_SECTION_LABELS[key], hint = HOME_SECTION_HINTS[key];
+    var label = HOME_SECTION_LABELS[key], hint = key === "examples" ? examplesSourceHint() : HOME_SECTION_HINTS[key];
     return '<div class="home-sub-row"><h2 class="home-sub">' + esc(label) +
       (hint ? ' <small class="home-sub-hint">' + hint + '</small>' : '') + '</h2>' +
       '<div class="home-sub-move">' +
