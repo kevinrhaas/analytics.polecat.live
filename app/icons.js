@@ -137,7 +137,12 @@
     // UX6 (icon migration, slice 4): a plain filled disc for the demo-mode "● LIVE" badge —
     // the badge's own CSS animation (pulse-live) already provides the "blinking" motion, so
     // this stays a plain dot rather than a broadcast/radio glyph.
-    dot: '<circle cx="12" cy="12" r="6" fill="currentColor" stroke="none"/>'
+    dot: '<circle cx="12" cy="12" r="6" fill="currentColor" stroke="none"/>',
+    // LF13(d) slice 1 (job editor source field list): per-column type glyphs — a hash
+    // for Numeric and a letterform for String, alongside the pre-existing "clock" for
+    // Date, so a field's guessed kind reads at a glance without a text label.
+    hash: '<line x1="9" y1="3" x2="7" y2="21" stroke-linecap="round"/><line x1="17" y1="3" x2="15" y2="21" stroke-linecap="round"/><line x1="4" y1="9" x2="21" y2="9" stroke-linecap="round"/><line x1="3" y1="15" x2="20" y2="15" stroke-linecap="round"/>',
+    text: '<path d="M5 20L10 4h4l5 16" stroke-linecap="round" stroke-linejoin="round"/><line x1="7.5" y1="14" x2="16.5" y2="14" stroke-linecap="round"/>'
   };
 
   Studio.icon = function (name, size) {

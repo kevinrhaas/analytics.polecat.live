@@ -3531,9 +3531,22 @@
 >       it's "wonky and boring": add a source FIELD LIST (type icons/colors), a PREVIEW of source
 >       rows AND a dummy preview of the OUTPUT rows, and a small visual DIAGRAM of the operation
 >       (rollup/join/stack) with the picked columns shown, so you can see what you're building.
->       app/studio.js (openJobEditor), app/sources/jobs-engine.js, app/studio.css. NEXT in LF13: (d),
->       the remaining UX-polish ask (field list / source+output preview / operation diagram) — the
->       largest remaining piece, deliberately not attempted in this slice.
+>       app/studio.js (openJobEditor), app/sources/jobs-engine.js, app/studio.css.
+>       ✓ **Slice 1 shipped (v561, sw v198, 2026-07-26, steward): the source FIELD LIST.** A
+>       read-only legend of the source dataset's columns now sits above the step pipeline
+>       (`renderSrcFields`, re-drawn on every `renderSteps()` so it stays live across source-
+>       dataset switches and step edits), each column rendered as a `.jobs-field-chip` with a
+>       best-effort type icon/color guessed from the column name — Numeric (new `hash` icon,
+>       `--brand`), Date (existing `clock` icon, `--pdc`), or String (new `text` icon, `--faint`/
+>       `--muted`) — via a new shared `guessFieldKind()` helper (extracted from the Data Adapter
+>       preview table's previously-local `guessType`, which now calls the same shared function
+>       instead of keeping its own copy). Name-only heuristic (no live sample rows are on hand in
+>       the job editor without an extra query, unlike the DA preview table which also sniffs real
+>       values) — an honest best-effort hint, not a real schema. 6 new regression tests (one chip
+>       per column with an icon; numeric/date/string heuristics each land correctly; switching the
+>       source dataset re-renders the list against the new columns). docs/index.html updated.
+>       NEXT in LF13: (d)'s remaining two pieces — the source+output row PREVIEW and the operation
+>       DIAGRAM — deliberately not attempted in this slice.
 > LF14. ✓ **Job editor contrast — DONE, see DONE (v434, 2026-07-22, steward).** New `.btn.danger`
 >       class (dark-on-light, red on hover) applied to "✕ Remove step" + the per-metric/mapping "✕".
 > LF15. ✓ **Settings: button/input style overlap — DONE, see DONE (v439, 2026-07-22, steward).**

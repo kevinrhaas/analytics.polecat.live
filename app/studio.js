@@ -327,6 +327,20 @@
 
   /* ---------- status-bar footer + changelog ---------- */
   function esc(s) { return Studio.escapeHtml(s); }
+  // Best-effort column-kind guess shared by the Data Adapter preview table (name + a
+  // sample of real values) and the job editor's source field list (name only — no
+  // sample rows are on hand there without an extra live query). Name regex first
+  // (e.g. "revenue" reads as Numeric even if every sample happens to be null), then
+  // falls back to sniffing the sample values; empty/absent samples default to String.
+  function guessFieldKind(colName, vals) {
+    var n = (colName || "").toLowerCase();
+    if (/date|time|month|year|quarter|week/.test(n)) return "Date";
+    if (/count|amount|revenue|total|pct|percent|ratio|value|price|qty|quantity|score|rank|num|sum|avg/.test(n)) return "Numeric";
+    vals = vals || [];
+    var numCount = vals.filter(function (v) { return v != null && !isNaN(parseFloat(String(v))); }).length;
+    if (numCount > vals.length * 0.7) return "Numeric";
+    return "String";
+  }
   // LF23 slice 1: every "open in viewer" link (Home + Dashboards tile/list rows)
   // points here — a standalone read-only route (app/viewer.html) that never
   // loads this file at all, so a plain <a target="_blank"> is enough; no JS
@@ -5014,15 +5028,6 @@
     var qualityWrap = el("div", "daprev-quality");
     sec.appendChild(qualityWrap);
 
-    function guessType(colName, vals) {
-      var n = (colName || "").toLowerCase();
-      if (/date|time|month|year|quarter|week/.test(n)) return "Date";
-      if (/count|amount|revenue|total|pct|percent|ratio|value|price|qty|quantity|score|rank|num|sum|avg/.test(n)) return "Numeric";
-      var numCount = vals.filter(function (v) { return v != null && !isNaN(parseFloat(String(v))); }).length;
-      if (numCount > vals.length * 0.7) return "Numeric";
-      return "String";
-    }
-
     function renderTable(result, src) {
       tableWrap.innerHTML = ""; pagination.style.display = "none";
       if (!result || !result.cols || !result.cols.length) {
@@ -5034,7 +5039,7 @@
       var pageRows = result.rows.slice(state.page * PAGE_SIZE, (state.page + 1) * PAGE_SIZE);
       var sample = result.rows.slice(0, 30);
       var types = result.cols.map(function (c, ci) {
-        return guessType(c, sample.map(function (r) { return r[ci]; }));
+        return guessFieldKind(c, sample.map(function (r) { return r[ci]; }));
       });
 
       var tbl = el("table", "daprev-tbl");
@@ -7969,6 +7974,33 @@
       folderInp.setAttribute("list", "jobFolderOptions");
       folderInp.parentNode.appendChild(jobFolderList);
 
+      // LF13(d) slice 1: a source FIELD LIST (type icons) so the pipeline below reads
+      // against a visible legend of what's actually available, instead of just column
+      // dropdowns you have to open one at a time to discover. Best-effort — name-only
+      // kind guess (no live sample rows on hand here without an extra query); re-drawn
+      // every renderSteps() so it stays in sync with source-dataset changes.
+      var srcFieldsWrap = el("div", "jobs-src-fields"); form.appendChild(srcFieldsWrap);
+      function renderSrcFields() {
+        srcFieldsWrap.innerHTML = "";
+        if (!j.sourceDatasetId) return;
+        if (!colsCache.bySrc.length) {
+          var loading = el("small", "cx-hint"); loading.textContent = "Loading source fields…"; srcFieldsWrap.appendChild(loading);
+          return;
+        }
+        var label = el("small", "cx-hint"); label.textContent = "Source fields:"; srcFieldsWrap.appendChild(label);
+        var chips = el("div", "jobs-src-fields-chips");
+        colsCache.bySrc.forEach(function (c) {
+          var kind = guessFieldKind(c, []);
+          var chip = el("span", "jobs-field-chip");
+          chip.setAttribute("data-kind", kind);
+          chip.title = c + " — " + kind + " (guessed)";
+          chip.appendChild(Studio.icon(kind === "Numeric" ? "hash" : kind === "Date" ? "clock" : "text", 13));
+          var nameSpan = el("span"); nameSpan.textContent = c;
+          chip.appendChild(nameSpan);
+          chips.appendChild(chip);
+        });
+        srcFieldsWrap.appendChild(chips);
+      }
       var stepsWrap = el("div", "jobs-steps"); form.appendChild(stepsWrap);
       function operandRow(op) {
         var wrap = el("span", "jobs-operand");
@@ -8130,6 +8162,7 @@
         return wrap;
       }
       function renderSteps() {
+        renderSrcFields();
         stepsWrap.innerHTML = "";
         (j.steps || []).forEach(function (step, i) {
           var card = el("div", "jobs-step-card");
