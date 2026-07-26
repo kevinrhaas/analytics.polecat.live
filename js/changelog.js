@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 570,
+    title: 'Tech debt: version-history/builder-notes UI moves to its own module',
+    kind: 'polish',
+    ts: '2026-07-26T09:17:48.000Z',
+    items: [
+      'Behind-the-scenes cleanup only -- the Version-history / Builder-notes right-panel sections and their dialogs (Edit JSON spec, Compare to current, Compare dashboards, Add/edit note) now live in their own file instead of inside the main app controller. No visible change.',
+    ],
+  },
+  {
     v: 569,
     title: 'New map scale: custom regions',
     kind: 'feature',

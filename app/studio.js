@@ -3116,38 +3116,11 @@
     };
     shSec.appendChild(shBtn);
 
-    // N-DIST follow-up: local version history — a timeline of checkpoints captured on every
-    // explicit Save (see snapshotVersion()), distinct from in-session undo (lost on reload)
-    // and studio-autosave (a single draft). Click a version to restore it as "time travel."
-    var vhList = (loadVersions()[sp.id] || []);
-    var vhSec = section(body, "Version history" + (vhList.length ? " (" + vhList.length + ")" : ""), null, null, "exporting", "clock");
-    if (!vhList.length) {
-      vhSec.appendChild(hint("Every time you Save, a restorable checkpoint of this dashboard is kept here (last 10)."));
-    } else {
-      vhList.forEach(function (v) {
-        var when = new Date(v.ts).toLocaleString();
-        var vp = v.spec || {};
-        var vDetail = (vp.panels || []).length + " panel" + ((vp.panels || []).length === 1 ? "" : "s") +
-          ((vp.kpis || []).length ? " · " + (vp.kpis || []).length + " KPI" + ((vp.kpis || []).length === 1 ? "" : "s") : "");
-        vhSec.appendChild(rowItem("↺", when, vDetail, function () { restoreVersion(v.ts); }, [compareBtn(function () { openVersionDiff(v); })], false));
-      });
-    }
-
-    // Track N innovation idea: canvas sticky notes — small colored, builder-only notes for
-    // team brainstorming/review while a dashboard is in progress. Never exported.
-    var noteList = (loadCanvasNotes()[sp.id] || []);
-    var noteSec = section(body, "Builder notes" + (noteList.length ? " (" + noteList.length + ")" : ""), function () { openNoteEditor(null); }, null, "builder", "edit");
-    if (!noteList.length) {
-      noteSec.appendChild(hint("Pin a small colored note to a widget, or add a general one — for your own reference or team review while building. Never exported, never leaves this browser."));
-    } else {
-      noteList.forEach(function (n) {
-        var panel = n.panelId ? panelById(n.panelId) : null;
-        var sub = n.panelId ? ("Pinned to: " + (panel ? (panel.title || panel.id) : "a deleted panel")) : "General note";
-        var dot = '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + esc(n.color || NOTE_COLORS[0]) + '"></span>';
-        var label = n.text.length > 40 ? n.text.slice(0, 40) + "…" : n.text;
-        noteSec.appendChild(rowItem(dot, label, sub, function () { openNoteEditor(n); }, [delBtn(function () { deleteCanvasNote(n.id); })], false));
-      });
-    }
+    // N-DIST follow-up: local version history (a timeline of checkpoints captured on every
+    // explicit Save, click one to restore as "time travel") + Track N canvas sticky notes
+    // (small colored, builder-only, never-exported notes) — both sections now render via
+    // app/versions.js's Studio.VersionsUI (R5+ slice 5, part 2).
+    Studio.VersionsUI.renderInspectorSections(body, sp);
 
     // Panels (reorderable) with tag-based filter bar
     // _tagFilter holds the currently-active tag (string) or null (show all panels).
@@ -5781,213 +5754,62 @@
      download-a-.studio.json action) pushes a snapshot into studio-versions, keyed by
      dashboard id, newest-first, capped at 10 per dashboard. Version lists are pruned to
      only dashboards still tracked in studio-recents so this can't grow unbounded once a
-     dashboard falls off Home/Repository. */
-  // R5+ slice 5 (studio.js module extraction, tech-debt track): the data layer
-  // (load/save/snapshot/prune) now lives in app/versions.js (Studio.Versions) —
-  // these stay as thin delegates so every call site + the window.__studio* test
-  // hooks below are untouched. Part 2 (the modal/render UI below) stays local.
+     dashboard falls off Home/Repository.
+
+     Track N innovation idea (added 2026-07-04): canvas sticky notes — small colored,
+     builder-only notes for team brainstorming/review while a dashboard is in progress.
+     Deliberately never exported, keyed by dashboard id, same storage shape as above.
+
+     R5+ slice 5 (studio.js module extraction, tech-debt track): BOTH the data layer
+     (load/save/snapshot/prune) and the modal/render UI (openNoteEditor, openJsonEditor,
+     openVersionDiff, openCompareDashboards, restoreVersion, and the Inspector's
+     Version-history/Builder-notes sections) now live in app/versions.js
+     (Studio.Versions/Studio.CanvasNotes/Studio.VersionsUI) — these stay as thin
+     delegates so every call site + the window.__studio* test hooks below are
+     untouched. The UI half needs its private DOM/modal helpers injected once via
+     configure() (see below), since those don't live in versions.js. */
   function loadVersions() { return Studio.Versions.load(); }
   function saveVersions(v) { Studio.Versions.save(v); }
   function snapshotVersion() { Studio.Versions.snapshot(S.spec); }
   function pruneVersions(keepIds) { Studio.Versions.prune(keepIds); }
-  function restoreVersion(vTs) {
-    if (!S.spec || !S.spec.id) return;
-    var list = loadVersions()[S.spec.id] || [];
-    var v = list.filter(function (x) { return x.ts === vTs; })[0];
-    if (!v) return;
-    if (!confirm("Restore this version from " + new Date(v.ts).toLocaleString() + "?\n\nYour current unsaved changes on the canvas will be replaced (this itself becomes a new restorable version).")) return;
-    S.spec = normalize(Studio.clone(v.spec));
-    S.selection = null; syncHeader(); renderInspector(); refreshPreview(); buildLibrary();
-    snapshotVersion(); // the restored state is itself a checkpoint, so a restore can be undone too
-    toast("Version restored");
-  }
-
-  /* Track N innovation idea (added 2026-07-04): canvas sticky notes — small colored, builder-only
-     notes for team brainstorming/review while a dashboard is in progress. Deliberately never
-     exported (no spec field, no involvement in the render pipeline shared with export) — scratch
-     space, not a dashboard feature. Keyed by dashboard id, same storage shape as studio-versions.
-     First cut pins to a specific PANEL (stable `id`) or a dashboard-wide "General note" — KPIs have
-     no stable id yet (diffSpecs already notes this: they're compared positionally), so pinning to
-     one would silently drift onto the wrong tile the moment a KPI is reordered or deleted; left for
-     a future slice once KPIs gain a stable id. */
-  // R5+ slice 5: same delegation as the version-history block above — the data
-  // layer now lives in app/versions.js (Studio.CanvasNotes).
-  var NOTE_COLORS = Studio.CanvasNotes.COLORS;
+  function restoreVersion(vTs) { Studio.VersionsUI.restoreVersion(vTs); }
   function loadCanvasNotes() { return Studio.CanvasNotes.load(); }
   function saveCanvasNotes(n) { Studio.CanvasNotes.save(n); }
-  function saveCanvasNote(note) {
-    if (!S.spec || !S.spec.id) return;
-    Studio.CanvasNotes.put(S.spec.id, note);
-  }
-  function deleteCanvasNote(id) {
-    if (!S.spec || !S.spec.id) return;
-    Studio.CanvasNotes.remove(S.spec.id, id);
-    renderInspector();
-  }
-  function openNoteEditor(existing) {
-    var draft = existing ? { id: existing.id, color: existing.color, text: existing.text, panelId: existing.panelId || "" }
-      : { id: Studio.uid("note"), color: NOTE_COLORS[0], text: "", panelId: "" };
-    modal(existing ? "Edit note" : "Add note", function (body) {
-      body.appendChild(hint("A small colored note for your own reference or team review while building — never exported, never leaves this browser."));
-      var presets = el("div", "note-presets");
-      NOTE_COLORS.forEach(function (c) {
-        var sw = el("button", "note-swatch" + (draft.color === c ? " active" : "")); sw.type = "button"; sw.title = c;
-        sw.style.background = c;
-        sw.setAttribute("aria-pressed", draft.color === c ? "true" : "false");
-        sw.onclick = function () {
-          draft.color = c;
-          [].slice.call(presets.children).forEach(function (b) { b.classList.remove("active"); b.setAttribute("aria-pressed", "false"); });
-          sw.classList.add("active"); sw.setAttribute("aria-pressed", "true");
-        };
-        presets.appendChild(sw);
-      });
-      body.appendChild(field("Color", presets));
-      var ta = textarea(draft.text, function (v) { draft.text = v; });
-      ta.placeholder = "What do you want to remember or flag here?";
-      ta.style.cssText = "width:100%;min-height:70px;resize:vertical;box-sizing:border-box";
-      body.appendChild(field("Note", ta));
-      var targetOpts = [["", "General note (not tied to a widget)"]].concat(
-        (S.spec.panels || []).map(function (p) { return [p.id, "Panel: " + (p.title || p.id)]; }));
-      body.appendChild(field("Pin to", select2pairs(targetOpts, draft.panelId, function (v) { draft.panelId = v; })));
-      var saveBtn = el("button", "btn btn-primary"); saveBtn.style.cssText = "width:100%;justify-content:center;margin-top:8px";
-      saveBtn.textContent = existing ? "Save changes" : "Add note";
-      saveBtn.onclick = function () {
-        if (!draft.text.trim()) { toast("Enter some note text first.", true); return; }
-        saveCanvasNote(draft);
-        document.querySelector(".modal-ov").remove();
-        renderInspector();
-      };
-      body.appendChild(saveBtn);
-    });
-  }
-  // N-DEV: live JSON spec editor — edit the working dashboard's raw .studio.json
-  // directly and see the canvas update. Power-user/debugging tool: validates the
-  // pasted/edited text is a plausible spec (valid JSON, a panels[] array, a
-  // cda.dataAccesses[] array) before applying, and snapshots a version-history
-  // checkpoint of the PRE-edit state first so a bad hand-edit is always one
-  // "Restore this version" away from undoing, same safety net a live Save gets.
-  function openJsonEditor() {
-    modal("Edit JSON spec", function (body) {
-      body.appendChild(hint("Edit the dashboard's raw JSON directly, then Apply to validate and re-render the canvas. A checkpoint of the current state is saved to Version history first, so a bad edit is always restorable."));
-      var ta = el("textarea");
-      ta.value = JSON.stringify(S.spec, null, 2);
-      ta.spellcheck = false;
-      ta.style.cssText = "width:100%;min-height:360px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.5;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--field);color:var(--ink);box-sizing:border-box;resize:vertical;margin-top:8px";
-      body.appendChild(ta);
-      var errEl = el("div", "note err"); errEl.style.cssText = "margin-top:8px;display:none";
-      body.appendChild(errEl);
-      function showErr(msg) { errEl.textContent = msg; errEl.style.display = "block"; }
-      function clearErr() { errEl.style.display = "none"; }
-      ta.addEventListener("input", clearErr);
-      var btnRow = el("div"); btnRow.style.cssText = "display:flex;gap:8px;margin-top:10px";
-      var applyBtn = el("button", "btn"); setIconBtn(applyBtn, "check", "Apply");
-      var copyBtn = el("button", "btn"); setIconBtn(copyBtn, "copy", "Copy");
-      btnRow.appendChild(applyBtn); btnRow.appendChild(copyBtn);
-      body.appendChild(btnRow);
-      copyBtn.onclick = function () { copyText(ta.value, copyBtn); };
-      applyBtn.onclick = function () {
-        var parsed;
-        try { parsed = JSON.parse(ta.value); } catch (e) { showErr("Invalid JSON: " + e.message); return; }
-        if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) { showErr('Spec must be a JSON object, e.g. { "title": "…", "panels": [...] }.'); return; }
-        if (!Array.isArray(parsed.panels)) { showErr('Spec must have a "panels" array (use [] if there are none).'); return; }
-        if (!parsed.cda || !Array.isArray(parsed.cda.dataAccesses)) { showErr('Spec must have a "cda": { "dataAccesses": [...] } block.'); return; }
-        snapshotVersion();
-        S.spec = normalize(parsed);
-        S.selection = null; syncHeader(); renderInspector(); refreshPreview(); buildLibrary();
-        document.querySelector(".modal-ov").remove();
-        toast("JSON spec applied");
-      };
-    });
-  }
-
-  // N-DIST follow-up: "visual diff between two versions" — compares one checkpoint
-  // against the CURRENT working spec (the practical question when deciding whether to
-  // restore) and lists what changed in plain English via Studio.diffSpecs/diffSummary.
-  function openVersionDiff(v) {
-    var when = new Date(v.ts).toLocaleString();
-    var lines = Studio.diffSummary(Studio.diffSpecs(v.spec || {}, S.spec));
-    modal("Compare: " + when + " → Current", function (body) {
-      body.appendChild(hint("What changed between this checkpoint and the dashboard as it stands now."));
-      if (!lines.length) {
-        body.appendChild(noteEl("info", "No differences — this checkpoint matches the current dashboard."));
-      } else {
-        var list = el("div", "vdiff-list");
-        lines.forEach(function (line) {
-          var row = el("div", "vdiff-row"); row.textContent = line; list.appendChild(row);
-        });
-        body.appendChild(list);
-      }
-      var restoreB = el("button", "btn"); restoreB.style.cssText = "margin-top:10px;width:100%;justify-content:center";
-      setIconBtn(restoreB, "undo", "Restore this version");
-      restoreB.onclick = function () { document.querySelector(".modal-ov").remove(); restoreVersion(v.ts); };
-      body.appendChild(restoreB);
-    });
-  }
-  // "Compare dashboards side-by-side" innovation idea: distinct from the Version-history diff
-  // above (which compares a dashboard against ITS OWN past checkpoint) -- this picks any TWO
-  // different saved dashboards from Home/Repository and shows (1) a real live preview of each,
-  // rendered the exact same way the builder's own preview iframe is (Studio.buildHtml + mock
-  // data, so it's a genuine "which of these looks better" comparison, not a static thumbnail)
-  // and (2) a plain-English diff, reusing Studio.diffSpecs/diffSummary verbatim (the same engine
-  // the version-history diff already established).
-  function openCompareDashboards() {
-    var list = loadRecents().filter(isVisibleToMe);
-    if (list.length < 2) { toast("Save at least two dashboards to compare them", true); return; }
-    modal("Compare dashboards", function (body) {
-      body.appendChild(hint("Pick any two saved dashboards to see a live side-by-side preview and a plain-English summary of what differs between them."));
-      var row = el("div", "cmp-pick-row");
-      var cmpLabels = disambiguateLabels(list, function (r) { return (r.spec && (r.spec.title || r.spec.name)) || r.id; });
-      function pickerFor(defaultIdx, label) {
-        var sel = document.createElement("select"); sel.className = "cmp-pick";
-        sel.setAttribute("aria-label", label);
-        list.forEach(function (r, i) {
-          var opt = document.createElement("option");
-          opt.value = r.id; opt.textContent = cmpLabels[r.id];
-          if (i === defaultIdx) opt.selected = true;
-          sel.appendChild(opt);
-        });
-        return sel;
-      }
-      var selA = pickerFor(0, "Left dashboard"), selB = pickerFor(1, "Right dashboard");
-      var arrow = el("span", "cmp-arrow"); arrow.setAttribute("aria-hidden", "true"); arrow.appendChild(Studio.icon("swap", 16));
-      row.appendChild(selA); row.appendChild(arrow); row.appendChild(selB);
-      body.appendChild(row);
-      var pvRow = el("div", "cmp-preview-row");
-      function previewCol() {
-        var col = el("div", "cmp-preview-col");
-        var h = el("h5"); var fr = document.createElement("iframe");
-        fr.className = "cmp-preview-frame"; fr.setAttribute("aria-hidden", "true");
-        col.appendChild(h); col.appendChild(fr);
-        return { col: col, h: h, fr: fr };
-      }
-      var pvA = previewCol(), pvB = previewCol();
-      pvRow.appendChild(pvA.col); pvRow.appendChild(pvB.col);
-      body.appendChild(pvRow);
-      var out = el("div", "cmp-out"); body.appendChild(out);
-      function renderPreview(pv, r) {
-        var sp = (r && r.spec) || {};
-        pv.h.textContent = sp.title || sp.name || "Untitled";
-        pv.fr.title = "Live preview: " + (sp.title || sp.name || "Untitled");
-        pv.fr.srcdoc = Studio.buildHtml(sp, S.assets, { preview: true, mock: Studio.genMock(sp), launcher: false });
-        postThemeOnLoad(pv.fr);
-      }
-      function renderAll() {
-        var a = list.filter(function (r) { return r.id === selA.value; })[0];
-        var b = list.filter(function (r) { return r.id === selB.value; })[0];
-        if (!a || !b) return;
-        renderPreview(pvA, a); renderPreview(pvB, b);
-        out.innerHTML = "";
-        if (a.id === b.id) { out.appendChild(noteEl("info", "Pick two different dashboards to compare.")); return; }
-        var lines = Studio.diffSummary(Studio.diffSpecs(a.spec || {}, b.spec || {}));
-        if (!lines.length) { out.appendChild(noteEl("info", "No differences — these two dashboards match.")); return; }
-        var listEl = el("div", "vdiff-list");
-        lines.forEach(function (line) { var r = el("div", "vdiff-row"); r.textContent = line; listEl.appendChild(r); });
-        out.appendChild(listEl);
-      }
-      selA.onchange = renderAll; selB.onchange = renderAll;
-      renderAll();
-    }, null, true);
-  }
+  function saveCanvasNote(note) { Studio.VersionsUI.saveCanvasNote(note); }
+  function deleteCanvasNote(id) { Studio.VersionsUI.deleteCanvasNote(id); }
+  function openNoteEditor(existing) { Studio.VersionsUI.openNoteEditor(existing); }
+  // N-DEV: live JSON spec editor — see app/versions.js for the full writeup.
+  function openJsonEditor() { Studio.VersionsUI.openJsonEditor(); }
+  // N-DIST follow-up: "visual diff between two versions" — see app/versions.js.
+  function openVersionDiff(v) { Studio.VersionsUI.openVersionDiff(v); }
+  // "Compare dashboards side-by-side" innovation idea — see app/versions.js.
+  function openCompareDashboards() { Studio.VersionsUI.openCompareDashboards(); }
+  Studio.VersionsUI.configure({
+    getSpec: function () { return S.spec; },
+    getAssets: function () { return S.assets; },
+    applySpec: function (raw) { S.spec = normalize(raw); S.selection = null; syncHeader(); renderInspector(); refreshPreview(); buildLibrary(); },
+    renderInspector: function () { renderInspector(); },
+    toast: function (msg, isErr) { toast(msg, isErr); },
+    modal: function (title, build, onClose, wide) { return modal(title, build, onClose, wide); },
+    el: function (t, c) { return el(t, c); },
+    hint: function (t) { return hint(t); },
+    field: function (label, control) { return field(label, control); },
+    textarea: function (val, onChange) { return textarea(val, onChange); },
+    select2pairs: function (pairs, val, onChange) { return select2pairs(pairs, val, onChange); },
+    setIconBtn: function (btn, iconName, text, sz) { setIconBtn(btn, iconName, text, sz); },
+    noteEl: function (cls, t) { return noteEl(cls, t); },
+    copyText: function (text, btn) { copyText(text, btn); },
+    postThemeOnLoad: function (ifr) { postThemeOnLoad(ifr); },
+    disambiguateLabels: function (rows, keyFn) { return disambiguateLabels(rows, keyFn); },
+    loadRecents: function () { return loadRecents(); },
+    isVisibleToMe: function (r) { return isVisibleToMe(r); },
+    section: function (parent, title, onAdd, summaryFn, helpAnchor, iconName) { return section(parent, title, onAdd, summaryFn, helpAnchor, iconName); },
+    rowItem: function (icon, title, sub, onClick, btns, active) { return rowItem(icon, title, sub, onClick, btns, active); },
+    compareBtn: function (fn) { return compareBtn(fn); },
+    delBtn: function (fn) { return delBtn(fn); },
+    panelById: function (id) { return panelById(id); },
+    esc: function (s) { return esc(s); }
+  });
   // Shared markup for one recents/pinned card. Uses a big invisible "open" button
   // covering the whole card (not the card element itself) so the small pin toggle can
   // sit on top of it without an invalid <button> inside a <button>.

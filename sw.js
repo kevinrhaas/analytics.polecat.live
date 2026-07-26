@@ -5,7 +5,19 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v206"; /* v206: LF22 slice 4 — the counties→custom-region MAPPING
+var CACHE_NAME = "studio-shell-v207"; /* v207: R5+ slice 5, part 2 (tech-debt track) — the
+   versions/notes MODAL/RENDER UI (openNoteEditor, openJsonEditor, openVersionDiff,
+   openCompareDashboards, restoreVersion, and the Inspector's Version-history/Builder-notes
+   sections) moves out of app/studio.js into app/versions.js (Studio.VersionsUI), joining the
+   data layer part 1 already extracted there — a one-time Studio.VersionsUI.configure(deps)
+   call injects the ~20 private DOM/modal helpers this half needs (modal/el/hint/field/
+   textarea/select2pairs/setIconBtn/noteEl/copyText/postThemeOnLoad/disambiguateLabels/
+   loadRecents/isVisibleToMe/section/rowItem/compareBtn/delBtn/panelById/esc), the same
+   "inject the callbacks" shape Celebrations/Defaults already use, just more of them. Pure
+   refactor, no behavior change — every window.__studio* test hook and call site is
+   byte-for-byte unchanged; suite unchanged at 2132/2132.
+   app/studio.js, app/versions.js changed, so precached copies need to roll.
+   v206: LF22 slice 4 — the counties→custom-region MAPPING
    IMPORTER, the fourth and last geography-expansion item: a new "custom" choropleth scale lets you
    Import a 2-column CSV (county FIPS, region name) right in the Inspector and merges the existing
    county polygons per region via the same topojson.merge grouping the built-in crd scale already

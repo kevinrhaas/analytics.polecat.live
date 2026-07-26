@@ -116,6 +116,29 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **R5+ slice 5, part 2 — versions/notes MODAL/RENDER UI extracted to its own module (v570,
+  sw v207, 2026-07-26, steward):** the tech-debt track's own documented follow-up to slice 5
+  part 1 (the pure data layer, shipped 2026-07-25). `openNoteEditor`, `openJsonEditor`,
+  `openVersionDiff`, `openCompareDashboards`, `restoreVersion`, `saveCanvasNote`,
+  `deleteCanvasNote`, and the Inspector's Version-history/Builder-notes section rendering all
+  move from `app/studio.js` into `app/versions.js` (`Studio.VersionsUI`), joining
+  `Studio.Versions`/`Studio.CanvasNotes` there. Unlike part 1 (which needed zero injected
+  callbacks), this half genuinely leans on a dozen-plus of studio.js's own private DOM/modal
+  helpers (`modal`, `el`, `hint`, `field`, `textarea`, `select2pairs`, `setIconBtn`, `noteEl`,
+  `copyText`, `postThemeOnLoad`, `disambiguateLabels`, `loadRecents`, `isVisibleToMe`,
+  `section`, `rowItem`, `compareBtn`, `delBtn`, `panelById`, `esc`) plus two pieces of live
+  state (`S.spec`/`S.assets`) and four re-render callbacks — so studio.js now makes ONE
+  `Studio.VersionsUI.configure(deps)` call (same "inject the callbacks" shape ①-④'s
+  `Studio.Celebrations.configureToast`/`Studio.Defaults.configureDashboardThemeFallback`
+  already established, just more of them bundled into one object instead of one call each)
+  before any of studio.js's own thin same-named delegate functions are used. Every
+  `window.__studio*` test hook and call site is byte-for-byte unchanged — this is a pure code
+  move, no behavior change, verified by re-running the full existing suite unchanged (2132/
+  2132). (app/studio.js, app/versions.js, sw.js, js/changelog.js) **R5+ slice 5 (both the data
+  layer and the UI half) is now fully done.** NEXT in this track: ⑥ the Explore `XP` subsystem
+  extraction (own namespace; preserve the analysis→spec add + `homeLiveFrame` reuse seams) →
+  ⑦ the data-plane panels LAST (Jobs → Connections → Datasets; Datasets last because
+  `runDataset`/`window.__studioRunDataset` bridges back into the builder preview).
 - **LF22 slice 4 — counties→custom-region MAPPING IMPORTER, the fourth and last item (v569,
   sw v206, 2026-07-26, steward — LF22 is now fully DONE):** "these counties = this territory"
   as a real user-facing feature, exactly as LF22's spec text called for: a new **Custom regions**
@@ -4475,8 +4498,12 @@
 >      needed ZERO injected callbacks (cleaner than even ①-④). studio.js's own copies became thin
 >      delegates with identical signatures, so every call site, the `studio-versions`/`studio-
 >      canvas-notes` storage keys, and every `window.__studio*` test hook are byte-for-byte unchanged
->      — pure refactor, suite unchanged at 1951/1951. NEXT: ⑤ part 2, the modal/render UI half (a
->      separately-scoped follow-up given the DOM-helper coupling above) → ⑥ the Explore `XP` subsystem
+>      — pure refactor, suite unchanged at 1951/1951.
+>      ↳ **Slice 5 part 2 — the modal/render UI half (shipped v570, sw v207, 2026-07-26, steward
+>      — R5+ slice 5 is now fully done):** see DONE for the full writeup. The dozen-plus private
+>      DOM/modal helpers this half needed got ONE bundled `Studio.VersionsUI.configure(deps)`
+>      call instead of ①-④'s one-callback-each shape — same idea, just more of them. Suite
+>      unchanged at 2132/2132. NEXT in this track: ⑥ the Explore `XP` subsystem
 >      (own namespace; preserve the analysis→spec add + `homeLiveFrame` reuse seams) → ⑦ the data-plane
 >      panels LAST (Jobs → Connections → Datasets; Datasets last because `runDataset`/
 >      `window.__studioRunDataset` bridges back into the builder preview). These are lane-hot files —
