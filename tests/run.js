@@ -25139,6 +25139,20 @@ function serve() {
     ok("a11y: '.opt-hint:focus' no longer re-declares outline:none (keyboard ring restored)",
       optHintFocusRule.length > 0 && !/outline\s*:\s*none/.test(optHintFocusRule), optHintFocusRule);
 
+    // a11y: Track L found a FOURTH instance of the same "outline re-declared inside its own
+    // focus rule" bug shape (v286 .repo-search, v299 .dsb-sqb-inp, v333 .opt-hint) — the rail's
+    // "back to polecat.live" link (#railNav .rail-suite, a real <a href>, tabIndex-reachable by
+    // default) combined its :hover and :focus-visible styling into one rule that set
+    // outline:none, at specificity (1,2,0) — beating both the shared global :focus-visible ring
+    // ((0,0,1)) and the a:focus-visible ring ((0,1,1)). Same CSS-source guard as .opt-hint above
+    // (rather than a live focus-visible simulation) since this suite's thousands of prior mouse
+    // clicks make Chromium's :focus-visible heuristic unreliable to assert against directly by
+    // the time this test runs.
+    var railSuiteCss = fs.readFileSync(path.join(ROOT, "app", "studio.css"), "utf8");
+    var railSuiteFocusRule = (railSuiteCss.match(/#railNav \.rail-suite:focus-visible\s*\{[^}]*\}/) || [""])[0];
+    ok("a11y: '#railNav .rail-suite:focus-visible' no longer re-declares outline:none (keyboard ring restored)",
+      railSuiteFocusRule.length > 0 && !/outline\s*:\s*none/.test(railSuiteFocusRule), railSuiteFocusRule);
+
     // ---- Track N: command palette (⌘K / Ctrl-K) ----
     console.log("\n• Track N: command palette (⌘K)");
     var cmdk = await page.evaluate(function () {

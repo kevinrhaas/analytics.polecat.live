@@ -116,6 +116,29 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **Track L sweep (accessibility lens) — rail "back to polecat.live" link loses its keyboard
+  focus ring (v588, sw v225, 2026-07-26, steward):** rotating the Track L lens off duplication
+  (just used at v587) onto accessibility found a FOURTH instance of the exact bug shape fixed
+  three times before (v286 `.repo-search`, v299 `.dsb-sqb-inp`, v333 `.opt-hint`): a local rule
+  re-declares `outline:none` inside its own focus rule at higher specificity than the shared
+  global keyboard-focus ring, so tabbing to the element shows no ring at all. This time it's
+  `#railNav .rail-suite` (the barely-there "polecat.live" link at the bottom of the rail brand
+  lockup, a real `<a href>`) — its combined `:hover,:focus-visible` rule set `outline:none` at
+  specificity (1,2,0), beating both the shared `:focus-visible` ring ((0,0,1)) and the
+  `a:focus-visible` ring ((0,1,1)). Split the rule: `:hover`/`:focus-visible` still share the
+  opacity+underline treatment, but `:focus-visible` alone now also gets its own
+  `outline:2px solid var(--brand)` ring back. Pure CSS fix, no behavior change. 1 new test —
+  a CSS-source guard (same convention the `.opt-hint` fix used, rather than a live
+  focus-visible simulation, since this suite's thousands of prior mouse clicks make Chromium's
+  `:focus-visible` heuristic unreliable to assert against directly by the time this test runs)
+  confirming `#railNav .rail-suite:focus-visible` no longer re-declares `outline:none`. Full
+  suite green, 2171/2171 (2170 + 1 new). (app/studio.css, sw.js, js/changelog.js, tests/run.js)
+  NEXT: item 3's exported-runtime bundling for connection-bound dataset adapters (Turso/
+  Redshift/etc.) remains the next-most-scoped genuinely-open backlog item (large enough to
+  want its own dedicated slice, start with one connector) — continuing the Track L/H/N
+  self-directed rotation (next lens: module boundaries, global-state creep, performance
+  budget, or chart-extension API formalization — accessibility and duplication were both
+  just used) remains a good fallback while the findings queue stays thin.
 - **Track L sweep — dedup the Connections/Datasets/Jobs configure(deps) boilerplate (v587,
   sw v224, 2026-07-26, steward — duplication lens):** with every ★ backlog (CONSERVATION
   INSIGHT, VIRIDIS, LIVE-FEEDBACK QUEUE, UX-POLISH, TECH-DEBT/R5+) confirmed fully shipped
@@ -7432,6 +7455,13 @@ gets covered over time:
   `Studio.defineChart({type, render, opts, thumb, autoPick})` contract so new types are uniform and testable.
 - **Test health** — coverage per feature, flaky/slow checks, and a fast smoke subset for quick loops.
 > **Findings log (append newest on top; keep short):**
+> - **Fixed shipped v588 (accessibility lens, fourth instance of the same bug shape):** grepped
+>   `app/studio.css` for `outline\s*:\s*none` inside a `:focus`/`:focus-visible` rule again
+>   (the same technique that caught v286/v299/v333) and found a fourth live instance:
+>   `#railNav .rail-suite:hover,#railNav .rail-suite:focus-visible{...outline:none}` — the
+>   rail's "back to polecat.live" link, at specificity (1,2,0), beats the shared global ring.
+>   Split hover from focus-visible and gave focus-visible its own `outline:2px solid
+>   var(--brand)`. 1 new CSS-source-guard test, suite 2171/2171. See DONE for the full writeup.
 > - **Fixed shipped v587 (duplication lens, first pass since v394 — the R5+ module extraction
 >   that finished this run's gap made this findable):** `app/studio.js`'s `configure(deps)`
 >   calls for Connections/Datasets/Jobs (R5+ slices 7-9) each hand-rolled the SAME 7 one-line

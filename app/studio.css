@@ -248,7 +248,8 @@ html[data-app-theme='conservation'] #railNav{--rail-bg:#10432e;--rail-bg2:#1a5c4
    26px mark + 11px gap) and hidden with the labels when the rail collapses */
 #railNav .rail-suite{font-size:var(--fs-10);line-height:1;letter-spacing:.2px;color:var(--rail-ink);opacity:.4;
   text-decoration:none;padding:0 var(--sp-18) var(--sp-14);margin-left:37px;transition:opacity .15s}
-#railNav .rail-suite:hover,#railNav .rail-suite:focus-visible{opacity:.8;text-decoration:underline;outline:none}
+#railNav .rail-suite:hover,#railNav .rail-suite:focus-visible{opacity:.8;text-decoration:underline}
+#railNav .rail-suite:focus-visible{outline:2px solid var(--brand);outline-offset:1px}
 #railNav .rail-brand-mark{flex:0 0 auto;border-radius:7px;display:block}
 #railNav .rail-brand-txt{font-weight:800;font-size:var(--fs-13);letter-spacing:.2px;overflow:hidden;text-overflow:ellipsis}
 /* LF33: expanded-only lockup fix — the mark used to center against just the
