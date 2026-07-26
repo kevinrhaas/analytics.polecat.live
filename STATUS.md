@@ -116,6 +116,54 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **M7 slice 7 — the polecat-admin Edge Function relay + in-app go-live (v585, sw v222,
+  2026-07-26, steward — CONSERVATION INSIGHT PRODUCT PLATFORM, ★★★★★ top priority):** the
+  one remaining M7 item (STATUS.md's "OPTION — Slice 7" spec, Kevin's chosen Option A) — the
+  Supabase Management API can't be called from a third-party browser (verified 2026-07-24), so
+  going live from the app needs a small server piece you control. New
+  `supabase/functions/polecat-admin/` (Deno, `index.ts` + condensed `bootstrap.sql`/
+  `rls-real.sql` copies kept in sync with the canonical `/tools` versions) — the admin deploys
+  it ONCE via the Supabase CLI (not part of the static Pages build); it holds the service-role
+  key and a direct Postgres connection (Deno `postgres`) to run DDL/RLS PostgREST can't, and
+  exposes exactly four NAMED, FIXED actions (never raw SQL): `provision` (bootstrap DDL),
+  `go-live` (bootstrap → truncate → seed the CALLER's own verified GoTrue identity as admin →
+  apply real RLS → verify), `create-user` (admin-create via the GoTrue Admin API, no
+  email-confirmation step), `reset-data`. `provision`/`go-live` are gated by a one-time
+  `PROVISION_SECRET` header (deploy-time secret); `create-user`/`reset-data` are gated by the
+  CALLER's own admin JWT (verified against the `users` table's role, service-role bypasses
+  RLS to check it) so day-2 admin actions never depend on a secret meant to be discarded.
+  CORS is scoped to `APP_ORIGIN` only. App side: `app/sources/supabase.js` gains an optional
+  `adminFnUrl` field + `adminGoLive(cfg,secret)`/`adminCreateUser(cfg,user)` (a shared
+  `callAdminFn` posts `{action,params}`, threading the connection's own GoTrue session as the
+  Bearer token via the existing `ensureSession`); `adminGoLive` refuses to run without an
+  already-signed-in Auth email/password (go-live needs to know who becomes admin — it reads
+  that identity off the verified JWT server-side, never a client-supplied id). `app/studio.js`'s
+  Admin page gains a "Per-user security (Supabase)" card (shown only when connected to
+  Supabase) with an "Enable per-user security / Go live…" modal (provision-secret field +
+  a wipe-confirmation checkbox, enter-run-**discard** — the field is cleared and the value
+  forgotten the instant the call returns, never written to storage); **+ Add user** now
+  prefers the relay's `create-user` action automatically once `adminFnUrl` is set, falling
+  back to Slice 6's public self-signup wherever the relay isn't deployed. 9 new regression
+  checks (adapter-level: no-URL/bad-secret/not-signed-in/network-unreachable error shapes,
+  a successful go-live's per-table verification counts, adminCreateUser success + rejection
+  without a valid admin session; UI-level: the Go-live card only appears when connected to
+  Supabase, its modal's secret/checkbox validation, a full go-live run reporting table counts
+  with the secret never leaking to localStorage, and Add user actually routing through the
+  relay — not signUp — once configured). Full suite green, 2166/2166 (2157 + 9 new).
+  `tools/M7-RLS-GOLIVE-RUNBOOK.md` updated (Path C now documented as shipped, with the
+  concrete deploy commands including the two new manual secrets) and `docs/index.html` gained
+  a "Going live with real per-user security (Supabase)" section. (supabase/functions/
+  polecat-admin/index.ts new, supabase/functions/polecat-admin/bootstrap.sql new,
+  supabase/functions/polecat-admin/rls-real.sql new, app/sources/supabase.js, app/studio.js,
+  docs/index.html, tools/M7-RLS-GOLIVE-RUNBOOK.md, sw.js, js/changelog.js, tests/run.js)
+  **M7 (Real per-user security) and the entire ★★★★★ CONSERVATION INSIGHT PRODUCT PLATFORM
+  track (M1→M7) are now fully shipped app-side.** What's left is entirely Kevin's own,
+  deliberate action outside the app/lane — actually deploying the Edge Function + running
+  Go live against the LIVE production project (the lane doesn't hold live deploy/admin
+  credentials and this changes live production security posture, same caution as every other
+  M7 slice before it). NEXT: with the top-priority backlog now clear, resume the regular
+  interleave (FRONTEND QA REPORT is fully closed; the ★ LIVE-FEEDBACK QUEUE and the
+  UX-POLISH/TECH-DEBT quality tracks are the next-most-scoped items — see those sections).
 - **UX5 slice 4 — the 4px-base spacing rounding pass (v584, sw v221, 2026-07-26, steward —
   UX5 is now fully done):** the last open item in the TECH-DEBT track's type/spacing-scale
   work (slices 1-3 built the `--fs-*`/`--sp-*` token scales as pure aliases + consolidated
@@ -5310,9 +5358,11 @@
 >     is admin-gated in-app (only reachable from the Admin console), and the adapter method stays
 >     pluggable for a later closed-signup Edge Function if that's ever needed. Docs: new "Adding users
 >     when connected to Supabase" section in `docs/index.html`. (app/sources/supabase.js, app/studio.js,
->     docs/index.html, sw.js, tests/run.js) NEXT in M7: Slice 7 (Management-API-driven provisioning + RLS
->     go-live) remains an OPEN OPTION pending Kevin's call on primary-vs-fallback go-live path; the manual
->     runbook (`tools/M7-RLS-GOLIVE-RUNBOOK.md`) stays the go-live path in the meantime.
+>     docs/index.html, sw.js, tests/run.js) NEXT in M7: Slice 7 (the polecat-admin Edge Function
+>     relay, Kevin's chosen Option A below) ✓ shipped 2026-07-26 (steward) — see DONE at the top
+>     of this file. **M7, and the whole ★★★★★ CONSERVATION INSIGHT PRODUCT PLATFORM track, is now
+>     fully shipped app-side** — only Kevin's own live deploy + go-live action against the real
+>     production project remains, same as every prior M7 slice's production-change caution.
 >     ↳ **OPTION — Slice 7: IN-APP PROVISIONING & RLS GO-LIVE via the Supabase Management API (Kevin's
 >     idea, 2026-07-24).** Run the prep/go-live SQL FROM the interface, not the SQL editor. The anon-key
 >     PostgREST connection can't DDL (why `provision()` today only GENERATES paste-able SQL), but the

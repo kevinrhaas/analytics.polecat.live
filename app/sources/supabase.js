@@ -67,6 +67,42 @@
     });
   }
 
+  // ---- polecat-admin Edge Function relay (M7 slice 7) ------------------------
+  // Optional: cfg.adminFnUrl points at a deployed `supabase/functions/
+  // polecat-admin` (see tools/M7-RLS-GOLIVE-RUNBOOK.md Path C). It's the only
+  // way to run DDL/RLS from the browser (PostgREST can't, even with the
+  // service key) — never raw SQL, only these four named actions. Leaving the
+  // field blank keeps this adapter's existing anon-key-only behavior exactly
+  // as before; the manual SQL runbook (Path A/B) remains the fallback.
+  function adminFnBase(cfg) {
+    var u = (cfg.adminFnUrl || "").trim().replace(/\/+$/, "");
+    if (!u) return null;
+    if (!/^https?:\/\//i.test(u)) u = "https://" + u;
+    return u;
+  }
+  function callAdminFn(cfg, action, params, opts) {
+    opts = opts || {};
+    var base = adminFnBase(cfg);
+    if (!base) return Promise.resolve({ ok: false, error: "No admin function URL configured — deploy supabase/functions/polecat-admin (see tools/M7-RLS-GOLIVE-RUNBOOK.md Path C) and paste its URL into this connection's settings." });
+    return ensureSession(cfg).then(function (session) {
+      var h = { "Content-Type": "application/json" };
+      if (opts.secret) h["x-provision-secret"] = opts.secret;
+      if (session && session.accessToken) h.Authorization = "Bearer " + session.accessToken;
+      return fetch(base, { method: "POST", headers: h, body: JSON.stringify({ action: action, params: params || {} }) });
+    }).then(function (res) {
+      return res.json().catch(function () { return {}; }).then(function (data) { return { res: res, data: data }; });
+    }, function (e) {
+      return { networkError: "Could not reach the admin function (network/CORS, or it isn't deployed yet): " + e.message };
+    }).then(function (r) {
+      if (r.networkError) return { ok: false, error: r.networkError };
+      var res = r.res, data = r.data;
+      if (res.status === 401 || res.status === 403) return { ok: false, error: data.error || "The admin function rejected this request (wrong provision secret, or you're not signed in as an admin)." };
+      if (res.status === 404) return { ok: false, error: "No admin function found at that URL — deploy it (supabase functions deploy polecat-admin) and check the URL." };
+      if (!res.ok) return { ok: false, error: data.error || ("Admin function error: HTTP " + res.status) };
+      return Object.assign({ ok: true }, data);
+    });
+  }
+
   function rest(cfg, path, opts) {
     opts = opts || {};
     var base;
@@ -102,7 +138,9 @@
       { key: "authEmail", label: "Supabase Auth email (optional)", placeholder: "you@example.com", type: "text",
         hint: "Sign in with a real Supabase Auth (GoTrue) account so requests carry your identity — Postgres' auth.uid() resolves to a real user instead of NULL. Only needed for enforced per-user privacy (Row-Level Security); leave blank to keep using the shared anon key as before." },
       { key: "authPassword", label: "Supabase Auth password (optional)", placeholder: "", type: "password",
-        hint: "Paired with the email above. Only ever sent to this project's own /auth/v1/token endpoint." }
+        hint: "Paired with the email above. Only ever sent to this project's own /auth/v1/token endpoint." },
+      { key: "adminFnUrl", label: "Admin function URL (optional)", placeholder: "https://YOUR-REF.functions.supabase.co/polecat-admin", type: "text",
+        hint: "Only needed to run Go live / admin actions from the app instead of the SQL editor — deploy supabase/functions/polecat-admin once (tools/M7-RLS-GOLIVE-RUNBOOK.md Path C), then paste its URL here." }
     ],
     docsUrl: "https://supabase.com/docs/guides/api",
 
@@ -156,6 +194,34 @@
         }
         return { ok: true, userId: userId };
       });
+    },
+
+    // ---- polecat-admin Edge Function relay (M7 slice 7) --------------------
+    // Runs the whole go-live runbook (bootstrap DDL if needed → truncate →
+    // seed the admin `users` row, owned by the CALLER's own verified
+    // identity → apply real RLS → verify) via ONE relay call. Requires this
+    // connection's Auth email/password to already be signed in as the
+    // account that should become the first admin (same GoTrue identity the
+    // connect wizard already establishes) — the function reads the admin
+    // identity off that session's JWT, never off a client-supplied id, so a
+    // tampered request can't hand admin to an arbitrary uid. `secret` is the
+    // one-time PROVISION_SECRET — pass it straight through, never store it.
+    adminGoLive: function (cfg, secret) {
+      var Auth = window.PolecatAuth, me = Auth && Auth.current();
+      if (!cfg.authEmail || !cfg.authPassword) {
+        return Promise.resolve({ ok: false, error: "Sign in as the admin's Supabase Auth account first (this connection's Auth email/password fields above) — Go live needs to know who becomes the first admin." });
+      }
+      if (!me) return Promise.resolve({ ok: false, error: "No signed-in local account to seed as the workspace admin." });
+      return callAdminFn(cfg, "go-live", { username: me.u, name: me.name || me.u }, { secret: secret });
+    },
+
+    // Admin-creates a real Supabase Auth account (no email-confirmation step,
+    // unlike the public self-signup in `signUp` above) via the relay, gated
+    // by the CALLER's own admin JWT (this connection's signed-in session) —
+    // the secure path once the relay is deployed; `signUp` remains the
+    // fallback for deployments that never deploy the function.
+    adminCreateUser: function (cfg, user) {
+      return callAdminFn(cfg, "create-user", user, {});
     },
 
     test: function (cfg) {
