@@ -3545,8 +3545,27 @@
 >       values) — an honest best-effort hint, not a real schema. 6 new regression tests (one chip
 >       per column with an icon; numeric/date/string heuristics each land correctly; switching the
 >       source dataset re-renders the list against the new columns). docs/index.html updated.
->       NEXT in LF13: (d)'s remaining two pieces — the source+output row PREVIEW and the operation
->       DIAGRAM — deliberately not attempted in this slice.
+>       ✓ **Slice 2 shipped (v562, sw v199, 2026-07-26, steward): source+output row PREVIEW.** A
+>       small live sample (up to 5 rows) of the source dataset's real rows now renders below the
+>       field list (`ensureSrcRows`, one live `runDataset` query per source-dataset selection,
+>       cached and distinct from the column-name-only fast path `ensureSrcCols` already had — a
+>       name list can come from `.columns` metadata alone, but real cell VALUES need a live query).
+>       An approximate OUTPUT preview renders beneath it, computed by running the pure
+>       `Studio.runJobSteps` engine (no live query, no DOM/Workspace dependency) over that same
+>       cached sample every time steps change — instant, not requiring a live re-query per
+>       keystroke the way the manual "Preview" button's full run does. Honestly approximate: join/
+>       union steps only have the linked dataset's column NAMES on hand here (via the existing
+>       `colsCache.byDs`, not a live row sample of it too), so their preview passes `rows: []` for
+>       the linked side — an inner join shows zero rows, a left join shows nulls for the added
+>       columns — labeled "approximate" with a pointer to the real Preview button for authoritative
+>       results. Verified the engine computes for real, not just guesses schema: a rename step
+>       relabels the sampled column, and an aggregate step actually groups + sums the cached sample
+>       rows (Story's two rows collapse into one, correctly summed). 4 new regression tests (sample
+>       table renders real values; rename reflected in the output preview; aggregate actually
+>       groups+sums; an empty pipeline shows the source sample but skips the output section).
+>       docs/index.html updated. **NEXT in LF13:** (d)'s last remaining piece — the small visual
+>       DIAGRAM of the operation (rollup/join/stack) with the picked columns shown — deliberately
+>       not attempted in this slice. (app/studio.js, app/studio.css, tests/run.js)
 > LF14. ✓ **Job editor contrast — DONE, see DONE (v434, 2026-07-22, steward).** New `.btn.danger`
 >       class (dark-on-light, red on hover) applied to "✕ Remove step" + the per-metric/mapping "✕".
 > LF15. ✓ **Settings: button/input style overlap — DONE, see DONE (v439, 2026-07-22, steward).**

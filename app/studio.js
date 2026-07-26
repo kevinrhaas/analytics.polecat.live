@@ -7867,14 +7867,33 @@
       // each dataset's known `.columns` (declared in the dataset editor, or cached from the
       // last live run — see runDataset()). Falls back to a background runDataset() probe
       // when a dataset has never been run, then re-renders once it resolves.
-      var colsCache = { bySrc: [], byDs: {} };
+      var ROW_PREVIEW_N = 5;
+      var colsCache = { bySrc: [], byDs: {}, bySrcRows: null, bySrcRowsFor: null, bySrcRowsErr: null };
       function ensureSrcCols() {
         var id = j.sourceDatasetId;
         if (!id) { colsCache.bySrc = []; return; }
         var d = Studio.Workspace.get("datasets", id);
         if (!d) return;
-        if ((d.columns || []).length) { colsCache.bySrc = d.columns.slice(); return; }
-        runDataset(d).then(function () { colsCache.bySrc = (d.columns || []).slice(); renderSteps(); });
+        if ((d.columns || []).length) { colsCache.bySrc = d.columns.slice(); } else { runDataset(d).then(function () { colsCache.bySrc = (d.columns || []).slice(); renderSteps(); }); }
+        ensureSrcRows(id, d);
+      }
+      // LF13(d) slice 2: a real, small live sample of the SOURCE dataset's rows (distinct
+      // from ensureSrcCols' column-name-only fast path above — a name list can come from
+      // `.columns` metadata alone, but actual cell VALUES need a live query) — fetched once
+      // per source-dataset selection and cached, then fed through the pure engine
+      // (Studio.runJobSteps) to sketch an approximate OUTPUT preview too, without paying for
+      // a fresh live run on every keystroke. `bySrcRows === null` means "loading"; `[]` means
+      // "loaded, no rows" — kept distinct so the UI can tell them apart.
+      function ensureSrcRows(id, d) {
+        if (colsCache.bySrcRowsFor === id) return;
+        colsCache.bySrcRowsFor = id; colsCache.bySrcRows = null; colsCache.bySrcRowsErr = null;
+        runDataset(d).then(function (r) {
+          if (colsCache.bySrcRowsFor !== id) return; // source changed again while this was in flight
+          colsCache.bySrcRowsErr = r && r.error ? r.error : null;
+          colsCache.bySrcRows = (r && !r.error) ? (r.rows || []).slice(0, ROW_PREVIEW_N) : [];
+          if (!colsCache.bySrc.length && r && (r.columns || []).length) colsCache.bySrc = r.columns.slice();
+          renderSteps();
+        });
       }
       function ensureDsCols(dsId) {
         if (!dsId || (colsCache.byDs[dsId] || []).length) return;
@@ -8000,6 +8019,59 @@
           chips.appendChild(chip);
         });
         srcFieldsWrap.appendChild(chips);
+      }
+      // LF13(d) slice 2: a small live sample of SOURCE rows (real values, unlike the
+      // name-only field list above), plus an APPROXIMATE preview of the OUTPUT rows —
+      // the pipeline's steps run (via the pure Studio.runJobSteps engine, no live query)
+      // over that same cached sample, so it updates instantly as steps are edited instead
+      // of requiring a "Preview" click. join/union steps only know the linked dataset's
+      // COLUMN NAMES here (not a live sample of ITS rows too), so their preview rows are
+      // honestly approximate — the real "Preview" button below still does a full live run.
+      function previewTable(columns, rows) {
+        var head = "<tr>" + columns.map(function (c) { return "<th>" + esc(c) + "</th>"; }).join("") + "</tr>";
+        var body = rows.slice(0, ROW_PREVIEW_N).map(function (row) {
+          return "<tr>" + row.map(function (v) { return "<td>" + esc(v == null ? "" : String(v)) + "</td>"; }).join("") + "</tr>";
+        }).join("");
+        return "<table>" + head + body + "</table>";
+      }
+      var srcRowsWrap = el("div", "jobs-row-preview"); form.appendChild(srcRowsWrap);
+      var outRowsWrap = el("div", "jobs-row-preview"); form.appendChild(outRowsWrap);
+      function renderRowPreviews() {
+        srcRowsWrap.innerHTML = ""; outRowsWrap.innerHTML = "";
+        if (!j.sourceDatasetId) return;
+        var srcLabel = el("small", "cx-hint"); srcLabel.textContent = "Sample source rows:"; srcRowsWrap.appendChild(srcLabel);
+        if (colsCache.bySrcRowsFor !== j.sourceDatasetId || colsCache.bySrcRows == null) {
+          var loading = el("small", "cx-hint"); loading.textContent = "Loading sample rows…"; srcRowsWrap.appendChild(loading);
+          return;
+        }
+        if (colsCache.bySrcRowsErr) {
+          var err = el("small", "cx-hint"); err.textContent = "Can't sample rows: " + colsCache.bySrcRowsErr; srcRowsWrap.appendChild(err);
+          return;
+        }
+        if (!colsCache.bySrcRows.length || !colsCache.bySrc.length) {
+          var none = el("small", "cx-hint"); none.textContent = "No sample rows available."; srcRowsWrap.appendChild(none);
+          return;
+        }
+        var srcTable = el("div", "dsx-preview"); srcTable.innerHTML = previewTable(colsCache.bySrc, colsCache.bySrcRows);
+        srcRowsWrap.appendChild(srcTable);
+        if (!(j.steps || []).length) return; // nothing downstream of an empty pipeline yet
+        var outLabel = el("small", "cx-hint");
+        outLabel.textContent = "Approximate preview after these steps (from the sample above — click Preview below for the real result):";
+        outRowsWrap.appendChild(outLabel);
+        var ctx = { datasets: {} };
+        (j.steps || []).forEach(function (step) {
+          if ((step.op === "join" || step.op === "union") && step.datasetId) {
+            ctx.datasets[step.datasetId] = { columns: colsCache.byDs[step.datasetId] || [], rows: [] };
+          }
+        });
+        var out = Studio.runJobSteps({ columns: colsCache.bySrc, rows: colsCache.bySrcRows }, j.steps, ctx);
+        if (out.error) {
+          var errOut = el("small", "cx-hint"); errOut.textContent = "Can't preview: " + out.error; outRowsWrap.appendChild(errOut);
+          return;
+        }
+        if (!out.columns.length) return;
+        var outTable = el("div", "dsx-preview"); outTable.innerHTML = previewTable(out.columns, out.rows);
+        outRowsWrap.appendChild(outTable);
       }
       var stepsWrap = el("div", "jobs-steps"); form.appendChild(stepsWrap);
       function operandRow(op) {
@@ -8163,6 +8235,7 @@
       }
       function renderSteps() {
         renderSrcFields();
+        renderRowPreviews();
         stepsWrap.innerHTML = "";
         (j.steps || []).forEach(function (step, i) {
           var card = el("div", "jobs-step-card");

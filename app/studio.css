@@ -1942,6 +1942,9 @@ body.simple-mode .da-acts{display:none!important}
 .jobs-field-chip[data-kind="Numeric"]{border-color:var(--brand);color:var(--brand)}
 .jobs-field-chip[data-kind="Date"]{border-color:var(--pdc);color:var(--pdc)}
 .jobs-field-chip[data-kind="String"]{border-color:var(--faint);color:var(--muted)}
+/* LF13(d) slice 2: sample source rows + an approximate post-steps output preview,
+   reusing the same .dsx-preview table look as the Data Adapter/job "Run" previews. */
+.jobs-row-preview{display:flex;flex-direction:column;gap:4px;margin:2px 0 8px}
 
 /* ── Workspace backend (Settings card + rail source indicator) ── */
 .ws-card-intro{margin:0 0 14px;font-size:12.5px;line-height:1.6;color:var(--muted)}
