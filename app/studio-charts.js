@@ -5665,7 +5665,8 @@
      map panel alongside window.STUDIO_GEO carrying the topology JSON).
 
      Scales: county | state | crd (NASS crop reporting districts, derived by
-     merging county polygons per district) | huc8 (Corn Belt watersheds).
+     merging county polygons per district) | huc8 (HUC8 watersheds, nationwide —
+     all 50 states + DC, LF22 slice 1).
      Duplicate rows per region aggregate via cfg.agg — MEDIAN by default, the
      Viridis "single best common estimate" convention (see STATUS ★★★★ V3).
      ══════════════════════════════════════════════════════════════════════════ */
@@ -5677,7 +5678,7 @@
     county: "vendor/geo/counties-albers-10m.json",
     state: "vendor/geo/states-albers-10m.json",
     crd: null, // derived from county + the NASS mapping
-    huc8: "vendor/geo/us-huc8-cornbelt-albers.json",
+    huc8: "vendor/geo/us-huc8-albers.json",
     crdMap: "vendor/geo/us-crd-counties.json"
   };
   var _geoCache = {}; // key -> Promise<topology-or-mapping JSON>

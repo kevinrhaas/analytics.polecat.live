@@ -8,7 +8,8 @@
              vendor/geo/states-albers-10m.json     (us-atlas, verbatim)
              vendor/geo/topojson-client.min.js     (npm dist, verbatim + LICENSE)
              vendor/geo/us-crd-counties.json       (parsed from USDA NASS county_list.txt)
-             vendor/geo/us-huc8-cornbelt-albers.json (USGS WBD → simplified → reprojected)
+             vendor/geo/us-huc8-albers.json        (USGS WBD → simplified → reprojected,
+                                                     nationwide: all 50 states + DC)
 
    All redistribution licensing is recorded in THIRD-PARTY-NOTICES.md and
    vendor/geo/README.md. Sources: npm registry (topojson-client, us-atlas, and the
@@ -27,7 +28,16 @@ const WORK = process.argv.includes("--workdir")
 mkdirSync(WORK, { recursive: true });
 mkdirSync(path.join(WORK, "node_modules"), { recursive: true });
 
-const CORN_BELT = ["IL", "IN", "IA", "KS", "MI", "MN", "MO", "NE", "ND", "OH", "SD", "WI"];
+// All 50 states + DC — the full extent d3.geoAlbersUsa() can project (its AK/HI
+// insets included). Territories (PR/VI/GU/AS/MP) fall outside AlbersUsa's plane
+// (proj() returns null for them) so they're excluded at the query stage rather
+// than fetched and silently dropped.
+const US_STATES = [
+  "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "DC", "FL", "GA", "HI", "ID", "IL", "IN",
+  "IA", "KS", "KY", "LA", "ME", "MD", "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH",
+  "NJ", "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC", "SD", "TN", "TX", "UT",
+  "VT", "VA", "WA", "WV", "WI", "WY"
+];
 // The d3/us-atlas standard pre-projection — HUC8 must land on the SAME plane
 // as the atlas files or the scales won't overlay.
 const ALBERS = { scale: 1300, translate: [487.5, 305] };
@@ -42,6 +52,29 @@ async function npmPkg(name) {
     sh(`curl -sSL "${meta.dist.tarball}" -o ${name}.tgz && mkdir -p ${name} && tar -xzf ${name}.tgz -C ${name} --strip-components=1`);
     const link = path.join(WORK, "node_modules", name);
     if (!existsSync(link)) symlinkSync(dir, link);
+    // These d3/internmap packages ship "type":"module" with no "require" export
+    // condition, so a plain CJS `require()` (what d3-geo's dist build does for its
+    // own dependencies) falls through to Node's synchronous ESM interop — which,
+    // on this Node version, hands back class exports (e.g. d3-array's `Adder`)
+    // that fail `new`. Point bare `require("<name>")` resolution at the package's
+    // own prebuilt CJS bundle instead (still the package's own published dist
+    // output, just the CJS one) so it loads as ordinary CommonJS. Dev-tool-only
+    // workdir patch — never touches anything committed.
+    const pkgJsonPath = path.join(dir, "package.json");
+    const pkg = JSON.parse(readFileSync(pkgJsonPath, "utf8"));
+    const cjsDist = `./dist/${name}.js`;
+    if (existsSync(path.join(dir, "dist", `${name}.js`)) && pkg.exports) {
+      pkg.main = cjsDist;
+      pkg.exports = { require: cjsDist, default: cjsDist };
+      // "type":"module" governs how Node interprets EVERY .js file under this
+      // package (including the dist CJS bundle above) regardless of the exports
+      // map, since d3-geo is loaded by direct file path (bypassing its own
+      // package.json) — so its nested `require("d3-array")` still resolves
+      // through d3-array's package.json and hits the same "module" typing.
+      // Force plain CommonJS interpretation for the dist bundles.
+      pkg.type = "commonjs";
+      writeFileSync(pkgJsonPath, JSON.stringify(pkg));
+    }
   }
   return dir;
 }
@@ -75,24 +108,28 @@ writeFileSync(path.join(OUT, "us-crd-counties.json"), JSON.stringify({
 }));
 console.log("CRD mapping:", mapped, "counties");
 
-// ── 3. HUC8 Corn Belt: fetch simplified, reproject, quantize ─────────────────
+// ── 3. HUC8 nationwide: fetch simplified, reproject, quantize ────────────────
 await npmPkg("d3-array"); await npmPkg("internmap"); await npmPkg("topojson-server");
 const d3geoDir = await npmPkg("d3-geo");
 const require2 = createRequire(path.join(WORK, "x.js"));
 const d3 = require2(path.join(d3geoDir, "dist/d3-geo.js"));
 const { topology } = require2(path.join(WORK, "topojson-server", "dist/topojson-server.js"));
 
-const where = CORN_BELT.map((s) => `states LIKE '%${s}%'`).join(" OR ");
+const where = US_STATES.map((s) => `states LIKE '%${s}%'`).join(" OR ");
 let offset = 0, feats = [];
 for (;;) {
   const qs = new URLSearchParams({
     where, outFields: "huc8,name,states", f: "geojson",
-    maxAllowableOffset: "0.01", geometryPrecision: "4",
-    resultOffset: String(offset), resultRecordCount: "500", returnGeometry: "true",
+    // Coarser than the original Corn-Belt-only pull (0.01/4) — going nationwide
+    // multiplies the feature count ~6x, so simplify harder to keep the shipped
+    // asset a reasonable size; still plenty crisp at the widget sizes this map
+    // renders at.
+    maxAllowableOffset: "0.02", geometryPrecision: "4",
+    resultOffset: String(offset), resultRecordCount: "1000", returnGeometry: "true",
   });
   const j = await (await fetch(
     "https://hydro.nationalmap.gov/arcgis/rest/services/wbd/MapServer/4/query?" + qs,
-    { signal: AbortSignal.timeout(120000) }
+    { signal: AbortSignal.timeout(180000) }
   )).json();
   if (j.error) throw new Error(JSON.stringify(j.error));
   feats = feats.concat(j.features || []);
@@ -118,6 +155,6 @@ for (const f of feats) {
 }
 const topo = topology({ huc8: { type: "FeatureCollection", features: projected } }, 1e4);
 delete topo.bbox;
-writeFileSync(path.join(OUT, "us-huc8-cornbelt-albers.json"), JSON.stringify(topo));
+writeFileSync(path.join(OUT, "us-huc8-albers.json"), JSON.stringify(topo));
 console.log("HUC8:", projected.length, "features →", JSON.stringify(topo).length, "bytes");
 console.log("build-geo: DONE");

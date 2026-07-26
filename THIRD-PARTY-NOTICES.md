@@ -23,7 +23,7 @@ and are not redistributed.)*
 
 | Source | Use | Terms |
 |---|---|---|
-| USGS Watershed Boundary Dataset (via The National Map `wbd` service) | `vendor/geo/us-huc8-cornbelt-albers.json` — Corn Belt HUC8 subbasins, generalized + reprojected by `tools/build-geo.mjs` | US government work, public domain |
+| USGS Watershed Boundary Dataset (via The National Map `wbd` service) | `vendor/geo/us-huc8-albers.json` — nationwide HUC8 subbasins (all 50 states + DC), generalized + reprojected by `tools/build-geo.mjs` | US government work, public domain |
 | USDA NASS county list (`county_list.txt`) | `vendor/geo/us-crd-counties.json` — county FIPS → crop reporting district mapping | US government work, public domain |
 | US Census Bureau cartographic boundary files | county/state geometry underlying the us-atlas files above | US government work, public domain |
 

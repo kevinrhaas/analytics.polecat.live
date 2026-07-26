@@ -1075,7 +1075,7 @@
       fields: ["idCol", "valueCol", "seriesCol"],
       opts: [
         { key: "scale",   type: "select", label: "Region scale", def: "county",
-          choices: [["county", "Counties (FIPS)"], ["state", "States"], ["crd", "USDA districts (CRD)"], ["huc8", "Watersheds (HUC8, Corn Belt)"]] },
+          choices: [["county", "Counties (FIPS)"], ["state", "States"], ["crd", "USDA districts (CRD)"], ["huc8", "Watersheds (HUC8)"]] },
         { key: "renderer", type: "select", label: "Renderer", def: "svg",
           choices: [["svg", "Built-in (light — smallest export)"], ["gl", "Interactive GL (pan & zoom, ~1MB heavier export)"]],
           hint: "GL mode pans and zooms smoothly at any polygon count; it inlines MapLibre into the export. Falls back to the built-in renderer where WebGL is unavailable." },

@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 566,
+    title: 'Watershed maps now cover the whole country',
+    kind: 'feature',
+    ts: '2026-07-26T06:02:49.000Z',
+    items: [
+      'The Watersheds (HUC8) map scale used to only cover the 12-state Corn Belt -- it now covers all 50 states, so a watershed choropleth works anywhere in the US, not just the Midwest.',
+    ],
+  },
+  {
     v: 565,
     title: 'Right-panel sections now end on a consistent gap',
     kind: 'polish',
