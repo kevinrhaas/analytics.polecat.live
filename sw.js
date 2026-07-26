@@ -5,7 +5,18 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v212"; /* v212: R5+ slice 6 (studio.js module extraction,
+var CACHE_NAME = "studio-shell-v213"; /* v213: R5+ slice 7 (studio.js module extraction,
+   tech-debt track) — the Jobs "data-management-lite" subsystem (prep pipelines: rename/cast/
+   derive/filter/aggregate/join/union/sql) moves out of app/studio.js into its own module,
+   app/jobs.js (Studio.Jobs), following the chart-thumbnails.js/branding.js/defaults.js/
+   celebrations.js/versions.js/explore.js extraction precedent (①-⑥): ONE bundled
+   Studio.Jobs.configure(deps) call, same "bundle everything" shape as VersionsUI (⑤) and
+   Explore (⑥) since this subsystem is just as entangled with studio.js's private DOM/modal +
+   visibility/user helpers. Pure refactor, no behavior change. New precached file (app/jobs.js)
+   and app/studio.js/app/index.html content changed, so precached copies need to roll. NEXT in
+   this track: Connections → Datasets (Datasets last — runDataset/window.__studioRunDataset
+   bridges back into the builder preview).
+   v212: R5+ slice 6 (studio.js module extraction,
    tech-debt track) — the Explore "just show me a dashboard" subsystem (pick a dataset → chart →
    save as an analysis) moves out of app/studio.js into its own module, app/explore.js
    (Studio.Explore), following the chart-thumbnails.js/branding.js/defaults.js/celebrations.js/
@@ -1119,6 +1130,7 @@ var SHELL_FILES = [
   "app/celebrations.js",
   "app/versions.js",
   "app/explore.js",
+  "app/jobs.js",
   "app/studio.js",
   "app/palette.js",
   "app/studio-render.js",
