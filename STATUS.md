@@ -116,6 +116,43 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **Post-overhaul backlog item 3, OTHER half — Google Sheets joins Turso, PostgREST and
+  Supabase with an exported-runtime path (v593, sw v230, 2026-07-26, steward):** the fourth
+  connection-bound adapter to get the treatment, and the first with NO secret field at all — a
+  link-shared Google Sheet needs no auth. That surfaced a real gap in the CONN_ADAPTER_SECRET_FIELD/
+  CONN_ADAPTER_CFG_FIELDS plumbing the prior three slices built: `exporters.js`'s `redactSecrets`
+  used to gate its whole `da.connAdapter`/`da.connCfg` stamping on `secretField` being truthy — fine
+  when every wired adapter happened to have a secret, but for gsheets that check would have stayed
+  false forever, so `da.connAdapter` would never get stamped and an exported Sheets-backed dashboard
+  would silently fall back to offline sample data forever (the exact failure mode this whole backlog
+  item exists to close). Fixed by gating on `CONN_ADAPTER_CFG_FIELDS[conn.adapter]` instead (always
+  present for any wired adapter, secret or not) and only conditionally stamping `needsSecret` when a
+  `secretField` actually exists AND is set. `studio-render.js`'s `CONN_ENGINES` gained a `gsheets`
+  entry whose `cfg()` never merges a secret in (there is none) and whose `dataset(da)` reads
+  `da.dataset.sheet`/`da.dataset.query` — which required a small `dsToDA` (`app/studio.js`) fix
+  first: it built `da.dataset` from `{kind,sql,table,query,collection,params}`, never `sheet`, so a
+  sheet-kind dataset's tab selection would have silently vanished the moment it got imported into a
+  spec. `app/sources/gsheets.js` now follows the same guarded self-registration + `Studio.gsheetsSource`
+  global convention `postgrest.js`/`supabase.js` established (the exported bundle never loads
+  `registry.js`, so an unguarded top-level `Studio.registerSource(...)` call would throw there).
+  Bundled as a new asset in both `app/studio.js`'s boot and `app/viewer.js`'s standalone viewer,
+  same lean-bundling convention (only inlined when a dashboard actually has a `connAdapter:"gsheets"`
+  DA). 11 new tests (redaction keeps the url/stamps connAdapter/never stamps needsSecret — the
+  no-secret-at-all case none of the prior three adapters had, lean bundling both ways, a stubbed
+  dispatch round-trip proving the query goes out with `da.dataset`'s `{sheet,query}` — not
+  `da.sql`/`da.query` — and confirming no credential prompt fires, and the same real-endpoint
+  regression discipline the v591/v592 slices established: a real exported HTML driven against the
+  suite's existing mock gviz endpoint with `queryData` completely UNSTUBBED). Full suite green,
+  2214/2214. SW cache → v230. `docs/index.html`'s "Connection-bound datasets" paragraph now covers
+  all four adapters. (app/sources/gsheets.js, app/exporters.js, app/studio-render.js, app/studio.js,
+  app/viewer.js, docs/index.html, sw.js, js/changelog.js, tests/run.js) NEXT: Redshift and local
+  files still have no exported-runtime path. Redshift is the harder of the two (two credential
+  fields — accessKeyId + secretAccessKey, plus an optional sessionToken — so it won't fit the
+  single-`secretField` shape CONN_ADAPTER_SECRET_FIELD assumes today without a small extension);
+  local files carry their content inline on the dataset itself (no connection cfg/secret at all,
+  much like gsheets but even simpler) and may not need a Connection-shaped flow the same way —
+  worth scoping honestly before starting either. Continuing the Track L/H/N self-directed rotation
+  remains a good fallback while the findings queue stays thin.
 - **Post-overhaul backlog item 3, OTHER half — Supabase joins Turso and PostgREST with an
   exported-runtime path (v592, sw v229, 2026-07-26, steward):** the third connection-bound
   adapter to get the treatment, same CONN_ENGINES/connAdapter plumbing the Turso and PostgREST
