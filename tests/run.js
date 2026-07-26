@@ -21697,7 +21697,8 @@ function serve() {
     await page.click('#railNav .rail-item[data-sec="home"]');
     await page.waitForTimeout(150);
 
-    // Z2-1: quick-create cards render with SVG icons (blank / examples / tour)
+    // Z2-1: quick-create cards render with SVG icons (LF18(a): blank / explore /
+    // connection / dataset / examples / tour — reworded to concrete jobs)
     const z2Quick = await page.evaluate(function () {
       var cards = [].slice.call(document.querySelectorAll("#secHome .home-card"));
       return {
@@ -21706,7 +21707,7 @@ function serve() {
         icons: cards.filter(function (c) { return c.querySelector(".home-card-ic svg"); }).length
       };
     });
-    ok("Z2: Home shows 3 quick-create cards with SVG icons", z2Quick.count === 3 && z2Quick.icons === 3 && z2Quick.acts === "blank,examples,tour", JSON.stringify(z2Quick));
+    ok("Z2: Home shows 6 quick-create cards with SVG icons", z2Quick.count === 6 && z2Quick.icons === 6 && z2Quick.acts === "blank,explore,connection,dataset,examples,tour", JSON.stringify(z2Quick));
 
     // Z2 follow-up (instructions/how-tos/tips): a small tip card cycles through real
     // power-user tips via a Next arrow, wrapping back to the start.
@@ -22051,6 +22052,51 @@ function serve() {
     ok("LF37: clicking it enters Studio and opens the Examples menu showing the full (uncapped) example list",
       lf37After.inStudio && lf37After.menuOpen && lf37After.cardCount > lf37After.homeCardCount, JSON.stringify(lf37After));
     await page.keyboard.press("Escape");
+    await page.click('#railNav .rail-item[data-sec="home"]');
+    await page.waitForTimeout(100);
+
+    // LF18(a): the three NEW quick-action cards (explore/connection/dataset) route straight
+    // to their target — none of them should enter Studio first (unlike blank/examples/tour).
+    console.log("\n• LF18(a): Home quick actions — Explore data / New connection / New dataset");
+    await page.click('#secHome .home-card[data-home="connection"]');
+    await page.waitForTimeout(150);
+    const lf18Conn = await page.evaluate(function () {
+      return {
+        title: (document.querySelector(".modal-ov .modal-h") || {}).textContent,
+        hasSrcCards: document.querySelectorAll(".modal-ov .cx-src-card").length > 0,
+        inStudio: document.getElementById("appMain").hidden === false
+      };
+    });
+    ok("LF18(a): 'New connection' opens the connection wizard directly (no Studio entry)",
+      lf18Conn.title === "New connection" && lf18Conn.hasSrcCards && !lf18Conn.inStudio, JSON.stringify(lf18Conn));
+    await page.evaluate(function () { document.querySelector(".modal-ov .x").click(); });
+    await page.waitForTimeout(100);
+
+    await page.click('#secHome .home-card[data-home="dataset"]');
+    await page.waitForTimeout(150);
+    const lf18Ds = await page.evaluate(function () {
+      return {
+        title: (document.querySelector(".modal-ov .modal-h") || {}).textContent,
+        hasConnSel: document.querySelectorAll(".modal-ov .cx-sel").length > 0,
+        inStudio: document.getElementById("appMain").hidden === false
+      };
+    });
+    ok("LF18(a): 'New dataset' opens the dataset editor directly (no Studio entry)",
+      lf18Ds.title === "New dataset" && lf18Ds.hasConnSel && !lf18Ds.inStudio, JSON.stringify(lf18Ds));
+    await page.evaluate(function () { document.querySelector(".modal-ov .x").click(); });
+    await page.waitForTimeout(100);
+
+    await page.click('#secHome .home-card[data-home="explore"]');
+    await page.waitForTimeout(150);
+    const lf18Explore = await page.evaluate(function () {
+      return {
+        exploreVisible: document.getElementById("secExplore").hidden === false,
+        homeVisible: document.getElementById("secHome").hidden === false,
+        railActive: (document.querySelector('#railNav .rail-item.active') || {}).getAttribute && document.querySelector('#railNav .rail-item.active').getAttribute("data-sec")
+      };
+    });
+    ok("LF18(a): 'Explore data' navigates straight to the Explore section",
+      lf18Explore.exploreVisible && !lf18Explore.homeVisible && lf18Explore.railActive === "explore", JSON.stringify(lf18Explore));
     await page.click('#railNav .rail-item[data-sec="home"]');
     await page.waitForTimeout(100);
 
