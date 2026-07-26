@@ -3626,6 +3626,80 @@ function serve() {
       !dpRemove.installed && dpRemove.left === 0, JSON.stringify(dpRemove));
     ok("DP: 'studio-demopacks-installed' is in the Clear-local-data key list (same recurring gap the file's other sweep notes guard against)",
       (await page.evaluate(function () { return window.__studioClearDataKeys; })).indexOf("studio-demopacks-installed") >= 0);
+
+    // ---- LF16/LF2(c): the generic showcase gallery folded into a NEW toggleable
+    // "Data Management & Governance" sample pack (kind:"examples" — pure gallery-visibility
+    // gate, no workspace rows, installed by DEFAULT so nothing regresses out of the box) ----
+    console.log("\n• LF16/LF2(c): Data Management & Governance sample pack (gallery-visibility only)");
+    const dmMeta = await page.evaluate(function () {
+      var p = Studio.DEMO_PACKS.datamanagement;
+      return { exists: !!p, kind: p && p.kind, installedByDefault: Studio.demoPackInstalled("datamanagement") };
+    });
+    ok("LF16: DEMO_PACKS exposes a 'datamanagement' pack, kind:'examples', installed by default",
+      dmMeta.exists && dmMeta.kind === "examples" && dmMeta.installedByDefault, JSON.stringify(dmMeta));
+    const dmSettingsCard = await page.evaluate(function () {
+      var card = document.querySelector('[data-demopack="datamanagement"]');
+      return { hasCard: !!card, label: card ? card.textContent : "" };
+    });
+    ok("LF16: the Settings Sample packs card lists Data Management & Governance too, already Installed (default)",
+      dmSettingsCard.hasCard && /Remove/.test(dmSettingsCard.label), JSON.stringify(dmSettingsCard));
+
+    const DM_GATED = ["feature-showcase.studio.json", "governance-command.studio.json", "ops-command.studio.json",
+      "engineering-delivery.studio.json", "finance-command.studio.json", "marketing-growth.studio.json",
+      "reliability-distributions.studio.json", "compliance-radar.studio.json"];
+    const DM_UNGATED = ["quality-scorecard.studio.json", "pipeline-observability.studio.json", "storage-growth.studio.json", "studio-cost.studio.json"];
+
+    await page.evaluate(function () { window.__studioShellSetSection("studio"); window.__studioBuildExamplesMenu(); });
+    await page.waitForTimeout(150);
+    await page.click("#btnExamples");
+    await page.waitForTimeout(150);
+    const dmGalleryOn = await page.evaluate(function (files) {
+      var have = Array.prototype.map.call(document.querySelectorAll("#menuExamples button.ex-card"), function (b) { return b.getAttribute("data-f"); });
+      return files.map(function (f) { return have.indexOf(f) >= 0; });
+    }, DM_GATED.concat(DM_UNGATED));
+    await page.keyboard.press("Escape");
+    ok("LF16: all 8 gated showcase examples + the 4 ungated ones are visible in the gallery while the pack is installed (default)",
+      dmGalleryOn.every(Boolean), JSON.stringify(dmGalleryOn));
+
+    const dmRemove = await page.evaluate(function () {
+      function tagged(id) {
+        return ["connections", "datasets", "analyses", "dashboards", "jobs"].reduce(function (n, t) {
+          return n + Studio.Workspace.all(t).filter(function (r) { return r.demoPackId === id; }).length;
+        }, 0);
+      }
+      var before = tagged("datamanagement");
+      window.__studioDemoPacks.remove("datamanagement");
+      var after = tagged("datamanagement");
+      window.__studioBuildExamplesMenu();
+      return { before: before, after: after, installed: Studio.demoPackInstalled("datamanagement") };
+    });
+    ok("LF16: removing the datamanagement pack writes/deletes NO workspace rows (a pure gallery-visibility toggle) and clears the installed flag",
+      dmRemove.before === 0 && dmRemove.after === 0 && !dmRemove.installed, JSON.stringify(dmRemove));
+
+    await page.evaluate(function () { window.__studioShellSetSection("studio"); });
+    await page.waitForTimeout(150);
+    await page.click("#btnExamples");
+    await page.waitForTimeout(150);
+    const dmGalleryOff = await page.evaluate(function (files) {
+      var have = Array.prototype.map.call(document.querySelectorAll("#menuExamples button.ex-card"), function (b) { return b.getAttribute("data-f"); });
+      return { gated: files.gated.map(function (f) { return have.indexOf(f) >= 0; }), ungated: files.ungated.map(function (f) { return have.indexOf(f) >= 0; }) };
+    }, { gated: DM_GATED, ungated: DM_UNGATED });
+    await page.keyboard.press("Escape");
+    ok("LF16: removing the pack hides exactly its 8 gated showcase examples from the gallery, leaving the 4 ungated ones untouched",
+      dmGalleryOff.gated.every(function (v) { return v === false; }) && dmGalleryOff.ungated.every(Boolean), JSON.stringify(dmGalleryOff));
+
+    const dmLibCard = await page.evaluate(function () {
+      window.__studioDemoPacks.install("datamanagement");
+      window.__studioBuildExamplesMenu();
+      window.__studioBuildLibrary();
+      var installedAgain = Studio.demoPackInstalled("datamanagement");
+      var c = document.querySelector('[data-lib-demopack="datamanagement"]');
+      var card = c ? c.closest(".da") : null;
+      return { installedAgain: installedAgain, hasInstallChip: !!c, hasOpenChip: !!(card && card.querySelector('[data-lib-demopack-open="datamanagement"]')) };
+    });
+    ok("LF16: reinstalling the datamanagement pack restores the installed flag, and its library card has no 'Open dashboard' chip (examples-kind packs own no dashboard row)",
+      dmLibCard.installedAgain && dmLibCard.hasInstallChip && !dmLibCard.hasOpenChip, JSON.stringify(dmLibCard));
+
     await page.evaluate(function () { window.__studioBuildExamplesMenu(); window.__studioShellSetSection("studio"); });
     await page.waitForTimeout(200);
     // LF2: the same 4 Conservation cards disappear once the pack is removed again.
@@ -21452,9 +21526,10 @@ function serve() {
 
     // ── LF37: Home Examples "+N more" footer is a real control ──
     // Was a plain non-interactive <div> with dead text ("+ N more — New ▸ Examples"); the
-    // default example catalog ships 12 generic examples (no demoPackId gate), so the Home
-    // strip's 8-card cap always overflows out of the box — no demo-pack install needed to
-    // exercise this. Clicking it should now enter Studio and open the SAME Examples ▾ menu
+    // default example catalog ships 12 generic examples (8 gated behind the datamanagement
+    // pack, which is installed by default — see LF16), so the Home strip's 8-card cap always
+    // overflows out of the box — no demo-pack install needed to exercise this. Clicking it
+    // should now enter Studio and open the SAME Examples ▾ menu
     // the "New ▾ → Examples" card already opens, showing the full uncapped example list.
     console.log("\n• LF37: Home Examples \"+N more\" is clickable");
     await page.evaluate(function () { if (window.__studioShellSetSection) window.__studioShellSetSection("home"); window.__studioRenderHome(); });

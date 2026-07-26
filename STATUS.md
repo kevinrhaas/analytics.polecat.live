@@ -116,6 +116,33 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF16/LF2(c) — the generic showcase gallery is now a toggleable "Data Management & Governance"
+  sample pack (v559, sw v196, 2026-07-26, steward — both LF16 and LF2 are now fully done):** the 8
+  pre-existing generic showcase examples (Data Governance Command Center, Data Platform Operations
+  Center, Product Delivery & Engineering Console, Finance & FP&A Command Center, Marketing & Growth
+  Performance Console, Incident Response & Reliability Distributions, Sensitivity & Compliance
+  Radar, Interactive Feature Showcase) now carry `demoPackId: "datamanagement"` in
+  `data/examples/index.json`, gated the same way Conservation Insight's showcase set already was
+  (`visibleExamples()` in app/studio.js). A new `Studio.DEMO_PACKS.datamanagement` entry
+  (`app/demopacks.js`) describes the pack; unlike Conservation's `kind: "workspace"` (which seeds
+  real connections/datasets/jobs/dashboards), this one is `kind: "examples"` — Install/Remove is a
+  pure gallery-visibility toggle, so `Studio.installDemoPack`/`removeDemoPack` were generalized to
+  branch their workspace-seeding step on `id === "conservation"` while always recording the
+  installed flag. Installed by DEFAULT: `installedIds()` gained a `DEFAULT_INSTALLED = ["datamanagement"]`
+  fallback that only applies when the `studio-demopacks-installed` localStorage key has never been
+  written (not when it's an explicit empty array), so every existing workspace sees the gallery
+  exactly as it always looked, while Settings/the Studio library still expose a real opt-out
+  toggle. The library card (`demoPackCard`) and Settings copy/confirm-toast wording now adapt per
+  pack `kind` — no "Open dashboard" chip for `examples`-kind packs (they own no dashboard row to
+  jump to), and different install/remove copy ("hides its showcase dashboards… nothing is deleted"
+  vs. "deletes its dataset, analyses, and dashboard"). The other 4 newer generic examples (Data
+  Quality Scorecard, Pipeline Observability, Storage Footprint & Growth, Cost & Sustainability)
+  were never part of the original LF2(c)/LF16 ask and stay ungated. 8 new LF16 ratchets (pack
+  metadata + kind + default-installed; Settings card lists it; all 12 examples visible in the
+  gallery by default; removing the pack writes/deletes zero workspace rows; removing hides exactly
+  the 8 gated examples while the 4 ungated ones + Conservation's own stay unaffected; reinstalling
+  restores the flag; the library card has no Open-dashboard chip). Suite green. (app/demopacks.js,
+  app/studio.js, data/examples/index.json, docs/index.html, sw.js, js/changelog.js, tests/run.js)
 - **LF19 slice 7 — Filter, Header, and KPI tile inspectors gain header icons too (v558,
   sw v195, 2026-07-26, steward):** continuing the right-panel icon pass slices 5/6 started,
   picking up 3 of the 4 remaining renderers from slice 6's follow-up list. `renderFilterInspector`
@@ -3327,13 +3354,9 @@
 >      gated via the same `demoPackId` support on examples/index.json entries (visibleExamples() in
 >      app/studio.js). **LF2(a) is now fully done — all 8 of the originally-named candidate topics
 >      shipped.**
->      (c) Move the EXISTING generic
->      examples (Data Governance, Data Platform Ops, Product Delivery, Finance, Marketing, Incident
->      Response, Sensitivity/Compliance, Interactive Feature Showcase) AND their backing connections/
->      datasets/dashboards/widgets into a NEW **Data Management** demo pack, toggleable just like
->      Conservation. **Deferred — this is the same ask as LF16 (fold demo content into sample packs); do
->      them together as one slice rather than building two parallel mechanisms for the same restructure.**
->      (demopacks.js, examples index, studio.js)
+>      (c) ✓ **Move the EXISTING generic examples into a NEW "Data Management & Governance" sample
+>      pack, toggleable just like Conservation (shipped v559, sw v196, 2026-07-26, steward — LF2 is
+>      now fully done, same slice as LF16 below) — see DONE.**
 > LF3. ✓ **Conservation as an app Color theme — DONE, see DONE (v473, 2026-07-23, steward,
 >      see UX11 in the UX-polish track below).** Settings → Appearance now offers it as a
 >      fourth Color theme card alongside Classic Blue / Polecat / Fleet Modern.
@@ -3494,15 +3517,27 @@
 > LF15. ✓ **Settings: button/input style overlap — DONE, see DONE (v439, 2026-07-22, steward).**
 >       `.sp-add-row` (shared by Style presets AND Custom template presets — the "other instance")
 >       now stacks full-width on ≤640px instead of crowding the name field against the button.
-> LF16. **Merge "Demo content" into the sample packs + rename demo → "sample content".**
+> LF16. ✓ **Merge "Demo content" into the sample packs + rename demo → "sample content" — LF16 is now
+>       fully done.**
 >       ✓ **Fold + rename half shipped (v540, sw v177, 2026-07-25, steward) — see DONE.** The
 >       standalone "Demo content" toggle (Account card) is gone — folded into the already-generic
->       "Demo packs" Settings card / library group, both renamed "Sample packs". NEXT in LF16: the
->       remaining, larger ask — ALL the data-management/governance example content (connections,
->       datasets, jobs, dashboards) should ALSO ship as a sample pack the same way Conservation
->       Insight does (a governance/data-management sample pack) — is deliberately deferred, same as
->       LF2(c) (the identical ask); do them together as one slice. app/demopacks.js, examples index,
->       Settings UI in app/studio.js.
+>       "Demo packs" Settings card / library group, both renamed "Sample packs".
+>       ✓ **The Data Management & Governance pack shipped (v559, sw v196, 2026-07-26, steward — same
+>       slice as LF2(c) above) — see DONE.** The 8 generic showcase examples (governance, platform
+>       ops, delivery, finance, marketing, reliability, compliance, feature tour) now carry
+>       `demoPackId: "datamanagement"` in `data/examples/index.json`, gated by a new
+>       `Studio.DEMO_PACKS.datamanagement` entry — a `kind: "examples"` pack (as opposed to
+>       Conservation's `kind: "workspace"`), meaning Install/Remove only toggles gallery visibility;
+>       no connections/datasets/jobs are written or deleted. Installed by DEFAULT (a new
+>       `DEFAULT_INSTALLED` fallback in `installedIds()` that only applies when the
+>       `studio-demopacks-installed` key has never been written) so the gallery looks exactly as it
+>       always did for every existing workspace, while still being a real opt-out toggle in Settings
+>       and the Studio library. The library card and Settings copy adapt per pack kind (no "Open
+>       dashboard" chip, and different install/remove wording, for `examples`-kind packs). 8 new LF16
+>       ratchets (pack metadata + default-installed, Settings card, gallery shows all 12 examples by
+>       default, removing writes/deletes no workspace rows, removing hides exactly the 8 gated
+>       examples while the 4 ungated ones stay, reinstall + no Open-dashboard chip). (app/demopacks.js,
+>       app/studio.js, data/examples/index.json, docs/index.html, sw.js, js/changelog.js, tests/run.js)
 > LF17. ✓ **Color-theme picker → palette cards (shipped 2026-07-23, steward).** The Settings →
 >       Appearance "Color theme" `<select>` is now a small keyboard-operable radiogroup of 3 cards
 >       (Classic Blue / Polecat / Fleet Modern) — each card shows a preview banner (that theme's real

@@ -2,6 +2,7 @@
   {
     "file": "feature-showcase.studio.json",
     "title": "Interactive Feature Showcase",
+    "demoPackId": "datamanagement",
     "panels": 7,
     "kpis": 4,
     "gridCols": 3,
@@ -11,6 +12,7 @@
   {
     "file": "governance-command.studio.json",
     "title": "Data Governance Command Center",
+    "demoPackId": "datamanagement",
     "panels": 5,
     "kpis": 4,
     "gridCols": 3,
@@ -20,6 +22,7 @@
   {
     "file": "ops-command.studio.json",
     "title": "Data Platform Operations Center",
+    "demoPackId": "datamanagement",
     "panels": 8,
     "kpis": 4,
     "gridCols": 3,
@@ -29,6 +32,7 @@
   {
     "file": "engineering-delivery.studio.json",
     "title": "Product Delivery & Engineering Console",
+    "demoPackId": "datamanagement",
     "panels": 8,
     "kpis": 4,
     "gridCols": 3,
@@ -38,6 +42,7 @@
   {
     "file": "finance-command.studio.json",
     "title": "Finance & FP&A Command Center",
+    "demoPackId": "datamanagement",
     "panels": 8,
     "kpis": 4,
     "gridCols": 3,
@@ -47,6 +52,7 @@
   {
     "file": "marketing-growth.studio.json",
     "title": "Marketing & Growth Performance Console",
+    "demoPackId": "datamanagement",
     "panels": 10,
     "kpis": 4,
     "gridCols": 3,
@@ -56,6 +62,7 @@
   {
     "file": "reliability-distributions.studio.json",
     "title": "Incident Response & Reliability Distributions",
+    "demoPackId": "datamanagement",
     "panels": 5,
     "kpis": 4,
     "gridCols": 3,
@@ -65,6 +72,7 @@
   {
     "file": "compliance-radar.studio.json",
     "title": "Sensitivity & Compliance Radar",
+    "demoPackId": "datamanagement",
     "panels": 5,
     "kpis": 4,
     "gridCols": 3,
