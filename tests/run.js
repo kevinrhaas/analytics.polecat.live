@@ -9724,6 +9724,61 @@ function serve() {
     ok("LF19 Inspector slice 1: the glyph never leaks text into h4.textContent (title stays exact)",
       inspSecIcons.textUnchanged, JSON.stringify(inspSecIcons));
 
+    // LF19 Inspector slice 6 — the Widget/Panel inspector (renderPanelInspector) gets the
+    // same header-glyph treatment: 20 section()/advSection() call sites across the base
+    // fields, chart-type-conditional interaction sections (drill/detail/cross-filter/
+    // conditional formatting/color scale), and the annotation family (target line/
+    // reference band/callout/period highlight/event markers/point annotations).
+    const panelSecIcons = await page.evaluate(() => {
+      function h4Of(title) {
+        return [].slice.call(document.querySelectorAll("#inspBody .insp-sec h4")).filter(function (h) {
+          return h.textContent.replace(/\s*\(\d+\)\s*$/, "").trim() === title;
+        })[0];
+      }
+      function iconsFor(titles) {
+        var hs = titles.map(h4Of);
+        var svgs = hs.map(function (h) { return h && h.querySelector(".sec-ic svg"); });
+        return { hs: hs, svgs: svgs };
+      }
+      var sp = window.__STUDIO_STATE.spec;
+      var p = sp.panels.filter(function (x) { return x.id === "p_cost"; })[0];
+      p.chart.type = "bars"; // a type that exercises every non-richtext, non-scatter-only section
+      window.__studioLoad(sp);
+      window.__studioSelect({ kind: "panel", id: p.id });
+      var barTitles = ["Widget", "Chart type", "Data", "Options", "Drill-through", "Detail drawer",
+        "Cross-filter", "Animation", "Downloads", "Target line", "Reference band", "Callout arrow",
+        "Period highlight", "Event markers", "Conditional formatting", "Color scale", "Insight", "Query preview"];
+      var bar = iconsFor(barTitles);
+
+      p.chart.type = "richtext";
+      window.__studioLoad(sp);
+      window.__studioSelect({ kind: "panel", id: p.id });
+      var content = iconsFor(["Content"]);
+
+      p.chart.type = "scatter";
+      window.__studioLoad(sp);
+      window.__studioSelect({ kind: "panel", id: p.id });
+      var scatter = iconsFor(["Point annotations"]);
+
+      var allTitles = barTitles.concat(["Content", "Point annotations"]);
+      var allHs = bar.hs.concat(content.hs, scatter.hs);
+      var allSvgs = bar.svgs.concat(content.svgs, scatter.svgs);
+      return {
+        allFound: allHs.every(Boolean),
+        allPresent: allSvgs.every(Boolean),
+        distinctPaths: new Set(allSvgs.map(function (s) { return s && s.innerHTML; })).size === allSvgs.length,
+        textUnchanged: allHs.every(function (h, i) { return h.textContent.replace(/\s*\(\d+\)\s*$/, "").trim() === allTitles[i]; })
+      };
+    });
+    ok("LF19 Inspector slice 6: all 20 Widget/Panel-inspector sections (base fields, interaction, and " +
+      "annotation families) are found across bars/richtext/scatter chart types",
+      panelSecIcons.allFound, JSON.stringify(panelSecIcons));
+    ok("LF19 Inspector slice 6: each of those sections shows its own header glyph", panelSecIcons.allPresent, JSON.stringify(panelSecIcons));
+    ok("LF19 Inspector slice 6: the 20 sections use 20 visually distinct glyphs, not one repeated icon",
+      panelSecIcons.distinctPaths, JSON.stringify(panelSecIcons));
+    ok("LF19 Inspector slice 6: the glyph never leaks text into h4.textContent (title stays exact)",
+      panelSecIcons.textUnchanged, JSON.stringify(panelSecIcons));
+
     // LF19 "next" slice — tidy the "+ New" affordance on "This dashboard's datasets":
     // it used to spell out "New" next to the group's own count badge, which crowded the
     // group name into an ellipsis ("This dashboard's da…") at the panel's default width.

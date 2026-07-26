@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 557,
+    title: 'Widget inspector gains header icons too',
+    kind: 'polish',
+    ts: '2026-07-26T00:19:20.000Z',
+    items: [
+      'LF19: every section of the panel/widget Inspector -- Widget, Chart type, Data, Options, and every conditional interaction or annotation section (Drill-through, Cross-filter, Target line, and more) -- now shows its own small icon next to its name, same as the Dashboard Inspector already does.',
+      'Purely visual; nothing about how any of those sections work has changed.',
+    ],
+  },
+  {
     v: 556,
     title: 'Inspector panel starts gaining header icons too',
     kind: 'polish',
