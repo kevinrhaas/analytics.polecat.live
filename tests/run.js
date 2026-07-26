@@ -2502,11 +2502,17 @@ function serve() {
       var a = Studio.Workspace.all("analyses").filter(function (x) { return x.name === "Suite analysis"; })[0];
       var chip = document.querySelector('[data-xp-folder="Regional"]');
       var row = document.querySelector('.xp-saved-row[data-xp-a="' + a.id + '"]');
+      var badgeEl = row ? row.querySelector(".cx-folder") : null;
+      // UX8 slice 2 hydrates a .ps-tip-bub tooltip INSIDE the badge — strip it (same
+      // clone-and-remove convention LF20's icon-button tests use) before reading the
+      // badge's own visible label text.
+      var badgeClone = badgeEl ? badgeEl.cloneNode(true) : null;
+      if (badgeClone) { var bub = badgeClone.querySelector(".ps-tip-bub"); if (bub) bub.remove(); }
       return {
         folder: a.folder, chip: !!chip,
         chipLabel: chip ? (chip.querySelector(".wb-chip-label") || {}).textContent : null,
-        badge: row ? !!row.querySelector(".cx-folder") : false,
-        badgeText: row ? (row.querySelector(".cx-folder") || {}).textContent : null
+        badge: !!badgeEl,
+        badgeText: badgeClone ? badgeClone.textContent : null
       };
     });
     ok("XP: saving the Folder field persists a.folder, renders a chip, and badges the saved-analyses row",
@@ -4808,10 +4814,15 @@ function serve() {
         return { key: b.getAttribute("data-jobs-folder"), label: (b.querySelector(".wb-chip-label") || {}).textContent, n: (b.querySelector(".wb-chip-n") || {}).textContent };
       });
       var filedRow = document.querySelector('.cx-row[data-job-id="' + filedId + '"]');
+      var badgeEl = filedRow ? filedRow.querySelector(".cx-folder") : null;
+      // UX8 slice 2 hydrates a .ps-tip-bub tooltip INSIDE the badge — strip it before
+      // reading the badge's own visible label text (same convention LF20 uses for icons).
+      var badgeClone = badgeEl ? badgeEl.cloneNode(true) : null;
+      if (badgeClone) { var bub = badgeClone.querySelector(".ps-tip-bub"); if (bub) bub.remove(); }
       return {
         hasSearch: !!document.getElementById("jobsSearch"),
         chips: chips,
-        filedBadge: filedRow ? (filedRow.querySelector(".cx-folder") || {}).textContent : null
+        filedBadge: badgeClone ? badgeClone.textContent : null
       };
     }, jobsFolderSetup.filedId);
     ok("JOBS: once a job is filed, the list gains a search box (new for Jobs) and a folder chip facet (All folders/Finance/Unfiled) with accurate counts",
@@ -5272,12 +5283,17 @@ function serve() {
     const cxFolderSaved = await page.evaluate(function () {
       var sf = Studio.Workspace.all("connections").filter(function (c) { return c.name === "Prod snowflake"; })[0];
       var chip = document.querySelector('[data-conn-folder="Regional"]');
+      var badgeEl = document.querySelector('.cx-row[data-conn-id="' + sf.id + '"] .cx-folder');
+      // UX8 slice 2 hydrates a .ps-tip-bub tooltip INSIDE the badge — strip it before
+      // reading the badge's own visible label text (same convention LF20 uses for icons).
+      var badgeClone = badgeEl ? badgeEl.cloneNode(true) : null;
+      if (badgeClone) { var bub = badgeClone.querySelector(".ps-tip-bub"); if (bub) bub.remove(); }
       return {
         folder: sf.folder,
         chip: !!chip, chipLabel: chip && (chip.querySelector(".wb-chip-label") || {}).textContent,
         chipN: chip && (chip.querySelector(".wb-chip-n") || {}).textContent,
-        badge: !!document.querySelector('.cx-row[data-conn-id="' + sf.id + '"] .cx-folder'),
-        badgeText: (document.querySelector('.cx-row[data-conn-id="' + sf.id + '"] .cx-folder') || {}).textContent
+        badge: !!badgeEl,
+        badgeText: badgeClone ? badgeClone.textContent : null
       };
     });
     ok("CX: saving the Folder field persists .folder, renders a chip, and badges the row",
@@ -5499,6 +5515,89 @@ function serve() {
     ok("DSX: runDataset applies param defaults and lets caller overrides win",
       dsxParams.okRows === 2 && !dsxParams.okErr && /no such table: nope/.test(dsxParams.badErr), JSON.stringify(dsxParams));
 
+    // UX8 slice 2 (UX-POLISH track): the remaining non-button badge title= call sites —
+    // folder/lineage/param badges (Datasets), the folder badge (Connections/Jobs/Explore),
+    // the workspace-capable + last-edited badges (Connections), and the refresh-due/
+    // reminder badges (Jobs) — get the same data-tip hydration slice 1 proved on the
+    // status dots. Explore's renderExplore() gained its own Studio.Tooltip.hydrate(body)
+    // call in this slice (the other three subsystems already called it for their dots).
+    const badgeTips = await page.evaluate(function () {
+      window.__studioShellSetSection("studio");
+      var conn = Studio.Workspace.put("connections", { name: "ux8b-conn", adapter: "turso", cfg: {}, folder: "Finance" });
+      var ds = Studio.Workspace.put("datasets", {
+        name: "ux8b-ds", connectionId: conn.id, kind: "sql", sql: "select 1", folder: "Finance",
+        params: [{ key: "p", value: "1" }]
+      });
+      Studio.Workspace.put("dashboards", {
+        id: "ux8b-dash", ts: new Date().toISOString(), title: "ux8b dashboard", name: "",
+        spec: { title: "ux8b dashboard", cda: { dataAccesses: [{ id: "da1", datasetId: ds.id }] }, panels: [], kpis: [] }
+      }, { silent: true });
+      var job = Studio.Workspace.put("jobs", {
+        name: "ux8b-job", sourceDatasetId: ds.id, steps: [], folder: "Finance",
+        refreshEveryDays: 30, lastRun: { ok: true, at: Date.now() - 40 * 86400000, rows: 1, error: "" }
+      });
+      var analysis = Studio.Workspace.put("analyses", { name: "ux8b-analysis", chartType: "bar", folder: "Finance" });
+
+      window.__studioRenderConnections();
+      window.__studioRenderDatasets();
+      window.__studioRenderJobs();
+      window.__studioRenderExplore();
+
+      function tipInfo(el) {
+        if (!el) return null;
+        var bub = el.querySelector(".ps-tip-bub");
+        return {
+          noNativeTitle: !el.hasAttribute("title"), noDataTip: !el.hasAttribute("data-tip"),
+          isPsTip: el.classList.contains("ps-tip"), focusable: el.tabIndex === 0,
+          ariaLabel: el.getAttribute("aria-label") || "", bubText: bub ? bub.textContent : ""
+        };
+      }
+
+      var connRow = document.querySelector('.cx-row[data-conn-id="' + conn.id + '"]');
+      var dsRow = document.querySelector('.cx-row[data-dsx-id="' + ds.id + '"]');
+      var jobRow = document.querySelector('.cx-row[data-job-id="' + job.id + '"]');
+      var xpRow = document.querySelector('.xp-saved-row[data-xp-a="' + analysis.id + '"]');
+
+      var out = {
+        connMeta: tipInfo(connRow && connRow.querySelector(".cx-badge:not(.cx-folder)")),
+        connFolder: tipInfo(connRow && connRow.querySelector(".cx-folder")),
+        connWhen: tipInfo(connRow && connRow.querySelector(".cx-when")),
+        dsFolder: tipInfo(dsRow && dsRow.querySelector(".cx-folder")),
+        dsLineage: tipInfo(dsRow && dsRow.querySelector(".cx-lineage")),
+        dsParam: tipInfo(dsRow && dsRow.querySelector(".cx-badge:not(.cx-folder):not(.cx-lineage)")),
+        jobFolder: tipInfo(jobRow && jobRow.querySelector(".cx-folder")),
+        jobRefreshDue: tipInfo(jobRow && jobRow.querySelector(".cx-refresh-due")),
+        xpFolder: tipInfo(xpRow && xpRow.querySelector(".cx-folder"))
+      };
+
+      Studio.Workspace.remove("analyses", analysis.id, { silent: true });
+      Studio.Workspace.remove("jobs", job.id, { silent: true });
+      Studio.Workspace.remove("dashboards", "ux8b-dash", { silent: true });
+      Studio.Workspace.remove("datasets", ds.id, { silent: true });
+      Studio.Workspace.remove("connections", conn.id, { silent: true });
+      Studio.Workspace.notify("*");
+      return out;
+    });
+    function tipOk(t) { return !!t && t.noNativeTitle && t.noDataTip && t.isPsTip && t.focusable && t.ariaLabel === t.bubText && t.bubText.length > 0; }
+    ok("UX8: Connections' workspace-capable badge is hydrated into a focusable tooltip",
+      tipOk(badgeTips.connMeta) && /workspace/.test(badgeTips.connMeta.bubText), JSON.stringify(badgeTips.connMeta));
+    ok("UX8: Connections' folder badge is hydrated, aria-labeled 'Folder: Finance'",
+      tipOk(badgeTips.connFolder) && badgeTips.connFolder.bubText === "Folder: Finance", JSON.stringify(badgeTips.connFolder));
+    ok("UX8: Connections' 'last edited' timestamp is hydrated into a focusable tooltip",
+      tipOk(badgeTips.connWhen) && badgeTips.connWhen.bubText === "Last edited", JSON.stringify(badgeTips.connWhen));
+    ok("UX8: Datasets' folder badge is hydrated, aria-labeled 'Folder: Finance'",
+      tipOk(badgeTips.dsFolder) && badgeTips.dsFolder.bubText === "Folder: Finance", JSON.stringify(badgeTips.dsFolder));
+    ok("UX8: Datasets' lineage badge is hydrated and names the referencing dashboard",
+      tipOk(badgeTips.dsLineage) && /ux8b dashboard/.test(badgeTips.dsLineage.bubText), JSON.stringify(badgeTips.dsLineage));
+    ok("UX8: Datasets' param-count badge is hydrated, aria-labeled 'Accepts parameters'",
+      tipOk(badgeTips.dsParam) && badgeTips.dsParam.bubText === "Accepts parameters", JSON.stringify(badgeTips.dsParam));
+    ok("UX8: Jobs' folder badge is hydrated the same way",
+      tipOk(badgeTips.jobFolder) && badgeTips.jobFolder.bubText === "Folder: Finance", JSON.stringify(badgeTips.jobFolder));
+    ok("UX8: Jobs' 'Refresh due' badge is hydrated and states why it's overdue",
+      tipOk(badgeTips.jobRefreshDue) && /overdue/.test(badgeTips.jobRefreshDue.bubText), JSON.stringify(badgeTips.jobRefreshDue));
+    ok("UX8: Explore's saved-analysis folder badge is hydrated too (renderExplore now calls Tooltip.hydrate)",
+      tipOk(badgeTips.xpFolder) && badgeTips.xpFolder.bubText === "Folder: Finance", JSON.stringify(badgeTips.xpFolder));
+
     // library integration: the dataset shows as a draggable card and imports as a linked, self-contained DA
     await page.evaluate(function () { window.__studioShellSetSection("studio"); });
     await page.waitForTimeout(120);
@@ -5613,10 +5712,12 @@ function serve() {
     await page.waitForTimeout(120);
     const dsxLineageAfter = await page.evaluate(function () {
       var badge = document.querySelector("#dsxResults .cx-lineage");
-      return { present: !!badge, text: badge ? badge.textContent : "", title: badge ? badge.getAttribute("title") : "" };
+      // UX8 slice 2: the badge's naming detail now lives in a hydrated data-tip
+      // tooltip (aria-label + .ps-tip-bub), not a native title= (see tooltip.js).
+      return { present: !!badge, text: badge ? badge.textContent : "", ariaLabel: badge ? badge.getAttribute("aria-label") : "" };
     });
     ok("DSX: a dataset linked from a saved dashboard shows a '↪ N dashboards' badge naming it",
-      dsxLineageAfter.present && /1 dashboard/.test(dsxLineageAfter.text) && /Sales overview/.test(dsxLineageAfter.title), JSON.stringify(dsxLineageAfter));
+      dsxLineageAfter.present && /1 dashboard/.test(dsxLineageAfter.text) && /Sales overview/.test(dsxLineageAfter.ariaLabel), JSON.stringify(dsxLineageAfter));
 
     const dsxDelWarn = await page.evaluate(function () {
       var msg = "";
@@ -5826,12 +5927,17 @@ function serve() {
     const dsxFolderSaved = await page.evaluate(function () {
       var r = Studio.Workspace.get("datasets", "d-second");
       var chip = document.querySelector('[data-dsx-folder="Regional"]');
+      var badgeEl = document.querySelector('.cx-row[data-dsx-id="d-second"] .cx-folder');
+      // UX8 slice 2 hydrates a .ps-tip-bub tooltip INSIDE the badge — strip it before
+      // reading the badge's own visible label text (same convention LF20 uses for icons).
+      var badgeClone = badgeEl ? badgeEl.cloneNode(true) : null;
+      if (badgeClone) { var bub = badgeClone.querySelector(".ps-tip-bub"); if (bub) bub.remove(); }
       return {
         folder: r.folder,
         chip: !!chip, chipLabel: chip && (chip.querySelector(".wb-chip-label") || {}).textContent,
         chipN: chip && (chip.querySelector(".wb-chip-n") || {}).textContent,
-        badge: !!document.querySelector('.cx-row[data-dsx-id="d-second"] .cx-folder'),
-        badgeText: (document.querySelector('.cx-row[data-dsx-id="d-second"] .cx-folder') || {}).textContent
+        badge: !!badgeEl,
+        badgeText: badgeClone ? badgeClone.textContent : null
       };
     });
     ok("DSX: saving the Folder field persists d.folder, renders a chip, and badges the row",

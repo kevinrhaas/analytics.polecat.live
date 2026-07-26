@@ -125,10 +125,10 @@
       var overdueTitle = last != null
         ? "Last ran " + esc(new Date(last).toLocaleDateString()) + " — overdue for its " + j.refreshEveryDays + "-day reminder"
         : "Never run — reminder set for every " + j.refreshEveryDays + " days";
-      return '<span class="cx-badge cx-refresh-due" title="' + overdueTitle + '">⏰ Refresh due</span>';
+      return '<span class="cx-badge cx-refresh-due" data-tip="' + overdueTitle + '">⏰ Refresh due</span>';
     }
     var daysLeft = Math.ceil((dueAt - now) / 86400000);
-    return '<span class="cx-badge" title="Reminder every ' + j.refreshEveryDays + ' days">Refreshes in ' + daysLeft + " day" + (daysLeft === 1 ? "" : "s") + '</span>';
+    return '<span class="cx-badge" data-tip="Reminder every ' + j.refreshEveryDays + ' days">Refreshes in ' + daysLeft + " day" + (daysLeft === 1 ? "" : "s") + '</span>';
   }
   // M4.2 slice 5 (per-section rights + object privacy — jobs, the last object type):
   // same `private`/`owner` shape + plain `isVisibleToMe` helper as analyses — jobs
@@ -181,7 +181,7 @@
       var dot = !j.lastRun ? '<span class="cx-dot" data-tip="Never run"></span>'
         : (j.lastRun.ok ? '<span class="cx-dot ok" data-tip="Last run OK · ' + esc(new Date(j.lastRun.at).toLocaleString()) + ' · ' + j.lastRun.rows + ' rows"></span>'
           : '<span class="cx-dot bad" data-tip="Last run failed: ' + esc(j.lastRun.error) + '"></span>');
-      var folderBadge = j.folder ? '<span class="cx-badge cx-folder" title="Folder: ' + esc(j.folder) + '">' + esc(j.folder) + '</span>' : "";
+      var folderBadge = j.folder ? '<span class="cx-badge cx-folder" data-tip="Folder: ' + esc(j.folder) + '">' + esc(j.folder) + '</span>' : "";
       return '<div class="cx-row" data-job-id="' + esc(j.id) + '">' +
         dot +
         '<span class="cx-ic" style="color:var(--faint)"></span>' +

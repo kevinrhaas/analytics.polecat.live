@@ -5,7 +5,19 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v219"; /* v219: UX8 slice 1 (UX-POLISH track) — a
+var CACHE_NAME = "studio-shell-v220"; /* v220: UX8 slice 2 (UX-POLISH track) —
+   converts the remaining non-button title= call sites in the catalog rows
+   (folder/lineage/param badges in Datasets, the folder badge in Connections/
+   Jobs/Explore, the workspace-capable + last-edited badges in Connections,
+   and the refresh-due/reminder badges in Jobs) to the same data-tip=
+   convention slice 1 proved on the status dots, so they're reachable on
+   touch/keyboard too. Explore's renderExplore() gained its own
+   Studio.Tooltip.hydrate(body) call (it had none before, unlike the other
+   three subsystems). Every button's title= (usually backed by an existing
+   aria-label already) remains a separate, lower-priority follow-up.
+   app/connections.js, app/datasets.js, app/explore.js, app/jobs.js content
+   changed, so precached copies need to roll.
+   v219: UX8 slice 1 (UX-POLISH track) — a
    new Studio.Tooltip.hydrate() primitive (app/tooltip.js) turns any
    data-tip="..." element into a themed, focusable, touch-visible tooltip
    (generalizes the .opt-hint-pop pattern for the plain "one line of text"
