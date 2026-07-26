@@ -205,9 +205,12 @@
       fetchText("app/sources/supabase.js"),
       // Same treatment, now for the connection-bound Google Sheets façade.
       fetchText("app/sources/gsheets.js"),
-      // Same treatment, now for the (connection-bound-in-name-only, no auth) local-file façade —
-      // Redshift is the only exported-runtime adapter left after this one.
+      // Same treatment, now for the (connection-bound-in-name-only, no auth) local-file façade.
       fetchText("app/sources/localfile.js"),
+      // Same treatment, now for the connection-bound Redshift façade — closes this backlog item
+      // out entirely (all six connection-bound adapters now have an exported-runtime path).
+      // sigv4.js first: app/redshift.js's callAction() signs every request via Studio.AwsSigV4.
+      fetchText("app/sources/sigv4.js"), fetchText("app/redshift.js"),
       // UX6 (icon migration): the chart-pagination Prev/Next buttons (studio-charts.js) now call
       // Studio.icon() — bundled unconditionally (like studio-charts.js itself) so every export's
       // paginated table keeps its themed chevrons, not just the live builder.
@@ -217,9 +220,10 @@
       S.catalog = r[0];
       S.assets = {
         css: r[1], js: r[2], render: r[3], charts: r[4], duckdb: r[5], httpvfs: r[6],
-        snowflake: r[7], databricks: r[8], bigquery: r[9], genericsql: r[10], turso: r[11], postgrest: r[12], supabase: r[13], gsheets: r[14], file: r[15], icons: r[16]
+        snowflake: r[7], databricks: r[8], bigquery: r[9], genericsql: r[10], turso: r[11], postgrest: r[12], supabase: r[13], gsheets: r[14], file: r[15],
+        sigv4: r[16], redshift: r[17], icons: r[18]
       };
-      S.examples = r[17] || [];
+      S.examples = r[19] || [];
       wireTopbar();
       try { renderFooter(); } catch (e) { /* footer is non-critical chrome */ }
       setupPanes();

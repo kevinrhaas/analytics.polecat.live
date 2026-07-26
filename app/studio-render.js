@@ -235,8 +235,8 @@
   // (which registered source the Workspace connection used) + a redacted da.connCfg (its non-secret
   // fields) onto the DA at export time; this dispatches on THAT field instead, same
   // prompt-once/never-embed contract as CRED_ENGINES. Turso shipped first; PostgREST is the
-  // second; Supabase is the third; Google Sheets is the fourth; local files are the fifth —
-  // Redshift still has no exported-runtime path. `dataset(da)` shapes the def each adapter's own queryData(cfg,
+  // second; Supabase is the third; Google Sheets is the fourth; local files are the fifth;
+  // Redshift is the sixth and last — this backlog item is now fully closed. `dataset(da)` shapes the def each adapter's own queryData(cfg,
   // dataset) expects — Turso's speaks raw SQL (da.sql/da.query, same as every other kind:"sql"
   // DA), but a table-kind connection (PostgREST/Supabase, same protocol) has no da.table/
   // da.query of its own: dsToDA (app/studio.js) always sets da.kind:"sql" and clobbers da.query
@@ -282,16 +282,46 @@
       engine: function () { return window.Studio && Studio.fileSource; },
       cfg: function () { return {}; },
       dataset: function (da) { return da.dataset || {}; }
+    },
+    // Redshift: the sixth and last adapter, and the first whose secret isn't a single field — the
+    // Data API is SigV4-signed with an access key ID + secret access key (plus an optional session
+    // token), so exporters.js's CONN_ADAPTER_SECRET_FIELD carries an ARRAY for redshift and
+    // resolveSecret() below returns an OBJECT ({accessKeyId,secretAccessKey,sessionToken}) instead
+    // of a bare string. Its keys already match Studio.Redshift's own cfg field names, so cfg()
+    // merges it straight onto da.connCfg with no reshaping, same as the single-field adapters
+    // above merge their one string in under a hardcoded key. Speaks raw SQL like Turso — a
+    // redshift-backed dataset is always kind:"sql", so da.sql/da.query already carries the query.
+    redshift: {
+      label: "Redshift AWS credentials",
+      engine: function () { return window.Studio && Studio.Redshift; },
+      cfg: function (da, secret) { return Object.assign({}, da.connCfg, secret); },
+      dataset: function (da) { return { sql: da.sql || da.query, params: da.params }; }
     }
   };
   var _secretCache = {};
+  // Post-overhaul backlog item 3, OTHER half: friendly per-field labels for a multi-field
+  // da.needsSecret array (redshift) — resolveSecret() prompts once per field below.
+  var SECRET_FIELD_LABELS = {
+    accessKeyId: "AWS access key ID", secretAccessKey: "AWS secret access key", sessionToken: "AWS session token"
+  };
   function resolveSecret(da) {
     var field = da.needsSecret;
     if (!field) return "";
-    var key = da.id + "|" + field;
-    if (Object.prototype.hasOwnProperty.call(_secretCache, key)) return _secretCache[key];
     var label = (CRED_ENGINES[da.kind] && CRED_ENGINES[da.kind].label) ||
       (CONN_ENGINES[da.connAdapter] && CONN_ENGINES[da.connAdapter].label) || "credential";
+    if (Array.isArray(field)) {
+      var multiKey = da.id + "|" + field.join(",");
+      if (Object.prototype.hasOwnProperty.call(_secretCache, multiKey)) return _secretCache[multiKey];
+      var vals = {};
+      field.forEach(function (f) {
+        vals[f] = window.prompt("This dashboard needs its " + (SECRET_FIELD_LABELS[f] || f) + " (" + label +
+          ") to query “" + (da.name || da.id) + "” live. It's used only in your browser for this session and is never saved.") || "";
+      });
+      _secretCache[multiKey] = vals;
+      return vals;
+    }
+    var key = da.id + "|" + field;
+    if (Object.prototype.hasOwnProperty.call(_secretCache, key)) return _secretCache[key];
     var val = window.prompt("This dashboard needs a " + label + " to query “" + (da.name || da.id) +
       "” live. It's used only in your browser for this session and is never saved.") || "";
     _secretCache[key] = val;

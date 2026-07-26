@@ -131,6 +131,26 @@
     // .then/.catch pattern as the existing "Run live" preview.
     query: function (cfg, sql) {
       return runStatement(cfg, (sql && sql.trim()) || "SELECT 1 AS ok");
+    },
+
+    // Post-overhaul backlog item 3, OTHER half ("connection-bound dataset adapters") — the sixth
+    // adapter to get an exported-runtime path, and the first whose secret isn't a single field:
+    // SigV4 needs an access key ID + secret access key (plus an optional session token), so
+    // CONN_ADAPTER_SECRET_FIELD (exporters.js) carries an ARRAY of field names for redshift and
+    // studio-render.js's resolveSecret prompts for each in turn. queryData(cfg, dataset) bridges
+    // query()'s {cols,rows} into the {columns,rows} shape CONN_ENGINES expects — the same shape
+    // data-adapters.js's sqlBridge() builds for the BUILDER's registered source, duplicated here
+    // (not reused) because data-adapters.js is never bundled into an export (see app/studio.js
+    // boot() / app/viewer.js) — the raw façade needs its own self-contained copy, same convention
+    // app/sources/turso.js's queryData already established for the connection-bound adapters.
+    queryData: function (cfg, dataset) {
+      var sql = (dataset && dataset.sql) || "";
+      if (!sql.trim()) return Promise.resolve({ columns: [], rows: [], error: "Dataset has no SQL" });
+      return this.query(cfg, sql).then(function (r) {
+        return { columns: r.cols, rows: r.rows };
+      }).catch(function (e) {
+        return { columns: [], rows: [], error: (e && e.message) || String(e) };
+      });
     }
   };
 })();

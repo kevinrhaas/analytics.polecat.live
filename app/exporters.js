@@ -53,9 +53,16 @@
   // nothing to authenticate, and (unlike every adapter above) no connCfg either: its "connection"
   // is a bare grouping row (adapter:"file", cfg:{}) with nothing worth carrying, since the actual
   // data — fileName/format/content — already rides on da.dataset (dsToDA, app/studio.js) rather
-  // than on the connection's cfg. Redshift still has no exported-runtime path.
-  var CONN_ADAPTER_SECRET_FIELD = { turso: "token", postgrest: "token", supabase: "key" };
-  var CONN_ADAPTER_CFG_FIELDS = { turso: ["url"], postgrest: ["url", "schema"], supabase: ["url"], gsheets: ["url"], file: [] };
+  // than on the connection's cfg. Redshift is the sixth and last — and the first whose secret
+  // isn't a single field: AWS SigV4 needs an access key ID + secret access key (plus an optional
+  // session token), so CONN_ADAPTER_SECRET_FIELD's value for redshift is an ARRAY of field names
+  // instead of a single string; redactSecrets below stamps da.needsSecret with the SUBSET of that
+  // array actually set on the connection (sessionToken is optional, so a connection using
+  // permanent IAM-user credentials never gets prompted for one), and studio-render.js's
+  // resolveSecret prompts once per field, returning an object CONN_ENGINES.redshift.cfg merges
+  // straight into da.connCfg (its keys already match the connector's own cfg field names).
+  var CONN_ADAPTER_SECRET_FIELD = { turso: "token", postgrest: "token", supabase: "key", redshift: ["accessKeyId", "secretAccessKey", "sessionToken"] };
+  var CONN_ADAPTER_CFG_FIELDS = { turso: ["url"], postgrest: ["url", "schema"], supabase: ["url"], gsheets: ["url"], file: [], redshift: ["region", "database", "clusterIdentifier", "dbUser", "workgroupName", "endpoint"] };
   // LF36 slice 2: PDF export page-size options — CSS @page `size` keyword + physical inches
   // (letter/A4/legal, US-common set; matches what the export dialog in studio.js offers).
   var PDF_PAGE_SIZE_KEYWORDS = { letter: "letter", a4: "A4", legal: "legal" };
@@ -76,7 +83,12 @@
           da.connAdapter = conn.adapter;
           da.connCfg = {};
           cfgFields.forEach(function (f) { da.connCfg[f] = (conn.cfg || {})[f]; });
-          if (secretField && (conn.cfg || {})[secretField]) da.needsSecret = secretField;
+          if (Array.isArray(secretField)) {
+            var setFields = secretField.filter(function (f) { return (conn.cfg || {})[f]; });
+            if (setFields.length) da.needsSecret = setFields;
+          } else if (secretField && (conn.cfg || {})[secretField]) {
+            da.needsSecret = secretField;
+          }
         }
       }
     });
@@ -392,6 +404,12 @@
     var gsheetsScript = (connAdapters.gsheets && assets.gsheets) ? ("<script>\n" + assets.gsheets + "\n</script>\n") : "";
     // Same lean-bundling pattern, now for a connAdapter:"file" DA (a dropped local file).
     var fileScript = (connAdapters.file && assets.file) ? ("<script>\n" + assets.file + "\n</script>\n") : "";
+    // Same lean-bundling pattern, now for a connAdapter:"redshift" DA — closes out this whole
+    // backlog item (all six connection-bound adapters now have an exported-runtime path). sigv4.js
+    // must load first: app/redshift.js's callAction() calls Studio.AwsSigV4.sign() to sign every
+    // request.
+    var sigv4Script = (connAdapters.redshift && assets.sigv4) ? ("<script>\n" + assets.sigv4 + "\n</script>\n") : "";
+    var redshiftScript = (connAdapters.redshift && assets.redshift) ? ("<script>\n" + assets.redshift + "\n</script>\n") : "";
     // Viridis V2: map panels — inline topojson-client (keep its ISC banner: it is
     // redistributed inside the export) + the pre-projected geometry the spec's
     // scales need, as window.STUDIO_GEO. Dashboards without maps carry none of it.
@@ -411,7 +429,7 @@
         "<script>\n" + assets.maplibre.js + "\n</script>\n";
     }
     var boot = "<script>\n" + assets.js + "\n</script>\n" + iconsScript + charts + geoScript + duckdbScript + httpvfsScript +
-      snowflakeScript + databricksScript + bigqueryScript + genericsqlScript + tursoScript + postgrestScript + supabaseScript + gsheetsScript + fileScript + "<script>\n" + assets.render + "\n</script>\n<script>\n" +
+      snowflakeScript + databricksScript + bigqueryScript + genericsqlScript + tursoScript + postgrestScript + supabaseScript + gsheetsScript + fileScript + sigv4Script + redshiftScript + "<script>\n" + assets.render + "\n</script>\n<script>\n" +
       "window.STUDIO_AUTOBOOT=false;\n" +
       "PDC.cdaPath=" + JSON.stringify(cdaPath) + ";\nvar CDAPATH=PDC.cdaPath;\n";
     if (opts.preview) {
