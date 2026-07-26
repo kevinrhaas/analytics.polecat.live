@@ -116,6 +116,22 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF18 slice 3 — a dedicated Jobs tour (v573, sw v210, 2026-07-26, steward — closes the Jobs
+  half of LF18(b)):** the tour chooser (`app/tutorial.js`) gains a fourth walkthrough, "Prep data
+  (Jobs)" (5 steps: intro → the Jobs list (`#jobsResults`) → `+ New job` (`#jobsNewBtn`) → search/
+  folders (`#jobsSearch`) → done), joining Overview/Quick analysis/Build a dashboard — all real,
+  already-rendered Jobs-section UI (no job editor modal forced open, so nothing lingers if the
+  user skips mid-tour). The Overview tour's own "Jobs — prep & roll up" step now says "there's a
+  dedicated tour for it too" (matching the Explore step's existing phrasing), and the chooser's
+  fixed intro copy updated from "Two quick, guided walkthroughs" to "Three" (the non-overview
+  count). `TOUR_ORDER` → `["overview","quick","build","jobs"]`; `FINISH_TOASTS` map replaces the
+  old `wasQuick` ternary in `finish()` so each tour can carry its own completion toast (jobs' own:
+  "Try a job on one of your own datasets."). 2 updated J6 assertions (chooser shows 4 cards; tour
+  shapes include `jobs` at 5 steps) + 1 new regression test (J6-8: the real Jobs section switches,
+  all three spotlighted targets are found live, Done! completes and records
+  `studio-tutorial-done-jobs`). Suite green. (app/tutorial.js, tests/run.js, sw.js,
+  js/changelog.js) **LF18(b) is now half done — the Jobs tour ships; NEXT in LF18: the matching
+  Connections/Datasets tour is the only item left in the whole LF18 track.**
 - **LF18 slice 2 — Home's Examples hint now names its source sample pack(s) (v572, sw v209,
   2026-07-26, steward):** closes LF18(d). Every gallery/Home example carries a `demoPackId`
   (LF2/LF16 — all 16 current entries are tagged `conservation` or `datamanagement`, no untagged
@@ -4360,6 +4376,9 @@
 >       LF18: (b) the tour chooser is the only open item — see the DONE entry's note that the
 >       existing 3-tour chooser already satisfies the literal "chooser, not a single tour" ask;
 >       what's left is genuinely new per-feature tours for Jobs and Connections/Datasets.
+>       ✓ **Slice 3 shipped (v573, sw v210, 2026-07-26, steward — closes the Jobs half of (b)):
+>       a dedicated "Prep data (Jobs)" tour** — see DONE for the full writeup. NEXT in LF18 (the
+>       track's last open item): the matching Connections/Datasets tour.
 
 ### 🔁 QUALITY TRACKS — interleave with the feature backlog (Kevin, 2026-07-21)
 > Kevin asked for a code-organization sweep AND a UI/UX best-practices sweep, folded INTO the loop

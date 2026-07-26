@@ -16488,8 +16488,8 @@ function serve() {
       } catch (e) {}
     }, j4PanelId);
 
-    // ---- J6: Interactive tutorials (rebuilt: chooser + two tours) ----------
-    console.log("\n• J6: interactive tutorials (Quick analysis + Build a dashboard)");
+    // ---- J6: Interactive tutorials (rebuilt: chooser + three tours) --------
+    console.log("\n• J6: interactive tutorials (Quick analysis + Build a dashboard + Jobs)");
 
     // Freshness ratchet: tours and the welcome tour must never ship retired
     // product terms again (Kevin, 2026-07-17 — tours move WITH the product).
@@ -16511,7 +16511,7 @@ function serve() {
     });
     ok("J6: 'Interactive tutorial' entry in ⋯ More menu", j6MenuEntry.ok, JSON.stringify(j6MenuEntry));
 
-    // J6-2: open() shows the TOUR CHOOSER — two tour cards, active flag set
+    // J6-2: open() shows the TOUR CHOOSER — four tour cards, active flag set
     await page.evaluate(function () {
       try { if (window.StudioTutorial) StudioTutorial.open(); } catch (e) {}
     });
@@ -16520,12 +16520,12 @@ function serve() {
       var tip = document.getElementById("st-tip");
       var choices = document.querySelectorAll("#st-tip .st-choice[data-tour]");
       var active = window.__studioTutorialActive ? window.__studioTutorialActive() : false;
-      return { ok: !!tip && active && choices.length === 3, choices: choices.length,
+      return { ok: !!tip && active && choices.length === 4, choices: choices.length,
         labels: [].map.call(choices, function (c) { return c.querySelector("b").textContent; }).join("|"),
         overviewFirst: choices[0] && choices[0].getAttribute("data-tour") === "overview" };
     });
-    ok("J6: open() presents the tour chooser — Overview first, then Quick analysis + Build a dashboard",
-      j6Chooser.ok && j6Chooser.overviewFirst && /Quick analysis/.test(j6Chooser.labels) && /Take the tour/.test(j6Chooser.labels), JSON.stringify(j6Chooser));
+    ok("J6: open() presents the tour chooser — Overview first, then Quick analysis + Build a dashboard + Prep data (Jobs)",
+      j6Chooser.ok && j6Chooser.overviewFirst && /Quick analysis/.test(j6Chooser.labels) && /Take the tour/.test(j6Chooser.labels) && /Prep data \(Jobs\)/.test(j6Chooser.labels), JSON.stringify(j6Chooser));
 
     // J6-3: choosing "Build a dashboard" → step 0 centered card; Next spotlights #library
     await page.click('#st-tip .st-choice[data-tour="build"]');
@@ -16570,15 +16570,17 @@ function serve() {
     });
     ok("J6: Escape closes the tutorial (tip, ring, and active flag all cleared)", j6Closed.ok, JSON.stringify(j6Closed));
 
-    // J6-5: tour shapes — three tours (overview leads), quick has 8 steps, build has 6
+    // J6-5: tour shapes — four tours (overview leads), quick has 8 steps, build has 6, jobs has 5
     const j6Shape = await page.evaluate(function () {
       try {
-        return { ok: StudioTutorial.tourKeys().join(",") === "overview,quick,build" &&
-          StudioTutorial.stepCount("overview") === 10 && StudioTutorial.stepCount("quick") === 8 && StudioTutorial.stepCount("build") === 6,
-          keys: StudioTutorial.tourKeys().join(","), q: StudioTutorial.stepCount("quick"), b: StudioTutorial.stepCount("build") };
+        return { ok: StudioTutorial.tourKeys().join(",") === "overview,quick,build,jobs" &&
+          StudioTutorial.stepCount("overview") === 10 && StudioTutorial.stepCount("quick") === 8 &&
+          StudioTutorial.stepCount("build") === 6 && StudioTutorial.stepCount("jobs") === 5,
+          keys: StudioTutorial.tourKeys().join(","), q: StudioTutorial.stepCount("quick"), b: StudioTutorial.stepCount("build"),
+          j: StudioTutorial.stepCount("jobs") };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("J6: three tours — Overview (10 steps, leads — M5's Repository joined the rail walk), Quick analysis (8), Build a dashboard (6)", j6Shape.ok, JSON.stringify(j6Shape));
+    ok("J6: four tours — Overview (10 steps, leads — M5's Repository joined the rail walk), Quick analysis (8), Build a dashboard (6), Prep data/Jobs (5 — LF18(b))", j6Shape.ok, JSON.stringify(j6Shape));
 
     // J6-6: the QUICK tour walks the real Explore UI — it switches the section,
     // seeds a sample dataset, and every spotlighted step finds its live target
@@ -16658,6 +16660,50 @@ function serve() {
     ok("J6: the Overview tour spotlights all 8 rail sections in order and ENDS on Home (getting-started), then completes",
       j6Overview.railHits === 8 && j6Overview.onHome && /Done/.test(j6Overview.lastLabel) && j6Overview.closed,
       JSON.stringify(j6Overview));
+
+    // J6-8 (LF18b): the JOBS tour walks the real Jobs section — the list, the
+    // + New job button, and the search box all get spotlighted in order.
+    await page.evaluate(function () { StudioTutorial.openTour("jobs"); });
+    await page.waitForTimeout(250);
+    const j6Jobs = await page.evaluate(async function () {
+      function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+      async function ringFor(sel, timeout) {
+        var t0 = Date.now();
+        while (Date.now() - t0 < timeout) {
+          var ring = document.getElementById("st-ring");
+          if (ring && sel) {
+            var tgt = document.querySelector(sel);
+            if (tgt) { var rr = ring.getBoundingClientRect(), tr = tgt.getBoundingClientRect();
+              if (Math.abs((rr.left + rr.right) / 2 - (tr.left + tr.right) / 2) < 30) return true; }
+          }
+          await sleep(120);
+        }
+        return false;
+      }
+      var out = { tour: window.__studioTutorialTour(), jobsSection: false, hits: 0 };
+      var targets = ["#jobsResults", "#jobsNewBtn", "#jobsSearch"];
+      for (var i = 0; i < targets.length; i++) {
+        document.querySelector("#st-tip button.pri").click();
+        if (i === 0) out.jobsSection = !document.getElementById("secJobs").hidden;
+        if (await ringFor(targets[i], 4000)) out.hits++;
+        await sleep(100);
+      }
+      // final centered step → Done!
+      document.querySelector("#st-tip button.pri").click();
+      await sleep(200);
+      var doneBtn = document.querySelector("#st-tip button.pri");
+      out.lastLabel = doneBtn ? doneBtn.textContent : "";
+      doneBtn.click();
+      await sleep(150);
+      out.closed = !document.getElementById("st-tip") && !window.__studioTutorialActive();
+      out.done = StudioTutorial.isDone();
+      try { out.doneJobs = localStorage.getItem("studio-tutorial-done-jobs") === "1"; } catch (e) {}
+      return out;
+    });
+    ok("J6: the Prep data (Jobs) tour walks the REAL Jobs section — section switched, list/+New job/search all spotlighted, Done! completes and records",
+      j6Jobs.tour === "jobs" && j6Jobs.jobsSection && j6Jobs.hits === 3 && /Done/.test(j6Jobs.lastLabel) && j6Jobs.closed && j6Jobs.done && j6Jobs.doneJobs,
+      JSON.stringify(j6Jobs));
+
     // restore studio section for later tests
     await page.evaluate(function () { window.__studioShellSetSection("studio"); });
     await page.waitForTimeout(200);

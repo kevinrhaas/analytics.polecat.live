@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v209"; /* v209: LF18(d) — Home's Examples section hint now names
+var CACHE_NAME = "studio-shell-v210"; /* v210: LF18(b) — a fourth guided tour, "Prep data (Jobs)",
+   walks the real Jobs section (the list, the + New job pipeline builder, and search/folders) and
+   joins the tour chooser alongside Overview/Quick analysis/Build a dashboard; the Overview tour's
+   own Jobs step now points at it. LF18's remaining scope ("deeper per-feature tours for Jobs and
+   Connections/Datasets") is now half done — Connections/Datasets NEXT. app/tutorial.js,
+   tests/run.js changed, so the precached copy needs to roll.
+   v209: LF18(d) — Home's Examples section hint now names
    the sample pack(s) the visible cards are drawn from ("from Conservation Insight + Data
    Management & Governance · click to open in the builder") instead of a generic "sample
    dashboards" line, reading off the same demoPackId gate the cards themselves use so it stays

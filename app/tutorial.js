@@ -1,5 +1,5 @@
 /* tutorial.js — Analytics interactive tutorials.
-   J6 (rebuilt): THREE guided, spotlighted walkthroughs behind a chooser —
+   J6 (rebuilt) / LF18(b): FOUR guided, spotlighted walkthroughs behind a chooser —
      · "Take the tour" (overview) — walks the whole app down the rail
        (Home · Explore · Dashboards · Datasets · Connections · Jobs ·
        Repository · Studio) and ends on Home. The first-run / recommended tour.
@@ -7,6 +7,8 @@
        analysis → pin/add. The fastest data-to-chart path.
      · "Build a dashboard" — the Studio loop: library → canvas → inspector →
        export a self-contained .html.
+     · "Prep data (Jobs)" — the Jobs section: list → new job → search/folders,
+       what a job is and how its output becomes a chartable dataset.
    Distinct from the welcome tour (welcome.js), which is informational.
    Steps may carry a `before()` hook (switch section, seed Explore) and the
    renderer WAITS for the step's target to exist, so tours can walk UI that
@@ -17,7 +19,7 @@
    in the SAME slice — the suite greps this file for retired product terms.
 
    window.StudioTutorial.open()        — tour chooser (or restart)
-   window.StudioTutorial.openTour(key) — start a specific tour ("overview"|"quick"|"build")
+   window.StudioTutorial.openTour(key) — start a specific tour ("overview"|"quick"|"build"|"jobs")
    window.StudioTutorial.isDone()      — true once any tour was completed.
    © 2026 Polecat.live. See LICENSE. */
 (function () {
@@ -93,7 +95,7 @@
         },
         {
           t: "Jobs — prep &amp; roll up",
-          h: "Clean and reshape data before it's charted: rename, filter, and aggregate (including an acreage-weighted mean for honest state / district / watershed roll-ups). A job's output lands back in Datasets.",
+          h: "Clean and reshape data before it's charted: rename, filter, and aggregate (including an acreage-weighted mean for honest state / district / watershed roll-ups). A job's output lands back in Datasets — there's a dedicated tour for it too.",
           target: '.rail-item[data-sec="jobs"]',
           pos: "right"
         },
@@ -225,9 +227,47 @@
           last: true
         }
       ]
+    },
+    jobs: {
+      label: "Prep data (Jobs)",
+      blurb: "Clean, roll up, and combine data before it's charted — a job's output becomes a new dataset.",
+      steps: [
+        {
+          t: "Prep &amp; roll up your data",
+          h: "A <b>job</b> reshapes one dataset before it's charted — rename columns, filter rows, roll up with sum/mean/count/median (or an acreage-weighted mean for honest regional roll-ups), or join/union in another dataset. The result lands back in <b>Datasets</b>, ready to chart like any other.",
+          sub: "You can reopen these tours any time from ⋯ More → Interactive tutorial.",
+          target: null,
+          before: function () { goSection("jobs"); }
+        },
+        {
+          t: "1 · Every job you've built",
+          h: "Jobs land here with a status dot for their last run (never run / OK / failed), a step count, and — once the source data updates — a reminder badge if you set one.",
+          target: "#jobsResults",
+          pos: "bottom"
+        },
+        {
+          t: "2 · Start a new job",
+          h: "<b>+ New job</b> opens a small pipeline builder: pick a source dataset, add steps in order (rename, filter, aggregate, join, union…), preview the real result, then save it as a brand-new dataset.",
+          target: "#jobsNewBtn",
+          pos: "bottom"
+        },
+        {
+          t: "3 · Find one fast",
+          h: "Search by name, source, output, or folder — the same folder chips Datasets and Connections use once you start filing jobs into one.",
+          target: "#jobsSearch",
+          pos: "bottom"
+        },
+        {
+          t: "That's Jobs!",
+          h: "<b>Source dataset → steps → new dataset.</b> Prep data here, then chart it in <b>Explore</b> or <b>Studio</b> exactly like anything else in Datasets.",
+          sub: "⋯ More → Interactive tutorial brings you back here any time.",
+          target: null,
+          last: true
+        }
+      ]
     }
   };
-  var TOUR_ORDER = ["overview", "quick", "build"];
+  var TOUR_ORDER = ["overview", "quick", "build", "jobs"];
 
   var _tour = null;   // active tour key, null while the chooser is up
   var _cur = 0;
@@ -305,7 +345,7 @@
     var tip = document.createElement("div"); tip.id = "st-tip";
     tip.innerHTML =
       "<h3>Pick a tour</h3>" +
-      '<div class="st-h">Two quick, guided walkthroughs — spotlights on the real app, a couple of minutes each.</div>' +
+      '<div class="st-h">Three quick, guided walkthroughs — spotlights on the real app, a couple of minutes each.</div>' +
       TOUR_ORDER.map(function (k) {
         return '<button type="button" class="st-choice" data-tour="' + k + '"><b>' + TOURS[k].label + "</b><small>" + TOURS[k].blurb + "</small></button>";
       }).join("") +
@@ -423,14 +463,18 @@
     _tour = null;
   }
 
+  var FINISH_TOASTS = {
+    quick: "Tour complete! Save an analysis and pin it to Home.",
+    jobs: "Tour complete! Try a job on one of your own datasets."
+  };
   function finish() {
     try {
       localStorage.setItem(DONE_KEY, "1");
       if (_tour) localStorage.setItem(DONE_KEY + "-" + _tour, "1");
     } catch (e) {}
-    var wasQuick = _tour === "quick";
+    var msg = FINISH_TOASTS[_tour] || "Tutorial complete! Start building your dashboard.";
     close();
-    if (window.__fireToast) window.__fireToast(wasQuick ? "Tour complete! Save an analysis and pin it to Home." : "Tutorial complete! Start building your dashboard.");
+    if (window.__fireToast) window.__fireToast(msg);
   }
 
   function _onKey(e) {
