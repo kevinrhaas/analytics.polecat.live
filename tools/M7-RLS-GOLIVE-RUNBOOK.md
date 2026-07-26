@@ -15,11 +15,11 @@ designed + proven against an isolated `steward_test` schema).
 
 Three paths:
 
-- **Path C (in-app, coming)** — the direction we're building toward (STATUS.md M7
-  Slice 7, Kevin's chosen Option A): deploy a small Supabase **Edge Function
-  once**, then run the entire go-live (and all future user provisioning) from
-  in-app Admin buttons. Summarized below; the manual paths remain the fallback
-  until Slice 7 ships.
+- **Path C (in-app, shipped)** — STATUS.md M7 Slice 7, Kevin's chosen Option A:
+  deploy a small Supabase **Edge Function once**, then run the entire go-live
+  (and all future user provisioning) from in-app Admin buttons. Detailed below;
+  the manual paths remain the fallback for deployments that never deploy the
+  function.
 - **Path A (clean install)** — the manual SQL path that works **today** (most of
   this document); assumes the existing backend rows are disposable.
 - **Path B (in-place migration)** — the appendix, if you ever need to preserve
@@ -32,28 +32,45 @@ Three paths:
 
 ---
 
-## Path C — In-app go-live via a one-time Edge Function (the target, build-pending)
-
-Once **Slice 7** ships, the flow becomes:
+## Path C — In-app go-live via a one-time Edge Function (shipped, M7 slice 7)
 
 1. **One-time deploy (the only Supabase touch, ever):**
    ```
    supabase functions deploy polecat-admin
    supabase secrets set PROVISION_SECRET=<a-strong-secret>
+   supabase secrets set SUPABASE_DB_URL=<postgres connection string — Settings → Database → Connection string (pooler)>
+   supabase secrets set APP_ORIGIN=https://analytics.polecat.live
    ```
-   (The function's source lives in this repo at `supabase/functions/polecat-admin/`.
-   It holds the service-role key, opens a direct Postgres connection to run the
-   DDL/RLS, exposes only fixed named actions — `provision` / `go-live` /
-   `create-user` / `reset-data`, never raw SQL — and sets CORS for the app origin.)
-2. **In the app → Admin → "Enable per-user security / Go live":** paste the
-   function URL + the `PROVISION_SECRET` once (enter-run-**discard**, never
-   stored); the app calls the function's `go-live` action, which runs
-   truncate → seed admin → apply RLS → verify and shows you the results.
-3. **From then on:** create/manage users from the Admin console (`create-user`
-   action, verified by your admin GoTrue JWT). No SQL editor, ever.
+   (The function's source lives in this repo at `supabase/functions/polecat-admin/`
+   — `index.ts` + condensed copies of `bootstrap.sql`/`rls-real.sql` it reads at
+   runtime, kept in sync with the canonical annotated versions in `/tools`. It
+   holds the service-role key, opens a direct Postgres connection to run the
+   DDL/RLS PostgREST can't, exposes only four fixed named actions — `provision` /
+   `go-live` / `create-user` / `reset-data`, never raw SQL — and sets CORS for
+   `APP_ORIGIN` only. `SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY` are auto-injected
+   by the platform; only `SUPABASE_DB_URL`/`PROVISION_SECRET`/`APP_ORIGIN` are
+   manual secrets.)
+2. **In the app:** open the Supabase connection's settings and paste the
+   function's URL into **Admin function URL**, and sign in with the **Auth
+   email/password** fields as the account that should become the first admin
+   (self-signup — see the section above — or a Supabase-dashboard-created
+   account both work; it just needs a real GoTrue session).
+3. **Admin → "Enable per-user security / Go live…":** enter the
+   `PROVISION_SECRET` once (enter-run-**discard**, never stored — the field is
+   cleared and the value discarded the moment the call returns) and confirm.
+   The app calls the function's `go-live` action, which runs bootstrap DDL (if
+   needed) → truncate → seed YOU as admin (using your own verified GoTrue
+   identity from step 2 — a tampered request can't hand admin to a different
+   uid) → apply real RLS → verify, and shows the resulting per-table row counts
+   inline.
+4. **From then on:** create/manage users from the Admin console's **+ Add
+   user** — it now prefers the relay's `create-user` action automatically
+   (admin-create, no email-confirmation step) whenever the Admin function URL
+   is set, verified by your signed-in admin's GoTrue JWT. No SQL editor, ever.
 
-Until Slice 7 lands, use **Path A** below (one manual SQL paste). Everything
-Path A does by hand is exactly what the `go-live` action will automate.
+If the function isn't deployed (or `Admin function URL` is left blank), use
+**Path A** below (one manual SQL paste) instead — everything Path A does by
+hand is exactly what the `go-live` action automates.
 
 ---
 

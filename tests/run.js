@@ -263,6 +263,43 @@ function handleMockSupabase(req, rep, p) {
   return send(404, { code: "PGRST205", message: "Could not find the table 'public." + decodeURIComponent(rel.split("?")[0]) + "' in the schema cache" });
 }
 
+// ---- mock polecat-admin Edge Function relay (M7 slice 7, app/sources/
+// supabase.js adminGoLive/adminCreateUser) — a single POST endpoint taking
+// {action, params}, gated by the x-provision-secret header (provision/
+// go-live) or an Authorization bearer matching the same GoTrue token the
+// Supabase mock already issues (create-user/reset-data/go-live's own admin
+// check), same shape as the real function's requireAdmin().
+const MOCK_ADMINFN_SECRET = "topsecret123";
+function handleMockAdminFn(req, rep) {
+  const send = (code, body) => {
+    rep.writeHead(code, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "*" });
+    rep.end(JSON.stringify(body));
+  };
+  if (req.method === "OPTIONS") return send(200, {});
+  let body = "";
+  req.on("data", (c) => (body += c));
+  req.on("end", () => {
+    let payload = {};
+    try { payload = JSON.parse(body || "{}"); } catch (e) {}
+    const action = payload.action;
+    const secretOk = (req.headers["x-provision-secret"] || "") === MOCK_ADMINFN_SECRET;
+    const authedAsAdmin = (req.headers.authorization || "") === "Bearer " + MOCK_GOTRUE_TOKEN;
+    if (action === "provision" || action === "go-live") {
+      if (!secretOk) return send(401, { ok: false, error: "Wrong or missing provision secret." });
+      if (action === "provision") return send(200, { ok: true, step: "provision" });
+      if (!authedAsAdmin) return send(401, { ok: false, error: "Sign in as an admin first." });
+      return send(200, { ok: true, step: "go-live", adminSeeded: true,
+        tables: { connections: 0, datasets: 0, dashboards: 0, analyses: 0, jobs: 0, users: 1 } });
+    }
+    if (action === "create-user" || action === "reset-data") {
+      if (!authedAsAdmin) return send(401, { ok: false, error: "This account is not an admin of this workspace." });
+      if (action === "create-user") return send(200, { ok: true, userId: "44444444-4444-4444-4444-444444444444" });
+      return send(200, { ok: true, step: "reset-data" });
+    }
+    return send(400, { ok: false, error: "Unknown action" });
+  });
+}
+
 // ---- mock Google Sheets gviz endpoint (app/sources/gsheets.js tests) --------
 // Real shape: /__gsheets/spreadsheets/d/<ID>/gviz/tq?sheet=…&tq=… answering the
 // `google.visualization.Query.setResponse({...})` wrapper. TESTSHEET has two
@@ -370,6 +407,7 @@ function serve() {
       }
       if (p === "/__postgrest/" || p.indexOf("/__postgrest/") === 0) return handleMockPostgrest(req, rep, p);
       if (p === "/__supabase/" || p.indexOf("/__supabase/") === 0) return handleMockSupabase(req, rep, p);
+      if (p === "/__adminfn") return handleMockAdminFn(req, rep);
       if (p === "/__redshift-data") return handleMockRedshiftData(req, rep);
       if (p.indexOf("/__gsheets/") === 0) return handleMockGviz(req, rep, p);
       let fp = path.join(ROOT, p);
@@ -429,6 +467,7 @@ function serve() {
     const loc = (m.location() || {}).url || "";
     if (/\/__postgrest(401)?\//.test(loc)) return;
     if (/\/__supabase\//.test(loc)) return;
+    if (/\/__adminfn/.test(loc)) return;
     errors.push("console: " + m.text());
   });
 
@@ -5098,6 +5137,51 @@ function serve() {
     ok("SUPABASE: signUp reports the disabled-signups case clearly (not a bare error) when the project has sign-ups turned off",
       wsSupabaseSignup.disabledOk === false && wsSupabaseSignup.disabledFlag && /sign-ups are turned off/i.test(wsSupabaseSignup.disabledErr), JSON.stringify(wsSupabaseSignup));
 
+    // ---- SUPABASE: polecat-admin Edge Function relay (M7 slice 7) ----
+    // adminGoLive/adminCreateUser talk to cfg.adminFnUrl — never PostgREST —
+    // gated by x-provision-secret (provision/go-live) and/or the caller's own
+    // GoTrue session (go-live/create-user), same contract the mock enforces.
+    const wsAdminFn = await page.evaluate(async function () {
+      var sb = Studio.supabaseSource;
+      var supaBase = location.origin + "/__supabase";
+      var fnBase = location.origin + "/__adminfn";
+      var signedIn = { url: supaBase, key: "sb_publishable_valid", authEmail: "owner@example.com", authPassword: "secret123", adminFnUrl: fnBase };
+      var noAuth = { url: supaBase, key: "sb_publishable_valid", adminFnUrl: fnBase };
+      var notConfigured = { url: supaBase, key: "sb_publishable_valid", authEmail: "owner@example.com", authPassword: "secret123" };
+      var unreachable = { url: supaBase, key: "sb_publishable_valid", authEmail: "owner@example.com", authPassword: "secret123", adminFnUrl: "http://127.0.0.1:39123/__adminfn" };
+
+      var noUrl = await sb.adminGoLive(notConfigured, "topsecret123");
+      var badSecret = await sb.adminGoLive(signedIn, "wrongsecret");
+      var goLiveOk = await sb.adminGoLive(signedIn, "topsecret123");
+      var notSignedIn = await sb.adminGoLive(noAuth, "topsecret123");
+      var network = await sb.adminGoLive(unreachable, "topsecret123");
+      var createOk = await sb.adminCreateUser(signedIn, { email: "relayuser@example.com", password: "pw123456", username: "relayuser", name: "Relay User", role: "viewer" });
+      var createNotAdmin = await sb.adminCreateUser(noAuth, { email: "x@example.com", password: "pw123456", username: "x" });
+      return {
+        noUrlOk: noUrl.ok, noUrlErr: noUrl.error || "",
+        badSecretOk: badSecret.ok, badSecretErr: badSecret.error || "",
+        goLiveOk: goLiveOk.ok, goLiveTables: goLiveOk.tables, goLiveSeeded: goLiveOk.adminSeeded,
+        notSignedInOk: notSignedIn.ok, notSignedInErr: notSignedIn.error || "",
+        networkOk: network.ok, networkErr: network.error || "",
+        createOk: createOk.ok, createUserId: createOk.userId,
+        createNotAdminOk: createNotAdmin.ok, createNotAdminErr: createNotAdmin.error || ""
+      };
+    });
+    ok("ADMIN FN: with no adminFnUrl configured, adminGoLive fails locally (no network call) with a clear deploy-it-first message",
+      wsAdminFn.noUrlOk === false && /admin function/i.test(wsAdminFn.noUrlErr), JSON.stringify(wsAdminFn));
+    ok("ADMIN FN: a wrong provision secret is rejected before any DB action runs",
+      wsAdminFn.badSecretOk === false && /secret/i.test(wsAdminFn.badSecretErr), JSON.stringify(wsAdminFn));
+    ok("ADMIN FN: go-live succeeds when signed in with the right secret, returning per-table verification counts and adminSeeded:true",
+      wsAdminFn.goLiveOk === true && wsAdminFn.goLiveSeeded === true && wsAdminFn.goLiveTables && wsAdminFn.goLiveTables.users === 1, JSON.stringify(wsAdminFn));
+    ok("ADMIN FN: go-live refuses to run without a signed-in GoTrue session (needs to know who becomes admin)",
+      wsAdminFn.notSignedInOk === false && /sign in/i.test(wsAdminFn.notSignedInErr), JSON.stringify(wsAdminFn));
+    ok("ADMIN FN: an unreachable function URL (not deployed / network / CORS) fails with a clear, distinct message",
+      wsAdminFn.networkOk === false && /reach the admin function/i.test(wsAdminFn.networkErr), JSON.stringify(wsAdminFn));
+    ok("ADMIN FN: adminCreateUser succeeds for a signed-in admin and returns the new account's real auth uid",
+      wsAdminFn.createOk === true && wsAdminFn.createUserId === "44444444-4444-4444-4444-444444444444", JSON.stringify(wsAdminFn));
+    ok("ADMIN FN: adminCreateUser is rejected without a valid admin session",
+      wsAdminFn.createNotAdminOk === false && /admin/i.test(wsAdminFn.createNotAdminErr), JSON.stringify(wsAdminFn));
+
     // ---- CX: Connections section (list, pills, wizard) ----
     console.log("\n• CX: Connections section");
     await page.evaluate(function () { window.__studioShellSetSection("connections"); });
@@ -9749,6 +9833,74 @@ function serve() {
     });
     ok("M7 slice 6: when the Supabase project has sign-ups turned off, Add user surfaces THAT specific explanation and does NOT create the local account",
       m7DisabledResult.stillOpen && !m7DisabledResult.created && /sign-ups are turned off/i.test(m7DisabledResult.msg), JSON.stringify(m7DisabledResult));
+
+    // ---- M7 slice 7: the polecat-admin Edge Function relay, end-to-end in the UI ----
+    console.log("\n• M7 slice 7: in-app go-live + relay-backed Add user");
+    await gp4.evaluate(function (port) {
+      var base = "http://localhost:" + port + "/__supabase";
+      var fnBase = "http://localhost:" + port + "/__adminfn";
+      return Studio.Sync.connectAdopt("supabase", { url: base, key: "sb_publishable_valid", authEmail: "owner@example.com", authPassword: "secret123", adminFnUrl: fnBase });
+    }, PORT);
+
+    const m7GoLiveCard = await gp4.evaluate(function () {
+      window.__studioRenderAdmin();
+      var btn = document.getElementById("goLiveBtn");
+      return { present: !!btn, text: btn ? btn.textContent : "" };
+    });
+    ok("M7 slice 7: once connected to Supabase, Admin shows the 'Enable per-user security / Go live' card",
+      m7GoLiveCard.present && /go live/i.test(m7GoLiveCard.text), JSON.stringify(m7GoLiveCard));
+
+    const m7GoLiveValidation = await gp4.evaluate(function () {
+      window.__studioOpenGoLiveModal();
+      document.querySelector(".cx-wiz-foot .btn.primary").click(); // no secret, no checkbox yet
+      var noSecretMsg = document.querySelector(".modal-ov .cx-test-result").textContent;
+      document.querySelector(".modal-ov input[type=password]").value = "topsecret123";
+      document.querySelector(".cx-wiz-foot .btn.primary").click(); // secret set, checkbox still unchecked
+      var noCheckMsg = document.querySelector(".modal-ov .cx-test-result").textContent;
+      return { noSecretMsg: noSecretMsg, noCheckMsg: noCheckMsg };
+    });
+    ok("M7 slice 7: Go live refuses to run without a provision secret",
+      /secret/i.test(m7GoLiveValidation.noSecretMsg), JSON.stringify(m7GoLiveValidation));
+    ok("M7 slice 7: Go live refuses to run without confirming the wipe checkbox",
+      /confirm/i.test(m7GoLiveValidation.noCheckMsg), JSON.stringify(m7GoLiveValidation));
+
+    const m7GoLiveRun = await gp4.evaluate(function () {
+      document.querySelector(".modal-ov .check input").checked = true;
+      document.querySelector(".cx-wiz-foot .btn.primary").click();
+      return true;
+    });
+    await gp4.waitForFunction(() => /Live —/.test((document.querySelector(".modal-ov .cx-test-result") || {}).textContent || ""), { timeout: 5000 });
+    const m7GoLiveResult = await gp4.evaluate(function () {
+      var result = document.querySelector(".modal-ov .cx-test-result").textContent;
+      var secretFieldEmpty = document.querySelector(".modal-ov input[type=password]").value === "";
+      var leaked = false;
+      for (var i = 0; i < localStorage.length; i++) { if ((localStorage.getItem(localStorage.key(i)) || "").indexOf("topsecret123") !== -1) leaked = true; }
+      document.querySelector(".modal-ov .x").click();
+      return { result: result, secretFieldEmpty: secretFieldEmpty, leaked: leaked };
+    });
+    ok("M7 slice 7: a successful go-live reports the per-table verification counts",
+      /users: 1/.test(m7GoLiveResult.result), JSON.stringify(m7GoLiveResult));
+    ok("M7 slice 7: the provision secret is enter-run-discard — cleared from the field after use and never written to localStorage",
+      m7GoLiveResult.secretFieldEmpty && !m7GoLiveResult.leaked, JSON.stringify(m7GoLiveResult));
+
+    // Add user now prefers the relay (adminFnUrl set) over the public signUp
+    // endpoint — the mock create-user action returns a distinct uid from the
+    // signUp mock's, proving the relay path (not signUp) actually ran.
+    const m7RelaySignup = await gp4.evaluate(function () {
+      window.__studioOpenUserEditor();
+      document.getElementById("usrEditUser").value = "relayadmin";
+      document.getElementById("usrEditEmail").value = "relayadmin@example.com";
+      document.getElementById("usrEditPass").value = "pw123456";
+      document.querySelector(".cx-wiz-foot .btn.primary").click();
+      return true;
+    });
+    await gp4.waitForFunction(() => !document.querySelector(".modal-ov"), { timeout: 8000 });
+    const m7RelaySignupResult = await gp4.evaluate(function () {
+      var u = window.PolecatAuth.find("relayadmin");
+      return { found: !!u, gotrueId: u && u.gotrueId };
+    });
+    ok("M7 slice 7: with the relay configured, Add user creates the account via adminCreateUser (not the public signUp endpoint)",
+      m7RelaySignupResult.found && m7RelaySignupResult.gotrueId === "44444444-4444-4444-4444-444444444444", JSON.stringify(m7RelaySignupResult));
 
     await gp4.close();
 

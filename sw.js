@@ -5,7 +5,16 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v221"; /* v221: UX5 slice 4 (the 4px-base spacing
+var CACHE_NAME = "studio-shell-v222"; /* v222: M7 slice 7 (Conservation Insight
+   product platform, per-user security track) — the polecat-admin Edge
+   Function relay. New supabase/functions/polecat-admin/index.ts (deployed
+   separately via the Supabase CLI, NOT part of this precache list) exposes
+   named provision/go-live/create-user/reset-data actions. app/sources/
+   supabase.js gains adminFnUrl + adminGoLive()/adminCreateUser() calling it;
+   app/studio.js gains an Admin "Enable per-user security / Go live" card +
+   modal, and Add user now prefers the relay over public self-signup once
+   adminFnUrl is configured. Both precached files changed.
+   v221: UX5 slice 4 (the 4px-base spacing
    rounding pass, TECH-DEBT/quality track) — app/studio.css content changed (every
    var(--sp-*) call site repointed to a rounded token), so the precached copy
    needs to roll.

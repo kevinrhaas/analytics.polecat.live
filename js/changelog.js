@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 585,
+    title: 'In-app go-live for real per-user security (Supabase)',
+    kind: 'feature',
+    ts: '2026-07-26T17:42:06.000Z',
+    items: [
+      'Admins connected to Supabase can now flip private objects from UX-level hiding to real database-enforced Row-Level Security right from the Admin page -- a new "Enable per-user security / Go live" button runs the whole one-time setup (after a small one-time relay is deployed once -- see tools/M7-RLS-GOLIVE-RUNBOOK.md).',
+      'Once that relay is deployed, Adding a user also switches automatically to a more secure admin-create path with no email-confirmation step -- the existing self-signup flow remains the fallback everywhere else.',
+    ],
+  },
+  {
     v: 584,
     title: 'A tidier, 4px-based spacing scale',
     kind: 'polish',

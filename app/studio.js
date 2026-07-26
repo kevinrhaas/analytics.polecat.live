@@ -7176,11 +7176,14 @@
       return '<div class="set-row"><div class="set-row-txt"><b>' + esc(s[1]) + '</b></div>' +
         '<label class="set-sw"><input type="checkbox" data-sec-right="' + esc(s[0]) + '"' + (hidden ? "" : " checked") + '/><span class="set-sw-track"></span></label></div>';
     }).join("");
+    var syncStateNow = Studio.Sync.syncState();
+    var showGoLive = syncStateNow && syncStateNow.sourceId === "supabase";
     sec.classList.add("has-content");
     sec.innerHTML = '<div class="repo-wrap"><div class="repo-hero"><h1>Admin</h1>' +
-      '<p>Manage who can sign in to this workspace. <b>Admin</b> has full access; <b>viewer</b> can browse and explore but not edit. This is UX-level access control today — per-object privacy and DB-enforced roles arrive with the Supabase-RLS slice.</p>' +
+      '<p>Manage who can sign in to this workspace. <b>Admin</b> has full access; <b>viewer</b> can browse and explore but not edit. This is UX-level access control today — per-object privacy is hidden client-side until you go live below.</p>' +
       '<div class="repo-io"><button type="button" class="btn primary" id="usrNewBtn">+ Add user</button></div></div>' +
       (rows ? '<div class="cx-list">' + rows + '</div>' : '<div class="cx-empty">No users yet.</div>') +
+      (showGoLive ? goLiveCardHtml() : "") +
       '<div class="settings-card"><h2>Section access</h2>' +
       '<p class="ws-card-intro">Turn a section off for the <b>viewer</b> role — it disappears from their rail. Admins always see every section.</p>' +
       sectionRows +
@@ -7193,6 +7196,7 @@
       cb.addEventListener("change", function () { setSectionHidden(cb.getAttribute("data-sec-right"), !cb.checked); });
     });
     var newBtn = $("#usrNewBtn", sec); if (newBtn) newBtn.onclick = function () { openUserEditor(); };
+    var goLiveBtn = $("#goLiveBtn", sec); if (goLiveBtn) goLiveBtn.onclick = function () { openGoLiveModal(); };
     $$("[data-usr-edit]", sec).forEach(function (btn) {
       btn.onclick = function () { var u = Auth.find(btn.getAttribute("data-usr-edit")); if (u) openUserEditor(u); };
     });
@@ -7281,6 +7285,53 @@
     };
   }
 
+  // ---- M7 slice 7: in-app go-live via the polecat-admin Edge Function -------
+  // Only offered once the workspace is connected to Supabase (renderAdmin's
+  // showGoLive guard) — Turso/Firebase stay UX-level-only, same as before.
+  function goLiveCardHtml() {
+    return '<div class="settings-card"><h2>Per-user security (Supabase)</h2>' +
+      '<p class="ws-card-intro">Right now, a private object is only hidden from other accounts at the UX level — the connected Supabase backend still stores everything under one shared key. <b>Go live</b> flips that to real database-enforced Row-Level Security, so each account can only ever read/write its own private rows. One-time, admin-only, and requires <code>supabase/functions/polecat-admin</code> already deployed — see <code>tools/M7-RLS-GOLIVE-RUNBOOK.md</code> (Path C).</p>' +
+      '<div class="repo-io"><button type="button" class="btn primary" id="goLiveBtn">Enable per-user security / Go live…</button></div></div>';
+  }
+
+  function openGoLiveModal() {
+    modal("Enable per-user security", function (b) {
+      var form = el("div", "cx-wiz-form");
+      var intro = el("p", "cx-hint");
+      intro.textContent = "This is a one-time step for a FRESH Supabase project: it wipes the current workspace tables (your browser's local data is untouched — reinstall the sample pack anytime), seeds you as the first admin, and applies real per-user Row-Level Security.";
+      form.appendChild(intro);
+      var sRow = el("label", "cx-field"); sRow.innerHTML = "<span>Provision secret</span>";
+      var sInp = el("input"); sInp.type = "password"; sInp.autocomplete = "off";
+      sInp.placeholder = "The PROVISION_SECRET set when the function was deployed";
+      sRow.appendChild(sInp); form.appendChild(sRow);
+      var confirmLab = el("label", "check");
+      var cb = el("input"); cb.type = "checkbox";
+      confirmLab.appendChild(cb); confirmLab.appendChild(document.createTextNode(" I understand this wipes the current Supabase workspace tables."));
+      form.appendChild(confirmLab);
+      b.appendChild(form);
+      var result = el("div", "cx-test-result"); b.appendChild(result);
+      var foot = el("div", "cx-wiz-foot");
+      var goBtn = el("button", "btn primary"); goBtn.type = "button"; goBtn.textContent = "Run go-live";
+      foot.appendChild(goBtn); b.appendChild(foot);
+      goBtn.onclick = function () {
+        var secret = sInp.value;
+        if (!secret) { sInp.focus(); result.className = "cx-test-result bad"; result.textContent = "Enter the provision secret."; return; }
+        if (!cb.checked) { result.className = "cx-test-result bad"; result.textContent = "Confirm you understand this wipes the current tables first."; return; }
+        goBtn.disabled = true; result.className = "cx-test-result"; result.textContent = "Running go-live…";
+        var src = Studio.sourceById("supabase"), cfg = Studio.Sync.currentConfig();
+        src.adminGoLive(cfg, secret).then(function (r) {
+          sInp.value = ""; secret = ""; // enter-run-discard — never persisted, gone the moment the call returns
+          goBtn.disabled = false;
+          if (!r.ok) { result.className = "cx-test-result bad"; result.textContent = "✕ " + r.error; return; }
+          result.className = "cx-test-result ok";
+          result.textContent = "✓ Live — " + Object.keys(r.tables || {}).map(function (t) { return t + ": " + r.tables[t]; }).join(", ");
+          toast("Per-user security is live.");
+        });
+      };
+    });
+  }
+  window.__studioOpenGoLiveModal = openGoLiveModal; // test hook
+
   function openUserEditor(existing) {
     // M7 slice 6: when this workspace is connected to Supabase and we're ADDING
     // a brand-new user (not editing one), the form also self-signs-up a real
@@ -7289,6 +7340,13 @@
     // (that account, if any, was already created when they were first added).
     var syncState = Studio.Sync.syncState();
     var supabaseSignup = !existing && syncState && syncState.sourceId === "supabase";
+    // M7 slice 7: once supabase/functions/polecat-admin is deployed (this
+    // connection's adminFnUrl is set), prefer the relay's admin-create
+    // action — no email-confirmation step, gated by the CALLER's own admin
+    // JWT instead of Supabase's public signup endpoint. signUp (slice 6)
+    // stays the fallback for deployments that never deploy the function.
+    var cfgForSignup = supabaseSignup ? Studio.Sync.currentConfig() : null;
+    var useRelaySignup = supabaseSignup && !!(cfgForSignup && cfgForSignup.adminFnUrl);
     modal(existing ? "Edit user" : "Add user", function (b) {
       var form = el("div", "cx-wiz-form");
       var uRow = el("label", "cx-field"); uRow.innerHTML = "<span>Username</span>";
@@ -7351,7 +7409,10 @@
         if (!supabaseSignup) { finishSave(); return; }
         saveBtn.disabled = true; result.className = "cx-test-result"; result.textContent = "Creating the Supabase Auth account…";
         var src = Studio.sourceById("supabase"), cfg = Studio.Sync.currentConfig();
-        src.signUp(cfg, { email: eInp.value.trim(), password: pInp.value }).then(function (r) {
+        var creation = useRelaySignup
+          ? src.adminCreateUser(cfg, { email: eInp.value.trim(), password: pInp.value, username: u, name: opts.name, role: opts.role })
+          : src.signUp(cfg, { email: eInp.value.trim(), password: pInp.value });
+        creation.then(function (r) {
           if (!r.ok) {
             saveBtn.disabled = false;
             result.className = "cx-test-result bad"; result.textContent = "✕ " + r.error;
