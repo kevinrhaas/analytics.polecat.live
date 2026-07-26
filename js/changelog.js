@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 573,
+    title: 'A dedicated Jobs tour',
+    kind: 'feature',
+    ts: '2026-07-26T10:46:11.000Z',
+    items: [
+      'The tour chooser (Home -> Take the tour, or More -> Interactive tutorial) gains a fourth walkthrough, "Prep data (Jobs)" -- it spotlights the Jobs list, the + New job pipeline builder, and search/folders, closing the Jobs half of the "deeper per-feature tours" ask.',
+    ],
+  },
+  {
     v: 572,
     title: 'Home Examples names its source pack',
     kind: 'polish',
