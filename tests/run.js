@@ -18464,6 +18464,35 @@ function serve() {
     ok("Post-overhaul item 3 (PostgREST): the dispatched dataset def carries da.dataset's {table,query} — NOT da.sql/da.query, which dsToDA always blanks for a table-kind DA",
       pgDispatch.gotTableQuery, JSON.stringify(pgDispatch));
 
+    // Real end-to-end, UNSTUBBED: pgDispatch above (and its Turso sibling) replace
+    // Studio.postgrestSource.queryData with a spy before calling it, which proves PDC.cda
+    // dispatches correctly but never actually executes the bundled postgrest.js's own queryData —
+    // exactly the gap that hid this bug. queryData used to read Studio.WS.postgrestQueryData
+    // (app/sources/schema.js), which the exported bundle never loads, so a real deployed dashboard
+    // querying a PostgREST connection live threw immediately ("Cannot read properties of undefined
+    // (reading 'postgrestQueryData')"). This drives the SAME real exported HTML against the real
+    // mock PostgREST server (same-origin, CORS-open) with queryData left completely untouched.
+    const pgRealQuery = await page.evaluate(async function () {
+      var assets = window.__STUDIO_STATE.assets;
+      var conn = Studio.Workspace.put("connections", { name: "pg-real-query-test", adapter: "postgrest", cfg: { url: location.origin + "/__postgrest" } });
+      var da = { id: "d1", name: "d1", kind: "sql", columns: ["x"], sql: "", query: "", connectionId: conn.id, dataset: { kind: "table", table: "orders", query: "select=region,total&region=eq.EMEA" } };
+      var spec = { name: "ok-name", title: "T", panels: [], kpis: [], filters: [], cda: { dataAccesses: [da] } };
+      var html = Studio.exportCDF(spec, assets, "/x");
+      var ifr = document.createElement("iframe");
+      ifr.style.display = "none";
+      document.body.appendChild(ifr);
+      await new Promise(function (resolve) { ifr.onload = resolve; ifr.srcdoc = html; });
+      var iw = ifr.contentWindow;
+      var thrown = null, result = null;
+      try { result = await iw.PDC.cda("d1", {}); } catch (e) { thrown = e.message; }
+      document.body.removeChild(ifr);
+      return { thrown: thrown, cols: result && result.cols, rows: result && JSON.stringify(result.rows) };
+    });
+    ok("Post-overhaul item 3 (PostgREST) REGRESSION: an exported dashboard's REAL (unstubbed) postgrest.js queryData runs against a live PostgREST endpoint without throwing",
+      !pgRealQuery.thrown, JSON.stringify(pgRealQuery));
+    ok("Post-overhaul item 3 (PostgREST) REGRESSION: the real query round-trip returns the actual filtered rows from the endpoint",
+      pgRealQuery.cols && pgRealQuery.cols.join(",") === "region,total" && pgRealQuery.rows === '[["EMEA",120]]', JSON.stringify(pgRealQuery));
+
     // ── F18: Bump / ranking chart (v104) ─────────────────────────────────────
     console.log("\n• F18: Bump chart");
 

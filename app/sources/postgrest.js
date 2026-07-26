@@ -37,6 +37,30 @@
     });
   }
 
+  // Local copy of Studio.WS.postgrestQueryData (app/sources/schema.js) — this file is bundled
+  // STANDALONE into exported/deployed dashboards (see exporters.js's redactSecrets +
+  // studio-render.js's CONN_ENGINES, which is the whole reason this queryData exists), and that
+  // bundle never loads schema.js, so `Studio.WS` doesn't exist there — same "builder-only module,
+  // never inlined into the exported bundle" situation studio-render.js documents for
+  // applyTemplateVars/evalFormula/withTimeout. Calling through Studio.WS here threw immediately in
+  // any real exported dashboard (masked in tests by a stub that replaced queryData before calling
+  // it). Kept byte-identical to schema.js's version; in-app callers (Explore/preview, still running
+  // where Studio.WS exists) behave exactly as before.
+  function pgQueryData(cfg, dataset) {
+    var table = (dataset && dataset.table || "").trim();
+    if (!table) return Promise.resolve({ columns: [], rows: [], error: "Dataset has no table" });
+    var qs = (dataset.query || "select=*").replace(/^\?/, "");
+    return rest(cfg, "/" + encodeURIComponent(table) + "?" + qs).then(function (r) {
+      if (!r.ok) return { columns: [], rows: [], error: "HTTP " + r.status };
+      return r.json().then(function (list) {
+        if (!Array.isArray(list) || !list.length) return { columns: [], rows: [] };
+        var columns = Object.keys(list[0]);
+        var rows = list.map(function (o) { return columns.map(function (c) { return o[c]; }); });
+        return { columns: columns, rows: rows };
+      });
+    }).catch(function (e) { return { columns: [], rows: [], error: e.message }; });
+  }
+
   // Schema browser (post-overhaul backlog item 5 follow-up, "dataset delight" —
   // the schema-browser half): PostgREST already answers GET / with a full
   // OpenAPI description of every exposed table/view (the same document
@@ -97,7 +121,7 @@
     // query string (e.g. "select=region,total&order=total.desc&limit=200");
     // {{params}} in both are applied upstream by dsxRunnableDef.
     queryData: function (cfg, dataset) {
-      return Studio.WS.postgrestQueryData(rest, cfg, dataset);
+      return pgQueryData(cfg, dataset);
     },
 
     // ---- meta plane: honest refusals (same shape as data-adapters.js) -------

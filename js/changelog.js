@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 591,
+    title: 'Fix: PostgreSQL (PostgREST) live queries actually work in exported dashboards now',
+    kind: 'fix',
+    ts: '2026-07-26T21:11:56.000Z',
+    items: [
+      'The connection-bound PostgREST support shipped just before this threw an error the moment an exported or deployed dashboard tried to query it live -- fixed, with a real end-to-end regression test against a live endpoint.',
+    ],
+  },
+  {
     v: 590,
     title: 'PostgreSQL (PostgREST) datasets now run live in exported dashboards too',
     kind: 'feature',
