@@ -116,6 +116,33 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **Post-overhaul backlog item 7's optional "by type" facet on Datasets (v586, sw v223,
+  2026-07-26, steward — POST-OVERHAUL BACKLOG):** with the FRONTEND QA REPORT, LIVE-FEEDBACK
+  QUEUE, QUALITY TRACKS, and the CONSERVATION INSIGHT / VIRIDIS product tracks all fully shipped
+  (confirmed by reading the whole NEXT backlog top-down this run), the next-most-scoped open item
+  was the POST-OVERHAUL BACKLOG's item 7 close-out: "an optional 'by type' (kind: sql/table/file/
+  collection/sheet) facet if wanted later." Datasets already carried by-adapter, by-connection,
+  and by-tag pill strips (all multi-select, saved-view-aware) — this adds a fourth, keyed by
+  `d.kind` (defaulting to "sql", the same default `dsxRunnableDef` already uses), with friendly
+  labels (SQL query/Table/Collection/File/Sheet) instead of the raw kind string. Same
+  `wb-chip`/`cx-pill` pattern as the other three facets: `_dsxKindFilter` (multi-select,
+  OR-within-strip / AND-across-strips like the rest), pruned against live counts each render,
+  wired into `dsxApplyView`/the saved-view capture (`kinds: [...]`), the Clear button, and the
+  empty-state "no matches" condition. No new data model — every dataset already has an implicit
+  kind via `dsxKindFor(adapter)` at editor-save time. 5 new regression checks (pill renders with
+  the friendly label + correct count without disturbing the other kinds' counts, clicking it
+  narrows the list, saving a view while it's active captures `kinds`, applying that view restores
+  it, Clear resets it). `docs/index.html` updated (Datasets section now says "four cross-cutting
+  pill strips" and names Type). SW cache → v223. This closes out post-overhaul backlog item 7
+  entirely — every documented piece (favorites/pinning, folders+tags via the 2026-07-21 DECISIONS
+  LOCKED note, the by-adapter/by-connection cross-cutting views, and now by-type) is shipped.
+  (app/datasets.js, docs/index.html, sw.js, js/changelog.js, tests/run.js) NEXT: post-overhaul
+  backlog item 2 (more data adapters — Azure SQL/Fabric and MotherDuck remain, both flagged with
+  real feasibility/licensing questions for Kevin before attempting) and item 3's other half
+  (exported-runtime bundling for connection-bound dataset adapters) are the two remaining
+  genuinely-open items in this track, both larger and less scoped than this slice — worth a
+  closer look before starting either. LF24 (Quick mode) stays parked behind them per its own
+  explicit "do this last" instruction.
 - **M7 slice 7 — the polecat-admin Edge Function relay + in-app go-live (v585, sw v222,
   2026-07-26, steward — CONSERVATION INSIGHT PRODUCT PLATFORM, ★★★★★ top priority):** the
   one remaining M7 item (STATUS.md's "OPTION — Slice 7" spec, Kevin's chosen Option A) — the
@@ -5972,9 +5999,15 @@
 >    Datasets gained a **by-connection** filter pill strip (same `wb-chip`/`cx-pill` pattern,
 >    saved-view aware) so two connections sharing one adapter (e.g. two Postgres DBs) can be
 >    narrowed to just one — previously only reachable via search. SW cache → v46; 4 new tests;
->    suite 1642/1642. Still open: folders/tags grouping (the design-ambiguous part Kevin flagged
->    as unsure about — a tree vs. tags vs. folders call, not attempted) and an optional "by type"
+>    suite 1642/1642. Still open (at the time): folders/tags grouping (the design-ambiguous part
+>    Kevin flagged as unsure about — a tree vs. tags vs. folders call) and an optional "by type"
 >    (kind: sql/table/file/collection/sheet) facet if wanted later.
+>    ✓ **Folders/tags grouping resolved via the 2026-07-21 DECISIONS LOCKED note (hybrid
+>    folders + tags, see that section) and shipped across every object kind — see that note's own
+>    slice history.** ✓ **The optional "by type" facet shipped (v586, sw v223, 2026-07-26,
+>    steward — post-overhaul backlog item 7 is now fully done):** see DONE for the full writeup —
+>    a fourth Datasets pill strip (SQL query/Table/Collection/File/Sheet), same multi-select/
+>    saved-view shape as the other three.
 >
 > **2026-07-14 UX sprint (interactive session, all landed, v349):** split topbar → slim app bar +
 > dashboard toolbar above the preview; inline title rename (no phantom "Observability" group);

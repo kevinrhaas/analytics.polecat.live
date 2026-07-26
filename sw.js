@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v222"; /* v222: M7 slice 7 (Conservation Insight
+var CACHE_NAME = "studio-shell-v223"; /* v223: post-overhaul backlog item 7's
+   optional "by type" facet (kind: SQL query/Table/Collection/File/Sheet) on
+   the Datasets list — same multi-select/saved-view pill strip as the
+   existing by-adapter/by-connection/by-tag facets, keyed by d.kind. app/
+   datasets.js, docs/index.html content changed, so precached copies need to
+   roll.
+   v222: M7 slice 7 (Conservation Insight
    product platform, per-user security track) — the polecat-admin Edge
    Function relay. New supabase/functions/polecat-admin/index.ts (deployed
    separately via the Supabase CLI, NOT part of this precache list) exposes
