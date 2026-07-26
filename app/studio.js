@@ -5332,7 +5332,7 @@
     var needGL = Studio.usesGLMap(spec) && !S.assets.maplibre; // Viridis V4: GL panels pull MapLibre too
     if (!missing.length && !needGL && (S.assets.topojson || !keys.length)) return Promise.resolve(false);
     var FILES = { county: "vendor/geo/counties-albers-10m.json", state: "vendor/geo/states-albers-10m.json",
-      huc8: "vendor/geo/us-huc8-cornbelt-albers.json", crdMap: "vendor/geo/us-crd-counties.json" };
+      huc8: "vendor/geo/us-huc8-albers.json", crdMap: "vendor/geo/us-crd-counties.json" };
     var jobs = missing.map(function (k) {
       return fetch(FILES[k]).then(function (r) { return r.text(); }).then(function (t) { S.assets.geo[k] = t; });
     });

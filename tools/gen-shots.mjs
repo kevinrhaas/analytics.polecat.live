@@ -172,7 +172,7 @@ function huc8Spec() {
   return {
     id: "shot-huc8", name: "shot-huc8", title: "Cover crop adoption by watershed",
     dashboardTheme: "polecat",
-    subtitle: "A custom geography — Corn Belt HUC8 subbasins from the USGS Watershed Boundary Dataset",
+    subtitle: "A custom geography — HUC8 subbasins from the USGS Watershed Boundary Dataset",
     panels: [{ id: "w1", title: "Adoption by watershed (HUC8)", span: "full",
       chart: { type: "choropleth", da: "geo", map: { idCol: "huc8", valueCol: "pct" },
         opts: { scale: "huc8", fmt: "raw", height: 640, color: "--good" } } }],
@@ -227,7 +227,7 @@ function countyValue(fips) {
     // 3b: HUC8 watershed choropleth — a custom geography (USGS subbasins).
     try {
       const hucList = await light.page.evaluate(async () => {
-        const topo = await fetch("vendor/geo/us-huc8-cornbelt-albers.json").then((r) => r.json());
+        const topo = await fetch("vendor/geo/us-huc8-albers.json").then((r) => r.json());
         return topo.objects.huc8.geometries.map((g) => String(g.id));
       });
       const rows = hucList.map((h) => [h, +huc8Value(h).toFixed(1)]);

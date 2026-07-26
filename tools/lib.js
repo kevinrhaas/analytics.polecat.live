@@ -21,7 +21,7 @@ function assets() {
   // spec's Studio.geoAssetKeys() actually needs).
   const geo = {};
   [["county", "geo/counties-albers-10m.json"], ["state", "geo/states-albers-10m.json"],
-   ["huc8", "geo/us-huc8-cornbelt-albers.json"], ["crdMap", "geo/us-crd-counties.json"]]
+   ["huc8", "geo/us-huc8-albers.json"], ["crdMap", "geo/us-crd-counties.json"]]
     .forEach(function (kv) { geo[kv[0]] = fs.readFileSync(path.join(VENDOR, kv[1]), "utf8"); });
   return {
     css: fs.readFileSync(path.join(VENDOR, "pdc-ui.css"), "utf8"),

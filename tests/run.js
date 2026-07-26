@@ -1485,11 +1485,11 @@ function serve() {
         /topojson-client v3\./.test(tj.slice(0, 200)) && fs.existsSync(path.join(V, "LICENSE-topojson-client")) && fs.existsSync(path.join(V, "LICENSE-us-atlas")));
       const counties = JSON.parse(fs.readFileSync(path.join(V, "counties-albers-10m.json"), "utf8"));
       const states = JSON.parse(fs.readFileSync(path.join(V, "states-albers-10m.json"), "utf8"));
-      const huc8 = JSON.parse(fs.readFileSync(path.join(V, "us-huc8-cornbelt-albers.json"), "utf8"));
+      const huc8 = JSON.parse(fs.readFileSync(path.join(V, "us-huc8-albers.json"), "utf8"));
       const crd = JSON.parse(fs.readFileSync(path.join(V, "us-crd-counties.json"), "utf8"));
-      ok("GEO: county/state/HUC8 topologies parse with expected feature counts (3k+ counties, 50+ states, 500+ Corn Belt HUC8s)",
+      ok("GEO: county/state/HUC8 topologies parse with expected feature counts (3k+ counties, 50+ states, 2k+ nationwide HUC8 watersheds)",
         counties.objects.counties.geometries.length > 3000 && states.objects.states.geometries.length >= 50 &&
-        huc8.objects.huc8.geometries.length >= 500,
+        huc8.objects.huc8.geometries.length >= 2000,
         JSON.stringify({ counties: counties.objects.counties.geometries.length, states: states.objects.states.geometries.length, huc8: huc8.objects.huc8.geometries.length }));
       ok("GEO: NASS county→CRD mapping covers 3k+ counties across 300+ districts",
         Object.keys(crd.counties).length > 3000 && new Set(Object.values(crd.counties)).size > 300,
@@ -1564,8 +1564,8 @@ function serve() {
     ok("GEO crd: 300+ NASS districts derive from county geometry (topojson merge) and color by value",
       geoCrd.regions > 300 && geoCrd.colored === 3, JSON.stringify({ regions: geoCrd.regions, colored: geoCrd.colored }));
     const geoHuc = await geoProbe("huc8", "huc8", [["07080105", 9], ["07130001", 5], ["10230003", 2]]);
-    ok("GEO huc8: 500+ Corn Belt watersheds render and color by value",
-      geoHuc.regions >= 500 && geoHuc.colored === 3, JSON.stringify({ regions: geoHuc.regions, colored: geoHuc.colored }));
+    ok("GEO huc8: 2k+ nationwide watersheds render and color by value",
+      geoHuc.regions >= 2000 && geoHuc.colored === 3, JSON.stringify({ regions: geoHuc.regions, colored: geoHuc.colored }));
     // Hover highlight must not STICK: the highlight is a single always-on-top overlay
     // path that re-points to the hovered region — the data paths are NEVER re-ordered
     // (an appendChild raise on mouseenter detaches the path and swallows its own

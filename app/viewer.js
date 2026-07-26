@@ -48,7 +48,7 @@
   // doesn't exist on this standalone page.
   var GEO_FILES = {
     county: "vendor/geo/counties-albers-10m.json", state: "vendor/geo/states-albers-10m.json",
-    huc8: "vendor/geo/us-huc8-cornbelt-albers.json", crdMap: "vendor/geo/us-crd-counties.json"
+    huc8: "vendor/geo/us-huc8-albers.json", crdMap: "vendor/geo/us-crd-counties.json"
   };
   function ensureGeoAssets(spec, assets) {
     var keys = Studio.geoAssetKeys(spec);

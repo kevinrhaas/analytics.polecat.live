@@ -5,7 +5,17 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v202"; /* v202: LF19 slice 10 — every Inspector section's
+var CACHE_NAME = "studio-shell-v203"; /* v203: LF22 slice 1 — HUC8 watersheds now cover the
+   whole country (all 50 states + DC), not just the 12-state Corn Belt: tools/build-geo.mjs
+   queries the USGS WBD MapServer for every state instead of a hardcoded subset and simplifies
+   a bit harder (maxAllowableOffset 0.01°→0.02°) to keep the shipped asset reasonable (2,292
+   watersheds, 1.26MB vs. the old 533KB/571-watershed Corn-Belt-only file); the asset itself is
+   renamed vendor/geo/us-huc8-albers.json (was …-cornbelt-albers.json) and every reference
+   (app/studio-charts.js, app/studio.js, app/viewer.js, tools/lib.js, tools/gen-shots.mjs)
+   + the Scale dropdown label (app/model.js) + docs/index.html copy follow. app/studio-charts.js,
+   app/studio.js, app/model.js changed, so precached copies need to roll (vendor/geo/* itself is
+   deliberately NOT precached, per the note below).
+   v202: LF19 slice 10 — every Inspector section's
    bottom gap is now the same regardless of what content type rendered last (a trailing-
    margin-stacking fix), closing out LF19 (the whole left+right panel IA/redesign track)
    fully done. app/studio.css, tests/run.js changed, so precached copies need to roll.

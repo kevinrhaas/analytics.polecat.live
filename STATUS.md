@@ -116,6 +116,33 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF22 slice 1 — watershed maps go nationwide (v566, sw v203, 2026-07-26, steward):** the
+  first, highest-priority item of LF22's geography-expansion list ("(1) ★ NATIONWIDE
+  watersheds"). `tools/build-geo.mjs`'s HUC8 fetch queried the USGS WBD MapServer for a
+  hardcoded 12-state Corn Belt list (`states LIKE '%XX%'` for each); swapped that for all 50
+  states + DC (territories fall outside `d3.geoAlbersUsa()`'s projectable plane so they're
+  excluded at the query stage, same as before — just a bigger exclusion list is no longer
+  needed since the states filter itself is now exhaustive). Simplified a bit harder
+  (`maxAllowableOffset` 0.01°→0.02°) to keep the shipped asset a reasonable size given the
+  ~6.5x feature-count jump: 2,292 nationwide watersheds at 1.26MB, vs. 571 Corn-Belt-only ones
+  at 533KB (still smaller than the vendored counties file, and `vendor/geo/*` is deliberately
+  not precached — see sw.js — so this doesn't tax the app-shell install). Renamed the asset
+  `vendor/geo/us-huc8-albers.json` (was `…-cornbelt-albers.json`) and updated every reference
+  (`app/studio-charts.js` GEO_FILES, `app/studio.js`, `app/viewer.js`, `tools/lib.js`,
+  `tools/gen-shots.mjs`) plus the Scale dropdown label (`app/model.js`, "Watersheds (HUC8,
+  Corn Belt)" → "Watersheds (HUC8)") and the choropleth chart-type description in
+  `docs/index.html`. Incidental build-tooling fix: `tools/build-geo.mjs`'s own transitive
+  build deps (d3-array/d3-geo/internmap, all published `"type":"module"` with no `require`
+  export condition) no longer load under this Node version's synchronous CJS→ESM interop
+  (`new d3Array.Adder()` came back not-a-constructor) — `npmPkg()` now points a fetched
+  package's `main`/`exports`/`type` at its own prebuilt CJS `dist/` bundle before anything
+  requires it, a dev-tool-only workdir patch (never touches anything committed). Updated the
+  two feature-count regression tests (`tests/run.js`) from "500+ Corn Belt HUC8s" to "2k+
+  nationwide HUC8 watersheds" (2,292 comfortably clears that bar) — the specific HUC8 ids the
+  hover/probe tests already exercised (07080105/07130001/10230003/etc., all Corn-Belt-region
+  codes) are still present in the nationwide set, so those needed no change. NEXT in LF22: (2)
+  Congressional districts, (3) 5-digit ZIP→ZCTA, (4) the counties→custom-region mapping
+  importer — none started.
 - **LF19 slice 10 — right-panel sections now end on a consistent bottom gap (v565, sw v202,
   2026-07-26, steward — LF19 is now fully DONE):** the last remaining piece of LF19's "give the
   right panel the same organize-and-simplify pass" ask. `.insp-sec-body` (the div `section()`
@@ -3761,6 +3788,11 @@
 >           into a real user-facing feature.
 >       app/studio-charts.js (GEO_FILES + geoFeatures/geoFeaturesGL scale branches), tools/build-geo.mjs, vendor/geo/,
 >       + a GEO test per new scale (renders colored, hover overlay tracks, exports carry only the geometry used).
+>       ✓ **Slice 1 shipped (v566, sw v203, 2026-07-26, steward): (1) NATIONWIDE watersheds.** See DONE for
+>       the full writeup. `us-huc8-albers.json` now covers all 50 states + DC (2,292 watersheds, 1.26MB) instead
+>       of just the 12-state Corn Belt (571 watersheds, 533KB) — simplified a bit harder to keep the size
+>       reasonable; lazy-load-per-region wasn't needed at this size. NEXT in LF22: (2) Congressional districts,
+>       (3) 5-digit ZIP→ZCTA, (4) the counties→custom-region mapping importer.
 > LF23. ★ **VIEWER MODE — open dashboards read-only, as their own page/tab, with role-gated Studio access (Kevin, live).**
 >       **PRIORITY (Kevin, 2026-07-24): start Viewer mode early — it's a near-term ★ priority.**
 >       Most people should OPEN a dashboard to READ it, not land in the full builder. From the Repository (Dashboards
