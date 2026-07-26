@@ -5666,7 +5666,9 @@
 
      Scales: county | state | crd (NASS crop reporting districts, derived by
      merging county polygons per district) | huc8 (HUC8 watersheds, nationwide —
-     all 50 states + DC, LF22 slice 1).
+     all 50 states + DC, LF22 slice 1) | cd (119th Congressional Districts,
+     nationwide — all 50 states + DC, LF22 slice 2; own geometry, districts
+     split counties so they can't be derived by merging like CRD).
      Duplicate rows per region aggregate via cfg.agg — MEDIAN by default, the
      Viridis "single best common estimate" convention (see STATUS ★★★★ V3).
      ══════════════════════════════════════════════════════════════════════════ */
@@ -5679,6 +5681,7 @@
     state: "vendor/geo/states-albers-10m.json",
     crd: null, // derived from county + the NASS mapping
     huc8: "vendor/geo/us-huc8-albers.json",
+    cd: "vendor/geo/us-cd-albers.json",
     crdMap: "vendor/geo/us-crd-counties.json"
   };
   var _geoCache = {}; // key -> Promise<topology-or-mapping JSON>
@@ -5764,6 +5767,12 @@
         out.statesOverlay = r[1];
         return out;
       });
+    } else if (scale === "cd") {
+      _featCache.cd = Promise.all([geoJson("cd"), statesMesh]).then(function (r) {
+        var out = build(r[0], "cd", function (f) { return (f.properties && f.properties.name) || f.id; });
+        out.statesOverlay = r[1];
+        return out;
+      });
     } else { // crd — merge county geometry per NASS district
       _featCache.crd = Promise.all([geoJson("county"), geoJson("crdMap"), statesMesh]).then(function (r) {
         var topo = r[0], map = r[1].counties || {}, groups = {};
@@ -5787,12 +5796,13 @@
   }
 
   // Region-id normalization: counties accept 4/5-digit FIPS; states accept FIPS,
-  // postal, or full name; HUC8 accepts 7/8-digit codes; CRDs accept "SSDD".
+  // postal, or full name; HUC8 accepts 7/8-digit codes; CRDs and CDs accept "SSDD"
+  // (state FIPS + 2-digit district number — same 4-digit shape for both).
   function geoNormalizeId(scale, raw, stateNameIdx) {
     var s = String(raw == null ? "" : raw).trim();
     if (scale === "county") return /^\d{4,5}$/.test(s) ? ("00000" + s).slice(-5) : s;
     if (scale === "huc8") return /^\d{7,8}$/.test(s) ? ("00000000" + s).slice(-8) : s;
-    if (scale === "crd") return /^\d{3,4}$/.test(s) ? ("0000" + s).slice(-4) : s;
+    if (scale === "crd" || scale === "cd") return /^\d{3,4}$/.test(s) ? ("0000" + s).slice(-4) : s;
     if (scale === "state") {
       if (/^\d{1,2}$/.test(s)) return ("00" + s).slice(-2);
       var up = s.toUpperCase();
@@ -5888,6 +5898,12 @@
     } else if (scale === "huc8") {
       _featCacheGL.huc8 = Promise.all([geoJson("huc8"), statesMesh]).then(function (r) {
         var out = build(r[0], "huc8", function (f) { return (f.properties && f.properties.name) || f.id; });
+        out.statesOverlay = r[1];
+        return out;
+      });
+    } else if (scale === "cd") {
+      _featCacheGL.cd = Promise.all([geoJson("cd"), statesMesh]).then(function (r) {
+        var out = build(r[0], "cd", function (f) { return (f.properties && f.properties.name) || f.id; });
         out.statesOverlay = r[1];
         return out;
       });
@@ -6263,7 +6279,8 @@
     });
   }
   function scaleNoun(scale) {
-    return scale === "state" ? "states" : scale === "crd" ? "CRDs" : scale === "huc8" ? "HUC8 subbasins" : "counties";
+    return scale === "state" ? "states" : scale === "crd" ? "CRDs" : scale === "huc8" ? "HUC8 subbasins" :
+      scale === "cd" ? "congressional districts" : "counties";
   }
   // V9: "Last updated" line shared by both provenance popovers — lastUpdated is an
   // epoch-ms timestamp resolved from the panel's workspace dataset (see

@@ -10,11 +10,15 @@
              vendor/geo/us-crd-counties.json       (parsed from USDA NASS county_list.txt)
              vendor/geo/us-huc8-albers.json        (USGS WBD → simplified → reprojected,
                                                      nationwide: all 50 states + DC)
+             vendor/geo/us-cd-albers.json          (Census TIGERweb 119th Congressional
+                                                     Districts → reprojected, nationwide:
+                                                     all 50 states + DC, LF22 item 2)
 
    All redistribution licensing is recorded in THIRD-PARTY-NOTICES.md and
    vendor/geo/README.md. Sources: npm registry (topojson-client, us-atlas, and the
    build-only d3-geo/d3-array/internmap/topojson-server), nass.usda.gov (public
-   domain), hydro.nationalmap.gov ArcGIS REST (public domain). */
+   domain), hydro.nationalmap.gov ArcGIS REST (public domain), tigerweb.geo.census.gov
+   ArcGIS REST (public domain, U.S. Census Bureau). */
 import { execSync } from "node:child_process";
 import { mkdirSync, writeFileSync, readFileSync, copyFileSync, symlinkSync, existsSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -157,4 +161,54 @@ const topo = topology({ huc8: { type: "FeatureCollection", features: projected }
 delete topo.bbox;
 writeFileSync(path.join(OUT, "us-huc8-albers.json"), JSON.stringify(topo));
 console.log("HUC8:", projected.length, "features →", JSON.stringify(topo).length, "bytes");
+
+// ── 4. Congressional districts nationwide: fetch, reproject, quantize (LF22 item 2) ──
+// Census FIPS state codes for the same 50-states-+-DC extent as US_STATES above
+// (TIGERweb keys by numeric STATE FIPS, not postal abbreviation).
+const CD_STATE_FIPS = [
+  "01", "02", "04", "05", "06", "08", "09", "10", "11", "12", "13", "15", "16", "17", "18",
+  "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31", "32", "33",
+  "34", "35", "36", "37", "38", "39", "40", "41", "42", "44", "45", "46", "47", "48", "49",
+  "50", "51", "53", "54", "55", "56",
+];
+const cdWhere = "STATE IN (" + CD_STATE_FIPS.map((s) => `'${s}'`).join(",") + ")";
+let cdOffset = 0, cdFeats = [];
+for (;;) {
+  const qs = new URLSearchParams({
+    where: cdWhere, outFields: "GEOID,NAME,STATE", f: "geojson",
+    // Districts are ~county-sized (435 nationwide) — finer offset than HUC8 is
+    // affordable at this feature count.
+    maxAllowableOffset: "0.01", geometryPrecision: "4",
+    resultOffset: String(cdOffset), resultRecordCount: "1000", returnGeometry: "true",
+  });
+  const j = await (await fetch(
+    "https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Legislative/MapServer/0/query?" + qs,
+    { signal: AbortSignal.timeout(180000) }
+  )).json();
+  if (j.error) throw new Error(JSON.stringify(j.error));
+  cdFeats = cdFeats.concat(j.features || []);
+  console.log("CD batch @", cdOffset, "→ total", cdFeats.length);
+  if (!(j.features || []).length || !j.exceededTransferLimit) break;
+  cdOffset += j.features.length;
+}
+const cdProjected = [];
+for (const f of cdFeats) {
+  // Skip Census's "not defined" filler districts (GEOID ending "ZZ" — large water
+  // areas like Lake Michigan or Long Island Sound with AREALAND 0, not assigned to
+  // any real district; a handful nationwide) — not a district a real dataset would
+  // ever key data to, and including it would render a colorable-but-meaningless region.
+  if (/ZZ$/.test(f.properties.GEOID)) continue;
+  const g = f.geometry; if (!g) continue;
+  const polys = (g.type === "Polygon" ? [g.coordinates] : g.type === "MultiPolygon" ? g.coordinates : [])
+    .map((poly) => poly.map(projRing).filter(Boolean)).filter((p) => p.length);
+  if (!polys.length) continue;
+  // id = GEOID (state FIPS + district number, e.g. "1903" = Iowa's 3rd district;
+  // DC's non-voting delegate seat is "1198") — same 4-digit shape as CRD ids.
+  cdProjected.push({ type: "Feature", id: f.properties.GEOID, properties: { name: f.properties.NAME },
+    geometry: polys.length === 1 ? { type: "Polygon", coordinates: polys[0] } : { type: "MultiPolygon", coordinates: polys } });
+}
+const cdTopo = topology({ cd: { type: "FeatureCollection", features: cdProjected } }, 1e4);
+delete cdTopo.bbox;
+writeFileSync(path.join(OUT, "us-cd-albers.json"), JSON.stringify(cdTopo));
+console.log("CD:", cdProjected.length, "features →", JSON.stringify(cdTopo).length, "bytes");
 console.log("build-geo: DONE");

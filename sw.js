@@ -5,7 +5,21 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v203"; /* v203: LF22 slice 1 — HUC8 watersheds now cover the
+var CACHE_NAME = "studio-shell-v204"; /* v204: LF22 slice 2 — a new Congressional districts
+   (119th Congress) choropleth scale, the second geography-expansion item after slice 1's
+   nationwide watersheds: tools/build-geo.mjs fetches district boundaries from Census TIGERweb
+   (Legislative/MapServer), reprojects onto the same AlbersUsa plane, and commits
+   vendor/geo/us-cd-albers.json (436 districts, all 50 states + DC, ~333KB — not precached, same
+   as the other vendor/geo assets). New "cd" scale wired through geoFeatures/geoFeaturesGL/
+   geoNormalizeId/scaleNoun (app/studio-charts.js), Studio.geoAssetKeys + the Region-scale
+   dropdown (app/model.js), and the two duplicated GEO_FILES lookup tables (app/studio.js's
+   ensureGeoAssets, app/viewer.js) + the CLI export's own copy (tools/lib.js) — every place that
+   already special-cases huc8 gained a twin cd branch. Districts split counties (unlike CRD,
+   which merges county polygons), so cd ships its own vendored geometry rather than being
+   derived; region ids are 4-digit GEOID (state FIPS + district number), the same shape
+   geoNormalizeId already gives CRD ids. app/studio-charts.js, app/studio.js, app/model.js,
+   app/viewer.js, docs/index.html changed, so precached copies need to roll.
+   v203: LF22 slice 1 — HUC8 watersheds now cover the
    whole country (all 50 states + DC), not just the 12-state Corn Belt: tools/build-geo.mjs
    queries the USGS WBD MapServer for every state instead of a hardcoded subset and simplifies
    a bit harder (maxAllowableOffset 0.01°→0.02°) to keep the shipped asset reasonable (2,292

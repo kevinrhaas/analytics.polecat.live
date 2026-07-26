@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 567,
+    title: 'New map scale: congressional districts',
+    kind: 'feature',
+    ts: '2026-07-26T06:32:40.000Z',
+    items: [
+      'Choropleth maps gain a new "Congressional districts" region scale (119th Congress, all 50 states + DC) alongside counties, states, USDA crop-reporting districts, and watersheds -- the second item in the geography-expansion list after watersheds went nationwide.',
+    ],
+  },
+  {
     v: 566,
     title: 'Watershed maps now cover the whole country',
     kind: 'feature',
