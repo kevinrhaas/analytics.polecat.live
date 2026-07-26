@@ -9779,6 +9779,64 @@ function serve() {
     ok("LF19 Inspector slice 6: the glyph never leaks text into h4.textContent (title stays exact)",
       panelSecIcons.textUnchanged, JSON.stringify(panelSecIcons));
 
+    // LF19 Inspector slice 7 — three more Inspector renderers get the same header-glyph
+    // treatment: Filter (renderFilterInspector), Header (renderHeaderInspector), and KPI
+    // tile (renderKpiInspector) — continuing the "Filter, Header, KPI tile, Data Source"
+    // follow-up list slice 6 left open. Data Source (renderDAInspector, ~15 sections across
+    // many source-type-specific fields) is by far the largest of the four and remains its
+    // own future slice.
+    const smallInspIcons = await page.evaluate(function () {
+      function h4Of(title) {
+        return [].slice.call(document.querySelectorAll("#inspBody .insp-sec h4")).filter(function (h) {
+          return h.textContent.replace(/\s*\(\d+\)\s*$/, "").trim() === title;
+        })[0];
+      }
+      function iconsFor(titles) {
+        var hs = titles.map(h4Of);
+        var svgs = hs.map(function (h) { return h && h.querySelector(".sec-ic svg"); });
+        return { hs: hs, svgs: svgs };
+      }
+      var _saved = JSON.parse(JSON.stringify(window.__STUDIO_STATE.spec));
+
+      // Header inspector — no index needed, select{kind:header} against the live spec.
+      window.__studioSelect({ kind: "header" });
+      var header = iconsFor(["Header"]);
+
+      // KPI tile inspector — the shared spec (studio-cost) already carries kpis; index 0.
+      window.__studioSelect({ kind: "kpi", index: 0 });
+      var kpi = iconsFor(["KPI tile", "Trend & delta", "Compare to", "Click-through"]);
+
+      // Filter inspector — the shared spec has no filters, so load a throwaway spec with
+      // one filter bound to a synthetic data access, then restore the shared spec after.
+      window.__studioLoad({
+        title: "Filter icon test", panels: [], kpis: [],
+        filters: [{ id: "f1", label: "Region", da: "d1", valueCol: "region", textCol: "region", allLabel: "All", def: "%" }],
+        cda: { connections: [], dataAccesses: [{ id: "d1", columns: ["region"] }] }
+      });
+      window.__studioSelect({ kind: "filter", index: 0 });
+      var filt = iconsFor(["Filter", "Options preview"]);
+
+      window.__studioLoad(_saved); // restore shared state for later tests
+      window.__studioSelectDashboard();
+
+      var allTitles = ["Header"].concat(["KPI tile", "Trend & delta", "Compare to", "Click-through"], ["Filter", "Options preview"]);
+      var allHs = header.hs.concat(kpi.hs, filt.hs);
+      var allSvgs = header.svgs.concat(kpi.svgs, filt.svgs);
+      return {
+        allFound: allHs.every(Boolean),
+        allPresent: allSvgs.every(Boolean),
+        distinctPaths: new Set(allSvgs.map(function (s) { return s && s.innerHTML; })).size === allSvgs.length,
+        textUnchanged: allHs.every(function (h, i) { return h.textContent.replace(/\s*\(\d+\)\s*$/, "").trim() === allTitles[i]; })
+      };
+    });
+    ok("LF19 Inspector slice 7: all 7 sections across the Header, KPI tile, and Filter inspectors are found",
+      smallInspIcons.allFound, JSON.stringify(smallInspIcons));
+    ok("LF19 Inspector slice 7: each of those sections shows its own header glyph", smallInspIcons.allPresent, JSON.stringify(smallInspIcons));
+    ok("LF19 Inspector slice 7: the 7 sections use 7 visually distinct glyphs, not one repeated icon",
+      smallInspIcons.distinctPaths, JSON.stringify(smallInspIcons));
+    ok("LF19 Inspector slice 7: the glyph never leaks text into h4.textContent (title stays exact)",
+      smallInspIcons.textUnchanged, JSON.stringify(smallInspIcons));
+
     // LF19 "next" slice — tidy the "+ New" affordance on "This dashboard's datasets":
     // it used to spell out "New" next to the group's own count badge, which crowded the
     // group name into an ellipsis ("This dashboard's da…") at the panel's default width.

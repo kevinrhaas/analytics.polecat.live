@@ -116,6 +116,29 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF19 slice 7 — Filter, Header, and KPI tile inspectors gain header icons too (v558,
+  sw v195, 2026-07-26, steward):** continuing the right-panel icon pass slices 5/6 started,
+  picking up 3 of the 4 remaining renderers from slice 6's follow-up list. `renderFilterInspector`
+  (Filter `sliders` — same glyph the Dashboard Inspector's own "Filters" section uses; Options
+  preview `eye` — same "preview" glyph Widget Inspector's Query preview uses), `renderHeaderInspector`
+  (Header `freeze-header` — its rectangle-with-a-shaded-top-band shape reads as a banner even
+  though the name comes from a chart's frozen-table-header option), and `renderKpiInspector`
+  (KPI tile `grid` — same glyph the Dashboard Inspector's "KPI tiles" section uses; Trend & delta
+  `trend-up`; Compare to `diff` — same glyph the app's own compareBtn() already uses; Click-through
+  `link` — same glyph Widget Inspector's Drill-through uses, since Click-through is literally the
+  KPI-tile version of the same `PDC.bindDrill` mechanism) — 7 more `section()`/`advSection()` call
+  sites now carry the `iconName` argument slice 5 introduced. Icon choices reuse a name already
+  meaningful elsewhere in the app wherever a fit existed, same convention as slices 5/6. Data
+  Source (`renderDAInspector`, ~15 sections across many source-type-specific fields — by far the
+  largest of the four) is deliberately NOT in this slice; it stays its own future follow-up.
+  Builder-only chrome (all three renderers live entirely in app/studio.js, never bundled into an
+  exported dashboard), so the export byte-identity invariant is untouched. 4 new regression tests
+  (all 7 sections found across the three inspectors; each shows its own glyph; the 7 use 7
+  visually distinct SVGs, not one icon repeated; `h4.textContent` stays exactly the plain title).
+  No docs change (purely decorative, same as slices 5/6). Suite green. (app/studio.js, sw.js,
+  js/changelog.js, tests/run.js) NEXT in LF19: the same icon treatment for Data Source
+  (`renderDAInspector`), the last of the four Inspector renderers slice 6 named, then sensible
+  collapse defaults + consistent spacing on the right panel generally.
 - **LF19 slice 6 — the Widget/Panel inspector gets the same header-glyph treatment (v557,
   sw v194, 2026-07-26, steward):** continuing the right-panel pass slice 5 started. All 20
   `section()`/`advSection()` call sites in `renderPanelInspector` — the base fields (Widget
