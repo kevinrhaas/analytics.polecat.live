@@ -1,5 +1,5 @@
 /* tutorial.js — Analytics interactive tutorials.
-   J6 (rebuilt) / LF18(b): FOUR guided, spotlighted walkthroughs behind a chooser —
+   J6 (rebuilt) / LF18(b): FIVE guided, spotlighted walkthroughs behind a chooser —
      · "Take the tour" (overview) — walks the whole app down the rail
        (Home · Explore · Dashboards · Datasets · Connections · Jobs ·
        Repository · Studio) and ends on Home. The first-run / recommended tour.
@@ -9,17 +9,22 @@
        export a self-contained .html.
      · "Prep data (Jobs)" — the Jobs section: list → new job → search/folders,
        what a job is and how its output becomes a chartable dataset.
+     · "Connections & Datasets" — the Connections section (list → new
+       connection → search/folders) then the Datasets section (list → new
+       dataset → search/folders) — where data lives, and the reusable queries
+       built on top of it, LF18(b)'s last per-feature tour.
    Distinct from the welcome tour (welcome.js), which is informational.
    Steps may carry a `before()` hook (switch section, seed Explore) and the
    renderer WAITS for the step's target to exist, so tours can walk UI that
    builds asynchronously.
 
    KEEP THESE TOURS CURRENT: any slice that changes a user-facing flow this
-   tutorial walks (Explore, Studio panes, export, Jobs) updates the copy here
-   in the SAME slice — the suite greps this file for retired product terms.
+   tutorial walks (Explore, Studio panes, export, Jobs, Connections, Datasets)
+   updates the copy here in the SAME slice — the suite greps this file for
+   retired product terms.
 
    window.StudioTutorial.open()        — tour chooser (or restart)
-   window.StudioTutorial.openTour(key) — start a specific tour ("overview"|"quick"|"build"|"jobs")
+   window.StudioTutorial.openTour(key) — start a specific tour ("overview"|"quick"|"build"|"jobs"|"connect")
    window.StudioTutorial.isDone()      — true once any tour was completed.
    © 2026 Polecat.live. See LICENSE. */
 (function () {
@@ -89,7 +94,7 @@
         },
         {
           t: "Connections — where your data lives",
-          h: "Point at Postgres, Supabase, Snowflake, BigQuery, Google Sheets, a dropped CSV, and more — or work entirely on the built-in sample data. Credentials stay in your browser by default; connecting a workspace backend syncs them there too (encrypt them from Settings).",
+          h: "Point at Postgres, Supabase, Snowflake, BigQuery, Google Sheets, a dropped CSV, and more — or work entirely on the built-in sample data. Credentials stay in your browser by default; connecting a workspace backend syncs them there too (encrypt them from Settings). There's a dedicated tour that walks Connections and Datasets together, too.",
           target: '.rail-item[data-sec="connections"]',
           pos: "right"
         },
@@ -265,9 +270,66 @@
           last: true
         }
       ]
+    },
+    connect: {
+      label: "Connections & Datasets",
+      blurb: "Where your data lives, and the reusable queries built on top of it — both in one walk.",
+      steps: [
+        {
+          t: "Connect your data, then query it",
+          h: "A <b>connection</b> points at where your data lives; a <b>dataset</b> is a named, reusable query on top of one — the building block every chart and dashboard draws from. This tour walks both.",
+          sub: "You can reopen these tours any time from ⋯ More → Interactive tutorial.",
+          target: null,
+          before: function () { goSection("connections"); }
+        },
+        {
+          t: "1 · Every connection you've made",
+          h: "Point at Postgres, Supabase, Snowflake, BigQuery, Google Sheets, a dropped CSV, and more — or work entirely on the built-in sample data. Connections land here with folder chips once you start filing them.",
+          target: "#connResults",
+          pos: "bottom"
+        },
+        {
+          t: "2 · Add a new connection",
+          h: "<b>+ New connection</b> opens a short wizard: pick an adapter, enter credentials, test it, save. Credentials stay in your browser by default; a workspace backend can sync them (encrypt them from Settings).",
+          target: "#connNewBtn",
+          pos: "bottom"
+        },
+        {
+          t: "3 · Find one fast",
+          h: "Search by name, adapter, or folder — the same folder chips every catalog in the app uses once you start filing things.",
+          target: "#connSearch",
+          pos: "bottom"
+        },
+        {
+          t: "4 · From connection to dataset",
+          h: "A <b>dataset</b> is a named, <code>{{param}}</code>-substitutable query on top of a connection — define it once, chart it everywhere in Explore or Studio.",
+          target: "#dsxResults",
+          pos: "bottom",
+          before: function () { goSection("datasets"); }
+        },
+        {
+          t: "5 · Add a new dataset",
+          h: "<b>+ New dataset</b> opens the editor: pick a connection, write the query (or pick a table), preview real rows, save.",
+          target: "#dsxNewBtn",
+          pos: "bottom"
+        },
+        {
+          t: "6 · Find one fast",
+          h: "Search by name, connection, table, or folder — the same convention as Connections and every other catalog.",
+          target: "#dsxSearch",
+          pos: "bottom"
+        },
+        {
+          t: "That's Connections &amp; Datasets!",
+          h: "<b>Connection → dataset → chart it.</b> Head to <b>Explore</b> for the fast path to a chart, or <b>Jobs</b> first if the data needs prep.",
+          sub: "⋯ More → Interactive tutorial brings you back here any time.",
+          target: null,
+          last: true
+        }
+      ]
     }
   };
-  var TOUR_ORDER = ["overview", "quick", "build", "jobs"];
+  var TOUR_ORDER = ["overview", "quick", "build", "jobs", "connect"];
 
   var _tour = null;   // active tour key, null while the chooser is up
   var _cur = 0;
@@ -345,7 +407,7 @@
     var tip = document.createElement("div"); tip.id = "st-tip";
     tip.innerHTML =
       "<h3>Pick a tour</h3>" +
-      '<div class="st-h">Three quick, guided walkthroughs — spotlights on the real app, a couple of minutes each.</div>' +
+      '<div class="st-h">Four quick, guided walkthroughs — spotlights on the real app, a couple of minutes each.</div>' +
       TOUR_ORDER.map(function (k) {
         return '<button type="button" class="st-choice" data-tour="' + k + '"><b>' + TOURS[k].label + "</b><small>" + TOURS[k].blurb + "</small></button>";
       }).join("") +
@@ -465,7 +527,8 @@
 
   var FINISH_TOASTS = {
     quick: "Tour complete! Save an analysis and pin it to Home.",
-    jobs: "Tour complete! Try a job on one of your own datasets."
+    jobs: "Tour complete! Try a job on one of your own datasets.",
+    connect: "Tour complete! Add a connection, or explore a sample dataset."
   };
   function finish() {
     try {

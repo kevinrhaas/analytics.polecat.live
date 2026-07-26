@@ -16488,8 +16488,8 @@ function serve() {
       } catch (e) {}
     }, j4PanelId);
 
-    // ---- J6: Interactive tutorials (rebuilt: chooser + three tours) --------
-    console.log("\n• J6: interactive tutorials (Quick analysis + Build a dashboard + Jobs)");
+    // ---- J6: Interactive tutorials (rebuilt: chooser + five tours) --------
+    console.log("\n• J6: interactive tutorials (Quick analysis + Build a dashboard + Jobs + Connections & Datasets)");
 
     // Freshness ratchet: tours and the welcome tour must never ship retired
     // product terms again (Kevin, 2026-07-17 — tours move WITH the product).
@@ -16511,7 +16511,7 @@ function serve() {
     });
     ok("J6: 'Interactive tutorial' entry in ⋯ More menu", j6MenuEntry.ok, JSON.stringify(j6MenuEntry));
 
-    // J6-2: open() shows the TOUR CHOOSER — four tour cards, active flag set
+    // J6-2: open() shows the TOUR CHOOSER — five tour cards, active flag set
     await page.evaluate(function () {
       try { if (window.StudioTutorial) StudioTutorial.open(); } catch (e) {}
     });
@@ -16520,12 +16520,12 @@ function serve() {
       var tip = document.getElementById("st-tip");
       var choices = document.querySelectorAll("#st-tip .st-choice[data-tour]");
       var active = window.__studioTutorialActive ? window.__studioTutorialActive() : false;
-      return { ok: !!tip && active && choices.length === 4, choices: choices.length,
+      return { ok: !!tip && active && choices.length === 5, choices: choices.length,
         labels: [].map.call(choices, function (c) { return c.querySelector("b").textContent; }).join("|"),
         overviewFirst: choices[0] && choices[0].getAttribute("data-tour") === "overview" };
     });
-    ok("J6: open() presents the tour chooser — Overview first, then Quick analysis + Build a dashboard + Prep data (Jobs)",
-      j6Chooser.ok && j6Chooser.overviewFirst && /Quick analysis/.test(j6Chooser.labels) && /Take the tour/.test(j6Chooser.labels) && /Prep data \(Jobs\)/.test(j6Chooser.labels), JSON.stringify(j6Chooser));
+    ok("J6: open() presents the tour chooser — Overview first, then Quick analysis + Build a dashboard + Prep data (Jobs) + Connections & Datasets",
+      j6Chooser.ok && j6Chooser.overviewFirst && /Quick analysis/.test(j6Chooser.labels) && /Take the tour/.test(j6Chooser.labels) && /Prep data \(Jobs\)/.test(j6Chooser.labels) && /Connections & Datasets/.test(j6Chooser.labels), JSON.stringify(j6Chooser));
 
     // J6-3: choosing "Build a dashboard" → step 0 centered card; Next spotlights #library
     await page.click('#st-tip .st-choice[data-tour="build"]');
@@ -16570,17 +16570,18 @@ function serve() {
     });
     ok("J6: Escape closes the tutorial (tip, ring, and active flag all cleared)", j6Closed.ok, JSON.stringify(j6Closed));
 
-    // J6-5: tour shapes — four tours (overview leads), quick has 8 steps, build has 6, jobs has 5
+    // J6-5: tour shapes — five tours (overview leads), quick has 8 steps, build has 6, jobs has 5, connect has 8
     const j6Shape = await page.evaluate(function () {
       try {
-        return { ok: StudioTutorial.tourKeys().join(",") === "overview,quick,build,jobs" &&
+        return { ok: StudioTutorial.tourKeys().join(",") === "overview,quick,build,jobs,connect" &&
           StudioTutorial.stepCount("overview") === 10 && StudioTutorial.stepCount("quick") === 8 &&
-          StudioTutorial.stepCount("build") === 6 && StudioTutorial.stepCount("jobs") === 5,
+          StudioTutorial.stepCount("build") === 6 && StudioTutorial.stepCount("jobs") === 5 &&
+          StudioTutorial.stepCount("connect") === 8,
           keys: StudioTutorial.tourKeys().join(","), q: StudioTutorial.stepCount("quick"), b: StudioTutorial.stepCount("build"),
-          j: StudioTutorial.stepCount("jobs") };
+          j: StudioTutorial.stepCount("jobs"), c: StudioTutorial.stepCount("connect") };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("J6: four tours — Overview (10 steps, leads — M5's Repository joined the rail walk), Quick analysis (8), Build a dashboard (6), Prep data/Jobs (5 — LF18(b))", j6Shape.ok, JSON.stringify(j6Shape));
+    ok("J6: five tours — Overview (10 steps, leads — M5's Repository joined the rail walk), Quick analysis (8), Build a dashboard (6), Prep data/Jobs (5 — LF18(b)), Connections & Datasets (8 — LF18(b))", j6Shape.ok, JSON.stringify(j6Shape));
 
     // J6-6: the QUICK tour walks the real Explore UI — it switches the section,
     // seeds a sample dataset, and every spotlighted step finds its live target
@@ -16703,6 +16704,52 @@ function serve() {
     ok("J6: the Prep data (Jobs) tour walks the REAL Jobs section — section switched, list/+New job/search all spotlighted, Done! completes and records",
       j6Jobs.tour === "jobs" && j6Jobs.jobsSection && j6Jobs.hits === 3 && /Done/.test(j6Jobs.lastLabel) && j6Jobs.closed && j6Jobs.done && j6Jobs.doneJobs,
       JSON.stringify(j6Jobs));
+
+    // J6-9 (LF18b): the CONNECT tour walks the real Connections section, THEN
+    // switches to the real Datasets section — both lists, +New buttons, and
+    // search boxes get spotlighted in order, closing out LF18(b)'s per-feature tours.
+    await page.evaluate(function () { StudioTutorial.openTour("connect"); });
+    await page.waitForTimeout(250);
+    const j6Connect = await page.evaluate(async function () {
+      function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+      async function ringFor(sel, timeout) {
+        var t0 = Date.now();
+        while (Date.now() - t0 < timeout) {
+          var ring = document.getElementById("st-ring");
+          if (ring && sel) {
+            var tgt = document.querySelector(sel);
+            if (tgt) { var rr = ring.getBoundingClientRect(), tr = tgt.getBoundingClientRect();
+              if (Math.abs((rr.left + rr.right) / 2 - (tr.left + tr.right) / 2) < 30) return true; }
+          }
+          await sleep(120);
+        }
+        return false;
+      }
+      var out = { tour: window.__studioTutorialTour(), connSection: false, dsxSection: false, hits: 0 };
+      var targets = ["#connResults", "#connNewBtn", "#connSearch", "#dsxResults", "#dsxNewBtn", "#dsxSearch"];
+      for (var i = 0; i < targets.length; i++) {
+        document.querySelector("#st-tip button.pri").click();
+        if (i === 0) out.connSection = !document.getElementById("secConnections").hidden;
+        if (i === 3) out.dsxSection = !document.getElementById("secDatasets").hidden;
+        if (await ringFor(targets[i], 4000)) out.hits++;
+        await sleep(100);
+      }
+      // final centered step → Done!
+      document.querySelector("#st-tip button.pri").click();
+      await sleep(200);
+      var doneBtn = document.querySelector("#st-tip button.pri");
+      out.lastLabel = doneBtn ? doneBtn.textContent : "";
+      doneBtn.click();
+      await sleep(150);
+      out.closed = !document.getElementById("st-tip") && !window.__studioTutorialActive();
+      out.done = StudioTutorial.isDone();
+      try { out.doneConnect = localStorage.getItem("studio-tutorial-done-connect") === "1"; } catch (e) {}
+      return out;
+    });
+    ok("J6: the Connections & Datasets tour walks BOTH real sections — Connections list/+New/search, then Datasets list/+New/search, Done! completes and records",
+      j6Connect.tour === "connect" && j6Connect.connSection && j6Connect.dsxSection && j6Connect.hits === 6 &&
+      /Done/.test(j6Connect.lastLabel) && j6Connect.closed && j6Connect.done && j6Connect.doneConnect,
+      JSON.stringify(j6Connect));
 
     // restore studio section for later tests
     await page.evaluate(function () { window.__studioShellSetSection("studio"); });

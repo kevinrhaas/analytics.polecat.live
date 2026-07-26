@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 574,
+    title: 'A dedicated Connections & Datasets tour',
+    kind: 'feature',
+    ts: '2026-07-26T11:00:19.000Z',
+    items: [
+      'The tour chooser (Home -> Take the tour, or More -> Interactive tutorial) gains a fifth walkthrough, "Connections & Datasets" -- it spotlights the Connections list/new-connection/search, then the Datasets list/new-dataset/search, closing out the "deeper per-feature tours" ask.',
+    ],
+  },
+  {
     v: 573,
     title: 'A dedicated Jobs tour',
     kind: 'feature',

@@ -116,6 +116,25 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF18 slice 4 — a dedicated Connections & Datasets tour (v574, sw v211, 2026-07-26, steward —
+  LF18(b) is now fully done, and LF18 as a whole is fully done):** the tour chooser
+  (`app/tutorial.js`) gains a fifth walkthrough, "Connections & Datasets" (8 steps: intro → the
+  Connections list (`#connResults`) → `+ New connection` (`#connNewBtn`) → search/folders
+  (`#connSearch`) → switch to Datasets → the Datasets list (`#dsxResults`) → `+ New dataset`
+  (`#dsxNewBtn`) → search/folders (`#dsxSearch`) → done), joining Overview/Quick analysis/Build a
+  dashboard/Prep data (Jobs) — all real, already-rendered Connections/Datasets UI (no wizard or
+  editor modal forced open). The Overview tour's own "Connections — where your data lives" step
+  now says "there's a dedicated tour that walks Connections and Datasets together, too" (matching
+  the Explore/Jobs steps' existing phrasing), and the chooser's fixed intro copy updated from
+  "Three" to "Four" (the non-overview tour count). `TOUR_ORDER` →
+  `["overview","quick","build","jobs","connect"]`; `FINISH_TOASTS.connect` = "Add a connection, or
+  explore a sample dataset." 2 updated J6 assertions (chooser shows 5 cards; tour shapes include
+  `connect` at 8 steps) + 1 new regression test (J6-9: both real sections switch in turn, all six
+  spotlighted targets are found live across Connections then Datasets, Done! completes and records
+  `studio-tutorial-done-connect`). Suite green. (app/tutorial.js, tests/run.js, sw.js,
+  js/changelog.js) **LF18(b)'s "deeper per-feature tours for Jobs and Connections/Datasets" ask is
+  now fully done, closing out LF18 in its entirety** — the whole Home-overhaul track (quick-actions,
+  tour chooser, featured/examples clarity) is shipped.
 - **LF18 slice 3 — a dedicated Jobs tour (v573, sw v210, 2026-07-26, steward — closes the Jobs
   half of LF18(b)):** the tour chooser (`app/tutorial.js`) gains a fourth walkthrough, "Prep data
   (Jobs)" (5 steps: intro → the Jobs list (`#jobsResults`) → `+ New job` (`#jobsNewBtn`) → search/
@@ -4379,6 +4398,10 @@
 >       ✓ **Slice 3 shipped (v573, sw v210, 2026-07-26, steward — closes the Jobs half of (b)):
 >       a dedicated "Prep data (Jobs)" tour** — see DONE for the full writeup. NEXT in LF18 (the
 >       track's last open item): the matching Connections/Datasets tour.
+>       ✓ **Slice 4 shipped (v574, sw v211, 2026-07-26, steward — LF18(b) is now fully done, and
+>       LF18 as a whole is now fully done): a dedicated "Connections & Datasets" tour** — see DONE
+>       for the full writeup. Every documented item in LF18 (quick-actions reworded, the Examples
+>       source-pack hint, and now Jobs + Connections/Datasets tours) is shipped.
 
 ### 🔁 QUALITY TRACKS — interleave with the feature backlog (Kevin, 2026-07-21)
 > Kevin asked for a code-organization sweep AND a UI/UX best-practices sweep, folded INTO the loop
