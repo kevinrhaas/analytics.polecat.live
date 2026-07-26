@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v207"; /* v207: R5+ slice 5, part 2 (tech-debt track) — the
+var CACHE_NAME = "studio-shell-v208"; /* v208: LF18(a) — Home's quick-action cards reworded to
+   concrete jobs: New dashboard/Explore data/New connection/New dataset, each with a one-line
+   description; the three new ones (explore/connection/dataset) route straight to their target
+   (Explore section, the connection wizard, the dataset editor) with no Studio entry, unlike
+   blank/examples/tour. app/studio.js, tests/run.js changed, so the precached copy needs to roll.
+   v207: R5+ slice 5, part 2 (tech-debt track) — the
    versions/notes MODAL/RENDER UI (openNoteEditor, openJsonEditor, openVersionDiff,
    openCompareDashboards, restoreVersion, and the Inspector's Version-history/Builder-notes
    sections) moves out of app/studio.js into app/versions.js (Studio.VersionsUI), joining the

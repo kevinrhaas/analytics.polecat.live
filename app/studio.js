@@ -5946,7 +5946,10 @@
       }).join("") + '</div>';
     }
     var cards = [
-      { act: "blank", ic: "plus", t: "Blank dashboard", d: "Start from scratch" }
+      { act: "blank", ic: "plus", t: "New dashboard", d: "Build a dashboard from scratch" },
+      { act: "explore", ic: "trend-up", t: "Explore data", d: "Explore curated sample datasets" },
+      { act: "connection", ic: "link", t: "New connection", d: "Create a connection to your own data" },
+      { act: "dataset", ic: "db", t: "New dataset", d: "Build datasets from an existing connection" }
     ].concat(showSamples() ? [{ act: "examples", ic: "grid", t: "Browse examples", d: "Sample dashboards on the demo database" }] : [])
       .concat([{ act: "tour", ic: "play", t: "Take the tour", d: "Guided walkthrough of the builder" }]);
     var html = '<div class="home-wrap">' +
@@ -6077,6 +6080,11 @@
     $$(".home-card", sec).forEach(function (btn) {
       btn.onclick = function () {
         var act = btn.getAttribute("data-home");
+        // LF18(a): "connection"/"dataset"/"explore" are plain section nav + existing
+        // modals, not builder entry points — they skip enterStudio() entirely.
+        if (act === "connection") { openConnectionWizard(); return; }
+        if (act === "dataset") { openDatasetEditor(); return; }
+        if (act === "explore") { if (window.__studioShellSetSection) __studioShellSetSection("explore"); return; }
         enterStudio();
         if (act === "blank") { S.spec = newBlankSpec(); S.selection = null; syncHeader(); renderInspector(); refreshPreview(); buildLibrary(); bumpDashMilestone(); }
         else if (act === "examples") { setTimeout(function () { var b = $("#btnExamples"); if (b) b.click(); }, 60); }

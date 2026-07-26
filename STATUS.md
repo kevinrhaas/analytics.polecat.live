@@ -116,6 +116,28 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF18 slice 1 — Home quick-actions reworded to concrete jobs (v571, sw v208, 2026-07-26,
+  steward):** Home's 3 quick-create cards grow to 6, each with a one-line description: "New
+  dashboard"/"Build a dashboard from scratch" (renamed from "Blank dashboard"/"Start from
+  scratch", same `blank` action), a new "Explore data"/"Explore curated sample datasets" card
+  (routes straight to the Explore section), a new "New connection"/"Create a connection to your
+  own data" card (opens `openConnectionWizard()` directly), and a new "New dataset"/"Build
+  datasets from an existing connection" card (opens `openDatasetEditor()` directly) — "Browse
+  examples" and "Take the tour" are unchanged. The three new cards deliberately skip
+  `enterStudio()` (unlike blank/examples/tour): none of them are builder entry points, just a
+  plain section nav and two standalone modals that already work from anywhere in the app, so
+  routing through Studio first would be a wrong, visible flash. FINDING while scoping this
+  item's sub-item (c) ("Featured is missing"): already resolved by earlier work, not a live bug
+  — `loadRecents()` (which Home's Featured section reads) returns every dashboard, not just
+  recently-opened ones, and the M2c demo-workspace slice + M3.1's `initAuthBoot` demo-login
+  auto-install already seed + surface a `featured:true` Conservation dashboard on a fresh
+  install; the pre-existing "DP: the installed pack's dashboard appears as a featured live card
+  on Home" regression test already covers exactly this case. No code change made for (c). 3 new
+  regression tests (connection wizard opens directly, no Studio entry; dataset editor same;
+  Explore nav lands on the Explore section with the rail marked active) + the existing Z2
+  quick-create-card-count assertion updated from 3 to 6. Suite 2135/2135. (app/studio.js,
+  tests/run.js, sw.js, js/changelog.js) NEXT in LF18: (b) the tour chooser and (d) the
+  examples-sourced-from-sample-packs clarification remain open.
 - **R5+ slice 5, part 2 — versions/notes MODAL/RENDER UI extracted to its own module (v570,
   sw v207, 2026-07-26, steward):** the tech-debt track's own documented follow-up to slice 5
   part 1 (the pure data layer, shipped 2026-07-25). `openNoteEditor`, `openJsonEditor`,
@@ -4293,6 +4315,25 @@
 >       (pack not installed? featured flag not surfaced?) and ensure a fresh install shows a default featured
 >       dashboard. (d) Keep FAVORITES (pinned) + RECENTS + EXAMPLES, and make clear the examples are drawn
 >       from whatever sample pack(s) are loaded. app/studio.js renderHome(), app/demopacks.js, tour modules.
+>       ✓ **Slice 1 shipped (v571, sw v208, 2026-07-26, steward): (a) quick-actions reworded to concrete
+>       jobs.** Home's 3 quick-create cards grew to 6: "New dashboard"/"Build a dashboard from scratch"
+>       (renamed from "Blank dashboard"/"Start from scratch", same `blank` action, unchanged), two brand-new
+>       cards — "Explore data"/"Explore curated sample datasets" (routes straight to the Explore section)
+>       and "New connection"/"Create a connection to your own data" (opens `openConnectionWizard()`
+>       directly) — plus "New dataset"/"Build datasets from an existing connection" (opens
+>       `openDatasetEditor()` directly), with "Browse examples" and "Take the tour" unchanged. The three
+>       new actions deliberately skip `enterStudio()` (unlike blank/examples/tour) since none of them are
+>       builder entry points — a plain section nav and two standalone modals that already work from
+>       anywhere in the app. 3 new regression tests (connection wizard opens directly with no Studio entry;
+>       dataset editor same; Explore nav lands on the Explore section with the rail marked active), plus
+>       the existing Z2 quick-create-card-count assertion updated from 3 to 6. FINDING while scoping (c):
+>       already resolved by earlier work, not a new bug — `loadRecents()` includes every dashboard
+>       (not just recently-opened ones), and the M2c demo-workspace slice + M3.1's `initAuthBoot`
+>       demo-login auto-install already seed + surface a `featured:true` Conservation dashboard on a
+>       fresh install; the existing "DP: the installed pack's dashboard appears as a featured live card
+>       on Home" regression test (tests/run.js) already covers exactly this. No code change needed for
+>       (c). NEXT in LF18: (b) the tour chooser and (d) the examples-sourced-from-sample-packs
+>       clarification remain open.
 
 ### 🔁 QUALITY TRACKS — interleave with the feature backlog (Kevin, 2026-07-21)
 > Kevin asked for a code-organization sweep AND a UI/UX best-practices sweep, folded INTO the loop

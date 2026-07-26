@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 571,
+    title: 'Richer Home quick actions',
+    kind: 'feature',
+    ts: '2026-07-26T09:51:42.000Z',
+    items: [
+      'Home\'s quick-action cards now name concrete jobs, not just "Blank dashboard" -- New dashboard, Explore data, New connection, and New dataset each get a one-line description, and the three new ones jump straight to their target instead of opening the builder first.',
+    ],
+  },
+  {
     v: 570,
     title: 'Tech debt: version-history/builder-notes UI moves to its own module',
     kind: 'polish',
