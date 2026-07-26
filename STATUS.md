@@ -116,6 +116,31 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF19 slice 6 — the Widget/Panel inspector gets the same header-glyph treatment (v557,
+  sw v194, 2026-07-26, steward):** continuing the right-panel pass slice 5 started. All 20
+  `section()`/`advSection()` call sites in `renderPanelInspector` — the base fields (Widget
+  `cube`, Chart type `curve`, Content `edit`, Data `db`, Options `sliders`), the chart-type-
+  conditional interaction sections (Drill-through `link`, Detail drawer `folder`, Cross-filter
+  `swap`, Conditional formatting `check`, Color scale `palette`), Animation `play` and Downloads
+  `download`, the annotation family (Target line `trophy`, Reference band `layers`, Callout
+  arrow `tag`, Period highlight `clock`, Event markers `dot`, Point annotations `star`), and
+  Insight `info` / Query preview `eye` — now carry the same `iconName` glyph slice 5 introduced
+  on `section()`. `advSection()` (the shared wrapper every "Advanced mode" section in this
+  renderer calls) didn't forward that argument yet — given its own optional 6th `iconName`
+  parameter, passed straight through to the underlying `section()` call, so no new SVG-insertion
+  code was needed, only wiring. Icon choices reuse a name already meaningful elsewhere in the
+  app where a fit existed (e.g. `download` matches the Downloads section's own affordance,
+  `clock` matches Period highlight's time-based nature) rather than inventing a parallel
+  vocabulary — same approach as slice 5. Builder-only chrome (`renderPanelInspector` lives
+  entirely in app/studio.js, never bundled into an exported dashboard), so the export
+  byte-identity invariant is untouched. 4 new regression tests spanning bars/richtext/scatter
+  chart types to exercise every conditionally-shown section (all 20 sections found; each shows
+  its own glyph; the 20 use 20 visually distinct SVGs, not one icon repeated; `h4.textContent`
+  stays exactly the plain title). No docs change (purely decorative, same as slice 5). Suite
+  green. (app/studio.js, sw.js, js/changelog.js, tests/run.js) NEXT in LF19: the same icon
+  treatment for the remaining Inspector renderers (Filter, Header, KPI tile, Data Source — each
+  its own follow-up slice), then sensible collapse defaults + consistent spacing on the right
+  panel generally.
 - **LF19 slice 5 — the right Inspector panel's turn starts: header glyphs on the Dashboard
   Inspector's top-level sections (v556, sw v193, 2026-07-25, steward):** LF19's left-panel
   organize-and-simplify pass (slices 1-4) is done; this is the first slice of the matching
@@ -3870,6 +3895,14 @@
 >       more `section()` call sites across those kinds), then sensible collapse defaults +
 >       consistent spacing on the right panel generally — still open, still to be sliced one
 >       coherent PR at a time.
+>       ✓ **Slice 6 shipped (v557, sw v194, 2026-07-26, steward): the Widget/Panel inspector.**
+>       See DONE for the full writeup — all 20 `section()`/`advSection()` call sites in
+>       `renderPanelInspector` (base fields, chart-type-conditional interaction sections, the
+>       annotation family, Insight, Query preview) now carry their own header glyph;
+>       `advSection()` gained the matching `iconName` passthrough. NEXT in LF19: the same icon
+>       treatment for the remaining Inspector renderers (Filter, Header, KPI tile, Data Source —
+>       each its own follow-up slice), then sensible collapse defaults + consistent spacing on
+>       the right panel generally.
 > LF18. **Home ("Welcome back") overhaul — richer entry points, default featured, tour chooser.** The Home
 >       landing should orient a returning user with descriptive quick-actions, not three bare cards:
 >       (a) QUICK-ACTIONS reworded to concrete jobs — "Explore curated datasets", "Build a dashboard from

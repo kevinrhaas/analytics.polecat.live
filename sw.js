@@ -5,7 +5,15 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v193"; /* v193: LF19 Inspector slice 1 — the right Inspector
+var CACHE_NAME = "studio-shell-v194"; /* v194: LF19 Inspector slice 6 — the Widget/Panel
+   inspector (renderPanelInspector) gets the same header-glyph treatment as the Dashboard
+   inspector: all 20 section()/advSection() call sites (Widget, Chart type, Data, Options,
+   Drill-through, Detail drawer, Cross-filter, Animation, Downloads, Target line, Reference
+   band, Callout arrow, Period highlight, Event markers, Point annotations, Conditional
+   formatting, Color scale, Insight, Query preview, Content) now carry their own icon.
+   advSection() gains the same optional iconName argument section() already had.
+   app/studio.js, tests/run.js changed, so precached copies need to roll.
+   v193: LF19 Inspector slice 1 — the right Inspector
    panel starts its own organize-and-simplify pass: every top-level Dashboard-inspector
    section (Checks, Dashboard, Template variables, KPI tiles, Filters, Shareable link, Share
    this dashboard, Version history, Builder notes, Panels) now carries its own header glyph,

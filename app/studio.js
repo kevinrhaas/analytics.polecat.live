@@ -3175,7 +3175,7 @@
   function renderPanelInspector(body) {
     var p = panelById(S.selection.id); if (!p) { selectDashboard(); return; }
     quickHelp(body, "panel");
-    var sec = section(body, "Widget");
+    var sec = section(body, "Widget", null, null, null, "cube");
     sec.appendChild(field("Title", input(p.title, function (v) { p.title = v; refreshPreview(); renderListsOnly(); })));
     var spanSel = select2pairs([["1", "1 column"], ["2", "2 columns"], ["3", "3 columns"], ["full", "Full width"]], String(p.span), function (v) { p.span = v === "full" ? "full" : +v; refreshPreview(); });
     sec.appendChild(field("Width (span)", spanSel, "Keys: ↑/↓ reorder · Shift+←/→ resize"));
@@ -3284,7 +3284,7 @@
     }
 
     // chart type picker — grouped by c.group for scannability (Content group = richtext/annotation)
-    var cs = section(body, "Chart type", null, null, "chart-types");
+    var cs = section(body, "Chart type", null, null, "chart-types", "curve");
 
     // N-AI: smart chart recommender — a quick "try one of these" strip above the full
     // gallery, computed from the bound query's own columns/rows. Silently omitted when
@@ -3421,7 +3421,7 @@
     // Richtext content editor — replaces Data / mapping / options / interaction sections.
     // The panel renders this markdown-like text directly; no data source needed.
     if (p.chart.type === "richtext") {
-      var rtSec = section(body, "Content");
+      var rtSec = section(body, "Content", null, null, null, "edit");
       var rtHint = el("div"); rtHint.style.cssText = "font-size:11px;color:var(--faint);margin-bottom:4px";
       rtHint.textContent = "Markdown: ## Heading  **bold**  *italic*  `code`  - list";
       rtSec.appendChild(rtHint);
@@ -3439,7 +3439,7 @@
     }
 
     // data binding
-    var ds = section(body, "Data", null, null, "data-sources");
+    var ds = section(body, "Data", null, null, "data-sources", "db");
     ds.appendChild(field("Query (data access)", daPicker(p.chart.da, function (v) { rebindDA(p, v); })));
     // H-track: "Edit source →" jump link in Advanced mode — one click from a panel to its DA inspector.
     // Hidden in Simple mode (authoring controls are restricted there).
@@ -3459,7 +3459,7 @@
     // options
     var optDefs = (Studio.CHARTS[p.chart.type] || {}).opts || [];
     if (optDefs.length) {
-      var os = section(body, "Options");
+      var os = section(body, "Options", null, null, null, "sliders");
       optDefs.forEach(function (od) { os.appendChild(optField(p.chart.opts, od, p.chart.type)); });
     }
     // Drill-through: click a chart element to navigate to another dashboard.
@@ -3467,7 +3467,7 @@
     if (Studio.chartSupports("drill", p.chart.type)) {
       var drillSec = advSection(body, "Drill-through", null, function () {
         return p.drill && p.drill.url ? p.drill.url.slice(0, 24) : "";
-      });
+      }, null, "link");
       var drillCfg = p.drill || {};
       drillSec.appendChild(field("Target URL",
         input(drillCfg.url || "", function (v) {
@@ -3490,7 +3490,7 @@
     if (Studio.chartSupports("detail", p.chart.type)) {
       var detailSec = advSection(body, "Detail drawer", null, function () {
         return p.detail && p.detail.da ? p.detail.da : "";
-      });
+      }, null, "folder");
       var detailData = p.detail || {};
       detailSec.appendChild(field("Detail DA",
         daPicker(detailData.da || "", function (v) {
@@ -3525,7 +3525,7 @@
     if (Studio.chartSupports("crossFilter", p.chart.type)) {
       var xfSec = advSection(body, "Cross-filter", null, function () {
         return p.crossFilter && p.crossFilter.emit ? p.crossFilter.emit : "";
-      });
+      }, null, "swap");
       var xfCfg = p.crossFilter || {};
       xfSec.appendChild(field("Emit as parameter",
         input(xfCfg.emit || "", function (v) {
@@ -3541,7 +3541,7 @@
     // PDC._anim / PDC._animD are set by studio-render.js before each chart call and read by
     // canAnim() / animD() in studio-charts.js — so these settings travel through without changing
     // every individual PDC.* call signature.
-    var animSec = section(body, "Animation");
+    var animSec = section(body, "Animation", null, null, null, "play");
     var animRow = el("div"); animRow.style.cssText = "display:flex;align-items:center;gap:6px";
     var animCb = el("input"); animCb.type = "checkbox"; animCb.id = "animCb_" + p.id;
     animCb.checked = p.animate !== false;
@@ -3578,7 +3578,7 @@
     // and the exported/embedded HTML — this is just the per-panel toggles. A panel saved before
     // LF25a carries only the old p.allowDownloads switch; dlTypeShown() in studio-render.js falls
     // back to it when a per-type key is unset, so existing dashboards keep their old behavior.
-    var dlSec = section(body, "Downloads");
+    var dlSec = section(body, "Downloads", null, null, null, "download");
     [["dlPng", "Download PNG"], ["dlCsv", "Download CSV"], ["dlEmbed", "Export as HTML"]].forEach(function (dt) {
       var key = dt[0], label = dt[1];
       var dlRow = el("div"); dlRow.style.cssText = "display:flex;align-items:center;gap:6px";
@@ -3602,7 +3602,7 @@
     (function () {
       var tlSec = advSection(body, "Target line", null, function () {
         return p.targetLine && p.targetLine.label ? '"' + p.targetLine.label.slice(0, 18) + '"' : (p.targetLine ? "defined" : "");
-      });
+      }, null, "trophy");
       var tlData = p.targetLine || {};
       tlSec.appendChild(field("Label", input(tlData.label || "", function (v) {
         if (!p.targetLine) p.targetLine = {};
@@ -3644,7 +3644,7 @@
     (function () {
       var rbSec = advSection(body, "Reference band", null, function () {
         return p.refBand && p.refBand.label ? '"' + p.refBand.label.slice(0, 18) + '"' : (p.refBand ? "defined" : "");
-      });
+      }, null, "layers");
       var rbData = p.refBand || {};
       rbSec.appendChild(field("Label", input(rbData.label || "", function (v) {
         if (!p.refBand) p.refBand = {};
@@ -3700,7 +3700,7 @@
     (function () {
       var caSec = advSection(body, "Callout arrow", null, function () {
         return p.callout && p.callout.text ? '"' + p.callout.text.slice(0, 18) + '"' : "";
-      });
+      }, null, "tag");
       var caData = p.callout || {};
       caSec.appendChild(field("Text", input(caData.text || "", function (v) {
         if (!p.callout) p.callout = {};
@@ -3761,7 +3761,7 @@
       if (_phTypes.indexOf(p.chart.type) === -1) return; // skip for polar/donut/etc.
       var phSec = advSection(body, "Period highlight", null, function () {
         return p.periodHighlight && p.periodHighlight.label ? '"' + p.periodHighlight.label.slice(0, 18) + '"' : (p.periodHighlight ? "defined" : "");
-      });
+      }, null, "clock");
       var phData = p.periodHighlight || {};
 
       phSec.appendChild(field("Label", input(phData.label || "", function (v) {
@@ -3827,7 +3827,7 @@
       var emSec = advSection(body, "Event markers", null, function () {
         var n = p.eventMarkers && p.eventMarkers.length;
         return n ? n + (n === 1 ? " marker" : " markers") : "";
-      });
+      }, null, "dot");
       var emList = el("div"); emList.style.cssText = "display:flex;flex-direction:column;gap:4px;margin-bottom:6px";
       emSec.appendChild(emList);
 
@@ -3898,7 +3898,7 @@
       var saSec = advSection(body, "Point annotations", null, function () {
         var n = p.scatterAnnotations && p.scatterAnnotations.length;
         return n ? n + (n === 1 ? " annotation" : " annotations") : "";
-      });
+      }, null, "star");
       var saList = el("div"); saList.style.cssText = "display:flex;flex-direction:column;gap:6px;margin-bottom:6px";
       saSec.appendChild(saList);
 
@@ -3975,7 +3975,7 @@
       var cfSec = advSection(body, "Conditional formatting", null, function () {
         var n = p.condFmt && p.condFmt.length;
         return n ? n + (n === 1 ? " rule" : " rules") : "";
-      });
+      }, null, "check");
       var cfList = el("div"); cfList.style.cssText = "display:flex;flex-direction:column;gap:4px;margin-bottom:6px";
       cfSec.appendChild(cfList);
 
@@ -4046,7 +4046,7 @@
       if (!Studio.chartSupports("colorScale", p.chart.type)) return; // Z8: bars/donut/treemap/lollipop only
       var csSec = advSection(body, "Color scale", null, function () {
         return p.colorScale && p.colorScale.enabled ? "gradient enabled" : "";
-      });
+      }, null, "palette");
       var csData = p.colorScale || {};
 
       // Enable toggle
@@ -4115,7 +4115,7 @@
       notable = Studio.notablePoint(sd.cols, sd.rows, labelCol, valueCol);
     }
     if (!text) return;
-    var sec = section(body, "Insight");
+    var sec = section(body, "Insight", null, null, null, "info");
     var box = el("div", "insight-box");
     box.appendChild(Studio.icon("info", 12));
     var span = el("span"); span.textContent = text;
@@ -4145,7 +4145,7 @@
 
   function renderQueryPeek(body, daId) {
     var da = Studio.daById(S.spec, daId); if (!da) return;
-    var peek = section(body, "Query preview", null, null, "data-sources");
+    var peek = section(body, "Query preview", null, null, "data-sources", "eye");
     // SQL snippet
     var sql = (da.sql || "").trim();
     if (sql) {
@@ -11342,8 +11342,8 @@
   }
   /* advSection — like section() but marks the outer .insp-sec with .adv-sect so
      CSS can hide the whole block in Simple mode (body.simple-mode .adv-sect). */
-  function advSection(parent, title, onAdd, summaryFn, helpAnchor) {
-    var body = section(parent, title, onAdd, summaryFn, helpAnchor);
+  function advSection(parent, title, onAdd, summaryFn, helpAnchor, iconName) {
+    var body = section(parent, title, onAdd, summaryFn, helpAnchor, iconName);
     body.parentElement.classList.add("adv-sect");
     return body;
   }
