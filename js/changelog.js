@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 575,
+    title: 'Tech debt: Explore moves to its own module',
+    kind: 'polish',
+    ts: '2026-07-26T11:41:44.000Z',
+    items: [
+      'Behind-the-scenes cleanup only -- the Explore "pick a dataset, pick a chart, save it as an analysis" subsystem now lives in its own file instead of inside the main app controller. No visible change.',
+    ],
+  },
+  {
     v: 574,
     title: 'A dedicated Connections & Datasets tour',
     kind: 'feature',

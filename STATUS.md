@@ -116,6 +116,31 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **R5+ slice 6 — the Explore subsystem moves to its own module (v575, sw v212, 2026-07-26,
+  steward):** the Explore "pick a dataset → chart → save as an analysis" subsystem (`XP` state,
+  every `xp*` function, `renderExplore`, `analysisSpec`, `buildAnalysesLib`) moves out of
+  `app/studio.js` into a new `app/explore.js` (`Studio.Explore`), following the chart-thumbnails.js/
+  branding.js/defaults.js/celebrations.js/versions.js extraction precedent (①-⑤). Like ⑤
+  (versions/notes UI), this subsystem is too entangled with the builder's live spec/catalog/assets
+  state and its modal/library primitives for the ①-④ one-injected-callback shape, so it takes the
+  same ONE-bundled-call shape instead: a single `Studio.Explore.configure(deps)` from studio.js at
+  boot injects 28 helpers (builder state accessors, dataset execution, modal/library primitives).
+  Inside the module, a small read-only `S` proxy (`get catalog()/spec()/assets()`, each delegating
+  to the injected accessor) let almost every function body move verbatim — the one exception is the
+  single WRITE site (starting a brand-new blank dashboard before dropping an analysis into it),
+  routed through an explicit `D.newBlankDashboard()` instead of assigning `S.spec` directly. `XP`
+  itself is mutated in place, never reassigned, so studio.js keeps a stable `var XP =
+  Studio.Explore.XP` alias — every pre-existing bare `XP.*` reference outside the old block (e.g.
+  the LF28 viewport postMessage handler) and every `window.__studio*` test hook (`__STUDIO_XP`,
+  `__studioExplore`, `__studioRenderExplore`, `__studioAddAnalysisToNewDashboard`,
+  `__studioOpenAddToExistingDashboardPicker`, `__studioToggleAnalysisPrivate`) are byte-for-byte
+  unchanged. Every original call site (`renderExplore`/`xpLoadAnalysis`/`xpSave`/
+  `xpAddAnalysisToSpec`/`xpTogglePin`/`analysisSpec`/`buildAnalysesLib`) stays a thin same-named
+  delegate in studio.js, so the analysis→spec add and Home's `analysisSpec`/`homeLiveFrame` reuse
+  seams this slice was flagged to preserve are untouched. `app/explore.js` added to `app/index.html`
+  (loads before studio.js) and the sw.js precache list. Pure refactor, no behavior change — full
+  suite green, unchanged at 2139/2139. (app/explore.js, app/studio.js, app/index.html, sw.js,
+  js/changelog.js)
 - **LF18 slice 4 — a dedicated Connections & Datasets tour (v574, sw v211, 2026-07-26, steward —
   LF18(b) is now fully done, and LF18 as a whole is fully done):** the tour chooser
   (`app/tutorial.js`) gains a fifth walkthrough, "Connections & Datasets" (8 steps: intro → the
@@ -4612,11 +4637,18 @@
 >      — R5+ slice 5 is now fully done):** see DONE for the full writeup. The dozen-plus private
 >      DOM/modal helpers this half needed got ONE bundled `Studio.VersionsUI.configure(deps)`
 >      call instead of ①-④'s one-callback-each shape — same idea, just more of them. Suite
->      unchanged at 2132/2132. NEXT in this track: ⑥ the Explore `XP` subsystem
->      (own namespace; preserve the analysis→spec add + `homeLiveFrame` reuse seams) → ⑦ the data-plane
->      panels LAST (Jobs → Connections → Datasets; Datasets last because `runDataset`/
->      `window.__studioRunDataset` bridges back into the builder preview). These are lane-hot files —
->      schedule each when the feature lane isn't mid-slice in that area.
+>      unchanged at 2132/2132.
+>      ↳ **⑥ the Explore subsystem (shipped v575, sw v212, 2026-07-26, steward):** see DONE for
+>      the full writeup. Like ⑤, this took the ONE-bundled-`configure(deps)`-call shape (28 injected
+>      helpers) rather than ①-④'s one-callback-each, since Explore is just as entangled with the
+>      builder's live spec/catalog/assets state as the versions/notes UI half was — now
+>      `app/explore.js` (`Studio.Explore`). The analysis→spec add (`xpAddAnalysisToSpec`) and
+>      Home's `analysisSpec`/`homeLiveFrame` reuse seams this slice was flagged to preserve both
+>      stayed byte-for-byte call-compatible (thin same-named delegates in studio.js). Pure refactor,
+>      suite unchanged at 2139/2139. NEXT in this track: ⑦ the data-plane panels LAST (Jobs →
+>      Connections → Datasets; Datasets last because `runDataset`/`window.__studioRunDataset`
+>      bridges back into the builder preview). These are lane-hot files — schedule each when the
+>      feature lane isn't mid-slice in that area.
 
 ### ★★★★★ CONSERVATION INSIGHT PRODUCT PLATFORM (2026-07-21, user-directed — NOW THE TOP PRIORITY)
 > Kevin's big charter: turn Analytics into a multi-user, permissioned product. Decisions locked
