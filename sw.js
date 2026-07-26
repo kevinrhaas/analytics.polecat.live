@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v200"; /* v200: LF13(d) slice 3 — the job editor's
+var CACHE_NAME = "studio-shell-v201"; /* v201: LF19 slice 9 — Advanced-mode inspector
+   sections (advSection()) now default to COLLAPSED the first time, the last piece of
+   LF19's right-panel pass (consistent spacing is the one remaining follow-up).
+   app/studio.js, tests/run.js changed, so precached copies need to roll.
+   v200: LF13(d) slice 3 — the job editor's
    rollup/join/stack steps each gain a small visual diagram (columns in, the operation,
    columns out), the last piece of the job-editor overhaul ask (LF13 is now fully done).
    app/studio.js, app/studio.css, docs/index.html.

@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 564,
+    title: 'Advanced inspector sections start collapsed by default',
+    kind: 'polish',
+    ts: '2026-07-26T04:20:25.000Z',
+    items: [
+      'Advanced-mode sections in the right panel -- drill-through, annotations, conditional formatting, calculated columns, and the rest already tucked under Advanced mode -- now start collapsed the first time you select a widget, so the panel opens on its core fields instead of a wall of toggles.',
+      'Expanding (or re-collapsing) a section is remembered from then on, same as every other collapsible section.',
+    ],
+  },
+  {
     v: 563,
     title: 'Job editor gains an operation diagram for rollups, joins, and stacks',
     kind: 'polish',

@@ -11507,8 +11507,16 @@
     return body; // callers append content here (not to the outer .insp-sec)
   }
   /* advSection — like section() but marks the outer .insp-sec with .adv-sect so
-     CSS can hide the whole block in Simple mode (body.simple-mode .adv-sect). */
+     CSS can hide the whole block in Simple mode (body.simple-mode .adv-sect).
+     LF19 "sensible collapse defaults": these sections are already flagged as
+     secondary (hidden entirely in Simple mode) — start them COLLAPSED here too,
+     the first time ever (no stored preference yet), same "quiet by default"
+     pattern quickHelp() uses for "Quick help". A freshly selected widget's right
+     panel then opens on its core fields, not a wall of annotation/interaction
+     sections; an explicit user toggle (either direction) always wins from then on. */
   function advSection(parent, title, onAdd, summaryFn, helpAnchor, iconName) {
+    var key = title.replace(/\s*\(\d+\)\s*$/, "");
+    if (!(key in _collapsedSects)) _collapsedSects[key] = true;
     var body = section(parent, title, onAdd, summaryFn, helpAnchor, iconName);
     body.parentElement.classList.add("adv-sect");
     return body;
