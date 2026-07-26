@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 594,
+    title: 'Local file datasets now stay live in exported dashboards too',
+    kind: 'feature',
+    ts: '2026-07-26T22:56:21.000Z',
+    items: [
+      'The same connection-bound live-data support Turso, PostgreSQL (PostgREST), Supabase and Google Sheets got now covers dropped CSV/JSON files: exporting a dashboard built on a local file keeps its rows in the file itself, so it renders the real data once deployed instead of falling back to offline sample data. No credential ever needed -- a dropped file has nothing to authenticate.',
+    ],
+  },
+  {
     v: 593,
     title: 'Google Sheets datasets now run live in exported dashboards too',
     kind: 'feature',

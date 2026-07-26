@@ -18737,6 +18737,84 @@ function serve() {
     ok("Post-overhaul item 3 (Google Sheets) REGRESSION: the real query round-trip returns the actual filtered row from the endpoint",
       gsRealQuery.cols && gsRealQuery.cols.join(",") === "region,total,C" && gsRealQuery.rows === '[["EMEA",120,"Jan 15, 2026"]]', JSON.stringify(gsRealQuery));
 
+    // Post-overhaul backlog item 3, other half — local files slice (2026-07-26): the fifth
+    // connection-bound adapter to get this treatment, after Turso, PostgREST, Supabase and Google
+    // Sheets — and the simplest of all: a dropped file needs no live query, no secret and no cfg
+    // once exported, since its content already rides on da.dataset (dsToDA, app/studio.js fix).
+    // Redshift is the only connection-bound backend left without an exported-runtime path.
+    console.log("\n• Post-overhaul item 3 (connection-bound, local files): exported dashboards keep a dropped file's data live");
+
+    const flRedaction = await page.evaluate(function () {
+      var assets = window.__STUDIO_STATE.assets;
+      var conn = Studio.Workspace.put("connections", { name: "fl-export-test", adapter: "file", cfg: {} });
+      var spec = {
+        name: "ok-name", title: "T", panels: [], kpis: [], filters: [],
+        cda: { dataAccesses: [{ id: "d1", name: "flDa", kind: "sql", columns: ["region", "total"], connectionId: conn.id, datasetId: "ds-fl-1", dataset: { kind: "file", fileName: "flredactiontest.csv", format: "csv", content: "region,total\nFLREDACTIONTEST,120\n" } }] }
+      };
+      var html = Studio.exportCDF(spec, assets, "/x");
+      return {
+        keepsContent: html.indexOf("FLREDACTIONTEST") >= 0,
+        stampsConnAdapter: html.indexOf("\"connAdapter\":\"file\"") >= 0,
+        stampsNeedsSecret: html.indexOf("\"needsSecret\"") >= 0
+      };
+    });
+    ok("Post-overhaul item 3 (local files): exportCDF keeps the dropped file's content so the dataset still resolves once deployed",
+      flRedaction.keepsContent, JSON.stringify(flRedaction));
+    ok("Post-overhaul item 3 (local files): the redacted DA is stamped with connAdapter:\"file\" so the runtime knows which engine to use",
+      flRedaction.stampsConnAdapter, JSON.stringify(flRedaction));
+    ok("Post-overhaul item 3 (local files): a dropped file has no secret at all, so redaction never stamps needsSecret (no open-time prompt)",
+      !flRedaction.stampsNeedsSecret, JSON.stringify(flRedaction));
+
+    const flBundling = await page.evaluate(function () {
+      var assets = window.__STUDIO_STATE.assets;
+      var conn = Studio.Workspace.put("connections", { name: "fl-bundling-test", adapter: "file", cfg: {} });
+      var flSpec = { name: "ok-name", title: "T", panels: [], kpis: [], filters: [], cda: { dataAccesses: [{ id: "d1", name: "d1", kind: "sql", columns: ["x"], connectionId: conn.id, dataset: { kind: "file", fileName: "a.csv", format: "csv", content: "x\n1\n" } }] } };
+      var plainSpec = { name: "ok-name", title: "T", panels: [], kpis: [], filters: [], cda: { dataAccesses: [{ id: "d1", name: "d1", kind: "sql", columns: ["x"] }] } };
+      var flHtml = Studio.exportCDF(flSpec, assets, "/x");
+      var plainHtml = Studio.exportCDF(plainSpec, assets, "/x");
+      function has(html, name) { return new RegExp("Studio\\." + name + "\\s*=").test(html); }
+      return { flHasFacade: has(flHtml, "fileSource"), plainOmitsFacade: !has(plainHtml, "fileSource") };
+    });
+    ok("Post-overhaul item 3 (local files): a file-connected export bundles the local-file façade",
+      flBundling.flHasFacade, JSON.stringify(flBundling));
+    ok("Post-overhaul item 3 (local files): a plain sql DA with no connection stays lean (no local-file façade)",
+      flBundling.plainOmitsFacade, JSON.stringify(flBundling));
+
+    // Real end-to-end, UNSTUBBED — a dropped file has no network to fake, so this dispatch test
+    // doubles as the end-to-end regression check the other four adapters needed a separate
+    // mock-endpoint test for: the real, deployed Studio.fileSource.queryData actually parses.
+    const flDispatch = await page.evaluate(async function () {
+      var assets = window.__STUDIO_STATE.assets;
+      var conn = Studio.Workspace.put("connections", { name: "fl-dispatch-test", adapter: "file", cfg: {} });
+      // dsToDA (app/studio.js) always sets da.kind:"sql" and da.sql/da.query to the SQL-editor
+      // shape ("" for a file-kind dataset) — the real fileName/format/content ride on da.dataset only.
+      var da = { id: "d1", name: "d1", kind: "sql", columns: ["region", "total"], sql: "", query: "", connectionId: conn.id, dataset: { kind: "file", fileName: "sales.csv", format: "csv", content: "region,total\nEMEA,120\nAPAC,80\n" } };
+      var spec = { name: "ok-name", title: "T", panels: [], kpis: [], filters: [], cda: { dataAccesses: [da] } };
+      var html = Studio.exportCDF(spec, assets, "/x");
+      var ifr = document.createElement("iframe");
+      ifr.style.display = "none";
+      document.body.appendChild(ifr);
+      await new Promise(function (resolve) { ifr.onload = resolve; ifr.srcdoc = html; });
+      var iw = ifr.contentWindow;
+      var promptCalled = false;
+      iw.window.prompt = function () { promptCalled = true; return ""; };
+      var thrown = null, result = null;
+      try { result = await iw.PDC.cda("d1", {}); } catch (e) { thrown = e.message; }
+      document.body.removeChild(ifr);
+      return {
+        thrown: thrown,
+        noPromptNeeded: !promptCalled,
+        cols: result && result.cols,
+        rows: result && JSON.stringify(result.rows)
+      };
+    });
+    ok("Post-overhaul item 3 (local files) REGRESSION: an exported dashboard's REAL (unstubbed) Studio.fileSource.queryData parses the dropped file without throwing",
+      !flDispatch.thrown, JSON.stringify(flDispatch));
+    ok("Post-overhaul item 3 (local files): no credential prompt fires — a dropped file has nothing to authenticate",
+      flDispatch.noPromptNeeded, JSON.stringify(flDispatch));
+    ok("Post-overhaul item 3 (local files): the real parse returns the dropped CSV's actual rows — NOT sample/mock data",
+      flDispatch.cols && flDispatch.cols.join(",") === "region,total" && flDispatch.rows === '[["EMEA",120],["APAC",80]]', JSON.stringify(flDispatch));
+
     // ── F18: Bump / ranking chart (v104) ─────────────────────────────────────
     console.log("\n• F18: Bump chart");
 
