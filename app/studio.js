@@ -8144,6 +8144,57 @@
         draw();
         return wrap;
       }
+      // LF13(d) slice 3 (the last piece of the job-editor overhaul ask): a small visual
+      // DIAGRAM of the operation for the three step kinds that actually reshape the data
+      // (rollup/join/stack) — the ones people find hardest to picture from form fields
+      // alone. Reuses colsBeforeStep/colsCache as the single source of truth for column
+      // names (same data the pickers above already show) so the diagram can never drift
+      // from what the pipeline will really do; purely a read-only visualization, no new
+      // step state.
+      function diagChip(name, hl) {
+        var c = el("span", "jobs-diag-chip" + (hl ? " hl" : "")); c.textContent = name; return c;
+      }
+      function diagBox(title, cols, hlCol) {
+        var box = el("div", "jobs-diag-box");
+        var h = el("div", "jobs-diag-box-title"); h.textContent = title; box.appendChild(h);
+        var chips = el("div", "jobs-diag-chips");
+        if (!cols.length) { var e = el("span", "jobs-diag-empty"); e.textContent = "no columns yet"; chips.appendChild(e); }
+        else cols.forEach(function (c) { chips.appendChild(diagChip(c, c === hlCol)); });
+        box.appendChild(chips);
+        return box;
+      }
+      function diagArrow(iconName, label) {
+        var a = el("div", "jobs-diag-arrow");
+        a.appendChild(Studio.icon(iconName, 18));
+        var l = el("span"); l.textContent = label; a.appendChild(l);
+        return a;
+      }
+      function stepDiagram(step, stepIdx) {
+        if (step.op !== "aggregate" && step.op !== "join" && step.op !== "union") return null;
+        var diag = el("div", "jobs-step-diagram");
+        var inCols = colsBeforeStep(stepIdx);
+        if (step.op === "aggregate") {
+          var gb = step.groupBy || [];
+          var metricNames = (step.metrics || []).map(function (m) { return m.as || ((m.fn || "?") + "_" + (m.col || "?")); });
+          diag.appendChild(diagBox(inCols.length + " column" + (inCols.length === 1 ? "" : "s") + " in", inCols));
+          diag.appendChild(diagArrow("sigma", gb.length ? "group by " + gb.join(", ") : "pick group-by columns"));
+          diag.appendChild(diagBox("Rolled up to", gb.concat(metricNames)));
+        } else if (step.op === "join") {
+          var rightCols = colsCache.byDs[step.datasetId] || [];
+          var rightDs = step.datasetId ? Studio.Workspace.get("datasets", step.datasetId) : null;
+          diag.appendChild(diagBox("This pipeline", inCols, step.leftCol));
+          diag.appendChild(diagArrow("join", (step.type === "left" ? "left join" : "inner join") +
+            (step.leftCol && step.rightCol ? "\non " + step.leftCol + " = " + step.rightCol : "")));
+          diag.appendChild(diagBox(rightDs ? rightDs.name : "Other dataset", rightCols, step.rightCol));
+        } else if (step.op === "union") {
+          var otherCols = colsCache.byDs[step.datasetId] || [];
+          var otherDs = step.datasetId ? Studio.Workspace.get("datasets", step.datasetId) : null;
+          diag.appendChild(diagBox("This pipeline", inCols));
+          diag.appendChild(diagArrow("layers", "stacked with"));
+          diag.appendChild(diagBox(otherDs ? otherDs.name : "Other dataset", otherCols));
+        }
+        return diag;
+      }
       function stepFields(step, stepIdx) {
         var wrap = el("div", "jobs-step-fields");
         function mini(ph, val, onChange) {
@@ -8254,6 +8305,8 @@
           head.appendChild(up); head.appendChild(down); head.appendChild(del);
           card.appendChild(head);
           card.appendChild(stepFields(step, i));
+          var diag = stepDiagram(step, i);
+          if (diag) card.appendChild(diag);
           stepsWrap.appendChild(card);
         });
         var addStep = el("button", "btn"); addStep.type = "button"; addStep.textContent = "+ Step";

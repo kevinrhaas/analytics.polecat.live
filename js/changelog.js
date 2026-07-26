@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 563,
+    title: 'Job editor gains an operation diagram for rollups, joins, and stacks',
+    kind: 'polish',
+    ts: '2026-07-26T03:53:00.000Z',
+    items: [
+      'Rollup (aggregate), join, and union (stack) steps in the job editor now show a small diagram: the columns going in, the operation in the middle (group-by columns, the join key + type, or the dataset being stacked in), and the columns coming out.',
+      'Completes the job editor overhaul ask (LF13) — column dropdowns, chained aggregates, a unique-key step, the source field list, sample rows, and now this diagram.',
+    ],
+  },
+  {
     v: 562,
     title: 'Job editor shows sample rows and an output preview',
     kind: 'polish',
