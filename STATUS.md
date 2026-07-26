@@ -116,6 +116,30 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **R5+ slice 8 — the Connections subsystem moves to its own module (v578, sw v215,
+  2026-07-26, steward):** the Connections section (workspace-level connections to external
+  sources — `renderConnections`, `openConnectionWizard`, `toggleConnPrivate`,
+  `testConnectionRow`, `renderSchemaPanel`, the saved-views/pin/folder-filter machinery, and
+  the 2-step connect wizard) moves out of `app/studio.js` into a new `app/connections.js`
+  (`Studio.Connections`), following the chart-thumbnails.js/branding.js/defaults.js/
+  celebrations.js/versions.js/explore.js/jobs.js extraction precedent (①-⑦). Like ⑤-⑦, this
+  subsystem leans on studio.js's own private DOM/modal helpers plus its visibility/user-scoping
+  and credential-field helpers (`isVisibleToMe`, `currentUserId`, `makeViewsStore`,
+  `makePinToggle`, `credentialFieldInput`), so it takes the same ONE-bundled-
+  `configure(deps)`-call shape (10 injected helpers) rather than ①-④'s one-callback-each. One
+  wrinkle beyond ⑤-⑦: `_connViewsStore` and `toggleConnPin` used to be built once from
+  `makeViewsStore`/`makePinToggle` at studio.js's own top-level (module-load) time — moving
+  them verbatim to connections.js's top level broke boot (`app/connections.js` loads BEFORE
+  studio.js calls `configure()`, so `D` was still `null`), caught immediately by the suite's
+  boot test; fixed by building both lazily inside `configure()` instead, preserving the exact
+  same "build once at startup" timing. `app/studio.js` keeps thin same-named delegates
+  (`renderConnections`, `openConnectionWizard`, `toggleConnPrivate`) at every original call
+  site, and every `window.__studio*` test hook is byte-for-byte unchanged. Pure refactor, no
+  behavior change — full suite unchanged at 2139/2139. (app/connections.js new, app/studio.js,
+  app/index.html, sw.js, js/changelog.js) **NEXT in this track: Datasets (last — `runDataset`/
+  `window.__studioRunDataset` bridges back into the builder preview, so it stays in studio.js
+  and is only ever injected as a dependency, never moved) — the R5+ studio.js module
+  extraction track is then fully done.**
 - **UX5 slice 1 — a named type scale for the builder chrome (v577, sw v214, 2026-07-26,
   steward):** a read-only audit had found 19 distinct raw-px `font-size` values scattered across
   `app/studio.css` with no shared vocabulary (half-steps like 8.5/9.5/11.5px included). A new
@@ -4692,10 +4716,19 @@
 >      suite unchanged at 2139/2139.
 >      ↳ **⑦ the Jobs subsystem (shipped v576, sw v213, 2026-07-26, steward):** see DONE for the
 >      full writeup. Same ONE-bundled-`configure(deps)`-call shape (10 injected helpers) — now
->      `app/jobs.js` (`Studio.Jobs`). Pure refactor, suite unchanged at 2139/2139. NEXT in this
->      track: ⑧ the remaining data-plane panels (Connections → Datasets; Datasets last because
->      `runDataset`/`window.__studioRunDataset` bridges back into the builder preview). These are
->      lane-hot files — schedule each when the feature lane isn't mid-slice in that area.
+>      `app/jobs.js` (`Studio.Jobs`). Pure refactor, suite unchanged at 2139/2139.
+>      ↳ **⑧ the Connections subsystem (shipped v578, sw v215, 2026-07-26, steward):** see DONE
+>      for the full writeup. Same ONE-bundled-`configure(deps)`-call shape (10 injected helpers)
+>      — now `app/connections.js` (`Studio.Connections`). One new wrinkle vs ⑤-⑦: two module-
+>      level values (`_connViewsStore`, `toggleConnPin`) depended on injected deps at their old
+>      studio.js top-level init time, so they had to move into `configure()` itself instead of
+>      staying at connections.js's own top level (which runs before studio.js ever calls
+>      `configure()`) — caught by the suite's boot test before shipping. Pure refactor, suite
+>      unchanged at 2139/2139. NEXT in this track: ⑨ Datasets (LAST — `runDataset`/
+>      `window.__studioRunDataset` bridges back into the builder preview, so it stays in
+>      studio.js and is only ever injected as a dependency, never moved) — this is a lane-hot
+>      file, schedule it when the feature lane isn't mid-slice in that area. Once Datasets is
+>      done, the entire R5+ studio.js module extraction track is complete.
 
 ### ★★★★★ CONSERVATION INSIGHT PRODUCT PLATFORM (2026-07-21, user-directed — NOW THE TOP PRIORITY)
 > Kevin's big charter: turn Analytics into a multi-user, permissioned product. Decisions locked
