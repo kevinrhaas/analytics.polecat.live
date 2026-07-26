@@ -116,6 +116,32 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **R5+ slice 9 — the Datasets subsystem moves to its own module (v579, sw v216,
+  2026-07-26, steward — LAST slice, the entire R5+ studio.js module extraction track is
+  now COMPLETE):** the Datasets section (a named, {{param}}-substitutable query on top of
+  a Connection — `renderDatasets`, `openDatasetEditor`, `toggleDsxPrivate`, the saved-
+  views/pin/adapter-conn-tag-folder-filter machinery, and the dataset def/kind helpers)
+  moves out of `app/studio.js` into a new `app/datasets.js` (`Studio.Datasets`), following
+  the chart-thumbnails.js/branding.js/defaults.js/celebrations.js/versions.js/explore.js/
+  jobs.js/connections.js extraction precedent (①-⑧). Like ⑤-⑧, this subsystem leans on
+  studio.js's own private DOM/modal helpers plus its visibility/user-scoping helpers, so it
+  takes the same ONE-bundled-`configure(deps)`-call shape (10 injected helpers, including
+  `runDataset` itself) rather than ①-④'s one-callback-each. **The one documented exception
+  in this whole track:** `runDataset` (and its `window.__studioRunDataset` builder-live-path/
+  test hook) stays IN studio.js — it's the shared live-data bridge the builder preview,
+  Explore, and Jobs all call directly — and is instead INJECTED into datasets.js the same
+  way every other studio.js-private helper is, while datasets.js exposes its own `connOf`/
+  `adapterOf`/`runnableDef` back OUT as plain (non-injected) methods on `Studio.Datasets`
+  for studio.js's copy of `runDataset` to call, plus two other call sites that read the
+  dataset's adapter directly (the Home favorites card, Repository's `repoAllRows`) — same
+  "expose state/helpers straight off the module namespace" pattern `Studio.Explore.XP`
+  already established. `app/studio.js` keeps thin same-named delegates (`renderDatasets`,
+  `openDatasetEditor`, `toggleDsxPrivate`) at every original call site, and every
+  `window.__studio*` test hook is byte-for-byte unchanged. Pure refactor, no behavior
+  change — full suite unchanged at 2139/2139. (app/datasets.js new, app/studio.js,
+  app/index.html, sw.js, js/changelog.js) **The R5+ studio.js module extraction track
+  (①-⑨: chart-thumbnails → branding → defaults → celebrations → versions/notes →
+  Explore → Jobs → Connections → Datasets) is now fully COMPLETE.**
 - **R5+ slice 8 — the Connections subsystem moves to its own module (v578, sw v215,
   2026-07-26, steward):** the Connections section (workspace-level connections to external
   sources — `renderConnections`, `openConnectionWizard`, `toggleConnPrivate`,
@@ -4724,11 +4750,18 @@
 >      studio.js top-level init time, so they had to move into `configure()` itself instead of
 >      staying at connections.js's own top level (which runs before studio.js ever calls
 >      `configure()`) — caught by the suite's boot test before shipping. Pure refactor, suite
->      unchanged at 2139/2139. NEXT in this track: ⑨ Datasets (LAST — `runDataset`/
->      `window.__studioRunDataset` bridges back into the builder preview, so it stays in
->      studio.js and is only ever injected as a dependency, never moved) — this is a lane-hot
->      file, schedule it when the feature lane isn't mid-slice in that area. Once Datasets is
->      done, the entire R5+ studio.js module extraction track is complete.
+>      unchanged at 2139/2139.
+>      ↳ **⑨ the Datasets subsystem (shipped v579, sw v216, 2026-07-26, steward — LAST
+>      subsystem, R5+ is now fully COMPLETE):** see DONE for the full writeup. Same
+>      ONE-bundled-`configure(deps)`-call shape (10 injected helpers, including `runDataset`
+>      itself — the one documented exception across the whole track: it stays in studio.js
+>      as the shared live-data bridge `window.__studioRunDataset` exposes, injected INTO
+>      datasets.js rather than moved, while datasets.js exposes `connOf`/`adapterOf`/
+>      `runnableDef` back OUT as plain methods for studio.js's copy to call) — now
+>      `app/datasets.js` (`Studio.Datasets`). Pure refactor, suite unchanged at 2139/2139.
+>      **The entire R5+ studio.js module extraction track (①-⑨: chart-thumbnails →
+>      branding → defaults → celebrations → versions/notes → Explore → Jobs → Connections
+>      → Datasets) is now fully done.**
 
 ### ★★★★★ CONSERVATION INSIGHT PRODUCT PLATFORM (2026-07-21, user-directed — NOW THE TOP PRIORITY)
 > Kevin's big charter: turn Analytics into a multi-user, permissioned product. Decisions locked

@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 579,
+    title: 'Tech debt: Datasets moves to its own module (last of this track)',
+    kind: 'polish',
+    ts: '2026-07-26T14:07:58.000Z',
+    items: [
+      'Behind-the-scenes cleanup only -- the Datasets subsystem now lives in its own file instead of inside the main app controller. No visible change.',
+    ],
+  },
+  {
     v: 578,
     title: 'Tech debt: Connections moves to its own module',
     kind: 'polish',
