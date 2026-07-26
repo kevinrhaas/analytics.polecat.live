@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v223"; /* v223: post-overhaul backlog item 7's
+var CACHE_NAME = "studio-shell-v224"; /* v224: Track L dedup — Connections/
+   Datasets/Jobs's configure(deps) calls each carried an identical copy of
+   the same 7 one-line passthrough closures ($, $$, el, modal, toast,
+   isVisibleToMe, currentUserId); factored into one coreModuleDeps() builder.
+   Pure refactor, no behavior change. app/studio.js changed, so precached
+   copies need to roll.
+   v223: post-overhaul backlog item 7's
    optional "by type" facet (kind: SQL query/Table/Collection/File/Sheet) on
    the Datasets list — same multi-select/saved-view pill strip as the
    existing by-adapter/by-connection/by-tag facets, keyed by d.kind. app/

@@ -5894,6 +5894,26 @@
   }
   window.__studioRenderDashboards = renderDashboards; // test hook
 
+  /* ---------- Shared configure(deps) core (Track L dedup, dead-code &
+     duplication lens) — Connections/Datasets/Jobs (R5+ slices 7-9) each
+     bundle the SAME 7 one-line passthrough closures ($, $$, el, modal,
+     toast, isVisibleToMe, currentUserId) into their own configure() call,
+     copy-pasted three times byte-for-byte. Factored into one builder so
+     each module's configure() only spells out what's actually DIFFERENT
+     about it. Returns a fresh object every call (no shared mutable state),
+     so this changes nothing about how/when each module receives its deps. */
+  function coreModuleDeps() {
+    return {
+      $: function (sel, root) { return $(sel, root); },
+      $$: function (sel, root) { return $$(sel, root); },
+      el: function (t, c) { return el(t, c); },
+      modal: function (title, build, onClose, wide) { return modal(title, build, onClose, wide); },
+      toast: function (msg, isErr, celebrate) { toast(msg, isErr, celebrate); },
+      isVisibleToMe: function (r) { return isVisibleToMe(r); },
+      currentUserId: function () { return currentUserId(); }
+    };
+  }
+
   /* ---------- Connections (workspace-level connections to external sources)
      — moved to app/connections.js (R5+ slice 8, studio.js module extraction,
      tech-debt track): same ONE-bundled-configure(deps)-call shape as
@@ -5907,18 +5927,11 @@
   window.__studioToggleConnPrivate = toggleConnPrivate; // test hook
   window.__studioRenderConnections = renderConnections; // test hook
   window.__studioOpenConnectionWizard = openConnectionWizard; // test hook
-  Studio.Connections.configure({
-    $: function (sel, root) { return $(sel, root); },
-    $$: function (sel, root) { return $$(sel, root); },
-    el: function (t, c) { return el(t, c); },
-    modal: function (title, build, onClose, wide) { return modal(title, build, onClose, wide); },
-    toast: function (msg, isErr, celebrate) { toast(msg, isErr, celebrate); },
-    isVisibleToMe: function (r) { return isVisibleToMe(r); },
-    currentUserId: function () { return currentUserId(); },
+  Studio.Connections.configure(Object.assign(coreModuleDeps(), {
     makeViewsStore: function (settingsKey) { return makeViewsStore(settingsKey); },
     makePinToggle: function (table, rerender) { return makePinToggle(table, rerender); },
     credentialFieldInput: function (idPrefix, f, savedValue, isNew) { return credentialFieldInput(idPrefix, f, savedValue, isNew); }
-  });
+  }));
 
   /* ---------- Datasets — moved to app/datasets.js (R5+ slice 9, studio.js
      module extraction, tech-debt track — LAST slice, the whole R5+ track is
@@ -5955,19 +5968,12 @@
     });
   }
   window.__studioRunDataset = runDataset; // builder live path + tests
-  Studio.Datasets.configure({
-    $: function (sel, root) { return $(sel, root); },
-    $$: function (sel, root) { return $$(sel, root); },
-    el: function (t, c) { return el(t, c); },
-    modal: function (title, build, onClose, wide) { return modal(title, build, onClose, wide); },
-    toast: function (msg, isErr, celebrate) { toast(msg, isErr, celebrate); },
-    isVisibleToMe: function (r) { return isVisibleToMe(r); },
+  Studio.Datasets.configure(Object.assign(coreModuleDeps(), {
     isDatasetVisibleToMe: function (r) { return isDatasetVisibleToMe(r); },
-    currentUserId: function () { return currentUserId(); },
     makeViewsStore: function (settingsKey) { return makeViewsStore(settingsKey); },
     makePinToggle: function (table, rerender) { return makePinToggle(table, rerender); },
     runDataset: function (d, extraParams) { return runDataset(d, extraParams); }
-  });
+  }));
 
   /* ---------- Jobs (Viridis V8: data-management-lite) — moved to app/jobs.js
      (R5+ slice 7, studio.js module extraction, tech-debt track): same
@@ -5984,18 +5990,11 @@
   window.__studioRenderJobs = renderJobs; // test hook
   window.__studioOpenJobEditor = openJobEditor; // test hook
   window.__studioRunJob = runJob; // test hook
-  Studio.Jobs.configure({
-    $: function (sel, root) { return $(sel, root); },
-    $$: function (sel, root) { return $$(sel, root); },
-    el: function (t, c) { return el(t, c); },
-    modal: function (title, build, onClose, wide) { return modal(title, build, onClose, wide); },
-    toast: function (msg, isErr, celebrate) { toast(msg, isErr, celebrate); },
-    isVisibleToMe: function (r) { return isVisibleToMe(r); },
+  Studio.Jobs.configure(Object.assign(coreModuleDeps(), {
     isDatasetVisibleToMe: function (r) { return isDatasetVisibleToMe(r); },
-    currentUserId: function () { return currentUserId(); },
     runDataset: function (ds) { return runDataset(ds); },
     guessFieldKind: function (colName, vals) { return guessFieldKind(colName, vals); }
-  });
+  }));
 
 
   /* ---------- Repository (M5 slice 1, STATUS.md's Conservation Insight track) ----------
