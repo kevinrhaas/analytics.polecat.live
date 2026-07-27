@@ -241,12 +241,17 @@
     if (spec.subtitleStyle === "italic") subtitleStyleCss = "\n.pdc-sub{font-style:italic}";
     else if (spec.subtitleStyle === "bold") subtitleStyleCss = "\n.pdc-sub{font-weight:800}";
     else if (spec.subtitleStyle === "bold-italic") subtitleStyleCss = "\n.pdc-sub{font-weight:800;font-style:italic}";
-    // N-DESIGN "chart skins" first cut: "flat" strips the raised shadow/glass-edge/hover-lift
-    // .card and .kpi already carry (vendor/pdc-ui.css) for a quieter, editorial-minimal mood —
-    // pure CSS override, no markup change, so it applies uniformly in preview + every export.
+    // N-DESIGN "chart skins": "flat" strips the raised shadow/glass-edge/hover-lift .card and
+    // .kpi already carry (vendor/pdc-ui.css) for a quieter, editorial-minimal mood; "sketch"
+    // (follow-up) swaps the shadow for a dashed border + an asymmetric, hand-wobbled radius
+    // instead — a whimsical mood distinct from both Raised and Flat. Both are pure CSS
+    // overrides, no markup change, so they apply uniformly in preview + every export.
     var cardSkinCss = spec.cardSkin === "flat" ?
       "\n.card,.kpi{box-shadow:none;border:1px solid var(--panel-border)}" +
-      "\n.card:hover,.kpi:hover{transform:none;box-shadow:none}" : "";
+      "\n.card:hover,.kpi:hover{transform:none;box-shadow:none}" :
+      spec.cardSkin === "sketch" ?
+      "\n.card,.kpi{box-shadow:none;border:2px dashed var(--panel-border);border-radius:18px 7px 18px 7px/7px 18px 7px 18px}" +
+      "\n.card:hover,.kpi:hover{box-shadow:none}" : "";
     // Series palette preset: override --c1..--c10 for both light and dark mode.
     // paletteKey "default" or blank → keep pdc-ui.css colors; any other key bakes in
     // the preset's color arrays so the exported CDF always renders with the chosen palette.

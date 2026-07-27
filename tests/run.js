@@ -18218,6 +18218,39 @@ function serve() {
     ok("N-DESIGN: picking 'Raised (default)' clears the card-skin override", cardSkinCleared.cardSkin === "", JSON.stringify(cardSkinCleared));
     await page.waitForTimeout(200);
 
+    // N-DESIGN follow-up: "Sketch / hand-drawn" — a third chart-skin mood (dashed border +
+    // wobbled asymmetric radius) alongside Raised/Flat.
+    const cardSkinSketch = await page.evaluate(function () {
+      var rows = [].slice.call(document.querySelectorAll(".field"));
+      var row = rows.filter(function (f) { var lb = f.querySelector("label"); return lb && lb.textContent.indexOf("Card style") >= 0; })[0];
+      var sel = row.querySelector("select");
+      sel.value = "sketch"; sel.dispatchEvent(new Event("change", { bubbles: true }));
+      var sp = window.__STUDIO_STATE.spec;
+      var html = Studio.buildHtml(sp, window.__STUDIO_STATE.assets, { preview: false });
+      return { specSet: sp.cardSkin === "sketch", cssOverride: html.indexOf(".card,.kpi{box-shadow:none;border:2px dashed var(--panel-border);border-radius:18px 7px 18px 7px/7px 18px 7px 18px}") >= 0 };
+    });
+    ok("N-DESIGN: picking 'Sketch / hand-drawn' sets spec.cardSkin and emits a matching .card/.kpi CSS override",
+      cardSkinSketch.specSet && cardSkinSketch.cssOverride, JSON.stringify(cardSkinSketch));
+
+    const cardSkinSketchReopen = await page.evaluate(function () {
+      var sp = JSON.parse(JSON.stringify(window.__STUDIO_STATE.spec));
+      window.__studioLoad(sp);
+      return { cardSkin: window.__STUDIO_STATE.spec.cardSkin };
+    });
+    ok("N-DESIGN: 'sketch' cardSkin survives a reopen through normalize() (whitelist kept in sync)",
+      cardSkinSketchReopen.cardSkin === "sketch", JSON.stringify(cardSkinSketchReopen));
+
+    const cardSkinSketchCleared = await page.evaluate(function () {
+      var rows = [].slice.call(document.querySelectorAll(".field"));
+      var row = rows.filter(function (f) { var lb = f.querySelector("label"); return lb && lb.textContent.indexOf("Card style") >= 0; })[0];
+      var sel = row.querySelector("select");
+      sel.value = ""; sel.dispatchEvent(new Event("change", { bubbles: true }));
+      return { cardSkin: window.__STUDIO_STATE.spec.cardSkin };
+    });
+    ok("N-DESIGN: clearing back to 'Raised (default)' removes the sketch override",
+      cardSkinSketchCleared.cardSkin === "", JSON.stringify(cardSkinSketchCleared));
+    await page.waitForTimeout(200);
+
     // ── N-DEV: dashboard templates/variables ({{key}} substitution in Title/Subtitle) ──
     console.log("\n• N-DEV: dashboard templates/variables");
     const tvUnit = await page.evaluate(function () {

@@ -2424,11 +2424,14 @@
   // N-DESIGN "chart skins" (first cut): an alternate render mood for every chart card + KPI tile,
   // toggled dashboard-wide. "Raised" is today's default material (shadow + glass edge + hover lift,
   // vendor/pdc-ui.css); "Flat" strips all three for a quieter, editorial-minimal boardroom look —
-  // same data, same layout, just a different surface treatment. Additive CSS override (see
-  // exporters.js cardSkinCss), vendor/pdc-ui.css itself stays untouched.
+  // same data, same layout, just a different surface treatment. "Sketch" (added later) swaps the
+  // shadow for a dashed, asymmetric-radius "hand-drawn" border instead — the whimsical mood the
+  // original chart-skins idea named alongside Flat. Additive CSS override (see exporters.js
+  // cardSkinCss), vendor/pdc-ui.css itself stays untouched.
   Studio.CARD_SKINS = [
     ["", "Raised (default)"],
-    ["flat", "Flat / minimal"]
+    ["flat", "Flat / minimal"],
+    ["sketch", "Sketch / hand-drawn"]
   ];
 
   Studio.emptySpec = function () {
