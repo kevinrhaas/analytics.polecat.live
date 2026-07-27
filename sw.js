@@ -5,7 +5,18 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v235"; /* v235: LF24 slice 2 — the auto-build engine.
+var CACHE_NAME = "studio-shell-v236"; /* v236: LF24 slice 3 — the creativity dial +
+   "fun" chart tier. buildAutoSpec(profile, creativity) now mixes a map/treemap/
+   slope/ensemble widget into the conservative base at creativity:'high', each
+   gated on its own data-support guardrail (app/quickmode.js's guessGeoScale/
+   pickSlopePair) rather than forced; a new Settings default (app/defaults.js)
+   plus a live Low/High tuner under the dashboard title (app/index.html #qmTuner,
+   app/studio.js) let it be set ahead of time or flipped in place after a Quick
+   import, re-parsing the source dataset rather than a stale cached profile.
+   app/quickmode.js, app/defaults.js, app/studio.js, app/studio.css,
+   app/index.html, docs/index.html content changed, so precached copies need to
+   roll.
+   v235: LF24 slice 2 — the auto-build engine.
    Quick import (slice 1) now builds a real, unsaved dashboard from the profiled
    file instead of just landing in Explore: a new pure PLANNING function,
    Studio.QuickMode.buildAutoSpec (app/quickmode.js), turns a column profile into

@@ -1,12 +1,17 @@
 /* Analytics — © 2026 Polecat.live. See LICENSE. */
-/* app/quickmode.js — LF24 "Quick mode" slice 1: the column PROFILER.
+/* app/quickmode.js — LF24 "Quick mode": the column PROFILER (slice 1) + the
+   auto-build PLANNING engine (slices 2/3).
 
    Pure, DOM-free semantic inference over a dropped file's parsed rows — no
    Workspace/UI dependencies, so it's trivially unit-testable and reusable by
-   a later auto-build engine (LF24 slices 2/3) without dragging in studio.js.
-   Reads column NAMES + VALUES (not just types) to guess intent, per the
-   "SMART SEMANTIC INFERENCE" spec in STATUS.md's LF24 entry: geo/temporal/id
-   columns drive chart FORM later, measures are what actually gets charted. */
+   studio.js's materializing half without dragging DOM code in here. Reads
+   column NAMES + VALUES (not just types) to guess intent, per the "SMART
+   SEMANTIC INFERENCE" spec in STATUS.md's LF24 entry: geo/temporal/id columns
+   drive chart FORM later, measures are what actually gets charted.
+   Slice 3 (creativity dial + "fun" chart tier): buildAutoSpec(profile,
+   creativity) mixes map/treemap/slope/ensemble widgets into the conservative
+   base at creativity:'high', each gated on its own data-support guardrail
+   (guessGeoScale, pickSlopePair) rather than forced. */
 (function () {
   "use strict";
   var Studio = window.Studio = window.Studio || {};
@@ -105,6 +110,55 @@
 
   function round2(n) { return Math.round(n * 100) / 100; }
 
+  // guessGeoScale(col) -> 'state'|'county'|'huc8'|'zcta'|'crd' — LF24 slice 3's map
+  // widget needs to know which Studio.CHARTS.choropleth "Region scale" a geo column
+  // is, not just that it IS geo (classifyColumn's job). Name signals first (cheapest,
+  // matches the LF22 scale vocabulary), then the same value-shape checks classifyColumn
+  // already samples (col.sample), falling back to 'county' — the FIPS default every
+  // other Studio geo helper (guessChoroplethCols in app/model.js) also assumes.
+  var ZIP_NAME_RE = /zip|zcta/i;
+  var HUC_NAME_RE = /huc/i;
+  var STATE_NAME_RE = /(^|_)(state|province)(_|$)|^st$/i;
+  var DISTRICT_NAME_RE = /district|crd/i;
+  var COUNTY_NAME_RE = /county|fips/i;
+  function guessGeoScale(col) {
+    var name = String((col && col.name) || "").toLowerCase();
+    if (ZIP_NAME_RE.test(name)) return "zcta";
+    if (HUC_NAME_RE.test(name)) return "huc8";
+    if (STATE_NAME_RE.test(name)) return "state";
+    if (DISTRICT_NAME_RE.test(name)) return "crd";
+    if (COUNTY_NAME_RE.test(name)) return "county";
+    var sample = (col && col.sample) || [];
+    if (sample.length && sample.every(function (v) { return /^[A-Za-z]{2}$/.test(String(v).trim()); })) return "state";
+    if (sample.length && sample.every(function (v) { return /^\d{8}$/.test(String(v).trim()); })) return "huc8";
+    if (sample.length && sample.every(function (v) { return /^\d{5}$/.test(String(v).trim()); })) return "county";
+    return "county";
+  }
+
+  // pickSlopePair(measures) -> {a, b} column names (a=earlier/before, b=later/after) or
+  // null. A slope chart is only as good as its before/after STORY — two arbitrary
+  // numeric columns rarely tell one, so this deliberately only fires on a real pairing
+  // signal instead of grabbing "any two measures" (the LF24 guardrail: only build what
+  // the data actually supports). Two signals, strongest first:
+  //   1) names carrying different 4-digit years (revenue_2023/revenue_2024).
+  //   2) explicit before/after-shaped name prefixes (prior_total/current_total).
+  var YEAR_RE = /(19|20)\d{2}/;
+  var BEFORE_WORDS = /^(before|prior|start|baseline|old|previous|initial)/i;
+  var AFTER_WORDS = /^(after|current|end|final|new|latest)/i;
+  function pickSlopePair(measures) {
+    if (!measures || measures.length < 2) return null;
+    var withYear = measures.map(function (m) {
+      var match = YEAR_RE.exec(m.name);
+      return match ? { name: m.name, year: parseInt(match[0], 10) } : null;
+    }).filter(function (m) { return m; }).sort(function (a, b) { return a.year - b.year; });
+    var distinctYears = withYear.filter(function (w, i) { return i === 0 || w.year !== withYear[i - 1].year; });
+    if (distinctYears.length >= 2) return { a: distinctYears[0].name, b: distinctYears[distinctYears.length - 1].name };
+    var before = measures.filter(function (m) { return BEFORE_WORDS.test(m.name); })[0];
+    var after = measures.filter(function (m) { return AFTER_WORDS.test(m.name); })[0];
+    if (before && after) return { a: before.name, b: after.name };
+    return null;
+  }
+
   // profileColumns({columns, rows}) -> [classifyColumn(...), ...] in column order.
   // `rows` is the array-of-arrays shape Studio.parseCSVText/parseJSONText return.
   function profileColumns(parsed) {
@@ -123,15 +177,22 @@
     return counts;
   }
 
-  // buildAutoSpec(profile) -> LF24 slice 2's AUTO-BUILD ENGINE (the PLANNING half
+  // buildAutoSpec(profile, creativity) -> LF24's AUTO-BUILD ENGINE (the PLANNING half
   // only — turning a plan into real spec panels/DAs is studio.js's job, since that
   // needs the Workspace/DA machinery this DOM-free module deliberately stays clear
-  // of). Conservative creativity default (slice 3 is the creativity dial + the
-  // "fun" chart tier): a KPI + straightforward widgets only — bars/donut/line/
-  // table, never map/ensemble/treemap/etc.
+  // of). creativity: 'low' (default) = conservative basics only — a KPI + bars/
+  // donut/line/table, never map/ensemble/treemap/slope. 'high' (slice 3's creativity
+  // dial) mixes in that "fun" chart tier ON TOP of the same conservative base, and
+  // ONLY when the data actually supports the specific shape each one needs — see the
+  // guardrails on each fun-tier push below; a level with no qualifying signal simply
+  // stays at the conservative set, never a broken/empty widget.
   // Returns an array of widget plans:
   //   { kind:'kpi',   label, fn:'sum'|'count', valueCol }
   //   { kind:'panel', type:'bars'|'donut'|'line'|'table', dim, fn, valueCol, limit, sortDir }
+  //   { kind:'panel', type:'choropleth', dim, fn, valueCol, scale }        (high only)
+  //   { kind:'panel', type:'treemap', dim, fn, valueCol, limit, sortDir }  (high only)
+  //   { kind:'panel', type:'slope', dim, valueCol1, valueCol2 }            (high only)
+  //   { kind:'panel', type:'ensembleSeries', dim, seriesCol, valueCol }    (high only)
   // GUARDRAILS applied here, per the LF24 spec in STATUS.md:
   //   - empty/constant columns never drive a widget (excluded up front).
   //   - a dimension is capped to its top N rows by value at materialization time
@@ -140,14 +201,16 @@
   //     plot ("require a real TEMPORAL column for any time series").
   //   - with no usable measure, bar/donut/kpi fall back to COUNT (rows per group)
   //     instead of being skipped outright — still tells the data's shape.
-  function buildAutoSpec(profile) {
+  function buildAutoSpec(profile, creativity) {
+    creativity = creativity === "high" ? "high" : "low";
     var usable = (profile || []).filter(function (c) { return c.type !== "empty" && c.type !== "constant"; });
     var measures = usable.filter(function (c) { return c.type === "measure"; });
     var temporals = usable.filter(function (c) { return c.type === "temporal"; });
+    var geos = usable.filter(function (c) { return c.type === "geo"; });
     // A geo column reads fine as a plain bar/donut dimension too — a real MAP is
-    // the "fun" tier (LF24 slice 3), so geo just joins the categorical dimension
-    // pool for now. Lowest-cardinality first: cheapest to read as a bar/donut
-    // without heavy top-N capping.
+    // the "fun" tier, so geo just joins the categorical dimension pool for now.
+    // Lowest-cardinality first: cheapest to read as a bar/donut without heavy
+    // top-N capping.
     var dims = usable.filter(function (c) { return c.type === "categorical" || c.type === "geo"; })
       .sort(function (a, b) { return a.cardinality - b.cardinality; });
     var measure = measures[0] || null;
@@ -167,6 +230,40 @@
       widgets.push({ kind: "panel", type: "line", dim: temporals[0].name, fn: "sum", valueCol: measure.name, sortDir: "asc" });
     }
 
+    if (creativity === "high") {
+      // MAP — a real geo column + a measure to shade it by. Scale guessed per-column
+      // (state/county/huc8/zcta/crd) so the map doesn't default every drop to counties.
+      var geo = geos[0];
+      if (geo && measure) {
+        widgets.push({ kind: "panel", type: "choropleth", dim: geo.name, fn: fn, valueCol: valueCol, scale: guessGeoScale(geo) });
+      }
+      // TREEMAP — a composition view; prefers a dim the bar/donut pair hasn't already
+      // used (fresh angle on the data), falls back to reusing barDim rather than
+      // skipping the fun tier outright when only one dimension exists at all.
+      var treemapDim = dims.filter(function (d) {
+        return (!barDim || d.name !== barDim.name) && (!donutDim || d.name !== donutDim.name);
+      })[0] || barDim;
+      if (treemapDim) {
+        widgets.push({ kind: "panel", type: "treemap", dim: treemapDim.name, fn: fn, valueCol: valueCol, limit: 15, sortDir: "desc" });
+      }
+      // SLOPE — only with a genuine before/after measure PAIR (pickSlopePair), never
+      // an arbitrary two measures; needs a label dimension to hang each line off.
+      var pair = pickSlopePair(measures);
+      if (pair && dims.length) {
+        widgets.push({ kind: "panel", type: "slope", dim: dims[0].name, valueCol1: pair.a, valueCol2: pair.b });
+      }
+      // ENSEMBLE — only with a genuine multi-provider series column (name-signalled,
+      // 2-8 distinct values — the same provider/series/source/method convention
+      // Studio.guessChoroplethCols already uses) plus a distinct label dimension.
+      var seriesCandidate = usable.filter(function (c) {
+        return c.type === "categorical" && /provider|series|source|method/i.test(c.name) && c.cardinality >= 2 && c.cardinality <= 8;
+      })[0];
+      var labelDim = seriesCandidate && dims.filter(function (d) { return d.name !== seriesCandidate.name; })[0];
+      if (seriesCandidate && labelDim && measure) {
+        widgets.push({ kind: "panel", type: "ensembleSeries", dim: labelDim.name, seriesCol: seriesCandidate.name, valueCol: measure.name });
+      }
+    }
+
     widgets.push({ kind: "panel", type: "table" });
 
     return widgets;
@@ -176,6 +273,8 @@
     classifyColumn: classifyColumn,
     profileColumns: profileColumns,
     summarize: summarize,
+    guessGeoScale: guessGeoScale,
+    pickSlopePair: pickSlopePair,
     buildAutoSpec: buildAutoSpec
   };
 })();

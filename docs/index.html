@@ -208,7 +208,14 @@
   date column; a category widget is capped to its top values instead of one bar per row) — opened
   right in Studio so you can start refining immediately. No connection setup needed — a "Quick
   imports" file connection is created for you the first time. Files stay under 2MB and inline (works
-  fully offline); host a bigger file elsewhere and use the DuckDB (remote file) connector instead.</p>
+  fully offline); host a bigger file elsewhere and use the DuckDB (remote file) connector instead.
+  A <strong>Quick import creativity</strong> setting (Settings → Dashboard defaults, Low by default)
+  controls how adventurous the auto-build gets: High mixes in a map, a treemap, a slope chart, and
+  an ensemble view on top of the same conservative base — but only the ones your data actually
+  supports (a map needs a real geo column, a slope chart needs a genuine before/after measure pair,
+  an ensemble needs a real multi-provider series column). A small Low/High tuner appears under the
+  dashboard title right after a Quick import, letting you flip creativity and watch the dashboard
+  rebuild in place from the same file, no re-upload needed.</p>
 
   <p><strong>Export/Import repository:</strong> the Repository page's "Export repository…" button
   downloads a single JSON file with every data source <em>you authored</em> (via ＋ New source — the
