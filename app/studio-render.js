@@ -1754,8 +1754,17 @@
                 var av = a[pcIdx], bv = b[pcIdx];
                 return av < bv ? -1 : av > bv ? 1 : 0;
               });
-              var pMid = Math.floor(pSorted.length / 2);
-              var priorRows = pSorted.slice(0, pMid), curRows = pSorted.slice(pMid);
+              var priorRows, curRows;
+              // k.periodSplit: an explicit boundary value (typed in the inspector) instead of
+              // the default even 50/50 split — rows before it are "prior", it and after are
+              // "current". Falls back to the midpoint split when unset/empty.
+              if (k.periodSplit) {
+                priorRows = pSorted.filter(function (r) { return r[pcIdx] < k.periodSplit; });
+                curRows = pSorted.filter(function (r) { return r[pcIdx] >= k.periodSplit; });
+              } else {
+                var pMid = Math.floor(pSorted.length / 2);
+                priorRows = pSorted.slice(0, pMid); curRows = pSorted.slice(pMid);
+              }
               if (priorRows.length && curRows.length) {
                 var pAgg = (k.agg && k.agg !== "first" && k.agg !== "corr") ? k.agg : "sum";
                 var curVal = aggregateOf(curRows.map(function (r) { return r[pvIdx]; }), pAgg);

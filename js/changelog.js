@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 601,
+    title: 'KPI period comparisons can now use an exact date instead of an even split',
+    kind: 'feature',
+    ts: '2026-07-27T04:50:09.000Z',
+    items: [
+      'The new "Period column" comparison (v600) gains an optional "Split point" field: type an exact boundary value and rows before it count as the prior period while rows from that value on count as the current period, instead of always splitting the row count exactly in half.',
+      'Leave it blank for the original even chronological split -- no change for any existing KPI.',
+    ],
+  },
+  {
     v: 600,
     title: 'KPI tiles can now auto-compare to the prior period, straight off one column',
     kind: 'feature',

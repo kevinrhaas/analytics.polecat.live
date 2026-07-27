@@ -116,6 +116,28 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **N-DATA follow-up — KPI period comparison gets an explicit Split point (v601, sw v238,
+  2026-07-27, steward):** v600's own NEXT pointer named two follow-ups — extending the
+  auto-split comparison beyond KPI tiles to bar/line/donut panels, and letting a builder pick
+  an EXPLICIT boundary rather than an even chronological split. Took the second (smaller,
+  self-contained within the existing KPI mechanism — no new chart-type semantics to invent,
+  unlike the bar/line/donut extension which would need its own per-category comparison design).
+  A new optional `k.periodSplit` field (KPI inspector's Compare-to section, shown once Period
+  column is set, `app/studio.js`) holds a typed boundary value; when set, the render-side split
+  (`app/studio-render.js`) filters the DA's own rows into "prior" (< the boundary) and "current"
+  (>= the boundary) instead of the row-count midpoint — same aggregation/delta-mode/label
+  plumbing as v600, untouched. Blank (every KPI saved before this slice, and any left blank
+  going forward) renders byte-identical to the original even split. Clearing Period column also
+  clears periodSplit (no stale leftover config once the feature is off). 6 new regression tests
+  (v601): the Split point field's visibility, the filter-split math matched independently
+  against a boundary deliberately NOT at the midpoint, spec persistence, clear-both-together via
+  a real inspector DOM event, and CDF export embedding. `docs/index.html`'s KPI tile card
+  updated. SW cache → v238. (app/studio.js, app/studio-render.js, docs/index.html, sw.js,
+  js/changelog.js, tests/run.js) NEXT in this idea (deliberately not attempted here): extending
+  the same auto-split comparison beyond KPI tiles to bar/line/donut panels (the "across every
+  panel" half of the original ask) — a larger, separate design (each bar/donut slice is a
+  category, not a single aggregate, so period-over-period there means a per-category delta or a
+  grouped-bar treatment, not a direct port of the KPI mechanism).
 - **N-DATA innovation sweep — KPI tiles auto-compare to the prior period (v600, sw v237,
   2026-07-27, steward):** with LF24 now fully done (see the entry below) and every other ★
   track confirmed closed by that same slice's top-down NEXT-section read, the H/L/N
