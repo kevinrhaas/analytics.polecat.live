@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 613,
+    title: 'Track L sweep (orphaned-key lens, round 6): PDF export page options now clear properly too',
+    kind: 'fix',
+    ts: '2026-07-27T14:07:13.000Z',
+    items: [
+      'The PDF export dialog\'s remembered page size, orientation, and scale choice was written to local storage but never included in "Clear local data" -- a fresh device reset silently left it behind.',
+      'Now covered, closing the same class of gap prior sweeps have found for other remembered settings.',
+    ],
+  },
+  {
     v: 612,
     title: 'Dialogs no longer close (and lose your input) when a text selection drifts outside them',
     kind: 'fix',

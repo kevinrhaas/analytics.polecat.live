@@ -116,6 +116,33 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **Track L sweep (orphaned-key lens, round 6) — the PDF export dialog's remembered page options
+  now clear properly too (v613, sw v250, 2026-07-27, steward — Track H/L/N rotation, L's turn):**
+  v611's own NEXT pointer named Track L as most overdue (last ran the performance-budget lens at
+  v608, vs Track H at v609 and Track N just done at v611), and its own NEXT also flagged the still-
+  unused "module boundaries" lens. Investigated module boundaries first: audited model.js/exporters.js/
+  studio-render.js for cross-layer leaks (DOM/`localStorage`/`Studio.Workspace` references that would
+  break the export-time self-containment invariant) and found none — all three stayed clean. Also
+  checked for duplicate top-level function names across the module files as a drift signal; the
+  handful found (`toast`/`modal`/`el`/`runDataset`/etc.) are all the R5+ `configure(deps)`
+  dependency-injection pattern's intentional local aliases, not real duplication. Rather than force a
+  large, undirected re-extraction on top of the already-COMPLETE R5+ track, pivoted to the
+  orphaned-key lens (which has found a real gap in 5 of its last 5 rounds) and re-ran the same
+  "grep every `localStorage.setItem`/`getItem` call across ALL of `app/*.js` + `app/sources/*.js`,
+  trace variable-held keys to their string constants, diff against `CLEAR_DATA_KEYS`" technique the
+  v313/v322/v389/v587/v605 rounds established. Found `PDF_OPTS_KEY` ("studio-pdf-export-opts",
+  LF36 slice 2's remembered PDF-export page size/orientation/fit choice, `app/studio.js`) missing —
+  the same recurring "new key, forgot Clear local data" gap. It's a device-remembered UI preference
+  (same bucket as `studio-dash-view`/`studio-mob-tab`, both CLEAR_DATA_KEYS-only already), not a
+  Settings default, so it was NOT added to `SETTINGS_DATA_KEYS`. 1 new regression test (extends the
+  existing E8 clear-data probe's real-key-list check, same convention as round 5's
+  `studio-default-qm-creativity` assertion). Full suite green. SW cache → v250. (app/studio.js,
+  sw.js, js/changelog.js, tests/run.js) NEXT: continuing the Track H/L/N self-directed rotation
+  (Track H last at v609, Track N at v611) is a good next slice while the findings queue stays thin;
+  the still-unused Track L "module boundaries" lens (now investigated once, confirmed clean this
+  round) remains open for a genuinely different angle in a future pass — e.g. auditing studio.js's
+  own internal cohesion (inspector/gallery/menu code that may have drifted together) rather than the
+  cross-file boundary check this round used.
 - **Track N follow-up — the Checks section's collapsed header now shows a glanceable summary
   (v611, sw v248, 2026-07-27, steward — Track H/L/N rotation, N's turn):** the H/L/N self-directed
   rotation was overdue on Track N (last ran v607, vs Track L at v608 and Track H at v609), and the
@@ -8182,6 +8209,11 @@ gets covered over time:
   `Studio.defineChart({type, render, opts, thumb, autoPick})` contract so new types are uniform and testable.
 - **Test health** — coverage per feature, flaky/slow checks, and a fast smoke subset for quick loops.
 > **Findings log (append newest on top; keep short):**
+> - **Fixed shipped v613 (orphaned-key lens, round 6):** `PDF_OPTS_KEY` ("studio-pdf-export-opts",
+>   the PDF export dialog's remembered page size/orientation/fit choice) was written but never
+>   wiped by "Clear local data." Added to `CLEAR_DATA_KEYS`. Module-boundaries lens also tried this
+>   round (model.js/exporters.js/studio-render.js audited for cross-layer leaks) and came back
+>   clean. 1 new test, suite green. See DONE for the full writeup.
 > - **Fixed shipped v588 (accessibility lens, fourth instance of the same bug shape):** grepped
 >   `app/studio.css` for `outline\s*:\s*none` inside a `:focus`/`:focus-visible` rule again
 >   (the same technique that caught v286/v299/v333) and found a fourth live instance:

@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v249"; /* v249: modal outside-click dismiss now requires the
+var CACHE_NAME = "studio-shell-v250"; /* v250: Track L sweep (orphaned-key lens, round 6) — the PDF
+   export dialog's remembered page size/orientation/scale choice (studio-pdf-export-opts) was never
+   wiped by "Clear local data" — added to CLEAR_DATA_KEYS. app/studio.js changed, so precached
+   copies need to roll.
+   v249: modal outside-click dismiss now requires the
    press to BEGIN on the backdrop — a text-selection sweep (or a zoomed-chart drag) that starts
    inside a dialog and releases on the backdrop no longer closes it and discards your input.
    Shared dismissOnBackdrop() guards modal(), panel-zoom and the slideshow. app/studio.js changed.

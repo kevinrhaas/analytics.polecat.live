@@ -13730,7 +13730,8 @@ function serve() {
         hasSyncSecretKey: keys.indexOf("analytics.datasource.secret.v1") >= 0,
         hasSessionKey: keys.indexOf("analytics.session.v1") >= 0, hasHiddenSectionsKey: keys.indexOf("studio-hidden-sections") >= 0,
         hasHomeOrderKey: keys.indexOf("studio-home-section-order") >= 0,
-        hasQmCreativityKey: keys.indexOf("studio-default-qm-creativity") >= 0
+        hasQmCreativityKey: keys.indexOf("studio-default-qm-creativity") >= 0,
+        hasPdfOptsKey: keys.indexOf("studio-pdf-export-opts") >= 0
       };
     });
     ok("E8: all Studio localStorage keys removed by clear-data logic", e8Clear.keyCount > 20 && e8Clear.remaining.length === 0, JSON.stringify(e8Clear));
@@ -13770,6 +13771,11 @@ function serve() {
     // the same recurring gap, found by re-running the v313/v322 cross-check technique again.
     ok("E8: the real clear-data key list includes studio-default-qm-creativity (Track L sweep round 5)",
       e8Clear.hasQmCreativityKey, JSON.stringify(e8Clear));
+    // Track L sweep round 6: PDF_OPTS_KEY ("studio-pdf-export-opts", LF36 slice 2's remembered
+    // PDF export page size/orientation/fit choice) was missing from this list — the same
+    // recurring gap, found by re-running the v313/v322/v599 cross-check technique again.
+    ok("E8: the real clear-data key list includes studio-pdf-export-opts (Track L sweep round 6)",
+      e8Clear.hasPdfOptsKey, JSON.stringify(e8Clear));
 
     // Clear-data's session wipe must ALSO drop the studio-gate-ok sessionStorage bypass (not part
     // of CLEAR_DATA_KEYS, which only ever touches localStorage) — otherwise PolecatAuth.current()'s
