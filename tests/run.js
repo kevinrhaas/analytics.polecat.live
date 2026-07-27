@@ -24376,6 +24376,109 @@ function serve() {
     ok("N-DIST: opening a #share= link boots straight into that exact dashboard and clears the hash",
       shareBootResult.title === "Shared Boot Test Dashboard" && shareBootResult.hash === "", JSON.stringify(shareBootResult));
 
+    // ── N-DIST follow-up: diff-based "Share just my changes" link ──
+    console.log("\n• N-DIST follow-up: diff-based share links");
+    const sharePatchRoundTrip = await page.evaluate(function () {
+      // Unchanged panels (p5..p20) stand in for a realistic dashboard's worth of untouched
+      // content -- the point of a diff link is that they're never re-encoded at all, so the
+      // patch should end up far smaller than the full spec even though only ONE thing changed.
+      var untouched = []; for (var i = 5; i <= 20; i++) untouched.push({ id: "p" + i, title: "Untouched panel " + i, chart: { type: "bars", da: "da" + i }, note: "Some longer descriptive note text for panel " + i + " to bulk up its footprint." });
+      var base = {
+        id: "patch-test", title: "Base title", themeColor: "#111111",
+        panels: [{ id: "p1", title: "Keep me", chart: { type: "bars" } }, { id: "p2", title: "Remove me", chart: { type: "bars" } }, { id: "p3", title: "Change me", chart: { type: "bars" } }].concat(untouched),
+        filters: [{ id: "f1", label: "Region" }],
+        kpis: [{ label: "Total", agg: "sum" }]
+      };
+      var cur = {
+        id: "patch-test", title: "Edited title", themeColor: "#111111",
+        panels: [{ id: "p1", title: "Keep me", chart: { type: "bars" } }, { id: "p3", title: "Changed!", chart: { type: "bars" } }, { id: "p4", title: "New panel", chart: { type: "line" } }].concat(untouched),
+        filters: [{ id: "f1", label: "Región" }],
+        kpis: [{ label: "Total", agg: "avg" }]
+      };
+      var patch = Studio.buildSharePatch(base, cur);
+      var applied = Studio.applySharePatch(base, patch);
+      var noopPatch = Studio.buildSharePatch(base, base);
+      var noopApplied = Studio.applySharePatch(base, noopPatch);
+      return {
+        appliedMatchesCurrent: JSON.stringify(applied) === JSON.stringify(cur),
+        patchOmitsUnchangedScalar: !("themeColor" in patch.fields),
+        patchIsSmallerThanFullSpec: JSON.stringify(patch).length < JSON.stringify(cur).length,
+        noopPatchIsNoop: JSON.stringify(noopApplied) === JSON.stringify(base)
+      };
+    });
+    ok("N-DIST follow-up: buildSharePatch/applySharePatch round-trip (scalar/panel add+remove+change/filter change/kpi change), omit unchanged fields, and are a no-op against an identical spec",
+      sharePatchRoundTrip.appliedMatchesCurrent && sharePatchRoundTrip.patchOmitsUnchangedScalar &&
+      sharePatchRoundTrip.patchIsSmallerThanFullSpec && sharePatchRoundTrip.noopPatchIsNoop, JSON.stringify(sharePatchRoundTrip));
+
+    const shareDiffUiFlow = await page.evaluate(function () {
+      function hasBtn(label) { return !!Array.from(document.querySelectorAll("#inspBody .btn")).find(function (b) { return new RegExp(label).test(b.textContent); }); }
+      var spec = window.__STUDIO_STATE.spec;
+      // Start clean: no share-base recorded yet for this dashboard id.
+      var all = {}; try { all = JSON.parse(localStorage.getItem("studio-share-base") || "{}"); } catch (e) {}
+      delete all[spec.id];
+      try { localStorage.setItem("studio-share-base", JSON.stringify(all)); } catch (e) {}
+      window.__studioSelectDashboard();
+      var noBase = hasBtn("Share just my changes");
+      var fullBtn = Array.from(document.querySelectorAll("#inspBody .btn")).find(function (b) { return /Copy shareable link/.test(b.textContent); });
+      fullBtn.click(); // sets the share-base to the CURRENT (unchanged) spec
+      window.__studioSelectDashboard();
+      var rightAfterFullShare = hasBtn("Share just my changes"); // no diff yet -> still hidden
+      spec.title = spec.title + " (edited for test)";
+      window.__studioSelectDashboard();
+      var afterEdit = hasBtn("Share just my changes"); // now differs from the stored base -> shown
+      var diffBtn = Array.from(document.querySelectorAll("#inspBody .btn")).find(function (b) { return /Share just my changes/.test(b.textContent); });
+      diffBtn.click(); // exercises the click handler end to end (clipboard write may reject headless; caught either way)
+      window.__studioSelectDashboard();
+      var afterSecondShare = hasBtn("Share just my changes"); // base just moved to current again -> hidden once more
+      return { noBase: noBase, rightAfterFullShare: rightAfterFullShare, afterEdit: afterEdit, afterSecondShare: afterSecondShare };
+    });
+    ok("N-DIST follow-up: 'Share just my changes' stays hidden with no base or no diff yet, appears once the spec diverges from the last shared base, and hides again once a new link is copied",
+      shareDiffUiFlow.noBase === false && shareDiffUiFlow.rightAfterFullShare === false &&
+      shareDiffUiFlow.afterEdit === true && shareDiffUiFlow.afterSecondShare === false, JSON.stringify(shareDiffUiFlow));
+
+    // Boot-time: a diff link only resolves when THIS browser already has a base for that
+    // dashboard id (Studio.getShareBase) -- the realistic "recipient already has it" case.
+    const diffBootWithBase = await page.evaluate(function () {
+      var base = { id: "diff-boot-test", name: "diff-boot-test", title: "Diff Boot Base", panels: [], kpis: [], filters: [], cda: { connections: [], dataAccesses: [] } };
+      var cur = { id: "diff-boot-test", name: "diff-boot-test", title: "Diff Boot Updated", panels: [], kpis: [], filters: [], cda: { connections: [], dataAccesses: [] } };
+      var patch = Studio.buildSharePatch(base, cur);
+      return { base: base, enc: Studio.encodeSpecToShareString({ __shareDiff: true, id: "diff-boot-test", patch: patch }) };
+    });
+    const diffPageWithBase = await browser.newPage();
+    await diffPageWithBase.addInitScript((base) => {
+      try {
+        sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1");
+        localStorage.setItem("studio-share-base", JSON.stringify({ "diff-boot-test": base }));
+      } catch (e) {}
+    }, diffBootWithBase.base);
+    await diffPageWithBase.goto(`http://localhost:${PORT}/app/#share=${diffBootWithBase.enc}`, { waitUntil: "networkidle" });
+    await diffPageWithBase.waitForFunction(() => window.__STUDIO_STATE && window.__STUDIO_STATE.assets && window.__STUDIO_STATE.assets.js.length > 0, { timeout: 10000 });
+    await diffPageWithBase.waitForTimeout(700);
+    const diffBootWithBaseResult = await diffPageWithBase.evaluate(function () {
+      return { title: window.__STUDIO_STATE.spec.title, hash: location.hash };
+    });
+    await diffPageWithBase.close();
+    ok("N-DIST follow-up: opening a diff share link with a matching local base applies the patch and boots straight into the updated dashboard",
+      diffBootWithBaseResult.title === "Diff Boot Updated" && diffBootWithBaseResult.hash === "", JSON.stringify(diffBootWithBaseResult));
+
+    // Boot-time: no matching base locally (the recipient never opened the original full link) --
+    // must fall through to the normal boot flow (never crash), not silently do nothing.
+    const diffPageNoBase = await browser.newPage();
+    const noBasePageErrors = [];
+    diffPageNoBase.on("pageerror", function (e) { noBasePageErrors.push(String(e)); });
+    await diffPageNoBase.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); } catch (e) {} });
+    await diffPageNoBase.goto(`http://localhost:${PORT}/app/#share=${diffBootWithBase.enc}`, { waitUntil: "networkidle" });
+    await diffPageNoBase.waitForFunction(() => window.__STUDIO_STATE && window.__STUDIO_STATE.assets && window.__STUDIO_STATE.assets.js.length > 0, { timeout: 10000 });
+    await diffPageNoBase.waitForTimeout(700);
+    const diffBootNoBaseResult = await diffPageNoBase.evaluate(function () {
+      return { title: window.__STUDIO_STATE.spec.title, hash: location.hash, toastText: (document.getElementById("toast") || {}).textContent || "" };
+    });
+    await diffPageNoBase.close();
+    ok("N-DIST follow-up: opening a diff share link with NO matching local base falls through to the normal boot (default dashboard, no crash) and surfaces an explanatory toast",
+      diffBootNoBaseResult.title !== "Diff Boot Updated" && diffBootNoBaseResult.hash === "" &&
+      /open the original/i.test(diffBootNoBaseResult.toastText) && noBasePageErrors.length === 0,
+      JSON.stringify(diffBootNoBaseResult) + " errors=" + JSON.stringify(noBasePageErrors));
+
     // ── N-DIST: "Import from URL" — a zero-backend community-template exchange ──
     // Stubs window.fetch (no real internet route in this sandbox) so this exercises the
     // whole modal → fetchJSON → normalize → load wiring, not just the fetch call itself.

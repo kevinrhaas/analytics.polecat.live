@@ -3200,4 +3200,76 @@
     group("panel", diff.panels); group("KPI", diff.kpis); group("filter", diff.filters);
     return lines;
   };
+
+  // N-DIST follow-up: diff-based share links. The "#share=" link above always encodes the
+  // WHOLE spec — fine the first time, wasteful/unwieldy for handing off a small edit to
+  // someone who already has the dashboard. buildSharePatch/applySharePatch reuse diffSpecs'
+  // exact matching rules (panels/filters by stable id, kpis positional since they carry none,
+  // scalar fields per DIFF_FIELDS) but produce/consume an APPLICABLE patch object instead of
+  // diffSummary's human-readable text. studio-share-base (one localStorage blob, keyed by
+  // dashboard id, same shape as studio-versions) tracks the last full spec either side of a
+  // share saw it at — set whenever a full spec is generated or opened — so a later diff link
+  // has something to apply against on both ends with no server involved.
+  var _LS_SHARE_BASE = "studio-share-base";
+  function loadShareBases() {
+    try { var v = localStorage.getItem(_LS_SHARE_BASE); var p = v ? JSON.parse(v) : {}; return (p && typeof p === "object") ? p : {}; } catch (e) { return {}; }
+  }
+  Studio.getShareBase = function (id) {
+    if (!id) return null;
+    return loadShareBases()[id] || null;
+  };
+  Studio.setShareBase = function (id, spec) {
+    if (!id || !spec) return;
+    var all = loadShareBases();
+    all[id] = JSON.parse(JSON.stringify(spec));
+    try { localStorage.setItem(_LS_SHARE_BASE, JSON.stringify(all)); } catch (e) { /* quota or private-mode */ }
+  };
+  var SHARE_PATCH_SCALARS = DIFF_FIELDS.map(function (f) { return f[0]; }).concat(["headerLogo"]);
+  // `order` (cur's own id sequence) is what makes reapplying byte-order-faithful even when an
+  // item is inserted or removed from the middle of the list — added/changed only need to carry
+  // NEW/CHANGED items (unchanged ids stay pointers back into the base), but order alone tells
+  // applySharePatch exactly where every id — new, changed, or untouched — belongs in the result.
+  function shareListPatch(baseList, curList) {
+    var bMap = {}; (baseList || []).forEach(function (x) { bMap[x.id] = x; });
+    var cMap = {}; (curList || []).forEach(function (x) { cMap[x.id] = x; });
+    var out = { order: (curList || []).map(function (x) { return x.id; }), added: [], changed: {} };
+    (curList || []).forEach(function (x) {
+      var bx = bMap[x.id];
+      if (!bx) out.added.push(x);
+      else if (JSON.stringify(bx) !== JSON.stringify(x)) out.changed[x.id] = x;
+    });
+    return out;
+  }
+  Studio.buildSharePatch = function (base, cur) {
+    base = base || {}; cur = cur || {};
+    var patch = { fields: {} };
+    SHARE_PATCH_SCALARS.forEach(function (k) {
+      if ((base[k] || "") !== (cur[k] || "")) patch.fields[k] = cur[k];
+    });
+    if (JSON.stringify(base.customTheme || null) !== JSON.stringify(cur.customTheme || null)) {
+      patch.fields.customTheme = cur.customTheme || null;
+    }
+    patch.panels = shareListPatch(base.panels, cur.panels);
+    patch.filters = shareListPatch(base.filters, cur.filters);
+    // kpis carry no stable id (matched positionally elsewhere) — patch wholesale when anything differs
+    if (JSON.stringify(base.kpis || []) !== JSON.stringify(cur.kpis || [])) patch.kpis = cur.kpis || [];
+    return patch;
+  };
+  function shareApplyList(list, p) {
+    if (!p) return (list || []).slice();
+    var pool = {};
+    (list || []).forEach(function (x) { pool[x.id] = x; });
+    (p.added || []).forEach(function (x) { pool[x.id] = x; });
+    Object.keys(p.changed || {}).forEach(function (id) { pool[id] = p.changed[id]; });
+    return (p.order || []).map(function (id) { return pool[id]; }).filter(Boolean);
+  }
+  Studio.applySharePatch = function (base, patch) {
+    var out = JSON.parse(JSON.stringify(base || {}));
+    patch = patch || {};
+    if (patch.fields) Object.keys(patch.fields).forEach(function (k) { out[k] = patch.fields[k]; });
+    out.panels = shareApplyList(out.panels, patch.panels);
+    out.filters = shareApplyList(out.filters, patch.filters);
+    if (patch.kpis) out.kpis = patch.kpis;
+    return out;
+  };
 })();

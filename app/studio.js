@@ -312,18 +312,37 @@
       // section) takes priority over the normal boot flow — it names an exact dashboard to
       // open, the same way a direct file Open would. Cleared via replaceState so a reload or
       // the E4 CDF filter-hash convention never collide with it.
-      var sharedSpec = null;
-      if (location.hash.indexOf("#share=") === 0) sharedSpec = Studio.decodeSpecFromShareString(location.hash.slice(7));
+      var sharedSpec = null, sharedIsDiff = false, sharedDiffFailed = false;
+      if (location.hash.indexOf("#share=") === 0) {
+        var rawShared = Studio.decodeSpecFromShareString(location.hash.slice(7));
+        if (rawShared && rawShared.__shareDiff) {
+          // N-DIST follow-up: a diff-based share link — see the "Share just my changes" button
+          // below. Only applicable if THIS browser already has a base spec for that dashboard id
+          // (from having opened/generated a full share before); otherwise there is nothing to
+          // apply the patch to, so fall through to the normal boot and say so.
+          var shareBase = Studio.getShareBase(rawShared.id);
+          if (shareBase) { sharedSpec = Studio.applySharePatch(shareBase, rawShared.patch); sharedIsDiff = true; }
+          else { sharedDiffFailed = true; }
+        } else {
+          sharedSpec = rawShared;
+        }
+      }
       if (editRow) {
         try { history.replaceState(null, "", location.pathname + location.hash); } catch (e) {}
         openRecent(editRow.id);
       } else if (sharedSpec) {
         try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
         S.spec = normalize(sharedSpec); S.selection = null;
+        Studio.setShareBase(S.spec.id, S.spec);
         enterStudio();
         syncHeader(); renderInspector(); refreshPreview(); buildLibrary();
-        toast("Loaded shared dashboard: " + (sharedSpec.title || sharedSpec.name || "Untitled"));
+        toast(sharedIsDiff ? "Shared update applied: " + (sharedSpec.title || sharedSpec.name || "Untitled")
+          : "Loaded shared dashboard: " + (sharedSpec.title || sharedSpec.name || "Untitled"));
       } else {
+        if (sharedDiffFailed) {
+          try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
+          setTimeout(function () { toast("Couldn't apply this update — open the original shareable link for this dashboard first.", true); }, 300);
+        }
         // open the cost flagship example by default if present, else blank
         // keepAutosave=true so the restore banner can offer unsaved work from a previous session
         var def = S.examples.filter(function (e) { return /flagship|cost/.test(e.file); })[0] || S.examples[0];
@@ -2545,9 +2564,30 @@
       var okMsg = url.length > 8000
         ? "Shareable link copied — this dashboard is large, so the link is long and may not work in every app (e.g. some chat clients truncate it)."
         : "Shareable link copied!";
+      Studio.setShareBase(sp.id, sp); // this exact spec is now the base a later "Share just my changes" diffs against
       try { navigator.clipboard.writeText(url).then(function () { toast(okMsg); }).catch(function () { toast(url); }); } catch (e) { toast(url); }
     };
     shSec.appendChild(shBtn);
+
+    // N-DIST follow-up: diff-based share link — only offered once a base spec exists (this
+    // dashboard was itself shared or opened from a share link before) AND the working spec has
+    // actually changed since; the recipient applies the patch against THEIR OWN copy of that
+    // same base (Studio.applySharePatch), so this is only useful for handing off an edit to
+    // someone who already has the dashboard — not a substitute for the full link above.
+    var shBase = Studio.getShareBase(sp.id);
+    if (shBase && Studio.diffSummary(Studio.diffSpecs(shBase, sp)).length) {
+      var shDiffBtn = el("button", "btn"); shDiffBtn.style.cssText = "margin-top:6px;width:100%;justify-content:center";
+      setIconBtn(shDiffBtn, "link", "Share just my changes");
+      shDiffBtn.onclick = function () {
+        var patch = Studio.buildSharePatch(shBase, sp);
+        var url = location.origin + location.pathname + location.search + "#share=" +
+          Studio.encodeSpecToShareString({ __shareDiff: true, id: sp.id, patch: patch });
+        Studio.setShareBase(sp.id, sp); // this becomes the new base for the NEXT diff link
+        try { navigator.clipboard.writeText(url).then(function () { toast("Update link copied! Only works for someone who already has this dashboard."); }).catch(function () { toast(url); }); } catch (e) { toast(url); }
+        renderInspector(); // refresh: the diff button hides again until the spec changes further
+      };
+      shSec.appendChild(shDiffBtn);
+    }
 
     // N-DIST follow-up: local version history (a timeline of checkpoints captured on every
     // explicit Save, click one to restore as "time travel") + Track N canvas sticky notes
@@ -8372,7 +8412,10 @@
     // are the same missed-Settings-key gap for two more recent features (both already listed in
     // SETTINGS_DATA_KEYS above, so Export/Import already carried them — only Clear-local-data was
     // behind).
-    "analytics.session.v1", "studio-hidden-sections", "studio-home-section-order"
+    "analytics.session.v1", "studio-hidden-sections", "studio-home-section-order",
+    // N-DIST follow-up: "studio-share-base" (per-dashboard last-known-shared spec, powers the
+    // diff-based "Share just my changes" link) — folded in from the start this time.
+    "studio-share-base"
   ];
   window.__studioClearDataKeys = CLEAR_DATA_KEYS; // test hook
 

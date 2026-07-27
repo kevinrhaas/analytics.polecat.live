@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 604,
+    title: 'Share just your changes — a shorter link for edits to an already-shared dashboard',
+    kind: 'feature',
+    ts: '2026-07-27T06:19:01.000Z',
+    items: [
+      'The Dashboard inspector\'s "Share this dashboard" section gains a second button, "Share just my changes", once you\'ve copied a full link before and kept editing: it copies a much shorter link carrying only what changed, instead of re-encoding the whole dashboard every time.',
+      'Only works for a recipient who already has this dashboard from a previous link -- opening an update link without that base shows a clear message instead of silently failing.',
+    ],
+  },
+  {
     v: 603,
     title: 'Track H sweep: hovering a truncated name in Connections, Datasets, Jobs, Dashboards, or Repository now shows the full name',
     kind: 'fix',
