@@ -4550,18 +4550,38 @@
 >       NAME with "Take a quick tour" as the HERO + "Take the guided tour" as a second option on the same
 >       menu, plus the other quick-actions with icon-library glyphs, in-theme, per the design standards;
 >       fun-but-not-over-the-top animation using the sexiest animated app graphics (screens, charts, maps)
->       along the way; Skip stays but the tour is re-accessible anytime via Settings → Tour. SAMPLE-PACK-
+>       along the way; the tour screen offers SKIP + an "explore on my own" path, with a clear note that you
+>       can always come back via Settings → Tour (and pointers to the docs — LF60); re-accessible anytime.
+>       SAMPLE-PACK-
 >       AWARE: an installed pack adds tour segments walking its dashboards + its backend connections/
 >       datasets, framing them as "curated dashboards"/"curated datasets." **CONSERVATION PACK TOUR CONTENT
 >       (Kevin, 2026-07-27): showcase the CHOROPLETHS — county + state + the WATERSHED (HUC8) map — and tell
 >       the CUSTOM-GEO story (watersheds/districts/ZIP, the geography library).** Verify the pack already
 >       ships those choropleth dashboards and surface them in the tour. (app/welcome.js, tutorial.js,
 >       studio.js renderHome(), celebrations.js confetti, demopacks.js, icons.) Follows LF18. Ties LF22, LF58.
-> LF41. **Per-user provisioning defaults.** Admin's Add-user gains a DEFAULT THEME picker + DEFAULT
->       SAMPLE PACK(S) selector (one or more), stored on the user record (+ mirrored users table); on that
->       user's first login the app applies the theme, installs the pack(s), and fires the pack tour (LF40).
->       Dave = admin + Conservation theme + Conservation pack. (studio.js openUserEditor/renderAdmin,
->       auth.js user record, first-login apply hook, demopacks.js.) Ties LF40, LF23.
+> LF41. **Per-user provisioning defaults — the whole starting PROFILE (Kevin expanded 2026-07-27).** Admin's
+>       Add-user configures a user's full starting profile so they log in ready with no major edits: default
+>       theme, default sample pack(s), backend/DB (LF42), AND ALL the DASHBOARD DEFAULTS + settings (header bg
+>       color, title size, subtitle style, dashboard theme, card style, quick-import creativity, style
+>       presets — everything in Settings → Dashboard defaults; Simple-mode too, LF48). Stored on the user
+>       record (+ mirrored users table). CONVENIENCE (Kevin's options): (a) "Copy my/current settings to this
+>       user" — seed the new user from the admin's own settings; and/or (b) LOG IN AS the user (impersonate)
+>       to set it directly, then save. First login applies theme + settings + installs pack(s) + fires
+>       confetti + the tour (LF40). Dave = admin + Conservation theme + Conservation pack + backend + all
+>       dashboard defaults + full tour. (studio.js openUserEditor/renderAdmin, auth.js user record carries a
+>       settings blob, first-login apply hook, demopacks.js, Settings dashboard-defaults model.) Ties LF40,
+>       LF42, LF23, LF48.
+> LF60. **In-app DOCS section (User + Admin) with nav, pop-out, app links, backend comparison (Kevin, live
+>       2026-07-27).** Docs currently open external-feeling; bring them INSIDE the app. (1) EMBED docs in a
+>       proper in-app Docs view off the Help/Docs rail item, with best-practice docs NAVIGATION (sidebar/TOC,
+>       sections, search — reuse LF51 nav practices). (2) ALSO POP OUT — a "open in new tab" standalone link;
+>       support BOTH embedded + standalone. (3) Improve: deep-LINKS INTO THE APP + SCREENSHOTS where helpful.
+>       (4) ORGANIZE into USER DOCS vs ADMIN DOCS — technical config/setup/backends/provisioning/RLS live in
+>       ADMIN docs; everyday how-to in USER docs. (5) BACKEND OPTIONS doc — each backend's pros/cons/trade-
+>       offs + the RECOMMENDED Supabase (with RLS), ideally a COMPARISON TABLE (local-only vs Supabase anon vs
+>       Supabase+GoTrue+RLS vs Turso vs Firebase: security, multi-user, setup effort, cost, offline).
+>       (docs/index.html restructure + an embedded docs view with new-tab pop-out, rail Docs/Help item,
+>       studio.js.) Ties LF58 (docs currency), #23, LF51, QA-02, M7.
 > LF42. **Multi-backend management for admin.** Admin can define/manage MULTIPLE backends (Supabase
 >       connections/DBs) and assign one ACTIVE backend per user when provisioning them; consolidate +
 >       simplify backend config into an Admin surface with more options; (future) select a SERVER. Slice:
