@@ -1477,6 +1477,94 @@ function serve() {
       fileRun.rows === '[["EMEA",120],["AMER",200]]' && fileRun.cols === "region,total" && fileRun.lastRunOk, JSON.stringify(fileRun));
     fs.unlinkSync(fixturePath);
 
+    // ---- LF24 slice 1: Quick import's column profiler (app/quickmode.js) ----
+    console.log("\n• LF24 slice 1: Quick import column profiler");
+    const qmProfile = await page.evaluate(function () {
+      var states = ["IA", "IL", "IN", "OH", "MO"];
+      var cats = ["Cover crops", "No-till", "Reduced tillage", "Conventional"];
+      var columns = ["state", "obs_date", "revenue", "practice", "row_id", "notes"];
+      var rows = [];
+      for (var i = 0; i < 30; i++) {
+        rows.push([
+          states[i % states.length],
+          "2024-" + (1 + (i % 12) < 10 ? "0" : "") + (1 + (i % 12)) + "-01",
+          1000 + i * 37,
+          cats[i % cats.length],
+          i + 1,
+          "unique free-text note number " + i
+        ]);
+      }
+      var profile = Studio.QuickMode.profileColumns({ columns: columns, rows: rows });
+      var byName = {}; profile.forEach(function (c) { byName[c.name] = c; });
+      var summary = Studio.QuickMode.summarize(profile);
+      // guardrail columns: all-empty and all-identical should be flagged, not
+      // misclassified as something chartable.
+      var edge = Studio.QuickMode.profileColumns({ columns: ["blank", "same"], rows: [["", "x"], ["", "x"], ["", "x"]] });
+      return {
+        types: profile.map(function (c) { return c.name + ":" + c.type; }).join(","),
+        stateUnique: byName.state.uniquePct < 1,
+        idUniquePct: byName.row_id.uniquePct,
+        summary: summary,
+        edgeTypes: edge.map(function (c) { return c.type; }).join(",")
+      };
+    });
+    ok("QM: classifyColumn infers geo/temporal/measure/categorical/id/text from name+value signals",
+      qmProfile.types === "state:geo,obs_date:temporal,revenue:measure,practice:categorical,row_id:id,notes:text",
+      JSON.stringify(qmProfile));
+    ok("QM: profile carries cardinality/uniquePct stats usable by a future auto-build engine",
+      qmProfile.stateUnique && qmProfile.idUniquePct === 1 &&
+      qmProfile.summary.geo === 1 && qmProfile.summary.temporal === 1 && qmProfile.summary.measure === 1 &&
+      qmProfile.summary.categorical === 1 && qmProfile.summary.id === 1 && qmProfile.summary.text === 1,
+      JSON.stringify(qmProfile));
+    ok("QM: guardrail columns (all-blank, all-identical) are flagged empty/constant, not chartable types",
+      qmProfile.edgeTypes === "empty,constant", JSON.stringify(qmProfile));
+
+    // The real user flow: drop a CSV straight on the Home "Quick import" card —
+    // profiles it, creates a real dataset, and lands in Explore with it selected.
+    await page.click('#railNav .rail-item[data-sec="home"]');
+    await page.waitForTimeout(150);
+    const qiCardBefore = await page.evaluate(function () {
+      var c = document.querySelector('#secHome .home-card[data-home="quickimport"]');
+      return { present: !!c, hasIcon: !!(c && c.querySelector(".home-card-ic svg")), hasInput: !!document.querySelector("#secHome .home-quickimport-input") };
+    });
+    ok("QM: Home shows a 'Quick import' card with an icon and a file input", qiCardBefore.present && qiCardBefore.hasIcon && qiCardBefore.hasInput, JSON.stringify(qiCardBefore));
+    const qiFixture = path.join(__dirname, "fixture-quickimport.csv");
+    fs.writeFileSync(qiFixture, "state,revenue\nIA,120\nIL,200\nIA,150\n");
+    const qiDatasetsBefore = await page.evaluate(function () { return Studio.Workspace.all("datasets").length; });
+    await page.setInputFiles("#secHome .home-quickimport-input", qiFixture);
+    await page.waitForTimeout(500);
+    const qiAfter = await page.evaluate(function () {
+      var ds = Studio.Workspace.all("datasets").filter(function (d) { return d.fileName === "fixture-quickimport.csv"; })[0];
+      return {
+        datasetCount: Studio.Workspace.all("datasets").length,
+        dataset: ds ? { kind: ds.kind, columns: ds.columns, name: ds.name } : null,
+        connectionAdapter: ds ? (Studio.Workspace.get("connections", ds.connectionId) || {}).adapter : null,
+        onExplore: document.querySelector('#railNav .rail-item[data-sec="explore"]').classList.contains("active"),
+        xpDsId: window.__studioExplore ? window.__studioExplore.state.dsId : null,
+        xpDsKind: window.__studioExplore ? window.__studioExplore.state.kind : null,
+        selectedRightDataset: window.__studioExplore && ds ? window.__studioExplore.state.dsId === ds.id : false,
+        toastText: document.querySelector("#toast").textContent
+      };
+    });
+    ok("QM: dropping a file creates exactly one new real dataset (kind:file, learned columns)",
+      qiAfter.datasetCount === qiDatasetsBefore + 1 && qiAfter.dataset && qiAfter.dataset.kind === "file" &&
+      qiAfter.dataset.columns.join(",") === "state,revenue" && qiAfter.connectionAdapter === "file",
+      JSON.stringify(qiAfter));
+    ok("QM: after import, the app navigates to Explore with the new dataset selected, and the toast names the file + a column summary",
+      qiAfter.onExplore && qiAfter.xpDsKind === "ws" && qiAfter.selectedRightDataset && /fixture-quickimport/.test(qiAfter.toastText) && /2 column/.test(qiAfter.toastText),
+      JSON.stringify(qiAfter));
+    fs.unlinkSync(qiFixture);
+    await page.evaluate(function () {
+      var ds = Studio.Workspace.all("datasets").filter(function (d) { return d.fileName === "fixture-quickimport.csv"; })[0];
+      if (ds) {
+        Studio.Workspace.remove("datasets", ds.id, { silent: true });
+        var stillUsed = Studio.Workspace.all("datasets").some(function (d) { return d.connectionId === ds.connectionId; });
+        if (!stillUsed) Studio.Workspace.remove("connections", ds.connectionId, { silent: true });
+      }
+      window.__studioShellSetSection("studio");
+    });
+    await page.waitForTimeout(100);
+
     // ---- Google Sheets adapter (★★★-2): gviz endpoint against a mock --------
     console.log("\n• Google Sheets adapter (★★★-2)");
     const gsShape = await page.evaluate(async function () {
@@ -22879,7 +22967,8 @@ function serve() {
     await page.waitForTimeout(150);
 
     // Z2-1: quick-create cards render with SVG icons (LF18(a): blank / explore /
-    // connection / dataset / examples / tour — reworded to concrete jobs)
+    // connection / dataset / examples / tour — reworded to concrete jobs; LF24
+    // slice 1 added quickimport)
     const z2Quick = await page.evaluate(function () {
       var cards = [].slice.call(document.querySelectorAll("#secHome .home-card"));
       return {
@@ -22888,7 +22977,7 @@ function serve() {
         icons: cards.filter(function (c) { return c.querySelector(".home-card-ic svg"); }).length
       };
     });
-    ok("Z2: Home shows 6 quick-create cards with SVG icons", z2Quick.count === 6 && z2Quick.icons === 6 && z2Quick.acts === "blank,explore,connection,dataset,examples,tour", JSON.stringify(z2Quick));
+    ok("Z2: Home shows 7 quick-create cards with SVG icons", z2Quick.count === 7 && z2Quick.icons === 7 && z2Quick.acts === "blank,explore,connection,dataset,quickimport,examples,tour", JSON.stringify(z2Quick));
 
     // Z2 follow-up (instructions/how-tos/tips): a small tip card cycles through real
     // power-user tips via a Next arrow, wrapping back to the start.

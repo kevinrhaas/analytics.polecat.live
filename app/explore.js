@@ -738,6 +738,7 @@
     configure: configure,
     XP: XP,
     render: renderExplore,
+    selectDataset: xpSelectDataset,
     loadAnalysis: xpLoadAnalysis,
     save: xpSave,
     addToSpec: xpAddAnalysisToSpec,

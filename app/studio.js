@@ -5382,7 +5382,8 @@
       { act: "blank", ic: "plus", t: "New dashboard", d: "Build a dashboard from scratch" },
       { act: "explore", ic: "trend-up", t: "Explore data", d: "Explore curated sample datasets" },
       { act: "connection", ic: "link", t: "New connection", d: "Create a connection to your own data" },
-      { act: "dataset", ic: "db", t: "New dataset", d: "Build datasets from an existing connection" }
+      { act: "dataset", ic: "db", t: "New dataset", d: "Build datasets from an existing connection" },
+      { act: "quickimport", ic: "upload", t: "Quick import", d: "Drop a CSV or JSON file to explore it instantly" }
     ].concat(showSamples() ? [{ act: "examples", ic: "grid", t: "Browse examples", d: "Sample dashboards on the demo database" }] : [])
       .concat([{ act: "tour", ic: "play", t: "Take the tour", d: "Guided walkthrough of the builder" }]);
     var html = '<div class="home-wrap">' +
@@ -5390,7 +5391,9 @@
       '<div class="home-quick">' + cards.map(function (c) {
         return '<button class="home-card" data-home="' + c.act + '"><span class="home-card-ic" data-ic="' + c.ic + '"></span>' +
           '<div><b>' + esc(c.t) + '</b><small>' + esc(c.d) + '</small></div></button>';
-      }).join("") + '</div>' +
+      }).join("") +
+      '<input type="file" class="home-quickimport-input" accept=".csv,.tsv,.json,text/csv,application/json" hidden>' +
+      '</div>' +
       '<div class="home-tip"><span class="home-tip-ic" data-ic="info"></span>' +
       '<p class="home-tip-txt">' + esc(HOME_TIPS[_homeTipIdx]) + '</p>' +
       '<button type="button" class="home-tip-next" title="Next tip" aria-label="Next tip">' +
@@ -5518,6 +5521,7 @@
         if (act === "connection") { openConnectionWizard(); return; }
         if (act === "dataset") { openDatasetEditor(); return; }
         if (act === "explore") { if (window.__studioShellSetSection) __studioShellSetSection("explore"); return; }
+        if (act === "quickimport") { var qi = $(".home-quickimport-input", sec); if (qi) qi.click(); return; }
         enterStudio();
         if (act === "blank") { S.spec = newBlankSpec(); S.selection = null; syncHeader(); renderInspector(); refreshPreview(); buildLibrary(); bumpDashMilestone(); }
         else if (act === "examples") { setTimeout(function () { var b = $("#btnExamples"); if (b) b.click(); }, 60); }
@@ -5546,6 +5550,77 @@
             addFromWorkspaceDataset(d.wsDataset, "bars");
           }
         } catch (x) {}
+      });
+    }
+    // LF24 slice 1 — Quick import: drop (or pick) a CSV/JSON file straight on Home
+    // and get a real, profiled dataset without visiting the dataset editor first.
+    // Reuses the SAME file-kind connection/dataset shape the editor's own drop
+    // zone writes (kind:'file', content inline) — Quick import is just a faster
+    // door into that existing machinery, not a parallel one. Auto-BUILDING a
+    // dashboard from the profile is LF24 slice 2 — deliberately not attempted here.
+    var quickimportCard = $('.home-card[data-home="quickimport"]', sec);
+    var quickimportInput = $(".home-quickimport-input", sec);
+    if (quickimportCard && quickimportInput) {
+      function quickImportFormat(fileName, content) {
+        if (/\.(csv|tsv)$/i.test(fileName)) return "csv";
+        if (/\.json$/i.test(fileName)) return "json";
+        var head = (content || "").replace(/^\s+/, "")[0];
+        return head === "[" || head === "{" ? "json" : "csv";
+      }
+      function uniqueDatasetName(base) {
+        var used = {};
+        (Studio.Workspace ? Studio.Workspace.all("datasets") : []).forEach(function (d) { if (d.name) used[d.name] = true; });
+        if (!used[base]) return base;
+        var n = 2;
+        while (used[base + " " + n]) n++;
+        return base + " " + n;
+      }
+      function quickImportFile(file) {
+        if (!file) return;
+        if (!/\.(csv|tsv|json)$/i.test(file.name)) { toast("Quick import needs a .csv, .tsv, or .json file", true); return; }
+        file.text().then(function (text) {
+          if (text.length > Studio.FILE_DATASET_MAX_CHARS) {
+            toast(file.name + " is too large (" + Math.round(text.length / 1e6) + "MB > 2MB) — host it and use the DuckDB (remote file) connector instead.", true);
+            return;
+          }
+          var format = quickImportFormat(file.name, text);
+          var parsed;
+          try {
+            parsed = format === "json" ? Studio.parseJSONText(text) : Studio.parseCSVText(text);
+          } catch (e) {
+            toast("Could not parse " + file.name + ": " + e.message, true);
+            return;
+          }
+          if (!parsed.columns.length) { toast(file.name + " has no columns to import", true); return; }
+          var profile = Studio.QuickMode.profileColumns(parsed);
+          var counts = Studio.QuickMode.summarize(profile);
+          var conn = (Studio.Workspace.all("connections") || []).filter(function (c) { return c.adapter === "file"; })[0];
+          if (!conn) conn = Studio.Workspace.put("connections", { name: "Quick imports", adapter: "file", cfg: {} });
+          var name = uniqueDatasetName(file.name.replace(/\.[^.]+$/, ""));
+          var d = { name: name, connectionId: conn.id, kind: "file", fileName: file.name, format: format, content: text, columns: parsed.columns, params: [], tags: [] };
+          var uid = currentUserId(); if (uid) d.acctOwner = uid;
+          d = Studio.Workspace.put("datasets", d);
+          var bits = [];
+          if (counts.measure) bits.push(counts.measure + " measure" + (counts.measure !== 1 ? "s" : ""));
+          if (counts.temporal) bits.push(counts.temporal + " date field" + (counts.temporal !== 1 ? "s" : ""));
+          if (counts.geo) bits.push(counts.geo + " map field" + (counts.geo !== 1 ? "s" : ""));
+          if (counts.categorical) bits.push(counts.categorical + " categor" + (counts.categorical !== 1 ? "ies" : "y"));
+          toast("Imported " + name + " — " + parsed.columns.length + " column" + (parsed.columns.length !== 1 ? "s" : "") + (bits.length ? " (" + bits.join(", ") + ")" : "") + ". Opening in Explore…");
+          if (window.__studioShellSetSection) __studioShellSetSection("explore");
+          Studio.Explore.selectDataset("ws", d.id);
+        });
+      }
+      quickimportInput.onchange = function () { quickImportFile(quickimportInput.files[0]); quickimportInput.value = ""; };
+      ["dragenter", "dragover"].forEach(function (ev) {
+        quickimportCard.addEventListener(ev, function (e) { e.preventDefault(); quickimportCard.classList.add("dragover"); e.dataTransfer.dropEffect = "copy"; });
+      });
+      ["dragleave", "drop"].forEach(function (ev) {
+        quickimportCard.addEventListener(ev, function (e) { if (ev === "dragleave" && e.target !== quickimportCard && quickimportCard.contains(e.relatedTarget)) return; quickimportCard.classList.remove("dragover"); });
+      });
+      quickimportCard.addEventListener("drop", function (e) {
+        e.preventDefault(); quickimportCard.classList.remove("dragover");
+        var f = e.dataTransfer.files && e.dataTransfer.files[0];
+        if (f) quickImportFile(f);
       });
     }
     var tipNext = $(".home-tip-next", sec);
