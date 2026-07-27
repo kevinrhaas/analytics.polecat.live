@@ -5383,7 +5383,7 @@
       { act: "explore", ic: "trend-up", t: "Explore data", d: "Explore curated sample datasets" },
       { act: "connection", ic: "link", t: "New connection", d: "Create a connection to your own data" },
       { act: "dataset", ic: "db", t: "New dataset", d: "Build datasets from an existing connection" },
-      { act: "quickimport", ic: "upload", t: "Quick import", d: "Drop a CSV or JSON file to explore it instantly" }
+      { act: "quickimport", ic: "upload", t: "Quick import", d: "Drop a CSV or JSON file to build a dashboard instantly" }
     ].concat(showSamples() ? [{ act: "examples", ic: "grid", t: "Browse examples", d: "Sample dashboards on the demo database" }] : [])
       .concat([{ act: "tour", ic: "play", t: "Take the tour", d: "Guided walkthrough of the builder" }]);
     var html = '<div class="home-wrap">' +
@@ -5556,11 +5556,69 @@
     // and get a real, profiled dataset without visiting the dataset editor first.
     // Reuses the SAME file-kind connection/dataset shape the editor's own drop
     // zone writes (kind:'file', content inline) — Quick import is just a faster
-    // door into that existing machinery, not a parallel one. Auto-BUILDING a
-    // dashboard from the profile is LF24 slice 2 — deliberately not attempted here.
+    // door into that existing machinery, not a parallel one.
     var quickimportCard = $('.home-card[data-home="quickimport"]', sec);
     var quickimportInput = $(".home-quickimport-input", sec);
     if (quickimportCard && quickimportInput) {
+      // LF24 slice 2 — the auto-build engine's MATERIALIZING half (Studio.QuickMode.
+      // buildAutoSpec, app/quickmode.js, is the pure PLANNING half). Turns a widget
+      // plan into a real, unsaved dashboard: aggregation lives on da.outputOptions.
+      // aggregate (same mechanism Explore's own rollups use, xpSave above), so the
+      // SAME render path — builder preview, Home, exports — already knows how to
+      // draw it; no new chart-rendering code needed. Each widget that needs its own
+      // group-by gets its own DA CLONE off the same dataset (outputOptions is per-DA,
+      // not per-panel); the Table widget alone binds straight to the raw DA.
+      function quickBuildDashboard(ds, profile) {
+        var plan = Studio.QuickMode.buildAutoSpec(profile);
+        enterStudio();
+        S.spec = newBlankSpec();
+        S.spec.title = uniqueDashboardTitle(Studio.titleize(ds.name));
+        S.selection = null;
+        function takenId(id) { return !!Studio.daById(S.spec, id); }
+        var rawDa = dsToDA(ds, takenId);
+        S.spec.cda.dataAccesses.push(rawDa);
+        function aggDA(groupBy, fn, valueCol, sortCol, sortDir, limit) {
+          var da = dsToDA(ds, takenId);
+          da.outputOptions = {
+            filters: [], limit: limit || 0,
+            sortBy: sortCol ? [{ col: sortCol, dir: sortDir || "desc" }] : [],
+            aggregate: { fn: fn, groupBy: groupBy, valueCol: valueCol || "" }
+          };
+          S.spec.cda.dataAccesses.push(da);
+          return da;
+        }
+        var kpiCount = 0, kinds = [];
+        plan.forEach(function (w) {
+          if (w.kind === "kpi") {
+            var kOut = w.fn === "count" ? "count" : w.valueCol;
+            var kDa = aggDA([], w.fn, w.valueCol, null, null, 0);
+            S.spec.kpis.push({ da: kDa.id, valueCol: kOut, label: Studio.titleize(w.label), fmt: Studio.guessFmt(kOut), state: "", info: "", subtitle: "" });
+            kpiCount++;
+          } else if (w.type === "table") {
+            var tp = Studio.newPanel("table", rawDa);
+            tp.title = "All rows";
+            S.spec.panels.push(tp); kinds.push("table");
+          } else if (w.type === "line") {
+            var lDa = aggDA([w.dim], "sum", w.valueCol, w.dim, "asc", 0);
+            var lp = Studio.newPanel("line", lDa);
+            lp.chart.map = { labelCol: w.dim, series: [{ col: w.valueCol }] };
+            if (lp.chart.opts && "fmt" in lp.chart.opts) lp.chart.opts.fmt = Studio.guessFmt(w.valueCol);
+            lp.title = Studio.titleize(w.valueCol) + " over time";
+            S.spec.panels.push(lp); kinds.push("line");
+          } else { // bars, donut
+            var bOut = w.fn === "count" ? "count" : w.valueCol;
+            var bDa = aggDA([w.dim], w.fn, w.valueCol, bOut, "desc", w.limit || 0);
+            var bp = Studio.newPanel(w.type, bDa);
+            bp.chart.map = { labelCol: w.dim, valueCol: bOut };
+            if (bp.chart.opts && "fmt" in bp.chart.opts) bp.chart.opts.fmt = Studio.guessFmt(bOut);
+            bp.title = Studio.titleize(bOut) + " by " + Studio.titleize(w.dim);
+            S.spec.panels.push(bp); kinds.push(w.type);
+          }
+        });
+        S.spec.panels = Studio.autoArrange(S.spec.panels);
+        syncHeader(); selectDashboard(); refreshPreview(); buildLibrary(); bumpDashMilestone();
+        return { kpiCount: kpiCount, panelCount: kinds.length, kinds: kinds };
+      }
       function quickImportFormat(fileName, content) {
         if (/\.(csv|tsv)$/i.test(fileName)) return "csv";
         if (/\.json$/i.test(fileName)) return "json";
@@ -5593,21 +5651,15 @@
           }
           if (!parsed.columns.length) { toast(file.name + " has no columns to import", true); return; }
           var profile = Studio.QuickMode.profileColumns(parsed);
-          var counts = Studio.QuickMode.summarize(profile);
           var conn = (Studio.Workspace.all("connections") || []).filter(function (c) { return c.adapter === "file"; })[0];
           if (!conn) conn = Studio.Workspace.put("connections", { name: "Quick imports", adapter: "file", cfg: {} });
           var name = uniqueDatasetName(file.name.replace(/\.[^.]+$/, ""));
           var d = { name: name, connectionId: conn.id, kind: "file", fileName: file.name, format: format, content: text, columns: parsed.columns, params: [], tags: [] };
           var uid = currentUserId(); if (uid) d.acctOwner = uid;
           d = Studio.Workspace.put("datasets", d);
-          var bits = [];
-          if (counts.measure) bits.push(counts.measure + " measure" + (counts.measure !== 1 ? "s" : ""));
-          if (counts.temporal) bits.push(counts.temporal + " date field" + (counts.temporal !== 1 ? "s" : ""));
-          if (counts.geo) bits.push(counts.geo + " map field" + (counts.geo !== 1 ? "s" : ""));
-          if (counts.categorical) bits.push(counts.categorical + " categor" + (counts.categorical !== 1 ? "ies" : "y"));
-          toast("Imported " + name + " — " + parsed.columns.length + " column" + (parsed.columns.length !== 1 ? "s" : "") + (bits.length ? " (" + bits.join(", ") + ")" : "") + ". Opening in Explore…");
-          if (window.__studioShellSetSection) __studioShellSetSection("explore");
-          Studio.Explore.selectDataset("ws", d.id);
+          var built = quickBuildDashboard(d, profile);
+          toast("Imported " + name + " — built a dashboard with " + built.kpiCount + " KPI" + (built.kpiCount !== 1 ? "s" : "") +
+            " + " + built.panelCount + " widget" + (built.panelCount !== 1 ? "s" : "") + " (" + built.kinds.join(", ") + "). Opening in Studio…");
         });
       }
       quickimportInput.onchange = function () { quickImportFile(quickimportInput.files[0]); quickimportInput.value = ""; };

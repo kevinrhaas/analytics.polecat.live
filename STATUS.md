@@ -116,6 +116,43 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF24 slice 2 — the auto-build engine: Quick import now builds a real dashboard, not just a
+  dataset (v598, sw v235, 2026-07-27, steward):** slice 1's own NEXT pointer named this as the
+  real next step. Two pieces, split PLANNING from MATERIALIZING the same way the rest of the app's
+  DA/spec machinery already does (Explore's `xpSave`/`xpAddAnalysisToSpec` is the precedent this
+  followed): (1) `Studio.QuickMode.buildAutoSpec(profile)` (app/quickmode.js) is a new pure,
+  DOM-free planning function — given slice 1's column profile, it decides which widgets a
+  **conservative-creativity-default** dashboard should have: a headline KPI (sum of the first real
+  measure, or a row COUNT when there's no measure) + a bar chart on the lowest-cardinality
+  categorical/geo dimension + a donut on a second low-cardinality (≤8) dimension if one exists +
+  a line chart ONLY when a real temporal column exists (the spec's "require a real TEMPORAL column
+  for any time series" guardrail) + a table of the raw data. Deliberately STRAIGHTFORWARD widgets
+  only (bar/donut/line/table/KPI) — no map/ensemble/treemap/etc, that's the "fun" tier gated by
+  LF24 slice 3's still-unbuilt creativity dial. (2) `quickBuildDashboard(ds, profile)`
+  (app/studio.js) is the materializer: turns that plan into a real, unsaved dashboard (same
+  "isn't written to the catalog until Save" convention as `xpAddAnalysisToNewDashboard`) — each
+  aggregated widget gets its own DA CLONE off the dataset (`dsToDA` called per-widget, unique ids
+  via the same collision-avoidance loop `dsToDA`'s own caller already uses) carrying
+  `da.outputOptions.aggregate` (groupBy + sum/count) + `sortBy`/`limit` for TOP-N capping (sorted
+  desc, never one bar per raw row — the spec's other core guardrail) — reusing
+  `Studio.applyOutputOptions`/`Studio.aggregateRows`, the EXACT rollup mechanism Explore's own
+  saved analyses already use, so every widget renders through the existing chart pipeline with no
+  new render code. The Table widget alone binds straight to the raw, unaggregated DA. Panels are
+  run through the existing `Studio.autoArrange` at the end for a clean grid (table full-width).
+  Quick import's terminal action changed from "open the dataset in Explore" to "open the built
+  dashboard in Studio" — the Home card's description text and docs/index.html updated to match.
+  Extended the existing QM regression test (fixture: state+revenue, 3 rows) to assert the built
+  spec instead of the old Explore-landing behavior: 1 KPI bound to revenue, a bars panel
+  (state→revenue) + a table (no donut/line — the fixture has only one usable dimension and no
+  temporal column, proving the "only build what the data supports" guardrail), 3 total DAs, and a
+  toast summarizing the build. Full suite green. SW cache → v235. (app/quickmode.js, app/studio.js,
+  docs/index.html, js/changelog.js, sw.js, tests/run.js) NEXT in LF24: slice 3, the creativity dial
+  (a Settings default + a live tuner in the builder) and the "fun" chart tier it unlocks (map/
+  ensemble/treemap/slope mixed in) — this slice's profiler + planning/materializing split is the
+  base it builds on. Known scoped-down spots for a future pass (not required by this slice, noted
+  so nobody re-derives them from scratch): top-N capping is sort+limit only, no "+Other" fold-in
+  bucket yet; the line widget sorts its temporal dimension as a plain string (correct for ISO
+  dates/bare years, not for e.g. free-text month names) rather than auto-binning to a grain.
 - **LF24 slice 1 — Quick import: drop a CSV/JSON on Home, get a real profiled dataset (v597, sw
   v234, 2026-07-27, steward):** LF24 ("QUICK MODE") was explicitly deprioritized to the END of the
   backlog by Kevin (2026-07-24) — "do not start it while anything else remains" — and a top-down
@@ -4776,11 +4813,18 @@
 >       steward-actionable — so LF24's own "do this last" condition is now satisfied. New
 >       `app/quickmode.js` column profiler (name+value semantic inference: geo/temporal/measure/
 >       categorical/id/text) + a Home "Quick import" card that parses a dropped file, profiles it,
->       and saves a real dataset, landing in Explore with it selected. NEXT in LF24: slice 2, the
->       auto-build engine + guardrails at the conservative creativity default (KPI + 4-6
->       straightforward widgets, top-N/Other capping, real-temporal-required for time series) — the
->       profiler this slice built is exactly what that engine will read from. Slice 3 (creativity
->       dial + "fun" chart tier) comes after that.
+>       and saves a real dataset, landing in Explore with it selected.
+>       ✓ **Slice 2 shipped (v598, sw v235, 2026-07-27, steward): the auto-build engine.** See DONE
+>       for the full writeup. `Studio.QuickMode.buildAutoSpec` (pure planning) + `quickBuildDashboard`
+>       (materializing, app/studio.js) turn the profile into a real, unsaved dashboard — KPI + bar/
+>       donut/line/table widgets at the conservative creativity default, each aggregated widget on
+>       its own DA clone carrying `da.outputOptions.aggregate` + sort/limit for top-N capping, a line
+>       widget only when a real temporal column exists. Quick import now lands in Studio with the
+>       built dashboard instead of Explore. NEXT in LF24: slice 3, the creativity dial + "fun" chart
+>       tier (map/ensemble/treemap/slope mixed in) — the profiler + planning/materializing split this
+>       slice built is the base it extends. Two scoped-down spots noted in the DONE entry for a later
+>       pass: top-N capping has no "+Other" fold-in bucket yet, and the line widget sorts its temporal
+>       dimension as a plain string rather than auto-binning to a grain.
 > LF25. **Per-panel export buttons + Explore↔Studio parity (Kevin, live).** PRINCIPLE: everything you can do in
 >       Explore, you should be able to do in Studio too. Three parts:
 >       (a) ✓ **On-panel export buttons + per-panel visibility config — shipped (v548, sw v185,

@@ -203,10 +203,12 @@
   in with your own data — drop a <code>.csv</code> or <code>.json</code> file straight onto the
   card (or click it to browse), and it's parsed, profiled column-by-column (recognizing map fields,
   dates, measures, and categories from the column names and values), saved as a real dataset, and
-  opened right in Explore so you can start charting immediately. No connection setup needed — a
-  "Quick imports" file connection is created for you the first time. Files stay under 2MB and inline
-  (works fully offline); host a bigger file elsewhere and use the DuckDB (remote file) connector
-  instead.</p>
+  used to <strong>auto-build a real dashboard</strong> — a headline KPI plus whatever mix of bar,
+  donut, line, and table widgets the data actually supports (a time widget only appears with a real
+  date column; a category widget is capped to its top values instead of one bar per row) — opened
+  right in Studio so you can start refining immediately. No connection setup needed — a "Quick
+  imports" file connection is created for you the first time. Files stay under 2MB and inline (works
+  fully offline); host a bigger file elsewhere and use the DuckDB (remote file) connector instead.</p>
 
   <p><strong>Export/Import repository:</strong> the Repository page's "Export repository…" button
   downloads a single JSON file with every data source <em>you authored</em> (via ＋ New source — the
