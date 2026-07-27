@@ -5,7 +5,22 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v233"; /* v233: Track H sweep — Explore's saved-
+var CACHE_NAME = "studio-shell-v234"; /* v234: LF24 slice 1 — Quick import. A new
+   Home quick-create card ("Quick import") accepts a dropped/picked CSV or JSON
+   file straight on Home: a new pure column-profiler module, app/quickmode.js
+   (Studio.QuickMode.profileColumns/classifyColumn — geo/temporal/id/measure/
+   categorical/text inference from column NAMES + VALUES, no DOM/Workspace
+   deps), classifies the parsed file's columns, creates (or reuses) a "file"-
+   adapter connection + a real dataset (same content-inline shape the dataset
+   editor's own drop zone already writes), and opens it straight in Explore
+   (Studio.Explore gained a public `selectDataset` wrapping the existing
+   xpSelectDataset). Auto-BUILDING a dashboard from the profile is LF24 slice 2,
+   deliberately not attempted here — this slice is just "drop → profile →
+   dataset", per that item's own breakdown. app/quickmode.js (new),
+   app/sources/localfile.js (Studio.parseJSONText exported, mirrors the
+   existing parseCSVText sharing convention), app/explore.js, app/studio.js,
+   app/index.html content changed, so precached copies need to roll.
+   v233: Track H sweep — Explore's saved-
    analyses sidebar list truncates long names with CSS ellipsis, so several
    analyses sharing a common prefix (e.g. a demo pack's "Conservation Insight —
    …" set) rendered indistinguishably, and the open button's title was a
@@ -1357,6 +1372,7 @@ var SHELL_FILES = [
   "app/jobs.js",
   "app/connections.js",
   "app/datasets.js",
+  "app/quickmode.js",
   "app/studio.js",
   "app/palette.js",
   "app/studio-render.js",

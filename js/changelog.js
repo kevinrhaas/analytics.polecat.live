@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 597,
+    title: 'Quick import: drop a CSV or JSON file on Home to explore it instantly',
+    kind: 'feature',
+    ts: '2026-07-27T01:44:01.000Z',
+    items: [
+      'A new "Quick import" card on Home takes a dropped (or picked) .csv/.json file, profiles its columns -- recognizing map fields, dates, measures, and categories from the column names and values -- and saves it as a real dataset (creating a "Quick imports" file connection the first time), then opens it straight in Explore so you can start charting immediately. No connection setup required.',
+      'This is the first slice of the "Quick mode" backlog item -- auto-building a full dashboard from the profile is a follow-up; this slice gets your data in and profiled as fast as possible.',
+    ],
+  },
+  {
     v: 596,
     title: 'Explore\'s saved-analyses list: hover to tell similarly-named analyses apart',
     kind: 'polish',

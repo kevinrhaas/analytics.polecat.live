@@ -116,6 +116,48 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF24 slice 1 — Quick import: drop a CSV/JSON on Home, get a real profiled dataset (v597, sw
+  v234, 2026-07-27, steward):** LF24 ("QUICK MODE") was explicitly deprioritized to the END of the
+  backlog by Kevin (2026-07-24) — "do not start it while anything else remains" — and a top-down
+  read of the whole NEXT section this run confirmed everything else genuinely is now done: the
+  LIVE-FEEDBACK QUEUE (LF1-LF23, LF25-LF30 all shipped), the QUALITY TRACKS (UX1-11, R1-R5+ all
+  shipped), the POST-OVERHAUL BACKLOG (items 1, 3-7 shipped; item 2's remainder — Azure SQL/Fabric,
+  MotherDuck — is genuinely blocked on a Kevin licensing call, not steward-actionable), the
+  ★★★★★ CONSERVATION INSIGHT PRODUCT PLATFORM (shipped app-side, M7 slice 7 done, only Kevin's own
+  production go-live remains), and the ★★★★ VIRIDIS VIEW track (V6-V9 done). So LF24 is now the
+  single most-scoped, unblocked, top-priority item in the whole file — this slice takes its own
+  documented first step, "(1) drop → profile → dataset(s)" (deliberately NOT slice 2's auto-build
+  engine or slice 3's creativity dial — those need this data-in step to exist first).
+  New pure module `app/quickmode.js` (`Studio.QuickMode.profileColumns`/`classifyColumn`, no DOM/
+  Workspace deps so it's independently testable and reusable by the later auto-build engine):
+  classifies each column as geo/temporal/measure/categorical/id/text/empty/constant from BOTH the
+  column NAME (state/county/fips/huc/zip/district → geo; date/year/month/quarter → temporal;
+  id/uuid/key → id) AND a sample of its VALUES (state postal codes, 5-digit FIPS/ZCTA, 8-digit HUC,
+  ISO dates/bare years → geo/temporal even with an unhelpful name; near-unique NUMERIC columns →
+  id, deliberately not near-unique free text, which falls through to "text" instead — the spec's
+  "near-unique integers" exclusion, not a blanket one) — the exact "SMART SEMANTIC INFERENCE" this
+  backlog item's spec called for. A new Home quick-create card, "Quick import" (7th card, `upload`
+  icon), accepts a dropped OR picked `.csv`/`.json` file: parses it with the existing shared
+  `Studio.parseCSVText` (and a newly-shared `Studio.parseJSONText`, mirroring that same sharing
+  convention in `app/sources/localfile.js`), profiles it, reuses (or creates) a `file`-adapter
+  connection, and saves a real dataset — the SAME content-inline shape the dataset editor's own
+  drop zone already writes (no parallel mechanism), with `columns` stamped directly since the file
+  is already parsed (no separate "run" round-trip needed). Lands in Explore with the new dataset
+  selected via a new public `Studio.Explore.selectDataset` (thin wrapper over the existing
+  `xpSelectDataset`, the same function the "+ New dataset" button inside Explore's own picker
+  already uses for this exact "create then jump straight to it" pattern). Toast names the file +
+  a short column-type summary (e.g. "2 columns (1 measure, 1 map field)"). 6 new regression checks
+  (classifyColumn correctly infers geo/temporal/measure/categorical/id/text on one synthetic
+  30-row table; the profile's cardinality/uniquePct stats; all-blank/all-identical columns flag as
+  empty/constant rather than a chartable type; the Home card renders with an icon + file input; a
+  real dropped fixture CSV creates exactly one new dataset with the right kind/columns/connection;
+  and the app lands in Explore with that exact dataset selected, toast confirms). The existing Z2
+  quick-create-card-count assertion updated from 6 to 7. Full suite green. `docs/index.html` gained
+  a "Quick import" paragraph in Getting started. SW cache → v234. (app/quickmode.js,
+  app/sources/localfile.js, app/explore.js, app/studio.js, app/index.html, docs/index.html, sw.js,
+  js/changelog.js, tests/run.js) NEXT in LF24: slice 2, the auto-build engine itself (profile →
+  KPI + a handful of guardrailed charts at the conservative creativity default) is the next real
+  step; slice 3 (the creativity dial + "fun" chart tier) comes after that.
 - **Track H sweep — Explore's saved-analyses sidebar tooltip actually disambiguates now (v596, sw
   v233, 2026-07-27, steward):** the H/L/N self-directed rotation was overdue on Track H (last run
   v274, ~320 versions ago — L had run twice in a row most recently, v587/v588). Walked Home,
@@ -4727,6 +4769,18 @@
 >           scatter; a single headline measure → KPI/stat tile. (Straight out of the dataviz form heuristic.)
 >       The engine should read like a smart analyst's first pass: name+value signals → the right scale, aggregation,
 >       grain, and chart — then the creativity dial decides how adventurous to get on top of that sensible base.
+>       ✓ **Slice 1 shipped (v597, sw v234, 2026-07-27, steward): "(1) drop → profile → dataset(s)."**
+>       See DONE for the full writeup. Unblocked this run — a top-down read confirmed the rest of
+>       the backlog (LF1-23/25-30, UX1-11, R1-R5+, POST-OVERHAUL items 1/3-7, CONSERVATION INSIGHT,
+>       VIRIDIS) really is done, and item 2's remainder is genuinely Kevin-blocked, not
+>       steward-actionable — so LF24's own "do this last" condition is now satisfied. New
+>       `app/quickmode.js` column profiler (name+value semantic inference: geo/temporal/measure/
+>       categorical/id/text) + a Home "Quick import" card that parses a dropped file, profiles it,
+>       and saves a real dataset, landing in Explore with it selected. NEXT in LF24: slice 2, the
+>       auto-build engine + guardrails at the conservative creativity default (KPI + 4-6
+>       straightforward widgets, top-N/Other capping, real-temporal-required for time series) — the
+>       profiler this slice built is exactly what that engine will read from. Slice 3 (creativity
+>       dial + "fun" chart tier) comes after that.
 > LF25. **Per-panel export buttons + Explore↔Studio parity (Kevin, live).** PRINCIPLE: everything you can do in
 >       Explore, you should be able to do in Studio too. Three parts:
 >       (a) ✓ **On-panel export buttons + per-panel visibility config — shipped (v548, sw v185,

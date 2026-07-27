@@ -92,6 +92,10 @@
   // Inspector) — the same tolerant CSV parser, so a 2-column "fips,region" file
   // gets the identical delimiter-sniffing/quoting behavior as a file dataset.
   Studio.parseCSVText = parseCSV;
+  // Shared with app/quickmode.js (LF24 slice 1) — the same JSON-array-of-objects
+  // parser a hand-authored dataset editor drop uses, so a Quick-import file sees
+  // identical column-union/flattening behavior.
+  Studio.parseJSONText = parseJSON;
 
   function resolveFormat(dataset) {
     var f = (dataset.format || "").toLowerCase();
