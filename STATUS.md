@@ -116,6 +116,31 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF42 slice 1 — admin manages a backend list (v620, sw v257, 2026-07-27, steward — step 2 of the
+  LOCKED BUILD ORDER's "Dave"-demo ingredients, after LF41 slice 1):** a new **Backends** card on the
+  Admin page (`backendsCardHtml`/`wireBackendsCard`/`openBackendConfigWizard`, app/studio.js, right
+  above Branding) lets an admin pre-register more than one named backend (Turso/Supabase/Firebase)
+  ahead of connecting to any of them: + Add backend opens a 2-step wizard (pick adapter →
+  name + credential fields with an inline Test, reusing `credentialFieldInput`), and each row gets
+  Test/Edit/delete plus a **Connect** button that opens the exact same connect flow as Settings →
+  Workspace backend (`openBackendWizard`) — so probing/classifying/adopting a workspace is completely
+  unchanged, only one backend is ever actually active, and the row matching the live connection (by
+  adapter+cfg) shows an **active** badge instead of Connect. Deliberately local-only (a small
+  localStorage list under `studio-admin-backends`, same pattern as branding.js/hidden-sections) rather
+  than a new Workspace table — a backend-list entry carries credentials the way a Connection does, and
+  mirroring it into whichever backend it also describes is exactly the chicken-and-egg complexity this
+  slice avoids; still open for later if a cross-device backend list proves worth it. This is slice 1 of
+  3 (admin manages a backend list); slice 2 (assign a specific backend per user at provisioning time,
+  tying into LF41) and slice 3 (consolidated backend config UI) stay open. 9 new regression tests
+  (tests/run.js, "LF42 slice 1" block, its own browser context since the active-badge check does a
+  real connectPush/disconnect against the mock Turso endpoint): empty state; add-with-inline-test
+  persists a named row; the list renders name/adapter/Connect; Edit renames in place; the row Test
+  button persists `lastTest` and flips the status dot; Connect opens the real wizard preset with this
+  row's adapter+creds; actually connecting flips the row to active and hides Connect (disconnect
+  reverts it); delete removes the row. Full suite green — 2338/2338. SW cache → v257 (app/studio.js,
+  docs/index.html precached). (app/studio.js, docs/index.html, sw.js, js/changelog.js, tests/run.js)
+  NEXT: LF42 slice 2 (per-user backend assignment) or LF40 (animated welcome + home tour) — step 3 of
+  the LOCKED BUILD ORDER — per Kevin's locked sequence.
 - **LF41 slice 1 — per-user provisioning defaults: default theme + Conservation sample pack applied
   at first sign-in (v619, sw v256, 2026-07-27, steward — step 2 of the LOCKED BUILD ORDER's "Dave"-
   demo ingredients, after LF39):** Admin's Add/Edit user form (`openUserEditor`, app/studio.js) gains
@@ -4643,8 +4668,9 @@
 >    LF38 ✓ (password eyeball toggle) · LF39 ✓ (cross-device sign-in fix, 2026-07-27). Step 1 is
 >    otherwise fully done — only LF43 slice 2 remains, deliberately deferred.
 > 2. **"Dave"-demo ingredients:** LF41 (per-user provisioning defaults — theme + sample pack ✓ slice 1,
->    2026-07-27; backend/DB + full dashboard-defaults blob still open) → LF42 (multi-backend admin;
->    at least assign-a-backend-per-user).
+>    2026-07-27; backend/DB + full dashboard-defaults blob still open) → LF42 (multi-backend admin —
+>    admin manages a backend list ✓ slice 1, 2026-07-27; per-user backend assignment + consolidated
+>    config UI still open).
 > 3. **Flashy:** LF40 (animated welcome + home tour, sample-pack-aware).
 > 4. **Studio chrome:** LF46 (⋯ teardown) · LF47 (ops → top rail, w/ #30) · LF48 (mode switcher) ·
 >    LF45 (Save-as + Open dialog) · LF52 (widget→View) · LF53 (drop CDF/CDE).
@@ -4802,9 +4828,10 @@
 > LF42. **Multi-backend management for admin.** Admin can define/manage MULTIPLE backends (Supabase
 >       connections/DBs) and assign one ACTIVE backend per user when provisioning them; consolidate +
 >       simplify backend config into an Admin surface with more options; (future) select a SERVER. Slice:
->       (1) admin manages a backend list; (2) per-user active-backend assignment; (3) consolidated config
->       UI; (future) servers. (New Admin "Backends" surface, per-user backend on the user record,
->       app/sources/*, workspace-backend card, gate.js connect.) Ties M7, LF39, LF41.
+>       (1) admin manages a backend list ✓ (2026-07-27, steward — see DONE); (2) per-user active-backend
+>       assignment; (3) consolidated config UI; (future) servers. (New Admin "Backends" surface, per-user
+>       backend on the user record, app/sources/*, workspace-backend card, gate.js connect.) Ties M7,
+>       LF39, LF41.
 > LF43. **slice 1 ✓ / slice 2 open — BUG/cleanup — sample-pack dashboards must show in Dashboards;
 >       drop "Examples"; remove Studio's Examples button.** Logged in as demo, installed sample
 >       packs show but their dashboards don't appear in the Dashboards screen. A pack's "examples"

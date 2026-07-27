@@ -10507,6 +10507,147 @@ function serve() {
 
     await gp41.close();
 
+    // ---- LF42 slice 1: Admin "Backends" — a registered backend list ----
+    // Own page/context: the Connect check below does a real connectPush against
+    // the mock Turso endpoint, which must never bleed into the main page's
+    // local-only workspace the rest of the suite relies on.
+    console.log("\n• LF42 slice 1: Admin Backends card (multiple registered backends)");
+    const gp42 = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+    gp42.on("pageerror", (e) => errors.push("LF42 page: " + e.message));
+    await gp42.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); } catch (e) {} });
+    await gp42.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
+    await gp42.waitForFunction(() => window.__STUDIO_STATE && window.__STUDIO_STATE.assets.js.length > 0, { timeout: 10000 });
+    await gp42.waitForTimeout(300);
+
+    // empty by default
+    const lf42Empty = await gp42.evaluate(function () {
+      window.__studioShellSetSection("admin"); window.__studioRenderAdmin();
+      var card = [].slice.call(document.querySelectorAll(".settings-card")).filter(function (c) { return /^Backends$/.test((c.querySelector("h2") || {}).textContent || ""); })[0];
+      return { found: !!card, empty: card && /No backends registered/.test(card.textContent) };
+    });
+    ok("LF42: Admin gains a Backends card, empty by default", lf42Empty.found && lf42Empty.empty, JSON.stringify(lf42Empty));
+
+    // + Add backend: pick Turso, name it, fill creds, inline Test, Save — stored
+    // as a named row in the local backend list (not yet connected).
+    const lf42Added = await gp42.evaluate(async function (port) {
+      window.__studioOpenBackendConfigWizard();
+      await new Promise(function (r) { setTimeout(r, 80); });
+      var srcCard = [].slice.call(document.querySelectorAll(".cx-src-card")).filter(function (c) { return c.querySelector("b").textContent === "Turso"; })[0];
+      srcCard.click();
+      await new Promise(function (r) { setTimeout(r, 80); });
+      var inputs = [].slice.call(document.querySelectorAll(".cx-wiz-form input"));
+      inputs[0].value = "Test Turso"; // backend name
+      inputs[1].value = "http://localhost:" + port + "/__turso"; // url
+      inputs[2].value = "tok-lf42"; // token
+      var testBtn = [].slice.call(document.querySelectorAll(".cx-wiz-foot .btn")).filter(function (b) { return /Test connection/.test(b.textContent); })[0];
+      testBtn.click();
+      var result;
+      for (var i = 0; i < 30; i++) {
+        await new Promise(function (r) { setTimeout(r, 100); });
+        result = document.querySelector(".cx-test-result");
+        if (result && result.textContent) break;
+      }
+      var testOk = result && /Connection works/.test(result.textContent);
+      var saveBtn = [].slice.call(document.querySelectorAll(".cx-wiz-foot .btn")).filter(function (b) { return /Add backend/.test(b.textContent); })[0];
+      saveBtn.click();
+      await new Promise(function (r) { setTimeout(r, 80); });
+      return { testOk: testOk, stored: JSON.parse(localStorage.getItem("studio-admin-backends") || "[]"), modalGone: !document.querySelector(".modal-ov") };
+    }, PORT);
+    ok("LF42: Add-backend wizard tests the connection inline and saves a named row to the local backend list",
+      lf42Added.testOk && lf42Added.modalGone && lf42Added.stored.length === 1 &&
+      lf42Added.stored[0].name === "Test Turso" && lf42Added.stored[0].adapter === "turso" && lf42Added.stored[0].cfg.url.indexOf("/__turso") >= 0,
+      JSON.stringify(lf42Added));
+
+    // the card now lists it (name, adapter label, a Connect action since it isn't active yet)
+    const lf42Listed = await gp42.evaluate(function () {
+      window.__studioRenderAdmin();
+      var row = document.querySelector("[data-bk-id]");
+      return row && {
+        name: (row.querySelector(".cx-name b") || {}).textContent,
+        adapterLbl: (row.querySelector(".cx-name small") || {}).textContent,
+        hasConnect: !!row.querySelector("[data-bk-connect]"),
+        hasActiveBadge: !!row.querySelector(".cx-badge.admin")
+      };
+    });
+    ok("LF42: the Backends list shows the new row with its adapter label and a Connect action (not active yet)",
+      lf42Listed && lf42Listed.name === "Test Turso" && lf42Listed.adapterLbl === "Turso" && lf42Listed.hasConnect && !lf42Listed.hasActiveBadge,
+      JSON.stringify(lf42Listed));
+
+    // Edit renames it
+    const lf42Edited = await gp42.evaluate(async function () {
+      document.querySelector("[data-bk-edit]").click();
+      await new Promise(function (r) { setTimeout(r, 80); });
+      var nameInp = document.querySelector(".cx-wiz-form input");
+      nameInp.value = "Renamed Turso";
+      var saveBtn = [].slice.call(document.querySelectorAll(".cx-wiz-foot .btn")).filter(function (b) { return /Save changes/.test(b.textContent); })[0];
+      saveBtn.click();
+      await new Promise(function (r) { setTimeout(r, 80); });
+      return JSON.parse(localStorage.getItem("studio-admin-backends") || "[]");
+    });
+    ok("LF42: Edit opens the same row preset and Save changes renames it in place (still one row)",
+      lf42Edited.length === 1 && lf42Edited[0].name === "Renamed Turso", JSON.stringify(lf42Edited));
+
+    // per-row Test updates the status dot from a real (mocked) check
+    const lf42RowTest = await gp42.evaluate(async function () {
+      document.querySelector("[data-bk-test]").click();
+      var dot;
+      for (var i = 0; i < 30; i++) {
+        await new Promise(function (r) { setTimeout(r, 100); });
+        dot = document.querySelector("[data-bk-id] .cx-dot");
+        if (dot && dot.className.indexOf("cx-dot ") === 0 && dot.className !== "cx-dot") break;
+      }
+      return { cls: dot && dot.className, stored: JSON.parse(localStorage.getItem("studio-admin-backends") || "[]") };
+    });
+    ok("LF42: the row's Test button runs the adapter check and persists lastTest (status dot turns ok)",
+      /\bok\b/.test(lf42RowTest.cls || "") && lf42RowTest.stored[0].lastTest && lf42RowTest.stored[0].lastTest.ok === true,
+      JSON.stringify(lf42RowTest));
+
+    // Connect opens the SAME connect wizard as Settings → Workspace backend, preset with this row's adapter+creds
+    const lf42ConnectOpens = await gp42.evaluate(async function () {
+      document.querySelector("[data-bk-connect]").click();
+      await new Promise(function (r) { setTimeout(r, 80); });
+      var ttl = (document.querySelector(".cx-wiz-ttl b") || {}).textContent;
+      var urlInp = document.querySelector(".cx-wiz-form input");
+      var out = { title: ttl, presetUrl: urlInp && urlInp.value };
+      document.querySelector(".modal-ov .x").click();
+      return out;
+    });
+    ok("LF42: the row's Connect button opens the real connect wizard, preset with its adapter and saved credentials",
+      lf42ConnectOpens.title === "Turso" && /\/__turso/.test(lf42ConnectOpens.presetUrl || ""), JSON.stringify(lf42ConnectOpens));
+
+    // Actually connecting (direct API, same as other SYNC tests) makes this row read "active"
+    // and hides its Connect button; disconnecting flips it back.
+    const lf42Active = await gp42.evaluate(async function (port) {
+      var cfg = { url: "http://localhost:" + port + "/__turso", token: "tok-lf42" };
+      var t = Studio.tursoSource;
+      await t.provision(cfg, Studio.WS.emptySnapshot());
+      await Studio.Sync.connectPush("turso", cfg);
+      window.__studioRenderAdmin();
+      var row = document.querySelector("[data-bk-id]");
+      var whileConnected = { hasActiveBadge: !!row.querySelector(".cx-badge.admin"), hasConnect: !!row.querySelector("[data-bk-connect]") };
+      Studio.Sync.disconnect();
+      window.__studioRenderAdmin();
+      row = document.querySelector("[data-bk-id]");
+      var afterDisconnect = { hasActiveBadge: !!row.querySelector(".cx-badge.admin"), hasConnect: !!row.querySelector("[data-bk-connect]") };
+      await t.drop(cfg);
+      Studio.Workspace.reset();
+      return { whileConnected: whileConnected, afterDisconnect: afterDisconnect };
+    }, PORT);
+    ok("LF42: once this backend is the actual connected one, its row shows 'active' and hides Connect; disconnecting reverts it",
+      lf42Active.whileConnected.hasActiveBadge && !lf42Active.whileConnected.hasConnect &&
+      !lf42Active.afterDisconnect.hasActiveBadge && lf42Active.afterDisconnect.hasConnect,
+      JSON.stringify(lf42Active));
+
+    // Delete removes it
+    const lf42Deleted = await gp42.evaluate(function () {
+      window.confirm = function () { return true; };
+      document.querySelector("[data-bk-del]").click();
+      return JSON.parse(localStorage.getItem("studio-admin-backends") || "[]");
+    });
+    ok("LF42: deleting a registered backend (after confirm) removes it from the list", lf42Deleted.length === 0, JSON.stringify(lf42Deleted));
+
+    await gp42.close();
+
     // ---- M7 slice 6: in-app account provisioning (browser self-signup) ----
     // A separate page/context so connecting it to a (mocked) Supabase backend
     // never disturbs the main page's local-only workspace the rest of the

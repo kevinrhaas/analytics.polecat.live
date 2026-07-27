@@ -6958,6 +6958,193 @@
   window.__studioRenderWorkspaceBackendCard = renderWorkspaceBackendCard; // test hook
   window.__studioOpenBackendWizard = openBackendWizard; // test hook
 
+  /* ---------- LF42 slice 1: Admin "Backends" — a registered backend list ----------
+     Today the workspace can only ever point at ONE connected backend (the Settings
+     card above). LF42 asks for admin-managed MULTIPLE backends, so a later slice can
+     assign a specific one per user at provisioning time. Slice 1 scope is
+     deliberately narrow: a named, credentialed list an admin can add/edit/test/
+     delete and — via the SAME connect flow as the Settings card — make active. It
+     does NOT rewire sync.js for multi-target mirroring (still exactly one active
+     connection); registering a backend here is just "remember these credentials
+     under a name," kept local-only (localStorage, like branding.js/hidden-sections)
+     rather than a new Workspace table — a backend-list entry is credential-bearing
+     config the way a Connection is, and mirroring it into whichever backend it also
+     describes is exactly the kind of chicken-and-egg complexity slice 1 is meant to
+     avoid; that's still open for a later slice if cross-device backend lists prove
+     worth it. */
+  function getAdminBackends() { return lsGet("studio-admin-backends", []); }
+  function setAdminBackends(list) { lsSet("studio-admin-backends", list); }
+  function backendRowActive(r, st, curCfg) {
+    return !!(st.isRemote && st.sourceId === r.adapter && JSON.stringify(curCfg) === JSON.stringify(r.cfg || {}));
+  }
+  function backendsCardHtml() {
+    var list = getAdminBackends();
+    var st = Studio.Sync.syncState();
+    var curCfg = Studio.Sync.currentConfig();
+    var rows = list.map(function (r) {
+      var src = Studio.sourceById(r.adapter) || { label: r.adapter, icon: "db" };
+      var active = backendRowActive(r, st, curCfg);
+      var dot = !r.lastTest ? "cx-dot" : (r.lastTest.ok ? "cx-dot ok" : "cx-dot bad");
+      return '<div class="cx-row" data-bk-id="' + esc(r.id) + '">' +
+        '<span class="' + dot + '"></span>' +
+        '<span class="cx-ic" style="color:' + esc(src.accent || "var(--brand)") + '"></span>' +
+        '<span class="cx-name"><b>' + esc(r.name) + '</b><small>' + esc(src.label || r.adapter) + '</small></span>' +
+        (active ? '<span class="cx-badge admin">active</span>' : "") +
+        '<span class="cx-actions">' +
+          '<button type="button" class="btn" data-bk-test="' + esc(r.id) + '">Test</button>' +
+          (active ? "" : '<button type="button" class="btn" data-bk-connect="' + esc(r.id) + '">Connect</button>') +
+          '<button type="button" class="btn" data-bk-edit="' + esc(r.id) + '">Edit</button>' +
+          '<button type="button" class="btn" data-bk-del="' + esc(r.id) + '" aria-label="Delete ' + esc(r.name) + '">✕</button>' +
+        '</span></div>';
+    }).join("");
+    return '<div class="settings-card"><h2>Backends</h2>' +
+      '<p class="ws-card-intro">Pre-register the databases this workspace can connect to — Turso, Supabase, or Firebase — so switching later is a click, not re-typed credentials. Registering a backend here does not connect it: use <b>Connect</b> below (or Settings → Workspace backend) to make one active.</p>' +
+      (rows ? '<div class="cx-list">' + rows + '</div>' : '<div class="cx-empty">No backends registered yet.</div>') +
+      '<div class="repo-io"><button type="button" class="btn primary" id="bkNewBtn">+ Add backend</button></div>' +
+    '</div>';
+  }
+  function wireBackendsCard(sec) {
+    $$("[data-bk-id]", sec).forEach(function (row) {
+      var r = getAdminBackends().filter(function (x) { return x.id === row.getAttribute("data-bk-id"); })[0];
+      var src = r && Studio.sourceById(r.adapter);
+      var icEl = row.querySelector(".cx-ic");
+      if (icEl && src) icEl.appendChild(Studio.icon(src.icon || "db", 18));
+    });
+    var newBtn = $("#bkNewBtn", sec);
+    if (newBtn) newBtn.onclick = function () { openBackendConfigWizard(); };
+    $$("[data-bk-edit]", sec).forEach(function (btn) {
+      btn.onclick = function () {
+        var r = getAdminBackends().filter(function (x) { return x.id === btn.getAttribute("data-bk-edit"); })[0];
+        if (r) openBackendConfigWizard(r);
+      };
+    });
+    $$("[data-bk-del]", sec).forEach(function (btn) {
+      btn.onclick = function () {
+        var id = btn.getAttribute("data-bk-del");
+        var list = getAdminBackends();
+        var r = list.filter(function (x) { return x.id === id; })[0];
+        if (!r) return;
+        if (!window.confirm('Remove backend "' + r.name + '"? This only forgets it here — it does not touch the database itself.')) return;
+        setAdminBackends(list.filter(function (x) { return x.id !== id; }));
+        toast("Removed " + r.name);
+        renderAdmin();
+      };
+    });
+    $$("[data-bk-test]", sec).forEach(function (btn) {
+      btn.onclick = function () {
+        var r = getAdminBackends().filter(function (x) { return x.id === btn.getAttribute("data-bk-test"); })[0];
+        var src = r && Studio.sourceById(r.adapter);
+        if (!r || !src) return;
+        btn.disabled = true; btn.textContent = "Testing…";
+        src.test(r.cfg || {}).then(function (res) {
+          r.lastTest = { ok: !!res.ok, error: res.ok ? "" : (res.error || "failed"), at: Date.now() };
+          setAdminBackends(getAdminBackends().map(function (x) { return x.id === r.id ? r : x; }));
+          toast(res.ok ? "Connection OK" : "Test failed: " + (res.error || ""), !res.ok);
+          renderAdmin();
+        });
+      };
+    });
+    $$("[data-bk-connect]", sec).forEach(function (btn) {
+      btn.onclick = function () {
+        var r = getAdminBackends().filter(function (x) { return x.id === btn.getAttribute("data-bk-connect"); })[0];
+        var src = r && Studio.sourceById(r.adapter);
+        if (!r || !src) return;
+        openBackendWizard(src, r.cfg, function () { renderAdmin(); });
+      };
+    });
+  }
+  // The registration wizard (add/edit only — no probe/classify, unlike
+  // openBackendWizard's connect flow): pick an adapter from the same
+  // remote-meta-capable set → name + credential fields with an inline Test →
+  // Save into the local admin backend list.
+  function openBackendConfigWizard(existing) {
+    var presetSrc = existing ? Studio.sourceById(existing.adapter) : null;
+    modal(existing ? "Edit backend" : "Add backend", function (b) {
+      function step2(adapter) {
+        b.innerHTML = "";
+        var head = el("div", "cx-wiz-head");
+        var ic = el("span", "cx-wiz-ic"); ic.style.color = adapter.accent || "var(--brand)"; ic.appendChild(Studio.icon(adapter.icon || "db", 22));
+        var ttl = el("div", "cx-wiz-ttl"); ttl.innerHTML = "<b>" + esc(adapter.label) + "</b><small>" + esc(adapter.blurb || "") + "</small>";
+        head.appendChild(ic); head.appendChild(ttl); b.appendChild(head);
+        var form = el("div", "cx-wiz-form");
+        var nameRow = el("label", "cx-field");
+        nameRow.innerHTML = '<span>Backend name</span>';
+        var nameInp = el("input"); nameInp.type = "text"; nameInp.value = existing ? existing.name : adapter.label;
+        nameInp.placeholder = "e.g. Prod Supabase";
+        nameRow.appendChild(nameInp); form.appendChild(nameRow);
+        var inputs = {};
+        (adapter.fields || []).forEach(function (f) {
+          var row = el("label", "cx-field");
+          row.innerHTML = "<span>" + esc(f.label) + "</span>";
+          var savedValue = existing && existing.cfg && existing.cfg[f.key];
+          var inp = credentialFieldInput("cx-bk-cred-" + adapter.id, f, savedValue, !existing);
+          row.appendChild(inp.__revealWrap || inp);
+          if (f.hint) { var h = el("small", "cx-hint"); h.textContent = f.hint; row.appendChild(h); }
+          form.appendChild(row); inputs[f.key] = inp;
+        });
+        b.appendChild(form);
+        if (adapter.docsUrl) {
+          var docs = el("div", "cx-docs");
+          docs.innerHTML = 'Where do these values come from? <a href="' + esc(adapter.docsUrl) + '" target="_blank" rel="noopener noreferrer">docs ↗</a>';
+          b.appendChild(docs);
+        }
+        var result = el("div", "cx-test-result"); b.appendChild(result);
+        var foot = el("div", "cx-wiz-foot");
+        var testBtn = el("button", "btn"); testBtn.type = "button"; testBtn.textContent = "Test connection";
+        var saveBtn = el("button", "btn primary"); saveBtn.type = "button"; saveBtn.textContent = existing ? "Save changes" : "Add backend";
+        foot.appendChild(testBtn); foot.appendChild(saveBtn); b.appendChild(foot);
+        function cfg() {
+          var o = {};
+          Object.keys(inputs).forEach(function (k) { var v = inputs[k].value.trim(); if (v) o[k] = v; });
+          return o;
+        }
+        var lastInlineTest = existing ? existing.lastTest : null;
+        testBtn.onclick = function () {
+          testBtn.disabled = true; testBtn.textContent = "Testing…";
+          result.className = "cx-test-result"; result.textContent = "";
+          adapter.test(cfg()).then(function (r) {
+            testBtn.disabled = false; testBtn.textContent = "Test connection";
+            lastInlineTest = { ok: !!r.ok, error: r.ok ? "" : (r.error || "failed"), at: Date.now() };
+            result.className = "cx-test-result " + (r.ok ? "ok" : "bad");
+            result.textContent = r.ok ? "✓ Connection works" : "✕ " + (r.error || "Test failed");
+          });
+        };
+        saveBtn.onclick = function () {
+          var name = nameInp.value.trim();
+          if (!name) { nameInp.focus(); result.className = "cx-test-result bad"; result.textContent = "Give the backend a name first."; return; }
+          var row = existing || { id: Studio.Workspace.uid("bk") };
+          row.name = name; row.adapter = adapter.id; row.cfg = cfg();
+          if (lastInlineTest) row.lastTest = lastInlineTest;
+          var list = getAdminBackends();
+          var replaced = false;
+          list = list.map(function (x) { if (x.id === row.id) { replaced = true; return row; } return x; });
+          if (!replaced) list.push(row);
+          setAdminBackends(list);
+          toast(existing ? "Saved " + name : "Added " + name);
+          document.querySelector(".modal-ov .x").click();
+        };
+        nameInp.focus();
+      }
+      if (presetSrc) { step2(presetSrc); return; }
+      var intro = el("p", "cx-wiz-intro");
+      intro.textContent = "Pick a backend to register. You can register several and connect to whichever one you need later.";
+      b.appendChild(intro);
+      var grid = el("div", "cx-src-grid");
+      Studio.remoteMetaSources().forEach(function (src) {
+        var cardEl = el("button", "cx-src-card"); cardEl.type = "button";
+        cardEl.style.setProperty("--src-accent", src.accent || "var(--brand)");
+        var ic = el("span", "cx-src-ic"); ic.appendChild(Studio.icon(src.icon || "db", 22));
+        var txt = el("span", "cx-src-txt");
+        txt.innerHTML = "<b>" + esc(src.label) + "</b><small>" + esc(src.blurb || "") + "</small>";
+        cardEl.appendChild(ic); cardEl.appendChild(txt);
+        cardEl.onclick = function () { step2(src); };
+        grid.appendChild(cardEl);
+      });
+      b.appendChild(grid);
+    }, function () { renderAdmin(); }, true);
+  }
+  window.__studioOpenBackendConfigWizard = openBackendConfigWizard; // test hook
+
   /* ---------- Z3 follow-up: whole-repository JSON export/import ----------
      Bundled examples/catalog entries already live in the repo as files, so exporting
      those back out would just be redundant noise. What's actually "yours" and worth
@@ -7538,6 +7725,7 @@
       '<p class="ws-card-intro">Turn a section off for the <b>viewer</b> role — it disappears from their rail. Admins always see every section.</p>' +
       sectionRows +
       '</div>' +
+      backendsCardHtml() +
       brandingCardHtml() +
     '</div>';
     $$(".set-row-ic[data-ic]", sec).forEach(function (span) { span.appendChild(Studio.icon(span.getAttribute("data-ic"), 18)); });
@@ -7564,6 +7752,7 @@
         renderAdmin();
       };
     });
+    wireBackendsCard(sec);
     wireBrandingCard(sec);
   }
   window.__studioRenderAdmin = renderAdmin; // test hook
