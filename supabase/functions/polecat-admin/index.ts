@@ -32,9 +32,11 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 // Direct Postgres connection string (pooler), a MANUAL secret (Settings →
 // Database → Connection string → "Transaction" pooler, or the direct
-// connection) — NOT auto-injected like the two above. Set once at deploy:
-//   supabase secrets set SUPABASE_DB_URL=postgres://...
-const SUPABASE_DB_URL = Deno.env.get("SUPABASE_DB_URL") || "";
+// connection) — NOT auto-injected like the two above.
+// Newer Supabase CLI versions disallow custom secret names that begin with
+// SUPABASE_, so we support DB_URL first and keep SUPABASE_DB_URL as fallback
+// for older deployments.
+const DB_URL = Deno.env.get("DB_URL") || Deno.env.get("SUPABASE_DB_URL") || "";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": APP_ORIGIN,
@@ -54,8 +56,8 @@ const TABLE_NAMES = ["connections", "datasets", "dashboards", "analyses", "jobs"
 
 let _sql: ReturnType<typeof postgres> | null = null;
 function db() {
-  if (!SUPABASE_DB_URL) throw new Error("SUPABASE_DB_URL secret is not set — see tools/M7-RLS-GOLIVE-RUNBOOK.md Path C.");
-  if (!_sql) _sql = postgres(SUPABASE_DB_URL, { prepare: false });
+  if (!DB_URL) throw new Error("DB_URL secret is not set — see tools/M7-RLS-GOLIVE-RUNBOOK.md Path C.");
+  if (!_sql) _sql = postgres(DB_URL, { prepare: false });
   return _sql;
 }
 
