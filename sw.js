@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v240"; /* v240: Track H sweep — row/card title buttons across
+var CACHE_NAME = "studio-shell-v241"; /* v241: N-DIST follow-up — a diff-based "Share just my
+   changes" link alongside the existing full "Copy shareable link" button, for handing off an
+   edit to someone who already has the dashboard without re-encoding the whole spec every time.
+   app/model.js, app/studio.js changed, so precached copies need to roll.
+   v240: Track H sweep — row/card title buttons across
    Connections, Datasets, Jobs, Dashboards (tile + list view) and Repository now carry a
    native `title` attribute naming their own row/card, so a sighted mouse user hovering a
    CSS-truncated name (`.cx-name b`/`.recent-meta b` ellipsis) gets the full name — same

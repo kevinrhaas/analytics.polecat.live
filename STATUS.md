@@ -116,6 +116,35 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **N-DIST follow-up — diff-based "Share just my changes" share link (v604, sw v241, 2026-07-27,
+  steward — Track H/L/N rotation, N's turn):** closes a long-open item under the N-DIST
+  "Shareable state links / snapshots" idea (bullet noted "not yet done: a diff-based link for
+  edits to an already-shared dashboard" since the full-link feature shipped at v240). The
+  Dashboard inspector's "Share this dashboard" section gains a second button — **Share just my
+  changes** — shown only once a base spec is on record for this dashboard id (from a previous
+  full share, either side) AND the working spec has since diverged from it. `Studio.getShareBase`/
+  `setShareBase` (app/model.js) track that base in one `studio-share-base` localStorage blob keyed
+  by dashboard id (same shape as `studio-versions`), refreshed whenever a full link is generated
+  OR opened, so both the sender's and a recipient's browser end up with a matching base with no
+  server involved. `Studio.buildSharePatch`/`applySharePatch` reuse `diffSpecs`' exact matching
+  rules (panels/filters by stable id, kpis positional, scalar fields per `DIFF_FIELDS`) but produce/
+  consume an APPLICABLE patch instead of `diffSummary`'s text: unchanged panels/filters are omitted
+  entirely (the actual size win over a full link), changed/new ones carry their full object, and a
+  `order` array (cur's own id sequence) makes reapplying byte-order-faithful even when an item was
+  inserted or removed from the middle of the list — a naive "removed ids + append added at the
+  end" first draft was caught failing exactly that case by its own round-trip test and replaced.
+  Opening an update link with no matching local base (the recipient never opened the original)
+  falls through to the normal boot flow instead of silently doing nothing, with a clear toast
+  explaining why. `docs/index.html`'s Share section updated. SW cache → v241. 5 new regression
+  tests (patch/apply round-trip incl. add+remove+change+reorder and a same-spec no-op, the button's
+  hidden/shown/hidden-again lifecycle across no-base → fresh full share → edit → new share, and
+  both boot-time paths — matching base applies the patch, no base falls through cleanly with the
+  explanatory toast). Full suite green — 2280/2280. (app/model.js, app/studio.js, docs/index.html,
+  sw.js, js/changelog.js, tests/run.js) NEXT: continuing the Track H/L/N self-directed rotation
+  (Track L last at v602, Track H at v603) is a good next slice while the findings queue stays
+  thin; the still-open "true whole-dashboard PNG" half of the N-DIST PNG/PDF export idea (the
+  foreignObject-taints-canvas dead end noted at v300) remains open for a future slice if a
+  different technique is found.
 - **Track H sweep — row/card title buttons across the workspace expose their full name on hover,
   not just a generic tooltip (v603, sw v240, 2026-07-27, steward):** v602's own NEXT pointer named
   Track H as most overdue (last ran v596, vs Track L just done at v602 and Track N at v600/601).
@@ -8756,8 +8785,9 @@ gets covered over time:
 > straight into that exact dashboard in the Studio builder, no file/server, distinct from the existing
 > per-filter `#hash` deep-link (which only ever carries filter defaults for an *exported* CDF). A garbage
 > or corrupted link fails safe into the normal boot flow instead of crashing. 3 new tests, suite 1137/1137.
-- **Shareable state links / snapshots:** ✓ shipped v240, see above. Not yet done: a *diff*-based link for
-  edits to an already-shared dashboard (today it's always the full spec).
+- **Shareable state links / snapshots:** ✓ shipped v240, see above. ✓ **Diff-based link shipped
+  v604 (closes this idea) — see DONE.** "Share just my changes" copies a link carrying only what
+  changed since the last full or update link, for a recipient who already has the dashboard.
 - **Local version history & visual diff:** timeline of auto-saved spec snapshots with a side-by-side diff
   (beyond in-session undo) — "time travel" for a dashboard.
 > ✓ **First cut shipped v258 (closes the "version history" half, diff still open):** the Dashboard
