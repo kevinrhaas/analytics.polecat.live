@@ -236,7 +236,9 @@
   // fields) onto the DA at export time; this dispatches on THAT field instead, same
   // prompt-once/never-embed contract as CRED_ENGINES. Turso shipped first; PostgREST is the
   // second; Supabase is the third; Google Sheets is the fourth; local files are the fifth;
-  // Redshift is the sixth and last — this backlog item is now fully closed. `dataset(da)` shapes the def each adapter's own queryData(cfg,
+  // Redshift is the sixth and last — this backlog item is now fully closed (a later follow-up
+  // slice added gsheets' own optional OAuth-token secret for private sheets, same shape as
+  // postgrest/supabase above). `dataset(da)` shapes the def each adapter's own queryData(cfg,
   // dataset) expects — Turso's speaks raw SQL (da.sql/da.query, same as every other kind:"sql"
   // DA), but a table-kind connection (PostgREST/Supabase, same protocol) has no da.table/
   // da.query of its own: dsToDA (app/studio.js) always sets da.kind:"sql" and clobbers da.query
@@ -262,14 +264,16 @@
       cfg: function (da, secret) { return Object.assign({}, da.connCfg, { key: secret }); },
       dataset: function (da) { return { table: da.dataset && da.dataset.table, query: da.dataset && da.dataset.query }; }
     },
-    // Google Sheets: link-shared sheets need no auth at all, so unlike the three adapters
-    // above, cfg() never merges a secret in (resolveSecret still runs but is a no-op — da.needsSecret
-    // is never stamped for gsheets, see exporters.js's redactSecrets). dataset() carries the
-    // {sheet, query} pair dsToDA (app/studio.js) now threads onto da.dataset for a sheet-kind DA.
+    // Google Sheets: a link-shared sheet needs no auth at all — same optional-secret shape as
+    // PostgREST's token (resolveSecret is a no-op, cfg() merges nothing extra, when da.needsSecret
+    // was never stamped). The FOLLOW-UP (shipped): a PRIVATE sheet's connection carries an OAuth
+    // access token instead, which IS a secret — cfg() merges it in only when resolveSecret actually
+    // returned one, exactly like turso/postgrest above. dataset() carries the {sheet, query} pair
+    // dsToDA (app/studio.js) threads onto da.dataset for a sheet-kind DA.
     gsheets: {
-      label: "Google Sheets",
+      label: "Google Sheets OAuth access token",
       engine: function () { return window.Studio && Studio.gsheetsSource; },
-      cfg: function (da) { return Object.assign({}, da.connCfg); },
+      cfg: function (da, secret) { return Object.assign({}, da.connCfg, secret ? { token: secret } : {}); },
       dataset: function (da) { return { sheet: da.dataset && da.dataset.sheet, query: da.dataset && da.dataset.query }; }
     },
     // Local files: the fifth adapter, and — like Google Sheets — no secret and no cfg at all

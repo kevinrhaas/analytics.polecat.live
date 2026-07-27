@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 610,
+    title: 'Google Sheets: private sheets can now connect too, via an OAuth access token',
+    kind: 'feature',
+    ts: '2026-07-27T11:08:30.000Z',
+    items: [
+      'A new optional field on the Google Sheets connection lets you paste a Google OAuth access token, so a sheet that is NOT link-shared can be charted too -- previously only "anyone with the link can view" sheets worked.',
+      'Leave the token blank and everything works exactly as before (the public, no-login path).',
+      'A private sheet reads its chosen tab as a plain data range rather than the free-form query language the link-shared path offers; that gap may close in a future update.',
+      'The token is never saved to the exported/shared HTML file -- an exported dashboard prompts for it once, the same privacy treatment every other credentialed connection already gets.',
+    ],
+  },
+  {
     v: 609,
     title: 'Track H sweep: the Viewer route\'s "Edit in Studio" button no longer shows itself to viewers it is hidden from',
     kind: 'fix',

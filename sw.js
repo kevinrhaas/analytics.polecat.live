@@ -5,7 +5,17 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v246"; /* v246: Track H sweep (code-health lens) — the Viewer
+var CACHE_NAME = "studio-shell-v247"; /* v247: Google Sheets FOLLOW-UP — private-sheet OAuth
+   via the Sheets API v4 (Authorization: Bearer, the BigQuery pattern), closing the note left open
+   since v593. A new optional `token` connection field switches queryData/testData onto
+   sheets.googleapis.com's values.get endpoint instead of the public gviz path; exporters.js's
+   CONN_ADAPTER_SECRET_FIELD gained a gsheets:"token" entry (optional, same shape as PostgREST's)
+   so a private sheet's token is redacted + prompted-once-never-embedded on export instead of
+   leaking into the static HTML; studio-render.js's CONN_ENGINES.gsheets.cfg now merges that
+   secret in when resolved, same as turso/postgrest. A link-shared sheet with no token set is
+   completely unaffected (still gviz, still no prompt). app/sources/gsheets.js, app/exporters.js,
+   app/studio-render.js, docs/index.html changed, so precached copies need to roll.
+   v246: Track H sweep (code-health lens) — the Viewer
    route's "Edit in Studio"/"Save a copy" buttons had a CSS rule that set `display:flex`
    unconditionally, silently defeating the browser's own `[hidden]{display:none}` default (author
    CSS always wins over user-agent CSS at equal specificity) — so a viewer-role account saw a
