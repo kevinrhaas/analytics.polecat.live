@@ -4562,6 +4562,54 @@
 >       (or auto-pull) instead of the wrong error; (2) with M7 GoTrue, let the gate authenticate against
 >       the workspace directly so a teammate signs in in ONE step. Keep local-first demo sign-in. (gate.js,
 >       auth.js verify/importFromStore, Supabase signIn.) Ties M7, LF42.
+> ── STUDIO CHROME CONSOLIDATION + NAV (Kevin, live 2026-07-27): the builder's ⋯ menu is mostly
+>    duplicative; operations belong in the top rail; the mode UX needs a consistent switcher; and the
+>    workspace nav should feel more sophisticated. Slice each. ──
+> LF46. **Studio ⋯ (hamburger) teardown.** REMOVE View→Tour + View→Theme (theme=Settings, tour=welcome/
+>       Settings→Tour), Command palette (=rail Search/⌘K), the whole HELP & POWER TOOLS section (help is in
+>       the Help rail) INCLUDING the Examples entry, and the polecat waffle app-switcher IN STUDIO. HIDE
+>       Demo mode for now (keep code; may confuse alongside sample packs + the customized tour — re-add only
+>       if a clear use is articulated). What survives (present/mode items) moves into LF48's switcher, so the
+>       hamburger shrinks or disappears. (app/index.html ⋯ menu, studio.js wiring.) Ties LF47, LF48.
+> LF47. **Operations move to the TOP RAIL.** Undo/redo, Open, Save, Save-as, Duplicate, Export▾, dark-mode,
+>       + New (and maybe the switcher), organized sensibly in the top rail; REMOVE the Examples button. This
+>       is the builder-chrome half of #30 (platform-standard topbar) — do them together. Keep mobile working
+>       (release gate). (index.html toolbar→top rail, studio.js.) Ties #30, LF20, LF45, LF46.
+> LF48. **Consistent, role-aware MODE SWITCHER.** One elegant switcher for view/focus/slideshow/simple/
+>       present/viewer with a UNIFORM exit (a close/X on any mode that changes the view — like present
+>       mode's title X, made universal). ROLE-CONTROLLED: developers get Studio EDIT mode; viewers get VIEW
+>       + the other non-edit modes, never edit. Clarify Focus vs View (Focus may be an edit mode — keep if it
+>       serves the developer editor). (studio.js mode handling + switcher UI, auth.js canDevelop.) Ties LF23,
+>       LF44, LF46.
+> LF49. **More export formats.** XLSX (dashboard on tab 1, backend/source datasets on later tabs), PowerPoint
+>       (.pptx), Word (.docx) — best-effort visual dashboard + underlying data. Mind the no-build/no-dep
+>       rule (vendor a small lib if needed). (app/exporters.js + Export▾ menu.) Ties LF36 (PDF, shipped), LF25.
+> LF50. **Kill the stray "Creativity" (Low/High) control in the builder; keep auto-build-from-dataset.** That
+>       dial belongs to Quick mode only — remove it from the builder chrome. Keep an "auto-build from a
+>       dataset" (Quick mode) entry, but it REPLACES the open dashboard, so confirm/warn before it clobbers.
+>       (studio.js builder chrome + Quick-mode entry + replace guard.) Ties LF24, LF26.
+> LF51. **Elevate the workspace navigation IA.** Repository/Connections/Datasets/Jobs have OK organization
+>       but should feel more sophisticated: richer elegant layouts, better grouping/hierarchy, surfaced
+>       cross-object lineage, consistent tile/list treatments, smarter filter/search, a cohesive visual
+>       system — not flat lists. (studio.js render{Datasets,Connections,Repository,Jobs}, the per-section
+>       modules, studio.css.) Ties LF19, #29, #21. Slice it; design-standards-driven.
+> LF52. **TERMINOLOGY — "widget" → "View" app-wide (Kevin decided 2026-07-27).** "Widget" is too technical.
+>       The standard term is a **View** — you build a View (a chart, or a text box / header / KPI / map /
+>       etc.), and the "widget library" becomes the **View library**. Rename all USER-FACING occurrences
+>       (UI strings, inspector labels, "save to View library", per-view download, help docs, tour + marketing
+>       copy). KEEP internal identifiers (panel/widget vars, spec keys, exported-HTML classes) where a change
+>       would risk export byte-identity or need a data migration — this is DISPLAY terminology, not a
+>       data-model rename; call out any storage/spec keys that must stay. Reconcile #29 → "Views as
+>       first-class objects" / a View library rail item. Add a ratchet that no user-facing "widget" survives
+>       where "View" is intended. (app/*.js strings, docs/index.html, index.html, tour/welcome copy.)
+> LF53. **Purge legacy "CDF"/"CDE" terminology (Kevin, live 2026-07-27) — not supported.** The Pentaho-era
+>       CDF (Community Dashboard Framework) / CDE terms are legacy and should be GONE: user-facing export
+>       labels/strings, help/marketing copy, and internal identifiers where safe (`Studio.exportCDF` → a
+>       neutral `exportDashboard`/`exportHtml`, the "cde export contract" naming, cdf/cde comments). Flag +
+>       keep any exported-HTML CSS class or spec/storage key whose rename would break byte-identity or need a
+>       migration — but the visible layer reads "dashboard export", never CDF/CDE. Ratchet: no user-facing
+>       CDF/CDE string remains. (app/exporters.js, studio.js export menu + exportCDF callers, docs, tests.)
+>       Ties LF49, LF36.
 > LF34. ✓ **Style presets "+ Save as preset" button — small UI issue (shipped v551, sw v188,
 >       2026-07-25, steward) — see DONE.** No repro was needed in the end: screenshotting the
 >       real card at desktop/tablet widths showed the input+button row spilling ~44px past the
