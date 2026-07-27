@@ -4598,6 +4598,36 @@
 > **LF52 note (extend):** the "Export this panel…" button label → "Export this View"; and the Explore
 > "Analyses" list/label (SAVED ANALYSES, "Add to dashboard" cards) → "Views" — both are part of the
 > widget/analysis→View rename, not separate work.
+> LF66. **Studio Data-panel / library REORGANIZATION (Kevin, live 2026-07-27) — big one, slice it.** The
+>       left "Data" panel library is getting daunting and doesn't behave right. Rework it around real
+>       objects instead of a bolted-on "Sample packs" concept:
+>       (1) **Sample packs are NOT a separate library item.** An installed pack just contributes real
+>           DATASETS / VIEWS / DASHBOARDS (a pack can carry several of each) into the normal library —
+>           identified as belonging to the pack (a pack folder / tag), not parked in their own "Sample
+>           packs" group. Keep a pack grouping/folder for provenance, but the CONTENT shows up as normal
+>           datasets/views/dashboards you can use. (Both can coexist for now if it helps the transition.)
+>       (2) **Library groups to offer:** "This dashboard's datasets", **Datasets**, **Views**, and
+>           **Dashboards** — the things you can pull from to build. Also reachable from **Open**.
+>       (3) **DROP the legacy bottom "Samples (115) · DEMO DB" group** (this supersedes LF65) — samples
+>           come only via installed packs' datasets.
+>       (4) **Rename "Workspace datasets" → just "Datasets".**
+>       (5) **Compact the oversized cards.** The big library card (huge subtitle like "Conservation
+>           Insight — demo files · CSV/JSON file" + a wall of column chips + a row of +Bar/+Donut/+Line/
+>           +Treemap/+Table/+KPI buttons) is too much / too big — make it respectable + tight like the
+>           "This dashboard's datasets" cards (compact name + a short meta line; move the chart-type
+>           quick-adds behind a hover/expand, not always-on).
+>       (6) **FIX drag-to-canvas + auto-build best view.** Today a library card IS `draggable` but you
+>           "can pick it up and can't drag it anywhere" — because the canvas is the live-preview IFRAME
+>           and HTML5 DnD from the parent panel doesn't cross the iframe boundary (the only working drop
+>           targets are parent-level: Home's blank card, folder headers). Make dragging a DATASET card
+>           onto the canvas actually land (postMessage-coordinated drop against the iframe wrapper, or a
+>           click/drop-to-add fallback) AND auto-pick the BEST view for that dataset (reuse the LF24
+>           auto-build / best-chart inference), not just a bare bars panel.
+>       (studio.js buildLibrary() + its card renderers ~745/1121, demopacks.js install → real objects,
+>       studio-render.js iframe drop protocol, dsToDA/addFromWorkspaceDataset, quickmode best-view infer.)
+>       Ties LF43, LF57 (Views rail), LF59 (dashboards mgmt), LF51 (nav), LF29/LF52 (terminology), LF24,
+>       #29. **This is the same intent as LF43/LF57/LF59 — reconcile them into one library model, don't
+>       build three overlapping ones.**
 
 ### ★★ ONBOARDING & PROVISIONING EPIC (Kevin, 2026-07-27) — the "Dave" north-star
 > A meaty vision from a live session: turn first-run into a delightful, admin-provisioned
