@@ -543,8 +543,17 @@
     var savedRows = shownAnalyses.map(function (a) {
       var on = XP.analysisId === a.id;
       var folderBadge = a.folder ? '<span class="cx-badge cx-folder" data-tip="Folder: ' + esc(a.folder) + '">' + esc(a.folder) + '</span>' : "";
+      // Track H sweep: this sidebar is narrow enough that the CSS ellipsis
+      // (.xp-saved-open b) routinely collapses several saved analyses that share a
+      // long common prefix (e.g. a demo pack's "Conservation Insight — …" set) down
+      // to visually-identical text, and the button's title used to be a hardcoded
+      // "Open in Explore" — so hovering to disambiguate told you nothing you didn't
+      // already know. Putting the analysis's own full name in the title (still
+      // hinting at the click action) restores the native-tooltip escape hatch every
+      // truncated label needs, same fix family as the disambiguateLabels() rows
+      // elsewhere in Repository/Dashboards.
       return '<div class="xp-saved-row' + (on ? " active" : "") + '" data-xp-a="' + esc(a.id) + '">' +
-        '<button type="button" class="xp-saved-open" data-xp-open="' + esc(a.id) + '" title="Open in Explore"><b>' + esc(a.name) + '</b>' +
+        '<button type="button" class="xp-saved-open" data-xp-open="' + esc(a.id) + '" title="' + esc(a.name) + ' — open in Explore" aria-label="Open ' + esc(a.name) + ' in Explore"><b>' + esc(a.name) + '</b>' +
         '<small>' + esc((Studio.CHARTS[a.chartType] || {}).label || a.chartType) + '</small></button>' +
         folderBadge +
         '<span class="xp-saved-acts">' +

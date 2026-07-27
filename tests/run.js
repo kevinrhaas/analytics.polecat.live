@@ -2526,6 +2526,23 @@ function serve() {
     ok("QA-05: saved-analysis row's pin/add-to-dashboard/delete buttons each name the analysis, not just the verb",
       xpRowA11y.pin === "Pin Suite analysis to Home" && xpRowA11y.dash === "Add Suite analysis to the current dashboard" &&
       xpRowA11y.del === "Delete Suite analysis", JSON.stringify(xpRowA11y));
+    // Track H sweep: the saved-analyses sidebar column is narrow enough that its CSS
+    // ellipsis (.xp-saved-open b) routinely collapses several analyses sharing a long
+    // common prefix down to visually-identical truncated text — the ONLY escape hatch
+    // for a sighted mouse user is the native hover tooltip, so the open button's title
+    // must actually be (or include) the analysis's own full name, not a generic,
+    // non-disambiguating string like the old hardcoded "Open in Explore".
+    const xpOpenTitle = await page.evaluate(function () {
+      var a = Studio.Workspace.all("analyses").filter(function (x) { return x.name === "Suite analysis"; })[0];
+      var row = document.querySelector('.xp-saved-row[data-xp-a="' + a.id + '"]');
+      var btn = row && row.querySelector(".xp-saved-open");
+      return { title: btn && btn.title, ariaLabel: btn && btn.getAttribute("aria-label") };
+    });
+    ok("XP: a saved analysis's Open button title includes its full name (so a truncated, ellipsis-clipped row is still disambiguated on hover)",
+      xpOpenTitle.title && xpOpenTitle.title.indexOf("Suite analysis") >= 0 && xpOpenTitle.title !== "Open in Explore",
+      JSON.stringify(xpOpenTitle));
+    ok("XP: the Open button also carries an aria-label naming the analysis, for parity with the row's other actions",
+      xpOpenTitle.ariaLabel === "Open Suite analysis in Explore", JSON.stringify(xpOpenTitle));
     // saved analyses are drag-in objects in the Studio library + addable panels
     const xpLib = await page.evaluate(function () {
       window.__studioShellSetSection("studio");
