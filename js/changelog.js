@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 618,
+    title: 'Cross-device sign-in no longer rejects a teammate as "incorrect password"',
+    kind: 'fix',
+    ts: '2026-07-27T16:33:38.000Z',
+    items: [
+      'Signing in on a browser that\'s connected to your workspace backend now checks the backend for an account it hasn\'t seen locally yet before giving up -- a teammate added from another browser can now sign in without the previous browser needing to "know" them first.',
+      'A never-connected browser now points an unrecognized username at "Connect to your workspace" instead of a flat "Incorrect username or password".',
+    ],
+  },
+  {
     v: 617,
     title: 'Sample-pack dashboards now show up in Dashboards, not just the Examples gallery',
     kind: 'fix',

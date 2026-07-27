@@ -10210,6 +10210,72 @@ function serve() {
     }, PORT);
     await gp3.close();
 
+    // ---- LF39: cross-device sign-in — a teammate provisioned on a connected
+    // workspace backend from another browser must not get a flat "incorrect
+    // password" here just because THIS browser hasn't seen their account yet. ----
+    console.log("\n• LF39: cross-device sign-in");
+    // A: push a "teammate" account straight into a fresh mock backend's users table —
+    // simulating another browser's admin having added + mirrored them up already.
+    const gpBackendOwner = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+    gpBackendOwner.on("pageerror", (e) => errors.push("LF39 backend-owner page: " + e.message));
+    await gpBackendOwner.goto(`http://localhost:${PORT}/app/`, { waitUntil: "domcontentloaded" });
+    await gpBackendOwner.waitForTimeout(400);
+    const lf39Cfg = await gpBackendOwner.evaluate(function (port) {
+      var cfg = { url: "http://localhost:" + port + "/__turso", token: "tok" };
+      return window.PolecatAuth.sha256("tmpw12345").then(function (hash) {
+        Studio.Workspace.put("users", { id: "user_teammate", u: "teammate", name: "Teammate", role: "viewer", demo: false, hash: hash }, { silent: true });
+        // an empty remote needs its schema provisioned before the first push (the
+        // same order the real connect wizard uses — see studio.js openBackendWizard).
+        return Studio.tursoSource.provision(cfg, Studio.Workspace.snapshot());
+      }).then(function () {
+        return Studio.Sync.connectPush("turso", cfg);
+      }).then(function () { return cfg; });
+    }, PORT);
+    await gpBackendOwner.close();
+
+    // B: a second, DIFFERENT browser already connected to that same workspace backend
+    // (as if it connected earlier, before "teammate" existed) but whose local
+    // PolecatAuth store still only carries the seeded admin/demo pair.
+    const gpStale = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+    gpStale.on("pageerror", (e) => errors.push("LF39 stale-browser page: " + e.message));
+    await gpStale.addInitScript((cfg) => {
+      try { localStorage.setItem("analytics.datasource.v1", JSON.stringify({ sourceId: "turso", cfg: cfg, at: 1 })); } catch (e) {}
+    }, lf39Cfg);
+    await gpStale.goto(`http://localhost:${PORT}/app/`, { waitUntil: "domcontentloaded" });
+    await gpStale.waitForTimeout(600);
+    const staleKnowsTeammateYet = await gpStale.evaluate(() => !!window.PolecatAuth.find("teammate"));
+    ok("LF39 setup: booting with a saved connection refreshes Studio.Workspace from the backend, but NOT PolecatAuth's own local store — confirms the gap the sign-in flow has to cover itself",
+      !staleKnowsTeammateYet);
+    await gpStale.fill("#g-user", "teammate"); await gpStale.fill("#g-pass", "tmpw12345");
+    await gpStale.click("#g-form button[type=submit]");
+    await gpStale.waitForTimeout(600);
+    const staleSignedIn = await gpStale.evaluate(() => ({
+      gone: !document.querySelector("#studio-gate"), who: (window.PolecatAuth.current() || {}).u
+    }));
+    ok("LF39: a browser already connected to the workspace backend auto-pulls + adopts a teammate account added from elsewhere instead of rejecting a correct password as 'incorrect'",
+      staleSignedIn.gone && staleSignedIn.who === "teammate", JSON.stringify(staleSignedIn));
+    // cleanup: drop the mock backend's tables so a later reuse of /__turso starts empty
+    await gpStale.evaluate(async function (port) {
+      var cfg = { url: "http://localhost:" + port + "/__turso", token: "tok" };
+      Studio.Sync.disconnect();
+      await Studio.tursoSource.drop(cfg);
+    }, PORT);
+    await gpStale.close();
+
+    // C: a genuinely fresh browser (no connection at all) gets guided to "Connect to
+    // your workspace" for an unknown account instead of a flat wrong-password message.
+    const gpFresh = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+    gpFresh.on("pageerror", (e) => errors.push("LF39 fresh-browser page: " + e.message));
+    await gpFresh.goto(`http://localhost:${PORT}/app/`, { waitUntil: "domcontentloaded" });
+    await gpFresh.waitForTimeout(400);
+    await gpFresh.fill("#g-user", "teammate"); await gpFresh.fill("#g-pass", "tmpw12345");
+    await gpFresh.click("#g-form button[type=submit]");
+    await gpFresh.waitForTimeout(300);
+    const freshMsg = await gpFresh.evaluate(() => document.getElementById("g-err").textContent);
+    ok("LF39: an unknown username with no workspace backend connected at all gets guided to “Connect to your workspace” instead of a flat “Incorrect username or password”",
+      /Connect to your workspace/.test(freshMsg) && !/^Incorrect username or password/.test(freshMsg), freshMsg);
+    await gpFresh.close();
+
     // ---- M4: Admin — manage users (first slice of "Admin + permissions") ----
     console.log("\n• M4: admin — manage users");
     // The main `page` carries the historical studio-gate-ok bypass with no stored

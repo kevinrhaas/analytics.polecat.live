@@ -91,9 +91,33 @@
     document.body.appendChild(ov);
 
     var userInp = document.getElementById("g-user"); if (userInp) userInp.focus();
+    function setErr(msg) { document.getElementById("g-err").textContent = msg || ""; }
     function fail(msg) {
-      document.getElementById("g-err").textContent = msg || "Incorrect username or password.";
+      setErr(msg || "Incorrect username or password.");
       var c = ov.querySelector(".g-card"); c.classList.add("shake"); setTimeout(function () { c.classList.remove("shake"); }, 400);
+    }
+    // LF39: the gate only knows accounts already mirrored into THIS browser's local
+    // store (analytics.users.v1), so a teammate provisioned on a connected workspace
+    // backend from another browser gets a misleading "Incorrect username or password"
+    // here — the account isn't wrong, this browser just hasn't seen it yet. initSync()
+    // (studio.js boot) refreshes Studio.Workspace's "users" table from the backend on
+    // every load, but nothing re-imports that into PolecatAuth's own store outside the
+    // connect wizard — so pull again ourselves and adopt it before giving up.
+    function handleUnknownUser(u, p) {
+      var Sync = window.Studio && window.Studio.Sync;
+      if (!Sync || !Sync.syncState().isRemote) {
+        fail("No local account “" + u + "”. Joining an existing team workspace? Use “Connect to your workspace” below.");
+        return;
+      }
+      setErr("Checking your connected workspace…");
+      Sync.pullNow().then(function () {
+        try { Auth.importFromStore(window.Studio.Workspace.all("users")); } catch (e) {}
+        return Auth.verify(u, p);
+      }).then(function (okAuth) {
+        if (okAuth) { Auth.login(u); afterLogin(); return; }
+        fail("“" + u + "” isn’t in your connected workspace. Check the username, or ask an admin to add you.");
+        document.getElementById("g-pass").select();
+      });
     }
     document.getElementById("g-form").addEventListener("submit", function (e) {
       e.preventDefault();
@@ -101,8 +125,9 @@
       var p = document.getElementById("g-pass").value || "";
       if (!u) { fail("Enter a username."); return; }
       Auth.verify(u, p).then(function (okAuth) {
-        if (okAuth) { Auth.login(u); afterLogin(); }
-        else { fail(); document.getElementById("g-pass").select(); }
+        if (okAuth) { Auth.login(u); afterLogin(); return; }
+        if (Auth.find(u)) { fail(); document.getElementById("g-pass").select(); return; }
+        handleUnknownUser(u, p);
       });
     });
     document.getElementById("g-demo").addEventListener("click", function () {
