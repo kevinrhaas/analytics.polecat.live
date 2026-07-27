@@ -4649,6 +4649,16 @@
 >       to the rail and full names have room; keep it responsive (mobile release gate) and leave sensible
 >       room for the planned rail submenus. (studio.css content container / section layout, index.html.)
 >       Ties LF51, LF19.
+> LF56. **Reusable multi-level FOLDER PICKER — replace the free-text "Folder" input everywhere (Kevin, live
+>       2026-07-27, screenshot).** Typing a folder name in a free-text field is lame. Replace it with a
+>       proper picker: NAVIGATE a multi-level folder tree, pick where to place the object, create a new
+>       (nested) folder inline (breadcrumbs, search-to-filter, recent/suggested folders). One SHARED,
+>       REUSABLE component used everywhere an object is filed — the Explore save bar (Name/Folder/Save-as-
+>       new/Update), the Datasets/Connections/Jobs editors' Folder field, Repository move/file, dashboards.
+>       Reads/writes the SAME "/"-separated `folder` string (M5's nested tree) — no data migration, just a far
+>       better UI. Elegant, in the LF51 vibe (tasteful animation). (New shared folder-picker component in
+>       app/*.js + studio.css; wire into openJobEditor, dataset/connection editors, explore.js save bar,
+>       Repository.) Ties LF51, #21 (org at scale/M5), #29.
 > LF55. **Job editor step UX overhaul (Kevin, live 2026-07-27, screenshots).** Polish the Add/Edit-job
 >       transform steps: (1) COLUMN DROPDOWNS EVERYWHERE — the editor already knows the columns (it renders
 >       the preview), so every column-naming field (Filter rows→column, Rename column→from/to, and any
