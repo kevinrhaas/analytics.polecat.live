@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 596,
+    title: 'Explore\'s saved-analyses list: hover to tell similarly-named analyses apart',
+    kind: 'polish',
+    ts: '2026-07-27T01:22:15.000Z',
+    items: [
+      'Track H sweep: the saved-analyses sidebar in Explore is narrow enough that several analyses sharing a long name prefix (e.g. a demo pack\'s "Conservation Insight -- ..." set) all truncated down to identical-looking text, and hovering to check which was which used to just show a generic "Open in Explore" tooltip -- no help at all. Hovering now shows that analysis\'s own full name.',
+    ],
+  },
+  {
     v: 595,
     title: 'Redshift datasets now stay live in exported dashboards too',
     kind: 'feature',

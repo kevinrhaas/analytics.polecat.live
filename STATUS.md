@@ -116,6 +116,25 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **Track H sweep — Explore's saved-analyses sidebar tooltip actually disambiguates now (v596, sw
+  v233, 2026-07-27, steward):** the H/L/N self-directed rotation was overdue on Track H (last run
+  v274, ~320 versions ago — L had run twice in a row most recently, v587/v588). Walked Home,
+  Dashboards, Datasets, Connections, Explore and Repository looking for a small, concrete UX rough
+  edge; found one in Explore's "SAVED ANALYSES" sidebar (`app/explore.js`): the column is narrow
+  enough that its CSS ellipsis (`.xp-saved-open b`) truncates any analyses sharing a long common
+  name prefix down to visually-identical text — the demo pack's four "Conservation Insight — …"
+  analyses all read as just "Conservation Insight…" — and the ONLY escape hatch a sighted mouse
+  user has (the native hover tooltip) was a hardcoded, non-disambiguating `title="Open in
+  Explore"` on every row, so hovering told you nothing. Same fix family as the app's other
+  `disambiguateLabels()`/aria-label-naming-the-object work (QA-04/QA-05), just for CSS truncation
+  rather than exact-string collisions: the open button's `title` is now the analysis's own full
+  name (still hinting at the click action), plus a matching `aria-label` for parity with the
+  row's other actions (pin/add/delete already name their target). 2 new tests (title contains the
+  full name and isn't the old generic string; aria-label names the analysis), full suite green —
+  2233/2233. No docs/index.html change (a tooltip-text fix, not a new describable feature/behavior
+  — same precedent as v286's analogous a11y-lens fix). NEXT: continuing the Track H/L/N
+  self-directed rotation (Track N hasn't run since ~v310) is a good next slice, or the ★ backlog/
+  sweep-findings queue if either has filled back up.
 - **Post-overhaul backlog item 3, OTHER half — Redshift joins Turso, PostgREST, Supabase, Google
   Sheets and local files with an exported-runtime path (v595, sw v232, 2026-07-26, steward) — THIS
   CLOSES THE BACKLOG ITEM ENTIRELY, all six connection-bound adapters now covered.** Redshift was

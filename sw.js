@@ -5,7 +5,15 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v232"; /* v232: Post-overhaul backlog item 3, OTHER
+var CACHE_NAME = "studio-shell-v233"; /* v233: Track H sweep — Explore's saved-
+   analyses sidebar list truncates long names with CSS ellipsis, so several
+   analyses sharing a common prefix (e.g. a demo pack's "Conservation Insight —
+   …" set) rendered indistinguishably, and the open button's title was a
+   hardcoded "Open in Explore" that told you nothing you didn't already know.
+   Its title now carries the analysis's own full name (plus a matching
+   aria-label), restoring the native-tooltip escape hatch. app/explore.js
+   changed, so the precached copy needs to roll.
+   v232: Post-overhaul backlog item 3, OTHER
    half, Redshift slice — CLOSES this backlog item out entirely: the sixth and last
    connection-bound adapter to get the exported-runtime treatment (after Turso,
    PostgREST, Supabase, Google Sheets and local files), and the first whose secret
