@@ -3117,6 +3117,22 @@
     return out;
   };
 
+  // N-DATA innovation idea follow-up ("dashboard health score" — closes the still-open "glanceable
+  // score beyond the Checks-section notes" half): a one-line summary of a Studio.validate() result,
+  // used as the Checks section's collapsed-state hint (section()'s summaryFn hook).
+  Studio.checksSummary = function (issues) {
+    if (!issues || !issues.length) return "all clear";
+    var errs = 0, warns = 0, infos = 0;
+    issues.forEach(function (x) {
+      if (x.level === "error") errs++; else if (x.level === "warn") warns++; else infos++;
+    });
+    var parts = [];
+    if (errs) parts.push(errs + (errs === 1 ? " error" : " errors"));
+    if (warns) parts.push(warns + (warns === 1 ? " warning" : " warnings"));
+    if (infos) parts.push(infos + (infos === 1 ? " note" : " notes"));
+    return parts.join(", ");
+  };
+
   // N-FUN (Track N innovation backlog): "Build-completeness meter" — a tasteful, game-like nudge
   // toward a well-rounded dashboard, distinct from Studio.validate() above (which only flags real
   // problems). This is aspirational/gentle, never an error: a dashboard with zero KPIs is valid, but

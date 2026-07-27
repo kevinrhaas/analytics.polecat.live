@@ -12499,6 +12499,44 @@ function serve() {
     ok("N-FUN: re-loading the same still-clean dashboard does not re-celebrate", health2.newSparkHosts === 0, JSON.stringify(health2));
     await page.evaluate(() => { localStorage.removeItem("studio-health-celebrated"); });
 
+    // ---- N-DATA: Checks section collapsed hint reads as a glanceable health score ----
+    console.log("\n• N-DATA: Checks section glanceable summary hint");
+    const checksHint = await page.evaluate(async () => {
+      function collapseAndHint() {
+        var h4 = [].slice.call(document.querySelectorAll("#inspBody .insp-sec h4")).filter(function (h) {
+          return h.textContent.trim().indexOf("Checks") === 0; // h4.textContent includes the .sec-hint span's own text when collapsed
+        })[0];
+        if (!h4) return null;
+        var sec = h4.closest(".insp-sec");
+        if (!sec.classList.contains("sec-collapsed")) h4.click(); // collapse it
+        var hintEl = h4.querySelector(".sec-hint");
+        return hintEl ? hintEl.textContent.trim() : "";
+      }
+      var clean = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json());
+      window.__studioLoad(clean); // spotless — zero Checks issues
+      var cleanHint = collapseAndHint();
+
+      window.__studioLoad({ title: "", panels: [], kpis: [] }); // triggers 2 warnings, 0 errors/notes
+      var dirtyHint = collapseAndHint();
+
+      var summaryFn = window.Studio.checksSummary;
+      return {
+        cleanHint, dirtyHint,
+        hasSummaryFn: typeof summaryFn === "function",
+        zero: summaryFn([]),
+        oneWarn: summaryFn([{ level: "warn", msg: "x" }]),
+        mixed: summaryFn([{ level: "error", msg: "x" }, { level: "warn", msg: "y" }, { level: "warn", msg: "z" }, { level: "info", msg: "w" }])
+      };
+    });
+    ok("N-DATA: Studio.checksSummary exists", checksHint.hasSummaryFn, JSON.stringify(checksHint));
+    ok("N-DATA: a spotless dashboard's collapsed Checks section reads 'all clear'", checksHint.cleanHint === "all clear", JSON.stringify(checksHint));
+    ok("N-DATA: a title-less, panel-less dashboard's collapsed Checks section names the warning count", checksHint.dirtyHint === "2 warnings", JSON.stringify(checksHint));
+    ok("N-DATA: checksSummary([]) === 'all clear'", checksHint.zero === "all clear", JSON.stringify(checksHint));
+    ok("N-DATA: checksSummary singular warning reads '1 warning'", checksHint.oneWarn === "1 warning", JSON.stringify(checksHint));
+    ok("N-DATA: checksSummary mixes error/warning/note counts in order, pluralized correctly",
+      checksHint.mixed === "1 error, 2 warnings, 1 note", JSON.stringify(checksHint));
+    await page.evaluate(() => { localStorage.removeItem("studio-health-celebrated"); });
+
     // screenshot for the record
     await page.screenshot({ path: path.join(__dirname, "flagship.png"), fullPage: false });
     console.log("\n  (screenshot → tests/flagship.png)");
