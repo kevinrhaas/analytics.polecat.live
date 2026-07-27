@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 617,
+    title: 'Sample-pack dashboards now show up in Dashboards, not just the Examples gallery',
+    kind: 'fix',
+    ts: '2026-07-27T16:17:23.000Z',
+    items: [
+      'Installing a sample pack (Conservation Insight or Data Management & Governance) now adds its curated showcase dashboards to your Dashboards screen, tagged so removing the pack takes them back out again.',
+      'Previously those dashboards only ever unlocked in the Examples dropdown -- installed packs looked like they had nothing to show for it outside Studio.',
+    ],
+  },
+  {
     v: 616,
     title: 'Quick import builds the full, impressive dashboard by default',
     ts: '2026-07-27T16:01:31.000Z',

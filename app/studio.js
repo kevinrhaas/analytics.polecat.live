@@ -685,8 +685,10 @@
   }
   function demoPackCard(id, p) {
     var on = Studio.demoPackInstalled(id);
-    // LF16: "examples"-kind packs (datamanagement) only gate gallery entries — there's no
-    // pack-owned dashboard row to jump to, so the "Open dashboard" chip is workspace-kind only.
+    // LF43: "examples"-kind packs (datamanagement) now materialize several dashboard rows
+    // (one per gated showcase example, see ensurePackExamplesMaterialized below) rather than
+    // owning one canonical dashboard to jump to — so the "Open dashboard" chip stays
+    // workspace-kind only; Dashboards is where you browse an examples-kind pack's set.
     var showOpen = on && p.kind !== "examples";
     var c = el("div", "da");
     c.innerHTML = '<div class="da-top"><div class="da-id">' + esc(p.name) + '</div></div>' +
@@ -707,18 +709,49 @@
     var isExamplesKind = p && p.kind === "examples";
     if (Studio.demoPackInstalled(id)) {
       var removeMsg = isExamplesKind
-        ? "Remove the “" + (p && p.name || id) + "” sample pack? This hides its showcase dashboards from the Examples gallery — nothing is deleted."
-        : "Remove the “" + (p && p.name || id) + "” sample pack? This deletes its dataset, analyses, and dashboard.";
+        ? "Remove the “" + (p && p.name || id) + "” sample pack? This removes its showcase dashboards from Dashboards and the Examples gallery — nothing else is deleted."
+        : "Remove the “" + (p && p.name || id) + "” sample pack? This deletes its datasets, analyses, and dashboards.";
       if (!window.confirm(removeMsg)) return;
       Studio.removeDemoPack(id);
       toast("Sample pack removed");
     } else {
       Studio.installDemoPack(id);
-      toast(isExamplesKind ? "Sample pack installed — see the Examples ▾ gallery" : "Sample pack installed — see Home, Explore, and Datasets");
+      ensurePackExamplesMaterialized(id);
+      toast("Sample pack installed — see its dashboards in Dashboards");
     }
     buildLibrary(); renderSettings(); renderHome(); buildExamplesMenu();
   }
   window.__studioToggleDemoPack = toggleDemoPack; // test hook
+
+  // LF43: a pack's example-gallery dashboards (data/examples/index.json entries tagged
+  // demoPackId) are its curated dashboards — once THIS pack is installed, materialize its own
+  // set as real workspace "dashboards" rows (tagged demoPackId + sourceFile) so they show up in
+  // Home/Dashboards like any saved dashboard, not just the Examples ▾ gallery. Scoped to a
+  // single `id` — NOT "every currently-installed pack" — because datamanagement is installed
+  // BY DEFAULT for every fresh workspace (see DEFAULT_INSTALLED in demopacks.js); a scan-all
+  // version would incidentally materialize its 8 dashboards the moment ANY other pack's install
+  // button was clicked. Idempotent on sourceFile so re-running it never duplicates rows;
+  // removeDemoPack's existing demoPackId sweep already deletes them again on uninstall.
+  function ensurePackExamplesMaterialized(id) {
+    if (!Studio.demoPackInstalled(id)) return Promise.resolve();
+    var entries = (S.examples || []).filter(function (e) { return e.demoPackId === id; });
+    if (!entries.length) return Promise.resolve();
+    var have = {};
+    Studio.Workspace.all("dashboards").forEach(function (r) { if (r.demoPackId && r.sourceFile) have[r.demoPackId + "|" + r.sourceFile] = true; });
+    var todo = entries.filter(function (e) { return !have[e.demoPackId + "|" + e.file]; });
+    if (!todo.length) return Promise.resolve();
+    return Promise.all(todo.map(function (e) {
+      return fetchJSON("data/examples/" + e.file).then(function (spec) {
+        var norm = normalize(spec);
+        if (!norm.dashboardTheme) norm.dashboardTheme = defaultDashboardTheme();
+        Studio.Workspace.put("dashboards", {
+          name: norm.name || e.title, title: norm.title || e.title,
+          ts: new Date().toISOString(), spec: norm, demoPackId: e.demoPackId, sourceFile: e.file
+        });
+      }).catch(function () { /* a missing/broken example shouldn't block materializing the rest */ });
+    }));
+  }
+  window.__studioEnsurePackExamplesMaterialized = ensurePackExamplesMaterialized; // test hook
 
   /* ---------- Workspace datasets in the library (drag/add like any query) ---------- */
   function buildWorkspaceDatasets(list, q) {

@@ -4191,6 +4191,63 @@ function serve() {
     ok("DP: 'studio-demopacks-installed' is in the Clear-local-data key list (same recurring gap the file's other sweep notes guard against)",
       (await page.evaluate(function () { return window.__studioClearDataKeys; })).indexOf("studio-demopacks-installed") >= 0);
 
+    // ---- LF43: installing a pack through the REAL Settings UI now materializes its
+    // example-gallery dashboards (data/examples/index.json entries tagged demoPackId) as real
+    // workspace "dashboards" rows, so they show up in Home/Dashboards — not just the Examples ▾
+    // gallery. Conservation was just removed above, so it's a clean install here.
+    console.log("\n• LF43: installing a sample pack via Settings materializes its example dashboards");
+    await page.evaluate(function () { window.__studioShellSetSection("settings"); });
+    await page.waitForTimeout(150);
+    await page.click('[data-demopack="conservation"]');
+    await page.waitForFunction(function () {
+      return Studio.Workspace.all("dashboards").filter(function (r) { return r.demoPackId === "conservation" && r.sourceFile; }).length >= 8;
+    }, { timeout: 8000 });
+    const lf43Materialized = await page.evaluate(function () {
+      var rows = Studio.Workspace.all("dashboards").filter(function (r) { return r.demoPackId === "conservation"; });
+      var sourced = rows.filter(function (r) { return r.sourceFile; });
+      return {
+        total: rows.length, sourcedCount: sourced.length,
+        sourceFiles: sourced.map(function (r) { return r.sourceFile; }).sort(),
+        titlesAllReal: sourced.every(function (r) { return !!(r.spec && r.spec.title); })
+      };
+    });
+    const LF43_EXPECTED_FILES = ["conservation-agreement.studio.json", "conservation-costshare.studio.json",
+      "conservation-flow.studio.json", "conservation-outliers.studio.json", "conservation-overview.studio.json",
+      "conservation-scorecard.studio.json", "conservation-switching.studio.json", "conservation-watershed.studio.json"].sort();
+    ok("LF43: installing the Conservation pack materializes all 8 of its gated example-gallery dashboards as real workspace rows (plus the 1 hand-built featured one = 9 total)",
+      lf43Materialized.total === 9 && lf43Materialized.sourcedCount === 8 &&
+      JSON.stringify(lf43Materialized.sourceFiles) === JSON.stringify(LF43_EXPECTED_FILES) && lf43Materialized.titlesAllReal,
+      JSON.stringify(lf43Materialized));
+    // regression guard: datamanagement is installed BY DEFAULT (no explicit install click ever
+    // happened for it), so materializing conservation's own dashboards must NOT incidentally
+    // materialize datamanagement's too — a scan-all-installed-packs version of this function did
+    // exactly that the first time this was implemented.
+    const lf43NoSideEffect = await page.evaluate(function () {
+      return Studio.Workspace.all("dashboards").filter(function (r) { return r.demoPackId === "datamanagement"; }).length;
+    });
+    ok("LF43: installing one pack does NOT incidentally materialize a different, merely-default-installed pack's dashboards",
+      lf43NoSideEffect === 0, String(lf43NoSideEffect));
+    await page.evaluate(function () { window.__studioShellSetSection("dashboards"); });
+    await page.waitForTimeout(200);
+    const lf43InDashboards = await page.evaluate(function () {
+      var rows = Studio.Workspace.all("dashboards").filter(function (r) { return r.demoPackId === "conservation" && r.sourceFile; });
+      return rows.length > 0 && rows.every(function (r) { return !!document.querySelector('[data-recent="' + r.id + '"]'); });
+    });
+    ok("LF43: the pack's materialized dashboards actually render as real cards in the Dashboards screen",
+      lf43InDashboards, "");
+    const lf43ReInstallNoDupe = await page.evaluate(async function () {
+      await window.__studioEnsurePackExamplesMaterialized("conservation");
+      return Studio.Workspace.all("dashboards").filter(function (r) { return r.demoPackId === "conservation" && r.sourceFile; }).length;
+    });
+    ok("LF43: re-running materialization while already installed is idempotent (no duplicate rows)",
+      lf43ReInstallNoDupe === 8, String(lf43ReInstallNoDupe));
+    const lf43Removed = await page.evaluate(function () {
+      window.__studioDemoPacks.remove("conservation");
+      return Studio.Workspace.all("dashboards").filter(function (r) { return r.demoPackId === "conservation"; }).length;
+    });
+    ok("LF43: removing the pack deletes the materialized example dashboards too (same demoPackId sweep as before), leaving none behind",
+      lf43Removed === 0, String(lf43Removed));
+
     // ---- LF16/LF2(c): the generic showcase gallery folded into a NEW toggleable
     // "Data Management & Governance" sample pack (kind:"examples" — pure gallery-visibility
     // gate, no workspace rows, installed by DEFAULT so nothing regresses out of the box) ----

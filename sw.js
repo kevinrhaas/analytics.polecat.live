@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v253"; /* v253: Quick import now defaults to High creativity
+var CACHE_NAME = "studio-shell-v254"; /* v254: LF43 — installing a sample pack now
+   materializes its example-gallery dashboards (data/examples/index.json entries tagged
+   demoPackId) as real workspace "dashboards" rows, so they show up in Home/Dashboards
+   instead of only unlocking in the Examples ▾ gallery; removing the pack's existing
+   demoPackId sweep cleans them up again. app/studio.js and app/demopacks.js changed, so
+   precached copies need to roll.
+   v253: Quick import now defaults to High creativity
    (app/defaults.js) so a dropped file auto-builds the full map/treemap/slope/ensemble
    dashboard out of the box; precached copy needs to roll.
    v252: LF44 — Home's "New dashboard"/"Quick
