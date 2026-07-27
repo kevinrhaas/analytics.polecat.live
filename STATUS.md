@@ -4621,7 +4621,13 @@
 >       dial belongs to Quick mode only — remove it from the builder chrome. Keep an "auto-build from a
 >       dataset" (Quick mode) entry, but it REPLACES the open dashboard, so confirm/warn before it clobbers.
 >       (studio.js builder chrome + Quick-mode entry + replace guard.) Ties LF24, LF26.
-> LF51. **Elevate the workspace navigation IA.** Repository/Connections/Datasets/Jobs have OK organization
+> LF51. **Elevate the workspace navigation IA.** **CORE PRINCIPLE (Kevin, 2026-07-27): build ONE shared,
+>       best-practice navigation component set and apply it CONSISTENTLY everywhere — Datasets, Connections,
+>       Jobs, Views (LF57), Repository, AND the Explore dataset picker/navigator. Same look & feel across the
+>       app where possible.** That shared set = multi-level folder tree/breadcrumbs (the LF56 folder picker),
+>       list + rich thumbnail-tile toggle, filter/search, consistent row/tile treatments. Beef up the Explore
+>       DATASET NAVIGATOR the same way (robust multi-level folders, not a flat list). Then per-section vibe:
+>       Repository/Connections/Datasets/Jobs have OK organization
 >       but should feel more sophisticated: richer elegant layouts, better grouping/hierarchy, surfaced
 >       cross-object lineage, smarter filter/search, a cohesive visual system — not flat lists. SPECIFICS
 >       (Kevin, screenshot 2026-07-27): (a) row NAMES get truncated — show FULL names; (b) the tag/filter
