@@ -670,9 +670,9 @@ function serve() {
     await page.evaluate(() => window.__studioShellSetSection("studio"));
     await page.waitForTimeout(150);
 
-    // ---- Slice B: Studio's dashboard-scoped actions live in the shared topbar's
+    // ---- Slice B/C: Studio's dashboard-scoped actions live in the shared topbar's
     // per-section slot (#tbSectionActions) instead of #dashbar, only while Studio is active ----
-    console.log("\n• Slice B: Studio's Undo/Redo/Open/Save/Export live in #tbSectionActions while active");
+    console.log("\n• Slice B/C: Studio's Undo/Redo/Open/Save/Save-as/Duplicate/Export live in #tbSectionActions while active");
     const sliceBOnStudio = await page.evaluate(() => {
       var slot = document.getElementById("tbSectionActions");
       var ta = document.querySelector("#dashbar .top-actions");
@@ -680,17 +680,18 @@ function serve() {
         slotIds: [].slice.call(slot.children).map(function (c) { return c.id || (c.querySelector("button") && c.querySelector("button").id) || null; }),
         dashbarStillHasUndo: !!ta.querySelector("#btnUndo"),
         dashbarStillHasExport: !!ta.querySelector("#btnExport"),
-        dashbarHasExamples: !!ta.querySelector("#btnExamples"),
-        dashbarHasSaveAs: !!ta.querySelector("#btnSaveAsSpec")
+        dashbarStillHasSaveAs: !!ta.querySelector("#btnSaveAsSpec"),
+        dashbarHasExamples: !!ta.querySelector("#btnExamples")
       };
     });
-    ok("Slice B: #tbSectionActions holds Studio's Undo/Redo/Open/Save/Export (in order) while Studio is active",
-      sliceBOnStudio.slotIds.join(",") === "btnUndo,btnRedo,btnImport,btnSaveSpec,btnExport",
+    ok("Slice C: #tbSectionActions holds Studio's Undo/Redo/Open/Save/Save-as/Duplicate/Export (in order) while Studio is active",
+      sliceBOnStudio.slotIds.join(",") === "btnUndo,btnRedo,btnImport,btnSaveSpec,btnSaveAsSpec,btnDupDash,btnExport",
       JSON.stringify(sliceBOnStudio));
-    ok("Slice B: those 5 actions are moved OUT of #dashbar .top-actions, not duplicated",
-      !sliceBOnStudio.dashbarStillHasUndo && !sliceBOnStudio.dashbarStillHasExport, JSON.stringify(sliceBOnStudio));
-    ok("Slice B: #dashbar keeps Examples ▾ / Save as… (dashboard-scoped, but not part of this slice)",
-      sliceBOnStudio.dashbarHasExamples && sliceBOnStudio.dashbarHasSaveAs, JSON.stringify(sliceBOnStudio));
+    ok("Slice B/C: those actions are moved OUT of #dashbar .top-actions, not duplicated",
+      !sliceBOnStudio.dashbarStillHasUndo && !sliceBOnStudio.dashbarStillHasExport && !sliceBOnStudio.dashbarStillHasSaveAs,
+      JSON.stringify(sliceBOnStudio));
+    ok("Slice C: #dashbar keeps Examples ▾ (dashboard-scoped, but not part of this slice)",
+      sliceBOnStudio.dashbarHasExamples, JSON.stringify(sliceBOnStudio));
     // Undo/Redo/Save/Export still work from their new home (Open is exercised via LF9/LF27b
     // below, and via the dedicated "Open a dashboard" picker tests elsewhere in this suite).
     await page.evaluate(async () => { const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json()); window.__studioLoad(spec); });
@@ -699,6 +700,19 @@ function serve() {
     const sliceBExportMenuOpen = await page.evaluate(() => document.getElementById("menuExport").classList.contains("open"));
     ok("Slice B: Export ▾, relocated into the topbar, still opens its dropdown", sliceBExportMenuOpen);
     await page.click("#btnExport"); await page.waitForTimeout(80); // toggle closed again
+
+    // ---- Slice C: Duplicate, relocated from #menuNew into the topbar ops cluster, still works ----
+    const sliceCBefore = await page.evaluate(() => ({ id: window.__STUDIO_STATE.spec.id, title: window.__STUDIO_STATE.spec.title }));
+    await page.click("#btnDupDash"); await page.waitForTimeout(150);
+    const sliceCAfter = await page.evaluate(() => ({
+      id: window.__STUDIO_STATE.spec.id, title: window.__STUDIO_STATE.spec.title,
+      toastShown: document.getElementById("toast").classList.contains("show")
+    }));
+    ok("Slice C: #btnDupDash (topbar) duplicates the current dashboard — new id, '(copy)' title, confirmation toast",
+      sliceCAfter.id !== sliceCBefore.id && sliceCAfter.title.indexOf("(copy)") >= 0 && sliceCAfter.toastShown,
+      JSON.stringify({ sliceCBefore, sliceCAfter }));
+    const sliceCMorePhoneTwin = await page.evaluate(() => !!document.getElementById("moreDupDash"));
+    ok("Slice C: Duplicate also has a phone More-menu twin (moreDupDash)", sliceCMorePhoneTwin, "moreDupDash missing");
 
     // ---- LF27(b): Studio gains a Close button that returns you to where you opened it from ----
     console.log("\n• LF27(b): Close returns Studio to its origin section");
@@ -12929,10 +12943,10 @@ function serve() {
     // `<span class="top-sep">` siblings, not wrapping group containers, so every button
     // keeps its existing id/order/direct-child relationship to `.top-actions` (the MNAV
     // mobile tests below walk `:scope > .btn` and must keep working).
-    // Slice B: Undo/Redo/Open/Save/Export moved out of #dashbar into #tbSectionActions
-    // (see the dedicated Slice B block above), so #dashbar's own remaining clusters are
-    // just File (Examples/Save as…/Close) | Present (Theme), with the ONE divider
-    // (sep-connect) between them — the History|File divider that used to separate
+    // Slice B/C: Undo/Redo/Open/Save/Save-as/Duplicate/Export moved out of #dashbar into
+    // #tbSectionActions (see the dedicated Slice B/C blocks above), so #dashbar's own
+    // remaining clusters are just File (Examples/Close) | Present (Theme), with the ONE
+    // divider (sep-connect) between them — the History|File divider that used to separate
     // Undo/Redo from Examples went with them.
     console.log("\n• Track H: dashbar action clusters get grouping dividers");
     const topSeps = await page.evaluate(() => {
@@ -13975,6 +13989,18 @@ function serve() {
       return { open: getComputedStyle(m).display !== "none" && r.height > 0, inView: r.left >= -1 && r.right <= window.innerWidth + 1 && r.top >= 0 };
     });
     ok("MNAV: topbar dropdown opens fully within the viewport (not clipped)", mnavMenu.open && mnavMenu.inView, JSON.stringify(mnavMenu));
+    await phonePage.evaluate(() => document.querySelectorAll(".menu").forEach((m) => m.classList.remove("open", "phone-pos")));
+
+    // Slice C: #btnSaveAsSpec/#btnDupDash are also hidden at phone width (folded behind
+    // ⋯More, same convention as Undo/Redo/Export above) — verify the Duplicate twin works.
+    const mnavDupBefore = await phonePage.evaluate(() => window.__STUDIO_STATE.spec.id);
+    await phonePage.click("#btnMore");
+    await phonePage.waitForTimeout(100);
+    await phonePage.click("#moreDupDash");
+    await phonePage.waitForTimeout(150);
+    const mnavDupAfter = await phonePage.evaluate(() => window.__STUDIO_STATE.spec.id);
+    ok("MNAV: phone's ⋯More → Duplicate twin (moreDupDash) duplicates the current dashboard",
+      mnavDupAfter !== mnavDupBefore, "before=" + mnavDupBefore + " after=" + mnavDupAfter);
     await phonePage.evaluate(() => document.querySelectorAll(".menu").forEach((m) => m.classList.remove("open", "phone-pos")));
 
     await phonePage.evaluate(() => document.querySelector('#mobile-tabs .mob-tab[data-mob-tab="library"]').click());
@@ -21121,16 +21147,16 @@ function serve() {
 
     // ── H-track: Duplicate dashboard ─────────────────────────────────────────
 
-    // H-dup-1: "Duplicate current" button exists in the New menu
+    // H-dup-1: "Duplicate" button exists (LF47 slice C: the topbar ops cluster, not the New menu)
     const hDupBtn = await page.evaluate(function () {
       try {
         var nm = document.querySelector("#menuNew");
-        if (!nm) return { ok: false, err: "no #menuNew" };
-        var found = !!nm.querySelector("[data-new='dup'], #btnDupDash");
-        return { ok: found };
+        var inNewMenu = !!(nm && nm.querySelector("[data-new='dup']"));
+        var dup = document.getElementById("btnDupDash");
+        return { ok: !!dup && !inNewMenu, inNewMenu: inNewMenu };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("H-dup: 'Duplicate current' button exists in the New menu", hDupBtn.ok, JSON.stringify(hDupBtn));
+    ok("H-dup: 'Duplicate' button exists (topbar ops cluster), not in the New menu", hDupBtn.ok, JSON.stringify(hDupBtn));
 
     // H-dup-2: duplicating a dashboard creates a new spec with a different ID and "(copy)" title
     const hDupSpec = await page.evaluate(function () {
@@ -24698,7 +24724,7 @@ function serve() {
       qa4First === "Untitled Dashboard 2" && qa4Second === "Untitled Dashboard 3",
       JSON.stringify({ qa4First: qa4First, qa4Second: qa4Second }));
 
-    // QA-04: "Duplicate current" (New ▾ menu) uniquifies the " (copy)" title the same way.
+    // QA-04: "Duplicate" (topbar ops cluster) uniquifies the " (copy)" title the same way.
     await page.evaluate(function () {
       window.__studioSeedDashboards([
         { id: "qa4-c", ts: new Date().toISOString(), spec: { id: "qa4-c", title: "Foo (copy)", panels: [], kpis: [] } }
@@ -24708,10 +24734,9 @@ function serve() {
       window.__studioLoad(spec);
     });
     await page.waitForTimeout(150);
-    await page.click("#btnNew"); await page.waitForTimeout(80);
-    await page.click('#menuNew button[data-new="dup"]'); await page.waitForTimeout(150);
+    await page.click("#btnDupDash"); await page.waitForTimeout(150);
     const qa4Dup = await page.evaluate(function () { return window.__STUDIO_STATE.spec.title; });
-    ok("QA-04: 'Duplicate current' uniquifies the '(copy)' title against the catalog too",
+    ok("QA-04: 'Duplicate' uniquifies the '(copy)' title against the catalog too",
       qa4Dup === "Foo (copy) 2", "title=" + qa4Dup);
 
     // Z2-5: recents list stays capped at 8 entries (newest-first) — the catalog now
