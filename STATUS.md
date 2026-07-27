@@ -4658,8 +4658,13 @@
 >       offers the column's distinct sample values as a dropdown/autocomplete where feasible. (3) BUG —
 >       DUPLICATE PREVIEW: "+ Step" leaves the old "Approximate preview" table up AND renders another (two
 >       befores + one after); clear the stale interim preview so there's one per state (quick early win).
->       (4) PER-STEP PREVIEW — a Preview at each step with a clear INTERIM-step indicator, plus a clear FINAL
->       preview so it's obvious you can just run the final. (5) COOLER STEP PICKER — replace the plain
+>       (4) UNIFY APPROXIMATE vs REAL PREVIEW (Kevin refined 2026-07-27) — the separate "Approximate
+>       preview" (schema-only sim) vs. the real Preview-button result is confusing. Make it ONE result area
+>       in a consistent position showing either the APPROXIMATE/SAMPLE result BADGED as "Sample — approximate"
+>       or the REAL preview after Preview is hit; when what's shown is approximate or STALE (inputs changed),
+>       the PREVIEW BUTTON lights up / pulses inviting a click for the actual result. Keep clear INTERIM-step
+>       indicators for per-step previews + an unmistakable FINAL preview so it's obvious you can just run the
+>       final. (5) COOLER STEP PICKER — replace the plain
 >       step-type <select> with an icon-panel picker (a themed glyph per step type, select-and-see); tasteful,
 >       don't overcomplicate. (app/jobs.js/studio.js openJobEditor + step renderer + preview, jobs-engine.js
 >       column/value introspection, icons.js, studio.css.) Ties #47, LF13(a-d), LF51.
