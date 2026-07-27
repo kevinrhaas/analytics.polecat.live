@@ -116,6 +116,22 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **First-admin bootstrap fix (v621, sw v258, 2026-07-27, steward):** turning on per-user security
+  on a fresh Supabase project failed the very first Go live with "This account is not an admin of this
+  workspace" — a genuine chicken-and-egg: the `polecat-admin` relay's `requireAdmin()` demands an admin
+  `users` row before go-live seeds one, and `mirrorUserRow` (app/studio.js) was **dropping `gotrueId`**
+  when it mirrored the signed-in account, so the backend row never carried the id the relay/RLS
+  `polecat_is_admin()` match on. Fix, app-side only (no function redeploy): (1) `mirrorUserRow` now
+  carries `gotrueId` and re-mirrors after sign-in stamps it; (2) new `supabaseSource.seedAdmin(cfg)`
+  upserts the caller's own admin row (role admin + verified gotrueId) via REST while RLS is still
+  allow-all, and the **Go live** modal seeds it FIRST, then runs the relay — the app does the whole
+  first-admin setup, no SQL-editor step; (3) `ensureSession(cfg, force)` mints a fresh JWT for every
+  admin action (Go live / Add user), clearing the misleading "That sign-in session is no longer valid".
+  Tests: the mock Supabase `users` table is now stateful (POST upsert / DELETE truncate) so seedAdmin's
+  write is asserted end-to-end (row shape: top-level role + data.gotrueId), plus the go-live modal test
+  now exercises the seed→go-live path. Files: app/sources/supabase.js, app/studio.js, docs/index.html,
+  sw.js, js/changelog.js, tests/run.js. Addresses the confusing first-time admin onboarding Kevin hit
+  during his own production go-live (relates to LF39).
 - **LF42 slice 1 — admin manages a backend list (v620, sw v257, 2026-07-27, steward — step 2 of the
   LOCKED BUILD ORDER's "Dave"-demo ingredients, after LF41 slice 1):** a new **Backends** card on the
   Admin page (`backendsCardHtml`/`wireBackendsCard`/`openBackendConfigWizard`, app/studio.js, right

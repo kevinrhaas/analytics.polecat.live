@@ -55,11 +55,16 @@
       });
     });
   }
-  function ensureSession(cfg) {
+  // force=true bypasses the cached token and re-exchanges email/password for a
+  // brand-new JWT. Admin actions (callAdminFn / seedAdmin) pass it so a token
+  // that expired server-side earlier than our cached expiresAt can't surface as
+  // the relay's misleading "That sign-in session is no longer valid" — every
+  // privileged call mints a fresh session first.
+  function ensureSession(cfg, force) {
     if (!cfg.authEmail || !cfg.authPassword) return Promise.resolve(null);
     var key = sessionKey(cfg);
     var cached = _sessions[key];
-    if (cached && cached.expiresAt > Date.now() + 5000) return Promise.resolve(cached);
+    if (!force && cached && cached.expiresAt > Date.now() + 5000) return Promise.resolve(cached);
     return gotrueSignIn(cfg).then(function (data) {
       var session = { accessToken: data.access_token, userId: (data.user && data.user.id) || null, expiresAt: Date.now() + ((data.expires_in || 3600) * 1000) };
       _sessions[key] = session;
@@ -84,7 +89,7 @@
     opts = opts || {};
     var base = adminFnBase(cfg);
     if (!base) return Promise.resolve({ ok: false, error: "No admin function URL configured — deploy supabase/functions/polecat-admin (see tools/M7-RLS-GOLIVE-RUNBOOK.md Path C) and paste its URL into this connection's settings." });
-    return ensureSession(cfg).then(function (session) {
+    return ensureSession(cfg, true).then(function (session) {
       var h = { "Content-Type": "application/json" };
       if (opts.secret) h["x-provision-secret"] = opts.secret;
       if (session && session.accessToken) h.Authorization = "Bearer " + session.accessToken;
@@ -218,6 +223,35 @@
         }
         return { ok: true, userId: userId };
       });
+    },
+
+    // ---- first-admin bootstrap (pre-go-live) ------------------------------
+    // Plants the CALLER's own `users` row (role:"admin", stamped with their
+    // verified GoTrue id) straight into the backend `users` table via REST,
+    // while RLS is still allow-all so an authenticated insert is permitted.
+    // This is the row the polecat-admin relay's requireAdmin() (and, once RLS
+    // is live, polecat_is_admin()) recognizes — without it, the very first
+    // go-live/create-user can't run because nobody is an admin yet (the
+    // chicken-and-egg: go-live seeds the admin but its own gate demands one
+    // first). Idempotent (merge-duplicates on the id PK); a no-op replay just
+    // re-affirms the same row. Runs before adminGoLive in the go-live flow so
+    // the fresh workspace has an admin the relay can verify.
+    seedAdmin: function (cfg, params) {
+      params = params || {};
+      var username = String(params.username || "").trim();
+      if (!username) return Promise.resolve({ ok: false, error: "Missing the local admin username to seed." });
+      var name = String(params.name || username).trim() || username;
+      return ensureSession(cfg, true).then(function (session) {
+        if (!session || !session.userId) {
+          return { ok: false, error: "Sign in with this connection's Supabase Auth email/password first — the first admin is stamped with that account's identity." };
+        }
+        var data = { id: "user_" + username, u: username, name: name, role: "admin", demo: false, hash: "", gotrueId: session.userId };
+        var row = { id: "user_" + username, name: name, role: "admin", updatedAt: Date.now(), data: JSON.stringify(data) };
+        return rest(cfg, "/users", { method: "POST", headers: { Prefer: "resolution=merge-duplicates" }, body: JSON.stringify([row]) }).then(function (r) {
+          if (!r.ok) return r.text().then(function (b) { return { ok: false, error: "Couldn't seed the admin row (HTTP " + r.status + "): " + String(b || "").slice(0, 160) }; });
+          return { ok: true, gotrueId: session.userId };
+        });
+      }).catch(function (e) { return { ok: false, error: (e && e.message) || String(e) }; });
     },
 
     // ---- polecat-admin Edge Function relay (M7 slice 7) --------------------

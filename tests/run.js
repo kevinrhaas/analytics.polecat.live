@@ -229,6 +229,9 @@ const mockSupaTables = {
     { region: "AMER", total: 200 },
     { region: "APAC", total: 80 },
   ],
+  // Stateful: seedAdmin (the first-admin bootstrap) upserts the caller's own
+  // admin row here via REST before go-live, so the write is real and assertable.
+  users: [],
 };
 function handleMockSupabase(req, rep, p) {
   const send = (code, body) => {
@@ -275,6 +278,26 @@ function handleMockSupabase(req, rep, p) {
   // real query string only survives on req.url, same as handleMockPostgrest reads it above.
   const table = rel.replace(/^rest\/v1\//, "");
   const tableRows = mockSupaTables[decodeURIComponent(table)];
+  if (req.method === "POST" && tableRows) {
+    // Stateful upsert (merge-duplicates on id), same posture as the real
+    // PostgREST write seedAdmin issues while RLS is still allow-all.
+    let wbody = "";
+    req.on("data", (c) => (wbody += c));
+    return req.on("end", () => {
+      let incoming = [];
+      try { incoming = JSON.parse(wbody || "[]"); } catch (e) {}
+      if (!Array.isArray(incoming)) incoming = [incoming];
+      incoming.forEach((row) => {
+        const i = tableRows.findIndex((r) => r.id === row.id);
+        if (i >= 0) tableRows[i] = row; else tableRows.push(row);
+      });
+      send(201, incoming);
+    });
+  }
+  if (req.method === "DELETE" && tableRows) {
+    tableRows.length = 0;
+    return send(204, []);
+  }
   if (tableRows) {
     const qs = new URLSearchParams(req.url.split("?")[1] || "");
     let rows = tableRows.slice();
@@ -5717,6 +5740,41 @@ function serve() {
       wsAdminFn.createOk === true && wsAdminFn.createUserId === "44444444-4444-4444-4444-444444444444", JSON.stringify(wsAdminFn));
     ok("ADMIN FN: adminCreateUser is rejected without a valid admin session",
       wsAdminFn.createNotAdminOk === false && /admin/i.test(wsAdminFn.createNotAdminErr), JSON.stringify(wsAdminFn));
+
+    // ---- first-admin bootstrap: seedAdmin plants the caller's admin row ----
+    // The chicken-and-egg fix: before go-live the app upserts the caller's own
+    // `users` row (role admin, stamped with their gotrueId) via REST while RLS
+    // is allow-all, so the relay's requireAdmin() can then recognize them. Also
+    // guards the row SHAPE the relay/RLS match on (top-level role + data.gotrueId).
+    const wsSeedAdmin = await page.evaluate(async function () {
+      var sb = Studio.supabaseSource;
+      var supaBase = location.origin + "/__supabase";
+      var signedIn = { url: supaBase, key: "sb_publishable_valid", authEmail: "owner@example.com", authPassword: "secret123" };
+      var noAuth = { url: supaBase, key: "sb_publishable_valid" };
+      var seeded = await sb.seedAdmin(signedIn, { username: "kevin", name: "Kevin" });
+      // read it back the exact way requireAdmin() does
+      var back = await fetch(supaBase + "/rest/v1/users?id=eq.user_kevin", { headers: { apikey: "sb_publishable_valid" } }).then(function (r) { return r.json(); });
+      var row = (back || [])[0] || {};
+      var data = {}; try { data = JSON.parse(row.data || "{}"); } catch (e) {}
+      var noSession = await sb.seedAdmin(noAuth, { username: "kevin" });
+      var noName = await sb.seedAdmin(signedIn, {});
+      // reset the stateful mock users table so later contexts start clean
+      await fetch(supaBase + "/rest/v1/users?id=not.is.null", { method: "DELETE", headers: { apikey: "sb_publishable_valid" } });
+      return {
+        seededOk: seeded.ok, seededId: seeded.gotrueId,
+        rowRole: row.role, dataRole: data.role, dataGotrueId: data.gotrueId, dataU: data.u,
+        noSessionOk: noSession.ok, noSessionErr: noSession.error || "",
+        noNameOk: noName.ok, noNameErr: noName.error || ""
+      };
+    });
+    ok("BOOTSTRAP: seedAdmin upserts the caller's users row (role admin, stamped with the verified gotrueId)",
+      wsSeedAdmin.seededOk === true && wsSeedAdmin.seededId === "11111111-1111-1111-1111-111111111111" &&
+      wsSeedAdmin.rowRole === "admin" && wsSeedAdmin.dataRole === "admin" &&
+      wsSeedAdmin.dataGotrueId === "11111111-1111-1111-1111-111111111111" && wsSeedAdmin.dataU === "kevin", JSON.stringify(wsSeedAdmin));
+    ok("BOOTSTRAP: seedAdmin refuses without a signed-in Supabase Auth session (can't stamp an identity)",
+      wsSeedAdmin.noSessionOk === false && /sign in/i.test(wsSeedAdmin.noSessionErr), JSON.stringify(wsSeedAdmin));
+    ok("BOOTSTRAP: seedAdmin refuses without a username to seed",
+      wsSeedAdmin.noNameOk === false && /username/i.test(wsSeedAdmin.noNameErr), JSON.stringify(wsSeedAdmin));
 
     // ---- CX: Connections section (list, pills, wizard) ----
     console.log("\n• CX: Connections section");

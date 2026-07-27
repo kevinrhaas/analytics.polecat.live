@@ -6818,6 +6818,13 @@
                         // before this sign-in ever happened) — see migrateOwnerToGotrueId.
                         window.PolecatAuth.upsert(username, { gotrueId: r.userId }).then(function () {
                           migrateOwnerToGotrueId(username, r.userId);
+                          // Re-mirror this account's own row now that it carries a
+                          // gotrueId, so the backend `users` row picks it up (the
+                          // first sign-in's initial mirror ran before the stamp).
+                          try {
+                            var mine = (window.PolecatAuth.exportForStore() || []).filter(function (x) { return x.u === username; })[0];
+                            if (mine) mirrorUserRow(mine);
+                          } catch (e3) {}
                         });
                       }
                     }).catch(function () {});
@@ -7403,6 +7410,12 @@
     var row = existing || { id: "user_" + u.u };
     row.u = u.u; row.name = u.name; row.role = u.role; row.demo = u.demo; row.hash = u.hash;
     row.provisioning = u.provisioning || null; row.provisioned = !!u.provisioned;
+    // M7: carry the GoTrue id onto the backend `users` row. Dropping it here (as
+    // this once did) meant the mirrored row never had the gotrueId the
+    // polecat-admin relay's requireAdmin() / RLS polecat_is_admin() match on, so
+    // an account could sign in yet still read as "not an admin of this
+    // workspace" — the first-admin bootstrap chicken-and-egg.
+    if (u.gotrueId) row.gotrueId = u.gotrueId;
     W.put("users", row, { silent: true });
   }
   // M3 (auth): run once at boot after the workspace is ready, and again after every
@@ -7856,16 +7869,28 @@
         var secret = sInp.value;
         if (!secret) { sInp.focus(); result.className = "cx-test-result bad"; result.textContent = "Enter the provision secret."; return; }
         if (!cb.checked) { result.className = "cx-test-result bad"; result.textContent = "Confirm you understand this wipes the current tables first."; return; }
-        goBtn.disabled = true; result.className = "cx-test-result"; result.textContent = "Running go-live…";
+        var Auth = window.PolecatAuth, me = Auth && Auth.current();
+        if (!me) { result.className = "cx-test-result bad"; result.textContent = "Sign in first — go-live needs a signed-in account to make the first admin."; return; }
+        goBtn.disabled = true; result.className = "cx-test-result"; result.textContent = "Making you the first admin…";
         var src = Studio.sourceById("supabase"), cfg = Studio.Sync.currentConfig();
-        src.adminGoLive(cfg, secret).then(function (r) {
-          sInp.value = ""; secret = ""; // enter-run-discard — never persisted, gone the moment the call returns
-          goBtn.disabled = false;
-          if (!r.ok) { result.className = "cx-test-result bad"; result.textContent = "✕ " + r.error; return; }
-          result.className = "cx-test-result ok";
-          result.textContent = "✓ Live — " + Object.keys(r.tables || {}).map(function (t) { return t + ": " + r.tables[t]; }).join(", ");
-          toast("Per-user security is live.");
-        });
+        function fail(msg) { goBtn.disabled = false; result.className = "cx-test-result bad"; result.textContent = "✕ " + msg; }
+        // Plant the caller's admin row FIRST (while RLS is still allow-all) so
+        // the relay's requireAdmin() recognizes them — otherwise the very first
+        // go-live fails "not an admin of this workspace" (the relay verifies an
+        // admin before it seeds one). Then run go-live, which re-seeds + locks
+        // in real RLS. The app does the whole bootstrap — no SQL editor step.
+        src.seedAdmin(cfg, { username: me.u, name: me.name || me.u }).then(function (seed) {
+          if (!seed || !seed.ok) { fail((seed && seed.error) || "Couldn't seed the first admin row."); return; }
+          result.textContent = "Running go-live…";
+          return src.adminGoLive(cfg, secret).then(function (r) {
+            sInp.value = ""; secret = ""; // enter-run-discard — never persisted, gone the moment the call returns
+            goBtn.disabled = false;
+            if (!r || !r.ok) { result.className = "cx-test-result bad"; result.textContent = "✕ " + ((r && r.error) || "go-live failed."); return; }
+            result.className = "cx-test-result ok";
+            result.textContent = "✓ Live — " + Object.keys(r.tables || {}).map(function (t) { return t + ": " + r.tables[t]; }).join(", ");
+            toast("Per-user security is live.");
+          });
+        }).catch(function (e) { fail((e && e.message) || String(e)); });
       };
     });
   }

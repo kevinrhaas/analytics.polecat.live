@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 621,
+    title: 'First-time go-live makes you the admin by itself -- no SQL editor step',
+    kind: 'fix',
+    ts: '2026-07-27T17:57:57.000Z',
+    items: [
+      'Turning on per-user security (Go live) on a fresh Supabase project now plants your own admin record before it runs, so it stops failing "This account is not an admin of this workspace" -- the app does the whole first-admin setup and you never have to hand-run SQL to bootstrap yourself.',
+      'Signing in against a workspace backend now carries your account identity through to the database, so an account that just signed in is recognized as itself instead of reading as "not an admin".',
+      'Admin actions (Go live, Add user) refresh your sign-in automatically, clearing the misleading "That sign-in session is no longer valid" error when a token had quietly expired.',
+    ],
+  },
+  {
     v: 620,
     title: 'Admin can now register multiple backends',
     kind: 'feature',
