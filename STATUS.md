@@ -116,6 +116,24 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **Settings copy cleanup: Color theme + Sample packs (#112/#115/#116, v633, sw v270,
+  2026-07-27, steward):** three live-QA copy tweaks Kevin flagged in Settings. #112 ("you don't
+  need all of this explanation for the color themes, shorten this") — the Color-theme row's `small`
+  dropped its three-clause per-theme walkthrough for a one-liner ("The app's color palette — the
+  chrome around the builder and rail. Each card previews its own real colors."). #115 ("be more
+  concise, and describe that sample packs include dashboards, data etc, explain where it is created
+  data or real data") — the Sample-packs card intro (`ws-card-intro`) is now "Ready-made demo
+  content you can install or remove. A pack can add dashboards, datasets, connections and jobs — all
+  with synthetic (made-up) sample data, never your real data. Remove takes back exactly what Install
+  added." #116 ("way too wordy, just explain what each of them is discretely ... highlight how many
+  dashboards etc ... mention that the data is embedded" + "take out the words turn off to keep
+  Conservation Insight only") — both pack `blurb`s (app/demopacks.js) rewritten crisp + count-led
+  (each opens with the counts), each notes the data is embedded, and the Data-Management blurb drops
+  the "turn it off to keep a pitch focused on Conservation Insight alone" sentence. Tests: the
+  Color-theme blurb is short + says "color palette" and no longer "Classic Blue is the original"; the
+  intro says "synthetic" and no longer "pitch-specific"; both blurbs start with a digit, mention
+  "embedded", and the Data-Management one no longer says "turn it off". Files: app/studio.js,
+  app/demopacks.js, tests/run.js, sw.js, js/changelog.js.
 - **Home greeting personalizes + demo account renamed (#108, v632, sw v269, 2026-07-27,
   steward):** Kevin: "im a little surprised you don't have the login user's name here in the
   greeting line ... even demo/demo should be Demonstration User". The Home hero's hardcoded

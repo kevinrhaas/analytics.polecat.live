@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 633,
+    title: 'Tidier Settings copy for Color theme and Sample packs',
+    kind: 'polish',
+    ts: '2026-07-27T23:29:00.000Z',
+    items: [
+      'Shortened the Color theme description to a single line.',
+      'Rewrote the Sample packs text: a concise intro that makes clear the sample data is synthetic (not your real data), and crisp, count-led descriptions of each pack (how many dashboards/datasets you get) noting the data is embedded.',
+    ],
+  },
+  {
     v: 632,
     title: 'Home greets you by name',
     kind: 'polish',
