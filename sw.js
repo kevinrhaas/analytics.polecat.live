@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v247"; /* v247: Google Sheets FOLLOW-UP — private-sheet OAuth
+var CACHE_NAME = "studio-shell-v248"; /* v248: N-DATA follow-up — the Checks section's collapsed
+   header now shows a glanceable summary ("all clear" / "1 error, 2 warnings") via a new
+   Studio.checksSummary() helper wired into its existing section() summaryFn hook — closes the
+   last still-open half of the "dashboard health score" idea (every underlying check already
+   existed; this adds the glanceable score itself). app/model.js, app/studio.js, docs/index.html
+   changed, so precached copies need to roll.
+   v247: Google Sheets FOLLOW-UP — private-sheet OAuth
    via the Sheets API v4 (Authorization: Bearer, the BigQuery pattern), closing the note left open
    since v593. A new optional `token` connection field switches queryData/testData onto
    sheets.googleapis.com's values.get endpoint instead of the public gviz path; exporters.js's

@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 611,
+    title: 'Checks section now shows a glanceable summary when collapsed',
+    kind: 'polish',
+    ts: '2026-07-27T13:22:22.000Z',
+    items: [
+      'Collapse the dashboard inspector\'s Checks section and its header now reads "all clear," or a count like "1 error, 2 warnings," instead of giving no hint at all.',
+      'Closes the last open half of the "dashboard health score" idea -- every underlying check already existed, this just makes the overall status visible at a glance without reopening the section.',
+    ],
+  },
+  {
     v: 610,
     title: 'Google Sheets: private sheets can now connect too, via an OAuth access token',
     kind: 'feature',

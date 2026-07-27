@@ -116,6 +116,25 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **Track N follow-up — the Checks section's collapsed header now shows a glanceable summary
+  (v611, sw v248, 2026-07-27, steward — Track H/L/N rotation, N's turn):** the H/L/N self-directed
+  rotation was overdue on Track N (last ran v607, vs Track L at v608 and Track H at v609), and the
+  N-DATA "dashboard health score" idea's own final sub-note (STATUS.md, N section) explicitly named
+  the gap: every underlying check (orphaned DA, data-quality watchdog, broken detail-drawer target)
+  was already implemented and feeding `Studio.validate(spec)`, but the Checks section itself only
+  ever showed a bulleted notes list — you had to open it to know if anything was wrong. Added
+  `Studio.checksSummary(issues)` (app/model.js) — a one-line rollup ("all clear", or
+  "1 error, 2 warnings", pluralized and ordered error→warning→note) — and wired it into the
+  Checks `section(...)` call's existing `summaryFn` collapsed-hint hook (app/studio.js), the same
+  mechanism Conditional formatting/Event markers/Color scale already use. Zero new UI, zero new
+  CSS, reuses infra the section() system was already built for. `docs/index.html`'s Checks
+  paragraph updated. 6 new regression tests (a spotless dashboard reads "all clear"; a title-less,
+  panel-less dashboard reads "2 warnings"; `checksSummary` unit-tested directly for the empty,
+  singular, and mixed-level cases). SW cache → v248. Full suite green. (app/model.js, app/studio.js,
+  docs/index.html, sw.js, js/changelog.js, tests/run.js) NEXT: continuing the Track H/L/N
+  self-directed rotation (Track L last at v608, Track H at v609) is a good next slice while the
+  findings queue stays thin; the tq-query-language gap on the Google Sheets private-sheet path
+  (v610's own NEXT pointer) remains open as a smaller follow-up if Kevin wants full parity.
 - **Google Sheets FOLLOW-UP: private-sheet OAuth via the Sheets API v4 (v610, sw v247, 2026-07-27,
   steward) — closes the note left open since the adapter first shipped (backlog item 2, v593).**
   A new optional connection field, **OAuth access token**, switches `app/sources/gsheets.js`'s
@@ -8683,6 +8702,11 @@ gets covered over time:
 > flags this as a warn-level Checks note. 3 new tests, suite 1407/1407. **A distinct glanceable
 > "health score" UI beyond the Checks-section notes remains optional/not yet done**, per the
 > original note — every underlying check the idea asked for now exists.
+> ✓ **Glanceable summary shipped v611 (closes the "distinct glanceable health score UI" item —
+> Dashboard health score track is now fully feature-complete)**: rather than a new UI, reused the
+> Checks section's own `section(...)` collapsed-hint mechanism — `Studio.checksSummary(issues)`
+> rolls the existing `Studio.validate()` result into one line ("all clear" / "2 warnings" / "1
+> error, 2 warnings") shown in the header the moment the section is collapsed. 6 new tests.
 - **Compare dashboards side-by-side (added 2026-07-04, innovation sweep):** pick any two saved dashboards
   from Home/Repository and view them in a synced-scroll split-screen — distinct from the existing
   per-dashboard Version-history diff (v262, which compares a dashboard against ITS OWN past checkpoint,

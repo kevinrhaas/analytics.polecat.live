@@ -2125,7 +2125,10 @@
 
     // ── checks (live validation) ──
     var issues = Studio.validate(sp);
-    var vs = section(body, "Checks", null, null, null, "check");
+    // N-DATA "dashboard health score" (closes the last still-open half: a glanceable summary
+    // beyond the bulleted notes list) — reuse section()'s existing collapsed-hint hook so the
+    // header itself reads "all clear" or "1 error, 2 warnings" without opening the section.
+    var vs = section(body, "Checks", null, function () { return Studio.checksSummary(issues); }, null, "check");
     if (!issues.length) { vs.appendChild(iconNote("ok", "check", "Looks good — ready to export.")); celebrateHealthZero(sp); }
     else issues.forEach(function (x) { vs.appendChild(iconNote(x.level === "error" ? "err" : x.level === "warn" ? "warn" : "info", x.level === "error" ? "close" : x.level === "warn" ? "warn" : "info", x.msg)); });
 
