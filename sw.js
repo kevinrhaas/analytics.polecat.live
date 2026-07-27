@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v257"; /* v257: LF42 slice 1 — Admin "Backends" card lets an
+var CACHE_NAME = "studio-shell-v258"; /* v258: first-admin bootstrap — Go live now seeds the
+   caller's own admin row before it runs (fixing the "not an admin" chicken-and-egg), sign-in
+   carries gotrueId onto the backend users row, and admin actions refresh the session.
+   app/studio.js, app/sources/supabase.js and docs/index.html changed, so precached copies roll.
+   v257: LF42 slice 1 — Admin "Backends" card lets an
    admin register multiple named backend configs ahead of connecting to one.
    app/studio.js and docs/index.html changed, so precached copies need to roll.
    v256: LF41 slice 1 — per-user provisioning defaults
