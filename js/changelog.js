@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 627,
+    title: 'A workspace backend now reconnects itself on entry instead of showing red until you Refresh',
+    kind: 'fix',
+    ts: '2026-07-27T21:27:47.000Z',
+    items: [
+      'Opening the app in a fresh tab used to show the Supabase workspace as "not connected" until you clicked Refresh -- the first sign-in could race the session setup and come back rejected.',
+      'The app now retries that first connect automatically (with a short backoff), so the workspace just connects on entry. Refresh still works any time, and your local data was never at risk (the backend is a sync mirror).',
+    ],
+  },
+  {
     v: 626,
     title: 'Undo, Save, Open and Export now live in the top bar while you\'re building',
     kind: 'polish',

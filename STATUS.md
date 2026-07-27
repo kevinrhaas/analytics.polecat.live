@@ -116,6 +116,16 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **Connection self-heals on boot (#111, v627, sw v264, 2026-07-27, steward):** opening the app
+  in a fresh tab showed the Supabase workspace as "not connected" until a manual Refresh -- on a
+  fresh page there's no cached GoTrue session and the first authenticated read can race the
+  session/secrets setup and come back 401/403 ("rejected the API key"). #352 self-healed mid-session
+  rest() reads but not the boot connect. Fix: `initSync` (app/sources/sync.js) now retries the
+  connect with backoff (500/1500ms) on a recoverable auth/session error before surfacing red, so the
+  workspace just connects on entry (the user's own suggestion: "refresh on boot"). Genuinely
+  unreachable sources still fall through to the local mirror. Test: mock GoTrue flaps the first 2
+  sign-ins, boot with a saved connection, assert it reaches "connected" on its own. Files:
+  app/sources/sync.js, tests/run.js, sw.js, js/changelog.js.
 - **Standard fleet topbar — Slice A: promote #topbar to a GLOBAL frame element (2026-07-27,
   steward, v625, sw v262):** the topbar was trapped inside Studio's `#appMain`, so only the
   builder showed it — Home/Explore/Dashboards/Datasets/Connections/Jobs/Repository/Admin/Settings

@@ -272,12 +272,29 @@
       state.sourceId = conn.sourceId; state.cfg = conn.cfg;
       setStatus("connecting");
       _suspend = true;
-      return src.load(conn.cfg).then(decTransform).then(function (snap) {
-        W().replaceAll(snap);
-        setStatus("connected");
-      }).catch(function (e) {
-        setStatus("error", (e.message || "could not reach source") + " — working from the local mirror");
-      }).then(function () { _suspend = false; return publicState(); });
+      // Boot self-heal (#111): a fresh page has no cached GoTrue session, and the
+      // very first authenticated read can race the session/secrets setup and come
+      // back 401/403 ("rejected the API key") — the exact flap a manual Refresh
+      // fixes. So auto-retry the connect a couple times with a short backoff
+      // before surfacing red: the workspace just connects on entry instead of
+      // needing a click. Only recoverable auth/session errors retry; a genuinely
+      // unreachable/misconfigured source falls through to the local mirror as before.
+      var RETRY_MS = [500, 1500];
+      function connectOnce(attempt) {
+        return src.load(state.cfg).then(decTransform).then(function (snap) {
+          W().replaceAll(snap);
+          setStatus("connected");
+        }).catch(function (e) {
+          var msg = e.message || "could not reach source";
+          var recoverable = /401|403|rejected the api key|sign-in failed|session|jwt/i.test(msg);
+          if (recoverable && attempt < RETRY_MS.length) {
+            setStatus("connecting");
+            return new Promise(function (res) { setTimeout(res, RETRY_MS[attempt]); }).then(function () { return connectOnce(attempt + 1); });
+          }
+          setStatus("error", msg + " — working from the local mirror");
+        });
+      }
+      return connectOnce(0).then(function () { _suspend = false; return publicState(); });
     }
   };
 
