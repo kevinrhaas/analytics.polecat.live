@@ -7215,6 +7215,7 @@
     var existing = W.all("users").filter(function (r) { return r.u === u.u; })[0];
     var row = existing || { id: "user_" + u.u };
     row.u = u.u; row.name = u.name; row.role = u.role; row.demo = u.demo; row.hash = u.hash;
+    row.provisioning = u.provisioning || null; row.provisioned = !!u.provisioned;
     W.put("users", row, { silent: true });
   }
   // M3 (auth): run once at boot after the workspace is ready, and again after every
@@ -7238,6 +7239,23 @@
       if (Auth.isDemo() && Studio.DEMO_PACKS && Studio.DEMO_PACKS.conservation &&
           !Studio.demoPackInstalled("conservation")) {
         Studio.installDemoPack("conservation");
+      }
+    } catch (e) {}
+    // LF41 slice 1: admin-set provisioning defaults (theme + sample pack), applied
+    // ONCE — the very first time the account signs in anywhere — then the account
+    // is stamped provisioned so later logins never fight the user's own later
+    // choices (e.g. switching theme, removing the pack). `mine` already carries
+    // provisioning/provisioned (mirrored through Auth.exportForStore above).
+    try {
+      if (mine && mine.provisioning && !mine.provisioned) {
+        if (mine.provisioning.theme) setAppTheme(mine.provisioning.theme);
+        if (mine.provisioning.pack === "conservation" && Studio.DEMO_PACKS && Studio.DEMO_PACKS.conservation &&
+            !Studio.demoPackInstalled("conservation")) {
+          Studio.installDemoPack("conservation");
+          ensurePackExamplesMaterialized("conservation");
+        }
+        buildLibrary(); renderHome(); buildExamplesMenu();
+        Auth.upsert(me.u, { provisioned: true }).then(function (saved) { mirrorUserRow(saved); });
       }
     } catch (e) {}
     // Re-render the identity-dependent sections now that an account is known.
@@ -7712,6 +7730,27 @@
       var pInp = el("input"); pInp.id = "usrEditPass"; pInp.type = "password"; pInp.autocomplete = "new-password";
       pInp.placeholder = existing ? "Leave blank to keep the current password" : "";
       pRow.appendChild(withRevealToggle(pInp)); form.appendChild(pRow);
+      // LF41 slice 1: per-user provisioning defaults — theme + sample pack, applied
+      // ONCE at this account's first sign-in (initAuthBoot below), so Dave-style
+      // onboarding lands ready with no edits. Leaving theme at "Don't set" or the
+      // pack unchecked skips that part of the apply. Editing these after the user
+      // has already had their first login has no further effect (see initAuthBoot).
+      var tRow = el("label", "cx-field"); tRow.innerHTML = "<span>Default theme (applied at first sign-in)</span>";
+      var tSel = el("select"); tSel.id = "usrEditTheme";
+      var tNone = el("option"); tNone.value = ""; tNone.textContent = "Don't set — leave as-is";
+      tSel.appendChild(tNone);
+      APP_THEME_KEYS.forEach(function (k) {
+        var o = el("option"); o.value = k; o.textContent = APP_THEME_LABELS[k];
+        tSel.appendChild(o);
+      });
+      if (existing && existing.provisioning && existing.provisioning.theme) tSel.value = existing.provisioning.theme;
+      tRow.appendChild(tSel); form.appendChild(tRow);
+      var packLab = el("label", "check"); packLab.style.cssText = "gap:6px;font-size:12px;margin-top:2px";
+      var packChk = el("input"); packChk.type = "checkbox"; packChk.id = "usrEditPack";
+      packChk.checked = !!(existing && existing.provisioning && existing.provisioning.pack === "conservation");
+      packLab.appendChild(packChk);
+      packLab.appendChild(document.createTextNode(" Install the Conservation Insight sample pack on first sign-in"));
+      form.appendChild(packLab);
       b.appendChild(form);
       var result = el("div", "cx-test-result"); b.appendChild(result);
       var foot = el("div", "cx-wiz-foot");
@@ -7725,6 +7764,8 @@
         if (supabaseSignup && !eInp.value.trim()) { eInp.focus(); result.className = "cx-test-result bad"; result.textContent = "Give the account an email address for Supabase Auth."; return; }
         var opts = { name: nInp.value.trim() || u, role: rSel.value };
         if (pInp.value) opts.pass = pInp.value;
+        var provTheme = tSel.value, provPack = packChk.checked ? "conservation" : "";
+        opts.provisioning = (provTheme || provPack) ? { theme: provTheme, pack: provPack } : null;
         function finishSave() {
           window.PolecatAuth.upsert(u, opts).then(function (saved) {
             try {

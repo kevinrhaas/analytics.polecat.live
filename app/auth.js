@@ -7,7 +7,9 @@
    sign-in screen and calls in here to verify.
 
    Storage (local-first, additive, never wiped by app migrations):
-     analytics.users.v1   — [{ u, name, role, hash, demo }]  (hash = hex SHA-256)
+     analytics.users.v1   — [{ u, name, role, hash, demo, provisioning, provisioned }]
+       (hash = hex SHA-256; provisioning = { theme, pack } admin-set first-login
+       defaults, LF41 slice 1 — see studio.js initAuthBoot)
      analytics.session.v1 — { u }  (the signed-in user; survives reload)
    The historical sessionStorage key `studio-gate-ok` is kept as the
    "authenticated this session" bypass so the whole test suite (and any deep
@@ -31,7 +33,7 @@
   function raw() { var v = readJSON(localStorage, USERS_KEY, null); return Array.isArray(v) ? v : []; }
   function saveRaw(list) { writeJSON(localStorage, USERS_KEY, list); }
   function find(u) { var key = String(u || "").trim().toLowerCase(); return raw().filter(function (x) { return String(x.u).toLowerCase() === key; })[0] || null; }
-  function pub(x) { return x ? { u: x.u, name: x.name || x.u, role: x.role || "viewer", demo: !!x.demo, gotrueId: x.gotrueId || null } : null; }
+  function pub(x) { return x ? { u: x.u, name: x.name || x.u, role: x.role || "viewer", demo: !!x.demo, gotrueId: x.gotrueId || null, provisioning: x.provisioning || null, provisioned: !!x.provisioned } : null; }
 
   // First-run seed: an admin the local operator owns, plus a PUBLIC demo account
   // whose credentials the sign-in screen shows on-screen. Both passwords are the
@@ -91,7 +93,7 @@
   function importFromStore(rows) {
     if (!Array.isArray(rows) || !rows.length) return;
     saveRaw(rows.map(function (r) {
-      return { u: r.u, name: r.name || r.u, role: r.role || "viewer", demo: !!r.demo, hash: r.hash || "", gotrueId: r.gotrueId || null };
+      return { u: r.u, name: r.name || r.u, role: r.role || "viewer", demo: !!r.demo, hash: r.hash || "", gotrueId: r.gotrueId || null, provisioning: r.provisioning || null, provisioned: !!r.provisioned };
     }));
   }
 
@@ -99,16 +101,22 @@
   // gotrueId (M7 slice 2) is stamped after a successful Supabase Auth sign-in —
   // the account's real auth.uid() for that project, used once RLS enforcement
   // lands (M7 slice 3).
+  // provisioning (LF41 slice 1) = { theme, pack } admin-set starting defaults,
+  // applied ONCE at the account's first sign-in (see studio.js initAuthBoot),
+  // then provisioned flips true so later logins never fight the user's own
+  // subsequent changes. Passing `provisioning: null` clears it.
   async function upsert(u, opts) {
     opts = opts || {};
     var list = raw(), key = String(u).trim().toLowerCase();
     var row = list.filter(function (x) { return String(x.u).toLowerCase() === key; })[0];
-    if (!row) { row = { u: key, name: opts.name || key, role: opts.role || "viewer", demo: !!opts.demo, hash: "", gotrueId: null }; list.push(row); }
+    if (!row) { row = { u: key, name: opts.name || key, role: opts.role || "viewer", demo: !!opts.demo, hash: "", gotrueId: null, provisioning: null, provisioned: false }; list.push(row); }
     if (opts.name != null) row.name = opts.name;
     if (opts.role != null) row.role = opts.role;
     if (opts.demo != null) row.demo = !!opts.demo;
     if (opts.pass != null) row.hash = await sha256(opts.pass);
     if (opts.gotrueId != null) row.gotrueId = opts.gotrueId;
+    if (opts.provisioning !== undefined) row.provisioning = opts.provisioning || null;
+    if (opts.provisioned != null) row.provisioned = !!opts.provisioned;
     saveRaw(list);
     return pub(row);
   }
@@ -149,6 +157,6 @@
     isDemo: function () { var c = current(); return !!(c && c.demo); }, upsert: upsert, remove: remove, importFromStore: importFromStore,
     // Full rows INCLUDING the pw hash — for mirroring into the workspace `users`
     // table (that table is meant to BE the backend user store). Not for display.
-    exportForStore: function () { return raw().map(function (x) { return { u: x.u, name: x.name || x.u, role: x.role || "viewer", demo: !!x.demo, hash: x.hash || "", gotrueId: x.gotrueId || null }; }); }
+    exportForStore: function () { return raw().map(function (x) { return { u: x.u, name: x.name || x.u, role: x.role || "viewer", demo: !!x.demo, hash: x.hash || "", gotrueId: x.gotrueId || null, provisioning: x.provisioning || null, provisioned: !!x.provisioned }; }); }
   };
 }());

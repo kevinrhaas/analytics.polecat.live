@@ -116,6 +116,33 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF41 slice 1 — per-user provisioning defaults: default theme + Conservation sample pack applied
+  at first sign-in (v619, sw v256, 2026-07-27, steward — step 2 of the LOCKED BUILD ORDER's "Dave"-
+  demo ingredients, after LF39):** Admin's Add/Edit user form (`openUserEditor`, app/studio.js) gains
+  a **Default theme** picker (the same four app-theme keys Settings' Color theme uses) and an
+  **"Install the Conservation Insight sample pack on first sign-in"** checkbox. Saved as
+  `provisioning: { theme, pack }` on the account row (app/auth.js `upsert`/`pub`/`exportForStore`/
+  `importFromStore` all carry it now, so it mirrors to a connected workspace backend the same as
+  every other user field), plus a `provisioned` boolean. `initAuthBoot` (app/studio.js, the hook
+  gate.js's `afterLogin` runs after every sign-in) applies the defaults — `setAppTheme(...)` and/or
+  `Studio.installDemoPack("conservation")` + `ensurePackExamplesMaterialized` — **only when
+  `provisioning` is set AND `provisioned` is still false**, then stamps `provisioned: true` via
+  `Auth.upsert` and re-mirrors the row. That guard is the whole point: a user's own later choices
+  (switching theme, removing the pack) must never get fought back on their next login — verified by
+  a dedicated regression test that reverts both after first-login apply, signs in again, and asserts
+  neither snaps back. Scoped deliberately narrow for slice 1 — theme + the one optional sample pack
+  only (the "datamanagement" showcase pack is already default-installed for everyone, so it's not a
+  meaningful provisioning choice); backend/DB (LF42) and the full dashboard-defaults blob stay open
+  for later LF41 slices, as does the admin convenience UX ("copy my settings" / impersonate-to-set).
+  6 new regression tests (tests/run.js, "LF41 slice 1" block, its own browser context so applying a
+  theme/pack here never bleeds into the rest of the suite): the editor offers both fields unset by
+  default; adding a user through the real form stores `provisioning` not-yet-provisioned; editing
+  back to "Don't set" + unchecked clears it to `null`; first sign-in applies theme + installs the
+  pack + stamps `provisioned`; a second sign-in after the user reverts both leaves their choices
+  alone. Full suite green. SW cache → v256 (app/auth.js, app/studio.js precached).
+  (app/auth.js, app/studio.js, docs/index.html, sw.js, js/changelog.js, tests/run.js) NEXT: LF42
+  (multi-backend management for admin) — step 2's second half — per the LOCKED BUILD ORDER, then
+  step 3's LF40 (animated welcome + home tour).
 - **LF39 — cross-device sign-in no longer misreads an unseen teammate as a wrong password (v618,
   sw v255, 2026-07-27, steward — the last item in the LOCKED BUILD ORDER's fast-bug-wins step,
   after LF44/LF43 slice 1/LF50/LF38):** root cause per the ticket — the gate (`app/gate.js`)
@@ -4615,8 +4642,9 @@
 >    dedicated slice) · LF50 (remove stray builder Creativity control, shipped) ·
 >    LF38 ✓ (password eyeball toggle) · LF39 ✓ (cross-device sign-in fix, 2026-07-27). Step 1 is
 >    otherwise fully done — only LF43 slice 2 remains, deliberately deferred.
-> 2. **"Dave"-demo ingredients:** LF41 (per-user provisioning defaults — theme + sample pack) → LF42
->    (multi-backend admin; at least assign-a-backend-per-user).
+> 2. **"Dave"-demo ingredients:** LF41 (per-user provisioning defaults — theme + sample pack ✓ slice 1,
+>    2026-07-27; backend/DB + full dashboard-defaults blob still open) → LF42 (multi-backend admin;
+>    at least assign-a-backend-per-user).
 > 3. **Flashy:** LF40 (animated welcome + home tour, sample-pack-aware).
 > 4. **Studio chrome:** LF46 (⋯ teardown) · LF47 (ops → top rail, w/ #30) · LF48 (mode switcher) ·
 >    LF45 (Save-as + Open dialog) · LF52 (widget→View) · LF53 (drop CDF/CDE).
@@ -4744,18 +4772,22 @@
 >       the CUSTOM-GEO story (watersheds/districts/ZIP, the geography library).** Verify the pack already
 >       ships those choropleth dashboards and surface them in the tour. (app/welcome.js, tutorial.js,
 >       studio.js renderHome(), celebrations.js confetti, demopacks.js, icons.) Follows LF18. Ties LF22, LF58.
-> LF41. **Per-user provisioning defaults — the whole starting PROFILE (Kevin expanded 2026-07-27).** Admin's
->       Add-user configures a user's full starting profile so they log in ready with no major edits: default
->       theme, default sample pack(s), backend/DB (LF42), AND ALL the DASHBOARD DEFAULTS + settings (header bg
->       color, title size, subtitle style, dashboard theme, card style, quick-import creativity, style
->       presets — everything in Settings → Dashboard defaults; Simple-mode too, LF48). Stored on the user
->       record (+ mirrored users table). CONVENIENCE (Kevin's options): (a) "Copy my/current settings to this
->       user" — seed the new user from the admin's own settings; and/or (b) LOG IN AS the user (impersonate)
->       to set it directly, then save. First login applies theme + settings + installs pack(s) + fires
->       confetti + the tour (LF40). Dave = admin + Conservation theme + Conservation pack + backend + all
->       dashboard defaults + full tour. (studio.js openUserEditor/renderAdmin, auth.js user record carries a
->       settings blob, first-login apply hook, demopacks.js, Settings dashboard-defaults model.) Ties LF40,
->       LF42, LF23, LF48.
+> LF41. **slice 1 ✓ / rest open — Per-user provisioning defaults — the whole starting PROFILE (Kevin
+>       expanded 2026-07-27).** Admin's Add-user configures a user's full starting profile so they log in
+>       ready with no major edits: default theme, default sample pack(s), backend/DB (LF42), AND ALL the
+>       DASHBOARD DEFAULTS + settings (header bg color, title size, subtitle style, dashboard theme, card
+>       style, quick-import creativity, style presets — everything in Settings → Dashboard defaults;
+>       Simple-mode too, LF48). Stored on the user record (+ mirrored users table). CONVENIENCE (Kevin's
+>       options): (a) "Copy my/current settings to this user" — seed the new user from the admin's own
+>       settings; and/or (b) LOG IN AS the user (impersonate) to set it directly, then save. First login
+>       applies theme + settings + installs pack(s) + fires confetti + the tour (LF40). Dave = admin +
+>       Conservation theme + Conservation pack + backend + all dashboard defaults + full tour. (studio.js
+>       openUserEditor/renderAdmin, auth.js user record carries a settings blob, first-login apply hook,
+>       demopacks.js, Settings dashboard-defaults model.) Ties LF40, LF42, LF23, LF48.
+>       ✓ **Slice 1 shipped (2026-07-27, v619, sw v256, steward): default theme + the Conservation sample
+>       pack, applied once at first sign-in** — see DONE for the full writeup. Still open: backend/DB
+>       assignment at provisioning time (LF42), the full Settings → Dashboard defaults blob, Simple-mode
+>       default, and the "copy my settings" / impersonate-to-set admin convenience UX.
 > LF60. **In-app DOCS section (User + Admin) with nav, pop-out, app links, backend comparison (Kevin, live
 >       2026-07-27).** Docs currently open external-feeling; bring them INSIDE the app. (1) EMBED docs in a
 >       proper in-app Docs view off the Help/Docs rail item, with best-practice docs NAVIGATION (sidebar/TOC,

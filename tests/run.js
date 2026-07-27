@@ -10412,6 +10412,101 @@ function serve() {
       window.__studioShellSetSection("studio");
     });
 
+    // ---- LF41 slice 1: per-user provisioning defaults (theme + sample pack) ----
+    // A separate page/context (own local-only workspace) so applying a theme /
+    // installing the Conservation pack here never bleeds into the main page's
+    // state the rest of the suite relies on.
+    console.log("\n• LF41 slice 1: per-user provisioning defaults");
+    const gp41 = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+    gp41.on("pageerror", (e) => errors.push("LF41 page: " + e.message));
+    await gp41.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); localStorage.setItem("studio-welcome-seen", "1"); } catch (e) {} });
+    await gp41.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
+    await gp41.waitForFunction(() => window.__STUDIO_STATE && window.__STUDIO_STATE.assets.js.length > 0, { timeout: 10000 });
+    await gp41.waitForTimeout(300);
+
+    // Add user offers the new provisioning fields, unset by default.
+    const lf41Fields = await gp41.evaluate(function () {
+      window.__studioShellSetSection("admin"); window.__studioRenderAdmin();
+      window.__studioOpenUserEditor();
+      var tSel = document.getElementById("usrEditTheme");
+      var pChk = document.getElementById("usrEditPack");
+      var themeOpts = tSel ? [].slice.call(tSel.options).map(function (o) { return o.value; }) : [];
+      var r = { hasTheme: !!tSel, hasPack: !!pChk, themeUnset: tSel && tSel.value === "", packUnchecked: pChk && !pChk.checked, themeOpts: themeOpts };
+      document.querySelector(".modal-ov .x").click();
+      return r;
+    });
+    ok("LF41: Add user offers a Default theme picker and a Conservation-pack checkbox, both unset by default",
+      lf41Fields.hasTheme && lf41Fields.hasPack && lf41Fields.themeUnset && lf41Fields.packUnchecked &&
+      lf41Fields.themeOpts.indexOf("conservation") >= 0, JSON.stringify(lf41Fields));
+
+    // Adding a user through the real form with both fields set stores them as
+    // provisioning on the account row, not-yet-provisioned.
+    const lf41Added = await gp41.evaluate(function () {
+      window.__studioOpenUserEditor();
+      document.getElementById("usrEditUser").value = "lf41user";
+      document.getElementById("usrEditName").value = "LF41 Test";
+      document.getElementById("usrEditPass").value = "pw123456";
+      document.getElementById("usrEditTheme").value = "conservation";
+      document.getElementById("usrEditPack").checked = true;
+      document.querySelector(".cx-wiz-foot .btn.primary").click();
+      return true;
+    });
+    await gp41.waitForFunction(() => !document.querySelector(".modal-ov"), { timeout: 8000 });
+    const lf41Stored = await gp41.evaluate(function () { return window.PolecatAuth.find("lf41user"); });
+    ok("LF41: adding a user with provisioning defaults set stores { theme, pack } on the account, not yet provisioned",
+      lf41Added && lf41Stored && lf41Stored.provisioning && lf41Stored.provisioning.theme === "conservation" &&
+      lf41Stored.provisioning.pack === "conservation" && lf41Stored.provisioned === false, JSON.stringify(lf41Stored));
+
+    // Editing that user back to "no provisioning" clears the field (opts.provisioning
+    // goes through as an explicit null, not just left alone).
+    const lf41Cleared = await gp41.evaluate(function () {
+      window.__studioOpenUserEditor(window.PolecatAuth.find("lf41user"));
+      document.getElementById("usrEditTheme").value = "";
+      document.getElementById("usrEditPack").checked = false;
+      document.querySelector(".cx-wiz-foot .btn.primary").click();
+      return true;
+    });
+    await gp41.waitForFunction(() => !document.querySelector(".modal-ov"), { timeout: 8000 });
+    const lf41AfterClear = await gp41.evaluate(function () { return window.PolecatAuth.find("lf41user").provisioning; });
+    ok("LF41: editing a user back to 'Don't set' + unchecked clears provisioning to null",
+      lf41Cleared && lf41AfterClear === null, JSON.stringify(lf41AfterClear));
+
+    // Re-set provisioning (this time via a direct upsert, exercising the same opts.provisioning
+    // path the editor uses) so the first-login apply below has something to act on.
+    await gp41.evaluate(function () {
+      return window.PolecatAuth.upsert("lf41user", { provisioning: { theme: "conservation", pack: "conservation" } });
+    });
+
+    // First sign-in as this account applies the theme + installs the pack, then stamps
+    // provisioned so it never happens again.
+    const lf41FirstLogin = await gp41.evaluate(function () {
+      window.PolecatAuth.login("lf41user");
+      window.__studioAuthBoot();
+      return {
+        theme: window.__studioAppTheme.get(),
+        packInstalled: Studio.demoPackInstalled("conservation"),
+        provisioned: window.PolecatAuth.find("lf41user").provisioned
+      };
+    });
+    ok("LF41: first sign-in applies the provisioned theme, installs the Conservation pack, and stamps the account provisioned",
+      lf41FirstLogin.theme === "conservation" && lf41FirstLogin.packInstalled === true && lf41FirstLogin.provisioned === true,
+      JSON.stringify(lf41FirstLogin));
+
+    // The user then makes their own choices (different theme, pack removed) — a SECOND
+    // sign-in must never fight those, since provisioning only ever applies once.
+    const lf41SecondLogin = await gp41.evaluate(function () {
+      window.__studioAppTheme.set("polecat");
+      Studio.removeDemoPack("conservation");
+      window.PolecatAuth.logout();
+      window.PolecatAuth.login("lf41user");
+      window.__studioAuthBoot();
+      return { theme: window.__studioAppTheme.get(), packInstalled: Studio.demoPackInstalled("conservation") };
+    });
+    ok("LF41: a second sign-in does NOT re-apply provisioning defaults over the user's own later changes (theme stays what the user picked, pack stays removed)",
+      lf41SecondLogin.theme === "polecat" && lf41SecondLogin.packInstalled === false, JSON.stringify(lf41SecondLogin));
+
+    await gp41.close();
+
     // ---- M7 slice 6: in-app account provisioning (browser self-signup) ----
     // A separate page/context so connecting it to a (mocked) Supabase backend
     // never disturbs the main page's local-only workspace the rest of the
