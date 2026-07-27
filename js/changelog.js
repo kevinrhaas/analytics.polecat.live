@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 605,
+    title: 'Track L sweep (orphaned-key lens, round 5): Quick mode\'s creativity-dial default now clears and exports properly',
+    kind: 'fix',
+    ts: '2026-07-27T07:31:09.000Z',
+    items: [
+      'The Quick mode creativity dial\'s saved default (Settings) was written to local storage but never included in "Clear local data" or Settings export/import -- a fresh device reset or a settings backup silently left it behind.',
+      'Both now cover it, closing the same class of gap prior sweeps have found for other Settings defaults.',
+    ],
+  },
+  {
     v: 604,
     title: 'Share just your changes — a shorter link for edits to an already-shared dashboard',
     kind: 'feature',

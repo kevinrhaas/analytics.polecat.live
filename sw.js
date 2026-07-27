@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v241"; /* v241: N-DIST follow-up — a diff-based "Share just my
+var CACHE_NAME = "studio-shell-v242"; /* v242: Track L sweep (orphaned-key lens, round 5) —
+   the Quick mode creativity-dial default (studio-default-qm-creativity) was missing from both
+   "Clear local data" and Settings export/import. app/studio.js changed, so precached copies
+   need to roll.
+   v241: N-DIST follow-up — a diff-based "Share just my
    changes" link alongside the existing full "Copy shareable link" button, for handing off an
    edit to someone who already has the dashboard without re-encoding the whole spec every time.
    app/model.js, app/studio.js changed, so precached copies need to roll.
