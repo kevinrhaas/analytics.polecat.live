@@ -3406,6 +3406,29 @@ function serve() {
     ok("UXFIX: the ensemble 'common estimate' line + legend use the dashboard theme's primary-ink token (not raw --ink), so they stay readable on a dark themed panel (Conservation dark: light ink #eaf1df, not the invisible light-mode navy)",
       ensContrast.strokeAttr && ensContrast.strokeAttr.indexOf("text-primary") >= 0 && ensContrast.lineLum > 120 && ensContrast.legendLum > 120 &&
       /Common estimate/.test(ensContrast.legendText || ""), JSON.stringify(ensContrast));
+    // A modal's outside-click dismiss must ignore a text-selection sweep that STARTS
+    // inside the dialog and releases on the backdrop (that used to close it and lose
+    // whatever you'd typed — Kevin's report). It should still close on a genuine
+    // backdrop press. Uses the Admin "+ Add user" modal (the exact case reported).
+    const modalDismiss = await page.evaluate(async function () {
+      window.PolecatAuth.login("admin"); if (window.__studioAuthBoot) window.__studioAuthBoot();
+      window.__studioShellSetSection("admin"); window.__studioRenderAdmin();
+      var btn = document.getElementById("usrNewBtn"); if (btn) btn.click();
+      await new Promise(function (r) { setTimeout(r, 60); });
+      var ov = document.querySelector(".modal-ov");
+      var inner = ov && (ov.querySelector(".modal-b input") || ov.querySelector(".modal"));
+      function fire(elm, type) { elm.dispatchEvent(new MouseEvent(type, { bubbles: true })); }
+      // 1) selection sweep: press begins INSIDE the dialog, click released on backdrop → stays open
+      if (inner) { fire(inner, "mousedown"); fire(ov, "click"); }
+      var survivedSweep = !!document.querySelector(".modal-ov");
+      // 2) genuine backdrop press → closes
+      if (ov) { fire(ov, "mousedown"); fire(ov, "click"); }
+      var closedOnBackdrop = !document.querySelector(".modal-ov");
+      var lingering = document.querySelector(".modal-ov .x"); if (lingering) lingering.click();
+      return { opened: !!inner, survivedSweep: survivedSweep, closedOnBackdrop: closedOnBackdrop };
+    });
+    ok("UXFIX: a modal stays open when a selection drag starts inside it and merely releases on the backdrop, but still closes on a genuine backdrop click",
+      modalDismiss.opened && modalDismiss.survivedSweep && modalDismiss.closedOnBackdrop, JSON.stringify(modalDismiss));
     await page.evaluate(function () { window.__studioShellSetSection("studio"); });
     await page.waitForTimeout(150);
 

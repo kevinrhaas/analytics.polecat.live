@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 612,
+    title: 'Dialogs no longer close (and lose your input) when a text selection drifts outside them',
+    kind: 'fix',
+    ts: '2026-07-27T13:50:48.000Z',
+    items: [
+      'Selecting text in a dialog and accidentally releasing the mouse just outside it used to dismiss the dialog and throw away whatever you had typed. Now a dialog only closes when you actually click its dimmed backdrop to begin with — a selection (or a drag on a zoomed chart) that merely ends outside keeps the dialog open. Clicking the backdrop, the ✕, or pressing Escape all still close it as before.',
+    ],
+  },
+  {
     v: 611,
     title: 'Checks section now shows a glanceable summary when collapsed',
     kind: 'polish',
