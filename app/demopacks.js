@@ -38,12 +38,9 @@
       kind: "workspace",
       name: "Conservation Insight — cover crop & tillage adoption",
       tagline: "2 connections · 4 datasets · a county→state rollup job · 4 analyses · a featured map dashboard",
-      blurb: "Seeds a complete illustrative workspace: a demo file connection and a repo-backend " +
-        "connection; a raw provider export, a county-level and a watershed (HUC8) adoption dataset " +
-        "that render real choropleths, plus a rollup JOB that rolls counties up to states by " +
-        "acreage-weighted mean; four ensemble time-series analyses (one per practice, pinned to " +
-        "Home); and one featured multi-widget “Conservation Insight” dashboard. All data is " +
-        "SYNTHETIC, clearly labeled illustrative, for demoing the ensemble/geo-analytics pattern."
+      blurb: "1 featured map dashboard, 4 datasets (a raw provider export plus county and watershed " +
+        "choropleths), 2 connections, a county→state rollup job, and 4 time-series analyses pinned to " +
+        "Home. All data is synthetic and embedded in the pack — nothing to connect."
     },
     // LF2(c)/LF16: the pre-existing generic showcase gallery (governance, platform ops,
     // delivery, finance, marketing, reliability, compliance, feature tour) folded into a
@@ -59,13 +56,9 @@
       kind: "examples",
       name: "Data Management & Governance — showcase gallery",
       tagline: "8 generic showcase dashboards: governance, platform ops, delivery, finance, marketing, reliability, compliance, feature tour",
-      blurb: "Toggles the built-in generic showcase dashboards — governance, platform ops, product " +
-        "delivery, finance, marketing, incident response, compliance, and the interactive feature " +
-        "tour — into your Dashboards screen and the Examples ▾ gallery. Unlike Conservation Insight, " +
-        "this pack adds no workspace connections, datasets, or jobs; Remove takes its eight " +
-        "dashboards back out and hides the gallery entries again, nothing else is touched. Installed " +
-        "by default so the gallery looks the same as it always has; turn it off to keep a pitch " +
-        "focused on Conservation Insight alone."
+      blurb: "8 showcase dashboards — governance, platform ops, delivery, finance, marketing, " +
+        "incident response, compliance, and an interactive feature tour. Dashboards only: no " +
+        "connections, datasets or jobs, and their sample data is embedded. Installed by default."
     }
   };
 

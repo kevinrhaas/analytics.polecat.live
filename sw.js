@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v269"; /* v269: Home's "Welcome back" greeting now personalizes to the
+var CACHE_NAME = "studio-shell-v270"; /* v270: Settings copy cleanup — a one-line Color-theme blurb, a
+   concise Sample-packs intro that names the data as synthetic, and crisp count-led per-pack descriptions
+   that mention the data is embedded (#112/#115/#116). app/studio.js + app/demopacks.js changed, so
+   precached copies roll.
+   v269: Home's "Welcome back" greeting now personalizes to the
    signed-in account's display name, and the seeded demo account is renamed "Demonstration User" (#108).
    app/studio.js + app/auth.js changed, so precached copies roll.
    v268: sign-in polish — the password field gets the eye/eye-off

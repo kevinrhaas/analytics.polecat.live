@@ -7588,7 +7588,7 @@
       groups.map(function (g) {
         var themeRow = g === "Appearance" ?
           '<div class="set-row set-row-col"><span class="set-row-ic" data-ic="palette"></span>' +
-            '<div class="set-row-txt"><b>Color theme</b><small>Classic Blue is the original built-in chrome; Polecat recolors the builder in the warm terracotta/plum look the left rail already uses; Fleet Modern applies the same jobtracker.polecat.live tokens as the Fleet Modern dashboard theme. Each card previews its own real colors.</small></div>' +
+            '<div class="set-row-txt"><b>Color theme</b><small>The app\'s color palette — the chrome around the builder and rail. Each card previews its own real colors.</small></div>' +
             appThemeCardsHtml() +
           '</div>' : "";
         // Tour lives with the other guided/presentation affordances (moved out of the
@@ -7678,7 +7678,7 @@
       '</div>' +
       (showSamples() && Object.keys(Studio.DEMO_PACKS || {}).length ?
         '<div class="settings-card"><h2>Sample packs</h2>' +
-          '<p class="ws-card-intro">A second, opt-in sample library for pitch-specific demos. Some packs install ordinary workspace content (a dataset, analyses, a dashboard), tagged so Remove cleans up exactly what Install wrote; others just show or hide bundled example dashboards in the gallery.</p>' +
+          '<p class="ws-card-intro">Ready-made demo content you can install or remove. A pack can add dashboards, datasets, connections and jobs — all with synthetic (made-up) sample data, never your real data. Remove takes back exactly what Install added.</p>' +
           Object.keys(Studio.DEMO_PACKS).map(function (id) {
             var p = Studio.DEMO_PACKS[id], on = Studio.demoPackInstalled(id);
             return '<div class="set-row"><span class="set-row-ic" data-ic="globe"></span>' +
