@@ -1311,6 +1311,42 @@ function serve() {
     await page.waitForTimeout(100);
     await page.evaluate(function () { Studio.Workspace.remove("connections", "qa01-edit-test", { silent: true }); });
 
+    // ---- LF38 (2026-07-24 live feedback): every masked field gets an eye/eye-off reveal
+    // toggle, one shared enhancer (studio.js withRevealToggle) wired into credentialFieldInput
+    // (covers every adapter's password-typed field, e.g. the BigQuery token here) plus the
+    // Add-user password and M7 provision-secret fields tested further below. ----
+    await page.click("#connNewBtn");
+    await page.waitForTimeout(120);
+    await page.evaluate(function () {
+      [].slice.call(document.querySelectorAll(".cx-src-card")).filter(function (c) { return c.querySelector("b").textContent === "BigQuery"; })[0].click();
+    });
+    await page.waitForTimeout(100);
+    const lf38Before = await page.evaluate(function () {
+      var tok = [].slice.call(document.querySelectorAll(".cx-field input"))[2];
+      var btn = tok.closest(".pw-reveal").querySelector(".pw-reveal-btn");
+      return { type: tok.type, ariaPressed: btn.getAttribute("aria-pressed"), ariaLabel: btn.getAttribute("aria-label") };
+    });
+    ok("LF38: a credentialed connection field's password input starts masked with the toggle in its unrevealed aria state",
+      lf38Before.type === "password" && lf38Before.ariaPressed === "false" && lf38Before.ariaLabel === "Show password",
+      JSON.stringify(lf38Before));
+    await page.click(".pw-reveal .pw-reveal-btn");
+    const lf38After = await page.evaluate(function () {
+      var tok = [].slice.call(document.querySelectorAll(".cx-field input"))[2];
+      var btn = tok.closest(".pw-reveal").querySelector(".pw-reveal-btn");
+      return { type: tok.type, ariaPressed: btn.getAttribute("aria-pressed"), ariaLabel: btn.getAttribute("aria-label") };
+    });
+    ok("LF38: clicking the toggle flips the input to text and updates aria-pressed/aria-label to the revealed state",
+      lf38After.type === "text" && lf38After.ariaPressed === "true" && lf38After.ariaLabel === "Hide password",
+      JSON.stringify(lf38After));
+    await page.click(".pw-reveal .pw-reveal-btn");
+    const lf38Back = await page.evaluate(function () {
+      var tok = [].slice.call(document.querySelectorAll(".cx-field input"))[2];
+      return tok.type;
+    });
+    ok("LF38: clicking it again re-masks the field", lf38Back === "password", lf38Back);
+    await page.evaluate(function () { document.querySelector(".modal-ov .x").click(); });
+    await page.waitForTimeout(100);
+
     // ---- PostgREST adapter (★★★-2): end-to-end against a mock PostgREST -----
     console.log("\n• PostgREST data adapter (★★★-2)");
     const pgShape = await page.evaluate(async function () {
@@ -10270,6 +10306,23 @@ function serve() {
     ok("M7 slice 6: with no workspace backend connected, Add user has no Email field (plain local account, unchanged behavior)",
       m7NoBackend.sourceId === "local" && !m7NoBackend.hasEmail, JSON.stringify(m7NoBackend));
 
+    // LF38: the Add-user password field (not routed through credentialFieldInput, a plain
+    // input built inline in openUserEditor) gets the same shared reveal toggle.
+    const lf38AddUser = await gp4.evaluate(function () {
+      window.__studioOpenUserEditor();
+      var inp = document.getElementById("usrEditPass");
+      var btn = inp.closest(".pw-reveal").querySelector(".pw-reveal-btn");
+      var before = { type: inp.type, ariaPressed: btn.getAttribute("aria-pressed") };
+      btn.click();
+      var after = { type: inp.type, ariaPressed: btn.getAttribute("aria-pressed") };
+      document.querySelector(".modal-ov .x").click();
+      return { before: before, after: after };
+    });
+    ok("LF38: Add-user password field also renders masked with the reveal toggle and flips on click",
+      lf38AddUser.before.type === "password" && lf38AddUser.before.ariaPressed === "false" &&
+      lf38AddUser.after.type === "text" && lf38AddUser.after.ariaPressed === "true",
+      JSON.stringify(lf38AddUser));
+
     // Connect to the mocked Supabase backend directly (bypassing the connect
     // wizard's own UI, already covered by earlier tests) so Add user's
     // Supabase-aware branch is live.
@@ -10361,6 +10414,21 @@ function serve() {
     });
     ok("M7 slice 7: once connected to Supabase, Admin shows the 'Enable per-user security / Go live' card",
       m7GoLiveCard.present && /go live/i.test(m7GoLiveCard.text), JSON.stringify(m7GoLiveCard));
+
+    // LF38: the M7 provision-secret field (also a plain input, not routed through
+    // credentialFieldInput since it has no adapter/f.type shape) gets the same toggle.
+    const lf38GoLive = await gp4.evaluate(function () {
+      window.__studioOpenGoLiveModal();
+      var inp = document.querySelector(".modal-ov input[type=password]");
+      var btn = inp.closest(".pw-reveal").querySelector(".pw-reveal-btn");
+      var before = inp.type;
+      btn.click();
+      var after = inp.type;
+      document.querySelector(".modal-ov .x").click();
+      return { before: before, after: after };
+    });
+    ok("LF38: the Go-live provision-secret field also gets the reveal toggle",
+      lf38GoLive.before === "password" && lf38GoLive.after === "text", JSON.stringify(lf38GoLive));
 
     const m7GoLiveValidation = await gp4.evaluate(function () {
       window.__studioOpenGoLiveModal();

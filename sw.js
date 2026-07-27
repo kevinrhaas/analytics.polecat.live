@@ -5,7 +5,10 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v250"; /* v250: Track L sweep (orphaned-key lens, round 6) — the PDF
+var CACHE_NAME = "studio-shell-v251"; /* v251: LF38 — app-wide password reveal toggle
+   (app/studio.js, app/connections.js, app/icons.js, app/studio.css all changed), so
+   precached copies need to roll.
+   v250: Track L sweep (orphaned-key lens, round 6) — the PDF
    export dialog's remembered page size/orientation/scale choice (studio-pdf-export-opts) was never
    wiped by "Clear local data" — added to CLEAR_DATA_KEYS. app/studio.js changed, so precached
    copies need to roll.

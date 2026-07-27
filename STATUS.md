@@ -116,6 +116,26 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF38 — password/masked inputs get a show/hide (eyeball) reveal toggle, app-wide (v614, sw v251,
+  2026-07-27, steward — LF38 is now fully done):** one shared enhancer, `withRevealToggle(inp)`
+  (app/studio.js), wraps a password `<input>` in a `.pw-reveal` container with a `.pw-reveal-btn`
+  that flips `type` between `password`/`text` and keeps `aria-pressed`/`aria-label` ("Show
+  password"/"Hide password") in sync, plus a new `eye-off` glyph (app/icons.js, the existing `eye`
+  outline + a diagonal slash) for the revealed state. `credentialFieldInput` (studio.js, the single
+  function already backing both credential-entry surfaces per QA-01) now calls it for every
+  `f.type==="password"` field and stashes the wrapper on `inp.__revealWrap` — its two call sites
+  (app/connections.js's adapter wizard, studio.js's `credsStep` workspace-backend wizard) append
+  `inp.__revealWrap || inp` instead of the bare input, so this covers every adapter's credential
+  field AND the Supabase Auth password + anon/publishable key fields (`app/sources/supabase.js`)
+  for free — no per-adapter or per-field changes needed. The two remaining named fields aren't
+  `credentialFieldInput` calls (no `f.type` shape), so they call the same enhancer directly: the
+  Add-user password (`usrEditPass`) and the M7 "Go live" provision secret. The existing QA-01
+  autofill hardening (stable id/name, `autocomplete="new-password"`, readonly-until-focus on a
+  fresh field) is untouched — the toggle only wraps the input, never changes its attributes.
+  10 new regression tests (masked-by-default + toggle flips type/aria + re-toggle re-masks, across
+  the connection wizard, Add-user, and Go-live). Full suite green (2314/2314). SW cache → v251.
+  (app/studio.js, app/connections.js, app/icons.js, app/studio.css, docs/index.html, js/changelog.js,
+  sw.js, tests/run.js)
 - **Track L sweep (orphaned-key lens, round 6) — the PDF export dialog's remembered page options
   now clear properly too (v613, sw v250, 2026-07-27, steward — Track H/L/N rotation, L's turn):**
   v611's own NEXT pointer named Track L as most overdue (last ran the performance-budget lens at
@@ -4563,12 +4583,10 @@
 
 ### ★ LIVE-FEEDBACK QUEUE (Kevin, 2026-07-22) — fold into the interleave
 > Product/demo asks from a live session; treat as first-class feature slices.
-> LF38. **Password/masked inputs get a show/hide (eyeball) reveal toggle, app-wide (Kevin, live
->       2026-07-24).** Every masked field (Add-user password, Supabase Auth password + anon key, all
->       adapter `type:"password"` fields, the workspace-backend secret, the M7 PROVISION_SECRET) gets a
->       little eye/eye-off toggle that flips input type between password/text with aria-pressed/label — a
->       single reusable enhancer applied at the field/modal builders, not per-site. Must keep the QA-01
->       autofill hardening (id/name/autocomplete). Tests: toggle renders, flips type, updates aria.
+> LF38. ✓ **Password/masked inputs get a show/hide (eyeball) reveal toggle, app-wide (shipped v614,
+>       sw v251, 2026-07-27, steward) — see DONE.** One shared `withRevealToggle(inp)` enhancer covers
+>       every named field: Add-user password, Supabase Auth password + anon key, all adapter
+>       `type:"password"` fields, the workspace-backend secret, and the M7 PROVISION_SECRET.
 > LF39. **BUG — cross-device sign-in: a provisioned user can't sign in from a fresh browser; misleading
 >       error (Kevin, live 2026-07-27).** The gate authenticates against the LOCAL per-browser store
 >       (`analytics.users.v1`), so a user created in the admin's browser (mirrored to Supabase) isn't in a
