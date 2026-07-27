@@ -99,6 +99,13 @@
   // Branding, just seeded onto brand-new blank dashboards like subtitle/accent already are.
   function defaultLogo() { return strDefault("studio-default-logo"); }
   function setDefaultLogo(v) { setStrDefault("studio-default-logo", v); }
+  // LF24 slice 3: Quick mode's creativity dial default — 'low' (conservative
+  // bars/donut/line/table) or 'high' (mixes in the map/treemap/slope/ensemble
+  // "fun" tier, app/quickmode.js's buildAutoSpec). Seeds every new Quick import;
+  // the Studio builder's live tuner (studio.js, #qmTuner) can override it for
+  // the CURRENT quick-built dashboard without touching this default.
+  function defaultQuickModeCreativity() { return strDefault("studio-default-qm-creativity") || "low"; }
+  function setDefaultQuickModeCreativity(v) { setStrDefault("studio-default-qm-creativity", v); }
 
   // Z6 follow-up: named style-preset collection. Each preset snapshots the default
   // fields above under a name, so a team can save several house styles (e.g. per client
@@ -200,6 +207,7 @@
     dashboardTheme: defaultDashboardTheme, setDashboardTheme: setDefaultDashboardTheme,
     cardSkin: defaultCardSkin, setCardSkin: setDefaultCardSkin,
     logo: defaultLogo, setLogo: setDefaultLogo,
+    quickModeCreativity: defaultQuickModeCreativity, setQuickModeCreativity: setDefaultQuickModeCreativity,
     configureDashboardThemeFallback: configureDashboardThemeFallback,
     stylePresets: stylePresets, saveStylePresetList: saveStylePresetList,
     addStylePreset: addStylePreset, deleteStylePreset: deleteStylePreset, applyStylePreset: applyStylePreset,

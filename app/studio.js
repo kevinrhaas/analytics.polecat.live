@@ -5568,8 +5568,13 @@
       // draw it; no new chart-rendering code needed. Each widget that needs its own
       // group-by gets its own DA CLONE off the same dataset (outputOptions is per-DA,
       // not per-panel); the Table widget alone binds straight to the raw DA.
-      function quickBuildDashboard(ds, profile) {
-        var plan = Studio.QuickMode.buildAutoSpec(profile);
+      // LF24 slice 3 (creativity dial): defaults to the Settings default (Studio.
+      // Defaults.quickModeCreativity) so a plain Quick import keeps behaving exactly
+      // as before unless the user opted into High; the live tuner (#qmTuner, wired
+      // below) passes an explicit level to REBUILD in place without re-uploading.
+      function quickBuildDashboard(ds, profile, creativity) {
+        creativity = creativity || Studio.Defaults.quickModeCreativity();
+        var plan = Studio.QuickMode.buildAutoSpec(profile, creativity);
         enterStudio();
         S.spec = newBlankSpec();
         S.spec.title = uniqueDashboardTitle(Studio.titleize(ds.name));
@@ -5605,7 +5610,33 @@
             if (lp.chart.opts && "fmt" in lp.chart.opts) lp.chart.opts.fmt = Studio.guessFmt(w.valueCol);
             lp.title = Studio.titleize(w.valueCol) + " over time";
             S.spec.panels.push(lp); kinds.push("line");
-          } else { // bars, donut
+          } else if (w.type === "choropleth") {
+            // Map — bound straight to the RAW da (no groupBy): the choropleth widget's
+            // own "Combine duplicate rows by" opt (def median) already aggregates
+            // duplicate rows per region at render time, same as a user-built map.
+            var mOut = w.fn === "count" ? "count" : w.valueCol;
+            var mp = Studio.newPanel("choropleth", rawDa);
+            mp.chart.map = { idCol: w.dim, valueCol: mOut };
+            if (mp.chart.opts && w.scale) mp.chart.opts.scale = w.scale;
+            if (mp.chart.opts && "fmt" in mp.chart.opts) mp.chart.opts.fmt = Studio.guessFmt(mOut);
+            mp.title = "Map: " + Studio.titleize(mOut) + " by " + Studio.titleize(w.dim);
+            S.spec.panels.push(mp); kinds.push("map");
+          } else if (w.type === "slope") {
+            // Slope — two value columns per label row; binds straight to the RAW da,
+            // same reasoning as the map above (no single-valueCol aggregate can carry
+            // both valueCol1 AND valueCol2 at once).
+            var slp = Studio.newPanel("slope", rawDa);
+            slp.chart.map = { labelCol: w.dim, valueCol1: w.valueCol1, valueCol2: w.valueCol2 };
+            slp.title = Studio.titleize(w.valueCol1) + " → " + Studio.titleize(w.valueCol2) + " by " + Studio.titleize(w.dim);
+            S.spec.panels.push(slp); kinds.push("slope");
+          } else if (w.type === "ensembleSeries") {
+            // Ensemble — long-format (label, series, value) rows; also binds straight
+            // to the RAW da, same as a user picking Ensemble against a raw dataset.
+            var ep = Studio.newPanel("ensembleSeries", rawDa);
+            ep.chart.map = { labelCol: w.dim, seriesCol: w.seriesCol, valueCol: w.valueCol };
+            ep.title = Studio.titleize(w.valueCol) + " by " + Studio.titleize(w.dim) + " (" + Studio.titleize(w.seriesCol) + ")";
+            S.spec.panels.push(ep); kinds.push("ensemble");
+          } else { // bars, donut, treemap
             var bOut = w.fn === "count" ? "count" : w.valueCol;
             var bDa = aggDA([w.dim], w.fn, w.valueCol, bOut, "desc", w.limit || 0);
             var bp = Studio.newPanel(w.type, bDa);
@@ -5616,9 +5647,20 @@
           }
         });
         S.spec.panels = Studio.autoArrange(S.spec.panels);
+        // The live tuner's own marker: non-enumerable so it never leaks into a saved/
+        // exported spec (JSON.stringify skips it) and is dropped automatically by
+        // normalize()/Studio.clone()/JSON.parse() on every OTHER S.spec= reassignment
+        // (Open, New blank, examples, restore…) — the tuner only ever shows for the
+        // exact spec object this function just built, with no per-call-site reset needed.
+        Object.defineProperty(S.spec, "_qmSource", { value: { dsId: ds.id, creativity: creativity }, enumerable: false, configurable: true });
         syncHeader(); selectDashboard(); refreshPreview(); buildLibrary(); bumpDashMilestone();
         return { kpiCount: kpiCount, panelCount: kinds.length, kinds: kinds };
       }
+      // Exposed so the #qmTuner click handler (wired once, outside this per-render
+      // closure) can always reach the CURRENT quickBuildDashboard — this whole block
+      // re-runs on every renderHome(), so a handler wired elsewhere can't close over
+      // one instance safely.
+      Studio.__quickBuildDashboard = quickBuildDashboard;
       function quickImportFormat(fileName, content) {
         if (/\.(csv|tsv)$/i.test(fileName)) return "csv";
         if (/\.json$/i.test(fileName)) return "json";
@@ -6963,6 +7005,7 @@
   var defaultDashboardTheme = Studio.Defaults.dashboardTheme, setDefaultDashboardTheme = Studio.Defaults.setDashboardTheme;
   var defaultCardSkin = Studio.Defaults.cardSkin, setDefaultCardSkin = Studio.Defaults.setCardSkin;
   var defaultLogo = Studio.Defaults.logo, setDefaultLogo = Studio.Defaults.setLogo;
+  var defaultQmCreativity = Studio.Defaults.quickModeCreativity, setDefaultQmCreativity = Studio.Defaults.setQuickModeCreativity;
   var stylePresets = Studio.Defaults.stylePresets, saveStylePresetList = Studio.Defaults.saveStylePresetList;
   var addStylePreset = Studio.Defaults.addStylePreset, deleteStylePreset = Studio.Defaults.deleteStylePreset;
   var applyStylePreset = Studio.Defaults.applyStylePreset;
@@ -6984,6 +7027,7 @@
   window.__studioDefaultSubtitleStyle = defaultSubtitleStyle;
   window.__studioDefaultDashboardTheme = defaultDashboardTheme;
   window.__studioDefaultCardSkin = defaultCardSkin;
+  window.__studioDefaultQmCreativity = defaultQmCreativity;
   function exportSettingsFile() {
     var out = { _type: "studio-settings", _v: 1 };
     SETTINGS_DATA_KEYS.forEach(function (k) {
@@ -7169,6 +7213,12 @@
           '<select id="setDefaultCardSkinSel" class="set-sel">' +
             Studio.CARD_SKINS.map(function (p) { return '<option value="' + esc(p[0]) + '"' + (defaultCardSkin() === p[0] ? " selected" : "") + '>' + esc(p[1]) + '</option>'; }).join("") +
           '</select></div>' +
+        '<div class="set-row"><span class="set-row-ic" data-ic="palette"></span>' +
+          '<div class="set-row-txt"><b>Quick import creativity</b><small>How adventurous Quick import\'s auto-built dashboard is (Home\'s drop-a-file card). Low sticks to bars/donut/line/table; High also mixes in maps, treemaps, slope charts, and ensemble views when the dropped data supports them. Adjustable per-import from a live tuner in the builder right after a Quick import.</small></div>' +
+          '<select id="setDefaultQmCreativitySel" class="set-sel">' +
+            '<option value="low"' + (defaultQmCreativity() !== "high" ? " selected" : "") + '>Low — conservative basics</option>' +
+            '<option value="high"' + (defaultQmCreativity() === "high" ? " selected" : "") + '>High — diverse &amp; ambitious</option>' +
+          '</select></div>' +
         '<div class="set-row set-row-col"><span class="set-row-ic" data-ic="star"></span>' +
           '<div class="set-row-txt"><b>Style presets</b><small>Save the fields above as a named preset, then switch your team\'s active default with one click — handy for more than one house style (e.g. per client).</small></div>' +
           '<div class="sp-list" id="spList">' +
@@ -7253,6 +7303,8 @@
     if (defTitleSizeSel) defTitleSizeSel.onchange = function () { setDefaultTitleSize(defTitleSizeSel.value); toast("Default title size saved"); };
     var defSubtitleStyleSel = $("#setDefaultSubtitleStyleSel", sec);
     if (defSubtitleStyleSel) defSubtitleStyleSel.onchange = function () { setDefaultSubtitleStyle(defSubtitleStyleSel.value); toast("Default subtitle style saved"); };
+    var defQmCreativitySel = $("#setDefaultQmCreativitySel", sec);
+    if (defQmCreativitySel) defQmCreativitySel.onchange = function () { setDefaultQmCreativity(defQmCreativitySel.value); toast("Quick import creativity saved"); };
     var defDashboardThemeSel = $("#setDefaultDashboardThemeSel", sec);
     if (defDashboardThemeSel) defDashboardThemeSel.onchange = function () { setDefaultDashboardTheme(defDashboardThemeSel.value); toast("Default dashboard theme saved"); };
     var defCardSkinSel = $("#setDefaultCardSkinSel", sec);
@@ -8509,6 +8561,25 @@
     });
     var uBtn = $("#btnUndo"); uBtn.onclick = undoAct; uBtn.textContent = ""; uBtn.appendChild(Studio.icon("undo", 16));
     var rBtn = $("#btnRedo"); rBtn.onclick = redoAct; rBtn.textContent = ""; rBtn.appendChild(Studio.icon("redo", 16));
+    // LF24 slice 3 — the creativity dial's live tuner: re-runs quickBuildDashboard at
+    // the clicked level, re-parsing the source dataset's own stored content (not a
+    // cached profile) so it always reflects the dataset as it stands right now.
+    var qmTuner = $("#qmTuner");
+    if (qmTuner) qmTuner.addEventListener("click", function (e) {
+      var b = e.target.closest(".qm-tuner-btn");
+      if (!b) return;
+      var lvl = b.getAttribute("data-qm");
+      var src = S.spec._qmSource;
+      if (!src || src.creativity === lvl) return;
+      var ds = Studio.Workspace.get("datasets", src.dsId);
+      if (!ds) { toast("The source dataset for this Quick import is no longer available", true); return; }
+      var parsed;
+      try { parsed = ds.format === "json" ? Studio.parseJSONText(ds.content) : Studio.parseCSVText(ds.content); }
+      catch (err) { toast("Could not re-parse " + (ds.fileName || ds.name) + ": " + err.message, true); return; }
+      var profile = Studio.QuickMode.profileColumns(parsed);
+      Studio.__quickBuildDashboard(ds, profile, lvl);
+      toast("Creativity: " + (lvl === "high" ? "High" : "Low") + " — dashboard rebuilt");
+    });
     // UX6 (icon migration, slice 4): the demo-mode badge's raw "●" glyph becomes a themed SVG.
     var dbIc = $("#demoBadge [data-ic]");
     if (dbIc && Studio.icon) dbIc.appendChild(Studio.icon(dbIc.getAttribute("data-ic"), 10));
@@ -8876,6 +8947,19 @@
     var gw = $("#dashGroupWrap");
     if (gw) gw.style.display = S.spec.group ? "" : "none";
     $("#dashGroup").textContent = S.spec.group || "";
+    // LF24 slice 3 — the creativity dial's live tuner: only shown for the dashboard
+    // quickBuildDashboard itself just built (S.spec._qmSource, see there for why this
+    // needs no reset at every OTHER S.spec= call site).
+    var qmt = $("#qmTuner");
+    if (qmt) {
+      var src = S.spec._qmSource;
+      qmt.hidden = !src;
+      if (src) {
+        $$(".qm-tuner-btn", qmt).forEach(function (b) {
+          b.setAttribute("aria-pressed", b.getAttribute("data-qm") === src.creativity ? "true" : "false");
+        });
+      }
+    }
   }
 
   window.__fireToast = function (msg, isErr) { toast(msg, isErr); }; // exposed for tests

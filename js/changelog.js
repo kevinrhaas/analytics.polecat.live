@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 599,
+    title: 'Quick import gains a creativity dial — maps, treemaps, slope charts, and ensemble views',
+    kind: 'feature',
+    ts: '2026-07-27T03:40:58.000Z',
+    items: [
+      'Quick import\'s auto-built dashboard can now go beyond the conservative bar/donut/line/table set: a new "Quick import creativity" setting (Low/High, default Low) mixes in a map, a treemap, a slope chart, and an ensemble view -- but only for the specific ones your data actually supports, never a forced or broken widget.',
+      'Each "fun" chart is gated on a real signal in the data: a map needs an actual geo column (with the region scale guessed from its name or values); a slope chart needs a genuine before/after pair of measures (e.g. revenue_2023 / revenue_2024); an ensemble needs a real multi-provider series column; a treemap prefers a fresh dimension the bar and donut charts have not already used.',
+      'A live tuner now sits under the dashboard title in the builder right after a Quick import, letting you flip between Low and High and watch the dashboard rebuild in place from the same source file -- no re-upload needed.',
+      'This is the third and final slice of the "Quick mode" backlog item.',
+    ],
+  },
+  {
     v: 598,
     title: 'Quick import now builds a real dashboard, not just a dataset',
     kind: 'feature',

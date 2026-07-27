@@ -116,6 +116,53 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF24 slice 3 — the creativity dial + "fun" chart tier (v599, sw v236, 2026-07-27, steward —
+  LF24 is now fully done):** slice 2's own NEXT pointer named this as the real next step, and a
+  top-down read of the whole NEXT section confirmed everything else genuinely is still done (same
+  check slice 1 ran), so this stayed the single most-scoped, unblocked item. Extends
+  `Studio.QuickMode.buildAutoSpec` (app/quickmode.js) with a second parameter, `creativity` ('low'
+  default = byte-identical to slice 2's conservative set; 'high' mixes in a map/treemap/slope/
+  ensemble widget on TOP of that same base). Per the spec's "only build what the data actually
+  supports" guardrail, each fun-tier widget is gated on its OWN signal rather than forced:
+  a **map** (choropleth) needs a real geo column + a measure, with the region scale (state/county/
+  huc8/zcta/crd) guessed by a new `guessGeoScale(col)` helper — column name first (the same
+  state/county/fips/huc/zip/district vocabulary LF22 established), falling back to the sampled
+  VALUE shape (2-letter codes → state, 8-digit → huc8, 5-digit → county) when the name gives no
+  signal; a **slope chart** needs a genuine before/after measure PAIR, found by a new
+  `pickSlopePair(measures)` — a shared 4-digit-year signal (`revenue_2023`/`revenue_2024`) first,
+  then explicit before/after-shaped name prefixes, and NULL (no slope widget at all) rather than
+  ever pairing two arbitrary measures; an **ensemble** needs a real multi-provider series column
+  (name-signalled `provider`/`series`/`source`/`method`, 2-8 distinct values — the exact convention
+  `Studio.guessChoroplethCols`, app/model.js, already uses for the same job) plus a distinct label
+  dimension; a **treemap** prefers a dimension the bar/donut pair hasn't already used, falling back
+  to reusing the bar's dimension only when no other exists. Materializing (app/studio.js
+  `quickBuildDashboard`) binds the map/slope/ensemble widgets straight to the RAW (unaggregated) DA
+  — none of them fit the single-valueCol `da.outputOptions.aggregate` shape bars/donut/treemap use
+  (a slope needs TWO value columns per label row; a map's own "Combine duplicate rows by" option
+  already aggregates at render time, same as a user-built map) — while treemap reuses the existing
+  bars/donut aggregation path unchanged (`Studio.newPanel`'s generic bars/donut/treemap/funnel/
+  waterfall column mapping already fit it with zero new code). A new Settings default ("Quick
+  import creativity", Low/High, `app/defaults.js`'s `Studio.Defaults.quickModeCreativity`/
+  `setQuickModeCreativity`, same `strDefault`/`setStrDefault` pattern as the other seven dashboard
+  defaults) seeds every future Quick import at Low unless changed. The "live tuner in the builder"
+  half: a small Low/High segmented control (`#qmTuner`, `app/index.html`, styled in
+  `app/studio.css`) now sits under the dashboard title, shown ONLY for the exact dashboard
+  `quickBuildDashboard` itself just built — tracked via `S.spec._qmSource` (`{dsId, creativity}`)
+  set with `Object.defineProperty(..., {enumerable:false})`, so it never leaks into a saved/
+  exported spec (`JSON.stringify` skips non-enumerable props) and is dropped automatically by
+  `normalize()`/`Studio.clone()`/`JSON.parse()` on every OTHER `S.spec =` reassignment (Open, New
+  blank, examples, restore-banner…) — no need to hunt down and reset it at each of the ~17 other
+  call sites by hand. Clicking a tuner button re-parses the SOURCE DATASET's own stored
+  content (`Studio.parseCSVText`/`parseJSONText` against `ds.content`, never a stale cached
+  profile) and calls `quickBuildDashboard` again with the new level, rebuilding the same dashboard
+  in place. 14 new regression tests (QM3): buildAutoSpec at low vs. high (byte-identical
+  conservative set; the full fun tier firing together on one rich fixture), `guessGeoScale`'s
+  name+fallback paths, `pickSlopePair`'s refuse-vs-pair behavior, the Settings row rendering and
+  persisting, the real drop-a-file flow at High actually building all four fun widgets with the
+  tuner pre-set to High, flipping the tuner to Low rebuilding down to the conservative set, and the
+  tuner NOT leaking onto an unrelated dashboard afterward. Two scoped-down spots carried over from
+  slice 2, still open: top-N capping has no "+Other" fold-in bucket yet, and the line widget sorts
+  its temporal dimension as a plain string rather than auto-binning to a grain.
 - **LF24 slice 2 — the auto-build engine: Quick import now builds a real dashboard, not just a
   dataset (v598, sw v235, 2026-07-27, steward):** slice 1's own NEXT pointer named this as the
   real next step. Two pieces, split PLANNING from MATERIALIZING the same way the rest of the app's
@@ -4820,11 +4867,28 @@
 >       donut/line/table widgets at the conservative creativity default, each aggregated widget on
 >       its own DA clone carrying `da.outputOptions.aggregate` + sort/limit for top-N capping, a line
 >       widget only when a real temporal column exists. Quick import now lands in Studio with the
->       built dashboard instead of Explore. NEXT in LF24: slice 3, the creativity dial + "fun" chart
->       tier (map/ensemble/treemap/slope mixed in) — the profiler + planning/materializing split this
->       slice built is the base it extends. Two scoped-down spots noted in the DONE entry for a later
->       pass: top-N capping has no "+Other" fold-in bucket yet, and the line widget sorts its temporal
->       dimension as a plain string rather than auto-binning to a grain.
+>       built dashboard instead of Explore.
+>       ✓ **Slice 3 shipped (v599, sw v236, 2026-07-27, steward — LF24 is now fully done): the
+>       creativity dial + "fun" chart tier.** See DONE for the full writeup. `buildAutoSpec(profile,
+>       creativity)` mixes a map/treemap/slope/ensemble widget into the same conservative base at
+>       creativity:'high', each gated on its own data-support guardrail rather than forced — a map
+>       needs a real geo column (region scale guessed by a new `guessGeoScale` from the column's name
+>       or sampled values), a slope chart needs a genuine before/after measure pair (a new
+>       `pickSlopePair` — a shared 4-digit-year signal, or explicit before/after-shaped names; never
+>       an arbitrary pair), an ensemble needs a real multi-provider series column (name-signalled,
+>       2-8 distinct values, the same convention `Studio.guessChoroplethCols` already uses), and a
+>       treemap prefers a fresh dimension the bar/donut pair hasn't already used. A new Settings
+>       default ("Quick import creativity", Low/High, `app/defaults.js`) seeds every future import;
+>       a live Low/High tuner now sits under the dashboard title right after a Quick import
+>       (`#qmTuner`, `app/studio.js`/`app/index.html`/`app/studio.css`) and rebuilds the SAME
+>       dashboard in place by re-parsing the source dataset's own stored content — no re-upload, no
+>       stale cached profile. The tuner's marker (`S.spec._qmSource`) is a non-enumerable property so
+>       it never leaks into a saved/exported spec and self-clears on every other dashboard load
+>       (normalize()/Studio.clone()/JSON.parse() all produce a fresh object without it) with no need
+>       to reset it at each of the ~17 other `S.spec =` call sites by hand. Two scoped-down spots
+>       carried over from slice 2, still open: top-N capping has no "+Other" fold-in bucket yet, and
+>       the line widget sorts its temporal dimension as a plain string rather than auto-binning to a
+>       grain.
 > LF25. **Per-panel export buttons + Explore↔Studio parity (Kevin, live).** PRINCIPLE: everything you can do in
 >       Explore, you should be able to do in Studio too. Three parts:
 >       (a) ✓ **On-panel export buttons + per-panel visibility config — shipped (v548, sw v185,

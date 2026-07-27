@@ -1571,6 +1571,157 @@ function serve() {
     });
     await page.waitForTimeout(100);
 
+    // ---- LF24 slice 3: the creativity dial + "fun" chart tier ----------------
+    console.log("\n• LF24 slice 3: Quick mode creativity dial (map/treemap/slope/ensemble)");
+    // Snapshot whatever dashboard is currently loaded (JSON round-trip also strips
+    // the non-enumerable _qmSource marker, same as normalize()/Studio.clone() do) so
+    // the tuner-doesn't-leak check below can restore it afterward instead of leaving
+    // Studio on an empty blank dashboard for every later test in this suite.
+    const qmPriorSpec = await page.evaluate(function () { return JSON.parse(JSON.stringify(window.__STUDIO_STATE.spec)); });
+    const qmAutoSpec = await page.evaluate(function () {
+      // Hand-rolled profile (bypassing classifyColumn) for exact control over the
+      // signals buildAutoSpec reads: a geo dim (state), a genuine multi-provider
+      // series column (provider), a spare composition dim (practice), a real
+      // before/after measure pair (revenue_2023/2024), and a temporal column —
+      // every "fun" widget's guardrail should fire at once.
+      var profile = [
+        { name: "state", type: "geo", cardinality: 5, nullPct: 0, uniquePct: 0.17, sample: ["IA", "IL", "IN"] },
+        { name: "provider", type: "categorical", cardinality: 3, nullPct: 0, uniquePct: 0.1, sample: ["NASS", "FSA", "AgCensus"] },
+        { name: "practice", type: "categorical", cardinality: 4, nullPct: 0, uniquePct: 0.13, sample: ["Cover crops", "No-till"] },
+        { name: "revenue_2023", type: "measure", cardinality: 30, nullPct: 0, uniquePct: 1, sample: [] },
+        { name: "revenue_2024", type: "measure", cardinality: 30, nullPct: 0, uniquePct: 1, sample: [] },
+        { name: "obs_date", type: "temporal", cardinality: 12, nullPct: 0, uniquePct: 0.4, sample: [] }
+      ];
+      var low = Studio.QuickMode.buildAutoSpec(profile, "low");
+      var high = Studio.QuickMode.buildAutoSpec(profile, "high");
+      var byType = function (plan) { return plan.map(function (w) { return w.type || w.kind; }); };
+      var find = function (plan, t) { return plan.filter(function (w) { return w.type === t; })[0] || null; };
+      return {
+        lowTypes: byType(low).sort().join(","),
+        highTypes: byType(high).sort().join(","),
+        map: find(high, "choropleth"),
+        treemap: find(high, "treemap"),
+        slope: find(high, "slope"),
+        ensemble: find(high, "ensembleSeries"),
+        scaleZip: Studio.QuickMode.guessGeoScale({ name: "zip_code", sample: [] }),
+        scaleHuc: Studio.QuickMode.guessGeoScale({ name: "watershed_huc", sample: [] }),
+        scaleFallback: Studio.QuickMode.guessGeoScale({ name: "region", sample: ["IA", "IL", "IN"] }),
+        pairNone: Studio.QuickMode.pickSlopePair([{ name: "revenue" }, { name: "cost" }]),
+        pairYear: Studio.QuickMode.pickSlopePair([{ name: "revenue_2023" }, { name: "revenue_2024" }, { name: "cost_2023" }])
+      };
+    });
+    ok("QM3: LOW creativity stays the conservative bars/donut/kpi/line/table set — no fun tier",
+      qmAutoSpec.lowTypes === "bars,donut,kpi,line,table", JSON.stringify(qmAutoSpec));
+    ok("QM3: HIGH creativity mixes in map/treemap/slope/ensemble on top of the same conservative base",
+      qmAutoSpec.highTypes === "bars,choropleth,donut,ensembleSeries,kpi,line,slope,table,treemap", JSON.stringify(qmAutoSpec));
+    ok("QM3: the map widget uses the geo column + a guessed region scale",
+      qmAutoSpec.map && qmAutoSpec.map.dim === "state" && qmAutoSpec.map.scale === "state", JSON.stringify(qmAutoSpec.map));
+    ok("QM3: the treemap widget picks a dim the bar/donut pair hasn't already used",
+      qmAutoSpec.treemap && qmAutoSpec.treemap.dim === "state", JSON.stringify(qmAutoSpec.treemap));
+    ok("QM3: the slope widget only fires on a real before/after measure pair (revenue_2023 → revenue_2024)",
+      qmAutoSpec.slope && qmAutoSpec.slope.valueCol1 === "revenue_2023" && qmAutoSpec.slope.valueCol2 === "revenue_2024" && qmAutoSpec.slope.dim === "provider",
+      JSON.stringify(qmAutoSpec.slope));
+    ok("QM3: the ensemble widget only fires on a genuine multi-provider series column",
+      qmAutoSpec.ensemble && qmAutoSpec.ensemble.dim === "practice" && qmAutoSpec.ensemble.seriesCol === "provider" && qmAutoSpec.ensemble.valueCol === "revenue_2023",
+      JSON.stringify(qmAutoSpec.ensemble));
+    ok("QM3: guessGeoScale reads zip/huc from the column name, and falls back to sampled value shape",
+      qmAutoSpec.scaleZip === "zcta" && qmAutoSpec.scaleHuc === "huc8" && qmAutoSpec.scaleFallback === "state", JSON.stringify(qmAutoSpec));
+    ok("QM3: pickSlopePair refuses to pair two unrelated measures, but pairs a real year signal",
+      qmAutoSpec.pairNone === null && qmAutoSpec.pairYear.a === "revenue_2023" && qmAutoSpec.pairYear.b === "revenue_2024", JSON.stringify(qmAutoSpec));
+
+    // Settings: the creativity default row renders and persists.
+    await page.click('#railNav .rail-item[data-sec="settings"]');
+    await page.waitForTimeout(150);
+    const qmSettingsBefore = await page.evaluate(function () {
+      var sel = document.querySelector("#setDefaultQmCreativitySel");
+      return { present: !!sel, value: sel && sel.value, defaultFn: window.__studioDefaultQmCreativity() };
+    });
+    ok("QM3: Settings gains a 'Quick import creativity' row, defaulting to Low",
+      qmSettingsBefore.present && qmSettingsBefore.value === "low" && qmSettingsBefore.defaultFn === "low", JSON.stringify(qmSettingsBefore));
+    await page.selectOption("#setDefaultQmCreativitySel", "high");
+    const qmSettingsAfter = await page.evaluate(function () { return window.__studioDefaultQmCreativity(); });
+    ok("QM3: switching the Settings select to High persists it as the new default",
+      qmSettingsAfter === "high", qmSettingsAfter);
+
+    // The real flow at High: drop a file rich enough for the whole fun tier, confirm
+    // the auto-built dashboard actually includes it, and the builder's live tuner
+    // (#qmTuner) shows up pre-set to High.
+    await page.click('#railNav .rail-item[data-sec="home"]');
+    await page.waitForTimeout(150);
+    const qiFunFixture = path.join(__dirname, "fixture-quickimport-fun.csv");
+    (function () {
+      var states = ["IA", "IL", "IN", "OH", "MO"], providers = ["NASS", "FSA", "AgCensus"];
+      var practices = ["Cover crops", "No-till", "Reduced tillage", "Conventional"];
+      var lines = ["state,provider,practice,revenue_2023,revenue_2024,obs_date"];
+      for (var i = 0; i < 30; i++) {
+        var mon = String(1 + (i % 12)); if (mon.length < 2) mon = "0" + mon;
+        lines.push([states[i % states.length], providers[i % providers.length], practices[i % practices.length],
+          1000 + i * 11, 1200 + i * 13, "2024-" + mon + "-01"].join(","));
+      }
+      fs.writeFileSync(qiFunFixture, lines.join("\n") + "\n");
+    })();
+    await page.setInputFiles("#secHome .home-quickimport-input", qiFunFixture);
+    await page.waitForTimeout(500);
+    const qiFunAfter = await page.evaluate(function () {
+      var spec = window.__STUDIO_STATE.spec;
+      var qmt = document.querySelector("#qmTuner");
+      return {
+        panelTypes: spec.panels.map(function (p) { return p.chart.type; }).sort(),
+        toastText: document.querySelector("#toast").textContent,
+        tunerVisible: qmt && !qmt.hidden,
+        tunerHighPressed: qmt && qmt.querySelector('.qm-tuner-btn[data-qm="high"]').getAttribute("aria-pressed") === "true",
+        tunerLowPressed: qmt && qmt.querySelector('.qm-tuner-btn[data-qm="low"]').getAttribute("aria-pressed") === "true"
+      };
+    });
+    ok("QM3: a Quick import at the High Settings default auto-builds map/treemap/slope/ensemble too",
+      qiFunAfter.panelTypes.join(",") === "bars,choropleth,donut,ensembleSeries,line,slope,table,treemap", JSON.stringify(qiFunAfter));
+    ok("QM3: the builder's live tuner appears, pre-set to High",
+      qiFunAfter.tunerVisible && qiFunAfter.tunerHighPressed && !qiFunAfter.tunerLowPressed, JSON.stringify(qiFunAfter));
+
+    // The live tuner: flip to Low WITHOUT re-uploading — rebuilds in place from the
+    // same source dataset, re-parsed fresh (not a stale cached profile).
+    await page.click('#qmTuner .qm-tuner-btn[data-qm="low"]');
+    await page.waitForTimeout(300);
+    const qiFunLow = await page.evaluate(function () {
+      var spec = window.__STUDIO_STATE.spec;
+      var qmt = document.querySelector("#qmTuner");
+      return {
+        title: spec.title,
+        panelTypes: spec.panels.map(function (p) { return p.chart.type; }).sort(),
+        toastText: document.querySelector("#toast").textContent,
+        tunerLowPressed: qmt.querySelector('.qm-tuner-btn[data-qm="low"]').getAttribute("aria-pressed") === "true"
+      };
+    });
+    ok("QM3: flipping the live tuner to Low rebuilds in place down to the conservative set, and reflects the new level",
+      qiFunLow.panelTypes.join(",") === "bars,donut,line,table" && qiFunLow.tunerLowPressed && /Creativity: Low/.test(qiFunLow.toastText),
+      JSON.stringify(qiFunLow));
+
+    // The tuner's marker is scoped to the dashboard quickBuildDashboard itself built —
+    // loading a different (unrelated) dashboard must NOT carry it forward. Restores
+    // whatever was loaded before this whole block ran (qmPriorSpec) rather than
+    // leaving Studio on an empty blank dashboard for the rest of the suite.
+    const qmTunerAfterLoad = await page.evaluate(function (prior) {
+      window.__studioLoad(prior);
+      var qmt = document.querySelector("#qmTuner");
+      return { hidden: !qmt || qmt.hidden, panelCount: window.__STUDIO_STATE.spec.panels.length };
+    }, qmPriorSpec);
+    ok("QM3: the live tuner does not leak onto an unrelated (non-Quick-import) dashboard",
+      qmTunerAfterLoad.hidden && qmTunerAfterLoad.panelCount === qmPriorSpec.panels.length, JSON.stringify(qmTunerAfterLoad));
+
+    fs.unlinkSync(qiFunFixture);
+    await page.evaluate(function () {
+      var ds = Studio.Workspace.all("datasets").filter(function (d) { return d.fileName === "fixture-quickimport-fun.csv"; })[0];
+      if (ds) {
+        Studio.Workspace.remove("datasets", ds.id, { silent: true });
+        var stillUsed = Studio.Workspace.all("datasets").some(function (d) { return d.connectionId === ds.connectionId; });
+        if (!stillUsed) Studio.Workspace.remove("connections", ds.connectionId, { silent: true });
+      }
+      window.__studioShellSetSection("studio");
+    });
+    // Restore the Settings default to Low so it doesn't bleed into any later test.
+    await page.evaluate(function () { window.Studio.Defaults.setQuickModeCreativity("low"); });
+    await page.waitForTimeout(100);
+
     // ---- Google Sheets adapter (★★★-2): gviz endpoint against a mock --------
     console.log("\n• Google Sheets adapter (★★★-2)");
     const gsShape = await page.evaluate(async function () {

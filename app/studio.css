@@ -657,6 +657,18 @@ textarea:focus-visible,[tabindex]:focus-visible,.row-item:focus-visible{
 .dash-title-btn:hover svg,.dash-title-btn:focus-visible svg{opacity:.9}
 .dash-meta{font-size:var(--fs-11);color:color-mix(in srgb,var(--topbar-ink,#fff) 60%,transparent);padding-left:var(--sp-2)}
 .dash-meta code{font-family:var(--font);color:var(--topbar-ink,#fff);background:rgba(255,255,255,.1);padding:var(--sp-2) var(--sp-6);border-radius:5px}
+/* LF24 slice 3: the creativity dial's live tuner — a tiny Low/High segmented toggle
+   under the dashboard title, shown only while the current dashboard is one Quick
+   import just auto-built (see studio.js syncHeader/#qmTuner). Same chrome tokens
+   as dash-title-btn so it reads as part of the same toolbar. */
+.qm-tuner{display:flex;align-items:center;gap:var(--sp-6);padding-left:var(--sp-2);margin-top:2px}
+.qm-tuner-lbl{font-size:var(--fs-11);color:color-mix(in srgb,var(--topbar-ink,#fff) 60%,transparent)}
+.qm-tuner-seg{display:flex;border:1px solid rgba(255,255,255,.18);border-radius:7px;overflow:hidden}
+.qm-tuner-btn{background:transparent;border:none;color:color-mix(in srgb,var(--topbar-ink,#fff) 78%,transparent);
+  font:inherit;font-size:var(--fs-11);font-weight:700;padding:3px var(--sp-8);cursor:pointer}
+.qm-tuner-btn+.qm-tuner-btn{border-left:1px solid rgba(255,255,255,.18)}
+.qm-tuner-btn:hover{background:rgba(255,255,255,.12)}
+.qm-tuner-btn[aria-pressed="true"]{background:rgba(255,255,255,.18);color:var(--topbar-ink,#fff)}
 .top-actions{display:flex;align-items:center;gap:8px}
 /* UX sprint 2026-07-14: the dashboard toolbar — dashboard-scoped actions sit ABOVE the
    preview they act on; the app topbar keeps only brand + ＋New + ⋯More (manager-style).
@@ -1193,6 +1205,7 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
   .brand-sub{display:none}
   .dash-title-btn{max-width:160px}
   .dash-meta{display:none}
+  .qm-tuner{display:none}
   .top-actions{gap:5px;flex-shrink:1;min-width:0;overflow:hidden}
   .brand{flex-shrink:0;min-width:0}
   /* let the section title shrink + ellipsis on narrow phones instead of overflowing */
