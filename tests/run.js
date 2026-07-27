@@ -13908,10 +13908,16 @@ function serve() {
       window.__studioBuildLibrary();
       var card = [].slice.call(document.querySelectorAll("#libList .da-mine")).find(function (c) { return (c.querySelector(".da-id-nm") || {}).textContent === "qa05LibDa"; });
       var acts = card ? card.querySelectorAll(".da-mine-acts button") : [];
-      return { found: !!card, dupLabel: acts[0] && acts[0].getAttribute("aria-label"), delLabel: acts[1] && acts[1].getAttribute("aria-label") };
+      return { found: !!card, dupLabel: acts[0] && acts[0].getAttribute("aria-label"), delLabel: acts[1] && acts[1].getAttribute("aria-label"), dupTitle: acts[0] && acts[0].title, delTitle: acts[1] && acts[1].title };
     });
     ok("QA-05: myDACard's Duplicate/Delete buttons name the data source, not just the verb",
       daA11y.found && daA11y.dupLabel === "Duplicate qa05LibDa" && daA11y.delLabel === "Delete qa05LibDa", JSON.stringify(daA11y));
+
+    // Track H sweep (2026-07-27): the aria-label above already named the data source, but the
+    // hover `title` a sighted mouse user actually sees was still the bare "Duplicate"/"Delete" —
+    // the same tooltip-vs-aria-label gap v596/v603 fixed elsewhere in the workspace.
+    ok("Track H: myDACard's Duplicate/Delete buttons' hover title also names the data source",
+      daA11y.found && daA11y.dupTitle === "Duplicate qa05LibDa" && daA11y.delTitle === "Delete qa05LibDa", JSON.stringify(daA11y));
 
     // ---- F9: Network / topology chart ----
     console.log("\n• Network / topology chart (F9)");

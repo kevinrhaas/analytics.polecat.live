@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 606,
+    title: 'Track H sweep: the data source rail\'s Duplicate/Delete buttons now name their target on hover, not just to a screen reader',
+    kind: 'fix',
+    ts: '2026-07-27T07:46:52.000Z',
+    items: [
+      'A prior fix taught these buttons\' screen-reader label which data source they act on, but the visible hover tooltip a mouse user actually sees still just said the bare "Duplicate" or "Delete" -- no help telling rows apart once a dashboard has several.',
+      'Both now match, closing the same tooltip-vs-label gap earlier sweeps fixed for Connections, Datasets, Jobs, Dashboards, and Repository.',
+    ],
+  },
+  {
     v: 605,
     title: 'Track L sweep (orphaned-key lens, round 5): Quick mode\'s creativity-dial default now clears and exports properly',
     kind: 'fix',

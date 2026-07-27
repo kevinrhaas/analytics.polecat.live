@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v242"; /* v242: Track L sweep (orphaned-key lens, round 5) —
+var CACHE_NAME = "studio-shell-v243"; /* v243: Track H sweep — myDACard's Duplicate/Delete
+   buttons' hover title (not just their aria-label) now names the data source too, so a sighted
+   mouse user with several data accesses can tell rows apart. app/studio.js changed, so
+   precached copies need to roll.
+   v242: Track L sweep (orphaned-key lens, round 5) —
    the Quick mode creativity-dial default (studio-default-qm-creativity) was missing from both
    "Clear local data" and Settings export/import. app/studio.js changed, so precached copies
    need to roll.

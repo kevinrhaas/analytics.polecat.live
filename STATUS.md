@@ -116,6 +116,24 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **Track H sweep — data source rail's Duplicate/Delete buttons now name their target on hover,
+  not just to a screen reader (v606, sw v243, 2026-07-27, steward):** v605's own NEXT pointer
+  named Track H as most overdue (last ran v603, vs Track N at v604 and Track L just done at
+  v605), so continued the established "tooltip vs aria-label" lens the v596/v603 sweeps used —
+  walked the remaining icon-only action buttons for one more instance of the same bug shape.
+  Found it in `myDACard()`'s "My data" rail (app/studio.js): the QA-05 pass (2026-07-24) had
+  already given each row's Duplicate/Delete button a specific `aria-label` ("Duplicate " + da.id),
+  but left their `title` — the hover tooltip a sighted mouse user actually sees — as the bare
+  generic "Duplicate"/"Delete", with `.da-id-nm` CSS-truncating the row's own name right next to
+  it. With several data accesses in a dashboard's rail (common past 4+ datasets), a mouse user
+  hovering the icon got no disambiguation at all. Made `title` match the existing `aria-label`
+  on both buttons — a 2-line change, no markup/behavior/id changes. 1 new regression test
+  (extends the existing QA-05 test's page.evaluate to also assert both buttons' `title`). Full
+  suite green. SW cache → v243. (app/studio.js, sw.js, js/changelog.js, tests/run.js) NEXT:
+  continuing the Track H/L/N self-directed rotation (Track N last at v604, Track L at v605) is a
+  good next slice while the findings queue stays thin; the still-open "true whole-dashboard PNG"
+  half of the N-DIST PNG/PDF export idea and the "across every panel" half of the period-
+  comparison feature (both noted by earlier NEXT pointers) remain open for future slices.
 - **Track L sweep (orphaned-key lens, round 5) — Quick mode's creativity-dial default now clears
   and exports properly (v605, sw v242, 2026-07-27, steward):** v604's own NEXT pointer named
   Track L as most overdue (last ran v602, vs Track H at v603 and Track N at v604 itself), so

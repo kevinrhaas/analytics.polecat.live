@@ -918,10 +918,10 @@
     idDiv.onclick = function (e) { e.stopPropagation(); select({ kind: "da", id: da.id }); };
     top.appendChild(idDiv);
     var acts = el("div", "da-mine-acts");
-    var dup = el("button", "icobtn"); dup.appendChild(Studio.icon("duplicate", 13)); dup.title = "Duplicate";
+    var dup = el("button", "icobtn"); dup.appendChild(Studio.icon("duplicate", 13)); dup.title = "Duplicate " + da.id;
     dup.setAttribute("aria-label", "Duplicate " + da.id);
     dup.onclick = function (e) { e.stopPropagation(); duplicateDA(da.id); };
-    var del = el("button", "icobtn danger"); del.appendChild(Studio.icon("trash", 13)); del.title = "Delete";
+    var del = el("button", "icobtn danger"); del.appendChild(Studio.icon("trash", 13)); del.title = "Delete " + da.id;
     del.setAttribute("aria-label", "Delete " + da.id);
     del.onclick = function (e) { e.stopPropagation(); deleteDA(da.id); };
     acts.appendChild(dup); acts.appendChild(del); top.appendChild(acts);
