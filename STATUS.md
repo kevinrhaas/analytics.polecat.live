@@ -4708,6 +4708,19 @@
 >       standalone, delete). Concrete realization of #29 (Explore = simple View builder; Repository = advanced
 >       cross-object manager; Views = the dedicated browse/manage section). Reuses the LF51/LF56 component set.
 >       (index.html rail + a renderViews() section over the existing analyses store.) Ties #29, LF51, LF56, LF52.
+> LF59. **Dashboards section management overhaul (Kevin, live 2026-07-27, screenshot).** The Dashboards
+>       toolbar (New / Compare / Export / Import) + the per-tile "No workbook" dropdown need real management:
+>       (1) SELECTIVE EXPORT — "Export dashboards" exports EVERYTHING today; export a chosen subset instead.
+>       (2) MULTI-SELECT + BULK ACTIONS — select rows/tiles and bulk delete / export / move-to-folder / tag.
+>       (3) TOOLBAR CLEANUP — Import/Export + Compare are very present; organize with the better-management
+>       pattern (New dashboard, Delete, secondary actions tucked; Compare stays, tidier). (4) SAMPLE-DELETE
+>       SEMANTICS — deleting an individual sample-pack dashboard is OK (drop SOME, keep others); to get them
+>       back, Remove the sample pack then re-add (the reset) — make that clear. (5) FOLDERS FOR DASHBOARDS —
+>       the per-tile "workbook assignment" dropdown is lame; give dashboards the same robust FOLDER navigation
+>       as everything else (LF56 picker + LF51 tile/list; folders visible in the browser; workbooks can stay
+>       as a cross-cutting facet). The Dashboards-section realization of LF51. (studio.js renderDashboards()
+>       + the secDashboards repo-io toolbar, dashboards store.) Ties LF51, LF56, LF27 (sexy tile browser),
+>       #29, LF43.
 > LF53. **Purge legacy "CDF"/"CDE" terminology (Kevin, live 2026-07-27) — not supported.** The Pentaho-era
 >       CDF (Community Dashboard Framework) / CDE terms are legacy and should be GONE: user-facing export
 >       labels/strings, help/marketing copy, and internal identifiers where safe (`Studio.exportCDF` → a
