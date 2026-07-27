@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v251"; /* v251: LF38 — app-wide password reveal toggle
+var CACHE_NAME = "studio-shell-v252"; /* v252: LF44 — Home's "New dashboard"/"Quick
+   import"/"Browse examples"/"Take the tour" quick actions (and the example gallery tiles)
+   all route through enterStudio(), which a viewer-role account can never pass — left
+   visible, they were dead clicks. Now filtered out for accounts that can't develop
+   (canDevelop() false), matching the rail's existing Studio gating. app/studio.js changed,
+   so precached copies need to roll.
+   v251: LF38 — app-wide password reveal toggle
    (app/studio.js, app/connections.js, app/icons.js, app/studio.css all changed), so
    precached copies need to roll.
    v250: Track L sweep (orphaned-key lens, round 6) — the PDF

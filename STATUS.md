@@ -116,6 +116,27 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF44 — role gating: Home's dead-click Studio shortcuts hidden from viewers (v615, sw v252,
+  2026-07-27, steward — first fast bug win in the LOCKED BUILD ORDER, LF44 is now fully done):**
+  the ticket read as a rail/section gating bug, but shell.js's `applyRoleGating` (Admin/Studio rail
+  hiding, direct-nav bounce) and studio.js's `enterStudio()` boot-time gate were already solid from
+  LF23 slice 2 — a live check against the seeded demo (viewer) account confirmed the rail correctly
+  hides both Admin and Studio. The actual leak Kevin's "sees items it shouldn't" report was pointing
+  at: Home's quick-action cards. "New dashboard" (`blank`), "Quick import", "Browse examples", and
+  "Take the tour" all call `enterStudio()` before doing their real work (`quickBuildDashboard` for
+  Quick import) — for a viewer that call silently no-ops, so the card just sits there as a dead
+  click with zero feedback. The individual example-gallery tiles on Home (`data-home-example`) have
+  the identical bug (`enterStudio()` then `loadExample()`). Fixed by filtering both against the
+  same `currentUserCanDevelop()` gate the rail already uses: the four Studio-entry quick-action
+  cards are dropped from the `cards` array for `!canDevelop()` accounts, and the whole examples
+  gallery section returns empty for them too. "Explore data", "New connection", and "New dataset"
+  stay available — they open plain modals/section nav, never touch Studio, and their sections
+  (Datasets/Connections) are already open to viewers by default. 3 new regression tests: a viewer's
+  Home hides the four Studio-entry cards, still offers the three non-Studio ones, and a developer
+  account (not just admin — proving `canDevelop()`, not `isAdmin()`, is the gate) sees every card.
+  Full suite green (2317/2317). SW cache → v252. (app/studio.js, js/changelog.js, sw.js,
+  tests/run.js) NEXT: LF43 (sample-pack dashboards show in Dashboards; drop "Examples") is next in
+  the LOCKED BUILD ORDER's fast-bug-wins step.
 - **LF38 — password/masked inputs get a show/hide (eyeball) reveal toggle, app-wide (v614, sw v251,
   2026-07-27, steward — LF38 is now fully done):** one shared enhancer, `withRevealToggle(inp)`
   (app/studio.js), wraps a password `<input>` in a `.pw-reveal` container with a `.pw-reveal-btn`
@@ -4574,11 +4595,13 @@
 >       dashboards when the pack is installed, DROP the "Examples" naming, and REMOVE the messy Studio
 >       Examples menu/button. (demopacks.js, studio.js renderDashboards()/renderHome(), the Studio Examples
 >       menu, data/examples.) Ties #38/#48/LF16, LF18. Verify with the demo account.
-> LF44. **BUG — role gating: hide Admin + Studio from non-admins/viewers.** A non-admin must not see the
->       Admin rail item; a viewer must not see Studio (the builder). Verify against demo (viewer) which
->       currently sees items it shouldn't. Enforce: Admin = admin only; Studio/Build = admin+developer
->       (canDevelop), hidden from viewers; bounce direct nav. (shell.js applyRoleGating, studio.js
->       CONFIGURABLE_SECTIONS, auth.js.) The role-gating half of LF23.
+> LF44. ✓ **BUG — role gating: hide Admin + Studio from non-admins/viewers (shipped v615, sw v252,
+>       2026-07-27, steward) — see DONE.** The rail/section gating (shell.js applyRoleGating,
+>       studio.js CONFIGURABLE_SECTIONS) and the Studio boot-time gate (enterStudio) were already
+>       solid from LF23 slice 2 — verifying against demo (viewer) found the actual leak on Home:
+>       "New dashboard"/"Quick import"/"Browse examples"/"Take the tour" (+ the example gallery
+>       tiles) all route through enterStudio(), which a viewer can never pass, so they sat there as
+>       dead clicks. Now filtered out for `!canDevelop()` accounts.
 > LF45. **Studio — a visible "Save as" button + a richer Open dialog.** LF26 shipped save-as behavior +
 >       overwrite protection, but surface a prominent "Save as…" button next to Save; and improve the
 >       "a little light" Open dialog (richer preview tiles, clearer layout). (index.html builder toolbar,

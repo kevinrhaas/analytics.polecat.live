@@ -29318,6 +29318,35 @@ function serve() {
     });
     ok("LF23 slice 2: a signed-in viewer never sees the Studio rail item, and role gating bounces them off the 'studio' section to Home",
       studioRailAsViewer.railHidden && studioRailAsViewer.bouncedOffStudio && studioRailAsViewer.landedHome, JSON.stringify(studioRailAsViewer));
+
+    // LF44: Home's "New dashboard"/"Quick import"/"Browse examples"/"Take the tour" quick
+    // actions (and the example gallery tiles) all route through enterStudio(), which a viewer
+    // can never pass — left visible, they were dead clicks. Still signed in as demo from the
+    // check above; re-render Home (it was built at boot, before this login) and verify the
+    // Studio-only cards are gone while the non-Studio ones (Explore/New connection/New dataset)
+    // stay, then confirm they come back for an account that can develop.
+    const homeCardsAsViewer = await page.evaluate(function () {
+      window.__studioShellSetSection("home");
+      window.__studioRenderHome();
+      return Array.from(document.querySelectorAll(".home-card")).map(function (b) { return b.getAttribute("data-home"); });
+    });
+    ok("LF44: a viewer's Home hides the Studio-only quick actions (New dashboard/Quick import/Browse examples/Take the tour)",
+      ["blank", "quickimport", "examples", "tour"].every(function (a) { return homeCardsAsViewer.indexOf(a) < 0; }),
+      JSON.stringify(homeCardsAsViewer));
+    ok("LF44: a viewer's Home still offers the non-Studio quick actions (Explore data/New connection/New dataset)",
+      ["explore", "connection", "dataset"].every(function (a) { return homeCardsAsViewer.indexOf(a) >= 0; }),
+      JSON.stringify(homeCardsAsViewer));
+    const homeCardsAsDeveloper = await page.evaluate(function () {
+      localStorage.setItem("studio-show-samples", "1"); // isolate from any prior sample-toggle test
+      window.PolecatAuth.login("lf23s2dev"); // seeded developer account
+      window.__studioShellApplyRoleGating();
+      window.__studioRenderHome();
+      return Array.from(document.querySelectorAll(".home-card")).map(function (b) { return b.getAttribute("data-home"); });
+    });
+    ok("LF44: a developer account (canDevelop, not just admin) still sees every Home quick action",
+      ["blank", "quickimport", "examples", "tour", "explore", "connection", "dataset"].every(function (a) { return homeCardsAsDeveloper.indexOf(a) >= 0; }),
+      JSON.stringify(homeCardsAsDeveloper));
+
     await page.evaluate(function () {
       window.PolecatAuth.logout();
       sessionStorage.setItem("studio-gate-ok", "1");

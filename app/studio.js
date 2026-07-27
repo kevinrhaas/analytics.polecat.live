@@ -5472,7 +5472,14 @@
       { act: "dataset", ic: "db", t: "New dataset", d: "Build datasets from an existing connection" },
       { act: "quickimport", ic: "upload", t: "Quick import", d: "Drop a CSV or JSON file to build a dashboard instantly" }
     ].concat(showSamples() ? [{ act: "examples", ic: "grid", t: "Browse examples", d: "Sample dashboards on the demo database" }] : [])
-      .concat([{ act: "tour", ic: "play", t: "Take the tour", d: "Guided walkthrough of the builder" }]);
+      .concat([{ act: "tour", ic: "play", t: "Take the tour", d: "Guided walkthrough of the builder" }])
+      // LF44: "blank"/"quickimport"/"examples"/"tour" all route through enterStudio()
+      // (Quick import via quickBuildDashboard) — a viewer-role account can't ever enter
+      // Studio (canDevelop() gate above), so those cards would sit on Home doing nothing
+      // when clicked. Filter them out rather than ship a dead click.
+      .filter(function (c) {
+        return currentUserCanDevelop() || ["blank", "quickimport", "examples", "tour"].indexOf(c.act) < 0;
+      });
     var html = '<div class="home-wrap">' +
       '<div class="home-hero"><h1>Welcome back</h1><p>Pick up a recent dashboard, or start something new.</p></div>' +
       '<div class="home-quick">' + cards.map(function (c) {
@@ -5558,6 +5565,12 @@
       // Home section (they used to hide inside the Studio Examples menu). Each card
       // is the real layout thumbnail; click loads it into the builder.
       examples: function () {
+        // LF44: every example card's click routes through enterStudio() (see the
+        // data-home-example handler below) — a viewer-role account is blocked from
+        // Studio, so the whole section would just be a wall of dead clicks. Fold it
+        // into the same canDevelop() gate as the "Browse examples"/"New dashboard"
+        // quick-action cards above.
+        if (!currentUserCanDevelop()) return "";
         var vis = visibleExamples();
         if (!showSamples() || !vis.length) return "";
         return '<div class="home-examples">' + vis.slice(0, 8).map(function (e) {
