@@ -4649,6 +4649,20 @@
 >       to the rail and full names have room; keep it responsive (mobile release gate) and leave sensible
 >       room for the planned rail submenus. (studio.css content container / section layout, index.html.)
 >       Ties LF51, LF19.
+> LF55. **Job editor step UX overhaul (Kevin, live 2026-07-27, screenshots).** Polish the Add/Edit-job
+>       transform steps: (1) COLUMN DROPDOWNS EVERYWHERE — the editor already knows the columns (it renders
+>       the preview), so every column-naming field (Filter rows→column, Rename column→from/to, and any
+>       others) becomes a dropdown of known columns, not free text (LF13a did this for group-by/metric/join
+>       keys — extend to ALL step types). Kills the typo/case-sensitivity problem the filter has today; any
+>       field that must stay free-text should match case-insensitively. (2) VALUE PICKER — the Filter "value"
+>       offers the column's distinct sample values as a dropdown/autocomplete where feasible. (3) BUG —
+>       DUPLICATE PREVIEW: "+ Step" leaves the old "Approximate preview" table up AND renders another (two
+>       befores + one after); clear the stale interim preview so there's one per state (quick early win).
+>       (4) PER-STEP PREVIEW — a Preview at each step with a clear INTERIM-step indicator, plus a clear FINAL
+>       preview so it's obvious you can just run the final. (5) COOLER STEP PICKER — replace the plain
+>       step-type <select> with an icon-panel picker (a themed glyph per step type, select-and-see); tasteful,
+>       don't overcomplicate. (app/jobs.js/studio.js openJobEditor + step renderer + preview, jobs-engine.js
+>       column/value introspection, icons.js, studio.css.) Ties #47, LF13(a-d), LF51.
 > LF52. **TERMINOLOGY — "widget" → "View" app-wide (Kevin decided 2026-07-27).** "Widget" is too technical.
 >       The standard term is a **View** — you build a View (a chart, or a text box / header / KPI / map /
 >       etc.), and the "widget library" becomes the **View library**. Rename all USER-FACING occurrences
