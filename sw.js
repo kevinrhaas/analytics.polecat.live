@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v258"; /* v258: first-admin bootstrap — Go live now seeds the
+var CACHE_NAME = "studio-shell-v259"; /* v259: durable Supabase reads — a read that hits a
+   stale/expired GoTrue token now drops the cached session, re-signs-in and retries once, so
+   Refresh + background sync self-heal instead of flapping to "not connected". app/sources/
+   supabase.js changed, so precached copies need to roll.
+   v258: first-admin bootstrap — Go live now seeds the
    caller's own admin row before it runs (fixing the "not an admin" chicken-and-egg), sign-in
    carries gotrueId onto the backend users row, and admin actions refresh the session.
    app/studio.js, app/sources/supabase.js and docs/index.html changed, so precached copies roll.

@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 622,
+    title: 'Supabase connection self-heals an expired session instead of flapping to "not connected"',
+    kind: 'fix',
+    ts: '2026-07-27T18:32:59.000Z',
+    items: [
+      'Once per-user security (RLS) is on, the app signs in to Supabase for every read -- and that sign-in token can quietly expire, which used to make the workspace flash "not connected" until you hit Refresh (sometimes twice).',
+      'Reads now retry once with a fresh sign-in when the backend rejects an expired token, so Refresh and background sync recover on their own instead of showing an error.',
+    ],
+  },
+  {
     v: 621,
     title: 'First-time go-live makes you the admin by itself -- no SQL editor step',
     kind: 'fix',
