@@ -4538,6 +4538,46 @@
 >    LF51 (sophisticated nav IA: right-aligned pills, full names, date-time, list+rich-tile views).
 > The recurring quality tracks (UX polish, Track H/L/N sweeps) continue to interleave as usual.
 
+### ★★ LIVE-QA QUEUE (Kevin, 2026-07-27 second session) — captured during live QA
+> Fresh items from a live QA burst. Slot into the LOCKED BUILD ORDER by class (bug/cleanup wins
+> first). Kevin's mode: "add to queue, let the backlog roll."
+> LF61. **Quick-import drop zone on the EMPTY Studio canvas.** "New dashboard" from Home works (it opens
+>       Studio with a fresh Untitled dashboard) but the empty canvas reads as "nothing happened." Kevin:
+>       "your quick mode drag-a-file should be here also." Put the SAME Quick-import auto-build affordance
+>       (drag/drop a CSV/JSON → profiled dataset → auto-built dashboard, the LF24 engine) right on the
+>       "Canvas is empty" state, next to "Open data panel" / "Add a text widget" — a real drop target +
+>       a pick-file button. So a brand-new dashboard immediately offers a path to data + an instant build.
+>       (studio.js empty-canvas state / studio-render.js empty state, reuse quickImportFile + the
+>       Studio.__quickBuildDashboard path.) Ties LF24, LF27, LF18, LF50.
+> LF62. **"Sparkle" auto-name button on EVERY name field.** Anywhere the user must type a name — dataset,
+>       job, dashboard, View, connection, preset, folder — add a tiny elegant ✨ sparkle button that
+>       SUGGESTS a smart name from context (what's already entered, the object type, the bound
+>       columns/tables, the query, the chart type). One click fills it; fully editable after. Consistent
+>       component reused everywhere. (A shared nameSuggest(kind, ctx) helper + a sparkle affordance next to
+>       every name input; studio.js dataset/job/dashboard/View editors, connection wizard.) Ties LF41
+>       (naming), LF55, LF56.
+> LF63. **Connection/dataset QUERY BUILDER — see tables/columns, assisted build, validate, test.** For a
+>       connection you can browse the available tables, you should be able to SEE and USE them when building
+>       a dataset: a table/column browser (already have schema for some adapters) feeding an assisted
+>       SQL/query builder that KNOWS the fields + tables (pick-list columns/tables, syntax help), plus a
+>       live SYNTAX CHECK, a validation of the columns/fields actually used, and a TEST QUERY / test-function
+>       button for every connection so you can verify before saving. Elegant + fun to use. (studio.js
+>       dataset editor + connection schema, app/sources/* schema surfaces, a query-builder UI, a
+>       validate/test path.) Ties #21, LF51, LF55, LF64.
+> LF64. **Job/dataset PARAMETERS — dynamic + date-based filters.** Parameters are powerful when they're
+>       dynamic: expose relative/dynamic DATE parameters (e.g. "> current date", "last N days", "this
+>       month", between-dates) and value pickers with comparators, surfaced in the job/dataset params UI
+>       where it makes sense (don't force it everywhere). Makes {{params}} genuinely useful for
+>       time-filtered pulls. (jobs-engine.js / params model, job editor params UI, dataset params.)
+>       Ties LF55, #47.
+> LF65. **Remove the legacy "Samples (115) · DEMO DB" group from the Studio Data panel.** Samples should
+>       come ONLY via Sample packs (the "Sample packs" group above it) — if a sample matters it lives in a
+>       pack. Drop the old bottom "Samples" catalog group so there's one source of truth for sample content.
+>       (studio.js buildLibrary() Samples group.) Ties LF43, LF48/LF16 (sample-content consolidation).
+> **LF52 note (extend):** the "Export this panel…" button label → "Export this View"; and the Explore
+> "Analyses" list/label (SAVED ANALYSES, "Add to dashboard" cards) → "Views" — both are part of the
+> widget/analysis→View rename, not separate work.
+
 ### ★★ ONBOARDING & PROVISIONING EPIC (Kevin, 2026-07-27) — the "Dave" north-star
 > A meaty vision from a live session: turn first-run into a delightful, admin-provisioned
 > onboarding. **NORTH-STAR ACCEPTANCE TEST — the "Dave" (dgustafson) login:** an admin sets Dave
