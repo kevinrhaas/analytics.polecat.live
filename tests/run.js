@@ -564,6 +564,66 @@ function serve() {
       !bootLanding.homeHidden && bootLanding.studioHidden && bootLanding.homeActive &&
       bootLanding.homeAriaCurrent === "page" && !bootLanding.studioActive && bootLanding.topbarText === "Home",
       JSON.stringify(bootLanding));
+
+    // ---- Slice A: the standard topbar is a GLOBAL frame element (out of Studio's #appMain) ----
+    // We're still on Home here (boot state) with Studio's #appMain hidden — the topbar must be
+    // visible anyway, proving it's no longer trapped inside the builder. (Runs before the
+    // section-navigation block below so it doesn't disturb the LF9 history stack.)
+    const sliceAFrame = await page.evaluate(() => {
+      const tb = document.getElementById("topbar");
+      const appMain = document.getElementById("appMain");
+      const appBody = document.getElementById("appBody");
+      const vis = tb ? (tb.getBoundingClientRect().height > 0 && getComputedStyle(tb).display !== "none") : false;
+      return {
+        studioHidden: appMain.hidden,
+        topbarVisible: vis,
+        topbarText: document.getElementById("topbarSection").textContent.trim(),
+        topbarInAppMain: !!(appMain && appMain.contains(tb)),      // must be FALSE (promoted out)
+        topbarInAppBody: !!(appBody && appBody.contains(tb)),      // must be FALSE (sits above #appBody)
+        railCmdkGone: !document.getElementById("railCmdk"),
+        hasSearch: !!document.getElementById("tbSearch"),
+        hasWhatsNew: !!document.getElementById("tbWhatsNew"),
+        hasWhatsNext: !!document.getElementById("tbWhatsNext"),
+        hasTheme: !!document.getElementById("tbTheme"),
+        hasSectionActions: !!document.getElementById("tbSectionActions"),
+        sectionActionsEmpty: (document.getElementById("tbSectionActions").children.length === 0)
+      };
+    });
+    ok("Slice A: #topbar is visible on a NON-Studio section (Home) — it's a global frame element, not trapped in #appMain",
+      sliceAFrame.studioHidden && sliceAFrame.topbarVisible && sliceAFrame.topbarText === "Home" &&
+      !sliceAFrame.topbarInAppMain && !sliceAFrame.topbarInAppBody,
+      JSON.stringify(sliceAFrame));
+    ok("Slice A: the standard topbar cluster exists (search + what's-new + what's-next + dark toggle + section-actions slot)",
+      sliceAFrame.hasSearch && sliceAFrame.hasWhatsNew && sliceAFrame.hasWhatsNext &&
+      sliceAFrame.hasTheme && sliceAFrame.hasSectionActions && sliceAFrame.sectionActionsEmpty,
+      JSON.stringify(sliceAFrame));
+    ok("Slice A: the old #railCmdk rail item is gone (search now lives in the topbar center)",
+      sliceAFrame.railCmdkGone);
+    // #tbTheme toggles the light/dark MODE on <html data-theme>.
+    const themeBefore = await page.$eval("html", (e) => e.getAttribute("data-theme"));
+    await page.click("#tbTheme");
+    await page.waitForTimeout(120);
+    const themeAfter = await page.$eval("html", (e) => e.getAttribute("data-theme"));
+    await page.click("#tbTheme"); // restore
+    await page.waitForTimeout(120);
+    const themeRestored = await page.$eval("html", (e) => e.getAttribute("data-theme"));
+    ok("Slice A: #tbTheme toggles document.documentElement[data-theme] (and toggles back)",
+      themeBefore !== themeAfter && themeRestored === themeBefore,
+      JSON.stringify({ themeBefore, themeAfter, themeRestored }));
+    // #tbWhatsNext opens a roadmap modal; close it (Escape) so history/overlay state is restored.
+    await page.click("#tbWhatsNext");
+    await page.waitForTimeout(150);
+    const whatsNextOpen = await page.evaluate(() => {
+      const ov = document.querySelector(".modal-ov");
+      return { open: !!ov, hasItems: ov ? ov.querySelectorAll(".whatsnext .wn-item").length : 0 };
+    });
+    ok("Slice A: #tbWhatsNext opens a roadmap modal with grouped items",
+      whatsNextOpen.open && whatsNextOpen.hasItems >= 3, JSON.stringify(whatsNextOpen));
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(150);
+    const whatsNextClosed = await page.evaluate(() => !document.querySelector(".modal-ov"));
+    ok("Slice A: the What's-next modal closes on Escape", whatsNextClosed);
+
     // Fleet-standard topbar: the top-left shows the CURRENT SECTION name, and it updates on nav.
     await page.evaluate(() => window.__studioShellSetSection("dashboards"));
     await page.waitForTimeout(150);
@@ -24285,7 +24345,7 @@ function serve() {
     // Z1-2: rail icons are real inline SVGs (Studio.icon(), theme-aware — no emoji/unicode glyphs)
     const z1Icons = await page.evaluate(function () {
       var svgs = document.querySelectorAll("#railNav .rail-ic svg");
-      return { ok: svgs.length === 13, count: svgs.length }; // 10 sections (incl. Admin M4, Repository M5) + Search/⌘K (Track N) + Help (Z11) + collapse toggle
+      return { ok: svgs.length === 12, count: svgs.length }; // 10 sections (incl. Admin M4, Repository M5) + Help (Z11) + collapse toggle (Slice A removed the #railCmdk Search/⌘K item — search moved to the topbar)
     });
     ok("Z1: rail buttons render inline SVG icons (Studio.icon helper)", z1Icons.ok, JSON.stringify(z1Icons));
 
@@ -27561,10 +27621,12 @@ function serve() {
     var cmdkFollow = await page.evaluate(async function () {
       var r = {};
       if (window.__studioShellSetSection) window.__studioShellSetSection("studio");
-      var railBtn = document.getElementById("railCmdk");
+      // Slice A: the discoverable palette affordance moved from the rail (#railCmdk, removed)
+      // to the GLOBAL topbar center (#tbSearch) — a search pill carrying a "⌘K" hint.
+      var railBtn = document.getElementById("tbSearch");
       r.hasRailBtn = !!railBtn;
-      r.railHasIcon = !!(railBtn && railBtn.querySelector(".rail-ic svg"));
-      var kbd = railBtn && railBtn.querySelector(".rail-kbd");
+      r.railHasIcon = !!(railBtn && railBtn.querySelector(".tbs-ic svg"));
+      var kbd = railBtn && railBtn.querySelector("kbd");
       r.railHasHint = !!(kbd && kbd.textContent.toUpperCase().indexOf("K") >= 0);
       railBtn.click(); // discoverable affordance should itself open the palette
       var ov = document.getElementById("cmdkOverlay");
@@ -27601,9 +27663,9 @@ function serve() {
       window.__studioShellSetSection("studio");
       return r;
     });
-    ok("Track N follow-up: rail shows a Search item with an SVG icon + visible ⌘K hint",
+    ok("Track N follow-up: the topbar shows a Search pill with an SVG icon + visible ⌘K hint",
       cmdkFollow.hasRailBtn && cmdkFollow.railHasIcon && cmdkFollow.railHasHint, JSON.stringify(cmdkFollow));
-    ok("Track N follow-up: clicking the rail item opens the palette", cmdkFollow.railOpens, JSON.stringify(cmdkFollow));
+    ok("Track N follow-up: clicking the topbar Search pill opens the palette", cmdkFollow.railOpens, JSON.stringify(cmdkFollow));
     ok("Track N follow-up: palette lists dynamic 'Open example:' and 'Open dashboard:' commands",
       cmdkFollow.hasExampleCmd && cmdkFollow.hasRecentCmd, JSON.stringify(cmdkFollow));
     ok("Track N follow-up: running a recent-dashboard command loads that exact spec and returns to Studio",
@@ -28521,12 +28583,16 @@ function serve() {
     const mcMenuOpen = await mp2.evaluate(() => document.getElementById("menuMore").classList.contains("open"));
     ok("m-c: tapping the pinned ⋯ More button opens its menu", mcMenuOpen === true);
 
-    // m-c: Home/Repository/Settings section headings must also clear the fixed hamburger.
+    // m-c: each section's top content must also clear the fixed hamburger.
     // Same bug class as the topbar: a LATER ≤640px rule for each `*-wrap` reset padding-top
     // back to 28px (from the 60px the earlier ≤900px block set), silently pulling the
-    // "Repository"/"Home"/"Settings" H1 back under the hamburger on phones specifically
+    // section's top content back under the hamburger on phones specifically
     // (tablets 641-900px were unaffected since only one rule applied there).
-    console.log("\n• m-c: section headings clear the hamburger on phone (Home/Repository/Settings)");
+    // Slice A: the section NAME moved to the global topbar (asserted by mcOverlap above), so
+    // most panes no longer carry a big <h1> — the first content is now the section's one-line
+    // description. This checks whichever the section leads with (h1 for Home's "Welcome back",
+    // otherwise the repo-/settings-hero description).
+    console.log("\n• m-c: each section's top content clears the hamburger on phone");
     async function headingClearsHamburger(sec) {
       await mp2.evaluate(() => { document.getElementById("mobileNavBtn").click(); });
       await mp2.waitForTimeout(300);
@@ -28534,8 +28600,8 @@ function serve() {
       await mp2.waitForTimeout(350);
       return mp2.evaluate(() => {
         var h = document.getElementById("mobileNavBtn").getBoundingClientRect();
-        var heading = document.querySelector(".app-sec:not([hidden]) h1");
-        if (!heading) return { ok: false, err: "no visible h1" };
+        var heading = document.querySelector(".app-sec:not([hidden]) h1, .app-sec:not([hidden]) .repo-hero p, .app-sec:not([hidden]) .settings-hero p");
+        if (!heading) return { ok: false, err: "no visible section heading/description" };
         var r = heading.getBoundingClientRect();
         return { ok: r.top >= h.bottom - 1, headingTop: Math.round(r.top), hambBottom: Math.round(h.bottom) };
       });

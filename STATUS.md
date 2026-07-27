@@ -116,6 +116,35 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **Standard fleet topbar — Slice A: promote #topbar to a GLOBAL frame element (2026-07-27,
+  steward, v625, sw v262):** the topbar was trapped inside Studio's `#appMain`, so only the
+  builder showed it — Home/Explore/Dashboards/Datasets/Connections/Jobs/Repository/Admin/Settings
+  were bare panes. Restructured the app frame: `#app` (rail + `#appRight`) → `#appRight` (flex
+  column: persistent `#topbar` over `#appBody`) → `#appBody` holds every swappable section incl.
+  Studio's `#appMain` (now just `#workspace` + mobile-tabs + statusbar). The topbar now persists
+  across every section and names the current one (shell.js setActive). Added the standard clusters:
+  a CENTERED command-palette search pill (`#tbSearch`, ⌘K — the old `#railCmdk` rail item was
+  removed, shortcut kept) wired via `window.__openCommandPalette` (palette.js); and a right-side
+  cluster — What's-new (`#tbWhatsNew`, sparkle, shares the unseen dot + feed with the footer
+  Changelog via the new module-level `openWhatsNew`/`window.__studioOpenWhatsNew`), What's-next
+  (`#tbWhatsNext`, compass — a new compact roadmap modal `openWhatsNext` seeded from this NEXT
+  list), a dark-mode toggle (`#tbTheme`, moon/sun, refreshes on every setTheme so it stays in
+  sync with #btnTheme/#railQuickDark/Settings via `window.__studioToggleTheme`/`__studioGetTheme`),
+  the fleet waffle (fleet.js now inserts it just left of +New), and the existing +New / ⋯More.
+  Added an EMPTY per-section action slot `#tbSectionActions` + `window.__studioSetSectionActions`
+  (shell.js `setSectionActions`, cleared on every nav) — scaffolding Slice B fills with Studio's
+  dashboard actions. Dropped each non-Studio pane's redundant big title (Dashboards/Explore/
+  Datasets/Jobs/Connections/Repository h1 in index.html; Settings + Admin h1 in studio.js) now
+  that the topbar names the section — descriptions/filters/content all kept. New `sparkle` +
+  `compass` glyphs in app/icons.js. Mobile: phone bar keeps section name + icon-only search +
+  waffle + New + ⋯More (What's-new/What's-next/dark hide; dark stays in the rail drawer + Settings)
+  so nothing overflows 390px. Verified at 1280×800 + 390×780, light + dark, Home/Studio/Datasets:
+  topbar visible everywhere, cluster right-aligned, zero pageerrors, no horizontal overflow. 6 new
+  regression checks (global topbar on a non-Studio section, cluster existence, #railCmdk gone,
+  #tbTheme toggles [data-theme], #tbWhatsNext opens+closes a modal). Files: app/index.html,
+  app/studio.css, app/studio.js, app/shell.js, app/fleet.js, app/palette.js, app/icons.js,
+  sw.js, js/changelog.js, docs/index.html, tests/run.js. **NEXT: Slice B — move Studio's
+  dashboard-scoped actions (Save/Export/Open/Undo/Redo) into `#tbSectionActions`.**
 - **LF42 slice 3 — consolidated Switch-backend picker (v624, sw v261, 2026-07-27, steward —
   the last numbered LF42 slice, step 2 of the LOCKED BUILD ORDER's "Dave"-demo ingredients,
   after LF42 slice 2):** Settings → Workspace backend's **Switch backend** button used to

@@ -6,6 +6,18 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 625,
+    title: 'A persistent standard top bar across every section, with a centered search',
+    kind: 'feature',
+    ts: '2026-07-27T20:11:16.000Z',
+    items: [
+      'The top bar now stays put on every page -- Home, Explore, Dashboards, Datasets, Connections, Jobs, Repository, Admin and Settings all show it, not just the builder. It always names the section you\'re in.',
+      'A centered Search box (or press Cmd/Ctrl-K) opens the command palette from anywhere; the old rail Search item moved up here.',
+      'New quick-access buttons on the right: What\'s new, What\'s next (a peek at the near-term roadmap), and a one-click dark-mode toggle, alongside the app switcher and New.',
+      'Section pages drop their duplicate big title now that the top bar names the section -- their one-line descriptions stay.',
+    ],
+  },
+  {
     v: 624,
     title: 'Switching the workspace backend now offers your registered backends first',
     kind: 'polish',

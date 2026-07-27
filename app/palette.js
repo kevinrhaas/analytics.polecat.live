@@ -350,12 +350,14 @@
     moreMenu.insertBefore(mi, moreMenu.firstChild);
   }
 
-  // Visible discoverability affordance: a rail item (global chrome, visible from
-  // every section) that opens the palette and carries a "⌘K" hint chip so the
-  // shortcut isn't only discoverable via the ⋯ More menu or the shortcuts modal.
-  // Its icon is painted automatically by shell.js's generic `.rail-ic[data-ic]` pass.
-  var railCmdk = document.getElementById("railCmdk");
-  if (railCmdk) railCmdk.addEventListener("click", open);
+  // Slice A: the visible discoverability affordance moved from the rail (#railCmdk,
+  // removed) to the GLOBAL topbar center (#tbSearch) — a search pill with a "⌘K" hint,
+  // reachable from every section. The Ctrl/⌘-K keyboard shortcut above is unchanged.
+  // Exposed as a global so the topbar button (wired in studio.js) can open the palette
+  // even though palette.js loads after studio.js.
+  window.__openCommandPalette = open;
+  var tbSearch = document.getElementById("tbSearch");
+  if (tbSearch) tbSearch.addEventListener("click", open);
 
   window.StudioPalette = { open: open, close: close, toggle: toggle, isOpen: isOpen, commands: COMMANDS, usage: loadUsage, voiceSupported: voiceSupported, startVoice: startVoice };
 })();

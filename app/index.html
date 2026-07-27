@@ -51,7 +51,6 @@
     <div class="rail-spacer"></div>
     <button id="railSource" class="rail-item rail-source" title="Workspace backend — Local" aria-label="Workspace backend status"><span class="rail-ic"><span class="cx-dot" id="railSourceDot"></span></span><span class="rail-lbl" id="railSourceLbl">Local</span></button>
     <button class="rail-item" data-sec="settings" title="Settings" aria-label="Settings"><span class="rail-ic" data-ic="gear"></span><span class="rail-lbl">Settings</span></button>
-    <button id="railCmdk" class="rail-item" type="button" title="Command palette (⌘K / Ctrl-K)" aria-label="Open command palette"><span class="rail-ic" data-ic="search"></span><span class="rail-lbl">Search <kbd class="rail-kbd">⌘K</kbd></span></button>
     <a id="railHelp" class="rail-item" href="docs/index.html" target="_blank" rel="noopener noreferrer" title="Help &amp; docs (opens in new tab)" aria-label="Help and documentation, opens in a new tab"><span class="rail-ic" data-ic="info"></span><span class="rail-lbl">Help</span></a>
     <div id="railQuick" class="rail-quick">
       <label class="rail-quick-row"><span class="rail-quick-lbl">Dark mode</span><span class="set-sw"><input type="checkbox" id="railQuickDark" data-set="dark"/><span class="set-sw-track"></span></span></label>
@@ -60,115 +59,38 @@
     <button id="railCollapse" class="rail-item rail-toggle" title="Collapse navigation" aria-label="Collapse navigation" aria-expanded="true"><span class="rail-ic" data-ic="chevron-left"></span><span class="rail-lbl">Collapse</span></button>
   </nav>
 
-  <section id="secHome" class="app-sec">
-    <div class="sec-empty">
-      <div class="sec-empty-ic" data-ic="home"></div>
-      <h2>Home</h2>
-      <div class="sec-skel" role="status" aria-label="Loading">
-        <span class="sec-skel-bar"></span><span class="sec-skel-bar"></span><span class="sec-skel-bar sec-skel-bar-short"></span>
-      </div>
-    </div>
-  </section>
-  <section id="secDashboards" class="app-sec has-content" hidden>
-    <div class="repo-wrap">
-      <div class="repo-hero"><h1>Dashboards</h1>
-        <p>Every dashboard you've saved — searchable, filterable by workbook, as tiles or a list. Searching also finds dashboards by the columns their datasets use.</p>
-        <input id="repoSearch" class="repo-search" type="search" placeholder="Search dashboards…" aria-label="Search dashboards"/>
-        <div class="repo-io">
-          <button type="button" class="btn" id="dashViewToggle" title="Switch between tile and list layout" aria-pressed="false">List view</button>
-          <button type="button" class="btn" id="repoCompareBtn" title="Pick any two saved dashboards and see what differs between them">Compare dashboards…</button>
-          <button type="button" class="btn" id="repoExportBtn">Export dashboards…</button>
-          <button type="button" class="btn" id="repoImportBtn">Import dashboards…</button>
-        </div>
-      </div>
-      <div id="repoResults"></div>
-    </div>
-  </section>
-  <section id="secExplore" class="app-sec has-content" hidden>
-    <div class="repo-wrap">
-      <div class="repo-hero"><h1>Explore</h1>
-        <p>Start from a dataset, see it as a table, pick a chart, and save the result as an <b>analysis</b> — a reusable chart you can pin to Home or drop into any dashboard.</p>
-      </div>
-      <div id="xpBody" class="xp-body"></div>
-    </div>
-  </section>
-  <section id="secDatasets" class="app-sec has-content" hidden>
-    <div class="repo-wrap">
-      <div class="repo-hero"><h1>Datasets</h1>
-        <p>Named, parameterizable queries defined on top of your connections — the reusable building blocks dashboards are made of.</p>
-        <input id="dsxSearch" class="repo-search" type="search" placeholder="Search datasets…" aria-label="Search datasets"/>
-        <div class="repo-io">
-          <button type="button" class="btn primary" id="dsxNewBtn">+ New dataset</button>
-        </div>
-      </div>
-      <div id="dsxResults"></div>
-    </div>
-  </section>
-  <section id="secJobs" class="app-sec has-content" hidden>
-    <div class="repo-wrap">
-      <div class="repo-hero"><h1>Jobs</h1>
-        <p>Prep a dataset before it's charted: rename/cast/derive columns, filter rows, and roll up with an acreage-weighted mean for honest State/CRD/HUC8 aggregates. Run a job and its output lands back in Datasets, ready for Explore or any dashboard.</p>
-        <input id="jobsSearch" class="repo-search" type="search" placeholder="Search jobs…" aria-label="Search jobs"/>
-        <div class="repo-io">
-          <button type="button" class="btn primary" id="jobsNewBtn">+ New job</button>
-        </div>
-      </div>
-      <div id="jobsResults"></div>
-    </div>
-  </section>
-  <section id="secConnections" class="app-sec has-content" hidden>
-    <div class="repo-wrap">
-      <div class="repo-hero"><h1>Connections</h1>
-        <p>Where your dashboards' data lives — reusable connections to warehouses, files and APIs, one adapter each. <span id="connCredNote">Credentials stay in this browser.</span></p>
-        <input id="connSearch" class="repo-search" type="search" placeholder="Search connections…" aria-label="Search connections"/>
-        <div class="repo-io">
-          <button type="button" class="btn primary" id="connNewBtn">+ New connection</button>
-        </div>
-      </div>
-      <div id="connResults"></div>
-    </div>
-  </section>
-  <section id="secRepository" class="app-sec has-content" hidden>
-    <div class="repo-wrap">
-      <div class="repo-hero"><h1>Repository</h1>
-        <p>Every object in your workspace — dashboards, datasets, connections, analyses and jobs — in one searchable, filterable place. Pick a kind below, or search across all of them; opening a row takes you straight to that object's own editor.</p>
-        <input id="repoAllSearch" class="repo-search" type="search" placeholder="Search the whole workspace…" aria-label="Search the whole workspace"/>
-      </div>
-      <div id="repoAllResults"></div>
-    </div>
-  </section>
-  <section id="secSettings" class="app-sec" hidden>
-    <div class="sec-empty">
-      <div class="sec-empty-ic" data-ic="gear"></div>
-      <h2>Settings</h2>
-      <div class="sec-skel" role="status" aria-label="Loading">
-        <span class="sec-skel-bar"></span><span class="sec-skel-bar"></span><span class="sec-skel-bar sec-skel-bar-short"></span>
-      </div>
-    </div>
-  </section>
-  <section id="secAdmin" class="app-sec" hidden>
-    <div class="sec-empty">
-      <div class="sec-empty-ic" data-ic="shield"></div>
-      <h2>Admin</h2>
-      <div class="sec-skel" role="status" aria-label="Loading">
-        <span class="sec-skel-bar"></span><span class="sec-skel-bar"></span><span class="sec-skel-bar sec-skel-bar-short"></span>
-      </div>
-    </div>
-  </section>
-
-  <div id="appMain" hidden>
+  <!-- Slice A: #topbar is now a GLOBAL frame element (out of Studio's #appMain), so it
+       persists across every rail section. #appRight is the flex column that stacks the
+       persistent topbar over #appBody (the swappable section area, incl. Studio). -->
+  <div id="appRight">
   <header id="topbar">
-    <!-- Fleet-standard topbar: the CURRENT SECTION name sits at the top-left (the app's
-         own identity lives in the left-rail brand, like JobTracker/AutoSelector). Updated
-         by app/shell.js setActive(). -->
+    <!-- Fleet-standard GLOBAL topbar: the CURRENT SECTION name sits at the top-left (the
+         app's own identity lives in the left-rail brand, like JobTracker/AutoSelector).
+         Updated by app/shell.js setActive(). -->
     <div class="tb-section" id="topbarSection" aria-live="polite">Home</div>
     <!-- H-track: auto-save state indicator — flashes "Saved ✓" for 2s after each auto-save -->
     <span id="saveState" class="save-state" aria-live="polite" aria-atomic="true"></span>
-    <div class="spacer"></div>
+    <!-- Mode chips (near the section name): shown only while their mode is active -->
+    <span id="simpleBadge" class="simple-badge" aria-live="polite" aria-label="Simple mode active">Simple mode</span>
+    <!-- H-track v117: Demo mode — pulsing LIVE badge shown while demo simulation is running -->
+    <span id="demoBadge" class="demo-badge" aria-live="polite" aria-label="Demo mode: data refreshes every 4 seconds"><span class="sb-ic" data-ic="dot"></span> LIVE</span>
+    <!-- Center: command-palette search (⌘K). Wired in app/palette.js via window.__openCommandPalette. -->
+    <div class="tb-center">
+      <button id="tbSearch" class="topbar-search" type="button" title="Search — commands, datasets, dashboards (⌘K / Ctrl-K)" aria-label="Open command palette">
+        <span class="tbs-ic" data-ic="search"></span>
+        <span class="tbs-lbl">Search…</span>
+        <kbd>⌘K</kbd>
+      </button>
+    </div>
     <div class="top-app">
-      <span id="simpleBadge" class="simple-badge" aria-live="polite" aria-label="Simple mode active">Simple mode</span>
-      <!-- H-track v117: Demo mode — pulsing LIVE badge shown while demo simulation is running -->
-      <span id="demoBadge" class="demo-badge" aria-live="polite" aria-label="Demo mode: data refreshes every 4 seconds"><span class="sb-ic" data-ic="dot"></span> LIVE</span>
+      <!-- Slice A scaffolding: per-section action slot (EMPTY now; Slice B fills it for Studio,
+           left of the common cluster). Populated via window.__studioSetSectionActions. -->
+      <div id="tbSectionActions" class="tb-section-actions"></div>
+      <!-- Standard right-side cluster: What's-new · What's-next · Dark toggle · (waffle) · +New · More.
+           The fleet waffle (.ps-waffle-btn) is inserted just left of +New by app/fleet.js. -->
+      <button class="btn icon tb-ic" id="tbWhatsNew" type="button" title="What's new" aria-label="What's new" aria-expanded="false"></button>
+      <button class="btn icon tb-ic" id="tbWhatsNext" type="button" title="What's next" aria-label="What's next — roadmap"></button>
+      <button class="btn icon tb-ic" id="tbTheme" type="button" title="Toggle dark mode" aria-label="Toggle dark mode"></button>
       <div class="menu-wrap"><button class="btn btn-primary" id="btnNew" title="New dashboard">New ▾</button>
         <div class="menu" id="menuNew"></div></div>
       <div class="menu-wrap" id="moreWrap">
@@ -203,7 +125,105 @@
       </div>
     </div>
   </header>
+  <div id="appBody">
 
+  <section id="secHome" class="app-sec">
+    <div class="sec-empty">
+      <div class="sec-empty-ic" data-ic="home"></div>
+      <h2>Home</h2>
+      <div class="sec-skel" role="status" aria-label="Loading">
+        <span class="sec-skel-bar"></span><span class="sec-skel-bar"></span><span class="sec-skel-bar sec-skel-bar-short"></span>
+      </div>
+    </div>
+  </section>
+  <section id="secDashboards" class="app-sec has-content" hidden>
+    <div class="repo-wrap">
+      <div class="repo-hero">
+        <p>Every dashboard you've saved — searchable, filterable by workbook, as tiles or a list. Searching also finds dashboards by the columns their datasets use.</p>
+        <input id="repoSearch" class="repo-search" type="search" placeholder="Search dashboards…" aria-label="Search dashboards"/>
+        <div class="repo-io">
+          <button type="button" class="btn" id="dashViewToggle" title="Switch between tile and list layout" aria-pressed="false">List view</button>
+          <button type="button" class="btn" id="repoCompareBtn" title="Pick any two saved dashboards and see what differs between them">Compare dashboards…</button>
+          <button type="button" class="btn" id="repoExportBtn">Export dashboards…</button>
+          <button type="button" class="btn" id="repoImportBtn">Import dashboards…</button>
+        </div>
+      </div>
+      <div id="repoResults"></div>
+    </div>
+  </section>
+  <section id="secExplore" class="app-sec has-content" hidden>
+    <div class="repo-wrap">
+      <div class="repo-hero">
+        <p>Start from a dataset, see it as a table, pick a chart, and save the result as an <b>analysis</b> — a reusable chart you can pin to Home or drop into any dashboard.</p>
+      </div>
+      <div id="xpBody" class="xp-body"></div>
+    </div>
+  </section>
+  <section id="secDatasets" class="app-sec has-content" hidden>
+    <div class="repo-wrap">
+      <div class="repo-hero">
+        <p>Named, parameterizable queries defined on top of your connections — the reusable building blocks dashboards are made of.</p>
+        <input id="dsxSearch" class="repo-search" type="search" placeholder="Search datasets…" aria-label="Search datasets"/>
+        <div class="repo-io">
+          <button type="button" class="btn primary" id="dsxNewBtn">+ New dataset</button>
+        </div>
+      </div>
+      <div id="dsxResults"></div>
+    </div>
+  </section>
+  <section id="secJobs" class="app-sec has-content" hidden>
+    <div class="repo-wrap">
+      <div class="repo-hero">
+        <p>Prep a dataset before it's charted: rename/cast/derive columns, filter rows, and roll up with an acreage-weighted mean for honest State/CRD/HUC8 aggregates. Run a job and its output lands back in Datasets, ready for Explore or any dashboard.</p>
+        <input id="jobsSearch" class="repo-search" type="search" placeholder="Search jobs…" aria-label="Search jobs"/>
+        <div class="repo-io">
+          <button type="button" class="btn primary" id="jobsNewBtn">+ New job</button>
+        </div>
+      </div>
+      <div id="jobsResults"></div>
+    </div>
+  </section>
+  <section id="secConnections" class="app-sec has-content" hidden>
+    <div class="repo-wrap">
+      <div class="repo-hero">
+        <p>Where your dashboards' data lives — reusable connections to warehouses, files and APIs, one adapter each. <span id="connCredNote">Credentials stay in this browser.</span></p>
+        <input id="connSearch" class="repo-search" type="search" placeholder="Search connections…" aria-label="Search connections"/>
+        <div class="repo-io">
+          <button type="button" class="btn primary" id="connNewBtn">+ New connection</button>
+        </div>
+      </div>
+      <div id="connResults"></div>
+    </div>
+  </section>
+  <section id="secRepository" class="app-sec has-content" hidden>
+    <div class="repo-wrap">
+      <div class="repo-hero">
+        <p>Every object in your workspace — dashboards, datasets, connections, analyses and jobs — in one searchable, filterable place. Pick a kind below, or search across all of them; opening a row takes you straight to that object's own editor.</p>
+        <input id="repoAllSearch" class="repo-search" type="search" placeholder="Search the whole workspace…" aria-label="Search the whole workspace"/>
+      </div>
+      <div id="repoAllResults"></div>
+    </div>
+  </section>
+  <section id="secSettings" class="app-sec" hidden>
+    <div class="sec-empty">
+      <div class="sec-empty-ic" data-ic="gear"></div>
+      <h2>Settings</h2>
+      <div class="sec-skel" role="status" aria-label="Loading">
+        <span class="sec-skel-bar"></span><span class="sec-skel-bar"></span><span class="sec-skel-bar sec-skel-bar-short"></span>
+      </div>
+    </div>
+  </section>
+  <section id="secAdmin" class="app-sec" hidden>
+    <div class="sec-empty">
+      <div class="sec-empty-ic" data-ic="shield"></div>
+      <h2>Admin</h2>
+      <div class="sec-skel" role="status" aria-label="Loading">
+        <span class="sec-skel-bar"></span><span class="sec-skel-bar"></span><span class="sec-skel-bar sec-skel-bar-short"></span>
+      </div>
+    </div>
+  </section>
+
+  <div id="appMain" hidden>
   <main id="workspace">
     <!-- LEFT: query library -->
     <aside id="library" class="pane">
@@ -310,6 +330,8 @@
     </div>
     <span class="sb-stamp" id="fbStamp" title="When this build was last published"></span>
   </footer>
+  </div>
+  </div>
   </div>
 </div>
 <div id="mobile-scrim" aria-hidden="true"></div>

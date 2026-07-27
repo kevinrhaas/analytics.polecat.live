@@ -208,7 +208,13 @@ body{font-family:var(--font);background:var(--bg);color:var(--ink);-webkit-font-
    never saw it. 100dvh tracks the actual visible viewport and updates live as the toolbar
    shows/hides; the 100vh line stays first as a fallback for browsers without dvh support. */
 #app{height:100vh;height:100dvh;display:flex}
-#appMain{flex:1;min-width:0;height:100%;display:flex;flex-direction:column}
+/* Slice A: #topbar is a GLOBAL frame element. #appRight is the flex column that stacks the
+   persistent topbar over #appBody (the swappable section area). #appBody holds every rail
+   section (incl. Studio's #appMain), so the topbar stays put as sections switch beneath it. */
+#appRight{flex:1;min-width:0;height:100%;display:flex;flex-direction:column}
+#appBody{flex:1;min-width:0;min-height:0;display:flex;position:relative}
+/* #appMain lost its own height:100% (it's now a flex:1 child of #appBody, not of #app). */
+#appMain{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column}
 #appMain[hidden]{display:none}
 
 /* ── Z1: app shell left rail (Home · Repository · Studio · Settings) ── */
@@ -282,12 +288,8 @@ html[data-app-theme='conservation'] #railNav{--rail-bg:#10432e;--rail-bg2:#1a5c4
 #railNav .rail-lbl{overflow:hidden;text-overflow:ellipsis}
 #railNav:not(.expanded) .rail-lbl{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
 #railNav .rail-spacer{flex:1}
-/* Z11: Help/docs entry — a persistent, always-visible rail link (not buried in ⋯ More) */
-#railNav #railCmdk{border-top:1px solid var(--rail-line)}
-/* Track N follow-up: visible ⌘K hint so the command palette isn't only discoverable
-   via ⋯ More or the shortcuts modal. Chip hides when the rail is collapsed (icon-only). */
-#railNav .rail-kbd{margin-left:6px;padding:var(--sp-2) var(--sp-6);border-radius:5px;font-size:var(--fs-10);font-weight:700;
-  font-family:inherit;border:1px solid var(--rail-line);opacity:.75}
+/* Slice A: #railCmdk was removed (command-palette search moved to the global topbar center,
+   #tbSearch); its rail-item + .rail-kbd chip styles went with it. */
 #railNav .rail-toggle{opacity:.5;border-top:1px solid var(--rail-line)}
 #railNav .rail-toggle:hover{opacity:.9}
 /* Z5 follow-up: "quick settings" mirror in the mobile drawer (relay.polecat.live-style) — the
@@ -645,6 +647,30 @@ textarea:focus-visible,[tabindex]:focus-visible,.row-item:focus-visible{
 /* Fleet-standard topbar: the current section name at the top-left (matches
    JobTracker/AutoSelector; the app identity lives in the rail brand). */
 .tb-section{font-weight:800;font-size:var(--fs-16);letter-spacing:.2px;line-height:1.1;color:var(--topbar-ink,#fff);white-space:nowrap;flex:0 0 auto}
+/* Slice A: centered command-palette search pill (topbar center slot). .tb-center takes the
+   flexible middle space and centers the pill; the left group (section name + chips) and the
+   right cluster stay pinned to the edges. */
+.tb-center{flex:1 1 auto;min-width:0;display:flex;justify-content:center}
+.topbar-search{display:inline-flex;align-items:center;gap:8px;min-width:0;width:min(340px,42vw);
+  background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:color-mix(in srgb,var(--topbar-ink,#fff) 82%,transparent);
+  font:inherit;font-size:var(--fs-13);font-weight:500;padding:var(--sp-8) var(--sp-12);border-radius:9px;cursor:pointer;
+  transition:background .14s,border-color .14s}
+.topbar-search:hover{background:rgba(255,255,255,.18);border-color:color-mix(in srgb,var(--topbar-ink,#fff) 45%,transparent);color:var(--topbar-ink,#fff)}
+.topbar-search .tbs-ic{display:inline-flex;flex:0 0 auto;opacity:.85}
+.topbar-search .tbs-ic svg{width:15px;height:15px}
+.topbar-search .tbs-lbl{flex:1 1 auto;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.topbar-search kbd{flex:0 0 auto;font-family:var(--mono);font-size:var(--fs-11);font-weight:600;line-height:1;
+  padding:2px 6px;border-radius:5px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.18);color:inherit}
+/* Slice A: the right-side icon buttons (What's-new · What's-next · Dark toggle) — the base
+   translucent .btn.icon, sized square with the topbar-ink glyph. */
+#topbar .tb-ic{position:relative;display:inline-flex;align-items:center;justify-content:center;padding:var(--sp-8);color:var(--topbar-ink,#fff)}
+#topbar .tb-ic svg{width:16px;height:16px}
+/* Slice A: per-section action slot (empty in Slice A; Slice B fills it for Studio). */
+.tb-section-actions{display:flex;align-items:center;gap:8px}
+.tb-section-actions:empty{display:none}
+/* Slice A: unseen "what's new" dot mirrored onto the topbar button (id #wnDotTb). */
+#tbWhatsNew{position:relative}
+#tbWhatsNew .sb-new-dot{position:absolute;top:6px;right:6px}
 .dash-id{display:flex;flex-direction:column;gap:2px;min-width:200px}
 /* Z6 naming model: the topbar no longer edits the title inline — it's a button that jumps
    to the Dashboard inspector's Title field (the single source of truth for renaming). */
@@ -1110,6 +1136,24 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
 .modal-b{padding:var(--sp-16) var(--sp-18);overflow:auto}
 .modal-b pre{background:var(--field);border:1px solid var(--line);border-radius:8px;padding:var(--sp-12);font-size:var(--fs-11);
   font-family:var(--mono);overflow:auto;max-height:300px;white-space:pre-wrap;word-break:break-word}
+/* Slice A: What's-next roadmap modal (topbar #tbWhatsNext). Compact grouped list —
+   Up next / Planned / Exploring — each item a titled note card. */
+.whatsnext .wn-intro{margin:0 0 var(--sp-16);color:var(--muted);font-size:var(--fs-13);line-height:1.5}
+.whatsnext .wn-group-h{display:flex;align-items:center;gap:8px;font-size:var(--fs-11);font-weight:800;text-transform:uppercase;
+  letter-spacing:.6px;color:var(--faint);margin:var(--sp-16) 0 var(--sp-8)}
+.whatsnext .wn-group-h:first-of-type{margin-top:0}
+.whatsnext .wn-status{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;
+  border-radius:9px;font-size:var(--fs-10);font-weight:700;color:#fff;background:var(--faint)}
+.whatsnext .wn-status-next{background:var(--brand)}
+.whatsnext .wn-status-planned{background:var(--pdc)}
+.whatsnext .wn-status-exploring{background:color-mix(in srgb,var(--muted) 70%,transparent)}
+.whatsnext .wn-item{border:1px solid var(--line);border-left-width:3px;border-radius:8px;padding:var(--sp-10) var(--sp-12);
+  margin-bottom:var(--sp-8);background:var(--field)}
+.whatsnext .wn-item-next{border-left-color:var(--brand)}
+.whatsnext .wn-item-planned{border-left-color:var(--pdc)}
+.whatsnext .wn-item-exploring{border-left-color:var(--muted)}
+.whatsnext .wn-item-t{font-size:var(--fs-14);font-weight:700;color:var(--ink);margin-bottom:2px}
+.whatsnext .wn-item-n{font-size:var(--fs-12);color:var(--muted);line-height:1.5}
 
 /* ── library “＋ New source” + per-card edit/delete ── */
 .pane-h .pane-add{margin-left:auto;background:color-mix(in srgb,var(--brand) 12%,transparent);border:1px solid color-mix(in srgb,var(--brand) 30%,transparent);
@@ -1220,6 +1264,10 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
   .top-actions .menu{position:fixed;top:108px;right:12px;left:auto;width:max-content;max-width:min(80vw,320px)}
   .top-app .menu{position:fixed;top:64px;right:12px;left:auto;width:max-content;max-width:min(80vw,320px)}
   #dashbar{overflow:hidden;gap:8px}
+  /* Slice A: keep the global topbar cluster from crowding on tablets — the search pill
+     narrows and the .top-app row tightens (it holds the standard cluster now). */
+  .topbar-search{width:min(220px,34vw);padding:var(--sp-6) var(--sp-10)}
+  .top-app{gap:6px;flex-shrink:0}
 }
 /* phone-pos: examples menu opened from the More menu gets fixed position below the topbar */
 #menuExamples.phone-pos{position:fixed;top:64px;left:8px;right:8px;max-width:none;z-index:60}
@@ -1241,6 +1289,15 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
      Previously only hidden at ≤400px, leaving mid-size phones (400-640px) with a clipped topbar. */
   #btnExamples,#btnImport,#btnSaveSpec,#btnCloseStudio{display:none!important}
   .more-phone-only{display:block}
+  /* Slice A: on phones the global topbar keeps only its essentials — the section name, a
+     compact icon-only search, the waffle, +New and ⋯More — so the section name has room to
+     read instead of ellipsising to a letter. The three lowest-priority icon buttons hide:
+     What's-new (still on the Studio footer), What's-next, and the dark toggle (dark mode is
+     one tap away in the rail drawer's quick settings and in Settings). */
+  #tbWhatsNew,#tbWhatsNext,#tbTheme{display:none!important}
+  .topbar-search{width:auto;padding:var(--sp-8);min-width:44px;min-height:44px;justify-content:center}
+  .topbar-search .tbs-lbl,.topbar-search kbd{display:none}
+  .tb-center{flex:0 0 auto}
   /* M11: restore-banner dismiss button gets a full-row tap-friendly layout on phone */
   .restore-banner .rb-acts .btn{min-height:44px;flex:1;display:flex;align-items:center;justify-content:center}
   /* M12/m-e (carried into the shell right panel): the What's-new feed must stay a
