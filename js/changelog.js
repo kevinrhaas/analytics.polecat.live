@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 620,
+    title: 'Admin can now register multiple backends',
+    kind: 'feature',
+    ts: '2026-07-27T17:35:16.000Z',
+    items: [
+      'New Backends card on the Admin page: add, edit, test, and delete named backend configs (Turso, Supabase, Firebase) ahead of connecting to any of them.',
+      'Connect on a registered backend runs the same connect flow as Settings, so switching backends later is a click instead of re-typing credentials -- only one backend is ever active at a time, marked with an "active" badge.',
+    ],
+  },
+  {
     v: 619,
     title: 'Per-user provisioning defaults: theme + Conservation sample pack on first sign-in',
     kind: 'feature',

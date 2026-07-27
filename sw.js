@@ -5,7 +5,10 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v256"; /* v256: LF41 slice 1 — per-user provisioning defaults
+var CACHE_NAME = "studio-shell-v257"; /* v257: LF42 slice 1 — Admin "Backends" card lets an
+   admin register multiple named backend configs ahead of connecting to one.
+   app/studio.js and docs/index.html changed, so precached copies need to roll.
+   v256: LF41 slice 1 — per-user provisioning defaults
    (default theme + Conservation sample pack), applied once at an account's first sign-in.
    app/auth.js and app/studio.js changed, so precached copies need to roll.
    v255: LF39 — cross-device sign-in no longer gives a
