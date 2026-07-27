@@ -116,6 +116,20 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **Home greeting personalizes + demo account renamed (#108, v632, sw v269, 2026-07-27,
+  steward):** Kevin: "im a little surprised you don't have the login user's name here in the
+  greeting line ... even demo/demo should be Demonstration User". The Home hero's hardcoded
+  "Welcome back" now reads "Welcome back, <display name>" — new `currentUserName()` (app/studio.js,
+  reads `PolecatAuth.current().name`, returns "" for the synthetic no-auth/local operator so that
+  path stays un-personalized) feeds `renderHome()`. Because the app boots BEHIND the sign-in
+  overlay (no identity yet), `initAuthBoot` now also re-renders Home after login (alongside its
+  Settings/Admin repaint) so the greeting picks up who signed in. The seeded demo account is renamed
+  "Demo user" -> "Demonstration User" (app/auth.js SEED), with a conservative additive migration
+  (`migrateDemoName`, run from `seedIfEmpty`) that upgrades existing local stores only when the demo
+  row still carries the old default name — a user-renamed row is never overwritten. Test: after
+  demo/demo signs in, `find("demo").name` and `__studioCurrentUserName()` are both "Demonstration
+  User" and `#secHome .home-hero h1` reads exactly "Welcome back, Demonstration User". Files:
+  app/studio.js, app/auth.js, tests/run.js, sw.js, js/changelog.js.
 - **Sign-in polish: password reveal toggle + trimmed demo copy (#102/#105, v631, sw v268,
   2026-07-27, steward):** two small login-screen items Kevin raised during live QA. #102 —
   "include that eye show hidden there also": the sign-in password (`#g-pass`) now carries the same

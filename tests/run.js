@@ -10201,6 +10201,17 @@ function serve() {
     const unlocked = await gp.evaluate(() => ({ gone: !document.querySelector("#studio-gate"),
       appVisible: document.getElementById("app").style.visibility !== "hidden", who: (window.PolecatAuth.current() || {}).u }));
     ok("correct demo credentials (demo/demo) sign in and reveal the app", unlocked.gone && unlocked.appVisible && unlocked.who === "demo", JSON.stringify(unlocked));
+
+    // #108: the seeded demo account is now "Demonstration User", and the Home greeting
+    // personalizes to the signed-in account's display name (repainted by __studioAuthBoot).
+    const g108 = await gp.evaluate(() => ({
+      demoName: (window.PolecatAuth.find("demo") || {}).name,
+      currentName: window.__studioCurrentUserName ? window.__studioCurrentUserName() : null,
+      greeting: ((document.querySelector("#secHome .home-hero h1") || {}).textContent || "").trim()
+    }));
+    ok("#108: the seeded demo account is 'Demonstration User' and the Home greeting personalizes to the signed-in display name",
+      g108.demoName === "Demonstration User" && g108.currentName === "Demonstration User" && /^Welcome back, Demonstration User$/.test(g108.greeting), JSON.stringify(g108));
+
     // welcome tour appears once unlocked (first run), and is dismissable / reopenable
     await gp.waitForTimeout(500);
     const wShown = await gp.evaluate(() => !!document.querySelector("#studio-welcome"));
