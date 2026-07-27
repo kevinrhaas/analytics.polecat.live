@@ -116,6 +116,19 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **polecat-admin relay: inline SQL so go-live actually runs (2026-07-27, steward — edge
+  function only, redeploy required):** the deployed function failed go-live/provision at runtime
+  with `path not found: /var/tmp/sb-compile-edge-runtime/polecat-admin/bootstrap.sql` — it read
+  `bootstrap.sql`/`rls-real.sql` off disk via `Deno.readTextFile(new URL("./x.sql", import.meta.url))`,
+  but the Supabase Edge Runtime deploy bundle only includes the module graph, not sibling `.sql`
+  files. Fix: new `supabase/functions/polecat-admin/sql.ts` inlines both blocks as exported string
+  constants (`BOOTSTRAP_DDL` / `RLS_REAL_SQL`); `index.ts` imports them (no more `await
+  Deno.readTextFile`); the two condensed `.sql` files were deleted (single runtime source now —
+  keep `sql.ts` in sync with the canonical `/tools/supabase-*.sql`). NOTE: this is edge-function
+  source, NOT part of the static Pages build — it takes effect only after `supabase functions
+  deploy polecat-admin` (a maintainer step). Runbook Path C updated with the failure mode. Files:
+  supabase/functions/polecat-admin/{sql.ts new, index.ts, bootstrap.sql & rls-real.sql deleted},
+  tools/M7-RLS-GOLIVE-RUNBOOK.md.
 - **First-admin bootstrap fix (v621, sw v258, 2026-07-27, steward):** turning on per-user security
   on a fresh Supabase project failed the very first Go live with "This account is not an admin of this
   workspace" — a genuine chicken-and-egg: the `polecat-admin` relay's `requireAdmin()` demands an admin
