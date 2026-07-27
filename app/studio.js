@@ -8045,7 +8045,7 @@
     }
     function onKey(e) { if (e.key === "Escape") { e.stopPropagation(); close(); } }
     closeBtn.onclick = close;
-    ov.addEventListener("click", function (e) { if (e.target === ov) close(); });
+    dismissOnBackdrop(ov, close);
     document.addEventListener("keydown", onKey);
     // LF8: interacting with the chart (e.g. the GL map's zoom controls) can move focus INTO the
     // iframe's own document, whose keydown events never reach this document's listener above —
@@ -8144,7 +8144,7 @@
     prevBtn.onclick  = function () { if (_ssIdx > 0) showSlide(_ssIdx - 1); };
     nextBtn.onclick  = function () { if (_ssIdx < _ssPanels.length - 1) showSlide(_ssIdx + 1); };
     closeBtn.onclick = close;
-    ov.addEventListener("click", function (e) { if (e.target === ov) close(); });
+    dismissOnBackdrop(ov, close);
     document.addEventListener("keydown", onKey);
     showSlide(0);
     // Focus the close button so keyboard events land in the parent document, not the iframe
@@ -9846,6 +9846,18 @@
   function panelById(id) { return S.spec.panels.filter(function (p) { return p.id === id; })[0]; }
   function renderListsOnly() { if (!S.selection) renderInspector(); }
 
+  // Outside-click-to-dismiss for a full-screen overlay, but ONLY when the press
+  // BEGINS on the backdrop. A text selection inside a dialog (or a drag on a
+  // zoomed chart) that sweeps out and releases on the backdrop fires a `click`
+  // whose target is the backdrop — the old `if (e.target === ov)` closed on that,
+  // silently discarding whatever you'd typed. Requiring mousedown AND the click to
+  // both land on the overlay means only a genuine backdrop click dismisses.
+  function dismissOnBackdrop(ov, close) {
+    var downOnOv = false;
+    ov.addEventListener("mousedown", function (e) { downOnOv = (e.target === ov); });
+    ov.addEventListener("click", function (e) { var ok = downOnOv; downOnOv = false; if (ok && e.target === ov) close(); });
+  }
+
   function modal(title, build, onClose, wide) {
     var ov = el("div", "modal-ov"); var m = el("div", "modal" + (wide ? " modal-wide" : ""));
     var h = el("div", "modal-h"); h.textContent = title; var x = el("button", "x"); x.type = "button"; x.setAttribute("aria-label", "Close " + title); x.appendChild(Studio.icon("close", 16)); h.appendChild(x);
@@ -9873,7 +9885,7 @@
       else { if (document.activeElement === last || !m.contains(document.activeElement)) { e.preventDefault(); first.focus(); } }
     }
     x.onclick = close;
-    ov.addEventListener("click", function (e) { if (e.target === ov) close(); });
+    dismissOnBackdrop(ov, close);
     setTimeout(function () { var els = focusable(); if (els.length) els[0].focus(); document.addEventListener("keydown", onKey); }, 50);
   }
 
