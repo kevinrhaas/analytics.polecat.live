@@ -16333,6 +16333,35 @@ function serve() {
     });
     ok("v601: exported CDF HTML embeds periodSplit config in STUDIO_SPEC", v601ExportResult.hasPeriodSplit, JSON.stringify(v601ExportResult));
 
+    // ---- Track L sweep (chart-extension API lens): every Studio.CHARTS entry declares `cde` ----
+    // The registry's contract is "every chart type has a `cde` key: an object (exportable to CCC/
+    // CDE) or an explicit `null` (CDF-only)". Studio.cdeUnsupported() happens to work even when a
+    // type OMITS the key (undefined is falsy too), so a silent omission never broke at runtime —
+    // but it left the extension surface ad-hoc. choropleth/ensembleSeries/richtext/boxplot were
+    // missing the key outright; this guards the registry from silently regressing back to that.
+    console.log("\n• Track L sweep: chart registry cde contract");
+    const chartsCdeResult = await page.evaluate(function () {
+      var missing = [];
+      for (var t in Studio.CHARTS) {
+        if (!Object.prototype.hasOwnProperty.call(Studio.CHARTS[t], "cde")) missing.push(t);
+      }
+      return { missing: missing, total: Object.keys(Studio.CHARTS).length };
+    });
+    ok("Track L: every Studio.CHARTS entry declares a `cde` key (object or explicit null)",
+      chartsCdeResult.missing.length === 0, JSON.stringify(chartsCdeResult));
+    const cdeNullSpotCheck = await page.evaluate(function () {
+      return {
+        choropleth: Studio.CHARTS.choropleth.cde,
+        ensembleSeries: Studio.CHARTS.ensembleSeries.cde,
+        richtext: Studio.CHARTS.richtext.cde,
+        boxplot: Studio.CHARTS.boxplot.cde
+      };
+    });
+    ok("Track L: choropleth/ensembleSeries/richtext/boxplot are explicitly cde: null (CDF-only)",
+      cdeNullSpotCheck.choropleth === null && cdeNullSpotCheck.ensembleSeries === null &&
+      cdeNullSpotCheck.richtext === null && cdeNullSpotCheck.boxplot === null,
+      JSON.stringify(cdeNullSpotCheck));
+
     // Restore clean spec
     await page.evaluate(async function () {
       var freshSpec = await fetch("data/examples/studio-cost.studio.json").then(function (r) { return r.json(); });

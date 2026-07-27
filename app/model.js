@@ -1111,7 +1111,8 @@
         { key: "showLegend", type: "bool", label: "Show legend", def: true },
         { key: "fmt",     type: "fmt",  label: "Value format", def: "raw" },
         { key: "height",  type: "int",  label: "Height (px)", def: 380 }
-      ]
+      ],
+      cde: null // CDF-only; no CCC/CDE choropleth equivalent
     },
     // ── Ensemble series (Viridis V3) — CDF-only ──────────────────────────────
     // THE MEDIAN IS THE PRODUCT: a bold consensus line (median of the providers
@@ -1136,7 +1137,8 @@
         { key: "showToggles", type: "bool", label: "Provider on/off toggles", def: true },
         { key: "fmt",         type: "fmt",  label: "Value format", def: "raw" },
         { key: "height",      type: "int",  label: "Height (px)", def: 320 }
-      ]
+      ],
+      cde: null // CDF-only; no CCC ensemble equivalent
     },
     table: {
       label: "Table", icon: "▥", group: "Detail",
@@ -1160,7 +1162,8 @@
       group: "Content",
       desc: "Headings, callouts, and explanatory text",
       fields: [],
-      opts: []
+      opts: [],
+      cde: null // CDF-only; no CCC/CDE equivalent for pure text panels
     },
     // Box plot — distribution chart (quartiles, median, whiskers) per category.
     // CDF-only via the PDC.boxplot extension in studio-charts.js.
@@ -1174,7 +1177,8 @@
         { key: "horizontal", label: "Horizontal boxes", type: "bool", def: true },
         { key: "fmt",        label: "Value format",    type: "fmt",  def: "abbr" },
         { key: "height",     type: "int", label: "Height (px)", def: 300 }
-      ]
+      ],
+      cde: null // CDF-only via the PDC.boxplot extension in studio-charts.js
     },
     // Lollipop / dot-plot — clean ranked comparison: thin stem line + dot per row.
     // Elegant alternative to bar charts; great for league tables and rankings.
