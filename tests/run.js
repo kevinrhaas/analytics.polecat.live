@@ -664,10 +664,42 @@ function serve() {
     await page.evaluate(() => window.__studioShellSetSection("studio"));
     await page.waitForTimeout(150);
 
+    // ---- Slice B: Studio's dashboard-scoped actions live in the shared topbar's
+    // per-section slot (#tbSectionActions) instead of #dashbar, only while Studio is active ----
+    console.log("\n• Slice B: Studio's Undo/Redo/Open/Save/Export live in #tbSectionActions while active");
+    const sliceBOnStudio = await page.evaluate(() => {
+      var slot = document.getElementById("tbSectionActions");
+      var ta = document.querySelector("#dashbar .top-actions");
+      return {
+        slotIds: [].slice.call(slot.children).map(function (c) { return c.id || (c.querySelector("button") && c.querySelector("button").id) || null; }),
+        dashbarStillHasUndo: !!ta.querySelector("#btnUndo"),
+        dashbarStillHasExport: !!ta.querySelector("#btnExport"),
+        dashbarHasExamples: !!ta.querySelector("#btnExamples"),
+        dashbarHasSaveAs: !!ta.querySelector("#btnSaveAsSpec")
+      };
+    });
+    ok("Slice B: #tbSectionActions holds Studio's Undo/Redo/Open/Save/Export (in order) while Studio is active",
+      sliceBOnStudio.slotIds.join(",") === "btnUndo,btnRedo,btnImport,btnSaveSpec,btnExport",
+      JSON.stringify(sliceBOnStudio));
+    ok("Slice B: those 5 actions are moved OUT of #dashbar .top-actions, not duplicated",
+      !sliceBOnStudio.dashbarStillHasUndo && !sliceBOnStudio.dashbarStillHasExport, JSON.stringify(sliceBOnStudio));
+    ok("Slice B: #dashbar keeps Examples ▾ / Save as… (dashboard-scoped, but not part of this slice)",
+      sliceBOnStudio.dashbarHasExamples && sliceBOnStudio.dashbarHasSaveAs, JSON.stringify(sliceBOnStudio));
+    // Undo/Redo/Save/Export still work from their new home (Open is exercised via LF9/LF27b
+    // below, and via the dedicated "Open a dashboard" picker tests elsewhere in this suite).
+    await page.evaluate(async () => { const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json()); window.__studioLoad(spec); });
+    await page.waitForTimeout(200);
+    await page.click("#btnExport"); await page.waitForTimeout(80);
+    const sliceBExportMenuOpen = await page.evaluate(() => document.getElementById("menuExport").classList.contains("open"));
+    ok("Slice B: Export ▾, relocated into the topbar, still opens its dropdown", sliceBExportMenuOpen);
+    await page.click("#btnExport"); await page.waitForTimeout(80); // toggle closed again
+
     // ---- LF27(b): Studio gains a Close button that returns you to where you opened it from ----
     console.log("\n• LF27(b): Close returns Studio to its origin section");
     await page.evaluate(() => window.__studioShellSetSection("home"));
     await page.waitForTimeout(150);
+    const sliceBOnHome = await page.evaluate(() => document.getElementById("tbSectionActions").children.length);
+    ok("Slice B: #tbSectionActions empties again after leaving Studio", sliceBOnHome === 0, "children=" + sliceBOnHome);
     await page.click('.home-card[data-home="blank"]');
     await page.waitForTimeout(150);
     const lf27bEntered = await page.evaluate(() => ({
@@ -12868,38 +12900,33 @@ function serve() {
       moreGroups.stillHasShortcuts && moreGroups.stillHasEditJSON, JSON.stringify(moreGroups));
 
     // ---- Track H (IA sweep): topbar action clusters get subtle visual dividers ----
-    // Z1 follow-up ("simplify the top menu bar") — first slice. Undo/Redo (History) | New/
-    // Examples/Open/Save/Export (File) | Tour/Theme (Connect & present) now
-    // read as three visually distinct clusters instead of one undifferentiated row of 11
-    // buttons. Purely additive: plain `<span class="top-sep">` siblings, not wrapping group
-    // containers, so every button keeps its existing id/order/direct-child relationship to
-    // `.top-actions` (the MNAV mobile tests below walk `:scope > .btn` and must keep working).
-    // UX sprint 2026-07-14: .top-actions moved into #dashbar (dashboard-scoped toolbar above
-    // the preview); its clusters are now History (Undo/Redo) | File (Examples/Open/Save/Export)
-    // | Present (Theme). ＋New lives in the app topbar's .top-app, not here.
+    // Z1 follow-up ("simplify the top menu bar") — first slice. Purely additive: plain
+    // `<span class="top-sep">` siblings, not wrapping group containers, so every button
+    // keeps its existing id/order/direct-child relationship to `.top-actions` (the MNAV
+    // mobile tests below walk `:scope > .btn` and must keep working).
+    // Slice B: Undo/Redo/Open/Save/Export moved out of #dashbar into #tbSectionActions
+    // (see the dedicated Slice B block above), so #dashbar's own remaining clusters are
+    // just File (Examples/Save as…/Close) | Present (Theme), with the ONE divider
+    // (sep-connect) between them — the History|File divider that used to separate
+    // Undo/Redo from Examples went with them.
     console.log("\n• Track H: dashbar action clusters get grouping dividers");
     const topSeps = await page.evaluate(() => {
       var ta = document.querySelector("#dashbar .top-actions");
       var kids = [].slice.call(ta.children);
       var seps = kids.filter((k) => k.classList.contains("top-sep"));
-      var idxRedo = kids.findIndex((k) => k.id === "btnRedo");
-      var idxSep1 = kids.findIndex((k) => k.classList.contains("top-sep") && !k.classList.contains("sep-connect"));
       var idxExamplesWrap = kids.findIndex((k) => k.querySelector && k.querySelector("#btnExamples"));
-      var idxExportWrap = kids.findIndex((k) => k.querySelector && k.querySelector("#btnExport"));
-      var idxSep2 = kids.findIndex((k) => k.classList.contains("sep-connect"));
+      var idxSep = kids.findIndex((k) => k.classList.contains("sep-connect"));
       var idxTheme = kids.findIndex((k) => k.id === "btnTheme");
       return {
         count: seps.length,
         allAriaHidden: seps.every((s) => s.getAttribute("aria-hidden") === "true"),
         noneFocusable: seps.every((s) => s.tabIndex === -1 || !s.hasAttribute("tabindex")),
-        historyBeforeFile: idxRedo < idxSep1 && idxSep1 < idxExamplesWrap,
-        fileBeforePresent: idxExportWrap < idxSep2 && idxSep2 < idxTheme
+        fileBeforePresent: idxExamplesWrap < idxSep && idxSep < idxTheme
       };
     });
-    ok("Track H: dashbar has exactly 2 grouping dividers (History | File | Present)", topSeps.count === 2, JSON.stringify(topSeps));
+    ok("Track H: dashbar has exactly 1 grouping divider (File | Present)", topSeps.count === 1, JSON.stringify(topSeps));
     ok("Track H: dashbar dividers are decorative only (aria-hidden, not tab-focusable)", topSeps.allAriaHidden && topSeps.noneFocusable, JSON.stringify(topSeps));
-    ok("Track H: divider 1 sits between Redo (History) and Examples (File)", topSeps.historyBeforeFile, JSON.stringify(topSeps));
-    ok("Track H: divider 2 sits between Export (File) and Theme (Present)", topSeps.fileBeforePresent, JSON.stringify(topSeps));
+    ok("Track H: the divider sits between Examples (File) and Theme (Present)", topSeps.fileBeforePresent, JSON.stringify(topSeps));
 
     // ---- Focus trap in modals (v48) ----
     console.log("\n• Focus trap in modals (v48)");
@@ -13402,20 +13429,21 @@ function serve() {
     const exportReach = await menuItemReachable(tabletPage, "btnExport", "menuExport");
     ok("tablet viewport: Export ▾ menu opens and its items are reachable", exportReach.wasOpen && exportReach.reachable, JSON.stringify(exportReach));
     // Track H: the Connect & present divider must hide alongside the .btn-secondary
-    // cluster it separates (Tour/Theme) — otherwise it'd dangle at the
-    // end of the row with nothing after it. The History|File divider stays visible
-    // since both of those groups remain on-screen at tablet width.
+    // cluster it separates (Tour/Theme) — otherwise it'd dangle at the end of the row
+    // with nothing after it. Slice B moved Undo/Redo out of #dashbar (into the topbar),
+    // so the old History|File divider that used to separate them from Examples is gone
+    // entirely now, not just hidden — #dashbar's sole remaining divider is sep-connect.
     const tabletSeps = await tabletPage.evaluate(() => {
       var seps = [].slice.call(document.querySelectorAll(".top-sep"));
       var connect = seps.filter((s) => s.classList.contains("sep-connect"));
       var other = seps.filter((s) => !s.classList.contains("sep-connect"));
       return {
         connectHidden: connect.every((s) => getComputedStyle(s).display === "none"),
-        otherVisible: other.every((s) => getComputedStyle(s).display !== "none")
+        otherCount: other.length
       };
     });
     ok("tablet viewport: the Connect & present divider hides along with its now-hidden button group", tabletSeps.connectHidden, JSON.stringify(tabletSeps));
-    ok("tablet viewport: the History|File divider stays visible (both flanking groups still show)", tabletSeps.otherVisible, JSON.stringify(tabletSeps));
+    ok("tablet viewport: no other divider remains (the old History|File one left with Undo/Redo)", tabletSeps.otherCount === 0, JSON.stringify(tabletSeps));
     await tabletPage.close();
 
     // Z9 motion polish: dropdown menus fade+rise in instead of a hard display:none/block cut,
@@ -13565,8 +13593,12 @@ function serve() {
     // Close inspector drawer, then open the CDF export modal
     await phonePage.evaluate(() => { var s = document.getElementById("mobile-scrim"); if (s) s.click(); });
     await phonePage.waitForTimeout(200);
-    // Open export menu then click "CDF dashboard (.html)"
-    await phonePage.click("#btnExport");
+    // Open export menu then click "CDF dashboard (.html)" — Slice B: #btnExport itself is
+    // hidden at phone width now (moved into the shared topbar's #tbSectionActions, folded
+    // behind ⋯More like Examples/Open/Save/Close), so reach it via #moreExport instead.
+    await phonePage.click("#btnMore");
+    await phonePage.waitForTimeout(100);
+    await phonePage.click("#moreExport");
     await phonePage.waitForTimeout(150);
     await phonePage.click("#menuExport button[data-exp='cdf']");
     await phonePage.waitForTimeout(400);
@@ -13801,6 +13833,29 @@ function serve() {
     ok("M10: Examples hidden from topbar at 390px (≤640px threshold)", m10Btns.dispEx === "none", JSON.stringify(m10Btns));
     ok("M10: Open/Save hidden from topbar; More menu shows them at 390px", m10Btns.dispImp === "none" && m10Btns.moreExDisp !== "none", JSON.stringify(m10Btns));
 
+    // Slice B: Undo/Redo/Export joined the same phone hide-behind-More convention once they
+    // moved into the shared #tbSectionActions slot (crowds the waffle/＋New every other
+    // section needs there too — see the studio.css M10 rule + STATUS.md's Slice B writeup).
+    const m10SliceB = await phonePage.evaluate(() => {
+      function disp(id) { var e = document.getElementById(id); return e ? window.getComputedStyle(e).display : "none"; }
+      return {
+        dispUndo: disp("btnUndo"), dispExport: disp("btnExport"),
+        moreUndoDisp: disp("moreUndo"), moreRedoDisp: disp("moreRedo"), moreExportDisp: disp("moreExport")
+      };
+    });
+    ok("Slice B/M10: Undo/Export hidden from topbar at 390px", m10SliceB.dispUndo === "none" && m10SliceB.dispExport === "none", JSON.stringify(m10SliceB));
+    ok("Slice B/M10: More menu shows Undo/Redo/Export phone-only entries at 390px",
+      m10SliceB.moreUndoDisp !== "none" && m10SliceB.moreRedoDisp !== "none" && m10SliceB.moreExportDisp !== "none", JSON.stringify(m10SliceB));
+    // A drawer left open by an earlier test in this section would raise #mobile-scrim
+    // (z-index above the fixed #moreWrap) and swallow the click below — close it first.
+    await phonePage.evaluate(() => { var s = document.getElementById("mobile-scrim"); if (s && s.classList.contains("active")) s.click(); });
+    await phonePage.waitForTimeout(200);
+    await phonePage.click("#btnMore"); await phonePage.waitForTimeout(100);
+    await phonePage.click("#moreExport"); await phonePage.waitForTimeout(100);
+    const m10ExportOpened = await phonePage.evaluate(() => document.getElementById("menuExport").classList.contains("open"));
+    ok("Slice B/M10: tapping the phone More menu's Export… entry opens the real export dropdown", m10ExportOpened);
+    await phonePage.evaluate(() => document.querySelectorAll(".menu").forEach((m) => m.classList.remove("open", "phone-pos")));
+
     // ---- M11: restore-banner dismiss button is tap-friendly on mobile ----
     console.log("\n• M11: restore banner dismiss button (phone 390px)");
     const m11Banner = await phonePage.evaluate(() => {
@@ -13884,7 +13939,11 @@ function serve() {
     });
     ok("MNAV: ⋯ More escape hatch stays on-screen regardless of row scroll position (m-c)", mnavMore.atStart && mnavMore.atEnd, JSON.stringify(mnavMore));
 
-    await phonePage.click("#btnExport");
+    // Slice B: #btnExport is hidden at phone width (folded behind ⋯More) — go through
+    // #moreExport instead, same as the M4 modal test above.
+    await phonePage.click("#btnMore");
+    await phonePage.waitForTimeout(100);
+    await phonePage.click("#moreExport");
     await phonePage.waitForTimeout(120);
     const mnavMenu = await phonePage.evaluate(() => {
       var m = document.querySelector("#menuExport"); var r = m.getBoundingClientRect();

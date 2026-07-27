@@ -143,8 +143,44 @@
   regression checks (global topbar on a non-Studio section, cluster existence, #railCmdk gone,
   #tbTheme toggles [data-theme], #tbWhatsNext opens+closes a modal). Files: app/index.html,
   app/studio.css, app/studio.js, app/shell.js, app/fleet.js, app/palette.js, app/icons.js,
-  sw.js, js/changelog.js, docs/index.html, tests/run.js. **NEXT: Slice B — move Studio's
-  dashboard-scoped actions (Save/Export/Open/Undo/Redo) into `#tbSectionActions`.**
+  sw.js, js/changelog.js, docs/index.html, tests/run.js. NEXT: Slice B — move Studio's
+  dashboard-scoped actions (Save/Export/Open/Undo/Redo) into `#tbSectionActions`.
+- **Standard fleet topbar — Slice B: Studio's dashboard-scoped actions move into
+  `#tbSectionActions` (2026-07-27, steward, v626, sw v263 — this is LF47, "operations move to
+  the TOP RAIL," the builder-chrome half of #30, per the LOCKED BUILD ORDER's step 4):** Undo,
+  Redo, Open, Save, and Export ▾ used to live in `#dashbar .top-actions` (Studio's own toolbar,
+  only visible inside the builder); they now live in the shared topbar's `#tbSectionActions`
+  slot Slice A built, so they read as part of the app's standard chrome instead of a separate
+  bar. `#dashbar` keeps Examples ▾ / Save as… / Close / Theme (still dashboard-scoped, but out
+  of this slice's explicit scope). Implementation: the five moved elements are defined once,
+  inert, inside a new `<template id="tplStudioSectionActions">` in index.html (keeps
+  `#tbSectionActions` genuinely empty on every OTHER section, same as Slice A's own regression
+  check) — `studio.js`'s `wireTopbar()` extracts them from the template's fragment (not the live
+  document) and wires the exact same handlers it always had. shell.js gained a small provider
+  registry (`window.__studioRegisterSectionActions(sec, fn)`); `setActive()` clears
+  `#tbSectionActions` on every nav same as before, then re-populates it from the incoming
+  section's own provider if one is registered — `appendChild` MOVES the real wired-up nodes
+  (never clones), so the same buttons simply follow Studio in and out of the slot. A section
+  that registers its provider while it's already the active one (script load order isn't
+  guaranteed relative to the boot-restored section) populates immediately instead of waiting for
+  the next nav — needed for the tablet/phone tests that boot straight into Studio via
+  `localStorage`. Mobile: `.top-app` is the shared cluster row EVERY section's waffle/＋New/
+  ⋯More needs on-screen, no spare room like the old dashboard-only `.top-actions` row had —
+  so Undo/Redo/Export join Open/Save/Close/Examples' existing convention of hiding at ≤640px
+  behind ⋯More (new `moreUndo`/`moreRedo`/`moreExport` phone-only entries), rather than
+  crowding out the waffle/＋New every other section also needs there. `#dashbar`'s own
+  grouping divider count drops from 2 to 1 (the old History|File divider left with Undo/Redo;
+  only the File|Present one remains, between Examples and Theme). docs/index.html's Undo/Redo,
+  Save, and Export mentions updated from "the dashboard toolbar" to "the topbar." 4 new
+  regression checks (the moved 5 land in `#tbSectionActions` in order and are gone from
+  `#dashbar .top-actions`; Examples/Save-as stay put; Export's dropdown still opens from its new
+  home; the slot empties again on leaving Studio) plus updates to the pre-existing Track H
+  divider-count/tablet-hide assertions for the new 1-divider layout. Full suite green. SW cache
+  → v263 (index.html, studio.js, shell.js, studio.css, docs/index.html precached). Files:
+  app/index.html, app/shell.js, app/studio.js, app/studio.css, docs/index.html, sw.js,
+  js/changelog.js, tests/run.js. NEXT: LF47's remaining pieces (Duplicate, dark-mode, +New
+  reorganized sensibly alongside these 5) or LF46 (⋯ hamburger teardown) — step 4 of the LOCKED
+  BUILD ORDER — per Kevin's locked sequence.
 - **LF42 slice 3 — consolidated Switch-backend picker (v624, sw v261, 2026-07-27, steward —
   the last numbered LF42 slice, step 2 of the LOCKED BUILD ORDER's "Dave"-demo ingredients,
   after LF42 slice 2):** Settings → Workspace backend's **Switch backend** button used to

@@ -34,6 +34,11 @@
   }
 
   var desiredSection = "home";
+  // Slice B: sections register a provider returning the DOM nodes they want shown in
+  // #tbSectionActions while they're active (e.g. studio.js registers "studio" with its
+  // Undo/Redo/Open/Save/Export buttons) — declared up here, ahead of setActive()'s first
+  // call at boot below, since that call reads this map on every nav from the very start.
+  var sectionActionsProviders = {};
 
   // LF9 slice 2: overlays (modals, panel-zoom, slideshow) push their own history entry
   // while open, so Back closes the topmost one instead of navigating sections (or
@@ -87,9 +92,10 @@
     });
     var tbSec = document.getElementById("topbarSection");
     if (tbSec) tbSec.textContent = SECTION_LABELS[sec] || sec;
-    // Slice A: clear the per-section action slot on every navigation. It stays EMPTY for
-    // now; Slice B populates it (Studio's dashboard actions) via __studioSetSectionActions.
+    // Slice A: clear the per-section action slot on every navigation; Slice B (below)
+    // re-populates it from the incoming section's own registered provider, if any.
     setSectionActions([]);
+    if (sectionActionsProviders[sec]) setSectionActions(sectionActionsProviders[sec]());
     items.forEach(function (btn) {
       var on = btn.getAttribute("data-sec") === sec;
       btn.classList.toggle("active", on);
@@ -247,7 +253,6 @@
 
   // Slice A: per-section topbar action slot. setSectionActions(nodes) replaces the
   // contents of #tbSectionActions (the empty container left of the common right cluster).
-  // Slice B will call this from studio.js with Studio's dashboard-scoped buttons.
   function setSectionActions(nodes) {
     var slot = document.getElementById("tbSectionActions");
     if (!slot) return;
@@ -255,6 +260,17 @@
     (nodes || []).forEach(function (n) { if (n) slot.appendChild(n); });
   }
   window.__studioSetSectionActions = setSectionActions;
+
+  // Slice B: setActive() (above) clears the slot on every nav then re-populates it from
+  // the incoming section's provider (sectionActionsProviders, declared near desiredSection)
+  // — so the buttons follow the section instead of staying wherever they were last appended.
+  // A section that registers WHILE it's already active (script load order isn't guaranteed
+  // relative to the initial boot section) populates immediately instead of waiting for the
+  // next nav.
+  window.__studioRegisterSectionActions = function (sec, fn) {
+    sectionActionsProviders[sec] = fn;
+    if (sec === desiredSection) setSectionActions(fn());
+  };
 
   window.__studioShellSetSection = setActive; // test hook
   window.__studioShellGetSection = function () { return desiredSection; }; // LF27(b): lets studio.js capture the section Studio was entered from

@@ -9105,6 +9105,18 @@
   window.__studioBuildExamplesMenu = buildExamplesMenu; // test hook — rebuild after a raw (non-UI) demo-pack install/remove
 
   function wireTopbar() {
+    // Slice B: Undo/Redo/Open/Save/Export are dashboard-scoped actions that now live in
+    // the shared topbar's #tbSectionActions slot instead of #dashbar, so they're only in
+    // the live document while Studio is the active section — the rest of the time they
+    // sit inert inside <template id="tplStudioSectionActions"> (index.html). Extract them
+    // from the template's own fragment (NOT the live document — they aren't in it yet),
+    // wire the exact same handlers this function always has, then register the group with
+    // shell.js so setActive("studio") inserts them and every other section's clear removes
+    // them again.
+    var saTpl = document.getElementById("tplStudioSectionActions");
+    var saFrag = saTpl ? saTpl.content : document.createDocumentFragment();
+    function sa(sel) { return saFrag.querySelector(sel); }
+
     // UX sprint 2026-07-14: the dashbar title renames IN PLACE — click swaps it for an
     // input (Enter/blur commits, Escape cancels), same convention as workbook renames.
     // The inspector's Title field stays in sync (one model, two entry points).
@@ -9130,8 +9142,8 @@
       });
       inp.addEventListener("blur", function () { commit(true); });
     });
-    var uBtn = $("#btnUndo"); uBtn.onclick = undoAct; uBtn.textContent = ""; uBtn.appendChild(Studio.icon("undo", 16));
-    var rBtn = $("#btnRedo"); rBtn.onclick = redoAct; rBtn.textContent = ""; rBtn.appendChild(Studio.icon("redo", 16));
+    var uBtn = sa("#btnUndo"); uBtn.onclick = undoAct; uBtn.textContent = ""; uBtn.appendChild(Studio.icon("undo", 16));
+    var rBtn = sa("#btnRedo"); rBtn.onclick = redoAct; rBtn.textContent = ""; rBtn.appendChild(Studio.icon("redo", 16));
     // LF24 slice 3 — the creativity dial's live tuner: re-runs quickBuildDashboard at
     // the clicked level, re-parsing the source dataset's own stored content (not a
     // cached profile) so it always reflects the dataset as it stands right now.
@@ -9258,10 +9270,11 @@
 
     // export menu
     // UX6 (icon migration, carets slice): was setIconBtn with "▾" as literal text.
-    var btnExportEl = $("#btnExport"); setIconBtnCaret(btnExportEl, "download", "Export", 14);
-    menuToggle(btnExportEl, $("#menuExport"));
-    $$("#menuExport button").forEach(function (b) { b.onclick = function () { doExport(b.getAttribute("data-exp")); closeMenus(); }; });
-    var histWrap = el("div"); histWrap.id = "exportHistWrap"; $("#menuExport").appendChild(histWrap);
+    var btnExportEl = sa("#btnExport"); setIconBtnCaret(btnExportEl, "download", "Export", 14);
+    var menuExportEl = sa("#menuExport");
+    menuToggle(btnExportEl, menuExportEl);
+    Array.prototype.slice.call(menuExportEl.querySelectorAll("button")).forEach(function (b) { b.onclick = function () { doExport(b.getAttribute("data-exp")); closeMenus(); }; });
+    var histWrap = el("div"); histWrap.id = "exportHistWrap"; menuExportEl.appendChild(histWrap);
     loadExportHistory(); renderExportHistory();
 
     // LF20 (dashbar declutter): Open/Save as…/Close are the least-frequently-reached
@@ -9269,10 +9282,21 @@
     // them to icon-only (title/aria-label carry the meaning, same convention as
     // Undo/Redo/Theme) so they read as a compact glyph instead of competing with Save/
     // Export for attention. Save keeps its label (the single most-used action here).
-    var btnImportEl = $("#btnImport"); btnImportEl.textContent = ""; btnImportEl.appendChild(Studio.icon("folder", 16));
+    var btnImportEl = sa("#btnImport"); btnImportEl.textContent = ""; btnImportEl.appendChild(Studio.icon("folder", 16));
     btnImportEl.onclick = openDashboardPicker;
-    var btnSaveSpecEl = $("#btnSaveSpec"); setIconBtn(btnSaveSpecEl, "save", "Save", 14);
+    var btnSaveSpecEl = sa("#btnSaveSpec"); setIconBtn(btnSaveSpecEl, "save", "Save", 14);
     btnSaveSpecEl.onclick = saveToCatalog;
+    // Slice B: register this section-actions group with shell.js. Undo/Redo/Open/Save
+    // share the button element with the template above them (they're the exact nodes
+    // handlers were just wired onto) — appendChild() (inside shell.js setSectionActions)
+    // moves them, it never clones, so the same wired-up node reappears every time Studio
+    // becomes active again.
+    var exportWrapEl = btnExportEl.closest(".menu-wrap") || btnExportEl;
+    if (window.__studioRegisterSectionActions) {
+      window.__studioRegisterSectionActions("studio", function () {
+        return [uBtn, rBtn, btnImportEl, btnSaveSpecEl, exportWrapEl];
+      });
+    }
     var btnSaveAsSpec = $("#btnSaveAsSpec");
     if (btnSaveAsSpec) {
       btnSaveAsSpec.textContent = ""; btnSaveAsSpec.appendChild(Studio.icon("duplicate", 16));
@@ -9354,6 +9378,21 @@
     var moreEditJSON = $("#moreEditJSON"); if (moreEditJSON) moreEditJSON.onclick = function () { closeMenus(); openJsonEditor(); };
 
     // M7: phone-only More menu items — exposed at ≤400px when topbar hides these buttons
+    // Slice B: Undo/Redo/Export joined this convention once they moved into the shared
+    // topbar's #tbSectionActions (see the phone hide rule in studio.css) — same reasoning
+    // as Open/Save/Close/Examples: direct on THIS one-off dashbar-scoped row before, but
+    // the global topbar row is shared with every other section's waffle/＋New/⋯More, no
+    // room to spare on a 390px screen.
+    var moreUndo = $("#moreUndo"); if (moreUndo) moreUndo.onclick = function () { closeMenus(); undoAct(); };
+    var moreRedo = $("#moreRedo"); if (moreRedo) moreRedo.onclick = function () { closeMenus(); redoAct(); };
+    var moreExport = $("#moreExport");
+    if (moreExport) moreExport.onclick = function () {
+      closeMenus();
+      // Unlike #menuExamples (dashbar-native, needs the bespoke .phone-pos rule to get a
+      // pinned phone layout), #menuExport already lives inside .top-app — the existing
+      // ".top-app .menu{position:fixed…}" phone rule covers it for free.
+      menuExportEl.classList.add("open");
+    };
     var moreExamples = $("#moreExamples");
     if (moreExamples) moreExamples.onclick = function () {
       closeMenus();
