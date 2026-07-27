@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v263"; /* v263: Standard fleet topbar — Slice B: Studio's
+var CACHE_NAME = "studio-shell-v264"; /* v264: Standard fleet topbar — Slice C: Studio's
+   Save-as (from #dashbar) and Duplicate (from the #menuNew "New ▾" menu) join Undo/Redo/
+   Open/Save/Export in the shared topbar's #tbSectionActions slot — LF47 is now fully done
+   except Examples removal (tracked separately under LF43 slice 2). index.html, studio.js,
+   studio.css, tests/run.js all changed, so precached copies roll.
+   v263: Standard fleet topbar — Slice B: Studio's
    dashboard-scoped Undo/Redo/Open/Save/Export move from #dashbar into the shared topbar's
    #tbSectionActions slot (only shown while Studio is the active section) — Slice A's
    scaffolding filled in. index.html, studio.js, shell.js, studio.css, docs/index.html all

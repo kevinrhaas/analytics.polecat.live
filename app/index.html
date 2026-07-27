@@ -86,16 +86,18 @@
       <!-- Slice A scaffolding: per-section action slot (EMPTY now; Slice B fills it for Studio,
            left of the common cluster). Populated via window.__studioSetSectionActions. -->
       <div id="tbSectionActions" class="tb-section-actions"></div>
-      <!-- Slice B: Studio's dashboard-scoped actions (Undo/Redo/Open/Save/Export) live here,
-           inert, until app/studio.js moves them into #tbSectionActions while Studio is the
-           active section (app/shell.js setActive → the "studio" section-actions provider).
-           A <template> keeps them out of the live document (and #tbSectionActions genuinely
-           empty) on every other section. -->
+      <!-- Slice B/C: Studio's dashboard-scoped actions (Undo/Redo/Open/Save/Save-as/
+           Duplicate/Export) live here, inert, until app/studio.js moves them into
+           #tbSectionActions while Studio is the active section (app/shell.js setActive →
+           the "studio" section-actions provider). A <template> keeps them out of the live
+           document (and #tbSectionActions genuinely empty) on every other section. -->
       <template id="tplStudioSectionActions">
         <button class="btn icon" id="btnUndo" title="Undo (Ctrl/Cmd+Z)" disabled>↶</button>
         <button class="btn icon" id="btnRedo" title="Redo (Ctrl/Cmd+Shift+Z)" disabled>↷</button>
         <button class="btn icon" id="btnImport" title="Open a dashboard from your catalog" aria-label="Open a dashboard from your catalog">Open</button>
         <button class="btn" id="btnSaveSpec" title="Save to your Dashboards catalog (Ctrl/Cmd+S)">Save</button>
+        <button class="btn icon" id="btnSaveAsSpec" title="Save the current dashboard as a new dashboard" aria-label="Save the current dashboard as a new dashboard">Save as…</button>
+        <button class="btn icon" id="btnDupDash" title="Duplicate the current dashboard" aria-label="Duplicate the current dashboard">Duplicate</button>
         <div class="menu-wrap"><button class="btn btn-primary" id="btnExport">Export ▾</button>
           <div class="menu" id="menuExport">
             <button data-exp="cdf">Dashboard (.html)</button>
@@ -138,6 +140,7 @@
           <button id="moreImport" class="more-phone-only">Open…</button>
           <button id="moreSaveSpec" class="more-phone-only">Save</button>
           <button id="moreSaveAsSpec" class="more-phone-only">Save as…</button>
+          <button id="moreDupDash" class="more-phone-only">Duplicate</button>
           <button id="moreCloseStudio" class="more-phone-only">Close</button>
           <button id="moreExport" class="more-phone-only">Export…</button>
           <div class="sep"></div>
@@ -287,7 +290,6 @@
         <div class="top-actions">
           <div class="menu-wrap"><button class="btn" id="btnExamples">Examples ▾</button>
             <div class="menu" id="menuExamples"></div></div>
-          <button class="btn icon" id="btnSaveAsSpec" title="Save the current dashboard as a new dashboard" aria-label="Save the current dashboard as a new dashboard">Save as…</button>
           <button class="btn icon" id="btnCloseStudio" title="Close the builder and return to where you opened it from" aria-label="Close the builder and return to where you opened it from">Close</button>
           <span class="top-sep sep-connect" aria-hidden="true"></span>
           <button class="btn icon btn-secondary" id="btnTheme" title="Toggle preview light/dark">Theme</button>

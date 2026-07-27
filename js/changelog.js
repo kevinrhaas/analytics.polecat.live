@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 627,
+    title: 'Save as... and Duplicate join the top bar alongside Undo, Save and Export',
+    kind: 'polish',
+    ts: '2026-07-27T21:31:10.000Z',
+    items: [
+      'Save as... moves out of the builder\'s own toolbar into the top bar, next to Save. Duplicate moves out of the New menu into its own top-bar button. Both still only show while you\'re in the builder.',
+      'Examples and Close stay in the builder toolbar just above the live preview.',
+    ],
+  },
+  {
     v: 626,
     title: 'Undo, Save, Open and Export now live in the top bar while you\'re building',
     kind: 'polish',

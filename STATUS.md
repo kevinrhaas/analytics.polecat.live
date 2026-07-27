@@ -116,6 +116,40 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **Standard fleet topbar — Slice C: Save-as and Duplicate join the top-rail ops cluster —
+  LF47 fully done except Examples removal (2026-07-27, steward, v627, sw v264 — step 4 of
+  the LOCKED BUILD ORDER):** Slice B's own NEXT pointer named "LF47's remaining pieces
+  (Duplicate, dark-mode, +New reorganized sensibly)" — auditing against the shipped code
+  found dark-mode already done (Slice A's `#tbTheme`) and +New already positioned correctly,
+  leaving two genuine gaps: **Save-as** (deliberately left in `#dashbar` by Slice B) and
+  **Duplicate** (a `#menuNew` "New ▾" entry, never in the ops row at all). Both now live in
+  `#tbSectionActions`, completing LF47's own ops order (Undo · Redo · Open · Save · Save-as ·
+  Duplicate · Export). **Save-as**: moved from `#dashbar` into the shared template
+  (`tplStudioSectionActions`), same icon-only LF20 convention, same `openSaveAsModal("manual")`
+  handler — `#dashbar` now keeps only Examples ▾ / Close / Theme. **Duplicate**: extracted the
+  clone-and-rename logic out of `buildNewMenu()`'s `data-new="dup"` branch into a standalone
+  `duplicateCurrentDashboard()`, wired to a new dedicated `#btnDupDash` button instead (the
+  `⧉ Duplicate current` New-menu entry is gone — New ▾ now offers Blank + auto-build starters
+  only); confirmation moved from a `flashBtn` on `#btnNew` (fine when Duplicate lived inside
+  the New-menu's own trigger) to a `toast()` (right once Duplicate is its own icon-only button
+  — flashing "✓ Duplicated!" text inside a small icon button would overflow). Mobile: both
+  join the established ≤640px "hide the real button, use its `⋯More` twin" convention
+  (`#btnSaveAsSpec`/`#btnDupDash` added to the phone hide-list alongside Undo/Redo/Export;
+  `moreSaveAsSpec` already existed, new `moreDupDash` added) since `#tbSectionActions` sits in
+  the non-scrollable `.top-app` row (unlike `#dashbar .top-actions`, which scrolls — Save-as
+  didn't strictly need the hide-list before because of that, but does now that it's moved).
+  Full suite green (regression checks: ops-cluster order includes all 7 actions in sequence,
+  `#dashbar` no longer has Save-as, `#btnDupDash` duplicates with a fresh id + "(copy)" title +
+  toast, `moreDupDash` phone twin works, H-dup/QA-04 updated for the new location). SW cache →
+  v264. Files: app/index.html, app/studio.js, app/studio.css, sw.js, js/changelog.js,
+  tests/run.js. **LF47 is now fully done except REMOVE the Examples button — that's the same
+  remit as LF43 slice 2 (already separately budgeted, ~20 tests + Home's "Browse examples"
+  quick action), so it stays tracked there, not duplicated here.** NEXT: LF46 (⋯ hamburger
+  teardown) — re-audit its own scope against the current topbar first, since it was written
+  before Slices A-C reshaped `#menuMore`/the waffle (the waffle is now a deliberate GLOBAL
+  fixture matching JobTracker/AutoSelector, not a Studio-only leftover to remove; the Command
+  palette entry it names is already gone) — or LF48 (mode switcher), or LF43 slice 2 (Examples
+  removal), per Kevin's locked sequence.
 - **Standard fleet topbar — Slice A: promote #topbar to a GLOBAL frame element (2026-07-27,
   steward, v625, sw v262):** the topbar was trapped inside Studio's `#appMain`, so only the
   builder showed it — Home/Explore/Dashboards/Datasets/Connections/Jobs/Repository/Admin/Settings
@@ -4824,8 +4858,10 @@
 >    a backend list ✓ slice 1, per-user backend assignment ✓ slice 2, consolidated Switch-backend
 >    picker ✓ slice 3, all 2026-07-27 — **LF42 is now fully done**).
 > 3. **Flashy:** LF40 (animated welcome + home tour, sample-pack-aware).
-> 4. **Studio chrome:** LF46 (⋯ teardown) · LF47 (ops → top rail, w/ #30) · LF48 (mode switcher) ·
->    LF45 (Save-as + Open dialog) · LF52 (widget→View) · LF53 (drop CDF/CDE).
+> 4. **Studio chrome:** LF46 (⋯ teardown) · LF47 (ops → top rail, w/ #30 — ✓ slices A/B/C,
+>    2026-07-27, **LF47 is now fully done** except Examples removal, which is LF43 slice 2's
+>    remit, not duplicated here) · LF48 (mode switcher) · LF45 (Save-as + Open dialog) ·
+>    LF52 (widget→View) · LF53 (drop CDF/CDE).
 > 5. **Exports + navigation/layout:** LF49 (XLSX/PPTX/DOCX) · LF54 (kill left-gutter whitespace) ·
 >    LF51 (sophisticated nav IA: right-aligned pills, full names, date-time, list+rich-tile views).
 > The recurring quality tracks (UX polish, Track H/L/N sweeps) continue to interleave as usual.
@@ -5035,10 +5071,12 @@
 >       Demo mode for now (keep code; may confuse alongside sample packs + the customized tour — re-add only
 >       if a clear use is articulated). What survives (present/mode items) moves into LF48's switcher, so the
 >       hamburger shrinks or disappears. (app/index.html ⋯ menu, studio.js wiring.) Ties LF47, LF48.
-> LF47. **Operations move to the TOP RAIL.** Undo/redo, Open, Save, Save-as, Duplicate, Export▾, dark-mode,
->       + New (and maybe the switcher), organized sensibly in the top rail; REMOVE the Examples button. This
->       is the builder-chrome half of #30 (platform-standard topbar) — do them together. Keep mobile working
->       (release gate). (index.html toolbar→top rail, studio.js.) Ties #30, LF20, LF45, LF46.
+> LF47. ✓ **Operations move to the TOP RAIL — DONE across slices A/B/C (2026-07-27) — see DONE.**
+>       Undo/redo, Open, Save, Save-as, Duplicate, Export▾, dark-mode, +New all now live in the
+>       shared topbar (`#tbSectionActions` + the common cluster), mobile working (phone hide-list +
+>       ⋯More twins). Only "REMOVE the Examples button" remains — that's the same remit as LF43
+>       slice 2 (already separately budgeted, ~20 tests + Home's "Browse examples" quick action),
+>       so it's tracked there rather than re-opening LF47. Ties #30, LF20, LF45, LF46, LF43.
 > LF48. **Consistent, role-aware MODE SWITCHER.** One elegant switcher for view/focus/slideshow/simple/
 >       present/viewer with a UNIFORM exit (a close/X on any mode that changes the view — like present
 >       mode's title X, made universal). ROLE-CONTROLLED: developers get Studio EDIT mode; viewers get VIEW

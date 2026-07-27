@@ -8950,7 +8950,6 @@
     var CAP = 10, total = sets.length, needsFilter = total > CAP || flt;
     var shown = sets.slice(0, CAP);
     nm.innerHTML = '<button data-new="blank">＋ Blank dashboard</button>' +
-      '<button data-new="dup" id="btnDupDash">⧉ Duplicate current</button>' +
       (total || needsFilter ? '<div class="sep"></div><div class="grp">Auto-build a starter</div>' : "") +
       (needsFilter ? '<input type="search" id="newMenuFilter" class="new-menu-filter" placeholder="Filter ' + total + ' sets…" aria-label="Filter auto-build sets"/>' : "") +
       shown.map(function (x) {
@@ -8963,15 +8962,6 @@
         var action = b.getAttribute("data-new");
         if (action === "blank") {
           S.spec = newBlankSpec(); S.selection = null; syncHeader(); renderInspector(); refreshPreview(); bumpDashMilestone();
-        } else if (action === "dup") {
-          var dup = Studio.clone(S.spec);
-          dup.id    = Studio.uid("dash");
-          dup.title = uniqueDashboardTitle((dup.title || "Untitled Dashboard") + " (copy)");
-          dup.name  = (dup.name  || "untitled").replace(/(-copy)+$/, "") + "-copy";
-          S.spec    = dup;
-          S.selection = null;
-          syncHeader(); renderInspector(); refreshPreview();
-          flashBtn(document.getElementById("btnNew"), "Duplicated!");
         } else if (b.getAttribute("data-set-kind") === "dataset") {
           scaffoldFromDataset(b.getAttribute("data-set-key"));
         } else if (b.getAttribute("data-set-kind") === "stem") {
@@ -8990,6 +8980,19 @@
         var again = $("#newMenuFilter", nm); if (again) { again.focus(); again.setSelectionRange(v.length, v.length); }
       });
     }
+  }
+  // LF47 slice C: "Duplicate" moved out of the New ▾ menu into its own topbar ops
+  // button (#btnDupDash, alongside Undo/Redo/Open/Save/Save-as/Export) — same clone
+  // logic as before, just its own dedicated affordance instead of a New-menu entry.
+  function duplicateCurrentDashboard() {
+    var dup = Studio.clone(S.spec);
+    dup.id    = Studio.uid("dash");
+    dup.title = uniqueDashboardTitle((dup.title || "Untitled Dashboard") + " (copy)");
+    dup.name  = (dup.name  || "untitled").replace(/(-copy)+$/, "") + "-copy";
+    S.spec    = dup;
+    S.selection = null;
+    syncHeader(); renderInspector(); refreshPreview();
+    toast("Duplicated “" + dup.title + "”");
   }
   // Auto-build a starter dashboard from a WORKSPACE dataset: a KPI on its first
   // numeric-looking column pair + a bars panel, same spirit as scaffoldFromStem.
@@ -9286,21 +9289,25 @@
     btnImportEl.onclick = openDashboardPicker;
     var btnSaveSpecEl = sa("#btnSaveSpec"); setIconBtn(btnSaveSpecEl, "save", "Save", 14);
     btnSaveSpecEl.onclick = saveToCatalog;
-    // Slice B: register this section-actions group with shell.js. Undo/Redo/Open/Save
-    // share the button element with the template above them (they're the exact nodes
-    // handlers were just wired onto) — appendChild() (inside shell.js setSectionActions)
-    // moves them, it never clones, so the same wired-up node reappears every time Studio
-    // becomes active again.
+    // LF47 slice C: Save-as and Duplicate join Undo/Redo/Open/Save/Export in the
+    // #tbSectionActions ops cluster (previously Save-as lived in #dashbar and Duplicate
+    // was a #menuNew entry) — icon-only, same LF20 declutter convention as Open/Close.
+    var btnSaveAsSpecEl = sa("#btnSaveAsSpec");
+    btnSaveAsSpecEl.textContent = ""; btnSaveAsSpecEl.appendChild(Studio.icon("duplicate", 16));
+    btnSaveAsSpecEl.onclick = function () { openSaveAsModal("manual"); };
+    var btnDupDashEl = sa("#btnDupDash");
+    btnDupDashEl.textContent = ""; btnDupDashEl.appendChild(Studio.icon("copy", 16));
+    btnDupDashEl.onclick = duplicateCurrentDashboard;
+    // Slice B/C: register this section-actions group with shell.js. Undo/Redo/Open/Save/
+    // Save-as/Duplicate share the button element with the template above them (they're
+    // the exact nodes handlers were just wired onto) — appendChild() (inside shell.js
+    // setSectionActions) moves them, it never clones, so the same wired-up node
+    // reappears every time Studio becomes active again.
     var exportWrapEl = btnExportEl.closest(".menu-wrap") || btnExportEl;
     if (window.__studioRegisterSectionActions) {
       window.__studioRegisterSectionActions("studio", function () {
-        return [uBtn, rBtn, btnImportEl, btnSaveSpecEl, exportWrapEl];
+        return [uBtn, rBtn, btnImportEl, btnSaveSpecEl, btnSaveAsSpecEl, btnDupDashEl, exportWrapEl];
       });
-    }
-    var btnSaveAsSpec = $("#btnSaveAsSpec");
-    if (btnSaveAsSpec) {
-      btnSaveAsSpec.textContent = ""; btnSaveAsSpec.appendChild(Studio.icon("duplicate", 16));
-      btnSaveAsSpec.onclick = function () { openSaveAsModal("manual"); };
     }
     var btnCloseStudioEl = $("#btnCloseStudio"); btnCloseStudioEl.textContent = ""; btnCloseStudioEl.appendChild(Studio.icon("close", 16));
     btnCloseStudioEl.onclick = closeStudio;
@@ -9408,6 +9415,8 @@
     if (moreSaveSpec) moreSaveSpec.onclick = function () { closeMenus(); saveToCatalog(); };
     var moreSaveAsSpec = $("#moreSaveAsSpec");
     if (moreSaveAsSpec) moreSaveAsSpec.onclick = function () { closeMenus(); openSaveAsModal("manual"); };
+    var moreDupDash = $("#moreDupDash");
+    if (moreDupDash) moreDupDash.onclick = function () { closeMenus(); duplicateCurrentDashboard(); };
     var moreCloseStudio = $("#moreCloseStudio");
     if (moreCloseStudio) moreCloseStudio.onclick = function () { closeMenus(); closeStudio(); };
 
