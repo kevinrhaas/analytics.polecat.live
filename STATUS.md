@@ -4552,8 +4552,11 @@
 >       fun-but-not-over-the-top animation using the sexiest animated app graphics (screens, charts, maps)
 >       along the way; Skip stays but the tour is re-accessible anytime via Settings → Tour. SAMPLE-PACK-
 >       AWARE: an installed pack adds tour segments walking its dashboards + its backend connections/
->       datasets, framing them as "curated dashboards"/"curated datasets." (app/welcome.js, tutorial.js,
->       studio.js renderHome(), celebrations.js confetti, icons.) Follows LF18.
+>       datasets, framing them as "curated dashboards"/"curated datasets." **CONSERVATION PACK TOUR CONTENT
+>       (Kevin, 2026-07-27): showcase the CHOROPLETHS — county + state + the WATERSHED (HUC8) map — and tell
+>       the CUSTOM-GEO story (watersheds/districts/ZIP, the geography library).** Verify the pack already
+>       ships those choropleth dashboards and surface them in the tour. (app/welcome.js, tutorial.js,
+>       studio.js renderHome(), celebrations.js confetti, demopacks.js, icons.) Follows LF18. Ties LF22, LF58.
 > LF41. **Per-user provisioning defaults.** Admin's Add-user gains a DEFAULT THEME picker + DEFAULT
 >       SAMPLE PACK(S) selector (one or more), stored on the user record (+ mirrored users table); on that
 >       user's first login the app applies the theme, installs the pack(s), and fires the pack tour (LF40).
@@ -5666,6 +5669,15 @@
 > coherent PR, suite-gated, self-merged on green. Sourced from three read-only surveys (studio.js
 > structure · cross-file duplication · UX/design audit). Both surveys found the code MATURE — no dead
 > functions, strong a11y/mobile/motion already — so these are refinements, ranked by value/effort.
+>
+> **📚 DOCS-CURRENCY track (LF58, Kevin 2026-07-27) — a THIRD recurring track, interleave it too.**
+> Keep the tour + in-app Help + marketing site current with the app so it's never awful at the end. The app
+> has changed a LOT (LF22 geo, LF23 viewer, LF24 quick mode, M7, LF13 jobs, PDF/export, sample-pack fold,
+> etc.) and docs/tour/marketing are already drifting. Do (a) an EARLIER mid-point refresh soon, (b) periodic
+> light passes so drift stays small, (c) a comprehensive FINAL pass near the end. Each pass touches: the app
+> tour (welcome.js/tutorial.js), in-app Help (docs/index.html), the marketing site (index.html + carousel
+> shots via tools/gen-shots.mjs), changelog accuracy, and screenshots. One coherent PR per pass, suite-gated.
+> Ties LF40 (tour), #23 (tour domain terms), #28 (marketing geos), LF30 (chart gallery).
 >
 > **✨ UX-POLISH track** (ranked delight-per-effort; ★ = do first):
 > UX1. ✓ **A11y quick wins (shipped 2026-07-22, steward, first quality-track slice):** `#toast` now
