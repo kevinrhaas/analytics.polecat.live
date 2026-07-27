@@ -45,11 +45,13 @@
   // with needsSecret, same as any other adapter here whose secret field is blank); Supabase is
   // the third — its anon/publishable `key` is effectively always set (unlike PostgREST's token,
   // Supabase has no supported "anonymous, no key at all" mode), so it always needs the
-  // needsSecret treatment in practice, same mechanism as Turso. Google Sheets is the fourth — the
-  // FIRST of these adapters with no secret field at all (link-shared sheets need no auth), which
-  // is why the gating check below keys off CONN_ADAPTER_CFG_FIELDS (always present for a wired
-  // adapter) rather than CONN_ADAPTER_SECRET_FIELD (absent here on purpose). Local files are the
-  // fifth adapter and the second (after Google Sheets) with no secret field — a dropped file has
+  // needsSecret treatment in practice, same mechanism as Turso. Google Sheets is the fourth — its
+  // `token` is OPTIONAL like PostgREST's (a link-shared sheet needs no auth at all; a PRIVATE
+  // sheet's OAuth token was a later follow-up slice, same optional-secret shape). The gating check
+  // below still keys off CONN_ADAPTER_CFG_FIELDS (always present for a wired adapter, including
+  // gsheets, whose only cfg field is `url`) rather than CONN_ADAPTER_SECRET_FIELD, since a wired
+  // adapter with no secret AT ALL (see local files, next) still needs its cfg fields carried.
+  // Local files are the fifth adapter and the only one of these six with no secret field — a dropped file has
   // nothing to authenticate, and (unlike every adapter above) no connCfg either: its "connection"
   // is a bare grouping row (adapter:"file", cfg:{}) with nothing worth carrying, since the actual
   // data — fileName/format/content — already rides on da.dataset (dsToDA, app/studio.js) rather
@@ -61,7 +63,10 @@
   // permanent IAM-user credentials never gets prompted for one), and studio-render.js's
   // resolveSecret prompts once per field, returning an object CONN_ENGINES.redshift.cfg merges
   // straight into da.connCfg (its keys already match the connector's own cfg field names).
-  var CONN_ADAPTER_SECRET_FIELD = { turso: "token", postgrest: "token", supabase: "key", redshift: ["accessKeyId", "secretAccessKey", "sessionToken"] };
+  // Google Sheets FOLLOW-UP (shipped): a gsheets connection's `token` (OAuth access token, for a
+  // PRIVATE sheet) is OPTIONAL exactly like PostgREST's — a link-shared sheet still has none set,
+  // so it's never stamped with needsSecret, same as an anonymous PostgREST connection.
+  var CONN_ADAPTER_SECRET_FIELD = { turso: "token", postgrest: "token", supabase: "key", gsheets: "token", redshift: ["accessKeyId", "secretAccessKey", "sessionToken"] };
   var CONN_ADAPTER_CFG_FIELDS = { turso: ["url"], postgrest: ["url", "schema"], supabase: ["url"], gsheets: ["url"], file: [], redshift: ["region", "database", "clusterIdentifier", "dbUser", "workgroupName", "endpoint"] };
   // LF36 slice 2: PDF export page-size options — CSS @page `size` keyword + physical inches
   // (letter/A4/legal, US-common set; matches what the export dialog in studio.js offers).

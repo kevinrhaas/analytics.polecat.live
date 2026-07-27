@@ -498,6 +498,9 @@ function serve() {
     if (/\/__postgrest(401)?\//.test(loc)) return;
     if (/\/__supabase\//.test(loc)) return;
     if (/\/__adminfn/.test(loc)) return;
+    // GS-OAUTH: the Sheets API v4 bad-token fixture deliberately mocks a 401 to assert a
+    // friendly in-band error, same reasoning as the postgrest401 fixture above.
+    if (/^https:\/\/sheets\.googleapis\.com\//.test(loc)) return;
     errors.push("console: " + m.text());
   });
 
@@ -1737,8 +1740,8 @@ function serve() {
         badUrlInBand: /spreadsheet id/i.test(badUrl.error || "")
       };
     });
-    ok("GS: gsheets adapter registered — data-only, one url field, meta refusals, in-band missing/bad-url errors",
-      gsShape.present && gsShape.dataOnly && gsShape.fieldKeys === "url" && gsShape.refuses && gsShape.noUrlInBand && gsShape.badUrlInBand,
+    ok("GS: gsheets adapter registered — data-only, url + (optional) token fields, meta refusals, in-band missing/bad-url errors",
+      gsShape.present && gsShape.dataOnly && gsShape.fieldKeys === "url,token" && gsShape.refuses && gsShape.noUrlInBand && gsShape.badUrlInBand,
       JSON.stringify(gsShape));
     const gsLive = await page.evaluate(async function () {
       var gs = Studio.sourceById("gsheets");
@@ -1789,6 +1792,122 @@ function serve() {
       JSON.stringify(gsDataset));
     ok("GS: a successful run teaches the dataset its columns and stamps lastRun",
       gsDataset.learnedCols === "region,total" && gsDataset.lastRunOk, JSON.stringify(gsDataset));
+
+    // ---- Google Sheets FOLLOW-UP: private-sheet OAuth via Sheets API v4 -----
+    // Sheets API v4 is a fixed Google host (unlike gviz, which mirrors whatever origin the pasted
+    // sheet URL uses) — intercepted here with page.route, the same real-network-shape test the
+    // rest of this suite favors over stubbing the adapter's own internals.
+    console.log("\n• Google Sheets: private-sheet OAuth (Sheets API v4)");
+    let v4LastAuth = "";
+    await page.route("https://sheets.googleapis.com/v4/spreadsheets/**", (route) => {
+      const req = route.request();
+      v4LastAuth = req.headers()["authorization"] || "";
+      const url = new URL(req.url());
+      const range = decodeURIComponent(url.pathname.split("/values/")[1] || "");
+      if (/BADTOKEN/.test(v4LastAuth)) return route.fulfill({ status: 401, contentType: "application/json", body: JSON.stringify({ error: { message: "Invalid Credentials" } }) });
+      if (range.indexOf("Costs!") === 0) {
+        return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ values: [["item", "cost"], ["Compute", 900]] }) });
+      }
+      return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({
+        values: [["region", "total"], ["EMEA", "120"], ["AMER", "200"]]
+      }) });
+    });
+    const gsOauth = await page.evaluate(async function () {
+      var gs = Studio.sourceById("gsheets");
+      var cfg = { url: "https://docs.google.com/spreadsheets/d/OAUTHSHEET1/edit", token: "ya29.faketoken" };
+      var test = await gs.testData(cfg);
+      var all = await gs.queryData(cfg, { kind: "sheet" });
+      var tab = await gs.queryData(cfg, { kind: "sheet", sheet: "Costs" });
+      var bad = await gs.testData({ url: cfg.url, token: "BADTOKEN" });
+      return {
+        testOk: test.ok === true,
+        cols: all.columns.join("|"), rows: JSON.stringify(all.rows),
+        tabCols: tab.columns.join("|"), tabRow: JSON.stringify(tab.rows[0]),
+        badFriendly: bad.ok === false && /expired or invalid/i.test(bad.error || "")
+      };
+    });
+    ok("GS-OAUTH: a connection with a token set queries the Sheets API v4 endpoint and returns header-row columns + typed rows",
+      gsOauth.testOk && gsOauth.cols === "region|total" && gsOauth.rows === '[["EMEA","120"],["AMER","200"]]', JSON.stringify(gsOauth));
+    ok("GS-OAUTH: a tab name threads onto the v4 range (sheet!A1:ZZ10000)",
+      gsOauth.tabCols === "item|cost" && gsOauth.tabRow === '["Compute",900]', JSON.stringify(gsOauth));
+    ok("GS-OAUTH: an expired/invalid token surfaces a friendly message, not a raw 401", gsOauth.badFriendly, JSON.stringify(gsOauth));
+    ok("GS-OAUTH: the token is sent as a real Bearer Authorization header", /^Bearer /.test(v4LastAuth), v4LastAuth);
+    await page.unroute("https://sheets.googleapis.com/v4/spreadsheets/**");
+    // Exported-runtime dispatch: a gsheets connection WITH a token now needs the same
+    // prompted-once-never-embedded secret treatment as turso/postgrest/supabase (it was
+    // previously the one "no secret at all" adapter — see exporters.js's redactSecrets), same
+    // convention as the PostgREST optional-token redaction tests above.
+    const gsOauthRedaction = await page.evaluate(function () {
+      var assets = window.__STUDIO_STATE.assets;
+      var conn = Studio.Workspace.put("connections", { name: "gs-oauth-export-test", adapter: "gsheets", cfg: { url: "https://docs.google.com/spreadsheets/d/GSOAUTHEXPORT1/edit", token: "SUPER-SECRET-GS-OAUTH-TOKEN" } });
+      var spec = {
+        name: "ok-name", title: "T", panels: [], kpis: [], filters: [],
+        cda: { dataAccesses: [{ id: "d1", name: "gsDa", kind: "sql", columns: ["x"], connectionId: conn.id, dataset: { kind: "sheet", sheet: "Sales" } }] }
+      };
+      var html = Studio.exportCDF(spec, assets, "/x");
+      Studio.Workspace.remove("connections", conn.id, { silent: true });
+      return {
+        leaksSecret: html.indexOf("SUPER-SECRET-GS-OAUTH-TOKEN") >= 0,
+        keepsUrl: html.indexOf("docs.google.com/spreadsheets/d/GSOAUTHEXPORT1") >= 0,
+        stampsConnAdapter: html.indexOf("\"connAdapter\":\"gsheets\"") >= 0,
+        stampsNeedsSecret: html.indexOf("\"needsSecret\":\"token\"") >= 0
+      };
+    });
+    ok("GS-OAUTH: exportCDF never embeds a private gsheets connection's OAuth token in the output HTML",
+      !gsOauthRedaction.leaksSecret, JSON.stringify(gsOauthRedaction));
+    ok("GS-OAUTH: exportCDF keeps the connection's non-secret url so the dataset still resolves",
+      gsOauthRedaction.keepsUrl, JSON.stringify(gsOauthRedaction));
+    ok("GS-OAUTH: the redacted DA is stamped with connAdapter:\"gsheets\" so the runtime knows which engine to use",
+      gsOauthRedaction.stampsConnAdapter, JSON.stringify(gsOauthRedaction));
+    ok("GS-OAUTH: a gsheets connection WITH a token set is now stamped needsSecret so the runtime prompts for it (previously never possible — gsheets had no secret field at all)",
+      gsOauthRedaction.stampsNeedsSecret, JSON.stringify(gsOauthRedaction));
+
+    const gsPublicRedaction = await page.evaluate(function () {
+      var assets = window.__STUDIO_STATE.assets;
+      // Link-shared sheets still carry no token — must stay exactly as before this slice: no
+      // needsSecret stamp, no pointless credential prompt on open.
+      var conn = Studio.Workspace.put("connections", { name: "gs-public-export-test", adapter: "gsheets", cfg: { url: "https://docs.google.com/spreadsheets/d/GSPUBLICEXPORT1/edit" } });
+      var spec = {
+        name: "ok-name", title: "T", panels: [], kpis: [], filters: [],
+        cda: { dataAccesses: [{ id: "d1", name: "gsDa", kind: "sql", columns: ["x"], connectionId: conn.id, dataset: { kind: "sheet", sheet: "Sales" } }] }
+      };
+      var html = Studio.exportCDF(spec, assets, "/x");
+      Studio.Workspace.remove("connections", conn.id, { silent: true });
+      return { stampsConnAdapter: html.indexOf("\"connAdapter\":\"gsheets\"") >= 0, stampsNeedsSecret: html.indexOf("\"needsSecret\"") >= 0 };
+    });
+    ok("GS-OAUTH: a link-shared (no-token) gsheets connection is still stamped connAdapter",
+      gsPublicRedaction.stampsConnAdapter, JSON.stringify(gsPublicRedaction));
+    ok("GS-OAUTH: a link-shared (no-token) gsheets connection is still never stamped needsSecret — no pointless credential prompt",
+      !gsPublicRedaction.stampsNeedsSecret, JSON.stringify(gsPublicRedaction));
+
+    // Dispatch: CONN_ENGINES.gsheets.cfg previously never merged a secret in at all (there was no
+    // secret to merge) — now it must, exactly like turso/postgrest's cfg(da,secret), when a fresh
+    // token comes back from the open-time prompt.
+    const gsOauthDispatch = await page.evaluate(async function () {
+      var assets = window.__STUDIO_STATE.assets;
+      var conn = Studio.Workspace.put("connections", { name: "gs-oauth-dispatch-test", adapter: "gsheets", cfg: { url: "https://docs.google.com/spreadsheets/d/GSOAUTHDISPATCH1/edit", token: "orig-secret" } });
+      var da = { id: "d1", name: "d1", kind: "sql", columns: ["x"], sql: "", query: "", connectionId: conn.id, dataset: { kind: "sheet", sheet: "Sales" } };
+      var spec = { name: "ok-name", title: "T", panels: [], kpis: [], filters: [], cda: { dataAccesses: [da] } };
+      var html = Studio.exportCDF(spec, assets, "/x");
+      var ifr = document.createElement("iframe");
+      ifr.style.display = "none";
+      document.body.appendChild(ifr);
+      await new Promise(function (resolve) { ifr.onload = resolve; ifr.srcdoc = html; });
+      var iw = ifr.contentWindow;
+      var seenCfg = null, seenDataset = null;
+      iw.window.prompt = function () { return "fresh-prompted-oauth-token"; };
+      iw.Studio.gsheetsSource.queryData = function (cfg, dataset) { seenCfg = cfg; seenDataset = dataset; return Promise.resolve({ columns: ["region"], rows: [["IA"]] }); };
+      var result = await iw.PDC.cda("d1", {});
+      document.body.removeChild(ifr);
+      Studio.Workspace.remove("connections", conn.id, { silent: true });
+      return {
+        gotRows: result.rows.length === 1 && result.rows[0][0] === "IA",
+        secretIsFresh: seenCfg && seenCfg.token === "fresh-prompted-oauth-token",
+        gotSheet: seenDataset && seenDataset.sheet === "Sales"
+      };
+    });
+    ok("GS-OAUTH: PDC.cda dispatches a private gsheets DA to Studio.gsheetsSource.queryData with the freshly-prompted token merged into cfg",
+      gsOauthDispatch.gotRows && gsOauthDispatch.secretIsFresh && gsOauthDispatch.gotSheet, JSON.stringify(gsOauthDispatch));
 
     // ---- GEO (Viridis V2): vendored assets + choropleth chart type ----------
     console.log("\n• GEO: vendored geometry + choropleth (Viridis V2)");

@@ -116,6 +116,42 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **Google Sheets FOLLOW-UP: private-sheet OAuth via the Sheets API v4 (v610, sw v247, 2026-07-27,
+  steward) — closes the note left open since the adapter first shipped (backlog item 2, v593).**
+  A new optional connection field, **OAuth access token**, switches `app/sources/gsheets.js`'s
+  `queryData`/`testData` off the public gviz endpoint (`/gviz/tq`, "anyone with the link can
+  view") onto the real [Sheets API v4](https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets.values/get)
+  `values.get` endpoint with `Authorization: Bearer <token>` — the same "paste a short-lived
+  OAuth 2.0 access token, never a key file" shape `app/bigquery.js` already established (the
+  FOLLOW-UP note's own "the BigQuery pattern" pointer). Scoped honestly to the 80% case: v4 has
+  no gviz-style `tq` query language, so a private-sheet dataset reads its chosen Tab as a plain
+  values range (header row → column names, rest → data rows, `valueRenderOption=FORMATTED_VALUE`
+  to match gviz's formatted-date behavior) — `dataset.query` (the tq filter/sort string) is only
+  honored on the unchanged link-shared/gviz path. A blank token leaves every existing gviz
+  behavior byte-for-byte unchanged (still the default, still the common case). Expired/scope-
+  mismatched tokens surface a friendly message (401 → "expired or invalid," 403 → needs
+  spreadsheets.readonly + sharing access) instead of a raw HTTP error.
+  Also closed the matching **exported-runtime gap**: a gsheets connection previously had NO
+  secret field at all (the FIRST of the six connection-bound adapters with that shape, per
+  exporters.js's own comment), so `redactSecrets` could never protect a token even once one
+  existed. `CONN_ADAPTER_SECRET_FIELD` gained `gsheets: "token"` — OPTIONAL exactly like
+  PostgREST's, so a link-shared connection (no token set) is still never stamped `needsSecret`
+  and never pops a pointless credential prompt — while a private connection's token is now
+  redacted before export and prompted for once, in-memory only, at open time.
+  `studio-render.js`'s `CONN_ENGINES.gsheets.cfg` now merges that freshly-prompted secret into
+  the dispatched cfg (`secret ? {token:secret} : {}`), same convention as turso/postgrest.
+  9 new regression tests: adapter registration now lists `url,token` fields; a real (page.route-
+  intercepted) v4 fetch returns header-row columns + rows and the Bearer header is well-formed; a
+  tab name threads onto the v4 range; an expired token surfaces the friendly message; export
+  redaction never leaks a set token but does for a link-shared connection; the redacted DA is
+  stamped `connAdapter:"gsheets"`/`needsSecret:"token"` only when a token was actually set; and a
+  full dispatch round-trip (mocked iframe + `window.prompt`) proves the freshly-prompted token
+  reaches `Studio.gsheetsSource.queryData`'s cfg. docs/index.html's Google Sheets section
+  rewritten (no more "isn't supported yet"); the connection-bound-datasets overview paragraph
+  updated to note gsheets can now have a credential. Full suite green, 2301/2301. (app/sources/
+  gsheets.js, app/exporters.js, app/studio-render.js, docs/index.html, sw.js, js/changelog.js,
+  tests/run.js) NEXT: the tq-query-language gap on the private-sheet path (no server-side
+  filter/sort there yet) is a reasonable, smaller follow-up if Kevin wants full parity.
 - **Track L sweep (performance-budget lens, first use of this lens) — boxplot layout no longer
   recomputes each category's position with an O(n^2) lookup (v608, sw v245, 2026-07-27,
   steward):** v607's own NEXT pointer named Track L as most overdue (last ran the orphaned-key
@@ -6467,7 +6503,11 @@
 >    Sheets (shipped 2026-07-16** — `app/sources/gsheets.js` via the gviz endpoint for
 >    link-shared sheets: kind:'sheet' datasets (tab + optional tq query, {{params}} flow into
 >    where-clauses), formatted dates, friendly access_denied hint; mock-gviz end-to-end tests.
->    FOLLOW-UP: private-sheet OAuth via Sheets API v4 + bearer token, the BigQuery pattern).
+>    ✓ **FOLLOW-UP shipped (v610, sw v247, 2026-07-27, steward): private-sheet OAuth via Sheets
+>    API v4 + bearer token, the BigQuery pattern — see DONE for the full writeup. A tab reads as a
+>    plain values range on the token path (no tq query language in v4); the exported-runtime
+>    redaction gap this closed too (gsheets had no secret field at all until now) is documented
+>    in the same DONE entry.**)
 >    ✓ **Amazon Redshift via the Data API (shipped 2026-07-18, steward PR)** — `app/redshift.js`
 >    (ExecuteStatement → poll DescribeStatement → paginated GetStatementResult, cluster or
 >    Serverless workgroup target, optional VPC-PrivateLink `endpoint` override) plus a new reusable
@@ -6525,10 +6565,14 @@
 >    optional token). `app/sources/supabase.js`'s `queryData` carried the identical
 >    `Studio.WS.postgrestQueryData` latent bug the v591 regression fix above had just found and
 >    fixed for `postgrest.js` — closed it up front with its own self-contained copy rather than
->    shipping the throw. See STATUS.md's DONE entry for the full writeup. **Redshift, Google
->    Sheets, and local files still have no exported-runtime path** — each needs the same
->    one-adapter-at-a-time treatment (see the DONE entries for the reusable CONN_ENGINES/
->    connAdapter plumbing Turso/PostgREST/Supabase all added).
+>    shipping the throw. See STATUS.md's DONE entry for the full writeup. ✓ **STALE NOTE
+>    CORRECTED (2026-07-27, steward): this used to read "Redshift, Google Sheets, and local files
+>    still have no exported-runtime path," but that was already out of date — Google Sheets
+>    (v593), local files (v594), and Redshift (#307) each shipped the same one-adapter-at-a-time
+>    CONN_ENGINES treatment earlier and this file was never updated to say so. All six
+>    connection-bound adapters (Turso/PostgREST/Supabase/Google Sheets/local files/Redshift) have
+>    had exported-runtime support since 2026-07-26 — backlog item 3 is fully closed, nothing left
+>    here.**
 > 4. **Terminology sweep**: ✓ "My Data Sources" → "This dashboard's datasets" (already shipped, landed
 >    silently in the 2026-07-14 UX sprint's dataset-first Data panel work) and ✓ sample catalog groups
 >    labeled "Samples" (already shipped, same era) — both confirmed still live in `app/studio.js` as of
