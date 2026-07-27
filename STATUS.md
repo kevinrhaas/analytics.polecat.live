@@ -116,6 +116,37 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **N-DATA innovation sweep — KPI tiles auto-compare to the prior period (v600, sw v237,
+  2026-07-27, steward):** with LF24 now fully done (see the entry below) and every other ★
+  track confirmed closed by that same slice's top-down NEXT-section read, the H/L/N
+  self-directed rotation was overdue on Track N (last ran ~v310, ~290 versions ago vs Track H
+  at v596 and Track L twice in the v587/v588 range) — the innovation backlog's own convention
+  ("On an innovation sweep: ... optionally ship the smallest delightful slice of one"). Read the
+  whole N-* backlog (N-AI/N-FUN/N-DATA/N-DIST/N-DESIGN/N-DEV) top to bottom looking for a
+  genuinely still-open, non-optional, unblocked idea rather than adding net-new ideas on top of
+  an already-dense list; found one in N-DATA: **"Period-over-period / compare mode: pick two
+  ranges or two sources and diff them across every panel"** had no shipped entry under it at
+  all (unlike its neighbors, all of which trace through to a "feature-complete" ✓). Scoped the
+  smallest real cut — KPI tiles only (not "every panel," a larger follow-up) — reusing the
+  existing Compare-to delta plumbing (`compareCol`/`compareMode`/`compareLabel`, v90) rather than
+  building a parallel mechanism: a new **Period column** field (KPI inspector's Compare to
+  section, `app/studio.js`) picks a date/period column from the same DA; when set, it takes
+  priority over the manual Compare column. Render-side (`app/studio-render.js`, the ONE module
+  shared byte-identically between live preview and every export per SPEC.md — no separate export
+  copy needed): sorts the bound DA's own rows by that column (plain `<`/`>` comparison, correct
+  for ISO date strings and bare years, the same class of string as LF24's `guessGeoScale`/N-AI's
+  seasonality detection already assume), splits them into two contiguous halves, and aggregates
+  each half with the KPI's own Aggregation (`k.agg`) — defaulting to Sum when `agg` is unset or
+  is "first"/"corr" (neither makes sense split across two row groups). The tile's headline value
+  itself becomes the CURRENT half's aggregate (the actual point of a period-over-period KPI, not
+  just a delta bolted onto an unrelated whole-range number); the prior half's aggregate drives the
+  delta, displayed via the same pct/abs/value modes and label field `compareCol` already offered.
+  Undefined `k.periodCol` (every KPI saved before this slice) renders byte-identical to today.
+  `docs/index.html`'s KPI tile card updated. SW cache → v237. NEXT in this idea (deliberately not
+  attempted here): extending the same auto-split comparison beyond KPI tiles to bar/line/donut
+  panels (the "across every panel" half of the original ask), and letting a builder pick two
+  EXPLICIT ranges rather than an even chronological split. (app/studio-render.js, app/studio.js,
+  docs/index.html, sw.js, js/changelog.js, tests/run.js)
 - **LF24 slice 3 — the creativity dial + "fun" chart tier (v599, sw v236, 2026-07-27, steward —
   LF24 is now fully done):** slice 2's own NEXT pointer named this as the real next step, and a
   top-down read of the whole NEXT section confirmed everything else genuinely is still done (same
@@ -8536,6 +8567,12 @@ gets covered over time:
 > `calcColumns` pays zero extra cost (short-circuits to a plain copy); mock-data and real Pentaho CDA
 > paths are untouched. 2 new tests, suite 1394/1394.
 - **Period-over-period / compare mode:** pick two ranges or two sources and diff them across every panel.
+> ✓ **KPI tiles first cut shipped v600 (2026-07-27, steward, N innovation sweep):** a new **Period
+> column** field in the KPI Compare-to section auto-splits the bound DA's rows into two
+> chronological halves and compares the current half's aggregate to the prior half — no second
+> column needed. See DONE for the full writeup. **Still open:** the "across every panel" half of
+> the original ask (bar/line/donut widgets, not just KPIs), and letting a builder pick two
+> EXPLICIT ranges rather than an even chronological split.
 - **Pivot / crosstab builder** and **anomaly + correlation explorer** as first-class analysis surfaces.
 - **Data quality watchdog (added 2026-07-03):** scan a data access's own sample rows for common quality
   smells — blank/null values, a zero-variance ("always the same value") column, duplicate rows, an

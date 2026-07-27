@@ -5,7 +5,17 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v236"; /* v236: LF24 slice 3 — the creativity dial +
+var CACHE_NAME = "studio-shell-v237"; /* v237: N-DATA innovation sweep — KPI period-over-
+   period auto-compare. A new "Period column" field in the KPI Compare-to section
+   (app/studio.js) sorts the bound DA's rows chronologically by a date/period
+   column and splits them into two halves, computing the tile's value from the
+   current half and its delta from the prior half (app/studio-render.js) — no
+   second column or hand-built query needed, closing the "Period-over-period /
+   compare mode" N-DATA backlog item's first, KPI-scoped cut. Takes priority
+   over the existing manual Compare column when both would apply.
+   app/studio-render.js, app/studio.js, docs/index.html content changed, so
+   precached copies need to roll.
+   v236: LF24 slice 3 — the creativity dial +
    "fun" chart tier. buildAutoSpec(profile, creativity) now mixes a map/treemap/
    slope/ensemble widget into the conservative base at creativity:'high', each
    gated on its own data-support guardrail (app/quickmode.js's guessGeoScale/

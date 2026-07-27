@@ -1740,7 +1740,43 @@
           // Computed comparison delta: compareCol auto-computes the delta from a second numeric
           // column (same DA first row). Takes priority over manual deltaText when both are set.
           // Skipped for "corr" — that mode already consumed compareCol as its second series above.
-          if (k.compareCol && res && k.agg !== "corr") {
+          // N-DATA innovation sweep: period-over-period auto-compare. Unlike compareCol (a second
+          // column in the same row), periodCol needs only the ONE value column already bound —
+          // it sorts the DA's own rows chronologically by periodCol and splits them into two
+          // contiguous halves, aggregating each with k.agg (default "sum", since "first row"/
+          // "corr" don't make sense split in half). Takes priority over compareCol when both are
+          // set (mutually exclusive in the inspector). The tile's headline value itself becomes
+          // the CURRENT half's aggregate — that's the whole point of a period-over-period KPI.
+          if (k.periodCol && res) {
+            var pcIdx = res.col(k.periodCol), pvIdx = res.col(k.valueCol);
+            if (pcIdx >= 0 && pvIdx >= 0 && res.rows.length > 1) {
+              var pSorted = res.rows.slice().sort(function (a, b) {
+                var av = a[pcIdx], bv = b[pcIdx];
+                return av < bv ? -1 : av > bv ? 1 : 0;
+              });
+              var pMid = Math.floor(pSorted.length / 2);
+              var priorRows = pSorted.slice(0, pMid), curRows = pSorted.slice(pMid);
+              if (priorRows.length && curRows.length) {
+                var pAgg = (k.agg && k.agg !== "first" && k.agg !== "corr") ? k.agg : "sum";
+                var curVal = aggregateOf(curRows.map(function (r) { return r[pvIdx]; }), pAgg);
+                var priorVal = aggregateOf(priorRows.map(function (r) { return r[pvIdx]; }), pAgg);
+                val = curVal; tile.value = fmt(k.fmt)(curVal); tile._raw = curVal;
+                var pMode = k.compareMode || "pct";
+                var pLbl = k.compareLabel || "prior period";
+                if (pMode === "value") {
+                  tile.delta = 0; tile.deltaText = fmt(k.fmt)(priorVal) + " " + pLbl;
+                } else if (pMode === "abs") {
+                  var pDiff = curVal - priorVal;
+                  tile.delta = pDiff >= 0 ? 1 : -1;
+                  tile.deltaText = fmt(k.fmt)(Math.abs(pDiff)) + " vs " + pLbl;
+                } else { // pct (default)
+                  var pPct = priorVal !== 0 ? ((curVal - priorVal) / Math.abs(priorVal)) * 100 : 0;
+                  tile.delta = pPct >= 0 ? 1 : -1;
+                  tile.deltaText = Math.abs(pPct).toFixed(1) + "% vs " + pLbl;
+                }
+              }
+            }
+          } else if (k.compareCol && res && k.agg !== "corr") {
             var ci = res.col(k.compareCol);
             if (ci >= 0) {
               var cmpRaw = (res.rows[0] || [])[ci];
