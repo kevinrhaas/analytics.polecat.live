@@ -3864,21 +3864,33 @@
     ts.appendChild(field("Sparkline type", select2pairs([["line", "Line"], ["bar", "Bar"], ["area", "Area"]], k.sparkType || "line", function (v) { if (v === "line") delete k.sparkType; else k.sparkType = v; refreshPreview(); })));
     ts.appendChild(field("Sparkline color", colorTokenSelect([["", "Auto"]].concat(Studio.COLOR_TOKENS.map(function (t) { return [t, Studio.colorTokenLabel(t)]; })), k.sparkColor || "", function (v) { if (v) k.sparkColor = v; else delete k.sparkColor; refreshPreview(); })));
 
-    // Compare to — auto-computes a delta from a second numeric column in the same DA. Advanced.
+    // Compare to — auto-computes a delta, either from a second numeric column in the same DA
+    // (Compare column) or, N-DATA innovation sweep, a genuine period-over-period auto-split
+    // (Period column) — no second column needed, just a date/period column already in the DA.
     // Ideal for period-over-period comparisons: "Revenue this quarter vs last quarter" in one tile.
-    // Takes priority over manual Delta text when a Compare column is selected.
-    var cs = advSection(body, "Compare to", null, function () { return k.compareCol ? ("'" + (k.compareLabel || k.compareCol) + "'") : null; }, null, "diff");
-    cs.appendChild(field("Compare column", colPicker(cols, k.compareCol || "", function (v) {
-      if (v) k.compareCol = v; else { delete k.compareCol; delete k.compareMode; delete k.compareLabel; }
+    // Takes priority over manual Delta text; Period column takes priority over Compare column.
+    var cs = advSection(body, "Compare to", null, function () {
+      return k.periodCol ? "auto vs prior period" : (k.compareCol ? ("'" + (k.compareLabel || k.compareCol) + "'") : null);
+    }, null, "diff");
+    cs.appendChild(field("Period column", colPicker(cols, k.periodCol || "", function (v) {
+      if (v) { k.periodCol = v; delete k.compareCol; delete k.compareLabel; } else delete k.periodCol;
       renderInspector(); refreshPreview();
-    }, true), "second numeric column from the same DA; auto-computes delta vs main value"));
-    if (k.compareCol) {
+    }, true), "date/period column from the same DA — sorts its rows chronologically, splits them into two halves, and compares the current half's Aggregation total to the prior half. Takes priority over the manual field below when both are set."));
+    if (k.periodCol) {
+      cs.appendChild(noteEl("info", "Auto period comparison is on — the tile's value itself becomes the current half's total (per this KPI's Aggregation, Sum by default), split by " + k.periodCol + ". Clear Period column above to compare a manual column instead."));
+    } else {
+      cs.appendChild(field("Compare column", colPicker(cols, k.compareCol || "", function (v) {
+        if (v) k.compareCol = v; else { delete k.compareCol; delete k.compareMode; delete k.compareLabel; }
+        renderInspector(); refreshPreview();
+      }, true), "second numeric column from the same DA; auto-computes delta vs main value"));
+    }
+    if (k.periodCol || k.compareCol) {
       cs.appendChild(field("Display as", select2pairs([["pct", "% change"], ["abs", "Absolute delta"], ["value", "Compare value"]], k.compareMode || "pct", function (v) {
         if (v !== "pct") k.compareMode = v; else delete k.compareMode; refreshPreview();
       })));
-      cs.appendChild(field("Compare label", input(k.compareLabel || "", function (v) {
+      cs.appendChild(field(k.periodCol ? "Prior-period label" : "Compare label", input(k.compareLabel || "", function (v) {
         if (v) k.compareLabel = v; else delete k.compareLabel; refreshPreview();
-      }, "e.g. Prior quarter, Target")));
+      }, k.periodCol ? 'default: "prior period"' : "e.g. Prior quarter, Target")));
     }
 
     // Click-through: click the tile to navigate to another dashboard, mirroring panel

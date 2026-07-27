@@ -16067,6 +16067,137 @@ function serve() {
     });
     ok("v90: exported CDF HTML embeds compareCol config in STUDIO_SPEC", v90ExportResult.hasCompareCol, JSON.stringify(v90ExportResult));
 
+    // ── v600: KPI period-over-period auto-compare (N-DATA innovation sweep) ────
+    console.log("\n• v600: KPI period-over-period auto-compare (N-DATA sweep)");
+
+    // 1. Build a synthetic KPI bound to a multi-row DA (a date column + a value column, no
+    //    panel binds it — same "KPI-only DA" shape as studio-cost's own single-row "kpi" DA,
+    //    but with real row count so a chronological split has something to split) and set
+    //    k.periodCol. 'date' matches sampledata.js's isodate classifier, so the offline preview
+    //    generates real, sortable YYYY-MM-DD values (deterministic, no randomness) and 'cost'
+    //    matches its money classifier.
+    // A dummy bars panel (its own separate DA — not potp_da, so it can't skew potp_da's
+    // valueOnly/row-count generation) rides along ONLY so wireSelection()/tagKpis() actually
+    // run: renderAll() early-returns before wiring any click-to-select at all on a 0-panel
+    // dashboard (a pre-existing, unrelated behavior — the KPI section still renders and
+    // computes fine either way; this is purely to make the tile clickable for the test below).
+    const v600Setup = await page.evaluate(function () {
+      try {
+        var spec = window.Studio.emptySpec();
+        spec.cda.dataAccesses = [
+          { id: "potp_da", columns: ["date", "cost"] },
+          { id: "dummy_da", columns: ["label", "value"] }
+        ];
+        spec.kpis = [{ da: "potp_da", valueCol: "cost", label: "Cost", fmt: "money", periodCol: "date" }];
+        spec.panels = [{ id: "dummy_panel", title: "Dummy", chart: { type: "bars", da: "dummy_da", map: { labelCol: "label", valueCol: "value" } } }];
+        window.__studioLoad(spec);
+        return { ok: true };
+      } catch (e) { return { ok: false, err: e.message }; }
+    });
+    ok("v600: synthetic period-over-period KPI spec loads", v600Setup.ok, JSON.stringify(v600Setup));
+    await page.waitForTimeout(900); // let PDC.kpis' animateCount (750ms) settle before reading tile text
+
+    // 2. k.periodCol persists in spec after (re)loading
+    const v600SpecResult = await page.evaluate(function () {
+      var k = (window.__STUDIO_STATE.spec.kpis || [])[0];
+      return { ok: !!(k && k.periodCol === "date"), periodCol: k && k.periodCol };
+    });
+    ok("v600: k.periodCol persists in spec", v600SpecResult.ok, JSON.stringify(v600SpecResult));
+
+    // 3. 'Period column' field appears in the KPI inspector's Compare-to section, and the manual
+    //    'Compare column' field is hidden while it's set (mutually exclusive in the UI)
+    await page.evaluate(function () {
+      try {
+        var iw = document.getElementById("preview").contentWindow;
+        var kpiEl = iw.document.querySelector(".kpi");
+        if (kpiEl) kpiEl.click();
+      } catch (e) {}
+    });
+    await page.waitForTimeout(400);
+    const v600InspResult = await page.evaluate(function () {
+      try {
+        var insp = document.getElementById("inspBody") || document.getElementById("inspector");
+        if (!insp) return { ok: false, reason: "no inspector element" };
+        // Check actual field LABELS (".field > label"), not raw textContent — the Period column
+        // field's own hint text ("...takes priority over Compare column below") legitimately
+        // mentions the other field by name, so a raw substring match would false-positive.
+        var labels = Array.from(insp.querySelectorAll(".field > label")).map(function (l) { return l.textContent.trim(); });
+        return {
+          ok: labels.indexOf("Period column") >= 0 && labels.indexOf("Compare column") < 0,
+          labels: labels
+        };
+      } catch (e) { return { ok: false, err: e.message }; }
+    });
+    ok("v600: 'Period column' shown in KPI inspector, 'Compare column' hidden while it's set", v600InspResult.ok, JSON.stringify(v600InspResult));
+
+    // 4. KPI tile renders the CURRENT half's sum as its value and a delta vs the PRIOR half —
+    //    computed independently here via the same Studio.sampleRows the offline preview itself
+    //    calls (deterministic, no randomness), so this checks the actual split math, not just
+    //    "a delta appeared."
+    const v600DeltaResult = await page.evaluate(function () {
+      try {
+        var da = window.__STUDIO_STATE.spec.cda.dataAccesses[0];
+        var sample = window.Studio.sampleRows(da, true, false); // valueOnly=true: KPI-only DA
+        var dateI = sample.cols.indexOf("date"), costI = sample.cols.indexOf("cost");
+        var sorted = sample.rows.slice().sort(function (a, b) {
+          return a[dateI] < b[dateI] ? -1 : a[dateI] > b[dateI] ? 1 : 0;
+        });
+        var mid = Math.floor(sorted.length / 2);
+        var priorSum = sorted.slice(0, mid).reduce(function (s, r) { return s + (+r[costI] || 0); }, 0);
+        var curSum = sorted.slice(mid).reduce(function (s, r) { return s + (+r[costI] || 0); }, 0);
+        var expectedPct = priorSum !== 0 ? Math.abs(((curSum - priorSum) / Math.abs(priorSum)) * 100).toFixed(1) : "0.0";
+        var iw = document.getElementById("preview").contentWindow;
+        var kpiEl = iw.document.querySelector(".kpi");
+        var deltaEl = kpiEl && kpiEl.querySelector(".d");
+        return {
+          rowCount: sorted.length, priorSum: priorSum, curSum: curSum, expectedPct: expectedPct,
+          valText: kpiEl ? kpiEl.querySelector(".v").textContent : null,
+          deltaText: deltaEl ? deltaEl.textContent.trim() : null
+        };
+      } catch (e) { return { err: e.message }; }
+    });
+    ok("v600: KPI tile delta matches the current-vs-prior chronological split, computed independently",
+      !!(v600DeltaResult.deltaText && v600DeltaResult.deltaText.indexOf(v600DeltaResult.expectedPct + "%") >= 0 &&
+        v600DeltaResult.deltaText.indexOf("prior period") >= 0 && v600DeltaResult.valText !== "—"),
+      JSON.stringify(v600DeltaResult));
+
+    // 5. Period column takes priority over Compare column when both are set on the same KPI —
+    //    compareCol points at "date" (a string column, nonsensical as a compare VALUE) so if it
+    //    were used instead of periodCol the delta math would break (NaN/0%); periodCol's own
+    //    computation (same expectedPct as step 4 — compareLabel is untouched, so periodCol's
+    //    default "prior period" label still applies) proves it's still the one driving the tile.
+    const v600PriorityResult = await page.evaluate(function () {
+      try {
+        var spec = window.__STUDIO_STATE.spec;
+        var k = spec.kpis[0];
+        k.compareCol = "date";
+        window.__studioLoad(spec);
+        return { ok: true };
+      } catch (e) { return { ok: false, err: e.message }; }
+    });
+    ok("v600: setup for priority check", v600PriorityResult.ok, JSON.stringify(v600PriorityResult));
+    await page.waitForTimeout(900);
+    const v600PriorityCheck = await page.evaluate(function () {
+      var iw = document.getElementById("preview").contentWindow;
+      var kpiEl = iw.document.querySelector(".kpi");
+      var deltaEl = kpiEl && kpiEl.querySelector(".d");
+      return { deltaText: deltaEl ? deltaEl.textContent.trim() : null };
+    });
+    ok("v600: periodCol takes priority over compareCol when both are set",
+      !!(v600PriorityCheck.deltaText && v600DeltaResult.expectedPct &&
+        v600PriorityCheck.deltaText.indexOf(v600DeltaResult.expectedPct + "%") >= 0 &&
+        v600PriorityCheck.deltaText.indexOf("prior period") >= 0),
+      JSON.stringify({ priorityDelta: v600PriorityCheck.deltaText, expectedFromStep4: v600DeltaResult.expectedPct }));
+
+    // 6. Exported CDF HTML embeds periodCol config in STUDIO_SPEC
+    const v600ExportResult = await page.evaluate(function () {
+      try {
+        var html = Studio.buildHtml(window.__STUDIO_STATE.spec, window.__STUDIO_STATE.assets, { preview: false });
+        return { hasPeriodCol: html.indexOf("periodCol") >= 0 };
+      } catch (e) { return { hasPeriodCol: false, err: e.message }; }
+    });
+    ok("v600: exported CDF HTML embeds periodCol config in STUDIO_SPEC", v600ExportResult.hasPeriodCol, JSON.stringify(v600ExportResult));
+
     // Restore clean spec
     await page.evaluate(async function () {
       var freshSpec = await fetch("data/examples/studio-cost.studio.json").then(function (r) { return r.json(); });

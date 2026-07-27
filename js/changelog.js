@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 600,
+    title: 'KPI tiles can now auto-compare to the prior period, straight off one column',
+    kind: 'feature',
+    ts: '2026-07-27T04:00:54.000Z',
+    items: [
+      'A new "Period column" field in a KPI tile\'s Compare to section: pick a date/period column from the same query and the tile splits its rows into two chronological halves, showing the current half\'s total as the headline number and the prior half as the delta -- a real "revenue this quarter vs last quarter" comparison from a single column, no second column or hand-built query required.',
+      'Takes priority over the existing manual Compare column when both would apply; the delta can still be shown as percent change, absolute difference, or the raw prior-period value.',
+    ],
+  },
+  {
     v: 599,
     title: 'Quick import gains a creativity dial — maps, treemaps, slope charts, and ensemble views',
     kind: 'feature',
