@@ -4615,8 +4615,15 @@
 >       present/viewer with a UNIFORM exit (a close/X on any mode that changes the view — like present
 >       mode's title X, made universal). ROLE-CONTROLLED: developers get Studio EDIT mode; viewers get VIEW
 >       + the other non-edit modes, never edit. Clarify Focus vs View (Focus may be an edit mode — keep if it
->       serves the developer editor). (studio.js mode handling + switcher UI, auth.js canDevelop.) Ties LF23,
->       LF44, LF46.
+>       serves the developer editor). **RECONCILE SETTINGS MODE/PRESENTATION (Kevin, 2026-07-27, agreed):
+>       modes are a CHOICE OF MODE, not persistent user settings — so REMOVE the transient present modes from
+>       Settings (Demo — LF46 already hides it; and Focus) and let them live ONLY in the switcher. KEEP as
+>       genuine settings: "Sample content" (real workspace/data toggle) and "Welcome tour → Take the tour"
+>       (re-launch, Settings→Tour, LF40). "Simple mode" is the judgment call — it's NOT a transient present
+>       mode; it persistently changes the editing experience, so keep it as a PREFERENCE / provisioning
+>       default (LF41), not lumped with Demo/Focus. Net: Settings' MODE/PRESENTATION collapse to Sample
+>       content + Simple-mode preference + the tour re-launch.** (studio.js mode handling + switcher UI,
+>       renderSettings() MODE/PRESENTATION cards, auth.js canDevelop.) Ties LF23, LF44, LF46, LF40, LF41.
 > LF49. **More export formats.** XLSX (dashboard on tab 1, backend/source datasets on later tabs), PowerPoint
 >       (.pptx), Word (.docx) — best-effort visual dashboard + underlying data. Mind the no-build/no-dep
 >       rule (vendor a small lib if needed). (app/exporters.js + Export▾ menu.) Ties LF36 (PDF, shipped), LF25.
