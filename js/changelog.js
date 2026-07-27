@@ -6,13 +6,22 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
-    v: 616,
+    v: 617,
     title: 'Sample-pack dashboards now show up in Dashboards, not just the Examples gallery',
     kind: 'fix',
-    ts: '2026-07-27T15:52:30.000Z',
+    ts: '2026-07-27T16:17:23.000Z',
     items: [
       'Installing a sample pack (Conservation Insight or Data Management & Governance) now adds its curated showcase dashboards to your Dashboards screen, tagged so removing the pack takes them back out again.',
       'Previously those dashboards only ever unlocked in the Examples dropdown -- installed packs looked like they had nothing to show for it outside Studio.',
+    ],
+  },
+  {
+    v: 616,
+    title: 'Quick import builds the full, impressive dashboard by default',
+    ts: '2026-07-27T16:01:31.000Z',
+    items: [
+      'Dropping a CSV or JSON file on Home now auto-builds at the High creativity level by default -- maps, treemaps, slope and ensemble views are included when the data supports them, instead of only the bars/donut/line/table basics.',
+      'You can still dial an individual import back with the in-builder Low/High toggle; a clearer per-import simple/medium/complex chooser is on the way.',
     ],
   },
   {

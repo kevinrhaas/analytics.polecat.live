@@ -117,7 +117,7 @@
 
 ## DONE
 - **LF43 slice 1 — sample-pack dashboards now materialize into Dashboards, not just the Examples
-  gallery (v616, sw v253, 2026-07-27, steward — next fast bug win in the LOCKED BUILD ORDER after
+  gallery (v617, sw v254, 2026-07-27, steward — next fast bug win in the LOCKED BUILD ORDER after
   LF44):** the reported bug — "installed sample packs show but their dashboards don't appear in
   the Dashboards screen" — traced to `data/examples/index.json` entries tagged `demoPackId`
   (a pack's showcase dashboards) only ever being gated INTO the Examples ▾ gallery
@@ -4630,6 +4630,65 @@
 > **LF52 note (extend):** the "Export this panel…" button label → "Export this View"; and the Explore
 > "Analyses" list/label (SAVED ANALYSES, "Add to dashboard" cards) → "Views" — both are part of the
 > widget/analysis→View rename, not separate work.
+> LF66. **Studio Data-panel / library REORGANIZATION (Kevin, live 2026-07-27) — big one, slice it.** The
+>       left "Data" panel library is getting daunting and doesn't behave right. Rework it around real
+>       objects instead of a bolted-on "Sample packs" concept:
+>       (1) **Sample packs are NOT a separate library item.** An installed pack just contributes real
+>           DATASETS / VIEWS / DASHBOARDS (a pack can carry several of each) into the normal library —
+>           identified as belonging to the pack (a pack folder / tag), not parked in their own "Sample
+>           packs" group. Keep a pack grouping/folder for provenance, but the CONTENT shows up as normal
+>           datasets/views/dashboards you can use. (Both can coexist for now if it helps the transition.)
+>       (2) **Library groups to offer:** "This dashboard's datasets", **Datasets**, **Views**, and
+>           **Dashboards** — the things you can pull from to build. Also reachable from **Open**.
+>       (3) **DROP the legacy bottom "Samples (115) · DEMO DB" group** (this supersedes LF65) — samples
+>           come only via installed packs' datasets.
+>       (4) **Rename "Workspace datasets" → just "Datasets".**
+>       (5) **Compact the oversized cards.** The big library card (huge subtitle like "Conservation
+>           Insight — demo files · CSV/JSON file" + a wall of column chips + a row of +Bar/+Donut/+Line/
+>           +Treemap/+Table/+KPI buttons) is too much / too big — make it respectable + tight like the
+>           "This dashboard's datasets" cards (compact name + a short meta line; move the chart-type
+>           quick-adds behind a hover/expand, not always-on).
+>       (6) **FIX drag-to-canvas + auto-build best view.** Today a library card IS `draggable` but you
+>           "can pick it up and can't drag it anywhere" — because the canvas is the live-preview IFRAME
+>           and HTML5 DnD from the parent panel doesn't cross the iframe boundary (the only working drop
+>           targets are parent-level: Home's blank card, folder headers). Make dragging a DATASET card
+>           onto the canvas actually land (postMessage-coordinated drop against the iframe wrapper, or a
+>           click/drop-to-add fallback) AND auto-pick the BEST view for that dataset (reuse the LF24
+>           auto-build / best-chart inference), not just a bare bars panel.
+>       (studio.js buildLibrary() + its card renderers ~745/1121, demopacks.js install → real objects,
+>       studio-render.js iframe drop protocol, dsToDA/addFromWorkspaceDataset, quickmode best-view infer.)
+>       Ties LF43, LF57 (Views rail), LF59 (dashboards mgmt), LF51 (nav), LF29/LF52 (terminology), LF24,
+>       #29. **This is the same intent as LF43/LF57/LF59 — reconcile them into one library model, don't
+>       build three overlapping ones.**
+> LF67. **BUG — quick-built dashboard is lost when you open another (not persisted / no replace-warn).**
+>       A Quick-import builds a dashboard straight into the single Studio canvas but does NOT save it; open
+>       any other dashboard (e.g. a sample) and the unsaved build is silently replaced — Kevin hit this
+>       ("I clicked on it and it showed the sensitivity radar, that is not what I created"). Fix: on a
+>       quick-build, AUTO-SAVE it to Dashboards (or at minimum a clear "unsaved — Save to keep" state +
+>       WARN before an open/New replaces unsaved work). The autosave restore-banner is the safety net but
+>       shouldn't be the only recovery. (studio.js quickBuildDashboard → persist/dirty-guard, openRecent/
+>       enterStudio replace path.) Ties LF50 (replace warning), LF26 (overwrite protection), LF27.
+> LF68. **BUG — "Sensitivity & Compliance Radar" showcase KPI shows `NaN%`.** In the Data Management &
+>       Governance showcase pack, the compliance-radar dashboard's "SENSITIVE DATA" KPI renders `NaN%` —
+>       its percentage divides by an empty/non-numeric denominator (sensitive_pct KPI). Fix the sample's
+>       KPI data/format so it shows a real %; audit the other showcase KPIs for the same. (demopacks.js /
+>       the showcase pack spec + KPI fmt, guessFmt/percent KPI path.) Ties LF43, showcase-pack QA.
+> LF69. **View/panel header toolbar — reorder + fold exports into a MENU (Kevin, 2026-07-27).** The per-panel
+>       (View) header button cluster is wrong: (a) ORDER — destructive/close (✕, delete) belong on the FAR
+>       RIGHT, not mid-row; (b) EXPORTS should live in that header too; (c) it's MISSING "Export as PNG";
+>       (d) now that we've added PDF + XLSX + Word (LF49) on top of PNG + standalone-HTML, a row of buttons
+>       is too many — collapse export into a single **Export ▾ menu** (PNG image · data CSV · standalone
+>       HTML · … ) instead of N buttons. Apply the same tidy header pattern consistently to every View/panel.
+>       (studio-render.js panel header controls + the export handlers, app/exporters.js per-panel export,
+>       studio.css panel-head.) Ties LF25 (per-panel export/PNG), LF49 (export formats), LF47, LF52.
+> LF70. **"Browse examples" (Home) must WORK and land in Dashboards at the pack's folder (Kevin,
+>       2026-07-27).** The Home "Browse examples" card should open the DASHBOARDS view scrolled/filtered to
+>       whatever folder the installed sample pack(s) imported into, shown as dashboard THUMBNAIL tiles —
+>       not a separate examples modal. This is the same intent as LF43 (pack dashboards ARE the examples,
+>       surfaced in Dashboards) + LF66 (packs contribute real foldered dashboards) + LF61/LF27 (thumbnail
+>       tile browser). Reconcile: "Browse examples" = "go to the pack's dashboards in the Dashboards
+>       section." (studio.js Home card act, Dashboards section folder deep-link + thumbnails, demopacks.js
+>       pack→folder.) Ties LF43, LF66, LF61, LF59, LF27.
 
 ### ★★ ONBOARDING & PROVISIONING EPIC (Kevin, 2026-07-27) — the "Dave" north-star
 > A meaty vision from a live session: turn first-run into a delightful, admin-provisioned
@@ -4685,7 +4744,7 @@
 >       drop "Examples"; remove Studio's Examples button.** Logged in as demo, installed sample
 >       packs show but their dashboards don't appear in the Dashboards screen. A pack's "examples"
 >       are just its curated dashboards — surface them as real dashboards when the pack is
->       installed (slice 1, shipped v616, sw v253, 2026-07-27, steward — see DONE), DROP the
+>       installed (slice 1, shipped v617, sw v254, 2026-07-27, steward — see DONE), DROP the
 >       "Examples" naming, and REMOVE the messy Studio Examples menu/button (slice 2, still open —
 >       a bigger UI-surface change touching ~20 existing tests + Home's "Browse examples" quick
 >       action, budget a dedicated slice). (demopacks.js, studio.js renderDashboards()/
@@ -4746,10 +4805,19 @@
 > LF49. **More export formats.** XLSX (dashboard on tab 1, backend/source datasets on later tabs), PowerPoint
 >       (.pptx), Word (.docx) — best-effort visual dashboard + underlying data. Mind the no-build/no-dep
 >       rule (vendor a small lib if needed). (app/exporters.js + Export▾ menu.) Ties LF36 (PDF, shipped), LF25.
-> LF50. **Kill the stray "Creativity" (Low/High) control in the builder; keep auto-build-from-dataset.** That
->       dial belongs to Quick mode only — remove it from the builder chrome. Keep an "auto-build from a
->       dataset" (Quick mode) entry, but it REPLACES the open dashboard, so confirm/warn before it clobbers.
->       (studio.js builder chrome + Quick-mode entry + replace guard.) Ties LF24, LF26.
+> LF50. **Quick-import complexity: default High (SHIPPED), HIDE the Low/High dial for now, then a real
+>       per-import chooser (Kevin, 2026-07-27).** (a) DONE — quick-import now defaults to High creativity
+>       (app/defaults.js), so a dropped file auto-builds the full map/treemap/slope/ensemble dashboard out
+>       of the box. (b) HIDE the in-builder `#qmTuner` Low/High toggle AND the Settings "Quick import
+>       creativity" row for now — Kevin: "it's confusing things for now until we improve that." (Keep the
+>       machinery + buildAutoSpec low/high; just hide the chrome — index.html #qmTuner, studio.js
+>       syncHeader show-logic + the Settings row ~7317, and re-baseline the tuner tests run.js ~1671-1748.)
+>       (c) FUTURE — pick complexity ON THE WAY IN, per import: a **simple / medium / complex** choice at
+>       drop time (e.g. distinct drop areas that each default to a level). **CRUCIAL: complex must be
+>       QUALITATIVELY DIFFERENT, not just "more widgets"** — a different build strategy/composition/layout
+>       per level, not simply the low set + extra panels. (New quickmode build strategies per level, a
+>       drop-time level picker / multi-zone drop UI.) Also keep: auto-build REPLACES the open dashboard, so
+>       confirm/warn before it clobbers (see LF67). Ties LF24, LF26, LF61, LF67.
 > LF51. **Elevate the workspace navigation IA.** **CORE PRINCIPLE (Kevin, 2026-07-27): build ONE shared,
 >       best-practice navigation component set and apply it CONSISTENTLY everywhere — Datasets, Connections,
 >       Jobs, Views (LF57), Repository, AND the Explore dataset picker/navigator. Same look & feel across the
