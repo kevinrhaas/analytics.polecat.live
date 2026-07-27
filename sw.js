@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v260"; /* v260: LF42 slice 2 — Add/Edit user gains an "Assigned
+var CACHE_NAME = "studio-shell-v261"; /* v261: LF42 slice 3 — Settings → Workspace backend's
+   "Switch backend" now offers whatever backends an admin has already registered (Admin →
+   Backends card) as one-click connect options, before falling back to entering credentials
+   from scratch. app/studio.js and docs/index.html changed, so precached copies roll.
+   v260: LF42 slice 2 — Add/Edit user gains an "Assigned
    backend" picker (once at least one backend is registered) recording which registered backend
    an account belongs to on its provisioning blob; surfaced as a count badge on each Backends row
    and a "→ Backend name" badge on the Users list. Reference metadata only — no auto-connect.

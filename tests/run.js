@@ -10840,6 +10840,76 @@ function serve() {
       lf42s2Preserved === false && lf42s2AfterPreserve && lf42s2AfterPreserve.backendId === "bk2",
       JSON.stringify(lf42s2AfterPreserve));
 
+    // ---- LF42 slice 3: consolidated Switch-backend picker ----
+    // No registered backends right now (the block above emptied the list) —
+    // Switch backend must behave exactly as before: straight to the blank wizard.
+    const lf42s3NoBackends = await gp42.evaluate(function () {
+      window.__studioShellSetSection("settings"); window.__studioRenderWorkspaceBackendCard();
+      document.getElementById("wsSwitchBtn").click();
+      var out = { modalTitle: (document.querySelector(".modal-h") || {}).textContent, hasPickerList: !!document.querySelector(".modal-ov .cx-list") };
+      document.querySelector(".modal-ov .x").click();
+      return out;
+    });
+    ok("LF42 slice 3: with no registered backends, Switch backend opens the blank connect wizard directly (unchanged behavior)",
+      lf42s3NoBackends.modalTitle === "Connect a workspace backend" && !lf42s3NoBackends.hasPickerList,
+      JSON.stringify(lf42s3NoBackends));
+
+    // Register two backends — Switch backend should now offer them first.
+    await gp42.evaluate(function (port) {
+      localStorage.setItem("studio-admin-backends", JSON.stringify([
+        { id: "bk3", name: "Prod Turso", adapter: "turso", cfg: { url: "http://localhost:" + port + "/__turso", token: "tok-lf42s3" } },
+        { id: "bk4", name: "Dev Supabase", adapter: "supabase", cfg: {} },
+      ]));
+    }, PORT);
+    const lf42s3Picker = await gp42.evaluate(function () {
+      window.__studioRenderWorkspaceBackendCard();
+      document.getElementById("wsSwitchBtn").click();
+      var rows = [].slice.call(document.querySelectorAll(".modal-ov .cx-list .cx-row")).map(function (r) {
+        return { name: (r.querySelector(".cx-name b") || {}).textContent, adapter: (r.querySelector(".cx-name small") || {}).textContent };
+      });
+      var hasManual = [].slice.call(document.querySelectorAll(".modal-ov .cx-wiz-foot .btn")).some(function (b) { return /Enter connection details manually/.test(b.textContent); });
+      var out = { modalTitle: (document.querySelector(".modal-h") || {}).textContent, rows: rows, hasManual: hasManual };
+      document.querySelector(".modal-ov .x").click();
+      return out;
+    });
+    ok("LF42 slice 3: with registered backends, Switch backend opens a picker listing them plus a manual-entry option",
+      lf42s3Picker.modalTitle === "Switch workspace backend" && lf42s3Picker.rows.length === 2 &&
+      lf42s3Picker.rows.some(function (r) { return r.name === "Prod Turso" && r.adapter === "Turso"; }) &&
+      lf42s3Picker.hasManual,
+      JSON.stringify(lf42s3Picker));
+
+    // Picking a registered row closes the picker and opens the real connect
+    // wizard preset with that row's adapter + saved credentials (same as the
+    // Admin Backends card's own Connect button).
+    const lf42s3Connect = await gp42.evaluate(function () {
+      document.getElementById("wsSwitchBtn").click();
+      var row = [].slice.call(document.querySelectorAll(".modal-ov .cx-list .cx-row")).filter(function (r) { return /Prod Turso/.test(r.textContent); })[0];
+      row.querySelector(".cx-actions .btn").click();
+      var out = {
+        pickerGone: !document.querySelector(".modal-ov .cx-list"),
+        wizardTitle: (document.querySelector(".modal-ov .cx-wiz-ttl b") || {}).textContent,
+        presetUrl: (document.querySelector(".modal-ov .cx-wiz-form input") || {}).value
+      };
+      document.querySelector(".modal-ov .x").click();
+      return out;
+    });
+    ok("LF42 slice 3: picking a registered backend closes the picker and opens the connect wizard preset with its adapter + saved credentials",
+      lf42s3Connect.pickerGone && lf42s3Connect.wizardTitle === "Turso" && /\/__turso/.test(lf42s3Connect.presetUrl || ""),
+      JSON.stringify(lf42s3Connect));
+
+    // "Enter connection details manually" closes the picker and opens the blank wizard (fresh pick-an-adapter step).
+    const lf42s3Manual = await gp42.evaluate(function () {
+      document.getElementById("wsSwitchBtn").click();
+      var manualBtn = [].slice.call(document.querySelectorAll(".modal-ov .cx-wiz-foot .btn")).filter(function (b) { return /Enter connection details manually/.test(b.textContent); })[0];
+      manualBtn.click();
+      var out = { modalTitle: (document.querySelector(".modal-h") || {}).textContent, hasSrcGrid: !!document.querySelector(".modal-ov .cx-src-grid") };
+      document.querySelector(".modal-ov .x").click();
+      return out;
+    });
+    ok("LF42 slice 3: 'Enter connection details manually' closes the picker and opens the blank adapter-picker wizard",
+      lf42s3Manual.modalTitle === "Connect a workspace backend" && lf42s3Manual.hasSrcGrid,
+      JSON.stringify(lf42s3Manual));
+
     await gp42.close();
 
     // ---- M7 slice 6: in-app account provisioning (browser self-signup) ----

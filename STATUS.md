@@ -116,6 +116,34 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF42 slice 3 — consolidated Switch-backend picker (v624, sw v261, 2026-07-27, steward —
+  the last numbered LF42 slice, step 2 of the LOCKED BUILD ORDER's "Dave"-demo ingredients,
+  after LF42 slice 2):** Settings → Workspace backend's **Switch backend** button used to
+  always drop straight into the blank "pick an adapter, type credentials" wizard, even when
+  an admin had already pre-registered one or more backends on the Admin → Backends card
+  (LF42 slice 1) — so connecting from Settings meant retyping credentials the app already
+  had on file. New `openSwitchBackendPicker()` (app/studio.js) checks `getAdminBackends()`
+  first: zero registered backends → unchanged behavior (straight to the blank wizard); one
+  or more → a lightweight picker modal lists each by name + adapter with a **Connect** button
+  that opens the SAME preset `openBackendWizard(src, cfg)` flow as the Admin card's own
+  Connect action (identical probe/classify/adopt path, nothing about connecting itself
+  changed), plus an **"Enter connection details manually"** option that falls through to the
+  original blank wizard. Deliberately UI-only: no new storage, no change to `Studio.Sync`,
+  no change to the Admin Backends card itself — "consolidated" here means Settings stops
+  duplicating what Admin already registered, not a new backend-management surface. Docs
+  (`docs/index.html`'s "Managing multiple backends" section) and the Admin Backends card's
+  own intro cross-reference this. 4 new regression tests (tests/run.js, "LF42 slice 3"
+  block, same gp42 context as slices 1-2): no-backends fallback is unchanged; picker lists
+  registered backends + a manual-entry option; picking a row opens the preset wizard with
+  its saved credentials; manual entry opens the blank adapter-picker wizard. Full suite
+  green. SW cache → v261 (app/studio.js, docs/index.html precached). **LF42 is now fully
+  done — step 2 of the LOCKED BUILD ORDER's "Dave"-demo ingredients is complete except
+  LF41's own remaining slices (backend/DB assignment is covered by LF42; the full
+  Settings → Dashboard-defaults blob, Simple-mode default, and the admin "copy my
+  settings"/impersonate convenience stay open as later LF41 slices).** (app/studio.js,
+  docs/index.html, sw.js, js/changelog.js, tests/run.js) NEXT: step 3 of the LOCKED BUILD
+  ORDER — LF40 (animated welcome + home tour) — or a remaining LF41 slice, per Kevin's
+  locked sequence.
 - **LF42 slice 2 — per-user backend assignment (v623, sw v260, 2026-07-27, steward — step 2
   of the LOCKED BUILD ORDER's "Dave"-demo ingredients, after LF42 slice 1):** Add/Edit user
   (`openUserEditor`, app/studio.js) gains an **Assigned backend** picker, sourced from the
@@ -4727,9 +4755,9 @@
 >    LF38 ✓ (password eyeball toggle) · LF39 ✓ (cross-device sign-in fix, 2026-07-27). Step 1 is
 >    otherwise fully done — only LF43 slice 2 remains, deliberately deferred.
 > 2. **"Dave"-demo ingredients:** LF41 (per-user provisioning defaults — theme + sample pack ✓ slice 1,
->    2026-07-27; backend/DB + full dashboard-defaults blob still open) → LF42 (multi-backend admin —
->    admin manages a backend list ✓ slice 1, per-user backend assignment ✓ slice 2, both 2026-07-27;
->    consolidated config UI (slice 3) still open).
+>    2026-07-27; full dashboard-defaults blob still open) → LF42 (multi-backend admin — admin manages
+>    a backend list ✓ slice 1, per-user backend assignment ✓ slice 2, consolidated Switch-backend
+>    picker ✓ slice 3, all 2026-07-27 — **LF42 is now fully done**).
 > 3. **Flashy:** LF40 (animated welcome + home tour, sample-pack-aware).
 > 4. **Studio chrome:** LF46 (⋯ teardown) · LF47 (ops → top rail, w/ #30) · LF48 (mode switcher) ·
 >    LF45 (Save-as + Open dialog) · LF52 (widget→View) · LF53 (drop CDF/CDE).
@@ -4884,14 +4912,17 @@
 >       Supabase+GoTrue+RLS vs Turso vs Firebase: security, multi-user, setup effort, cost, offline).
 >       (docs/index.html restructure + an embedded docs view with new-tab pop-out, rail Docs/Help item,
 >       studio.js.) Ties LF58 (docs currency), #23, LF51, QA-02, M7.
-> LF42. **slice 1-2 ✓ / slice 3 open — Multi-backend management for admin.** Admin can define/manage
+> LF42. ✓ **slice 1-3 all done — Multi-backend management for admin.** Admin can define/manage
 >       MULTIPLE backends (Supabase connections/DBs) and assign one ACTIVE backend per user when
 >       provisioning them; consolidate + simplify backend config into an Admin surface with more
 >       options; (future) select a SERVER. Slice: (1) admin manages a backend list ✓ (2026-07-27,
 >       steward — see DONE); (2) per-user active-backend assignment ✓ (2026-07-27, steward — see
 >       DONE; recorded as reference metadata on `provisioning.backendId`, surfaced on both the
 >       Backends card and the Users list — deliberately NOT auto-connecting a device, since adopting
->       a backend replaces its entire local workspace); (3) consolidated config UI; (future) servers.
+>       a backend replaces its entire local workspace); (3) consolidated config UI ✓ (2026-07-27,
+>       steward — see DONE; Settings → Workspace backend's Switch-backend picker now offers the
+>       Admin-registered list first, instead of a second from-scratch credential entry flow).
+>       (future) servers stays open, not scoped to a slice yet.
 >       (New Admin "Backends" surface, per-user backend on the user record, app/sources/*,
 >       workspace-backend card, gate.js connect.) Ties M7, LF39, LF41.
 > LF43. **slice 1 ✓ / slice 2 open — BUG/cleanup — sample-pack dashboards must show in Dashboards;

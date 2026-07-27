@@ -6750,7 +6750,7 @@
     var editBtn = $("#wsEditBtn", card);
     if (editBtn) editBtn.onclick = function () { openBackendWizard(st.source, Studio.Sync.currentConfig()); };
     var switchBtn = $("#wsSwitchBtn", card);
-    if (switchBtn) switchBtn.onclick = function () { openBackendWizard(); };
+    if (switchBtn) switchBtn.onclick = function () { openSwitchBackendPicker(); };
     var onBtn = $("#wsSecretsOnBtn", card);
     if (onBtn) onBtn.onclick = function () {
       var pass = window.prompt("Choose an encryption passphrase (needed on every browser that opens this workspace):");
@@ -6769,6 +6769,45 @@
       Studio.Sync.unlockSecrets(pass).then(function () { toast("Secrets unlocked"); }, function () { toast("Wrong passphrase", true); });
     };
   }
+  // LF42 slice 3: consolidate backend config so Settings' "Switch backend" reuses
+  // whatever the Admin "Backends" card already has registered, instead of making
+  // you re-type credentials for a database an admin already set up. No registered
+  // backends → same one-click behavior as before (straight to the blank wizard).
+  function openSwitchBackendPicker() {
+    var list = getAdminBackends();
+    if (!list.length) { openBackendWizard(); return; }
+    modal("Switch workspace backend", function (b) {
+      var intro = el("p", "cx-wiz-intro");
+      intro.textContent = "Connect to a backend an admin has already registered, or enter new connection details.";
+      b.appendChild(intro);
+      var rows = el("div", "cx-list");
+      list.forEach(function (r) {
+        var src = Studio.sourceById(r.adapter) || { label: r.adapter, icon: "db" };
+        var row = el("div", "cx-row");
+        var ic = el("span", "cx-ic"); ic.style.color = src.accent || "var(--brand)"; ic.appendChild(Studio.icon(src.icon || "db", 18));
+        var name = el("span", "cx-name"); name.innerHTML = "<b>" + esc(r.name) + "</b><small>" + esc(src.label || r.adapter) + "</small>";
+        var actions = el("span", "cx-actions");
+        var btn = el("button", "btn primary"); btn.type = "button"; btn.textContent = "Connect";
+        btn.onclick = function () {
+          document.querySelector(".modal-ov .x").click();
+          openBackendWizard(src, r.cfg, function () { renderWorkspaceBackendCard(); });
+        };
+        actions.appendChild(btn);
+        row.appendChild(ic); row.appendChild(name); row.appendChild(actions);
+        rows.appendChild(row);
+      });
+      b.appendChild(rows);
+      var foot = el("div", "cx-wiz-foot");
+      var manualBtn = el("button", "btn"); manualBtn.type = "button"; manualBtn.textContent = "Enter connection details manually →";
+      manualBtn.onclick = function () {
+        document.querySelector(".modal-ov .x").click();
+        openBackendWizard();
+      };
+      foot.appendChild(manualBtn);
+      b.appendChild(foot);
+    }, null, true);
+  }
+  window.__studioOpenSwitchBackendPicker = openSwitchBackendPicker; // test hook
   // The 3-step connect wizard: pick a meta-capable backend → credentials →
   // probe + classify (empty → provision & push up; ours → adopt or reset;
   // another app's / foreign → refuse, with an explicit destructive escape).
