@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 598,
+    title: 'Quick import now builds a real dashboard, not just a dataset',
+    kind: 'feature',
+    ts: '2026-07-27T02:13:28.000Z',
+    items: [
+      'Dropping a CSV or JSON file on Home\'s "Quick import" card now auto-builds a real dashboard from the profiled data -- a headline KPI plus whatever mix of bar, donut, line, and table widgets the data actually supports -- and opens it in Studio ready to refine, instead of just landing in Explore with the dataset selected.',
+      'Guardrails keep it honest: a category widget is capped to its top values (never one bar per row), a time widget only appears when there\'s a real date column to plot, and with no numeric column to sum, widgets fall back to counting rows instead of being skipped.',
+      'This is the second slice of the "Quick mode" backlog item -- a creativity dial (and the "fun" chart tier: maps, ensembles, etc.) is a follow-up.',
+    ],
+  },
+  {
     v: 597,
     title: 'Quick import: drop a CSV or JSON file on Home to explore it instantly',
     kind: 'feature',

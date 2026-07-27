@@ -5,7 +5,21 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v234"; /* v234: LF24 slice 1 — Quick import. A new
+var CACHE_NAME = "studio-shell-v235"; /* v235: LF24 slice 2 — the auto-build engine.
+   Quick import (slice 1) now builds a real, unsaved dashboard from the profiled
+   file instead of just landing in Explore: a new pure PLANNING function,
+   Studio.QuickMode.buildAutoSpec (app/quickmode.js), turns a column profile into
+   a widget plan (a KPI + straightforward bar/donut/line/table widgets only —
+   conservative creativity default, no map/ensemble/etc, that's slice 3), and a
+   new studio.js materializer (quickBuildDashboard) turns the plan into real
+   panels/KPIs bound to DA clones carrying da.outputOptions.aggregate (the same
+   rollup mechanism Explore's own analyses use) so every widget renders through
+   the existing chart pipeline with no new render code. Guardrails: a dimension
+   is capped to its top values (sorted desc + limit, never one bar per row); a
+   line widget only appears with a REAL temporal column; with no usable measure,
+   widgets fall back to COUNT. app/quickmode.js, app/studio.js, docs/index.html
+   content changed, so precached copies need to roll.
+   v234: LF24 slice 1 — Quick import. A new
    Home quick-create card ("Quick import") accepts a dropped/picked CSV or JSON
    file straight on Home: a new pure column-profiler module, app/quickmode.js
    (Studio.QuickMode.profileColumns/classifyColumn — geo/temporal/id/measure/

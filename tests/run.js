@@ -1520,7 +1520,8 @@ function serve() {
       qmProfile.edgeTypes === "empty,constant", JSON.stringify(qmProfile));
 
     // The real user flow: drop a CSV straight on the Home "Quick import" card —
-    // profiles it, creates a real dataset, and lands in Explore with it selected.
+    // profiles it, creates a real dataset, and (LF24 slice 2) auto-builds a real
+    // dashboard from that profile, landing in Studio with it.
     await page.click('#railNav .rail-item[data-sec="home"]');
     await page.waitForTimeout(150);
     const qiCardBefore = await page.evaluate(function () {
@@ -1535,14 +1536,16 @@ function serve() {
     await page.waitForTimeout(500);
     const qiAfter = await page.evaluate(function () {
       var ds = Studio.Workspace.all("datasets").filter(function (d) { return d.fileName === "fixture-quickimport.csv"; })[0];
+      var spec = window.__STUDIO_STATE.spec;
       return {
         datasetCount: Studio.Workspace.all("datasets").length,
         dataset: ds ? { kind: ds.kind, columns: ds.columns, name: ds.name } : null,
         connectionAdapter: ds ? (Studio.Workspace.get("connections", ds.connectionId) || {}).adapter : null,
-        onExplore: document.querySelector('#railNav .rail-item[data-sec="explore"]').classList.contains("active"),
-        xpDsId: window.__studioExplore ? window.__studioExplore.state.dsId : null,
-        xpDsKind: window.__studioExplore ? window.__studioExplore.state.kind : null,
-        selectedRightDataset: window.__studioExplore && ds ? window.__studioExplore.state.dsId === ds.id : false,
+        onStudio: document.querySelector('#railNav .rail-item[data-sec="studio"]').classList.contains("active"),
+        kpis: spec.kpis,
+        panelTypes: spec.panels.map(function (p) { return p.chart.type; }).sort(),
+        daCount: spec.cda.dataAccesses.length,
+        barsPanel: spec.panels.filter(function (p) { return p.chart.type === "bars"; }).map(function (p) { return p.chart.map; })[0],
         toastText: document.querySelector("#toast").textContent
       };
     });
@@ -1550,8 +1553,11 @@ function serve() {
       qiAfter.datasetCount === qiDatasetsBefore + 1 && qiAfter.dataset && qiAfter.dataset.kind === "file" &&
       qiAfter.dataset.columns.join(",") === "state,revenue" && qiAfter.connectionAdapter === "file",
       JSON.stringify(qiAfter));
-    ok("QM: after import, the app navigates to Explore with the new dataset selected, and the toast names the file + a column summary",
-      qiAfter.onExplore && qiAfter.xpDsKind === "ws" && qiAfter.selectedRightDataset && /fixture-quickimport/.test(qiAfter.toastText) && /2 column/.test(qiAfter.toastText),
+    ok("QM: after import, the app navigates to Studio with an auto-built dashboard (KPI + bars + table), and the toast summarizes it",
+      qiAfter.onStudio && qiAfter.kpis.length === 1 && qiAfter.kpis[0].valueCol === "revenue" &&
+      qiAfter.panelTypes.join(",") === "bars,table" && qiAfter.daCount === 3 &&
+      qiAfter.barsPanel && qiAfter.barsPanel.labelCol === "state" && qiAfter.barsPanel.valueCol === "revenue" &&
+      /built a dashboard/.test(qiAfter.toastText) && /1 KPI/.test(qiAfter.toastText) && /2 widgets/.test(qiAfter.toastText),
       JSON.stringify(qiAfter));
     fs.unlinkSync(qiFixture);
     await page.evaluate(function () {

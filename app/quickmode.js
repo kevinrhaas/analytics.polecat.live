@@ -123,9 +123,59 @@
     return counts;
   }
 
+  // buildAutoSpec(profile) -> LF24 slice 2's AUTO-BUILD ENGINE (the PLANNING half
+  // only — turning a plan into real spec panels/DAs is studio.js's job, since that
+  // needs the Workspace/DA machinery this DOM-free module deliberately stays clear
+  // of). Conservative creativity default (slice 3 is the creativity dial + the
+  // "fun" chart tier): a KPI + straightforward widgets only — bars/donut/line/
+  // table, never map/ensemble/treemap/etc.
+  // Returns an array of widget plans:
+  //   { kind:'kpi',   label, fn:'sum'|'count', valueCol }
+  //   { kind:'panel', type:'bars'|'donut'|'line'|'table', dim, fn, valueCol, limit, sortDir }
+  // GUARDRAILS applied here, per the LF24 spec in STATUS.md:
+  //   - empty/constant columns never drive a widget (excluded up front).
+  //   - a dimension is capped to its top N rows by value at materialization time
+  //     (limit, honored via da.outputOptions.limit) — never one bar per raw row.
+  //   - a line widget only appears with a REAL temporal column AND a measure to
+  //     plot ("require a real TEMPORAL column for any time series").
+  //   - with no usable measure, bar/donut/kpi fall back to COUNT (rows per group)
+  //     instead of being skipped outright — still tells the data's shape.
+  function buildAutoSpec(profile) {
+    var usable = (profile || []).filter(function (c) { return c.type !== "empty" && c.type !== "constant"; });
+    var measures = usable.filter(function (c) { return c.type === "measure"; });
+    var temporals = usable.filter(function (c) { return c.type === "temporal"; });
+    // A geo column reads fine as a plain bar/donut dimension too — a real MAP is
+    // the "fun" tier (LF24 slice 3), so geo just joins the categorical dimension
+    // pool for now. Lowest-cardinality first: cheapest to read as a bar/donut
+    // without heavy top-N capping.
+    var dims = usable.filter(function (c) { return c.type === "categorical" || c.type === "geo"; })
+      .sort(function (a, b) { return a.cardinality - b.cardinality; });
+    var measure = measures[0] || null;
+    var fn = measure ? "sum" : "count";
+    var valueCol = measure ? measure.name : null;
+
+    var widgets = [];
+    widgets.push({ kind: "kpi", label: measure ? measure.name : "Rows", fn: fn, valueCol: valueCol });
+
+    var barDim = dims[0] || null;
+    if (barDim) widgets.push({ kind: "panel", type: "bars", dim: barDim.name, fn: fn, valueCol: valueCol, limit: 10, sortDir: "desc" });
+
+    var donutDim = dims.filter(function (d) { return d.cardinality <= 8 && (!barDim || d.name !== barDim.name); })[0];
+    if (donutDim) widgets.push({ kind: "panel", type: "donut", dim: donutDim.name, fn: fn, valueCol: valueCol, limit: 8, sortDir: "desc" });
+
+    if (temporals.length && measure) {
+      widgets.push({ kind: "panel", type: "line", dim: temporals[0].name, fn: "sum", valueCol: measure.name, sortDir: "asc" });
+    }
+
+    widgets.push({ kind: "panel", type: "table" });
+
+    return widgets;
+  }
+
   Studio.QuickMode = {
     classifyColumn: classifyColumn,
     profileColumns: profileColumns,
-    summarize: summarize
+    summarize: summarize,
+    buildAutoSpec: buildAutoSpec
   };
 })();
