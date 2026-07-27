@@ -5,7 +5,10 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v263"; /* v263: Standard fleet topbar — Slice B: Studio's
+var CACHE_NAME = "studio-shell-v264"; /* v264: connection self-heals on boot — initSync now
+   auto-retries a flapping GoTrue sign-in with backoff (500/1500ms) instead of staying red until a
+   manual Refresh (#111). app/sources/sync.js changed, so precached copies roll.
+   v263: Standard fleet topbar — Slice B: Studio's
    dashboard-scoped Undo/Redo/Open/Save/Export move from #dashbar into the shared topbar's
    #tbSectionActions slot (only shown while Studio is the active section) — Slice A's
    scaffolding filled in. index.html, studio.js, shell.js, studio.css, docs/index.html all
