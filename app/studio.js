@@ -8425,7 +8425,14 @@
     // shipped at LF24 slice 3 / v599) missing from BOTH this list and SETTINGS_DATA_KEYS above —
     // the same recurring "new key, forgot Clear local data" gap the v194/v235/v281/v313/v322
     // notes already describe, this time for a Settings default rather than a dismissal flag.
-    "studio-default-qm-creativity"
+    "studio-default-qm-creativity",
+    // Track L sweep (orphaned-key lens, round 6): re-ran the same cross-check once more and found
+    // "studio-pdf-export-opts" (PDF_OPTS_KEY, LF36 slice 2's remembered page size/orientation/fit
+    // choice for the PDF export dialog) missing here — the same recurring "new key, forgot Clear
+    // local data" gap. Device-remembered UI state like this (same bucket as studio-dash-view/
+    // studio-mob-tab above) isn't a Settings default, so it's CLEAR_DATA_KEYS-only, not added to
+    // SETTINGS_DATA_KEYS.
+    "studio-pdf-export-opts"
   ];
   window.__studioClearDataKeys = CLEAR_DATA_KEYS; // test hook
 
