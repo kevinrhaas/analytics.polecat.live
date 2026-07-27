@@ -117,7 +117,7 @@
 
 ## DONE
 - **Standard fleet topbar — Slice C: Save-as and Duplicate join the top-rail ops cluster —
-  LF47 fully done except Examples removal (2026-07-27, steward, v627, sw v264 — step 4 of
+  LF47 fully done except Examples removal (2026-07-27, steward, v628, sw v265 — step 4 of
   the LOCKED BUILD ORDER):** Slice B's own NEXT pointer named "LF47's remaining pieces
   (Duplicate, dark-mode, +New reorganized sensibly)" — auditing against the shipped code
   found dark-mode already done (Slice A's `#tbTheme`) and +New already positioned correctly,
@@ -141,7 +141,7 @@
   Full suite green (regression checks: ops-cluster order includes all 7 actions in sequence,
   `#dashbar` no longer has Save-as, `#btnDupDash` duplicates with a fresh id + "(copy)" title +
   toast, `moreDupDash` phone twin works, H-dup/QA-04 updated for the new location). SW cache →
-  v264. Files: app/index.html, app/studio.js, app/studio.css, sw.js, js/changelog.js,
+  v265. Files: app/index.html, app/studio.js, app/studio.css, sw.js, js/changelog.js,
   tests/run.js. **LF47 is now fully done except REMOVE the Examples button — that's the same
   remit as LF43 slice 2 (already separately budgeted, ~20 tests + Home's "Browse examples"
   quick action), so it stays tracked there, not duplicated here.** NEXT: LF46 (⋯ hamburger
@@ -150,6 +150,16 @@
   fixture matching JobTracker/AutoSelector, not a Studio-only leftover to remove; the Command
   palette entry it names is already gone) — or LF48 (mode switcher), or LF43 slice 2 (Examples
   removal), per Kevin's locked sequence.
+- **Connection self-heals on boot (#111, v627, sw v264, 2026-07-27, steward):** opening the app
+  in a fresh tab showed the Supabase workspace as "not connected" until a manual Refresh -- on a
+  fresh page there's no cached GoTrue session and the first authenticated read can race the
+  session/secrets setup and come back 401/403 ("rejected the API key"). #352 self-healed mid-session
+  rest() reads but not the boot connect. Fix: `initSync` (app/sources/sync.js) now retries the
+  connect with backoff (500/1500ms) on a recoverable auth/session error before surfacing red, so the
+  workspace just connects on entry (the user's own suggestion: "refresh on boot"). Genuinely
+  unreachable sources still fall through to the local mirror. Test: mock GoTrue flaps the first 2
+  sign-ins, boot with a saved connection, assert it reaches "connected" on its own. Files:
+  app/sources/sync.js, tests/run.js, sw.js, js/changelog.js.
 - **Standard fleet topbar — Slice A: promote #topbar to a GLOBAL frame element (2026-07-27,
   steward, v625, sw v262):** the topbar was trapped inside Studio's `#appMain`, so only the
   builder showed it — Home/Explore/Dashboards/Datasets/Connections/Jobs/Repository/Admin/Settings

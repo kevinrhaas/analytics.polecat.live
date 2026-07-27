@@ -235,6 +235,10 @@ const mockSupaTables = {
 };
 // Counter for the /__flaky stale-session self-heal probe (see handleMockSupabase).
 let mockFlakyServed = 0;
+// #111 boot self-heal: when armed, the next N GoTrue sign-ins fail (invalid_grant)
+// then succeed — simulates the boot race where the first read(s) 401 until a
+// retry, which initSync now does automatically instead of staying red.
+let mockTokenFlaps = 0;
 function handleMockSupabase(req, rep, p) {
   const send = (code, body) => {
     rep.writeHead(code, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "*" });
@@ -251,6 +255,7 @@ function handleMockSupabase(req, rep, p) {
       let creds = {};
       try { creds = JSON.parse(body || "{}"); } catch (e) {}
       if (creds.email === MOCK_GOTRUE_EMAIL && creds.password === MOCK_GOTRUE_PASSWORD) {
+        if (mockTokenFlaps > 0) { mockTokenFlaps--; return send(400, { error: "invalid_grant", error_description: "boot flap (test)" }); }
         return send(200, { access_token: MOCK_GOTRUE_TOKEN, token_type: "bearer", expires_in: 3600, refresh_token: "mock-refresh", user: { id: MOCK_GOTRUE_USER_ID, email: creds.email } });
       }
       return send(400, { error: "invalid_grant", error_description: "Invalid login credentials" });
@@ -279,6 +284,7 @@ function handleMockSupabase(req, rep, p) {
   // __flaky returns 401 ("JWT expired") on the FIRST hit after a reset, then 200
   // — simulating a token that went stale server-side. A read with Auth creds
   // should refresh + retry and end up 200; an anon-only read should just fail.
+  if (rel === "rest/v1/__armtokenflap") { mockTokenFlaps = 2; return send(200, []); }
   if (rel === "rest/v1/__flaky_reset") { mockFlakyServed = 0; return send(200, []); }
   if (rel === "rest/v1/__flaky") {
     mockFlakyServed++;
@@ -10408,6 +10414,25 @@ function serve() {
       await Studio.tursoSource.drop(cfg);
     }, PORT);
     await gp3.close();
+
+    // ---- #111: boot self-heal — initSync auto-retries a flapping GoTrue sign-in ----
+    // A fresh page has no cached session; the first sign-in(s) can 401/invalid_grant
+    // until a retry. initSync now retries with backoff (500/1500ms) instead of
+    // staying red until a manual Refresh. Arm the mock to fail the next 2 sign-ins,
+    // boot with a saved Supabase connection, and confirm it recovers on its own.
+    await fetch(`http://localhost:${PORT}/__supabase/rest/v1/__armtokenflap`, { headers: { apikey: "sb_publishable_valid" } });
+    const gpBoot = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+    const bootErrors = [];
+    gpBoot.on("pageerror", (e) => bootErrors.push("#111 boot page: " + e.message));
+    await gpBoot.addInitScript((port) => {
+      try { localStorage.setItem("analytics.datasource.v1", JSON.stringify({ sourceId: "supabase", cfg: { url: "http://localhost:" + port + "/__supabase", key: "sb_publishable_valid", authEmail: "owner@example.com", authPassword: "secret123" }, at: 1 } )); } catch (e) {}
+    }, PORT);
+    await gpBoot.goto(`http://localhost:${PORT}/app/`, { waitUntil: "domcontentloaded" });
+    await gpBoot.waitForFunction(() => window.Studio && Studio.Sync && Studio.Sync.syncState().status === "connected", { timeout: 6000 }).catch(() => {});
+    const bootStatus = await gpBoot.evaluate(() => (window.Studio && Studio.Sync) ? Studio.Sync.syncState().status : "n/a");
+    await gpBoot.close();
+    ok("#111: initSync auto-retries a flapping boot sign-in with backoff and reaches 'connected' on its own (no manual Refresh)",
+      bootStatus === "connected", JSON.stringify({ bootStatus, bootErrors }));
 
     // ---- LF39: cross-device sign-in — a teammate provisioned on a connected
     // workspace backend from another browser must not get a flat "incorrect
