@@ -29093,10 +29093,35 @@ function serve() {
     await lf23s2ViewerPage.waitForTimeout(300);
     const viewerActionsAsViewer = await lf23s2ViewerPage.evaluate(function () {
       var editEl = document.getElementById("viewerEditLink"), copyEl = document.getElementById("viewerSaveCopy");
-      return { editHidden: !!(editEl && editEl.hidden), copyVisible: !!(copyEl && !copyEl.hidden) };
+      // Track H sweep: checking only the `hidden` DOM property was a blind spot — a CSS rule
+      // can set `display` unconditionally and silently defeat the browser's own
+      // `[hidden]{display:none}` default (author CSS always wins over user-agent CSS at equal
+      // specificity), leaving the attribute "true" while the element still renders on screen.
+      // Assert the actual visual state (computed display + offsetParent) too, not just the flag.
+      return {
+        editHidden: !!(editEl && editEl.hidden),
+        editVisuallyHidden: !!(editEl && getComputedStyle(editEl).display === "none" && !editEl.offsetParent),
+        copyVisible: !!(copyEl && !copyEl.hidden),
+        copyVisuallyVisible: !!(copyEl && getComputedStyle(copyEl).display !== "none" && !!copyEl.offsetParent)
+      };
     });
     ok("LF23 slice 2: on the viewer route, a viewer sees 'Save a copy' but NOT 'Edit in Studio'",
       viewerActionsAsViewer.editHidden && viewerActionsAsViewer.copyVisible, JSON.stringify(viewerActionsAsViewer));
+    ok("Track H sweep: a viewer's 'Edit in Studio' link isn't just DOM-hidden, it's actually invisible on screen (display:none, no box) — 'Save a copy' actually renders",
+      viewerActionsAsViewer.editVisuallyHidden && viewerActionsAsViewer.copyVisuallyVisible, JSON.stringify(viewerActionsAsViewer));
+
+    // Source guard: makes sure the `.viewer-savecopy-btn,.viewer-edit-link{display:flex;…}`
+    // rule keeps its `[hidden]{display:none}` override (the fix above) so a future studio.css
+    // edit can't silently reintroduce the "hidden attribute is true, but the element is still
+    // on screen" bug — same #appMain[hidden]/.app-sec[hidden] convention this file already uses.
+    const viewerHiddenCssGuard = await lf23s2ViewerPage.evaluate(async function () {
+      try {
+        var css = await fetch("app/studio.css").then(function (r) { return r.text(); });
+        return { hasOverride: /\.viewer-savecopy-btn\[hidden\]\s*,\s*\.viewer-edit-link\[hidden\]\s*\{\s*display\s*:\s*none/.test(css) };
+      } catch (e) { return { hasOverride: false, err: e.message }; }
+    });
+    ok("Track H sweep: studio.css still overrides display for .viewer-savecopy-btn[hidden]/.viewer-edit-link[hidden]",
+      viewerHiddenCssGuard.hasOverride, JSON.stringify(viewerHiddenCssGuard));
 
     // Defense in depth: a viewer hitting ?edit=<id> directly (not through the UI,
     // which never offers them the link) is still blocked from Studio — the boot-time
@@ -29151,10 +29176,14 @@ function serve() {
     await lf23s2DevPage.waitForTimeout(300);
     const editLinkAsDev = await lf23s2DevPage.evaluate(function () {
       var editEl = document.getElementById("viewerEditLink");
-      return { visible: !!(editEl && !editEl.hidden), href: editEl ? editEl.getAttribute("href") : null };
+      return {
+        visible: !!(editEl && !editEl.hidden),
+        actuallyOnScreen: !!(editEl && getComputedStyle(editEl).display !== "none" && !!editEl.offsetParent),
+        href: editEl ? editEl.getAttribute("href") : null
+      };
     });
     ok("LF23 slice 2: a developer-role account (not admin) sees 'Edit in Studio' on the viewer route, linking to ?edit=<id>",
-      editLinkAsDev.visible && editLinkAsDev.href === "app/?edit=lf23s2-dash", JSON.stringify(editLinkAsDev));
+      editLinkAsDev.visible && editLinkAsDev.actuallyOnScreen && editLinkAsDev.href === "app/?edit=lf23s2-dash", JSON.stringify(editLinkAsDev));
 
     await lf23s2DevPage.evaluate(function () { document.getElementById("viewerEditLink").click(); });
     await lf23s2DevPage.waitForFunction(function () {

@@ -1788,6 +1788,14 @@ body.simple-mode .da-acts{display:none!important}
 .viewer-edit-link{background:var(--pdc);border-color:transparent;color:#fff}
 .viewer-edit-link:hover{background:#8e49ab;color:#fff}
 .viewer-savecopy-btn svg,.viewer-edit-link svg{width:14px;height:14px}
+/* Track H sweep: the unconditional `display:flex` two lines up silently beat the
+   browser's own `[hidden]{display:none}` default (author-origin CSS always wins
+   over user-agent CSS at equal specificity, regardless of selector weight) — so
+   viewer.js's `editLink.hidden = false` gate for canDevelop() accounts was a no-op:
+   a viewer role saw a fully-visible, purple "Edit in Studio" button that was really
+   a dead `href="#"` link the whole time. Same #appMain/.app-sec[hidden] override
+   pattern used elsewhere in this file, just missing here. */
+.viewer-savecopy-btn[hidden],.viewer-edit-link[hidden]{display:none}
 #viewerStage{position:relative;flex:1;min-height:0}
 #viewerFrame{position:absolute;inset:0;width:100%;height:100%;border:none;display:block}
 .viewer-empty{display:none;position:absolute;inset:0;flex-direction:column;align-items:center;

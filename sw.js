@@ -5,7 +5,14 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v245"; /* v245: Track L sweep (performance-budget lens) —
+var CACHE_NAME = "studio-shell-v246"; /* v246: Track H sweep (code-health lens) — the Viewer
+   route's "Edit in Studio"/"Save a copy" buttons had a CSS rule that set `display:flex`
+   unconditionally, silently defeating the browser's own `[hidden]{display:none}` default (author
+   CSS always wins over user-agent CSS at equal specificity) — so a viewer-role account saw a
+   fully-visible but dead `href="#"` "Edit in Studio" button the whole time. Added the missing
+   `[hidden]{display:none}` override, same #appMain/.app-sec[hidden] convention already used
+   elsewhere in this file. app/studio.css changed, so precached copies need to roll.
+   v245: Track L sweep (performance-budget lens) —
    boxplot's row/col layout recomputed each category's index via stats.indexOf(st) inside the
    very stats.forEach that already hands back that index for free, an O(n^2) layout pass on
    every boxplot render/resize. app/studio-charts.js changed, so precached copies need to roll.

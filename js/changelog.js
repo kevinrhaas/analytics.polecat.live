@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 609,
+    title: 'Track H sweep: the Viewer route\'s "Edit in Studio" button no longer shows itself to viewers it is hidden from',
+    kind: 'fix',
+    ts: '2026-07-27T10:11:34.000Z',
+    items: [
+      'A CSS rule set the button\'s display unconditionally, which silently beat the browser\'s own rule for hiding a "hidden" element -- so a viewer-role account saw a fully visible, purple "Edit in Studio" button that was actually a dead link the whole time.',
+      'Added the missing override so the hidden attribute actually hides it again; "Save a copy" (offered to everyone) still renders correctly either way.',
+    ],
+  },
+  {
     v: 608,
     title: 'Track L sweep: boxplot layout no longer recomputes each category\'s position with an O(n^2) lookup',
     kind: 'polish',

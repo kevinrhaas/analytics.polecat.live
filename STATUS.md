@@ -8036,6 +8036,13 @@ Next H-track suggestions (pick the highest-value):
     only lightly grouped so far — a deeper pass (e.g. consolidating Open/Save/Export under one "File ▾"
     menu, or moving Tour/Servers/Sample/Theme into a labeled cluster button) remains a future slice if
     the grouping alone doesn't read as "simplified" enough.
+  - ✓ **Icon-tooltip-names-its-target lens, run three times running (v596/v603/v606)** — Explore's
+    saved-analyses sidebar, then six more row/card title buttons across Connections/Datasets/Jobs/
+    Dashboards/Repository, then the data source rail's Duplicate/Delete buttons, all got their hover
+    `title` fixed to match their `aria-label`. Now well-covered — **do not repeat this exact lens**;
+    rotate to IA/onboarding/visual-polish/code-health instead (see v609 below for a code-health slice).
+  - ✓ **Viewer route's dead "Edit in Studio" button — shipped v609** (code-health lens, first use since
+    the tooltip lens got worn out at v606): see the DONE entry below for the CSS-cascade root cause.
 
 ### I. Learn from the reference/ lab — match & surpass those visuals (user-requested; RECURRING)
 The `reference/dashboards/` tree is a library of advanced hand-built CDF/CDE dashboards (the original
