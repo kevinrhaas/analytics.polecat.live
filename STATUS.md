@@ -4628,6 +4628,19 @@
 >       Ties LF43, LF57 (Views rail), LF59 (dashboards mgmt), LF51 (nav), LF29/LF52 (terminology), LF24,
 >       #29. **This is the same intent as LF43/LF57/LF59 — reconcile them into one library model, don't
 >       build three overlapping ones.**
+> LF67. **BUG — quick-built dashboard is lost when you open another (not persisted / no replace-warn).**
+>       A Quick-import builds a dashboard straight into the single Studio canvas but does NOT save it; open
+>       any other dashboard (e.g. a sample) and the unsaved build is silently replaced — Kevin hit this
+>       ("I clicked on it and it showed the sensitivity radar, that is not what I created"). Fix: on a
+>       quick-build, AUTO-SAVE it to Dashboards (or at minimum a clear "unsaved — Save to keep" state +
+>       WARN before an open/New replaces unsaved work). The autosave restore-banner is the safety net but
+>       shouldn't be the only recovery. (studio.js quickBuildDashboard → persist/dirty-guard, openRecent/
+>       enterStudio replace path.) Ties LF50 (replace warning), LF26 (overwrite protection), LF27.
+> LF68. **BUG — "Sensitivity & Compliance Radar" showcase KPI shows `NaN%`.** In the Data Management &
+>       Governance showcase pack, the compliance-radar dashboard's "SENSITIVE DATA" KPI renders `NaN%` —
+>       its percentage divides by an empty/non-numeric denominator (sensitive_pct KPI). Fix the sample's
+>       KPI data/format so it shows a real %; audit the other showcase KPIs for the same. (demopacks.js /
+>       the showcase pack spec + KPI fmt, guessFmt/percent KPI path.) Ties LF43, showcase-pack QA.
 
 ### ★★ ONBOARDING & PROVISIONING EPIC (Kevin, 2026-07-27) — the "Dave" north-star
 > A meaty vision from a live session: turn first-run into a delightful, admin-provisioned
