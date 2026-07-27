@@ -190,6 +190,33 @@
     return true;
   }
 
+  // LF41 slice 2: the "copy my/current settings to this user" provisioning convenience —
+  // a plain-object snapshot of every Dashboard-defaults field (the same 8 fields
+  // addStylePreset/applyStylePreset above already snapshot/restore, plus Quick-import
+  // creativity) so the admin's user editor can stash it on a new account's provisioning
+  // blob and initAuthBoot can replay it at that account's first sign-in, same as the
+  // theme/pack provisioning LF41 slice 1 already does.
+  function snapshotDashboardDefaults() {
+    return {
+      subtitle: defaultSubtitle(), accentColor: defaultAccentColor(), logo: defaultLogo(), headerBg: defaultHeaderBg(),
+      titleSize: defaultTitleSize(), subtitleStyle: defaultSubtitleStyle(), dashboardTheme: defaultDashboardTheme(),
+      cardSkin: defaultCardSkin(), quickModeCreativity: defaultQuickModeCreativity()
+    };
+  }
+  function applyDashboardDefaultsBlob(blob) {
+    if (!blob) return false;
+    if (blob.subtitle) setDefaultSubtitle(blob.subtitle);
+    if (blob.accentColor) setDefaultAccentColor(blob.accentColor);
+    if (blob.logo) setDefaultLogo(blob.logo);
+    if (blob.headerBg) setDefaultHeaderBg(blob.headerBg);
+    if (blob.titleSize) setDefaultTitleSize(blob.titleSize);
+    if (blob.subtitleStyle) setDefaultSubtitleStyle(blob.subtitleStyle);
+    if (blob.dashboardTheme) setDefaultDashboardTheme(blob.dashboardTheme);
+    if (blob.cardSkin) setDefaultCardSkin(blob.cardSkin);
+    if (blob.quickModeCreativity) setDefaultQuickModeCreativity(blob.quickModeCreativity);
+    return true;
+  }
+
   function applyDashboardDefaults(spec) {
     var sub = defaultSubtitle(); if (sub && !spec.subtitle) spec.subtitle = sub;
     var acc = defaultAccentColor(); if (acc) spec.themeColor = acc;
@@ -219,6 +246,7 @@
     addTemplateVarSet: addTemplateVarSet, deleteTemplateVarSet: deleteTemplateVarSet, applyTemplateVarSet: applyTemplateVarSet,
     customThemePresets: customThemePresets, saveCustomThemePresetList: saveCustomThemePresetList,
     addCustomThemePreset: addCustomThemePreset, deleteCustomThemePreset: deleteCustomThemePreset, applyCustomThemePreset: applyCustomThemePreset,
-    applyDashboardDefaults: applyDashboardDefaults
+    applyDashboardDefaults: applyDashboardDefaults,
+    snapshotDashboardDefaults: snapshotDashboardDefaults, applyDashboardDefaultsBlob: applyDashboardDefaultsBlob
   };
 })();

@@ -10729,6 +10729,68 @@ function serve() {
     ok("LF41: a second sign-in does NOT re-apply provisioning defaults over the user's own later changes (theme stays what the user picked, pack stays removed)",
       lf41SecondLogin.theme === "polecat" && lf41SecondLogin.packInstalled === false, JSON.stringify(lf41SecondLogin));
 
+    // ---- LF41 slice 2: "copy my current settings" — the Dashboard-defaults blob ----
+    // Set some non-default Dashboard-defaults values as the admin (this page's own
+    // localStorage), then capture them via the Add-user editor's new button.
+    const lf42a = await gp41.evaluate(function () {
+      Studio.Defaults.setSubtitle("Prepared by QA"); Studio.Defaults.setAccentColor("#ff6600");
+      Studio.Defaults.setCardSkin("flat"); Studio.Defaults.setQuickModeCreativity("low");
+      window.__studioOpenUserEditor();
+      document.getElementById("usrEditDDCopyBtn").click();
+      var status = document.getElementById("usrEditDDStatus").textContent;
+      document.getElementById("usrEditUser").value = "lf41ddtest";
+      document.getElementById("usrEditName").value = "LF41 DD Test";
+      document.getElementById("usrEditPass").value = "pw123456";
+      document.querySelector(".cx-wiz-foot .btn.primary").click();
+      return { status: status };
+    });
+    await gp41.waitForFunction(() => !document.querySelector(".modal-ov"), { timeout: 8000 });
+    const lf42aStored = await gp41.evaluate(function () { return window.PolecatAuth.find("lf41ddtest"); });
+    ok("LF41 slice 2: 'Copy my current Dashboard defaults' captures the admin's live settings onto the new account's provisioning blob",
+      lf42a.status.indexOf("Captured") >= 0 && lf42aStored && lf42aStored.provisioning && lf42aStored.provisioning.dashboardDefaults &&
+      lf42aStored.provisioning.dashboardDefaults.subtitle === "Prepared by QA" && lf42aStored.provisioning.dashboardDefaults.accentColor === "#ff6600" &&
+      lf42aStored.provisioning.dashboardDefaults.cardSkin === "flat" && lf42aStored.provisioning.dashboardDefaults.quickModeCreativity === "low",
+      JSON.stringify(lf42aStored && lf42aStored.provisioning));
+
+    // First sign-in as this account applies the captured Dashboard-defaults blob, same
+    // once-only pattern as theme/pack.
+    const lf42bFirstLogin = await gp41.evaluate(function () {
+      Studio.Defaults.setSubtitle(""); Studio.Defaults.setAccentColor(""); Studio.Defaults.setCardSkin(""); Studio.Defaults.setQuickModeCreativity("high");
+      window.PolecatAuth.login("lf41ddtest");
+      window.__studioAuthBoot();
+      return {
+        subtitle: Studio.Defaults.subtitle(), accentColor: Studio.Defaults.accentColor(),
+        cardSkin: Studio.Defaults.cardSkin(), qmCreativity: Studio.Defaults.quickModeCreativity()
+      };
+    });
+    ok("LF41 slice 2: first sign-in replays the captured Dashboard-defaults blob onto this device's settings",
+      lf42bFirstLogin.subtitle === "Prepared by QA" && lf42bFirstLogin.accentColor === "#ff6600" &&
+      lf42bFirstLogin.cardSkin === "flat" && lf42bFirstLogin.qmCreativity === "low", JSON.stringify(lf42bFirstLogin));
+
+    // A second sign-in must not re-apply over the user's own later change.
+    const lf42cSecondLogin = await gp41.evaluate(function () {
+      Studio.Defaults.setSubtitle("My own subtitle");
+      window.PolecatAuth.logout();
+      window.PolecatAuth.login("lf41ddtest");
+      window.__studioAuthBoot();
+      return { subtitle: Studio.Defaults.subtitle() };
+    });
+    ok("LF41 slice 2: a second sign-in does NOT re-apply the Dashboard-defaults blob over the user's own later change",
+      lf42cSecondLogin.subtitle === "My own subtitle", JSON.stringify(lf42cSecondLogin));
+
+    // Clear removes a previously captured blob from the editor (existing user, re-opened).
+    const lf42dCleared = await gp41.evaluate(function () {
+      window.__studioOpenUserEditor(window.PolecatAuth.find("lf41ddtest"));
+      document.getElementById("usrEditDDClearBtn").click();
+      var status = document.getElementById("usrEditDDStatus").textContent;
+      document.querySelector(".cx-wiz-foot .btn.primary").click();
+      return { status: status };
+    });
+    await gp41.waitForFunction(() => !document.querySelector(".modal-ov"), { timeout: 8000 });
+    const lf42dStored = await gp41.evaluate(function () { return window.PolecatAuth.find("lf41ddtest").provisioning; });
+    ok("LF41 slice 2: Clear removes a previously captured Dashboard-defaults blob (no other provisioning set on this account, so it goes back to null entirely, same convention as LF41 slice 1's own clear test)",
+      lf42dCleared.status.indexOf("Not set") >= 0 && lf42dStored === null, JSON.stringify(lf42dStored));
+
     await gp41.close();
 
     // ---- LF42 slice 1: Admin "Backends" — a registered backend list ----
