@@ -199,7 +199,7 @@
       return '<div class="cx-row" data-conn-id="' + esc(c.id) + '">' +
         connStatusDot(c) +
         '<span class="cx-ic" style="color:' + esc(src.accent || "var(--brand)") + '"></span>' +
-        '<span class="cx-name"><button type="button" class="cx-title-btn" aria-label="Edit connection ' + esc(c.name) + '"><b>' + esc(c.name) + '</b></button><small>' + esc(src.label || c.adapter) + '</small></span>' +
+        '<span class="cx-name"><button type="button" class="cx-title-btn" title="' + esc(c.name) + ' — edit connection" aria-label="Edit connection ' + esc(c.name) + '"><b>' + esc(c.name) + '</b></button><small>' + esc(src.label || c.adapter) + '</small></span>' +
         metaBadge +
         folderBadge +
         tagBadges +

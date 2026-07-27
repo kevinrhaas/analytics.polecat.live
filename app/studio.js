@@ -5285,7 +5285,7 @@
       '<small class="recent-changed" title="' + esc(changed.lines.join("\n")) + '">' +
         changed.count + " change" + (changed.count === 1 ? "" : "s") + " since you were last here</small>" : '';
     return '<div class="recent-card">' +
-      '<button class="recent-open" data-recent="' + esc(r.id) + '" aria-label="Open ' + esc(title) + '"></button>' +
+      '<button class="recent-open" data-recent="' + esc(r.id) + '" title="' + esc(title) + ' — open" aria-label="Open ' + esc(title) + '"></button>' +
       '<button class="recent-pin' + (pinned ? " pinned" : "") + '" data-pin="' + esc(r.id) + '" ' +
         'title="' + (pinned ? "Unpin" : "Pin") + '" aria-label="' + (pinned ? "Unpin " : "Pin ") + esc(title) + '" aria-pressed="' + (pinned ? "true" : "false") + '"></button>' +
       '<button class="recent-feature' + (r.featured ? " featured" : "") + '" data-feature="' + esc(r.id) + '" ' +
@@ -6087,11 +6087,11 @@
       .filter(Boolean).join(" · ");
     var when = r.ts ? new Date(r.ts).toLocaleDateString() : "";
     return '<div class="cx-row dash-li" data-recent="' + esc(r.id) + '">' +
-      '<span class="cx-name"><button type="button" class="cx-title-btn" aria-label="Open ' + esc(title) + '"><b>' + esc(title) + '</b></button><small>' + esc(meta) +
+      '<span class="cx-name"><button type="button" class="cx-title-btn" title="' + esc(title) + ' — open" aria-label="Open ' + esc(title) + '"><b>' + esc(title) + '</b></button><small>' + esc(meta) +
         (matchedCol ? ' · matches column “' + esc(matchedCol) + '”' : "") + '</small></span>' +
       (sp.dashboardTheme ? '<span class="cx-badge">' + esc(sp.dashboardTheme) + '</span>' : "") +
       '<span class="cx-when">' + esc(when) + '</span>' +
-      '<span class="cx-actions"><button type="button" class="recent-pin' + (pinned ? " pinned" : "") + '" data-pin="' + esc(r.id) + '" title="' + (pinned ? "Unpin" : "Pin to Home") + '" aria-pressed="' + (pinned ? "true" : "false") + '"></button>' +
+      '<span class="cx-actions"><button type="button" class="recent-pin' + (pinned ? " pinned" : "") + '" data-pin="' + esc(r.id) + '" title="' + (pinned ? "Unpin " + esc(title) : "Pin " + esc(title) + " to Home") + '" aria-label="' + (pinned ? "Unpin " + esc(title) : "Pin " + esc(title) + " to Home") + '" aria-pressed="' + (pinned ? "true" : "false") + '"></button>' +
       '<button type="button" class="recent-private cx-list-private' + (r.private ? " private" : "") + '" data-private="' + esc(r.id) + '" title="' + (r.private ? "Private — only you can see this" : "Make private") + '" aria-label="' + (r.private ? "Make " + esc(title) + " public" : "Make " + esc(title) + " private") + '" aria-pressed="' + (r.private ? "true" : "false") + '"></button>' +
       '<a class="recent-viewer cx-list-viewer" data-viewer="' + esc(r.id) + '" href="' + esc(viewerUrl(r.id)) + '" target="_blank" rel="noopener" ' +
         'title="Open in viewer (read-only, new tab)" aria-label="Open ' + esc(title) + ' in viewer, read-only, opens in a new tab" onclick="event.stopPropagation()"></a></span>' +
@@ -6375,7 +6375,7 @@
       var label = repoLabels[r.id];
       return '<div class="cx-row" data-repo-id="' + esc(r.id) + '" data-repo-type="' + esc(r.type) + '"' + (canQuickEdit ? ' draggable="true"' : '') + '>' +
         '<span class="cx-ic" style="color:var(--faint)"></span>' +
-        '<span class="cx-name"><button type="button" class="cx-title-btn" aria-label="Open ' + esc(label) + '"><b>' + esc(label) + '</b></button><small>' + esc((td ? td.singular : r.type) + " · " + r.meta) + '</small></span>' +
+        '<span class="cx-name"><button type="button" class="cx-title-btn" title="' + esc(label) + ' — open" aria-label="Open ' + esc(label) + '"><b>' + esc(label) + '</b></button><small>' + esc((td ? td.singular : r.type) + " · " + r.meta) + '</small></span>' +
         (r.folder ? '<span class="cx-badge cx-folder" title="Folder: ' + esc(r.folder) + '">' + esc(r.folder) + '</span>' : "") +
         '<span class="cx-when">' + (r.ts ? esc(new Date(r.ts).toLocaleDateString()) : "") + '</span>' +
         (canQuickEdit ? '<span class="cx-actions"><button type="button" class="repo-edit" data-repo-edit-type="' + esc(r.type) + '" data-repo-edit-id="' + esc(r.id) + '" title="Quick edit" aria-label="Quick edit ' + esc(label) + '"></button></span>' : "") +

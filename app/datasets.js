@@ -273,7 +273,7 @@
       return '<div class="cx-row" draggable="true" data-dsx-id="' + esc(d.id) + '">' +
         dot +
         '<span class="cx-ic" style="color:' + esc((src && src.accent) || "var(--faint)") + '"></span>' +
-        '<span class="cx-name"><button type="button" class="cx-title-btn" aria-label="Edit dataset ' + esc(d.name) + '"><b>' + esc(d.name) + '</b></button><small>' + esc(conn ? conn.name : "no connection") + (src ? " · " + src.label : "") + (d.owner ? " · " + esc(d.owner) : "") + '</small></span>' +
+        '<span class="cx-name"><button type="button" class="cx-title-btn" title="' + esc(d.name) + ' — edit dataset" aria-label="Edit dataset ' + esc(d.name) + '"><b>' + esc(d.name) + '</b></button><small>' + esc(conn ? conn.name : "no connection") + (src ? " · " + src.label : "") + (d.owner ? " · " + esc(d.owner) : "") + '</small></span>' +
         folderBadge +
         tags +
         ((d.params || []).length ? '<span class="cx-badge" data-tip="Accepts parameters">' + (d.params || []).length + " param" + ((d.params || []).length > 1 ? "s" : "") + '</span>' : "") +

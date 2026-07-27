@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 603,
+    title: 'Track H sweep: hovering a truncated name in Connections, Datasets, Jobs, Dashboards, or Repository now shows the full name',
+    kind: 'fix',
+    ts: '2026-07-27T06:09:51.000Z',
+    items: [
+      'Every workspace row/card title button (Connections, Datasets, Jobs, the Dashboards list AND tile views, Repository) truncates long names with an ellipsis, but hovering it showed either nothing or a generic tooltip -- the same escape-hatch gap already fixed for Explore\'s saved-analyses sidebar. It now shows the row\'s own full name.',
+      'The Dashboards list view\'s Pin button also gained the screen-reader label it was missing entirely (its tile-view sibling already had one).',
+    ],
+  },
+  {
     v: 602,
     title: 'Track L sweep (chart-extension API lens): every chart type now declares its export contract',
     kind: 'fix',

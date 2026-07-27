@@ -116,6 +116,28 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **Track H sweep — row/card title buttons across the workspace expose their full name on hover,
+  not just a generic tooltip (v603, sw v240, 2026-07-27, steward):** v602's own NEXT pointer named
+  Track H as most overdue (last ran v596, vs Track L just done at v602 and Track N at v600/601).
+  Walked Connections, Datasets, Jobs, Dashboards (tile + list view) and Repository looking for a
+  small, concrete UX rough edge — found the SAME class of bug v596 fixed for Explore's saved-
+  analyses sidebar, recurring six more times: every workspace row/card's visible name (`.cx-name b`
+  in Connections/Datasets/Jobs/Dashboards-list/Repository, `.recent-meta b` in the Dashboards tile
+  card) CSS-truncates with an ellipsis, but the one real `<button>` that opens/edits the row either
+  carried no `title` attribute at all (just `aria-label`, invisible to a sighted mouse user) or a
+  generic one that doesn't say WHICH row. Fixed all six call sites (app/connections.js,
+  app/datasets.js, app/jobs.js, app/studio.js's `recentCardHtml`/`dashListRowHtml`/`repoRowHtml`) —
+  each `.cx-title-btn`/`.recent-open` button's `title` now leads with the row's own name, mirroring
+  the `title`/`aria-label` split the v596 fix established. Also closed a real, separate a11y gap
+  found along the way: the Dashboards LIST view's Pin button had no `aria-label` at all (its tile-
+  view sibling already did) — added one. 7 new regression tests (one per fixed surface, plus the
+  pin aria-label gap), full suite green — 2276/2276. No docs/index.html change (a tooltip/a11y-
+  attribute fix, not a new describable feature — same precedent as v286/v596). SW cache → v240.
+  (app/connections.js, app/datasets.js, app/jobs.js, app/studio.js, sw.js, js/changelog.js,
+  tests/run.js) NEXT: continuing the Track H/L/N self-directed rotation (Track N last at v600/601
+  is now the most overdue) is a good next slice while the findings queue stays thin; the unused
+  Track L lenses from v588's own pointer — module boundaries, global-state creep, performance
+  budget — also remain open for a future sweep.
 - **Track L sweep (chart-extension API lens) — every Studio.CHARTS entry now declares its `cde`
   export contract (v602, sw v239, 2026-07-27, steward):** with the ★ backlog, LIVE-FEEDBACK QUEUE,
   QUALITY TRACKS, and the N-DATA period-comparison work all confirmed shipped (v601's own top-down

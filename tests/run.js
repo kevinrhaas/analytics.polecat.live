@@ -5182,14 +5182,18 @@ function serve() {
     const jobsRowSemantics = await page.evaluate(function (filedId) {
       var row = document.querySelector('.cx-row[data-job-id="' + filedId + '"]');
       var titleBtn = row.querySelector(".cx-name > .cx-title-btn");
+      var name = row.querySelector(".cx-name b").textContent;
       return {
         noRoleOrTabindex: !row.hasAttribute("role") && !row.hasAttribute("tabindex"),
         titleIsButton: !!titleBtn && titleBtn.tagName === "BUTTON",
-        noNestedInteractive: !!titleBtn && !titleBtn.querySelector("button,a,[role=button],[tabindex]")
+        noNestedInteractive: !!titleBtn && !titleBtn.querySelector("button,a,[role=button],[tabindex]"),
+        titleAttrNamesRow: !!titleBtn && titleBtn.title.indexOf(name) === 0
       };
     }, jobsFolderSetup.filedId);
     ok("QA-07: a job row is a plain container whose title is a real <button> with no nested interactive descendants",
       jobsRowSemantics.noRoleOrTabindex && jobsRowSemantics.titleIsButton && jobsRowSemantics.noNestedInteractive, JSON.stringify(jobsRowSemantics));
+    ok("Track H: a job row's title button exposes the job's own name via its native title attribute (truncation escape hatch)",
+      jobsRowSemantics.titleAttrNamesRow, JSON.stringify(jobsRowSemantics));
     const jobsTitleBtnOpens = await page.evaluate(function (filedId) {
       document.querySelector('.cx-row[data-job-id="' + filedId + '"] .cx-title-btn').click();
       return { title: (document.querySelector(".modal-h") || {}).textContent };
@@ -5576,14 +5580,22 @@ function serve() {
     const cxRowSemantics = await page.evaluate(function () {
       var row = document.querySelector("#connResults .cx-row");
       var titleBtn = row.querySelector(".cx-name > .cx-title-btn");
+      var name = row.querySelector(".cx-name b").textContent;
       return {
         noRoleOrTabindex: !row.hasAttribute("role") && !row.hasAttribute("tabindex"),
         titleIsButton: !!titleBtn && titleBtn.tagName === "BUTTON",
-        noNestedInteractive: !!titleBtn && !titleBtn.querySelector("button,a,[role=button],[tabindex]")
+        noNestedInteractive: !!titleBtn && !titleBtn.querySelector("button,a,[role=button],[tabindex]"),
+        titleAttrNamesRow: !!titleBtn && titleBtn.title.indexOf(name) === 0
       };
     });
     ok("QA-07: a connection row is a plain container whose title is a real <button> with no nested interactive descendants",
       cxRowSemantics.noRoleOrTabindex && cxRowSemantics.titleIsButton && cxRowSemantics.noNestedInteractive, JSON.stringify(cxRowSemantics));
+    // Track H sweep (2026-07-27): .cx-name b truncates long names with a CSS ellipsis
+    // (same class of bug v596 fixed for Explore's saved-analyses sidebar) — the title
+    // button's native `title` attribute is the only escape hatch a sighted mouse user
+    // has, so it must name the row, not just a generic verb.
+    ok("Track H: a connection row's title button exposes the connection's own name via its native title attribute (truncation escape hatch)",
+      cxRowSemantics.titleAttrNamesRow, JSON.stringify(cxRowSemantics));
     const cxTitleBtnOpens = await page.evaluate(function () {
       document.querySelector("#connResults .cx-row .cx-title-btn").click();
       return { title: (document.querySelector(".modal-h") || {}).textContent };
@@ -6025,14 +6037,18 @@ function serve() {
     const dsxRowSemantics = await page.evaluate(function () {
       var row = document.querySelector("#dsxResults .cx-row");
       var titleBtn = row.querySelector(".cx-name > .cx-title-btn");
+      var name = row.querySelector(".cx-name b").textContent;
       return {
         noRoleOrTabindex: !row.hasAttribute("role") && !row.hasAttribute("tabindex"),
         titleIsButton: !!titleBtn && titleBtn.tagName === "BUTTON",
-        noNestedInteractive: !!titleBtn && !titleBtn.querySelector("button,a,[role=button],[tabindex]")
+        noNestedInteractive: !!titleBtn && !titleBtn.querySelector("button,a,[role=button],[tabindex]"),
+        titleAttrNamesRow: !!titleBtn && titleBtn.title.indexOf(name) === 0
       };
     });
     ok("QA-07: a dataset row is a plain container whose title is a real <button> with no nested interactive descendants",
       dsxRowSemantics.noRoleOrTabindex && dsxRowSemantics.titleIsButton && dsxRowSemantics.noNestedInteractive, JSON.stringify(dsxRowSemantics));
+    ok("Track H: a dataset row's title button exposes the dataset's own name via its native title attribute (truncation escape hatch)",
+      dsxRowSemantics.titleAttrNamesRow, JSON.stringify(dsxRowSemantics));
     const dsxTitleBtnOpens = await page.evaluate(function () {
       document.querySelector("#dsxResults .cx-row .cx-title-btn").click();
       return { title: (document.querySelector(".modal-h") || {}).textContent };
@@ -23612,6 +23628,17 @@ function serve() {
     ok("Z2P: no 'Pinned' section when nothing is pinned; every recent card has an unpinned star toggle",
       !z2pInit.hasPinnedHeading && z2pInit.hasRecentHeading && z2pInit.pinCount > 0 && z2pInit.allUnpinned && z2pInit.hasStarSvg, JSON.stringify(z2pInit));
 
+    // Track H sweep (2026-07-27): a Dashboards tile card's title text (.recent-meta b)
+    // CSS-truncates long titles with an ellipsis, but the whole-card .recent-open button
+    // had no native `title` at all (aria-label only) — same escape-hatch gap v596 fixed
+    // for Explore's saved-analyses sidebar. The button now names its own dashboard.
+    const homeCardOpenTitle = await page.evaluate(function () {
+      var card = document.querySelector("#secHome .recent-card");
+      return { title: card.querySelector(".recent-open").title, name: card.querySelector(".recent-meta b").textContent };
+    });
+    ok("Track H: a Home dashboard tile's open button exposes the dashboard's own name via its native title attribute",
+      homeCardOpenTitle.title.indexOf(homeCardOpenTitle.name) === 0, JSON.stringify(homeCardOpenTitle));
+
     // Z2P-2: clicking a card's pin toggle pins it — moves it under a new "Pinned" heading,
     // flips aria-pressed/the .pinned class, and persists the id to localStorage["studio-pins"].
     const z2pPin = await page.evaluate(async function () {
@@ -23957,14 +23984,22 @@ function serve() {
     const dashLiRowSemantics = await page.evaluate(function () {
       var row = document.querySelector("#repoResults .dash-li");
       var titleBtn = row.querySelector(".cx-name > .cx-title-btn");
+      var name = row.querySelector(".cx-name b").textContent;
+      var pinBtn = row.querySelector(".recent-pin");
       return {
         noRoleOrTabindex: !row.hasAttribute("role") && !row.hasAttribute("tabindex"),
         titleIsButton: !!titleBtn && titleBtn.tagName === "BUTTON",
-        noNestedInteractive: !!titleBtn && !titleBtn.querySelector("button,a,[role=button],[tabindex]")
+        noNestedInteractive: !!titleBtn && !titleBtn.querySelector("button,a,[role=button],[tabindex]"),
+        titleAttrNamesRow: !!titleBtn && titleBtn.title.indexOf(name) === 0,
+        pinHasAriaLabel: !!pinBtn && pinBtn.getAttribute("aria-label") !== null && pinBtn.getAttribute("aria-label").indexOf(name) >= 0
       };
     });
     ok("QA-07: a list-mode dashboard row is a plain container whose title is a real <button> with no nested interactive descendants",
       dashLiRowSemantics.noRoleOrTabindex && dashLiRowSemantics.titleIsButton && dashLiRowSemantics.noNestedInteractive, JSON.stringify(dashLiRowSemantics));
+    ok("Track H: a list-mode dashboard row's title button exposes the dashboard's own name via its native title attribute",
+      dashLiRowSemantics.titleAttrNamesRow, JSON.stringify(dashLiRowSemantics));
+    ok("Track H: a list-mode dashboard row's Pin button now carries an object-specific aria-label (was missing entirely before this sweep)",
+      dashLiRowSemantics.pinHasAriaLabel, JSON.stringify(dashLiRowSemantics));
     const dashLiTitleBtnOpens = await page.evaluate(function () {
       var row = document.querySelector("#repoResults .dash-li");
       var id = row.getAttribute("data-recent");
@@ -27998,11 +28033,14 @@ function serve() {
       var titleBtns = rows.map(function (r) { return r.querySelector(".cx-name > .cx-title-btn"); });
       var allAreRealButtons = titleBtns.length > 0 && titleBtns.every(function (b) { return b && b.tagName === "BUTTON"; });
       var noNestedInteractive = titleBtns.every(function (b) { return !b.querySelector("button,a,[role=button],[tabindex]"); });
-      return { rowCount: rows.length, anyRoleOrTabindex: anyRoleOrTabindex, allAreRealButtons: allAreRealButtons, noNestedInteractive: noNestedInteractive };
+      var allTitleAttrsNameTheirRow = titleBtns.every(function (b) { return b.title.indexOf(b.querySelector("b").textContent) === 0; });
+      return { rowCount: rows.length, anyRoleOrTabindex: anyRoleOrTabindex, allAreRealButtons: allAreRealButtons, noNestedInteractive: noNestedInteractive, allTitleAttrsNameTheirRow: allTitleAttrsNameTheirRow };
     });
     ok("QA-07: Repository rows are plain containers (no role/tabindex) whose title is a real <button> with no nested interactive descendants",
       repoRowSemantics.rowCount >= 5 && !repoRowSemantics.anyRoleOrTabindex && repoRowSemantics.allAreRealButtons && repoRowSemantics.noNestedInteractive,
       JSON.stringify(repoRowSemantics));
+    ok("Track H: every Repository row's title button exposes its own row's name via its native title attribute (truncation escape hatch)",
+      repoRowSemantics.allTitleAttrsNameTheirRow, JSON.stringify(repoRowSemantics));
 
     await repoPage.evaluate(function () { document.querySelector('.cx-row[data-repo-id="repo-ds"] .cx-title-btn').focus(); });
     const repoTitleBtnFocused = await repoPage.evaluate(function () { return document.activeElement === document.querySelector('.cx-row[data-repo-id="repo-ds"] .cx-title-btn'); });
