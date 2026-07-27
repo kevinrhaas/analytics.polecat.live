@@ -18,8 +18,13 @@ import { hasUnseen, markSeen } from "../vendor/polecat-shell/whatsnew.js";
 var SEEN_KEY = "studio-whatsnew-seen";
 
 function clearWhatsNewDot() {
-  var dot = document.getElementById("wnDot");
-  if (dot) dot.remove();
+  // Slice A: the unseen dot now lives on BOTH the global topbar What's-new button
+  // (#tbWhatsNew → #wnDotTb) and the Studio footer Changelog button (#btnChangelog →
+  // #wnDot). Opening either feed clears both.
+  ["wnDot", "wnDotTb"].forEach(function (id) {
+    var dot = document.getElementById(id);
+    if (dot) dot.remove();
+  });
 }
 
 window.PolecatShell = {
@@ -38,20 +43,30 @@ function mount() {
     var apps = publicFleet().map(function (a) {
       return Object.assign({}, a, { icon: icon(a.icon, 22) });
     });
-    host.insertBefore(appSwitcher(apps, { current: "analytics" }), host.firstChild);
+    // Slice A: the waffle sits just LEFT of the +New button (the standard right cluster is
+    // What's-new · What's-next · Dark · waffle · +New · More), not at the far left of the
+    // cluster — insert it before #btnNew's menu-wrap, falling back to firstChild.
+    var newBtn = document.getElementById("btnNew");
+    var anchor = (newBtn && newBtn.closest(".menu-wrap")) || host.firstChild;
+    host.insertBefore(appSwitcher(apps, { current: "analytics" }), anchor);
   }
-  // Unseen dot: light the footer Changelog button when there are releases newer
-  // than the stored seen-version. js/changelog.js (a module earlier in document
-  // order) has already set STUDIO_LATEST_VERSION by the time this runs; opening
-  // the feed marks it seen (studio.js calls markSeen + clearWhatsNewDot).
-  var btn = document.getElementById("btnChangelog");
+  // Unseen dot: light the global topbar What's-new button AND the Studio footer
+  // Changelog button when there are releases newer than the stored seen-version.
+  // js/changelog.js (a module earlier in document order) has already set
+  // STUDIO_LATEST_VERSION by the time this runs; opening either feed marks it seen
+  // (studio.js calls markSeen + clearWhatsNewDot).
   var latest = window.STUDIO_LATEST_VERSION || 0;
-  if (btn && latest && hasUnseen(SEEN_KEY, latest) && !document.getElementById("wnDot")) {
-    var dot = document.createElement("span");
-    dot.id = "wnDot";
-    dot.className = "sb-new-dot";
-    dot.setAttribute("aria-label", "New updates");
-    btn.appendChild(dot);
+  if (latest && hasUnseen(SEEN_KEY, latest)) {
+    [["btnChangelog", "wnDot"], ["tbWhatsNew", "wnDotTb"]].forEach(function (pair) {
+      var btn = document.getElementById(pair[0]);
+      if (btn && !document.getElementById(pair[1])) {
+        var dot = document.createElement("span");
+        dot.id = pair[1];
+        dot.className = "sb-new-dot";
+        dot.setAttribute("aria-label", "New updates");
+        btn.appendChild(dot);
+      }
+    });
   }
 }
 

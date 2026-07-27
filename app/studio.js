@@ -444,6 +444,62 @@
         " · " + d.toLocaleTimeString("en-US", { timeZone: "America/Chicago", hour: "2-digit", minute: "2-digit" }) + " CT";
     } catch (e) { return d.toISOString().slice(0, 16).replace("T", " "); }
   }
+  // Slice A: the What's-new feed is now reachable from TWO places — the global topbar
+  // button (#tbWhatsNew) and the Studio footer Changelog button (#btnChangelog). The
+  // feed body (Studio's richer live-search feed) and the shell right-panel open/toggle
+  // live here at module scope so both triggers share one implementation and one open
+  // state. Built fresh per open — the shell removes the panel DOM on close.
+  function buildWhatsNewBody() {
+    var log = window.STUDIO_CHANGELOG || [];
+    var pop = document.createElement("div");
+    pop.className = "changelog-pop";
+    pop.id = "changelogPop";
+    pop.innerHTML = '<div class="cl-head">' +
+      '<input id="clSearch" type="search" class="cl-search" placeholder="Search…" aria-label="Search changelog">' +
+      '<span class="cl-sub">latest first</span></div>' +
+      '<div id="clEntries"></div>';
+    var clEntries = pop.querySelector("#clEntries");
+    function renderClEntries(q) {
+      var needle = (q || "").trim().toLowerCase();
+      var matched = log.filter(function (e) {
+        if (!needle) return true;
+        return (vLabel(e) + " " + (e.title || "") + " " + (e.ts || e.date || "") + " " + (e.items || []).join(" ")).toLowerCase().indexOf(needle) >= 0;
+      });
+      clEntries.innerHTML = matched.length ? matched.map(function (e) {
+        var items = (e.items || []).map(function (x) { return "<li>" + hlq(x, needle) + "</li>"; }).join("");
+        return '<div class="cl-entry' + (e === log[0] ? " cl-latest" : "") + '">' +
+          '<div class="cl-top"><span class="cl-v">' + hlq(vLabel(e), needle) + '</span>' +
+          '<span class="cl-title">' + hlq(e.title || "", needle) + '</span>' +
+          (fmtEntryWhen(e) ? '<span class="cl-date">' + esc(fmtEntryWhen(e)) + '</span>' : "") + '</div>' +
+          (items ? "<ul>" + items + "</ul>" : "") + '</div>';
+      }).join("") : '<div class="cl-empty">No entries match “' + esc(q) + '”</div>';
+    }
+    renderClEntries("");
+    var clSrch = pop.querySelector("#clSearch");
+    if (clSrch) clSrch.addEventListener("input", function () { renderClEntries(clSrch.value); });
+    return pop;
+  }
+  // Shared open/toggle state across both triggers. `triggerBtn` is whichever button was
+  // clicked, so aria-expanded is toggled on it; the seen-version is marked + both unseen
+  // dots cleared on open.
+  var _wnPanel = null, _wnTrigger = null;
+  function openWhatsNew(triggerBtn) {
+    var PS = window.PolecatShell;
+    if (!PS) return; // fleet.js module not loaded yet (sub-second boot window)
+    if (_wnPanel) { _wnPanel.close(); return; } // toggle: second click (either trigger) closes
+    _wnTrigger = triggerBtn || null;
+    if (_wnTrigger) _wnTrigger.setAttribute("aria-expanded", "true");
+    var log = window.STUDIO_CHANGELOG || [];
+    _wnPanel = PS.rightPanel({
+      title: "What’s new",
+      body: buildWhatsNewBody(),
+      onClose: function () { _wnPanel = null; if (_wnTrigger) _wnTrigger.setAttribute("aria-expanded", "false"); _wnTrigger = null; },
+    });
+    PS.markSeen(PS.SEEN_KEY, window.STUDIO_LATEST_VERSION || (log[0] && log[0].v) || 0);
+    PS.clearWhatsNewDot();
+  }
+  window.__studioOpenWhatsNew = openWhatsNew;
+
   function renderFooter() {
     var log = window.STUDIO_CHANGELOG || [];
     var stamp = $("#fbStamp");
@@ -457,42 +513,10 @@
       else stamp.textContent = "";
       if (log[0]) stamp.textContent += "  ·  " + vLabel(log[0]);
     }
-    // What's-new feed — opens in the Polecat Shell right panel (app/fleet.js exposes
-    // window.PolecatShell). The BODY stays the Studio's own richer feed (E6 live search
-    // with <mark> highlighting, Central-time stamps) rather than the shell's generic
-    // initWhatsNew list; the shell contributes the container (focus-trapped dialog,
-    // Escape/backdrop close, slide-in) and the seen-version contract (unseen dot on
-    // the footer button, cleared on open). Built fresh per open — rightPanel removes
-    // its DOM on close.
-    function buildWhatsNewBody() {
-      var pop = document.createElement("div");
-      pop.className = "changelog-pop";
-      pop.id = "changelogPop";
-      pop.innerHTML = '<div class="cl-head">' +
-        '<input id="clSearch" type="search" class="cl-search" placeholder="Search…" aria-label="Search changelog">' +
-        '<span class="cl-sub">latest first</span></div>' +
-        '<div id="clEntries"></div>';
-      var clEntries = pop.querySelector("#clEntries");
-      function renderClEntries(q) {
-        var needle = (q || "").trim().toLowerCase();
-        var matched = log.filter(function (e) {
-          if (!needle) return true;
-          return (vLabel(e) + " " + (e.title || "") + " " + (e.ts || e.date || "") + " " + (e.items || []).join(" ")).toLowerCase().indexOf(needle) >= 0;
-        });
-        clEntries.innerHTML = matched.length ? matched.map(function (e) {
-          var items = (e.items || []).map(function (x) { return "<li>" + hlq(x, needle) + "</li>"; }).join("");
-          return '<div class="cl-entry' + (e === log[0] ? " cl-latest" : "") + '">' +
-            '<div class="cl-top"><span class="cl-v">' + hlq(vLabel(e), needle) + '</span>' +
-            '<span class="cl-title">' + hlq(e.title || "", needle) + '</span>' +
-            (fmtEntryWhen(e) ? '<span class="cl-date">' + esc(fmtEntryWhen(e)) + '</span>' : "") + '</div>' +
-            (items ? "<ul>" + items + "</ul>" : "") + '</div>';
-        }).join("") : '<div class="cl-empty">No entries match “' + esc(q) + '”</div>';
-      }
-      renderClEntries("");
-      var clSrch = pop.querySelector("#clSearch");
-      if (clSrch) clSrch.addEventListener("input", function () { renderClEntries(clSrch.value); });
-      return pop;
-    }
+    // What's-new feed — opens in the Polecat Shell right panel via the shared module-level
+    // openWhatsNew() above (also used by the global topbar #tbWhatsNew button). The footer
+    // Changelog button keeps Studio's own richer feed body (E6 live search + Central-time
+    // stamps); the shell contributes the focus-trapped dialog + seen-version contract.
     var btn = $("#btnChangelog");
     if (btn) {
       // UX6 (currentColor icon migration): the footer button used to lead with the
@@ -507,20 +531,7 @@
           s.appendChild(Studio.icon(s.getAttribute("data-ic"), s.classList.contains("sb-caret") ? 11 : 14));
         });
       }
-      var openPanel = null;
-      btn.onclick = function () {
-        var PS = window.PolecatShell;
-        if (!PS) return; // fleet.js module not loaded yet (sub-second boot window)
-        if (openPanel) { openPanel.close(); return; } // toggle: second click closes
-        btn.setAttribute("aria-expanded", "true");
-        openPanel = PS.rightPanel({
-          title: "What’s new",
-          body: buildWhatsNewBody(),
-          onClose: function () { openPanel = null; btn.setAttribute("aria-expanded", "false"); },
-        });
-        PS.markSeen(PS.SEEN_KEY, window.STUDIO_LATEST_VERSION || (log[0] && log[0].v) || 0);
-        PS.clearWhatsNewDot();
-      };
+      btn.onclick = function () { openWhatsNew(btn); };
     }
   }
 
@@ -7552,7 +7563,7 @@
     var sec = $("#secSettings"); if (!sec) return;
     var groups = [];
     SETTINGS_TOGGLES.forEach(function (t) { if (groups.indexOf(t.grp) < 0) groups.push(t.grp); });
-    var html = '<div class="settings-wrap"><div class="settings-hero"><h1>Settings</h1>' +
+    var html = '<div class="settings-wrap"><div class="settings-hero">' +
       '<p>App-wide preferences, saved locally on this device.</p></div>' +
       accountCardHtml() +
       '<div class="settings-card" id="wsBackendCard"></div>' +
@@ -7795,7 +7806,7 @@
     var syncStateNow = Studio.Sync.syncState();
     var showGoLive = syncStateNow && syncStateNow.sourceId === "supabase";
     sec.classList.add("has-content");
-    sec.innerHTML = '<div class="repo-wrap"><div class="repo-hero"><h1>Admin</h1>' +
+    sec.innerHTML = '<div class="repo-wrap"><div class="repo-hero">' +
       '<p>Manage who can sign in to this workspace. <b>Admin</b> has full access; <b>viewer</b> can browse and explore but not edit. This is UX-level access control today — per-object privacy is hidden client-side until you go live below.</p>' +
       '<div class="repo-io"><button type="button" class="btn primary" id="usrNewBtn">+ Add user</button></div></div>' +
       (rows ? '<div class="cx-list">' + rows + '</div>' : '<div class="cx-empty">No users yet.</div>') +
@@ -8172,11 +8183,70 @@
   function setTheme(t) {
     S.theme = t; document.documentElement.setAttribute("data-theme", t);
     var b = $("#btnTheme"); if (b) setIconBtn(b, t === "dark" ? "sun" : "moon", t === "dark" ? "Light" : "Dark");
+    refreshTbThemeIcon();
     try { localStorage.setItem("studio-theme", t); } catch (e) {}
     postToPreview({ type: "theme", value: t });
     renderHome();
     renderSettings();
   }
+  // Slice A: the GLOBAL topbar dark-mode toggle (#tbTheme) shows a moon in light mode and a
+  // sun in dark mode. Its icon refreshes on every setTheme() so it stays in sync no matter
+  // where the theme was changed from (this button, #btnTheme, #railQuickDark, or Settings).
+  function refreshTbThemeIcon() {
+    var tb = $("#tbTheme");
+    if (!tb || !Studio.icon) return;
+    var dark = S.theme === "dark";
+    tb.innerHTML = "";
+    tb.appendChild(Studio.icon(dark ? "sun" : "moon", 16));
+    tb.setAttribute("aria-label", dark ? "Switch to light mode" : "Switch to dark mode");
+    tb.title = dark ? "Switch to light mode" : "Switch to dark mode";
+    tb.setAttribute("aria-pressed", dark ? "true" : "false");
+  }
+  // Exposed for the topbar wiring + tests; reads/flips the light/dark MODE.
+  window.__studioGetTheme = function () { return S.theme; };
+  window.__studioToggleTheme = function () { setTheme(S.theme === "dark" ? "light" : "dark"); };
+
+  // Slice A: the global topbar "What's next" (#tbWhatsNext) opens a compact roadmap modal —
+  // a peek at near-term, user-facing work (seeded from STATUS.md's NEXT list), grouped by
+  // how firm it is. Deliberately not a commitment; kept short and honest.
+  var WHATS_NEXT = [
+    { title: "Studio actions in the topbar", note: "The dashboard builder's Save, Export and Open move into the topbar's new per-section action slot.", status: "next" },
+    { title: "Cleaner sample-data separation", note: "Keep the built-in demo packs clearly distinct from your own datasets across the workspace.", status: "next" },
+    { title: "Unified “Views” language", note: "One consistent name for Explore analyses and the charts you pin, so the workspace reads the same everywhere.", status: "planned" },
+    { title: "Polished print-to-PDF export", note: "A tidier PDF path for sharing a dashboard as a document.", status: "planned" },
+    { title: "Duplicate-name disambiguation everywhere", note: "Stable, distinguishing labels for same-named objects across every picker and the Repository.", status: "exploring" },
+    { title: "Cross-filtering in exported dashboards", note: "Carry interactive filter and cross-filter state into the standalone .html export.", status: "exploring" },
+  ];
+  function openWhatsNext() {
+    modal("What’s next", function (b) {
+      var wrap = el("div", "whatsnext");
+      var intro = el("p", "wn-intro");
+      intro.textContent = "A peek at what we’re working on next. Not a commitment — priorities shift as we learn.";
+      wrap.appendChild(intro);
+      [
+        { key: "next", label: "Up next" },
+        { key: "planned", label: "Planned" },
+        { key: "exploring", label: "Exploring" },
+      ].forEach(function (g) {
+        var items = WHATS_NEXT.filter(function (x) { return x.status === g.key; });
+        if (!items.length) return;
+        var gh = el("div", "wn-group-h");
+        gh.appendChild(document.createTextNode(g.label));
+        var badge = el("span", "wn-status wn-status-" + g.key); badge.textContent = String(items.length);
+        gh.appendChild(badge);
+        wrap.appendChild(gh);
+        items.forEach(function (it) {
+          var row = el("div", "wn-item wn-item-" + g.key);
+          var t = el("div", "wn-item-t"); t.textContent = it.title;
+          var n = el("div", "wn-item-n"); n.textContent = it.note;
+          row.appendChild(t); row.appendChild(n);
+          wrap.appendChild(row);
+        });
+      });
+      b.appendChild(wrap);
+    });
+  }
+  window.__studioOpenWhatsNext = openWhatsNext;
   /* Z10: app COLOR theme — orthogonal to the light/dark MODE toggle above. "classic" is
      the original Pentaho blue chrome (default, unchanged); "polecat" recolors the builder
      to the same warm plum/terracotta/cream palette #railNav already uses, so the whole app
@@ -9114,6 +9184,17 @@
       }
     });
     $("#btnTheme").onclick = function () { setTheme(S.theme === "dark" ? "light" : "dark"); };
+    // Slice A: wire the GLOBAL topbar cluster. The search pill's CLICK is wired in
+    // app/palette.js (window.__openCommandPalette); here we only paint its icon. What's-new,
+    // What's-next and the dark toggle are painted + wired here (they're app-owned).
+    var tbSearchIc = $("#tbSearch [data-ic]");
+    if (tbSearchIc && Studio.icon) tbSearchIc.appendChild(Studio.icon(tbSearchIc.getAttribute("data-ic"), 15));
+    var tbWN = $("#tbWhatsNew");
+    if (tbWN && Studio.icon) { tbWN.appendChild(Studio.icon("sparkle", 16)); tbWN.addEventListener("click", function () { openWhatsNew(tbWN); }); }
+    var tbNext = $("#tbWhatsNext");
+    if (tbNext && Studio.icon) { tbNext.appendChild(Studio.icon("compass", 16)); tbNext.addEventListener("click", openWhatsNext); }
+    var tbTh = $("#tbTheme");
+    if (tbTh) { refreshTbThemeIcon(); tbTh.addEventListener("click", function () { setTheme(S.theme === "dark" ? "light" : "dark"); }); }
     // Z5 follow-up: "quick settings" mirror in the mobile nav drawer (relay.polecat.live-style) —
     // the two most-reached-for toggles (Dark mode, Simple mode) one tap away without leaving the
     // drawer for a full trip to Settings. Reuses SETTINGS_TOGGLES as the single source of truth

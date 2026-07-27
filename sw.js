@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v261"; /* v261: LF42 slice 3 — Settings → Workspace backend's
+var CACHE_NAME = "studio-shell-v262"; /* v262: global standard topbar (Slice A) — #topbar is
+   promoted out of Studio's #appMain into a persistent app frame; centered command-palette
+   search + What's-new/What's-next/dark-mode cluster; #railCmdk removed. index.html, studio.js,
+   shell.js, studio.css, palette.js, fleet.js, icons.js all changed, so precached copies roll.
+   v261: LF42 slice 3 — Settings → Workspace backend's
    "Switch backend" now offers whatever backends an admin has already registered (Admin →
    Backends card) as one-click connect options, before falling back to entering credentials
    from scratch. app/studio.js and docs/index.html changed, so precached copies roll.
