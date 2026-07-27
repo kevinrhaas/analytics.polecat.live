@@ -10739,6 +10739,107 @@ function serve() {
     });
     ok("LF42: deleting a registered backend (after confirm) removes it from the list", lf42Deleted.length === 0, JSON.stringify(lf42Deleted));
 
+    // ---- LF42 slice 2: per-user backend assignment ----
+    // No backends registered right now (the block above just deleted its one row)
+    // — Add user must NOT show "Assigned backend" (no empty facet, same
+    // convention as the folder/tag chip filters elsewhere).
+    const lf42s2NoBackends = await gp42.evaluate(function () {
+      window.__studioOpenUserEditor();
+      var has = !!document.getElementById("usrEditBackend");
+      document.querySelector(".modal-ov .x").click();
+      return has;
+    });
+    ok("LF42 slice 2: Add user has no Assigned-backend field when no backends are registered",
+      lf42s2NoBackends === false, JSON.stringify(lf42s2NoBackends));
+
+    // Register two backends directly (the wizard path is already covered above)
+    // so the picker has real options.
+    await gp42.evaluate(function () {
+      localStorage.setItem("studio-admin-backends", JSON.stringify([
+        { id: "bk1", name: "Prod Supabase", adapter: "supabase", cfg: {} },
+        { id: "bk2", name: "Dev Turso", adapter: "turso", cfg: {} },
+      ]));
+    });
+    const lf42s2Fields = await gp42.evaluate(function () {
+      window.__studioRenderAdmin();
+      window.__studioOpenUserEditor();
+      var sel = document.getElementById("usrEditBackend");
+      var opts = sel ? [].slice.call(sel.options).map(function (o) { return { v: o.value, t: o.textContent }; }) : [];
+      var r = { hasField: !!sel, unset: sel && sel.value === "", opts: opts };
+      document.querySelector(".modal-ov .x").click();
+      return r;
+    });
+    ok("LF42 slice 2: once a backend is registered, Add user offers an Assigned-backend picker listing it, unset by default",
+      lf42s2Fields.hasField && lf42s2Fields.unset &&
+      lf42s2Fields.opts.some(function (o) { return o.v === "bk1" && o.t === "Prod Supabase"; }) &&
+      lf42s2Fields.opts.some(function (o) { return o.v === "bk2"; }),
+      JSON.stringify(lf42s2Fields));
+
+    // Adding a user with a backend assigned stores it on provisioning.backendId.
+    const lf42s2Added = await gp42.evaluate(function () {
+      window.__studioOpenUserEditor();
+      document.getElementById("usrEditUser").value = "lf42user";
+      document.getElementById("usrEditName").value = "LF42 Test";
+      document.getElementById("usrEditPass").value = "pw123456";
+      document.getElementById("usrEditBackend").value = "bk1";
+      document.querySelector(".cx-wiz-foot .btn.primary").click();
+      return true;
+    });
+    await gp42.waitForFunction(() => !document.querySelector(".modal-ov"), { timeout: 8000 });
+    const lf42s2Stored = await gp42.evaluate(function () { return window.PolecatAuth.find("lf42user"); });
+    ok("LF42 slice 2: adding a user with a backend assigned stores provisioning.backendId",
+      lf42s2Added && lf42s2Stored && lf42s2Stored.provisioning && lf42s2Stored.provisioning.backendId === "bk1",
+      JSON.stringify(lf42s2Stored));
+
+    // The Backends card now shows a "1 user" count badge on that row, and the
+    // Users list shows a "→ Prod Supabase" badge on the assigned account.
+    const lf42s2Badges = await gp42.evaluate(function () {
+      window.__studioRenderAdmin();
+      var bkRow = document.querySelector('[data-bk-assigned="bk1"]');
+      var usrRow = document.querySelector('[data-usr-id="lf42user"]');
+      var usrBadges = usrRow ? [].slice.call(usrRow.querySelectorAll(".cx-badge")).map(function (b) { return b.textContent; }) : [];
+      return { bkBadge: bkRow && bkRow.textContent, usrBadges: usrBadges };
+    });
+    ok("LF42 slice 2: the Backends card shows a '1 user' count badge, and the assigned account shows '→ Prod Supabase' on the Users list",
+      lf42s2Badges.bkBadge === "1 user" && lf42s2Badges.usrBadges.indexOf("→ Prod Supabase") >= 0,
+      JSON.stringify(lf42s2Badges));
+
+    // Editing that user back to "Don't set" clears the assignment (mirrors LF41's own clear test).
+    const lf42s2Cleared = await gp42.evaluate(function () {
+      window.__studioOpenUserEditor(window.PolecatAuth.find("lf42user"));
+      document.getElementById("usrEditBackend").value = "";
+      document.querySelector(".cx-wiz-foot .btn.primary").click();
+      return true;
+    });
+    await gp42.waitForFunction(() => !document.querySelector(".modal-ov"), { timeout: 8000 });
+    const lf42s2AfterClear = await gp42.evaluate(function () { return window.PolecatAuth.find("lf42user").provisioning; });
+    // This account only ever had backendId set (no theme/pack) — clearing it
+    // leaves nothing set at all, so provisioning collapses to null, same
+    // all-unset convention LF41's own clear test exercises.
+    ok("LF42 slice 2: clearing Assigned backend to 'Don't set' (with nothing else set) collapses provisioning to null",
+      lf42s2Cleared && lf42s2AfterClear === null, JSON.stringify(lf42s2AfterClear));
+
+    // Re-assign, then remove ALL registered backends: editing the user again (for
+    // an unrelated field) must NOT silently clear the existing assignment just
+    // because this editor session has no backends to offer.
+    await gp42.evaluate(function () {
+      return window.PolecatAuth.upsert("lf42user", { provisioning: { theme: "", pack: "", backendId: "bk2" } });
+    });
+    await gp42.evaluate(function () { localStorage.setItem("studio-admin-backends", "[]"); });
+    const lf42s2Preserved = await gp42.evaluate(function () {
+      window.__studioRenderAdmin();
+      window.__studioOpenUserEditor(window.PolecatAuth.find("lf42user"));
+      var hasField = !!document.getElementById("usrEditBackend");
+      document.getElementById("usrEditName").value = "LF42 Test Renamed";
+      document.querySelector(".cx-wiz-foot .btn.primary").click();
+      return hasField;
+    });
+    await gp42.waitForFunction(() => !document.querySelector(".modal-ov"), { timeout: 8000 });
+    const lf42s2AfterPreserve = await gp42.evaluate(function () { return window.PolecatAuth.find("lf42user").provisioning; });
+    ok("LF42 slice 2: editing a user while no backends are registered preserves their existing backendId instead of clearing it",
+      lf42s2Preserved === false && lf42s2AfterPreserve && lf42s2AfterPreserve.backendId === "bk2",
+      JSON.stringify(lf42s2AfterPreserve));
+
     await gp42.close();
 
     // ---- M7 slice 6: in-app account provisioning (browser self-signup) ----

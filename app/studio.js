@@ -6978,11 +6978,30 @@
      config the way a Connection is, and mirroring it into whichever backend it also
      describes is exactly the kind of chicken-and-egg complexity slice 1 is meant to
      avoid; that's still open for a later slice if cross-device backend lists prove
-     worth it. */
+     worth it.
+
+     Slice 2 (openUserEditor's "Assigned backend" field): records which
+     registered backend a user belongs to, on their provisioning blob. Also
+     deliberately narrow — it's reference metadata (surfaced both here, as a
+     count badge per row, and on the Users list) for a consolidated config UI
+     or "select a SERVER" feature to act on later. It does NOT auto-connect at
+     first sign-in: unlike the theme/pack provisioning LF41 applies silently,
+     adopting a backend can replace this device's entire local workspace, which
+     isn't safe to do without the user driving it (same reasoning as slice 1's
+     "still exactly one active connection"). */
   function getAdminBackends() { return lsGet("studio-admin-backends", []); }
   function setAdminBackends(list) { lsSet("studio-admin-backends", list); }
   function backendRowActive(r, st, curCfg) {
     return !!(st.isRemote && st.sourceId === r.adapter && JSON.stringify(curCfg) === JSON.stringify(r.cfg || {}));
+  }
+  // LF42 slice 2: how many locally-known accounts have this backend row's id
+  // as their provisioning.backendId (the "Assigned backend" field on
+  // openUserEditor). Purely informational — see the slice-2 comment there for
+  // why this stays metadata rather than driving an actual connection.
+  function backendAssignedCount(backendId) {
+    var Auth = window.PolecatAuth;
+    if (!Auth) return 0;
+    return Auth.list().filter(function (u) { return u.provisioning && u.provisioning.backendId === backendId; }).length;
   }
   function backendsCardHtml() {
     var list = getAdminBackends();
@@ -6992,11 +7011,13 @@
       var src = Studio.sourceById(r.adapter) || { label: r.adapter, icon: "db" };
       var active = backendRowActive(r, st, curCfg);
       var dot = !r.lastTest ? "cx-dot" : (r.lastTest.ok ? "cx-dot ok" : "cx-dot bad");
+      var assigned = backendAssignedCount(r.id);
       return '<div class="cx-row" data-bk-id="' + esc(r.id) + '">' +
         '<span class="' + dot + '"></span>' +
         '<span class="cx-ic" style="color:' + esc(src.accent || "var(--brand)") + '"></span>' +
         '<span class="cx-name"><b>' + esc(r.name) + '</b><small>' + esc(src.label || r.adapter) + '</small></span>' +
         (active ? '<span class="cx-badge admin">active</span>' : "") +
+        (assigned ? '<span class="cx-badge" data-bk-assigned="' + esc(r.id) + '">' + assigned + (assigned === 1 ? " user" : " users") + '</span>' : "") +
         '<span class="cx-actions">' +
           '<button type="button" class="btn" data-bk-test="' + esc(r.id) + '">Test</button>' +
           (active ? "" : '<button type="button" class="btn" data-bk-connect="' + esc(r.id) + '">Connect</button>') +
@@ -7707,14 +7728,20 @@
     }
     var users = Auth.list().sort(function (a, b) { return (a.name || a.u).localeCompare(b.name || b.u); });
     var adminCount = users.filter(function (u) { return u.role === "admin"; }).length;
+    var adminBackendsByRow = getAdminBackends();
     var rows = users.map(function (u) {
       var lastAdmin = u.role === "admin" && adminCount <= 1;
+      // LF42 slice 2: name the backend this account is assigned to, if any
+      // (mirrors the "N users" badge the Backends card shows per row).
+      var assignedBk = u.provisioning && u.provisioning.backendId &&
+        adminBackendsByRow.filter(function (r) { return r.id === u.provisioning.backendId; })[0];
       return '<div class="cx-row" data-usr-id="' + esc(u.u) + '">' +
         '<span class="cx-ic" data-usr-ic></span>' +
         '<span class="cx-name"><b>' + esc(u.name || u.u) + '</b><small>' + esc(u.u) + '</small></span>' +
         '<span class="cx-badge' + (u.role === "admin" ? " admin" : u.role === "developer" ? " developer" : "") + '">' + esc(u.role) + '</span>' +
         (u.demo ? '<span class="cx-badge">demo</span>' : "") +
         (me.u === u.u ? '<span class="cx-badge">you</span>' : "") +
+        (assignedBk ? '<span class="cx-badge">→ ' + esc(assignedBk.name) + '</span>' : "") +
         '<span class="cx-actions">' +
           '<button type="button" class="btn" data-usr-edit="' + esc(u.u) + '">Edit</button>' +
           '<button type="button" class="btn" data-usr-del="' + esc(u.u) + '"' + (lastAdmin ? ' disabled title="The workspace needs at least one admin"' : "") + ' aria-label="Remove ' + esc(u.name || u.u) + '">✕</button>' +
@@ -7965,6 +7992,31 @@
       packLab.appendChild(packChk);
       packLab.appendChild(document.createTextNode(" Install the Conservation Insight sample pack on first sign-in"));
       form.appendChild(packLab);
+      // LF42 slice 2: assign a specific registered backend (from the Backends
+      // card) to this user. Recorded on their provisioning blob the same way as
+      // theme/pack, but — unlike theme/pack — NOT auto-applied at first sign-in:
+      // connecting to a backend can adopt/overwrite a whole workspace, which
+      // isn't safe to do silently. This is metadata a later slice (consolidated
+      // config UI / server selection) can act on. Only shown once the admin has
+      // registered at least one backend (no empty facet, same convention as the
+      // folder/tag chip filters elsewhere).
+      var bSel = null;
+      var adminBackends = getAdminBackends();
+      if (adminBackends.length) {
+        var bRow = el("label", "cx-field"); bRow.innerHTML = "<span>Assigned backend</span>";
+        bSel = el("select"); bSel.id = "usrEditBackend";
+        var bNone = el("option"); bNone.value = ""; bNone.textContent = "Don't set — leave as-is";
+        bSel.appendChild(bNone);
+        adminBackends.forEach(function (r) {
+          var o = el("option"); o.value = r.id; o.textContent = r.name;
+          bSel.appendChild(o);
+        });
+        if (existing && existing.provisioning && existing.provisioning.backendId) bSel.value = existing.provisioning.backendId;
+        bRow.appendChild(bSel);
+        var bHint = el("small", "cx-hint"); bHint.textContent = "Which registered backend (Admin → Backends) this account belongs to. Recorded for reference — connecting a device to it is still a manual step.";
+        bRow.appendChild(bHint);
+        form.appendChild(bRow);
+      }
       b.appendChild(form);
       var result = el("div", "cx-test-result"); b.appendChild(result);
       var foot = el("div", "cx-wiz-foot");
@@ -7979,7 +8031,12 @@
         var opts = { name: nInp.value.trim() || u, role: rSel.value };
         if (pInp.value) opts.pass = pInp.value;
         var provTheme = tSel.value, provPack = packChk.checked ? "conservation" : "";
-        opts.provisioning = (provTheme || provPack) ? { theme: provTheme, pack: provPack } : null;
+        // bSel is only rendered when at least one backend is registered (see
+        // above) — when absent, keep whatever assignment already existed rather
+        // than silently clearing it just because this editor session had
+        // nothing to offer.
+        var provBackend = bSel ? bSel.value : ((existing && existing.provisioning && existing.provisioning.backendId) || "");
+        opts.provisioning = (provTheme || provPack || provBackend) ? { theme: provTheme, pack: provPack, backendId: provBackend } : null;
         function finishSave() {
           window.PolecatAuth.upsert(u, opts).then(function (saved) {
             try {

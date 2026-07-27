@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 623,
+    title: 'Admin can assign a registered backend to a user',
+    kind: 'feature',
+    ts: '2026-07-27T19:13:26.000Z',
+    items: [
+      'Add/Edit user gains an Assigned backend picker (once at least one backend is registered on the Backends card) recording which backend that account belongs to.',
+      'Each Backends row now shows how many users are assigned to it, and the Users list shows which backend each assigned user belongs to.',
+      'Reference metadata for now -- assigning a backend does not connect a device to it automatically.',
+    ],
+  },
+  {
     v: 622,
     title: 'Supabase connection self-heals an expired session instead of flapping to "not connected"',
     kind: 'fix',

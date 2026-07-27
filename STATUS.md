@@ -116,6 +116,36 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF42 slice 2 — per-user backend assignment (v623, sw v260, 2026-07-27, steward — step 2
+  of the LOCKED BUILD ORDER's "Dave"-demo ingredients, after LF42 slice 1):** Add/Edit user
+  (`openUserEditor`, app/studio.js) gains an **Assigned backend** picker, sourced from the
+  Backends card's `getAdminBackends()` list and shown only once at least one backend is
+  registered (no empty facet, same convention as the folder/tag chip filters). Saved as
+  `provisioning.backendId` alongside LF41's theme/pack, so `PolecatAuth`/the mirrored
+  workspace `users` row carry it the same way. **Deliberately reference-only, unlike
+  theme/pack**: it is NOT auto-applied at first sign-in. Theme/pack are cheap, reversible,
+  local-only ops that `initAuthBoot` can safely fire silently; adopting a backend
+  (`Studio.Sync.connectAdopt`) REPLACES the device's entire local workspace wholesale — not
+  something to trigger without the user driving it, so this slice stops at recording the
+  assignment (a consolidated config UI / future "select a server" step is the natural next
+  slice to act on it, per LF42's own numbered scope — auto-connect was never one of the 3
+  numbered LF42 slices, only a separately-flagged "(future)" item). The assignment is
+  surfaced both directions: each Backends row gets a count badge ("N users") via new
+  `backendAssignedCount()`, and the Users list shows a "→ Backend name" badge on any
+  assigned account. Editing a user while NO backends are registered preserves their
+  existing `backendId` instead of silently clearing it (the picker just doesn't render, and
+  the save handler falls back to the existing value rather than treating "not shown" as
+  "cleared"). 9 new regression tests (tests/run.js, "LF42 slice 2" block, same gp42 context
+  as slice 1): no field when zero backends registered; field + options appear once one is
+  registered; adding a user with a backend picked stores `provisioning.backendId`; the
+  count badge + Users-list badge render; clearing to "Don't set" (with nothing else set on
+  that account) collapses `provisioning` to `null`, matching LF41's own all-unset
+  convention; editing with zero backends registered preserves an existing assignment. Full
+  suite green, 2347/2347. SW cache → v260 (app/studio.js, app/auth.js, docs/index.html
+  precached). (app/studio.js, app/auth.js, docs/index.html, sw.js, js/changelog.js,
+  tests/run.js) NEXT: LF42 slice 3 (consolidated backend config UI) is the last numbered
+  LF42 slice, or step 3 of the LOCKED BUILD ORDER — LF40 (animated welcome + home tour) —
+  per Kevin's locked sequence.
 - **polecat-admin relay: inline SQL so go-live actually runs (2026-07-27, steward — edge
   function only, redeploy required):** the deployed function failed go-live/provision at runtime
   with `path not found: /var/tmp/sb-compile-edge-runtime/polecat-admin/bootstrap.sql` — it read
@@ -4698,8 +4728,8 @@
 >    otherwise fully done — only LF43 slice 2 remains, deliberately deferred.
 > 2. **"Dave"-demo ingredients:** LF41 (per-user provisioning defaults — theme + sample pack ✓ slice 1,
 >    2026-07-27; backend/DB + full dashboard-defaults blob still open) → LF42 (multi-backend admin —
->    admin manages a backend list ✓ slice 1, 2026-07-27; per-user backend assignment + consolidated
->    config UI still open).
+>    admin manages a backend list ✓ slice 1, per-user backend assignment ✓ slice 2, both 2026-07-27;
+>    consolidated config UI (slice 3) still open).
 > 3. **Flashy:** LF40 (animated welcome + home tour, sample-pack-aware).
 > 4. **Studio chrome:** LF46 (⋯ teardown) · LF47 (ops → top rail, w/ #30) · LF48 (mode switcher) ·
 >    LF45 (Save-as + Open dialog) · LF52 (widget→View) · LF53 (drop CDF/CDE).
@@ -4854,13 +4884,16 @@
 >       Supabase+GoTrue+RLS vs Turso vs Firebase: security, multi-user, setup effort, cost, offline).
 >       (docs/index.html restructure + an embedded docs view with new-tab pop-out, rail Docs/Help item,
 >       studio.js.) Ties LF58 (docs currency), #23, LF51, QA-02, M7.
-> LF42. **Multi-backend management for admin.** Admin can define/manage MULTIPLE backends (Supabase
->       connections/DBs) and assign one ACTIVE backend per user when provisioning them; consolidate +
->       simplify backend config into an Admin surface with more options; (future) select a SERVER. Slice:
->       (1) admin manages a backend list ✓ (2026-07-27, steward — see DONE); (2) per-user active-backend
->       assignment; (3) consolidated config UI; (future) servers. (New Admin "Backends" surface, per-user
->       backend on the user record, app/sources/*, workspace-backend card, gate.js connect.) Ties M7,
->       LF39, LF41.
+> LF42. **slice 1-2 ✓ / slice 3 open — Multi-backend management for admin.** Admin can define/manage
+>       MULTIPLE backends (Supabase connections/DBs) and assign one ACTIVE backend per user when
+>       provisioning them; consolidate + simplify backend config into an Admin surface with more
+>       options; (future) select a SERVER. Slice: (1) admin manages a backend list ✓ (2026-07-27,
+>       steward — see DONE); (2) per-user active-backend assignment ✓ (2026-07-27, steward — see
+>       DONE; recorded as reference metadata on `provisioning.backendId`, surfaced on both the
+>       Backends card and the Users list — deliberately NOT auto-connecting a device, since adopting
+>       a backend replaces its entire local workspace); (3) consolidated config UI; (future) servers.
+>       (New Admin "Backends" surface, per-user backend on the user record, app/sources/*,
+>       workspace-backend card, gate.js connect.) Ties M7, LF39, LF41.
 > LF43. **slice 1 ✓ / slice 2 open — BUG/cleanup — sample-pack dashboards must show in Dashboards;
 >       drop "Examples"; remove Studio's Examples button.** Logged in as demo, installed sample
 >       packs show but their dashboards don't appear in the Dashboards screen. A pack's "examples"

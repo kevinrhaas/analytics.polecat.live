@@ -8,8 +8,10 @@
 
    Storage (local-first, additive, never wiped by app migrations):
      analytics.users.v1   — [{ u, name, role, hash, demo, provisioning, provisioned }]
-       (hash = hex SHA-256; provisioning = { theme, pack } admin-set first-login
-       defaults, LF41 slice 1 — see studio.js initAuthBoot)
+       (hash = hex SHA-256; provisioning = { theme, pack, backendId } admin-set
+       first-login defaults, LF41 slice 1 — see studio.js initAuthBoot; backendId
+       is LF42 slice 2's reference-only assignment to a Backends-card row, not
+       applied automatically)
      analytics.session.v1 — { u }  (the signed-in user; survives reload)
    The historical sessionStorage key `studio-gate-ok` is kept as the
    "authenticated this session" bypass so the whole test suite (and any deep
