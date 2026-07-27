@@ -233,6 +233,8 @@ const mockSupaTables = {
   // admin row here via REST before go-live, so the write is real and assertable.
   users: [],
 };
+// Counter for the /__flaky stale-session self-heal probe (see handleMockSupabase).
+let mockFlakyServed = 0;
 function handleMockSupabase(req, rep, p) {
   const send = (code, body) => {
     rep.writeHead(code, { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "*" });
@@ -272,6 +274,16 @@ function handleMockSupabase(req, rep, p) {
   if (rel === "rest/v1/secure_check") {
     if (req.headers.authorization !== "Bearer " + MOCK_GOTRUE_TOKEN) return send(401, { message: "JWT invalid" });
     return send(200, [{ ok: true }]);
+  }
+  // Stale-session self-heal probe (app/sources/supabase.js rest() 401-retry):
+  // __flaky returns 401 ("JWT expired") on the FIRST hit after a reset, then 200
+  // — simulating a token that went stale server-side. A read with Auth creds
+  // should refresh + retry and end up 200; an anon-only read should just fail.
+  if (rel === "rest/v1/__flaky_reset") { mockFlakyServed = 0; return send(200, []); }
+  if (rel === "rest/v1/__flaky") {
+    mockFlakyServed++;
+    if (mockFlakyServed === 1) return send(401, { message: "JWT expired" });
+    return send(200, []);
   }
   if (!rel) return send(401, { message: "Secret API key required", hint: "Only secret API keys can be used for this endpoint." });
   // `p` (and so `rel`) is already query-stripped by the caller's own req.url.split("?")[0] — the
@@ -5775,6 +5787,29 @@ function serve() {
       wsSeedAdmin.noSessionOk === false && /sign in/i.test(wsSeedAdmin.noSessionErr), JSON.stringify(wsSeedAdmin));
     ok("BOOTSTRAP: seedAdmin refuses without a username to seed",
       wsSeedAdmin.noNameOk === false && /username/i.test(wsSeedAdmin.noNameErr), JSON.stringify(wsSeedAdmin));
+
+    // ---- durable reads: a stale GoTrue token self-heals with one retry -------
+    // Post-go-live, a token cached from an earlier session can 401 server-side;
+    // rest() should drop it, re-sign-in, and retry ONCE so a read (Refresh /
+    // background sync) doesn't flap to "not connected". Anon-only reads have no
+    // session to refresh, so they still surface the error.
+    const wsStaleRetry = await page.evaluate(async function () {
+      var sb = Studio.supabaseSource;
+      var supaBase = location.origin + "/__supabase";
+      var signedIn = { url: supaBase, key: "sb_publishable_valid", authEmail: "owner@example.com", authPassword: "secret123" };
+      var anon = { url: supaBase, key: "sb_publishable_valid" };
+      // authed read: first backend hit 401s, retry after a fresh sign-in → 200 (no error surfaced)
+      await fetch(supaBase + "/rest/v1/__flaky_reset", { headers: { apikey: "sb_publishable_valid" } });
+      var authed = await sb.queryData(signedIn, { table: "__flaky", query: "select=*" });
+      // anon read: no session to refresh, so the same 401 surfaces as an error
+      await fetch(supaBase + "/rest/v1/__flaky_reset", { headers: { apikey: "sb_publishable_valid" } });
+      var anonRead = await sb.queryData(anon, { table: "__flaky", query: "select=*" });
+      return { authedErr: authed.error || "", anonErr: anonRead.error || "" };
+    });
+    ok("DURABLE READ: a 401 from a stale session is retried after a fresh sign-in — the authed read succeeds, no error",
+      !wsStaleRetry.authedErr, JSON.stringify(wsStaleRetry));
+    ok("DURABLE READ: an anon-only connection has no session to refresh, so the same 401 still surfaces (no silent retry loop)",
+      /401|403|rejected/i.test(wsStaleRetry.anonErr), JSON.stringify(wsStaleRetry));
 
     // ---- CX: Connections section (list, pills, wizard) ----
     console.log("\n• CX: Connections section");

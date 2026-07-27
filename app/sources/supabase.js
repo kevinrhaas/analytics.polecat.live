@@ -112,14 +112,32 @@
     opts = opts || {};
     var base;
     try { base = restBase(cfg); } catch (e) { return Promise.reject(e); }
-    return ensureSession(cfg).then(function (session) {
+    // Once RLS is live, reads carry the GoTrue bearer — and a token cached from
+    // an earlier session can expire server-side before our estimated expiresAt,
+    // so the next read gets a 401 and the whole connection reads as "not
+    // connected" until a manual Refresh re-signs-in. Self-heal instead: on a
+    // 401/403 with Auth creds in play, drop the cached session, mint a fresh one
+    // and retry the request ONCE. Anon-only connections (no authEmail/Password)
+    // keep the old behavior exactly — a 401 there is a real key problem, not a
+    // stale token, so there's nothing to refresh.
+    var hasAuth = !!(cfg.authEmail && cfg.authPassword);
+    function attempt(session, isRetry) {
       return fetch(base + path, {
         method: opts.method || "GET",
         headers: headers(cfg, opts.headers, session && session.accessToken),
         body: opts.body
       }).catch(function (e) {
         throw new Error("Could not reach Supabase (network or CORS): " + e.message);
+      }).then(function (res) {
+        if ((res.status === 401 || res.status === 403) && hasAuth && !isRetry) {
+          delete _sessions[sessionKey(cfg)];
+          return ensureSession(cfg, true).then(function (fresh) { return attempt(fresh, true); });
+        }
+        return res;
       });
+    }
+    return ensureSession(cfg).then(function (session) {
+      return attempt(session, false);
     }).then(function (res) {
       if (res.status === 401 || res.status === 403) throw new Error("Supabase rejected the API key (401/403)");
       return res;
