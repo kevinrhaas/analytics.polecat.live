@@ -4641,6 +4641,22 @@
 >       its percentage divides by an empty/non-numeric denominator (sensitive_pct KPI). Fix the sample's
 >       KPI data/format so it shows a real %; audit the other showcase KPIs for the same. (demopacks.js /
 >       the showcase pack spec + KPI fmt, guessFmt/percent KPI path.) Ties LF43, showcase-pack QA.
+> LF69. **View/panel header toolbar — reorder + fold exports into a MENU (Kevin, 2026-07-27).** The per-panel
+>       (View) header button cluster is wrong: (a) ORDER — destructive/close (✕, delete) belong on the FAR
+>       RIGHT, not mid-row; (b) EXPORTS should live in that header too; (c) it's MISSING "Export as PNG";
+>       (d) now that we've added PDF + XLSX + Word (LF49) on top of PNG + standalone-HTML, a row of buttons
+>       is too many — collapse export into a single **Export ▾ menu** (PNG image · data CSV · standalone
+>       HTML · … ) instead of N buttons. Apply the same tidy header pattern consistently to every View/panel.
+>       (studio-render.js panel header controls + the export handlers, app/exporters.js per-panel export,
+>       studio.css panel-head.) Ties LF25 (per-panel export/PNG), LF49 (export formats), LF47, LF52.
+> LF70. **"Browse examples" (Home) must WORK and land in Dashboards at the pack's folder (Kevin,
+>       2026-07-27).** The Home "Browse examples" card should open the DASHBOARDS view scrolled/filtered to
+>       whatever folder the installed sample pack(s) imported into, shown as dashboard THUMBNAIL tiles —
+>       not a separate examples modal. This is the same intent as LF43 (pack dashboards ARE the examples,
+>       surfaced in Dashboards) + LF66 (packs contribute real foldered dashboards) + LF61/LF27 (thumbnail
+>       tile browser). Reconcile: "Browse examples" = "go to the pack's dashboards in the Dashboards
+>       section." (studio.js Home card act, Dashboards section folder deep-link + thumbnails, demopacks.js
+>       pack→folder.) Ties LF43, LF66, LF61, LF59, LF27.
 
 ### ★★ ONBOARDING & PROVISIONING EPIC (Kevin, 2026-07-27) — the "Dave" north-star
 > A meaty vision from a live session: turn first-run into a delightful, admin-provisioned
