@@ -6,14 +6,34 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
-    v: 632,
+    v: 634,
     title: 'The welcome tour opens with a new animated hero screen',
     kind: 'feature',
-    ts: '2026-07-27T23:12:43.000Z',
+    ts: '2026-07-27T23:54:58.000Z',
     items: [
       'Opening the welcome tour (first sign-in, the More menu, or Settings -> Tour) now lands on a hero screen first: a theme-colored confetti entrance, a greeting that uses your name when you are signed in as a real user, and a choice between "Take a quick tour" (the existing step-by-step carousel) and "Take the guided tour" (the spotlighted walkthrough of the real app) on the same menu.',
       'The hero also offers three quick-action shortcuts -- Explore data, Build a dashboard, Bring your data -- that jump straight to that section.',
       'The step carousel\'s Back button now goes all the way back to the hero screen from its first step, instead of stopping there.',
+    ],
+  },
+  {
+    v: 633,
+    title: 'Tidier Settings copy for Color theme and Sample packs',
+    kind: 'polish',
+    ts: '2026-07-27T23:29:00.000Z',
+    items: [
+      'Shortened the Color theme description to a single line.',
+      'Rewrote the Sample packs text: a concise intro that makes clear the sample data is synthetic (not your real data), and crisp, count-led descriptions of each pack (how many dashboards/datasets you get) noting the data is embedded.',
+    ],
+  },
+  {
+    v: 632,
+    title: 'Home greets you by name',
+    kind: 'polish',
+    ts: '2026-07-27T23:15:47.000Z',
+    items: [
+      'The Home screen\'s "Welcome back" now includes your account\'s display name, e.g. "Welcome back, Administrator".',
+      'Renamed the built-in demo account from "Demo user" to "Demonstration User".',
     ],
   },
   {

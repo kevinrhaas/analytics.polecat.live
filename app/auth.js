@@ -43,10 +43,10 @@
   // demo build; a real deployment resets admin on first connect (M3 phase 2).
   var SEED = [
     { u: "admin", name: "Administrator", role: "admin", demo: false, pass: "admin" },
-    { u: "demo", name: "Demo user", role: "viewer", demo: true, pass: "demo" }
+    { u: "demo", name: "Demonstration User", role: "viewer", demo: true, pass: "demo" }
   ];
   async function seedIfEmpty() {
-    if (raw().length) return raw();
+    if (raw().length) { migrateDemoName(); return raw(); }
     var list = [];
     for (var i = 0; i < SEED.length; i++) {
       var s = SEED[i];
@@ -54,6 +54,17 @@
     }
     saveRaw(list);
     return list;
+  }
+  // #108: rename the seeded demo account "Demo user" -> "Demonstration User" for
+  // existing local stores too. Additive + conservative: only touches the public demo
+  // row and only when it still carries the old default name, so a user who renamed it
+  // is never overwritten.
+  function migrateDemoName() {
+    var list = raw(), changed = false;
+    list.forEach(function (x) {
+      if (x.demo && String(x.u).toLowerCase() === "demo" && x.name === "Demo user") { x.name = "Demonstration User"; changed = true; }
+    });
+    if (changed) saveRaw(list);
   }
 
   async function verify(u, pass) {

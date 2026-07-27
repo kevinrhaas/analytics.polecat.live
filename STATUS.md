@@ -116,7 +116,7 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
-- **LF40 slice 1 — animated welcome hero screen (v632, sw v269, 2026-07-27, steward — step 3 of
+- **LF40 slice 1 — animated welcome hero screen (v634, sw v271, 2026-07-27, steward — step 3 of
   the LOCKED BUILD ORDER):** the welcome tour (first sign-in, ⋯ More → Tour, Settings → Tour) now
   opens on a new HERO screen instead of dropping straight into the old 5-step carousel. The hero:
   fires a theme-colored confetti entrance (new `heroConfetti()`, colors pulled from
@@ -135,16 +135,49 @@
   check rewritten to compute the true first/last focusable instead of assuming the old carousel's
   control order). Full suite green (2386/2386, re-run twice clean — the confetti host's cleanup
   timer was bumped 2200ms→6000ms after one run flaked at 0 pieces under the full suite's load,
-  well past its own particles' <2s fall animation either way). SW cache → v269. Files: app/welcome.js, tests/run.js,
-  js/changelog.js, sw.js, docs/index.html. Deliberately NOT in this slice (left for a follow-up):
-  the sample-pack-aware tour content (an installed pack's dashboards/connections framed as "curated"
-  segments) and the Conservation-pack choropleth/watershed tour content Kevin called out — those need
-  the tour/carousel content itself to become pack-aware, a separate, larger change from this
-  screen/flow restructuring. NEXT per the LOCKED BUILD ORDER: step 4, Studio chrome (LF46/LF48/
-  LF45/LF52/LF53 — LF47 is already done except the Examples removal that's LF43 slice 2's remit),
-  or the sample-pack-aware follow-up to this slice, or LF43 slice 2 (drop Examples) — any is a
-  reasonable next unit; the LIVE-QA QUEUE (LF61-70) also has fresh bug/cleanup-class items to slot
-  in ahead of the flashier remaining work.
+  well past its own particles' <2s fall animation either way). SW cache → v271. Files: app/welcome.js, tests/run.js,
+  js/changelog.js, sw.js, docs/index.html. Rebased onto main past #108/#112/#115/#116 (v632/v633),
+  hence the v632→v634 / sw v269→v271 renumber from the original slice. Deliberately NOT in this
+  slice (left for a follow-up): the sample-pack-aware tour content (an installed pack's
+  dashboards/connections framed as "curated" segments) and the Conservation-pack
+  choropleth/watershed tour content Kevin called out — those need the tour/carousel content itself
+  to become pack-aware, a separate, larger change from this screen/flow restructuring. NEXT per the
+  LOCKED BUILD ORDER: step 4, Studio chrome (LF46/LF48/LF45/LF52/LF53 — LF47 is already done except
+  the Examples removal that's LF43 slice 2's remit), or the sample-pack-aware follow-up to this
+  slice, or LF43 slice 2 (drop Examples) — any is a reasonable next unit; the LIVE-QA QUEUE
+  (LF61-70) also has fresh bug/cleanup-class items to slot in ahead of the flashier remaining work.
+- **Settings copy cleanup: Color theme + Sample packs (#112/#115/#116, v633, sw v270,
+  2026-07-27, steward):** three live-QA copy tweaks Kevin flagged in Settings. #112 ("you don't
+  need all of this explanation for the color themes, shorten this") — the Color-theme row's `small`
+  dropped its three-clause per-theme walkthrough for a one-liner ("The app's color palette — the
+  chrome around the builder and rail. Each card previews its own real colors."). #115 ("be more
+  concise, and describe that sample packs include dashboards, data etc, explain where it is created
+  data or real data") — the Sample-packs card intro (`ws-card-intro`) is now "Ready-made demo
+  content you can install or remove. A pack can add dashboards, datasets, connections and jobs — all
+  with synthetic (made-up) sample data, never your real data. Remove takes back exactly what Install
+  added." #116 ("way too wordy, just explain what each of them is discretely ... highlight how many
+  dashboards etc ... mention that the data is embedded" + "take out the words turn off to keep
+  Conservation Insight only") — both pack `blurb`s (app/demopacks.js) rewritten crisp + count-led
+  (each opens with the counts), each notes the data is embedded, and the Data-Management blurb drops
+  the "turn it off to keep a pitch focused on Conservation Insight alone" sentence. Tests: the
+  Color-theme blurb is short + says "color palette" and no longer "Classic Blue is the original"; the
+  intro says "synthetic" and no longer "pitch-specific"; both blurbs start with a digit, mention
+  "embedded", and the Data-Management one no longer says "turn it off". Files: app/studio.js,
+  app/demopacks.js, tests/run.js, sw.js, js/changelog.js.
+- **Home greeting personalizes + demo account renamed (#108, v632, sw v269, 2026-07-27,
+  steward):** Kevin: "im a little surprised you don't have the login user's name here in the
+  greeting line ... even demo/demo should be Demonstration User". The Home hero's hardcoded
+  "Welcome back" now reads "Welcome back, <display name>" — new `currentUserName()` (app/studio.js,
+  reads `PolecatAuth.current().name`, returns "" for the synthetic no-auth/local operator so that
+  path stays un-personalized) feeds `renderHome()`. Because the app boots BEHIND the sign-in
+  overlay (no identity yet), `initAuthBoot` now also re-renders Home after login (alongside its
+  Settings/Admin repaint) so the greeting picks up who signed in. The seeded demo account is renamed
+  "Demo user" -> "Demonstration User" (app/auth.js SEED), with a conservative additive migration
+  (`migrateDemoName`, run from `seedIfEmpty`) that upgrades existing local stores only when the demo
+  row still carries the old default name — a user-renamed row is never overwritten. Test: after
+  demo/demo signs in, `find("demo").name` and `__studioCurrentUserName()` are both "Demonstration
+  User" and `#secHome .home-hero h1` reads exactly "Welcome back, Demonstration User". Files:
+  app/studio.js, app/auth.js, tests/run.js, sw.js, js/changelog.js.
 - **Sign-in polish: password reveal toggle + trimmed demo copy (#102/#105, v631, sw v268,
   2026-07-27, steward):** two small login-screen items Kevin raised during live QA. #102 —
   "include that eye show hidden there also": the sign-in password (`#g-pass`) now carries the same

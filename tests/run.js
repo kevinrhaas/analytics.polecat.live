@@ -4310,6 +4310,34 @@ function serve() {
     });
     ok("LF16: the Settings sample-pack card is titled 'Sample packs', not 'Demo packs'",
       dpSettingsOn.cardTitle === "Sample packs", dpSettingsOn.cardTitle);
+
+    // #112/#115/#116: the Settings copy is tightened — a one-line Color-theme blurb, a concise
+    // Sample-packs intro that names synthetic data, and crisp, count-led per-pack descriptions.
+    const copyTweaks = await page.evaluate(function () {
+      var themeSmall = "";
+      document.querySelectorAll("#secSettings .set-row-txt").forEach(function (n) {
+        var b = n.querySelector("b"); if (b && b.textContent === "Color theme") themeSmall = (n.querySelector("small") || {}).textContent || "";
+      });
+      var packCard = document.querySelector('[data-demopack="conservation"]').closest(".settings-card");
+      var intro = (packCard.querySelector(".ws-card-intro") || {}).textContent || "";
+      var packs = window.Studio.DEMO_PACKS;
+      return {
+        themeSmall: themeSmall,
+        intro: intro,
+        consBlurb: (packs.conservation || {}).blurb || "",
+        dmBlurb: (packs.datamanagement || {}).blurb || ""
+      };
+    });
+    ok("#112: the Color-theme description is a short one-liner (drops the verbose per-theme walkthrough)",
+      /color palette/i.test(copyTweaks.themeSmall) && !/Classic Blue is the original/.test(copyTweaks.themeSmall) && copyTweaks.themeSmall.length < 160,
+      JSON.stringify({ len: copyTweaks.themeSmall.length, s: copyTweaks.themeSmall }));
+    ok("#115: the Sample-packs intro is concise and says the data is synthetic, not the old 'pitch-specific' blurb",
+      /synthetic/i.test(copyTweaks.intro) && !/pitch-specific/i.test(copyTweaks.intro) && copyTweaks.intro.length < 260,
+      JSON.stringify({ len: copyTweaks.intro.length, s: copyTweaks.intro }));
+    ok("#116: both pack blurbs are crisp + count-led (start with a number), mention embedded data, and the Data-Management one drops 'turn it off'",
+      /^\d/.test(copyTweaks.consBlurb) && /embedded/i.test(copyTweaks.consBlurb) &&
+      /^\d/.test(copyTweaks.dmBlurb) && /embedded/i.test(copyTweaks.dmBlurb) && !/turn it off/i.test(copyTweaks.dmBlurb),
+      JSON.stringify(copyTweaks));
     const dpLibLabel = await page.evaluate(function () {
       var nm = document.querySelector(".lib-demopacks .nm");
       return nm ? nm.textContent : "";
@@ -10201,6 +10229,17 @@ function serve() {
     const unlocked = await gp.evaluate(() => ({ gone: !document.querySelector("#studio-gate"),
       appVisible: document.getElementById("app").style.visibility !== "hidden", who: (window.PolecatAuth.current() || {}).u }));
     ok("correct demo credentials (demo/demo) sign in and reveal the app", unlocked.gone && unlocked.appVisible && unlocked.who === "demo", JSON.stringify(unlocked));
+
+    // #108: the seeded demo account is now "Demonstration User", and the Home greeting
+    // personalizes to the signed-in account's display name (repainted by __studioAuthBoot).
+    const g108 = await gp.evaluate(() => ({
+      demoName: (window.PolecatAuth.find("demo") || {}).name,
+      currentName: window.__studioCurrentUserName ? window.__studioCurrentUserName() : null,
+      greeting: ((document.querySelector("#secHome .home-hero h1") || {}).textContent || "").trim()
+    }));
+    ok("#108: the seeded demo account is 'Demonstration User' and the Home greeting personalizes to the signed-in display name",
+      g108.demoName === "Demonstration User" && g108.currentName === "Demonstration User" && /^Welcome back, Demonstration User$/.test(g108.greeting), JSON.stringify(g108));
+
     // welcome tour appears once unlocked (first run): LF40 slice 1 — a HERO screen lands
     // first (greeting + quick-action shortcuts + a choice of quick tour / guided tour)
     // instead of dropping straight into the step carousel.
