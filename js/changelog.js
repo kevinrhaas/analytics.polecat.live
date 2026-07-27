@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 624,
+    title: 'Switching the workspace backend now offers your registered backends first',
+    kind: 'polish',
+    ts: '2026-07-27T19:25:44.000Z',
+    items: [
+      'Settings -> Workspace backend -> Switch backend now lists any backends an admin has already registered on the Backends card, so connecting to one is a single click instead of retyping its credentials.',
+      'Picking a registered backend reuses the exact same connect flow as the Admin Backends card\'s Connect button; "Enter connection details manually" still starts a brand-new connection from scratch.',
+      'No registered backends yet -- Switch backend behaves exactly as before.',
+    ],
+  },
+  {
     v: 623,
     title: 'Admin can assign a registered backend to a user',
     kind: 'feature',
