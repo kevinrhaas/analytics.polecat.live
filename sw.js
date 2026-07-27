@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v244"; /* v244: N-DESIGN follow-up — a third Card style,
+var CACHE_NAME = "studio-shell-v245"; /* v245: Track L sweep (performance-budget lens) —
+   boxplot's row/col layout recomputed each category's index via stats.indexOf(st) inside the
+   very stats.forEach that already hands back that index for free, an O(n^2) layout pass on
+   every boxplot render/resize. app/studio-charts.js changed, so precached copies need to roll.
+   v244: N-DESIGN follow-up — a third Card style,
    "Sketch / hand-drawn" (dashed border + wobbled asymmetric radius), alongside Raised/Flat.
    app/model.js, app/exporters.js, app/studio.js changed, so precached copies need to roll.
    v243: Track H sweep — myDACard's Duplicate/Delete

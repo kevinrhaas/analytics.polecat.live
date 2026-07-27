@@ -817,8 +817,8 @@
         sv.appendChild(S("line", { class: "gridline", x1: xp, y1: mt, x2: xp, y2: mt + pH }));
         sv.appendChild(S("text", { class: "tick", x: xp, y: mt + pH + 14, "text-anchor": "middle" }, fmt(xv)));
       }
-      stats.forEach(function (st) {
-        var cy = mt + stats.indexOf(st) * rowH + rowH / 2, qs = st.qs;
+      stats.forEach(function (st, si) {
+        var cy = mt + si * rowH + rowH / 2, qs = st.qs;
         var xv2px = function (v) { return ml + vp(v) * pW; };
         var xMin = xv2px(qs.min), xQ1 = xv2px(qs.q1), xMed = xv2px(qs.med), xQ3 = xv2px(qs.q3), xMax = xv2px(qs.max);
         // Whisker lines + caps
@@ -846,8 +846,8 @@
         sv.appendChild(S("line", { class: "gridline", x1: ml, y1: yp, x2: ml + pW, y2: yp }));
         sv.appendChild(S("text", { class: "tick", x: ml - 4, y: yp + 4, "text-anchor": "end" }, fmt(yv)));
       }
-      stats.forEach(function (st) {
-        var cx = ml + stats.indexOf(st) * colW + colW / 2, qs = st.qs;
+      stats.forEach(function (st, si) {
+        var cx = ml + si * colW + colW / 2, qs = st.qs;
         var yv2px = function (v) { return mt + pH - vp(v) * pH; };
         var yMin = yv2px(qs.min), yQ1 = yv2px(qs.q1), yMed = yv2px(qs.med), yQ3 = yv2px(qs.q3), yMax = yv2px(qs.max);
         // Whisker lines + caps

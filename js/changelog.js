@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 608,
+    title: 'Track L sweep: boxplot layout no longer recomputes each category\'s position with an O(n^2) lookup',
+    kind: 'polish',
+    ts: '2026-07-27T09:43:09.000Z',
+    items: [
+      'Internal performance fix: the box plot chart\'s row/column layout used to look up each category\'s index with indexOf inside the very loop that already hands back that index for free, an O(n^2) pass on every render or resize.',
+      'No visible change -- boxplot panels render identically, just faster on dashboards with many categories.',
+    ],
+  },
+  {
     v: 607,
     title: 'N-DESIGN follow-up: a third Card style, Sketch / hand-drawn',
     kind: 'feature',

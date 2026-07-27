@@ -116,6 +116,31 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **Track L sweep (performance-budget lens, first use of this lens) — boxplot layout no longer
+  recomputes each category's position with an O(n^2) lookup (v608, sw v245, 2026-07-27,
+  steward):** v607's own NEXT pointer named Track L as most overdue (last ran the orphaned-key
+  lens at v605, vs Track H at v606 and Track N just done at v607), so rotated onto a lens not yet
+  used this cycle: **performance budget**. Investigated "global-state creep" first (`PDC._reg`,
+  the chart redraw registry in `vendor/pdc-ui.js`) since it's also unused, but confirmed it's
+  clean: `PDC.resetCharts()` is called at the top of `load(spec)` on every full-spec reload
+  (`app/studio-render.js`), and the Studio preview iframe reassigns `ifr.srcdoc` on every edit
+  anyway (`app/studio.js` `doRefresh()`), fully tearing down the iframe's `window`/`PDC` each
+  time — no accumulation possible. Moved to performance budget instead and found a real O(n^2):
+  `_boxplot`'s row and column layout loops (`app/studio-charts.js`) both called
+  `stats.indexOf(st)` inside the `stats.forEach(function (st) {...})` that was already handing
+  back that exact index for free — a quadratic layout pass on every render or resize of any
+  boxplot panel, worse the more categories a boxplot has. Switched both loops to use
+  `forEach`'s own index parameter (`stats.forEach(function (st, si) {...})`). Pure perf fix, no
+  behavior change. 2 new regression tests: a real rendered boxplot's category ticks stay in data
+  order and evenly spaced by row index (locks in the refactor's behavior-preservation), plus a
+  source guard against the `stats.indexOf(st)` pattern creeping back into `_boxplot`. No
+  docs/index.html change (internal perf fix, not a describable feature — same precedent as
+  v286/v596/v603). SW cache → v245 (`app/studio-charts.js` changed, precached). Full suite green
+  — 2288/2288. (app/studio-charts.js, sw.js, js/changelog.js, tests/run.js) NEXT: continuing the
+  Track H/L/N self-directed rotation (Track H last at v606, now the most overdue vs Track N at
+  v607) is a good next slice while the findings queue stays thin; the unused Track L lenses —
+  module boundaries, global-state creep (a genuinely different instance than PDC._reg, which is
+  now confirmed clean), test health — remain open for a future sweep.
 - **Track N — N-DESIGN chart skins: a third Card style, "Sketch / hand-drawn" (v607, sw v244,
   2026-07-27, steward):** v606's own NEXT pointer named Track N as most overdue (last ran v604,
   vs Track L at v605 and Track H just done at v606). Read the whole N-* backlog (N-AI/N-FUN/

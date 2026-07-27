@@ -14569,6 +14569,55 @@ function serve() {
     });
     ok("v72: Studio.newPanel('boxplot', da) creates boxplot with labelCol", rtBp.ok !== false && rtBp.type === "boxplot" && rtBp.hasLabel, JSON.stringify(rtBp));
 
+    // Track L sweep (performance-budget lens): boxplot's row/column layout recomputed each
+    // category's index via `stats.indexOf(st)` inside the very `stats.forEach` that already
+    // hands back that index for free (app/studio-charts.js `_boxplot`, both the horizontal and
+    // vertical layout loops) — turning an O(n) layout pass into O(n^2) in the category count,
+    // on every render/resize of any boxplot panel. Switched both loops to use forEach's own
+    // index parameter instead. Pure perf fix, no behavior change — verifies rendered box
+    // positions are unchanged (locks in the refactor's behavior-preservation) plus a source
+    // guard against the pattern creeping back in.
+    const boxplotLayout = await page.evaluate(function () {
+      try {
+        var iw = document.getElementById("preview").contentWindow;
+        if (!iw || !iw.PDC || !iw.PDC.boxplot) return { ok: false, reason: "no PDC.boxplot" };
+        var el = iw.document.createElement("div");
+        el.style.width = "400px";
+        iw.document.body.appendChild(el);
+        var labels = ["Cat A", "Cat B", "Cat C", "Cat D", "Cat E"];
+        iw.PDC.boxplot(el, {
+          data: labels.map(function (lbl, i) {
+            return { label: lbl, values: [10 + i * 5, 12 + i * 5, 14 + i * 5, 11 + i * 5, 13 + i * 5] };
+          }),
+          height: 300 // horizontal:true is the default — category ticks run down the Y axis
+        });
+        var ticks = Array.prototype.filter.call(el.querySelectorAll("text.tick"), function (t) {
+          return labels.indexOf(t.textContent) >= 0;
+        });
+        var order = ticks.map(function (t) { return t.textContent; });
+        var ys = ticks.map(function (t) { return +t.getAttribute("y"); });
+        var step = ys[1] - ys[0];
+        var evenlySpaced = ys.every(function (y, i) { return i === 0 || Math.abs((y - ys[i - 1]) - step) < 0.5; });
+        iw.document.body.removeChild(el);
+        return { ok: ticks.length === labels.length, order: order, evenlySpaced: evenlySpaced };
+      } catch (e) { return { ok: false, err: e.message }; }
+    });
+    ok("Track L perf: boxplot renders every category label in data order, evenly spaced by row index",
+      boxplotLayout.ok && boxplotLayout.order.join(",") === "Cat A,Cat B,Cat C,Cat D,Cat E" && boxplotLayout.evenlySpaced,
+      JSON.stringify(boxplotLayout));
+
+    const boxplotSourceGuard = await page.evaluate(async function () {
+      try {
+        var src = await fetch("app/studio-charts.js").then(function (r) { return r.text(); });
+        var fnStart = src.indexOf("function _boxplot(");
+        var fnEnd = src.indexOf("function _lollipop(", fnStart);
+        var body = fnStart >= 0 && fnEnd > fnStart ? src.slice(fnStart, fnEnd) : "";
+        return { ok: fnStart >= 0 && fnEnd > fnStart, hasIndexOf: /stats\.indexOf\(st\)/.test(body) };
+      } catch (e) { return { ok: false, err: e.message }; }
+    });
+    ok("Track L perf: _boxplot's row/col layout no longer recomputes each category's index via stats.indexOf(st) (was O(n^2))",
+      boxplotSourceGuard.ok && !boxplotSourceGuard.hasIndexOf, JSON.stringify(boxplotSourceGuard));
+
     // ---- v73: Lollipop chart (F10) ----
     console.log("\n• v73: Lollipop chart (F10)");
 
