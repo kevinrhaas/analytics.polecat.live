@@ -10174,12 +10174,39 @@ function serve() {
     const unlocked = await gp.evaluate(() => ({ gone: !document.querySelector("#studio-gate"),
       appVisible: document.getElementById("app").style.visibility !== "hidden", who: (window.PolecatAuth.current() || {}).u }));
     ok("correct demo credentials (demo/demo) sign in and reveal the app", unlocked.gone && unlocked.appVisible && unlocked.who === "demo", JSON.stringify(unlocked));
-    // welcome tour appears once unlocked (first run), and is dismissable / reopenable
+    // welcome tour appears once unlocked (first run): LF40 slice 1 — a HERO screen lands
+    // first (greeting + quick-action shortcuts + a choice of quick tour / guided tour)
+    // instead of dropping straight into the step carousel.
     await gp.waitForTimeout(500);
     const wShown = await gp.evaluate(() => !!document.querySelector("#studio-welcome"));
-    ok("welcome tour shows on first run", wShown);
+    ok("welcome hero shows on first run", wShown);
+    const hero = await gp.evaluate(() => ({
+      greeting: document.querySelector("#studio-welcome .sw-hd h1").textContent,
+      hasQuickTour: !!document.querySelector('#studio-welcome [data-act="quicktour"]'),
+      hasGuidedTour: !!document.querySelector('#studio-welcome [data-act="guidedtour"]'),
+      quickActions: document.querySelectorAll("#studio-welcome .sw-qa").length,
+      confettiPieces: document.querySelectorAll("#studio-welcome .sw-confetti-p").length
+    }));
+    ok("welcome hero greets generically for the demo account (no personal name on a shared login)",
+      hero.greeting.toLowerCase().indexOf("demo") === -1, hero.greeting);
+    ok("welcome hero offers a quick tour AND a guided tour on the same menu, plus 3 quick-action shortcuts",
+      hero.hasQuickTour && hero.hasGuidedTour && hero.quickActions === 3, JSON.stringify(hero));
+    ok("welcome hero fires a themed confetti entrance", hero.confettiPieces > 0, "pieces=" + hero.confettiPieces);
+    // A quick-action shortcut closes the hero and jumps straight to its section.
+    await gp.click('#studio-welcome [data-qa="explore"]'); await gp.waitForTimeout(200);
+    const qaJumped = await gp.evaluate(() => ({
+      closed: !document.querySelector("#studio-welcome"),
+      seen: localStorage.getItem("studio-welcome-seen") === "1",
+      section: window.__studioShellGetSection ? window.__studioShellGetSection() : null
+    }));
+    ok("welcome hero's 'Explore data' quick action dismisses the hero and jumps to Explore",
+      qaJumped.closed && qaJumped.seen && qaJumped.section === "explore", JSON.stringify(qaJumped));
+    // Reopen fresh (seen is already persisted) and take the quick tour into the carousel.
+    await gp.evaluate(() => window.StudioWelcome.open());
+    await gp.waitForTimeout(120);
+    await gp.click('#studio-welcome [data-act="quicktour"]'); await gp.waitForTimeout(120);
     const steps = await gp.evaluate(() => document.querySelectorAll("#studio-welcome .sw-dots i").length);
-    ok("welcome tour has multiple steps", steps >= 4, "steps=" + steps);
+    ok("quick tour enters the step carousel with multiple steps", steps >= 4, "steps=" + steps);
     // UX6 (icon migration): each step tile used to bake a raw Unicode letter glyph
     // (P/◈/▥/⤓/⚙, a full-color-font miss) into the header -- now a themed Studio.icon SVG,
     // and it swaps per step (not the same icon stuck on every tile).
@@ -10196,7 +10223,9 @@ function serve() {
     });
     ok("welcome step 2 tile shows a DIFFERENT SVG icon than step 1 (icon swaps per step)", wIconStep1 && wIconStep1 !== wIconStep0.svgHtml);
     await gp.click('#studio-welcome [data-act="back"]'); await gp.waitForTimeout(120);
-    await gp.evaluate(() => { var b = document.querySelector('#studio-welcome [data-act="next"]'); }); // ensure present
+    await gp.click('#studio-welcome [data-act="back"]'); await gp.waitForTimeout(120);
+    const backToHero = await gp.evaluate(() => !!document.querySelector('#studio-welcome [data-act="quicktour"]'));
+    ok("Back from the carousel's first step returns to the hero screen (not hidden/dead-ended)", backToHero);
     await gp.evaluate(() => document.querySelector("#studio-welcome .sw-skip").click()); await gp.waitForTimeout(120);
     ok("welcome tour dismisses + persists", await gp.evaluate(() => !document.querySelector("#studio-welcome") && localStorage.getItem("studio-welcome-seen") === "1"));
     // Tour moved out of the topbar (user feedback) — reachable via ⋯ More → Tour and Settings.
@@ -10208,6 +10237,8 @@ function serve() {
     await gp.click("#btnMore"); await gp.waitForTimeout(80);
     await gp.click("#moreAbout"); await gp.waitForTimeout(120);
     ok("⋯ More → Tour reopens the welcome", await gp.evaluate(() => !!document.querySelector("#studio-welcome")));
+    const adminGreeting = await gp.evaluate(() => document.querySelector("#studio-welcome .sw-hd h1").textContent);
+    ok("welcome hero greets a real signed-in user by their name", adminGreeting.indexOf("Administrator") !== -1, adminGreeting);
 
     // Z10 follow-up: the welcome tour was fixed hex (Classic-Blue-only regardless of the
     // app theme picker) — now themed via the shared --brand/--pdc/--pane/etc vars.
@@ -10232,11 +10263,19 @@ function serve() {
     // on Escape (matching the vendored shell's own modal()/sheet() convention).
     const wFocusedInside = await gp.evaluate(() => !!(document.activeElement && document.querySelector("#studio-welcome").contains(document.activeElement)));
     ok("welcome tour autofocuses inside the dialog on open", wFocusedInside);
-    await gp.evaluate(() => document.querySelector('#studio-welcome [data-act="next"]').focus());
+    // Reopened via ⋯ More → Tour, this lands on the hero screen again — its layout puts the
+    // quick-action shortcuts ahead of the footer buttons in DOM order (matching their on-screen
+    // position above the footer), so the true first/last focusable are computed rather than
+    // hardcoded to the old carousel's control names.
+    await gp.evaluate(() => document.querySelector('#studio-welcome [data-act="quicktour"]').focus());
     await gp.keyboard.press("Tab");
-    const wrappedTo = await gp.evaluate(() => document.activeElement && document.activeElement.className);
-    ok("Tab from the last focusable control wraps back to Skip instead of escaping to the header nav trigger hidden behind the backdrop",
-      wrappedTo === "sw-skip", "focused=" + wrappedTo);
+    const wrapCheck = await gp.evaluate(() => {
+      var dlg = document.querySelector("#studio-welcome");
+      var focusable = dlg.querySelectorAll('a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])');
+      return { wrappedToFirst: document.activeElement === focusable[0], focusedClass: document.activeElement && document.activeElement.className };
+    });
+    ok("Tab from the last focusable control wraps back to the first instead of escaping to the header nav trigger hidden behind the backdrop",
+      wrapCheck.wrappedToFirst, JSON.stringify(wrapCheck));
     await gp.keyboard.press("Escape"); await gp.waitForTimeout(120);
     ok("Escape closes the welcome tour + persists seen (same as Skip)",
       await gp.evaluate(() => !document.querySelector("#studio-welcome") && localStorage.getItem("studio-welcome-seen") === "1"));

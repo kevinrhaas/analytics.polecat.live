@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 631,
+    title: 'The welcome tour opens with a new animated hero screen',
+    kind: 'feature',
+    ts: '2026-07-27T23:02:37.000Z',
+    items: [
+      'Opening the welcome tour (first sign-in, the More menu, or Settings -> Tour) now lands on a hero screen first: a theme-colored confetti entrance, a greeting that uses your name when you are signed in as a real user, and a choice between "Take a quick tour" (the existing step-by-step carousel) and "Take the guided tour" (the spotlighted walkthrough of the real app) on the same menu.',
+      'The hero also offers three quick-action shortcuts -- Explore data, Build a dashboard, Bring your data -- that jump straight to that section.',
+      'The step carousel\'s Back button now goes all the way back to the hero screen from its first step, instead of stopping there.',
+    ],
+  },
+  {
     v: 630,
     title: 'Admin can now copy their own Dashboard defaults onto a new user',
     kind: 'feature',

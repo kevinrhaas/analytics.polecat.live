@@ -5,7 +5,10 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v267"; /* v267: LF41 slice 2 — Add/Edit user gains a "Copy my current
+var CACHE_NAME = "studio-shell-v268"; /* v268: LF40 slice 1 — the welcome tour opens with an
+   animated hero screen (theme-colored confetti, greet-by-name, quick tour / guided tour choice,
+   quick-action shortcuts). app/welcome.js changed, so its precached copy rolls.
+   v267: LF41 slice 2 — Add/Edit user gains a "Copy my current
    Dashboard defaults" button (app/defaults.js snapshot/apply helpers, app/studio.js editor UI + first-
    sign-in apply). app/defaults.js and app/studio.js changed, so precached copies roll.
    v266: panel zoom fills the window (fill-CSS injected into the
