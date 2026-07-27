@@ -116,6 +116,37 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF39 — cross-device sign-in no longer misreads an unseen teammate as a wrong password (v618,
+  sw v255, 2026-07-27, steward — the last item in the LOCKED BUILD ORDER's fast-bug-wins step,
+  after LF44/LF43 slice 1/LF50/LF38):** root cause per the ticket — the gate (`app/gate.js`)
+  only ever authenticates against THIS browser's local `PolecatAuth` store
+  (`analytics.users.v1`); a teammate an admin added and mirrored up from a DIFFERENT browser
+  isn't in it, so `Auth.verify()` returns false exactly like a wrong password and the gate says
+  so. Traced a layer deeper than the ticket assumed: `Studio.Sync.initSync()` (studio.js boot)
+  DOES refresh `Studio.Workspace`'s own `users` table from a saved backend connection on every
+  load, but nothing outside the connect-wizard's one-time adopt call
+  (`PolecatAuth.importFromStore`) ever re-imports that into `PolecatAuth`'s own store — so even
+  an already-connected browser stays stale forever, not just a never-connected one. Fix, entirely
+  in `app/gate.js`: the submit handler now tells "no such local account" apart from "wrong
+  password for a known account" (`Auth.find(u)` after a failed `verify()`); a known account keeps
+  the original generic "Incorrect username or password" (no username-enumeration regression). An
+  unknown username with a workspace backend already connected (`Studio.Sync.syncState().isRemote`)
+  triggers one `Studio.Sync.pullNow()` + `Auth.importFromStore(Studio.Workspace.all("users"))`,
+  then retries `verify()` once — covers "my admin just added me, I haven't refreshed" AND fresh
+  cross-device sign-in on an already-connected browser in one shot. An unknown username with NO
+  backend connected at all is pointed at the existing "Connect to your workspace…" button instead
+  of the flat wrong-password message. Real one-step GoTrue direct-auth (M7, the ticket's item 2)
+  is intentionally NOT part of this slice — it needs the Supabase Auth wiring M7 is scoped around,
+  not a gate.js-only change; left open for that track. 4 new regression tests (tests/run.js,
+  "LF39: cross-device sign-in" block, using the same mock-Turso harness as the M3.2 connect
+  tests): a stale-but-connected browser adopts a teammate pushed from elsewhere and signs in; a
+  guard confirming Workspace-level refresh alone doesn't leak into PolecatAuth (the exact gap this
+  fixes); a never-connected browser gets the "Connect to your workspace" guidance. Full suite
+  green. SW cache → v255 (`app/gate.js` is precached). (app/gate.js, sw.js, js/changelog.js,
+  tests/run.js) **The LOCKED BUILD ORDER's step 1 (fast bug/cleanup wins) is now fully done**
+  (LF44, LF43 slice 1 — slice 2 is explicitly budgeted as its own dedicated slice — LF50, LF38,
+  LF39). NEXT: step 2, "Dave"-demo ingredients — LF41 (per-user provisioning defaults) → LF42
+  (multi-backend admin).
 - **LF43 slice 1 — sample-pack dashboards now materialize into Dashboards, not just the Examples
   gallery (v617, sw v254, 2026-07-27, steward — next fast bug win in the LOCKED BUILD ORDER after
   LF44):** the reported bug — "installed sample packs show but their dashboards don't appear in
@@ -4579,9 +4610,11 @@
 ### ★★ LOCKED BUILD ORDER (Kevin approved, 2026-07-27) — work the queue in THIS sequence
 > Kevin locked the sequence. Do these in order (each still sliced; quick bug-class items first so the
 > "Dave" demo's ingredients become real before the flashy tour and the chrome work):
-> 1. **Fast bug/cleanup wins:** LF44 (role gating — hide Admin+Studio from viewers) · LF43 (sample-pack
->    dashboards show in Dashboards; drop Examples) · LF50 (remove stray builder Creativity control) ·
->    LF38 (password eyeball toggle) · LF39 (cross-device sign-in fix).
+> 1. **Fast bug/cleanup wins:** LF44 ✓ (role gating — hide Admin+Studio from viewers) · LF43 (sample-pack
+>    dashboards show in Dashboards ✓ slice 1 / drop Examples — slice 2 still open, budgeted as its own
+>    dedicated slice) · LF50 (remove stray builder Creativity control, shipped) ·
+>    LF38 ✓ (password eyeball toggle) · LF39 ✓ (cross-device sign-in fix, 2026-07-27). Step 1 is
+>    otherwise fully done — only LF43 slice 2 remains, deliberately deferred.
 > 2. **"Dave"-demo ingredients:** LF41 (per-user provisioning defaults — theme + sample pack) → LF42
 >    (multi-backend admin; at least assign-a-backend-per-user).
 > 3. **Flashy:** LF40 (animated welcome + home tour, sample-pack-aware).
@@ -4768,14 +4801,14 @@
 >       sw v251, 2026-07-27, steward) — see DONE.** One shared `withRevealToggle(inp)` enhancer covers
 >       every named field: Add-user password, Supabase Auth password + anon key, all adapter
 >       `type:"password"` fields, the workspace-backend secret, and the M7 PROVISION_SECRET.
-> LF39. **BUG — cross-device sign-in: a provisioned user can't sign in from a fresh browser; misleading
->       error (Kevin, live 2026-07-27).** The gate authenticates against the LOCAL per-browser store
->       (`analytics.users.v1`), so a user created in the admin's browser (mirrored to Supabase) isn't in a
->       fresh browser and gets "Incorrect username or password." Fix: (1) when a username isn't found
->       locally AND a backend is configured, guide "Connect to your workspace to sign in as a team member"
->       (or auto-pull) instead of the wrong error; (2) with M7 GoTrue, let the gate authenticate against
->       the workspace directly so a teammate signs in in ONE step. Keep local-first demo sign-in. (gate.js,
->       auth.js verify/importFromStore, Supabase signIn.) Ties M7, LF42.
+> LF39. ✓ **BUG — cross-device sign-in: item (1) shipped (v618, sw v255, 2026-07-27, steward) — see
+>       DONE.** The gate now tells "no local account" apart from "wrong password for a known one";
+>       an unknown username auto-pulls + adopts a connected backend's accounts and retries once
+>       (also fixes an ALREADY-connected-but-stale browser, not just a never-connected one), or
+>       points a never-connected browser at "Connect to your workspace" instead of a misleading
+>       "Incorrect username or password". Item (2) — real one-step GoTrue direct-auth so a teammate
+>       never needs the local-store round-trip at all — stays open, tracked under M7 (needs the
+>       Supabase Auth wiring that track owns, not a gate.js-only change). Ties M7, LF42.
 > ── STUDIO CHROME CONSOLIDATION + NAV (Kevin, live 2026-07-27): the builder's ⋯ menu is mostly
 >    duplicative; operations belong in the top rail; the mode UX needs a consistent switcher; and the
 >    workspace nav should feel more sophisticated. Slice each. ──

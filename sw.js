@@ -5,7 +5,14 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v254"; /* v254: LF43 — installing a sample pack now
+var CACHE_NAME = "studio-shell-v255"; /* v255: LF39 — cross-device sign-in no longer gives a
+   flat "Incorrect username or password" for a teammate whose account only exists on a
+   connected workspace backend, not yet in this browser's local store: the gate now tells
+   "not found locally" apart from "wrong password", auto-pulls + adopts the backend's
+   accounts once when a workspace is already connected (retrying sign-in), and points a
+   never-connected browser at "Connect to your workspace" instead. app/gate.js changed
+   (precached), app/auth.js unchanged. Real one-step GoTrue sign-in stays open (M7).
+   v254: LF43 — installing a sample pack now
    materializes its example-gallery dashboards (data/examples/index.json entries tagged
    demoPackId) as real workspace "dashboards" rows, so they show up in Home/Dashboards
    instead of only unlocking in the Examples ▾ gallery; removing the pack's existing
