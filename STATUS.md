@@ -4503,6 +4503,21 @@
 >    hiding in M4 NOW (honest "not cryptographic isolation" until the DB enforces it), then real
 >    RLS enforcement lands in M7. Do not gate the M4 flag on the backend being ready.
 
+### ★★ LOCKED BUILD ORDER (Kevin approved, 2026-07-27) — work the queue in THIS sequence
+> Kevin locked the sequence. Do these in order (each still sliced; quick bug-class items first so the
+> "Dave" demo's ingredients become real before the flashy tour and the chrome work):
+> 1. **Fast bug/cleanup wins:** LF44 (role gating — hide Admin+Studio from viewers) · LF43 (sample-pack
+>    dashboards show in Dashboards; drop Examples) · LF50 (remove stray builder Creativity control) ·
+>    LF38 (password eyeball toggle) · LF39 (cross-device sign-in fix).
+> 2. **"Dave"-demo ingredients:** LF41 (per-user provisioning defaults — theme + sample pack) → LF42
+>    (multi-backend admin; at least assign-a-backend-per-user).
+> 3. **Flashy:** LF40 (animated welcome + home tour, sample-pack-aware).
+> 4. **Studio chrome:** LF46 (⋯ teardown) · LF47 (ops → top rail, w/ #30) · LF48 (mode switcher) ·
+>    LF45 (Save-as + Open dialog) · LF52 (widget→View) · LF53 (drop CDF/CDE).
+> 5. **Exports + navigation/layout:** LF49 (XLSX/PPTX/DOCX) · LF54 (kill left-gutter whitespace) ·
+>    LF51 (sophisticated nav IA: right-aligned pills, full names, date-time, list+rich-tile views).
+> The recurring quality tracks (UX polish, Track H/L/N sweeps) continue to interleave as usual.
+
 ### ★★ ONBOARDING & PROVISIONING EPIC (Kevin, 2026-07-27) — the "Dave" north-star
 > A meaty vision from a live session: turn first-run into a delightful, admin-provisioned
 > onboarding. **NORTH-STAR ACCEPTANCE TEST — the "Dave" (dgustafson) login:** an admin sets Dave
@@ -4590,9 +4605,21 @@
 >       (studio.js builder chrome + Quick-mode entry + replace guard.) Ties LF24, LF26.
 > LF51. **Elevate the workspace navigation IA.** Repository/Connections/Datasets/Jobs have OK organization
 >       but should feel more sophisticated: richer elegant layouts, better grouping/hierarchy, surfaced
->       cross-object lineage, consistent tile/list treatments, smarter filter/search, a cohesive visual
->       system — not flat lists. (studio.js render{Datasets,Connections,Repository,Jobs}, the per-section
->       modules, studio.css.) Ties LF19, #29, #21. Slice it; design-standards-driven.
+>       cross-object lineage, smarter filter/search, a cohesive visual system — not flat lists. SPECIFICS
+>       (Kevin, screenshot 2026-07-27): (a) row NAMES get truncated — show FULL names; (b) the tag/filter
+>       PILLS on each row should be RIGHT-ALIGNED (not inline-after-name where they eat the name); (c) show a
+>       full DATE-TIME, not just a date; (d) EVERY section supports BOTH a list view AND a thumbnail-TILE view
+>       (toggle), the tile carrying as much RICH info as possible (name, type/adapter icon, tags, lineage/
+>       usage, date-time, row/col counts, a preview thumbnail). (studio.js render{Datasets,Connections,
+>       Repository,Jobs}, per-section modules, studio.css — .cx-row + a new tile layout.) Ties LF19, #29,
+>       #21, LF54. Slice it; design-standards-driven.
+> LF54. **Kill the unused left-gutter whitespace; tighten density + left-align content (Kevin, screenshot
+>       2026-07-27).** The content area starts far right of the rail, leaving a big empty left gutter (partly
+>       from the spacious/small-screen handling + reserving room for future rail submenus) — it also
+>       contributes to names being cut off. Reduce the content max-width/left padding so sections sit closer
+>       to the rail and full names have room; keep it responsive (mobile release gate) and leave sensible
+>       room for the planned rail submenus. (studio.css content container / section layout, index.html.)
+>       Ties LF51, LF19.
 > LF52. **TERMINOLOGY — "widget" → "View" app-wide (Kevin decided 2026-07-27).** "Widget" is too technical.
 >       The standard term is a **View** — you build a View (a chart, or a text box / header / KPI / map /
 >       etc.), and the "widget library" becomes the **View library**. Rename all USER-FACING occurrences
