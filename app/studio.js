@@ -3873,11 +3873,14 @@
       return k.periodCol ? "auto vs prior period" : (k.compareCol ? ("'" + (k.compareLabel || k.compareCol) + "'") : null);
     }, null, "diff");
     cs.appendChild(field("Period column", colPicker(cols, k.periodCol || "", function (v) {
-      if (v) { k.periodCol = v; delete k.compareCol; delete k.compareLabel; } else delete k.periodCol;
+      if (v) { k.periodCol = v; delete k.compareCol; delete k.compareLabel; } else { delete k.periodCol; delete k.periodSplit; }
       renderInspector(); refreshPreview();
     }, true), "date/period column from the same DA — sorts its rows chronologically, splits them into two halves, and compares the current half's Aggregation total to the prior half. Takes priority over the manual field below when both are set."));
     if (k.periodCol) {
       cs.appendChild(noteEl("info", "Auto period comparison is on — the tile's value itself becomes the current half's total (per this KPI's Aggregation, Sum by default), split by " + k.periodCol + ". Clear Period column above to compare a manual column instead."));
+      cs.appendChild(field("Split point", input(k.periodSplit || "", function (v) {
+        if (v) k.periodSplit = v; else delete k.periodSplit; refreshPreview();
+      }, "blank: auto even split"), "rows with " + k.periodCol + " before this value count as the prior period, this value and after count as current. Leave blank for an even 50/50 chronological split."));
     } else {
       cs.appendChild(field("Compare column", colPicker(cols, k.compareCol || "", function (v) {
         if (v) k.compareCol = v; else { delete k.compareCol; delete k.compareMode; delete k.compareLabel; }

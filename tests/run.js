@@ -16198,6 +16198,141 @@ function serve() {
     });
     ok("v600: exported CDF HTML embeds periodCol config in STUDIO_SPEC", v600ExportResult.hasPeriodCol, JSON.stringify(v600ExportResult));
 
+    // ── v601: KPI period-over-period explicit Split point (N-DATA follow-up) ────
+    // v600's own NEXT pointer named this: "letting a builder pick two EXPLICIT ranges rather
+    // than an even chronological split." k.periodSplit is an optional boundary value typed in
+    // the inspector — rows before it are "prior", it and after are "current" — instead of the
+    // row-count midpoint. Reuses the same potp_da fixture (date/cost) as v600 above.
+    console.log("\n• v601: KPI period-over-period explicit Split point");
+
+    // 1. Load a fresh periodCol KPI (no compareCol left over from v600's priority check above,
+    //    no periodSplit yet — should behave exactly like v600's default even split).
+    const v601Setup = await page.evaluate(function () {
+      try {
+        var spec = window.__STUDIO_STATE.spec;
+        var k = spec.kpis[0];
+        delete k.compareCol; delete k.periodSplit;
+        window.__studioLoad(spec);
+        return { ok: true };
+      } catch (e) { return { ok: false, err: e.message }; }
+    });
+    ok("v601: setup — clean periodCol KPI, no split point yet", v601Setup.ok, JSON.stringify(v601Setup));
+    await page.waitForTimeout(900);
+    // __studioLoad resets S.selection, so re-click the tile (as v600's own step 3 does) to
+    // reopen its inspector before checking inspector fields below.
+    await page.evaluate(function () {
+      try {
+        var iw = document.getElementById("preview").contentWindow;
+        var kpiEl = iw.document.querySelector(".kpi");
+        if (kpiEl) kpiEl.click();
+      } catch (e) {}
+    });
+    await page.waitForTimeout(400);
+
+    // 2. 'Split point' field appears in the inspector once Period column is set
+    const v601InspResult = await page.evaluate(function () {
+      try {
+        var insp = document.getElementById("inspBody") || document.getElementById("inspector");
+        if (!insp) return { ok: false, reason: "no inspector element" };
+        var labels = Array.from(insp.querySelectorAll(".field > label")).map(function (l) { return l.textContent.trim(); });
+        return { ok: labels.indexOf("Split point") >= 0, labels: labels };
+      } catch (e) { return { ok: false, err: e.message }; }
+    });
+    ok("v601: 'Split point' field shown in KPI inspector once Period column is set", v601InspResult.ok, JSON.stringify(v601InspResult));
+
+    // 3. Setting an explicit k.periodSplit (a real date value pulled from the fixture, well off
+    //    the row-count midpoint) moves the prior/current boundary to exactly that value instead
+    //    of the midpoint — computed independently here via the same Studio.sampleRows the offline
+    //    preview itself calls, so this checks the actual filter-split math, not just "a delta
+    //    appeared."
+    const v601SplitResult = await page.evaluate(function () {
+      try {
+        var da = window.__STUDIO_STATE.spec.cda.dataAccesses[0];
+        var sample = window.Studio.sampleRows(da, true, false);
+        var dateI = sample.cols.indexOf("date"), costI = sample.cols.indexOf("cost");
+        var sorted = sample.rows.slice().sort(function (a, b) {
+          return a[dateI] < b[dateI] ? -1 : a[dateI] > b[dateI] ? 1 : 0;
+        });
+        // Pick a boundary at ~75% through the sorted rows — deliberately NOT the midpoint, so a
+        // test that (wrongly) still used the even split would fail.
+        var boundaryIdx = Math.floor(sorted.length * 0.75);
+        var boundary = sorted[boundaryIdx][dateI];
+        var priorRows = sorted.filter(function (r) { return r[dateI] < boundary; });
+        var curRows = sorted.filter(function (r) { return r[dateI] >= boundary; });
+        var priorSum = priorRows.reduce(function (s, r) { return s + (+r[costI] || 0); }, 0);
+        var curSum = curRows.reduce(function (s, r) { return s + (+r[costI] || 0); }, 0);
+        var expectedPct = priorSum !== 0 ? Math.abs(((curSum - priorSum) / Math.abs(priorSum)) * 100).toFixed(1) : "0.0";
+        var spec = window.__STUDIO_STATE.spec;
+        spec.kpis[0].periodSplit = boundary;
+        window.__studioLoad(spec);
+        return { ok: true, boundary: boundary, expectedPct: expectedPct, priorCount: priorRows.length, curCount: curRows.length };
+      } catch (e) { return { ok: false, err: e.message }; }
+    });
+    ok("v601: setup — explicit periodSplit boundary computed off-fixture", v601SplitResult.ok &&
+      v601SplitResult.priorCount > 0 && v601SplitResult.curCount > 0, JSON.stringify(v601SplitResult));
+    await page.waitForTimeout(900);
+    const v601DeltaResult = await page.evaluate(function () {
+      var iw = document.getElementById("preview").contentWindow;
+      var kpiEl = iw.document.querySelector(".kpi");
+      var deltaEl = kpiEl && kpiEl.querySelector(".d");
+      return { deltaText: deltaEl ? deltaEl.textContent.trim() : null, valText: kpiEl ? kpiEl.querySelector(".v").textContent : null };
+    });
+    ok("v601: KPI tile delta matches the EXPLICIT split-point boundary, not the row-count midpoint",
+      !!(v601DeltaResult.deltaText && v601SplitResult.expectedPct &&
+        v601DeltaResult.deltaText.indexOf(v601SplitResult.expectedPct + "%") >= 0 &&
+        v601DeltaResult.deltaText.indexOf("prior period") >= 0 && v601DeltaResult.valText !== "—"),
+      JSON.stringify({ got: v601DeltaResult, expected: v601SplitResult }));
+
+    // 4. k.periodSplit persists in spec after (re)loading
+    const v601SpecResult = await page.evaluate(function () {
+      var k = (window.__STUDIO_STATE.spec.kpis || [])[0];
+      return { ok: !!(k && k.periodSplit), periodSplit: k && k.periodSplit };
+    });
+    ok("v601: k.periodSplit persists in spec", v601SpecResult.ok, JSON.stringify(v601SpecResult));
+
+    // 5. Clearing 'Period column' in the inspector (real DOM change event, same as a user
+    //    picking "(none)") also clears periodSplit — no stale leftover config. Step 3's
+    //    __studioLoad reset selection, so re-click the tile to reopen its inspector first.
+    await page.evaluate(function () {
+      try {
+        var iw = document.getElementById("preview").contentWindow;
+        var kpiEl = iw.document.querySelector(".kpi");
+        if (kpiEl) kpiEl.click();
+      } catch (e) {}
+    });
+    await page.waitForTimeout(400);
+    const v601ClearResult = await page.evaluate(function () {
+      try {
+        var insp = document.getElementById("inspBody") || document.getElementById("inspector");
+        var fields = Array.from(insp.querySelectorAll(".field"));
+        var pcField = fields.filter(function (f) {
+          var l = f.querySelector("label");
+          return l && l.textContent.trim() === "Period column";
+        })[0];
+        if (!pcField) return { ok: false, reason: "no Period column field" };
+        var sel = pcField.querySelector("select");
+        sel.value = ""; sel.dispatchEvent(new Event("change", { bubbles: true }));
+        var k = window.__STUDIO_STATE.spec.kpis[0];
+        return { ok: !k.periodCol && !k.periodSplit, periodCol: k.periodCol, periodSplit: k.periodSplit };
+      } catch (e) { return { ok: false, err: e.message }; }
+    });
+    ok("v601: clearing Period column also clears periodSplit", v601ClearResult.ok, JSON.stringify(v601ClearResult));
+
+    // 6. Exported CDF HTML embeds periodSplit config in STUDIO_SPEC
+    await page.evaluate(function () {
+      var spec = window.__STUDIO_STATE.spec;
+      spec.kpis[0].periodCol = "date";
+      spec.kpis[0].periodSplit = "2026-01-01";
+      window.__studioLoad(spec);
+    });
+    const v601ExportResult = await page.evaluate(function () {
+      try {
+        var html = Studio.buildHtml(window.__STUDIO_STATE.spec, window.__STUDIO_STATE.assets, { preview: false });
+        return { hasPeriodSplit: html.indexOf("periodSplit") >= 0 };
+      } catch (e) { return { hasPeriodSplit: false, err: e.message }; }
+    });
+    ok("v601: exported CDF HTML embeds periodSplit config in STUDIO_SPEC", v601ExportResult.hasPeriodSplit, JSON.stringify(v601ExportResult));
+
     // Restore clean spec
     await page.evaluate(async function () {
       var freshSpec = await fetch("data/examples/studio-cost.studio.json").then(function (r) { return r.json(); });

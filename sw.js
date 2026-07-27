@@ -5,7 +5,14 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v237"; /* v237: N-DATA innovation sweep — KPI period-over-
+var CACHE_NAME = "studio-shell-v238"; /* v238: N-DATA follow-up — KPI period-over-period gets
+   an explicit Split point. A new optional k.periodSplit field (KPI Compare-to section,
+   app/studio.js) lets a builder type an explicit boundary value instead of the default
+   even chronological 50/50 split; rows before it count as "prior", it and after count as
+   "current" (app/studio-render.js). Clearing Period column clears periodSplit too.
+   app/studio-render.js, app/studio.js, docs/index.html content changed, so precached
+   copies need to roll.
+   v237: N-DATA innovation sweep — KPI period-over-
    period auto-compare. A new "Period column" field in the KPI Compare-to section
    (app/studio.js) sorts the bound DA's rows chronologically by a date/period
    column and splits them into two halves, computing the tile's value from the
