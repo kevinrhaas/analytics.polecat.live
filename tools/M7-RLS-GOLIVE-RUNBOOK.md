@@ -42,8 +42,12 @@ Three paths:
    supabase secrets set APP_ORIGIN=https://analytics.polecat.live
    ```
    (The function's source lives in this repo at `supabase/functions/polecat-admin/`
-   — `index.ts` + condensed copies of `bootstrap.sql`/`rls-real.sql` it reads at
-   runtime, kept in sync with the canonical annotated versions in `/tools`. It
+   — `index.ts` + `sql.ts`, which INLINES the bootstrap DDL + real-RLS as string
+   constants. Do NOT go back to reading `.sql` siblings off disk: the Edge Runtime
+   deploy bundle only includes the module graph, so a runtime
+   `Deno.readTextFile("./bootstrap.sql")` fails with `path not found:
+   /var/tmp/sb-compile-edge-runtime/…/bootstrap.sql`. Keep `sql.ts` in sync with
+   the canonical annotated versions in `/tools`. It
    holds the service-role key, opens a direct Postgres connection to run the
    DDL/RLS PostgREST can't, exposes only four fixed named actions — `provision` /
    `go-live` / `create-user` / `reset-data`, never raw SQL — and sets CORS for

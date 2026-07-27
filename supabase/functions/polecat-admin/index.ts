@@ -25,6 +25,9 @@
 //   - CORS is scoped to APP_ORIGIN (set at deploy) — never "*".
 import { createClient } from "npm:@supabase/supabase-js@2";
 import postgres from "npm:postgres@3";
+// SQL inlined as string constants (see sql.ts) — the Edge Runtime doesn't bundle
+// sibling .sql files, so reading them at runtime failed with "path not found".
+import { BOOTSTRAP_DDL, RLS_REAL_SQL } from "./sql.ts";
 
 const APP_ORIGIN = Deno.env.get("APP_ORIGIN") || "https://analytics.polecat.live";
 const PROVISION_SECRET = Deno.env.get("PROVISION_SECRET") || "";
@@ -88,8 +91,7 @@ async function requireAdmin(req: Request) {
 
 async function actionProvision() {
   const sql = db();
-  const ddl = await Deno.readTextFile(new URL("./bootstrap.sql", import.meta.url));
-  await sql.unsafe(ddl);
+  await sql.unsafe(BOOTSTRAP_DDL);
   return { ok: true, step: "provision" };
 }
 
@@ -105,8 +107,7 @@ async function actionGoLive(uid: string, params: Record<string, unknown>) {
   if (!username) return { ok: false, error: "Missing the local admin username to seed (params.username)." };
 
   const sql = db();
-  const bootstrapDdl = await Deno.readTextFile(new URL("./bootstrap.sql", import.meta.url));
-  await sql.unsafe(bootstrapDdl);
+  await sql.unsafe(BOOTSTRAP_DDL);
 
   await sql.begin(async (tx) => {
     for (const t of TABLE_NAMES) await tx.unsafe(`TRUNCATE TABLE "${t}"`);
@@ -119,8 +120,7 @@ async function actionGoLive(uid: string, params: Record<string, unknown>) {
     `;
   });
 
-  const rlsSql = await Deno.readTextFile(new URL("./rls-real.sql", import.meta.url));
-  await sql.unsafe(rlsSql);
+  await sql.unsafe(RLS_REAL_SQL);
 
   const verify: Record<string, number> = {};
   for (const t of TABLE_NAMES) {
