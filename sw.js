@@ -5,7 +5,15 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v239"; /* v239: Track L sweep (chart-extension API lens) — every
+var CACHE_NAME = "studio-shell-v240"; /* v240: Track H sweep — row/card title buttons across
+   Connections, Datasets, Jobs, Dashboards (tile + list view) and Repository now carry a
+   native `title` attribute naming their own row/card, so a sighted mouse user hovering a
+   CSS-truncated name (`.cx-name b`/`.recent-meta b` ellipsis) gets the full name — same
+   escape-hatch gap v596 fixed for Explore's saved-analyses sidebar, closed everywhere else
+   it recurs. The Dashboards list view's Pin button also gained the aria-label it was
+   missing entirely (its tile-view sibling already had one). app/connections.js,
+   app/datasets.js, app/jobs.js, app/studio.js changed, so precached copies need to roll.
+   v239: Track L sweep (chart-extension API lens) — every
    Studio.CHARTS entry now explicitly declares a `cde` key (an object, or null for CDF-only
    types). choropleth/ensembleSeries/richtext/boxplot previously omitted the key outright;
    Studio.cdeUnsupported() happened to still return true for them (undefined is falsy too),

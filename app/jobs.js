@@ -185,7 +185,7 @@
       return '<div class="cx-row" data-job-id="' + esc(j.id) + '">' +
         dot +
         '<span class="cx-ic" style="color:var(--faint)"></span>' +
-        '<span class="cx-name"><button type="button" class="cx-title-btn" aria-label="Edit job ' + esc(j.name) + '"><b>' + esc(j.name) + '</b></button><small>' + (src ? "from " + esc(src.name) : "no source dataset") +
+        '<span class="cx-name"><button type="button" class="cx-title-btn" title="' + esc(j.name) + ' — edit job" aria-label="Edit job ' + esc(j.name) + '"><b>' + esc(j.name) + '</b></button><small>' + (src ? "from " + esc(src.name) : "no source dataset") +
           (out ? " → " + esc(out.name) : "") + '</small></span>' +
         folderBadge +
         '<span class="cx-badge">' + (j.steps || []).length + " step" + ((j.steps || []).length === 1 ? "" : "s") + '</span>' +
