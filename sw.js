@@ -5,7 +5,14 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v238"; /* v238: N-DATA follow-up — KPI period-over-period gets
+var CACHE_NAME = "studio-shell-v239"; /* v239: Track L sweep (chart-extension API lens) — every
+   Studio.CHARTS entry now explicitly declares a `cde` key (an object, or null for CDF-only
+   types). choropleth/ensembleSeries/richtext/boxplot previously omitted the key outright;
+   Studio.cdeUnsupported() happened to still return true for them (undefined is falsy too),
+   so this was never a runtime bug, just an inconsistent registry contract that a future
+   strict check could've silently mis-served. app/model.js changed, so precached copies
+   need to roll.
+   v238: N-DATA follow-up — KPI period-over-period gets
    an explicit Split point. A new optional k.periodSplit field (KPI Compare-to section,
    app/studio.js) lets a builder type an explicit boundary value instead of the default
    even chronological 50/50 split; rows before it count as "prior", it and after count as

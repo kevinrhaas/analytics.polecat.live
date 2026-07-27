@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 602,
+    title: 'Track L sweep (chart-extension API lens): every chart type now declares its export contract',
+    kind: 'fix',
+    ts: '2026-07-27T05:31:29.000Z',
+    items: [
+      'The chart-type registry\'s contract is that every entry declares a `cde` key -- an object for types exportable to CCC/CDE, or an explicit null for CDF-only types. Four chart types (the US choropleth map, the ensemble/common-estimate view, the text/annotation panel, and the box plot) silently omitted the key instead of declaring it null.',
+      'No behavior changed (the omission happened to work by accident), but the registry is now consistent and self-documenting, and a new regression test guards every chart type from silently regressing back to an omitted key.',
+    ],
+  },
+  {
     v: 601,
     title: 'KPI period comparisons can now use an exact date instead of an even split',
     kind: 'feature',

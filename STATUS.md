@@ -116,6 +116,30 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **Track L sweep (chart-extension API lens) — every Studio.CHARTS entry now declares its `cde`
+  export contract (v602, sw v239, 2026-07-27, steward):** with the ★ backlog, LIVE-FEEDBACK QUEUE,
+  QUALITY TRACKS, and the N-DATA period-comparison work all confirmed shipped (v601's own top-down
+  read), the H/L/N self-directed rotation was overdue on Track L (last ran the accessibility/
+  duplication lenses at v587/v588, ~14 versions ago vs Track H at v596 and Track N at v600/601) —
+  rotating onto a lens not yet used this cycle: **chart-extension API formalization**. The chart
+  registry's contract is that every `Studio.CHARTS` entry declares a `cde` key — an object
+  describing its CCC/CDE mapping for exportable types, or an explicit `null` for CDF-only types
+  (the convention `Studio.cdeUnsupported()` and dozens of existing per-chart-type tests already
+  rely on). Auditing all 53 registered chart types found 4 that silently OMITTED the key instead
+  of declaring it null: `choropleth` (the US map), `ensembleSeries` (the common-estimate view),
+  `richtext` (the text/annotation panel), and `boxplot`. This was never a runtime bug —
+  `cdeUnsupported()` treats `undefined` the same as `null`, both falsy — but it left the
+  extension surface inconsistent and undocumented, and untested (no existing test asserted `.cde`
+  on any of the four). Fix: added `cde: null` with an inline `// CDF-only; …` comment to each,
+  matching the style already used by the other 49 entries (`app/model.js`). Pure addition, no
+  behavior change. New regression test in `tests/run.js` walks the whole `Studio.CHARTS` registry
+  asserting every entry has an own `cde` property (guards against a silent re-omission), plus a
+  spot-check that the four specific types are `cde === null`. SW cache → v239 (`app/model.js`
+  changed, precached). (app/model.js, sw.js, js/changelog.js, tests/run.js) NEXT: continuing the
+  Track H/L/N self-directed rotation (Track H last at v596, Track N at v600/601) is a good next
+  slice while the findings queue stays thin; the other unused Track L lenses from v588's own
+  pointer — module boundaries, global-state creep, performance budget — remain open for a future
+  sweep.
 - **N-DATA follow-up — KPI period comparison gets an explicit Split point (v601, sw v238,
   2026-07-27, steward):** v600's own NEXT pointer named two follow-ups — extending the
   auto-split comparison beyond KPI tiles to bar/line/donut panels, and letting a builder pick
