@@ -4610,9 +4610,20 @@
 >       PILLS on each row should be RIGHT-ALIGNED (not inline-after-name where they eat the name); (c) show a
 >       full DATE-TIME, not just a date; (d) EVERY section supports BOTH a list view AND a thumbnail-TILE view
 >       (toggle), the tile carrying as much RICH info as possible (name, type/adapter icon, tags, lineage/
->       usage, date-time, row/col counts, a preview thumbnail). (studio.js render{Datasets,Connections,
->       Repository,Jobs}, per-section modules, studio.css — .cx-row + a new tile layout.) Ties LF19, #29,
->       #21, LF54. Slice it; design-standards-driven.
+>       usage, date-time, row/col counts, a preview thumbnail).
+>       **VIBE + DESIGN SPLIT (Kevin, 2026-07-27):** these sections should be COOL, MODERN, SEXY, FUN to work
+>       in — elegant, with TASTEFUL animation (hover/enter/transitions) that never goes over the top. The
+>       per-section rails (Datasets, Connections, Jobs) are mostly for USERS → keep them friendly/sexy/modern.
+>       The **REPOSITORY reuses the SAME component set but is the EXPERT surface** — a power/expert feel with
+>       the full cross-object toolset.
+>       **REPOSITORY = ROBUST MANAGEMENT (Kevin, 2026-07-27):** from Repository you can do **New EVERYTHING**
+>       (New connection, New dataset, New job, New dashboard, New View/analysis) — each routes you into the
+>       APPROPRIATE builder — and MANAGE everything across object types in one place (edit, duplicate, move/
+>       file, tag, delete, bulk actions, surfaced lineage/usage, advanced filter/search). Make it the
+>       genuinely robust cross-object command center (Explore stays the simple builder; Repository is the pro
+>       manager — the #29 split). (studio.js render{Datasets,Connections,Repository,Jobs}, per-section
+>       modules, studio.css — .cx-row + a new tile layout + a shared component set.) Ties LF19, #29, #21,
+>       LF54. Slice it; design-standards-driven (dataviz/design skills).
 > LF54. **Kill the unused left-gutter whitespace; tighten density + left-align content (Kevin, screenshot
 >       2026-07-27).** The content area starts far right of the rail, leaving a big empty left gutter (partly
 >       from the spacious/small-screen handling + reserving room for future rail submenus) — it also
