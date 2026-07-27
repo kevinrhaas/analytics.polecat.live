@@ -7032,7 +7032,7 @@
     "studio-default-subtitle", "studio-default-accent", "studio-default-logo", "studio-default-headerbg",
     "studio-default-titlesize", "studio-default-subtitlestyle", "studio-default-dashboardtheme", "studio-default-cardskin", "studio-style-presets",
     "studio-deploy-path", "studio-templatevar-sets", "studio-customtheme-presets", "studio-hidden-sections",
-    "studio-home-section-order"
+    "studio-home-section-order", "studio-default-qm-creativity"
   ];
 
   // Z5 follow-up: deploy target config. S.settings.{deployPath,live} used to be in-memory-only
@@ -8415,7 +8415,14 @@
     "analytics.session.v1", "studio-hidden-sections", "studio-home-section-order",
     // N-DIST follow-up: "studio-share-base" (per-dashboard last-known-shared spec, powers the
     // diff-based "Share just my changes" link) — folded in from the start this time.
-    "studio-share-base"
+    "studio-share-base",
+    // Track L sweep (orphaned-key lens, round 5): re-ran the cross-check (every localStorage
+    // call across app/*.js + app/sources/*.js diffed against this list) and found
+    // "studio-default-qm-creativity" (app/defaults.js's Quick mode creativity-dial default,
+    // shipped at LF24 slice 3 / v599) missing from BOTH this list and SETTINGS_DATA_KEYS above —
+    // the same recurring "new key, forgot Clear local data" gap the v194/v235/v281/v313/v322
+    // notes already describe, this time for a Settings default rather than a dismissal flag.
+    "studio-default-qm-creativity"
   ];
   window.__studioClearDataKeys = CLEAR_DATA_KEYS; // test hook
 

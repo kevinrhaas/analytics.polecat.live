@@ -116,6 +116,23 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **Track L sweep (orphaned-key lens, round 5) — Quick mode's creativity-dial default now clears
+  and exports properly (v605, sw v242, 2026-07-27, steward):** v604's own NEXT pointer named
+  Track L as most overdue (last ran v602, vs Track H at v603 and Track N at v604 itself), so
+  continued the established "cross-check every localStorage call across app/*.js + app/sources/*.js
+  against `CLEAR_DATA_KEYS`/`SETTINGS_DATA_KEYS`" technique the v194/v235/v281/v313/v322 rounds
+  already used. Found `app/defaults.js`'s `studio-default-qm-creativity` (Quick mode's creativity
+  dial default, shipped at LF24 slice 3 / v599) missing from BOTH lists — the same recurring
+  "new key, forgot Clear local data" gap, this time also missing from Settings export/import, so
+  a fresh-device reset or a Settings backup/restore silently left a team's chosen creativity-dial
+  default behind. Added the key to both `CLEAR_DATA_KEYS` and `SETTINGS_DATA_KEYS` (app/studio.js).
+  2 new regression tests (the real clear-data key list includes it; it travels through Settings
+  export/import). SW cache → v242. Full suite green. (app/studio.js, sw.js, js/changelog.js,
+  tests/run.js) NEXT: continuing the Track H/L/N self-directed rotation (Track H last at v603,
+  Track N at v604) is a good next slice while the findings queue stays thin; the still-open
+  "true whole-dashboard PNG" half of the N-DIST PNG/PDF export idea and the "across every panel"
+  half of the period-comparison feature (both noted by earlier NEXT pointers) remain open for
+  future slices.
 - **N-DIST follow-up — diff-based "Share just my changes" share link (v604, sw v241, 2026-07-27,
   steward — Track H/L/N rotation, N's turn):** closes a long-open item under the N-DIST
   "Shareable state links / snapshots" idea (bullet noted "not yet done: a diff-based link for

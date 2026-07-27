@@ -13549,7 +13549,8 @@ function serve() {
         hasDashViewKey: keys.indexOf("studio-dash-view") >= 0, hasSyncConnKey: keys.indexOf("analytics.datasource.v1") >= 0,
         hasSyncSecretKey: keys.indexOf("analytics.datasource.secret.v1") >= 0,
         hasSessionKey: keys.indexOf("analytics.session.v1") >= 0, hasHiddenSectionsKey: keys.indexOf("studio-hidden-sections") >= 0,
-        hasHomeOrderKey: keys.indexOf("studio-home-section-order") >= 0
+        hasHomeOrderKey: keys.indexOf("studio-home-section-order") >= 0,
+        hasQmCreativityKey: keys.indexOf("studio-default-qm-creativity") >= 0
       };
     });
     ok("E8: all Studio localStorage keys removed by clear-data logic", e8Clear.keyCount > 20 && e8Clear.remaining.length === 0, JSON.stringify(e8Clear));
@@ -13584,6 +13585,11 @@ function serve() {
     // did NOT land you back as a first-time visitor (the REVIEW-FIXES queue's ask for this feature).
     ok("E8: the real clear-data key list includes analytics.session.v1, studio-hidden-sections, and studio-home-section-order (Track L sweep round 4)",
       e8Clear.hasSessionKey && e8Clear.hasHiddenSectionsKey && e8Clear.hasHomeOrderKey, JSON.stringify(e8Clear));
+    // Track L sweep round 5: app/defaults.js's Quick mode creativity-dial default
+    // (studio-default-qm-creativity, shipped at LF24 slice 3 / v599) was missing from this list —
+    // the same recurring gap, found by re-running the v313/v322 cross-check technique again.
+    ok("E8: the real clear-data key list includes studio-default-qm-creativity (Track L sweep round 5)",
+      e8Clear.hasQmCreativityKey, JSON.stringify(e8Clear));
 
     // Clear-data's session wipe must ALSO drop the studio-gate-ok sessionStorage bypass (not part
     // of CLEAR_DATA_KEYS, which only ever touches localStorage) — otherwise PolecatAuth.current()'s
@@ -25171,6 +25177,11 @@ function serve() {
 
     const z10InKeys = await page.evaluate(function () { return window.__studioImportSettingsKeys.indexOf("studio-app-theme") >= 0; });
     ok("Z10: studio-app-theme travels through Settings export/import", z10InKeys, "checked SETTINGS_DATA_KEYS");
+    // Track L sweep round 5: studio-default-qm-creativity (LF24 slice 3's Quick mode creativity
+    // dial default) was missing from SETTINGS_DATA_KEYS too — same gap as the Clear-local-data
+    // list above, found by the same cross-check.
+    const z10HasQmCreativity = await page.evaluate(function () { return window.__studioImportSettingsKeys.indexOf("studio-default-qm-creativity") >= 0; });
+    ok("Z10: studio-default-qm-creativity travels through Settings export/import (Track L sweep round 5)", z10HasQmCreativity, "checked SETTINGS_DATA_KEYS");
 
     // Z10 follow-up: the left rail is the app's permanent dark shell bar (never follows
     // light/dark mode) and used to render the warm Polecat palette under EVERY app theme —
