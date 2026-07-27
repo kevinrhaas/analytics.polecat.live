@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 615,
+    title: 'A viewer\'s Home no longer shows dead-click shortcuts into Studio',
+    kind: 'fix',
+    ts: '2026-07-27T15:33:03.000Z',
+    items: [
+      'The "New dashboard", "Quick import", "Browse examples", and "Take the tour" Home cards (and the example gallery tiles) all open the builder -- a viewer-role account is blocked from Studio, so those cards used to just sit there doing nothing when clicked.',
+      'They\'re now hidden for viewers, matching the rail\'s existing Studio gating; "Explore data", "New connection", and "New dataset" stay available since they don\'t require the builder.',
+    ],
+  },
+  {
     v: 614,
     title: 'Password fields get a show/hide reveal toggle, app-wide',
     kind: 'feature',
