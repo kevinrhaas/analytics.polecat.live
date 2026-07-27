@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 629,
+    title: 'Zoom a widget and it now fills the window -- and Exit always closes it',
+    kind: 'fix',
+    ts: '2026-07-27T22:12:22.000Z',
+    items: [
+      'Zooming a widget (the ↗ button) now fills the whole window like a preview, instead of showing the widget at its small dashboard-grid size in the top-left.',
+      'Fixed a stuck-overlay bug: double-clicking the zoom button could leave a zoom you could not close -- the Exit button now always exits, and a second click while zoomed is ignored.',
+    ],
+  },
+  {
     v: 628,
     title: 'Save as... and Duplicate join the top bar alongside Undo, Save and Export',
     kind: 'polish',

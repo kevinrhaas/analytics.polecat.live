@@ -5,7 +5,10 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v265"; /* v265: Standard fleet topbar — Slice C: Studio's
+var CACHE_NAME = "studio-shell-v266"; /* v266: panel zoom fills the window (fill-CSS injected into the
+   zoom iframe so the single widget stretches to the frame) and Exit always closes it — a double-open
+   no longer orphans a stuck, un-closable overlay (#109/#110). app/studio.js changed, so precached copies roll.
+   v265: Standard fleet topbar — Slice C: Studio's
    Save-as (from #dashbar) and Duplicate (from the #menuNew "New ▾" menu) join Undo/Redo/
    Open/Save/Export in the shared topbar's #tbSectionActions slot — LF47 is now fully done
    except Examples removal (tracked separately under LF43 slice 2). index.html, studio.js,
