@@ -1569,7 +1569,12 @@ function serve() {
     });
     ok("QM: Home shows a 'Quick import' card with an icon and a file input", qiCardBefore.present && qiCardBefore.hasIcon && qiCardBefore.hasInput, JSON.stringify(qiCardBefore));
     const qiFixture = path.join(__dirname, "fixture-quickimport.csv");
-    fs.writeFileSync(qiFixture, "state,revenue\nIA,120\nIL,200\nIA,150\n");
+    // Non-geo dimension on purpose: with the Quick-import default now High (Kevin,
+    // 2026-07-27), a geo column would add a choropleth (geo assets); a plain
+    // categorical dim keeps this core test deterministic + fast while still
+    // exercising the High build (KPI + bars + treemap + table). The full fun tier
+    // (map/slope/ensemble) is covered by the dedicated fixture-quickimport-fun block.
+    fs.writeFileSync(qiFixture, "category,revenue\nAlpha,120\nBeta,200\nAlpha,150\n");
     const qiDatasetsBefore = await page.evaluate(function () { return Studio.Workspace.all("datasets").length; });
     await page.setInputFiles("#secHome .home-quickimport-input", qiFixture);
     await page.waitForTimeout(500);
@@ -1590,13 +1595,13 @@ function serve() {
     });
     ok("QM: dropping a file creates exactly one new real dataset (kind:file, learned columns)",
       qiAfter.datasetCount === qiDatasetsBefore + 1 && qiAfter.dataset && qiAfter.dataset.kind === "file" &&
-      qiAfter.dataset.columns.join(",") === "state,revenue" && qiAfter.connectionAdapter === "file",
+      qiAfter.dataset.columns.join(",") === "category,revenue" && qiAfter.connectionAdapter === "file",
       JSON.stringify(qiAfter));
-    ok("QM: after import, the app navigates to Studio with an auto-built dashboard (KPI + bars + table), and the toast summarizes it",
+    ok("QM: after import, the app navigates to Studio with an auto-built dashboard (KPI + bars + treemap + table, High default), and the toast summarizes it",
       qiAfter.onStudio && qiAfter.kpis.length === 1 && qiAfter.kpis[0].valueCol === "revenue" &&
-      qiAfter.panelTypes.join(",") === "bars,table" && qiAfter.daCount === 3 &&
-      qiAfter.barsPanel && qiAfter.barsPanel.labelCol === "state" && qiAfter.barsPanel.valueCol === "revenue" &&
-      /built a dashboard/.test(qiAfter.toastText) && /1 KPI/.test(qiAfter.toastText) && /2 widgets/.test(qiAfter.toastText),
+      qiAfter.panelTypes.join(",") === "bars,table,treemap" && qiAfter.daCount === 4 &&
+      qiAfter.barsPanel && qiAfter.barsPanel.labelCol === "category" && qiAfter.barsPanel.valueCol === "revenue" &&
+      /built a dashboard/.test(qiAfter.toastText) && /1 KPI/.test(qiAfter.toastText) && /3 widgets/.test(qiAfter.toastText),
       JSON.stringify(qiAfter));
     fs.unlinkSync(qiFixture);
     await page.evaluate(function () {
@@ -1675,8 +1680,8 @@ function serve() {
       var sel = document.querySelector("#setDefaultQmCreativitySel");
       return { present: !!sel, value: sel && sel.value, defaultFn: window.__studioDefaultQmCreativity() };
     });
-    ok("QM3: Settings gains a 'Quick import creativity' row, defaulting to Low",
-      qmSettingsBefore.present && qmSettingsBefore.value === "low" && qmSettingsBefore.defaultFn === "low", JSON.stringify(qmSettingsBefore));
+    ok("QM3: Settings gains a 'Quick import creativity' row, defaulting to High (Kevin 2026-07-27)",
+      qmSettingsBefore.present && qmSettingsBefore.value === "high" && qmSettingsBefore.defaultFn === "high", JSON.stringify(qmSettingsBefore));
     await page.selectOption("#setDefaultQmCreativitySel", "high");
     const qmSettingsAfter = await page.evaluate(function () { return window.__studioDefaultQmCreativity(); });
     ok("QM3: switching the Settings select to High persists it as the new default",
