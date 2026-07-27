@@ -4503,8 +4503,65 @@
 >    hiding in M4 NOW (honest "not cryptographic isolation" until the DB enforces it), then real
 >    RLS enforcement lands in M7. Do not gate the M4 flag on the backend being ready.
 
+### ★★ ONBOARDING & PROVISIONING EPIC (Kevin, 2026-07-27) — the "Dave" north-star
+> A meaty vision from a live session: turn first-run into a delightful, admin-provisioned
+> onboarding. **NORTH-STAR ACCEPTANCE TEST — the "Dave" (dgustafson) login:** an admin sets Dave
+> up once; Dave signs in (from any device — see LF39) to a workspace that is FULLY configured —
+> admin role, Conservation theme applied, Conservation sample pack installed, backend connected,
+> and a complete animated welcome tour that includes the Conservation pack walkthrough. Build the
+> pieces below toward that end-to-end demo. Slice each; don't big-bang.
+> LF40. **Sexy animated welcome + home tour overhaul.** Theme-colored confetti entrance (JobTracker-
+>       style, user's active theme colors); an elegant/modern/animated welcome that greets the user BY
+>       NAME with "Take a quick tour" as the HERO + "Take the guided tour" as a second option on the same
+>       menu, plus the other quick-actions with icon-library glyphs, in-theme, per the design standards;
+>       fun-but-not-over-the-top animation using the sexiest animated app graphics (screens, charts, maps)
+>       along the way; Skip stays but the tour is re-accessible anytime via Settings → Tour. SAMPLE-PACK-
+>       AWARE: an installed pack adds tour segments walking its dashboards + its backend connections/
+>       datasets, framing them as "curated dashboards"/"curated datasets." (app/welcome.js, tutorial.js,
+>       studio.js renderHome(), celebrations.js confetti, icons.) Follows LF18.
+> LF41. **Per-user provisioning defaults.** Admin's Add-user gains a DEFAULT THEME picker + DEFAULT
+>       SAMPLE PACK(S) selector (one or more), stored on the user record (+ mirrored users table); on that
+>       user's first login the app applies the theme, installs the pack(s), and fires the pack tour (LF40).
+>       Dave = admin + Conservation theme + Conservation pack. (studio.js openUserEditor/renderAdmin,
+>       auth.js user record, first-login apply hook, demopacks.js.) Ties LF40, LF23.
+> LF42. **Multi-backend management for admin.** Admin can define/manage MULTIPLE backends (Supabase
+>       connections/DBs) and assign one ACTIVE backend per user when provisioning them; consolidate +
+>       simplify backend config into an Admin surface with more options; (future) select a SERVER. Slice:
+>       (1) admin manages a backend list; (2) per-user active-backend assignment; (3) consolidated config
+>       UI; (future) servers. (New Admin "Backends" surface, per-user backend on the user record,
+>       app/sources/*, workspace-backend card, gate.js connect.) Ties M7, LF39, LF41.
+> LF43. **BUG/cleanup — sample-pack dashboards must show in Dashboards; drop "Examples"; remove Studio's
+>       Examples button.** Logged in as demo, installed sample packs show but their dashboards don't appear
+>       in the Dashboards screen. A pack's "examples" are just its curated dashboards — surface them as real
+>       dashboards when the pack is installed, DROP the "Examples" naming, and REMOVE the messy Studio
+>       Examples menu/button. (demopacks.js, studio.js renderDashboards()/renderHome(), the Studio Examples
+>       menu, data/examples.) Ties #38/#48/LF16, LF18. Verify with the demo account.
+> LF44. **BUG — role gating: hide Admin + Studio from non-admins/viewers.** A non-admin must not see the
+>       Admin rail item; a viewer must not see Studio (the builder). Verify against demo (viewer) which
+>       currently sees items it shouldn't. Enforce: Admin = admin only; Studio/Build = admin+developer
+>       (canDevelop), hidden from viewers; bounce direct nav. (shell.js applyRoleGating, studio.js
+>       CONFIGURABLE_SECTIONS, auth.js.) The role-gating half of LF23.
+> LF45. **Studio — a visible "Save as" button + a richer Open dialog.** LF26 shipped save-as behavior +
+>       overwrite protection, but surface a prominent "Save as…" button next to Save; and improve the
+>       "a little light" Open dialog (richer preview tiles, clearer layout). (index.html builder toolbar,
+>       studio.js open dialog.) Ties LF26, LF27's Dashboards tile browser.
+
 ### ★ LIVE-FEEDBACK QUEUE (Kevin, 2026-07-22) — fold into the interleave
 > Product/demo asks from a live session; treat as first-class feature slices.
+> LF38. **Password/masked inputs get a show/hide (eyeball) reveal toggle, app-wide (Kevin, live
+>       2026-07-24).** Every masked field (Add-user password, Supabase Auth password + anon key, all
+>       adapter `type:"password"` fields, the workspace-backend secret, the M7 PROVISION_SECRET) gets a
+>       little eye/eye-off toggle that flips input type between password/text with aria-pressed/label — a
+>       single reusable enhancer applied at the field/modal builders, not per-site. Must keep the QA-01
+>       autofill hardening (id/name/autocomplete). Tests: toggle renders, flips type, updates aria.
+> LF39. **BUG — cross-device sign-in: a provisioned user can't sign in from a fresh browser; misleading
+>       error (Kevin, live 2026-07-27).** The gate authenticates against the LOCAL per-browser store
+>       (`analytics.users.v1`), so a user created in the admin's browser (mirrored to Supabase) isn't in a
+>       fresh browser and gets "Incorrect username or password." Fix: (1) when a username isn't found
+>       locally AND a backend is configured, guide "Connect to your workspace to sign in as a team member"
+>       (or auto-pull) instead of the wrong error; (2) with M7 GoTrue, let the gate authenticate against
+>       the workspace directly so a teammate signs in in ONE step. Keep local-first demo sign-in. (gate.js,
+>       auth.js verify/importFromStore, Supabase signIn.) Ties M7, LF42.
 > LF34. ✓ **Style presets "+ Save as preset" button — small UI issue (shipped v551, sw v188,
 >       2026-07-25, steward) — see DONE.** No repro was needed in the end: screenshotting the
 >       real card at desktop/tablet widths showed the input+button row spilling ~44px past the
