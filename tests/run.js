@@ -22841,6 +22841,63 @@ function serve() {
     });
     ok("LF8: Escape dispatched inside the zoomed iframe still closes the overlay (focus-trap fix)", h118IframeEsc.ok && h118IframeEsc.overlayGone && h118IframeEsc.active === false, JSON.stringify(h118IframeEsc));
 
+    // 7. #110 regression — a double-open (e.g. a fast double-click on the ↗ zoom
+    // button) must NOT orphan a stuck overlay: exactly one #pzOverlay, and its
+    // Exit button must actually close it (the old single-ref guard dead-ended it).
+    const h118Double = await page.evaluate(async function () {
+      var state = window.__STUDIO_STATE;
+      var panels = state && state.spec && state.spec.panels;
+      if (!panels || !panels.length) return { ok: false, reason: "no panels in spec" };
+      var pid = panels[0].id;
+      window.__panelZoomOpen(pid);
+      window.__panelZoomOpen(pid); // second call — must be a no-op, not a second overlay
+      await new Promise(function (r) { setTimeout(r, 80); });
+      var count = document.querySelectorAll("#pzOverlay, .pz-overlay").length;
+      // Now the Exit button must close it (no orphan left behind)
+      var btn = document.querySelector("#pzOverlay .pz-close");
+      if (btn) btn.click();
+      await new Promise(function (r) { setTimeout(r, 80); });
+      return { ok: true, count: count, closed: !document.getElementById("pzOverlay"), active: window.__panelZoomActive };
+    });
+    ok("#110: double-open yields exactly one overlay and Exit still closes it (no orphaned, dead-Exit zoom)",
+      h118Double.ok && h118Double.count === 1 && h118Double.closed && h118Double.active === false, JSON.stringify(h118Double));
+
+    // 8. #109 fill — the zoomed panel fills the window (preview-mode toggle), not the
+    // small dashboard-grid footprint. The zoom iframe injects fill-CSS on load that
+    // stretches .pdc-grid to 100% height; assert the grid occupies most of the frame.
+    const h118Fill = await page.evaluate(async function () {
+      var state = window.__STUDIO_STATE;
+      var panels = state && state.spec && state.spec.panels;
+      if (!panels || !panels.length) return { ok: false, reason: "no panels in spec" };
+      window.__panelZoomOpen(panels[0].id);
+      await new Promise(function (r) { setTimeout(r, 80); });
+      var ov = document.getElementById("pzOverlay");
+      var ifr = ov && ov.querySelector(".pz-frame");
+      if (!ifr) return { ok: false, reason: "no .pz-frame" };
+      await new Promise(function (r) {
+        if (ifr.contentDocument && ifr.contentDocument.readyState === "complete") return r();
+        ifr.addEventListener("load", r, { once: true });
+      });
+      await new Promise(function (r) { setTimeout(r, 120); });
+      var idoc = ifr.contentWindow.document;
+      var grid = idoc.querySelector(".pdc-grid");
+      var frameH = ifr.clientHeight || (ov ? ov.clientHeight : 0);
+      var gridH = grid ? grid.clientHeight : 0;
+      // The fill is caused by the injected #pz-fill style ONLY — assert it's present
+      // AND took effect (the grid flex-grows and body is a flex column), so a panel
+      // that happens to render tall on its own can't pass this by accident.
+      var styleHit = !!idoc.getElementById("pz-fill");
+      var gridFlex = grid ? idoc.defaultView.getComputedStyle(grid).flexGrow : "0";
+      var bodyDisplay = idoc.body ? idoc.defaultView.getComputedStyle(idoc.body).display : "";
+      var ratio = frameH ? gridH / frameH : 0;
+      // clean up so the following LF9 test opens a fresh overlay
+      var btn = ov.querySelector(".pz-close"); if (btn) btn.click();
+      return { ok: true, styleHit: styleHit, gridFlex: gridFlex, bodyDisplay: bodyDisplay, ratio: ratio, frameH: frameH, gridH: gridH };
+    });
+    ok("#109: zoomed panel fills the window — #pz-fill injected, the grid flex-grows and stretches to the frame height (≥60%)",
+      h118Fill.ok && h118Fill.styleHit && h118Fill.gridFlex === "1" && h118Fill.bodyDisplay === "flex" && h118Fill.ratio >= 0.6, JSON.stringify(h118Fill));
+    await page.waitForTimeout(80);
+
     // ---- LF9 slice 2: Back closes an open overlay instead of leaving the section ----
     console.log("\n• LF9 slice 2: overlay history (panel-zoom, modal)");
     const lf9PzOpen = await page.evaluate(async function () {

@@ -8514,6 +8514,10 @@
   var _pzOverlay = null;
   function openPanelZoom(panelId) {
     var p = panelById(panelId); if (!p) return;
+    // Only one zoom at a time. Opening a second overlay used to orphan the first
+    // (the single _pzOverlay ref was overwritten), leaving a stuck overlay whose
+    // Exit button did nothing — a double-click on the ↗ was enough to trigger it.
+    if (_pzOverlay) return;
     // Build a single-panel spec (no KPIs, no filters, panel at full width)
     var html = singlePanelHtml(p);
 
@@ -8533,9 +8537,14 @@
     // like any other overlay (see the shell.js overlay-history stack) instead of leaving
     // whatever section the user was in. See modal()'s identical viaHistory comment.
     var overlayId = window.__studioPushOverlay ? window.__studioPushOverlay(function () { close(true); }) : null;
+    // Idempotent + self-contained: close THIS overlay (ov), not the shared
+    // _pzOverlay ref — so an overlay can always close itself and a second call
+    // is a no-op, instead of the old guard that could dead-end the Exit button.
+    var closed = false;
     function close(viaHistory) {
-      if (!_pzOverlay) return;
-      _pzOverlay.remove(); _pzOverlay = null; window.__panelZoomActive = false;
+      if (closed) return; closed = true;
+      ov.remove();
+      if (_pzOverlay === ov) { _pzOverlay = null; window.__panelZoomActive = false; }
       document.removeEventListener("keydown", onKey);
       if (viaHistory !== true && overlayId && window.__studioPopOverlay) window.__studioPopOverlay(overlayId);
     }
@@ -8549,7 +8558,30 @@
     // same-origin: attach a second Escape listener directly on its contentDocument once loaded
     // (mirrors the fix Slideshow already applies by focusing its close button on open).
     ifr.addEventListener("load", function () {
-      try { ifr.contentWindow.document.addEventListener("keydown", onKey); } catch (e) {}
+      try {
+        var zdoc = ifr.contentWindow.document;
+        zdoc.addEventListener("keydown", onKey);
+        // #109: fill the zoom viewport. Otherwise the single panel keeps its
+        // dashboard grid size (small, top-left). This is injected into the zoom
+        // iframe ONLY — buildHtml and the exported .html are untouched, so the
+        // export stays byte-identical to the live preview.
+        // Flex the whole ancestor chain (body → .pdc-wrap → #content → .pdc-grid)
+        // so the single widget grows to fill the frame. A plain height:100% chain
+        // breaks here because .pdc-wrap / #content carry no height, so the grid
+        // would collapse back to its small content height. The dashboard header
+        // banner stays pinned at the top (like preview mode); the widget takes
+        // the rest of the viewport.
+        var zst = zdoc.createElement("style");
+        zst.id = "pz-fill";
+        zst.textContent =
+          "html,body{height:100%!important;margin:0!important;overflow:hidden!important}" +
+          "body{display:flex!important;flex-direction:column!important}" +
+          ".pdc-wrap{flex:1 1 auto!important;min-height:0!important;display:flex!important;flex-direction:column!important;padding:10px!important;box-sizing:border-box!important}" +
+          "#content{flex:1 1 auto!important;min-height:0!important;display:flex!important;flex-direction:column!important}" +
+          ".pdc-grid{flex:1 1 auto!important;min-height:0!important;width:100%!important;max-width:none!important;grid-auto-rows:minmax(0,1fr)!important;box-sizing:border-box!important}" +
+          ".pdc-grid>*{height:100%!important;min-height:0!important;max-height:none!important}";
+        (zdoc.head || zdoc.documentElement).appendChild(zst);
+      } catch (e) {}
     });
     // Start focus on the close button so a bare Esc (no chart interaction yet) already works.
     closeBtn.focus();

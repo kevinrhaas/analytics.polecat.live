@@ -116,6 +116,22 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **Panel zoom fills the window + Exit always closes it (#109/#110, v629, sw v266, 2026-07-27,
+  steward):** Kevin: "this zoom panel full screen did not resize the panel to full screen ... it
+  should fill the full window ... kind of like preview mode" (#109) and "the exit zoom button did
+  not work, maybe I pressed the zoom a couple times?" (#110). #109 — `singlePanelHtml` rendered the
+  single widget at its dashboard-grid footprint (small, top-left); the zoom now injects an
+  `id="pz-fill"` style into the zoom iframe ON LOAD that flexes the whole ancestor chain
+  (body → .pdc-wrap → #content → .pdc-grid) so the widget grows to fill the frame like preview mode
+  (a plain height:100% chain breaks because .pdc-wrap / #content carry no height). Injected into the
+  zoom iframe ONLY — `buildHtml` and the exported `.html` are untouched, so the export stays
+  byte-identical to the live preview. #110 — a fast double-click on the ↗ opened a second overlay
+  that overwrote the single `_pzOverlay` ref, orphaning the first (whose Exit then dead-ended on
+  `if(!_pzOverlay)`). Fix: `openPanelZoom` bails if one is already open (`if (_pzOverlay) return;`),
+  and `close()` is now idempotent + self-contained (closes THIS `ov`, guards on a local `closed`
+  flag) so Exit always works. Tests: double-open yields exactly one overlay and Exit closes it; the
+  zoomed grid flex-grows (computed flexGrow=1, body flex) and stretches to ≥60% of the frame height
+  with `#pz-fill` present. Files: app/studio.js, tests/run.js, sw.js, js/changelog.js.
 - **Standard fleet topbar — Slice C: Save-as and Duplicate join the top-rail ops cluster —
   LF47 fully done except Examples removal (2026-07-27, steward, v628, sw v265 — step 4 of
   the LOCKED BUILD ORDER):** Slice B's own NEXT pointer named "LF47's remaining pieces
@@ -150,6 +166,21 @@
   fixture matching JobTracker/AutoSelector, not a Studio-only leftover to remove; the Command
   palette entry it names is already gone) — or LF48 (mode switcher), or LF43 slice 2 (Examples
   removal), per Kevin's locked sequence.
+- **Panel zoom fills the window + Exit always closes it (#109/#110, v628, sw v265, 2026-07-27,
+  steward):** Kevin: "this zoom panel full screen did not resize the panel to full screen ... it
+  should fill the full window ... kind of like preview mode" (#109) and "the exit zoom button did
+  not work, maybe I pressed the zoom a couple times?" (#110). #109 — `singlePanelHtml` rendered the
+  single widget at its dashboard-grid footprint (small, top-left); the zoom now injects fill-CSS
+  into the zoom iframe ON LOAD (stretch `.pdc-grid` + its child to 100% height, `grid-auto-rows:
+  minmax(0,1fr)`), so the widget fills the frame like preview mode. Injected into the zoom iframe
+  ONLY — `buildHtml` and the exported `.html` are untouched, so the export stays byte-identical to
+  the live preview. #110 — a fast double-click on the ↗ opened a second overlay that overwrote the
+  single `_pzOverlay` ref, orphaning the first (whose Exit then dead-ended on `if(!_pzOverlay)`).
+  Fix: `openPanelZoom` bails if one is already open (`if (_pzOverlay) return;`), and `close()` is now
+  idempotent + self-contained (closes THIS `ov`, guards on a local `closed` flag) so Exit always
+  works. Tests: double-open yields exactly one overlay and Exit closes it; the zoomed `.pdc-grid`
+  stretches to ≥60% of the frame height with the fill-CSS present. Files: app/studio.js, tests/run.js,
+  sw.js, js/changelog.js.
 - **Connection self-heals on boot (#111, v627, sw v264, 2026-07-27, steward):** opening the app
   in a fresh tab showed the Supabase workspace as "not connected" until a manual Refresh -- on a
   fresh page there's no cached GoTrue session and the first authenticated read can race the
