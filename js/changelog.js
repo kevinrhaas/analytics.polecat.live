@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 631,
+    title: 'The sign-in password now has a show/hide toggle, and the login screen is tidier',
+    kind: 'polish',
+    ts: '2026-07-27T22:57:13.000Z',
+    items: [
+      'The password box on the sign-in screen now has an eye button to show or hide what you typed -- the same reveal toggle the rest of the app already uses on saved credentials.',
+      'Trimmed the demo blurb: the "demo build" paragraph is gone, replaced by a small note that demo / demo is a local sample workspace (not the Polecat backend).',
+    ],
+  },
+  {
     v: 630,
     title: 'Admin can now copy their own Dashboard defaults onto a new user',
     kind: 'feature',
