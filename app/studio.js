@@ -7520,6 +7520,10 @@
     try {
       if (mine && mine.provisioning && !mine.provisioned) {
         if (mine.provisioning.theme) setAppTheme(mine.provisioning.theme);
+        // LF41 slice 2: replay the admin's captured Dashboard-defaults snapshot (if any)
+        // the same once-only way theme/pack apply — see openUserEditor's "Copy my current
+        // Dashboard defaults" button.
+        if (mine.provisioning.dashboardDefaults && Studio.Defaults) Studio.Defaults.applyDashboardDefaultsBlob(mine.provisioning.dashboardDefaults);
         if (mine.provisioning.pack === "conservation" && Studio.DEMO_PACKS && Studio.DEMO_PACKS.conservation &&
             !Studio.demoPackInstalled("conservation")) {
           Studio.installDemoPack("conservation");
@@ -8042,6 +8046,30 @@
       packLab.appendChild(packChk);
       packLab.appendChild(document.createTextNode(" Install the Conservation Insight sample pack on first sign-in"));
       form.appendChild(packLab);
+      // LF41 slice 2: "copy my/current settings to this user" — Kevin's (a) convenience
+      // option. Snapshots the ADMIN'S OWN current Settings → Dashboard defaults (subtitle,
+      // accent, logo, header bg, title size, subtitle style, dashboard theme, card skin,
+      // Quick-import creativity) onto this account's provisioning blob, applied at their
+      // first sign-in the same way theme/pack already are (see initAuthBoot). A button
+      // rather than a checkbox: capturing is a deliberate snapshot taken NOW, not "whatever
+      // my settings happen to be later."
+      var capturedDashboardDefaults = (existing && existing.provisioning && existing.provisioning.dashboardDefaults) || null;
+      var ddRow = el("label", "cx-field"); ddRow.innerHTML = "<span>Dashboard defaults (applied at first sign-in)</span>";
+      var ddBtnRow = el("div"); ddBtnRow.style.cssText = "display:flex;gap:6px;align-items:center";
+      var ddCopyBtn = el("button", "btn"); ddCopyBtn.type = "button"; ddCopyBtn.id = "usrEditDDCopyBtn"; ddCopyBtn.textContent = "Copy my current Dashboard defaults";
+      var ddClearBtn = el("button", "btn"); ddClearBtn.type = "button"; ddClearBtn.id = "usrEditDDClearBtn"; ddClearBtn.textContent = "Clear";
+      var ddStatus = el("small", "cx-hint"); ddStatus.id = "usrEditDDStatus";
+      function renderDdStatus() {
+        ddStatus.textContent = capturedDashboardDefaults
+          ? "Captured — will apply at this user's first sign-in."
+          : "Not set — this user's Dashboard defaults stay at the shell's built-in look.";
+      }
+      renderDdStatus();
+      ddCopyBtn.onclick = function () { capturedDashboardDefaults = Studio.Defaults.snapshotDashboardDefaults(); renderDdStatus(); };
+      ddClearBtn.onclick = function () { capturedDashboardDefaults = null; renderDdStatus(); };
+      ddBtnRow.appendChild(ddCopyBtn); ddBtnRow.appendChild(ddClearBtn);
+      ddRow.appendChild(ddBtnRow); ddRow.appendChild(ddStatus);
+      form.appendChild(ddRow);
       // LF42 slice 2: assign a specific registered backend (from the Backends
       // card) to this user. Recorded on their provisioning blob the same way as
       // theme/pack, but — unlike theme/pack — NOT auto-applied at first sign-in:
@@ -8086,7 +8114,8 @@
         // than silently clearing it just because this editor session had
         // nothing to offer.
         var provBackend = bSel ? bSel.value : ((existing && existing.provisioning && existing.provisioning.backendId) || "");
-        opts.provisioning = (provTheme || provPack || provBackend) ? { theme: provTheme, pack: provPack, backendId: provBackend } : null;
+        opts.provisioning = (provTheme || provPack || provBackend || capturedDashboardDefaults) ?
+          { theme: provTheme, pack: provPack, backendId: provBackend, dashboardDefaults: capturedDashboardDefaults || null } : null;
         function finishSave() {
           window.PolecatAuth.upsert(u, opts).then(function (saved) {
             try {

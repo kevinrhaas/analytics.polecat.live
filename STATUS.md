@@ -116,6 +116,35 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF41 slice 2 — "Copy my current Dashboard defaults" onto a new user (v630, sw v267,
+  2026-07-27, steward — step 2 of the LOCKED BUILD ORDER):** LF41 slice 1 (shipped earlier
+  2026-07-27) provisioned a new account's theme + sample pack at first sign-in; the "rest
+  open" remainder was the full Settings → Dashboard defaults blob, expanded to Kevin's option
+  (a), "Copy my/current settings to this user" — chosen over building 8 individual admin-form
+  inputs (one per default field) because the app already has a canonical snapshot/apply shape
+  for exactly this (`addStylePreset`/`applyStylePreset` in app/defaults.js), so one button that
+  reuses it is both less UI surface and less to keep in sync as new default fields get added.
+  New `Studio.Defaults.snapshotDashboardDefaults()`/`applyDashboardDefaultsBlob(blob)` (plain
+  getter/setter object over the same 8 style-preset fields + Quick-import creativity — app/
+  defaults.js). The Add/Edit user editor (app/studio.js openUserEditor) gained a "Copy my
+  current Dashboard defaults" button + a Clear button + a status line, right below the
+  existing theme/pack provisioning fields: clicking Copy snapshots the ADMIN'S OWN live
+  Settings right then (a deliberate freeze, not "whatever I have later"), stored on
+  `opts.provisioning.dashboardDefaults`. `initAuthBoot` replays it at the new account's first
+  sign-in via `applyDashboardDefaultsBlob`, alongside the existing theme/pack apply, same
+  once-only rule (a second sign-in never re-fights the user's own later changes). Editing a
+  user with only a captured blob (no theme/pack/backend) and clicking Clear returns
+  `provisioning` to `null` entirely — same all-unset convention slice 1's own clear test
+  established. docs/index.html's "Per-user provisioning defaults" section gained a paragraph.
+  5 new regression checks (button captures onto a fresh account's provisioning; first sign-in
+  replays every field; a second sign-in doesn't refight the user's own change; Clear removes a
+  captured blob). Full suite green (2376/2376). SW cache → v267. Files: app/defaults.js,
+  app/studio.js, docs/index.html, sw.js, js/changelog.js, tests/run.js. **LF41 is now fully
+  done** except the optional (b) "log in as / impersonate to set directly" convenience Kevin
+  named as an alternative to (a) — not required (both were offered as either/or), left open
+  only if a future run wants it. NEXT per the LOCKED BUILD ORDER: step 3, LF40 (animated
+  welcome + home tour, sample-pack-aware) — step 2 ("Dave"-demo ingredients: LF41 → LF42) is
+  now fully done.
 - **Panel zoom fills the window + Exit always closes it (#109/#110, v629, sw v266, 2026-07-27,
   steward):** Kevin: "this zoom panel full screen did not resize the panel to full screen ... it
   should fill the full window ... kind of like preview mode" (#109) and "the exit zoom button did
@@ -4895,9 +4924,11 @@
 >    LF38 ✓ (password eyeball toggle) · LF39 ✓ (cross-device sign-in fix, 2026-07-27). Step 1 is
 >    otherwise fully done — only LF43 slice 2 remains, deliberately deferred.
 > 2. **"Dave"-demo ingredients:** LF41 (per-user provisioning defaults — theme + sample pack ✓ slice 1,
->    2026-07-27; full dashboard-defaults blob still open) → LF42 (multi-backend admin — admin manages
->    a backend list ✓ slice 1, per-user backend assignment ✓ slice 2, consolidated Switch-backend
->    picker ✓ slice 3, all 2026-07-27 — **LF42 is now fully done**).
+>    "copy my current Dashboard defaults" ✓ slice 2, both 2026-07-27 — **LF41 is now fully done**,
+>    the optional impersonate-to-set alternative left open per LF41's own DONE note) → LF42
+>    (multi-backend admin — admin manages a backend list ✓ slice 1, per-user backend assignment
+>    ✓ slice 2, consolidated Switch-backend picker ✓ slice 3, all 2026-07-27 — **LF42 is now fully
+>    done**). **Step 2 is now fully done.**
 > 3. **Flashy:** LF40 (animated welcome + home tour, sample-pack-aware).
 > 4. **Studio chrome:** LF46 (⋯ teardown) · LF47 (ops → top rail, w/ #30 — ✓ slices A/B/C,
 >    2026-07-27, **LF47 is now fully done** except Examples removal, which is LF43 slice 2's
@@ -5027,8 +5058,8 @@
 >       the CUSTOM-GEO story (watersheds/districts/ZIP, the geography library).** Verify the pack already
 >       ships those choropleth dashboards and surface them in the tour. (app/welcome.js, tutorial.js,
 >       studio.js renderHome(), celebrations.js confetti, demopacks.js, icons.) Follows LF18. Ties LF22, LF58.
-> LF41. **slice 1 ✓ / rest open — Per-user provisioning defaults — the whole starting PROFILE (Kevin
->       expanded 2026-07-27).** Admin's Add-user configures a user's full starting profile so they log in
+> LF41. **slice 1 ✓ / slice 2 ✓ / fully done — Per-user provisioning defaults — the whole starting PROFILE
+>       (Kevin expanded 2026-07-27).** Admin's Add-user configures a user's full starting profile so they log in
 >       ready with no major edits: default theme, default sample pack(s), backend/DB (LF42), AND ALL the
 >       DASHBOARD DEFAULTS + settings (header bg color, title size, subtitle style, dashboard theme, card
 >       style, quick-import creativity, style presets — everything in Settings → Dashboard defaults;
@@ -5040,9 +5071,13 @@
 >       openUserEditor/renderAdmin, auth.js user record carries a settings blob, first-login apply hook,
 >       demopacks.js, Settings dashboard-defaults model.) Ties LF40, LF42, LF23, LF48.
 >       ✓ **Slice 1 shipped (2026-07-27, v619, sw v256, steward): default theme + the Conservation sample
->       pack, applied once at first sign-in** — see DONE for the full writeup. Still open: backend/DB
->       assignment at provisioning time (LF42), the full Settings → Dashboard defaults blob, Simple-mode
->       default, and the "copy my settings" / impersonate-to-set admin convenience UX.
+>       pack, applied once at first sign-in** — see DONE for the full writeup.
+>       ✓ **Slice 2 shipped (2026-07-27, v630, sw v267, steward): "Copy my current Dashboard defaults"
+>       button — the full Settings → Dashboard defaults blob, via Kevin's option (a)** — see DONE for the
+>       full writeup. Backend/DB assignment at provisioning time is LF42 (separately, already fully done).
+>       Genuinely still open (not required — Kevin offered these as extras, not both-required): Simple-mode
+>       default (ties LF48, not started), and option (b) log-in-as/impersonate-to-set as an alternative to
+>       (a)'s copy button.
 > LF60. **In-app DOCS section (User + Admin) with nav, pop-out, app links, backend comparison (Kevin, live
 >       2026-07-27).** Docs currently open external-feeling; bring them INSIDE the app. (1) EMBED docs in a
 >       proper in-app Docs view off the Help/Docs rail item, with best-practice docs NAVIGATION (sidebar/TOC,

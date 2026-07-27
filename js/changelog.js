@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 630,
+    title: 'Admin can now copy their own Dashboard defaults onto a new user',
+    kind: 'feature',
+    ts: '2026-07-27T22:34:34.000Z',
+    items: [
+      'The Add/Edit user form has a new "Copy my current Dashboard defaults" button: it snapshots your Settings -> Dashboard defaults (subtitle, accent, logo, header background, title size, subtitle style, dashboard theme, card style, Quick-import creativity) onto the new account, applied automatically at their first sign-in alongside the existing Default theme / sample-pack provisioning.',
+    ],
+  },
+  {
     v: 629,
     title: 'Zoom a widget and it now fills the window -- and Exit always closes it',
     kind: 'fix',
