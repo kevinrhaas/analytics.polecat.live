@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 619,
+    title: 'Per-user provisioning defaults: theme + Conservation sample pack on first sign-in',
+    kind: 'feature',
+    ts: '2026-07-27T17:11:38.000Z',
+    items: [
+      'Admin\'s Add/Edit user form gains a Default theme picker and an "Install the Conservation Insight sample pack on first sign-in" checkbox.',
+      'A new account with either set logs in ready -- the theme switches and the pack installs automatically -- and this only ever happens once, so it never fights whatever the user changes for themselves afterward.',
+    ],
+  },
+  {
     v: 618,
     title: 'Cross-device sign-in no longer rejects a teammate as "incorrect password"',
     kind: 'fix',
