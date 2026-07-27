@@ -4678,15 +4678,27 @@
 >       step-type <select> with an icon-panel picker (a themed glyph per step type, select-and-see); tasteful,
 >       don't overcomplicate. (app/jobs.js/studio.js openJobEditor + step renderer + preview, jobs-engine.js
 >       column/value introspection, icons.js, studio.css.) Ties #47, LF13(a-d), LF51.
-> LF52. **TERMINOLOGY — "widget" → "View" app-wide (Kevin decided 2026-07-27).** "Widget" is too technical.
->       The standard term is a **View** — you build a View (a chart, or a text box / header / KPI / map /
->       etc.), and the "widget library" becomes the **View library**. Rename all USER-FACING occurrences
->       (UI strings, inspector labels, "save to View library", per-view download, help docs, tour + marketing
->       copy). KEEP internal identifiers (panel/widget vars, spec keys, exported-HTML classes) where a change
->       would risk export byte-identity or need a data migration — this is DISPLAY terminology, not a
->       data-model rename; call out any storage/spec keys that must stay. Reconcile #29 → "Views as
->       first-class objects" / a View library rail item. Add a ratchet that no user-facing "widget" survives
->       where "View" is intended. (app/*.js strings, docs/index.html, index.html, tour/welcome copy.)
+> LF52. **TERMINOLOGY — "widget" AND "analysis" → "View" app-wide (Kevin decided 2026-07-27).** "Widget" is
+>       too technical; the standard term is a **View** (a chart, text box, header, KPI, map, etc.); the
+>       "widget library" becomes the **View library**. This ALSO covers "analysis"/"analyses" — a saved
+>       Explore analysis IS a saved View (Kevin, Explore screenshot). Rename USER-FACING: widget→View AND
+>       analysis/analyses→View/Views (Explore "save as an analysis"→"…as a View", "SAVED ANALYSES"→"Saved
+>       Views", "Name Analysis"→"Name View", "Update analysis"→"Update View", inspector labels, "save to
+>       View library", per-view download, help/tour/marketing copy). KEEP internal identifiers (panel/widget/
+>       analysis vars, spec/storage keys like the `analyses` table, exported-HTML classes) where a change
+>       risks export byte-identity or a migration — DISPLAY terminology only; call out keys that must stay.
+>       Reconcile #29 → "Views as first-class objects" (the Views rail item is LF57). Ratchet: no user-facing
+>       "widget" or "analysis" survives where "View" is intended. (app/*.js strings, explore.js save bar,
+>       docs/index.html, index.html, tour/welcome copy.)
+> LF57. **"Views" RAIL ITEM — a top-level workspace section for saved Views, full navigation (Kevin, live
+>       2026-07-27).** Add a **Views** section to the rail (under Workspace, alongside Datasets/Connections/
+>       Repository) to browse/manage saved Views (the reusable charts/text/KPI/map objects built in Explore).
+>       It gets the COMPLETE treatment the other sections get: list + rich thumbnail-tile views (LF51), the
+>       reusable folder picker/tree (LF56), full names, right-aligned pills, date-time, filter/search, and
+>       per-object actions (open/edit in Explore, pin to Home, add to dashboard, duplicate, export, make
+>       standalone, delete). Concrete realization of #29 (Explore = simple View builder; Repository = advanced
+>       cross-object manager; Views = the dedicated browse/manage section). Reuses the LF51/LF56 component set.
+>       (index.html rail + a renderViews() section over the existing analyses store.) Ties #29, LF51, LF56, LF52.
 > LF53. **Purge legacy "CDF"/"CDE" terminology (Kevin, live 2026-07-27) — not supported.** The Pentaho-era
 >       CDF (Community Dashboard Framework) / CDE terms are legacy and should be GONE: user-facing export
 >       labels/strings, help/marketing copy, and internal identifiers where safe (`Studio.exportCDF` → a
