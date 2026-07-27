@@ -4602,6 +4602,14 @@
 >       data-model rename; call out any storage/spec keys that must stay. Reconcile #29 → "Views as
 >       first-class objects" / a View library rail item. Add a ratchet that no user-facing "widget" survives
 >       where "View" is intended. (app/*.js strings, docs/index.html, index.html, tour/welcome copy.)
+> LF53. **Purge legacy "CDF"/"CDE" terminology (Kevin, live 2026-07-27) — not supported.** The Pentaho-era
+>       CDF (Community Dashboard Framework) / CDE terms are legacy and should be GONE: user-facing export
+>       labels/strings, help/marketing copy, and internal identifiers where safe (`Studio.exportCDF` → a
+>       neutral `exportDashboard`/`exportHtml`, the "cde export contract" naming, cdf/cde comments). Flag +
+>       keep any exported-HTML CSS class or spec/storage key whose rename would break byte-identity or need a
+>       migration — but the visible layer reads "dashboard export", never CDF/CDE. Ratchet: no user-facing
+>       CDF/CDE string remains. (app/exporters.js, studio.js export menu + exportCDF callers, docs, tests.)
+>       Ties LF49, LF36.
 > LF34. ✓ **Style presets "+ Save as preset" button — small UI issue (shipped v551, sw v188,
 >       2026-07-25, steward) — see DONE.** No repro was needed in the end: screenshotting the
 >       real card at desktop/tablet widths showed the input+button row spilling ~44px past the
