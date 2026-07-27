@@ -133,7 +133,9 @@
       host.appendChild(p);
     }
     ov.appendChild(host);
-    setTimeout(function () { if (host.parentNode) host.parentNode.removeChild(host); }, 2200);
+    // Generous cleanup delay (well past every piece's own fall animation, which finishes
+    // under 2s) so a busy machine/test runner has margin before this DOM cleanup fires.
+    setTimeout(function () { if (host.parentNode) host.parentNode.removeChild(host); }, 6000);
   }
 
   function renderHero() {

@@ -116,7 +116,7 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
-- **LF40 slice 1 — animated welcome hero screen (v631, sw v268, 2026-07-27, steward — step 3 of
+- **LF40 slice 1 — animated welcome hero screen (v632, sw v269, 2026-07-27, steward — step 3 of
   the LOCKED BUILD ORDER):** the welcome tour (first sign-in, ⋯ More → Tour, Settings → Tour) now
   opens on a new HERO screen instead of dropping straight into the old 5-step carousel. The hero:
   fires a theme-colored confetti entrance (new `heroConfetti()`, colors pulled from
@@ -133,7 +133,9 @@
   (a locally-stored display name). 9 new/rewritten regression checks (hero content + confetti +
   quick-action section jump + quick-tour hand-off + back-to-hero + greet-by-name + a focus-trap
   check rewritten to compute the true first/last focusable instead of assuming the old carousel's
-  control order). Full suite green (2382/2382). SW cache → v268. Files: app/welcome.js, tests/run.js,
+  control order). Full suite green (2386/2386, re-run twice clean — the confetti host's cleanup
+  timer was bumped 2200ms→6000ms after one run flaked at 0 pieces under the full suite's load,
+  well past its own particles' <2s fall animation either way). SW cache → v269. Files: app/welcome.js, tests/run.js,
   js/changelog.js, sw.js, docs/index.html. Deliberately NOT in this slice (left for a follow-up):
   the sample-pack-aware tour content (an installed pack's dashboards/connections framed as "curated"
   segments) and the Conservation-pack choropleth/watershed tour content Kevin called out — those need
@@ -143,6 +145,23 @@
   or the sample-pack-aware follow-up to this slice, or LF43 slice 2 (drop Examples) — any is a
   reasonable next unit; the LIVE-QA QUEUE (LF61-70) also has fresh bug/cleanup-class items to slot
   in ahead of the flashier remaining work.
+- **Sign-in polish: password reveal toggle + trimmed demo copy (#102/#105, v631, sw v268,
+  2026-07-27, steward):** two small login-screen items Kevin raised during live QA. #102 —
+  "include that eye show hidden there also": the sign-in password (`#g-pass`) now carries the same
+  eye/eye-off reveal toggle as every masked field inside the app (LF38's `withRevealToggle`).
+  gate.js runs before studio.js and is self-contained, so it can't reuse `Studio.icon` — the same
+  eye glyph (app/icons.js) is inlined as a gate-local SVG, and a `#g-pw-toggle` button flips the
+  input's `type` + `aria-pressed`/`aria-label` + the icon (slashed when revealed), keeping the typed
+  value. The `.g-pw` wrapper carries the input's bottom margin so the button centers on the input,
+  not the gap below it. #105 — "i dont like this demo language ... make that really small ... tied
+  to Local": the boxed "This is a demo build …" callout is gone, replaced by a small muted one-liner
+  ("Demo account demo / demo — a local sample workspace, not the Polecat backend"), and `.g-hint`
+  restyled from the brand-tinted box to small centered muted text (the connect-workspace flow still
+  swaps it to "Connected …"). Tests: password starts masked with the toggle in its unrevealed aria
+  state, clicking reveals (type=text, aria-pressed=true, slashed glyph) without losing the value,
+  clicking again re-masks; the hint no longer says "demo build" and names demo/demo + local. Also
+  docs/index.html's Help now lists the sign-in screen among the eye-toggle fields. Files:
+  app/gate.js, tests/run.js, docs/index.html, sw.js, js/changelog.js.
 - **LF41 slice 2 — "Copy my current Dashboard defaults" onto a new user (v630, sw v267,
   2026-07-27, steward — step 2 of the LOCKED BUILD ORDER):** LF41 slice 1 (shipped earlier
   2026-07-27) provisioned a new account's theme + sample pack at first sign-in; the "rest
@@ -172,6 +191,22 @@
   only if a future run wants it. NEXT per the LOCKED BUILD ORDER: step 3, LF40 (animated
   welcome + home tour, sample-pack-aware) — step 2 ("Dave"-demo ingredients: LF41 → LF42) is
   now fully done.
+- **Sign-in polish: password reveal toggle + trimmed demo copy (#102/#105, v630, sw v267,
+  2026-07-27, steward):** two small login-screen items Kevin raised during live QA. #102 —
+  "include that eye show hidden there also": the sign-in password (`#g-pass`) now carries the same
+  eye/eye-off reveal toggle as every masked field inside the app (LF38's `withRevealToggle`).
+  gate.js runs before studio.js and is self-contained, so it can't reuse `Studio.icon` — the same
+  eye glyph (app/icons.js) is inlined as a gate-local SVG, and a `#g-pw-toggle` button flips the
+  input's `type` + `aria-pressed`/`aria-label` + the icon (slashed when revealed), keeping the typed
+  value. The `.g-pw` wrapper carries the input's bottom margin so the button centers on the input,
+  not the gap below it. #105 — "i dont like this demo language ... make that really small ... tied
+  to Local": the boxed "This is a demo build …" callout is gone, replaced by a small muted one-liner
+  ("Demo account demo / demo — a local sample workspace, not the Polecat backend"), and `.g-hint`
+  restyled from the brand-tinted box to small centered muted text (the connect-workspace flow still
+  swaps it to "Connected …"). Tests: password starts masked with the toggle in its unrevealed aria
+  state, clicking reveals (type=text, aria-pressed=true, slashed glyph) without losing the value,
+  clicking again re-masks; the hint no longer says "demo build" and names demo/demo + local. Files:
+  app/gate.js, tests/run.js, sw.js, js/changelog.js.
 - **Panel zoom fills the window + Exit always closes it (#109/#110, v629, sw v266, 2026-07-27,
   steward):** Kevin: "this zoom panel full screen did not resize the panel to full screen ... it
   should fill the full window ... kind of like preview mode" (#109) and "the exit zoom button did

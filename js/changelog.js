@@ -6,14 +6,24 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
-    v: 631,
+    v: 632,
     title: 'The welcome tour opens with a new animated hero screen',
     kind: 'feature',
-    ts: '2026-07-27T23:02:37.000Z',
+    ts: '2026-07-27T23:12:43.000Z',
     items: [
       'Opening the welcome tour (first sign-in, the More menu, or Settings -> Tour) now lands on a hero screen first: a theme-colored confetti entrance, a greeting that uses your name when you are signed in as a real user, and a choice between "Take a quick tour" (the existing step-by-step carousel) and "Take the guided tour" (the spotlighted walkthrough of the real app) on the same menu.',
       'The hero also offers three quick-action shortcuts -- Explore data, Build a dashboard, Bring your data -- that jump straight to that section.',
       'The step carousel\'s Back button now goes all the way back to the hero screen from its first step, instead of stopping there.',
+    ],
+  },
+  {
+    v: 631,
+    title: 'The sign-in password now has a show/hide toggle, and the login screen is tidier',
+    kind: 'polish',
+    ts: '2026-07-27T22:57:13.000Z',
+    items: [
+      'The password box on the sign-in screen now has an eye button to show or hide what you typed -- the same reveal toggle the rest of the app already uses on saved credentials.',
+      'Trimmed the demo blurb: the "demo build" paragraph is gone, replaced by a small note that demo / demo is a local sample workspace (not the Polecat backend).',
     ],
   },
   {

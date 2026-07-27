@@ -15,6 +15,17 @@
 (function () {
   "use strict";
   var Auth = window.PolecatAuth;
+  // LF38/#102: the sign-in password gets the same eye/eye-off reveal toggle as every
+  // masked field inside the app (studio.js withRevealToggle). gate.js runs before
+  // studio.js and is self-contained, so it can't reuse Studio.icon — inline the same
+  // eye glyph (app/icons.js) here. eye-off is the same glyph with a slash.
+  function eyeSvg(off) {
+    return '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" ' +
+      'stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+      '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>' +
+      (off ? '<line x1="2" y1="2" x2="22" y2="22"/>' : '') + '</svg>';
+  }
+  var EYE = eyeSvg(false);
   function reveal() { var a = document.getElementById("app"); if (a) a.style.visibility = ""; var g = document.getElementById("studio-gate"); if (g) g.remove(); }
   // The app boots behind this overlay, so its identity-dependent boot steps (user
   // mirror + demo-content auto-install) ran while nobody was signed in. Re-run
@@ -55,13 +66,22 @@
       "#studio-gate label{display:block;text-align:left;font-size:11.5px;font-weight:700;color:var(--muted,#5d6b82);margin:0 0 4px}" +
       "#studio-gate input{width:100%;padding:11px 13px;border:1px solid var(--line,#c8d2df);border-radius:9px;font-size:14px;outline:none;margin-bottom:12px;background:var(--field,#fff);color:var(--ink,#16233b)}" +
       "#studio-gate input:focus{border-color:var(--brand,#005bb5)}" +
+      // #102: the password field's reveal (eye) toggle — wrapper carries the input's
+      // bottom margin so the button centers on the input itself, not the gap below it.
+      "#studio-gate .g-pw{position:relative;margin-bottom:12px}" +
+      "#studio-gate .g-pw input{margin-bottom:0;padding-right:42px}" +
+      "#studio-gate .g-pw-btn{position:absolute;right:5px;top:50%;transform:translateY(-50%);width:32px;height:32px;min-width:0;padding:0;margin:0;background:transparent;border:0;border-radius:7px;display:flex;align-items:center;justify-content:center;color:var(--faint,#8a97ab);cursor:pointer}" +
+      "#studio-gate .g-pw-btn:hover{background:color-mix(in srgb,var(--brand,#005bb5) 10%,transparent);color:var(--brand,#005bb5)}" +
+      "#studio-gate .g-pw-btn:focus-visible{outline:2px solid var(--brand,#005bb5);outline-offset:1px}" +
       "#studio-gate button{width:100%;padding:11px;border:0;border-radius:9px;background:var(--pdc,#7d3c98);color:#fff;font-size:14px;font-weight:700;cursor:pointer}" +
       "#studio-gate button:hover{background:color-mix(in srgb,var(--pdc,#7d3c98) 85%,white)}" +
       "#studio-gate .g-demo{margin-top:10px;background:transparent;color:var(--brand,#005bb5);border:1px solid var(--line,#c8d2df)!important}" +
       "#studio-gate .g-demo:hover{background:color-mix(in srgb,var(--brand,#005bb5) 8%,transparent)}" +
       "#studio-gate .g-or{font-size:11px;color:var(--faint,#8a97ab);margin:12px 0 2px;text-transform:uppercase;letter-spacing:.06em}" +
-      "#studio-gate .g-hint{margin-top:16px;padding:10px 12px;border-radius:9px;background:color-mix(in srgb,var(--brand,#005bb5) 8%,transparent);border:1px solid var(--line,#c8d2df);font-size:12px;color:var(--muted,#5d6b82);text-align:left}" +
-      "#studio-gate .g-hint b{color:var(--ink,#16233b)}#studio-gate .g-hint code{font-family:ui-monospace,Menlo,monospace;background:var(--field,#fff);padding:1px 5px;border-radius:5px;color:var(--ink,#16233b)}" +
+      // #105: the demo hint is a small muted one-liner now (Kevin: kill the "demo build"
+      // block, make it "really small" and tied to the Local workspace) — not a boxed callout.
+      "#studio-gate .g-hint{margin-top:14px;font-size:11.5px;line-height:1.55;color:var(--faint,#8a97ab);text-align:center}" +
+      "#studio-gate .g-hint b{color:var(--muted,#5d6b82)}#studio-gate .g-hint code{font-family:ui-monospace,Menlo,monospace;background:var(--field,#fff);border:1px solid var(--line,#c8d2df);padding:1px 5px;border-radius:5px;color:var(--muted,#5d6b82)}" +
       "#studio-gate .g-err{color:var(--bad,#d63a5e);font-size:12.5px;height:16px;margin-top:8px}" +
       "#studio-gate .g-note{color:var(--faint,#8a97ab);font-size:11px;margin-top:14px}" +
       "#studio-gate .g-connect{margin-top:10px;background:transparent;border:0;color:var(--faint,#8a97ab);font-size:12px;text-decoration:underline;cursor:pointer;padding:4px}" +
@@ -80,17 +100,34 @@
       '<label for="g-user">Username</label>' +
       '<input type="text" id="g-user" placeholder="username" autocomplete="username" autocapitalize="off" spellcheck="false"/>' +
       '<label for="g-pass">Password</label>' +
+      '<div class="g-pw">' +
       '<input type="password" id="g-pass" placeholder="password" autocomplete="current-password"/>' +
+      '<button type="button" class="g-pw-btn" id="g-pw-toggle" aria-label="Show password" aria-pressed="false">' + EYE + '</button>' +
+      '</div>' +
       '<button type="submit">Sign in</button></form>' +
       '<div class="g-or">or</div>' +
       '<button type="button" class="g-demo" id="g-demo">Explore the demo</button>' +
       '<div class="g-err" id="g-err"></div>' +
-      '<div class="g-hint" id="g-hint">This is a demo build. Sign in with the built-in demo account — <b>username</b> <code>demo</code>, <b>password</b> <code>demo</code> — or just click <b>Explore the demo</b> to jump straight in with a ready-made sample workspace.</div>' +
+      '<div class="g-hint" id="g-hint">Demo account <code>demo</code> / <code>demo</code> — a local sample workspace, not the Polecat backend.</div>' +
       '<button type="button" class="g-connect" id="g-connect">Connect to your workspace…</button>' +
       '<div class="g-note">analytics.polecat.live</div></div>';
     document.body.appendChild(ov);
 
     var userInp = document.getElementById("g-user"); if (userInp) userInp.focus();
+
+    // #102: password reveal (eye) toggle — mirrors studio.js withRevealToggle (flip the
+    // input's type, keep aria-pressed/aria-label + the icon in sync).
+    var pwInp = document.getElementById("g-pass");
+    var pwToggle = document.getElementById("g-pw-toggle");
+    if (pwInp && pwToggle) pwToggle.addEventListener("click", function () {
+      var show = pwInp.type === "password";
+      pwInp.type = show ? "text" : "password";
+      pwToggle.setAttribute("aria-pressed", String(show));
+      pwToggle.setAttribute("aria-label", show ? "Hide password" : "Show password");
+      pwToggle.innerHTML = eyeSvg(show);
+      pwInp.focus();
+    });
+
     function setErr(msg) { document.getElementById("g-err").textContent = msg || ""; }
     function fail(msg) {
       setErr(msg || "Incorrect username or password.");

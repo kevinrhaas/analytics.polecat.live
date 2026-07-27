@@ -10168,6 +10168,33 @@ function serve() {
       appHidden: document.getElementById("app").style.visibility === "hidden" }));
     ok("sign-in blocks the app on first load — a username/password login with an 'Explore the demo' path",
       gated.overlay && gated.hasUser && gated.hasDemo && gated.appHidden, JSON.stringify(gated));
+
+    // #102: the sign-in password gets the same eye/eye-off reveal toggle as every masked
+    // field in the app (LF38). Type a value, flip it visible, flip it back — the value survives.
+    await gp.fill("#g-pass", "hunter2");
+    const g102Before = await gp.evaluate(() => {
+      var inp = document.getElementById("g-pass"), btn = document.getElementById("g-pw-toggle");
+      return { hasBtn: !!btn, type: inp.type, pressed: btn && btn.getAttribute("aria-pressed"), label: btn && btn.getAttribute("aria-label") };
+    });
+    ok("#102: sign-in password starts masked with an eye reveal toggle (aria unrevealed)",
+      g102Before.hasBtn && g102Before.type === "password" && g102Before.pressed === "false" && /Show password/.test(g102Before.label), JSON.stringify(g102Before));
+    await gp.click("#g-pw-toggle");
+    const g102After = await gp.evaluate(() => {
+      var inp = document.getElementById("g-pass"), btn = document.getElementById("g-pw-toggle");
+      return { type: inp.type, pressed: btn.getAttribute("aria-pressed"), label: btn.getAttribute("aria-label"), val: inp.value, slashed: !!btn.querySelector("line") };
+    });
+    ok("#102: clicking the eye reveals the password (type=text, aria-pressed=true, slashed glyph) without losing the typed value",
+      g102After.type === "text" && g102After.pressed === "true" && /Hide password/.test(g102After.label) && g102After.val === "hunter2" && g102After.slashed, JSON.stringify(g102After));
+    await gp.click("#g-pw-toggle");
+    const g102Remask = await gp.evaluate(() => document.getElementById("g-pass").type);
+    ok("#102: clicking the eye again re-masks the password (type=password)", g102Remask === "password", g102Remask);
+
+    // #105: the demo hint is a small line tied to the local workspace, not the old "demo build" callout.
+    const g105Hint = await gp.evaluate(() => document.getElementById("g-hint").textContent || "");
+    ok("#105: sign-in hint drops the 'demo build' block for a small demo/demo line tied to the local workspace",
+      !/demo build/i.test(g105Hint) && /demo/i.test(g105Hint) && /local/i.test(g105Hint), g105Hint);
+    await gp.fill("#g-pass", ""); // reset before the real sign-in flow below
+
     await gp.fill("#g-user", "demo"); await gp.fill("#g-pass", "wrong"); await gp.click("#g-form button[type=submit]"); await gp.waitForTimeout(200);
     ok("wrong password is rejected", await gp.evaluate(() => !!document.querySelector("#studio-gate")));
     await gp.fill("#g-pass", "demo"); await gp.click("#g-form button[type=submit]"); await gp.waitForTimeout(400);
