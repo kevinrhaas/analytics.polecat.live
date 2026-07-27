@@ -5,7 +5,10 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v268"; /* v268: sign-in polish — the password field gets the eye/eye-off
+var CACHE_NAME = "studio-shell-v269"; /* v269: Home's "Welcome back" greeting now personalizes to the
+   signed-in account's display name, and the seeded demo account is renamed "Demonstration User" (#108).
+   app/studio.js + app/auth.js changed, so precached copies roll.
+   v268: sign-in polish — the password field gets the eye/eye-off
    reveal toggle (matching every masked field in the app), and the demo hint is a small muted demo/demo
    line tied to the Local workspace instead of the old "demo build" callout (#102/#105). app/gate.js
    changed, so precached copies roll.

@@ -5015,6 +5015,15 @@
     var Auth = window.PolecatAuth, me = Auth && Auth.current();
     return !Auth || !me || me.role === "admin";
   }
+  // #108: the signed-in account's display name, for the Home greeting. The synthetic
+  // "local" operator (no real sign-in / the test gate bypass) has no personal name to
+  // greet, so return "" there and let the greeting stay un-personalized.
+  function currentUserName() {
+    var Auth = window.PolecatAuth, me = Auth && Auth.current();
+    if (!me || me.u === "local") return "";
+    return me.name || me.u || "";
+  }
+  window.__studioCurrentUserName = currentUserName; // test hook
   // LF23 slice 2: the canDevelop() gate — same "no auth loaded / no signed-in
   // account defaults permissive" convention as currentUserIsAdmin above. Backs
   // both the Studio rail item's role gating (shell.js) and openRecent()'s
@@ -5524,8 +5533,9 @@
       .filter(function (c) {
         return currentUserCanDevelop() || ["blank", "quickimport", "examples", "tour"].indexOf(c.act) < 0;
       });
+    var meName = currentUserName();
     var html = '<div class="home-wrap">' +
-      '<div class="home-hero"><h1>Welcome back</h1><p>Pick up a recent dashboard, or start something new.</p></div>' +
+      '<div class="home-hero"><h1>Welcome back' + (meName ? ', ' + esc(meName) : '') + '</h1><p>Pick up a recent dashboard, or start something new.</p></div>' +
       '<div class="home-quick">' + cards.map(function (c) {
         return '<button class="home-card" data-home="' + c.act + '"><span class="home-card-ic" data-ic="' + c.ic + '"></span>' +
           '<div><b>' + esc(c.t) + '</b><small>' + esc(c.d) + '</small></div></button>';
@@ -7541,6 +7551,10 @@
     // re-applies rail role-gating so the Admin item shows/hides correctly.
     try { renderSettings(); } catch (e) {}
     try { renderAdmin(); } catch (e) {}
+    // #108: Home's greeting personalizes to the signed-in account's display name, so it's
+    // identity-dependent now too — repaint it here (the app boots behind the sign-in overlay
+    // with no identity, so the first render showed the un-personalized "Welcome back").
+    try { renderHome(); } catch (e) {}
     try { if (window.__studioShellApplyRoleGating) window.__studioShellApplyRoleGating(); } catch (e) {}
   }
   // The app boots (behind the sign-in overlay) BEFORE you actually sign in, so

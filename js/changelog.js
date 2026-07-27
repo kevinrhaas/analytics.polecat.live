@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 632,
+    title: 'Home greets you by name',
+    kind: 'polish',
+    ts: '2026-07-27T23:15:47.000Z',
+    items: [
+      'The Home screen\'s "Welcome back" now includes your account\'s display name, e.g. "Welcome back, Administrator".',
+      'Renamed the built-in demo account from "Demo user" to "Demonstration User".',
+    ],
+  },
+  {
     v: 631,
     title: 'The sign-in password now has a show/hide toggle, and the login screen is tidier',
     kind: 'polish',
