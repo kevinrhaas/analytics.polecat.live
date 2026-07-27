@@ -116,6 +116,32 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **Track N — N-DESIGN chart skins: a third Card style, "Sketch / hand-drawn" (v607, sw v244,
+  2026-07-27, steward):** v606's own NEXT pointer named Track N as most overdue (last ran v604,
+  vs Track L at v605 and Track H just done at v606). Read the whole N-* backlog (N-AI/N-FUN/
+  N-DATA/N-DIST/N-DESIGN/N-DEV) top to bottom per that section's own convention; the two
+  genuinely-open, unblocked candidates were both flagged in earlier NEXT pointers as "a larger,
+  separate design" (the "across every panel" half of period-comparison, and a true
+  whole-dashboard PNG needing a new non-SVG-chrome technique after the v300 foreignObject route
+  was confirmed a Chromium canvas-taint dead end) — too big for one slice. Chose the smaller,
+  fully-scoped item instead: N-DESIGN's chart-skins track (v293/v303) explicitly left "further
+  alternate chart-skin moods (hand-drawn/sketch) beyond Raised/Flat" open. Added a third
+  `Studio.CARD_SKINS` entry, `"sketch"` — the exporters.js `cardSkinCss` override swaps the
+  panel shadow for a `2px dashed` border and a wobbled, asymmetric border-radius (`18px 7px 18px
+  7px/7px 18px 7px 18px`) on `.card`/`.kpi`, same additive-CSS-override architecture as Flat, so
+  it applies uniformly to the live preview and every export with zero extra plumbing (the
+  Settings default Card style picker and saved style presets are both driven generically off
+  `Studio.CARD_SKINS`, so they picked it up for free). 6 new regression tests (picking it sets
+  `spec.cardSkin` and emits the matching CSS override; survives a reopen through `normalize()`;
+  clearing back to Raised removes it). `docs/index.html` and the Settings default-card-style
+  description updated. SW cache → v244. Full suite green. (app/model.js, app/exporters.js,
+  app/studio.js, docs/index.html, sw.js, js/changelog.js, tests/run.js) NEXT: continuing the
+  Track H/L/N self-directed rotation (Track L last at v605, Track H at v606) is a good next
+  slice while the findings queue stays thin; the still-open "true whole-dashboard PNG" half of
+  the N-DIST PNG/PDF export idea and the "across every panel" half of the period-comparison
+  feature (both noted by earlier NEXT pointers) remain open for future slices, as does further
+  N-DESIGN moods (e.g. depth/glass beyond the existing skins) if a smaller-scoped angle on either
+  emerges.
 - **Track H sweep — data source rail's Duplicate/Delete buttons now name their target on hover,
   not just to a screen reader (v606, sw v243, 2026-07-27, steward):** v605's own NEXT pointer
   named Track H as most overdue (last ran v603, vs Track N at v604 and Track L just done at
@@ -8896,6 +8922,10 @@ gets covered over time:
 > cards/KPIs share — floating surfaces now visibly out-elevate a merely-hovered panel. 2 new tests,
 > suite 1335/1335. **Still open:** further alternate chart-skin moods (hand-drawn/sketch) beyond
 > Raised/Flat.
+> ✓ **"Sketch / hand-drawn" chart skin shipped v607 (2026-07-27, steward — closes that "still
+> open" item; N-DESIGN chart-skins track now feature-complete)**: see DONE for the full writeup.
+> A third `Studio.CARD_SKINS` entry swaps the panel shadow for a dashed border + wobbled
+> asymmetric radius, same additive-CSS-override architecture as Flat.
 > ✓ **"High Contrast" dashboard theme shipped v334 (first of the "a few stunning presets" idea —
 > theme studio/gallery item)**: a third `Studio.DASHBOARD_THEMES` entry alongside Classic Pentaho
 > Blue/Fleet Modern — true black/white extremes (not just a darker blue): `#ffffff` bg + solid

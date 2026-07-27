@@ -7264,7 +7264,7 @@
             Studio.DASHBOARD_THEMES.map(function (p) { return '<option value="' + esc(p.key) + '"' + ((defaultDashboardTheme() || "classic") === p.key ? " selected" : "") + '>' + esc(p.label) + '</option>'; }).join("") +
           '</select></div>' +
         '<div class="set-row"><span class="set-row-ic" data-ic="layers"></span>' +
-          '<div class="set-row-txt"><b>Default card style</b><small>Seeds every new blank dashboard\'s Card style field (per-dashboard editable there) — Flat drops the shadow/hover-lift on every chart card and KPI tile for a quieter, editorial look.</small></div>' +
+          '<div class="set-row-txt"><b>Default card style</b><small>Seeds every new blank dashboard\'s Card style field (per-dashboard editable there) — Flat drops the shadow/hover-lift for a quieter, editorial look; Sketch swaps it for a dashed, hand-drawn border.</small></div>' +
           '<select id="setDefaultCardSkinSel" class="set-sel">' +
             Studio.CARD_SKINS.map(function (p) { return '<option value="' + esc(p[0]) + '"' + (defaultCardSkin() === p[0] ? " selected" : "") + '>' + esc(p[1]) + '</option>'; }).join("") +
           '</select></div>' +

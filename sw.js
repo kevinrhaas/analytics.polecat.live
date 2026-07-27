@@ -5,7 +5,10 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v243"; /* v243: Track H sweep — myDACard's Duplicate/Delete
+var CACHE_NAME = "studio-shell-v244"; /* v244: N-DESIGN follow-up — a third Card style,
+   "Sketch / hand-drawn" (dashed border + wobbled asymmetric radius), alongside Raised/Flat.
+   app/model.js, app/exporters.js, app/studio.js changed, so precached copies need to roll.
+   v243: Track H sweep — myDACard's Duplicate/Delete
    buttons' hover title (not just their aria-label) now names the data source too, so a sighted
    mouse user with several data accesses can tell rows apart. app/studio.js changed, so
    precached copies need to roll.

@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 607,
+    title: 'N-DESIGN follow-up: a third Card style, Sketch / hand-drawn',
+    kind: 'feature',
+    ts: '2026-07-27T08:03:39.000Z',
+    items: [
+      'The Card style picker (Dashboard inspector, below Subtitle style) gains a third option alongside Raised and Flat: Sketch / hand-drawn swaps the panel shadow for a dashed border and a wobbled, asymmetric corner radius for a whimsical mood.',
+      'Same additive-CSS-override architecture as Flat -- applies uniformly to the live preview and every export, and is picked up by the Settings default Card style picker and saved style presets with no extra wiring.',
+    ],
+  },
+  {
     v: 606,
     title: 'Track H sweep: the data source rail\'s Duplicate/Delete buttons now name their target on hover, not just to a screen reader',
     kind: 'fix',
