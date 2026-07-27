@@ -116,6 +116,38 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF43 slice 1 — sample-pack dashboards now materialize into Dashboards, not just the Examples
+  gallery (v616, sw v253, 2026-07-27, steward — next fast bug win in the LOCKED BUILD ORDER after
+  LF44):** the reported bug — "installed sample packs show but their dashboards don't appear in
+  the Dashboards screen" — traced to `data/examples/index.json` entries tagged `demoPackId`
+  (a pack's showcase dashboards) only ever being gated INTO the Examples ▾ gallery
+  (`visibleExamples()`); no code path ever wrote them into the workspace `dashboards` table the
+  Dashboards screen actually reads. Added `ensurePackExamplesMaterialized(id)` (app/studio.js,
+  called from `toggleDemoPack`'s install branch, the real Settings/Library UI path): fetches
+  every gallery entry tagged with the JUST-installed pack's id, normalizes each spec the same way
+  `loadExample()` does, and writes it as a real `dashboards` row tagged `demoPackId` + a new
+  `sourceFile` field (idempotency key, so re-running it never duplicates rows). Installing
+  Conservation Insight now surfaces all 9 of its dashboards (the 1 hand-built featured one +
+  8 previously-gallery-only showcases); installing/reinstalling Data Management & Governance
+  surfaces its 8. Removal needed NO changes — `removeDemoPack`'s existing `demoPackId` sweep
+  already deletes every tagged `dashboards` row regardless of who wrote it, and the existing
+  read-only Save-as protection (any `demoPackId`-tagged dashboard) covers the new rows for free.
+  **Deliberately scoped to the single pack being installed, NOT "every currently-installed
+  pack"**: `datamanagement` is installed BY DEFAULT for every fresh workspace (no explicit
+  install click ever fires for it), so a scan-all version would have materialized its 8
+  dashboards as an incidental side effect of installing ANY other pack — caught by a new
+  regression-guard test before merge, after the first draft of this fix did exactly that.
+  6 new regression tests: the real Settings-UI install path materializes the right 8 example
+  files (verified via `page.waitForFunction`, not just a raw API hook) + the 1 hand-built one;
+  they render as real cards in Dashboards; re-running materialization is idempotent; the
+  no-side-effect-on-other-packs regression guard; removal deletes them all again. Full suite
+  green, 2322/2322. docs/index.html's Sample packs section updated to describe the new
+  Dashboards-screen behavior. SW cache → v253. (app/studio.js, app/demopacks.js,
+  docs/index.html, sw.js, js/changelog.js, tests/run.js) NEXT: LF43 slice 2 — drop the
+  "Examples" naming and remove Studio's Examples ▾ menu/button now that a pack's dashboards
+  live in Dashboards directly (a bigger UI-surface change: the gallery/menu is referenced by
+  ~20 existing tests and Home's "Browse examples" quick action, so budget a dedicated slice
+  for it) — is next in the LOCKED BUILD ORDER's fast-bug-wins step, then LF50.
 - **LF44 — role gating: Home's dead-click Studio shortcuts hidden from viewers (v615, sw v252,
   2026-07-27, steward — first fast bug win in the LOCKED BUILD ORDER, LF44 is now fully done):**
   the ticket read as a rail/section gating bug, but shell.js's `applyRoleGating` (Admin/Studio rail
@@ -4649,12 +4681,16 @@
 >       (1) admin manages a backend list; (2) per-user active-backend assignment; (3) consolidated config
 >       UI; (future) servers. (New Admin "Backends" surface, per-user backend on the user record,
 >       app/sources/*, workspace-backend card, gate.js connect.) Ties M7, LF39, LF41.
-> LF43. **BUG/cleanup — sample-pack dashboards must show in Dashboards; drop "Examples"; remove Studio's
->       Examples button.** Logged in as demo, installed sample packs show but their dashboards don't appear
->       in the Dashboards screen. A pack's "examples" are just its curated dashboards — surface them as real
->       dashboards when the pack is installed, DROP the "Examples" naming, and REMOVE the messy Studio
->       Examples menu/button. (demopacks.js, studio.js renderDashboards()/renderHome(), the Studio Examples
->       menu, data/examples.) Ties #38/#48/LF16, LF18. Verify with the demo account.
+> LF43. **slice 1 ✓ / slice 2 open — BUG/cleanup — sample-pack dashboards must show in Dashboards;
+>       drop "Examples"; remove Studio's Examples button.** Logged in as demo, installed sample
+>       packs show but their dashboards don't appear in the Dashboards screen. A pack's "examples"
+>       are just its curated dashboards — surface them as real dashboards when the pack is
+>       installed (slice 1, shipped v616, sw v253, 2026-07-27, steward — see DONE), DROP the
+>       "Examples" naming, and REMOVE the messy Studio Examples menu/button (slice 2, still open —
+>       a bigger UI-surface change touching ~20 existing tests + Home's "Browse examples" quick
+>       action, budget a dedicated slice). (demopacks.js, studio.js renderDashboards()/
+>       renderHome(), the Studio Examples menu, data/examples.) Ties #38/#48/LF16, LF18. Verify
+>       with the demo account.
 > LF44. ✓ **BUG — role gating: hide Admin + Studio from non-admins/viewers (shipped v615, sw v252,
 >       2026-07-27, steward) — see DONE.** The rail/section gating (shell.js applyRoleGating,
 >       studio.js CONFIGURABLE_SECTIONS) and the Studio boot-time gate (enterStudio) were already

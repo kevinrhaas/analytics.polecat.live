@@ -48,20 +48,24 @@
     // LF2(c)/LF16: the pre-existing generic showcase gallery (governance, platform ops,
     // delivery, finance, marketing, reliability, compliance, feature tour) folded into a
     // toggleable pack the same way Conservation Insight is one — kind:"examples" (below)
-    // means Install/Remove only shows/hides gallery entries; no workspace rows are written
-    // or deleted, unlike the "workspace" kind. Gated examples are tagged demoPackId:
-    // "datamanagement" in data/examples/index.json.
+    // means installDemoPack/removeDemoPack here only flip the installed flag (no synthetic
+    // connections/datasets/jobs of their own, unlike the "workspace" kind). Gated examples
+    // are tagged demoPackId:"datamanagement" in data/examples/index.json; LF43's
+    // ensurePackExamplesMaterialized (app/studio.js) is what turns an install into real
+    // workspace "dashboards" rows (so they show in Dashboards, not just the Examples ▾
+    // gallery) and removeDemoPack's demoPackId sweep below cleans those up again.
     datamanagement: {
       id: "datamanagement",
       kind: "examples",
       name: "Data Management & Governance — showcase gallery",
       tagline: "8 generic showcase dashboards: governance, platform ops, delivery, finance, marketing, reliability, compliance, feature tour",
-      blurb: "Toggles the built-in generic showcase dashboards in the Examples ▾ gallery — governance, " +
-        "platform ops, product delivery, finance, marketing, incident response, compliance, and the " +
-        "interactive feature tour. Unlike Conservation Insight, this pack adds no workspace " +
-        "connections, datasets, or jobs — Remove just hides those gallery entries again, nothing is " +
-        "deleted. Installed by default so the gallery looks the same as it always has; turn it off to " +
-        "keep a pitch focused on Conservation Insight alone."
+      blurb: "Toggles the built-in generic showcase dashboards — governance, platform ops, product " +
+        "delivery, finance, marketing, incident response, compliance, and the interactive feature " +
+        "tour — into your Dashboards screen and the Examples ▾ gallery. Unlike Conservation Insight, " +
+        "this pack adds no workspace connections, datasets, or jobs; Remove takes its eight " +
+        "dashboards back out and hides the gallery entries again, nothing else is touched. Installed " +
+        "by default so the gallery looks the same as it always has; turn it off to keep a pitch " +
+        "focused on Conservation Insight alone."
     }
   };
 
