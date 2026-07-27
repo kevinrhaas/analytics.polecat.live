@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 616,
+    title: 'Quick import builds the full, impressive dashboard by default',
+    ts: '2026-07-27T16:01:31.000Z',
+    items: [
+      'Dropping a CSV or JSON file on Home now auto-builds at the High creativity level by default -- maps, treemaps, slope and ensemble views are included when the data supports them, instead of only the bars/donut/line/table basics.',
+      'You can still dial an individual import back with the in-builder Low/High toggle; a clearer per-import simple/medium/complex chooser is on the way.',
+    ],
+  },
+  {
     v: 615,
     title: 'A viewer\'s Home no longer shows dead-click shortcuts into Studio',
     kind: 'fix',

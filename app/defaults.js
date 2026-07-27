@@ -104,7 +104,11 @@
   // "fun" tier, app/quickmode.js's buildAutoSpec). Seeds every new Quick import;
   // the Studio builder's live tuner (studio.js, #qmTuner) can override it for
   // the CURRENT quick-built dashboard without touching this default.
-  function defaultQuickModeCreativity() { return strDefault("studio-default-qm-creativity") || "low"; }
+  // Kevin (2026-07-27): default HIGH so a dropped file builds the full, impressive
+  // dashboard out of the box (the maps/treemap/slope/ensemble people expect) rather
+  // than the bare basics. Hiding the dial + a per-import simple/medium/complex
+  // chooser is queued (LF50).
+  function defaultQuickModeCreativity() { return strDefault("studio-default-qm-creativity") || "high"; }
   function setDefaultQuickModeCreativity(v) { setStrDefault("studio-default-qm-creativity", v); }
 
   // Z6 follow-up: named style-preset collection. Each preset snapshots the default

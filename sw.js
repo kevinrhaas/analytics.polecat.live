@@ -5,7 +5,10 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v252"; /* v252: LF44 — Home's "New dashboard"/"Quick
+var CACHE_NAME = "studio-shell-v253"; /* v253: Quick import now defaults to High creativity
+   (app/defaults.js) so a dropped file auto-builds the full map/treemap/slope/ensemble
+   dashboard out of the box; precached copy needs to roll.
+   v252: LF44 — Home's "New dashboard"/"Quick
    import"/"Browse examples"/"Take the tour" quick actions (and the example gallery tiles)
    all route through enterStudio(), which a viewer-role account can never pass — left
    visible, they were dead clicks. Now filtered out for accounts that can't develop

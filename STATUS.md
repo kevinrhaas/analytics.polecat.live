@@ -4753,10 +4753,19 @@
 > LF49. **More export formats.** XLSX (dashboard on tab 1, backend/source datasets on later tabs), PowerPoint
 >       (.pptx), Word (.docx) — best-effort visual dashboard + underlying data. Mind the no-build/no-dep
 >       rule (vendor a small lib if needed). (app/exporters.js + Export▾ menu.) Ties LF36 (PDF, shipped), LF25.
-> LF50. **Kill the stray "Creativity" (Low/High) control in the builder; keep auto-build-from-dataset.** That
->       dial belongs to Quick mode only — remove it from the builder chrome. Keep an "auto-build from a
->       dataset" (Quick mode) entry, but it REPLACES the open dashboard, so confirm/warn before it clobbers.
->       (studio.js builder chrome + Quick-mode entry + replace guard.) Ties LF24, LF26.
+> LF50. **Quick-import complexity: default High (SHIPPED), HIDE the Low/High dial for now, then a real
+>       per-import chooser (Kevin, 2026-07-27).** (a) DONE — quick-import now defaults to High creativity
+>       (app/defaults.js), so a dropped file auto-builds the full map/treemap/slope/ensemble dashboard out
+>       of the box. (b) HIDE the in-builder `#qmTuner` Low/High toggle AND the Settings "Quick import
+>       creativity" row for now — Kevin: "it's confusing things for now until we improve that." (Keep the
+>       machinery + buildAutoSpec low/high; just hide the chrome — index.html #qmTuner, studio.js
+>       syncHeader show-logic + the Settings row ~7317, and re-baseline the tuner tests run.js ~1671-1748.)
+>       (c) FUTURE — pick complexity ON THE WAY IN, per import: a **simple / medium / complex** choice at
+>       drop time (e.g. distinct drop areas that each default to a level). **CRUCIAL: complex must be
+>       QUALITATIVELY DIFFERENT, not just "more widgets"** — a different build strategy/composition/layout
+>       per level, not simply the low set + extra panels. (New quickmode build strategies per level, a
+>       drop-time level picker / multi-zone drop UI.) Also keep: auto-build REPLACES the open dashboard, so
+>       confirm/warn before it clobbers (see LF67). Ties LF24, LF26, LF61, LF67.
 > LF51. **Elevate the workspace navigation IA.** **CORE PRINCIPLE (Kevin, 2026-07-27): build ONE shared,
 >       best-practice navigation component set and apply it CONSISTENTLY everywhere — Datasets, Connections,
 >       Jobs, Views (LF57), Repository, AND the Explore dataset picker/navigator. Same look & feel across the
