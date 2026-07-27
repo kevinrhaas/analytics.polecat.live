@@ -1928,6 +1928,15 @@ body.simple-mode .da-acts{display:none!important}
 .cx-field input{padding:var(--sp-8) var(--sp-12);font-size:var(--fs-13);border:1px solid var(--line);border-radius:8px;
   background:var(--field);color:var(--ink);font-family:var(--font)}
 .cx-field input:focus{border-color:var(--brand);outline:none}
+/* LF38: password reveal toggle — a plain input wrapped in a relative container so the
+   eye/eye-off button overlays its right edge instead of taking its own layout row. */
+.pw-reveal{position:relative;display:flex}
+.pw-reveal input{flex:1;padding-right:34px}
+.pw-reveal-btn{position:absolute;right:4px;top:50%;transform:translateY(-50%);display:flex;
+  align-items:center;justify-content:center;width:26px;height:26px;padding:0;border:0;
+  background:transparent;color:var(--muted);border-radius:6px;cursor:pointer}
+.pw-reveal-btn:hover{color:var(--ink);background:var(--line-2)}
+.pw-reveal-btn:focus-visible{outline:2px solid var(--brand);outline-offset:1px}
 .cx-hint{color:var(--faint);font-size:var(--fs-11);line-height:1.4}
 .cx-docs{margin-top:12px;font-size:var(--fs-12);color:var(--muted)}
 .cx-docs a{color:var(--brand)}

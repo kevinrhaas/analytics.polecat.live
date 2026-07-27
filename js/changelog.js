@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 614,
+    title: 'Password fields get a show/hide reveal toggle, app-wide',
+    kind: 'feature',
+    ts: '2026-07-27T14:38:33.000Z',
+    items: [
+      'Every masked field -- connection credentials, the Supabase Auth password and anon key, Add-user\'s password, and the per-user security "Go live" provision secret -- now has a small eye toggle to reveal or re-hide what you typed.',
+      'One shared control everywhere, so the affordance and its aria labeling stay consistent app-wide.',
+    ],
+  },
+  {
     v: 613,
     title: 'Track L sweep (orphaned-key lens, round 6): PDF export page options now clear properly too',
     kind: 'fix',

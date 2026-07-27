@@ -92,7 +92,36 @@
     } else {
       inp.value = savedValue || "";
     }
+    // LF38: every credentialed field (adapter connections + the workspace-backend wizard,
+    // this function's two call sites) gets the reveal toggle for free — callers append
+    // `inp.__revealWrap || inp` so a plain text field is unaffected.
+    if (f.type === "password") inp.__revealWrap = withRevealToggle(inp);
     return inp;
+  }
+
+  // LF38: single reusable enhancer — wraps a password <input> (already built, not yet
+  // attached) in a positioned container with an eye/eye-off button that flips
+  // type between password/text and keeps aria-pressed/aria-label in sync. Used by
+  // credentialFieldInput above plus the Add-user password and M7 provision-secret
+  // fields below, so every masked field in the app shares one implementation.
+  function withRevealToggle(inp) {
+    var wrap = el("div", "pw-reveal");
+    wrap.appendChild(inp);
+    var btn = el("button", "pw-reveal-btn");
+    btn.type = "button";
+    btn.setAttribute("aria-pressed", "false");
+    btn.setAttribute("aria-label", "Show password");
+    btn.appendChild(Studio.icon("eye", 16));
+    btn.addEventListener("click", function () {
+      var reveal = inp.type === "password";
+      inp.type = reveal ? "text" : "password";
+      btn.setAttribute("aria-pressed", String(reveal));
+      btn.setAttribute("aria-label", reveal ? "Hide password" : "Show password");
+      btn.innerHTML = "";
+      btn.appendChild(Studio.icon(reveal ? "eye-off" : "eye", 16));
+    });
+    wrap.appendChild(btn);
+    return wrap;
   }
 
   // R2 (tech-debt sweep): the 4 identical "tell the preview iframe the app theme once it
@@ -6834,7 +6863,7 @@
           row.innerHTML = "<span>" + esc(f.label) + "</span>";
           var savedValue = presetCfg && presetCfg[f.key];
           var inp = credentialFieldInput("cx-backend-cred-" + src.id, f, savedValue, !presetCfg);
-          row.appendChild(inp);
+          row.appendChild(inp.__revealWrap || inp);
           if (f.hint) { var h = el("small", "cx-hint"); h.textContent = f.hint; row.appendChild(h); }
           form.appendChild(row); inputs[f.key] = inp;
         });
@@ -7560,7 +7589,7 @@
       var sRow = el("label", "cx-field"); sRow.innerHTML = "<span>Provision secret</span>";
       var sInp = el("input"); sInp.type = "password"; sInp.autocomplete = "off";
       sInp.placeholder = "The PROVISION_SECRET set when the function was deployed";
-      sRow.appendChild(sInp); form.appendChild(sRow);
+      sRow.appendChild(withRevealToggle(sInp)); form.appendChild(sRow);
       var confirmLab = el("label", "check");
       var cb = el("input"); cb.type = "checkbox";
       confirmLab.appendChild(cb); confirmLab.appendChild(document.createTextNode(" I understand this wipes the current Supabase workspace tables."));
@@ -7636,7 +7665,7 @@
       pRow.innerHTML = "<span>" + (existing ? "New password (optional)" : "Password") + "</span>";
       var pInp = el("input"); pInp.id = "usrEditPass"; pInp.type = "password"; pInp.autocomplete = "new-password";
       pInp.placeholder = existing ? "Leave blank to keep the current password" : "";
-      pRow.appendChild(pInp); form.appendChild(pRow);
+      pRow.appendChild(withRevealToggle(pInp)); form.appendChild(pRow);
       b.appendChild(form);
       var result = el("div", "cx-test-result"); b.appendChild(result);
       var foot = el("div", "cx-wiz-foot");

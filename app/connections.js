@@ -404,7 +404,7 @@
           row.innerHTML = "<span>" + esc(f.label) + "</span>";
           var savedValue = existing && existing.cfg && existing.cfg[f.key];
           var inp = credentialFieldInput("cx-cred-" + adapter.id, f, savedValue, !existing);
-          row.appendChild(inp);
+          row.appendChild(inp.__revealWrap || inp);
           if (f.hint) { var h = el("small", "cx-hint"); h.textContent = f.hint; row.appendChild(h); }
           form.appendChild(row); inputs[f.key] = inp;
         });
