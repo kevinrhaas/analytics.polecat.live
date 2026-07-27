@@ -1286,8 +1286,12 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
   .btn{font-size:var(--fs-12);padding:var(--sp-8) var(--sp-10);min-height:44px;display:inline-flex;align-items:center;justify-content:center}
   .btn.icon{padding:var(--sp-8) var(--sp-10);min-width:44px}
   /* M10: hide secondary topbar buttons at ALL phone widths; they are accessible via ⋯ More.
-     Previously only hidden at ≤400px, leaving mid-size phones (400-640px) with a clipped topbar. */
-  #btnExamples,#btnImport,#btnSaveSpec,#btnCloseStudio{display:none!important}
+     Previously only hidden at ≤400px, leaving mid-size phones (400-640px) with a clipped topbar.
+     Slice B: Undo/Redo/Export moved from #dashbar into the shared #tbSectionActions slot
+     (part of the global .top-app row, shared with the waffle/＋New/⋯More that every OTHER
+     section also needs on-screen) — so they join the same phone hide-behind-More convention
+     rather than crowding that row on a 390px screen (moreUndo/moreRedo/moreExport below). */
+  #btnExamples,#btnImport,#btnSaveSpec,#btnCloseStudio,#btnUndo,#btnRedo,#btnExport{display:none!important}
   .more-phone-only{display:block}
   /* Slice A: on phones the global topbar keeps only its essentials — the section name, a
      compact icon-only search, the waffle, +New and ⋯More — so the section name has room to

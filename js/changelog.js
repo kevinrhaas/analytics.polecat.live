@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 626,
+    title: 'Undo, Save, Open and Export now live in the top bar while you\'re building',
+    kind: 'polish',
+    ts: '2026-07-27T20:51:11.000Z',
+    items: [
+      'Undo/Redo, Open, Save, and Export -- moved out of the builder\'s own toolbar and into the top bar so they sit with the rest of the app\'s controls. They still only show while you\'re in the builder.',
+      'Examples, Save as..., Close, and the light/dark toggle stay in the builder toolbar just above the live preview.',
+    ],
+  },
+  {
     v: 625,
     title: 'A persistent standard top bar across every section, with a centered search',
     kind: 'feature',

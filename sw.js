@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v262"; /* v262: global standard topbar (Slice A) — #topbar is
+var CACHE_NAME = "studio-shell-v263"; /* v263: Standard fleet topbar — Slice B: Studio's
+   dashboard-scoped Undo/Redo/Open/Save/Export move from #dashbar into the shared topbar's
+   #tbSectionActions slot (only shown while Studio is the active section) — Slice A's
+   scaffolding filled in. index.html, studio.js, shell.js, studio.css, docs/index.html all
+   changed, so precached copies roll.
+   v262: global standard topbar (Slice A) — #topbar is
    promoted out of Studio's #appMain into a persistent app frame; centered command-palette
    search + What's-new/What's-next/dark-mode cluster; #railCmdk removed. index.html, studio.js,
    shell.js, studio.css, palette.js, fleet.js, icons.js all changed, so precached copies roll.
