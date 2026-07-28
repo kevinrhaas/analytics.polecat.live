@@ -455,7 +455,12 @@ html[data-app-theme='neon'] #mobileNavBtn{background:#000000;border-color:rgba(2
 
 /* ── Z2: Home landing section — recents + quick-create, warm-dark "game-like" look ── */
 .app-sec.has-content:not([hidden]){align-items:flex-start;justify-content:flex-start;overflow-y:auto;display:block}
-.home-wrap{max-width:960px;margin:0 auto;padding:var(--sp-44) var(--sp-32) var(--sp-60)}
+/* LF54: left-align workspace content instead of centering it — a left rail plus a
+   centered column left a wide "dead" gutter between them. Content now hugs the rail
+   (margin:0), uses more of the reclaimed width, and drops the oversized top padding.
+   Home keeps its 960 width (its featured live-dashboard frames scale to the container,
+   so widening it would blow up their preview scale) — only the left gutter goes. */
+.home-wrap{max-width:960px;margin:0;padding:var(--sp-28) var(--sp-32) var(--sp-60)}
 .home-hero h1{margin:0 0 6px;font-size:var(--fs-25);font-weight:800;color:var(--ink)}
 .home-hero p{margin:0 0 26px;font-size:var(--fs-14);color:var(--muted)}
 .home-quick{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:34px}
@@ -533,7 +538,7 @@ html[data-app-theme='neon'] #mobileNavBtn{background:#000000;border-color:rgba(2
 @media(max-width:640px){.home-quick{grid-template-columns:1fr}.home-wrap{padding:var(--sp-60) var(--sp-16) var(--sp-40)}}
 
 /* ── Z5 slice 1: Settings section — first-class mode toggle switches ── */
-.settings-wrap{max-width:640px;margin:0 auto;padding:var(--sp-44) var(--sp-32) var(--sp-60)}
+.settings-wrap{max-width:720px;margin:0;padding:var(--sp-28) var(--sp-32) var(--sp-60)}
 .settings-hero h1{margin:0 0 6px;font-size:var(--fs-25);font-weight:800;color:var(--ink)}
 .settings-hero p{margin:0 0 26px;font-size:var(--fs-14);color:var(--muted)}
 .settings-card{background:var(--field);border:1px solid color-mix(in srgb, var(--ink) 12%, transparent);border-radius:12px;
@@ -614,7 +619,7 @@ html[data-app-theme='neon'] #mobileNavBtn{background:#000000;border-color:rgba(2
 @media(max-width:640px){.settings-wrap{padding:var(--sp-60) var(--sp-16) var(--sp-40)}}
 
 /* ── Z3 slice 1: Repository — data sources + dashboards, browsable/searchable in one place ── */
-.repo-wrap{max-width:960px;margin:0 auto;padding:var(--sp-44) var(--sp-32) var(--sp-60)}
+.repo-wrap{max-width:1180px;margin:0;padding:var(--sp-28) var(--sp-32) var(--sp-60)}
 .repo-hero h1{margin:0 0 6px;font-size:var(--fs-25);font-weight:800;color:var(--ink)}
 .repo-hero p{margin:0 0 16px;font-size:var(--fs-14);color:var(--muted)}
 .repo-search{width:100%;max-width:420px;display:block;margin-bottom:14px;padding:var(--sp-10) var(--sp-14);font-size:var(--fs-13);

@@ -4570,6 +4570,20 @@ function serve() {
     console.log("\n• LF43: installing a sample pack via Settings materializes its example dashboards");
     await page.evaluate(function () { window.__studioShellSetSection("settings"); });
     await page.waitForTimeout(150);
+
+    // LF54: workspace content is left-aligned against the rail, not centered — the old
+    // `margin:0 auto` left a wide dead gutter between the rail and a centered column. At
+    // desktop width the settings column (720px) is narrower than the view, so a centered
+    // wrap would carry a non-zero left margin; left-aligned it reads 0.
+    const lf54 = await page.evaluate(function () {
+      var w = document.querySelector(".settings-wrap");
+      if (!w) return { found: false };
+      var cs = getComputedStyle(w);
+      return { found: true, marginLeft: cs.marginLeft, viewW: (document.getElementById("view") || document.body).clientWidth, wrapW: w.clientWidth };
+    });
+    ok("LF54: workspace content is left-aligned (no centered left gutter) — .settings-wrap has margin-left 0",
+      lf54.found && lf54.marginLeft === "0px", JSON.stringify(lf54));
+
     await page.click('[data-demopack="conservation"]');
     await page.waitForFunction(function () {
       return Studio.Workspace.all("dashboards").filter(function (r) { return r.demoPackId === "conservation" && r.sourceFile; }).length >= 8;

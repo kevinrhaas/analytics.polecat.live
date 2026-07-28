@@ -116,6 +116,18 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF54 (slice 1) — left-align workspace content, kill the dead left gutter (#93, v662, sw v299,
+  2026-07-28, steward — step 5 of the LOCKED BUILD ORDER, "exports + nav"):** the three centered
+  workspace wraps (`.home-wrap`, `.settings-wrap`, `.repo-wrap` — Home / Settings / Dashboards) used
+  `max-width; margin:0 auto`, which — with a left rail already present — left a wide empty gutter
+  between the rail and the centered column. Per Kevin's "reduce the unused left-gutter whitespace …
+  left-align content," they now use **`margin:0`** (content hugs the rail), a **wider max-width**
+  (960→1180 for Home/Dashboards, 640→720 for Settings) to use the reclaimed space, and a tighter top
+  padding (sp-44→sp-28). Mobile (≤640/≤900) overrides are unchanged — no rail-gutter problem there.
+  A pure CSS/layout change; no markup or behavior touched. Deferred: deeper per-component density
+  tightening (list/card gaps) is a natural follow-up slice. Test: at desktop width `.settings-wrap`
+  (720px, narrower than the view) now computes `margin-left: 0px` — proving it's left-aligned, not
+  centered. Files: app/studio.css, tests/run.js, sw.js, js/changelog.js.
 - **LF49 (slice 1) — export a dashboard as a real Excel workbook (.xlsx) (#88, v661, sw v298,
   2026-07-28, steward — step 5 of the LOCKED BUILD ORDER, "exports + nav"):** Export ▾ gains
   **"Excel workbook (.xlsx)"** — a genuine multi-sheet OOXML workbook that opens with zero warnings
