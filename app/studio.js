@@ -10846,6 +10846,14 @@
   // canvas drag-drop
   function wireCanvas() {
     var stage = $("#canvas-stage");
+    // LF66 (6): the preview IFRAME fills #canvas-stage and swallows HTML5 drags (they
+    // never cross the iframe boundary), which is why a library card "picks up but can't
+    // drop anywhere". While ANY drag from the parent doc is in progress, make the iframe
+    // pointer-transparent so the dragover/drop below actually reach #canvas-stage; the
+    // class clears on dragend/drop. (A drag started inside the iframe — e.g. a panel —
+    // never fires a parent-doc dragstart, so this only ever triggers for library/rail drags.)
+    document.addEventListener("dragstart", function () { document.body.classList.add("lib-dragging"); });
+    ["dragend", "drop"].forEach(function (ev) { document.addEventListener(ev, function () { document.body.classList.remove("lib-dragging"); }); });
     ["dragenter", "dragover"].forEach(function (ev) { stage.addEventListener(ev, function (e) { e.preventDefault(); stage.classList.add("dragover"); e.dataTransfer.dropEffect = "copy"; }); });
     ["dragleave", "drop"].forEach(function (ev) { stage.addEventListener(ev, function (e) { if (ev === "dragleave" && e.target !== stage && stage.contains(e.relatedTarget)) return; stage.classList.remove("dragover"); }); });
     stage.addEventListener("drop", function (e) {

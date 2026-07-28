@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v314"; /* v314: LF52 (extend) — finish the widget/analysis→View
+var CACHE_NAME = "studio-shell-v315"; /* v315: LF66 slice 2 (library reorg, part 6) — dragging a
+   library dataset card onto the canvas now lands as a panel: the preview iframe goes
+   pointer-transparent while a drag is in progress (body.lib-dragging), so #canvas-stage's existing
+   {wsDataset}/{analysis}/{da} drop handler + .dragover drop-hint fire instead of the iframe
+   swallowing the drag. app/studio.js, app/studio.css changed, so precached copies roll.
+   v314: LF52 (extend) — finish the widget/analysis→View
    terminology rename in the two named remaining surfaces: the panel inspector's "Export this
    panel…" button is now "Export this View…" (and the matching canvas Export▾ menu tooltip), and
    Explore's "Saved analyses" sidebar list + the Studio library's "Analyses" group are now "Saved

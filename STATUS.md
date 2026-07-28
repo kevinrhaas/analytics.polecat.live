@@ -139,6 +139,25 @@
   Views", not "Saved analyses") plus the existing embed-button test now pins the new "Export this
   View…" text via its updated regex. Files: app/studio.js, app/explore.js, app/studio-render.js,
   docs/index.html, tests/run.js, sw.js, js/changelog.js.
+- **LF66 (slice 2) — dragging a library dataset card onto the canvas now lands as a panel (#66/LF66,
+  v678, sw v315, 2026-07-28 — library-reorg epic, part (6) "fix drag-to-canvas"):** Kevin's LF66
+  note called out that a library dataset card "you can pick up and can't drag it anywhere." Root
+  cause (as STATUS predicted): the canvas is the live-preview **iframe** (`#preview`) that fills
+  `#canvas-stage`, and HTML5 drag events don't cross the iframe boundary, so the parent's
+  `#canvas-stage` dragover/drop never fire. The whole drop machinery already existed —
+  `#canvas-stage` has a `drop` handler that understands `{wsDataset}`/`{analysis}`/`{da}` payloads
+  AND a `.dragover` drop-hint — it was just being starved of events. Fix (small + reuses
+  everything): a global `dragstart` adds `body.lib-dragging`, which sets `#preview{pointer-events:
+  none}` (app/studio.css) so the drag falls through to `#canvas-stage`; `dragend`/`drop` clear the
+  class. (A drag begun inside the iframe never fires a parent-doc `dragstart`, so this only ever
+  triggers for library/rail drags.) No postMessage protocol or profiler needed. 2 new regression
+  tests (with `body.lib-dragging`, `#preview` computes `pointer-events:none`; a synthetic
+  `{wsDataset}` DragEvent dropped on `#canvas-stage` adds a panel). **NEXT in LF66:** the auto-pick
+  BEST view on drop (currently a bare "bars" panel — the other half of part 6, wants the LF24
+  profiler), and the architectural parts — (1) installed packs contribute real datasets/views/
+  dashboards into the normal library, (2) the group set, (3) drop the legacy "Samples · DEMO DB"
+  group; reconcile LF43/LF57/LF59 into ONE model. Files: app/studio.js, app/studio.css,
+  tests/run.js, sw.js, js/changelog.js.
 - **LF66 (slice 1) — the Studio library "Datasets" group: renamed + compact cards (#66/LF66, v676,
   sw v313, 2026-07-28 — first slice of the big library-reorg epic; parts (4) + (5)):** LF66 is
   Kevin's live-QA note that the Studio left "Data" panel library is daunting; sliced. This first
