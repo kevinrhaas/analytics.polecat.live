@@ -981,6 +981,10 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
    #canvasEmpty overlay is the single empty-state — otherwise the preview's own
    "Your dashboard is empty" message + footer bleed through and double up. */
 #canvas-stage.canvas-empty #preview{opacity:0}
+/* LF61: echo the Home quick-import card's dragover treatment while a file is
+   dragged over the empty canvas, so the drop target reads as real. */
+#canvas-stage.dragover.canvas-empty #canvasEmpty{outline:2px dashed var(--brand);outline-offset:-8px;
+  background:color-mix(in srgb, var(--brand) 6%, transparent)}
 .ces-ic{width:60px;height:60px;border-radius:50%;border:2px dashed var(--brand);opacity:.6;
   display:flex;align-items:center;justify-content:center;color:var(--brand);margin-bottom:4px}
 .ces-title{font-size:var(--fs-17);font-weight:700;color:var(--ink);font-family:var(--font);opacity:.9}

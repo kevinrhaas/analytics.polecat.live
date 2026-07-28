@@ -5909,6 +5909,10 @@
             " + " + built.panelCount + " widget" + (built.panelCount !== 1 ? "s" : "") + " (" + built.kinds.join(", ") + "). Opening in Studio…");
         });
       }
+      // LF61: exposed the same way as quickBuildDashboard above, so the Studio
+      // canvas's own empty-state drop zone (wireCanvas, wired once outside this
+      // per-renderHome closure) can always reach the CURRENT quickImportFile.
+      Studio.__quickImportFile = quickImportFile;
       quickimportInput.onchange = function () { quickImportFile(quickimportInput.files[0]); quickimportInput.value = ""; };
       ["dragenter", "dragover"].forEach(function (ev) {
         quickimportCard.addEventListener(ev, function (e) { e.preventDefault(); quickimportCard.classList.add("dragover"); e.dataTransfer.dropEffect = "copy"; });
@@ -10633,6 +10637,15 @@
     ["dragleave", "drop"].forEach(function (ev) { stage.addEventListener(ev, function (e) { if (ev === "dragleave" && e.target !== stage && stage.contains(e.relatedTarget)) return; stage.classList.remove("dragover"); }); });
     stage.addEventListener("drop", function (e) {
       e.preventDefault(); stage.classList.remove("dragover");
+      // LF61: a raw OS file (CSV/JSON) dropped on the EMPTY canvas quick-imports it
+      // via the same engine as Home's Quick-import card — scoped to the empty state
+      // only, since quickImportFile replaces S.spec wholesale (fine when there's
+      // nothing to lose; would silently clobber a real in-progress dashboard).
+      var files = e.dataTransfer.files;
+      if (files && files.length && stage.classList.contains("canvas-empty")) {
+        if (Studio.__quickImportFile) Studio.__quickImportFile(files[0]);
+        return;
+      }
       try {
         var d = JSON.parse(e.dataTransfer.getData("text/plain"));
         if (d && d.wsDataset) { addFromWorkspaceDataset(d.wsDataset, "bars"); }
@@ -10657,6 +10670,18 @@
     // belongs with the canvas) — also reachable via the empty canvas itself.
     var cesTextBtn = $("#cesText");
     if (cesTextBtn) cesTextBtn.addEventListener("click", addTextPanel);
+    // LF61: the empty canvas's own "Import a file" button + hidden input — the
+    // same click-to-pick affordance Home's Quick-import card offers, now reachable
+    // without leaving the builder.
+    var cesImportBtn = $("#cesImport"), cesImportInput = $("#cesImportInput");
+    if (cesImportBtn && cesImportInput) {
+      cesImportBtn.addEventListener("click", function () { cesImportInput.click(); });
+      cesImportInput.addEventListener("change", function () {
+        var f = cesImportInput.files[0];
+        if (f && Studio.__quickImportFile) Studio.__quickImportFile(f);
+        cesImportInput.value = "";
+      });
+    }
   }
 
   document.addEventListener("DOMContentLoaded", function () { wireCanvas(); boot(); });
