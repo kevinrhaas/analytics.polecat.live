@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 643,
+    title: 'The widget editor now labels its data source "Dataset"',
+    kind: 'polish',
+    ts: '2026-07-28T04:48:59.000Z',
+    items: [
+      'In the Studio widget (and KPI) editor, the DATA field that used to read "Query (data access)" now reads "Dataset" — clearer language for what you\'re picking.',
+    ],
+  },
+  {
     v: 642,
     title: '"What\'s new" is now reachable on mobile',
     kind: 'fix',
