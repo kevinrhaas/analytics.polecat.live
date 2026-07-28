@@ -2852,7 +2852,7 @@
     var del = el("button", "btn-wide"); del.style.color = "var(--bad)"; setIconBtn(del, "trash", "Delete"); del.onclick = function () { deletePanel(p.id); };
     acts.appendChild(dup); acts.appendChild(del); sec.appendChild(acts);
     var embedRow = el("div"); embedRow.style.cssText = "display:flex;gap:8px;margin-top:6px";
-    var embedBtn = el("button", "btn-wide"); setIconBtn(embedBtn, "code", "Export this panel…"); embedBtn.onclick = function () { exportPanelEmbed(p); };
+    var embedBtn = el("button", "btn-wide"); setIconBtn(embedBtn, "code", "Export this View…"); embedBtn.onclick = function () { exportPanelEmbed(p); };
     embedRow.appendChild(embedBtn); sec.appendChild(embedRow);
     sec.appendChild(noteEl("info", "Downloads a tiny, self-contained HTML file with just this one View — you can drop it anywhere, no server or the rest of the dashboard needed."));
     var pngRow = el("div"); pngRow.style.cssText = "display:flex;gap:8px;margin-top:6px";
@@ -2868,7 +2868,7 @@
       var libRow = el("div"); libRow.style.cssText = "display:flex;gap:8px;margin-top:6px";
       var libBtn = el("button", "btn-wide"); setIconBtn(libBtn, "save", "Save to View library"); libBtn.onclick = function () { saveWidgetToLibrary(p); };
       libRow.appendChild(libBtn); sec.appendChild(libRow);
-      sec.appendChild(noteEl("info", "Saves a self-contained snapshot of this View as a reusable analysis in the library — drag it into any dashboard from the rail's Analyses group, or open it from Explore."));
+      sec.appendChild(noteEl("info", "Saves a self-contained snapshot of this View as a reusable analysis in the library — drag it into any dashboard from the rail's Views group, or open it from Explore."));
     }
 
     // chart type picker — grouped by c.group for scannability (Content group = richtext/annotation)

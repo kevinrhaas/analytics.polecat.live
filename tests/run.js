@@ -3177,6 +3177,12 @@ function serve() {
     });
     ok("XP: Save writes a self-contained analysis row (embedded data access + chart mapping) that rides the workspace snapshot",
       xpSaved.n === 1 && xpSaved.type === "donut" && xpSaved.hasDa && xpSaved.inSnapshot, JSON.stringify(xpSaved));
+    const xpSavedHeader = await page.evaluate(function () {
+      var h = document.querySelector(".xp-saved-h");
+      return { text: h && h.textContent };
+    });
+    ok("LF52 (extend): Explore's saved-items sidebar list is now labelled \"Saved Views\", not \"Saved analyses\" (terminology rename)",
+      xpSavedHeader.text && xpSavedHeader.text.indexOf("Saved Views") === 0, JSON.stringify(xpSavedHeader));
     // QA-05 (Frontend QA report 2026-07-24): the saved-analyses row's pin/add/delete buttons
     // exposed only ★/▦/✕ to assistive tech (title is not an accessible name) — every action
     // must name its target object, not just the verb.
@@ -3219,12 +3225,16 @@ function serve() {
       var p = sp.panels[sp.panels.length - 1];
       var da = (sp.cda.dataAccesses || []).filter(function (d) { return d.id === p.chart.da; })[0];
       var libGroup = document.querySelector(".lib-analyses");
+      var libGroupName = libGroup ? (libGroup.querySelector(".h .nm") || {}).textContent : null;
       return { added: sp.panels.length === before + 1, type: p.chart.type, daBound: !!da,
         titled: p.title === "Suite analysis",
-        inLibrary: !!libGroup && libGroup.textContent.indexOf("Suite analysis") >= 0 };
+        inLibrary: !!libGroup && libGroup.textContent.indexOf("Suite analysis") >= 0,
+        libGroupName: libGroupName };
     });
-    ok("XP: an analysis drops into the current dashboard as a panel (same chart + its own data access) and shows in the library's Analyses group",
+    ok("XP: an analysis drops into the current dashboard as a panel (same chart + its own data access) and shows in the library's Views group",
       xpLib.added && xpLib.type === "donut" && xpLib.daBound && xpLib.titled && xpLib.inLibrary, JSON.stringify(xpLib));
+    ok("LF52 (extend): the Studio library's saved-analyses group is now labelled \"Views\", not \"Analyses\" (terminology rename)",
+      xpLib.libGroupName === "Views", JSON.stringify(xpLib));
     // pin → Home card → click-through back into Explore with the analysis loaded
     const xpPin = await page.evaluate(function () {
       var a = Studio.Workspace.all("analyses").filter(function (x) { return x.name === "Suite analysis"; })[0];
@@ -10106,14 +10116,14 @@ function serve() {
     const pcount3 = await page.evaluate(() => window.__STUDIO_STATE.spec.panels.length);
     ok("inspector Duplicate clones the panel", inspDup === 1 && pcount3 === pcount2 + 1, pcount2 + "→" + pcount3);
 
-    // ---- N-DIST: embeddable single-chart widget ("Export this panel…") ----
+    // ---- N-DIST: embeddable single-chart widget ("Export this View…") ----
     console.log("\n• N-DIST: embeddable single-panel export");
     const embedTest = await page.evaluate(function () {
       var sp = window.__STUDIO_STATE.spec;
       var sel = window.__STUDIO_STATE.selection;
       var p = (sel && sel.kind === "panel" && sp.panels.filter(function (x) { return x.id === sel.id; })[0]) || sp.panels[0];
       var otherPanelId = sp.panels.filter(function (x) { return x.id !== p.id; }).map(function (x) { return x.id; })[0];
-      var btn = [].slice.call(document.querySelectorAll("#inspBody .btn-wide")).filter(function (b) { return /Export this panel/.test(b.textContent); })[0];
+      var btn = [].slice.call(document.querySelectorAll("#inspBody .btn-wide")).filter(function (b) { return /Export this View/.test(b.textContent); })[0];
       if (!btn) return { found: false };
       btn.click();
       var rows = [].slice.call(document.querySelectorAll(".modal .dl-row"));
@@ -10131,7 +10141,7 @@ function serve() {
       };
     });
     await page.evaluate(() => { document.querySelectorAll(".modal-ov").forEach((m) => m.remove()); });
-    ok("N-DIST: panel inspector has an 'Export this panel…' action", embedTest.found, JSON.stringify(embedTest));
+    ok("N-DIST: panel inspector has an 'Export this View…' action", embedTest.found, JSON.stringify(embedTest));
     ok("N-DIST: it opens a single-file 'Embed View' modal for a self-contained .html", embedTest.rowCount === 1 && embedTest.isHtml && /Embed View/.test(embedTest.modalTitle), JSON.stringify(embedTest));
     ok("N-DIST: the exported single-panel HTML contains only that panel's chart type, no KPIs, and no other panel", embedTest.hasThisPanelType && embedTest.excludesOtherPanel && embedTest.noKpis, JSON.stringify(embedTest));
 
@@ -10265,7 +10275,7 @@ function serve() {
 
     // LF25a: the on-panel "Export as HTML" button is preview/builder-only chrome — clicking it
     // posts panel-export-embed to the parent, which opens the SAME "Embed View" modal as the
-    // Inspector's own "Export this panel…" action (one mechanism, two entry points).
+    // Inspector's own "Export this View…" action (one mechanism, two entry points).
     const dlEmbedClick = await pvDl.evaluate(function (panelId) {
       var card = document.querySelector('[data-panel-id="' + panelId + '"]');
       var btn = card ? [].slice.call(card.querySelectorAll(".pdc-dl-act")).filter(function (b) { return /standalone HTML/.test(b.title); })[0] : null;

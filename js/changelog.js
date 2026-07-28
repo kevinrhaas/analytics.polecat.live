@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 677,
+    title: 'Finished the widget/analysis → View rename in Explore and the panel inspector',
+    kind: 'polish',
+    ts: '2026-07-28T21:08:55.000Z',
+    items: [
+      'The panel inspector\'s "Export this panel…" button is now "Export this View…", and Explore\'s "Saved analyses" sidebar list and the Studio library\'s "Analyses" group are now "Saved Views" and "Views" — closing out the last two named surfaces from the widget/analysis → View terminology decision.',
+    ],
+  },
+  {
     v: 676,
     title: 'Tidier Datasets group in the Studio data panel',
     kind: 'polish',

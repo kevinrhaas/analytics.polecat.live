@@ -116,6 +116,29 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF52 (extend) — the last two named surfaces finish the widget/analysis → View rename (v677,
+  sw v314, 2026-07-28, steward — closes the "LF52 note (extend)" left open when LF52's main slice
+  shipped):** LF52's main slice (v660) renamed "widget" → "View" app-wide but deliberately left two
+  named surfaces for a follow-up note: **(1)** the panel inspector's embed button, previously
+  "Export this panel…", is now **"Export this View…"** (`app/studio.js`) — the matching canvas-level
+  Export▾ menu tooltip (`app/studio-render.js`, the visible label was already "Export as standalone
+  HTML" with no "panel" wording) picked up the same wording for consistency. **(2)** Explore's saved-
+  items sidebar list header, previously "Saved analyses", is now **"Saved Views"**, and its empty-
+  folder message ("No analyses in this folder.") now reads "No Views in this folder." — the Studio
+  library's matching group (`buildAnalysesLib`), previously headed "Analyses", is now **"Views"**
+  (`app/explore.js`). Docs updated to match every renamed label it quoted verbatim
+  (`docs/index.html`'s "Export this panel…" quote and its two "Studio library under Analyses"
+  mentions). Scoped deliberately narrow, per the note's own two named items: the generic English
+  noun "analysis"/"analyses" used throughout Explore's toasts/buttons/placeholders (e.g. "Save
+  analysis", "Name this analysis…"), the docs, the welcome tour and the interactive tutorial is
+  untouched — same discipline LF52's own slice used (rename the terminology/list-label surfaces,
+  leave the ordinary verb/noun prose alone), and the underlying `analyses` Workspace table / internal
+  identifiers (`buildAnalysesLib`, `xpAddAnalysisToSpec`, `analysisSpec`, `.lib-analyses` CSS class)
+  are untouched so nothing about storage or export byte-identity changes. 2 new regression tests
+  (the Studio library group reads "Views", not "Analyses"; Explore's sidebar list reads "Saved
+  Views", not "Saved analyses") plus the existing embed-button test now pins the new "Export this
+  View…" text via its updated regex. Files: app/studio.js, app/explore.js, app/studio-render.js,
+  docs/index.html, tests/run.js, sw.js, js/changelog.js.
 - **LF66 (slice 1) — the Studio library "Datasets" group: renamed + compact cards (#66/LF66, v676,
   sw v313, 2026-07-28 — first slice of the big library-reorg epic; parts (4) + (5)):** LF66 is
   Kevin's live-QA note that the Studio left "Data" panel library is daunting; sliced. This first
@@ -6041,9 +6064,10 @@
 >       come ONLY via Sample packs (the "Sample packs" group above it) — if a sample matters it lives in a
 >       pack. Drop the old bottom "Samples" catalog group so there's one source of truth for sample content.
 >       (studio.js buildLibrary() Samples group.) Ties LF43, LF48/LF16 (sample-content consolidation).
-> **LF52 note (extend):** the "Export this panel…" button label → "Export this View"; and the Explore
-> "Analyses" list/label (SAVED ANALYSES, "Add to dashboard" cards) → "Views" — both are part of the
-> widget/analysis→View rename, not separate work.
+> **LF52 note (extend): ✓ done (shipped v677, sw v314, 2026-07-28, steward) — see DONE.** the "Export
+> this panel…" button label → "Export this View…"; and the Explore "Analyses" list/label (SAVED
+> ANALYSES, "Add to dashboard" cards) → "Views" — both were part of the widget/analysis→View rename,
+> not separate work.
 > LF66. **Studio Data-panel / library REORGANIZATION (Kevin, live 2026-07-27) — big one, slice it.** The
 >       left "Data" panel library is getting daunting and doesn't behave right. Rework it around real
 >       objects instead of a bolted-on "Sample packs" concept:
