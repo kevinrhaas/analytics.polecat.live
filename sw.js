@@ -5,7 +5,10 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v277"; /* v277: LF70 — Home's "Browse examples" card now jumps
+var CACHE_NAME = "studio-shell-v278"; /* v278: UX sweep 2026-07-28 #1 — added a phone-reachable
+   "What's new" item to the ⋯More menu (#tbWhatsNew is hidden ≤640px, #btnChangelog only exists
+   inside Studio) so mobile users can always open the feed. app/index.html, app/studio.js changed.
+   v277: LF70 — Home's "Browse examples" card now jumps
    straight to Dashboards filtered to the installed sample pack(s)' curated dashboards (a new
    "Sample packs" filter chip), instead of opening the old Examples dropdown of static demo-db
    specs. app/studio.js changed, so precached copies roll.

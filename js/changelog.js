@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 641,
+    title: '"What\'s new" is now reachable on mobile',
+    kind: 'fix',
+    ts: '2026-07-28T04:23:24.000Z',
+    items: [
+      'The What\'s new / changelog feed used to be reachable only from topbar and Studio-footer buttons that are hidden or unavailable on phones — mobile users had no way to open it, even with an unread-update dot showing.',
+      'Added a "What\'s new" item to the phone ⋯More menu (available from every section) that opens the same feed.',
+    ],
+  },
+  {
     v: 640,
     title: '"Browse examples" on Home now opens your sample-pack dashboards',
     kind: 'fix',

@@ -116,6 +116,16 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **Fix: "What's new" is now reachable on mobile (v641, sw v278, 2026-07-28, steward — closes UX
+  sweep 2026-07-28 (#367) finding #1, top priority):** the What's-new feed had exactly two
+  triggers — the global topbar button `#tbWhatsNew` (hidden at ≤640px by the M10 phone-topbar
+  collapse) and the Studio footer's `#btnChangelog` (only exists while Studio is the active
+  section, inside `#appMain`) — so a phone user on Home/Dashboards/Datasets/etc had **no** way to
+  open the feed, yet the unread-update dot (`#wnDotTb`/`#wnDot`) kept showing with nothing to tap.
+  Fix: added `#moreWhatsNew` (`more-phone-only`, so it's invisible on desktop where `#tbWhatsNew`
+  already covers it) to `#menuMore` — the always-reachable, fixed-position ⋯More menu (M10) present
+  on every section — wired in `wireTopbar()` to the same shared `openWhatsNew()` the other two
+  triggers use. SW cache → v278.
 - **LF70 — Home's "Browse examples" card now lands in Dashboards, filtered to sample-pack
   dashboards (v640, sw v277, 2026-07-28, steward — LIVE-QA QUEUE bug/cleanup item, ahead of the
   flashier remaining work per LF67's own NEXT note):** the card used to `enterStudio()` then click
