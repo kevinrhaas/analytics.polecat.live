@@ -7702,7 +7702,7 @@
         // topbar per user feedback — it's a once-in-a-while action, not daily chrome).
         var tourRow = g === "Presentation" ?
           '<div class="set-row"><span class="set-row-ic" data-ic="play"></span>' +
-            '<div class="set-row-txt"><b>Welcome tour</b><small>Re-run the guided walkthrough of the builder (also under ⋯ More → Tour).</small></div>' +
+            '<div class="set-row-txt"><b>Welcome tour</b><small>Re-run the guided walkthrough of the builder (also reachable via ⌘K → “Take the tour”).</small></div>' +
             '<button type="button" class="btn" id="setTourBtn">Take the tour</button></div>' : "";
         return '<div class="settings-card"><h2>' + esc(g) + '</h2>' +
           SETTINGS_TOGGLES.filter(function (t) { return t.grp === g; }).map(function (t) {
@@ -8968,6 +8968,10 @@
       b.appendChild(wrap);
     });
   }
+  // LF46 (⋯ teardown, slice 2): the ⋯ More button that used to call this directly is
+  // gone (still reachable via "?" and the ⌘K palette) — expose it so palette.js can
+  // drive it too, same pattern as window.__studioToggleDemoMode / __studioOpenJsonEditor.
+  window.__studioShowShortcuts = showShortcuts;
 
   // H-track v71 — Focus / Presentation mode: expand preview to fill window for demos
   var _focusExitPill = null;
@@ -9549,12 +9553,9 @@
     // UX6 (icon migration, slice 2): was a raw "⋯" glyph.
     var btnMoreEl = $("#btnMore"); btnMoreEl.textContent = ""; btnMoreEl.appendChild(Studio.icon("more", 16));
     menuToggle(btnMoreEl, $("#menuMore"));
-    var moreAboutBtn = $("#moreAbout");
-    if (moreAboutBtn) moreAboutBtn.onclick = function () { closeMenus(); if (window.StudioWelcome) StudioWelcome.open(); };
-    [["moreTheme","btnTheme"]].forEach(function(pair) {
-      var tgt = $("#" + pair[0]), src = $("#" + pair[1]);
-      if (tgt && src) tgt.onclick = function () { closeMenus(); src.click(); };
-    });
+    // LF46 (⋯ teardown, slice 2): View→Tour and View→Theme are gone — Tour is Settings →
+    // "Take the tour" (setTourBtn, below) + the ⌘K palette, Theme is the topbar #tbTheme
+    // toggle, both duplicative of this pair.
     // UX sweep 2026-07-28 #1: phone-only escape hatch for What's New (see index.html
     // comment on #moreWhatsNew) — shares the same openWhatsNew() as #tbWhatsNew/#btnChangelog.
     var moreWhatsNew = $("#moreWhatsNew");
@@ -9564,13 +9565,11 @@
     var morePresent = $("#morePresent"); if (morePresent) morePresent.onclick = function () { closeMenus(); enterFocusMode(); };
     var moreSlideshow = $("#moreSlideshow"); if (moreSlideshow) moreSlideshow.onclick = function () { closeMenus(); openSlideshow(); };
     var moreSimple = $("#moreSimple"); if (moreSimple) moreSimple.onclick = function () { closeMenus(); toggleSimpleMode(); };
-    var moreShortcuts = $("#moreShortcuts"); if (moreShortcuts) moreShortcuts.onclick = function () { closeMenus(); showShortcuts(); };
-    // J-track v98 — help docs: opens the self-contained reference guide in a new tab.
-    var moreHelp = $("#moreHelp"); if (moreHelp) moreHelp.onclick = function () { closeMenus(); window.open("docs/index.html", "_blank", "noopener"); };
-    // J6 — interactive tutorial
-    var moreTutorial = $("#moreTutorial"); if (moreTutorial) moreTutorial.onclick = function () { closeMenus(); if (window.StudioTutorial) StudioTutorial.open(); };
-    // N-DEV: live JSON spec editor
-    var moreEditJSON = $("#moreEditJSON"); if (moreEditJSON) moreEditJSON.onclick = function () { closeMenus(); openJsonEditor(); };
+    // LF46 (⋯ teardown, slice 2): the "Help & power tools" group (Keyboard shortcuts,
+    // Help docs, Interactive tutorial, Edit JSON spec) is gone from this menu — "?"
+    // still opens showShortcuts(), the rail's Help link still opens docs/index.html,
+    // StudioTutorial.open()/window.__studioOpenJsonEditor stay public, and all four
+    // (plus Tour) are one ⌘K search away in the command palette (app/palette.js).
 
     // M7: phone-only More menu items — exposed at ≤400px when topbar hides these buttons
     // Slice B: Undo/Redo/Export joined this convention once they moved into the shared

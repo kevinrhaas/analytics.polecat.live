@@ -120,14 +120,14 @@
       <div class="menu-wrap" id="moreWrap">
         <button class="btn icon" id="btnMore" title="More actions" aria-label="More actions"></button>
         <div class="menu" id="menuMore">
-          <div class="grp">View</div>
-          <button id="moreAbout">Tour</button>
-          <button id="moreTheme">Theme</button>
           <!-- UX sweep 2026-07-28 #1: #tbWhatsNew (topbar) is hidden at ≤640px and
                #btnChangelog (Studio footer) only exists while Studio is the active
                section, so phones had zero way to open What's New from Home/Dashboards/
                etc — yet the unread dot kept showing. more-phone-only puts it in the
-               always-reachable ⋯More menu (M10's fixed-position escape hatch). -->
+               always-reachable ⋯More menu (M10's fixed-position escape hatch). LF46
+               (⋯ teardown, slice 2): the "View" group's Tour/Theme buttons are gone
+               (Tour = Settings → Take the tour + ⌘K palette; Theme = the topbar
+               #tbTheme toggle), so What's new no longer needs its own group label. -->
           <button id="moreWhatsNew" class="more-phone-only">What's new</button>
           <div class="sep"></div>
           <div class="grp">Present</div>
@@ -137,12 +137,11 @@
           <button id="morePresent">Focus mode</button>
           <button id="moreSlideshow">Slideshow  ▶</button>
           <button id="moreSimple">Simple mode  ✦</button>
-          <div class="sep"></div>
-          <div class="grp">Help &amp; power tools</div>
-          <button id="moreShortcuts">Keyboard shortcuts  ?</button>
-          <button id="moreHelp">Help docs  ⓘ</button>
-          <button id="moreTutorial">Interactive tutorial  ▶</button>
-          <button id="moreEditJSON">Edit JSON spec…  { }</button>
+          <!-- LF46 (⋯ teardown, slice 2): the "Help & power tools" group (Keyboard shortcuts,
+               Help docs, Interactive tutorial, Edit JSON spec) is gone — help lives in the
+               rail's Help link, "?" still opens shortcuts, and all four (plus the tour) are
+               one ⌘K search away in the command palette (app/palette.js), which is the
+               canonical home for this kind of power-tool discoverability now. -->
           <!-- M7: phone-only items — revealed via CSS at ≤400px when topbar hides these buttons -->
           <div class="sep more-phone-only"></div>
           <button id="moreUndo" class="more-phone-only">Undo</button>

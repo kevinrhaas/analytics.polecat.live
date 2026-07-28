@@ -39,6 +39,10 @@
     { label: "New dataset / connection", hint: "Data", kw: "new dataset connection source data query connect", ic: "db", run: function () { studio(); click("btnNewDS"); } },
     { label: "Undo", hint: "Edit", kw: "undo revert back step", ic: "undo", run: function () { studio(); click("btnUndo"); } },
     { label: "Redo", hint: "Edit", kw: "redo forward step", ic: "redo", run: function () { studio(); click("btnRedo"); } },
+    // LF46 (⋯ teardown, slice 2): "Edit JSON spec…" lost its ⋯ More menu button —
+    // this is now its only in-app entry point, driving the editor directly since
+    // there's no button left to click.
+    { label: "Edit JSON spec…", hint: "Edit", kw: "json spec edit raw advanced code power tool", ic: "code", run: function () { studio(); if (window.__studioOpenJsonEditor) window.__studioOpenJsonEditor(); } },
     // view / modes
     { label: "Toggle light / dark theme", hint: "View", kw: "theme dark light mode appearance color", ic: "moon", run: function () { click("btnTheme"); } },
     { label: "Focus mode", hint: "View", kw: "focus present clean distraction zen", ic: "eye", run: function () { studio(); click("morePresent"); } },
@@ -46,9 +50,12 @@
     { label: "Demo mode", hint: "Present", kw: "demo live simulate refresh animate", ic: "clock", run: function () { studio(); if (window.__studioToggleDemoMode) window.__studioToggleDemoMode(); } },
     { label: "Simple mode", hint: "View", kw: "simple beginner basic easy streamlined", ic: "check", run: function () { studio(); click("moreSimple"); } },
     // learn / manage
-    { label: "Take the tour", hint: "Learn", kw: "tour welcome intro walkthrough onboarding about", ic: "play", run: function () { studio(); click("moreAbout"); } },
-    { label: "Interactive tutorial", hint: "Learn", kw: "tutorial walkthrough guide learn steps", ic: "metadata", run: function () { studio(); click("moreTutorial"); } },
-    { label: "Keyboard shortcuts", hint: "Learn", kw: "keyboard shortcuts keys hotkeys cheatsheet", ic: "grip", run: function () { studio(); click("moreShortcuts"); } },
+    // LF46 (⋯ teardown, slice 2): these three lost their ⋯ More menu buttons — each
+    // now drives its underlying feature directly instead of proxy-clicking a removed
+    // button (Tour is also still reachable from Settings → "Take the tour").
+    { label: "Take the tour", hint: "Learn", kw: "tour welcome intro walkthrough onboarding about", ic: "play", run: function () { studio(); if (window.StudioWelcome) StudioWelcome.open(); } },
+    { label: "Interactive tutorial", hint: "Learn", kw: "tutorial walkthrough guide learn steps", ic: "metadata", run: function () { studio(); if (window.StudioTutorial) StudioTutorial.open(); } },
+    { label: "Keyboard shortcuts", hint: "Learn", kw: "keyboard shortcuts keys hotkeys cheatsheet", ic: "grip", run: function () { studio(); if (window.__studioShowShortcuts) window.__studioShowShortcuts(); } },
     { label: "Clear local data…", hint: "Manage", kw: "clear reset wipe local storage cache data", ic: "trash", run: function () { studio(); click("moreClearData"); } },
     { label: "Sign out", hint: "Manage", kw: "sign out logout leave lock", ic: "close", run: function () { studio(); click("moreSignOut"); } }
   ];
@@ -334,21 +341,9 @@
     }
   });
 
-  // Discoverability: a "Command palette" entry at the top of the ⋯ More menu.
-  // We close any open menu ourselves (studio.js's closeMenus() is private, but
-  // menus are just a `.open` class on `.menu-wrap`), so no studio.js edit is needed.
-  var moreMenu = document.getElementById("menuMore");
-  if (moreMenu) {
-    var mi = document.createElement("button");
-    mi.id = "moreCmdk";
-    mi.type = "button";
-    mi.textContent = "Command palette  ⌘K";
-    mi.addEventListener("click", function () {
-      document.querySelectorAll(".menu-wrap.open").forEach(function (w) { w.classList.remove("open"); });
-      open();
-    });
-    moreMenu.insertBefore(mi, moreMenu.firstChild);
-  }
+  // LF46 (⋯ teardown, slice 2): the ⋯ More menu's own "Command palette ⌘K" entry
+  // was removed — Slice A below already moved the visible discoverability affordance
+  // to the topbar's #tbSearch pill, so the More-menu button was a leftover duplicate.
 
   // Slice A: the visible discoverability affordance moved from the rail (#railCmdk,
   // removed) to the GLOBAL topbar center (#tbSearch) — a search pill with a "⌘K" hint,
