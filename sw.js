@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v277"; /* v277: LF70 — Home's "Browse examples" card now jumps
+var CACHE_NAME = "studio-shell-v278"; /* v278: the offline sample generator now emits ONE row per
+   distinct category for a bounded categorical first column (the 4 conservation practices, 4 crops,
+   5 providers, …) instead of a flat 8 that duplicated each label — the conservation practice-shift
+   dataset showed every practice twice (Kevin, live QA). app/sampledata.js changed, so precached
+   copies roll.
+   v277: LF70 — Home's "Browse examples" card now jumps
    straight to Dashboards filtered to the installed sample pack(s)' curated dashboards (a new
    "Sample packs" filter chip), instead of opening the old Examples dropdown of static demo-db
    specs. app/studio.js changed, so precached copies roll.

@@ -116,6 +116,18 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **Sample generator: one row per distinct category, not a duplicated 8 (v641, sw v278,
+  2026-07-28, steward):** Kevin, live QA on the Conservation pack — the practice-shift dataset
+  (`PracticeShift2015to2025`, SQL `GROUP BY practice`) showed each of the 4 practices TWICE in the
+  data preview and the "Adoption Shift" bar chart. Root cause: `Studio.sampleRows`
+  (`app/sampledata.js`) hardcoded `n = GEO_N[kinds[0]] || 8` rows, so a bounded categorical first
+  column — practice (4), crop (4), provider (5), sensitivity/status bands (4) — cycled its
+  vocabulary until it filled 8 rows, repeating labels. Fix: cap `n` to the first (label) column's
+  own vocabulary size (`VOCAB_N` mirrors the `valueFor` category arrays), so a bounded category
+  yields exactly one row per distinct label — a GROUP-BY-shaped sample. Geo columns keep their
+  region-per-row count (`GEO_N`); kinds that don't repeat inside 8 rows (name/month/year/isodate)
+  and opaque/numeric kinds fall through to 8 unchanged. Test: practice=4, crop=4, provider=5 all
+  distinct (no dup), year still 8. Files: app/sampledata.js, tests/run.js, sw.js, js/changelog.js.
 - **LF70 — Home's "Browse examples" card now lands in Dashboards, filtered to sample-pack
   dashboards (v640, sw v277, 2026-07-28, steward — LIVE-QA QUEUE bug/cleanup item, ahead of the
   flashier remaining work per LF67's own NEXT note):** the card used to `enterStudio()` then click
