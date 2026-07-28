@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 665,
+    title: 'Sparkle name-suggest button now on Explore\'s Folder field too — LF62 is complete',
+    kind: 'polish',
+    ts: '2026-07-28T14:54:11.000Z',
+    items: [
+      'The ✨ suggest-a-name button now also sits next to Explore\'s "Folder" field for a View — suggesting the picked dataset\'s own folder, the same upstream-linked-folder convention the dataset/connection/job Folder fields already use. Every name field on the LF62 list is now wired.',
+    ],
+  },
+  {
     v: 664,
     title: 'Sparkle name-suggest button now on the Folder field too',
     kind: 'polish',

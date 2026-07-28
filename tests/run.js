@@ -3160,6 +3160,28 @@ function serve() {
       lf62ViewSample.btnPresent && lf62ViewSample.suggestion.length > 0 && lf62ViewSample.suggestion === lf62ViewSample.expected,
       JSON.stringify(lf62ViewSample));
 
+    // LF62 slice 8 (live-QA queue, slice 7's own NEXT pointer — the last un-wired LF62
+    // surface): the same sparkle button, wired into Explore's "Folder" field. A View
+    // built over a SAMPLE dataset (no `datasetId`, same XP.kind === "sample" pick as
+    // just above) has nothing upstream to link a folder from and no Tags field to fall
+    // back to (unlike the dataset/connection/job Folder fields), so the click leaves
+    // the field blank and explains why via the shared error toast.
+    console.log("\n• LF62 slice 8: View (Explore analysis) folder-suggest sparkle button — sample dataset (nothing to suggest)");
+    const lf62FolderSample = await page.evaluate(function () {
+      var inp = document.getElementById("xpFolder");
+      var wrap = inp.parentElement;
+      var btn = wrap.querySelector(".name-sparkle-btn");
+      inp.value = "";
+      btn.click();
+      return { btnPresent: !!btn, wrapHasClass: wrap.classList.contains("xp-folder-sparkle"),
+        folderStillEmpty: inp.value === "", toastCls: document.getElementById("toast").className,
+        toastText: document.getElementById("toast").textContent };
+    });
+    ok("LF62 slice 8: Explore's Folder field carries the sparkle button; with a sample dataset picked (nothing upstream to link), clicking it leaves the field blank and explains why (error toast)",
+      lf62FolderSample.btnPresent && lf62FolderSample.wrapHasClass && lf62FolderSample.folderStillEmpty &&
+      /err/.test(lf62FolderSample.toastCls) && /source/i.test(lf62FolderSample.toastText),
+      JSON.stringify(lf62FolderSample));
+
     await page.fill("#xpName", "Suite analysis");
     await page.click("#xpSaveBtn");
     await page.waitForTimeout(350);
@@ -3624,6 +3646,27 @@ function serve() {
     ok("LF62 slice 5: Explore's Name field carries the sparkle button; with a workspace dataset picked, it suggests that dataset's own titleized name",
       lf62ViewWs.btnPresent && lf62ViewWs.wrapHasClass && lf62ViewWs.suggestion.length > 0 && lf62ViewWs.suggestion === lf62ViewWs.expected,
       JSON.stringify(lf62ViewWs));
+
+    // LF62 slice 8 (live-QA queue, slice 7's own NEXT pointer): with a WORKSPACE
+    // dataset picked (XP.kind === "ws", same county demo dataset as just above),
+    // prove the Folder field's sparkle suggests that dataset's own titleized folder
+    // — the connections->datasets->jobs->views chain the dataset/connection/job
+    // Folder fields already reuse, now extended one hop further to Views.
+    console.log("\n• LF62 slice 8: View (Explore analysis) folder-suggest sparkle button — workspace dataset");
+    const lf62FolderWs = await page.evaluate(function () {
+      var ds = Studio.Workspace.get("datasets", window.__studioExplore.state.dsId);
+      ds.folder = "Conservation Ops";
+      Studio.Workspace.put("datasets", ds, { silent: true });
+      var inp = document.getElementById("xpFolder");
+      var wrap = inp.parentElement;
+      var btn = wrap.querySelector(".name-sparkle-btn");
+      inp.value = "";
+      btn.click();
+      return { suggestion: inp.value, expected: Studio.titleize(ds.folder) };
+    });
+    ok("LF62 slice 8: with a workspace dataset picked that has its own folder set, Explore's Folder field sparkle suggests that same (titleized) folder",
+      lf62FolderWs.suggestion.length > 0 && lf62FolderWs.suggestion === lf62FolderWs.expected,
+      JSON.stringify(lf62FolderWs));
 
     const m2cClean = await page.evaluate(function () {
       window.__studioDemoPacks.remove("conservation");

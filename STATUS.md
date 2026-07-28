@@ -116,6 +116,32 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF62 slice 8 — the sparkle name-suggest button now also lives on Explore's own
+  "Folder" field (v665, sw v302, 2026-07-28, steward — LIVE-QA QUEUE, LF62 slice 7's
+  own NEXT pointer, the last un-wired LF62 surface):** a View (Explore analysis) is
+  one hop downstream of its picked dataset in the same connections→datasets→jobs→
+  views chain the dataset/connection/job Folder fields already reuse, so
+  `xpFolderSuggestCtx()` (app/explore.js) hands `Studio.nameSuggest("folder", …)` the
+  picked WORKSPACE dataset's own `folder` as `linkedFolder` (`XP.kind === "ws"`); a
+  sample-backed or self-contained View has no upstream dataset to link and Views have
+  no Tags field to fall back to (unlike the dataset/connection/job forms), so those
+  cases correctly suggest nothing and explain why via the shared error toast. Wired
+  the same way slice 5's View-name field was (raw-HTML-built input, sparkle wrap
+  spliced in post-render via `parentNode.insertBefore`); the wrap carries a new
+  `xp-folder-sparkle` class so `app/studio.css` can keep the Folder field's narrower
+  `flex:.6` ratio instead of inheriting the Name field's `flex:1` (the old
+  `.xp-savebar input#xpFolder` rule no longer reaches the input once it's nested
+  inside the sparkle wrap div). 2 new regression tests (sample dataset picked →
+  blank + error toast; workspace dataset with its own folder set → suggests that
+  folder, titleized). Suite green. **LF62 ("sparkle auto-name on every name field")
+  is now fully done** — dataset/job/dashboard/View/connection names (slices 1-5),
+  both preset names (slice 6), and every Folder field across dataset/connection/job
+  editors + Explore (slices 7-8) are all wired. Files: app/explore.js, app/studio.css,
+  sw.js, js/changelog.js, tests/run.js. NEXT: pick up elsewhere in the LIVE-QA QUEUE
+  (LF63 query builder, LF64 dynamic parameters, LF65/LF66 Data-panel reorg, LF69's
+  remaining (b)/(c) sub-items, LF45 richer Open dialog) or the ONBOARDING &
+  PROVISIONING EPIC (LF40's remaining sample-pack-aware tour segments, LF60 in-app
+  docs) — LF62 itself needs no further slices.
 - **LF62 slice 7 — the sparkle name-suggest button now also lives on the "Folder"
   field in the dataset, connection and job editors (v664, sw v301, 2026-07-28,
   steward — LIVE-QA QUEUE, LF62 slice 6's own NEXT pointer, the "folder name field"
@@ -5721,9 +5747,11 @@
 >       **The dataset/job/connection/dashboard/view quintet is now done.** ✓ **Slice 6 shipped
 >       (2026-07-28, v661, sw v298, steward): both "Preset name" fields** (the per-dashboard
 >       custom-theme preset and the Settings-level style preset), suggesting the dashboard's
->       own title or the active default theme's label respectively — see DONE. NEXT in LF62:
->       the folder name field (dataset/connection/job/folder editors) is the one remaining
->       surface, its own dedicated slice.
+>       own title or the active default theme's label respectively — see DONE. ✓ **Slice 7
+>       shipped (2026-07-28, v664, sw v301, steward): the Folder field on the dataset,
+>       connection and job editors** — see DONE. ✓ **Slice 8 shipped (2026-07-28, v665,
+>       sw v302, steward): Explore's own Folder field, the last un-wired surface** — see
+>       DONE. **LF62 is now fully done.**
 > LF63. **Connection/dataset QUERY BUILDER — see tables/columns, assisted build, validate, test.** For a
 >       connection you can browse the available tables, you should be able to SEE and USE them when building
 >       a dataset: a table/column browser (already have schema for some adapters) feeding an assisted
