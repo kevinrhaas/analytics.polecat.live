@@ -832,6 +832,13 @@ textarea:focus-visible,[tabindex]:focus-visible,.row-item:focus-visible{
 .menu .sep{height:1px;background:var(--line);margin:5px 4px}
 .menu .grp{font-size:var(--fs-11);text-transform:uppercase;letter-spacing:.5px;color:var(--faint);padding:var(--sp-8) var(--sp-12) var(--sp-4);font-weight:700}
 
+/* LF48: the Present-mode switcher — one segmented control replacing two look-alike flat
+   menu buttons (Focus mode / Slideshow), so entering either reads as ONE choice, not two
+   unrelated actions. */
+.mode-switch{display:flex;gap:3px;padding:3px;margin:0 var(--sp-6) var(--sp-4);background:var(--field);border-radius:9px}
+.mode-switch-opt{flex:1;display:block!important;text-align:center!important;padding:var(--sp-8) var(--sp-6)!important;border-radius:6px!important;font-weight:600!important}
+.mode-switch-opt:hover{background:var(--pane);color:var(--brand)}
+
 /* ── examples card gallery (E5/E3) ── */
 .menu.ex-grid{min-width:min(96vw,580px)}
 .ex-cards{display:grid;grid-template-columns:repeat(2,1fr);gap:5px;padding:var(--sp-4) var(--sp-6) var(--sp-8)}

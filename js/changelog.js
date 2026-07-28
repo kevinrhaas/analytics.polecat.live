@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 680,
+    title: 'One switcher for Focus mode and Slideshow',
+    kind: 'polish',
+    ts: '2026-07-28T22:29:09.000Z',
+    items: [
+      'Focus mode and Slideshow used to sit as two separate, look-alike buttons in the ⋯ More menu (with Focus mode also duplicated as a Settings toggle) — they now share one segmented "Present" switcher, the single place to enter either mode.',
+    ],
+  },
+  {
     v: 679,
     title: 'KPI tiles always link to their detail',
     kind: 'fix',

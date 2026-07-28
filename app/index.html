@@ -134,8 +134,19 @@
           <!-- LF46 (⋯ teardown): Demo mode (the stakeholder-demo live-feed simulation) is no longer
                listed here — it has a proper labelled home in Settings → Presentation (Z5
                SETTINGS_TOGGLES), so the everyday ⋯ menu no longer carries the duplicate. -->
-          <button id="morePresent">Focus mode</button>
-          <button id="moreSlideshow">Slideshow  ▶</button>
+          <!-- LF48: Focus mode and Slideshow are the two "enter, then Escape/✕ back out" present
+               modes reachable from here (Panel-zoom is the third, but it's entered by clicking a
+               panel, not from a menu) — ONE elegant switcher replaces what used to be two
+               look-alike flat buttons. Focus mode's own Settings → Presentation toggle is retired
+               in the same slice, so this switcher is the SINGLE entry point for either mode (no
+               second, parallel toggle to drift out of sync). Simple mode stays listed separately
+               below: it's a persistent editing preference (LF41), not a transient present mode, so
+               it's deliberately not folded into the switcher (Kevin, 2026-07-27). -->
+          <div class="mode-switch" id="modeSwitch" role="group" aria-label="Enter a presentation mode">
+            <button type="button" id="modeSwitchFocus" class="mode-switch-opt" data-mode="focus">Focus mode</button>
+            <button type="button" id="modeSwitchSlideshow" class="mode-switch-opt" data-mode="slideshow">Slideshow</button>
+          </div>
+          <div class="sep"></div>
           <button id="moreSimple">Simple mode  ✦</button>
           <!-- LF46 (⋯ teardown, slice 2): the "Help & power tools" group (Keyboard shortcuts,
                Help docs, Interactive tutorial, Edit JSON spec) is gone — help lives in the

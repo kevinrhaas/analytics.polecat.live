@@ -116,6 +116,36 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF48 (slice 2) — the Present-mode switcher entry point (v680, sw v317, 2026-07-28,
+  steward — step 4 of the LOCKED BUILD ORDER, the last remaining piece):** slice 1
+  (v659) shipped the uniform EXIT half and deliberately deferred "the consistent, role-aware
+  mode-switcher entry (one control to enter the modes)" to this slice. Focus mode and Slideshow —
+  the two modes you *enter* from the normal builder view (Panel-zoom is the third immersive mode
+  but it's entered by clicking a panel, not from a menu) — used to sit as two flat, look-alike
+  `#morePresent`/`#moreSlideshow` buttons under a bare "Present" group label in ⋯ More, with Focus
+  mode ALSO duplicated as its own Settings → Presentation toggle (Z5 SETTINGS_TOGGLES). Per Kevin's
+  RECONCILE note (2026-07-27): modes are a *choice*, not a persistent setting, so Focus mode's
+  Settings toggle is retired — the new `#modeSwitch` segmented control (two `.mode-switch-opt`
+  buttons sharing one pill-shaped container, `app/studio.css`) in the same ⋯ More spot is now the
+  ONE place to enter either mode, nothing left to drift out of sync. Simple mode stays exactly
+  where it was (its own ⋯ More button + Settings toggle, now separated from the switcher by a
+  `<div class="sep">`) since it's a persistent editing preference, not a transient present mode —
+  Kevin's own explicit carve-out, not folded in here. `app/palette.js`'s ⌘K "Focus mode"/"Slideshow"
+  commands retarget the new ids. 3 new regression tests (`#modeSwitch` carries both options; the
+  old flat buttons are gone; Focus's Settings toggle is gone) plus the existing H71 Focus-mode
+  test's button-id updated; the Z5-5 Settings-toggle test (which exercised the now-retired switch)
+  is removed and Z5's boot assertion drops from 6 mode switches to 5. Docs updated: the Slideshow
+  section (docs/index.html) now names the switcher and its Focus-mode neighbor; the Simple-mode
+  paragraph's toggle list drops "and Focus mode". Full suite green. **This closes exactly what
+  slice 1 named as deferred** ("the consistent, role-aware mode-switcher entry… Studio is already
+  editor-only") — **genuinely still open in LF48's original, broader spec:** the ROLE-CONTROLLED
+  half that would let a non-developer VIEWER reach Focus/Slideshow from the read-only Viewer route
+  (`app/viewer.js` has no such entry points today; LF23's separate viewer route was slice 1's
+  stated reason this switcher didn't need to worry about it, not evidence it's covered). Treat
+  LF48 as substantially done for the LOCKED BUILD ORDER's purposes — **step 4 is now fully done**
+  — but don't claim the viewer-side extension without a dedicated follow-up slice if it resurfaces.
+  Files: app/index.html, app/studio.js, app/studio.css, app/palette.js, docs/index.html,
+  tests/run.js, sw.js, js/changelog.js.
 - **UX sweep 2026-07-28 (#395) — KPI tiles always link to their detail (v679, sw v316,
   2026-07-28, steward):** the sweep's new finding: both live demo/sample dashboards' KPI tiles
   (`viewer.html?dash=flagship-cost`, the Conservation Insight cover-crop dashboard — 8 tiles total)
@@ -6038,10 +6068,11 @@
 >    Help & power tools groups 2026-07-28, **LF46 is now fully done**) · LF47 (ops → top rail,
 >    w/ #30 — ✓ slices A/B/C, 2026-07-27, **LF47 is now fully done** except Examples removal,
 >    which is LF43 slice 2's remit, not duplicated here) · LF48 (✓ slice 1 uniform exit,
->    2026-07-28 — the role-aware mode-switcher ENTRY point is still open) · LF45 (✓ richer
->    Open dialog, 2026-07-28 — Save-as's own half already shipped with LF47) · LF52 (✓
->    widget→View, 2026-07-28) · LF53 (✓ drop CDF/CDE, 2026-07-28). **Step 4 remaining: LF48's
->    mode-switcher entry point + LF43 slice 2 (Examples removal).**
+>    2026-07-28, ✓ slice 2 the role-aware mode-switcher ENTRY point, 2026-07-28 — **LF48 is now
+>    fully done**) · LF45 (✓ richer Open dialog, 2026-07-28 — Save-as's own half already shipped
+>    with LF47) · LF52 (✓ widget→View, 2026-07-28) · LF53 (✓ drop CDF/CDE, 2026-07-28). **Step 4 is
+>    now fully done** except LF43 slice 2 (Examples removal), which stays its own explicitly
+>    deferred, separately-budgeted slice (see Step 1).
 > 5. **Exports + navigation/layout:** LF49 (XLSX ✓ · DOCX ✓ · PPTX ✓, 2026-07-28 — **LF49 is now
 >    fully done**) · LF54 (slice 1 ✓ left-align + kill left-gutter whitespace, 2026-07-28 — deeper
 >    per-component density tightening left as an optional follow-up) · LF51 (sophisticated nav IA:
@@ -6333,6 +6364,11 @@
 >       default (LF41), not lumped with Demo/Focus. Net: Settings' MODE/PRESENTATION collapse to Sample
 >       content + Simple-mode preference + the tour re-launch.** (studio.js mode handling + switcher UI,
 >       renderSettings() MODE/PRESENTATION cards, auth.js canDevelop.) Ties LF23, LF44, LF46, LF40, LF41.
+>       ✓ **Slice 1 (uniform exit) shipped 2026-07-28 — see DONE.** ✓ **Slice 2 (the switcher
+>       entry point + Settings reconcile) shipped 2026-07-28, v680, sw v317 — see DONE.** Genuinely
+>       still open: extending Focus/Slideshow to the read-only Viewer route for non-developer
+>       viewers (`app/viewer.js` has neither today) — a separate, not-yet-scoped follow-up if it
+>       resurfaces, not attempted in either slice.
 > LF49. **More export formats.** XLSX (dashboard on tab 1, backend/source datasets on later tabs), PowerPoint
 >       (.pptx), Word (.docx) — best-effort visual dashboard + underlying data. Mind the no-build/no-dep
 >       rule (vendor a small lib if needed). (app/exporters.js + Export▾ menu.) Ties LF36 (PDF, shipped), LF25.

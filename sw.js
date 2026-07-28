@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v316"; /* v316: UX sweep 2026-07-28 — KPI tiles without a
+var CACHE_NAME = "studio-shell-v317"; /* v317: LF48 (LOCKED BUILD ORDER step 4, the last
+   piece) — the Present-mode switcher entry point: Focus mode and Slideshow now share ONE
+   segmented control (#modeSwitch) in ⋯ More instead of two look-alike flat buttons, and Focus
+   mode's parallel Settings → Presentation toggle is retired (the switcher is its only entry
+   point now, so nothing can drift out of sync). app/index.html, app/studio.js, app/studio.css,
+   app/palette.js, docs/index.html changed, so precached copies roll.
+   v316: UX sweep 2026-07-28 — KPI tiles without a
    Click-through URL now open the shared Detail drawer by default in the exported dashboard and
    the Viewer (app/studio-render.js's buildKpiDetailCfg), so every KPI tile links somewhere
    instead of some being dead numbers. app/studio-render.js changed, so precached copies roll.
