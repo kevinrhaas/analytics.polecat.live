@@ -9710,6 +9710,53 @@ function serve() {
     ok("LF69a: the delete (✕) action is the last button in the panel action row, after zoom/dup/download chrome",
       dlOrder.lastIsDel, JSON.stringify(dlOrder));
 
+    // LF69(d): the PNG/CSV/standalone-HTML row buttons collapse into a single "Export ▾"
+    // trigger + popover menu — the 3 acts proven by dlBtns above now live inside a
+    // closed-by-default popover behind ONE visible trigger, not as 3 separate row buttons.
+    const dlMenuShape = await pvDl.evaluate(function (panelId) {
+      var card = document.querySelector('[data-panel-id="' + panelId + '"]');
+      var acts = card ? card.querySelector(".sr-card-acts") : null;
+      var menu = acts ? acts.querySelector(".pdc-dl-menu") : null;
+      var triggers = acts ? acts.querySelectorAll(".pdc-dl-trigger") : [];
+      var pop = menu ? menu.querySelector(".pdc-dl-pop") : null;
+      var items = pop ? [].slice.call(pop.querySelectorAll(".pdc-dl-act")) : [];
+      return {
+        oneTrigger: triggers.length === 1,
+        closedByDefault: !!menu && !menu.classList.contains("open"),
+        itemCount: items.length,
+        titles: items.map(function (b) { return b.title; })
+      };
+    }, dlBars.id);
+    ok("LF69d: the download row shows exactly one Export trigger (not 3 separate buttons), popover closed by default",
+      dlMenuShape.oneTrigger && dlMenuShape.closedByDefault, JSON.stringify(dlMenuShape));
+    ok("LF69d: the popover holds the same 3 PNG/CSV/standalone-HTML items the old row exposed",
+      dlMenuShape.itemCount === 3 && /PNG/.test(dlMenuShape.titles.join()) && /CSV/.test(dlMenuShape.titles.join()) && /standalone HTML/.test(dlMenuShape.titles.join()),
+      JSON.stringify(dlMenuShape));
+
+    // Clicking the trigger opens the popover; clicking outside (or Escape) closes it again.
+    const dlMenuToggle = await pvDl.evaluate(function (panelId) {
+      var card = document.querySelector('[data-panel-id="' + panelId + '"]');
+      var menu = card.querySelector(".pdc-dl-menu");
+      var trigger = menu.querySelector(".pdc-dl-trigger");
+      trigger.click();
+      var openAfterClick = menu.classList.contains("open");
+      var expandedAfterClick = trigger.getAttribute("aria-expanded") === "true";
+      document.body.click();
+      var closedAfterOutsideClick = !menu.classList.contains("open");
+      trigger.click();
+      var reopened = menu.classList.contains("open");
+      document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+      var closedAfterEscape = !menu.classList.contains("open");
+      return { openAfterClick: openAfterClick, expandedAfterClick: expandedAfterClick,
+        closedAfterOutsideClick: closedAfterOutsideClick, reopened: reopened, closedAfterEscape: closedAfterEscape };
+    }, dlBars.id);
+    ok("LF69d: clicking the Export trigger opens the popover and sets aria-expanded",
+      dlMenuToggle.openAfterClick && dlMenuToggle.expandedAfterClick, JSON.stringify(dlMenuToggle));
+    ok("LF69d: clicking outside the menu closes it",
+      dlMenuToggle.closedAfterOutsideClick, JSON.stringify(dlMenuToggle));
+    ok("LF69d: Escape closes a reopened menu too",
+      dlMenuToggle.reopened && dlMenuToggle.closedAfterEscape, JSON.stringify(dlMenuToggle));
+
     // LF25a: the on-panel "Export as HTML" button is preview/builder-only chrome — clicking it
     // posts panel-export-embed to the parent, which opens the SAME "Embed widget" modal as the
     // Inspector's own "Export this panel…" action (one mechanism, two entry points).
@@ -9838,8 +9885,9 @@ function serve() {
       return new Promise(function (resolve) {
         var card = document.querySelector('[data-panel-id="' + panelId + '"]');
         var btns = card ? [].slice.call(card.querySelectorAll(".pdc-dl-act")) : [];
+        var triggers = card ? card.querySelectorAll(".pdc-dl-trigger") : [];
         window.__downloadPanelPngDataUrl(panelId, function (dataUrl) {
-          resolve({ count: btns.length, hasEmbed: btns.some(function (b) { return /standalone HTML/.test(b.title); }), dataUrl: dataUrl });
+          resolve({ count: btns.length, oneTrigger: triggers.length === 1, hasEmbed: btns.some(function (b) { return /standalone HTML/.test(b.title); }), dataUrl: dataUrl });
         });
       });
     }, dlBundleHtml.panelId);
@@ -9848,6 +9896,8 @@ function serve() {
       dlBundleErrors.length === 0 && dlBundleChrome.count === 3 && dlBundleChrome.hasEmbed &&
       !!dlBundleChrome.dataUrl && dlBundleChrome.dataUrl.indexOf("data:image/png;base64,") === 0,
       JSON.stringify({ errors: dlBundleErrors, chrome: dlBundleChrome && { count: dlBundleChrome.count } }));
+    ok("LF69d: the same standalone bundle also collapses those 3 chrome buttons into one Export trigger in .pdc-dl-acts",
+      dlBundleChrome.oneTrigger, JSON.stringify(dlBundleChrome));
 
     // LF25a: a GENUINELY published dashboard (preview:false, the real "download .html"/deploy
     // path) must never carry window.STUDIO_PREVIEW — the only signal addDownloadChrome's

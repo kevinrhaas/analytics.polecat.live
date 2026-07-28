@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 650,
+    title: 'Panel exports collapse into one Export menu',
+    kind: 'polish',
+    ts: '2026-07-28T09:14:39.000Z',
+    items: [
+      'Every panel\'s Download PNG / Download CSV / Export as standalone HTML buttons now live behind a single Export button instead of sitting as separate icons in the panel toolbar.',
+    ],
+  },
+  {
     v: 649,
     title: 'Panel toolbar: delete moves to the far right',
     kind: 'fix',

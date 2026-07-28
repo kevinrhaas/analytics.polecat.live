@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v286"; /* v286: LF69(a) — the panel action row now moves the
+var CACHE_NAME = "studio-shell-v287"; /* v287: LF69(d) — the per-panel PNG/CSV/standalone-HTML
+   download buttons collapse into a single "Export ▾" trigger + popover menu instead of up to 3
+   row buttons (app/studio-render.js, app/exporters.js, docs/index.html, tests/run.js changed), so
+   precached copies roll.
+   v286: LF69(a) — the panel action row now moves the
    destructive delete (✕) button to the far right, after the export/download chrome, instead of
    mid-row (app/studio-render.js changed, tests/run.js changed), so precached copies roll.
    v285: LF40 — a new pack-gated "Conservation Insight pack"

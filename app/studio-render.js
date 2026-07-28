@@ -27,6 +27,9 @@
   var I_TABLE = iSvg('<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/>', 13);
   // LF25(a): on-panel "export this panel as HTML" icon (builder/preview only — see addDownloadChrome).
   var I_CODE = iSvg('<polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>', 13);
+  // LF69(d): the "Export ▾" menu trigger — a download-tray glyph + a small caret (see addDownloadChrome).
+  var I_DLTRIG = iSvg('<path d="M12 3v11m0 0l-3.5-3.5M12 14l3.5-3.5"/><path d="M5 16v2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-2"/>', 13);
+  var I_CARET_SM = iSvg('<polyline points="6 9 12 15 18 9"/>', 9);
 
   // N-DEV: {{key}} template-var substitution for panel titles/notes. Studio.applyTemplateVars
   // (app/model.js) is NOT available here — model.js is a builder-only module, never inlined into
@@ -718,6 +721,29 @@
   function dlTypeShown(p, key) {
     return p[key] === false ? false : (p[key] === true ? true : p.allowDownloads !== false);
   }
+  // LF69(d): one popover open at a time, dismissed by an outside click or Escape — wired
+  // once (guarded) even though addDownloadChrome runs per-panel, on every render.
+  var _dlMenuWired = false;
+  function closeAllDlMenus() {
+    var open = document.querySelectorAll(".pdc-dl-menu.open");
+    for (var i = 0; i < open.length; i++) {
+      open[i].classList.remove("open");
+      var t = open[i].querySelector(".pdc-dl-trigger");
+      if (t) t.setAttribute("aria-expanded", "false");
+    }
+  }
+  function wireDlMenuDismiss() {
+    if (_dlMenuWired) return;
+    _dlMenuWired = true;
+    document.addEventListener("click", function (e) { if (!e.target.closest(".pdc-dl-menu")) closeAllDlMenus(); });
+    document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeAllDlMenus(); });
+  }
+  // LF69(d): PNG/CSV/standalone-HTML collapse into a single "Export ▾" menu instead of up to
+  // 3 separate row buttons — a tidier header, consistent with the dashboard-level topbar
+  // Export ▾ menu's own PDF/XLSX/Word options (LF49, a separate mechanism in studio.js). Same
+  // toggles (dlTypeShown), same handlers, same .pdc-dl-act buttons — they just live inside a
+  // popover now, so the existing count/title based tests still find them unchanged; only the
+  // visible row gains ONE trigger button.
   function addDownloadChrome(container, card, p, res) {
     var svg = card.body.querySelector("svg");
     var canImg = !!svg && dlTypeShown(p, "dlPng");
@@ -727,27 +753,31 @@
     // zoom/duplicate/delete acts it joins, never rendered into a real static export.
     var canEmbed = isPreview() && dlTypeShown(p, "dlEmbed");
     if (!canImg && !canData && !canEmbed) return;
-    if (canImg) {
-      var imgBtn = document.createElement("button");
-      imgBtn.type = "button"; imgBtn.className = "pdc-dl-act"; imgBtn.title = "Download chart as PNG image";
-      imgBtn.innerHTML = I_IMG;
-      imgBtn.addEventListener("click", function (e) { e.stopPropagation(); downloadPanelPng(card, p); });
-      container.appendChild(imgBtn);
+    wireDlMenuDismiss();
+    var menu = document.createElement("div"); menu.className = "pdc-dl-menu";
+    var trigger = document.createElement("button");
+    trigger.type = "button"; trigger.className = "pdc-dl-trigger"; trigger.title = "Export";
+    trigger.setAttribute("aria-haspopup", "true"); trigger.setAttribute("aria-expanded", "false");
+    trigger.innerHTML = I_DLTRIG + I_CARET_SM;
+    var pop = document.createElement("div"); pop.className = "pdc-dl-pop"; pop.setAttribute("role", "menu");
+    trigger.addEventListener("click", function (e) {
+      e.stopPropagation();
+      var willOpen = !menu.classList.contains("open");
+      closeAllDlMenus();
+      if (willOpen) { menu.classList.add("open"); trigger.setAttribute("aria-expanded", "true"); }
+    });
+    function addItem(iconSvg, title, label, onClick) {
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "pdc-dl-act pdc-dl-item"; b.title = title; b.setAttribute("role", "menuitem");
+      b.innerHTML = iconSvg + '<span class="pdc-dl-lbl">' + label + "</span>";
+      b.addEventListener("click", function (e) { e.stopPropagation(); closeAllDlMenus(); onClick(); });
+      pop.appendChild(b);
     }
-    if (canData) {
-      var dataBtn = document.createElement("button");
-      dataBtn.type = "button"; dataBtn.className = "pdc-dl-act"; dataBtn.title = "Download data as CSV";
-      dataBtn.innerHTML = I_TABLE;
-      dataBtn.addEventListener("click", function (e) { e.stopPropagation(); downloadPanelData(p, res); });
-      container.appendChild(dataBtn);
-    }
-    if (canEmbed) {
-      var embedBtn = document.createElement("button");
-      embedBtn.type = "button"; embedBtn.className = "pdc-dl-act"; embedBtn.title = "Export this panel as a standalone HTML file";
-      embedBtn.innerHTML = I_CODE;
-      embedBtn.addEventListener("click", function (e) { e.stopPropagation(); post({ type: "panel-export-embed", id: p.id }); });
-      container.appendChild(embedBtn);
-    }
+    if (canImg) addItem(I_IMG, "Download chart as PNG image", "Download PNG image", function () { downloadPanelPng(card, p); });
+    if (canData) addItem(I_TABLE, "Download data as CSV", "Download data (CSV)", function () { downloadPanelData(p, res); });
+    if (canEmbed) addItem(I_CODE, "Export this panel as a standalone HTML file", "Export as standalone HTML", function () { post({ type: "panel-export-embed", id: p.id }); });
+    menu.appendChild(trigger); menu.appendChild(pop);
+    container.appendChild(menu);
   }
 
   /* ---- one panel ---- */
