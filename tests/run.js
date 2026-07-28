@@ -5107,6 +5107,38 @@ function serve() {
     });
     await page.waitForTimeout(200);
 
+    // LF62 slice 3 (live-QA queue, LF62 slice 1's own NEXT pointer): the same sparkle
+    // name-suggest button, wired into the connection wizard's "Connection name" field —
+    // suggests a titleized name from whichever identifying credential field (database/
+    // project/host/…) the user has already typed.
+    console.log("\n• LF62 slice 3: connection-name sparkle-suggest button");
+    await page.evaluate(function () { window.__studioShellSetSection("connections"); });
+    await page.waitForTimeout(80);
+    await page.click("#connNewBtn");
+    await page.waitForTimeout(120);
+    await page.evaluate(function () {
+      [].slice.call(document.querySelectorAll(".cx-src-card")).filter(function (c) { return c.querySelector("b").textContent === "Snowflake"; })[0].click();
+    });
+    await page.waitForTimeout(100);
+    const lf62ConnBefore = await page.evaluate(function () {
+      return {
+        btnPresent: !!document.querySelector(".modal .name-sparkle-btn"),
+        nameBefore: document.querySelector(".cx-field input").value
+      };
+    });
+    ok("LF62 slice 3: the connection wizard's name field carries the same sparkle button, and defaults to the adapter label first",
+      lf62ConnBefore.btnPresent && lf62ConnBefore.nameBefore === "Snowflake", JSON.stringify(lf62ConnBefore));
+    const lf62Conn = await page.evaluate(function () {
+      var fields = [].slice.call(document.querySelectorAll(".cx-field input")); // name,account,token,warehouse,database,schema,role
+      fields[4].value = "county_cover_crop"; // database
+      document.querySelector(".modal .name-sparkle-btn").click();
+      return { name: document.querySelector(".cx-field input").value };
+    });
+    ok("LF62 slice 3: with a Database field filled in, the sparkle button suggests a titleized name pulled from it ('county_cover_crop' -> 'County Cover Crop')",
+      lf62Conn.name === "County Cover Crop", JSON.stringify(lf62Conn));
+    await page.evaluate(function () { document.querySelector(".modal-ov .x").click(); });
+    await page.waitForTimeout(100);
+
     // LF13(a): group-by / metric-column / join-and-union-key fields become real dropdowns
     // of the relevant dataset's known columns, instead of free-text (STATUS.md LIVE-FEEDBACK
     // QUEUE, LF13 sub-ask (a)). A dataset with columns already declared populates synchronously.

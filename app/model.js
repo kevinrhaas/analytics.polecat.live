@@ -2676,6 +2676,20 @@
       if (raw) return titleize(raw);
     }
     if (kind === "job" && ctx.sourceDatasetName) return titleize(ctx.sourceDatasetName);
+    if (kind === "connection") {
+      var cfg = ctx.cfg || {};
+      // Prefer a field that names the actual target (database/project/account/…)
+      // over a bare hostname — those read as a much better connection name.
+      var direct = ["database", "project", "account", "catalog", "dataset", "schema",
+        "workgroupName", "clusterIdentifier", "tableName", "warehouse"];
+      var val = "";
+      for (var i = 0; i < direct.length && !val; i++) val = cfg[direct[i]];
+      if (!val) {
+        var hostish = cfg.host || cfg.fileUrl || cfg.url;
+        if (hostish) val = String(hostish).replace(/^[a-z]+:\/\//i, "").split("/")[0].replace(/^www\./, "").split(".")[0];
+      }
+      if (val) return titleize(val);
+    }
     return "";
   };
 

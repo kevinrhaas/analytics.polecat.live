@@ -116,6 +116,32 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF62 slice 3 — the sparkle name-suggest button now also lives on the connection
+  wizard's "Connection name" field (v656, sw v293, 2026-07-28, steward — LIVE-QA QUEUE,
+  LF62 slice 2's own NEXT pointer):** slice 2 flagged the connection wizard as the other
+  cheap next step (it already receives `withSparkleButton` via `coreModuleDeps()` too).
+  `Studio.nameSuggest` gains a `"connection"` kind (app/model.js): given `ctx.cfg` (the
+  wizard's live, not-yet-saved field values, keyed by the adapter's own field `key`s), it
+  prefers a field that names the actual target — `database`, `project`, `account`,
+  `catalog`, `dataset`, `schema`, `workgroupName`, `clusterIdentifier`, `tableName`,
+  `warehouse`, checked in that order — over a bare hostname (falls back to `host`/
+  `fileUrl`/`url`, stripped of protocol/path/`www.`, only when none of those are filled
+  in), then runs it through the same `titleize()` every other kind uses. Deliberately
+  dumb/deterministic like the dataset and job heuristics — no adapter-specific code, just
+  a priority list of common field-key shapes across the existing adapters. `Studio.
+  Connections`' `openConnectionWizard`'s `step2()` (app/connections.js) wraps the
+  "Connection name" `<input>` with `withSparkleButton(nameInp, "connection", ...)`, same
+  shape as the dataset/job wiring — `getCtx()` reads `cfg()` (the wizard's existing
+  field-collection helper) lazily at click time, which works because `cfg()` is a hoisted
+  function declaration already fully wired by the time a user can click the button. 2 new
+  regression tests (the button is present and the name field still defaults to the
+  adapter's own label until clicked; filling in a Database field then clicking the button
+  suggests the titleized value, e.g. `county_cover_crop` → "County Cover Crop"). NEXT in
+  LF62: dashboard, View, preset, and folder name fields remain open — bigger slices, no
+  existing "source"-shaped context to derive from (likely need a different `nameSuggest`
+  heuristic per kind, e.g. suggesting from the panels/data already on a dashboard).
+  **LF62 job/dataset/connection trio now done.** Files: app/model.js, app/connections.js,
+  tests/run.js, sw.js, js/changelog.js.
 - **LF45 (slice) — richer "Open a dashboard" picker: thumbnails + keyboard nav (#126, v655, sw v292,
   2026-07-28, steward — step 4 of the LOCKED BUILD ORDER, Studio chrome):** LF45's "surface a visible
   Save-as button" half already shipped with LF47 (the top rail's `#btnSaveAsSpec`); this closes its
@@ -5520,9 +5546,12 @@
 >       (naming), LF55, LF56.
 >       ✓ **Slice 1 shipped (2026-07-28, v651, steward): the shared mechanism, wired into the
 >       dataset editor's Name field** — see DONE. `Studio.nameSuggest(kind, ctx)` (model.js) +
->       `withSparkleButton` (studio.js, exposed via `coreModuleDeps()`) are the reusable pieces;
->       NEXT is wiring the same button into job/dashboard/View/connection/preset/folder name
->       fields, one small slice each.
+>       `withSparkleButton` (studio.js, exposed via `coreModuleDeps()`) are the reusable pieces.
+>       ✓ **Slice 2 shipped (2026-07-28, v652, steward): the Jobs editor's "Job name" field**
+>       — see DONE. ✓ **Slice 3 shipped (2026-07-28, v656, steward): the connection wizard's
+>       "Connection name" field** — see DONE. NEXT is wiring the same button into
+>       dashboard/View/preset/folder name fields, one small slice each (bigger slices — no
+>       existing "source"-shaped context to derive from the way dataset/job/connection had).
 > LF63. **Connection/dataset QUERY BUILDER — see tables/columns, assisted build, validate, test.** For a
 >       connection you can browse the available tables, you should be able to SEE and USE them when building
 >       a dataset: a table/column browser (already have schema for some adapters) feeding an assisted

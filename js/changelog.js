@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 656,
+    title: 'The name-suggest sparkle button now works for connections too',
+    kind: 'feature',
+    ts: '2026-07-28T11:34:36.000Z',
+    items: [
+      'The "New connection" wizard\'s Connection name field now has the same ✨ suggest button — it suggests a name from a database, project, or host you\'ve already filled in.',
+    ],
+  },
+  {
     v: 655,
     title: 'The "Open a dashboard" picker now shows thumbnails and takes the keyboard',
     kind: 'polish',

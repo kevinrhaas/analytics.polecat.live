@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v292"; /* v292: LF45 — the "Open a dashboard" picker was a bare text
+var CACHE_NAME = "studio-shell-v293"; /* v293: LF62 slice 3 — the same ✨ sparkle
+   name-suggest button now sits on the connection wizard's "Connection name" field too,
+   suggesting a titleized name from whichever identifying credential field (database/
+   project/host/…) is already filled in (app/connections.js, app/model.js, tests/run.js
+   changed), so precached copies roll.
+   v292: LF45 — the "Open a dashboard" picker was a bare text
    list ("too light"); each row now carries the dashboard's layout thumbnail (Studio.makeThumbnail)
    and the list is keyboard-navigable (↑/↓ highlight, Enter opens). app/studio.js, app/studio.css
    changed, so precached copies roll.
