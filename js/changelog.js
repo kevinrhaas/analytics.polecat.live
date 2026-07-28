@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 674,
+    title: 'Filter pills now sit at the right of Connections, Datasets and Jobs',
+    kind: 'polish',
+    ts: '2026-07-28T18:59:38.000Z',
+    items: [
+      'The folder and filter pill strips on the Connections, Datasets and Jobs sections now right-align — the filter controls sit at the right edge, visually distinct from the left-aligned list and tiles below. On phones they stay left-aligned so nothing runs off the edge.',
+    ],
+  },
+  {
     v: 673,
     title: 'Connections and Jobs get the tile/list view toggle too',
     kind: 'feature',

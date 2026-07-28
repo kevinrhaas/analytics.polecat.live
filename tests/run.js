@@ -7084,6 +7084,29 @@ function serve() {
       lf51ViewCJ.job.titleBtn && lf51ViewCJ.job.persisted === "tiles" && lf51ViewCJ.job.backToList,
       JSON.stringify(lf51ViewCJ.job));
 
+    // LF51 (nav IA spec (b), "right-aligned filter pills"): the Datasets/Connections/Jobs
+    // filter pill strips (folder + facet filters) carry .cx-filter-strip and right-align their
+    // pills at desktop widths (falling back to left-align on ≤640px phones).
+    const lf51Pills = await page.evaluate(function () {
+      window.__studioShellSetSection("datasets");
+      var conn = Studio.Workspace.put("connections", { name: "lf51b-conn", adapter: "turso", cfg: {} });
+      var ds = Studio.Workspace.put("datasets", { name: "lf51b-ds", connectionId: conn.id, kind: "sql", sql: "select 1", tags: ["alpha"] });
+      window.__studioRenderDatasets();
+      var strip = document.querySelector('#dsxResults .cx-filter-strip.cx-pills');
+      var out = {
+        stripFound: !!strip,
+        justify: strip ? getComputedStyle(strip).justifyContent : null,
+        narrow: window.innerWidth <= 640
+      };
+      Studio.Workspace.remove("datasets", ds.id, { silent: true });
+      Studio.Workspace.remove("connections", conn.id, { silent: true });
+      Studio.Workspace.notify("*");
+      window.__studioShellSetSection("studio");
+      return out;
+    });
+    ok("LF51: the facet filter pill strip is right-aligned (.cx-filter-strip, flex-end on desktop)",
+      lf51Pills.stripFound && (lf51Pills.justify === "flex-end" || lf51Pills.narrow), JSON.stringify(lf51Pills));
+
     // library integration: the dataset shows as a draggable card and imports as a linked, self-contained DA
     await page.evaluate(function () { window.__studioShellSetSection("studio"); });
     await page.waitForTimeout(120);

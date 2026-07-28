@@ -319,8 +319,8 @@
         dot + icon + name + badges + when + privateBtn + pinBtn + actions + '</div>';
     });
     results.innerHTML =
-      (pillsF ? '<div class="wb-chips">' + pillsF + '</div>' : "") +
-      (pillsA || pillsC || pillsK || pillsT || pillsV || viewAddHtml ? '<div class="wb-chips cx-pills">' +
+      (pillsF ? '<div class="wb-chips cx-filter-strip">' + pillsF + '</div>' : "") +
+      (pillsA || pillsC || pillsK || pillsT || pillsV || viewAddHtml ? '<div class="wb-chips cx-pills cx-filter-strip">' +
         pillsV + (pillsV && (pillsA || pillsC || pillsK || pillsT) ? '<span class="dsx-pill-sep"></span>' : "") +
         pillsA + (pillsA && (pillsC || pillsK || pillsT) ? '<span class="dsx-pill-sep"></span>' : "") +
         pillsC + (pillsC && (pillsK || pillsT) ? '<span class="dsx-pill-sep"></span>' : "") +
