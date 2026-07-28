@@ -193,10 +193,40 @@
   // Values are substituted as plain text; unmatched placeholders are left
   // intact so the adapter's own error surfaces them clearly.
   WS.applyParams = function (text, params) {
-    if (!text || !params) return text;
-    return String(text).replace(/\{\{\s*([A-Za-z0-9_.-]+)\s*\}\}/g, function (m, key) {
-      return Object.prototype.hasOwnProperty.call(params, key) && params[key] != null ? String(params[key]) : m;
+    if (!text) return text;
+    params = params || {};
+    return String(text).replace(/\{\{\s*([A-Za-z0-9_.+-]+)\s*\}\}/g, function (m, key) {
+      // A user-supplied param value always wins (so an explicit {{today}} override still works)…
+      if (Object.prototype.hasOwnProperty.call(params, key) && params[key] != null) return String(params[key]);
+      // …otherwise fall back to a built-in DYNAMIC value (relative dates, resolved at run time —
+      // LF64). Unknown placeholders are left intact so the adapter's own error surfaces them.
+      var dyn = WS.dynamicParam(key);
+      return dyn != null ? dyn : m;
     });
+  };
+
+  // LF64 — built-in DYNAMIC parameters: relative/date tokens usable in any dataset query (or
+  // dashboard variable) with NO param definition, resolved fresh every time the query runs so
+  // "last 30 days"-style filters stay current. Returns null for a non-dynamic key (so a plain
+  // {{region}} placeholder is left for a real param / the adapter error). Dates are ISO YYYY-MM-DD
+  // (local calendar day); {{now}} is a full ISO timestamp for datetime comparisons.
+  WS.dynamicParam = function (key) {
+    var k = String(key || "").toLowerCase();
+    function pad(n) { return (n < 10 ? "0" : "") + n; }
+    function iso(d) { return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
+    var now = new Date();
+    if (k === "today") return iso(now);
+    if (k === "now") return now.toISOString();
+    if (k === "yesterday") { var y = new Date(now); y.setDate(y.getDate() - 1); return iso(y); }
+    if (k === "tomorrow") { var t = new Date(now); t.setDate(t.getDate() + 1); return iso(t); }
+    if (k === "month_start") return iso(new Date(now.getFullYear(), now.getMonth(), 1));
+    if (k === "month_end") return iso(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+    if (k === "year_start") return iso(new Date(now.getFullYear(), 0, 1));
+    if (k === "year_end") return iso(new Date(now.getFullYear(), 11, 31));
+    // {{today-30}} / {{today+7}} — N-day offsets from today
+    var off = k.match(/^today\s*([+-])\s*(\d+)$/);
+    if (off) { var d = new Date(now); d.setDate(d.getDate() + (off[1] === "-" ? -1 : 1) * parseInt(off[2], 10)); return iso(d); }
+    return null;
   };
 
   // ---- PostgREST-shaped data-plane helper ----------------------------------

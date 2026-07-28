@@ -6129,6 +6129,33 @@ function serve() {
     ok("WS: dataset {{param}} substitution fills values and leaves unmatched keys intact",
       wsParams.sub === "SELECT * FROM prod.orders WHERE r='EMEA'" && wsParams.keep === "WHERE x={{missing}}", JSON.stringify(wsParams));
 
+    // LF64 — built-in dynamic date tokens resolve with NO param definition, computed the same way
+    // as WS.dynamicParam, and a user param of the same name still overrides the built-in.
+    const wsDyn = await page.evaluate(function () {
+      function pad(n) { return (n < 10 ? "0" : "") + n; }
+      function iso(d) { return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
+      var now = new Date();
+      var expToday = iso(now);
+      var m30 = new Date(now); m30.setDate(m30.getDate() - 30);
+      var expM30 = iso(m30);
+      var expMonthStart = iso(new Date(now.getFullYear(), now.getMonth(), 1));
+      return {
+        today: Studio.WS.applyParams("d >= '{{today}}'", {}),
+        expToday: "d >= '" + expToday + "'",
+        minus30: Studio.WS.applyParams("d >= '{{today-30}}'", {}),
+        expMinus30: "d >= '" + expM30 + "'",
+        monthStart: Studio.WS.applyParams("{{month_start}}", {}),
+        expMonthStart: expMonthStart,
+        nowIsIso: /^\d{4}-\d{2}-\d{2}T/.test(Studio.WS.applyParams("{{now}}", {})),
+        keepReal: Studio.WS.applyParams("r='{{region}}'", {}),
+        override: Studio.WS.applyParams("{{today}}", { today: "PINNED" })
+      };
+    });
+    ok("WS: built-in dynamic date tokens ({{today}}, {{today-30}}, {{month_start}}, {{now}}) resolve; real params override",
+      wsDyn.today === wsDyn.expToday && wsDyn.minus30 === wsDyn.expMinus30 &&
+      wsDyn.monthStart === wsDyn.expMonthStart && wsDyn.nowIsIso &&
+      wsDyn.keepReal === "r='{{region}}'" && wsDyn.override === "PINNED", JSON.stringify(wsDyn));
+
     const wsCrypto = await page.evaluate(async function () {
       var C = Studio.SecretsCrypto;
       if (!C.cryptoAvailable()) return { skip: true };
