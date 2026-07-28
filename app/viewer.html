@@ -23,21 +23,23 @@
 <div id="app">
   <div id="viewerBar">
     <a id="viewerBack" class="viewer-back" href="app/" title="Back to Analytics" aria-label="Back to Analytics">
-      <span data-ic="chevron-left"></span> Analytics
+      <span data-ic="chevron-left"></span> <span class="viewer-btn-txt">Analytics</span>
     </a>
     <div class="viewer-title" id="viewerTitle"></div>
     <span class="viewer-badge">Viewer — read-only</span>
     <!-- LF23 slice 2: both hidden until boot() confirms the dashboard loaded (and, for
-         Edit, that this account can develop) — see app/viewer.js. -->
-    <button id="viewerSaveCopy" class="viewer-savecopy-btn" type="button" hidden>
-      <span data-ic="copy"></span> Save a copy
+         Edit, that this account can develop) — see app/viewer.js. The label text is wrapped in
+         .viewer-btn-txt so the mobile bar rule (studio.css) can collapse these to icon-only and
+         fit a phone width — each keeps a title for the tooltip/aria name when text is hidden. -->
+    <button id="viewerSaveCopy" class="viewer-savecopy-btn" type="button" hidden title="Save a copy" aria-label="Save a copy">
+      <span data-ic="copy"></span> <span class="viewer-btn-txt">Save a copy</span>
     </button>
     <!-- #106/#107: export the dashboard from the viewer — offered to EVERYONE (like Save a copy),
          since downloading what you can already see is a view-level capability. Hidden until boot()
          confirms the dashboard loaded. The menu reuses the exact exporters.js pipeline. -->
     <div class="viewer-export-wrap">
-      <button id="viewerExport" class="viewer-export-btn" type="button" hidden aria-haspopup="true" aria-expanded="false">
-        <span data-ic="download"></span> Export <span data-ic="chevron-down"></span>
+      <button id="viewerExport" class="viewer-export-btn" type="button" hidden aria-haspopup="true" aria-expanded="false" title="Export" aria-label="Export">
+        <span data-ic="download"></span> <span class="viewer-btn-txt">Export</span> <span class="viewer-export-caret" data-ic="chevron-down"></span>
       </button>
       <div id="viewerExportMenu" class="viewer-export-menu" role="menu" hidden>
         <button type="button" role="menuitem" data-exp="html"><span data-ic="code"></span> Dashboard (.html)</button>
@@ -45,8 +47,8 @@
         <button type="button" role="menuitem" data-exp="spec"><span data-ic="duplicate"></span> Editable spec (.json)</button>
       </div>
     </div>
-    <a id="viewerEditLink" class="viewer-edit-link" href="#" hidden>
-      <span data-ic="edit"></span> Edit in Studio
+    <a id="viewerEditLink" class="viewer-edit-link" href="#" hidden title="Edit in Studio" aria-label="Edit in Studio">
+      <span data-ic="edit"></span> <span class="viewer-btn-txt">Edit in Studio</span>
     </a>
   </div>
   <div id="viewerStage">

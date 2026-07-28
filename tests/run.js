@@ -30882,6 +30882,31 @@ function serve() {
     });
     ok("#107: the Export menu opens and closes on the button click", vxMenu.openedAfter1 && vxMenu.closedAfter2, JSON.stringify(vxMenu));
 
+    // #122b (mobile release gate): the viewer bar packs Back + title + badge + Save-a-copy + Export
+    // (+ Edit for developers), all flex-shrink:0 — at 390px it must NOT overflow. On mobile the
+    // badge drops and the action buttons collapse to icon-only (.viewer-btn-txt hidden) while their
+    // buttons stay tappable. Sign in as admin first so the extra "Edit in Studio" button is present
+    // too (the busiest possible bar).
+    await vxPage.evaluate(function () { window.PolecatAuth.login("admin"); });
+    await vxPage.reload({ waitUntil: "networkidle" });
+    await vxPage.waitForFunction(function () { return !!window.__viewerBuildHtml; }, { timeout: 8000 }).catch(function () {});
+    await vxPage.setViewportSize({ width: 390, height: 780 });
+    await vxPage.waitForTimeout(150);
+    const vxMobile = await vxPage.evaluate(function () {
+      var bar = document.getElementById("viewerBar");
+      var txts = [].slice.call(document.querySelectorAll("#viewerBar .viewer-btn-txt"));
+      function shown(id) { var el = document.getElementById(id); return !!(el && !el.hidden && el.offsetParent !== null); }
+      return {
+        noOverflow: bar.scrollWidth <= bar.clientWidth + 1,
+        badgeHidden: getComputedStyle(document.querySelector(".viewer-badge")).display === "none",
+        labelsHidden: txts.length > 0 && txts.every(function (t) { return getComputedStyle(t).display === "none"; }),
+        saveVisible: shown("viewerSaveCopy"), exportVisible: shown("viewerExport"), editVisible: shown("viewerEditLink")
+      };
+    });
+    ok("#122b: at 390px the viewer bar fits (no horizontal overflow) with the badge dropped and action buttons collapsed to icon-only, yet Save-a-copy / Export / Edit all stay visible + tappable",
+      vxMobile.noOverflow && vxMobile.badgeHidden && vxMobile.labelsHidden && vxMobile.saveVisible && vxMobile.exportVisible && vxMobile.editVisible,
+      JSON.stringify(vxMobile));
+
     await vxCtx.close();
     await page.evaluate(function () {
       Studio.Workspace.remove("dashboards", "vx-sample");

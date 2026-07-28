@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 645,
+    title: 'The read-only Viewer bar now fits on a phone',
+    kind: 'fix',
+    ts: '2026-07-28T05:52:33.000Z',
+    items: [
+      'On a narrow screen the Viewer\'s top bar (Back, title, Save a copy, Export, Edit) could overflow and clip — it now collapses those actions to compact icon buttons and drops the "read-only" chip so everything fits and stays tappable.',
+    ],
+  },
+  {
     v: 644,
     title: 'The Cache option now only appears where it does something',
     kind: 'polish',

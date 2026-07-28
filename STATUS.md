@@ -116,6 +116,17 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **Viewer bar is responsive on a phone (#123, v645, sw v282, 2026-07-28, steward):** a follow-up
+  to #107 — adding the Export button to `#viewerBar` (which already held Back + title + a "Viewer —
+  read-only" badge + Save-a-copy + Edit, all `flex-shrink:0`) tipped the bar past a 390px phone
+  width, overflowing/clipping it; `#viewerBar` had no `@media` rule at all. Fix: a
+  `@media(max-width:640px)` rule drops the decorative badge, tightens gap/padding, and collapses the
+  action buttons to ICON-ONLY (each label text is now wrapped in `.viewer-btn-txt`, hidden on
+  mobile; the Export caret hides too), with a `title`/`aria-label` on each button so its name
+  survives when the text is gone. Test: at 390px the bar has no horizontal overflow, the badge +
+  labels are `display:none`, yet Save-a-copy / Export / Edit (signed in as admin — the busiest bar)
+  all stay visible + tappable. Mobile is a release gate. Files: app/viewer.html, app/studio.css,
+  tests/run.js, sw.js, js/changelog.js.
 - **Test hardening: the flaky Z3-WB workbook-create test can no longer abort the whole suite
   (#122, test-only, 2026-07-28, steward):** the "creating a workbook via the name field + button"
   check drove creation with split `page.fill("#wbNameInp") ` + `page.click("#wbAddBtn")` + a fixed
