@@ -12,8 +12,8 @@
     "dataAccesses": [
       {
         "id": "kpi", "name": "AdoptionKPI", "params": [], "cache": true, "cacheDuration": 120,
-        "sql": "SELECT ROUND(AVG(pct),1) AS adoption_pct, SUM(acres) AS enrolled_acres, COUNT(DISTINCT practice) AS practices, COUNT(DISTINCT provider) AS providers FROM v_practice_adoption",
-        "columns": ["adoption_pct", "enrolled_acres", "practices", "providers"]
+        "sql": "SELECT ROUND(AVG(pct),1) AS adoption_pct, SUM(acres) AS enrolled_acres, COUNT(DISTINCT practice) AS practice_count, COUNT(DISTINCT provider) AS provider_count FROM v_practice_adoption",
+        "columns": ["adoption_pct", "enrolled_acres", "practice_count", "provider_count"]
       },
       {
         "id": "overall", "name": "OverallAdoption", "params": [], "cache": true, "cacheDuration": 120,
@@ -53,8 +53,8 @@
   "kpis": [
     { "da": "kpi", "valueCol": "adoption_pct", "label": "Adoption Rate", "fmt": "pct", "state": "good", "info": "Common-estimate adoption rate across all practices and providers." },
     { "da": "kpi", "valueCol": "enrolled_acres", "label": "Enrolled Acres", "fmt": "n", "state": "purple", "info": "Total acreage covered by a tracked conservation practice." },
-    { "da": "kpi", "valueCol": "practices", "label": "Practices Tracked", "fmt": "n", "state": "", "info": "Distinct conservation practices in the dataset." },
-    { "da": "kpi", "valueCol": "providers", "label": "Reporting Providers", "fmt": "n", "state": "", "info": "Independent data providers contributing estimates." }
+    { "da": "kpi", "valueCol": "practice_count", "label": "Practices Tracked", "fmt": "n", "state": "", "info": "Distinct conservation practices in the dataset." },
+    { "da": "kpi", "valueCol": "provider_count", "label": "Reporting Providers", "fmt": "n", "state": "", "info": "Independent data providers contributing estimates." }
   ],
   "gridCols": 3,
   "panels": [

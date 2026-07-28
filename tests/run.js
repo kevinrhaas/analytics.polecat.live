@@ -4014,6 +4014,47 @@ function serve() {
     ok("DP: AgCensus reference rows land only on real AgCensus years (2017, 2022) — sparse like the real release cadence",
       JSON.stringify(dpUnit.agYears) === JSON.stringify(["2017", "2022"]), JSON.stringify(dpUnit.agYears));
 
+    // LF68: classify()'s /sens/ pattern used to catch "sensitive_pct" before the "pct" rule got
+    // a look, handing back a HIGH/MEDIUM/LOW string for a numeric-share column — the compliance-
+    // radar showcase's "Sensitive Data" KPI then rendered NaN%. "sensitivity"-style categorical
+    // columns must still classify as "sens".
+    const sensPctUnit = await page.evaluate(function () {
+      var pct = Studio.sampleRows({ columns: ["coverage", "sensitive_pct"] }, true);
+      var cat = Studio.sampleRows({ columns: ["sensitivity", "n"] });
+      var pctCi = pct.cols.indexOf("sensitive_pct");
+      return {
+        allNumeric: pct.rows.every(function (r) { return typeof r[pctCi] === "number" && !isNaN(r[pctCi]); }),
+        catStillLabel: cat.rows.every(function (r) { return ["HIGH", "MEDIUM", "LOW", "Unclassified"].indexOf(r[0]) >= 0; })
+      };
+    });
+    ok("LF68: a '..._pct' column named like 'sensitive_pct' samples as a number, not a HIGH/MEDIUM/LOW label (was NaN% in the compliance-radar KPI)",
+      sensPctUnit.allNumeric, JSON.stringify(sensPctUnit));
+    ok("LF68: a genuine 'sensitivity' column still samples as the HIGH/MEDIUM/LOW/Unclassified categorical label",
+      sensPctUnit.catStillLabel, JSON.stringify(sensPctUnit));
+
+    // LF68 audit: sweep every example's fmt:"pct"/"n" KPIs — none should bind to a mock column
+    // that comes back non-numeric (the same NaN-KPI bug shape, on any showcase, not just this one).
+    const kpiNumericAudit = await page.evaluate(async function () {
+      var files = window.__STUDIO_STATE.examples.map(function (e) { return e.file; });
+      var bad = [];
+      for (var i = 0; i < files.length; i++) {
+        var spec = await fetch("data/examples/" + files[i]).then(function (r) { return r.json(); });
+        var mock = Studio.genMock(spec);
+        (spec.kpis || []).forEach(function (k) {
+          if (k.fmt !== "pct" && k.fmt !== "n") return;
+          var da = mock[k.da];
+          if (!da) return;
+          var ci = da.cols.indexOf(k.valueCol);
+          if (ci < 0) return;
+          var bogus = da.rows.some(function (r) { return typeof r[ci] !== "number" || !isFinite(r[ci]); });
+          if (bogus) bad.push(files[i] + ":" + k.valueCol);
+        });
+      }
+      return bad;
+    });
+    ok("LF68 audit: every fmt:'pct'/'n' KPI across all examples binds to a numeric mock column",
+      kpiNumericAudit.length === 0, JSON.stringify(kpiNumericAudit));
+
     // LF1: the 5 ensemble providers used to bunch together (a small ±1.5 per-provider
     // offset swamped by ±16 random noise) — each provider now carries a distinct enough
     // average level to read as a separate line, while values stay clamped 2-100.

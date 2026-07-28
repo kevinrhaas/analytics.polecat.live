@@ -49,8 +49,16 @@
 
   function classify(name) {
     var c = String(name || "").toLowerCase();
+    // An explicit "_count" suffix is an unambiguous numeric-aggregate signal (a COUNT(DISTINCT …)
+    // SQL alias like "crop_count"/"district_count"/"practice_count") — let it win over an earlier
+    // categorical-name rule that would otherwise fire on the word it counts (e.g. "crop", "district",
+    // "practice") and hand back a category label where a number is expected.
+    if (/_count$/.test(c)) return "count";
     if (/(^|_)(src|source|datasource|platform|system|conn)/.test(c)) return "cat";
-    if (/sens|classification/.test(c)) return "sens";
+    // "sensitive_pct"-style columns (a numeric share, not a classification label) must fall
+    // through to the "pct" rule below — the bare /sens/ match used to catch them first and hand
+    // back a HIGH/MEDIUM/LOW string, which a "pct"-formatted KPI then rendered as NaN%.
+    if (/sens|classification/.test(c) && !/pct|percent|rate|ratio|score/.test(c)) return "sens";
     if (/owner|steward/.test(c)) return "owner";
     if (/^state$|^state_?(code|abbr|postal)/.test(c)) return "statecode"; // postal codes → state choropleths (before the workflow-status rule; `_?` also catches the unseparated "statecode" job-output column name — LF32)
     if (/status|state|result/.test(c)) return "status";

@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v272"; /* v272: the "Restore unsaved work" banner is now opt-in — a new
+var CACHE_NAME = "studio-shell-v273"; /* v273: LF68 — fixed a "sensitive_pct"-style KPI column
+   sampling as a HIGH/MEDIUM/LOW label instead of a number (classify()'s /sens/ pattern matched
+   before the /pct/ rule got a look), so the compliance-radar showcase's "Sensitive Data" KPI
+   rendered NaN%. app/sampledata.js changed, so precached copies roll.
+   v272: the "Restore unsaved work" banner is now opt-in — a new
    Settings > Mode toggle (off by default) gates it, so the banner no longer interrupts on entry unless
    you ask for it (#114). app/studio.js changed, so precached copies roll.
    v271: LF40 slice 1 — the welcome tour opens with an
