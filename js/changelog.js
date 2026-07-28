@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 653,
+    title: 'Plainer wording for dashboard exports (dropped the "CDF" jargon)',
+    kind: 'polish',
+    ts: '2026-07-28T10:53:44.000Z',
+    items: [
+      'The Recent-exports list and a few help tips used a legacy acronym ("CDF" / "Dashboard Framework") for a standalone .html dashboard — they now just say "Dashboard".',
+      'No change to how anything works — only the wording.',
+    ],
+  },
+  {
     v: 652,
     title: 'The name-suggest sparkle button now works for Jobs too',
     kind: 'feature',
