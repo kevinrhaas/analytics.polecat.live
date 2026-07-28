@@ -523,6 +523,132 @@
     return out;
   };
 
+  /* ---------- LF49: dependency-free .xlsx (Office Open XML) export ----------
+     Builds a genuine multi-sheet .xlsx workbook with no runtime deps and no build step —
+     a minimal OOXML package written into a STORED (uncompressed) ZIP by hand. Stored
+     entries keep every part's XML as plain bytes, so the output is both tiny and directly
+     inspectable (the test suite scans the bytes for sheet names + values). Reused later for
+     the .pptx / .docx slices, which are the same OOXML-in-a-ZIP shape.
+     Public entry: Studio.xlsxBook(sheets) where sheets = [{ name, rows }] and each `rows`
+     is an array of arrays of cell values (string | number | null). Returns a Uint8Array. */
+  var _crcTable;
+  function crc32(bytes) {
+    if (!_crcTable) {
+      _crcTable = [];
+      for (var n = 0; n < 256; n++) {
+        var c = n;
+        for (var k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+        _crcTable[n] = c >>> 0;
+      }
+    }
+    var crc = 0xFFFFFFFF;
+    for (var i = 0; i < bytes.length; i++) crc = (crc >>> 8) ^ _crcTable[(crc ^ bytes[i]) & 0xFF];
+    return (crc ^ 0xFFFFFFFF) >>> 0;
+  }
+  function utf8(str) { return new TextEncoder().encode(str); }
+  function colRef(i) { // 0-based column index → A, B, …, Z, AA, …
+    var s = ""; i += 1;
+    while (i > 0) { var m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = (i - m - 1) / 26; }
+    return s;
+  }
+  function cellXml(ref, val, bold) {
+    var s = bold ? ' s="1"' : '';
+    if (val === null || val === undefined || val === "") return '<c r="' + ref + '"' + s + '/>';
+    if (typeof val === "number" && isFinite(val)) return '<c r="' + ref + '"' + s + '><v>' + val + '</v></c>';
+    return '<c r="' + ref + '"' + s + ' t="inlineStr"><is><t xml:space="preserve">' + xml(String(val)) + '</t></is></c>';
+  }
+  function sheetXml(rows) {
+    var out = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>';
+    for (var r = 0; r < rows.length; r++) {
+      var row = rows[r] || [];
+      out += '<row r="' + (r + 1) + '">';
+      for (var c = 0; c < row.length; c++) out += cellXml(colRef(c) + (r + 1), row[c], r === 0);
+      out += '</row>';
+    }
+    return out + '</sheetData></worksheet>';
+  }
+  function zipStore(parts) {
+    // parts: [{ path, bytes:Uint8Array }] → a STORED zip as one Uint8Array
+    var DATE = 0x0021, TIME = 0x0000; // fixed 1980-01-01 00:00 → deterministic output
+    var chunks = [], central = [], offset = 0;
+    parts.forEach(function (p) {
+      var name = utf8(p.path), data = p.bytes, crc = crc32(data), sz = data.length;
+      var lh = new Uint8Array(30 + name.length), dv = new DataView(lh.buffer);
+      dv.setUint32(0, 0x04034b50, true); dv.setUint16(4, 20, true); dv.setUint16(6, 0x0800, true);
+      dv.setUint16(8, 0, true); dv.setUint16(10, TIME, true); dv.setUint16(12, DATE, true);
+      dv.setUint32(14, crc, true); dv.setUint32(18, sz, true); dv.setUint32(22, sz, true);
+      dv.setUint16(26, name.length, true); dv.setUint16(28, 0, true); lh.set(name, 30);
+      chunks.push(lh); chunks.push(data);
+      var ch = new Uint8Array(46 + name.length), cv = new DataView(ch.buffer);
+      cv.setUint32(0, 0x02014b50, true); cv.setUint16(4, 20, true); cv.setUint16(6, 20, true);
+      cv.setUint16(8, 0x0800, true); cv.setUint16(10, 0, true); cv.setUint16(12, TIME, true);
+      cv.setUint16(14, DATE, true); cv.setUint32(16, crc, true); cv.setUint32(20, sz, true);
+      cv.setUint32(24, sz, true); cv.setUint16(28, name.length, true); cv.setUint32(42, offset, true);
+      ch.set(name, 46); central.push(ch);
+      offset += lh.length + data.length;
+    });
+    var cenStart = offset, cenSize = 0;
+    central.forEach(function (c) { chunks.push(c); cenSize += c.length; offset += c.length; });
+    var eocd = new Uint8Array(22), ev = new DataView(eocd.buffer);
+    ev.setUint32(0, 0x06054b50, true); ev.setUint16(8, parts.length, true); ev.setUint16(10, parts.length, true);
+    ev.setUint32(12, cenSize, true); ev.setUint32(16, cenStart, true); chunks.push(eocd);
+    var total = chunks.reduce(function (a, u) { return a + u.length; }, 0);
+    var buf = new Uint8Array(total), pos = 0;
+    chunks.forEach(function (u) { buf.set(u, pos); pos += u.length; });
+    return buf;
+  }
+  Studio.xlsxBook = function (sheets) {
+    // sanitize + de-dupe sheet names (Excel: ≤31 chars, none of : \ / ? * [ ], unique, non-empty)
+    var used = {};
+    var clean = (sheets || []).map(function (s, i) {
+      var nm = String(s && s.name || ("Sheet" + (i + 1))).replace(/[:\\\/?*\[\]]/g, " ").slice(0, 31).trim() || ("Sheet" + (i + 1));
+      var base = nm, k = 1;
+      while (used[nm.toLowerCase()]) { var suf = " (" + (++k) + ")"; nm = base.slice(0, 31 - suf.length) + suf; }
+      used[nm.toLowerCase()] = 1;
+      return { name: nm, rows: (s && s.rows) || [] };
+    });
+    if (!clean.length) clean = [{ name: "Sheet1", rows: [] }];
+    var parts = [];
+    function add(path, str) { parts.push({ path: path, bytes: utf8(str) }); }
+    add("[Content_Types].xml",
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+      '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+      '<Default Extension="xml" ContentType="application/xml"/>' +
+      '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
+      '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' +
+      clean.map(function (s, i) { return '<Override PartName="/xl/worksheets/sheet' + (i + 1) + '.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>'; }).join("") +
+      '</Types>');
+    add("_rels/.rels",
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+      '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>' +
+      '</Relationships>');
+    add("xl/workbook.xml",
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>' +
+      clean.map(function (s, i) { return '<sheet name="' + xml(s.name) + '" sheetId="' + (i + 1) + '" r:id="rId' + (i + 1) + '"/>'; }).join("") +
+      '</sheets></workbook>');
+    add("xl/_rels/workbook.xml.rels",
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+      clean.map(function (s, i) { return '<Relationship Id="rId' + (i + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet' + (i + 1) + '.xml"/>'; }).join("") +
+      '<Relationship Id="rId' + (clean.length + 1) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>' +
+      '</Relationships>');
+    add("xl/styles.xml",
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+      '<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts>' +
+      '<fills count="1"><fill><patternFill patternType="none"/></fill></fills>' +
+      '<borders count="1"><border/></borders>' +
+      '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+      '<cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs>' +
+      '</styleSheet>');
+    clean.forEach(function (s, i) { add("xl/worksheets/sheet" + (i + 1) + ".xml", sheetXml(s.rows)); });
+    return zipStore(parts);
+  };
+
   Studio.exportCDF = function (spec, assets, deployPath) {
     return Studio.buildHtml(spec, assets, { deployPath: deployPath, preview: false });
   };

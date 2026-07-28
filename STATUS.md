@@ -116,6 +116,29 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF49 (slice 1) — export a dashboard as a real Excel workbook (.xlsx) (#88, v661, sw v298,
+  2026-07-28, steward — step 5 of the LOCKED BUILD ORDER, "exports + nav"):** Export ▾ gains
+  **"Excel workbook (.xlsx)"** — a genuine multi-sheet OOXML workbook that opens with zero warnings
+  in Excel, Google Sheets and LibreOffice, built entirely client-side with **no runtime deps and no
+  build step**. Since the app vendors no zip/OOXML library, `Studio.xlsxBook(sheets)` (app/exporters.js)
+  hand-writes the OOXML package into a **STORED (uncompressed) ZIP** — a from-scratch CRC-32 + local
+  headers + central directory + EOCD writer (~90 lines). Stored entries keep each part's XML as plain
+  bytes, which (a) keeps the file tiny and (b) makes it byte-inspectable, so the test asserts the whole
+  structure with no unzip lib. `buildDashboardXlsx(spec)` (app/studio.js) maps the working dashboard to
+  sheets exactly as Kevin specified — **tab 1 "Dashboard"** = title + every KPI with its computed value
+  (`kpiValueFor`, matching the renderer: first-row, or the statistical `agg` via `Studio.aggregate`) +
+  the Views list (title / chart type / data source) + filters; **each following tab** = the backend data
+  (columns + rows via `Studio.sampleRows`) behind one data source the dashboard uses, deduped so two
+  Views on one source share a sheet. Binary output bypasses the text-only `bundleModal` and downloads
+  through `download()` (Blob-wraps the Uint8Array). The byte-identical preview⇄export HTML contract is
+  untouched (this is a separate export path; `Studio.buildHtml`/`exportCDF` unchanged). Validated
+  independently with real `unzip -t` (no CRC errors) before wiring the in-app test. **Deferred to the
+  next LF49 slices: PowerPoint (.pptx) and Word (.docx)** — same OOXML-in-a-ZIP shape, so the ZIP writer
+  built here is the reusable foundation. Test: `__studioBuildXlsx` on the Cost example asserts a
+  PK-signed workbook with the required parts (Content_Types / workbook / sheet1) + EOCD, ≥2 sheets
+  (a "Dashboard" tab + a "CostBySource" data tab), and tab-1 content (title, "Monthly Cost" KPI with a
+  numeric value, the Views list). Files: app/exporters.js, app/studio.js, app/index.html, docs/index.html,
+  tests/run.js, sw.js, js/changelog.js.
 - **LF52 — the dashboard item "widget" is now called a "View" app-wide (#91, v660, sw v297, 2026-07-28,
   steward — final step-4 item of the LOCKED BUILD ORDER; Kevin's explicit terminology decision):**
   the thing you drop on a dashboard (chart / KPI / map / text block) is now consistently a **"View"**

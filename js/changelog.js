@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 661,
+    title: 'Export a dashboard as an Excel workbook (.xlsx)',
+    kind: 'feature',
+    ts: '2026-07-28T13:22:54.000Z',
+    items: [
+      'Export ▾ now offers "Excel workbook (.xlsx)" — a real multi-sheet spreadsheet with the dashboard summary (title, KPIs and their values, the list of Views) on tab 1, then the backend data behind each data source on its own tab. Opens in Excel, Google Sheets or LibreOffice; built entirely in your browser, nothing uploaded.',
+    ],
+  },
+  {
     v: 660,
     title: 'Each item on a dashboard is now called a “View”',
     kind: 'polish',

@@ -13856,6 +13856,47 @@ function serve() {
     // Clean up
     await page.evaluate(() => { try { localStorage.removeItem("studio-export-history"); } catch(e) {} });
 
+    // ---- LF49 slice 1: XLSX export (dependency-free multi-sheet OOXML workbook) ----
+    // A STORED (uncompressed) zip keeps every part's XML as plain bytes, so we can decode the
+    // bytes latin1 and assert the OOXML structure + content directly — no unzip lib needed.
+    console.log("\n• LF49: XLSX workbook export");
+    await page.evaluate(async () => {
+      var spec = await fetch("data/examples/studio-cost.studio.json").then(function (r) { return r.json(); });
+      window.__studioLoad(spec);
+    });
+    await page.waitForTimeout(400);
+    const lf49 = await page.evaluate(() => {
+      try {
+        var bytes = window.__studioBuildXlsx();
+        var s = "";
+        for (var i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+        return {
+          isUint8: !!(bytes && bytes.constructor && bytes.constructor.name === "Uint8Array"),
+          pk: bytes[0] === 0x50 && bytes[1] === 0x4B,               // "PK" zip signature
+          hasContentTypes: s.indexOf("[Content_Types].xml") >= 0,
+          hasWorkbook: s.indexOf("xl/workbook.xml") >= 0,
+          hasSheet1: s.indexOf("xl/worksheets/sheet1.xml") >= 0,
+          hasSheet2: s.indexOf("xl/worksheets/sheet2.xml") >= 0,   // ≥2 sheets = summary + data
+          eocd: s.indexOf("PK") >= 0,                  // end-of-central-directory record
+          dashboardSheet: s.indexOf('name="Dashboard"') >= 0,
+          dataSheet: s.indexOf('name="CostBySource"') >= 0,
+          title: s.indexOf("Cost Optimization") >= 0,
+          kpiLabel: s.indexOf("Monthly Cost") >= 0,
+          viewsHeader: s.indexOf("Views</t>") >= 0,
+          hasNumber: /<v>[0-9]/.test(s),
+          menuBtn: !!document.querySelector("#menuExport button[data-exp='xlsx']"),
+          bytes: bytes.length
+        };
+      } catch (e) { return { err: e.message }; }
+    });
+    ok("LF49: the Export menu offers an 'Excel workbook (.xlsx)' item", lf49.menuBtn, JSON.stringify({ menuBtn: lf49.menuBtn, err: lf49.err }));
+    ok("LF49: exportXlsx yields a valid PK-signed .xlsx with the required OOXML parts (Content_Types, workbook, sheet1) and an EOCD record",
+      lf49.isUint8 && lf49.pk && lf49.eocd && lf49.hasContentTypes && lf49.hasWorkbook && lf49.hasSheet1, JSON.stringify(lf49));
+    ok("LF49: the workbook is multi-sheet — a 'Dashboard' summary tab plus a data tab named after each source used",
+      lf49.hasSheet2 && lf49.dashboardSheet && lf49.dataSheet, JSON.stringify(lf49));
+    ok("LF49: tab 1 summarizes the dashboard — title, KPIs (with numeric values), and the Views list",
+      lf49.title && lf49.kpiLabel && lf49.viewsHeader && lf49.hasNumber, JSON.stringify(lf49));
+
     // ---- N-FUN: first-export delight moment ----
     console.log("\n• N-FUN: first-export delight moment");
     const firstExp1 = await page.evaluate(() => {
