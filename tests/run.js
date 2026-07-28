@@ -6139,6 +6139,12 @@ function serve() {
       var m30 = new Date(now); m30.setDate(m30.getDate() - 30);
       var expM30 = iso(m30);
       var expMonthStart = iso(new Date(now.getFullYear(), now.getMonth(), 1));
+      var dow = (now.getDay() + 6) % 7; // Monday-start
+      var expWeekStart = iso(new Date(now.getFullYear(), now.getMonth(), now.getDate() - dow));
+      var expWeekEnd = iso(new Date(now.getFullYear(), now.getMonth(), now.getDate() - dow + 6));
+      var qsm = Math.floor(now.getMonth() / 3) * 3;
+      var expQStart = iso(new Date(now.getFullYear(), qsm, 1));
+      var expQEnd = iso(new Date(now.getFullYear(), qsm + 3, 0));
       return {
         today: Studio.WS.applyParams("d >= '{{today}}'", {}),
         expToday: "d >= '" + expToday + "'",
@@ -6146,14 +6152,20 @@ function serve() {
         expMinus30: "d >= '" + expM30 + "'",
         monthStart: Studio.WS.applyParams("{{month_start}}", {}),
         expMonthStart: expMonthStart,
+        weekStart: Studio.WS.applyParams("{{week_start}}", {}), expWeekStart: expWeekStart,
+        weekEnd: Studio.WS.applyParams("{{week_end}}", {}), expWeekEnd: expWeekEnd,
+        qStart: Studio.WS.applyParams("{{quarter_start}}", {}), expQStart: expQStart,
+        qEnd: Studio.WS.applyParams("{{quarter_end}}", {}), expQEnd: expQEnd,
         nowIsIso: /^\d{4}-\d{2}-\d{2}T/.test(Studio.WS.applyParams("{{now}}", {})),
         keepReal: Studio.WS.applyParams("r='{{region}}'", {}),
         override: Studio.WS.applyParams("{{today}}", { today: "PINNED" })
       };
     });
-    ok("WS: built-in dynamic date tokens ({{today}}, {{today-30}}, {{month_start}}, {{now}}) resolve; real params override",
+    ok("WS: built-in dynamic date tokens ({{today}}, {{today-30}}, {{week_start/end}}, {{month_start}}, {{quarter_start/end}}, {{now}}) resolve; real params override",
       wsDyn.today === wsDyn.expToday && wsDyn.minus30 === wsDyn.expMinus30 &&
-      wsDyn.monthStart === wsDyn.expMonthStart && wsDyn.nowIsIso &&
+      wsDyn.monthStart === wsDyn.expMonthStart &&
+      wsDyn.weekStart === wsDyn.expWeekStart && wsDyn.weekEnd === wsDyn.expWeekEnd &&
+      wsDyn.qStart === wsDyn.expQStart && wsDyn.qEnd === wsDyn.expQEnd && wsDyn.nowIsIso &&
       wsDyn.keepReal === "r='{{region}}'" && wsDyn.override === "PINNED", JSON.stringify(wsDyn));
 
     const wsCrypto = await page.evaluate(async function () {

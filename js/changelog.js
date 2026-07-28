@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 683,
+    title: 'Week and quarter date tokens join the dynamic set',
+    kind: 'feature',
+    ts: '2026-07-28T23:46:04.000Z',
+    items: [
+      'The built-in dynamic date tokens now cover weeks and quarters too — {{week_start}} / {{week_end}} (a Monday-start week, matching SQL date_trunc) and {{quarter_start}} / {{quarter_end}} (calendar Q1–Q4) join {{today}}, {{month_start}}, {{year_start}} and the rest. Drop them straight into a dataset query with no parameter to define, and like the others they resolve fresh every run — so "this quarter" or "week to date" filters stay current on their own. The dataset builder\'s Parameters hint and Help list the full set.',
+    ],
+  },
+  {
     v: 682,
     title: 'Built-in dynamic date tokens for always-current queries',
     kind: 'feature',
