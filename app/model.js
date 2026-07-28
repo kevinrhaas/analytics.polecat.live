@@ -2723,6 +2723,16 @@
       }
       if (val) return titleize(val);
     }
+    if (kind === "preset") {
+      // A preset (per-dashboard custom theme, or the Settings-level style preset) has
+      // no bound source field the way a dataset/connection does — suggest from
+      // whatever it's actually being saved FROM instead: a per-dashboard theme preset
+      // names itself after the dashboard it was captured on; the Settings style
+      // preset (workspace-wide defaults, not scoped to one dashboard) names itself
+      // after the currently selected default dashboard theme.
+      if (ctx.dashboardTitle && ctx.dashboardTitle !== "Untitled Dashboard") return titleize(ctx.dashboardTitle);
+      if (ctx.themeLabel) return titleize(ctx.themeLabel);
+    }
     return "";
   };
 

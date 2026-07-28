@@ -9331,6 +9331,26 @@ function serve() {
     ok("LF62 slice 4: the Dashboard inspector's Title field carries the sparkle button, suggesting a titleized name from the dashboard's most common panel source ('entity_storage_demo' -> 'Entity Storage Demo')",
       lf62Dash.btnPresent && lf62Dash.title === "Entity Storage Demo", JSON.stringify(lf62Dash));
 
+    // LF62 slice 6 (live-QA queue, LF62 slice 5's own NEXT pointer): the same sparkle
+    // name-suggest button, wired into the per-dashboard custom-theme "Preset name" field
+    // (Inspector -> Dashboard theme -> Custom). No bound source field the way a
+    // dataset/connection has, so it suggests the dashboard's own (titleized) title instead.
+    // (Sets a fresh title first — the LF62 slice 4 test just above mutated spec.title as a
+    // side effect of clicking the Title field's OWN sparkle button.)
+    console.log("\n• LF62 slice 6: theme-preset name-suggest sparkle button");
+    await page.fill("#dashTitleField", "Acme Corp Dashboard");
+    await page.waitForTimeout(120);
+    await page.click(".dt-swatch-custom");
+    await page.waitForTimeout(150);
+    const lf62Preset = await page.evaluate(function () {
+      var inp = document.getElementById("ctpNameInp");
+      var btn = inp.parentElement.querySelector(".name-sparkle-btn");
+      btn.click();
+      return { btnPresent: !!btn, name: inp.value };
+    });
+    ok("LF62 slice 6: the dashboard's theme-preset name field carries the sparkle button, suggesting the dashboard's own titleized title ('Acme Corp Dashboard' -> 'Acme Corp Dashboard')",
+      lf62Preset.btnPresent && lf62Preset.name === "Acme Corp Dashboard", JSON.stringify(lf62Preset));
+
     await page.evaluate(async () => { const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json()); window.__studioLoad(spec); });
     await page.waitForTimeout(200);
 
@@ -27773,6 +27793,22 @@ function serve() {
       blankPicksUpDashboardTheme === "fleet-modern", String(blankPicksUpDashboardTheme));
 
     await page.click('#railNav .rail-item[data-sec="settings"]'); await page.waitForTimeout(120);
+
+    // LF62 slice 6 (live-QA queue, LF62 slice 5's own NEXT pointer): the Settings-level
+    // style-preset name field also carries the sparkle button — it has no bound source
+    // field the way a dataset/connection does, so it suggests the currently selected
+    // default dashboard theme's own label instead ("fleet-modern" -> "Fleet Modern",
+    // still the active default set just above).
+    console.log("\n• LF62 slice 6: style-preset name-suggest sparkle button");
+    const lf62StylePreset = await page.evaluate(function () {
+      var inp = document.getElementById("spNameInp");
+      var btn = inp.parentElement.querySelector(".name-sparkle-btn");
+      btn.click();
+      return { btnPresent: !!btn, name: inp.value };
+    });
+    ok("LF62 slice 6: the Settings style-preset name field carries the sparkle button, suggesting the current default dashboard theme's label ('fleet-modern' -> 'Fleet Modern')",
+      lf62StylePreset.btnPresent && lf62StylePreset.name === "Fleet Modern", JSON.stringify(lf62StylePreset));
+
     await page.fill("#spNameInp", "Acme");
     await page.click("#spSaveBtn");
     await page.waitForTimeout(80);

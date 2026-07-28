@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 663,
+    title: 'Sparkle name-suggest button now on preset name fields too',
+    kind: 'polish',
+    ts: '2026-07-28T14:15:16.000Z',
+    items: [
+      'The ✨ suggest-a-name button now also sits next to the "Preset name" field for both a dashboard\'s custom-theme preset and the Settings-level style preset — suggesting the dashboard\'s own title, or the current default dashboard theme\'s name, one click away.',
+    ],
+  },
+  {
     v: 662,
     title: 'Workspace screens now use the space better — content sits left, not floating in the middle',
     kind: 'polish',

@@ -116,6 +116,29 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF62 slice 6 — the sparkle name-suggest button now also lives on both "Preset
+  name" fields (v663, sw v300, 2026-07-28, steward — LIVE-QA QUEUE, LF62 slice 5's own
+  NEXT pointer, the "preset" half of "wiring the same button into the preset and
+  folder name fields"):** neither preset field has a bound source the way a
+  dataset/connection/job does, so `Studio.nameSuggest`'s new `"preset"` kind
+  (app/model.js) suggests from whatever the preset is actually captured FROM
+  instead: the per-dashboard custom-theme preset (Inspector → Dashboard theme →
+  Custom → `#ctpNameInp`) suggests the dashboard's own title (already titleized); the
+  Settings-level style preset (`#spNameInp`, a workspace-wide default, not scoped
+  to one dashboard) suggests the currently selected default dashboard theme's own
+  label instead ("fleet-modern" → "Fleet Modern"). Both fields were built as raw HTML strings
+  (unlike the DOM-element-built fields the first 5 slices wired), so the sparkle
+  wrap is spliced in post-render via `parentNode.insertBefore` — the same pattern
+  Explore's View-name field (slice 5) already used for the same reason. Added
+  `.sp-add-row .name-sparkle{flex:1}` (app/studio.css) so the new wrapper still
+  fills the flex row the bare `<input>` used to (mirrors the existing
+  `.xp-savebar .name-sparkle` override). 2 new regression tests (dashboard
+  theme-preset field suggests the dashboard's titleized title; Settings
+  style-preset field suggests the active default theme's label). Suite green.
+  Files: app/model.js, app/studio.js, app/studio.css, tests/run.js, sw.js,
+  js/changelog.js. NEXT in LF62: the folder name field is the one remaining
+  surface (dataset/connection/job/folder editors) — its own dedicated slice, per
+  the same "no natural source, suggest from what's being filed" approach.
 - **LF54 (slice 1) — left-align workspace content, kill the dead left gutter (#93, v662, sw v299,
   2026-07-28, steward — step 5 of the LOCKED BUILD ORDER, "exports + nav"):** the three centered
   workspace wraps (`.home-wrap`, `.settings-wrap`, `.repo-wrap` — Home / Settings / Dashboards) used
@@ -5670,10 +5693,12 @@
 >       dashboard's own most-common panel source — see DONE. ✓ **Slice 5 shipped (2026-07-28,
 >       v658, sw v295, steward): Explore's "Name this analysis" (View) field**, suggesting the
 >       picked dataset/sample's own name (or the charted value column as a fallback) — see DONE.
->       **The dataset/job/connection/dashboard/view quintet is now done.** NEXT is wiring the
->       same button into the preset and folder name fields, one small slice each — both smaller
->       surfaces with no natural "source" of their own, likely need to suggest from whatever
->       object is being saved into them instead.
+>       **The dataset/job/connection/dashboard/view quintet is now done.** ✓ **Slice 6 shipped
+>       (2026-07-28, v661, sw v298, steward): both "Preset name" fields** (the per-dashboard
+>       custom-theme preset and the Settings-level style preset), suggesting the dashboard's
+>       own title or the active default theme's label respectively — see DONE. NEXT in LF62:
+>       the folder name field (dataset/connection/job/folder editors) is the one remaining
+>       surface, its own dedicated slice.
 > LF63. **Connection/dataset QUERY BUILDER — see tables/columns, assisted build, validate, test.** For a
 >       connection you can browse the available tables, you should be able to SEE and USE them when building
 >       a dataset: a table/column browser (already have schema for some adapters) feeding an assisted

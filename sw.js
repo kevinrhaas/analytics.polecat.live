@@ -5,7 +5,14 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v299"; /* v299: LF54 slice 1 — left-align workspace content
+var CACHE_NAME = "studio-shell-v300"; /* v300: LF62 slice 6 — the same ✨ sparkle
+   name-suggest button now sits on both "preset name" fields (the per-dashboard
+   custom-theme preset and the Settings-level style preset); neither has a bound
+   source field, so each suggests from what it's actually captured FROM instead —
+   the dashboard's own title, or the currently selected default dashboard theme's
+   label (app/model.js, app/studio.js, app/studio.css, tests/run.js changed), so
+   precached copies roll.
+   v299: LF54 slice 1 — left-align workspace content
    (Home/Settings/Dashboards): the centered `margin:0 auto` wraps left a wide dead gutter next to
    the rail; now margin:0, wider max-width, tighter top padding. app/studio.css changed, so
    precached copies roll.
