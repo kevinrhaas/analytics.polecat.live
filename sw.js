@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v315"; /* v315: LF66 slice 2 (library reorg, part 6) — dragging a
+var CACHE_NAME = "studio-shell-v316"; /* v316: UX sweep 2026-07-28 — KPI tiles without a
+   Click-through URL now open the shared Detail drawer by default in the exported dashboard and
+   the Viewer (app/studio-render.js's buildKpiDetailCfg), so every KPI tile links somewhere
+   instead of some being dead numbers. app/studio-render.js changed, so precached copies roll.
+   v315: LF66 slice 2 (library reorg, part 6) — dragging a
    library dataset card onto the canvas now lands as a panel: the preview iframe goes
    pointer-transparent while a drag is in progress (body.lib-dragging), so #canvas-stage's existing
    {wsDataset}/{analysis}/{da} drop handler + .dragover drop-hint fire instead of the iframe

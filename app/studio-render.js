@@ -439,6 +439,23 @@
       title: function (label) { return prefix ? prefix + " " + label : String(label); }
     };
   }
+  // Build a PDC.openDetail config for a KPI tile — same shape as buildDetailCfg but defaults
+  // to the tile's OWN bound DA (k.da) so every KPI links to its detail records without any
+  // per-tile setup (design bar: "dashboard tiles/KPIs always link to their detail"). k.detail
+  // lets an author override da/noun/title — e.g. point at a row-grain DA when k.da is itself
+  // already a pre-aggregated summary query.
+  function buildKpiDetailCfg(k) {
+    var d = k.detail || {};
+    var da = d.da || k.da;
+    if (!da) return null;
+    var prefix = d.titlePrefix || "";
+    return {
+      da: da,
+      param: d.param || null,
+      noun: d.noun || "records",
+      title: function () { return prefix ? prefix + " " + k.label : (k.label || "Detail"); }
+    };
+  }
   // Evaluate conditional formatting rules against a numeric value — returns a CSS color
   // string for the first matching rule, or null when no rule matches.
   // Rules are {op:">="|">"|"<="|"<"|"="|"!=", value:number, color:hexColor}.
@@ -1875,11 +1892,22 @@
           kDiv.appendChild(sub);
         });
         // KPI click-through: navigate to a target URL when the tile is clicked, mirroring
-        // panel Drill-through (same shared PDC.bindDrill helper bars/donut use).
+        // panel Drill-through (same shared PDC.bindDrill helper bars/donut use). Falls back to
+        // the shared detail-rows drawer (buildKpiDetailCfg) when no drill URL is configured, so
+        // every KPI tile links somewhere by default instead of requiring per-tile setup (design
+        // bar: "dashboard tiles/KPIs always link to their detail"). Skipped in preview mode
+        // (the Studio builder's own live iframe, Panel-zoom, Slideshow, Compare) — there,
+        // clicking a tile SELECTS it for editing (wireSelection/tagKpis below); the detail
+        // drawer is for the read-only exported bundle and Viewer only.
         spec.kpis.forEach(function (k, idx) {
-          if (!k.drill || !k.drill.url) return;
           var kDiv = kEl.querySelectorAll(".kpi")[idx]; if (!kDiv) return;
-          PDC.bindDrill(kDiv, { to: k.drill.url, param: k.drill.param }, _kTiles[idx]._raw);
+          if (k.drill && k.drill.url) {
+            PDC.bindDrill(kDiv, { to: k.drill.url, param: k.drill.param }, _kTiles[idx]._raw);
+            return;
+          }
+          if (isPreview()) return;
+          var detailCfg = buildKpiDetailCfg(k);
+          if (detailCfg) PDC.bindDetail(kDiv, detailCfg, _kTiles[idx]._raw);
         });
         if (isPreview()) tagKpis(kEl, spec);
       } else kEl.innerHTML = "";

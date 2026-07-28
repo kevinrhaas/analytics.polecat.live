@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 679,
+    title: 'KPI tiles always link to their detail',
+    kind: 'fix',
+    ts: '2026-07-28T22:00:58.000Z',
+    items: [
+      'Dashboard KPI tiles in the exported dashboard and the Viewer are now always clickable: a tile with a Click-through URL still jumps to that dashboard, and any tile without one now opens the shared Detail drawer instead, listing the rows behind its bound query — no more dead numbers.',
+    ],
+  },
+  {
     v: 678,
     title: 'Drag a dataset from the library straight onto the canvas',
     kind: 'fix',
