@@ -120,10 +120,6 @@
       border-bottom:1px solid var(--line);background:var(--bg)}
     .export-table td{padding:10px 12px;border-bottom:1px solid var(--line);color:var(--faint);vertical-align:top}
     .export-table tr:last-child td{border-bottom:none}
-    .badge{display:inline-block;font-size:10.5px;font-weight:700;padding:1px 8px;
-      border-radius:4px;letter-spacing:.03em}
-    .badge-cda{background:#e8f8e8;color:#236e23}
-    :root[data-theme="dark"] .badge-cda{background:#15301a;color:#5fd66f}
     :root[data-theme="dark"] .tip{background:linear-gradient(135deg,#1c2333,#241c30);border-color:#3a2f4a}
 
     @media(max-width:640px){
@@ -131,10 +127,10 @@
       .steps{grid-template-columns:1fr}.chart-grid{grid-template-columns:repeat(2,1fr)}
       /* Z-sweep fix: unbreakable <code> tokens (".html", ".studio.json") inside table cells
          pushed .export-table's auto-layout min-content a few px past the viewport edge on
-         narrow screens (2px horizontal page scroll). Scoped to just those code tokens (not
-         every cell) so the table keeps its natural proportional column widths — a blanket
-         overflow-wrap on td/th let the layout shrink Format/Badge to the point of breaking
-         "FORMAT"/"CDF" mid-word, which is worse than the bug it fixed. */
+         narrow screens. Scoped to just those code tokens (not every cell) so the table keeps
+         its natural proportional column widths — a blanket overflow-wrap on td/th let the
+         layout shrink Format to the point of breaking "FORMAT" mid-word, which is worse than
+         the bug it fixed. */
       .export-table td code,.export-table th code{overflow-wrap:anywhere}
     }
   </style>
@@ -899,23 +895,20 @@
   <p>Click <strong>Export ▾</strong> in the topbar to open the export menu (it only shows while Studio is open). Every option opens an export modal with file size, a copy-to-clipboard button, and a download button.</p>
 
   <table class="export-table">
-    <thead><tr><th>Format</th><th>Badge</th><th>What you get</th><th>Use when</th></tr></thead>
+    <thead><tr><th>Format</th><th>What you get</th><th>Use when</th></tr></thead>
     <tbody>
       <tr>
         <td><strong>Dashboard Framework</strong></td>
-        <td></td>
         <td>A fully self-contained <code>.html</code> file with all toolkit JS/CSS inlined. No server required — open in any browser.</td>
         <td>Sharing demos, embedding in portals, or hosting as a standalone dashboard on any static web host.</td>
       </tr>
       <tr>
         <td><strong>PDF (print)</strong></td>
-        <td></td>
         <td>Asks for page size (Letter/A4/Legal), orientation, and scale, then opens the same self-contained dashboard export in a new tab and starts your browser's print dialog there — choose "Save as PDF" (or a real printer). A print stylesheet keeps widgets/KPI rows from splitting across a page break and sets sane page margins; "Fit to page width" (the default) scales a wide dashboard down uniformly so nothing gets cropped at the page edge.</td>
         <td>A one-off PDF or hard copy of the current dashboard, sized for the paper you're printing to — no separate export step to manage.</td>
       </tr>
       <tr>
         <td><strong>Bundle (all artifacts)</strong></td>
-        <td></td>
         <td>Both artifacts together — the <code>.html</code> and the editable <code>.studio.json</code> spec.</td>
         <td>Full delivery: the rendered dashboard plus its editable source of truth.</td>
       </tr>

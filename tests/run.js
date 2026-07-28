@@ -18743,6 +18743,23 @@ function serve() {
     });
     ok("J-docs: docs/index.html contains all expected section anchors", jDocsContent.ok, JSON.stringify(jDocsContent));
 
+    // J-docs-4: UX sweep 2026-07-28 (#367 finding #2) — docs page's Exporting section
+    // table overflowed the viewport by ~7px at 390px width (table-layout:auto min-content,
+    // widened by a dead "Badge" column no row ever populates). Fix: drop the unused column.
+    const jDocsPhone = await browser.newPage({ viewport: { width: 390, height: 780 } });
+    await jDocsPhone.goto(`http://localhost:${PORT}/docs/index.html#exporting`, { waitUntil: "load" });
+    const jDocsOverflow = await jDocsPhone.evaluate(function () {
+      var t = document.querySelector(".export-table");
+      return {
+        noHScroll: document.documentElement.scrollWidth <= window.innerWidth + 1,
+        headerCols: t ? Array.from(t.querySelectorAll("thead th")).map(function (th) { return th.textContent.trim(); }) : []
+      };
+    });
+    await jDocsPhone.close();
+    ok("J-docs: Exporting table has no dead Badge column and the docs page has no horizontal overflow at 390px",
+      jDocsOverflow.noHScroll && jDocsOverflow.headerCols.join(",") === "Format,What you get,Use when",
+      JSON.stringify(jDocsOverflow));
+
     // ── J2: Contextual help links ─────────────────────────────────────────
     // Inspector-level help link (#inspHelpLink) + section-level .sec-help badges.
 

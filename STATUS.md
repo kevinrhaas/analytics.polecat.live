@@ -116,6 +116,20 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **Docs page: dropped the docs Exporting-table's dead "Badge" column, fixing a mobile
+  horizontal-overflow bug (UX sweep 2026-07-28 #367 finding #2, v646, sw v283, 2026-07-28,
+  steward):** the sweep found `docs/index.html` overflowing the 390px viewport by ~7px
+  (`scrollWidth` 397 vs 390) — root cause: the Exporting-formats `.export-table`'s "Badge"
+  column has been empty in every row and every use of it since the CDA/CDF export badges were
+  retired (the only `.badge`/`.badge-cda` CSS in the file was already dead — no `<span
+  class="badge...">` exists anywhere), yet the empty header cell still cost ~67px of
+  table-layout:auto min-content width, pushing the table past its 362px content box on phones.
+  Same bug class as the #52 sweep's earlier 2px fix (unbreakable `<code>` tokens), now a
+  different, bigger contributor. Fix: removed the unused Badge `<th>`/`<td>` cells and the dead
+  `.badge`/`.badge-cda` CSS rules — honest cleanup, not a squeeze; the table now fits with
+  margin to spare (382.9px → 315.8px min-content). 1 new regression test (J-docs-4: docs page at
+  390px has no horizontal overflow and the table header is exactly Format/What you
+  get/Use when). Files: docs/index.html, tests/run.js, sw.js, js/changelog.js.
 - **Viewer bar is responsive on a phone (#123, v645, sw v282, 2026-07-28, steward):** a follow-up
   to #107 — adding the Export button to `#viewerBar` (which already held Back + title + a "Viewer —
   read-only" badge + Save-a-copy + Edit, all `flex-shrink:0`) tipped the bar past a 390px phone
