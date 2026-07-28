@@ -2769,6 +2769,17 @@
     });
   };
 
+  // LF51 spec (c): row timestamps (Connections/Datasets/Jobs/Dashboards/Repository
+  // "last edited" badges) showed a bare date, hiding same-day edit order. One shared
+  // formatter so every "cx-when" badge reads a real date-time, in the viewer's own
+  // locale/timezone (unlike the changelog's deliberately-Central-time build stamp).
+  Studio.fmtWhen = function (ts) {
+    var d = ts instanceof Date ? ts : new Date(ts);
+    if (isNaN(d)) return "";
+    return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) +
+      ", " + d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  };
+
   // N-DIST: shareable state links — encode a whole dashboard spec into a URL-safe string so it
   // can travel as a `#share=...` link with no server/file needed (extends the existing E4
   // per-filter `#hash` deep-link, which only ever carried filter *defaults* for exported CDF,

@@ -6927,6 +6927,63 @@ function serve() {
     ok("UX8: Explore's saved-analysis folder badge is hydrated too (renderExplore now calls Tooltip.hydrate)",
       tipOk(badgeTips.xpFolder) && badgeTips.xpFolder.bubText === "Folder: Finance", JSON.stringify(badgeTips.xpFolder));
 
+    // LF51 (nav IA spec (c), "show a full date-time, not just a date"): every "cx-when"
+    // row badge — Connections/Datasets/Jobs/Dashboards/Repository — now goes through the
+    // shared Studio.fmtWhen (app/model.js) instead of a bare toLocaleDateString().
+    const lf51When = await page.evaluate(function () {
+      window.__studioShellSetSection("studio");
+      var fixedTs = new Date("2026-03-05T18:30:00Z").getTime();
+      var conn = Studio.Workspace.put("connections", { name: "lf51-conn", adapter: "turso", cfg: {}, updatedAt: fixedTs });
+      var ds = Studio.Workspace.put("datasets", { name: "lf51-ds", connectionId: conn.id, kind: "sql", sql: "select 1", updatedAt: fixedTs });
+      var job = Studio.Workspace.put("jobs", { name: "lf51-job", sourceDatasetId: ds.id, steps: [], updatedAt: fixedTs });
+      Studio.Workspace.put("dashboards", {
+        id: "lf51-dash", ts: new Date(fixedTs).toISOString(), title: "lf51 dashboard", name: "",
+        spec: { title: "lf51 dashboard", cda: { dataAccesses: [] }, panels: [], kpis: [] }
+      }, { silent: true });
+
+      window.__studioRenderConnections();
+      window.__studioRenderDatasets();
+      window.__studioRenderJobs();
+      window.__studioShellSetSection("dashboards");
+      window.__studioRenderDashboards();
+      // dashListRowHtml (the "cx-when"-carrying compact row) only paints in List
+      // view — tiles (recentCardHtml) are the default — so toggle into List for
+      // this check, then toggle back so later view-toggle tests aren't disturbed.
+      var wasList = localStorage.getItem("studio-dash-view") === "list";
+      if (!wasList) document.getElementById("dashViewToggle").click();
+      window.__studioShellSetSection("repository");
+      window.__studioRenderRepository();
+
+      function whenText(sel) { var el = document.querySelector(sel); return el ? el.textContent : null; }
+      var out = {
+        conn: whenText('.cx-row[data-conn-id="' + conn.id + '"] .cx-when'),
+        ds: whenText('.cx-row[data-dsx-id="' + ds.id + '"] .cx-when'),
+        job: whenText('.cx-row[data-job-id="' + job.id + '"] .cx-when'),
+        dash: whenText('.dash-li[data-recent="lf51-dash"] .cx-when'),
+        repo: whenText('.cx-row[data-repo-id="' + job.id + '"] .cx-when')
+      };
+      if (!wasList) document.getElementById("dashViewToggle").click();
+
+      Studio.Workspace.remove("dashboards", "lf51-dash", { silent: true });
+      Studio.Workspace.remove("jobs", job.id, { silent: true });
+      Studio.Workspace.remove("datasets", ds.id, { silent: true });
+      Studio.Workspace.remove("connections", conn.id, { silent: true });
+      Studio.Workspace.notify("*");
+      window.__studioShellSetSection("studio");
+      return out;
+    });
+    function hasDateAndTime(s) { return !!s && /\d{1,2}:\d{2}/.test(s) && /,/.test(s); }
+    ok("LF51: Connections row 'last edited' badge shows a full date-time, not just a date",
+      hasDateAndTime(lf51When.conn), JSON.stringify(lf51When.conn));
+    ok("LF51: Datasets row timestamp badge shows a full date-time",
+      hasDateAndTime(lf51When.ds), JSON.stringify(lf51When.ds));
+    ok("LF51: Jobs row timestamp badge shows a full date-time",
+      hasDateAndTime(lf51When.job), JSON.stringify(lf51When.job));
+    ok("LF51: Dashboards list row timestamp badge shows a full date-time",
+      hasDateAndTime(lf51When.dash), JSON.stringify(lf51When.dash));
+    ok("LF51: Repository row timestamp badge shows a full date-time",
+      hasDateAndTime(lf51When.repo), JSON.stringify(lf51When.repo));
+
     // library integration: the dataset shows as a draggable card and imports as a linked, self-contained DA
     await page.evaluate(function () { window.__studioShellSetSection("studio"); });
     await page.waitForTimeout(120);

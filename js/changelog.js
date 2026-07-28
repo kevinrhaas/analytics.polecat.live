@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 669,
+    title: 'Row timestamps now show the full date and time, not just the date',
+    kind: 'polish',
+    ts: '2026-07-28T16:18:36.000Z',
+    items: [
+      'Connections, Datasets, Jobs, Dashboards and Repository each show "last edited" as a full date and time instead of a bare date, so same-day edits are no longer indistinguishable from each other.',
+    ],
+  },
+  {
     v: 668,
     title: 'Export a dashboard as a PowerPoint deck (.pptx)',
     kind: 'feature',
