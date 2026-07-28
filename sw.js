@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v282"; /* v282: the read-only Viewer bar (#viewerBar) is now
+var CACHE_NAME = "studio-shell-v283"; /* v283: UX sweep 2026-07-28 #367 finding #2 — dropped the
+   dead, always-empty "Badge" column from the docs Exporting-formats table, which was pushing the
+   page ~7px past the viewport edge on phones (390px). docs/index.html changed, so precached
+   copies roll.
+   v282: the read-only Viewer bar (#viewerBar) is now
    responsive — at ≤640px it drops the "read-only" badge and collapses Back/Save-a-copy/Export/Edit
    to icon-only so the bar no longer overflows a phone (the added Export button had tipped it over).
    app/viewer.html + app/studio.css changed, so precached copies roll.

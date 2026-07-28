@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 646,
+    title: 'Fixed: the Exporting help page overflowed on phones',
+    kind: 'fix',
+    ts: '2026-07-28T05:47:53.000Z',
+    items: [
+      'The docs page\'s Exporting-formats table (Help → Exporting dashboards) pushed a few extra pixels past the right edge on phones, causing a slight horizontal scroll.',
+      'Removed a leftover, always-empty "Badge" column from the table (a holdover from the retired CDA/CDF export badges) — the page now fits the screen with no scroll.',
+    ],
+  },
+  {
     v: 645,
     title: 'The read-only Viewer bar now fits on a phone',
     kind: 'fix',
