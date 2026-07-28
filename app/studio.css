@@ -1983,6 +1983,13 @@ body.simple-mode .da-acts{display:none!important}
    adapter pills are multi-select. (`conn-*` belongs to the older ⚙ Servers
    modal — keep the namespaces separate.) */
 .cx-pills{margin-bottom:16px}
+/* LF51 (b): right-align the workspace-section FILTER pill strips (folder + facet
+   filters on Connections/Datasets/Jobs) so the filter controls sit at the right
+   edge, visually distinct from the left-aligned list/tiles below — "filters on the
+   right, content on the left." Scoped to .cx-filter-strip so other .wb-chips strips
+   (e.g. the Dashboards workbook chips) keep their own alignment. */
+.cx-filter-strip{justify-content:flex-end}
+@media(max-width:640px){.cx-filter-strip{justify-content:flex-start}}
 .cx-pill-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px;flex:0 0 auto}
 .cx-list{display:flex;flex-direction:column;gap:8px}
 /* M5 — Repository's real nested-by-folder TREE: a collapsible header per folder

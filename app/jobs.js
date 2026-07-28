@@ -224,7 +224,7 @@
         dot + icon + name + badges + when + privateBtn + actions + '</div>';
     });
     results.innerHTML =
-      (pillsFJobs ? '<div class="wb-chips">' + pillsFJobs + '</div>' : "") +
+      (pillsFJobs ? '<div class="wb-chips cx-filter-strip">' + pillsFJobs + '</div>' : "") +
       (rows.length ? '<div class="' + (isTiles ? "dsx-grid" : "cx-list") + '">' + rows.join("") + '</div>'
       : '<div class="cx-empty"><b>' + (q || _jobsFolderFilter ? "No jobs match." : "No jobs yet.") + '</b><br/>' +
         (q || _jobsFolderFilter ? "" : 'A job preps one dataset — rename/cast/derive columns, filter rows, roll up ' +

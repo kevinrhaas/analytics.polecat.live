@@ -116,6 +116,23 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF51 (slice 4) — filter pill strips right-align on Connections/Datasets/Jobs (#90, v674,
+  sw v311, 2026-07-28 — step 5 of the LOCKED BUILD ORDER, LF51's spec (b) "right-aligned filter
+  pills"; this completes LF51's four named nav-IA slices):** the folder + facet filter `.wb-chips`
+  strips on the three workspace catalogs now carry a scoped `.cx-filter-strip` class that
+  right-aligns their pills (`justify-content:flex-end`) at desktop widths — filter controls sit at
+  the right edge, visually distinct from the left-aligned list/tiles below ("filters on the right,
+  content on the left"), which reads as a deliberate control cluster rather than reintroducing a
+  content left-gutter (so it composes with, not fights, LF54's left-align). Scoped to
+  `.cx-filter-strip` so other `.wb-chips` strips (e.g. the Dashboards workbook chips) keep their own
+  alignment; a `≤640px` media override falls back to left-align so nothing runs off a phone edge.
+  CSS-only + a one-class markup tag in each render. 1 new regression test (the Datasets facet strip
+  carries `.cx-filter-strip` and computes `justify-content:flex-end` at desktop). **LF51 is now
+  substantially complete** — (a) full names ✓, (b) right-aligned pills ✓, (c) date-time ✓, (d)
+  list/tile toggle ✓ across all four catalogs; the bigger CORE PRINCIPLE (one shared nav component
+  set incl. the Explore dataset navigator) remains as future consolidation, not a named slice.
+  Files: app/datasets.js, app/connections.js, app/jobs.js, app/studio.css, tests/run.js, sw.js,
+  js/changelog.js.
 - **LF51 (slice 3) — the list ⇆ tile view toggle now covers Connections and Jobs too (#90, v673,
   sw v310, 2026-07-28 — step 5 of the LOCKED BUILD ORDER, LF51's spec (d) "list + rich-tile views"):**
   extends slice 2's Datasets toggle to the other two workspace catalogs, so Connections
