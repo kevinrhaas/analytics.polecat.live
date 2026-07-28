@@ -66,6 +66,7 @@
   function enterStudio() { return D.enterStudio(); }
   function refreshPreview() { return D.refreshPreview(); }
   function buildLibrary() { return D.buildLibrary(); }
+  function withSparkleButton(inp, kind, getCtx) { return D.withSparkleButton(inp, kind, getCtx); }
 
   var XP_SEP = "\u001f"; // sample-dataset ids are "<stem><SEP><daId>"
   var XP = {
@@ -220,6 +221,21 @@
     // had one — e.g. the demo pack's analyses): render from its embedded da.
     if (XP.da) return Studio.clone(XP.da);
     return null;
+  }
+  // LF62 slice 5: the ctx a View's ✨ sparkle button suggests from — the picked
+  // dataset/sample's own display name (same string Explore's own picker list
+  // shows), or the charted value column when there's no live source to name
+  // (a self-contained/orphaned saved analysis).
+  function xpNameSuggestCtx() {
+    var srcName = "";
+    if (XP.kind === "ws") {
+      var ds = Studio.Workspace.get("datasets", XP.dsId);
+      if (ds) srcName = ds.name || ds.id;
+    } else if (XP.kind === "sample") {
+      var parts = String(XP.dsId).split(XP_SEP);
+      srcName = parts[1] || parts[0];
+    }
+    return { sourceDatasetName: srcName, valueCol: XP.map && XP.map.valueCol };
   }
   function xpDefaultType(cols) {
     var c = (cols || []).join(" ").toLowerCase();
@@ -677,7 +693,11 @@
     var toExistDash = $("#xpToExistDashBtn", body);
     if (toExistDash) toExistDash.onclick = function () { xpEnsureSavedAnalysis(openAddToExistingDashboardPicker); };
     var nameInp2 = $("#xpName", body);
-    if (nameInp2) nameInp2.addEventListener("input", function () { XP.name = nameInp2.value; });
+    if (nameInp2) {
+      var xpNameNextSibling = nameInp2.nextSibling, xpNameParent = nameInp2.parentNode;
+      xpNameParent.insertBefore(withSparkleButton(nameInp2, "view", xpNameSuggestCtx), xpNameNextSibling);
+      nameInp2.addEventListener("input", function () { XP.name = nameInp2.value; });
+    }
     var folderInp2 = $("#xpFolder", body);
     if (folderInp2) folderInp2.addEventListener("input", function () { XP.folder = folderInp2.value; });
     $$("[data-xp-folder]", body).forEach(function (btn) {

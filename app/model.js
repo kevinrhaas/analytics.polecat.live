@@ -2676,6 +2676,15 @@
       if (raw) return titleize(raw);
     }
     if (kind === "job" && ctx.sourceDatasetName) return titleize(ctx.sourceDatasetName);
+    if (kind === "view") {
+      // A View's context is closer to a dataset's than a dashboard's: it's built
+      // over exactly ONE picked dataset/sample, so that dataset's own display name
+      // (same field Explore's own picker list shows) is the obvious suggestion.
+      // Falls back to the charted value column for a self-contained/orphaned
+      // analysis whose source dataset is gone.
+      if (ctx.sourceDatasetName) return titleize(ctx.sourceDatasetName);
+      if (ctx.valueCol) return titleize(ctx.valueCol);
+    }
     if (kind === "dashboard") {
       // No single "source" field on a dashboard the way a dataset/job/connection has —
       // the best stand-in is whichever panel source shows up most often across the

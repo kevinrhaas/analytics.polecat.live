@@ -2352,6 +2352,7 @@ body.simple-mode .da-acts{display:none!important}
 .xp-savebar input{flex:1;min-width:180px;border:1px solid var(--line);border-radius:9px;
   background:var(--field);color:var(--ink);padding:var(--sp-10) var(--sp-12);font-size:var(--fs-13)}
 .xp-savebar input#xpFolder{flex:.6;min-width:140px}
+.xp-savebar .name-sparkle{flex:1;min-width:180px}
 @media (max-width:900px){
   .xp-body{grid-template-columns:1fr}
   .xp-side{position:static}

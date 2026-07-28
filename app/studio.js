@@ -962,7 +962,8 @@
     select: function (sel) { select(sel); },
     enterStudio: function () { enterStudio(); },
     refreshPreview: function () { refreshPreview(); },
-    buildLibrary: function () { buildLibrary(); }
+    buildLibrary: function () { buildLibrary(); },
+    withSparkleButton: function (inp, kind, getCtx) { return withSparkleButton(inp, kind, getCtx); }
   });
 
   /* ---------- This dashboard's datasets (spec-owned query definitions) ---------- */
