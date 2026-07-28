@@ -116,6 +116,28 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF49 (slice 3, upgrade) — the PowerPoint deck now shows each View as its real chart IMAGE
+  (#88, v670, sw v307, 2026-07-28 — step 5 of the LOCKED BUILD ORDER; the deliverable Kevin asked
+  for, "done right with real chart images"):** the shipped .pptx (v668, below) put the underlying
+  numbers on table slides — correct as data, but a slide deck of data tables is not what you
+  present. This upgrade replaces the per-View table slides with **image slides carrying the actual
+  rendered chart** — the exact PNG the on-panel "Download image" produces, rasterized from the live
+  preview iframe. `buildDashboardPptx` (app/studio.js) now calls `collectPanelPngs(sp, cb)`, which
+  reaches `$("#preview").contentWindow.__downloadPanelPngDataUrl(panelId, cb)` (the existing
+  per-panel SVG→PNG rasterizer, studio-render.js) once per panel with an 8s safety timeout, then
+  `dataUrlToBytes` turns each data URL into the raw PNG bytes. Deck shape is now: **title slide**
+  (dashboard title + "N Views · K KPIs") → **KPI summary slide** (label: value lines) → **one image
+  slide per View** (`{title, pngBytes}`; a View that can't rasterize falls back to a small text card
+  naming its chart type + data source). `Studio.pptxDeck` (app/exporters.js) gained picture support
+  — `ppt/media/imageN.png` parts, `<p:pic><a:blip r:embed>` picture shapes (`pptxPicShape`) placed
+  full-bleed under the slide title, wired through `[Content_Types].xml` (png default) and each
+  slide's `_rels`. The underlying data is unchanged and still fully available in the **Excel (.xlsx)**
+  export, so nothing is lost — PowerPoint just becomes the presentation-ready visual it should be.
+  Test (`__studioBuildPptx` on the Cost example): asserts the menu item, a PK-signed .pptx with the
+  OOXML presentation graph (presentation/master/theme/slide1), **≥1 embedded chart PNG as a
+  `<p:pic>` picture** (`ppt/media/imageN.png` + `r:embed`), and the title slide carrying the
+  dashboard title. Full suite green (2462 passed, 0 failed). Files: app/exporters.js, app/studio.js,
+  app/index.html, docs/index.html, sw.js, js/changelog.js, tests/run.js.
 - **LF51 (slice 1) — row timestamps show a full date-time, not just a date (#95, v669, sw
   v306, 2026-07-28, steward — step 5 of the LOCKED BUILD ORDER, LF51's spec (c)):** the
   "last edited" `cx-when` badge on every Connections/Datasets/Jobs row, the Dashboards list

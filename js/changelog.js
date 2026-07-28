@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 670,
+    title: 'PowerPoint export now shows each View as its real chart image',
+    kind: 'feature',
+    ts: '2026-07-28T16:54:12.000Z',
+    items: [
+      'The PowerPoint (.pptx) export got the treatment a slide deck deserves: every View is now a full slide showing its actual rendered chart — the exact image you see in the preview — instead of a table of the underlying numbers. The deck opens with a title slide and a KPI summary slide, then one image slide per View. The full underlying data still lives in the Excel (.xlsx) export; PowerPoint is now the presentation-ready visual. Built entirely in your browser, nothing uploaded.',
+    ],
+  },
+  {
     v: 669,
     title: 'Row timestamps now show the full date and time, not just the date',
     kind: 'polish',

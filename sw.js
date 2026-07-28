@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v306"; /* v306: LF51 slice 1 (nav IA spec (c), "show a full
+var CACHE_NAME = "studio-shell-v307"; /* v307: LF49 slice 3 upgrade — the PowerPoint (.pptx)
+   export now renders each View as its real chart IMAGE (rasterized from the live preview panel)
+   instead of a data table: a title slide, a KPI summary slide, then one image slide per View
+   (<p:pic> picture shapes; full data still lives in the .xlsx export). app/exporters.js,
+   app/studio.js, app/index.html, docs/index.html changed, so precached copies roll.
+   v306: LF51 slice 1 (nav IA spec (c), "show a full
    date-time, not just a date") — every "cx-when" row badge (Connections, Datasets, Jobs,
    Dashboards list, Repository) now reads a full date-time via a new shared Studio.fmtWhen
    (app/model.js), instead of a bare toLocaleDateString(). app/model.js, app/connections.js,
