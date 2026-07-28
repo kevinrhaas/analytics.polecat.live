@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v317"; /* v317: LF48 (LOCKED BUILD ORDER step 4, the last
+var CACHE_NAME = "studio-shell-v318"; /* v318: LF66 slice 3 (library reorg, part 6 cont.) — a
+   dataset dropped on the canvas (or a blank dashboard) now AUTO-PICKS its best-fit chart via the
+   shared chartForDA heuristic (time col → line, share-like → donut, else bars) instead of always a
+   bare bars panel: addFromWorkspaceDataset auto-picks when no explicit type is given, and both
+   {wsDataset} drop sites drop the hardcoded "bars". app/studio.js changed, so precached copies roll.
+   v317: LF48 (LOCKED BUILD ORDER step 4, the last
    piece) — the Present-mode switcher entry point: Focus mode and Slideshow now share ONE
    segmented control (#modeSwitch) in ⋯ More instead of two look-alike flat buttons, and Focus
    mode's parallel Settings → Presentation toggle is retired (the switcher is its only entry

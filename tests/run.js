@@ -7180,6 +7180,28 @@ function serve() {
       lf66Drop.pePassthrough === true, JSON.stringify(lf66Drop));
     ok("LF66: dropping a dataset on the canvas adds a panel via the existing drop handler",
       lf66Drop.after === lf66Drop.before + 1, JSON.stringify(lf66Drop));
+
+    // LF66 (6): the drop AUTO-PICKS the best-fit chart from the dataset's columns (via chartForDA)
+    // instead of always a bare bars panel — a dataset with a time column drops in as a line chart.
+    const lf66AutoView = await page.evaluate(function () {
+      var conn = Studio.Workspace.put("connections", { name: "lf66av-conn", adapter: "turso", cfg: {} });
+      var tsDs = Studio.Workspace.put("datasets", { name: "lf66av-ts", connectionId: conn.id, kind: "sql", sql: "select month, sales from t", columns: ["month", "sales"] });
+      var catDs = Studio.Workspace.put("datasets", { name: "lf66av-cat", connectionId: conn.id, kind: "sql", sql: "select region, sales from t", columns: ["region", "sales"] });
+      window.__studioLoad({ title: "auto-view test", panels: [], kpis: [] });
+      // no explicit type → auto-pick
+      window.__studioAddFromWorkspaceDataset(tsDs.id);
+      var tsType = ((window.__STUDIO_STATE.spec.panels.slice(-1)[0] || {}).chart || {}).type;
+      window.__studioAddFromWorkspaceDataset(catDs.id);
+      var catType = ((window.__STUDIO_STATE.spec.panels.slice(-1)[0] || {}).chart || {}).type;
+      Studio.Workspace.remove("datasets", tsDs.id, { silent: true });
+      Studio.Workspace.remove("datasets", catDs.id, { silent: true });
+      Studio.Workspace.remove("connections", conn.id, { silent: true });
+      Studio.Workspace.notify("*");
+      window.__studioLoad({ title: "DS test", panels: [], kpis: [] });
+      return { tsType: tsType, catType: catType };
+    });
+    ok("LF66: a dropped dataset auto-picks its best chart — a time column → line, plain categorical → bars",
+      lf66AutoView.tsType === "line" && lf66AutoView.catType === "bars", JSON.stringify(lf66AutoView));
     const dsxImport = await page.evaluate(function () {
       var ds = Studio.Workspace.all("datasets")[0];
       window.__studioAddFromWorkspaceDataset(ds.id, "bars");

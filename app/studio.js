@@ -882,6 +882,10 @@
       toast("Run a Preview on this dataset first so its columns are known.", true);
       return;
     }
+    // LF66 (6): when no explicit chart type is given (e.g. a drag-a-dataset-onto-the-canvas
+    // drop), auto-pick the best-fit chart from the dataset's columns — the same chartForDA
+    // heuristic the library's {da} drop already uses — instead of always a bare bars panel.
+    if (!type) type = chartForDA({ columns: (ds.columns && ds.columns.length ? ds.columns : (Studio.detectColumns(ds.sql) || [])), id: ds.name || "" }) || "bars";
     var da = specDAFromDataset(ds);
     if (type === "kpi") {
       var k = Studio.newKpi(da); k.fmt = Studio.guessFmt(k.valueCol);
@@ -5790,7 +5794,7 @@
             enterStudio();
             S.spec = newBlankSpec(); S.selection = null; syncHeader();
             bumpDashMilestone();
-            addFromWorkspaceDataset(d.wsDataset, "bars");
+            addFromWorkspaceDataset(d.wsDataset); // LF66 (6): auto-pick best chart
           }
         } catch (x) {}
       });
@@ -10870,7 +10874,7 @@
       }
       try {
         var d = JSON.parse(e.dataTransfer.getData("text/plain"));
-        if (d && d.wsDataset) { addFromWorkspaceDataset(d.wsDataset, "bars"); }
+        if (d && d.wsDataset) { addFromWorkspaceDataset(d.wsDataset); } // LF66 (6): auto-pick best chart
         else if (d && d.analysis) { xpAddAnalysisToSpec(d.analysis); }
         else if (d && d.da) { var _da = catalogDA(d.stem, d.da); addFromDA(d.stem, d.da, (_da && chartForDA(_da)) || "bars"); }
       } catch (x) {}

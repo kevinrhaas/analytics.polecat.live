@@ -168,6 +168,22 @@
   dashboard; the Studio builder's own preview leaves an untouched KPI at cursor:auto). docs/index.html's
   KPI tile chart-type description updated to name the new default. Files: app/studio-render.js,
   docs/index.html, tests/run.js, sw.js, js/changelog.js.
+- **LF66 (slice 3) — a dropped dataset auto-picks its best-fit chart, not a bare bars panel
+  (#66/LF66, v681, sw v318, 2026-07-28 — library-reorg epic, the second half of part (6)):**
+  completes part (6) that slice 2 opened. Slice 2 made a library dataset card droppable on the
+  canvas but it landed as a hardcoded **bars** panel; now the drop **auto-picks the best chart**
+  from the dataset's columns via the existing `chartForDA` heuristic (the same one the `{da}` drop
+  already used) — a time column → **line**, a share/mix-like name → **donut**, else bars (Simple
+  mode gets the richer gauge/line rules `chartForDA` already encodes). `addFromWorkspaceDataset(dsId,
+  type)` now auto-picks when `type` is falsy (`chartForDA({columns, id}) || "bars"`), and both
+  `{wsDataset}` drop sites (the canvas `#canvas-stage` drop and Home's blank-dashboard-card drop)
+  drop their hardcoded `"bars"` argument. The library card's own **+chart chips still pass an
+  explicit type**, so picking a specific chart yourself is unchanged. 1 new regression test (a
+  dataset with a `month` column drops in as a `line` panel; a plain categorical one as `bars`).
+  **NEXT in LF66:** the architectural parts — (1) installed packs contribute real datasets/views/
+  dashboards into the normal library, (2) the group set (This dashboard's datasets / Datasets /
+  Views / Dashboards), (3) drop the legacy "Samples · DEMO DB" group; reconcile LF43/LF57/LF59 into
+  ONE model. Files: app/studio.js, tests/run.js, sw.js, js/changelog.js.
 - **LF52 (extend) — the last two named surfaces finish the widget/analysis → View rename (v677,
   sw v314, 2026-07-28, steward — closes the "LF52 note (extend)" left open when LF52's main slice
   shipped):** LF52's main slice (v660) renamed "widget" → "View" app-wide but deliberately left two
