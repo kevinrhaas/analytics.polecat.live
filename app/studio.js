@@ -2561,7 +2561,8 @@
         toast("Saved preset “" + name + "”");
       };
       ctpNameInp.addEventListener("keydown", function (e) { if (e.key === "Enter") ctpSaveBtn.click(); });
-      ctpAddRow.appendChild(ctpNameInp); ctpAddRow.appendChild(ctpSaveBtn);
+      ctpAddRow.appendChild(withSparkleButton(ctpNameInp, "preset", function () { return { dashboardTitle: S.spec.title }; }));
+      ctpAddRow.appendChild(ctpSaveBtn);
       ctpWrap.appendChild(ctpAddRow);
       sec.appendChild(field("Theme presets", ctpWrap, "Save this custom theme by name to reuse on other dashboards, or apply/delete a previously saved one."));
     }
@@ -7860,7 +7861,14 @@
       var name = (spNameInp.value || "").trim(); if (!name) { spNameInp.focus(); return; }
       addStylePreset(name); renderSettings(); toast("Saved preset “" + name + "”");
     };
-    if (spNameInp) spNameInp.addEventListener("keydown", function (e) { if (e.key === "Enter") spSaveBtn.click(); });
+    if (spNameInp) {
+      spNameInp.addEventListener("keydown", function (e) { if (e.key === "Enter") spSaveBtn.click(); });
+      var spNameNextSibling = spNameInp.nextSibling, spNameParent = spNameInp.parentNode;
+      spNameParent.insertBefore(withSparkleButton(spNameInp, "preset", function () {
+        var t = Studio.DASHBOARD_THEMES.filter(function (p) { return p.key === (defaultDashboardTheme() || "classic"); })[0];
+        return { themeLabel: t && t.label };
+      }), spNameNextSibling);
+    }
     $$(".sp-apply", sec).forEach(function (b) {
       b.onclick = function () { applyStylePreset(b.getAttribute("data-id")); renderSettings(); toast("Preset applied as the active default"); };
     });

@@ -609,6 +609,7 @@ html[data-app-theme='neon'] #mobileNavBtn{background:#000000;border-color:rgba(2
 .sp-apply{flex:0 0 auto;font-size:var(--fs-11);padding:var(--sp-4) var(--sp-10);min-width:0;height:auto;line-height:1.5}
 .sp-add-row{display:flex;gap:8px;margin-top:10px}
 .sp-add-row .set-txt{flex:1;width:auto}
+.sp-add-row .name-sparkle{flex:1}
 /* LF15: the mobile `.set-txt{width:100%}` rule (above) never won here -- `.sp-add-row
    .set-txt` is more specific and applies regardless of viewport, so the name field stayed
    a squeezed fixed-ish width right against the button on phones. Stack instead. */
