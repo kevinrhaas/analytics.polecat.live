@@ -5,7 +5,10 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v271"; /* v271: LF40 slice 1 — the welcome tour opens with an
+var CACHE_NAME = "studio-shell-v272"; /* v272: the "Restore unsaved work" banner is now opt-in — a new
+   Settings > Mode toggle (off by default) gates it, so the banner no longer interrupts on entry unless
+   you ask for it (#114). app/studio.js changed, so precached copies roll.
+   v271: LF40 slice 1 — the welcome tour opens with an
    animated hero screen (theme-colored confetti, greet-by-name, quick tour / guided tour choice,
    quick-action shortcuts). app/welcome.js changed, so its precached copy rolls.
    v270: Settings copy cleanup — a one-line Color-theme blurb, a
