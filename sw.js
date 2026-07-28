@@ -5,7 +5,9 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v284"; /* v284: LF61 — Studio's empty canvas gained an "Import a
+var CACHE_NAME = "studio-shell-v285"; /* v285: LF40 — a new pack-gated "Conservation Insight pack"
+   guided tour (app/tutorial.js changed, tests/run.js changed), so precached copies roll.
+   v284: LF61 — Studio's empty canvas gained an "Import a
    file" button + drop target (app/index.html, app/studio.js, app/studio.css, docs/index.html
    changed), so precached copies roll.
    v283: UX sweep 2026-07-28 #367 finding #2 — dropped the

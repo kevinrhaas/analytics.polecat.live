@@ -116,6 +116,38 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF40 slice 2 — a pack-gated "Conservation Insight pack" guided tour, showcasing the
+  three choropleth scales + the custom-geo story (v648, sw v285, 2026-07-28, steward):**
+  slice 1 (v631) shipped the hero screen; this slice ships the CONTENT half Kevin asked
+  for — the Conservation pack's choropleth/watershed tour segments — as a new,
+  purpose-built tour in the existing chooser (app/tutorial.js) rather than a deeper
+  rewrite of the overview/hero carousel: `TOUR_ORDER` gained a `conservation` entry and a
+  new `TOUR_GATES` map (`visibleTourKeys()` filters the chooser, `openTour(key)` still
+  works directly) — a mechanism that generalizes to any future pack's own tour with just a
+  `TOURS.<key>` entry + a gate fn, no chooser/engine changes needed. The tour's `before()`
+  hooks land on the pack's own featured dashboard by looking its row up via `demoPackId`
+  (NOT a hardcoded id — the row's real `id` is workspace-generated at install time,
+  only `spec.id`/panel ids like `p_county`/`p_huc8`/`p_state` are the pack's own literal
+  strings from `demopacks.js`'s `dashboardSpec()`), reusing the existing `window.
+  __studioOpenRecent` hook (already exposed for the Home card's own open button) instead
+  of adding a new public API. 6 steps: intro → the live Home card (`.home-featured`) →
+  county (`p_county`, the hero) → watershed/HUC8 (`p_huc8`) → state rollup (`p_state`) →
+  a closing card naming the OTHER scales the choropleth ships (USDA district,
+  congressional district, ZIP, custom regions via CSV) so the pack's 3 scales read as a
+  sample of a bigger feature, not the whole of it. Also fixed a small pre-existing
+  header-copy bug while touching the chooser: "Four quick, guided walkthroughs" had
+  drifted stale (already 5 tours, now 6-when-gated) — reworded to not hardcode a count.
+  7 new regression tests (tour registered + 6-step shape; hidden from the chooser while
+  the pack is uninstalled; appears once installed; the real walk through Home + all 3
+  panels in order; Done! records `studio-tutorial-done-conservation`; disappears again
+  once the pack is removed). Files: app/tutorial.js, tests/run.js, sw.js, js/changelog.js.
+  NEXT in LF40: the OTHER half Kevin asked for — SAMPLE-PACK-AWARE segments folded into
+  the hero/overview carousel itself (welcome.js's STEPS / tutorial.js's `overview` tour
+  dynamically branching on whatever pack is installed, "curated dashboards"/"curated
+  datasets" framing) — deliberately NOT attempted here since it requires those two
+  tours' `steps` to go from static arrays to something computed at open() time (stepCount/
+  render assume a static array today), a bigger, separately-budgeted engine change; this
+  slice's standalone gated tour is real, shippable value in the meantime, not a stopgap.
 - **LF61 — Quick import is now reachable straight from Studio's empty canvas (v647, sw v284,
   2026-07-28, steward — LIVE-QA QUEUE bug/cleanup item, per LF70's own NEXT note):** Kevin, live
   QA — a brand-new "New dashboard" opened Studio with an empty canvas that only offered "drag
@@ -5305,8 +5337,9 @@
 >    done**). **Step 2 is now fully done.**
 > 3. **Flashy:** LF40 (animated welcome + home tour, sample-pack-aware) — **slice 1 ✓ (hero
 >    screen: confetti + greet-by-name + quick tour/guided tour menu + quick actions, 2026-07-27,
->    steward)**, see DONE. Still open: the sample-pack-aware tour content + the Conservation-pack
->    choropleth/watershed tour segments Kevin called out.
+>    steward)**, **slice 2 ✓ (Conservation-pack choropleth/watershed guided tour, pack-gated,
+>    2026-07-28, steward)**, see DONE. Still open: folding sample-pack-aware segments into the
+>    hero/overview carousel itself (a bigger engine change — see slice 2's own NEXT note).
 > 4. **Studio chrome:** LF46 (⋯ teardown) · LF47 (ops → top rail, w/ #30 — ✓ slices A/B/C,
 >    2026-07-27, **LF47 is now fully done** except Examples removal, which is LF43 slice 2's
 >    remit, not duplicated here) · LF48 (mode switcher) · LF45 (Save-as + Open dialog) ·
@@ -5437,10 +5470,15 @@
 >       studio.js renderHome(), celebrations.js confetti, demopacks.js, icons.) Follows LF18. Ties LF22, LF58.
 >       ✓ **Slice 1 shipped (2026-07-27, v631, sw v268, steward): the hero screen itself** — confetti +
 >       greet-by-name + "Take a quick tour"/"Take the guided tour" menu + 3 icon quick-actions + the
->       Settings→Tour note — see DONE for the full writeup. Genuinely still open: SAMPLE-PACK-AWARE tour
->       content (curated-dashboards/datasets segments for an installed pack) and the Conservation pack's
->       choropleth/watershed tour segments Kevin named — both need the carousel/guided-tour CONTENT itself
->       to branch on the installed pack, a separate slice from this screen/flow restructuring.
+>       Settings→Tour note — see DONE for the full writeup.
+>       ✓ **Slice 2 shipped (2026-07-28, v648, sw v285, steward): the Conservation pack's
+>       choropleth/watershed tour segments Kevin named** — a new pack-gated "Conservation Insight pack"
+>       guided tour (app/tutorial.js) walking the featured dashboard's county/watershed(HUC8)/state
+>       choropleths + the custom-geo story — see DONE for the full writeup. Genuinely still open: the
+>       OTHER half of SAMPLE-PACK-AWARE (curated-dashboards/datasets segments folded into the hero/
+>       overview carousel ITSELF, branching per installed pack) — needs those tours' `steps` to become
+>       computed-at-open-time instead of static arrays, a bigger, separately-budgeted engine change;
+>       see slice 2's own NEXT note in DONE.
 > LF41. **slice 1 ✓ / slice 2 ✓ / fully done — Per-user provisioning defaults — the whole starting PROFILE
 >       (Kevin expanded 2026-07-27).** Admin's Add-user configures a user's full starting profile so they log in
 >       ready with no major edits: default theme, default sample pack(s), backend/DB (LF42), AND ALL the

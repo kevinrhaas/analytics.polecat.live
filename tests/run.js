@@ -19150,18 +19150,19 @@ function serve() {
     });
     ok("J6: Escape closes the tutorial (tip, ring, and active flag all cleared)", j6Closed.ok, JSON.stringify(j6Closed));
 
-    // J6-5: tour shapes — five tours (overview leads), quick has 8 steps, build has 6, jobs has 5, connect has 8
+    // J6-5: tour shapes — six tours (overview leads), quick has 8 steps, build has 6, jobs has 5,
+    // connect has 8, conservation (LF40, pack-gated) has 6
     const j6Shape = await page.evaluate(function () {
       try {
-        return { ok: StudioTutorial.tourKeys().join(",") === "overview,quick,build,jobs,connect" &&
+        return { ok: StudioTutorial.tourKeys().join(",") === "overview,quick,build,jobs,connect,conservation" &&
           StudioTutorial.stepCount("overview") === 10 && StudioTutorial.stepCount("quick") === 8 &&
           StudioTutorial.stepCount("build") === 6 && StudioTutorial.stepCount("jobs") === 5 &&
-          StudioTutorial.stepCount("connect") === 8,
+          StudioTutorial.stepCount("connect") === 8 && StudioTutorial.stepCount("conservation") === 6,
           keys: StudioTutorial.tourKeys().join(","), q: StudioTutorial.stepCount("quick"), b: StudioTutorial.stepCount("build"),
-          j: StudioTutorial.stepCount("jobs"), c: StudioTutorial.stepCount("connect") };
+          j: StudioTutorial.stepCount("jobs"), c: StudioTutorial.stepCount("connect"), cv: StudioTutorial.stepCount("conservation") };
       } catch (e) { return { ok: false, err: e.message }; }
     });
-    ok("J6: five tours — Overview (10 steps, leads — M5's Repository joined the rail walk), Quick analysis (8), Build a dashboard (6), Prep data/Jobs (5 — LF18(b)), Connections & Datasets (8 — LF18(b))", j6Shape.ok, JSON.stringify(j6Shape));
+    ok("J6: six tours registered — Overview (10 steps, leads — M5's Repository joined the rail walk), Quick analysis (8), Build a dashboard (6), Prep data/Jobs (5 — LF18(b)), Connections & Datasets (8 — LF18(b)), Conservation Insight pack (6 — LF40, pack-gated)", j6Shape.ok, JSON.stringify(j6Shape));
 
     // J6-6: the QUICK tour walks the real Explore UI — it switches the section,
     // seeds a sample dataset, and every spotlighted step finds its live target
@@ -19330,6 +19331,101 @@ function serve() {
       j6Connect.tour === "connect" && j6Connect.connSection && j6Connect.dsxSection && j6Connect.hits === 6 &&
       /Done/.test(j6Connect.lastLabel) && j6Connect.closed && j6Connect.done && j6Connect.doneConnect,
       JSON.stringify(j6Connect));
+
+    // J6-10 (LF40): the Conservation Insight tour is PACK-GATED — invisible in the
+    // chooser until the pack is installed, appears once it is, and disappears again
+    // once removed. Then walk the real tour: it lands on the pack's own featured
+    // dashboard (looked up by demoPackId, not a hardcoded id) and spotlights its
+    // three choropleth panels (county → watershed/HUC8 → state) in order.
+    const j6ConservationGateOff = await page.evaluate(function () {
+      StudioTutorial.open();
+      var choices = document.querySelectorAll("#st-tip .st-choice[data-tour]");
+      return { count: choices.length, hasConservation: !!document.querySelector('#st-tip .st-choice[data-tour="conservation"]') };
+    });
+    ok("J6: Conservation Insight tour is hidden from the chooser while the pack is uninstalled",
+      j6ConservationGateOff.count === 5 && !j6ConservationGateOff.hasConservation, JSON.stringify(j6ConservationGateOff));
+
+    await page.evaluate(function () { window.__studioDemoPacks.install("conservation"); StudioTutorial.open(); });
+    await page.waitForTimeout(150);
+    const j6ConservationGateOn = await page.evaluate(function () {
+      var choices = document.querySelectorAll("#st-tip .st-choice[data-tour]");
+      return { count: choices.length, label: (document.querySelector('#st-tip .st-choice[data-tour="conservation"] b') || {}).textContent };
+    });
+    ok("J6: Conservation Insight tour appears in the chooser once the pack is installed",
+      j6ConservationGateOn.count === 6 && j6ConservationGateOn.label === "Conservation Insight pack", JSON.stringify(j6ConservationGateOn));
+
+    await page.evaluate(function () { StudioTutorial.openTour("conservation"); });
+    await page.waitForTimeout(250);
+    const j6Conservation = await page.evaluate(async function () {
+      function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+      // The three choropleth panels render INSIDE the #preview builder iframe (same
+      // same-origin srcdoc doc studio-render.js shares with the export path) — a
+      // ring's own getBoundingClientRect() is already in page coordinates (tutorial.js
+      // offsets it by the iframe's rect), so translate the IN-FRAME target's rect the
+      // same way before comparing centers.
+      function frameDoc() { var f = document.querySelector("#preview"); try { return f && f.contentDocument; } catch (e) { return null; } }
+      async function ringFor(sel, inPreview, timeout) {
+        var t0 = Date.now();
+        while (Date.now() - t0 < timeout) {
+          var ring = document.getElementById("st-ring");
+          if (ring && sel) {
+            var doc = inPreview ? frameDoc() : document;
+            var tgt = doc && doc.querySelector(sel);
+            if (tgt) {
+              var tr = tgt.getBoundingClientRect();
+              if (inPreview) {
+                var fr = document.querySelector("#preview").getBoundingClientRect();
+                tr = { left: tr.left + fr.left, right: tr.right + fr.left };
+              }
+              var rr = ring.getBoundingClientRect();
+              if (Math.abs((rr.left + rr.right) / 2 - (tr.left + tr.right) / 2) < 30) return true;
+            }
+          }
+          await sleep(150);
+        }
+        return false;
+      }
+      var out = { tour: window.__studioTutorialTour(), homeSection: false, studioSection: false, hits: 0 };
+      var targets = [
+        { sel: ".home-featured", inPreview: false },
+        { sel: '[data-panel-id="p_county"]', inPreview: true },
+        { sel: '[data-panel-id="p_huc8"]', inPreview: true },
+        { sel: '[data-panel-id="p_state"]', inPreview: true }
+      ];
+      for (var i = 0; i < targets.length; i++) {
+        document.querySelector("#st-tip button.pri").click();
+        if (i === 0) out.homeSection = !document.getElementById("secHome").hidden;
+        if (i === 1) { await sleep(300); out.studioSection = !document.getElementById("appMain").hidden; }
+        if (await ringFor(targets[i].sel, targets[i].inPreview, 6000)) out.hits++;
+        await sleep(100);
+      }
+      // final centered step → Done!
+      document.querySelector("#st-tip button.pri").click();
+      await sleep(200);
+      var doneBtn = document.querySelector("#st-tip button.pri");
+      out.lastLabel = doneBtn ? doneBtn.textContent : "";
+      doneBtn.click();
+      await sleep(150);
+      out.closed = !document.getElementById("st-tip") && !window.__studioTutorialActive();
+      out.done = StudioTutorial.isDone();
+      try { out.doneConservation = localStorage.getItem("studio-tutorial-done-conservation") === "1"; } catch (e) {}
+      return out;
+    });
+    ok("J6: the Conservation Insight tour walks the real featured dashboard — Home's live card, then Studio's county/watershed(HUC8)/state choropleth panels in order, Done! completes and records",
+      j6Conservation.tour === "conservation" && j6Conservation.homeSection && j6Conservation.studioSection && j6Conservation.hits === 4 &&
+      /Done/.test(j6Conservation.lastLabel) && j6Conservation.closed && j6Conservation.done && j6Conservation.doneConservation,
+      JSON.stringify(j6Conservation));
+
+    const j6ConservationCleanup = await page.evaluate(function () {
+      window.__studioDemoPacks.remove("conservation");
+      StudioTutorial.open();
+      var choices = document.querySelectorAll("#st-tip .st-choice[data-tour]");
+      var ok2 = { count: choices.length, installed: Studio.demoPackInstalled("conservation") };
+      document.querySelector("#st-tip .st-skip").click();
+      return ok2;
+    });
+    ok("J6: Conservation Insight tour disappears from the chooser again once the pack is removed",
+      j6ConservationCleanup.count === 5 && !j6ConservationCleanup.installed, JSON.stringify(j6ConservationCleanup));
 
     // restore studio section for later tests
     await page.evaluate(function () { window.__studioShellSetSection("studio"); });

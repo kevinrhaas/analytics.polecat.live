@@ -1,5 +1,5 @@
 /* tutorial.js — Analytics interactive tutorials.
-   J6 (rebuilt) / LF18(b): FIVE guided, spotlighted walkthroughs behind a chooser —
+   J6 (rebuilt) / LF18(b): guided, spotlighted walkthroughs behind a chooser —
      · "Take the tour" (overview) — walks the whole app down the rail
        (Home · Explore · Dashboards · Datasets · Connections · Jobs ·
        Repository · Studio) and ends on Home. The first-run / recommended tour.
@@ -13,6 +13,12 @@
        connection → search/folders) then the Datasets section (list → new
        dataset → search/folders) — where data lives, and the reusable queries
        built on top of it, LF18(b)'s last per-feature tour.
+     · "Conservation Insight pack" (LF40 NEXT slice) — SAMPLE-PACK-AWARE: only
+       offered once the Conservation demo pack is installed (see TOUR_GATES).
+       Walks the pack's featured dashboard's three choropleth scales (county →
+       watershed/HUC8 → state) and closes on the custom-geo story. The
+       TOUR_GATES mechanism generalizes to any future pack's tour — add a
+       TOURS.<key> entry + a gate fn, no chooser/engine changes needed.
    Distinct from the welcome tour (welcome.js), which is informational.
    Steps may carry a `before()` hook (switch section, seed Explore) and the
    renderer WAITS for the step's target to exist, so tours can walk UI that
@@ -47,6 +53,17 @@
         return (b.getAttribute("data-xp-ds") || "").indexOf("sample") === 0;
       })[0] || document.querySelector(".xp-ds");
       if (btn) btn.click();
+    } catch (e) {}
+  }
+  // Conservation tour: land in Studio on the pack's own featured dashboard.
+  // Its row id is workspace-generated at install time (only spec.id/panel ids
+  // are the pack's own literal strings — see demopacks.js dashboardSpec()), so
+  // this looks the row up by demoPackId rather than assuming a fixed id.
+  function openConservationDashboard() {
+    try {
+      var ws = Studio.Workspace;
+      var row = ws && ws.all("dashboards").filter(function (r) { return r.demoPackId === "conservation"; })[0];
+      if (row && window.__studioOpenRecent) window.__studioOpenRecent(row.id);
     } catch (e) {}
   }
 
@@ -327,9 +344,68 @@
           last: true
         }
       ]
+    },
+    conservation: {
+      label: "Conservation Insight pack",
+      blurb: "A guided look at the sample pack's featured dashboard — three choropleth scales, and the geography story behind them.",
+      steps: [
+        {
+          t: "Your Conservation Insight pack, guided",
+          h: "Installing the <b>Conservation Insight</b> sample pack seeded a whole workspace — connections, datasets, a prep job, and one FEATURED dashboard built as a best-practice conservation story. This short tour walks that dashboard's three map scales, then the geography behind them.",
+          sub: "You can reopen this tour any time from ⋯ More → Interactive tutorial.",
+          target: null,
+          before: function () { goSection("home"); }
+        },
+        {
+          t: "1 · Already live on Home",
+          h: "The pack's curated dashboard renders as a real, live preview right on Home the moment it installs — this is the actual renderer on sample data, not a screenshot.",
+          sub: "Click it to open in Studio, or Next to walk it here.",
+          target: ".home-featured",
+          pos: "bottom",
+          before: function () { goSection("home"); }
+        },
+        {
+          t: "2 · County — the hero view",
+          h: "The finest-grain read: cover-crop adoption by <b>county</b>, a common estimate blended across five providers. Maps lead the dashboard on purpose, trend charts follow.",
+          target: '[data-panel-id="p_county"]',
+          pos: "bottom",
+          inPreview: true,
+          before: openConservationDashboard
+        },
+        {
+          t: "3 · The same data, by watershed",
+          h: "Right beside it: the identical adoption data rolled up to <b>watersheds (HUC8)</b> instead of political boundaries — conservation outcomes follow water, not county lines.",
+          target: '[data-panel-id="p_huc8"]',
+          pos: "top",
+          inPreview: true
+        },
+        {
+          t: "4 · ...and a state rollup",
+          h: "A third scale, <b>state</b>, acreage-weighted so the average is honest rather than a flat mean across counties of very different size.",
+          target: '[data-panel-id="p_state"]',
+          pos: "top",
+          inPreview: true
+        },
+        {
+          t: "That's the geography story",
+          h: "County, watershed, and state are three of the choropleth's built-in scales — it also ships USDA crop-reporting districts, congressional districts, and 5-digit ZIP codes, plus your own <b>custom regions</b> (Inspector → Region scale → Custom regions, import a CSV mapping county → your own boundary). Same geometry engine underneath every scale, no shapefiles to source.",
+          sub: "⋯ More → Interactive tutorial brings you back here any time.",
+          target: null,
+          last: true
+        }
+      ]
     }
   };
-  var TOUR_ORDER = ["overview", "quick", "build", "jobs", "connect"];
+  var TOUR_ORDER = ["overview", "quick", "build", "jobs", "connect", "conservation"];
+  // Some tours only make sense once a sample pack is installed — gate their
+  // CHOOSER visibility here (openTour(key) still works directly regardless,
+  // e.g. a future "take this pack's tour" link from Settings' pack card).
+  var TOUR_GATES = {
+    conservation: function () { return !!(window.Studio && Studio.demoPackInstalled && Studio.demoPackInstalled("conservation")); }
+  };
+  function visibleTourKeys() {
+    return TOUR_ORDER.filter(function (k) { return !TOUR_GATES[k] || TOUR_GATES[k](); });
+  }
 
   var _tour = null;   // active tour key, null while the chooser is up
   var _cur = 0;
@@ -385,17 +461,42 @@
   }
   // Wait for a selector to exist AND have a laid-out box (tours walk UI that
   // renders asynchronously — Explore fetches rows before its steps exist).
-  function waitFor(sel, timeout) {
+  // inPreview: a panel (e.g. a choropleth) lives INSIDE the #preview iframe —
+  // studio-render.js's own header comment notes this is the SAME renderer that
+  // draws both the live builder canvas and an exported dashboard, same-origin
+  // srcdoc with no sandbox attribute (the widget-zoom Escape fix relies on the
+  // same fact), so reaching into its contentDocument is safe here too.
+  function previewDoc() {
+    var f = document.querySelector("#preview");
+    try { return f && f.contentDocument; } catch (e) { return null; }
+  }
+  function waitFor(sel, timeout, inPreview) {
     return new Promise(function (resolve) {
       if (!sel) return resolve(null);
       var t0 = Date.now();
       (function poll() {
-        var el = document.querySelector(sel);
+        var doc = inPreview ? previewDoc() : document;
+        var el = doc && doc.querySelector(sel);
         if (el && el.getBoundingClientRect().width > 0) return resolve(el);
         if (Date.now() - t0 > (timeout || 2500)) return resolve(el || null);
         setTimeout(poll, 90);
       })();
     });
+  }
+  // A preview-iframe element's own getBoundingClientRect() is relative to the
+  // IFRAME's viewport, not the parent document's — offset by the iframe's own
+  // rect (its position in the parent) to get spotlight-ready page coordinates.
+  function effectiveRect(tEl, inPreview) {
+    var r = tEl.getBoundingClientRect();
+    if (!inPreview) return r;
+    var f = document.querySelector("#preview");
+    if (!f) return r;
+    var fr = f.getBoundingClientRect();
+    return {
+      top: r.top + fr.top, left: r.left + fr.left,
+      right: r.right + fr.left, bottom: r.bottom + fr.top,
+      width: r.width, height: r.height
+    };
   }
 
   /* --- Tour chooser --- */
@@ -407,8 +508,8 @@
     var tip = document.createElement("div"); tip.id = "st-tip";
     tip.innerHTML =
       "<h3>Pick a tour</h3>" +
-      '<div class="st-h">Four quick, guided walkthroughs — spotlights on the real app, a couple of minutes each.</div>' +
-      TOUR_ORDER.map(function (k) {
+      '<div class="st-h">Quick, guided walkthroughs — spotlights on the real app, a couple of minutes each.</div>' +
+      visibleTourKeys().map(function (k) {
         return '<button type="button" class="st-choice" data-tour="' + k + '"><b>' + TOURS[k].label + "</b><small>" + TOURS[k].blurb + "</small></button>";
       }).join("") +
       '<div class="st-ft"><button class="st-skip" aria-label="Close tours">Maybe later</button><div class="st-sp"></div></div>';
@@ -427,7 +528,7 @@
     var steps = TOURS[_tour].steps;
     var step = steps[idx];
     Promise.resolve(step.before ? step.before() : null).then(function () {
-      return waitFor(step.target, 2500);
+      return waitFor(step.target, step.inPreview ? 6000 : 2500, step.inPreview);
     }).then(function (tEl) {
       if (!_active || _cur !== idx) return; // user moved on / closed while waiting
       clearOverlays();
@@ -437,7 +538,7 @@
         scrim.onclick = function (e) { if (e.target === scrim) close(); };
         document.body.appendChild(scrim);
       } else {
-        var r = padRect(tEl.getBoundingClientRect());
+        var r = padRect(effectiveRect(tEl, step.inPreview));
         var W = window.innerWidth, H = window.innerHeight;
         [
           { top: 0, left: 0, width: W, height: Math.max(0, r.top) },
@@ -476,12 +577,12 @@
       if (bck) bck.onclick = function () { render(_cur - 1); };
 
       document.body.appendChild(tip);
-      positionTip(tip, tEl, step.pos);
+      positionTip(tip, tEl, step.pos, step.inPreview);
       if (nxt) setTimeout(function () { nxt.focus(); }, 60);
     });
   }
 
-  function positionTip(tip, tEl, pos) {
+  function positionTip(tip, tEl, pos, inPreview) {
     var TW = tip.offsetWidth || 380;
     var TH = tip.offsetHeight || 160;
     var W = window.innerWidth;
@@ -493,7 +594,7 @@
       x = W / 2 - TW / 2;
       y = H / 2 - TH / 2;
     } else {
-      var r = tEl.getBoundingClientRect();
+      var r = effectiveRect(tEl, inPreview);
       var rp = padRect(r);
       switch (pos) {
         case "right":
@@ -528,7 +629,8 @@
   var FINISH_TOASTS = {
     quick: "Tour complete! Save an analysis and pin it to Home.",
     jobs: "Tour complete! Try a job on one of your own datasets.",
-    connect: "Tour complete! Add a connection, or explore a sample dataset."
+    connect: "Tour complete! Add a connection, or explore a sample dataset.",
+    conservation: "Tour complete! Try a different Region scale on any map in Studio's Inspector."
   };
   function finish() {
     try {
