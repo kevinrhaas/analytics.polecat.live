@@ -116,6 +116,32 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF62 slice 5 — the sparkle name-suggest button now also lives on Explore's "Name
+  this analysis" (View) field (v658, sw v295, 2026-07-28, steward — LIVE-QA QUEUE,
+  LF62 slice 4's own NEXT pointer):** slice 4 flagged View, preset, and folder name
+  fields as the remaining open slices, with a View's context noted as "closer to a
+  dataset's" than a dashboard's. `Studio.nameSuggest` gains a `"view"` kind
+  (app/model.js): prefers the picked dataset/sample's own display name
+  (`ctx.sourceDatasetName` — a workspace dataset's `name`, or a sample's own DA id
+  when there's no live Workspace row to read a name off), falling back to the
+  charted value column (`ctx.valueCol`) for a self-contained/orphaned analysis with
+  neither. `app/explore.js`'s `#xpName` input (built as a raw HTML string, unlike the
+  dataset/job/connection/dashboard fields' DOM-node construction) is wrapped
+  post-render via `withSparkleButton` — captured its original parent/next-sibling
+  first, then reinserted the returned wrapper in the same slot, since
+  `withSparkleButton` detaches the input into its own container. `Studio.Explore`'s
+  `configure(deps)` call (app/studio.js) gained a `withSparkleButton` passthrough (the
+  only Explore dep not already covered by `coreModuleDeps()`, since Explore predates
+  that shared builder and injects its own deps list). `app/studio.css` gained
+  `.xp-savebar .name-sparkle{flex:1;min-width:180px}` — the `.xp-savebar` row's
+  existing `input{flex:1}` rule no longer reaches the (now-wrapped) input as a direct
+  flex child. **LF62 dataset/job/connection/dashboard/view quintet now done.** 2 new
+  regression tests (a sample-dataset pick, where the heuristic falls back to the
+  sample's own id; a workspace-dataset pick, where it suggests that dataset's own
+  titleized `.name`). NEXT in LF62: preset and folder name fields remain open — both
+  smaller UI surfaces with no natural "source" of their own, likely need to suggest
+  from whatever object is being saved into them instead. Files: app/model.js,
+  app/explore.js, app/studio.js, app/studio.css, tests/run.js, sw.js, js/changelog.js.
 - **LF62 slice 4 — the sparkle name-suggest button now also lives on the Dashboard
   inspector's own "Title" field (v657, sw v294, 2026-07-28, steward — LIVE-QA QUEUE,
   LF62 slice 3's own NEXT pointer):** slice 3 flagged dashboard/View/preset/folder name
@@ -5572,10 +5598,13 @@
 >       — see DONE. ✓ **Slice 3 shipped (2026-07-28, v656, steward): the connection wizard's
 >       "Connection name" field** — see DONE. ✓ **Slice 4 shipped (2026-07-28, v657, sw v294,
 >       steward): the Dashboard inspector's "Title" field**, deriving a name from the
->       dashboard's own most-common panel source — see DONE. NEXT is wiring the same button
->       into the View, preset, and folder name fields, one small slice each — each needs its
->       own fresh heuristic (no existing "source"-shaped context the way dataset/job/
->       connection/dashboard had).
+>       dashboard's own most-common panel source — see DONE. ✓ **Slice 5 shipped (2026-07-28,
+>       v658, sw v295, steward): Explore's "Name this analysis" (View) field**, suggesting the
+>       picked dataset/sample's own name (or the charted value column as a fallback) — see DONE.
+>       **The dataset/job/connection/dashboard/view quintet is now done.** NEXT is wiring the
+>       same button into the preset and folder name fields, one small slice each — both smaller
+>       surfaces with no natural "source" of their own, likely need to suggest from whatever
+>       object is being saved into them instead.
 > LF63. **Connection/dataset QUERY BUILDER — see tables/columns, assisted build, validate, test.** For a
 >       connection you can browse the available tables, you should be able to SEE and USE them when building
 >       a dataset: a table/column browser (already have schema for some adapters) feeding an assisted

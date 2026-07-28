@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 658,
+    title: 'The name-suggest sparkle button now works in Explore too',
+    kind: 'feature',
+    ts: '2026-07-28T12:04:26.000Z',
+    items: [
+      'Explore\'s "Name this analysis" field now has the same ✨ suggest button — it suggests a name from the dataset or sample you picked.',
+    ],
+  },
+  {
     v: 657,
     title: 'The name-suggest sparkle button now works on the dashboard title too',
     kind: 'feature',

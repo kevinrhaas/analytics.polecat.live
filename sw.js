@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v294"; /* v294: LF62 slice 4 — the same ✨ sparkle
+var CACHE_NAME = "studio-shell-v295"; /* v295: LF62 slice 5 — the same ✨ sparkle
+   name-suggest button now sits on Explore's "Name this analysis" (View) field too,
+   suggesting a titleized name from the picked dataset/sample's own display name, or
+   the charted value column for a self-contained/orphaned analysis (app/explore.js,
+   app/model.js, app/studio.js, app/studio.css, tests/run.js changed), so precached
+   copies roll.
+   v294: LF62 slice 4 — the same ✨ sparkle
    name-suggest button now sits on the Dashboard inspector's own "Title" field too,
    suggesting a titleized name from whichever panel source shows up most often across
    the spec's panels (app/studio.js, app/model.js, tests/run.js changed), so precached

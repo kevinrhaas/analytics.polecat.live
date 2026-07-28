@@ -3141,6 +3141,25 @@ function serve() {
       document.querySelector('#secSettings input[data-set="dark"]').dispatchEvent(new Event("change", { bubbles: true }));
     }); // back to light for the rest of the suite
     await page.waitForTimeout(150);
+
+    // LF62 slice 5 (live-QA queue): the same ✨ sparkle name-suggest button, wired
+    // into Explore's "Name this analysis" field (a View) — the picked SAMPLE
+    // dataset (no `datasetId`, XP.kind === "sample") has no live Workspace row to
+    // read a `.name` off, so the heuristic falls back to the sample's own id.
+    console.log("\n• LF62 slice 5: View (Explore analysis) name-suggest sparkle button — sample dataset");
+    const lf62ViewSample = await page.evaluate(function () {
+      var inp = document.getElementById("xpName");
+      var wrap = inp.parentElement;
+      var btn = wrap.querySelector(".name-sparkle-btn");
+      var parts = String(window.__studioExplore.state.dsId).split("");
+      inp.value = "";
+      btn.click();
+      return { btnPresent: !!btn, suggestion: inp.value, expected: Studio.titleize(parts[1] || parts[0]) };
+    });
+    ok("LF62 slice 5: with a sample dataset picked (no live Workspace row), the sparkle button suggests a titleized name from the sample's own id",
+      lf62ViewSample.btnPresent && lf62ViewSample.suggestion.length > 0 && lf62ViewSample.suggestion === lf62ViewSample.expected,
+      JSON.stringify(lf62ViewSample));
+
     await page.fill("#xpName", "Suite analysis");
     await page.click("#xpSaveBtn");
     await page.waitForTimeout(350);
@@ -3585,6 +3604,26 @@ function serve() {
       qa03Unit.map.idCol === "geoid" && qa03Unit.map.valueCol === "pct" && qa03Unit.map.seriesCol === "provider" &&
       qa03Unit.guess.idCol === "geoid" && qa03Unit.guess.valueCol === "pct" && qa03Unit.guess.seriesCol === "provider",
       JSON.stringify(qa03Unit));
+
+    // LF62 slice 5 (live-QA queue, LF62 slice 4's own NEXT pointer): the same ✨
+    // sparkle name-suggest button, wired into Explore's "Name this analysis" field
+    // (a View, in Kevin's pending LF52 vocabulary) — while the county demo dataset
+    // (a WORKSPACE dataset, XP.kind === "ws") is still the active pick from QA-03
+    // above, prove the sparkle suggests the picked dataset's own titleized name.
+    console.log("\n• LF62 slice 5: View (Explore analysis) name-suggest sparkle button — workspace dataset");
+    const lf62ViewWs = await page.evaluate(function () {
+      var inp = document.getElementById("xpName");
+      var wrap = inp.parentElement;
+      var btn = wrap.querySelector(".name-sparkle-btn");
+      var ds = Studio.Workspace.get("datasets", window.__studioExplore.state.dsId);
+      inp.value = "";
+      btn.click();
+      return { btnPresent: !!btn, wrapHasClass: wrap.classList.contains("name-sparkle"),
+        suggestion: inp.value, expected: Studio.titleize(ds.name) };
+    });
+    ok("LF62 slice 5: Explore's Name field carries the sparkle button; with a workspace dataset picked, it suggests that dataset's own titleized name",
+      lf62ViewWs.btnPresent && lf62ViewWs.wrapHasClass && lf62ViewWs.suggestion.length > 0 && lf62ViewWs.suggestion === lf62ViewWs.expected,
+      JSON.stringify(lf62ViewWs));
 
     const m2cClean = await page.evaluate(function () {
       window.__studioDemoPacks.remove("conservation");
