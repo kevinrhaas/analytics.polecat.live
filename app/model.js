@@ -2654,6 +2654,30 @@
   }
   Studio.titleize = titleize;
 
+  // LF62 (live-QA queue): a shared "suggest a name from context" heuristic — the pure
+  // half of the sparkle-button affordance (the DOM/button half lives in studio.js's
+  // withSparkleButton, which calls this). Deliberately dumb and deterministic (no
+  // network/LLM call): pick the most specific source-shaped string already on the
+  // form (a file name, table, collection, sheet, or a `FROM x` clause pulled out of
+  // raw SQL/PostgREST-query text) and run it through titleize() so the suggestion
+  // reads like the app's own dataset names (e.g. demopacks.js's "County cover-crop
+  // adoption") rather than a bare identifier. Returns "" when nothing usable is on
+  // the form yet — callers treat that as "can't suggest, tell the user why."
+  Studio.nameSuggest = function (kind, ctx) {
+    ctx = ctx || {};
+    function stripExt(s) { return String(s || "").trim().replace(/\.[a-zA-Z0-9]{1,6}$/, ""); }
+    function fromFromClause(sql) {
+      var m = /\bfrom\s+["'`\[]?([a-zA-Z0-9_.]+)["'`\]]?/i.exec(sql || "");
+      return m ? m[1].split(".").pop() : "";
+    }
+    if (kind === "dataset") {
+      var raw = stripExt(ctx.fileName) || ctx.table || ctx.collection || ctx.sheet ||
+        fromFromClause(ctx.sql) || fromFromClause(ctx.query);
+      if (raw) return titleize(raw);
+    }
+    return "";
+  };
+
   // map an output column name -> a sensible default fmt id (used on auto-bind)
   Studio.guessFmt = function (col) {
     var c = String(col || "").toLowerCase();

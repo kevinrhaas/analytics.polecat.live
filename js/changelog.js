@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 651,
+    title: 'A sparkle button suggests a dataset name for you',
+    kind: 'feature',
+    ts: '2026-07-28T09:33:45.000Z',
+    items: [
+      'The dataset editor\'s Name field now has a small ✨ button that suggests a name from whatever source you\'ve already filled in — a table, a FROM clause, a sheet tab, or a dropped file\'s name.',
+      'One click fills it in; it stays fully editable after.',
+    ],
+  },
+  {
     v: 650,
     title: 'Panel exports collapse into one Export menu',
     kind: 'polish',

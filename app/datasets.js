@@ -53,6 +53,7 @@
   function makeViewsStore(settingsKey) { return D.makeViewsStore(settingsKey); }
   function makePinToggle(table, rerender) { return D.makePinToggle(table, rerender); }
   function runDataset(d, extraParams) { return D.runDataset(d, extraParams); }
+  function withSparkleButton(inp, kind, getCtx) { return D.withSparkleButton(inp, kind, getCtx); }
 
   /* ---------- Datasets section ----------
      A dataset = a named, parameterizable query defined on top of a Connection
@@ -440,7 +441,17 @@
         form.appendChild(row);
         return input;
       }
-      var nameInp = field("Dataset name", el("input")); nameInp.type = "text"; nameInp.value = d.name || ""; nameInp.placeholder = "e.g. monthly_cost_by_source";
+      var nameInp = el("input"); nameInp.type = "text"; nameInp.value = d.name || ""; nameInp.placeholder = "e.g. monthly_cost_by_source";
+      field("Dataset name", withSparkleButton(nameInp, "dataset", function () {
+        return {
+          table: (defInputs.table && defInputs.table.value) || "",
+          collection: (defInputs.collection && defInputs.collection.value) || "",
+          sheet: (defInputs.sheet && defInputs.sheet.value) || "",
+          sql: (defInputs.sql && defInputs.sql.value) || "",
+          query: (defInputs.query && defInputs.query.value) || "",
+          fileName: d.fileName || ""
+        };
+      }));
       var descInp = field("Description", el("input")); descInp.type = "text"; descInp.value = d.desc || ""; descInp.placeholder = "optional — what this returns";
       var connSel = field("Connection", el("select"), conns.length ? "" : "No connections yet — add one in the Connections section first.");
       connSel.className = "cx-sel";

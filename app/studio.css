@@ -2107,6 +2107,14 @@ body.simple-mode .da-acts{display:none!important}
   background:transparent;color:var(--muted);border-radius:6px;cursor:pointer}
 .pw-reveal-btn:hover{color:var(--ink);background:var(--line-2)}
 .pw-reveal-btn:focus-visible{outline:2px solid var(--brand);outline-offset:1px}
+/* LF62: name-suggest sparkle button — same overlay shape as .pw-reveal above. */
+.name-sparkle{position:relative;display:flex}
+.name-sparkle input{flex:1;padding-right:34px}
+.name-sparkle-btn{position:absolute;right:4px;top:50%;transform:translateY(-50%);display:flex;
+  align-items:center;justify-content:center;width:26px;height:26px;padding:0;border:0;
+  background:transparent;color:var(--muted);border-radius:6px;cursor:pointer}
+.name-sparkle-btn:hover{color:var(--brand);background:var(--line-2)}
+.name-sparkle-btn:focus-visible{outline:2px solid var(--brand);outline-offset:1px}
 .cx-hint{color:var(--faint);font-size:var(--fs-11);line-height:1.4}
 .cx-docs{margin-top:12px;font-size:var(--fs-12);color:var(--muted)}
 .cx-docs a{color:var(--brand)}

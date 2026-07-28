@@ -124,6 +124,32 @@
     return wrap;
   }
 
+  // LF62 (live-QA queue): a "✨ suggest a name" enhancer for a name <input> (already
+  // built, not yet attached) — same wrap-and-overlay shape as withRevealToggle (LF38)
+  // above, so both read as the same family of inline-button affordance. `kind` picks
+  // the Studio.nameSuggest heuristic; `getCtx()` is called lazily on click (not at
+  // build time) so it can read whatever the surrounding form's OTHER fields hold at
+  // that moment — e.g. the dataset editor's table/SQL fields, which are still empty
+  // when the name field itself is first built.
+  function withSparkleButton(inp, kind, getCtx) {
+    var wrap = el("div", "name-sparkle");
+    wrap.appendChild(inp);
+    var btn = el("button", "name-sparkle-btn");
+    btn.type = "button";
+    btn.title = "Suggest a name";
+    btn.setAttribute("aria-label", "Suggest a name");
+    btn.appendChild(Studio.icon("sparkle", 16));
+    btn.addEventListener("click", function () {
+      var suggestion = Studio.nameSuggest(kind, (getCtx && getCtx()) || {});
+      if (!suggestion) { toast("Fill in a source first, then try again.", true); return; }
+      inp.value = suggestion;
+      inp.dispatchEvent(new Event("input", { bubbles: true }));
+      inp.focus();
+    });
+    wrap.appendChild(btn);
+    return wrap;
+  }
+
   // R2 (tech-debt sweep): the 4 identical "tell the preview iframe the app theme once it
   // loads" envelopes (compare-dashboards preview, Home's live mini-render, Panel zoom,
   // Slideshow) collapsed onto one helper.
@@ -6318,7 +6344,8 @@
       modal: function (title, build, onClose, wide) { return modal(title, build, onClose, wide); },
       toast: function (msg, isErr, celebrate) { toast(msg, isErr, celebrate); },
       isVisibleToMe: function (r) { return isVisibleToMe(r); },
-      currentUserId: function () { return currentUserId(); }
+      currentUserId: function () { return currentUserId(); },
+      withSparkleButton: function (inp, kind, getCtx) { return withSparkleButton(inp, kind, getCtx); }
     };
   }
 
