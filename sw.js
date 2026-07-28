@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v297"; /* v297: LF52 — the dashboard item "widget" is renamed to
+var CACHE_NAME = "studio-shell-v298"; /* v298: LF49 slice 1 — Export ▾ → "Excel workbook (.xlsx)":
+   a dependency-free multi-sheet .xlsx (OOXML written into a hand-rolled stored ZIP, Studio.xlsxBook
+   in exporters.js) — dashboard summary on tab 1, backend data per source after. app/exporters.js,
+   app/studio.js, app/index.html, docs/index.html changed, so precached copies roll.
+   v297: LF52 — the dashboard item "widget" is renamed to
    "View" across all user-facing text (builder chrome, inspector, canvas hints, keyboard shortcuts,
    toasts, Help docs); "Save to widget library" → "Save to View library". Text-only — spec keys,
    CSS classes, ids and stored data are untouched. app/studio.js, app/index.html, app/tutorial.js,

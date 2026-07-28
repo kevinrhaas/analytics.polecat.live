@@ -9970,6 +9970,13 @@
     recordExport(kind, sp.title || sp.name);
     if (kind === "spec") return bundleModal("Editable spec", [{ name: sp.name + ".studio.json", body: JSON.stringify(sp, null, 2), mime: "application/json" }]);
     if (kind === "cdf") return bundleModal("Dashboard", [{ name: sp.name + ".html", body: Studio.exportCDF(sp, S.assets, dp), mime: "text/html" }]);
+    // LF49 slice 1: XLSX — a genuine multi-sheet .xlsx workbook (dependency-free OOXML,
+    // Studio.xlsxBook in exporters.js). Tab 1 is a "Dashboard" summary (title, KPIs + their
+    // values, the list of Views, filters); each following tab is the backend data behind one
+    // data source the dashboard actually uses (its columns + rows, deduped so two Views on one
+    // source share a sheet). Binary, so it bypasses the text-only bundleModal and downloads
+    // straight through download() (which wraps the Uint8Array in a Blob).
+    if (kind === "xlsx") { download((sp.name || "dashboard") + ".xlsx", buildDashboardXlsx(sp), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"); return; }
     // LF36 slice 1: "PDF (print)" opens the exported dashboard in its own tab and starts the
     // browser's print dialog there — no new print/PDF logic to maintain, it just reuses the
     // @media print CSS + #printBtn wiring that Studio.exportCDF already bakes into every export
@@ -10008,6 +10015,67 @@
       ]);
     }
   }
+
+  // LF49 slice 1: a KPI tile's headline value, computed the same way the renderer does
+  // (studio-render.js): the first row of its data source, or — when the KPI carries a
+  // statistical "agg" — that aggregate over the value column (Studio.aggregate, model.js).
+  // Returns a number when the value is numeric (so Excel treats it as a number), else the
+  // raw string, or "" when there's no data.
+  function kpiValueFor(k) {
+    try {
+      var da = Studio.daById(S.spec, k.da); if (!da) return "";
+      var sd = Studio.sampleRows(da); if (!sd || !sd.rows || !sd.rows.length) return "";
+      var ci = sd.cols.indexOf(k.valueCol); if (ci < 0) ci = 0;
+      var val;
+      if (k.agg && k.agg !== "first" && k.agg !== "corr") {
+        val = Studio.aggregate(sd.rows.map(function (r) { return r[ci]; }), k.agg);
+      } else {
+        val = sd.rows[0][ci];
+      }
+      if (val === null || val === undefined || val === "") return "";
+      var n = +val;
+      return (typeof val === "number" || (isFinite(n) && String(val).trim() !== "")) ? n : String(val);
+    } catch (e) { return ""; }
+  }
+
+  // LF49 slice 1: turn the working spec into the sheet set Studio.xlsxBook wants — a
+  // "Dashboard" summary tab first, then one data tab per data source the dashboard uses.
+  function buildDashboardXlsx(sp) {
+    var sheets = [], summary = [];
+    summary.push([sp.title || sp.name || "Dashboard"]);
+    if (sp.description) summary.push([sp.description]);
+    var kpis = sp.kpis || [], panels = sp.panels || [], filters = sp.filters || [];
+    if (kpis.length) {
+      summary.push([]); summary.push(["KPIs"]); summary.push(["Name", "Value"]);
+      kpis.forEach(function (k) { summary.push([k.label || "(KPI)", kpiValueFor(k)]); });
+    }
+    if (panels.length) {
+      summary.push([]); summary.push(["Views"]); summary.push(["Title", "Chart type", "Data source"]);
+      panels.forEach(function (p) {
+        var da = Studio.daById(sp, p.chart && p.chart.da);
+        summary.push([p.title || "(View)", (p.chart && p.chart.type) || "", da ? (da.name || da.id) : ((p.chart && p.chart.da) || "")]);
+      });
+    }
+    if (filters.length) {
+      summary.push([]); summary.push(["Filters"]);
+      filters.forEach(function (f) { summary.push([f.label || f.col || f.id || ""]); });
+    }
+    sheets.push({ name: "Dashboard", rows: summary });
+    // Backend data: one sheet per unique DA used by a KPI or View, in first-use order.
+    var seen = {};
+    function addDaSheet(id) {
+      if (!id || seen[id]) return; seen[id] = 1;
+      var da = Studio.daById(sp, id); if (!da) return;
+      var sd; try { sd = Studio.sampleRows(da); } catch (e) { sd = null; }
+      if (!sd || !sd.cols) return;
+      sheets.push({ name: da.name || da.id || id, rows: [sd.cols].concat(sd.rows || []) });
+    }
+    kpis.forEach(function (k) { addDaSheet(k.da); });
+    panels.forEach(function (p) { addDaSheet(p.chart && p.chart.da); });
+    return Studio.xlsxBook(sheets);
+  }
+  // Test hook: exercise the XLSX builder headlessly (bytes are inspectable — stored zip).
+  window.__studioBuildXlsx = function (spec) { return buildDashboardXlsx(spec || S.spec); };
 
   // LF36 slice 2: page size / orientation / fit-to-width picker for the PDF export path — same
   // small-form-modal shape as openSaveAsModal (Cancel/primary-action foot row). Remembers the
