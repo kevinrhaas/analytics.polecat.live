@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 640,
+    title: '"Browse examples" on Home now opens your sample-pack dashboards',
+    kind: 'fix',
+    ts: '2026-07-28T04:11:04.000Z',
+    items: [
+      'The Home "Browse examples" card now jumps straight to Dashboards, filtered to your installed sample pack(s)\' curated dashboards — shown as the usual thumbnail tiles.',
+      'It no longer opens the old Examples dropdown of static demo-database specs.',
+      'A new "Sample packs" chip on the Dashboards filter strip lets you get back to that view (or clear it) any time.',
+    ],
+  },
+  {
     v: 639,
     title: 'Viewer mode now shows sample dashboards and can export them',
     kind: 'fix',

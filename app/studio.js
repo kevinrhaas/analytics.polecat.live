@@ -5551,7 +5551,7 @@
       { act: "connection", ic: "link", t: "New connection", d: "Create a connection to your own data" },
       { act: "dataset", ic: "db", t: "New dataset", d: "Build datasets from an existing connection" },
       { act: "quickimport", ic: "upload", t: "Quick import", d: "Drop a CSV or JSON file to build a dashboard instantly" }
-    ].concat(showSamples() ? [{ act: "examples", ic: "grid", t: "Browse examples", d: "Sample dashboards on the demo database" }] : [])
+    ].concat(showSamples() ? [{ act: "examples", ic: "grid", t: "Browse examples", d: "Curated dashboards from your installed sample packs" }] : [])
       .concat([{ act: "tour", ic: "play", t: "Take the tour", d: "Guided walkthrough of the builder" }])
       // LF44: "blank"/"quickimport"/"examples"/"tour" all route through enterStudio()
       // (Quick import via quickBuildDashboard) — a viewer-role account can't ever enter
@@ -5703,9 +5703,17 @@
         if (act === "dataset") { openDatasetEditor(); return; }
         if (act === "explore") { if (window.__studioShellSetSection) __studioShellSetSection("explore"); return; }
         if (act === "quickimport") { var qi = $(".home-quickimport-input", sec); if (qi) qi.click(); return; }
+        // LF70: "Browse examples" = go to the installed sample pack(s)' curated dashboards in
+        // the Dashboards section (thumbnail tiles), not the old Examples ▾ dropdown of static
+        // demo-db specs — Studio isn't entered at all for this action.
+        if (act === "examples") {
+          _repoWbFilter = "__packs";
+          renderDashboards();
+          if (window.__studioShellSetSection) __studioShellSetSection("dashboards");
+          return;
+        }
         enterStudio();
         if (act === "blank") { S.spec = newBlankSpec(); S.selection = null; syncHeader(); renderInspector(); refreshPreview(); buildLibrary(); bumpDashMilestone(); }
-        else if (act === "examples") { setTimeout(function () { var b = $("#btnExamples"); if (b) b.click(); }, 60); }
         else if (act === "tour") { setTimeout(function () { if (window.StudioTutorial) StudioTutorial.open(); }, 60); }
       };
     });
@@ -6075,7 +6083,7 @@
     if (workbookId) r.workbookId = workbookId; else delete r.workbookId;
     W.put("dashboards", r);
   }
-  var _repoWbFilter = ""; // "" = All, "__unfiled" = no workbook, else a workbook id
+  var _repoWbFilter = ""; // "" = All, "__unfiled" = no workbook, "__packs" = sample-pack dashboards, else a workbook id
   window.__studioWorkbooks = loadWorkbooks; // test hook
   window.__studioAddWorkbook = addWorkbook; // test hook
   window.__studioDeleteWorkbook = deleteWorkbook; // test hook
@@ -6101,9 +6109,15 @@
       if (r.workbookId && validWbIds[r.workbookId]) wbCounts.byId[r.workbookId] = (wbCounts.byId[r.workbookId] || 0) + 1;
       else wbCounts.unfiled++;
     });
-    if (_repoWbFilter && _repoWbFilter !== "__unfiled" && !validWbIds[_repoWbFilter]) _repoWbFilter = "";
+    // LF70: a pack's materialized dashboards (demoPackId-tagged, see ensurePackExamplesMaterialized/
+    // installConservationWorkspace) are its "folder" — Home's "Browse examples" card lands here
+    // filtered to them, one chip, rather than a separate examples modal.
+    var packCount = list.filter(function (r) { return !!r.demoPackId; }).length;
+    if (_repoWbFilter === "__packs" && !packCount) _repoWbFilter = "";
+    if (_repoWbFilter && _repoWbFilter !== "__unfiled" && _repoWbFilter !== "__packs" && !validWbIds[_repoWbFilter]) _repoWbFilter = "";
     var filtered = list.filter(function (r) {
       if (_repoWbFilter === "__unfiled") return !r.workbookId || !validWbIds[r.workbookId];
+      if (_repoWbFilter === "__packs") return !!r.demoPackId;
       if (_repoWbFilter) return r.workbookId === _repoWbFilter;
       return true;
     });
@@ -6134,6 +6148,7 @@
       ? dashMatches.map(function (x) { return dashListRowHtml(x.r, pins.indexOf(x.r.id) >= 0, x.col); })
       : dashMatches.map(function (x) { return recentCardHtml(x.r, pins.indexOf(x.r.id) >= 0, { workbooks: workbooks, matchedCol: x.col }); });
     var chipDefs = [{ id: "", name: "All", n: wbCounts.all }]
+      .concat(packCount ? [{ id: "__packs", name: "Sample packs", n: packCount }] : [])
       .concat(workbooks.map(function (w) { return { id: w.id, name: w.name, n: wbCounts.byId[w.id] || 0, del: true }; }))
       .concat([{ id: "__unfiled", name: "Unfiled", n: wbCounts.unfiled }]);
     var chipsHtml = '<div class="wb-chips">' + chipDefs.map(function (c) {
@@ -6153,7 +6168,9 @@
       (dashCards.length
         ? (_dashViewMode === "list" ? '<div class="cx-list dash-list">' + dashCards.join("") + '</div>'
                                     : '<div class="home-recents">' + dashCards.join("") + '</div>')
-        : '<div class="home-empty-hint">' + (q ? "No dashboards match “" + esc(q) + "”." : (_repoWbFilter ? "No dashboards in this workbook yet." : "No dashboards yet — build one in Studio and it will show up here.")) + '</div>');
+        : '<div class="home-empty-hint">' + (q ? "No dashboards match “" + esc(q) + "”."
+            : (_repoWbFilter === "__packs" ? "No sample-pack dashboards installed — add a pack in Settings → Sample packs."
+              : (_repoWbFilter ? "No dashboards in this workbook yet." : "No dashboards yet — build one in Studio and it will show up here."))) + '</div>');
     $$("[data-wb-filter]", results).forEach(function (btn) {
       btn.onclick = function () { _repoWbFilter = btn.getAttribute("data-wb-filter"); renderDashboards(); };
     });

@@ -116,6 +116,41 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF70 — Home's "Browse examples" card now lands in Dashboards, filtered to sample-pack
+  dashboards (v640, sw v277, 2026-07-28, steward — LIVE-QA QUEUE bug/cleanup item, ahead of the
+  flashier remaining work per LF67's own NEXT note):** the card used to `enterStudio()` then click
+  the top-nav `#btnExamples` button, opening the legacy Examples ▾ dropdown of static demo-database
+  specs (`data/examples/*.studio.json`) — not the installed sample pack's own real dashboards.
+  Kevin: "Browse examples" should "go to the pack's dashboards in the Dashboards section." Fix:
+  the card's click handler (`renderHome`'s `.home-card` wiring) now short-circuits before
+  `enterStudio()` — same early-return shape "explore"/"connection"/"dataset" already use — setting
+  a new `_repoWbFilter = "__packs"` sentinel and calling `__studioShellSetSection("dashboards")`.
+  `renderDashboards()` treats `"__packs"` as a third filter mode alongside `""` (All) and
+  `"__unfiled"`: it matches any dashboard row carrying a `demoPackId` (both "workspace"-kind packs
+  like Conservation, whose dashboards `installConservationWorkspace` writes directly, and
+  "examples"-kind packs like Data Management, whose gated showcase gallery
+  `ensurePackExamplesMaterialized` turns into real rows) — the same tag LF43 already uses, so no
+  new data model. A new **"Sample packs"** chip joins the existing workbook chip strip (both on
+  Dashboards and its Home twin), shown only when at least one pack-tagged dashboard exists, so an
+  empty chip never clutters a workspace with no packs installed; picking "All" clears it like any
+  other chip. Dashboards' empty-state hint gained a `"__packs"`-specific message ("No sample-pack
+  dashboards installed — add a pack in Settings → Sample packs.") for the edge case where the chip
+  itself can't render (guarded to reset to "" if the last pack-tagged dashboard was removed
+  mid-session). Home's card description also updated ("Curated dashboards from your installed
+  sample packs"); the separate "+N more — New ▸ Examples" link inside Home's OWN "Conservation
+  Insight" example-gallery block was deliberately left alone (still opens the classic Examples ▾
+  gallery) — that's a different feature (LF43 M1, direct-load-into-Studio) than this quick-action
+  card, and dropping the Examples ▾ menu entirely is LF43 slice 2's remit, not duplicated here. 4
+  new regression tests (more total dashboards than pack-tagged ones so the filter is real; the
+  click lands on Dashboards — not Studio, not the Examples ▾ dropdown — with the chip active;
+  every rendered card is pack-tagged and the count matches; the "All" chip clears back to the full
+  catalog). Full suite green (re-run twice clean). SW cache → v277 (rebased past #106/#107's v276).
+  Files: app/studio.js, docs/index.html, tests/run.js, sw.js, js/changelog.js. NEXT per the LOCKED
+  BUILD ORDER: step 4, Studio chrome (LF46/LF48/LF45/LF52/LF53 — LF47 already done except Examples
+  removal, LF43 slice 2's remit), or LF43 slice 2 itself, or the remaining LIVE-QA QUEUE
+  bug/cleanup items (LF61/LF65/LF69) ahead of the flashier remaining work — LF65 is superseded by
+  LF66's bigger reorg though, so LF61 or LF69 (once LF49's export formats it assumes are confirmed
+  shipped) are the cleaner picks.
 - **Viewer mode: sample dashboards render + export in every shipping format (#106/#107, v639,
   sw v276, 2026-07-28, steward):** Kevin, live QA — "aside i assume you are going to fix these"
   (the viewer 404ing on sample dashboards) + "i think the viewer mode you should be able to export
@@ -5265,14 +5300,12 @@
 >       HTML · … ) instead of N buttons. Apply the same tidy header pattern consistently to every View/panel.
 >       (studio-render.js panel header controls + the export handlers, app/exporters.js per-panel export,
 >       studio.css panel-head.) Ties LF25 (per-panel export/PNG), LF49 (export formats), LF47, LF52.
-> LF70. **"Browse examples" (Home) must WORK and land in Dashboards at the pack's folder (Kevin,
->       2026-07-27).** The Home "Browse examples" card should open the DASHBOARDS view scrolled/filtered to
->       whatever folder the installed sample pack(s) imported into, shown as dashboard THUMBNAIL tiles —
->       not a separate examples modal. This is the same intent as LF43 (pack dashboards ARE the examples,
->       surfaced in Dashboards) + LF66 (packs contribute real foldered dashboards) + LF61/LF27 (thumbnail
->       tile browser). Reconcile: "Browse examples" = "go to the pack's dashboards in the Dashboards
->       section." (studio.js Home card act, Dashboards section folder deep-link + thumbnails, demopacks.js
->       pack→folder.) Ties LF43, LF66, LF61, LF59, LF27.
+> LF70. ✓ **"Browse examples" (Home) now lands in Dashboards, filtered to sample-pack dashboards
+>       (shipped v639, sw v276, 2026-07-28, steward) — see DONE.** Took the "filter chip" shape (a
+>       `demoPackId`-based "Sample packs" chip alongside the existing workbook chips) rather than a
+>       real pack→folder/workbook model — LF66's bigger library reorg is where a first-class pack
+>       "folder" concept belongs; this slice reuses the existing chip-strip grammar instead of
+>       reaching into that unshipped territory. Ties LF43, LF66, LF61, LF59, LF27.
 
 ### ★★ ONBOARDING & PROVISIONING EPIC (Kevin, 2026-07-27) — the "Dave" north-star
 > A meaty vision from a live session: turn first-run into a delightful, admin-provisioned

@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v276"; /* v276: viewer mode (#106/#107) now renders SAMPLE-backed
+var CACHE_NAME = "studio-shell-v277"; /* v277: LF70 — Home's "Browse examples" card now jumps
+   straight to Dashboards filtered to the installed sample pack(s)' curated dashboards (a new
+   "Sample packs" filter chip), instead of opening the old Examples dropdown of static demo-db
+   specs. app/studio.js changed, so precached copies roll.
+   v276: viewer mode (#106/#107) now renders SAMPLE-backed
    dashboards (bakes a local mock for data accesses with no real engine, so they no longer 404 on the
    retired CDA server — real connections still query live) and gained an Export button (HTML / PDF /
    editable spec). app/viewer.html, app/viewer.js, app/exporters.js, app/studio.css changed and
