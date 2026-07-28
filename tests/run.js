@@ -5078,6 +5078,35 @@ function serve() {
     });
     await page.waitForTimeout(200);
 
+    // LF62 slice 2 (live-QA queue, LF62 slice 1's own NEXT pointer): the sparkle
+    // name-suggest button, wired into the Jobs editor's "Job name" field —
+    // suggests the (titleized) source dataset's name once one is picked.
+    console.log("\n• LF62 slice 2: job-name sparkle-suggest button");
+    await page.evaluate(function () {
+      window.__studioShellSetSection("jobs");
+      var conn = Studio.Workspace.put("connections", { name: "jobs-sparkle-test", adapter: "file", cfg: {} });
+      var ds = Studio.Workspace.put("datasets", { name: "county_cover_crop_adoption", connectionId: conn.id, kind: "file", format: "csv", content: "a,b\n1,2\n" });
+      var job = Studio.Workspace.put("jobs", { name: "", sourceDatasetId: ds.id, steps: [] });
+      window.__studioOpenJobEditor(job);
+    });
+    await page.waitForTimeout(150);
+    const lf62Job = await page.evaluate(function () {
+      var btn = document.querySelector(".modal .name-sparkle-btn");
+      btn.click();
+      return { btnPresent: !!btn, name: document.querySelector(".modal .cx-field input").value };
+    });
+    ok("LF62 slice 2: the Jobs editor's name field carries the same sparkle button, suggesting the titleized source dataset name",
+      lf62Job.btnPresent && lf62Job.name === "County Cover Crop Adoption", JSON.stringify(lf62Job));
+    await page.evaluate(function () {
+      document.querySelector(".modal-ov .x").click();
+      Studio.Workspace.all("jobs").filter(function (j) { return j.sourceDatasetId && !j.name; }).forEach(function (j) { Studio.Workspace.remove("jobs", j.id, { silent: true }); });
+      Studio.Workspace.all("datasets").filter(function (d) { return d.name === "county_cover_crop_adoption"; }).forEach(function (d) { Studio.Workspace.remove("datasets", d.id, { silent: true }); });
+      Studio.Workspace.all("connections").filter(function (c) { return c.name === "jobs-sparkle-test"; }).forEach(function (c) { Studio.Workspace.remove("connections", c.id, { silent: true }); });
+      Studio.Workspace.notify("*");
+      window.__studioShellSetSection("studio");
+    });
+    await page.waitForTimeout(200);
+
     // LF13(a): group-by / metric-column / join-and-union-key fields become real dropdowns
     // of the relevant dataset's known columns, instead of free-text (STATUS.md LIVE-FEEDBACK
     // QUEUE, LF13 sub-ask (a)). A dataset with columns already declared populates synchronously.

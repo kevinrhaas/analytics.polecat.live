@@ -34,6 +34,7 @@
   function currentUserId() { return D.currentUserId(); }
   function runDataset(ds) { return D.runDataset(ds); }
   function guessFieldKind(colName, vals) { return D.guessFieldKind(colName, vals); }
+  function withSparkleButton(inp, kind, getCtx) { return D.withSparkleButton(inp, kind, getCtx); }
 
   /* ---------- Jobs (Viridis V8: data-management-lite) ---------------------
      A job reads ONE source dataset's live rows through a rename/cast/derive/
@@ -348,7 +349,11 @@
         form.appendChild(row);
         return input;
       }
-      var nameInp = field("Job name", el("input")); nameInp.type = "text"; nameInp.value = j.name || ""; nameInp.placeholder = "e.g. county_to_state_rollup";
+      var nameInp = el("input"); nameInp.type = "text"; nameInp.value = j.name || ""; nameInp.placeholder = "e.g. county_to_state_rollup";
+      field("Job name", withSparkleButton(nameInp, "job", function () {
+        var srcDs = dsets.filter(function (d) { return d.id === srcSel.value; })[0];
+        return { sourceDatasetName: srcDs ? srcDs.name : "" };
+      }));
       var srcSel = field("Source dataset", el("select"), dsets.length ? "" : "No datasets yet — add one in the Datasets section first.");
       srcSel.className = "cx-sel";
       srcSel.innerHTML = '<option value="">— pick a dataset —</option>' + dsets.map(function (d) {
