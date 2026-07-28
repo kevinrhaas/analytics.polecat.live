@@ -9698,6 +9698,18 @@ function serve() {
       dlBtns.count === 3 && /PNG/.test(dlBtns.titles.join()) && /CSV/.test(dlBtns.titles.join()) && /standalone HTML/.test(dlBtns.titles.join()),
       JSON.stringify(dlBtns));
 
+    // LF69(a): destructive/close (the ✕ delete act) must sit at the FAR RIGHT of the panel action
+    // row, after the export buttons — not mid-row between duplicate and the download chrome, which
+    // is where it landed before this fix (zoom/dup/del built first, download chrome appended after).
+    const dlOrder = await pvDl.evaluate(function (panelId) {
+      var card = document.querySelector('[data-panel-id="' + panelId + '"]');
+      var acts = card ? card.querySelector(".sr-card-acts") : null;
+      var kids = acts ? [].slice.call(acts.children) : [];
+      return { lastIsDel: kids.length > 0 && kids[kids.length - 1].getAttribute("data-act") === "del", order: kids.map(function (k) { return k.getAttribute("data-act") || "dl"; }) };
+    }, dlBars.id);
+    ok("LF69a: the delete (✕) action is the last button in the panel action row, after zoom/dup/download chrome",
+      dlOrder.lastIsDel, JSON.stringify(dlOrder));
+
     // LF25a: the on-panel "Export as HTML" button is preview/builder-only chrome — clicking it
     // posts panel-export-embed to the parent, which opens the SAME "Embed widget" modal as the
     // Inspector's own "Export this panel…" action (one mechanism, two entry points).

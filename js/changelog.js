@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 649,
+    title: 'Panel toolbar: delete moves to the far right',
+    kind: 'fix',
+    ts: '2026-07-28T08:51:38.000Z',
+    items: [
+      'In the dashboard builder, each panel\'s ✕ delete button now sits at the far right of its action row, after the download/export buttons, instead of sitting between duplicate and the exports.',
+    ],
+  },
+  {
     v: 648,
     title: 'A guided tour for the Conservation Insight sample pack',
     kind: 'feature',

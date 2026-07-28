@@ -116,6 +116,32 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF69(a) — the panel action row's destructive ✕ delete now sits at the FAR RIGHT, not mid-row
+  (v649, sw v286, 2026-07-28, steward — LIVE-QA QUEUE, LF69's first sub-item):** Kevin's LF69 note
+  flagged 4 problems with the per-panel (View) header button cluster; this slice takes the ORDER
+  bug (a) — the smallest, self-contained, verifiable piece. Root cause: `app/studio-render.js`
+  built the `.sr-card-acts` row as zoom → duplicate → delete at panel-creation time, THEN
+  `addDownloadChrome()` appended the PNG/CSV/embed export buttons AFTER delete once the chart had
+  actually rendered (it needs `card.body`'s real DOM to detect an `<svg>` to rasterize) — so delete
+  landed mid-row (3rd of up to 6 buttons) instead of the far right Kevin asked for. Fix: after
+  `addDownloadChrome` appends the export buttons, re-append the existing delete button
+  (`acts.appendChild` on an already-connected node relocates it, no duplicate/re-wire needed) so
+  it's always last regardless of how many export buttons show. UI-only reorder — no selectors,
+  styling, or click handlers changed, so every existing `.sr-act`/`.pdc-dl-act` test still passes
+  unmodified. 1 new regression test (the delete action is the last child of `.sr-card-acts`, after
+  zoom/dup/download chrome). Files: app/studio-render.js, tests/run.js, sw.js, js/changelog.js.
+  Genuinely still open in LF69: (b) confirm exports belong in the SAME header consistently
+  everywhere (currently true only where `.sr-card-acts` exists — preview/builder — not yet audited
+  against every "View" surface Kevin means); (c) "Export as PNG" is silently absent for any panel
+  whose rendered body has no `<svg>` to rasterize — most visibly the GL/MapLibre choropleth
+  renderer (a `<canvas>`, opt-in via `cfg.renderer:"gl"`), which would need
+  `preserveDrawingBuffer`-aware canvas capture, a materially bigger and WebGL-availability-dependent
+  change, deliberately NOT attempted here; (d) collapsing the export buttons into a single
+  "Export ▾" menu — a bigger UI change touching ~15 existing `.pdc-dl-act`-based test call sites,
+  also deliberately NOT attempted in this slice. NEXT in LF69: (d) the Export ▾ menu collapse is
+  the next-most-scoped remaining piece (all button classes/behavior stay, they just move into a
+  popover), or pick up elsewhere in the LIVE-QA QUEUE (LF62 sparkle auto-name, LF63 query builder,
+  LF64 dynamic params, LF66 library reorg).
 - **LF40 slice 2 — a pack-gated "Conservation Insight pack" guided tour, showcasing the
   three choropleth scales + the custom-geo story (v648, sw v285, 2026-07-28, steward):**
   slice 1 (v631) shipped the hero screen; this slice ships the CONTENT half Kevin asked
@@ -5440,6 +5466,9 @@
 >       HTML · … ) instead of N buttons. Apply the same tidy header pattern consistently to every View/panel.
 >       (studio-render.js panel header controls + the export handlers, app/exporters.js per-panel export,
 >       studio.css panel-head.) Ties LF25 (per-panel export/PNG), LF49 (export formats), LF47, LF52.
+>       ✓ **Sub-item (a) shipped (2026-07-28, v649, sw v286, steward): delete now sits at the far
+>       right, after the export chrome** — see DONE. (b)/(c)/(d) genuinely still open — see DONE's
+>       own NEXT note for the shape of each.
 > LF70. ✓ **"Browse examples" (Home) now lands in Dashboards, filtered to sample-pack dashboards
 >       (shipped v639, sw v276, 2026-07-28, steward) — see DONE.** Took the "filter chip" shape (a
 >       `demoPackId`-based "Sample packs" chip alongside the existing workbook chips) rather than a
