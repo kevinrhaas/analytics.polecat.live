@@ -9091,14 +9091,15 @@
     // ALL of app/*.js + app/sources/*.js against this list again (same technique as the v313/v322
     // sweeps) and found three more UI-preference flags that were written but never wiped —
     // "studio-show-samples" (the query-library "hide demo content" toggle), "studio-lib-samples-
-    // open" (whether the library's Samples group is expanded), and "studio-dash-view" (the
-    // Dashboards section's tiles/list toggle) — plus two keys in app/sources/sync.js that live
+    // open" (whether the library's Samples group is expanded), "studio-dash-view" (the
+    // Dashboards section's tiles/list toggle) and "studio-dsx-view" (the Datasets section's
+    // list/tile toggle, LF51 d) — plus two keys in app/sources/sync.js that live
     // entirely outside app/studio.js: "analytics.datasource.v1" (the saved remote workspace-sync
     // connection — exactly the "Saved server connections" the Clear-local-data confirm dialog
     // already promises to remove) and "analytics.datasource.secret.v1" (its cached decryption
     // passphrase, this browser only — leaving it behind after disconnecting the connection it
     // belongs to is stale-secret hygiene, not just a missed toggle).
-    "studio-show-samples", "studio-lib-samples-open", "studio-dash-view",
+    "studio-show-samples", "studio-lib-samples-open", "studio-dash-view", "studio-dsx-view",
     "analytics.datasource.v1", "analytics.datasource.secret.v1",
     // Track L sweep (orphaned-key lens, round 4): the auth (M3), per-section-rights (M4.2) and
     // Home-reorder (M6) slices each added a new key but none of them updated this list — the same

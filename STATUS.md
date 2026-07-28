@@ -116,6 +116,26 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF51 (slice 2) — the Datasets section gains a list ⇆ tile view toggle (#90, v672, sw v309,
+  2026-07-28 — step 5 of the LOCKED BUILD ORDER, LF51's spec (d) "list + rich-tile views"):** the
+  Datasets list can now render as a roomier **tile grid** as well as the default compact list, via
+  a `#dsxViewToggle` button in the section header — the exact list/tile choice the **Dashboards**
+  section already offers (`#dashViewToggle` / `studio-dash-view`), extended to Datasets first (one
+  section per slice, per Kevin's "slice it"). Implementation reuses everything: `renderDatasets`
+  (app/datasets.js) now builds each dataset's inner fragments once and wraps them as either a
+  `.cx-row` (list) or a `.dsx-tile` card (grid) carrying the **same `data-dsx-*` hooks**, so every
+  delegated handler — edit/run/delete/pin/private, row-click-to-open, dragstart, icon injection —
+  works identically in both (the per-item wiring loop selector widened to `.cx-row, .dsx-tile`).
+  New `.dsx-grid`/`.dsx-tile` CSS (app/studio.css) reuses the `.cx-row` tokens (hover lift, drag,
+  both themes); the tile lets the name read on two lines since it has the full card width, and shows
+  its actions always (a card isn't a dense list line). `_dsxViewMode` persists at `studio-dsx-view`
+  (added to the hard-reset device-UI-state keep-list in app/studio.js, next to `studio-dash-view`).
+  3 new regression tests (list is the default with a "Tile view" toggle → click flips to a tile
+  grid that keeps the title + Edit hooks and persists `studio-dsx-view:tiles` → toggling back
+  returns to the list). Full suite green (2470 passed, 0 failed). **NEXT in LF51:** extend the same
+  toggle to Connections and Jobs, plus spec (b) right-aligned filter pills — remaining step-5
+  nav-IA slices. Files: app/datasets.js, app/index.html, app/studio.css, app/studio.js,
+  tests/run.js, sw.js, js/changelog.js.
 - **LF51 (spec (a)) — row NAMES no longer ellipsis-truncate; they wrap and stay fully visible
   (v671, sw v308, 2026-07-28, steward — one slice of LF51's remaining SPECIFICS):** picking up
   where LF51 slice 1 (spec (c), row timestamps) left off. `.cx-name b` — the shared row-title

@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v308"; /* v308: LF51 spec (a) — row NAMES no longer
+var CACHE_NAME = "studio-shell-v309"; /* v309: LF51 slice 2 (nav IA spec (d), "list + rich-tile
+   views") — the Datasets section gained a #dsxViewToggle that swaps its compact list for a tile
+   grid (studio-dsx-view persists the choice), mirroring the Dashboards list/tile toggle. Both
+   layouts reuse the same data-dsx-* hooks. app/datasets.js, app/index.html, app/studio.css,
+   app/studio.js changed, so precached copies roll.
+   v308: LF51 spec (a) — row NAMES no longer
    ellipsis-truncate; they wrap and stay fully visible even when tag/folder badges squeeze
    the name column (Connections, Datasets, Jobs, Dashboards list, Repository all share
    .cx-name b). The <small> subtitle line is unchanged (still ellipsizes, single-line).

@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 672,
+    title: 'Datasets can now be viewed as tiles or a list',
+    kind: 'feature',
+    ts: '2026-07-28T18:07:28.000Z',
+    items: [
+      'The Datasets section gained a "Tile view" / "List view" toggle — the same choice the Dashboards section already offers. The compact list stays the default; switch to a roomier tile grid when you want each dataset shown as a card with its name, source and tags. Your choice is remembered on this device.',
+    ],
+  },
+  {
     v: 671,
     title: 'Row names are never cut off anymore',
     kind: 'polish',

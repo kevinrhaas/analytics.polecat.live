@@ -6995,6 +6995,51 @@ function serve() {
     ok("LF51: Repository row timestamp badge shows a full date-time",
       hasDateAndTime(lf51When.repo), JSON.stringify(lf51When.repo));
 
+    // LF51 (nav IA spec (d), "list + rich-tile views"): the Datasets section can render
+    // as the compact list (default) or a tile grid, via #dsxViewToggle (persisted at
+    // studio-dsx-view). Both layouts reuse the same data-dsx-* hooks, so a tile keeps a
+    // working title button + Edit action. Verify the toggle flips list ⇆ tiles and sticks.
+    const lf51View = await page.evaluate(function () {
+      window.__studioShellSetSection("datasets");
+      try { localStorage.removeItem("studio-dsx-view"); } catch (e) {}
+      var conn = Studio.Workspace.put("connections", { name: "lf51v-conn", adapter: "turso", cfg: {} });
+      var ds = Studio.Workspace.put("datasets", { name: "lf51v-ds", connectionId: conn.id, kind: "sql", sql: "select 1" });
+      var results = document.getElementById("dsxResults");
+      var toggle = document.getElementById("dsxViewToggle");
+      window.__studioRenderDatasets();
+      // default = list
+      var listRow = results.querySelector('.cx-row[data-dsx-id="' + ds.id + '"]');
+      var out = {
+        toggleExists: !!toggle,
+        listDefault: !!listRow && !results.querySelector(".dsx-tile"),
+        listToggleLabel: toggle ? toggle.textContent : null
+      };
+      // switch to tiles
+      if (toggle) toggle.click();
+      var tile = results.querySelector('.dsx-tile[data-dsx-id="' + ds.id + '"]');
+      out.tilesAfterClick = !!tile && !results.querySelector(".cx-row");
+      out.tileHasTitleBtn = !!(tile && tile.querySelector(".cx-title-btn"));
+      out.tileHasEdit = !!(tile && tile.querySelector('[data-dsx-edit="' + ds.id + '"]'));
+      out.tileToggleLabel = toggle ? toggle.textContent : null;
+      out.persisted = localStorage.getItem("studio-dsx-view");
+      // switch back to list
+      if (toggle) toggle.click();
+      out.backToList = !!results.querySelector('.cx-row[data-dsx-id="' + ds.id + '"]') && !results.querySelector(".dsx-tile");
+      Studio.Workspace.remove("datasets", ds.id, { silent: true });
+      Studio.Workspace.remove("connections", conn.id, { silent: true });
+      Studio.Workspace.notify("*");
+      try { localStorage.removeItem("studio-dsx-view"); } catch (e) {}
+      window.__studioShellSetSection("studio");
+      return out;
+    });
+    ok("LF51: the Datasets section defaults to the compact list with a 'Tile view' toggle",
+      lf51View.toggleExists && lf51View.listDefault && lf51View.listToggleLabel === "Tile view", JSON.stringify(lf51View));
+    ok("LF51: the toggle switches Datasets to a tile grid (persisted), keeping title + Edit hooks",
+      lf51View.tilesAfterClick && lf51View.tileHasTitleBtn && lf51View.tileHasEdit &&
+      lf51View.tileToggleLabel === "List view" && lf51View.persisted === "tiles", JSON.stringify(lf51View));
+    ok("LF51: toggling back returns Datasets to the list layout",
+      lf51View.backToList, JSON.stringify(lf51View));
+
     // library integration: the dataset shows as a draggable card and imports as a linked, self-contained DA
     await page.evaluate(function () { window.__studioShellSetSection("studio"); });
     await page.waitForTimeout(120);
