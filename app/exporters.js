@@ -444,6 +444,16 @@
       "PDC.cdaPath=" + JSON.stringify(cdaPath) + ";\nvar CDAPATH=PDC.cdaPath;\n";
     if (opts.preview) {
       boot += "window.STUDIO_PREVIEW=true;\n" + jsonScript("window.PDC_MOCK", opts.mock || {}) + "\n";
+    } else if (opts.mock) {
+      // LF23 (viewer #106): embed a PDC_MOCK WITHOUT setting window.STUDIO_PREVIEW. The viewer
+      // renders/exports real dashboards (preview:false) so credentialed + connection engines stay
+      // live (studio-render.js gates those on !STUDIO_PREVIEW), but a SAMPLE-only data access has
+      // no real engine and would otherwise fall through to the retired CDA server endpoint → 404.
+      // viewer.js passes a mock covering ONLY those sample DAs, so real data accesses are never
+      // shadowed (PDC.cda prefers PDC_MOCK[id] when present) — this branch just makes that mock
+      // available on a non-preview build. Empty/absent mock (every other preview:false caller —
+      // exportCDF, the PDF path) leaves PDC_MOCK undefined exactly as before.
+      boot += jsonScript("window.PDC_MOCK", opts.mock) + "\n";
     }
     // V9 (scientific-honesty polish): "Last updated" per data access, resolved HERE
     // (the one place both the live builder context and the static export funnel

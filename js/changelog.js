@@ -6,6 +6,17 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 639,
+    title: 'Viewer mode now shows sample dashboards and can export them',
+    kind: 'fix',
+    ts: '2026-07-28T03:52:07.000Z',
+    items: [
+      'Opening a sample or demo dashboard in read-only Viewer mode used to leave its charts blank — the viewer now supplies that data locally, so the dashboard renders exactly like it does in the app.',
+      'Real data connections still query live in the viewer, unchanged — only the sample content gets its data baked in.',
+      'Added an Export button to the viewer: download the dashboard as a self-contained HTML file, print it to PDF, or grab its editable spec — the same formats Studio offers.',
+    ],
+  },
+  {
     v: 638,
     title: 'Quick import now warns before an unsaved build gets replaced',
     kind: 'fix',

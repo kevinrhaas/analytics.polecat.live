@@ -11,6 +11,48 @@
   function $(s) { return document.querySelector(s); }
   function fetchText(u) { return fetch(u).then(function (r) { if (!r.ok) throw new Error(u + " " + r.status); return r.text(); }); }
 
+  // #106 (viewer 404 on sample dashboards): a data access with no real engine — the
+  // demo/sample packs' authored kind:"sql" DAs — has nothing to query, so studio-render.js's
+  // PDC.cda falls all the way through to the retired Pentaho-CDA server endpoint → 404. The
+  // fix is to bake a deterministic sample mock into the build for JUST those DAs (real ones
+  // still query live). REAL_DA_KINDS / REAL_CONN_ADAPTERS mirror studio-render.js's own
+  // duckdb/httpvfs + CRED_ENGINES (keyed on da.kind) + CONN_ENGINES (keyed on da.connAdapter)
+  // dispatch — a new adapter added there must be added here too, or the viewer would mock a
+  // DA that actually has live data. (Same duplicate-in-miniature pattern as the helpers below;
+  // studio-render.js runs inside the exported iframe, not on this page.)
+  var REAL_DA_KINDS = { duckdb: 1, httpvfs: 1, snowflake: 1, databricks: 1, bigquery: 1, http: 1 };
+  var REAL_CONN_ADAPTERS = { turso: 1, postgrest: 1, supabase: 1, gsheets: 1, file: 1, redshift: 1 };
+  function daHasRealEngine(da) {
+    return !!(da && (REAL_DA_KINDS[da.kind] || (da.connAdapter && REAL_CONN_ADAPTERS[da.connAdapter])));
+  }
+  // A PDC_MOCK covering only the spec's sample-only data accesses (see above). buildHtml embeds
+  // it as-is; PDC.cda prefers a mocked id, so a real DA is never shadowed — its entry is absent.
+  function sampleMock(spec) {
+    if (!Studio.genMock) return {};
+    var full = Studio.genMock(spec), out = {};
+    ((spec.cda && spec.cda.dataAccesses) || []).forEach(function (da) {
+      if (!daHasRealEngine(da) && full[da.id] != null) out[da.id] = full[da.id];
+    });
+    return out;
+  }
+  // The one place the viewer turns a spec+assets into standalone HTML — the live iframe AND every
+  // export funnel through here, so what you download is byte-identical to what you're looking at.
+  // preview:false keeps live engines live; the sample mock backfills the DAs that have none.
+  function buildViewerHtml(spec, assets, extraOpts) {
+    var opts = { preview: false, launcher: false, mock: sampleMock(spec) };
+    if (extraOpts) Object.keys(extraOpts).forEach(function (k) { opts[k] = extraOpts[k]; });
+    return Studio.buildHtml(spec, assets, opts);
+  }
+  function fileStem(spec) {
+    return (spec.name || spec.title || "dashboard").toString().trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "") || "dashboard";
+  }
+  function download(name, text, mime) {
+    var blob = new Blob([text], { type: (mime || "text/plain") + ";charset=utf-8" });
+    var url = URL.createObjectURL(blob), a = document.createElement("a");
+    a.href = url; a.download = name; document.body.appendChild(a); a.click();
+    document.body.removeChild(a); setTimeout(function () { URL.revokeObjectURL(url); }, 30000);
+  }
+
   // Mirrors studio.js's currentUserId/currentUserIsAdmin/isVisibleToMe (M4.2
   // object privacy) — duplicated here in miniature since studio.js is a
   // builder-only module never loaded on this page. Privacy stays UI-level
@@ -113,6 +155,41 @@
     }
   }
 
+  // #106/#107: the viewer's Export menu — same three shipping formats the Studio's own export
+  // offers (HTML / PDF / editable spec), built through the identical exporters.js pipeline so a
+  // downloaded dashboard is byte-identical to what's on screen (sample data baked in via
+  // buildViewerHtml's mock, so an exported sample dashboard is self-contained and never 404s).
+  // Wired only once assets have loaded — before that the button stays hidden.
+  function runExport(kind, spec, assets) {
+    var stem = fileStem(spec);
+    if (kind === "html") return download(stem + ".html", buildViewerHtml(spec, assets), "text/html");
+    if (kind === "spec") return download(stem + ".studio.json", JSON.stringify(spec, null, 2), "application/json");
+    if (kind === "pdf") {
+      // Mirrors app/studio.js's own "PDF (print)" path: open the print-CSS'd build in a new tab
+      // and trigger the browser's print dialog there (letter/portrait, fit-to-width). No PDF lib —
+      // it reuses the @media print rules exporters.js already bakes into every build.
+      var pdfHtml = buildViewerHtml(spec, assets, { pdfPageSize: "letter", pdfOrientation: "portrait", pdfAutoFit: true });
+      var url = URL.createObjectURL(new Blob([pdfHtml], { type: "text/html;charset=utf-8" }));
+      var win = window.open(url, "_blank");
+      if (win) win.addEventListener("load", function () { setTimeout(function () { try { win.print(); } catch (e) {} }, 400); });
+      setTimeout(function () { URL.revokeObjectURL(url); }, 30000);
+      return;
+    }
+  }
+  function wireExport(spec, assets) {
+    var btn = $("#viewerExport"), menu = $("#viewerExportMenu");
+    if (!btn || !menu) return;
+    btn.hidden = false;
+    function close() { menu.hidden = true; btn.setAttribute("aria-expanded", "false"); }
+    function toggle() { var open = menu.hidden; menu.hidden = !open; btn.setAttribute("aria-expanded", open ? "true" : "false"); }
+    btn.onclick = function (e) { e.stopPropagation(); toggle(); };
+    Array.prototype.forEach.call(menu.querySelectorAll("button[data-exp]"), function (b) {
+      b.onclick = function () { close(); runExport(b.getAttribute("data-exp"), spec, assets); };
+    });
+    document.addEventListener("click", function (e) { if (!menu.hidden && !menu.contains(e.target) && e.target !== btn) close(); });
+    document.addEventListener("keydown", function (e) { if (e.key === "Escape") close(); });
+  }
+
   function boot() {
     hydrateIcons();
     var id = new URLSearchParams(location.search).get("dash");
@@ -138,8 +215,14 @@
       };
       return ensureGeoAssets(spec, assets).then(function () { return assets; });
     }).then(function (assets) {
-      var html = Studio.buildHtml(spec, assets, { preview: false, launcher: false });
+      var html = buildViewerHtml(spec, assets);
       var ifr = $("#viewerFrame"); if (ifr) ifr.srcdoc = html;
+      wireExport(spec, assets);
+      // test hooks: let the suite inspect the exact bytes each format would produce (and the
+      // sample mock baked in) without triggering a real file download in headless Chromium.
+      window.__viewerBuildHtml = function () { return buildViewerHtml(spec, assets); };
+      window.__viewerSampleMock = function () { return sampleMock(spec); };
+      window.__viewerRunExport = function (kind) { return runExport(kind, spec, assets); };
     }).catch(function () { showNotFound(); });
   }
 

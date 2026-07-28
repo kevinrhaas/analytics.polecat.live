@@ -116,6 +116,34 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **Viewer mode: sample dashboards render + export in every shipping format (#106/#107, v639,
+  sw v276, 2026-07-28, steward):** Kevin, live QA — "aside i assume you are going to fix these"
+  (the viewer 404ing on sample dashboards) + "i think the viewer mode you should be able to export
+  everything in the formats so consider that". **#106 (bug):** the read-only viewer route
+  (`app/viewer.html` + `app/viewer.js`) built every dashboard with `preview:false` and NO mock, the
+  way a real deploy-to-a-live-CDA-server export does. That's correct for a dashboard with a real
+  data source (duckdb/httpvfs/credentialed/connection engines all still query live), but a
+  SAMPLE/demo-pack dashboard's data access has no real engine — `kind:"sql"`, `authored:true`, no
+  `connAdapter` — so `studio-render.js`'s `PDC.cda` fell all the way through to the retired Pentaho
+  CDA server endpoint → **404, blank charts**. Fix: `viewer.js` now bakes a deterministic
+  `Studio.genMock` (added `app/sampledata.js` to `viewer.html`) into the build for **only** the
+  sample-only DAs — `REAL_DA_KINDS`/`REAL_CONN_ADAPTERS` mirror studio-render.js's own
+  duckdb/httpvfs + `CRED_ENGINES` + `CONN_ENGINES` dispatch, so a real DA is never shadowed
+  (`PDC.cda` prefers a mocked id; the mock omits real DAs entirely). To let a `preview:false` build
+  carry a mock at all, `exporters.js`'s `buildHtml` gained an `else if (opts.mock)` branch that
+  embeds `PDC_MOCK` **without** setting `STUDIO_PREVIEW` (which would otherwise disable the live
+  cred/conn engines) — byte-identical for every existing caller (the preview path is untouched;
+  `exportCDF`/PDF pass no mock). **#107 (feature):** an Export button + dropdown in the viewer bar
+  (offered to EVERYONE, like Save-a-copy — downloading what you can already see is a view-level
+  capability) with the three formats Studio itself ships — **Dashboard (.html)**, **PDF (print)**,
+  **Editable spec (.json)** — all through the identical `buildViewerHtml`/exporters pipeline, so a
+  downloaded sample dashboard is self-contained (sample data inline, never 404s). XLSX/PPTX/Word
+  remain unbuilt (LF49) and will slot into this same menu when they land. Tests: a sample-backed
+  dashboard (sample DA + a real duckdb DA in one spec) renders with the sample DA mocked and the
+  duckdb DA left live; the built HTML embeds `PDC_MOCK` with `STUDIO_PREVIEW` unset; the Export
+  control shows all three formats and toggles open/closed. Help (`docs/index.html` viewer section)
+  updated. Files: app/viewer.html, app/viewer.js, app/exporters.js, app/studio.css, docs/index.html,
+  tests/run.js, sw.js, js/changelog.js.
 - **LF67 — an unsaved Quick-import build now warns before it's silently replaced (v638, sw v275,
   2026-07-28, steward):** Kevin's repro — "I clicked on it and it showed the sensitivity radar,
   that is not what I created" — because Quick import auto-builds a real dashboard (studio.js

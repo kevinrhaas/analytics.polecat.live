@@ -32,6 +32,19 @@
     <button id="viewerSaveCopy" class="viewer-savecopy-btn" type="button" hidden>
       <span data-ic="copy"></span> Save a copy
     </button>
+    <!-- #106/#107: export the dashboard from the viewer — offered to EVERYONE (like Save a copy),
+         since downloading what you can already see is a view-level capability. Hidden until boot()
+         confirms the dashboard loaded. The menu reuses the exact exporters.js pipeline. -->
+    <div class="viewer-export-wrap">
+      <button id="viewerExport" class="viewer-export-btn" type="button" hidden aria-haspopup="true" aria-expanded="false">
+        <span data-ic="download"></span> Export <span data-ic="chevron-down"></span>
+      </button>
+      <div id="viewerExportMenu" class="viewer-export-menu" role="menu" hidden>
+        <button type="button" role="menuitem" data-exp="html"><span data-ic="code"></span> Dashboard (.html)</button>
+        <button type="button" role="menuitem" data-exp="pdf"><span data-ic="image"></span> PDF (print)</button>
+        <button type="button" role="menuitem" data-exp="spec"><span data-ic="duplicate"></span> Editable spec (.json)</button>
+      </div>
+    </div>
     <a id="viewerEditLink" class="viewer-edit-link" href="#" hidden>
       <span data-ic="edit"></span> Edit in Studio
     </a>
@@ -47,6 +60,10 @@
   </div>
 </div>
 <script src="app/model.js"></script>
+<!-- #106: Studio.genMock — deterministic sample rows for the demo/sample packs' data accesses,
+     so a sample-backed dashboard renders (and exports) here instead of 404ing on the retired
+     CDA server. Real (duckdb/httpvfs/credentialed/connection) data accesses still query live. -->
+<script src="app/sampledata.js"></script>
 <script src="app/sources/schema.js"></script>
 <script src="app/sources/workspace.js"></script>
 <script src="app/exporters.js"></script>
