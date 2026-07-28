@@ -318,9 +318,11 @@
         <div id="canvasEmpty" aria-hidden="true">
           <div class="ces-ic" id="cesIc"></div>
           <div class="ces-title">Canvas is empty</div>
-          <div class="ces-desc">Drag a dataset or sample query from the Data panel onto the canvas, or drop one below.</div>
+          <div class="ces-desc">Drag a dataset or sample query from the Data panel onto the canvas, or drop a CSV/JSON file here to build a dashboard instantly.</div>
           <button type="button" class="ces-btn" id="cesLib">Open data panel</button>
           <button type="button" class="ces-btn ces-btn-2" id="cesText">¶ Add a text widget</button>
+          <button type="button" class="ces-btn ces-btn-2" id="cesImport">Import a file</button>
+          <input type="file" id="cesImportInput" accept=".csv,.tsv,.json,text/csv,application/json" hidden>
         </div>
       </div>
     </section>

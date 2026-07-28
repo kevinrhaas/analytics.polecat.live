@@ -116,6 +116,25 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF61 — Quick import is now reachable straight from Studio's empty canvas (v647, sw v284,
+  2026-07-28, steward — LIVE-QA QUEUE bug/cleanup item, per LF70's own NEXT note):** Kevin, live
+  QA — a brand-new "New dashboard" opened Studio with an empty canvas that only offered "drag
+  something from the Data panel"; the SAME Quick-import auto-build affordance Home's card offers
+  (drop a CSV/JSON → profiled dataset → auto-built dashboard) wasn't reachable without leaving
+  Studio and starting over from Home. Fix: the `#canvasEmpty` overlay (app/index.html) gained an
+  **Import a file** button + hidden file input alongside Open data panel / Add a text widget, and
+  `wireCanvas()`'s existing stage-level drop handler (app/studio.js) now also accepts a raw OS file
+  drop — routed through `Studio.__quickImportFile` (exposed from the renderHome closure the same
+  way `Studio.__quickBuildDashboard` already is) so both paths reuse the IDENTICAL
+  quickImportFile/quickBuildDashboard engine Home's card uses, no parallel implementation. Scoped
+  deliberately to the EMPTY canvas only (`stage.classList.contains("canvas-empty")` gates the file-
+  drop branch) — quickImportFile replaces `S.spec` wholesale, which is safe when there's nothing to
+  lose but would silently clobber a real in-progress dashboard if it fired on a populated canvas.
+  A `#canvas-stage.dragover.canvas-empty` CSS rule echoes the Home quick-import card's dragover
+  highlight so the drop target reads as real. docs/index.html's Quick-import section now mentions
+  the canvas entry point too. 2 new regression tests (button + input present inside the overlay;
+  picking a file via the button actually auto-builds a dashboard). Files: app/index.html,
+  app/studio.js, app/studio.css, docs/index.html, tests/run.js, sw.js, js/changelog.js.
 - **Docs page: dropped the docs Exporting-table's dead "Badge" column, fixing a mobile
   horizontal-overflow bug (UX sweep 2026-07-28 #367 finding #2, v646, sw v283, 2026-07-28,
   steward):** the sweep found `docs/index.html` overflowing the 390px viewport by ~7px
@@ -234,9 +253,10 @@
   Files: app/studio.js, docs/index.html, tests/run.js, sw.js, js/changelog.js. NEXT per the LOCKED
   BUILD ORDER: step 4, Studio chrome (LF46/LF48/LF45/LF52/LF53 — LF47 already done except Examples
   removal, LF43 slice 2's remit), or LF43 slice 2 itself, or the remaining LIVE-QA QUEUE
-  bug/cleanup items (LF61/LF65/LF69) ahead of the flashier remaining work — LF65 is superseded by
-  LF66's bigger reorg though, so LF61 or LF69 (once LF49's export formats it assumes are confirmed
-  shipped) are the cleaner picks.
+  bug/cleanup items (LF65/LF69, since LF61 shipped 2026-07-28 — see DONE) ahead of the flashier
+  remaining work — LF65 is superseded by LF66's bigger reorg though, so LF69 (once LF49's export
+  formats it assumes are confirmed shipped — LF49 itself is still open) or LF43 slice 2 are the
+  cleaner picks.
 - **Viewer mode: sample dashboards render + export in every shipping format (#106/#107, v639,
   sw v276, 2026-07-28, steward):** Kevin, live QA — "aside i assume you are going to fix these"
   (the viewer 404ing on sample dashboards) + "i think the viewer mode you should be able to export
@@ -5298,7 +5318,8 @@
 ### ★★ LIVE-QA QUEUE (Kevin, 2026-07-27 second session) — captured during live QA
 > Fresh items from a live QA burst. Slot into the LOCKED BUILD ORDER by class (bug/cleanup wins
 > first). Kevin's mode: "add to queue, let the backlog roll."
-> LF61. **Quick-import drop zone on the EMPTY Studio canvas.** "New dashboard" from Home works (it opens
+> LF61. ✓ **Quick-import drop zone on the EMPTY Studio canvas (shipped v647, sw v284, 2026-07-28,
+>       steward) — see DONE.** "New dashboard" from Home works (it opens
 >       Studio with a fresh Untitled dashboard) but the empty canvas reads as "nothing happened." Kevin:
 >       "your quick mode drag-a-file should be here also." Put the SAME Quick-import auto-build affordance
 >       (drag/drop a CSV/JSON → profiled dataset → auto-built dashboard, the LF24 engine) right on the

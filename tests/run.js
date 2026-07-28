@@ -18583,6 +18583,45 @@ function serve() {
     });
     ok("H-CES: #cesLib 'Open library' button exists and is not disabled", cesBtnCheck.ok && !cesBtnCheck.disabled, JSON.stringify(cesBtnCheck));
 
+    // LF61: the empty canvas gains an "Import a file" button + hidden file input,
+    // reusing the same quickImportFile/quickBuildDashboard engine as Home's own
+    // Quick-import card — so a brand-new dashboard's empty canvas always offers a
+    // path straight to data, not just "drag something from the library".
+    const cesImportDomCheck = await page.evaluate(function () {
+      var btn = document.getElementById("cesImport");
+      var inp = document.getElementById("cesImportInput");
+      return { ok: !!btn && !!inp, accept: inp ? inp.accept : null, inCanvasEmpty: !!(btn && btn.closest("#canvasEmpty")) };
+    });
+    ok("LF61: #cesImport 'Import a file' button + hidden file input exist inside the empty-canvas overlay",
+      cesImportDomCheck.ok && cesImportDomCheck.inCanvasEmpty && /csv/.test(cesImportDomCheck.accept || ""), JSON.stringify(cesImportDomCheck));
+
+    // LF61: picking a file via the empty-canvas Import button auto-builds a real
+    // dashboard through the SAME engine Home's Quick-import card uses.
+    await page.evaluate(function () {
+      try {
+        window.__STUDIO_STATE.spec = window.Studio.emptySpec();
+        window.__STUDIO_STATE.selection = null;
+        var stage = document.getElementById("canvas-stage");
+        if (stage) stage.classList.add("canvas-empty");
+      } catch (e) {}
+    });
+    await page.waitForTimeout(100);
+    const lf61Fixture = path.join(__dirname, "fixture-lf61.csv");
+    fs.writeFileSync(lf61Fixture, "category,revenue\nAlpha,120\nBeta,200\nAlpha,150\n");
+    await page.setInputFiles("#cesImportInput", lf61Fixture);
+    await page.waitForTimeout(400);
+    fs.unlinkSync(lf61Fixture);
+    const lf61ImportCheck = await page.evaluate(function () {
+      try {
+        var spec = window.__STUDIO_STATE.spec;
+        var n = (spec.panels || []).length + (spec.kpis || []).length;
+        var hasDataset = window.Studio.Workspace.all("datasets").some(function (d) { return d.fileName === "fixture-lf61.csv"; });
+        return { ok: n > 0 && hasDataset, panelsPlusKpis: n, hasDataset: hasDataset };
+      } catch (e) { return { ok: false, err: e.message }; }
+    });
+    ok("LF61: the empty-canvas Import-a-file button auto-builds a dashboard (quickImportFile via the canvas)",
+      lf61ImportCheck.ok, JSON.stringify(lf61ImportCheck));
+
     // ── K8: "What's next?" card in Simple mode ───────────────────────────
     // Appears in the dashboard inspector when Simple mode is on AND the spec has ≥1 panel.
     // Provides actionable next-step tips after the getting-started checklist is completed.

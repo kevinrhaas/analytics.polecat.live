@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 647,
+    title: 'Studio: the empty canvas now offers Quick import too',
+    kind: 'feature',
+    ts: '2026-07-28T07:30:59.000Z',
+    items: [
+      'A brand-new dashboard\'s empty canvas ("Canvas is empty") gained an Import a file button next to Open data panel / Add a text widget.',
+      'You can also drop a CSV or JSON file straight onto the empty canvas — it builds a real dashboard instantly, the same engine Home\'s Quick import card uses.',
+    ],
+  },
+  {
     v: 646,
     title: 'Fixed: the Exporting help page overflowed on phones',
     kind: 'fix',
