@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 662,
+    title: 'Workspace screens now use the space better — content sits left, not floating in the middle',
+    kind: 'polish',
+    ts: '2026-07-28T13:46:44.000Z',
+    items: [
+      'Home, Settings and Dashboards no longer center their content in a narrow column with a big empty gap next to the rail — the content is left-aligned against the rail and uses more of the width, with a tighter top margin.',
+    ],
+  },
+  {
     v: 661,
     title: 'Export a dashboard as an Excel workbook (.xlsx)',
     kind: 'feature',

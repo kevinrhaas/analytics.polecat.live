@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v298"; /* v298: LF49 slice 1 — Export ▾ → "Excel workbook (.xlsx)":
+var CACHE_NAME = "studio-shell-v299"; /* v299: LF54 slice 1 — left-align workspace content
+   (Home/Settings/Dashboards): the centered `margin:0 auto` wraps left a wide dead gutter next to
+   the rail; now margin:0, wider max-width, tighter top padding. app/studio.css changed, so
+   precached copies roll.
+   v298: LF49 slice 1 — Export ▾ → "Excel workbook (.xlsx)":
    a dependency-free multi-sheet .xlsx (OOXML written into a hand-rolled stored ZIP, Studio.xlsxBook
    in exporters.js) — dashboard summary on tab 1, backend data per source after. app/exporters.js,
    app/studio.js, app/index.html, docs/index.html changed, so precached copies roll.
