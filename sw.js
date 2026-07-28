@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v311"; /* v311: LF51 slice 4 (nav IA spec (b), "right-aligned
+var CACHE_NAME = "studio-shell-v312"; /* v312: LF46 (⋯ teardown, slice 2) — Tour, Theme,
+   Command palette, and the whole Help & power tools group (Keyboard shortcuts, Help docs,
+   Interactive tutorial, Edit JSON spec) are gone from the Studio ⋯ menu; the palette gained
+   a new "Edit JSON spec…" command as the sole remaining path to that one.
+   app/index.html, app/studio.js, app/palette.js, docs/index.html changed, so precached
+   copies roll.
+   v311: LF51 slice 4 (nav IA spec (b), "right-aligned
    filter pills") — the folder + facet filter strips on Connections/Datasets/Jobs carry a new
    .cx-filter-strip class that right-aligns their pills at desktop widths (left-aligned on ≤640px).
    app/datasets.js, app/connections.js, app/jobs.js, app/studio.css changed, so precached copies roll.

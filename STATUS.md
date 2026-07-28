@@ -116,6 +116,40 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF46 (slice 2) — the Studio ⋯ menu's "View" and "Help & power tools" groups are gone;
+  LF46 is now fully done (#93, v675, sw v312, 2026-07-28, steward — step 4 of the LOCKED
+  BUILD ORDER, ⋯ teardown):** slice 1 (2026-07-24) hid Demo mode; this slice finishes the
+  rest of LF46's named removals. **Removed from `#menuMore`:** `#moreAbout` ("Tour" —
+  duplicated Settings → "Take the tour", `#setTourBtn`, which already calls the same
+  `StudioWelcome.open()`), `#moreTheme` (duplicated the topbar's `#tbTheme` dark-mode
+  toggle), and the whole "Help & power tools" group — `#moreShortcuts` (the "?" key still
+  opens it), `#moreHelp` (the rail's `#railHelp` link already opens `docs/index.html`),
+  `#moreTutorial` (`StudioTutorial.open()` stays public), and `#moreEditJSON`. Also removed
+  `app/palette.js`'s own dynamically-injected `#moreCmdk` ("Command palette ⌘K") menu
+  entry — Slice A had already moved the real discoverability affordance to the topbar's
+  `#tbSearch` pill, so it was a dead leftover. The "waffle app-switcher IN STUDIO" LF46 also
+  names turned out to be the shared fleet app-switcher (correct to keep — no Studio-only
+  waffle existed to drop, confirmed in slice 1). **Nothing lost:** four of the six removed
+  buttons (Tour, Interactive tutorial, Keyboard shortcuts, and — newly added this slice —
+  **Edit JSON spec…**, which had no other entry point at all) now drive their handler
+  directly from a `⌘K` command-palette command instead of proxy-clicking a DOM button that
+  no longer exists; `showShortcuts` is newly exposed as `window.__studioShowShortcuts`
+  (same pattern as `__studioToggleDemoMode`/`__studioOpenJsonEditor`) so the palette can
+  reach it. Docs (`docs/index.html`) updated to match: the Edit-JSON-spec paragraph now
+  points at the palette command instead of "⋯ More →", the Command-palette section drops
+  its "⋯ More → Command palette" mention (and its already-stale "Search ⌘K item near the
+  bottom of the left rail" claim, corrected to the real topbar location), Settings' own
+  "Welcome tour" row copy drops its "(also under ⋯ More → Tour)" aside. The now-empty
+  "View" group label was dropped along with it — `#moreWhatsNew` (phone-only) no longer
+  needs its own group heading, matching the ungrouped phone-only cluster further down the
+  same menu. 8 regression assertions updated to match (⋯ More button ids now assert
+  *absence*; new coverage for `window.__studioShowShortcuts`, the palette's "Edit JSON
+  spec…" command actually opening the editor modal, `#railHelp`'s href, and the "Present"
+  group surviving alone). Full suite green (2474 passed, 0 failed). Files: app/index.html,
+  app/studio.js, app/palette.js, docs/index.html, tests/run.js, sw.js, js/changelog.js.
+  **LOCKED BUILD ORDER step 4 remaining:** LF48's actual role-aware mode-SWITCHER entry
+  point (slice 1 only shipped the uniform EXIT half) is the last open piece; LF43 slice 2
+  (drop the Examples menu/button) stays tracked separately as its own dedicated slice.
 - **LF51 (slice 4) — filter pill strips right-align on Connections/Datasets/Jobs (#90, v674,
   sw v311, 2026-07-28 — step 5 of the LOCKED BUILD ORDER, LF51's spec (b) "right-aligned filter
   pills"; this completes LF51's four named nav-IA slices):** the folder + facet filter `.wb-chips`
@@ -5894,10 +5928,14 @@
 >    steward)**, **slice 2 ✓ (Conservation-pack choropleth/watershed guided tour, pack-gated,
 >    2026-07-28, steward)**, see DONE. Still open: folding sample-pack-aware segments into the
 >    hero/overview carousel itself (a bigger engine change — see slice 2's own NEXT note).
-> 4. **Studio chrome:** LF46 (⋯ teardown) · LF47 (ops → top rail, w/ #30 — ✓ slices A/B/C,
->    2026-07-27, **LF47 is now fully done** except Examples removal, which is LF43 slice 2's
->    remit, not duplicated here) · LF48 (mode switcher) · LF45 (Save-as + Open dialog) ·
->    LF52 (widget→View) · LF53 (drop CDF/CDE).
+> 4. **Studio chrome:** LF46 (⋯ teardown — ✓ slice 1 Demo mode 2026-07-24, ✓ slice 2 View/
+>    Help & power tools groups 2026-07-28, **LF46 is now fully done**) · LF47 (ops → top rail,
+>    w/ #30 — ✓ slices A/B/C, 2026-07-27, **LF47 is now fully done** except Examples removal,
+>    which is LF43 slice 2's remit, not duplicated here) · LF48 (✓ slice 1 uniform exit,
+>    2026-07-28 — the role-aware mode-switcher ENTRY point is still open) · LF45 (✓ richer
+>    Open dialog, 2026-07-28 — Save-as's own half already shipped with LF47) · LF52 (✓
+>    widget→View, 2026-07-28) · LF53 (✓ drop CDF/CDE, 2026-07-28). **Step 4 remaining: LF48's
+>    mode-switcher entry point + LF43 slice 2 (Examples removal).**
 > 5. **Exports + navigation/layout:** LF49 (XLSX ✓ · DOCX ✓ · PPTX ✓, 2026-07-28 — **LF49 is now
 >    fully done**) · LF54 (slice 1 ✓ left-align + kill left-gutter whitespace, 2026-07-28 — deeper
 >    per-component density tightening left as an optional follow-up) · LF51 (sophisticated nav IA:
@@ -6144,12 +6182,26 @@
 > ── STUDIO CHROME CONSOLIDATION + NAV (Kevin, live 2026-07-27): the builder's ⋯ menu is mostly
 >    duplicative; operations belong in the top rail; the mode UX needs a consistent switcher; and the
 >    workspace nav should feel more sophisticated. Slice each. ──
-> LF46. **Studio ⋯ (hamburger) teardown.** REMOVE View→Tour + View→Theme (theme=Settings, tour=welcome/
->       Settings→Tour), Command palette (=rail Search/⌘K), the whole HELP & POWER TOOLS section (help is in
->       the Help rail) INCLUDING the Examples entry, and the polecat waffle app-switcher IN STUDIO. HIDE
->       Demo mode for now (keep code; may confuse alongside sample packs + the customized tour — re-add only
->       if a clear use is articulated). What survives (present/mode items) moves into LF48's switcher, so the
->       hamburger shrinks or disappears. (app/index.html ⋯ menu, studio.js wiring.) Ties LF47, LF48.
+> LF46. ✓ **Studio ⋯ (hamburger) teardown — fully done.** REMOVE View→Tour + View→Theme
+>       (theme=Settings, tour=welcome/Settings→Tour), Command palette (=rail Search/⌘K), the
+>       whole HELP & POWER TOOLS section (help is in the Help rail) INCLUDING the Examples
+>       entry, and the polecat waffle app-switcher IN STUDIO. HIDE Demo mode for now (keep
+>       code; may confuse alongside sample packs + the customized tour — re-add only if a
+>       clear use is articulated). What survives (present/mode items) moves into LF48's
+>       switcher, so the hamburger shrinks or disappears. (app/index.html ⋯ menu, studio.js
+>       wiring.) Ties LF47, LF48.
+>       ✓ **Slice 1 shipped (2026-07-24, v654, sw v291, steward): Demo mode hidden** — see
+>       DONE.
+>       ✓ **Slice 2 shipped (2026-07-28, v675, sw v312, steward — LF46 is now fully done):**
+>       Tour/Theme/Command-palette/Help-&-power-tools all removed from `#menuMore`, each
+>       driven by the ⌘K palette instead where it had no other home (Tour and Interactive
+>       tutorial and Keyboard shortcuts also keep their Settings/"?"/topbar alternates; Edit
+>       JSON spec… genuinely had none, so it's palette-only now) — see DONE. The "Examples
+>       entry" this item names is a DIFFERENT surface than the one it originally overlapped
+>       with in this menu (the ⋯ menu carries none today) — Studio's Examples button/menu
+>       stays LF43 slice 2's dedicated remit, not touched here. The waffle app-switcher IN
+>       STUDIO turned out to already just be the shared fleet app-switcher (correct to keep,
+>       confirmed in slice 1) — nothing to remove there.
 > LF47. ✓ **Operations move to the TOP RAIL — DONE across slices A/B/C (2026-07-27) — see DONE.**
 >       Undo/redo, Open, Save, Save-as, Duplicate, Export▾, dark-mode, +New all now live in the
 >       shared topbar (`#tbSectionActions` + the common cluster), mobile working (phone hide-list +

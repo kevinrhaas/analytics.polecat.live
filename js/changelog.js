@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 675,
+    title: 'Studio ⋯ menu decluttered — Tour, Theme and Help & power tools moved out',
+    kind: 'polish',
+    ts: '2026-07-28T19:49:39.000Z',
+    items: [
+      'The Studio ⋯ menu no longer lists Tour, Theme, Command palette, Keyboard shortcuts, Help docs, Interactive tutorial or Edit JSON spec — each duplicated a better home elsewhere (Settings → Take the tour, the topbar dark-mode toggle, the rail Help link, the "?" key) or is now a search away in the ⌘K command palette, which also gained a new "Edit JSON spec…" command since that one had nowhere else to go.',
+    ],
+  },
+  {
     v: 674,
     title: 'Filter pills now sit at the right of Connections, Datasets and Jobs',
     kind: 'polish',

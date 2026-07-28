@@ -11064,15 +11064,17 @@ function serve() {
     ok("Back from the carousel's first step returns to the hero screen (not hidden/dead-ended)", backToHero);
     await gp.evaluate(() => document.querySelector("#studio-welcome .sw-skip").click()); await gp.waitForTimeout(120);
     ok("welcome tour dismisses + persists", await gp.evaluate(() => !document.querySelector("#studio-welcome") && localStorage.getItem("studio-welcome-seen") === "1"));
-    // Tour moved out of the topbar (user feedback) — reachable via ⋯ More → Tour and Settings.
-    // That topbar lives inside Studio, which the viewer role no longer reaches at all
-    // (LF23 slice 2) — switch to the admin identity for this part; the demo/demo
-    // "Explore the demo" sign-in flow above already covers the real advertised viewer path.
+    // Tour moved out of the topbar (user feedback) — reachable via Settings and the
+    // ⌘K palette (LF46 ⋯ teardown slice 2 dropped the ⋯ More → Tour button entirely,
+    // it duplicated this exact path). That topbar lives inside Studio, which the
+    // viewer role no longer reaches at all (LF23 slice 2) — switch to the admin
+    // identity for this part; the demo/demo "Explore the demo" sign-in flow above
+    // already covers the real advertised viewer path.
     await gp.evaluate(() => { window.PolecatAuth.login("admin"); window.__studioShellApplyRoleGating(); window.__studioShellSetSection("studio"); });
     await gp.waitForTimeout(150);
-    await gp.click("#btnMore"); await gp.waitForTimeout(80);
-    await gp.click("#moreAbout"); await gp.waitForTimeout(120);
-    ok("⋯ More → Tour reopens the welcome", await gp.evaluate(() => !!document.querySelector("#studio-welcome")));
+    await gp.evaluate(() => window.__studioShellSetSection("settings")); await gp.waitForTimeout(120);
+    await gp.click("#setTourBtn"); await gp.waitForTimeout(120);
+    ok("Settings → Take the tour reopens the welcome", await gp.evaluate(() => !!document.querySelector("#studio-welcome")));
     const adminGreeting = await gp.evaluate(() => document.querySelector("#studio-welcome .sw-hd h1").textContent);
     ok("welcome hero greets a real signed-in user by their name", adminGreeting.indexOf("Administrator") !== -1, adminGreeting);
 
@@ -11116,8 +11118,8 @@ function serve() {
     ok("Escape closes the welcome tour + persists seen (same as Skip)",
       await gp.evaluate(() => !document.querySelector("#studio-welcome") && localStorage.getItem("studio-welcome-seen") === "1"));
     // Focus-restore, exercised against a trigger that stays visible/focusable throughout
-    // (unlike #moreAbout, which the app's own closeMenus() hides mid-click, blurring it
-    // before StudioWelcome.open() ever captures document.activeElement).
+    // (unlike the old ⋯ More → Tour button, which the app's own closeMenus() hid mid-click,
+    // blurring it before StudioWelcome.open() ever captured document.activeElement).
     await gp.evaluate(() => document.getElementById("btnMore").focus());
     await gp.evaluate(() => window.StudioWelcome.open());
     await gp.waitForTimeout(120);
@@ -13639,13 +13641,15 @@ function serve() {
       var themeBtn = document.getElementById("btnTheme");
       r.themeBtnHasSvg = themeBtn ? !!themeBtn.querySelector("svg") : false;
       r.themeBtnNoEmoji = themeBtn ? !/[☀☾]/.test(themeBtn.textContent) : true;
-      // UX sprint 2026-07-14: #btnAbout retired — Tour lives in ⋯ More (#moreAbout) + Settings
+      // UX sprint 2026-07-14: #btnAbout retired — Tour lived in ⋯ More (#moreAbout), then
+      // LF46 (⋯ teardown, slice 2) dropped that button too — Tour is Settings → Take the
+      // tour (#setTourBtn) + the ⌘K palette now.
       r.aboutBtnGone = !document.getElementById("btnAbout");
-      r.moreAboutExists = !!document.getElementById("moreAbout");
+      r.moreAboutGone = !document.getElementById("moreAbout");
       return r;
     });
     ok("theme button has SVG icon (not emoji)", i3Topbar.themeBtnHasSvg && i3Topbar.themeBtnNoEmoji, JSON.stringify(i3Topbar));
-    ok("#btnAbout is retired — Tour reachable via ⋯ More instead", i3Topbar.aboutBtnGone && i3Topbar.moreAboutExists, JSON.stringify(i3Topbar));
+    ok("#btnAbout and #moreAbout are both retired — Tour reachable via Settings + the palette instead", i3Topbar.aboutBtnGone && i3Topbar.moreAboutGone, JSON.stringify(i3Topbar));
 
     // 2. Modal close button has SVG — open the dashboard-query builder modal (behind + New ▾)
     await page.click("#btnNewDS"); await page.waitForTimeout(80);
@@ -13854,8 +13858,11 @@ function serve() {
     await page.waitForTimeout(100);
     const modalGone = await page.evaluate(() => !document.querySelector(".modal-ov"));
     ok("v47: Escape closes the shortcuts modal", modalGone);
-    // test More menu entry
-    ok("v47: More menu has Keyboard shortcuts button", await page.evaluate(() => !!document.getElementById("moreShortcuts")));
+    // LF46 (⋯ teardown, slice 2): the ⋯ More "Keyboard shortcuts" button is gone — "?"
+    // (asserted above) and the ⌘K palette are the two remaining entry points, and the
+    // underlying showShortcuts() stays reachable as window.__studioShowShortcuts.
+    ok("v47: showShortcuts is exposed for the ⌘K palette now that its ⋯ More button is gone",
+      await page.evaluate(() => typeof window.__studioShowShortcuts === "function"));
 
     // ---- Track H (IA sweep): ⋯ More menu grouped into labeled sections ----
     // The menu had grown to 15 items in 4 visually-separated-but-unlabeled clumps —
@@ -13863,21 +13870,28 @@ function serve() {
     // ".grp" label divs (same convention the Examples/Export menus already use) name
     // each clump; no button id/behavior changed, so every existing More-menu test
     // above (and the mobile ones later in this file) still passes unmodified.
+    // LF46 (⋯ teardown, slice 2) later removed the "View" and "Help & power tools"
+    // groups entirely (their items moved to Settings/the rail/the ⌘K palette) — only
+    // "Present" remains as a labeled group.
     console.log("\n• Track H: ⋯ More menu section labels");
     const moreGroups = await page.evaluate(() => {
       var menu = document.getElementById("menuMore");
       var labels = [].slice.call(menu.querySelectorAll(".grp")).map(function (g) { return g.textContent.trim(); });
       return {
         labels: labels,
-        stillHasShortcuts: !!document.getElementById("moreShortcuts"),
-        stillHasEditJSON: !!document.getElementById("moreEditJSON")
+        shortcutsGone: !document.getElementById("moreShortcuts"),
+        editJSONGone: !document.getElementById("moreEditJSON"),
+        helpGone: !document.getElementById("moreHelp"),
+        tutorialGone: !document.getElementById("moreTutorial")
       };
     });
-    ok("Track H: ⋯ More menu groups its items under labeled sections (View / Present / Help & power tools)",
-      moreGroups.labels.indexOf("View") >= 0 && moreGroups.labels.indexOf("Present") >= 0 &&
-      moreGroups.labels.indexOf("Help & power tools") >= 0, JSON.stringify(moreGroups));
-    ok("Track H: grouping is purely additive — every existing More-menu item id is untouched",
-      moreGroups.stillHasShortcuts && moreGroups.stillHasEditJSON, JSON.stringify(moreGroups));
+    ok("Track H: ⋯ More menu still labels its 'Present' group; 'View' and 'Help & power tools' are gone (LF46)",
+      moreGroups.labels.indexOf("Present") >= 0 &&
+      moreGroups.labels.indexOf("View") === -1 && moreGroups.labels.indexOf("Help & power tools") === -1,
+      JSON.stringify(moreGroups));
+    ok("Track H: the LF46 teardown actually removed the four Help & power tools buttons",
+      moreGroups.shortcutsGone && moreGroups.editJSONGone && moreGroups.helpGone && moreGroups.tutorialGone,
+      JSON.stringify(moreGroups));
 
     // ---- Track H (IA sweep): topbar action clusters get subtle visual dividers ----
     // Z1 follow-up ("simplify the top menu bar") — first slice. Purely additive: plain
@@ -19419,15 +19433,17 @@ function serve() {
     await page.waitForTimeout(100);
 
     // ── J-track: Help docs page + in-app link ────────────────────────────
-    // A self-contained reference guide at docs/index.html, reachable from the
-    // ⋯ More menu via the #moreHelp button.
+    // A self-contained reference guide at docs/index.html — LF46 (⋯ teardown, slice 2)
+    // dropped the duplicate ⋯ More → #moreHelp button ("help is in the Help rail"); the
+    // rail's #railHelp link and the ⌘K "Open Help & docs" command are the surviving paths.
 
-    // J-docs-1: #moreHelp button exists in the More menu
+    // J-docs-1: #moreHelp is gone, #railHelp points at docs/index.html
     const jHelpBtnCheck = await page.evaluate(function () {
-      var btn = document.getElementById("moreHelp");
-      return { ok: !!btn };
+      var rail = document.getElementById("railHelp");
+      return { moreHelpGone: !document.getElementById("moreHelp"), railHelpOk: !!rail && rail.getAttribute("href") === "docs/index.html" };
     });
-    ok("J-docs: #moreHelp button exists in the More menu", jHelpBtnCheck.ok, JSON.stringify(jHelpBtnCheck));
+    ok("J-docs: #moreHelp is retired, #railHelp is the surviving in-rail link to docs/index.html",
+      jHelpBtnCheck.moreHelpGone && jHelpBtnCheck.railHelpOk, JSON.stringify(jHelpBtnCheck));
 
     // J-docs-2: docs/index.html is served (HTTP 200) by the test server
     const jDocsHttp = await page.evaluate(async function () {
@@ -19753,12 +19769,13 @@ function serve() {
         /analysis/i.test(tut) && /Ensemble/.test(tut) && /Home/.test(tut) && /Jobs/.test(tut) && /Explore/.test(wel));
     })();
 
-    // J6-1: "Interactive tutorial" entry exists in the ⋯ More menu
+    // J6-1: LF46 (⋯ teardown, slice 2) dropped the ⋯ More → "Interactive tutorial" button
+    // — StudioTutorial.open() stays public (driven by the ⌘K palette's own command now).
     const j6MenuEntry = await page.evaluate(function () {
-      var btn = document.getElementById("moreTutorial");
-      return { ok: !!btn, text: btn ? btn.textContent : "" };
+      return { moreTutorialGone: !document.getElementById("moreTutorial"), openIsFn: typeof (window.StudioTutorial && window.StudioTutorial.open) === "function" };
     });
-    ok("J6: 'Interactive tutorial' entry in ⋯ More menu", j6MenuEntry.ok, JSON.stringify(j6MenuEntry));
+    ok("J6: ⋯ More 'Interactive tutorial' button is retired; StudioTutorial.open() stays public for the palette",
+      j6MenuEntry.moreTutorialGone && j6MenuEntry.openIsFn, JSON.stringify(j6MenuEntry));
 
     // J6-2: open() shows the TOUR CHOOSER — five tour cards, active flag set
     await page.evaluate(function () {
@@ -27371,17 +27388,23 @@ function serve() {
       !cmpTooFew.hadModal && cmpTooFew.toastMentionsTwo, JSON.stringify(cmpTooFew));
 
     // ── N-DEV: live JSON spec editor ──
+    // LF46 (⋯ teardown, slice 2) dropped the ⋯ More → "Edit JSON spec…" button — the ⌘K
+    // palette's own "Edit JSON spec…" command is now the only in-app entry point.
     console.log("\n• N-DEV: live JSON spec editor");
     const jsonEdMenu = await page.evaluate(function () {
-      document.getElementById("btnMore").click();
-      var btn = document.getElementById("moreEditJSON");
-      var r = { btnExists: !!btn };
-      if (btn) btn.click();
+      var r = { moreEditJSONGone: !document.getElementById("moreEditJSON") };
+      window.StudioPalette.open();
+      document.getElementById("cmdkInput").value = "edit json spec";
+      document.getElementById("cmdkInput").dispatchEvent(new Event("input", { bubbles: true }));
+      var row = document.querySelector("#cmdkList .cmdk-row");
+      r.paletteRowLabel = row ? row.querySelector(".cmdk-lbl").textContent : "";
+      if (row) row.click();
       r.modalOpened = !!document.querySelector(".modal-ov .modal textarea");
       var ov = document.querySelector(".modal-ov"); if (ov) ov.remove();
       return r;
     });
-    ok("N-DEV: '⋯ More → Edit JSON spec…' opens the editor modal", jsonEdMenu.btnExists && jsonEdMenu.modalOpened, JSON.stringify(jsonEdMenu));
+    ok("N-DEV: ⋯ More → Edit JSON spec… button is retired; the ⌘K palette's 'Edit JSON spec…' command opens the editor modal instead",
+      jsonEdMenu.moreEditJSONGone && /edit json spec/i.test(jsonEdMenu.paletteRowLabel) && jsonEdMenu.modalOpened, JSON.stringify(jsonEdMenu));
 
     const jsonEd = await page.evaluate(function (id) {
       var r = {};
@@ -29069,7 +29092,9 @@ function serve() {
       if (window.__studioShellSetSection) window.__studioShellSetSection("studio");
       var P = window.StudioPalette;
       r.hasApi = !!(P && P.open && P.close);
-      r.hasMenuEntry = !!document.getElementById("moreCmdk");
+      // LF46 (⋯ teardown, slice 2): the ⋯ More menu's own "Command palette ⌘K" entry is
+      // gone — #tbSearch (Slice A, below) is the sole discoverability affordance now.
+      r.moreCmdkGone = !document.getElementById("moreCmdk");
       P.open();
       var ov = document.getElementById("cmdkOverlay");
       r.opensOverlay = !!(ov && ov.classList.contains("open"));
@@ -29096,7 +29121,7 @@ function serve() {
       if (window.__studioShellSetSection) window.__studioShellSetSection("studio"); // restore
       return r;
     });
-    ok("Track N: StudioPalette API + ⋯ More entry present", cmdk.hasApi && cmdk.hasMenuEntry, JSON.stringify(cmdk));
+    ok("Track N: StudioPalette API present; the redundant ⋯ More entry is retired (LF46)", cmdk.hasApi && cmdk.moreCmdkGone, JSON.stringify(cmdk));
     ok("Track N: palette opens, focuses input, lists commands", cmdk.opensOverlay && cmdk.focused && cmdk.rendersCommands, JSON.stringify(cmdk));
     ok("Track N: palette filters commands by query text", cmdk.filters, JSON.stringify(cmdk));
     ok("Track N: running a command closes the palette + navigates (Settings)", cmdk.closedAfterRun && cmdk.navigated, JSON.stringify(cmdk));
