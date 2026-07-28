@@ -116,6 +116,18 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **Test hardening: the flaky Z3-WB workbook-create test can no longer abort the whole suite
+  (#122, test-only, 2026-07-28, steward):** the "creating a workbook via the name field + button"
+  check drove creation with split `page.fill("#wbNameInp") ` + `page.click("#wbAddBtn")` + a fixed
+  100ms wait; a background autosave re-render (`renderDashboards`) could re-create a fresh, EMPTY
+  `#wbNameInp` between the two, so the Add handler read `""`, no-op'd, and left 0 workbooks — then
+  `window.__studioWorkbooks()[0].id` dereferenced `undefined`, throwing a FATAL that aborted the
+  ENTIRE run (observed several times across sessions). Fix: set the name and click Add ATOMICALLY
+  in one in-page `evaluate` (no re-render can interleave a synchronous set-then-click), wait for the
+  workbook to actually appear (`waitForFunction`), and read its id null-safely; also guarded the
+  follow-on rename-flow's `.wb-chip-rename` click so a miss fails just that one assertion instead of
+  killing the suite. Test-only — no app/precached-file change, so no sw/changelog bump. File:
+  tests/run.js.
 - **DA inspector: the Cache section only shows where it does something (#121, v644, sw v281,
   2026-07-28, steward):** Kevin, live QA — "does this cache thing work or is it a leftover cda
   thing?" History: `da.cache`/`da.cacheDuration` began as a stored-but-unread leftover from the

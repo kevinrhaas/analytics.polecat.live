@@ -25843,9 +25843,20 @@ function serve() {
     const wbDashId = await page.evaluate(function () { var r = window.__studioRecents(); return r.length ? r[0].id : null; });
     ok("Z3-WB: repository has at least one existing dashboard to test workbook filing", !!wbDashId, String(wbDashId));
 
-    await page.fill("#wbNameInp", "Quarterly Reviews");
-    await page.click("#wbAddBtn");
-    await page.waitForTimeout(100);
+    // #122 (test hardening): set the name AND click Add in ONE synchronous in-page step. Split
+    // page.fill + page.click let a background autosave re-render (renderDashboards) re-create a
+    // fresh, EMPTY #wbNameInp between the two, so the Add handler read "" and no-op'd → 0 workbooks
+    // → the [0].id read below FATAL-aborted the whole suite. Atomic set-then-click can't interleave
+    // a re-render; then wait for the workbook to actually appear, and read its id null-safely so a
+    // future miss fails just this assertion instead of killing the run.
+    await page.evaluate(function () {
+      var inp = document.querySelector("#wbNameInp"), btn = document.querySelector("#wbAddBtn");
+      if (!inp || !btn) return;
+      inp.value = "Quarterly Reviews";
+      btn.click(); // reads inp.value synchronously in the same task — no re-render can race in
+    });
+    await page.waitForFunction(function () { return window.__studioWorkbooks().length >= 1; }, { timeout: 5000 }).catch(function () {});
+    await page.waitForTimeout(60);
     const wbAfterCreate = await page.evaluate(function () {
       // scope to the Dashboards section — Home renders its own (never-active) copy of the
       // workbook chips, and a background autosave tick can re-render Home mid-test
@@ -25854,7 +25865,7 @@ function serve() {
     });
     ok("Z3-WB: creating a workbook via the name field + button adds it, shows a filter chip, and auto-selects it",
       wbAfterCreate.count >= 1 && wbAfterCreate.chipVisible && wbAfterCreate.chipActive, JSON.stringify(wbAfterCreate));
-    const wbId = await page.evaluate(function () { return window.__studioWorkbooks()[0].id; });
+    const wbId = await page.evaluate(function () { var w = window.__studioWorkbooks()[0]; return w ? w.id : null; });
 
     // Z3 follow-up: hovering a workbook chip reveals a ✎ rename button that swaps its label
     // into an inline rename input (Enter commits, Escape cancels) — same convention as
@@ -25866,7 +25877,9 @@ function serve() {
     // focus transitions (flaky in full-suite runs). The handler contract — click swaps the
     // label for an input, Enter commits, Escape discards — is what's being tested.
     const wbRenameFlow = await page.evaluate(function (id) {
-      document.querySelector('.wb-chip-rename[data-wb-rename="' + id + '"]').click();
+      var renameBtn = id && document.querySelector('.wb-chip-rename[data-wb-rename="' + id + '"]');
+      if (!renameBtn) return { input: false }; // #122: don't FATAL if creation above missed
+      renameBtn.click();
       var inp = document.querySelector(".wb-chip-rename-inp");
       if (!inp) return { input: false };
       inp.value = "Board Reviews";
