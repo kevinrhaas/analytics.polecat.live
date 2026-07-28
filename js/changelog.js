@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 660,
+    title: 'Each item on a dashboard is now called a “View”',
+    kind: 'polish',
+    ts: '2026-07-28T12:49:34.000Z',
+    items: [
+      'The thing you drop on a dashboard — a chart, KPI, map, or block of text — is now consistently called a “View” across the builder, inspector, keyboard shortcuts, and Help. “Save to widget library” is now “Save to View library.” Nothing about your saved dashboards changes — only the wording.',
+    ],
+  },
+  {
     v: 659,
     title: 'Leaving any full-screen mode now looks and works the same',
     kind: 'polish',
