@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 666,
+    title: 'Export a dashboard as a Word document (.docx)',
+    kind: 'feature',
+    ts: '2026-07-28T15:12:02.000Z',
+    items: [
+      'Export ▾ now offers "Word document (.docx)" — a real Word report with the dashboard title, a KPIs table and a Views table, then a table of the backend data behind each data source. Opens in Word, Google Docs or LibreOffice; built entirely in your browser, nothing uploaded.',
+    ],
+  },
+  {
     v: 665,
     title: 'Sparkle name-suggest button now on Explore\'s Folder field too — LF62 is complete',
     kind: 'polish',

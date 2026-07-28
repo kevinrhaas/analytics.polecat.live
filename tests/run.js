@@ -14065,6 +14065,35 @@ function serve() {
     ok("LF49: tab 1 summarizes the dashboard — title, KPIs (with numeric values), and the Views list",
       lf49.title && lf49.kpiLabel && lf49.viewsHeader && lf49.hasNumber, JSON.stringify(lf49));
 
+    // LF49 slice 2: Word (.docx) — same summary + backend-data tables as a Word report.
+    // Same stored-zip OOXML, so we scan the bytes for the parts + content (studio-cost still loaded).
+    const lf49d = await page.evaluate(() => {
+      try {
+        var bytes = window.__studioBuildDocx();
+        var s = "";
+        for (var i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+        return {
+          isUint8: !!(bytes && bytes.constructor && bytes.constructor.name === "Uint8Array"),
+          pk: bytes[0] === 0x50 && bytes[1] === 0x4B,
+          hasContentTypes: s.indexOf("[Content_Types].xml") >= 0,
+          hasDocument: s.indexOf("word/document.xml") >= 0,
+          hasRels: s.indexOf("_rels/.rels") >= 0,
+          wordDoc: s.indexOf("<w:document") >= 0 && s.indexOf("</w:body></w:document>") >= 0,
+          hasTable: s.indexOf("<w:tbl>") >= 0,          // KPIs/Views/data tables
+          title: s.indexOf("Cost Optimization") >= 0,
+          kpiLabel: s.indexOf("Monthly Cost") >= 0,
+          sectPr: s.indexOf("<w:sectPr>") >= 0,          // valid section properties
+          menuBtn: !!document.querySelector("#menuExport button[data-exp='docx']"),
+          bytes: bytes.length
+        };
+      } catch (e) { return { err: e.message }; }
+    });
+    ok("LF49 slice 2: the Export menu offers a 'Word document (.docx)' item", lf49d.menuBtn, JSON.stringify({ menuBtn: lf49d.menuBtn, err: lf49d.err }));
+    ok("LF49 slice 2: exportDocx yields a valid PK-signed .docx (Content_Types, _rels, word/document.xml, sectPr)",
+      lf49d.isUint8 && lf49d.pk && lf49d.hasContentTypes && lf49d.hasDocument && lf49d.hasRels && lf49d.wordDoc && lf49d.sectPr, JSON.stringify(lf49d));
+    ok("LF49 slice 2: the report has the dashboard title, KPI names, and data tables",
+      lf49d.title && lf49d.kpiLabel && lf49d.hasTable, JSON.stringify(lf49d));
+
     // ---- N-FUN: first-export delight moment ----
     console.log("\n• N-FUN: first-export delight moment");
     const firstExp1 = await page.evaluate(() => {

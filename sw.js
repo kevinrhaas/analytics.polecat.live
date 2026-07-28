@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v302"; /* v302: LF62 slice 8 — the same ✨ sparkle
+var CACHE_NAME = "studio-shell-v303"; /* v303: LF49 slice 2 — Export ▾ → "Word document (.docx)":
+   a dependency-free Word report (Studio.docxDoc in exporters.js, same OOXML-in-a-ZIP writer as the
+   .xlsx) — title + KPIs/Views tables + a table of each source's backend data. app/exporters.js,
+   app/studio.js, app/index.html, docs/index.html changed, so precached copies roll.
+   v302: LF62 slice 8 — the same ✨ sparkle
    name-suggest button now sits on Explore's own "Folder" field too (the last
    un-wired LF62 surface): a View picked over a workspace dataset suggests that
    dataset's own folder, one hop up the connections->datasets->jobs->views chain
