@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v305"; /* v305: LF49 slice 3 — Export ▾ → "PowerPoint (.pptx)",
+var CACHE_NAME = "studio-shell-v306"; /* v306: LF51 slice 1 (nav IA spec (c), "show a full
+   date-time, not just a date") — every "cx-when" row badge (Connections, Datasets, Jobs,
+   Dashboards list, Repository) now reads a full date-time via a new shared Studio.fmtWhen
+   (app/model.js), instead of a bare toLocaleDateString(). app/model.js, app/connections.js,
+   app/datasets.js, app/jobs.js, app/studio.js. */
+/* v305: LF49 slice 3 — Export ▾ → "PowerPoint (.pptx)",
    the last of LF49's three formats (LF49 is now fully done): a dependency-free slide deck
    (Studio.pptxDeck in exporters.js, same OOXML-in-a-ZIP writer as the .xlsx/.docx) — a title
    slide, then a table slide per KPIs/Views/Filters block and per data source, each capped to

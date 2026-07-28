@@ -191,7 +191,7 @@
         folderBadge +
         '<span class="cx-badge">' + (j.steps || []).length + " step" + ((j.steps || []).length === 1 ? "" : "s") + '</span>' +
         jobRefreshBadge(j) +
-        '<span class="cx-when">' + esc(new Date(j.updatedAt || Date.now()).toLocaleDateString()) + '</span>' +
+        '<span class="cx-when">' + esc(Studio.fmtWhen(j.updatedAt || Date.now())) + '</span>' +
         '<button type="button" class="cx-private' + (j.private ? " private" : "") + '" data-job-private="' + esc(j.id) + '" title="' + (j.private ? "Private — only you can see this" : "Make private") + '" aria-label="' + (j.private ? "Make " + esc(j.name) + " public" : "Make " + esc(j.name) + " private") + '" aria-pressed="' + (j.private ? "true" : "false") + '"></button>' +
         '<span class="cx-actions">' +
           '<button type="button" class="btn" data-job-run="' + esc(j.id) + '">Run</button>' +

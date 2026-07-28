@@ -6326,7 +6326,7 @@
     var title = sp.title || sp.name || "Untitled";
     var meta = [sp.name || "", panels + " panel" + (panels === 1 ? "" : "s") + (kpis ? " · " + kpis + " KPI" + (kpis === 1 ? "" : "s") : "")]
       .filter(Boolean).join(" · ");
-    var when = r.ts ? new Date(r.ts).toLocaleDateString() : "";
+    var when = r.ts ? Studio.fmtWhen(r.ts) : "";
     return '<div class="cx-row dash-li" data-recent="' + esc(r.id) + '">' +
       '<span class="cx-name"><button type="button" class="cx-title-btn" title="' + esc(title) + ' — open" aria-label="Open ' + esc(title) + '"><b>' + esc(title) + '</b></button><small>' + esc(meta) +
         (matchedCol ? ' · matches column “' + esc(matchedCol) + '”' : "") + '</small></span>' +
@@ -6619,7 +6619,7 @@
         '<span class="cx-ic" style="color:var(--faint)"></span>' +
         '<span class="cx-name"><button type="button" class="cx-title-btn" title="' + esc(label) + ' — open" aria-label="Open ' + esc(label) + '"><b>' + esc(label) + '</b></button><small>' + esc((td ? td.singular : r.type) + " · " + r.meta) + '</small></span>' +
         (r.folder ? '<span class="cx-badge cx-folder" title="Folder: ' + esc(r.folder) + '">' + esc(r.folder) + '</span>' : "") +
-        '<span class="cx-when">' + (r.ts ? esc(new Date(r.ts).toLocaleDateString()) : "") + '</span>' +
+        '<span class="cx-when">' + (r.ts ? esc(Studio.fmtWhen(r.ts)) : "") + '</span>' +
         (canQuickEdit ? '<span class="cx-actions"><button type="button" class="repo-edit" data-repo-edit-type="' + esc(r.type) + '" data-repo-edit-id="' + esc(r.id) + '" title="Quick edit" aria-label="Quick edit ' + esc(label) + '"></button></span>' : "") +
         '</div>';
     }

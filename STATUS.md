@@ -116,6 +116,31 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF51 (slice 1) — row timestamps show a full date-time, not just a date (#95, v669, sw
+  v306, 2026-07-28, steward — step 5 of the LOCKED BUILD ORDER, LF51's spec (c)):** the
+  "last edited" `cx-when` badge on every Connections/Datasets/Jobs row, the Dashboards list
+  row and the Repository row all called `new Date(...).toLocaleDateString()` — a bare date,
+  so two edits made the same day were indistinguishable and the ordering wasn't visible at a
+  glance. Added one shared `Studio.fmtWhen(ts)` (app/model.js, next to `escapeHtml` — the same
+  "call it directly off the Studio namespace" pattern every module already uses) that renders
+  the viewer's own locale date PLUS a `HH:MM` time (deliberately NOT pinned to Central time
+  the way the changelog/build-stamp `fmtStamp` in studio.js is — these are a user's own
+  edits, not a fleet-wide ship stamp). Swapped all five call sites
+  (app/connections.js, app/datasets.js, app/jobs.js, and app/studio.js's `dashListRowHtml` +
+  `repoRowHtml`) to call it instead of hand-rolling `toLocaleDateString()`. Left untouched:
+  jobs.js's "Last ran … — overdue" banner line (a different warning message, not a `cx-when`
+  row badge) and Explore's Open-dashboard-picker date (LF45's own surface, not one of the
+  four sections LF51's spec (c) names). Mobile is unaffected — `.cx-when` is already hidden
+  at ≤640px (studio.css), so this is a desktop-only, pure-text change with no CSS/layout
+  touched. 5 new regression tests (one per section, seeding a fixed timestamp and asserting
+  the rendered badge contains both a date and a `H:MM`-shaped time). Files: app/model.js,
+  app/connections.js, app/datasets.js, app/jobs.js, app/studio.js, tests/run.js, sw.js,
+  js/changelog.js. **NEXT in LF51:** the remaining SPECIFICS — (a) full (untruncated) row
+  names, (b) right-aligned filter pills, (d) a list/tile view toggle per section — plus the
+  bigger CORE PRINCIPLE (one shared nav component set incl. the Explore dataset navigator)
+  are still open; "slice it" per Kevin's own note, so the next run should pick ONE of those
+  rather than the whole epic. LF54's own remaining item (deeper density tightening) is a
+  separate, smaller follow-up.
 - **LF49 (slice 3) — export a dashboard as a PowerPoint deck (.pptx) (#88, v668, sw v305,
   2026-07-28, steward — step 5 of the LOCKED BUILD ORDER; LF49 is now fully done):** the last
   of LF49's three formats, reusing the crc32/utf8/zipStore OOXML-in-a-ZIP writer the .xlsx/.docx
@@ -5780,8 +5805,9 @@
 > 5. **Exports + navigation/layout:** LF49 (XLSX ✓ · DOCX ✓ · PPTX ✓, 2026-07-28 — **LF49 is now
 >    fully done**) · LF54 (slice 1 ✓ left-align + kill left-gutter whitespace, 2026-07-28 — deeper
 >    per-component density tightening left as an optional follow-up) · LF51 (sophisticated nav IA:
->    right-aligned pills, full names, date-time, list+rich-tile views — not started, "slice it,"
->    design-standards-driven; the remaining step-5 item).
+>    right-aligned pills, full names, date-time ✓ slice 1 (2026-07-28, row badges — Connections/
+>    Datasets/Jobs/Dashboards/Repository — now show a full date-time, see DONE), list+rich-tile
+>    views — still open, "slice it," design-standards-driven; the remaining step-5 item).
 > The recurring quality tracks (UX polish, Track H/L/N sweeps) continue to interleave as usual.
 
 ### ★★ LIVE-QA QUEUE (Kevin, 2026-07-27 second session) — captured during live QA
