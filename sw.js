@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v307"; /* v307: LF49 slice 3 upgrade — the PowerPoint (.pptx)
+var CACHE_NAME = "studio-shell-v308"; /* v308: LF51 spec (a) — row NAMES no longer
+   ellipsis-truncate; they wrap and stay fully visible even when tag/folder badges squeeze
+   the name column (Connections, Datasets, Jobs, Dashboards list, Repository all share
+   .cx-name b). The <small> subtitle line is unchanged (still ellipsizes, single-line).
+   app/studio.css, tests/run.js changed, so precached copies roll.
+   v307: LF49 slice 3 upgrade — the PowerPoint (.pptx)
    export now renders each View as its real chart IMAGE (rasterized from the live preview panel)
    instead of a data table: a title slide, a KPI summary slide, then one image slide per View
    (<p:pic> picture shapes; full data still lives in the .xlsx export). app/exporters.js,
