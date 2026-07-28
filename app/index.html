@@ -214,6 +214,7 @@
         <p>Prep a dataset before it's charted: rename/cast/derive columns, filter rows, and roll up with an acreage-weighted mean for honest State/CRD/HUC8 aggregates. Run a job and its output lands back in Datasets, ready for Explore or any dashboard.</p>
         <input id="jobsSearch" class="repo-search" type="search" placeholder="Search jobs…" aria-label="Search jobs"/>
         <div class="repo-io">
+          <button type="button" class="btn" id="jobsViewToggle" title="Switch between tile and list layout" aria-pressed="false">Tile view</button>
           <button type="button" class="btn primary" id="jobsNewBtn">+ New job</button>
         </div>
       </div>
@@ -226,6 +227,7 @@
         <p>Where your dashboards' data lives — reusable connections to warehouses, files and APIs, one adapter each. <span id="connCredNote">Credentials stay in this browser.</span></p>
         <input id="connSearch" class="repo-search" type="search" placeholder="Search connections…" aria-label="Search connections"/>
         <div class="repo-io">
+          <button type="button" class="btn" id="connViewToggle" title="Switch between tile and list layout" aria-pressed="false">Tile view</button>
           <button type="button" class="btn primary" id="connNewBtn">+ New connection</button>
         </div>
       </div>

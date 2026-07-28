@@ -151,8 +151,23 @@
   // search/filter UI of its own before this, so this also introduces the
   // section's first search box (title/source/output/folder text match).
   var _jobsFolderFilter = ""; // "" = All, "__unfiled" = no folder, else a folder name
+  // LF51 (d): list ⇆ tile view, same as Datasets/Connections — device-remembered.
+  var _jobsViewMode = "list";
+  try { _jobsViewMode = localStorage.getItem("studio-jobs-view") || "list"; } catch (e) {}
   function renderJobs() {
     var results = $("#jobsResults"); if (!results) return;
+    // LF51 (d): persistent list/tile toggle in the section header.
+    var vt = $("#jobsViewToggle");
+    if (vt) {
+      var tilesNow = _jobsViewMode === "tiles";
+      vt.textContent = tilesNow ? "List view" : "Tile view";
+      vt.setAttribute("aria-pressed", tilesNow ? "true" : "false");
+      vt.onclick = function () {
+        _jobsViewMode = _jobsViewMode === "tiles" ? "list" : "tiles";
+        try { localStorage.setItem("studio-jobs-view", _jobsViewMode); } catch (e) {}
+        renderJobs();
+      };
+    }
     var q = (($("#jobsSearch") || {}).value || "").toLowerCase();
     var list = Studio.Workspace.all("jobs").filter(isVisibleToMe).sort(function (a, b) { return (b.updatedAt || 0) - (a.updatedAt || 0); });
     var folderCounts = {}, folderUnfiled = 0;
@@ -176,6 +191,8 @@
       var src = Studio.Workspace.get("datasets", j.sourceDatasetId);
       return (j.name + " " + (src ? src.name : "") + " " + (j.outputName || "") + " " + (j.folder || "")).toLowerCase().indexOf(q) >= 0;
     });
+    // LF51 (d): list row or tile card, same pattern as Datasets/Connections.
+    var isTiles = _jobsViewMode === "tiles";
     var rows = shown.map(function (j) {
       var src = Studio.Workspace.get("datasets", j.sourceDatasetId);
       var out = j.outputDatasetId && Studio.Workspace.get("datasets", j.outputDatasetId);
@@ -183,25 +200,32 @@
         : (j.lastRun.ok ? '<span class="cx-dot ok" data-tip="Last run OK · ' + esc(new Date(j.lastRun.at).toLocaleString()) + ' · ' + j.lastRun.rows + ' rows"></span>'
           : '<span class="cx-dot bad" data-tip="Last run failed: ' + esc(j.lastRun.error) + '"></span>');
       var folderBadge = j.folder ? '<span class="cx-badge cx-folder" data-tip="Folder: ' + esc(j.folder) + '">' + esc(j.folder) + '</span>' : "";
-      return '<div class="cx-row" data-job-id="' + esc(j.id) + '">' +
-        dot +
-        '<span class="cx-ic" style="color:var(--faint)"></span>' +
-        '<span class="cx-name"><button type="button" class="cx-title-btn" title="' + esc(j.name) + ' — edit job" aria-label="Edit job ' + esc(j.name) + '"><b>' + esc(j.name) + '</b></button><small>' + (src ? "from " + esc(src.name) : "no source dataset") +
-          (out ? " → " + esc(out.name) : "") + '</small></span>' +
-        folderBadge +
+      var icon = '<span class="cx-ic" style="color:var(--faint)"></span>';
+      var name = '<span class="cx-name"><button type="button" class="cx-title-btn" title="' + esc(j.name) + ' — edit job" aria-label="Edit job ' + esc(j.name) + '"><b>' + esc(j.name) + '</b></button><small>' + (src ? "from " + esc(src.name) : "no source dataset") +
+          (out ? " → " + esc(out.name) : "") + '</small></span>';
+      var badges = folderBadge +
         '<span class="cx-badge">' + (j.steps || []).length + " step" + ((j.steps || []).length === 1 ? "" : "s") + '</span>' +
-        jobRefreshBadge(j) +
-        '<span class="cx-when">' + esc(Studio.fmtWhen(j.updatedAt || Date.now())) + '</span>' +
-        '<button type="button" class="cx-private' + (j.private ? " private" : "") + '" data-job-private="' + esc(j.id) + '" title="' + (j.private ? "Private — only you can see this" : "Make private") + '" aria-label="' + (j.private ? "Make " + esc(j.name) + " public" : "Make " + esc(j.name) + " private") + '" aria-pressed="' + (j.private ? "true" : "false") + '"></button>' +
-        '<span class="cx-actions">' +
+        jobRefreshBadge(j);
+      var when = '<span class="cx-when">' + esc(Studio.fmtWhen(j.updatedAt || Date.now())) + '</span>';
+      var privateBtn = '<button type="button" class="cx-private' + (j.private ? " private" : "") + '" data-job-private="' + esc(j.id) + '" title="' + (j.private ? "Private — only you can see this" : "Make private") + '" aria-label="' + (j.private ? "Make " + esc(j.name) + " public" : "Make " + esc(j.name) + " private") + '" aria-pressed="' + (j.private ? "true" : "false") + '"></button>';
+      var actions = '<span class="cx-actions">' +
           '<button type="button" class="btn" data-job-run="' + esc(j.id) + '">Run</button>' +
           '<button type="button" class="btn" data-job-edit="' + esc(j.id) + '">Edit</button>' +
           '<button type="button" class="btn" data-job-del="' + esc(j.id) + '" aria-label="Delete ' + esc(j.name) + '">✕</button>' +
-        '</span></div>';
+        '</span>';
+      if (isTiles) {
+        return '<div class="dsx-tile" data-job-id="' + esc(j.id) + '">' +
+          '<div class="dsx-tile-head">' + dot + icon + name + privateBtn + '</div>' +
+          (badges ? '<div class="dsx-tile-badges">' + badges + '</div>' : "") +
+          '<div class="dsx-tile-foot">' + when + actions + '</div>' +
+          '</div>';
+      }
+      return '<div class="cx-row" data-job-id="' + esc(j.id) + '">' +
+        dot + icon + name + badges + when + privateBtn + actions + '</div>';
     });
     results.innerHTML =
       (pillsFJobs ? '<div class="wb-chips">' + pillsFJobs + '</div>' : "") +
-      (rows.length ? '<div class="cx-list">' + rows.join("") + '</div>'
+      (rows.length ? '<div class="' + (isTiles ? "dsx-grid" : "cx-list") + '">' + rows.join("") + '</div>'
       : '<div class="cx-empty"><b>' + (q || _jobsFolderFilter ? "No jobs match." : "No jobs yet.") + '</b><br/>' +
         (q || _jobsFolderFilter ? "" : 'A job preps one dataset — rename/cast/derive columns, filter rows, roll up ' +
         'with sum/avg/count/median or an acreage-weighted mean, and join or union in another dataset — then saves the result as ' +
@@ -211,7 +235,7 @@
     $$("[data-jobs-folder]", results).forEach(function (btn) {
       btn.onclick = function () { _jobsFolderFilter = btn.getAttribute("data-jobs-folder"); renderJobs(); };
     });
-    $$(".cx-row", results).forEach(function (row) {
+    $$(".cx-row, .dsx-tile", results).forEach(function (row) {
       var j = Studio.Workspace.get("jobs", row.getAttribute("data-job-id"));
       var icEl = row.querySelector(".cx-ic"); if (icEl && Studio.icon) icEl.appendChild(Studio.icon("sliders", 18));
       row.addEventListener("click", function (e) { if (e.target.closest("[data-job-run],[data-job-private],[data-job-edit],[data-job-del]")) return; openJobEditor(j); });
