@@ -116,6 +116,18 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **Panel editor: the data-source field reads "Dataset", not "Query (data access)" (#119, v643,
+  sw v280, 2026-07-28, steward):** Kevin, live QA — in the widget (panel) editor, "the thing on
+  data you should call this dataset not query." Renamed the `field("Query (data access)", …)` label
+  on the DA picker in both the widget inspector (`renderPanelInspector`, app/studio.js ~2997) and
+  the KPI inspector (~3967) to `"Dataset"`, plus the "…or pick one in 'Query (data access)' above…"
+  empty-chart helper text (~3862) to reference `'Dataset'`. UI-text only — the DA picker, its
+  callback, and the `daPicker`/`p.chart.da`/`k.da` bindings are untouched; the genuine SQL-query
+  editors in the dataset/connection authoring flow keep their "Query"/"SQL Query" labels. Also
+  captured Kevin's broader vocabulary for the pending LF52 rename: the editor itself = "Panel
+  editor", the edited item widget → "View". Test: the widget inspector exposes a field labeled
+  "Dataset" and none labeled "Query (data access)". Files: app/studio.js, tests/run.js, sw.js,
+  js/changelog.js.
 - **Fix: "What's new" is now reachable on mobile (v642, sw v279, 2026-07-28, steward — closes UX
   sweep 2026-07-28 (#367) finding #1, top priority):** the What's-new feed had exactly two
   triggers — the global topbar button `#tbWhatsNew` (hidden at ≤640px by the M10 phone-topbar

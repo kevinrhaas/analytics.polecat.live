@@ -2994,7 +2994,7 @@
 
     // data binding
     var ds = section(body, "Data", null, null, "data-sources", "db");
-    ds.appendChild(field("Query (data access)", daPicker(p.chart.da, function (v) { rebindDA(p, v); })));
+    ds.appendChild(field("Dataset", daPicker(p.chart.da, function (v) { rebindDA(p, v); })));
     // H-track: "Edit source →" jump link in Advanced mode — one click from a panel to its DA inspector.
     // Hidden in Simple mode (authoring controls are restricted there).
     if (p.chart.da && !S.simpleMode) {
@@ -3859,7 +3859,7 @@
         // No query bound yet — direct the user to the picker above
         var gNone = el("div", "guided-setup");
         var gNoneIc = el("span", "gs-ic"); gNoneIc.appendChild(Studio.icon("info", 14)); gNone.appendChild(gNoneIc);
-        var gNoneTxt = el("span"); gNoneTxt.textContent = "Drag a query from the library, or pick one in 'Query (data access)' above, to see your chart."; gNone.appendChild(gNoneTxt);
+        var gNoneTxt = el("span"); gNoneTxt.textContent = "Drag a query from the library, or pick one in 'Dataset' above, to see your chart."; gNone.appendChild(gNoneTxt);
         sec.appendChild(gNone);
       } else if (missingRequiredCols(p)) {
         if (!cols.length) {
@@ -3964,7 +3964,7 @@
     quickHelp(body, "kpi");
     var sec = section(body, "KPI tile", null, null, "builder", "grid");
     sec.appendChild(field("Label", input(k.label, function (v) { k.label = v; refreshPreview(); renderListsOnly(); })));
-    sec.appendChild(field("Query (data access)", daPicker(k.da, function (v) {
+    sec.appendChild(field("Dataset", daPicker(k.da, function (v) {
       var dd = Studio.daById(S.spec, v); k.da = v; if (dd && dd.columns) k.valueCol = dd.columns[0]; renderInspector(); refreshPreview();
     })));
     sec.appendChild(field("Value column", colPicker(Studio.columnsOf(S.spec, k.da), k.valueCol, function (v) { k.valueCol = v; refreshPreview(); })));

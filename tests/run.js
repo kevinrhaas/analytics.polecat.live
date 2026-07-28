@@ -3483,6 +3483,11 @@ function serve() {
       if (sp.panels && sp.panels[0]) {
         window.__studioSelect({ kind: "panel", id: sp.panels[0].id });
         out.inspTitle = (document.getElementById("inspTitle") || {}).textContent || "";
+        // #119 (live QA): the widget inspector's data-source field reads "Dataset", not the old
+        // "Query (data access)" wording.
+        var labels = [].slice.call(document.querySelectorAll("#inspBody .field label")).map(function (l) { return l.textContent; });
+        out.hasDatasetLabel = labels.indexOf("Dataset") >= 0;
+        out.hasOldQueryLabel = labels.indexOf("Query (data access)") >= 0;
       }
       // preview status line counts "widgets", not "panels"
       out.status = (document.getElementById("previewStatus") || {}).textContent || "";
@@ -3491,6 +3496,8 @@ function serve() {
     ok("M2b: the dashboard item reads 'Widget' in the interface — inspector title, canvas drop hint, text button, and status line (no 'panel' wording)",
       m2bUi.inspTitle === "Widget" && /add a widget/i.test(m2bUi.dropHint) && /text widget/i.test(m2bUi.textBtn) &&
       !/\bpanel/i.test(m2bUi.status), JSON.stringify(m2bUi));
+    ok("#119 (live QA): the widget inspector's data-source field is labeled 'Dataset', not the old 'Query (data access)'",
+      m2bUi.hasDatasetLabel === true && m2bUi.hasOldQueryLabel === false, JSON.stringify(m2bUi));
     (function () {
       // source ratchet: the layout PANES and internal identifiers keep "panel";
       // the dashboard-item UI strings do not. Spot-check the two that regressed.

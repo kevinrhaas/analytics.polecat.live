@@ -5,7 +5,10 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v279"; /* v279: UX sweep 2026-07-28 #1 — added a phone-reachable
+var CACHE_NAME = "studio-shell-v280"; /* v280: the Studio widget + KPI editor's data-source field
+   now reads "Dataset" instead of "Query (data access)" (#119, Kevin live QA). app/studio.js
+   changed, so precached copies roll.
+   v279: UX sweep 2026-07-28 #1 — added a phone-reachable
    "What's new" item to the ⋯More menu (#tbWhatsNew is hidden ≤640px, #btnChangelog only exists
    inside Studio) so mobile users can always open the feed. app/index.html, app/studio.js changed.
    v278: the offline sample generator now emits ONE row per
