@@ -1949,6 +1949,11 @@
         {
           if (isPreview()) {
             addDownloadChrome(acts, card, p, data[p.chart.da]);
+            // LF69(a): destructive/close belongs at the FAR RIGHT, not mid-row — addDownloadChrome
+            // just appended the export buttons after del, so re-append del to move it to the end
+            // (appendChild on an already-connected node relocates it, no duplicate).
+            var delBtn = acts.querySelector('[data-act="del"]');
+            if (delBtn) acts.appendChild(delBtn);
           } else {
             var dlActs = document.createElement("div"); dlActs.className = "pdc-dl-acts";
             addDownloadChrome(dlActs, card, p, data[p.chart.da]);
