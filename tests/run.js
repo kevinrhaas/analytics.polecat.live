@@ -28549,6 +28549,65 @@ function serve() {
     });
     ok("Z8 KPI: exported CDF HTML embeds KPI drill config in STUDIO_SPEC", kpiDrillExport.hasDrill, JSON.stringify(kpiDrillExport));
 
+    // ── UX sweep 2026-07-28: KPI tiles always link to their detail (design bar) ──────
+    // Prior finding: the shipped demo dashboards' KPI tiles had no Click-through URL configured,
+    // so they were plain static numbers in the exported dashboard / Viewer — "dead numbers,
+    // violates the tiles/KPIs always link to detail bar." Fix: a KPI tile with no drill URL now
+    // falls back to the same shared PDC.bindDetail drawer bars/donut/treemap/table use, defaulting
+    // to the tile's own bound DA (buildKpiDetailCfg in studio-render.js) — no per-tile setup
+    // required. Gated to non-preview (exported bundle + Viewer) so the Studio builder's own
+    // click-to-select-a-KPI interaction is untouched.
+    console.log("\n• UX sweep: KPI tiles always link to their detail");
+
+    // 1. Exported dashboard: a KPI with no drill URL gets cursor:pointer and clicking it opens
+    // the shared detail drawer (.pdc-dt), titled with the KPI's own label.
+    const kpiDetailDefault = await page.evaluate(async () => {
+      try {
+        var spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json());
+        if (!spec.kpis || !spec.kpis.length) return { ok: false, reason: "no KPIs" };
+        delete spec.kpis[0].drill; // the untouched, no-config-needed case
+        var html = Studio.buildHtml(spec, window.__STUDIO_STATE.assets, { preview: false, mock: Studio.genMock(spec) });
+        var ifr = document.createElement("iframe");
+        ifr.style.cssText = "position:fixed;left:-9999px;width:1200px;height:900px";
+        document.body.appendChild(ifr);
+        await new Promise((res) => { ifr.onload = res; ifr.srcdoc = html; });
+        await new Promise((r) => setTimeout(r, 850));
+        var d = ifr.contentDocument;
+        var tile = d.querySelector("#kpis .kpi");
+        var cursor = tile ? tile.style.cursor : null;
+        if (tile) tile.click();
+        await new Promise((r) => setTimeout(r, 250));
+        var drawer = d.getElementById("pdc-dt");
+        var titleEl = drawer && drawer.querySelector(".pdc-dt-t");
+        var out = { cursor: cursor, drawerOpened: !!drawer, drawerTitle: titleEl ? titleEl.textContent : null, expectedLabel: spec.kpis[0].label };
+        ifr.remove();
+        return out;
+      } catch (e) { return { ok: false, err: e.message }; }
+    });
+    ok("UX sweep: a KPI tile with no Click-through URL gets cursor:pointer in the exported dashboard",
+      kpiDetailDefault.cursor === "pointer", JSON.stringify(kpiDetailDefault));
+    ok("UX sweep: clicking that KPI tile opens the shared Detail drawer, titled with the KPI's own label",
+      kpiDetailDefault.drawerOpened && kpiDetailDefault.drawerTitle === kpiDetailDefault.expectedLabel, JSON.stringify(kpiDetailDefault));
+
+    // 2. Studio builder's own live preview: an untouched KPI (no drill) stays cursor:auto — the
+    // default detail fallback must not fight the builder's click-to-select-this-KPI interaction.
+    await page.evaluate(async function () {
+      var freshSpec = await fetch("data/examples/studio-cost.studio.json").then(function (r) { return r.json(); });
+      delete freshSpec.kpis[0].drill;
+      window.__studioLoad(freshSpec);
+    });
+    await page.waitForTimeout(600);
+    const kpiBuilderCursor = await page.evaluate(function () {
+      try {
+        var iw = document.getElementById("preview") && document.getElementById("preview").contentWindow;
+        var tile = iw && iw.document.querySelector("#kpis .kpi");
+        if (!tile) return { ok: false, reason: "no .kpi tile" };
+        return { ok: true, cursor: tile.style.cursor };
+      } catch (e) { return { ok: false, err: e.message }; }
+    });
+    ok("UX sweep: in the Studio builder's own preview, an untouched KPI tile is NOT given cursor:pointer (click-to-select stays unambiguous)",
+      kpiBuilderCursor.ok && kpiBuilderCursor.cursor !== "pointer", JSON.stringify(kpiBuilderCursor));
+
     // ── Z8 slice 13: Stacked area gets its own type-specific options (smooth + legend) ──
     console.log("\n• Z8 areaStacked: smooth curve + legend toggle");
 

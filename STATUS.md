@@ -116,6 +116,28 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **UX sweep 2026-07-28 (#395) — KPI tiles always link to their detail (v679, sw v316,
+  2026-07-28, steward):** the sweep's new finding: both live demo/sample dashboards' KPI tiles
+  (`viewer.html?dash=flagship-cost`, the Conservation Insight cover-crop dashboard — 8 tiles total)
+  were static numbers with no click affordance, violating the house design bar ("dashboard
+  tiles/KPIs always link to their detail"). Root cause: the KPI click-through mechanism (`k.drill`,
+  Z8) is opt-in per tile, and the demo dashboards never had it set — same for the `detail` drawer
+  bars/donut/treemap/table already support (also opt-in, needs a per-panel `p.detail.da`). Rather
+  than hand-configure two dashboards (a content fix that wouldn't hold for the NEXT dashboard
+  either), fixed it at the engine level: `buildKpiDetailCfg` (app/studio-render.js) gives every KPI
+  tile a DEFAULT detail-drawer target — the tile's own bound DA (`k.da`, always set — every KPI is
+  created bound to one) — used via the same shared `PDC.bindDetail`/`PDC.openDetail` drawer as
+  every other chart type, so clicking any tile with no configured Click-through URL now lists the
+  rows behind its own query. An explicit `k.drill.url` still takes priority (unchanged Z8
+  behavior) and `k.detail.{da,param,noun,titlePrefix}` can still override the default when a KPI's
+  own DA is pre-aggregated and a row-grain DA makes more sense. Scoped to `!isPreview()` (the
+  exported bundle and the read-only Viewer only) — the Studio builder's own live iframe, Panel-zoom,
+  Slideshow, and Compare stay exactly as before, so clicking an untouched KPI tile there still just
+  selects it for editing instead of also popping a detail drawer. 3 new regression tests (an
+  untouched KPI gets cursor:pointer + opens `.pdc-dt` titled with its own label in the exported
+  dashboard; the Studio builder's own preview leaves an untouched KPI at cursor:auto). docs/index.html's
+  KPI tile chart-type description updated to name the new default. Files: app/studio-render.js,
+  docs/index.html, tests/run.js, sw.js, js/changelog.js.
 - **LF52 (extend) — the last two named surfaces finish the widget/analysis → View rename (v677,
   sw v314, 2026-07-28, steward — closes the "LF52 note (extend)" left open when LF52's main slice
   shipped):** LF52's main slice (v660) renamed "widget" → "View" app-wide but deliberately left two
