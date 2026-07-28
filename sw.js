@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v303"; /* v303: LF49 slice 2 — Export ▾ → "Word document (.docx)":
+var CACHE_NAME = "studio-shell-v304"; /* v304: LF50 — removed the stray in-builder Low/High
+   "Creativity" live tuner (Quick import honors the Settings default instead); #qmTuner now only
+   carries the LF67 "unsaved" reminder. app/index.html, app/studio.js, app/studio.css changed, so
+   precached copies roll.
+   v303: LF49 slice 2 — Export ▾ → "Word document (.docx)":
    a dependency-free Word report (Studio.docxDoc in exporters.js, same OOXML-in-a-ZIP writer as the
    .xlsx) — title + KPIs/Views tables + a table of each source's backend data. app/exporters.js,
    app/studio.js, app/index.html, docs/index.html changed, so precached copies roll.

@@ -1841,8 +1841,8 @@ function serve() {
       qmSettingsAfter === "high", qmSettingsAfter);
 
     // The real flow at High: drop a file rich enough for the whole fun tier, confirm
-    // the auto-built dashboard actually includes it, and the builder's live tuner
-    // (#qmTuner) shows up pre-set to High.
+    // the auto-built dashboard actually includes it (driven purely by the Settings default),
+    // and confirm the stray in-builder Low/High "Creativity" tuner is gone (LF50).
     await page.click('#railNav .rail-item[data-sec="home"]');
     await page.waitForTimeout(150);
     const qiFunFixture = path.join(__dirname, "fixture-quickimport-fun.csv");
@@ -1861,48 +1861,32 @@ function serve() {
     await page.waitForTimeout(500);
     const qiFunAfter = await page.evaluate(function () {
       var spec = window.__STUDIO_STATE.spec;
-      var qmt = document.querySelector("#qmTuner");
       return {
         panelTypes: spec.panels.map(function (p) { return p.chart.type; }).sort(),
         toastText: document.querySelector("#toast").textContent,
-        tunerVisible: qmt && !qmt.hidden,
-        tunerHighPressed: qmt && qmt.querySelector('.qm-tuner-btn[data-qm="high"]').getAttribute("aria-pressed") === "true",
-        tunerLowPressed: qmt && qmt.querySelector('.qm-tuner-btn[data-qm="low"]').getAttribute("aria-pressed") === "true"
+        // LF50: the in-builder Low/High "Creativity" control is gone
+        tunerBtns: document.querySelectorAll(".qm-tuner-btn").length,
+        tunerSeg: !!document.querySelector(".qm-tuner-seg"),
+        tunerLbl: !!document.querySelector(".qm-tuner-lbl")
       };
     });
     ok("QM3: a Quick import at the High Settings default auto-builds map/treemap/slope/ensemble too",
       qiFunAfter.panelTypes.join(",") === "bars,choropleth,donut,ensembleSeries,line,slope,table,treemap", JSON.stringify(qiFunAfter));
-    ok("QM3: the builder's live tuner appears, pre-set to High",
-      qiFunAfter.tunerVisible && qiFunAfter.tunerHighPressed && !qiFunAfter.tunerLowPressed, JSON.stringify(qiFunAfter));
+    // LF50: the stray Low/High "Creativity" live tuner was removed from the builder — a Quick
+    // import still auto-builds the High-tier set (proven above) purely from the Settings default,
+    // but the per-import in-builder tuner control (label + Low/High segment) is gone.
+    ok("LF50: the stray Low/High 'Creativity' control is gone from the builder (Quick import still honors the Settings default)",
+      qiFunAfter.tunerBtns === 0 && !qiFunAfter.tunerSeg && !qiFunAfter.tunerLbl, JSON.stringify(qiFunAfter));
 
-    // The live tuner: flip to Low WITHOUT re-uploading — rebuilds in place from the
-    // same source dataset, re-parsed fresh (not a stale cached profile).
-    await page.click('#qmTuner .qm-tuner-btn[data-qm="low"]');
-    await page.waitForTimeout(300);
-    const qiFunLow = await page.evaluate(function () {
-      var spec = window.__STUDIO_STATE.spec;
-      var qmt = document.querySelector("#qmTuner");
-      return {
-        title: spec.title,
-        panelTypes: spec.panels.map(function (p) { return p.chart.type; }).sort(),
-        toastText: document.querySelector("#toast").textContent,
-        tunerLowPressed: qmt.querySelector('.qm-tuner-btn[data-qm="low"]').getAttribute("aria-pressed") === "true"
-      };
-    });
-    ok("QM3: flipping the live tuner to Low rebuilds in place down to the conservative set, and reflects the new level",
-      qiFunLow.panelTypes.join(",") === "bars,donut,line,table" && qiFunLow.tunerLowPressed && /Creativity: Low/.test(qiFunLow.toastText),
-      JSON.stringify(qiFunLow));
-
-    // The tuner's marker is scoped to the dashboard quickBuildDashboard itself built —
-    // loading a different (unrelated) dashboard must NOT carry it forward. Restores
-    // whatever was loaded before this whole block ran (qmPriorSpec) rather than
-    // leaving Studio on an empty blank dashboard for the rest of the suite.
+    // LF50: #qmTuner survives only as the LF67 "unsaved" reminder container — loading an
+    // unrelated (non-Quick-import) dashboard clears it and does not leak the indicator forward.
+    // Restores whatever was loaded before this whole block ran (qmPriorSpec).
     const qmTunerAfterLoad = await page.evaluate(function (prior) {
       window.__studioLoad(prior);
       var qmt = document.querySelector("#qmTuner");
       return { hidden: !qmt || qmt.hidden, panelCount: window.__STUDIO_STATE.spec.panels.length };
     }, qmPriorSpec);
-    ok("QM3: the live tuner does not leak onto an unrelated (non-Quick-import) dashboard",
+    ok("LF50: the Quick-import 'unsaved' indicator does not leak onto an unrelated (non-Quick-import) dashboard",
       qmTunerAfterLoad.hidden && qmTunerAfterLoad.panelCount === qmPriorSpec.panels.length, JSON.stringify(qmTunerAfterLoad));
 
     fs.unlinkSync(qiFunFixture);

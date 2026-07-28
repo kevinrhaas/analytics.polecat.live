@@ -7761,7 +7761,7 @@
             Studio.CARD_SKINS.map(function (p) { return '<option value="' + esc(p[0]) + '"' + (defaultCardSkin() === p[0] ? " selected" : "") + '>' + esc(p[1]) + '</option>'; }).join("") +
           '</select></div>' +
         '<div class="set-row"><span class="set-row-ic" data-ic="palette"></span>' +
-          '<div class="set-row-txt"><b>Quick import creativity</b><small>How adventurous Quick import\'s auto-built dashboard is (Home\'s drop-a-file card). Low sticks to bars/donut/line/table; High also mixes in maps, treemaps, slope charts, and ensemble views when the dropped data supports them. Adjustable per-import from a live tuner in the builder right after a Quick import.</small></div>' +
+          '<div class="set-row-txt"><b>Quick import creativity</b><small>How adventurous Quick import\'s auto-built dashboard is (Home\'s drop-a-file card). Low sticks to bars/donut/line/table; High also mixes in maps, treemaps, slope charts, and ensemble views when the dropped data supports them. This default applies to every Quick import; change a built dashboard by editing it in the builder.</small></div>' +
           '<select id="setDefaultQmCreativitySel" class="set-sel">' +
             '<option value="low"' + (defaultQmCreativity() !== "high" ? " selected" : "") + '>Low — conservative basics</option>' +
             '<option value="high"' + (defaultQmCreativity() === "high" ? " selected" : "") + '>High — diverse &amp; ambitious</option>' +
@@ -9345,25 +9345,9 @@
     });
     var uBtn = sa("#btnUndo"); uBtn.onclick = undoAct; uBtn.textContent = ""; uBtn.appendChild(Studio.icon("undo", 16));
     var rBtn = sa("#btnRedo"); rBtn.onclick = redoAct; rBtn.textContent = ""; rBtn.appendChild(Studio.icon("redo", 16));
-    // LF24 slice 3 — the creativity dial's live tuner: re-runs quickBuildDashboard at
-    // the clicked level, re-parsing the source dataset's own stored content (not a
-    // cached profile) so it always reflects the dataset as it stands right now.
-    var qmTuner = $("#qmTuner");
-    if (qmTuner) qmTuner.addEventListener("click", function (e) {
-      var b = e.target.closest(".qm-tuner-btn");
-      if (!b) return;
-      var lvl = b.getAttribute("data-qm");
-      var src = S.spec._qmSource;
-      if (!src || src.creativity === lvl) return;
-      var ds = Studio.Workspace.get("datasets", src.dsId);
-      if (!ds) { toast("The source dataset for this Quick import is no longer available", true); return; }
-      var parsed;
-      try { parsed = ds.format === "json" ? Studio.parseJSONText(ds.content) : Studio.parseCSVText(ds.content); }
-      catch (err) { toast("Could not re-parse " + (ds.fileName || ds.name) + ": " + err.message, true); return; }
-      var profile = Studio.QuickMode.profileColumns(parsed);
-      Studio.__quickBuildDashboard(ds, profile, lvl);
-      toast("Creativity: " + (lvl === "high" ? "High" : "Low") + " — dashboard rebuilt");
-    });
+    // LF50: the in-builder Low/High "Creativity" live tuner was removed — Quick import honors
+    // the Settings-level default instead. #qmTuner (still wired in syncHeader) now only carries
+    // the LF67 "unsaved" reminder, so there's no click handler here anymore.
     // UX6 (icon migration, slice 4): the demo-mode badge's raw "●" glyph becomes a themed SVG.
     var dbIc = $("#demoBadge [data-ic]");
     if (dbIc && Studio.icon) dbIc.appendChild(Studio.icon(dbIc.getAttribute("data-ic"), 10));
@@ -9779,21 +9763,15 @@
     var gw = $("#dashGroupWrap");
     if (gw) gw.style.display = S.spec.group ? "" : "none";
     $("#dashGroup").textContent = S.spec.group || "";
-    // LF24 slice 3 — the creativity dial's live tuner: only shown for the dashboard
-    // quickBuildDashboard itself just built (S.spec._qmSource, see there for why this
-    // needs no reset at every OTHER S.spec= call site).
+    // LF50: the #qmTuner container is shown only for the dashboard quickBuildDashboard itself
+    // just built (S.spec._qmSource, see there for why this needs no reset at every OTHER
+    // S.spec= call site). It used to hold the Low/High Creativity tuner; now just the LF67 badge.
     var qmt = $("#qmTuner");
     if (qmt) {
-      var src = S.spec._qmSource;
-      qmt.hidden = !src;
-      if (src) {
-        $$(".qm-tuner-btn", qmt).forEach(function (b) {
-          b.setAttribute("aria-pressed", b.getAttribute("data-qm") === src.creativity ? "true" : "false");
-        });
-      }
-      // LF67: "unsaved — Save to keep" badge, the "clear state" half of the fix
-      // (openRecent's confirm() above is the "warn" half) — visible exactly as
-      // long as hasUnsavedQuickBuild() is true.
+      // LF50: the Low/High Creativity control was removed; #qmTuner now only holds the LF67
+      // "unsaved — Save to keep" badge (openRecent's confirm() above is the "warn" half),
+      // shown for a Quick-import build that hasn't been saved yet.
+      qmt.hidden = !S.spec._qmSource;
       var qmu = $("#qmUnsaved");
       if (qmu) qmu.hidden = !hasUnsavedQuickBuild();
     }
