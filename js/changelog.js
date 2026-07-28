@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 681,
+    title: 'Dropping a dataset picks the best chart for it, not just bars',
+    kind: 'polish',
+    ts: '2026-07-28T22:47:55.000Z',
+    items: [
+      'When you drag a dataset onto the canvas (or onto a blank dashboard), Studio now picks a best-fit chart from the dataset\'s columns — a time column comes in as a line chart, a share-like breakdown as a donut, and so on — instead of always dropping a bar chart you then have to change. The library\'s +chart buttons still let you pick a specific chart yourself.',
+    ],
+  },
+  {
     v: 680,
     title: 'One switcher for Focus mode and Slideshow',
     kind: 'polish',
