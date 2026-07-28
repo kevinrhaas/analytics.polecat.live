@@ -762,6 +762,9 @@ textarea:focus-visible,[tabindex]:focus-visible,.row-item:focus-visible{
 .qm-tuner-btn+.qm-tuner-btn{border-left:1px solid rgba(255,255,255,.18)}
 .qm-tuner-btn:hover{background:rgba(255,255,255,.12)}
 .qm-tuner-btn[aria-pressed="true"]{background:rgba(255,255,255,.18);color:var(--topbar-ink,#fff)}
+/* LF67: the "unsaved quick build" reminder — warm, not alarming (openRecent's
+   confirm() is the actual guardrail; this is just the ambient state cue). */
+.qm-unsaved{font-size:var(--fs-11);font-weight:700;color:var(--warn);white-space:nowrap}
 .top-actions{display:flex;align-items:center;gap:8px}
 /* UX sprint 2026-07-14: the dashboard toolbar — dashboard-scoped actions sit ABOVE the
    preview they act on; the app topbar keeps only brand + ＋New + ⋯More (manager-style).

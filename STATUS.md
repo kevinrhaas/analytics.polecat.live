@@ -116,6 +116,34 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF67 — an unsaved Quick-import build now warns before it's silently replaced (v638, sw v275,
+  2026-07-28, steward):** Kevin's repro — "I clicked on it and it showed the sensitivity radar,
+  that is not what I created" — because Quick import auto-builds a real dashboard (studio.js
+  `quickBuildDashboard`) but never saves it, so opening any OTHER dashboard afterward silently
+  discarded the build. Fixed the "at minimum" half of the finding's suggested fix (a full
+  auto-save-to-Dashboards was the other option, deliberately not taken — it would mint a new
+  catalog row on every creativity-tuner retune since `quickBuildDashboard` always regenerates a
+  fresh id, and cost a much larger test-suite footprint to keep the Dashboards catalog clean
+  across the whole run): a new `hasUnsavedQuickBuild()` (true only for the exact spec
+  `quickBuildDashboard` just built — the same `_qmSource` marker QM3's live tuner already scopes
+  to — that hasn't been through Save, i.e. its id isn't in the Dashboards catalog yet) gates
+  `openRecent()`, the single documented funnel every "open this dashboard" call site (Home/
+  Dashboards cards, the Open picker, Explore's add-to-dashboard) already routes through — a
+  `window.confirm()` warns before it replaces `S.spec`; cancelling keeps the unsaved build open.
+  Paired with a small "Unsaved — Save to keep" badge (`#qmUnsaved`, next to the creativity tuner,
+  toggled in `syncHeader()`) so the state is visible even before you try to navigate away — Save
+  clears both the flag and the badge immediately (`saveToCatalog()` now calls `syncHeader()`).
+  Deliberately NOT covered by this slice: the "New dashboard" family of replace paths (Home's
+  Blank-dashboard card, the New ▾ menu, the auto-build-starter pickers) — Kevin's concrete repro
+  and the two functions the finding names (`quickBuildDashboard`, `openRecent`/"enterStudio
+  replace path") are both about opening a DIFFERENT existing dashboard, not creating a new one;
+  guarding every `S.spec = newBlankSpec()` call site is a separable, larger follow-up if wanted.
+  6 new regression tests (badge visible + confirm fires + cancel keeps the build + confirming
+  proceeds + Save clears both + no confirm needed once saved). Files: app/studio.js,
+  app/index.html, app/studio.css, docs/index.html, tests/run.js, sw.js, js/changelog.js. NEXT per
+  the LOCKED BUILD ORDER: step 4, Studio chrome (LF46/LF48/LF45/LF52/LF53 — LF47 already done
+  except Examples removal, LF43 slice 2's remit), or LF43 slice 2 itself, or the remaining
+  LIVE-QA QUEUE bug/cleanup items (LF61/LF65/LF69/LF70) ahead of the flashier remaining work.
 - **App Color-theme picker reaches parity with the dashboard themes (#113, v637, sw v274,
   2026-07-28, steward):** Kevin: "i feel like the app themes need to be the same as the dashboard
   themes, and have as many of each, add any new app themes that are missing to match the dashboard
@@ -5187,14 +5215,12 @@
 >       Ties LF43, LF57 (Views rail), LF59 (dashboards mgmt), LF51 (nav), LF29/LF52 (terminology), LF24,
 >       #29. **This is the same intent as LF43/LF57/LF59 — reconcile them into one library model, don't
 >       build three overlapping ones.**
-> LF67. **BUG — quick-built dashboard is lost when you open another (not persisted / no replace-warn).**
->       A Quick-import builds a dashboard straight into the single Studio canvas but does NOT save it; open
->       any other dashboard (e.g. a sample) and the unsaved build is silently replaced — Kevin hit this
->       ("I clicked on it and it showed the sensitivity radar, that is not what I created"). Fix: on a
->       quick-build, AUTO-SAVE it to Dashboards (or at minimum a clear "unsaved — Save to keep" state +
->       WARN before an open/New replaces unsaved work). The autosave restore-banner is the safety net but
->       shouldn't be the only recovery. (studio.js quickBuildDashboard → persist/dirty-guard, openRecent/
->       enterStudio replace path.) Ties LF50 (replace warning), LF26 (overwrite protection), LF27.
+> LF67. ✓ **BUG — quick-built dashboard is lost when you open another (shipped v638, sw v275,
+>       2026-07-28, steward) — see DONE.** Took the "at minimum" fix (a state badge + a
+>       `window.confirm()` warn in `openRecent`), not the full auto-save — see DONE for why.
+>       Still genuinely open: the "New dashboard" family of replace paths (Home's Blank-dashboard
+>       card, New ▾ menu, auto-build-starter pickers) aren't guarded yet, a separable follow-up.
+>       Ties LF50 (replace warning), LF26 (overwrite protection), LF27.
 > LF68. ✓ **BUG — "Sensitivity & Compliance Radar" showcase KPI shows `NaN%` (shipped v636, sw v273,
 >       2026-07-28, steward) — see DONE.** Root cause wasn't the SQL/denominator — it was
 >       `app/sampledata.js`'s offline sample-data `classify()` heuristic, which matched

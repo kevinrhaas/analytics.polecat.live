@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 638,
+    title: 'Quick import now warns before an unsaved build gets replaced',
+    kind: 'fix',
+    ts: '2026-07-28T03:34:37.000Z',
+    items: [
+      'A dashboard Quick import auto-builds isn\'t saved to Dashboards until you click Save — opening a different dashboard first now warns you instead of silently discarding it.',
+      'An "Unsaved — Save to keep" reminder shows next to the creativity tuner until you save.',
+    ],
+  },
+  {
     v: 637,
     title: 'The app Color theme picker now matches the dashboard themes',
     kind: 'polish',

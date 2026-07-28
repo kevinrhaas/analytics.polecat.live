@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v274"; /* v274: the app Color-theme picker reaches parity with the
+var CACHE_NAME = "studio-shell-v275"; /* v275: LF67 — a Quick-import build now warns before
+   opening a different dashboard silently replaces it (openRecent confirm() guard), plus an
+   "Unsaved — Save to keep" badge next to the creativity tuner while it's true. app/studio.js,
+   app/index.html, app/studio.css changed, so precached copies roll.
+   v274: the app Color-theme picker reaches parity with the
    dashboard theme list — High Contrast, Editorial and Neon app-chrome themes added (light + dark),
    lifted from their Studio.DASHBOARD_THEMES twins, so chrome + dashboard read as one system (#113).
    app/studio.css + app/studio.js changed, so precached copies roll.
