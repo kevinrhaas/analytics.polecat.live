@@ -116,6 +116,21 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF53 — de-jargoned the user-facing "CDF"/"CDE" terminology (#124, v653, sw v290, 2026-07-28,
+  steward — step 4 of the LOCKED BUILD ORDER, Studio chrome):** the legacy Pentaho "CDF" (Community
+  Dashboard Framework) / "CDA" acronyms aren't a supported concept but still surfaced in a few
+  user-facing spots. Fixed the four that a user actually sees (all `app/studio.js`): the
+  Recent-exports list's kind map (`{ cdf: "Dashboard Framework", cda: "Data Access", … }` →
+  `{ cdf: "Dashboard", pdf: "PDF", spec: "Editable spec", all: "All artifacts" }` — also filled the
+  previously-missing pdf/spec labels), the Accent-color help ("exported CDF" → "exported
+  dashboards"), the conditional-format note (same), and the dashboard help-tip ("Export ▾ → CDF
+  .html" → "Export ▾ → Dashboard (.html)"; the Export menu itself already read "Dashboard (.html)").
+  Deliberately left as internal implementation detail (NOT user-facing, and risky/churny to rename):
+  the persisted `"cdf"` export-history **kind** value (renaming would orphan existing localStorage
+  history + break `doExport()` dispatch), the `Studio.exportCDF`/`parseCDFHtml` function names, the
+  `data-exp="cdf"` menu key, the per-chart-type `cde:` mapping field, and all the "CDF-only" code
+  comments — a separable internal refactor (tech-debt) if ever wanted. Test: the export-history row's
+  kind label now reads "Dashboard". Files: app/studio.js, tests/run.js, sw.js, js/changelog.js.
 - **LF62 slice 2 — the sparkle name-suggest button now also lives on the Jobs editor's
   "Job name" field (v652, sw v289, 2026-07-28, steward — LIVE-QA QUEUE, LF62 slice 1's own
   NEXT pointer):** slice 1 built the shared `Studio.nameSuggest`/`withSparkleButton`

@@ -2585,7 +2585,7 @@
       accentRow.appendChild(sw);
     });
     accentRow.appendChild(accentCustom);
-    sec.appendChild(field("Accent color", accentRow, "Overrides the brand color in preview and exported CDF"));
+    sec.appendChild(field("Accent color", accentRow, "Overrides the brand color in preview and exported dashboards"));
 
     // Z6: Header background color — a flat fill for the banner itself (distinct from Accent color,
     // which only tints the bottom border + chart/button accents). Text auto-contrasts (Studio.contrastFg)
@@ -3616,7 +3616,7 @@
         renderCfRules(); refreshPreview();
       });
       cfSec.appendChild(addCfBtn);
-      cfSec.appendChild(noteEl("info", "Color bars, donut slices, treemap tiles, and lollipop dots based on value. Rules apply top-to-bottom; first match wins. Works in preview and exported CDF."));
+      cfSec.appendChild(noteEl("info", "Color bars, donut slices, treemap tiles, and lollipop dots based on value. Rules apply top-to-bottom; first match wins. Works in preview and exported dashboards."));
     })();
 
     // Color scale: map a continuous numeric range to a smooth gradient across all bars / slices.
@@ -5023,7 +5023,11 @@
     if (!_exportHistory.length) return;
     var sep = el("div", "sep"); wrap.appendChild(sep);
     var hdr = el("div", "grp"); hdr.textContent = "Recent exports"; wrap.appendChild(hdr);
-    var LABELS = { cdf: "Dashboard Framework", cda: "Data Access", all: "All artifacts" };
+    // LF53: user-facing export-kind labels — the legacy "CDF"/"CDA" (Pentaho Community Dashboard
+    // Framework / Data Access) acronyms aren't a supported concept, so show plain names. The stored
+    // h.kind values ("cdf"/"pdf"/"spec"/"all") are unchanged — they're persisted in localStorage
+    // export history and drive doExport()'s dispatch — only the DISPLAY label is de-jargoned.
+    var LABELS = { cdf: "Dashboard", pdf: "PDF", spec: "Editable spec", all: "All artifacts" };
     _exportHistory.forEach(function (h) {
       var btn = el("button", "eh-row");
       btn.innerHTML = '<span class="eh-kind">' + esc(LABELS[h.kind] || h.kind) + '</span><span class="eh-name">' + esc(h.name) + '</span><span class="eh-ts">' + timeAgo(h.ts) + '</span>';
@@ -10134,7 +10138,7 @@
     dashboard: [
       "Drag a query from the library onto the canvas to add a chart widget.",
       "Use New ▾ → Auto-build to scaffold a full starter dashboard instantly.",
-      "Export ▾ → CDF .html gives a standalone file you can open in any browser."
+      "Export ▾ → Dashboard (.html) gives a standalone file you can open in any browser."
     ],
     panel: [
       "Pick a chart type from the gallery, then bind the data columns below.",

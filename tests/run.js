@@ -13754,11 +13754,16 @@ function serve() {
       if (!wrap) return { found: false };
       const rows = wrap.querySelectorAll(".eh-row");
       const grp = wrap.querySelector(".grp") ? wrap.querySelector(".grp").textContent : "";
-      return { found: true, rowCount: rows.length, grp };
+      const kindLabel = wrap.querySelector(".eh-row .eh-kind") ? wrap.querySelector(".eh-row .eh-kind").textContent : "";
+      return { found: true, rowCount: rows.length, grp, kindLabel };
     });
     ok("E2: #exportHistWrap exists in the export menu", e2menu.found, JSON.stringify(e2menu));
     ok("E2: export history shows 'Recent exports' header", e2menu.found && /recent/i.test(e2menu.grp), JSON.stringify(e2menu));
     ok("E2: export history shows 1 row after 1 export", e2menu.found && e2menu.rowCount === 1, JSON.stringify(e2menu));
+    // LF53: the row's kind label reads the plain "Dashboard", not the legacy Pentaho jargon
+    // "Dashboard Framework"/"CDF" (the stored h.kind stays "cdf" — only the display is de-jargoned).
+    ok("LF53: export-history kind label reads 'Dashboard', not the legacy 'CDF'/'Dashboard Framework' jargon",
+      e2menu.kindLabel === "Dashboard", JSON.stringify(e2menu));
     // Clean up
     await page.evaluate(() => { try { localStorage.removeItem("studio-export-history"); } catch(e) {} });
 

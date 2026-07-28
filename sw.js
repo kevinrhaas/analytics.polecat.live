@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v289"; /* v289: LF62 slice 2 — the same ✨ sparkle
+var CACHE_NAME = "studio-shell-v290"; /* v290: LF53 — de-jargoned the user-facing "CDF"/"Dashboard
+   Framework" (legacy Pentaho) wording to plain "Dashboard" in the Recent-exports list + a few help
+   tips; the stored "cdf" export kind and internal fn names are unchanged. app/studio.js changed, so
+   precached copies roll.
+   v289: LF62 slice 2 — the same ✨ sparkle
    name-suggest button now sits on the Jobs editor's "Job name" field too, suggesting the
    titleized source dataset's name (app/jobs.js, app/model.js, tests/run.js changed), so
    precached copies roll.
