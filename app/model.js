@@ -2675,6 +2675,7 @@
         fromFromClause(ctx.sql) || fromFromClause(ctx.query);
       if (raw) return titleize(raw);
     }
+    if (kind === "job" && ctx.sourceDatasetName) return titleize(ctx.sourceDatasetName);
     return "";
   };
 

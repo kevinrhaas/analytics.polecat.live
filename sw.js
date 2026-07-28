@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v288"; /* v288: LF62 slice 1 — a ✨ sparkle button on the
+var CACHE_NAME = "studio-shell-v289"; /* v289: LF62 slice 2 — the same ✨ sparkle
+   name-suggest button now sits on the Jobs editor's "Job name" field too, suggesting the
+   titleized source dataset's name (app/jobs.js, app/model.js, tests/run.js changed), so
+   precached copies roll.
+   v288: LF62 slice 1 — a ✨ sparkle button on the
    dataset editor's Name field suggests a name from the table/SQL/sheet/file source already
    filled in (app/model.js, app/studio.js, app/studio.css, app/datasets.js, tests/run.js
    changed), so precached copies roll.

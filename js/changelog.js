@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 652,
+    title: 'The name-suggest sparkle button now works for Jobs too',
+    kind: 'feature',
+    ts: '2026-07-28T09:54:59.000Z',
+    items: [
+      'The Jobs editor\'s "Job name" field now has the same ✨ suggest button as Datasets — it names the job after the source dataset you picked.',
+    ],
+  },
+  {
     v: 651,
     title: 'A sparkle button suggests a dataset name for you',
     kind: 'feature',

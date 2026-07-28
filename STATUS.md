@@ -116,6 +116,27 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF62 slice 2 — the sparkle name-suggest button now also lives on the Jobs editor's
+  "Job name" field (v652, sw v289, 2026-07-28, steward — LIVE-QA QUEUE, LF62 slice 1's own
+  NEXT pointer):** slice 1 built the shared `Studio.nameSuggest`/`withSparkleButton`
+  mechanism and flagged the Jobs editor as one of the two cheapest next steps (it already
+  receives `withSparkleButton` via `coreModuleDeps()`, no new plumbing). `Studio.nameSuggest`
+  gains a `"job"` kind (app/model.js) that titleizes `ctx.sourceDatasetName` — the only
+  source-shaped thing already on the job form once a source dataset is picked (there's no
+  table/SQL/file field on this form the way the dataset editor has). app/jobs.js's "Job
+  name" `<input>` is built first, then wrapped with `withSparkleButton(nameInp, "job",
+  getCtx)` before being handed to `field()` — same order LF62 slice 1 used on the dataset
+  editor — with `getCtx()` reading `srcSel.value` (the Source-dataset `<select>`, defined
+  right after in the same closure) lazily at click time, so it reflects whichever dataset
+  is currently picked, not whatever was picked when the form first opened. 1 new regression
+  test (creating a job pre-wired to a source dataset, opening the editor, and clicking the
+  sparkle button fills "Job name" with the titleized dataset name, e.g.
+  `county_cover_crop_adoption` → "County Cover Crop Adoption"). NEXT in LF62: the connection
+  wizard's name field is the other cheap next step (same `coreModuleDeps()` access); dashboard,
+  View, preset, and folder name fields remain open, larger slices (no existing "source"-shaped
+  context to derive from — likely need a different `nameSuggest` heuristic, e.g. suggesting
+  from the panels/data already on a dashboard). Files: app/model.js, app/jobs.js, tests/run.js,
+  sw.js, js/changelog.js.
 - **LF62 slice 1 — a ✨ "suggest a name" sparkle button on the dataset editor's Name field
   (v651, sw v288, 2026-07-28, steward — LIVE-QA QUEUE):** Kevin's LF62 note asked for this
   affordance on EVERY name field (dataset, job, dashboard, View, connection, preset,
