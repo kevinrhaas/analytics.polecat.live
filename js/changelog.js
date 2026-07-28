@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 667,
+    title: 'Cleaner builder — the stray Low/High "Creativity" control is gone',
+    kind: 'polish',
+    ts: '2026-07-28T15:28:42.000Z',
+    items: [
+      'The Low/High "Creativity" toggle that used to sit in the builder after a Quick import is gone — it added chrome and duplicated a setting. Quick import still auto-builds from a dropped file using the "Quick import creativity" default in Settings; adjust a built dashboard by editing it directly. The "unsaved — Save to keep" reminder for a fresh Quick import stays.',
+    ],
+  },
+  {
     v: 666,
     title: 'Export a dashboard as a Word document (.docx)',
     kind: 'feature',

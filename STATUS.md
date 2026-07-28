@@ -116,6 +116,22 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF50 — removed the stray Low/High "Creativity" control from the builder (#89, v667, sw v304,
+  2026-07-28, steward — step 5 of the LOCKED BUILD ORDER):** the LF24 in-builder "Creativity"
+  live tuner (a Low/High segment in the topbar, shown after a Quick import to rebuild the dashboard
+  at a different level in place) was stray chrome that duplicated the Settings-level default — Kevin
+  asked to drop it. Removed the `.qm-tuner-lbl`/`.qm-tuner-seg`/`.qm-tuner-btn` markup (app/index.html),
+  its click-rebuild handler and the aria-pressed sync loop (app/studio.js), and the now-unused CSS
+  (app/studio.css). **Kept:** the `#qmTuner` container itself now carries ONLY the LF67 "unsaved —
+  Save to keep" reminder (still gated on `S.spec._qmSource`), the openRecent replace-warning
+  (LF67's confirm), and the Settings-level **"Quick import creativity"** default — a dropped file
+  still auto-builds using that default (the QM3 test proving the High-tier build still fires,
+  purely from Settings, is unchanged). Updated the Settings description (dropped the "adjustable
+  per-import from a live tuner" claim) and the code comments. Tests: the two QM3 tuner assertions
+  became LF50 assertions (the Low/High control is gone — 0 `.qm-tuner-btn`, no seg/label; and the
+  `#qmTuner` unsaved-indicator doesn't leak onto an unrelated dashboard); the flip-to-Low test was
+  removed with the feature. Files: app/index.html, app/studio.js, app/studio.css, tests/run.js,
+  sw.js, js/changelog.js.
 - **LF49 (slice 2) — export a dashboard as a Word document (.docx) (#88, v666, sw v303, 2026-07-28,
   steward — step 5 of the LOCKED BUILD ORDER):** Export ▾ gains **"Word document (.docx)"**, the
   second of LF49's three formats, reusing slice 1's from-scratch OOXML-in-a-ZIP writer (crc32 +
