@@ -116,6 +116,19 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF64 (slice 1) — built-in DYNAMIC date tokens (v682, sw v319, 2026-07-28):** dataset queries
+  (and titles) now understand a fixed set of relative-date placeholders that need NO parameter
+  defined — `{{today}}`, `{{yesterday}}`, `{{tomorrow}}`, `{{today-30}}`/`{{today+7}}` (any N-day
+  offset), `{{month_start}}`, `{{month_end}}`, `{{year_start}}`, `{{year_end}}` resolve to an ISO
+  date and `{{now}}` to a full ISO timestamp, computed fresh every run so a filter like
+  `WHERE d >= '{{today-30}}'` always means "the last 30 days". Implemented at the single central
+  substitution point (`WS.applyParams` in `app/sources/schema.js`, which every adapter already calls
+  on queries) delegating to a new `WS.dynamicParam(key)`; a user-supplied param/template var of the
+  same name still overrides the built-in, and an unknown placeholder is left intact for the adapter's
+  own error. Discoverability: the dataset builder's Parameters section lists the tokens, Help
+  (docs/index.html Template variables) documents them, and a regression test in tests/run.js pins the
+  values + override behavior. **Next LF64 slices:** a params-picker/insert affordance in the SQL
+  editor; more token families (week_start, quarter_*) if asked.
 - **LF48 (slice 2) — the Present-mode switcher entry point (v680, sw v317, 2026-07-28,
   steward — step 4 of the LOCKED BUILD ORDER, the last remaining piece):** slice 1
   (v659) shipped the uniform EXIT half and deliberately deferred "the consistent, role-aware

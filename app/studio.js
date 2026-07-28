@@ -1362,7 +1362,9 @@
       var pHdr = el("div", "dsb-chips-hdr"); pHdr.appendChild(labelEl("Parameters"));
       var addP = el("button", "dsb-mini"); setIconBtn(addP, "plus", "Parameter", 12);
       addP.onclick = function () { draft.params.push({ name: "param" + (draft.params.length + 1), type: "String", default: "" }); renderParams(); };
-      pHdr.appendChild(addP); paramsField.appendChild(pHdr); paramsField.appendChild(paramsBox); wrap.appendChild(paramsField);
+      pHdr.appendChild(addP); paramsField.appendChild(pHdr); paramsField.appendChild(paramsBox);
+      paramsField.appendChild(noteEl("info", "Built-in dynamic tokens need no parameter — write {{today}}, {{yesterday}}, {{today-30}}, {{today+7}}, {{month_start}}, {{month_end}}, {{year_start}}, {{year_end}} (ISO dates) or {{now}} (timestamp) straight in the SQL and they resolve fresh every run, so \"last 30 days\"-style filters stay current. A parameter of the same name overrides the built-in."));
+      wrap.appendChild(paramsField);
       function renderParams() {
         paramsBox.innerHTML = "";
         if (!draft.params.length) { var e = el("span", "dsb-empty"); e.textContent = "No parameters."; paramsBox.appendChild(e); return; }

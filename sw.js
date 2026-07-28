@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v318"; /* v318: LF66 slice 3 (library reorg, part 6 cont.) — a
+var CACHE_NAME = "studio-shell-v319"; /* v319: LF64 slice 1 — built-in DYNAMIC date tokens usable
+   in any dataset query with no parameter defined: {{today}}, {{yesterday}}, {{tomorrow}},
+   {{today±N}}, {{month_start/end}}, {{year_start/end}} → ISO date, {{now}} → ISO timestamp,
+   resolved fresh at run time via WS.applyParams → WS.dynamicParam; a real param of the same name
+   still wins. app/sources/schema.js + app/studio.js (Parameters-section hint) + docs/index.html
+   changed, so precached copies roll.
+   v318: LF66 slice 3 (library reorg, part 6 cont.) — a
    dataset dropped on the canvas (or a blank dashboard) now AUTO-PICKS its best-fit chart via the
    shared chartForDA heuristic (time col → line, share-like → donut, else bars) instead of always a
    bare bars panel: addFromWorkspaceDataset auto-picks when no explicit type is given, and both

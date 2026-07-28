@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 682,
+    title: 'Built-in dynamic date tokens for always-current queries',
+    kind: 'feature',
+    ts: '2026-07-28T23:10:56.000Z',
+    items: [
+      'Dataset queries (and titles) now understand a set of built-in date tokens you can drop straight into the SQL with no parameter to define — {{today}}, {{yesterday}}, {{tomorrow}}, {{today-30}} / {{today+7}} (any N-day offset), {{month_start}}, {{month_end}}, {{year_start}} and {{year_end}} resolve to an ISO date, and {{now}} to a full timestamp. They\'re computed fresh every time the query runs, so a filter like WHERE order_date >= \'{{today-30}}\' always means "the last 30 days" without ever editing it. A real parameter or template variable of the same name still overrides the built-in. The dataset builder\'s Parameters section now lists the available tokens.',
+    ],
+  },
+  {
     v: 681,
     title: 'Dropping a dataset picks the best chart for it, not just bars',
     kind: 'polish',
