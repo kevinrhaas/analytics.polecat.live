@@ -9880,6 +9880,17 @@
       search.setAttribute("aria-label", "Search dashboards");
       b.appendChild(search);
       var listWrap = el("div", "odp-list"); b.appendChild(listWrap);
+      // LF45: the picker used to be a bare text list ("too light"). Each row now carries the
+      // dashboard's real layout thumbnail (Studio.makeThumbnail — the same one Home cards + the
+      // inspector use, wearing the dashboard's own theme) so you recognise it at a glance, and the
+      // list is keyboard-navigable (↑/↓ move a highlight, Enter opens it) without leaving the search.
+      var rows = [], active = -1;
+      function highlight(i) {
+        if (!rows.length) { active = -1; return; }
+        active = (i + rows.length) % rows.length;
+        rows.forEach(function (row, j) { row.classList.toggle("odp-active", j === active); });
+        rows[active].scrollIntoView({ block: "nearest" });
+      }
       function paint() {
         var q = (search.value || "").toLowerCase();
         var list = loadRecents().filter(isVisibleToMe).filter(function (r) {
@@ -9890,18 +9901,30 @@
         listWrap.innerHTML = list.length ? "" : '<div class="odp-empty">' + (q ? "No dashboards match." : "Nothing saved yet — Save adds the current dashboard here.") + '</div>';
         var titleOf = function (r) { var sp = r.spec || {}; return sp.title || sp.name || "Untitled"; };
         var labels = disambiguateLabels(list, titleOf);
+        rows = [];
         list.forEach(function (r) {
           var sp = r.spec || {};
           var row = el("button", "odp-row"); row.type = "button";
           var panels = (sp.panels || []).length;
-          row.innerHTML = '<b>' + esc(labels[r.id]) + '</b>' +
+          var thumb = "";
+          try { thumb = Studio.makeThumbnail(sp, S.theme, defaultDashboardTheme()) || ""; } catch (e) {}
+          row.innerHTML = '<span class="odp-thumb" aria-hidden="true">' + thumb + '</span>' +
+            '<span class="odp-meta"><b>' + esc(labels[r.id]) + '</b>' +
             '<small>' + esc(sp.name || "") + " · " + panels + " panel" + (panels === 1 ? "" : "s") +
-            (r.ts ? " · " + new Date(r.ts).toLocaleDateString() : "") + '</small>';
+            (r.ts ? " · " + new Date(r.ts).toLocaleDateString() : "") + '</small></span>';
           row.onclick = function () { closeAllModals(); openRecent(r.id); };
+          row.addEventListener("mousemove", function () { highlight(rows.indexOf(row)); });
           listWrap.appendChild(row);
+          rows.push(row);
         });
+        highlight(rows.length ? 0 : -1);
       }
       search.addEventListener("input", paint);
+      search.addEventListener("keydown", function (e) {
+        if (e.key === "ArrowDown") { e.preventDefault(); highlight(active + 1); }
+        else if (e.key === "ArrowUp") { e.preventDefault(); highlight(active - 1); }
+        else if (e.key === "Enter" && active >= 0 && rows[active]) { e.preventDefault(); rows[active].click(); }
+      });
       paint();
       var foot = el("div", "cx-wiz-foot odp-foot");
       var fileBtn = el("button", "btn"); fileBtn.type = "button"; fileBtn.textContent = "Open file…";

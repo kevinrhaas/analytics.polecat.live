@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v291"; /* v291: LF46 (⋯ teardown) — "Demo mode" is no longer a
+var CACHE_NAME = "studio-shell-v292"; /* v292: LF45 — the "Open a dashboard" picker was a bare text
+   list ("too light"); each row now carries the dashboard's layout thumbnail (Studio.makeThumbnail)
+   and the list is keyboard-navigable (↑/↓ highlight, Enter opens). app/studio.js, app/studio.css
+   changed, so precached copies roll.
+   v291: LF46 (⋯ teardown) — "Demo mode" is no longer a
    duplicate button in the Studio ⋯ More menu; it lives only in Settings → Presentation (still
    reachable via the ⌘K command palette). app/index.html, app/studio.js, app/palette.js changed, so
    precached copies roll.

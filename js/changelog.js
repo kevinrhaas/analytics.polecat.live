@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 655,
+    title: 'The "Open a dashboard" picker now shows thumbnails and takes the keyboard',
+    kind: 'polish',
+    ts: '2026-07-28T11:23:30.000Z',
+    items: [
+      'Each row in the Open-a-dashboard picker now shows a little layout thumbnail of that dashboard, so you can recognise it at a glance instead of reading a plain list.',
+      'You can drive the list from the keyboard too — ↑/↓ to move the highlight, Enter to open — without leaving the search box.',
+    ],
+  },
+  {
     v: 654,
     title: 'Tidied the Studio ⋯ menu — Demo mode now lives in Settings',
     kind: 'polish',
