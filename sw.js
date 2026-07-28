@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v300"; /* v300: LF62 slice 6 — the same ✨ sparkle
+var CACHE_NAME = "studio-shell-v301"; /* v301: LF62 slice 7 — the same ✨ sparkle
+   name-suggest button now sits on the Folder field in the dataset, connection and
+   job editors; the dataset/job kinds suggest the linked connection's/source
+   dataset's own folder, the connection kind (nothing upstream to reuse) falls
+   back to its first Tag (app/model.js, app/datasets.js, app/connections.js,
+   app/jobs.js, tests/run.js changed), so precached copies roll.
+   v300: LF62 slice 6 — the same ✨ sparkle
    name-suggest button now sits on both "preset name" fields (the per-dashboard
    custom-theme preset and the Settings-level style preset); neither has a bound
    source field, so each suggests from what it's actually captured FROM instead —

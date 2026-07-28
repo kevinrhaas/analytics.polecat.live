@@ -5160,6 +5160,36 @@ function serve() {
     });
     await page.waitForTimeout(200);
 
+    // LF62 slice 7 (live-QA queue, LF62 slice 6's own NEXT pointer): the same sparkle
+    // name-suggest button, wired into the Jobs editor's "Folder" field — suggests the
+    // source dataset's own folder once one is picked (jobs have no Tags field to fall
+    // back to, unlike datasets/connections).
+    console.log("\n• LF62 slice 7: job-folder sparkle-suggest button");
+    await page.evaluate(function () {
+      window.__studioShellSetSection("jobs");
+      var conn = Studio.Workspace.put("connections", { name: "jobs-folder-sparkle-test", adapter: "file", cfg: {} });
+      var ds = Studio.Workspace.put("datasets", { name: "county_cover_crop_adoption", connectionId: conn.id, folder: "Ops", kind: "file", format: "csv", content: "a,b\n1,2\n" });
+      var job = Studio.Workspace.put("jobs", { name: "folder-sparkle-job", sourceDatasetId: ds.id, steps: [] });
+      window.__studioOpenJobEditor(job);
+    });
+    await page.waitForTimeout(150);
+    const lf62JobFolder = await page.evaluate(function () {
+      var folderInp = document.querySelector('.modal input[placeholder="e.g. Finance"]');
+      folderInp.parentElement.querySelector(".name-sparkle-btn").click();
+      return { folder: folderInp.value };
+    });
+    ok("LF62 slice 7: the Jobs editor's Folder field carries the same sparkle button, suggesting the source dataset's own folder",
+      lf62JobFolder.folder === "Ops", JSON.stringify(lf62JobFolder));
+    await page.evaluate(function () {
+      document.querySelector(".modal-ov .x").click();
+      Studio.Workspace.all("jobs").filter(function (j) { return j.name === "folder-sparkle-job"; }).forEach(function (j) { Studio.Workspace.remove("jobs", j.id, { silent: true }); });
+      Studio.Workspace.all("datasets").filter(function (d) { return d.name === "county_cover_crop_adoption"; }).forEach(function (d) { Studio.Workspace.remove("datasets", d.id, { silent: true }); });
+      Studio.Workspace.all("connections").filter(function (c) { return c.name === "jobs-folder-sparkle-test"; }).forEach(function (c) { Studio.Workspace.remove("connections", c.id, { silent: true }); });
+      Studio.Workspace.notify("*");
+      window.__studioShellSetSection("studio");
+    });
+    await page.waitForTimeout(200);
+
     // LF62 slice 3 (live-QA queue, LF62 slice 1's own NEXT pointer): the same sparkle
     // name-suggest button, wired into the connection wizard's "Connection name" field —
     // suggests a titleized name from whichever identifying credential field (database/
@@ -5189,6 +5219,29 @@ function serve() {
     });
     ok("LF62 slice 3: with a Database field filled in, the sparkle button suggests a titleized name pulled from it ('county_cover_crop' -> 'County Cover Crop')",
       lf62Conn.name === "County Cover Crop", JSON.stringify(lf62Conn));
+    await page.evaluate(function () { document.querySelector(".modal-ov .x").click(); });
+    await page.waitForTimeout(100);
+
+    // LF62 slice 7 (live-QA queue, LF62 slice 6's own NEXT pointer): the same sparkle
+    // name-suggest button, wired into the connection wizard's "Folder" field — a
+    // connection has no upstream object to reuse a folder from, so it falls back to
+    // the titleized first Tag, the closest existing categorization already on the form.
+    console.log("\n• LF62 slice 7: connection-folder sparkle-suggest button");
+    await page.click("#connNewBtn");
+    await page.waitForTimeout(120);
+    await page.evaluate(function () {
+      [].slice.call(document.querySelectorAll(".cx-src-card")).filter(function (c) { return c.querySelector("b").textContent === "Snowflake"; })[0].click();
+    });
+    await page.waitForTimeout(100);
+    const lf62ConnFolder = await page.evaluate(function () {
+      var tagsInp = document.querySelector('.modal input[placeholder="finance, demo"]');
+      tagsInp.value = "finance, prod";
+      var folderInp = document.querySelector('.modal input[placeholder="e.g. Finance"]');
+      folderInp.parentElement.querySelector(".name-sparkle-btn").click();
+      return { folder: folderInp.value };
+    });
+    ok("LF62 slice 7: the connection wizard's Folder field carries the same sparkle button, falling back to the titleized first tag (nothing upstream to reuse a folder from)",
+      lf62ConnFolder.folder === "Finance", JSON.stringify(lf62ConnFolder));
     await page.evaluate(function () { document.querySelector(".modal-ov .x").click(); });
     await page.waitForTimeout(100);
 
@@ -6724,6 +6777,44 @@ function serve() {
     ok("LF62: with a SQL source filled in, the sparkle button suggests a readable name pulled from the FROM clause (Studio.nameSuggest + titleize, e.g. 'sales_by_region' -> 'Sales By Region')",
       lf62Filled.name === "Sales By Region", JSON.stringify(lf62Filled));
     await page.evaluate(function () { var x = document.querySelector(".modal-ov .modal .x"); if (x) x.click(); });
+    await page.waitForTimeout(120);
+
+    // LF62 slice 7 (live-QA queue, LF62 slice 6's own NEXT pointer): the same sparkle
+    // name-suggest button, wired into the dataset editor's "Folder" field — suggests
+    // the picked connection's own folder, falling back to the first Tag when no
+    // connection is picked yet (or that connection has no folder of its own).
+    console.log("\n• LF62 slice 7: dataset-folder sparkle-suggest button");
+    await page.evaluate(function () {
+      Studio.Workspace.put("connections", { id: "conn-folder-sparkle-test", name: "Folder sparkle test conn", adapter: "turso", folder: "Finance", cfg: {} });
+    });
+    await page.click("#dsxNewBtn");
+    await page.waitForTimeout(120);
+    const lf62DsFolder = await page.evaluate(function () {
+      document.querySelector(".modal select.cx-sel").value = "conn-folder-sparkle-test";
+      document.querySelector(".modal select.cx-sel").dispatchEvent(new Event("change"));
+      var folderInp = document.querySelector('.modal input[placeholder="e.g. Finance"]');
+      folderInp.parentElement.querySelector(".name-sparkle-btn").click();
+      return { folder: folderInp.value };
+    });
+    ok("LF62 slice 7: with a connection picked that has its own Folder set, the dataset editor's Folder field sparkle suggests that same folder",
+      lf62DsFolder.folder === "Finance", JSON.stringify(lf62DsFolder));
+    const lf62DsFolderTagFallback = await page.evaluate(function () {
+      document.querySelector(".modal select.cx-sel").value = "";
+      document.querySelector(".modal select.cx-sel").dispatchEvent(new Event("change"));
+      var tagsInp = document.querySelector('.modal input[placeholder="finance, demo"]');
+      tagsInp.value = "ops, shared";
+      var folderInp = document.querySelector('.modal input[placeholder="e.g. Finance"]');
+      folderInp.value = "";
+      folderInp.parentElement.querySelector(".name-sparkle-btn").click();
+      return { folder: folderInp.value };
+    });
+    ok("LF62 slice 7: with no connection picked but Tags filled in, the Folder field sparkle falls back to the titleized first tag",
+      lf62DsFolderTagFallback.folder === "Ops", JSON.stringify(lf62DsFolderTagFallback));
+    await page.evaluate(function () {
+      var x = document.querySelector(".modal-ov .modal .x"); if (x) x.click();
+      Studio.Workspace.remove("connections", "conn-folder-sparkle-test", { silent: true });
+      Studio.Workspace.notify("*");
+    });
     await page.waitForTimeout(120);
 
     // UX8 slice 2 (UX-POLISH track): the remaining non-button badge title= call sites —

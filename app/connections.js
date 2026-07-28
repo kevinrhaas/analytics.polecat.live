@@ -432,7 +432,13 @@
         folderRow.innerHTML = "<span>Folder</span>";
         var folderInp = el("input"); folderInp.type = "text"; folderInp.placeholder = "e.g. Finance";
         folderInp.value = (existing && existing.folder) || "";
-        folderRow.appendChild(folderInp);
+        // LF62 slice 7 (live-QA queue): the same sparkle name-suggest button as the
+        // name field above — a connection sits at the top of the connections ->
+        // datasets -> jobs chain, so there's no upstream folder to reuse; falls back
+        // to the first Tag, the closest existing categorization already on this form.
+        folderRow.appendChild(withSparkleButton(folderInp, "folder", function () {
+          return { tags: (tagsInp.value || "").split(",").map(function (t) { return t.trim(); }).filter(Boolean) };
+        }));
         var folderHint = el("small", "cx-hint"); folderHint.textContent = "Optional — a home for this connection (e.g. Finance, or Finance/2024 to nest). Pick an existing one or type a new name.";
         folderRow.appendChild(folderHint);
         var connFolderNames = {};

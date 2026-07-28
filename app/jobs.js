@@ -372,8 +372,15 @@
 
       // M5 folder pilot, slice 3 (jobs — same flat single-value "home" field as
       // Datasets/Connections, with a <datalist> of names already in use).
-      var folderInp = field("Folder", el("input"), "Optional — a home for this job (e.g. Finance, or Finance/2024 to nest). Pick an existing one or type a new name.");
-      folderInp.type = "text"; folderInp.value = j.folder || ""; folderInp.placeholder = "e.g. Finance";
+      var folderInp = el("input"); folderInp.type = "text"; folderInp.value = j.folder || ""; folderInp.placeholder = "e.g. Finance";
+      // LF62 slice 7 (live-QA queue): the same sparkle name-suggest button, wired into
+      // the Folder field — suggests the source dataset's own folder (a job's natural
+      // upstream home), falling back to no suggestion when no source is picked yet or
+      // that dataset has no folder of its own (jobs have no Tags field to fall back to).
+      field("Folder", withSparkleButton(folderInp, "folder", function () {
+        var srcDs = dsets.filter(function (d) { return d.id === srcSel.value; })[0];
+        return { linkedFolder: srcDs ? srcDs.folder : "" };
+      }), "Optional — a home for this job (e.g. Finance, or Finance/2024 to nest). Pick an existing one or type a new name.");
       var jobFolderNames = {};
       Studio.Workspace.all("jobs").filter(isVisibleToMe).forEach(function (x) { if (x.folder) jobFolderNames[x.folder] = true; });
       var jobFolderList = el("datalist"); jobFolderList.id = "jobFolderOptions";

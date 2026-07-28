@@ -116,6 +116,31 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF62 slice 7 — the sparkle name-suggest button now also lives on the "Folder"
+  field in the dataset, connection and job editors (v664, sw v301, 2026-07-28,
+  steward — LIVE-QA QUEUE, LF62 slice 6's own NEXT pointer, the "folder name field"
+  half of "wiring the same button into the preset and folder name fields"):** a
+  Folder field has no bound source either, but two of the three forms sit one hop
+  downstream of another object with its own folder already — `Studio.nameSuggest`'s
+  new `"folder"` kind (app/model.js) prefers that **linked** folder (a dataset
+  suggests its picked connection's folder; a job suggests its picked source
+  dataset's folder — reusing the connections→datasets→jobs chain so a family of
+  related objects defaults to filing together), falling back to the titleized first
+  **Tag** already typed on the same form when there's no link (a connection sits at
+  the top of the chain with nothing upstream) or the linked object has no folder of
+  its own yet. All three folder `<input>`s are DOM-built (`field()`/`row.appendChild`
+  already, like the earlier dataset/connection/job **name** fields), so each wraps in
+  place with `withSparkleButton(folderInp, "folder", getCtx)` — no post-render splice
+  needed (unlike the raw-HTML-built View/preset fields slices 5-6 had to work around).
+  4 new regression tests (dataset: a connection with its own folder set suggests that
+  folder; dataset: with no connection picked, falls back to the first Tag; connection:
+  falls back to the first Tag since it has nothing upstream; job: a picked source
+  dataset's folder is suggested). Suite green. Deferred: Explore's own "Folder"
+  field (View analyses, `#xpFolder`) is a fourth, smaller surface with a less obvious
+  natural link (a View's folder doesn't map cleanly onto its source dataset's) —
+  left for its own follow-up if wanted. NEXT in LF62: Explore's `#xpFolder` field is
+  the one remaining un-wired surface. Files: app/model.js, app/datasets.js,
+  app/connections.js, app/jobs.js, tests/run.js, sw.js, js/changelog.js.
 - **LF62 slice 6 — the sparkle name-suggest button now also lives on both "Preset
   name" fields (v663, sw v300, 2026-07-28, steward — LIVE-QA QUEUE, LF62 slice 5's own
   NEXT pointer, the "preset" half of "wiring the same button into the preset and

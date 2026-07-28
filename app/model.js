@@ -2733,6 +2733,18 @@
       if (ctx.dashboardTitle && ctx.dashboardTitle !== "Untitled Dashboard") return titleize(ctx.dashboardTitle);
       if (ctx.themeLabel) return titleize(ctx.themeLabel);
     }
+    if (kind === "folder") {
+      // The dataset/connection/job "Folder" field is a grouping home, not a name pulled
+      // from a source — but two of those three forms are one hop downstream of another
+      // object that may already have a home worth reusing: a dataset's own connection, or
+      // a job's own source dataset (the connections -> datasets -> jobs chain). Reusing
+      // that linked folder keeps a family of related objects filed together by default.
+      // Connections sit at the top of that chain with nothing upstream to reuse, so they
+      // (and any object with no linked folder yet) fall back to the object's own first Tag
+      // — the closest existing categorization already sitting on the same form.
+      if (ctx.linkedFolder) return titleize(ctx.linkedFolder);
+      if (ctx.tags && ctx.tags.length) return titleize(ctx.tags[0]);
+    }
     return "";
   };
 

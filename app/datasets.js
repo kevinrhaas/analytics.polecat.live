@@ -550,8 +550,18 @@
       // dataset, distinct from tags (cross-cutting, multi-value). Free text
       // with a <datalist> of folders already in use so a name reuses instead
       // of forking into a near-duplicate.
-      var folderInp = field("Folder", el("input"), "Optional — a home for this dataset (e.g. Finance, or Finance/2024 to nest). Pick an existing one or type a new name.");
-      folderInp.type = "text"; folderInp.value = d.folder || ""; folderInp.placeholder = "e.g. Finance";
+      var folderInp = el("input"); folderInp.type = "text"; folderInp.value = d.folder || ""; folderInp.placeholder = "e.g. Finance";
+      // LF62 slice 7 (live-QA queue): the same sparkle name-suggest button, wired into
+      // the Folder field — suggests the picked connection's own folder (a dataset's
+      // natural upstream home), falling back to the first Tag when no connection is
+      // picked yet or that connection has no folder of its own.
+      field("Folder", withSparkleButton(folderInp, "folder", function () {
+        var conn = connSel.value ? conns.filter(function (c) { return c.id === connSel.value; })[0] : null;
+        return {
+          linkedFolder: conn ? conn.folder : "",
+          tags: (tagsInp.value || "").split(",").map(function (t) { return t.trim(); }).filter(Boolean)
+        };
+      }), "Optional — a home for this dataset (e.g. Finance, or Finance/2024 to nest). Pick an existing one or type a new name.");
       var folderNames = {};
       Studio.Workspace.all("datasets").filter(isDatasetVisibleToMe).forEach(function (x) { if (x.folder) folderNames[x.folder] = true; });
       var folderList = el("datalist"); folderList.id = "dsxFolderOptions";
