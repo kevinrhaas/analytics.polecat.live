@@ -116,6 +116,37 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF69(d) — the per-panel PNG/CSV/standalone-HTML row buttons collapse into a single
+  "Export ▾" trigger + popover menu (v650, sw v287, 2026-07-28, steward — LIVE-QA QUEUE, LF69's
+  own NEXT pointer):** LF69(a) (delete-button reorder, see below) left (d) as "the next-most-
+  scoped remaining piece"; this slice takes it. `app/studio-render.js`'s `addDownloadChrome()` no
+  longer appends up to 3 raw `.pdc-dl-act` buttons straight into the acts row — it now builds one
+  `.pdc-dl-menu` (a trigger button + a `.pdc-dl-pop` popover), and the SAME `.pdc-dl-act` buttons
+  (same classes, same `title` strings, same click handlers) render as popover items instead —
+  every existing count/title-keyed test kept working unchanged, since none of them depended on
+  visual placement (Playwright's raw in-page `.click()` fires regardless of `display:none`, and
+  `querySelectorAll(".pdc-dl-act")` doesn't care about visibility either). Only one thing is new:
+  a single visible trigger instead of up to 3 row buttons. A module-level `closeAllDlMenus()` +
+  one-time (guarded) `document` click/Escape listener keep only one popover open at a time and
+  dismiss it on an outside click or Escape — self-contained, since `studio-render.js` has no
+  access to `studio.js`'s existing `.menu-wrap`/`menuToggle()` machinery (this file is inlined
+  into the exported/standalone CDF html too, a completely different page with no parent-frame
+  JS). CSS lives in `app/exporters.js`'s unconditional `dlActsCss` (shared by the preview row
+  AND the real export's own `.pdc-dl-acts` container) so both contexts get the identical trigger
+  + popover look; `.pdc-dl-item` overrides `.pdc-dl-act`'s square icon-button box back to an
+  auto-width labeled row inside the popover. `docs/index.html`'s "Downloading a widget's image or
+  data" section updated to describe the menu instead of "small buttons appear." Deliberately kept
+  simple, per LF69(d)'s own scope — no new export capability, no arrow-key menu navigation, just
+  the consolidation Kevin asked for. 6 new regression tests (one trigger + closed-by-default shape
+  in the preview row; the popover holds the same 3 titled items; click-to-open sets
+  `aria-expanded`; outside-click closes it; Escape closes a reopened menu; the real standalone/
+  exported bundle collapses the same way in `.pdc-dl-acts`). Genuinely still open in LF69: (b)
+  audit that exports belong in the SAME header consistently across every "View" surface Kevin
+  means (today only true where `.sr-card-acts`/`.pdc-dl-acts` exist); (c) "Export as PNG" is
+  silently absent for panels with no `<svg>` (the GL/MapLibre choropleth renderer, a `<canvas>`) —
+  needs `preserveDrawingBuffer`-aware canvas capture, a materially bigger, WebGL-availability-
+  dependent change, still deliberately NOT attempted. Files: app/studio-render.js,
+  app/exporters.js, docs/index.html, tests/run.js, sw.js, js/changelog.js.
 - **LF69(a) — the panel action row's destructive ✕ delete now sits at the FAR RIGHT, not mid-row
   (v649, sw v286, 2026-07-28, steward — LIVE-QA QUEUE, LF69's first sub-item):** Kevin's LF69 note
   flagged 4 problems with the per-panel (View) header button cluster; this slice takes the ORDER
@@ -5467,7 +5498,10 @@
 >       (studio-render.js panel header controls + the export handlers, app/exporters.js per-panel export,
 >       studio.css panel-head.) Ties LF25 (per-panel export/PNG), LF49 (export formats), LF47, LF52.
 >       ✓ **Sub-item (a) shipped (2026-07-28, v649, sw v286, steward): delete now sits at the far
->       right, after the export chrome** — see DONE. (b)/(c)/(d) genuinely still open — see DONE's
+>       right, after the export chrome** — see DONE.
+>       ✓ **Sub-item (d) shipped (2026-07-28, v650, sw v287, steward): PNG/CSV/standalone-HTML
+>       collapse into a single Export ▾ trigger + popover** — see DONE. (b)/(c) genuinely still
+>       open — see DONE's
 >       own NEXT note for the shape of each.
 > LF70. ✓ **"Browse examples" (Home) now lands in Dashboards, filtered to sample-pack dashboards
 >       (shipped v639, sw v276, 2026-07-28, steward) — see DONE.** Took the "filter chip" shape (a

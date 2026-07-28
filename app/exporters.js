@@ -150,7 +150,22 @@
       ".pdc-dl-act:hover{color:var(--pentaho);border-color:var(--pentaho)}" +
       ".pdc-dl-acts{position:absolute;top:7px;right:11px;display:flex;gap:3px;opacity:0;transition:opacity .12s;z-index:8}" +
       ".card:hover .pdc-dl-acts{opacity:1}" +
-      "@media(pointer:coarse){.pdc-dl-acts{opacity:.85!important}.pdc-dl-act{width:32px;height:32px}}";
+      // LF69(d): PNG/CSV/standalone-HTML collapse into one "Export ▾" trigger + popover
+      // menu instead of up to 3 row buttons. .pdc-dl-trigger gets the same square
+      // icon-button look as .pdc-dl-act; .pdc-dl-item (an actual .pdc-dl-act, now a menu
+      // row) overrides back to an auto-width labeled row.
+      ".pdc-dl-menu{position:relative;display:flex}" +
+      ".pdc-dl-trigger{width:20px;height:20px;border-radius:5px;border:1px solid var(--panel-border);background:var(--panel-bg);" +
+      "color:var(--text-muted);cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;gap:1px}" +
+      ".pdc-dl-trigger:hover,.pdc-dl-menu.open .pdc-dl-trigger{color:var(--pentaho);border-color:var(--pentaho)}" +
+      ".pdc-dl-pop{position:absolute;top:24px;right:0;display:none;flex-direction:column;gap:2px;min-width:196px;" +
+      "padding:4px;background:var(--panel-bg);border:1px solid var(--panel-border);border-radius:8px;" +
+      "box-shadow:0 6px 20px rgba(0,0,0,.22);z-index:20}" +
+      ".pdc-dl-menu.open .pdc-dl-pop{display:flex}" +
+      ".pdc-dl-item{width:auto!important;height:auto!important;justify-content:flex-start;gap:8px;" +
+      "padding:6px 10px!important;font-size:12px;white-space:nowrap;text-align:left}" +
+      ".pdc-dl-item:hover{background:var(--panel-header-bg,rgba(127,127,127,.14))}" +
+      "@media(pointer:coarse){.pdc-dl-acts{opacity:.85!important}.pdc-dl-act:not(.pdc-dl-item),.pdc-dl-trigger{width:32px;height:32px}}";
     // Richtext panel styles — included in every exported CDF and in the preview iframe.
     // Target line — horizontal dashed reference overlay (target, budget, threshold, etc.)
     // Positioned absolutely within the chart body (card.body gets position:relative via JS).
