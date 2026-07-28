@@ -5290,6 +5290,15 @@
   function closeStudio() {
     if (window.__studioShellSetSection) window.__studioShellSetSection(S.studioOrigin || "dashboards");
   }
+  // LF67: a Quick-import build (studio.js quickBuildDashboard) auto-builds a real
+  // dashboard but never saves it — true only for the EXACT spec it just built (the
+  // _qmSource marker, same scoping QM3's live tuner uses) that hasn't been through
+  // Save yet (its id isn't in the Dashboards catalog). Once Save/Save-as runs, the id
+  // lands in the catalog (or clone() strips _qmSource on fork) and this flips false.
+  function hasUnsavedQuickBuild() {
+    return !!(S.spec && S.spec._qmSource && S.spec.id && !Studio.Workspace.get("dashboards", S.spec.id));
+  }
+  window.__studioHasUnsavedQuickBuild = hasUnsavedQuickBuild; // test hook
   function openRecent(id) {
     var r = loadRecents().filter(function (x) { return x.id === id; })[0];
     if (!r) return;
@@ -5299,6 +5308,13 @@
     // this one function routes them ALL to the read-only viewer route instead,
     // same-tab, in one place rather than re-checking the role at each call site.
     if (!currentUserCanDevelop()) { location.href = viewerUrl(id); return; }
+    // LF67: this same funnel is also the one place that can silently throw away an
+    // unsaved Quick-import build (Kevin's repro: "I clicked on it and it showed
+    // [another dashboard], that is not what I created") — warn before it does.
+    if (hasUnsavedQuickBuild() && !window.confirm(
+      "This Quick-import dashboard hasn’t been saved yet — opening “" +
+      ((r.spec && r.spec.title) || r.title || "another dashboard") + "” will lose it. Open anyway?"
+    )) return;
     S.spec = normalize(r.spec); S.selection = null; syncHeader(); renderInspector(); refreshPreview(); buildLibrary();
     enterStudio();
     markLastViewed(id); // "since you were last here" resets the clock the moment you actually open it
@@ -9681,6 +9697,11 @@
           b.setAttribute("aria-pressed", b.getAttribute("data-qm") === src.creativity ? "true" : "false");
         });
       }
+      // LF67: "unsaved — Save to keep" badge, the "clear state" half of the fix
+      // (openRecent's confirm() above is the "warn" half) — visible exactly as
+      // long as hasUnsavedQuickBuild() is true.
+      var qmu = $("#qmUnsaved");
+      if (qmu) qmu.hidden = !hasUnsavedQuickBuild();
     }
   }
 
@@ -9720,6 +9741,7 @@
     clearAutosave();
     snapshotVersion();          // version-history checkpoint (restorable)
     noteRecent();               // upsert into the Dashboards catalog
+    syncHeader();                // LF67: hides the "unsaved" qmTuner badge the moment it's saved
     renderHome(); renderDashboards();
     markSaved("Saved “" + (S.spec.title || S.spec.name) + "” to Dashboards");
   }

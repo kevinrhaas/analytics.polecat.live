@@ -279,6 +279,10 @@
           <!-- LF24 slice 3: the creativity dial's live tuner — only shown for a
                dashboard Quick import itself just auto-built (see studio.js syncHeader). -->
           <span id="qmTuner" class="qm-tuner" hidden>
+            <!-- LF67: shown whenever this Quick-import build hasn't been through Save yet
+                 (studio.js hasUnsavedQuickBuild/syncHeader) — openRecent also warns before
+                 replacing it, this is just the always-visible reminder. -->
+            <span id="qmUnsaved" class="qm-unsaved" hidden>Unsaved — Save to keep</span>
             <span class="qm-tuner-lbl">Creativity</span>
             <span class="qm-tuner-seg" role="group" aria-label="Quick mode creativity">
               <button type="button" class="qm-tuner-btn" data-qm="low" aria-pressed="false">Low</button>

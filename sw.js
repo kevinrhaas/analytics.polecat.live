@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v273"; /* v273: LF68 — fixed a "sensitive_pct"-style KPI column
+var CACHE_NAME = "studio-shell-v274"; /* v274: LF67 — a Quick-import build now warns before
+   opening a different dashboard silently replaces it (openRecent confirm() guard), plus an
+   "Unsaved — Save to keep" badge next to the creativity tuner while it's true. app/studio.js,
+   app/index.html, app/studio.css changed, so precached copies roll.
+   v273: LF68 — fixed a "sensitive_pct"-style KPI column
    sampling as a HIGH/MEDIUM/LOW label instead of a number (classify()'s /sens/ pattern matched
    before the /pct/ rule got a look), so the compliance-radar showcase's "Sensitive Data" KPI
    rendered NaN%. app/sampledata.js changed, so precached copies roll.

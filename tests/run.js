@@ -1913,6 +1913,89 @@ function serve() {
     await page.evaluate(function () { window.Studio.Defaults.setQuickModeCreativity("low"); });
     await page.waitForTimeout(100);
 
+    // ---- LF67: an unsaved Quick-import build warns before openRecent replaces it ----
+    // Kevin's repro: Quick import auto-builds a dashboard but never saves it, so opening
+    // ANY other dashboard afterward (Home/Dashboards cards, the Open picker — all funnel
+    // through openRecent, per its own comment) silently threw the build away. Fix: warn
+    // via window.confirm before openRecent replaces an unsaved quick build, plus a small
+    // "Unsaved — Save to keep" badge (#qmUnsaved) visible the whole time it applies.
+    console.log("\n• LF67: unsaved Quick-import dashboard warns before openRecent replaces it");
+    const lf67PriorSpec = await page.evaluate(function () { return JSON.parse(JSON.stringify(window.__STUDIO_STATE.spec)); });
+    const lf67Target = await page.evaluate(function () {
+      var spec = Studio.emptySpec();
+      spec.title = "LF67 target dashboard";
+      Studio.Workspace.put("dashboards", { id: spec.id, ts: new Date().toISOString(), spec: spec, title: spec.title, name: spec.name });
+      return spec.id;
+    });
+    await page.click('#railNav .rail-item[data-sec="home"]');
+    await page.waitForTimeout(150);
+    const lf67Fixture = path.join(__dirname, "fixture-lf67.csv");
+    fs.writeFileSync(lf67Fixture, "category,revenue\nAlpha,120\nBeta,200\nAlpha,150\n");
+    await page.setInputFiles("#secHome .home-quickimport-input", lf67Fixture);
+    await page.waitForTimeout(500);
+    const lf67Built = await page.evaluate(function () {
+      return {
+        specId: window.__STUDIO_STATE.spec.id,
+        unsaved: window.__studioHasUnsavedQuickBuild(),
+        badgeHidden: document.getElementById("qmUnsaved").hidden
+      };
+    });
+    ok("LF67: a freshly quick-built dashboard is flagged unsaved and shows the badge",
+      lf67Built.unsaved && lf67Built.badgeHidden === false, JSON.stringify(lf67Built));
+    const lf67Cancelled = await page.evaluate(function (targetId) {
+      var msg = null;
+      window.confirm = function (m) { msg = m; return false; }; // cancel — keep the unsaved build open
+      window.__studioOpenRecent(targetId);
+      return { specIdAfter: window.__STUDIO_STATE.spec.id, msg: msg };
+    }, lf67Target);
+    ok("LF67: opening another dashboard while unsaved warns, and cancelling keeps the quick build open",
+      lf67Cancelled.specIdAfter === lf67Built.specId && lf67Cancelled.specIdAfter !== lf67Target &&
+      /unsaved|hasn.t been saved/i.test(lf67Cancelled.msg || ""), JSON.stringify(lf67Cancelled));
+    const lf67Confirmed = await page.evaluate(function (targetId) {
+      window.confirm = function () { return true; }; // proceed — accept losing the unsaved build
+      window.__studioOpenRecent(targetId);
+      return { specIdAfter: window.__STUDIO_STATE.spec.id };
+    }, lf67Target);
+    ok("LF67: confirming the warning proceeds and opens the other dashboard",
+      lf67Confirmed.specIdAfter === lf67Target, JSON.stringify(lf67Confirmed));
+
+    await page.click('#railNav .rail-item[data-sec="home"]');
+    await page.waitForTimeout(150);
+    await page.setInputFiles("#secHome .home-quickimport-input", lf67Fixture);
+    await page.waitForTimeout(500);
+    const lf67SecondBuildId = await page.evaluate(function () { return window.__STUDIO_STATE.spec.id; });
+    await page.evaluate(function () { window.__studioSaveToCatalog(); });
+    const lf67AfterSave = await page.evaluate(function () {
+      return { unsaved: window.__studioHasUnsavedQuickBuild(), badgeHidden: document.getElementById("qmUnsaved").hidden };
+    });
+    ok("LF67: Save clears the unsaved flag and hides the badge",
+      !lf67AfterSave.unsaved && lf67AfterSave.badgeHidden === true, JSON.stringify(lf67AfterSave));
+    const lf67NoWarnNeeded = await page.evaluate(function (targetId) {
+      var called = false;
+      window.confirm = function () { called = true; return true; };
+      window.__studioOpenRecent(targetId);
+      return { called: called, specIdAfter: window.__STUDIO_STATE.spec.id };
+    }, lf67Target);
+    ok("LF67: once saved, opening another dashboard needs no confirmation at all",
+      !lf67NoWarnNeeded.called && lf67NoWarnNeeded.specIdAfter === lf67Target, JSON.stringify(lf67NoWarnNeeded));
+
+    fs.unlinkSync(lf67Fixture);
+    await page.evaluate(function (args) {
+      Studio.Workspace.all("datasets").filter(function (d) { return d.fileName === "fixture-lf67.csv"; }).forEach(function (d) {
+        var connId = d.connectionId;
+        Studio.Workspace.remove("datasets", d.id, { silent: true });
+        var stillUsed = Studio.Workspace.all("datasets").some(function (dd) { return dd.connectionId === connId; });
+        if (!stillUsed) Studio.Workspace.remove("connections", connId, { silent: true });
+      });
+      [args.target, args.secondBuild].forEach(function (id) { Studio.Workspace.remove("dashboards", id, { silent: true }); });
+      // Restore whatever was loaded before this block ran — leaving Studio on the
+      // "LF67 target dashboard" stub (now deleted from the catalog) would starve
+      // every later test that reads window.__STUDIO_STATE.spec of real panels.
+      window.__studioLoad(args.prior);
+      window.__studioShellSetSection("studio");
+    }, { target: lf67Target, secondBuild: lf67SecondBuildId, prior: lf67PriorSpec });
+    await page.waitForTimeout(100);
+
     // ---- Google Sheets adapter (★★★-2): gviz endpoint against a mock --------
     console.log("\n• Google Sheets adapter (★★★-2)");
     const gsShape = await page.evaluate(async function () {
