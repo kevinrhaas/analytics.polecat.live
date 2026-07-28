@@ -9966,6 +9966,10 @@
     // LF49 slice 2: Word (.docx) — the same summary + backend-data tables as the XLSX, as a
     // Word report (Studio.docxDoc, exporters.js). Binary → direct download(), not bundleModal.
     if (kind === "docx") { download((sp.name || "dashboard") + ".docx", buildDashboardDocx(sp), "application/vnd.openxmlformats-officedocument.wordprocessingml.document"); return; }
+    // LF49 slice 3: PowerPoint (.pptx) — a title slide, then a table slide per KPIs/Views/
+    // Filters block and per backend data source (Studio.pptxDeck, exporters.js). The last of
+    // LF49's three formats — LF49 is now fully done.
+    if (kind === "pptx") { download((sp.name || "dashboard") + ".pptx", buildDashboardPptx(sp), "application/vnd.openxmlformats-officedocument.presentationml.presentation"); return; }
     // LF36 slice 1: "PDF (print)" opens the exported dashboard in its own tab and starts the
     // browser's print dialog there — no new print/PDF logic to maintain, it just reuses the
     // @media print CSS + #printBtn wiring that Studio.exportCDF already bakes into every export
@@ -10102,6 +10106,52 @@
     return Studio.docxDoc(blocks);
   }
   window.__studioBuildDocx = function (spec) { return buildDashboardDocx(spec || S.spec); };
+
+  // LF49 slice 3: the same dashboard, as a PowerPoint deck (.pptx) — a title slide, then a
+  // KPIs/Views/Filters table slide each, then one table slide per backend data source. Unlike
+  // the .docx report, a slide doesn't paginate, so every table here is capped to what a single
+  // slide can actually hold (PPTX_MAX_ROWS rows incl. header, PPTX_MAX_COLS columns) — honest
+  // truncation, never a silently cropped table: a `note` line names how much was left out and
+  // points at the .xlsx export for the full data (Studio.pptxDeck, exporters.js, just lays out
+  // whatever rows/note it's given).
+  var PPTX_MAX_ROWS = 11, PPTX_MAX_COLS = 7;
+  function pptxTableSlide(title, rows) {
+    var totalCols = (rows[0] || []).length;
+    var cappedCols = Math.min(totalCols, PPTX_MAX_COLS);
+    var cappedRows = rows.slice(0, PPTX_MAX_ROWS).map(function (r) { return r.slice(0, cappedCols); });
+    var omittedRows = Math.max(0, rows.length - PPTX_MAX_ROWS);
+    var omittedCols = Math.max(0, totalCols - cappedCols);
+    var note = "";
+    if (omittedRows && omittedCols) note = "+" + omittedRows + " more row" + (omittedRows === 1 ? "" : "s") + " and " + omittedCols + " more column" + (omittedCols === 1 ? "" : "s") + " — see the .xlsx export for the full data.";
+    else if (omittedRows) note = "+" + omittedRows + " more row" + (omittedRows === 1 ? "" : "s") + " — see the .xlsx export for the full data.";
+    else if (omittedCols) note = "+" + omittedCols + " more column" + (omittedCols === 1 ? "" : "s") + " — see the .xlsx export for the full data.";
+    return { title: title, rows: cappedRows, note: note };
+  }
+  function buildDashboardPptx(sp) {
+    var slides = [], kpis = sp.kpis || [], panels = sp.panels || [], filters = sp.filters || [];
+    slides.push({ title: sp.title || sp.name || "Dashboard", subtitle: sp.description || "" });
+    if (kpis.length) slides.push(pptxTableSlide("KPIs", [["Name", "Value"]].concat(kpis.map(function (k) { return [k.label || "(KPI)", kpiValueFor(k)]; }))));
+    if (panels.length) {
+      slides.push(pptxTableSlide("Views", [["Title", "Chart type", "Data source"]].concat(panels.map(function (p) {
+        var da = Studio.daById(sp, p.chart && p.chart.da);
+        return [p.title || "(View)", (p.chart && p.chart.type) || "", da ? (da.name || da.id) : ((p.chart && p.chart.da) || "")];
+      }))));
+    }
+    if (filters.length) slides.push(pptxTableSlide("Filters", [["Filter"]].concat(filters.map(function (f) { return [f.label || f.col || f.id || ""]; }))));
+    var seen = {};
+    function addDaSlide(id) {
+      if (!id || seen[id]) return; seen[id] = 1;
+      var da = Studio.daById(sp, id); if (!da) return;
+      var sd; try { sd = Studio.sampleRows(da); } catch (e) { sd = null; }
+      if (!sd || !sd.cols) return;
+      var rows = [sd.cols].concat((sd.rows || []).map(function (r) { return r.map(function (v) { return v == null ? "" : String(v); }); }));
+      slides.push(pptxTableSlide(da.name || da.id || id, rows));
+    }
+    kpis.forEach(function (k) { addDaSlide(k.da); });
+    panels.forEach(function (p) { addDaSlide(p.chart && p.chart.da); });
+    return Studio.pptxDeck(slides);
+  }
+  window.__studioBuildPptx = function (spec) { return buildDashboardPptx(spec || S.spec); };
 
   // LF36 slice 2: page size / orientation / fit-to-width picker for the PDF export path — same
   // small-form-modal shape as openSaveAsModal (Cancel/primary-action foot row). Remembers the

@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 668,
+    title: 'Export a dashboard as a PowerPoint deck (.pptx)',
+    kind: 'feature',
+    ts: '2026-07-28T15:59:33.000Z',
+    items: [
+      'Export ▾ now offers "PowerPoint (.pptx)" — a real slide deck with a title slide, then a table slide per KPIs/Views/Filters block and per data source. Slides don\'t paginate like a Word page, so oversized tables are capped to what a slide can hold with a note on what was left out (see the Excel export for the full data). Opens in PowerPoint, Google Slides or LibreOffice Impress; built entirely in your browser, nothing uploaded. This completes LF49 — Excel, Word and PowerPoint exports are all done.',
+    ],
+  },
+  {
     v: 667,
     title: 'Cleaner builder — the stray Low/High "Creativity" control is gone',
     kind: 'polish',

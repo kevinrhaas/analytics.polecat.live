@@ -710,6 +710,165 @@
     return zipStore(parts);
   };
 
+  /* ---------- LF49 slice 3: dependency-free .pptx (Office Open XML) export ----------
+     Same OOXML-in-a-ZIP shape as the .xlsx/.docx above (reuses crc32/utf8/zipStore) — a
+     PowerPoint deck. Unlike Word/Excel, PowerPoint doesn't paginate: a slide is a fixed
+     canvas, so the caller (buildDashboardPptx, studio.js) caps each table to the row/column
+     count that actually fits and passes a `note` when it truncated — this module just lays
+     out whatever it's given. Public entry: Studio.pptxDeck(slides) where slides is an ordered
+     list of { title, subtitle } (a title slide) or { title, rows, note } (a table slide —
+     rows = array of arrays, first row is the header). Returns a Uint8Array. */
+  var PPTX_W = 9144000, PPTX_H = 6858000; // 10in x 7.5in (4:3), EMU (914400 EMU/in)
+  var PPTX_MARGIN = 457200; // 0.5in
+  var PPTX_ROW_H = 370840; // ~0.41in, matches buildDashboardPptx's row-count cap
+  function pptxSp(id, name, phType, x, y, cx, cy, text, sz) {
+    var ph = phType ? '<p:ph type="' + phType + '"/>' : '<p:ph type="body" idx="' + id + '"/>';
+    var xfrm = (x == null) ? '' : '<a:xfrm><a:off x="' + x + '" y="' + y + '"/><a:ext cx="' + cx + '" cy="' + cy + '"/></a:xfrm>';
+    var rPr = sz ? '<a:rPr lang="en-US" sz="' + sz + '" dirty="0"/>' : '<a:rPr lang="en-US" dirty="0"/>';
+    return '<p:sp><p:nvSpPr><p:cNvPr id="' + id + '" name="' + xml(name) + '"/><p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr>' +
+      '<p:nvPr>' + ph + '</p:nvPr></p:nvSpPr><p:spPr>' + xfrm + '</p:spPr>' +
+      '<p:txBody><a:bodyPr wrap="square"/><a:lstStyle/><a:p><a:r>' + rPr + '<a:t>' + xml(text == null ? "" : String(text)) + '</a:t></a:r></a:p></p:txBody></p:sp>';
+  }
+  function pptxTable(id, x, y, cx, cy, rows) {
+    var nCols = Math.max.apply(null, [1].concat((rows || []).map(function (r) { return (r || []).length; })));
+    var colW = Math.floor(cx / nCols);
+    var grid = ''; for (var c = 0; c < nCols; c++) grid += '<a:gridCol w="' + colW + '"/>';
+    var trs = (rows || []).map(function (row, ri) {
+      var cells = [];
+      for (var c = 0; c < nCols; c++) {
+        var v = row && row[c];
+        var fill = ri === 0 ? '<a:solidFill><a:schemeClr val="accent1"/></a:solidFill>' : '';
+        var rPr = ri === 0 ? '<a:rPr lang="en-US" b="1" sz="1400" dirty="0"><a:solidFill><a:schemeClr val="bg1"/></a:solidFill></a:rPr>' : '<a:rPr lang="en-US" sz="1400" dirty="0"/>';
+        cells.push('<a:tc><a:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r>' + rPr + '<a:t>' + xml(v == null ? "" : String(v)) + '</a:t></a:r></a:p></a:txBody>' +
+          '<a:tcPr marL="45720" marR="45720" marT="22860" marB="22860">' + fill + '</a:tcPr></a:tc>');
+      }
+      return '<a:tr h="' + PPTX_ROW_H + '">' + cells.join("") + '</a:tr>';
+    }).join("");
+    return '<p:graphicFrame><p:nvGraphicFramePr><p:cNvPr id="' + id + '" name="Table"/>' +
+      '<p:cNvGraphicFramePr><a:graphicFrameLocks noGrp="1"/></p:cNvGraphicFramePr><p:nvPr/></p:nvGraphicFramePr>' +
+      '<p:xfrm><a:off x="' + x + '" y="' + y + '"/><a:ext cx="' + cx + '" cy="' + cy + '"/></p:xfrm>' +
+      '<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/table">' +
+      '<a:tbl><a:tblPr firstRow="1" bandRow="1"><a:tableStyleId>{5C22544A-7EE6-4342-B048-85BDC9FD1C3A}</a:tableStyleId></a:tblPr>' +
+      '<a:tblGrid>' + grid + '</a:tblGrid>' + trs + '</a:tbl></a:graphicData></a:graphic></p:graphicFrame>';
+  }
+  function pptxSlideXml(slide) {
+    var contentW = PPTX_W - 2 * PPTX_MARGIN, bodyY = PPTX_MARGIN * 2 + 685800;
+    var body = pptxSp(2, "Title", "title", null, null, null, null, slide.title || "");
+    if (slide.rows) {
+      body += pptxTable(3, PPTX_MARGIN, bodyY, contentW, PPTX_H - bodyY - PPTX_MARGIN, slide.rows);
+      if (slide.note) body += pptxSp(4, "Note", null, PPTX_MARGIN, PPTX_H - PPTX_MARGIN - 320000, contentW, 320000, slide.note, 1200);
+    } else if (slide.subtitle) {
+      body += pptxSp(3, "Subtitle", null, PPTX_MARGIN, bodyY, contentW, PPTX_H - bodyY - PPTX_MARGIN, slide.subtitle, 1800);
+    }
+    return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">' +
+      '<p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>' +
+      '<p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>' +
+      body + '</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sld>';
+  }
+  var PPTX_THEME =
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" name="Polecat">' +
+    '<a:themeElements><a:clrScheme name="Polecat">' +
+    '<a:dk1><a:sysClr val="windowText" lastClr="000000"/></a:dk1><a:lt1><a:sysClr val="window" lastClr="FFFFFF"/></a:lt1>' +
+    '<a:dk2><a:srgbClr val="1A1A1A"/></a:dk2><a:lt2><a:srgbClr val="F2F2F2"/></a:lt2>' +
+    '<a:accent1><a:srgbClr val="4F7CFF"/></a:accent1><a:accent2><a:srgbClr val="34C38F"/></a:accent2>' +
+    '<a:accent3><a:srgbClr val="F5A623"/></a:accent3><a:accent4><a:srgbClr val="E15554"/></a:accent4>' +
+    '<a:accent5><a:srgbClr val="8E6FF7"/></a:accent5><a:accent6><a:srgbClr val="24A0C4"/></a:accent6>' +
+    '<a:hlink><a:srgbClr val="4F7CFF"/></a:hlink><a:folHlink><a:srgbClr val="8E6FF7"/></a:folHlink>' +
+    '</a:clrScheme><a:fontScheme name="Polecat"><a:majorFont><a:latin typeface="Calibri"/><a:ea typeface=""/><a:cs typeface=""/></a:majorFont>' +
+    '<a:minorFont><a:latin typeface="Calibri"/><a:ea typeface=""/><a:cs typeface=""/></a:minorFont></a:fontScheme>' +
+    '<a:fmtScheme name="Polecat">' +
+    '<a:fillStyleLst><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:fillStyleLst>' +
+    '<a:lnStyleLst><a:ln w="6350"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:ln><a:ln w="12700"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:ln><a:ln w="19050"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:ln></a:lnStyleLst>' +
+    '<a:effectStyleLst><a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst/></a:effectStyle><a:effectStyle><a:effectLst/></a:effectStyle></a:effectStyleLst>' +
+    '<a:bgFillStyleLst><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:solidFill><a:schemeClr val="phClr"/></a:solidFill></a:bgFillStyleLst>' +
+    '</a:fmtScheme></a:themeElements></a:theme>';
+  Studio.pptxDeck = function (slides) {
+    slides = (slides && slides.length) ? slides : [{ title: "Dashboard" }];
+    var parts = [];
+    function add(path, str) { parts.push({ path: path, bytes: utf8(str) }); }
+    var slideOverrides = slides.map(function (s, i) {
+      return '<Override PartName="/ppt/slides/slide' + (i + 1) + '.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/>';
+    }).join("");
+    add("[Content_Types].xml",
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+      '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+      '<Default Extension="xml" ContentType="application/xml"/>' +
+      '<Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/>' +
+      '<Override PartName="/ppt/slideMasters/slideMaster1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml"/>' +
+      '<Override PartName="/ppt/slideLayouts/slideLayout1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml"/>' +
+      '<Override PartName="/ppt/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/>' +
+      '<Override PartName="/ppt/tableStyles.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.tableStyles+xml"/>' +
+      slideOverrides + '</Types>');
+    add("_rels/.rels",
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+      '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="ppt/presentation.xml"/>' +
+      '</Relationships>');
+    add("ppt/tableStyles.xml",
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<a:tblStyleLst xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" def="{5C22544A-7EE6-4342-B048-85BDC9FD1C3A}"/>');
+    add("ppt/theme/theme1.xml", PPTX_THEME);
+    add("ppt/slideMasters/slideMaster1.xml",
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<p:sldMaster xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">' +
+      '<p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>' +
+      '<p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>' +
+      pptxSp(2, "Title Placeholder", "title", 457200, 274638, 8229600, 1143000, "Title", null) +
+      pptxSp(3, "Body Placeholder", "body", 457200, 1600200, 8229600, 4525963, "Body", null) +
+      '</p:spTree></p:cSld>' +
+      '<p:clrMap bg1="lt1" tx1="dk1" bg2="lt2" tx2="dk2" accent1="accent1" accent2="accent2" accent3="accent3" accent4="accent4" accent5="accent5" accent6="accent6" hlink="hlink" folHlink="folHlink"/>' +
+      '<p:sldLayoutIdLst><p:sldLayoutId id="2147483649" r:id="rId1"/></p:sldLayoutIdLst>' +
+      '<p:txStyles><p:titleStyle><a:lvl1pPr><a:defRPr sz="3600"/></a:lvl1pPr></p:titleStyle>' +
+      '<p:bodyStyle><a:lvl1pPr><a:defRPr sz="1800"/></a:lvl1pPr></p:bodyStyle>' +
+      '<p:otherStyle><a:lvl1pPr><a:defRPr sz="1400"/></a:lvl1pPr></p:otherStyle></p:txStyles>' +
+      '</p:sldMaster>');
+    add("ppt/slideMasters/_rels/slideMaster1.xml.rels",
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+      '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout1.xml"/>' +
+      '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme" Target="../theme/theme1.xml"/>' +
+      '</Relationships>');
+    add("ppt/slideLayouts/slideLayout1.xml",
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<p:sldLayout xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" type="obj" preserve="1">' +
+      '<p:cSld name="Title and Content"><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>' +
+      '<p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>' +
+      pptxSp(2, "Title", "title", null, null, null, null, "", null) +
+      pptxSp(3, "Content", "body", null, null, null, null, "", null) +
+      '</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sldLayout>');
+    add("ppt/slideLayouts/_rels/slideLayout1.xml.rels",
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+      '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster" Target="../slideMasters/slideMaster1.xml"/>' +
+      '</Relationships>');
+    slides.forEach(function (s, i) {
+      add("ppt/slides/slide" + (i + 1) + ".xml", pptxSlideXml(s));
+      add("ppt/slides/_rels/slide" + (i + 1) + ".xml.rels",
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout1.xml"/>' +
+        '</Relationships>');
+    });
+    add("ppt/presentation.xml",
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<p:presentation xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">' +
+      '<p:sldMasterIdLst><p:sldMasterId id="2147483648" r:id="rId1"/></p:sldMasterIdLst>' +
+      '<p:sldIdLst>' + slides.map(function (s, i) { return '<p:sldId id="' + (256 + i) + '" r:id="rId' + (i + 2) + '"/>'; }).join("") + '</p:sldIdLst>' +
+      '<p:sldSz cx="' + PPTX_W + '" cy="' + PPTX_H + '" type="screen4x3"/>' +
+      '<p:notesSz cx="6858000" cy="9144000"/>' +
+      '</p:presentation>');
+    add("ppt/_rels/presentation.xml.rels",
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+      '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster" Target="slideMasters/slideMaster1.xml"/>' +
+      slides.map(function (s, i) { return '<Relationship Id="rId' + (i + 2) + '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide' + (i + 1) + '.xml"/>'; }).join("") +
+      '</Relationships>');
+    return zipStore(parts);
+  };
+
   Studio.exportCDF = function (spec, assets, deployPath) {
     return Studio.buildHtml(spec, assets, { deployPath: deployPath, preview: false });
   };
