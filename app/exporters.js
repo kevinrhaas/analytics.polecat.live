@@ -649,6 +649,67 @@
     return zipStore(parts);
   };
 
+  /* ---------- LF49 slice 2: dependency-free .docx (Office Open XML) export ----------
+     Same OOXML-in-a-ZIP shape as the .xlsx above (reuses crc32/utf8/zipStore) — a Word
+     report of the dashboard. Public entry: Studio.docxDoc(blocks) where blocks is an
+     ordered list of { h, level } headings, { p } paragraphs, and { table:[[cell,…],…] }
+     tables (the first table row renders as a shaded bold header). Returns a Uint8Array. */
+  function docxRun(text, bold) {
+    return '<w:r>' + (bold ? '<w:rPr><w:b/></w:rPr>' : '') +
+      '<w:t xml:space="preserve">' + xml(text == null ? "" : String(text)) + '</w:t></w:r>';
+  }
+  function docxHeadPara(text, level) {
+    var sz = level === 1 ? 40 : 28; // half-points → 20pt / 14pt
+    return '<w:p><w:pPr><w:spacing w:before="' + (level === 1 ? 0 : 220) + '" w:after="80"/></w:pPr>' +
+      '<w:r><w:rPr><w:b/><w:sz w:val="' + sz + '"/><w:color w:val="1A1A1A"/></w:rPr>' +
+      '<w:t xml:space="preserve">' + xml(text == null ? "" : String(text)) + '</w:t></w:r></w:p>';
+  }
+  function docxTable(rows) {
+    var sides = ["top", "left", "bottom", "right", "insideH", "insideV"];
+    var borders = '<w:tblBorders>' + sides.map(function (s) {
+      return '<w:' + s + ' w:val="single" w:sz="4" w:space="0" w:color="CCCCCC"/>';
+    }).join("") + '</w:tblBorders>';
+    var tblPr = '<w:tblPr><w:tblW w:w="0" w:type="auto"/>' + borders + '</w:tblPr>';
+    var trs = (rows || []).map(function (row, ri) {
+      var cells = (row || []).map(function (c) {
+        var shd = ri === 0 ? '<w:shd w:val="clear" w:color="auto" w:fill="F2F2F2"/>' : '';
+        return '<w:tc><w:tcPr>' + shd + '</w:tcPr><w:p>' + docxRun(c, ri === 0) + '</w:p></w:tc>';
+      }).join("");
+      return '<w:tr>' + cells + '</w:tr>';
+    }).join("");
+    return '<w:tbl>' + tblPr + trs + '</w:tbl>';
+  }
+  Studio.docxDoc = function (blocks) {
+    var body = (blocks || []).map(function (b) {
+      if (b.h != null) return docxHeadPara(b.h, b.level || 2);
+      if (b.table) return docxTable(b.table);
+      return '<w:p><w:r><w:t xml:space="preserve">' + xml(b.p == null ? "" : String(b.p)) + '</w:t></w:r></w:p>';
+    }).join("");
+    // a trailing empty paragraph before sectPr — Word requires the body's last block-level
+    // element (after any table) to be a paragraph, and sectPr to be its final child.
+    body += '<w:p/><w:sectPr><w:pgSz w:w="12240" w:h="15840"/>' +
+      '<w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440"/></w:sectPr>';
+    var doc = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>' +
+      body + '</w:body></w:document>';
+    var parts = [];
+    function add(path, str) { parts.push({ path: path, bytes: utf8(str) }); }
+    add("[Content_Types].xml",
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+      '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+      '<Default Extension="xml" ContentType="application/xml"/>' +
+      '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>' +
+      '</Types>');
+    add("_rels/.rels",
+      '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+      '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>' +
+      '</Relationships>');
+    add("word/document.xml", doc);
+    return zipStore(parts);
+  };
+
   Studio.exportCDF = function (spec, assets, deployPath) {
     return Studio.buildHtml(spec, assets, { deployPath: deployPath, preview: false });
   };

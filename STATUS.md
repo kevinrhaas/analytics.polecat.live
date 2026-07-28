@@ -116,6 +116,25 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF49 (slice 2) — export a dashboard as a Word document (.docx) (#88, v666, sw v303, 2026-07-28,
+  steward — step 5 of the LOCKED BUILD ORDER):** Export ▾ gains **"Word document (.docx)"**, the
+  second of LF49's three formats, reusing slice 1's from-scratch OOXML-in-a-ZIP writer (crc32 +
+  stored zip). `Studio.docxDoc(blocks)` (app/exporters.js) turns an ordered block list — `{h,level}`
+  headings, `{p}` paragraphs, `{table}` tables (first row = shaded bold header, single-line
+  borders) — into a valid minimal `.docx` (`[Content_Types].xml` + `_rels/.rels` +
+  `word/document.xml` with a trailing paragraph + `sectPr`, Letter page + 1in margins).
+  `buildDashboardDocx(spec)` (app/studio.js) emits the same content as the XLSX — H1 title +
+  description, a KPIs table (name + `kpiValueFor`), a Views table (title / chart type / data
+  source), a Filters table, then one heading + data table per data source the dashboard uses
+  (`Studio.sampleRows`, deduped). Opens with zero warnings in Word / Google Docs / LibreOffice;
+  binary output downloads through `download()`. Chose a Word *report* (headings + editable tables)
+  over slide/deck output specifically because it needs no chart-image rendering to be complete and
+  honest. Validated with real `unzip -t` (no CRC errors) before wiring the test. **LF49 remaining:
+  PowerPoint (.pptx)** — the last format; a deck benefits from chart images (a bigger lift), so it's
+  its own later slice. Test: `__studioBuildDocx` on the Cost example asserts a PK-signed .docx with
+  the parts + `<w:document>`/`sectPr`, at least one `<w:tbl>`, and the title + "Monthly Cost" KPI in
+  the body. Files: app/exporters.js, app/studio.js, app/index.html, docs/index.html, tests/run.js,
+  sw.js, js/changelog.js.
 - **LF62 slice 8 — the sparkle name-suggest button now also lives on Explore's own
   "Folder" field (v665, sw v302, 2026-07-28, steward — LIVE-QA QUEUE, LF62 slice 7's
   own NEXT pointer, the last un-wired LF62 surface):** a View (Explore analysis) is

@@ -9985,6 +9985,9 @@
     // source share a sheet). Binary, so it bypasses the text-only bundleModal and downloads
     // straight through download() (which wraps the Uint8Array in a Blob).
     if (kind === "xlsx") { download((sp.name || "dashboard") + ".xlsx", buildDashboardXlsx(sp), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"); return; }
+    // LF49 slice 2: Word (.docx) — the same summary + backend-data tables as the XLSX, as a
+    // Word report (Studio.docxDoc, exporters.js). Binary → direct download(), not bundleModal.
+    if (kind === "docx") { download((sp.name || "dashboard") + ".docx", buildDashboardDocx(sp), "application/vnd.openxmlformats-officedocument.wordprocessingml.document"); return; }
     // LF36 slice 1: "PDF (print)" opens the exported dashboard in its own tab and starts the
     // browser's print dialog there — no new print/PDF logic to maintain, it just reuses the
     // @media print CSS + #printBtn wiring that Studio.exportCDF already bakes into every export
@@ -10084,6 +10087,43 @@
   }
   // Test hook: exercise the XLSX builder headlessly (bytes are inspectable — stored zip).
   window.__studioBuildXlsx = function (spec) { return buildDashboardXlsx(spec || S.spec); };
+
+  // LF49 slice 2: the same dashboard, as a Word report (.docx) — a title + KPIs table +
+  // Views table + filters, then a table of the backend data behind each source it uses.
+  // Reuses Studio.docxDoc (exporters.js) over the same OOXML-in-a-ZIP writer as the .xlsx.
+  function buildDashboardDocx(sp) {
+    var blocks = [], kpis = sp.kpis || [], panels = sp.panels || [], filters = sp.filters || [];
+    blocks.push({ h: sp.title || sp.name || "Dashboard", level: 1 });
+    if (sp.description) blocks.push({ p: sp.description });
+    if (kpis.length) {
+      blocks.push({ h: "KPIs" });
+      blocks.push({ table: [["Name", "Value"]].concat(kpis.map(function (k) { return [k.label || "(KPI)", kpiValueFor(k)]; })) });
+    }
+    if (panels.length) {
+      blocks.push({ h: "Views" });
+      blocks.push({ table: [["Title", "Chart type", "Data source"]].concat(panels.map(function (p) {
+        var da = Studio.daById(sp, p.chart && p.chart.da);
+        return [p.title || "(View)", (p.chart && p.chart.type) || "", da ? (da.name || da.id) : ((p.chart && p.chart.da) || "")];
+      })) });
+    }
+    if (filters.length) {
+      blocks.push({ h: "Filters" });
+      blocks.push({ table: [["Filter"]].concat(filters.map(function (f) { return [f.label || f.col || f.id || ""]; })) });
+    }
+    var seen = {};
+    function addDa(id) {
+      if (!id || seen[id]) return; seen[id] = 1;
+      var da = Studio.daById(sp, id); if (!da) return;
+      var sd; try { sd = Studio.sampleRows(da); } catch (e) { sd = null; }
+      if (!sd || !sd.cols) return;
+      blocks.push({ h: da.name || da.id || id });
+      blocks.push({ table: [sd.cols].concat((sd.rows || []).map(function (r) { return r.map(function (v) { return v == null ? "" : String(v); }); })) });
+    }
+    kpis.forEach(function (k) { addDa(k.da); });
+    panels.forEach(function (p) { addDa(p.chart && p.chart.da); });
+    return Studio.docxDoc(blocks);
+  }
+  window.__studioBuildDocx = function (spec) { return buildDashboardDocx(spec || S.spec); };
 
   // LF36 slice 2: page size / orientation / fit-to-width picker for the PDF export path — same
   // small-form-modal shape as openSaveAsModal (Cancel/primary-action foot row). Remembers the
