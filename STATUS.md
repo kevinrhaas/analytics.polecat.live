@@ -116,6 +116,41 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF68 — fixed 9 showcase KPIs rendering `NaN%`/a category label instead of a number (v636,
+  sw v273, 2026-07-28, steward):** the reported symptom was the compliance-radar showcase's
+  "Sensitive Data" KPI showing `NaN%`. Root cause wasn't the SQL (no bad denominator) — it's that
+  every sample dashboard's numbers come from `app/sampledata.js`'s offline `classify(colName)`
+  heuristic (there's no real backend; showcase KPIs are always mock-rendered), and its bare
+  `/sens|classification/` pattern matched `sensitive_pct` before the `/pct|percent|.../` rule ever
+  ran, handing back a HIGH/MEDIUM/LOW string for what's actually a numeric share — a "pct"-formatted
+  KPI can't format a string, hence `NaN%`. Fix: `classify()` now only returns `"sens"` when the name
+  doesn't ALSO look like a percentage (`!/pct|percent|rate|ratio|score/`), so `sensitive_pct` falls
+  through to the correct `"pct"` rule while a genuine `sensitivity`/`sens`/`by_sensitivity` column
+  still classifies as the categorical label. The finding's own "audit the other showcase KPIs for
+  the same" turned up the identical bug shape on 8 more KPIs, two sub-cases: (1) a `_count` suffix
+  losing to an earlier categorical-word rule on the word it counts — `crop_count`/`district_count`/
+  `practice_count` matched the `crop`/`district`/`practice` rules first and returned a crop/district/
+  practice NAME instead of a tally; fixed with a new top-of-`classify()` rule that lets an explicit
+  `_count` suffix win unconditionally (an unambiguous signal with no legitimate categorical
+  collision, unlike `_pct` which genuinely needs the narrower sens-only exclusion because
+  `budget_variance_pct`/`adoption_diff_pct` are supposed to stay "signed", not become "pct"); (2) five
+  KPIs — `terms`/`owners` (governance-command), `sources` (storage-growth), `practices`/`providers`
+  (conservation-scorecard), `practices` (conservation-flow), `providers` (conservation-agreement) —
+  used a bare plural-noun SQL alias for a genuine `COUNT(DISTINCT …)` aggregate with no suffix signal
+  at all to disambiguate from the identically-named categorical dimension; renamed each to the
+  `_count` convention every OTHER count-style KPI in these same files already uses (e.g.
+  `year_count`, `county_count`) — both the SQL alias/columns list and the KPI `valueCol`, isolated
+  per-file greps confirmed no other panel/filter in each spec referenced the old bare name. 3 new
+  regression tests: a unit pin that `sensitive_pct` samples numeric while `sensitivity` still samples
+  the categorical label, and a sweep across every example's `fmt:"pct"`/`fmt:"n"` KPIs asserting each
+  one's bound mock column is numeric (this is what actually caught the other 8 — it failed on first
+  write, listing exactly the 8 above, until the classify() + rename fixes landed). Full suite green
+  (2396/2396). SW cache → v273. Files: app/sampledata.js, tests/run.js, sw.js, js/changelog.js,
+  data/examples/{compliance-radar,governance-command,storage-growth,conservation-scorecard,
+  conservation-flow,conservation-agreement}.studio.json. NEXT per the LOCKED BUILD ORDER: step 4,
+  Studio chrome (LF46/LF48/LF45/LF52/LF53 — LF47 already done except Examples removal, LF43 slice
+  2's remit), or LF43 slice 2 itself (drop Examples, its own dedicated slice), or the remaining
+  LIVE-QA QUEUE bug/cleanup items (LF61/LF65/LF67/LF69/LF70) ahead of the flashier remaining work.
 - **"Restore unsaved work" banner is now opt-in (#114, v635, sw v272, 2026-07-27, steward):**
   Kevin: "can you make this restore unsaved work thing be a feature you have to turn on in user
   settings, i think it is distracting" + "the default is off". Added a `studio-restore-unsaved`
@@ -5140,11 +5175,14 @@
 >       WARN before an open/New replaces unsaved work). The autosave restore-banner is the safety net but
 >       shouldn't be the only recovery. (studio.js quickBuildDashboard → persist/dirty-guard, openRecent/
 >       enterStudio replace path.) Ties LF50 (replace warning), LF26 (overwrite protection), LF27.
-> LF68. **BUG — "Sensitivity & Compliance Radar" showcase KPI shows `NaN%`.** In the Data Management &
->       Governance showcase pack, the compliance-radar dashboard's "SENSITIVE DATA" KPI renders `NaN%` —
->       its percentage divides by an empty/non-numeric denominator (sensitive_pct KPI). Fix the sample's
->       KPI data/format so it shows a real %; audit the other showcase KPIs for the same. (demopacks.js /
->       the showcase pack spec + KPI fmt, guessFmt/percent KPI path.) Ties LF43, showcase-pack QA.
+> LF68. ✓ **BUG — "Sensitivity & Compliance Radar" showcase KPI shows `NaN%` (shipped v636, sw v273,
+>       2026-07-28, steward) — see DONE.** Root cause wasn't the SQL/denominator — it was
+>       `app/sampledata.js`'s offline sample-data `classify()` heuristic, which matched
+>       `sensitive_pct` on its bare `/sens/` pattern before the `/pct/` rule got a look, handing back
+>       a HIGH/MEDIUM/LOW categorical string for a numeric-share KPI. The audit this finding asked for
+>       turned up the same bug shape on 8 more KPIs across 6 other showcases (`crop_count`,
+>       `district_count`, `practice_count`, `terms`, `owners`, `sources`, `practices`, `providers`) —
+>       all fixed together, see DONE for the full writeup.
 > LF69. **View/panel header toolbar — reorder + fold exports into a MENU (Kevin, 2026-07-27).** The per-panel
 >       (View) header button cluster is wrong: (a) ORDER — destructive/close (✕, delete) belong on the FAR
 >       RIGHT, not mid-row; (b) EXPORTS should live in that header too; (c) it's MISSING "Export as PNG";

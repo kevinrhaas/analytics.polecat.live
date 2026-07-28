@@ -12,8 +12,8 @@
     "dataAccesses": [
       {
         "id": "kpi", "name": "FlowKPI", "params": [], "cache": true, "cacheDuration": 120,
-        "sql": "SELECT SUM(acres) AS tracked_acres, COUNT(DISTINCT crop) AS crop_count, ROUND(AVG(pct),1) AS avg_pct, COUNT(DISTINCT practice) AS practices FROM v_crop_practice",
-        "columns": ["tracked_acres", "crop_count", "avg_pct", "practices"]
+        "sql": "SELECT SUM(acres) AS tracked_acres, COUNT(DISTINCT crop) AS crop_count, ROUND(AVG(pct),1) AS avg_pct, COUNT(DISTINCT practice) AS practice_count FROM v_crop_practice",
+        "columns": ["tracked_acres", "crop_count", "avg_pct", "practice_count"]
       },
       {
         "id": "flow", "name": "CropToPractice", "params": [{ "name": "crop", "type": "String", "default": "%" }], "cache": true, "cacheDuration": 180,
@@ -49,7 +49,7 @@
     { "da": "kpi", "valueCol": "tracked_acres", "label": "Tracked Acres", "fmt": "n", "state": "purple", "info": "Total acreage covered across every crop and practice." },
     { "da": "kpi", "valueCol": "crop_count", "label": "Crops Tracked", "fmt": "n", "state": "", "info": "Distinct crops represented in the dataset." },
     { "da": "kpi", "valueCol": "avg_pct", "label": "Avg Adoption", "fmt": "pct", "state": "good", "info": "Average adoption rate across all crop/practice pairs." },
-    { "da": "kpi", "valueCol": "practices", "label": "Practices", "fmt": "n", "state": "", "info": "Distinct conservation practices tracked." }
+    { "da": "kpi", "valueCol": "practice_count", "label": "Practices", "fmt": "n", "state": "", "info": "Distinct conservation practices tracked." }
   ],
   "gridCols": 3,
   "panels": [

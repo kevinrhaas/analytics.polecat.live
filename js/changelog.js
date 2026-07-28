@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 636,
+    title: 'Fixed: the Sensitivity & Compliance Radar showcase showed "NaN%" for Sensitive Data',
+    kind: 'fix',
+    ts: '2026-07-28T01:51:16.000Z',
+    items: [
+      'The "Sensitive Data" KPI on the Sensitivity & Compliance Radar sample dashboard now shows a real percentage instead of NaN%.',
+      'Audited every other sample dashboard for the same class of bug — no other KPI was affected.',
+    ],
+  },
+  {
     v: 635,
     title: 'The "Restore unsaved work" banner is now opt-in',
     kind: 'polish',

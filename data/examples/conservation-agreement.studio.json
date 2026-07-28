@@ -12,8 +12,8 @@
     "dataAccesses": [
       {
         "id": "kpi", "name": "AgreementKPI", "params": [], "cache": true, "cacheDuration": 120,
-        "sql": "SELECT ROUND(AVG(pct),1) AS agreement_pct, COUNT(DISTINCT year) AS year_count, COUNT(DISTINCT provider) AS providers, ROUND(MAX(spread_pct),1) AS widest_gap_pct FROM v_provider_agreement",
-        "columns": ["agreement_pct", "year_count", "providers", "widest_gap_pct"]
+        "sql": "SELECT ROUND(AVG(pct),1) AS agreement_pct, COUNT(DISTINCT year) AS year_count, COUNT(DISTINCT provider) AS provider_count, ROUND(MAX(spread_pct),1) AS widest_gap_pct FROM v_provider_agreement",
+        "columns": ["agreement_pct", "year_count", "provider_count", "widest_gap_pct"]
       },
       {
         "id": "trend", "name": "AgreementTrend", "params": [{ "name": "sinceYear", "type": "String", "default": "%" }], "cache": true, "cacheDuration": 120,
@@ -48,7 +48,7 @@
   "kpis": [
     { "da": "kpi", "valueCol": "agreement_pct", "label": "Provider Agreement", "fmt": "pct", "state": "good", "info": "Common-estimate agreement across all years and providers — higher means tighter alignment." },
     { "da": "kpi", "valueCol": "year_count", "label": "Years Tracked", "fmt": "n", "state": "purple", "info": "Distinct report years covered by the ensemble." },
-    { "da": "kpi", "valueCol": "providers", "label": "Providers Compared", "fmt": "n", "state": "", "info": "Independent data providers contributing an adoption estimate." },
+    { "da": "kpi", "valueCol": "provider_count", "label": "Providers Compared", "fmt": "n", "state": "", "info": "Independent data providers contributing an adoption estimate." },
     { "da": "kpi", "valueCol": "widest_gap_pct", "label": "Widest Yearly Gap", "fmt": "pct", "state": "warn", "info": "The largest spread between the highest and lowest provider estimate in a single year." }
   ],
   "gridCols": 3,

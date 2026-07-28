@@ -11,8 +11,8 @@
     "dataAccesses": [
       {
         "id": "kpi", "name": "StorKPI", "params": [], "cache": true, "cacheDuration": 120,
-        "sql": "SELECT ROUND(SUM(size_bytes)/1099511627776.0,1) AS total_tb, ROUND(SUM(dup_savings_bytes)/1099511627776.0,1) AS reclaimable_tb, ROUND(100.0*SUM(size_bytes)/NULLIF(SUM(quota_bytes),0),0) AS quota_pct, COUNT(DISTINCT datasource_type) AS sources FROM entity_storage_demo",
-        "columns": ["total_tb", "reclaimable_tb", "quota_pct", "sources"]
+        "sql": "SELECT ROUND(SUM(size_bytes)/1099511627776.0,1) AS total_tb, ROUND(SUM(dup_savings_bytes)/1099511627776.0,1) AS reclaimable_tb, ROUND(100.0*SUM(size_bytes)/NULLIF(SUM(quota_bytes),0),0) AS quota_pct, COUNT(DISTINCT datasource_type) AS source_count FROM entity_storage_demo",
+        "columns": ["total_tb", "reclaimable_tb", "quota_pct", "source_count"]
       },
       {
         "id": "size_by_source", "name": "SizeBySource", "params": [], "cache": true, "cacheDuration": 120,
@@ -41,7 +41,7 @@
     { "da": "kpi", "valueCol": "total_tb", "label": "Total (TB)", "fmt": "n", "state": "purple", "info": "Total managed storage footprint." },
     { "da": "kpi", "valueCol": "reclaimable_tb", "label": "Reclaimable (TB)", "fmt": "n", "state": "good", "info": "Duplicate data that could be reclaimed." },
     { "da": "kpi", "valueCol": "quota_pct", "label": "Quota Used", "fmt": "pct", "state": "warn", "info": "Share of allocated quota consumed." },
-    { "da": "kpi", "valueCol": "sources", "label": "Data Sources", "fmt": "n", "state": "", "info": "Distinct source platforms in scope." }
+    { "da": "kpi", "valueCol": "source_count", "label": "Data Sources", "fmt": "n", "state": "", "info": "Distinct source platforms in scope." }
   ],
   "gridCols": 3,
   "panels": [

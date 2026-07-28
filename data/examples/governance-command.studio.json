@@ -15,8 +15,8 @@
         "params": [],
         "cache": true,
         "cacheDuration": 120,
-        "sql": "SELECT ROUND(100.0*SUM(CASE WHEN governed THEN 1 ELSE 0 END)/NULLIF(COUNT(*),0),1) AS governed_pct, COUNT(DISTINCT policy_key) AS policies, COUNT(DISTINCT term_key) AS terms, COUNT(DISTINCT owner) AS owners FROM v_entities_master",
-        "columns": ["governed_pct", "policies", "terms", "owners"]
+        "sql": "SELECT ROUND(100.0*SUM(CASE WHEN governed THEN 1 ELSE 0 END)/NULLIF(COUNT(*),0),1) AS governed_pct, COUNT(DISTINCT policy_key) AS policies, COUNT(DISTINCT term_key) AS term_count, COUNT(DISTINCT owner) AS owner_count FROM v_entities_master",
+        "columns": ["governed_pct", "policies", "term_count", "owner_count"]
       },
       {
         "id": "coverage",
@@ -69,8 +69,8 @@
   "kpis": [
     { "da": "kpi", "valueCol": "governed_pct", "label": "Governed", "fmt": "pct", "state": "good", "info": "Share of catalog entities under active governance." },
     { "da": "kpi", "valueCol": "policies", "label": "Active Policies", "fmt": "n", "state": "purple", "info": "Distinct policies applied across the catalog." },
-    { "da": "kpi", "valueCol": "terms", "label": "Glossary Terms", "fmt": "n", "state": "", "info": "Business glossary terms linked to data." },
-    { "da": "kpi", "valueCol": "owners", "label": "Data Owners", "fmt": "n", "state": "warn", "info": "Accountable owners assigned across domains." }
+    { "da": "kpi", "valueCol": "term_count", "label": "Glossary Terms", "fmt": "n", "state": "", "info": "Business glossary terms linked to data." },
+    { "da": "kpi", "valueCol": "owner_count", "label": "Data Owners", "fmt": "n", "state": "warn", "info": "Accountable owners assigned across domains." }
   ],
   "gridCols": 3,
   "panels": [
