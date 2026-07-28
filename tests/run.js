@@ -6578,6 +6578,40 @@ function serve() {
     ok("DSX: runDataset applies param defaults and lets caller overrides win",
       dsxParams.okRows === 2 && !dsxParams.okErr && /no such table: nope/.test(dsxParams.badErr), JSON.stringify(dsxParams));
 
+    // LF62 (live-QA queue, slice 1): a ✨ name-suggest sparkle button on the dataset
+    // editor's name field — the shared Studio.nameSuggest(kind, ctx) heuristic plus a
+    // reusable withSparkleButton DOM enhancer, wired first into the field with the
+    // richest available context (table/SQL/file/sheet source shape); other name
+    // fields (job/dashboard/View/connection) are a separate, later slice.
+    console.log("\n• LF62: dataset-name sparkle-suggest button");
+    await page.click("#dsxNewBtn");
+    await page.waitForTimeout(120);
+    const lf62Empty = await page.evaluate(function () {
+      var btn = document.querySelector(".modal .name-sparkle-btn");
+      var nameInp = document.querySelector(".modal .cx-field input");
+      btn.click();
+      return {
+        btnPresent: !!btn,
+        nameStillEmpty: nameInp.value === "",
+        toastCls: document.getElementById("toast").className,
+        toastText: document.getElementById("toast").textContent
+      };
+    });
+    ok("LF62: the sparkle button sits next to the dataset name field; clicking it with no source filled in yet leaves the name blank and explains why (error toast)",
+      lf62Empty.btnPresent && lf62Empty.nameStillEmpty && /err/.test(lf62Empty.toastCls) && /source/i.test(lf62Empty.toastText),
+      JSON.stringify(lf62Empty));
+    const lf62Filled = await page.evaluate(function () {
+      document.querySelector(".modal select.cx-sel").value = "conn-mock";
+      document.querySelector(".modal select.cx-sel").dispatchEvent(new Event("change"));
+      document.querySelector(".modal textarea.dsx-sql").value = "SELECT region, SUM(amount) AS total FROM sales_by_region GROUP BY region";
+      document.querySelector(".modal .name-sparkle-btn").click();
+      return { name: document.querySelector(".modal .cx-field input").value };
+    });
+    ok("LF62: with a SQL source filled in, the sparkle button suggests a readable name pulled from the FROM clause (Studio.nameSuggest + titleize, e.g. 'sales_by_region' -> 'Sales By Region')",
+      lf62Filled.name === "Sales By Region", JSON.stringify(lf62Filled));
+    await page.evaluate(function () { var x = document.querySelector(".modal-ov .modal .x"); if (x) x.click(); });
+    await page.waitForTimeout(120);
+
     // UX8 slice 2 (UX-POLISH track): the remaining non-button badge title= call sites —
     // folder/lineage/param badges (Datasets), the folder badge (Connections/Jobs/Explore),
     // the workspace-capable + last-edited badges (Connections), and the refresh-due/

@@ -116,6 +116,38 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF62 slice 1 — a ✨ "suggest a name" sparkle button on the dataset editor's Name field
+  (v651, sw v288, 2026-07-28, steward — LIVE-QA QUEUE):** Kevin's LF62 note asked for this
+  affordance on EVERY name field (dataset, job, dashboard, View, connection, preset,
+  folder); this slice builds the shared mechanism and proves it on the field with the
+  richest, most concrete context — the dataset editor's Name field, which sits right next
+  to the table/SQL/sheet/collection/file fields a suggestion can be derived from. Two new
+  pieces, split the same way LF38's password-reveal toggle split (pure logic vs. DOM):
+  `Studio.nameSuggest(kind, ctx)` (app/model.js, "Pure data + helpers; no DOM") picks the
+  most specific source-shaped string already on the form — a dropped file's name, a table,
+  a collection, a sheet tab, or a `FROM x` clause pulled out of raw SQL/PostgREST-query
+  text — and runs it through the existing `titleize()` helper so the suggestion reads like
+  the app's own dataset names (e.g. demopacks.js's "County cover-crop adoption") rather
+  than a bare identifier; returns `""` when nothing usable is on the form yet. `Studio`.
+  `withSparkleButton(inp, kind, getCtx)` (app/studio.js, alongside `withRevealToggle`) is
+  the DOM half — wraps an already-built `<input>` in the same overlay-button container
+  shape LF38 established (`.name-sparkle`/`.name-sparkle-btn` CSS mirrors `.pw-reveal`/
+  `.pw-reveal-btn`), reuses the existing `sparkle` icon (icons.js, already used by the
+  What's-new button and the welcome hero), and calls `getCtx()` lazily on click (not at
+  build time) so it can read the surrounding form's OTHER fields at THAT moment — the
+  dataset editor's table/SQL fields are still empty when the name field itself is first
+  built. An empty suggestion shows an error toast ("Fill in a source first…") instead of
+  silently doing nothing. `withSparkleButton` is exposed through `coreModuleDeps()` — the
+  same shared-deps builder Connections/Datasets/Jobs already pull from — so wiring it into
+  those modules' own name fields next is a one-line addition, not new plumbing. 2 new
+  regression tests (clicking the button with nothing filled in leaves the name blank +
+  shows the error toast; filling the SQL field with a `FROM sales_by_region` query then
+  clicking it suggests "Sales By Region"). NEXT in LF62: wire the same button into the
+  remaining name fields — job, dashboard, View, connection, preset, folder — each a
+  separate, small slice (the connection wizard and Jobs editor already receive
+  `withSparkleButton` via `coreModuleDeps()`, so those two are the cheapest next steps).
+  Files: app/model.js, app/studio.js, app/studio.css, app/datasets.js, tests/run.js, sw.js,
+  js/changelog.js.
 - **LF69(d) — the per-panel PNG/CSV/standalone-HTML row buttons collapse into a single
   "Export ▾" trigger + popover menu (v650, sw v287, 2026-07-28, steward — LIVE-QA QUEUE, LF69's
   own NEXT pointer):** LF69(a) (delete-button reorder, see below) left (d) as "the next-most-
@@ -5424,6 +5456,11 @@
 >       component reused everywhere. (A shared nameSuggest(kind, ctx) helper + a sparkle affordance next to
 >       every name input; studio.js dataset/job/dashboard/View editors, connection wizard.) Ties LF41
 >       (naming), LF55, LF56.
+>       ✓ **Slice 1 shipped (2026-07-28, v651, steward): the shared mechanism, wired into the
+>       dataset editor's Name field** — see DONE. `Studio.nameSuggest(kind, ctx)` (model.js) +
+>       `withSparkleButton` (studio.js, exposed via `coreModuleDeps()`) are the reusable pieces;
+>       NEXT is wiring the same button into job/dashboard/View/connection/preset/folder name
+>       fields, one small slice each.
 > LF63. **Connection/dataset QUERY BUILDER — see tables/columns, assisted build, validate, test.** For a
 >       connection you can browse the available tables, you should be able to SEE and USE them when building
 >       a dataset: a table/column browser (already have schema for some adapters) feeding an assisted
