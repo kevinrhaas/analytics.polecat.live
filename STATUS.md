@@ -116,6 +116,37 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF49 (slice 3) — export a dashboard as a PowerPoint deck (.pptx) (#88, v668, sw v305,
+  2026-07-28, steward — step 5 of the LOCKED BUILD ORDER; LF49 is now fully done):** the last
+  of LF49's three formats, reusing the crc32/utf8/zipStore OOXML-in-a-ZIP writer the .xlsx/.docx
+  slices already built. `Studio.pptxDeck(slides)` (app/exporters.js) is a new, dependency-free
+  minimal-but-valid PPTX package writer — presentation.xml + one slideMaster/slideLayout/theme/
+  tableStyles (a single shared "Title and Content" layout for every slide, since the deck's whole
+  content is title+table) + one slide part (and its layout `_rels`) per slide; each slide is
+  either a title/subtitle text pair (the deck's opening slide) or a title + a real DrawingML
+  `<a:tbl>` table (`pptxTable`, built-in "Medium Style 2 – Accent 1" table style, accent1-filled
+  bold header row). The key difference from the .xlsx/.docx shape: **a slide doesn't paginate** —
+  it's a fixed canvas, not a scrolling page — so `buildDashboardPptx` (app/studio.js) caps every
+  table BEFORE it reaches `pptxDeck`: `PPTX_MAX_ROWS=11` (header + 10 data rows, sized to the
+  table's own row height so it never overflows the content area under the title) and
+  `PPTX_MAX_COLS=7`. `pptxTableSlide()` does the capping and, when either cap actually cut
+  something, adds a `note` line under the table naming exactly how many rows/columns were left
+  out and pointing at the .xlsx export for the full data — the same "never silently truncate"
+  scientific-honesty convention the Viridis V9 polish established, applied here because a cropped
+  table with no explanation would be worse than the xlsx/docx precedent set. Deck shape: title
+  slide (dashboard title + description) → KPIs table slide (name/value) → Views table slide
+  (title/chart type/data source) → Filters table slide (if any) → one table slide per unique
+  backend data source a KPI or View uses (same dedup-by-DA-id order as the xlsx/docx builders).
+  Validated independently with real `unzip -t` (no CRC errors) before wiring the in-app test, same
+  as the two earlier LF49 slices. Test: `__studioBuildPptx` on the Cost example asserts a
+  PK-signed .pptx with the required parts (Content_Types, presentation.xml, slideMaster, slide1),
+  a `<p:sld` slide count ≥5 (title + KPIs + Views + ≥2 data-source slides for the Cost fixture),
+  a real `<a:tbl>` table on a data slide, and the title + "Monthly Cost" KPI label present in the
+  bytes. **LF49 ("Export as Excel workbook / Word document / PowerPoint") is now fully done** —
+  the last item under LOCKED BUILD ORDER step 5's "Exports" heading is complete; LF54 (deeper
+  density tightening, deferred) and LF51 (nav IA, "slice it," design-standards-driven) remain the
+  step-5 items open. Files: app/exporters.js, app/studio.js, app/index.html, docs/index.html,
+  sw.js, js/changelog.js, tests/run.js.
 - **LF50 — removed the stray Low/High "Creativity" control from the builder (#89, v667, sw v304,
   2026-07-28, steward — step 5 of the LOCKED BUILD ORDER):** the LF24 in-builder "Creativity"
   live tuner (a Low/High segment in the topbar, shown after a Quick import to rebuild the dashboard
@@ -5746,8 +5777,11 @@
 >    2026-07-27, **LF47 is now fully done** except Examples removal, which is LF43 slice 2's
 >    remit, not duplicated here) · LF48 (mode switcher) · LF45 (Save-as + Open dialog) ·
 >    LF52 (widget→View) · LF53 (drop CDF/CDE).
-> 5. **Exports + navigation/layout:** LF49 (XLSX/PPTX/DOCX) · LF54 (kill left-gutter whitespace) ·
->    LF51 (sophisticated nav IA: right-aligned pills, full names, date-time, list+rich-tile views).
+> 5. **Exports + navigation/layout:** LF49 (XLSX ✓ · DOCX ✓ · PPTX ✓, 2026-07-28 — **LF49 is now
+>    fully done**) · LF54 (slice 1 ✓ left-align + kill left-gutter whitespace, 2026-07-28 — deeper
+>    per-component density tightening left as an optional follow-up) · LF51 (sophisticated nav IA:
+>    right-aligned pills, full names, date-time, list+rich-tile views — not started, "slice it,"
+>    design-standards-driven; the remaining step-5 item).
 > The recurring quality tracks (UX polish, Track H/L/N sweeps) continue to interleave as usual.
 
 ### ★★ LIVE-QA QUEUE (Kevin, 2026-07-27 second session) — captured during live QA

@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v304"; /* v304: LF50 — removed the stray in-builder Low/High
+var CACHE_NAME = "studio-shell-v305"; /* v305: LF49 slice 3 — Export ▾ → "PowerPoint (.pptx)",
+   the last of LF49's three formats (LF49 is now fully done): a dependency-free slide deck
+   (Studio.pptxDeck in exporters.js, same OOXML-in-a-ZIP writer as the .xlsx/.docx) — a title
+   slide, then a table slide per KPIs/Views/Filters block and per data source, each capped to
+   what a single slide can hold with a truncation note (slides don't paginate). app/exporters.js,
+   app/studio.js, app/index.html, docs/index.html changed, so precached copies roll.
+   v304: LF50 — removed the stray in-builder Low/High
    "Creativity" live tuner (Quick import honors the Settings default instead); #qmTuner now only
    carries the LF67 "unsaved" reminder. app/index.html, app/studio.js, app/studio.css changed, so
    precached copies roll.
