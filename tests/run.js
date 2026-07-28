@@ -7907,6 +7907,28 @@ function serve() {
     ok("Cache: disabling Cache on a DA falls back to sample data on reopen instead of a stale cache",
       !dkCacheDisabled.skip && /sample/.test(dkCacheDisabled.status), JSON.stringify(dkCacheDisabled));
 
+    // #121 (Kevin live QA): the Cache section only shows for a data access with a LIVE query path.
+    // s3Sales (duckdb) keeps it; a bare authored kind:"sql" DA with no connection — the shape the
+    // demo/sample packs use, which only ever renders sample data — hides it (no dead toggle).
+    const cacheVisibility = await page.evaluate(function () {
+      function cacheShown(id) {
+        window.__studioSelect({ kind: "da", id: id });
+        var labels = [].slice.call(document.querySelectorAll("#inspBody .field label")).map(function (l) { return l.textContent; });
+        var liveBtn = [].slice.call(document.querySelectorAll("#inspBody button")).some(function (b) { return /Run live/.test(b.textContent); });
+        return { cache: labels.indexOf("Duration (seconds)") >= 0, live: liveBtn };
+      }
+      var sp = window.__STUDIO_STATE.spec;
+      var liveDA = cacheShown("s3Sales");
+      sp.cda.dataAccesses.push({ id: "c121sample", name: "Sample only", kind: "sql", authored: true, connectionId: "", columns: ["practice", "pct"], sql: "" });
+      var sampleDA = cacheShown("c121sample");
+      sp.cda.dataAccesses = sp.cda.dataAccesses.filter(function (d) { return d.id !== "c121sample"; });
+      window.__studioSelect(null);
+      return { liveDA: liveDA, sampleDA: sampleDA };
+    });
+    ok("#121: the Cache section shows for a live-path data access (duckdb s3Sales) but is hidden for a sample-only authored SQL DA with no connection",
+      cacheVisibility.liveDA.cache === true && cacheVisibility.liveDA.live === true &&
+      cacheVisibility.sampleDA.cache === false && cacheVisibility.sampleDA.live === false, JSON.stringify(cacheVisibility));
+
     // A DA that has never been queried live shows "Never verified live" instead.
     const dkNeverVerified = await page.evaluate(async () => {
       var sp = window.__STUDIO_STATE.spec;
@@ -12301,25 +12323,29 @@ function serve() {
       });
 
       window.__studioSelect({ kind: "da", id: "ic_sql" });
-      var base = iconsFor(["Data Source", "SQL Query", "Output columns", "Parameters",
-        "Calculated columns", "Output options", "Filter rules", "Sort", "Cache"]);
+      // #121: the Cache section only renders for a data access with a live query path, so a bare
+      // kind:"sql" DA (no connection) no longer shows it — its glyph is checked on the duckdb DA below.
+      var baseTitles = ["Data Source", "SQL Query", "Output columns", "Parameters",
+        "Calculated columns", "Output options", "Filter rules", "Sort"];
+      var base = iconsFor(baseTitles);
 
       var kindTitles = {
         duckdb: "DuckDB-Wasm (remote file)", httpvfs: "SQLite-WASM (remote file)",
         snowflake: "Snowflake (SQL API)", databricks: "Databricks (Statement Execution API)",
         bigquery: "BigQuery (jobs.query API)", http: "Generic SQL/HTTP"
       };
-      var perKindTitles = ["duckdb", "httpvfs", "snowflake", "databricks", "bigquery", "http"].map(function (k) { return kindTitles[k]; });
-      var perKind = ["duckdb", "httpvfs", "snowflake", "databricks", "bigquery", "http"].map(function (k) {
+      var perKindOrder = ["duckdb", "httpvfs", "snowflake", "databricks", "bigquery", "http"];
+      // duckdb (a live-path kind) also carries the Cache section, so measure Cache's glyph there.
+      var perKindTitleLists = perKindOrder.map(function (k) { return k === "duckdb" ? [kindTitles[k], "Cache"] : [kindTitles[k]]; });
+      var perKind = perKindOrder.map(function (k, i) {
         window.__studioSelect({ kind: "da", id: "ic_" + k });
-        return iconsFor([kindTitles[k]]);
+        return iconsFor(perKindTitleLists[i]);
       });
 
       window.__studioLoad(_saved); // restore shared state for later tests
       window.__studioSelectDashboard();
 
-      var allTitles = base.hs.map(function (_, i) { return ["Data Source", "SQL Query", "Output columns", "Parameters",
-        "Calculated columns", "Output options", "Filter rules", "Sort", "Cache"][i]; }).concat(perKindTitles);
+      var allTitles = baseTitles.concat(perKindTitleLists.reduce(function (a, l) { return a.concat(l); }, []));
       var allHs = base.hs.concat(perKind.reduce(function (a, p) { return a.concat(p.hs); }, []));
       var allSvgs = base.svgs.concat(perKind.reduce(function (a, p) { return a.concat(p.svgs); }, []));
       return {

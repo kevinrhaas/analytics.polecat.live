@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 644,
+    title: 'The Cache option now only appears where it does something',
+    kind: 'polish',
+    ts: '2026-07-28T05:01:09.000Z',
+    items: [
+      'A dataset editor\'s "Cache" section (Enabled + Duration) now shows only for a dataset with a live query path — a real connection or a direct file/warehouse source.',
+      'Sample and demo datasets have no live query to cache, so the option is hidden there instead of showing a control that did nothing.',
+    ],
+  },
+  {
     v: 643,
     title: 'The widget editor now labels its data source "Dataset"',
     kind: 'polish',

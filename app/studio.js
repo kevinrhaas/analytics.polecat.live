@@ -4452,14 +4452,20 @@
     limRow.appendChild(labelEl("Row limit (0 = no limit)")); limRow.appendChild(limIn);
     ooSec.appendChild(limRow);
 
-    // Cache
-    var cch = section(body, "Cache", null, null, null, "clock");
-    var clab = el("label", "check"); var ccb = el("input"); ccb.type = "checkbox"; ccb.checked = da.cache !== false;
-    ccb.onchange = function () { da.cache = ccb.checked; };
-    clab.appendChild(ccb); clab.appendChild(document.createTextNode(" Enabled")); cch.appendChild(clab);
-    var dur = el("input"); dur.type = "number"; dur.value = da.cacheDuration || 300;
-    dur.addEventListener("input", function () { da.cacheDuration = +dur.value || 300; });
-    cch.appendChild(field("Duration (seconds)", dur));
+    // Cache — only meaningful for a data access with a LIVE query path (daHasLivePath): the cache
+    // (daCacheGet/daCacheSet) only ever saves an automatic re-query of a real connector. A
+    // sample/authored data access (demo packs; a bare kind:"sql" DA with no connection) has no live
+    // query to cache, so the controls did nothing there — hide them instead of showing dead toggles
+    // (#121, Kevin live QA: "does this cache thing work or is it a leftover cda thing?").
+    if (daHasLivePath(da)) {
+      var cch = section(body, "Cache", null, null, null, "clock");
+      var clab = el("label", "check"); var ccb = el("input"); ccb.type = "checkbox"; ccb.checked = da.cache !== false;
+      ccb.onchange = function () { da.cache = ccb.checked; };
+      clab.appendChild(ccb); clab.appendChild(document.createTextNode(" Enabled")); cch.appendChild(clab);
+      var dur = el("input"); dur.type = "number"; dur.value = da.cacheDuration || 300;
+      dur.addEventListener("input", function () { da.cacheDuration = +dur.value || 300; });
+      cch.appendChild(field("Duration (seconds)", dur));
+    }
 
     renderDAPreview(body, da);
   }
@@ -4473,6 +4479,16 @@
   // inspector's own "Test connection & detect columns" also runs a real probe against the live
   // source (DESCRIBE/PRAGMA/sample query) — just as strong a liveness signal — so its six
   // per-connector success handlers (below) now call markDaFreshness() too.
+  // A data access has a LIVE query path iff it's bound to a workspace connection or is one of the
+  // direct-engine kinds (duckdb/httpvfs file queries + the four credentialed connectors). Single
+  // source of truth for both the DA preview's "Run live" button and the Cache section's visibility
+  // (#121) — a DA with no live path only ever renders sample data, so neither is meaningful there.
+  function daHasLivePath(da) {
+    if (!da) return false;
+    if (da.connectionId) return true;
+    return da.kind === "duckdb" || da.kind === "httpvfs" || da.kind === "snowflake" ||
+      da.kind === "databricks" || da.kind === "bigquery" || da.kind === "http";
+  }
   function daFreshnessMap() {
     return lsGet("studio-da-freshness", {});
   }
@@ -4540,7 +4556,7 @@
     var isBigquery = da.kind === "bigquery";
     var isHttp = da.kind === "http";
     var liveBtn = null;
-    if (hasConn || isDuckdb || isSqlite || isSnowflake || isDatabricks || isBigquery || isHttp) {
+    if (daHasLivePath(da)) {
       liveBtn = el("button", "btn"); setIconBtn(liveBtn, "play", "Run live");
       liveBtn.title = hasConn ? "Query live through this dataset's connection" :
         isDuckdb ? "Query the live file via DuckDB-Wasm (HTTP Range Requests)" :
