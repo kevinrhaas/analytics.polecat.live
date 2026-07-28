@@ -116,6 +116,16 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **Fix: "What's new" is now reachable on mobile (v642, sw v279, 2026-07-28, steward — closes UX
+  sweep 2026-07-28 (#367) finding #1, top priority):** the What's-new feed had exactly two
+  triggers — the global topbar button `#tbWhatsNew` (hidden at ≤640px by the M10 phone-topbar
+  collapse) and the Studio footer's `#btnChangelog` (only exists while Studio is the active
+  section, inside `#appMain`) — so a phone user on Home/Dashboards/Datasets/etc had **no** way to
+  open the feed, yet the unread-update dot (`#wnDotTb`/`#wnDot`) kept showing with nothing to tap.
+  Fix: added `#moreWhatsNew` (`more-phone-only`, so it's invisible on desktop where `#tbWhatsNew`
+  already covers it) to `#menuMore` — the always-reachable, fixed-position ⋯More menu (M10) present
+  on every section — wired in `wireTopbar()` to the same shared `openWhatsNew()` the other two
+  triggers use. SW cache → v279.
 - **Sample generator: one row per distinct category, not a duplicated 8 (v641, sw v278,
   2026-07-28, steward):** Kevin, live QA on the Conservation pack — the practice-shift dataset
   (`PracticeShift2015to2025`, SQL `GROUP BY practice`) showed each of the 4 practices TWICE in the

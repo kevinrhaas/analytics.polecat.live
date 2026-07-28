@@ -9501,6 +9501,10 @@
       var tgt = $("#" + pair[0]), src = $("#" + pair[1]);
       if (tgt && src) tgt.onclick = function () { closeMenus(); src.click(); };
     });
+    // UX sweep 2026-07-28 #1: phone-only escape hatch for What's New (see index.html
+    // comment on #moreWhatsNew) — shares the same openWhatsNew() as #tbWhatsNew/#btnChangelog.
+    var moreWhatsNew = $("#moreWhatsNew");
+    if (moreWhatsNew) moreWhatsNew.onclick = function () { closeMenus(); openWhatsNew(moreWhatsNew); };
     // H-track v117: Demo mode — simulate live refreshing data for SE demos
     var moreDemoMode = $("#moreDemoMode"); if (moreDemoMode) moreDemoMode.onclick = function () { closeMenus(); toggleDemoMode(); };
     var morePresent = $("#morePresent"); if (morePresent) morePresent.onclick = function () { closeMenus(); enterFocusMode(); };
