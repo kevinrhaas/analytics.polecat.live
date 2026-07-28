@@ -4546,6 +4546,50 @@ function serve() {
     });
     ok("LF43: re-running materialization while already installed is idempotent (no duplicate rows)",
       lf43ReInstallNoDupe === 8, String(lf43ReInstallNoDupe));
+
+    // ---- LF70: Home's "Browse examples" card must land in Dashboards filtered to the
+    // installed sample pack(s)' curated dashboards (thumbnail tiles) — not the old
+    // Examples ▾ dropdown of static demo-db specs. Conservation's 9 rows are still
+    // installed here (removed just below), so this is a real filter, not a no-op. ----
+    console.log("\n• LF70: 'Browse examples' lands in Dashboards, filtered to sample-pack dashboards");
+    await page.evaluate(function () { window.__studioShellSetSection("home"); });
+    await page.waitForTimeout(150);
+    const lf70Before = await page.evaluate(function () {
+      var all = Studio.Workspace.all("dashboards");
+      return { total: all.length, packTotal: all.filter(function (r) { return !!r.demoPackId; }).length };
+    });
+    ok("LF70 setup: more total dashboards exist than pack-tagged ones (so the filter is real, not a no-op)",
+      lf70Before.total > lf70Before.packTotal && lf70Before.packTotal > 0, JSON.stringify(lf70Before));
+    await page.click('.home-card[data-home="examples"]');
+    await page.waitForTimeout(200);
+    const lf70Landed = await page.evaluate(function () {
+      var packIds = {};
+      Studio.Workspace.all("dashboards").filter(function (r) { return !!r.demoPackId; }).forEach(function (r) { packIds[r.id] = true; });
+      var shown = Array.prototype.slice.call(document.querySelectorAll("#repoResults [data-recent]")).map(function (b) { return b.getAttribute("data-recent"); });
+      return {
+        dashSectionVisible: document.getElementById("secDashboards").hidden === false,
+        dashRailActive: document.querySelector('#railNav .rail-item[data-sec="dashboards"]').classList.contains("active"),
+        examplesModalOpen: !!document.getElementById("menuExamples") && document.getElementById("menuExamples").classList.contains("open"),
+        activeChip: (document.querySelector(".wb-chip.active .wb-chip-label") || {}).textContent,
+        shownCount: shown.length,
+        allShownArePackDashboards: shown.length > 0 && shown.every(function (id) { return packIds[id]; })
+      };
+    });
+    ok("LF70: 'Browse examples' jumps straight to Dashboards (no Studio entry, no Examples ▾ dropdown) with the Sample-packs chip active",
+      lf70Landed.dashSectionVisible && lf70Landed.dashRailActive && !lf70Landed.examplesModalOpen && lf70Landed.activeChip === "Sample packs",
+      JSON.stringify(lf70Landed));
+    ok("LF70: the filtered Dashboards view shows ONLY sample-pack dashboards (matches the installed pack's materialized set)",
+      lf70Landed.shownCount === lf70Before.packTotal && lf70Landed.allShownArePackDashboards,
+      JSON.stringify(lf70Landed));
+    const lf70AllChip = await page.evaluate(function () {
+      var chips = Array.prototype.slice.call(document.querySelectorAll(".wb-chip"));
+      var allChip = chips.filter(function (c) { return c.querySelector(".wb-chip-label").textContent === "All"; })[0];
+      allChip.click();
+      return document.querySelectorAll("#repoResults [data-recent]").length;
+    });
+    ok("LF70: clicking the 'All' chip clears the sample-packs filter back to the full catalog",
+      lf70AllChip === lf70Before.total, String(lf70AllChip) + " vs " + lf70Before.total);
+
     const lf43Removed = await page.evaluate(function () {
       window.__studioDemoPacks.remove("conservation");
       return Studio.Workspace.all("dashboards").filter(function (r) { return r.demoPackId === "conservation"; }).length;
