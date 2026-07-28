@@ -1950,6 +1950,18 @@ body.simple-mode .da-acts{display:none!important}
 .viewer-export-menu button:hover{background:var(--field);color:var(--brand)}
 .viewer-export-menu button svg{width:15px;height:15px;flex-shrink:0;color:var(--muted)}
 .viewer-export-menu button:hover svg{color:var(--brand)}
+/* #122b (mobile release gate): #viewerBar packs Back + title + badge + Save-a-copy + Export + Edit,
+   all flex-shrink:0 — on a phone that overflowed/clipped. On a narrow screen: drop the decorative
+   "Viewer — read-only" badge, tighten the gap/padding, and collapse the action buttons to ICON-ONLY
+   (hide .viewer-btn-txt + the Export caret) so every control still fits and stays tappable. Each
+   button keeps a title/aria-label for its name when the text is hidden. */
+@media(max-width:640px){
+  #viewerBar{gap:var(--sp-6);padding:0 var(--sp-10)}
+  .viewer-badge{display:none}
+  .viewer-btn-txt,.viewer-export-caret{display:none}
+  .viewer-back{padding:var(--sp-6)}
+  .viewer-savecopy-btn,.viewer-edit-link,.viewer-export-btn{padding:var(--sp-8);gap:0}
+}
 #viewerStage{position:relative;flex:1;min-height:0}
 #viewerFrame{position:absolute;inset:0;width:100%;height:100%;border:none;display:block}
 .viewer-empty{display:none;position:absolute;inset:0;flex-direction:column;align-items:center;
