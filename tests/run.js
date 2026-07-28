@@ -14135,38 +14135,46 @@ function serve() {
     ok("LF49 slice 2: the report has the dashboard title, KPI names, and data tables",
       lf49d.title && lf49d.kpiLabel && lf49d.hasTable, JSON.stringify(lf49d));
 
-    // LF49 slice 3: PowerPoint (.pptx) — a title slide + one table slide per KPIs/Views/Filters
-    // block and per data source (Studio.pptxDeck, exporters.js). LF49 is now fully done.
-    const lf49p = await page.evaluate(() => {
-      try {
-        var bytes = window.__studioBuildPptx();
-        var s = "";
-        for (var i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
-        var slideCount = (s.match(/ppt\/slides\/slide\d+\.xml/g) || []).length / 2; // part + rels each match once
-        return {
-          isUint8: !!(bytes && bytes.constructor && bytes.constructor.name === "Uint8Array"),
-          pk: bytes[0] === 0x50 && bytes[1] === 0x4B,
-          hasContentTypes: s.indexOf("[Content_Types].xml") >= 0,
-          hasPresentation: s.indexOf("ppt/presentation.xml") >= 0,
-          hasMaster: s.indexOf("ppt/slideMasters/slideMaster1.xml") >= 0,
-          hasSlide1: s.indexOf("ppt/slides/slide1.xml") >= 0,
-          slideCount: slideCount,               // studio-cost: title + KPIs + Views + 6 data sources = 9
-          hasSld: s.indexOf("<p:sld ") >= 0,
-          hasTable: s.indexOf("<a:tbl>") >= 0,   // a real DrawingML table on a data slide
-          title: s.indexOf("Cost Optimization") >= 0,
-          kpiLabel: s.indexOf("Monthly Cost") >= 0,
-          menuBtn: !!document.querySelector("#menuExport button[data-exp='pptx']"),
-          bytes: bytes.length
-        };
-      } catch (e) { return { err: e.message }; }
+    // LF49 slice 3: PowerPoint (.pptx) — a deck where each chart View is a slide carrying its
+    // CHART IMAGE. The builder rasterizes each panel from the live preview iframe via the render
+    // module's __downloadPanelPngDataUrl hook (the same one the on-panel PNG download / LF6 test
+    // uses), so we first wait for the preview to render its chart SVGs, then build + validate.
+    await page.evaluate(async () => {
+      var spec = await fetch("data/examples/studio-cost.studio.json").then(function (r) { return r.json(); });
+      window.__studioLoad(spec);
     });
+    await page.waitForFunction(() => {
+      try { var d = document.querySelector("#preview").contentDocument; return d && d.querySelectorAll("[data-panel-id] svg").length >= 1; }
+      catch (e) { return false; }
+    }, { timeout: 15000 }).catch(function () {});
+    await page.waitForTimeout(500);
+    const lf49p = await page.evaluate(() => new Promise((resolve) => {
+      try {
+        window.__studioBuildPptx(function (bytes) {
+          var s = "";
+          for (var i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+          resolve({
+            isUint8: !!(bytes && bytes.constructor && bytes.constructor.name === "Uint8Array"),
+            pk: bytes[0] === 0x50 && bytes[1] === 0x4B,
+            hasPresentation: s.indexOf("ppt/presentation.xml") >= 0,
+            hasMaster: s.indexOf("ppt/slideMasters/slideMaster1.xml") >= 0,
+            hasTheme: s.indexOf("ppt/theme/theme1.xml") >= 0,
+            hasSlide1: s.indexOf("ppt/slides/slide1.xml") >= 0,
+            media: (s.match(/ppt\/media\/image\d+\.png/g) || []).length,
+            hasPic: s.indexOf("<p:pic>") >= 0 && s.indexOf('r:embed="rId2"') >= 0,
+            title: s.indexOf("Cost Optimization") >= 0,
+            menuBtn: !!document.querySelector("#menuExport button[data-exp='pptx']"),
+            bytes: bytes.length
+          });
+        });
+      } catch (e) { resolve({ err: e.message }); }
+    }));
     ok("LF49 slice 3: the Export menu offers a 'PowerPoint (.pptx)' item", lf49p.menuBtn, JSON.stringify({ menuBtn: lf49p.menuBtn, err: lf49p.err }));
-    ok("LF49 slice 3: exportPptx yields a valid PK-signed .pptx (Content_Types, presentation.xml, slideMaster, slide1)",
-      lf49p.isUint8 && lf49p.pk && lf49p.hasContentTypes && lf49p.hasPresentation && lf49p.hasMaster && lf49p.hasSlide1, JSON.stringify(lf49p));
-    ok("LF49 slice 3: the deck has a title slide + one table slide per KPIs/Views block and per data source (≥5 slides for the Cost fixture) with a real table",
-      lf49p.slideCount >= 5 && lf49p.hasSld && lf49p.hasTable, JSON.stringify(lf49p));
-    ok("LF49 slice 3: the deck has the dashboard title and KPI labels",
-      lf49p.title && lf49p.kpiLabel, JSON.stringify(lf49p));
+    ok("LF49 slice 3: exportPptx yields a valid PK-signed .pptx with the OOXML presentation graph (presentation / master / theme / slide1)",
+      lf49p.isUint8 && lf49p.pk && lf49p.hasPresentation && lf49p.hasMaster && lf49p.hasTheme && lf49p.hasSlide1, JSON.stringify(lf49p));
+    ok("LF49 slice 3: each chart View becomes an image slide — the deck embeds ≥1 chart PNG as a picture (<p:pic>)",
+      lf49p.media >= 1 && lf49p.hasPic, JSON.stringify(lf49p));
+    ok("LF49 slice 3: the title slide carries the dashboard title", lf49p.title, JSON.stringify(lf49p));
 
     // ---- N-FUN: first-export delight moment ----
     console.log("\n• N-FUN: first-export delight moment");
