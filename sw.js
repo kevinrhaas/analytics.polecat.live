@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v293"; /* v293: LF62 slice 3 — the same ✨ sparkle
+var CACHE_NAME = "studio-shell-v294"; /* v294: LF62 slice 4 — the same ✨ sparkle
+   name-suggest button now sits on the Dashboard inspector's own "Title" field too,
+   suggesting a titleized name from whichever panel source shows up most often across
+   the spec's panels (app/studio.js, app/model.js, tests/run.js changed), so precached
+   copies roll.
+   v293: LF62 slice 3 — the same ✨ sparkle
    name-suggest button now sits on the connection wizard's "Connection name" field too,
    suggesting a titleized name from whichever identifying credential field (database/
    project/host/…) is already filled in (app/connections.js, app/model.js, tests/run.js

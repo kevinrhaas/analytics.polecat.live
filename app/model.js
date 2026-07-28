@@ -2676,6 +2676,30 @@
       if (raw) return titleize(raw);
     }
     if (kind === "job" && ctx.sourceDatasetName) return titleize(ctx.sourceDatasetName);
+    if (kind === "dashboard") {
+      // No single "source" field on a dashboard the way a dataset/job/connection has —
+      // the best stand-in is whichever panel source shows up most often across the
+      // spec's own panels (each panel's `src` is already a short provenance caption,
+      // e.g. "entity_storage_demo"; a title's " · Bar chart" suffix is stripped as a
+      // fallback for panels that never got one). Ties go to whichever was seen first.
+      var panels = ctx.panels || [];
+      var raws = panels.map(function (p) { return p && p.src; }).filter(Boolean);
+      if (!raws.length) {
+        raws = panels.map(function (p) { return ((p && p.title) || "").replace(/\s*·.*$/, "").trim(); }).filter(Boolean);
+      }
+      if (raws.length) {
+        var counts = {}, firstSeen = {}, bestKey = "", bestCount = 0;
+        raws.forEach(function (r) {
+          var k = r.toLowerCase();
+          counts[k] = (counts[k] || 0) + 1;
+          if (!(k in firstSeen)) firstSeen[k] = r;
+        });
+        Object.keys(counts).forEach(function (k) {
+          if (counts[k] > bestCount) { bestCount = counts[k]; bestKey = k; }
+        });
+        if (bestKey) return titleize(firstSeen[bestKey]);
+      }
+    }
     if (kind === "connection") {
       var cfg = ctx.cfg || {};
       // Prefer a field that names the actual target (database/project/account/…)

@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 657,
+    title: 'The name-suggest sparkle button now works on the dashboard title too',
+    kind: 'feature',
+    ts: '2026-07-28T11:47:14.000Z',
+    items: [
+      'The Dashboard inspector\'s Title field now has the same ✨ suggest button — it suggests a name from whichever data source shows up most often across the dashboard\'s panels.',
+    ],
+  },
+  {
     v: 656,
     title: 'The name-suggest sparkle button now works for connections too',
     kind: 'feature',

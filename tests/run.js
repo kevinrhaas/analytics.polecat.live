@@ -9260,6 +9260,24 @@ function serve() {
     await page.waitForTimeout(150);
     const renamedSync = await page.evaluate(() => document.getElementById("dashTitle").querySelector(".dash-title-txt").textContent);
     ok("dashbar: editing the Title field in the inspector updates the toolbar button live", renamedSync === "Renamed via inspector", renamedSync);
+
+    // LF62 slice 4 (live-QA queue, LF62 slice 3's own NEXT pointer): the same sparkle
+    // name-suggest button, wired into the Dashboard inspector's own Title field —
+    // suggests a titleized name derived from whichever panel "src" provenance caption
+    // shows up most often across the spec (the studio-cost example's 6 panels are 5x
+    // "entity_storage_demo" + 1x "entity_storage_demo + dim_date").
+    console.log("\n• LF62 slice 4: dashboard-title sparkle-suggest button");
+    await page.evaluate(() => { window.__studioSelectDashboard(); });
+    await page.waitForTimeout(150);
+    const lf62Dash = await page.evaluate(function () {
+      var inp = document.getElementById("dashTitleField");
+      var btn = inp.parentElement.querySelector(".name-sparkle-btn");
+      btn.click();
+      return { btnPresent: !!btn, title: inp.value };
+    });
+    ok("LF62 slice 4: the Dashboard inspector's Title field carries the sparkle button, suggesting a titleized name from the dashboard's most common panel source ('entity_storage_demo' -> 'Entity Storage Demo')",
+      lf62Dash.btnPresent && lf62Dash.title === "Entity Storage Demo", JSON.stringify(lf62Dash));
+
     await page.evaluate(async () => { const spec = await fetch("data/examples/studio-cost.studio.json").then((r) => r.json()); window.__studioLoad(spec); });
     await page.waitForTimeout(200);
 
