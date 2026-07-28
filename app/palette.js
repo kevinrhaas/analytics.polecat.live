@@ -43,7 +43,7 @@
     { label: "Toggle light / dark theme", hint: "View", kw: "theme dark light mode appearance color", ic: "moon", run: function () { click("btnTheme"); } },
     { label: "Focus mode", hint: "View", kw: "focus present clean distraction zen", ic: "eye", run: function () { studio(); click("morePresent"); } },
     { label: "Slideshow", hint: "Present", kw: "slideshow present slides fullscreen cycle", ic: "play", run: function () { studio(); click("moreSlideshow"); } },
-    { label: "Demo mode", hint: "Present", kw: "demo live simulate refresh animate", ic: "clock", run: function () { studio(); click("moreDemoMode"); } },
+    { label: "Demo mode", hint: "Present", kw: "demo live simulate refresh animate", ic: "clock", run: function () { studio(); if (window.__studioToggleDemoMode) window.__studioToggleDemoMode(); } },
     { label: "Simple mode", hint: "View", kw: "simple beginner basic easy streamlined", ic: "check", run: function () { studio(); click("moreSimple"); } },
     // learn / manage
     { label: "Take the tour", hint: "Learn", kw: "tour welcome intro walkthrough onboarding about", ic: "play", run: function () { studio(); click("moreAbout"); } },

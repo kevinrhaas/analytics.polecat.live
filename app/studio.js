@@ -9013,10 +9013,12 @@
       refreshPreview();
       toast("Demo mode off");
     }
-    var btn = $("#moreDemoMode");
-    if (btn) btn.textContent = S.demoMode ? "Demo mode  ■" : "Demo mode  ▶";
-    renderSettings();
+    renderSettings(); // LF46: Demo mode now lives only in Settings → Presentation — keep that switch in sync
   }
+  // Canonical Demo-mode toggle entry point (Demo mode is no longer a ⋯-menu button, LF46) — used by
+  // the command palette (palette.js) and the test suite; the Settings → Presentation switch calls
+  // toggleDemoMode() directly via SETTINGS_TOGGLES.
+  window.__studioToggleDemoMode = toggleDemoMode;
 
   function exitFocusMode() {
     document.body.classList.remove("focus-mode");
@@ -9556,8 +9558,8 @@
     // comment on #moreWhatsNew) — shares the same openWhatsNew() as #tbWhatsNew/#btnChangelog.
     var moreWhatsNew = $("#moreWhatsNew");
     if (moreWhatsNew) moreWhatsNew.onclick = function () { closeMenus(); openWhatsNew(moreWhatsNew); };
-    // H-track v117: Demo mode — simulate live refreshing data for SE demos
-    var moreDemoMode = $("#moreDemoMode"); if (moreDemoMode) moreDemoMode.onclick = function () { closeMenus(); toggleDemoMode(); };
+    // LF46 (⋯ teardown): Demo mode is no longer wired here — it lives in Settings → Presentation
+    // (Z5 SETTINGS_TOGGLES) as its single labelled home; toggleDemoMode() stays the shared toggle.
     var morePresent = $("#morePresent"); if (morePresent) morePresent.onclick = function () { closeMenus(); enterFocusMode(); };
     var moreSlideshow = $("#moreSlideshow"); if (moreSlideshow) moreSlideshow.onclick = function () { closeMenus(); openSlideshow(); };
     var moreSimple = $("#moreSimple"); if (moreSimple) moreSimple.onclick = function () { closeMenus(); toggleSimpleMode(); };
