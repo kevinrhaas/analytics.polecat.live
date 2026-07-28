@@ -79,6 +79,13 @@
   // not a catalog of folder records — a dataset just carries its folder name
   // directly, same free-text shape as tags but one value instead of many.
   var _dsxFolderFilter = ""; // "" = All, "__unfiled" = no folder, else a folder name
+  // LF51 (nav IA spec (d), "list + rich-tile views"): the Datasets section can
+  // render its results as the compact list (default) or a richer tile grid, the
+  // same list/tile choice the Dashboards section already offers (#dashViewToggle
+  // / studio-dash-view). Device-remembered UI state, same bucket as
+  // studio-dash-view — a localStorage key, not workspace data.
+  var _dsxViewMode = "list";
+  try { _dsxViewMode = localStorage.getItem("studio-dsx-view") || "list"; } catch (e) {}
   function dsxConnOf(d) { return Studio.Workspace.get("connections", d.connectionId); }
   function dsxAdapterOf(d) { var c = dsxConnOf(d); return c ? Studio.sourceById(c.adapter) : null; }
   // Post-overhaul backlog item 6 ("saved views for the Datasets/Connections
@@ -158,6 +165,19 @@
   }
   function renderDatasets() {
     var results = $("#dsxResults"); if (!results) return;
+    // LF51 (d): wire the persistent list/tile toggle (lives in the section header,
+    // outside #dsxResults, so this idempotent binding survives every re-render).
+    var vt = $("#dsxViewToggle");
+    if (vt) {
+      var tilesNow = _dsxViewMode === "tiles";
+      vt.textContent = tilesNow ? "List view" : "Tile view";
+      vt.setAttribute("aria-pressed", tilesNow ? "true" : "false");
+      vt.onclick = function () {
+        _dsxViewMode = _dsxViewMode === "tiles" ? "list" : "tiles";
+        try { localStorage.setItem("studio-dsx-view", _dsxViewMode); } catch (e) {}
+        renderDatasets();
+      };
+    }
     var q = (($("#dsxSearch") || {}).value || "").toLowerCase();
     var list = Studio.Workspace.all("datasets").filter(isDatasetVisibleToMe).sort(function (a, b) {
       if (!!a.pinned !== !!b.pinned) return a.pinned ? -1 : 1;
@@ -259,6 +279,11 @@
         (d.tags || []).join(" ") + " " + (d.folder || "") + " " + (conn ? conn.name : "") + " " + (d.columns || []).join(" ")).toLowerCase();
       return hay.indexOf(q) >= 0;
     });
+    // LF51 (d): each dataset renders as either a compact list row (default) or a
+    // richer tile card. Both wrappers reuse the exact same inner fragments and the
+    // same data-dsx-* hooks, so every delegated handler (edit/run/del/pin/private,
+    // row-click-to-open, dragstart, icon injection) works identically in both.
+    var isTiles = _dsxViewMode === "tiles";
     var rows = shown.map(function (d) {
       var conn = dsxConnOf(d), src = dsxAdapterOf(d);
       var dot = !d.lastRun ? '<span class="cx-dot" data-tip="Never run"></span>'
@@ -271,22 +296,27 @@
         ? '<span class="cx-badge cx-lineage" data-tip="Used in: ' + esc(lineage.map(function (r) { return r.title || r.name || "Untitled"; }).join(", ")) + '">↪ ' +
           lineage.length + " dashboard" + (lineage.length !== 1 ? "s" : "") + '</span>'
         : "";
-      return '<div class="cx-row" draggable="true" data-dsx-id="' + esc(d.id) + '">' +
-        dot +
-        '<span class="cx-ic" style="color:' + esc((src && src.accent) || "var(--faint)") + '"></span>' +
-        '<span class="cx-name"><button type="button" class="cx-title-btn" title="' + esc(d.name) + ' — edit dataset" aria-label="Edit dataset ' + esc(d.name) + '"><b>' + esc(d.name) + '</b></button><small>' + esc(conn ? conn.name : "no connection") + (src ? " · " + src.label : "") + (d.owner ? " · " + esc(d.owner) : "") + '</small></span>' +
-        folderBadge +
-        tags +
-        ((d.params || []).length ? '<span class="cx-badge" data-tip="Accepts parameters">' + (d.params || []).length + " param" + ((d.params || []).length > 1 ? "s" : "") + '</span>' : "") +
-        lineageBadge +
-        '<span class="cx-when">' + esc(Studio.fmtWhen(d.updatedAt || Date.now())) + '</span>' +
-        '<button type="button" class="cx-private' + (d.private ? " private" : "") + '" data-dsx-private="' + esc(d.id) + '" title="' + (d.private ? "Private — only you can see this" : "Make private") + '" aria-label="' + (d.private ? "Make " + esc(d.name) + " public" : "Make " + esc(d.name) + " private") + '" aria-pressed="' + (d.private ? "true" : "false") + '"></button>' +
-        '<button type="button" class="cx-pin' + (d.pinned ? " on" : "") + '" data-dsx-pin="' + esc(d.id) + '" title="' + (d.pinned ? "Unpin" : "Pin to top") + '" aria-label="' + (d.pinned ? "Unpin " : "Pin ") + esc(d.name) + '" aria-pressed="' + (d.pinned ? "true" : "false") + '"></button>' +
-        '<span class="cx-actions">' +
+      var icon = '<span class="cx-ic" style="color:' + esc((src && src.accent) || "var(--faint)") + '"></span>';
+      var name = '<span class="cx-name"><button type="button" class="cx-title-btn" title="' + esc(d.name) + ' — edit dataset" aria-label="Edit dataset ' + esc(d.name) + '"><b>' + esc(d.name) + '</b></button><small>' + esc(conn ? conn.name : "no connection") + (src ? " · " + src.label : "") + (d.owner ? " · " + esc(d.owner) : "") + '</small></span>';
+      var paramBadge = (d.params || []).length ? '<span class="cx-badge" data-tip="Accepts parameters">' + (d.params || []).length + " param" + ((d.params || []).length > 1 ? "s" : "") + '</span>' : "";
+      var badges = folderBadge + tags + paramBadge + lineageBadge;
+      var when = '<span class="cx-when">' + esc(Studio.fmtWhen(d.updatedAt || Date.now())) + '</span>';
+      var privateBtn = '<button type="button" class="cx-private' + (d.private ? " private" : "") + '" data-dsx-private="' + esc(d.id) + '" title="' + (d.private ? "Private — only you can see this" : "Make private") + '" aria-label="' + (d.private ? "Make " + esc(d.name) + " public" : "Make " + esc(d.name) + " private") + '" aria-pressed="' + (d.private ? "true" : "false") + '"></button>';
+      var pinBtn = '<button type="button" class="cx-pin' + (d.pinned ? " on" : "") + '" data-dsx-pin="' + esc(d.id) + '" title="' + (d.pinned ? "Unpin" : "Pin to top") + '" aria-label="' + (d.pinned ? "Unpin " : "Pin ") + esc(d.name) + '" aria-pressed="' + (d.pinned ? "true" : "false") + '"></button>';
+      var actions = '<span class="cx-actions">' +
           '<button type="button" class="btn" data-dsx-run="' + esc(d.id) + '">Run</button>' +
           '<button type="button" class="btn" data-dsx-edit="' + esc(d.id) + '">Edit</button>' +
           '<button type="button" class="btn" data-dsx-del="' + esc(d.id) + '" aria-label="Delete ' + esc(d.name) + '">✕</button>' +
-        '</span></div>';
+        '</span>';
+      if (isTiles) {
+        return '<div class="dsx-tile" draggable="true" data-dsx-id="' + esc(d.id) + '">' +
+          '<div class="dsx-tile-head">' + dot + icon + name + pinBtn + privateBtn + '</div>' +
+          (badges ? '<div class="dsx-tile-badges">' + badges + '</div>' : "") +
+          '<div class="dsx-tile-foot">' + when + actions + '</div>' +
+          '</div>';
+      }
+      return '<div class="cx-row" draggable="true" data-dsx-id="' + esc(d.id) + '">' +
+        dot + icon + name + badges + when + privateBtn + pinBtn + actions + '</div>';
     });
     results.innerHTML =
       (pillsF ? '<div class="wb-chips">' + pillsF + '</div>' : "") +
@@ -298,7 +328,7 @@
         pillsT +
         (anyA || anyC || anyT || anyK || anyF ? '<button type="button" class="wb-chip" id="dsxPillClear" title="Show everything">Clear</button>' : "") +
         viewAddHtml + '</div>' : "") +
-      (rows.length ? '<div class="cx-list">' + rows.join("") + '</div>'
+      (rows.length ? '<div class="' + (isTiles ? "dsx-grid" : "cx-list") + '">' + rows.join("") + '</div>'
         : '<div class="cx-empty">' +
             (q || anyA || anyC || anyT || anyK || anyF ? "No datasets match." :
               "<b>No datasets yet.</b><br/>A dataset is a named query on top of a connection — SQL for warehouses and files, a table for Supabase, a collection for Firestore — with optional {{parameters}} a dashboard can fill in at run time." +
@@ -374,7 +404,7 @@
     if (dsxViewNameInp) dsxViewNameInp.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); dsxViewAddBtn.click(); } });
     var emptyNew = $("#dsxEmptyNew", results);
     if (emptyNew) emptyNew.onclick = function () { openDatasetEditor(); };
-    $$(".cx-row", results).forEach(function (row) {
+    $$(".cx-row, .dsx-tile", results).forEach(function (row) {
       var d = Studio.Workspace.get("datasets", row.getAttribute("data-dsx-id"));
       var src = d && dsxAdapterOf(d);
       var icEl = row.querySelector(".cx-ic");

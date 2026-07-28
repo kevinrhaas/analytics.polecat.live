@@ -2028,6 +2028,27 @@ body.simple-mode .da-acts{display:none!important}
 .cx-row[draggable="true"]{cursor:grab}
 .cx-row.dragging{opacity:.45}
 .cx-group.drag-over{outline:2px dashed var(--brand);outline-offset:2px;border-radius:8px}
+/* LF51 (d): the Datasets "tile" layout — the same .cx-row card, re-flowed into a
+   responsive grid of taller cards (head row · badges · footer) instead of one flat
+   line. Reuses every .cx-row token + hook (hover lift, drag, the shared per-item
+   wiring), so behavior is identical; only the internal flow differs. */
+.dsx-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.dsx-tile{display:flex;flex-direction:column;gap:10px;background:var(--field);
+  border:1px solid color-mix(in srgb, var(--ink) 12%, transparent);border-radius:12px;
+  padding:var(--sp-14) var(--sp-16);cursor:pointer;transition:transform .12s ease,border-color .12s ease,opacity .12s ease}
+.dsx-tile:hover,.dsx-tile:focus-within{border-color:var(--brand);transform:translateY(-1px)}
+.dsx-tile[draggable="true"]{cursor:grab}
+.dsx-tile.dragging{opacity:.45}
+.dsx-tile-head{display:flex;align-items:center;gap:10px}
+.dsx-tile-head .cx-name{flex:1 1 auto;min-width:0}
+/* in a tile the name has the full card width — let it read on up to two lines */
+.dsx-tile-head .cx-name b{white-space:normal;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;overflow:hidden;overflow-wrap:anywhere}
+.dsx-tile-badges{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.dsx-tile-foot{display:flex;align-items:center;gap:10px;margin-top:auto}
+.dsx-tile-foot .cx-when{flex:1 1 auto}
+/* tiles show their actions always (no row-hover reveal — a card isn't a dense list line) */
+.dsx-tile .cx-actions{opacity:1}
+@media(max-width:640px){.dsx-grid{grid-template-columns:1fr}}
 .cx-dot{width:9px;height:9px;border-radius:50%;background:#6b5f52;flex:0 0 auto}
 .cx-dot.ok{background:#4cde8c;box-shadow:0 0 6px rgba(76,222,140,.5)}
 .cx-dot.bad{background:#ff5c7a;box-shadow:0 0 6px rgba(255,92,122,.5)}
