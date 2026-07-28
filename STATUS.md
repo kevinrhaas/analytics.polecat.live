@@ -116,6 +116,22 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF51 (slice 3) — the list ⇆ tile view toggle now covers Connections and Jobs too (#90, v673,
+  sw v310, 2026-07-28 — step 5 of the LOCKED BUILD ORDER, LF51's spec (d) "list + rich-tile views"):**
+  extends slice 2's Datasets toggle to the other two workspace catalogs, so Connections
+  (`#connViewToggle` / `studio-conn-view`) and Jobs (`#jobsViewToggle` / `studio-jobs-view`) each get
+  the same list/tile switch (Dashboards already had one) — every workspace catalog now offers the
+  choice. Same mechanism as slice 2: `renderConnections`/`renderJobs` build each item's fragments
+  once and wrap them as a `.cx-row` or a `.dsx-tile` card reusing the shipped `.dsx-grid`/`.dsx-tile`
+  CSS (no new styles), carrying the same `data-conn-*` / `data-job-*` hooks so every delegated
+  handler works in both; the per-item wiring selector widened to `.cx-row, .dsx-tile`; the toggle is
+  wired idempotently at the top of each render; `studio-conn-view`/`studio-jobs-view` added to the
+  hard-reset device-UI-state keep-list in app/studio.js. 2 new regression tests (Connections and Jobs
+  each: list default with a "Tile view" toggle → click flips to a tile grid that keeps the title
+  hooks and persists `…:tiles` → toggling back returns to list). **NEXT in LF51:** spec (b)
+  right-aligned filter pills is the last named nav-IA slice; the Repository section already has its
+  own card/tile grid. Files: app/connections.js, app/jobs.js, app/index.html, app/studio.js,
+  tests/run.js, sw.js, js/changelog.js.
 - **LF51 (slice 2) — the Datasets section gains a list ⇆ tile view toggle (#90, v672, sw v309,
   2026-07-28 — step 5 of the LOCKED BUILD ORDER, LF51's spec (d) "list + rich-tile views"):** the
   Datasets list can now render as a roomier **tile grid** as well as the default compact list, via

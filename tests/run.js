@@ -7040,6 +7040,50 @@ function serve() {
     ok("LF51: toggling back returns Datasets to the list layout",
       lf51View.backToList, JSON.stringify(lf51View));
 
+    // LF51 (d) extended to Connections and Jobs: the same list ⇆ tile toggle, each with its own
+    // persisted key (studio-conn-view / studio-jobs-view), each keeping its title + Edit hooks.
+    const lf51ViewCJ = await page.evaluate(function () {
+      function flip(section, render, resultsId, toggleId, key, dataAttr, id) {
+        window.__studioShellSetSection(section);
+        try { localStorage.removeItem(key); } catch (e) {}
+        render();
+        var results = document.getElementById(resultsId), toggle = document.getElementById(toggleId);
+        var listDefault = !!results.querySelector('.cx-row[' + dataAttr + '="' + id + '"]') && !results.querySelector(".dsx-tile");
+        var listLabel = toggle ? toggle.textContent : null;
+        if (toggle) toggle.click();
+        var tile = results.querySelector('.dsx-tile[' + dataAttr + '="' + id + '"]');
+        var out = {
+          listDefault: listDefault, listLabel: listLabel,
+          tiles: !!tile && !results.querySelector(".cx-row"),
+          titleBtn: !!(tile && tile.querySelector(".cx-title-btn")),
+          persisted: localStorage.getItem(key)
+        };
+        if (toggle) toggle.click();
+        out.backToList = !!results.querySelector('.cx-row[' + dataAttr + '="' + id + '"]') && !results.querySelector(".dsx-tile");
+        try { localStorage.removeItem(key); } catch (e) {}
+        return out;
+      }
+      var conn = Studio.Workspace.put("connections", { name: "lf51cj-conn", adapter: "turso", cfg: {} });
+      var connOut = flip("connections", window.__studioRenderConnections, "connResults", "connViewToggle", "studio-conn-view", "data-conn-id", conn.id);
+      var ds = Studio.Workspace.put("datasets", { name: "lf51cj-ds", connectionId: conn.id, kind: "sql", sql: "select 1" });
+      var job = Studio.Workspace.put("jobs", { name: "lf51cj-job", sourceDatasetId: ds.id, steps: [] });
+      var jobOut = flip("jobs", window.__studioRenderJobs, "jobsResults", "jobsViewToggle", "studio-jobs-view", "data-job-id", job.id);
+      Studio.Workspace.remove("jobs", job.id, { silent: true });
+      Studio.Workspace.remove("datasets", ds.id, { silent: true });
+      Studio.Workspace.remove("connections", conn.id, { silent: true });
+      Studio.Workspace.notify("*");
+      window.__studioShellSetSection("studio");
+      return { conn: connOut, job: jobOut };
+    });
+    ok("LF51: Connections has the same list ⇆ tile toggle (persisted, keeps title hooks)",
+      lf51ViewCJ.conn.listDefault && lf51ViewCJ.conn.listLabel === "Tile view" && lf51ViewCJ.conn.tiles &&
+      lf51ViewCJ.conn.titleBtn && lf51ViewCJ.conn.persisted === "tiles" && lf51ViewCJ.conn.backToList,
+      JSON.stringify(lf51ViewCJ.conn));
+    ok("LF51: Jobs has the same list ⇆ tile toggle (persisted, keeps title hooks)",
+      lf51ViewCJ.job.listDefault && lf51ViewCJ.job.listLabel === "Tile view" && lf51ViewCJ.job.tiles &&
+      lf51ViewCJ.job.titleBtn && lf51ViewCJ.job.persisted === "tiles" && lf51ViewCJ.job.backToList,
+      JSON.stringify(lf51ViewCJ.job));
+
     // library integration: the dataset shows as a draggable card and imports as a linked, self-contained DA
     await page.evaluate(function () { window.__studioShellSetSection("studio"); });
     await page.waitForTimeout(120);

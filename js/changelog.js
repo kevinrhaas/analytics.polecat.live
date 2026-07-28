@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 673,
+    title: 'Connections and Jobs get the tile/list view toggle too',
+    kind: 'feature',
+    ts: '2026-07-28T18:29:00.000Z',
+    items: [
+      'The list ⇆ tile view toggle that Datasets gained now also lives on the Connections and Jobs sections — switch either between the compact list and a roomier tile grid, remembered per-section on this device. Every workspace catalog (Connections, Datasets, Jobs, Dashboards) now offers the same choice.',
+    ],
+  },
+  {
     v: 672,
     title: 'Datasets can now be viewed as tiles or a list',
     kind: 'feature',

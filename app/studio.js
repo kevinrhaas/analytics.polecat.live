@@ -9100,6 +9100,7 @@
     // passphrase, this browser only — leaving it behind after disconnecting the connection it
     // belongs to is stale-secret hygiene, not just a missed toggle).
     "studio-show-samples", "studio-lib-samples-open", "studio-dash-view", "studio-dsx-view",
+    "studio-conn-view", "studio-jobs-view",
     "analytics.datasource.v1", "analytics.datasource.secret.v1",
     // Track L sweep (orphaned-key lens, round 4): the auth (M3), per-section-rights (M4.2) and
     // Home-reorder (M6) slices each added a new key but none of them updated this list — the same
