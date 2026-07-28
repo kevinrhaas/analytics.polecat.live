@@ -3700,9 +3700,12 @@ function serve() {
       uxSecondary.count >= 3 && uxSecondary.worstContrast > 80, JSON.stringify(uxSecondary));
     // A heavily-tagged dataset row (e.g. a job-output dataset carrying
     // #demo #conservation #geo #job-output + a lineage badge) squeezes the
-    // flexible name column hard. The row must stay ONE line high — the name's
-    // <small> subtitle must ellipsize, not wrap character-by-character and blow
-    // the row up vertically (the reported job-output layout bug).
+    // flexible name column hard. The <small> subtitle must still ellipsize
+    // (not wrap character-by-character and blow the row up vertically — the
+    // original reported job-output layout bug), but LF51 spec (a) (2026-07-28)
+    // deliberately changed the PRIMARY name: it now wraps instead of
+    // ellipsis-truncating, so the full name is always visible even when
+    // that grows the row taller.
     const uxRowSqueeze = await page.evaluate(async function () {
       var W = Studio.Workspace;
       var conn = W.put("connections", { name: "Conservation Insight — demo files", adapter: "file", cfg: {} }, { silent: true });
@@ -3715,11 +3718,15 @@ function serve() {
       window.__studioRenderDatasets();
       await new Promise(function (r) { setTimeout(r, 150); });
       var row = document.querySelector('.cx-row[data-dsx-id="' + ds.id + '"]');
+      var name = row && row.querySelector(".cx-name b");
       var small = row && row.querySelector(".cx-name small");
+      var ncs = name ? getComputedStyle(name) : {};
       var cs = small ? getComputedStyle(small) : {};
       var out = {
         found: !!row,
-        rowHeight: row ? row.getBoundingClientRect().height : 0,
+        nameText: name ? name.textContent : "",
+        nameWhiteSpace: ncs.whiteSpace, nameOverflow: ncs.textOverflow,
+        nameScrollH: name ? name.scrollHeight : 0, nameClientH: name ? name.clientHeight : 0,
         smallWhiteSpace: cs.whiteSpace, smallOverflow: cs.textOverflow,
         smallScrollH: small ? small.scrollHeight : 0, smallClientH: small ? small.clientHeight : 0
       };
@@ -3727,9 +3734,13 @@ function serve() {
       W.remove("connections", conn.id, { silent: true });
       return out;
     });
-    ok("UXFIX: a heavily-tagged job-output dataset row stays single-line — the name subtitle ellipsizes (nowrap) instead of wrapping character-by-character and exploding the row height",
+    ok("UXFIX: a heavily-tagged job-output dataset row's <small> subtitle still ellipsizes (nowrap), never wrapping character-by-character",
       uxRowSqueeze.found && uxRowSqueeze.smallWhiteSpace === "nowrap" && uxRowSqueeze.smallOverflow === "ellipsis" &&
-      uxRowSqueeze.rowHeight < 70 && uxRowSqueeze.smallScrollH <= uxRowSqueeze.smallClientH + 2, JSON.stringify(uxRowSqueeze));
+      uxRowSqueeze.smallScrollH <= uxRowSqueeze.smallClientH + 2, JSON.stringify(uxRowSqueeze));
+    ok("LF51(a): the same row's primary NAME is never ellipsis-truncated — it wraps and stays fully visible (no clipped overflow) even when badges squeeze its column",
+      uxRowSqueeze.found && uxRowSqueeze.nameText === "State cover-crop adoption — rollup (job output)" &&
+      uxRowSqueeze.nameWhiteSpace === "normal" && uxRowSqueeze.nameOverflow !== "ellipsis" &&
+      uxRowSqueeze.nameScrollH <= uxRowSqueeze.nameClientH + 2, JSON.stringify(uxRowSqueeze));
     // The ensemble chart's "common estimate" line + legend used to be painted with
     // var(--ink) — which the dashboard THEMES don't define (they set --text-primary),
     // so on a dark themed panel --ink fell back to the light-mode navy #16233b and the

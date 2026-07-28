@@ -2036,7 +2036,14 @@ body.simple-mode .da-acts{display:none!important}
 /* QA-07: the primary action is a real <button> wrapping the title <b> — reset it to
    read as plain text (no button chrome) while staying a proper focusable control. */
 .cx-title-btn{display:block;width:100%;background:none;border:none;padding:0;margin:0;font:inherit;text-align:left;cursor:pointer}
-.cx-name b{color:var(--ink);font-size:var(--fs-14);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+/* LF51 spec (a) (2026-07-28): row names used to ellipsis-truncate under the
+   name column's flex-shrink — a mouse user had only the button's native
+   `title` attribute as an escape hatch. Wrap instead of clipping so the FULL
+   name is always visible (the row grows taller rather than losing text); the
+   `.cx-name small` subtitle line keeps its own nowrap/ellipsis (see the
+   uxRowSqueeze test) so a heavily-tagged row still can't blow up vertically
+   from ITS line. */
+.cx-name b{color:var(--ink);font-size:var(--fs-14);font-weight:700;white-space:normal;overflow-wrap:anywhere;display:block}
 .cx-title-btn:hover b,.cx-title-btn:focus-visible b{color:var(--brand)}
 .cx-name small{color:var(--faint);font-size:var(--fs-12);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cx-badge{font-size:var(--fs-10);font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);

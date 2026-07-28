@@ -116,6 +116,27 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF51 (spec (a)) — row NAMES no longer ellipsis-truncate; they wrap and stay fully visible
+  (v671, sw v308, 2026-07-28, steward — one slice of LF51's remaining SPECIFICS):** picking up
+  where LF51 slice 1 (spec (c), row timestamps) left off. `.cx-name b` — the shared row-title
+  class used by Connections, Datasets, Jobs, the Dashboards list row, and Repository — used
+  `white-space:nowrap;overflow:hidden;text-overflow:ellipsis`, so a name got crushed to a few
+  characters whenever tag/folder badges (flex:0 0 auto, non-shrinking siblings in the same
+  `.cx-row` flex line) ate its column width; the only escape hatch was the title button's native
+  `title` attribute on hover. Changed to `white-space:normal;overflow-wrap:anywhere` (app/studio.css)
+  so the name wraps onto additional lines instead of clipping — the row grows taller, but the full
+  name is always readable at a glance, no hover required. Deliberately scoped to the primary name
+  only: `.cx-name small` (the subtitle line below it) keeps its own nowrap/ellipsis, preserving the
+  existing "heavily-tagged row stays effectively single-line-ish, subtitle never explodes the row
+  vertically" invariant. Updated the uxRowSqueeze regression test to assert the subtitle still
+  ellipsizes AND added a new check that the primary name renders its full text with no clipped
+  overflow (`.cx-name b`'s scrollHeight <= clientHeight, computed whiteSpace 'normal', textOverflow
+  not 'ellipsis'). Full suite green (2468 passed, 0 failed). Files: app/studio.css, tests/run.js,
+  sw.js, js/changelog.js. **NEXT in LF51:** (b) right-align the tag/filter pills so they stop
+  competing with the name for width in the first place (this slice only stopped the CONSEQUENCE —
+  truncation — not the crowding itself), and (d) a list/tile view toggle per section, plus the
+  bigger CORE PRINCIPLE (one shared nav component set incl. the Explore dataset navigator) —
+  still "slice it," one at a time.
 - **LF49 (slice 3, upgrade) — the PowerPoint deck now shows each View as its real chart IMAGE
   (#88, v670, sw v307, 2026-07-28 — step 5 of the LOCKED BUILD ORDER; the deliverable Kevin asked
   for, "done right with real chart images"):** the shipped .pptx (v668, below) put the underlying

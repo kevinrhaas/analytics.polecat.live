@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 671,
+    title: 'Row names are never cut off anymore',
+    kind: 'polish',
+    ts: '2026-07-28T17:48:10.000Z',
+    items: [
+      'Connections, Datasets, Jobs, Dashboards and Repository rows used to ellipsis-truncate a long name when tags or a folder badge crowded it out. Names now wrap instead, so the full name is always visible.',
+    ],
+  },
+  {
     v: 670,
     title: 'PowerPoint export now shows each View as its real chart image',
     kind: 'feature',
