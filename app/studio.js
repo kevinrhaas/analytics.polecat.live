@@ -8324,12 +8324,17 @@
   // UX11: "conservation" completes the LF10 mapping now that the Conservation app
   // Color theme exists (it reuses Studio.DASHBOARD_THEMES' own "conservation" key
   // verbatim, unlike classic/polecat/modern which don't share names 1:1).
-  var APP_THEME_TO_DASHBOARD_THEME = { classic: "", polecat: "polecat", modern: "fleet-modern", conservation: "conservation" };
+  var APP_THEME_TO_DASHBOARD_THEME = { classic: "", polecat: "polecat", modern: "fleet-modern",
+    "high-contrast": "high-contrast", editorial: "editorial", neon: "neon", conservation: "conservation" };
   function appThemeToDashboardTheme(t) {
     return APP_THEME_TO_DASHBOARD_THEME[t] !== undefined ? APP_THEME_TO_DASHBOARD_THEME[t] : "polecat";
   }
-  var APP_THEME_KEYS = ["classic", "polecat", "modern", "conservation"];
-  var APP_THEME_LABELS = { classic: "Classic Blue", polecat: "Polecat", modern: "Fleet Modern", conservation: "Conservation" };
+  // #113: parity with the dashboard theme list (Studio.DASHBOARD_THEMES) — the app-chrome
+  // Color-theme picker now offers the same set. "modern" is the app-theme key for the dashboard
+  // list's "fleet-modern"; the other keys match 1:1 (high-contrast / editorial / neon added).
+  var APP_THEME_KEYS = ["classic", "polecat", "modern", "high-contrast", "editorial", "neon", "conservation"];
+  var APP_THEME_LABELS = { classic: "Classic Blue", polecat: "Polecat", modern: "Fleet Modern",
+    "high-contrast": "High Contrast", editorial: "Editorial", neon: "Neon", conservation: "Conservation" };
   function setAppTheme(t) {
     t = APP_THEME_KEYS.indexOf(t) >= 0 ? t : "polecat";
     S.appTheme = t; document.documentElement.setAttribute("data-app-theme", t);

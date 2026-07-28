@@ -116,6 +116,26 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **App Color-theme picker reaches parity with the dashboard themes (#113, v637, sw v274,
+  2026-07-28, steward):** Kevin: "i feel like the app themes need to be the same as the dashboard
+  themes, and have as many of each, add any new app themes that are missing to match the dashboard
+  theme list". The app-chrome picker had 4 (Classic Blue, Polecat, Fleet Modern, Conservation)
+  against the dashboard list's 7 — added the missing three as full app-chrome themes: **High
+  Contrast, Editorial, Neon**, each with a light + dark variant, lifted from their matching
+  `Studio.DASHBOARD_THEMES` entries (`app/model.js`) the same "chrome mirrors the dashboard-theme
+  twin" way Fleet Modern + Conservation already were. New `html[data-app-theme='…']` (+ `[data-theme=
+  'dark']`) token blocks in app/studio.css (brand/pdc, topbar gradient + ink, ink/muted/faint,
+  bg/pane/line/line-2/field, good/warn/bad, shadows), plus per-theme `#railNav` and `#mobileNavBtn`
+  rules. studio.js: the three keys added to `APP_THEME_KEYS`, `APP_THEME_LABELS`, and
+  `APP_THEME_TO_DASHBOARD_THEME` (they map 1:1 onto their dashboard keys, unlike `modern`↔
+  `fleet-modern`) so picking one also seeds the matching default dashboard theme. The provisioning
+  "Default theme" picker and the Settings card both iterate `APP_THEME_KEYS`, so they pick up the new
+  options for free. Tests: the picker now renders 7 distinct, non-empty swatch cards (was 4); each
+  new theme resolves its OWN chrome (distinct `--brand` vs Polecat, light≠dark `--bg`, non-empty
+  `--topbar-bg` — i.e. real CSS blocks, not a silent Polecat fall-through); `defaultDashboardTheme()`
+  tracks all 7 app themes (the 3 new ones 1:1). Help (`docs/index.html` Color theme section) now
+  lists all seven. Files: app/studio.css, app/studio.js, docs/index.html, tests/run.js, sw.js,
+  js/changelog.js.
 - **LF68 — fixed 9 showcase KPIs rendering `NaN%`/a category label instead of a number (v636,
   sw v273, 2026-07-28, steward):** the reported symptom was the compliance-radar showcase's
   "Sensitive Data" KPI showing `NaN%`. Root cause wasn't the SQL (no bad denominator) — it's that

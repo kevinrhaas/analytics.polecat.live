@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v273"; /* v273: LF68 — fixed a "sensitive_pct"-style KPI column
+var CACHE_NAME = "studio-shell-v274"; /* v274: the app Color-theme picker reaches parity with the
+   dashboard theme list — High Contrast, Editorial and Neon app-chrome themes added (light + dark),
+   lifted from their Studio.DASHBOARD_THEMES twins, so chrome + dashboard read as one system (#113).
+   app/studio.css + app/studio.js changed, so precached copies roll.
+   v273: LF68 — fixed a "sensitive_pct"-style KPI column
    sampling as a HIGH/MEDIUM/LOW label instead of a number (classify()'s /sens/ pattern matched
    before the /pct/ rule got a look), so the compliance-radar showcase's "Sensitive Data" KPI
    rendered NaN%. app/sampledata.js changed, so precached copies roll.

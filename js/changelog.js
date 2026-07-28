@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 637,
+    title: 'The app Color theme picker now matches the dashboard themes',
+    kind: 'polish',
+    ts: '2026-07-28T02:39:44.000Z',
+    items: [
+      'Settings → Appearance → Color theme now offers all seven looks — Classic Blue, Polecat, Fleet Modern, High Contrast, Editorial, Neon and Conservation — the same set the Dashboard theme picker has.',
+      'So the builder chrome and a dashboard can match: each app theme is shared verbatim with its dashboard-theme twin, in both light and dark mode.',
+    ],
+  },
+  {
     v: 636,
     title: 'Fixed: the Sensitivity & Compliance Radar showcase showed "NaN%" for Sensitive Data',
     kind: 'fix',
