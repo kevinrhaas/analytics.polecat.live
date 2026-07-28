@@ -116,6 +116,21 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF48 (slice 1) — uniform exit affordance across immersive modes (#127, v659, sw v296, 2026-07-28,
+  steward — step 4 of the LOCKED BUILD ORDER):** LF48's clearest, least-design-latitude half — the
+  "uniform exit." Focus mode (`.focus-exit`), Panel-zoom (`.pz-close`) and the Slideshow (`.ss-close`)
+  each had their own exit button with drifted styling (e.g. bottom:44/right:16 vs 22/22, .58 vs .72
+  opacity, blur 8 vs 6, shadow on one not the other). Extracted a shared **`.mode-exit`** pill
+  component (close icon + "Exit …" + Esc); the two that float over the live dashboard (focus/zoom) now
+  pin bottom-right with the identical dark pill, and the slideshow keeps its exit in its own dark
+  overlay header (`.ss-close` overrides only the background — a lighter skin for contrast there, since
+  a floating bottom-right pill would collide with the slideshow's bottom caption bar). All three carry
+  `.mode-exit` and share a consistent 20px pill radius, so leaving any full-screen view is one gesture.
+  Deliberately deferred to a follow-up slice: the consistent, role-aware mode-switcher **entry** (one
+  control to enter the modes) — that's where placement design-latitude lives, and Studio is already
+  editor-only (viewers use the separate read-only viewer route, LF23). Test: entering Focus,
+  Panel-zoom and Slideshow, each exit button carries `.mode-exit` with an identical computed radius.
+  Files: app/studio.js, app/studio.css, tests/run.js, sw.js, js/changelog.js.
 - **LF62 slice 5 — the sparkle name-suggest button now also lives on Explore's "Name
   this analysis" (View) field (v658, sw v295, 2026-07-28, steward — LIVE-QA QUEUE,
   LF62 slice 4's own NEXT pointer):** slice 4 flagged View, preset, and folder name

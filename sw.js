@@ -5,7 +5,10 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v295"; /* v295: LF62 slice 5 — the same ✨ sparkle
+var CACHE_NAME = "studio-shell-v296"; /* v296: LF48 slice 1 — a shared .mode-exit "exit pill"
+   component so Focus mode, Panel-zoom and the Slideshow all leave via the same affordance (icon +
+   "Exit …" + Esc, consistent shape). app/studio.js + app/studio.css changed, so precached copies roll.
+   v295: LF62 slice 5 — the same ✨ sparkle
    name-suggest button now sits on Explore's "Name this analysis" (View) field too,
    suggesting a titleized name from the picked dataset/sample's own display name, or
    the charted value column for a self-contained/orphaned analysis (app/explore.js,

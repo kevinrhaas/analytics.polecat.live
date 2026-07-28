@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 659,
+    title: 'Leaving any full-screen mode now looks and works the same',
+    kind: 'polish',
+    ts: '2026-07-28T12:30:16.000Z',
+    items: [
+      'Focus mode, a zoomed-in widget and the slideshow now all show the same "Exit" pill (with the same look and the same Esc shortcut), so leaving any full-screen view is one consistent gesture.',
+    ],
+  },
+  {
     v: 658,
     title: 'The name-suggest sparkle button now works in Explore too',
     kind: 'feature',
