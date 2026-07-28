@@ -16178,13 +16178,20 @@ function serve() {
     // Enter focus mode
     await page.evaluate(() => { var b = document.getElementById("morePresent"); if (b) b.click(); });
     await page.waitForTimeout(150);
-    const h71Active = await page.evaluate(() => ({
-      hasFocusClass: document.body.classList.contains("focus-mode"),
-      hasPill: !!document.querySelector(".focus-exit"),
-      libraryHidden: !!document.querySelector("#library") && getComputedStyle(document.querySelector("#library")).display === "none"
-    }));
+    const h71Active = await page.evaluate(() => {
+      var fx = document.querySelector(".focus-exit");
+      return {
+        hasFocusClass: document.body.classList.contains("focus-mode"),
+        hasPill: !!fx,
+        pillIsModeExit: !!(fx && fx.classList.contains("mode-exit")),
+        pillRadius: fx ? getComputedStyle(fx).borderTopLeftRadius : "",
+        libraryHidden: !!document.querySelector("#library") && getComputedStyle(document.querySelector("#library")).display === "none"
+      };
+    });
     ok("H71: body gains focus-mode class on enter", h71Active.hasFocusClass, JSON.stringify(h71Active));
     ok("H71: Exit Focus pill rendered on enter", h71Active.hasPill, JSON.stringify(h71Active));
+    // LF48: the Focus exit uses the shared .mode-exit pill component (consistent exit affordance across immersive modes)
+    ok("LF48: Focus exit uses the shared .mode-exit pill", h71Active.pillIsModeExit && h71Active.pillRadius === "20px", JSON.stringify(h71Active));
     ok("H71: library pane hidden in focus mode", h71Active.libraryHidden, JSON.stringify(h71Active));
 
     // Exit via Escape key
@@ -23591,10 +23598,15 @@ function serve() {
       // Give a tick for the DOM mutation
       await new Promise(function (r) { setTimeout(r, 80); });
       var ov = document.getElementById("pzOverlay");
-      return { ok: !!ov, active: window.__panelZoomActive, hasPzClose: !!(ov && ov.querySelector(".pz-close")) };
+      var pz = ov && ov.querySelector(".pz-close");
+      return { ok: !!ov, active: window.__panelZoomActive, hasPzClose: !!pz,
+        pzIsModeExit: !!(pz && pz.classList.contains("mode-exit")),
+        pzRadius: pz ? getComputedStyle(pz).borderTopLeftRadius : "" };
     });
     ok("H118: __panelZoomOpen creates #pzOverlay with .pz-close", h118Open.ok && h118Open.hasPzClose, JSON.stringify(h118Open));
     ok("H118: __panelZoomActive is true while overlay is open", h118Open.active === true, JSON.stringify(h118Open));
+    // LF48: Panel-zoom exit uses the same shared .mode-exit pill as Focus mode
+    ok("LF48: Panel-zoom exit uses the shared .mode-exit pill", h118Open.pzIsModeExit && h118Open.pzRadius === "20px", JSON.stringify(h118Open));
 
     // 5. Escape key closes the zoom overlay
     const h118Close = await page.evaluate(async function () {

@@ -8680,7 +8680,7 @@
     // Overlay
     var ov = document.createElement("div"); ov.className = "pz-overlay"; ov.id = "pzOverlay";
     var ifr = document.createElement("iframe"); ifr.className = "pz-frame"; ifr.title = "Widget zoom: " + (p.title || "Widget");
-    var closeBtn = document.createElement("button"); closeBtn.className = "pz-close"; closeBtn.setAttribute("aria-label", "Exit zoom (Esc)");
+    var closeBtn = document.createElement("button"); closeBtn.className = "mode-exit pz-close"; closeBtn.setAttribute("aria-label", "Exit zoom (Esc)");
     closeBtn.appendChild(Studio.icon("close", 14)); closeBtn.appendChild(document.createTextNode(" Exit zoom"));
     ov.appendChild(ifr); ov.appendChild(closeBtn); document.body.appendChild(ov);
     _pzOverlay = ov;
@@ -8769,7 +8769,7 @@
     var titleEl = document.createElement("span"); titleEl.className = "ss-title";
     var counter = document.createElement("span"); counter.className = "ss-counter";
     var nextBtn = document.createElement("button"); nextBtn.className = "ss-nav ss-next"; nextBtn.setAttribute("aria-label", "Next panel (→ key)"); nextBtn.textContent = "▶";
-    var closeBtn = document.createElement("button"); closeBtn.className = "ss-close"; closeBtn.setAttribute("aria-label", "Exit slideshow (Esc)");
+    var closeBtn = document.createElement("button"); closeBtn.className = "mode-exit ss-close"; closeBtn.setAttribute("aria-label", "Exit slideshow (Esc)");
     closeBtn.appendChild(Studio.icon("close", 13)); closeBtn.appendChild(document.createTextNode(" Exit slideshow"));
     hdr.appendChild(prevBtn); hdr.appendChild(titleEl); hdr.appendChild(counter); hdr.appendChild(nextBtn); hdr.appendChild(closeBtn);
 
@@ -8966,7 +8966,7 @@
   function enterFocusMode() {
     document.body.classList.add("focus-mode");
     if (!_focusExitPill) {
-      _focusExitPill = el("button", "focus-exit");
+      _focusExitPill = el("button", "mode-exit focus-exit");
       _focusExitPill.title = "Exit Focus mode (Escape)";
       _focusExitPill.appendChild(Studio.icon("close", 13));
       _focusExitPill.appendChild(document.createTextNode(" Exit Focus"));
