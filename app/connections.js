@@ -44,6 +44,7 @@
   function makeViewsStore(settingsKey) { return D.makeViewsStore(settingsKey); }
   function makePinToggle(table, rerender) { return D.makePinToggle(table, rerender); }
   function credentialFieldInput(idPrefix, f, savedValue, isNew) { return D.credentialFieldInput(idPrefix, f, savedValue, isNew); }
+  function withSparkleButton(inp, kind, getCtx) { return D.withSparkleButton(inp, kind, getCtx); }
 
   /* ---------- Connections section ----------
      Workspace-level connections to external sources (one adapter each), the
@@ -397,7 +398,14 @@
         nameRow.innerHTML = '<span>Connection name</span>';
         var nameInp = el("input"); nameInp.type = "text"; nameInp.value = existing ? existing.name : adapter.label;
         nameInp.placeholder = "e.g. Prod warehouse";
-        nameRow.appendChild(nameInp); form.appendChild(nameRow);
+        // LF62 slice 3 (live-QA queue): the same ✨ suggest-a-name affordance as the
+        // dataset/job editors, deriving from whichever identifying credential field
+        // (database/project/host/…) the user has already typed — read lazily via
+        // cfg() below, which is hoisted and populated by the time this is clicked.
+        nameRow.appendChild(withSparkleButton(nameInp, "connection", function () {
+          return { cfg: cfg() };
+        }));
+        form.appendChild(nameRow);
         var inputs = {};
         (adapter.fields || []).forEach(function (f) {
           var row = el("label", "cx-field");
