@@ -7439,14 +7439,12 @@
     { grp: "Presentation", id: "demo", t: "Demo mode", d: "Simulate a live-refreshing data feed — great for stakeholder demos.",
       ic: function () { return "refresh"; },
       on: function () { return !!S.demoMode; },
-      set: function () { toggleDemoMode(); } },
-    { grp: "Presentation", id: "focus", t: "Focus mode", d: "Collapse the builder panes so the live preview fills the screen. Press Escape to exit.",
-      ic: function () { return "eye"; },
-      on: function () { return document.body.classList.contains("focus-mode"); },
-      set: function () {
-        if (document.body.classList.contains("focus-mode")) { exitFocusMode(); }
-        else { enterStudio(); enterFocusMode(); }
-      } }
+      set: function () { toggleDemoMode(); } }
+    // LF48: Focus mode's toggle used to live here too, but Focus is a transient PRESENT mode
+    // (choose it, use it, exit it) rather than a persistent preference like Demo/Simple — so it
+    // moved to being ⋯ More → the Present-mode switcher's only entry point, with no second,
+    // parallel Settings toggle to drift out of sync. See #modeSwitch (index.html) / the
+    // modeSwitchFocus wiring below.
   ];
 
   /* ---------- Z12: Branding — extracted to app/branding.js (R5+ slice 2,
@@ -9562,8 +9560,11 @@
     if (moreWhatsNew) moreWhatsNew.onclick = function () { closeMenus(); openWhatsNew(moreWhatsNew); };
     // LF46 (⋯ teardown): Demo mode is no longer wired here — it lives in Settings → Presentation
     // (Z5 SETTINGS_TOGGLES) as its single labelled home; toggleDemoMode() stays the shared toggle.
-    var morePresent = $("#morePresent"); if (morePresent) morePresent.onclick = function () { closeMenus(); enterFocusMode(); };
-    var moreSlideshow = $("#moreSlideshow"); if (moreSlideshow) moreSlideshow.onclick = function () { closeMenus(); openSlideshow(); };
+    // LF48: Focus mode + Slideshow now share ONE switcher (#modeSwitch) instead of two flat
+    // buttons — Focus mode's Settings toggle was retired in the same slice, so this is its only
+    // entry point too.
+    var modeSwitchFocus = $("#modeSwitchFocus"); if (modeSwitchFocus) modeSwitchFocus.onclick = function () { closeMenus(); enterFocusMode(); };
+    var modeSwitchSlideshow = $("#modeSwitchSlideshow"); if (modeSwitchSlideshow) modeSwitchSlideshow.onclick = function () { closeMenus(); openSlideshow(); };
     var moreSimple = $("#moreSimple"); if (moreSimple) moreSimple.onclick = function () { closeMenus(); toggleSimpleMode(); };
     // LF46 (⋯ teardown, slice 2): the "Help & power tools" group (Keyboard shortcuts,
     // Help docs, Interactive tutorial, Edit JSON spec) is gone from this menu — "?"

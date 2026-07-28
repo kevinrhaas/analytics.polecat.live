@@ -16692,11 +16692,11 @@ function serve() {
     await page.evaluate(() => { window.__studioLoad(window.__STUDIO_STATE.spec); });
     await page.waitForTimeout(200);
 
-    const h71Btn = await page.evaluate(() => ({ hasBtn: !!document.getElementById("morePresent") }));
-    ok("H71: 'Focus mode' button present in the More menu", h71Btn.hasBtn, "morePresent element missing");
+    const h71Btn = await page.evaluate(() => ({ hasBtn: !!document.getElementById("modeSwitchFocus") }));
+    ok("H71/LF48: 'Focus mode' option present in the Present-mode switcher", h71Btn.hasBtn, "modeSwitchFocus element missing");
 
     // Enter focus mode
-    await page.evaluate(() => { var b = document.getElementById("morePresent"); if (b) b.click(); });
+    await page.evaluate(() => { var b = document.getElementById("modeSwitchFocus"); if (b) b.click(); });
     await page.waitForTimeout(150);
     const h71Active = await page.evaluate(() => {
       var fx = document.querySelector(".focus-exit");
@@ -16719,6 +16719,22 @@ function serve() {
     await page.waitForTimeout(100);
     const h71Exit = await page.evaluate(() => ({ focusModeGone: !document.body.classList.contains("focus-mode") }));
     ok("H71: Escape key exits Focus mode", h71Exit.focusModeGone, JSON.stringify(h71Exit));
+
+    // LF48: the mode-switcher entry point — Focus mode and Slideshow now share ONE
+    // segmented control (#modeSwitch) instead of two look-alike flat menu buttons, and
+    // the old flat buttons + Focus's parallel Settings toggle are gone (single entry point).
+    const lf48Switch = await page.evaluate(() => {
+      var sw = document.getElementById("modeSwitch");
+      return {
+        hasSwitch: !!sw,
+        hasBothOpts: !!document.getElementById("modeSwitchFocus") && !!document.getElementById("modeSwitchSlideshow"),
+        oldButtonsGone: !document.getElementById("morePresent") && !document.getElementById("moreSlideshow"),
+        settingsFocusToggleGone: !document.querySelector('#secSettings input[data-set="focus"]')
+      };
+    });
+    ok("LF48: #modeSwitch is one segmented control carrying both Focus mode and Slideshow", lf48Switch.hasSwitch && lf48Switch.hasBothOpts, JSON.stringify(lf48Switch));
+    ok("LF48: the old flat #morePresent/#moreSlideshow buttons are gone", lf48Switch.oldButtonsGone, JSON.stringify(lf48Switch));
+    ok("LF48: Focus mode's parallel Settings→Presentation toggle is retired (the switcher is the only entry point)", lf48Switch.settingsFocusToggleGone, JSON.stringify(lf48Switch));
 
     // ---- v72: Rich text / annotation panels ----
     console.log("\n• v72: Richtext panel + Box plot chart");
@@ -27629,13 +27645,14 @@ function serve() {
         simpleChecked: sec.querySelector('input[data-set="simple"]').checked,
         restoreChecked: sec.querySelector('input[data-set="restore"]').checked,
         demoChecked: sec.querySelector('input[data-set="demo"]').checked,
-        focusChecked: sec.querySelector('input[data-set="focus"]').checked,
         samplesChecked: sec.querySelector('input[data-set="samples"]').checked
       };
     });
-    ok("Z5: Settings section renders 7 cards with 6 mode switches — modes (incl. #114 Restore unsaved work) off by default, Sample content ON by default",
-      z5Boot.visible && z5Boot.hasCards && z5Boot.switchIds === "dark,samples,simple,restore,demo,focus"
-        && !z5Boot.darkChecked && !z5Boot.simpleChecked && !z5Boot.restoreChecked && !z5Boot.demoChecked && !z5Boot.focusChecked && z5Boot.samplesChecked,
+    // LF48: Focus mode's own Settings toggle is retired (it moved to being the ⋯ More →
+    // Present-mode switcher's only entry point), so this drops from 6 switches to 5.
+    ok("Z5: Settings section renders 7 cards with 5 mode switches — modes (incl. #114 Restore unsaved work) off by default, Sample content ON by default",
+      z5Boot.visible && z5Boot.hasCards && z5Boot.switchIds === "dark,samples,simple,restore,demo"
+        && !z5Boot.darkChecked && !z5Boot.simpleChecked && !z5Boot.restoreChecked && !z5Boot.demoChecked && z5Boot.samplesChecked,
       JSON.stringify(z5Boot));
 
     // Z5-2: Dark mode switch drives the same S.theme + data-theme as the topbar toggle
@@ -27673,22 +27690,8 @@ function serve() {
     await page.click('#secSettings input[data-set="demo"]'); // stop the simulation
     await page.waitForTimeout(80);
 
-    // Z5-5: Focus mode switch collapses the builder panes and jumps to Studio; exiting via
-    // Escape (the existing shortcut) is reflected back in the switch next time it's shown.
-    await page.click('#secSettings input[data-set="focus"]');
-    await page.waitForTimeout(120);
-    const z5Focus = await page.evaluate(function () {
-      return { focusOn: document.body.classList.contains("focus-mode"), studioVisible: document.getElementById("appMain").hidden === false };
-    });
-    ok("Z5: Focus mode switch enters Focus mode and switches to Studio", z5Focus.focusOn && z5Focus.studioVisible, JSON.stringify(z5Focus));
-    await page.keyboard.press("Escape");
-    await page.waitForTimeout(80);
-    await page.click('#railNav .rail-item[data-sec="settings"]');
-    await page.waitForTimeout(80);
-    const z5FocusOff = await page.evaluate(function () {
-      return { focusOn: document.body.classList.contains("focus-mode"), checked: document.querySelector('#secSettings input[data-set="focus"]').checked };
-    });
-    ok("Z5: exiting Focus mode (Escape) is reflected back in the Settings switch", !z5FocusOff.focusOn && !z5FocusOff.checked, JSON.stringify(z5FocusOff));
+    // Z5-5 (Focus mode Settings toggle) is retired — see LF48 above: Focus mode now enters
+    // only via the ⋯ More → Present-mode switcher, with no parallel Settings switch.
 
     // ── Z10: App theme system — Classic Blue vs Polecat, each with its own light+dark ──
     console.log("\n• Z10: app color theme (Classic Blue / Polecat)");
