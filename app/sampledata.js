@@ -187,7 +187,16 @@
     // Conservation Insight: geographic first-columns get a row per REGION (not a
     // token 8), so a freshly dragged choropleth colors the whole Corn Belt.
     var GEO_N = { geoid: CORN_BELT_FIPS.length, huc8: HUC8S.length, crd: CRDS.length, statecode: STATES.length };
-    var n = GEO_N[kinds[0]] || 8;
+    // Cap the row count to the first (label) column's OWN vocabulary so a bounded category — the 4
+    // conservation practices, 4 crops, 5 providers, 4 sensitivity/status bands — yields ONE row per
+    // distinct label (a GROUP-BY-shaped sample), instead of the flat 8 that repeated "Cover crops"/
+    // "No-till"/… twice on the conservation "shift" dataset (Kevin, live QA). Geo columns keep their
+    // region-per-row count (GEO_N) above; kinds whose values don't repeat inside 8 rows (name/month/
+    // year/isodate) and opaque/numeric kinds fall through to 8. "type" spans A–H (8), so it's a no-op.
+    var VOCAB_N = { cat: CATS.length, sens: SENS.length, owner: OWNERS.length, status: STATUS.length,
+      app: APPS.length, ext: EXTS.length, term: TERMS.length, type: 8, crop: CROPS.length,
+      provider: PROVIDERS.length, practice: PRACTICES.length };
+    var n = GEO_N[kinds[0]] || Math.min(8, VOCAB_N[kinds[0]] || 8);
     var rows = [];
     for (var i = 0; i < n; i++) {
       rows.push(cols.map(function (c, j) { return valueFor(kinds[j], i, n, j === 0, c); }));
