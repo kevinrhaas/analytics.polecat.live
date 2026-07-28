@@ -116,6 +116,28 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF69(b) — verified Export chrome IS already consistent across every "View" surface
+  (2026-07-28, steward, LIVE-QA QUEUE):** LF69(a)/(d)'s own NEXT notes left (b) — "audit that
+  exports belong in the SAME header consistently across every View surface Kevin means" — as
+  genuinely open, worried it was "currently true only where `.sr-card-acts`/`.pdc-dl-acts`
+  exist." Traced every render path that puts a spec's panels on screen: Panel-zoom and
+  Slideshow both build their one-panel iframe via the shared `singlePanelHtml()` helper
+  (app/studio.js) with `{preview:true}`, which sets `window.STUDIO_PREVIEW` inside that
+  iframe exactly like the builder's own preview does — so `studio-render.js`'s
+  `addDownloadChrome()` runs there too, unconditionally, with no separate code path to drift
+  out of sync. Compare-dashboards' preview (`app/versions.js`) uses the identical
+  `{preview:true}` call. The exported/standalone bundle and the read-only Viewer
+  (`preview:false`) hit the OTHER branch in `renderPanels()`, which appends the same
+  `addDownloadChrome()` output into its own `.pdc-dl-acts` container just as
+  unconditionally. Confirmed live in a real browser (not just code-reading): opening
+  Panel-zoom and Slideshow on a loaded dashboard both show the `.pdc-dl-menu` Export ▾
+  trigger. **Genuinely no defect and no code change** — same precedent as QA-09/QA-10's
+  docs/verify-only closes, so no changelog/sw.js bump. Pinned it down with 2 new regression
+  tests (Panel-zoom and Slideshow each assert `.pdc-dl-menu` is present in their iframe) so
+  it can't silently regress if a future slice reworks either mode's render path. **LF69(b) is
+  now closed; only LF69(c) (Export-as-PNG for canvas/WebGL choropleth panels, a materially
+  bigger WebGL-availability-dependent change) remains open in LF69.** Files: tests/run.js,
+  STATUS.md.
 - **LF46 (slice 2) — the Studio ⋯ menu's "View" and "Help & power tools" groups are gone;
   LF46 is now fully done (#93, v675, sw v312, 2026-07-28, steward — step 4 of the LOCKED
   BUILD ORDER, ⋯ teardown):** slice 1 (2026-07-24) hid Demo mode; this slice finishes the
@@ -6057,9 +6079,14 @@
 >       ✓ **Sub-item (a) shipped (2026-07-28, v649, sw v286, steward): delete now sits at the far
 >       right, after the export chrome** — see DONE.
 >       ✓ **Sub-item (d) shipped (2026-07-28, v650, sw v287, steward): PNG/CSV/standalone-HTML
->       collapse into a single Export ▾ trigger + popover** — see DONE. (b)/(c) genuinely still
->       open — see DONE's
->       own NEXT note for the shape of each.
+>       collapse into a single Export ▾ trigger + popover** — see DONE.
+>       ✓ **Sub-item (b) verified (2026-07-28, steward): audited every "View" surface (Panel-zoom,
+>       Slideshow, Compare-dashboards preview, the exported/standalone bundle, the read-only
+>       Viewer) — all already render the SAME Export ▾ chrome via the same shared code paths, no
+>       drift to fix; 2 new regression tests pin it down** — see DONE. **Only (c) remains open:**
+>       "Export as PNG" is silently absent for panels with no `<svg>` (the GL/MapLibre choropleth
+>       renderer, a `<canvas>`) — needs `preserveDrawingBuffer`-aware canvas capture, a materially
+>       bigger, WebGL-availability-dependent change, deliberately not attempted here.
 > LF70. ✓ **"Browse examples" (Home) now lands in Dashboards, filtered to sample-pack dashboards
 >       (shipped v639, sw v276, 2026-07-28, steward) — see DONE.** Took the "filter chip" shape (a
 >       `demoPackId`-based "Sample packs" chip alongside the existing workbook chips) rather than a
