@@ -116,6 +116,21 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF46 (slice) — "Demo mode" removed from the Studio ⋯ More menu, now Settings-only (#125, v654,
+  sw v291, 2026-07-28, steward — step 4 of the LOCKED BUILD ORDER, ⋯ teardown):** the ⋯ menu's
+  "Demo mode ▶" entry duplicated the toggle that Z5's `SETTINGS_TOGGLES` already gives a proper
+  labelled home (Settings → Presentation) — LF46 explicitly calls to hide Demo mode. Removed the
+  `#moreDemoMode` button (app/index.html) + its onclick wiring + the now-dead in-menu label update
+  inside `toggleDemoMode()`; exposed `window.__studioToggleDemoMode` as the canonical toggle entry
+  point and pointed the ⌘K command palette's "Demo mode" command at it (it used to click the removed
+  button). Demo mode stays fully functional — reachable from Settings and the palette — just not
+  duplicated in the everyday ⋯ menu. The broader ⋯ mode-entry consolidation (Focus/Slideshow/Simple)
+  is deliberately deferred to LF48's role-aware mode switcher, since removing those pre-LF48 would
+  cost quick access with no replacement. The in-Studio "waffle" LF46 also names is the shared fleet
+  app-switcher (correct to keep) — no separate Studio-only waffle exists to drop. Test: the H117
+  Demo-mode suite is rewired to assert Demo mode is gone from ⋯ but present as a Settings switch, and
+  drives the toggle via the new hook. Files: app/index.html, app/studio.js, app/palette.js,
+  tests/run.js, sw.js, js/changelog.js.
 - **LF53 — de-jargoned the user-facing "CDF"/"CDE" terminology (#124, v653, sw v290, 2026-07-28,
   steward — step 4 of the LOCKED BUILD ORDER, Studio chrome):** the legacy Pentaho "CDF" (Community
   Dashboard Framework) / "CDA" acronyms aren't a supported concept but still surfaced in a few

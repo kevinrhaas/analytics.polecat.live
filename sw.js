@@ -5,7 +5,11 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v290"; /* v290: LF53 — de-jargoned the user-facing "CDF"/"Dashboard
+var CACHE_NAME = "studio-shell-v291"; /* v291: LF46 (⋯ teardown) — "Demo mode" is no longer a
+   duplicate button in the Studio ⋯ More menu; it lives only in Settings → Presentation (still
+   reachable via the ⌘K command palette). app/index.html, app/studio.js, app/palette.js changed, so
+   precached copies roll.
+   v290: LF53 — de-jargoned the user-facing "CDF"/"Dashboard
    Framework" (legacy Pentaho) wording to plain "Dashboard" in the Recent-exports list + a few help
    tips; the stored "cdf" export kind and internal fn names are unchanged. app/studio.js changed, so
    precached copies roll.

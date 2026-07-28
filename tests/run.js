@@ -23400,12 +23400,14 @@ function serve() {
     // ---- H-track v117: Demo mode ----
     console.log("\n• H-track v117: Demo mode");
 
-    // 1. More menu has the Demo mode button
+    // 1. LF46 (⋯ teardown): Demo mode is no longer a ⋯ More-menu button — it lives only in its
+    // Settings → Presentation home (Z5 SETTINGS_TOGGLES, data-set="demo").
     const h117Btn = await page.evaluate(function () {
-      return { exists: !!document.getElementById("moreDemoMode"),
-               text: (document.getElementById("moreDemoMode") || {}).textContent || "" };
+      return { goneFromMore: !document.getElementById("moreDemoMode"),
+               inSettings: !!document.querySelector('#secSettings input[data-set="demo"]') };
     });
-    ok("H117: #moreDemoMode button present in the More menu", h117Btn.exists, JSON.stringify(h117Btn));
+    ok("LF46: Demo mode is removed from the ⋯ More menu and lives only in Settings → Presentation",
+      h117Btn.goneFromMore && h117Btn.inSettings, JSON.stringify(h117Btn));
 
     // 2. window.__demoMode is initially false
     const h117Init = await page.evaluate(function () {
@@ -23415,12 +23417,11 @@ function serve() {
 
     // 3. Clicking toggle sets demoMode=true and body gets .demo-mode class
     const h117Enable = await page.evaluate(function () {
-      var btn = document.getElementById("moreDemoMode");
-      if (btn) btn.click();
+      window.__studioToggleDemoMode();
       return { demoMode: window.__demoMode,
                bodyClass: document.body.classList.contains("demo-mode") };
     });
-    ok("H117: clicking Demo mode enables it (window.__demoMode=true, body.demo-mode)", h117Enable.demoMode === true && h117Enable.bodyClass === true, JSON.stringify(h117Enable));
+    ok("H117: enabling Demo mode sets window.__demoMode=true and body.demo-mode", h117Enable.demoMode === true && h117Enable.bodyClass === true, JSON.stringify(h117Enable));
 
     // 4. #demoBadge element exists and is visible (computed display !== 'none')
     const h117Badge = await page.evaluate(function () {
@@ -23452,14 +23453,13 @@ function serve() {
 
     // 5. Second click disables demo mode (body.demo-mode removed, badge hidden)
     const h117Disable = await page.evaluate(function () {
-      var btn = document.getElementById("moreDemoMode");
-      if (btn) btn.click();
+      window.__studioToggleDemoMode();
       var badge = document.getElementById("demoBadge");
       return { demoMode: window.__demoMode,
                bodyClass: document.body.classList.contains("demo-mode"),
                badgeDisplay: badge ? getComputedStyle(badge).display : "n/a" };
     });
-    ok("H117: second click disables demo mode (demoMode=false, badge hidden)", h117Disable.demoMode === false && h117Disable.bodyClass === false && h117Disable.badgeDisplay === "none", JSON.stringify(h117Disable));
+    ok("H117: toggling again disables demo mode (demoMode=false, badge hidden)", h117Disable.demoMode === false && h117Disable.bodyClass === false && h117Disable.badgeDisplay === "none", JSON.stringify(h117Disable));
 
     // Restore spec to clean state
     await page.evaluate(async function () {

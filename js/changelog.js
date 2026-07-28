@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 654,
+    title: 'Tidied the Studio ⋯ menu — Demo mode now lives in Settings',
+    kind: 'polish',
+    ts: '2026-07-28T11:10:17.000Z',
+    items: [
+      '"Demo mode" (the stakeholder live-data simulation) is no longer duplicated in the ⋯ More menu — it has one home under Settings → Presentation, and is still reachable from the command palette (⌘K).',
+    ],
+  },
+  {
     v: 653,
     title: 'Plainer wording for dashboard exports (dropped the "CDF" jargon)',
     kind: 'polish',
