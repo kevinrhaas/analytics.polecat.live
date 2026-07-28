@@ -812,7 +812,7 @@
     if (!dss.length) return;
     var wrap = el("div", "lib-mine lib-wsds open");
     var h = el("div", "h");
-    h.innerHTML = '<span class="car">▶</span><span class="nm">Workspace datasets</span><span class="badge">' + dss.length + "</span>";
+    h.innerHTML = '<span class="car">▶</span><span class="nm">Datasets</span><span class="badge">' + dss.length + "</span>";
     libGroupHeaderIcon(h, "db");
     h.onclick = function () { wrap.classList.toggle("open"); };
     wrap.appendChild(h);
