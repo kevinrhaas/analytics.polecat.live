@@ -974,6 +974,12 @@ html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
 .btn-cb-text:hover{border-color:var(--brand);color:var(--brand);background:color-mix(in srgb,var(--brand) 6%,transparent)}
 #canvas-stage{flex:1;min-height:0;position:relative;padding:var(--sp-16)}
 #preview{width:100%;height:100%;border:1px solid var(--line);border-radius:var(--radius);background:var(--pane);box-shadow:var(--shadow);display:block}
+/* LF66 (6): a library card dragged onto the canvas lands as a panel. The preview
+   IFRAME fills #canvas-stage and would swallow the drag (HTML5 DnD can't cross the
+   iframe boundary), so while any drag is in progress the iframe goes pointer-transparent
+   — the dragover/drop then reach #canvas-stage's existing {wsDataset}/{analysis}/{da}
+   drop handler + its .dragover drop-hint. */
+body.lib-dragging #preview{pointer-events:none}
 #canvas-stage.dragover #preview{outline:3px dashed var(--brand);outline-offset:-3px}
 .drop-hint{position:absolute;inset:16px;display:none;align-items:center;justify-content:center;pointer-events:none;
   background:rgba(0,91,181,.06);border-radius:var(--radius);color:var(--brand);font-weight:800;font-size:var(--fs-15)}

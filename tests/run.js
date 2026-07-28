@@ -7149,6 +7149,37 @@ function serve() {
     ok("LF66: its cards are compact — the +chart quick-adds and column chips collapse until hover",
       lf66Lib.addCollapsed === true && lf66Lib.colsCollapsed === true && lf66Lib.addHasChips === true,
       JSON.stringify(lf66Lib));
+
+    // LF66 (6): a library dataset card dragged onto the canvas lands as a panel. The preview
+    // iframe used to swallow the drag; now #preview goes pointer-transparent while a drag is in
+    // progress (body.lib-dragging) so #canvas-stage's existing {wsDataset} drop handler fires.
+    const lf66Drop = await page.evaluate(function () {
+      var conn = Studio.Workspace.put("connections", { name: "lf66drop-conn", adapter: "turso", cfg: {} });
+      var ds = Studio.Workspace.put("datasets", { name: "lf66drop-ds", connectionId: conn.id, kind: "sql", sql: "select region, sales from t", columns: ["region", "sales"] });
+      window.__studioLoad({ title: "drop test", panels: [], kpis: [] });
+      var stage = document.getElementById("canvas-stage");
+      var preview = document.getElementById("preview");
+      // 1) the drag-through mechanism: with body.lib-dragging the iframe ignores pointer events
+      document.body.classList.add("lib-dragging");
+      var pePassthrough = getComputedStyle(preview).pointerEvents === "none";
+      document.body.classList.remove("lib-dragging");
+      // 2) the drop itself lands a panel via the existing #canvas-stage handler
+      var before = window.__STUDIO_STATE.spec.panels.length;
+      var dt = new DataTransfer();
+      dt.setData("text/plain", JSON.stringify({ wsDataset: ds.id }));
+      stage.dispatchEvent(new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: dt }));
+      var after = window.__STUDIO_STATE.spec.panels.length;
+      Studio.Workspace.remove("datasets", ds.id, { silent: true });
+      Studio.Workspace.remove("connections", conn.id, { silent: true });
+      Studio.Workspace.notify("*");
+      // restore the clean spec the next test (dsxImport) was written against
+      window.__studioLoad({ title: "DS test", panels: [], kpis: [] });
+      return { pePassthrough: pePassthrough, before: before, after: after };
+    });
+    ok("LF66: dragging a library card onto the canvas is not swallowed by the preview iframe (pointer-events pass through)",
+      lf66Drop.pePassthrough === true, JSON.stringify(lf66Drop));
+    ok("LF66: dropping a dataset on the canvas adds a panel via the existing drop handler",
+      lf66Drop.after === lf66Drop.before + 1, JSON.stringify(lf66Drop));
     const dsxImport = await page.evaluate(function () {
       var ds = Studio.Workspace.all("datasets")[0];
       window.__studioAddFromWorkspaceDataset(ds.id, "bars");

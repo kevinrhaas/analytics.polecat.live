@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 678,
+    title: 'Drag a dataset from the library straight onto the canvas',
+    kind: 'fix',
+    ts: '2026-07-28T21:30:39.000Z',
+    items: [
+      'Dragging a dataset card from the Studio data panel onto the dashboard canvas now works — before, the card would "pick up" but had nowhere to drop because the live-preview area swallowed the drag. The canvas now shows a drop target while you drag and adds the dataset as a panel when you let go.',
+    ],
+  },
+  {
     v: 677,
     title: 'Finished the widget/analysis → View rename in Explore and the panel inspector',
     kind: 'polish',
