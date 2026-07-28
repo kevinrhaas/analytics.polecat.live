@@ -24164,6 +24164,32 @@ function serve() {
       h118Fill.ok && h118Fill.styleHit && h118Fill.gridFlex === "1" && h118Fill.bodyDisplay === "flex" && h118Fill.ratio >= 0.6, JSON.stringify(h118Fill));
     await page.waitForTimeout(80);
 
+    // 9. LF69(b) audit — the zoomed panel is a "View" surface too, so it must keep the SAME
+    // Export chrome (the "Export ▾" trigger) the builder preview shows. singlePanelHtml()
+    // renders with {preview:true}, which is exactly what makes studio-render.js's isPreview()
+    // branch (and therefore addDownloadChrome) run inside the zoom iframe — this pins that
+    // down with a real assertion instead of leaving it as an unverified side effect.
+    const h118Export = await page.evaluate(async function () {
+      var state = window.__STUDIO_STATE;
+      var panels = state && state.spec && state.spec.panels;
+      if (!panels || !panels.length) return { ok: false, reason: "no panels in spec" };
+      window.__panelZoomOpen(panels[0].id);
+      await new Promise(function (r) { setTimeout(r, 80); });
+      var ov = document.getElementById("pzOverlay");
+      var ifr = ov && ov.querySelector(".pz-frame");
+      if (!ifr) return { ok: false, reason: "no .pz-frame" };
+      await new Promise(function (r) {
+        if (ifr.contentDocument && ifr.contentDocument.readyState === "complete") return r();
+        ifr.addEventListener("load", r, { once: true });
+      });
+      var idoc = ifr.contentWindow.document;
+      var menu = idoc.querySelector(".pdc-dl-menu");
+      var btn = ov.querySelector(".pz-close"); if (btn) btn.click();
+      return { ok: true, hasExportMenu: !!menu };
+    });
+    ok("LF69(b): a zoomed panel keeps the same Export ▾ chrome as the builder preview",
+      h118Export.ok && h118Export.hasExportMenu, JSON.stringify(h118Export));
+
     // ---- LF9 slice 2: Back closes an open overlay instead of leaving the section ----
     console.log("\n• LF9 slice 2: overlay history (panel-zoom, modal)");
     const lf9PzOpen = await page.evaluate(async function () {
@@ -25234,6 +25260,23 @@ function serve() {
       } catch (e) { return { ok: false, err: e.message }; }
     });
     ok("H-track: openSlideshow() creates .ss-overlay DOM element", ssOpen.ok, JSON.stringify(ssOpen));
+
+    // LF69(b) audit — Slideshow is a "View" surface too; its per-slide iframe (built by the
+    // same singlePanelHtml({preview:true}) helper panel-zoom uses) must keep the same
+    // Export ▾ chrome as the builder preview, not a stripped-down read-only render.
+    await page.waitForTimeout(200);
+    var ssExport = await page.evaluate(async function () {
+      var frame = document.querySelector(".ss-frame");
+      if (!frame) return { ok: false, reason: "no .ss-frame" };
+      await new Promise(function (r) {
+        if (frame.contentDocument && frame.contentDocument.readyState === "complete") return r();
+        frame.addEventListener("load", r, { once: true });
+      });
+      var idoc = frame.contentWindow.document;
+      return { ok: true, hasExportMenu: !!idoc.querySelector(".pdc-dl-menu") };
+    });
+    ok("LF69(b): a slideshow slide keeps the same Export ▾ chrome as the builder preview",
+      ssExport.ok && ssExport.hasExportMenu, JSON.stringify(ssExport));
 
     // 4. Pressing Escape closes the slideshow overlay
     await page.waitForTimeout(300);
