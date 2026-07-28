@@ -116,6 +116,26 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF66 (slice 1) — the Studio library "Datasets" group: renamed + compact cards (#66/LF66, v676,
+  sw v313, 2026-07-28 — first slice of the big library-reorg epic; parts (4) + (5)):** LF66 is
+  Kevin's live-QA note that the Studio left "Data" panel library is daunting; sliced. This first
+  slice takes the two lowest-risk, highest-signal parts: **(4)** the `buildLibrary` group header
+  "Workspace datasets" is renamed to just **"Datasets"** (its content already IS the workspace
+  datasets), and **(5)** the group's `.da` cards — an always-on wall of column chips + a row of
+  +Bar/+Donut/+Line/+Treemap/+Table/+KPI quick-adds, which Kevin flagged as "too much / too big" —
+  are **compacted to name + a short meta line by default**, with the column list and the +chart
+  quick-adds collapsing (`max-height:0`) and revealing on hover/focus, matching the compact "This
+  dashboard's datasets" (`.da-mine`) cards. CSS scoped to `.lib-wsds .da` so the other `.da` groups
+  are untouched; the quick-add chips keep their handlers (revealed on hover, and the existing
+  `__studioAddFromWorkspaceDataset` path is unchanged). 2 new regression tests (the group header
+  reads "Datasets"; the card's `.da-add`/`.da-cols` compute `max-height:0` by default while still
+  holding their chips). **NEXT in LF66:** the bigger parts — (1) installed sample packs contribute
+  real datasets/views/dashboards into the normal library (a pack folder/tag for provenance) instead
+  of a separate "Sample packs" group; (2) offer "This dashboard's datasets / Datasets / Views /
+  Dashboards" groups; (3) drop the legacy bottom "Samples · DEMO DB" group (supersedes LF65); (6)
+  fix drag-a-dataset-card-onto-the-canvas (crosses the preview-iframe boundary) + auto-pick the best
+  view. Reconcile with LF43/LF57/LF59 into ONE library model, don't build three. Files:
+  app/studio.js, app/studio.css, tests/run.js, sw.js, js/changelog.js.
 - **LF69(b) — verified Export chrome IS already consistent across every "View" surface
   (2026-07-28, steward, LIVE-QA QUEUE):** LF69(a)/(d)'s own NEXT notes left (b) — "audit that
   exports belong in the SAME header consistently across every View surface Kevin means" — as

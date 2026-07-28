@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 676,
+    title: 'Tidier Datasets group in the Studio data panel',
+    kind: 'polish',
+    ts: '2026-07-28T20:20:07.000Z',
+    items: [
+      'The Studio data panel’s "Workspace datasets" group is now just "Datasets", and its cards are compact: each shows its name and source by default, with the column list and the +chart quick-add buttons revealing on hover instead of always taking up room. The library reads as a tidy list rather than a wall of chips.',
+    ],
+  },
+  {
     v: 675,
     title: 'Studio ⋯ menu decluttered — Tour, Theme and Help & power tools moved out',
     kind: 'polish',

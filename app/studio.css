@@ -913,6 +913,15 @@ textarea:focus-visible,[tabindex]:focus-visible,.row-item:focus-visible{
 .da .da-add{margin-top:6px;display:flex;flex-wrap:wrap;gap:4px}
 .da .chip{font-size:var(--fs-11);border:1px solid var(--line);background:var(--field);border-radius:6px;padding:var(--sp-4) var(--sp-8);cursor:pointer;color:var(--muted);font-weight:600}
 .da .chip:hover{border-color:var(--pdc);color:var(--pdc);background:var(--pane)}
+/* LF66 (5): the Workspace "Datasets" library cards were an always-on wall of column
+   chips + a row of +chart quick-adds — too big for a rail list. Compact them to name +
+   a short meta line by default; the columns and the +chart quick-adds reveal on
+   hover/focus, like the compact "This dashboard's datasets" cards. Scoped to .lib-wsds
+   so the other .da groups are unaffected. */
+.lib-wsds .da .da-cols,
+.lib-wsds .da .da-add{max-height:0;margin-top:0;opacity:0;overflow:hidden;pointer-events:none;transition:max-height .16s ease,margin-top .16s ease,opacity .12s ease}
+.lib-wsds .da:hover .da-cols,.lib-wsds .da:focus-within .da-cols{max-height:320px;margin-top:4px;opacity:1;pointer-events:auto}
+.lib-wsds .da:hover .da-add,.lib-wsds .da:focus-within .da-add{max-height:120px;margin-top:6px;opacity:1;pointer-events:auto}
 mark.hl{background:#ffe14d;color:#1a2847;border-radius:2px;padding:0 var(--sp-2);font-style:normal}
 html[data-theme='dark'] mark.hl{background:#7a5c00;color:#ffe082}
 .skbd{background:var(--field);border:1px solid var(--line);border-radius:5px;padding:var(--sp-2) var(--sp-8);font-family:var(--mono);font-size:var(--fs-12);color:var(--ink)}

@@ -7117,6 +7117,28 @@ function serve() {
       return { group: !!group, card: !!card, cardText: card ? card.textContent.slice(0, 80) : "" };
     });
     ok("DSX: the library pins a Workspace datasets group with the dataset card", dsxLib.group && dsxLib.card && /sales_by_region/.test(dsxLib.cardText), JSON.stringify(dsxLib));
+
+    // LF66 (5) slice 1: the Workspace datasets library group is renamed "Datasets" and its
+    // cards are compact — name + meta by default, with the column-chip wall + the +chart
+    // quick-adds collapsed (max-height:0) until hover/focus, not an always-on wall of chips.
+    const lf66Lib = await page.evaluate(function () {
+      var group = document.querySelector("#libList .lib-wsds");
+      var header = group && group.querySelector(".h .nm");
+      var card = group && group.querySelector(".da");
+      var add = card && card.querySelector(".da-add");
+      var cols = card && card.querySelector(".da-cols");
+      return {
+        headerLabel: header ? header.textContent : null,
+        addCollapsed: add ? getComputedStyle(add).maxHeight === "0px" : null,
+        colsCollapsed: cols ? getComputedStyle(cols).maxHeight === "0px" : null,
+        addHasChips: add ? add.querySelectorAll(".chip").length > 0 : null
+      };
+    });
+    ok("LF66: the Workspace datasets library group is renamed to 'Datasets'",
+      lf66Lib.headerLabel === "Datasets", JSON.stringify(lf66Lib));
+    ok("LF66: its cards are compact — the +chart quick-adds and column chips collapse until hover",
+      lf66Lib.addCollapsed === true && lf66Lib.colsCollapsed === true && lf66Lib.addHasChips === true,
+      JSON.stringify(lf66Lib));
     const dsxImport = await page.evaluate(function () {
       var ds = Studio.Workspace.all("datasets")[0];
       window.__studioAddFromWorkspaceDataset(ds.id, "bars");
