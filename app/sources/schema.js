@@ -223,6 +223,20 @@
     if (k === "month_end") return iso(new Date(now.getFullYear(), now.getMonth() + 1, 0));
     if (k === "year_start") return iso(new Date(now.getFullYear(), 0, 1));
     if (k === "year_end") return iso(new Date(now.getFullYear(), 11, 31));
+    // Week is ISO/Postgres-style — Monday-start (matches date_trunc('week')).
+    if (k === "week_start" || k === "week_end") {
+      var dow = (now.getDay() + 6) % 7; // 0 = Monday … 6 = Sunday
+      var ws = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dow);
+      if (k === "week_end") ws.setDate(ws.getDate() + 6);
+      return iso(ws);
+    }
+    // Calendar quarter (Q1 = Jan–Mar, …).
+    if (k === "quarter_start" || k === "quarter_end") {
+      var qsm = Math.floor(now.getMonth() / 3) * 3; // 0,3,6,9
+      return iso(k === "quarter_end"
+        ? new Date(now.getFullYear(), qsm + 3, 0)   // last day of the quarter's 3rd month
+        : new Date(now.getFullYear(), qsm, 1));
+    }
     // {{today-30}} / {{today+7}} — N-day offsets from today
     var off = k.match(/^today\s*([+-])\s*(\d+)$/);
     if (off) { var d = new Date(now); d.setDate(d.getDate() + (off[1] === "-" ? -1 : 1) * parseInt(off[2], 10)); return iso(d); }

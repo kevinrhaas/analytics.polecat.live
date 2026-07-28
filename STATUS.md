@@ -116,6 +116,12 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF64 (slice 2) — week + quarter dynamic tokens (v683, sw v320, 2026-07-28):** extends slice 1's
+  built-in token set with `{{week_start}}`/`{{week_end}}` (Monday-start, matching Postgres
+  `date_trunc('week')`) and `{{quarter_start}}`/`{{quarter_end}}` (calendar Q1–Q4), same central
+  `WS.dynamicParam` path, run-time resolution, and override rule. Parameters hint + Help + regression
+  test updated to the full set. **Next LF64:** an insert-token affordance in the SQL editor (a small
+  menu that drops the chosen token at the cursor) if wanted.
 - **LF64 (slice 1) — built-in DYNAMIC date tokens (v682, sw v319, 2026-07-28):** dataset queries
   (and titles) now understand a fixed set of relative-date placeholders that need NO parameter
   defined — `{{today}}`, `{{yesterday}}`, `{{tomorrow}}`, `{{today-30}}`/`{{today+7}}` (any N-day
