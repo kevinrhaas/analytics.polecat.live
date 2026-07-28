@@ -26801,6 +26801,19 @@ function serve() {
     ok("QA-04 slice 2: two dashboards sharing the same title get distinguishable rows in the 'Open a dashboard' picker",
       odpDup.labels.length === 2 && odpDup.unique && odpDup.labels.every(function (t) { return /^Compare Dash A( · #\S+)?$/.test(t); }),
       JSON.stringify(odpDup));
+    // LF45: the picker (still open) is no longer a bare text list — each row carries the dashboard's
+    // layout thumbnail SVG, and the list is keyboard-navigable (first row highlighted, ↓ advances).
+    const odpLF45 = await page.evaluate(function () {
+      var rows = [].slice.call(document.querySelectorAll(".modal .odp-row"));
+      var allHaveThumb = rows.length > 0 && rows.every(function (r) { return !!r.querySelector(".odp-thumb svg"); });
+      var firstActive = rows.length > 0 && rows[0].classList.contains("odp-active");
+      var search = document.querySelector(".modal input.search");
+      if (search) search.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+      var movedToSecond = rows.length > 1 && rows[1].classList.contains("odp-active") && !rows[0].classList.contains("odp-active");
+      return { rowCount: rows.length, allHaveThumb: allHaveThumb, firstActive: firstActive, movedToSecond: movedToSecond };
+    });
+    ok("LF45: the Open-dashboard picker shows a layout thumbnail per row and is keyboard-navigable (first row highlighted, ↓ moves it)",
+      odpLF45.allHaveThumb && odpLF45.firstActive && odpLF45.movedToSecond, JSON.stringify(odpLF45));
     await page.evaluate(function () { var ov = document.querySelector(".modal-ov"); if (ov) ov.remove(); Studio.Workspace.remove("dashboards", "cmp-test-c", { silent: true }); });
 
     const cmpTooFew = await page.evaluate(function () {

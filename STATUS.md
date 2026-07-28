@@ -116,6 +116,17 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF45 (slice) — richer "Open a dashboard" picker: thumbnails + keyboard nav (#126, v655, sw v292,
+  2026-07-28, steward — step 4 of the LOCKED BUILD ORDER, Studio chrome):** LF45's "surface a visible
+  Save-as button" half already shipped with LF47 (the top rail's `#btnSaveAsSpec`); this closes its
+  "improve the (too-light) Open dialog" half. `openDashboardPicker()` was a bare text list — each row
+  now leads with the dashboard's real **layout thumbnail** (`Studio.makeThumbnail`, the same
+  theme-aware SVG Home cards + the inspector preview use, so what you see matches what opens), and the
+  list is **keyboard-navigable**: ↑/↓ move a highlight (`.odp-active`, mirrored by pointer hover),
+  Enter opens the highlighted row, all without leaving the search box (first result auto-highlighted).
+  CSS: `.odp-row` becomes a flex media row with `.odp-thumb` (72×42 framed) + `.odp-meta` (ellipsised
+  title/meta). Test: every picker row has a thumbnail SVG, the first row starts highlighted, and ↓
+  advances the highlight. Files: app/studio.js, app/studio.css, tests/run.js, sw.js, js/changelog.js.
 - **LF46 (slice) — "Demo mode" removed from the Studio ⋯ More menu, now Settings-only (#125, v654,
   sw v291, 2026-07-28, steward — step 4 of the LOCKED BUILD ORDER, ⋯ teardown):** the ⋯ menu's
   "Demo mode ▶" entry duplicated the toggle that Z5's `SETTINGS_TOGGLES` already gives a proper
