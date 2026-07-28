@@ -775,7 +775,7 @@
     }
     if (canImg) addItem(I_IMG, "Download chart as PNG image", "Download PNG image", function () { downloadPanelPng(card, p); });
     if (canData) addItem(I_TABLE, "Download data as CSV", "Download data (CSV)", function () { downloadPanelData(p, res); });
-    if (canEmbed) addItem(I_CODE, "Export this panel as a standalone HTML file", "Export as standalone HTML", function () { post({ type: "panel-export-embed", id: p.id }); });
+    if (canEmbed) addItem(I_CODE, "Export this View as a standalone HTML file", "Export as standalone HTML", function () { post({ type: "panel-export-embed", id: p.id }); });
     menu.appendChild(trigger); menu.appendChild(pop);
     container.appendChild(menu);
   }

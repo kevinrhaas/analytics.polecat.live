@@ -641,9 +641,9 @@
           '<button type="button" class="btn primary" id="xpNewDsBtn" title="Create a new dataset without leaving Explore">+ New</button>' +
         "</div>" +
         '<div class="xp-list">' + (dsRows || '<div class="xp-none">No datasets' + (showSamples() ? "" : " (samples are hidden in Settings)") + ".</div>") + "</div>" +
-        '<div class="xp-saved"><div class="xp-saved-h">Saved analyses <span class="badge">' + analyses.length + "</span></div>" +
+        '<div class="xp-saved"><div class="xp-saved-h">Saved Views <span class="badge">' + analyses.length + "</span></div>" +
           (pillsFXp ? '<div class="wb-chips">' + pillsFXp + '</div>' : "") +
-          (savedRows || '<div class="xp-none">' + (_xpFolderFilter ? "No analyses in this folder." : "Nothing saved yet.") + '</div>') + "</div>" +
+          (savedRows || '<div class="xp-none">' + (_xpFolderFilter ? "No Views in this folder." : "Nothing saved yet.") + '</div>') + "</div>" +
       "</aside>" +
       '<div class="xp-main">' + main + "</div>";
     Studio.Tooltip.hydrate(body);
@@ -752,7 +752,7 @@
     if (!shown.length) return;
     var wrap = el("div", "lib-mine lib-analyses open");
     var h = el("div", "h");
-    h.innerHTML = '<span class="car">▶</span><span class="nm">Analyses</span><span class="badge">' + shown.length + "</span>";
+    h.innerHTML = '<span class="car">▶</span><span class="nm">Views</span><span class="badge">' + shown.length + "</span>";
     libGroupHeaderIcon(h, "trend-up");
     h.onclick = function () { wrap.classList.toggle("open"); };
     wrap.appendChild(h);

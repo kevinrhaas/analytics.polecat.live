@@ -5,7 +5,13 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v313"; /* v313: LF66 slice 1 (library reorg) — the Studio data
+var CACHE_NAME = "studio-shell-v314"; /* v314: LF52 (extend) — finish the widget/analysis→View
+   terminology rename in the two named remaining surfaces: the panel inspector's "Export this
+   panel…" button is now "Export this View…" (and the matching canvas Export▾ menu tooltip), and
+   Explore's "Saved analyses" sidebar list + the Studio library's "Analyses" group are now "Saved
+   Views" / "Views". app/studio.js, app/explore.js, app/studio-render.js changed, so precached
+   copies roll.
+   v313: LF66 slice 1 (library reorg) — the Studio data
    panel's "Workspace datasets" library group is renamed "Datasets" (buildLibrary), and its .da
    cards are compacted: the always-on column-chip wall + the +chart quick-add row now collapse
    (max-height:0) to name + meta, revealing on hover/focus (scoped .lib-wsds .da CSS in
