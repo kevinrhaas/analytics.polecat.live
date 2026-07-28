@@ -30703,6 +30703,80 @@ function serve() {
       window.__studioShellSetSection("studio");
     });
 
+    // ---- #106/#107: viewer renders SAMPLE-backed dashboards (no 404) + exports in every shipping format ----
+    console.log("\n• #106/#107: viewer sample-data render + export");
+    await page.evaluate(function () {
+      // A sample-backed dashboard the way the demo/sample packs build them: a data access with
+      // NO real engine (authored kind:"sql", no connAdapter) — before #106 this fell through
+      // studio-render.js's PDC.cda to the retired CDA server → 404 and a blank chart. Plus a
+      // duckdb DA (a REAL engine) to prove the fix mocks ONLY the sample DA, never a live one.
+      var spec = {
+        schema: 1, id: "vx-sample", name: "vx-sample", title: "Viewer Sample Dash", subtitle: "", group: "", description: "",
+        cda: { connections: [], dataAccesses: [
+          { id: "vx-da-sample", name: "vx sample", kind: "sql", columns: ["month", "value"], authored: true },
+          { id: "vx-da-duck", name: "vx duck", kind: "duckdb", fileUrl: "data/x.parquet", fileFormat: "parquet", columns: ["month", "value"] }
+        ] },
+        filters: [], kpis: [], gridCols: 1,
+        panels: [{ id: "p1", title: "Adoption", span: 1, chart: { type: "bar", da: "vx-da-sample", map: { x: "month", y: "value" } } }]
+      };
+      Studio.Workspace.put("dashboards", { id: "vx-sample", ts: new Date().toISOString(), spec: spec, title: spec.title, name: spec.name });
+    });
+    const vxState = await page.context().storageState();
+    const vxCtx = await browser.newContext({ storageState: vxState });
+    const vxPage = await vxCtx.newPage();
+    vxPage.on("pageerror", (e) => errors.push("viewer #106 page: " + e.message));
+    await vxPage.addInitScript(() => { try { sessionStorage.setItem("studio-gate-ok", "1"); } catch (e) {} });
+    await vxPage.goto(`http://localhost:${PORT}/app/viewer.html?dash=vx-sample`, { waitUntil: "networkidle" });
+    await vxPage.waitForFunction(function () { return !!window.__viewerBuildHtml; }, { timeout: 8000 }).catch(function () {});
+    await vxPage.waitForTimeout(300);
+
+    const vx = await vxPage.evaluate(function () {
+      var f = document.querySelector("#viewerFrame");
+      var fw = f && f.contentWindow, mock = (fw && fw.PDC_MOCK) || {};
+      var sm = window.__viewerSampleMock ? window.__viewerSampleMock() : {};
+      var html = window.__viewerBuildHtml ? window.__viewerBuildHtml() : "";
+      var exportBtn = document.getElementById("viewerExport");
+      var items = Array.prototype.map.call(document.querySelectorAll("#viewerExportMenu button[data-exp]"), function (b) { return b.getAttribute("data-exp"); });
+      return {
+        // #106: the sample DA got a mock (so PDC.cda serves it locally, never hits the 404 server);
+        // the real duckdb DA did NOT (its live engine still owns it — the mock must not shadow it).
+        frameHasSampleMock: !!mock["vx-da-sample"],
+        frameOmitsRealDA: !mock["vx-da-duck"],
+        sampleMockHasSample: !!sm["vx-da-sample"],
+        sampleMockOmitsRealDA: !sm["vx-da-duck"],
+        // The built HTML carries PDC_MOCK but is a preview:false build (viewer semantics: live
+        // engines stay live), so it must NOT set STUDIO_PREVIEW yet must embed the mock.
+        htmlHasMock: /window\.PDC_MOCK\s*=/.test(html) && html.indexOf("vx-da-sample") >= 0,
+        htmlNoPreviewFlag: html.indexOf("window.STUDIO_PREVIEW=true") < 0,
+        // #107: Export affordance is present for everyone, with all three shipping formats.
+        exportVisible: !!(exportBtn && !exportBtn.hidden && getComputedStyle(exportBtn).display !== "none"),
+        exportItems: items.join(",")
+      };
+    });
+    ok("#106: the viewer bakes a sample mock for a data access with no real engine, so a sample dashboard renders instead of 404ing on the retired CDA server",
+      vx.frameHasSampleMock && vx.sampleMockHasSample, JSON.stringify(vx));
+    ok("#106: the sample mock covers ONLY sample-only data accesses — a real (duckdb) data access is left to query live, never shadowed by a mock",
+      vx.frameOmitsRealDA && vx.sampleMockOmitsRealDA, JSON.stringify(vx));
+    ok("#106: the viewer's built HTML embeds PDC_MOCK on a preview:false build (mock present, STUDIO_PREVIEW not set) so live engines stay live while sample DAs render",
+      vx.htmlHasMock && vx.htmlNoPreviewFlag, JSON.stringify(vx));
+    ok("#107: the viewer offers an Export control with all three shipping formats (HTML / PDF / editable spec)",
+      vx.exportVisible && vx.exportItems === "html,pdf,spec", JSON.stringify(vx));
+
+    // The Export dropdown toggles open on click and closes on a second click (basic menu wiring).
+    const vxMenu = await vxPage.evaluate(function () {
+      var btn = document.getElementById("viewerExport"), menu = document.getElementById("viewerExportMenu");
+      btn.click(); var openedAfter1 = !menu.hidden;
+      btn.click(); var closedAfter2 = menu.hidden;
+      return { openedAfter1: openedAfter1, closedAfter2: closedAfter2 };
+    });
+    ok("#107: the Export menu opens and closes on the button click", vxMenu.openedAfter1 && vxMenu.closedAfter2, JSON.stringify(vxMenu));
+
+    await vxCtx.close();
+    await page.evaluate(function () {
+      Studio.Workspace.remove("dashboards", "vx-sample");
+      window.__studioShellSetSection("studio");
+    });
+
   } catch (e) {
     failed++; console.error("FATAL", e);
   } finally {

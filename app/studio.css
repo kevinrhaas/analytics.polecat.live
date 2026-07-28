@@ -1928,6 +1928,28 @@ body.simple-mode .da-acts{display:none!important}
    a dead `href="#"` link the whole time. Same #appMain/.app-sec[hidden] override
    pattern used elsewhere in this file, just missing here. */
 .viewer-savecopy-btn[hidden],.viewer-edit-link[hidden]{display:none}
+/* #107: viewer Export button + dropdown — same self-contained-on-light-surface styling as the
+   two buttons above (the shared .btn assumes a dark surface). The menu is an absolutely-positioned
+   popover anchored to its wrap; [hidden] override needed for the same author-vs-UA reason above. */
+.viewer-export-wrap{position:relative;flex-shrink:0}
+.viewer-export-btn{display:flex;align-items:center;gap:6px;font-family:var(--font);font-size:var(--fs-13);
+  font-weight:700;border-radius:8px;padding:var(--sp-8) var(--sp-12);cursor:pointer;white-space:nowrap;
+  border:1px solid var(--line);background:var(--field);color:var(--ink);
+  transition:background .14s,border-color .14s,transform .1s}
+.viewer-export-btn:hover{border-color:var(--brand);color:var(--brand)}
+.viewer-export-btn:active{transform:translateY(1px)}
+.viewer-export-btn svg{width:14px;height:14px}
+.viewer-export-btn[hidden]{display:none}
+.viewer-export-menu{position:absolute;top:calc(100% + 6px);right:0;z-index:40;min-width:212px;
+  background:var(--pane);border:1px solid var(--line);border-radius:10px;padding:var(--sp-6);
+  box-shadow:0 12px 30px rgba(0,0,0,.18);display:flex;flex-direction:column;gap:2px}
+.viewer-export-menu[hidden]{display:none}
+.viewer-export-menu button{display:flex;align-items:center;gap:8px;width:100%;text-align:left;
+  font-family:var(--font);font-size:var(--fs-13);font-weight:600;color:var(--ink);background:transparent;
+  border:none;border-radius:7px;padding:var(--sp-8) var(--sp-10);cursor:pointer}
+.viewer-export-menu button:hover{background:var(--field);color:var(--brand)}
+.viewer-export-menu button svg{width:15px;height:15px;flex-shrink:0;color:var(--muted)}
+.viewer-export-menu button:hover svg{color:var(--brand)}
 #viewerStage{position:relative;flex:1;min-height:0}
 #viewerFrame{position:absolute;inset:0;width:100%;height:100%;border:none;display:block}
 .viewer-empty{display:none;position:absolute;inset:0;flex-direction:column;align-items:center;
