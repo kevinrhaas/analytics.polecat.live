@@ -5,7 +5,10 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v270"; /* v270: Settings copy cleanup — a one-line Color-theme blurb, a
+var CACHE_NAME = "studio-shell-v271"; /* v271: LF40 slice 1 — the welcome tour opens with an
+   animated hero screen (theme-colored confetti, greet-by-name, quick tour / guided tour choice,
+   quick-action shortcuts). app/welcome.js changed, so its precached copy rolls.
+   v270: Settings copy cleanup — a one-line Color-theme blurb, a
    concise Sample-packs intro that names the data as synthetic, and crisp count-led per-pack descriptions
    that mention the data is embedded (#112/#115/#116). app/studio.js + app/demopacks.js changed, so
    precached copies roll.

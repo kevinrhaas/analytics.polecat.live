@@ -116,6 +116,36 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF40 slice 1 — animated welcome hero screen (v634, sw v271, 2026-07-27, steward — step 3 of
+  the LOCKED BUILD ORDER):** the welcome tour (first sign-in, ⋯ More → Tour, Settings → Tour) now
+  opens on a new HERO screen instead of dropping straight into the old 5-step carousel. The hero:
+  fires a theme-colored confetti entrance (new `heroConfetti()`, colors pulled from
+  `--brand/--pdc/--good/--warn/--bad` so it always matches whatever palette × light/dark is active,
+  not a fixed color set — same "respect prefers-reduced-motion" convention as app/celebrations.js's
+  sparkBurst, kept separate since that module is reused by unrelated delight moments); greets the
+  signed-in user by their `PolecatAuth` name (skipped for the read-only demo account, which would
+  otherwise leak its generic "Demo user" label); offers **"Take a quick tour"** (enters the existing
+  step carousel, unchanged) and **"Take the guided tour"** (opens `StudioTutorial` directly) as two
+  options on the same menu; and three quick-action shortcuts — Explore data / Build a dashboard /
+  Bring your data — that close the hero and jump straight to that section via the existing
+  `__studioShellSetSection` hook. The carousel's Back button now also works from its first step,
+  returning to the hero instead of being hidden there. `Studio.escapeHtml` guards the greeting
+  (a locally-stored display name). 9 new/rewritten regression checks (hero content + confetti +
+  quick-action section jump + quick-tour hand-off + back-to-hero + greet-by-name + a focus-trap
+  check rewritten to compute the true first/last focusable instead of assuming the old carousel's
+  control order). Full suite green (2386/2386, re-run twice clean — the confetti host's cleanup
+  timer was bumped 2200ms→6000ms after one run flaked at 0 pieces under the full suite's load,
+  well past its own particles' <2s fall animation either way). SW cache → v271. Files: app/welcome.js, tests/run.js,
+  js/changelog.js, sw.js, docs/index.html. Rebased onto main past #108/#112/#115/#116 (v632/v633),
+  hence the v632→v634 / sw v269→v271 renumber from the original slice. Deliberately NOT in this
+  slice (left for a follow-up): the sample-pack-aware tour content (an installed pack's
+  dashboards/connections framed as "curated" segments) and the Conservation-pack
+  choropleth/watershed tour content Kevin called out — those need the tour/carousel content itself
+  to become pack-aware, a separate, larger change from this screen/flow restructuring. NEXT per the
+  LOCKED BUILD ORDER: step 4, Studio chrome (LF46/LF48/LF45/LF52/LF53 — LF47 is already done except
+  the Examples removal that's LF43 slice 2's remit), or the sample-pack-aware follow-up to this
+  slice, or LF43 slice 2 (drop Examples) — any is a reasonable next unit; the LIVE-QA QUEUE
+  (LF61-70) also has fresh bug/cleanup-class items to slot in ahead of the flashier remaining work.
 - **Settings copy cleanup: Color theme + Sample packs (#112/#115/#116, v633, sw v270,
   2026-07-27, steward):** three live-QA copy tweaks Kevin flagged in Settings. #112 ("you don't
   need all of this explanation for the color themes, shorten this") — the Color-theme row's `small`
@@ -4994,7 +5024,10 @@
 >    (multi-backend admin — admin manages a backend list ✓ slice 1, per-user backend assignment
 >    ✓ slice 2, consolidated Switch-backend picker ✓ slice 3, all 2026-07-27 — **LF42 is now fully
 >    done**). **Step 2 is now fully done.**
-> 3. **Flashy:** LF40 (animated welcome + home tour, sample-pack-aware).
+> 3. **Flashy:** LF40 (animated welcome + home tour, sample-pack-aware) — **slice 1 ✓ (hero
+>    screen: confetti + greet-by-name + quick tour/guided tour menu + quick actions, 2026-07-27,
+>    steward)**, see DONE. Still open: the sample-pack-aware tour content + the Conservation-pack
+>    choropleth/watershed tour segments Kevin called out.
 > 4. **Studio chrome:** LF46 (⋯ teardown) · LF47 (ops → top rail, w/ #30 — ✓ slices A/B/C,
 >    2026-07-27, **LF47 is now fully done** except Examples removal, which is LF43 slice 2's
 >    remit, not duplicated here) · LF48 (mode switcher) · LF45 (Save-as + Open dialog) ·
@@ -5123,6 +5156,12 @@
 >       the CUSTOM-GEO story (watersheds/districts/ZIP, the geography library).** Verify the pack already
 >       ships those choropleth dashboards and surface them in the tour. (app/welcome.js, tutorial.js,
 >       studio.js renderHome(), celebrations.js confetti, demopacks.js, icons.) Follows LF18. Ties LF22, LF58.
+>       ✓ **Slice 1 shipped (2026-07-27, v631, sw v268, steward): the hero screen itself** — confetti +
+>       greet-by-name + "Take a quick tour"/"Take the guided tour" menu + 3 icon quick-actions + the
+>       Settings→Tour note — see DONE for the full writeup. Genuinely still open: SAMPLE-PACK-AWARE tour
+>       content (curated-dashboards/datasets segments for an installed pack) and the Conservation pack's
+>       choropleth/watershed tour segments Kevin named — both need the carousel/guided-tour CONTENT itself
+>       to branch on the installed pack, a separate slice from this screen/flow restructuring.
 > LF41. **slice 1 ✓ / slice 2 ✓ / fully done — Per-user provisioning defaults — the whole starting PROFILE
 >       (Kevin expanded 2026-07-27).** Admin's Add-user configures a user's full starting profile so they log in
 >       ready with no major edits: default theme, default sample pack(s), backend/DB (LF42), AND ALL the
