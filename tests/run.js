@@ -3418,6 +3418,27 @@ function serve() {
     });
     ok("M1: geographic sample columns now yield a row per REGION (100+ real counties, 20+ HUC8/CRD) so choropleths demo richly, not a token 8",
       m1Geo.countyRows >= 100 && m1Geo.allFips && m1Geo.distinctCounties >= 100 && m1Geo.huc >= 20 && m1Geo.crd >= 20, JSON.stringify(m1Geo));
+    // A bounded categorical FIRST column (the conservation "shift" dataset GROUPs BY practice — 4
+    // distinct labels) must yield ONE row per label, not the flat 8 that repeated each practice
+    // twice (Kevin, live QA). Distinct-label count must equal the row count for a bounded vocab.
+    const m1Cat = await page.evaluate(function () {
+      function shape(cols) {
+        var r = Studio.sampleRows({ columns: cols });
+        var d = {}; r.rows.forEach(function (row) { d[String(row[0])] = 1; });
+        return { n: r.rows.length, distinct: Object.keys(d).length };
+      }
+      return {
+        practice: shape(["practice", "pct_2015", "pct_2025"]),
+        crop: shape(["crop", "yield"]),
+        provider: shape(["provider", "pct"]),
+        year: shape(["year", "covercrop_pct"]) // unbounded-in-8 kind stays at 8, no regression
+      };
+    });
+    ok("LF (live QA): a bounded categorical first column yields one row per distinct label — no duplicated categories (practice=4, crop=4, provider=5, all distinct)",
+      m1Cat.practice.n === 4 && m1Cat.practice.distinct === 4 &&
+      m1Cat.crop.n === 4 && m1Cat.crop.distinct === 4 &&
+      m1Cat.provider.n === 5 && m1Cat.provider.distinct === 5 &&
+      m1Cat.year.n === 8 && m1Cat.year.distinct === 8, JSON.stringify(m1Cat));
     // the demo dashboard's county map colors 100+ counties end-to-end
     const m1Map = await page.evaluate(async function () {
       window.__studioDemoPacks.remove("conservation");

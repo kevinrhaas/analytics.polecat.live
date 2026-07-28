@@ -6,13 +6,23 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
-    v: 641,
+    v: 642,
     title: '"What\'s new" is now reachable on mobile',
     kind: 'fix',
-    ts: '2026-07-28T04:23:24.000Z',
+    ts: '2026-07-28T04:33:12.000Z',
     items: [
       'The What\'s new / changelog feed used to be reachable only from topbar and Studio-footer buttons that are hidden or unavailable on phones — mobile users had no way to open it, even with an unread-update dot showing.',
       'Added a "What\'s new" item to the phone ⋯More menu (available from every section) that opens the same feed.',
+    ],
+  },
+  {
+    v: 641,
+    title: 'Fixed: sample dashboards showed each category twice',
+    kind: 'fix',
+    ts: '2026-07-28T04:20:23.000Z',
+    items: [
+      'On the Conservation sample, the practice-shift dataset (and any sample view grouped by a short list like practice, crop or provider) listed every category twice with a duplicate row — the offline sample generator always made eight rows even when the category only had four values.',
+      'Sample data now makes exactly one row per distinct category, matching what a real grouped query returns.',
     ],
   },
   {
