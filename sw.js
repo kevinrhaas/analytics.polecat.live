@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v301"; /* v301: LF62 slice 7 — the same ✨ sparkle
+var CACHE_NAME = "studio-shell-v302"; /* v302: LF62 slice 8 — the same ✨ sparkle
+   name-suggest button now sits on Explore's own "Folder" field too (the last
+   un-wired LF62 surface): a View picked over a workspace dataset suggests that
+   dataset's own folder, one hop up the connections->datasets->jobs->views chain
+   (app/explore.js, app/studio.css, tests/run.js changed), so precached copies roll.
+   v301: LF62 slice 7 — the same ✨ sparkle
    name-suggest button now sits on the Folder field in the dataset, connection and
    job editors; the dataset/job kinds suggest the linked connection's/source
    dataset's own folder, the connection kind (nothing upstream to reuse) falls

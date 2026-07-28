@@ -237,6 +237,21 @@
     }
     return { sourceDatasetName: srcName, valueCol: XP.map && XP.map.valueCol };
   }
+  // LF62 slice 8 (live-QA queue, slice 7's own NEXT pointer — the last un-wired LF62
+  // surface): the ctx a View's Folder sparkle suggests from. Mirrors the dataset/
+  // connection/job Folder fields' "linkedFolder" convention — a View sits one hop
+  // downstream of its picked dataset in the same connections->datasets->jobs->views
+  // chain, so reuse that dataset's own folder. A sample-backed or self-contained
+  // View has no upstream dataset to link, so it has nothing to suggest from (no Tags
+  // field on a View to fall back to, unlike the dataset/connection/job forms).
+  function xpFolderSuggestCtx() {
+    var linkedFolder = "";
+    if (XP.kind === "ws") {
+      var ds = Studio.Workspace.get("datasets", XP.dsId);
+      if (ds) linkedFolder = ds.folder || "";
+    }
+    return { linkedFolder: linkedFolder };
+  }
   function xpDefaultType(cols) {
     var c = (cols || []).join(" ").toLowerCase();
     if (/fips|geoid|county|huc|district|crd|(^| )state( |$)/.test(c)) return "choropleth";
@@ -699,7 +714,13 @@
       nameInp2.addEventListener("input", function () { XP.name = nameInp2.value; });
     }
     var folderInp2 = $("#xpFolder", body);
-    if (folderInp2) folderInp2.addEventListener("input", function () { XP.folder = folderInp2.value; });
+    if (folderInp2) {
+      var xpFolderNextSibling = folderInp2.nextSibling, xpFolderParent = folderInp2.parentNode;
+      var folderWrap = withSparkleButton(folderInp2, "folder", xpFolderSuggestCtx);
+      folderWrap.classList.add("xp-folder-sparkle");
+      xpFolderParent.insertBefore(folderWrap, xpFolderNextSibling);
+      folderInp2.addEventListener("input", function () { XP.folder = folderInp2.value; });
+    }
     $$("[data-xp-folder]", body).forEach(function (btn) {
       btn.onclick = function () { _xpFolderFilter = btn.getAttribute("data-xp-folder"); renderExplore(); };
     });
