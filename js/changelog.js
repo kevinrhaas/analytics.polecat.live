@@ -6,6 +6,15 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 673,
+    title: 'Connections can now be viewed as tiles or a list',
+    kind: 'feature',
+    ts: '2026-07-28T18:42:43.000Z',
+    items: [
+      'The Connections section gained the same "Tile view" / "List view" toggle Datasets just shipped. The compact list stays the default; switch to a roomier tile grid when you want each connection shown as a card. Your choice is remembered on this device.',
+    ],
+  },
+  {
     v: 672,
     title: 'Datasets can now be viewed as tiles or a list',
     kind: 'feature',

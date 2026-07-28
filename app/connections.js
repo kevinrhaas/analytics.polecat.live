@@ -58,6 +58,12 @@
   // Folder pilot slice 2 (#21 org sub-item — same flat single-value `folder`
   // string + single-select chip facet as Datasets' `_dsxFolderFilter`).
   var _connFolderFilter = ""; // "" = All, "__unfiled" = no folder, else a folder name
+  // LF51 (nav IA spec (d), slice 3): the Connections section gains the same
+  // list/tile toggle Dashboards and Datasets already offer (#dashViewToggle /
+  // studio-dash-view, #dsxViewToggle / studio-dsx-view). Device-remembered UI
+  // state, same bucket, own key.
+  var _connViewMode = "list";
+  try { _connViewMode = localStorage.getItem("studio-conn-view") || "list"; } catch (e) {}
   // Post-overhaul backlog item 6 follow-up ("same treatment for the
   // Connections list"): identical saved-view contract to the Datasets
   // section's dsxLoadViews/dsxSaveViews/dsxApplyView, now including the tag
@@ -117,6 +123,20 @@
   }
   function renderConnections() {
     var results = $("#connResults"); if (!results) return;
+    // LF51 (d) slice 3: wire the persistent list/tile toggle (lives in the section
+    // header, outside #connResults, so this idempotent binding survives every
+    // re-render — same pattern as Datasets' #dsxViewToggle).
+    var vt = $("#connViewToggle");
+    if (vt) {
+      var tilesNow = _connViewMode === "tiles";
+      vt.textContent = tilesNow ? "List view" : "Tile view";
+      vt.setAttribute("aria-pressed", tilesNow ? "true" : "false");
+      vt.onclick = function () {
+        _connViewMode = _connViewMode === "tiles" ? "list" : "tiles";
+        try { localStorage.setItem("studio-conn-view", _connViewMode); } catch (e) {}
+        renderConnections();
+      };
+    }
     var credNote = $("#connCredNote");
     if (credNote) {
       var cc = connCredentialCopy();
@@ -192,26 +212,37 @@
       }).join(" ");
       return (c.name + " " + (src.label || c.adapter) + " " + cfgHay + " " + (c.tags || []).join(" ") + " " + (c.folder || "")).toLowerCase().indexOf(q) >= 0;
     });
+    // LF51 (d) slice 3: each connection renders as either a compact list row
+    // (default) or a richer tile card, reusing the exact Datasets tile CSS
+    // (.dsx-grid/.dsx-tile — already generic, not dataset-specific) and the
+    // same "build shared fragments once, branch on isTiles" shape.
+    var isTiles = _connViewMode === "tiles";
     var rows = shown.map(function (c) {
       var src = Studio.sourceById(c.adapter) || { label: c.adapter, icon: "db" };
       var metaBadge = src.caps && src.caps.meta ? '<span class="cx-badge" data-tip="Can also host this app\'s workspace (see Settings → Workspace backend)">workspace-capable</span>' : "";
       var tagBadges = (c.tags || []).map(function (t) { return '<span class="cx-badge">#' + esc(t) + '</span>'; }).join("");
       var folderBadge = c.folder ? '<span class="cx-badge cx-folder" data-tip="Folder: ' + esc(c.folder) + '">' + esc(c.folder) + '</span>' : "";
-      return '<div class="cx-row" data-conn-id="' + esc(c.id) + '">' +
-        connStatusDot(c) +
-        '<span class="cx-ic" style="color:' + esc(src.accent || "var(--brand)") + '"></span>' +
-        '<span class="cx-name"><button type="button" class="cx-title-btn" title="' + esc(c.name) + ' — edit connection" aria-label="Edit connection ' + esc(c.name) + '"><b>' + esc(c.name) + '</b></button><small>' + esc(src.label || c.adapter) + '</small></span>' +
-        metaBadge +
-        folderBadge +
-        tagBadges +
-        '<span class="cx-when" data-tip="Last edited">' + esc(Studio.fmtWhen(c.updatedAt || c.createdAt || Date.now())) + '</span>' +
-        '<button type="button" class="cx-private' + (c.private ? " private" : "") + '" data-conn-private="' + esc(c.id) + '" title="' + (c.private ? "Private — only you can see this" : "Make private") + '" aria-label="' + (c.private ? "Make " + esc(c.name) + " public" : "Make " + esc(c.name) + " private") + '" aria-pressed="' + (c.private ? "true" : "false") + '"></button>' +
-        '<button type="button" class="cx-pin' + (c.pinned ? " on" : "") + '" data-conn-pin="' + esc(c.id) + '" title="' + (c.pinned ? "Unpin" : "Pin to top") + '" aria-label="' + (c.pinned ? "Unpin " : "Pin ") + esc(c.name) + '" aria-pressed="' + (c.pinned ? "true" : "false") + '"></button>' +
-        '<span class="cx-actions">' +
+      var dot = connStatusDot(c);
+      var icon = '<span class="cx-ic" style="color:' + esc(src.accent || "var(--brand)") + '"></span>';
+      var name = '<span class="cx-name"><button type="button" class="cx-title-btn" title="' + esc(c.name) + ' — edit connection" aria-label="Edit connection ' + esc(c.name) + '"><b>' + esc(c.name) + '</b></button><small>' + esc(src.label || c.adapter) + '</small></span>';
+      var badges = metaBadge + folderBadge + tagBadges;
+      var when = '<span class="cx-when" data-tip="Last edited">' + esc(Studio.fmtWhen(c.updatedAt || c.createdAt || Date.now())) + '</span>';
+      var privateBtn = '<button type="button" class="cx-private' + (c.private ? " private" : "") + '" data-conn-private="' + esc(c.id) + '" title="' + (c.private ? "Private — only you can see this" : "Make private") + '" aria-label="' + (c.private ? "Make " + esc(c.name) + " public" : "Make " + esc(c.name) + " private") + '" aria-pressed="' + (c.private ? "true" : "false") + '"></button>';
+      var pinBtn = '<button type="button" class="cx-pin' + (c.pinned ? " on" : "") + '" data-conn-pin="' + esc(c.id) + '" title="' + (c.pinned ? "Unpin" : "Pin to top") + '" aria-label="' + (c.pinned ? "Unpin " : "Pin ") + esc(c.name) + '" aria-pressed="' + (c.pinned ? "true" : "false") + '"></button>';
+      var actions = '<span class="cx-actions">' +
           '<button type="button" class="btn" data-conn-test="' + esc(c.id) + '">Test</button>' +
           '<button type="button" class="btn" data-conn-edit="' + esc(c.id) + '">Edit</button>' +
           '<button type="button" class="btn" data-conn-del="' + esc(c.id) + '" aria-label="Delete ' + esc(c.name) + '">✕</button>' +
-        '</span></div>';
+        '</span>';
+      if (isTiles) {
+        return '<div class="dsx-tile" data-conn-id="' + esc(c.id) + '">' +
+          '<div class="dsx-tile-head">' + dot + icon + name + pinBtn + privateBtn + '</div>' +
+          (badges ? '<div class="dsx-tile-badges">' + badges + '</div>' : "") +
+          '<div class="dsx-tile-foot">' + when + actions + '</div>' +
+          '</div>';
+      }
+      return '<div class="cx-row" data-conn-id="' + esc(c.id) + '">' +
+        dot + icon + name + badges + when + privateBtn + pinBtn + actions + '</div>';
     });
     results.innerHTML =
       (pillsFConn ? '<div class="wb-chips">' + pillsFConn + '</div>' : "") +
@@ -221,7 +252,7 @@
         pillsT +
         ((anyFilter || anyTag || anyConnFolder) ? '<button type="button" class="wb-chip" id="connPillClear" title="Show all connections">Clear</button>' : "") +
         connViewAddHtml + '</div>' : "") +
-      (rows.length ? '<div class="cx-list">' + rows.join("") + '</div>'
+      (rows.length ? '<div class="' + (isTiles ? "dsx-grid" : "cx-list") + '">' + rows.join("") + '</div>'
         : '<div class="cx-empty">' +
             (q || anyFilter || anyTag || anyConnFolder ? "No connections match." :
               "<b>No connections yet.</b><br/>A connection points at where your data lives — a warehouse, a file over HTTP, an API — using one of the built-in adapters. Datasets are then defined on top of a connection and feed your dashboards.") +
@@ -283,7 +314,7 @@
     var emptyNew = $("#connEmptyNew", results);
     if (emptyNew) emptyNew.onclick = function () { openConnectionWizard(); };
     // paint adapter icons (inline SVG so theming is free)
-    $$(".cx-row", results).forEach(function (row) {
+    $$(".cx-row, .dsx-tile", results).forEach(function (row) {
       var c = Studio.Workspace.get("connections", row.getAttribute("data-conn-id"));
       var src = c && Studio.sourceById(c.adapter);
       var icEl = row.querySelector(".cx-ic");

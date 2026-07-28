@@ -2028,10 +2028,11 @@ body.simple-mode .da-acts{display:none!important}
 .cx-row[draggable="true"]{cursor:grab}
 .cx-row.dragging{opacity:.45}
 .cx-group.drag-over{outline:2px dashed var(--brand);outline-offset:2px;border-radius:8px}
-/* LF51 (d): the Datasets "tile" layout — the same .cx-row card, re-flowed into a
-   responsive grid of taller cards (head row · badges · footer) instead of one flat
-   line. Reuses every .cx-row token + hook (hover lift, drag, the shared per-item
-   wiring), so behavior is identical; only the internal flow differs. */
+/* LF51 (d): the Datasets/Connections "tile" layout — the same .cx-row card,
+   re-flowed into a responsive grid of taller cards (head row · badges · footer)
+   instead of one flat line. Reuses every .cx-row token + hook (hover lift, drag,
+   the shared per-item wiring), so behavior is identical; only the internal flow
+   differs. Shared verbatim across sections — nothing here is Datasets-specific. */
 .dsx-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
 .dsx-tile{display:flex;flex-direction:column;gap:10px;background:var(--field);
   border:1px solid color-mix(in srgb, var(--ink) 12%, transparent);border-radius:12px;

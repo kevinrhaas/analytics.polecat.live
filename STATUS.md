@@ -116,6 +116,23 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF51 (slice 3) — the Connections section gains a list ⇆ tile view toggle (v673, sw v310,
+  2026-07-28, steward — step 5 of the LOCKED BUILD ORDER, LF51's spec (d) "list + rich-tile
+  views"):** same feature as the Datasets slice just below, now on **Connections** — a
+  `#connViewToggle` button in the section header (persisted at `studio-conn-view`) swaps the
+  compact list for a tile grid. Reuses the identical `.dsx-grid`/`.dsx-tile` CSS verbatim (already
+  generic, not Datasets-specific — comment updated to say so) and the same "build each row's inner
+  fragments once, wrap as `.cx-row` or `.dsx-tile`" shape from `renderConnections`
+  (app/connections.js); every delegated handler (test/edit/delete/pin/private, row-click-to-open,
+  icon injection) works identically in both via the widened `.cx-row, .dsx-tile` selector.
+  `_connViewMode` persists at `studio-conn-view` (added to the hard-reset device-UI-state
+  keep-list in app/studio.js from the start, next to `studio-dash-view`/`studio-dsx-view`).
+  3 new regression tests (list is the default with a "Tile view" toggle → click flips to a tile
+  grid that keeps the title + Edit hooks and persists `studio-conn-view:tiles` → toggling back
+  returns to the list) plus a 4th asserting the new key is in the real clear-data key list. Full
+  suite green (2475 passed, 0 failed). **NEXT in LF51:** extend the same toggle to Jobs, plus spec
+  (b) right-aligned filter pills — remaining step-5 nav-IA slices. Files: app/connections.js,
+  app/index.html, app/studio.css, app/studio.js, tests/run.js, sw.js, js/changelog.js.
 - **LF51 (slice 2) — the Datasets section gains a list ⇆ tile view toggle (#90, v672, sw v309,
   2026-07-28 — step 5 of the LOCKED BUILD ORDER, LF51's spec (d) "list + rich-tile views"):** the
   Datasets list can now render as a roomier **tile grid** as well as the default compact list, via
@@ -5870,7 +5887,9 @@
 >    per-component density tightening left as an optional follow-up) · LF51 (sophisticated nav IA:
 >    right-aligned pills, full names, date-time ✓ slice 1 (2026-07-28, row badges — Connections/
 >    Datasets/Jobs/Dashboards/Repository — now show a full date-time, see DONE), list+rich-tile
->    views — still open, "slice it," design-standards-driven; the remaining step-5 item).
+>    views ✓ slices 2/3 (2026-07-28, Datasets + Connections, see DONE) — Jobs still open, plus
+>    spec (b) right-aligned filter pills, "slice it," design-standards-driven; the remaining
+>    step-5 items).
 > The recurring quality tracks (UX polish, Track H/L/N sweeps) continue to interleave as usual.
 
 ### ★★ LIVE-QA QUEUE (Kevin, 2026-07-27 second session) — captured during live QA

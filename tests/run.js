@@ -7040,6 +7040,47 @@ function serve() {
     ok("LF51: toggling back returns Datasets to the list layout",
       lf51View.backToList, JSON.stringify(lf51View));
 
+    // LF51 (d) slice 3: the same list/tile toggle, now on Connections (#connViewToggle /
+    // studio-conn-view), reusing the identical .dsx-grid/.dsx-tile CSS + data-conn-* hooks.
+    const lf51ConnView = await page.evaluate(function () {
+      window.__studioShellSetSection("connections");
+      try { localStorage.removeItem("studio-conn-view"); } catch (e) {}
+      var conn = Studio.Workspace.put("connections", { name: "lf51v-conn2", adapter: "turso", cfg: {} });
+      var results = document.getElementById("connResults");
+      var toggle = document.getElementById("connViewToggle");
+      window.__studioRenderConnections();
+      // default = list
+      var listRow = results.querySelector('.cx-row[data-conn-id="' + conn.id + '"]');
+      var out = {
+        toggleExists: !!toggle,
+        listDefault: !!listRow && !results.querySelector(".dsx-tile"),
+        listToggleLabel: toggle ? toggle.textContent : null
+      };
+      // switch to tiles
+      if (toggle) toggle.click();
+      var tile = results.querySelector('.dsx-tile[data-conn-id="' + conn.id + '"]');
+      out.tilesAfterClick = !!tile && !results.querySelector(".cx-row");
+      out.tileHasTitleBtn = !!(tile && tile.querySelector(".cx-title-btn"));
+      out.tileHasEdit = !!(tile && tile.querySelector('[data-conn-edit="' + conn.id + '"]'));
+      out.tileToggleLabel = toggle ? toggle.textContent : null;
+      out.persisted = localStorage.getItem("studio-conn-view");
+      // switch back to list
+      if (toggle) toggle.click();
+      out.backToList = !!results.querySelector('.cx-row[data-conn-id="' + conn.id + '"]') && !results.querySelector(".dsx-tile");
+      Studio.Workspace.remove("connections", conn.id, { silent: true });
+      Studio.Workspace.notify("*");
+      try { localStorage.removeItem("studio-conn-view"); } catch (e) {}
+      window.__studioShellSetSection("studio");
+      return out;
+    });
+    ok("LF51: the Connections section defaults to the compact list with a 'Tile view' toggle",
+      lf51ConnView.toggleExists && lf51ConnView.listDefault && lf51ConnView.listToggleLabel === "Tile view", JSON.stringify(lf51ConnView));
+    ok("LF51: the toggle switches Connections to a tile grid (persisted), keeping title + Edit hooks",
+      lf51ConnView.tilesAfterClick && lf51ConnView.tileHasTitleBtn && lf51ConnView.tileHasEdit &&
+      lf51ConnView.tileToggleLabel === "List view" && lf51ConnView.persisted === "tiles", JSON.stringify(lf51ConnView));
+    ok("LF51: toggling back returns Connections to the list layout",
+      lf51ConnView.backToList, JSON.stringify(lf51ConnView));
+
     // library integration: the dataset shows as a draggable card and imports as a linked, self-contained DA
     await page.evaluate(function () { window.__studioShellSetSection("studio"); });
     await page.waitForTimeout(120);
@@ -15615,7 +15656,8 @@ function serve() {
         hasSessionKey: keys.indexOf("analytics.session.v1") >= 0, hasHiddenSectionsKey: keys.indexOf("studio-hidden-sections") >= 0,
         hasHomeOrderKey: keys.indexOf("studio-home-section-order") >= 0,
         hasQmCreativityKey: keys.indexOf("studio-default-qm-creativity") >= 0,
-        hasPdfOptsKey: keys.indexOf("studio-pdf-export-opts") >= 0
+        hasPdfOptsKey: keys.indexOf("studio-pdf-export-opts") >= 0,
+        hasConnViewKey: keys.indexOf("studio-conn-view") >= 0
       };
     });
     ok("E8: all Studio localStorage keys removed by clear-data logic", e8Clear.keyCount > 20 && e8Clear.remaining.length === 0, JSON.stringify(e8Clear));
@@ -15660,6 +15702,10 @@ function serve() {
     // recurring gap, found by re-running the v313/v322/v599 cross-check technique again.
     ok("E8: the real clear-data key list includes studio-pdf-export-opts (Track L sweep round 6)",
       e8Clear.hasPdfOptsKey, JSON.stringify(e8Clear));
+    // LF51 (d) slice 3: "studio-conn-view" (the Connections section's list/tile toggle) added to
+    // this list from the start, unlike studio-dash-view/studio-dsx-view which needed a later sweep.
+    ok("E8: the real clear-data key list includes studio-conn-view (LF51 d slice 3)",
+      e8Clear.hasConnViewKey, JSON.stringify(e8Clear));
 
     // Clear-data's session wipe must ALSO drop the studio-gate-ok sessionStorage bypass (not part
     // of CLEAR_DATA_KEYS, which only ever touches localStorage) — otherwise PolecatAuth.current()'s

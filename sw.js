@@ -5,7 +5,12 @@
    flaky-connection without risking "stuck on an old build" while online. Bump CACHE_NAME whenever
    the precache list changes materially; the activate handler deletes any older studio-shell-* cache. */
 "use strict";
-var CACHE_NAME = "studio-shell-v309"; /* v309: LF51 slice 2 (nav IA spec (d), "list + rich-tile
+var CACHE_NAME = "studio-shell-v310"; /* v310: LF51 slice 3 (nav IA spec (d), "list + rich-tile
+   views") — the Connections section gains the same #connViewToggle list/tile toggle Datasets
+   just shipped (studio-conn-view persists the choice), reusing the identical .dsx-grid/.dsx-tile
+   CSS and data-conn-* hooks. app/connections.js, app/index.html, app/studio.css, app/studio.js
+   changed, so precached copies roll.
+   v309: LF51 slice 2 (nav IA spec (d), "list + rich-tile
    views") — the Datasets section gained a #dsxViewToggle that swaps its compact list for a tile
    grid (studio-dsx-view persists the choice), mirroring the Dashboards list/tile toggle. Both
    layouts reuse the same data-dsx-* hooks. app/datasets.js, app/index.html, app/studio.css,

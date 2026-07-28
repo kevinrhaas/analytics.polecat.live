@@ -9127,7 +9127,11 @@
     // local data" gap. Device-remembered UI state like this (same bucket as studio-dash-view/
     // studio-mob-tab above) isn't a Settings default, so it's CLEAR_DATA_KEYS-only, not added to
     // SETTINGS_DATA_KEYS.
-    "studio-pdf-export-opts"
+    "studio-pdf-export-opts",
+    // LF51 (d) slice 3: "studio-conn-view" — the Connections section's own list/tile toggle
+    // (same key shape as studio-dash-view/studio-dsx-view above), added here from the start
+    // this time instead of via a later sweep.
+    "studio-conn-view"
   ];
   window.__studioClearDataKeys = CLEAR_DATA_KEYS; // test hook
 
