@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 635,
+    title: 'The "Restore unsaved work" banner is now opt-in',
+    kind: 'polish',
+    ts: '2026-07-28T00:26:44.000Z',
+    items: [
+      'The banner that offered to restore an unsaved dashboard on entry no longer shows by default — some found it distracting.',
+      'Turn on "Restore unsaved work" under Settings → Mode to bring it back. Auto-save still runs in the background, so switching it on makes your most recent unsaved edit recoverable.',
+    ],
+  },
+  {
     v: 634,
     title: 'The welcome tour opens with a new animated hero screen',
     kind: 'feature',

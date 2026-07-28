@@ -553,6 +553,17 @@
     buildLibrary(); renderHome(); buildExamplesMenu(); buildNewMenu(); renderSettings(); renderExplore();
   }
   window.__studioShowSamples = { get: showSamples, set: setShowSamples }; // test hook
+  // #114: the "Restore unsaved work" banner is opt-in — off by default (Kevin found it
+  // distracting). Autosave still runs in the background, so turning this on makes the most
+  // recent unsaved edit recoverable on the next visit; off means the banner never appears.
+  function restoreUnsavedEnabled() {
+    var v; try { v = localStorage.getItem("studio-restore-unsaved"); } catch (e) {}
+    return v === "1";
+  }
+  function setRestoreUnsavedEnabled(on) {
+    try { localStorage.setItem("studio-restore-unsaved", on ? "1" : "0"); } catch (e) {}
+  }
+  window.__studioRestoreUnsaved = { get: restoreUnsavedEnabled, set: setRestoreUnsavedEnabled }; // test hook
   // LF2: an example may declare demoPackId (data/examples/index.json) to stay hidden until
   // that demo pack is installed — so pack-specific showcases (Conservation Insight) don't
   // clutter the gallery/Home for everyone, only for workspaces that installed the pack.
@@ -7329,6 +7340,10 @@
       ic: function () { return "layers"; },
       on: function () { return !!S.simpleMode; },
       set: function () { toggleSimpleMode(); } },
+    { grp: "Mode", id: "restore", t: "Restore unsaved work", d: "On your next visit, offer to restore a dashboard you were editing but never saved. Off by default.",
+      ic: function () { return "undo"; },
+      on: function () { return restoreUnsavedEnabled(); },
+      set: function () { setRestoreUnsavedEnabled(!restoreUnsavedEnabled()); toast(restoreUnsavedEnabled() ? "Restore unsaved work is on" : "Restore unsaved work is off"); } },
     { grp: "Presentation", id: "demo", t: "Demo mode", d: "Simulate a live-refreshing data feed — great for stakeholder demos.",
       ic: function () { return "refresh"; },
       on: function () { return !!S.demoMode; },
@@ -7385,7 +7400,7 @@
     "studio-default-subtitle", "studio-default-accent", "studio-default-logo", "studio-default-headerbg",
     "studio-default-titlesize", "studio-default-subtitlestyle", "studio-default-dashboardtheme", "studio-default-cardskin", "studio-style-presets",
     "studio-deploy-path", "studio-templatevar-sets", "studio-customtheme-presets", "studio-hidden-sections",
-    "studio-home-section-order", "studio-default-qm-creativity"
+    "studio-home-section-order", "studio-default-qm-creativity", "studio-restore-unsaved"
   ];
 
   // Z5 follow-up: deploy target config. S.settings.{deployPath,live} used to be in-memory-only
@@ -8173,6 +8188,8 @@
   window.__studioSyncRailQuick = syncRailQuick; // test hook
 
   function maybeShowRestoreBanner() {
+    // #114: opt-in — the banner only appears when the user has turned it on in Settings.
+    if (!restoreUnsavedEnabled()) return;
     var raw; try { raw = localStorage.getItem("studio-autosave"); } catch (e) { return; }
     if (!raw) return;
     var saved; try { saved = JSON.parse(raw); } catch (e) { clearAutosave(); return; }

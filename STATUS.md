@@ -116,6 +116,20 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **"Restore unsaved work" banner is now opt-in (#114, v635, sw v272, 2026-07-27, steward):**
+  Kevin: "can you make this restore unsaved work thing be a feature you have to turn on in user
+  settings, i think it is distracting" + "the default is off". Added a `studio-restore-unsaved`
+  pref (getter/setter next to `showSamples`, default OFF — value gate `=== "1"`) surfaced as a new
+  Settings → Mode toggle ("Restore unsaved work", `undo` icon) and gated `maybeShowRestoreBanner()`
+  on it (early-return when off). Autosave itself is untouched — it still writes `studio-autosave` in
+  the background, so turning the toggle on makes the most recent unsaved edit recoverable; off simply
+  means the banner never appears on entry. The pref rides the Settings export/import
+  (`SETTINGS_DATA_KEYS`). Tests: the toggle is off by default (`__studioRestoreUnsaved.get()` false,
+  the Settings checkbox unchecked); with it off + an autosave present, a reload shows NO banner and
+  leaves the autosave intact; the existing E1/QA-06 banner tests now flip the toggle on first (and
+  reset it after) so they still exercise the banner, and the Z5 switch-inventory test expects the new
+  6th Mode switch off by default. Files: app/studio.js, docs/index.html, tests/run.js, sw.js,
+  js/changelog.js.
 - **LF40 slice 1 — animated welcome hero screen (v634, sw v271, 2026-07-27, steward — step 3 of
   the LOCKED BUILD ORDER):** the welcome tour (first sign-in, ⋯ More → Tour, Settings → Tour) now
   opens on a new HERO screen instead of dropping straight into the old 5-step carousel. The hero:
@@ -146,6 +160,19 @@
   the Examples removal that's LF43 slice 2's remit), or the sample-pack-aware follow-up to this
   slice, or LF43 slice 2 (drop Examples) — any is a reasonable next unit; the LIVE-QA QUEUE
   (LF61-70) also has fresh bug/cleanup-class items to slot in ahead of the flashier remaining work.
+- **"Restore unsaved work" banner is now opt-in (#114, v634, sw v271, 2026-07-27, steward):**
+  Kevin: "can you make this restore unsaved work thing be a feature you have to turn on in user
+  settings, i think it is distracting" + "the default is off". Added a `studio-restore-unsaved`
+  pref (getter/setter next to `showSamples`, default OFF — value gate `=== "1"`) surfaced as a new
+  Settings → Mode toggle ("Restore unsaved work", `undo` icon) and gated `maybeShowRestoreBanner()`
+  on it (early-return when off). Autosave itself is untouched — it still writes `studio-autosave` in
+  the background, so turning the toggle on makes the most recent unsaved edit recoverable; off simply
+  means the banner never appears on entry. The pref rides the Settings export/import
+  (`SETTINGS_DATA_KEYS`). Tests: the toggle is off by default (`__studioRestoreUnsaved.get()` false,
+  the Settings checkbox unchecked); with it off + an autosave present, a reload shows NO banner and
+  leaves the autosave intact; the existing E1/QA-06 banner tests now flip the toggle on first (and
+  reset it after) so they still exercise the banner. Files: app/studio.js, docs/index.html,
+  tests/run.js, sw.js, js/changelog.js.
 - **Settings copy cleanup: Color theme + Sample packs (#112/#115/#116, v633, sw v270,
   2026-07-27, steward):** three live-QA copy tweaks Kevin flagged in Settings. #112 ("you don't
   need all of this explanation for the color themes, shorten this") — the Color-theme row's `small`

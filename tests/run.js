@@ -13268,12 +13268,39 @@ function serve() {
     // clear the autosave so it doesn't interfere with subsequent tests
     await page.evaluate(() => { try { localStorage.removeItem("studio-autosave"); } catch (e) {} });
 
+    // ---- #114: the restore-unsaved banner is opt-in (off by default) ----
+    console.log("\n• #114: Restore-unsaved banner is opt-in (default off)");
+    await page.evaluate(() => { try { localStorage.removeItem("studio-restore-unsaved"); } catch (e) {} });
+    const r114Default = await page.evaluate(() => window.__studioRestoreUnsaved.get());
+    ok("#114: 'Restore unsaved work' is off by default", r114Default === false, JSON.stringify({ r114Default }));
+    await page.evaluate(() => window.__studioShellSetSection("settings"));
+    await page.waitForTimeout(150);
+    const r114Toggle = await page.evaluate(() => {
+      var cb = document.querySelector('#secSettings input[data-set="restore"]');
+      var row = cb ? cb.closest(".set-row") : null;
+      return { found: !!cb, checked: cb ? cb.checked : null, label: row ? (row.querySelector("b") || {}).textContent : "" };
+    });
+    ok("#114: Settings exposes a 'Restore unsaved work' toggle, unchecked by default",
+      r114Toggle.found && r114Toggle.checked === false && /Restore unsaved work/.test(r114Toggle.label), JSON.stringify(r114Toggle));
+    // With the toggle OFF and autosave present, the banner must NOT appear on the next load.
+    await page.evaluate(() => {
+      const fakeSpec = { name: "opt-in-test", title: "Opt-in Test", panels: [{ id: "p1" }], kpis: [], filters: [] };
+      try { localStorage.setItem("studio-autosave", JSON.stringify(fakeSpec)); localStorage.removeItem("studio-restore-unsaved"); } catch (e) {}
+    });
+    await page.reload({ waitUntil: "networkidle" });
+    await page.waitForTimeout(1200);
+    const r114Off = await page.evaluate(() => ({ banner: !!document.querySelector(".restore-banner"), autosaveKept: !!localStorage.getItem("studio-autosave") }));
+    ok("#114: with the toggle off, no restore banner appears on reload — and the autosave is left intact for when it's turned on",
+      !r114Off.banner && r114Off.autosaveKept, JSON.stringify(r114Off));
+    await page.evaluate(() => { try { localStorage.removeItem("studio-autosave"); } catch (e) {} });
+
     // ---- E1: Restore-banner panel/KPI count display ----
     console.log("\n• Restore-banner with panel/KPI counts (E1 / v49)");
     // Inject a fake autosave with known panel+KPI counts
     const e1bannerResult = await page.evaluate(() => {
       const fakeSpec = { name: "test-e1", title: "E1 Test", panels: [{id:"p1"},{id:"p2"}], kpis: [{label:"K1"}], filters: [] };
-      try { localStorage.setItem("studio-autosave", JSON.stringify(fakeSpec)); } catch(e) {}
+      // #114: the restore banner is opt-in now — turn it on so E1 + QA-06 exercise the banner.
+      try { localStorage.setItem("studio-autosave", JSON.stringify(fakeSpec)); localStorage.setItem("studio-restore-unsaved", "1"); } catch(e) {}
       // Call maybeShowRestoreBanner indirectly by checking what a banner would show
       // We call the internal function by checking the DOM
       const bannerBefore = document.querySelector(".restore-banner");
@@ -13336,7 +13363,7 @@ function serve() {
     await page.waitForTimeout(100);
     const qa06HasClassAfter = await page.evaluate(() => document.body.classList.contains("has-restore-banner"));
     ok("QA-06: has-restore-banner class is removed after dismissing the banner", !qa06HasClassAfter, JSON.stringify({ qa06HasClassAfter }));
-    await page.evaluate(function () { Studio.Workspace.remove("analyses", "qa06-an"); window.__studioShellSetSection("studio"); try { localStorage.removeItem("studio-autosave"); } catch (e) {} });
+    await page.evaluate(function () { Studio.Workspace.remove("analyses", "qa06-an"); window.__studioShellSetSection("studio"); try { localStorage.removeItem("studio-autosave"); localStorage.removeItem("studio-restore-unsaved"); } catch (e) {} });
     await page.waitForTimeout(150);
 
     // ---- E2: Export history ----
@@ -13999,6 +14026,7 @@ function serve() {
         localStorage.setItem("studio-welcome-seen", "1");
         localStorage.setItem("studio-shell-section", "explore");
         localStorage.setItem("studio-autosave", JSON.stringify({ name: "qa06-phone", title: "QA-06 Phone Test", panels: [{ id: "p1" }, { id: "p2" }], kpis: [{ label: "K1" }], filters: [] }));
+        localStorage.setItem("studio-restore-unsaved", "1"); // #114: the banner is opt-in — enable it for this QA-06 phone check
       } catch (e) {}
     });
     await qa06Phone.goto(`http://localhost:${PORT}/app/`, { waitUntil: "networkidle" });
@@ -26390,14 +26418,15 @@ function serve() {
         switchIds: switches.join(","),
         darkChecked: sec.querySelector('input[data-set="dark"]').checked,
         simpleChecked: sec.querySelector('input[data-set="simple"]').checked,
+        restoreChecked: sec.querySelector('input[data-set="restore"]').checked,
         demoChecked: sec.querySelector('input[data-set="demo"]').checked,
         focusChecked: sec.querySelector('input[data-set="focus"]').checked,
         samplesChecked: sec.querySelector('input[data-set="samples"]').checked
       };
     });
-    ok("Z5: Settings section renders 7 cards with 5 mode switches — modes off by default, Sample content ON by default",
-      z5Boot.visible && z5Boot.hasCards && z5Boot.switchIds === "dark,samples,simple,demo,focus"
-        && !z5Boot.darkChecked && !z5Boot.simpleChecked && !z5Boot.demoChecked && !z5Boot.focusChecked && z5Boot.samplesChecked,
+    ok("Z5: Settings section renders 7 cards with 6 mode switches — modes (incl. #114 Restore unsaved work) off by default, Sample content ON by default",
+      z5Boot.visible && z5Boot.hasCards && z5Boot.switchIds === "dark,samples,simple,restore,demo,focus"
+        && !z5Boot.darkChecked && !z5Boot.simpleChecked && !z5Boot.restoreChecked && !z5Boot.demoChecked && !z5Boot.focusChecked && z5Boot.samplesChecked,
       JSON.stringify(z5Boot));
 
     // Z5-2: Dark mode switch drives the same S.theme + data-theme as the topbar toggle
