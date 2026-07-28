@@ -944,11 +944,17 @@ function serve() {
       window.__studioAppTheme.set("classic"); out.classic = window.__studioDefaultDashboardTheme();
       window.__studioAppTheme.set("polecat"); out.polecat = window.__studioDefaultDashboardTheme();
       window.__studioAppTheme.set("conservation"); out.conservation = window.__studioDefaultDashboardTheme();
+      // #113: the three parity themes map 1:1 onto their dashboard-theme twins.
+      window.__studioAppTheme.set("high-contrast"); out.highContrast = window.__studioDefaultDashboardTheme();
+      window.__studioAppTheme.set("editorial"); out.editorial = window.__studioDefaultDashboardTheme();
+      window.__studioAppTheme.set("neon"); out.neon = window.__studioDefaultDashboardTheme();
+      window.__studioAppTheme.set("classic"); // restore for subsequent tests
       return out;
     });
-    ok("LF10: with no explicit Settings default, defaultDashboardTheme() tracks the app Color theme (modern→fleet-modern, classic→'', polecat→polecat, conservation→conservation)",
+    ok("LF10 / #113: with no explicit Settings default, defaultDashboardTheme() tracks the app Color theme (modern→fleet-modern, classic→'', polecat→polecat, conservation→conservation, and the 3 parity themes 1:1)",
       lf10DefaultFollowsAppTheme.modern === "fleet-modern" && lf10DefaultFollowsAppTheme.classic === "" && lf10DefaultFollowsAppTheme.polecat === "polecat" &&
-      lf10DefaultFollowsAppTheme.conservation === "conservation",
+      lf10DefaultFollowsAppTheme.conservation === "conservation" &&
+      lf10DefaultFollowsAppTheme.highContrast === "high-contrast" && lf10DefaultFollowsAppTheme.editorial === "editorial" && lf10DefaultFollowsAppTheme.neon === "neon",
       JSON.stringify(lf10DefaultFollowsAppTheme));
 
     // ---- fleet app-switcher (vendored appSwitcher via app/fleet.js) ----
@@ -26539,8 +26545,8 @@ function serve() {
         api: window.__studioAppTheme && window.__studioAppTheme.get()
       };
     });
-    ok("Z10 / LF17: Settings' Appearance card has a Color theme picker (4 palette cards, radiogroup), defaulting to Classic Blue",
-      z10Boot.present && z10Boot.cardCount === 4 && z10Boot.role === "radiogroup" &&
+    ok("Z10 / LF17 / #113: Settings' Appearance card has a Color theme picker (7 palette cards at parity with the dashboard themes, radiogroup), defaulting to Classic Blue",
+      z10Boot.present && z10Boot.cardCount === 7 && z10Boot.role === "radiogroup" &&
       z10Boot.activeKey === "classic" && z10Boot.activeAriaChecked === "true" &&
       z10Boot.attr === "classic" && z10Boot.api === "classic",
       JSON.stringify(z10Boot));
@@ -26561,10 +26567,10 @@ function serve() {
       });
     });
     const swatchSignatures = cardSwatches.map(function (c) { return c.banner + "|" + c.chip0 + "|" + c.chip1 + "|" + c.chip2; });
-    ok("LF17: all 4 Color theme cards render distinguishable, non-empty swatch previews",
-      cardSwatches.length === 4 &&
+    ok("LF17 / #113: all 7 Color theme cards render distinguishable, non-empty swatch previews",
+      cardSwatches.length === 7 &&
       cardSwatches.every(function (c) { return c.banner && c.chip0 && c.chip1 && c.chip2; }) &&
-      new Set(swatchSignatures).size === 4,
+      new Set(swatchSignatures).size === 7,
       JSON.stringify(cardSwatches));
 
     const z10ClassicBrand = await page.evaluate(function () { return getComputedStyle(document.documentElement).getPropertyValue("--brand").trim(); });
@@ -26635,8 +26641,36 @@ function serve() {
     const modernOpts = await page.evaluate(function () {
       return Array.prototype.map.call(document.querySelectorAll("#appThemeCards .apptheme-card"), function (b) { return b.getAttribute("data-app-theme-card"); });
     });
-    ok("Fleet Modern: the Color theme picker offers a 'modern' card alongside classic/polecat/conservation",
-      modernOpts.length === 4 && modernOpts.indexOf("modern") >= 0, JSON.stringify(modernOpts));
+    ok("Fleet Modern / #113: the Color theme picker offers all 7 cards at parity with the dashboard themes (classic/polecat/modern/high-contrast/editorial/neon/conservation)",
+      modernOpts.length === 7 && modernOpts.indexOf("modern") >= 0 &&
+      modernOpts.indexOf("high-contrast") >= 0 && modernOpts.indexOf("editorial") >= 0 && modernOpts.indexOf("neon") >= 0,
+      JSON.stringify(modernOpts));
+
+    // #113: each of the three new parity themes must actually resolve its OWN chrome tokens
+    // (i.e. real [data-app-theme] CSS blocks exist, not a silent fall-through to Polecat) — in
+    // BOTH light and dark — and each carries a distinct display label.
+    const parityThemes = await page.evaluate(function () {
+      var de = document.documentElement, out = {};
+      var poleBrand;
+      window.__studioAppTheme.set("polecat"); poleBrand = getComputedStyle(de).getPropertyValue("--brand").trim();
+      ["high-contrast", "editorial", "neon"].forEach(function (k) {
+        window.__studioAppTheme.set(k);
+        de.setAttribute("data-theme", "light");
+        var lb = getComputedStyle(de).getPropertyValue("--brand").trim(), lbg = getComputedStyle(de).getPropertyValue("--bg").trim(), ltb = getComputedStyle(de).getPropertyValue("--topbar-bg").trim();
+        de.setAttribute("data-theme", "dark");
+        var db = getComputedStyle(de).getPropertyValue("--brand").trim(), dbg = getComputedStyle(de).getPropertyValue("--bg").trim();
+        de.setAttribute("data-theme", "light");
+        out[k] = { attr: de.getAttribute("data-app-theme"), lightBrand: lb, lightBg: lbg, topbar: ltb, darkBrand: db, darkBg: dbg, distinctFromPolecat: lb !== poleBrand, lightDarkDiffer: lbg !== dbg };
+      });
+      window.__studioAppTheme.set("classic"); de.setAttribute("data-theme", "light");
+      return out;
+    });
+    ["high-contrast", "editorial", "neon"].forEach(function (k) {
+      var t = parityThemes[k];
+      ok("#113: app theme '" + k + "' resolves its own chrome (distinct --brand vs Polecat, light≠dark --bg, non-empty --topbar-bg)",
+        t && t.attr === k && t.lightBrand && t.darkBrand && t.topbar && t.topbar !== "none" &&
+        t.distinctFromPolecat && t.lightDarkDiffer, JSON.stringify(t));
+    });
 
     // LF17: keyboard operability — a real <button> gives Tab focus + Enter/Space activation for
     // free; assert that actually holds instead of just assuming it (script-focus the card, since
