@@ -6,13 +6,23 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
-    v: 637,
+    v: 638,
     title: 'Quick import now warns before an unsaved build gets replaced',
     kind: 'fix',
-    ts: '2026-07-28T03:22:58.000Z',
+    ts: '2026-07-28T03:34:37.000Z',
     items: [
       'A dashboard Quick import auto-builds isn\'t saved to Dashboards until you click Save — opening a different dashboard first now warns you instead of silently discarding it.',
       'An "Unsaved — Save to keep" reminder shows next to the creativity tuner until you save.',
+    ],
+  },
+  {
+    v: 637,
+    title: 'The app Color theme picker now matches the dashboard themes',
+    kind: 'polish',
+    ts: '2026-07-28T02:39:44.000Z',
+    items: [
+      'Settings → Appearance → Color theme now offers all seven looks — Classic Blue, Polecat, Fleet Modern, High Contrast, Editorial, Neon and Conservation — the same set the Dashboard theme picker has.',
+      'So the builder chrome and a dashboard can match: each app theme is shared verbatim with its dashboard-theme twin, in both light and dark mode.',
     ],
   },
   {

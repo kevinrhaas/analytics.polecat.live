@@ -116,7 +116,7 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
-- **LF67 — an unsaved Quick-import build now warns before it's silently replaced (v637, sw v274,
+- **LF67 — an unsaved Quick-import build now warns before it's silently replaced (v638, sw v275,
   2026-07-28, steward):** Kevin's repro — "I clicked on it and it showed the sensitivity radar,
   that is not what I created" — because Quick import auto-builds a real dashboard (studio.js
   `quickBuildDashboard`) but never saves it, so opening any OTHER dashboard afterward silently
@@ -144,6 +144,26 @@
   the LOCKED BUILD ORDER: step 4, Studio chrome (LF46/LF48/LF45/LF52/LF53 — LF47 already done
   except Examples removal, LF43 slice 2's remit), or LF43 slice 2 itself, or the remaining
   LIVE-QA QUEUE bug/cleanup items (LF61/LF65/LF69/LF70) ahead of the flashier remaining work.
+- **App Color-theme picker reaches parity with the dashboard themes (#113, v637, sw v274,
+  2026-07-28, steward):** Kevin: "i feel like the app themes need to be the same as the dashboard
+  themes, and have as many of each, add any new app themes that are missing to match the dashboard
+  theme list". The app-chrome picker had 4 (Classic Blue, Polecat, Fleet Modern, Conservation)
+  against the dashboard list's 7 — added the missing three as full app-chrome themes: **High
+  Contrast, Editorial, Neon**, each with a light + dark variant, lifted from their matching
+  `Studio.DASHBOARD_THEMES` entries (`app/model.js`) the same "chrome mirrors the dashboard-theme
+  twin" way Fleet Modern + Conservation already were. New `html[data-app-theme='…']` (+ `[data-theme=
+  'dark']`) token blocks in app/studio.css (brand/pdc, topbar gradient + ink, ink/muted/faint,
+  bg/pane/line/line-2/field, good/warn/bad, shadows), plus per-theme `#railNav` and `#mobileNavBtn`
+  rules. studio.js: the three keys added to `APP_THEME_KEYS`, `APP_THEME_LABELS`, and
+  `APP_THEME_TO_DASHBOARD_THEME` (they map 1:1 onto their dashboard keys, unlike `modern`↔
+  `fleet-modern`) so picking one also seeds the matching default dashboard theme. The provisioning
+  "Default theme" picker and the Settings card both iterate `APP_THEME_KEYS`, so they pick up the new
+  options for free. Tests: the picker now renders 7 distinct, non-empty swatch cards (was 4); each
+  new theme resolves its OWN chrome (distinct `--brand` vs Polecat, light≠dark `--bg`, non-empty
+  `--topbar-bg` — i.e. real CSS blocks, not a silent Polecat fall-through); `defaultDashboardTheme()`
+  tracks all 7 app themes (the 3 new ones 1:1). Help (`docs/index.html` Color theme section) now
+  lists all seven. Files: app/studio.css, app/studio.js, docs/index.html, tests/run.js, sw.js,
+  js/changelog.js.
 - **LF68 — fixed 9 showcase KPIs rendering `NaN%`/a category label instead of a number (v636,
   sw v273, 2026-07-28, steward):** the reported symptom was the compliance-radar showcase's
   "Sensitive Data" KPI showing `NaN%`. Root cause wasn't the SQL (no bad denominator) — it's that
@@ -5195,7 +5215,7 @@
 >       Ties LF43, LF57 (Views rail), LF59 (dashboards mgmt), LF51 (nav), LF29/LF52 (terminology), LF24,
 >       #29. **This is the same intent as LF43/LF57/LF59 — reconcile them into one library model, don't
 >       build three overlapping ones.**
-> LF67. ✓ **BUG — quick-built dashboard is lost when you open another (shipped v637, sw v274,
+> LF67. ✓ **BUG — quick-built dashboard is lost when you open another (shipped v638, sw v275,
 >       2026-07-28, steward) — see DONE.** Took the "at minimum" fix (a state badge + a
 >       `window.confirm()` warn in `openRecent`), not the full auto-save — see DONE for why.
 >       Still genuinely open: the "New dashboard" family of replace paths (Home's Blank-dashboard

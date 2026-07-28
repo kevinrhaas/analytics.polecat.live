@@ -93,6 +93,61 @@ html[data-app-theme='conservation'][data-theme='dark']{
   --good:#58a83f; --warn:#b98d2a; --bad:#c25a5a;
   --shadow:0 1px 3px rgba(0,0,0,.4); --shadow-lg:0 16px 46px rgba(0,0,0,.55);
 }
+/* #113: three more app-chrome themes so the builder's Color-theme picker reaches
+   PARITY with the dashboard theme list (Studio.DASHBOARD_THEMES) — High Contrast,
+   Editorial, Neon. Same "lift the tokens from the matching dashboard-theme entry"
+   convention Fleet Modern + Conservation established (--pentaho→--brand, --app-bg→
+   --bg, --panel-bg→--pane, --panel-border→--line, --panel-subtle-bg→--line-2,
+   --field-bg→--field, --text-*→--ink/--muted/--faint; --topbar-bg a 3-stop gradient
+   around the theme's own --header-bg; --good/--warn/--bad picked from the ramp or a
+   matched tone) so chrome + dashboard read as one system when both are set alike. */
+html[data-app-theme='high-contrast']{
+  --brand:#0b3d91; --pdc:#8a1c1c;
+  --topbar-bg:linear-gradient(100deg,#000000,#0a0a0a 58%,#1a1a1a); --topbar-ink:#ffffff; /* stark black chrome */
+  --ink:#000000; --muted:#3d3d3d; --faint:#595959;
+  --bg:#ffffff; --pane:#ffffff; --line:#000000; --line-2:#e8e8e8; --field:#ffffff;
+  --good:#008300; --warn:#b06a00; --bad:#c00000;
+  --shadow:0 1px 3px rgba(0,0,0,.14); --shadow-lg:0 12px 40px rgba(0,0,0,.28);
+}
+html[data-app-theme='high-contrast'][data-theme='dark']{
+  --brand:#5b9bff; --pdc:#ff6b6b;
+  --ink:#ffffff; --muted:#d9d9d9; --faint:#bfbfbf;
+  --bg:#000000; --pane:#0a0a0a; --line:#ffffff; --line-2:#1a1a1a; --field:#0a0a0a;
+  --good:#38d16a; --warn:#e6b400; --bad:#ff6b6b;
+  --shadow:0 1px 3px rgba(0,0,0,.6); --shadow-lg:0 16px 46px rgba(0,0,0,.7);
+}
+html[data-app-theme='editorial']{
+  --brand:#8a3324; --pdc:#2f4858;
+  --topbar-bg:linear-gradient(100deg,#221c15,#2b241c 58%,#3a3024); --topbar-ink:#f2ece0; /* paper-and-ink chrome */
+  --ink:#2b241c; --muted:#6b5f4d; --faint:#8c8069;
+  --bg:#f7f3ea; --pane:#fffdf8; --line:#d8cdb8; --line-2:#efe8d8; --field:#fffdf8;
+  --good:#2f8a3f; --warn:#b8842a; --bad:#a83a2a;
+  --shadow:0 1px 3px rgba(60,45,20,.09); --shadow-lg:0 12px 40px rgba(60,45,20,.18);
+}
+html[data-app-theme='editorial'][data-theme='dark']{
+  --brand:#c97b5e; --pdc:#5a90a3;
+  --topbar-bg:linear-gradient(100deg,#0f0c07,#141009 58%,#1f1710); --topbar-ink:#f2ece0;
+  --ink:#f2ece0; --muted:#b8ac95; --faint:#8f8570;
+  --bg:#1c1712; --pane:#24201a; --line:#3d362b; --line-2:#2c261f; --field:#24201a;
+  --good:#3f9c58; --warn:#b8842a; --bad:#c96a4a;
+  --shadow:0 1px 3px rgba(0,0,0,.45); --shadow-lg:0 16px 46px rgba(0,0,0,.6);
+}
+html[data-app-theme='neon']{
+  --brand:#0891b2; --pdc:#c2185b;
+  --topbar-bg:linear-gradient(100deg,#000000,#0a0010 55%,#180022); --topbar-ink:#e6f7ff; /* neon-on-black chrome (light + dark) */
+  --ink:#14101d; --muted:#4f4a63; --faint:#6f6885;
+  --bg:#fafafa; --pane:#ffffff; --line:#e2dfea; --line-2:#f1eff7; --field:#ffffff;
+  --good:#00a86b; --warn:#b8860b; --bad:#e0342a;
+  --shadow:0 1px 3px rgba(20,16,29,.09); --shadow-lg:0 12px 40px rgba(20,16,29,.18);
+}
+html[data-app-theme='neon'][data-theme='dark']{
+  --brand:#22d3ee; --pdc:#ff3fd0;
+  --topbar-bg:linear-gradient(100deg,#000000,#0a0010 55%,#14001a); --topbar-ink:#eafcff;
+  --ink:#f5f3fb; --muted:#a9a3c0; --faint:#7a7492;
+  --bg:#050507; --pane:#0d0d13; --line:#26232f; --line-2:#131018; --field:#0d0d13;
+  --good:#22c55e; --warn:#c1811f; --bad:#f0524a;
+  --shadow:0 1px 3px rgba(0,0,0,.55); --shadow-lg:0 16px 46px rgba(0,0,0,.7);
+}
 /* ── Polecat Shell token bridge ──────────────────────────────────────────────
    vendor/polecat-shell/tokens.css (loaded BEFORE this file) defines the fleet's
    canonical token vocabulary; this block re-expresses those canonical names in
@@ -242,6 +297,15 @@ html[data-app-theme='modern'] #railNav{--rail-bg:#0d1a2e;--rail-bg2:#152540;--ra
    Studio.DASHBOARD_THEMES' "conservation" entry, same pairing convention as Fleet Modern's rail above. */
 html[data-app-theme='conservation'] #railNav{--rail-bg:#10432e;--rail-bg2:#1a5c40;--rail-ink:#eaf1df;
   --rail-line:rgba(234,241,223,.12)}
+/* #113: rails for the three parity themes reuse each one's own sidebar/header-bg
+   (High Contrast + Neon are near-black in both modes, Editorial is warm ink), same
+   pairing convention as Fleet Modern / Conservation above. */
+html[data-app-theme='high-contrast'] #railNav{--rail-bg:#000000;--rail-bg2:#1a1a1a;--rail-ink:#ffffff;
+  --rail-line:rgba(255,255,255,.2)}
+html[data-app-theme='editorial'] #railNav{--rail-bg:#2b241c;--rail-bg2:#3a3024;--rail-ink:#f2ece0;
+  --rail-line:rgba(242,236,224,.12)}
+html[data-app-theme='neon'] #railNav{--rail-bg:#000000;--rail-bg2:#180022;--rail-ink:#e6f7ff;
+  --rail-line:rgba(230,247,255,.16)}
 #railNav.expanded{width:184px}
 /* Z12: persistent brand mark anchored at the top of the rail — the app's identity
    lives here (not a redundant letter-box in the content header); click returns Home. */
@@ -317,6 +381,9 @@ html[data-app-theme='conservation'] #railNav{--rail-bg:#10432e;--rail-bg2:#1a5c4
 html[data-app-theme='classic'] #mobileNavBtn{background:#0f1c33;border-color:rgba(234,241,251,.16);color:#eaf1fb}
 html[data-app-theme='modern'] #mobileNavBtn{background:#0d1a2e;border-color:rgba(233,239,248,.16);color:#e9eff8}
 html[data-app-theme='conservation'] #mobileNavBtn{background:#10432e;border-color:rgba(234,241,223,.16);color:#eaf1df}
+html[data-app-theme='high-contrast'] #mobileNavBtn{background:#000000;border-color:rgba(255,255,255,.28);color:#ffffff}
+html[data-app-theme='editorial'] #mobileNavBtn{background:#2b241c;border-color:rgba(242,236,224,.16);color:#f2ece0}
+html[data-app-theme='neon'] #mobileNavBtn{background:#000000;border-color:rgba(230,247,255,.2);color:#e6f7ff}
 #mobileNavBtn:active{opacity:.85}
 @media(max-width:900px){
   #railNav{position:fixed;top:0;bottom:0;left:0;width:min(82vw,272px);
