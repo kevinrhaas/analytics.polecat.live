@@ -2245,7 +2245,13 @@
     var sec = section(body, "Dashboard", null, null, "builder", "gear");
     var titleInput = input(sp.title, function (v) { sp.title = v; syncHeader(); refreshPreview(); });
     titleInput.id = "dashTitleField"; // Z6: the topbar's "rename" button focuses this field
-    sec.appendChild(field("Title", titleInput));
+    // LF62 slice 4 (live-QA queue, LF62 slice 3's own NEXT pointer): the same sparkle
+    // name-suggest button, wired into the Dashboard inspector's own Title field —
+    // ctx supplies the spec's own panels so Studio.nameSuggest can derive a name from
+    // whichever panel source shows up most often.
+    sec.appendChild(field("Title", withSparkleButton(titleInput, "dashboard", function () {
+      return { panels: sp.panels || [] };
+    })));
     sec.appendChild(field("File name (stem)", input(sp.name, function (v) { sp.name = v.trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-"); syncHeader(); }, "lowercase-with-dashes → " + sp.name + ".html / .cda")));
     sec.appendChild(field("Subtitle", input(sp.subtitle, function (v) { sp.subtitle = v; refreshPreview(); })));
 

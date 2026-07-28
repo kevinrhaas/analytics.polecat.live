@@ -116,6 +116,27 @@
   Do NOT relicense or add notices to vendored third-party toolkit files.
 
 ## DONE
+- **LF62 slice 4 — the sparkle name-suggest button now also lives on the Dashboard
+  inspector's own "Title" field (v657, sw v294, 2026-07-28, steward — LIVE-QA QUEUE,
+  LF62 slice 3's own NEXT pointer):** slice 3 flagged dashboard/View/preset/folder name
+  fields as the remaining open slices, each needing its own new heuristic since none of
+  them have the "source"-shaped context dataset/job/connection had. This slice takes
+  the dashboard Title field: `Studio.nameSuggest` gains a `"dashboard"` kind
+  (app/model.js) that derives a name from the spec's OWN panels — the most-common
+  panel `src` (a short provenance caption already set at panel-creation time, e.g.
+  `entity_storage_demo`) across `ctx.panels`, falling back to a panel `title` with its
+  trailing `" · <chart type>"` suffix stripped when no panel has a `src` yet — then
+  titleizes it, same as every other kind. `app/studio.js`'s Dashboard-inspector "Title"
+  field (`#dashTitleField`) is now wrapped in `withSparkleButton(titleInput,
+  "dashboard", ...)`, same shape as the dataset/job/connection wiring, with `getCtx()`
+  reading `sp.panels` (the currently-open spec) lazily at click time. 1 new regression
+  test, reusing the studio-cost example (5 of its 6 panels share the
+  `entity_storage_demo` src, so the sparkle suggests "Entity Storage Demo"). NEXT in
+  LF62: View, preset, and folder name fields remain open — each its own small slice,
+  each needing a fresh heuristic (a View's context is closer to a dataset's; presets
+  and folders have no natural "source" at all, so those two may end up suggesting from
+  the object(s) being saved into them instead). Files: app/model.js, app/studio.js,
+  tests/run.js, sw.js, js/changelog.js.
 - **LF62 slice 3 — the sparkle name-suggest button now also lives on the connection
   wizard's "Connection name" field (v656, sw v293, 2026-07-28, steward — LIVE-QA QUEUE,
   LF62 slice 2's own NEXT pointer):** slice 2 flagged the connection wizard as the other
@@ -5549,9 +5570,12 @@
 >       `withSparkleButton` (studio.js, exposed via `coreModuleDeps()`) are the reusable pieces.
 >       ✓ **Slice 2 shipped (2026-07-28, v652, steward): the Jobs editor's "Job name" field**
 >       — see DONE. ✓ **Slice 3 shipped (2026-07-28, v656, steward): the connection wizard's
->       "Connection name" field** — see DONE. NEXT is wiring the same button into
->       dashboard/View/preset/folder name fields, one small slice each (bigger slices — no
->       existing "source"-shaped context to derive from the way dataset/job/connection had).
+>       "Connection name" field** — see DONE. ✓ **Slice 4 shipped (2026-07-28, v657, sw v294,
+>       steward): the Dashboard inspector's "Title" field**, deriving a name from the
+>       dashboard's own most-common panel source — see DONE. NEXT is wiring the same button
+>       into the View, preset, and folder name fields, one small slice each — each needs its
+>       own fresh heuristic (no existing "source"-shaped context the way dataset/job/
+>       connection/dashboard had).
 > LF63. **Connection/dataset QUERY BUILDER — see tables/columns, assisted build, validate, test.** For a
 >       connection you can browse the available tables, you should be able to SEE and USE them when building
 >       a dataset: a table/column browser (already have schema for some adapters) feeding an assisted
