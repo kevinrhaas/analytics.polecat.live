@@ -6,6 +6,16 @@
    window.STUDIO_CHANGELOG for the in-app footer + "What's new" panel. */
 export const CHANGELOG = [
   {
+    v: 648,
+    title: 'A guided tour for the Conservation Insight sample pack',
+    kind: 'feature',
+    ts: '2026-07-28T07:50:45.000Z',
+    items: [
+      'Installing the Conservation Insight sample pack now offers its own guided tour (⋯ More → Interactive tutorial), walking the featured dashboard\'s three choropleth scales — county, watershed (HUC8), and state — and the geography story behind them.',
+      'The tour only appears once that pack is installed; the mechanism generalizes to future sample packs\' own tours.',
+    ],
+  },
+  {
     v: 647,
     title: 'Studio: the empty canvas now offers Quick import too',
     kind: 'feature',
